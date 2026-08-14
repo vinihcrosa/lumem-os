@@ -19,6 +19,7 @@
     "gate:build": "turbo typecheck && turbo build"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.10.2",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2",

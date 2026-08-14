@@ -10,6 +10,10 @@ build/
 .env
 .env.local
 
+playwright-report/
+test-results/
+blob-report/
+
 .DS_Store
 *.log
 
