@@ -1,6 +1,6 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O projeto está na fase de definição: não existe código ainda.
+Índice de tudo. O projeto está implementando a primeira feature, [walking-skeleton](prd/walking-skeleton/tasks.md).
 
 ---
 
@@ -20,6 +20,7 @@ Lendo nesta ordem você entende o projeto inteiro em três documentos:
 |---|---|
 | [vision.md](project/vision.md) | Visão, hierarquia pretendida, o que o Vinicius quer do sistema |
 | [questions.md](project/questions.md) | 96 perguntas de design em duas rodadas. Fonte de verdade das decisões de longo prazo, respondida aos poucos |
+| [testing.md](project/testing.md) | Matriz de cobertura, o que cada gate garante, e as armadilhas de teste já corrigidas |
 
 ---
 

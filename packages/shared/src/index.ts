@@ -1,3 +1,2 @@
-export const LUMEM_VERSION = "0.0.0";
-
+export * from "./constants.js";
 export * from "./ids.js";

@@ -6,7 +6,8 @@ export default defineConfig({
   test: {
     name: "web",
     environment: "jsdom",
-    globals: true,
+    // No `globals` — every test imports from "vitest" explicitly, and enabling
+    // it without the matching tsconfig types is config that does nothing.
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.tsx", "src/**/*.test.ts"],
   },

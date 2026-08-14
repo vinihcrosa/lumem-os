@@ -1,12 +1,21 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import { defineConfig, devices } from "@playwright/test";
 
-const WEB_PORT = 4318;
-const SERVER_PORT = 4317;
+const ports = JSON.parse(
+  readFileSync(fileURLToPath(new URL("./ports.json", import.meta.url)), "utf8"),
+) as Record<string, number>;
 
-// E2E must never touch the developer's real ~/.lumem state.
-const E2E_STATE_DIR = new URL(".lumem-e2e/", import.meta.url).pathname;
+// Dedicated ports, deliberately not the dev defaults. E2E owns a daemon with
+// throwaway state; if it could attach to the developer's running daemon it
+// would create and delete worktrees in the real ~/.lumem.
+const SERVER_PORT = ports["e2eServer"];
+const WEB_PORT = ports["e2eWeb"];
 
-const reuseExistingServer = !process.env["CI"];
+// fileURLToPath, not URL.pathname: pathname is percent-encoded, so a checkout
+// under a path with a space produces a literal "Meus%20Projetos" directory.
+const STATE_DIR = fileURLToPath(new URL(".lumem-e2e/", import.meta.url));
 
 export default defineConfig({
   testDir: "./e2e",
@@ -28,15 +37,23 @@ export default defineConfig({
       url: `http://127.0.0.1:${SERVER_PORT}/trpc/health`,
       env: {
         LUMEM_PORT: String(SERVER_PORT),
-        LUMEM_STATE_DIR: E2E_STATE_DIR,
+        LUMEM_STATE_DIR: STATE_DIR,
       },
-      reuseExistingServer,
+      // Never reuse: reuse skips the spawn, and skipping the spawn silently
+      // drops the env above — including the throwaway state dir.
+      reuseExistingServer: false,
       timeout: 60_000,
     },
     {
       command: "pnpm --filter @lumem/web dev",
       url: `http://127.0.0.1:${WEB_PORT}`,
-      reuseExistingServer,
+      // The web server needs the daemon port too, otherwise its proxy keeps
+      // pointing at the dev default while the daemon listens elsewhere.
+      env: {
+        LUMEM_PORT: String(SERVER_PORT),
+        LUMEM_WEB_PORT: String(WEB_PORT),
+      },
+      reuseExistingServer: false,
       timeout: 60_000,
     },
   ],

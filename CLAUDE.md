@@ -6,16 +6,30 @@ Projeto pessoal. Inspirado em compozy, superset e conductor — **não copia nad
 
 ## Estado atual
 
-Fase de definição. **Ainda não existe código.** Tudo vive em [docs/](docs/) — comece pelo [índice](docs/README.md).
+Implementando a primeira feature: [walking-skeleton](docs/prd/walking-skeleton/tasks.md). Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
 |---|---|
 | [docs/project/vision.md](docs/project/vision.md) | visão do projeto, escrita pelo Vinicius |
 | [docs/project/questions.md](docs/project/questions.md) | perguntas de design do projeto, respondidas aos poucos |
+| [docs/project/testing.md](docs/project/testing.md) | matriz de cobertura, gates, e as armadilhas já corrigidas |
 | [docs/references/](docs/references/) | estudo das três referências + comparativo |
 | [docs/prd/](docs/prd/) | PRD, decisões e tasks por feature |
 
 Construção é incremental: uma parte por vez, bem feita, antes de ir pra próxima.
+
+## Código
+
+Monorepo pnpm + Turborepo. `packages/shared` (contratos), `packages/server` (daemon Fastify + tRPC), `packages/web` (React + Vite).
+
+| Comando | O quê |
+|---|---|
+| `pnpm dev` | sobe daemon e web juntos |
+| `pnpm gate:quick` | testes afetados pelo trabalho atual |
+| `pnpm gate:full` | suíte inteira + e2e |
+| `pnpm gate:build` | typecheck de tudo + build |
+
+Antes de dizer que uma task está pronta, rode o gate que ela declara. Detalhes em [docs/project/testing.md](docs/project/testing.md).
 
 ## Regra de documentação
 

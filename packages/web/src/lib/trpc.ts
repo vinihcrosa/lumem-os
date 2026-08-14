@@ -1,12 +1,13 @@
-import type { AppRouter } from "@lumem/server";
-import { createTRPCClient, httpBatchLink } from "@trpc/client";
+import type { AppRouter } from "@lumem/server/router-types";
+import { createTRPCClient, httpBatchLink, type TRPCClient } from "@trpc/client";
 
 /**
  * Vanilla tRPC client driven by TanStack Query at the call site.
  *
- * The typed client comes from the server's router type, so a procedure
- * signature change breaks the web build rather than failing at runtime.
+ * The return type is annotated explicitly rather than inferred: the inferred
+ * type reaches into the server package's internals, which the web package
+ * cannot name when emitting declarations (TS2742).
  */
-export const trpc = createTRPCClient<AppRouter>({
+export const trpc: TRPCClient<AppRouter> = createTRPCClient<AppRouter>({
   links: [httpBatchLink({ url: "/trpc" })],
 });

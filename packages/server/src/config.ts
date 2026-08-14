@@ -1,6 +1,8 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+import { DEFAULT_SERVER_PORT } from "@lumem/shared";
+
 export interface ServerConfig {
   /** TCP port the HTTP server binds to. */
   port: number;
@@ -14,23 +16,41 @@ export interface ServerConfig {
   worktreesDir: string;
 }
 
-function envInt(name: string, fallback: number): number {
-  const raw = process.env[name];
-  if (raw === undefined || raw === "") return fallback;
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 65535) {
-    throw new Error(`${name} must be an integer between 0 and 65535, got: ${raw}`);
+/** Only the variables this module reads. Keeps tests from touching process.env. */
+export type ConfigEnv = Partial<
+  Record<"LUMEM_PORT" | "LUMEM_HOST" | "LUMEM_STATE_DIR" | "LUMEM_DB_PATH", string>
+>;
+
+function readPort(raw: string | undefined): number {
+  if (raw === undefined || raw === "") return DEFAULT_SERVER_PORT;
+
+  // parseInt stops at the first invalid character, so "4317abc" and "80.9"
+  // would both parse to something plausible-looking. Reject them outright.
+  const trimmed = raw.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    throw new Error(`LUMEM_PORT must be an integer between 0 and 65535, got: ${raw}`);
+  }
+
+  const parsed = Number.parseInt(trimmed, 10);
+  if (parsed > 65535) {
+    throw new Error(`LUMEM_PORT must be an integer between 0 and 65535, got: ${raw}`);
   }
   return parsed;
 }
 
-export function loadConfig(): ServerConfig {
-  const stateDir = process.env["LUMEM_STATE_DIR"] ?? join(homedir(), ".lumem");
+/**
+ * Reads configuration from an environment map.
+ *
+ * The map is a parameter rather than a direct `process.env` read so tests can
+ * pass a literal instead of mutating (and having to restore) global state.
+ */
+export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
+  const stateDir = env.LUMEM_STATE_DIR ?? join(homedir(), ".lumem");
   return {
-    port: envInt("LUMEM_PORT", 4317),
-    host: process.env["LUMEM_HOST"] ?? "127.0.0.1",
+    port: readPort(env.LUMEM_PORT),
+    host: env.LUMEM_HOST ?? "127.0.0.1",
     stateDir,
-    databasePath: process.env["LUMEM_DB_PATH"] ?? join(stateDir, "lumem.db"),
+    databasePath: env.LUMEM_DB_PATH ?? join(stateDir, "lumem.db"),
     worktreesDir: join(stateDir, "worktrees"),
   };
 }

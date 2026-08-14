@@ -37,7 +37,7 @@ Pacotes: `packages/server`, `packages/web`, `packages/shared`.
 
 ## Matriz de cobertura de testes
 
-Não existe `TESTING.md` — projeto é greenfield. Esta matriz é a fonte de verdade e deve virar `TESTING.md` quando o repo nascer.
+> Movida para [docs/project/testing.md](../../project/testing.md), que é a fonte de verdade. A cópia abaixo fica como referência rápida.
 
 | Camada | Teste exigido | Parallel-safe |
 |---|---|---|
@@ -56,9 +56,11 @@ Não existe `TESTING.md` — projeto é greenfield. Esta matriz é a fonte de ve
 
 | Gate | Comando |
 |---|---|
-| `quick` | `pnpm vitest run --changed` |
-| `full` | `pnpm vitest run && pnpm playwright test` |
-| `build` | `pnpm tsc --noEmit && pnpm turbo build` |
+| `quick` | `pnpm gate:quick` |
+| `full` | `pnpm gate:full` |
+| `build` | `pnpm gate:build` |
+
+Os comandos por trás dos scripts mudaram em relação ao plano original — `--changed` sem argumento e `tsc --noEmit` na raiz passavam sem verificar nada. O porquê está em [testing.md](../../project/testing.md).
 
 ---
 
@@ -198,7 +200,8 @@ T33 e T34 são e2e — sequenciais por obrigação.
 **Done when**:
 - [ ] Servidor sobe numa porta configurável por env
 - [ ] `appRouter` exportado com `health` retornando `{ ok: true, version }`
-- [ ] Tipo `AppRouter` exportado por `shared` pro cliente consumir
+- [ ] Tipo `AppRouter` alcançável pelo cliente **sem** dar a ele acesso ao runtime do servidor
+  <br>⚠️ *Desvio do plano original, que dizia "exportado por `shared`". Isso criaria ciclo `shared → server → shared`. O tipo sai por `@lumem/server/router-types`, um módulo só de `export type` que compila para vazio — o `web` não consegue importar fastify por acidente.*
 - [ ] Desligamento gracioso em `SIGINT`/`SIGTERM`
 - [ ] Teste de integração chama `health` e recebe `ok`
 - [ ] Gate check passa: `pnpm vitest run --changed`
