@@ -14,13 +14,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "gate:quick": "node scripts/gate-quick.mjs",
+    "gate:quick": "tsx scripts/run-gate-quick.ts",
     "gate:full": "vitest run && playwright test",
     "gate:build": "pnpm typecheck && turbo build"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@types/node": "^22.10.2",
+    "tsx": "^4.23.12",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2",
     "vitest": "^3.0.5"
