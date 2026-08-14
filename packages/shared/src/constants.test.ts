@@ -3,6 +3,11 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+// Imported, not read: `vitest --changed` selects tests through the module
+// graph, and a readFileSync is invisible to it. Editing ports.json has to
+// select this test, otherwise the guard against port drift never fires on the
+// quick gate.
+import ports from "../../../ports.json" with { type: "json" };
 import { DEFAULT_SERVER_PORT, DEFAULT_WEB_PORT, LUMEM_VERSION } from "./constants.js";
 
 function readJson<T>(relative: string): T {
@@ -19,8 +24,6 @@ describe("LUMEM_VERSION", () => {
 });
 
 describe("default ports", () => {
-  const ports = readJson<Record<string, number>>("../../../ports.json");
-
   it("matches ports.json, which the vite and playwright configs read", () => {
     // The only thing preventing the dev proxy from silently pointing at a
     // different process than the daemon actually binds to.

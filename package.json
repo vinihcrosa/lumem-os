@@ -14,12 +14,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "gate:quick": "vitest run --changed HEAD^",
+    "gate:quick": "node scripts/gate-quick.mjs",
     "gate:full": "vitest run && playwright test",
     "gate:build": "pnpm typecheck && turbo build"
   },
   "devDependencies": {
-    "@lumem/shared": "workspace:*",
     "@playwright/test": "^1.62.1",
     "@types/node": "^22.10.2",
     "turbo": "^2.3.3",

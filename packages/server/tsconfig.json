@@ -1,8 +1,13 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
+    // nodenext, not bundler: this package runs on node. bundler resolution
+    // accepts extensionless and directory imports that node ESM rejects, and
+    // it relaxes the CJS interop rules that matter for node-pty and
+    // better-sqlite3 — turning compile-time errors into runtime ones.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "types": ["node"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "vitest.config.ts"]
 }

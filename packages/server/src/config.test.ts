@@ -36,6 +36,11 @@ describe("loadConfig", () => {
     expect(loadConfig({ LUMEM_PORT: "" }).port).toBe(DEFAULT_SERVER_PORT);
   });
 
+  it("tolerates surrounding whitespace", () => {
+    // Deliberate: a value pasted from a shell often carries padding.
+    expect(loadConfig({ LUMEM_PORT: " 4317 " }).port).toBe(4317);
+  });
+
   it.each(["not-a-port", "4317abc", "80.9", "-1", "0x10", " ", "4317:"])(
     "rejects the malformed port %j",
     (value) => {

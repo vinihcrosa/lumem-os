@@ -152,7 +152,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] `pnpm install` roda sem erro
 - [ ] Os três pacotes existem com `package.json` e `tsconfig.json` próprios
 - [ ] `shared` é importável por `server` e `web` via referência de workspace
-- [ ] `pnpm tsc --noEmit` passa em todos
+- [ ] `pnpm gate:build` passa (typecheck de todos os pacotes, `e2e/` e os configs)
 - [ ] `.gitignore` cobre `node_modules`, `dist`, `*.db`
 
 **Verify**: `pnpm turbo build` completa sem erro.
@@ -175,8 +175,8 @@ T33 e T34 são e2e — sequenciais por obrigação.
 **Done when**:
 - [ ] Vitest roda nos três pacotes com um teste trivial em cada
 - [ ] Playwright instalado com um teste trivial que sobe e derruba o servidor
-- [ ] `pnpm vitest run --changed` funciona
-- [ ] `pnpm vitest run && pnpm playwright test` funciona
+- [ ] `pnpm gate:quick` funciona
+- [ ] `pnpm gate:full` funciona
 - [ ] Testing Library configurada no `web`
 - [ ] Test count: 4 testes passam (3 unit triviais + 1 e2e trivial)
 
@@ -204,7 +204,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
   <br>⚠️ *Desvio do plano original, que dizia "exportado por `shared`". Isso criaria ciclo `shared → server → shared`. O tipo sai por `@lumem/server/router-types`, um módulo só de `export type` que compila para vazio — o `web` não consegue importar fastify por acidente.*
 - [ ] Desligamento gracioso em `SIGINT`/`SIGTERM`
 - [ ] Teste de integração chama `health` e recebe `ok`
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: 1 teste novo passa
 
 **Verify**: `curl` no endpoint de health devolve 200.
@@ -230,7 +230,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] A tela renderiza o resultado de `health`, provando a ponta a ponta tipada
 - [ ] Autocomplete do `AppRouter` funciona no editor (checagem manual)
 - [ ] Teste de componente monta o App com cliente tRPC mockado
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: 1 teste novo passa
 
 **Verify**: abrir o navegador e ver a versão do servidor na tela.
@@ -263,7 +263,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Ring buffer trunca em 10 mil linhas descartando as mais antigas
 - [ ] `getBuffer(id)` devolve o conteúdo pra repaint
 - [ ] Múltiplas sessões simultâneas não vazam nem se misturam
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥8 testes passam
 
 **Verify**: teste de integração faz spawn de `bash -c 'echo hello'`, lê o buffer, confirma `hello` e exit code 0.
@@ -292,7 +292,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Desconectar **não** mata a sessão
 - [ ] Reanexar depois de desconectar entrega o buffer atualizado
 - [ ] Anexar em id inexistente devolve erro tipado e fecha limpo
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥7 testes passam
 
 **Verify**: teste de integração anexa, escreve, desconecta, espera output, reanexa e confirma que o que passou durante a desconexão está no buffer.
@@ -320,7 +320,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Desmontar o componente fecha o socket **sem** matar a sessão
 - [ ] Remontar reanexa e repinta a partir do buffer
 - [ ] Teste de componente com socket mockado cobre montar, receber output, mandar tecla e desmontar
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥4 testes passam
 
 **Verify**: teste de componente confirma que bytes recebidos aparecem no buffer do xterm.
@@ -346,7 +346,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Alternar de sessão **não** mata a anterior
 - [ ] Botão de fechar encerra a sessão
 - [ ] Teste de integração cobre a procedure
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥3 testes passam
 
 **Verify**: abrir a tela, rodar `ls`, ver a saída.
@@ -373,7 +373,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Abre contexto novo, reanexa na mesma sessão
 - [ ] **Confere que a saída produzida durante a ausência está no buffer**
 - [ ] Confere que o processo continua vivo e aceita input novo
-- [ ] Gate check passa: `pnpm vitest run && pnpm playwright test`
+- [ ] Gate check passa: `pnpm gate:full`
 - [ ] Test count: 1 teste e2e novo passa
 
 **Verify**: `pnpm playwright test session-survives-client` verde.
@@ -406,7 +406,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Migração roda em banco vazio e é idempotente
 - [ ] Caminho do banco configurável, default `~/.lumem/lumem.db`
 - [ ] Teste de integração cria banco temporário, roda migração e valida cada constraint
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥6 testes passam
 
 **Verify**: `pnpm drizzle-kit` gera sem drift; inspeção do schema bate com o PRD §6.
@@ -430,7 +430,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] `withTestDb()` cria SQLite em arquivo temporário, roda migração, devolve handle e limpa no fim
 - [ ] Dois testes em paralelo não compartilham banco (requisito de parallel-safe da matriz)
 - [ ] Erro de constraint do SQLite vira erro tipado de domínio, não vaza o erro cru
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥3 testes passam
 
 **Verify**: rodar a suíte com concorrência e confirmar zero interferência.
@@ -456,7 +456,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] `create`, `list`, `rename`, `remove`, `findById`
 - [ ] Nome duplicado devolve erro tipado
 - [ ] `remove` com projetos vinculados devolve erro tipado (F1.5)
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥6 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -478,7 +478,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] `list`, `create`, `rename`, `remove` expostas
 - [ ] Entrada validada com Zod, nome não vazio e com limite de tamanho
 - [ ] Erros de domínio viram `TRPCError` com código adequado
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥5 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -502,7 +502,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Seletor lista os workspaces e troca o ativo
 - [ ] Workspace ativo persiste entre reloads
 - [ ] Teste de componente cobre estado vazio, criação e troca
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥4 testes passam
 
 **Tests**: unit · **Gate**: quick
@@ -526,7 +526,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] `resolveDefaultBranch(path)` usa o `HEAD` do remote origin, caindo pra branch atual quando não há remote
 - [ ] Erro do git é propagado **literal**, sem tradução (PRD §8)
 - [ ] Testes criam repos git temporários de verdade: com remote, sem remote, não-repo, subdiretório
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥8 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -549,7 +549,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] `path` duplicado devolve erro tipado
 - [ ] Nome duplicado dentro do mesmo workspace devolve erro tipado
 - [ ] `remove` com worktrees vinculadas devolve erro tipado (F2.5)
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥6 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -574,7 +574,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] `default_branch` é resolvida e gravada na adição
 - [ ] `list` marca como indisponível o projeto cujo path sumiu do disco (PRD §8)
 - [ ] `remove` não toca no disco (F2.5)
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥8 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -598,7 +598,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Clicar num projeto mostra o detalhe na área principal
 - [ ] Projeto indisponível é sinalizado visualmente e tem as ações bloqueadas
 - [ ] Teste de componente cobre lista, adição com sucesso, adição com erro e seleção
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥5 testes passam
 
 **Tests**: unit · **Gate**: quick
@@ -626,7 +626,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] `removeWorktree(path, { force })` roda `git worktree remove`, **sem** apagar a branch (F4.7)
 - [ ] Falha do git não deixa estado parcial
 - [ ] Testes usam repos temporários reais, incluindo o caso de nome com barra
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥8 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -649,7 +649,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Arquivo não rastreado conta como sujo
 - [ ] `getAheadBehind(path, baseBranch)` devolve os dois números
 - [ ] Testes cobrem: limpa, com modificação, com arquivo novo, à frente, atrás
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥6 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -671,7 +671,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] `create`, `listByProject`, `remove`, `findById`, `markMissing`
 - [ ] Nome duplicado no mesmo projeto devolve erro tipado
 - [ ] `state` aceita só `active` e `missing`
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥5 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -696,7 +696,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] `list` devolve nome, branch, caminho e estado
 - [ ] `remove` bloqueia quando suja, informando a contagem, e aceita `force` explícito (F4.8)
 - [ ] `getDetail` devolve branch, caminho, limpeza e ahead/behind (F4.10)
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥9 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -720,7 +720,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Reconciliação roda antes de o servidor aceitar conexão
 - [ ] Erro em um projeto não aborta a reconciliação dos outros
 - [ ] Teste apaga o diretório por fora, roda a reconciliação e confirma o `missing`
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥4 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -744,7 +744,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Worktree `missing` aparece visualmente distinta
 - [ ] Indicador de carregando durante a criação, que não é instantânea
 - [ ] Teste de componente cobre expandir, criar com sucesso, criar com erro e estado missing
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥5 testes passam
 
 **Tests**: unit · **Gate**: quick
@@ -767,7 +767,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Ação de remover, exibindo o motivo do bloqueio quando houver
 - [ ] Confirmação explícita para o caso de forçar
 - [ ] Teste de componente cobre limpa, suja e remoção bloqueada
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥4 testes passam
 
 **Tests**: unit · **Gate**: quick
@@ -792,7 +792,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Saída do processo atualiza `state = exited` e grava o `exit_code`
 - [ ] `listByScope` e `listRunning`
 - [ ] O ring buffer continua só em memória — sem persistência (PRD §7)
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥6 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -814,7 +814,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Toda sessão `running` vira `exited` no boot — o PTY não sobrevive ao restart do daemon
 - [ ] Roda junto com a reconciliação de worktree, antes de aceitar conexão
 - [ ] Teste grava sessão `running`, simula restart e confirma o `exited`
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥2 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -839,7 +839,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] `isAvailable(config)` resolve o comando no `PATH` do servidor
 - [ ] `list` devolve a flag de disponibilidade junto (F6.5)
 - [ ] Teste cobre comando existente e comando inexistente
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥6 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -864,7 +864,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Shell usa o shell de login do usuário; agente usa o comando da config, herdando o ambiente mais o `env` declarado (F5.5)
 - [ ] `list`, `close`, `getDetail` com tipo, escopo, comando e estado (F5.10)
 - [ ] Escopo inexistente devolve erro tipado
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥9 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -887,7 +887,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] O bloqueio por sessão é verificado junto com o de worktree suja, e a mensagem diz qual dos dois é o motivo (PRD §5)
 - [ ] Remover projeto com worktree é bloqueado (F2.5)
 - [ ] Sessão `exited` **não** bloqueia
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥6 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -913,7 +913,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Sessão encerrada aparece distinta, com o buffer ainda legível (F5.9)
 - [ ] A tela provisória do T8 é removida
 - [ ] Teste de componente cobre listar, abrir shell, abrir agente, agente indisponível e sessão encerrada
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥6 testes passam
 
 **Tests**: unit · **Gate**: quick
@@ -939,7 +939,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Sidebar reage sem refresh manual (F3.7)
 - [ ] Sessão que morre sozinha atualiza a sidebar
 - [ ] Cliente reconecta a subscription depois de queda e ressincroniza
-- [ ] Gate check passa: `pnpm vitest run --changed`
+- [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ≥5 testes passam
 
 **Tests**: integration · **Gate**: quick
@@ -966,7 +966,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Sobe agente direto no projeto principal, sem worktree (decisão WS-Q15)
 - [ ] Navega pra outro item e volta; a sessão continua viva com o conteúdo anterior
 - [ ] Encerra as sessões, remove a worktree, confere que sumiu do disco e da sidebar
-- [ ] Gate check passa: `pnpm vitest run && pnpm playwright test`
+- [ ] Gate check passa: `pnpm gate:full`
 - [ ] Test count: 1 teste e2e novo passa
 
 **Tests**: e2e · **Gate**: full
@@ -991,7 +991,7 @@ T33 e T34 são e2e — sequenciais por obrigação.
 - [ ] Remover worktree suja é bloqueado e a opção de forçar funciona
 - [ ] Config de agente com comando inexistente aparece indisponível e não deixa lançar
 - [ ] Worktree apagada por fora vira `missing` depois do restart do servidor, em vez de sumir
-- [ ] Gate check passa: `pnpm vitest run && pnpm playwright test`
+- [ ] Gate check passa: `pnpm gate:full`
 - [ ] Test count: 1 teste e2e novo passa
 
 **Tests**: e2e · **Gate**: full

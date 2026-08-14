@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
     "./router-types": "./src/router-types.ts"
   },
   "scripts": {

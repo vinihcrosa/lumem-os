@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["tsconfig.base.json"],
+  "globalDependencies": ["tsconfig.base.json", "ports.json"],
   "tasks": {
     "typecheck": {
       "dependsOn": ["^typecheck"]
@@ -10,7 +10,11 @@
       "outputs": ["dist/**"]
     },
     "test": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^typecheck"],
+      // Tests spawn real processes, real git repos and real sockets. A cached
+      // "pass" for a suite that never ran is the failure mode this repo has
+      // already been bitten by twice.
+      "cache": false
     },
     "dev": {
       "cache": false,
