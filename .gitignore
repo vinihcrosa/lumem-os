@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+.turbo/
+
+*.db
+*.db-journal
+*.db-wal
+
+.env
+.env.local
+
+.DS_Store
+*.log
+
+.agents/.skill-lock.json.backup
