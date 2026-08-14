@@ -2,59 +2,73 @@
  * Decision logic for the quick gate. Pure and importable; the entry point is
  * `run-gate-quick.ts`.
  *
- * Two failure modes to avoid, in opposite directions:
+ * Three failure modes, each one created by fixing the previous:
  *
  * 1. `vitest run --changed` with a clean tree — the state right after every
  *    commit — exits 0 having executed nothing. A gate that passes without
  *    running is worse than no gate.
  * 2. `passWithNoTests: false` alone turns every documentation-only commit red.
  *    A gate that cries wolf gets ignored, which kills it just as dead.
+ * 3. Routing dependency and config changes through `--changed` is the same
+ *    false red: those files are in no test's module graph, so vitest selects
+ *    nothing and the run fails with "No test files found". Every `pnpm add`
+ *    would go red.
  *
- * So: ask git whether any code actually changed. If none did, there is
- * genuinely nothing to run and that is a pass. If code did change, vitest must
- * select and run something, and a selection of zero is a failure. If git cannot
- * answer at all, run everything — "I don't know" must never look like "nothing
- * to do".
+ * Hence two categories of path. Files that live in the module graph route to
+ * `--changed`. Files that change behaviour globally — the lockfile, tsconfig,
+ * turbo.json — route to the full suite, because a dependency bump can break any
+ * test and `--changed` has no way to know that.
  */
 import { execFileSync } from "node:child_process";
 
 /**
- * Paths whose changes must be covered by tests.
- *
- * Git pathspecs match recursively, so `*.json` also covers
- * `packages/server/tsconfig.json`. The lockfile and the workspace manifest are
- * in here deliberately: a dependency bump changes runtime behaviour without
- * touching a line of TypeScript, and that is the change most likely to break a
- * test at runtime.
+ * Paths vitest can reason about through its module graph.
  */
-export const CODE_GLOBS = [
-  "packages/**",
-  "e2e/**",
-  "scripts/**",
-  "*.json",
-  "*.ts",
-  "*.yaml",
-  "*.yml",
-];
+export const GRAPH_GLOBS = ["packages/**", "e2e/**", "scripts/**", "*.ts"];
+
+/**
+ * Paths that change behaviour without appearing in any module graph.
+ *
+ * `pnpm-lock.yaml` is the important one: a dependency bump changes runtime
+ * behaviour without touching a line of TypeScript, and it is the change most
+ * likely to break a test. Git pathspecs match recursively, so `*.json` also
+ * covers `packages/server/tsconfig.json`.
+ */
+export const GLOBAL_GLOBS = ["*.json", "*.yaml", "*.yml"];
 
 export const DEFAULT_BASE = "HEAD^";
 
-export type Decision = { run: "all" } | { run: "none" } | { run: "changed" };
+export type DecisionReason = "unresolved-base" | "global-change" | "no-change" | "graph-change";
 
-/**
- * @param changed changed code files, or `null` when git could not resolve the
- *                base ref at all.
- */
-export function decide(changed: readonly string[] | null): Decision {
-  if (changed === null) return { run: "all" };
-  if (changed.length === 0) return { run: "none" };
-  return { run: "changed" };
+export interface Decision {
+  run: "all" | "none" | "changed";
+  reason: DecisionReason;
 }
 
-export function changedCodeFiles(base: string): string[] | null {
+/**
+ * @param graph  changed files vitest can trace, or `null` if git could not answer
+ * @param global changed dependency/config files, or `null` if git could not answer
+ */
+export function decide(
+  graph: readonly string[] | null,
+  global: readonly string[] | null,
+): Decision {
+  // "I don't know" must never be reported as "nothing to do".
+  if (graph === null || global === null) return { run: "all", reason: "unresolved-base" };
+  if (global.length > 0) return { run: "all", reason: "global-change" };
+  if (graph.length === 0) return { run: "none", reason: "no-change" };
+  return { run: "changed", reason: "graph-change" };
+}
+
+export function changedFiles(
+  globs: readonly string[],
+  base: string,
+  cwd?: string,
+): string[] | null {
   try {
-    const output = execFileSync("git", ["diff", "--name-only", base, "--", ...CODE_GLOBS], {
+    const output = execFileSync("git", ["diff", "--name-only", base, "--", ...globs], {
       encoding: "utf8",
+      ...(cwd === undefined ? {} : { cwd }),
       // Swallow git's own "fatal: bad revision": we translate it into a
       // decision, and letting it leak makes the gate's output read as if the
       // failure were in the test suite.
@@ -72,12 +86,14 @@ export function vitestArgs(decision: Decision, base: string): string[] {
 }
 
 export function describeDecision(decision: Decision, base: string, count: number): string {
-  switch (decision.run) {
-    case "none":
+  switch (decision.reason) {
+    case "no-change":
       return `gate:quick — no code changed since ${base}, nothing to run.`;
-    case "all":
+    case "unresolved-base":
       return `gate:quick — cannot resolve "${base}", running the full suite.`;
-    case "changed":
+    case "global-change":
+      return `gate:quick — dependency or config changed since ${base}, running the full suite.`;
+    case "graph-change":
       return `gate:quick — ${count} code file(s) changed since ${base}.`;
   }
 }

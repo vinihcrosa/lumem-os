@@ -1,12 +1,27 @@
+import { rmSync } from "node:fs";
+
 import { defineConfig, devices } from "@playwright/test";
 
 import { E2E_SERVER_PORT, E2E_STATE_DIR, E2E_WEB_PORT } from "./ports.js";
 
+/**
+ * Wipe the daemon's state before anything starts.
+ *
+ * This runs in the config module body on purpose, NOT in `globalSetup`:
+ * playwright starts the `webServer` processes *before* running globalSetup, so
+ * a cleanup there would delete the state directory out from under a daemon that
+ * already holds an open SQLite handle. The daemon would keep writing to an
+ * unlinked inode, the next run would find nothing to clean, and recreating the
+ * -wal/-shm files in a directory that no longer exists fails with
+ * SQLITE_CANTOPEN. The config body is evaluated before any of that.
+ *
+ * Without the wipe, run two inherits run one's workspaces and any test that
+ * creates a named workspace starts failing on a unique constraint.
+ */
+rmSync(E2E_STATE_DIR, { recursive: true, force: true });
+
 export default defineConfig({
   testDir: "./e2e",
-  // Wipes the daemon's state dir; without it the suite inherits the previous
-  // run's database and starts failing on unique constraints.
-  globalSetup: "./e2e/global-setup.ts",
   // E2E runs against a single daemon on a single port with shared state.
   // Parallelism here corrupts state instead of saving time.
   fullyParallel: false,

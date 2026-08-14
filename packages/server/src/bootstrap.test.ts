@@ -9,13 +9,19 @@ import { SHUTDOWN_SIGNALS } from "./signals.js";
 
 const started: FastifyInstance[] = [];
 
-async function boot(overrides: { port?: string } = {}) {
+async function boot(overrides: { port?: string; beforeClose?: () => Promise<void> } = {}) {
   const signalSource = new EventEmitter();
   const exit = vi.fn();
   // Port 0 lets the OS pick a free one — no fixed port to collide with.
   const config = loadConfig({ LUMEM_PORT: overrides.port ?? "0" });
 
-  const app = await bootstrap({ config, signalSource, exit, logger: false });
+  const app = await bootstrap({
+    config,
+    signalSource,
+    exit,
+    logger: false,
+    ...(overrides.beforeClose ? { beforeClose: overrides.beforeClose } : {}),
+  });
   started.push(app);
 
   return { app, signalSource, exit, config };
@@ -57,6 +63,38 @@ describe("bootstrap", () => {
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
 
     expect(app.server.listening).toBe(false);
+  });
+
+  it("runs beforeClose before closing the server", async () => {
+    // The seam for killing PTY children. app.close() knows nothing about them,
+    // so without this SIGTERM orphans every shell the daemon spawned.
+    let appRef: FastifyInstance | undefined;
+    const seen: { calls: number; listeningWhenCalled?: boolean } = { calls: 0 };
+
+    const { app, signalSource, exit } = await boot({
+      beforeClose: async () => {
+        seen.calls += 1;
+        seen.listeningWhenCalled = appRef?.server.listening;
+      },
+    });
+    appRef = app;
+
+    signalSource.emit("SIGTERM");
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+
+    expect(seen.calls).toBe(1);
+    expect(seen.listeningWhenCalled).toBe(true);
+    expect(app.server.listening).toBe(false);
+  });
+
+  it("still exits non-zero when beforeClose throws", async () => {
+    const { signalSource, exit } = await boot({
+      beforeClose: () => Promise.reject(new Error("pty kill failed")),
+    });
+
+    signalSource.emit("SIGTERM");
+
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(1));
   });
 
   it("exits non-zero when the port is already taken", async () => {

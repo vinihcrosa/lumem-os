@@ -1,18 +1,21 @@
 import { spawnSync } from "node:child_process";
 
 import {
-  changedCodeFiles,
+  changedFiles,
   decide,
   DEFAULT_BASE,
   describeDecision,
+  GLOBAL_GLOBS,
+  GRAPH_GLOBS,
   vitestArgs,
 } from "./gate-quick.js";
 
 const base = process.env["LUMEM_GATE_BASE"] ?? DEFAULT_BASE;
-const changed = changedCodeFiles(base);
-const decision = decide(changed);
+const graph = changedFiles(GRAPH_GLOBS, base);
+const globalChanges = changedFiles(GLOBAL_GLOBS, base);
+const decision = decide(graph, globalChanges);
 
-console.log(describeDecision(decision, base, changed?.length ?? 0));
+console.log(describeDecision(decision, base, graph?.length ?? 0));
 
 if (decision.run === "none") process.exit(0);
 

@@ -11,6 +11,14 @@ export interface BootstrapOptions {
   signalSource?: SignalSource;
   exit?: (code: number) => void;
   logger?: boolean;
+  /**
+   * Runs before the HTTP server closes, on shutdown.
+   *
+   * `app.close()` knows nothing about children the daemon spawned. Once PTYs
+   * exist, SIGTERM would close the HTTP server and orphan every shell — this is
+   * the seam where `ptyManager.killAll()` goes.
+   */
+  beforeClose?: () => Promise<void>;
 }
 
 /**
@@ -26,10 +34,21 @@ export async function bootstrap({
   signalSource = process,
   exit = (code) => process.exit(code),
   logger = true,
+  beforeClose,
 }: BootstrapOptions): Promise<FastifyInstance> {
   const app = await createServer({ config, logger });
 
-  installSignalHandlers(signalSource, createShutdownHandler({ target: app, exit }));
+  const target = {
+    log: app.log,
+    close: async () => {
+      // Children first: closing the HTTP server does not touch them, and once
+      // the process is gone nothing will.
+      if (beforeClose) await beforeClose();
+      await app.close();
+    },
+  };
+
+  installSignalHandlers(signalSource, createShutdownHandler({ target, exit }));
 
   try {
     await app.listen({ port: config.port, host: config.host });
