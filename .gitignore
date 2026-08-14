@@ -13,6 +13,7 @@ build/
 playwright-report/
 test-results/
 blob-report/
+.lumem-e2e/
 
 .DS_Store
 *.log
