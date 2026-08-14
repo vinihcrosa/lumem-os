@@ -1,6 +1,6 @@
 # Comparativo das referências
 
-> **O que este arquivo é:** um índice navegável e uma matriz factual dos três estudos. **Não tem opinião nem decisão** — isso é seu, e vai sair das respostas do [questions.md](../questions.md).
+> **O que este arquivo é:** um índice navegável e uma matriz factual dos três estudos. **Não tem opinião nem decisão** — isso é seu, e vai sair das respostas do [questions.md](../project/questions.md).
 >
 > Documentos completos: [compozy.md](compozy.md) (2.399 linhas) · [superset.md](superset.md) (~1.785) · [conductor.md](conductor.md) (1.521)
 >
@@ -183,7 +183,7 @@
 
 ## 12. Onde ler, por decisão
 
-Para responder as 8 perguntas travantes do [questions.md](../questions.md):
+Para responder as 8 perguntas travantes do [questions.md](../project/questions.md):
 
 | Decisão | Ler |
 |---|---|

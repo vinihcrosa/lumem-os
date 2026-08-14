@@ -1,6 +1,6 @@
 # Perguntas abertas — Walking Skeleton
 
-Escopo: **só esta versão**. Perguntas de projeto em geral ficam no [questions.md](../../../questions.md) da raiz.
+Escopo: **só esta versão**. Perguntas de projeto em geral ficam no [questions.md](../../project/questions.md).
 
 Responda no campo `**R:**` e marque `[x]`.
 
