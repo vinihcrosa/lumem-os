@@ -2,7 +2,7 @@
  * Decision logic for the quick gate. Pure and importable; the entry point is
  * `run-gate-quick.ts`.
  *
- * Three failure modes, each one created by fixing the previous:
+ * Four failure modes, each one created by fixing the previous:
  *
  * 1. `vitest run --changed` with a clean tree — the state right after every
  *    commit — exits 0 having executed nothing. A gate that passes without
@@ -11,34 +11,45 @@
  *    A gate that cries wolf gets ignored, which kills it just as dead.
  * 3. Routing dependency and config changes through `--changed` is the same
  *    false red: those files are in no test's module graph, so vitest selects
- *    nothing and the run fails with "No test files found". Every `pnpm add`
- *    would go red.
+ *    nothing and the run fails with "No test files found".
+ * 4. Classifying by directory prefix rather than by traceability leaks in both
+ *    directions: `packages/web/index.html` went red (it is under `packages/**`
+ *    but vitest cannot trace it) while `drizzle/0001.sql` went green (it is
+ *    under no listed prefix at all).
  *
- * Hence two categories of path. Files that live in the module graph route to
- * `--changed`. Files that change behaviour globally — the lockfile, tsconfig,
- * turbo.json — route to the full suite, because a dependency bump can break any
- * test and `--changed` has no way to know that.
+ * So the split is by what vitest can actually reason about. TypeScript sources
+ * live in the module graph and route to `--changed`. Everything else that is
+ * not documentation — a lockfile, a migration, an HTML shell, a stylesheet —
+ * runs the full suite, because it can break any test and `--changed` has no way
+ * to know which.
  */
 import { execFileSync } from "node:child_process";
 
 /**
- * Paths vitest can reason about through its module graph.
+ * Files vitest can trace through its module graph.
+ *
+ * Git pathspecs match recursively, so this covers `packages/`, `e2e/` and
+ * `scripts/` without naming them — one less list to keep in sync.
  */
-export const GRAPH_GLOBS = ["packages/**", "e2e/**", "scripts/**", "*.ts"];
+export const GRAPH_GLOBS = ["*.ts", "*.tsx"];
 
 /**
- * Paths that change behaviour without appearing in any module graph.
- *
- * `pnpm-lock.yaml` is the important one: a dependency bump changes runtime
- * behaviour without touching a line of TypeScript, and it is the change most
- * likely to break a test. Git pathspecs match recursively, so `*.json` also
- * covers `packages/server/tsconfig.json`.
+ * Everything else that can change behaviour: lockfiles, configs, migrations,
+ * assets. Expressed as "all files, except the traceable ones and except
+ * documentation" so a new file extension is covered the day it appears rather
+ * than the day someone remembers to add it.
  */
-export const GLOBAL_GLOBS = ["*.json", "*.yaml", "*.yml"];
+export const FULL_SUITE_GLOBS = [
+  ".",
+  ":(exclude)*.ts",
+  ":(exclude)*.tsx",
+  ":(exclude)*.md",
+  ":(exclude)docs/**",
+];
 
 export const DEFAULT_BASE = "HEAD^";
 
-export type DecisionReason = "unresolved-base" | "global-change" | "no-change" | "graph-change";
+export type DecisionReason = "unresolved-base" | "untraceable-change" | "no-change" | "graph-change";
 
 export interface Decision {
   run: "all" | "none" | "changed";
@@ -46,27 +57,34 @@ export interface Decision {
 }
 
 /**
- * @param graph  changed files vitest can trace, or `null` if git could not answer
- * @param global changed dependency/config files, or `null` if git could not answer
+ * @param graph      changed TypeScript files, or `null` if git could not answer
+ * @param untraceable changed non-TypeScript, non-doc files, or `null` likewise
  */
 export function decide(
   graph: readonly string[] | null,
-  global: readonly string[] | null,
+  untraceable: readonly string[] | null,
 ): Decision {
   // "I don't know" must never be reported as "nothing to do".
-  if (graph === null || global === null) return { run: "all", reason: "unresolved-base" };
-  if (global.length > 0) return { run: "all", reason: "global-change" };
+  if (graph === null || untraceable === null) return { run: "all", reason: "unresolved-base" };
+  if (untraceable.length > 0) return { run: "all", reason: "untraceable-change" };
   if (graph.length === 0) return { run: "none", reason: "no-change" };
   return { run: "changed", reason: "graph-change" };
 }
 
+/**
+ * Files changed since `base`, including ones git does not track yet.
+ *
+ * `git diff` alone ignores untracked files, which would make every brand new
+ * source file invisible to the gate — and a new file is exactly what writing a
+ * feature produces.
+ */
 export function changedFiles(
   globs: readonly string[],
   base: string,
   cwd?: string,
 ): string[] | null {
-  try {
-    const output = execFileSync("git", ["diff", "--name-only", base, "--", ...globs], {
+  const run = (args: string[]): string =>
+    execFileSync("git", args, {
       encoding: "utf8",
       ...(cwd === undefined ? {} : { cwd }),
       // Swallow git's own "fatal: bad revision": we translate it into a
@@ -74,7 +92,11 @@ export function changedFiles(
       // failure were in the test suite.
       stdio: ["ignore", "pipe", "ignore"],
     });
-    return output.split("\n").filter(Boolean);
+
+  try {
+    const tracked = run(["diff", "--name-only", base, "--", ...globs]);
+    const untracked = run(["ls-files", "--others", "--exclude-standard", "--", ...globs]);
+    return [...new Set(`${tracked}\n${untracked}`.split("\n").filter(Boolean))];
   } catch {
     return null;
   }
@@ -91,9 +113,9 @@ export function describeDecision(decision: Decision, base: string, count: number
       return `gate:quick — no code changed since ${base}, nothing to run.`;
     case "unresolved-base":
       return `gate:quick — cannot resolve "${base}", running the full suite.`;
-    case "global-change":
-      return `gate:quick — dependency or config changed since ${base}, running the full suite.`;
+    case "untraceable-change":
+      return `gate:quick — a dependency, config or asset changed since ${base}, running the full suite.`;
     case "graph-change":
-      return `gate:quick — ${count} code file(s) changed since ${base}.`;
+      return `gate:quick — ${count} source file(s) changed since ${base}.`;
   }
 }

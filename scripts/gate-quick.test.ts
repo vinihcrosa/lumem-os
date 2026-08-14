@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -9,7 +9,7 @@ import {
   changedFiles,
   decide,
   describeDecision,
-  GLOBAL_GLOBS,
+  FULL_SUITE_GLOBS,
   GRAPH_GLOBS,
   vitestArgs,
 } from "./gate-quick.js";
@@ -17,7 +17,7 @@ import {
 /**
  * Real git repositories, not mocks. The whole point of these globs is how git
  * pathspecs actually match, and a mock would assert my belief about that rather
- * than the behaviour.
+ * than the behaviour. The project rule is in docs/project/testing.md.
  */
 const repos: string[] = [];
 
@@ -32,10 +32,14 @@ function makeRepo(): string {
   return dir;
 }
 
-function addFile(repo: string, relative: string): void {
+function writeUntracked(repo: string, relative: string): void {
   const target = join(repo, relative);
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, "x");
+}
+
+function addFile(repo: string, relative: string): void {
+  writeUntracked(repo, relative);
   // -N stages the path without content, which is enough for `git diff` to see it.
   execFileSync("git", ["add", "-N", relative], { cwd: repo, stdio: "ignore" });
 }
@@ -49,20 +53,20 @@ describe("decide", () => {
     expect(decide([], [])).toEqual({ run: "none", reason: "no-change" });
   });
 
-  it("runs the affected tests when only graph files changed", () => {
+  it("runs the affected tests when only traceable sources changed", () => {
     expect(decide(["packages/server/src/config.ts"], [])).toEqual({
       run: "changed",
       reason: "graph-change",
     });
   });
 
-  it("runs everything when a dependency or config changed", () => {
+  it("runs everything when something untraceable changed", () => {
     // --changed cannot reason about the lockfile: it is in no module graph, so
     // routing it through --changed selects zero tests and fails the run.
-    expect(decide([], ["pnpm-lock.yaml"])).toEqual({ run: "all", reason: "global-change" });
+    expect(decide([], ["pnpm-lock.yaml"])).toEqual({ run: "all", reason: "untraceable-change" });
   });
 
-  it("runs everything when a global change accompanies a graph change", () => {
+  it("prefers the full suite when both categories changed", () => {
     expect(decide(["packages/server/src/config.ts"], ["package.json"]).run).toBe("all");
   });
 
@@ -74,9 +78,9 @@ describe("decide", () => {
 });
 
 describe("GRAPH_GLOBS", () => {
-  it("is exactly the paths vitest can trace", () => {
+  it("is exactly the traceable extensions", () => {
     // Pinned: a silent edit here is how the gate goes blind.
-    expect(GRAPH_GLOBS).toEqual(["packages/**", "e2e/**", "scripts/**", "*.ts"]);
+    expect(GRAPH_GLOBS).toEqual(["*.ts", "*.tsx"]);
   });
 
   it.each([
@@ -85,6 +89,7 @@ describe("GRAPH_GLOBS", () => {
     "e2e/smoke.spec.ts",
     "scripts/gate-quick.ts",
     "ports.ts",
+    "packages/server/src/pty/PtyManager.ts",
   ])("matches %s in a real repo", (relative) => {
     const repo = makeRepo();
     addFile(repo, relative);
@@ -92,19 +97,18 @@ describe("GRAPH_GLOBS", () => {
     expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toContain(relative);
   });
 
-  it("does not match documentation", () => {
-    const repo = makeRepo();
-    addFile(repo, "docs/README.md");
+  it.each(["docs/README.md", "packages/web/index.html", "drizzle/0001_init.sql"])(
+    "does not match %s",
+    (relative) => {
+      const repo = makeRepo();
+      addFile(repo, relative);
 
-    expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toEqual([]);
-  });
+      expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toEqual([]);
+    },
+  );
 });
 
-describe("GLOBAL_GLOBS", () => {
-  it("is exactly the dependency and config paths", () => {
-    expect(GLOBAL_GLOBS).toEqual(["*.json", "*.yaml", "*.yml"]);
-  });
-
+describe("FULL_SUITE_GLOBS", () => {
   it.each([
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
@@ -113,40 +117,83 @@ describe("GLOBAL_GLOBS", () => {
     "ports.json",
     "tsconfig.base.json",
     "packages/server/package.json",
-    "packages/server/tsconfig.json",
+    // Untraceable but under packages/: classifying by prefix sent these to
+    // --changed, which selected zero tests and failed the run.
+    "packages/web/index.html",
+    "packages/web/src/terminal.css",
+    // Outside every source prefix: classifying by prefix made these invisible.
+    "drizzle/0001_init.sql",
+    ".gitignore",
   ])("matches %s in a real repo", (relative) => {
-    // Adding node-pty in phase 1 touches packages/server/package.json. That has
-    // to run the full suite, not select zero tests and fail.
     const repo = makeRepo();
     addFile(repo, relative);
 
-    expect(changedFiles(GLOBAL_GLOBS, "HEAD", repo)).toContain(relative);
+    expect(changedFiles(FULL_SUITE_GLOBS, "HEAD", repo)).toContain(relative);
   });
 
-  it("does not match source files", () => {
-    const repo = makeRepo();
-    addFile(repo, "packages/server/src/config.ts");
+  it.each(["packages/server/src/config.ts", "packages/web/src/App.tsx", "ports.ts"])(
+    "does not match the traceable source %s",
+    (relative) => {
+      const repo = makeRepo();
+      addFile(repo, relative);
 
-    expect(changedFiles(GLOBAL_GLOBS, "HEAD", repo)).toEqual([]);
-  });
+      expect(changedFiles(FULL_SUITE_GLOBS, "HEAD", repo)).toEqual([]);
+    },
+  );
+
+  it.each(["docs/README.md", "docs/project/testing.md", "CLAUDE.md"])(
+    "does not match the documentation %s",
+    (relative) => {
+      // Documentation-only commits must not drag the whole suite in.
+      const repo = makeRepo();
+      addFile(repo, relative);
+
+      expect(changedFiles(FULL_SUITE_GLOBS, "HEAD", repo)).toEqual([]);
+    },
+  );
 });
 
 describe("changedFiles", () => {
-  it("reports a file the base commit does not have", () => {
-    // Guards against the function degenerating to a constant: returning []
-    // unconditionally would make the gate pass without running anything.
+  it("sees a brand new file that git does not track yet", () => {
+    // Writing a feature produces new files, and `git diff` alone ignores them:
+    // the gate would report "nothing to run" while a whole module sat unstaged.
     const repo = makeRepo();
-    addFile(repo, "packages/server/src/new-thing.ts");
+    writeUntracked(repo, "packages/server/src/pty/PtyManager.ts");
 
-    expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toEqual(["packages/server/src/new-thing.ts"]);
+    expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toEqual([
+      "packages/server/src/pty/PtyManager.ts",
+    ]);
+  });
+
+  it("sees an untracked untraceable file too", () => {
+    const repo = makeRepo();
+    writeUntracked(repo, "drizzle/0001_init.sql");
+
+    expect(changedFiles(FULL_SUITE_GLOBS, "HEAD", repo)).toContain("drizzle/0001_init.sql");
+  });
+
+  it("does not report the same file twice when it is both staged and present", () => {
+    const repo = makeRepo();
+    addFile(repo, "packages/server/src/a.ts");
+
+    expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toEqual(["packages/server/src/a.ts"]);
   });
 
   it("reports every changed file, not just the first", () => {
     const repo = makeRepo();
     addFile(repo, "packages/server/src/a.ts");
-    addFile(repo, "packages/web/src/b.ts");
+    writeUntracked(repo, "packages/web/src/b.tsx");
 
     expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toHaveLength(2);
+  });
+
+  it("ignores files git is told to ignore", () => {
+    const repo = makeRepo();
+    writeUntracked(repo, ".gitignore");
+    writeFileSync(join(repo, ".gitignore"), "generated.ts\n");
+    writeUntracked(repo, "generated.ts");
+
+    expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toEqual([]);
   });
 
   it("returns an empty list when nothing matched", () => {
@@ -164,13 +211,13 @@ describe("changedFiles", () => {
 
 describe("vitestArgs", () => {
   it("runs the whole suite when the decision is all", () => {
-    const args = vitestArgs({ run: "all", reason: "global-change" }, "HEAD^");
+    const args = vitestArgs({ run: "all", reason: "untraceable-change" }, "HEAD^");
 
     expect(args).toEqual(["exec", "vitest", "run"]);
     expect(args).not.toContain("--changed");
   });
 
-  it("forbids an empty selection when only graph files changed", () => {
+  it("forbids an empty selection when only sources changed", () => {
     // Without this flag the gate goes green having executed nothing.
     expect(vitestArgs({ run: "changed", reason: "graph-change" }, "HEAD^")).toEqual([
       "exec",
@@ -185,12 +232,11 @@ describe("vitestArgs", () => {
 
 describe("describeDecision", () => {
   it.each([
-    ["no-change", "nothing to run"],
-    ["unresolved-base", "cannot resolve"],
-    ["global-change", "dependency or config changed"],
-    ["graph-change", "3 code file(s)"],
-  ] as const)("explains %s", (reason, expected) => {
-    const run = reason === "no-change" ? "none" : reason === "graph-change" ? "changed" : "all";
+    ["no-change", "none", "nothing to run"],
+    ["unresolved-base", "all", "cannot resolve"],
+    ["untraceable-change", "all", "dependency, config or asset changed"],
+    ["graph-change", "changed", "3 source file(s)"],
+  ] as const)("explains %s", (reason, run, expected) => {
     expect(describeDecision({ run, reason }, "HEAD^", 3)).toContain(expected);
   });
 

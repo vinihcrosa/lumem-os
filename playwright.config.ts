@@ -18,7 +18,12 @@ import { E2E_SERVER_PORT, E2E_STATE_DIR, E2E_WEB_PORT } from "./ports.js";
  * Without the wipe, run two inherits run one's workspaces and any test that
  * creates a named workspace starts failing on a unique constraint.
  */
-rmSync(E2E_STATE_DIR, { recursive: true, force: true });
+if (process.env["TEST_WORKER_INDEX"] === undefined) {
+  // Guarded because playwright re-evaluates this config in every worker
+  // process, ~2s after the daemon is already up. An unguarded wipe deletes the
+  // state directory a second time, mid-suite, with the handle open.
+  rmSync(E2E_STATE_DIR, { recursive: true, force: true });
+}
 
 export default defineConfig({
   testDir: "./e2e",
