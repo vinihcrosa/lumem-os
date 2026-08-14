@@ -18,10 +18,14 @@ import { E2E_SERVER_PORT, E2E_STATE_DIR, E2E_WEB_PORT } from "./ports.js";
  * Without the wipe, run two inherits run one's workspaces and any test that
  * creates a named workspace starts failing on a unique constraint.
  */
-if (process.env["TEST_WORKER_INDEX"] === undefined) {
-  // Guarded because playwright re-evaluates this config in every worker
-  // process, ~2s after the daemon is already up. An unguarded wipe deletes the
-  // state directory a second time, mid-suite, with the handle open.
+// Guarded twice. TEST_WORKER_INDEX is set only in worker processes, where
+// playwright re-evaluates this config ~2s after the daemon is already up — an
+// unguarded wipe would delete the state directory a second time, mid-suite,
+// with the SQLite handle open. `--list` is read-only and has no business
+// destroying anything.
+const isWorker = process.env["TEST_WORKER_INDEX"] !== undefined;
+const isListing = process.argv.includes("--list");
+if (!isWorker && !isListing) {
   rmSync(E2E_STATE_DIR, { recursive: true, force: true });
 }
 

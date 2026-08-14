@@ -141,16 +141,21 @@ describe("FULL_SUITE_GLOBS", () => {
     },
   );
 
-  it.each(["docs/README.md", "docs/project/testing.md", "CLAUDE.md"])(
-    "does not match the documentation %s",
-    (relative) => {
-      // Documentation-only commits must not drag the whole suite in.
-      const repo = makeRepo();
-      addFile(repo, relative);
+  it.each([
+    "docs/README.md",
+    "docs/project/testing.md",
+    "CLAUDE.md",
+    // Not .md: these are what prove `:(exclude)docs/**` earns its place rather
+    // than being shadowed by `:(exclude)*.md`.
+    "docs/diagrams/architecture.svg",
+    "docs/prd/walking-skeleton/schema.sql",
+  ])("does not match the documentation %s", (relative) => {
+    // Documentation-only commits must not drag the whole suite in.
+    const repo = makeRepo();
+    addFile(repo, relative);
 
-      expect(changedFiles(FULL_SUITE_GLOBS, "HEAD", repo)).toEqual([]);
-    },
-  );
+    expect(changedFiles(FULL_SUITE_GLOBS, "HEAD", repo)).toEqual([]);
+  });
 });
 
 describe("changedFiles", () => {
@@ -172,11 +177,28 @@ describe("changedFiles", () => {
     expect(changedFiles(FULL_SUITE_GLOBS, "HEAD", repo)).toContain("drizzle/0001_init.sql");
   });
 
-  it("does not report the same file twice when it is both staged and present", () => {
+  it("reports a staged file exactly once", () => {
     const repo = makeRepo();
     addFile(repo, "packages/server/src/a.ts");
 
     expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toEqual(["packages/server/src/a.ts"]);
+  });
+
+  it("returns a path with an accent unescaped", () => {
+    // git's default core.quotePath turns this into "caf\303\251.ts". Nothing
+    // consumes these as paths today, but a quoted name is the kind of bug
+    // nobody thinks to look for once something does.
+    const repo = makeRepo();
+    writeUntracked(repo, "packages/web/src/café.ts");
+
+    expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toEqual(["packages/web/src/café.ts"]);
+  });
+
+  it("returns a path with a space intact", () => {
+    const repo = makeRepo();
+    writeUntracked(repo, "packages/web/src/my file.ts");
+
+    expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toEqual(["packages/web/src/my file.ts"]);
   });
 
   it("reports every changed file, not just the first", () => {

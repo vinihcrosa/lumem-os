@@ -83,20 +83,29 @@ export function changedFiles(
   base: string,
   cwd?: string,
 ): string[] | null {
-  const run = (args: string[]): string =>
-    execFileSync("git", args, {
+  const run = (args: string[]): string[] =>
+    execFileSync("git", ["-c", "core.quotePath=false", ...args], {
       encoding: "utf8",
       ...(cwd === undefined ? {} : { cwd }),
       // Swallow git's own "fatal: bad revision": we translate it into a
       // decision, and letting it leak makes the gate's output read as if the
       // failure were in the test suite.
       stdio: ["ignore", "pipe", "ignore"],
-    });
+    })
+      // -z plus quotePath=false: NUL-separated and never quoted, so a path with
+      // an accent or a newline survives intact instead of coming back as
+      // "caf\303\251.ts". Nothing consumes these as paths yet, but the day
+      // something does, this is the bug nobody would think to look for.
+      .split("\0")
+      .filter(Boolean);
 
   try {
-    const tracked = run(["diff", "--name-only", base, "--", ...globs]);
-    const untracked = run(["ls-files", "--others", "--exclude-standard", "--", ...globs]);
-    return [...new Set(`${tracked}\n${untracked}`.split("\n").filter(Boolean))];
+    // -z must precede the `--`, otherwise git reads it as a pathspec.
+    const tracked = run(["diff", "--name-only", "-z", base, "--", ...globs]);
+    const untracked = run(["ls-files", "--others", "--exclude-standard", "-z", "--", ...globs]);
+    // The two sets are disjoint by construction — a staged file stops being
+    // "other" — so this is belt and braces, not deduplication that fires.
+    return [...new Set([...tracked, ...untracked])];
   } catch {
     return null;
   }
