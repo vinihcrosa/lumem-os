@@ -54,6 +54,16 @@ Sidebar de projetos, worktrees, terminais e sessões de agente. Não é o MVP �
 | [open-questions.md](prd/walking-skeleton/open-questions.md) | 21 perguntas, todas respondidas — é o registro de por que cada decisão foi tomada |
 | [tasks.md](prd/walking-skeleton/tasks.md) | 34 tasks atômicas em 8 fases, ordenadas por risco |
 
+### [ui-shell/](prd/ui-shell/) — a interface
+
+Veste as funções que o walking-skeleton deixou de pé. Não adiciona nenhuma. O desenho foi feito como protótipo HTML antes de qualquer React, em `packages/web/prototype/lumem-shell.html`.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/ui-shell/prd.md) | Fundação de tokens, escopo, o que a renderização achou, riscos |
+| [open-questions.md](prd/ui-shell/open-questions.md) | 11 perguntas de desenho, 10 respondidas |
+| [tasks.md](prd/ui-shell/tasks.md) | 11 tasks em 4 fases, das primitivas pras telas |
+
 ---
 
 ## Convenções
