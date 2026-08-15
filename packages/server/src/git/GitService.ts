@@ -16,6 +16,47 @@ export type RepoCheck =
   | { ok: true; root: string }
   | { ok: false; problem: RepoProblem; message: string };
 
+export interface WorktreeEntry {
+  path: string;
+  /** Absent on a detached HEAD; `git worktree list` prints no branch line then. */
+  branch: string | null;
+  head: string | null;
+  detached: boolean;
+  /** git itself already knows the directory is gone. */
+  prunable: boolean;
+}
+
+export interface AddWorktreeInput {
+  repoPath: string;
+  /** Branch to create. Same as the worktree's name, F4.2. */
+  branch: string;
+  targetPath: string;
+  /** Where the new branch starts, F4.3. */
+  baseBranch: string;
+}
+
+export interface RemoveWorktreeInput {
+  /**
+   * Run from the main repository, not from the worktree: a directory deleted
+   * by hand is exactly the case that has to keep working, and `cwd` cannot
+   * point at something that no longer exists.
+   */
+  repoPath: string;
+  path: string;
+  force?: boolean;
+}
+
+export interface WorktreeStatus {
+  clean: boolean;
+  /** Files with any change at all, untracked included, F4.8. */
+  changedFiles: number;
+}
+
+export interface AheadBehind {
+  ahead: number;
+  behind: number;
+}
+
 export interface GitService {
   /**
    * Whether a path is the root of a git repository — and if not, which of the
@@ -29,6 +70,15 @@ export interface GitService {
    * fetch: the PRD says to use what is on disk.
    */
   resolveDefaultBranch(path: string): Promise<string>;
+  /** Whether a local branch of that name already exists, F4.2. */
+  branchExists(repoPath: string, branch: string): Promise<boolean>;
+  /** `git worktree add -b`, F4.1–F4.5. */
+  addWorktree(input: AddWorktreeInput): Promise<void>;
+  listWorktrees(repoPath: string): Promise<WorktreeEntry[]>;
+  /** `git worktree remove`. Never deletes the branch, F4.7. */
+  removeWorktree(input: RemoveWorktreeInput): Promise<void>;
+  getStatus(path: string): Promise<WorktreeStatus>;
+  getAheadBehind(path: string, baseBranch: string): Promise<AheadBehind>;
 }
 
 export interface GitServiceOptions {
@@ -36,6 +86,17 @@ export interface GitServiceOptions {
 }
 
 export function createGitService({ exec = execGit }: GitServiceOptions = {}): GitService {
+  async function branchExists(repoPath: string, branch: string): Promise<boolean> {
+    try {
+      await exec(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], { cwd: repoPath });
+      return true;
+    } catch {
+      // `--verify --quiet` exits non-zero and says nothing when the ref is
+      // absent, which is the answer rather than a failure.
+      return false;
+    }
+  }
+
   return {
     async isGitRepo(path) {
       let info;
@@ -106,5 +167,120 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       }
       return current;
     },
+
+    branchExists,
+
+    async addWorktree({ repoPath, branch, targetPath, baseBranch }) {
+      // Checked here, not left to git, because F4.2 wants the user told to pick
+      // another name — and git's own message for this talks about refs.
+      if (await branchExists(repoPath, branch)) {
+        throw new DomainError("BLOCKED", `a branch "${branch}" já existe; escolha outro nome`);
+      }
+
+      try {
+        await exec(["worktree", "add", "-b", branch, targetPath, baseBranch], { cwd: repoPath });
+      } catch (error) {
+        // Measured, not assumed: `worktree add` creates the branch *before* it
+        // discovers the target directory is unusable, and leaves it behind. The
+        // PRD says a failed creation registers nothing, and a stray branch is
+        // worse than nothing — it makes the next attempt with the same name
+        // fail on "branch already exists".
+        await exec(["branch", "-D", branch], { cwd: repoPath }).catch(() => {});
+        throw error;
+      }
+    },
+
+    async listWorktrees(repoPath) {
+      // `-z` rather than plain porcelain: without it git C-quotes any path with
+      // a space or an accent, and every consumer would have to unquote it.
+      const { stdout } = await exec(["worktree", "list", "--porcelain", "-z"], { cwd: repoPath });
+      return parseWorktreeList(stdout);
+    },
+
+    async removeWorktree({ repoPath, path, force = false }) {
+      // No branch deletion anywhere in here: F4.7 keeps the work reachable
+      // after the checkout is gone.
+      await exec(["worktree", "remove", ...(force ? ["--force"] : []), path], { cwd: repoPath });
+    },
+
+    async getStatus(path) {
+      // `--porcelain -z` with untracked files included: F4.8 counts a new file
+      // as dirty, and losing one to a forced removal is losing work.
+      const { stdout } = await exec(["status", "--porcelain=v1", "-z", "--untracked-files=all"], {
+        cwd: path,
+      });
+      const changedFiles = countStatusEntries(stdout);
+      return { clean: changedFiles === 0, changedFiles };
+    },
+
+    async getAheadBehind(path, baseBranch) {
+      const { stdout } = await exec(
+        ["rev-list", "--left-right", "--count", `${baseBranch}...HEAD`],
+        { cwd: path },
+      );
+      const [behind, ahead] = stdout.trim().split(/\s+/).map(Number);
+      // left...right counts the base side first: commits the worktree does not
+      // have are what it is *behind* by.
+      return { ahead: ahead ?? 0, behind: behind ?? 0 };
+    },
   };
+}
+
+/**
+ * Parses `git worktree list --porcelain -z`.
+ *
+ * Records are separated by an empty NUL-terminated line, so the stream is
+ * `key value\0key value\0\0key value\0…`.
+ */
+export function parseWorktreeList(stdout: string): WorktreeEntry[] {
+  const entries: WorktreeEntry[] = [];
+  let current: WorktreeEntry | null = null;
+
+  for (const line of stdout.split("\0")) {
+    if (line === "") {
+      if (current) entries.push(current);
+      current = null;
+      continue;
+    }
+
+    const separator = line.indexOf(" ");
+    const key = separator === -1 ? line : line.slice(0, separator);
+    const value = separator === -1 ? "" : line.slice(separator + 1);
+
+    if (key === "worktree") {
+      current = { path: value, branch: null, head: null, detached: false, prunable: false };
+    } else if (current === null) {
+      continue;
+    } else if (key === "HEAD") {
+      current.head = value;
+    } else if (key === "branch") {
+      current.branch = value.replace(/^refs\/heads\//, "");
+    } else if (key === "detached") {
+      current.detached = true;
+    } else if (key === "prunable") {
+      current.prunable = true;
+    }
+  }
+
+  if (current) entries.push(current);
+  return entries;
+}
+
+/**
+ * Counts entries in `git status --porcelain=v1 -z`.
+ *
+ * A rename is `R  new\0old\0`: two NUL-separated fields for one change. Counting
+ * separators instead of entries would report every rename twice, and the count
+ * is what the user reads before deciding to force a removal.
+ */
+export function countStatusEntries(stdout: string): number {
+  const fields = stdout.split("\0").filter((field) => field !== "");
+  let count = 0;
+  for (let index = 0; index < fields.length; index += 1) {
+    const field = fields[index]!;
+    count += 1;
+    // XY is the two-letter status; a rename or copy consumes the next field.
+    if (field.startsWith("R") || field.startsWith("C")) index += 1;
+  }
+  return count;
 }
