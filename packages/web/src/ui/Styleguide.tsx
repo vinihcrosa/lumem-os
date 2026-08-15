@@ -20,6 +20,8 @@ import {
   Tab,
   TabStrip,
 } from "./index.js";
+import { RightPanel } from "../components/RightPanel.js";
+
 import "./styleguide.css";
 
 /**
@@ -53,6 +55,55 @@ export function Styleguide() {
           <Glyph tone="agent">◆</Glyph>
           <Glyph tone="warn">⚠</Glyph>
           <Glyph tone="off">■</Glyph>
+        </div>
+      </Section>
+
+      <Section title="Coluna de arquivos">
+        <p className="sg__note">
+          A coluna nasce fechada; o botão da topbar é o que sobra dela. Aqui ela aparece nas
+          duas pontas da largura que o arrasto permite.
+        </p>
+        <div className="sg__inline">
+          <button type="button" className="rp-toggle">
+            <span aria-hidden="true">▤</span> arquivos
+          </button>
+          <button type="button" className="rp-toggle rp-toggle--on">
+            <span aria-hidden="true">▤</span> arquivos
+          </button>
+        </div>
+        <div className="sg__columns">
+          <div className="sg__column" style={{ width: "var(--size-panel-right-min)" }}>
+            <RightPanel
+              tab="files"
+              onSelectTab={() => {}}
+              changeCount={null}
+              onReload={() => {}}
+              onClose={() => {}}
+              onResize={() => {}}
+              footLeft="lido há 12 s"
+              footRight="21 entradas"
+            >
+              <div className="rp__scroll">
+                <p className="detail__hint">a mínima ainda cabe um caminho de três níveis</p>
+              </div>
+            </RightPanel>
+          </div>
+          <div className="sg__column" style={{ width: "var(--size-panel-right-max)" }}>
+            <RightPanel
+              tab="changes"
+              onSelectTab={() => {}}
+              changeCount={6}
+              onReload={() => {}}
+              onClose={() => {}}
+              onResize={() => {}}
+              footLeft="lido há 8 s"
+              footRight="árvore de trabalho vs HEAD"
+            >
+              <div className="rp__scroll">
+                <p className="detail__hint">a máxima, com a contagem na aba</p>
+              </div>
+            </RightPanel>
+          </div>
         </div>
       </Section>
 

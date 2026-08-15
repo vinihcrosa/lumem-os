@@ -1,0 +1,186 @@
+/*
+ * A coluna da direita: arquivos e diff do checkout selecionado.
+ *
+ * Portado do protótipo `packages/web/prototype/lumem-right-panel.html`, que
+ * lê o mesmo tokens.css. Nenhum valor literal aqui — se aparecer um, o
+ * protótipo e o app deixaram de compartilhar a fonte.
+ */
+
+/*
+ * Ela é do checkout, não da aba: trocar de sessão não muda quais arquivos
+ * existem. Por isso vive fora do `.main`, irmã dele, e não dentro da faixa.
+ */
+.rp {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--color-bg-panel);
+  border-left: 1px solid var(--color-border-subtle);
+}
+
+/* A alça de arrasto. Fica sobre a borda e é mais larga que ela: uma borda de
+   1px é um alvo que se erra. */
+.rp__grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * var(--space-2));
+  width: var(--space-4);
+  cursor: col-resize;
+}
+.rp__grip:hover { background: var(--color-border-brand); }
+
+/* A faixa da coluna tem a altura da topbar de propósito: as duas terminam na
+   mesma linha e a coluna parece cortada da janela, não colada nela. */
+.rp__bar {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  height: var(--size-topbar-height);
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.rtab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 0 var(--space-8);
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.rtab:hover { color: var(--color-text-secondary); }
+.rtab--active { color: var(--color-text-primary); border-bottom-color: var(--color-border-brand); }
+/* Quantos arquivos mudaram, na própria aba: é o número que decide se vale
+   abrir a aba, e escondê-lo dentro dela obrigaria a abrir para descobrir. */
+.rtab__count {
+  min-width: var(--size-icon-md);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-neutral-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+.rtab--active .rtab__count { background: var(--color-bg-brand-subtle); color: var(--color-text-brand); }
+
+.rp__icon {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+}
+.rp__icon:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.rp__icon--on { background: var(--color-bg-active); color: var(--color-text-primary); }
+
+.rp__body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.rp__spacer { flex: 1; }
+.rp__scroll { flex: 1; min-height: 0; overflow: auto; padding: var(--space-4) var(--space-4) var(--space-12); }
+
+/* Rodapé de estado: quando a coluna leu o disco pela última vez. Sem watcher
+   (ver Q6), "há 12 s" é a única coisa que separa dado fresco de dado velho. */
+.rp__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-md);
+  padding: 0 var(--space-8);
+  border-top: 1px solid var(--color-border-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-disabled);
+}
+
+/* --------------------------------------------------------- árvore de arquivos */
+/*
+ * Mais densa que a sidebar: 24px, não 28px. A sidebar tem dezenas de linhas e
+ * a árvore tem centenas — e caminho é literal do domínio, então mono.
+ */
+.frow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-sm);
+  padding-right: var(--space-6);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font: var(--text-mono-md);
+  text-align: left;
+}
+.frow:hover { background: var(--color-bg-hover); }
+.frow--open {
+  background: var(--color-bg-selected);
+  color: var(--color-text-primary);
+  box-shadow: inset 2px 0 0 var(--color-border-brand);
+}
+.frow--dir { color: var(--color-text-primary); }
+.frow--dim { color: var(--color-text-disabled); }
+.frow__twist {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-icon-md);
+  height: 100%;
+  margin-left: calc(var(--space-2) + var(--depth, 0) * var(--space-12));
+  font-size: var(--size-icon-xs);
+  color: var(--color-text-tertiary);
+}
+/* O nome encolhe, o marcador anda junto com ele: numa coluna larga, um `M`
+   grudado na borda direita fica a meia tela do arquivo que ele descreve. */
+.frow__name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frow__size { flex: none; padding-left: var(--space-8); font: var(--text-caption); color: var(--color-text-disabled); }
+.frow__gap { flex: 1; }
+
+/* Marcador de status. Uma letra, não um ponto: `A` e `M` são distinguíveis em
+   preto e branco, e a árvore inteira é texto mono de 12px. */
+.mark { flex: none; width: var(--size-icon-sm); text-align: center; font: var(--text-mono-sm); }
+.mark--a { color: var(--color-git-added); }
+.mark--m { color: var(--color-git-modified); }
+.mark--d { color: var(--color-git-removed); }
+.mark--u { color: var(--color-git-untracked); }
+
+/* Truncamento, vazio e recusa. Sempre com o motivo — uma listagem que para no
+   meio sem dizer nada lê como "acabou". */
+.fnote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-8) var(--space-8);
+  margin-left: calc(var(--space-2) + var(--depth, 0) * var(--space-12));
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.fnote__glyph { flex: none; color: var(--color-text-warning); }
+.fnote code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.fnote button { color: var(--color-text-link); font: var(--text-caption); text-decoration: underline; }
+
+/* --------------------------------------------------------- estados vazios */
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  padding: var(--space-24) var(--space-16);
+  text-align: center;
+}
+.empty__glyph { font-size: var(--size-icon-lg); color: var(--color-text-disabled); }
+.empty__title { font: var(--text-label-sm); color: var(--color-text-secondary); }
+.empty__why { font: var(--text-caption); color: var(--color-text-disabled); }
+
+/* Esqueleto de carregamento: linhas de largura variada, porque uma árvore de
+   arquivos não tem linhas do mesmo tamanho e a fileira uniforme entrega que é
+   um placeholder antes de o dado chegar. */
+.skel { height: var(--space-8); margin: var(--space-8) var(--space-8); border-radius: var(--radius-xs); background: var(--color-bg-hover); }

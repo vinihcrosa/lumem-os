@@ -74,3 +74,14 @@
   /* Estreita como a sidebar de verdade: é onde o truncamento acontece. */
   max-width: var(--size-sidebar-width);
 }
+
+/* Duas colunas de arquivos lado a lado, nas duas pontas da largura. */
+.sg__columns { display: flex; gap: var(--space-16); align-items: stretch; }
+.sg__column {
+  display: flex;
+  height: calc(var(--space-64) * 3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.sg__column > .rp { flex: 1; border-left: 0; }
