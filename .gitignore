@@ -21,3 +21,4 @@ blob-report/
 *.log
 
 .agents/.skill-lock.json.backup
+.superset/config.local.json

@@ -1,6 +1,20 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["tsconfig.base.json", "ports.json"],
+  // Turborepo roda as tasks com o ambiente filtrado. Sem esta lista,
+  // `LUMEM_STATE_DIR=/tmp/x pnpm dev` sobe o daemon no ~/.lumem de verdade,
+  // caladamente — a variável nunca chega ao processo. Vale para toda a
+  // configuração do daemon, e para SHELL, que é o shell de login que F5.5 manda
+  // usar nas sessões.
+  "globalPassThroughEnv": [
+    "LUMEM_PORT",
+    "LUMEM_WEB_PORT",
+    "LUMEM_HOST",
+    "LUMEM_STATE_DIR",
+    "LUMEM_DB_PATH",
+    "LUMEM_DEFAULT_CWD",
+    "SHELL"
+  ],
   "tasks": {
     "typecheck": {
       "dependsOn": ["^typecheck"]
