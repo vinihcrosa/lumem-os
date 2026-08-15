@@ -9,8 +9,10 @@ import { withTestDb } from "../db/testing.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createWorkspaceRepository } from "../repositories/workspace.js";
 import { createWorktreeRepository } from "../repositories/worktree.js";
+import { createAgentConfigRepository } from "../repositories/agentConfig.js";
+import { createSessionRepository } from "../repositories/session.js";
 import { tempDir } from "../testing/git-fixtures.js";
-import { reconcileWorktrees } from "./reconcile.js";
+import { reconcileOnBoot, reconcileOrphanSessions, reconcileWorktrees } from "./reconcile.js";
 
 async function projectIn(db: Db, name = "lorebase"): Promise<string> {
   const workspace = await createWorkspaceRepository(db).create({ name: `ws-${name}` });
@@ -123,5 +125,113 @@ describe("reconcileWorktrees", () => {
       });
     });
   });
+});
 
+
+describe("reconcileOrphanSessions", () => {
+  it("closes every session left running by the previous daemon", async () => {
+    // F7.3: a PTY is a child of the process that spawned it, so a restart
+    // killed all of them. A record still saying `running` would block a
+    // worktree removal on something the user cannot close.
+    await withTestDb(async (db) => {
+      const sessions = createSessionRepository(db);
+      await sessions.create({
+        id: newId(),
+        kind: "shell",
+        scopeType: "project",
+        scopeId: "p1",
+        cwd: "/repo",
+        command: "/bin/sh",
+      });
+
+      expect(await reconcileOrphanSessions({ db })).toBe(1);
+      expect(await sessions.listRunning()).toEqual([]);
+    });
+  });
+
+  it("leaves the exit code null rather than claiming a clean finish", async () => {
+    await withTestDb(async (db) => {
+      const sessions = createSessionRepository(db);
+      const id = newId();
+      await sessions.create({
+        id,
+        kind: "shell",
+        scopeType: "project",
+        scopeId: "p1",
+        cwd: "/repo",
+        command: "/bin/sh",
+      });
+
+      await reconcileOrphanSessions({ db });
+
+      // The daemon genuinely does not know how it ended; a 0 would say it
+      // finished cleanly.
+      expect((await sessions.findById(id))?.exitCode).toBeNull();
+    });
+  });
+
+  it("does not touch sessions that already ended", async () => {
+    await withTestDb(async (db) => {
+      const sessions = createSessionRepository(db);
+      const id = newId();
+      await sessions.create({
+        id,
+        kind: "shell",
+        scopeType: "project",
+        scopeId: "p1",
+        cwd: "/repo",
+        command: "/bin/sh",
+      });
+      await sessions.markExited(id, 7);
+
+      expect(await reconcileOrphanSessions({ db })).toBe(0);
+      expect((await sessions.findById(id))?.exitCode).toBe(7);
+    });
+  });
+});
+
+describe("reconcileOnBoot", () => {
+  it("seeds the default agent configuration", async () => {
+    // F6.4: a first boot that finished without it would show an empty menu.
+    await withTestDb(async (db) => {
+      await reconcileOnBoot({ db });
+
+      expect((await createAgentConfigRepository(db).list()).map((row) => row.name)).toEqual([
+        "claude-code",
+      ]);
+    });
+  });
+
+  it("runs the whole alignment in one call", async () => {
+    await withTestDb(async (db) => {
+      const projectId = await projectIn(db);
+      const id = await registerPresent(db, projectId, "teste");
+      rmSync((await createWorktreeRepository(db).findById(id))!.path, {
+        recursive: true,
+        force: true,
+      });
+      await createSessionRepository(db).create({
+        id: newId(),
+        kind: "shell",
+        scopeType: "worktree",
+        scopeId: id,
+        cwd: "/w",
+        command: "/bin/sh",
+      });
+
+      const report = await reconcileOnBoot({ db });
+
+      expect(report.worktrees.markedMissing).toBe(1);
+      expect(report.orphanSessions).toBe(1);
+    });
+  });
+
+  it("is idempotent across restarts", async () => {
+    await withTestDb(async (db) => {
+      await reconcileOnBoot({ db });
+      await reconcileOnBoot({ db });
+
+      expect(await createAgentConfigRepository(db).list()).toHaveLength(1);
+    });
+  });
 });

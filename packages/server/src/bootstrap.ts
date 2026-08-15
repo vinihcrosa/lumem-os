@@ -1,9 +1,10 @@
 import type { FastifyInstance } from "fastify";
 
-import { reconcileWorktrees } from "./boot/reconcile.js";
+import { reconcileOnBoot } from "./boot/reconcile.js";
 import type { ServerConfig } from "./config.js";
 import { openDatabase, type Database_ } from "./db/index.js";
 import { PtyManager } from "./pty/PtyManager.js";
+import { createSessionStore } from "./sessions/SessionStore.js";
 import { createServer } from "./server.js";
 import { createShutdownHandler } from "./shutdown.js";
 import { installSignalHandlers, type SignalSource } from "./signals.js";
@@ -47,7 +48,14 @@ export async function bootstrap({
 }: BootstrapOptions): Promise<FastifyInstance> {
   const owned = database === undefined;
   const openedDatabase = database ?? openDatabase({ path: config.databasePath });
-  const app = await createServer({ config, db: openedDatabase.db, ptyManager, logger });
+  const sessionStore = createSessionStore({ db: openedDatabase.db, ptyManager });
+  const app = await createServer({
+    config,
+    db: openedDatabase.db,
+    ptyManager,
+    sessionStore,
+    logger,
+  });
 
   const target = {
     log: app.log,
@@ -55,6 +63,9 @@ export async function bootstrap({
       // Children first, and before any optional hook that might throw: closing
       // the HTTP server does not touch them, and once the process is gone
       // nothing will — SIGTERM would orphan every shell the daemon spawned.
+      // Unhook first: killAll is about to end every session, and recording
+      // those exits would write "exited" rows the next boot has to redo anyway.
+      stopTracking();
       await ptyManager.killAll();
       if (beforeClose) await beforeClose();
       await app.close();
@@ -66,9 +77,13 @@ export async function bootstrap({
 
   installSignalHandlers(signalSource, createShutdownHandler({ target, exit }));
 
+  // Records follow processes from here on: a shell that dies on its own has to
+  // stop being `running` without anyone polling for it.
+  const stopTracking = sessionStore.trackExits(app.log);
+
   // Before listening, deliberately: a client that connects mid-reconciliation
-  // would read worktree states that are about to change under it.
-  const reconciled = await reconcileWorktrees({ db: openedDatabase.db, log: app.log });
+  // would read states that are about to change under it.
+  const reconciled = await reconcileOnBoot({ db: openedDatabase.db, log: app.log });
   app.log.info(reconciled, "reconciliação de boot");
 
   try {

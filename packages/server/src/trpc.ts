@@ -5,6 +5,7 @@ import type { Db } from "./db/index.js";
 import { isDomainError, type DomainErrorCode } from "./errors.js";
 import type { GitService } from "./git/GitService.js";
 import type { PtyManager } from "./pty/PtyManager.js";
+import type { SessionStore } from "./sessions/SessionStore.js";
 
 /**
  * Everything a procedure is allowed to reach. Repositories and services are
@@ -15,6 +16,7 @@ export interface Context {
   config: ServerConfig;
   db: Db;
   ptyManager: PtyManager;
+  sessionStore: SessionStore;
   git: GitService;
 }
 

@@ -9,6 +9,7 @@ import type { Db } from "./db/index.js";
 import { createGitService, type GitService } from "./git/GitService.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import { registerPtyWebSocket } from "./pty/websocket.js";
+import { createSessionStore, type SessionStore } from "./sessions/SessionStore.js";
 import { appRouter, type AppRouter } from "./routers/index.js";
 import type { Context } from "./trpc.js";
 
@@ -32,6 +33,11 @@ export interface CreateServerOptions {
    * server, so whoever closes the daemon has to hold the reference.
    */
   ptyManager: PtyManager;
+  /**
+   * Keeps records in step with processes. Built here when absent, but the
+   * daemon passes its own so shutdown can unhook the exit watcher.
+   */
+  sessionStore?: SessionStore;
   /** Overridable only so a test can watch the commands; nothing mocks git. */
   git?: GitService;
   /** Fastify's own request logging. Off in tests, on for the daemon. */
@@ -42,6 +48,7 @@ export async function createServer({
   config,
   db,
   ptyManager,
+  sessionStore = createSessionStore({ db, ptyManager }),
   git = createGitService(),
   logger = false,
 }: CreateServerOptions): Promise<FastifyInstance> {
@@ -52,7 +59,7 @@ export async function createServer({
     forceCloseConnections: true,
   });
 
-  const createContext = (): Context => ({ config, db, ptyManager, git });
+  const createContext = (): Context => ({ config, db, ptyManager, sessionStore, git });
 
   await app.register(fastifyTRPCPlugin, {
     prefix: "/trpc",

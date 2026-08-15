@@ -34,6 +34,7 @@ export interface SessionInfo {
   rows: number;
 }
 
+export type ExitWatcher = (info: SessionInfo) => void;
 export type DataListener = (chunk: string) => void;
 export type ExitListener = (exit: { exitCode: number; signal: number | null }) => void;
 
@@ -67,6 +68,14 @@ export interface PtyManagerOptions {
  */
 export class PtyManager {
   private readonly sessions = new Map<string, Session>();
+  /**
+   * Watchers of *every* session's exit, as opposed to one session's.
+   *
+   * This is the seam the session store hangs off: a process can die at any
+   * moment, from a crash or a quota or the user typing `exit`, and the record
+   * has to follow it without anyone polling.
+   */
+  private readonly exitWatchers = new Set<ExitWatcher>();
   private readonly scrollbackLines: number;
 
   constructor({ scrollbackLines = DEFAULT_SCROLLBACK_LINES }: PtyManagerOptions = {}) {
@@ -155,6 +164,14 @@ export class PtyManager {
       }
       session.dataListeners.clear();
       session.exitListeners.clear();
+
+      for (const watcher of [...this.exitWatchers]) {
+        try {
+          watcher({ ...session.info });
+        } catch {
+          /* a broken watcher must not take the daemon with it */
+        }
+      }
     });
 
     return { ...session.info };
@@ -198,6 +215,12 @@ export class PtyManager {
 
   list(): SessionInfo[] {
     return [...this.sessions.values()].map((session) => ({ ...session.info }));
+  }
+
+  /** Notified whenever any session ends. Returns an unsubscribe function. */
+  watchExits(watcher: ExitWatcher): () => void {
+    this.exitWatchers.add(watcher);
+    return () => this.exitWatchers.delete(watcher);
   }
 
   /** Returns an unsubscribe function. Detaching must never kill the process. */

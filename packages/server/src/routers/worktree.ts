@@ -135,6 +135,18 @@ export const worktreeRouter = router({
         if (!row) throw new DomainError("NOT_FOUND", `worktree ${input.id} não existe`);
         const project = await requireProject(ctx, row.projectId);
 
+        // F4.9, checked before the dirt check so the message names the reason
+        // the user has to act on first. There is no `force` past this one: a
+        // live process holding the directory has to be closed, not overridden,
+        // and §6 forbids leaving a session pointing at a scope that is gone.
+        const running = await ctx.sessionStore.listRunningInScope("worktree", row.id);
+        if (running.length > 0) {
+          throw new DomainError(
+            "BLOCKED",
+            `a worktree tem ${running.length} sessão(ões) rodando; encerre-as antes de remover`,
+          );
+        }
+
         if (existsSync(row.path) && !input.force) {
           // F4.8: the count, not just "dirty". "3 arquivos modificados" is a
           // decision the user can make; "suja" is a wall.

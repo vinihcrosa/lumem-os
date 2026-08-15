@@ -102,6 +102,17 @@ export const projectRouter = router({
 
   remove: publicProcedure.input(z.object({ id: z.string().min(1) })).mutation(({ ctx, input }) =>
     domainSafeAsync(async () => {
+      // Same rule as a worktree, for the same reason: §6 forbids a session
+      // whose scope no longer exists, and the user would have no way to reach
+      // one pointing at a project that is gone from the sidebar.
+      const running = await ctx.sessionStore.listRunningInScope("project", input.id);
+      if (running.length > 0) {
+        throw new DomainError(
+          "BLOCKED",
+          `o projeto tem ${running.length} sessão(ões) rodando; encerre-as antes de remover`,
+        );
+      }
+
       // F2.5: the registration goes, the disk is never touched. Not even when
       // the worktrees the daemon created live under ~/.lumem.
       await createProjectRepository(ctx.db).remove(input.id);
