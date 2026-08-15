@@ -74,10 +74,21 @@ export const color = {
   'scope/worktree': primitives.accent['400'], // #ABBE55
   'daemon/online': primitives.success['400'], // #60CC93
   'daemon/offline': primitives.danger['400'], // #FF8D83
+  // dominio — codigo
+  'syntax/keyword': primitives.brand['400'], // #B5A2FF
+  'syntax/string': primitives.accent['400'], // #ABBE55
+  'syntax/number': primitives.warning['300'], // #F4C273
+  'syntax/comment': primitives.neutral['600'], // #73727C
+  'syntax/function': primitives.info['400'], // #4FBEFF
+  'syntax/type': primitives.success['300'], // #91E0B3
+  'syntax/punctuation': primitives.neutral['400'], // #B2B1BB
+  'git/added-subtle': primitives.success['950'], // #002614
+  'git/removed-subtle': primitives.danger['950'], // #3D0808
+  'git/untracked': primitives.info['400'], // #4FBEFF
 } as const
 
 export const space = { '0': 0, '1': 1, '2': 2, '4': 4, '6': 6, '8': 8, '10': 10, '12': 12, '16': 16, '20': 20, '24': 24, '32': 32, '40': 40, '48': 48, '64': 64 } as const
 export const radius = { 'none': 0, 'xs': 2, 'sm': 4, 'md': 6, 'lg': 8, 'xl': 12, '2xl': 16, 'full': 9999 } as const
-export const size = { 'control/xs': 20, 'control/sm': 24, 'control/md': 28, 'control/lg': 32, 'control/xl': 40, 'icon/xs': 12, 'icon/sm': 14, 'icon/md': 16, 'icon/lg': 20, 'row/compact': 28, 'row/cozy': 32, 'target/min': 24, 'topbar/height': 40, 'sidebar/width': 264, 'detail/max': 880, 'terminal/min': 420, 'dialog/width': 420, 'menu/width': 300 } as const
+export const size = { 'control/xs': 20, 'control/sm': 24, 'control/md': 28, 'control/lg': 32, 'control/xl': 40, 'icon/xs': 12, 'icon/sm': 14, 'icon/md': 16, 'icon/lg': 20, 'row/compact': 28, 'row/cozy': 32, 'target/min': 24, 'topbar/height': 40, 'sidebar/width': 264, 'detail/max': 880, 'terminal/min': 420, 'dialog/width': 420, 'menu/width': 300, 'panel/right': 360, 'panel/right-min': 260, 'panel/right-max': 720, 'gutter/line': 44, 'viewer/min': 360 } as const
 
 export type ColorToken = keyof typeof color

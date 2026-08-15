@@ -118,6 +118,20 @@ SEMANTIC = [
         ("scope/worktree", "accent/400"),
         ("daemon/online", "success/400"), ("daemon/offline", "danger/400"),
     ]),
+    # Codigo: a primeira vez que o Lumem pinta CONTEUDO do repositorio, e nao
+    # metadado. O tema do Shiki e montado a partir destes nomes, pelo mesmo
+    # motivo que o do xterm foi: realce com paleta propria briga com a tela.
+    # Tudo aqui e lido sobre bg/inset, o mesmo poco do terminal.
+    ("dominio — codigo", [
+        ("syntax/keyword", "brand/400"), ("syntax/string", "accent/400"),
+        ("syntax/number", "warning/300"), ("syntax/comment", "neutral/600"),
+        ("syntax/function", "info/400"), ("syntax/type", "success/300"),
+        ("syntax/punctuation", "neutral/400"),
+        # Fundo da linha do diff. Sutil de proposito: quem carrega o sinal e o
+        # texto, e uma faixa saturada atras de codigo mono cansa em dez linhas.
+        ("git/added-subtle", "success/950"), ("git/removed-subtle", "danger/950"),
+        ("git/untracked", "info/400"),
+    ]),
 ]
 
 # Ancora de densidade: altura da linha de lista. Derive o resto dela.
@@ -137,6 +151,15 @@ SIZING  = [
     ("topbar/height", ROW_HEIGHT + 12), ("sidebar/width", 264),
     ("detail/max", 880), ("terminal/min", 420),
     ("dialog/width", 420), ("menu/width", 300),
+    # Coluna direita: arquivos e diff. O padrao cabe `packages/web/src/App.tsx`
+    # indentado em tres niveis sem truncar; o minimo ainda deixa o terminal
+    # acima de terminal/min numa janela de 1280.
+    ("panel/right", 360), ("panel/right-min", 260), ("panel/right-max", 720),
+    # Medianiz de numero de linha: 4 digitos de mono-md mais folga.
+    ("gutter/line", 44),
+    # O visualizador vive num split DENTRO da aba, ao lado do terminal. Abaixo
+    # disto o codigo quebra mais do que mostra, e o split deixa de valer.
+    ("viewer/min", 360),
 ]
 BORDER_WIDTH = [("none", 0), ("thin", 1), ("thick", 2), ("focus", 2)]
 
@@ -209,6 +232,24 @@ CONTRAST_CHECKS = [
     ("texto secundario / selecionado", "text/secondary", "bg/selected", 4.5),
     # terminal: mono claro sobre o fundo mais escuro que existe.
     ("mono / terminal",               "text/primary",   "bg/inset",   4.5),
+    # codigo: o realce pinta sobre o mesmo poco do terminal.
+    ("keyword / codigo",              "syntax/keyword", "bg/inset",   4.5),
+    ("string / codigo",               "syntax/string",  "bg/inset",   4.5),
+    ("numero / codigo",               "syntax/number",  "bg/inset",   4.5),
+    ("comentario / codigo",           "syntax/comment", "bg/inset",   3.0),
+    ("funcao / codigo",               "syntax/function", "bg/inset",  4.5),
+    ("tipo / codigo",                 "syntax/type",    "bg/inset",   4.5),
+    ("pontuacao / codigo",            "syntax/punctuation", "bg/inset", 4.5),
+    # diff: o texto e o sinal precisam aguentar a faixa de fundo da linha.
+    ("codigo / linha adicionada",     "text/code",      "git/added-subtle",   4.5),
+    ("codigo / linha removida",       "text/code",      "git/removed-subtle", 4.5),
+    ("sinal + / linha adicionada",    "git/added",      "git/added-subtle",   3.0),
+    ("sinal - / linha removida",      "git/removed",    "git/removed-subtle", 3.0),
+    # marcador de status na arvore de arquivos, que pinta sobre bg/panel.
+    ("arquivo novo / painel",         "git/added",      "bg/panel",   4.5),
+    ("arquivo modificado / painel",   "git/modified",   "bg/panel",   4.5),
+    ("arquivo apagado / painel",      "git/removed",    "bg/panel",   4.5),
+    ("nao rastreado / painel",        "git/untracked",  "bg/panel",   4.5),
 ]
 
 # ============================================================================
