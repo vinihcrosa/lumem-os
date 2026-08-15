@@ -30,11 +30,14 @@ function inside(root: string, candidate: string): boolean {
   return candidate === root || candidate.startsWith(root + sep);
 }
 
-/** Refuses anything the checkout does not contain, F5.5–F5.6. */
-export async function resolveInsideRoot(
-  root: string,
-  requested: string,
-): Promise<ResolvedPath> {
+/**
+ * Rules 1 and 2 alone, for callers whose target does not have to exist.
+ *
+ * The diff needs this: the patch of a deleted file is a legitimate request for
+ * a path that is no longer on disk, and resolving it would answer NOT_FOUND to
+ * a question that has a good answer.
+ */
+export function normalizeRelative(requested: string): string {
   if (requested.includes("\0")) {
     throw new DomainError("INVALID_ARGUMENT", "o caminho tem um byte nulo");
   }
@@ -48,7 +51,15 @@ export async function resolveInsideRoot(
   if (normalized === ".." || normalized.startsWith(`..${sep}`)) {
     throw new DomainError("INVALID_ARGUMENT", `o caminho "${requested}" sai do checkout`);
   }
-  const relative = normalized === "." ? "" : normalized.replace(new RegExp(`${sep}+$`), "");
+  return normalized === "." ? "" : normalized.replace(new RegExp(`${sep}+$`), "");
+}
+
+/** Refuses anything the checkout does not contain, F5.5–F5.6. */
+export async function resolveInsideRoot(
+  root: string,
+  requested: string,
+): Promise<ResolvedPath> {
+  const relative = normalizeRelative(requested);
 
   // The root is resolved too: on macOS /tmp is a symlink to /private/tmp, so
   // the same directory spelled two ways would fail the containment check —

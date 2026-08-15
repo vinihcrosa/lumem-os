@@ -17,15 +17,29 @@ import type { Context } from "./trpc.js";
  */
 export type ScopeType = "project" | "worktree";
 
+export interface ResolvedScope {
+  cwd: string;
+  /**
+   * The branch this checkout is measured against — the project's recorded
+   * default, resolved when it was added and never fetched again, F4.3.
+   *
+   * The project's own checkout is often *on* that branch, which is the
+   * asymmetry right-panel Q7 leaves open: the view exists and comes back empty.
+   */
+  baseBranch: string;
+}
+
 export async function resolveScope(
   ctx: Context,
   scopeType: ScopeType,
   scopeId: string,
-): Promise<{ cwd: string }> {
+): Promise<ResolvedScope> {
+  const projects = createProjectRepository(ctx.db);
+
   if (scopeType === "project") {
-    const project = await createProjectRepository(ctx.db).findById(scopeId);
+    const project = await projects.findById(scopeId);
     if (!project) throw new DomainError("NOT_FOUND", `projeto ${scopeId} não existe`);
-    return { cwd: project.path };
+    return { cwd: project.path, baseBranch: project.defaultBranch };
   }
 
   const worktree = await createWorktreeRepository(ctx.db).findById(scopeId);
@@ -33,5 +47,10 @@ export async function resolveScope(
   if (worktree.state === "missing") {
     throw new DomainError("BLOCKED", `a worktree "${worktree.name}" não está no disco`);
   }
-  return { cwd: worktree.path };
+
+  const project = await projects.findById(worktree.projectId);
+  if (!project) {
+    throw new DomainError("NOT_FOUND", `projeto ${worktree.projectId} não existe`);
+  }
+  return { cwd: worktree.path, baseBranch: project.defaultBranch };
 }
