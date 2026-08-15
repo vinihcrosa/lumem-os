@@ -86,9 +86,13 @@ test("the diff notices what the terminal wrote, in the view that owns it", async
   const list = page.getByLabel("arquivos do checkout");
   await expect(list.getByText("README.md")).toBeVisible({ timeout: 20_000 });
 
-  // The patch opens in the same split a file does.
+  // The patch opens in the same split a file does — and the assertion has to
+  // be scoped to it: the same line is on screen twice, because the terminal
+  // that wrote it is right there.
   await list.getByText("README.md").click();
-  await expect(page.getByText("escrito pelo terminal")).toBeVisible({ timeout: 15_000 });
+  await expect(
+    page.locator(".viewer").getByText("escrito pelo terminal"),
+  ).toBeVisible({ timeout: 15_000 });
 
   // Committing empties the uncommitted view and fills the other one: the two
   // views answer different questions about the same checkout.

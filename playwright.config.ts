@@ -48,7 +48,11 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env["CI"],
   retries: process.env["CI"] ? 1 : 0,
-  reporter: process.env["CI"] ? "github" : "list",
+  // Em CI, o anotador da PR mais um relatório em disco: sem o segundo, a falha
+  // vira quatro linhas de log e o artefato sobe vazio.
+  reporter: process.env["CI"]
+    ? [["github"], ["html", { open: "never" }]]
+    : [["list"]],
   use: {
     baseURL: `http://127.0.0.1:${E2E_WEB_PORT}`,
     trace: "retain-on-failure",
@@ -72,9 +76,9 @@ export default defineConfig({
       // O runner parte de um cache frio e paga a primeira compilação do tsx;
       // no laptop 60s sobram, e lá não bastavam.
       timeout: process.env["CI"] ? 180_000 : 60_000,
-      // Sem isto, um daemon que morre ao subir vira "Timed out waiting 60000ms"
-      // e nada mais — a causa fica dentro de um processo que ninguém leu.
-      stdout: process.env["CI"] ? "pipe" : "ignore",
+      // Só o stderr: o daemon loga cada requisição em stdout, e encanar isso em
+      // CI afoga o relatório da suíte no log do próprio servidor.
+      stdout: "ignore",
       stderr: "pipe",
     },
     {
@@ -88,7 +92,7 @@ export default defineConfig({
       },
       reuseExistingServer: false,
       timeout: process.env["CI"] ? 180_000 : 60_000,
-      stdout: process.env["CI"] ? "pipe" : "ignore",
+      stdout: "ignore",
       stderr: "pipe",
     },
   ],
