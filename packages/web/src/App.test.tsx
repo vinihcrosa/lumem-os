@@ -9,6 +9,12 @@ vi.mock("./lib/trpc.js", () => ({
   trpc: { health: { query: vi.fn() } },
 }));
 
+// This screen has its own tests; here it would only add a second set of
+// daemon calls to stub.
+vi.mock("./pages/TerminalSpike.js", () => ({
+  TerminalSpike: () => <section>terminais</section>,
+}));
+
 const healthQuery = vi.mocked(trpc.health.query);
 
 beforeEach(() => {

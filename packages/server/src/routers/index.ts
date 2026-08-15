@@ -1,12 +1,14 @@
 import { LUMEM_VERSION } from "@lumem/shared";
 
 import { publicProcedure, router } from "../trpc.js";
+import { ptyRouter } from "./pty.js";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({
     ok: true as const,
     version: LUMEM_VERSION,
   })),
+  pty: ptyRouter,
 });
 
 export type AppRouter = typeof appRouter;

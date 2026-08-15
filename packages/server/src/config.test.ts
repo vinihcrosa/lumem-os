@@ -1,3 +1,5 @@
+import { homedir } from "node:os";
+
 import { DEFAULT_SERVER_PORT } from "@lumem/shared";
 import { describe, expect, it } from "vitest";
 
@@ -56,5 +58,23 @@ describe("loadConfig", () => {
     // Guards the isolation the signature promises: a developer with LUMEM_HOST
     // exported in their shell must not see a red suite.
     expect(loadConfig({}).host).toBe("127.0.0.1");
+  });
+
+  it("uses the login shell", () => {
+    expect(loadConfig({ SHELL: "/usr/bin/fish" }).shell).toBe("/usr/bin/fish");
+  });
+
+  it.each(["", undefined])("falls back to /bin/sh when SHELL is %j", (value) => {
+    // SHELL is unset under launchd and in most containers, and a daemon that
+    // cannot open a shell there is a daemon that cannot start a session.
+    expect(loadConfig(value === undefined ? {} : { SHELL: value }).shell).toBe("/bin/sh");
+  });
+
+  it("defaults the session directory to the user's home", () => {
+    expect(loadConfig({}).defaultCwd).toBe(homedir());
+  });
+
+  it("takes the session directory from the environment", () => {
+    expect(loadConfig({ LUMEM_DEFAULT_CWD: "/srv/work" }).defaultCwd).toBe("/srv/work");
   });
 });

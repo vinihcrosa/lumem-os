@@ -44,7 +44,7 @@ export async function createServer({
     forceCloseConnections: true,
   });
 
-  const createContext = (): Context => ({ config });
+  const createContext = (): Context => ({ config, ptyManager });
 
   await app.register(fastifyTRPCPlugin, {
     prefix: "/trpc",

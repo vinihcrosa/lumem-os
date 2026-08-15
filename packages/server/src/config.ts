@@ -14,11 +14,33 @@ export interface ServerConfig {
   databasePath: string;
   /** Where managed git worktrees are created. */
   worktreesDir: string;
+  /**
+   * Shell used for interactive sessions.
+   *
+   * The user's login shell, because a session that ignores their aliases and
+   * prompt is a session they will not use.
+   */
+  shell: string;
+  /**
+   * Working directory for a session with no scope yet.
+   *
+   * Temporary: from T29 on, a session's cwd comes from the project or worktree
+   * it belongs to. Until then the vertical slice needs *somewhere* to run.
+   */
+  defaultCwd: string;
 }
 
 /** Only the variables this module reads. Keeps tests from touching process.env. */
 export type ConfigEnv = Partial<
-  Record<"LUMEM_PORT" | "LUMEM_HOST" | "LUMEM_STATE_DIR" | "LUMEM_DB_PATH", string>
+  Record<
+    | "LUMEM_PORT"
+    | "LUMEM_HOST"
+    | "LUMEM_STATE_DIR"
+    | "LUMEM_DB_PATH"
+    | "LUMEM_DEFAULT_CWD"
+    | "SHELL",
+    string
+  >
 >;
 
 function readPort(raw: string | undefined): number {
@@ -52,5 +74,9 @@ export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
     stateDir,
     databasePath: env.LUMEM_DB_PATH ?? join(stateDir, "lumem.db"),
     worktreesDir: join(stateDir, "worktrees"),
+    // /bin/sh exists on every POSIX system this daemon can run on; SHELL is
+    // unset under launchd and in some containers.
+    shell: env.SHELL === undefined || env.SHELL === "" ? "/bin/sh" : env.SHELL,
+    defaultCwd: env.LUMEM_DEFAULT_CWD ?? homedir(),
   };
 }
