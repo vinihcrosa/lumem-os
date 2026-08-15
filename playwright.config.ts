@@ -48,7 +48,11 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env["CI"],
   retries: process.env["CI"] ? 1 : 0,
-  reporter: process.env["CI"] ? "github" : "list",
+  // Em CI, o anotador da PR mais um relatório em disco: sem o segundo, a falha
+  // vira quatro linhas de log e o artefato sobe vazio.
+  reporter: process.env["CI"]
+    ? [["github"], ["html", { open: "never" }]]
+    : [["list"]],
   use: {
     baseURL: `http://127.0.0.1:${E2E_WEB_PORT}`,
     trace: "retain-on-failure",
@@ -69,7 +73,13 @@ export default defineConfig({
       // Never reuse: reuse skips the spawn, and skipping the spawn silently
       // drops the env above — including the throwaway state dir.
       reuseExistingServer: false,
-      timeout: 60_000,
+      // O runner parte de um cache frio e paga a primeira compilação do tsx;
+      // no laptop 60s sobram, e lá não bastavam.
+      timeout: process.env["CI"] ? 180_000 : 60_000,
+      // Só o stderr: o daemon loga cada requisição em stdout, e encanar isso em
+      // CI afoga o relatório da suíte no log do próprio servidor.
+      stdout: "ignore",
+      stderr: "pipe",
     },
     {
       command: "pnpm --filter @lumem/web dev",
@@ -81,7 +91,9 @@ export default defineConfig({
         LUMEM_WEB_PORT: String(E2E_WEB_PORT),
       },
       reuseExistingServer: false,
-      timeout: 60_000,
+      timeout: process.env["CI"] ? 180_000 : 60_000,
+      stdout: "ignore",
+      stderr: "pipe",
     },
   ],
 });

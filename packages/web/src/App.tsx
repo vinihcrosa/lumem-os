@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { AddProjectDialog } from "./components/AddProjectDialog.js";
+import { CheckoutFiles } from "./components/CheckoutFiles.js";
 import { FirstRun } from "./components/FirstRun.js";
 import { LocalPanel } from "./components/LocalPanel.js";
 import { SidebarTree } from "./components/SidebarTree.js";
@@ -9,6 +10,8 @@ import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
 import { WorktreePanel } from "./components/WorktreePanel.js";
 import { useActiveWorkspace } from "./hooks/useActiveWorkspace.js";
 import { useLiveState } from "./hooks/useLiveState.js";
+import { OpenFilesProvider } from "./hooks/useOpenFiles.js";
+import { useRightPanel } from "./hooks/useRightPanel.js";
 import type { Scope } from "./hooks/useSessionsByScope.js";
 import { useTreeExpansion } from "./hooks/useTreeExpansion.js";
 import { AppShell } from "./layout/AppShell.js";
@@ -34,6 +37,7 @@ export function App() {
   const queryClient = useQueryClient();
   const [selection, setSelection] = useState<Selection>(null);
   const expansion = useTreeExpansion();
+  const rightPanel = useRightPanel();
 
   const health = useQuery({
     queryKey: ["health"],
@@ -58,8 +62,14 @@ export function App() {
   useLiveState();
 
   return (
-    <div className="app">
-      <Topbar version={health.data?.version ?? null} unreachable={health.isError} />
+    <OpenFilesProvider>
+      <div className="app">
+      <Topbar
+        version={health.data?.version ?? null}
+        unreachable={health.isError}
+        // Nothing to show the files of until a checkout is selected.
+        filesPanel={selection === null ? undefined : rightPanel}
+      />
       {/* The topbar dot says it quietly; this says what it means. Every action
           below is a call to a daemon that is not answering, and a sidebar that
           merely looks stale gives no reason for why nothing works. */}
@@ -72,7 +82,8 @@ export function App() {
         </div>
       )}
       {renderBody()}
-    </div>
+      </div>
+    </OpenFilesProvider>
   );
 
   function renderBody() {
@@ -113,6 +124,8 @@ export function App() {
         // The panel owns its own scrolling: the terminal inside it has to be
         // able to measure a box with a height.
         fill
+        right={renderRightPanel()}
+        rightWidth={rightPanel.width}
         sidebar={
           <>
             <WorkspaceSelector
@@ -148,6 +161,22 @@ export function App() {
       >
         {renderPanel(activeId, activeName)}
       </AppShell>
+    );
+  }
+
+  /** The checkout's files, when there is a checkout and the user wants them. */
+  function renderRightPanel() {
+    if (selection === null || !rightPanel.open) return undefined;
+
+    return (
+      <CheckoutFiles
+        // Keyed by checkout: a path from one worktree does not exist in
+        // another, so the tree's expansion starts over on purpose (F2.6).
+        key={`${selection.scope.scopeType}:${selection.scope.scopeId}`}
+        scope={selection.scope}
+        onClose={rightPanel.toggle}
+        onResize={rightPanel.setWidth}
+      />
     );
   }
 

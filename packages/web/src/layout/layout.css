@@ -57,6 +57,24 @@
   border-radius: var(--radius-full);
   background: var(--color-daemon-online);
 }
+/* Mostrar e esconder a coluna de arquivos. O estado é da janela, não do
+   checkout — por isso o botão fica aqui, e não dentro do painel. */
+.rp-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-tertiary);
+  font: var(--text-label-xs);
+  cursor: pointer;
+}
+.rp-toggle:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.rp-toggle--on { background: var(--color-bg-active); color: var(--color-text-primary); }
+
 .daemon--off { color: var(--color-daemon-offline); }
 .daemon--off .daemon__dot { background: var(--color-daemon-offline); }
 
@@ -76,6 +94,16 @@
   min-height: 0;
   background: var(--color-bg-panel);
   border-right: 1px solid var(--color-border-subtle);
+}
+
+/* Três colunas quando a dos arquivos está aberta. A largura é um número que
+   um arrasto muda, então chega como custom property em vez de token — mas o
+   padrão, o mínimo e o máximo continuam sendo tokens. */
+.app-shell--right {
+  grid-template-columns:
+    var(--size-sidebar-width)
+    minmax(var(--size-terminal-min), 1fr)
+    var(--right-width, var(--size-panel-right));
 }
 
 .app-shell__main {

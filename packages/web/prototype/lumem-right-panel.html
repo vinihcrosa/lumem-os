@@ -1,0 +1,1743 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — barra direita: arquivos e diff</title>
+<style>
+/* ========================================================================
+   1. tokens.css — colado integralmente, gerado por
+      packages/web/scripts/generate-tokens.py
+   ======================================================================== */
+/* Design tokens — GERADO por scripts/generate_palette.py. Nao edite a mao. */
+/* Rampas em OKLCH, contraste WCAG validado na geracao. */
+
+:root {
+  /* ---------- primitivas — nunca use direto em componente ---------- */
+  /* brand */
+  --brand-50: #F8F7FF;
+  --brand-100: #EFECFF;
+  --brand-200: #DFD9FF;
+  --brand-300: #CCC2FF;
+  --brand-400: #B5A2FF;
+  --brand-500: #9774FD;
+  --brand-600: #7955D7;
+  --brand-700: #603FAF;
+  --brand-800: #492F88;
+  --brand-900: #321F5F;
+  --brand-950: #211441;
+  /* accent */
+  --accent-50: #F6FAEB;
+  --accent-100: #ECF3D8;
+  --accent-200: #DAE5B3;
+  --accent-300: #C5D587;
+  --accent-400: #ABBE55;
+  --accent-500: #8A9D0E;
+  --accent-600: #6D7D00;
+  --accent-700: #556200;
+  --accent-800: #414A00;
+  --accent-900: #2C3300;
+  --accent-950: #1C2200;
+  /* neutral */
+  --neutral-0: #FFFFFF;
+  --neutral-50: #F8F7F9;
+  --neutral-100: #EFEEF1;
+  --neutral-200: #DEDEE3;
+  --neutral-300: #CBCAD2;
+  --neutral-400: #B2B1BB;
+  --neutral-500: #91909B;
+  --neutral-600: #73727C;
+  --neutral-700: #5A5962;
+  --neutral-800: #44434A;
+  --neutral-900: #2E2E33;
+  --neutral-925: #26252C;
+  --neutral-950: #1E1E22;
+  --neutral-960: #19181F;
+  --neutral-970: #14131A;
+  --neutral-980: #100F15;
+  --neutral-990: #0C0B11;
+  --neutral-1000: #08070D;
+  --neutral-1010: #050408;
+  /* success */
+  --success-50: #EEFCF3;
+  --success-100: #DCF7E6;
+  --success-200: #BAEDCE;
+  --success-300: #91E0B3;
+  --success-400: #60CC93;
+  --success-500: #1AAC6E;
+  --success-600: #008955;
+  --success-700: #006C42;
+  --success-800: #005331;
+  --success-900: #003920;
+  --success-950: #002614;
+  /* warning */
+  --warning-50: #FFF7EA;
+  --warning-100: #FEECD2;
+  --warning-200: #FAD9A7;
+  --warning-300: #F4C273;
+  --warning-400: #E5A52E;
+  --warning-500: #BF8500;
+  --warning-600: #986900;
+  --warning-700: #785200;
+  --warning-800: #5C3E00;
+  --warning-900: #402A00;
+  --warning-950: #2B1B00;
+  /* danger */
+  --danger-50: #FFF5F4;
+  --danger-100: #FFE9E6;
+  --danger-200: #FFD3CD;
+  --danger-300: #FFB6AE;
+  --danger-400: #FF8D83;
+  --danger-500: #F0554F;
+  --danger-600: #C93433;
+  --danger-700: #A32223;
+  --danger-800: #7E1718;
+  --danger-900: #580F0F;
+  --danger-950: #3D0808;
+  /* info */
+  --info-50: #F1F9FF;
+  --info-100: #DFF2FF;
+  --info-200: #BEE5FF;
+  --info-300: #94D4FF;
+  --info-400: #4FBEFF;
+  --info-500: #009CE0;
+  --info-600: #007CB2;
+  --info-700: #00618D;
+  --info-800: #004A6D;
+  --info-900: #00334C;
+  --info-950: #002134;
+
+  /* ---------- semantica — use estas ---------- */
+  /* superficies */
+  --color-bg-base: var(--neutral-1000);
+  --color-bg-panel: var(--neutral-990);
+  --color-bg-surface: var(--neutral-980);
+  --color-bg-raised: var(--neutral-970);
+  --color-bg-inset: var(--neutral-1010);
+  --color-bg-hover: var(--neutral-960);
+  --color-bg-active: var(--neutral-925);
+  --color-bg-selected: var(--brand-950);
+  /* marca */
+  --color-bg-brand: var(--brand-500);
+  --color-bg-brand-hover: var(--brand-400);
+  --color-bg-brand-subtle: var(--brand-950);
+  --color-bg-brand-muted: var(--brand-900);
+  /* fundos de status */
+  --color-bg-success-subtle: var(--success-950);
+  --color-bg-warning-subtle: var(--warning-950);
+  --color-bg-danger-subtle: var(--danger-950);
+  --color-bg-info-subtle: var(--info-950);
+  --color-bg-neutral-subtle: var(--neutral-925);
+  /* texto */
+  --color-text-primary: var(--neutral-50);
+  --color-text-secondary: var(--neutral-400);
+  --color-text-tertiary: var(--neutral-500);
+  --color-text-disabled: var(--neutral-700);
+  --color-text-inverse: var(--neutral-1000);
+  --color-text-on-brand: var(--neutral-1000);
+  --color-text-brand: var(--brand-400);
+  --color-text-link: var(--brand-400);
+  --color-text-code: var(--neutral-300);
+  --color-text-success: var(--success-400);
+  --color-text-warning: var(--warning-400);
+  --color-text-danger: var(--danger-400);
+  --color-text-info: var(--info-400);
+  /* bordas */
+  --color-border-subtle: var(--neutral-960);
+  --color-border-default: var(--neutral-925);
+  --color-border-strong: var(--neutral-800);
+  --color-border-brand: var(--brand-500);
+  --color-border-danger: var(--danger-500);
+  --color-border-focus: var(--brand-400);
+  /* dominio — sessao */
+  --color-session-running: var(--success-400);
+  --color-session-exited: var(--neutral-500);
+  --color-session-failed: var(--danger-400);
+  --color-session-shell: var(--info-400);
+  --color-session-agent: var(--brand-400);
+  /* dominio — worktree e git */
+  --color-worktree-clean: var(--success-400);
+  --color-worktree-dirty: var(--warning-400);
+  --color-worktree-missing: var(--danger-400);
+  --color-git-branch: var(--accent-400);
+  --color-git-ahead: var(--info-400);
+  --color-git-behind: var(--warning-400);
+  --color-git-added: var(--success-400);
+  --color-git-removed: var(--danger-400);
+  --color-git-modified: var(--warning-400);
+  /* dominio — hierarquia e daemon */
+  --color-scope-workspace: var(--brand-400);
+  --color-scope-project: var(--neutral-400);
+  --color-scope-worktree: var(--accent-400);
+  --color-daemon-online: var(--success-400);
+  --color-daemon-offline: var(--danger-400);
+  /* dominio — codigo */
+  --color-syntax-keyword: var(--brand-400);
+  --color-syntax-string: var(--accent-400);
+  --color-syntax-number: var(--warning-300);
+  --color-syntax-comment: var(--neutral-600);
+  --color-syntax-function: var(--info-400);
+  --color-syntax-type: var(--success-300);
+  --color-syntax-punctuation: var(--neutral-400);
+  --color-git-added-subtle: var(--success-950);
+  --color-git-removed-subtle: var(--danger-950);
+  --color-git-untracked: var(--info-400);
+
+  /* ---------- espacamento (nome = valor em px) ---------- */
+  --space-0: 0px;
+  --space-1: 1px;
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+
+  /* ---------- raio ---------- */
+  --radius-none: 0px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* ---------- dimensoes ---------- */
+  --size-control-xs: 20px;
+  --size-control-sm: 24px;
+  --size-control-md: 28px;
+  --size-control-lg: 32px;
+  --size-control-xl: 40px;
+  --size-icon-xs: 12px;
+  --size-icon-sm: 14px;
+  --size-icon-md: 16px;
+  --size-icon-lg: 20px;
+  --size-row-compact: 28px;
+  --size-row-cozy: 32px;
+  --size-target-min: 24px;
+  --size-topbar-height: 40px;
+  --size-sidebar-width: 264px;
+  --size-detail-max: 880px;
+  --size-terminal-min: 420px;
+  --size-dialog-width: 420px;
+  --size-menu-width: 300px;
+  --size-panel-right: 360px;
+  --size-panel-right-min: 260px;
+  --size-panel-right-max: 720px;
+  --size-gutter-line: 44px;
+  --size-viewer-min: 360px;
+  --border-width-none: 0px;
+  --border-width-thin: 1px;
+  --border-width-thick: 2px;
+  --border-width-focus: 2px;
+
+  /* ---------- tipografia ---------- */
+  --font-family-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-display-lg: 600 28px/34px var(--font-family-sans);
+  --tracking-display-lg: -0.02em;
+  --text-display-md: 600 22px/28px var(--font-family-sans);
+  --tracking-display-md: -0.015em;
+  --text-heading-lg: 600 18px/24px var(--font-family-sans);
+  --tracking-heading-lg: -0.01em;
+  --text-heading-md: 600 15px/20px var(--font-family-sans);
+  --tracking-heading-md: -0.005em;
+  --text-heading-sm: 600 13px/18px var(--font-family-sans);
+  --text-body-lg: 400 14px/20px var(--font-family-sans);
+  --text-body-md: 400 13px/18px var(--font-family-sans);
+  --text-body-sm: 400 12px/16px var(--font-family-sans);
+  --text-label-md: 500 13px/16px var(--font-family-sans);
+  --text-label-sm: 500 12px/16px var(--font-family-sans);
+  --text-label-xs: 500 11px/14px var(--font-family-sans);
+  --tracking-label-xs: 0.015em;
+  --text-caption: 400 11px/14px var(--font-family-sans);
+  --text-mono-lg: 400 13px/20px var(--font-family-mono);
+  --text-mono-md: 400 12px/18px var(--font-family-mono);
+  --text-mono-sm: 400 11px/16px var(--font-family-mono);
+
+  /* ---------- elevacao ---------- */
+  --elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.32);
+  --elevation-md: 0 2px 4px -1px rgb(0 0 0 / 0.34), 0 4px 8px -2px rgb(0 0 0 / 0.30);
+  --elevation-lg: 0 4px 8px -2px rgb(0 0 0 / 0.38), 0 12px 24px -4px rgb(0 0 0 / 0.36);
+  --elevation-xl: 0 8px 16px -4px rgb(0 0 0 / 0.42), 0 24px 48px -8px rgb(0 0 0 / 0.44);
+  --focus-ring: 0 0 0 1px var(--color-bg-base), 0 0 0 3px var(--color-border-focus);
+}
+
+/* Anel de foco padrao — aplique em todo alvo interativo */
+.focus-ring:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ========================================================================
+   2. estilos do protótipo — só var(), nenhum literal
+   ======================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font: var(--text-body-md);
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* ---------------------------------------------------- chrome do protótipo */
+/* Não faz parte do desenho: é só a navegação entre telas do arquivo. */
+.tabbar {
+  display: flex;
+  align-items: stretch;
+  height: var(--size-control-lg);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.tab {
+  padding: 0 var(--space-12);
+  font: var(--text-label-sm);
+  color: var(--color-text-tertiary);
+  border-bottom: 2px solid transparent;
+}
+.tab.is-active { color: var(--color-text-primary); border-bottom-color: var(--color-border-brand); }
+
+.screen { display: none; }
+.screen.is-active { display: block; }
+
+/* ------------------------------------------------------------- app frame */
+.app {
+  height: calc(100vh - var(--size-control-lg));
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-base);
+}
+.app--flow { height: auto; }
+
+.topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  height: var(--size-topbar-height);
+  padding: 0 var(--space-12);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  font: var(--text-heading-sm);
+  letter-spacing: var(--tracking-label-xs);
+}
+.wordmark__dot {
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-brand-hover);
+  box-shadow: 0 0 var(--space-8) var(--color-bg-brand);
+}
+.spacer { flex: 1; }
+.daemon {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+}
+.daemon__dot {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-daemon-online);
+}
+
+/*
+ * O botão que traz a coluna de volta.
+ *
+ * Mora na topbar e não na worktree: a coluna é do checkout, mas o gesto de
+ * mostrar e esconder é da janela — e quando ela está fechada não sobrou nada
+ * na tela onde pendurar o botão.
+ */
+.rp-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-xs);
+}
+.rp-toggle:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.rp-toggle--on { background: var(--color-bg-active); color: var(--color-text-primary); }
+
+.body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--size-sidebar-width) 1fr;
+  min-height: 0;
+}
+/* Com a coluna aberta: três colunas. É esta linha, e só ela, que muda a forma
+   da tela — por isso o refit do terminal pendura aqui. */
+.body--right { grid-template-columns: var(--size-sidebar-width) 1fr var(--size-panel-right); }
+.body--right-min { grid-template-columns: var(--size-sidebar-width) 1fr var(--size-panel-right-min); }
+.body--right-max { grid-template-columns: var(--size-sidebar-width) 1fr var(--size-panel-right-max); }
+
+/* --------------------------------------------------------------- sidebar */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-bg-panel);
+  border-right: 1px solid var(--color-border-subtle);
+}
+.tree { flex: 1; overflow: auto; padding: var(--space-4) var(--space-6); }
+.sidebar__foot { border-top: 1px solid var(--color-border-subtle); padding: var(--space-6); }
+
+.ws {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-8);
+  margin: var(--space-6);
+  border-radius: var(--radius-md);
+  font: var(--text-label-md);
+}
+.ws__icon { color: var(--color-scope-workspace); font-size: var(--size-icon-sm); }
+.ws__caret { color: var(--color-text-tertiary); font-size: var(--size-icon-xs); }
+.ws-wrap { border-bottom: 1px solid var(--color-border-subtle); }
+
+.tree__label {
+  padding: var(--space-10) var(--space-8) var(--space-4);
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-disabled);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--size-row-compact);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+.row:hover { background: var(--color-bg-hover); }
+.row--selected {
+  background: var(--color-bg-selected);
+  color: var(--color-text-primary);
+  box-shadow: inset 2px 0 0 var(--color-border-brand);
+}
+.row--muted { color: var(--color-text-disabled); }
+.row--project { color: var(--color-text-primary); }
+
+.row__twist {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-icon-md);
+  height: 100%;
+  margin-left: calc(var(--space-4) + var(--depth, 0) * var(--space-12));
+  font-size: var(--size-icon-xs);
+  color: var(--color-text-tertiary);
+}
+.row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: 100%;
+  padding: 0 var(--space-8) 0 var(--space-4);
+  color: inherit;
+  font: var(--text-body-md);
+  text-align: left;
+}
+.row--project .row__main { font: var(--text-label-md); }
+.row__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row__meta { flex: none; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+.glyph { flex: none; width: var(--size-icon-sm); text-align: center; font-size: var(--size-icon-sm); line-height: 1; }
+.glyph--project  { color: var(--color-scope-project); }
+.glyph--worktree { color: var(--color-scope-worktree); }
+.glyph--local    { color: var(--color-scope-project); }
+.glyph--shell    { color: var(--color-session-shell); }
+.glyph--agent    { color: var(--color-session-agent); }
+.glyph--warn     { color: var(--color-worktree-missing); }
+.glyph--off      { color: var(--color-text-disabled); }
+.glyph--dir      { color: var(--color-text-tertiary); }
+
+.count {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--size-control-xs);
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-neutral-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.count--running { background: var(--color-bg-success-subtle); color: var(--color-session-running); }
+.count__dot { width: var(--space-4); height: var(--space-4); border-radius: var(--radius-full); background: currentColor; }
+
+.add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-md);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+}
+.add:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+/* ------------------------------------------------------------ área principal */
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+.wt-head { flex: none; padding: var(--space-16) var(--space-20) var(--space-12); }
+.crumb { display: flex; align-items: center; gap: var(--space-6); font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.crumb__sep { color: var(--color-text-disabled); }
+.crumb__here { color: var(--color-text-secondary); }
+
+.wt-title { display: flex; align-items: center; gap: var(--space-10); margin: var(--space-6) 0 var(--space-10); }
+.wt-title h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  font: var(--text-display-md);
+  letter-spacing: var(--tracking-display-md);
+}
+.wt-title .glyph { font-size: var(--size-icon-lg); width: auto; }
+
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  font: var(--text-mono-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.chip__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+.chip--branch { color: var(--color-git-branch); }
+.chip--clean { color: var(--color-worktree-clean); }
+.chip--dirty { color: var(--color-worktree-dirty); }
+.chip .ahead { color: var(--color-git-ahead); }
+.chip .dim { color: var(--color-text-tertiary); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.btn:hover { background: var(--color-bg-raised); }
+.btn--ghost { background: none; border-color: var(--color-border-subtle); color: var(--color-text-secondary); }
+.btn--sm { height: var(--size-control-sm); padding: 0 var(--space-8); font: var(--text-label-xs); }
+
+/* ----------------------------------------------------------------- abas */
+.tabs-bar {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  padding: 0 var(--space-12);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.tabs { flex: 1; min-width: 0; display: flex; align-items: stretch; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+
+.stab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-10);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.stab:hover { background: var(--color-bg-hover); color: var(--color-text-secondary); }
+.stab--active { background: var(--color-bg-surface); border-bottom-color: var(--color-border-brand); color: var(--color-text-primary); }
+.stab--overview { margin-right: var(--space-8); }
+.tabs__sep { flex: none; align-self: center; width: 1px; height: var(--size-icon-md); margin-right: var(--space-8); background: var(--color-border-default); }
+.stab__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: var(--color-session-running); }
+.stab__close { margin-left: var(--space-2); margin-right: calc(-1 * var(--space-4)); padding: 0 var(--space-4); color: var(--color-text-disabled); font-size: var(--size-icon-xs); }
+.stab__ord { color: var(--color-text-disabled); font: var(--text-mono-sm); }
+.tabs__new {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  align-self: center;
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-xs);
+}
+.menu-wrap { position: relative; display: inline-flex; align-self: center; flex: none; padding-left: var(--space-8); }
+
+/* --------------------------------------------------------------- painel */
+.pane { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--space-12) var(--space-20) var(--space-16); overflow: auto; }
+.pane--term { overflow: hidden; }
+
+.term-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  flex: none;
+  padding: var(--space-8) var(--space-12);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.term-head__cmd { flex: 1; min-width: 0; font: var(--text-mono-sm); color: var(--color-text-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.term {
+  flex: 1;
+  min-height: var(--size-terminal-min);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  padding: var(--space-10) var(--space-12);
+  font: var(--text-mono-md);
+  color: var(--color-text-primary);
+  white-space: normal;
+  overflow: hidden;
+}
+.term .l { display: block; white-space: pre; min-height: var(--space-8); }
+.term .dim { color: var(--color-text-tertiary); }
+.term .agent { color: var(--color-session-agent); }
+.term .ok { color: var(--color-git-added); }
+.term .err { color: var(--color-session-failed); }
+.term .path { color: var(--color-git-branch); }
+.term .you { color: var(--color-text-primary); font-weight: 500; }
+.cursor { display: inline-block; width: var(--space-8); height: var(--space-12); background: var(--color-text-primary); vertical-align: text-bottom; }
+
+/* ======================================================================== */
+/* A COLUNA DA DIREITA — o que esta feature acrescenta                      */
+/* ======================================================================== */
+/*
+ * Ela é do checkout, não da aba: trocar de sessão não muda quais arquivos
+ * existem. Por isso vive fora do `.main`, irmã dele, e não dentro da faixa.
+ */
+.rp {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--color-bg-panel);
+  border-left: 1px solid var(--color-border-subtle);
+}
+
+/* A alça de arrasto. Fica sobre a borda e é mais larga que ela: uma borda de
+   1px é um alvo que se erra. */
+.rp__grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * var(--space-2));
+  width: var(--space-4);
+  cursor: col-resize;
+}
+.rp__grip:hover { background: var(--color-border-brand); }
+
+/* A faixa da coluna tem a altura da topbar de propósito: as duas terminam na
+   mesma linha e a coluna parece cortada da janela, não colada nela. */
+.rp__bar {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  height: var(--size-topbar-height);
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.rtab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 0 var(--space-8);
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.rtab:hover { color: var(--color-text-secondary); }
+.rtab--active { color: var(--color-text-primary); border-bottom-color: var(--color-border-brand); }
+/* Quantos arquivos mudaram, na própria aba: é o número que decide se vale
+   abrir a aba, e escondê-lo dentro dela obrigaria a abrir para descobrir. */
+.rtab__count {
+  min-width: var(--size-icon-md);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-neutral-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+.rtab--active .rtab__count { background: var(--color-bg-brand-subtle); color: var(--color-text-brand); }
+
+.rp__icon {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+}
+.rp__icon:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.rp__icon--on { background: var(--color-bg-active); color: var(--color-text-primary); }
+
+.rp__body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.rp__scroll { flex: 1; min-height: 0; overflow: auto; padding: var(--space-4) var(--space-4) var(--space-12); }
+
+/* Rodapé de estado: quando a coluna leu o disco pela última vez. Sem watcher
+   (ver Q6), "há 12 s" é a única coisa que separa dado fresco de dado velho. */
+.rp__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-md);
+  padding: 0 var(--space-8);
+  border-top: 1px solid var(--color-border-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-disabled);
+}
+
+/* --------------------------------------------------------- árvore de arquivos */
+/*
+ * Mais densa que a sidebar: 24px, não 28px. A sidebar tem dezenas de linhas e
+ * a árvore tem centenas — e caminho é literal do domínio, então mono.
+ */
+.frow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-sm);
+  padding-right: var(--space-6);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font: var(--text-mono-md);
+  text-align: left;
+}
+.frow:hover { background: var(--color-bg-hover); }
+.frow--open {
+  background: var(--color-bg-selected);
+  color: var(--color-text-primary);
+  box-shadow: inset 2px 0 0 var(--color-border-brand);
+}
+.frow--dir { color: var(--color-text-primary); }
+.frow--dim { color: var(--color-text-disabled); }
+.frow__twist {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-icon-md);
+  height: 100%;
+  margin-left: calc(var(--space-2) + var(--depth, 0) * var(--space-12));
+  font-size: var(--size-icon-xs);
+  color: var(--color-text-tertiary);
+}
+/* O nome encolhe, o marcador anda junto com ele: numa coluna larga, um `M`
+   grudado na borda direita fica a meia tela do arquivo que ele descreve. */
+.frow__name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frow__size { flex: none; padding-left: var(--space-8); font: var(--text-caption); color: var(--color-text-disabled); }
+.frow__gap { flex: 1; }
+
+/* Marcador de status. Uma letra, não um ponto: `A` e `M` são distinguíveis em
+   preto e branco, e a árvore inteira é texto mono de 12px. */
+.mark { flex: none; width: var(--size-icon-sm); text-align: center; font: var(--text-mono-sm); }
+.mark--a { color: var(--color-git-added); }
+.mark--m { color: var(--color-git-modified); }
+.mark--d { color: var(--color-git-removed); }
+.mark--u { color: var(--color-git-untracked); }
+
+/* Truncamento, vazio e recusa. Sempre com o motivo — uma listagem que para no
+   meio sem dizer nada lê como "acabou". */
+.fnote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-8) var(--space-8);
+  margin-left: calc(var(--space-2) + var(--depth, 0) * var(--space-12));
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.fnote__glyph { flex: none; color: var(--color-text-warning); }
+.fnote code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.fnote button { color: var(--color-text-link); font: var(--text-caption); text-decoration: underline; }
+
+/* --------------------------------------------------------- visualizador */
+.fv { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.fv__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-6) 0 var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+}
+.back:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+/* O caminho trunca do começo: o nome do arquivo é o que identifica, e é ele
+   que sobreviveria a um `text-overflow` — se o corte fosse no fim, morreria. */
+.fpath {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  font: var(--text-mono-md);
+  color: var(--color-text-primary);
+  overflow: hidden;
+}
+/* `direction: rtl` sozinho move a barra final do diretório para a frente —
+   `src/lore/` vira `/src/lore`. Com `unicode-bidi: plaintext` o texto continua
+   lido da esquerda para a direita e só o corte muda de lado. */
+.fpath__dir { flex: 0 1 auto; min-width: 0; color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; unicode-bidi: plaintext; text-align: left; }
+.fpath__name { flex: none; white-space: nowrap; }
+.fv__meta { flex: none; font: var(--text-caption); color: var(--color-text-disabled); white-space: nowrap; }
+
+.code {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-8) 0 var(--space-16);
+  background: var(--color-bg-inset);
+  font: var(--text-mono-md);
+  white-space: normal;
+}
+/*
+ * Quebra ligada por padrão, e este é o achado da renderização: numa coluna de
+ * 360px, código de 80 colunas some do lado direito sem nem uma barra de rolagem
+ * para denunciar. Ler pela metade é pior que ler quebrado. O botão `⇄` desliga.
+ */
+.code .l { display: flex; align-items: flex-start; white-space: pre-wrap; overflow-wrap: anywhere; }
+.code--nowrap .l { white-space: pre; overflow-wrap: normal; }
+.code--nowrap { overflow-x: auto; }
+.code .l:hover { background: var(--color-bg-panel); }
+/* A medianiz gruda: rolar o código na horizontal não pode levar o número da
+   linha embora, que é o endereço que se lê em voz alta. */
+.code .n {
+  position: sticky;
+  left: 0;
+  flex: none;
+  width: var(--size-gutter-line);
+  padding-right: var(--space-10);
+  text-align: right;
+  color: var(--color-text-disabled);
+  background: var(--color-bg-inset);
+  user-select: none;
+}
+/* A continuação de uma linha quebrada entra recuada: sem isso ela se alinha
+   com o código de verdade e passa por linha própria. */
+.code .t { flex: 1; padding-right: var(--space-12); padding-left: var(--space-12); text-indent: calc(-1 * var(--space-12)); color: var(--color-text-code); }
+.k  { color: var(--color-syntax-keyword); }
+.s  { color: var(--color-syntax-string); }
+.nu { color: var(--color-syntax-number); }
+.c  { color: var(--color-syntax-comment); }
+.fn { color: var(--color-syntax-function); }
+.ty { color: var(--color-syntax-type); }
+.pu { color: var(--color-syntax-punctuation); }
+
+/* Recusa de leitura: binário, grande demais, symlink que sai do checkout. */
+.refuse {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-8);
+  padding: var(--space-24) var(--space-16);
+  background: var(--color-bg-inset);
+}
+.refuse__glyph { font-size: var(--size-icon-lg); color: var(--color-text-tertiary); }
+.refuse__title { font: var(--text-label-md); color: var(--color-text-primary); }
+.refuse__why { font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.refuse code { font: var(--text-mono-sm); color: var(--color-text-code); word-break: break-all; }
+
+/* ------------------------------------------------------------- mudanças */
+/* O alternador. Segmentado e não menu: são dois, ambos frequentes, e a troca
+   é a ação — um menu esconderia metade da feature atrás de um clique. */
+.seg-wrap { flex: none; display: flex; padding: var(--space-8) var(--space-8) var(--space-4); }
+.seg {
+  display: inline-flex;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+.seg__btn {
+  flex: none;
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.seg__btn:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.seg__btn--on { background: var(--color-bg-active); border-color: var(--color-border-default); color: var(--color-text-primary); }
+.seg__btn--off { color: var(--color-text-disabled); cursor: not-allowed; }
+.seg__btn--off:hover { background: none; color: var(--color-text-disabled); }
+
+.sum { flex: none; display: flex; align-items: center; gap: var(--space-8); padding: 0 var(--space-8) var(--space-6); font: var(--text-caption); color: var(--color-text-tertiary); }
+.plus { color: var(--color-git-added); }
+.minus { color: var(--color-git-removed); }
+
+.drow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-sm);
+  padding: 0 var(--space-6) 0 var(--space-4);
+  border-radius: var(--radius-sm);
+  font: var(--text-mono-md);
+  color: var(--color-text-secondary);
+  text-align: left;
+}
+.drow:hover { background: var(--color-bg-hover); }
+.drow--open { background: var(--color-bg-selected); color: var(--color-text-primary); box-shadow: inset 2px 0 0 var(--color-border-brand); }
+/* Diretório apagado, nome do arquivo aceso: numa lista de caminhos longos, o
+   que diferencia uma linha da outra é o fim, não o começo. */
+.dpath { flex: 0 1 auto; min-width: 0; display: flex; overflow: hidden; }
+.drow__gap { flex: 1; }
+.dpath__dir { flex: 0 1 auto; min-width: 0; color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; unicode-bidi: plaintext; text-align: left; }
+.dpath__name { flex: none; white-space: nowrap; }
+.dstat { flex: none; font: var(--text-mono-sm); }
+.drow__was { font: var(--text-caption); color: var(--color-text-disabled); }
+
+.hunk {
+  padding: var(--space-2) var(--space-8);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+  white-space: pre;
+}
+.patch { flex: 1; min-height: 0; overflow: auto; background: var(--color-bg-inset); font: var(--text-mono-md); white-space: normal; }
+.dl { display: flex; align-items: flex-start; white-space: pre-wrap; overflow-wrap: anywhere; }
+.patch--nowrap .dl { white-space: pre; overflow-wrap: normal; }
+.dl__sig { flex: none; width: var(--size-icon-md); text-align: center; user-select: none; color: var(--color-text-disabled); }
+.dl__t { flex: 1; padding-right: var(--space-12); padding-left: var(--space-12); text-indent: calc(-1 * var(--space-12)); color: var(--color-text-code); }
+.dl--add { background: var(--color-git-added-subtle); }
+.dl--add .dl__sig { color: var(--color-git-added); }
+.dl--del { background: var(--color-git-removed-subtle); }
+.dl--del .dl__sig { color: var(--color-git-removed); }
+
+
+/* ======================================================================== */
+/* O SPLIT DA ABA — onde o arquivo abre                                     */
+/* ======================================================================== */
+/*
+ * O arquivo NÃO abre dentro da coluna. Ele abre ao lado da sessão, dentro da
+ * aba, e a coluna continua sendo a árvore — que é o que torna possível abrir o
+ * próximo arquivo sem fechar este. A coluna navega; o split lê.
+ *
+ * Consequência de layout: agora são duas coisas que mexem na caixa do xterm —
+ * a coluna e o split. As duas precisam remedir o terminal.
+ */
+.pane--split { flex-direction: row; gap: var(--space-4); }
+.split__side { display: flex; flex-direction: column; min-height: 0; }
+.split__side--term { flex: 1 1 0; min-width: var(--size-terminal-min); }
+.split__side--viewer { flex: 1 1 0; min-width: var(--size-viewer-min); }
+.split__grip {
+  flex: none;
+  align-self: stretch;
+  width: var(--space-4);
+  border-radius: var(--radius-full);
+  cursor: col-resize;
+}
+.split__grip:hover { background: var(--color-border-brand); }
+
+.viewer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.viewer__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-12);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.viewer__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-md);
+  padding: 0 var(--space-12);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-disabled);
+}
+
+/* --------------------------------------------------------- estados vazios */
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  padding: var(--space-24) var(--space-16);
+  text-align: center;
+}
+.empty__glyph { font-size: var(--size-icon-lg); color: var(--color-text-disabled); }
+.empty__title { font: var(--text-label-sm); color: var(--color-text-secondary); }
+.empty__why { font: var(--text-caption); color: var(--color-text-disabled); }
+
+/* Esqueleto de carregamento: linhas de largura variada, porque uma árvore de
+   arquivos não tem linhas do mesmo tamanho e a fileira uniforme entrega que é
+   um placeholder antes de o dado chegar. */
+.skel { height: var(--space-8); margin: var(--space-8) var(--space-8); border-radius: var(--radius-xs); background: var(--color-bg-hover); }
+
+/* --------------------------------------------------------------- galeria */
+.gallery { padding: var(--space-24); display: grid; gap: var(--space-24); }
+.case { display: grid; gap: var(--space-8); }
+.case__label { font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; color: var(--color-text-tertiary); }
+.case__label b { color: var(--color-text-brand); font-weight: 500; }
+.case__frame { background: var(--color-bg-panel); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); overflow: hidden; }
+.case__frame--pad { padding: var(--space-12); background: var(--color-bg-base); }
+.gallery__cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-20); align-items: start; }
+.gallery__cols--2 { grid-template-columns: 1fr 1fr; }
+.box { display: flex; flex-direction: column; height: var(--space-64); }
+.box--tall { height: calc(var(--space-64) * 3); }
+.box--code { height: calc(var(--space-64) * 3); }
+</style>
+</head>
+<body>
+
+<nav class="tabbar">
+  <button class="tab is-active" data-screen="arquivos">Arquivos</button>
+  <button class="tab" data-screen="arquivo">Arquivo no split</button>
+  <button class="tab" data-screen="mudancas">Mudanças</button>
+  <button class="tab" data-screen="patch">Patch no split</button>
+  <button class="tab" data-screen="estados">Estados</button>
+</nav>
+
+<!-- ==================================================================== -->
+<!-- TELA 1 — a coluna na aba Arquivos, com o agente rodando ao lado -->
+<!-- ==================================================================== -->
+<section class="screen is-active" id="screen-arquivos">
+  <div class="app">
+    <header class="topbar">
+      <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+      <span class="spacer"></span>
+      <button class="rp-toggle rp-toggle--on">▤ arquivos</button>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="body body--right">
+      <aside class="sidebar">
+        <div class="ws-wrap">
+          <div class="ws"><span class="ws__icon">◈</span>pessoal<span class="spacer"></span><span class="ws__caret">▾</span></div>
+        </div>
+        <div class="tree">
+          <div class="tree__label">Projetos</div>
+          <div class="row row--project"><span class="row__twist" style="--depth:0">▾</span><span class="row__main"><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></span></div>
+          <div class="row"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--local">▭</span><span class="row__label">local</span><span class="count count--running"><span class="count__dot"></span>1</span></span></div>
+          <div class="row row--selected"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--worktree">◇</span><span class="row__label">teste-prd</span><span class="count count--running"><span class="count__dot"></span>3</span></span></div>
+          <div class="row"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--worktree">◇</span><span class="row__label">feat/reconciliacao-de-boot-com-nome-comprido</span></span></div>
+          <div class="row row--muted"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--warn">⚠</span><span class="row__label">ui-polish</span><span class="row__meta">ausente</span></span></div>
+          <div class="row row--project"><span class="row__twist" style="--depth:0">▸</span><span class="row__main"><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span></span></div>
+        </div>
+        <div class="sidebar__foot"><button class="add"><span class="glyph">＋</span>adicionar projeto</button></div>
+      </aside>
+
+      <main class="main">
+        <div class="wt-head">
+          <nav class="crumb">pessoal<span class="crumb__sep">/</span>lorebase<span class="crumb__sep">/</span><span class="crumb__here">teste-prd</span></nav>
+          <div class="wt-title">
+            <h2><span class="glyph glyph--worktree">◇</span>teste-prd</h2>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost btn--sm">remover worktree</button>
+          </div>
+          <div class="chips">
+            <span class="chip chip--branch"><span class="chip__dot"></span>teste-prd</span>
+            <span class="chip chip--dirty"><span class="chip__dot"></span>suja · 6 arquivos</span>
+            <span class="chip"><span class="ahead">↑2</span> <span class="dim">de main</span></span>
+          </div>
+        </div>
+
+        <div class="tabs-bar"><div class="tabs">
+          <button class="stab stab--overview">contexto</button>
+          <span class="tabs__sep"></span>
+          <button class="stab stab--active"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__dot"></span><span class="stab__close">✕</span></button>
+          <button class="stab"><span class="glyph glyph--shell">●</span>shell<span class="stab__dot"></span><span class="stab__close">✕</span></button>
+          </div>
+          <span class="menu-wrap"><button class="tabs__new">＋ nova sessão</button></span>
+        </div>
+
+        <div class="pane pane--term">
+          <div class="split__side split__side--term">
+            <div class="term-head">
+              <span class="glyph glyph--agent">◆</span>
+              <span class="term-head__cmd">claude · cwd ~/.lumem/…/lorebase/teste-prd</span>
+              <span class="chip chip--clean"><span class="chip__dot"></span>running · 12 min</span>
+            </div>
+            <div class="term"><span class="l"><span class="agent">✻</span> <span class="dim">Claude Code v2.1.4 — worktree</span> <span class="path">teste-prd</span></span><span class="l"><span class="dim">──────────────────────────────────────────</span></span><span class="l"></span><span class="l"><span class="you">&gt; separa o parser de frontmatter do loader e cobre com teste</span></span><span class="l"></span><span class="l"><span class="agent">⏺</span> O parser está embutido no loader e lê o disco no meio</span><span class="l">  do caminho. Separando em <span class="path">src/lore/frontmatter.ts</span>.</span><span class="l"></span><span class="l">  <span class="ok">⏺</span> Write <span class="path">src/lore/frontmatter.ts</span> <span class="ok">+68</span></span><span class="l">  <span class="ok">⏺</span> Edit <span class="path">src/lore/loader.ts</span> <span class="ok">+4</span> <span class="err">−61</span></span><span class="l">  <span class="ok">⏺</span> Bash <span class="dim">pnpm vitest run src/lore</span> <span class="ok">— 27 passaram</span></span><span class="l"></span><span class="l"><span class="you">&gt; </span><span class="cursor"></span></span></div>
+          </div>
+        </div>
+      </main>
+
+      <aside class="rp">
+        <span class="rp__grip"></span>
+        <div class="rp__bar">
+          <button class="rtab rtab--active">Arquivos</button>
+          <button class="rtab">Mudanças<span class="rtab__count">6</span></button>
+          <span class="spacer"></span>
+          <button class="rp__icon" title="recarregar">⟳</button>
+          <button class="rp__icon" title="fechar a coluna">›</button>
+        </div>
+        <div class="rp__body">
+          <div class="rp__scroll">
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">src</span></button>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▾</span><span class="frow__name">lore</span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:2"></span><span class="frow__name">frontmatter.ts</span><span class="mark mark--a">A</span><span class="frow__gap"></span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:2"></span><span class="frow__name">frontmatter.test.ts</span><span class="mark mark--a">A</span><span class="frow__gap"></span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:2"></span><span class="frow__name">loader.ts</span><span class="mark mark--m">M</span><span class="frow__gap"></span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:2"></span><span class="frow__name">index.ts</span></button>
+            <button class="frow frow--dim"><span class="frow__twist" style="--depth:2"></span><span class="frow__name">legacy-parser.ts</span><span class="mark mark--d">D</span><span class="frow__gap"></span></button>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">cli</span></button>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">ui</span></button>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">docs</span></button>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">node_modules</span></button>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">.pnpm</span></button>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">@lorebase</span></button>
+            <div class="fnote" style="--depth:1"><span class="fnote__glyph">⚠</span><span>2 000 de 8 431 entradas. <button>listar assim mesmo</button></span></div>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">scratch</span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">.gitignore</span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">package.json</span><span class="mark mark--m">M</span><span class="frow__gap"></span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">pnpm-lock.yaml</span><span class="frow__gap"></span><span class="frow__size">1,4 MB</span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">README.md</span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">notas-da-migracao-do-parser-antigo.md</span><span class="mark mark--u">?</span><span class="frow__gap"></span></button>
+          </div>
+          <div class="rp__foot"><span>lido há 12 s</span><span class="spacer"></span><span>21 entradas</span></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- TELA 2 — o arquivo abre num split DENTRO da aba; a coluna segue na árvore -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-arquivo">
+  <div class="app">
+    <header class="topbar">
+      <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+      <span class="spacer"></span>
+      <button class="rp-toggle rp-toggle--on">▤ arquivos</button>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="body body--right">
+      <aside class="sidebar">
+        <div class="ws-wrap">
+          <div class="ws"><span class="ws__icon">◈</span>pessoal<span class="spacer"></span><span class="ws__caret">▾</span></div>
+        </div>
+        <div class="tree">
+          <div class="tree__label">Projetos</div>
+          <div class="row row--project"><span class="row__twist" style="--depth:0">▾</span><span class="row__main"><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></span></div>
+          <div class="row"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--local">▭</span><span class="row__label">local</span><span class="count count--running"><span class="count__dot"></span>1</span></span></div>
+          <div class="row row--selected"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--worktree">◇</span><span class="row__label">teste-prd</span><span class="count count--running"><span class="count__dot"></span>3</span></span></div>
+          <div class="row"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--worktree">◇</span><span class="row__label">feat/reconciliacao-de-boot-com-nome-comprido</span></span></div>
+          <div class="row row--muted"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--warn">⚠</span><span class="row__label">ui-polish</span><span class="row__meta">ausente</span></span></div>
+          <div class="row row--project"><span class="row__twist" style="--depth:0">▸</span><span class="row__main"><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span></span></div>
+        </div>
+        <div class="sidebar__foot"><button class="add"><span class="glyph">＋</span>adicionar projeto</button></div>
+      </aside>
+
+      <main class="main">
+        <div class="wt-head">
+          <nav class="crumb">pessoal<span class="crumb__sep">/</span>lorebase<span class="crumb__sep">/</span><span class="crumb__here">teste-prd</span></nav>
+          <div class="wt-title">
+            <h2><span class="glyph glyph--worktree">◇</span>teste-prd</h2>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost btn--sm">remover worktree</button>
+          </div>
+          <div class="chips">
+            <span class="chip chip--branch"><span class="chip__dot"></span>teste-prd</span>
+            <span class="chip chip--dirty"><span class="chip__dot"></span>suja · 6 arquivos</span>
+            <span class="chip"><span class="ahead">↑2</span> <span class="dim">de main</span></span>
+          </div>
+        </div>
+
+        <div class="tabs-bar"><div class="tabs">
+          <button class="stab stab--overview">contexto</button>
+          <span class="tabs__sep"></span>
+          <button class="stab stab--active"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__dot"></span><span class="stab__close">✕</span></button>
+          <button class="stab"><span class="glyph glyph--shell">●</span>shell<span class="stab__dot"></span><span class="stab__close">✕</span></button>
+          </div>
+          <span class="menu-wrap"><button class="tabs__new">＋ nova sessão</button></span>
+        </div>
+
+        <div class="pane pane--term pane--split">
+          <div class="split__side split__side--term">
+            <div class="term-head">
+              <span class="glyph glyph--agent">◆</span>
+              <span class="term-head__cmd">claude · cwd ~/.lumem/…/lorebase/teste-prd</span>
+              <span class="chip chip--clean"><span class="chip__dot"></span>running · 12 min</span>
+            </div>
+            <div class="term"><span class="l"><span class="agent">⏺</span> Escrevi o parser separado e apontei o loader pra ele.</span><span class="l"></span><span class="l">  <span class="ok">⏺</span> Write <span class="path">src/lore/frontmatter.ts</span> <span class="ok">+68</span></span><span class="l">  <span class="ok">⏺</span> Edit <span class="path">src/lore/loader.ts</span> <span class="ok">+4</span> <span class="err">−61</span></span><span class="l">  <span class="ok">⏺</span> Bash <span class="dim">pnpm vitest run</span> <span class="ok">— 214 passaram</span></span><span class="l"></span><span class="l"><span class="you">&gt; </span><span class="cursor"></span></span></div>
+          </div>
+          <span class="split__grip"></span>
+          <div class="split__side split__side--viewer">
+            <div class="viewer">
+              <div class="viewer__head">
+                <span class="fpath"><span class="fpath__dir">src/lore/</span><span class="fpath__name">frontmatter.ts</span></span>
+                
+                <span class="spacer"></span>
+                <button class="rp__icon rp__icon--on" title="quebrar linhas longas">⇄</button>
+                <button class="rp__icon" title="fechar">✕</button>
+              </div>
+              <div class="code"><div class="l"><span class="n">1</span><span class="t"><span class="k">import</span> <span class="pu">{</span> <span class="ty">LoreDoc</span> <span class="pu">}</span> <span class="k">from</span> <span class="s">"./types.js"</span><span class="pu">;</span></span></div><div class="l"><span class="n">2</span><span class="t"></span></div><div class="l"><span class="n">3</span><span class="t"><span class="c">/**</span></span></div><div class="l"><span class="n">4</span><span class="t"><span class="c"> * Frontmatter sem I/O: recebe texto, devolve dado.</span></span></div><div class="l"><span class="n">5</span><span class="t"><span class="c"> *</span></span></div><div class="l"><span class="n">6</span><span class="t"><span class="c"> * Estava dentro do loader, que lia o disco no meio do caminho — e por</span></span></div><div class="l"><span class="n">7</span><span class="t"><span class="c"> * isso não dava para testar o parser sem escrever arquivo.</span></span></div><div class="l"><span class="n">8</span><span class="t"><span class="c"> */</span></span></div><div class="l"><span class="n">9</span><span class="t"><span class="k">const</span> <span class="ty">FENCE</span> <span class="pu">=</span> <span class="s">"---"</span><span class="pu">;</span></span></div><div class="l"><span class="n">10</span><span class="t"><span class="k">const</span> <span class="ty">MAX_KEYS</span> <span class="pu">=</span> <span class="nu">64</span><span class="pu">;</span></span></div><div class="l"><span class="n">11</span><span class="t"></span></div><div class="l"><span class="n">12</span><span class="t"><span class="k">export</span> <span class="k">interface</span> <span class="ty">Frontmatter</span> <span class="pu">{</span></span></div><div class="l"><span class="n">13</span><span class="t">  keys<span class="pu">:</span> <span class="ty">Record</span><span class="pu">&lt;</span><span class="ty">string</span><span class="pu">,</span> <span class="ty">string</span><span class="pu">&gt;;</span></span></div><div class="l"><span class="n">14</span><span class="t">  body<span class="pu">:</span> <span class="ty">string</span><span class="pu">;</span></span></div><div class="l"><span class="n">15</span><span class="t">  <span class="c">/** Linha onde o corpo começa, para o erro citar o lugar certo. */</span></span></div><div class="l"><span class="n">16</span><span class="t">  bodyLine<span class="pu">:</span> <span class="ty">number</span><span class="pu">;</span></span></div><div class="l"><span class="n">17</span><span class="t"><span class="pu">}</span></span></div><div class="l"><span class="n">18</span><span class="t"></span></div><div class="l"><span class="n">19</span><span class="t"><span class="k">export</span> <span class="k">function</span> <span class="fn">parseFrontmatter</span><span class="pu">(</span>raw<span class="pu">:</span> <span class="ty">string</span><span class="pu">):</span> <span class="ty">Frontmatter</span> <span class="pu">{</span></span></div><div class="l"><span class="n">20</span><span class="t">  <span class="k">const</span> lines <span class="pu">=</span> raw<span class="pu">.</span><span class="fn">split</span><span class="pu">(</span><span class="s">"\n"</span><span class="pu">);</span></span></div><div class="l"><span class="n">21</span><span class="t">  <span class="k">if</span> <span class="pu">(</span>lines<span class="pu">[</span><span class="nu">0</span><span class="pu">] !==</span> <span class="ty">FENCE</span><span class="pu">)</span> <span class="pu">{</span></span></div><div class="l"><span class="n">22</span><span class="t">    <span class="c">// Documento sem frontmatter é válido: é só corpo.</span></span></div><div class="l"><span class="n">23</span><span class="t">    <span class="k">return</span> <span class="pu">{</span> keys<span class="pu">:</span> <span class="pu">{},</span> body<span class="pu">:</span> raw<span class="pu">,</span> bodyLine<span class="pu">:</span> <span class="nu">1</span> <span class="pu">};</span></span></div><div class="l"><span class="n">24</span><span class="t">  <span class="pu">}</span></span></div><div class="l"><span class="n">25</span><span class="t"></span></div><div class="l"><span class="n">26</span><span class="t">  <span class="k">const</span> close <span class="pu">=</span> lines<span class="pu">.</span><span class="fn">indexOf</span><span class="pu">(</span><span class="ty">FENCE</span><span class="pu">,</span> <span class="nu">1</span><span class="pu">);</span></span></div><div class="l"><span class="n">27</span><span class="t">  <span class="k">if</span> <span class="pu">(</span>close <span class="pu">===</span> <span class="pu">-</span><span class="nu">1</span><span class="pu">)</span> <span class="k">throw</span> <span class="k">new</span> <span class="ty">Error</span><span class="pu">(</span><span class="s">"frontmatter aberto e nunca fechado"</span><span class="pu">);</span></span></div><div class="l"><span class="n">28</span><span class="t"></span></div><div class="l"><span class="n">29</span><span class="t">  <span class="k">const</span> keys<span class="pu">:</span> <span class="ty">Record</span><span class="pu">&lt;</span><span class="ty">string</span><span class="pu">,</span> <span class="ty">string</span><span class="pu">&gt; = {};</span></span></div><div class="l"><span class="n">30</span><span class="t">  <span class="k">for</span> <span class="pu">(</span><span class="k">const</span> line <span class="k">of</span> lines<span class="pu">.</span><span class="fn">slice</span><span class="pu">(</span><span class="nu">1</span><span class="pu">,</span> close<span class="pu">))</span> <span class="pu">{</span></span></div><div class="l"><span class="n">31</span><span class="t">    <span class="k">const</span> sep <span class="pu">=</span> line<span class="pu">.</span><span class="fn">indexOf</span><span class="pu">(</span><span class="s">":"</span><span class="pu">);</span></span></div><div class="l"><span class="n">32</span><span class="t">    <span class="k">if</span> <span class="pu">(</span>sep <span class="pu">===</span> <span class="pu">-</span><span class="nu">1</span><span class="pu">)</span> <span class="k">continue</span><span class="pu">;</span></span></div><div class="l"><span class="n">33</span><span class="t">    keys<span class="pu">[</span>line<span class="pu">.</span><span class="fn">slice</span><span class="pu">(</span><span class="nu">0</span><span class="pu">,</span> sep<span class="pu">).</span><span class="fn">trim</span><span class="pu">()] =</span> line<span class="pu">.</span><span class="fn">slice</span><span class="pu">(</span>sep <span class="pu">+</span> <span class="nu">1</span><span class="pu">).</span><span class="fn">trim</span><span class="pu">();</span></span></div><div class="l"><span class="n">34</span><span class="t">  <span class="pu">}</span></span></div><div class="l"><span class="n">35</span><span class="t"></span></div><div class="l"><span class="n">36</span><span class="t">  <span class="k">return</span> <span class="pu">{</span> keys<span class="pu">,</span> body<span class="pu">:</span> lines<span class="pu">.</span><span class="fn">slice</span><span class="pu">(</span>close <span class="pu">+</span> <span class="nu">1</span><span class="pu">).</span><span class="fn">join</span><span class="pu">(</span><span class="s">"\n"</span><span class="pu">),</span> bodyLine<span class="pu">:</span> close <span class="pu">+</span> <span class="nu">2</span> <span class="pu">};</span></span></div><div class="l"><span class="n">37</span><span class="t"><span class="pu">}</span></span></div></div>
+              <div class="viewer__foot"><span>2,1 KB · 68 linhas</span><span class="spacer"></span><span>typescript · somente leitura</span></div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <aside class="rp">
+        <span class="rp__grip"></span>
+        <div class="rp__bar">
+          <button class="rtab rtab--active">Arquivos</button>
+          <button class="rtab">Mudanças<span class="rtab__count">6</span></button>
+          <span class="spacer"></span>
+          <button class="rp__icon" title="recarregar">⟳</button>
+          <button class="rp__icon" title="fechar a coluna">›</button>
+        </div>
+        <div class="rp__body">
+          <div class="rp__scroll">
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">src</span></button>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▾</span><span class="frow__name">lore</span></button>
+            <button class="frow frow--open"><span class="frow__twist" style="--depth:2"></span><span class="frow__name">frontmatter.ts</span><span class="mark mark--a">A</span><span class="frow__gap"></span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:2"></span><span class="frow__name">frontmatter.test.ts</span><span class="mark mark--a">A</span><span class="frow__gap"></span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:2"></span><span class="frow__name">loader.ts</span><span class="mark mark--m">M</span><span class="frow__gap"></span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:2"></span><span class="frow__name">index.ts</span></button>
+            <button class="frow frow--dim"><span class="frow__twist" style="--depth:2"></span><span class="frow__name">legacy-parser.ts</span><span class="mark mark--d">D</span><span class="frow__gap"></span></button>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">cli</span></button>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">ui</span></button>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">docs</span></button>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">node_modules</span></button>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">.pnpm</span></button>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">@lorebase</span></button>
+            <div class="fnote" style="--depth:1"><span class="fnote__glyph">⚠</span><span>2 000 de 8 431 entradas. <button>listar assim mesmo</button></span></div>
+            <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">scratch</span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">.gitignore</span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">package.json</span><span class="mark mark--m">M</span><span class="frow__gap"></span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">pnpm-lock.yaml</span><span class="frow__gap"></span><span class="frow__size">1,4 MB</span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">README.md</span></button>
+            <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">notas-da-migracao-do-parser-antigo.md</span><span class="mark mark--u">?</span><span class="frow__gap"></span></button>
+          </div>
+          <div class="rp__foot"><span>lido há 4 s</span><span class="spacer"></span><span>21 entradas</span></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- TELA 3 — a aba Mudanças e sua lista -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-mudancas">
+  <div class="app">
+    <header class="topbar">
+      <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+      <span class="spacer"></span>
+      <button class="rp-toggle rp-toggle--on">▤ arquivos</button>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="body body--right">
+      <aside class="sidebar">
+        <div class="ws-wrap">
+          <div class="ws"><span class="ws__icon">◈</span>pessoal<span class="spacer"></span><span class="ws__caret">▾</span></div>
+        </div>
+        <div class="tree">
+          <div class="tree__label">Projetos</div>
+          <div class="row row--project"><span class="row__twist" style="--depth:0">▾</span><span class="row__main"><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></span></div>
+          <div class="row"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--local">▭</span><span class="row__label">local</span><span class="count count--running"><span class="count__dot"></span>1</span></span></div>
+          <div class="row row--selected"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--worktree">◇</span><span class="row__label">teste-prd</span><span class="count count--running"><span class="count__dot"></span>3</span></span></div>
+          <div class="row"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--worktree">◇</span><span class="row__label">feat/reconciliacao-de-boot-com-nome-comprido</span></span></div>
+          <div class="row row--muted"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--warn">⚠</span><span class="row__label">ui-polish</span><span class="row__meta">ausente</span></span></div>
+          <div class="row row--project"><span class="row__twist" style="--depth:0">▸</span><span class="row__main"><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span></span></div>
+        </div>
+        <div class="sidebar__foot"><button class="add"><span class="glyph">＋</span>adicionar projeto</button></div>
+      </aside>
+
+      <main class="main">
+        <div class="wt-head">
+          <nav class="crumb">pessoal<span class="crumb__sep">/</span>lorebase<span class="crumb__sep">/</span><span class="crumb__here">teste-prd</span></nav>
+          <div class="wt-title">
+            <h2><span class="glyph glyph--worktree">◇</span>teste-prd</h2>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost btn--sm">remover worktree</button>
+          </div>
+          <div class="chips">
+            <span class="chip chip--branch"><span class="chip__dot"></span>teste-prd</span>
+            <span class="chip chip--dirty"><span class="chip__dot"></span>suja · 6 arquivos</span>
+            <span class="chip"><span class="ahead">↑2</span> <span class="dim">de main</span></span>
+          </div>
+        </div>
+
+        <div class="tabs-bar"><div class="tabs">
+          <button class="stab stab--overview">contexto</button>
+          <span class="tabs__sep"></span>
+          <button class="stab stab--active"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__dot"></span><span class="stab__close">✕</span></button>
+          <button class="stab"><span class="glyph glyph--shell">●</span>shell<span class="stab__dot"></span><span class="stab__close">✕</span></button>
+          </div>
+          <span class="menu-wrap"><button class="tabs__new">＋ nova sessão</button></span>
+        </div>
+
+        <div class="pane pane--term">
+          <div class="split__side split__side--term">
+            <div class="term-head">
+              <span class="glyph glyph--agent">◆</span>
+              <span class="term-head__cmd">claude · cwd ~/.lumem/…/lorebase/teste-prd</span>
+              <span class="chip chip--clean"><span class="chip__dot"></span>running · 12 min</span>
+            </div>
+            <div class="term"><span class="l"><span class="agent">✻</span> <span class="dim">Claude Code v2.1.4 — worktree</span> <span class="path">teste-prd</span></span><span class="l"><span class="dim">──────────────────────────────────────────</span></span><span class="l"></span><span class="l"><span class="you">&gt; separa o parser de frontmatter do loader e cobre com teste</span></span><span class="l"></span><span class="l"><span class="agent">⏺</span> O parser está embutido no loader e lê o disco no meio</span><span class="l">  do caminho. Separando em <span class="path">src/lore/frontmatter.ts</span>.</span><span class="l"></span><span class="l">  <span class="ok">⏺</span> Write <span class="path">src/lore/frontmatter.ts</span> <span class="ok">+68</span></span><span class="l">  <span class="ok">⏺</span> Edit <span class="path">src/lore/loader.ts</span> <span class="ok">+4</span> <span class="err">−61</span></span><span class="l">  <span class="ok">⏺</span> Bash <span class="dim">pnpm vitest run src/lore</span> <span class="ok">— 27 passaram</span></span><span class="l"></span><span class="l"><span class="you">&gt; </span><span class="cursor"></span></span></div>
+          </div>
+        </div>
+      </main>
+
+      <aside class="rp">
+        <span class="rp__grip"></span>
+        <div class="rp__bar">
+          <button class="rtab">Arquivos</button>
+          <button class="rtab rtab--active">Mudanças<span class="rtab__count">6</span></button>
+          <span class="spacer"></span>
+          <button class="rp__icon" title="recarregar">⟳</button>
+          <button class="rp__icon" title="fechar a coluna">›</button>
+        </div>
+        <div class="rp__body">
+          <div class="seg-wrap"><div class="seg">
+            <button class="seg__btn seg__btn--on">não commitado</button>
+            <button class="seg__btn">vs main</button>
+          </div></div>
+          <div class="sum"><span>6 arquivos</span><span class="plus">+142</span><span class="minus">−63</span></div>
+
+          <div class="rp__scroll">
+          <button class="drow"><span class="mark mark--a">A</span><span class="dpath"><span class="dpath__dir">src/lore/</span><span class="dpath__name">frontmatter.ts</span></span><span class="dstat plus">+68</span><span class="drow__gap"></span></button>
+          <button class="drow"><span class="mark mark--a">A</span><span class="dpath"><span class="dpath__dir">src/lore/</span><span class="dpath__name">frontmatter.test.ts</span></span><span class="dstat plus">+62</span><span class="drow__gap"></span></button>
+          <button class="drow"><span class="mark mark--m">M</span><span class="dpath"><span class="dpath__dir">src/lore/</span><span class="dpath__name">loader.ts</span></span><span class="dstat plus">+4</span><span class="dstat minus">−61</span><span class="drow__gap"></span></button>
+          <button class="drow"><span class="mark mark--d">D</span><span class="dpath"><span class="dpath__dir">src/lore/</span><span class="dpath__name">legacy-parser.ts</span></span><span class="dstat minus">−2</span><span class="drow__gap"></span></button>
+          <button class="drow"><span class="mark mark--m">R</span><span class="dpath"><span class="dpath__dir">docs/</span><span class="dpath__name">guia-de-uso.md</span></span><span class="dstat plus">+8</span><span class="drow__was">era uso.md</span><span class="drow__gap"></span></button>
+          <button class="drow"><span class="mark mark--u">?</span><span class="dpath"><span class="dpath__name">notas-da-migracao-do-parser-antigo.md</span></span><span class="dstat plus">+12</span><span class="drow__gap"></span></button>
+          </div>
+          <div class="rp__foot"><span>lido há 8 s</span><span class="spacer"></span><span>árvore de trabalho vs HEAD</span></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- TELA 4 — o patch de um arquivo, no mesmo split -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-patch">
+  <div class="app">
+    <header class="topbar">
+      <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+      <span class="spacer"></span>
+      <button class="rp-toggle rp-toggle--on">▤ arquivos</button>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="body body--right">
+      <aside class="sidebar">
+        <div class="ws-wrap">
+          <div class="ws"><span class="ws__icon">◈</span>pessoal<span class="spacer"></span><span class="ws__caret">▾</span></div>
+        </div>
+        <div class="tree">
+          <div class="tree__label">Projetos</div>
+          <div class="row row--project"><span class="row__twist" style="--depth:0">▾</span><span class="row__main"><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></span></div>
+          <div class="row"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--local">▭</span><span class="row__label">local</span><span class="count count--running"><span class="count__dot"></span>1</span></span></div>
+          <div class="row row--selected"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--worktree">◇</span><span class="row__label">teste-prd</span><span class="count count--running"><span class="count__dot"></span>3</span></span></div>
+          <div class="row"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--worktree">◇</span><span class="row__label">feat/reconciliacao-de-boot-com-nome-comprido</span></span></div>
+          <div class="row row--muted"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--warn">⚠</span><span class="row__label">ui-polish</span><span class="row__meta">ausente</span></span></div>
+          <div class="row row--project"><span class="row__twist" style="--depth:0">▸</span><span class="row__main"><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span></span></div>
+        </div>
+        <div class="sidebar__foot"><button class="add"><span class="glyph">＋</span>adicionar projeto</button></div>
+      </aside>
+
+      <main class="main">
+        <div class="wt-head">
+          <nav class="crumb">pessoal<span class="crumb__sep">/</span>lorebase<span class="crumb__sep">/</span><span class="crumb__here">teste-prd</span></nav>
+          <div class="wt-title">
+            <h2><span class="glyph glyph--worktree">◇</span>teste-prd</h2>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost btn--sm">remover worktree</button>
+          </div>
+          <div class="chips">
+            <span class="chip chip--branch"><span class="chip__dot"></span>teste-prd</span>
+            <span class="chip chip--dirty"><span class="chip__dot"></span>suja · 6 arquivos</span>
+            <span class="chip"><span class="ahead">↑2</span> <span class="dim">de main</span></span>
+          </div>
+        </div>
+
+        <div class="tabs-bar"><div class="tabs">
+          <button class="stab stab--overview">contexto</button>
+          <span class="tabs__sep"></span>
+          <button class="stab stab--active"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__dot"></span><span class="stab__close">✕</span></button>
+          <button class="stab"><span class="glyph glyph--shell">●</span>shell<span class="stab__dot"></span><span class="stab__close">✕</span></button>
+          </div>
+          <span class="menu-wrap"><button class="tabs__new">＋ nova sessão</button></span>
+        </div>
+
+        <div class="pane pane--term pane--split">
+          <div class="split__side split__side--term">
+            <div class="term-head">
+              <span class="glyph glyph--agent">◆</span>
+              <span class="term-head__cmd">claude · cwd ~/.lumem/…/lorebase/teste-prd</span>
+              <span class="chip chip--clean"><span class="chip__dot"></span>running · 12 min</span>
+            </div>
+            <div class="term"><span class="l"><span class="agent">⏺</span> Escrevi o parser separado e apontei o loader pra ele.</span><span class="l"></span><span class="l">  <span class="ok">⏺</span> Write <span class="path">src/lore/frontmatter.ts</span> <span class="ok">+68</span></span><span class="l">  <span class="ok">⏺</span> Edit <span class="path">src/lore/loader.ts</span> <span class="ok">+4</span> <span class="err">−61</span></span><span class="l">  <span class="ok">⏺</span> Bash <span class="dim">pnpm vitest run</span> <span class="ok">— 214 passaram</span></span><span class="l"></span><span class="l"><span class="you">&gt; </span><span class="cursor"></span></span></div>
+          </div>
+          <span class="split__grip"></span>
+          <div class="split__side split__side--viewer">
+            <div class="viewer">
+              <div class="viewer__head">
+                <span class="fpath"><span class="fpath__dir">src/lore/</span><span class="fpath__name">loader.ts</span></span>
+                <span class="dstat plus">+4</span><span class="dstat minus">−61</span>
+                <span class="spacer"></span>
+                <button class="rp__icon rp__icon--on" title="quebrar linhas longas">⇄</button>
+                <button class="rp__icon" title="fechar">✕</button>
+              </div>
+              <div class="hunk">@@ -1,14 +1,6 @@ src/lore/loader.ts</div>
+              <div class="patch"><div class="dl dl--del"><span class="dl__sig">−</span><span class="dl__t">import { readFile } from "node:fs/promises";</span></div><div class="dl dl--del"><span class="dl__sig">−</span><span class="dl__t">import { LoreDoc } from "./types.js";</span></div><div class="dl dl--add"><span class="dl__sig">+</span><span class="dl__t">import { readFile } from "node:fs/promises";</span></div><div class="dl dl--add"><span class="dl__sig">+</span><span class="dl__t">import { parseFrontmatter } from "./frontmatter.js";</span></div><div class="dl"><span class="dl__sig"> </span><span class="dl__t"></span></div><div class="dl"><span class="dl__sig"> </span><span class="dl__t">export async function loadDoc(path: string): Promise&lt;LoreDoc&gt; {</span></div><div class="dl"><span class="dl__sig"> </span><span class="dl__t">  const raw = await readFile(path, "utf8");</span></div><div class="dl dl--del"><span class="dl__sig">−</span><span class="dl__t">  const lines = raw.split("\n");</span></div><div class="dl dl--del"><span class="dl__sig">−</span><span class="dl__t">  if (lines[0] !== "---") return { keys: {}, body: raw, path };</span></div><div class="dl dl--del"><span class="dl__sig">−</span><span class="dl__t">  const close = lines.indexOf("---", 1);</span></div><div class="dl dl--del"><span class="dl__sig">−</span><span class="dl__t">  if (close === -1) throw new Error("frontmatter aberto e nunca fechado");</span></div><div class="dl dl--add"><span class="dl__sig">+</span><span class="dl__t">  const { keys, body } = parseFrontmatter(raw);</span></div><div class="dl"><span class="dl__sig"> </span><span class="dl__t">  return { keys, body, path };</span></div><div class="dl"><span class="dl__sig"> </span><span class="dl__t">}</span></div></div>
+              <div class="viewer__foot"><span>não commitado · vs HEAD</span><span class="spacer"></span><span>1 hunk · 1 de 6 arquivos</span></div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <aside class="rp">
+        <span class="rp__grip"></span>
+        <div class="rp__bar">
+          <button class="rtab">Arquivos</button>
+          <button class="rtab rtab--active">Mudanças<span class="rtab__count">6</span></button>
+          <span class="spacer"></span>
+          <button class="rp__icon" title="recarregar">⟳</button>
+          <button class="rp__icon" title="fechar a coluna">›</button>
+        </div>
+        <div class="rp__body">
+          <div class="seg-wrap"><div class="seg">
+            <button class="seg__btn seg__btn--on">não commitado</button>
+            <button class="seg__btn">vs main</button>
+          </div></div>
+          <div class="sum"><span>6 arquivos</span><span class="plus">+142</span><span class="minus">−63</span></div>
+
+          <div class="rp__scroll">
+          <button class="drow"><span class="mark mark--a">A</span><span class="dpath"><span class="dpath__dir">src/lore/</span><span class="dpath__name">frontmatter.ts</span></span><span class="dstat plus">+68</span><span class="drow__gap"></span></button>
+          <button class="drow"><span class="mark mark--a">A</span><span class="dpath"><span class="dpath__dir">src/lore/</span><span class="dpath__name">frontmatter.test.ts</span></span><span class="dstat plus">+62</span><span class="drow__gap"></span></button>
+          <button class="drow drow--open"><span class="mark mark--m">M</span><span class="dpath"><span class="dpath__dir">src/lore/</span><span class="dpath__name">loader.ts</span></span><span class="dstat plus">+4</span><span class="dstat minus">−61</span><span class="drow__gap"></span></button>
+          <button class="drow"><span class="mark mark--d">D</span><span class="dpath"><span class="dpath__dir">src/lore/</span><span class="dpath__name">legacy-parser.ts</span></span><span class="dstat minus">−2</span><span class="drow__gap"></span></button>
+          <button class="drow"><span class="mark mark--m">R</span><span class="dpath"><span class="dpath__dir">docs/</span><span class="dpath__name">guia-de-uso.md</span></span><span class="dstat plus">+8</span><span class="drow__was">era uso.md</span><span class="drow__gap"></span></button>
+          <button class="drow"><span class="mark mark--u">?</span><span class="dpath"><span class="dpath__name">notas-da-migracao-do-parser-antigo.md</span></span><span class="dstat plus">+12</span><span class="drow__gap"></span></button>
+          </div>
+          <div class="rp__foot"><span>lido há 8 s</span><span class="spacer"></span><span>árvore de trabalho vs HEAD</span></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- TELA 5 — os estados que o desenho tem de decidir -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-estados">
+  <div class="app app--flow">
+    <header class="topbar">
+      <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+      <span class="spacer"></span>
+      <button class="rp-toggle">▤ arquivos</button>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+
+    <div class="gallery">
+      <div class="case">
+        <div class="case__label">Colapsada — <b>a coluna some inteira</b>; o arquivo aberto no split continua onde estava</div>
+        <div class="case__frame case__frame--pad">
+          <div class="topbar" style="border-bottom: 0">
+            <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+            <span class="spacer"></span>
+            <button class="rp-toggle">▤ arquivos</button>
+            <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+          </div>
+          <div class="fnote"><span class="fnote__glyph">▸</span><span>Aberta, o mesmo botão fica aceso. Colapsar devolve os pixels à aba — e é por isso que colapsar, como abrir o split, remede o xterm.</span></div>
+        </div>
+      </div>
+
+      <div class="gallery__cols">
+        <div class="case">
+          <div class="case__label">Carregando — <b>o primeiro nível</b></div>
+          <div class="case__frame">
+            <div class="rp box box--tall" style="border-left: 0">
+              <div class="rp__bar">
+                <button class="rtab rtab--active">Arquivos</button>
+                <button class="rtab">Mudanças</button>
+                <span class="spacer"></span>
+                <button class="rp__icon">⟳</button>
+              </div>
+              <div class="rp__scroll">
+                <div class="skel" style="width: 60%"></div>
+                <div class="skel" style="width: 42%"></div>
+                <div class="skel" style="width: 71%"></div>
+                <div class="skel" style="width: 35%"></div>
+                <div class="skel" style="width: 55%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="case">
+          <div class="case__label">Checkout ausente — <b>o registro sobrevive</b></div>
+          <div class="case__frame">
+            <div class="rp box box--tall" style="border-left: 0">
+              <div class="rp__bar">
+                <button class="rtab rtab--active">Arquivos</button>
+                <button class="rtab">Mudanças</button>
+                <span class="spacer"></span>
+                <button class="rp__icon">⟳</button>
+              </div>
+              <div class="empty">
+                <span class="empty__glyph">⚠</span>
+                <span class="empty__title">o diretório não está no disco</span>
+                <span class="empty__why">~/.lumem/worktrees/lorebase/ui-polish — a worktree continua registrada, e a branch existe</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="case">
+          <div class="case__label">Diretório vazio — <b>não é erro</b></div>
+          <div class="case__frame">
+            <div class="rp box box--tall" style="border-left: 0">
+              <div class="rp__bar">
+                <button class="rtab rtab--active">Arquivos</button>
+                <button class="rtab">Mudanças</button>
+                <span class="spacer"></span>
+                <button class="rp__icon">⟳</button>
+              </div>
+              <div class="rp__scroll">
+                <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">fixtures</span></button>
+                <div class="fnote" style="--depth:1"><span>vazio</span></div>
+                <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">.ssh-backup</span></button>
+                <div class="fnote" style="--depth:1"><span class="fnote__glyph">⚠</span><span>sem permissão de leitura</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gallery__cols">
+        <div class="case">
+          <div class="case__label">Binário — <b>dito, não despejado</b></div>
+          <div class="case__frame">
+            <div class="rp box box--code" style="border-left: 0">
+              <div class="fv">
+                <div class="fv__head">
+                  <button class="back">‹</button>
+                  <span class="fpath"><span class="fpath__dir">assets/</span><span class="fpath__name">logo.png</span></span>
+                  <span class="fv__meta">48 KB</span>
+                </div>
+                <div class="refuse">
+                  <span class="refuse__glyph">▦</span>
+                  <span class="refuse__title">arquivo binário</span>
+                  <span class="refuse__why">tem bytes nulos nos primeiros KiB — o split não tenta desenhá-lo como texto.</span>
+                  <span class="refuse__why"><code>~/.lumem/worktrees/lorebase/teste-prd/assets/logo.png</code></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="case">
+          <div class="case__label">Grande demais — <b>o teto tem número</b></div>
+          <div class="case__frame">
+            <div class="rp box box--code" style="border-left: 0">
+              <div class="fv">
+                <div class="fv__head">
+                  <button class="back">‹</button>
+                  <span class="fpath"><span class="fpath__name">pnpm-lock.yaml</span></span>
+                  <span class="fv__meta">1,4 MB</span>
+                </div>
+                <div class="refuse">
+                  <span class="refuse__glyph">▤</span>
+                  <span class="refuse__title">1,4 MB passa do teto de 1 MB</span>
+                  <span class="refuse__why">o daemon não leu o arquivo — abrir isto no navegador travaria a aba, e o terminal ao lado abre em um comando.</span>
+                  <span class="refuse__why"><code>~/.lumem/worktrees/lorebase/teste-prd/pnpm-lock.yaml</code></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="case">
+          <div class="case__label">Symlink que sai — <b>listado, não lido</b></div>
+          <div class="case__frame">
+            <div class="rp box box--code" style="border-left: 0">
+              <div class="fv">
+                <div class="fv__head">
+                  <button class="back">‹</button>
+                  <span class="fpath"><span class="fpath__dir">scratch/</span><span class="fpath__name">chaves</span></span>
+                  <span class="fv__meta">symlink</span>
+                </div>
+                <div class="refuse">
+                  <span class="refuse__glyph">⚠</span>
+                  <span class="refuse__title">aponta para fora do checkout</span>
+                  <span class="refuse__why">o alvo é <code>~/.ssh</code>. O Lumem lê o que está dentro da worktree e nada além disso.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gallery__cols gallery__cols--2">
+        <div class="case">
+          <div class="case__label">Vazio por vista — <b>cada uma com sua frase</b></div>
+          <div class="case__frame">
+            <div class="rp box box--tall" style="border-left: 0">
+              <div class="rp__bar">
+                <button class="rtab">Arquivos</button>
+                <button class="rtab rtab--active">Mudanças</button>
+                <span class="spacer"></span>
+                <button class="rp__icon">⟳</button>
+              </div>
+              <div class="seg-wrap"><div class="seg">
+                <button class="seg__btn seg__btn--on">não commitado</button>
+                <button class="seg__btn">vs main</button>
+              </div></div>
+              <div class="empty">
+                <span class="empty__glyph">✓</span>
+                <span class="empty__title">nada por commitar</span>
+                <span class="empty__why">a árvore de trabalho está igual ao HEAD. Os 2 commits à frente de main aparecem na outra vista.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="case">
+          <div class="case__label">Base que sumiu — <b>desabilita uma vista, não a aba</b></div>
+          <div class="case__frame">
+            <div class="rp box box--tall" style="border-left: 0">
+              <div class="rp__bar">
+                <button class="rtab">Arquivos</button>
+                <button class="rtab rtab--active">Mudanças<span class="rtab__count">3</span></button>
+                <span class="spacer"></span>
+                <button class="rp__icon">⟳</button>
+              </div>
+              <div class="seg-wrap"><div class="seg">
+                <button class="seg__btn seg__btn--on">não commitado</button>
+                <button class="seg__btn seg__btn--off">vs main</button>
+              </div></div>
+              <div class="sum"><span>3 arquivos</span><span class="plus">+24</span><span class="minus">−7</span></div>
+              <div class="fnote"><span class="fnote__glyph">⚠</span><span>a branch <code>main</code> não existe mais neste repositório — sem base, não há o que comparar.</span></div>
+              <button class="drow"><span class="mark mark--m">M</span><span class="dpath"><span class="dpath__dir">src/</span><span class="dpath__name">index.ts</span></span><span class="dstat plus">+18</span><span class="dstat minus">−7</span><span class="drow__gap"></span></button>
+              <button class="drow"><span class="mark mark--u">?</span><span class="dpath"><span class="dpath__name">TODO.md</span></span><span class="dstat plus">+6</span><span class="drow__gap"></span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="case">
+        <div class="case__label">Larguras — <b>mínima, padrão e máxima</b>, com o mesmo caminho comprido em cada uma</div>
+        <div class="case__frame case__frame--pad">
+          <div style="display: flex; gap: var(--space-16); align-items: flex-start">
+            <div class="rp box" style="width: var(--size-panel-right-min); border-left: 0">
+              <div class="rp__bar"><button class="rtab rtab--active">Arquivos</button><button class="rtab">Mudanças</button></div>
+              <div class="rp__scroll">
+                <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">notas-da-migracao-do-parser-antigo.md</span><span class="mark mark--u">?</span><span class="frow__gap"></span></button>
+              </div>
+            </div>
+            <div class="rp box" style="width: var(--size-panel-right); border-left: 0">
+              <div class="rp__bar"><button class="rtab rtab--active">Arquivos</button><button class="rtab">Mudanças</button></div>
+              <div class="rp__scroll">
+                <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">notas-da-migracao-do-parser-antigo.md</span><span class="mark mark--u">?</span><span class="frow__gap"></span></button>
+              </div>
+            </div>
+            <div class="rp box" style="width: var(--size-panel-right-max); border-left: 0">
+              <div class="rp__bar"><button class="rtab rtab--active">Arquivos</button><button class="rtab">Mudanças</button></div>
+              <div class="rp__scroll">
+                <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">notas-da-migracao-do-parser-antigo.md</span><span class="mark mark--u">?</span><span class="frow__gap"></span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll('.tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('is-active'); });
+      document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('is-active'); });
+      tab.classList.add('is-active');
+      document.getElementById('screen-' + tab.dataset.screen).classList.add('is-active');
+    });
+  });
+</script>
+</body>
+</html>

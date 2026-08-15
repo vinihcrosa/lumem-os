@@ -29,6 +29,27 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `full` | `pnpm gate:full` | Suíte inteira + e2e |
 | `build` | `pnpm gate:build` | Typecheck de todo TS do repositório + build do web |
 
+### Na PR, os mesmos gates
+
+`.github/workflows/ci.yml` roda em toda PR contra a `main`, em dois jobs paralelos: `checks` (`gate:build` e a suíte unit/integration) e `e2e` (Playwright com chromium). São os mesmos comandos da máquina, na mesma ordem — se passou aqui e falhou lá, a diferença está no ambiente, não no critério.
+
+Duas coisas que o runner precisa e a máquina de quem desenvolve já tem:
+
+- **Identidade do git.** A suíte commita dentro dos repositórios de fixture — inclusive de dentro de um terminal, no spec da coluna de arquivos. Sem `user.name`, o `git commit` recusa.
+- **O navegador.** Só o chromium, que é o único projeto do `playwright.config.ts`.
+
+Falha guarda `playwright-report/` e `test-results/` como artefato por 7 dias: o config já grava trace em `retain-on-failure`, e sem subir isso o rastro morre com o runner.
+
+**O CI achou três defeitos de teste na primeira execução, nenhum de produto** — todos escondidos por o desenvolvimento acontecer só no macOS:
+
+| O quê | Por que passava no macOS |
+|---|---|
+| `PtyManager` assertava buffer vazio ao spawnar binário inexistente | O Linux escreve `execvp(3) failed.` no PTY; o macOS não escreve nada |
+| `execGit` corria `git log --all` contra um orçamento de 1ms | No Linux o comando termina antes do timer, e o teste falha perguntando por que um comando travado respondeu. Hoje usa `hash-object --stdin`, que bloqueia de verdade |
+| `startDaemon` sinalizava só o `pnpm`, não o daemon | No Linux o daemon sobrevivia ao `stop`, a porta seguia ocupada e o teste de reinício lia o estado de um processo que nunca reiniciou. Hoje o filho tem grupo próprio e o SIGTERM vai para o grupo |
+
+Mais um de produto-adjacente: o vite escutava no default `localhost`, que num runner com IPv6 resolve para `::1` — e o Playwright pede `127.0.0.1`. Hoje o dev server declara o endereço.
+
 ### Por que `gate:quick` é um script e não `vitest --changed`
 
 Duas falhas em direções opostas, e evitar uma de cada vez criou a outra:

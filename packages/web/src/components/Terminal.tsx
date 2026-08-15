@@ -92,9 +92,18 @@ export function Terminal({ sessionId, connect = connectPtySocket, onReady, onMes
     const onWindowResize = (): void => fitQuietly(fit);
     window.addEventListener("resize", onWindowResize);
 
+    // The window is no longer the only thing that changes this box: opening the
+    // files column, dragging its edge, or splitting the tab to read a file all
+    // resize the terminal without the window moving at all. Observing the host
+    // covers every one of them, including the ones not written yet.
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(onWindowResize);
+    observer?.observe(host);
+
     onReadyRef.current?.(terminal);
 
     return () => {
+      observer?.disconnect();
       window.removeEventListener("resize", onWindowResize);
       typing.dispose();
       resizing.dispose();

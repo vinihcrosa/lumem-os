@@ -36,6 +36,14 @@ function createTrpcMock() {
       create: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
     },
+    files: {
+      listDir: { query: vi.fn() },
+      read: { query: vi.fn() },
+    },
+    changes: {
+      list: { query: vi.fn() },
+      patch: { query: vi.fn() },
+    },
     session: {
       listByScope: { query: vi.fn() },
       getDetail: { query: vi.fn() },

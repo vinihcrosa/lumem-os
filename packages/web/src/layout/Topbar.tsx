@@ -2,6 +2,8 @@ export interface TopbarProps {
   /** Null while the first health check is still in flight. */
   version: string | null;
   unreachable: boolean;
+  /** Absent before a checkout is selected, when there is nothing to show. */
+  filesPanel?: { open: boolean; toggle(): void };
 }
 
 /**
@@ -11,7 +13,7 @@ export interface TopbarProps {
  * of the screen is downstream of a working connection, so a failure has to
  * surface in the one place that survives it.
  */
-export function Topbar({ version, unreachable }: TopbarProps) {
+export function Topbar({ version, unreachable, filesPanel }: TopbarProps) {
   return (
     <header className="topbar">
       {/* The `h1` is the product, not the current selection: the selection has
@@ -22,6 +24,18 @@ export function Topbar({ version, unreachable }: TopbarProps) {
         Lumem-OS
       </h1>
       <span className="topbar__spacer" />
+      {/* The toggle lives here rather than in the panel because when the panel
+          is closed there is nothing left on screen to hang it on. */}
+      {filesPanel !== undefined && (
+        <button
+          type="button"
+          className={`rp-toggle${filesPanel.open ? " rp-toggle--on" : ""}`}
+          aria-pressed={filesPanel.open}
+          onClick={filesPanel.toggle}
+        >
+          <span aria-hidden="true">▤</span> arquivos
+        </button>
+      )}
       {unreachable ? (
         <span className="daemon daemon--off" role="alert">
           <span className="daemon__dot" aria-hidden="true" />

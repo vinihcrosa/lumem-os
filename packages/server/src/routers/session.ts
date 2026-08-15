@@ -4,8 +4,7 @@ import { isCommandAvailable } from "../agents/availability.js";
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
-import { createProjectRepository } from "../repositories/project.js";
-import { createWorktreeRepository } from "../repositories/worktree.js";
+import { resolveScope } from "../scope.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 
 /**
@@ -26,32 +25,6 @@ const sizeSchema = z.object({
   cols: z.number().int().min(1).max(5_000).optional(),
   rows: z.number().int().min(1).max(5_000).optional(),
 });
-
-/**
- * Where a session runs, F5.1 and F5.2.
- *
- * A worktree whose directory is gone is refused here rather than at spawn:
- * node-pty answers a missing cwd with a terminal that exits 1 and prints
- * nothing, which reaches the user as a window that closed for no reason.
- */
-async function resolveScope(
-  ctx: Context,
-  scopeType: "project" | "worktree",
-  scopeId: string,
-): Promise<{ cwd: string }> {
-  if (scopeType === "project") {
-    const project = await createProjectRepository(ctx.db).findById(scopeId);
-    if (!project) throw new DomainError("NOT_FOUND", `projeto ${scopeId} não existe`);
-    return { cwd: project.path };
-  }
-
-  const worktree = await createWorktreeRepository(ctx.db).findById(scopeId);
-  if (!worktree) throw new DomainError("NOT_FOUND", `worktree ${scopeId} não existe`);
-  if (worktree.state === "missing") {
-    throw new DomainError("BLOCKED", `a worktree "${worktree.name}" não está no disco`);
-  }
-  return { cwd: worktree.path };
-}
 
 export interface SessionView extends SessionRow {
   /** Null for a shell, and for an agent whose configuration was removed. */

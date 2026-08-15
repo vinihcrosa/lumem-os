@@ -1,14 +1,18 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
+import { useOpenFiles, tabKey } from "../hooks/useOpenFiles.js";
 import { useWorktreeTabs } from "../hooks/useWorktreeTabs.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import { relativeAge } from "../lib/relative-time.js";
 import { sessionsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, Glyph, Item, SectionHead, Tab, TabStrip } from "../ui/index.js";
+import { FileViewer } from "./FileViewer.js";
 import { NewSessionMenu } from "./NewSessionMenu.js";
+import { PatchViewer } from "./PatchViewer.js";
 import { SessionTabPanel } from "./SessionTab.js";
+import { TabSplit } from "./TabSplit.js";
 
 import "./detail.css";
 
@@ -32,6 +36,32 @@ export interface ScopePanelProps {
 export function ScopePanel({ scope, header, context, cwd }: ScopePanelProps) {
   const queryClient = useQueryClient();
   const { tabs, activeId, select, close, reopen, sessions } = useWorktreeTabs(scope);
+  const openFiles = useOpenFiles();
+
+  // The column opens files into whichever tab is in front, so the tab has to
+  // say which one that is. Nothing else in the shell knows.
+  const active = tabKey(scope.scopeType, scope.scopeId, activeId);
+  useEffect(() => {
+    openFiles.setActiveTab(active);
+  }, [active, openFiles.setActiveTab]);
+
+  /** What this tab is reading beside its session, if anything. */
+  function viewerFor(sessionId: string | null): ReactNode | null {
+    const key = tabKey(scope.scopeType, scope.scopeId, sessionId);
+    const open = openFiles.fileFor(key);
+    if (open === null) return null;
+
+    return open.view === "patch" ? (
+      <PatchViewer
+        scope={scope}
+        path={open.path}
+        changeRef={open.ref ?? "worktree"}
+        onClose={() => openFiles.close(key)}
+      />
+    ) : (
+      <FileViewer scope={scope} path={open.path} onClose={() => openFiles.close(key)} />
+    );
+  }
 
   const end = useMutation({
     mutationFn: (sessionId: string) => trpc.session.close.mutate({ id: sessionId }),
@@ -92,6 +122,7 @@ export function ScopePanel({ scope, header, context, cwd }: ScopePanelProps) {
         hidden={activeId !== null}
         aria-label="contexto"
       >
+        <TabSplit viewer={viewerFor(null)}>
         {end.isError && (
           <div className="detail__banner">
             <Banner tone="danger">{end.error.message}</Banner>
@@ -151,6 +182,7 @@ export function ScopePanel({ scope, header, context, cwd }: ScopePanelProps) {
             })
           )}
         </section>
+        </TabSplit>
       </div>
 
       {tabs.map((tab) => (
@@ -159,6 +191,7 @@ export function ScopePanel({ scope, header, context, cwd }: ScopePanelProps) {
           tab={tab}
           cwd={cwd}
           active={activeId === tab.sessionId}
+          viewer={viewerFor(tab.sessionId)}
         />
       ))}
     </section>
