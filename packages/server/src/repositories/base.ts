@@ -49,7 +49,11 @@ export function constraintKey(error: unknown): string | null {
   const sqlite = asSqliteError(error);
   if (!sqlite) return null;
 
-  if (sqlite.code === "SQLITE_CONSTRAINT_FOREIGNKEY") return "foreignKey";
+  // Matched on the message, not the code: SQLite implements ON DELETE RESTRICT
+  // with an internal trigger, so a refused *delete* arrives as
+  // SQLITE_CONSTRAINT_TRIGGER while a bad *insert* arrives as
+  // SQLITE_CONSTRAINT_FOREIGNKEY. Both are the same thing to a caller.
+  if (sqlite.message.includes("FOREIGN KEY constraint failed")) return "foreignKey";
 
   const unique = /UNIQUE constraint failed: (.+)$/.exec(sqlite.message);
   // Composite indexes report every column; the key keeps them in schema order.

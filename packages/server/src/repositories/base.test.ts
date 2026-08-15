@@ -58,6 +58,24 @@ describe("constraintKey", () => {
     });
   });
 
+  it("reports a refused delete as a foreign key failure too", async () => {
+    // SQLite implements ON DELETE RESTRICT with an internal trigger, so this
+    // arrives as SQLITE_CONSTRAINT_TRIGGER while the insert above arrives as
+    // SQLITE_CONSTRAINT_FOREIGNKEY. Keying on the code alone silently sent
+    // every blocked removal to CONSTRAINT_VIOLATION.
+    await withTestDb(async (db) => {
+      const workspaceId = newId();
+      await db.insert(workspace).values({ id: workspaceId, name: "pessoal" });
+      await db
+        .insert(project)
+        .values({ id: newId(), workspaceId, name: "x", path: "/x", defaultBranch: "main" });
+
+      const error = await failureOf(() => db.delete(workspace).returning());
+
+      expect(constraintKey(error)).toBe("foreignKey");
+    });
+  });
+
   it("names a check by its constraint name", async () => {
     await withTestDb(async (db) => {
       const error = await failureOf(() =>
