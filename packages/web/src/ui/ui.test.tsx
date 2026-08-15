@@ -19,6 +19,8 @@ import {
   Row,
   SectionHead,
   Skeleton,
+  Tab,
+  TabStrip,
 } from "./index.js";
 
 /**
@@ -305,5 +307,83 @@ describe("Menu", () => {
     );
 
     expect(within(screen.getByRole("menu", { name: "nova sessão" })).getAllByRole("menuitem")).toHaveLength(2);
+  });
+});
+
+describe("Tab", () => {
+  it("keeps closing separate from selecting", async () => {
+    const onSelect = vi.fn();
+    const onClose = vi.fn();
+    render(<Tab label="claude-code" state="running" onSelect={onSelect} onClose={onClose} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "fechar claude-code" }));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(onSelect).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("tab", { name: /claude-code/ }));
+    expect(onSelect).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("says which tab is the open one", () => {
+    render(
+      <>
+        <Tab label="contexto" active onSelect={vi.fn()} />
+        <Tab label="shell" onSelect={vi.fn()} />
+      </>,
+    );
+
+    expect(screen.getByRole("tab", { name: "contexto" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "shell" })).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("offers no close on a tab that cannot be dismissed", () => {
+    render(<Tab label="contexto" onSelect={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /fechar/ })).not.toBeInTheDocument();
+  });
+
+  it("tells homonyms apart with an ordinal", () => {
+    // A session has no name of its own, so without this three agents from one
+    // configuration are three identical tabs.
+    render(
+      <>
+        <Tab label="claude-code" onSelect={vi.fn()} />
+        <Tab label="claude-code" ordinal={2} onSelect={vi.fn()} />
+      </>,
+    );
+
+    expect(screen.getByRole("tab", { name: "claude-code 2" })).toBeInTheDocument();
+  });
+});
+
+describe("TabStrip", () => {
+  it("keeps the lead and the action out of the part that scrolls", () => {
+    // Both are pinned on purpose: a menu anchored to the action would be
+    // clipped by the scroller, and neither may slide off screen.
+    const { container } = render(
+      <TabStrip
+        label="sessões"
+        lead={<Tab label="contexto" active onSelect={vi.fn()} />}
+        action={<button type="button">nova sessão</button>}
+      >
+        <Tab label="shell" onSelect={vi.fn()} />
+      </TabStrip>,
+    );
+
+    const scroller = container.querySelector(".tabs-bar__scroll");
+    expect(scroller).not.toContainElement(screen.getByRole("tab", { name: "contexto" }));
+    expect(scroller).not.toContainElement(screen.getByRole("button", { name: "nova sessão" }));
+    expect(scroller).toContainElement(screen.getByRole("tab", { name: "shell" }));
+  });
+
+  it("exposes its tabs as a tab list", () => {
+    render(
+      <TabStrip label="sessões de teste-prd">
+        <Tab label="shell" onSelect={vi.fn()} />
+        <Tab label="claude-code" onSelect={vi.fn()} />
+      </TabStrip>,
+    );
+
+    expect(within(screen.getByRole("tablist", { name: "sessões de teste-prd" })).getAllByRole("tab")).toHaveLength(2);
   });
 });

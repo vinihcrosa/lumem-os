@@ -17,3 +17,4 @@ export { Menu, MenuItem, type MenuItemProps, type MenuProps } from "./Menu.js";
 export { MetaGrid, type MetaEntry, type MetaGridProps } from "./MetaGrid.js";
 export { Row, type RowProps } from "./Row.js";
 export { SectionHead, type SectionHeadProps } from "./SectionHead.js";
+export { Tab, TabStrip, type TabProps, type TabState, type TabStripProps } from "./Tab.js";

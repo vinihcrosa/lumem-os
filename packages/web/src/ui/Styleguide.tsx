@@ -17,6 +17,8 @@ import {
   Row,
   SectionHead,
   Skeleton,
+  Tab,
+  TabStrip,
 } from "./index.js";
 import "./styleguide.css";
 
@@ -296,6 +298,43 @@ export function Styleguide() {
             <Button size="sm">Usar ~/Documents/GitHub/lorebase</Button>
           </Card>
         </div>
+      </Section>
+
+      <Section title="TabStrip" note="a aba de contexto e a ação ficam fixas; o meio rola">
+        <TabStrip
+          label="sessões de teste-prd"
+          lead={<Tab label="contexto" active onSelect={() => undefined} />}
+          action={<button type="button" className="tabs-new">＋ nova sessão</button>}
+        >
+          <Tab
+            label="claude-code"
+            glyph={<Glyph tone="agent">◆</Glyph>}
+            state="running"
+            onSelect={() => undefined}
+            onClose={() => undefined}
+          />
+          <Tab
+            label="claude-code"
+            ordinal={2}
+            glyph={<Glyph tone="agent">◆</Glyph>}
+            state="running"
+            onSelect={() => undefined}
+            onClose={() => undefined}
+          />
+          <Tab
+            label="shell"
+            glyph={<Glyph tone="shell">●</Glyph>}
+            state="running"
+            onSelect={() => undefined}
+            onClose={() => undefined}
+          />
+        </TabStrip>
+
+        <TabStrip
+          label="worktree sem sessão"
+          lead={<Tab label="contexto" active onSelect={() => undefined} />}
+          action={<button type="button" className="tabs-new">＋ nova sessão</button>}
+        />
       </Section>
 
       <Section title="Menu">
