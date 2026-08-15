@@ -1,0 +1,76 @@
+/*
+ * A página do styleguide. Não vai pra produção — só existe em `DEV`, e o que
+ * está aqui é a moldura da galeria, nunca uma primitiva.
+ */
+
+.sg {
+  height: 100%;
+  overflow: auto;
+  padding: var(--space-24) var(--space-32) var(--space-64);
+}
+
+.sg__title {
+  margin: 0;
+  font: var(--text-display-lg);
+  letter-spacing: var(--tracking-display-lg);
+}
+
+.sg__lede {
+  margin: var(--space-4) 0 var(--space-32);
+  font: var(--text-body-lg);
+  color: var(--color-text-secondary);
+}
+
+.sg__section {
+  margin-bottom: var(--space-32);
+  padding-top: var(--space-16);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.sg__heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-12);
+  margin: 0 0 var(--space-12);
+  font: var(--text-heading-md);
+  letter-spacing: var(--tracking-heading-md);
+}
+
+.sg__note {
+  font: var(--text-body-sm);
+  font-weight: 400;
+  color: var(--color-text-tertiary);
+}
+
+.sg__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  max-width: var(--size-detail-max);
+}
+
+.sg__inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.sg__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-16);
+  align-items: start;
+}
+
+/* A `Row` é desenhada pra viver sobre o fundo do painel, não sobre o do
+   documento. Sem isto o degrau de superfície que separa sidebar de conteúdo
+   não aparece na galeria. */
+.sg__panel {
+  padding: var(--space-6);
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  /* Estreita como a sidebar de verdade: é onde o truncamento acontece. */
+  max-width: var(--size-sidebar-width);
+}

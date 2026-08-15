@@ -46,6 +46,7 @@
   --neutral-980: #100F15;
   --neutral-990: #0C0B11;
   --neutral-1000: #08070D;
+  --neutral-1010: #050408;
   /* success */
   --success-50: #EEFCF3;
   --success-100: #DCF7E6;
@@ -101,7 +102,7 @@
   --color-bg-panel: var(--neutral-990);
   --color-bg-surface: var(--neutral-980);
   --color-bg-raised: var(--neutral-970);
-  --color-bg-inset: var(--neutral-1000);
+  --color-bg-inset: var(--neutral-1010);
   --color-bg-hover: var(--neutral-960);
   --color-bg-active: var(--neutral-925);
   --color-bg-selected: var(--brand-950);

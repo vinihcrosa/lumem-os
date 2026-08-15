@@ -58,6 +58,7 @@ DARK_LADDER = {
     "980": 0.172,   # cartao, superficie elevada
     "990": 0.153,   # painel, sidebar
     "1000": 0.134,  # fundo raiz
+    "1010": 0.112,  # poco: terminal e saida literal de comando
 }
 
 DARK_FIRST = True   # False = tema claro como padrao
@@ -67,7 +68,7 @@ SEMANTIC = [
     ("superficies", [
         ("bg/base", "neutral/1000"), ("bg/panel", "neutral/990"),
         ("bg/surface", "neutral/980"), ("bg/raised", "neutral/970"),
-        ("bg/inset", "neutral/1000"), ("bg/hover", "neutral/960"),
+        ("bg/inset", "neutral/1010"), ("bg/hover", "neutral/960"),
         ("bg/active", "neutral/925"), ("bg/selected", "brand/950"),
     ]),
     ("marca", [

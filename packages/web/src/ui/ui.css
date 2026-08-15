@@ -1,0 +1,487 @@
+/*
+ * Primitivas de UI. Nenhuma tela mora aqui — só os blocos de que elas são
+ * feitas. Portadas do protótipo `packages/web/prototype/lumem-shell.html`.
+ *
+ * Só `var()`. Um literal aqui quebra a promessa de que trocar uma rampa em
+ * `generate-tokens.py` troca a interface inteira.
+ */
+
+/* --------------------------------------------------------------- glifo */
+/*
+ * Um lugar só decide a cor de cada conceito. No protótipo isso estava
+ * espalhado em `row__icon--agent`, `btn__glyph--agent` e `item__icon`, três
+ * declarações que tinham de concordar.
+ */
+.glyph {
+  flex: none;
+  width: var(--size-icon-sm);
+  text-align: center;
+  font-size: var(--size-icon-sm);
+  line-height: 1;
+}
+.glyph--workspace { color: var(--color-scope-workspace); }
+.glyph--project { color: var(--color-scope-project); }
+.glyph--worktree { color: var(--color-scope-worktree); }
+.glyph--shell { color: var(--color-session-shell); }
+.glyph--agent { color: var(--color-session-agent); }
+.glyph--warn { color: var(--color-worktree-missing); }
+.glyph--off { color: var(--color-text-disabled); }
+
+/* --------------------------------------------------------------- botão */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  background: var(--color-bg-raised);
+  border-color: var(--color-border-strong);
+}
+.btn--primary {
+  background: var(--color-bg-brand);
+  border-color: var(--color-bg-brand);
+  color: var(--color-text-on-brand);
+}
+.btn--primary:hover:not(:disabled) {
+  background: var(--color-bg-brand-hover);
+  border-color: var(--color-bg-brand-hover);
+}
+/* O glifo de um botão preenchido acompanha o label; colorir por conceito ali
+   brigaria com o fundo da marca. */
+.btn--primary .glyph { color: inherit; }
+.btn--danger { color: var(--color-text-danger); }
+.btn--danger:hover:not(:disabled) { border-color: var(--color-border-danger); }
+/* Sem preenchimento, mas com borda: ação terciária sem borda nenhuma some no
+   meio do texto e deixa de parecer clicável. */
+.btn--ghost {
+  background: none;
+  border-color: var(--color-border-subtle);
+  color: var(--color-text-secondary);
+}
+.btn--ghost:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+.btn--sm {
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  font: var(--text-label-xs);
+}
+.btn:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+.btn:disabled .glyph { color: var(--color-text-disabled); }
+
+/* ---------------------------------------------------------------- chip */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  font: var(--text-mono-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.chip__dot {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  /* Segue a cor do chip: um tom novo não precisa de regra para o ponto. */
+  background: currentColor;
+}
+.chip--branch { color: var(--color-git-branch); }
+.chip--clean { color: var(--color-worktree-clean); }
+.chip--dirty { color: var(--color-worktree-dirty); }
+.chip--missing {
+  color: var(--color-worktree-missing);
+  border-color: var(--color-border-danger);
+}
+.chip--running { color: var(--color-session-running); }
+.chip--exited { color: var(--color-session-exited); }
+.chip--failed {
+  color: var(--color-session-failed);
+  border-color: var(--color-border-danger);
+}
+.chip .ahead { color: var(--color-git-ahead); }
+.chip .behind { color: var(--color-git-behind); }
+.chip .dim { color: var(--color-text-tertiary); }
+
+/* ----------------------------------------------------- linha da árvore */
+/*
+ * Container com dois botões irmãos, não um botão só: expandir e selecionar
+ * são ações diferentes, e `button` dentro de `button` é HTML inválido. O
+ * fundo e o hover ficam no container para que os dois pareçam uma linha.
+ */
+.row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--size-row-compact);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+.row:hover { background: var(--color-bg-hover); }
+.row:hover .row__label { color: var(--color-text-primary); }
+.row--selected {
+  background: var(--color-bg-selected);
+  color: var(--color-text-primary);
+  box-shadow: inset 2px 0 0 var(--color-border-brand);
+}
+.row--muted { color: var(--color-text-disabled); }
+.row--emphasis { color: var(--color-text-primary); }
+
+.row__twist {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-icon-md);
+  height: 100%;
+  /* A profundidade empurra a seta, não o conteúdo: assim o glifo e o label
+     de irmãos ficam alinhados independentemente de terem filhos. */
+  margin-left: calc(var(--space-4) + var(--depth, 0) * var(--space-12));
+  font-size: var(--size-icon-xs);
+  color: var(--color-text-tertiary);
+  border-radius: var(--radius-xs);
+}
+.row__twist:hover { color: var(--color-text-primary); }
+.row__twist--empty { pointer-events: none; }
+
+.row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: 100%;
+  padding: 0 var(--space-8) 0 var(--space-4);
+  color: inherit;
+  font: var(--text-body-md);
+  text-align: left;
+  border-radius: var(--radius-sm);
+}
+.row--emphasis .row__main { font: var(--text-label-md); }
+
+.row__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row__meta {
+  flex: none;
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+/* Sinal de "tem sessão viva aqui dentro" quando o nó está fechado. É o único
+   ponto verde da sidebar, e é por isso que a estrutura em volta é cinza. */
+.row__pip {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-session-running);
+}
+
+/* ---------------------------------------------------- linha de detalhe */
+.item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--size-row-cozy);
+  border-radius: var(--radius-sm);
+}
+.item:hover { background: var(--color-bg-hover); }
+.item__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  height: 100%;
+  padding: 0 var(--space-8);
+  color: inherit;
+  text-align: left;
+  border-radius: var(--radius-sm);
+}
+.item__name {
+  flex: none;
+  font: var(--text-label-sm);
+  color: var(--color-text-primary);
+}
+.item__detail {
+  flex: 1;
+  min-width: 0;
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.item__state {
+  flex: none;
+  font: var(--text-mono-sm);
+}
+.item__age {
+  flex: none;
+  min-width: var(--space-64);
+  text-align: right;
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.item__act {
+  flex: none;
+  padding-right: var(--space-8);
+}
+.state--running { color: var(--color-session-running); }
+.state--exited { color: var(--color-session-exited); }
+.state--failed { color: var(--color-session-failed); }
+.state--clean { color: var(--color-worktree-clean); }
+.state--dirty { color: var(--color-worktree-dirty); }
+.state--missing { color: var(--color-worktree-missing); }
+
+/* ------------------------------------------------- grade de metadados */
+.meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-6) var(--space-16);
+  margin: 0;
+  padding: var(--space-12) var(--space-16);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+.meta dt {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  padding-top: var(--space-2);
+}
+.meta dd {
+  margin: 0;
+  min-width: 0;
+  font: var(--text-mono-md);
+  color: var(--color-text-code);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.meta .dim { color: var(--color-text-tertiary); }
+
+/* -------------------------------------------------- cabeçalho de seção */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.section-head__title {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.section-head__count {
+  font: var(--text-caption);
+  color: var(--color-text-disabled);
+}
+.section-head__aside { margin-left: auto; }
+
+/* -------------------------------------------------------------- aviso */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-10) var(--space-12);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+.banner__glyph {
+  flex: none;
+  font-size: var(--size-icon-md);
+  line-height: 1;
+}
+.banner strong {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+.banner code {
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+}
+.banner__actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-6);
+}
+.banner--danger {
+  background: var(--color-bg-danger-subtle);
+  border-color: var(--color-border-danger);
+}
+.banner--danger .banner__glyph { color: var(--color-text-danger); }
+.banner--warning {
+  background: var(--color-bg-warning-subtle);
+  border-color: var(--color-border-default);
+}
+.banner--warning .banner__glyph { color: var(--color-text-warning); }
+.banner--info {
+  background: var(--color-bg-info-subtle);
+  border-color: var(--color-border-default);
+}
+.banner--info .banner__glyph { color: var(--color-text-info); }
+
+/* Saída literal de comando — o §8 do PRD exige que o erro do git apareça sem
+   tradução. `white-space: normal` no bloco com filhos `display:block` evita
+   que as quebras do JSX virem linhas vazias e dobrem a altura. */
+.raw {
+  margin: var(--space-8) 0 0;
+  padding: var(--space-8) var(--space-10);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-sm);
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+  white-space: normal;
+  overflow-x: auto;
+}
+.raw__line {
+  display: block;
+  white-space: pre;
+}
+
+/* -------------------------------------------------------------- vazio */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+  padding: var(--space-24);
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-tertiary);
+  font: var(--text-body-sm);
+}
+.empty__title {
+  font: var(--text-label-md);
+  color: var(--color-text-secondary);
+}
+
+/* ------------------------------------------------------------ cartão */
+.card {
+  width: var(--size-dialog-width);
+  max-width: 100%;
+  padding: var(--space-24);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-md);
+}
+.card__title {
+  margin: 0 0 var(--space-6);
+  font: var(--text-heading-lg);
+  letter-spacing: var(--tracking-heading-lg);
+}
+.card__lede {
+  margin: 0 0 var(--space-16);
+  font: var(--text-body-md);
+  color: var(--color-text-secondary);
+}
+
+/* ------------------------------------------------------------- campo */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin-bottom: var(--space-12);
+}
+.field__label {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.field__error {
+  font: var(--text-body-sm);
+  color: var(--color-text-danger);
+}
+.field code {
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+}
+
+.input {
+  height: var(--size-control-xl);
+  padding: 0 var(--space-12);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font: var(--text-mono-md);
+}
+.input--error { border-color: var(--color-border-danger); }
+
+/* -------------------------------------------------------------- menu */
+.menu {
+  width: var(--size-menu-width);
+  max-width: 100%;
+  padding: var(--space-4);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-lg);
+}
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  height: var(--size-control-lg);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  font: var(--text-label-sm);
+  text-align: left;
+}
+.menu__item:hover:not(:disabled) { background: var(--color-bg-hover); }
+.menu__item:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+.menu__item:disabled .glyph { color: var(--color-text-disabled); }
+.menu__hint {
+  margin-left: auto;
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+}
+/* O motivo de um item estar travado é um erro, e lê como erro. */
+.menu__item:disabled .menu__hint { color: var(--color-text-danger); }
+
+/* ---------------------------------------------------------- esqueleto */
+.skeleton {
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--neutral-970),
+    var(--neutral-960),
+    var(--neutral-970)
+  );
+}
+.skeleton + .skeleton { margin-top: var(--space-8); }
