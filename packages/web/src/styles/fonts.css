@@ -1,0 +1,37 @@
+/*
+ * Fontes auto-hospedadas. O daemon serve o cliente inteiro, e uma fonte vinda
+ * de CDN seria a única coisa no app que exige internet.
+ *
+ * Declaradas à mão em vez de importar o entrypoint do pacote porque o
+ * `@fontsource-variable/inter` traz sete subconjuntos — cirílico, grego,
+ * vietnamita — e este app é português e inglês. Só o `latin` entra, e o
+ * `unicode-range` abaixo é o do próprio pacote, copiado sem alteração: ele
+ * cobre todo acento do português (ã, ç, õ, ê) mais setas e traços de
+ * pontuação, que a interface usa.
+ *
+ * O que cair fora dessa faixa — os traços de caixa que um TUI de agente
+ * desenha, por exemplo — cai na fonte do sistema, que é o comportamento certo.
+ */
+
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  /* Eixo de peso completo num arquivo: os tokens usam 400, 500 e 600. */
+  font-weight: 100 900;
+  src: url("@fontsource-variable/inter/files/inter-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-display: swap;
+  /* Um peso só: todo estilo mono dos tokens é 400. */
+  font-weight: 400;
+  src: url("@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

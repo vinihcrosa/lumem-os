@@ -212,7 +212,7 @@
   --border-width-focus: 2px;
 
   /* ---------- tipografia ---------- */
-  --font-family-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-family-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
   --font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --text-display-lg: 600 28px/34px var(--font-family-sans);
   --tracking-display-lg: -0.02em;

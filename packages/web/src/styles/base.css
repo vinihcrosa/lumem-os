@@ -1,0 +1,101 @@
+/*
+ * Estilos de documento. Nada de componente vive aqui.
+ *
+ * Só `var()`: qualquer literal de cor ou espaçamento nesta folha quebra a
+ * promessa de que trocar uma rampa em `generate-tokens.py` troca a interface
+ * inteira. Exceção tolerada: ajuste ótico de 1–2px sem token.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font: var(--text-body-md);
+  -webkit-font-smoothing: antialiased;
+  /* O app é uma moldura de altura de viewport: quem rola são as colunas. */
+  overflow: hidden;
+}
+
+/* O navegador não herda fonte em controle de formulário. Sem isto, todo
+   `button` e `input` volta pro default do sistema. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* Campo herdar só a cor do texto seria um bug: o fundo continuaria o branco do
+   navegador e o texto claro sumiria dentro dele. Os dois andam juntos. */
+input,
+select,
+textarea {
+  background: var(--color-bg-inset);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+
+::placeholder {
+  color: var(--color-text-disabled);
+}
+
+a {
+  color: var(--color-text-link);
+}
+
+/* Um alvo interativo sem foco visível é inoperável no teclado. O anel sai do
+   gerador para que a cor acompanhe a marca. */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Barras de rolagem: a padrão do sistema é clara e corta o fundo escuro. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-default) transparent;
+}
+
+::-webkit-scrollbar {
+  width: var(--space-10);
+  height: var(--space-10);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-default);
+  border-radius: var(--radius-full);
+  /* Borda transparente com `background-clip` afina o polegar sem mudar a
+     área de acerto do ponteiro. */
+  border: var(--space-2) solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-strong);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner,
+::-webkit-scrollbar-track {
+  background: transparent;
+}

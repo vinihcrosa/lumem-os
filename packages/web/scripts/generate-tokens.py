@@ -139,7 +139,9 @@ SIZING  = [
 ]
 BORDER_WIDTH = [("none", 0), ("thin", 1), ("thick", 2), ("focus", 2)]
 
-FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif'
+# "Inter Variable" primeiro: e o nome que @fontsource-variable/inter declara.
+# Sem ele a pilha cai direto no system-ui e a fonte baixada nao e usada.
+FONT_SANS = '"Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif'
 FONT_MONO = '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace'
 
 # nome, tamanho, altura de linha, tracking em em, peso, mono?
