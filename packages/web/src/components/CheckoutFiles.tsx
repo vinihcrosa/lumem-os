@@ -1,0 +1,62 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+
+import { useCheckoutChanges, type ChangeStatus } from "../hooks/useCheckoutChanges.js";
+import { useOpenFiles } from "../hooks/useOpenFiles.js";
+import type { Scope } from "../hooks/useSessionsByScope.js";
+import { FileTree } from "./FileTree.js";
+import { RightPanel, type RightPanelTab } from "./RightPanel.js";
+
+export interface CheckoutFilesProps {
+  scope: Scope;
+  onClose(): void;
+  onResize(width: number): void;
+}
+
+/**
+ * The column's contents for one checkout.
+ *
+ * It belongs to the checkout, not to the tab: switching sessions does not
+ * change which files exist. What it opens, on the other hand, belongs to the
+ * tab — which is why the opening goes through `useOpenFiles` instead of state
+ * held here.
+ */
+export function CheckoutFiles({ scope, onClose, onResize }: CheckoutFilesProps) {
+  const queryClient = useQueryClient();
+  const [tab, setTab] = useState<RightPanelTab>("files");
+  const openFiles = useOpenFiles();
+
+  const changes = useCheckoutChanges(scope, "worktree");
+  const statusByPath = new Map<string, ChangeStatus>(
+    (changes.data?.files ?? []).map((file) => [file.path, file.status as ChangeStatus]),
+  );
+
+  const active = openFiles.activeTab === null ? null : openFiles.fileFor(openFiles.activeTab);
+
+  return (
+    <RightPanel
+      tab={tab}
+      onSelectTab={setTab}
+      changeCount={changes.data?.files.length ?? null}
+      onReload={() => {
+        // "read the disk again", not "read this one directory again".
+        void queryClient.invalidateQueries({ queryKey: ["files"] });
+        void queryClient.invalidateQueries({ queryKey: ["changes"] });
+      }}
+      onClose={onClose}
+      onResize={onResize}
+      footLeft={changes.isError ? "não deu para ler o checkout" : undefined}
+    >
+      {tab === "files" ? (
+        <FileTree
+          scope={scope}
+          openPath={active?.view === "file" ? active.path : null}
+          onOpen={(path) => openFiles.open({ path, view: "file" })}
+          statusOf={(path) => statusByPath.get(path)}
+        />
+      ) : (
+        <div className="rp__scroll" />
+      )}
+    </RightPanel>
+  );
+}

@@ -29,6 +29,10 @@ export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void
     case "worktree.changed":
       void queryClient.invalidateQueries({ queryKey: worktreesKey(event.projectId) });
       void queryClient.invalidateQueries({ queryKey: ["worktree"] });
+      // The files column reads the same disk the worktree lives on. It has no
+      // watcher of its own (Q6), so every signal the daemon does send counts.
+      void queryClient.invalidateQueries({ queryKey: ["files"] });
+      void queryClient.invalidateQueries({ queryKey: ["changes"] });
       return;
     case "session.changed":
       void queryClient.invalidateQueries({

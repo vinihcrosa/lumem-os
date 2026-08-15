@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { AddProjectDialog } from "./components/AddProjectDialog.js";
-import { RightPanel, type RightPanelTab } from "./components/RightPanel.js";
+import { CheckoutFiles } from "./components/CheckoutFiles.js";
 import { FirstRun } from "./components/FirstRun.js";
 import { LocalPanel } from "./components/LocalPanel.js";
 import { SidebarTree } from "./components/SidebarTree.js";
@@ -10,6 +10,7 @@ import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
 import { WorktreePanel } from "./components/WorktreePanel.js";
 import { useActiveWorkspace } from "./hooks/useActiveWorkspace.js";
 import { useLiveState } from "./hooks/useLiveState.js";
+import { OpenFilesProvider } from "./hooks/useOpenFiles.js";
 import { useRightPanel } from "./hooks/useRightPanel.js";
 import type { Scope } from "./hooks/useSessionsByScope.js";
 import { useTreeExpansion } from "./hooks/useTreeExpansion.js";
@@ -37,7 +38,6 @@ export function App() {
   const [selection, setSelection] = useState<Selection>(null);
   const expansion = useTreeExpansion();
   const rightPanel = useRightPanel();
-  const [rightTab, setRightTab] = useState<RightPanelTab>("files");
 
   const health = useQuery({
     queryKey: ["health"],
@@ -62,7 +62,8 @@ export function App() {
   useLiveState();
 
   return (
-    <div className="app">
+    <OpenFilesProvider>
+      <div className="app">
       <Topbar
         version={health.data?.version ?? null}
         unreachable={health.isError}
@@ -81,7 +82,8 @@ export function App() {
         </div>
       )}
       {renderBody()}
-    </div>
+      </div>
+    </OpenFilesProvider>
   );
 
   function renderBody() {
@@ -167,20 +169,14 @@ export function App() {
     if (selection === null || !rightPanel.open) return undefined;
 
     return (
-      <RightPanel
+      <CheckoutFiles
+        // Keyed by checkout: a path from one worktree does not exist in
+        // another, so the tree's expansion starts over on purpose (F2.6).
         key={`${selection.scope.scopeType}:${selection.scope.scopeId}`}
-        tab={rightTab}
-        onSelectTab={setRightTab}
-        changeCount={null}
-        onReload={() => {
-          void queryClient.invalidateQueries({ queryKey: ["files"] });
-          void queryClient.invalidateQueries({ queryKey: ["changes"] });
-        }}
+        scope={selection.scope}
         onClose={rightPanel.toggle}
         onResize={rightPanel.setWidth}
-      >
-        <div className="rp__scroll" />
-      </RightPanel>
+      />
     );
   }
 

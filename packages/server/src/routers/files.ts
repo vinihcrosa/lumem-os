@@ -24,11 +24,19 @@ const scopeSchema = z.object({
   path: z.string().max(4_096).default(""),
 });
 
+const listSchema = scopeSchema.extend({
+  /**
+   * Raises the ceiling for one call, which is what "listar assim mesmo" asks
+   * for after a truncated listing. Bounded so the answer stays a listing.
+   */
+  limit: z.number().int().min(1).max(20_000).optional(),
+});
+
 export const filesRouter = router({
-  listDir: publicProcedure.input(scopeSchema).query(({ ctx, input }) =>
+  listDir: publicProcedure.input(listSchema).query(({ ctx, input }) =>
     domainSafeAsync(async () => {
       const { cwd } = await resolveScope(ctx, input.scopeType, input.scopeId);
-      return files.listDir(cwd, input.path);
+      return files.listDir(cwd, input.path, { maxEntries: input.limit });
     }),
   ),
 

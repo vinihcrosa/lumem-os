@@ -23,3 +23,26 @@ export function worktreeDetailKey(worktreeId: string) {
 export function sessionsKey(scopeType: string, scopeId: string) {
   return ["session", "listByScope", scopeType, scopeId] as const;
 }
+
+/**
+ * The right panel's three questions.
+ *
+ * Prefixed by kind so the column's reload button can invalidate `["files"]` and
+ * `["changes"]` wholesale — it means "read the disk again", not "read this one
+ * directory again".
+ */
+export function fileListKey(scopeType: string, scopeId: string, path: string) {
+  return ["files", "listDir", scopeType, scopeId, path] as const;
+}
+
+export function fileReadKey(scopeType: string, scopeId: string, path: string) {
+  return ["files", "read", scopeType, scopeId, path] as const;
+}
+
+export function changesKey(scopeType: string, scopeId: string, ref: string) {
+  return ["changes", "list", scopeType, scopeId, ref] as const;
+}
+
+export function patchKey(scopeType: string, scopeId: string, ref: string, path: string) {
+  return ["changes", "patch", scopeType, scopeId, ref, path] as const;
+}

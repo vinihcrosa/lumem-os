@@ -48,8 +48,13 @@ export type FileContent =
   | { kind: "binary"; path: string; bytes: number }
   | { kind: "too-large"; path: string; bytes: number; limit: number };
 
+export interface ListOptions {
+  /** Overrides the default ceiling for this call alone, F2.4. */
+  maxEntries?: number;
+}
+
 export interface FileService {
-  listDir(root: string, path: string): Promise<DirListing>;
+  listDir(root: string, path: string, options?: ListOptions): Promise<DirListing>;
   readFile(root: string, path: string): Promise<FileContent>;
 }
 
@@ -98,7 +103,7 @@ export function createFileService({
   maxBytes = MAX_FILE_BYTES,
 }: FileServiceOptions = {}): FileService {
   return {
-    async listDir(root, path) {
+    async listDir(root, path, options = {}) {
       const { absolute, relative } = await resolveInsideRoot(root, path);
 
       const info = await stat(absolute);
@@ -120,7 +125,7 @@ export function createFileService({
       const total = dirents.length;
       // Sliced before stat'ing: the ceiling exists so a directory with ten
       // thousand entries costs ten thousand syscalls at most once.
-      const kept = dirents.slice(0, maxEntries);
+      const kept = dirents.slice(0, Math.max(1, options.maxEntries ?? maxEntries));
 
       const entries = await Promise.all(
         kept.map(async (dirent): Promise<DirEntry> => {
