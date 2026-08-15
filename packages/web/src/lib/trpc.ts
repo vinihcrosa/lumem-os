@@ -1,5 +1,11 @@
 import type { AppRouter } from "@lumem/server/router-types";
-import { createTRPCClient, httpBatchLink, type TRPCClient } from "@trpc/client";
+import {
+  createTRPCClient,
+  httpBatchLink,
+  httpSubscriptionLink,
+  splitLink,
+  type TRPCClient,
+} from "@trpc/client";
 
 /**
  * Vanilla tRPC client driven by TanStack Query at the call site.
@@ -9,5 +15,13 @@ import { createTRPCClient, httpBatchLink, type TRPCClient } from "@trpc/client";
  * cannot name when emitting declarations (TS2742).
  */
 export const trpc: TRPCClient<AppRouter> = createTRPCClient<AppRouter>({
-  links: [httpBatchLink({ url: "/trpc" })],
+  links: [
+    splitLink({
+      // Subscriptions are a long-lived stream, so they cannot share the
+      // batching link: one open request would hold a batch open forever.
+      condition: (operation) => operation.type === "subscription",
+      true: httpSubscriptionLink({ url: "/trpc" }),
+      false: httpBatchLink({ url: "/trpc" }),
+    }),
+  ],
 });

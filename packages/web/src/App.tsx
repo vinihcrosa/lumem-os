@@ -11,6 +11,7 @@ import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
 import { WorktreeDetail } from "./components/WorktreeDetail.js";
 import { WorktreeTree } from "./components/WorktreeTree.js";
 import { useActiveWorkspace } from "./hooks/useActiveWorkspace.js";
+import { useLiveState } from "./hooks/useLiveState.js";
 import { AppShell } from "./layout/AppShell.js";
 import { WORKSPACES_KEY } from "./lib/queryKeys.js";
 import { trpc } from "./lib/trpc.js";
@@ -45,6 +46,10 @@ export function App() {
   });
 
   const { activeId, select } = useActiveWorkspace(workspaces.data ?? []);
+
+  // F3.7: the daemon pushes, the sidebar follows. Everything below still polls
+  // as a backstop, but this is what makes a change show up at once.
+  useLiveState();
 
   return (
     <div className="app">

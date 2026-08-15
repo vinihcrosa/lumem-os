@@ -2,6 +2,7 @@ import { LUMEM_VERSION } from "@lumem/shared";
 
 import { publicProcedure, router } from "../trpc.js";
 import { agentConfigRouter } from "./agentConfig.js";
+import { eventsRouter } from "./events.js";
 import { projectRouter } from "./project.js";
 import { sessionRouter } from "./session.js";
 import { workspaceRouter } from "./workspace.js";
@@ -13,6 +14,7 @@ export const appRouter = router({
     version: LUMEM_VERSION,
   })),
   agentConfig: agentConfigRouter,
+  events: eventsRouter,
   project: projectRouter,
   session: sessionRouter,
   workspace: workspaceRouter,

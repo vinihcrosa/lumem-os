@@ -88,6 +88,7 @@ export const projectRouter = router({
           path: input.path,
           defaultBranch,
         });
+        ctx.events.emit({ type: "project.changed", workspaceId: input.workspaceId });
         return withAvailability(created);
       }),
     ),
@@ -95,9 +96,11 @@ export const projectRouter = router({
   rename: publicProcedure
     .input(z.object({ id: z.string().min(1), name: nameSchema }))
     .mutation(({ ctx, input }) =>
-      domainSafeAsync(async () =>
-        withAvailability(await createProjectRepository(ctx.db).rename(input.id, input.name)),
-      ),
+      domainSafeAsync(async () => {
+        const renamed = await createProjectRepository(ctx.db).rename(input.id, input.name);
+        ctx.events.emit({ type: "project.changed", workspaceId: renamed.workspaceId });
+        return withAvailability(renamed);
+      }),
     ),
 
   remove: publicProcedure.input(z.object({ id: z.string().min(1) })).mutation(({ ctx, input }) =>
@@ -113,9 +116,13 @@ export const projectRouter = router({
         );
       }
 
+      const projects = createProjectRepository(ctx.db);
+      const row = await projects.findById(input.id);
+
       // F2.5: the registration goes, the disk is never touched. Not even when
       // the worktrees the daemon created live under ~/.lumem.
-      await createProjectRepository(ctx.db).remove(input.id);
+      await projects.remove(input.id);
+      if (row) ctx.events.emit({ type: "project.changed", workspaceId: row.workspaceId });
       return { ok: true as const };
     }),
   ),

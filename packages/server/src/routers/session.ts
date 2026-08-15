@@ -96,6 +96,11 @@ export const sessionRouter = router({
         ...(input.cols === undefined ? {} : { cols: input.cols }),
         ...(input.rows === undefined ? {} : { rows: input.rows }),
       });
+      ctx.events.emit({
+        type: "session.changed",
+        scopeType: input.scopeType,
+        scopeId: input.scopeId,
+      });
       return toView(ctx, row);
     }),
   ),
@@ -136,13 +141,26 @@ export const sessionRouter = router({
           ...(input.cols === undefined ? {} : { cols: input.cols }),
           ...(input.rows === undefined ? {} : { rows: input.rows }),
         });
+        ctx.events.emit({
+          type: "session.changed",
+          scopeType: input.scopeType,
+          scopeId: input.scopeId,
+        });
         return toView(ctx, row);
       }),
     ),
 
   close: publicProcedure.input(z.object({ id: z.string().min(1) })).mutation(({ ctx, input }) =>
     domainSafeAsync(async () => {
+      const row = await ctx.sessionStore.findById(input.id);
       await ctx.sessionStore.close(input.id);
+      if (row) {
+        ctx.events.emit({
+          type: "session.changed",
+          scopeType: row.scopeType as "project" | "worktree",
+          scopeId: row.scopeId,
+        });
+      }
       return { ok: true as const };
     }),
   ),

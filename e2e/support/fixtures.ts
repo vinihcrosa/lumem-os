@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -29,15 +29,22 @@ function git(cwd: string, ...args: string[]): void {
   });
 }
 
-/** Idempotent, so a rerun after a crash does not have to start from nothing. */
+/**
+ * Rebuilt from nothing on every run, not reused.
+ *
+ * The state directory is wiped each run but a git repository is not: branches
+ * created by the last run survive, and the second run then fails on "a branch
+ * already exists" for a worktree the daemon has no record of. That failure
+ * looks like a product bug and is not one.
+ */
 export function createFixtures(): void {
-  if (!existsSync(E2E_FIXTURE_REPO)) {
-    mkdirSync(E2E_FIXTURE_REPO, { recursive: true });
-    git(E2E_FIXTURE_REPO, "init", "--initial-branch", "main", ".");
-    writeFileSync(join(E2E_FIXTURE_REPO, "README.md"), "# fixture\n");
-    git(E2E_FIXTURE_REPO, "add", "README.md");
-    git(E2E_FIXTURE_REPO, "commit", "-m", "initial");
-  }
+  rmSync(E2E_FIXTURE_DIR, { recursive: true, force: true });
+
+  mkdirSync(E2E_FIXTURE_REPO, { recursive: true });
+  git(E2E_FIXTURE_REPO, "init", "--initial-branch", "main", ".");
+  writeFileSync(join(E2E_FIXTURE_REPO, "README.md"), "# fixture\n");
+  git(E2E_FIXTURE_REPO, "add", "README.md");
+  git(E2E_FIXTURE_REPO, "commit", "-m", "initial");
 
   const binDir = join(E2E_FIXTURE_DIR, "bin");
   mkdirSync(binDir, { recursive: true });

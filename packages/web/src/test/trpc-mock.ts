@@ -10,6 +10,7 @@ import { vi } from "vitest";
 function createTrpcMock() {
   return {
     health: { query: vi.fn() },
+    events: { onChange: { subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })) } },
     workspace: {
       list: { query: vi.fn() },
       get: { query: vi.fn() },

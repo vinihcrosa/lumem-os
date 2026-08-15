@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { reconcileOnBoot } from "./boot/reconcile.js";
 import type { ServerConfig } from "./config.js";
 import { openDatabase, type Database_ } from "./db/index.js";
+import { createEventBus } from "./events.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createSessionStore } from "./sessions/SessionStore.js";
 import { createServer } from "./server.js";
@@ -48,12 +49,16 @@ export async function bootstrap({
 }: BootstrapOptions): Promise<FastifyInstance> {
   const owned = database === undefined;
   const openedDatabase = database ?? openDatabase({ path: config.databasePath });
-  const sessionStore = createSessionStore({ db: openedDatabase.db, ptyManager });
+  // One bus, shared: the session store emits from the PTY exit callback and
+  // the router emits from procedures, and both have to reach the same clients.
+  const events = createEventBus();
+  const sessionStore = createSessionStore({ db: openedDatabase.db, ptyManager, events });
   const app = await createServer({
     config,
     db: openedDatabase.db,
     ptyManager,
     sessionStore,
+    events,
     logger,
   });
 

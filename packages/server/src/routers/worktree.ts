@@ -86,6 +86,7 @@ export const worktreeRouter = router({
             branch: input.name,
             path,
           });
+          ctx.events.emit({ type: "worktree.changed", projectId: project.id });
           return withPresence(created);
         } catch (error) {
           // The registry refused what git already did — a duplicate name that
@@ -169,6 +170,7 @@ export const worktreeRouter = router({
         }
 
         await worktrees.remove(row.id);
+        ctx.events.emit({ type: "worktree.changed", projectId: row.projectId });
         return { ok: true as const };
       }),
     ),

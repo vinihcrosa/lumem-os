@@ -6,6 +6,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 
 import type { ServerConfig } from "./config.js";
 import type { Db } from "./db/index.js";
+import { createEventBus, type EventBus } from "./events.js";
 import { createGitService, type GitService } from "./git/GitService.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import { registerPtyWebSocket } from "./pty/websocket.js";
@@ -38,6 +39,8 @@ export interface CreateServerOptions {
    * daemon passes its own so shutdown can unhook the exit watcher.
    */
   sessionStore?: SessionStore;
+  /** Fan-out of state changes to connected clients. */
+  events?: EventBus;
   /** Overridable only so a test can watch the commands; nothing mocks git. */
   git?: GitService;
   /** Fastify's own request logging. Off in tests, on for the daemon. */
@@ -49,6 +52,7 @@ export async function createServer({
   db,
   ptyManager,
   sessionStore = createSessionStore({ db, ptyManager }),
+  events = createEventBus(),
   git = createGitService(),
   logger = false,
 }: CreateServerOptions): Promise<FastifyInstance> {
@@ -59,7 +63,7 @@ export async function createServer({
     forceCloseConnections: true,
   });
 
-  const createContext = (): Context => ({ config, db, ptyManager, sessionStore, git });
+  const createContext = (): Context => ({ config, db, ptyManager, sessionStore, git, events });
 
   await app.register(fastifyTRPCPlugin, {
     prefix: "/trpc",

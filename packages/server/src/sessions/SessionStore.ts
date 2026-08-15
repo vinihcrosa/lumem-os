@@ -1,6 +1,7 @@
 import type { FastifyBaseLogger } from "fastify";
 
 import type { Db } from "../db/index.js";
+import type { EventBus } from "../events.js";
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import type { PtyManager } from "../pty/PtyManager.js";
@@ -50,9 +51,16 @@ export interface SessionStore {
 export interface SessionStoreOptions {
   db: Db;
   ptyManager: PtyManager;
+  /**
+   * Told when a process dies on its own.
+   *
+   * F3.7 covers this case specifically: an agent that hits its quota or crashes
+   * changes the sidebar without anyone having clicked anything.
+   */
+  events?: EventBus;
 }
 
-export function createSessionStore({ db, ptyManager }: SessionStoreOptions): SessionStore {
+export function createSessionStore({ db, ptyManager, events }: SessionStoreOptions): SessionStore {
   const sessions = createSessionRepository(db);
 
   return {
@@ -106,7 +114,19 @@ export function createSessionStore({ db, ptyManager }: SessionStoreOptions): Ses
       return ptyManager.watchExits((info) => {
         // Fire and forget: this runs inside node-pty's exit callback, which
         // cannot await, and a failed write must not take the daemon down.
-        void sessions.markExited(info.id, info.exitCode ?? 0).catch((error: unknown) => {
+        void (async () => {
+          // Read before writing: the scope is what the event has to carry, and
+          // after the update it is still there — but one read is enough.
+          const row = await sessions.findById(info.id);
+          await sessions.markExited(info.id, info.exitCode ?? 0);
+          if (row) {
+            events?.emit({
+              type: "session.changed",
+              scopeType: row.scopeType as "project" | "worktree",
+              scopeId: row.scopeId,
+            });
+          }
+        })().catch((error: unknown) => {
           log?.warn({ session: info.id, err: error }, "falha ao registrar saída de sessão");
         });
       });

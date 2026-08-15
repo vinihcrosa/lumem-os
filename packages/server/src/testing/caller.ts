@@ -1,6 +1,7 @@
 import { loadConfig, type ConfigEnv, type ServerConfig } from "../config.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import type { Db } from "../db/index.js";
+import { createEventBus, type EventBus } from "../events.js";
 import { createGitService, type GitService } from "../git/GitService.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { createSessionStore, type SessionStore } from "../sessions/SessionStore.js";
@@ -15,6 +16,7 @@ export interface TestCaller {
   ptyManager: PtyManager;
   sessionStore: SessionStore;
   git: GitService;
+  events: EventBus;
   config: ServerConfig;
   /** Kills every session and deletes the database. Always call it. */
   cleanup(): Promise<void>;
@@ -32,17 +34,19 @@ export function createTestCaller(env: ConfigEnv = {}): TestCaller {
   const ptyManager = new PtyManager();
   const config = loadConfig(env);
   const git = createGitService();
-  const sessionStore = createSessionStore({ db: database.db, ptyManager });
+  const events = createEventBus();
+  const sessionStore = createSessionStore({ db: database.db, ptyManager, events });
   // Same wiring the daemon uses: without it a session that ends on its own
   // stays `running` and the removal rules read stale state.
   const stopTracking = sessionStore.trackExits();
 
   return {
-    api: createCaller({ config, db: database.db, ptyManager, sessionStore, git }),
+    api: createCaller({ config, db: database.db, ptyManager, sessionStore, git, events }),
     db: database.db,
     ptyManager,
     sessionStore,
     git,
+    events,
     config,
     cleanup: async () => {
       stopTracking();

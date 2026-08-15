@@ -28,21 +28,28 @@ export const workspaceRouter = router({
       (await createWorkspaceRepository(ctx.db).findById(input.id)) ?? null,
     ),
 
-  create: publicProcedure
-    .input(z.object({ name: nameSchema }))
-    .mutation(({ ctx, input }) =>
-      domainSafeAsync(() => createWorkspaceRepository(ctx.db).create(input)),
-    ),
+  create: publicProcedure.input(z.object({ name: nameSchema })).mutation(({ ctx, input }) =>
+    domainSafeAsync(async () => {
+      const created = await createWorkspaceRepository(ctx.db).create(input);
+      ctx.events.emit({ type: "workspace.changed" });
+      return created;
+    }),
+  ),
 
   rename: publicProcedure
     .input(z.object({ id: z.string().min(1), name: nameSchema }))
     .mutation(({ ctx, input }) =>
-      domainSafeAsync(() => createWorkspaceRepository(ctx.db).rename(input.id, input.name)),
+      domainSafeAsync(async () => {
+        const renamed = await createWorkspaceRepository(ctx.db).rename(input.id, input.name);
+        ctx.events.emit({ type: "workspace.changed" });
+        return renamed;
+      }),
     ),
 
   remove: publicProcedure.input(idSchema).mutation(({ ctx, input }) =>
     domainSafeAsync(async () => {
       await createWorkspaceRepository(ctx.db).remove(input.id);
+      ctx.events.emit({ type: "workspace.changed" });
       return { ok: true as const };
     }),
   ),
