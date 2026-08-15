@@ -24,6 +24,15 @@ export const E2E_SERVER_PORT = required("e2eServer");
 export const E2E_WEB_PORT = required("e2eWeb");
 
 /**
+ * A daemon the e2e suite starts and stops itself.
+ *
+ * Separate from the one playwright manages, because playwright owns that
+ * process and will not restart it — and "survives a restart" is a requirement
+ * (F7.3, F7.4) that cannot be checked without restarting something.
+ */
+export const E2E_RESTART_PORT = required("e2eRestart");
+
+/**
  * Throwaway daemon state for e2e. Deliberately inside the repo and gitignored,
  * so a failed run leaves something inspectable instead of polluting ~/.lumem.
  *

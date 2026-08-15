@@ -13,6 +13,9 @@ import { fileURLToPath } from "node:url";
 export const E2E_FIXTURE_DIR = fileURLToPath(new URL("../../.lumem-e2e-fixtures/", import.meta.url));
 export const E2E_FIXTURE_REPO = join(E2E_FIXTURE_DIR, "repo");
 
+/** A second repository, so specs sharing a daemon cannot collide on branches. */
+export const E2E_FIXTURE_REPO_ALT = join(E2E_FIXTURE_DIR, "repo-alt");
+
 /** An "agent CLI" that echoes what it is given. Never the real `claude`. */
 export const E2E_FIXTURE_AGENT = join(E2E_FIXTURE_DIR, "bin", "fake-agent");
 
@@ -40,11 +43,13 @@ function git(cwd: string, ...args: string[]): void {
 export function createFixtures(): void {
   rmSync(E2E_FIXTURE_DIR, { recursive: true, force: true });
 
-  mkdirSync(E2E_FIXTURE_REPO, { recursive: true });
-  git(E2E_FIXTURE_REPO, "init", "--initial-branch", "main", ".");
-  writeFileSync(join(E2E_FIXTURE_REPO, "README.md"), "# fixture\n");
-  git(E2E_FIXTURE_REPO, "add", "README.md");
-  git(E2E_FIXTURE_REPO, "commit", "-m", "initial");
+  for (const repo of [E2E_FIXTURE_REPO, E2E_FIXTURE_REPO_ALT]) {
+    mkdirSync(repo, { recursive: true });
+    git(repo, "init", "--initial-branch", "main", ".");
+    writeFileSync(join(repo, "README.md"), "# fixture\n");
+    git(repo, "add", "README.md");
+    git(repo, "commit", "-m", "initial");
+  }
 
   const binDir = join(E2E_FIXTURE_DIR, "bin");
   mkdirSync(binDir, { recursive: true });

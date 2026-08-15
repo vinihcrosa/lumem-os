@@ -26,7 +26,12 @@ export function SessionList({ scopeType, scopeId, selectedId, onSelect }: Sessio
   return (
     <ul className="session-list" aria-label={`sessões de ${scopeId}`}>
       {list.map((session) => (
-        <li key={session.id} data-kind={session.kind} data-state={session.state}>
+        <li
+          key={session.id}
+          data-kind={session.kind}
+          data-state={session.state}
+          data-scope={scopeType}
+        >
           <button
             type="button"
             aria-current={session.id === selectedId}

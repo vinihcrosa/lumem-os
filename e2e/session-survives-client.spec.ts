@@ -80,8 +80,18 @@ test("a session outlives the client that started it", async ({ browser }) => {
   await openProject(reopened);
 
   // The daemon still lists it; the session was never tied to the connection.
-  await reopened.getByRole("button", { name: new RegExp(WORKTREE) }).first().click();
-  await reopened.getByRole("button", { name: /shell/ }).first().click();
+  // Scoped to this worktree's own subtree: the specs share a daemon, so "the
+  // first button that says shell" would find some other spec's session.
+  // `ul[aria-label^="worktrees de"] > li`, not `aside li`: the latter also
+  // matches the project's own item, which *contains* this one — and the
+  // project's sessions are rendered before the worktree tree, so the first
+  // "shell" inside it belongs to another spec entirely.
+  const worktreeItem = reopened
+    .locator('ul[aria-label^="worktrees de"] > li')
+    .filter({ has: reopened.getByRole("button", { name: new RegExp(WORKTREE) }) })
+    .first();
+  await worktreeItem.getByRole("button", { name: new RegExp(WORKTREE) }).click();
+  await worktreeItem.locator('li[data-kind="shell"] > button').first().click();
   await expect(reopened.getByTestId("terminal")).toBeVisible();
 
   // The heart of it: a tick that could only have been printed while no browser

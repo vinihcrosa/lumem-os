@@ -32,7 +32,9 @@ export async function ensureWorkspace(page: Page, name = "e2e"): Promise<void> {
  * wiped once per run and the specs share what the first one created.
  */
 export async function ensureProject(page: Page, path: string, name = "fixture"): Promise<void> {
-  const entry = page.getByRole("button", { name: new RegExp(`^${name}`) });
+  // `exact`, because the agent buttons in the main area say "novo <config>"
+  // and a substring match would find those too.
+  const entry = page.getByRole("button", { name, exact: true });
   if (await entry.isVisible().catch(() => false)) return;
 
   await page.getByRole("button", { name: "adicionar projeto" }).click();
@@ -44,7 +46,7 @@ export async function ensureProject(page: Page, path: string, name = "fixture"):
 
 /** Selects a project in the sidebar. */
 export async function openProject(page: Page, name = "fixture"): Promise<void> {
-  await page.getByRole("button", { name: new RegExp(`^${name}`) }).click();
+  await page.getByRole("button", { name, exact: true }).click();
 }
 
 /**
