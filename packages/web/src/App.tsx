@@ -93,6 +93,11 @@ export function App() {
       );
     }
 
+    // Bound here so `renderDetail` can read it: the narrowing above does not
+    // survive into a nested function.
+    const list = workspaces.data;
+    const activeName = list.find((workspace) => workspace.id === activeId)?.name ?? "";
+
     return (
       <AppShell
         // A session hands the pane over to the terminal, which has to be able
@@ -142,12 +147,12 @@ export function App() {
           </>
         }
       >
-        {renderDetail()}
+        {renderDetail(activeName)}
       </AppShell>
     );
   }
 
-  function renderDetail() {
+  function renderDetail(activeName: string) {
     if (selection.kind === "session") {
       const { projectId, scopeType, scopeId } = selection;
       return (
@@ -198,7 +203,20 @@ export function App() {
           key={projectId}
           projectId={projectId}
           workspaceId={activeId!}
+          workspaceName={activeName}
           onRemoved={() => setSelection({ kind: "none" })}
+          onSelectWorktree={(worktreeId) =>
+            setSelection({ kind: "worktree", projectId, worktreeId })
+          }
+          onSelectSession={(scope, sessionId) =>
+            setSelection({
+              kind: "session",
+              projectId,
+              scopeType: scope.scopeType,
+              scopeId: scope.scopeId,
+              sessionId,
+            })
+          }
         >
           {/* Creating a worktree is an action of the project it comes from,
               not of the list it will appear in. */}

@@ -1,0 +1,75 @@
+/* O painel de detalhe: migalha, título, chips, ações, metadados e listas. */
+
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+.crumb__sep { color: var(--color-text-disabled); }
+.crumb__here { color: var(--color-text-secondary); }
+
+.detail__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  margin: var(--space-6) 0 var(--space-12);
+}
+.detail__title h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  min-width: 0;
+  font: var(--text-display-md);
+  letter-spacing: var(--tracking-display-md);
+  /* Um nome de worktree com barra chega comprido; a coluna tem um limite e o
+     título é quem tem de ceder. */
+  overflow-wrap: anywhere;
+}
+/* O glifo do título é maior que o de uma linha de lista: aqui ele é o rótulo
+   do tipo da coisa, não uma marca ao lado dela. */
+.detail__title .glyph { font-size: var(--size-icon-lg); width: auto; }
+.detail__title .actions__spacer { flex: 1; }
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  margin: var(--space-16) 0;
+}
+/* Empurra o que destrói para longe do que cria. */
+.actions__spacer { flex: 1; }
+
+.detail__banner { margin-top: var(--space-12); }
+
+.detail__hint {
+  margin: var(--space-8) 0 0;
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+
+.section { margin-top: var(--space-24); }
+
+.dim { color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------- criar worktree */
+/* O formulário ocupa a barra de ações inteira: ele é o próximo passo da mesma
+   tarefa, não uma interrupção dela. */
+.create-worktree { flex: 1; min-width: 0; }
+.create-worktree__hint {
+  margin: calc(-1 * var(--space-4)) 0 var(--space-12);
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+.create-worktree__actions { display: flex; gap: var(--space-8); }
+.create-worktree__status { margin-top: var(--space-12); }

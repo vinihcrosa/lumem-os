@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 
 import { worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
+import { Banner, Button, Card, Field, Glyph, Input } from "../ui/index.js";
 
 export interface CreateWorktreeDialogProps {
   projectId: string;
@@ -33,36 +34,64 @@ export function CreateWorktreeDialog({ projectId, onCreated }: CreateWorktreeDia
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)}>
+      <Button
+        variant="primary"
+        glyph={<Glyph>◇</Glyph>}
+        onClick={() => setOpen(true)}
+      >
         nova worktree
-      </button>
+      </Button>
     );
   }
 
-  return (
-    <form className="create-worktree" onSubmit={submit}>
-      <label htmlFor={`worktree-name-${projectId}`}>Nome da worktree</label>
-      <input
-        id={`worktree-name-${projectId}`}
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        placeholder="teste-prd"
-        autoFocus
-      />
-      <button type="submit" disabled={create.isPending || name.trim() === ""}>
-        {/* `git worktree add` copies a whole checkout. On a large repository
-            this is seconds, and a button that looks idle invites a second
-            click that would fail on the branch the first one just made. */}
-        {create.isPending ? "criando…" : "criar"}
-      </button>
-      <button type="button" onClick={() => setOpen(false)}>
-        cancelar
-      </button>
+  const fieldId = `worktree-name-${projectId}`;
 
-      {create.isPending && <p role="status">criando a worktree…</p>}
-      {/* The daemon's own words: "a branch X já existe; escolha outro nome"
-          tells the user what to do, "erro" does not. */}
-      {create.isError && <p role="alert">{create.error.message}</p>}
+  return (
+    // Takes over the action bar rather than floating above it: the form is the
+    // next step of the same task, not an interruption of it.
+    <form className="create-worktree" onSubmit={submit}>
+      <Card>
+        <Field
+          id={fieldId}
+          label="Nome da worktree"
+          // The daemon's own words: "a branch X já existe; escolha outro nome"
+          // tells the user what to do, "erro" does not.
+          error={create.isError ? create.error.message : undefined}
+        >
+          <Input
+            id={fieldId}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="teste-prd"
+            invalid={create.isError}
+            autoFocus
+          />
+        </Field>
+        <p className="create-worktree__hint">
+          A branch tem o mesmo nome. Barra vira diretório aninhado.
+        </p>
+        <div className="create-worktree__actions">
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={create.isPending || name.trim() === ""}
+          >
+            {/* `git worktree add` copies a whole checkout. On a large repository
+                this is seconds, and a button that looks idle invites a second
+                click that would fail on the branch the first one just made. */}
+            {create.isPending ? "criando…" : "criar"}
+          </Button>
+          <Button variant="ghost" onClick={() => setOpen(false)}>
+            cancelar
+          </Button>
+        </div>
+
+        {create.isPending && (
+          <div className="create-worktree__status">
+            <Banner tone="info">criando a worktree…</Banner>
+          </div>
+        )}
+      </Card>
     </form>
   );
 }

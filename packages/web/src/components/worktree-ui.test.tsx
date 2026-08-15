@@ -51,7 +51,15 @@ function detail(overrides: Partial<ReturnType<typeof worktree>> & Record<string,
 /** Opens the app with one project already selected. */
 async function selectProject(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   renderWithProviders(<App />);
-  await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+  const tree = await screen.findByLabelText("árvore de projetos");
+  await user.click(await within(tree).findByRole("button", { name: /^lorebase/ }));
+}
+
+/** …and then the worktree, clicked in the sidebar rather than in the detail. */
+async function selectWorktree(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  await selectProject(user);
+  const tree = screen.getByLabelText("árvore de projetos");
+  await user.click(await within(tree).findByRole("button", { name: /^teste/ }));
 }
 
 beforeEach(() => {
@@ -182,8 +190,7 @@ describe("worktree detail", () => {
       detail({ aheadBehind: { ahead: 2, behind: 3 } } as never),
     );
 
-    await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: /^teste/ }));
+    await selectWorktree(user);
 
     expect(await screen.findByText("/home/.lumem/worktrees/lorebase/teste")).toBeInTheDocument();
     expect(screen.getByText("limpa")).toBeInTheDocument();
@@ -198,8 +205,7 @@ describe("worktree detail", () => {
       detail({ status: { clean: false, changedFiles: 3 } } as never),
     );
 
-    await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: /^teste/ }));
+    await selectWorktree(user);
 
     expect(await screen.findByText(/3 arquivo\(s\) modificado\(s\)/)).toBeInTheDocument();
   });
@@ -212,8 +218,7 @@ describe("worktree detail", () => {
       return { ok: true as const };
     });
 
-    await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: /^teste/ }));
+    await selectWorktree(user);
     await user.click(await screen.findByRole("button", { name: "remover worktree" }));
 
     await waitFor(() =>
@@ -230,8 +235,7 @@ describe("worktree detail", () => {
       new Error("a worktree tem 2 arquivo(s) modificado(s); confirme para remover mesmo assim"),
     );
 
-    await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: /^teste/ }));
+    await selectWorktree(user);
     await user.click(await screen.findByRole("button", { name: "remover worktree" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("2 arquivo(s) modificado(s)");
@@ -253,8 +257,7 @@ describe("worktree detail", () => {
       detail({ ...missing, status: null, aheadBehind: null } as never),
     );
 
-    await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: /^teste/ }));
+    await selectWorktree(user);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("o diretório não está em");
     expect(screen.getAllByText("desconhecido")).toHaveLength(2);

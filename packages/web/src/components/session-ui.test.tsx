@@ -74,8 +74,9 @@ function agentConfig(overrides: Record<string, unknown> = {}) {
 /** Opens the app with the worktree selected. */
 async function selectWorktree(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   renderWithProviders(<App />);
-  await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
-  await user.click(await screen.findByRole("button", { name: /^teste/ }));
+  const tree = await screen.findByLabelText("árvore de projetos");
+  await user.click(await within(tree).findByRole("button", { name: /^lorebase/ }));
+  await user.click(await within(tree).findByRole("button", { name: /^teste/ }));
 }
 
 beforeEach(() => {
