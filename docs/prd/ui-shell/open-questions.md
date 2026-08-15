@@ -2,7 +2,7 @@
 
 Registro de por que cada decisão de desenho foi tomada. Pergunta respondida não vira suposição silenciosa: fica aqui, com o motivo.
 
-**Estado:** 11 perguntas · 10 respondidas · 1 aberta
+**Estado:** 12 perguntas · 10 respondidas · 2 abertas
 
 ---
 
@@ -102,7 +102,7 @@ Nenhum tem endpoint. Inventei os três desenhando, e são exatamente o tipo de c
 
 ---
 
-## Aberta
+## Abertas
 
 ### Q11 — A `/styleguide` fica no bundle de produção?
 
@@ -112,4 +112,20 @@ Hoje o app não tem rota nenhuma — `App.tsx` decide tudo por estado. Adicionar
 - **rota sempre presente** — bundle carrega uma página que o usuário nunca abre
 - **entry point separado no Vite** — mais config, e o styleguide vira um segundo app
 
-Vale decidir quando a T2 for implementada, com a informação de quanto o styleguide realmente pesa. Por enquanto: condicional em `DEV`, que é reversível.
+**Resolvida na prática pela T2:** condicional em `import.meta.env.DEV`, com `import()` dinâmico. O build de produção sai com um chunk só e zero ocorrência do styleguide — o bundler descarta o módulo inteiro porque a condição é estática. Fica aberta só a parte que não dá pra medir assim: conferir o styleguide contra o *build* real, e não contra o dev server.
+
+---
+
+### Q12 — Glifo de prompt que nenhuma fonte de texto tem
+
+**Aberta.** Prompt de zsh com tema (powerline, ícone de branch, separadores) usa a faixa privada do Unicode, que só existe em fonte *patched* — Nerd Font e parecidas. A JetBrains Mono não tem, e o macOS não traz nenhuma: o resultado é ▯ onde o terminal nativo do usuário mostra ícone.
+
+A T9 fez o possível sem escolher por ninguém: a pilha de fonte do terminal nomeia as patched mais comuns **antes** da JetBrains Mono. Quem já tem uma instalada vê o prompt igual ao do terminal nativo; quem não tem cai na fonte desenhada e vê as caixas.
+
+O que sobra pra decidir, quando doer:
+
+- **empacotar uma fonte patched** — resolve pra todo mundo, custa alguns MB e uma licença pra revisar
+- **deixar o usuário apontar a fonte** — precisa de tela de preferências, que não existe
+- **aceitar as caixas** — é o estado atual
+
+Nada disso é urgente enquanto o usuário for um só e a fonte estiver na máquina dele.

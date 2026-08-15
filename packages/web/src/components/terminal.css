@@ -1,0 +1,60 @@
+/*
+ * A sessão é a exceção de layout do app: o terminal preenche o que sobra em
+ * vez de caber numa coluna de leitura.
+ *
+ * Isso não é estética. O `FitAddon` mede a caixa do host pra decidir quantas
+ * colunas reportar ao daemon; um host dentro de um contêiner que rola não tem
+ * altura pra medir, e o processo do outro lado recebe o 80x24 default.
+ */
+
+.detail--session {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  padding-bottom: var(--space-16);
+}
+
+.term-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  flex: none;
+  margin-top: var(--space-16);
+  padding: var(--space-8) var(--space-12);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.term-head__cmd {
+  flex: 1;
+  min-width: 0;
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* O host do xterm. A cor de fundo aqui é a mesma que o tema em `tokens.ts`
+   entrega ao emulador — o canvas não pinta o padding, e sem isto apareceria
+   uma moldura de outra cor em volta do buffer. */
+.terminal {
+  flex: 1;
+  min-height: var(--size-terminal-min);
+  padding: var(--space-8) var(--space-10);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  overflow: hidden;
+}
+
+/* O xterm mede o host e desenha dentro dele; sem altura explícita o addon de
+   fit lê zero e falha calado. */
+.terminal .xterm {
+  height: 100%;
+}

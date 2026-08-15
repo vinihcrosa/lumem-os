@@ -1,8 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Terminal } from "./Terminal.js";
+import { relativeAge } from "../lib/relative-time.js";
 import { sessionsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
+import { Banner, Button, Chip, Glyph, Skeleton } from "../ui/index.js";
+import { Terminal } from "./Terminal.js";
+
+import "./detail.css";
+import "./terminal.css";
 
 export interface SessionDetailProps {
   sessionId: string;
@@ -32,42 +37,83 @@ export function SessionDetail({ sessionId, onClosed }: SessionDetailProps) {
     },
   });
 
-  if (session.isPending) return <p>carregando…</p>;
-  if (session.isError) return <p role="alert">{session.error.message}</p>;
+  if (session.isPending) {
+    return (
+      <div className="detail">
+        <Skeleton label="carregando a sessão" />
+      </div>
+    );
+  }
+  if (session.isError) {
+    return (
+      <div className="detail">
+        <Banner tone="danger">{session.error.message}</Banner>
+      </div>
+    );
+  }
 
-  const { kind, agentName, scopeType, command, state } = session.data;
+  const { kind, agentName, scopeType, command, cwd, state, exitCode, createdAt } = session.data;
+  const agent = kind === "agent";
+  const running = state === "running";
+  const name = agentName ?? "shell";
 
   return (
-    <section className="session-detail" data-state={state}>
-      <h2>{agentName ?? "shell"}</h2>
-      <dl>
-        <dt>tipo</dt>
-        <dd>{kind === "agent" ? "agente" : "shell"}</dd>
-        <dt>escopo</dt>
-        <dd>{scopeType === "worktree" ? "worktree" : "projeto"}</dd>
-        <dt>comando</dt>
-        <dd>{command}</dd>
-        <dt>estado</dt>
-        <dd>{state === "running" ? "rodando" : "encerrada"}</dd>
-      </dl>
+    // The one pane that is not a reading column: a terminal has columns, not a
+    // measure, and the daemon is told how many by measuring this box.
+    <section className="detail detail--session">
+      <div className="detail__title">
+        <h2>
+          <Glyph tone={agent ? "agent" : "shell"}>{agent ? "◆" : "●"}</Glyph> {name}
+        </h2>
+        <span className="actions__spacer" />
+        {running && (
+          <Button variant="ghost" onClick={() => close.mutate()} disabled={close.isPending}>
+            {close.isPending ? "encerrando…" : "encerrar sessão"}
+          </Button>
+        )}
+      </div>
 
-      {state === "exited" && (
-        // F5.9: it goes quiet, it does not disappear. The buffer below is still
-        // the last thing the process printed, which is where the reason is.
-        <p role="status">a sessão terminou; o conteúdo abaixo é o que ficou.</p>
+      <div className="chips">
+        {running ? (
+          <Chip tone="running" dot>
+            running · {relativeAge(createdAt)}
+          </Chip>
+        ) : (
+          <Chip tone={exitCode === 0 ? "exited" : "failed"} dot>
+            exited ({exitCode ?? "?"})
+          </Chip>
+        )}
+        <Chip>{scopeType === "worktree" ? "worktree" : "projeto"}</Chip>
+        <Chip>{agent ? "agente" : "shell"}</Chip>
+      </div>
+
+      {!running && (
+        <div className="detail__banner">
+          {/* F5.9: it goes quiet, it does not disappear. The buffer below is
+              still the last thing the process printed, which is where the
+              reason is. */}
+          <Banner tone="info">
+            A sessão terminou. O conteúdo abaixo é o que ficou, e continua legível até você fechar.
+          </Banner>
+        </div>
       )}
+
+      {close.isError && (
+        <div className="detail__banner">
+          <Banner tone="danger">{close.error.message}</Banner>
+        </div>
+      )}
+
+      <div className="term-head">
+        <Glyph tone={agent ? "agent" : "shell"}>{agent ? "◆" : "●"}</Glyph>
+        <span className="term-head__cmd" title={`${command} · cwd ${cwd}`}>
+          {command} <span className="dim">· cwd {cwd}</span>
+        </span>
+      </div>
 
       {/* Keyed by id so switching sessions swaps terminals instead of feeding
           one xterm two streams. Unmounting only detaches — F5.6. */}
       <Terminal key={sessionId} sessionId={sessionId} />
-
-      {state === "running" && (
-        <button type="button" onClick={() => close.mutate()} disabled={close.isPending}>
-          {close.isPending ? "encerrando…" : "encerrar sessão"}
-        </button>
-      )}
-
-      {close.isError && <p role="alert">{close.error.message}</p>}
     </section>
   );
 }

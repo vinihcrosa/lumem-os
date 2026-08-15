@@ -6,6 +6,12 @@ import { useEffect, useRef } from "react";
 import "@xterm/xterm/css/xterm.css";
 
 import { connectPtySocket, type PtyConnect } from "../lib/pty-socket.js";
+import {
+  TERMINAL_FONT_FAMILY,
+  TERMINAL_FONT_SIZE,
+  TERMINAL_LINE_HEIGHT,
+  xtermTheme,
+} from "../lib/xterm-theme.js";
 
 export interface TerminalProps {
   sessionId: string;
@@ -48,8 +54,13 @@ export function Terminal({ sessionId, connect = connectPtySocket, onReady, onMes
       convertEol: false,
       cursorBlink: true,
       scrollback: 10_000,
-      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-      fontSize: 13,
+      // The emulator paints a canvas and never sees the stylesheet, so its
+      // palette and type have to be handed over as values. Both come from the
+      // same generated tokens as everything else on the screen.
+      theme: xtermTheme,
+      fontFamily: TERMINAL_FONT_FAMILY,
+      fontSize: TERMINAL_FONT_SIZE,
+      lineHeight: TERMINAL_LINE_HEIGHT,
     });
     const fit = new FitAddon();
     terminal.loadAddon(fit);

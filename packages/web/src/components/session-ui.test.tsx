@@ -298,8 +298,10 @@ describe("session detail", () => {
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: /shell/ }));
 
-    expect(await screen.findByText("/bin/zsh")).toBeInTheDocument();
-    expect(screen.getByText("rodando")).toBeInTheDocument();
+    expect(await screen.findByText(/\/bin\/zsh/)).toBeInTheDocument();
+    // The age rides along with the state: "running" alone does not answer
+    // whether an agent is working or has been stuck for forty minutes.
+    expect(screen.getByText(/running · /)).toBeInTheDocument();
     expect(screen.getByText("worktree")).toBeInTheDocument();
   });
 
@@ -314,7 +316,10 @@ describe("session detail", () => {
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: /shell/ }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent("a sessão terminou");
+    expect(await screen.findByRole("status")).toHaveTextContent("A sessão terminou");
+    // F5.9 again: the exit code is the reason, and losing it means reading the
+    // buffer to guess at what the daemon already knows.
+    expect(screen.getByText("exited (1)")).toBeInTheDocument();
     expect(screen.getByTestId("terminal-mock")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "encerrar sessão" })).not.toBeInTheDocument();
   });
