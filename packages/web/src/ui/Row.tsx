@@ -75,7 +75,14 @@ export function Row({
         {glyph}
         <span className="row__label">{label}</span>
         {meta !== undefined && <span className="row__meta">{meta}</span>}
-        {pip && <span className="row__pip" role="status" aria-label="sessão rodando" />}
+        {/* Text, not a live region: a `status` inside a button would announce
+            itself as part of the button's own name every time focus lands. As
+            hidden text it still reaches a screen reader, once, in order. */}
+        {pip && (
+          <span className="row__pip">
+            <span className="sr-only">sessão rodando</span>
+          </span>
+        )}
       </button>
     </div>
   );

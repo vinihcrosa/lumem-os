@@ -147,7 +147,9 @@ Cada task atualiza os testes que ela quebra, na mesma task. Não existe "arruma 
 
 **Colapso muda o que está montado.** Hoje toda `SessionList` monta sempre, e é por isso que dá pra saber que existe agente rodando numa worktree fechada. Se colapsar desmontar a query, o pip verde some e o produto perde seu sinal central. A correção é arquitetural, não cosmética: a query sobe pra um hook e a linha lê o mesmo cache que a lista.
 
-**`Date` que não é `Date`.** Não há transformer no tRPC (`packages/web/src/lib/trpc.ts`). `session.createdAt` é `timestamp_ms` no Drizzle: o servidor manda `Date`, chega string ISO, e o TypeScript continua dizendo `Date`. `createdAt.getTime()` compila e quebra em runtime. A task da idade da sessão trata isso na borda.
+**~~`Date` que não é `Date`~~ — risco descartado.** A leitura inicial dizia que `session.createdAt` chegaria como string ISO tipada como `Date`, porque não há transformer no tRPC e a coluna é `timestamp_ms` no Drizzle. O typecheck da T4 desmentiu: o tRPC v11 modela a serialização JSON na própria inferência, então o tipo que chega ao cliente **já é** `string`. A metade do runtime estava certa — o daemon responde `"2026-08-15T06:20:23.234Z"` — mas o tipo não mente, e o compilador pega quem tratar como `Date`.
+
+A lição que sobra é outra, e essa vale: **tipo derivado do contrato não se redeclara.** A primeira versão do `useSessionsByScope` escrevia à mão a forma que a query devolve, e foi isso que produziu o erro — a declaração local dizia `kind: "shell" | "agent"` enquanto a coluna é `text` e o servidor devolve `string`. Deixar a inferência fazer o trabalho custa nada e não drifta.
 
 ---
 

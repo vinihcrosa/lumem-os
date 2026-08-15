@@ -70,6 +70,20 @@ a {
   box-shadow: var(--focus-ring);
 }
 
+/* Texto que só o leitor de tela recebe. `display: none` o removeria da árvore
+   de acessibilidade junto com a tela — isto tira da tela e mantém na árvore. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* Barras de rolagem: a padrão do sistema é clara e corta o fundo escuro. */
 * {
   scrollbar-width: thin;

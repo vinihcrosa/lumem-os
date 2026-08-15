@@ -255,7 +255,7 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 - [ ] `FitAddon` mede o host depois do layout e o daemon recebe o tamanho real — o comportamento atual não regride
 - [ ] Cabeçalho do terminal com ícone, comando e `cwd` truncável
 - [ ] Sessão encerrada: chip `exited (N)` e o aviso de que o buffer segue legível — F5.9
-- [ ] Idade da sessão a partir de `session.createdAt`, tratando a string ISO na borda: o tRPC não tem transformer e o tipo mente (PRD §7)
+- [ ] Idade da sessão a partir de `session.createdAt`, que chega como string ISO — e o tipo já diz isso, ver PRD §7
 - [ ] `Terminal.test.tsx` e `session-ui.test.tsx` atualizados
 - [ ] Gate check passa: `pnpm gate:quick`
 - [ ] Test count: ao menos 1 caso novo — o tema aplicado sai dos tokens
@@ -364,5 +364,5 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 | T2 | Primitiva errada contamina seis telas | É portão de fase; `/styleguide` mostra o erro numa página só |
 | T4 | Colapso desmontando a query mata o pip verde, que é o sinal central do produto | Query sobe pro hook; teste dedicado prova que o pip sobrevive ao colapso |
 | T9 | xterm pinta canvas próprio e ignora CSS | Tema montado de `tokens.ts`; teste prova que os valores vêm dos tokens |
-| T9 | `createdAt` é `Date` no tipo e string em runtime | Tratado na borda; anotado no PRD §7 |
+| T9 | ~~`createdAt` mente sobre o tipo~~ | Risco descartado na T4: o tRPC v11 já o tipa como `string` |
 | T11 | Tentação de afrouxar asserção pra passar | Critério explícito: seletor muda, garantia não |

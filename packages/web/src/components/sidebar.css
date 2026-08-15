@@ -1,0 +1,37 @@
+/* A sidebar: seletor de workspace no topo, árvore no meio, ação no rodapé. */
+
+.tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4) var(--space-6);
+}
+
+.tree__message {
+  margin: var(--space-8);
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+
+.sidebar__foot {
+  border-top: 1px solid var(--color-border-subtle);
+  padding: var(--space-6);
+}
+
+/* Ação do rodapé: discreta até o ponteiro chegar, porque ela fica sempre na
+   tela e não é o que o usuário veio fazer. */
+.sidebar__add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-md);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+}
+.sidebar__add:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}

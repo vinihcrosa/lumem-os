@@ -74,8 +74,8 @@ function agentConfig(overrides: Record<string, unknown> = {}) {
 /** Opens the app with the worktree selected. */
 async function selectWorktree(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   renderWithProviders(<App />);
-  await user.click(await screen.findByRole("button", { name: /lorebase/ }));
-  await user.click(await screen.findByRole("button", { name: /teste/ }));
+  await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+  await user.click(await screen.findByRole("button", { name: /^teste/ }));
 }
 
 beforeEach(() => {
@@ -107,11 +107,14 @@ describe("session list", () => {
 
     renderWithProviders(<App />);
 
-    const list = await screen.findByLabelText("sessões de wt1");
-    await waitFor(() => expect(within(list).getAllByRole("listitem")).toHaveLength(2));
-    expect(within(list).getAllByRole("listitem")[0]).toHaveAttribute("data-kind", "shell");
-    expect(within(list).getAllByRole("listitem")[1]).toHaveAttribute("data-kind", "agent");
-    expect(within(list).getByRole("button", { name: /claude-code/ })).toBeInTheDocument();
+    const list = await screen.findByLabelText("árvore de projetos");
+    const shell = await within(list).findByRole("button", { name: "shell" });
+    const agent = within(list).getByRole("button", { name: "claude-code" });
+
+    // F3.4 asks for a glance, so the mark itself is the requirement — a
+    // different glyph, not a different shade of the same one.
+    expect(shell).toHaveTextContent("●");
+    expect(agent).toHaveTextContent("◆");
   });
 
   it("marks a session that already ended", async () => {
@@ -122,10 +125,41 @@ describe("session list", () => {
 
     renderWithProviders(<App />);
 
-    const list = await screen.findByLabelText("sessões de wt1");
-    const item = (await within(list).findAllByRole("listitem"))[0];
-    expect(item).toHaveAttribute("data-state", "exited");
-    expect(item).toHaveTextContent("encerrada");
+    const list = await screen.findByLabelText("árvore de projetos");
+    expect(await within(list).findByRole("button", { name: "shell saiu" })).toBeInTheDocument();
+  });
+
+  it("keeps saying a session is running after the node is folded", async () => {
+    // The reason the sessions query lives in a hook over a shared key instead
+    // of inside the list. Folding hides the children; it must not blind the
+    // parent, because "something is alive in there" is the sidebar's whole job.
+    const user = userEvent.setup();
+    trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
+      scopeType === "worktree" ? [session({ kind: "agent", agentName: "claude-code" })] : [],
+    );
+
+    renderWithProviders(<App />);
+    const list = await screen.findByLabelText("árvore de projetos");
+    await within(list).findByRole("button", { name: "claude-code" });
+
+    await user.click(within(list).getByRole("button", { name: "recolher teste" }));
+
+    expect(within(list).queryByRole("button", { name: "claude-code" })).not.toBeInTheDocument();
+    expect(
+      await within(list).findByRole("button", { name: "teste sessão rodando" }),
+    ).toBeInTheDocument();
+  });
+
+  it("remembers what was folded across a remount", async () => {
+    const user = userEvent.setup();
+
+    const first = renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: "recolher lorebase" }));
+    first.unmount();
+
+    renderWithProviders(<App />);
+
+    expect(await screen.findByRole("button", { name: "expandir lorebase" })).toBeInTheDocument();
   });
 });
 
@@ -194,7 +228,7 @@ describe("new session menu", () => {
     );
 
     renderWithProviders(<App />);
-    await user.click(await screen.findByRole("button", { name: /lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
     await user.click(await screen.findByRole("button", { name: "novo shell" }));
 
     await waitFor(() =>

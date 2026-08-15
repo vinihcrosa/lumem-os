@@ -33,7 +33,7 @@ describe("first run", () => {
 
     expect(await screen.findByLabelText("Nome do workspace")).toBeInTheDocument();
     expect(screen.queryByLabelText("Workspace")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("projetos")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("árvore de projetos")).not.toBeInTheDocument();
   });
 
   it("creates the first workspace and moves on", async () => {

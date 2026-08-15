@@ -51,7 +51,7 @@ function detail(overrides: Partial<ReturnType<typeof worktree>> & Record<string,
 /** Opens the app with one project already selected. */
 async function selectProject(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   renderWithProviders(<App />);
-  await user.click(await screen.findByRole("button", { name: /lorebase/ }));
+  await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
 }
 
 beforeEach(() => {
@@ -77,9 +77,24 @@ describe("worktree tree", () => {
 
     renderWithProviders(<App />);
 
-    const tree = await screen.findByLabelText("worktrees de p1");
-    await waitFor(() => expect(within(tree).getAllByRole("listitem")).toHaveLength(2));
-    expect(within(tree).getByRole("button", { name: /teste/ })).toBeInTheDocument();
+    const tree = await screen.findByLabelText("árvore de projetos");
+    expect(await within(tree).findByRole("button", { name: /^teste/ })).toBeInTheDocument();
+    expect(within(tree).getByRole("button", { name: /^outra/ })).toBeInTheDocument();
+  });
+
+  it("shows the branch only when the name does not already say it", async () => {
+    // F3.3 wants name and branch. F4.2 makes them the same string in this
+    // version, so printing both would be printing one twice.
+    trpc.worktree.listByProject.query.mockResolvedValue([
+      worktree("wt1", "teste"),
+      { ...worktree("wt2", "outra"), branch: "feature/outra" },
+    ]);
+
+    renderWithProviders(<App />);
+
+    const tree = await screen.findByLabelText("árvore de projetos");
+    expect(await within(tree).findByRole("button", { name: "teste" })).toBeInTheDocument();
+    expect(within(tree).getByRole("button", { name: "outra feature/outra" })).toBeInTheDocument();
   });
 
   it("marks a worktree that is no longer on disk", async () => {
@@ -88,10 +103,8 @@ describe("worktree tree", () => {
 
     renderWithProviders(<App />);
 
-    const tree = await screen.findByLabelText("worktrees de p1");
-    const item = (await within(tree).findAllByRole("listitem"))[0];
-    expect(item).toHaveAttribute("data-state", "missing");
-    expect(item).toHaveTextContent("ausente");
+    const tree = await screen.findByLabelText("árvore de projetos");
+    expect(await within(tree).findByRole("button", { name: "teste ausente" })).toBeInTheDocument();
   });
 
   it("does not offer worktrees for a project whose repository is gone", async () => {
@@ -99,7 +112,9 @@ describe("worktree tree", () => {
 
     renderWithProviders(<App />);
 
-    expect(await screen.findByText("repositório indisponível")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "lorebase sem disco" })).toBeInTheDocument();
+    // Asking a repository that is not there can only produce an error the row
+    // has already reported.
     expect(trpc.worktree.listByProject.query).not.toHaveBeenCalled();
   });
 });
@@ -114,7 +129,7 @@ describe("create worktree", () => {
       return created;
     });
 
-    renderWithProviders(<App />);
+    await selectProject(user);
     await user.click(await screen.findByRole("button", { name: "nova worktree" }));
     await user.type(screen.getByLabelText("Nome da worktree"), "teste-prd");
     await user.click(screen.getByRole("button", { name: "criar" }));
@@ -134,7 +149,7 @@ describe("create worktree", () => {
     const user = userEvent.setup();
     trpc.worktree.create.mutate.mockReturnValue(new Promise(() => {}));
 
-    renderWithProviders(<App />);
+    await selectProject(user);
     await user.click(await screen.findByRole("button", { name: "nova worktree" }));
     await user.type(screen.getByLabelText("Nome da worktree"), "teste");
     await user.click(screen.getByRole("button", { name: "criar" }));
@@ -149,7 +164,7 @@ describe("create worktree", () => {
       new Error('a branch "main" já existe; escolha outro nome'),
     );
 
-    renderWithProviders(<App />);
+    await selectProject(user);
     await user.click(await screen.findByRole("button", { name: "nova worktree" }));
     await user.type(screen.getByLabelText("Nome da worktree"), "main");
     await user.click(screen.getByRole("button", { name: "criar" }));
@@ -168,7 +183,7 @@ describe("worktree detail", () => {
     );
 
     await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: /teste/ }));
+    await user.click(await screen.findByRole("button", { name: /^teste/ }));
 
     expect(await screen.findByText("/home/.lumem/worktrees/lorebase/teste")).toBeInTheDocument();
     expect(screen.getByText("limpa")).toBeInTheDocument();
@@ -184,7 +199,7 @@ describe("worktree detail", () => {
     );
 
     await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: /teste/ }));
+    await user.click(await screen.findByRole("button", { name: /^teste/ }));
 
     expect(await screen.findByText(/3 arquivo\(s\) modificado\(s\)/)).toBeInTheDocument();
   });
@@ -198,7 +213,7 @@ describe("worktree detail", () => {
     });
 
     await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: /teste/ }));
+    await user.click(await screen.findByRole("button", { name: /^teste/ }));
     await user.click(await screen.findByRole("button", { name: "remover worktree" }));
 
     await waitFor(() =>
@@ -216,7 +231,7 @@ describe("worktree detail", () => {
     );
 
     await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: /teste/ }));
+    await user.click(await screen.findByRole("button", { name: /^teste/ }));
     await user.click(await screen.findByRole("button", { name: "remover worktree" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("2 arquivo(s) modificado(s)");
@@ -239,7 +254,7 @@ describe("worktree detail", () => {
     );
 
     await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: /teste/ }));
+    await user.click(await screen.findByRole("button", { name: /^teste/ }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("o diretório não está em");
     expect(screen.getAllByText("desconhecido")).toHaveLength(2);

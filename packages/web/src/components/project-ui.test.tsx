@@ -50,9 +50,9 @@ describe("project list", () => {
 
     renderWithProviders(<App />);
 
-    const list = await screen.findByLabelText("projetos");
-    await waitFor(() => expect(within(list).getAllByRole("listitem")).toHaveLength(2));
-    expect(within(list).getByRole("button", { name: /lorebase/ })).toBeInTheDocument();
+    const list = await screen.findByLabelText("árvore de projetos");
+    expect(await within(list).findByRole("button", { name: /^lorebase/ })).toBeInTheDocument();
+    expect(within(list).getByRole("button", { name: /^outro/ })).toBeInTheDocument();
   });
 
   it("says so when the workspace has no projects", async () => {
@@ -68,9 +68,9 @@ describe("project list", () => {
 
     renderWithProviders(<App />);
 
-    const item = (await screen.findAllByRole("listitem"))[0];
-    expect(item).toHaveAttribute("data-available", "false");
-    expect(item).toHaveTextContent("indisponível");
+    // The row says it in its own accessible name, so the state reaches someone
+    // who cannot see that it is dimmed.
+    expect(await screen.findByRole("button", { name: "lorebase sem disco" })).toBeInTheDocument();
   });
 });
 
@@ -155,7 +155,7 @@ describe("project detail", () => {
     trpc.project.get.query.mockResolvedValue(selected);
 
     renderWithProviders(<App />);
-    await user.click(await screen.findByRole("button", { name: /lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
 
     expect(await screen.findByRole("heading", { name: "lorebase" })).toBeInTheDocument();
     expect(screen.getByText("/repos/lorebase")).toBeInTheDocument();
@@ -169,7 +169,7 @@ describe("project detail", () => {
     trpc.project.get.query.mockResolvedValue(missing);
 
     renderWithProviders(<App />);
-    await user.click(await screen.findByRole("button", { name: /lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("não está mais em /repos/lorebase");
     // Removing the registration stays allowed: it is how the user recovers.
@@ -187,7 +187,7 @@ describe("project detail", () => {
     });
 
     renderWithProviders(<App />);
-    await user.click(await screen.findByRole("button", { name: /lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
     // F2.5 said out loud, where the decision is made.
     expect(await screen.findByText("remover não apaga nada do disco")).toBeInTheDocument();
 
@@ -206,7 +206,7 @@ describe("project detail", () => {
     );
 
     renderWithProviders(<App />);
-    await user.click(await screen.findByRole("button", { name: /lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
     await user.click(await screen.findByRole("button", { name: "remover projeto" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("ainda tem worktrees");

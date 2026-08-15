@@ -1,23 +1,25 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { AddProjectDialog } from "./components/AddProjectDialog.js";
+import { CreateWorktreeDialog } from "./components/CreateWorktreeDialog.js";
 import { FirstRun } from "./components/FirstRun.js";
 import { NewSessionMenu } from "./components/NewSessionMenu.js";
 import { ProjectDetail } from "./components/ProjectDetail.js";
-import { ProjectList } from "./components/ProjectList.js";
 import { SessionDetail } from "./components/SessionDetail.js";
-import { SessionList } from "./components/SessionList.js";
+import { SidebarTree } from "./components/SidebarTree.js";
 import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
 import { WorktreeDetail } from "./components/WorktreeDetail.js";
-import { WorktreeTree } from "./components/WorktreeTree.js";
 import { useActiveWorkspace } from "./hooks/useActiveWorkspace.js";
 import { useLiveState } from "./hooks/useLiveState.js";
+import { useTreeExpansion } from "./hooks/useTreeExpansion.js";
 import { AppShell } from "./layout/AppShell.js";
 import { Topbar } from "./layout/Topbar.js";
 import { WORKSPACES_KEY } from "./lib/queryKeys.js";
 import { trpc } from "./lib/trpc.js";
 import { Skeleton } from "./ui/index.js";
 
+import "./components/sidebar.css";
 import "./layout/layout.css";
 
 type ScopeType = "project" | "worktree";
@@ -38,6 +40,7 @@ type Selection =
 export function App() {
   const queryClient = useQueryClient();
   const [selection, setSelection] = useState<Selection>({ kind: "none" });
+  const expansion = useTreeExpansion();
 
   const health = useQuery({
     queryKey: ["health"],
@@ -61,14 +64,6 @@ export function App() {
       {renderBody()}
     </div>
   );
-
-  function selectedSessionId(scopeType: ScopeType, scopeId: string): string | null {
-    return selection.kind === "session" &&
-      selection.scopeType === scopeType &&
-      selection.scopeId === scopeId
-      ? selection.sessionId
-      : null;
-  }
 
   function renderBody() {
     if (workspaces.isPending) {
@@ -114,53 +109,36 @@ export function App() {
                 setSelection({ kind: "none" });
               }}
             />
-            <ProjectList
+            <SidebarTree
               workspaceId={activeId}
-              selectedId={selection.kind === "none" ? null : selection.projectId}
-              onSelect={(projectId) => setSelection({ kind: "project", projectId })}
-              renderChildren={(project) => (
-                <>
-                  <SessionList
-                    scopeType="project"
-                    scopeId={project.id}
-                    selectedId={selectedSessionId("project", project.id)}
-                    onSelect={(sessionId) =>
-                      setSelection({
-                        kind: "session",
-                        projectId: project.id,
-                        scopeType: "project",
-                        scopeId: project.id,
-                        sessionId,
-                      })
-                    }
-                  />
-                  <WorktreeTree
-                    projectId={project.id}
-                    projectAvailable={project.available}
-                    selectedId={selection.kind === "worktree" ? selection.worktreeId : null}
-                    onSelect={(worktreeId) =>
-                      setSelection({ kind: "worktree", projectId: project.id, worktreeId })
-                    }
-                    renderChildren={(worktreeId) => (
-                      <SessionList
-                        scopeType="worktree"
-                        scopeId={worktreeId}
-                        selectedId={selectedSessionId("worktree", worktreeId)}
-                        onSelect={(sessionId) =>
-                          setSelection({
-                            kind: "session",
-                            projectId: project.id,
-                            scopeType: "worktree",
-                            scopeId: worktreeId,
-                            sessionId,
-                          })
-                        }
-                      />
-                    )}
-                  />
-                </>
-              )}
+              expansion={expansion}
+              selection={{
+                projectId: selection.kind === "none" ? null : selection.projectId,
+                worktreeId: selection.kind === "worktree" ? selection.worktreeId : null,
+                sessionId: selection.kind === "session" ? selection.sessionId : null,
+              }}
+              onSelectProject={(projectId) => setSelection({ kind: "project", projectId })}
+              onSelectWorktree={(projectId, worktreeId) =>
+                setSelection({ kind: "worktree", projectId, worktreeId })
+              }
+              onSelectSession={(projectId, scope, sessionId) =>
+                setSelection({
+                  kind: "session",
+                  projectId,
+                  scopeType: scope.scopeType,
+                  scopeId: scope.scopeId,
+                  sessionId,
+                })
+              }
             />
+            <div className="sidebar__foot">
+              {/* Adding a project is an action of the workspace, not an item of
+                  the list it appends to. */}
+              <AddProjectDialog
+                workspaceId={activeId}
+                onAdded={(projectId) => setSelection({ kind: "project", projectId })}
+              />
+            </div>
           </>
         }
       >
@@ -222,6 +200,12 @@ export function App() {
           workspaceId={activeId!}
           onRemoved={() => setSelection({ kind: "none" })}
         >
+          {/* Creating a worktree is an action of the project it comes from,
+              not of the list it will appear in. */}
+          <CreateWorktreeDialog
+            projectId={projectId}
+            onCreated={(worktreeId) => setSelection({ kind: "worktree", projectId, worktreeId })}
+          />
           {/* F5.2: an agent may run in the project itself, with no worktree. */}
           <NewSessionMenu
             scopeType="project"

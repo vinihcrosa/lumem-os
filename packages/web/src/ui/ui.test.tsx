@@ -116,9 +116,17 @@ describe("Row", () => {
     expect(container.querySelector(".row")).toHaveAttribute("style", expect.stringContaining("--depth: 3"));
   });
 
-  it("announces a live session in a node that is closed", () => {
+  it("tells a screen reader about a live session in a node that is closed", () => {
     render(<Row depth={1} label="teste-prd" pip expanded={false} onToggle={vi.fn()} onSelect={vi.fn()} />);
-    expect(screen.getByRole("status", { name: "sessão rodando" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "teste-prd sessão rodando" })).toBeInTheDocument();
+  });
+
+  it("keeps the twist out of the row's own name, so the two are tellable apart", () => {
+    render(<Row depth={0} label="lorebase" expanded onToggle={vi.fn()} onSelect={vi.fn()} />);
+
+    // `/^lorebase/` has to reach the row and not the twist; the twist reads
+    // "recolher lorebase" and every test in the suite relies on that.
+    expect(screen.getByRole("button", { name: /^lorebase/ })).toBeInTheDocument();
   });
 });
 
