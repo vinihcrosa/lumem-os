@@ -120,7 +120,11 @@ describe("spawn", () => {
     await waitForExit(manager, session.id);
 
     expect(manager.get(session.id)?.exitCode).toBe(1);
-    expect(manager.snapshot(session.id)).toBe("");
+    // macOS não escreve nada no PTY; Linux escreve o `execvp(3) failed.` do
+    // próprio sistema. Descontada essa linha, o buffer é vazio nos dois — e é
+    // isso que torna "não instalado" indistinguível de "quebrou".
+    const noise = /execvp\(3\) failed\.: No such file or directory\s*/g;
+    expect(manager.snapshot(session.id).replace(noise, "")).toBe("");
   });
 
   it("rejects an empty command", () => {

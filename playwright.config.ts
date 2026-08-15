@@ -69,7 +69,13 @@ export default defineConfig({
       // Never reuse: reuse skips the spawn, and skipping the spawn silently
       // drops the env above — including the throwaway state dir.
       reuseExistingServer: false,
-      timeout: 60_000,
+      // O runner parte de um cache frio e paga a primeira compilação do tsx;
+      // no laptop 60s sobram, e lá não bastavam.
+      timeout: process.env["CI"] ? 180_000 : 60_000,
+      // Sem isto, um daemon que morre ao subir vira "Timed out waiting 60000ms"
+      // e nada mais — a causa fica dentro de um processo que ninguém leu.
+      stdout: process.env["CI"] ? "pipe" : "ignore",
+      stderr: "pipe",
     },
     {
       command: "pnpm --filter @lumem/web dev",
@@ -81,7 +87,9 @@ export default defineConfig({
         LUMEM_WEB_PORT: String(E2E_WEB_PORT),
       },
       reuseExistingServer: false,
-      timeout: 60_000,
+      timeout: process.env["CI"] ? 180_000 : 60_000,
+      stdout: process.env["CI"] ? "pipe" : "ignore",
+      stderr: "pipe",
     },
   ],
 });
