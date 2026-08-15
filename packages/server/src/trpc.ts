@@ -69,3 +69,12 @@ export function domainSafe<TResult>(body: () => TResult): TResult {
     throw toTRPCError(error);
   }
 }
+
+/** Same, for the repositories — where every call is a promise. */
+export async function domainSafeAsync<TResult>(body: () => Promise<TResult>): Promise<TResult> {
+  try {
+    return await body();
+  } catch (error) {
+    throw toTRPCError(error);
+  }
+}
