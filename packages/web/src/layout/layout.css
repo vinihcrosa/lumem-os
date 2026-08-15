@@ -1,0 +1,101 @@
+/*
+ * A moldura: barra no topo, sidebar à esquerda, detalhe à direita.
+ *
+ * O app ocupa a viewport e não deixa o documento rolar — quem rola são as duas
+ * colunas, cada uma por conta própria. Sem isso a sidebar sobe junto com o
+ * conteúdo e o terminal perde a altura que ele precisa medir.
+ */
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: var(--size-topbar-height) 1fr;
+  background: var(--color-bg-base);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: 0 var(--space-12);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.topbar__spacer { flex: 1; }
+
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  font: var(--text-heading-sm);
+  letter-spacing: var(--tracking-label-xs);
+}
+.wordmark__dot {
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-brand-hover);
+  /* Um lúmen: o brilho é a única decoração da interface inteira. */
+  box-shadow: 0 0 var(--space-8) var(--color-bg-brand);
+}
+
+.daemon {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+}
+.daemon__dot {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-daemon-online);
+}
+.daemon--off { color: var(--color-daemon-offline); }
+.daemon--off .daemon__dot { background: var(--color-daemon-offline); }
+
+/* ------------------------------------------------------------ duas colunas */
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--size-sidebar-width) 1fr;
+  /* `min-height: 0` num filho de grid é o que permite ele encolher e rolar em
+     vez de esticar o pai. Sem isto o `overflow` dos filhos não tem efeito. */
+  min-height: 0;
+}
+
+.app-shell__sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-bg-panel);
+  border-right: 1px solid var(--color-border-subtle);
+}
+
+.app-shell__main {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* A sessão é a exceção: um terminal não tem largura de leitura, tem colunas.
+   Aqui o filho preenche em vez de rolar, e quem rola é o buffer. */
+.app-shell__main--fill {
+  display: flex;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------- coluna de leitura */
+.detail {
+  max-width: var(--size-detail-max);
+  padding: var(--space-20) var(--space-24) var(--space-40);
+}
+
+/* Tela sem casca: o primeiro uso, que não tem workspace pra pendurar sidebar. */
+.centered {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: var(--space-24);
+  overflow: auto;
+}

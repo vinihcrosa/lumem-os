@@ -13,8 +13,12 @@ import { WorktreeTree } from "./components/WorktreeTree.js";
 import { useActiveWorkspace } from "./hooks/useActiveWorkspace.js";
 import { useLiveState } from "./hooks/useLiveState.js";
 import { AppShell } from "./layout/AppShell.js";
+import { Topbar } from "./layout/Topbar.js";
 import { WORKSPACES_KEY } from "./lib/queryKeys.js";
 import { trpc } from "./lib/trpc.js";
+import { Skeleton } from "./ui/index.js";
+
+import "./layout/layout.css";
 
 type ScopeType = "project" | "worktree";
 
@@ -53,11 +57,7 @@ export function App() {
 
   return (
     <div className="app">
-      <header className="app__header">
-        <h1>Lumem-OS</h1>
-        {health.isError && <span role="alert">daemon inacessível</span>}
-        {health.data && <span>daemon v{health.data.version}</span>}
-      </header>
+      <Topbar version={health.data?.version ?? null} unreachable={health.isError} />
       {renderBody()}
     </div>
   );
@@ -71,8 +71,20 @@ export function App() {
   }
 
   function renderBody() {
-    if (workspaces.isPending) return <p>conectando ao daemon…</p>;
-    if (workspaces.isError) return <p role="alert">{workspaces.error.message}</p>;
+    if (workspaces.isPending) {
+      return (
+        <div className="detail">
+          <Skeleton label="conectando ao daemon" />
+        </div>
+      );
+    }
+    if (workspaces.isError) {
+      return (
+        <div className="detail">
+          <p role="alert">{workspaces.error.message}</p>
+        </div>
+      );
+    }
 
     // PRD §5: no workspace, no app. Everything below is scoped to one.
     if (workspaces.data.length === 0 || activeId === null) {
@@ -88,6 +100,9 @@ export function App() {
 
     return (
       <AppShell
+        // A session hands the pane over to the terminal, which has to be able
+        // to measure its own height.
+        fill={selection.kind === "session"}
         sidebar={
           <>
             <WorkspaceSelector
@@ -225,6 +240,10 @@ export function App() {
       );
     }
 
-    return <p>selecione um projeto</p>;
+    return (
+      <div className="detail">
+        <p>selecione um projeto</p>
+      </div>
+    );
   }
 }

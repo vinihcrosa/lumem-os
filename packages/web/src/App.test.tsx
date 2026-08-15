@@ -26,6 +26,17 @@ describe("App header", () => {
     expect(screen.getByRole("heading", { name: "Lumem-OS", level: 1 })).toBeInTheDocument();
   });
 
+  it("keeps the product as the only level-one heading", async () => {
+    // The selection gets its own heading in the detail pane. A second `h1`
+    // would leave a screen reader with two competing outlines.
+    trpc.health.query.mockResolvedValue({ ok: true, version: "1.2.3" });
+
+    renderWithProviders(<App />);
+
+    expect(await screen.findByText("daemon v1.2.3")).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
+
   it("shows the daemon version once health resolves", async () => {
     trpc.health.query.mockResolvedValue({ ok: true, version: "1.2.3" });
 

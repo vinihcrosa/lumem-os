@@ -3,6 +3,14 @@ import type { ReactNode } from "react";
 export interface AppShellProps {
   sidebar: ReactNode;
   children: ReactNode;
+  /**
+   * The detail fills the pane instead of scrolling inside it.
+   *
+   * A session needs this: `xterm` measures its host to decide how many columns
+   * to report to the daemon, and a host inside a scrolling box has no height to
+   * measure.
+   */
+  fill?: boolean;
 }
 
 /**
@@ -12,13 +20,13 @@ export interface AppShellProps {
  * things that render inside it, and a shell that also decided would have to be
  * rewritten every time a new kind of item appears in the tree.
  */
-export function AppShell({ sidebar, children }: AppShellProps) {
+export function AppShell({ sidebar, children, fill = false }: AppShellProps) {
   return (
     <div className="app-shell">
       <aside className="app-shell__sidebar" aria-label="navegação">
         {sidebar}
       </aside>
-      <main className="app-shell__main">{children}</main>
+      <main className={`app-shell__main${fill ? " app-shell__main--fill" : ""}`}>{children}</main>
     </div>
   );
 }
