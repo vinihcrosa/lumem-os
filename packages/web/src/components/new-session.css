@@ -1,0 +1,33 @@
+/* O menu de nova sessão: gatilho e painel ancorado nele. */
+
+.new-session {
+  position: relative;
+  display: inline-flex;
+}
+
+.new-session__caret {
+  color: var(--color-text-on-brand);
+  font-size: var(--size-icon-xs);
+}
+
+/* Ancorado no gatilho e fora do fluxo: abrir o menu não pode empurrar a barra
+   de ações e mover o botão que acabou de ser clicado. */
+.new-session__panel {
+  position: absolute;
+  top: calc(100% + var(--space-4));
+  left: 0;
+  z-index: 10;
+}
+
+.new-session__empty {
+  margin: 0;
+  padding: var(--space-8);
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+
+/* O erro é do escopo, não do botão: ocupa a linha inteira abaixo das ações. */
+.new-session__error {
+  flex-basis: 100%;
+  margin-top: var(--space-4);
+}

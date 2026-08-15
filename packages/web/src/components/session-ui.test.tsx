@@ -195,7 +195,8 @@ describe("new session menu", () => {
     });
 
     await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: "novo claude-code" }));
+    await user.click(await screen.findByRole("button", { name: /novo agente/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /claude-code/ }));
 
     await waitFor(() =>
       expect(trpc.session.createAgent.mutate).toHaveBeenCalledWith({
@@ -213,12 +214,43 @@ describe("new session menu", () => {
     trpc.agentConfig.list.query.mockResolvedValue([agentConfig({ available: false })]);
 
     await selectWorktree(user);
+    await user.click(await screen.findByRole("button", { name: /novo agente/ }));
 
-    const button = await screen.findByRole("button", { name: /novo claude-code/ });
-    expect(button).toBeDisabled();
-    expect(button).toHaveTextContent("indisponível");
-    await user.click(button);
+    const item = await screen.findByRole("menuitem", { name: /claude-code/ });
+    expect(item).toBeDisabled();
+    // The reason, not just the refusal: "indisponível" leaves the user with
+    // nothing to fix.
+    expect(item).toHaveTextContent("fora do PATH");
+    await user.click(item);
     expect(trpc.session.createAgent.mutate).not.toHaveBeenCalled();
+  });
+
+  it("closes the menu with Escape and gives focus back to the trigger", async () => {
+    const user = userEvent.setup();
+
+    await selectWorktree(user);
+    const trigger = await screen.findByRole("button", { name: /novo agente/ });
+    await user.click(trigger);
+    expect(await screen.findByRole("menu")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    // Leaving focus on a button that no longer exists sends the next Tab to
+    // the top of the document.
+    expect(trigger).toHaveFocus();
+  });
+
+  it("closes the menu on a click outside it", async () => {
+    const user = userEvent.setup();
+
+    await selectWorktree(user);
+    await user.click(await screen.findByRole("button", { name: /novo agente/ }));
+    expect(await screen.findByRole("menu")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("heading", { name: "Lumem-OS" }));
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
   it("can open a session in the project itself, with no worktree", async () => {

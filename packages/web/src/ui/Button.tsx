@@ -1,8 +1,13 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ComponentPropsWithRef, ReactNode } from "react";
 
 export type ButtonVariant = "primary" | "default" | "ghost" | "danger";
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+/**
+ * `ComponentPropsWithRef` rather than `ButtonHTMLAttributes`: React 19 hands
+ * `ref` to a function component as an ordinary prop, and a popover trigger
+ * needs one so focus has somewhere to return to.
+ */
+export interface ButtonProps extends ComponentPropsWithRef<"button"> {
   variant?: ButtonVariant;
   size?: "md" | "sm";
   /** Decorative character, usually a `Glyph`. */
