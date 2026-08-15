@@ -1,6 +1,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 
 import type { ServerConfig } from "./config.js";
+import type { Db } from "./db/index.js";
 import { isDomainError, type DomainErrorCode } from "./errors.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 
@@ -11,6 +12,7 @@ import type { PtyManager } from "./pty/PtyManager.js";
  */
 export interface Context {
   config: ServerConfig;
+  db: Db;
   ptyManager: PtyManager;
 }
 
@@ -22,10 +24,17 @@ export const createCallerFactory = t.createCallerFactory;
 
 const DOMAIN_TO_TRPC: Record<DomainErrorCode, TRPCError["code"]> = {
   SESSION_NOT_FOUND: "NOT_FOUND",
+  NOT_FOUND: "NOT_FOUND",
   // The request was well formed and the state refused it — that is 409, not 400.
   SESSION_EXITED: "CONFLICT",
+  DUPLICATE: "CONFLICT",
+  IN_USE: "CONFLICT",
+  BLOCKED: "CONFLICT",
   INVALID_ARGUMENT: "BAD_REQUEST",
+  GIT_FAILED: "BAD_REQUEST",
   SPAWN_FAILED: "INTERNAL_SERVER_ERROR",
+  // Reaching here means a repository forgot to declare a constraint it can hit.
+  CONSTRAINT_VIOLATION: "INTERNAL_SERVER_ERROR",
 };
 
 /**

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 
 import type { ServerConfig } from "./config.js";
+import { openDatabase, type Database_ } from "./db/index.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createServer } from "./server.js";
 import { createShutdownHandler } from "./shutdown.js";
@@ -17,6 +18,11 @@ export interface BootstrapOptions {
    * need to inspect the sessions after shutdown.
    */
   ptyManager?: PtyManager;
+  /**
+   * Already-open database. Injected by tests that want a throwaway file;
+   * otherwise opened here from `config.databasePath` and closed on shutdown.
+   */
+  database?: Database_;
   /** Extra shutdown work, run after the children die and before the server closes. */
   beforeClose?: () => Promise<void>;
 }
@@ -35,9 +41,12 @@ export async function bootstrap({
   exit = (code) => process.exit(code),
   logger = true,
   ptyManager = new PtyManager(),
+  database,
   beforeClose,
 }: BootstrapOptions): Promise<FastifyInstance> {
-  const app = await createServer({ config, ptyManager, logger });
+  const owned = database === undefined;
+  const openedDatabase = database ?? openDatabase({ path: config.databasePath });
+  const app = await createServer({ config, db: openedDatabase.db, ptyManager, logger });
 
   const target = {
     log: app.log,
@@ -48,6 +57,9 @@ export async function bootstrap({
       await ptyManager.killAll();
       if (beforeClose) await beforeClose();
       await app.close();
+      // Last: a handler still finishing a request would otherwise write to a
+      // closed handle. Only if we opened it — an injected one is the caller's.
+      if (owned) openedDatabase.close();
     },
   };
 

@@ -6,22 +6,27 @@ import { TRPCError } from "@trpc/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { loadConfig } from "../config.js";
+import { openTestDb, type TestDb } from "../db/testing.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { createCallerFactory } from "../trpc.js";
 import { appRouter } from "./index.js";
 
 const createCaller = createCallerFactory(appRouter);
 const managers: PtyManager[] = [];
+const databases: TestDb[] = [];
 
 function caller(env: { LUMEM_DEFAULT_CWD?: string; SHELL?: string } = {}) {
   const ptyManager = new PtyManager();
   managers.push(ptyManager);
+  const database = openTestDb();
+  databases.push(database);
   const config = loadConfig({ LUMEM_DEFAULT_CWD: mkdtempSync(join(tmpdir(), "lumem-pty-")), ...env });
-  return { api: createCaller({ config, ptyManager }), ptyManager, config };
+  return { api: createCaller({ config, db: database.db, ptyManager }), ptyManager, config };
 }
 
 afterEach(async () => {
   await Promise.all(managers.splice(0).map((manager) => manager.killAll()));
+  for (const database of databases.splice(0)) database.cleanup();
 });
 
 describe("pty.spawnShell", () => {

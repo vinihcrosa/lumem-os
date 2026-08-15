@@ -5,6 +5,7 @@ import {
 import Fastify, { type FastifyInstance } from "fastify";
 
 import type { ServerConfig } from "./config.js";
+import type { Db } from "./db/index.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import { registerPtyWebSocket } from "./pty/websocket.js";
 import { appRouter, type AppRouter } from "./routers/index.js";
@@ -20,6 +21,8 @@ const MAX_PARAM_LENGTH = 5_000;
 
 export interface CreateServerOptions {
   config: ServerConfig;
+  /** Already migrated. Opening it is the caller's job because closing it is too. */
+  db: Db;
   /**
    * Owner of every PTY the daemon has spawned.
    *
@@ -34,6 +37,7 @@ export interface CreateServerOptions {
 
 export async function createServer({
   config,
+  db,
   ptyManager,
   logger = false,
 }: CreateServerOptions): Promise<FastifyInstance> {
@@ -44,7 +48,7 @@ export async function createServer({
     forceCloseConnections: true,
   });
 
-  const createContext = (): Context => ({ config, ptyManager });
+  const createContext = (): Context => ({ config, db, ptyManager });
 
   await app.register(fastifyTRPCPlugin, {
     prefix: "/trpc",

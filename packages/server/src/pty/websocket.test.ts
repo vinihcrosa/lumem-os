@@ -15,12 +15,14 @@ import { WebSocket } from "ws";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { loadConfig } from "../config.js";
+import { openTestDb, type TestDb } from "../db/testing.js";
 import { PtyManager } from "./PtyManager.js";
 
 const WAIT = { timeout: 10_000, interval: 20 } as const;
 
 let app: FastifyInstance;
 let ptyManager: PtyManager;
+let database: TestDb;
 let baseUrl: string;
 const clients: TestClient[] = [];
 
@@ -112,10 +114,11 @@ function spawnSession(command: string, args: readonly string[] = []): string {
 
 beforeEach(async () => {
   ptyManager = new PtyManager();
+  database = openTestDb();
   // Imported lazily so the module graph matches production wiring exactly:
   // whatever createServer mounts is what this test exercises.
   const { createServer } = await import("../server.js");
-  app = await createServer({ config: loadConfig(), ptyManager });
+  app = await createServer({ config: loadConfig(), db: database.db, ptyManager });
   await app.listen({ port: 0, host: "127.0.0.1" });
   const address = app.server.address() as AddressInfo;
   baseUrl = `ws://127.0.0.1:${address.port}`;
@@ -125,6 +128,7 @@ afterEach(async () => {
   await Promise.all(clients.splice(0).map((client) => client.close()));
   await app.close();
   await ptyManager.killAll();
+  database.cleanup();
 });
 
 describe("attach", () => {

@@ -3,20 +3,24 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { loadConfig } from "./config.js";
+import { openTestDb, type TestDb } from "./db/testing.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createServer } from "./server.js";
 
 let app: FastifyInstance;
 let ptyManager: PtyManager;
+let database: TestDb;
 
 beforeEach(async () => {
   ptyManager = new PtyManager();
-  app = await createServer({ config: loadConfig(), ptyManager });
+  database = openTestDb();
+  app = await createServer({ config: loadConfig(), db: database.db, ptyManager });
 });
 
 afterEach(async () => {
   await app.close();
   await ptyManager.killAll();
+  database.cleanup();
 });
 
 describe("health", () => {

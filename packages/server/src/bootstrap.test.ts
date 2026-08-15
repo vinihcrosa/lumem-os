@@ -6,11 +6,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { bootstrap } from "./bootstrap.js";
 import { loadConfig } from "./config.js";
+import { openTestDb, type TestDb } from "./db/testing.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { SHUTDOWN_SIGNALS } from "./signals.js";
 
 const started: FastifyInstance[] = [];
 const managers: PtyManager[] = [];
+const databases: TestDb[] = [];
 
 async function boot(
   overrides: {
@@ -23,12 +25,17 @@ async function boot(
   const exit = vi.fn();
   // Port 0 lets the OS pick a free one — no fixed port to collide with.
   const config = loadConfig({ LUMEM_PORT: overrides.port ?? "0" });
+  // Never the real ~/.lumem/lumem.db: a test suite must not write to the
+  // developer's own state.
+  const database = openTestDb();
+  databases.push(database);
 
   const app = await bootstrap({
     config,
     signalSource,
     exit,
     logger: false,
+    database,
     ...(overrides.ptyManager ? { ptyManager: overrides.ptyManager } : {}),
     ...(overrides.beforeClose ? { beforeClose: overrides.beforeClose } : {}),
   });
@@ -40,6 +47,7 @@ async function boot(
 afterEach(async () => {
   await Promise.all(started.splice(0).map((app) => app.close()));
   await Promise.all(managers.splice(0).map((manager) => manager.killAll()));
+  for (const database of databases.splice(0)) database.cleanup();
 });
 
 describe("bootstrap", () => {

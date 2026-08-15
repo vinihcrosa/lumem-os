@@ -40,8 +40,15 @@ const DOMAIN_TO_PTY_ERROR: Record<DomainErrorCode, PtyErrorCode> = {
   // Reachable only if the schema and PtyManager ever disagree about what a
   // valid size is; either way it is the client's frame that was wrong.
   INVALID_ARGUMENT: "INVALID_MESSAGE",
-  // No procedure here spawns anything, so this cannot come from a frame.
+  // Nothing below can be caused by a frame on this socket: the endpoint only
+  // writes to and resizes an existing PTY. Reaching one of them is a defect.
   SPAWN_FAILED: "INTERNAL",
+  NOT_FOUND: "INTERNAL",
+  DUPLICATE: "INTERNAL",
+  IN_USE: "INTERNAL",
+  BLOCKED: "INTERNAL",
+  CONSTRAINT_VIOLATION: "INTERNAL",
+  GIT_FAILED: "INTERNAL",
 };
 
 /**
