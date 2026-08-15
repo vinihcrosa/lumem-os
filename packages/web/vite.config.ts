@@ -19,6 +19,10 @@ const serverOrigin = `http://127.0.0.1:${port("LUMEM_PORT", SERVER_PORT)}`;
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Explícito, e não o default `localhost`: num runner com IPv6 o vite
+    // escuta em `::1` e um GET em `127.0.0.1` é recusado. O daemon já publica
+    // em 127.0.0.1, e o e2e fala com os dois pelo mesmo endereço.
+    host: "127.0.0.1",
     port: port("LUMEM_WEB_PORT", WEB_PORT),
     // Without this, an occupied port silently moves the dev server elsewhere
     // and the e2e harness ends up driving whatever else is listening.
