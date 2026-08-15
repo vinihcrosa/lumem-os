@@ -87,22 +87,24 @@ export function WorktreePanel({
               <Glyph tone={gone ? "warn" : "worktree"}>{gone ? "⚠" : "◇"}</Glyph> {name}
             </h2>
             <span className="actions__spacer" />
-            {!confirmingForce && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  remove.mutate(false, {
-                    // The daemon decides whether it is blocked; the UI never
-                    // second-guesses it by reading the status itself.
-                    onError: () => setConfirmingForce(true),
-                  })
-                }
-                disabled={remove.isPending}
-              >
-                {remove.isPending ? "removendo…" : "remover worktree"}
-              </Button>
-            )}
+            {/* Stays put while the refusal is on screen. A blocked removal is
+                usually fixed and retried — closing the sessions the daemon
+                named, committing the work — and hiding this would leave forcing
+                as the only way forward. */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                remove.mutate(false, {
+                  // The daemon decides whether it is blocked; the UI never
+                  // second-guesses it by reading the status itself.
+                  onError: () => setConfirmingForce(true),
+                })
+              }
+              disabled={remove.isPending}
+            >
+              {remove.isPending ? "removendo…" : "remover worktree"}
+            </Button>
           </div>
 
           <div className="chips">
@@ -142,22 +144,14 @@ export function WorktreePanel({
               </>
             )}
           </div>
-        </>
-      }
-      context={
-        <>
-          {gone && (
-            <div className="detail__banner">
-              <Banner tone="warning">
-                O diretório não está em <code>{path}</code>. Remover aqui só apaga o registro; a
-                branch <code>{branch}</code> continua existindo.
-              </Banner>
-            </div>
-          )}
 
           {confirmingForce && (
             <div className="detail__banner">
-              {/* Explicit, and only after the daemon has already refused once:
+              {/* Lives in the header, not in the context tab: the button that
+                  triggers it is here, and a refusal that renders inside a tab
+                  the user does not have open reads as the click doing nothing.
+
+                  Explicit, and only after the daemon has already refused once —
                   this is the click that can destroy uncommitted work. */}
               <Banner
                 tone="danger"
@@ -178,6 +172,18 @@ export function WorktreePanel({
                 }
               >
                 {remove.error?.message ?? "isso descarta as alterações não salvas."}
+              </Banner>
+            </div>
+          )}
+        </>
+      }
+      context={
+        <>
+          {gone && (
+            <div className="detail__banner">
+              <Banner tone="warning">
+                O diretório não está em <code>{path}</code>. Remover aqui só apaga o registro; a
+                branch <code>{branch}</code> continua existindo.
               </Banner>
             </div>
           )}

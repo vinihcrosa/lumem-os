@@ -22,7 +22,7 @@ const AGENT = "eco";
 const BROKEN_AGENT = "agente-fantasma";
 
 function terminalText(page: Page) {
-  return page.locator(".xterm-rows");
+  return page.locator("[role=tabpanel]:not([hidden]) .xterm-rows");
 }
 
 async function openFixtureProject(page: Page): Promise<void> {
@@ -65,8 +65,9 @@ test("a worktree with a live session cannot be removed", async ({ page }) => {
   await page.getByRole("button", { name: "criar" }).click();
   await expect(page.getByRole("heading", { name })).toBeVisible({ timeout: 30_000 });
 
-  await page.getByRole("button", { name: "novo shell" }).click();
-  await expect(page.getByTestId("terminal")).toBeVisible();
+  await page.getByRole("button", { name: /nova sessão/ }).click();
+  await page.getByRole("menuitem", { name: /^shell/ }).click();
+  await expect(page.locator("[role=tabpanel]:not([hidden])").getByTestId("terminal")).toBeVisible();
 
   await page.getByRole("button", { name: new RegExp(`^${name}`) }).first().click();
   await page.getByRole("button", { name: "remover worktree" }).click();
@@ -76,13 +77,13 @@ test("a worktree with a live session cannot be removed", async ({ page }) => {
   await expect(page.getByRole("heading", { name })).toBeVisible();
 
   // Closing them is what unblocks it, which is the whole point of the refusal.
-  await page
-    .locator('[data-kind="shell"][data-state="running"] .row__main')
-    .first()
-    .click();
-  const closeButton = page.getByRole("button", { name: "encerrar sessão" });
-  await closeButton.click();
-  await expect(closeButton).toBeHidden({ timeout: 20_000 });
+  // The tab is where a session lives now, and closing it is what ends the
+  // process — the tab going away is the proof that it did.
+  const closeTab = page.getByRole("button", { name: /^fechar / }).first();
+  await closeTab.click();
+  await expect(page.getByRole("button", { name: /^fechar / })).toHaveCount(0, {
+    timeout: 20_000,
+  });
 
   await page.getByRole("button", { name: new RegExp(`^${name}`) }).first().click();
   await page.getByRole("button", { name: "remover worktree" }).click();
@@ -98,7 +99,13 @@ test("a dirty worktree is refused, and forcing it works", async ({ page }) => {
   await page.getByRole("button", { name: "criar" }).click();
   await expect(page.getByRole("heading", { name })).toBeVisible({ timeout: 30_000 });
 
-  const path = (await page.getByText(/\.lumem.*worktrees/).first().innerText()).trim();
+  const path = (
+    await page
+      .getByRole("tabpanel", { name: "contexto" })
+      .getByText(/\.lumem.*worktrees/)
+      .first()
+      .innerText()
+  ).trim();
   writeFileSync(join(path, "trabalho-nao-commitado.txt"), "conteúdo\n");
 
   await page.getByRole("button", { name: "remover worktree" }).click();
@@ -125,7 +132,7 @@ test("an agent whose command is missing is shown unavailable and cannot be launc
   await openFixtureProject(page);
 
   // F6.5: shown rather than hidden, disabled rather than launchable.
-  await page.getByRole("button", { name: /novo agente/ }).click();
+  await page.getByRole("button", { name: /nova sessão/ }).click();
   const broken = page.getByRole("menuitem", { name: new RegExp(BROKEN_AGENT) });
   await expect(broken).toBeDisabled();
   // The reason, not just the refusal — "indisponível" leaves nothing to fix.
@@ -135,7 +142,7 @@ test("an agent whose command is missing is shown unavailable and cannot be launc
   // rather than agents being broken in general.
   await page.getByRole("menuitem", { name: new RegExp(`^${AGENT}\\b`) }).click();
   await expect(terminalText(page)).toContainText("fake-agent pronto", { timeout: 20_000 });
-  await page.getByRole("button", { name: "encerrar sessão" }).click();
+  await page.getByRole("button", { name: /^fechar / }).first().click();
 });
 
 test("a worktree deleted from outside becomes missing after a restart", async () => {

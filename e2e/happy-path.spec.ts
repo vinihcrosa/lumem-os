@@ -21,20 +21,48 @@ const DAEMON = `http://127.0.0.1:${E2E_SERVER_PORT}`;
 const WORKTREE = "teste-prd";
 const AGENT = "eco";
 
+/**
+ * The buffer of the tab that is open.
+ *
+ * Every tab's terminal stays mounted so switching does not cost a reconnect and
+ * a repaint — which means `.xterm-rows` matches one per open session, and only
+ * the visible panel is the one being asked about.
+ */
 function terminalText(page: Page) {
-  return page.locator(".xterm-rows");
+  return page.locator("[role=tabpanel]:not([hidden]) .xterm-rows");
 }
 
 async function typeLine(page: Page, line: string): Promise<void> {
-  await page.locator("textarea.xterm-helper-textarea").focus();
+  await page.locator("[role=tabpanel]:not([hidden]) textarea.xterm-helper-textarea").focus();
   await page.keyboard.type(line);
   await page.keyboard.press("Enter");
 }
 
-/** Launches an agent through the menu the launcher became. */
-async function launchAgent(page: Page, name: string): Promise<void> {
-  await page.getByRole("button", { name: /novo agente/ }).click();
+/** Opens a session through the strip's own menu, where both kinds now live. */
+async function newSession(page: Page, name: string): Promise<void> {
+  await page.getByRole("button", { name: /nova sessão/ }).click();
+  // The hint carries the command, so the name is anchored at the start only.
   await page.getByRole("menuitem", { name: new RegExp(`^${name}\\b`) }).click();
+}
+
+/**
+ * Ends every session open in the current worktree, through its tab.
+ *
+ * F4.9 blocks removal until they are gone, which is the point — this is the
+ * user doing what the daemon told them to. A tab going away is the proof the
+ * process actually stopped: the client refuses to merely hide a live one.
+ */
+async function closeEveryTab(page: Page): Promise<void> {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const closers = page.getByRole("button", { name: /^fechar / });
+    const before = await closers.count();
+    if (before === 0) return;
+
+    await closers.first().click();
+    await expect.poll(() => closers.count(), { timeout: 20_000 }).toBeLessThan(before);
+  }
+
+  throw new Error("as abas não pararam de aparecer");
 }
 
 function gitIn(cwd: string, ...args: string[]): string {
@@ -49,7 +77,11 @@ test("the whole flow, from an empty install to a removed worktree", async ({ pag
   await ensureProject(page, E2E_FIXTURE_REPO);
   await expect(page.getByRole("button", { name: "fixture", exact: true })).toBeVisible();
   await openProject(page);
-  await expect(page.getByText(E2E_FIXTURE_REPO)).toBeVisible();
+  // Scoped to the context tab: the path also appears in a session tab's own
+  // header, as the cwd it was launched in.
+  await expect(
+    page.getByRole("tabpanel", { name: "contexto" }).getByText(E2E_FIXTURE_REPO),
+  ).toBeVisible();
 
   // --- worktree ------------------------------------------------------------
   await page.getByRole("button", { name: "nova worktree" }).click();
@@ -57,40 +89,48 @@ test("the whole flow, from an empty install to a removed worktree", async ({ pag
   await page.getByRole("button", { name: "criar" }).click();
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
 
-  const worktreePath = (await page.getByText(/\.lumem.*worktrees/).first().innerText()).trim();
+  const worktreePath = (
+    await page
+      .getByRole("tabpanel", { name: "contexto" })
+      .getByText(/\.lumem.*worktrees/)
+      .first()
+      .innerText()
+  ).trim();
   // On disk and known to git, not merely a row in the daemon's database.
   expect(existsSync(join(worktreePath, "README.md"))).toBe(true);
   expect(gitIn(E2E_FIXTURE_REPO, "worktree", "list")).toContain(WORKTREE);
 
   // --- shell in the worktree -----------------------------------------------
-  await page.getByRole("button", { name: "novo shell" }).click();
-  await expect(page.getByTestId("terminal")).toBeVisible();
+  await newSession(page, "shell");
+  await expect(page.locator("[role=tabpanel]:not([hidden])").getByTestId("terminal")).toBeVisible();
   await typeLine(page, "git status");
   // The branch is the proof that the cwd really is the worktree.
   await expect(terminalText(page)).toContainText(WORKTREE, { timeout: 20_000 });
 
   // --- a second shell, in the project this time ----------------------------
   await openProject(page);
-  await page.getByRole("button", { name: "novo shell" }).click();
-  await expect(page.getByTestId("terminal")).toBeVisible();
+  await newSession(page, "shell");
+  await expect(page.locator("[role=tabpanel]:not([hidden])").getByTestId("terminal")).toBeVisible();
   await typeLine(page, "echo shell-do-projeto");
   await expect(terminalText(page)).toContainText("shell-do-projeto", { timeout: 20_000 });
 
-  // Both alive at once — F5.4. Opening the second one navigated to its
-  // terminal, so this steps back to the project, which counts every session
-  // beneath it: its own and its worktrees'.
+  // Both alive at once — F5.4. The count lives on the sidebar row now, and the
+  // worktree still reporting one is the proof that opening a session in the
+  // project did not take its shell down.
   await openProject(page);
-  await expect(page.getByText(/[2-9]\d* sessões rodando/)).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByRole("button", { name: new RegExp(`^${WORKTREE} \\d+ sess`) }),
+  ).toBeVisible({ timeout: 20_000 });
 
   // --- an agent in the worktree --------------------------------------------
   await page.getByRole("button", { name: new RegExp(`^${WORKTREE}`) }).first().click();
-  await launchAgent(page, AGENT);
+  await newSession(page, AGENT);
   await expect(terminalText(page)).toContainText("fake-agent pronto", { timeout: 20_000 });
   await expect(terminalText(page)).toContainText(WORKTREE, { timeout: 20_000 });
 
   // --- an agent in the project itself, with no worktree (WS-Q15) -----------
   await openProject(page);
-  await launchAgent(page, AGENT);
+  await newSession(page, AGENT);
   await expect(terminalText(page)).toContainText("fake-agent pronto", { timeout: 20_000 });
 
   // --- navigate away and back ----------------------------------------------
@@ -101,18 +141,19 @@ test("the whole flow, from an empty install to a removed worktree", async ({ pag
   await openProject(page);
   // The session in the sidebar, not the "novo <agente>" button beside it —
   // clicking that would start a second agent and assert nothing.
-  await page
-    .locator('aside [data-kind="agent"][data-scope="project"] > .row .row__main')
-    .last()
-    .click();
+  await page.getByRole("tab", { name: new RegExp(`^${AGENT}`) }).last().click();
 
   // F5.6 and F5.7: it never stopped, and the buffer came back with it.
   await expect(terminalText(page)).toContainText("marca-antes-de-sair", { timeout: 20_000 });
 
   // --- close everything and remove the worktree ----------------------------
-  await closeEverySession(page);
-
+  // Tabs belong to the scope that is open, so the worktree has to be selected
+  // before its own are closed. F4.9 only blocks on the worktree's sessions —
+  // the ones in the project are somebody else's problem.
   await page.getByRole("button", { name: new RegExp(`^${WORKTREE}`) }).first().click();
+  await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible();
+  await closeEveryTab(page);
+
   await page.getByRole("button", { name: "remover worktree" }).click();
 
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeHidden({ timeout: 20_000 });
@@ -121,38 +162,3 @@ test("the whole flow, from an empty install to a removed worktree", async ({ pag
   // F4.7: the branch outlives the checkout.
   expect(gitIn(E2E_FIXTURE_REPO, "branch", "--list", WORKTREE)).toContain(WORKTREE);
 });
-
-/**
- * Closes every session the run opened.
- *
- * F4.9 blocks the removal until they are gone, which is the point — this is the
- * user doing what the daemon told them to.
- */
-async function closeEverySession(page: Page): Promise<void> {
-  const running = page.locator('[data-state="running"] > .row .row__main');
-
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    const before = await running.count();
-    if (before === 0) return;
-
-    await running.first().click();
-    // Waiting for the button rather than probing it once: `isVisible` answers
-    // for the instant it is asked, and the detail pane renders a beat after the
-    // row is clicked — losing that race skipped the close and left the count
-    // exactly where it was, which is what the poll below then timed out on.
-    //
-    // A session can also end on its own between being listed and being clicked,
-    // and the button is simply never there for one that already stopped. That
-    // is the case the catch covers.
-    await page
-      .getByRole("button", { name: "encerrar sessão" })
-      .click({ timeout: 5_000 })
-      .catch(() => undefined);
-
-    // Counting down rather than waiting on one element: the list re-renders on
-    // every event, and a handle to a row from before the render is stale.
-    await expect.poll(() => running.count(), { timeout: 20_000 }).toBeLessThan(before);
-  }
-
-  throw new Error("as sessões não pararam de aparecer");
-}

@@ -33,7 +33,7 @@ function highestTick(text: string): number {
 async function typeLine(page: Page, line: string): Promise<void> {
   // xterm reads the keyboard through a hidden textarea; clicking the rows hits
   // the screen overlay instead and never focuses anything.
-  await page.locator("textarea.xterm-helper-textarea").focus();
+  await page.locator("[role=tabpanel]:not([hidden]) textarea.xterm-helper-textarea").focus();
   await page.keyboard.type(line);
   await page.keyboard.press("Enter");
 }
@@ -51,8 +51,9 @@ test("a session outlives the client that started it", async ({ browser }) => {
   await page.getByRole("button", { name: "criar" }).click();
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
 
-  await page.getByRole("button", { name: "novo shell" }).click();
-  await expect(page.getByTestId("terminal")).toBeVisible();
+  await page.getByRole("button", { name: /nova sessão/ }).click();
+  await page.getByRole("menuitem", { name: /^shell/ }).click();
+  await expect(page.locator("[role=tabpanel]:not([hidden])").getByTestId("terminal")).toBeVisible();
 
   // A command that keeps writing on its own, so the test can prove output was
   // produced with nobody watching — not merely that the buffer survived.
@@ -91,9 +92,10 @@ test("a session outlives the client that started it", async ({ browser }) => {
     .click();
   await expect(reopened.getByRole("heading", { name: WORKTREE })).toBeVisible();
 
-  const sessions = reopened.locator(".section", { hasText: "SESSÕES" }).last();
-  await sessions.getByRole("button", { name: /shell/ }).first().click();
-  await expect(reopened.getByTestId("terminal")).toBeVisible();
+  // Its tab is there because the session never stopped: the strip only ever
+  // shows live work.
+  await reopened.getByRole("tab", { name: /^shell/ }).first().click();
+  await expect(reopened.locator("[role=tabpanel]:not([hidden])").getByTestId("terminal")).toBeVisible();
 
   // The heart of it: a tick that could only have been printed while no browser
   // was attached is in the buffer the daemon replayed.

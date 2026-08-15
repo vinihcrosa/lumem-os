@@ -2,7 +2,7 @@
 
 **Protótipo:** `packages/web/prototype/lumem-tabs.html`
 **Sucede:** [ui-shell](../ui-shell/tasks.md), que vestiu a árvore de três níveis
-**Status:** direção validada — pronto pra execução
+**Status:** concluída — 7 de 7 entregues, gate cheio verde
 **Total:** 7 tasks
 
 ---
@@ -52,11 +52,11 @@ Sessão não tem nome — só o da configuração de agente. Três `claude-code`
 **Depends on**: nada
 
 **Done when**:
-- [ ] `Tab` com glifo, rótulo, ordinal opcional, ponto de estado e ✕
-- [ ] `TabStrip` em duas camadas: a parte que rola e a ação fixa. O botão de nova sessão **não** fica dentro do `overflow` — menu ancorado nele seria recortado, e ele não pode sair da tela por excesso de abas
-- [ ] ✕ não dispara a seleção da aba
-- [ ] Styleguide cobre: uma aba, muitas com rolagem, nenhuma
-- [ ] Gate: `pnpm gate:quick`
+- [x] `Tab` com glifo, rótulo, ordinal opcional, ponto de estado e ✕
+- [x] `TabStrip` em duas camadas: a parte que rola e a ação fixa. O botão de nova sessão **não** fica dentro do `overflow` — menu ancorado nele seria recortado, e ele não pode sair da tela por excesso de abas
+- [x] ✕ não dispara a seleção da aba
+- [x] Styleguide cobre: uma aba, muitas com rolagem, nenhuma
+- [x] Gate: `pnpm gate:quick`
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): tab strip primitives`
@@ -70,13 +70,13 @@ Sessão não tem nome — só o da configuração de agente. Três `claude-code`
 **Depends on**: W1
 
 **Done when**:
-- [ ] Nível de sessão sai da árvore
-- [ ] `local` é a primeira worktree de todo projeto disponível, com glifo próprio (D2)
-- [ ] Clicar na linha do projeto seleciona `local` (D2)
-- [ ] Contagem de sessões rodando na linha, verde quando > 0 e neutra quando só há encerradas (D3)
-- [ ] `useSessionsByScope` segue alimentando a contagem pelo mesmo cache
-- [ ] Testes de árvore atualizados
-- [ ] Gate: `pnpm gate:quick`
+- [x] Nível de sessão sai da árvore
+- [x] `local` é a primeira worktree de todo projeto disponível, com glifo próprio (D2)
+- [x] Clicar na linha do projeto seleciona `local` (D2)
+- [x] Contagem de sessões rodando na linha, verde quando > 0 e neutra quando só há encerradas (D3)
+- [x] `useSessionsByScope` segue alimentando a contagem pelo mesmo cache
+- [x] Testes de árvore atualizados
+- [x] Gate: `pnpm gate:quick`
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): stop the sidebar at the worktree`
@@ -90,12 +90,12 @@ Sessão não tem nome — só o da configuração de agente. Três `claude-code`
 **Depends on**: W2
 
 **Done when**:
-- [ ] Deriva as abas das sessões **rodando** do escopo, mais as encerradas que o usuário reabriu (D1)
-- [ ] Sessão que sai sozinha perde a aba; se era a ativa, a seleção cai na aba de contexto
-- [ ] Ordinal por homônimo, estável na ordem de criação (D4)
-- [ ] Reabrir uma encerrada devolve a aba até ser fechada de novo
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 3 casos — sai e some, sai sendo a ativa, reabre
+- [x] Deriva as abas das sessões **rodando** do escopo, mais as encerradas que o usuário reabriu (D1)
+- [x] Sessão que sai sozinha perde a aba; se era a ativa, a seleção cai na aba de contexto
+- [x] Ordinal por homônimo, estável na ordem de criação (D4)
+- [x] Reabrir uma encerrada devolve a aba até ser fechada de novo
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 3 casos — sai e some, sai sendo a ativa, reabre
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): derive worktree tabs from live sessions`
@@ -109,11 +109,11 @@ Sessão não tem nome — só o da configuração de agente. Três `claude-code`
 **Depends on**: W3
 
 **Done when**:
-- [ ] Cabeçalho — crumb, título, chips, remover — **acima** da faixa: é contexto de todas as abas e não se move ao trocar de aba
-- [ ] Aba de contexto: metadados, ações, lista de sessões com estado, idade e `reabrir` nas encerradas
-- [ ] Bloqueios de remoção (suja, sessão viva) preservados
-- [ ] `worktree-ui.test.tsx` atualizado
-- [ ] Gate: `pnpm gate:quick`
+- [x] Cabeçalho — crumb, título, chips, remover — **acima** da faixa: é contexto de todas as abas e não se move ao trocar de aba
+- [x] Aba de contexto: metadados, ações, lista de sessões com estado, idade e `reabrir` nas encerradas
+- [x] Bloqueios de remoção (suja, sessão viva) preservados
+- [x] `worktree-ui.test.tsx` atualizado
+- [x] Gate: `pnpm gate:quick`
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): the worktree panel and its context tab`
@@ -127,11 +127,11 @@ Sessão não tem nome — só o da configuração de agente. Três `claude-code`
 **Depends on**: W4
 
 **Done when**:
-- [ ] Caminho, branch base, worktrees do projeto, nova worktree, renomear e remover projeto
-- [ ] Sem chip de suja/limpa, com o motivo dito na tela (D2)
-- [ ] Projeto fora do disco continua bloqueando ação e mantendo o registro
-- [ ] `project-ui.test.tsx` atualizado
-- [ ] Gate: `pnpm gate:quick`
+- [x] Caminho, branch base, worktrees do projeto, nova worktree, renomear e remover projeto
+- [x] Sem chip de suja/limpa, com o motivo dito na tela (D2)
+- [x] Projeto fora do disco continua bloqueando ação e mantendo o registro
+- [x] `project-ui.test.tsx` atualizado
+- [x] Gate: `pnpm gate:quick`
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): the project checkout as a local worktree`
@@ -145,12 +145,12 @@ Sessão não tem nome — só o da configuração de agente. Três `claude-code`
 **Depends on**: W4
 
 **Done when**:
-- [ ] Terminal preenche o que sobra abaixo da faixa; o `FitAddon` continua medindo uma caixa com altura
-- [ ] Trocar de aba **não** desmonta o terminal das outras — F5.6 e F5.7 valem entre abas como valiam entre telas
-- [ ] ✕ numa sessão rodando encerra, com a confirmação que o gesto destrutivo pede
-- [ ] `Terminal.test.tsx` e `session-ui.test.tsx` atualizados
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 1 caso novo — o buffer da aba inativa sobrevive
+- [x] Terminal preenche o que sobra abaixo da faixa; o `FitAddon` continua medindo uma caixa com altura
+- [x] Trocar de aba **não** desmonta o terminal das outras — F5.6 e F5.7 valem entre abas como valiam entre telas
+- [x] ✕ numa sessão rodando encerra, com a confirmação que o gesto destrutivo pede
+- [x] `Terminal.test.tsx` e `session-ui.test.tsx` atualizados
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 1 caso novo — o buffer da aba inativa sobrevive
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): the session as a tab`
@@ -164,9 +164,9 @@ Sessão não tem nome — só o da configuração de agente. Três `claude-code`
 **Depends on**: W6
 
 **Done when**:
-- [ ] Todos os e2e passam, sem asserção enfraquecida
-- [ ] O critério central segue coberto: fecho o navegador com o agente trabalhando, reabro, ele continua
-- [ ] Gate: `pnpm gate:full`
+- [x] Todos os e2e passam, sem asserção enfraquecida
+- [x] O critério central segue coberto: fecho o navegador com o agente trabalhando, reabro, ele continua
+- [x] Gate: `pnpm gate:full`
 
 **Tests**: e2e · **Gate**: full
 **Commit**: `test(e2e): follow sessions into tabs`
@@ -180,3 +180,11 @@ Sessão não tem nome — só o da configuração de agente. Três `claude-code`
 | Trocar de aba desmontando o terminal | Seria a regressão mais cara da mudança: mata o buffer e força repintura a cada troca | W6 tem teste dedicado; abas inativas ficam montadas e escondidas |
 | Aba somindo sozinha assusta | A sessão sai e a aba desaparece sem o usuário ter pedido | A linha continua na aba de contexto com exit code e `reabrir` (D1) |
 | `local` confundido com worktree de verdade | Remover `local` seria remover o projeto | Glifo próprio e aviso na tela (D2) |
+
+## O que a execução achou
+
+**A recusa da remoção renderizava dentro da aba de contexto.** O botão vive no cabeçalho, que está sempre visível, mas o aviso caía num painel que podia estar fechado — clicar e não ver nada. Foi pro cabeçalho, junto da ação.
+
+**A confirmação de forçar escondia o botão normal.** Depois de encerrar as sessões que o daemon nomeou, não havia como tentar de novo pelo caminho seguro: só forçar. O botão ficou.
+
+**Aba montada é aba que responde por si.** Com todas as sessões montadas ao mesmo tempo, `.xterm-rows` passou a casar uma por aba, e os e2e tiveram de mirar `[role=tabpanel]:not([hidden])`. É o preço de não desmontar — e valeu: teste ao vivo confirma que trocar de aba preserva o buffer.
