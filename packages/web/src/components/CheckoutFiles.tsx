@@ -1,9 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { useCheckoutChanges, type ChangeStatus } from "../hooks/useCheckoutChanges.js";
+import { useCheckoutChanges, type ChangeRef, type ChangeStatus } from "../hooks/useCheckoutChanges.js";
 import { useOpenFiles } from "../hooks/useOpenFiles.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
+import { ChangesTab } from "./ChangesTab.js";
 import { FileTree } from "./FileTree.js";
 import { RightPanel, type RightPanelTab } from "./RightPanel.js";
 
@@ -24,6 +25,7 @@ export interface CheckoutFilesProps {
 export function CheckoutFiles({ scope, onClose, onResize }: CheckoutFilesProps) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<RightPanelTab>("files");
+  const [shownRef, setShownRef] = useState<ChangeRef>("worktree");
   const openFiles = useOpenFiles();
 
   const changes = useCheckoutChanges(scope, "worktree");
@@ -46,6 +48,13 @@ export function CheckoutFiles({ scope, onClose, onResize }: CheckoutFilesProps) 
       onClose={onClose}
       onResize={onResize}
       footLeft={changes.isError ? "não deu para ler o checkout" : undefined}
+      footRight={
+        tab === "changes"
+          ? shownRef === "worktree"
+            ? "árvore de trabalho vs HEAD"
+            : `vs ${changes.data?.baseBranch ?? "base"}`
+          : undefined
+      }
     >
       {tab === "files" ? (
         <FileTree
@@ -55,7 +64,12 @@ export function CheckoutFiles({ scope, onClose, onResize }: CheckoutFilesProps) 
           statusOf={(path) => statusByPath.get(path)}
         />
       ) : (
-        <div className="rp__scroll" />
+        <ChangesTab
+          scope={scope}
+          openPath={active?.view === "patch" ? active.path : null}
+          onOpenPatch={(path, ref) => openFiles.open({ path, view: "patch", ref })}
+          onRefChange={setShownRef}
+        />
       )}
     </RightPanel>
   );
