@@ -36,14 +36,19 @@ describe("execGit", () => {
   });
 
   it("reports a command that hung instead of waiting forever", async () => {
-    // A repository needing credentials would otherwise block the daemon. Ten
-    // milliseconds is not a realistic budget for any real command, which is the
-    // point: it forces the timeout path.
+    // A repository needing credentials would otherwise block the daemon.
+    //
+    // `hash-object --stdin` blocks on input that never comes, so the timeout is
+    // the only way out — deterministic on any machine. The first version raced
+    // `git log` against a 1ms budget and lost on Linux, where the command
+    // finished before the timer fired and the test failed asking why a hung
+    // command had answered.
     const repo = await createRepo();
 
-    await expect(
-      execGit(["log", "--all"], { cwd: repo, timeoutMs: 1 }),
-    ).rejects.toMatchObject({ code: "GIT_FAILED" });
+    const failure = execGit(["hash-object", "--stdin"], { cwd: repo, timeoutMs: 50 });
+
+    await expect(failure).rejects.toMatchObject({ code: "GIT_FAILED" });
+    await expect(failure).rejects.toThrow(/não respondeu a tempo/);
   });
 
   it("does not swallow a non-zero exit with empty stderr", async () => {

@@ -29,13 +29,30 @@ async function waitForHealth(url: string, timeoutMs = 30_000): Promise<void> {
   }
 }
 
+/**
+ * Stops the daemon *and* whatever pnpm put between us and it.
+ *
+ * `pnpm --filter … start` is a process that spawns tsx, which spawns the
+ * daemon. Signalling only the first one leaves the daemon alive on Linux: the
+ * next `startDaemon` then finds the port taken, health answers from the old
+ * process, and a test about restarting never restarts anything — it reads the
+ * state of a daemon that never rebooted. Signalling the whole group is what
+ * makes "stop" mean stop.
+ */
 function stopProcess(child: ChildProcess): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+
   return new Promise<void>((resolve) => {
     child.once("exit", () => resolve());
     // SIGTERM, not SIGKILL: the graceful path is what closes the database and
     // kills the children, and skipping it would test a crash instead.
-    child.kill("SIGTERM");
+    try {
+      // Negative pid = the group, which `detached: true` gave this child.
+      if (child.pid !== undefined) process.kill(-child.pid, "SIGTERM");
+      else child.kill("SIGTERM");
+    } catch {
+      child.kill("SIGTERM");
+    }
   });
 }
 
@@ -53,6 +70,8 @@ export async function startDaemon(options: {
       SHELL: options.shell ?? "/bin/sh",
     },
     stdio: "ignore",
+    // Its own process group, so stopping it can reach the daemon underneath.
+    detached: true,
   });
 
   const url = `http://127.0.0.1:${options.port}`;
