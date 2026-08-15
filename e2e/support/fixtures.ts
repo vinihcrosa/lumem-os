@@ -16,6 +16,9 @@ export const E2E_FIXTURE_REPO = join(E2E_FIXTURE_DIR, "repo");
 /** A second repository, so specs sharing a daemon cannot collide on branches. */
 export const E2E_FIXTURE_REPO_ALT = join(E2E_FIXTURE_DIR, "repo-alt");
 
+/** A third, for the right panel: it needs a tree to walk and a file to read. */
+export const E2E_FIXTURE_REPO_FILES = join(E2E_FIXTURE_DIR, "repo-files");
+
 /** An "agent CLI" that echoes what it is given. Never the real `claude`. */
 export const E2E_FIXTURE_AGENT = join(E2E_FIXTURE_DIR, "bin", "fake-agent");
 
@@ -43,13 +46,23 @@ function git(cwd: string, ...args: string[]): void {
 export function createFixtures(): void {
   rmSync(E2E_FIXTURE_DIR, { recursive: true, force: true });
 
-  for (const repo of [E2E_FIXTURE_REPO, E2E_FIXTURE_REPO_ALT]) {
+  for (const repo of [E2E_FIXTURE_REPO, E2E_FIXTURE_REPO_ALT, E2E_FIXTURE_REPO_FILES]) {
     mkdirSync(repo, { recursive: true });
     git(repo, "init", "--initial-branch", "main", ".");
     writeFileSync(join(repo, "README.md"), "# fixture\n");
     git(repo, "add", "README.md");
     git(repo, "commit", "-m", "initial");
   }
+
+  // Somewhere for the files column to walk into, with a line worth reading at
+  // the end of it. Committed, so the checkout starts clean.
+  mkdirSync(join(E2E_FIXTURE_REPO_FILES, "src", "lore"), { recursive: true });
+  writeFileSync(
+    join(E2E_FIXTURE_REPO_FILES, "src", "lore", "loader.ts"),
+    'export const CARIMBO = "lido pela coluna";\n',
+  );
+  git(E2E_FIXTURE_REPO_FILES, "add", "-A");
+  git(E2E_FIXTURE_REPO_FILES, "commit", "-m", "arquivos para a coluna");
 
   const binDir = join(E2E_FIXTURE_DIR, "bin");
   mkdirSync(binDir, { recursive: true });
