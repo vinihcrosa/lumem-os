@@ -8,6 +8,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "postinstall": "tsx scripts/run-ensure-pty-helper.ts",
     "dev": "turbo dev",
     "build": "turbo build",
     "typecheck": "tsc -p tsconfig.json --noEmit && turbo typecheck",
