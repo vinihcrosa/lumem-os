@@ -79,8 +79,8 @@ Sucede a `worktree-tabs`. Uma terceira coluna, à direita, com os arquivos do ch
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/right-panel/prd.md) | Escopo, a segurança do caminho, os tokens novos, o que a renderização achou, riscos |
-| [open-questions.md](prd/right-panel/open-questions.md) | 9 perguntas, 4 respondidas |
-| [tasks.md](prd/right-panel/tasks.md) | 5 decisões e 10 tasks em 4 fases, servidor antes de cliente |
+| [open-questions.md](prd/right-panel/open-questions.md) | 10 perguntas, 5 respondidas |
+| [tasks.md](prd/right-panel/tasks.md) | 5 decisões e 10 tasks em 4 fases — todas entregues — mais o que a execução achou |
 
 ---
 

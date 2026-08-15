@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Protótipo:** `packages/web/prototype/lumem-right-panel.html` — o desenho está fechado e verificado; as tasks de cliente portam o que está lá
 **Sucede:** [worktree-tabs](../worktree-tabs/tasks.md)
-**Status:** não iniciada — 0 de 10
+**Status:** concluída — 10 de 10, gate cheio verde (685 unit/integration + 12 e2e)
 **Total:** 10 tasks em 4 fases
 
 > **Já entregue com o desenho:** os tokens de `syntax/*`, `git/*-subtle`, `git/untracked`, `panel/right*` e `gutter/line` entraram no gerador e foram regerados, com a suíte de contraste em 46 pares. Nenhuma task precisa criá-los — e nenhuma pode escrever `tokens.css` à mão.
@@ -73,14 +73,14 @@ Não existe procedure de escrita para revisar depois.
 **Depends on**: nada
 
 **Done when**:
-- [ ] `resolveScope` sai de `routers/session.ts` para módulo próprio, sem mudar comportamento; o router de sessão passa a importá-lo
-- [ ] Caminho absoluto é recusado
-- [ ] `..` é recusado **depois** de normalizar (`a/../../b` morre)
-- [ ] Verificação final por `realpath` com separador, não por prefixo de string — `/repo-malicioso` não passa como filho de `/repo`
-- [ ] Symlink que resolve para fora da raiz é reconhecido como tal, com erro próprio ("aponta para fora do checkout")
-- [ ] Checkout ausente do disco vira `DomainError`, não `ENOENT` cru
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 6 casos — absoluto, `..` normalizado, prefixo-irmão, symlink de verdade escapando, symlink de verdade interno (que **passa**), raiz ausente
+- [x] `resolveScope` sai de `routers/session.ts` para módulo próprio, sem mudar comportamento; o router de sessão passa a importá-lo
+- [x] Caminho absoluto é recusado
+- [x] `..` é recusado **depois** de normalizar (`a/../../b` morre)
+- [x] Verificação final por `realpath` com separador, não por prefixo de string — `/repo-malicioso` não passa como filho de `/repo`
+- [x] Symlink que resolve para fora da raiz é reconhecido como tal, com erro próprio ("aponta para fora do checkout")
+- [x] Checkout ausente do disco vira `DomainError`, não `ENOENT` cru
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 6 casos — absoluto, `..` normalizado, prefixo-irmão, symlink de verdade escapando, symlink de verdade interno (que **passa**), raiz ausente
 
 **Tests**: unit, com filesystem de verdade — symlink não se simula, pela mesma política que `testing.md` aplica ao git
 **Gate**: quick
@@ -95,14 +95,14 @@ Não existe procedure de escrita para revisar depois.
 **Depends on**: R1
 
 **Done when**:
-- [ ] `listDir` devolve entradas com nome, tipo (`dir` | `file` | `other`), tamanho e se é symlink
-- [ ] Diretórios antes de arquivos, cada grupo em ordem alfabética estável
-- [ ] Teto de entradas por diretório, com `truncated: true` na resposta — quem consome sabe que faltou
-- [ ] `readFile` devolve uma de três formas: texto, `binary`, ou `too-large` com o tamanho e o teto
-- [ ] Binário detectado por byte NUL nos primeiros KiB, não por extensão
-- [ ] Os tetos ficam num só lugar do módulo, nomeados ([Q8](open-questions.md))
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 5 casos — ordem, truncamento, texto, binário, grande demais
+- [x] `listDir` devolve entradas com nome, tipo (`dir` | `file` | `other`), tamanho e se é symlink
+- [x] Diretórios antes de arquivos, cada grupo em ordem alfabética estável
+- [x] Teto de entradas por diretório, com `truncated: true` na resposta — quem consome sabe que faltou
+- [x] `readFile` devolve uma de três formas: texto, `binary`, ou `too-large` com o tamanho e o teto
+- [x] Binário detectado por byte NUL nos primeiros KiB, não por extensão
+- [x] Os tetos ficam num só lugar do módulo, nomeados ([Q8](open-questions.md))
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 5 casos — ordem, truncamento, texto, binário, grande demais
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(server): read directories and files inside a checkout`
@@ -116,11 +116,11 @@ Não existe procedure de escrita para revisar depois.
 **Depends on**: R2
 
 **Done when**:
-- [ ] `files.listDir({ scopeType, scopeId, path })` e `files.read({ scopeType, scopeId, path })`
-- [ ] Escopo resolve por `resolveScope`: `worktree` → path da worktree, `project` → path do projeto
-- [ ] Escopo inexistente responde `NOT_FOUND`; caminho recusado responde erro de domínio com a razão legível
-- [ ] Nenhuma procedure de escrita (D5)
-- [ ] Gate: `pnpm gate:quick`
+- [x] `files.listDir({ scopeType, scopeId, path })` e `files.read({ scopeType, scopeId, path })`
+- [x] Escopo resolve por `resolveScope`: `worktree` → path da worktree, `project` → path do projeto
+- [x] Escopo inexistente responde `NOT_FOUND`; caminho recusado responde erro de domínio com a razão legível
+- [x] Nenhuma procedure de escrita (D5)
+- [x] Gate: `pnpm gate:quick`
 
 **Tests**: integration (caller tRPC + repositório de verdade) · **Gate**: quick
 **Commit**: `feat(server): expose the checkout's files over trpc`
@@ -134,16 +134,16 @@ Não existe procedure de escrita para revisar depois.
 **Depends on**: nada — pode ir em paralelo com R1–R3
 
 **Done when**:
-- [ ] `listChanges(path, { ref, baseBranch })` devolve `{ path, oldPath?, status, additions, deletions, binary }[]`, com `ref` sendo `worktree` ou `base` (D1)
-- [ ] `não commitado`: `diff --numstat HEAD` mais os não rastreados do `status --porcelain -z`
-- [ ] `vs base`: `merge-base` resolvido antes, e o diff feito contra a árvore de trabalho
-- [ ] Renomeado carrega o caminho antigo; binário vem marcado (o `--numstat` do git imprime `-` nas contagens)
-- [ ] `filePatch(path, { ref, file })` devolve o patch unificado **de um arquivo só** (F4.4)
-- [ ] HEAD não nascido (repositório sem commit) responde "tudo é novo" em vez do erro do git
-- [ ] Branch base inexistente vira uma recusa nomeada, não uma falha genérica (F4.6)
-- [ ] Caminho com espaço e com acento sobrevive à ida e à volta — `-z` onde o git oferece
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 7 casos — modificado, adicionado, apagado, não rastreado, renomeado, binário, HEAD não nascido
+- [x] `listChanges(path, { ref, baseBranch })` devolve `{ path, oldPath?, status, additions, deletions, binary }[]`, com `ref` sendo `worktree` ou `base` (D1)
+- [x] `não commitado`: `diff --numstat HEAD` mais os não rastreados do `status --porcelain -z`
+- [x] `vs base`: `merge-base` resolvido antes, e o diff feito contra a árvore de trabalho
+- [x] Renomeado carrega o caminho antigo; binário vem marcado (o `--numstat` do git imprime `-` nas contagens)
+- [x] `filePatch(path, { ref, file })` devolve o patch unificado **de um arquivo só** (F4.4)
+- [x] HEAD não nascido (repositório sem commit) responde "tudo é novo" em vez do erro do git
+- [x] Branch base inexistente vira uma recusa nomeada, não uma falha genérica (F4.6)
+- [x] Caminho com espaço e com acento sobrevive à ida e à volta — `-z` onde o git oferece
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 7 casos — modificado, adicionado, apagado, não rastreado, renomeado, binário, HEAD não nascido
 
 **Tests**: unit contra repositório de verdade (`testing/git-fixtures.ts`), git nunca mockado · **Gate**: quick
 **Commit**: `feat(server): list and patch what changed in a checkout`
@@ -157,10 +157,10 @@ Não existe procedure de escrita para revisar depois.
 **Depends on**: R3, R4
 
 **Done when**:
-- [ ] `changes.list({ scopeType, scopeId, ref })` devolve os arquivos mais o `baseBranch` usado
-- [ ] `changes.patch({ scopeType, scopeId, ref, path })` — caminho passa pela mesma guarda da R1
-- [ ] Checkout ausente do disco responde o erro de domínio, não derruba o painel
-- [ ] Gate: `pnpm gate:quick`
+- [x] `changes.list({ scopeType, scopeId, ref })` devolve os arquivos mais o `baseBranch` usado
+- [x] `changes.patch({ scopeType, scopeId, ref, path })` — caminho passa pela mesma guarda da R1
+- [x] Checkout ausente do disco responde o erro de domínio, não derruba o painel
+- [x] Gate: `pnpm gate:quick`
 
 **Tests**: integration · **Gate**: quick
 **Commit**: `feat(server): expose the checkout's diff over trpc`
@@ -176,15 +176,15 @@ Não existe procedure de escrita para revisar depois.
 **Depends on**: nada do servidor
 
 **Done when**:
-- [ ] `AppShell` aceita um terceiro slot opcional; sem ele, a tela é exatamente a de hoje (o teste atual do shell continua passando sem mudança)
-- [ ] Botão na topbar colapsa e expande; estado persistido como o `useTreeExpansion` já faz
-- [ ] Largura arrastável entre mínimo e máximo, persistida
-- [ ] Redimensionar **e** colapsar disparam refit do terminal (F1.5)
-- [ ] Colapsada por padrão no primeiro uso
-- [ ] Faixa `Arquivos` / `Mudanças` usando `TabStrip` e `Tab`
-- [ ] `/styleguide` mostra a coluna em três estados: colapsada, estreita, larga
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 1 caso dedicado ao refit — é a regressão que estraga o terminal sem avisar
+- [x] `AppShell` aceita um terceiro slot opcional; sem ele, a tela é exatamente a de hoje (o teste atual do shell continua passando sem mudança)
+- [x] Botão na topbar colapsa e expande; estado persistido como o `useTreeExpansion` já faz
+- [x] Largura arrastável entre mínimo e máximo, persistida
+- [x] Redimensionar **e** colapsar disparam refit do terminal (F1.5)
+- [x] Colapsada por padrão no primeiro uso
+- [x] Faixa `Arquivos` / `Mudanças` usando `TabStrip` e `Tab`
+- [x] `/styleguide` mostra a coluna em três estados: colapsada, estreita, larga
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 1 caso dedicado ao refit — é a regressão que estraga o terminal sem avisar
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): a third column for the checkout's files`
@@ -200,14 +200,14 @@ Não existe procedure de escrita para revisar depois.
 **Depends on**: R3, R6
 
 **Done when**:
-- [ ] Expandir um diretório busca **só** aquele nível; colapsar não descarta o que já veio
-- [ ] Diretórios antes de arquivos (D2)
-- [ ] Listagem truncada aparece com a contagem e o motivo, ao pé do diretório (F2.4)
-- [ ] Marcador de status por arquivo, lido do mesmo cache que a aba de mudanças usa — não uma segunda chamada
-- [ ] Trocar de worktree zera a expansão (F2.6)
-- [ ] Recarregar por foco da janela, por `worktree.changed` e por botão ([Q6](open-questions.md))
-- [ ] Diretório vazio, sem permissão de leitura e ausente têm cada um sua frase
-- [ ] Gate: `pnpm gate:quick`
+- [x] Expandir um diretório busca **só** aquele nível; colapsar não descarta o que já veio
+- [x] Diretórios antes de arquivos (D2)
+- [x] Listagem truncada aparece com a contagem e o motivo, ao pé do diretório (F2.4)
+- [x] Marcador de status por arquivo, lido do mesmo cache que a aba de mudanças usa — não uma segunda chamada
+- [x] Trocar de worktree zera a expansão (F2.6)
+- [x] Recarregar por foco da janela, por `worktree.changed` e por botão ([Q6](open-questions.md))
+- [x] Diretório vazio, sem permissão de leitura e ausente têm cada um sua frase
+- [x] Gate: `pnpm gate:quick`
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): browse the checkout one level at a time`
@@ -221,18 +221,18 @@ Não existe procedure de escrita para revisar depois.
 **Depends on**: R7
 
 **Done when**:
-- [ ] Clicar num arquivo abre o conteúdo num **split da aba**, ao lado da sessão, com numeração de linha (D3.2)
-- [ ] A coluna não muda de conteúdo ao abrir: continua na árvore, com a linha aberta marcada
-- [ ] Split em 50/50, divisória arrastável, `terminal/min` e `viewer/min` respeitados
-- [ ] Abrir, fechar e arrastar o split remedem o terminal — mesma armadilha da R6
-- [ ] Trocar de aba de sessão troca o arquivo aberto junto; fechar a aba fecha o arquivo
-- [ ] Quebra ligada por padrão, continuação recuada, botão `⇄` desliga (D3.1)
-- [ ] Shiki com tema montado a partir de `tokens.ts` (D3), grammar carregado sob demanda pela extensão
-- [ ] Extensão desconhecida renderiza como texto puro, sem erro
-- [ ] `binary` e `too-large` têm cada um sua tela, com o caminho copiável
-- [ ] Voltar para a árvore preserva onde ela estava
-- [ ] **Tamanho do bundle medido e escrito no PRD** — antes e depois, com o número real
-- [ ] Gate: `pnpm gate:build` (é a task que traz dependência nova)
+- [x] Clicar num arquivo abre o conteúdo num **split da aba**, ao lado da sessão, com numeração de linha (D3.2)
+- [x] A coluna não muda de conteúdo ao abrir: continua na árvore, com a linha aberta marcada
+- [x] Split em 50/50, divisória arrastável, `terminal/min` e `viewer/min` respeitados
+- [x] Abrir, fechar e arrastar o split remedem o terminal — mesma armadilha da R6
+- [x] Trocar de aba de sessão troca o arquivo aberto junto; fechar a aba fecha o arquivo
+- [x] Quebra ligada por padrão, continuação recuada, botão `⇄` desliga (D3.1)
+- [x] Shiki com tema montado a partir de `tokens.ts` (D3), grammar carregado sob demanda pela extensão
+- [x] Extensão desconhecida renderiza como texto puro, sem erro
+- [x] `binary` e `too-large` têm cada um sua tela, com o caminho copiável
+- [x] Voltar para a árvore preserva onde ela estava
+- [x] **Tamanho do bundle medido e escrito no PRD** — antes e depois, com o número real
+- [x] Gate: `pnpm gate:build` (é a task que traz dependência nova)
 
 **Tests**: unit · **Gate**: build
 **Commit**: `feat(web): read a file with syntax highlighting`
@@ -246,13 +246,13 @@ Não existe procedure de escrita para revisar depois.
 **Depends on**: R5, R6
 
 **Done when**:
-- [ ] Alternador segmentado e compacto entre `não commitado` e `vs <base>` (D1)
-- [ ] Lista com status, `+n`/`−n` e caminho, tudo junto do nome; renomeado mostra de → para
-- [ ] Clicar abre o patch daquele arquivo no **mesmo split** do visualizador (D3.2), com a quebra da D3.1
-- [ ] Binário aparece na lista, sem patch
-- [ ] Base ausente desabilita só a vista `vs base`, com o motivo na tela (F4.6)
-- [ ] Vazio tem frase própria por vista (F4.7)
-- [ ] Gate: `pnpm gate:quick`
+- [x] Alternador segmentado e compacto entre `não commitado` e `vs <base>` (D1)
+- [x] Lista com status, `+n`/`−n` e caminho, tudo junto do nome; renomeado mostra de → para
+- [x] Clicar abre o patch daquele arquivo no **mesmo split** do visualizador (D3.2), com a quebra da D3.1
+- [x] Binário aparece na lista, sem patch
+- [x] Base ausente desabilita só a vista `vs base`, com o motivo na tela (F4.6)
+- [x] Vazio tem frase própria por vista (F4.7)
+- [x] Gate: `pnpm gate:quick`
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): read the checkout's diff without leaving the app`
@@ -268,11 +268,11 @@ Não existe procedure de escrita para revisar depois.
 **Depends on**: R8, R9
 
 **Done when**:
-- [ ] Abre a coluna, navega até um arquivo, abre e lê o conteúdo que o fixture escreveu — com o terminal da sessão ainda visível ao lado
-- [ ] Escreve num arquivo pelo terminal da sessão, recarrega e vê a mudança na aba `Mudanças`
-- [ ] Alternar entre as duas vistas mostra conjuntos diferentes de arquivos
-- [ ] Colapsar a coluna e abrir o split com um terminal aberto não deixam o terminal com largura errada
-- [ ] Gate: `pnpm gate:full`
+- [x] Abre a coluna, navega até um arquivo, abre e lê o conteúdo que o fixture escreveu — com o terminal da sessão ainda visível ao lado
+- [x] Escreve num arquivo pelo terminal da sessão, recarrega e vê a mudança na aba `Mudanças`
+- [x] Alternar entre as duas vistas mostra conjuntos diferentes de arquivos
+- [x] Colapsar a coluna e abrir o split com um terminal aberto não deixam o terminal com largura errada
+- [x] Gate: `pnpm gate:full`
 
 **Tests**: e2e · **Gate**: full
 **Commit**: `test(e2e): browse files and diff from the right panel`
@@ -288,3 +288,24 @@ Não existe procedure de escrita para revisar depois.
 | Terminal com largura errada | Agora são **duas** coisas que mexem na caixa que o `FitAddon` mede: a coluna e o split | *Done when* em R6, R8 e R10 |
 | Diretório com dez mil entradas | `node_modules/.pnpm` | Teto na R2, truncamento dito na R7 |
 | Patch gigante | `maxBuffer` de 16 MiB no `execGit` | Patch por arquivo desde a R4 |
+
+
+---
+
+## O que a execução achou
+
+**`git diff --no-index` entrega o diff como falha.** Ele sai com código 1 sempre que há diferença — que é o caso normal para um arquivo não rastreado. O `execGit` transforma isso em `DomainError`, então o diff só sobrevive porque o erro original vai no `cause`. Sem isso, todo arquivo novo apareceria com `+0`.
+
+**O symlink que escapa raramente é o último componente.** `chaves/id_rsa` sai do checkout porque `chaves` é o link, não `id_rsa` — e um `lstat` no caminho pedido diz que ele não é link nenhum. A mensagem passou a sair da comparação entre o caminho literal e o que o `realpath` devolveu.
+
+**O patch de um arquivo apagado quebrou a guarda.** `resolveInsideRoot` exige que o alvo exista, e um arquivo removido é justamente um caminho que não está mais lá. As regras 1 e 2 viraram `normalizeRelative`, usada por quem não precisa de existência; a resolução completa continua para quem lê o disco.
+
+**`import("shiki/langs")` custa 9,1 MB.** O registry inteiro vira chunk — emacs-lisp, cpp, wolfram. Trocado por 16 imports próprios, o `dist` caiu para 1,9 MB e o bundle inicial subiu só 12,2 KB. Efeito colateral: `shiki/langs/ignore.mjs` não existe com esse nome e o build quebrou, então `.gitignore` ficou sem realce por ora.
+
+**O alternador se renomeava na hora errada.** Com a vista `vs main` recusada, `baseBranch` some da resposta e o botão virava "vs base" — tirando da tela exatamente a palavra sobre a qual o aviso fala. O nome da branch passou a ser lembrado.
+
+**O teto de entradas virou parâmetro por chamada.** O "listar assim mesmo" que o protótipo desenhou não tinha como funcionar com um teto fixo no serviço.
+
+**Um `ResizeObserver` resolveu as duas metades do risco.** A coluna e o split mudam a caixa do xterm com a janela parada. Observar o próprio host cobre os dois — e cobre o próximo, que ainda não existe.
+
+**No e2e, o glifo `aria-hidden` some do nome acessível.** O botão `▤ arquivos` se chama só "arquivos" — que era também o nome do projeto de fixture, e as duas coisas colidiam. E a linha de um arquivo carrega tamanho e marcador, então o seletor precisa ancorar no começo em vez de casar exato.
