@@ -22,10 +22,15 @@ function renderProbe() {
       <Probe />
     </QueryClientProvider>,
   );
-  const handlers = trpc.events.onChange.subscribe.mock.calls[0]?.[1] as {
-    onData: (event: LumemEvent) => void;
-    onConnectionStateChange: (state: { state: string }) => void;
-  };
+  // The mock is typed as taking no arguments; the real link passes handlers as
+  // the second one, and this is the only place that has to know that.
+  const [, handlers] = trpc.events.onChange.subscribe.mock.calls[0] as unknown as [
+    unknown,
+    {
+      onData: (event: LumemEvent) => void;
+      onConnectionStateChange: (state: { state: string }) => void;
+    },
+  ];
   return { ...result, queryClient, invalidate, handlers };
 }
 
