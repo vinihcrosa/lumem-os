@@ -1,6 +1,6 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé e vestido pela [ui-shell](prd/ui-shell/tasks.md).
+Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), e sendo reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md).
 
 ---
 
@@ -63,6 +63,14 @@ Veste as funções que o walking-skeleton deixou de pé. Não adiciona nenhuma. 
 | [prd.md](prd/ui-shell/prd.md) | Fundação de tokens, escopo, o que a renderização achou, riscos |
 | [open-questions.md](prd/ui-shell/open-questions.md) | 12 perguntas de desenho, 10 respondidas |
 | [tasks.md](prd/ui-shell/tasks.md) | 11 tasks em 4 fases, das primitivas pras telas — todas entregues |
+
+### [worktree-tabs/](prd/worktree-tabs/) — a sessão vira aba
+
+Sucede a `ui-shell`. A sidebar para na worktree e as sessões daquela worktree viram abas; o checkout principal entra na lista como `local`. Protótipo em `packages/web/prototype/lumem-tabs.html`.
+
+| Arquivo | O quê |
+|---|---|
+| [tasks.md](prd/worktree-tabs/tasks.md) | 4 decisões e 7 tasks |
 
 ---
 

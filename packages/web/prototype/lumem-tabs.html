@@ -625,6 +625,9 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   border-radius: var(--radius-full);
   background: var(--color-session-running);
 }
+/* Nao existe aba de sessao encerrada — o dot morto so aparece no instante
+   entre o processo sair e a aba fechar. O estado vive na lista da aba de
+   contexto, de onde a sessao pode ser reaberta enquanto o buffer existir. */
 .stab__dot--exited { background: var(--color-session-exited); }
 .stab__dot--failed { background: var(--color-session-failed); }
 .stab__close {
@@ -753,6 +756,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .item__age { flex: none; min-width: var(--space-64); text-align: right; font: var(--text-caption); color: var(--color-text-tertiary); }
 .state--running { color: var(--color-session-running); }
 .state--exited { color: var(--color-session-exited); }
+.state--failed { color: var(--color-session-failed); }
+.item__act { flex: none; padding-left: var(--space-8); }
 
 .banner {
   display: flex;
@@ -882,8 +887,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
           <button class="stab stab--active"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__dot"></span><span class="stab__close">✕</span></button>
           <button class="stab"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__ord">2</span><span class="stab__dot"></span><span class="stab__close">✕</span></button>
           <button class="stab"><span class="glyph glyph--shell">●</span>shell<span class="stab__dot"></span><span class="stab__close">✕</span></button>
-          <button class="stab"><span class="glyph glyph--shell">●</span>shell<span class="stab__ord">2</span><span class="stab__dot stab__dot--exited"></span><span class="stab__close">✕</span></button>
-          </div>
+                    </div>
           <span class="menu-wrap"><button class="tabs__new">＋ nova sessão</button></span>
         </div>
 
@@ -949,8 +953,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
           <button class="stab"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__dot"></span><span class="stab__close">✕</span></button>
           <button class="stab"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__ord">2</span><span class="stab__dot"></span><span class="stab__close">✕</span></button>
           <button class="stab"><span class="glyph glyph--shell">●</span>shell<span class="stab__dot"></span><span class="stab__close">✕</span></button>
-          <button class="stab"><span class="glyph glyph--shell">●</span>shell<span class="stab__ord">2</span><span class="stab__dot stab__dot--exited"></span><span class="stab__close">✕</span></button>
-          </div>
+                    </div>
           <span class="menu-wrap">
             <button class="tabs__new">＋ nova sessão</button>
             <div class="menu">
@@ -975,11 +978,12 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
           </div>
 
           <section class="section">
-            <div class="section__head"><span class="section__title">Sessões</span><span class="section__count">4 · 3 rodando</span></div>
+            <div class="section__head"><span class="section__title">Sessões</span><span class="section__count">5 · 3 rodando</span></div>
             <div class="item"><span class="glyph glyph--agent">◆</span><span class="item__name">claude-code</span><span class="item__detail">claude</span><span class="item__state state--running">running</span><span class="item__age">12 min</span></div>
             <div class="item"><span class="glyph glyph--agent">◆</span><span class="item__name">claude-code</span><span class="item__detail">claude</span><span class="item__state state--running">running</span><span class="item__age">4 min</span></div>
             <div class="item"><span class="glyph glyph--shell">●</span><span class="item__name">shell</span><span class="item__detail">/bin/zsh -l</span><span class="item__state state--running">running</span><span class="item__age">2 h</span></div>
-            <div class="item"><span class="glyph glyph--shell">●</span><span class="item__name">shell</span><span class="item__detail">/bin/zsh -l</span><span class="item__state state--exited">exited (0)</span><span class="item__age">há 40 min</span></div>
+            <div class="item"><span class="glyph glyph--shell">●</span><span class="item__name">shell</span><span class="item__detail">/bin/zsh -l</span><span class="item__state state--exited">exited (0)</span><span class="item__age">há 40 min</span><span class="item__act"><button class="btn btn--ghost btn--sm">reabrir</button></span></div>
+            <div class="item"><span class="glyph glyph--agent">◆</span><span class="item__name">claude-code</span><span class="item__detail">claude</span><span class="item__state state--failed">exited (1)</span><span class="item__age">há 2 h</span><span class="item__act"><button class="btn btn--ghost btn--sm">reabrir</button></span></div>
           </section>
         </div>
       </main>
@@ -1104,17 +1108,16 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
       </div>
 
       <div class="case">
-        <div class="case__label">Faixa de abas — <b>homônimos precisam de índice</b> · pergunta aberta</div>
+        <div class="case__label">Faixa de abas — <b>só o que está vivo</b>, homônimos ganham índice</div>
         <div class="case__frame">
           <div class="tabs-bar"><div class="tabs">
             <button class="stab stab--overview">contexto</button>
             <span class="tabs__sep"></span>
             <button class="stab stab--active"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__dot"></span><span class="stab__close">✕</span></button>
             <button class="stab"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__ord">2</span><span class="stab__dot"></span><span class="stab__close">✕</span></button>
-            <button class="stab"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__ord">3</span><span class="stab__dot stab__dot--failed"></span><span class="stab__close">✕</span></button>
+            <button class="stab"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__ord">3</span><span class="stab__dot"></span><span class="stab__close">✕</span></button>
             <button class="stab"><span class="glyph glyph--shell">●</span>shell<span class="stab__dot"></span><span class="stab__close">✕</span></button>
-            <button class="stab"><span class="glyph glyph--shell">●</span>shell<span class="stab__ord">2</span><span class="stab__dot stab__dot--exited"></span><span class="stab__close">✕</span></button>
-            </div>
+                        </div>
             <span class="menu-wrap"><button class="tabs__new">＋ nova sessão</button></span>
           </div>
         </div>
