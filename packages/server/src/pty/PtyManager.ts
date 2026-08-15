@@ -37,6 +37,15 @@ export interface SessionInfo {
 export type DataListener = (chunk: string) => void;
 export type ExitListener = (exit: { exitCode: number; signal: number | null }) => void;
 
+/**
+ * node-pty reports 0 — not undefined — for a process that exited on its own.
+ * Leaving that through would make every consumer re-derive that 0 means "no
+ * signal", and the first one to forget prints "killed by signal 0".
+ */
+function normalizeSignal(signal: number | undefined): number | null {
+  return signal ? signal : null;
+}
+
 interface Session {
   info: SessionInfo;
   pty: IPty;
@@ -136,10 +145,10 @@ export class PtyManager {
     pty.onExit(({ exitCode, signal }) => {
       session.info.state = "exited";
       session.info.exitCode = exitCode;
-      session.info.signal = signal ?? null;
+      session.info.signal = normalizeSignal(signal);
       for (const listener of [...session.exitListeners]) {
         try {
-          listener({ exitCode, signal: signal ?? null });
+          listener({ exitCode, signal: session.info.signal });
         } catch {
           /* same */
         }
@@ -221,7 +230,7 @@ export class PtyManager {
   /**
    * Kills every session and waits for them to actually die.
    *
-   * This is what `bootstrap`'s `beforeClose` calls: `app.close()` knows nothing
+   * This is what `bootstrap` calls on shutdown: `app.close()` knows nothing
    * about these children, and a daemon that exits without them leaves orphaned
    * shells attached to nothing.
    */

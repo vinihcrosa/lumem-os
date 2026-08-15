@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 
 import type { ServerConfig } from "./config.js";
+import { PtyManager } from "./pty/PtyManager.js";
 import { createServer } from "./server.js";
 import { createShutdownHandler } from "./shutdown.js";
 import { installSignalHandlers, type SignalSource } from "./signals.js";
@@ -12,12 +13,11 @@ export interface BootstrapOptions {
   exit?: (code: number) => void;
   logger?: boolean;
   /**
-   * Runs before the HTTP server closes, on shutdown.
-   *
-   * `app.close()` knows nothing about children the daemon spawned. Once PTYs
-   * exist, SIGTERM would close the HTTP server and orphan every shell — this is
-   * the seam where `ptyManager.killAll()` goes.
+   * Owner of the daemon's PTYs. Created here by default; injected by tests that
+   * need to inspect the sessions after shutdown.
    */
+  ptyManager?: PtyManager;
+  /** Extra shutdown work, run after the children die and before the server closes. */
   beforeClose?: () => Promise<void>;
 }
 
@@ -34,15 +34,18 @@ export async function bootstrap({
   signalSource = process,
   exit = (code) => process.exit(code),
   logger = true,
+  ptyManager = new PtyManager(),
   beforeClose,
 }: BootstrapOptions): Promise<FastifyInstance> {
-  const app = await createServer({ config, logger });
+  const app = await createServer({ config, ptyManager, logger });
 
   const target = {
     log: app.log,
     close: async () => {
-      // Children first: closing the HTTP server does not touch them, and once
-      // the process is gone nothing will.
+      // Children first, and before any optional hook that might throw: closing
+      // the HTTP server does not touch them, and once the process is gone
+      // nothing will — SIGTERM would orphan every shell the daemon spawned.
+      await ptyManager.killAll();
       if (beforeClose) await beforeClose();
       await app.close();
     },

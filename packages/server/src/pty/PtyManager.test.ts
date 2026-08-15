@@ -267,6 +267,26 @@ describe("listeners", () => {
     await vi.waitFor(() => expect(good.join("")).toContain("resilient"), { timeout: 10_000 });
   });
 
+  it("reports no signal when the process exits on its own", async () => {
+    // node-pty says 0 here, and 0 is a valid signal number to anyone reading
+    // the field without knowing that.
+    const manager = makeManager();
+    const session = manager.spawn({ command: "sh", args: ["-c", "exit 0"], cwd: tmpdir() });
+    await waitForExit(manager, session.id);
+
+    expect(manager.get(session.id)?.signal).toBeNull();
+  });
+
+  it("reports the signal that killed the process", async () => {
+    const manager = makeManager();
+    const session = manager.spawn({ command: "sh", args: ["-c", "sleep 30"], cwd: tmpdir() });
+
+    manager.kill(session.id, "SIGKILL");
+    await waitForExit(manager, session.id);
+
+    expect(manager.get(session.id)?.signal).toBeGreaterThan(0);
+  });
+
   it("notifies on exit", async () => {
     const manager = makeManager();
     const session = manager.spawn({ command: "sh", args: ["-c", "exit 7"], cwd: tmpdir() });
@@ -358,7 +378,7 @@ describe("killAll", () => {
 
     await manager.killAll();
 
-    // This is what bootstrap's beforeClose calls: a daemon exiting without it
+    // This is what bootstrap calls on shutdown: a daemon exiting without it
     // leaves orphaned shells attached to nothing.
     expect(manager.get(a.id)?.state).toBe("exited");
     expect(manager.get(b.id)?.state).toBe("exited");

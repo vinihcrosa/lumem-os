@@ -3,16 +3,20 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { loadConfig } from "./config.js";
+import { PtyManager } from "./pty/PtyManager.js";
 import { createServer } from "./server.js";
 
 let app: FastifyInstance;
+let ptyManager: PtyManager;
 
 beforeEach(async () => {
-  app = await createServer({ config: loadConfig() });
+  ptyManager = new PtyManager();
+  app = await createServer({ config: loadConfig(), ptyManager });
 });
 
 afterEach(async () => {
   await app.close();
+  await ptyManager.killAll();
 });
 
 describe("health", () => {

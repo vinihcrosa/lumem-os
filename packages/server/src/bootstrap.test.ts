@@ -1,15 +1,24 @@
 import { EventEmitter } from "node:events";
+import { tmpdir } from "node:os";
 
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { bootstrap } from "./bootstrap.js";
 import { loadConfig } from "./config.js";
+import { PtyManager } from "./pty/PtyManager.js";
 import { SHUTDOWN_SIGNALS } from "./signals.js";
 
 const started: FastifyInstance[] = [];
+const managers: PtyManager[] = [];
 
-async function boot(overrides: { port?: string; beforeClose?: () => Promise<void> } = {}) {
+async function boot(
+  overrides: {
+    port?: string;
+    beforeClose?: () => Promise<void>;
+    ptyManager?: PtyManager;
+  } = {},
+) {
   const signalSource = new EventEmitter();
   const exit = vi.fn();
   // Port 0 lets the OS pick a free one — no fixed port to collide with.
@@ -20,6 +29,7 @@ async function boot(overrides: { port?: string; beforeClose?: () => Promise<void
     signalSource,
     exit,
     logger: false,
+    ...(overrides.ptyManager ? { ptyManager: overrides.ptyManager } : {}),
     ...(overrides.beforeClose ? { beforeClose: overrides.beforeClose } : {}),
   });
   started.push(app);
@@ -29,6 +39,7 @@ async function boot(overrides: { port?: string; beforeClose?: () => Promise<void
 
 afterEach(async () => {
   await Promise.all(started.splice(0).map((app) => app.close()));
+  await Promise.all(managers.splice(0).map((manager) => manager.killAll()));
 });
 
 describe("bootstrap", () => {
@@ -65,9 +76,21 @@ describe("bootstrap", () => {
     expect(app.server.listening).toBe(false);
   });
 
-  it("runs beforeClose before closing the server", async () => {
-    // The seam for killing PTY children. app.close() knows nothing about them,
-    // so without this SIGTERM orphans every shell the daemon spawned.
+  it("kills the PTY children before closing the server", async () => {
+    // app.close() knows nothing about them, so without this SIGTERM orphans
+    // every shell the daemon spawned.
+    const ptyManager = new PtyManager();
+    managers.push(ptyManager);
+    const { signalSource, exit } = await boot({ ptyManager });
+    const session = ptyManager.spawn({ command: "sh", args: ["-c", "sleep 30"], cwd: tmpdir() });
+
+    signalSource.emit("SIGTERM");
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+
+    expect(ptyManager.get(session.id)?.state).toBe("exited");
+  });
+
+  it("runs beforeClose while the server is still listening", async () => {
     let appRef: FastifyInstance | undefined;
     const seen: { calls: number; listeningWhenCalled?: boolean } = { calls: 0 };
 
