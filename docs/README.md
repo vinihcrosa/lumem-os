@@ -1,6 +1,6 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), e sendo reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md).
+Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), e ganhando olhos para o repositório na [right-panel](prd/right-panel/tasks.md).
 
 ---
 
@@ -71,6 +71,16 @@ Sucede a `ui-shell`. A sidebar para na worktree e as sessões daquela worktree v
 | Arquivo | O quê |
 |---|---|
 | [tasks.md](prd/worktree-tabs/tasks.md) | 4 decisões e 7 tasks |
+
+### [right-panel/](prd/right-panel/) — arquivos e diff
+
+Sucede a `worktree-tabs`. Uma terceira coluna, à direita, com os arquivos do checkout selecionado e o que mudou nele. É a primeira feature em que o daemon lê **conteúdo** do repositório, e não só metadado. Protótipo em `packages/web/prototype/lumem-right-panel.html`.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/right-panel/prd.md) | Escopo, a segurança do caminho, os tokens novos, o que a renderização achou, riscos |
+| [open-questions.md](prd/right-panel/open-questions.md) | 9 perguntas, 4 respondidas |
+| [tasks.md](prd/right-panel/tasks.md) | 5 decisões e 10 tasks em 4 fases, servidor antes de cliente |
 
 ---
 
