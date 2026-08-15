@@ -35,3 +35,66 @@
   background: var(--color-bg-hover);
   color: var(--color-text-primary);
 }
+
+/* ------------------------------------------------- seletor de workspace */
+.ws {
+  flex: none;
+  padding: var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.ws__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding-left: var(--space-8);
+  border-radius: var(--radius-md);
+}
+.ws__bar:hover { background: var(--color-bg-hover); }
+
+.ws__glyph {
+  flex: none;
+  color: var(--color-scope-workspace);
+  font-size: var(--size-icon-sm);
+  line-height: 1;
+}
+
+/* `appearance: none` tira a caixa do sistema e deixa o controle nativo por
+   baixo: teclado, leitor de tela e o popup da plataforma continuam de graça.
+   Q8 registra por que não é um menu construído à mão. */
+.ws__select {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--space-4);
+  appearance: none;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font: var(--text-label-md);
+  cursor: pointer;
+}
+/* O popup do sistema é claro; sem isto o nome some sobre o próprio menu. */
+.ws__select option {
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+}
+
+.ws__form { margin-top: var(--space-8); }
+.ws__actions { display: flex; gap: var(--space-6); }
+
+.ws__error {
+  margin: var(--space-8) 0 0;
+  font: var(--text-body-sm);
+  color: var(--color-text-danger);
+}
+
+.ws__caret {
+  flex: none;
+  margin-left: calc(-1 * var(--space-4));
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-xs);
+  pointer-events: none;
+}
