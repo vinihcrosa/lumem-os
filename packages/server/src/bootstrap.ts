@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 
+import { reconcileWorktrees } from "./boot/reconcile.js";
 import type { ServerConfig } from "./config.js";
 import { openDatabase, type Database_ } from "./db/index.js";
 import { PtyManager } from "./pty/PtyManager.js";
@@ -64,6 +65,11 @@ export async function bootstrap({
   };
 
   installSignalHandlers(signalSource, createShutdownHandler({ target, exit }));
+
+  // Before listening, deliberately: a client that connects mid-reconciliation
+  // would read worktree states that are about to change under it.
+  const reconciled = await reconcileWorktrees({ db: openedDatabase.db, log: app.log });
+  app.log.info(reconciled, "reconciliação de boot");
 
   try {
     await app.listen({ port: config.port, host: config.host });

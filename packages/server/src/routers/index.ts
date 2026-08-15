@@ -4,6 +4,7 @@ import { publicProcedure, router } from "../trpc.js";
 import { projectRouter } from "./project.js";
 import { ptyRouter } from "./pty.js";
 import { workspaceRouter } from "./workspace.js";
+import { worktreeRouter } from "./worktree.js";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({
@@ -13,6 +14,7 @@ export const appRouter = router({
   project: projectRouter,
   pty: ptyRouter,
   workspace: workspaceRouter,
+  worktree: worktreeRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -8,6 +8,9 @@ import { bootstrap } from "./bootstrap.js";
 import { loadConfig } from "./config.js";
 import { openTestDb, type TestDb } from "./db/testing.js";
 import { PtyManager } from "./pty/PtyManager.js";
+import { createProjectRepository } from "./repositories/project.js";
+import { createWorkspaceRepository } from "./repositories/workspace.js";
+import { createWorktreeRepository } from "./repositories/worktree.js";
 import { SHUTDOWN_SIGNALS } from "./signals.js";
 
 const started: FastifyInstance[] = [];
@@ -19,6 +22,7 @@ async function boot(
     port?: string;
     beforeClose?: () => Promise<void>;
     ptyManager?: PtyManager;
+    database?: TestDb;
   } = {},
 ) {
   const signalSource = new EventEmitter();
@@ -27,8 +31,8 @@ async function boot(
   const config = loadConfig({ LUMEM_PORT: overrides.port ?? "0" });
   // Never the real ~/.lumem/lumem.db: a test suite must not write to the
   // developer's own state.
-  const database = openTestDb();
-  databases.push(database);
+  const database = overrides.database ?? openTestDb();
+  if (!overrides.database) databases.push(database);
 
   const app = await bootstrap({
     config,
@@ -126,6 +130,33 @@ describe("bootstrap", () => {
     signalSource.emit("SIGTERM");
 
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(1));
+  });
+
+  it("reconciles the worktree registry before it can serve anything", async () => {
+    // F7.4. Ordering matters: a client that connects mid-reconciliation reads
+    // states that are about to change under it, so this runs before listen().
+    const database = openTestDb();
+    databases.push(database);
+    const workspace = await createWorkspaceRepository(database.db).create({ name: "pessoal" });
+    const project = await createProjectRepository(database.db).create({
+      workspaceId: workspace.id,
+      name: "lorebase",
+      path: "/repos/lorebase",
+      defaultBranch: "main",
+    });
+    const worktrees = createWorktreeRepository(database.db);
+    const registered = await worktrees.create({
+      projectId: project.id,
+      name: "teste",
+      branch: "teste",
+      path: "/definitely-not-here-xyz/teste",
+    });
+
+    const { app } = await boot({ database });
+
+    // The very first request the daemon can answer already sees the new state.
+    expect((await app.inject({ method: "GET", url: "/trpc/health" })).statusCode).toBe(200);
+    expect((await worktrees.findById(registered.id))?.state).toBe("missing");
   });
 
   it("exits non-zero when the port is already taken", async () => {
