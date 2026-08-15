@@ -1,0 +1,84 @@
+name: CI
+
+# Toda PR contra a main. Os mesmos gates que rodam na máquina, na mesma ordem:
+# se passou aqui e falhou lá, é a máquina que está diferente — não o critério.
+on:
+  pull_request:
+    branches: [main]
+
+# Um push novo na mesma PR cancela o run anterior: o resultado do commit
+# anterior não interessa a ninguém depois que ele deixou de ser o topo.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Playwright lê isto: retenta uma vez, usa o reporter que anota a própria PR,
+  # e recusa um `test.only` esquecido.
+  CI: "true"
+
+jobs:
+  # Rápido e primeiro: typecheck, build e a suíte que não precisa de navegador.
+  checks:
+    name: typecheck, build e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Antes do setup-node, que precisa do pnpm existindo para achar o store.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # `--frozen-lockfile` é o ponto: uma dependência que entrou sem o lock
+      # junto falha aqui, e não seis meses depois numa instalação limpa.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm gate:build
+
+      - run: pnpm test
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # A suíte cria repositórios de fixture e commita dentro deles — inclusive
+      # de dentro de um terminal, no spec da coluna de arquivos. Um runner não
+      # tem identidade configurada, e `git commit` recusa sem uma.
+      - name: identidade do git, que o runner não tem
+        run: |
+          git config --global user.name "Lumem CI"
+          git config --global user.email "ci@lumem.local"
+
+      # Só o chromium: é o único projeto do playwright.config, e baixar os três
+      # navegadores custaria minutos por run para nada.
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - run: pnpm test:e2e
+
+      # O rastro de uma falha vale mais que o log: o config guarda trace em
+      # `retain-on-failure`, e sem isto ele morre com o runner.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

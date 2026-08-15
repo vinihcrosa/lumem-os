@@ -29,6 +29,17 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `full` | `pnpm gate:full` | Suíte inteira + e2e |
 | `build` | `pnpm gate:build` | Typecheck de todo TS do repositório + build do web |
 
+### Na PR, os mesmos gates
+
+`.github/workflows/ci.yml` roda em toda PR contra a `main`, em dois jobs paralelos: `checks` (`gate:build` e a suíte unit/integration) e `e2e` (Playwright com chromium). São os mesmos comandos da máquina, na mesma ordem — se passou aqui e falhou lá, a diferença está no ambiente, não no critério.
+
+Duas coisas que o runner precisa e a máquina de quem desenvolve já tem:
+
+- **Identidade do git.** A suíte commita dentro dos repositórios de fixture — inclusive de dentro de um terminal, no spec da coluna de arquivos. Sem `user.name`, o `git commit` recusa.
+- **O navegador.** Só o chromium, que é o único projeto do `playwright.config.ts`.
+
+Falha guarda `playwright-report/` e `test-results/` como artefato por 7 dias: o config já grava trace em `retain-on-failure`, e sem subir isso o rastro morre com o runner.
+
 ### Por que `gate:quick` é um script e não `vitest --changed`
 
 Duas falhas em direções opostas, e evitar uma de cada vez criou a outra:
