@@ -207,7 +207,9 @@ describe("worktree detail", () => {
 
     await selectWorktree(user);
 
-    expect(await screen.findByText(/3 arquivo\(s\) modificado\(s\)/)).toBeInTheDocument();
+    // The count is the whole point: "suja" alone does not tell the user
+    // whether removing it would cost a typo or a day.
+    expect(await screen.findByText(/suja · 3 arquivos/)).toBeInTheDocument();
   });
 
   it("removes a clean worktree", async () => {
@@ -259,7 +261,12 @@ describe("worktree detail", () => {
 
     await selectWorktree(user);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("o diretório não está em");
-    expect(screen.getAllByText("desconhecido")).toHaveLength(2);
+    // A warning, not an alert: nothing the user just did caused this, and it
+    // is already true when the panel opens.
+    expect(await screen.findByRole("status")).toHaveTextContent("O diretório não está em");
+    expect(screen.getByText("ausente do disco")).toBeInTheDocument();
+    // The registration still says which branch it was, so removing it is a
+    // decision the user can make with the facts in front of them.
+    expect(screen.getByText("desconhecido")).toBeInTheDocument();
   });
 });

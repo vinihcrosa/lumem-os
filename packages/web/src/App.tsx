@@ -177,6 +177,7 @@ export function App() {
           key={worktreeId}
           worktreeId={worktreeId}
           projectId={projectId}
+          workspaceName={activeName}
           onRemoved={() => setSelection({ kind: "project", projectId })}
         >
           <NewSessionMenu
