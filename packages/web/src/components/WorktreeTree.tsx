@@ -11,7 +11,7 @@ export interface WorktreeTreeProps {
   projectAvailable: boolean;
   selectedId: string | null;
   onSelect: (worktreeId: string) => void;
-  /** Rendered under each worktree — the session list, from T31 on. */
+  /** Rendered under each worktree — its session list. */
   renderChildren?: (worktreeId: string) => ReactNode;
 }
 

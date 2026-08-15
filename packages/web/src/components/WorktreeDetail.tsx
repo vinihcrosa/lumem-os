@@ -8,7 +8,7 @@ export interface WorktreeDetailProps {
   worktreeId: string;
   projectId: string;
   onRemoved: () => void;
-  /** Sessions of this worktree, from T31 on. */
+  /** Actions for this worktree — the new-session menu. */
   children?: ReactNode;
 }
 

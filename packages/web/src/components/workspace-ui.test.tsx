@@ -10,10 +10,6 @@ vi.mock("../lib/trpc.js", async () => ({
   trpc: (await import("../test/trpc-mock.js")).trpcMock,
 }));
 
-// Its own tests cover it; here it would only add daemon calls to stub.
-vi.mock("../pages/TerminalSpike.js", () => ({
-  TerminalSpike: () => <section>terminais</section>,
-}));
 
 function workspace(id: string, name: string) {
   return { id, name, createdAt: new Date(), updatedAt: new Date() };
@@ -23,6 +19,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   window.localStorage.clear();
   trpc.health.query.mockResolvedValue({ ok: true, version: "0.0.0" });
+  trpc.session.listByScope.query.mockResolvedValue([]);
+  trpc.agentConfig.list.query.mockResolvedValue([]);
   trpc.workspace.list.query.mockResolvedValue([]);
   trpc.project.listByWorkspace.query.mockResolvedValue([]);
 });

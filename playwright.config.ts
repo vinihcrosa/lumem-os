@@ -41,6 +41,7 @@ if (!isWorker && !isListing) {
 
 export default defineConfig({
   testDir: "./e2e",
+  globalSetup: "./e2e/support/global-setup.ts",
   // E2E runs against a single daemon on a single port with shared state.
   // Parallelism here corrupts state instead of saving time.
   fullyParallel: false,

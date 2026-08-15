@@ -2,8 +2,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { FirstRun } from "./components/FirstRun.js";
+import { NewSessionMenu } from "./components/NewSessionMenu.js";
 import { ProjectDetail } from "./components/ProjectDetail.js";
 import { ProjectList } from "./components/ProjectList.js";
+import { SessionDetail } from "./components/SessionDetail.js";
+import { SessionList } from "./components/SessionList.js";
 import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
 import { WorktreeDetail } from "./components/WorktreeDetail.js";
 import { WorktreeTree } from "./components/WorktreeTree.js";
@@ -11,19 +14,21 @@ import { useActiveWorkspace } from "./hooks/useActiveWorkspace.js";
 import { AppShell } from "./layout/AppShell.js";
 import { WORKSPACES_KEY } from "./lib/queryKeys.js";
 import { trpc } from "./lib/trpc.js";
-import { TerminalSpike } from "./pages/TerminalSpike.js";
+
+type ScopeType = "project" | "worktree";
 
 /**
  * What the main area is showing.
  *
- * One value rather than a selected-project id plus a selected-worktree id:
- * with two, "a worktree of another project is selected" is representable, and
- * every render has to decide which one wins.
+ * One value rather than an id per kind: with three, "a worktree of another
+ * project is selected" is representable, and every render has to decide which
+ * one wins.
  */
 type Selection =
   | { kind: "none" }
   | { kind: "project"; projectId: string }
-  | { kind: "worktree"; projectId: string; worktreeId: string };
+  | { kind: "worktree"; projectId: string; worktreeId: string }
+  | { kind: "session"; projectId: string; scopeType: ScopeType; scopeId: string; sessionId: string };
 
 export function App() {
   const queryClient = useQueryClient();
@@ -51,6 +56,14 @@ export function App() {
       {renderBody()}
     </div>
   );
+
+  function selectedSessionId(scopeType: ScopeType, scopeId: string): string | null {
+    return selection.kind === "session" &&
+      selection.scopeType === scopeType &&
+      selection.scopeId === scopeId
+      ? selection.sessionId
+      : null;
+  }
 
   function renderBody() {
     if (workspaces.isPending) return <p>conectando ao daemon…</p>;
@@ -86,47 +99,124 @@ export function App() {
               selectedId={selection.kind === "none" ? null : selection.projectId}
               onSelect={(projectId) => setSelection({ kind: "project", projectId })}
               renderChildren={(project) => (
-                <WorktreeTree
-                  projectId={project.id}
-                  projectAvailable={project.available}
-                  selectedId={selection.kind === "worktree" ? selection.worktreeId : null}
-                  onSelect={(worktreeId) =>
-                    setSelection({ kind: "worktree", projectId: project.id, worktreeId })
-                  }
-                />
+                <>
+                  <SessionList
+                    scopeType="project"
+                    scopeId={project.id}
+                    selectedId={selectedSessionId("project", project.id)}
+                    onSelect={(sessionId) =>
+                      setSelection({
+                        kind: "session",
+                        projectId: project.id,
+                        scopeType: "project",
+                        scopeId: project.id,
+                        sessionId,
+                      })
+                    }
+                  />
+                  <WorktreeTree
+                    projectId={project.id}
+                    projectAvailable={project.available}
+                    selectedId={selection.kind === "worktree" ? selection.worktreeId : null}
+                    onSelect={(worktreeId) =>
+                      setSelection({ kind: "worktree", projectId: project.id, worktreeId })
+                    }
+                    renderChildren={(worktreeId) => (
+                      <SessionList
+                        scopeType="worktree"
+                        scopeId={worktreeId}
+                        selectedId={selectedSessionId("worktree", worktreeId)}
+                        onSelect={(sessionId) =>
+                          setSelection({
+                            kind: "session",
+                            projectId: project.id,
+                            scopeType: "worktree",
+                            scopeId: worktreeId,
+                            sessionId,
+                          })
+                        }
+                      />
+                    )}
+                  />
+                </>
               )}
             />
           </>
         }
       >
         {renderDetail()}
-        {/* Scope-free and temporary; T31 replaces it with sessions that hang
-            off a project or a worktree. */}
-        <TerminalSpike />
       </AppShell>
     );
   }
 
   function renderDetail() {
-    if (selection.kind === "worktree") {
+    if (selection.kind === "session") {
+      const { projectId, scopeType, scopeId } = selection;
       return (
-        <WorktreeDetail
-          key={selection.worktreeId}
-          worktreeId={selection.worktreeId}
-          projectId={selection.projectId}
-          onRemoved={() => setSelection({ kind: "project", projectId: selection.projectId })}
+        <SessionDetail
+          key={selection.sessionId}
+          sessionId={selection.sessionId}
+          onClosed={() =>
+            setSelection(
+              scopeType === "worktree"
+                ? { kind: "worktree", projectId, worktreeId: scopeId }
+                : { kind: "project", projectId },
+            )
+          }
         />
       );
     }
 
+    if (selection.kind === "worktree") {
+      const { projectId, worktreeId } = selection;
+      return (
+        <WorktreeDetail
+          key={worktreeId}
+          worktreeId={worktreeId}
+          projectId={projectId}
+          onRemoved={() => setSelection({ kind: "project", projectId })}
+        >
+          <NewSessionMenu
+            scopeType="worktree"
+            scopeId={worktreeId}
+            onCreated={(sessionId) =>
+              setSelection({
+                kind: "session",
+                projectId,
+                scopeType: "worktree",
+                scopeId: worktreeId,
+                sessionId,
+              })
+            }
+          />
+        </WorktreeDetail>
+      );
+    }
+
     if (selection.kind === "project") {
+      const { projectId } = selection;
       return (
         <ProjectDetail
-          key={selection.projectId}
-          projectId={selection.projectId}
+          key={projectId}
+          projectId={projectId}
           workspaceId={activeId!}
           onRemoved={() => setSelection({ kind: "none" })}
-        />
+        >
+          {/* F5.2: an agent may run in the project itself, with no worktree. */}
+          <NewSessionMenu
+            scopeType="project"
+            scopeId={projectId}
+            onCreated={(sessionId) =>
+              setSelection({
+                kind: "session",
+                projectId,
+                scopeType: "project",
+                scopeId: projectId,
+                sessionId,
+              })
+            }
+          />
+        </ProjectDetail>
       );
     }
 

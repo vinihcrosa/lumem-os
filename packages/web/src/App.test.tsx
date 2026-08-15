@@ -9,9 +9,6 @@ vi.mock("./lib/trpc.js", async () => ({
   trpc: (await import("./test/trpc-mock.js")).trpcMock,
 }));
 
-vi.mock("./pages/TerminalSpike.js", () => ({
-  TerminalSpike: () => <section>terminais</section>,
-}));
 
 beforeEach(() => {
   vi.resetAllMocks();

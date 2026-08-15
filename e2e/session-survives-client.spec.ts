@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ensureWorkspace } from "./support/app.js";
+import { E2E_FIXTURE_REPO } from "./support/fixtures.js";
+import { ensureProject, ensureWorkspace, openProject } from "./support/app.js";
 
 /**
  * The criterion the whole architecture exists for: close the browser with an
@@ -15,6 +16,8 @@ const ABSENCE_MS = 6_000;
 
 /** Ticks the shell prints, one per second. Longer than the absence, by a lot. */
 const TICKS = 40;
+
+const WORKTREE = "sobrevivencia";
 
 function terminalText(page: Page) {
   // xterm renders rows into the DOM; this is what the user actually sees.
@@ -40,6 +43,13 @@ test("a session outlives the client that started it", async ({ browser }) => {
   const page = await firstVisit.newPage();
   await page.goto("/");
   await ensureWorkspace(page);
+  await ensureProject(page, E2E_FIXTURE_REPO);
+  await openProject(page);
+
+  await page.getByRole("button", { name: "nova worktree" }).click();
+  await page.getByLabel("Nome da worktree").fill(WORKTREE);
+  await page.getByRole("button", { name: "criar" }).click();
+  await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
 
   await page.getByRole("button", { name: "novo shell" }).click();
   await expect(page.getByTestId("terminal")).toBeVisible();
@@ -67,9 +77,11 @@ test("a session outlives the client that started it", async ({ browser }) => {
   const reopened = await secondVisit.newPage();
   await reopened.goto("/");
   await ensureWorkspace(reopened);
+  await openProject(reopened);
 
   // The daemon still lists it; the session was never tied to the connection.
-  await reopened.getByRole("button", { name: /running/ }).first().click();
+  await reopened.getByRole("button", { name: new RegExp(WORKTREE) }).first().click();
+  await reopened.getByRole("button", { name: /shell/ }).first().click();
   await expect(reopened.getByTestId("terminal")).toBeVisible();
 
   // The heart of it: a tick that could only have been printed while no browser

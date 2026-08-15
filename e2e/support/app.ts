@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 /**
  * Gets past the first-run screen, PRD §5.
@@ -23,4 +23,47 @@ export async function ensureWorkspace(page: Page, name = "e2e"): Promise<void> {
   }
 
   await expect(selector).toBeVisible({ timeout: 15_000 });
+}
+
+/**
+ * Registers the fixture repository, if it is not registered yet.
+ *
+ * Idempotent for the same reason `ensureWorkspace` is: the state directory is
+ * wiped once per run and the specs share what the first one created.
+ */
+export async function ensureProject(page: Page, path: string, name = "fixture"): Promise<void> {
+  const entry = page.getByRole("button", { name: new RegExp(`^${name}`) });
+  if (await entry.isVisible().catch(() => false)) return;
+
+  await page.getByRole("button", { name: "adicionar projeto" }).click();
+  await page.getByLabel("Caminho do repositório").fill(path);
+  await page.getByLabel("Nome (opcional)").fill(name);
+  await page.getByRole("button", { name: "adicionar" }).click();
+  await expect(entry).toBeVisible({ timeout: 15_000 });
+}
+
+/** Selects a project in the sidebar. */
+export async function openProject(page: Page, name = "fixture"): Promise<void> {
+  await page.getByRole("button", { name: new RegExp(`^${name}`) }).click();
+}
+
+/**
+ * Creates an agent configuration through the daemon's own API.
+ *
+ * There is no UI for this in the walking skeleton, and PRD §7 requires the API
+ * to be able to do everything the client can — so driving it here is using the
+ * contract, not going around it.
+ */
+export async function createAgentConfig(
+  request: APIRequestContext,
+  daemonUrl: string,
+  input: { name: string; command: string; args?: string[] },
+): Promise<void> {
+  const response = await request.post(`${daemonUrl}/trpc/agentConfig.create`, {
+    data: { name: input.name, command: input.command, args: input.args ?? [] },
+  });
+  // A duplicate is fine: specs share one daemon and the first one to run wins.
+  if (!response.ok() && response.status() !== 409) {
+    throw new Error(`não deu para criar a config de agente: ${await response.text()}`);
+  }
 }

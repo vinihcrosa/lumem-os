@@ -8,7 +8,7 @@ export interface ProjectDetailProps {
   projectId: string;
   workspaceId: string;
   onRemoved: () => void;
-  /** Worktree actions, from T24 on. Hidden while the repository is missing. */
+  /** Actions on the repository. Hidden while it is missing from disk. */
   children?: ReactNode;
 }
 

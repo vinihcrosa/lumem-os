@@ -10,9 +10,6 @@ vi.mock("../lib/trpc.js", async () => ({
   trpc: (await import("../test/trpc-mock.js")).trpcMock,
 }));
 
-vi.mock("../pages/TerminalSpike.js", () => ({
-  TerminalSpike: () => <section>terminais</section>,
-}));
 
 function project(id: string, name: string, available = true) {
   return {
@@ -31,6 +28,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   window.localStorage.clear();
   trpc.health.query.mockResolvedValue({ ok: true, version: "0.0.0" });
+  trpc.session.listByScope.query.mockResolvedValue([]);
+  trpc.agentConfig.list.query.mockResolvedValue([]);
   trpc.workspace.list.query.mockResolvedValue([
     { id: "w1", name: "pessoal", createdAt: new Date(), updatedAt: new Date() },
   ]);

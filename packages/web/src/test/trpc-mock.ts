@@ -32,18 +32,14 @@ function createTrpcMock() {
     },
     agentConfig: {
       list: { query: vi.fn() },
+      create: { mutate: vi.fn() },
+      remove: { mutate: vi.fn() },
     },
     session: {
       listByScope: { query: vi.fn() },
       getDetail: { query: vi.fn() },
       createShell: { mutate: vi.fn() },
       createAgent: { mutate: vi.fn() },
-      close: { mutate: vi.fn() },
-    },
-    pty: {
-      list: { query: vi.fn() },
-      get: { query: vi.fn() },
-      spawnShell: { mutate: vi.fn() },
       close: { mutate: vi.fn() },
     },
   };
