@@ -1,0 +1,212 @@
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { App } from "../App.js";
+import { renderWithProviders } from "../test/render.js";
+import { trpcMock as trpc } from "../test/trpc-mock.js";
+
+vi.mock("../lib/trpc.js", async () => ({
+  trpc: (await import("../test/trpc-mock.js")).trpcMock,
+}));
+
+vi.mock("../pages/TerminalSpike.js", () => ({
+  TerminalSpike: () => <section>terminais</section>,
+}));
+
+function project(id: string, name: string, available = true) {
+  return {
+    id,
+    workspaceId: "w1",
+    name,
+    path: `/repos/${name}`,
+    defaultBranch: "main",
+    available,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  window.localStorage.clear();
+  trpc.health.query.mockResolvedValue({ ok: true, version: "0.0.0" });
+  trpc.workspace.list.query.mockResolvedValue([
+    { id: "w1", name: "pessoal", createdAt: new Date(), updatedAt: new Date() },
+  ]);
+  trpc.project.listByWorkspace.query.mockResolvedValue([]);
+  // react-query treats undefined as a programming error and says so on stderr.
+  trpc.project.get.query.mockResolvedValue(null);
+});
+
+describe("project list", () => {
+  it("lists the projects of the active workspace", async () => {
+    trpc.project.listByWorkspace.query.mockResolvedValue([
+      project("p1", "lorebase"),
+      project("p2", "outro"),
+    ]);
+
+    renderWithProviders(<App />);
+
+    const list = await screen.findByLabelText("projetos");
+    await waitFor(() => expect(within(list).getAllByRole("listitem")).toHaveLength(2));
+    expect(within(list).getByRole("button", { name: /lorebase/ })).toBeInTheDocument();
+  });
+
+  it("says so when the workspace has no projects", async () => {
+    renderWithProviders(<App />);
+
+    expect(await screen.findByText("nenhum projeto ainda")).toBeInTheDocument();
+  });
+
+  it("marks a project whose repository is gone", async () => {
+    // PRD §8: it stays listed. Vanishing would take the worktrees registered
+    // under it out of sight as well.
+    trpc.project.listByWorkspace.query.mockResolvedValue([project("p1", "lorebase", false)]);
+
+    renderWithProviders(<App />);
+
+    const item = (await screen.findAllByRole("listitem"))[0];
+    expect(item).toHaveAttribute("data-available", "false");
+    expect(item).toHaveTextContent("indisponível");
+  });
+});
+
+describe("add project", () => {
+  it("adds a repository by absolute path", async () => {
+    const user = userEvent.setup();
+    trpc.project.add.mutate.mockImplementation(async () => {
+      const added = project("p1", "lorebase");
+      trpc.project.listByWorkspace.query.mockResolvedValue([added]);
+      trpc.project.get.query.mockResolvedValue(added);
+      return added;
+    });
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
+    await user.type(screen.getByLabelText("Caminho do repositório"), "/repos/lorebase");
+    await user.click(screen.getByRole("button", { name: "adicionar" }));
+
+    await waitFor(() =>
+      expect(trpc.project.add.mutate).toHaveBeenCalledWith({
+        workspaceId: "w1",
+        path: "/repos/lorebase",
+      }),
+    );
+    // Adding then having to hunt for it in the list is a step for nothing.
+    expect(await screen.findByRole("heading", { name: "lorebase" })).toBeInTheDocument();
+  });
+
+  it("sends an explicit name when one is typed", async () => {
+    const user = userEvent.setup();
+    trpc.project.add.mutate.mockResolvedValue(project("p1", "lore"));
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
+    await user.type(screen.getByLabelText("Caminho do repositório"), "/repos/lorebase");
+    await user.type(screen.getByLabelText("Nome (opcional)"), "lore");
+    await user.click(screen.getByRole("button", { name: "adicionar" }));
+
+    await waitFor(() =>
+      expect(trpc.project.add.mutate).toHaveBeenCalledWith({
+        workspaceId: "w1",
+        path: "/repos/lorebase",
+        name: "lore",
+      }),
+    );
+  });
+
+  it("shows exactly which validation the daemon refused", async () => {
+    // F2.2. "caminho inválido" would send the user looking in the wrong place.
+    const user = userEvent.setup();
+    trpc.project.add.mutate.mockRejectedValue(
+      new Error("/repos/x está dentro do repositório /repos, mas não é a raiz dele"),
+    );
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
+    await user.type(screen.getByLabelText("Caminho do repositório"), "/repos/x");
+    await user.click(screen.getByRole("button", { name: "adicionar" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("não é a raiz dele");
+  });
+
+  it("keeps the form open after a refusal so the path can be fixed", async () => {
+    const user = userEvent.setup();
+    trpc.project.add.mutate.mockRejectedValue(new Error("não é um repositório git"));
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
+    await user.type(screen.getByLabelText("Caminho do repositório"), "/tmp");
+    await user.click(screen.getByRole("button", { name: "adicionar" }));
+    await screen.findByRole("alert");
+
+    expect(screen.getByLabelText("Caminho do repositório")).toHaveValue("/tmp");
+  });
+});
+
+describe("project detail", () => {
+  it("shows the repository the daemon recorded", async () => {
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /lorebase/ }));
+
+    expect(await screen.findByRole("heading", { name: "lorebase" })).toBeInTheDocument();
+    expect(screen.getByText("/repos/lorebase")).toBeInTheDocument();
+    expect(screen.getByText("main")).toBeInTheDocument();
+  });
+
+  it("warns and blocks when the repository is missing from disk", async () => {
+    const user = userEvent.setup();
+    const missing = project("p1", "lorebase", false);
+    trpc.project.listByWorkspace.query.mockResolvedValue([missing]);
+    trpc.project.get.query.mockResolvedValue(missing);
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /lorebase/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("não está mais em /repos/lorebase");
+    // Removing the registration stays allowed: it is how the user recovers.
+    expect(screen.getByRole("button", { name: "remover projeto" })).toBeEnabled();
+  });
+
+  it("removes the registration and clears the detail", async () => {
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+    trpc.project.remove.mutate.mockImplementation(async () => {
+      trpc.project.listByWorkspace.query.mockResolvedValue([]);
+      return { ok: true as const };
+    });
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /lorebase/ }));
+    // F2.5 said out loud, where the decision is made.
+    expect(await screen.findByText("remover não apaga nada do disco")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "remover projeto" }));
+
+    expect(await screen.findByText("selecione um projeto")).toBeInTheDocument();
+  });
+
+  it("shows the daemon's reason when removal is refused", async () => {
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+    trpc.project.remove.mutate.mockRejectedValue(
+      new Error("o projeto ainda tem worktrees registradas; remova-as antes"),
+    );
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("ainda tem worktrees");
+  });
+});

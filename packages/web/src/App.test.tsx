@@ -1,49 +1,49 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App.js";
-import { trpc } from "./lib/trpc.js";
 import { renderWithProviders } from "./test/render.js";
+import { trpcMock as trpc } from "./test/trpc-mock.js";
 
-vi.mock("./lib/trpc.js", () => ({
-  trpc: { health: { query: vi.fn() } },
+vi.mock("./lib/trpc.js", async () => ({
+  trpc: (await import("./test/trpc-mock.js")).trpcMock,
 }));
 
-// This screen has its own tests; here it would only add a second set of
-// daemon calls to stub.
 vi.mock("./pages/TerminalSpike.js", () => ({
   TerminalSpike: () => <section>terminais</section>,
 }));
 
-const healthQuery = vi.mocked(trpc.health.query);
-
 beforeEach(() => {
-  healthQuery.mockReset();
+  vi.resetAllMocks();
+  window.localStorage.clear();
+  trpc.workspace.list.query.mockResolvedValue([]);
+  trpc.project.listByWorkspace.query.mockResolvedValue([]);
 });
 
-describe("App", () => {
+describe("App header", () => {
   it("renders the product name", () => {
-    healthQuery.mockReturnValue(new Promise(() => {}));
+    trpc.health.query.mockReturnValue(new Promise(() => {}));
+
     renderWithProviders(<App />);
 
-    expect(screen.getByRole("heading", { name: "Lumem-OS" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Lumem-OS", level: 1 })).toBeInTheDocument();
   });
 
   it("shows the daemon version once health resolves", async () => {
-    healthQuery.mockResolvedValue({ ok: true, version: "1.2.3" });
+    trpc.health.query.mockResolvedValue({ ok: true, version: "1.2.3" });
+
     renderWithProviders(<App />);
 
-    await waitFor(() => {
-      expect(screen.getByText("daemon v1.2.3")).toBeInTheDocument();
-    });
+    expect(await screen.findByText("daemon v1.2.3")).toBeInTheDocument();
   });
 
-  it("reports the daemon as unreachable when the call fails", async () => {
-    healthQuery.mockRejectedValue(new Error("ECONNREFUSED"));
+  it("reports the daemon as unreachable when health fails", async () => {
+    // The header is the one thing that renders whatever else went wrong, so
+    // this is where "the daemon is down" has to show up.
+    trpc.health.query.mockRejectedValue(new Error("ECONNREFUSED"));
+
     renderWithProviders(<App />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("alert")).toHaveTextContent("daemon unreachable");
-    });
+    expect(await screen.findByText("daemon inacessível")).toBeInTheDocument();
   });
 });

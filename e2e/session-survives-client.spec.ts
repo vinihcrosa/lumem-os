@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { ensureWorkspace } from "./support/app.js";
+
 /**
  * The criterion the whole architecture exists for: close the browser with an
  * agent working, reopen it, and the work continued.
@@ -37,6 +39,7 @@ test("a session outlives the client that started it", async ({ browser }) => {
   const firstVisit = await browser.newContext();
   const page = await firstVisit.newPage();
   await page.goto("/");
+  await ensureWorkspace(page);
 
   await page.getByRole("button", { name: "novo shell" }).click();
   await expect(page.getByTestId("terminal")).toBeVisible();
@@ -63,6 +66,7 @@ test("a session outlives the client that started it", async ({ browser }) => {
   const secondVisit = await browser.newContext();
   const reopened = await secondVisit.newPage();
   await reopened.goto("/");
+  await ensureWorkspace(reopened);
 
   // The daemon still lists it; the session was never tied to the connection.
   await reopened.getByRole("button", { name: /running/ }).first().click();
