@@ -175,7 +175,7 @@ Cada linha é uma tentação que vai aparecer durante a implementação.
 | O quê | Por quê | Mitigação |
 |---|---|---|
 | Path traversal | O daemon lê o disco com as permissões do usuário. Um `..` que escapa lê `~/.ssh`. | §4 inteiro, com teste dedicado por regra — inclusive symlink real, não simulado (a política de `testing.md` para git vale aqui: filesystem de verdade) |
-| Bundle do Shiki | Grammars completos passam de 6 MB, e o daemon serve o app sem CDN | Import sob demanda por linguagem, lista inicial curta, tamanho do bundle medido na task e escrito no PRD |
+| ~~Bundle do Shiki~~ — **medido** | Grammars completos passam de 6 MB, e o daemon serve o app sem CDN | 16 gramáticas atrás de imports próprios. O bundle inicial foi de **709,5 KB para 721,8 KB** (+12,2 KB; +3,6 KB em gzip) e o `dist` inteiro ficou em 1,9 MB. A primeira tentativa usava `import("shiki/langs")` e produzia 9,1 MB de chunks — o registry inteiro, incluindo emacs-lisp e cpp |
 | Terminal com largura errada | A coluna rouba pixels do meio; o `FitAddon` mede uma caixa que mudou de tamanho | F1.5 é *Done when* da task da coluna, com teste de que o resize dispara refit |
 | Diretório com 10 mil entradas | `node_modules/.pnpm` trava a árvore e o JSON | Teto por listagem, com o truncamento dito na tela (F2.4) |
 | Patch gigante | `execGit` tem `maxBuffer` de 16 MiB e o erro derruba a aba | Patch por arquivo (F4.4), com o limite tratado como resposta e não como falha |

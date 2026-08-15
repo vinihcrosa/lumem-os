@@ -1,0 +1,184 @@
+/*
+ * O split da aba: onde o arquivo e o patch são lidos.
+ *
+ * Portado do protótipo `packages/web/prototype/lumem-right-panel.html`.
+ * Nenhum valor literal — tudo sai de tokens.css.
+ */
+
+/*
+ * O arquivo NÃO abre dentro da coluna. Ele abre ao lado da sessão, dentro da
+ * aba, e a coluna continua sendo a árvore — que é o que torna possível abrir o
+ * próximo arquivo sem fechar este. A coluna navega; o split lê.
+ *
+ * Consequência de layout: agora são duas coisas que mexem na caixa do xterm —
+ * a coluna e o split. As duas precisam remedir o terminal.
+ */
+.split {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-4);
+}
+/* `flex-grow` vem do componente, que é quem sabe onde a divisória parou. Os
+   mínimos ficam aqui: nenhum dos dois lados pode ser espremido até sumir. */
+.split__side { display: flex; flex-direction: column; min-height: 0; flex-basis: 0; }
+.split__side--term { min-width: var(--size-terminal-min); }
+.split__side--viewer { min-width: var(--size-viewer-min); }
+.split__grip {
+  flex: none;
+  align-self: stretch;
+  width: var(--space-4);
+  border-radius: var(--radius-full);
+  cursor: col-resize;
+}
+.split__grip:hover { background: var(--color-border-brand); }
+
+.viewer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.viewer__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-12);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.viewer__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-md);
+  padding: 0 var(--space-12);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-disabled);
+}
+
+.fv { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.fv__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-6) 0 var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+}
+.back:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+/* O caminho trunca do começo: o nome do arquivo é o que identifica, e é ele
+   que sobreviveria a um `text-overflow` — se o corte fosse no fim, morreria. */
+.fpath {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  font: var(--text-mono-md);
+  color: var(--color-text-primary);
+  overflow: hidden;
+}
+/* `direction: rtl` sozinho move a barra final do diretório para a frente —
+   `src/lore/` vira `/src/lore`. Com `unicode-bidi: plaintext` o texto continua
+   lido da esquerda para a direita e só o corte muda de lado. */
+.fpath__dir { flex: 0 1 auto; min-width: 0; color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; unicode-bidi: plaintext; text-align: left; }
+.fpath__name { flex: none; white-space: nowrap; }
+.fv__meta { flex: none; font: var(--text-caption); color: var(--color-text-disabled); white-space: nowrap; }
+
+.code {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-8) 0 var(--space-16);
+  background: var(--color-bg-inset);
+  font: var(--text-mono-md);
+  white-space: normal;
+}
+/*
+ * Quebra ligada por padrão, e este é o achado da renderização: numa coluna de
+ * 360px, código de 80 colunas some do lado direito sem nem uma barra de rolagem
+ * para denunciar. Ler pela metade é pior que ler quebrado. O botão `⇄` desliga.
+ */
+.code .l { display: flex; align-items: flex-start; white-space: pre-wrap; overflow-wrap: anywhere; }
+.code--nowrap .l { white-space: pre; overflow-wrap: normal; }
+.code--nowrap { overflow-x: auto; }
+.code .l:hover { background: var(--color-bg-panel); }
+/* A medianiz gruda: rolar o código na horizontal não pode levar o número da
+   linha embora, que é o endereço que se lê em voz alta. */
+.code .n {
+  position: sticky;
+  left: 0;
+  flex: none;
+  width: var(--size-gutter-line);
+  padding-right: var(--space-10);
+  text-align: right;
+  color: var(--color-text-disabled);
+  background: var(--color-bg-inset);
+  user-select: none;
+}
+/* A continuação de uma linha quebrada entra recuada: sem isso ela se alinha
+   com o código de verdade e passa por linha própria. */
+.code .t { flex: 1; padding-right: var(--space-12); padding-left: var(--space-12); text-indent: calc(-1 * var(--space-12)); color: var(--color-text-code); }
+.k  { color: var(--color-syntax-keyword); }
+.s  { color: var(--color-syntax-string); }
+.nu { color: var(--color-syntax-number); }
+.c  { color: var(--color-syntax-comment); }
+.fn { color: var(--color-syntax-function); }
+.ty { color: var(--color-syntax-type); }
+.pu { color: var(--color-syntax-punctuation); }
+
+/* Recusa de leitura: binário, grande demais, symlink que sai do checkout. */
+.refuse {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-8);
+  padding: var(--space-24) var(--space-16);
+  background: var(--color-bg-inset);
+}
+.refuse__glyph { font-size: var(--size-icon-lg); color: var(--color-text-tertiary); }
+.refuse__title { font: var(--text-label-md); color: var(--color-text-primary); }
+.refuse__why { font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.refuse code { font: var(--text-mono-sm); color: var(--color-text-code); word-break: break-all; }
+
+.viewer__spacer { flex: 1; }
+
+.hunk {
+  padding: var(--space-2) var(--space-8);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+  white-space: pre;
+}
+.patch { flex: 1; min-height: 0; overflow: auto; background: var(--color-bg-inset); font: var(--text-mono-md); white-space: normal; }
+.dl { display: flex; align-items: flex-start; white-space: pre-wrap; overflow-wrap: anywhere; }
+.patch--nowrap .dl { white-space: pre; overflow-wrap: normal; }
+.dl__sig { flex: none; width: var(--size-icon-md); text-align: center; user-select: none; color: var(--color-text-disabled); }
+.dl__t { flex: 1; padding-right: var(--space-12); padding-left: var(--space-12); text-indent: calc(-1 * var(--space-12)); color: var(--color-text-code); }
+.dl--add { background: var(--color-git-added-subtle); }
+.dl--add .dl__sig { color: var(--color-git-added); }
+.dl--del { background: var(--color-git-removed-subtle); }
+.dl--del .dl__sig { color: var(--color-git-removed); }
