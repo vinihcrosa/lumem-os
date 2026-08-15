@@ -37,6 +37,9 @@ beforeEach(() => {
   trpc.project.listByWorkspace.query.mockResolvedValue([]);
   // react-query treats undefined as a programming error and says so on stderr.
   trpc.project.get.query.mockResolvedValue(null);
+  // The sidebar renders a worktree tree per project; an unstubbed query there
+  // fails and puts a second role="alert" on screen.
+  trpc.worktree.listByProject.query.mockResolvedValue([]);
 });
 
 describe("project list", () => {

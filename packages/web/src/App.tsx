@@ -5,15 +5,29 @@ import { FirstRun } from "./components/FirstRun.js";
 import { ProjectDetail } from "./components/ProjectDetail.js";
 import { ProjectList } from "./components/ProjectList.js";
 import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
+import { WorktreeDetail } from "./components/WorktreeDetail.js";
+import { WorktreeTree } from "./components/WorktreeTree.js";
 import { useActiveWorkspace } from "./hooks/useActiveWorkspace.js";
 import { AppShell } from "./layout/AppShell.js";
 import { WORKSPACES_KEY } from "./lib/queryKeys.js";
 import { trpc } from "./lib/trpc.js";
 import { TerminalSpike } from "./pages/TerminalSpike.js";
 
+/**
+ * What the main area is showing.
+ *
+ * One value rather than a selected-project id plus a selected-worktree id:
+ * with two, "a worktree of another project is selected" is representable, and
+ * every render has to decide which one wins.
+ */
+type Selection =
+  | { kind: "none" }
+  | { kind: "project"; projectId: string }
+  | { kind: "worktree"; projectId: string; worktreeId: string };
+
 export function App() {
   const queryClient = useQueryClient();
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selection, setSelection] = useState<Selection>({ kind: "none" });
 
   const health = useQuery({
     queryKey: ["health"],
@@ -63,32 +77,59 @@ export function App() {
               activeId={activeId}
               onSelect={(id) => {
                 select(id);
-                // A project of the old workspace has no place in the new one.
-                setSelectedProjectId(null);
+                // Nothing selected in the old workspace belongs to the new one.
+                setSelection({ kind: "none" });
               }}
             />
             <ProjectList
               workspaceId={activeId}
-              selectedId={selectedProjectId}
-              onSelect={setSelectedProjectId}
+              selectedId={selection.kind === "none" ? null : selection.projectId}
+              onSelect={(projectId) => setSelection({ kind: "project", projectId })}
+              renderChildren={(project) => (
+                <WorktreeTree
+                  projectId={project.id}
+                  projectAvailable={project.available}
+                  selectedId={selection.kind === "worktree" ? selection.worktreeId : null}
+                  onSelect={(worktreeId) =>
+                    setSelection({ kind: "worktree", projectId: project.id, worktreeId })
+                  }
+                />
+              )}
             />
           </>
         }
       >
-        {selectedProjectId ? (
-          <ProjectDetail
-            key={selectedProjectId}
-            projectId={selectedProjectId}
-            workspaceId={activeId}
-            onRemoved={() => setSelectedProjectId(null)}
-          />
-        ) : (
-          <p>selecione um projeto</p>
-        )}
+        {renderDetail()}
         {/* Scope-free and temporary; T31 replaces it with sessions that hang
             off a project or a worktree. */}
         <TerminalSpike />
       </AppShell>
     );
+  }
+
+  function renderDetail() {
+    if (selection.kind === "worktree") {
+      return (
+        <WorktreeDetail
+          key={selection.worktreeId}
+          worktreeId={selection.worktreeId}
+          projectId={selection.projectId}
+          onRemoved={() => setSelection({ kind: "project", projectId: selection.projectId })}
+        />
+      );
+    }
+
+    if (selection.kind === "project") {
+      return (
+        <ProjectDetail
+          key={selection.projectId}
+          projectId={selection.projectId}
+          workspaceId={activeId!}
+          onRemoved={() => setSelection({ kind: "none" })}
+        />
+      );
+    }
+
+    return <p>selecione um projeto</p>;
   }
 }

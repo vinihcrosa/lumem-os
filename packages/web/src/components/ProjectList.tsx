@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 
 import { AddProjectDialog } from "./AddProjectDialog.js";
 import { projectsKey } from "../lib/queryKeys.js";
@@ -8,8 +9,8 @@ export interface ProjectListProps {
   workspaceId: string;
   selectedId: string | null;
   onSelect: (projectId: string) => void;
-  /** Rendered under each project — the worktree tree, from T24 on. */
-  renderChildren?: (projectId: string) => React.ReactNode;
+  /** Rendered under each project — the worktree tree. */
+  renderChildren?: (project: { id: string; available: boolean }) => ReactNode;
 }
 
 /** The projects of the active workspace, F3.1. */
@@ -46,7 +47,7 @@ export function ProjectList({
                   worktrees registered under it out of sight too. */}
               {!project.available && <span title="repositório não está no disco"> (indisponível)</span>}
             </button>
-            {renderChildren?.(project.id)}
+            {renderChildren?.({ id: project.id, available: project.available })}
           </li>
         ))}
       </ul>
