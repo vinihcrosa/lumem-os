@@ -5,17 +5,14 @@
   display: inline-flex;
 }
 
-.new-session__caret {
-  color: var(--color-text-on-brand);
-  font-size: var(--size-icon-xs);
-}
-
 /* Ancorado no gatilho e fora do fluxo: abrir o menu não pode empurrar a barra
    de ações e mover o botão que acabou de ser clicado. */
+/* Ancorado pela direita: o gatilho vive no fim da faixa, e abrir pra esquerda
+   é o que mantém o menu dentro da tela. */
 .new-session__panel {
   position: absolute;
   top: calc(100% + var(--space-4));
-  left: 0;
+  right: 0;
   z-index: 10;
 }
 

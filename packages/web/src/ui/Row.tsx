@@ -19,8 +19,14 @@ export interface RowProps {
   glyph?: ReactNode;
   /** Trailing note: a count, `ausente`, `saiu`. */
   meta?: ReactNode;
-  /** Something is running inside a node that is currently closed. */
-  pip?: boolean;
+  /**
+   * How many sessions are running in here.
+   *
+   * Replaces the pip the tree used to carry. With the sessions gone from the
+   * tree, "something is alive in there" stops being enough — the row is now the
+   * only place that can say how much.
+   */
+  count?: number;
 }
 
 /**
@@ -42,7 +48,7 @@ export function Row({
   onToggle,
   glyph,
   meta,
-  pip = false,
+  count,
 }: RowProps) {
   const classes = [
     "row",
@@ -78,9 +84,13 @@ export function Row({
         {/* Text, not a live region: a `status` inside a button would announce
             itself as part of the button's own name every time focus lands. As
             hidden text it still reaches a screen reader, once, in order. */}
-        {pip && (
-          <span className="row__pip">
-            <span className="sr-only">sessão rodando</span>
+        {count !== undefined && count > 0 && (
+          <span className="row__count">
+            <span className="row__count__dot" aria-hidden="true" />
+            {count}
+            <span className="sr-only">
+              {count === 1 ? " sessão rodando" : " sessões rodando"}
+            </span>
           </span>
         )}
       </button>

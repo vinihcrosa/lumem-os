@@ -187,14 +187,25 @@
   font: var(--text-caption);
   color: var(--color-text-tertiary);
 }
-/* Sinal de "tem sessão viva aqui dentro" quando o nó está fechado. É o único
-   ponto verde da sidebar, e é por isso que a estrutura em volta é cinza. */
-.row__pip {
+/* Quantas sessões rodam aqui dentro. É o único verde da sidebar, e é por isso
+   que a estrutura em volta é cinza. */
+.row__count {
   flex: none;
-  width: var(--space-6);
-  height: var(--space-6);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--size-control-xs);
+  padding: 0 var(--space-6);
   border-radius: var(--radius-full);
-  background: var(--color-session-running);
+  background: var(--color-bg-success-subtle);
+  font: var(--text-caption);
+  color: var(--color-session-running);
+}
+.row__count__dot {
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: var(--radius-full);
+  background: currentColor;
 }
 
 /* ---------------------------------------------------- linha de detalhe */

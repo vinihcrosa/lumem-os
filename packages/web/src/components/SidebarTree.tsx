@@ -1,28 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { useRunningAcross, useSessionsByScope, type Scope } from "../hooks/useSessionsByScope.js";
+import { useRunningAcross, type Scope } from "../hooks/useSessionsByScope.js";
 import type { TreeExpansion } from "../hooks/useTreeExpansion.js";
 import { projectsKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { EmptyState, Glyph, Row, Skeleton } from "../ui/index.js";
 
-/** What the sidebar is pointing at. Mirrors `App`'s selection, minus the route. */
+/**
+ * What the sidebar is pointing at.
+ *
+ * Always a scope — the project's own checkout or one of its worktrees. The
+ * sessions moved into tabs, so the tree no longer has a third thing to point
+ * at, and "where am I working" has one shape of answer.
+ */
 export interface TreeSelection {
-  projectId: string | null;
-  worktreeId: string | null;
-  sessionId: string | null;
+  scopeType: Scope["scopeType"] | null;
+  scopeId: string | null;
 }
 
 export interface SidebarTreeProps {
   workspaceId: string;
   expansion: TreeExpansion;
   selection: TreeSelection;
-  onSelectProject: (projectId: string) => void;
-  onSelectWorktree: (projectId: string, worktreeId: string) => void;
-  onSelectSession: (projectId: string, scope: Scope, sessionId: string) => void;
+  onSelect: (projectId: string, scope: Scope) => void;
 }
 
-/** Projects, worktrees and sessions as one tree — F3.1 through F3.4. */
+/** Projects and their worktrees — F3.1 through F3.3. */
 export function SidebarTree(props: SidebarTreeProps) {
   const projects = useQuery({
     queryKey: projectsKey(props.workspaceId),
@@ -37,8 +40,6 @@ export function SidebarTree(props: SidebarTreeProps) {
     );
   }
 
-  const list = projects.data ?? [];
-
   if (projects.isPending) {
     return (
       <div className="tree">
@@ -46,6 +47,8 @@ export function SidebarTree(props: SidebarTreeProps) {
       </div>
     );
   }
+
+  const list = projects.data ?? [];
 
   if (list.length === 0) {
     return (
@@ -61,10 +64,8 @@ export function SidebarTree(props: SidebarTreeProps) {
   }
 
   return (
-    // One label for the whole tree rather than one per level: projects,
-    // worktrees and sessions are the same list at different depths now, and
-    // three nested landmarks would be three things to walk past.
     <div className="tree" aria-label="árvore de projetos">
+      <p className="tree__label">Projetos</p>
       {list.map((project) => (
         <ProjectNode key={project.id} project={project} {...props} />
       ))}
@@ -82,11 +83,10 @@ function ProjectNode({
   project,
   expansion,
   selection,
-  onSelectProject,
-  onSelectWorktree,
-  onSelectSession,
+  onSelect,
 }: SidebarTreeProps & { project: ProjectSummary }) {
   const expanded = expansion.isExpanded(project.id);
+  const localScope: Scope = { scopeType: "project", scopeId: project.id };
 
   const worktrees = useQuery({
     queryKey: worktreesKey(project.id),
@@ -101,50 +101,44 @@ function ProjectNode({
   /**
    * Every scope under this project, asked for at this level.
    *
-   * The children could each ask for their own, but then a folded project would
-   * stop knowing that one of its worktrees has an agent running — and that pip
-   * is the whole point of the sidebar. Hoisting it here keeps the answer alive
-   * while the branch is shut; the keys are shared, so the rows below read the
-   * same cache rather than fetching again.
+   * The rows below read the same cache rather than fetching again, and a folded
+   * project still knows how much is running inside it.
    */
   const scopes: Scope[] = [
-    { scopeType: "project", scopeId: project.id },
+    localScope,
     ...list.map((worktree) => ({ scopeType: "worktree" as const, scopeId: worktree.id })),
   ];
   const running = useRunningAcross(scopes);
 
   return (
     <>
-      {/* O estado de domínio fica num invólucro, não na primitiva: `Row` não
-          sabe o que é um projeto, e é isso que a mantém reusável. O atributo
-          serve ao CSS de amanhã e aos e2e de hoje. */}
       <div data-kind="project" data-state={project.available ? "available" : "missing"}>
-      <Row
-        depth={0}
-        emphasis
-        label={project.name}
-        glyph={<Glyph tone={project.available ? "project" : "off"}>■</Glyph>}
-        // PRD §8: a repository off disk stays in the list. Vanishing would take
-        // the worktrees registered under it out of sight too.
-        muted={!project.available}
-        meta={project.available ? undefined : "sem disco"}
-        expanded={expanded}
-        onToggle={() => expansion.toggle(project.id)}
-        selected={selection.projectId === project.id && selection.worktreeId === null && selection.sessionId === null}
-        onSelect={() => onSelectProject(project.id)}
-        pip={!expanded && running > 0}
-      />
+        <Row
+          depth={0}
+          emphasis
+          label={project.name}
+          glyph={<Glyph tone={project.available ? "project" : "off"}>■</Glyph>}
+          // PRD §8: a repository off disk stays in the list. Vanishing would
+          // take the worktrees registered under it out of sight too.
+          muted={!project.available}
+          meta={project.available ? undefined : "sem disco"}
+          count={!expanded && running > 0 ? running : undefined}
+          expanded={expanded}
+          onToggle={() => expansion.toggle(project.id)}
+          // The project row has no panel of its own any more — everything it
+          // used to show moved into `local`. Pointing it there keeps the row
+          // from being a target that goes nowhere.
+          selected={false}
+          onSelect={() => onSelect(project.id, localScope)}
+        />
       </div>
 
-      {expanded && (
+      {expanded && project.available && (
         <>
-          {/* F5.2 allows an agent in the project itself, with no worktree. A
-              session that exists and is not in the tree is one the user loses. */}
-          <SessionNodes
-            depth={1}
-            scope={{ scopeType: "project", scopeId: project.id }}
-            selectedId={selection.sessionId}
-            onSelect={(scope, sessionId) => onSelectSession(project.id, scope, sessionId)}
+          <LocalNode
+            projectId={project.id}
+            selected={selection.scopeType === "project" && selection.scopeId === project.id}
+            onSelect={() => onSelect(project.id, localScope)}
           />
 
           {worktrees.isError && (
@@ -158,15 +152,47 @@ function ProjectNode({
               key={worktree.id}
               projectId={project.id}
               worktree={worktree}
-              expansion={expansion}
-              selection={selection}
-              onSelectWorktree={onSelectWorktree}
-              onSelectSession={onSelectSession}
+              selected={
+                selection.scopeType === "worktree" && selection.scopeId === worktree.id
+              }
+              onSelect={onSelect}
             />
           ))}
         </>
       )}
     </>
+  );
+}
+
+/**
+ * The project's own checkout, listed as the first worktree.
+ *
+ * It is not a `git worktree`, and its glyph says so — but it is a directory
+ * with a branch where sessions run, which is everything the sidebar needs it to
+ * be. Leaving it out would mean two shapes of answer to one question.
+ */
+function LocalNode({
+  projectId,
+  selected,
+  onSelect,
+}: {
+  projectId: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const running = useRunningAcross([{ scopeType: "project", scopeId: projectId }]);
+
+  return (
+    <div data-kind="local" data-state="active">
+      <Row
+        depth={1}
+        label="local"
+        glyph={<Glyph tone="project">▭</Glyph>}
+        count={running > 0 ? running : undefined}
+        selected={selected}
+        onSelect={onSelect}
+      />
+    </div>
   );
 }
 
@@ -194,29 +220,20 @@ function worktreeMeta(worktree: WorktreeSummary): string | undefined {
 function WorktreeNode({
   projectId,
   worktree,
-  expansion,
-  selection,
-  onSelectWorktree,
-  onSelectSession,
+  selected,
+  onSelect,
 }: {
   projectId: string;
   worktree: WorktreeSummary;
-  expansion: TreeExpansion;
-  selection: TreeSelection;
-  onSelectWorktree: (projectId: string, worktreeId: string) => void;
-  onSelectSession: SidebarTreeProps["onSelectSession"];
+  selected: boolean;
+  onSelect: SidebarTreeProps["onSelect"];
 }) {
-  const expanded = expansion.isExpanded(worktree.id);
   const missing = worktree.state === "missing";
   const scope: Scope = { scopeType: "worktree", scopeId: worktree.id };
-
-  // Reads the cache the project already filled. Same key, no second request.
-  const sessions = useSessionsByScope(scope);
-  const running = (sessions.data ?? []).filter((session) => session.state === "running").length;
+  const running = useRunningAcross([scope]);
 
   return (
-    <>
-      <div data-kind="worktree" data-state={worktree.state}>
+    <div data-kind="worktree" data-state={worktree.state}>
       <Row
         depth={1}
         label={worktree.name}
@@ -224,64 +241,10 @@ function WorktreeNode({
         // F7.4: it stays visible and says so, instead of disappearing.
         muted={missing}
         meta={worktreeMeta(worktree)}
-        expanded={expanded}
-        onToggle={() => expansion.toggle(worktree.id)}
-        selected={selection.worktreeId === worktree.id && selection.sessionId === null}
-        onSelect={() => onSelectWorktree(projectId, worktree.id)}
-        pip={!expanded && running > 0}
+        count={running > 0 ? running : undefined}
+        selected={selected}
+        onSelect={() => onSelect(projectId, scope)}
       />
-      </div>
-
-      {expanded && (
-        <SessionNodes
-          depth={2}
-          scope={scope}
-          selectedId={selection.sessionId}
-          onSelect={(sessionScope, sessionId) => onSelectSession(projectId, sessionScope, sessionId)}
-        />
-      )}
-    </>
-  );
-}
-
-function SessionNodes({
-  depth,
-  scope,
-  selectedId,
-  onSelect,
-}: {
-  depth: number;
-  scope: Scope;
-  selectedId: string | null;
-  onSelect: (scope: Scope, sessionId: string) => void;
-}) {
-  const sessions = useSessionsByScope(scope);
-
-  return (
-    <>
-      {(sessions.data ?? []).map((session) => (
-        <div
-          key={session.id}
-          data-kind={session.kind}
-          data-state={session.state}
-          data-scope={scope.scopeType}
-        >
-        <Row
-          depth={depth}
-          label={session.agentName ?? "shell"}
-          // F3.4 wants shell and agent told apart at a glance.
-          glyph={
-            <Glyph tone={session.kind === "agent" ? "agent" : "shell"}>
-              {session.kind === "agent" ? "◆" : "●"}
-            </Glyph>
-          }
-          muted={session.state === "exited"}
-          meta={session.state === "exited" ? "saiu" : undefined}
-          selected={selectedId === session.id}
-          onSelect={() => onSelect(scope, session.id)}
-        />
-        </div>
-      ))}
-    </>
+    </div>
   );
 }

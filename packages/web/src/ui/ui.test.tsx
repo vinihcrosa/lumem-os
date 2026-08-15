@@ -118,9 +118,16 @@ describe("Row", () => {
     expect(container.querySelector(".row")).toHaveAttribute("style", expect.stringContaining("--depth: 3"));
   });
 
-  it("tells a screen reader about a live session in a node that is closed", () => {
-    render(<Row depth={1} label="teste-prd" pip expanded={false} onToggle={vi.fn()} onSelect={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "teste-prd sessão rodando" })).toBeInTheDocument();
+  it("says how many sessions are running, not merely that some are", () => {
+    // With the sessions out of the tree, the row is the only place left that
+    // can answer "how much is happening in there".
+    render(<Row depth={1} label="teste-prd" count={3} onSelect={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "teste-prd 3 sessões rodando" })).toBeInTheDocument();
+  });
+
+  it("says nothing when nothing is running", () => {
+    render(<Row depth={1} label="teste-prd" count={0} onSelect={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "teste-prd" })).toBeInTheDocument();
   });
 
   it("keeps the twist out of the row's own name, so the two are tellable apart", () => {

@@ -98,8 +98,10 @@ describe("add project", () => {
         path: "/repos/lorebase",
       }),
     );
-    // Adding then having to hunt for it in the list is a step for nothing.
-    expect(await screen.findByRole("heading", { name: "lorebase" })).toBeInTheDocument();
+    // Adding then having to hunt for it in the list is a step for nothing. The
+    // panel that opens is `local` — the checkout itself, which is where a
+    // freshly added project actually is.
+    expect(await screen.findByRole("heading", { name: "local" })).toBeInTheDocument();
   });
 
   it("sends an explicit name when one is typed", async () => {
@@ -160,9 +162,11 @@ describe("project detail", () => {
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
 
-    expect(await screen.findByRole("heading", { name: "lorebase" })).toBeInTheDocument();
+    // The project's own row points at `local`: everything the project detail
+    // used to show lives there now.
+    expect(await screen.findByRole("heading", { name: "local" })).toBeInTheDocument();
     expect(screen.getByText("/repos/lorebase")).toBeInTheDocument();
-    expect(screen.getByText("main")).toBeInTheDocument();
+    expect(screen.getAllByText("main").length).toBeGreaterThan(0);
   });
 
   it("warns and blocks when the repository is missing from disk", async () => {
@@ -192,11 +196,11 @@ describe("project detail", () => {
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
     // F2.5 said out loud, where the decision is made.
-    expect(await screen.findByText("remover não apaga nada do disco")).toBeInTheDocument();
+    expect(await screen.findByText(/o diretório e o que está dentro dele ficam no disco/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "remover projeto" }));
 
-    expect(await screen.findByText("selecione um projeto")).toBeInTheDocument();
+    expect(await screen.findByText("selecione uma worktree")).toBeInTheDocument();
   });
 
   it("shows the daemon's reason when removal is refused", async () => {

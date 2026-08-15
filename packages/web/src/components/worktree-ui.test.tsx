@@ -162,7 +162,7 @@ describe("create worktree", () => {
     await user.type(screen.getByLabelText("Nome da worktree"), "teste");
     await user.click(screen.getByRole("button", { name: "criar" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent("criando a worktree…");
+    expect(await screen.findByText("criando a worktree…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "criando…" })).toBeDisabled();
   });
 

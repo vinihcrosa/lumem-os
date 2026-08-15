@@ -140,7 +140,7 @@ export function Styleguide() {
                 glyph={<Glyph tone="worktree">◇</Glyph>}
                 expanded={false}
                 onToggle={() => undefined}
-                pip
+                count={3}
                 selected={selected === "teste-prd"}
                 onSelect={() => setSelected("teste-prd")}
               />

@@ -2,16 +2,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { AddProjectDialog } from "./components/AddProjectDialog.js";
-import { CreateWorktreeDialog } from "./components/CreateWorktreeDialog.js";
 import { FirstRun } from "./components/FirstRun.js";
-import { NewSessionMenu } from "./components/NewSessionMenu.js";
-import { ProjectDetail } from "./components/ProjectDetail.js";
-import { SessionDetail } from "./components/SessionDetail.js";
+import { LocalPanel } from "./components/LocalPanel.js";
 import { SidebarTree } from "./components/SidebarTree.js";
 import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
-import { WorktreeDetail } from "./components/WorktreeDetail.js";
+import { WorktreePanel } from "./components/WorktreePanel.js";
 import { useActiveWorkspace } from "./hooks/useActiveWorkspace.js";
 import { useLiveState } from "./hooks/useLiveState.js";
+import type { Scope } from "./hooks/useSessionsByScope.js";
 import { useTreeExpansion } from "./hooks/useTreeExpansion.js";
 import { AppShell } from "./layout/AppShell.js";
 import { Topbar } from "./layout/Topbar.js";
@@ -22,24 +20,19 @@ import { Banner, Skeleton } from "./ui/index.js";
 import "./components/sidebar.css";
 import "./layout/layout.css";
 
-type ScopeType = "project" | "worktree";
-
 /**
- * What the main area is showing.
+ * Where the user is working.
  *
- * One value rather than an id per kind: with three, "a worktree of another
- * project is selected" is representable, and every render has to decide which
- * one wins.
+ * One scope, not a tree position: the sessions became tabs, so the main area
+ * always shows the same kind of thing — a checkout and what is open in it. The
+ * project id rides along because a worktree's panel needs it for the crumb and
+ * for invalidating the right list on removal.
  */
-type Selection =
-  | { kind: "none" }
-  | { kind: "project"; projectId: string }
-  | { kind: "worktree"; projectId: string; worktreeId: string }
-  | { kind: "session"; projectId: string; scopeType: ScopeType; scopeId: string; sessionId: string };
+type Selection = { projectId: string; scope: Scope } | null;
 
 export function App() {
   const queryClient = useQueryClient();
-  const [selection, setSelection] = useState<Selection>({ kind: "none" });
+  const [selection, setSelection] = useState<Selection>(null);
   const expansion = useTreeExpansion();
 
   const health = useQuery({
@@ -85,14 +78,14 @@ export function App() {
   function renderBody() {
     if (workspaces.isPending) {
       return (
-        <div className="detail">
+        <div className="pane">
           <Skeleton label="conectando ao daemon" />
         </div>
       );
     }
     if (workspaces.isError) {
       return (
-        <div className="detail">
+        <div className="pane">
           <p role="alert">{workspaces.error.message}</p>
         </div>
       );
@@ -110,169 +103,90 @@ export function App() {
       );
     }
 
-    // Bound here so `renderDetail` can read it: the narrowing above does not
+    // Bound here so `renderPanel` can read it: the narrowing above does not
     // survive into a nested function.
     const list = workspaces.data;
     const activeName = list.find((workspace) => workspace.id === activeId)?.name ?? "";
 
     return (
       <AppShell
-        // A session hands the pane over to the terminal, which has to be able
-        // to measure its own height.
-        fill={selection.kind === "session"}
+        // The panel owns its own scrolling: the terminal inside it has to be
+        // able to measure a box with a height.
+        fill
         sidebar={
           <>
             <WorkspaceSelector
-              workspaces={workspaces.data}
+              workspaces={list}
               activeId={activeId}
               onSelect={(id) => {
                 select(id);
                 // Nothing selected in the old workspace belongs to the new one.
-                setSelection({ kind: "none" });
+                setSelection(null);
               }}
             />
             <SidebarTree
               workspaceId={activeId}
               expansion={expansion}
               selection={{
-                projectId: selection.kind === "none" ? null : selection.projectId,
-                worktreeId: selection.kind === "worktree" ? selection.worktreeId : null,
-                sessionId: selection.kind === "session" ? selection.sessionId : null,
+                scopeType: selection?.scope.scopeType ?? null,
+                scopeId: selection?.scope.scopeId ?? null,
               }}
-              onSelectProject={(projectId) => setSelection({ kind: "project", projectId })}
-              onSelectWorktree={(projectId, worktreeId) =>
-                setSelection({ kind: "worktree", projectId, worktreeId })
-              }
-              onSelectSession={(projectId, scope, sessionId) =>
-                setSelection({
-                  kind: "session",
-                  projectId,
-                  scopeType: scope.scopeType,
-                  scopeId: scope.scopeId,
-                  sessionId,
-                })
-              }
+              onSelect={(projectId, scope) => setSelection({ projectId, scope })}
             />
             <div className="sidebar__foot">
               {/* Adding a project is an action of the workspace, not an item of
                   the list it appends to. */}
               <AddProjectDialog
                 workspaceId={activeId}
-                onAdded={(projectId) => setSelection({ kind: "project", projectId })}
+                onAdded={(projectId) =>
+                  setSelection({ projectId, scope: { scopeType: "project", scopeId: projectId } })
+                }
               />
             </div>
           </>
         }
       >
-        {renderDetail(activeName)}
+        {renderPanel(activeId, activeName)}
       </AppShell>
     );
   }
 
-  function renderDetail(activeName: string) {
-    if (selection.kind === "session") {
-      const { projectId, scopeType, scopeId } = selection;
+  function renderPanel(workspaceId: string, workspaceName: string) {
+    if (selection === null) {
       return (
-        <SessionDetail
-          key={selection.sessionId}
-          sessionId={selection.sessionId}
-          onClosed={() =>
-            setSelection(
-              scopeType === "worktree"
-                ? { kind: "worktree", projectId, worktreeId: scopeId }
-                : { kind: "project", projectId },
-            )
+        <div className="pane">
+          <p>selecione uma worktree</p>
+        </div>
+      );
+    }
+
+    const { projectId, scope } = selection;
+
+    if (scope.scopeType === "worktree") {
+      return (
+        <WorktreePanel
+          key={scope.scopeId}
+          worktreeId={scope.scopeId}
+          projectId={projectId}
+          workspaceName={workspaceName}
+          onRemoved={() =>
+            setSelection({ projectId, scope: { scopeType: "project", scopeId: projectId } })
           }
         />
       );
     }
 
-    if (selection.kind === "worktree") {
-      const { projectId, worktreeId } = selection;
-      return (
-        <WorktreeDetail
-          key={worktreeId}
-          worktreeId={worktreeId}
-          projectId={projectId}
-          workspaceName={activeName}
-          onRemoved={() => setSelection({ kind: "project", projectId })}
-          onSelectSession={(sessionId) =>
-            setSelection({
-              kind: "session",
-              projectId,
-              scopeType: "worktree",
-              scopeId: worktreeId,
-              sessionId,
-            })
-          }
-        >
-          <NewSessionMenu
-            scopeType="worktree"
-            scopeId={worktreeId}
-            onCreated={(sessionId) =>
-              setSelection({
-                kind: "session",
-                projectId,
-                scopeType: "worktree",
-                scopeId: worktreeId,
-                sessionId,
-              })
-            }
-          />
-        </WorktreeDetail>
-      );
-    }
-
-    if (selection.kind === "project") {
-      const { projectId } = selection;
-      return (
-        <ProjectDetail
-          key={projectId}
-          projectId={projectId}
-          workspaceId={activeId!}
-          workspaceName={activeName}
-          onRemoved={() => setSelection({ kind: "none" })}
-          onSelectWorktree={(worktreeId) =>
-            setSelection({ kind: "worktree", projectId, worktreeId })
-          }
-          onSelectSession={(scope, sessionId) =>
-            setSelection({
-              kind: "session",
-              projectId,
-              scopeType: scope.scopeType,
-              scopeId: scope.scopeId,
-              sessionId,
-            })
-          }
-        >
-          {/* Creating a worktree is an action of the project it comes from,
-              not of the list it will appear in. */}
-          <CreateWorktreeDialog
-            projectId={projectId}
-            onCreated={(worktreeId) => setSelection({ kind: "worktree", projectId, worktreeId })}
-          />
-          {/* F5.2: an agent may run in the project itself, with no worktree. */}
-          <NewSessionMenu
-            scopeType="project"
-            scopeId={projectId}
-            onCreated={(sessionId) =>
-              setSelection({
-                kind: "session",
-                projectId,
-                scopeType: "project",
-                scopeId: projectId,
-                sessionId,
-              })
-            }
-          />
-        </ProjectDetail>
-      );
-    }
-
     return (
-      <div className="detail">
-        <p>selecione um projeto</p>
-      </div>
+      <LocalPanel
+        key={projectId}
+        projectId={projectId}
+        workspaceId={workspaceId}
+        workspaceName={workspaceName}
+        onRemoved={() => setSelection(null)}
+        onSelectWorktree={(worktreeId) =>
+          setSelection({ projectId, scope: { scopeType: "worktree", scopeId: worktreeId } })
+        }
+      />
     );
   }
 }

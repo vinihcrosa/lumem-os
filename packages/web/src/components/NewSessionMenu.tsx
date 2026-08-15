@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePopover } from "../hooks/usePopover.js";
 import { sessionsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
-import { Banner, Button, Glyph, Menu, MenuItem } from "../ui/index.js";
+import { Banner, Glyph, Menu, MenuItem } from "../ui/index.js";
 
 import "./new-session.css";
 
@@ -50,27 +50,34 @@ export function NewSessionMenu({ scopeType, scopeId, onCreated }: NewSessionMenu
   return (
     <>
       <div className="new-session">
-        <Button
+        <button
+          type="button"
           ref={popover.triggerRef}
-          variant="primary"
-          glyph={<Glyph>◆</Glyph>}
+          className="tabs-new"
           aria-haspopup="menu"
           aria-expanded={popover.open}
-          disabled={openAgent.isPending}
+          disabled={openAgent.isPending || openShell.isPending}
           onClick={popover.toggle}
         >
-          novo agente
-          <span className="new-session__caret" aria-hidden="true">
-            ▾
-          </span>
-        </Button>
+          <span aria-hidden="true">＋</span> nova sessão
+        </button>
 
         {popover.open && (
           <div className="new-session__panel" ref={popover.panelRef}>
-            <Menu label="configurações de agente">
-              {list.length === 0 && (
-                <p className="new-session__empty">nenhuma configuração de agente</p>
-              )}
+            <Menu label="nova sessão">
+              {/* Shell and agent are the same primitive with a different label,
+                  so they belong in the same list rather than in a button and a
+                  menu that happen to sit side by side. */}
+              <MenuItem
+                glyph={<Glyph tone="shell">●</Glyph>}
+                hint="shell de login"
+                onSelect={() => {
+                  popover.close();
+                  openShell.mutate();
+                }}
+              >
+                shell
+              </MenuItem>
               {list.map((config) => (
                 <MenuItem
                   key={config.id}
@@ -89,14 +96,6 @@ export function NewSessionMenu({ scopeType, scopeId, onCreated }: NewSessionMenu
           </div>
         )}
       </div>
-
-      <Button
-        glyph={<Glyph tone="shell">●</Glyph>}
-        onClick={() => openShell.mutate()}
-        disabled={openShell.isPending}
-      >
-        novo shell
-      </Button>
 
       {failure && (
         <div className="new-session__error">

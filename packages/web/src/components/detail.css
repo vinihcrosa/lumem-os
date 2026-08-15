@@ -58,7 +58,7 @@
   color: var(--color-text-tertiary);
 }
 
-.section { margin-top: var(--space-24); }
+.section { margin-top: var(--space-24); max-width: var(--size-detail-max); }
 
 .dim { color: var(--color-text-tertiary); }
 
@@ -73,3 +73,36 @@
 }
 .create-worktree__actions { display: flex; gap: var(--space-8); }
 .create-worktree__status { margin-top: var(--space-12); }
+
+/* --------------------------------------------------- painel de um escopo */
+/*
+ * Cabeçalho fixo, faixa de abas, e o painel da aba aberta preenchendo o resto.
+ * O cabeçalho fica acima da faixa porque é contexto de todas as abas: trocar de
+ * aba não pode mover a branch nem o caminho de lugar.
+ */
+.scope {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.scope__head {
+  flex: none;
+  padding: var(--space-16) var(--space-20) var(--space-12);
+}
+
+.pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-12) var(--space-20) var(--space-16);
+  overflow: auto;
+}
+/* `hidden` num elemento com `display: flex` não esconde nada: o display do
+   atributo perde para o da regra. Sem isto todas as abas se empilhariam. */
+.pane[hidden] { display: none; }
+
+.pane--term { overflow: hidden; }
