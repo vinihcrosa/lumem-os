@@ -1,0 +1,1213 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — protótipo</title>
+<style>
+/* ========================================================================
+   1. tokens.css — colado integralmente, gerado por
+      packages/web/scripts/generate-tokens.py
+   ======================================================================== */
+/* Design tokens — GERADO por scripts/generate_palette.py. Nao edite a mao. */
+/* Rampas em OKLCH, contraste WCAG validado na geracao. */
+
+:root {
+  /* ---------- primitivas — nunca use direto em componente ---------- */
+  /* brand */
+  --brand-50: #F8F7FF;
+  --brand-100: #EFECFF;
+  --brand-200: #DFD9FF;
+  --brand-300: #CCC2FF;
+  --brand-400: #B5A2FF;
+  --brand-500: #9774FD;
+  --brand-600: #7955D7;
+  --brand-700: #603FAF;
+  --brand-800: #492F88;
+  --brand-900: #321F5F;
+  --brand-950: #211441;
+  /* accent */
+  --accent-50: #F6FAEB;
+  --accent-100: #ECF3D8;
+  --accent-200: #DAE5B3;
+  --accent-300: #C5D587;
+  --accent-400: #ABBE55;
+  --accent-500: #8A9D0E;
+  --accent-600: #6D7D00;
+  --accent-700: #556200;
+  --accent-800: #414A00;
+  --accent-900: #2C3300;
+  --accent-950: #1C2200;
+  /* neutral */
+  --neutral-0: #FFFFFF;
+  --neutral-50: #F8F7F9;
+  --neutral-100: #EFEEF1;
+  --neutral-200: #DEDEE3;
+  --neutral-300: #CBCAD2;
+  --neutral-400: #B2B1BB;
+  --neutral-500: #91909B;
+  --neutral-600: #73727C;
+  --neutral-700: #5A5962;
+  --neutral-800: #44434A;
+  --neutral-900: #2E2E33;
+  --neutral-925: #26252C;
+  --neutral-950: #1E1E22;
+  --neutral-960: #19181F;
+  --neutral-970: #14131A;
+  --neutral-980: #100F15;
+  --neutral-990: #0C0B11;
+  --neutral-1000: #08070D;
+  /* success */
+  --success-50: #EEFCF3;
+  --success-100: #DCF7E6;
+  --success-200: #BAEDCE;
+  --success-300: #91E0B3;
+  --success-400: #60CC93;
+  --success-500: #1AAC6E;
+  --success-600: #008955;
+  --success-700: #006C42;
+  --success-800: #005331;
+  --success-900: #003920;
+  --success-950: #002614;
+  /* warning */
+  --warning-50: #FFF7EA;
+  --warning-100: #FEECD2;
+  --warning-200: #FAD9A7;
+  --warning-300: #F4C273;
+  --warning-400: #E5A52E;
+  --warning-500: #BF8500;
+  --warning-600: #986900;
+  --warning-700: #785200;
+  --warning-800: #5C3E00;
+  --warning-900: #402A00;
+  --warning-950: #2B1B00;
+  /* danger */
+  --danger-50: #FFF5F4;
+  --danger-100: #FFE9E6;
+  --danger-200: #FFD3CD;
+  --danger-300: #FFB6AE;
+  --danger-400: #FF8D83;
+  --danger-500: #F0554F;
+  --danger-600: #C93433;
+  --danger-700: #A32223;
+  --danger-800: #7E1718;
+  --danger-900: #580F0F;
+  --danger-950: #3D0808;
+  /* info */
+  --info-50: #F1F9FF;
+  --info-100: #DFF2FF;
+  --info-200: #BEE5FF;
+  --info-300: #94D4FF;
+  --info-400: #4FBEFF;
+  --info-500: #009CE0;
+  --info-600: #007CB2;
+  --info-700: #00618D;
+  --info-800: #004A6D;
+  --info-900: #00334C;
+  --info-950: #002134;
+
+  /* ---------- semantica — use estas ---------- */
+  /* superficies */
+  --color-bg-base: var(--neutral-1000);
+  --color-bg-panel: var(--neutral-990);
+  --color-bg-surface: var(--neutral-980);
+  --color-bg-raised: var(--neutral-970);
+  --color-bg-inset: var(--neutral-1000);
+  --color-bg-hover: var(--neutral-960);
+  --color-bg-active: var(--neutral-925);
+  --color-bg-selected: var(--brand-950);
+  /* marca */
+  --color-bg-brand: var(--brand-500);
+  --color-bg-brand-hover: var(--brand-400);
+  --color-bg-brand-subtle: var(--brand-950);
+  --color-bg-brand-muted: var(--brand-900);
+  /* fundos de status */
+  --color-bg-success-subtle: var(--success-950);
+  --color-bg-warning-subtle: var(--warning-950);
+  --color-bg-danger-subtle: var(--danger-950);
+  --color-bg-info-subtle: var(--info-950);
+  --color-bg-neutral-subtle: var(--neutral-925);
+  /* texto */
+  --color-text-primary: var(--neutral-50);
+  --color-text-secondary: var(--neutral-400);
+  --color-text-tertiary: var(--neutral-500);
+  --color-text-disabled: var(--neutral-700);
+  --color-text-inverse: var(--neutral-1000);
+  --color-text-on-brand: var(--neutral-1000);
+  --color-text-brand: var(--brand-400);
+  --color-text-link: var(--brand-400);
+  --color-text-code: var(--neutral-300);
+  --color-text-success: var(--success-400);
+  --color-text-warning: var(--warning-400);
+  --color-text-danger: var(--danger-400);
+  --color-text-info: var(--info-400);
+  /* bordas */
+  --color-border-subtle: var(--neutral-960);
+  --color-border-default: var(--neutral-925);
+  --color-border-strong: var(--neutral-800);
+  --color-border-brand: var(--brand-500);
+  --color-border-danger: var(--danger-500);
+  --color-border-focus: var(--brand-400);
+  /* dominio — sessao */
+  --color-session-running: var(--success-400);
+  --color-session-exited: var(--neutral-500);
+  --color-session-failed: var(--danger-400);
+  --color-session-shell: var(--info-400);
+  --color-session-agent: var(--brand-400);
+  /* dominio — worktree e git */
+  --color-worktree-clean: var(--success-400);
+  --color-worktree-dirty: var(--warning-400);
+  --color-worktree-missing: var(--danger-400);
+  --color-git-branch: var(--accent-400);
+  --color-git-ahead: var(--info-400);
+  --color-git-behind: var(--warning-400);
+  --color-git-added: var(--success-400);
+  --color-git-removed: var(--danger-400);
+  --color-git-modified: var(--warning-400);
+  /* dominio — hierarquia e daemon */
+  --color-scope-workspace: var(--brand-400);
+  --color-scope-project: var(--neutral-400);
+  --color-scope-worktree: var(--accent-400);
+  --color-daemon-online: var(--success-400);
+  --color-daemon-offline: var(--danger-400);
+
+  /* ---------- espacamento (nome = valor em px) ---------- */
+  --space-0: 0px;
+  --space-1: 1px;
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+
+  /* ---------- raio ---------- */
+  --radius-none: 0px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* ---------- dimensoes ---------- */
+  --size-control-xs: 20px;
+  --size-control-sm: 24px;
+  --size-control-md: 28px;
+  --size-control-lg: 32px;
+  --size-control-xl: 40px;
+  --size-icon-xs: 12px;
+  --size-icon-sm: 14px;
+  --size-icon-md: 16px;
+  --size-icon-lg: 20px;
+  --size-row-compact: 28px;
+  --size-row-cozy: 32px;
+  --size-target-min: 24px;
+  --size-topbar-height: 40px;
+  --size-sidebar-width: 264px;
+  --size-detail-max: 880px;
+  --size-terminal-min: 420px;
+  --size-dialog-width: 420px;
+  --size-menu-width: 300px;
+  --border-width-none: 0px;
+  --border-width-thin: 1px;
+  --border-width-thick: 2px;
+  --border-width-focus: 2px;
+
+  /* ---------- tipografia ---------- */
+  --font-family-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-display-lg: 600 28px/34px var(--font-family-sans);
+  --tracking-display-lg: -0.02em;
+  --text-display-md: 600 22px/28px var(--font-family-sans);
+  --tracking-display-md: -0.015em;
+  --text-heading-lg: 600 18px/24px var(--font-family-sans);
+  --tracking-heading-lg: -0.01em;
+  --text-heading-md: 600 15px/20px var(--font-family-sans);
+  --tracking-heading-md: -0.005em;
+  --text-heading-sm: 600 13px/18px var(--font-family-sans);
+  --text-body-lg: 400 14px/20px var(--font-family-sans);
+  --text-body-md: 400 13px/18px var(--font-family-sans);
+  --text-body-sm: 400 12px/16px var(--font-family-sans);
+  --text-label-md: 500 13px/16px var(--font-family-sans);
+  --text-label-sm: 500 12px/16px var(--font-family-sans);
+  --text-label-xs: 500 11px/14px var(--font-family-sans);
+  --tracking-label-xs: 0.015em;
+  --text-caption: 400 11px/14px var(--font-family-sans);
+  --text-mono-lg: 400 13px/20px var(--font-family-mono);
+  --text-mono-md: 400 12px/18px var(--font-family-mono);
+  --text-mono-sm: 400 11px/16px var(--font-family-mono);
+
+  /* ---------- elevacao ---------- */
+  --elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.32);
+  --elevation-md: 0 2px 4px -1px rgb(0 0 0 / 0.34), 0 4px 8px -2px rgb(0 0 0 / 0.30);
+  --elevation-lg: 0 4px 8px -2px rgb(0 0 0 / 0.38), 0 12px 24px -4px rgb(0 0 0 / 0.36);
+  --elevation-xl: 0 8px 16px -4px rgb(0 0 0 / 0.42), 0 24px 48px -8px rgb(0 0 0 / 0.44);
+  --focus-ring: 0 0 0 1px var(--color-bg-base), 0 0 0 3px var(--color-border-focus);
+}
+
+/* Anel de foco padrao — aplique em todo alvo interativo */
+.focus-ring:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ========================================================================
+   2. estilos do protótipo — só var(), nenhum literal
+   ======================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font: var(--text-body-md);
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* ---------------------------------------------------- chrome do protótipo */
+/* Não faz parte do desenho: é só a navegação entre telas do arquivo. */
+.tabbar {
+  display: flex;
+  align-items: stretch;
+  height: var(--size-control-lg);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.tab {
+  padding: 0 var(--space-12);
+  font: var(--text-label-sm);
+  color: var(--color-text-tertiary);
+  border-bottom: 2px solid transparent;
+}
+.tab.is-active { color: var(--color-text-primary); border-bottom-color: var(--color-border-brand); }
+
+.screen { display: none; }
+.screen.is-active { display: block; }
+
+/* ------------------------------------------------------------- app frame */
+.app {
+  height: calc(100vh - var(--size-control-lg));
+  display: grid;
+  grid-template-rows: var(--size-topbar-height) 1fr;
+  background: var(--color-bg-base);
+}
+.app--flow { height: auto; display: block; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: 0 var(--space-12);
+  background: var(--color-bg-base);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font: var(--text-heading-sm);
+  letter-spacing: var(--tracking-label-xs);
+}
+.wordmark__dot {
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-brand-hover);
+  box-shadow: 0 0 var(--space-8) var(--color-bg-brand);
+}
+.spacer { flex: 1; }
+
+.daemon {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+}
+.daemon__dot {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-daemon-online);
+}
+.daemon--off { color: var(--color-daemon-offline); }
+.daemon--off .daemon__dot { background: var(--color-daemon-offline); }
+
+/* --------------------------------------------------------------- sidebar */
+.body {
+  display: grid;
+  grid-template-columns: var(--size-sidebar-width) 1fr;
+  min-height: 0;
+}
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-bg-panel);
+  border-right: 1px solid var(--color-border-subtle);
+}
+.tree { flex: 1; overflow: auto; padding: var(--space-4) var(--space-6); }
+.sidebar__foot { border-top: 1px solid var(--color-border-subtle); padding: var(--space-6); }
+
+.ws {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  height: var(--size-control-lg);
+  padding: 0 var(--space-8);
+  margin: var(--space-6) 0;
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font: var(--text-label-md);
+}
+.ws:hover { background: var(--color-bg-hover); }
+.ws__icon { color: var(--color-scope-workspace); font-size: var(--size-icon-sm); }
+.caret { margin-left: auto; color: var(--color-text-tertiary); font-size: var(--size-icon-xs); }
+.ws-wrap { padding: 0 var(--space-6); border-bottom: 1px solid var(--color-border-subtle); }
+
+/* linha da árvore — a âncora de densidade de toda a interface.
+   Estrutura (projeto, worktree) é discreta; cor fica reservada para o que
+   está vivo (sessão) e para o que está quebrado. Senão a sidebar vira
+   arco-íris e o ponto verde de "rodando" deixa de saltar. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-row-compact);
+  padding-right: var(--space-8);
+  padding-left: calc(var(--space-4) + var(--depth, 0) * var(--space-12));
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font: var(--text-body-md);
+  text-align: left;
+}
+.row:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.row.is-selected {
+  background: var(--color-bg-selected);
+  color: var(--color-text-primary);
+  box-shadow: inset 2px 0 0 var(--color-border-brand);
+}
+.row.is-muted { color: var(--color-text-disabled); }
+.row.is-muted:hover { color: var(--color-text-tertiary); }
+.row--project { color: var(--color-text-primary); font: var(--text-label-md); }
+
+.row__twist {
+  width: var(--size-icon-sm);
+  flex: none;
+  text-align: center;
+  font-size: var(--size-icon-xs);
+  color: var(--color-text-tertiary);
+}
+.row__icon { width: var(--size-icon-sm); flex: none; text-align: center; font-size: var(--size-icon-sm); }
+.row__icon--project  { color: var(--color-scope-project); }
+.row__icon--worktree { color: var(--color-scope-worktree); }
+.row__icon--shell    { color: var(--color-session-shell); }
+.row__icon--agent    { color: var(--color-session-agent); }
+.row__icon--warn     { color: var(--color-worktree-missing); }
+.row__icon--off      { color: var(--color-text-disabled); }
+
+.row__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row__meta { flex: none; font: var(--text-caption); color: var(--color-text-tertiary); }
+.row__pip {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-session-running);
+}
+
+.add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-md);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+}
+.add:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+/* ---------------------------------------------------------------- detalhe */
+.main { overflow: auto; min-width: 0; min-height: 0; }
+.main--fill { display: flex; overflow: hidden; }
+.detail { max-width: var(--size-detail-max); padding: var(--space-20) var(--space-24) var(--space-40); }
+/* A sessão é a exceção: o terminal não tem largura de leitura, tem colunas. */
+.detail--session {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  padding-bottom: var(--space-16);
+}
+
+.crumb { display: flex; align-items: center; gap: var(--space-6); font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.crumb__sep { color: var(--color-text-disabled); }
+.crumb__here { color: var(--color-text-secondary); }
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  margin: var(--space-6) 0 var(--space-12);
+}
+.title h1 { margin: 0; font: var(--text-display-md); letter-spacing: var(--tracking-display-md); }
+.title .kind { font-weight: 400; }
+.kind--worktree { color: var(--color-scope-worktree); }
+.kind--project  { color: var(--color-scope-project); }
+.kind--agent    { color: var(--color-session-agent); }
+.kind--missing  { color: var(--color-worktree-missing); }
+
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  font: var(--text-mono-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.chip__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+.chip--branch  { color: var(--color-git-branch); }
+.chip--clean   { color: var(--color-worktree-clean); }
+.chip--dirty   { color: var(--color-worktree-dirty); }
+.chip--missing { color: var(--color-worktree-missing); border-color: var(--color-border-danger); }
+.chip--running { color: var(--color-session-running); }
+.chip--exited  { color: var(--color-session-exited); }
+.chip--failed  { color: var(--color-session-failed); border-color: var(--color-border-danger); }
+.chip .ahead  { color: var(--color-git-ahead); }
+.chip .behind { color: var(--color-git-behind); }
+.chip .dim    { color: var(--color-text-tertiary); }
+
+/* barra de ações */
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); margin: var(--space-16) 0; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.btn:hover { background: var(--color-bg-raised); border-color: var(--color-border-strong); }
+.btn--primary { background: var(--color-bg-brand); border-color: var(--color-bg-brand); color: var(--color-text-on-brand); }
+.btn--primary:hover { background: var(--color-bg-brand-hover); border-color: var(--color-bg-brand-hover); }
+.btn--danger { color: var(--color-text-danger); }
+.btn--danger:hover { border-color: var(--color-border-danger); }
+/* Sem preenchimento, mas com borda: ação terciária sem borda nenhuma some
+   no meio do texto e deixa de parecer clicável. */
+.btn--ghost { background: none; border-color: var(--color-border-subtle); color: var(--color-text-secondary); }
+.btn--ghost:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.btn--sm { height: var(--size-control-sm); padding: 0 var(--space-8); font: var(--text-label-xs); }
+.btn[disabled] { color: var(--color-text-disabled); cursor: not-allowed; }
+.btn[disabled]:hover { background: var(--color-bg-surface); border-color: var(--color-border-default); }
+.btn__glyph { font-size: var(--size-icon-sm); line-height: 1; }
+.btn__glyph--agent { color: var(--color-session-agent); }
+.btn__glyph--shell { color: var(--color-session-shell); }
+.btn__glyph--worktree { color: var(--color-scope-worktree); }
+.btn--primary .btn__glyph { color: inherit; }
+
+/* grade de metadados */
+.meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-6) var(--space-16);
+  margin: 0;
+  padding: var(--space-12) var(--space-16);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+.meta dt {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  padding-top: var(--space-2);
+}
+.meta dd { margin: 0; font: var(--text-mono-md); color: var(--color-text-code); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta dd .dim { color: var(--color-text-tertiary); }
+
+/* seções */
+.section { margin-top: var(--space-24); }
+.section__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.section__title {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.section__count { font: var(--text-caption); color: var(--color-text-disabled); }
+
+/* lista de sessões / worktrees */
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  width: 100%;
+  height: var(--size-row-cozy);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+.item:hover { background: var(--color-bg-hover); }
+.item__icon { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); }
+.item__name { flex: none; font: var(--text-label-sm); color: var(--color-text-primary); }
+.item__path { flex: 1; min-width: 0; font: var(--text-mono-sm); color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item__state { flex: none; font: var(--text-mono-sm); }
+.item__age { flex: none; width: var(--space-64); text-align: right; font: var(--text-caption); color: var(--color-text-tertiary); }
+.item__act { flex: none; }
+.state--running { color: var(--color-session-running); }
+.state--exited  { color: var(--color-session-exited); }
+.state--failed  { color: var(--color-session-failed); }
+.state--clean   { color: var(--color-worktree-clean); }
+.state--dirty   { color: var(--color-worktree-dirty); }
+.state--missing { color: var(--color-worktree-missing); }
+
+/* vazio */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+  padding: var(--space-24);
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-tertiary);
+  font: var(--text-body-sm);
+}
+.empty__title { font: var(--text-label-md); color: var(--color-text-secondary); }
+
+/* ---------------------------------------------------------------- terminal */
+.term-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  flex: none;
+  padding: var(--space-8) var(--space-12);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.term-head__cmd { flex: 1; min-width: 0; font: var(--text-mono-sm); color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.term {
+  flex: 1;
+  min-height: var(--size-terminal-min);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  padding: var(--space-10) var(--space-12);
+  font: var(--text-mono-md);
+  color: var(--color-text-primary);
+  /* Armadilha conhecida: com filhos display:block dentro de white-space:pre,
+     as quebras do código-fonte viram linhas vazias e dobram a altura. */
+  white-space: normal;
+  overflow: hidden;
+}
+.term--auto { flex: none; min-height: var(--space-0); }
+.term .l { display: block; white-space: pre; min-height: var(--space-8); }
+.term .dim   { color: var(--color-text-tertiary); }
+.term .agent { color: var(--color-session-agent); }
+.term .ok    { color: var(--color-git-added); }
+.term .warn  { color: var(--color-worktree-dirty); }
+.term .err   { color: var(--color-session-failed); }
+.term .path  { color: var(--color-git-branch); }
+.term .you   { color: var(--color-text-primary); font-weight: 500; }
+.cursor { display: inline-block; width: var(--space-8); height: var(--space-12); background: var(--color-text-primary); vertical-align: text-bottom; }
+
+/* ------------------------------------------------------------------ menus */
+.menu {
+  width: var(--size-menu-width);
+  max-width: 100%;
+  padding: var(--space-4);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-lg);
+}
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  height: var(--size-control-lg);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  font: var(--text-label-sm);
+  text-align: left;
+}
+.menu__item:hover { background: var(--color-bg-hover); }
+.menu__item[disabled] { color: var(--color-text-disabled); cursor: not-allowed; }
+.menu__item[disabled]:hover { background: none; }
+.menu__hint { margin-left: auto; font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.menu__item[disabled] .menu__hint { color: var(--color-text-danger); }
+
+/* ---------------------------------------------------------------- avisos */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-10) var(--space-12);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+.banner__glyph { flex: none; font-size: var(--size-icon-md); }
+.banner strong { color: var(--color-text-primary); font-weight: 500; }
+.banner--danger  { background: var(--color-bg-danger-subtle);  border-color: var(--color-border-danger); }
+.banner--danger  .banner__glyph { color: var(--color-text-danger); }
+.banner--warning { background: var(--color-bg-warning-subtle); border-color: var(--color-border-default); }
+.banner--warning .banner__glyph { color: var(--color-text-warning); }
+.banner--info    { background: var(--color-bg-info-subtle);    border-color: var(--color-border-default); }
+.banner--info    .banner__glyph { color: var(--color-text-info); }
+.banner__actions { margin-left: auto; display: flex; gap: var(--space-6); }
+.banner code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/* saída literal do git — PRD §8: erro aparece sem tradução */
+.raw {
+  margin: var(--space-8) 0 0;
+  padding: var(--space-8) var(--space-10);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-sm);
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+  white-space: normal;
+}
+.raw .l { display: block; white-space: pre; }
+
+/* ------------------------------------------------------ primeiro uso / diálogo */
+.center { display: grid; place-items: center; padding: var(--space-48) var(--space-24); }
+.card {
+  width: var(--size-dialog-width);
+  max-width: 100%;
+  padding: var(--space-24);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-md);
+}
+.card h2 { margin: 0 0 var(--space-6); font: var(--text-heading-lg); letter-spacing: var(--tracking-heading-lg); }
+.card p { margin: 0 0 var(--space-16); font: var(--text-body-md); color: var(--color-text-secondary); }
+.field { display: flex; flex-direction: column; gap: var(--space-6); margin-bottom: var(--space-12); }
+.field label { font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; color: var(--color-text-tertiary); }
+.input {
+  height: var(--size-control-xl);
+  padding: 0 var(--space-12);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font: var(--text-mono-md);
+}
+.input::placeholder { color: var(--color-text-disabled); }
+.input--focus { border-color: var(--color-border-focus); box-shadow: var(--focus-ring); }
+.field__error { font: var(--text-body-sm); color: var(--color-text-danger); }
+.input--error { border-color: var(--color-border-danger); }
+.field code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/* ------------------------------------------------------ galeria de estados */
+.gallery { padding: var(--space-24); display: grid; gap: var(--space-24); }
+.case { display: grid; gap: var(--space-8); }
+.case__label {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.case__label b { color: var(--color-text-brand); font-weight: 500; }
+.case__frame {
+  padding: var(--space-16);
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+.case__frame--flat { background: var(--color-bg-base); }
+.gallery__cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-24); align-items: start; }
+
+.skeleton {
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--neutral-970), var(--neutral-960), var(--neutral-970));
+}
+.skeleton + .skeleton { margin-top: var(--space-8); }
+.skeleton--short { width: 40%; }
+.skeleton--mid { width: 70%; }
+</style>
+</head>
+<body>
+
+<nav class="tabbar">
+  <button class="tab is-active" data-screen="worktree">Worktree</button>
+  <button class="tab" data-screen="sessao">Sessão de agente</button>
+  <button class="tab" data-screen="projeto">Projeto</button>
+  <button class="tab" data-screen="estados">Estados e erros</button>
+</nav>
+
+<!-- ==================================================================== -->
+<!-- TELA 1 — detalhe da worktree                                         -->
+<!-- ==================================================================== -->
+<section class="screen is-active" id="screen-worktree">
+  <div class="app">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="body">
+      <aside class="sidebar">
+        <div class="ws-wrap">
+          <button class="ws focus-ring">
+            <span class="ws__icon">◈</span>pessoal
+            <span class="caret">▾</span>
+          </button>
+        </div>
+        <div class="tree">
+          <button class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="row__icon row__icon--project">■</span><span class="row__label">lorebase</span></button>
+          <button class="row" style="--depth:1"><span class="row__twist"></span><span class="row__icon row__icon--shell">●</span><span class="row__label">shell</span></button>
+          <button class="row is-selected" style="--depth:1"><span class="row__twist">▾</span><span class="row__icon row__icon--worktree">◇</span><span class="row__label">teste-prd</span></button>
+          <button class="row" style="--depth:2"><span class="row__twist"></span><span class="row__icon row__icon--agent">◆</span><span class="row__label">claude-code</span><span class="row__pip"></span></button>
+          <button class="row" style="--depth:2"><span class="row__twist"></span><span class="row__icon row__icon--shell">●</span><span class="row__label">shell</span><span class="row__meta">saiu</span></button>
+          <button class="row" style="--depth:1"><span class="row__twist">▸</span><span class="row__icon row__icon--worktree">◇</span><span class="row__label">feat/reconciliacao-de-boot-com-nome-comprido</span><span class="row__pip"></span></button>
+          <button class="row is-muted" style="--depth:1"><span class="row__twist">▸</span><span class="row__icon row__icon--warn">⚠</span><span class="row__label">ui-polish</span><span class="row__meta">ausente</span></button>
+          <button class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="row__icon row__icon--project">■</span><span class="row__label">lumem-os</span></button>
+          <button class="row row--project is-muted" style="--depth:0"><span class="row__twist">▸</span><span class="row__icon row__icon--off">■</span><span class="row__label">graphify-out</span><span class="row__meta">sem disco</span></button>
+        </div>
+        <div class="sidebar__foot">
+          <button class="add focus-ring"><span>＋</span>adicionar projeto</button>
+        </div>
+      </aside>
+      <main class="main">
+        <div class="detail">
+          <nav class="crumb">pessoal<span class="crumb__sep">/</span>lorebase<span class="crumb__sep">/</span><span class="crumb__here">teste-prd</span></nav>
+          <div class="title">
+            <h1><span class="kind kind--worktree">◇</span> teste-prd</h1>
+          </div>
+          <div class="chips">
+            <span class="chip chip--branch"><span class="chip__dot"></span>teste-prd</span>
+            <span class="chip chip--dirty"><span class="chip__dot"></span>suja · 3 arquivos</span>
+            <span class="chip"><span class="ahead">↑2</span> <span class="dim">de main</span></span>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn--primary focus-ring"><span class="btn__glyph">◆</span>Novo agente<span class="caret">▾</span></button>
+            <button class="btn focus-ring"><span class="btn__glyph btn__glyph--shell">●</span>Novo shell</button>
+            <span class="spacer"></span>
+            <button class="btn btn--danger focus-ring">Remover worktree</button>
+          </div>
+
+          <dl class="meta">
+            <dt>caminho</dt>
+            <dd>~/.lumem/worktrees/lorebase/teste-prd</dd>
+            <dt>branch</dt>
+            <dd>teste-prd <span class="dim">nasceu de main · 8f3c1de</span></dd>
+            <dt>projeto</dt>
+            <dd>~/Documents/GitHub/lorebase</dd>
+            <dt>criada</dt>
+            <dd>hoje, 09:14 <span class="dim">· há 3 h</span></dd>
+          </dl>
+
+          <section class="section">
+            <div class="section__head">
+              <span class="section__title">Sessões</span>
+              <span class="section__count">2 · 1 rodando</span>
+            </div>
+            <button class="item">
+              <span class="item__icon row__icon--agent">◆</span>
+              <span class="item__name">claude-code</span>
+              <span class="item__path">claude</span>
+              <span class="item__state state--running">running</span>
+              <span class="item__age">12 min</span>
+            </button>
+            <button class="item">
+              <span class="item__icon row__icon--shell">●</span>
+              <span class="item__name">shell</span>
+              <span class="item__path">/bin/zsh -l</span>
+              <span class="item__state state--exited">exited (0)</span>
+              <span class="item__age">há 40 min</span>
+            </button>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- TELA 2 — sessão de agente (terminal)                                 -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-sessao">
+  <div class="app">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="body">
+      <aside class="sidebar">
+        <div class="ws-wrap">
+          <button class="ws focus-ring"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></button>
+        </div>
+        <div class="tree">
+          <button class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="row__icon row__icon--project">■</span><span class="row__label">lorebase</span></button>
+          <button class="row" style="--depth:1"><span class="row__twist"></span><span class="row__icon row__icon--shell">●</span><span class="row__label">shell</span></button>
+          <button class="row" style="--depth:1"><span class="row__twist">▾</span><span class="row__icon row__icon--worktree">◇</span><span class="row__label">teste-prd</span></button>
+          <button class="row is-selected" style="--depth:2"><span class="row__twist"></span><span class="row__icon row__icon--agent">◆</span><span class="row__label">claude-code</span><span class="row__pip"></span></button>
+          <button class="row" style="--depth:2"><span class="row__twist"></span><span class="row__icon row__icon--shell">●</span><span class="row__label">shell</span><span class="row__meta">saiu</span></button>
+          <button class="row" style="--depth:1"><span class="row__twist">▸</span><span class="row__icon row__icon--worktree">◇</span><span class="row__label">feat/reconciliacao-de-boot-com-nome-comprido</span><span class="row__pip"></span></button>
+          <button class="row is-muted" style="--depth:1"><span class="row__twist">▸</span><span class="row__icon row__icon--warn">⚠</span><span class="row__label">ui-polish</span><span class="row__meta">ausente</span></button>
+          <button class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="row__icon row__icon--project">■</span><span class="row__label">lumem-os</span></button>
+          <button class="row row--project is-muted" style="--depth:0"><span class="row__twist">▸</span><span class="row__icon row__icon--off">■</span><span class="row__label">graphify-out</span><span class="row__meta">sem disco</span></button>
+        </div>
+        <div class="sidebar__foot"><button class="add focus-ring"><span>＋</span>adicionar projeto</button></div>
+      </aside>
+      <main class="main main--fill">
+        <div class="detail detail--session">
+          <nav class="crumb">pessoal<span class="crumb__sep">/</span>lorebase<span class="crumb__sep">/</span>teste-prd<span class="crumb__sep">/</span><span class="crumb__here">claude-code</span></nav>
+          <div class="title">
+            <h1><span class="kind kind--agent">◆</span> claude-code</h1>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost btn--sm focus-ring">Encerrar sessão</button>
+          </div>
+          <div class="chips">
+            <span class="chip chip--running"><span class="chip__dot"></span>running · 12 min</span>
+            <span class="chip chip--branch"><span class="chip__dot"></span>teste-prd</span>
+            <span class="chip">pid 48213 <span class="dim">· 158×42</span></span>
+          </div>
+
+          <div class="term-head" style="margin-top: var(--space-16)">
+            <span class="item__icon row__icon--agent">◆</span>
+            <span class="term-head__cmd">claude · cwd ~/.lumem/worktrees/lorebase/teste-prd</span>
+            <span class="section__count">buffer 1 284 / 10 000 linhas</span>
+          </div>
+          <div class="term"><span class="l"><span class="agent">✻</span> <span class="dim">Claude Code v2.1.4 — worktree</span> <span class="path">teste-prd</span></span><span class="l"><span class="dim">──────────────────────────────────────────────────────────────</span></span><span class="l"></span><span class="l"><span class="you">&gt; separa o parser de frontmatter do loader e cobre com teste</span></span><span class="l"></span><span class="l"><span class="agent">⏺</span> Vou olhar o loader antes de mexer.</span><span class="l"></span><span class="l">  <span class="ok">⏺</span> Read <span class="path">src/lore/loader.ts</span> <span class="dim">(214 linhas)</span></span><span class="l">  <span class="ok">⏺</span> Grep <span class="dim">"parseFrontmatter" — 6 ocorrências em 4 arquivos</span></span><span class="l"></span><span class="l"><span class="agent">⏺</span> O parser está embutido no loader e lê o disco no meio do caminho.</span><span class="l">  Separando em <span class="path">src/lore/frontmatter.ts</span>, sem I/O.</span><span class="l"></span><span class="l">  <span class="ok">⏺</span> Write <span class="path">src/lore/frontmatter.ts</span> <span class="ok">+68</span></span><span class="l">  <span class="ok">⏺</span> Edit <span class="path">src/lore/loader.ts</span> <span class="ok">+4</span> <span class="err">−61</span></span><span class="l">  <span class="ok">⏺</span> Write <span class="path">src/lore/frontmatter.test.ts</span> <span class="ok">+112</span></span><span class="l"></span><span class="l">  <span class="ok">⏺</span> Bash <span class="dim">pnpm vitest run src/lore</span></span><span class="l">    <span class="dim">✓ src/lore/frontmatter.test.ts (14)</span></span><span class="l">    <span class="warn">✗ src/lore/loader.test.ts &gt; carrega documento sem frontmatter</span></span><span class="l">      <span class="dim">esperado</span> <span class="ok">{}</span> <span class="dim">recebido</span> <span class="err">undefined</span></span><span class="l"></span><span class="l"><span class="agent">⏺</span> Teste antigo assumia que o loader devolvia o mapa vazio. Corrigindo</span><span class="l">  o parser em vez do teste — o mapa vazio é o contrato certo.</span><span class="l"></span><span class="l">  <span class="ok">⏺</span> Edit <span class="path">src/lore/frontmatter.ts</span> <span class="ok">+3</span> <span class="err">−1</span></span><span class="l">  <span class="ok">⏺</span> Bash <span class="dim">pnpm vitest run src/lore</span> <span class="ok">— 27 passaram</span></span><span class="l"></span><span class="l"><span class="you">&gt; </span><span class="cursor"></span></span></div>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- TELA 3 — detalhe do projeto                                          -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-projeto">
+  <div class="app">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="body">
+      <aside class="sidebar">
+        <div class="ws-wrap">
+          <button class="ws focus-ring"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></button>
+        </div>
+        <div class="tree">
+          <button class="row row--project is-selected" style="--depth:0"><span class="row__twist">▾</span><span class="row__icon row__icon--project">■</span><span class="row__label">lorebase</span></button>
+          <button class="row" style="--depth:1"><span class="row__twist"></span><span class="row__icon row__icon--shell">●</span><span class="row__label">shell</span><span class="row__pip"></span></button>
+          <button class="row" style="--depth:1"><span class="row__twist">▸</span><span class="row__icon row__icon--worktree">◇</span><span class="row__label">teste-prd</span><span class="row__pip"></span></button>
+          <button class="row" style="--depth:1"><span class="row__twist">▸</span><span class="row__icon row__icon--worktree">◇</span><span class="row__label">feat/reconciliacao-de-boot-com-nome-comprido</span></button>
+          <button class="row is-muted" style="--depth:1"><span class="row__twist">▸</span><span class="row__icon row__icon--warn">⚠</span><span class="row__label">ui-polish</span><span class="row__meta">ausente</span></button>
+          <button class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="row__icon row__icon--project">■</span><span class="row__label">lumem-os</span></button>
+          <button class="row row--project is-muted" style="--depth:0"><span class="row__twist">▸</span><span class="row__icon row__icon--off">■</span><span class="row__label">graphify-out</span><span class="row__meta">sem disco</span></button>
+        </div>
+        <div class="sidebar__foot"><button class="add focus-ring"><span>＋</span>adicionar projeto</button></div>
+      </aside>
+      <main class="main">
+        <div class="detail">
+          <nav class="crumb">pessoal<span class="crumb__sep">/</span><span class="crumb__here">lorebase</span></nav>
+          <div class="title">
+            <h1><span class="kind kind--project">■</span> lorebase</h1>
+          </div>
+          <div class="chips">
+            <span class="chip chip--branch"><span class="chip__dot"></span>main</span>
+            <span class="chip">3 worktrees</span>
+            <span class="chip chip--running"><span class="chip__dot"></span>2 sessões rodando</span>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn--primary focus-ring"><span class="btn__glyph">◇</span>Nova worktree</button>
+            <button class="btn focus-ring"><span class="btn__glyph btn__glyph--agent">◆</span>Novo agente<span class="caret">▾</span></button>
+            <button class="btn focus-ring"><span class="btn__glyph btn__glyph--shell">●</span>Novo shell</button>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost focus-ring">Renomear</button>
+            <button class="btn btn--danger focus-ring" disabled>Remover</button>
+          </div>
+
+          <dl class="meta">
+            <dt>caminho</dt>
+            <dd>~/Documents/GitHub/lorebase</dd>
+            <dt>branch base</dt>
+            <dd>main <span class="dim">· resolvida na adição</span></dd>
+            <dt>worktrees em</dt>
+            <dd>~/.lumem/worktrees/lorebase/</dd>
+          </dl>
+
+          <section class="section">
+            <div class="section__head">
+              <span class="section__title">Worktrees</span><span class="section__count">3</span>
+            </div>
+            <button class="item">
+              <span class="item__icon row__icon--worktree">◇</span>
+              <span class="item__name">teste-prd</span>
+              <span class="item__path">~/.lumem/worktrees/lorebase/teste-prd</span>
+              <span class="item__state state--dirty">suja</span>
+              <span class="item__age">↑2 ↓0</span>
+            </button>
+            <button class="item">
+              <span class="item__icon row__icon--worktree">◇</span>
+              <span class="item__name">feat/reconciliacao-de-boot-com-nome-comprido</span>
+              <span class="item__path">~/.lumem/worktrees/lorebase/feat/reconciliacao-de-boot-com-nome-comprido</span>
+              <span class="item__state state--clean">limpa</span>
+              <span class="item__age">↑0 ↓4</span>
+            </button>
+            <button class="item">
+              <span class="item__icon row__icon--warn">⚠</span>
+              <span class="item__name">ui-polish</span>
+              <span class="item__path">~/.lumem/worktrees/lorebase/ui-polish</span>
+              <span class="item__state state--missing">ausente</span>
+              <span class="item__age"></span>
+            </button>
+          </section>
+
+          <section class="section">
+            <div class="section__head">
+              <span class="section__title">Sessões no projeto</span><span class="section__count">1</span>
+            </div>
+            <button class="item">
+              <span class="item__icon row__icon--shell">●</span>
+              <span class="item__name">shell</span>
+              <span class="item__path">/bin/zsh -l · cwd ~/Documents/GitHub/lorebase</span>
+              <span class="item__state state--running">running</span>
+              <span class="item__age">2 h</span>
+            </button>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- TELA 4 — estados e erros                                             -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-estados">
+  <div class="app app--flow">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon daemon--off"><span class="daemon__dot"></span>daemon inacessível · reconectando…</span>
+    </header>
+
+    <div class="gallery">
+
+      <div class="gallery__cols">
+        <div class="case">
+          <div class="case__label">Primeiro uso — <b>nenhum workspace</b> · PRD §F1</div>
+          <div class="case__frame case__frame--flat">
+            <div class="center">
+              <div class="card">
+                <h2>Nenhum workspace ainda</h2>
+                <p>Um workspace agrupa os projetos que você acompanha junto. Dá pra ter vários; comece com um.</p>
+                <div class="field">
+                  <label for="ws-name">Nome</label>
+                  <input class="input input--focus" id="ws-name" value="pessoal">
+                </div>
+                <button class="btn btn--primary focus-ring">Criar workspace</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="case">
+          <div class="case__label">Sidebar sem projeto</div>
+          <div class="case__frame">
+            <div class="empty">
+              <span class="empty__title">Nenhum projeto em <b>pessoal</b></span>
+              <span>Aponte para a raiz de um repositório git que já está no disco. O Lumem não clona nada.</span>
+              <button class="btn focus-ring"><span class="btn__glyph">＋</span>Adicionar projeto</button>
+            </div>
+          </div>
+          <div class="case__label" style="margin-top: var(--space-8)">Carregando — conectando ao daemon</div>
+          <div class="case__frame">
+            <div class="skeleton skeleton--mid"></div>
+            <div class="skeleton skeleton--short"></div>
+            <div class="skeleton"></div>
+            <div class="skeleton skeleton--mid"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="case">
+        <div class="case__label">Daemon caiu — <b>todas as sessões viram exited</b> · PRD §8</div>
+        <div class="case__frame case__frame--flat">
+          <div class="banner banner--danger">
+            <span class="banner__glyph">⚠</span>
+            <span><strong>Daemon inacessível.</strong> Tentando reconectar a <code>ws://127.0.0.1:4317</code> — tentativa 4, próxima em 8 s.</span>
+            <span class="banner__actions"><button class="btn btn--sm focus-ring">Tentar agora</button></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="case">
+        <div class="case__label">Worktree apagada por fora — <b>missing</b> na reconciliação de boot · PRD §F7.4</div>
+        <div class="case__frame case__frame--flat">
+          <nav class="crumb">pessoal<span class="crumb__sep">/</span>lorebase<span class="crumb__sep">/</span><span class="crumb__here">ui-polish</span></nav>
+          <div class="title"><h1><span class="kind kind--missing">⚠</span> ui-polish</h1></div>
+          <div class="chips">
+            <span class="chip chip--missing"><span class="chip__dot"></span>ausente do disco</span>
+            <span class="chip chip--branch"><span class="chip__dot"></span>ui-polish</span>
+          </div>
+          <div class="actions" style="margin-bottom: var(--space-0)">
+            <button class="btn btn--danger focus-ring">Remover o registro</button>
+            <button class="btn btn--ghost focus-ring">Ver no Finder</button>
+          </div>
+          <div class="banner banner--warning" style="margin-top: var(--space-12)">
+            <span class="banner__glyph">⚠</span>
+            <span>O diretório sumiu entre o último boot e agora. A branch <code>ui-polish</code> continua no repositório — remover o registro não a apaga.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="gallery__cols">
+        <div class="case">
+          <div class="case__label">Worktree suja bloqueia remoção · PRD §F4.8</div>
+          <div class="case__frame case__frame--flat">
+            <div class="banner banner--warning">
+              <span class="banner__glyph">⚠</span>
+              <span><strong>3 arquivos modificados.</strong> A remoção apagaria trabalho não commitado.</span>
+            </div>
+            <div class="raw"><span class="l"> M src/lore/loader.ts</span><span class="l"> M src/lore/loader.test.ts</span><span class="l">?? src/lore/frontmatter.ts</span></div>
+            <div class="actions" style="margin-bottom: var(--space-0)">
+              <button class="btn btn--danger focus-ring">Remover mesmo assim</button>
+              <button class="btn btn--ghost focus-ring">Cancelar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="case">
+          <div class="case__label">Sessão viva bloqueia remoção · PRD §F4.9</div>
+          <div class="case__frame case__frame--flat">
+            <div class="banner banner--danger">
+              <span class="banner__glyph">⚠</span>
+              <span><strong>2 sessões rodando nesta worktree.</strong> Encerre as duas antes de remover.</span>
+            </div>
+            <div class="item">
+              <span class="item__icon row__icon--agent">◆</span><span class="item__name">claude-code</span>
+              <span class="item__path">claude</span><span class="item__state state--running">running</span>
+              <span class="item__act"><button class="btn btn--ghost btn--sm focus-ring">Encerrar</button></span>
+            </div>
+            <div class="item">
+              <span class="item__icon row__icon--shell">●</span><span class="item__name">shell</span>
+              <span class="item__path">/bin/zsh -l</span><span class="item__state state--running">running</span>
+              <span class="item__act"><button class="btn btn--ghost btn--sm focus-ring">Encerrar</button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="case">
+        <div class="case__label">Agente morreu sozinho — <b>o servidor não relança</b> · PRD §8</div>
+        <div class="case__frame case__frame--flat">
+          <div class="term-head">
+            <span class="item__icon row__icon--agent">◆</span>
+            <span class="term-head__cmd">claude · cwd ~/.lumem/worktrees/lorebase/feat/reconciliacao-de-boot-com-nome-comprido</span>
+            <span class="chip chip--failed"><span class="chip__dot"></span>exited (1)</span>
+          </div>
+          <div class="term term--auto"><span class="l"><span class="agent">⏺</span> Bash <span class="dim">pnpm gate:full</span></span><span class="l"></span><span class="l"><span class="err">API Error: 401 — OAuth token expired</span></span><span class="l"><span class="dim">Run `claude login` to reauthenticate.</span></span><span class="l"></span><span class="l"><span class="dim">[processo encerrado com código 1 · 14:02:37]</span></span></div>
+          <div class="banner banner--info" style="margin-top: var(--space-8)">
+            <span class="banner__glyph">◆</span>
+            <span>O buffer continua legível até você fechar a sessão. Retomar de onde parou não existe nesta versão — subir outro agente começa do zero.</span>
+            <span class="banner__actions">
+              <button class="btn btn--sm focus-ring">Novo agente aqui</button>
+              <button class="btn btn--sm btn--ghost focus-ring">Fechar sessão</button>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="gallery__cols">
+        <div class="case">
+          <div class="case__label">Escolher agente — <b>comando fora do PATH</b> · PRD §F6.5</div>
+          <div class="case__frame">
+            <div class="menu">
+              <button class="menu__item"><span class="btn__glyph btn__glyph--agent">◆</span>claude-code<span class="menu__hint">claude</span></button>
+              <button class="menu__item" disabled><span class="btn__glyph">◆</span>codex<span class="menu__hint">fora do PATH</span></button>
+              <button class="menu__item"><span class="btn__glyph btn__glyph--shell">●</span>shell de login<span class="menu__hint">/bin/zsh -l</span></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="case">
+          <div class="case__label">Caminho recusado na adição · PRD §F2.2</div>
+          <div class="case__frame">
+            <div class="field">
+              <label for="proj-path">Caminho do repositório</label>
+              <input class="input input--error" id="proj-path" value="~/Documents/GitHub/lorebase/docs">
+              <span class="field__error">Não é a raiz de um repositório git. O <code>.git</code> mais próximo está em <code>~/Documents/GitHub/lorebase</code>.</span>
+            </div>
+            <button class="btn btn--sm focus-ring">Usar ~/Documents/GitHub/lorebase</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="case">
+        <div class="case__label"><code>git worktree add</code> falhou — <b>erro literal, sem tradução</b> · PRD §8</div>
+        <div class="case__frame case__frame--flat">
+          <div class="banner banner--danger">
+            <span class="banner__glyph">⚠</span>
+            <span><strong>Nada foi registrado.</strong> A worktree não existe no disco nem no Lumem.</span>
+          </div>
+          <div class="raw"><span class="l">$ git worktree add ~/.lumem/worktrees/lorebase/teste-prd -b teste-prd main</span><span class="l">fatal: a branch 'teste-prd' já existe</span><span class="l">exit 128</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<script>
+  // Só troca de tela. Nenhuma lógica real vive aqui.
+  document.querySelectorAll('.tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('is-active'); });
+      document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('is-active'); });
+      tab.classList.add('is-active');
+      document.getElementById('screen-' + tab.dataset.screen).classList.add('is-active');
+    });
+  });
+</script>
+</body>
+</html>
