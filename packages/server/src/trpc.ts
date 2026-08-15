@@ -3,6 +3,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import type { ServerConfig } from "./config.js";
 import type { Db } from "./db/index.js";
 import { isDomainError, type DomainErrorCode } from "./errors.js";
+import type { GitService } from "./git/GitService.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 
 /**
@@ -14,6 +15,7 @@ export interface Context {
   config: ServerConfig;
   db: Db;
   ptyManager: PtyManager;
+  git: GitService;
 }
 
 const t = initTRPC.context<Context>().create();

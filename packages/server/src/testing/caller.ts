@@ -1,6 +1,7 @@
 import { loadConfig, type ConfigEnv, type ServerConfig } from "../config.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import type { Db } from "../db/index.js";
+import { createGitService, type GitService } from "../git/GitService.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { appRouter } from "../routers/index.js";
 import { createCallerFactory } from "../trpc.js";
@@ -11,6 +12,7 @@ export interface TestCaller {
   api: ReturnType<typeof createCaller>;
   db: Db;
   ptyManager: PtyManager;
+  git: GitService;
   config: ServerConfig;
   /** Kills every session and deletes the database. Always call it. */
   cleanup(): Promise<void>;
@@ -27,11 +29,13 @@ export function createTestCaller(env: ConfigEnv = {}): TestCaller {
   const database: TestDb = openTestDb();
   const ptyManager = new PtyManager();
   const config = loadConfig(env);
+  const git = createGitService();
 
   return {
-    api: createCaller({ config, db: database.db, ptyManager }),
+    api: createCaller({ config, db: database.db, ptyManager, git }),
     db: database.db,
     ptyManager,
+    git,
     config,
     cleanup: async () => {
       await ptyManager.killAll();
