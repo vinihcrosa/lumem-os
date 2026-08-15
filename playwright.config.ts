@@ -1,8 +1,18 @@
 import { rmSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 import { defineConfig, devices } from "@playwright/test";
 
 import { E2E_SERVER_PORT, E2E_STATE_DIR, E2E_WEB_PORT } from "./ports.js";
+
+/**
+ * Where e2e sessions run.
+ *
+ * The repo root, because it is the one directory guaranteed to exist — the
+ * state dir is wiped before every run, and spawning into a missing cwd is
+ * refused.
+ */
+const E2E_SESSION_CWD = fileURLToPath(new URL(".", import.meta.url));
 
 /**
  * Wipe the daemon's state before anything starts.
@@ -50,6 +60,10 @@ export default defineConfig({
       env: {
         LUMEM_PORT: String(E2E_SERVER_PORT),
         LUMEM_STATE_DIR: E2E_STATE_DIR,
+        LUMEM_DEFAULT_CWD: E2E_SESSION_CWD,
+        // Not the developer's shell: a login zsh sources their whole profile,
+        // and the suite would then depend on whatever their prompt prints.
+        SHELL: "/bin/sh",
       },
       // Never reuse: reuse skips the spawn, and skipping the spawn silently
       // drops the env above — including the throwaway state dir.
