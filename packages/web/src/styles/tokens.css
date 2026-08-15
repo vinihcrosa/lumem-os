@@ -1,0 +1,247 @@
+/* Design tokens — GERADO por scripts/generate_palette.py. Nao edite a mao. */
+/* Rampas em OKLCH, contraste WCAG validado na geracao. */
+
+:root {
+  /* ---------- primitivas — nunca use direto em componente ---------- */
+  /* brand */
+  --brand-50: #F8F7FF;
+  --brand-100: #EFECFF;
+  --brand-200: #DFD9FF;
+  --brand-300: #CCC2FF;
+  --brand-400: #B5A2FF;
+  --brand-500: #9774FD;
+  --brand-600: #7955D7;
+  --brand-700: #603FAF;
+  --brand-800: #492F88;
+  --brand-900: #321F5F;
+  --brand-950: #211441;
+  /* accent */
+  --accent-50: #F6FAEB;
+  --accent-100: #ECF3D8;
+  --accent-200: #DAE5B3;
+  --accent-300: #C5D587;
+  --accent-400: #ABBE55;
+  --accent-500: #8A9D0E;
+  --accent-600: #6D7D00;
+  --accent-700: #556200;
+  --accent-800: #414A00;
+  --accent-900: #2C3300;
+  --accent-950: #1C2200;
+  /* neutral */
+  --neutral-0: #FFFFFF;
+  --neutral-50: #F8F7F9;
+  --neutral-100: #EFEEF1;
+  --neutral-200: #DEDEE3;
+  --neutral-300: #CBCAD2;
+  --neutral-400: #B2B1BB;
+  --neutral-500: #91909B;
+  --neutral-600: #73727C;
+  --neutral-700: #5A5962;
+  --neutral-800: #44434A;
+  --neutral-900: #2E2E33;
+  --neutral-925: #26252C;
+  --neutral-950: #1E1E22;
+  --neutral-960: #19181F;
+  --neutral-970: #14131A;
+  --neutral-980: #100F15;
+  --neutral-990: #0C0B11;
+  --neutral-1000: #08070D;
+  /* success */
+  --success-50: #EEFCF3;
+  --success-100: #DCF7E6;
+  --success-200: #BAEDCE;
+  --success-300: #91E0B3;
+  --success-400: #60CC93;
+  --success-500: #1AAC6E;
+  --success-600: #008955;
+  --success-700: #006C42;
+  --success-800: #005331;
+  --success-900: #003920;
+  --success-950: #002614;
+  /* warning */
+  --warning-50: #FFF7EA;
+  --warning-100: #FEECD2;
+  --warning-200: #FAD9A7;
+  --warning-300: #F4C273;
+  --warning-400: #E5A52E;
+  --warning-500: #BF8500;
+  --warning-600: #986900;
+  --warning-700: #785200;
+  --warning-800: #5C3E00;
+  --warning-900: #402A00;
+  --warning-950: #2B1B00;
+  /* danger */
+  --danger-50: #FFF5F4;
+  --danger-100: #FFE9E6;
+  --danger-200: #FFD3CD;
+  --danger-300: #FFB6AE;
+  --danger-400: #FF8D83;
+  --danger-500: #F0554F;
+  --danger-600: #C93433;
+  --danger-700: #A32223;
+  --danger-800: #7E1718;
+  --danger-900: #580F0F;
+  --danger-950: #3D0808;
+  /* info */
+  --info-50: #F1F9FF;
+  --info-100: #DFF2FF;
+  --info-200: #BEE5FF;
+  --info-300: #94D4FF;
+  --info-400: #4FBEFF;
+  --info-500: #009CE0;
+  --info-600: #007CB2;
+  --info-700: #00618D;
+  --info-800: #004A6D;
+  --info-900: #00334C;
+  --info-950: #002134;
+
+  /* ---------- semantica — use estas ---------- */
+  /* superficies */
+  --color-bg-base: var(--neutral-1000);
+  --color-bg-panel: var(--neutral-990);
+  --color-bg-surface: var(--neutral-980);
+  --color-bg-raised: var(--neutral-970);
+  --color-bg-inset: var(--neutral-1000);
+  --color-bg-hover: var(--neutral-960);
+  --color-bg-active: var(--neutral-925);
+  --color-bg-selected: var(--brand-950);
+  /* marca */
+  --color-bg-brand: var(--brand-500);
+  --color-bg-brand-hover: var(--brand-400);
+  --color-bg-brand-subtle: var(--brand-950);
+  --color-bg-brand-muted: var(--brand-900);
+  /* fundos de status */
+  --color-bg-success-subtle: var(--success-950);
+  --color-bg-warning-subtle: var(--warning-950);
+  --color-bg-danger-subtle: var(--danger-950);
+  --color-bg-info-subtle: var(--info-950);
+  --color-bg-neutral-subtle: var(--neutral-925);
+  /* texto */
+  --color-text-primary: var(--neutral-50);
+  --color-text-secondary: var(--neutral-400);
+  --color-text-tertiary: var(--neutral-500);
+  --color-text-disabled: var(--neutral-700);
+  --color-text-inverse: var(--neutral-1000);
+  --color-text-on-brand: var(--neutral-1000);
+  --color-text-brand: var(--brand-400);
+  --color-text-link: var(--brand-400);
+  --color-text-code: var(--neutral-300);
+  --color-text-success: var(--success-400);
+  --color-text-warning: var(--warning-400);
+  --color-text-danger: var(--danger-400);
+  --color-text-info: var(--info-400);
+  /* bordas */
+  --color-border-subtle: var(--neutral-960);
+  --color-border-default: var(--neutral-925);
+  --color-border-strong: var(--neutral-800);
+  --color-border-brand: var(--brand-500);
+  --color-border-danger: var(--danger-500);
+  --color-border-focus: var(--brand-400);
+  /* dominio — sessao */
+  --color-session-running: var(--success-400);
+  --color-session-exited: var(--neutral-500);
+  --color-session-failed: var(--danger-400);
+  --color-session-shell: var(--info-400);
+  --color-session-agent: var(--brand-400);
+  /* dominio — worktree e git */
+  --color-worktree-clean: var(--success-400);
+  --color-worktree-dirty: var(--warning-400);
+  --color-worktree-missing: var(--danger-400);
+  --color-git-branch: var(--accent-400);
+  --color-git-ahead: var(--info-400);
+  --color-git-behind: var(--warning-400);
+  --color-git-added: var(--success-400);
+  --color-git-removed: var(--danger-400);
+  --color-git-modified: var(--warning-400);
+  /* dominio — hierarquia e daemon */
+  --color-scope-workspace: var(--brand-400);
+  --color-scope-project: var(--neutral-400);
+  --color-scope-worktree: var(--accent-400);
+  --color-daemon-online: var(--success-400);
+  --color-daemon-offline: var(--danger-400);
+
+  /* ---------- espacamento (nome = valor em px) ---------- */
+  --space-0: 0px;
+  --space-1: 1px;
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+
+  /* ---------- raio ---------- */
+  --radius-none: 0px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* ---------- dimensoes ---------- */
+  --size-control-xs: 20px;
+  --size-control-sm: 24px;
+  --size-control-md: 28px;
+  --size-control-lg: 32px;
+  --size-control-xl: 40px;
+  --size-icon-xs: 12px;
+  --size-icon-sm: 14px;
+  --size-icon-md: 16px;
+  --size-icon-lg: 20px;
+  --size-row-compact: 28px;
+  --size-row-cozy: 32px;
+  --size-target-min: 24px;
+  --size-topbar-height: 40px;
+  --size-sidebar-width: 264px;
+  --size-detail-max: 880px;
+  --size-terminal-min: 420px;
+  --size-dialog-width: 420px;
+  --size-menu-width: 300px;
+  --border-width-none: 0px;
+  --border-width-thin: 1px;
+  --border-width-thick: 2px;
+  --border-width-focus: 2px;
+
+  /* ---------- tipografia ---------- */
+  --font-family-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-display-lg: 600 28px/34px var(--font-family-sans);
+  --tracking-display-lg: -0.02em;
+  --text-display-md: 600 22px/28px var(--font-family-sans);
+  --tracking-display-md: -0.015em;
+  --text-heading-lg: 600 18px/24px var(--font-family-sans);
+  --tracking-heading-lg: -0.01em;
+  --text-heading-md: 600 15px/20px var(--font-family-sans);
+  --tracking-heading-md: -0.005em;
+  --text-heading-sm: 600 13px/18px var(--font-family-sans);
+  --text-body-lg: 400 14px/20px var(--font-family-sans);
+  --text-body-md: 400 13px/18px var(--font-family-sans);
+  --text-body-sm: 400 12px/16px var(--font-family-sans);
+  --text-label-md: 500 13px/16px var(--font-family-sans);
+  --text-label-sm: 500 12px/16px var(--font-family-sans);
+  --text-label-xs: 500 11px/14px var(--font-family-sans);
+  --tracking-label-xs: 0.015em;
+  --text-caption: 400 11px/14px var(--font-family-sans);
+  --text-mono-lg: 400 13px/20px var(--font-family-mono);
+  --text-mono-md: 400 12px/18px var(--font-family-mono);
+  --text-mono-sm: 400 11px/16px var(--font-family-mono);
+
+  /* ---------- elevacao ---------- */
+  --elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.32);
+  --elevation-md: 0 2px 4px -1px rgb(0 0 0 / 0.34), 0 4px 8px -2px rgb(0 0 0 / 0.30);
+  --elevation-lg: 0 4px 8px -2px rgb(0 0 0 / 0.38), 0 12px 24px -4px rgb(0 0 0 / 0.36);
+  --elevation-xl: 0 8px 16px -4px rgb(0 0 0 / 0.42), 0 24px 48px -8px rgb(0 0 0 / 0.44);
+  --focus-ring: 0 0 0 1px var(--color-bg-base), 0 0 0 3px var(--color-border-focus);
+}
+
+/* Anel de foco padrao — aplique em todo alvo interativo */
+.focus-ring:focus-visible { outline: none; box-shadow: var(--focus-ring); }
