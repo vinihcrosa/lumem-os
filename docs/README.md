@@ -1,6 +1,6 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), e ganhando olhos para o repositório na [right-panel](prd/right-panel/tasks.md).
+Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) — e ganhando mãos no [file-editor](prd/file-editor/tasks.md).
 
 ---
 
@@ -81,6 +81,16 @@ Sucede a `worktree-tabs`. Uma terceira coluna, à direita, com os arquivos do ch
 | [prd.md](prd/right-panel/prd.md) | Escopo, a segurança do caminho, os tokens novos, o que a renderização achou, riscos |
 | [open-questions.md](prd/right-panel/open-questions.md) | 10 perguntas, 5 respondidas |
 | [tasks.md](prd/right-panel/tasks.md) | 5 decisões e 10 tasks em 4 fases — todas entregues — mais o que a execução achou |
+
+### [file-editor/](prd/file-editor/) — o visualizador vira editor
+
+Sucede a `right-panel`. O split da aba passa a **escrever**: editar o arquivo aberto com autosave, e criar, renomear e apagar pela árvore. É a primeira feature em que o daemon escreve no repositório — e ela reverte, com registro, o primeiro não-objetivo da `right-panel`.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/file-editor/prd.md) | Por que o não-objetivo foi revertido, a segurança da escrita, a concorrência com o agente, riscos |
+| [open-questions.md](prd/file-editor/open-questions.md) | 11 perguntas, 7 respondidas |
+| [tasks.md](prd/file-editor/tasks.md) | 5 decisões e 12 tasks em 5 fases — nenhuma executada |
 
 ---
 
