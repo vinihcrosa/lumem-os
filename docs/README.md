@@ -1,6 +1,6 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O projeto está implementando a primeira feature, [walking-skeleton](prd/walking-skeleton/tasks.md).
+Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé e vestido pela [ui-shell](prd/ui-shell/tasks.md).
 
 ---
 
@@ -61,8 +61,8 @@ Veste as funções que o walking-skeleton deixou de pé. Não adiciona nenhuma. 
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/ui-shell/prd.md) | Fundação de tokens, escopo, o que a renderização achou, riscos |
-| [open-questions.md](prd/ui-shell/open-questions.md) | 11 perguntas de desenho, 10 respondidas |
-| [tasks.md](prd/ui-shell/tasks.md) | 11 tasks em 4 fases, das primitivas pras telas |
+| [open-questions.md](prd/ui-shell/open-questions.md) | 12 perguntas de desenho, 10 respondidas |
+| [tasks.md](prd/ui-shell/tasks.md) | 11 tasks em 4 fases, das primitivas pras telas — todas entregues |
 
 ---
 

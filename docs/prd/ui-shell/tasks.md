@@ -2,7 +2,7 @@
 
 **PRD:** [prd.md](prd.md) · **Decisões:** [open-questions.md](open-questions.md)
 **Protótipo:** `packages/web/prototype/lumem-shell.html`
-**Status:** aprovado — pronto pra execução
+**Status:** concluída — 11 de 11 entregues, gate cheio verde
 **Total:** 11 tasks em 4 fases
 
 ---
@@ -56,11 +56,11 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] `main.tsx` importa `./styles/tokens.css` e `./styles/base.css`, nessa ordem
-- [ ] `base.css` tem reset de `box-sizing`, `body` com `--color-bg-base` e `--text-body-md`, e o `.focus-ring` do gerador aplicado a todo alvo interativo
-- [ ] `@fontsource-variable/inter` e `@fontsource/jetbrains-mono` como dependências, importados na raiz — sem CDN, o daemon serve tudo
-- [ ] Nenhum valor literal de cor ou espaçamento em `base.css`
-- [ ] Gate check passa: `pnpm gate:build`
+- [x] `main.tsx` importa `./styles/tokens.css` e `./styles/base.css`, nessa ordem
+- [x] `base.css` tem reset de `box-sizing`, `body` com `--color-bg-base` e `--text-body-md`, e o `.focus-ring` do gerador aplicado a todo alvo interativo
+- [x] `@fontsource-variable/inter` e `@fontsource/jetbrains-mono` como dependências, importados na raiz — sem CDN, o daemon serve tudo
+- [x] Nenhum valor literal de cor ou espaçamento em `base.css`
+- [x] Gate check passa: `pnpm gate:build`
 
 **Tests**: none · **Gate**: build
 **Commit**: `feat(web): load the design tokens and fonts`
@@ -78,15 +78,15 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] `Button` com variantes `primary` / `default` / `ghost` / `danger`, tamanhos `md` / `sm`, estado `disabled` e slot de glifo
-- [ ] `Chip` com variantes de domínio (branch, clean, dirty, missing, running, exited, failed) e ponto opcional
-- [ ] `Row` — a linha da árvore, com `depth`, `selected`, `muted`, twist, ícone, label truncável, meta e pip
-- [ ] `Item` — a linha de lista do detalhe, com ícone, nome, caminho truncável, estado, idade e slot de ação
-- [ ] `MetaGrid`, `SectionHead`, `Banner` (`info` / `warning` / `danger`), `EmptyState`, `Card`, `Field` (com estado de erro), `Menu` + `MenuItem` (com item desabilitado e dica)
-- [ ] `Styleguide` renderiza cada primitiva em cada estado, montada em `DEV` apenas — Q11
-- [ ] Nenhum literal fora de `tokens.css`; nenhuma primitiva de cor usada direto
-- [ ] Gate check passa: `pnpm gate:quick`
-- [ ] Test count: 1 arquivo de teste novo, ao menos 1 caso por primitiva
+- [x] `Button` com variantes `primary` / `default` / `ghost` / `danger`, tamanhos `md` / `sm`, estado `disabled` e slot de glifo
+- [x] `Chip` com variantes de domínio (branch, clean, dirty, missing, running, exited, failed) e ponto opcional
+- [x] `Row` — a linha da árvore, com `depth`, `selected`, `muted`, twist, ícone, label truncável, meta e pip
+- [x] `Item` — a linha de lista do detalhe, com ícone, nome, caminho truncável, estado, idade e slot de ação
+- [x] `MetaGrid`, `SectionHead`, `Banner` (`info` / `warning` / `danger`), `EmptyState`, `Card`, `Field` (com estado de erro), `Menu` + `MenuItem` (com item desabilitado e dica)
+- [x] `Styleguide` renderiza cada primitiva em cada estado, montada em `DEV` apenas — Q11
+- [x] Nenhum literal fora de `tokens.css`; nenhuma primitiva de cor usada direto
+- [x] Gate check passa: `pnpm gate:quick`
+- [x] Test count: 1 arquivo de teste novo, ao menos 1 caso por primitiva
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): the UI primitives the prototype uses`
@@ -106,12 +106,12 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] O `<header>` sai do `App.tsx` e vira `Topbar`, com o estado do daemon usando `daemon/online` e `daemon/offline`
-- [ ] `AppShell` ocupa a viewport e não deixa o `body` rolar — só as duas colunas rolam
-- [ ] `AppShell` continua sem estado próprio, como o comentário dele já promete
-- [ ] `App.test.tsx` atualizado
-- [ ] Gate check passa: `pnpm gate:quick`
-- [ ] Test count: casos existentes passam com os seletores novos
+- [x] O `<header>` sai do `App.tsx` e vira `Topbar`, com o estado do daemon usando `daemon/online` e `daemon/offline`
+- [x] `AppShell` ocupa a viewport e não deixa o `body` rolar — só as duas colunas rolam
+- [x] `AppShell` continua sem estado próprio, como o comentário dele já promete
+- [x] `App.test.tsx` atualizado
+- [x] Gate check passa: `pnpm gate:quick`
+- [x] Test count: casos existentes passam com os seletores novos
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): frame the app in a styled shell`
@@ -129,16 +129,16 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] `useTreeExpansion` guarda um `Set` de nós expandidos e persiste, como `useActiveWorkspace` já faz
-- [ ] `useSessionsByScope` centraliza a query por escopo; `SessionList` e o pip da linha leem o **mesmo** cache — um fetch só (Q7)
-- [ ] Colapsar esconde as linhas filhas e **não** desmonta a query: o pip de "tem sessão rodando aqui dentro" sobrevive ao colapso
-- [ ] Sessão de escopo de projeto aparece como filha direta do projeto, acima das worktrees (Q5)
-- [ ] Projeto indisponível e worktree `missing` aparecem apagados, com rótulo e ações bloqueadas — não somem (Q6)
-- [ ] Nome comprido trunca com reticências e não empurra o layout
-- [ ] `AddProjectDialog` sai da lista e vira o rodapé da sidebar
-- [ ] `project-ui.test.tsx`, `worktree-ui.test.tsx` e `session-ui.test.tsx` atualizados
-- [ ] Gate check passa: `pnpm gate:quick`
-- [ ] Test count: ao menos 2 casos novos — colapso preserva o pip, e nome comprido trunca
+- [x] `useTreeExpansion` guarda um `Set` de nós expandidos e persiste, como `useActiveWorkspace` já faz
+- [x] `useSessionsByScope` centraliza a query por escopo; `SessionList` e o pip da linha leem o **mesmo** cache — um fetch só (Q7)
+- [x] Colapsar esconde as linhas filhas e **não** desmonta a query: o pip de "tem sessão rodando aqui dentro" sobrevive ao colapso
+- [x] Sessão de escopo de projeto aparece como filha direta do projeto, acima das worktrees (Q5)
+- [x] Projeto indisponível e worktree `missing` aparecem apagados, com rótulo e ações bloqueadas — não somem (Q6)
+- [x] Nome comprido trunca com reticências e não empurra o layout
+- [x] `AddProjectDialog` sai da lista e vira o rodapé da sidebar
+- [x] `project-ui.test.tsx`, `worktree-ui.test.tsx` e `session-ui.test.tsx` atualizados
+- [x] Gate check passa: `pnpm gate:quick`
+- [x] Test count: ao menos 2 casos novos — colapso preserva o pip, e nome comprido trunca
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): one tree for projects, worktrees and sessions`
@@ -156,10 +156,10 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] `<select>` nativo mantido, estilizado com `appearance: none` e glifo próprio (Q8)
-- [ ] Criar workspace vira o `Card` da T2 em vez do formulário inline
-- [ ] `workspace-ui.test.tsx` atualizado — o `<select>` continua acessível por label
-- [ ] Gate check passa: `pnpm gate:quick`
+- [x] `<select>` nativo mantido, estilizado com `appearance: none` e glifo próprio (Q8)
+- [x] Criar workspace vira o `Card` da T2 em vez do formulário inline
+- [x] `workspace-ui.test.tsx` atualizado — o `<select>` continua acessível por label
+- [x] Gate check passa: `pnpm gate:quick`
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): style the workspace selector`
@@ -179,12 +179,12 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] `CreateWorktreeDialog` sai da `WorktreeTree` e vira a ação primária `Nova worktree` daqui
-- [ ] Chip de contagem de worktrees derivado da query já montada; contagem de sessões rodando derivada do `useSessionsByScope` (Q7)
-- [ ] Repositório fora do disco vira `Banner` de aviso com as ações bloqueadas, mantendo `remover projeto` — que é como o usuário se recupera
-- [ ] Caminho longo trunca com reticências sem empurrar a grade
-- [ ] `project-ui.test.tsx` e `worktree-ui.test.tsx` atualizados
-- [ ] Gate check passa: `pnpm gate:quick`
+- [x] `CreateWorktreeDialog` sai da `WorktreeTree` e vira a ação primária `Nova worktree` daqui
+- [x] Chip de contagem de worktrees derivado da query já montada; contagem de sessões rodando derivada do `useSessionsByScope` (Q7)
+- [x] Repositório fora do disco vira `Banner` de aviso com as ações bloqueadas, mantendo `remover projeto` — que é como o usuário se recupera
+- [x] Caminho longo trunca com reticências sem empurrar a grade
+- [x] `project-ui.test.tsx` e `worktree-ui.test.tsx` atualizados
+- [x] Gate check passa: `pnpm gate:quick`
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): style the project detail`
@@ -202,14 +202,14 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Branch, sujeira e distância da base como chips: `teste-prd`, `suja · 3 arquivos`, `↑2 de main`
-- [ ] `↓0` não renderiza — zero atrás não é informação
-- [ ] Worktree suja: `Banner` de aviso com a contagem, saída literal do git, e confirmação explícita pra forçar
-- [ ] Sessão viva: `Banner` de erro com a contagem e a lista das sessões, cada uma com ação de encerrar
-- [ ] `missing`: título com `⚠`, chip `ausente do disco`, e a ação de remover o registro dizendo que a branch fica
-- [ ] O cliente continua sem adivinhar o motivo do bloqueio — quem decide é o daemon, como o código já faz
-- [ ] `worktree-ui.test.tsx` atualizado
-- [ ] Gate check passa: `pnpm gate:quick`
+- [x] Branch, sujeira e distância da base como chips: `teste-prd`, `suja · 3 arquivos`, `↑2 de main`
+- [x] `↓0` não renderiza — zero atrás não é informação
+- [x] Worktree suja: `Banner` de aviso com a contagem, saída literal do git, e confirmação explícita pra forçar
+- [x] Sessão viva: `Banner` de erro com a contagem e a lista das sessões, cada uma com ação de encerrar
+- [x] `missing`: título com `⚠`, chip `ausente do disco`, e a ação de remover o registro dizendo que a branch fica
+- [x] O cliente continua sem adivinhar o motivo do bloqueio — quem decide é o daemon, como o código já faz
+- [x] `worktree-ui.test.tsx` atualizado
+- [x] Gate check passa: `pnpm gate:quick`
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): style the worktree detail`
@@ -227,12 +227,12 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] `Novo agente ▾` abre menu com uma entrada por configuração; `Novo shell` continua botão direto
-- [ ] Fecha com clique fora e com `Esc`; o foco volta pro gatilho
-- [ ] Configuração indisponível aparece **desabilitada e visível**, com a dica dizendo que o comando não está no `PATH` — F6.5
-- [ ] `session-ui.test.tsx` atualizado
-- [ ] Gate check passa: `pnpm gate:quick`
-- [ ] Test count: ao menos 2 casos novos — fecha com `Esc`, e item indisponível não dispara
+- [x] `Novo agente ▾` abre menu com uma entrada por configuração; `Novo shell` continua botão direto
+- [x] Fecha com clique fora e com `Esc`; o foco volta pro gatilho
+- [x] Configuração indisponível aparece **desabilitada e visível**, com a dica dizendo que o comando não está no `PATH` — F6.5
+- [x] `session-ui.test.tsx` atualizado
+- [x] Gate check passa: `pnpm gate:quick`
+- [x] Test count: ao menos 2 casos novos — fecha com `Esc`, e item indisponível não dispara
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): turn the session launcher into a menu`
@@ -250,15 +250,15 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] `xterm-theme.ts` monta o `ITheme` a partir de `tokens.ts` — fundo, texto, cursor e as 16 cores ANSI saem das rampas, nenhuma hardcoded
-- [ ] O detalhe da sessão é exceção de layout: sem largura máxima de leitura, terminal preenchendo o que sobra em altura
-- [ ] `FitAddon` mede o host depois do layout e o daemon recebe o tamanho real — o comportamento atual não regride
-- [ ] Cabeçalho do terminal com ícone, comando e `cwd` truncável
-- [ ] Sessão encerrada: chip `exited (N)` e o aviso de que o buffer segue legível — F5.9
-- [ ] Idade da sessão a partir de `session.createdAt`, que chega como string ISO — e o tipo já diz isso, ver PRD §7
-- [ ] `Terminal.test.tsx` e `session-ui.test.tsx` atualizados
-- [ ] Gate check passa: `pnpm gate:quick`
-- [ ] Test count: ao menos 1 caso novo — o tema aplicado sai dos tokens
+- [x] `xterm-theme.ts` monta o `ITheme` a partir de `tokens.ts` — fundo, texto, cursor e as 16 cores ANSI saem das rampas, nenhuma hardcoded
+- [x] O detalhe da sessão é exceção de layout: sem largura máxima de leitura, terminal preenchendo o que sobra em altura
+- [x] `FitAddon` mede o host depois do layout e o daemon recebe o tamanho real — o comportamento atual não regride
+- [x] Cabeçalho do terminal com ícone, comando e `cwd` truncável
+- [x] Sessão encerrada: chip `exited (N)` e o aviso de que o buffer segue legível — F5.9
+- [x] Idade da sessão a partir de `session.createdAt`, que chega como string ISO — e o tipo já diz isso, ver PRD §7
+- [x] `Terminal.test.tsx` e `session-ui.test.tsx` atualizados
+- [x] Gate check passa: `pnpm gate:quick`
+- [x] Test count: ao menos 1 caso novo — o tema aplicado sai dos tokens
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): give the terminal the room and the palette`
@@ -278,13 +278,13 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 **Tools**: MCP: NONE · Skill: NONE
 
 **Done when**:
-- [ ] Primeiro uso vira `Card` centrado com campo focado — largura de diálogo, não de coluna de detalhe
-- [ ] Caminho recusado mostra a mensagem literal do daemon no `Field` em erro — F2.2, e o daemon é o único que sabe qual validação falhou
-- [ ] Workspace sem projeto vira `EmptyState` com a ação, e não uma frase
-- [ ] Carregando vira esqueleto, não `carregando…`
-- [ ] Daemon inacessível vira `Banner` de erro persistente na topbar
-- [ ] `App.test.tsx` e `project-ui.test.tsx` atualizados
-- [ ] Gate check passa: `pnpm gate:quick`
+- [x] Primeiro uso vira `Card` centrado com campo focado — largura de diálogo, não de coluna de detalhe
+- [x] Caminho recusado mostra a mensagem literal do daemon no `Field` em erro — F2.2, e o daemon é o único que sabe qual validação falhou
+- [x] Workspace sem projeto vira `EmptyState` com a ação, e não uma frase
+- [x] Carregando vira esqueleto, não `carregando…`
+- [x] Daemon inacessível vira `Banner` de erro persistente na topbar
+- [x] `App.test.tsx` e `project-ui.test.tsx` atualizados
+- [x] Gate check passa: `pnpm gate:quick`
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): design the states that are not the happy path`
@@ -302,10 +302,10 @@ T6, T7 e T9 são independentes entre si depois da T2 — podem ir em paralelo. T
 **Tools**: MCP: NONE · Skill: `playwright-skill`
 
 **Done when**:
-- [ ] Todos os e2e passam com os seletores novos
-- [ ] Nenhuma asserção foi enfraquecida pra passar — seletor mudou, garantia não
-- [ ] O caminho crítico continua coberto: fecho o navegador com o agente trabalhando, reabro, ele continua
-- [ ] Gate check passa: `pnpm gate:full`
+- [x] Todos os e2e passam com os seletores novos
+- [x] Nenhuma asserção foi enfraquecida pra passar — seletor mudou, garantia não
+- [x] O caminho crítico continua coberto: fecho o navegador com o agente trabalhando, reabro, ele continua
+- [x] Gate check passa: `pnpm gate:full`
 
 **Tests**: e2e · **Gate**: full
 **Commit**: `test(e2e): follow the restyled selectors`
