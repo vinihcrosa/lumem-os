@@ -4,7 +4,7 @@ import { useRunningAcross, useSessionsByScope, type Scope } from "../hooks/useSe
 import type { TreeExpansion } from "../hooks/useTreeExpansion.js";
 import { projectsKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
-import { Glyph, Row } from "../ui/index.js";
+import { EmptyState, Glyph, Row, Skeleton } from "../ui/index.js";
 
 /** What the sidebar is pointing at. Mirrors `App`'s selection, minus the route. */
 export interface TreeSelection {
@@ -38,8 +38,26 @@ export function SidebarTree(props: SidebarTreeProps) {
   }
 
   const list = projects.data ?? [];
-  if (!projects.isPending && list.length === 0) {
-    return <p className="tree__message">nenhum projeto ainda</p>;
+
+  if (projects.isPending) {
+    return (
+      <div className="tree">
+        <Skeleton label="carregando os projetos" widths={["80%", "60%", "70%"]} />
+      </div>
+    );
+  }
+
+  if (list.length === 0) {
+    return (
+      <div className="tree">
+        {/* No action of its own: `adicionar projeto` sits in the footer right
+            below this, always visible. A second copy would be two buttons for
+            one job, a hand's width apart. */}
+        <EmptyState title="Nenhum projeto aqui">
+          Aponte para a raiz de um repositório git que já está no disco. O Lumem não clona nada.
+        </EmptyState>
+      </div>
+    );
   }
 
   return (

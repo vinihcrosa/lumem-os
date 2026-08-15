@@ -45,6 +45,24 @@ describe("App header", () => {
     expect(await screen.findByText("daemon v1.2.3")).toBeInTheDocument();
   });
 
+  it("keeps asking, so a daemon that dies mid-session is noticed", async () => {
+    // Asked once, "daemon inacessível" is a state the UI can draw and never
+    // reach — PRD §8 wants the client to notice the daemon going down while it
+    // is open, not only when it was already down at boot.
+    vi.useFakeTimers();
+    trpc.health.query.mockResolvedValue({ ok: true, version: "1.2.3" });
+
+    renderWithProviders(<App />);
+    await vi.waitFor(() => expect(screen.getByText("daemon v1.2.3")).toBeInTheDocument());
+
+    trpc.health.query.mockRejectedValue(new Error("ECONNREFUSED"));
+    await vi.advanceTimersByTimeAsync(6_000);
+
+    await vi.waitFor(() => expect(screen.getAllByRole("alert").length).toBeGreaterThan(0));
+    expect(screen.getByText("daemon inacessível")).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
   it("reports the daemon as unreachable when health fails", async () => {
     // The header is the one thing that renders whatever else went wrong, so
     // this is where "the daemon is down" has to show up.

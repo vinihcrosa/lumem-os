@@ -98,3 +98,8 @@
   font-size: var(--size-icon-xs);
   pointer-events: none;
 }
+
+/* O formulário toma a sidebar inteira enquanto está aberto: com 264px não
+   cabe formulário ao lado de árvore. */
+.add-project { padding-top: var(--space-4); }
+.add-project__actions { display: flex; gap: var(--space-6); }

@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
 import { trpc } from "../lib/trpc.js";
+import { Banner, Button, Card, Field, Input } from "../ui/index.js";
 
 export interface FirstRunProps {
   onCreated: (workspaceId: string) => void;
@@ -29,25 +30,37 @@ export function FirstRun({ onCreated }: FirstRunProps) {
   };
 
   return (
-    <main className="first-run">
-      <h2>Primeiro uso</h2>
-      <p>Um workspace agrupa seus projetos. Crie o primeiro para começar.</p>
+    <main className="centered">
+      <Card
+        title="Nenhum workspace ainda"
+        lede="Um workspace agrupa os projetos que você acompanha junto. Dá pra ter vários; comece com um."
+      >
+        <form onSubmit={submit}>
+          <Field id="workspace-name" label="Nome do workspace">
+            <Input
+              id="workspace-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="pessoal"
+              autoFocus
+            />
+          </Field>
 
-      <form onSubmit={submit}>
-        <label htmlFor="workspace-name">Nome do workspace</label>
-        <input
-          id="workspace-name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="pessoal"
-          autoFocus
-        />
-        <button type="submit" disabled={create.isPending || name.trim() === ""}>
-          {create.isPending ? "criando…" : "criar workspace"}
-        </button>
-      </form>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={create.isPending || name.trim() === ""}
+          >
+            {create.isPending ? "criando…" : "criar workspace"}
+          </Button>
+        </form>
 
-      {create.isError && <p role="alert">{create.error.message}</p>}
+        {create.isError && (
+          <div className="detail__banner">
+            <Banner tone="danger">{create.error.message}</Banner>
+          </div>
+        )}
+      </Card>
     </main>
   );
 }

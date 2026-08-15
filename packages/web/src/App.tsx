@@ -17,7 +17,7 @@ import { AppShell } from "./layout/AppShell.js";
 import { Topbar } from "./layout/Topbar.js";
 import { WORKSPACES_KEY } from "./lib/queryKeys.js";
 import { trpc } from "./lib/trpc.js";
-import { Skeleton } from "./ui/index.js";
+import { Banner, Skeleton } from "./ui/index.js";
 
 import "./components/sidebar.css";
 import "./layout/layout.css";
@@ -45,6 +45,12 @@ export function App() {
   const health = useQuery({
     queryKey: ["health"],
     queryFn: () => trpc.health.query(),
+    // Asked once, "daemon inacessível" was a state the UI could draw and never
+    // reach: the daemon going down mid-session left the topbar reporting the
+    // version it saw at boot. PRD §8 wants the client to notice and say so.
+    refetchInterval: 5_000,
+    // A failed poll is the answer, not a glitch to retry around.
+    retry: false,
   });
 
   const workspaces = useQuery({
@@ -61,6 +67,17 @@ export function App() {
   return (
     <div className="app">
       <Topbar version={health.data?.version ?? null} unreachable={health.isError} />
+      {/* The topbar dot says it quietly; this says what it means. Every action
+          below is a call to a daemon that is not answering, and a sidebar that
+          merely looks stale gives no reason for why nothing works. */}
+      {health.isError && (
+        <div className="app__banner">
+          <Banner tone="danger">
+            <strong>Daemon inacessível.</strong> Nada aqui responde até ele voltar. As sessões
+            continuam rodando no servidor — o que caiu é a conexão com ele.
+          </Banner>
+        </div>
+      )}
       {renderBody()}
     </div>
   );

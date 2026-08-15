@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 
 import { projectsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
+import { Button, Card, Field, Glyph, Input } from "../ui/index.js";
 
 export interface AddProjectDialogProps {
   workspaceId: string;
@@ -47,7 +48,8 @@ export function AddProjectDialog({ workspaceId, onAdded }: AddProjectDialogProps
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)}>
+      <button type="button" className="sidebar__add" onClick={() => setOpen(true)}>
+        <Glyph>＋</Glyph>
         adicionar projeto
       </button>
     );
@@ -55,33 +57,46 @@ export function AddProjectDialog({ workspaceId, onAdded }: AddProjectDialogProps
 
   return (
     <form className="add-project" onSubmit={submit}>
-      <label htmlFor="project-path">Caminho do repositório</label>
-      <input
-        id="project-path"
-        value={path}
-        onChange={(event) => setPath(event.target.value)}
-        placeholder="/Users/voce/Documents/GitHub/lorebase"
-        autoFocus
-      />
+      <Card>
+        <Field
+          id="project-path"
+          label="Caminho do repositório"
+          // The daemon's own words: it is the only thing that knows *which*
+          // validation failed, and F2.2 requires the user to be told.
+          error={add.isError ? add.error.message : undefined}
+        >
+          <Input
+            id="project-path"
+            value={path}
+            onChange={(event) => setPath(event.target.value)}
+            placeholder="/Users/voce/Documents/GitHub/lorebase"
+            invalid={add.isError}
+            autoFocus
+          />
+        </Field>
 
-      <label htmlFor="project-name">Nome (opcional)</label>
-      <input
-        id="project-name"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        placeholder="o nome da pasta"
-      />
+        <Field id="project-name" label="Nome (opcional)">
+          <Input
+            id="project-name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="o nome da pasta"
+          />
+        </Field>
 
-      <button type="submit" disabled={add.isPending || path.trim() === ""}>
-        {add.isPending ? "validando…" : "adicionar"}
-      </button>
-      <button type="button" onClick={() => setOpen(false)}>
-        cancelar
-      </button>
-
-      {/* The daemon's own words: it is the only thing that knows *which*
-          validation failed, and F2.2 requires the user to be told. */}
-      {add.isError && <p role="alert">{add.error.message}</p>}
+        <div className="add-project__actions">
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={add.isPending || path.trim() === ""}
+          >
+            {add.isPending ? "validando…" : "adicionar"}
+          </Button>
+          <Button variant="ghost" onClick={() => setOpen(false)}>
+            cancelar
+          </Button>
+        </div>
+      </Card>
     </form>
   );
 }

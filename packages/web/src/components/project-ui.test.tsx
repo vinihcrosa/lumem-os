@@ -58,7 +58,10 @@ describe("project list", () => {
   it("says so when the workspace has no projects", async () => {
     renderWithProviders(<App />);
 
-    expect(await screen.findByText("nenhum projeto ainda")).toBeInTheDocument();
+    // An empty state, not a shrug: it says what a project is here and the
+    // footer action sits right below it.
+    expect(await screen.findByText("Nenhum projeto aqui")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /adicionar projeto/ })).toBeInTheDocument();
   });
 
   it("marks a project whose repository is gone", async () => {
