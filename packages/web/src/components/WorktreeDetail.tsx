@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 
+import { useSessionsByScope } from "../hooks/useSessionsByScope.js";
 import { worktreeDetailKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
-import { Banner, Button, Chip, Glyph, MetaGrid, Skeleton } from "../ui/index.js";
+import { Banner, Button, Chip, Glyph, Item, MetaGrid, SectionHead, Skeleton } from "../ui/index.js";
 
 import "./detail.css";
 
@@ -12,6 +13,7 @@ export interface WorktreeDetailProps {
   projectId: string;
   workspaceName: string;
   onRemoved: () => void;
+  onSelectSession: (sessionId: string) => void;
   /** Actions for this worktree — the new-session menu. */
   children?: ReactNode;
 }
@@ -22,6 +24,7 @@ export function WorktreeDetail({
   projectId,
   workspaceName,
   onRemoved,
+  onSelectSession,
   children,
 }: WorktreeDetailProps) {
   const queryClient = useQueryClient();
@@ -37,6 +40,9 @@ export function WorktreeDetail({
     queryKey: ["project", "get", projectId],
     queryFn: () => trpc.project.get.query({ id: projectId }),
   });
+
+  // Same key the sidebar filled, so the list below costs a cache read.
+  const sessions = useSessionsByScope({ scopeType: "worktree", scopeId: worktreeId });
 
   const remove = useMutation({
     mutationFn: (force: boolean) => trpc.worktree.remove.mutate({ id: worktreeId, force }),
@@ -63,6 +69,8 @@ export function WorktreeDetail({
 
   const { name, branch, path, state, present, status, aheadBehind, baseBranch } = detail.data;
   const gone = !present || state === "missing";
+  const sessionList = sessions.data ?? [];
+  const runningCount = sessionList.filter((item) => item.state === "running").length;
 
   return (
     <section className="detail">
@@ -197,6 +205,42 @@ export function WorktreeDetail({
         ]}
       />
       <p className="detail__hint">a branch não é apagada</p>
+
+      <section className="section">
+        <SectionHead
+          title="Sessões"
+          count={
+            sessionList.length === 0
+              ? 0
+              : `${sessionList.length} · ${runningCount} rodando`
+          }
+        />
+        {sessionList.length === 0 ? (
+          <p className="detail__hint">nenhuma sessão aberta aqui</p>
+        ) : (
+          sessionList.map((item) => (
+            <Item
+              key={item.id}
+              name={item.agentName ?? "shell"}
+              glyph={
+                <Glyph tone={item.kind === "agent" ? "agent" : "shell"}>
+                  {item.kind === "agent" ? "◆" : "●"}
+                </Glyph>
+              }
+              detail={item.command}
+              state={
+                item.state === "running"
+                  ? { label: "running", tone: "running" }
+                  : {
+                      label: `exited (${item.exitCode ?? "?"})`,
+                      tone: item.exitCode === 0 ? "exited" : "failed",
+                    }
+              }
+              onSelect={() => onSelectSession(item.id)}
+            />
+          ))
+        )}
+      </section>
     </section>
   );
 }

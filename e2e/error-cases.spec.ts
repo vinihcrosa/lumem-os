@@ -68,7 +68,7 @@ test("a worktree with a live session cannot be removed", async ({ page }) => {
   await page.getByRole("button", { name: "novo shell" }).click();
   await expect(page.getByTestId("terminal")).toBeVisible();
 
-  await page.getByRole("button", { name: new RegExp(name) }).first().click();
+  await page.getByRole("button", { name: new RegExp(`^${name}`) }).first().click();
   await page.getByRole("button", { name: "remover worktree" }).click();
 
   // F4.9, and PRD §5: the message names the session, not the dirt.
@@ -76,12 +76,15 @@ test("a worktree with a live session cannot be removed", async ({ page }) => {
   await expect(page.getByRole("heading", { name })).toBeVisible();
 
   // Closing them is what unblocks it, which is the whole point of the refusal.
-  await page.locator('li[data-state="running"] > button').first().click();
+  await page
+    .locator('[data-kind="shell"][data-state="running"] .row__main')
+    .first()
+    .click();
   const closeButton = page.getByRole("button", { name: "encerrar sessão" });
   await closeButton.click();
   await expect(closeButton).toBeHidden({ timeout: 20_000 });
 
-  await page.getByRole("button", { name: new RegExp(name) }).first().click();
+  await page.getByRole("button", { name: new RegExp(`^${name}`) }).first().click();
   await page.getByRole("button", { name: "remover worktree" }).click();
   await expect(page.getByRole("heading", { name })).toBeHidden({ timeout: 20_000 });
 });
@@ -122,13 +125,15 @@ test("an agent whose command is missing is shown unavailable and cannot be launc
   await openFixtureProject(page);
 
   // F6.5: shown rather than hidden, disabled rather than launchable.
-  const broken = page.getByRole("button", { name: new RegExp(`novo ${BROKEN_AGENT}`) });
+  await page.getByRole("button", { name: /novo agente/ }).click();
+  const broken = page.getByRole("menuitem", { name: new RegExp(BROKEN_AGENT) });
   await expect(broken).toBeDisabled();
-  await expect(broken).toContainText("indisponível");
+  // The reason, not just the refusal — "indisponível" leaves nothing to fix.
+  await expect(broken).toContainText("fora do PATH");
 
   // The one that *is* installed still works, so this is about availability
   // rather than agents being broken in general.
-  await page.getByRole("button", { name: `novo ${AGENT}` }).click();
+  await page.getByRole("menuitem", { name: new RegExp(`^${AGENT}\\b`) }).click();
   await expect(terminalText(page)).toContainText("fake-agent pronto", { timeout: 20_000 });
   await page.getByRole("button", { name: "encerrar sessão" }).click();
 });

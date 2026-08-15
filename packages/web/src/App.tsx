@@ -196,6 +196,15 @@ export function App() {
           projectId={projectId}
           workspaceName={activeName}
           onRemoved={() => setSelection({ kind: "project", projectId })}
+          onSelectSession={(sessionId) =>
+            setSelection({
+              kind: "session",
+              projectId,
+              scopeType: "worktree",
+              scopeId: worktreeId,
+              sessionId,
+            })
+          }
         >
           <NewSessionMenu
             scopeType="worktree"

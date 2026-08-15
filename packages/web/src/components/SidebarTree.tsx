@@ -115,6 +115,10 @@ function ProjectNode({
 
   return (
     <>
+      {/* O estado de domínio fica num invólucro, não na primitiva: `Row` não
+          sabe o que é um projeto, e é isso que a mantém reusável. O atributo
+          serve ao CSS de amanhã e aos e2e de hoje. */}
+      <div data-kind="project" data-state={project.available ? "available" : "missing"}>
       <Row
         depth={0}
         emphasis
@@ -130,6 +134,7 @@ function ProjectNode({
         onSelect={() => onSelectProject(project.id)}
         pip={!expanded && running > 0}
       />
+      </div>
 
       {expanded && (
         <>
@@ -211,6 +216,7 @@ function WorktreeNode({
 
   return (
     <>
+      <div data-kind="worktree" data-state={worktree.state}>
       <Row
         depth={1}
         label={worktree.name}
@@ -224,6 +230,7 @@ function WorktreeNode({
         onSelect={() => onSelectWorktree(projectId, worktree.id)}
         pip={!expanded && running > 0}
       />
+      </div>
 
       {expanded && (
         <SessionNodes
@@ -253,8 +260,13 @@ function SessionNodes({
   return (
     <>
       {(sessions.data ?? []).map((session) => (
-        <Row
+        <div
           key={session.id}
+          data-kind={session.kind}
+          data-state={session.state}
+          data-scope={scope.scopeType}
+        >
+        <Row
           depth={depth}
           label={session.agentName ?? "shell"}
           // F3.4 wants shell and agent told apart at a glance.
@@ -268,6 +280,7 @@ function SessionNodes({
           selected={selectedId === session.id}
           onSelect={() => onSelect(scope, session.id)}
         />
+        </div>
       ))}
     </>
   );
