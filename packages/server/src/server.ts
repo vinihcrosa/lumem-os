@@ -7,6 +7,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type { ServerConfig } from "./config.js";
 import type { Db } from "./db/index.js";
 import { createEventBus, type EventBus } from "./events.js";
+import { MAX_FILE_BYTES } from "./files/FileService.js";
 import { createGitService, type GitService } from "./git/GitService.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import { registerPtyWebSocket } from "./pty/websocket.js";
@@ -21,6 +22,36 @@ import type { Context } from "./trpc.js";
  * 414 that never reaches tRPC's onError.
  */
 const MAX_PARAM_LENGTH = 5_000;
+
+/**
+ * What JSON does to one byte of a file on the way here, at its worst.
+ *
+ * `"`, `\` and a newline cost two bytes each; a control byte costs six, spelled
+ * as a u-escape. A file made of those is odd and perfectly legal — no NUL byte,
+ * so it reads as text, and it survives the UTF-8 round trip, so `files.write`
+ * accepts it. Sizing for the common case instead would put the same bug back,
+ * only rarer, and therefore worse to diagnose.
+ */
+const JSON_ESCAPE_WORST_CASE = 6;
+
+/**
+ * The largest body the daemon accepts, derived from the file ceiling.
+ *
+ * Fastify's default is 1 MiB — exactly `MAX_FILE_BYTES` — so a `files.write` of
+ * a file at the ceiling never reached tRPC at all: it came back as
+ * FST_ERR_CTP_BODY_TOO_LARGE, a transport 413 with no `TRPCError` and no domain
+ * message, and the editor's footer (E9) would have had nothing to show but a
+ * number. Measured on this server: a 1,024,011-byte body passes, a 1,048,587
+ * one does not.
+ *
+ * Derived, then, rather than guessed: the text at its ceiling, times what JSON
+ * can do to it, plus the envelope tRPC's batching link wraps it in — the index
+ * of the batch, the scope, the path and a 64-character revision, none of which
+ * is close to 64 KiB. Nothing else the daemon accepts is near this size, and
+ * the limit is a ceiling rather than an allocation, so paying it globally costs
+ * nothing until someone actually sends it.
+ */
+export const MAX_BODY_BYTES = MAX_FILE_BYTES * JSON_ESCAPE_WORST_CASE + 64 * 1024;
 
 export interface CreateServerOptions {
   config: ServerConfig;
@@ -59,6 +90,7 @@ export async function createServer({
   const app = Fastify({
     logger,
     routerOptions: { maxParamLength: MAX_PARAM_LENGTH },
+    bodyLimit: MAX_BODY_BYTES,
     // Without this, close() waits forever on an attached websocket.
     forceCloseConnections: true,
   });
