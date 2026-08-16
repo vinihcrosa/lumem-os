@@ -21,7 +21,7 @@ Lendo nesta ordem você entende o projeto inteiro em três documentos:
 | [vision.md](project/vision.md) | Visão, hierarquia pretendida, o que o Vinicius quer do sistema |
 | [questions.md](project/questions.md) | 96 perguntas de design em duas rodadas. Fonte de verdade das decisões de longo prazo, respondida aos poucos |
 | [testing.md](project/testing.md) | Matriz de cobertura, o que cada gate garante, e as armadilhas de teste já corrigidas |
-| [task-cycle-evidence.md](project/task-cycle-evidence.md) | Custo e achados medidos do ciclo dev → review → rework. Lastro dos números que a skill `lumem-task-cycle` cita |
+| [task-cycle-evidence.md](project/task-cycle-evidence.md) | Linha de base medida do repositório e registro de custo do ciclo dev → review → rework. Lastro dos números que a skill `lumem-task-cycle` cita |
 
 ---
 
@@ -89,8 +89,8 @@ Sucede a `right-panel`. O split da aba passa a **escrever**: editar o arquivo ab
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/file-editor/prd.md) | Por que o não-objetivo foi revertido, a segurança da escrita, a concorrência com o agente, riscos |
-| [open-questions.md](prd/file-editor/open-questions.md) | 11 perguntas, 7 respondidas |
-| [tasks.md](prd/file-editor/tasks.md) | 5 decisões e 12 tasks em 5 fases — nenhuma executada |
+| [open-questions.md](prd/file-editor/open-questions.md) | 11 perguntas, 9 respondidas |
+| [tasks.md](prd/file-editor/tasks.md) | 5 decisões e 12 tasks em 5 fases, mais as premissas travadas e a lista de pendências — 1 entregue |
 
 ---
 
