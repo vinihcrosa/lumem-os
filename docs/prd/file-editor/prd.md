@@ -130,6 +130,8 @@ Esta é a parte que justifica a feature ter PRD próprio. O agente escreve no me
 **F3.2** Toda escrita manda a revisão em que o buffer se baseia. O daemon compara com o disco **no momento da escrita** e recusa se mudou.
 **F3.3** A recusa é **resposta, não exceção**: `{ ok: false, reason: "stale" }`, pelo mesmo argumento que fez `readFile` devolver `binary` e `too-large` em vez de lançar. Conflito é um caso previsto, não uma falha.
 **F3.4** Diante do conflito, o autosave **para** e a tela oferece as duas saídas, nomeadas pelo que perdem: *recarregar do disco* (perde o que você digitou) e *sobrescrever* (perde o que o agente escreveu). Nenhuma delas é o default (D3.1).
+
+O custo de cada saída é **medido, não adjetivado**: quantas linhas suas somem, e quanto da edição do agente some (`+n −n`). Quem mede é o **cliente**, que é o único lado com as três versões na mão — o texto base que ele leu, o buffer que ele tem, e o do disco, que ele busca ao receber o `stale`. O servidor guarda hash, e de um hash não se reconstrói texto.
 **F3.5** Com o buffer **limpo**, uma mudança externa é adotada: o arquivo na tela segue o disco, como hoje.
 **F3.6** Com o buffer **sujo**, mudança externa nunca sobrescreve o que está sendo digitado — vira o aviso de F3.4.
 
@@ -137,7 +139,9 @@ Esta é a parte que justifica a feature ter PRD próprio. O agente escreve no me
 
 **F4.1** Criar arquivo e criar pasta, a partir do diretório clicado, com o nome digitado na própria linha da árvore.
 **F4.2** Renomear no lugar. Renomear é mover: `a/b.ts` → `c/d.ts` é uma operação só, e o diretório de destino tem que existir.
-**F4.3** Apagar, com confirmação que **nomeia** o que vai sumir. Diretório só é apagado com a contagem do que tem dentro dita antes.
+**F4.3** Apagar, com confirmação que **nomeia** o que vai sumir, e que diz **se o git desfaz**: arquivo rastreado tem o comando de volta na tela, arquivo não rastreado tem o aviso de que nada traz de volta. Diretório é apagado com a contagem do que tem dentro dita antes — e com quantos daqueles o git **não** recupera.
+
+Isto pede dois dados que a v1 da right-panel não precisava: se um caminho é rastreado, e a contagem recursiva de um diretório. Ambos entram no §4 do servidor (F5.7), porque a alternativa é a tela prometer uma garantia que ninguém verificou.
 **F4.4** Toda operação nomeia o alvo já existente em vez de sobrescrever: criar sobre um nome ocupado, ou renomear para um nome ocupado, é `DUPLICATE`.
 **F4.5** Depois de qualquer operação a árvore mostra o resultado sem recarregar tudo — invalida o diretório afetado e a lista de mudanças.
 **F4.6** Apagar o arquivo aberto no split fecha o split. Renomear o arquivo aberto reaponta o split para o novo caminho.
@@ -145,10 +149,15 @@ Esta é a parte que justifica a feature ter PRD próprio. O agente escreve no me
 ### F5 — Servidor
 
 **F5.1** `files.read` passa a devolver `revision` junto do conteúdo. Mudança aditiva; o cliente atual continua compilando.
-**F5.2** `files.write({ scopeType, scopeId, path, text, baseRevision })` → `{ ok: true, revision }` ou `{ ok: false, reason: "stale", revision }`.
+**F5.2** `files.write({ scopeType, scopeId, path, text, baseRevision })` → `{ ok: true, revision }` ou `{ ok: false, reason: "stale", revision, changedAt }`.
+
+O `changedAt` é o `mtime` do disco, e existe por causa de uma frase que o protótipo escreveu: *"o agente escreveu este arquivo há 8 s"*. Sem ele, essa frase é invenção do cliente.
+
+O que o servidor **não** manda, e é decisão, não esquecimento: o custo de cada saída (*"perde as 3 linhas que você digitou"*, *"perde a edição do agente (+6 −2)"*). Ele teria que reconstruir o texto base a partir de um **hash** para calcular isso, o que é impossível. Quem calcula é o cliente, que tem o texto base em memória e busca o do disco — F3.4.
 **F5.3** `files.create({ …, path, kind: "file" | "dir" })`.
 **F5.4** `files.rename({ …, from, to })`.
 **F5.5** `files.remove({ …, path, recursive })`.
+**F5.7** `files.deletePreview({ …, path })` — o que a confirmação de apagar precisa saber antes de apagar: se o caminho é rastreado pelo git, e, para diretório, quantas entradas ele tem contando subdiretórios e quantas delas o git não recupera. Com teto e com o truncamento dito, como toda contagem desta feature.
 **F5.6** Escrita é atômica: arquivo temporário no **mesmo diretório** e `rename` por cima, com o modo do original preservado. Meio arquivo no disco é pior que nenhuma escrita, e o agente pode estar lendo exatamente nesse instante.
 
 ---

@@ -37,11 +37,14 @@ Numeradas, e nenhuma delas vive só numa mensagem ou num comentário de código.
 |---|---|---|
 | **P1** | Apagar manda para a lixeira ou apaga direto? A v1 apaga, e a confirmação diz quando o alvo **não** está no git | aberta ([Q5](open-questions.md)) — não bloqueia; a E11 implementa a v1 |
 | **P2** | O daemon não tem autenticação, e escrita muda a categoria da superfície | aberta ([Q7](open-questions.md)) — feature própria, **não** bloqueia esta |
-| **P3** | O número do debounce | a E1 propõe, e escreve em [Q8](open-questions.md) |
+| **P3** | O número do debounce | **fechada pela E1**: 800 ms, com o argumento em [Q8](open-questions.md). O nome do lugar único é `AUTOSAVE_DEBOUNCE_MS` |
 | **P4** | Arquivo que não é UTF-8: converter, recusar, ou ignorar | aberta ([Q9](open-questions.md)) — **decidir antes da E8**, senão salvar grava caractere de substituição por cima do conteúdo |
 | **P5** | O histórico de undo não sobrevive à troca de worktree | aberta ([Q11](open-questions.md)) — a v1 zera, como a right-panel |
 | **P6** | `file-viewer.test.tsx` assertava sobre `<div className="l">`, que a E8 remove. É reescrita de teste, não perda de cobertura — e o revisor tem que ver a cobertura equivalente, não só o verde | prevista, na E8 |
 | **P7** | O número do bundle do CodeMirror | a E8 mede e escreve no [PRD](prd.md) §7, como a R8 da right-panel fez |
+| **P8** | `packages/web/src/components/viewer.css:134` usa `text-disabled` na medianiz, **hoje, no app**: 2,96:1 sobre o poço, abaixo do mínimo de objeto gráfico. A E1 achou medindo o protótipo e criou `editor/line-number` (6,49:1) | fechada pela **E8**, cujo *Done when* de tema já cobre. Registrada aqui porque é defeito de acessibilidade em produção, não só do desenho |
+| **P9** | A tela de conflito promete três números que o contrato original não carregava: "há 8 s", "3 linhas que você digitou", "+6 −2" do agente | **resolvida no desenho** pela verificação do orquestrador: `changedAt` entra na resposta (E4/E6), e os dois custos passam a ser medidos **no cliente** (E10), que é o único lado com as três versões do texto |
+| **P10** | O diálogo de apagar promete saber se o git desfaz, e a contagem recursiva de uma pasta — dados que nenhuma procedure tinha | **resolvida no desenho**: `files.deletePreview` (F5.7), implementada na E5 e exposta na E6, consumida pela E11 |
 
 ---
 
@@ -163,7 +166,8 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 **Depends on**: E2, E3
 
 **Done when**:
-- [ ] `writeFile(root, path, { text, baseRevision })` devolve `{ ok: true, revision }` ou `{ ok: false, reason: "stale", revision }` (D3.1)
+- [ ] `writeFile(root, path, { text, baseRevision })` devolve `{ ok: true, revision }` ou `{ ok: false, reason: "stale", revision, changedAt }` (D3.1)
+- [ ] O `changedAt` é o `mtime` do disco lido na mesma passada da comparação — é o que sustenta o "o agente escreveu este arquivo há 8 s" que o protótipo desenhou. Sem ele a frase é invenção do cliente
 - [ ] A comparação lê o disco **imediatamente antes** de gravar, dentro do daemon
 - [ ] Gravação atômica: temporário no **mesmo diretório** e `rename` por cima — nunca meio arquivo no disco
 - [ ] Modo do arquivo original preservado (um script executável continua executável depois de editado)
@@ -190,8 +194,10 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] `remove(path, { recursive })`: diretório com conteúdo sem `recursive` é recusado, com a contagem do que tem dentro na mensagem
 - [ ] Apagar symlink apaga **o link**, não o que ele aponta
 - [ ] Nenhuma das três aceita alvo vazio nem alvo dentro de `.git` — herdado da E2, e verificado aqui de novo por chamada
+- [ ] `deletePreview(root, path)` (F5.7): devolve se o caminho é **rastreado pelo git** e, para diretório, a contagem recursiva de entradas mais quantas delas não estão rastreadas. É o que o diálogo de apagar promete na tela — "o git desfaz os outros 3" — e sem isto a promessa é chute
+- [ ] A contagem recursiva tem teto e **diz** quando truncou, como toda contagem desta feature. `node_modules` está visível na árvore e é apagável
 - [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 7 casos — criar arquivo, criar pasta, nome ocupado, renomear movendo de diretório, destino ocupado, apagar diretório cheio sem `recursive`, apagar symlink
+- [ ] Test count: ao menos 9 casos — criar arquivo, criar pasta, nome ocupado, renomear movendo de diretório, destino ocupado, apagar diretório cheio sem `recursive`, apagar symlink, preview de arquivo rastreado versus não rastreado, preview de diretório misto
 
 **Tests**: unit, filesystem de verdade · **Gate**: quick
 **Commit**: `feat(server): create, rename and remove inside a checkout`
@@ -206,6 +212,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 
 **Done when**:
 - [ ] `files.write`, `files.create`, `files.rename`, `files.remove` — todas `mutation`, todas por `resolveScope` e depois pela guarda, nessa ordem
+- [ ] `files.deletePreview` — `query`, não `mutation`: ela só lê, e é o que a confirmação de apagar consulta antes de perguntar (F5.7)
 - [ ] `files.write` devolve o resultado discriminado; conflito **não** vira `TRPCError` (D3.1)
 - [ ] Erros de domínio continuam virando os códigos que o `DOMAIN_TO_TRPC` já mapeia; nenhum código novo é inventado sem entrar naquele mapa
 - [ ] `text` tem teto de tamanho no schema, antes de chegar ao serviço
@@ -288,6 +295,8 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 **Done when**:
 - [ ] Resposta `stale` **para** o autosave — nada mais é gravado até o usuário escolher
 - [ ] As duas saídas aparecem nomeadas pelo que perdem, sem default visual (D3.1)
+- [ ] O custo de cada saída é **medido pelo cliente**, não adjetivado: ao receber o `stale`, ele busca o conteúdo do disco e compara com as duas versões que já tem — o texto base que leu e o buffer. Daí saem "perde as 3 linhas que você digitou" e "perde a edição do agente (+6 −2)". O servidor não sabe calcular isso, e o teste é que os dois números batem com uma edição conhecida dos dois lados
+- [ ] O "o agente escreveu este arquivo há Ns" vem do `changedAt` da resposta (E4), não do relógio do cliente
 - [ ] *Recarregar do disco* traz o conteúdo novo e a revisão nova, e o autosave volta a andar
 - [ ] *Sobrescrever* grava com a revisão que veio na recusa, e passa (é o caso provado na E7)
 - [ ] Buffer **limpo** com mudança externa adota o disco em silêncio; buffer **sujo** nunca é sobrescrito por refetch (D4)
@@ -310,7 +319,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 **Done when**:
 - [ ] Criar arquivo e criar pasta a partir do diretório clicado, com o nome digitado na própria linha da árvore
 - [ ] Renomear no lugar, aceitando caminho — renomear é mover (F4.2)
-- [ ] Apagar com confirmação que **nomeia** o alvo, diz a contagem quando é diretório, e avisa quando o arquivo **não** está rastreado pelo git ([Q5](open-questions.md))
+- [ ] Apagar com confirmação que **nomeia** o alvo e consulta `files.deletePreview` (E5/E6): arquivo rastreado mostra o `git checkout --` que o traz de volta, não rastreado mostra que nada traz, e diretório mostra a contagem mais quantas entradas o git não recupera ([Q5](open-questions.md))
 - [ ] Nome ocupado mostra a recusa do servidor, sem sobrescrever nada
 - [ ] Depois de cada operação, só o diretório afetado e a lista de mudanças recarregam (F4.5)
 - [ ] Apagar o arquivo aberto fecha o split; renomear reaponta o split para o novo caminho (F4.6)
