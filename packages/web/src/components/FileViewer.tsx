@@ -261,10 +261,13 @@ function ConflictBar({
         O disco não é mais o que você abriu, e o que você digitou ainda não foi para lá.
       </p>
       <div className="conflict__exits">
-        {/* Disabled only while the disk has not arrived — with no third version
-            there is no cost to state, and stating none is how a screen about
-            losing work starts lying. */}
-        <button type="button" className="exit" onClick={onReload} disabled={conflict.disk === null}>
+        {/* Neither exit is ever disabled, and the number that can go missing is
+            the agent's alone: this one costs `base` against the buffer, and
+            both are in hand whether the third version landed or not. Disabling
+            it was forbidding the button whose price is known while leaving open
+            the one that acts blind — and D3.1 says neither is the default, so a
+            permanently unavailable exit is a default by omission. */}
+        <button type="button" className="exit" onClick={onReload}>
           <span className="exit__what">recarregar do disco</span>
           <span className="exit__cost">perde {yourLines(yours)}</span>
         </button>

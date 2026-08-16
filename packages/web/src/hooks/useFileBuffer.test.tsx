@@ -203,6 +203,21 @@ describe("o autosave", () => {
     );
   });
 
+  it("espera 800 ms, e o número está escrito aqui e não lido da constante", async () => {
+    // Todo o resto do arquivo mede o debounce por `AUTOSAVE_DEBOUNCE_MS`, então
+    // trocar a constante por 1 passa em tudo — e a decisão da Q8 não estaria em
+    // teste nenhum. Um lugar tem de fixar o número.
+    expect(AUTOSAVE_DEBOUNCE_MS).toBe(800);
+    const { container } = await openTyping();
+
+    typeInto(container, "!");
+    await tick(799);
+    expect(trpcMock.files.write.mutate).not.toHaveBeenCalled();
+
+    await tick(1);
+    expect(trpcMock.files.write.mutate).toHaveBeenCalledTimes(1);
+  });
+
   it("manda os bytes que o arquivo tinha, não os que o editor guarda", async () => {
     // A7/Q6: um arquivo CRLF entra no CodeMirror como LF. Gravar `doc.toString()`
     // reescreveria todas as linhas do arquivo na primeira parada de digitação.
@@ -229,6 +244,40 @@ describe("o autosave", () => {
     await debounce();
     typeInto(container, "b");
     await debounce();
+
+    expect(trpcMock.files.write.mutate).toHaveBeenCalledTimes(2);
+    expect(trpcMock.files.write.mutate.mock.calls[1]?.[0]).toMatchObject({
+      baseRevision: "sha256:dois",
+      text: `${TEXT}ab`,
+    });
+  });
+
+  it("encadeia a revisão também para o que foi digitado durante a gravação", async () => {
+    // O teste acima é sequencial: quando a primeira escrita volta, a vaga já
+    // esvaziou e o reencadeamento nunca roda. O caso é a digitação que chega
+    // com uma gravação **em voo** — sem ele a segunda sai contra a revisão
+    // anterior à primeira, volta `stale`, e a tela de conflito acusa o agente
+    // de uma edição que foi do próprio cliente.
+    let land = (_result: unknown): void => {};
+    trpcMock.files.write.mutate.mockReturnValueOnce(
+      new Promise((resolve) => {
+        land = resolve;
+      }),
+    );
+    const { container } = await openTyping();
+
+    typeInto(container, "a");
+    await debounce();
+    expect(trpcMock.files.write.mutate).toHaveBeenCalledTimes(1);
+
+    typeInto(container, "b");
+    await debounce();
+    // Ainda uma só: a segunda está enfileirada porque a primeira não voltou.
+    expect(trpcMock.files.write.mutate).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      land({ ok: true, revision: "sha256:dois" });
+    });
 
     expect(trpcMock.files.write.mutate).toHaveBeenCalledTimes(2);
     expect(trpcMock.files.write.mutate.mock.calls[1]?.[0]).toMatchObject({
@@ -318,6 +367,26 @@ describe("os dois caminhos de falha", () => {
 
     expect(trpcMock.files.write.mutate).toHaveBeenCalledTimes(2);
     expect(trpcMock.files.write.mutate.mock.calls[1]?.[0]).toMatchObject({ text: `${TEXT}!?` });
+  });
+
+  it("tenta de novo pelo botão do rodapé, sem esperar a próxima tecla", async () => {
+    // O beco sem saída que o botão fecha: falhar e parar de digitar não tem
+    // outra saída — todo o resto do autosave é disparado por tecla ou por
+    // sumiço de tela, e quem acabou de perder uma gravação faz nem um nem outro.
+    trpcMock.files.write.mutate.mockRejectedValueOnce(new Error("ENOSPC: no space left on device"));
+    const { container } = await openTyping();
+
+    typeInto(container, "!");
+    await debounce();
+    await vi.waitFor(() => expect(screen.getByText("não deu para salvar")).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "tentar de novo" }));
+    });
+
+    expect(trpcMock.files.write.mutate).toHaveBeenCalledTimes(2);
+    expect(trpcMock.files.write.mutate.mock.calls[1]?.[0]).toMatchObject({ text: `${TEXT}!` });
+    expect(screen.getByText(/^salvo há/)).toBeInTheDocument();
   });
 
   it("não conta uma falha como salvo: sair da tela tenta de novo", async () => {
@@ -451,6 +520,31 @@ describe("descarregar o pendente antes de sumir da tela", () => {
     expect(trpcMock.files.write.mutate).not.toHaveBeenCalled();
   });
 
+  it("não regrava o que já foi salvo, nem a cada blur nem ao sair da tela", async () => {
+    // A guarda que a de cima parece cobrir é outra: lá o buffer nunca teve
+    // dono. Este é o caso oposto — digitou, salvou, e **agora** sai da tela.
+    // Sem ela, cada perda de foco vira uma gravação idêntica no checkout do
+    // agente: `rename` por cima do arquivo, inode novo (uid/gid e xattrs
+    // perdidos, P16) e um `git status` a cada troca de janela. É o custo que a
+    // Q8 argumenta que o debounce existe para não pagar, entrando por outra porta.
+    const { container, unmount } = await openTyping();
+
+    typeInto(container, "!");
+    await debounce();
+    await vi.waitFor(() => expect(screen.getByText(/^salvo há/)).toBeInTheDocument());
+    expect(trpcMock.files.write.mutate).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      window.dispatchEvent(new Event("blur"));
+    });
+    expect(trpcMock.files.write.mutate).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      unmount();
+    });
+    expect(trpcMock.files.write.mutate).toHaveBeenCalledTimes(1);
+  });
+
   it("não grava um arquivo que abriu somente leitura", async () => {
     trpcMock.files.read.query.mockResolvedValue(textFile({ readOnly: "inside-git" }));
     const { unmount } = await openTyping();
@@ -460,6 +554,88 @@ describe("descarregar o pendente antes de sumir da tela", () => {
     });
 
     expect(trpcMock.files.write.mutate).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * Trocar de arquivo no mesmo split, com uma gravação ainda em voo.
+ *
+ * As duas guardas de `sameTarget` no retorno da escrita só existem para esta
+ * janela: o arquivo que a resposta é sobre já não é o que está na tela. Nenhum
+ * outro teste do lote troca o `path`, então sem estes dois casos as duas linhas
+ * podem ser apagadas com a suíte inteira verde.
+ */
+const OUTRO = "src/lore/outro.ts";
+
+/** Abre A, digita, segura a gravação em voo, e põe B na tela. */
+async function switchWhileWriting(): Promise<{
+  rendered: Rendered;
+  land: (result: unknown) => void;
+}> {
+  trpcMock.files.read.query.mockImplementation((input: { path: string }) =>
+    Promise.resolve(
+      input.path === FILE
+        ? textFile()
+        : textFile({ path: OUTRO, text: "outro", revision: "sha256:doOutro", lines: 1 }),
+    ),
+  );
+  let land: (result: unknown) => void = () => {};
+  trpcMock.files.write.mutate.mockReturnValueOnce(
+    new Promise((resolve) => {
+      land = resolve;
+    }),
+  );
+  const rendered = await openTyping();
+
+  typeInto(rendered.container, "!");
+  await debounce();
+  expect(trpcMock.files.write.mutate).toHaveBeenCalledTimes(1);
+
+  await rendered.show(<Harness path={OUTRO} />);
+  // O editor de B monta por `import()` e a leitura dele volta pelo cache: os
+  // dois são microtarefas, e nada acontece antes de o relógio falso andar.
+  await settle(() => {});
+  expect(shown(rendered.container)).toContain("outro");
+  return { rendered, land };
+}
+
+describe("trocar de arquivo com uma gravação ainda em voo", () => {
+  it("não pendura a recusa do arquivo anterior sobre o arquivo novo", async () => {
+    const { rendered, land } = await switchWhileWriting();
+
+    // A recusa é do arquivo A, que já saiu da tela junto com o buffer sobre o
+    // qual ela era. Parar o autosave de B seria parar o errado, e a barra
+    // mostraria os números de A sobre o texto de B.
+    await act(async () => {
+      land(conflict());
+    });
+
+    expect(screen.queryByText("mudou no disco")).toBeNull();
+    expect(screen.queryByRole("button", { name: /sobrescrever/ })).toBeNull();
+
+    // E o autosave de B continua andando, que é a outra metade da mesma linha.
+    typeInto(rendered.container, "?");
+    await debounce();
+    expect(trpcMock.files.write.mutate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ path: OUTRO, text: "outro?" }),
+    );
+  });
+
+  it("não usa a revisão do arquivo anterior como base do arquivo novo", async () => {
+    const { rendered, land } = await switchWhileWriting();
+
+    await act(async () => {
+      land({ ok: true, revision: "sha256:deA" });
+    });
+
+    typeInto(rendered.container, "?");
+    await debounce();
+
+    // Com a revisão de A como base, a primeira gravação de B volta `stale` —
+    // conflito inventado pelo cliente, no arquivo errado.
+    expect(trpcMock.files.write.mutate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ path: OUTRO, baseRevision: "sha256:doOutro", text: "outro?" }),
+    );
   });
 });
 
@@ -658,7 +834,87 @@ async function intoConflict(): Promise<Rendered> {
   return rendered;
 }
 
+/**
+ * A mesma recusa, com a leitura que mede o outro lado falhando.
+ *
+ * Alcançável de dois jeitos, e um deles nem passa pelo `catch`: o agente troca
+ * o arquivo por um acima do teto ou com byte NUL entre a leitura e a recusa, e
+ * a resposta volta sem texto nenhum para comparar.
+ */
+async function intoConflictWithoutDisk(): Promise<Rendered> {
+  trpcMock.files.read.query.mockResolvedValue(
+    textFile({ text: BASE.join("\n"), bytes: 44, lines: 10 }),
+  );
+  trpcMock.files.write.mutate.mockImplementation(() => Promise.resolve(conflict()));
+  const rendered = await openTyping();
+
+  typeInto(rendered.container, MINHAS);
+  trpcMock.files.read.query.mockRejectedValue(new Error("ENOENT: no such file or directory"));
+  await debounce();
+  await settle(() => {});
+  return rendered;
+}
+
 describe("o conflito na tela", () => {
+  it("mantém as duas saídas quando o disco não chega, e só o custo do agente fica sem número", async () => {
+    // A tela estava ao contrário: o botão de preço conhecido era o proibido, e
+    // o que age às cegas, o permitido. `recarregar do disco` custa `base`
+    // contra o buffer, e os dois estão na mão com disco ou sem ele.
+    await intoConflictWithoutDisk();
+
+    const reload = screen.getByRole("button", { name: /recarregar do disco/ });
+    expect(reload).toBeEnabled();
+    expect(reload).toHaveTextContent("perde as 3 linhas que você digitou");
+
+    const overwrite = screen.getByRole("button", { name: /sobrescrever/ });
+    expect(overwrite).toBeEnabled();
+    expect(overwrite).toHaveTextContent("perde a edição do agente");
+    expect(overwrite).not.toHaveTextContent("+");
+  });
+
+  it("recarrega pelo caminho normal quando o disco não chegou", async () => {
+    const { container } = await intoConflictWithoutDisk();
+    trpcMock.files.read.query.mockResolvedValue(
+      textFile({ text: DO_AGENTE, revision: "sha256:doDisco", bytes: 80, lines: 14 }),
+    );
+    trpcMock.files.write.mutate.mockResolvedValue({ ok: true, revision: "sha256:depois" });
+
+    await settle(() => {
+      fireEvent.click(screen.getByRole("button", { name: /recarregar do disco/ }));
+    });
+
+    // Com o buffer marcado limpo, a leitura deixa de ser recusada pela D4 e a
+    // adoção põe o disco na tela — o mesmo caminho de uma mudança externa que
+    // ninguém estava disputando.
+    expect(shown(container)).toContain("do agente 1");
+    expect(shown(container)).not.toContain("minha c");
+    expect(screen.queryByRole("button", { name: /sobrescrever/ })).toBeNull();
+
+    typeInto(container, "!");
+    await debounce();
+    expect(trpcMock.files.write.mutate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ baseRevision: "sha256:doDisco", text: `${DO_AGENTE}!` }),
+    );
+  });
+
+  it("não regrava o disco por cima dele mesmo depois de recarregar", async () => {
+    // Recarregar deixa o buffer igual ao disco, e um buffer que ainda se diz
+    // sujo manda tudo de volta no primeiro gatilho de descarregamento.
+    const { container, unmount } = await intoConflict();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /recarregar do disco/ }));
+    });
+    const before = trpcMock.files.write.mutate.mock.calls.length;
+    expect(shown(container)).toContain("do agente 1");
+
+    await act(async () => {
+      unmount();
+    });
+
+    expect(trpcMock.files.write.mutate).toHaveBeenCalledTimes(before);
+  });
+
   it("põe as duas saídas nomeadas pelo que perdem, e nenhuma em destaque", async () => {
     await intoConflict();
 
@@ -776,6 +1032,13 @@ describe("lineDelta", () => {
 
   it("não conta nada para dois textos iguais", () => {
     expect(lineDelta("a\nb\n", "a\nb\n")).toEqual({ added: 0, removed: 0 });
+  });
+
+  it("não inventa remoção quando a linha acrescentada é igual à que já estava", () => {
+    // A fronteira do laço de sufixo: contar a mesma linha nas duas pontas faz
+    // `removed` virar −1, e a tela imprime "perde as −1 linhas que você
+    // apagou" numa tela cujo assunto é perder trabalho.
+    expect(lineDelta("a", "a\na")).toEqual({ added: 1, removed: 0 });
   });
 
   it("mede a região que difere, e diz isso ao contar duas mudanças distantes", () => {

@@ -196,9 +196,13 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
   /**
    * Where the unsaved text belongs, captured when it was typed.
    *
-   * Not read off the props at write time: opening another file re-renders this
-   * hook with the new path *before* the old editor detaches, and a write aimed
-   * at `here` would put the previous file's buffer into the new file.
+   * A net, and it says so because nothing can pull on it: `here` is moved from
+   * an effect, and React runs a child's cleanup before its parent's effect
+   * body — so the detach that flushes the old buffer already happens while
+   * `here` still names the old file, and swapping this for `here.current`
+   * passes every test in the suite. What it guards is that ordering changing.
+   * The write that would go out then puts one file's buffer into another file,
+   * which is the one mistake here that typing again does not undo.
    */
   const belongsTo = useRef<Target | null>(null);
 
@@ -338,8 +342,10 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
               showConflict({ ...current, disk });
             })
             .catch(() => {
-              // Without the disk the costs cannot be measured, and the choice
-              // is still the user's — it is offered without the numbers.
+              // Only the agent's half of the cost goes with it. What reloading
+              // takes away is `base` against the buffer, and both are already
+              // in hand — so the bar keeps its two exits, one of them still
+              // priced, and `reload` falls back to reading the file again.
             });
           return;
         }
@@ -449,21 +455,29 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
   const reload = useCallback((): void => {
     const chosen = conflict.current;
     const target = belongsTo.current;
-    if (chosen === null || chosen.disk === null || target === null) return;
+    if (chosen === null || target === null) return;
 
     conflict.current = null;
     halted.current = false;
     written.current = version.current;
     settleFresh(true);
     setState({ kind: "clean" });
+    const read = fileReadKey(target.scopeType, target.scopeId, target.path);
+    if (chosen.disk === null) {
+      // The read that would have measured the other side did not land — and it
+      // may not even have thrown: a file swapped for one above the ceiling, or
+      // for one with a NUL byte in it, answers with no text to compare. This
+      // exit does not need that answer, only the file, so it asks again the
+      // ordinary way. With the buffer already marked clean, the read is no
+      // longer refused by D4 and the adoption below takes what comes.
+      void queryClient.invalidateQueries({ queryKey: read });
+      return;
+    }
     // Handing the disk to the cache is the whole of it: with the buffer clean
     // again, the adoption below is what puts the text on screen and moves the
     // revision the next write is based on. Same rule that takes in a change
     // nobody was racing — reloading is that, with the race decided.
-    queryClient.setQueryData(
-      fileReadKey(target.scopeType, target.scopeId, target.path),
-      chosen.disk,
-    );
+    queryClient.setQueryData(read, chosen.disk);
   }, [queryClient, settleFresh]);
 
   const overwrite = useCallback((): void => {
