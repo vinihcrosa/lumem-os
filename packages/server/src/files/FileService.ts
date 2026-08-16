@@ -1,18 +1,20 @@
-import { createHash } from "node:crypto";
-import { readdir, readFile, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { createHash, randomUUID } from "node:crypto";
+import { chmod, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
 import { DomainError } from "../errors.js";
-import { resolveInsideRoot } from "./path-guard.js";
+import { resolveForWrite, resolveInsideRoot } from "./path-guard.js";
 
 /**
- * Reading a checkout: one directory level, or one file.
+ * A checkout's files: one directory level, one file read, one file written.
  *
  * Both ceilings live here, named, because they are guesses until a real
  * repository disagrees (right-panel open question Q8). Neither is security —
  * that is `path-guard` — they are survival: `node_modules/.pnpm` has
  * directories with thousands of entries, and a lockfile is megabytes of text
- * nobody wants rendered in a 360px column.
+ * nobody wants rendered in a 360px column. The write side reuses the read
+ * ceiling for a different reason: without it, writing past the limit is how a
+ * file stops being readable.
  */
 
 /** Entries returned per directory before the listing says it truncated. */
@@ -80,9 +82,36 @@ export interface ListOptions {
   maxEntries?: number;
 }
 
+export interface WriteOptions {
+  /** Written verbatim: line endings and a missing final newline are the client's (A7). */
+  text: string;
+  /** The revision the buffer was built on. Compared against the disk, F3.2. */
+  baseRevision: string;
+}
+
+/**
+ * A conflict is an answer, not an exception (D3.1, F3.3).
+ *
+ * The same argument that made `readFile` return `binary` and `too-large`: the
+ * agent writing the same file is a case this feature exists to handle, and a
+ * thrown error would reach the client as a failure to retry rather than a
+ * choice to offer.
+ */
+export type WriteResult =
+  | { ok: true; revision: string }
+  | {
+      ok: false;
+      reason: "stale";
+      /** The disk's, so "sobrescrever" needs no second read (F3.4). */
+      revision: string;
+      /** The disk's mtime, epoch milliseconds: "o agente escreveu isto há 8 s". */
+      changedAt: number;
+    };
+
 export interface FileService {
   listDir(root: string, path: string, options?: ListOptions): Promise<DirListing>;
   readFile(root: string, path: string): Promise<FileContent>;
+  writeFile(root: string, path: string, options: WriteOptions): Promise<WriteResult>;
 }
 
 export interface FileServiceOptions {
@@ -139,6 +168,60 @@ export function revisionOf(content: Buffer): string {
  */
 function survivesUtf8(content: Buffer, text: string): boolean {
   return Buffer.from(text, "utf8").equals(content);
+}
+
+/**
+ * Where the bytes go before they are the file. Same directory, always.
+ *
+ * `rename` is only atomic within a filesystem, so the system tmpdir is not a
+ * slower version of this — it is a different operation, one that fails with
+ * EXDEV across devices and, worse, copies through the window this exists to
+ * close. A function of its own because §5 of the PRD promotes "same directory"
+ * from a detail to a security control, and a rule with a name has a test.
+ *
+ * Hidden and unique: hidden so a temporary that outlives a crash does not show
+ * up in the tree, unique so two writers of the same file do not destroy each
+ * other's. `randomUUID` rather than `newId` — this is not an entity, it is a
+ * filename nobody ever sees.
+ */
+export function tempPathFor(target: string): string {
+  return join(dirname(target), `.lumem-${randomUUID()}.tmp`);
+}
+
+/**
+ * The whole content, or the previous content. Never half of either (F5.6).
+ *
+ * The agent may be reading this file at the exact instant of the write, and
+ * §5 adds a second reason: a hard link out of the checkout, or a last component
+ * swapped for a symlink after the guard ran, both survive every path rule. In
+ * place, those two writes land outside the checkout; through a temporary and a
+ * `rename`, the file outside keeps its bytes and all that is lost is the link.
+ * So no caller writes in place — not for a small file, not with `appendFile`,
+ * not as an optimisation.
+ *
+ * The rename goes over the *target*, never over the directory entry: over the
+ * entry it would turn a symlink into a plain file, silently.
+ */
+export async function writeAtomically(
+  target: string,
+  content: Buffer,
+  mode: number,
+): Promise<void> {
+  const temp = tempPathFor(target);
+  try {
+    // The mode is given at creation *and* set again: `open` subtracts the
+    // umask, so a file that was 0o777 would come back 0o755 without the chmod,
+    // and a file created 0o666 is world-readable for the length of the write.
+    await writeFile(temp, content, { mode });
+    await chmod(temp, mode & 0o7777);
+    await rename(temp, target);
+  } catch (error) {
+    // Whatever failed, the temporary is not the user's problem. `force` covers
+    // the case where it was never created; the catch covers the rest, because
+    // a cleanup that throws would replace the real failure with its own.
+    await rm(temp, { force: true }).catch(() => {});
+    throw error;
+  }
 }
 
 function countLines(text: string): number {
@@ -257,6 +340,100 @@ export function createFileService({
         revision: revisionOf(buffer),
         readOnly,
       };
+    },
+
+    async writeFile(root, path, { text, baseRevision }) {
+      const { relative, target, targetless, exists } = await resolveForWrite(root, path);
+      if (target === null) {
+        // The refusal E3.1 moved here: the guard hands the entry over so it can
+        // be removed, and the caller that writes is the one that knows a write
+        // is what it has. `target!` is the single edit that undoes this.
+        throw new DomainError(
+          "BLOCKED",
+          targetless === "outside"
+            ? `escrita recusada em ${relative}: o link aponta para fora do checkout`
+            : `escrita recusada em ${relative}: o link está pendurado, e nada prova onde a gravação cairia`,
+        );
+      }
+      if (!exists) {
+        // Creating is `files.create`, and the difference matters: a write finds
+        // no revision to compare, and inventing one would make autosave able to
+        // resurrect a file the agent just deleted.
+        throw new DomainError("NOT_FOUND", `${relative} não existe no checkout`);
+      }
+
+      const buffer = Buffer.from(text, "utf8");
+      if (buffer.length > maxBytes) {
+        // Bytes, not characters: 32 emoji are 32 characters and 128 bytes.
+        // Without this the read ceiling is a suggestion — write the file past
+        // it and it stops being readable.
+        throw new DomainError(
+          "INVALID_ARGUMENT",
+          `o texto tem ${buffer.length} bytes e o limite é ${maxBytes}`,
+        );
+      }
+
+      const info = await stat(target).catch((error: NodeJS.ErrnoException) => {
+        // The guard proved this existed a few syscalls ago; losing it in
+        // between is the agent deleting the file while the buffer was in the
+        // air, and that is an answer the user can act on, not a defect.
+        throw new DomainError(
+          error.code === "EACCES" || error.code === "EPERM" ? "BLOCKED" : "NOT_FOUND",
+          `${relative} não está mais no checkout`,
+        );
+      });
+      if (info.isDirectory()) {
+        throw new DomainError("INVALID_ARGUMENT", `${relative} é um diretório`);
+      }
+      if (info.size > maxBytes) {
+        // `readFile` answered `too-large` for this file and handed out no
+        // revision, so whatever the client is comparing against is invented.
+        // Hashing it to say so would mean reading past the ceiling.
+        throw new DomainError(
+          "BLOCKED",
+          `${relative} tem ${info.size} bytes no disco, acima do limite de ${maxBytes}`,
+        );
+      }
+
+      let current: Buffer;
+      try {
+        current = await readFile(target);
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === "EACCES" || code === "EPERM") {
+          throw new DomainError("BLOCKED", `sem permissão de escrita em ${relative}`);
+        }
+        throw error;
+      }
+
+      if (!survivesUtf8(current, current.toString("utf8"))) {
+        // The second lock of Q9, on the side that has the bytes. Asked before
+        // the revision, because this is a fact about the file rather than about
+        // this write: no revision makes those bytes safe to replace.
+        throw new DomainError(
+          "BLOCKED",
+          `escrita recusada em ${relative}: o conteúdo no disco não sobrevive a uma ida e volta em UTF-8, e gravar destruiria bytes`,
+        );
+      }
+
+      const revision = revisionOf(current);
+      if (revision !== baseRevision) {
+        // Read and compared here, immediately before the write, because that is
+        // the only moment the answer is true — the client comparing at read
+        // time would be answering about a disk from before the agent ran.
+        return { ok: false, reason: "stale", revision, changedAt: Math.round(info.mtimeMs) };
+      }
+
+      try {
+        await writeAtomically(target, buffer, info.mode);
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === "EACCES" || code === "EPERM") {
+          throw new DomainError("BLOCKED", `sem permissão de escrita em ${relative}`);
+        }
+        throw error;
+      }
+      return { ok: true, revision: revisionOf(buffer) };
     },
   };
 }
