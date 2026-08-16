@@ -1,7 +1,11 @@
-import { screen, waitFor } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { act, render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createQueryClient } from "../lib/queryClient.js";
+import { fileReadKey } from "../lib/queryKeys.js";
+import { color } from "../styles/tokens.js";
 import { renderWithProviders } from "../test/render.js";
 import { trpcMock } from "../test/trpc-mock.js";
 
@@ -38,6 +42,17 @@ function render(path = "src/lore/loader.ts", onClose = () => {}) {
 async function editor(container: HTMLElement): Promise<HTMLElement> {
   await waitFor(() => expect(container.querySelector(".cm-content")).not.toBeNull());
   return container.querySelector(".cm-content") as HTMLElement;
+}
+
+/**
+ * jsdom normalises an inline colour into `rgb()`; the tokens are hex.
+ *
+ * Twin of the one in `shiki-codemirror.test.ts`, on purpose: four lines shared
+ * through a helper module would tie two suites together for no property.
+ */
+function asRgb(hex: string): string {
+  const channel = (at: number): number => Number.parseInt(hex.slice(at, at + 2), 16);
+  return `rgb(${channel(1)}, ${channel(3)}, ${channel(5)})`;
 }
 
 beforeEach(() => {
@@ -85,6 +100,78 @@ describe("o arquivo aberto no split", () => {
     await user.click(screen.getByRole("button", { name: /quebrar linhas longas/ }));
 
     await waitFor(() => expect(container.querySelector(".cm-content")).not.toHaveClass("cm-lineWrapping"));
+  });
+
+  it("paints the file with the palette's own keyword colour", async () => {
+    // Both `setHighlight` calls can be deleted from `FileViewer` and every
+    // other test in this file stays green, with every file in the product
+    // opening in flat grey. This is the one that says so.
+    trpcMock.files.read.query.mockResolvedValue(textFile());
+
+    const { container } = render();
+    const content = await editor(container);
+
+    await waitFor(() => {
+      const keyword = [...content.querySelectorAll("span")].find((s) => s.textContent === "const");
+      expect(keyword?.style.color).toBe(asRgb(color["syntax/keyword"]));
+    });
+  });
+
+  it("opens a file with no grammar as plain text, and calls that an answer", async () => {
+    // The other side of F3.3: an extension nobody wrote a grammar for is not
+    // an error, and it is also not an excuse to paint it with the wrong one.
+    trpcMock.files.read.query.mockResolvedValue(textFile({ path: "dados.parquet" }));
+
+    const { container } = render("dados.parquet");
+    const content = await editor(container);
+
+    expect(content.textContent).toContain("const a = 1;");
+    const coloured = [...content.querySelectorAll("span")].filter((s) => s.style.color !== "");
+    expect(coloured).toHaveLength(0);
+  });
+
+  it("adopts the file the daemon read again, in the editor already open", async () => {
+    // `setDoc` is the only way anything new reaches the split once it is
+    // mounted — the reload of the E10, and the clean buffer adopting the disk
+    // of the D4. Turning it into `return;` keeps every other test green.
+    const client = createQueryClient();
+    trpcMock.files.read.query.mockResolvedValue(textFile());
+
+    const { container } = rtlRender(
+      <QueryClientProvider client={client}>
+        <FileViewer scope={scope} path="src/lore/loader.ts" onClose={() => {}} />
+      </QueryClientProvider>,
+    );
+    const content = await editor(container);
+    const mounted = container.querySelector(".cm-editor");
+
+    act(() => {
+      client.setQueryData(
+        fileReadKey(scope.scopeType, scope.scopeId, "src/lore/loader.ts"),
+        textFile({ text: "const c = 3;" }),
+      );
+    });
+
+    await waitFor(() => expect(content.textContent).toContain("const c = 3;"));
+    // ...in the editor that was already there. A remount would lose the undo
+    // history and the caret along with the old document.
+    expect(container.querySelector(".cm-editor")).toBe(mounted);
+  });
+
+  it("takes the editor with it when the split goes away", async () => {
+    trpcMock.files.read.query.mockResolvedValue(textFile());
+
+    const { container, unmount } = render();
+    await editor(container);
+    const host = screen.getByTestId("editor");
+
+    unmount();
+
+    // React drops the host from the tree either way; what it cannot do is stop
+    // an `EditorView` nobody destroyed. `destroy()` is what removes the
+    // editor's DOM from that host — and with it the listeners and the
+    // ResizeObserver that would otherwise outlive every file ever opened.
+    expect(host.querySelector(".cm-editor"), "o EditorView anterior continua vivo").toBeNull();
   });
 
   it("lets you type in a file the daemon says it can write", async () => {

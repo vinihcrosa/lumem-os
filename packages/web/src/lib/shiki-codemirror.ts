@@ -149,13 +149,28 @@ export class LineTokenCache {
         continue;
       }
 
-      const result = this.config.highlighter.codeToTokens(line.text, {
-        lang: this.config.language,
-        theme: this.config.theme,
-        grammarState: this.entering[n],
-      });
-      this.tokens[n] = result.tokens[0] ?? [];
-      this.entering[n + 1] = result.grammarState;
+      /*
+       * `shiki.ts` wraps every call into shiki and calls a failure "plain
+       * text", because a file that renders uncoloured is an answer and a
+       * column that breaks is not (F3.3). Here the call is inside a
+       * `ViewPlugin`, and CodeMirror answers an exception in a plugin by
+       * disabling the plugin — so a raw call would not degrade to plain text,
+       * it would open the file with no colour at all for as long as it stayed
+       * open. A line that fails is a line with no tokens, and the state after
+       * it is unknown rather than wrong: the next line starts fresh.
+       */
+      let result: ReturnType<HighlighterCore["codeToTokens"]> | null = null;
+      try {
+        result = this.config.highlighter.codeToTokens(line.text, {
+          lang: this.config.language,
+          theme: this.config.theme,
+          grammarState: this.entering[n],
+        });
+      } catch {
+        result = null;
+      }
+      this.tokens[n] = result?.tokens[0] ?? [];
+      this.entering[n + 1] = result?.grammarState;
       this.highest = n;
     }
   }

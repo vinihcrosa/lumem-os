@@ -219,11 +219,19 @@ function Editor({ path, text, language, readOnly, wrap }: EditorProps) {
   // read from here rather than from the closure the mount effect captured.
   const latest = useRef({ text, wrap });
 
+  // Two effects and not one: they change for different reasons. Together, a
+  // re-read of the file reconfigured wrapping and a click on `⇄` re-dispatched
+  // the document — and re-dispatching the document is the expensive one, since
+  // it is a whole-buffer replace that lands in the undo history.
   useEffect(() => {
-    latest.current = { text, wrap };
+    latest.current.text = text;
     handle.current?.setDoc(text);
+  }, [text]);
+
+  useEffect(() => {
+    latest.current.wrap = wrap;
     handle.current?.setWrap(wrap);
-  }, [text, wrap]);
+  }, [wrap]);
 
   useEffect(() => {
     const parent = host.current;

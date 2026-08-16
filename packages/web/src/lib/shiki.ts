@@ -137,7 +137,45 @@ export function languageOf(path: string): string | null {
 type Highlighter = Awaited<ReturnType<typeof import("shiki").createHighlighterCore>>;
 
 let highlighter: Highlighter | null = null;
+let creating: Promise<Highlighter> | null = null;
 const loaded = new Set<string>();
+
+/**
+ * The one highlighter, built once even when the whole app asks at the same time.
+ *
+ * Without the promise this is serialized on, every caller that arrives before
+ * the first creation resolves finds `highlighter` still null and builds another
+ * — and the `ScopePanel` keeps every tab mounted, so N tabs with a file open is
+ * N creations in one tick. The waste is the smaller half: `loaded` is a set on
+ * the module, so it can end up claiming a grammar that was registered on an
+ * instance which lost the race and that nobody holds. The next file to ask gets
+ * a highlighter without its grammar, and `codeToTokens` throws.
+ */
+async function core(): Promise<Highlighter> {
+  if (highlighter !== null) return highlighter;
+  creating ??= create();
+  try {
+    highlighter = await creating;
+    return highlighter;
+  } catch (error) {
+    // A load that failed — offline, or a chunk the daemon did not serve —
+    // must not turn into a session with no colour anywhere.
+    creating = null;
+    throw error;
+  }
+}
+
+async function create(): Promise<Highlighter> {
+  const [{ createHighlighterCore }, { createJavaScriptRegexEngine }] = await Promise.all([
+    import("shiki/core"),
+    import("shiki/engine/javascript"),
+  ]);
+  return createHighlighterCore({
+    themes: [lumemShikiTheme],
+    langs: [],
+    engine: createJavaScriptRegexEngine(),
+  });
+}
 
 /**
  * Loads shiki and one grammar, on demand.
@@ -153,27 +191,17 @@ const loaded = new Set<string>();
  */
 export async function loadHighlighter(language: string): Promise<Highlighter | null> {
   try {
-    if (highlighter === null) {
-      const [{ createHighlighterCore }, { createJavaScriptRegexEngine }] = await Promise.all([
-        import("shiki/core"),
-        import("shiki/engine/javascript"),
-      ]);
-      highlighter = await createHighlighterCore({
-        themes: [lumemShikiTheme],
-        langs: [],
-        engine: createJavaScriptRegexEngine(),
-      });
-    }
+    const ready = await core();
 
     if (!loaded.has(language)) {
       const load = GRAMMARS[language];
       if (load === undefined) return null;
       const grammar = (await load()) as { default: Parameters<Highlighter["loadLanguage"]>[0] };
-      await highlighter.loadLanguage(grammar.default);
+      await ready.loadLanguage(grammar.default);
       loaded.add(language);
     }
 
-    return highlighter;
+    return ready;
   } catch {
     return null;
   }
