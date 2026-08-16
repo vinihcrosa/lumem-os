@@ -178,6 +178,8 @@ A alternativa era o cliente derivar "está dentro de `.git`" do caminho. Ela é 
 
 Então `ReadOnlyReason` ganha `"inside-git"`, ao lado de `"not-utf8"`. As quatro recusas da F1.4 passam a ter a mesma gramática de verdade: duas vêm da forma do resultado (`binary`, `too-large`) e duas do motivo nomeado.
 
+**Quando as duas razões valem ao mesmo tempo, `inside-git` ganha**, e isso é decisão de produto, não detalhe de implementação — um arquivo do `.git` com bytes que não sobrevivem ao UTF-8 é os dois. `inside-git` é um fato sobre o **caminho**, verdadeiro independentemente dos bytes, e é o que a pessoa precisa ler para entender por que não pode editar. Dizer "não é UTF-8 válido" ali é verdade e é a informação errada: consertar a codificação não destravaria nada.
+
 ---
 
 ## Abertas

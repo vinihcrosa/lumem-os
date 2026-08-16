@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Protótipo:** `packages/web/prototype/lumem-file-editor.html` — entregue pela E1, cinco telas, verificado por renderização
 **Sucede:** [right-panel](../right-panel/tasks.md)
-**Status:** em execução — E1, E2 e E3 entregues; Lote 1 (E2+E3) em rework de round 1
+**Status:** em execução — E1, E2 e E3 entregues e fechadas (Lote 1 aprovado em 2 rounds de review)
 **Total:** 12 tasks em 5 fases
 
 ---
@@ -129,7 +129,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 **Depends on**: nada
 
 **Done when**:
-- [ ] `resolveForWrite(root, requested)` devolve `{ absolute, relative, exists }`: o **pai** é resolvido por `realpath` e checado por separador; o nome final não precisa existir
+- [ ] `resolveForWrite(root, requested)` devolve `{ relative, entry, target, exists }`: o **pai** é resolvido por `realpath` e checado por separador; o nome final não precisa existir. `entry` é a **entrada de diretório** — o que apagar e renomear tocam; `target` é o **destino**, onde gravar cai, e é `null` quando o link está pendurado. É esse `null` que faz o `tsc` recusar quem tentar gravar sem tratar o caso
 - [ ] As regras 1 e 2 continuam valendo, reusando `normalizeRelative` — nada é reimplementado
 - [ ] Pai que não existe é `NOT_FOUND`, e a mensagem diz **qual** diretório falta
 - [ ] Pai que é symlink para fora do checkout é recusado — o alvo não existir não pode virar um jeito de escapar da regra 4
@@ -199,7 +199,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] `createFile` e `createDir`: nome ocupado é `DUPLICATE`, não sobrescrita
 - [ ] `rename(from, to)`: as **duas** pontas passam pela guarda; destino ocupado é `DUPLICATE`; diretório de destino inexistente é `NOT_FOUND` com o caminho dito
 - [ ] `remove(path, { recursive })`: diretório com conteúdo sem `recursive` é recusado, com a contagem do que tem dentro na mensagem
-- [ ] Apagar e renomear operam sobre a **entrada de diretório**, nunca sobre o destino ([Q12](open-questions.md)): apagar um symlink — válido ou pendurado — remove o link e deixa o destino intacto, e renomear move o link. A guarda devolve os dois caminhos justamente para isso; usar o `absolute` aqui apaga o arquivo apontado, e o TypeScript não avisa porque os dois são `string`
+- [ ] Apagar e renomear operam sobre a **entrada de diretório**, nunca sobre o destino ([Q12](open-questions.md)): apagar um symlink — válido ou pendurado — remove o link e deixa o destino intacto, e renomear move o link. A guarda devolve os dois caminhos justamente para isso; usar o `target` aqui apaga o arquivo apontado em vez do link, e o `tsc` **não** pega este lado do erro — ele só recusa gravar em `target` nulo. Este aviso escrito é a defesa que existe, e foi decisão consciente não criar um tipo nominal só para isso
 - [ ] Link **pendurado** é apagável (e continua não sendo gravável, que é a decisão da E2)
 - [ ] Link que aponta **para fora** do checkout também é apagável, pela mesma regra ([Q12](open-questions.md), P14) — hoje a guarda o recusa inteiro, e é esta task que abre o caso. Gravar através dele continua recusado, com a mesma mensagem
 - [ ] Nenhuma das três aceita alvo vazio nem alvo dentro de `.git` — herdado da E2, e verificado aqui de novo por chamada

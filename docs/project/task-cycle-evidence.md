@@ -19,7 +19,7 @@ muda; o **anexo** é história de outro projeto e não se mexe.
 Lote fechado sem linha aqui é indistinguível de lote que nunca existiu. O mecanismo contra isso é um
 número só:
 
-> **Último commit coberto: `fd83053`.**
+> **Último commit coberto: `89ffb15`.**
 
 `fd83053` fecha o lote `E1`, o primeiro medido. Antes dele, `6c620dc` era o fim do período **pré-skill**. As quatro features anteriores —
 `walking-skeleton`, `ui-shell`, `worktree-tabs`, `right-panel`, 79 commits — foram feitas antes da
@@ -31,7 +31,7 @@ Quem fecha um lote atualiza esse sha para o último commit do lote. Um comando d
 fora:
 
 ```bash
-git log --oneline fd83053..HEAD
+git log --oneline 89ffb15..HEAD
 ```
 
 Commit de código que aparecer aí e não estiver dentro de nenhum `Range` da tabela é lote que entrou
@@ -114,11 +114,12 @@ a tabela de lotes não tem tempo justamente porque o número não sobrevive à c
 | Lote | Perfil | Range | Rounds | Tokens | Bloqueantes |
 |---|---|---|---|---|---|
 | `file-editor` E1 — protótipo | desenho (§3 não tem a linha) | `6c620dc..fd83053` | 0 | 239k | 0 de review · **2 da verificação** (2 costura) |
+| `file-editor` E2+E3 — guarda de escrita e revisão | **crítico** | `bbfef0b..89ffb15` | 2 | 582k | **1 blocker + 5 warnings** (r1) · 3 blockers (r2) · 2 costura |
 
 Dois contadores, porque respondem a duas perguntas que a skill não consegue responder sozinha —
 *isto aqui é cerimônia?* — e custam um dígito cada:
 
-* **verificação independente do orquestrador:** 1 lote, **1 refutação**
+* **verificação independente do orquestrador:** 2 lotes, **1 refutação**
 * **passe a frio pós-lote:** 0 passes, 0 achados que o orquestrador com contexto não tinha
 
 **A verificação independente pagou o lote inteiro, e por um motivo que não estava previsto.** Não
@@ -137,6 +138,18 @@ perfil que a §3 nem descreve. A hipótese 5 desta página previu esse buraco an
 **O que não dá para dizer deste lote:** nada sobre custo de review, porque não houve review; e nada
 sobre a repartição dev/review/rework, porque só o estágio de dev existiu. Os 239k são um dev de
 desenho sozinho, com renderização e leitura de PNG dentro.
+
+**O primeiro lote de código: 2 rounds, e os dois se pagaram por motivos diferentes.** O round 1 achou um blocker que destruía a worktree — `.GIT` num filesystem insensível a caixa atravessava a recusa de `.git`, porque a última componente do caminho era a única coisa que nunca passava por `realpath`. O revisor não argumentou: pegou a saída da guarda, rodou contra um repositório de verdade e apagou o `.git` dele. **Nenhum dos 685 testes existentes podia ter pego isso, e o CI também não** — em `ubuntu-latest`, `.GIT` é outro nome e o caso não existe.
+
+O round 2 foi de outra natureza: nenhum código errado, **três asserções fracas**. `.not.toBeNull()` aceitava as duas razões possíveis de `readOnly`, e quatro casos de `insideGit` resolviam todos para caminhos que já continham `.git`, então a passada sobre a grafia pedida não tinha teste. Isso é a bateria de mutação fazendo o que a regra do projeto promete: o código estava certo e nada impedia alguém de desfazê-lo.
+
+**A bateria custa e entrega.** 23 mutações no round 1, 21 no round 2 — e as duas rodadas foram executadas contra os arquivos de teste reais, em cópia no scratchpad, não inspecionadas. Sete testes nasceram de mutação sobrevivente, incluindo dois que impedem o erro **oposto**: uma guarda que recusasse `.gitignore` e `.github/` passaria em todo teste de segurança e quebraria o produto.
+
+**Um defeito de gate apareceu no meio e vale mais que o lote.** `LUMEM_GATE_BASE` com SHA curta só de dígitos degradava para `--changed true` — 13 arquivos de teste em vez de 50, mesmo commit. Custou uma rodada de review em falso vermelho, e podia ter dado falso verde. Está em `testing.md` com a correção e cinco testes.
+
+**O dev derrubou três premissas minhas**, todas por evidência executada: a lista de 8 casos de teste que eu especifiquei era insuficiente em dois pontos de segurança, e o meu diagnóstico de qual teste matava uma mutação estava errado — com a segunda passada canonizando, quem a sustenta é outro caso. É o achado mais valioso do método, e é a terceira vez que ele aparece contando os dois projetos.
+
+**O que a verificação independente fez desta vez: confirmou, não refutou.** Rodei as duas mutações centrais com a minha própria mão e vi as duas ficarem vermelhas. Registro porque uma verificação que nunca refuta ainda tem valor — ela autoriza fechar sem um terceiro round —, mas isso só é honesto se estiver escrito quando ela **não** acha nada.
 
 ---
 
