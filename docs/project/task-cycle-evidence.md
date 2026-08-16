@@ -19,7 +19,7 @@ muda; o **anexo** é história de outro projeto e não se mexe.
 Lote fechado sem linha aqui é indistinguível de lote que nunca existiu. O mecanismo contra isso é um
 número só:
 
-> **Último commit coberto: `d3aaf10`.**
+> **Último commit coberto: `9581aee`.**
 
 `fd83053` fecha o lote `E1`, o primeiro medido. Antes dele, `6c620dc` era o fim do período **pré-skill**. As quatro features anteriores —
 `walking-skeleton`, `ui-shell`, `worktree-tabs`, `right-panel`, 79 commits — foram feitas antes da
@@ -31,7 +31,7 @@ Quem fecha um lote atualiza esse sha para o último commit do lote. Um comando d
 fora:
 
 ```bash
-git log --oneline d3aaf10..HEAD
+git log --oneline 9581aee..HEAD
 ```
 
 Commit de código que aparecer aí e não estiver dentro de nenhum `Range` da tabela é lote que entrou
@@ -122,11 +122,12 @@ a tabela de lotes não tem tempo justamente porque o número não sobrevive à c
 | `file-editor` E3.1+E4+E7 — a escrita de verdade | **crítico** | `af865b1..3f27e0e` | 1 | 453k | 1 blocker + 6 warnings · 3 costura |
 | `file-editor` E5 — CRUD no checkout | **crítico** | `4a552d8..937ff75` | 1 | 488k | 1 blocker + 4 warnings · 2 costura |
 | `file-editor` E6 — o router escreve (fecha a Fase 1) | **fronteira** | `1a830d7..d3aaf10` | 1 | 466k | 1 blocker + 5 warnings · **3 costura com a Fase 2** |
+| `file-editor` E8 — o editor no split | **fronteira** | `893d01f..9581aee` | 1 | 825k | **3 blockers + 7 warnings** · 1 premissa do PRD falsificada |
 
 Dois contadores, porque respondem a duas perguntas que a skill não consegue responder sozinha —
 *isto aqui é cerimônia?* — e custam um dígito cada:
 
-* **verificação independente do orquestrador:** 5 lotes, **1 refutação**
+* **verificação independente do orquestrador:** 6 lotes, **1 refutação**
 * **passe a frio pós-lote:** 1 passe, **11 achados** que o orquestrador com contexto não via
 
 **A verificação independente pagou o lote inteiro, e por um motivo que não estava previsto.** Não
@@ -163,6 +164,14 @@ O round 2 foi de outra natureza: nenhum código errado, **três asserções frac
 **O dev achou sozinho uma decisão de produto que ninguém tinha tomado, e declarou.** Com temp+`rename`, gravar num arquivo `0o444` passa — o `rename` é checado contra o **diretório**. Ele não "consertou" e não ignorou: reportou como efeito colateral não documentado. Virou pergunta ao Vinicius, virou a quinta recusa, e virou uma propriedade maior que a pergunta: *a escrita atômica não pode virar contorno de permissão*.
 
 **Duas mutações sobreviveram com argumento aceito, e isso também é dado.** As duas são de **janela** — o que outro processo veria durante a gravação — e não de estado final; forçá-las exigiria o teste dependente de tempo que o `testing.md` proíbe. Em vez de um round para escrevê-las, a janela foi **estreitada por desenho** no `Done when` da E5: o temporário nasce `0o600` e sobe para o modo do alvo antes do `rename`, então ela nunca é mais permissiva que o resultado. Mais barato que provar, e fecha o que a mutação apontava.
+
+**A primeira task de cliente custou 825k — o dobro da média — e a maior parte disso foi antes de existir código.** A premissa `A2` do PRD dizia que o realce viria de `@shikijs/codemirror`. **O pacote nunca foi publicado.** A premissa era minha, estava escrita desde o primeiro dia, e sobreviveu a duas rodadas de decisão do Vinicius e a cinco lotes. O dev parou antes de escrever código — porque a Q1.1 tinha pré-declarado esse gatilho — e devolveu três saídas com medição: repintar 39 KiB custa 202,7 ms, uma linha com estado quente custa 0,157 ms, e por isso a ponte "de 60 linhas" que eu teria mandado escrever é de 200.
+
+**Vendorizar pagou na primeira hora, não em seis meses.** O argumento era não herdar pacote sem repositório público. O retorno real veio antes: ao ler o código para copiá-lo, o dev viu que **o original re-tokeniza da linha 1 a cada mudança**. Dependendo dele, isso entraria como lentidão invisível; vendorizando, virou algoritmo reescrito com o cache por linha — e `AbortController`, `scheduler.yield`, dois `StateEffect`, `queueMicrotask` e uma classe de remapeamento **desapareceram**, porque existiam para tornar tolerável um custo que deixou de existir.
+
+**E "código vendorizado é código nosso" não era retórica.** O review achou que dava para restaurar o comportamento do pacote original (`invalidateFrom(1)`) e para perder o estado da linha editada (`keep + 1`), **as duas com a suíte inteira verde** — a segunda é literalmente o "estado velho pinta string como código" que a Q19 usou como argumento para não escrever do zero. Código de terceiro que se copia não traz os testes de terceiro junto, e esse é o preço que a decisão cobra.
+
+**O blocker mais caro, porém, foi de contrato, não de ponte.** `EditorState.create` normaliza CRLF para LF, então o buffer deixava de ser os bytes que o daemon leu — quebrando a A7/Q6, que é decisão travada. O sintoma já existia sem autosave nenhum (o `⇄` trocava o documento inteiro num arquivo CRLF), e na E9 a primeira gravação reescreveria todas as linhas do arquivo. É a classe de defeito que só aparece quando um contrato de servidor encontra uma biblioteca de cliente com opinião própria.
 
 **O lote de fronteira achou três defeitos em tasks que ainda não existiam.** O review da E6 olhou as costuras com a Fase 2 e devolveu correções para os `Done when` da E9 e da E11 — nenhuma delas escrita, nenhuma delas com uma linha de código. A mais cara: sem adotar a `revision` que o `write` devolve, o segundo autosave depois do primeiro volta `stale` **contra a própria escrita anterior**, o que é conflito falso a cada duas paradas de digitação. Isso apareceria na E9 como bug intermitente e seria diagnosticado na E10, longe da causa. Custo de achar agora: três linhas de documento.
 

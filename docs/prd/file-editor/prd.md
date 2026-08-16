@@ -246,11 +246,11 @@ Medido no build de verdade, antes e depois, com o mesmo cuidado que a right-pane
 
 | | antes | depois | delta |
 |---|---|---|---|
-| bundle inicial (js+css) | 767.427 B · **207.432 B gzip** | 769.415 B · **208.155 B gzip** | **+723 B gzip (+0,35 %)** |
-| chunk do editor | — | 318.412 B · **103.404 B gzip** | sob demanda |
+| bundle inicial (js+css) | **207.432 B gzip** | **~208,2 KB gzip** | **+723 B gzip (+0,35 %)** |
+| chunk do editor | — | **103,70 KB gzip** | sob demanda |
 | `dist` inteiro | 2.057.023 B | 2.377.423 B | +15,6 % |
 
-Os +723 B são o código do próprio `FileViewer` — as cinco recusas e o componente do editor. O CodeMirror **não está** no inicial, e isso é verificado, não estimado: `cm-lineWrapping`, `cm-gutterElement` e `cm-scroller` não aparecem nele.
+Os números acima são do commit que fechou a task; o round de review acrescentou +50 B no inicial e +250 B no chunk, o que não move nenhuma conclusão. Os +723 B são o código do próprio `FileViewer` — as cinco recusas e o componente do editor. O CodeMirror **não está** no inicial, e isso é verificado, não estimado: `cm-lineWrapping`, `cm-gutterElement` e `cm-scroller` não aparecem nele.
 
 Dois números que a medição corrigiu: o conjunto de módulos escolhido a dedo custa **103 KB gzip**, e não os 137 KB que um bundle de rascunho sugeria — o tree-shaking do build real corta o que o rascunho segura. E o meta-pacote `codemirror`/`basicSetup` custaria **+29 KB gzip** só para trazer `autocomplete` e `lint`, dois não-objetivos do §6 ([Q20](open-questions.md)).
 

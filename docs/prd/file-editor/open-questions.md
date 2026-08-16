@@ -101,6 +101,14 @@ Arquivo CRLF que volta LF aparece como "todas as linhas mudaram" no diff — um 
 
 A normalização acontece no cliente, e é simétrica: o editor converte na entrada e reconverte na saída, guardando qual era o original. O servidor não opina.
 
+**E o CodeMirror obriga essa conversão a existir**, o que a E8 descobriu ao ser revisada: `EditorState.create` normaliza a entrada com o próprio split (`/\r\n?|\n/`) e um `lineBreak` de `"\n"`, então um arquivo CRLF entrava como LF e o `doc.toString()` deixava de ser os bytes que o daemon leu. O sintoma aparecia antes mesmo do autosave: a guarda do `setDoc` nunca casava num arquivo CRLF, e cada toque no `⇄` trocava o documento inteiro.
+
+**Arquivo de EOL misto sai inteiro no fim de linha que mais aparecia nele**, com empate indo para LF. Decidido na E8, com o argumento medido:
+
+Preservar cada quebra onde ela estava exigiria carregá-la junto da linha através de edições que dividem, juntam e movem linhas — e o `Text` do CodeMirror não carrega isso, porque índice de linha não sobrevive a edição. Das saídas possíveis, a maioria é a que limita o estrago a **menos da metade** das quebras; "a primeira quebra decide" tem o pior caso invertido, em que um CRLF perdido no topo converte o arquivo inteiro. CR solitário entra no mesmo cálculo, porque tratá-lo custa uma linha e não tratá-lo repete o defeito uma raridade abaixo.
+
+Arquivo de EOL misto é quase sempre acidente — e esta regra o resolve na direção de deixá-lo consistente, não na de espalhar o acidente.
+
 UTF-8 é o único que se lê, e continua sendo o único que se escreve — a detecção de binário por byte NUL já recusa a maioria do que não é UTF-8, e o resto é [Q9](#q9--e-arquivo-que-não-é-utf-8).
 
 ---
