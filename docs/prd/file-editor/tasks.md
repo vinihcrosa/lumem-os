@@ -50,7 +50,8 @@ Numeradas, e nenhuma delas vive só numa mensagem ou num comentário de código.
 | **P12** | ~~`revisionOf` sem consumidor, e a invariante "revisão não é tamanho" segurada por um fixture só~~ | **vencida pelos lotes seguintes**: a E4 consome, e `concurrent-write.test.ts` ("vê a mudança feita entre a leitura e a gravação mesmo com o mesmo tamanho") é o segundo guarda. O passe a frio pegou a linha desatualizada |
 | **P13** | Alvo que **não existe** e se chama `.GIT` num filesystem insensível a caixa seria criado: não há disco para consultar, então nada canoniza o nome | **decidida: aceita.** Fechar exigiria case-folding no ramo "não existe", o que recusaria `.GIT` no Linux, onde é nome legítimo. Não é alcançável no produto — todo checkout tem `.git`, e numa worktree ele é um **arquivo**, que cai no ramo do `realpath` e é recusado |
 | **P17** | `setDoc` entra no histórico de undo, então depois de um refetch o `Cmd+Z` volta ao texto **anterior ao disco** — e, com autosave, grava ele | aberta, **decide na E10**: é o "recarregar do disco" dela. Provavelmente `Transaction.addToHistory.of(false)` |
-| **P18** | O stub de `getClientRects` no `setup.ts` devolve `[]`, então tudo que depende de coordenada (`posAtCoords`, clique posicionando cursor, rolar até a seleção) é no-op silencioso nos testes | aberta — teste de E9/E10 que dependa de posição **passa sem provar nada**. Quem escrever precisa saber |
+| **P18** | O stub de `getClientRects` devolve `[]`, e sob relógio falso `waitFor` e `userEvent` **travam** em vez de falhar — um teste travado envenena os seguintes do arquivo (11 caíram por causa de um) | **pior do que foi registrado**: não é "passa sem provar nada", é "trava a rodada". Registrada em [testing.md](../../project/testing.md). Onde há relógio falso, digitação é `dispatch` e espera é helper próprio |
+| **P19** | **Sair da tela com o conflito aberto perde o buffer.** O `flush()` retorna cedo quando o autosave está parado, e a recusa `stale` que chega depois de o arquivo sair da tela é descartada | **decidida: aceita na v1, e agora dita.** Guardar buffer órfão reabriria a D2 ("sem estado sujo persistente"), que é decisão travada. As [Q2, Q8 e Q11](open-questions.md) ganharam a ressalva — elas afirmavam o contrário |
 | **P16** | Nada na tela diz que salvar **troca o dono** do arquivo: a escrita atômica põe os bytes num inode novo, então uid/gid, ACL e xattrs não sobrevivem ([Q15](open-questions.md)) | aberta, fora da v1 — estava viva só dentro de uma pergunta fechada, que é o que a lista numerada existe para impedir |
 | **P15** | `agentConfig.create` não tem teto em `command`, `args` e `env`, e o `bodyLimit` global subiu de 1 MiB para 6.356.992 bytes (6,06 MiB) por causa da E6 — um cliente malformado passa a poder persistir ~6 MiB em SQLite onde antes tomava 413 | aberta, **dívida anterior amplificada**. O adapter tRPC do Fastify não expõe `bodyLimit` por rota, então o lugar do teto é onde está; o que falta é o teto nos campos. Resolve quando alguém tocar aquele router |
 | **P14** | A guarda ainda recusa **tudo** para link que aponta para fora, inclusive apagar — assimetria com o link pendurado, que o rework tornou apagável | **decidida na [Q12](open-questions.md): também é apagável.** Vira `Done when` da **E5**, junto do resto do CRUD: apagar opera sobre a entrada, e a entrada está dentro do checkout |
@@ -312,7 +313,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 #### E9: Autosave
 
 **What**: O buffer indo para o disco sozinho, sem nunca perder o que foi digitado.
-**Where**: `packages/web/src/hooks/useFileBuffer.ts` + teste, `FileViewer.tsx`, `ViewerFrame.tsx` (rodapé de estado), `packages/web/src/lib/codemirror-setup.ts` — o `EditorHandle` da E8 não expunha nem mudança de documento nem leitura do buffer, e as duas só existiam furando `handle.view`, que o próprio docstring proíbe
+**Where**: `packages/web/src/hooks/useFileBuffer.ts` + teste, `FileViewer.tsx`, `ViewerFrame.tsx` (rodapé de estado), `packages/web/src/components/ScopePanel.tsx` (a prop `active`: **trocar de aba não desmonta nada** — o shell mantém toda aba montada e só esconde, então o gatilho não tinha sinal e precisou de um), `packages/web/src/test/trpc-mock.ts`, `packages/web/src/lib/codemirror-setup.ts` — o `EditorHandle` da E8 não expunha nem mudança de documento nem leitura do buffer, e as duas só existiam furando `handle.view`, que o próprio docstring proíbe
 **Depends on**: E6, E8
 
 **Done when**:
@@ -323,7 +324,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] Falha de escrita **não** descarta o buffer, e a próxima digitação tenta de novo (F2.4)
 - [ ] Descarrega o pendente antes de sumir da tela, com um teste **por gatilho**: trocar de aba de sessão, fechar o split, fechar a aba, perder o foco da janela, desmontar
 - [ ] Gravar invalida `["changes"]` e o `listDir` do diretório do arquivo, e **não** o `files.read` do arquivo aberto (F2.5)
-- [ ] **O botão de recarregar da coluna deixa de invalidar o `files.read` do arquivo aberto.** Hoje `CheckoutFiles.tsx` faz `invalidateQueries({ queryKey: ["files"] })`, e `fileListKey` e `fileReadKey` **compartilham esse prefixo** — depois do autosave, um clique nele refaz a leitura por cima de um buffer sujo, que é o que a D4 proíbe. Ou os prefixos se separam, ou a invalidação passa a ser dirigida; a propriedade é que **nenhum gesto de navegação apaga texto digitado**
+- [ ] **Nenhum gesto de navegação apaga texto digitado.** São **três** portas, e a terceira mata as duas saídas óbvias: o botão de recarregar da coluna (`invalidateQueries({ queryKey: ["files"] })`, prefixo compartilhado com `fileReadKey`), o evento `worktree.changed`, e — a que separar prefixo **não alcança** — o `invalidateQueries()` **sem chave nenhuma** que `useLiveState.ts` dispara a cada reconexão do stream. `enabled: false` também não serve: sair de desabilitada refaz o fetch, então cada gravação seria seguida da releitura do que ela acabou de escrever, contra a F2.5. A saída é a recusa **dentro da `queryFn`**, com a leitura recusada ficando **devida** e paga quando o buffer fica limpo. `CheckoutFiles.tsx` não muda
 - [ ] **`refetchOnWindowFocus` do `FileViewer` passa a depender do estado do buffer.** Perder e ganhar foco é o gatilho de descarregamento mais exercitado desta própria task: com buffer limpo o disco é adotado (D4), com buffer sujo não há refetch nenhum
 - [ ] Test count: um caso por gatilho de descarregamento, mais um que prova que **recarregar pela coluna com buffer sujo não perde caractere** — o teste é que digitar durante um `worktree.changed` não perde caractere
 - [ ] Gate: `pnpm gate:quick`
@@ -376,6 +377,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] `tracked: false` significa "o git não tem cópia **ou** o git não conseguiu responder" ([Q18](open-questions.md)) — a tela não pode ser mais forte que isso
 - [ ] Depois de cada operação, só o diretório afetado e a lista de mudanças recarregam (F4.5)
 - [ ] Apagar o arquivo aberto fecha o split; renomear reaponta o split para o novo caminho (F4.6)
+- [ ] **Apagar ou renomear o arquivo aberto com buffer sujo descarrega antes**, ou o rename espera o flush. Os dois gestos passam pelo `attach(null)` da E9, que grava no **caminho antigo**: apagar é benigno (o servidor recusa com `NOT_FOUND`, porque autosave não pode ressuscitar arquivo que o agente apagou) mas o texto digitado some sem aviso, e renomear é pior — a tela reaponta para o caminho novo e a pessoa fica achando que o buffer foi junto
 - [ ] Tentar escrever dentro de `.git` mostra o motivo, e a árvore continua **mostrando** `.git` normalmente ([Q10](open-questions.md))
 - [ ] Gate: `pnpm gate:quick`
 
@@ -396,6 +398,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] Abre um arquivo, corrige uma linha, espera o autosave, e a mudança aparece na aba `Mudanças` — com o terminal da sessão ainda visível ao lado
 - [ ] O conteúdo novo está **no disco**, verificado fora do navegador
 - [ ] Escreve no mesmo arquivo pelo terminal da sessão enquanto o editor está sujo: a tela mostra o conflito, e *sobrescrever* deixa o disco com o texto do editor
+- [ ] **Não clique em *recarregar do disco* sem o disco ter chegado** — o custo daquela saída depende de uma leitura que é assíncrona, e clicar antes flaka
 - [ ] Cria um arquivo pela árvore, renomeia e apaga, com a árvore refletindo cada passo
 - [ ] Gate: `pnpm gate:full`
 

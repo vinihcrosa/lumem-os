@@ -2,7 +2,7 @@
 
 Registro de por que cada decisão foi tomada. Pergunta respondida não vira suposição silenciosa: fica aqui, com o motivo.
 
-**Estado:** 22 perguntas · 19 respondidas · 3 abertas
+**Estado:** 24 perguntas · 21 respondidas · 3 abertas
 
 ---
 
@@ -50,7 +50,7 @@ O preço é real e está no §7 do PRD: cada pausa de digitação vira uma grava
 
 Duas consequências que a implementação carrega:
 
-- **desmontar descarrega o pendente** (F2.2). Com autosave, o único jeito de perder o que foi digitado é sumir da tela antes do debounce vencer;
+- **desmontar descarrega o pendente** (F2.2). Com autosave, o único jeito de perder o que foi digitado é sumir da tela antes do debounce vencer — **com uma exceção que a implementação encontrou e que está registrada como P19**: com o conflito na tela, o autosave está parado por decisão da [Q4.1](#q41--conflito-é-erro-ou-resposta), então sair da tela ali perde o buffer;
 - **desfazer depois de salvo não desfaz o arquivo.** O `undo` do editor volta o buffer, e o buffer salva de novo. É o comportamento correto, mas só porque a gravação é guardada por revisão.
 
 ---
@@ -299,6 +299,30 @@ Medido antes de decidir: o bundle inicial é **198.921 B gzip**, e o CodeMirror 
 É o mesmo formato de problema que a right-panel resolveu com o Shiki, e a mesma saída: o editor vira chunk sob demanda e o inicial não se move. O preço é uma espera curta na primeira abertura de arquivo, uma vez por sessão.
 
 Junto veio uma regra que a medição tornou óbvia: **nada de `codemirror`/`basicSetup`.** O meta-pacote custa +29.026 B gzip a mais que os módulos escolhidos a dedo, e o que ele traz de extra é `@codemirror/autocomplete` e `@codemirror/lint` — dois **não-objetivos** declarados no §6. É a linha de código mais cara que a E8 poderia escrever.
+
+---
+
+### Q21 — Trocar de aba de sessão descarrega o pendente. Como?
+
+**Por uma prop, porque trocar de aba não desmonta nada.** Descoberto na E9.
+
+O PRD assumia que os cinco gatilhos de descarregamento eram todos desmonte ou evento de janela. Três são o mesmo desmonte (fechar o split, fechar a aba, desmontar) e um é `blur` — mas o quinto **não tinha sinal nenhum**: o shell mantém **toda aba de sessão montada** e só esconde a que sai. O `FileViewer` da aba escondida continua vivo, com o timer rodando.
+
+Consequência boa: o texto **nunca correu risco** naquele gesto. Consequência real: o ganho de descarregar ali não é evitar perda, é **o disco ficar em dia antes de você falar com o agente ao lado** — que é o gesto seguinte mais provável de quem troca de aba.
+
+Ficou uma prop `active`, obrigatória e vinda do `ScopePanel`, que é o único lugar que sabe qual aba está na frente. Obrigatória de propósito: com default, o `tsc` não cobraria o call site, e o gatilho voltaria a não existir sem ninguém notar.
+
+---
+
+### Q22 — Como o buffer sobrevive a `invalidateQueries()` sem chave?
+
+**A recusa mora dentro da `queryFn`, e a leitura recusada fica devida.** Decidido na E9, depois de duas saídas mais óbvias falharem.
+
+A D4 diz que buffer sujo nunca é sobrescrito por refetch. Fechar isso por **chave de cache** parecia bastar — separar `fileListKey` de `fileReadKey`, ou dirigir a invalidação do botão da coluna. Não basta: `useLiveState` dispara `invalidateQueries()` **sem `queryKey` nenhuma** a cada reconexão do stream, e nenhuma separação de prefixo alcança isso.
+
+A segunda saída óbvia é pior: `enabled: false` enquanto sujo fecharia as três portas e abriria uma quarta, medida — uma query que sai de desabilitada **refaz o fetch**, então toda gravação bem-sucedida seria seguida de uma releitura do arquivo que ela acabou de escrever, contra a F2.5.
+
+O que sobra é recusar **na própria `queryFn`**: quem pede a leitura com o buffer sujo não recebe disco nenhum, e a leitura fica **devida** — paga assim que o buffer fica limpo. A propriedade que isso garante é a que importa: *nenhum gesto de navegação apaga texto digitado*, sem depender de saber quais gestos existem.
 
 ---
 
