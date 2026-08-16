@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Protótipo:** `packages/web/prototype/lumem-file-editor.html` — entregue pela E1, cinco telas, verificado por renderização
 **Sucede:** [right-panel](../right-panel/tasks.md)
-**Status:** em execução — E1–E5 e E7 entregues; falta a E6 para fechar a Fase 1
+**Status:** em execução — **Fase 1 fechada** (E1–E7). A Fase 2 é a próxima: o editor no split
 **Total:** 13 tasks em 5 fases
 
 ---
@@ -48,6 +48,7 @@ Numeradas, e nenhuma delas vive só numa mensagem ou num comentário de código.
 | **P11** | `path-guard.ts` fazia `stat(parent)` sem `try`, deixando escapar `Error` cru se o diretório sumisse entre o `realpath` e o `stat` | **fechada pela E3.1, e diferente do que foi arquivado**: o `stat` foi **deletado**, não embrulhado. O `lstat` logo abaixo responde `ENOTDIR` para o mesmo caso, com mensagem melhor e uma syscall a menos — a janela fechou em vez de ser capturada. Verificado no review com pai-arquivo, pai-fifo e pai-que-sumiu |
 | **P12** | `revisionOf` está exportado sem consumidor até a E4, e a mutação "revisão = tamanho em bytes" só morre por causa de **um** fixture (`files.test.ts`, 13 bytes contra 13 bytes) | follow-up do review do Lote 1 — quem mexer naquele fixture precisa saber que ele é a única coisa segurando a invariante |
 | **P13** | Alvo que **não existe** e se chama `.GIT` num filesystem insensível a caixa seria criado: não há disco para consultar, então nada canoniza o nome | **decidida: aceita.** Fechar exigiria case-folding no ramo "não existe", o que recusaria `.GIT` no Linux, onde é nome legítimo. Não é alcançável no produto — todo checkout tem `.git`, e numa worktree ele é um **arquivo**, que cai no ramo do `realpath` e é recusado |
+| **P15** | `agentConfig.create` não tem teto em `command`, `args` e `env`, e o `bodyLimit` global subiu de 1 MiB para ~6,3 MiB por causa da E6 — um cliente malformado passa a poder persistir ~6 MiB em SQLite onde antes tomava 413 | aberta, **dívida anterior amplificada**. O adapter tRPC do Fastify não expõe `bodyLimit` por rota, então o lugar do teto é onde está; o que falta é o teto nos campos. Resolve quando alguém tocar aquele router |
 | **P14** | A guarda ainda recusa **tudo** para link que aponta para fora, inclusive apagar — assimetria com o link pendurado, que o rework tornou apagável | **decidida na [Q12](open-questions.md): também é apagável.** Vira `Done when` da **E5**, junto do resto do CRUD: apagar opera sobre a entrada, e a entrada está dentro do checkout |
 
 ---
@@ -238,7 +239,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 #### E6: Router `files` escreve
 
 **What**: As quatro mutations sobre o wire, escopadas.
-**Where**: `packages/server/src/routers/files.ts` + teste
+**Where**: `packages/server/src/routers/files.ts` + teste, `packages/server/src/routers/files.transport.test.ts` (o que o caller tRPC não enxerga), `packages/server/src/server.ts` (o `bodyLimit` é opção do `Fastify()`, e não existe outro lugar onde declará-lo)
 **Depends on**: E4, E5
 
 **Done when**:
@@ -306,6 +307,8 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 
 **Done when**:
 - [ ] Parar de digitar grava depois do debounce, com o número num só lugar, nomeado ([Q8](open-questions.md))
+- [ ] A `revision` devolvida por `files.write` vira a **base da próxima gravação**, sem refetch. Sem esta linha, a segunda gravação depois da primeira volta `stale` **contra a própria escrita anterior** — conflito falso a cada duas paradas de digitação, e o diagnóstico cairia na E10
+- [ ] O rodapé lê os **dois** caminhos de falha, não um: conflito é resultado discriminado (`ok: false`), e arquivo que sumiu, `.git`, somente-leitura ou disco não-UTF-8 são **exceção** com mensagem
 - [ ] Rodapé diz `salvando…`, `salvo há Ns` e a falha com o motivo do daemon
 - [ ] Falha de escrita **não** descarta o buffer, e a próxima digitação tenta de novo (F2.4)
 - [ ] Descarrega o pendente antes de sumir da tela, com um teste **por gatilho**: trocar de aba de sessão, fechar o split, fechar a aba, perder o foco da janela, desmontar
@@ -353,6 +356,9 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] Renomear no lugar, aceitando caminho — renomear é mover (F4.2)
 - [ ] Apagar com confirmação que **nomeia** o alvo e consulta `files.deletePreview` (E5/E6): arquivo rastreado mostra o `git checkout --` que o traz de volta, não rastreado mostra que nada traz, e diretório mostra a contagem mais quantas entradas o git não recupera ([Q5](open-questions.md))
 - [ ] Nome ocupado mostra a recusa do servidor, sem sobrescrever nada
+- [ ] O diálogo mostra `truncated` quando ele vem: a contagem é **piso**, não total, e o servidor pagou para dizer isso — apresentá-la como total é a mentira que a F5.7 existe para impedir
+- [ ] A confirmação de apagar pasta manda `recursive: true`; sem isso o servidor recusa com `BLOCKED`, e a contagem estruturada vem do `deletePreview`, nunca de parse da mensagem de recusa
+- [ ] `tracked: false` significa "o git não tem cópia **ou** o git não conseguiu responder" ([Q18](open-questions.md)) — a tela não pode ser mais forte que isso
 - [ ] Depois de cada operação, só o diretório afetado e a lista de mudanças recarregam (F4.5)
 - [ ] Apagar o arquivo aberto fecha o split; renomear reaponta o split para o novo caminho (F4.6)
 - [ ] Tentar escrever dentro de `.git` mostra o motivo, e a árvore continua **mostrando** `.git` normalmente ([Q10](open-questions.md))

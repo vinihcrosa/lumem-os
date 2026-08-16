@@ -2,7 +2,7 @@
 
 Registro de por que cada decisão foi tomada. Pergunta respondida não vira suposição silenciosa: fica aqui, com o motivo.
 
-**Estado:** 19 perguntas · 16 respondidas · 3 abertas
+**Estado:** 20 perguntas · 17 respondidas · 3 abertas
 
 ---
 
@@ -239,6 +239,20 @@ Consertar custa renomear em dois passos, por um nome temporário. Isso reabre a 
 A recusa é **segura**: nada é destruído. O que ela não pode ser é confusa, e por isso a E11 tem que dizer o motivo na tela em vez de repetir "já existe" — a pessoa está olhando para uma árvore onde aquele nome não aparece.
 
 É a irmã do `.GIT` que já está registrado em [testing.md](../../project/testing.md): a mesma insensibilidade de caixa, na operação oposta. Lá ela deixava passar o que devia recusar; aqui recusa o que devia passar.
+
+---
+
+### Q18 — O que `tracked: false` realmente quer dizer?
+
+**"O git não tem cópia **ou** o git não conseguiu responder" — e a tela não pode ser mais forte que isso.** Decidida na triagem do review do Lote 5.
+
+`isTracked` e `trackedUnder` engolem toda falha do git com `.catch(() => ({ stdout: "", stderr: "" }))`. Isso cobre três coisas diferentes: o arquivo realmente não está no índice, o `ls-files` estourou o timeout de 30 s, e o git não está instalado ou o checkout não é repositório.
+
+A direção do erro é **segura de propósito**: o diálogo avisa demais ("nada traz de volta") em vez de prometer uma recuperação que não existe. Numa tela cuja única função é fazer alguém pensar antes de apagar, errar para o lado do medo é a escolha certa.
+
+O que isso proíbe é a tela **afirmar**. "Não está no git" é uma conclusão que o daemon não tem; o que ele tem é "não consegui confirmar que está". A E11 escreve a frase nesse limite.
+
+Fica junto a decisão sobre o timeout, que veio da mesma análise: **30 s, e não menos**. `ls-files` custa milissegundos em qualquer índice comum, então um teto menor não acelera nada — e, por causa do `.catch`, ele não converteria resposta lenta em erro visível, e sim em **resposta errada e silenciosa**: "nada traz de volta" sobre um arquivo que o git tem. Timeout aqui é teto, não espera.
 
 ---
 

@@ -1,6 +1,6 @@
 # PRD — O visualizador vira editor
 
-> **Status:** em execução — o daemon grava, cria, renomeia e apaga (E1–E5, E7 entregues)
+> **Status:** em execução — **Fase 1 fechada**: o servidor inteiro (E1–E7)
 > **Versão:** v0.1
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
