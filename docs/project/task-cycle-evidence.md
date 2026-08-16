@@ -19,7 +19,7 @@ muda; o **anexo** é história de outro projeto e não se mexe.
 Lote fechado sem linha aqui é indistinguível de lote que nunca existiu. O mecanismo contra isso é um
 número só:
 
-> **Último commit coberto: `937ff75`.**
+> **Último commit coberto: `d3aaf10`.**
 
 `fd83053` fecha o lote `E1`, o primeiro medido. Antes dele, `6c620dc` era o fim do período **pré-skill**. As quatro features anteriores —
 `walking-skeleton`, `ui-shell`, `worktree-tabs`, `right-panel`, 79 commits — foram feitas antes da
@@ -31,7 +31,7 @@ Quem fecha um lote atualiza esse sha para o último commit do lote. Um comando d
 fora:
 
 ```bash
-git log --oneline 937ff75..HEAD
+git log --oneline d3aaf10..HEAD
 ```
 
 Commit de código que aparecer aí e não estiver dentro de nenhum `Range` da tabela é lote que entrou
@@ -120,11 +120,12 @@ a tabela de lotes não tem tempo justamente porque o número não sobrevive à c
 | teto de concorrência de teste | **fronteira** | `6c620dc..468dae5` | 0 | — | 0 — sem review, **registrada em auditoria** |
 | `file-editor` E3.1+E4+E7 — a escrita de verdade | **crítico** | `af865b1..3f27e0e` | 1 | 453k | 1 blocker + 6 warnings · 3 costura |
 | `file-editor` E5 — CRUD no checkout | **crítico** | `4a552d8..937ff75` | 1 | 488k | 1 blocker + 4 warnings · 2 costura |
+| `file-editor` E6 — o router escreve (fecha a Fase 1) | **fronteira** | `1a830d7..d3aaf10` | 1 | 466k | 1 blocker + 5 warnings · **3 costura com a Fase 2** |
 
 Dois contadores, porque respondem a duas perguntas que a skill não consegue responder sozinha —
 *isto aqui é cerimônia?* — e custam um dígito cada:
 
-* **verificação independente do orquestrador:** 4 lotes, **1 refutação**
+* **verificação independente do orquestrador:** 5 lotes, **1 refutação**
 * **passe a frio pós-lote:** 1 passe, **11 achados** que o orquestrador com contexto não via
 
 **A verificação independente pagou o lote inteiro, e por um motivo que não estava previsto.** Não
@@ -161,6 +162,12 @@ O round 2 foi de outra natureza: nenhum código errado, **três asserções frac
 **O dev achou sozinho uma decisão de produto que ninguém tinha tomado, e declarou.** Com temp+`rename`, gravar num arquivo `0o444` passa — o `rename` é checado contra o **diretório**. Ele não "consertou" e não ignorou: reportou como efeito colateral não documentado. Virou pergunta ao Vinicius, virou a quinta recusa, e virou uma propriedade maior que a pergunta: *a escrita atômica não pode virar contorno de permissão*.
 
 **Duas mutações sobreviveram com argumento aceito, e isso também é dado.** As duas são de **janela** — o que outro processo veria durante a gravação — e não de estado final; forçá-las exigiria o teste dependente de tempo que o `testing.md` proíbe. Em vez de um round para escrevê-las, a janela foi **estreitada por desenho** no `Done when` da E5: o temporário nasce `0o600` e sobe para o modo do alvo antes do `rename`, então ela nunca é mais permissiva que o resultado. Mais barato que provar, e fecha o que a mutação apontava.
+
+**O lote de fronteira achou três defeitos em tasks que ainda não existiam.** O review da E6 olhou as costuras com a Fase 2 e devolveu correções para os `Done when` da E9 e da E11 — nenhuma delas escrita, nenhuma delas com uma linha de código. A mais cara: sem adotar a `revision` que o `write` devolve, o segundo autosave depois do primeiro volta `stale` **contra a própria escrita anterior**, o que é conflito falso a cada duas paradas de digitação. Isso apareceria na E9 como bug intermitente e seria diagnosticado na E10, longe da causa. Custo de achar agora: três linhas de documento.
+
+**O mesmo defeito de teste apareceu pela quarta vez, e agora tem nome.** Fixture escolhida num valor que não exercita o mecanismo: `0o755` com umask 022, `.not.toBeNull()` com duas respostas possíveis, nome de arquivo comum contra pathspec, e agora texto ASCII contra um limite que existe por causa de **escape** JSON. Nos quatro, o código estava certo. É a classe dominante de achado desta feature, e ela só é visível por mutação.
+
+**A armadilha deste lote é sobre a estratégia de teste do repositório, não sobre o código.** O caller tRPC é como todo router daqui é testado, e ele é cego a limite de corpo, a GET-versus-POST e a status HTTP. Dezesseis casos verdes enquanto o navegador tomaria 413 em toda gravação de arquivo grande. Foi para `testing.md` como classe, com uma linha nova na matriz de cobertura — regra de transporte se testa sobre HTTP, não pelo caller.
 
 **O lote do CRUD achou o defeito mais barato de escrever e o mais caro de descobrir.** O `deletePreview` perguntava ao git se um arquivo é rastreado passando o **nome** onde o git espera **pathspec**. Um arquivo chamado `a*.ts`, não rastreado, voltava `tracked: true` porque `ab.ts` é rastreado — e o diálogo prometeria "o git desfaz" para um arquivo do qual o git não tem cópia. Nenhum teste com nome comum pega, e a correção é uma flag. Está em `testing.md` como classe.
 
