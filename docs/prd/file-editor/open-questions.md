@@ -2,7 +2,7 @@
 
 Registro de por que cada decisão foi tomada. Pergunta respondida não vira suposição silenciosa: fica aqui, com o motivo.
 
-**Estado:** 11 perguntas · 9 respondidas · 2 abertas
+**Estado:** 15 perguntas · 12 respondidas · 3 abertas
 
 ---
 
@@ -145,6 +145,38 @@ As outras duas saídas eram detectar a codificação e converter nos dois sentid
 O teste é de ida e volta, e é barato: **se decodificar em UTF-8 e recodificar não devolve os bytes originais, o arquivo não é editável.** Sem tabela de codificação, sem palpite sobre qual é a certa — só a pergunta que importa, que é se gravar destruiria alguma coisa.
 
 Na tela isso é a **quarta recusa**, com a mesma gramática das três que já existem: binário, grande demais, dentro de `.git`, e agora "não é UTF-8". O arquivo continua **legível** — o que se perde é a permissão de gravar, e quem precisa mesmo editar tem um terminal na aba do lado.
+
+---
+
+### Q12 — Symlink pendurado: dá para apagar, ou nem isso?
+
+**Dá para apagar, e não dá para gravar.** Decidido na triagem do review do Lote 1.
+
+A E2 recusou toda operação sobre link cujo destino não existe, e o argumento dela era bom para escrita: nada prova onde o link aterrissaria, e criar o destino de um link quebrado não é o que "gravar este arquivo" pediu. O review mostrou o efeito colateral — link pendurado é exatamente o lixo que se quer tirar pela árvore, e ele ficava impossível de remover por qualquer caminho.
+
+A regra que resolve os dois casos de uma vez, e que virou linha no §5 do PRD:
+
+> **Apagar e renomear operam sobre a entrada de diretório; gravar opera sobre o destino.**
+
+Um symlink é as duas coisas ao mesmo tempo, e é a **operação** que decide qual delas importa. Daí saem as quatro propriedades: apagar um link, válido ou pendurado, remove o link e deixa o destino intacto; renomear move o link; gravar através de um link válido cai no destino, que é o que faz o link continuar link; e o link pendurado é apagável e não gravável.
+
+Fica uma consequência para a tela, que a E8 e a E11 precisam saber: leitura e escrita descrevem o mesmo estado de disco com códigos diferentes — a leitura responde `NOT_FOUND` para um link pendurado e a escrita responde `BLOCKED`. As duas frases estão certas, e a tela não pode inventar uma terceira.
+
+**Extensão, decidida depois de o rework apontar a assimetria:** link que aponta **para fora** do checkout também é apagável, pela mesma regra e não por exceção a ela. A entrada de diretório está dentro do checkout, e apagar o link não toca no destino — que é justamente a propriedade que define a regra. Recusar era proteger o arquivo de fora de uma operação que nunca chega perto dele.
+
+O que continua recusado é **gravar** através dele, e aí a recusa é a mesma de antes. Vale enunciar por que isto não abre um caminho de escape: apagar um link é uma operação sobre a entrada, e nenhuma entrada de diretório fora do checkout é alcançável — o pai já foi provado dentro antes de qualquer coisa acontecer.
+
+---
+
+### Q13 — Quem decide que um arquivo dentro de `.git` é somente leitura?
+
+**O servidor, e o motivo viaja nomeado.** Decidido na triagem do review do Lote 1.
+
+`files.read` devolvia `readOnly: null` para `.git/config`: legível, e sem dizer que gravar seria recusado. Com autosave isso é a pior ordem possível — a tela abre editável, a pessoa digita, o debounce vence, e só então a recusa chega.
+
+A alternativa era o cliente derivar "está dentro de `.git`" do caminho. Ela é barata e está errada pelo mesmo motivo que o §5 inteiro existe: **regra de escrita é verificada no servidor, nunca no cliente.** Duplicar a regra no navegador cria dois lugares para ela divergir, e o lado que erra é o que não tem o disco na mão.
+
+Então `ReadOnlyReason` ganha `"inside-git"`, ao lado de `"not-utf8"`. As quatro recusas da F1.4 passam a ter a mesma gramática de verdade: duas vêm da forma do resultado (`binary`, `too-large`) e duas do motivo nomeado.
 
 ---
 

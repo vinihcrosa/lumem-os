@@ -185,8 +185,20 @@ O que a escrita acrescenta:
 | **O teto de bytes vale na entrada.** | O mesmo 1 MiB do `MAX_FILE_BYTES`. Sem isso o teto de leitura é contornável escrevendo |
 | **Apagar diretório exige `recursive` explícito.** | Um `rmdir` que vira `rm -rf` por omissão de parâmetro é o tipo de acidente que não tem desfazer |
 | **A raiz do checkout não é apagável nem renomeável.** | Caminho vazio é o checkout. Nenhuma operação de escrita aceita alvo vazio |
+| **Toda checagem vale sobre o caminho *resolvido*, nunca sobre o pedido — inclusive a última componente.** | Aprendida três vezes no mesmo lote, e as três com a mesma forma: `atalho -> .git` é um caminho sem nenhum segmento `.git` que aterrissa dentro dele; `eu-mesmo -> .` é um nome inocente que resolve para a raiz; e `.GIT` num filesystem insensível a caixa — o padrão do macOS — é o `.git` de verdade com outra grafia. Checar antes de resolver é checar a intenção declarada pelo cliente, não o destino que o disco tem |
+| **Apagar e renomear operam sobre a entrada de diretório; gravar opera sobre o destino.** | Um symlink é as duas coisas ao mesmo tempo, e a operação decide qual delas importa. Apagar um link — válido ou pendurado — remove o link e deixa o destino intacto; gravar através de um link válido cai no destino, que é o que faz o link continuar link |
 
-Um ponto que **não** é resolvido aqui e está declarado: o daemon não tem autenticação. Quem alcança a porta do daemon já podia ler qualquer arquivo do checkout; agora também pode escrever. Isso é uma mudança real de superfície e a resposta certa é autenticação do daemon, que é feature própria — ver [Q7](open-questions.md).
+### O que este desenho não cobre, dito em voz alta
+
+Silêncio num documento de segurança lê como cobertura, então aqui vai o que ficou de fora, medido durante o review do primeiro lote:
+
+**Hard link para fora do checkout passa nas cinco regras.** `realpath` não distingue hard link: um arquivo dentro do checkout que compartilhe o inode de `~/.ssh/id_rsa` é indistinguível de um arquivo comum. Bloquear sairia caro e errado — recusar todo arquivo com `st_nlink > 1` recusaria arquivos legítimos. Fica declarado, não implementado.
+
+**A janela entre resolver e gravar não é fechada pela guarda.** Entre a guarda dizer "pode" e a escrita acontecer, um componente do caminho pode virar symlink. O modelo de ameaça desta feature é **acidente**, não adversário — o agente que escreve ao lado não está tentando escapar do checkout — e por isso a janela é aceita.
+
+**Nos dois casos, o que fecha o vetor é a escrita atômica da F5.6**, e isso muda o que ela é: temp no mesmo diretório mais `rename` estava escrito como requisito de **integridade** ("meio arquivo no disco é pior que nenhuma escrita") e é **também um controle de segurança**. Medido: com escrita in-place, os dois vetores acima sobrescrevem o arquivo de fora; com temp + `rename`, o arquivo de fora fica intacto e o que se perde é o link. Consequência dura para a E4: **nenhum caminho de escrita pode gravar in-place**, nem para arquivo pequeno, nem com `appendFile`, nem como otimização. Se isso mudar, estas duas linhas deixam de valer e ninguém vai lembrar de reler este parágrafo.
+
+Um último ponto que **não** é resolvido aqui e está declarado: o daemon não tem autenticação. Quem alcança a porta do daemon já podia ler qualquer arquivo do checkout; agora também pode escrever. Isso é uma mudança real de superfície e a resposta certa é autenticação do daemon, que é feature própria — ver [Q7](open-questions.md).
 
 ---
 

@@ -1,9 +1,9 @@
 # O visualizador vira editor — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Protótipo:** `packages/web/prototype/lumem-file-editor.html` — **não existe ainda**; é a E1
+**Protótipo:** `packages/web/prototype/lumem-file-editor.html` — entregue pela E1, cinco telas, verificado por renderização
 **Sucede:** [right-panel](../right-panel/tasks.md)
-**Status:** desenhada, nenhuma task executada
+**Status:** em execução — E1, E2 e E3 entregues; Lote 1 (E2+E3) em rework de round 1
 **Total:** 12 tasks em 5 fases
 
 ---
@@ -45,6 +45,10 @@ Numeradas, e nenhuma delas vive só numa mensagem ou num comentário de código.
 | **P8** | `packages/web/src/components/viewer.css:134` usa `text-disabled` na medianiz, **hoje, no app**: 2,96:1 sobre o poço, abaixo do mínimo de objeto gráfico. A E1 achou medindo o protótipo e criou `editor/line-number` (6,49:1) | fechada pela **E8**, cujo *Done when* de tema já cobre. Registrada aqui porque é defeito de acessibilidade em produção, não só do desenho |
 | **P9** | A tela de conflito promete três números que o contrato original não carregava: "há 8 s", "3 linhas que você digitou", "+6 −2" do agente | **resolvida no desenho** pela verificação do orquestrador: `changedAt` entra na resposta (E4/E6), e os dois custos passam a ser medidos **no cliente** (E10), que é o único lado com as três versões do texto |
 | **P10** | O diálogo de apagar promete saber se o git desfaz, e a contagem recursiva de uma pasta — dados que nenhuma procedure tinha | **resolvida no desenho**: `files.deletePreview` (F5.7), implementada na E5 e exposta na E6, consumida pela E11 |
+| **P13** | Alvo que **não existe** e se chama `.GIT` num filesystem insensível a caixa seria criado: não há disco para consultar, então nada canoniza o nome | **decidida: aceita.** Fechar exigiria case-folding no ramo "não existe", o que recusaria `.GIT` no Linux, onde é nome legítimo. Não é alcançável no produto — todo checkout tem `.git`, e numa worktree ele é um **arquivo**, que cai no ramo do `realpath` e é recusado |
+| **P14** | A guarda ainda recusa **tudo** para link que aponta para fora, inclusive apagar — assimetria com o link pendurado, que o rework tornou apagável | **decidida na [Q12](open-questions.md): também é apagável.** Vira `Done when` da **E5**, junto do resto do CRUD: apagar opera sobre a entrada, e a entrada está dentro do checkout |
+| **P11** | `path-guard.ts` faz `stat(parent)` sem `try`: se o diretório sumir entre o `realpath` e o `stat`, escapa `Error` cru em vez de `DomainError`. É o padrão vizinho dominante no módulo, e a janela é real justo numa feature cujo §7 é concorrência com o agente | follow-up do review do Lote 1 — não bloqueia; vale arrumar junto da E4, que mexe no mesmo caminho |
+| **P12** | `revisionOf` está exportado sem consumidor até a E4, e a mutação "revisão = tamanho em bytes" só morre por causa de **um** fixture (`files.test.ts`, 13 bytes contra 13 bytes) | follow-up do review do Lote 1 — quem mexer naquele fixture precisa saber que ele é a única coisa segurando a invariante |
 
 ---
 
@@ -195,7 +199,9 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] `createFile` e `createDir`: nome ocupado é `DUPLICATE`, não sobrescrita
 - [ ] `rename(from, to)`: as **duas** pontas passam pela guarda; destino ocupado é `DUPLICATE`; diretório de destino inexistente é `NOT_FOUND` com o caminho dito
 - [ ] `remove(path, { recursive })`: diretório com conteúdo sem `recursive` é recusado, com a contagem do que tem dentro na mensagem
-- [ ] Apagar symlink apaga **o link**, não o que ele aponta
+- [ ] Apagar e renomear operam sobre a **entrada de diretório**, nunca sobre o destino ([Q12](open-questions.md)): apagar um symlink — válido ou pendurado — remove o link e deixa o destino intacto, e renomear move o link. A guarda devolve os dois caminhos justamente para isso; usar o `absolute` aqui apaga o arquivo apontado, e o TypeScript não avisa porque os dois são `string`
+- [ ] Link **pendurado** é apagável (e continua não sendo gravável, que é a decisão da E2)
+- [ ] Link que aponta **para fora** do checkout também é apagável, pela mesma regra ([Q12](open-questions.md), P14) — hoje a guarda o recusa inteiro, e é esta task que abre o caso. Gravar através dele continua recusado, com a mesma mensagem
 - [ ] Nenhuma das três aceita alvo vazio nem alvo dentro de `.git` — herdado da E2, e verificado aqui de novo por chamada
 - [ ] `deletePreview(root, path)` (F5.7): devolve se o caminho é **rastreado pelo git** e, para diretório, a contagem recursiva de entradas mais quantas delas não estão rastreadas. É o que o diálogo de apagar promete na tela — "o git desfaz os outros 3" — e sem isto a promessa é chute
 - [ ] A contagem recursiva tem teto e **diz** quando truncou, como toda contagem desta feature. `node_modules` está visível na árvore e é apagável
