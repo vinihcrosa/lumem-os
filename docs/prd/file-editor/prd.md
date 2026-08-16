@@ -1,6 +1,6 @@
 # PRD — O visualizador vira editor
 
-> **Status:** desenho aberto — protótipo é a primeira task
+> **Status:** em execução — protótipo e as duas tasks de guarda entregues
 > **Versão:** v0.1
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
@@ -114,7 +114,7 @@ Cada um destes saiu de olhar o PNG, não de ler o código:
 
 A quarta ([Q9](open-questions.md)) existe por causa do autosave: um Latin-1 sem byte NUL passa pela detecção de binário, é lido com caractere de substituição, e gravar destruiria o conteúdo original **sem ninguém clicar em nada**. O teste é de ida e volta — decodificar e recodificar tem que devolver os bytes originais — e ele mora no servidor, que é quem tem os bytes.
 **F1.5** O patch (`PatchViewer`) continua somente leitura e **não** vira editor. Editar um diff é outra feature, com outro modelo mental.
-**F1.6** Fim de linha e ausência de quebra final são preservados: arquivo CRLF volta CRLF, arquivo sem `\n` final não ganha um (D4).
+**F1.6** Fim de linha e ausência de quebra final são preservados: arquivo CRLF volta CRLF, arquivo sem `\n` final não ganha um (A7, [Q6](open-questions.md)).
 
 ### F2 — Autosave
 
@@ -235,7 +235,7 @@ Um último ponto que **não** é resolvido aqui e está declarado: o daemon não
 
 Maior que o da right-panel, e concentrado em um lugar: **a suíte precisa de um caso de escrita concorrente**. Um teste que escreve o arquivo por fora entre a leitura e a gravação, com filesystem de verdade — pela mesma política que faz o git nunca ser mockado.
 
-O resto é aditivo. `files.read` ganha um campo; `FileService` ganha métodos; a árvore ganha ações. Nada do que os 685 testes atuais assertam sai da tela — com uma exceção honesta: `file-viewer.test.tsx` passa a montar um CodeMirror, e o que ele assertava sobre `<div className="l">` muda de forma. É reescrita de teste, não perda de cobertura.
+O resto é aditivo. `files.read` ganha um campo; `FileService` ganha métodos; a árvore ganha ações. Nada do que os testes atuais assertam sai da tela — com uma exceção honesta: `file-viewer.test.tsx` passa a montar um CodeMirror, e o que ele assertava sobre `<div className="l">` muda de forma. É reescrita de teste, não perda de cobertura.
 
 ---
 

@@ -4,7 +4,7 @@
 **Protótipo:** `packages/web/prototype/lumem-file-editor.html` — entregue pela E1, cinco telas, verificado por renderização
 **Sucede:** [right-panel](../right-panel/tasks.md)
 **Status:** em execução — E1, E2 e E3 entregues e fechadas (Lote 1 aprovado em 2 rounds de review)
-**Total:** 12 tasks em 5 fases
+**Total:** 13 tasks em 5 fases
 
 ---
 
@@ -42,13 +42,13 @@ Numeradas, e nenhuma delas vive só numa mensagem ou num comentário de código.
 | **P5** | O histórico de undo não sobrevive à troca de worktree | aberta ([Q11](open-questions.md)) — a v1 zera, como a right-panel |
 | **P6** | `file-viewer.test.tsx` assertava sobre `<div className="l">`, que a E8 remove. É reescrita de teste, não perda de cobertura — e o revisor tem que ver a cobertura equivalente, não só o verde | prevista, na E8 |
 | **P7** | O número do bundle do CodeMirror | a E8 mede e escreve no [PRD](prd.md) §7, como a R8 da right-panel fez |
-| **P8** | `packages/web/src/components/viewer.css:134` usa `text-disabled` na medianiz, **hoje, no app**: 2,96:1 sobre o poço, abaixo do mínimo de objeto gráfico. A E1 achou medindo o protótipo e criou `editor/line-number` (6,49:1) | fechada pela **E8**, cujo *Done when* de tema já cobre. Registrada aqui porque é defeito de acessibilidade em produção, não só do desenho |
+| **P8** | `packages/web/src/components/viewer.css:134` usa `text-disabled` na medianiz, **hoje, no app**: 2,96:1 sobre o poço, abaixo do mínimo de objeto gráfico. O token que corrige (`editor/line-number`, 6,49:1) já existe e **ninguém o consome** | **aberta** — quem fecha é a E8. Estava marcada como fechada antes de a E8 existir, e o passe a frio pegou: pendência fechada por antecipação é pendência perdida |
 | **P9** | A tela de conflito promete três números que o contrato original não carregava: "há 8 s", "3 linhas que você digitou", "+6 −2" do agente | **resolvida no desenho** pela verificação do orquestrador: `changedAt` entra na resposta (E4/E6), e os dois custos passam a ser medidos **no cliente** (E10), que é o único lado com as três versões do texto |
 | **P10** | O diálogo de apagar promete saber se o git desfaz, e a contagem recursiva de uma pasta — dados que nenhuma procedure tinha | **resolvida no desenho**: `files.deletePreview` (F5.7), implementada na E5 e exposta na E6, consumida pela E11 |
-| **P13** | Alvo que **não existe** e se chama `.GIT` num filesystem insensível a caixa seria criado: não há disco para consultar, então nada canoniza o nome | **decidida: aceita.** Fechar exigiria case-folding no ramo "não existe", o que recusaria `.GIT` no Linux, onde é nome legítimo. Não é alcançável no produto — todo checkout tem `.git`, e numa worktree ele é um **arquivo**, que cai no ramo do `realpath` e é recusado |
-| **P14** | A guarda ainda recusa **tudo** para link que aponta para fora, inclusive apagar — assimetria com o link pendurado, que o rework tornou apagável | **decidida na [Q12](open-questions.md): também é apagável.** Vira `Done when` da **E5**, junto do resto do CRUD: apagar opera sobre a entrada, e a entrada está dentro do checkout |
 | **P11** | `path-guard.ts` faz `stat(parent)` sem `try`: se o diretório sumir entre o `realpath` e o `stat`, escapa `Error` cru em vez de `DomainError`. É o padrão vizinho dominante no módulo, e a janela é real justo numa feature cujo §7 é concorrência com o agente | follow-up do review do Lote 1 — não bloqueia; vale arrumar junto da E4, que mexe no mesmo caminho |
 | **P12** | `revisionOf` está exportado sem consumidor até a E4, e a mutação "revisão = tamanho em bytes" só morre por causa de **um** fixture (`files.test.ts`, 13 bytes contra 13 bytes) | follow-up do review do Lote 1 — quem mexer naquele fixture precisa saber que ele é a única coisa segurando a invariante |
+| **P13** | Alvo que **não existe** e se chama `.GIT` num filesystem insensível a caixa seria criado: não há disco para consultar, então nada canoniza o nome | **decidida: aceita.** Fechar exigiria case-folding no ramo "não existe", o que recusaria `.GIT` no Linux, onde é nome legítimo. Não é alcançável no produto — todo checkout tem `.git`, e numa worktree ele é um **arquivo**, que cai no ramo do `realpath` e é recusado |
+| **P14** | A guarda ainda recusa **tudo** para link que aponta para fora, inclusive apagar — assimetria com o link pendurado, que o rework tornou apagável | **decidida na [Q12](open-questions.md): também é apagável.** Vira `Done when` da **E5**, junto do resto do CRUD: apagar opera sobre a entrada, e a entrada está dentro do checkout |
 
 ---
 
@@ -165,11 +165,31 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 
 ---
 
+#### E3.1: O contrato final da guarda
+
+**What**: Fechar `resolveForWrite` **antes** de existir qualquer consumidor: link que aponta para fora do checkout passa a ser apagável, pela regra da [Q12](open-questions.md).
+**Where**: `packages/server/src/files/path-guard.ts` + teste
+**Depends on**: E2
+
+**Done when**:
+- [ ] Link cujo destino cai fora do checkout devolve `target: null` em vez de lançar — a mesma forma que o link pendurado já usa, porque para quem apaga os dois casos são o mesmo: existe entrada, não existe destino gravável
+- [ ] Apagar continua sendo assunto da E5; o que esta task entrega é **poder** apagar
+- [ ] Gravar através dele continua recusado, e a mensagem continua dizendo que aponta para fora — a recusa muda de lugar (vai para quem grava), não de existência
+- [ ] O caso de escape original continua fechado: nenhuma operação alcança caminho **fora** do checkout, e o teste que provava isso continua verde
+- [ ] Gate: `pnpm gate:quick`
+
+**Tests**: unit, filesystem de verdade · **Gate**: quick
+**Commit**: `feat(server): let a link out of the checkout be deleted, never written`
+
+> **Por que ela existe, e por que aqui.** O passe a frio pós-Lote 1 achou que a E5 prometia isto no `Done when` e não tinha `path-guard.ts` no `Where` — e que a mudança é de **seam**, consumida por E4 e E6. Fechar o contrato da guarda antes de qualquer consumidor é o que impede cascata sobre código já revisado; deixá-la dentro da E5 faria a E4 fechar assumindo um comportamento que a E5 mudaria depois.
+
+---
+
 #### E4: `writeFile` guardado por revisão
 
 **What**: Gravar um arquivo existente, atomicamente, recusando quando o disco mudou desde a leitura.
 **Where**: `packages/server/src/files/FileService.ts` + teste
-**Depends on**: E2, E3
+**Depends on**: E2, E3, E3.1
 
 **Done when**:
 - [ ] `writeFile(root, path, { text, baseRevision })` devolve `{ ok: true, revision }` ou `{ ok: false, reason: "stale", revision, changedAt }` (D3.1)
@@ -201,7 +221,6 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] `remove(path, { recursive })`: diretório com conteúdo sem `recursive` é recusado, com a contagem do que tem dentro na mensagem
 - [ ] Apagar e renomear operam sobre a **entrada de diretório**, nunca sobre o destino ([Q12](open-questions.md)): apagar um symlink — válido ou pendurado — remove o link e deixa o destino intacto, e renomear move o link. A guarda devolve os dois caminhos justamente para isso; usar o `target` aqui apaga o arquivo apontado em vez do link, e o `tsc` **não** pega este lado do erro — ele só recusa gravar em `target` nulo. Este aviso escrito é a defesa que existe, e foi decisão consciente não criar um tipo nominal só para isso
 - [ ] Link **pendurado** é apagável (e continua não sendo gravável, que é a decisão da E2)
-- [ ] Link que aponta **para fora** do checkout também é apagável, pela mesma regra ([Q12](open-questions.md), P14) — hoje a guarda o recusa inteiro, e é esta task que abre o caso. Gravar através dele continua recusado, com a mesma mensagem
 - [ ] Nenhuma das três aceita alvo vazio nem alvo dentro de `.git` — herdado da E2, e verificado aqui de novo por chamada
 - [ ] `deletePreview(root, path)` (F5.7): devolve se o caminho é **rastreado pelo git** e, para diretório, a contagem recursiva de entradas mais quantas delas não estão rastreadas. É o que o diálogo de apagar promete na tela — "o git desfaz os outros 3" — e sem isto a promessa é chute
 - [ ] A contagem recursiva tem teto e **diz** quando truncou, como toda contagem desta feature. `node_modules` está visível na árvore e é apagável

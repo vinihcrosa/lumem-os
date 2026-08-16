@@ -117,12 +117,13 @@ a tabela de lotes não tem tempo justamente porque o número não sobrevive à c
 |---|---|---|---|---|---|
 | `file-editor` E1 — protótipo | desenho (§3 não tem a linha) | `6c620dc..fd83053` | 0 | 239k | 0 de review · **2 da verificação** (2 costura) |
 | `file-editor` E2+E3 — guarda de escrita e revisão | **crítico** | `bbfef0b..89ffb15` | 2 | 582k | **1 blocker + 5 warnings** (r1) · 3 blockers (r2) · 2 costura |
+| teto de concorrência de teste | **fronteira** | `6c620dc..468dae5` | 0 | — | 0 — sem review, **registrada em auditoria** |
 
 Dois contadores, porque respondem a duas perguntas que a skill não consegue responder sozinha —
 *isto aqui é cerimônia?* — e custam um dígito cada:
 
 * **verificação independente do orquestrador:** 2 lotes, **1 refutação**
-* **passe a frio pós-lote:** 0 passes, 0 achados que o orquestrador com contexto não tinha
+* **passe a frio pós-lote:** 1 passe, **11 achados** que o orquestrador com contexto não via
 
 **A verificação independente pagou o lote inteiro, e por um motivo que não estava previsto.** Não
 houve round de review: task de desenho não tem `Done when` verificável por teste, então o
@@ -152,6 +153,12 @@ O round 2 foi de outra natureza: nenhum código errado, **três asserções frac
 **O dev derrubou três premissas minhas**, todas por evidência executada: a lista de 8 casos de teste que eu especifiquei era insuficiente em dois pontos de segurança, e o meu diagnóstico de qual teste matava uma mutação estava errado — com a segunda passada canonizando, quem a sustenta é outro caso. É o achado mais valioso do método, e é a terceira vez que ele aparece contando os dois projetos.
 
 **O que a verificação independente fez desta vez: confirmou, não refutou.** Rodei as duas mutações centrais com a minha própria mão e vi as duas ficarem vermelhas. Registro porque uma verificação que nunca refuta ainda tem valor — ela autoriza fechar sem um terceiro round —, mas isso só é honesto se estiver escrito quando ela **não** acha nada.
+
+**O primeiro passe a frio achou onze coisas, e uma delas teria custado um lote inteiro.** A task E5 exigia, no `Done when`, que link apontando para fora do checkout virasse apagável — e `path-guard.ts` **não estava no `Where` dela**. Pior: é mudança de seam que E4 e E6 consomem. Se a E4 tivesse fechado assumindo o comportamento atual, a E5 o mudaria depois, em cima de código já revisado duas vezes. O passe propôs subir a mudança para antes da E4; virou a task `E3.1`.
+
+O resto é a classe que a regra prevê: documento que ficou mentindo depois que alguém corrigiu o código ao lado. `CLAUDE.md` dizia que a primeira feature estava em implementação, quatro features depois. A própria skill continuava afirmando "nenhum número medido aqui" com o ledger cheio ao lado, e citava um portão de fase de outra feature — **num arquivo que o commit anterior dizia ter corrigido exatamente isso**, e corrigiu só uma das duas ocorrências. E uma pendência estava marcada como *fechada pela E8* com a E8 não implementada: o defeito de contraste segue vivo no app.
+
+**O achado que mais me incomoda é o de cobertura do próprio ledger.** O commit `468dae5` (o teto de concorrência) é código de perfil **fronteira** — `vitest.config.ts` e `package.json` — e não estava em `Range` nenhum. Como ele é **anterior** ao "último commit coberto", o comando de auditoria que este arquivo prescreve nunca o mostraria: a auditoria só olha para frente. A linha foi acrescentada acima, e fica a lição: o sha de cobertura protege contra esquecer o **futuro**, e não contra o que passou por fora enquanto ninguém estava contando.
 
 ---
 

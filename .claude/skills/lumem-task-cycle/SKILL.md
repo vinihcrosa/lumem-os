@@ -18,11 +18,11 @@ o que é caro errar.
 
 As regras estruturais desta skill (leis, perfis de risco, raio de alcance, triagem, passe a frio)
 foram **medidas em outro projeto** — um serviço .NET/DDD, com gates de dezenas de minutos, suíte
-de ~1500 testes e interop nativo. **Nenhum número foi medido no Lumem-OS ainda.**
+de ~1500 testes e interop nativo. **Dois lotes já foram medidos aqui** (veja o "Registro de lotes" do ledger); o resto desta seção continua importado.
 
 Trate-as como **hipóteses calibradas**, não como fatos deste repositório. O que muda aqui e pode
 mudar as conclusões: gate de **segundos** em vez de minutos, arquivos menores (mediana de 67
-linhas), e TypeScript em vez de C#. A suíte tem **685 testes** unit/integration mais 13 e2e — não é
+linhas), e TypeScript em vez de C#. A suíte passa de **700 testes** unit/integration mais 13 e2e — não é
 pequena, e o gate inteiro mesmo assim roda em menos tempo que uma chamada de ferramenta. Como
 esperar gate deixa de ser custo, o que sobra do review é leitura: é plausível que o overhead fixo
 pese **mais** proporcionalmente aqui, não menos. Os números medidos estão na "Linha de base deste
@@ -432,7 +432,7 @@ Não são julgamento, são comando.
 
 ## 10. Custo
 
-**Ainda não há medição no Lumem-OS.** A tabela abaixo é herdada de um projeto .NET com gates
+**Há dois lotes medidos no Lumem-OS** — um de desenho e um crítico, no "Registro de lotes" do ledger. A tabela abaixo continua sendo de outro projeto. A tabela abaixo é herdada de um projeto .NET com gates
 lentos e suíte grande; a ordem de grandeza pode não transferir. Preencha
 [`task-cycle-evidence.md`](../../../docs/project/task-cycle-evidence.md) e substitua.
 
@@ -475,7 +475,7 @@ custo estimado — dizendo que é herdado — e confirme.
 * **não** confiar em verde que pode ter vindo de cache do Turborepo;
 * **não** tratar pergunta de dev como atrito;
 * **não** mandar ninguém marcar checkbox no `tasks.md` — não é convenção deste repo;
-* **não** avançar de fase com o portão (T9) vermelho;
+* **não** avançar de fase com o portão da fase vermelho;
 * **não** tocar arquivo alheio no working tree, nem incluí-lo em commit;
 * **não** rodar `push`, PR, `rebase`, `reset --hard` ou renomear branch.
 
@@ -520,10 +520,10 @@ descreve o defeito que produziu a regra no projeto onde ela foi medida, exceto o
 
 ### Limites conhecidos
 
-* **um lote medido no Lumem-OS, e ele não teve review.** O primeiro foi a `E1` do `file-editor`,
-  uma task de **desenho** — perfil que a §3 nem descreve. Toda a §10 e as três leis continuam
-  importadas até existir lote de código com round;
-* **o projeto de origem tem gates de minutos e suíte de ~1500 testes.** Aqui a suíte tem 685 e o
+* **dois lotes medidos no Lumem-OS**, e um deles é de código: `E2+E3` do `file-editor`, perfil
+  crítico, 2 rounds, **582k**. Prefira esse número à §10 para lote crítico deste repositório, e
+  diga que é n=1. O outro foi a `E1`, uma task de **desenho** — perfil que a §3 ainda não descreve;
+* **o projeto de origem tem gates de minutos e suíte de ~1500 testes.** Aqui ela passa de 700 e o
   gate ainda leva segundos. A conta de wall clock certamente não transfere; a de token,
   provavelmente transfere em parte — e a hipótese 1 do ledger diz o que a refutaria;
 * **`gate:quick` é menos seletivo do que parece.** Medido: mudança em um módulo do servidor
