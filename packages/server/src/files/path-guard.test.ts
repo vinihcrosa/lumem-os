@@ -1,5 +1,13 @@
-import { existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { join, sep } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -238,16 +246,67 @@ describe("resolveForWrite", () => {
     expect(resolved.entry).not.toBe(resolved.target);
   });
 
-  it("refuses a target symlink whose destination is outside the checkout", async () => {
+  it("hands over a link that leaves the checkout, with nothing to write to", async () => {
     const root = checkout();
     const outside = tempDir("lumem-outside-");
     writeFileSync(join(outside, "id_rsa"), "PRIVATE KEY");
     symlinkSync(join(outside, "id_rsa"), join(root, "chave.txt"));
 
-    const failure = await resolveForWrite(root, "chave.txt").catch((error) => error);
+    const resolved = await resolveForWrite(root, "chave.txt");
 
-    expect(failure).toMatchObject({ code: "BLOCKED" });
-    expect(failure.message).toMatch(/aponta para fora do checkout/);
+    // Q12: the entry is a directory entry *inside* the checkout, and unlinking
+    // it never touches what it points at — so refusing to remove it protected
+    // the outside file from an operation that never reaches it. The write is
+    // the operation that lands outside, and that is the one still refused, by
+    // the same `null` a dangling link already returns.
+    expect(resolved.target).toBeNull();
+    expect(resolved.targetless).toBe("outside");
+    expect(resolved.entry.endsWith(`${sep}chave.txt`)).toBe(true);
+    expect(resolved.exists).toBe(true);
+  });
+
+  it("keeps the escape closed: what comes back is the link, not the file outside", async () => {
+    const root = checkout();
+    const outside = tempDir("lumem-outside-");
+    writeFileSync(join(outside, "id_rsa"), "PRIVATE KEY");
+    symlinkSync(join(outside, "id_rsa"), join(root, "chave.txt"));
+
+    const resolved = await resolveForWrite(root, "chave.txt");
+
+    // The guard's output run against a real filesystem, which is how the E2
+    // review found the `.GIT` hole: every path it hands back has to be inside
+    // the checkout, and removing the one it hands back has to leave the file
+    // outside exactly as it was.
+    expect(resolved.entry.startsWith(realpathSync(root) + sep)).toBe(true);
+    unlinkSync(resolved.entry);
+    expect(readFileSync(join(outside, "id_rsa"), "utf8")).toBe("PRIVATE KEY");
+    expect(existsSync(join(root, "chave.txt"))).toBe(false);
+  });
+
+  it("says why there is nothing to write to, and only ever when there is not", async () => {
+    const root = checkout();
+    const outside = tempDir("lumem-outside-");
+    writeFileSync(join(outside, "id_rsa"), "PRIVATE KEY");
+    symlinkSync(join(outside, "id_rsa"), join(root, "fora.txt"));
+    symlinkSync(join(root, "src", "sumiu.ts"), join(root, "quebrado.ts"));
+    symlinkSync(join(root, "src", "lore", "loader.ts"), join(root, "atalho.ts"));
+
+    const cases = await Promise.all(
+      ["fora.txt", "quebrado.ts", "atalho.ts", "src/lore/loader.ts", "novo.ts"].map((path) =>
+        resolveForWrite(root, path),
+      ),
+    );
+
+    // The two nulls are the same shape on purpose — both are "existe entrada,
+    // não existe destino gravável" — and the reason exists because the caller
+    // that writes has to say which one out loud (E4). The pairing is the
+    // invariant: a reason next to a real target would let a write be refused
+    // for a target it has, and a null with no reason would leave that refusal
+    // with nothing to say.
+    expect(cases.map((it) => it.targetless)).toEqual(["outside", "dangling", null, null, null]);
+    for (const resolved of cases) {
+      expect(resolved.target === null).toBe(resolved.targetless !== null);
+    }
   });
 
   it("refuses .git itself, with a reason of its own", async () => {
@@ -377,9 +436,14 @@ describe("resolveForWrite", () => {
   it("refuses a parent that is a file, instead of failing later with ENOTDIR", async () => {
     const root = checkout();
 
-    await expect(resolveForWrite(root, "src/lore/loader.ts/novo.txt")).rejects.toMatchObject({
-      code: "INVALID_ARGUMENT",
-    });
+    const failure = await resolveForWrite(root, "src/lore/loader.ts/novo.txt").catch((it) => it);
+
+    expect(failure).toMatchObject({ code: "INVALID_ARGUMENT" });
+    // The message is part of the contract here: this is the only branch left
+    // proving the parent is a directory, now that the extra `stat` between the
+    // realpath and the lstat is gone (P11).
+    expect(failure.message).toContain("src/lore/loader.ts");
+    expect(failure.message).toMatch(/não é um diretório/);
   });
 
   it("gives a dangling symlink no write target, and still hands over the link", async () => {
@@ -392,6 +456,7 @@ describe("resolveForWrite", () => {
     // type says so. Removing it is another matter: that takes the link, and
     // there is no destination for it to take along.
     expect(resolved.target).toBeNull();
+    expect(resolved.targetless).toBe("dangling");
     expect(resolved.entry.endsWith("quebrado.ts")).toBe(true);
     expect(resolved.exists).toBe(true);
   });

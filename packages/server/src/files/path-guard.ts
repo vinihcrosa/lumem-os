@@ -1,4 +1,4 @@
-import { lstat, readdir, realpath, stat } from "node:fs/promises";
+import { lstat, readdir, realpath } from "node:fs/promises";
 import {
   basename,
   dirname,
@@ -40,6 +40,13 @@ import { DomainError } from "../errors.js";
  *    included. APFS and NTFS are case-insensitive: `.GIT` opens `.git`, and a
  *    check over the name the client typed would refuse `.git` and wave `.GIT`
  *    through — with `remove` behind it, that is the worktree.
+ *
+ * Rule 4 lands differently on the write side, and Q12 is why: a link whose
+ * destination is outside is *handed back with no target* instead of refused
+ * whole. Refusing it whole also refused removing it, and removing a link is an
+ * operation on the directory entry — which is inside the checkout, and which
+ * leaves the destination untouched. No path this module returns is ever
+ * outside the root; what changes is which operation is left with nothing.
  */
 
 /** What the caller gets back: a path proven to live inside the checkout. */
@@ -57,6 +64,17 @@ export interface ResolvedPath {
    */
   insideGit: boolean;
 }
+
+/**
+ * Why the entry has no destination a write could land on.
+ *
+ * A named reason rather than a bare null, for the same reason `ReadOnlyReason`
+ * exists: the caller that writes has to refuse out loud, and the two cases are
+ * not the same sentence — one link points at nothing, the other points outside
+ * the checkout. To the caller that *removes* they are one case, which is why
+ * both are spelled `target: null`.
+ */
+export type TargetlessReason = "dangling" | "outside";
 
 /**
  * A path proven safe to write, whether or not anything is there yet.
@@ -81,11 +99,14 @@ export interface WritablePath {
    * so the link stays a link (D5).
    *
    * Null when there is nothing to write to: a dangling link has no proven
-   * destination, and creating one is not what "gravar este arquivo" asked
-   * for. It is still removable, which is why this is a null and not a throw —
-   * `string | null` makes the caller that writes say what it does about it.
+   * destination, and one pointing outside the checkout has one this daemon
+   * will not touch. It is still removable, which is why this is a null and not
+   * a throw — `string | null` makes the caller that writes say what it does
+   * about it, and the caller that removes never has to ask.
    */
   target: string | null;
+  /** Set exactly when `target` is null, and null exactly when it is not. */
+  targetless: TargetlessReason | null;
   /** Something is already on that name. Creating decides DUPLICATE, not us. */
   exists: boolean;
 }
@@ -269,14 +290,10 @@ export async function resolveForWrite(root: string, requested: string): Promise<
     );
   }
 
-  const parentInfo = await stat(parent);
-  if (!parentInfo.isDirectory()) {
-    throw new DomainError("INVALID_ARGUMENT", `${parentRelative} não é um diretório`);
-  }
-
   const literalTarget = join(parent, basename(relative));
   let entry = literalTarget;
   let target: string | null = literalTarget;
+  let targetless: TargetlessReason | null = null;
   let exists = true;
   try {
     const info = await lstat(literalTarget);
@@ -293,17 +310,33 @@ export async function resolveForWrite(root: string, requested: string): Promise<
       // D5: the write lands on the destination, so the link stays a link. A
       // rename over the literal path would turn it into a plain file, silently.
       const destination = await realpath(literalTarget).catch(() => null);
-      if (destination !== null && !inside(realRoot, destination)) {
-        throw new DomainError("BLOCKED", `${relative} aponta para fora do checkout`);
+      if (destination === null) {
+        // Nothing proves where a write would land.
+        target = null;
+        targetless = "dangling";
+      } else if (!inside(realRoot, destination)) {
+        // Q12: not a throw, because refusing the whole path refused *removing*
+        // the link too — and removing it is an operation on the entry, which
+        // is inside the checkout and whose destination it never touches. The
+        // write is the operation that would land outside, and the write is the
+        // one still refused, by the caller that knows it is writing.
+        target = null;
+        targetless = "outside";
+      } else {
+        target = destination;
       }
-      // Null for a dangling link: nothing proves where a write would land, and
-      // the caller that writes is the one that says so. Removing it is fine —
-      // that takes the link, and there is no destination to take with it.
-      target = destination;
     }
   } catch (error) {
     if (error instanceof DomainError) throw error;
     const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOTDIR") {
+      // The parent is not a directory — a file, a socket, a device. This used
+      // to be a `stat` of its own between the realpath and here, which had two
+      // costs: a syscall, and a window where the directory could vanish in
+      // between and leave a raw `Error` escaping a module whose every other
+      // failure is a DomainError (P11). Letting the lstat answer removes both.
+      throw new DomainError("INVALID_ARGUMENT", `${parentRelative} não é um diretório`);
+    }
     if (code !== "ENOENT") {
       throw new DomainError("BLOCKED", `sem acesso a ${relative}`);
     }
@@ -324,5 +357,5 @@ export async function resolveForWrite(root: string, requested: string): Promise<
     throw new DomainError("INVALID_ARGUMENT", "a raiz do checkout não aceita escrita");
   }
 
-  return { relative, entry, target, exists };
+  return { relative, entry, target, targetless, exists };
 }
