@@ -18,7 +18,7 @@ import { trpcMock } from "../test/trpc-mock.js";
 vi.mock("../lib/trpc.js", async () => ({ trpc: (await import("../test/trpc-mock.js")).trpcMock }));
 
 const { FileViewer } = await import("../components/FileViewer.js");
-const { AUTOSAVE_DEBOUNCE_MS } = await import("./useFileBuffer.js");
+const { AUTOSAVE_DEBOUNCE_MS, lineDelta } = await import("./useFileBuffer.js");
 const { invalidateFor } = await import("./useLiveState.js");
 
 const scope = { scopeType: "worktree", scopeId: "wt_1" } as const;
@@ -602,5 +602,187 @@ describe("nenhum gesto de navegação apaga o que foi digitado", () => {
 
     expect(trpcMock.files.read.query).toHaveBeenCalledTimes(2);
     expect(shown(container)).toContain("const c = 3;");
+  });
+});
+
+/*
+ * O conflito, medido em vez de adjetivado (F3.4).
+ *
+ * Um caso conhecido dos dois lados, usado por todo este bloco: o arquivo tem
+ * dez linhas, você digita três no fim, e o agente troca duas linhas do meio por
+ * seis. Os números na tela são "3 linhas que você digitou" e "+6 −2", e é isso
+ * que separa medir de adjetivar.
+ */
+const BASE = ["um", "dois", "tres", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez"];
+const MINHAS = ["\nminha a", "minha b", "minha c"].join("\n");
+const DO_AGENTE = [
+  ...BASE.slice(0, 4),
+  "do agente 1",
+  "do agente 2",
+  "do agente 3",
+  "do agente 4",
+  "do agente 5",
+  "do agente 6",
+  ...BASE.slice(6),
+].join("\n");
+
+/** Eight seconds ago, counted when the refusal is built — the clock is fake by then. */
+function conflict(over: Record<string, unknown> = {}) {
+  return {
+    ok: false,
+    reason: "stale",
+    revision: "sha256:doDisco",
+    changedAt: Date.now() - 8_000,
+    ...over,
+  };
+}
+
+/** Opens the ten-line file, types three lines, and takes the refusal. */
+async function intoConflict(): Promise<Rendered> {
+  trpcMock.files.read.query.mockResolvedValue(
+    textFile({ text: BASE.join("\n"), bytes: 44, lines: 10 }),
+  );
+  // Built when the write happens and not when the mock is set up: the debounce
+  // moves the fake clock 800 ms, and "há 8 s" has to be 8 and not 9.
+  trpcMock.files.write.mutate.mockImplementation(() => Promise.resolve(conflict()));
+  const rendered = await openTyping();
+
+  typeInto(rendered.container, MINHAS);
+  // O disco é buscado ao receber o `stale`: é a terceira versão, e o cliente é
+  // o único lado que tem as três.
+  trpcMock.files.read.query.mockResolvedValue(
+    textFile({ text: DO_AGENTE, revision: "sha256:doDisco", bytes: 80, lines: 14 }),
+  );
+  await debounce();
+  await settle(() => {});
+  return rendered;
+}
+
+describe("o conflito na tela", () => {
+  it("põe as duas saídas nomeadas pelo que perdem, e nenhuma em destaque", async () => {
+    await intoConflict();
+
+    const reload = screen.getByRole("button", { name: /recarregar do disco/ });
+    const overwrite = screen.getByRole("button", { name: /sobrescrever/ });
+    // D3.1: escolher por conta própria seria escolher de quem é o trabalho
+    // descartável. O que separa as duas é o custo em texto, não o peso visual.
+    expect(reload.className).toBe(overwrite.className);
+    expect(document.activeElement).not.toBe(reload);
+    expect(document.activeElement).not.toBe(overwrite);
+  });
+
+  it("mede os dois custos, e os dois números batem com a edição de cada lado", async () => {
+    await intoConflict();
+
+    expect(
+      screen.getByRole("button", { name: /recarregar do disco/ }),
+    ).toHaveTextContent("perde as 3 linhas que você digitou");
+    expect(screen.getByRole("button", { name: /sobrescrever/ })).toHaveTextContent(
+      "perde a edição do agente (+6 −2)",
+    );
+  });
+
+  it("diz há quanto tempo o agente escreveu, pelo changedAt do daemon", async () => {
+    // Do `stat` do daemon (E4), não do relógio do cliente: o cliente não sabe
+    // quando o arquivo mudou, sabe quando a recusa chegou.
+    await intoConflict();
+
+    expect(screen.getByText(/o agente escreveu este arquivo há 8 s/)).toBeInTheDocument();
+  });
+
+  it("deixa o texto digitado na tela — ele é o único lugar onde aquele trabalho existe", async () => {
+    const { container } = await intoConflict();
+
+    expect(shown(container)).toContain("minha c");
+  });
+
+  it("recontabiliza o custo enquanto se continua digitando", async () => {
+    // Número congelado no instante da recusa é adjetivo com cara de medida.
+    const { container } = await intoConflict();
+
+    typeInto(container, "\nminha d");
+
+    expect(
+      screen.getByRole("button", { name: /recarregar do disco/ }),
+    ).toHaveTextContent("perde as 4 linhas que você digitou");
+  });
+
+  it("recarrega do disco, e o autosave volta a andar contra a revisão nova", async () => {
+    const { container } = await intoConflict();
+    trpcMock.files.write.mutate.mockResolvedValue({ ok: true, revision: "sha256:depois" });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /recarregar do disco/ }));
+    });
+
+    expect(shown(container)).toContain("do agente 1");
+    expect(shown(container)).not.toContain("minha c");
+    expect(screen.queryByRole("button", { name: /sobrescrever/ })).toBeNull();
+
+    typeInto(container, "!");
+    await debounce();
+
+    expect(trpcMock.files.write.mutate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ baseRevision: "sha256:doDisco", text: `${DO_AGENTE}!` }),
+    );
+  });
+
+  it("sobrescreve com a revisão que veio na recusa, e passa", async () => {
+    const { container } = await intoConflict();
+    trpcMock.files.write.mutate.mockResolvedValue({ ok: true, revision: "sha256:meu" });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /sobrescrever/ }));
+    });
+
+    // É o caso que a E7 provou no servidor: a revisão do disco veio na própria
+    // recusa justamente para não haver uma segunda leitura antes de gravar.
+    expect(trpcMock.files.write.mutate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        baseRevision: "sha256:doDisco",
+        text: `${BASE.join("\n")}${MINHAS}`,
+      }),
+    );
+    expect(shown(container)).toContain("minha c");
+    expect(screen.queryByRole("button", { name: /recarregar do disco/ })).toBeNull();
+    expect(screen.getByText(/^salvo há/)).toBeInTheDocument();
+  });
+
+  it("volta a parar se o agente escrever de novo no meio da escolha", async () => {
+    await intoConflict();
+    trpcMock.files.write.mutate.mockResolvedValue(conflict({ revision: "sha256:outra" }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /sobrescrever/ }));
+    });
+
+    expect(screen.getByRole("button", { name: /sobrescrever/ })).toBeInTheDocument();
+    expect(screen.getByText("mudou no disco")).toBeInTheDocument();
+  });
+});
+
+describe("lineDelta", () => {
+  it("conta a troca de duas linhas por seis como +6 −2", () => {
+    expect(lineDelta(BASE.join("\n"), DO_AGENTE)).toEqual({ added: 6, removed: 2 });
+  });
+
+  it("conta o que só foi acrescentado sem inventar remoções", () => {
+    expect(lineDelta("a\nb", "a\nb\nc\nd")).toEqual({ added: 2, removed: 0 });
+  });
+
+  it("conta o que só foi apagado", () => {
+    expect(lineDelta("a\nb\nc", "a\nc")).toEqual({ added: 0, removed: 1 });
+  });
+
+  it("não conta nada para dois textos iguais", () => {
+    expect(lineDelta("a\nb\n", "a\nb\n")).toEqual({ added: 0, removed: 0 });
+  });
+
+  it("mede a região que difere, e diz isso ao contar duas mudanças distantes", () => {
+    // Prefixo e sufixo comuns, e o miolo inteiro no meio: para uma edição
+    // contígua — o caso do agente — os números são exatos, e para duas
+    // separadas eles são o tamanho do trecho que as contém. É um piso do
+    // estrago, nunca um teto, que é a direção segura numa tela de perda.
+    expect(lineDelta("a\nb\nc\nd\ne", "a\nB\nc\nD\ne")).toEqual({ added: 3, removed: 3 });
   });
 });

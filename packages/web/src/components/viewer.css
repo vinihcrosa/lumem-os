@@ -123,6 +123,44 @@
 .cmhost { flex: 1; min-height: 0; overflow: hidden; background: var(--color-bg-inset); }
 
 /*
+ * O conflito: dentro da moldura e acima do código, nunca em modal.
+ *
+ * Enquanto ele está na tela, o texto digitado é o único lugar onde aquele
+ * trabalho existe — um modal por cima esconderia exatamente a coisa que a
+ * escolha vai destruir.
+ */
+.conflict {
+  flex: none;
+  padding: var(--space-10) var(--space-12);
+  background: var(--color-bg-warning-subtle);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.conflict__head { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-sm); color: var(--color-text-primary); }
+.conflict__glyph { flex: none; color: var(--color-save-stale); }
+.conflict__why { margin: var(--space-6) 0 var(--space-10); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.conflict__exits { display: grid; gap: var(--space-6); }
+/*
+ * As duas saídas são o MESMO botão (D3.1): nenhuma é o default, porque
+ * escolher por conta própria seria escolher de quem é o trabalho descartável.
+ * O que as separa é o custo, dito em texto — não o peso visual.
+ */
+.exit {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  width: 100%;
+  padding: var(--space-8) var(--space-10);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  text-align: left;
+}
+.exit:hover { background: var(--color-bg-raised); }
+.exit:disabled { opacity: 0.6; cursor: default; }
+.exit__what { flex: none; font: var(--text-label-sm); color: var(--color-text-primary); }
+.exit__cost { flex: 1; min-width: 0; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/*
  * Somente leitura é uma faixa, não um cadeado no canto: o motivo é a
  * informação, e ele não cabe num ícone. O fundo é o mesmo da moldura, para não
  * virar aviso de erro — o arquivo continua legível, só não gravável (F1.4).

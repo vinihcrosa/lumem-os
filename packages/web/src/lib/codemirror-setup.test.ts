@@ -1,3 +1,4 @@
+import { undo } from "@codemirror/commands";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { color, primitives } from "../styles/tokens.js";
@@ -185,6 +186,26 @@ describe("o que o autosave vai pendurar aqui", () => {
 
     expect(handle.view.state.doc.toString()).toBe("outro\n");
     expect(changed).not.toHaveBeenCalled();
+  });
+
+  it("never lets undo bring back the file the disk replaced", () => {
+    /*
+     * P17, and it is the autosave that makes it dangerous.
+     *
+     * `setDoc` used to be an undoable step, so after "recarregar do disco" a
+     * `Cmd+Z` put the *pre-disk* document back — and the autosave then wrote
+     * it, undoing the agent's work without anyone asking for that. Undo is for
+     * edits someone made here; what an agent wrote is not one of them.
+     */
+    const handle = mount("um\n");
+    handle.view.dispatch({ changes: { from: 2, insert: "!" } });
+    expect(handle.view.state.doc.toString()).toBe("um!\n");
+
+    handle.setDoc("do agente\n");
+    undo(handle.view);
+
+    expect(handle.view.state.doc.toString()).not.toBe("um!\n");
+    expect(handle.getDoc()).toContain("agente");
   });
 
   it("stops calling a listener that was taken off", () => {

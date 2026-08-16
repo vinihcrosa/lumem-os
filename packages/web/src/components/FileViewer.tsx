@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { useFileBuffer, type SaveState } from "../hooks/useFileBuffer.js";
+import {
+  lineDelta,
+  useFileBuffer,
+  type Conflict,
+  type LineDelta,
+  type SaveState,
+} from "../hooks/useFileBuffer.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import type { EditorHandle } from "../lib/codemirror-setup.js";
 import { languageOf, loadHighlighter, SHIKI_THEME } from "../lib/shiki.js";
@@ -193,6 +199,13 @@ export function FileViewer({ scope, path, active, onClose }: FileViewerProps) {
             <span>{READ_ONLY[readOnly].why}</span>
           </div>
         )}
+        {buffer.state.kind === "stale" && (
+          <ConflictBar
+            conflict={buffer.state}
+            onReload={buffer.reload}
+            onOverwrite={buffer.overwrite}
+          />
+        )}
         <Editor
           path={path}
           text={content.data.text}
@@ -207,6 +220,81 @@ export function FileViewer({ scope, path, active, onClose }: FileViewerProps) {
 }
 
 /**
+ * The agent got there first, and the choice is whose work goes (F3.4, D3.1).
+ *
+ * Inside the frame and above the code rather than in a modal: while this is on
+ * screen the typed text is the only place that work exists, and a dialog on top
+ * would hide exactly the thing one of the buttons is about to destroy.
+ *
+ * The two costs are counted, not adjectives, and counted here because the
+ * client is the only side holding all three versions — the text it read, the
+ * text it has, and the one it fetched off the disk when the refusal arrived.
+ * The daemon keeps a hash, and a hash does not turn back into text.
+ */
+function ConflictBar({
+  conflict,
+  onReload,
+  onOverwrite,
+}: {
+  conflict: Conflict;
+  onReload(): void;
+  onOverwrite(): void;
+}) {
+  const yours = lineDelta(conflict.base, conflict.mine);
+  const theirs = conflict.disk === null ? null : lineDelta(conflict.base, conflict.disk.text);
+
+  return (
+    <div className="conflict" role="alert">
+      <div className="conflict__head">
+        <span className="conflict__glyph" aria-hidden="true">
+          ⚠
+        </span>
+        {/* From the daemon's own `stat` (E4) and not from this clock: the
+            client knows when the refusal arrived, never when the file moved.
+            Approximate on purpose — the mtime is read just before the content
+            whose hash was compared, so it can be older, never invented. */}
+        o agente escreveu este arquivo há <Ago at={conflict.changedAt} />
+      </div>
+      {/* Without the numbers below, this said the same thing the buttons say
+          and cost a line of the very text the choice is about to destroy. */}
+      <p className="conflict__why">
+        O disco não é mais o que você abriu, e o que você digitou ainda não foi para lá.
+      </p>
+      <div className="conflict__exits">
+        {/* Disabled only while the disk has not arrived — with no third version
+            there is no cost to state, and stating none is how a screen about
+            losing work starts lying. */}
+        <button type="button" className="exit" onClick={onReload} disabled={conflict.disk === null}>
+          <span className="exit__what">recarregar do disco</span>
+          <span className="exit__cost">perde {yourLines(yours)}</span>
+        </button>
+        <button type="button" className="exit" onClick={onOverwrite}>
+          <span className="exit__what">sobrescrever</span>
+          <span className="exit__cost">
+            perde a edição do agente
+            {theirs === null ? "" : ` (+${theirs.added} −${theirs.removed})`}
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * What reloading takes away, in the words of what was done to it.
+ *
+ * Deleting lines and typing them are both losses and they do not read alike;
+ * `+n −n` is right for the agent's side, where there is nothing to say about
+ * intent, and wrong here, where there is.
+ */
+function yourLines(delta: LineDelta): string {
+  const verb = delta.added > 0 ? "digitou" : "apagou";
+  const count = delta.added > 0 ? delta.added : delta.removed;
+  if (count === 0) return "nada: o seu texto é igual ao que você abriu";
+  return count === 1 ? `a linha que você ${verb}` : `as ${count} linhas que você ${verb}`;
+}
+
+/**
  * The four states of autosave, in the corner of the file they belong to.
  *
  * With no save button and no dirty state that outlives the debounce, this row
@@ -216,7 +304,13 @@ export function FileViewer({ scope, path, active, onClose }: FileViewerProps) {
 function SaveFoot({ state, onRetry }: { state: SaveState; onRetry(): void }) {
   if (state.kind === "clean") return null;
   if (state.kind === "saving") return <Mark tone="saving">salvando…</Mark>;
-  if (state.kind === "saved") return <SavedAgo at={state.at} />;
+  if (state.kind === "saved") {
+    return (
+      <Mark tone="saved">
+        salvo há <Ago at={state.at} />
+      </Mark>
+    );
+  }
 
   if (state.kind === "failed") {
     return (
@@ -251,13 +345,13 @@ function Mark({ tone, children }: { tone: string; children: ReactNode }) {
 }
 
 /**
- * "salvo há Ns", and it counts.
+ * How long ago, and it counts.
  *
- * The number is the whole point of the state — it is what tells written from
- * being written — so it cannot be frozen at the instant the write landed. One
- * timer per open file, alive only while this state is on screen.
+ * The number is the whole point of both sentences it appears in — "salvo há Ns"
+ * is what tells written from being written — so it cannot be frozen at the
+ * instant the state was made. One timer, alive only while it is on screen.
  */
-function SavedAgo({ at }: { at: number }) {
+function Ago({ at }: { at: number }) {
   const [now, setNow] = useState(at);
 
   useEffect(() => {
@@ -267,7 +361,7 @@ function SavedAgo({ at }: { at: number }) {
   }, [at]);
 
   const seconds = Math.max(0, Math.round((now - at) / 1_000));
-  return <Mark tone="saved">salvo há {seconds < 60 ? `${seconds} s` : `${Math.floor(seconds / 60)} min`}</Mark>;
+  return <>{seconds < 60 ? `${seconds} s` : `${Math.floor(seconds / 60)} min`}</>;
 }
 
 interface EditorProps {

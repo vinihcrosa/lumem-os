@@ -1,13 +1,7 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
-import {
-  Annotation,
-  Compartment,
-  EditorState,
-  type Extension,
-  type Transaction,
-} from "@codemirror/state";
+import { Annotation, Compartment, EditorState, Transaction, type Extension } from "@codemirror/state";
 import {
   drawSelection,
   dropCursor,
@@ -252,7 +246,14 @@ export function mountEditor(parent: HTMLElement, options: EditorOptions): Editor
       if (normalized === view.state.doc.toString()) return;
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: normalized },
-        annotations: fromDisk.of(true),
+        /*
+         * P17, and the autosave is what makes it dangerous: with this step in
+         * the undo history, a `Cmd+Z` after "recarregar do disco" put the
+         * *pre-disk* document back and the next save wrote it — the agent's
+         * work undone by a keystroke that asked for nothing of the sort. Undo
+         * belongs to the edits made here; what arrived from the disk is not one.
+         */
+        annotations: [fromDisk.of(true), Transaction.addToHistory.of(false)],
       });
     },
     onChange(listener: (() => void) | null): void {

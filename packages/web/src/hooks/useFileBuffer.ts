@@ -16,6 +16,26 @@ import type { Scope, ScopeType } from "./useSessionsByScope.js";
  */
 export const AUTOSAVE_DEBOUNCE_MS = 800;
 
+/**
+ * The three versions the client has when the agent gets there first (F3.4).
+ *
+ * The server cannot work this out — it keeps a hash, and a hash does not turn
+ * back into text — so the two costs are measured here, by the only side that
+ * holds the text it read, the text it has, and the text on the disk.
+ */
+export interface Conflict {
+  /** The disk's, from the refusal: what "sobrescrever" writes against. */
+  revision: string;
+  /** The disk's mtime, epoch ms: "o agente escreveu isto há 8 s". */
+  changedAt: number;
+  /** What the buffer was built on, and the common ancestor of the other two. */
+  base: string;
+  /** The buffer, kept up to date for as long as the choice is on screen. */
+  mine: string;
+  /** Null until the read that measures the other side lands. */
+  disk: FileText | null;
+}
+
 /** What the footer says about the file, and the only thing autosave says of itself. */
 export type SaveState =
   | { kind: "clean" }
@@ -24,7 +44,46 @@ export type SaveState =
   /** The daemon threw: gone file, `.git`, no permission, bytes that are not UTF-8. */
   | { kind: "failed"; why: string }
   /** The daemon refused: `ok: false`, which is an answer and not a failure (D3.1). */
-  | { kind: "stale"; revision: string; changedAt: number };
+  | ({ kind: "stale" } & Conflict);
+
+export interface LineDelta {
+  added: number;
+  removed: number;
+}
+
+/**
+ * How many lines stand between two versions of the same file.
+ *
+ * Common head and common tail are cut off and what is left is the region that
+ * differs — which is the exact `+n −n` of a single contiguous edit, the shape
+ * an agent's `Edit` has, and a **floor** for anything scattered: two changes
+ * far apart are reported as the whole stretch that holds them. That direction
+ * is deliberate on a screen whose job is to say what is about to be lost;
+ * counting less than the truth there is the one unusable answer.
+ *
+ * A real diff would tighten the scattered case and costs O(n·m) on files this
+ * feature allows up to a mebibyte. Not worth it for a number someone reads
+ * once, before clicking.
+ */
+export function lineDelta(from: string, to: string): LineDelta {
+  if (from === to) return { added: 0, removed: 0 };
+
+  const before = from.split("\n");
+  const after = to.split("\n");
+  let head = 0;
+  while (head < before.length && head < after.length && before[head] === after[head]) head++;
+
+  let tail = 0;
+  while (
+    tail < before.length - head &&
+    tail < after.length - head &&
+    before[before.length - 1 - tail] === after[after.length - 1 - tail]
+  ) {
+    tail++;
+  }
+
+  return { added: after.length - head - tail, removed: before.length - head - tail };
+}
 
 export interface FileBufferOptions {
   scope: Scope;
@@ -52,6 +111,10 @@ export interface FileBuffer {
   attach(handle: EditorHandle | null): void;
   /** Writes again after a failure, for the footer's own way out. */
   retry(): void;
+  /** One of the two exits: takes the agent's file and drops what was typed. */
+  reload(): void;
+  /** The other: writes the buffer against the revision the refusal carried. */
+  overwrite(): void;
 }
 
 interface Target {
@@ -145,6 +208,8 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
   const busy = useRef(false);
   /** Set by a `stale` refusal: nothing more is written until someone chooses. */
   const halted = useRef(false);
+  /** The same conflict the state renders, where the two exits can reach it. */
+  const conflict = useRef<Conflict | null>(null);
   const timer = useRef<number | null>(null);
   /** A read that was answered from the screen, and is owed to whoever asked. */
   const missed = useRef(false);
@@ -203,6 +268,11 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
     timer.current = null;
   }, []);
 
+  const showConflict = useCallback((next: Conflict): void => {
+    conflict.current = next;
+    setState({ kind: "stale", ...next });
+  }, []);
+
   const invalidateAround = useCallback(
     (target: Target): void => {
       // F2.5: the changes list and the directory that holds the file, and never
@@ -241,9 +311,36 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
       })
       .then((result) => {
         if (!result.ok) {
+          // A refusal for a file nobody has open any more has no choice to
+          // offer: the buffer it was about left with the editor. Stopping the
+          // autosave of whatever is open now would be stopping the wrong one.
+          if (!sameTarget(sent.target, here.current)) return;
+
           halted.current = true;
           cancelTimer();
-          setState({ kind: "stale", revision: result.revision, changedAt: result.changedAt });
+          showConflict({
+            revision: result.revision,
+            changedAt: result.changedAt,
+            base: base.current?.text ?? sent.text,
+            mine: editor.current?.getDoc() ?? sent.text,
+            disk: null,
+          });
+          // Straight through the client and not through the cache: the read up
+          // there answers a dirty buffer with what is already on screen, and
+          // this is the one read that must not do that. It is also the third
+          // version — the daemon keeps a hash, and a hash is not text.
+          void trpc.files.read
+            .query(sent.target)
+            .then((answer) => {
+              const disk = textOf(answer);
+              const current = conflict.current;
+              if (disk === null || current === null) return;
+              showConflict({ ...current, disk });
+            })
+            .catch(() => {
+              // Without the disk the costs cannot be measured, and the choice
+              // is still the user's — it is offered without the numbers.
+            });
           return;
         }
 
@@ -276,7 +373,7 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
         busy.current = false;
         drain();
       });
-  }, [cancelTimer, invalidateAround, queryClient, settleFresh]);
+  }, [cancelTimer, invalidateAround, queryClient, settleFresh, showConflict]);
 
   const save = useCallback((): void => {
     cancelTimer();
@@ -304,14 +401,22 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
     version.current += 1;
     belongsTo.current = here.current;
     settleFresh(false);
-    if (halted.current) return;
+    if (halted.current) {
+      // Typing carries on while the choice is on screen, and so does what it
+      // costs: a number frozen at the instant of the refusal is an adjective
+      // wearing a measurement's clothes.
+      const current = conflict.current;
+      const editing = editor.current;
+      if (current !== null && editing !== null) showConflict({ ...current, mine: editing.getDoc() });
+      return;
+    }
 
     cancelTimer();
     timer.current = window.setTimeout(() => {
       timer.current = null;
       save();
     }, AUTOSAVE_DEBOUNCE_MS);
-  }, [cancelTimer, save, settleFresh]);
+  }, [cancelTimer, save, settleFresh, showConflict]);
 
   const attach = useCallback(
     (next: EditorHandle | null): void => {
@@ -337,6 +442,49 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
     save();
   }, [save]);
 
+  /*
+   * The two exits (F3.4, D3.1). Neither is the default, here or on screen —
+   * choosing for someone would be choosing whose work is the disposable one.
+   */
+  const reload = useCallback((): void => {
+    const chosen = conflict.current;
+    const target = belongsTo.current;
+    if (chosen === null || chosen.disk === null || target === null) return;
+
+    conflict.current = null;
+    halted.current = false;
+    written.current = version.current;
+    settleFresh(true);
+    setState({ kind: "clean" });
+    // Handing the disk to the cache is the whole of it: with the buffer clean
+    // again, the adoption below is what puts the text on screen and moves the
+    // revision the next write is based on. Same rule that takes in a change
+    // nobody was racing — reloading is that, with the race decided.
+    queryClient.setQueryData(
+      fileReadKey(target.scopeType, target.scopeId, target.path),
+      chosen.disk,
+    );
+  }, [queryClient, settleFresh]);
+
+  const overwrite = useCallback((): void => {
+    const chosen = conflict.current;
+    const current = editor.current;
+    const target = belongsTo.current;
+    if (chosen === null || current === null || target === null) return;
+
+    conflict.current = null;
+    halted.current = false;
+    // Against the revision the refusal carried, which is the disk's — E7 proved
+    // this exact write passes, and it is why the refusal carries one at all.
+    queued.current = {
+      target,
+      text: current.getDoc(),
+      baseRevision: chosen.revision,
+      version: version.current,
+    };
+    drain();
+  }, [drain]);
+
   // Another file in the same split is another buffer. The old one has already
   // been written by the detach above — React runs cleanups before effect bodies.
   // Declared above the adoption below because on mount the two run in order,
@@ -346,6 +494,7 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
     belongsTo.current = null;
     written.current = version.current;
     halted.current = false;
+    conflict.current = null;
     base.current = null;
     settleFresh(true);
     setState({ kind: "clean" });
@@ -387,5 +536,5 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
 
   useEffect(() => cancelTimer, [cancelTimer]);
 
-  return { content, state, attach, retry };
+  return { content, state, attach, retry, reload, overwrite };
 }
