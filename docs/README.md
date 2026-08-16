@@ -89,8 +89,8 @@ Sucede a `right-panel`. O split da aba passa a **escrever**: editar o arquivo ab
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/file-editor/prd.md) | Por que o não-objetivo foi revertido, a segurança da escrita, a concorrência com o agente, riscos |
-| [open-questions.md](prd/file-editor/open-questions.md) | 15 perguntas, 12 respondidas |
-| [tasks.md](prd/file-editor/tasks.md) | 5 decisões e 13 tasks em 5 fases, mais as premissas travadas e a lista de pendências — 3 entregues |
+| [open-questions.md](prd/file-editor/open-questions.md) | 19 perguntas, 16 respondidas |
+| [tasks.md](prd/file-editor/tasks.md) | 5 decisões e 13 tasks em 5 fases, mais as premissas travadas e a lista de pendências — 7 entregues |
 
 ---
 

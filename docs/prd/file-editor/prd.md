@@ -1,6 +1,6 @@
 # PRD — O visualizador vira editor
 
-> **Status:** em execução — o daemon já grava no disco (E1–E4, E7 entregues)
+> **Status:** em execução — o daemon grava, cria, renomeia e apaga (E1–E5, E7 entregues)
 > **Versão:** v0.1
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
@@ -202,7 +202,9 @@ Silêncio num documento de segurança lê como cobertura, então aqui vai o que 
 
 **Uma consequência que virou regra de produto:** como o `rename` precisa de permissão no **diretório** e não no arquivo, gravar num arquivo somente-leitura passaria. Não passa: `access(W_OK)` é verificado antes, porque **a escrita atômica não pode virar contorno de permissão** ([Q14](open-questions.md)).
 
-**Nos dois casos, o que fecha o vetor é a escrita atômica da F5.6**, e isso muda o que ela é: temp no mesmo diretório mais `rename` estava escrito como requisito de **integridade** ("meio arquivo no disco é pior que nenhuma escrita") e é **também um controle de segurança**. Medido: com escrita in-place, os dois vetores acima sobrescrevem o arquivo de fora; com temp + `rename`, o arquivo de fora fica intacto e o que se perde é o link. Consequência dura para a E4: **nenhum caminho de escrita pode gravar in-place**, nem para arquivo pequeno, nem com `appendFile`, nem como otimização. Se isso mudar, estas duas linhas deixam de valer e ninguém vai lembrar de reler este parágrafo.
+**A exclusividade do destino de um `rename` é check, não syscall.** Entre verificar que o destino está livre e renomear, cabe o agente criando aquele nome — e aí `rename` substitui em vez de recusar. Não é escolha: **não existe caminho portátil**, e as três alternativas foram descartadas com motivo. `RENAME_NOREPLACE` (Linux) e `renameatx_np` (macOS) resolveriam, e o Node não expõe nenhum dos dois. `link` + `unlink` é `EPERM` para diretório, e no macOS o `link` segue o symlink de origem — criaria hard link para o alvo e apagaria o link, violando a regra da [Q12](open-questions.md) no processo. Reservar o nome com `open('wx')` antes não fecha nada, porque o `rename` substitui a própria reserva. Fica como as duas de cima: aceita, porque o modelo é acidente e não adversário, e **dita**.
+
+**Nos dois casos anteriores, o que fecha o vetor é a escrita atômica da F5.6**, e isso muda o que ela é: temp no mesmo diretório mais `rename` estava escrito como requisito de **integridade** ("meio arquivo no disco é pior que nenhuma escrita") e é **também um controle de segurança**. Medido: com escrita in-place, os dois vetores acima sobrescrevem o arquivo de fora; com temp + `rename`, o arquivo de fora fica intacto e o que se perde é o link. Consequência dura para a E4: **nenhum caminho de escrita pode gravar in-place**, nem para arquivo pequeno, nem com `appendFile`, nem como otimização. Se isso mudar, estas duas linhas deixam de valer e ninguém vai lembrar de reler este parágrafo.
 
 Um último ponto que **não** é resolvido aqui e está declarado: o daemon não tem autenticação. Quem alcança a porta do daemon já podia ler qualquer arquivo do checkout; agora também pode escrever. Isso é uma mudança real de superfície e a resposta certa é autenticação do daemon, que é feature própria — ver [Q7](open-questions.md).
 
@@ -218,6 +220,7 @@ Um último ponto que **não** é resolvido aqui e está declarado: o daemon não
 | Múltiplos arquivos abertos ao mesmo tempo | O split é um. Abrir outro arquivo troca o conteúdo — regra da right-panel, preservada |
 | Desfazer depois de salvo, histórico de versões, lixeira | O `undo` é o do editor, dentro da sessão. Para o resto, o git é o histórico — ver [Q5](open-questions.md) |
 | Editar arquivo fora do checkout | O escopo do painel é o checkout. Regra 3 do §5 |
+| Renomear um arquivo trocando **só a caixa** do nome (`readme.md` → `README.md`) | Em filesystem insensível a caixa — o padrão do macOS — o destino "já existe", porque é o próprio arquivo. Consertar exige renomear em dois passos por um nome temporário, o que reabre a janela do `rename` e deixa lixo se o processo morrer no meio. A recusa é segura e a tela diz o motivo ([Q17](open-questions.md)) |
 | Resolver conflito com merge de três vias | O conflito é dito e resolvido escolhendo um lado. Merge é feature própria |
 | Watcher de filesystem | Continua a [Q6 da right-panel](../right-panel/open-questions.md). O conflito é detectado na escrita, que é onde ele importa |
 

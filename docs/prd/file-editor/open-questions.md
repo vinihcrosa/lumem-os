@@ -2,7 +2,7 @@
 
 Registro de por que cada decisão foi tomada. Pergunta respondida não vira suposição silenciosa: fica aqui, com o motivo.
 
-**Estado:** 17 perguntas · 14 respondidas · 3 abertas
+**Estado:** 19 perguntas · 16 respondidas · 3 abertas
 
 ---
 
@@ -207,6 +207,38 @@ Não é escolha entre alternativas: é o preço de o `rename` ser o que fecha os
 Um caso concreto onde o efeito é **bom**, e vale registrar porque é o mais comum: `node_modules` está visível e editável na árvore, e o pnpm o povoa com hard links para o store global. Editar um arquivo lá dentro **desliga o link** em vez de corromper o store de todos os projetos da máquina — que é exatamente o que in-place faria.
 
 O que fica em aberto é só a comunicação: nada na tela diz que salvar troca o dono do arquivo. Não é v1.
+
+---
+
+### Q16 — Renomear para um nome ocupado: como o daemon garante que não sobrescreve?
+
+**Por checagem, não por syscall — e a janela fica declarada.** Decidida na triagem do review do Lote 4.
+
+Criar tem exclusividade de verdade: `open` com `wx` é atômico no kernel, e o teste da corrida de vinte criações simultâneas prova. **Renomear não tem equivalente portátil**, e as três alternativas foram descartadas com motivo:
+
+| Alternativa | Por que não |
+|---|---|
+| `RENAME_NOREPLACE` / `renameatx_np` | Resolveriam. São por plataforma (Linux e macOS) e o Node **não expõe** nenhum dos dois |
+| `link` + `unlink` | `EPERM` para diretório; e no macOS o `link` **segue** o symlink de origem, o que criaria hard link para o alvo e apagaria o link — violando a [Q12](#q12--symlink-pendurado-dá-para-apagar-ou-nem-isso) no caminho |
+| reservar com `open('wx')` antes | Não fecha nada: o `rename` substitui a própria reserva |
+
+Então destino ocupado é `DUPLICATE` por checagem, com uma janela entre verificar e renomear. Ela entra no §5 do PRD como o **terceiro** caso de "o que este desenho não cobre", ao lado do hard link e do resolver-antes-de-gravar, e pelo mesmo argumento: o modelo de ameaça aqui é **acidente**, não adversário.
+
+O que muda por ser dito: o comentário no código cita um parágrafo que existe, e quem for mexer em `rename` daqui a seis meses não vai reabrir a discussão do zero.
+
+---
+
+### Q17 — Renomear trocando só a caixa do nome
+
+**Não dá, e a tela diz por quê.** Decidida na triagem do review do Lote 4.
+
+`readme.md` → `README.md` é um gesto comum, e num filesystem insensível a caixa — o padrão do macOS — o `lstat` do destino **encontra o próprio arquivo**, `exists` é verdadeiro, e a resposta é `DUPLICATE` nomeando um arquivo que a árvore não mostra.
+
+Consertar custa renomear em dois passos, por um nome temporário. Isso reabre a janela da [Q16](#q16--renomear-para-um-nome-ocupado-como-o-daemon-garante-que-não-sobrescreve) duas vezes e deixa lixo com nome estranho se o processo morrer no meio — pior que a limitação, para um gesto que o terminal ao lado resolve.
+
+A recusa é **segura**: nada é destruído. O que ela não pode ser é confusa, e por isso a E11 tem que dizer o motivo na tela em vez de repetir "já existe" — a pessoa está olhando para uma árvore onde aquele nome não aparece.
+
+É a irmã do `.GIT` que já está registrado em [testing.md](../../project/testing.md): a mesma insensibilidade de caixa, na operação oposta. Lá ela deixava passar o que devia recusar; aqui recusa o que devia passar.
 
 ---
 

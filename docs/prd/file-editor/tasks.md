@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Protótipo:** `packages/web/prototype/lumem-file-editor.html` — entregue pela E1, cinco telas, verificado por renderização
 **Sucede:** [right-panel](../right-panel/tasks.md)
-**Status:** em execução — E1, E2, E3, E3.1, E4 e E7 entregues; o daemon grava no disco
+**Status:** em execução — E1–E5 e E7 entregues; falta a E6 para fechar a Fase 1
 **Total:** 13 tasks em 5 fases
 
 ---
