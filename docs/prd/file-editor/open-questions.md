@@ -246,7 +246,9 @@ O que muda por ser dito: o comentário no código cita um parágrafo que existe,
 
 `readme.md` → `README.md` é um gesto comum, e num filesystem insensível a caixa — o padrão do macOS — o `lstat` do destino **encontra o próprio arquivo**, `exists` é verdadeiro, e a resposta é `DUPLICATE` nomeando um arquivo que a árvore não mostra.
 
-Consertar custa renomear em dois passos, por um nome temporário. Isso reabre a janela da [Q16](#q16--renomear-para-um-nome-ocupado-como-o-daemon-garante-que-não-sobrescreve) duas vezes e deixa lixo com nome estranho se o processo morrer no meio — pior que a limitação, para um gesto que o terminal ao lado resolve.
+**A justificativa original desta resposta estava errada, e a E11 mediu.** Eu escrevi que consertar custaria renomear em dois passos por um nome temporário, reabrindo a janela da [Q16](#q16--renomear-para-um-nome-ocupado-como-o-daemon-garante-que-não-sobrescreve) duas vezes. Não custa: `rename("readme.md", "README.md")` **funciona em um passo** no APFS, e o diretório fica com a grafia nova. Verificado duas vezes, uma pela E11 e outra pelo orquestrador.
+
+O que sobrava sem esse custo era só o `exists` da guarda dizendo "já existe alguma coisa ali" — e o que existe é o **próprio arquivo**. A recusa era um efeito colateral de a guarda não distinguir "outro arquivo" de "este arquivo com outra grafia".
 
 A recusa é **segura**: nada é destruído. O que ela não pode ser é confusa, e por isso a E11 tem que dizer o motivo na tela em vez de repetir "já existe" — a pessoa está olhando para uma árvore onde aquele nome não aparece.
 
