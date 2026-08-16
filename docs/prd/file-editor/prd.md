@@ -108,7 +108,7 @@ Cada um destes saiu de olhar o PNG, não de ler o código:
 ### F1 — O editor no split
 
 **F1.1** O conteúdo do arquivo abre num CodeMirror 6, não num `<div>` de linhas (D1). Numeração, cursor, seleção, undo/redo, indentação e busca vêm do motor.
-**F1.2** Realce continua sendo o do Shiki, com o **mesmo** tema montado a partir de `tokens.ts` — a ponte `@shikijs/codemirror` existe para não haver um segundo conjunto de gramáticas nem um segundo tema no bundle (D1.1).
+**F1.2** Realce continua sendo o do Shiki, com o **mesmo** tema montado a partir de `tokens.ts` — uma ponte **vendorizada** ([Q19](open-questions.md)) liga o highlighter que já existe ao editor, para não haver um segundo conjunto de gramáticas nem um segundo tema no bundle (D1.1). A ponte que este PRD nomeava, `@shikijs/codemirror`, **nunca foi publicada**.
 **F1.3** Quebra de linha continua ligada por padrão, com o botão `⇄` (D3.1 da right-panel). No CodeMirror isso é `EditorView.lineWrapping`.
 **F1.4** Abre **somente leitura**, com o motivo dito, o arquivo que for: binário, grande demais, dentro de `.git`, **sem permissão de escrita para o daemon**, ou **que não decodifica limpo em UTF-8**. São **cinco** recusas com a mesma gramática, e somente leitura passa a ser um estado nomeado, não a ausência de um.
 
@@ -236,7 +236,7 @@ Um último ponto que **não** é resolvido aqui e está declarado: o daemon não
 | **Escrita parcial** | O agente pode estar lendo o arquivo no instante da gravação | Temp + `rename` no mesmo diretório (F5.6), modo preservado |
 | **Apagar o que não devia** | `.git`, diretório com conteúdo, ou a raiz | Três regras do §5, cada uma com teste próprio |
 | **Bundle do CodeMirror** | O daemon serve o app sem CDN, e a right-panel já pagou 12,2 KB pelo Shiki com o número medido | Task de editor fecha com `gate:build` e o número real escrito neste PRD, como a R8 fez |
-| **Dois sistemas de realce** | Shiki para o patch, o do CodeMirror para o arquivo, com paletas que divergem | D1.1: a ponte `@shikijs/codemirror` usa o tema e as gramáticas que já existem. Se ela não servir, a decisão volta para a mesa antes de entrar uma segunda gramática |
+| ~~**Dois sistemas de realce**~~ — **resolvido, por um caminho que o risco não previa** | Shiki para o patch, o do CodeMirror para o arquivo, com paletas que divergem | A mitigação era a ponte de primeira parte, que **não existe**. A E8 parou antes de escrever código, e a saída foi vendorizar ([Q19](open-questions.md)): um tema, um conjunto de gramáticas, e o código da ponte passou a ser nosso — auditável e testado por mutação |
 
 ---
 

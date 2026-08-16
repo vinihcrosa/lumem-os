@@ -49,6 +49,8 @@ Numeradas, e nenhuma delas vive só numa mensagem ou num comentário de código.
 | **P11** | `path-guard.ts` fazia `stat(parent)` sem `try`, deixando escapar `Error` cru se o diretório sumisse entre o `realpath` e o `stat` | **fechada pela E3.1, e diferente do que foi arquivado**: o `stat` foi **deletado**, não embrulhado. O `lstat` logo abaixo responde `ENOTDIR` para o mesmo caso, com mensagem melhor e uma syscall a menos — a janela fechou em vez de ser capturada. Verificado no review com pai-arquivo, pai-fifo e pai-que-sumiu |
 | **P12** | ~~`revisionOf` sem consumidor, e a invariante "revisão não é tamanho" segurada por um fixture só~~ | **vencida pelos lotes seguintes**: a E4 consome, e `concurrent-write.test.ts` ("vê a mudança feita entre a leitura e a gravação mesmo com o mesmo tamanho") é o segundo guarda. O passe a frio pegou a linha desatualizada |
 | **P13** | Alvo que **não existe** e se chama `.GIT` num filesystem insensível a caixa seria criado: não há disco para consultar, então nada canoniza o nome | **decidida: aceita.** Fechar exigiria case-folding no ramo "não existe", o que recusaria `.GIT` no Linux, onde é nome legítimo. Não é alcançável no produto — todo checkout tem `.git`, e numa worktree ele é um **arquivo**, que cai no ramo do `realpath` e é recusado |
+| **P17** | `setDoc` entra no histórico de undo, então depois de um refetch o `Cmd+Z` volta ao texto **anterior ao disco** — e, com autosave, grava ele | aberta, **decide na E10**: é o "recarregar do disco" dela. Provavelmente `Transaction.addToHistory.of(false)` |
+| **P18** | O stub de `getClientRects` no `setup.ts` devolve `[]`, então tudo que depende de coordenada (`posAtCoords`, clique posicionando cursor, rolar até a seleção) é no-op silencioso nos testes | aberta — teste de E9/E10 que dependa de posição **passa sem provar nada**. Quem escrever precisa saber |
 | **P16** | Nada na tela diz que salvar **troca o dono** do arquivo: a escrita atômica põe os bytes num inode novo, então uid/gid, ACL e xattrs não sobrevivem ([Q15](open-questions.md)) | aberta, fora da v1 — estava viva só dentro de uma pergunta fechada, que é o que a lista numerada existe para impedir |
 | **P15** | `agentConfig.create` não tem teto em `command`, `args` e `env`, e o `bodyLimit` global subiu de 1 MiB para 6.356.992 bytes (6,06 MiB) por causa da E6 — um cliente malformado passa a poder persistir ~6 MiB em SQLite onde antes tomava 413 | aberta, **dívida anterior amplificada**. O adapter tRPC do Fastify não expõe `bodyLimit` por rota, então o lugar do teto é onde está; o que falta é o teto nos campos. Resolve quando alguém tocar aquele router |
 | **P14** | A guarda ainda recusa **tudo** para link que aponta para fora, inclusive apagar — assimetria com o link pendurado, que o rework tornou apagável | **decidida na [Q12](open-questions.md): também é apagável.** Vira `Done when` da **E5**, junto do resto do CRUD: apagar opera sobre a entrada, e a entrada está dentro do checkout |
@@ -283,7 +285,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 #### E8: CodeMirror no split
 
 **What**: Trocar o `<div>` de linhas por um editor de verdade, sem mudar a moldura nem o realce.
-**Where**: `packages/web/src/components/FileViewer.tsx`, `packages/web/src/lib/codemirror-setup.ts`, a ponte vendorizada em `packages/web/src/lib/`, `viewer.css`, `file-viewer.test.tsx`, `packages/web/package.json`, `packages/web/src/styles/tokens.css` (o cabeçalho errado está nos **dois** arquivos gerados, e a propriedade "regerar não produz diff" torna isso não-negociável) (a dependência nova é o que faz esta task ser **fronteira**), `packages/web/scripts/generate-tokens.py` (o cabeçalho que ele escreve em `tokens.ts` nomeia `generate_palette.py`, que não existe — e é a linha que se lê logo antes de ser proibido de escrever cor literal)
+**Where**: `packages/web/src/components/FileViewer.tsx`, `packages/web/src/lib/codemirror-setup.ts`, a ponte vendorizada em `packages/web/src/lib/`, `packages/web/src/lib/shiki.ts` (a ponte precisa do `HighlighterCore` que o módulo guardava privado), `packages/web/src/test/setup.ts` (o jsdom não tem `Range.prototype.getClientRects`, e sem o stub todo teste com editor cospe stack), `viewer.css`, `file-viewer.test.tsx`, `packages/web/package.json`, `packages/web/src/styles/tokens.css` (o cabeçalho errado está nos **dois** arquivos gerados, e a propriedade "regerar não produz diff" torna isso não-negociável) (a dependência nova é o que faz esta task ser **fronteira**), `packages/web/scripts/generate-tokens.py` (o cabeçalho que ele escreve em `tokens.ts` nomeia `generate_palette.py`, que não existe — e é a linha que se lê logo antes de ser proibido de escrever cor literal)
 **Depends on**: E1, E3
 
 **Done when**:
@@ -302,7 +304,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] **Tamanho do bundle medido e escrito no PRD** — antes e depois, com o número real, como a R8 da right-panel fez
 - [ ] Gate: `pnpm gate:build` (é a task que traz dependência nova)
 
-**Tests**: unit · **Gate**: build
+**Tests**: unit · **Gate**: build **e o spec de e2e do split** — o review mostrou que o diff troca o DOM que `e2e/right-panel.spec.ts` assere, e `build` sozinho era estreito demais. **Lição que vale para a fase inteira: task que troca DOM de caminho coberto por e2e declara `full`.**
 **Commit**: `feat(web): open the file in a real editor`
 
 ---
@@ -310,7 +312,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 #### E9: Autosave
 
 **What**: O buffer indo para o disco sozinho, sem nunca perder o que foi digitado.
-**Where**: `packages/web/src/hooks/useFileBuffer.ts` + teste, `FileViewer.tsx`, `ViewerFrame.tsx` (rodapé de estado)
+**Where**: `packages/web/src/hooks/useFileBuffer.ts` + teste, `FileViewer.tsx`, `ViewerFrame.tsx` (rodapé de estado), `packages/web/src/lib/codemirror-setup.ts` — o `EditorHandle` da E8 não expunha nem mudança de documento nem leitura do buffer, e as duas só existiam furando `handle.view`, que o próprio docstring proíbe
 **Depends on**: E6, E8
 
 **Done when**:
