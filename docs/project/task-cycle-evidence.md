@@ -19,7 +19,7 @@ muda; o **anexo** é história de outro projeto e não se mexe.
 Lote fechado sem linha aqui é indistinguível de lote que nunca existiu. O mecanismo contra isso é um
 número só:
 
-> **Último commit coberto: `9581aee`.**
+> **Último commit coberto: `bfc9c60`.**
 
 `fd83053` fecha o lote `E1`, o primeiro medido. Antes dele, `6c620dc` era o fim do período **pré-skill**. As quatro features anteriores —
 `walking-skeleton`, `ui-shell`, `worktree-tabs`, `right-panel`, 79 commits — foram feitas antes da
@@ -31,7 +31,7 @@ Quem fecha um lote atualiza esse sha para o último commit do lote. Um comando d
 fora:
 
 ```bash
-git log --oneline 9581aee..HEAD
+git log --oneline bfc9c60..HEAD
 ```
 
 Commit de código que aparecer aí e não estiver dentro de nenhum `Range` da tabela é lote que entrou
@@ -123,11 +123,12 @@ a tabela de lotes não tem tempo justamente porque o número não sobrevive à c
 | `file-editor` E5 — CRUD no checkout | **crítico** | `4a552d8..937ff75` | 1 | 488k | 1 blocker + 4 warnings · 2 costura |
 | `file-editor` E6 — o router escreve (fecha a Fase 1) | **fronteira** | `1a830d7..d3aaf10` | 1 | 466k | 1 blocker + 5 warnings · **3 costura com a Fase 2** |
 | `file-editor` E8 — o editor no split | **fronteira** | `893d01f..9581aee` | 1 | 825k | **3 blockers + 7 warnings** · 1 premissa do PRD falsificada |
+| `file-editor` E9+E10 — autosave e conflito | **crítico** | `4ba7f24..bfc9c60` | 1 | 693k | 2 blockers + 6 warnings · **6 premissas derrubadas** |
 
 Dois contadores, porque respondem a duas perguntas que a skill não consegue responder sozinha —
 *isto aqui é cerimônia?* — e custam um dígito cada:
 
-* **verificação independente do orquestrador:** 6 lotes, **1 refutação**
+* **verificação independente do orquestrador:** 7 lotes, **1 refutação**
 * **passe a frio pós-lote:** 1 passe, **11 achados** que o orquestrador com contexto não via
 
 **A verificação independente pagou o lote inteiro, e por um motivo que não estava previsto.** Não
@@ -164,6 +165,14 @@ O round 2 foi de outra natureza: nenhum código errado, **três asserções frac
 **O dev achou sozinho uma decisão de produto que ninguém tinha tomado, e declarou.** Com temp+`rename`, gravar num arquivo `0o444` passa — o `rename` é checado contra o **diretório**. Ele não "consertou" e não ignorou: reportou como efeito colateral não documentado. Virou pergunta ao Vinicius, virou a quinta recusa, e virou uma propriedade maior que a pergunta: *a escrita atômica não pode virar contorno de permissão*.
 
 **Duas mutações sobreviveram com argumento aceito, e isso também é dado.** As duas são de **janela** — o que outro processo veria durante a gravação — e não de estado final; forçá-las exigiria o teste dependente de tempo que o `testing.md` proíbe. Em vez de um round para escrevê-las, a janela foi **estreitada por desenho** no `Done when` da E5: o temporário nasce `0o600` e sobe para o modo do alvo antes do `rename`, então ela nunca é mais permissiva que o resultado. Mais barato que provar, e fecha o que a mutação apontava.
+
+**O lote do autosave derrubou seis premissas minhas, e três eram sobre como o próprio app funciona.** Que trocar de aba desmonta o componente (não desmonta — o shell mantém toda aba montada); que separar chave de cache fecharia a invalidação (não fecha — a reconexão do stream invalida **sem chave nenhuma**); e que os gatilhos de perda eram cinco (são seis: abrir outro arquivo no mesmo split troca a prop `path` sem desmontar, e uma gravação que lesse o caminho das props escreveria o buffer do arquivo anterior dentro do novo).
+
+**Os dois blockers eram mecanismos apagáveis com a suíte verde — e os dois protegiam contra as duas perdas que a feature existe para impedir.** O reencadeamento da vaga em espera só é exercitado no caminho **concorrente**, e o teste que parecia cobri-lo era sequencial; sem ele, digitar durante uma gravação em voo produz `stale` contra a própria escrita do cliente, com a tela culpando o agente. A guarda que impede regravar era segurada por **outra** guarda no único teste que a tocava; sem ela, cada perda de foco vira uma gravação idêntica no checkout do agente, com um `git status` junto.
+
+**E um defeito que só aparece olhando a tela inteira:** *recarregar do disco* ficava desabilitado quando a leitura do disco falhava — mas o custo **daquele** botão não depende do disco. O que dependia era o do *sobrescrever*, que ficava sem número e habilitado. A tela oferecia a saída cega e proibia a informada, numa tela sobre perder trabalho, contra a D3.1 que diz que nenhuma é o default.
+
+**Três documentos afirmavam que perder o digitado era impossível.** Com o conflito na tela o autosave está parado por decisão, então sair dali perde o buffer. A decisão continua certa — guardar buffer órfão reabriria a D2 — e o que estava errado era o silêncio. É a terceira vez nesta feature que a implementação falsifica um documento meu.
 
 **A primeira task de cliente custou 825k — o dobro da média — e a maior parte disso foi antes de existir código.** A premissa `A2` do PRD dizia que o realce viria de `@shikijs/codemirror`. **O pacote nunca foi publicado.** A premissa era minha, estava escrita desde o primeiro dia, e sobreviveu a duas rodadas de decisão do Vinicius e a cinco lotes. O dev parou antes de escrever código — porque a Q1.1 tinha pré-declarado esse gatilho — e devolveu três saídas com medição: repintar 39 KiB custa 202,7 ms, uma linha com estado quente custa 0,157 ms, e por isso a ponte "de 60 linhas" que eu teria mandado escrever é de 200.
 
