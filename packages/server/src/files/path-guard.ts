@@ -213,6 +213,10 @@ function refuseWritingIntoGit(shown: string, candidate: string): void {
  * of the parent, paid only when the write target is a link.
  */
 async function diskNameOf(parent: string, requested: string): Promise<string> {
+  // Not "unlikely": this is where canonicalisation gives up. A parent with mode
+  // `--x` can be traversed but not listed, so there is no disk spelling to hand
+  // back and the client's own is what travels on. Deliberate — the checks after
+  // it still run, over a name that is merely the requested one.
   const names = await readdir(parent).catch(() => null);
   if (names === null || names.includes(requested)) return requested;
   const folded = requested.toLowerCase();
@@ -310,7 +314,13 @@ export async function resolveForWrite(root: string, requested: string): Promise<
   // separately where a write through it would land.
   refuseWritingIntoGit(relative, relativeTo(realRoot, entry));
   if (target !== null) refuseWritingIntoGit(relative, relativeTo(realRoot, target));
-  if (entry === realRoot || target === realRoot) {
+  // Only `target` is compared: `entry` is always `join(parent, <one component>)`
+  // — the empty path died at the top — so it is strictly deeper than the root by
+  // construction and can never be it. A link *pointing* at the root is the real
+  // case, and that shows up in `target`. Do not add `entry === realRoot` back
+  // without a test that reaches it: an unreachable check in a guard reads as
+  // coverage that is not there.
+  if (target === realRoot) {
     throw new DomainError("INVALID_ARGUMENT", "a raiz do checkout não aceita escrita");
   }
 

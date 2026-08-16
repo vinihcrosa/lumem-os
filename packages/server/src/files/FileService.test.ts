@@ -280,7 +280,11 @@ describe("readFile writability", () => {
 
     const content = await files.readFile(root, ".git/COMMIT_EDITMSG");
 
-    // Two reasons at once has to answer one of them, never `null`.
-    expect(content.kind === "text" && content.readOnly).not.toBeNull();
+    // Two reasons at once, and the order is a product decision, not a detail:
+    // `inside-git` is a fact about the *path*, true whatever the bytes say, and
+    // it is the one the person can act on. "não é UTF-8 válido" here is true and
+    // useless — fixing the encoding would unlock nothing. Asserting only "not
+    // null" accepted both answers and let the priority be inverted silently.
+    expect(content.kind === "text" && content.readOnly).toBe("inside-git");
   });
 });

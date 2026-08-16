@@ -49,6 +49,35 @@ export const FULL_SUITE_GLOBS = [
 
 export const DEFAULT_BASE = "HEAD^";
 
+/**
+ * The base, in the one spelling vitest cannot misread: the full 40-hex commit.
+ *
+ * A short SHA made only of digits reaches vitest's CLI as a *number*, and
+ * `--changed` quietly falls back to "whatever is uncommitted" instead of
+ * diffing against the ref. Measured on this repository, against the root
+ * commit: `--changed 1234567` selected 13 test files, `--changed 2a3fff0...`
+ * the same commit spelled in full selected 50. `baf9298` works — it has
+ * letters. Right after a commit, which is when the gate runs, "uncommitted" is
+ * empty and the run dies with "No test files found": red, which is the safe
+ * direction, but a false red accusing the suite of a defect in the argument.
+ *
+ * git resolves anything here — short SHA, tag, `HEAD^` — so the ambiguity dies
+ * before vitest ever sees the string. An unresolvable base is returned
+ * untouched, because `changedFiles` is what turns it into "run everything", and
+ * inventing a commit for it would hide that.
+ */
+export function resolveBase(base: string, cwd?: string): string {
+  try {
+    return execFileSync("git", ["rev-parse", "--verify", `${base}^{commit}`], {
+      encoding: "utf8",
+      ...(cwd === undefined ? {} : { cwd }),
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return base;
+  }
+}
+
 export type DecisionReason = "unresolved-base" | "untraceable-change" | "no-change" | "graph-change";
 
 export interface Decision {

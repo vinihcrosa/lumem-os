@@ -11,6 +11,7 @@ import {
   describeDecision,
   FULL_SUITE_GLOBS,
   GRAPH_GLOBS,
+  resolveBase,
   vitestArgs,
 } from "./gate-quick.js";
 
@@ -228,6 +229,68 @@ describe("changedFiles", () => {
     const repo = makeRepo();
 
     expect(changedFiles(GRAPH_GLOBS, "deadbeefdeadbeefdeadbeef", repo)).toBeNull();
+  });
+});
+
+describe("resolveBase", () => {
+  const FULL_SHA = /^[0-9a-f]{40}$/;
+
+  function headSha(repo: string): string {
+    return execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).trim();
+  }
+
+  it("turns a short SHA into the full one", () => {
+    // The whole point: vitest never receives the abbreviated spelling.
+    const repo = makeRepo();
+    const full = headSha(repo);
+
+    expect(resolveBase(full.slice(0, 7), repo)).toBe(full);
+    expect(resolveBase(full.slice(0, 7), repo)).toMatch(FULL_SHA);
+  });
+
+  it("turns a base made only of digits into the full SHA", () => {
+    // A digits-only ref reaches vitest's CLI as a number and `--changed` falls
+    // back to "uncommitted", which right after a commit is nothing at all. A tag
+    // is the deterministic way to spell such a base here — a short SHA that
+    // happens to have no letter is what produced it in the wild, and there is no
+    // way to ask git for one.
+    const repo = makeRepo();
+    execFileSync("git", ["tag", "8519566"], { cwd: repo, stdio: "ignore" });
+
+    expect(resolveBase("8519566", repo)).toMatch(FULL_SHA);
+  });
+
+  it("selects the same files through the digits-only base as through the long one", () => {
+    const repo = makeRepo();
+    execFileSync("git", ["tag", "8519566"], { cwd: repo, stdio: "ignore" });
+    const full = headSha(repo);
+    addFile(repo, "packages/server/src/config.ts");
+
+    const throughDigits = changedFiles(GRAPH_GLOBS, resolveBase("8519566", repo), repo);
+
+    // Non-empty first: two empty lists would compare equal and prove nothing.
+    expect(throughDigits).toEqual(["packages/server/src/config.ts"]);
+    expect(throughDigits).toEqual(changedFiles(GRAPH_GLOBS, full, repo));
+  });
+
+  it("resolves HEAD^ too, so the default base goes through the same door", () => {
+    const repo = makeRepo();
+    addFile(repo, "packages/server/src/config.ts");
+    execFileSync("git", ["add", "-A"], { cwd: repo, stdio: "ignore" });
+    execFileSync("git", ["commit", "-q", "-m", "second"], { cwd: repo, stdio: "ignore" });
+
+    expect(resolveBase("HEAD^", repo)).toMatch(FULL_SHA);
+  });
+
+  it("hands back a base git cannot resolve, instead of inventing a commit", () => {
+    // `changedFiles` is what turns an unresolvable base into "run everything".
+    // Substituting anything here would hide that decision.
+    const repo = makeRepo();
+
+    expect(resolveBase("deadbeefdeadbeefdeadbeef", repo)).toBe("deadbeefdeadbeefdeadbeef");
+    expect(changedFiles(GRAPH_GLOBS, resolveBase("deadbeefdeadbeefdeadbeef", repo), repo)).toBeNull();
+    // A single-commit repository has no HEAD^, and the gate has to survive it.
+    expect(resolveBase("HEAD^", repo)).toBe("HEAD^");
   });
 });
 

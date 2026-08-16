@@ -132,6 +132,25 @@ describe("resolveInsideRoot", () => {
       insideGit: false,
     });
   });
+
+  it("calls a .git that is itself a link somewhere harmless read-only, exactly as the write side refuses it", async () => {
+    const root = checkout();
+    mkdirSync(join(root, "inocente"), { recursive: true });
+    writeFileSync(join(root, "inocente", "config"), "[core]\n");
+    symlinkSync(join(root, "inocente"), join(root, ".git"));
+
+    // Nothing here *resolves* to a `.git`: the path lands on `inocente/config`.
+    // Only the pass over the spelling the client asked for sees the repository,
+    // and it is the spelling the person reads in the tree.
+    expect(await resolveInsideRoot(root, ".git/config")).toMatchObject({ insideGit: true });
+    expect(await resolveInsideRoot(root, ".git")).toMatchObject({ insideGit: true });
+
+    // The two doors have to agree. If reading said `insideGit: false` here the
+    // editor would open the file unlocked, the person would type, and only the
+    // autosave would refuse — the failure Q13 puts this verdict on the server to
+    // prevent. This assertion is what keeps them from drifting apart.
+    await expect(resolveForWrite(root, ".git/config")).rejects.toMatchObject({ code: "BLOCKED" });
+  });
 });
 
 describe("resolveForWrite", () => {
@@ -283,6 +302,10 @@ describe("resolveForWrite", () => {
     // Nothing resolves to a `.git` here — `inocente/config` is where a write
     // would land. What the user reads in the tree is still the repository, and
     // the pass over the requested path is the only thing left refusing it.
+    //
+    // The two lines are not interchangeable, so do not "simplify" this to one:
+    // `.git` alone is caught by the second pass too, because `entry` is the
+    // link's own name. Only `.git/config` dies if the first pass goes away.
     await expect(resolveForWrite(root, ".git/config")).rejects.toMatchObject({ code: "BLOCKED" });
     await expect(resolveForWrite(root, ".git")).rejects.toMatchObject({ code: "BLOCKED" });
   });
