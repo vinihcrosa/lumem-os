@@ -5,6 +5,7 @@ import {
   decide,
   DEFAULT_BASE,
   describeDecision,
+  E2E_GLOBS,
   FULL_SUITE_GLOBS,
   GRAPH_GLOBS,
   resolveBase,
@@ -18,7 +19,8 @@ const requested = process.env["LUMEM_GATE_BASE"] ?? DEFAULT_BASE;
 const base = resolveBase(requested);
 const graph = changedFiles(GRAPH_GLOBS, base);
 const untraceable = changedFiles(FULL_SUITE_GLOBS, base);
-const decision = decide(graph, untraceable);
+const e2e = changedFiles(E2E_GLOBS, base);
+const decision = decide(graph, untraceable, e2e);
 
 console.log(describeDecision(decision, requested, graph?.length ?? 0));
 

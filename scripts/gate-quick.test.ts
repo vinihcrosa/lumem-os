@@ -9,6 +9,7 @@ import {
   changedFiles,
   decide,
   describeDecision,
+  E2E_GLOBS,
   FULL_SUITE_GLOBS,
   GRAPH_GLOBS,
   resolveBase,
@@ -50,12 +51,12 @@ afterEach(() => {
 });
 
 describe("decide", () => {
-  it("runs nothing when neither category changed", () => {
-    expect(decide([], [])).toEqual({ run: "none", reason: "no-change" });
+  it("runs nothing when no category changed", () => {
+    expect(decide([], [], [])).toEqual({ run: "none", reason: "no-change" });
   });
 
   it("runs the affected tests when only traceable sources changed", () => {
-    expect(decide(["packages/server/src/config.ts"], [])).toEqual({
+    expect(decide(["packages/server/src/config.ts"], [], [])).toEqual({
       run: "changed",
       reason: "graph-change",
     });
@@ -64,30 +65,54 @@ describe("decide", () => {
   it("runs everything when something untraceable changed", () => {
     // --changed cannot reason about the lockfile: it is in no module graph, so
     // routing it through --changed selects zero tests and fails the run.
-    expect(decide([], ["pnpm-lock.yaml"])).toEqual({ run: "all", reason: "untraceable-change" });
+    expect(decide([], ["pnpm-lock.yaml"], [])).toEqual({ run: "all", reason: "untraceable-change" });
   });
 
   it("prefers the full suite when both categories changed", () => {
-    expect(decide(["packages/server/src/config.ts"], ["package.json"]).run).toBe("all");
+    expect(decide(["packages/server/src/config.ts"], ["package.json"], []).run).toBe("all");
+  });
+
+  it("passes when only the e2e suite changed, instead of failing on an empty selection", () => {
+    // The bug this exists for: a commit of nothing but playwright specs went
+    // through --changed, which found no test file for them — vitest's projects
+    // are packages/* and scripts — and the branch head answered red to the
+    // gate everyone is told to run.
+    expect(decide([], [], ["e2e/file-editor.spec.ts"])).toEqual({
+      run: "none",
+      reason: "e2e-change",
+    });
+  });
+
+  it("still selects the affected tests when a source changed alongside the e2e suite", () => {
+    // "none" here would be the same defect in the other direction: skipping
+    // unit tests that a source change did affect.
+    expect(decide(["packages/web/src/App.tsx"], [], ["e2e/file-editor.spec.ts"])).toEqual({
+      run: "changed",
+      reason: "graph-change",
+    });
+  });
+
+  it("still runs everything when something untraceable changed alongside the e2e suite", () => {
+    expect(decide([], ["pnpm-lock.yaml"], ["e2e/file-editor.spec.ts"]).run).toBe("all");
   });
 
   it("runs everything when git could not resolve the base", () => {
-    expect(decide(null, []).run).toBe("all");
-    expect(decide([], null).run).toBe("all");
-    expect(decide(null, null).reason).toBe("unresolved-base");
+    expect(decide(null, [], []).run).toBe("all");
+    expect(decide([], null, []).run).toBe("all");
+    expect(decide([], [], null).run).toBe("all");
+    expect(decide(null, null, null).reason).toBe("unresolved-base");
   });
 });
 
 describe("GRAPH_GLOBS", () => {
-  it("is exactly the traceable extensions", () => {
+  it("is exactly the traceable extensions, minus the suite vitest never loads", () => {
     // Pinned: a silent edit here is how the gate goes blind.
-    expect(GRAPH_GLOBS).toEqual(["*.ts", "*.tsx"]);
+    expect(GRAPH_GLOBS).toEqual(["*.ts", "*.tsx", ":(exclude)e2e/**"]);
   });
 
   it.each([
     "packages/server/src/config.ts",
     "packages/web/src/App.tsx",
-    "e2e/smoke.spec.ts",
     "scripts/gate-quick.ts",
     "ports.ts",
     "packages/server/src/pty/PtyManager.ts",
@@ -98,15 +123,56 @@ describe("GRAPH_GLOBS", () => {
     expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toContain(relative);
   });
 
-  it.each(["docs/README.md", "packages/web/index.html", "drizzle/0001_init.sql"])(
-    "does not match %s",
+  it.each([
+    "docs/README.md",
+    "packages/web/index.html",
+    "drizzle/0001_init.sql",
+    // TypeScript, and still not traceable: vitest's projects are `packages/*`
+    // and `scripts`, so no playwright spec is in any module graph. This case
+    // used to be pinned in the block above, which is how the defect survived
+    // a test file written to catch exactly this kind of thing.
+    "e2e/smoke.spec.ts",
+    "e2e/support/fixtures.ts",
+  ])("does not match %s", (relative) => {
+    const repo = makeRepo();
+    addFile(repo, relative);
+
+    expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toEqual([]);
+  });
+});
+
+describe("E2E_GLOBS", () => {
+  it.each(["e2e/smoke.spec.ts", "e2e/file-editor.spec.ts", "e2e/support/fixtures.ts"])(
+    "matches %s in a real repo",
     (relative) => {
       const repo = makeRepo();
       addFile(repo, relative);
 
-      expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toEqual([]);
+      expect(changedFiles(E2E_GLOBS, "HEAD", repo)).toContain(relative);
     },
   );
+
+  it.each(["packages/server/src/config.ts", "scripts/gate-quick.ts", "packages/web/src/App.tsx"])(
+    "does not match %s, which lives outside the suite",
+    (relative) => {
+      const repo = makeRepo();
+      addFile(repo, relative);
+
+      expect(changedFiles(E2E_GLOBS, "HEAD", repo)).toEqual([]);
+    },
+  );
+
+  it("is the only category a playwright spec falls into", () => {
+    // The three lists have to partition the change, not merely each be right on
+    // its own: a spec in none of them decides "no-change", and the gate would
+    // then claim nothing changed on a commit that changed a whole test suite.
+    const repo = makeRepo();
+    addFile(repo, "e2e/file-editor.spec.ts");
+
+    expect(changedFiles(GRAPH_GLOBS, "HEAD", repo)).toEqual([]);
+    expect(changedFiles(FULL_SUITE_GLOBS, "HEAD", repo)).toEqual([]);
+    expect(changedFiles(E2E_GLOBS, "HEAD", repo)).toEqual(["e2e/file-editor.spec.ts"]);
+  });
 });
 
 describe("FULL_SUITE_GLOBS", () => {
@@ -320,9 +386,19 @@ describe("describeDecision", () => {
     ["no-change", "none", "nothing to run"],
     ["unresolved-base", "all", "cannot resolve"],
     ["untraceable-change", "all", "dependency, config or asset changed"],
+    ["e2e-change", "none", "only the e2e suite changed"],
     ["graph-change", "changed", "3 source file(s)"],
   ] as const)("explains %s", (reason, run, expected) => {
     expect(describeDecision({ run, reason }, "HEAD^", 3)).toContain(expected);
+  });
+
+  it("names the suite it did not run when the change was e2e only", () => {
+    // Exiting 0 in silence would be the same class of defect as the false red
+    // it replaces: the reader has to be told which gate covers the change.
+    const message = describeDecision({ run: "none", reason: "e2e-change" }, "HEAD^", 0);
+
+    expect(message).toContain("gate:full");
+    expect(message).not.toContain("nothing changed");
   });
 
   it("never claims there is nothing to do when the base is broken", () => {
