@@ -1,4 +1,5 @@
-import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -187,6 +188,21 @@ describe("readFile revision", () => {
     );
   });
 
+  it("hashes the bytes on disk, not the text they decoded into", async () => {
+    const root = checkout();
+    const path = join(root, "latin1.txt");
+    writeFileSync(path, Buffer.from([0x63, 0x61, 0x66, 0xe9, 0x0a]));
+
+    const content = await files.readFile(root, "latin1.txt");
+
+    // The whole contract of the revision, and the one thing a second
+    // implementation gets wrong: hashing `text` re-encoded as UTF-8 gives a
+    // digest of bytes that are not on the disk. Both sides would then compute
+    // different revisions for the same file and every write would be `stale`.
+    const onDisk = createHash("sha256").update(readFileSync(path)).digest("hex");
+    expect(content.kind === "text" && content.revision).toBe(onDisk);
+  });
+
   it("has no revision for what it did not read", async () => {
     const root = checkout();
     writeFileSync(join(root, "logo.png"), Buffer.from([0x89, 0x50, 0x00, 0x1a, 0x0a]));
@@ -224,5 +240,47 @@ describe("readFile writability", () => {
     // A check that refuses every multibyte file would pass the test above and
     // make the editor useless in Portuguese.
     expect(content.kind === "text" && content.readOnly).toBeNull();
+  });
+
+  it("catches broken bytes that re-encode to the same length", async () => {
+    const root = checkout();
+    // `caf` plus a truncated emoji: no NUL, so it walks past the binary sniff,
+    // and the replacement character it decodes to is three bytes — exactly the
+    // three that were left. Comparing lengths would call this writable and let
+    // autosave put `ef bf bd` over `f0 9f 98`.
+    const truncated = Buffer.from([0x63, 0x61, 0x66, 0xf0, 0x9f, 0x98]);
+    writeFileSync(join(root, "cortado.txt"), truncated);
+
+    const content = await files.readFile(root, "cortado.txt");
+
+    expect(content.kind === "text" && content.readOnly).toBe("not-utf8");
+    // The fixture only proves anything while this holds.
+    const roundTrip = Buffer.from(content.kind === "text" ? content.text : "", "utf8");
+    expect(roundTrip).toHaveLength(truncated.length);
+    expect(roundTrip.equals(truncated)).toBe(false);
+  });
+
+  it("opens a file inside .git read-only, with .git named as the reason", async () => {
+    const root = checkout();
+    mkdirSync(join(root, ".git"), { recursive: true });
+    writeFileSync(join(root, ".git", "config"), "[core]\n\trepositoryformatversion = 0\n");
+
+    const content = await files.readFile(root, ".git/config");
+
+    // F1.4: it reads — the tree shows `.git` and opening it is legitimate. The
+    // verdict comes from the server, so the editor opens locked instead of
+    // letting the user type and having autosave refuse afterwards.
+    expect(content).toMatchObject({ kind: "text", readOnly: "inside-git" });
+  });
+
+  it("never calls a file inside .git editable just because its bytes are odd", async () => {
+    const root = checkout();
+    mkdirSync(join(root, ".git"), { recursive: true });
+    writeFileSync(join(root, ".git", "COMMIT_EDITMSG"), Buffer.from([0x63, 0x61, 0x66, 0xe9]));
+
+    const content = await files.readFile(root, ".git/COMMIT_EDITMSG");
+
+    // Two reasons at once has to answer one of them, never `null`.
+    expect(content.kind === "text" && content.readOnly).not.toBeNull();
   });
 });

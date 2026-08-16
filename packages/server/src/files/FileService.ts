@@ -48,10 +48,17 @@ export interface DirListing {
  * Why a file that reads fine still cannot be written back.
  *
  * A reason instead of a boolean because the client paints four refusals with
- * the same grammar — binary, too large, inside `.git`, and this one — and a
- * mute `false` would make it invent the sentence.
+ * the same grammar — binary, too large, and these two — and a mute `false`
+ * would make it invent the sentence.
+ *
+ * Both verdicts are the server's, F1.4. `inside-git` in particular: the client
+ * deriving it from the path would put a second copy of the `.git` rule in the
+ * browser, and one that misses the symlink and the case-insensitive spellings
+ * `path-guard` already handles. Getting it wrong the other way is worse than
+ * it sounds — the file opens editable, the user types, autosave fires, and the
+ * refusal arrives after the fact instead of before.
  */
-export type ReadOnlyReason = "not-utf8";
+export type ReadOnlyReason = "not-utf8" | "inside-git";
 
 export type FileContent =
   | {
@@ -208,7 +215,7 @@ export function createFileService({
     },
 
     async readFile(root, path) {
-      const { absolute, relative } = await resolveInsideRoot(root, path);
+      const { absolute, relative, insideGit } = await resolveInsideRoot(root, path);
 
       const info = await stat(absolute);
       if (info.isDirectory()) {
@@ -234,6 +241,13 @@ export function createFileService({
       if (isBinary(buffer)) return { kind: "binary", path: relative, bytes: buffer.length };
 
       const text = buffer.toString("utf8");
+      // `.git` first: it is a fact about the path, true whatever the bytes are,
+      // and a file that is both never comes back as `null`.
+      const readOnly: ReadOnlyReason | null = insideGit
+        ? "inside-git"
+        : survivesUtf8(buffer, text)
+          ? null
+          : "not-utf8";
       return {
         kind: "text",
         path: relative,
@@ -241,7 +255,7 @@ export function createFileService({
         lines: countLines(text),
         text,
         revision: revisionOf(buffer),
-        readOnly: survivesUtf8(buffer, text) ? null : "not-utf8",
+        readOnly,
       };
     },
   };
