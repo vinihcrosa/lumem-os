@@ -21,13 +21,14 @@ contra qualquer outra coisa é apostar.
 | # | Premissa | Origem |
 |---|---|---|
 | **A1** | O motor é **CodeMirror 6**. Não `<textarea>`, não Monaco | Q1 |
-| **A2** | O realce é o do **Shiki que já existe**, pela ponte `@shikijs/codemirror` — uma paleta, um conjunto de gramáticas | Q1.1 |
+| **A2** | O realce é o do **Shiki que já existe** — uma paleta, um conjunto de gramáticas. A ponte que o PRD nomeava (`@shikijs/codemirror`) **não existe**; o `codemirror-shiki` é **vendorizado**, não dependido | Q1.1, [Q19](open-questions.md) |
 | **A3** | **Autosave com debounce.** Sem `Cmd+S`, sem estado sujo persistente, e desmontar descarrega o pendente | Q2 |
 | **A4** | Escopo é **CRUD completo**: editar, criar, renomear, apagar | Q3 |
 | **A5** | Revisão é **hash do conteúdo**, nunca `mtime` nem `mtime+tamanho` | Q4 |
 | **A6** | Conflito é **resposta discriminada**, não `DomainError` | Q4.1 |
 | **A7** | Fim de linha, quebra final e bytes são **preservados**: o servidor grava o que recebe, a normalização é simétrica e fica no cliente | Q6 |
 | **A8** | `.git` **aparece** na árvore e **recusa** escrita. Mostrar não é permitir | Q10 |
+| **A9** | O editor entra por **import dinâmico**, e nunca pelo meta-pacote `codemirror`/`basicSetup` — que traz autocomplete e lint, dois não-objetivos | [Q20](open-questions.md) |
 
 ### Pendências
 
@@ -74,7 +75,7 @@ Detalhadas em [open-questions.md](open-questions.md); aqui só o que a implement
 
 ### D1 — CodeMirror 6, com o realce do Shiki
 
-O motor traz cursor, seleção, undo/redo, numeração, indentação e busca. O realce **não** é o dele: a ponte `@shikijs/codemirror` usa o `lumemShikiTheme` e as 16 gramáticas que já existem. Uma paleta, um conjunto de gramáticas, um bundle medido.
+O motor traz cursor, seleção, undo/redo, numeração, indentação e busca. O realce **não** é o dele: uma ponte **vendorizada** ([Q19](open-questions.md)) liga o `HighlighterCore` que já existe ao editor, com o `lumemShikiTheme` e as 16 gramáticas de sempre. Uma paleta, um conjunto de gramáticas, um bundle medido — e carregado sob demanda ([Q20](open-questions.md)).
 
 ### D2 — Autosave com debounce
 
@@ -282,12 +283,16 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 #### E8: CodeMirror no split
 
 **What**: Trocar o `<div>` de linhas por um editor de verdade, sem mudar a moldura nem o realce.
-**Where**: `packages/web/src/components/FileViewer.tsx`, `packages/web/src/lib/codemirror-setup.ts`, `viewer.css`, `file-viewer.test.tsx`, `packages/web/package.json` (a dependência nova é o que faz esta task ser **fronteira**), `packages/web/scripts/generate-tokens.py` (o cabeçalho que ele escreve em `tokens.ts` nomeia `generate_palette.py`, que não existe — e é a linha que se lê logo antes de ser proibido de escrever cor literal)
+**Where**: `packages/web/src/components/FileViewer.tsx`, `packages/web/src/lib/codemirror-setup.ts`, a ponte vendorizada em `packages/web/src/lib/`, `viewer.css`, `file-viewer.test.tsx`, `packages/web/package.json`, `packages/web/src/styles/tokens.css` (o cabeçalho errado está nos **dois** arquivos gerados, e a propriedade "regerar não produz diff" torna isso não-negociável) (a dependência nova é o que faz esta task ser **fronteira**), `packages/web/scripts/generate-tokens.py` (o cabeçalho que ele escreve em `tokens.ts` nomeia `generate_palette.py`, que não existe — e é a linha que se lê logo antes de ser proibido de escrever cor literal)
 **Depends on**: E1, E3
 
 **Done when**:
 - [ ] O arquivo abre num CodeMirror 6 dentro da mesma `ViewerFrame` — cabeçalho, `⇄` e `✕` inalterados
-- [ ] Realce pela ponte `@shikijs/codemirror`, com o `lumemShikiTheme` e as gramáticas que já existem (D1). Extensão desconhecida continua abrindo como texto puro
+- [ ] Realce pela ponte **vendorizada** ([Q19](open-questions.md)), com o `lumemShikiTheme` e as gramáticas que já existem (D1). Extensão desconhecida continua abrindo como texto puro
+- [ ] A ponte carrega aviso MIT integral, versão e data de origem, e um comentário dizendo **por que** o código está aqui — senão o próximo tenta substituí-lo por um pacote
+- [ ] Um token de keyword sai com a cor **exata** de `tokens.ts` — é o teste que pega o dia em que o shiki mudar embaixo, e agora também o dia em que nós mudarmos
+- [ ] **Editar uma linha não custa o documento inteiro**: repintar 39 KiB custa 202,7 ms medidos, e uma linha com estado quente custa 0,157 ms. O caminho incremental é a razão de existir da ponte, e o teste é de **comportamento**, não de relógio
+- [ ] O editor entra por **import dinâmico** (A9): o bundle inicial não se move, o CodeMirror vira chunk. Nada de `basicSetup`
 - [ ] Tema do editor (cursor, seleção, linha ativa, gutter) sai de `tokens.ts` — nenhuma cor literal no arquivo
 - [ ] **Um teste fixa os nomes `editor/*` contra `tokens.ts`**, no molde do `xterm-theme.test.ts` que já existe. Sem ele, um token renomeado vira cor `undefined` em silêncio — é a costura que a §5 da skill nomeia e que hoje não tem guarda
 - [ ] **A suíte de contraste passa a rodar num gate.** Hoje ela existe em `generate-tokens.py` e **nada a invoca**: o `Tests` da E1 afirma que ela roda no gate e isso é falso. A propriedade a garantir é mais forte que rodar o script: *regerar a partir do `CONFIG` não produz diff em `tokens.css` nem em `tokens.ts`, e todo par declarado passa em AA* — o que pega de uma vez a regressão de contraste e a edição à mão do arquivo gerado

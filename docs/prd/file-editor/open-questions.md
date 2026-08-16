@@ -2,7 +2,7 @@
 
 Registro de por que cada decisão foi tomada. Pergunta respondida não vira suposição silenciosa: fica aqui, com o motivo.
 
-**Estado:** 20 perguntas · 17 respondidas · 3 abertas
+**Estado:** 22 perguntas · 19 respondidas · 3 abertas
 
 ---
 
@@ -24,13 +24,17 @@ CodeMirror 6 fica no meio: editor de verdade, modular, e com um número de bundl
 
 ### Q1.1 — Duas gramáticas de realce no bundle?
 
-**Não: a ponte `@shikijs/codemirror`.** Decidido junto da Q1.
+**Não — mas a ponte que este documento nomeava não existe.** Decidido junto da Q1; **corrigido na E8**, com o mecanismo trocado e a conclusão intacta.
 
 O CodeMirror tem o próprio sistema de linguagem (Lezer), e adotá-lo significaria carregar um segundo conjunto de gramáticas e escrever um segundo tema — com o risco garantido de o patch e o arquivo, lado a lado na mesma moldura, terem paletas que divergem em algum escopo.
 
 A ponte usa o highlighter do Shiki que já existe, com o `lumemShikiTheme` que já sai de `tokens.ts` e com as 16 gramáticas que a right-panel já escolheu carregar sob demanda.
 
 Se na implementação a ponte não servir, isto volta para a mesa **antes** de entrar uma segunda gramática — não durante.
+
+**E foi exatamente o que aconteceu.** `@shikijs/codemirror` **nunca foi publicado**: 404 no registry, ausente do índice de integrações do `shiki.style`, e a única integração de editor que o time do Shiki mantém é a do **Monaco** — o motor que a Q1 descartou por bundle. A premissa era do PRD, não da implementação, e a E8 parou antes de escrever código em vez de improvisar um segundo tema.
+
+A conclusão da Q1.1 continua valendo inteira: **um tema, um conjunto de gramáticas**. O que mudou é de quem é o código da ponte — ver [Q19](#q19--de-quem-é-o-código-da-ponte-shikicodemirror).
 
 ---
 
@@ -255,6 +259,38 @@ A direção do erro é **segura de propósito**: o diálogo avisa demais ("nada 
 O que isso proíbe é a tela **afirmar**. "Não está no git" é uma conclusão que o daemon não tem; o que ele tem é "não consegui confirmar que está". A E11 escreve a frase nesse limite.
 
 Fica junto a decisão sobre o timeout, que veio da mesma análise: **30 s, e não menos**. `ls-files` custa milissegundos em qualquer índice comum, então um teto menor não acelera nada — e, por causa do `.catch`, ele não converteria resposta lenta em erro visível, e sim em **resposta errada e silenciosa**: "nada traz de volta" sobre um arquivo que o git tem. Timeout aqui é teto, não espera.
+
+---
+
+### Q19 — De quem é o código da ponte Shiki↔CodeMirror?
+
+**Nosso: o `codemirror-shiki` é vendorizado, não dependido.** Respondida pelo Vinicius.
+
+Descoberto que `@shikijs/codemirror` não existe, sobraram três saídas, e o bundle **não** as separava — a ponte custa ~1,9 KB gzip em qualquer uma delas. O que separa é de quem é o código, e qual risco se aceita.
+
+| Saída | Por que não venceu sozinha |
+|---|---|
+| Depender de `codemirror-shiki@0.3.0` | MIT, zero dependências, faz exatamente o que a Q1.1 desenhou. Mas **não tem repositório público** — não dá para auditar nem forkar —, tem um mantenedor, 13 meses parado, e foi publicado **antes de o shiki 4 existir**: o peer diz `>=2.0.0` e ninguém o testou contra o 4.4.3 que o app usa |
+| Escrever do zero | ~200 linhas, e a parte difícil é a convergência de `grammarState`, que erra **em silêncio** — estado velho pinta string como código |
+| Lezer | O segundo conjunto de gramáticas e o segundo tema que a Q1.1 já precificou e recusou |
+
+Vendorizar inverte o defeito da primeira em vantagem: um pacote pequeno, MIT e sem manutenção é ruim como **dependência** — o update automático que ele oferece é justamente o que não se quer de código parado — e é bom como **código nosso**, porque já resolve a convergência que a medição provou obrigatória, e passa a ser auditável, testável e corrigível aqui.
+
+O que a decisão obriga: aviso de copyright MIT integral com versão e data de origem, corte do que não se usa, um comentário explicando por que o código está aqui (senão o próximo tenta "substituir por um pacote"), e **duas propriedades testadas** — um token de keyword sai com a cor exata de `tokens.ts`, e editar uma linha não custa o documento inteiro.
+
+A segunda propriedade tem número: repintar 39 KiB custa **202,7 ms** e uma linha com estado quente custa **0,157 ms**. Uma ponte que perca o caminho incremental num refactor trava a thread a cada tecla, e isso não pode depender de alguém lembrar.
+
+---
+
+### Q20 — O editor entra no bundle inicial?
+
+**Não: import dinâmico, ao abrir o primeiro arquivo.** Respondida pelo Vinicius.
+
+Medido antes de decidir: o bundle inicial é **198.921 B gzip**, e o CodeMirror escolhido a dedo custa **137.401 B gzip** — +69% em toda carga da página, inclusive para quem nunca abre um arquivo. O daemon serve isso **sem CDN**.
+
+É o mesmo formato de problema que a right-panel resolveu com o Shiki, e a mesma saída: o editor vira chunk sob demanda e o inicial não se move. O preço é uma espera curta na primeira abertura de arquivo, uma vez por sessão.
+
+Junto veio uma regra que a medição tornou óbvia: **nada de `codemirror`/`basicSetup`.** O meta-pacote custa +29.026 B gzip a mais que os módulos escolhidos a dedo, e o que ele traz de extra é `@codemirror/autocomplete` e `@codemirror/lint` — dois **não-objetivos** declarados no §6. É a linha de código mais cara que a E8 poderia escrever.
 
 ---
 
