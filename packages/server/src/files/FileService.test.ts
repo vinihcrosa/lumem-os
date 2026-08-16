@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import {
+  accessSync,
   chmodSync,
+  constants,
   lstatSync,
   mkdirSync,
   readdirSync,
@@ -126,6 +128,16 @@ describe("readFile", () => {
       bytes: 2_048,
       limit: 1_024,
     });
+  });
+
+  it("reads a file of exactly the ceiling, and refuses the very next byte", async () => {
+    const root = checkout();
+    writeFileSync(join(root, "no-limite.txt"), "x".repeat(1_024));
+    writeFileSync(join(root, "um-a-mais.txt"), "x".repeat(1_025));
+    const capped = createFileService({ maxBytes: 1_024 });
+
+    expect(await capped.readFile(root, "no-limite.txt")).toMatchObject({ kind: "text" });
+    expect(await capped.readFile(root, "um-a-mais.txt")).toMatchObject({ kind: "too-large" });
   });
 
   it("counts an empty file as zero lines", async () => {
@@ -270,6 +282,50 @@ describe("readFile writability", () => {
     expect(roundTrip.equals(truncated)).toBe(false);
   });
 
+  it("marks a file the daemon could not have written in place as read-only", async () => {
+    const root = checkout();
+    const file = join(root, "protegido.md");
+    writeFileSync(file, "# não mexa\n");
+    chmodSync(file, 0o444);
+
+    const content = await files.readFile(root, "protegido.md");
+
+    // The fifth refusal (F1.4). Reading is untouched — the file opens, the text
+    // is there — and what the client is told is that saving it is not on offer.
+    //
+    // `access(W_OK)` is the verdict rather than `mode & 0o200` because the
+    // question is "este processo consegue escrever neste arquivo?", which the
+    // kernel answers for owner, group, others and ACL at once. It behaves the
+    // same on the CI runner: `ubuntu-latest` runs the job as an ordinary user,
+    // not in a root container. As root every W_OK is granted and this test
+    // would be red — which is a true statement about a daemon running as root,
+    // and not a configuration this suite has.
+    expect(content).toMatchObject({ kind: "text", readOnly: "not-writable" });
+    expect(content.kind === "text" && content.text).toBe("# não mexa\n");
+  });
+
+  it("puts the permission ahead of the bytes, and .git ahead of both", async () => {
+    const root = checkout();
+    const latin1 = Buffer.from([0x63, 0x61, 0x66, 0xe9, 0x0a]);
+    mkdirSync(join(root, ".git"), { recursive: true });
+    writeFileSync(join(root, ".git", "MERGE_MSG"), latin1);
+    chmodSync(join(root, ".git", "MERGE_MSG"), 0o444);
+    writeFileSync(join(root, "protegido-latin1.txt"), latin1);
+    chmodSync(join(root, "protegido-latin1.txt"), 0o444);
+
+    const inGit = await files.readFile(root, ".git/MERGE_MSG");
+    const outside = await files.readFile(root, "protegido-latin1.txt");
+
+    // Three reasons true at once, and the order is a decision: from the most
+    // structural to the most dependent on content — the path outranks the
+    // permission, which outranks the bytes. Only the first is something the
+    // person can act on, and it is the one that stays true whatever the other
+    // two say. Asserting "not null" would accept any of the three and let the
+    // priority invert without a word.
+    expect(inGit.kind === "text" && inGit.readOnly).toBe("inside-git");
+    expect(outside.kind === "text" && outside.readOnly).toBe("not-writable");
+  });
+
   it("opens a file inside .git read-only, with .git named as the reason", async () => {
     const root = checkout();
     mkdirSync(join(root, ".git"), { recursive: true });
@@ -378,6 +434,51 @@ describe("writeFile", () => {
     // The bytes land on a brand new inode, so this mode is not the old file's
     // by inheritance — it was carried over on purpose or it is gone.
     expect(statSync(file).mode & 0o777).toBe(0o755);
+  });
+
+  it("keeps a bit the umask would have taken off, which is the half 0o755 cannot show", async () => {
+    const root = checkout();
+    const file = join(root, "compartilhado.ts");
+    writeFileSync(file, "const a = 1;\n");
+    chmodSync(file, 0o664);
+    const base = await revisionFromRead(root, "compartilhado.ts");
+
+    await files.writeFile(root, "compartilhado.ts", {
+      text: "const a = 2;\n",
+      baseRevision: base,
+    });
+
+    // 0o664 rather than the 0o755 above, and the difference is the whole test:
+    // under the usual umask of 022, `open` already hands 0o755 back for 0o755,
+    // so that fixture stays green with the chmod deleted — it exercises
+    // neither half of the mechanism. Here `open` gives 0o644 and only the chmod
+    // puts the group's write bit back.
+    //
+    // The case is a checkout made with `core.sharedRepository`, where every
+    // file is 0o664: losing it on each autosave is invisible, because git
+    // tracks the execute bit and nothing else, so the permissions drift while
+    // `git status` stays empty.
+    expect(statSync(file).mode & 0o777).toBe(0o664);
+  });
+
+  it("does not carry setuid onto the new inode", async () => {
+    const root = checkout();
+    const file = join(root, "suid.sh");
+    writeFileSync(file, "#!/bin/sh\necho um\n");
+    chmodSync(file, 0o4755);
+    // Fixture first: a filesystem that refuses the bit would make the assertion
+    // below pass for the wrong reason.
+    expect(statSync(file).mode & 0o7777).toBe(0o4755);
+    const base = await revisionFromRead(root, "suid.sh");
+
+    await files.writeFile(root, "suid.sh", { text: "#!/bin/sh\necho dois\n", baseRevision: base });
+
+    // Decided, not overlooked: the mask is 0o777 and setuid, setgid and sticky
+    // are dropped. The bytes are a new inode created by the daemon's user, and
+    // setuid on the old one meant "runs as whoever owned that file" — carrying
+    // it over would mint a privilege the original only had by belonging to
+    // someone else. Widening the mask back to 0o7777 turns this red.
+    expect(statSync(file).mode & 0o7777).toBe(0o755);
   });
 
   it("replaces the file instead of writing into it", async () => {
@@ -497,6 +598,25 @@ describe("writeFile", () => {
     expect(readFileSync(join(root, "README.md"), "utf8")).toBe("# fixture\n");
   });
 
+  it("accepts a text of exactly the ceiling, which is where read and write have to agree", async () => {
+    const root = checkout();
+    const capped = createFileService({ maxBytes: 64 });
+    const base = await revisionFromRead(root, "README.md");
+
+    const result = await capped.writeFile(root, "README.md", {
+      text: "x".repeat(64),
+      baseRevision: base,
+    });
+
+    // The border, pinned on the side that passes: `>` turned into `>=` keeps
+    // every other test green — 65 against 64 and 2048 against 1024 are both
+    // still refused — and makes a file of exactly MAX_FILE_BYTES readable and
+    // impossible to save. Read and write disagreeing on one byte is a file the
+    // editor opens and can never write back.
+    expect(result.ok).toBe(true);
+    expect(readFileSync(join(root, "README.md"), "utf8")).toBe("x".repeat(64));
+  });
+
   it("counts the ceiling in bytes, not in characters", async () => {
     const root = checkout();
     const capped = createFileService({ maxBytes: 64 });
@@ -541,6 +661,32 @@ describe("writeFile", () => {
     // turning `0xe9` into `ef bf bd` with nobody having clicked.
     expect(failure).toMatchObject({ code: "BLOCKED" });
     expect(readFileSync(join(root, "latin1.txt"))).toEqual(latin1);
+  });
+
+  it("does not let the atomic write become a way around a file's permissions", async () => {
+    const root = checkout();
+    const file = join(root, "protegido.md");
+    writeFileSync(file, "# não mexa\n");
+    const base = await revisionFromRead(root, "protegido.md");
+    chmodSync(file, 0o444);
+    const inode = statSync(file).ino;
+    // The half that makes this a property and not a mode check: the directory
+    // *is* writable, and `rename` is checked against the directory, never
+    // against the file. Delete the refusal in `writeFile` and this write
+    // succeeds — a daemon that could not have put one byte into the file
+    // replaces it whole, with the correct revision and no error anywhere.
+    expect(() => accessSync(root, constants.W_OK)).not.toThrow();
+
+    const failure = await files
+      .writeFile(root, "protegido.md", { text: "# mexi\n", baseRevision: base })
+      .catch((error) => error);
+
+    expect(failure).toMatchObject({ code: "BLOCKED" });
+    expect(readFileSync(file, "utf8")).toBe("# não mexa\n");
+    // The inode as well as the bytes: what is refused is the *replacement*, so
+    // a write that happened to land the same text would still be the escape.
+    expect(statSync(file).ino).toBe(inode);
+    expect(readdirSync(root).filter((name) => name.endsWith(".tmp"))).toEqual([]);
   });
 
   it("writes exactly what it was given: CRLF, no trailing newline, accents", async () => {

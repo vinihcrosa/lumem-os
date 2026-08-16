@@ -446,6 +446,20 @@ describe("resolveForWrite", () => {
     expect(failure.message).toMatch(/não é um diretório/);
   });
 
+  it("names the checkout itself as `.` when the root is not a directory", async () => {
+    const root = checkout();
+    const notACheckout = join(root, "src", "lore", "loader.ts");
+
+    const failure = await resolveForWrite(notACheckout, "novo.txt").catch((it) => it);
+
+    // The same ENOTDIR branch as above, reached with an empty parent: `realpath`
+    // answers for a file just as it does for a directory, so the lstat below it
+    // is what refuses. Without the `|| "."` its neighbours all have, the
+    // sentence starts with a space and names nothing.
+    expect(failure).toMatchObject({ code: "INVALID_ARGUMENT" });
+    expect(failure.message).toBe(". não é um diretório");
+  });
+
   it("gives a dangling symlink no write target, and still hands over the link", async () => {
     const root = checkout();
     symlinkSync(join(root, "src", "sumiu.ts"), join(root, "quebrado.ts"));

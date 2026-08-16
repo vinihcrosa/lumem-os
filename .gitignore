@@ -21,5 +21,11 @@ packages/web/prototype/preview/
 .DS_Store
 *.log
 
+# Temporário da escrita atômica do daemon (`writeAtomically`). Ele é apagado
+# no caminho de erro, então só sobra aqui depois de um crash — e a árvore de
+# arquivos não esconde nada, então um órfão apareceria como não rastreado na
+# aba `Mudanças` do próprio repositório que estava sendo editado.
+.lumem-*.tmp
+
 .agents/.skill-lock.json.backup
 .superset/config.local.json

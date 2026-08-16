@@ -50,12 +50,18 @@ function checkout(): string {
  * and a write from inside the test could quietly come to depend on either.
  */
 function agentWrites(file: string, text: string): void {
-  execFileSync(process.execPath, [
-    "-e",
-    "require('node:fs').writeFileSync(process.argv[1], process.argv[2])",
-    file,
-    text,
-  ]);
+  execFileSync(
+    process.execPath,
+    [
+      "-e",
+      "require('node:fs').writeFileSync(process.argv[1], process.argv[2])",
+      file,
+      text,
+    ],
+    // A child that hangs would hang the whole suite, with no output saying
+    // which test is holding it: `execFileSync` waits forever by default.
+    { timeout: 30_000 },
+  );
 }
 
 async function revisionFromRead(root: string, path: string): Promise<string> {

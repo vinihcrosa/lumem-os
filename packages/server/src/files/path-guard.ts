@@ -335,7 +335,7 @@ export async function resolveForWrite(root: string, requested: string): Promise<
       // costs: a syscall, and a window where the directory could vanish in
       // between and leave a raw `Error` escaping a module whose every other
       // failure is a DomainError (P11). Letting the lstat answer removes both.
-      throw new DomainError("INVALID_ARGUMENT", `${parentRelative} não é um diretório`);
+      throw new DomainError("INVALID_ARGUMENT", `${parentRelative || "."} não é um diretório`);
     }
     if (code !== "ENOENT") {
       throw new DomainError("BLOCKED", `sem acesso a ${relative}`);

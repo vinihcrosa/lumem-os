@@ -1,5 +1,15 @@
 import { createHash, randomUUID } from "node:crypto";
-import { chmod, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import {
+  access,
+  chmod,
+  constants,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { DomainError } from "../errors.js";
@@ -49,18 +59,24 @@ export interface DirListing {
 /**
  * Why a file that reads fine still cannot be written back.
  *
- * A reason instead of a boolean because the client paints four refusals with
- * the same grammar — binary, too large, and these two — and a mute `false`
+ * A reason instead of a boolean because the client paints five refusals with
+ * the same grammar — binary, too large, and these three — and a mute `false`
  * would make it invent the sentence.
  *
- * Both verdicts are the server's, F1.4. `inside-git` in particular: the client
- * deriving it from the path would put a second copy of the `.git` rule in the
- * browser, and one that misses the symlink and the case-insensitive spellings
- * `path-guard` already handles. Getting it wrong the other way is worse than
- * it sounds — the file opens editable, the user types, autosave fires, and the
- * refusal arrives after the fact instead of before.
+ * All three verdicts are the server's, F1.4. `inside-git` in particular: the
+ * client deriving it from the path would put a second copy of the `.git` rule
+ * in the browser, and one that misses the symlink and the case-insensitive
+ * spellings `path-guard` already handles. Getting it wrong the other way is
+ * worse than it sounds — the file opens editable, the user types, autosave
+ * fires, and the refusal arrives after the fact instead of before.
+ *
+ * `not-writable` is here because of what the atomic write can do and should
+ * not: the bytes land on a new inode and the `rename` needs permission on the
+ * *directory*, never on the file, so a 0o444 file would be replaced by a
+ * daemon that could not have written a byte into it in place. The write is
+ * atomic to protect the file, not to get around its permissions.
  */
-export type ReadOnlyReason = "not-utf8" | "inside-git";
+export type ReadOnlyReason = "not-utf8" | "inside-git" | "not-writable";
 
 export type FileContent =
   | {
@@ -171,6 +187,41 @@ function survivesUtf8(content: Buffer, text: string): boolean {
 }
 
 /**
+ * Whether this process could have written the file where it stands.
+ *
+ * `access` and not the mode bits, because the honest question is "este
+ * processo consegue escrever neste arquivo?" and the kernel answers it for
+ * owner, group, others and ACL at once. Reading `mode & 0o200` would be a
+ * second implementation of that decision, right for the ordinary case and
+ * wrong for a file owned by a group the daemon is in.
+ */
+async function isWritable(file: string): Promise<boolean> {
+  return access(file, constants.W_OK).then(
+    () => true,
+    () => false,
+  );
+}
+
+/**
+ * The one order the five refusals are decided in, F1.4.
+ *
+ * From the most structural to the most dependent on content: the path outranks
+ * the permission, which outranks the bytes. A file inside `.git`, read-only and
+ * in Latin-1 reports `inside-git` — the reason the person can act on, and the
+ * one that stays true whatever the other two say.
+ */
+async function readOnlyReasonFor(
+  file: string,
+  content: Buffer,
+  text: string,
+  insideGit: boolean,
+): Promise<ReadOnlyReason | null> {
+  if (insideGit) return "inside-git";
+  if (!(await isWritable(file))) return "not-writable";
+  return survivesUtf8(content, text) ? null : "not-utf8";
+}
+
+/**
  * Where the bytes go before they are the file. Same directory, always.
  *
  * `rename` is only atomic within a filesystem, so the system tmpdir is not a
@@ -179,10 +230,13 @@ function survivesUtf8(content: Buffer, text: string): boolean {
  * close. A function of its own because §5 of the PRD promotes "same directory"
  * from a detail to a security control, and a rule with a name has a test.
  *
- * Hidden and unique: hidden so a temporary that outlives a crash does not show
- * up in the tree, unique so two writers of the same file do not destroy each
- * other's. `randomUUID` rather than `newId` — this is not an entity, it is a
- * filename nobody ever sees.
+ * Hidden and unique: unique so two writers of the same file do not destroy
+ * each other's, hidden so an orphan left by a crash stays out of a `rm *.ts`
+ * and out of the eye. It does *not* hide from the tree — nothing does, that is
+ * `FileTree`'s stated rule — which is why `.gitignore` carries `.lumem-*.tmp`:
+ * an orphan showing up as untracked in the `Mudanças` tab is the real cost.
+ * `randomUUID` rather than `newId` — this is not an entity, it is a filename
+ * nobody ever sees.
  */
 export function tempPathFor(target: string): string {
   return join(dirname(target), `.lumem-${randomUUID()}.tmp`);
@@ -201,6 +255,14 @@ export function tempPathFor(target: string): string {
  *
  * The rename goes over the *target*, never over the directory entry: over the
  * entry it would turn a symlink into a plain file, silently.
+ *
+ * And `rename(2)` replaces whatever is on the target, without a word. This
+ * function is therefore no help to a caller that needs the name to be *free* —
+ * E5's `createFile` answers DUPLICATE, and the `exists` the guard hands back
+ * cannot carry that: between the check and the rename there is a window an
+ * agent creating the same name fits in. Exclusivity is `open` with `wx`
+ * (`O_EXCL`), which is one syscall and has no window. Do not build creation on
+ * top of this.
  */
 export async function writeAtomically(
   target: string,
@@ -210,10 +272,22 @@ export async function writeAtomically(
   const temp = tempPathFor(target);
   try {
     // The mode is given at creation *and* set again: `open` subtracts the
-    // umask, so a file that was 0o777 would come back 0o755 without the chmod,
-    // and a file created 0o666 is world-readable for the length of the write.
+    // umask, so a file that was 0o664 comes back 0o644 without the chmod.
+    //
+    // Only the chmod shows up in the final mode; the `{ mode }` at creation is
+    // about the window, where a temporary created 0o666 is world-readable for
+    // the length of the write. No test can pin it — the observer would have to
+    // be inside this function — so this sentence is what defends the argument,
+    // and the same holds for the order: chmod before the rename is what makes
+    // the file complete *and* correct the instant it appears on the target.
+    //
+    // Masked to 0o777, so setuid, setgid and the sticky bit are deliberately
+    // *not* carried over. These bytes are a new inode created by the daemon's
+    // user; setuid on the old inode meant "runs as whoever owned that file",
+    // and reproducing it here would hand a privilege the original only had by
+    // being someone else's. A text editor has no business minting that.
     await writeFile(temp, content, { mode });
-    await chmod(temp, mode & 0o7777);
+    await chmod(temp, mode & 0o777);
     await rename(temp, target);
   } catch (error) {
     // Whatever failed, the temporary is not the user's problem. `force` covers
@@ -324,13 +398,7 @@ export function createFileService({
       if (isBinary(buffer)) return { kind: "binary", path: relative, bytes: buffer.length };
 
       const text = buffer.toString("utf8");
-      // `.git` first: it is a fact about the path, true whatever the bytes are,
-      // and a file that is both never comes back as `null`.
-      const readOnly: ReadOnlyReason | null = insideGit
-        ? "inside-git"
-        : survivesUtf8(buffer, text)
-          ? null
-          : "not-utf8";
+      const readOnly = await readOnlyReasonFor(absolute, buffer, text, insideGit);
       return {
         kind: "text",
         path: relative,
@@ -392,6 +460,22 @@ export function createFileService({
         throw new DomainError(
           "BLOCKED",
           `${relative} tem ${info.size} bytes no disco, acima do limite de ${maxBytes}`,
+        );
+      }
+
+      if (!(await isWritable(target))) {
+        // The fifth refusal, and the one this write mechanism creates: the
+        // bytes go to a new inode and the `rename` is checked against the
+        // *directory*, so without this a 0o444 file is replaced by a daemon
+        // that could not put a byte into it in place. Atomicity protects the
+        // file from a half write; it is not a way around its permissions.
+        //
+        // Asked before the revision and before the UTF-8 lock reads the file,
+        // in the same order `readOnlyReasonFor` uses: this is a fact about the
+        // file, not about this write.
+        throw new DomainError(
+          "BLOCKED",
+          `escrita recusada em ${relative}: o arquivo é somente leitura no disco`,
         );
       }
 
