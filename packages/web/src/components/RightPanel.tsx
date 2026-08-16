@@ -11,6 +11,12 @@ export interface RightPanelProps {
   onSelectTab(tab: RightPanelTab): void;
   /** Shown on the `Mudanças` tab; null while it is still unknown. */
   changeCount: number | null;
+  /**
+   * What the tab in front puts in the bar, before the two icons that are always
+   * there. A slot and not a prop per action: the column owns no data, and which
+   * gestures exist is the current tab's question, not this frame's.
+   */
+  actions?: ReactNode;
   onReload(): void;
   onClose(): void;
   onResize(width: number): void;
@@ -31,6 +37,7 @@ export function RightPanel({
   tab,
   onSelectTab,
   changeCount,
+  actions,
   onReload,
   onClose,
   onResize,
@@ -116,6 +123,7 @@ export function RightPanel({
           )}
         </button>
         <span className="rp__spacer" />
+        {actions}
         <button type="button" className="rp__icon" onClick={onReload} title="recarregar">
           ⟳<span className="sr-only">recarregar</span>
         </button>

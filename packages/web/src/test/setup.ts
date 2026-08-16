@@ -43,6 +43,15 @@ if (typeof globalThis.ResizeObserver !== "function") {
   } as unknown as typeof ResizeObserver;
 }
 
+// CodeMirror measures where a character landed to draw the caret and the
+// selection over it, and jsdom's Range has no `getClientRects` at all — the
+// call throws, once per layer, per test that mounts an editor. Same deal as the
+// canvas above: an empty list is the honest answer from a DOM with no layout,
+// and the editor reads it as "nothing visible", which is true here.
+if (typeof Range.prototype.getClientRects !== "function") {
+  Range.prototype.getClientRects = (() => []) as unknown as Range["getClientRects"];
+}
+
 afterEach(() => {
   cleanup();
 });

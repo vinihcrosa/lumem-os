@@ -19,6 +19,16 @@ export const E2E_FIXTURE_REPO_ALT = join(E2E_FIXTURE_DIR, "repo-alt");
 /** A third, for the right panel: it needs a tree to walk and a file to read. */
 export const E2E_FIXTURE_REPO_FILES = join(E2E_FIXTURE_DIR, "repo-files");
 
+/**
+ * A fourth, for the editor, and it is not sharing the third.
+ *
+ * This is the first spec whose gestures *change* the checkout: it corrects a
+ * line, renames a file and deletes one, and it does so in a repository the
+ * right panel is asserting the contents of. Sharing one would make the order
+ * the specs happen to run in part of what each of them proves.
+ */
+export const E2E_FIXTURE_REPO_EDITOR = join(E2E_FIXTURE_DIR, "repo-editor");
+
 /** An "agent CLI" that echoes what it is given. Never the real `claude`. */
 export const E2E_FIXTURE_AGENT = join(E2E_FIXTURE_DIR, "bin", "fake-agent");
 
@@ -46,7 +56,12 @@ function git(cwd: string, ...args: string[]): void {
 export function createFixtures(): void {
   rmSync(E2E_FIXTURE_DIR, { recursive: true, force: true });
 
-  for (const repo of [E2E_FIXTURE_REPO, E2E_FIXTURE_REPO_ALT, E2E_FIXTURE_REPO_FILES]) {
+  for (const repo of [
+    E2E_FIXTURE_REPO,
+    E2E_FIXTURE_REPO_ALT,
+    E2E_FIXTURE_REPO_FILES,
+    E2E_FIXTURE_REPO_EDITOR,
+  ]) {
     mkdirSync(repo, { recursive: true });
     git(repo, "init", "--initial-branch", "main", ".");
     writeFileSync(join(repo, "README.md"), "# fixture\n");
@@ -63,6 +78,19 @@ export function createFixtures(): void {
   );
   git(E2E_FIXTURE_REPO_FILES, "add", "-A");
   git(E2E_FIXTURE_REPO_FILES, "commit", "-m", "arquivos para a coluna");
+
+  // A line that is wrong, one directory down, and committed — so correcting it
+  // is a one-line diff the `Mudanças` tab can be asked about, and so the file
+  // has to be walked into rather than sitting at the root. The wrong and the
+  // right spelling differ by a whole word, which is what lets an assertion say
+  // which of the two the disk is holding.
+  mkdirSync(join(E2E_FIXTURE_REPO_EDITOR, "src"), { recursive: true });
+  writeFileSync(
+    join(E2E_FIXTURE_REPO_EDITOR, "src", "notes.ts"),
+    ['export const RESPOSTA = "quarenta e um";', 'export const AUTOR = "o agente";', ""].join("\n"),
+  );
+  git(E2E_FIXTURE_REPO_EDITOR, "add", "-A");
+  git(E2E_FIXTURE_REPO_EDITOR, "commit", "-m", "arquivo para o editor");
 
   const binDir = join(E2E_FIXTURE_DIR, "bin");
   mkdirSync(binDir, { recursive: true });

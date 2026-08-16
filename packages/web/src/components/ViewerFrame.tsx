@@ -63,10 +63,19 @@ export function ViewerFrame({
 
       {children}
 
+      {/* The children go in as they are, not wrapped: a failure's reason is a
+          flex item that takes the width the byte count was using, and it can
+          only do that as a child of this row. Same reason the spacer only
+          exists when there is something on the right to push — with a reason on
+          screen there is not, and a spacer would split the width with it. */}
       <div className="viewer__foot">
-        <span>{footLeft}</span>
-        <span className="viewer__spacer" />
-        <span>{footRight}</span>
+        {footLeft}
+        {footRight === undefined ? null : (
+          <>
+            <span className="viewer__spacer" />
+            {footRight}
+          </>
+        )}
       </div>
     </div>
   );

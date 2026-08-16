@@ -6,10 +6,14 @@ Por que OKLCH: e perceptualmente uniforme, entao uma escala de luminosidade
 compartilhada produz degraus com o mesmo peso visual em qualquer matiz. Rampas
 escolhidas a olho nao tem essa propriedade.
 
-Uso:
-    python3 generate_palette.py                 # imprime relatorio e escreve os arquivos
-    python3 generate_palette.py --check         # so valida, nao escreve (bom para CI)
-    python3 generate_palette.py --out src/styles
+Uso, a partir de packages/web:
+    python3 scripts/generate-tokens.py --out src/styles   # valida e escreve
+    python3 scripts/generate-tokens.py --check            # so valida, nao escreve
+
+O gate roda a primeira forma num diretorio temporario e compara byte a byte com
+o que esta commitado (src/styles/tokens.test.ts): regerar nao pode produzir
+diferenca, o que pega de uma vez a regressao de contraste e a edicao a mao do
+arquivo gerado.
 
 Edite o bloco CONFIG. O resto do arquivo nao precisa mudar.
 Sem dependencias: apenas biblioteca padrao.
@@ -132,6 +136,29 @@ SEMANTIC = [
         ("git/added-subtle", "success/950"), ("git/removed-subtle", "danger/950"),
         ("git/untracked", "info/400"),
     ]),
+    # Editor: a primeira vez que o Lumem desenha um cursor que e do USUARIO e
+    # nao de um processo. Tudo aqui e lido sobre bg/inset, o mesmo poco do
+    # terminal, e alimenta o tema do CodeMirror — que e TypeScript, entao estes
+    # nomes precisam existir em tokens.ts, nao so em CSS.
+    ("dominio — editor", [
+        ("editor/cursor", "brand/400"),
+        ("editor/selection", "brand/900"),
+        ("editor/active-line", "neutral/980"),
+        # A medianiz herdada usava text/disabled: 2,96:1 sobre o poco, abaixo
+        # de qualquer minimo. Numero de linha e o endereco que se le em voz
+        # alta e se digita no "ir para a linha" — precisa passar em AA.
+        ("editor/line-number", "neutral/500"),
+        ("editor/line-number-active", "neutral/300"),
+        # Somente leitura deixa de ser a ausencia de edicao e vira estado com
+        # nome, entao tem cor propria e legivel — o motivo dele e texto.
+        ("editor/readonly", "neutral/400"),
+    ]),
+    # Salvamento: o rodape do visualizador tem quatro estados e eles sao a
+    # unica coisa que o autosave diz de si. Um lugar para mudar cada um.
+    ("dominio — salvamento", [
+        ("save/saving", "neutral/400"), ("save/saved", "success/400"),
+        ("save/failed", "danger/400"), ("save/stale", "warning/400"),
+    ]),
 ]
 
 # Ancora de densidade: altura da linha de lista. Derive o resto dela.
@@ -250,6 +277,25 @@ CONTRAST_CHECKS = [
     ("arquivo modificado / painel",   "git/modified",   "bg/panel",   4.5),
     ("arquivo apagado / painel",      "git/removed",    "bg/panel",   4.5),
     ("nao rastreado / painel",        "git/untracked",  "bg/panel",   4.5),
+    # editor: cursor e selecao pintam no mesmo poco do codigo. O cursor e
+    # objeto grafico (WCAG 1.4.11, 3:1); o resto e texto e vale 4,5.
+    ("cursor / codigo",               "editor/cursor",  "bg/inset",   3.0),
+    ("codigo / selecao",              "text/code",      "editor/selection",   4.5),
+    ("codigo / linha ativa",          "text/code",      "editor/active-line", 4.5),
+    ("numero de linha / codigo",      "editor/line-number", "bg/inset", 4.5),
+    ("numero da linha ativa / ativa", "editor/line-number-active", "editor/active-line", 4.5),
+    # rodape do visualizador: os quatro estados do autosave, mais o modo
+    # somente leitura. Todos sobre bg/surface, em texto de 11px.
+    ("somente leitura / rodape",      "editor/readonly", "bg/surface", 4.5),
+    ("salvando / rodape",             "save/saving",    "bg/surface", 4.5),
+    ("salvo / rodape",                "save/saved",     "bg/surface", 4.5),
+    ("falha ao salvar / rodape",      "save/failed",    "bg/surface", 4.5),
+    ("mudou no disco / rodape",       "save/stale",     "bg/surface", 4.5),
+    # conflito: banner de aviso com as duas saidas, e o botao destrutivo do
+    # dialogo de apagar. Os dois fundos sao subtle, e o texto vive neles.
+    ("conflito / aviso",              "save/stale",     "bg/warning-subtle", 4.5),
+    ("texto primario / aviso",        "text/primary",   "bg/warning-subtle", 4.5),
+    ("apagar / fundo destrutivo",     "text/danger",    "bg/danger-subtle",  4.5),
 ]
 
 # ============================================================================
@@ -351,7 +397,7 @@ def css_var(figma_name, prefix=""):
 
 
 def emit_css(palette):
-    o = ["/* Design tokens — GERADO por scripts/generate_palette.py. Nao edite a mao. */",
+    o = ["/* Design tokens — GERADO por scripts/generate-tokens.py. Nao edite a mao. */",
          "/* Rampas em OKLCH, contraste WCAG validado na geracao. */", "", ":root {",
          "  /* ---------- primitivas — nunca use direto em componente ---------- */"]
     for ramp in palette:
@@ -388,7 +434,7 @@ def emit_css(palette):
 
 
 def emit_ts(palette):
-    o = ["// Design tokens — GERADO por scripts/generate_palette.py. Nao edite a mao.", "",
+    o = ["// Design tokens — GERADO por scripts/generate-tokens.py. Nao edite a mao.", "",
          "export const primitives = {"]
     for ramp in palette:
         entries = ", ".join(f"'{s}': '{palette[ramp][s]}'"

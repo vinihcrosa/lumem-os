@@ -1,10 +1,13 @@
 name: CI
 
-# Toda PR contra a main. Os mesmos gates que rodam na máquina, na mesma ordem:
-# se passou aqui e falhou lá, é a máquina que está diferente — não o critério.
-on:
-  pull_request:
-    branches: [main]
+# Toda PR, contra qualquer branch. Os mesmos gates que rodam na máquina, na mesma
+# ordem: se passou aqui e falhou lá, é a máquina que está diferente — não o critério.
+#
+# Sem filtro de branch de propósito. Com `branches: [main]`, PR encadeada — feature
+# que sai de outra feature ainda não mergeada — passava sem CI nenhum, e ninguém
+# via, porque a ausência de check não é vermelho: é silêncio. Foi assim que 50
+# commits de escrita em disco chegaram a uma PR sem nunca ter rodado em Linux.
+on: pull_request
 
 # Um push novo na mesma PR cancela o run anterior: o resultado do commit
 # anterior não interessa a ninguém depois que ele deixou de ser o topo.

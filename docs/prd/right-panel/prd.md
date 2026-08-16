@@ -156,6 +156,8 @@ Mais dois tetos, que não são segurança e sim sobrevivência: máximo de entra
 
 Cada linha é uma tentação que vai aparecer durante a implementação.
 
+> **Revertido depois:** as duas primeiras linhas desta tabela — editar, criar, renomear e apagar — foram reabertas pela [file-editor](../file-editor/prd.md), com o argumento de cada lado registrado no §2 daquele PRD. A decisão **D5** ("nenhum endpoint desta feature escreve") continua verdadeira sobre *esta* feature: a escrita entrou por procedures novas, e a guarda de caminho ganhou uma irmã em vez de ser afrouxada.
+
 | Fora | Por quê |
 |---|---|
 | Editar e salvar arquivo | O editor é o agente. Escrita no daemon é uma superfície inteira de risco por um ganho que outra ferramenta já dá. |

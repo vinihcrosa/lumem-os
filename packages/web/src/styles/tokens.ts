@@ -1,4 +1,4 @@
-// Design tokens — GERADO por scripts/generate_palette.py. Nao edite a mao.
+// Design tokens — GERADO por scripts/generate-tokens.py. Nao edite a mao.
 
 export const primitives = {
   brand: { '50': '#F8F7FF', '100': '#EFECFF', '200': '#DFD9FF', '300': '#CCC2FF', '400': '#B5A2FF', '500': '#9774FD', '600': '#7955D7', '700': '#603FAF', '800': '#492F88', '900': '#321F5F', '950': '#211441' },
@@ -85,6 +85,18 @@ export const color = {
   'git/added-subtle': primitives.success['950'], // #002614
   'git/removed-subtle': primitives.danger['950'], // #3D0808
   'git/untracked': primitives.info['400'], // #4FBEFF
+  // dominio — editor
+  'editor/cursor': primitives.brand['400'], // #B5A2FF
+  'editor/selection': primitives.brand['900'], // #321F5F
+  'editor/active-line': primitives.neutral['980'], // #100F15
+  'editor/line-number': primitives.neutral['500'], // #91909B
+  'editor/line-number-active': primitives.neutral['300'], // #CBCAD2
+  'editor/readonly': primitives.neutral['400'], // #B2B1BB
+  // dominio — salvamento
+  'save/saving': primitives.neutral['400'], // #B2B1BB
+  'save/saved': primitives.success['400'], // #60CC93
+  'save/failed': primitives.danger['400'], // #FF8D83
+  'save/stale': primitives.warning['400'], // #E5A52E
 } as const
 
 export const space = { '0': 0, '1': 1, '2': 2, '4': 4, '6': 6, '8': 8, '10': 10, '12': 12, '16': 16, '20': 20, '24': 24, '32': 32, '40': 40, '48': 48, '64': 64 } as const

@@ -59,7 +59,16 @@ export function ScopePanel({ scope, header, context, cwd }: ScopePanelProps) {
         onClose={() => openFiles.close(key)}
       />
     ) : (
-      <FileViewer scope={scope} path={open.path} onClose={() => openFiles.close(key)} />
+      // Whether this tab is in front is something only this component knows —
+      // every session tab stays mounted, so a tab going behind another one is
+      // this prop and nothing else. It is what flushes the buffer on the way
+      // out (F2.2), and the reason `active` is required rather than defaulted.
+      <FileViewer
+        scope={scope}
+        path={open.path}
+        active={sessionId === activeId}
+        onClose={() => openFiles.close(key)}
+      />
     );
   }
 

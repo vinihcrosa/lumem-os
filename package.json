@@ -11,13 +11,13 @@
     "postinstall": "tsx scripts/run-ensure-pty-helper.ts",
     "dev": "turbo dev",
     "build": "turbo build",
-    "typecheck": "tsc -p tsconfig.json --noEmit && turbo typecheck",
+    "typecheck": "tsc -p tsconfig.json --noEmit && turbo typecheck --concurrency=${TURBO_CONCURRENCY:-3}",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "gate:quick": "tsx scripts/run-gate-quick.ts",
     "gate:full": "vitest run && playwright test",
-    "gate:build": "pnpm typecheck && turbo build"
+    "gate:build": "pnpm typecheck && turbo build --concurrency=${TURBO_CONCURRENCY:-3}"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
