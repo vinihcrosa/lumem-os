@@ -23,6 +23,25 @@ async function typeLine(page: Page, line: string): Promise<void> {
   await page.keyboard.press("Enter");
 }
 
+/**
+ * A word the shell prints and the keyboard never typed.
+ *
+ * The xterm echoes every character of the command, so waiting for a word that
+ * appears in the line being typed is satisfied at the instant of the keystroke
+ * — before the command has started, let alone finished. Proved here rather than
+ * argued: `printf 'x\n' >> README.md` sends all its output to the file and
+ * prints nothing, and the wait for "README.md" passed anyway.
+ *
+ * `printf 'FEIT%s\n' O` puts `FEITO` on the screen without `FEITO` ever being
+ * on the command line, so the wait is for the effect. Registered in
+ * `docs/project/testing.md`.
+ */
+function announcing(command: string, word: string): string {
+  const head = word.slice(0, -1);
+  const tail = word.slice(-1);
+  return `${command} && printf '${head}%s\\n' ${tail}`;
+}
+
 async function openColumn(page: Page): Promise<void> {
   const toggle = page.getByRole("button", { name: "arquivos", exact: true });
   if ((await page.getByLabel("arquivos do checkout").count()) === 0) await toggle.click();
@@ -75,8 +94,8 @@ test("the diff notices what the terminal wrote, in the view that owns it", async
   await page.getByRole("menuitem", { name: /^shell/ }).click();
   await expect(visiblePanel(page).locator(".xterm-rows")).toBeVisible({ timeout: 20_000 });
 
-  await typeLine(page, "printf 'escrito pelo terminal\\n' >> README.md");
-  await expect(visiblePanel(page).locator(".xterm-rows")).toContainText("README.md", {
+  await typeLine(page, announcing("printf 'escrito pelo terminal\\n' >> README.md", "ESCREVEU"));
+  await expect(visiblePanel(page).locator(".xterm-rows")).toContainText("ESCREVEU", {
     timeout: 20_000,
   });
 
@@ -96,7 +115,10 @@ test("the diff notices what the terminal wrote, in the view that owns it", async
 
   // Committing empties the uncommitted view and fills the other one: the two
   // views answer different questions about the same checkout.
-  await typeLine(page, "git add -A && git commit -q -m 'do terminal' && echo COMITADO");
+  // The wait that mattered most: with the old `echo COMITADO`, the click below
+  // raced a `git commit` that might not have run yet — and it passed almost
+  // always, which is the worst way for a test to be wrong.
+  await typeLine(page, announcing("git add -A && git commit -q -m 'do terminal'", "COMITADO"));
   await expect(visiblePanel(page).locator(".xterm-rows")).toContainText("COMITADO", {
     timeout: 20_000,
   });
@@ -114,8 +136,9 @@ test("collapsing the column leaves the terminal with a size it can use", async (
   await expect(page.getByLabel("arquivos do checkout")).toHaveCount(0);
 
   // The box changed with the window standing still. A terminal that did not
-  // refit keeps reporting the old width, and the proof is that it still echoes
-  // a line at the new one.
-  await typeLine(page, "echo depois-de-colapsar");
-  await expect(rows).toContainText("depois-de-colapsar", { timeout: 20_000 });
+  // refit keeps reporting the old width, and the proof is a line the *shell*
+  // printed at the new one — the echo of what was typed would come back
+  // whether or not anything on the other end was still listening.
+  await typeLine(page, announcing("true", "COLAPSADO"));
+  await expect(rows).toContainText("COLAPSADO", { timeout: 20_000 });
 });
