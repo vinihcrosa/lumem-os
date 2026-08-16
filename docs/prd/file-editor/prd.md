@@ -240,6 +240,26 @@ Um último ponto que **não** é resolvido aqui e está declarado: o daemon não
 
 ---
 
+## 7.1 O que o editor custou no bundle (P7)
+
+Medido no build de verdade, antes e depois, com o mesmo cuidado que a right-panel teve com o Shiki — e pelo mesmo motivo: **o daemon serve isto sem CDN**.
+
+| | antes | depois | delta |
+|---|---|---|---|
+| bundle inicial (js+css) | 767.427 B · **207.432 B gzip** | 769.415 B · **208.155 B gzip** | **+723 B gzip (+0,35 %)** |
+| chunk do editor | — | 318.412 B · **103.404 B gzip** | sob demanda |
+| `dist` inteiro | 2.057.023 B | 2.377.423 B | +15,6 % |
+
+Os +723 B são o código do próprio `FileViewer` — as cinco recusas e o componente do editor. O CodeMirror **não está** no inicial, e isso é verificado, não estimado: `cm-lineWrapping`, `cm-gutterElement` e `cm-scroller` não aparecem nele.
+
+Dois números que a medição corrigiu: o conjunto de módulos escolhido a dedo custa **103 KB gzip**, e não os 137 KB que um bundle de rascunho sugeria — o tree-shaking do build real corta o que o rascunho segura. E o meta-pacote `codemirror`/`basicSetup` custaria **+29 KB gzip** só para trazer `autocomplete` e `lint`, dois não-objetivos do §6 ([Q20](open-questions.md)).
+
+### Uma mudança de comportamento que o editor obrigou
+
+O visualizador descartava a última linha quando ela era vazia — `lines.pop()` — para um arquivo terminado em `\n` não mostrar uma linha final vazia. **Um editor não pode fazer isso**: a [Q6](open-questions.md) manda os bytes voltarem iguais, e um buffer que engole o `\n` final grava um arquivo diferente do que leu. Então `um\n` passa a mostrar duas linhas na medianiz — é a leitura correta do arquivo, não um defeito de contagem.
+
+---
+
 ## 8. Custo nos testes
 
 Maior que o da right-panel, e concentrado em um lugar: **a suíte precisa de um caso de escrita concorrente**. Um teste que escreve o arquivo por fora entre a leitura e a gravação, com filesystem de verdade — pela mesma política que faz o git nunca ser mockado.
