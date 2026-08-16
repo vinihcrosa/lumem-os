@@ -421,8 +421,9 @@ export function asCreationFailure(error: unknown, relative: string): unknown {
 function asRenameFailure(error: unknown, from: string, to: string): unknown {
   const code = (error as NodeJS.ErrnoException).code;
   if (code === "EEXIST" || code === "ENOTEMPTY") {
-    // Taken between the check and the syscall — the window §5 accepts, and the
-    // one answer that keeps it from being a silent replace.
+    // Taken between the check and the syscall — the same window the check in
+    // `rename` names, and the one answer that keeps it from being a silent
+    // replace.
     return new DomainError("DUPLICATE", `já existe alguma coisa em ${to}`);
   }
   if (code === "ENOENT") {
@@ -474,11 +475,30 @@ function asRemovalFailure(error: unknown, relative: string): unknown {
  *
  * The index, not `HEAD`: `git checkout -- <path>` restores from the index, so a
  * file that was only `git add`ed does come back.
+ *
+ * `--literal-pathspecs` because a filename is not a pathspec and git cannot tell
+ * the difference on its own. `--` is not enough — it ends option parsing and
+ * nothing else: git tries the name literally, and on failing falls back to
+ * `wildmatch`, so `a*.ts` answers for the tracked `ab.ts` next to it. A leading
+ * `:` goes the other way and is read as magic pathspec syntax. Both lies are the
+ * dialog's sentence inverted, and the glob one is worse than a wrong sentence —
+ * the command it shows, `git checkout -- a*.ts`, is one the person can run, and
+ * it restores `ab.ts` from the index over the edits that were never committed.
+ * The `--` stays for the names that begin with a dash, which the flag does not
+ * cover.
+ *
+ * No `--error-unmatch`: `stdout !== ""` already decides, and all the flag did
+ * was turn the ordinary answer "git does not have this one" into a thrown
+ * DomainError that the `catch` below immediately discarded — collapsing it with
+ * the cases the `catch` is actually for, a checkout that is not a repository and
+ * a git that is not installed.
  */
 async function isTracked(entry: string): Promise<boolean> {
-  const { stdout } = await execGit(["ls-files", "--error-unmatch", "-z", "--", basename(entry)], {
-    cwd: dirname(entry),
-  }).catch(() => ({ stdout: "", stderr: "" }));
+  const args = ["--literal-pathspecs", "ls-files", "-z", "--", basename(entry)];
+  const { stdout } = await execGit(args, { cwd: dirname(entry) }).catch(() => ({
+    stdout: "",
+    stderr: "",
+  }));
   return stdout !== "";
 }
 
@@ -489,12 +509,15 @@ async function isTracked(entry: string): Promise<boolean> {
  * with a thousand files would otherwise be a thousand spawns to draw a dialog.
  * Run with the directory as the working directory, so `ls-files` lists only
  * what is under it and prints the paths relative to it.
+ *
+ * `--literal-pathspecs` with no pathspec to interpret, on purpose: two
+ * `ls-files` in one file reading their arguments by different rules is the
+ * divergence that comes back the day someone adds an argument here.
  */
 async function trackedUnder(dir: string): Promise<Set<string>> {
-  const { stdout } = await execGit(["ls-files", "-z"], { cwd: dir }).catch(() => ({
-    stdout: "",
-    stderr: "",
-  }));
+  const { stdout } = await execGit(["--literal-pathspecs", "ls-files", "-z"], { cwd: dir }).catch(
+    () => ({ stdout: "", stderr: "" }),
+  );
   return new Set(stdout.split("\0").filter((name) => name !== ""));
 }
 
@@ -832,9 +855,13 @@ export function createFileService({
       if (destination.exists) {
         // `rename(2)` replaces the destination without a word, and there is no
         // portable exclusive rename to lean on the way creating leans on
-        // `O_EXCL`. So this is a check, with the window §5 declares acceptable:
-        // the threat model is accident, not adversary. What it is not allowed
-        // to be is a silent replace of the agent's file (F4.4).
+        // `O_EXCL`. So this is a check, and the window it leaves is the third
+        // case §5 lists under "O que este desenho não cobre" — the one that
+        // names the three alternatives and why each was dropped, rather than
+        // either of the two windows §5 declared before it. Accepted there for
+        // the reason the others are: the threat model is accident, not
+        // adversary. What it is not allowed to be is a silent replace of the
+        // agent's file (F4.4).
         throw new DomainError("DUPLICATE", `já existe alguma coisa em ${destination.relative}`);
       }
 

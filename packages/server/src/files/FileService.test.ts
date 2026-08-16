@@ -1004,6 +1004,24 @@ describe("remove", () => {
     expect(readFileSync(join(root, "scratch", "sub", "tres.txt"), "utf8")).toBe("3\n");
   });
 
+  it("refuses a directory holding exactly one thing, and says so in the singular", async () => {
+    const root = checkout();
+    mkdirSync(join(root, "scratch"));
+    writeFileSync(join(root, "scratch", "um.txt"), "1\n");
+
+    const failure = await files.remove(root, "scratch").catch((error) => error);
+
+    // One entry, because the sibling test above uses three and stays green with
+    // the rule reading `> 1`: with a single entry the folder falls through to
+    // the `rmdir`, which answers ENOTEMPTY and turns into "deixou de estar
+    // vazia" — the sentence reserved for something landing in the directory
+    // mid-operation, said here about a directory that was never empty. The
+    // singular branch of the count has no other reader either.
+    expect(failure).toMatchObject({ code: "BLOCKED" });
+    expect(failure.message).toContain("1 entrada dentro");
+    expect(existsSync(join(root, "scratch", "um.txt"))).toBe(true);
+  });
+
   it("removes an empty directory without being asked twice", async () => {
     const root = checkout();
 
@@ -1156,9 +1174,17 @@ describe("creating, renaming and removing stay out of .git and off the root", ()
       files.rename(root, "", "novo").catch((error) => error),
       files.rename(root, "src", "").catch((error) => error),
       files.createDir(root, ".").catch((error) => error),
+      files.createFile(root, "").catch((error) => error),
+      files.deletePreview(root, "").catch((error) => error),
     ]);
 
+    // All seven calls, not the five that happened to be written first: the
+    // guard is one line and the sibling test above already spells out every
+    // entry point for `.git`, so a list that skips two entry points here reads
+    // as coverage it does not have.
     expect(refusals.map((failure) => failure.code)).toEqual([
+      "INVALID_ARGUMENT",
+      "INVALID_ARGUMENT",
       "INVALID_ARGUMENT",
       "INVALID_ARGUMENT",
       "INVALID_ARGUMENT",
@@ -1204,6 +1230,52 @@ describe("deletePreview", () => {
     expect(await files.deletePreview(root, "adicionado.ts")).toMatchObject({ tracked: true });
   });
 
+  it("asks git about the name itself, not about everything the name matches", async () => {
+    const root = await gitCheckout();
+    writeFileSync(join(root, "ab.ts"), "const ab = 1;\n");
+    await runGit(root, "add", "ab.ts");
+    writeFileSync(join(root, "a*.ts"), "rascunho\n");
+
+    // The name reaches git as a *pathspec*, and `--` does not make it literal:
+    // it ends option parsing and nothing else. Git tries the name as written,
+    // finds nothing, and falls back to `wildmatch` — where `a*.ts` matches the
+    // tracked `ab.ts` and this preview answers `tracked: true` for a file git
+    // has no copy of. The dialog would then say "o git desfaz — git checkout --
+    // a*.ts", and running the command it printed restores `ab.ts` from the
+    // index over its uncommitted edits.
+    expect(await files.deletePreview(root, "a*.ts")).toEqual({
+      kind: "file",
+      path: "a*.ts",
+      tracked: false,
+    });
+  });
+
+  it("asks git about a name that begins with its magic pathspec character", async () => {
+    const root = await gitCheckout();
+    writeFileSync(join(root, ":anotacoes.txt"), "notas\n");
+    // Added with `:(literal)` so the fixture does not lean on the same flag the
+    // service is being asked about.
+    await runGit(root, "add", "--", ":(literal):anotacoes.txt");
+
+    // The other half of the same bug, and it lies in the safer-sounding
+    // direction: git reads the leading `:` as magic pathspec syntax, matches
+    // nothing, and the dialog promises "nada traz de volta" for a file that is
+    // in the index.
+    expect(await files.deletePreview(root, ":anotacoes.txt")).toMatchObject({ tracked: true });
+  });
+
+  it("asks git about a name that begins with a dash", async () => {
+    const root = await gitCheckout();
+    writeFileSync(join(root, "-traco.txt"), "traco\n");
+    await runGit(root, "add", "--", "-traco.txt");
+
+    // What the `--` is for, and the only thing it is for. Without it git reads
+    // `-traco.txt` as a bundle of short options and fails the whole command,
+    // which the `catch` turns into `tracked: false` — a file git has, promised
+    // as unrecoverable.
+    expect(await files.deletePreview(root, "-traco.txt")).toMatchObject({ tracked: true });
+  });
+
   it("counts a directory to the bottom, and how many of it git does not have", async () => {
     const root = await gitCheckout();
     mkdirSync(join(root, "scratch", "sub"), { recursive: true });
@@ -1244,6 +1316,39 @@ describe("deletePreview", () => {
     // `truncated: false`.
     expect(preview).toMatchObject({ kind: "dir", truncated: true });
     expect(preview.kind === "dir" && preview.files + preview.dirs).toBe(10);
+  });
+
+  it("says the numbers are a floor when a subdirectory will not open", async () => {
+    const root = await gitCheckout();
+    mkdirSync(join(root, "scratch", "fechada"), { recursive: true });
+    writeFileSync(join(root, "scratch", "nota.txt"), "a\n");
+    writeFileSync(join(root, "scratch", "fechada", "dentro.txt"), "b\n");
+    const closed = join(root, "scratch", "fechada");
+    // As root every directory opens and this would be green on `truncated:
+    // false` for the wrong reason; the suite does not run as root, here or on
+    // the CI runner.
+    chmodSync(closed, 0o000);
+
+    let preview;
+    try {
+      preview = await files.deletePreview(root, "scratch");
+    } finally {
+      // Back before the cleanup, which cannot empty a directory it cannot read.
+      chmodSync(closed, 0o755);
+    }
+
+    // The second half of what `truncated` promises — the ceiling is the first,
+    // and it had the only test. `dentro.txt` is never counted, so the numbers
+    // shown are a floor and the flag is the only thing saying so: without it
+    // the dialog offers to delete two entries and takes three.
+    expect(preview).toEqual({
+      kind: "dir",
+      path: "scratch",
+      files: 1,
+      dirs: 1,
+      untracked: 1,
+      truncated: true,
+    });
   });
 
   it("counts a link as the one entry it is instead of walking into it", async () => {
