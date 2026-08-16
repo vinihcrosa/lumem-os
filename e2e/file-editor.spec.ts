@@ -30,6 +30,8 @@ const AGENT = "eco";
 const NOTES = "src/notes.ts";
 const WRONG = 'export const RESPOSTA = "quarenta e um";';
 const FIXED = 'export const RESPOSTA = "quarenta e dois";';
+/** Carried in with the correction: one extra line is what makes the two counts differ. */
+const WHY = "// conferido no editor";
 
 function visiblePanel(page: Page): Locator {
   return page.locator("[role=tabpanel]:not([hidden])");
@@ -141,13 +143,17 @@ test("fixes a line while the agent runs beside it, and the diff notices", async 
   await openFile(page, NOTES);
   await expect(editor(page)).toContainText(WRONG, { timeout: 20_000 });
 
-  await rewriteLine(page, 0, FIXED);
+  // One line becoming two, deliberately. A symmetric correction reads +1 −1,
+  // and a row that swapped `additions` for `deletions` would print exactly the
+  // same thing — the assertion at the end of this test would survive the swap.
+  await rewriteLine(page, 0, `${WHY}\n${FIXED}`);
   await expect(footer(page)).toContainText("salvo há", { timeout: 20_000 });
 
   // The claim, where the browser cannot help: the daemon put the corrected
   // line on the disk, and took the wrong one off it.
   await expect.poll(() => diskText(NOTES), { timeout: 20_000 }).toContain(FIXED);
   expect(diskText(NOTES)).not.toContain(WRONG);
+  expect(diskText(NOTES)).toContain(WHY);
 
   // Still there — the whole argument of §2 is that fixing this line did not
   // cost the context, and the agent leaving the screen would be that cost.
@@ -157,8 +163,9 @@ test("fixes a line while the agent runs beside it, and the diff notices", async 
   const column = page.getByLabel("arquivos do checkout");
   const row = column.getByRole("button").filter({ hasText: "notes.ts" });
   await expect(row).toBeVisible({ timeout: 20_000 });
-  // One line in, one line out: the diff is the correction and nothing else.
-  await expect(row).toContainText("+1");
+  // Two lines in, one out, and the two numbers differ: this is what makes the
+  // row say which side is which. The diff is the correction and nothing else.
+  await expect(row).toContainText("+2");
   await expect(row).toContainText("−1");
 });
 
@@ -253,12 +260,15 @@ test("renaming the open file from the tree keeps text that was never saved", asy
    * A slow disk, on purpose, and this is the only place in the suite that asks
    * for one.
    *
-   * The property under test is that the rename waits for the buffer's flush to
-   * **land**. With a local write finishing in a couple of milliseconds, the
-   * right order and no order at all look identical, and the precondition — text
-   * that is still only in the browser — would be a race against the 800 ms
-   * debounce rather than a fact. Held for a second and a half, the write cannot
-   * possibly have finished by the time the rename is submitted.
+   * Not to make the ordering bug visible: measured with no interception at all,
+   * a rename that stops waiting for the flush to land dies here 5 runs out of 5
+   * on this machine. What the delay buys is the **precondition**. The assertion
+   * below runs before the rename is submitted and claims the disk has never
+   * seen the typed text — with a local write finishing in a couple of
+   * milliseconds, the 800 ms debounce can land inside that window on a slower
+   * machine, and the test would then go green having proved the easy case:
+   * renaming a file that was already saved. Held for a second and a half, the
+   * write cannot possibly have finished by the time the rename is submitted.
    *
    * The regex matches the batch URL too (`files.write,files.rename`), so a
    * regression that puts the two back in one request is delayed as a whole
@@ -291,6 +301,9 @@ test("renaming the open file from the tree keeps text that was never saved", asy
 
   await expect(treeRow(page, "renomeado.ts")).toBeVisible({ timeout: 30_000 });
   await expect(treeRow(page, "notes.ts")).toHaveCount(0);
+  // F4.6: the split followed the file instead of sitting on a path that no
+  // longer exists, and it is showing the path as the daemon spelled it back.
+  await expect(visiblePanel(page).locator(".viewer__head .fpath")).toHaveAttribute("title", moved);
 
   // The property, measured where the browser has no say: the text that existed
   // only in the buffer is at the new path, and the old path is gone. This is
