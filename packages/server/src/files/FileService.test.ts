@@ -3,6 +3,7 @@ import {
   accessSync,
   chmodSync,
   constants,
+  existsSync,
   lstatSync,
   mkdirSync,
   readdirSync,
@@ -16,8 +17,15 @@ import { dirname, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
-import { createFileService, revisionOf, tempPathFor, writeAtomically } from "./FileService.js";
+import { DomainError } from "../errors.js";
+import { cleanupGitFixtures, createRepo, runGit, tempDir } from "../testing/git-fixtures.js";
+import {
+  asCreationFailure,
+  createFileService,
+  revisionOf,
+  tempPathFor,
+  writeAtomically,
+} from "./FileService.js";
 
 const files = createFileService();
 
@@ -32,6 +40,22 @@ function checkout(): string {
   writeFileSync(join(root, "src", "lore", "loader.ts"), "const a = 1;\nconst b = 2;\n");
   writeFileSync(join(root, "README.md"), "# fixture\n");
   writeFileSync(join(root, ".gitignore"), "node_modules\n");
+  return root;
+}
+
+/**
+ * The same checkout, and a real git repository — `deletePreview` asks git.
+ *
+ * Never a double: `docs/project/testing.md` states it for the whole suite, and
+ * the question this one asks is one git answers with its index, which no stub
+ * reproduces without becoming a second implementation of `ls-files`.
+ */
+async function gitCheckout(): Promise<string> {
+  const root = await createRepo();
+  mkdirSync(join(root, "src", "lore"), { recursive: true });
+  writeFileSync(join(root, "src", "lore", "loader.ts"), "const a = 1;\nconst b = 2;\n");
+  await runGit(root, "add", "src/lore/loader.ts");
+  await runGit(root, "commit", "-m", "loader");
   return root;
 }
 
@@ -731,5 +755,562 @@ describe("writeFile", () => {
 
     expect(failure).toMatchObject({ code: "BLOCKED" });
     expect(readFileSync(join(root, ".git", "config"), "utf8")).toBe("[core]\n");
+  });
+});
+
+describe("createFile", () => {
+  it("creates an empty file and answers with the path the checkout knows it by", async () => {
+    const root = checkout();
+
+    const created = await files.createFile(root, "./src/lore/../novo.ts");
+
+    // Normalised, and only the daemon can normalise it: the tree keys on the
+    // path this returns, and `./src/lore/../novo.ts` is not that key.
+    expect(created).toEqual({ path: "src/novo.ts" });
+    expect(readFileSync(join(root, "src", "novo.ts"), "utf8")).toBe("");
+  });
+
+  it("refuses a name something already has, and leaves what is there alone", async () => {
+    const root = checkout();
+
+    const failure = await files.createFile(root, "README.md").catch((error) => error);
+
+    expect(failure).toMatchObject({ code: "DUPLICATE" });
+    expect(readFileSync(join(root, "README.md"), "utf8")).toBe("# fixture\n");
+  });
+
+  it("gives the name to exactly one of twenty creations racing for it", async () => {
+    const root = checkout();
+
+    const results = await Promise.allSettled(
+      Array.from({ length: 20 }, () => files.createFile(root, "src/disputado.ts")),
+    );
+
+    // The `Done when` that costs the most to get wrong, and the one a check
+    // cannot satisfy: `open` with `wx` is `O_EXCL`, one syscall, no window.
+    // Built on `exists` plus a write — or on `writeAtomically`, whose `rename`
+    // replaces the destination without a word — every one of these twenty
+    // passes the check before any of them writes, and twenty "creations"
+    // succeed over each other. The kernel is what makes this exactly one.
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(
+      results
+        .filter((result) => result.status === "rejected")
+        .map((result) => (result as PromiseRejectedResult).reason.code),
+    ).toEqual(Array.from({ length: 19 }, () => "DUPLICATE"));
+    expect(readFileSync(join(root, "src", "disputado.ts"), "utf8")).toBe("");
+  });
+
+  it("treats a name held by a link pointing nowhere as taken all the same", async () => {
+    const root = checkout();
+    symlinkSync(join(root, "src", "sumiu.ts"), join(root, "quebrado.ts"));
+
+    const failure = await files.createFile(root, "quebrado.ts").catch((error) => error);
+
+    // `O_EXCL` refuses a dangling link too, which is the right answer: the name
+    // is taken, and creating what the link points at is not what was asked. The
+    // link is the user's to remove — that is `remove`'s job, and it works.
+    expect(failure).toMatchObject({ code: "DUPLICATE" });
+    expect(lstatSync(join(root, "quebrado.ts")).isSymbolicLink()).toBe(true);
+  });
+
+  it("names the failure of its own creation instead of letting an errno escape", async () => {
+    const root = checkout();
+    const parent = join(root, "so-leitura");
+    mkdirSync(parent);
+    // The guard approves this: `realpath` resolves the directory and the `lstat`
+    // of a name that is not there answers ENOENT — `exists: false` — and both
+    // need only the execute bit. Creating needs the write bit and finds out one
+    // syscall later. Same shape as P11's vanished parent, and the only member of
+    // that family a fixture can schedule from outside.
+    //
+    // As root every permission is granted and this would be green for the wrong
+    // reason; the suite does not run as root, here or on the CI runner.
+    chmodSync(parent, 0o555);
+
+    const failure = await files.createFile(root, "so-leitura/novo.ts").catch((error) => error);
+
+    expect(failure).toBeInstanceOf(DomainError);
+    expect(failure).toMatchObject({ code: "BLOCKED" });
+  });
+
+  it("names the directory that vanished between the guard and the creation", () => {
+    // P11's other half, and the one no fixture reaches: the parent is removed
+    // between the guard's `realpath` and its `lstat`, which arrives here as
+    // `exists: false` and fails at the `open`. What is pinned is the mapping —
+    // delete it and a raw errno escapes a module whose every other failure is a
+    // DomainError, which this repository calls a defect.
+    const vanished = Object.assign(new Error("ENOENT: no such file or directory"), {
+      code: "ENOENT",
+    });
+
+    const failure = asCreationFailure(vanished, "src/lore/novo.ts");
+
+    expect(failure).toBeInstanceOf(DomainError);
+    expect(failure).toMatchObject({ code: "NOT_FOUND" });
+    expect((failure as DomainError).message).toContain("src/lore");
+  });
+
+  it("hands back a code nobody mapped untouched, so a defect stays one", () => {
+    const broken = Object.assign(new Error("EIO: i/o error"), { code: "EIO" });
+
+    // Mapping everything would turn a failing disk into a domain answer the
+    // client is told to act on.
+    expect(asCreationFailure(broken, "a.ts")).toBe(broken);
+  });
+});
+
+describe("createDir", () => {
+  it("creates a directory", async () => {
+    const root = checkout();
+
+    const created = await files.createDir(root, "src/novo");
+
+    expect(created).toEqual({ path: "src/novo" });
+    expect(statSync(join(root, "src", "novo")).isDirectory()).toBe(true);
+  });
+
+  it("refuses a name a directory already has, and keeps what is inside it", async () => {
+    const root = checkout();
+
+    const failure = await files.createDir(root, "src/lore").catch((error) => error);
+
+    expect(failure).toMatchObject({ code: "DUPLICATE" });
+    expect(readdirSync(join(root, "src", "lore"))).toEqual(["loader.ts"]);
+  });
+
+  it("does not create the directories on the way, and names the one that is missing", async () => {
+    const root = checkout();
+
+    const failure = await files.createDir(root, "nao-existe/pasta").catch((error) => error);
+
+    // `mkdir -p` would create a directory the guard never looked at, one level
+    // at a time, and the guard resolves exactly one parent.
+    expect(failure).toMatchObject({ code: "NOT_FOUND" });
+    expect(failure.message).toContain("nao-existe");
+    expect(existsSync(join(root, "nao-existe"))).toBe(false);
+  });
+});
+
+describe("rename", () => {
+  it("moves between directories, because renaming is moving (F4.2)", async () => {
+    const root = checkout();
+
+    const moved = await files.rename(root, "src/lore/loader.ts", "docs/loader.ts");
+
+    expect(moved).toEqual({ path: "docs/loader.ts" });
+    expect(readFileSync(join(root, "docs", "loader.ts"), "utf8")).toBe(
+      "const a = 1;\nconst b = 2;\n",
+    );
+    expect(existsSync(join(root, "src", "lore", "loader.ts"))).toBe(false);
+  });
+
+  it("refuses a destination that is taken, and leaves it exactly as it was", async () => {
+    const root = checkout();
+
+    const failure = await files
+      .rename(root, "src/lore/loader.ts", "README.md")
+      .catch((error) => error);
+
+    // `rename(2)` replaces the destination without a word, and there is no
+    // portable exclusive rename to lean on the way creating leans on `O_EXCL`.
+    // So this is a check, and the window §5 declares acceptable — what it must
+    // not become is a silent replace (F4.4).
+    expect(failure).toMatchObject({ code: "DUPLICATE" });
+    expect(readFileSync(join(root, "README.md"), "utf8")).toBe("# fixture\n");
+    expect(existsSync(join(root, "src", "lore", "loader.ts"))).toBe(true);
+  });
+
+  it("names the directory the destination needs and does not have", async () => {
+    const root = checkout();
+
+    const failure = await files
+      .rename(root, "README.md", "nao-existe/README.md")
+      .catch((error) => error);
+
+    expect(failure).toMatchObject({ code: "NOT_FOUND" });
+    expect(failure.message).toContain("nao-existe");
+    expect(readFileSync(join(root, "README.md"), "utf8")).toBe("# fixture\n");
+  });
+
+  it("moves the link, never what it points at", async () => {
+    const root = checkout();
+    symlinkSync(join(root, "src", "lore", "loader.ts"), join(root, "atalho.ts"));
+
+    await files.rename(root, "atalho.ts", "docs/atalho.ts");
+
+    // Q12: renaming operates on the directory entry. Reaching for `target` here
+    // moves `loader.ts` instead and leaves the link behind pointing at nothing —
+    // and `tsc` does not catch this side of the mistake, because `target` is a
+    // perfectly good string.
+    expect(lstatSync(join(root, "docs", "atalho.ts")).isSymbolicLink()).toBe(true);
+    expect(existsSync(join(root, "atalho.ts"))).toBe(false);
+    expect(readFileSync(join(root, "src", "lore", "loader.ts"), "utf8")).toBe(
+      "const a = 1;\nconst b = 2;\n",
+    );
+  });
+
+  it("refuses a source that is not there, and names the source", async () => {
+    const root = checkout();
+
+    const failure = await files
+      .rename(root, "src/sumiu.ts", "docs/sumiu.ts")
+      .catch((error) => error);
+
+    // Named, because the fallback for this is `rename(2)`'s own ENOENT, which
+    // cannot tell the missing source from a missing destination directory and
+    // says both. The person renaming needs to know which one.
+    expect(failure).toMatchObject({ code: "NOT_FOUND" });
+    expect(failure.message).toBe("src/sumiu.ts não existe no checkout");
+  });
+
+  it("refuses to move a directory inside itself", async () => {
+    const root = checkout();
+
+    const failure = await files.rename(root, "src", "src/lore/src").catch((error) => error);
+
+    // EINVAL, and without the mapping it reaches the client as a raw Error.
+    expect(failure).toBeInstanceOf(DomainError);
+    expect(failure).toMatchObject({ code: "INVALID_ARGUMENT" });
+    expect(existsSync(join(root, "src", "lore", "loader.ts"))).toBe(true);
+  });
+});
+
+describe("remove", () => {
+  it("removes a file", async () => {
+    const root = checkout();
+
+    await files.remove(root, "README.md");
+
+    expect(existsSync(join(root, "README.md"))).toBe(false);
+  });
+
+  it("refuses a directory with anything in it, and says how much is in it", async () => {
+    const root = checkout();
+    mkdirSync(join(root, "scratch", "sub"), { recursive: true });
+    writeFileSync(join(root, "scratch", "um.txt"), "1\n");
+    writeFileSync(join(root, "scratch", "dois.txt"), "2\n");
+    writeFileSync(join(root, "scratch", "sub", "tres.txt"), "3\n");
+
+    const failure = await files.remove(root, "scratch").catch((error) => error);
+
+    // Not an empty directory: with an empty one the rule never fires and the
+    // test would prove nothing. An `rmdir` that becomes `rm -rf` because a
+    // parameter was left out is the accident with no undo (§5), so the count
+    // travels with the refusal — the caller has to ask for it knowing the size.
+    expect(failure).toMatchObject({ code: "BLOCKED" });
+    expect(failure.message).toContain("3 entradas");
+    expect(readdirSync(join(root, "scratch")).sort()).toEqual(["dois.txt", "sub", "um.txt"]);
+    expect(readFileSync(join(root, "scratch", "sub", "tres.txt"), "utf8")).toBe("3\n");
+  });
+
+  it("removes an empty directory without being asked twice", async () => {
+    const root = checkout();
+
+    await files.remove(root, "docs");
+
+    // The other half of the rule above: what `recursive` guards is *content*,
+    // not the fact of being a directory. Without this, refusing every directory
+    // passes the test above and makes the tree unable to drop an empty folder.
+    expect(existsSync(join(root, "docs"))).toBe(false);
+  });
+
+  it("removes the whole tree when recursive is asked for", async () => {
+    const root = checkout();
+
+    await files.remove(root, "src", { recursive: true });
+
+    expect(existsSync(join(root, "src"))).toBe(false);
+  });
+
+  it("removes a link and leaves what it points at", async () => {
+    const root = checkout();
+    symlinkSync(join(root, "src", "lore", "loader.ts"), join(root, "atalho.ts"));
+
+    await files.remove(root, "atalho.ts");
+
+    // Q12 again, on the operation where the mistake is unrecoverable: through
+    // `target` this removes `loader.ts` and leaves a dangling link named
+    // `atalho.ts` behind. Both are strings, both compile.
+    expect(existsSync(join(root, "atalho.ts"))).toBe(false);
+    expect(readFileSync(join(root, "src", "lore", "loader.ts"), "utf8")).toBe(
+      "const a = 1;\nconst b = 2;\n",
+    );
+  });
+
+  it("removes a link that points outside the checkout, and the file outside keeps its bytes", async () => {
+    const root = checkout();
+    const outside = tempDir("lumem-outside-");
+    writeFileSync(join(outside, "id_rsa"), "PRIVATE KEY");
+    symlinkSync(join(outside, "id_rsa"), join(root, "chave.txt"));
+
+    await files.remove(root, "chave.txt");
+
+    // The case E3.1 unlocked and nothing else exercises (P14, Q12): the guard
+    // hands back `target: null` for it, so the only way to remove it is through
+    // the entry — and the entry is inside the checkout, which is what makes it
+    // legitimate. Writing through it is still refused, by `writeFile`.
+    expect(existsSync(join(root, "chave.txt"))).toBe(false);
+    expect(readFileSync(join(outside, "id_rsa"), "utf8")).toBe("PRIVATE KEY");
+  });
+
+  it("removes a dangling link", async () => {
+    const root = checkout();
+    symlinkSync(join(root, "src", "sumiu.ts"), join(root, "quebrado.ts"));
+
+    await files.remove(root, "quebrado.ts");
+
+    // Exactly the rubbish someone opens the tree to throw away, and it was
+    // unremovable by any path before Q12.
+    expect(lstatSync(join(root, "src")).isDirectory()).toBe(true);
+    expect(existsSync(join(root, "quebrado.ts"))).toBe(false);
+  });
+
+  it("removes a link to a directory as the one entry it is", async () => {
+    const root = checkout();
+    symlinkSync(join(root, "src"), join(root, "atalho"));
+
+    await files.remove(root, "atalho");
+
+    // No `recursive` anywhere, because there is nothing to recurse into: one
+    // unlink. Deciding by `stat` instead of `lstat` calls this a directory and
+    // either asks for `recursive` to drop a single link or, with it, walks into
+    // `src` and takes the tree.
+    expect(existsSync(join(root, "atalho"))).toBe(false);
+    expect(readFileSync(join(root, "src", "lore", "loader.ts"), "utf8")).toBe(
+      "const a = 1;\nconst b = 2;\n",
+    );
+  });
+
+  it("does not follow a link out of the checkout while recursing", async () => {
+    const root = checkout();
+    const outside = tempDir("lumem-outside-");
+    writeFileSync(join(outside, "id_rsa"), "PRIVATE KEY");
+    mkdirSync(join(root, "scratch"));
+    writeFileSync(join(root, "scratch", "nota.txt"), "x\n");
+    symlinkSync(outside, join(root, "scratch", "atalho"));
+
+    await files.remove(root, "scratch", { recursive: true });
+
+    // The oldest disaster in the genre: a recursive delete that walks into a
+    // link and empties somewhere else. `fs.rm` decides by `lstat` and unlinks
+    // links, and this is the test that stays behind if anyone reimplements the
+    // walk by hand.
+    expect(existsSync(join(root, "scratch"))).toBe(false);
+    expect(readFileSync(join(outside, "id_rsa"), "utf8")).toBe("PRIVATE KEY");
+  });
+
+  it("refuses a path that is not there, and says it was never there", async () => {
+    const root = checkout();
+
+    const failure = await files.remove(root, "src/sumiu.ts").catch((error) => error);
+
+    // The sentence, not only the code: the guard already knows the path is not
+    // there, and the `lstat` below would answer NOT_FOUND too — with "não está
+    // mais", which is the sentence for a path that vanished after the guard saw
+    // it. Two different things said to the person, same code on the wire, and
+    // asserting only the code lets the early answer be deleted silently.
+    expect(failure).toMatchObject({ code: "NOT_FOUND" });
+    expect(failure.message).toContain("não existe no checkout");
+  });
+});
+
+describe("creating, renaming and removing stay out of .git and off the root", () => {
+  it("refuses .git at every one of the calls, not only at the guard", async () => {
+    const root = checkout();
+    mkdirSync(join(root, ".git", "refs"), { recursive: true });
+    writeFileSync(join(root, ".git", "HEAD"), "ref: refs/heads/main\n");
+
+    const refusals = await Promise.all([
+      files.createFile(root, ".git/novo").catch((error) => error),
+      files.createDir(root, ".git/objects").catch((error) => error),
+      files.rename(root, ".git/HEAD", "HEAD").catch((error) => error),
+      files.rename(root, "README.md", ".git/README.md").catch((error) => error),
+      files.remove(root, ".git", { recursive: true }).catch((error) => error),
+      files.remove(root, ".git/HEAD").catch((error) => error),
+      files.deletePreview(root, ".git/HEAD").catch((error) => error),
+    ]);
+
+    expect(refusals.map((failure) => failure.code)).toEqual([
+      "BLOCKED",
+      "BLOCKED",
+      "BLOCKED",
+      "BLOCKED",
+      "BLOCKED",
+      "BLOCKED",
+      "BLOCKED",
+    ]);
+    // Removing `.git` takes the worktree and the uncommitted work with it, so
+    // the disk is asserted too: a refusal that already did the damage is not a
+    // refusal.
+    expect(readFileSync(join(root, ".git", "HEAD"), "utf8")).toBe("ref: refs/heads/main\n");
+    expect(existsSync(join(root, ".git", "refs"))).toBe(true);
+  });
+
+  it("refuses the checkout root itself, spelled every way it can be", async () => {
+    const root = checkout();
+
+    const refusals = await Promise.all([
+      files.remove(root, "").catch((error) => error),
+      files.remove(root, ".", { recursive: true }).catch((error) => error),
+      files.rename(root, "", "novo").catch((error) => error),
+      files.rename(root, "src", "").catch((error) => error),
+      files.createDir(root, ".").catch((error) => error),
+    ]);
+
+    expect(refusals.map((failure) => failure.code)).toEqual([
+      "INVALID_ARGUMENT",
+      "INVALID_ARGUMENT",
+      "INVALID_ARGUMENT",
+      "INVALID_ARGUMENT",
+      "INVALID_ARGUMENT",
+    ]);
+    expect(readdirSync(root).sort()).toEqual([".gitignore", "README.md", "docs", "src"]);
+  });
+});
+
+describe("deletePreview", () => {
+  it("says a tracked file comes back", async () => {
+    const root = await gitCheckout();
+
+    expect(await files.deletePreview(root, "src/lore/loader.ts")).toEqual({
+      kind: "file",
+      path: "src/lore/loader.ts",
+      tracked: true,
+    });
+  });
+
+  it("says an untracked file does not", async () => {
+    const root = await gitCheckout();
+    writeFileSync(join(root, "notas-da-migracao.md"), "rascunho\n");
+
+    // The pair is the point: the dialog promises "o git desfaz" for one and
+    // "nada traz de volta" for the other, and a preview that answers the same
+    // for both is what makes the promise a guess (F4.3).
+    expect(await files.deletePreview(root, "notas-da-migracao.md")).toEqual({
+      kind: "file",
+      path: "notas-da-migracao.md",
+      tracked: false,
+    });
+  });
+
+  it("counts a file git only has in the index as tracked", async () => {
+    const root = await gitCheckout();
+    writeFileSync(join(root, "adicionado.ts"), "const a = 1;\n");
+    await runGit(root, "add", "adicionado.ts");
+
+    // `git checkout -- adicionado.ts` restores it from the index, so the index
+    // is the question — not `HEAD`, which does not have this file yet.
+    expect(await files.deletePreview(root, "adicionado.ts")).toMatchObject({ tracked: true });
+  });
+
+  it("counts a directory to the bottom, and how many of it git does not have", async () => {
+    const root = await gitCheckout();
+    mkdirSync(join(root, "scratch", "sub"), { recursive: true });
+    writeFileSync(join(root, "scratch", "rastreado.txt"), "a\n");
+    writeFileSync(join(root, "scratch", "sub", "tambem.txt"), "b\n");
+    await runGit(root, "add", "scratch/rastreado.txt", "scratch/sub/tambem.txt");
+    await runGit(root, "commit", "-m", "scratch");
+    writeFileSync(join(root, "scratch", "solto.txt"), "c\n");
+    writeFileSync(join(root, "scratch", "sub", "outro-solto.txt"), "d\n");
+
+    // The sentence the prototype draws — "12 arquivos e 3 pastas" and "9 deles
+    // não estão no git" — is these four numbers. Untracked counts files only:
+    // git tracks no directory, and one holding a tracked file comes back with it.
+    expect(await files.deletePreview(root, "scratch")).toEqual({
+      kind: "dir",
+      path: "scratch",
+      files: 4,
+      dirs: 1,
+      untracked: 2,
+      truncated: false,
+    });
+  });
+
+  it("stops at the ceiling and says the numbers are a floor", async () => {
+    const root = await gitCheckout();
+    mkdirSync(join(root, "node_modules", "pacote"), { recursive: true });
+    for (let index = 0; index < 30; index += 1) {
+      writeFileSync(join(root, "node_modules", `f${index}.txt`), "x");
+      writeFileSync(join(root, "node_modules", "pacote", `g${index}.txt`), "x");
+    }
+    const capped = createFileService({ maxPreviewEntries: 10 });
+
+    const preview = await capped.deletePreview(root, "node_modules");
+
+    // `node_modules` is visible and removable in the tree, and counting 200 000
+    // entries to draw a dialog is how the tab freezes. Sixty-one entries
+    // against a ceiling of ten: without the ceiling this is 61 and green on
+    // `truncated: false`.
+    expect(preview).toMatchObject({ kind: "dir", truncated: true });
+    expect(preview.kind === "dir" && preview.files + preview.dirs).toBe(10);
+  });
+
+  it("counts a link as the one entry it is instead of walking into it", async () => {
+    const root = await gitCheckout();
+    const outside = tempDir("lumem-outside-");
+    mkdirSync(join(outside, "muitos"));
+    for (let index = 0; index < 20; index += 1) {
+      writeFileSync(join(outside, "muitos", `f${index}.txt`), "x");
+    }
+    mkdirSync(join(root, "scratch"));
+    symlinkSync(join(outside, "muitos"), join(root, "scratch", "atalho"));
+
+    // The preview describes what `remove` does, and `remove` unlinks the link.
+    // Following it here would put twenty entries in a dialog for an operation
+    // that touches one — and would count a tree outside the checkout.
+    expect(await files.deletePreview(root, "scratch")).toEqual({
+      kind: "dir",
+      path: "scratch",
+      files: 1,
+      dirs: 0,
+      untracked: 1,
+      truncated: false,
+    });
+  });
+
+  it("previews a link to a directory as the one entry it is", async () => {
+    const root = await gitCheckout();
+    const outside = tempDir("lumem-outside-");
+    mkdirSync(join(outside, "muitos"));
+    for (let index = 0; index < 20; index += 1) {
+      writeFileSync(join(outside, "muitos", `f${index}.txt`), "x");
+    }
+    symlinkSync(join(outside, "muitos"), join(root, "atalho"));
+
+    // The link *is* the target here, and deciding by `stat` instead of `lstat`
+    // calls it a directory: the dialog would offer to remove twenty entries for
+    // an operation that unlinks one, and the twenty it counted are outside the
+    // checkout. Found by mutation — the sibling test only covers a link found
+    // *inside* a previewed directory.
+    expect(await files.deletePreview(root, "atalho")).toEqual({
+      kind: "file",
+      path: "atalho",
+      tracked: false,
+    });
+  });
+
+  it("calls everything untracked in a checkout git knows nothing about", async () => {
+    const root = checkout();
+
+    // A directory that is not a repository: `ls-files` fails, and "o git não
+    // tem cópia disto" is the true answer rather than an error the dialog
+    // cannot show.
+    expect(await files.deletePreview(root, "README.md")).toEqual({
+      kind: "file",
+      path: "README.md",
+      tracked: false,
+    });
+  });
+
+  it("refuses a path that is not there", async () => {
+    const root = await gitCheckout();
+
+    const failure = await files.deletePreview(root, "src/sumiu.ts").catch((error) => error);
+
+    // A dialog asking to remove something that is already gone has nothing to
+    // confirm, and the tree that offered it is stale.
+    expect(failure).toMatchObject({ code: "NOT_FOUND" });
+    expect(failure.message).toContain("não existe no checkout");
   });
 });

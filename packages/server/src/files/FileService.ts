@@ -3,16 +3,21 @@ import {
   access,
   chmod,
   constants,
+  lstat,
+  mkdir,
   readdir,
   readFile,
   rename,
   rm,
+  rmdir,
   stat,
+  unlink,
   writeFile,
 } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 import { DomainError } from "../errors.js";
+import { execGit } from "../git/exec.js";
 import { resolveForWrite, resolveInsideRoot } from "./path-guard.js";
 
 /**
@@ -32,6 +37,17 @@ export const MAX_ENTRIES_PER_DIR = 2_000;
 
 /** Bytes a file may have and still be read. */
 export const MAX_FILE_BYTES = 1024 * 1024;
+
+/**
+ * Entries a delete preview walks before it says the numbers are a floor.
+ *
+ * `node_modules` is visible in the tree and removable from it (Q15), and it
+ * holds hundreds of thousands of entries: counting them all to draw a
+ * confirmation dialog is how the tab freezes. The same ceiling as a directory
+ * listing, for the same reason and with the same honesty — the count that is
+ * shown says when it stopped counting.
+ */
+export const MAX_PREVIEW_ENTRIES = 2_000;
 
 /** How much of a file is sniffed for a NUL byte before calling it binary. */
 export const BINARY_SNIFF_BYTES = 8 * 1024;
@@ -124,15 +140,74 @@ export type WriteResult =
       changedAt: number;
     };
 
+export interface RemoveOptions {
+  /**
+   * Required before a directory with anything in it is removed.
+   *
+   * §5: an `rmdir` that becomes `rm -rf` because a parameter was left out is
+   * the accident with no undo. Defaulting to false makes the caller that forgot
+   * hear about it before the disk changes, and the refusal carries the count so
+   * the second call is made knowing the size.
+   */
+  recursive?: boolean;
+}
+
+/**
+ * What the confirmation dialog needs before anything is removed, F5.7.
+ *
+ * Two shapes because the screen asks two different questions. For one entry:
+ * does git have a copy — "`git checkout --` traz de volta" against "nada traz
+ * de volta". For a directory: how much is in there and how much of it is gone
+ * for good. There is no `tracked` on the directory side because git tracks no
+ * directory; the question that has an answer is how many of the files inside
+ * it git cannot bring back.
+ *
+ * A link, a fifo and an ordinary file are the same shape here, and that is not
+ * sloppiness: `remove` unlinks all three as one entry, and a preview that
+ * described anything else would be describing another operation.
+ */
+export type DeletePreview =
+  | {
+      kind: "file";
+      path: string;
+      /** git has a copy of these bytes — in the index, which is what `checkout --` restores from. */
+      tracked: boolean;
+    }
+  | {
+      kind: "dir";
+      path: string;
+      /** Files under it, recursively. The directory itself is not one of them. */
+      files: number;
+      /** Subdirectories under it, recursively. A link to one is a file, not one of these. */
+      dirs: number;
+      /** Of those files, how many git has no copy of. Nothing brings these back. */
+      untracked: number;
+      /**
+       * The walk stopped early: at the ceiling, or at a subdirectory it could
+       * not list. Every count above is then a floor rather than a total, and
+       * the dialog has to say so instead of stating a number that is wrong.
+       */
+      truncated: boolean;
+    };
+
 export interface FileService {
   listDir(root: string, path: string, options?: ListOptions): Promise<DirListing>;
   readFile(root: string, path: string): Promise<FileContent>;
   writeFile(root: string, path: string, options: WriteOptions): Promise<WriteResult>;
+  /** An empty file, F5.3. The name has to be free, and that is decided atomically. */
+  createFile(root: string, path: string): Promise<{ path: string }>;
+  createDir(root: string, path: string): Promise<{ path: string }>;
+  /** Renaming is moving, F4.2: both ends go through the guard, and the destination has to be free. */
+  rename(root: string, from: string, to: string): Promise<{ path: string }>;
+  remove(root: string, path: string, options?: RemoveOptions): Promise<void>;
+  /** What the confirmation needs to know before it asks, F5.7. Reads only. */
+  deletePreview(root: string, path: string): Promise<DeletePreview>;
 }
 
 export interface FileServiceOptions {
   maxEntries?: number;
   maxBytes?: number;
+  maxPreviewEntries?: number;
 }
 
 /**
@@ -271,22 +346,30 @@ export async function writeAtomically(
 ): Promise<void> {
   const temp = tempPathFor(target);
   try {
-    // The mode is given at creation *and* set again: `open` subtracts the
-    // umask, so a file that was 0o664 comes back 0o644 without the chmod.
+    // Born 0o600 and only then raised to the target's mode, which is two
+    // separate decisions.
     //
-    // Only the chmod shows up in the final mode; the `{ mode }` at creation is
-    // about the window, where a temporary created 0o666 is world-readable for
-    // the length of the write. No test can pin it — the observer would have to
-    // be inside this function — so this sentence is what defends the argument,
-    // and the same holds for the order: chmod before the rename is what makes
-    // the file complete *and* correct the instant it appears on the target.
+    // The birth mode is about the *window*: for the length of the write this
+    // file exists under a name nobody expects, and creating it as the target's
+    // mode makes it group- or world-readable for that stretch — a private file
+    // being edited is briefly readable by everyone the target's mode allows,
+    // which is nobody's intent and costs one constant to avoid. No test can pin
+    // it: the observer would have to be inside this function. This sentence is
+    // the defence, and E5's `Done when` is where the decision was taken, out of
+    // a mutation that survived Lote 3 — the final mode is proven, the window
+    // was not, and narrowing it is cheaper than testing it.
+    //
+    // The chmod is about the *result*, and it is the only half that shows on
+    // the target: `open` subtracts the umask, so even `{ mode }` at creation
+    // would not give back 0o664. Before the rename, never after — that is what
+    // makes the file complete *and* correct the instant it appears.
     //
     // Masked to 0o777, so setuid, setgid and the sticky bit are deliberately
     // *not* carried over. These bytes are a new inode created by the daemon's
     // user; setuid on the old inode meant "runs as whoever owned that file",
     // and reproducing it here would hand a privilege the original only had by
     // being someone else's. A text editor has no business minting that.
-    await writeFile(temp, content, { mode });
+    await writeFile(temp, content, { mode: 0o600 });
     await chmod(temp, mode & 0o777);
     await rename(temp, target);
   } catch (error) {
@@ -296,6 +379,186 @@ export async function writeAtomically(
     await rm(temp, { force: true }).catch(() => {});
     throw error;
   }
+}
+
+/**
+ * What a failed creation means, for a path the guard had already approved.
+ *
+ * Everything in here runs *after* `resolveForWrite` said yes, and the disk
+ * moves in between: the agent takes the name, the parent is removed, a
+ * permission changes. None of that is a defect, and all of it arrives as a raw
+ * errno that would leave this module as a bare `Error` — which the repository
+ * treats as a bug rather than as an answer.
+ *
+ * ENOENT is P11's other half: a parent that vanishes between the guard's
+ * `realpath` and its `lstat` comes back as `exists: false`, with nothing wrong
+ * on the way, and this is the syscall that finds out. Assuming the directory is
+ * there because the guard just looked is exactly the assumption that breaks.
+ *
+ * The original error is handed back untouched for a code nobody mapped, so a
+ * failing disk stays a defect instead of becoming a sentence the client is told
+ * to act on.
+ */
+export function asCreationFailure(error: unknown, relative: string): unknown {
+  const code = (error as NodeJS.ErrnoException).code;
+  const parent = dirname(relative) === "." ? "." : dirname(relative);
+  if (code === "EEXIST") {
+    return new DomainError("DUPLICATE", `já existe alguma coisa em ${relative}`);
+  }
+  if (code === "ENOENT") {
+    return new DomainError("NOT_FOUND", `o diretório ${parent} não existe no checkout`);
+  }
+  if (code === "ENOTDIR") {
+    return new DomainError("INVALID_ARGUMENT", `${parent} não é um diretório`);
+  }
+  if (code === "EACCES" || code === "EPERM") {
+    return new DomainError("BLOCKED", `sem permissão de escrita em ${parent}`);
+  }
+  return error;
+}
+
+/** The same contract as `asCreationFailure`, for the errnos a `rename` has. */
+function asRenameFailure(error: unknown, from: string, to: string): unknown {
+  const code = (error as NodeJS.ErrnoException).code;
+  if (code === "EEXIST" || code === "ENOTEMPTY") {
+    // Taken between the check and the syscall — the window §5 accepts, and the
+    // one answer that keeps it from being a silent replace.
+    return new DomainError("DUPLICATE", `já existe alguma coisa em ${to}`);
+  }
+  if (code === "ENOENT") {
+    return new DomainError("NOT_FOUND", `${from} ou o diretório de ${to} não está mais no checkout`);
+  }
+  if (code === "EINVAL") {
+    // Moving a directory into its own subtree. Reachable by typing a path in
+    // the tree's rename field, which is what F4.2 asks for.
+    return new DomainError("INVALID_ARGUMENT", `não dá para mover ${from} para dentro dele mesmo`);
+  }
+  if (code === "EISDIR" || code === "ENOTDIR") {
+    return new DomainError("INVALID_ARGUMENT", `${from} e ${to} não são do mesmo tipo`);
+  }
+  if (code === "EXDEV") {
+    // A mount point inside the checkout. Copying instead would silently stop
+    // being atomic, and this is rare enough to name rather than paper over.
+    return new DomainError("BLOCKED", `${from} e ${to} estão em filesystems diferentes`);
+  }
+  if (code === "EACCES" || code === "EPERM") {
+    return new DomainError("BLOCKED", `sem permissão para mover ${from}`);
+  }
+  return error;
+}
+
+/** The same contract again, for the errnos removing has. */
+function asRemovalFailure(error: unknown, relative: string): unknown {
+  const code = (error as NodeJS.ErrnoException).code;
+  if (code === "ENOENT") {
+    return new DomainError("NOT_FOUND", `${relative} não está mais no checkout`);
+  }
+  if (code === "ENOTEMPTY") {
+    // Something landed in the directory between the count and the `rmdir`.
+    return new DomainError("BLOCKED", `${relative} deixou de estar vazia`);
+  }
+  if (code === "EACCES" || code === "EPERM") {
+    return new DomainError("BLOCKED", `sem permissão para apagar ${relative}`);
+  }
+  return error;
+}
+
+/**
+ * Whether git has a copy of this one entry — the whole of the file dialog.
+ *
+ * Asked from the entry's own directory, with its bare name as the pathspec, so
+ * there is no root-relative arithmetic to get wrong and git finds the
+ * repository by walking up on its own. A checkout that is not a repository
+ * fails here, and "o git não tem cópia disto" is the true answer for it — the
+ * dialog has somewhere to put that and nowhere to put an exception.
+ *
+ * The index, not `HEAD`: `git checkout -- <path>` restores from the index, so a
+ * file that was only `git add`ed does come back.
+ */
+async function isTracked(entry: string): Promise<boolean> {
+  const { stdout } = await execGit(["ls-files", "--error-unmatch", "-z", "--", basename(entry)], {
+    cwd: dirname(entry),
+  }).catch(() => ({ stdout: "", stderr: "" }));
+  return stdout !== "";
+}
+
+/**
+ * Everything git tracks under a directory, keyed the way the walk keys it.
+ *
+ * One git process for the whole subtree instead of one per file: a directory
+ * with a thousand files would otherwise be a thousand spawns to draw a dialog.
+ * Run with the directory as the working directory, so `ls-files` lists only
+ * what is under it and prints the paths relative to it.
+ */
+async function trackedUnder(dir: string): Promise<Set<string>> {
+  const { stdout } = await execGit(["ls-files", "-z"], { cwd: dir }).catch(() => ({
+    stdout: "",
+    stderr: "",
+  }));
+  return new Set(stdout.split("\0").filter((name) => name !== ""));
+}
+
+interface TreeCount {
+  files: number;
+  dirs: number;
+  untracked: number;
+  truncated: boolean;
+}
+
+/**
+ * What a recursive removal would take, counted with a ceiling.
+ *
+ * Bounded while it walks and not sliced afterwards: the ceiling exists so that
+ * `node_modules` costs a few thousand `readdir` entries instead of all of them,
+ * and a walk that finishes before trimming has already paid the price the
+ * ceiling was for.
+ */
+async function countTree(dir: string, ceiling: number): Promise<TreeCount> {
+  const tracked = await trackedUnder(dir);
+  const pending: string[] = [""];
+  let files = 0;
+  let dirs = 0;
+  let untracked = 0;
+  let truncated = false;
+
+  while (files + dirs < ceiling) {
+    const current = pending.pop();
+    if (current === undefined) break;
+
+    const dirents = await readdir(join(dir, current), { withFileTypes: true }).catch(() => null);
+    if (dirents === null) {
+      // A subdirectory this process cannot list. Saying the numbers are a floor
+      // is the honest answer; failing the whole preview would leave the dialog
+      // with nothing to show for a directory `rm -r` may well remove.
+      truncated = true;
+      continue;
+    }
+
+    for (const dirent of dirents) {
+      if (files + dirs >= ceiling) {
+        truncated = true;
+        break;
+      }
+      // Built with `/` and never with `sep`, because the other side of the
+      // comparison is git's output and git always prints `/`.
+      const child = current === "" ? dirent.name : `${current}/${dirent.name}`;
+      // `isDirectory()` is false for a link to one, and that is the point:
+      // `rm -r` unlinks the link instead of walking into it, so counting what
+      // it points at would describe an operation that never happens — and,
+      // for a link out of the checkout, would count a tree that is not ours.
+      if (dirent.isDirectory()) {
+        dirs += 1;
+        pending.push(child);
+      } else {
+        files += 1;
+        if (!tracked.has(child)) untracked += 1;
+      }
+    }
+  }
+
+  // Stopped with directories still to visit: what was counted is a floor.
+  if (pending.length > 0) truncated = true;
+  return { files, dirs, untracked, truncated };
 }
 
 function countLines(text: string): number {
@@ -311,6 +574,7 @@ function countLines(text: string): number {
 export function createFileService({
   maxEntries = MAX_ENTRIES_PER_DIR,
   maxBytes = MAX_FILE_BYTES,
+  maxPreviewEntries = MAX_PREVIEW_ENTRIES,
 }: FileServiceOptions = {}): FileService {
   return {
     async listDir(root, path, options = {}) {
@@ -518,6 +782,145 @@ export function createFileService({
         throw error;
       }
       return { ok: true, revision: revisionOf(buffer) };
+    },
+
+    async createFile(root, path) {
+      const { relative, entry } = await resolveForWrite(root, path);
+
+      try {
+        // `wx` is `O_CREAT | O_EXCL`: the kernel decides who got the name, in
+        // one syscall, with no window. The guard's `exists` is deliberately not
+        // consulted — between a check and a write fits the agent creating the
+        // same name, and F4.4 asks for DUPLICATE rather than a replacement.
+        //
+        // Which is why this is not `writeAtomically`: its `rename` replaces
+        // whatever is on the target without a word, and no check in front of it
+        // closes that. Two mechanisms because they answer different questions.
+        //
+        // On the entry, never on the target: creating makes a directory entry,
+        // and a name held by a link — dangling or not — is a name that is taken.
+        await writeFile(entry, "", { flag: "wx" });
+      } catch (error) {
+        throw asCreationFailure(error, relative);
+      }
+      // Normalised, and only this side can normalise it: `./src//a.ts` is the
+      // same file as `src/a.ts`, and the tree keys on the second.
+      return { path: relative };
+    },
+
+    async createDir(root, path) {
+      const { relative, entry } = await resolveForWrite(root, path);
+
+      try {
+        // Not `recursive`: `mkdir -p` would create directories the guard never
+        // resolved, one level at a time, and the guard resolves exactly one
+        // parent. A missing parent is NOT_FOUND with the directory named.
+        await mkdir(entry);
+      } catch (error) {
+        throw asCreationFailure(error, relative);
+      }
+      return { path: relative };
+    },
+
+    async rename(root, from, to) {
+      const source = await resolveForWrite(root, from);
+      const destination = await resolveForWrite(root, to);
+
+      if (!source.exists) {
+        throw new DomainError("NOT_FOUND", `${source.relative} não existe no checkout`);
+      }
+      if (destination.exists) {
+        // `rename(2)` replaces the destination without a word, and there is no
+        // portable exclusive rename to lean on the way creating leans on
+        // `O_EXCL`. So this is a check, with the window §5 declares acceptable:
+        // the threat model is accident, not adversary. What it is not allowed
+        // to be is a silent replace of the agent's file (F4.4).
+        throw new DomainError("DUPLICATE", `já existe alguma coisa em ${destination.relative}`);
+      }
+
+      try {
+        // Entry to entry (Q12): `rename(2)` follows no symlink on either side,
+        // which is what makes renaming a link move the link. Through `target`
+        // this moves the file the link points at and leaves the link behind
+        // pointing at nothing — and `tsc` catches nothing, because `target` is
+        // a perfectly good string. This comment is the guard rail there is.
+        await rename(source.entry, destination.entry);
+      } catch (error) {
+        throw asRenameFailure(error, source.relative, destination.relative);
+      }
+      return { path: destination.relative };
+    },
+
+    async remove(root, path, { recursive = false }: RemoveOptions = {}) {
+      const { relative, entry, exists } = await resolveForWrite(root, path);
+      if (!exists) {
+        throw new DomainError("NOT_FOUND", `${relative} não existe no checkout`);
+      }
+
+      // `lstat` and never `stat`, `entry` and never `target` (Q12). A link to a
+      // directory is one entry to unlink: `stat` calls it a directory and would
+      // demand `recursive` to drop a single link, or, given it, walk into the
+      // tree it points at. `target` removes what it points at — the file
+      // outside the checkout included, which is the one operation this daemon
+      // must never perform and the one `tsc` cannot refuse.
+      const info = await lstat(entry).catch((error: unknown) => {
+        throw asRemovalFailure(error, relative);
+      });
+
+      if (!info.isDirectory()) {
+        // `unlink` for files, links and everything else with a single entry:
+        // it never follows a link, so the destination keeps its bytes.
+        await unlink(entry).catch((error: unknown) => {
+          throw asRemovalFailure(error, relative);
+        });
+        return;
+      }
+
+      if (recursive) {
+        // `fs.rm` decides by `lstat` on the way down, so a link inside the tree
+        // is unlinked rather than followed — a recursive delete that walks into
+        // a link empties somewhere else entirely.
+        await rm(entry, { recursive: true }).catch((error: unknown) => {
+          throw asRemovalFailure(error, relative);
+        });
+        return;
+      }
+
+      const inside = await readdir(entry).catch((error: unknown) => {
+        throw asRemovalFailure(error, relative);
+      });
+      if (inside.length > 0) {
+        // The count travels with the refusal: the caller asks again knowing the
+        // size, which is the whole difference between `rmdir` and `rm -rf`.
+        throw new DomainError(
+          "BLOCKED",
+          `a pasta ${relative} tem ${inside.length} ${inside.length === 1 ? "entrada" : "entradas"} dentro; apagar assim mesmo exige recursive`,
+        );
+      }
+      // `rmdir` and not `fs.rm`: without `recursive`, `fs.rm` refuses every
+      // directory, empty ones included, and an empty folder has to be droppable.
+      await rmdir(entry).catch((error: unknown) => {
+        throw asRemovalFailure(error, relative);
+      });
+    },
+
+    async deletePreview(root, path) {
+      // The same guard the removal itself goes through, so the preview
+      // describes an operation that is actually on offer: `.git` and the root
+      // refuse here for the same reason they refuse there, and the entry it
+      // resolves is the entry that would be unlinked.
+      const { relative, entry, exists } = await resolveForWrite(root, path);
+      if (!exists) {
+        throw new DomainError("NOT_FOUND", `${relative} não existe no checkout`);
+      }
+
+      const info = await lstat(entry).catch((error: unknown) => {
+        throw asRemovalFailure(error, relative);
+      });
+      if (!info.isDirectory()) {
+        return { kind: "file", path: relative, tracked: await isTracked(entry) };
+      }
+      return { kind: "dir", path: relative, ...(await countTree(entry, maxPreviewEntries)) };
     },
   };
 }
