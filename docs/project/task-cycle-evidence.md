@@ -42,9 +42,11 @@ O mecanismo se provou antes de completar um dia de vida: quando esta seção foi
 já devolvia o lote `E1`, que havia fechado enquanto o próprio arquivo era reescrito. Ele apareceu
 sem ninguém precisar lembrar, e virou a primeira linha da tabela.
 
-**Um lote medido, e ele não teve review.** Enquanto a tabela não tiver um lote de código com round
-de review, toda estimativa de custo que a skill der ao usuário continua sendo chute herdado (anexo)
-e tem de ser apresentada como tal.
+**Dois lotes medidos**, um de desenho e um de código. O segundo (`E2+E3`) é o primeiro com review
+de verdade: perfil crítico, 2 rounds, 582k. Já dá para dizer alguma coisa deste repositório — e
+ainda não dá para calibrar a §10 da skill, que separa custo por estágio e por perfil, com **um**
+ponto amostral de um perfil só. Até lá, estimativa dada ao usuário continua saindo do anexo, com o
+aviso de que é herdada.
 
 ---
 
