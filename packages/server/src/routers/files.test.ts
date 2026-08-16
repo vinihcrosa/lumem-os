@@ -127,6 +127,40 @@ describe("files.read", () => {
     expect(content.kind === "text" && content.text).toBe("const a = 1;\n");
   });
 
+  it("carries the revision the client will write against", async () => {
+    const { context: ctx, projectId, repo } = await setup();
+    const input = {
+      scopeType: "project",
+      scopeId: projectId,
+      path: "src/lore/loader.ts",
+    } as const;
+
+    const first = await ctx.api.files.read(input);
+    const again = await ctx.api.files.read(input);
+    writeFileSync(join(repo, "src", "lore", "loader.ts"), "const a = 2;\n");
+    const changed = await ctx.api.files.read(input);
+
+    expect(first.kind === "text" && first.revision).toEqual(expect.any(String));
+    // Nothing happened between the two reads, so nothing may look stale later.
+    expect(first.kind === "text" && first.revision).toBe(again.kind === "text" && again.revision);
+    expect(changed.kind === "text" && changed.revision).not.toBe(
+      first.kind === "text" && first.revision,
+    );
+  });
+
+  it("says over the wire when a file is not editable, and why", async () => {
+    const { context: ctx, projectId, repo } = await setup();
+    writeFileSync(join(repo, "latin1.txt"), Buffer.from([0x63, 0x61, 0x66, 0xe9, 0x0a]));
+
+    const content = await ctx.api.files.read({
+      scopeType: "project",
+      scopeId: projectId,
+      path: "latin1.txt",
+    });
+
+    expect(content).toMatchObject({ kind: "text", readOnly: "not-utf8" });
+  });
+
   it("reports a file that is not there", async () => {
     const { context: ctx, projectId } = await setup();
 

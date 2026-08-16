@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -43,8 +44,27 @@ export interface DirListing {
   truncated: boolean;
 }
 
+/**
+ * Why a file that reads fine still cannot be written back.
+ *
+ * A reason instead of a boolean because the client paints four refusals with
+ * the same grammar — binary, too large, inside `.git`, and this one — and a
+ * mute `false` would make it invent the sentence.
+ */
+export type ReadOnlyReason = "not-utf8";
+
 export type FileContent =
-  | { kind: "text"; path: string; bytes: number; lines: number; text: string }
+  | {
+      kind: "text";
+      path: string;
+      bytes: number;
+      lines: number;
+      text: string;
+      /** The content this text is, for a later write to compare against. */
+      revision: string;
+      /** Null when the file can be written back. */
+      readOnly: ReadOnlyReason | null;
+    }
   | { kind: "binary"; path: string; bytes: number }
   | { kind: "too-large"; path: string; bytes: number; limit: number };
 
@@ -86,6 +106,32 @@ function isBinary(buffer: Buffer): boolean {
   // wrong one: `.ts` holds video as often as it holds TypeScript.
   const end = Math.min(buffer.length, BINARY_SNIFF_BYTES);
   return buffer.subarray(0, end).includes(0);
+}
+
+/**
+ * What a read is based on, and what a write is compared against (Q4).
+ *
+ * The content, not the `mtime`: on some filesystems the `mtime` has a second of
+ * granularity and an agent writes several times a second, and an edit that puts
+ * the file back the way it was has to give back the *same* revision. The file
+ * is read whole anyway, under the same 1 MiB ceiling, so hashing it costs
+ * nothing next to what was already paid.
+ */
+export function revisionOf(content: Buffer): string {
+  return createHash("sha256").update(content).digest("hex");
+}
+
+/**
+ * Whether writing the decoded text back would give the same bytes (Q9).
+ *
+ * The only question asked is whether saving would destroy content — no encoding
+ * detection, no guessing which one it really is. A Latin-1 file with no NUL
+ * byte walks past the binary sniff and decodes with replacement characters;
+ * autosave writes on its own, so it would put those over the original with
+ * nobody having clicked anything.
+ */
+function survivesUtf8(content: Buffer, text: string): boolean {
+  return Buffer.from(text, "utf8").equals(content);
 }
 
 function countLines(text: string): number {
@@ -188,7 +234,15 @@ export function createFileService({
       if (isBinary(buffer)) return { kind: "binary", path: relative, bytes: buffer.length };
 
       const text = buffer.toString("utf8");
-      return { kind: "text", path: relative, bytes: buffer.length, lines: countLines(text), text };
+      return {
+        kind: "text",
+        path: relative,
+        bytes: buffer.length,
+        lines: countLines(text),
+        text,
+        revision: revisionOf(buffer),
+        readOnly: survivesUtf8(buffer, text) ? null : "not-utf8",
+      };
     },
   };
 }
