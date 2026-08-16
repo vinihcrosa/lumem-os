@@ -162,10 +162,13 @@ export const filesRouter = router({
    * browser, a proxy or a link preview fires on its own.
    *
    * Its `git ls-files` keeps the default 30 s timeout of `execGit`. Shorter
-   * would read as kindness to a modal dialog and is not: `ls-files` costs
-   * milliseconds on any ordinary index, so a lower ceiling would only convert
-   * the rare slow-but-correct answer into a failure — and the dialog has
-   * nowhere to put "não deu tempo de saber se o git desfaz".
+   * would read as kindness to a modal dialog and is the opposite of it: a
+   * timed-out `execGit` throws GIT_FAILED, and both readers of it swallow that
+   * into their empty answer — `tracked: false` for a file, no tracked names at
+   * all for a directory. So a lower ceiling would not turn the rare
+   * slow-but-correct answer into a failure the dialog could word. It would turn
+   * it into a wrong one, silently: "nada traz esse arquivo de volta", about a
+   * file git has.
    */
   deletePreview: publicProcedure.input(targetSchema).query(({ ctx, input }) =>
     domainSafeAsync(async () => {

@@ -106,6 +106,48 @@ describe("files over http", () => {
     expect(statSync(join(repo, "grande.txt")).size).toBe(MAX_FILE_BYTES);
   });
 
+  it("carries the body JSON multiplies by six, which is the factor the limit is derived with", async () => {
+    const { projectId, repo } = await setupProject();
+    writeFileSync(join(repo, "controle.txt"), "x\n");
+    const read = await app.inject({
+      method: "GET",
+      url: queryUrl("files.read", {
+        scopeType: "project",
+        scopeId: projectId,
+        path: "controle.txt",
+      }),
+    });
+    // One control byte per byte of file — odd, legal and editable: no NUL, so
+    // the sniffer reads it as text, and it survives the UTF-8 round trip, so
+    // `files.write` accepts it. JSON spells each one as a six-character
+    // u-escape, and that six is `JSON_ESCAPE_WORST_CASE`. It is also the only
+    // case that measures it: an ASCII text costs one byte per byte in the body,
+    // and the multibyte refusal above only ever reaches about 1,15x — with
+    // neither of them here the factor could be lowered to 2 and every test
+    // would stay green while a file like this came back 413 with no sentence.
+    const text = String.fromCharCode(0x01).repeat(MAX_FILE_BYTES);
+    const input = {
+      scopeType: "project",
+      scopeId: projectId,
+      path: "controle.txt",
+      text,
+      baseRevision: read.json<{ result: { data: { revision: string } } }>().result.data.revision,
+    };
+    // On the fixture itself, because the whole case rests on it: a text edited
+    // into something JSON does not expand would leave the factor untested and
+    // this test still green.
+    expect(JSON.stringify({ "0": input }).length).toBeGreaterThan(MAX_FILE_BYTES * 5);
+
+    const response = await postBatched("files.write", input);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json<[{ result: { data: unknown } }]>()[0].result.data).toEqual({
+      ok: true,
+      revision: expect.any(String),
+    });
+    expect(statSync(join(repo, "controle.txt")).size).toBe(MAX_FILE_BYTES);
+  });
+
   it("refuses a text past the ceiling with the daemon's sentence, not with a 413", async () => {
     const { projectId, repo } = await setupProject();
     writeFileSync(join(repo, "grande.txt"), "x\n");

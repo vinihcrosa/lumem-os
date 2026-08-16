@@ -26,8 +26,8 @@ export interface TestCaller {
  * The whole router, over storage that belongs to this test.
  *
  * Calling procedures through the caller rather than over HTTP keeps the tests
- * about behaviour instead of transport — the transport already has its own
- * tests in `server.test.ts`.
+ * about behaviour instead of transport — the transport has its own tests, in
+ * `server.test.ts` and in `routers/files.transport.test.ts`.
  */
 export function createTestCaller(env: ConfigEnv = {}): TestCaller {
   const database: TestDb = openTestDb();

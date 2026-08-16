@@ -348,11 +348,16 @@ describe("files.remove", () => {
     const { context: ctx, worktreeId, worktreePath } = await setup();
     writeFileSync(join(worktreePath, "so-na-worktree.txt"), "x");
 
-    await ctx.api.files.remove({
-      scopeType: "worktree",
-      scopeId: worktreeId,
-      path: "so-na-worktree.txt",
-    });
+    // The answer, not only the disk: E11 branches on it, and `files.remove`
+    // returning the service's `void` instead of this would reach the client as
+    // `undefined` with the disk still right and nothing here to notice.
+    await expect(
+      ctx.api.files.remove({
+        scopeType: "worktree",
+        scopeId: worktreeId,
+        path: "so-na-worktree.txt",
+      }),
+    ).resolves.toEqual({ ok: true });
 
     expect(existsSync(join(worktreePath, "so-na-worktree.txt"))).toBe(false);
   });
@@ -422,9 +427,12 @@ describe("the write side's scope", () => {
     // resolved before the guard ever saw a path.
     const refusal = /worktree wt_inexistente não existe/;
 
+    // The first one carries the tRPC code as well as the sentence: what the
+    // scope answers is NOT_FOUND, and a client that shows "esse escopo sumiu"
+    // instead of "o daemon quebrou" is reading the code, not the words.
     await expect(
       ctx.api.files.write({ ...scope, path: "a.ts", text: "x", baseRevision: "r" }),
-    ).rejects.toThrow(refusal);
+    ).rejects.toMatchObject({ code: "NOT_FOUND", message: expect.stringMatching(refusal) });
     await expect(ctx.api.files.create({ ...scope, path: "a.ts", kind: "file" })).rejects.toThrow(
       refusal,
     );
