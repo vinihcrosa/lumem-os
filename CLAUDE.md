@@ -6,7 +6,7 @@ Projeto pessoal. Inspirado em compozy, superset e conductor — **não copia nad
 
 ## Estado atual
 
-Implementando a primeira feature: [walking-skeleton](docs/prd/walking-skeleton/tasks.md). Comece pelo [índice da documentação](docs/README.md).
+Cinco features de pé — [walking-skeleton](docs/prd/walking-skeleton/tasks.md), [ui-shell](docs/prd/ui-shell/tasks.md), [worktree-tabs](docs/prd/worktree-tabs/tasks.md), [right-panel](docs/prd/right-panel/tasks.md) e [file-editor](docs/prd/file-editor/tasks.md) — esta última faz o daemon **escrever** no repositório, com autosave e CRUD pela árvore. Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
 |---|---|

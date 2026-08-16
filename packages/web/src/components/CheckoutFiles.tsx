@@ -2,10 +2,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { useCheckoutChanges, type ChangeRef, type ChangeStatus } from "../hooks/useCheckoutChanges.js";
+import { useFileTree } from "../hooks/useFileTree.js";
 import { useOpenFiles } from "../hooks/useOpenFiles.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import { ChangesTab } from "./ChangesTab.js";
-import { FileTree } from "./FileTree.js";
+import { FileTree, NewInRoot } from "./FileTree.js";
 import { RightPanel, type RightPanelTab } from "./RightPanel.js";
 
 export interface CheckoutFilesProps {
@@ -28,6 +29,12 @@ export function CheckoutFiles({ scope, onClose, onResize }: CheckoutFilesProps) 
   const [shownRef, setShownRef] = useState<ChangeRef>("worktree");
   const openFiles = useOpenFiles();
 
+  // Held here rather than inside the tree because one of its gestures has no row
+  // to start from: creating in the checkout's own directory. Its trigger is in
+  // the bar, which is this component's, and the field it opens is drawn by the
+  // tree — one gesture at a time, and therefore one owner.
+  const edits = useFileTree(scope);
+
   const changes = useCheckoutChanges(scope, "worktree");
   const statusByPath = new Map<string, ChangeStatus>(
     (changes.data?.files ?? []).map((file) => [file.path, file.status as ChangeStatus]),
@@ -40,6 +47,9 @@ export function CheckoutFiles({ scope, onClose, onResize }: CheckoutFilesProps) 
       tab={tab}
       onSelectTab={setTab}
       changeCount={changes.data?.files.length ?? null}
+      // Only where it means something: on `Mudanças` there is no tree to create
+      // into, and a button that opens a field on another tab is a trap.
+      actions={tab === "files" ? <NewInRoot edits={edits} /> : undefined}
       onReload={() => {
         // "read the disk again", not "read this one directory again".
         void queryClient.invalidateQueries({ queryKey: ["files"] });
@@ -62,6 +72,7 @@ export function CheckoutFiles({ scope, onClose, onResize }: CheckoutFilesProps) 
           openPath={active?.view === "file" ? active.path : null}
           onOpen={(path) => openFiles.open({ path, view: "file" })}
           statusOf={(path) => statusByPath.get(path)}
+          edits={edits}
         />
       ) : (
         <ChangesTab

@@ -1,5 +1,13 @@
-import { realpath } from "node:fs/promises";
-import { isAbsolute, join, normalize, sep } from "node:path";
+import { lstat, readdir, realpath } from "node:fs/promises";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  normalize,
+  relative as relativeTo,
+  sep,
+} from "node:path";
 
 import { DomainError } from "../errors.js";
 
@@ -16,6 +24,29 @@ import { DomainError } from "../errors.js";
  * 4. a symlink resolving outside the root is named as such, because "não
  *    existe" would be a lie the user cannot act on;
  * 5. nothing in this module writes.
+ *
+ * The file-editor PRD (§5) adds a second door, `resolveForWrite`, for callers
+ * that are about to change the disk. It relaxes none of the five above — it
+ * only stops requiring the target to exist, since creating a file is asking
+ * for a path that is not there yet — and adds three refusals of its own:
+ *
+ * 6. the parent has to exist and is the one resolved by realpath, so a target
+ *    that does not exist cannot become a way around rule 4;
+ * 7. `.git` and everything under it refuse writes. The tree still *shows* it
+ *    (right-panel Q2): showing and letting write are different things, and an
+ *    accidental delete there takes the worktree and the uncommitted work;
+ * 8. the checkout root itself is never a write target;
+ * 9. every final check runs over the spelling the **disk** has, last component
+ *    included. APFS and NTFS are case-insensitive: `.GIT` opens `.git`, and a
+ *    check over the name the client typed would refuse `.git` and wave `.GIT`
+ *    through — with `remove` behind it, that is the worktree.
+ *
+ * Rule 4 lands differently on the write side, and Q12 is why: a link whose
+ * destination is outside is *handed back with no target* instead of refused
+ * whole. Refusing it whole also refused removing it, and removing a link is an
+ * operation on the directory entry — which is inside the checkout, and which
+ * leaves the destination untouched. No path this module returns is ever
+ * outside the root; what changes is which operation is left with nothing.
  */
 
 /** What the caller gets back: a path proven to live inside the checkout. */
@@ -24,10 +55,77 @@ export interface ResolvedPath {
   absolute: string;
   /** Normalised and root-relative. What the UI shows and echoes back. */
   relative: string;
+  /**
+   * The `.git` rule's verdict for this path, F1.4.
+   *
+   * Decided here because this is the only place holding both spellings, and
+   * §5 puts the verdict on the server: a client deriving it would be a second
+   * copy of the rule, in the browser, free to drift from this one.
+   */
+  insideGit: boolean;
+}
+
+/**
+ * Why the entry has no destination a write could land on.
+ *
+ * A named reason rather than a bare null, for the same reason `ReadOnlyReason`
+ * exists: the caller that writes has to refuse out loud, and the two cases are
+ * not the same sentence — one link points at nothing, the other points outside
+ * the checkout. To the caller that *removes* they are one case, which is why
+ * both are spelled `target: null`.
+ */
+export type TargetlessReason = "dangling" | "outside";
+
+/**
+ * A path proven safe to write, whether or not anything is there yet.
+ *
+ * Two paths, because a symlink makes them different things and the operations
+ * split along that line (E5): `remove` and `rename` act on the directory
+ * entry, a write acts on what it points at. One field named `absolute` had
+ * both callers reaching for the same string and one of them getting the
+ * opposite of what it asked for.
+ */
+export interface WritablePath {
+  /** Normalised and root-relative. What the UI shows and echoes back. */
+  relative: string;
+  /**
+   * The directory entry itself, in the disk's own spelling. Never what it
+   * points at: unlinking a symlink has to take the link and leave the
+   * destination alone, and renaming one moves the link.
+   */
+  entry: string;
+  /**
+   * Where the bytes of a write land — the destination when `entry` is a link,
+   * so the link stays a link (D5).
+   *
+   * Null when there is nothing to write to: a dangling link has no proven
+   * destination, and one pointing outside the checkout has one this daemon
+   * will not touch. It is still removable, which is why this is a null and not
+   * a throw — `string | null` makes the caller that writes say what it does
+   * about it, and the caller that removes never has to ask.
+   */
+  target: string | null;
+  /** Set exactly when `target` is null, and null exactly when it is not. */
+  targetless: TargetlessReason | null;
+  /** Something is already on that name. Creating decides DUPLICATE, not us. */
+  exists: boolean;
 }
 
 function inside(root: string, candidate: string): boolean {
   return candidate === root || candidate.startsWith(root + sep);
+}
+
+/**
+ * The root is resolved too: on macOS /tmp is a symlink to /private/tmp, so the
+ * same directory spelled two ways would fail the containment check — the same
+ * reason `isGitRepo` compares through realpath.
+ */
+async function realRootOf(root: string): Promise<string> {
+  try {
+    return await realpath(root);
+  } catch {
+    throw new DomainError("BLOCKED", `o checkout não está em ${root}`);
+  }
 }
 
 /**
@@ -54,22 +152,29 @@ export function normalizeRelative(requested: string): string {
   return normalized === "." ? "" : normalized.replace(new RegExp(`${sep}+$`), "");
 }
 
+/** The one directory inside the checkout that never accepts a write. */
+const GIT_DIR = ".git";
+
+/**
+ * `.git` as a whole path component, at any depth.
+ *
+ * A whole component, never a substring: `.gitignore`, `.gitmodules` and
+ * `.github/workflows/ci.yml` are ordinary files people edit all day, and a
+ * guard that refuses everything passes every security test and breaks the
+ * product. Any depth, though — a nested repository's `.git` destroys history
+ * just as well as the root's.
+ */
+function touchesGit(candidate: string): boolean {
+  return candidate.split(sep).includes(GIT_DIR);
+}
+
 /** Refuses anything the checkout does not contain, F5.5–F5.6. */
 export async function resolveInsideRoot(
   root: string,
   requested: string,
 ): Promise<ResolvedPath> {
   const relative = normalizeRelative(requested);
-
-  // The root is resolved too: on macOS /tmp is a symlink to /private/tmp, so
-  // the same directory spelled two ways would fail the containment check —
-  // the same reason `isGitRepo` compares through realpath.
-  let realRoot: string;
-  try {
-    realRoot = await realpath(root);
-  } catch {
-    throw new DomainError("BLOCKED", `o checkout não está em ${root}`);
-  }
+  const realRoot = await realRootOf(root);
 
   const target = join(realRoot, relative);
   let absolute: string;
@@ -97,5 +202,160 @@ export async function resolveInsideRoot(
     );
   }
 
-  return { absolute, relative };
+  // Reading `.git` stays allowed (right-panel Q2); the file just comes back
+  // read-only, and the reason travels with it instead of the client guessing.
+  const insideGit = touchesGit(relative) || touchesGit(relativeTo(realRoot, absolute));
+
+  return { absolute, relative, insideGit };
+}
+
+/**
+ * Checked on the requested path *and* again on the resolved one.
+ *
+ * Once is not enough in either direction. The resolved path alone would miss
+ * `atalho -> .git`, where `atalho/config` has no `.git` segment and lands
+ * squarely inside it; the requested path alone would miss `.GIT` on a
+ * case-insensitive filesystem, and would still miss it if `.git` were a link
+ * to somewhere harmless — a name the user reads as the repository either way.
+ */
+function refuseWritingIntoGit(shown: string, candidate: string): void {
+  if (!touchesGit(candidate)) return;
+  throw new DomainError(
+    "BLOCKED",
+    `escrita recusada em ${shown}: o ${GIT_DIR} não é editável pelo Lumem — apagá-lo levaria a worktree e o trabalho não commitado junto`,
+  );
+}
+
+/**
+ * The name a directory really holds, which is not always the one asked for.
+ *
+ * Rule 9 for the one entry `realpath` cannot answer for: a symlink, where it
+ * would follow the link and give back the destination's name. Costs a listing
+ * of the parent, paid only when the write target is a link.
+ */
+async function diskNameOf(parent: string, requested: string): Promise<string> {
+  // Not "unlikely": this is where canonicalisation gives up. A parent with mode
+  // `--x` can be traversed but not listed, so there is no disk spelling to hand
+  // back and the client's own is what travels on. Deliberate — the checks after
+  // it still run, over a name that is merely the requested one.
+  const names = await readdir(parent).catch(() => null);
+  if (names === null || names.includes(requested)) return requested;
+  const folded = requested.toLowerCase();
+  return names.find((name) => name.toLowerCase() === folded) ?? requested;
+}
+
+/**
+ * The door for callers about to change the disk, file-editor §5.
+ *
+ * Same five rules, minus the requirement that the target already exist:
+ * creating a file is asking for a path that is not there yet. What replaces it
+ * is resolving the **parent** by realpath — that is what keeps "o alvo não
+ * existe" from becoming a way around rule 4.
+ */
+export async function resolveForWrite(root: string, requested: string): Promise<WritablePath> {
+  const relative = normalizeRelative(requested);
+  if (relative === "") {
+    // The empty path is the checkout itself. Renaming or removing it is the one
+    // accident with no undo, so no write operation accepts it.
+    throw new DomainError("INVALID_ARGUMENT", "a raiz do checkout não aceita escrita");
+  }
+  refuseWritingIntoGit(relative, relative);
+
+  const realRoot = await realRootOf(root);
+  const parentRelative = dirname(relative) === "." ? "" : dirname(relative);
+  const literalParent = join(realRoot, parentRelative);
+
+  let parent: string;
+  try {
+    parent = await realpath(literalParent);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EACCES" || code === "EPERM") {
+      throw new DomainError("BLOCKED", `sem permissão de escrita em ${parentRelative || "."}`);
+    }
+    // Naming the directory, not the file: the file is not supposed to exist
+    // yet, so "a.ts não existe" would be true and useless.
+    throw new DomainError(
+      "NOT_FOUND",
+      `o diretório ${parentRelative || "."} não existe no checkout`,
+    );
+  }
+
+  if (!inside(realRoot, parent)) {
+    throw new DomainError(
+      "BLOCKED",
+      literalParent === parent
+        ? `${parentRelative} está fora do checkout`
+        : `${parentRelative} aponta para fora do checkout`,
+    );
+  }
+
+  const literalTarget = join(parent, basename(relative));
+  let entry = literalTarget;
+  let target: string | null = literalTarget;
+  let targetless: TargetlessReason | null = null;
+  let exists = true;
+  try {
+    const info = await lstat(literalTarget);
+    if (!info.isSymbolicLink()) {
+      // Rule 9 for an ordinary entry: realpath is the disk's own spelling, and
+      // it is the parent that has been canonical so far — the last component
+      // was still whatever the client typed.
+      entry = await realpath(literalTarget);
+      target = entry;
+    } else {
+      // `realpath` follows the last link, so the link's own name has to come
+      // from the parent's listing instead: `remove` takes the link.
+      entry = join(parent, await diskNameOf(parent, basename(relative)));
+      // D5: the write lands on the destination, so the link stays a link. A
+      // rename over the literal path would turn it into a plain file, silently.
+      const destination = await realpath(literalTarget).catch(() => null);
+      if (destination === null) {
+        // Nothing proves where a write would land.
+        target = null;
+        targetless = "dangling";
+      } else if (!inside(realRoot, destination)) {
+        // Q12: not a throw, because refusing the whole path refused *removing*
+        // the link too — and removing it is an operation on the entry, which
+        // is inside the checkout and whose destination it never touches. The
+        // write is the operation that would land outside, and the write is the
+        // one still refused, by the caller that knows it is writing.
+        target = null;
+        targetless = "outside";
+      } else {
+        target = destination;
+      }
+    }
+  } catch (error) {
+    if (error instanceof DomainError) throw error;
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOTDIR") {
+      // The parent is not a directory — a file, a socket, a device. This used
+      // to be a `stat` of its own between the realpath and here, which had two
+      // costs: a syscall, and a window where the directory could vanish in
+      // between and leave a raw `Error` escaping a module whose every other
+      // failure is a DomainError (P11). Letting the lstat answer removes both.
+      throw new DomainError("INVALID_ARGUMENT", `${parentRelative || "."} não é um diretório`);
+    }
+    if (code !== "ENOENT") {
+      throw new DomainError("BLOCKED", `sem acesso a ${relative}`);
+    }
+    exists = false;
+  }
+
+  // Second pass, now over what the disk really has: the entry's own name, and
+  // separately where a write through it would land.
+  refuseWritingIntoGit(relative, relativeTo(realRoot, entry));
+  if (target !== null) refuseWritingIntoGit(relative, relativeTo(realRoot, target));
+  // Only `target` is compared: `entry` is always `join(parent, <one component>)`
+  // — the empty path died at the top — so it is strictly deeper than the root by
+  // construction and can never be it. A link *pointing* at the root is the real
+  // case, and that shows up in `target`. Do not add `entry === realRoot` back
+  // without a test that reaches it: an unreachable check in a guard reads as
+  // coverage that is not there.
+  if (target === realRoot) {
+    throw new DomainError("INVALID_ARGUMENT", "a raiz do checkout não aceita escrita");
+  }
+
+  return { relative, entry, target, targetless, exists };
 }

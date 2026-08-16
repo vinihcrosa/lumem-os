@@ -39,6 +39,14 @@ function createTrpcMock() {
     files: {
       listDir: { query: vi.fn() },
       read: { query: vi.fn() },
+      write: { mutate: vi.fn() },
+      create: { mutate: vi.fn() },
+      rename: { mutate: vi.fn() },
+      remove: { mutate: vi.fn() },
+      // A query, and it stays one here: the dialog consults it before anyone
+      // agreed to anything, and a mock that turned it into a mutation would hide
+      // the one difference that decides what a browser can fire on its own.
+      deletePreview: { query: vi.fn() },
     },
     changes: {
       list: { query: vi.fn() },

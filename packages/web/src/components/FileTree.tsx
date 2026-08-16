@@ -1,10 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
+import { usePopover } from "../hooks/usePopover.js";
+import type { FileTreeEdits } from "../hooks/useFileTree.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import { statusMark, statusTone, type ChangeStatus } from "../hooks/useCheckoutChanges.js";
 import { fileListKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
+import { Banner, Button, Card, Glyph, Menu, MenuItem } from "../ui/index.js";
 
 export interface FileTreeProps {
   scope: Scope;
@@ -13,17 +16,29 @@ export interface FileTreeProps {
   onOpen(path: string): void;
   /** Status of a path in the working tree, for the marker. */
   statusOf(path: string): ChangeStatus | undefined;
+  /**
+   * Held above this component because the root has no row to hang it on.
+   *
+   * Creating in the checkout's own directory is a gesture with no target in the
+   * tree, so its trigger lives in the column's bar (PRD §3) — outside the tree,
+   * and therefore outside whatever state the tree owns.
+   */
+  edits: FileTreeEdits;
 }
 
 /**
- * The checkout's files, one level at a time (D2).
+ * The checkout's files, one level at a time (D2), and now editable (F4).
  *
  * Nothing is hidden — `node_modules`, `.git` and everything `.gitignore`
  * covers all show up, because a build that broke is exactly when someone wants
  * to look inside `dist/`. The price is a ceiling per directory, and a listing
  * that stops has to say so: silence there reads as "that is all of it".
+ *
+ * The actions live in the row rather than in a bar over the column: renaming and
+ * removing need a target, and a bar would have to invent "what is selected" in a
+ * tree whose only selection is "what the split has open".
  */
-export function FileTree({ scope, openPath, onOpen, statusOf }: FileTreeProps) {
+export function FileTree({ scope, openPath, onOpen, statusOf, edits }: FileTreeProps) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 
   const toggle = useCallback((path: string) => {
@@ -34,19 +49,31 @@ export function FileTree({ scope, openPath, onOpen, statusOf }: FileTreeProps) {
     });
   }, []);
 
+  // Creating draws the name field inside the directory it will land in, so the
+  // directory has to be open — picking "novo arquivo" on a collapsed row would
+  // otherwise put the field somewhere nobody is looking.
+  const expand = useCallback((path: string) => {
+    setExpanded((current) => (current.has(path) ? current : new Set(current).add(path)));
+  }, []);
+
   return (
-    <div className="rp__scroll" role="tree" aria-label="arquivos">
-      <Level
-        scope={scope}
-        path=""
-        depth={0}
-        expanded={expanded}
-        onToggle={toggle}
-        openPath={openPath}
-        onOpen={onOpen}
-        statusOf={statusOf}
-      />
-    </div>
+    <>
+      <div className="rp__scroll" role="tree" aria-label="arquivos">
+        <Level
+          scope={scope}
+          path=""
+          depth={0}
+          expanded={expanded}
+          onToggle={toggle}
+          onExpand={expand}
+          edits={edits}
+          openPath={openPath}
+          onOpen={onOpen}
+          statusOf={statusOf}
+        />
+      </div>
+      <RemoveDialog edits={edits} />
+    </>
   );
 }
 
@@ -55,6 +82,7 @@ interface LevelProps extends FileTreeProps {
   depth: number;
   expanded: ReadonlySet<string>;
   onToggle(path: string): void;
+  onExpand(path: string): void;
 }
 
 function Level({
@@ -63,6 +91,8 @@ function Level({
   depth,
   expanded,
   onToggle,
+  onExpand,
+  edits,
   openPath,
   onOpen,
   statusOf,
@@ -82,70 +112,126 @@ function Level({
     refetchOnWindowFocus: true,
   });
 
+  // Drawn in every branch below, empty directory and failed listing included:
+  // creating the first file of an empty folder is the case that needs it most.
+  const gesture = edits.gesture;
+  const field =
+    gesture.kind === "create" && gesture.parent === path ? (
+      <NameField
+        key={`${path}:${gesture.makes}`}
+        depth={depth}
+        label={gesture.makes === "dir" ? "nova pasta" : "novo arquivo"}
+        initial=""
+        hint={
+          <>
+            enter cria em <code>{path === "" ? "./" : `${path}/`}</code> · esc cancela
+          </>
+        }
+        edits={edits}
+      />
+    ) : null;
+
   if (listing.isPending) {
     return (
-      <p className="fnote" style={{ "--depth": depth } as never}>
-        carregando…
-      </p>
+      <>
+        {field}
+        <p className="fnote" style={{ "--depth": depth } as never}>
+          carregando…
+        </p>
+      </>
     );
   }
   if (listing.isError) {
     return (
-      <p className="fnote" style={{ "--depth": depth } as never} role="alert">
-        <span className="fnote__glyph" aria-hidden="true">
-          ⚠
-        </span>
-        <span>{listing.error.message}</span>
-      </p>
+      <>
+        {field}
+        <p className="fnote" style={{ "--depth": depth } as never} role="alert">
+          <span className="fnote__glyph" aria-hidden="true">
+            ⚠
+          </span>
+          <span>{listing.error.message}</span>
+        </p>
+      </>
     );
   }
 
   const { entries, total, truncated } = listing.data;
   if (entries.length === 0) {
     return (
-      <p className="fnote" style={{ "--depth": depth } as never}>
-        vazio
-      </p>
+      <>
+        {field}
+        <p className="fnote" style={{ "--depth": depth } as never}>
+          vazio
+        </p>
+      </>
     );
   }
 
   return (
     <>
+      {field}
       {entries.map((entry) => {
         const full = path === "" ? entry.name : `${path}/${entry.name}`;
         const isDir = entry.kind === "dir";
         const open = expanded.has(full);
         const status = statusOf(full);
 
+        if (gesture.kind === "rename" && gesture.path === full) {
+          return (
+            <NameField
+              key={full}
+              depth={depth}
+              label="renomear"
+              // The whole path, because renaming is moving (F4.2): a field that
+              // starts with the bare name teaches that it only takes a name.
+              initial={full}
+              hint={<>com barra, move · esc cancela</>}
+              edits={edits}
+            />
+          );
+        }
+
         return (
           <div key={full} role="group">
-            <button
-              type="button"
-              className={[
-                "frow",
-                isDir ? "frow--dir" : "",
-                status === "deleted" ? "frow--dim" : "",
-                openPath === full ? "frow--open" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              aria-expanded={isDir ? open : undefined}
-              onClick={() => (isDir ? onToggle(full) : onOpen(full))}
-            >
-              <span className="frow__twist" style={{ "--depth": depth } as never} aria-hidden="true">
-                {isDir ? (open ? "▾" : "▸") : ""}
-              </span>
-              <span className="frow__name">{entry.name}</span>
-              {status !== undefined && (
-                <span className={`mark mark--${statusTone(status)}`} title={status}>
-                  {statusMark(status)}
+            <div className="frow-wrap">
+              <button
+                type="button"
+                className={[
+                  "frow",
+                  isDir ? "frow--dir" : "",
+                  status === "deleted" ? "frow--dim" : "",
+                  openPath === full ? "frow--open" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                aria-expanded={isDir ? open : undefined}
+                onClick={() => (isDir ? onToggle(full) : onOpen(full))}
+              >
+                <span
+                  className="frow__twist"
+                  style={{ "--depth": depth } as never}
+                  aria-hidden="true"
+                >
+                  {isDir ? (open ? "▾" : "▸") : ""}
                 </span>
-              )}
-              <span className="frow__gap" />
-              {entry.size !== null && entry.size > 0 && (
-                <span className="frow__size">{formatSize(entry.size)}</span>
-              )}
-            </button>
+                <span className="frow__name">{entry.name}</span>
+                {status !== undefined && (
+                  <span className={`mark mark--${statusTone(status)}`} title={status}>
+                    {statusMark(status)}
+                  </span>
+                )}
+                <span className="frow__gap" />
+                {entry.size !== null && entry.size > 0 && (
+                  <span className="frow__size">{formatSize(entry.size)}</span>
+                )}
+              </button>
+              <RowActions
+                path={full}
+                isDir={isDir}
+                edits={edits}
+                onExpand={onExpand}
+              />
+            </div>
 
             {isDir && open && (
               <Level
@@ -154,6 +240,8 @@ function Level({
                 depth={depth + 1}
                 expanded={expanded}
                 onToggle={onToggle}
+                onExpand={onExpand}
+                edits={edits}
                 openPath={openPath}
                 onOpen={onOpen}
                 statusOf={statusOf}
@@ -178,6 +266,370 @@ function Level({
       )}
     </>
   );
+}
+
+/**
+ * Creating in the checkout's own directory, from the column's bar (PRD §3).
+ *
+ * The root is the one directory with no row, so it is the one directory the
+ * `⋯` cannot reach — and until this existed, `create` with an empty parent was
+ * a gesture nobody could make: two branches written for it, neither reachable,
+ * which reads as coverage that is not there. It lives in the bar rather than as
+ * a fake first row because the tree lists entries, and the checkout is not one
+ * of its own entries.
+ */
+export function NewInRoot({ edits }: { edits: FileTreeEdits }) {
+  const popover = usePopover();
+
+  const create = (makes: "file" | "dir") => () => {
+    popover.close();
+    edits.ask({ kind: "create", parent: "", makes });
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        ref={popover.triggerRef}
+        className="rp__icon"
+        aria-haspopup="menu"
+        aria-expanded={popover.open}
+        aria-label="criar na raiz"
+        title="criar na raiz do checkout"
+        onClick={popover.toggle}
+      >
+        ＋
+      </button>
+
+      {popover.open && (
+        <div className="rp__menu" ref={popover.panelRef}>
+          <Menu label="criar na raiz">
+            <MenuItem glyph={<Glyph>＋</Glyph>} onSelect={create("file")}>
+              novo arquivo
+            </MenuItem>
+            <MenuItem glyph={<Glyph>▤</Glyph>} onSelect={create("dir")}>
+              nova pasta
+            </MenuItem>
+          </Menu>
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * The four actions of a row, behind one `⋯`.
+ *
+ * A sibling of the row's button and never a child of it: a button inside a
+ * button is not markup, and the click would belong to whichever one the browser
+ * decided. Four icons of their own would leave no width for the name, which is
+ * the content, in a column that starts at 260px.
+ */
+function RowActions({
+  path,
+  isDir,
+  edits,
+  onExpand,
+}: {
+  path: string;
+  isDir: boolean;
+  edits: FileTreeEdits;
+  onExpand(path: string): void;
+}) {
+  const popover = usePopover();
+
+  const create = (makes: "file" | "dir") => () => {
+    popover.close();
+    onExpand(path);
+    edits.ask({ kind: "create", parent: path, makes });
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        ref={popover.triggerRef}
+        className="fact"
+        aria-haspopup="menu"
+        aria-expanded={popover.open}
+        aria-label={`ações de ${path}`}
+        onClick={popover.toggle}
+      >
+        ⋯
+      </button>
+
+      {popover.open && (
+        <div className="frow-menu" ref={popover.panelRef}>
+          <Menu label={`ações de ${path}`}>
+            {isDir && (
+              <>
+                <MenuItem glyph={<Glyph>＋</Glyph>} onSelect={create("file")}>
+                  novo arquivo
+                </MenuItem>
+                <MenuItem glyph={<Glyph>▤</Glyph>} onSelect={create("dir")}>
+                  nova pasta
+                </MenuItem>
+                <div className="frow-menu__sep" role="separator" />
+              </>
+            )}
+            <MenuItem
+              glyph={<Glyph>✎</Glyph>}
+              onSelect={() => {
+                popover.close();
+                edits.ask({ kind: "rename", path });
+              }}
+            >
+              renomear
+            </MenuItem>
+            <MenuItem
+              // The one irreversible item, and the only colour in the menu.
+              glyph={<Glyph tone="warn">✕</Glyph>}
+              onSelect={() => {
+                popover.close();
+                edits.ask({ kind: "delete", path, directory: isDir });
+              }}
+            >
+              apagar
+            </MenuItem>
+          </Menu>
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * The name, typed in the row itself.
+ *
+ * In the indentation the file will have, which is what answers "onde isto está
+ * sendo criado" without a sentence. The refusal takes the hint's place, in the
+ * daemon's own words — the client has no way of knowing what holds a name, and
+ * F4.4 is precisely that nothing gets overwritten to find out.
+ */
+function NameField({
+  depth,
+  label,
+  initial,
+  hint,
+  edits,
+}: {
+  depth: number;
+  label: string;
+  initial: string;
+  hint: ReactNode;
+  edits: FileTreeEdits;
+}) {
+  const [value, setValue] = useState(initial);
+  const failed = edits.refusal !== null;
+
+  return (
+    <>
+      <form
+        className="fedit"
+        onSubmit={(event) => {
+          // In a browser, Enter in a lone text input submits the form on its
+          // own — this is that submit, and the only way in.
+          event.preventDefault();
+          edits.submit(value);
+        }}
+      >
+        <span className="frow__twist" style={{ "--depth": depth } as never} aria-hidden="true" />
+        <input
+          className={`finput${failed ? " finput--error" : ""}`}
+          aria-label={label}
+          aria-invalid={failed}
+          value={value}
+          autoFocus
+          disabled={edits.busy}
+          onChange={(event) => setValue(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") edits.cancel();
+          }}
+        />
+      </form>
+      <p
+        className={`fhint${failed ? " fhint--error" : ""}`}
+        style={{ "--depth": depth } as never}
+        role={failed ? "alert" : undefined}
+      >
+        {edits.refusal ?? hint}
+      </p>
+    </>
+  );
+}
+
+/**
+ * What is about to be lost, named, and whether git brings it back (F4.3).
+ *
+ * Over the column and not over the app: the target of the gesture is a row of
+ * this tree, and a dialog centred on the window would put the question far from
+ * the thing it is about.
+ */
+function RemoveDialog({ edits }: { edits: FileTreeEdits }) {
+  const { gesture, cancel } = edits;
+
+  useEffect(() => {
+    if (gesture.kind !== "delete") return;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") cancel();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [gesture.kind, cancel]);
+
+  if (gesture.kind !== "delete") return null;
+
+  const preview = edits.preview;
+  const shape = preview.data ?? null;
+  const entries = shape !== null && shape.kind === "dir" ? shape.files + shape.dirs : null;
+  const floor = shape !== null && shape.kind === "dir" && shape.truncated;
+  // From the preview once it is here, and from the row only while it is not.
+  // `listDir` calls a link-to-directory a `dir`, by the target's `stat`; the
+  // preview does `lstat` of the entry and calls it a file, because `remove`
+  // unlinks one entry. Two sources for one fact, and the title was taking the
+  // weaker of them while the body right below already showed the other's
+  // verdict — on the confirmation of something that has no undo.
+  const directory = shape === null ? gesture.directory : shape.kind === "dir";
+
+  return (
+    <div className="fdim" role="dialog" aria-modal="true" aria-label={`apagar ${gesture.path}`}>
+      <Card title={directory ? "apagar esta pasta e o que tem dentro?" : "apagar este arquivo?"}>
+        {/* Spelled out, in mono, relative to the checkout: in a tree with three
+            `loader.ts` the bare name identifies nothing. */}
+        <code className="fdim__target">{gesture.path}</code>
+
+        {preview.isPending && <p className="fdim__note">consultando o git…</p>}
+        {preview.isError && (
+          <Banner tone="danger">
+            não deu para consultar o git: {preview.error.message}. Nada foi verificado sobre o que
+            volta.
+          </Banner>
+        )}
+        {shape !== null && shape.kind === "file" && <FileVerdict path={gesture.path} tracked={shape.tracked} />}
+        {shape !== null && shape.kind === "dir" && (
+          <>
+            <p className="fdim__note">
+              {floor ? "pelo menos " : ""}
+              {count(shape.files)} {shape.files === 1 ? "arquivo" : "arquivos"} e{" "}
+              {count(shape.dirs)} {shape.dirs === 1 ? "pasta" : "pastas"}, contando os
+              subdiretórios.
+              {/* The ceiling the server paid for: past it the walk stops, and
+                  every number above is a floor. Showing it as a total is the
+                  lie F5.7 exists to prevent. */}
+              {floor ? " A contagem parou no teto do daemon." : ""}
+            </p>
+            <DirVerdict
+              path={gesture.path}
+              files={shape.files}
+              untracked={shape.untracked}
+              truncated={shape.truncated}
+            />
+          </>
+        )}
+
+        <div className="fdim__actions">
+          <Button variant="ghost" onClick={cancel}>
+            cancelar
+          </Button>
+          <Button variant="danger" disabled={edits.busy} onClick={edits.confirm}>
+            {entries === null
+              ? "apagar"
+              : `apagar ${floor ? "pelo menos " : "as "}${count(entries)} ${entries === 1 ? "entrada" : "entradas"}`}
+          </Button>
+        </div>
+
+        {edits.refusal !== null && <Banner tone="danger">{edits.refusal}</Banner>}
+      </Card>
+    </div>
+  );
+}
+
+/**
+ * What git can and cannot promise about one entry.
+ *
+ * `tracked: false` means "git has no copy **or** git could not answer" (Q18):
+ * `isTracked` swallows a timeout and a checkout that is not a repository into
+ * the same `false`. The direction of that error is safe — it warns too much
+ * rather than promising a recovery that does not exist — and the sentence has to
+ * stop where the daemon's knowledge stops.
+ */
+function FileVerdict({ path, tracked }: { path: string; tracked: boolean }) {
+  if (tracked) {
+    return (
+      <Banner tone="info">
+        o git tem uma cópia: <code>git checkout -- {path}</code> traz de volta o que está no
+        índice.
+      </Banner>
+    );
+  }
+  return (
+    <Banner tone="danger">
+      <strong>o git não confirmou ter uma cópia disto.</strong> Pode não haver nada que traga de
+      volta — nem o histórico, nem esta janela.
+    </Banner>
+  );
+}
+
+/**
+ * The same question for a directory, and the same limit on the answer.
+ *
+ * `truncated` is here because `untracked` is a floor for exactly the reason
+ * every other number is: the walk stopped. A floor of zero says nothing, and the
+ * likeliest truncated directory is the one that made the ceiling necessary —
+ * `node_modules`, untracked by definition. Promising recovery there is the same
+ * mistake as Q18's, pointed the other way: this one reassures someone who is
+ * about to delete something nothing brings back.
+ */
+function DirVerdict({
+  path,
+  files,
+  untracked,
+  truncated,
+}: {
+  path: string;
+  files: number;
+  untracked: number;
+  truncated: boolean;
+}) {
+  if (truncated) {
+    return (
+      <Banner tone="danger">
+        <strong>
+          {untracked > 0
+            ? `de pelo menos ${count(files)}, ${count(untracked)} o git não confirmou ter.`
+            : "o git não foi consultado sobre tudo que está aqui dentro."}
+        </strong>{" "}
+        O que a caminhada não alcançou também não foi verificado, e nada aqui promete que volte.
+      </Banner>
+    );
+  }
+  if (untracked === 0) {
+    // Worded so it stays true of an empty directory too: git tracks no folder,
+    // and "traz a pasta de volta" would be a promise about something git has no
+    // concept of.
+    return (
+      <Banner tone="info">
+        o git tem cópia do que está aqui dentro: <code>git checkout -- {path}</code> traz de volta o
+        que está no índice.
+      </Banner>
+    );
+  }
+  const recovered = files - untracked;
+  return (
+    <Banner tone="danger">
+      <strong>
+        de {count(files)}, {count(untracked)} o git não confirmou ter.
+      </strong>{" "}
+      {recovered > 0
+        ? `Nada garante que voltem; ${count(recovered)} o git desfaz.`
+        : "Nada garante que voltem."}
+    </Banner>
+  );
+}
+
+/** Grouped the way the rest of the app writes numbers, so 2000 reads as 2.000. */
+function count(value: number): string {
+  return value.toLocaleString("pt-BR");
 }
 
 /** Bytes as something a human reads at a glance, not as a number to compare. */

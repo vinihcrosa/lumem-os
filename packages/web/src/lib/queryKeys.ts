@@ -39,6 +39,16 @@ export function fileReadKey(scopeType: string, scopeId: string, path: string) {
   return ["files", "read", scopeType, scopeId, path] as const;
 }
 
+/**
+ * What the confirmation of a delete asks before it asks the person (F5.7).
+ *
+ * Under the same `files` prefix as the rest, so the column's reload button
+ * reaches it too — it describes the disk, and "read the disk again" includes it.
+ */
+export function filePreviewKey(scopeType: string, scopeId: string, path: string) {
+  return ["files", "deletePreview", scopeType, scopeId, path] as const;
+}
+
 export function changesKey(scopeType: string, scopeId: string, ref: string) {
   return ["changes", "list", scopeType, scopeId, ref] as const;
 }

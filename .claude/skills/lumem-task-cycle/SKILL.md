@@ -18,14 +18,17 @@ o que é caro errar.
 
 As regras estruturais desta skill (leis, perfis de risco, raio de alcance, triagem, passe a frio)
 foram **medidas em outro projeto** — um serviço .NET/DDD, com gates de dezenas de minutos, suíte
-de ~1500 testes e interop nativo. **Nenhum número foi medido no Lumem-OS ainda.**
+de ~1500 testes e interop nativo. **Seis lotes já foram medidos aqui** (veja o "Registro de lotes" do ledger), quatro deles com review; o resto desta seção continua importado.
 
 Trate-as como **hipóteses calibradas**, não como fatos deste repositório. O que muda aqui e pode
-mudar as conclusões: gate de segundos em vez de minutos, arquivos menores, TypeScript em vez de
-C#, e uma suíte que ainda tem ~95 testes. É plausível que o overhead fixo do review pese
-**mais** proporcionalmente aqui, não menos.
+mudar as conclusões: gate de **segundos** em vez de minutos, arquivos menores (mediana de 67
+linhas), e TypeScript em vez de C#. A suíte tem **824 testes** unit/integration em 52 arquivos, mais 13 e2e — não é
+pequena, e o gate inteiro mesmo assim roda em menos tempo que uma chamada de ferramenta. Como
+esperar gate deixa de ser custo, o que sobra do review é leitura: é plausível que o overhead fixo
+pese **mais** proporcionalmente aqui, não menos. Os números medidos estão na "Linha de base deste
+repositório" de [`task-cycle-evidence.md`](../../../docs/project/task-cycle-evidence.md).
 
-Medir é passo obrigatório do fechamento de lote (§9.9). Até o primeiro lote medido, diga
+Medir é passo obrigatório do fechamento de lote (item 9 da §9). Até o primeiro lote medido, diga
 explicitamente ao usuário que a estimativa de custo é herdada.
 
 ---
@@ -90,8 +93,10 @@ falta, rode o gate. "Existe" não é "funciona".
 
 ### Nunca renomeie nem force
 
-Não rode `reset`, `rebase`, `amend`, `push` nem renomeie branch para "limpar" estado. A branch é
-`main` e é a única. Retomada é aditiva: commit novo em cima.
+Não rode `reset`, `rebase`, `amend`, `push` nem renomeie branch para "limpar" estado. Retomada é
+aditiva: commit novo em cima. O repositório trabalha com branch por feature e PR — descubra em qual
+você está (`git branch --show-current`) em vez de supor, e nunca troque de branch no meio de um
+lote.
 
 ---
 
@@ -119,8 +124,9 @@ Regras de formação:
 * **a fronteira do lote é o nó de dependência.** Agrupe o que compartilha o mesmo nó; pare antes de
   atravessar para o próximo. Lote que cruza nó é onde a cascata mora (Lei 3);
 * **respeite a ordem de dependência** (`Depends on`) e os diagramas da fase;
-* **task marcada como portão de fase** (hoje `T9`) fecha o lote nela. Portão vermelho significa
-  arquitetura errada: pare, reporte, não abra o lote seguinte;
+* **task marcada como portão de fase** fecha o lote nela — é a task que prova a fase inteira, e no
+  `file-editor` é a `E12` (e2e). Portão vermelho significa arquitetura errada: pare, reporte, não
+  abra o lote seguinte;
 * **não misture perfis** — o lote herda a profundidade do mais alto, e misturar faz você pagar
   review crítico em cima de tipos;
 * **task `[P]` — serialize por padrão.** Dois `lumem-dev` no mesmo repo competem por working tree e
@@ -204,22 +210,24 @@ Sem isso o revisor não distingue teste que prova contrato de teste escrito cont
 ### Teste de costura — obrigatório quando o lote consome artefato de outro lote
 
 **A classe dominante de achado bloqueante é defeito entre tasks**, não dentro de uma. Agrupar não
-resolve isso — as tasks estão em lotes diferentes, que é o caso normal numa feature de 34 tasks.
+resolve isso — as tasks estão em lotes diferentes, que é o caso normal em qualquer feature de mais de meia dúzia.
 
 > **Quando uma task produz artefato que outra consome, o review do consumidor tem de rodar a saída
 > real do produtor contra a validação real do consumidor.**
 
 Não é inspeção dos dois lados: é **execução** de um contra o outro.
 
-Costuras já visíveis no `tasks.md` desta feature, para você não ter que procurar:
+Costuras da feature em execução (`file-editor`), para você não ter que procurar. Quando a feature
+mudar, refaça esta tabela a partir do `Where`/`Depends on` do `tasks.md` dela — a lista é derivada,
+não decorada:
 
 | Produtor | Consumidor | O que rodar contra o quê |
 |---|---|---|
-| protocolo de PTY em `shared` (T6) | cliente do terminal (T7), tela (T8) | mensagem real do servidor contra o parser real do cliente |
-| schema Drizzle (T10) | repositórios (T12, T16, T21, T26, T28) | constraint real do banco contra o erro tipado que o repositório promete |
-| `GitService` (T15, T19, T20) | routers (T17, T22) | saída real do git contra o parser e o erro tipado do router |
-| `PtyManager` (T5) | WebSocket (T6), sessão (T26, T29) | ciclo de vida real da sessão contra o que o consumidor assume |
-| eventos (T32) | sidebar (T14, T18, T24, T31) | evento real emitido contra o handler real do cliente |
+| guarda de escrita (E2) | `FileService` de escrita e CRUD (E4, E5) | caminho recusado de verdade contra o que o serviço assume que chega até ele |
+| `revision` da leitura (E3) | escrita guardada (E4), autosave (E9) | a revisão que a leitura devolveu contra a que a escrita compara — mesmo arquivo, ida e volta |
+| resposta `stale` com `changedAt` (E4, E6) | tela de conflito (E10) | resposta real do servidor contra o que a tela desenha, incluindo o cálculo de custo que ficou no cliente |
+| `deletePreview` (E5, E6) | diálogo de apagar (E11) | veredito real do git contra a frase que o diálogo promete ("o git desfaz os outros 3") |
+| tokens `editor/*` e `save/*` (E1) | tema do CodeMirror (E8) | o token gerado contra o que o tema importa de `tokens.ts` — nome que não existe vira cor `undefined`, silenciosa |
 
 **Gatilho barato, derivável do `tasks.md` sem julgamento**: se o `Where`/`Reuses` do lote nomeia
 artefato que outra task nomeia, a costura existe e o teste é obrigatório. Liste as costuras no
@@ -406,10 +414,12 @@ Não são julgamento, são comando.
    registrou como fila.
 
 9. **Registre o custo real do lote** ao fechar, em
-   [`docs/project/task-cycle-evidence.md`](../../../docs/project/task-cycle-evidence.md): tokens por
-   estágio, rounds, achados por severidade, mutações sobreviventes. É o que troca folclore herdado
-   por número deste projeto — e enquanto a tabela da §10 estiver vazia, a estimativa que você dá ao
-   usuário é chute honesto, não medida.
+   [`docs/project/task-cycle-evidence.md`](../../../docs/project/task-cycle-evidence.md). O mínimo
+   obrigatório é **uma linha de seis campos** — `Lote`, `Perfil`, `Range`, `Rounds`, `Tokens`,
+   `Bloqueantes` — e o alvo é dois minutos; o aprofundamento em prosa só existe quando o lote
+   produziu argumento novo. O próprio ledger manda o resto: número que você não tem vira `—`, e
+   **registrar nunca segura entregar**. Enquanto o "Registro de lotes" de lá não tiver um lote de
+   código com round de review, a estimativa que você dá ao usuário é chute herdado, não medida.
 
 10. **Armadilha nova vai para `docs/project/testing.md`.** Bug de teste ou de gate descoberto e
     corrigido entra na seção "Armadilhas já corrigidas", com o mecanismo. É o registro que impede o
@@ -422,9 +432,7 @@ Não são julgamento, são comando.
 
 ## 10. Custo
 
-**Ainda não há medição no Lumem-OS.** A tabela abaixo é herdada de um projeto .NET com gates
-lentos e suíte grande; a ordem de grandeza pode não transferir. Preencha
-[`task-cycle-evidence.md`](../../../docs/project/task-cycle-evidence.md) e substitua.
+**Há seis lotes medidos no Lumem-OS** — no "Registro de lotes" do ledger. Para lote crítico daqui, use ≈508k (n=3, três pontos dentro de ±15%); para fronteira, 466k (n=1). A tabela abaixo continua sendo de outro projeto — o que ela tem e o ledger não é a repartição por **estágio**. A ordem de grandeza dela pode não transferir; o ledger é a fonte para número deste repositório.
 
 | Perfil | Dev | Review (1 round) | Rework | Total, 1 round |
 |---|---|---|---|---|
@@ -465,7 +473,7 @@ custo estimado — dizendo que é herdado — e confirme.
 * **não** confiar em verde que pode ter vindo de cache do Turborepo;
 * **não** tratar pergunta de dev como atrito;
 * **não** mandar ninguém marcar checkbox no `tasks.md` — não é convenção deste repo;
-* **não** avançar de fase com o portão (T9) vermelho;
+* **não** avançar de fase com o portão da fase vermelho;
 * **não** tocar arquivo alheio no working tree, nem incluí-lo em commit;
 * **não** rodar `push`, PR, `rebase`, `reset --hard` ou renomear branch.
 
@@ -510,11 +518,16 @@ descreve o defeito que produziu a regra no projeto onde ela foi medida, exceto o
 
 ### Limites conhecidos
 
-* **zero lotes medidos no Lumem-OS.** Toda a §10 e as três leis são importadas. O primeiro lote
-  fechado tem de virar linha em `task-cycle-evidence.md`;
-* **o projeto de origem tem gates de minutos e suíte de ~1500 testes.** Aqui o gate é de segundos e
-  a suíte tem ~95 testes. A conta de wall clock certamente não transfere; a de token, provavelmente
-  transfere em parte;
+* **seis lotes medidos no Lumem-OS**, quatro deles com review. Crítico: ≈**508k** (n=3, os três
+  dentro de ±15%). Fronteira: **466k** (n=1). Desenho: **239k** (n=1) — perfil que a §3 ainda não
+  descreve. Prefira esses números à §10 e **diga o n**. O que continua sem medição daqui é a
+  repartição por estágio (dev/review/rework), porque só o total sai do relatório sem trabalho extra;
+* **o projeto de origem tem gates de minutos e suíte de ~1500 testes.** Aqui ela tem 824 e o
+  gate ainda leva segundos. A conta de wall clock certamente não transfere; a de token,
+  provavelmente transfere em parte — e a hipótese 1 do ledger diz o que a refutaria;
+* **`gate:quick` é menos seletivo do que parece.** Medido: mudança em um módulo do servidor
+  selecionou 12 dos 50 arquivos de teste de então (hoje são 52), e qualquer `.css`, `.py`, lockfile ou migração roda a
+  suíte inteira. Não conte com gate barato só porque o perfil é declarativo;
 * **paralelismo não foi testado** em nenhum dos dois projetos. "Serialize por padrão" é decisão de
   projeto, não resultado;
 * **cascata de retrabalho foi observada uma vez**, não medida em custo. A Lei 3 é qualitativa;

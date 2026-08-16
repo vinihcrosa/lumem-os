@@ -38,6 +38,22 @@ async function typeLine(page: Page, line: string): Promise<void> {
   await page.keyboard.press("Enter");
 }
 
+/**
+ * A word the shell prints and the keyboard never typed.
+ *
+ * The xterm echoes every character of the command, so waiting for a word that
+ * appears in the line being typed is satisfied at the instant of the keystroke
+ * — before the command has started, let alone finished. `printf 'FEIT%s\n' O`
+ * puts `FEITO` on the screen without `FEITO` ever being on the command line, so
+ * the wait is for the effect. Registered in `docs/project/testing.md`, and the
+ * copy of `right-panel.spec.ts` is deliberate: helpers here live per spec.
+ */
+function announcing(command: string, word: string): string {
+  const head = word.slice(0, -1);
+  const tail = word.slice(-1);
+  return `${command} && printf '${head}%s\\n' ${tail}`;
+}
+
 /** Opens a session through the strip's own menu, where both kinds now live. */
 async function newSession(page: Page, name: string): Promise<void> {
   await page.getByRole("button", { name: /nova sessão/ }).click();
@@ -111,8 +127,11 @@ test("the whole flow, from an empty install to a removed worktree", async ({ pag
   await openProject(page);
   await newSession(page, "shell");
   await expect(page.locator("[role=tabpanel]:not([hidden])").getByTestId("terminal")).toBeVisible();
-  await typeLine(page, "echo shell-do-projeto");
-  await expect(terminalText(page)).toContainText("shell-do-projeto", { timeout: 20_000 });
+  // Announced rather than echoed: waiting for "shell-do-projeto" was satisfied
+  // by the keystrokes that typed the command, so the shell in the project was
+  // never proved to have run anything.
+  await typeLine(page, announcing("echo shell-do-projeto", "RODOU"));
+  await expect(terminalText(page)).toContainText("RODOU", { timeout: 20_000 });
 
   // Both alive at once — F5.4. The count lives on the sidebar row now, and the
   // worktree still reporting one is the proof that opening a session in the

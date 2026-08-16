@@ -104,6 +104,7 @@
 .fpath__name { flex: none; white-space: nowrap; }
 .fv__meta { flex: none; font: var(--text-caption); color: var(--color-text-disabled); white-space: nowrap; }
 
+/* Sobra para o "carregando…": o editor de verdade traz o próprio rolamento. */
 .code {
   flex: 1;
   min-height: 0;
@@ -114,30 +115,90 @@
   white-space: normal;
 }
 /*
- * Quebra ligada por padrão, e este é o achado da renderização: numa coluna de
- * 360px, código de 80 colunas some do lado direito sem nem uma barra de rolagem
- * para denunciar. Ler pela metade é pior que ler quebrado. O botão `⇄` desliga.
+ * A caixa do CodeMirror (D1). Só o lugar dele na coluna mora aqui — cursor,
+ * seleção, linha ativa e medianiz saem de `tokens.ts` em `codemirror-setup.ts`,
+ * porque o editor injeta o próprio CSS a partir de um objeto de JS e uma cor
+ * escrita aqui perderia para ele por especificidade, sem ninguém notar.
  */
-.code .l { display: flex; align-items: flex-start; white-space: pre-wrap; overflow-wrap: anywhere; }
-.code--nowrap .l { white-space: pre; overflow-wrap: normal; }
-.code--nowrap { overflow-x: auto; }
-.code .l:hover { background: var(--color-bg-panel); }
-/* A medianiz gruda: rolar o código na horizontal não pode levar o número da
-   linha embora, que é o endereço que se lê em voz alta. */
-.code .n {
-  position: sticky;
-  left: 0;
+.cmhost { flex: 1; min-height: 0; overflow: hidden; background: var(--color-bg-inset); }
+
+/*
+ * O conflito: dentro da moldura e acima do código, nunca em modal.
+ *
+ * Enquanto ele está na tela, o texto digitado é o único lugar onde aquele
+ * trabalho existe — um modal por cima esconderia exatamente a coisa que a
+ * escolha vai destruir.
+ */
+.conflict {
   flex: none;
-  width: var(--size-gutter-line);
-  padding-right: var(--space-10);
-  text-align: right;
-  color: var(--color-text-disabled);
-  background: var(--color-bg-inset);
-  user-select: none;
+  padding: var(--space-10) var(--space-12);
+  background: var(--color-bg-warning-subtle);
+  border-bottom: 1px solid var(--color-border-default);
 }
-/* A continuação de uma linha quebrada entra recuada: sem isso ela se alinha
-   com o código de verdade e passa por linha própria. */
-.code .t { flex: 1; padding-right: var(--space-12); padding-left: var(--space-12); text-indent: calc(-1 * var(--space-12)); color: var(--color-text-code); }
+.conflict__head { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-sm); color: var(--color-text-primary); }
+.conflict__glyph { flex: none; color: var(--color-save-stale); }
+.conflict__why { margin: var(--space-6) 0 var(--space-10); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.conflict__exits { display: grid; gap: var(--space-6); }
+/*
+ * As duas saídas são o MESMO botão (D3.1): nenhuma é o default, porque
+ * escolher por conta própria seria escolher de quem é o trabalho descartável.
+ * O que as separa é o custo, dito em texto — não o peso visual.
+ */
+.exit {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  width: 100%;
+  padding: var(--space-8) var(--space-10);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  text-align: left;
+}
+.exit:hover { background: var(--color-bg-raised); }
+.exit__what { flex: none; font: var(--text-label-sm); color: var(--color-text-primary); }
+.exit__cost { flex: 1; min-width: 0; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/*
+ * Somente leitura é uma faixa, não um cadeado no canto: o motivo é a
+ * informação, e ele não cabe num ícone. O fundo é o mesmo da moldura, para não
+ * virar aviso de erro — o arquivo continua legível, só não gravável (F1.4).
+ */
+.robar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-6) var(--space-12);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+.robar__glyph { flex: none; color: var(--color-editor-readonly); }
+.robar code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/*
+ * O estado do arquivo é sempre o primeiro item do rodapé, à esquerda.
+ *
+ * Com autosave não existe botão de salvar nem estado sujo persistente, então
+ * este rodapé é a única coisa que o salvamento diz de si. Fica no canto do
+ * arquivo a que se refere — não numa barra global — porque cada aba tem o seu.
+ */
+.save { flex: none; display: inline-flex; align-items: center; gap: var(--space-6); }
+.save__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+.save__mark { font-size: var(--size-icon-sm); line-height: 1; }
+.save--saving { color: var(--color-save-saving); }
+.save--saved { color: var(--color-save-saved); }
+.save--failed { color: var(--color-save-failed); }
+.save--stale { color: var(--color-save-stale); }
+.save--readonly { color: var(--color-editor-readonly); }
+/* O motivo do daemon vem literal (PRD §8) e é longo. Ele toma a largura que a
+   contagem de bytes estava usando: numa falha, saber quantos KB o arquivo tem
+   é a informação menos útil da tela. */
+.save__why { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-tertiary); }
+.save__act { flex: none; color: var(--color-text-link); font: var(--text-caption); text-decoration: underline; }
+
 .k  { color: var(--color-syntax-keyword); }
 .s  { color: var(--color-syntax-string); }
 .nu { color: var(--color-syntax-number); }
