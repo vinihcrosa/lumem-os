@@ -161,8 +161,8 @@ O que o servidor **não** manda, e é decisão, não esquecimento: o custo de ca
 **F5.3** `files.create({ …, path, kind: "file" | "dir" })`.
 **F5.4** `files.rename({ …, from, to })`.
 **F5.5** `files.remove({ …, path, recursive })`.
-**F5.7** `files.deletePreview({ …, path })` — o que a confirmação de apagar precisa saber antes de apagar: se o caminho é rastreado pelo git, e, para diretório, quantas entradas ele tem contando subdiretórios e quantas delas o git não recupera. Com teto e com o truncamento dito, como toda contagem desta feature.
 **F5.6** Escrita é atômica: arquivo temporário no **mesmo diretório** e `rename` por cima, com o modo do original preservado. Meio arquivo no disco é pior que nenhuma escrita, e o agente pode estar lendo exatamente nesse instante.
+**F5.7** `files.deletePreview({ …, path })` — o que a confirmação de apagar precisa saber antes de apagar: se o caminho é rastreado pelo git, e, para diretório, quantas entradas ele tem contando subdiretórios e quantas delas o git não recupera. Com teto e com o truncamento dito, como toda contagem desta feature.
 
 ---
 

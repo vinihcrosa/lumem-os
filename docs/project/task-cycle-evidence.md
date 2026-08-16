@@ -42,11 +42,12 @@ O mecanismo se provou antes de completar um dia de vida: quando esta seção foi
 já devolvia o lote `E1`, que havia fechado enquanto o próprio arquivo era reescrito. Ele apareceu
 sem ninguém precisar lembrar, e virou a primeira linha da tabela.
 
-**Dois lotes medidos**, um de desenho e um de código. O segundo (`E2+E3`) é o primeiro com review
-de verdade: perfil crítico, 2 rounds, 582k. Já dá para dizer alguma coisa deste repositório — e
-ainda não dá para calibrar a §10 da skill, que separa custo por estágio e por perfil, com **um**
-ponto amostral de um perfil só. Até lá, estimativa dada ao usuário continua saindo do anexo, com o
-aviso de que é herdada.
+**Seis lotes medidos**, quatro deles com review de verdade. O perfil **crítico** tem três pontos —
+582k, 453k, 488k, média ≈508k, todos dentro de ±15% —, o **fronteira** tem um (466k), e o
+**desenho** um (239k). Para lote deste repositório, prefira estes números ao anexo herdado, dizendo
+o n. O que continua sem ponto amostral é a repartição por **estágio** que a §10 da skill promete:
+aqui só o total por lote é medido, porque é o que sai do relatório dos sub-agentes sem trabalho
+extra.
 
 ---
 

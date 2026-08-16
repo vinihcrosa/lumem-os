@@ -18,11 +18,11 @@ o que é caro errar.
 
 As regras estruturais desta skill (leis, perfis de risco, raio de alcance, triagem, passe a frio)
 foram **medidas em outro projeto** — um serviço .NET/DDD, com gates de dezenas de minutos, suíte
-de ~1500 testes e interop nativo. **Dois lotes já foram medidos aqui** (veja o "Registro de lotes" do ledger); o resto desta seção continua importado.
+de ~1500 testes e interop nativo. **Seis lotes já foram medidos aqui** (veja o "Registro de lotes" do ledger), quatro deles com review; o resto desta seção continua importado.
 
 Trate-as como **hipóteses calibradas**, não como fatos deste repositório. O que muda aqui e pode
 mudar as conclusões: gate de **segundos** em vez de minutos, arquivos menores (mediana de 67
-linhas), e TypeScript em vez de C#. A suíte passa de **700 testes** unit/integration mais 13 e2e — não é
+linhas), e TypeScript em vez de C#. A suíte tem **824 testes** unit/integration em 52 arquivos, mais 13 e2e — não é
 pequena, e o gate inteiro mesmo assim roda em menos tempo que uma chamada de ferramenta. Como
 esperar gate deixa de ser custo, o que sobra do review é leitura: é plausível que o overhead fixo
 pese **mais** proporcionalmente aqui, não menos. Os números medidos estão na "Linha de base deste
@@ -432,7 +432,7 @@ Não são julgamento, são comando.
 
 ## 10. Custo
 
-**Há dois lotes medidos no Lumem-OS** — um de desenho e um crítico, no "Registro de lotes" do ledger. A tabela abaixo continua sendo de outro projeto. A tabela abaixo é herdada de um projeto .NET com gates
+**Há seis lotes medidos no Lumem-OS** — no "Registro de lotes" do ledger. Para lote crítico daqui, use ≈508k (n=3, três pontos dentro de ±15%); para fronteira, 466k (n=1). A tabela abaixo continua sendo de outro projeto, e o que ela tem que o ledger não tem é a repartição por estágio. A tabela abaixo é herdada de um projeto .NET com gates
 lentos e suíte grande; a ordem de grandeza pode não transferir. Preencha
 [`task-cycle-evidence.md`](../../../docs/project/task-cycle-evidence.md) e substitua.
 
@@ -523,11 +523,11 @@ descreve o defeito que produziu a regra no projeto onde ela foi medida, exceto o
 * **dois lotes medidos no Lumem-OS**, e um deles é de código: `E2+E3` do `file-editor`, perfil
   crítico, 2 rounds, **582k**. Prefira esse número à §10 para lote crítico deste repositório, e
   diga que é n=1. O outro foi a `E1`, uma task de **desenho** — perfil que a §3 ainda não descreve;
-* **o projeto de origem tem gates de minutos e suíte de ~1500 testes.** Aqui ela passa de 700 e o
+* **o projeto de origem tem gates de minutos e suíte de ~1500 testes.** Aqui ela tem 824 e o
   gate ainda leva segundos. A conta de wall clock certamente não transfere; a de token,
   provavelmente transfere em parte — e a hipótese 1 do ledger diz o que a refutaria;
 * **`gate:quick` é menos seletivo do que parece.** Medido: mudança em um módulo do servidor
-  selecionou 12 dos 50 arquivos de teste, e qualquer `.css`, `.py`, lockfile ou migração roda a
+  selecionou 12 dos 50 arquivos de teste de então (hoje são 52), e qualquer `.css`, `.py`, lockfile ou migração roda a
   suíte inteira. Não conte com gate barato só porque o perfil é declarativo;
 * **paralelismo não foi testado** em nenhum dos dois projetos. "Serialize por padrão" é decisão de
   projeto, não resultado;

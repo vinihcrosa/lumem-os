@@ -46,9 +46,10 @@ Numeradas, e nenhuma delas vive só numa mensagem ou num comentário de código.
 | **P9** | A tela de conflito promete três números que o contrato original não carregava: "há 8 s", "3 linhas que você digitou", "+6 −2" do agente | **resolvida no desenho** pela verificação do orquestrador: `changedAt` entra na resposta (E4/E6), e os dois custos passam a ser medidos **no cliente** (E10), que é o único lado com as três versões do texto |
 | **P10** | O diálogo de apagar promete saber se o git desfaz, e a contagem recursiva de uma pasta — dados que nenhuma procedure tinha | **resolvida no desenho**: `files.deletePreview` (F5.7), implementada na E5 e exposta na E6, consumida pela E11 |
 | **P11** | `path-guard.ts` fazia `stat(parent)` sem `try`, deixando escapar `Error` cru se o diretório sumisse entre o `realpath` e o `stat` | **fechada pela E3.1, e diferente do que foi arquivado**: o `stat` foi **deletado**, não embrulhado. O `lstat` logo abaixo responde `ENOTDIR` para o mesmo caso, com mensagem melhor e uma syscall a menos — a janela fechou em vez de ser capturada. Verificado no review com pai-arquivo, pai-fifo e pai-que-sumiu |
-| **P12** | `revisionOf` está exportado sem consumidor até a E4, e a mutação "revisão = tamanho em bytes" só morre por causa de **um** fixture (`files.test.ts`, 13 bytes contra 13 bytes) | follow-up do review do Lote 1 — quem mexer naquele fixture precisa saber que ele é a única coisa segurando a invariante |
+| **P12** | ~~`revisionOf` sem consumidor, e a invariante "revisão não é tamanho" segurada por um fixture só~~ | **vencida pelos lotes seguintes**: a E4 consome, e `concurrent-write.test.ts` ("vê a mudança feita entre a leitura e a gravação mesmo com o mesmo tamanho") é o segundo guarda. O passe a frio pegou a linha desatualizada |
 | **P13** | Alvo que **não existe** e se chama `.GIT` num filesystem insensível a caixa seria criado: não há disco para consultar, então nada canoniza o nome | **decidida: aceita.** Fechar exigiria case-folding no ramo "não existe", o que recusaria `.GIT` no Linux, onde é nome legítimo. Não é alcançável no produto — todo checkout tem `.git`, e numa worktree ele é um **arquivo**, que cai no ramo do `realpath` e é recusado |
-| **P15** | `agentConfig.create` não tem teto em `command`, `args` e `env`, e o `bodyLimit` global subiu de 1 MiB para ~6,3 MiB por causa da E6 — um cliente malformado passa a poder persistir ~6 MiB em SQLite onde antes tomava 413 | aberta, **dívida anterior amplificada**. O adapter tRPC do Fastify não expõe `bodyLimit` por rota, então o lugar do teto é onde está; o que falta é o teto nos campos. Resolve quando alguém tocar aquele router |
+| **P16** | Nada na tela diz que salvar **troca o dono** do arquivo: a escrita atômica põe os bytes num inode novo, então uid/gid, ACL e xattrs não sobrevivem ([Q15](open-questions.md)) | aberta, fora da v1 — estava viva só dentro de uma pergunta fechada, que é o que a lista numerada existe para impedir |
+| **P15** | `agentConfig.create` não tem teto em `command`, `args` e `env`, e o `bodyLimit` global subiu de 1 MiB para 6.356.992 bytes (6,06 MiB) por causa da E6 — um cliente malformado passa a poder persistir ~6 MiB em SQLite onde antes tomava 413 | aberta, **dívida anterior amplificada**. O adapter tRPC do Fastify não expõe `bodyLimit` por rota, então o lugar do teto é onde está; o que falta é o teto nos campos. Resolve quando alguém tocar aquele router |
 | **P14** | A guarda ainda recusa **tudo** para link que aponta para fora, inclusive apagar — assimetria com o link pendurado, que o rework tornou apagável | **decidida na [Q12](open-questions.md): também é apagável.** Vira `Done when` da **E5**, junto do resto do CRUD: apagar opera sobre a entrada, e a entrada está dentro do checkout |
 
 ---
@@ -130,7 +131,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 **Depends on**: nada
 
 **Done when**:
-- [ ] `resolveForWrite(root, requested)` devolve `{ relative, entry, target, exists }`: o **pai** é resolvido por `realpath` e checado por separador; o nome final não precisa existir. `entry` é a **entrada de diretório** — o que apagar e renomear tocam; `target` é o **destino**, onde gravar cai, e é `null` quando o link está pendurado. É esse `null` que faz o `tsc` recusar quem tentar gravar sem tratar o caso
+- [ ] `resolveForWrite(root, requested)` devolve `{ relative, entry, target, targetless, exists }` (o `targetless` chegou com a E3.1: `"dangling" | "outside" | null`, e é o que diz **qual** dos dois nulos é): o **pai** é resolvido por `realpath` e checado por separador; o nome final não precisa existir. `entry` é a **entrada de diretório** — o que apagar e renomear tocam; `target` é o **destino**, onde gravar cai, e é `null` quando o link está pendurado. É esse `null` que faz o `tsc` recusar quem tentar gravar sem tratar o caso
 - [ ] As regras 1 e 2 continuam valendo, reusando `normalizeRelative` — nada é reimplementado
 - [ ] Pai que não existe é `NOT_FOUND`, e a mensagem diz **qual** diretório falta
 - [ ] Pai que é symlink para fora do checkout é recusado — o alvo não existir não pode virar um jeito de escapar da regra 4
@@ -281,13 +282,15 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 #### E8: CodeMirror no split
 
 **What**: Trocar o `<div>` de linhas por um editor de verdade, sem mudar a moldura nem o realce.
-**Where**: `packages/web/src/components/FileViewer.tsx`, `packages/web/src/lib/codemirror-setup.ts`, `viewer.css`, `file-viewer.test.tsx`
+**Where**: `packages/web/src/components/FileViewer.tsx`, `packages/web/src/lib/codemirror-setup.ts`, `viewer.css`, `file-viewer.test.tsx`, `packages/web/package.json` (a dependência nova é o que faz esta task ser **fronteira**), `packages/web/scripts/generate-tokens.py` (o cabeçalho que ele escreve em `tokens.ts` nomeia `generate_palette.py`, que não existe — e é a linha que se lê logo antes de ser proibido de escrever cor literal)
 **Depends on**: E1, E3
 
 **Done when**:
 - [ ] O arquivo abre num CodeMirror 6 dentro da mesma `ViewerFrame` — cabeçalho, `⇄` e `✕` inalterados
 - [ ] Realce pela ponte `@shikijs/codemirror`, com o `lumemShikiTheme` e as gramáticas que já existem (D1). Extensão desconhecida continua abrindo como texto puro
 - [ ] Tema do editor (cursor, seleção, linha ativa, gutter) sai de `tokens.ts` — nenhuma cor literal no arquivo
+- [ ] **Um teste fixa os nomes `editor/*` contra `tokens.ts`**, no molde do `xterm-theme.test.ts` que já existe. Sem ele, um token renomeado vira cor `undefined` em silêncio — é a costura que a §5 da skill nomeia e que hoje não tem guarda
+- [ ] **A suíte de contraste passa a rodar num gate.** Hoje ela existe em `generate-tokens.py` e **nada a invoca**: o `Tests` da E1 afirma que ela roda no gate e isso é falso. A propriedade a garantir é mais forte que rodar o script: *regerar a partir do `CONFIG` não produz diff em `tokens.css` nem em `tokens.ts`, e todo par declarado passa em AA* — o que pega de uma vez a regressão de contraste e a edição à mão do arquivo gerado
 - [ ] Quebra de linha ligada por padrão, `⇄` desliga, e a numeração continua certa nos dois modos
 - [ ] As **cinco** recusas abrem em somente leitura, cada uma com seu motivo no rodapé (F1.4): `binary`, `too-large`, dentro de `.git`, sem permissão de escrita ([Q14](open-questions.md)), e conteúdo que a ida e volta em UTF-8 não devolve igual ([Q9](open-questions.md)). Nas cinco o arquivo continua **legível**; o que falta é a permissão de gravar
 - [ ] O `PatchViewer` não muda: continua somente leitura, com o mesmo realce (F1.5)
@@ -312,7 +315,10 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] Rodapé diz `salvando…`, `salvo há Ns` e a falha com o motivo do daemon
 - [ ] Falha de escrita **não** descarta o buffer, e a próxima digitação tenta de novo (F2.4)
 - [ ] Descarrega o pendente antes de sumir da tela, com um teste **por gatilho**: trocar de aba de sessão, fechar o split, fechar a aba, perder o foco da janela, desmontar
-- [ ] Gravar invalida `["changes"]` e o `listDir` do diretório do arquivo, e **não** o `files.read` do arquivo aberto (F2.5) — o teste é que digitar durante um `worktree.changed` não perde caractere
+- [ ] Gravar invalida `["changes"]` e o `listDir` do diretório do arquivo, e **não** o `files.read` do arquivo aberto (F2.5)
+- [ ] **O botão de recarregar da coluna deixa de invalidar o `files.read` do arquivo aberto.** Hoje `CheckoutFiles.tsx` faz `invalidateQueries({ queryKey: ["files"] })`, e `fileListKey` e `fileReadKey` **compartilham esse prefixo** — depois do autosave, um clique nele refaz a leitura por cima de um buffer sujo, que é o que a D4 proíbe. Ou os prefixos se separam, ou a invalidação passa a ser dirigida; a propriedade é que **nenhum gesto de navegação apaga texto digitado**
+- [ ] **`refetchOnWindowFocus` do `FileViewer` passa a depender do estado do buffer.** Perder e ganhar foco é o gatilho de descarregamento mais exercitado desta própria task: com buffer limpo o disco é adotado (D4), com buffer sujo não há refetch nenhum
+- [ ] Test count: um caso por gatilho de descarregamento, mais um que prova que **recarregar pela coluna com buffer sujo não perde caractere** — o teste é que digitar durante um `worktree.changed` não perde caractere
 - [ ] Gate: `pnpm gate:quick`
 - [ ] Test count: ao menos 5 casos de descarregamento, um por gatilho
 
@@ -331,7 +337,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] Resposta `stale` **para** o autosave — nada mais é gravado até o usuário escolher
 - [ ] As duas saídas aparecem nomeadas pelo que perdem, sem default visual (D3.1)
 - [ ] O custo de cada saída é **medido pelo cliente**, não adjetivado: ao receber o `stale`, ele busca o conteúdo do disco e compara com as duas versões que já tem — o texto base que leu e o buffer. Daí saem "perde as 3 linhas que você digitou" e "perde a edição do agente (+6 −2)". O servidor não sabe calcular isso, e o teste é que os dois números batem com uma edição conhecida dos dois lados
-- [ ] O "o agente escreveu este arquivo há Ns" vem do `changedAt` da resposta (E4), não do relógio do cliente
+- [ ] O "o agente escreveu este arquivo há Ns" vem do `changedAt` da resposta (E4), não do relógio do cliente — e a frase é aproximada de propósito: o `mtime` é lido no `stat` que precede a leitura cujo hash é comparado, então ele pode ser **mais velho** que o conteúdo, nunca inventado. A tela não promete exatidão de segundo
 - [ ] *Recarregar do disco* traz o conteúdo novo e a revisão nova, e o autosave volta a andar
 - [ ] *Sobrescrever* grava com a revisão que veio na recusa, e passa (é o caso provado na E7)
 - [ ] Buffer **limpo** com mudança externa adota o disco em silêncio; buffer **sujo** nunca é sobrescrito por refetch (D4)
@@ -348,7 +354,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 #### E11: Criar, renomear e apagar na coluna
 
 **What**: As três operações no lugar onde os arquivos já estão.
-**Where**: `packages/web/src/components/FileTree.tsx`, `CheckoutFiles.tsx`, `right-panel.css`, `hooks/useFileTree.ts` + testes
+**Where**: `packages/web/src/components/FileTree.tsx`, `CheckoutFiles.tsx`, `right-panel.css`, `hooks/useFileTree.ts` + testes, `packages/server/src/files/FileService.ts` + teste (só a recusa própria do rename-de-caixa, [Q17](open-questions.md))
 **Depends on**: E6, E1
 
 **Done when**:
@@ -356,8 +362,10 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] Renomear no lugar, aceitando caminho — renomear é mover (F4.2)
 - [ ] Apagar com confirmação que **nomeia** o alvo e consulta `files.deletePreview` (E5/E6): arquivo rastreado mostra o `git checkout --` que o traz de volta, não rastreado mostra que nada traz, e diretório mostra a contagem mais quantas entradas o git não recupera ([Q5](open-questions.md))
 - [ ] Nome ocupado mostra a recusa do servidor, sem sobrescrever nada
+- [ ] **Renomear trocando só a caixa tem recusa própria, vinda do servidor** ([Q17](open-questions.md)): hoje `readme.md → README.md` responde o mesmo `DUPLICATE` de uma colisão comum, e a tela não tem como distinguir — quem sabe as duas grafias é a guarda, que já carrega a do cliente (`relative`) e a do disco (`entry`). Por isso o `Where` desta task inclui `packages/server/src/files/FileService.ts`: derivar no cliente seria pôr no navegador uma regra que o §5 exige no servidor
 - [ ] O diálogo mostra `truncated` quando ele vem: a contagem é **piso**, não total, e o servidor pagou para dizer isso — apresentá-la como total é a mentira que a F5.7 existe para impedir
 - [ ] A confirmação de apagar pasta manda `recursive: true`; sem isso o servidor recusa com `BLOCKED`, e a contagem estruturada vem do `deletePreview`, nunca de parse da mensagem de recusa
+- [ ] Link pendurado tem **uma** frase, não duas: a leitura responde `NOT_FOUND` e a escrita `BLOCKED` para o mesmo estado de disco ([Q12](open-questions.md)), e a tela não pode inventar uma terceira
 - [ ] `tracked: false` significa "o git não tem cópia **ou** o git não conseguiu responder" ([Q18](open-questions.md)) — a tela não pode ser mais forte que isso
 - [ ] Depois de cada operação, só o diretório afetado e a lista de mudanças recarregam (F4.5)
 - [ ] Apagar o arquivo aberto fecha o split; renomear reaponta o split para o novo caminho (F4.6)

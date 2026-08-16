@@ -238,6 +238,8 @@ Consertar custa renomear em dois passos, por um nome temporário. Isso reabre a 
 
 A recusa é **segura**: nada é destruído. O que ela não pode ser é confusa, e por isso a E11 tem que dizer o motivo na tela em vez de repetir "já existe" — a pessoa está olhando para uma árvore onde aquele nome não aparece.
 
+**Quem distingue é o servidor, não a tela.** O passe a frio pós-Fase 1 pegou que a promessa acima não era cumprível: o `rename` responde `DUPLICATE` com a mesma mensagem de uma colisão comum, e o cliente não tem como saber que o "outro" arquivo é o próprio. Quem sabe é a guarda, que carrega as duas grafias — a do cliente em `relative` e a do disco em `entry`. Derivar isso no navegador seria pôr lá uma regra que o §5 exige no servidor, e ainda por cima uma que depende de saber se o filesystem é insensível a caixa.
+
 É a irmã do `.GIT` que já está registrado em [testing.md](../../project/testing.md): a mesma insensibilidade de caixa, na operação oposta. Lá ela deixava passar o que devia recusar; aqui recusa o que devia passar.
 
 ---
