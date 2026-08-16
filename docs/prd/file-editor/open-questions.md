@@ -2,7 +2,7 @@
 
 Registro de por que cada decisão foi tomada. Pergunta respondida não vira suposição silenciosa: fica aqui, com o motivo.
 
-**Estado:** 15 perguntas · 12 respondidas · 3 abertas
+**Estado:** 17 perguntas · 14 respondidas · 3 abertas
 
 ---
 
@@ -179,6 +179,34 @@ A alternativa era o cliente derivar "está dentro de `.git`" do caminho. Ela é 
 Então `ReadOnlyReason` ganha `"inside-git"`, ao lado de `"not-utf8"`. As quatro recusas da F1.4 passam a ter a mesma gramática de verdade: duas vêm da forma do resultado (`binary`, `too-large`) e duas do motivo nomeado.
 
 **Quando as duas razões valem ao mesmo tempo, `inside-git` ganha**, e isso é decisão de produto, não detalhe de implementação — um arquivo do `.git` com bytes que não sobrevivem ao UTF-8 é os dois. `inside-git` é um fato sobre o **caminho**, verdadeiro independentemente dos bytes, e é o que a pessoa precisa ler para entender por que não pode editar. Dizer "não é UTF-8 válido" ali é verdade e é a informação errada: consertar a codificação não destravaria nada.
+
+---
+
+### Q14 — Arquivo marcado somente leitura no disco: grava ou não?
+
+**Não grava: abre somente leitura, com o motivo dito.** Respondida pelo Vinicius.
+
+A pergunta nasceu de um efeito colateral que o dev achou e declarou ao implementar a escrita atômica: gravar num arquivo `0o444` **passa**, porque o `rename` precisa de permissão no **diretório**, não no arquivo — e o modo é preservado depois, então nem rastro fica. Com escrita in-place teria falhado com `EACCES`.
+
+O contra-argumento era bom: `0o444` num repositório costuma ser convenção (arquivo gerado, lock manual), e o dono sempre pode remover o bit. Perdeu por causa do autosave: ele grava **sozinho**, sem ninguém clicar em nada, e o bit de somente-leitura é o único aviso que a pessoa deixou para si mesma naquele arquivo. Passar por cima dele calado é a mesma família da perda silenciosa da [Q9](#q9--e-arquivo-que-não-é-utf-8).
+
+A propriedade que a implementação tem de satisfazer, e ela é maior que a pergunta: **a escrita atômica não pode virar um contorno de permissão.** Se o daemon não conseguiria gravar o arquivo in-place, ele não grava de jeito nenhum. Por isso o veredito é `access(target, W_OK)` — a pergunta honesta "este processo consegue escrever neste arquivo?", que responde certo para dono, grupo, outros e ACL — e não uma leitura de bits de modo, que teria que ser interpretada.
+
+Vira a **quinta** recusa, com a mesma gramática das outras quatro. E as razões passam a ter ordem declarada: `inside-git` → `not-writable` → `not-utf8`, da mais estrutural para a mais dependente de conteúdo. O caminho manda mais que a permissão, que manda mais que os bytes.
+
+---
+
+### Q15 — O que a escrita atômica destrói, já que ela salva o resto?
+
+**uid/gid, ACL, extended attributes e a irmandade de hard link. Declarado, não resolvido.**
+
+Medido no review do Lote 3: os bytes caem num **inode novo**, e do arquivo original sobrevive apenas `mode & 0o777`. Some o dono (o arquivo passa a pertencer ao usuário do daemon), somem ACL POSIX e xattrs, e o hard link para outro caminho é cortado — o outro nome continua apontando para o conteúdo antigo.
+
+Não é escolha entre alternativas: é o preço de o `rename` ser o que fecha os dois vetores do §5. Escrita in-place preservaria tudo isso e devolveria o hard link para fora e a janela entre resolver e gravar, que são bem piores.
+
+Um caso concreto onde o efeito é **bom**, e vale registrar porque é o mais comum: `node_modules` está visível e editável na árvore, e o pnpm o povoa com hard links para o store global. Editar um arquivo lá dentro **desliga o link** em vez de corromper o store de todos os projetos da máquina — que é exatamente o que in-place faria.
+
+O que fica em aberto é só a comunicação: nada na tela diz que salvar troca o dono do arquivo. Não é v1.
 
 ---
 

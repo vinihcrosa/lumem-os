@@ -1,6 +1,6 @@
 # PRD — O visualizador vira editor
 
-> **Status:** em execução — protótipo e as duas tasks de guarda entregues
+> **Status:** em execução — o daemon já grava no disco (E1–E4, E7 entregues)
 > **Versão:** v0.1
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
@@ -110,7 +110,9 @@ Cada um destes saiu de olhar o PNG, não de ler o código:
 **F1.1** O conteúdo do arquivo abre num CodeMirror 6, não num `<div>` de linhas (D1). Numeração, cursor, seleção, undo/redo, indentação e busca vêm do motor.
 **F1.2** Realce continua sendo o do Shiki, com o **mesmo** tema montado a partir de `tokens.ts` — a ponte `@shikijs/codemirror` existe para não haver um segundo conjunto de gramáticas nem um segundo tema no bundle (D1.1).
 **F1.3** Quebra de linha continua ligada por padrão, com o botão `⇄` (D3.1 da right-panel). No CodeMirror isso é `EditorView.lineWrapping`.
-**F1.4** Arquivo binário, grande demais, dentro de `.git`, ou **que não decodifica limpo em UTF-8** abre somente leitura, com o motivo dito. São **quatro** recusas com a mesma gramática, e somente leitura passa a ser um estado nomeado, não a ausência de um.
+**F1.4** Abre **somente leitura**, com o motivo dito, o arquivo que for: binário, grande demais, dentro de `.git`, **sem permissão de escrita para o daemon**, ou **que não decodifica limpo em UTF-8**. São **cinco** recusas com a mesma gramática, e somente leitura passa a ser um estado nomeado, não a ausência de um.
+
+Quando mais de uma vale, a ordem é `inside-git` → `not-writable` → `not-utf8` ([Q13](open-questions.md), [Q14](open-questions.md)): da mais estrutural para a mais dependente de conteúdo.
 
 A quarta ([Q9](open-questions.md)) existe por causa do autosave: um Latin-1 sem byte NUL passa pela detecção de binário, é lido com caractere de substituição, e gravar destruiria o conteúdo original **sem ninguém clicar em nada**. O teste é de ida e volta — decodificar e recodificar tem que devolver os bytes originais — e ele mora no servidor, que é quem tem os bytes.
 **F1.5** O patch (`PatchViewer`) continua somente leitura e **não** vira editor. Editar um diff é outra feature, com outro modelo mental.
@@ -195,6 +197,10 @@ Silêncio num documento de segurança lê como cobertura, então aqui vai o que 
 **Hard link para fora do checkout passa nas cinco regras.** `realpath` não distingue hard link: um arquivo dentro do checkout que compartilhe o inode de `~/.ssh/id_rsa` é indistinguível de um arquivo comum. Bloquear sairia caro e errado — recusar todo arquivo com `st_nlink > 1` recusaria arquivos legítimos. Fica declarado, não implementado.
 
 **A janela entre resolver e gravar não é fechada pela guarda.** Entre a guarda dizer "pode" e a escrita acontecer, um componente do caminho pode virar symlink. O modelo de ameaça desta feature é **acidente**, não adversário — o agente que escreve ao lado não está tentando escapar do checkout — e por isso a janela é aceita.
+
+**E o que ela destrói, porque isto também é silêncio se não for dito:** os bytes caem num inode novo, então sobrevive `mode & 0o777` e mais nada. Somem uid/gid — o arquivo passa a pertencer ao usuário do daemon —, ACL POSIX, extended attributes, e a irmandade de hard link é cortada. Medido, e agora com teste: `concurrent-write.test.ts`. Um caso em que o efeito é **bom**: `node_modules` é editável na árvore e o pnpm o povoa com hard links para o store global — editar ali desliga o link em vez de corromper o store de todos os projetos da máquina. Ver [Q15](open-questions.md).
+
+**Uma consequência que virou regra de produto:** como o `rename` precisa de permissão no **diretório** e não no arquivo, gravar num arquivo somente-leitura passaria. Não passa: `access(W_OK)` é verificado antes, porque **a escrita atômica não pode virar contorno de permissão** ([Q14](open-questions.md)).
 
 **Nos dois casos, o que fecha o vetor é a escrita atômica da F5.6**, e isso muda o que ela é: temp no mesmo diretório mais `rename` estava escrito como requisito de **integridade** ("meio arquivo no disco é pior que nenhuma escrita") e é **também um controle de segurança**. Medido: com escrita in-place, os dois vetores acima sobrescrevem o arquivo de fora; com temp + `rename`, o arquivo de fora fica intacto e o que se perde é o link. Consequência dura para a E4: **nenhum caminho de escrita pode gravar in-place**, nem para arquivo pequeno, nem com `appendFile`, nem como otimização. Se isso mudar, estas duas linhas deixam de valer e ninguém vai lembrar de reler este parágrafo.
 

@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Protótipo:** `packages/web/prototype/lumem-file-editor.html` — entregue pela E1, cinco telas, verificado por renderização
 **Sucede:** [right-panel](../right-panel/tasks.md)
-**Status:** em execução — E1, E2 e E3 entregues e fechadas (Lote 1 aprovado em 2 rounds de review)
+**Status:** em execução — E1, E2, E3, E3.1, E4 e E7 entregues; o daemon grava no disco
 **Total:** 13 tasks em 5 fases
 
 ---
@@ -45,7 +45,7 @@ Numeradas, e nenhuma delas vive só numa mensagem ou num comentário de código.
 | **P8** | `packages/web/src/components/viewer.css:134` usa `text-disabled` na medianiz, **hoje, no app**: 2,96:1 sobre o poço, abaixo do mínimo de objeto gráfico. O token que corrige (`editor/line-number`, 6,49:1) já existe e **ninguém o consome** | **aberta** — quem fecha é a E8. Estava marcada como fechada antes de a E8 existir, e o passe a frio pegou: pendência fechada por antecipação é pendência perdida |
 | **P9** | A tela de conflito promete três números que o contrato original não carregava: "há 8 s", "3 linhas que você digitou", "+6 −2" do agente | **resolvida no desenho** pela verificação do orquestrador: `changedAt` entra na resposta (E4/E6), e os dois custos passam a ser medidos **no cliente** (E10), que é o único lado com as três versões do texto |
 | **P10** | O diálogo de apagar promete saber se o git desfaz, e a contagem recursiva de uma pasta — dados que nenhuma procedure tinha | **resolvida no desenho**: `files.deletePreview` (F5.7), implementada na E5 e exposta na E6, consumida pela E11 |
-| **P11** | `path-guard.ts` faz `stat(parent)` sem `try`: se o diretório sumir entre o `realpath` e o `stat`, escapa `Error` cru em vez de `DomainError`. É o padrão vizinho dominante no módulo, e a janela é real justo numa feature cujo §7 é concorrência com o agente | follow-up do review do Lote 1 — não bloqueia; vale arrumar junto da E4, que mexe no mesmo caminho |
+| **P11** | `path-guard.ts` fazia `stat(parent)` sem `try`, deixando escapar `Error` cru se o diretório sumisse entre o `realpath` e o `stat` | **fechada pela E3.1, e diferente do que foi arquivado**: o `stat` foi **deletado**, não embrulhado. O `lstat` logo abaixo responde `ENOTDIR` para o mesmo caso, com mensagem melhor e uma syscall a menos — a janela fechou em vez de ser capturada. Verificado no review com pai-arquivo, pai-fifo e pai-que-sumiu |
 | **P12** | `revisionOf` está exportado sem consumidor até a E4, e a mutação "revisão = tamanho em bytes" só morre por causa de **um** fixture (`files.test.ts`, 13 bytes contra 13 bytes) | follow-up do review do Lote 1 — quem mexer naquele fixture precisa saber que ele é a única coisa segurando a invariante |
 | **P13** | Alvo que **não existe** e se chama `.GIT` num filesystem insensível a caixa seria criado: não há disco para consultar, então nada canoniza o nome | **decidida: aceita.** Fechar exigiria case-folding no ramo "não existe", o que recusaria `.GIT` no Linux, onde é nome legítimo. Não é alcançável no produto — todo checkout tem `.git`, e numa worktree ele é um **arquivo**, que cai no ramo do `realpath` e é recusado |
 | **P14** | A guarda ainda recusa **tudo** para link que aponta para fora, inclusive apagar — assimetria com o link pendurado, que o rework tornou apagável | **decidida na [Q12](open-questions.md): também é apagável.** Vira `Done when` da **E5**, junto do resto do CRUD: apagar opera sobre a entrada, e a entrada está dentro do checkout |
@@ -216,7 +216,9 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 **Depends on**: E2
 
 **Done when**:
-- [ ] `createFile` e `createDir`: nome ocupado é `DUPLICATE`, não sobrescrita
+- [ ] `createFile` e `createDir`: nome ocupado é `DUPLICATE`, não sobrescrita — e a exclusividade é **atômica**, por `open` com `wx`/`O_EXCL`, nunca por checar `exists` antes. **Não reuse `writeAtomically` para criar**: o `rename` dela substitui o destino sem perguntar, e entre a guarda e a gravação cabe o agente criando o mesmo nome
+- [ ] Link cujo destino cai **fora** do checkout é apagável, e o arquivo de fora fica intacto — é o caso que a E3.1 destravou ([Q12](open-questions.md), P14), e sem esta linha ele não é exigido por task nenhuma
+- [ ] Pai que some entre o `realpath` e o `lstat` chega aqui como `exists: false`: `createFile` trata o `ENOENT` da própria criação em vez de assumir que o diretório existe
 - [ ] `rename(from, to)`: as **duas** pontas passam pela guarda; destino ocupado é `DUPLICATE`; diretório de destino inexistente é `NOT_FOUND` com o caminho dito
 - [ ] `remove(path, { recursive })`: diretório com conteúdo sem `recursive` é recusado, com a contagem do que tem dentro na mensagem
 - [ ] Apagar e renomear operam sobre a **entrada de diretório**, nunca sobre o destino ([Q12](open-questions.md)): apagar um symlink — válido ou pendurado — remove o link e deixa o destino intacto, e renomear move o link. A guarda devolve os dois caminhos justamente para isso; usar o `target` aqui apaga o arquivo apontado em vez do link, e o `tsc` **não** pega este lado do erro — ele só recusa gravar em `target` nulo. Este aviso escrito é a defesa que existe, e foi decisão consciente não criar um tipo nominal só para isso
@@ -225,7 +227,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] `deletePreview(root, path)` (F5.7): devolve se o caminho é **rastreado pelo git** e, para diretório, a contagem recursiva de entradas mais quantas delas não estão rastreadas. É o que o diálogo de apagar promete na tela — "o git desfaz os outros 3" — e sem isto a promessa é chute
 - [ ] A contagem recursiva tem teto e **diz** quando truncou, como toda contagem desta feature. `node_modules` está visível na árvore e é apagável
 - [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 9 casos — criar arquivo, criar pasta, nome ocupado, renomear movendo de diretório, destino ocupado, apagar diretório cheio sem `recursive`, apagar symlink, preview de arquivo rastreado versus não rastreado, preview de diretório misto
+- [ ] Test count: ao menos 11 casos — criar arquivo, criar pasta, nome ocupado (com a corrida, não só o pré-teste), renomear movendo de diretório, destino ocupado, apagar diretório cheio sem `recursive`, apagar symlink válido, apagar link que aponta para fora, apagar link pendurado, preview de arquivo rastreado versus não rastreado, preview de diretório misto
 
 **Tests**: unit, filesystem de verdade · **Gate**: quick
 **Commit**: `feat(server): create, rename and remove inside a checkout`
@@ -243,7 +245,8 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] `files.deletePreview` — `query`, não `mutation`: ela só lê, e é o que a confirmação de apagar consulta antes de perguntar (F5.7)
 - [ ] `files.write` devolve o resultado discriminado; conflito **não** vira `TRPCError` (D3.1)
 - [ ] Erros de domínio continuam virando os códigos que o `DOMAIN_TO_TRPC` já mapeia; nenhum código novo é inventado sem entrar naquele mapa
-- [ ] `text` tem teto de tamanho no schema, antes de chegar ao serviço
+- [ ] `text` tem teto de tamanho no schema, antes de chegar ao serviço — e o schema é **pré-filtro**, não autoridade: `z.string().max(n)` conta unidades **UTF-16** e o serviço conta **bytes**, então um texto de 1 M de caracteres multibyte passa no schema e é recusado pelo serviço, que é a ordem certa
+- [ ] `bodyLimit` do Fastify é declarado explicitamente, derivado de `MAX_FILE_BYTES` mais a folga do envelope JSON. O default é **1 MiB**, exatamente o teto — então hoje um `write` no limite volta **413 do transporte**, sem `TRPCError` e sem mensagem de domínio, e o rodapé da E9 não teria motivo para mostrar. Com teste de texto no teto recebendo a recusa de domínio, não 413
 - [ ] Escopo inexistente responde `NOT_FOUND`; checkout ausente do disco responde o erro de domínio, não `ENOENT` cru
 - [ ] O comentário de topo do arquivo, que hoje declara "read-only by construction", é corrigido — ele documenta a D5 da right-panel, que esta feature reverte
 - [ ] Gate: `pnpm gate:quick`
@@ -284,7 +287,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] Realce pela ponte `@shikijs/codemirror`, com o `lumemShikiTheme` e as gramáticas que já existem (D1). Extensão desconhecida continua abrindo como texto puro
 - [ ] Tema do editor (cursor, seleção, linha ativa, gutter) sai de `tokens.ts` — nenhuma cor literal no arquivo
 - [ ] Quebra de linha ligada por padrão, `⇄` desliga, e a numeração continua certa nos dois modos
-- [ ] As **quatro** recusas abrem em somente leitura, cada uma com seu motivo no rodapé (F1.4): `binary`, `too-large`, dentro de `.git`, e conteúdo que a ida e volta em UTF-8 não devolve igual ([Q9](open-questions.md)). Nas quatro o arquivo continua **legível**; o que falta é a permissão de gravar
+- [ ] As **cinco** recusas abrem em somente leitura, cada uma com seu motivo no rodapé (F1.4): `binary`, `too-large`, dentro de `.git`, sem permissão de escrita ([Q14](open-questions.md)), e conteúdo que a ida e volta em UTF-8 não devolve igual ([Q9](open-questions.md)). Nas cinco o arquivo continua **legível**; o que falta é a permissão de gravar
 - [ ] O `PatchViewer` não muda: continua somente leitura, com o mesmo realce (F1.5)
 - [ ] **Tamanho do bundle medido e escrito no PRD** — antes e depois, com o número real, como a R8 da right-panel fez
 - [ ] Gate: `pnpm gate:build` (é a task que traz dependência nova)
