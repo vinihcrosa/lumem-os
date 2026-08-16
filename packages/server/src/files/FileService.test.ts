@@ -921,6 +921,42 @@ describe("rename", () => {
     expect(existsSync(join(root, "src", "lore", "loader.ts"))).toBe(true);
   });
 
+  it("refuses an entry renamed onto itself without calling it a collision", async () => {
+    const root = checkout();
+
+    const failure = await files.rename(root, "README.md", "./README.md").catch((error) => error);
+
+    // The other file DUPLICATE talks about is this one, and a tree that does not
+    // show a second `README.md` cannot make sense of "já existe alguma coisa
+    // em README.md". Runs on every filesystem: the two spellings are equal here,
+    // which is the same comparison the case-only rename below lands on.
+    expect(failure).toBeInstanceOf(DomainError);
+    expect(failure).toMatchObject({ code: "BLOCKED" });
+    expect(failure.message).not.toContain("já existe");
+    expect(readFileSync(join(root, "README.md"), "utf8")).toBe("# fixture\n");
+  });
+
+  it("blames the filesystem when only the case of the name changed (Q17)", async () => {
+    const root = checkout();
+
+    // APFS and NTFS are case-insensitive, ext4 is not: on Linux — which is what
+    // CI runs — `readme.md` is a name nothing holds, the rename simply works,
+    // and there is no refusal to word. Do not delete this condition; without it
+    // the assertion below is a lie on half the machines that run this suite.
+    if (!existsSync(join(root, "readme.md"))) return;
+
+    const failure = await files.rename(root, "README.md", "readme.md").catch((error) => error);
+
+    expect(failure).toMatchObject({ code: "BLOCKED" });
+    // The whole point of Q17: the client cannot tell this from an ordinary
+    // collision, because only the guard holds both spellings — the client's in
+    // `relative` and the disk's in `entry`.
+    expect(failure.message).toContain("readme.md");
+    expect(failure.message).toContain("README.md");
+    expect(failure.message).not.toContain("já existe");
+    expect(readdirSync(root)).toContain("README.md");
+  });
+
   it("names the directory the destination needs and does not have", async () => {
     const root = checkout();
 

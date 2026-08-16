@@ -852,6 +852,24 @@ export function createFileService({
       if (!source.exists) {
         throw new DomainError("NOT_FOUND", `${source.relative} não existe no checkout`);
       }
+      if (destination.exists && destination.entry === source.entry) {
+        // The "other" file is this one, and only this side can tell: the guard
+        // carries the spelling the client sent in `relative` and the one the
+        // disk has in `entry`, and on a case-insensitive filesystem those two
+        // differ while naming a single directory entry. DUPLICATE here points
+        // at a file the tree does not show, which is the confusion Q17 is about
+        // — and deriving it in the browser would put a rule that depends on the
+        // filesystem's own case folding in the one place that cannot see it.
+        //
+        // Refusing rather than renaming is the decision of Q17, not a limit of
+        // this code: `rename(2)` does perform a case-only change on macOS.
+        throw new DomainError(
+          "BLOCKED",
+          source.relative === destination.relative
+            ? `${source.relative} já se chama assim`
+            : `${destination.relative} é a mesma entrada que ${source.relative}: este filesystem não distingue maiúscula de minúscula no nome, e trocar só a caixa é um gesto que o Lumem não faz — o terminal ao lado faz`,
+        );
+      }
       if (destination.exists) {
         // `rename(2)` replaces the destination without a word, and there is no
         // portable exclusive rename to lean on the way creating leans on

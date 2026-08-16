@@ -142,6 +142,115 @@
 .frow__size { flex: none; padding-left: var(--space-8); font: var(--text-caption); color: var(--color-text-disabled); }
 .frow__gap { flex: 1; }
 
+/* ------------------------------------------------------- ações na linha */
+/*
+ * As ações moram na linha, não numa barra: renomear e apagar precisam de um
+ * alvo, e uma barra global obrigaria a inventar "o que está selecionado" numa
+ * árvore que só tem "o que está aberto no split". O `⋯` é irmão do botão da
+ * linha e não filho dele — botão dentro de botão não é markup —, e por isso
+ * fica sobreposto à direita em vez de dentro do fluxo.
+ */
+.frow-wrap { position: relative; }
+.fact {
+  position: absolute;
+  top: 50%;
+  right: var(--space-6);
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-xs);
+  height: var(--size-control-xs);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-hover);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-xs);
+}
+/* `focus-within` junto do hover: com `display: none` o `⋯` não recebe Tab, e
+   quem navega pelo teclado ficaria sem as quatro ações. */
+.frow-wrap:hover .fact,
+.frow-wrap:focus-within .fact { display: inline-flex; }
+.fact:hover { background: var(--color-bg-active); color: var(--color-text-primary); }
+
+/* Ancorado na própria linha (`top: 100%`), e com a largura do conteúdo: numa
+   coluna de 260px um menu de largura fixa ou sai da tela ou tapa a linha que
+   ele descreve — e a linha é a resposta para "o alvo é qual?". */
+.frow-menu {
+  position: absolute;
+  z-index: 1;
+  top: 100%;
+  right: var(--space-8);
+  width: max-content;
+}
+.frow-menu .menu { width: max-content; max-width: 100%; }
+.frow-menu__sep {
+  height: 1px;
+  margin: var(--space-4) var(--space-6);
+  background: var(--color-border-subtle);
+}
+
+/* ------------------------------------------------- nome digitado na linha */
+/* O nome nasce na indentação em que o arquivo vai ficar — é o que responde
+   "onde isto está sendo criado" sem uma frase. */
+.fedit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-sm);
+  padding-right: var(--space-6);
+}
+.finput {
+  flex: 1;
+  min-width: 0;
+  height: var(--size-control-xs);
+  padding: 0 var(--space-6);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-focus);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font: var(--text-mono-md);
+}
+.finput--error { border-color: var(--color-border-danger); }
+.fhint {
+  padding: var(--space-2) var(--space-8) var(--space-6);
+  margin-left: calc(var(--space-2) + var(--depth, 0) * var(--space-12));
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.fhint code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.fhint--error { color: var(--color-text-danger); }
+
+/* --------------------------------------------- confirmação de apagar */
+/*
+ * Sobre a coluna, não sobre o app: o alvo do gesto é uma linha desta árvore, e
+ * um diálogo no centro da janela põe a pergunta longe da coisa de que ela
+ * fala. Opaco porque não existe token de véu — e um cartão translúcido sobre
+ * uma árvore de arquivos é ruído em cima do texto que se está lendo.
+ */
+.fdim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12);
+  overflow: auto;
+  background: var(--color-bg-panel);
+}
+.fdim__note { margin: 0 0 var(--space-12); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.fdim__actions { display: flex; justify-content: flex-end; gap: var(--space-8); }
+/* O alvo é dito por extenso e em mono, no caminho relativo ao checkout: numa
+   árvore com `loader.ts` em três diretórios, o nome sozinho não identifica. */
+.fdim__target {
+  display: block;
+  margin: 0 0 var(--space-12);
+  font: var(--text-mono-md);
+  color: var(--color-text-primary);
+  word-break: break-all;
+}
+
 /* Marcador de status. Uma letra, não um ponto: `A` e `M` são distinguíveis em
    preto e branco, e a árvore inteira é texto mono de 12px. */
 .mark { flex: none; width: var(--size-icon-sm); text-align: center; font: var(--text-mono-sm); }
