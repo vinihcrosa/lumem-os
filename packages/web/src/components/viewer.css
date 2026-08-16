@@ -104,6 +104,7 @@
 .fpath__name { flex: none; white-space: nowrap; }
 .fv__meta { flex: none; font: var(--text-caption); color: var(--color-text-disabled); white-space: nowrap; }
 
+/* Sobra para o "carregando…": o editor de verdade traz o próprio rolamento. */
 .code {
   flex: 1;
   min-height: 0;
@@ -114,30 +115,38 @@
   white-space: normal;
 }
 /*
- * Quebra ligada por padrão, e este é o achado da renderização: numa coluna de
- * 360px, código de 80 colunas some do lado direito sem nem uma barra de rolagem
- * para denunciar. Ler pela metade é pior que ler quebrado. O botão `⇄` desliga.
+ * A caixa do CodeMirror (D1). Só o lugar dele na coluna mora aqui — cursor,
+ * seleção, linha ativa e medianiz saem de `tokens.ts` em `codemirror-setup.ts`,
+ * porque o editor injeta o próprio CSS a partir de um objeto de JS e uma cor
+ * escrita aqui perderia para ele por especificidade, sem ninguém notar.
  */
-.code .l { display: flex; align-items: flex-start; white-space: pre-wrap; overflow-wrap: anywhere; }
-.code--nowrap .l { white-space: pre; overflow-wrap: normal; }
-.code--nowrap { overflow-x: auto; }
-.code .l:hover { background: var(--color-bg-panel); }
-/* A medianiz gruda: rolar o código na horizontal não pode levar o número da
-   linha embora, que é o endereço que se lê em voz alta. */
-.code .n {
-  position: sticky;
-  left: 0;
+.cmhost { flex: 1; min-height: 0; overflow: hidden; background: var(--color-bg-inset); }
+
+/*
+ * Somente leitura é uma faixa, não um cadeado no canto: o motivo é a
+ * informação, e ele não cabe num ícone. O fundo é o mesmo da moldura, para não
+ * virar aviso de erro — o arquivo continua legível, só não gravável (F1.4).
+ */
+.robar {
   flex: none;
-  width: var(--size-gutter-line);
-  padding-right: var(--space-10);
-  text-align: right;
-  color: var(--color-text-disabled);
-  background: var(--color-bg-inset);
-  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-6) var(--space-12);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
 }
-/* A continuação de uma linha quebrada entra recuada: sem isso ela se alinha
-   com o código de verdade e passa por linha própria. */
-.code .t { flex: 1; padding-right: var(--space-12); padding-left: var(--space-12); text-indent: calc(-1 * var(--space-12)); color: var(--color-text-code); }
+.robar__glyph { flex: none; color: var(--color-editor-readonly); }
+.robar code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/* O estado do arquivo é sempre o primeiro item do rodapé, à esquerda. Os
+   quatro estados do salvamento entram aqui na E9; este é o quinto. */
+.save { flex: none; display: inline-flex; align-items: center; gap: var(--space-6); }
+.save__mark { font-size: var(--size-icon-sm); line-height: 1; }
+.save--readonly { color: var(--color-editor-readonly); }
+
 .k  { color: var(--color-syntax-keyword); }
 .s  { color: var(--color-syntax-string); }
 .nu { color: var(--color-syntax-number); }

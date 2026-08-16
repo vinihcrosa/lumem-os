@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { Scope } from "../hooks/useSessionsByScope.js";
+import type { EditorHandle } from "../lib/codemirror-setup.js";
 import { fileReadKey } from "../lib/queryKeys.js";
-import { highlight, languageOf } from "../lib/shiki.js";
+import { languageOf, loadHighlighter, SHIKI_THEME } from "../lib/shiki.js";
+import type { ShikiConfig } from "../lib/shiki-codemirror.js";
 import { trpc } from "../lib/trpc.js";
 import { formatSize } from "./FileTree.js";
 import { ViewerFrame } from "./ViewerFrame.js";
@@ -15,7 +17,51 @@ export interface FileViewerProps {
 }
 
 /**
- * One file, read-only, inside the tab's split (D3.2).
+ * Why a file that reads fine opens without a caret, said in the file's own words.
+ *
+ * Three of the five refusals of F1.4; the other two — binary and too large —
+ * have no text to show at all and get the `.refuse` panel instead. All five end
+ * up saying the same thing in the footer, because they are the same state:
+ * readable, not writable.
+ *
+ * Typed by the reasons the daemon actually sends, so a sixth one added to
+ * `ReadOnlyReason` on the server fails this lookup at build time rather than
+ * opening a file with an empty explanation.
+ */
+type ReadOnlyReason = "inside-git" | "not-writable" | "not-utf8";
+
+const READ_ONLY: Record<ReadOnlyReason, { chip: string; why: ReactNode }> = {
+  "inside-git": {
+    chip: "dentro de .git",
+    why: (
+      <>
+        está dentro de <code>.git</code>: reescrever aqui destrói a worktree e o que ainda não foi
+        commitado.
+      </>
+    ),
+  },
+  "not-writable": {
+    chip: "sem permissão de escrita",
+    why: (
+      <>
+        o daemon não consegue gravar neste arquivo, e a gravação atômica não serve de atalho para o
+        modo que alguém deixou aqui.
+      </>
+    ),
+  },
+  "not-utf8": {
+    chip: "não é UTF-8",
+    why: (
+      <>
+        os bytes deste arquivo não voltam iguais depois de uma ida e volta em UTF-8, e gravar
+        trocaria o que não for representável por outra coisa.
+      </>
+    ),
+  },
+};
+
+/**
+ * One file in the tab's split, now in a real editor (F1.1, D1).
  *
  * Wrapping is on by default (D3.1): in a 360px column a line of 80 columns
  * simply ends in the void, with not even a scrollbar to say so. Reading half a
@@ -31,23 +77,17 @@ export function FileViewer({ scope, path, onClose }: FileViewerProps) {
   });
 
   const language = languageOf(path);
-  const text = content.data?.kind === "text" ? content.data.text : null;
-  const [painted, setPainted] = useState<string[] | null>(null);
-
-  useEffect(() => {
-    setPainted(null);
-    if (text === null || language === null) return;
-
-    let live = true;
-    // The grammar arrives after the text does, so the file is readable as plain
-    // mono first and gains colour a tick later — never the other way round.
-    void highlight(text, language).then((lines) => {
-      if (live) setPainted(lines);
-    });
-    return () => {
-      live = false;
-    };
-  }, [text, language]);
+  const data = content.data;
+  const refusal =
+    data === undefined
+      ? null
+      : data.kind === "binary"
+        ? "binário"
+        : data.kind === "too-large"
+          ? "acima do teto"
+          : data.readOnly === null
+            ? null
+            : READ_ONLY[data.readOnly].chip;
 
   return (
     <ViewerFrame
@@ -56,11 +96,25 @@ export function FileViewer({ scope, path, onClose }: FileViewerProps) {
       wrap={wrap}
       onToggleWrap={() => setWrap((current) => !current)}
       footLeft={
-        content.data?.kind === "text"
-          ? `${formatSize(content.data.bytes)} · ${content.data.lines} linhas`
-          : undefined
+        refusal === null ? undefined : (
+          <span className="save save--readonly">
+            {/* A text glyph, never an emoji: a 🔒 ignores `color` and comes
+                back in the system font's own, the one element on the screen
+                that would not obey the tokens. */}
+            <span className="save__mark" aria-hidden="true">
+              ⊘
+            </span>
+            somente leitura · {refusal}
+          </span>
+        )
       }
-      footRight={`${language ?? "texto"} · somente leitura`}
+      footRight={
+        data?.kind === "text"
+          ? `${formatSize(data.bytes)} · ${data.lines} linhas · ${language ?? "texto"}`
+          : data === undefined
+            ? undefined
+            : formatSize(data.bytes)
+      }
     >
       {renderBody()}
     </ViewerFrame>
@@ -88,7 +142,8 @@ export function FileViewer({ scope, path, onClose }: FileViewerProps) {
           </span>
           <span className="refuse__title">arquivo binário</span>
           <span className="refuse__why">
-            tem bytes nulos nos primeiros KiB — o split não tenta desenhá-lo como texto.
+            tem bytes nulos nos primeiros KiB — o split não tenta desenhá-lo como texto, e não há
+            buffer para editar.
           </span>
           <span className="refuse__why">
             <code>{path}</code>
@@ -107,8 +162,8 @@ export function FileViewer({ scope, path, onClose }: FileViewerProps) {
             {formatSize(content.data.bytes)} passa do teto de {formatSize(content.data.limit)}
           </span>
           <span className="refuse__why">
-            o daemon não leu o arquivo — abrir isto no navegador travaria a aba, e o terminal ao
-            lado abre em um comando.
+            o daemon não leu o arquivo — sem leitura não há revisão, e sem revisão não haveria
+            contra o que gravar.
           </span>
           <span className="refuse__why">
             <code>{path}</code>
@@ -117,28 +172,103 @@ export function FileViewer({ scope, path, onClose }: FileViewerProps) {
       );
     }
 
-    const lines = content.data.text.split("\n");
-    // A trailing newline ends the last line; it is not an empty one after it.
-    if (lines.at(-1) === "") lines.pop();
+    const readOnly = content.data.readOnly;
 
     return (
-      <div className={`code${wrap ? "" : " code--nowrap"}`}>
-        {lines.map((line, index) => (
-          <div className="l" key={index}>
-            <span className="n">{index + 1}</span>
-            {painted === null ? (
-              <span className="t">{line}</span>
-            ) : (
-              <span
-                className="t"
-                // Shiki's own output: markup this client generated from the
-                // file's text, never the file's text taken as markup.
-                dangerouslySetInnerHTML={{ __html: painted[index] ?? "" }}
-              />
-            )}
+      <>
+        {readOnly !== null && (
+          <div className="robar">
+            <span className="robar__glyph" aria-hidden="true">
+              ⊘
+            </span>
+            <span>{READ_ONLY[readOnly].why}</span>
           </div>
-        ))}
-      </div>
+        )}
+        <Editor
+          path={path}
+          text={content.data.text}
+          language={language}
+          readOnly={readOnly !== null}
+          wrap={wrap}
+        />
+      </>
     );
   }
+}
+
+interface EditorProps {
+  path: string;
+  text: string;
+  language: string | null;
+  readOnly: boolean;
+  wrap: boolean;
+}
+
+/**
+ * The CodeMirror instance, and the only thing in the client that loads it.
+ *
+ * The import is dynamic so the ~137 KB gzip of the editor never reach whoever
+ * does not open a file — same treatment shiki already gets here, and the same
+ * reason: the daemon serves this bundle itself, with no CDN in front.
+ */
+function Editor({ path, text, language, readOnly, wrap }: EditorProps) {
+  const host = useRef<HTMLDivElement | null>(null);
+  const handle = useRef<EditorHandle | null>(null);
+  const highlight = useRef<ShikiConfig | null>(null);
+  // The editor is built asynchronously, so the document and the wrap flag are
+  // read from here rather than from the closure the mount effect captured.
+  const latest = useRef({ text, wrap });
+
+  useEffect(() => {
+    latest.current = { text, wrap };
+    handle.current?.setDoc(text);
+    handle.current?.setWrap(wrap);
+  }, [text, wrap]);
+
+  useEffect(() => {
+    const parent = host.current;
+    if (parent === null) return;
+
+    let live = true;
+    void import("../lib/codemirror-setup.js").then(({ mountEditor }) => {
+      if (!live) return;
+      handle.current = mountEditor(parent, {
+        doc: latest.current.text,
+        wrap: latest.current.wrap,
+        readOnly,
+      });
+      // The grammar may well have arrived first: whoever loses the race is the
+      // one that applies the result.
+      handle.current.setHighlight(highlight.current);
+    });
+
+    return () => {
+      live = false;
+      handle.current?.destroy();
+      handle.current = null;
+    };
+    // A different file is a different editor: the undo history of the last one
+    // must not reach across, and read-only is fixed for as long as one is open.
+  }, [path, readOnly]);
+
+  useEffect(() => {
+    highlight.current = null;
+    handle.current?.setHighlight(null);
+    if (language === null) return;
+
+    let live = true;
+    // The file is readable as plain mono first and gains colour a tick later —
+    // never the other way round.
+    void loadHighlighter(language).then((highlighter) => {
+      if (!live || highlighter === null) return;
+      highlight.current = { highlighter, language, theme: SHIKI_THEME };
+      handle.current?.setHighlight(highlight.current);
+    });
+
+    return () => {
+      live = false;
+    };
+  }, [language]);
+
+  return <div className="cmhost" ref={host} data-testid="editor" />;
 }

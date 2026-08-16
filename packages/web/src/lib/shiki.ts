@@ -3,6 +3,15 @@ import type { ThemeRegistration } from "shiki";
 import { color } from "../styles/tokens.js";
 
 /**
+ * The name the theme below is registered under.
+ *
+ * Exported because the CodeMirror bridge asks for a theme by name too, and two
+ * places spelling a registry key by hand is one rename away from a file that
+ * silently loses every colour.
+ */
+export const SHIKI_THEME = "lumem";
+
+/**
  * The highlighter's palette, built from the same tokens as everything else.
  *
  * Same argument as `xterm-theme`: a highlighter with a palette of its own
@@ -11,7 +20,7 @@ import { color } from "../styles/tokens.js";
  * this file is allowed to use.
  */
 export const lumemShikiTheme: ThemeRegistration = {
-  name: "lumem",
+  name: SHIKI_THEME,
   type: "dark",
   colors: {
     "editor.background": color["bg/inset"],
@@ -136,8 +145,13 @@ const loaded = new Set<string>();
  * `createHighlighterCore` with explicit imports, not `getSingletonHighlighter`:
  * the latter reaches for every grammar there is, which is megabytes of bundle
  * for a column that shows one file at a time.
+ *
+ * Returns the highlighter itself, because the editor's bridge needs to ask it
+ * for tokens rather than for HTML (D1). Null means "render as plain text": no
+ * grammar for this language, or shiki failed to load — neither is a column
+ * that breaks.
  */
-export async function highlight(code: string, language: string): Promise<string[] | null> {
+export async function loadHighlighter(language: string): Promise<Highlighter | null> {
   try {
     if (highlighter === null) {
       const [{ createHighlighterCore }, { createJavaScriptRegexEngine }] = await Promise.all([
@@ -159,11 +173,21 @@ export async function highlight(code: string, language: string): Promise<string[
       loaded.add(language);
     }
 
-    const html = highlighter.codeToHtml(code, { lang: language, theme: "lumem" });
-    return splitLines(html);
+    return highlighter;
   } catch {
-    // A grammar that fails to load is a file rendered as plain text, not a
-    // column that breaks. The viewer already has that path.
+    return null;
+  }
+}
+
+/** The patch viewer's path: whole snippet in, one string of markup per line out. */
+export async function highlight(code: string, language: string): Promise<string[] | null> {
+  const ready = await loadHighlighter(language);
+  if (ready === null) return null;
+  try {
+    return splitLines(ready.codeToHtml(code, { lang: language, theme: SHIKI_THEME }));
+  } catch {
+    // A grammar that fails is a file rendered as plain text, not a column that
+    // breaks. The viewer already has that path.
     return null;
   }
 }

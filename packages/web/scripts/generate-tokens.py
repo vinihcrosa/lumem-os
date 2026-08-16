@@ -6,10 +6,14 @@ Por que OKLCH: e perceptualmente uniforme, entao uma escala de luminosidade
 compartilhada produz degraus com o mesmo peso visual em qualquer matiz. Rampas
 escolhidas a olho nao tem essa propriedade.
 
-Uso:
-    python3 generate_palette.py                 # imprime relatorio e escreve os arquivos
-    python3 generate_palette.py --check         # so valida, nao escreve (bom para CI)
-    python3 generate_palette.py --out src/styles
+Uso, a partir de packages/web:
+    python3 scripts/generate-tokens.py --out src/styles   # valida e escreve
+    python3 scripts/generate-tokens.py --check            # so valida, nao escreve
+
+O gate roda a primeira forma num diretorio temporario e compara byte a byte com
+o que esta commitado (src/styles/tokens.test.ts): regerar nao pode produzir
+diferenca, o que pega de uma vez a regressao de contraste e a edicao a mao do
+arquivo gerado.
 
 Edite o bloco CONFIG. O resto do arquivo nao precisa mudar.
 Sem dependencias: apenas biblioteca padrao.
@@ -393,7 +397,7 @@ def css_var(figma_name, prefix=""):
 
 
 def emit_css(palette):
-    o = ["/* Design tokens — GERADO por scripts/generate_palette.py. Nao edite a mao. */",
+    o = ["/* Design tokens — GERADO por scripts/generate-tokens.py. Nao edite a mao. */",
          "/* Rampas em OKLCH, contraste WCAG validado na geracao. */", "", ":root {",
          "  /* ---------- primitivas — nunca use direto em componente ---------- */"]
     for ramp in palette:
@@ -430,7 +434,7 @@ def emit_css(palette):
 
 
 def emit_ts(palette):
-    o = ["// Design tokens — GERADO por scripts/generate_palette.py. Nao edite a mao.", "",
+    o = ["// Design tokens — GERADO por scripts/generate-tokens.py. Nao edite a mao.", "",
          "export const primitives = {"]
     for ramp in palette:
         entries = ", ".join(f"'{s}': '{palette[ramp][s]}'"
