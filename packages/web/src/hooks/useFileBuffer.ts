@@ -2,6 +2,7 @@ import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-q
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { EditorHandle } from "../lib/codemirror-setup.js";
+import { trackWrite } from "../lib/pending-writes.js";
 import { fileListKey, fileReadKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import type { Scope, ScopeType } from "./useSessionsByScope.js";
@@ -217,6 +218,8 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
   const timer = useRef<number | null>(null);
   /** A read that was answered from the screen, and is owed to whoever asked. */
   const missed = useRef(false);
+  /** Whoever is waiting for the disk to have what was typed. */
+  const waiting = useRef<Array<() => void>>([]);
 
   const [state, setState] = useState<SaveState>({ kind: "clean" });
   const [fresh, setFresh] = useState(true);
@@ -276,6 +279,27 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
     conflict.current = next;
     setState({ kind: "stale", ...next });
   }, []);
+
+  /**
+   * Nothing is on its way to the disk, and nothing will be without a new gesture.
+   *
+   * `halted` counts as rest and that is the point: after a `stale` refusal the
+   * queue can still hold a slot that will never go out until someone chooses,
+   * and treating that as "still writing" would leave whoever is waiting for the
+   * write hanging on a decision made in another part of the screen.
+   */
+  const atRest = useCallback(
+    (): boolean => !busy.current && (queued.current === null || halted.current),
+    [],
+  );
+
+  const release = useCallback((): void => {
+    if (!atRest()) return;
+    const owed = waiting.current;
+    if (owed.length === 0) return;
+    waiting.current = [];
+    for (const resolve of owed) resolve();
+  }, [atRest]);
 
   const invalidateAround = useCallback(
     (target: Target): void => {
@@ -378,8 +402,12 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
       .finally(() => {
         busy.current = false;
         drain();
+        // After the drain, never before it: what was typed while this write was
+        // in flight goes out first, and only an empty queue is the disk having
+        // everything.
+        release();
       });
-  }, [cancelTimer, invalidateAround, queryClient, settleFresh, showConflict]);
+  }, [cancelTimer, invalidateAround, queryClient, release, settleFresh, showConflict]);
 
   const save = useCallback((): void => {
     cancelTimer();
@@ -398,10 +426,33 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
     drain();
   }, [cancelTimer, drain]);
 
-  const flush = useCallback((): void => {
-    if (halted.current) return;
+  /**
+   * Writes what is pending, and answers when the disk has it.
+   *
+   * The promise is the point, and it is not ceremony. Two calls issued in the
+   * same macrotask are one HTTP request — `httpBatchLink` batches them and the
+   * daemon starts the batch with `Promise.all` — so "the write left before the
+   * rename" says nothing about which one the filesystem sees first. Between a
+   * rename that wins (the write lands on a path that is gone, NOT_FOUND to a
+   * component nobody is looking at, typed text destroyed in silence) and a write
+   * that wins by a hair (its own atomic `rename` recreates the old path, and the
+   * file is in two places), the only ordering worth having is the one measured
+   * at the end of the write.
+   *
+   * Registered in `pending-writes` because the caller that needs it is not in
+   * this tree: this runs from `attach(null)`, which is an unmount.
+   */
+  const flush = useCallback((): Promise<void> => {
+    if (halted.current) return Promise.resolve();
     save();
-  }, [save]);
+    if (atRest()) return Promise.resolve();
+
+    const landed = new Promise<void>((resolve) => {
+      waiting.current.push(resolve);
+    });
+    trackWrite(landed);
+    return landed;
+  }, [atRest, save]);
 
   const changed = useCallback((): void => {
     version.current += 1;
@@ -431,7 +482,7 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
         // closing the split, closing the tab, opening another file and plain
         // unmounting all arrive: React runs a child's cleanup before its
         // parent's, so anything waiting for the parent would find no editor.
-        flush();
+        void flush();
         editor.current?.onChange(null);
         editor.current = null;
         return;
@@ -539,11 +590,11 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
   // the only notice the buffer gets that it left the screen.
   useEffect(() => {
     if (active) return;
-    flush();
+    void flush();
   }, [active, flush]);
 
   useEffect(() => {
-    const onBlur = (): void => flush();
+    const onBlur = (): void => void flush();
     window.addEventListener("blur", onBlur);
     return () => window.removeEventListener("blur", onBlur);
   }, [flush]);

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { usePopover } from "../hooks/usePopover.js";
-import { useFileTree, type FileTreeEdits } from "../hooks/useFileTree.js";
+import type { FileTreeEdits } from "../hooks/useFileTree.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import { statusMark, statusTone, type ChangeStatus } from "../hooks/useCheckoutChanges.js";
 import { fileListKey } from "../lib/queryKeys.js";
@@ -16,6 +16,14 @@ export interface FileTreeProps {
   onOpen(path: string): void;
   /** Status of a path in the working tree, for the marker. */
   statusOf(path: string): ChangeStatus | undefined;
+  /**
+   * Held above this component because the root has no row to hang it on.
+   *
+   * Creating in the checkout's own directory is a gesture with no target in the
+   * tree, so its trigger lives in the column's bar (PRD §3) — outside the tree,
+   * and therefore outside whatever state the tree owns.
+   */
+  edits: FileTreeEdits;
 }
 
 /**
@@ -30,9 +38,8 @@ export interface FileTreeProps {
  * removing need a target, and a bar would have to invent "what is selected" in a
  * tree whose only selection is "what the split has open".
  */
-export function FileTree({ scope, openPath, onOpen, statusOf }: FileTreeProps) {
+export function FileTree({ scope, openPath, onOpen, statusOf, edits }: FileTreeProps) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
-  const edits = useFileTree(scope);
 
   const toggle = useCallback((path: string) => {
     setExpanded((current) => {
@@ -76,7 +83,6 @@ interface LevelProps extends FileTreeProps {
   expanded: ReadonlySet<string>;
   onToggle(path: string): void;
   onExpand(path: string): void;
-  edits: FileTreeEdits;
 }
 
 function Level({
@@ -263,6 +269,55 @@ function Level({
 }
 
 /**
+ * Creating in the checkout's own directory, from the column's bar (PRD §3).
+ *
+ * The root is the one directory with no row, so it is the one directory the
+ * `⋯` cannot reach — and until this existed, `create` with an empty parent was
+ * a gesture nobody could make: two branches written for it, neither reachable,
+ * which reads as coverage that is not there. It lives in the bar rather than as
+ * a fake first row because the tree lists entries, and the checkout is not one
+ * of its own entries.
+ */
+export function NewInRoot({ edits }: { edits: FileTreeEdits }) {
+  const popover = usePopover();
+
+  const create = (makes: "file" | "dir") => () => {
+    popover.close();
+    edits.ask({ kind: "create", parent: "", makes });
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        ref={popover.triggerRef}
+        className="rp__icon"
+        aria-haspopup="menu"
+        aria-expanded={popover.open}
+        aria-label="criar na raiz"
+        title="criar na raiz do checkout"
+        onClick={popover.toggle}
+      >
+        ＋
+      </button>
+
+      {popover.open && (
+        <div className="rp__menu" ref={popover.panelRef}>
+          <Menu label="criar na raiz">
+            <MenuItem glyph={<Glyph>＋</Glyph>} onSelect={create("file")}>
+              novo arquivo
+            </MenuItem>
+            <MenuItem glyph={<Glyph>▤</Glyph>} onSelect={create("dir")}>
+              nova pasta
+            </MenuItem>
+          </Menu>
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
  * The four actions of a row, behind one `⋯`.
  *
  * A sibling of the row's button and never a child of it: a button inside a
@@ -428,12 +483,17 @@ function RemoveDialog({ edits }: { edits: FileTreeEdits }) {
   const shape = preview.data ?? null;
   const entries = shape !== null && shape.kind === "dir" ? shape.files + shape.dirs : null;
   const floor = shape !== null && shape.kind === "dir" && shape.truncated;
+  // From the preview once it is here, and from the row only while it is not.
+  // `listDir` calls a link-to-directory a `dir`, by the target's `stat`; the
+  // preview does `lstat` of the entry and calls it a file, because `remove`
+  // unlinks one entry. Two sources for one fact, and the title was taking the
+  // weaker of them while the body right below already showed the other's
+  // verdict — on the confirmation of something that has no undo.
+  const directory = shape === null ? gesture.directory : shape.kind === "dir";
 
   return (
     <div className="fdim" role="dialog" aria-modal="true" aria-label={`apagar ${gesture.path}`}>
-      <Card
-        title={gesture.directory ? "apagar esta pasta e o que tem dentro?" : "apagar este arquivo?"}
-      >
+      <Card title={directory ? "apagar esta pasta e o que tem dentro?" : "apagar este arquivo?"}>
         {/* Spelled out, in mono, relative to the checkout: in a tree with three
             `loader.ts` the bare name identifies nothing. */}
         <code className="fdim__target">{gesture.path}</code>
@@ -458,7 +518,12 @@ function RemoveDialog({ edits }: { edits: FileTreeEdits }) {
                   lie F5.7 exists to prevent. */}
               {floor ? " A contagem parou no teto do daemon." : ""}
             </p>
-            <DirVerdict path={gesture.path} files={shape.files} untracked={shape.untracked} />
+            <DirVerdict
+              path={gesture.path}
+              files={shape.files}
+              untracked={shape.untracked}
+              truncated={shape.truncated}
+            />
           </>
         )}
 
@@ -505,7 +570,39 @@ function FileVerdict({ path, tracked }: { path: string; tracked: boolean }) {
   );
 }
 
-function DirVerdict({ path, files, untracked }: { path: string; files: number; untracked: number }) {
+/**
+ * The same question for a directory, and the same limit on the answer.
+ *
+ * `truncated` is here because `untracked` is a floor for exactly the reason
+ * every other number is: the walk stopped. A floor of zero says nothing, and the
+ * likeliest truncated directory is the one that made the ceiling necessary —
+ * `node_modules`, untracked by definition. Promising recovery there is the same
+ * mistake as Q18's, pointed the other way: this one reassures someone who is
+ * about to delete something nothing brings back.
+ */
+function DirVerdict({
+  path,
+  files,
+  untracked,
+  truncated,
+}: {
+  path: string;
+  files: number;
+  untracked: number;
+  truncated: boolean;
+}) {
+  if (truncated) {
+    return (
+      <Banner tone="danger">
+        <strong>
+          {untracked > 0
+            ? `de pelo menos ${count(files)}, ${count(untracked)} o git não confirmou ter.`
+            : "o git não foi consultado sobre tudo que está aqui dentro."}
+        </strong>{" "}
+        O que a caminhada não alcançou também não foi verificado, e nada aqui promete que volte.
+      </Banner>
+    );
+  }
   if (untracked === 0) {
     // Worded so it stays true of an empty directory too: git tracks no folder,
     // and "traz a pasta de volta" would be a promise about something git has no

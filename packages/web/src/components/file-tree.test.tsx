@@ -229,6 +229,27 @@ function actions(path: string): HTMLElement {
   return screen.getByRole("button", { name: `ações de ${path}` });
 }
 
+/**
+ * A promise the test decides when to settle.
+ *
+ * What several of these tests are about is *waiting*: that the rename does not
+ * leave until the write has landed, that the dialog says nothing about git until
+ * git answered. A mock that resolves on its own gives no instant at which to
+ * assert the "not yet".
+ */
+interface Deferred<T> {
+  promise: Promise<T>;
+  settle(value: T): void;
+}
+
+function deferred<T>(): Deferred<T> {
+  let settle!: (value: T) => void;
+  const promise = new Promise<T>((resolve) => {
+    settle = resolve;
+  });
+  return { promise, settle };
+}
+
 function pick(name: string | RegExp): void {
   fireEvent.click(screen.getByRole("menuitem", { name }));
 }
@@ -301,6 +322,33 @@ describe("criar pela árvore", () => {
         path: "src/lore/novo.ts",
         kind: "file",
       }),
+    );
+  });
+
+  it("cria na raiz do checkout, pelo ＋ do cabeçalho da coluna", async () => {
+    checkout();
+    trpcMock.files.create.mutate.mockResolvedValue({ path: "TODO.md" });
+    render();
+    await screen.findByText("README.md");
+
+    // A raiz não tem linha, e portanto não tem `⋯`. Sem esta porta, `kind:
+    // "create"` com `parent: ""` não nascia de gesto nenhum — e os dois ramos
+    // que existem para ele eram cobertura que não estava lá.
+    fireEvent.click(screen.getByRole("button", { name: "criar na raiz" }));
+    pick("novo arquivo");
+
+    const field = screen.getByRole("textbox", { name: "novo arquivo" });
+    expect(field.closest(".fedit")?.querySelector(".frow__twist")?.getAttribute("style")).toContain(
+      "--depth: 0",
+    );
+    // O caminho da raiz é o nome sozinho: nem `/TODO.md`, nem `./TODO.md`.
+    expect(screen.getByText("./")).toBeInTheDocument();
+    commit(field, "TODO.md");
+
+    await waitFor(() =>
+      expect(trpcMock.files.create.mutate).toHaveBeenCalledWith(
+        expect.objectContaining({ path: "TODO.md", kind: "file" }),
+      ),
     );
   });
 
@@ -557,8 +605,11 @@ describe("apagar pela árvore", () => {
     // recusa do servidor, que é texto para humano.
     expect(dialog).toHaveTextContent("12 arquivos e 3 pastas");
     expect(dialog).toHaveTextContent("9");
-
-    fireEvent.click(screen.getByRole("button", { name: /^apagar/ }));
+    // O rótulo inteiro, e não `/^apagar/`: os 15 são `files + dirs`, e tanto
+    // trocar isso por `files` quanto extrair o número de `edits.refusal` com um
+    // `\d+` passavam pelo prefixo — o segundo sendo a negação literal de "a
+    // contagem estruturada vem do preview, nunca de parse da mensagem".
+    fireEvent.click(within(dialog).getByRole("button", { name: "apagar as 15 entradas" }));
 
     await waitFor(() =>
       expect(trpcMock.files.remove.mutate).toHaveBeenCalledWith(
@@ -587,6 +638,120 @@ describe("apagar pela árvore", () => {
     const dialog = await askToRemove("src/lore");
     expect(dialog).toHaveTextContent(/pelo menos/);
     expect(dialog).toHaveTextContent("2.000");
+    // O botão também é piso, e com o rótulo inteiro: 2.000 + 137.
+    expect(
+      within(dialog).getByRole("button", { name: "apagar pelo menos 2.137 entradas" }),
+    ).toBeInTheDocument();
+  });
+
+  it("não promete recuperação quando a contagem parou no teto", async () => {
+    checkout();
+    trpcMock.files.deletePreview.query.mockResolvedValue({
+      kind: "dir",
+      path: "src/lore",
+      files: 2_000,
+      dirs: 137,
+      // Zero não-rastreados **do que deu para ver**, que é outra coisa. E é o
+      // caso provável: o teto existe por causa de `node_modules`, que é não
+      // rastreado por definição — a pasta que trunca é justamente aquela em que
+      // "o git tem cópia de tudo" seria mais errado. A Q18 escolheu errar para
+      // o lado do medo; prometer aqui erra para o lado oposto.
+      untracked: 0,
+      truncated: true,
+    });
+    render();
+    await openLore();
+
+    const dialog = await askToRemove("src/lore");
+    expect(dialog).toHaveTextContent(/A contagem parou no teto/);
+    expect(dialog).not.toHaveTextContent(/git checkout/);
+    expect(dialog).not.toHaveTextContent(/o git tem cópia/);
+  });
+
+  it("diz que está consultando o git antes de dizer qualquer coisa sobre o git", async () => {
+    checkout();
+    const answer = deferred<{ kind: "file"; path: string; tracked: boolean }>();
+    trpcMock.files.deletePreview.query.mockReturnValue(answer.promise);
+    render();
+    await screen.findByText("README.md");
+
+    fireEvent.click(actions("README.md"));
+    pick("apagar");
+
+    const dialog = await screen.findByRole("dialog");
+    // A guarda que o próprio `askToRemove` espera sumir. Sem ela o `waitFor`
+    // casa de primeira e os testes de apagar passam a correr contra um diálogo
+    // que ainda não sabe nada — "guarda que não guarda".
+    expect(within(dialog).getByText("consultando o git…")).toBeInTheDocument();
+    expect(dialog).not.toHaveTextContent(/git checkout|não confirmou|nada garante/);
+    // Sem contagem no botão enquanto não há contagem.
+    expect(within(dialog).getByRole("button", { name: "apagar" })).toBeInTheDocument();
+
+    answer.settle({ kind: "file", path: "README.md", tracked: true });
+
+    expect(await within(dialog).findByText(/git checkout -- README\.md/)).toBeInTheDocument();
+  });
+
+  it("diz que não deu para consultar o git, em vez de calar sobre o que volta", async () => {
+    checkout();
+    trpcMock.files.deletePreview.query.mockRejectedValue(new Error("git não respondeu em 2 s"));
+    render();
+    await screen.findByText("README.md");
+
+    fireEvent.click(actions("README.md"));
+    pick("apagar");
+
+    // Um ramo de diálogo destrutivo que nenhum caso exercia: o preview pode
+    // falhar, e o silêncio ali lê como "está tudo verificado".
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByText(/não deu para consultar o git/)).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("git não respondeu em 2 s");
+    expect(dialog).not.toHaveTextContent(/git checkout/);
+  });
+
+  it("tira o título do preview, e não do palpite que a listagem fez", async () => {
+    // `listDir` classifica link-para-diretório como `dir`, pelo `stat` do alvo;
+    // `deletePreview` faz `lstat` da entrada e responde `file`, corretamente,
+    // porque `remove` desliga **uma entrada só**. Duas fontes para o mesmo fato,
+    // e o título ficava com a mais fraca enquanto o corpo já mostrava a outra.
+    trpcMock.files.listDir.query.mockResolvedValue(
+      listing("", [{ name: "atalho", kind: "dir" }]),
+    );
+    trpcMock.files.deletePreview.query.mockResolvedValue({
+      kind: "file",
+      path: "atalho",
+      tracked: true,
+    });
+    render();
+    await screen.findByText("atalho");
+
+    const dialog = await askToRemove("atalho");
+    expect(dialog).toHaveTextContent("apagar este arquivo?");
+    expect(dialog).not.toHaveTextContent("e o que tem dentro");
+  });
+
+  it("devolve o split ao arquivo de antes quando o daemon recusa apagar", async () => {
+    checkout();
+    trpcMock.files.deletePreview.query.mockResolvedValue({
+      kind: "file",
+      path: "README.md",
+      tracked: true,
+    });
+    trpcMock.files.remove.mutate.mockRejectedValue(
+      new Error("README.md não está mais no checkout"),
+    );
+    render();
+    fireEvent.click(await screen.findByText("README.md"));
+    expect(screen.getByTestId("aba")).toHaveTextContent("README.md");
+
+    await askToRemove("README.md");
+    fireEvent.click(screen.getByRole("button", { name: "apagar" }));
+
+    // O gêmeo do rename tinha este teste; apagar não. Sem ele, uma recusa deixa
+    // o arquivo no disco e o split fechado — o texto que o descarregamento
+    // acabou de gravar sai da tela sem ninguém dizer nada.
+    expect(await screen.findByText("README.md não está mais no checkout")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("aba")).toHaveTextContent("README.md"));
   });
 
   it("não diz piso quando a contagem é inteira", async () => {
@@ -608,7 +773,7 @@ describe("apagar pela árvore", () => {
     expect(dialog).toHaveTextContent("12 arquivos e 3 pastas");
   });
 
-  it("consulta o preview de novo a cada abertura, porque o índice do git anda", async () => {
+  it("não mostra o veredito velho enquanto o novo não chega", async () => {
     checkout();
     trpcMock.files.deletePreview.query.mockResolvedValue({
       kind: "file",
@@ -621,15 +786,26 @@ describe("apagar pela árvore", () => {
     await askToRemove("README.md");
     fireEvent.click(screen.getByRole("button", { name: "cancelar" }));
 
+    // Um macrotask entre fechar e reabrir, e é ele que dá sentido ao teste: o
+    // gc do react-query roda num timer, e fechar e reabrir no mesmo tick passa
+    // com ou sem `gcTime: 0`. O que a linha compra não é refazer o fetch — o
+    // `staleTime` 0 já faz isso — é a resposta velha não aparecer no intervalo.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
     // Um `git add` entre as duas aberturas muda a resposta, e uma pergunta
     // servida do cache descreveria um repositório que não existe mais.
-    trpcMock.files.deletePreview.query.mockResolvedValue({
-      kind: "file",
-      path: "README.md",
-      tracked: true,
-    });
+    const second = deferred<{ kind: "file"; path: string; tracked: boolean }>();
+    trpcMock.files.deletePreview.query.mockReturnValue(second.promise);
     fireEvent.click(actions("README.md"));
     pick("apagar");
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("consultando o git…")).toBeInTheDocument();
+    expect(dialog).not.toHaveTextContent(/não confirmou/);
+
+    second.settle({ kind: "file", path: "README.md", tracked: true });
 
     expect(await screen.findByText(/git checkout -- README\.md/)).toBeInTheDocument();
     expect(trpcMock.files.deletePreview.query).toHaveBeenCalledTimes(2);
@@ -733,7 +909,16 @@ describe("o buffer do arquivo aberto", () => {
     return container;
   }
 
-  it("descarrega o que foi digitado antes de renomear, e no caminho antigo", async () => {
+  /** Lets every pending microtask run without letting the 800 ms debounce win. */
+  async function settle(): Promise<void> {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+  }
+
+  it("espera a gravação **chegar** antes de renomear, não só sair na frente", async () => {
+    const landing = deferred<{ ok: true; revision: string }>();
+    trpcMock.files.write.mutate.mockReturnValue(landing.promise);
     trpcMock.files.rename.mutate.mockResolvedValue({ path: "docs/README.md" });
     const container = await openFile();
     // O relógio falso entra depois do editor montar, e é o que garante que os
@@ -746,24 +931,31 @@ describe("o buffer do arquivo aberto", () => {
     fireEvent.click(actions("README.md"));
     pick("renomear");
     commit(screen.getByRole("textbox", { name: "renomear" }), "docs/README.md");
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
+    await settle();
 
+    // O texto sai, e sai no caminho antigo — o único que ainda existe.
     expect(trpcMock.files.write.mutate).toHaveBeenCalledWith(
       expect.objectContaining({ path: "README.md", text: `${TEXT}!` }),
     );
-    // A ordem é a propriedade: o texto vai para o disco **antes** de o arquivo
-    // sair do lugar, e por isso o rename leva o que foi digitado junto. Trocada,
-    // a gravação cai num caminho que já não existe, volta NOT_FOUND para um
-    // componente desmontado, e o texto some sem ninguém ver.
-    const wrote = trpcMock.files.write.mutate.mock.invocationCallOrder[0] ?? 0;
-    const renamed = trpcMock.files.rename.mutate.mock.invocationCallOrder[0] ?? 0;
-    expect(wrote).toBeGreaterThan(0);
-    expect(renamed).toBeGreaterThan(wrote);
+    // E o rename **não** sai junto. Emitir na frente não é chegar na frente: o
+    // `httpBatchLink` junta duas chamadas do mesmo macrotask numa requisição só
+    // e o servidor as começa com `Promise.all`. Se o rename ganhasse, a
+    // gravação voltaria NOT_FOUND para um componente já desmontado e o texto
+    // sumiria sem uma palavra; se perdesse por pouco, o `rename` final da
+    // escrita atômica recriaria o caminho antigo e o arquivo ficaria nos dois.
+    expect(trpcMock.files.rename.mutate).not.toHaveBeenCalled();
+
+    landing.settle({ ok: true, revision: "sha256:dois" });
+    await settle();
+
+    expect(trpcMock.files.rename.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ from: "README.md", to: "docs/README.md" }),
+    );
   });
 
-  it("descarrega o que foi digitado antes de apagar", async () => {
+  it("espera a gravação chegar antes de apagar", async () => {
+    const landing = deferred<{ ok: true; revision: string }>();
+    trpcMock.files.write.mutate.mockReturnValue(landing.promise);
     trpcMock.files.deletePreview.query.mockResolvedValue({
       kind: "file",
       path: "README.md",
@@ -775,10 +967,8 @@ describe("o buffer do arquivo aberto", () => {
 
     vi.useFakeTimers();
     typeInto(container, "!");
-    fireEvent.click(screen.getByRole("button", { name: /^apagar/ }));
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
-    });
+    fireEvent.click(screen.getByRole("button", { name: "apagar" }));
+    await settle();
 
     // Apagar destrói o texto digitado de qualquer jeito — o servidor recusa a
     // gravação com NOT_FOUND se ela chegar depois. O que não pode acontecer é a
@@ -787,8 +977,13 @@ describe("o buffer do arquivo aberto", () => {
     expect(trpcMock.files.write.mutate).toHaveBeenCalledWith(
       expect.objectContaining({ path: "README.md", text: `${TEXT}!` }),
     );
-    const wrote = trpcMock.files.write.mutate.mock.invocationCallOrder[0] ?? 0;
-    const removed = trpcMock.files.remove.mutate.mock.invocationCallOrder[0] ?? 0;
-    expect(removed).toBeGreaterThan(wrote);
+    expect(trpcMock.files.remove.mutate).not.toHaveBeenCalled();
+
+    landing.settle({ ok: true, revision: "sha256:dois" });
+    await settle();
+
+    expect(trpcMock.files.remove.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "README.md", recursive: false }),
+    );
   });
 });

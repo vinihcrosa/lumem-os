@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { whenWritesSettle } from "../lib/pending-writes.js";
 import { fileListKey, filePreviewKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { useOpenFiles } from "./useOpenFiles.js";
@@ -65,18 +66,21 @@ function covers(path: string, open: string): boolean {
  * column's reload button, which re-reads every open level of the tree.
  *
  * The second is the order in **§ "descarrega antes"**: a gesture on the file the
- * split is showing lets the split go *first*, and only then changes the disk.
- * The unmount is where `useFileBuffer` flushes what was typed (E9), and a flush
- * that happens after the rename writes to a path that no longer exists — the
- * daemon answers NOT_FOUND to a component that is gone, and the typed text
- * disappears with nobody told. Done in this order, the write lands on the old
- * path and the rename carries it over, which is what someone renaming a file
- * they are editing expects.
+ * split is showing lets the split go *first*, waits for what was typed to be on
+ * the disk, and only then moves the file. The unmount is where `useFileBuffer`
+ * flushes (E9), and a flush that lands after the rename writes to a path that no
+ * longer exists — the daemon answers NOT_FOUND to a component that is gone, and
+ * the typed text disappears with nobody told. Done in this order, the write
+ * lands on the old path and the rename carries it over, which is what someone
+ * renaming a file they are editing expects.
  *
- * The gap it does not close, and it is declared rather than papered over: two
- * HTTP requests issued in order are not two requests *served* in order, and no
- * client can promise that. Issuing order is the lever there is; the threat
- * model of §5 is accident, not adversary.
+ * Issuing the two in order is **not** enough, and this used to say it was. The
+ * client batches: `httpBatchLink` puts two calls made in the same macrotask into
+ * one request, and the daemon starts that request's calls with `Promise.all` —
+ * so both orderings are live in a single round trip, and the happy case only
+ * won because `resolveForWrite` costs the rename more `await`s than it costs the
+ * write. A big file or a busy disk flips it. Waiting for the write to *land* is
+ * the property; ordering the two departures was a description of it.
  */
 export function useFileTree(scope: Scope): FileTreeEdits {
   const queryClient = useQueryClient();
@@ -89,23 +93,18 @@ export function useFileTree(scope: Scope): FileTreeEdits {
   const shown = open !== null && open.view === "file" ? open.path : null;
 
   /**
-   * What runs once the split has let go, held outside React's state.
+   * What runs once the split has let go and its buffer is on the disk.
    *
    * The release and the arming are two updates of the same event, so React
    * commits them together — and in that commit every passive cleanup runs
-   * before every passive effect body, which is exactly the guarantee this
-   * needs: the editor's detach (and the write it flushes) happens before the
-   * line below fires the mutation.
+   * before every passive effect body. That is what makes the effect below the
+   * first moment at which the flush has already been *started*: the editor's
+   * detach is a cleanup, and it is where `useFileBuffer` hands its write to
+   * `pending-writes`.
    *
-   * Measured, and worth writing down before someone deletes this as ceremony:
-   * calling `mutate` straight from the handler **also** comes out in the right
-   * order today, because react-query defers the mutation function to a
-   * microtask and React commits the discrete update before microtasks run. The
-   * suite cannot tell the two apart. What this buys is that the order stops
-   * depending on the internals of two libraries — if the flush ever stops being
-   * synchronous, or react-query ever stops deferring, the version without this
-   * writes to a path the rename already moved, and the typed text is gone with
-   * nobody told.
+   * Started is not landed, so the mutation waits for it. Ordering the two
+   * departures was what this did before and it bought nothing the transport
+   * keeps: batched into one request, the two race inside the daemon.
    */
   const deferred = useRef<(() => void) | null>(null);
   const [armed, setArmed] = useState(0);
@@ -114,7 +113,7 @@ export function useFileTree(scope: Scope): FileTreeEdits {
     const run = deferred.current;
     if (run === null) return;
     deferred.current = null;
-    run();
+    void whenWritesSettle().then(run);
   }, [armed]);
 
   const letGo = useCallback(

@@ -82,6 +82,18 @@
 .rp__icon:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
 .rp__icon--on { background: var(--color-bg-active); color: var(--color-text-primary); }
 
+/* Criar na raiz mora na faixa porque a raiz não tem linha: é o único diretório
+   que o `⋯` não alcança. Ancorado na coluna inteira (`.rp` é `relative`) e
+   alinhado à direita, para cair sob o `＋` sem sair dos 260px da coluna. */
+.rp__menu {
+  position: absolute;
+  z-index: 1;
+  top: var(--size-topbar-height);
+  right: var(--space-8);
+  width: max-content;
+}
+.rp__menu .menu { width: max-content; max-width: 100%; }
+
 .rp__body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .rp__spacer { flex: 1; }
 .rp__scroll { flex: 1; min-height: 0; overflow: auto; padding: var(--space-4) var(--space-4) var(--space-12); }
