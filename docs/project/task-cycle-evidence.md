@@ -19,7 +19,7 @@ muda; o **anexo** é história de outro projeto e não se mexe.
 Lote fechado sem linha aqui é indistinguível de lote que nunca existiu. O mecanismo contra isso é um
 número só:
 
-> **Último commit coberto: `3f27e0e`.**
+> **Último commit coberto: `937ff75`.**
 
 `fd83053` fecha o lote `E1`, o primeiro medido. Antes dele, `6c620dc` era o fim do período **pré-skill**. As quatro features anteriores —
 `walking-skeleton`, `ui-shell`, `worktree-tabs`, `right-panel`, 79 commits — foram feitas antes da
@@ -31,7 +31,7 @@ Quem fecha um lote atualiza esse sha para o último commit do lote. Um comando d
 fora:
 
 ```bash
-git log --oneline 3f27e0e..HEAD
+git log --oneline 937ff75..HEAD
 ```
 
 Commit de código que aparecer aí e não estiver dentro de nenhum `Range` da tabela é lote que entrou
@@ -119,11 +119,12 @@ a tabela de lotes não tem tempo justamente porque o número não sobrevive à c
 | `file-editor` E2+E3 — guarda de escrita e revisão | **crítico** | `bbfef0b..89ffb15` | 2 | 582k | **1 blocker + 5 warnings** (r1) · 3 blockers (r2) · 2 costura |
 | teto de concorrência de teste | **fronteira** | `6c620dc..468dae5` | 0 | — | 0 — sem review, **registrada em auditoria** |
 | `file-editor` E3.1+E4+E7 — a escrita de verdade | **crítico** | `af865b1..3f27e0e` | 1 | 453k | 1 blocker + 6 warnings · 3 costura |
+| `file-editor` E5 — CRUD no checkout | **crítico** | `4a552d8..937ff75` | 1 | 488k | 1 blocker + 4 warnings · 2 costura |
 
 Dois contadores, porque respondem a duas perguntas que a skill não consegue responder sozinha —
 *isto aqui é cerimônia?* — e custam um dígito cada:
 
-* **verificação independente do orquestrador:** 3 lotes, **1 refutação**
+* **verificação independente do orquestrador:** 4 lotes, **1 refutação**
 * **passe a frio pós-lote:** 1 passe, **11 achados** que o orquestrador com contexto não via
 
 **A verificação independente pagou o lote inteiro, e por um motivo que não estava previsto.** Não
@@ -160,6 +161,12 @@ O round 2 foi de outra natureza: nenhum código errado, **três asserções frac
 **O dev achou sozinho uma decisão de produto que ninguém tinha tomado, e declarou.** Com temp+`rename`, gravar num arquivo `0o444` passa — o `rename` é checado contra o **diretório**. Ele não "consertou" e não ignorou: reportou como efeito colateral não documentado. Virou pergunta ao Vinicius, virou a quinta recusa, e virou uma propriedade maior que a pergunta: *a escrita atômica não pode virar contorno de permissão*.
 
 **Duas mutações sobreviveram com argumento aceito, e isso também é dado.** As duas são de **janela** — o que outro processo veria durante a gravação — e não de estado final; forçá-las exigiria o teste dependente de tempo que o `testing.md` proíbe. Em vez de um round para escrevê-las, a janela foi **estreitada por desenho** no `Done when` da E5: o temporário nasce `0o600` e sobe para o modo do alvo antes do `rename`, então ela nunca é mais permissiva que o resultado. Mais barato que provar, e fecha o que a mutação apontava.
+
+**O lote do CRUD achou o defeito mais barato de escrever e o mais caro de descobrir.** O `deletePreview` perguntava ao git se um arquivo é rastreado passando o **nome** onde o git espera **pathspec**. Um arquivo chamado `a*.ts`, não rastreado, voltava `tracked: true` porque `ab.ts` é rastreado — e o diálogo prometeria "o git desfaz" para um arquivo do qual o git não tem cópia. Nenhum teste com nome comum pega, e a correção é uma flag. Está em `testing.md` como classe.
+
+**A bateria de mutação foi de 45 nesta rodada, a maior até agora, e 4 das 11 sobreviventes eram buraco real.** As outras 7 foram registradas como equivalentes ou inobserváveis — o revisor as nomeou uma a uma justamente para que ninguém as "conserte" depois com teste falso. Esse registro é o que impede a bateria de virar cerimônia na rodada seguinte.
+
+**O dev removeu uma flag do git com argumento melhor que o meu.** Eu tinha dito para deixar ou tirar `--error-unmatch`, tanto faz. Ele tirou, e o motivo não é performance: com a flag, "o git não tem este arquivo" chegava como exceção e era engolida pelo mesmo `catch` de "o checkout não é repositório" e "git não está instalado" — o ramo do caso normal passava a morar no ramo da falha. Sem ela, untracked é `stdout` vazio com exit 0, e o `catch` volta a ser só o que o JSDoc diz.
 
 **Fechei este lote sem o round exigido pela regra de raio de alcance, e o motivo fica escrito.** O rework mexeu em `ReadOnlyReason`, que é seam da E8 — pela §7 isso pede round completo. Não pedi, porque a mudança é aditiva, tem teste de **ordem** entre as cinco razões, está descrita na F1.4 do PRD e no `Done when` da E8, e nenhum consumidor existe ainda. Em vez do round, rodei as duas mutações centrais com a minha própria mão: inverter a ordem das razões derruba dois testes, e desligar a recusa de permissão derruba exatamente o teste da propriedade. Se essa troca se provar ruim, o sintoma vai aparecer no review da E8 — e este parágrafo é o que permite ligar uma coisa à outra.
 
