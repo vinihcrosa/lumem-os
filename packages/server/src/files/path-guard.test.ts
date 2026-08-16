@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
-import { resolveInsideRoot } from "./path-guard.js";
+import { resolveForWrite, resolveInsideRoot } from "./path-guard.js";
 
 /**
  * A real filesystem, with real symlinks.
@@ -113,6 +113,165 @@ describe("resolveInsideRoot", () => {
 
     await expect(resolveInsideRoot(root, "src/nao-existe.ts")).rejects.toMatchObject({
       code: "NOT_FOUND",
+    });
+  });
+});
+
+describe("resolveForWrite", () => {
+  it("accepts a target that does not exist yet, as long as the parent does", async () => {
+    const root = checkout();
+
+    const resolved = await resolveForWrite(root, "src/lore/frontmatter.ts");
+
+    expect(resolved.relative).toBe("src/lore/frontmatter.ts");
+    expect(resolved.exists).toBe(false);
+    expect(resolved.absolute.endsWith("src/lore/frontmatter.ts")).toBe(true);
+  });
+
+  it("says when the target is already there, and leaves the decision to the caller", async () => {
+    const root = checkout();
+
+    expect(await resolveForWrite(root, "src/lore/loader.ts")).toMatchObject({ exists: true });
+  });
+
+  it("names the directory that is missing instead of the file", async () => {
+    const root = checkout();
+
+    const failure = await resolveForWrite(root, "src/novo/sub/a.ts").catch((error) => error);
+
+    expect(failure).toMatchObject({ code: "NOT_FOUND" });
+    // Actionable: the user has to create `src/novo/sub`, and "a.ts não existe"
+    // would be both true and useless — the file is not supposed to exist yet.
+    expect(failure.message).toContain("src/novo/sub");
+  });
+
+  it("keeps rules 1 and 2 by reusing normalizeRelative", async () => {
+    const root = checkout();
+
+    await expect(resolveForWrite(root, "/etc/passwd")).rejects.toMatchObject({
+      code: "INVALID_ARGUMENT",
+    });
+    await expect(resolveForWrite(root, "src/../../etc/x")).rejects.toMatchObject({
+      code: "INVALID_ARGUMENT",
+    });
+    await expect(resolveForWrite(root, "src/lore/../lore/novo.ts")).resolves.toMatchObject({
+      relative: "src/lore/novo.ts",
+    });
+  });
+
+  it("refuses a parent symlink that leaves the checkout, even for a target that does not exist", async () => {
+    const root = checkout();
+    const outside = tempDir("lumem-outside-");
+    symlinkSync(outside, join(root, "fora"));
+
+    const failure = await resolveForWrite(root, "fora/novo.txt").catch((error) => error);
+
+    // The target not existing cannot become a way around rule 4: without the
+    // parent's realpath this would look like a plain new file.
+    expect(failure).toMatchObject({ code: "BLOCKED" });
+    expect(failure.message).toMatch(/fora do checkout/);
+  });
+
+  it("writes through a symlink that stays inside, to the destination it points at", async () => {
+    const root = checkout();
+    symlinkSync(join(root, "src", "lore", "loader.ts"), join(root, "atalho.ts"));
+
+    const resolved = await resolveForWrite(root, "atalho.ts");
+
+    // A guard that refuses everything passes every security test and breaks the
+    // product: an internal link is a legitimate target, and the write lands on
+    // the destination so the link stays a link.
+    expect(resolved.exists).toBe(true);
+    expect(resolved.absolute.endsWith("src/lore/loader.ts")).toBe(true);
+    expect(resolved.relative).toBe("atalho.ts");
+  });
+
+  it("refuses a target symlink whose destination is outside the checkout", async () => {
+    const root = checkout();
+    const outside = tempDir("lumem-outside-");
+    writeFileSync(join(outside, "id_rsa"), "PRIVATE KEY");
+    symlinkSync(join(outside, "id_rsa"), join(root, "chave.txt"));
+
+    const failure = await resolveForWrite(root, "chave.txt").catch((error) => error);
+
+    expect(failure).toMatchObject({ code: "BLOCKED" });
+    expect(failure.message).toMatch(/aponta para fora do checkout/);
+  });
+
+  it("refuses .git itself, with a reason of its own", async () => {
+    const root = checkout();
+    mkdirSync(join(root, ".git"));
+
+    const failure = await resolveForWrite(root, ".git").catch((error) => error);
+
+    expect(failure).toMatchObject({ code: "BLOCKED" });
+    // Not "fora do checkout": it is inside, and the refusal is about what it is.
+    expect(failure.message).toMatch(/\.git/);
+    expect(failure.message).not.toMatch(/fora do checkout/);
+  });
+
+  it("refuses anything inside .git", async () => {
+    const root = checkout();
+    mkdirSync(join(root, ".git", "refs", "heads"), { recursive: true });
+
+    await expect(resolveForWrite(root, ".git/config")).rejects.toMatchObject({ code: "BLOCKED" });
+    await expect(resolveForWrite(root, ".git/refs/heads/main")).rejects.toMatchObject({
+      code: "BLOCKED",
+    });
+  });
+
+  it("refuses .git reached through a symlink, which the relative path alone would miss", async () => {
+    const root = checkout();
+    mkdirSync(join(root, ".git"), { recursive: true });
+    symlinkSync(join(root, ".git"), join(root, "atalho-git"));
+
+    await expect(resolveForWrite(root, "atalho-git/config")).rejects.toMatchObject({
+      code: "BLOCKED",
+    });
+  });
+
+  it("refuses the checkout root for every write", async () => {
+    const root = checkout();
+
+    await expect(resolveForWrite(root, "")).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+    await expect(resolveForWrite(root, ".")).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+    await expect(resolveForWrite(root, "src/..")).rejects.toMatchObject({
+      code: "INVALID_ARGUMENT",
+    });
+  });
+
+  it("refuses the root reached through a symlink, which normalising alone would miss", async () => {
+    const root = checkout();
+    symlinkSync(root, join(root, "eu-mesmo"));
+
+    // `eu-mesmo` is a path with no `..` in it that resolves to the checkout —
+    // and `remove` on it would take the whole worktree.
+    await expect(resolveForWrite(root, "eu-mesmo")).rejects.toMatchObject({
+      code: "INVALID_ARGUMENT",
+    });
+  });
+
+  it("refuses a parent that is a file, instead of failing later with ENOTDIR", async () => {
+    const root = checkout();
+
+    await expect(resolveForWrite(root, "src/lore/loader.ts/novo.txt")).rejects.toMatchObject({
+      code: "INVALID_ARGUMENT",
+    });
+  });
+
+  it("refuses a target that is a dangling symlink, because nothing proves where it lands", async () => {
+    const root = checkout();
+    symlinkSync(join(root, "src", "sumiu.ts"), join(root, "quebrado.ts"));
+
+    const failure = await resolveForWrite(root, "quebrado.ts").catch((error) => error);
+
+    expect(failure).toMatchObject({ code: "BLOCKED" });
+    expect(failure.message).toMatch(/destino/);
+  });
+
+  it("reports a checkout that is not on disk as blocked, not as a missing file", async () => {
+    await expect(resolveForWrite("/definitely-not-here-xyz", "a.txt")).rejects.toMatchObject({
+      code: "BLOCKED",
     });
   });
 });
