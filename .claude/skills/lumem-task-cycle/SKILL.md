@@ -432,9 +432,7 @@ Não são julgamento, são comando.
 
 ## 10. Custo
 
-**Há seis lotes medidos no Lumem-OS** — no "Registro de lotes" do ledger. Para lote crítico daqui, use ≈508k (n=3, três pontos dentro de ±15%); para fronteira, 466k (n=1). A tabela abaixo continua sendo de outro projeto, e o que ela tem que o ledger não tem é a repartição por estágio. A tabela abaixo é herdada de um projeto .NET com gates
-lentos e suíte grande; a ordem de grandeza pode não transferir. Preencha
-[`task-cycle-evidence.md`](../../../docs/project/task-cycle-evidence.md) e substitua.
+**Há seis lotes medidos no Lumem-OS** — no "Registro de lotes" do ledger. Para lote crítico daqui, use ≈508k (n=3, três pontos dentro de ±15%); para fronteira, 466k (n=1). A tabela abaixo continua sendo de outro projeto — o que ela tem e o ledger não é a repartição por **estágio**. A ordem de grandeza dela pode não transferir; o ledger é a fonte para número deste repositório.
 
 | Perfil | Dev | Review (1 round) | Rework | Total, 1 round |
 |---|---|---|---|---|
@@ -520,9 +518,10 @@ descreve o defeito que produziu a regra no projeto onde ela foi medida, exceto o
 
 ### Limites conhecidos
 
-* **dois lotes medidos no Lumem-OS**, e um deles é de código: `E2+E3` do `file-editor`, perfil
-  crítico, 2 rounds, **582k**. Prefira esse número à §10 para lote crítico deste repositório, e
-  diga que é n=1. O outro foi a `E1`, uma task de **desenho** — perfil que a §3 ainda não descreve;
+* **seis lotes medidos no Lumem-OS**, quatro deles com review. Crítico: ≈**508k** (n=3, os três
+  dentro de ±15%). Fronteira: **466k** (n=1). Desenho: **239k** (n=1) — perfil que a §3 ainda não
+  descreve. Prefira esses números à §10 e **diga o n**. O que continua sem medição daqui é a
+  repartição por estágio (dev/review/rework), porque só o total sai do relatório sem trabalho extra;
 * **o projeto de origem tem gates de minutos e suíte de ~1500 testes.** Aqui ela tem 824 e o
   gate ainda leva segundos. A conta de wall clock certamente não transfere; a de token,
   provavelmente transfere em parte — e a hipótese 1 do ledger diz o que a refutaria;
