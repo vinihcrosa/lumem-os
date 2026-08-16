@@ -35,7 +35,9 @@ function textFile(over: Partial<Record<string, unknown>> = {}) {
 }
 
 function render(path = "src/lore/loader.ts", onClose = () => {}) {
-  return renderWithProviders(<FileViewer scope={scope} path={path} onClose={onClose} />);
+  return renderWithProviders(
+    <FileViewer scope={scope} path={path} active onClose={onClose} />,
+  );
 }
 
 /** The editor is mounted behind a dynamic import; nothing is on screen before it lands. */
@@ -139,7 +141,7 @@ describe("o arquivo aberto no split", () => {
 
     const { container } = rtlRender(
       <QueryClientProvider client={client}>
-        <FileViewer scope={scope} path="src/lore/loader.ts" onClose={() => {}} />
+        <FileViewer scope={scope} path="src/lore/loader.ts" active onClose={() => {}} />
       </QueryClientProvider>,
     );
     const content = await editor(container);

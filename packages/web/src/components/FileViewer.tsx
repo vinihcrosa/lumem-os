@@ -1,18 +1,23 @@
-import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { useFileBuffer, type SaveState } from "../hooks/useFileBuffer.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import type { EditorHandle } from "../lib/codemirror-setup.js";
-import { fileReadKey } from "../lib/queryKeys.js";
 import { languageOf, loadHighlighter, SHIKI_THEME } from "../lib/shiki.js";
 import type { ShikiConfig } from "../lib/shiki-codemirror.js";
-import { trpc } from "../lib/trpc.js";
 import { formatSize } from "./FileTree.js";
 import { ViewerFrame } from "./ViewerFrame.js";
 
 export interface FileViewerProps {
   scope: Scope;
   path: string;
+  /**
+   * Whether this tab is the one in front. Required rather than defaulted: every
+   * session tab stays mounted, so a viewer that is never told it went behind
+   * would keep a buffer nobody can see — and the compiler saying so at the call
+   * site is cheaper than finding out by losing text.
+   */
+  active: boolean;
   onClose(): void;
 }
 
@@ -67,14 +72,10 @@ const READ_ONLY: Record<ReadOnlyReason, { chip: string; why: ReactNode }> = {
  * simply ends in the void, with not even a scrollbar to say so. Reading half a
  * line is worse than reading a wrapped one.
  */
-export function FileViewer({ scope, path, onClose }: FileViewerProps) {
+export function FileViewer({ scope, path, active, onClose }: FileViewerProps) {
   const [wrap, setWrap] = useState(true);
-  const content = useQuery({
-    queryKey: fileReadKey(scope.scopeType, scope.scopeId, path),
-    queryFn: () =>
-      trpc.files.read.query({ scopeType: scope.scopeType, scopeId: scope.scopeId, path }),
-    refetchOnWindowFocus: true,
-  });
+  const buffer = useFileBuffer({ scope, path, active });
+  const content = buffer.content;
 
   const language = languageOf(path);
   const data = content.data;
@@ -89,6 +90,12 @@ export function FileViewer({ scope, path, onClose }: FileViewerProps) {
             ? null
             : READ_ONLY[data.readOnly].chip;
 
+  // A reason from the daemon is long and it takes the width the byte count was
+  // using: on a failure, how many KB the file has is the least useful thing on
+  // the screen.
+  const wide =
+    refusal === null && (buffer.state.kind === "failed" || buffer.state.kind === "stale");
+
   return (
     <ViewerFrame
       path={path}
@@ -96,7 +103,9 @@ export function FileViewer({ scope, path, onClose }: FileViewerProps) {
       wrap={wrap}
       onToggleWrap={() => setWrap((current) => !current)}
       footLeft={
-        refusal === null ? undefined : (
+        refusal === null ? (
+          <SaveFoot state={buffer.state} onRetry={buffer.retry} />
+        ) : (
           <span className="save save--readonly">
             {/* A text glyph, never an emoji: a 🔒 ignores `color` and comes
                 back in the system font's own, the one element on the screen
@@ -109,10 +118,10 @@ export function FileViewer({ scope, path, onClose }: FileViewerProps) {
         )
       }
       footRight={
-        data?.kind === "text"
-          ? `${formatSize(data.bytes)} · ${data.lines} linhas · ${language ?? "texto"}`
-          : data === undefined
-            ? undefined
+        wide || data === undefined
+          ? undefined
+          : data.kind === "text"
+            ? `${formatSize(data.bytes)} · ${data.lines} linhas · ${language ?? "texto"}`
             : formatSize(data.bytes)
       }
     >
@@ -190,10 +199,75 @@ export function FileViewer({ scope, path, onClose }: FileViewerProps) {
           language={language}
           readOnly={readOnly !== null}
           wrap={wrap}
+          onReady={buffer.attach}
         />
       </>
     );
   }
+}
+
+/**
+ * The four states of autosave, in the corner of the file they belong to.
+ *
+ * With no save button and no dirty state that outlives the debounce, this row
+ * is everything the autosave says about itself. There is deliberately no
+ * "unsaved": that state lasts 800 ms and then stops being true.
+ */
+function SaveFoot({ state, onRetry }: { state: SaveState; onRetry(): void }) {
+  if (state.kind === "clean") return null;
+  if (state.kind === "saving") return <Mark tone="saving">salvando…</Mark>;
+  if (state.kind === "saved") return <SavedAgo at={state.at} />;
+
+  if (state.kind === "failed") {
+    return (
+      <>
+        <Mark tone="failed">não deu para salvar</Mark>
+        {/* Verbatim, as PRD §8 requires of anything a tool said. */}
+        <span className="save__why" title={state.why}>
+          {state.why}
+        </span>
+        <button type="button" className="save__act" onClick={onRetry}>
+          tentar de novo
+        </button>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Mark tone="stale">mudou no disco</Mark>
+      <span className="save__why">o autosave parou até você escolher</span>
+    </>
+  );
+}
+
+function Mark({ tone, children }: { tone: string; children: ReactNode }) {
+  return (
+    <span className={`save save--${tone}`}>
+      <span className="save__dot" aria-hidden="true" />
+      {children}
+    </span>
+  );
+}
+
+/**
+ * "salvo há Ns", and it counts.
+ *
+ * The number is the whole point of the state — it is what tells written from
+ * being written — so it cannot be frozen at the instant the write landed. One
+ * timer per open file, alive only while this state is on screen.
+ */
+function SavedAgo({ at }: { at: number }) {
+  const [now, setNow] = useState(at);
+
+  useEffect(() => {
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(id);
+  }, [at]);
+
+  const seconds = Math.max(0, Math.round((now - at) / 1_000));
+  return <Mark tone="saved">salvo há {seconds < 60 ? `${seconds} s` : `${Math.floor(seconds / 60)} min`}</Mark>;
 }
 
 interface EditorProps {
@@ -202,6 +276,8 @@ interface EditorProps {
   language: string | null;
   readOnly: boolean;
   wrap: boolean;
+  /** The buffer takes it from here — and gets it back as null before it goes. */
+  onReady(handle: EditorHandle | null): void;
 }
 
 /**
@@ -210,8 +286,12 @@ interface EditorProps {
  * The import is dynamic so the ~137 KB gzip of the editor never reach whoever
  * does not open a file — same treatment shiki already gets here, and the same
  * reason: the daemon serves this bundle itself, with no CDN in front.
+ *
+ * What is *in* the document is not decided here any more: `useFileBuffer` owns
+ * that, because whether the disk may land on screen depends on whether there is
+ * typing to lose (D4), and this component has no way to know.
  */
-function Editor({ path, text, language, readOnly, wrap }: EditorProps) {
+function Editor({ path, text, language, readOnly, wrap, onReady }: EditorProps) {
   const host = useRef<HTMLDivElement | null>(null);
   const handle = useRef<EditorHandle | null>(null);
   const highlight = useRef<ShikiConfig | null>(null);
@@ -219,13 +299,10 @@ function Editor({ path, text, language, readOnly, wrap }: EditorProps) {
   // read from here rather than from the closure the mount effect captured.
   const latest = useRef({ text, wrap });
 
-  // Two effects and not one: they change for different reasons. Together, a
-  // re-read of the file reconfigured wrapping and a click on `⇄` re-dispatched
-  // the document — and re-dispatching the document is the expensive one, since
-  // it is a whole-buffer replace that lands in the undo history.
+  // Kept for the next mount, and only for it: pushing it into a live editor is
+  // the buffer's call, never this one's.
   useEffect(() => {
     latest.current.text = text;
-    handle.current?.setDoc(text);
   }, [text]);
 
   useEffect(() => {
@@ -248,16 +325,21 @@ function Editor({ path, text, language, readOnly, wrap }: EditorProps) {
       // The grammar may well have arrived first: whoever loses the race is the
       // one that applies the result.
       handle.current.setHighlight(highlight.current);
+      onReady(handle.current);
     });
 
     return () => {
       live = false;
+      // Handed back *before* the view is destroyed: this is where the buffer
+      // gets its last read of what was typed, and a destroyed editor is not a
+      // place to be reading anything from.
+      onReady(null);
       handle.current?.destroy();
       handle.current = null;
     };
     // A different file is a different editor: the undo history of the last one
     // must not reach across, and read-only is fixed for as long as one is open.
-  }, [path, readOnly]);
+  }, [path, readOnly, onReady]);
 
   useEffect(() => {
     highlight.current = null;

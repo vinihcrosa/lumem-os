@@ -141,11 +141,26 @@
 .robar__glyph { flex: none; color: var(--color-editor-readonly); }
 .robar code { font: var(--text-mono-sm); color: var(--color-text-code); }
 
-/* O estado do arquivo é sempre o primeiro item do rodapé, à esquerda. Os
-   quatro estados do salvamento entram aqui na E9; este é o quinto. */
+/*
+ * O estado do arquivo é sempre o primeiro item do rodapé, à esquerda.
+ *
+ * Com autosave não existe botão de salvar nem estado sujo persistente, então
+ * este rodapé é a única coisa que o salvamento diz de si. Fica no canto do
+ * arquivo a que se refere — não numa barra global — porque cada aba tem o seu.
+ */
 .save { flex: none; display: inline-flex; align-items: center; gap: var(--space-6); }
+.save__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
 .save__mark { font-size: var(--size-icon-sm); line-height: 1; }
+.save--saving { color: var(--color-save-saving); }
+.save--saved { color: var(--color-save-saved); }
+.save--failed { color: var(--color-save-failed); }
+.save--stale { color: var(--color-save-stale); }
 .save--readonly { color: var(--color-editor-readonly); }
+/* O motivo do daemon vem literal (PRD §8) e é longo. Ele toma a largura que a
+   contagem de bytes estava usando: numa falha, saber quantos KB o arquivo tem
+   é a informação menos útil da tela. */
+.save__why { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-tertiary); }
+.save__act { flex: none; color: var(--color-text-link); font: var(--text-caption); text-decoration: underline; }
 
 .k  { color: var(--color-syntax-keyword); }
 .s  { color: var(--color-syntax-string); }

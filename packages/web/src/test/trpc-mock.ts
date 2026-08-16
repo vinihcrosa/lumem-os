@@ -39,6 +39,7 @@ function createTrpcMock() {
     files: {
       listDir: { query: vi.fn() },
       read: { query: vi.fn() },
+      write: { mutate: vi.fn() },
     },
     changes: {
       list: { query: vi.fn() },
