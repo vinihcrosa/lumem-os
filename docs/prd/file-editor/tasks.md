@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Protótipo:** `packages/web/prototype/lumem-file-editor.html` — entregue pela E1, cinco telas, verificado por renderização
 **Sucede:** [right-panel](../right-panel/tasks.md)
-**Status:** em execução — **Fase 1 fechada** (E1–E7). A Fase 2 é a próxima: o editor no split
+**Status:** **fechada** — 13 de 13, portão verde (`gate:full`: 961 unit/integration + 16 e2e)
 **Total:** 13 tasks em 5 fases
 
 ---
@@ -49,8 +49,9 @@ Numeradas, e nenhuma delas vive só numa mensagem ou num comentário de código.
 | **P11** | `path-guard.ts` fazia `stat(parent)` sem `try`, deixando escapar `Error` cru se o diretório sumisse entre o `realpath` e o `stat` | **fechada pela E3.1, e diferente do que foi arquivado**: o `stat` foi **deletado**, não embrulhado. O `lstat` logo abaixo responde `ENOTDIR` para o mesmo caso, com mensagem melhor e uma syscall a menos — a janela fechou em vez de ser capturada. Verificado no review com pai-arquivo, pai-fifo e pai-que-sumiu |
 | **P12** | ~~`revisionOf` sem consumidor, e a invariante "revisão não é tamanho" segurada por um fixture só~~ | **vencida pelos lotes seguintes**: a E4 consome, e `concurrent-write.test.ts` ("vê a mudança feita entre a leitura e a gravação mesmo com o mesmo tamanho") é o segundo guarda. O passe a frio pegou a linha desatualizada |
 | **P13** | Alvo que **não existe** e se chama `.GIT` num filesystem insensível a caixa seria criado: não há disco para consultar, então nada canoniza o nome | **decidida: aceita.** Fechar exigiria case-folding no ramo "não existe", o que recusaria `.GIT` no Linux, onde é nome legítimo. Não é alcançável no produto — todo checkout tem `.git`, e numa worktree ele é um **arquivo**, que cai no ramo do `realpath` e é recusado |
-| **P17** | `setDoc` entra no histórico de undo, então depois de um refetch o `Cmd+Z` volta ao texto **anterior ao disco** — e, com autosave, grava ele | aberta, **decide na E10**: é o "recarregar do disco" dela. Provavelmente `Transaction.addToHistory.of(false)` |
+| **P17** | `setDoc` entrava no histórico de undo, então depois de um refetch o `Cmd+Z` voltava ao texto **anterior ao disco** | **fechada na E10** com `Transaction.addToHistory.of(false)`. O review mediu o resíduo que se temia e ele não existe: a entrada de histórico, mapeada sobre a substituição do documento inteiro, colapsa em nada |
 | **P18** | O stub de `getClientRects` devolve `[]`, e sob relógio falso `waitFor` e `userEvent` **travam** em vez de falhar — um teste travado envenena os seguintes do arquivo (11 caíram por causa de um) | **pior do que foi registrado**: não é "passa sem provar nada", é "trava a rodada". Registrada em [testing.md](../../project/testing.md). Onde há relógio falso, digitação é `dispatch` e espera é helper próprio |
+| **P20** | `playwright.config.ts` é `*.ts` na raiz, casa `GRAPH_GLOBS` e nenhum projeto do vitest o importa — um commit que só mexa nele deixa o `gate:quick` vermelho, pelo mesmo motivo que `e2e/**` deixava | aberta. O dev **recusou-se a fixar o caso no teste** ao consertar o irmão, para não repetir o defeito que estava consertando: teste que congela comportamento errado é o que quase impediu esta correção |
 | **P19** | **Sair da tela com o conflito aberto perde o buffer.** O `flush()` retorna cedo quando o autosave está parado, e a recusa `stale` que chega depois de o arquivo sair da tela é descartada | **decidida: aceita na v1, e agora dita.** Guardar buffer órfão reabriria a D2 ("sem estado sujo persistente"), que é decisão travada. As [Q2, Q8 e Q11](open-questions.md) ganharam a ressalva — elas afirmavam o contrário |
 | **P16** | Nada na tela diz que salvar **troca o dono** do arquivo: a escrita atômica põe os bytes num inode novo, então uid/gid, ACL e xattrs não sobrevivem ([Q15](open-questions.md)) | aberta, fora da v1 — estava viva só dentro de uma pergunta fechada, que é o que a lista numerada existe para impedir |
 | **P15** | `agentConfig.create` não tem teto em `command`, `args` e `env`, e o `bodyLimit` global subiu de 1 MiB para 6.356.992 bytes (6,06 MiB) por causa da E6 — um cliente malformado passa a poder persistir ~6 MiB em SQLite onde antes tomava 413 | aberta, **dívida anterior amplificada**. O adapter tRPC do Fastify não expõe `bodyLimit` por rota, então o lugar do teto é onde está; o que falta é o teto nos campos. Resolve quando alguém tocar aquele router |
@@ -406,6 +407,18 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 
 **Tests**: e2e · **Gate**: full
 **Commit**: `test(e2e): fix a line while the agent runs beside it`
+
+> **O que o portão não prova**, declarado em vez de contornado — sete lacunas vieram do dev e quatro do review:
+>
+> 1. **regressão de re-batching não é determinística**: se alguém devolver o rename ao mesmo macrotask do write, o teste pega por uma corrida dentro do daemon, não por construção. O unit roda contra mock sem transporte, e é onde a propriedade quebrava;
+> 2. a latência de 1,5 s injetada por `page.route` garante a **precondição** (o debounce não pode ter disparado antes do `Enter`), não a ordem — medido: sem ela a mutação morre 5/5 nesta máquina, mas numa lenta o teste provaria o caso fácil;
+> 3. *recarregar do disco* **nunca é clicado** — aquela saída da D3.1, e a P17 com ela, seguem só em unit;
+> 4. as **cinco recusas** da F1.4 não têm e2e;
+> 5. quatro dos cinco gatilhos de descarregamento não têm e2e — só *fechar o split*, via rename;
+> 6. o ramo "arquivo rastreado" do diálogo de apagar não é exercitado;
+> 7. **apagar diretório** não tem e2e: `recursive`, contagem e `truncated` só em unit;
+> 8. **editar com a aba `Mudanças` já aberta** não tem e2e — a invalidação de `["changes"]` pode ser removida sem o portão notar, porque o refetch de montagem repõe a lista;
+> 9. nenhum **achado de produto**: as quatro tasks de UI sobreviveram inteiras ao daemon e ao navegador de verdade.
 
 ---
 

@@ -1,6 +1,6 @@
 # PRD — O visualizador vira editor
 
-> **Status:** em execução — **Fase 1 fechada**: o servidor inteiro (E1–E7)
+> **Status:** **entregue** — 13 tasks, 9 lotes, portão verde
 > **Versão:** v0.1
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
@@ -246,11 +246,15 @@ Medido no build de verdade, antes e depois, com o mesmo cuidado que a right-pane
 
 | | antes | depois | delta |
 |---|---|---|---|
-| bundle inicial (js+css) | **207.432 B gzip** | **~208,2 KB gzip** | **+723 B gzip (+0,35 %)** |
-| chunk do editor | — | **103,70 KB gzip** | sob demanda |
-| `dist` inteiro | 2.057.023 B | 2.377.423 B | +15,6 % |
+| bundle inicial (js+css) | **207.432 B gzip** | **213,87 KB gzip** | **+6,4 KB gzip (+3,1 %)** |
+| chunk do editor | — | **103,73 KB gzip** | sob demanda |
+| `dist` inteiro | 2.057.023 B | 2.341,72 KB (553,08 KB gzip) | +13,9 % |
 
-Os números acima são do commit que fechou a task; o round de review acrescentou +50 B no inicial e +250 B no chunk, o que não move nenhuma conclusão. Os +723 B são o código do próprio `FileViewer` — as cinco recusas e o componente do editor. O CodeMirror **não está** no inicial, e isso é verificado, não estimado: `cm-lineWrapping`, `cm-gutterElement` e `cm-scroller` não aparecem nele.
+Os números acima são do **fechamento da feature**, não da E8: os +723 B daquela task viraram +6,4 KB depois que autosave, conflito e CRUD entraram. O CodeMirror continua fora do inicial, e isso é verificado e não estimado — `cm-lineWrapping`, `cm-gutterElement` e `cm-scroller` não aparecem nele.
+
+**Abrir o primeiro arquivo custa mais que o chunk do editor.** Ele puxa junto o núcleo do Shiki, o motor de regex e a gramática da linguagem: ~178 KB gzip na primeira abertura, contra os 103,73 do editor sozinho. Do segundo arquivo da mesma linguagem em diante, nada. É inferência por nome de chunk, não medição no navegador — quem quiser o número exato mede lá.
+
+O resto do parágrafo continua valendo: os +723 B da E8 eram o código do próprio `FileViewer` — as cinco recusas e o componente do editor. O CodeMirror **não está** no inicial, e isso é verificado, não estimado: `cm-lineWrapping`, `cm-gutterElement` e `cm-scroller` não aparecem nele.
 
 Dois números que a medição corrigiu: o conjunto de módulos escolhido a dedo custa **103 KB gzip**, e não os 137 KB que um bundle de rascunho sugeria — o tree-shaking do build real corta o que o rascunho segura. E o meta-pacote `codemirror`/`basicSetup` custaria **+29 KB gzip** só para trazer `autocomplete` e `lint`, dois não-objetivos do §6 ([Q20](open-questions.md)).
 

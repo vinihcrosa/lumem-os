@@ -19,7 +19,7 @@ muda; o **anexo** é história de outro projeto e não se mexe.
 Lote fechado sem linha aqui é indistinguível de lote que nunca existiu. O mecanismo contra isso é um
 número só:
 
-> **Último commit coberto: `bfc9c60`.**
+> **Último commit coberto: `bd3e3f0`.**
 
 `fd83053` fecha o lote `E1`, o primeiro medido. Antes dele, `6c620dc` era o fim do período **pré-skill**. As quatro features anteriores —
 `walking-skeleton`, `ui-shell`, `worktree-tabs`, `right-panel`, 79 commits — foram feitas antes da
@@ -31,7 +31,7 @@ Quem fecha um lote atualiza esse sha para o último commit do lote. Um comando d
 fora:
 
 ```bash
-git log --oneline bfc9c60..HEAD
+git log --oneline bd3e3f0..HEAD
 ```
 
 Commit de código que aparecer aí e não estiver dentro de nenhum `Range` da tabela é lote que entrou
@@ -124,12 +124,14 @@ a tabela de lotes não tem tempo justamente porque o número não sobrevive à c
 | `file-editor` E6 — o router escreve (fecha a Fase 1) | **fronteira** | `1a830d7..d3aaf10` | 1 | 466k | 1 blocker + 5 warnings · **3 costura com a Fase 2** |
 | `file-editor` E8 — o editor no split | **fronteira** | `893d01f..9581aee` | 1 | 825k | **3 blockers + 7 warnings** · 1 premissa do PRD falsificada |
 | `file-editor` E9+E10 — autosave e conflito | **crítico** | `4ba7f24..bfc9c60` | 1 | 693k | 2 blockers + 6 warnings · **6 premissas derrubadas** |
+| `file-editor` E11 — CRUD na árvore | lógica | `b34050e..998b354` | 1 | 728k | 2 blockers + 7 warnings · 3 premissas derrubadas |
+| `file-editor` E12 — **o portão** | **crítico** | `7e526ff..bd3e3f0` | 1 | 554k | 0 blockers no spec · 3 warnings, 2 fora da feature |
 
 Dois contadores, porque respondem a duas perguntas que a skill não consegue responder sozinha —
 *isto aqui é cerimônia?* — e custam um dígito cada:
 
-* **verificação independente do orquestrador:** 7 lotes, **1 refutação**
-* **passe a frio pós-lote:** 1 passe, **11 achados** que o orquestrador com contexto não via
+* **verificação independente do orquestrador:** 9 lotes, **1 refutação**
+* **passe a frio pós-lote:** 2 passes, **22 achados** que o orquestrador com contexto não via
 
 **A verificação independente pagou o lote inteiro, e por um motivo que não estava previsto.** Não
 houve round de review: task de desenho não tem `Done when` verificável por teste, então o
@@ -201,6 +203,32 @@ O round 2 foi de outra natureza: nenhum código errado, **três asserções frac
 O resto é a classe que a regra prevê: documento que ficou mentindo depois que alguém corrigiu o código ao lado. `CLAUDE.md` dizia que a primeira feature estava em implementação, quatro features depois. A própria skill continuava afirmando "nenhum número medido aqui" com o ledger cheio ao lado, e citava um portão de fase de outra feature — **num arquivo que o commit anterior dizia ter corrigido exatamente isso**, e corrigiu só uma das duas ocorrências. E uma pendência estava marcada como *fechada pela E8* com a E8 não implementada: o defeito de contraste segue vivo no app.
 
 **O achado que mais me incomoda é o de cobertura do próprio ledger.** O commit `468dae5` (o teto de concorrência) é código de perfil **fronteira** — `vitest.config.ts` e `package.json` — e não estava em `Range` nenhum. Como ele é **anterior** ao "último commit coberto", o comando de auditoria que este arquivo prescreve nunca o mostraria: a auditoria só olha para frente. A linha foi acrescentada acima, e fica a lição: o sha de cobertura protege contra esquecer o **futuro**, e não contra o que passou por fora enquanto ninguém estava contando.
+
+---
+
+### A feature inteira, fechada — o que 13 tasks em 9 lotes mediram
+
+| | |
+|---|---|
+| tasks | 13, das quais 1 nasceu de um passe a frio (`E3.1`) |
+| lotes | 9, todos com review; 11 rounds no total |
+| custo | ~4,9M |
+| testes | 685 → **961** unit/integration, 13 → **16** e2e |
+| premissas do PRD derrubadas pela implementação | **19** |
+| armadilhas novas em `testing.md` | 6 |
+| achados de produto no portão | **zero** |
+
+**A classe dominante de blocker não foi código errado: foi teste que não prova.** Em quatro lotes seguidos o blocker era uma **fixture escolhida num valor que não exercita o mecanismo** — `0o755` sob umask 022, `.not.toBeNull()` aceitando as duas respostas possíveis, um nome de arquivo comum contra um pathspec do git, e texto ASCII contra um limite que existe por causa de escape JSON. Nos quatro o código estava certo. Nenhum é visível por leitura; todos por mutação.
+
+**O dev derrubou 19 premissas minhas, e as três mais caras eram sobre o próprio app.** Que trocar de aba desmonta o componente (não desmonta), que separar chave de cache fecha a invalidação (a reconexão invalida sem chave nenhuma), e que os gatilhos de perda eram cinco (abrir outro arquivo no mesmo split é o sexto). Nenhuma delas era sobre a feature nova — eram sobre código que eu tinha na frente e não abri.
+
+**As instruções que funcionaram foram as que enunciavam propriedade, não mecanismo.** "Embrulhe o `stat` num `try`" produziu uma correção pior que apagar a syscall. "Faça o temporário nascer `0o600`" não fechou a mutação que eu queria. Já "a escrita atômica não pode virar contorno de permissão" saiu certa de primeira, e "nenhum gesto de navegação apaga texto digitado" sobreviveu a três portas diferentes de invalidação — inclusive uma que nenhuma chave de cache alcança.
+
+**Parar valeu mais que entregar, uma vez.** A `E8` parou antes de escrever código porque a ponte que o PRD nomeava **nunca foi publicada** — premissa minha, escrita no primeiro dia, sobrevivente a duas rodadas de decisão e cinco lotes. O gatilho que a pegou estava pré-declarado na própria pergunta (*"se a ponte não servir, isto volta para a mesa antes de entrar uma segunda gramática"*). Sem essa frase, o desfecho provável era um segundo conjunto de gramáticas entrando em silêncio.
+
+**Os dois passes a frio acharam 22 coisas, e uma delas teria custado um lote.** A `E5` prometia, no `Done when`, uma mudança de guarda que não estava no `Where` dela — e a guarda é seam que duas outras tasks consomem. Virou a `E3.1`, na frente da `E4`. O resto foi documento que continuou afirmando o que deixou de ser verdade quando alguém corrigiu o código ao lado, incluindo a própria skill dizendo que nada tinha sido medido aqui com o ledger cheio ao lado.
+
+**O portão não achou nada de produto.** Depois de daemon e navegador de verdade, com quatro tasks de UI construídas sobre sete de servidor, nenhuma quebrou no contato com a realidade. O que quebrou, quebrou nos reviews — e cada quebra custou uma correção de documento em vez de uma refatoração.
 
 ---
 
