@@ -77,6 +77,30 @@ Estados que o protótipo tem que mostrar, porque são eles que o desenho pode er
 5. criar, renomear e apagar na árvore, incluindo o diálogo de confirmação;
 6. arquivo dentro de `.git`, aberto e **não** editável, com o motivo.
 
+#### Os tokens que o desenho pediu
+
+Dez tokens novos, todos pelo gerador (`packages/web/scripts/generate-tokens.py`), nenhum escrito à
+mão. A suíte de contraste foi de **46 para 59 pares**, todos AA ou melhor.
+
+| Grupo | Tokens | Para quê |
+|---|---|---|
+| `editor/*` | `cursor`, `selection`, `active-line`, `line-number`, `line-number-active`, `readonly` | O tema do CodeMirror é montado em TypeScript (D1), então estes nomes precisam existir em `tokens.ts` e não só em CSS — é o que impede a E8 de escrever uma cor literal |
+| `save/*` | `saving`, `saved`, `failed`, `stale` | Os quatro estados do rodapé. Um lugar para mudar cada um, e o `stale` é o mesmo do conflito: conflito **é** o `stale` mostrado por extenso |
+
+#### O que a renderização achou
+
+Cada um destes saiu de olhar o PNG, não de ler o código:
+
+| Achado | Correção |
+|---|---|
+| **A medianiz do visualizador dá 2,96:1** sobre o poço — abaixo até do mínimo de objeto gráfico. Vinha de `text-disabled`, escolhido quando número de linha era enfeite; num editor ele é para onde o erro do teste aponta | Token próprio, `editor/line-number` (6,49:1, AA), com o par entrando na suíte. A E8 leva o valor para o gutter do CodeMirror |
+| **O estado do salvamento trocava de lado**: `salvando…` e `salvo há Ns` no canto direito, `falhou` e `mudou no disco` no esquerdo — porque só a falha precisava da largura para o motivo do daemon. Quatro estados, dois pontos de fixação | O estado é sempre o **primeiro** item do rodapé, à esquerda. Tamanho, linhas e linguagem vão depois do vão; na falha eles somem e o motivo herda a largura |
+| **`🔒` e `🗑` são emoji**: voltam com a cor da fonte do sistema e ignoram `color` — os únicos elementos da tela fora dos tokens | Glifos de texto, `⊘` e `✕`, que herdam `currentColor` |
+| **A galeria da árvore renderizava em ~620px**, e nessa largura o nome, o marcador, o `⋯` e o campo de renomear cabem sempre. O teste de densidade passava sem ter acontecido | As caixas da árvore fixadas em `--size-panel-right-min` (260px) e `--size-panel-right` (360px) — as larguras reais da coluna |
+| **O menu de ações tapava a própria linha** que ele descreve, escondendo o `⋯` que o abriu: estava ancorado no contêiner de rolagem, não na linha | Ancorado na linha (`top: 100%`), com largura de conteúdo em vez de fixa — numa coluna de 260px um menu de largura fixa ou sai da tela ou cobre o alvo |
+| **O aviso de conflito repetia os próprios botões** ("as duas saídas perdem alguma coisa — escolha qual") e custava uma linha do código que a escolha vai destruir | Frase cortada. O aviso encolheu e o buffer aparece duas linhas mais |
+| A continuação de uma linha quebrada alinha **à esquerda** do código indentado que ela continua — herdado do visualizador, e visível em linha com quatro níveis de indentação | Aceito por ora: é o mesmo truque de `text-indent` negativo que a E8 precisa aplicar em `.cm-line`, porque o `lineWrapping` do CodeMirror alinha a continuação na coluna 0, que é pior |
+
 ---
 
 ## 4. Escopo

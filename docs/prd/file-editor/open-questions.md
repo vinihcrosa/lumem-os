@@ -2,7 +2,7 @@
 
 Registro de por que cada decisão foi tomada. Pergunta respondida não vira suposição silenciosa: fica aqui, com o motivo.
 
-**Estado:** 11 perguntas · 7 respondidas · 4 abertas
+**Estado:** 11 perguntas · 8 respondidas · 3 abertas
 
 ---
 
@@ -113,6 +113,27 @@ Na tela, isso aparece como um arquivo que abre em modo somente leitura **com o m
 
 ---
 
+### Q8 — Qual é o debounce?
+
+**800 ms**, proposto pela E1 e válido até alguém reclamar — mesma política da
+[Q8 da right-panel](../right-panel/open-questions.md) para os tetos.
+
+O intervalo entre teclas de quem está escrevendo uma linha fica na casa de 100 a 300 ms; uma pausa
+perto de 600 ms já não é digitação, é parar para ler o que se escreveu. Um debounce **abaixo** disso
+corta a frase no meio: cada palavra vira uma gravação, e cada gravação invalida a lista de mudanças,
+que é um `git status` no checkout que o agente está usando. 800 ms fica do outro lado dessa
+fronteira — a frase inteira é uma escrita só — sem chegar a 1 s, onde o "salvo há Ns" começa a
+contar depois de o olho já ter saído da linha.
+
+O que 800 ms **não** precisa resolver: a janela em que o texto só existe na memória. Ela não é o
+debounce, é o debounce **menos** o descarregamento — e a F2.2 fecha os cinco gatilhos de saída de
+tela gravando antes de sumir. Perder o que foi digitado exige a janela inteira sem nenhum desses
+gatilhos, o que na prática é o navegador morrendo.
+
+Fica num só lugar do cliente, nomeado: `AUTOSAVE_DEBOUNCE_MS`.
+
+---
+
 ## Abertas
 
 ### Q5 — Apagar manda para onde?
@@ -130,16 +151,6 @@ Até aqui, quem alcançava a porta do daemon podia ler qualquer arquivo do check
 O daemon escuta em `127.0.0.1`, o que limita mas não fecha: qualquer processo da máquina alcança. A resposta certa é autenticação do daemon (token na conexão, socket unix, ou origem verificada), que é feature própria e independente desta.
 
 Fica registrado aqui porque foi esta feature que tornou a dívida visível — e porque ela não é motivo para não fazer esta, e sim para agendar aquela.
-
----
-
-### Q8 — Qual é o debounce?
-
-O protótipo vai propor um número (a ordem de grandeza é 500 ms a 1 s) e ele vale até alguém reclamar — mesma política da [Q8 da right-panel](../right-panel/open-questions.md) para os tetos.
-
-O que já se sabe: curto demais transforma cada palavra digitada numa gravação que o agente pode ler pela metade — e o `rename` atômico existe justamente para essa metade nunca aparecer. Longo demais aumenta a janela em que o texto só existe na memória.
-
-Fica num só lugar do cliente, nomeado.
 
 ---
 
