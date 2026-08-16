@@ -216,6 +216,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 **Depends on**: E2
 
 **Done when**:
+- [ ] O temporário da escrita atômica nasce `0o600` e sobe para o modo do alvo **antes** do `rename`: a janela em que ele existe nunca é mais permissiva que o resultado. Vem de uma mutação sobrevivente do Lote 3 — o modo final está provado, a janela não, e estreitá-la é mais barato que testá-la
 - [ ] `createFile` e `createDir`: nome ocupado é `DUPLICATE`, não sobrescrita — e a exclusividade é **atômica**, por `open` com `wx`/`O_EXCL`, nunca por checar `exists` antes. **Não reuse `writeAtomically` para criar**: o `rename` dela substitui o destino sem perguntar, e entre a guarda e a gravação cabe o agente criando o mesmo nome
 - [ ] Link cujo destino cai **fora** do checkout é apagável, e o arquivo de fora fica intacto — é o caso que a E3.1 destravou ([Q12](open-questions.md), P14), e sem esta linha ele não é exigido por task nenhuma
 - [ ] Pai que some entre o `realpath` e o `lstat` chega aqui como `exists: false`: `createFile` trata o `ENOENT` da própria criação em vez de assumir que o diretório existe
