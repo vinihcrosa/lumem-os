@@ -362,7 +362,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 #### E11: Criar, renomear e apagar na coluna
 
 **What**: As três operações no lugar onde os arquivos já estão.
-**Where**: `packages/web/src/components/FileTree.tsx`, `CheckoutFiles.tsx`, `right-panel.css`, `hooks/useFileTree.ts` + testes, `packages/server/src/files/FileService.ts` + teste (só a recusa própria do rename-de-caixa, [Q17](open-questions.md))
+**Where**: `packages/web/src/components/FileTree.tsx`, `CheckoutFiles.tsx`, `RightPanel.tsx` (o `＋` da raiz mora na barra da coluna, que é markup dele), `right-panel.css`, `hooks/useFileTree.ts`, `lib/queryKeys.ts`, `lib/pending-writes.ts`, `test/trpc-mock.ts` + testes, `packages/server/src/files/FileService.ts` + teste (só a recusa própria do rename-de-caixa, [Q17](open-questions.md))
 **Depends on**: E6, E1
 
 **Done when**:
@@ -391,7 +391,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 #### E12: e2e
 
 **What**: A frase do PRD, ponta a ponta, contra um repositório de verdade e com um terminal escrevendo do outro lado.
-**Where**: `e2e/file-editor.spec.ts`, `e2e/support/`
+**Where**: `e2e/file-editor.spec.ts`, `e2e/right-panel.spec.ts` (as esperas satisfeitas pelo eco), `e2e/support/`
 **Depends on**: E10, E11
 
 **Done when**:
@@ -399,7 +399,9 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] O conteúdo novo está **no disco**, verificado fora do navegador
 - [ ] Escreve no mesmo arquivo pelo terminal da sessão enquanto o editor está sujo: a tela mostra o conflito, e *sobrescrever* deixa o disco com o texto do editor
 - [ ] **Não clique em *recarregar do disco* sem o disco ter chegado** — o custo daquela saída depende de uma leitura que é assíncrona, e clicar antes flaka
-- [ ] Cria um arquivo pela árvore, renomeia e apaga, com a árvore refletindo cada passo
+- [ ] Cria um arquivo pela árvore, renomeia e apaga, com a árvore refletindo cada passo — o `＋` da raiz está na barra da coluna, então criar não exige expandir pasta antes
+- [ ] **Renomeia pela árvore o arquivo que o editor mostra, com texto digitado e não salvo: o conteúdo novo está no caminho novo, no disco, verificado fora do navegador.** É o **único** lugar onde a propriedade central da E11 pode ser provada — no unit ela é provada contra um mock sem transporte, e o transporte é justamente onde ela quebrava
+- [ ] **Corrigir as esperas do `right-panel.spec.ts` que o eco satisfaz.** O `typeLine` ecoa o comando, então esperar por uma palavra que está no comando digitado é esperar pela tecla, não pelo efeito — registrado em [testing.md](../../project/testing.md). O sentinela não pode aparecer na linha digitada
 - [ ] Gate: `pnpm gate:full`
 
 **Tests**: e2e · **Gate**: full
