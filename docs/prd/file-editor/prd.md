@@ -110,7 +110,9 @@ Cada um destes saiu de olhar o PNG, não de ler o código:
 **F1.1** O conteúdo do arquivo abre num CodeMirror 6, não num `<div>` de linhas (D1). Numeração, cursor, seleção, undo/redo, indentação e busca vêm do motor.
 **F1.2** Realce continua sendo o do Shiki, com o **mesmo** tema montado a partir de `tokens.ts` — a ponte `@shikijs/codemirror` existe para não haver um segundo conjunto de gramáticas nem um segundo tema no bundle (D1.1).
 **F1.3** Quebra de linha continua ligada por padrão, com o botão `⇄` (D3.1 da right-panel). No CodeMirror isso é `EditorView.lineWrapping`.
-**F1.4** Arquivo binário, grande demais, ou dentro de `.git` abre **somente leitura**, com o motivo dito. Somente leitura passa a ser um estado nomeado, não a ausência de um.
+**F1.4** Arquivo binário, grande demais, dentro de `.git`, ou **que não decodifica limpo em UTF-8** abre somente leitura, com o motivo dito. São **quatro** recusas com a mesma gramática, e somente leitura passa a ser um estado nomeado, não a ausência de um.
+
+A quarta ([Q9](open-questions.md)) existe por causa do autosave: um Latin-1 sem byte NUL passa pela detecção de binário, é lido com caractere de substituição, e gravar destruiria o conteúdo original **sem ninguém clicar em nada**. O teste é de ida e volta — decodificar e recodificar tem que devolver os bytes originais — e ele mora no servidor, que é quem tem os bytes.
 **F1.5** O patch (`PatchViewer`) continua somente leitura e **não** vira editor. Editar um diff é outra feature, com outro modelo mental.
 **F1.6** Fim de linha e ausência de quebra final são preservados: arquivo CRLF volta CRLF, arquivo sem `\n` final não ganha um (D4).
 
@@ -148,7 +150,7 @@ Isto pede dois dados que a v1 da right-panel não precisava: se um caminho é ra
 
 ### F5 — Servidor
 
-**F5.1** `files.read` passa a devolver `revision` junto do conteúdo. Mudança aditiva; o cliente atual continua compilando.
+**F5.1** `files.read` passa a devolver `revision` junto do conteúdo, e se aquele conteúdo é **gravável** — a ida e volta em UTF-8 da F1.4. Mudança aditiva; o cliente atual continua compilando.
 **F5.2** `files.write({ scopeType, scopeId, path, text, baseRevision })` → `{ ok: true, revision }` ou `{ ok: false, reason: "stale", revision, changedAt }`.
 
 O `changedAt` é o `mtime` do disco, e existe por causa de uma frase que o protótipo escreveu: *"o agente escreveu este arquivo há 8 s"*. Sem ele, essa frase é invenção do cliente.

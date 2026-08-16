@@ -2,7 +2,7 @@
 
 Registro de por que cada decisão foi tomada. Pergunta respondida não vira suposição silenciosa: fica aqui, com o motivo.
 
-**Estado:** 11 perguntas · 8 respondidas · 3 abertas
+**Estado:** 11 perguntas · 9 respondidas · 2 abertas
 
 ---
 
@@ -134,6 +134,20 @@ Fica num só lugar do cliente, nomeado: `AUTOSAVE_DEBOUNCE_MS`.
 
 ---
 
+### Q9 — E arquivo que não é UTF-8?
+
+**Recusa editar: abre somente leitura, com o motivo dito.** Respondida pelo Vinicius.
+
+Latin-1 sem byte NUL passa pela detecção de binário, é lido como UTF-8 com caracteres de substituição, e o autosave grava os substitutos por cima do conteúdo original. Perda silenciosa, e o autosave a torna pior: ela acontece sem ninguém clicar em nada.
+
+As outras duas saídas eram detectar a codificação e converter nos dois sentidos, ou ignorar. Converter traz detecção de codificação para dentro do daemon — heurística que erra, num processo que grava por cima do trabalho do agente. Ignorar aceita a perda silenciosa, que é o único desfecho inaceitável dos três.
+
+O teste é de ida e volta, e é barato: **se decodificar em UTF-8 e recodificar não devolve os bytes originais, o arquivo não é editável.** Sem tabela de codificação, sem palpite sobre qual é a certa — só a pergunta que importa, que é se gravar destruiria alguma coisa.
+
+Na tela isso é a **quarta recusa**, com a mesma gramática das três que já existem: binário, grande demais, dentro de `.git`, e agora "não é UTF-8". O arquivo continua **legível** — o que se perde é a permissão de gravar, e quem precisa mesmo editar tem um terminal na aba do lado.
+
+---
+
 ## Abertas
 
 ### Q5 — Apagar manda para onde?
@@ -153,12 +167,6 @@ O daemon escuta em `127.0.0.1`, o que limita mas não fecha: qualquer processo d
 Fica registrado aqui porque foi esta feature que tornou a dívida visível — e porque ela não é motivo para não fazer esta, e sim para agendar aquela.
 
 ---
-
-### Q9 — E arquivo que não é UTF-8?
-
-Latin-1 sem byte NUL passa pela detecção de binário, é lido como UTF-8 com caracteres de substituição, e salvar grava os substitutos por cima do conteúdo original — perda silenciosa.
-
-Três saídas: detectar a codificação e converter nos dois sentidos, recusar edição do que não decodifica limpo em UTF-8, ou ignorar (é raro num repositório de código). Não decidido. A v1 provavelmente recusa, porque perda silenciosa é o único desfecho inaceitável dos três.
 
 ---
 

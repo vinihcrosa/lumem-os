@@ -38,7 +38,7 @@ Numeradas, e nenhuma delas vive só numa mensagem ou num comentário de código.
 | **P1** | Apagar manda para a lixeira ou apaga direto? A v1 apaga, e a confirmação diz quando o alvo **não** está no git | aberta ([Q5](open-questions.md)) — não bloqueia; a E11 implementa a v1 |
 | **P2** | O daemon não tem autenticação, e escrita muda a categoria da superfície | aberta ([Q7](open-questions.md)) — feature própria, **não** bloqueia esta |
 | **P3** | O número do debounce | **fechada pela E1**: 800 ms, com o argumento em [Q8](open-questions.md). O nome do lugar único é `AUTOSAVE_DEBOUNCE_MS` |
-| **P4** | Arquivo que não é UTF-8: converter, recusar, ou ignorar | aberta ([Q9](open-questions.md)) — **decidir antes da E8**, senão salvar grava caractere de substituição por cima do conteúdo |
+| **P4** | Arquivo que não é UTF-8: converter, recusar, ou ignorar | **fechada pelo Vinicius**: recusa editar, abre somente leitura, e o veredito é ida-e-volta em UTF-8 no servidor ([Q9](open-questions.md)). Vira a **quarta** recusa da E8 e um `Done when` da E3 |
 | **P5** | O histórico de undo não sobrevive à troca de worktree | aberta ([Q11](open-questions.md)) — a v1 zera, como a right-panel |
 | **P6** | `file-viewer.test.tsx` assertava sobre `<div className="l">`, que a E8 remove. É reescrita de teste, não perda de cobertura — e o revisor tem que ver a cobertura equivalente, não só o verde | prevista, na E8 |
 | **P7** | O número do bundle do CodeMirror | a E8 mede e escreve no [PRD](prd.md) §7, como a R8 da right-panel fez |
@@ -151,6 +151,8 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] Mesmo conteúdo, duas leituras: mesma revisão. Um byte diferente: revisão diferente
 - [ ] Escrever e devolver o arquivo ao conteúdo anterior devolve a **revisão anterior** — é isso que separa hash de `mtime`
 - [ ] `binary` e `too-large` seguem sem revisão: não há buffer para guardar
+- [ ] A forma `text` também diz se aquele conteúdo é **gravável**: decodificar em UTF-8 e recodificar tem que devolver **os bytes originais**. Se não devolve, o arquivo é legível e não é editável ([Q9](open-questions.md), F1.4) — sem tabela de codificação e sem palpite sobre qual é a certa, só a pergunta de se gravar destruiria alguma coisa
+- [ ] Teste com bytes Latin-1 de verdade (um `é` em `0xE9`, que não é UTF-8 válido e não tem byte NUL): passa pela detecção de binário, é lido, e vem marcado como não gravável
 - [ ] Mudança aditiva — nenhum consumidor atual precisa mudar de linha
 - [ ] Gate: `pnpm gate:quick`
 
@@ -173,6 +175,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] Modo do arquivo original preservado (um script executável continua executável depois de editado)
 - [ ] Escrita através de symlink interno grava no **alvo**; o link continua link
 - [ ] Texto acima de `MAX_FILE_BYTES` é recusado, senão o teto de leitura seria contornável escrevendo
+- [ ] Arquivo cujo conteúdo **no disco** não sobrevive à ida e volta em UTF-8 recusa a escrita, mesmo que o cliente peça ([Q9](open-questions.md)). O cliente já não deixa editar; isto é a segunda tranca, do lado que tem os bytes
 - [ ] Temporário é removido quando a gravação falha no meio — nada de `.tmp` órfão na árvore do usuário
 - [ ] Gate: `pnpm gate:quick`
 - [ ] Test count: ao menos 6 casos — gravação limpa, revisão velha recusada, modo preservado, symlink interno, texto grande demais, falha no meio sem deixar lixo
@@ -256,7 +259,7 @@ Buffer limpo adota mudança externa. Buffer sujo nunca é sobrescrito por refetc
 - [ ] Realce pela ponte `@shikijs/codemirror`, com o `lumemShikiTheme` e as gramáticas que já existem (D1). Extensão desconhecida continua abrindo como texto puro
 - [ ] Tema do editor (cursor, seleção, linha ativa, gutter) sai de `tokens.ts` — nenhuma cor literal no arquivo
 - [ ] Quebra de linha ligada por padrão, `⇄` desliga, e a numeração continua certa nos dois modos
-- [ ] `binary`, `too-large` e caminho dentro de `.git` abrem **somente leitura**, cada um com seu motivo no rodapé (F1.4)
+- [ ] As **quatro** recusas abrem em somente leitura, cada uma com seu motivo no rodapé (F1.4): `binary`, `too-large`, dentro de `.git`, e conteúdo que a ida e volta em UTF-8 não devolve igual ([Q9](open-questions.md)). Nas quatro o arquivo continua **legível**; o que falta é a permissão de gravar
 - [ ] O `PatchViewer` não muda: continua somente leitura, com o mesmo realce (F1.5)
 - [ ] **Tamanho do bundle medido e escrito no PRD** — antes e depois, com o número real, como a R8 da right-panel fez
 - [ ] Gate: `pnpm gate:build` (é a task que traz dependência nova)
