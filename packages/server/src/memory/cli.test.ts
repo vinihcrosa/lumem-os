@@ -121,6 +121,33 @@ describe("lumem-memory", () => {
     expect(app.err).toContain("user_quebrada.md");
   });
 
+  it("recusa segredo pela linha de comando, e a decisão fica registrada", async () => {
+    const app = cli();
+
+    expect(
+      await app.run("write", "--name", "Chave", "--type", "user", "--body", "AKIAIOSFODNN7EXAMPLE"),
+    ).toBe(1);
+    expect(app.err).toContain("credencial");
+
+    expect(await app.run("decisions")).toBe(0);
+    expect(app.out).toContain("rejected");
+    expect(app.out).toContain("aws_access_key");
+    // O motivo não pode repetir o que foi escaneado.
+    expect(app.out).not.toContain("AKIAIOSFODNN7EXAMPLE");
+  });
+
+  it("revert desfaz a última mudança pela linha de comando", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Regra", "--type", "user", "--body", "primeira");
+    await app.run("write", "--name", "Regra", "--type", "user", "--body", "segunda");
+
+    expect(await app.run("revert", "--path", "memory/user_regra.md")).toBe(0);
+    expect(app.out).toContain("revertida: memory/user_regra.md");
+
+    expect(await app.run("read", "--name", "Regra", "--type", "user")).toBe(0);
+    expect(app.out).toContain("primeira");
+  });
+
   it("comando desconhecido mostra o uso", async () => {
     const app = cli();
 

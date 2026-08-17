@@ -25,7 +25,10 @@ const USAGE = `uso: lumem-memory <comando>
           [--scope <global|workspace|project>] [--workspace <id>] [--project <id>]
           [--actor <human|agent|distiller|auto_research|import>]
   read    --name <n> --type <t> [--scope ...] [--workspace <id>] [--project <id>]
+  forget  --name <n> --type <t> [--scope ...] [--workspace <id>] [--project <id>]
   list
+  revert  --path <caminho relativo ao ~/.lumem>
+  decisions [--path <caminho>] [--limit <n>]
   reindex
 
 tipos: ${MEMORY_TYPES.join(", ")}
@@ -127,6 +130,46 @@ export async function runMemoryCli(
         }
         for (const row of rows) {
           out(`${row.scope.padEnd(9)} ${row.type.padEnd(9)} ${row.name}\n`);
+        }
+        return 0;
+      }
+
+      case "forget": {
+        const result = await memory.forget(
+          asType(required(flags, "type")),
+          required(flags, "name"),
+          flags.scope as MemoryScope | undefined,
+          {
+            ...(flags.workspace ? { workspaceId: flags.workspace } : {}),
+            ...(flags.project ? { projectId: flags.project } : {}),
+          },
+        );
+        out(`esquecida: ${result.path}\ncommit: ${result.commit ?? "(nenhum)"}\n`);
+        return 0;
+      }
+
+      case "revert": {
+        const result = await memory.revert(required(flags, "path"));
+        out(
+          `${result.outcome === "deleted" ? "apagada" : "revertida"}: ${result.path}\n` +
+            `commit: ${result.commit ?? "(nenhum)"}\n`,
+        );
+        return 0;
+      }
+
+      case "decisions": {
+        const rows = memory.decisions({
+          ...(flags.path ? { path: flags.path } : {}),
+          ...(flags.limit ? { limit: Number.parseInt(flags.limit, 10) } : {}),
+        });
+        if (rows.length === 0) {
+          out("nenhuma decisão registrada\n");
+          return 0;
+        }
+        for (const row of rows) {
+          const trace = row.ruleTrace.length > 0 ? ` [${row.ruleTrace.join(", ")}]` : "";
+          const motivo = row.reason === null ? "" : ` — ${row.reason}`;
+          out(`${row.outcome.padEnd(8)} ${row.operation.padEnd(6)} ${row.path}${trace}${motivo}\n`);
         }
         return 0;
       }
