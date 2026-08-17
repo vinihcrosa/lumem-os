@@ -36,6 +36,13 @@
       "when": 1787004762192,
       "tag": "0004_common_domino",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1787005552863,
+      "tag": "0005_curvy_invaders",
+      "breakpoints": true
     }
   ]
 }

@@ -104,6 +104,54 @@ export const memoryRouter = router({
       });
     }),
 
+  /** A inbox: o que os agentes querem ensinar ao workspace. */
+  proposals: publicProcedure
+    .input(
+      z
+        .object({
+          status: z.enum(["pending", "approved", "rejected"]).optional(),
+          workspaceId: z.string().optional(),
+          limit: z.number().int().min(1).max(200).optional(),
+        })
+        .optional(),
+    )
+    .query(({ ctx, input }) => {
+      const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+      return memory.proposals({
+        ...(input?.status ? { status: input.status } : {}),
+        ...(input?.workspaceId ? { workspaceId: input.workspaceId } : {}),
+        ...(input?.limit ? { limit: input.limit } : {}),
+      });
+    }),
+
+  approveProposal: publicProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        name: z.string().min(1).max(200).optional(),
+        description: z.string().min(1).max(500).optional(),
+        body: z.string().max(100_000).optional(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () => {
+        const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+        const { id, ...edits } = input;
+        return memory.approveProposal(id, edits);
+      }),
+    ),
+
+  rejectProposal: publicProcedure
+    .input(z.object({ id: z.string().min(1), note: z.string().max(500).optional() }))
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () =>
+        new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir }).rejectProposal(
+          input.id,
+          input.note,
+        ),
+      ),
+    ),
+
   /** Os números do §6 do context-delivery. */
   usage: publicProcedure.query(({ ctx }) => {
     const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });

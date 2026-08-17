@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import type { FastifyBaseLogger } from "fastify";
 
 import type { Db } from "../db/index.js";
-import type { MemoryDecisionRow, MemoryEntryRow } from "../db/schema.js";
+import type { MemoryDecisionRow, MemoryEntryRow, MemoryProposalRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import { writeAtomically } from "../files/FileService.js";
 import { execGit, type GitExec } from "../git/exec.js";
@@ -48,6 +48,14 @@ import {
   type RecallResult,
   type UsageSummary,
 } from "./recall.js";
+import {
+  createProposal,
+  findProposal,
+  listProposals,
+  requiresProposal,
+  resolveProposal,
+  type ProposalQuery,
+} from "./proposals.js";
 import { resolveVisible, type ResolvedView, type ScopeFilter } from "./shadow.js";
 import { commitChange } from "./repo.js";
 
@@ -81,6 +89,13 @@ export interface WriteMemoryInput {
   sourceSessions?: readonly string[];
   /** Worktree é origem, nunca escopo (Q5). */
   worktreeId?: string;
+  /**
+   * `false` desliga o desvio para a inbox.
+   *
+   * Existe para um caso só: aprovar uma proposta é gravar, e gravar o que você
+   * acabou de aprovar não pode virar proposta outra vez.
+   */
+  proposal?: boolean;
 }
 
 export interface WriteMemoryResult {
@@ -90,7 +105,7 @@ export interface WriteMemoryResult {
   commit: string | null;
   created: boolean;
   /** O que o portão decidiu. `noop` não toca o disco. */
-  outcome: GateDecision["outcome"];
+  outcome: GateDecision["outcome"] | "proposed";
   /** Por que não foi aplicada, quando não foi. */
   reason: string | null;
 }
@@ -161,6 +176,37 @@ export class MemoryService {
 
     const candidate = serializeEntry(entry);
     const operation = previous === null ? "add" : "update";
+
+    // Q27: ator não-humano escrevendo no escopo de workspace vira **proposta**,
+    // não memória. O desvio acontece aqui, antes do portão gravar decisão, porque
+    // uma proposta não é uma escrita que falhou — é uma escrita que ainda não foi
+    // pedida.
+    if (input.proposal !== false && requiresProposal(input.actor, scope, input.type)) {
+      const proposal = createProposal(this.db, {
+        path,
+        type: input.type,
+        scope,
+        slug,
+        workspaceId: target.workspaceId ?? null,
+        projectId: target.projectId ?? null,
+        name: input.name,
+        description: input.description,
+        body: input.body,
+        actor: input.actor,
+        fromProjectId: input.projectId ?? null,
+        sessionId: input.sourceSessions?.[0] ?? null,
+        confidence: entry.provenance.confidence,
+        evidence: input.evidence ?? null,
+      });
+      return {
+        path,
+        scope,
+        commit: null,
+        created: false,
+        outcome: "proposed",
+        reason: `aguardando revisão (proposta ${proposal.id})`,
+      };
+    }
 
     // O portão decide antes de qualquer coisa tocar o disco (§7 do PRD).
     const decision = decide({
@@ -339,6 +385,46 @@ export class MemoryService {
   /** As decisões — inclusive as que **não** viraram arquivo. */
   decisions(query: DecisionQuery = {}): MemoryDecisionRow[] {
     return listDecisions(this.db, query);
+  }
+
+  /** A inbox: o que os agentes querem ensinar ao workspace. */
+  proposals(query: ProposalQuery = {}): MemoryProposalRow[] {
+    return listProposals(this.db, query);
+  }
+
+  /**
+   * Aprova uma proposta — com edição, se você quiser.
+   *
+   * A escrita resultante é **sua**: o ator vira `human`, porque quem revisou e
+   * mandou gravar foi você. A origem continua registrada na proposta, que fica
+   * como `approved` em vez de sumir.
+   */
+  async approveProposal(
+    id: string,
+    edits: { name?: string; description?: string; body?: string } = {},
+  ): Promise<WriteMemoryResult> {
+    const proposal = findProposal(this.db, id);
+    const result = await this.write({
+      name: edits.name ?? proposal.name,
+      description: edits.description ?? proposal.description,
+      body: edits.body ?? proposal.body,
+      type: proposal.type as MemoryType,
+      scope: proposal.scope as MemoryScope,
+      ...(proposal.workspaceId ? { workspaceId: proposal.workspaceId } : {}),
+      ...(proposal.projectId ? { projectId: proposal.projectId } : {}),
+      actor: "human",
+      confidence: proposal.confidence as "low" | "medium" | "high",
+      ...(proposal.evidence ? { evidence: proposal.evidence } : {}),
+      // Já é a revisão: não pode virar proposta de novo.
+      proposal: false,
+    });
+    resolveProposal(this.db, id, "approved");
+    return result;
+  }
+
+  /** Rejeita. A proposta fica visível — recusar é histórico, não apagamento. */
+  rejectProposal(id: string, note?: string): MemoryProposalRow {
+    return resolveProposal(this.db, id, "rejected", note);
   }
 
   /**

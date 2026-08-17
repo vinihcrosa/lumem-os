@@ -1,0 +1,23 @@
+CREATE TABLE `memory_proposal` (
+	`id` text PRIMARY KEY NOT NULL,
+	`path` text NOT NULL,
+	`type` text NOT NULL,
+	`scope` text NOT NULL,
+	`slug` text NOT NULL,
+	`workspace_id` text,
+	`project_id` text,
+	`name` text NOT NULL,
+	`description` text NOT NULL,
+	`body` text DEFAULT '' NOT NULL,
+	`actor` text NOT NULL,
+	`from_project_id` text,
+	`session_id` text,
+	`confidence` text NOT NULL,
+	`evidence` text,
+	`status` text DEFAULT 'pending' NOT NULL,
+	`resolved_at` integer,
+	`resolution_note` text,
+	`created_at` integer DEFAULT (unixepoch('subsec') * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch('subsec') * 1000) NOT NULL,
+	CONSTRAINT "memory_proposal_status" CHECK("memory_proposal"."status" IN ('pending', 'approved', 'rejected'))
+);
