@@ -26,11 +26,12 @@ Opções pra reagir: (a) perder contexto entre projetos; (b) gerenciar N agentes
 
 **R:** Isso é muito dificil de responder, são muitos problemas, muitas coisas que eu quero implementar que não tem nas outras plataformas, o Lumem precisa ter praticamente tudo que o superset tem, o que eu diria que seria o primeiro ponto de ruptura é a parte dos workspaces, dessa forma
 
-### [ ] Q002 — Lumem-OS é um harness ou um orquestrador em cima de harnesses?
+### [x] Q002 — Lumem-OS é um harness ou um orquestrador em cima de harnesses?
 Ou seja: ele **é** o loop de agente (você implementa o loop de tool-calling, contexto, etc), ou ele **dirige** o Claude Code / Codex / outros CLIs que já existem, tratando cada um como um processo caixa-preta?
 Isso muda tudo: modelo de dados, streaming, controle de contexto, custo de manutenção.
 
-**R:**
+**R (2026-08-17):** **orquestrador — dirige agentes existentes, por ACP.** Respondida junto com a
+Q029/Q030/Q031; o registro está em [pty-vs-acp.md](pty-vs-acp.md).
 
 ### [ ] Q003 — Só você usa, ou outras pessoas usam um dia?
 Projeto pessoal ≠ single-user. Se um dia tiver 2 usuários no mesmo servidor, isso muda auth, isolamento e modelo de dados desde o início. Vale pagar esse preço agora, depois, ou nunca?
@@ -208,23 +209,31 @@ Se você responder só oito, responda estas — cada uma trava um bloco inteiro 
 
 ### G.1 Arquitetura fundacional
 
-#### [ ] Q029 — Você implementa o loop de agente ou dirige agentes existentes? `[cz][ss][cd] [×3]`
+#### [x] Q029 — Você implementa o loop de agente ou dirige agentes existentes? `[cz][ss][cd] [×3]`
 As três referências escolheram **dirigir**, nenhuma implementa o loop. Ganham: zero manutenção de tool-calling, N providers de graça, billing resolvido pelo provider. Perdem: controle fino de contexto e streaming, e degradação invisível quando o CLI fala o protocolo mal.
 É a decisão mais cara de reverter. *(responde Q002)*
 
-**R:**
+**R (2026-08-17):** **dirigir** — como as três referências. O Lumem não implementa loop de agente.
+Registro em [pty-vs-acp.md](pty-vs-acp.md).
 
-#### [ ] Q030 — Se dirige: por qual transporte? `[cz][ss][cd]`
+#### [x] Q030 — Se dirige: por qual transporte? `[cz][ss][cd]`
 Cada referência escolheu um: **PTY declarativo** (superset — `command`/`args`/`prompt_transport`/`resume_args`, 14 agentes, zero código por agente), **ACP** (compozy — protocolo estruturado, 26 providers), **SDK** (conductor — controle total da UI, mas amarrado a um vendor).
 PTY é o denominador comum universal; ACP/SDK dão estrutura. Suportar mais de um dobra superfície.
 
-**R:**
+**R (2026-08-17):** **ACP**, com PTY mantido como caminho de primeira classe — `transport` é coluna
+de `agent_config`, não bandeira. Sessão de shell continua sendo PTY de qualquer jeito, e ele é a
+saída se o billing do caminho ACP mudar. O estudo inteiro, com o custo medido e os riscos que a
+pesquisa achou depois, está em [pty-vs-acp.md](pty-vs-acp.md) §9.
 
-#### [ ] Q031 — Suportar modo estruturado **e** TUI puro na mesma casca? `[cd]`
+#### [x] Q031 — Suportar modo estruturado **e** TUI puro na mesma casca? `[cd]`
 O Conductor usa SDK e ficou exposto quando a Anthropic passou a cobrar SDK como API (usuários citando *"$1k/month"*). A saída deles foi um TUI embutido — que mata a UI que era o valor do produto.
 Se a casca de gerenciamento (worktree, diff, checks, PR, task) funcionar por cima de qualquer um dos dois, você resolve o risco de billing e a queixa *"perdi o feel do Claude Code"* de uma vez. Vale desenhar assim desde o início?
 
-**R:**
+**R (2026-08-17):** **sim** — e essa pergunta ficou profética. A Q030 fechou em ACP, e o mesmo risco
+que derrubou o Conductor apareceu na pesquisa: pelo caminho ACP a autenticação por assinatura pode
+não valer, e a Anthropic já anunciou (e cancelou) uma separação de pools de billing para uso via
+Agent SDK. Por isso a decisão manteve `transport` como **coluna**: a casca funciona por cima dos
+dois, e voltar uma sessão para PTY é config, não refactor. Ver [pty-vs-acp.md §9.2](pty-vs-acp.md).
 
 #### [ ] Q032 — Qual a fronteira entre "estado no banco" e "estado em arquivo no repo"? `[cz]`
 O Compozy põe no repo: `workspace.toml`, `AGENT.md`, `SKILL.md`, `loop.yaml`, memória. No banco: tasks, runs, eventos, sinais. Regra implícita: *o que o humano edita fica em arquivo*.
@@ -327,6 +336,12 @@ Conductor bloqueia por comentários em aberto. Você quer: comentários resolvid
 ---
 
 ### G.3 Memória e self-learning
+
+> **Estas perguntas ganharam feature.** O desenho está em
+> [prd/workspace-memory/prd.md](../prd/workspace-memory/prd.md) e as perguntas refinadas, com proposta
+> pra reagir em cada uma, em [open-questions.md](../prd/workspace-memory/open-questions.md). As
+> Q050–Q066 continuam valendo como registro; quando uma delas for respondida lá, anote nos dois
+> arquivos. A quarta referência ([hermes.md](../references/hermes.md)) nasceu dessa discussão.
 
 > **Contexto:** nenhuma das três referências resolve isso. O Superset não tem nada. O Conductor tem todos os ingredientes (transcripts pesquisáveis em Postgres, prompts versionados por repo) e **não conecta nenhum** — a queixa literal de usuário é *"o agente não tem memória do trabalho anterior, das suas convenções, das decisões passadas"*. Só o Compozy atacou o problema de frente, e é de lá que vem quase toda a mecânica abaixo.
 
