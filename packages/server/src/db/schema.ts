@@ -216,6 +216,36 @@ export const memoryDecision = sqliteTable(
   ],
 );
 
+/**
+ * O registro de acesso cross-projeto (D8).
+ *
+ * Guarda **os dois** casos: o que foi permitido responde "o que foi lido"; o que
+ * foi negado responde "o que alguém tentou ler" — e é essa a pergunta que
+ * importa quando algo dá errado.
+ */
+export const memoryAccess = sqliteTable(
+  "memory_access",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id"),
+    /** Quem pediu — o projeto da sessão. */
+    fromProjectId: text("from_project_id"),
+    /** O que ele quis alcançar. */
+    targetProjectId: text("target_project_id"),
+    kind: text("kind").notNull(),
+    /** O alvo pedido: identidade de memória, ou caminho de arquivo. */
+    target: text("target").notNull(),
+    decision: text("decision").notNull(),
+    reason: text("reason"),
+    actor: text("actor").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    check("memory_access_kind", sql`${table.kind} IN ('memory', 'repository')`),
+    check("memory_access_decision", sql`${table.decision} IN ('allowed', 'denied')`),
+  ],
+);
+
 export const schema = {
   workspace,
   project,
@@ -224,6 +254,7 @@ export const schema = {
   session,
   memoryEntry,
   memoryDecision,
+  memoryAccess,
 };
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
@@ -233,3 +264,4 @@ export type AgentConfigRow = typeof agentConfig.$inferSelect;
 export type SessionRow = typeof session.$inferSelect;
 export type MemoryEntryRow = typeof memoryEntry.$inferSelect;
 export type MemoryDecisionRow = typeof memoryDecision.$inferSelect;
+export type MemoryAccessRow = typeof memoryAccess.$inferSelect;
