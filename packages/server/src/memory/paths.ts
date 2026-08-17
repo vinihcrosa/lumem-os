@@ -75,6 +75,12 @@ export function entryPathFor(
   return join(memoryDirFor(stateDir, target), entryFilename(type, slug));
 }
 
+/** `memory/user_estilo.md` + `user` → `estilo`. O inverso de `entryFilename`. */
+export function slugOf(path: string, type: MemoryType): string {
+  const file = path.slice(path.lastIndexOf("/") + 1);
+  return file.replace(new RegExp(`^${type}_`), "").replace(/\.md$/, "");
+}
+
 /**
  * O caminho relativo ao `~/.lumem`, com barra — que é como o git fala.
  *

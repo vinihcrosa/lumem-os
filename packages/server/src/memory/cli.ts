@@ -43,6 +43,8 @@ const USAGE = `uso: lumem-memory <comando>
   list    [--workspace <id>] [--project <id>] [--all]
           sem --workspace, o escopo ativo é só o global; --all mostra o catálogo cru
   revert  --path <caminho relativo ao ~/.lumem>
+  search  --query "<pergunta>" [--workspace <id>] [--project <id>] [--limit <n>]
+  usage
   decisions [--path <caminho>] [--limit <n>]
   reindex
 
@@ -234,6 +236,43 @@ export async function runMemoryCli(
           `${result.outcome === "deleted" ? "apagada" : "revertida"}: ${result.path}\n` +
             `commit: ${result.commit ?? "(nenhum)"}\n`,
         );
+        return 0;
+      }
+
+      case "search": {
+        const result = memory.search(required(flags, "query"), {
+          ...(flags.workspace ? { workspaceId: flags.workspace } : {}),
+          ...(flags.project ? { projectId: flags.project } : {}),
+          ...(flags.limit ? { limit: Number.parseInt(flags.limit, 10) } : {}),
+        });
+        if (result.skipped === "trivial_query") {
+          // Dizer que **não buscou** é diferente de dizer que não achou.
+          err("busca não realizada: menos de dois termos significativos\n");
+          return 1;
+        }
+        if (result.hits.length === 0) {
+          out("nada encontrado\n");
+          return 0;
+        }
+        for (const hit of result.hits) {
+          out(`${hit.entry.scope.padEnd(9)} ${hit.entry.type.padEnd(9)} ${hit.entry.name}\n`);
+          out(`  ${hit.why.join(" · ")}\n`);
+        }
+        return 0;
+      }
+
+      case "usage": {
+        const rows = memory.usageSummary();
+        if (rows.length === 0) {
+          out("nenhum uso registrado ainda\n");
+          return 0;
+        }
+        for (const row of rows) {
+          out(
+            `${row.kind.padEnd(8)} eventos=${String(row.events).padEnd(5)} ` +
+              `total=${String(row.totalAmount).padEnd(6)} média=${row.averageDurationMs}ms\n`,
+          );
+        }
         return 0;
       }
 

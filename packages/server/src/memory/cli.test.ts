@@ -288,6 +288,36 @@ describe("lumem-memory", () => {
     expect(app.err).toContain("não é caminho de memória");
   });
 
+  it("busca e explica por que cada resultado apareceu", async () => {
+    const app = cli();
+    await app.run(
+      "write", "--name", "Contrato de checkout", "--type", "contract", "--workspace", "ws1",
+      "--description", "api expõe POST /v2/checkout e o web consome",
+      "--body", "O corpo carrega itens e cupom.",
+    );
+
+    expect(await app.run("search", "--query", "checkout consome", "--workspace", "ws1")).toBe(0);
+    expect(app.out).toContain("Contrato de checkout");
+    expect(app.out).toContain("lexical=");
+  });
+
+  it("busca trivial diz que **não buscou**, e não que não achou", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Gate", "--type", "user", "--body", "x");
+
+    expect(await app.run("search", "--query", "gate")).toBe(1);
+    expect(app.err).toContain("não realizada");
+  });
+
+  it("usage mostra os números por tipo", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Gate rápido", "--type", "user", "--body", "pnpm gate quick");
+    await app.run("search", "--query", "gate rapido");
+
+    expect(await app.run("usage")).toBe(0);
+    expect(app.out).toContain("recall");
+  });
+
   it("comando desconhecido mostra o uso", async () => {
     const app = cli();
 

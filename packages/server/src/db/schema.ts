@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /**
  * The daemon's state, as PRD §6 describes it.
@@ -329,6 +329,46 @@ export const memoryAccess = sqliteTable(
   ],
 );
 
+/**
+ * O sinal de uso (Q25) — o insumo objetivo de toda poda e consolidação futura.
+ *
+ * O Compozy promove só o que o recall já validou: *memória nunca recuperada
+ * nunca é promovida*. Sem estes contadores, consolidar vira o LLM chutando o
+ * que é importante — e é a diferença entre um sistema que aprende o que usa e
+ * um que acumula o que gerou.
+ */
+export const memorySignal = sqliteTable("memory_signal", {
+  /** O caminho é a chave: ele já é único no catálogo, e sobrevive ao reindex. */
+  path: text("path").primaryKey(),
+  recallCount: integer("recall_count").notNull().default(0),
+  lastRecalledAt: integer("last_recalled_at", { mode: "timestamp_ms" }),
+  /** O melhor score que esta memória já teve numa busca. */
+  bestScore: real("best_score").notNull().default(0),
+  ...timestamps,
+});
+
+/**
+ * A instrumentação do §6 do context-delivery.
+ *
+ * O número que mais importa é "quantas vezes o agente perguntou": perto de zero
+ * significa que a camada 3 é decoração, e que o desenho precisa mudar. Medir é
+ * o que separa decidir com dado de decidir com fé.
+ */
+export const memoryUsage = sqliteTable("memory_usage", {
+  id: text("id").primaryKey(),
+  /** `recall`, `read`, `write`, `inject` — o que foi feito. */
+  kind: text("kind").notNull(),
+  /** A sessão que originou, quando houver. */
+  sessionId: text("session_id"),
+  workspaceId: text("workspace_id"),
+  projectId: text("project_id"),
+  /** Quantos resultados a busca devolveu, ou quantos caracteres foram injetados. */
+  amount: integer("amount").notNull().default(0),
+  /** Quanto tempo custou, em milissegundos. */
+  durationMs: integer("duration_ms").notNull().default(0),
+  ...timestamps,
+});
+
 export const schema = {
   workspace,
   project,
@@ -339,6 +379,8 @@ export const schema = {
   memoryDecision,
   actionSignal,
   memoryAccess,
+  memorySignal,
+  memoryUsage,
 };
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
@@ -350,3 +392,5 @@ export type MemoryEntryRow = typeof memoryEntry.$inferSelect;
 export type MemoryDecisionRow = typeof memoryDecision.$inferSelect;
 export type ActionSignalRow = typeof actionSignal.$inferSelect;
 export type MemoryAccessRow = typeof memoryAccess.$inferSelect;
+export type MemorySignalRow = typeof memorySignal.$inferSelect;
+export type MemoryUsageRow = typeof memoryUsage.$inferSelect;
