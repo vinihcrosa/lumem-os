@@ -4,6 +4,7 @@ import type { Db } from "../db/index.js";
 import type { EventBus } from "../events.js";
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
+import { isKilledEarly, recordSignal } from "../memory/signals.js";
 import type { PtyManager } from "../pty/PtyManager.js";
 import {
   createSessionRepository,

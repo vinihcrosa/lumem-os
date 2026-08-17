@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import type { WorktreeRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
+import { recordSignal } from "../memory/signals.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createWorktreeRepository } from "../repositories/worktree.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
