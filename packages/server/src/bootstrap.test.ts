@@ -1,5 +1,7 @@
 import { EventEmitter } from "node:events";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +16,7 @@ import { createWorktreeRepository } from "./repositories/worktree.js";
 import { SHUTDOWN_SIGNALS } from "./signals.js";
 
 const started: FastifyInstance[] = [];
+const stateDirs: string[] = [];
 const managers: PtyManager[] = [];
 const databases: TestDb[] = [];
 
@@ -27,8 +30,13 @@ async function boot(
 ) {
   const signalSource = new EventEmitter();
   const exit = vi.fn();
+  // Never the real ~/.lumem either: boot now creates directories and a git
+  // repository there, and a test suite that touches the developer's own state
+  // is a test suite that eventually destroys it.
+  const stateDir = join(mkdtempSync(join(tmpdir(), "lumem-boot-")), ".lumem");
+  stateDirs.push(stateDir);
   // Port 0 lets the OS pick a free one — no fixed port to collide with.
-  const config = loadConfig({ LUMEM_PORT: overrides.port ?? "0" });
+  const config = loadConfig({ LUMEM_PORT: overrides.port ?? "0", LUMEM_STATE_DIR: stateDir });
   // Never the real ~/.lumem/lumem.db: a test suite must not write to the
   // developer's own state.
   const database = overrides.database ?? openTestDb();
@@ -45,13 +53,14 @@ async function boot(
   });
   started.push(app);
 
-  return { app, signalSource, exit, config };
+  return { app, signalSource, exit, config, stateDir };
 }
 
 afterEach(async () => {
   await Promise.all(started.splice(0).map((app) => app.close()));
   await Promise.all(managers.splice(0).map((manager) => manager.killAll()));
   for (const database of databases.splice(0)) database.cleanup();
+  for (const dir of stateDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
 describe("bootstrap", () => {
@@ -60,6 +69,17 @@ describe("bootstrap", () => {
 
     expect(app.server.listening).toBe(true);
     expect(app.server.address()).toMatchObject({ address: "127.0.0.1" });
+  });
+
+  it("prepares the memory home before serving", async () => {
+    const { stateDir } = await boot();
+
+    // A memória do workspace precisa existir antes do primeiro cliente: é onde
+    // o banco vive, e é o `.gitignore` daqui que impede o banco de virar
+    // histórico.
+    expect(existsSync(join(stateDir, "memory"))).toBe(true);
+    expect(existsSync(join(stateDir, ".git"))).toBe(true);
+    expect(existsSync(join(stateDir, ".gitignore"))).toBe(true);
   });
 
   it("serves the trpc router once listening", async () => {
