@@ -39,6 +39,7 @@ import {
   type MemoryType,
 } from "./entry.js";
 import { entryPathFor, memoryDirFor, repoRelative, type ScopeTarget } from "./paths.js";
+import { resolveVisible, type ResolvedView, type ScopeFilter } from "./shadow.js";
 import { commitChange } from "./repo.js";
 
 /**
@@ -288,9 +289,20 @@ export class MemoryService {
     return parseEntry(text, repoRelative(this.stateDir, path));
   }
 
-  /** O que existe, do catálogo — que é a projeção, e por isso é barato. */
+  /** Tudo que existe, sem resolver escopo. É a lista crua do catálogo. */
   list(): MemoryEntryRow[] {
     return listEntries(this.db);
+  }
+
+  /**
+   * O que o escopo ativo **enxerga**, com o que ficou sombreado ao lado.
+   *
+   * Duas listas e não uma: esconder sem dizer o que foi escondido é como o
+   * shadow vira mistério. A segunda lista é o que a UI da PR 05 mostra quando
+   * você pergunta "por que esta memória não está valendo?".
+   */
+  visible(filter: ScopeFilter = {}): ResolvedView {
+    return resolveVisible(listEntries(this.db), filter);
   }
 
   /** Apaga. Só quando pedido diretamente (Q29) — nada aqui apaga sozinho. */
