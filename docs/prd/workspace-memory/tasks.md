@@ -2,7 +2,8 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) · **Entrega de contexto:** [context-delivery.md](context-delivery.md)
 **Roadmap:** [roadmap.md](roadmap.md) — este arquivo é a execução da pilha descrita lá
-**Status:** **PR 01 pronta para execução.** As demais entram quando a anterior abrir PR
+**Status:** **PR 01 entregue** — 7 de 7, portão verde (`gate:full`: 1.034 unit/integration + 16 e2e).
+As demais entram quando a anterior abrir PR
 
 ---
 
@@ -14,7 +15,7 @@ escrita contra premissa que a implementação ainda vai derrubar.
 
 | PR | Branch | Base | Estado |
 |---|---|---|---|
-| **01** | `wm/01-armazenamento` | guarda-chuva | **tasks abaixo** |
+| **01** | `wm/01-armazenamento` | guarda-chuva | **entregue** — tasks e o que a execução achou, abaixo |
 | 02 | `wm/02-portao` | 01 | escopo definido, sem tasks |
 | 03 | `wm/03-superficies` | 02 | idem |
 | 04 | `wm/04-recall` | 03 | idem |
@@ -64,6 +65,24 @@ Markdown legível em `~/.lumem`, o `git log` mostra o commit correspondente, e `
 índice a partir do disco sem perder nada.
 
 **Gate:** `full` antes de abrir PR; `quick` durante.
+
+### O que a execução achou
+
+Cinco coisas que o PRD não previa, e que valem mais registradas do que corrigidas em silêncio.
+
+| # | O quê | Onde ficou |
+|---|---|---|
+| **E1** | **`worktrees/` tinha que entrar no `.gitignore`.** Desde o walking-skeleton as worktrees gerenciadas vivem em `~/.lumem/worktrees` — checkouts git inteiros. Sem essa linha, o primeiro `git add` aninharia repositório dentro de repositório | `home.ts`, com teste |
+| **E2** | **`rev-parse --git-dir` sobe a hierarquia.** Com o state dir dentro de outro repositório (o e2e usa `.lumem-e2e/`), o daemon achava que já havia repo, não inicializava, e o `git add` morria com *"paths are ignored"* — **o daemon não subia**. A pergunta certa é `--show-toplevel` comparado ao próprio state dir, por realpath. **Foi o e2e que achou** | `home.ts`, com teste |
+| **E3** | **`bootstrap.test.ts` usava o `~/.lumem` de verdade.** Inofensivo enquanto o boot só abria um banco injetado; com o boot criando diretório e `git init`, a suíte passaria a escrever no estado do desenvolvedor | state dir temporário por boot |
+| **E4** | **Identidade do commit por `-c`, nunca gravada.** CI não tem `user.name` e o commit falharia; e num repositório **adotado** o Lumem não tem por que mexer na config de quem estava lá. O teste roda com `GIT_CONFIG_GLOBAL=/dev/null` para provar | `home.ts`, `repo.ts` |
+| **E5** | **Reindexar tem que ser determinístico.** As datas da linha do catálogo eram o instante da indexação, então reindexar produzia linhas equivalentes, não iguais. Espelhar `created_at`/`updated_at` da proveniência resolve — e faz "ordenar por mais recente" significar a memória mais recente, não a reindexação | `catalog.ts` |
+
+Mais uma de vocabulário: usei `INVALID_INPUT` e o repositório já tinha `INVALID_ARGUMENT`. Corrigido —
+taxonomia com sinônimo é taxonomia que apodrece.
+
+E uma dependência nova: **`yaml`** no `@lumem/server`. O frontmatter é editado à mão pelo usuário
+(é a premissa A2), e um parser caseiro quebraria na primeira aspa fora do lugar.
 
 ---
 
