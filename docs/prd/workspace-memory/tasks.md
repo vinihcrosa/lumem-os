@@ -2,8 +2,8 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) · **Entrega de contexto:** [context-delivery.md](context-delivery.md)
 **Roadmap:** [roadmap.md](roadmap.md) — este arquivo é a execução da pilha descrita lá
-**Status:** **PR 01 entregue** — 7 de 7, portão verde (`gate:full`: 1.034 unit/integration + 16 e2e).
-As demais entram quando a anterior abrir PR
+**Status:** **pilha completa** — 01 a 05, mais S1 e S2. Portão verde no topo: `gate:full` com
+**1.123 unit/integration + 16 e2e**
 
 ---
 
@@ -15,13 +15,24 @@ escrita contra premissa que a implementação ainda vai derrubar.
 
 | PR | Branch | Base | Estado |
 |---|---|---|---|
-| **01** | `wm/01-armazenamento` | guarda-chuva | **entregue** — tasks e o que a execução achou, abaixo |
-| 02 | `wm/02-portao` | 01 | escopo definido, sem tasks |
-| 03 | `wm/03-superficies` | 02 | idem |
-| 04 | `wm/04-recall` | 03 | idem |
-| 05 | `wm/05-inbox-ui` | 04 | idem |
-| S1 | `wm/s1-sinais-de-acao` | 01 | idem |
-| S2 | `wm/s2-prototipo` | guarda-chuva | idem |
+| **01** | `wm/01-armazenamento` | guarda-chuva | **entregue** — 7 tasks, e o que a execução achou abaixo |
+| **02** | `wm/02-portao` | 01 | **entregue** — scan, WAL magro, `revert` |
+| **03** | `wm/03-superficies` | 02 | **entregue** — shadow, funil de acesso, router tRPC |
+| **04** | `wm/04-recall` | 03 | **entregue** — FTS5 explicável, sinal de uso, instrumentação |
+| **05** | `wm/05-inbox-ui` | 04 | **entregue** — propostas e a memória na tela |
+| **S1** | `wm/s1-sinais-de-acao` | 01 | **entregue** — os quatro sinais de ação |
+| **S2** | `wm/s2-prototipo` | 04 | **entregue** — protótipo verificado por renderização |
+
+### O que cada PR deixou pronto
+
+| PR | Módulos | Testes |
+|---|---|---|
+| 01 | `home.ts`, `entry.ts`, `paths.ts`, `repo.ts`, `project-identity.ts`, `catalog.ts`, `MemoryService`, `cli.ts` | 72 |
+| 02 | `scan.ts`, `gate.ts` | +36 |
+| 03 | `shadow.ts`, `access.ts`, `routers/memory.ts` | +22 |
+| 04 | `recall.ts` (FTS5, sinal, instrumentação) | +16 |
+| 05 | `proposals.ts`, `MemoryPanel.tsx`, `useMemory.ts`, `useScopeIds.ts` | +18 |
+| S1 | `signals.ts` | +9 |
 
 ---
 
