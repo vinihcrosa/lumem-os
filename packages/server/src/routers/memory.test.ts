@@ -101,6 +101,36 @@ describe("memory router", () => {
     );
   });
 
+  it("search pela API respeita escopo e devolve a explicação", async () => {
+    const { caller } = await api();
+    await caller.memory.write({
+      name: "Contrato de checkout",
+      description: "api expõe POST /v2/checkout e o web consome",
+      type: "contract",
+      workspaceId: "ws1",
+      body: "itens e cupom",
+    });
+
+    const result = await caller.memory.search({ query: "checkout consome", workspaceId: "ws1" });
+
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0]?.why.join(" ")).toContain("score=");
+
+    // Outro workspace não enxerga: escopo antes de relevância.
+    const outro = await caller.memory.search({ query: "checkout consome", workspaceId: "ws2" });
+    expect(outro.hits).toHaveLength(0);
+  });
+
+  it("usage responde os números do §6", async () => {
+    const { caller } = await api();
+    await caller.memory.write(base);
+    await caller.memory.search({ query: "estilo revisao" });
+
+    const summary = await caller.memory.usage();
+
+    expect(summary.find((row) => row.kind === "recall")?.events).toBe(1);
+  });
+
   it("reindex reconstrói o catálogo", async () => {
     const { caller } = await api();
     await caller.memory.write(base);

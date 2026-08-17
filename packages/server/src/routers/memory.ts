@@ -92,6 +92,24 @@ export const memoryRouter = router({
     }),
   ),
 
+  /** Busca lexical, explicável — e que respeita escopo e shadow. */
+  search: publicProcedure
+    .input(scopeIds.extend({ query: z.string().min(1).max(500), limit: z.number().int().min(1).max(50).optional() }))
+    .query(({ ctx, input }) => {
+      const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+      return memory.search(input.query, {
+        workspaceId: input.workspaceId ?? null,
+        projectId: input.projectId ?? null,
+        ...(input.limit ? { limit: input.limit } : {}),
+      });
+    }),
+
+  /** Os números do §6 do context-delivery. */
+  usage: publicProcedure.query(({ ctx }) => {
+    const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+    return memory.usageSummary();
+  }),
+
   /** As decisões — inclusive as que não viraram arquivo. */
   decisions: publicProcedure
     .input(z.object({ path: z.string().optional(), limit: z.number().int().min(1).max(500).optional() }).optional())
