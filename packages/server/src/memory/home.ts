@@ -19,6 +19,10 @@ import { execGit, type GitExec } from "../git/exec.js";
 /** Criados no boot. Vazios até alguém escrever — git não versiona diretório vazio, e tudo bem. */
 export const MEMORY_HOME_DIRS = ["memory", "workspaces", "context", "_system"] as const;
 
+/** As duas linhas que delimitam o pedaço do daemon. Fora delas, o arquivo é do usuário. */
+export const GITIGNORE_BEGIN = "# >>> lumem — gerado pelo daemon, não edite dentro deste bloco >>>";
+export const GITIGNORE_END = "# <<< lumem <<<";
+
 /**
  * O que fica de fora do histórico.
  *
@@ -26,7 +30,7 @@ export const MEMORY_HOME_DIRS = ["memory", "workspaces", "context", "_system"] a
  * walking-skeleton é onde vivem as worktrees gerenciadas, que são checkouts git
  * inteiros. Versioná-las seria aninhar repositório dentro de repositório.
  */
-export const MEMORY_HOME_GITIGNORE = `# Gerado pelo Lumem. Editar aqui é editar o que o daemon reescreve.
+export const MEMORY_HOME_GITIGNORE_BLOCK = `${GITIGNORE_BEGIN}
 #
 # A regra: versiona-se a fonte da verdade (Markdown), ignora-se o derivado.
 # O banco é reconstruível por reindex; o contexto é montado por sessão; o
@@ -39,7 +43,81 @@ _system/
 
 # Checkouts git gerenciados — repositório dentro de repositório não.
 worktrees/
-`;
+${GITIGNORE_END}`;
+
+/**
+ * O `.gitignore` do daemon **dentro** do arquivo que já existe.
+ *
+ * Bloco delimitado, e não arquivo inteiro, por causa da P3: adotar um
+ * repositório é adotar o que estava lá. Reescrever o `.gitignore` do usuário no
+ * boot — e commitar por cima — é a intrusão que a adoção existe para não fazer.
+ * O daemon é dono do que está entre os marcadores, e de nada mais.
+ *
+ * Duas propriedades que a implementação sustenta, e das quais a segunda foi
+ * comprada com um bug: **nenhuma linha do usuário desaparece**, e a função é
+ * **idempotente** — aplicá-la sobre a própria saída devolve a mesma saída,
+ * inclusive quando a entrada tinha marcador sem par. Ela repõe o bloco em vez
+ * de recusar porque um `.gitignore` sem `lumem.db` manda o banco para o
+ * histórico: remédio pior que a doença.
+ */
+export function gitignoreWith(current: string | null): string {
+  if (current === null || current.trim() === "") return `${MEMORY_HOME_GITIGNORE_BLOCK}\n`;
+
+  const { kept, insertAt } = withoutDaemonBlock(current.split("\n"));
+
+  // Nunca houve bloco: ele vai para o fim, separado por uma linha em branco.
+  if (insertAt === -1) {
+    return `${trimmed(kept)}\n\n${MEMORY_HOME_GITIGNORE_BLOCK}\n`;
+  }
+
+  // No lugar em que o bloco estava, e não no fim: em `.gitignore` a ordem tem
+  // semântica — uma negação `!algo` vale contra o que vem antes dela.
+  const block = MEMORY_HOME_GITIGNORE_BLOCK.split("\n");
+  return `${trimmed([...kept.slice(0, insertAt), ...block, ...kept.slice(insertAt)])}\n`;
+}
+
+/**
+ * O arquivo sem nada que seja do daemon, e onde o bloco dele começava.
+ *
+ * O ramo que importa é o do **marcador órfão**, e ele custou caro: antes, uma
+ * abertura sem fechamento fazia o daemon anexar um bloco novo e **deixar o
+ * órfão no topo**. No boot seguinte o `begin` achava o órfão, o `end` achava o
+ * fechamento do bloco anexado, e o `slice` apagava tudo que estava entre os
+ * dois — regra do usuário incluída, com a remoção commitada por cima.
+ *
+ * Por isso órfão some como **linha**, e nunca como intervalo: o daemon não sabe
+ * onde o bloco dele terminava, e o que vem depois pode ser do usuário. Sobra no
+ * máximo conteúdo repetido, que é barato; adivinhar custava o arquivo.
+ */
+function withoutDaemonBlock(lines: readonly string[]): { kept: string[]; insertAt: number } {
+  const kept: string[] = [];
+  let insertAt = -1;
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index] ?? "";
+    const isMarker = line === GITIGNORE_BEGIN || line === GITIGNORE_END;
+    if (!isMarker) {
+      kept.push(line);
+      index += 1;
+      continue;
+    }
+
+    // O primeiro marcador — de qualquer um dos dois tipos — marca o lugar do
+    // bloco reposto.
+    if (insertAt === -1) insertAt = kept.length;
+
+    const end = line === GITIGNORE_BEGIN ? lines.indexOf(GITIGNORE_END, index + 1) : -1;
+    // Bloco completo sai inteiro; marcador sem par sai sozinho.
+    index = end === -1 ? index + 1 : end + 1;
+  }
+
+  return { kept, insertAt };
+}
+
+function trimmed(lines: readonly string[]): string {
+  return lines.join("\n").replace(/\n+$/, "");
+}
 
 /**
  * Identidade dos commits do daemon, passada por `-c` em vez de gravada no
@@ -133,9 +211,10 @@ async function isRepositoryRoot(stateDir: string, exec: GitExec): Promise<boolea
 async function writeGitignoreIfDifferent(stateDir: string): Promise<boolean> {
   const path = join(stateDir, ".gitignore");
   const current = await readFile(path, "utf8").catch(() => null);
-  if (current === MEMORY_HOME_GITIGNORE) return false;
+  const desired = gitignoreWith(current);
+  if (current === desired) return false;
 
-  await writeFile(path, MEMORY_HOME_GITIGNORE, "utf8");
+  await writeFile(path, desired, "utf8");
   return true;
 }
 
@@ -149,8 +228,11 @@ async function commitGitignore(stateDir: string, exec: GitExec): Promise<boolean
   const { stdout } = await exec(["status", "--porcelain", "--", ".gitignore"], { cwd: stateDir });
   if (stdout.trim() === "") return false;
 
-  await exec([...COMMIT_IDENTITY, "commit", "-m", "chore(lumem): .gitignore do daemon"], {
-    cwd: stateDir,
-  });
+  // `-- .gitignore` pelo mesmo motivo do `add`: num repositório adotado o índice
+  // pode já ter coisa do usuário, e ela não é deste commit.
+  await exec(
+    [...COMMIT_IDENTITY, "commit", "-m", "chore(lumem): .gitignore do daemon", "--", ".gitignore"],
+    { cwd: stateDir },
+  );
   return true;
 }

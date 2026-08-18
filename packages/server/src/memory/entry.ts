@@ -122,12 +122,30 @@ export function slugify(name: string): string {
   return slug;
 }
 
-/** O texto exato que vai para o disco. */
+/**
+ * O texto exato que vai para o disco.
+ *
+ * Valida antes de serializar, e essa é a fronteira de **escrita** que a A9 pede.
+ * Sem isto a taxonomia só valia na leitura: um ator fora da lista, ou uma
+ * descrição vazia, viravam arquivo commitado que o próprio `parseEntry` recusa
+ * depois — memória que o sistema escreve e não consegue ler de volta.
+ */
 export function serializeEntry(entry: MemoryEntry): string {
-  const { body, ...frontmatter } = entry;
+  const { body, ...rest } = entry;
+  const frontmatter = assertValidFrontmatter(rest);
   const yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd();
   const text = body.trimEnd();
   return `${FENCE}\n${yaml}\n${FENCE}\n\n${text === "" ? "" : `${text}\n`}`;
+}
+
+/** O mesmo schema do `parseEntry`, com a mensagem que a escrita precisa dar. */
+function assertValidFrontmatter(candidate: unknown): MemoryFrontmatter {
+  const result = frontmatterSchema.safeParse(candidate);
+  if (result.success) return result.data;
+
+  const issue = result.error.issues[0];
+  const path = issue?.path.join(".") ?? "?";
+  throw new DomainError("INVALID_ARGUMENT", `memória inválida: ${path} — ${issue?.message ?? "inválido"}`);
 }
 
 /**

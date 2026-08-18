@@ -3,7 +3,14 @@ import { openDatabase } from "../db/index.js";
 import { DomainError } from "../errors.js";
 
 import { MemoryService } from "./MemoryService.js";
-import { MEMORY_TYPES, type MemoryActor, type MemoryScope, type MemoryType } from "./entry.js";
+import {
+  MEMORY_ACTORS,
+  MEMORY_SCOPES,
+  MEMORY_TYPES,
+  type MemoryActor,
+  type MemoryScope,
+  type MemoryType,
+} from "./entry.js";
 import { ensureMemoryHome } from "./home.js";
 
 /**
@@ -29,20 +36,40 @@ const USAGE = `uso: lumem-memory <comando>
   reindex
 
 tipos: ${MEMORY_TYPES.join(", ")}
+
+sobre os valores:
+  --flag=valor    a forma para valor com espaço ou começado por traço
+  --flag valor    o token seguinte é sempre o valor, mesmo começando por --,
+                  inclusive depois de flag desconhecida: ela engole o token
 `;
 
 interface Flags {
   [key: string]: string | undefined;
 }
 
+/**
+ * `--flag valor` e `--flag=valor`, e **o token seguinte é sempre o valor**.
+ *
+ * Antes, um valor começado por `--` era lido como flag nova: `--body "--- regra"`
+ * gravava o corpo `"true"` e saía 0. Como nenhuma flag daqui é booleana, tratar
+ * o próximo token como valor não tira nada e devolve o corpo que o usuário
+ * digitou. Quem precisa de valor com espaço ou traço tem o `=` como saída.
+ */
 function parseFlags(argv: readonly string[]): Flags {
   const flags: Flags = {};
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === undefined || !token.startsWith("--")) continue;
+
+    const equals = token.indexOf("=");
+    if (equals !== -1) {
+      flags[token.slice(2, equals)] = token.slice(equals + 1);
+      continue;
+    }
+
     const next = argv[index + 1];
-    flags[token.slice(2)] = next !== undefined && !next.startsWith("--") ? next : "true";
-    if (next !== undefined && !next.startsWith("--")) index += 1;
+    flags[token.slice(2)] = next ?? "true";
+    if (next !== undefined) index += 1;
   }
   return flags;
 }
@@ -53,11 +80,31 @@ function required(flags: Flags, name: string): string {
   return value;
 }
 
-function asType(value: string): MemoryType {
-  if (!(MEMORY_TYPES as readonly string[]).includes(value)) {
-    throw new DomainError("INVALID_ARGUMENT", `tipo inválido: ${value}. Um de: ${MEMORY_TYPES.join(", ")}`);
+/**
+ * A fronteira da A9, também na entrada.
+ *
+ * Valor de flag é texto de fora, e um `as` não valida nada: sem estas três
+ * guardas, `--actor hacker` gravava e **commitava** um arquivo que o próprio
+ * `parseEntry` recusa depois, e `--scope worktree` morria num `TypeError` do
+ * `node:path` em vez de erro de domínio.
+ */
+function oneOf<T extends string>(allowed: readonly T[], label: string, value: string): T {
+  if (!(allowed as readonly string[]).includes(value)) {
+    throw new DomainError("INVALID_ARGUMENT", `${label} inválido: ${value}. Um de: ${allowed.join(", ")}`);
   }
-  return value as MemoryType;
+  return value as T;
+}
+
+function asType(value: string): MemoryType {
+  return oneOf(MEMORY_TYPES, "tipo", value);
+}
+
+function asScope(value: string): MemoryScope {
+  return oneOf(MEMORY_SCOPES, "escopo", value);
+}
+
+function asActor(value: string): MemoryActor {
+  return oneOf(MEMORY_ACTORS, "ator", value);
 }
 
 export interface MemoryCliIo {
@@ -93,8 +140,8 @@ export async function runMemoryCli(
           description: flags.description ?? required(flags, "name"),
           type: asType(required(flags, "type")),
           body: flags.body ?? "",
-          actor: (flags.actor ?? "human") as MemoryActor,
-          ...(flags.scope ? { scope: flags.scope as MemoryScope } : {}),
+          actor: asActor(flags.actor ?? "human"),
+          ...(flags.scope ? { scope: asScope(flags.scope) } : {}),
           ...(flags.workspace ? { workspaceId: flags.workspace } : {}),
           ...(flags.project ? { projectId: flags.project } : {}),
         });
@@ -109,7 +156,7 @@ export async function runMemoryCli(
         const entry = await memory.read(
           asType(required(flags, "type")),
           required(flags, "name"),
-          flags.scope as MemoryScope | undefined,
+          flags.scope === undefined ? undefined : asScope(flags.scope),
           {
             ...(flags.workspace ? { workspaceId: flags.workspace } : {}),
             ...(flags.project ? { projectId: flags.project } : {}),

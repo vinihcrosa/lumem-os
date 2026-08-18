@@ -7,8 +7,12 @@ aqui, com o motivo.
 onde está, agrupada por tema, e ganha uma linha **Decisão:** com o que ficou valendo. Cada pergunta
 traz uma **proposta pra reagir**; discordar dela é mais rápido que escrever do zero.
 
-**Estado:** 38 perguntas · **38 respondidas · 0 abertas.** O que resta são as **D2, D5, D7 e D8**, no
-[context-delivery.md](context-delivery.md).
+**Estado:** 39 perguntas · **38 respondidas · 1 aberta (Q38).** O que resta, além dela, são as
+**D2, D5, D7 e D8**, no [context-delivery.md](context-delivery.md).
+
+**Rodada 5 (2026-08-17):** a revisão da PR 01 abriu a **Q38** — o `Done when` da T6 prometia recusar
+"escopo inválido **para o tipo**", e essa matriz nunca existiu em lugar nenhum do PRD. O desvio está
+registrado na [E15](tasks.md#o-que-a-execução-achou).
 
 **Rodada 4 (2026-08-17):** Q3.1, Q10, Q16, Q30 e Q37 fechadas. E o desenho de entrega de contexto foi
 **redesenhado por você**: índice injetado saiu, entrou *núcleo comportamental + skill + serviço
@@ -326,6 +330,30 @@ ou não vale. E nada aprendido numa worktree descartada vira memória de workspa
 
 **Decisão:** worktree não tem memória. Ela continua sendo **origem** — a proveniência guarda de qual
 worktree veio o que se aprendeu —, mas não é escopo de leitura nem de escrita.
+
+---
+
+### [ ] Q38 — Existe escopo **proibido** para um tipo, ou só escopo default? `[lm]`
+
+Levantada pela revisão da PR 01: o `Done when` da T6 dizia "escopo inválido para o tipo é recusado",
+e o código não recusa nada — `resolveScope` devolve o escopo pedido, qualquer que seja. A [§6 do
+PRD](prd.md#6-taxonomia-proposta) dá **escopo default** por tipo, e ao mesmo tempo diz que `reference`
+é "projeto ou workspace", o que sugere mais de um escopo legítimo. Nunca houve a matriz do que é
+proibido.
+
+Duas leituras, e elas levam a códigos diferentes:
+
+- **default e nada mais** — o tipo sugere onde a memória nasce, e o chamador que explicita ganha. Um
+  `user` em escopo de projeto é estranho, não é erro. É o que está implementado hoje.
+- **matriz fechada** — cada tipo declara os escopos em que pode viver, e o resto é `INVALID_ARGUMENT`.
+  Fecha a porta para o agente inventar escopo, que é a decisão que o §6 diz que ele mais erra.
+
+**Proposta pra reagir:** matriz fechada, com `contract` preso a workspace (ele é um fato **entre**
+projetos) e `reference` valendo em projeto e workspace. O argumento é o mesmo da A9: a taxonomia só
+dá ao sistema o direito de decidir escopo sozinho se o espaço de escopos por tipo for conhecido.
+
+**Custo de esperar:** baixo. Enquanto a escrita não estiver exposta a agente (o portão é a PR 02),
+quem escolhe escopo é você.
 
 ---
 

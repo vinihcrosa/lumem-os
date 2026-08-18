@@ -41,7 +41,17 @@ export function memoryDirFor(stateDir: string, target: ScopeTarget): string {
         requireId(target.projectId, "projectId"),
         "memory",
       );
+    default:
+      // O `switch` fecha, e não é zelo de estilo: `target.scope` chega de fora
+      // — flag de CLI, corpo de requisição —, e sem este ramo um valor fora da
+      // taxonomia sai daqui como `undefined` e morre lá adiante num
+      // `TypeError` do `node:path`, em vez de erro de domínio aqui.
+      return assertNeverScope(target.scope);
   }
+}
+
+function assertNeverScope(scope: never): never {
+  throw new DomainError("INVALID_ARGUMENT", `escopo inválido: ${String(scope)}`);
 }
 
 /** O arquivo de uma memória, absoluto. */

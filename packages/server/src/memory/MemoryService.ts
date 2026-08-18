@@ -10,7 +10,9 @@ import type { GitExec } from "../git/exec.js";
 
 import {
   hashContent,
+  identityFor,
   listEntries,
+  pathClaiming,
   reindex,
   removeEntry,
   upsertEntry,
@@ -99,6 +101,7 @@ export class MemoryService {
     const slug = slugify(input.name);
     const absolute = entryPathFor(this.stateDir, target, input.type, slug);
     const path = repoRelative(this.stateDir, absolute);
+    this.refuseIfClaimedByAnother(scope, target, input.type, path);
 
     const previous = await readFile(absolute, "utf8").catch(() => null);
     const timestamp = this.now().toISOString();
@@ -116,7 +119,7 @@ export class MemoryService {
         ...(input.evidence === undefined ? {} : { evidence: input.evidence }),
         // Substituir preserva a data de nascimento: é ela que diz há quanto
         // tempo o sistema sabe daquilo.
-        created_at: previous === null ? timestamp : parseEntry(previous, path).provenance.created_at,
+        created_at: this.birthOf(previous, path, timestamp),
         updated_at: timestamp,
       },
       body: input.body,
@@ -139,6 +142,54 @@ export class MemoryService {
     });
 
     return { path, scope, commit, created: previous === null };
+  }
+
+  /**
+   * Recusa quando a identidade já é de **outro** arquivo.
+   *
+   * Antes desta guarda quem descobria a colisão era o índice único do banco —
+   * e descobria tarde: o `writeAtomically` já tinha acontecido, o `commitChange`
+   * ainda não, e o `SqliteError` subia cru. Sobrava arquivo novo no disco, sem
+   * commit, com o catálogo apontando para o antigo.
+   *
+   * `write` **recusa em vez de reconciliar**, e é a mesma escolha que o
+   * `reindex` faz: deixar os dois caminhos discordarem sobre quem é dono de uma
+   * identidade é pior do que qualquer conveniência. A pergunta é feita ao
+   * catálogo porque é o índice — e não o disco — que impõe a restrição.
+   */
+  private refuseIfClaimedByAnother(
+    scope: MemoryScope,
+    target: ScopeTarget,
+    type: MemoryType,
+    path: string,
+  ): void {
+    const identity = identityFor(path, { type, scope }, this.locationFor(scope, target));
+    const owner = pathClaiming(this.db, identity);
+    if (owner === undefined || owner === path) return;
+
+    throw new DomainError(
+      "DUPLICATE",
+      `a identidade ${type}/${identity.slug} em ${scope} já é de ${owner}: ` +
+        `apague ou renomeie aquele arquivo, ou reindexe se ele não existe mais`,
+    );
+  }
+
+  /**
+   * A data de nascimento do que já estava no disco — ou a de agora.
+   *
+   * Arquivo corrompido não pode **bloquear a escrita**: recusar aqui deixava a
+   * memória impossível de consertar pela própria ferramenta, e a única saída era
+   * apagar o arquivo por fora. Perder a data de nascimento de um arquivo que já
+   * não se consegue ler é o preço menor, e ele fica registrado no log.
+   */
+  private birthOf(previous: string | null, path: string, fallback: string): string {
+    if (previous === null) return fallback;
+    try {
+      return parseEntry(previous, path).provenance.created_at;
+    } catch (error) {
+      this.log?.warn({ err: error, path }, "memória anterior ilegível; a data de nascimento recomeça agora");
+      return fallback;
+    }
   }
 
   /** Lê uma memória pelo par que a identifica. */

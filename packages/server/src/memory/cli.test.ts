@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
@@ -119,6 +119,58 @@ describe("lumem-memory", () => {
     expect(await app.run("reindex")).toBe(2);
     expect(app.out).toContain("indexadas: 1");
     expect(app.err).toContain("user_quebrada.md");
+  });
+
+  /**
+   * A fronteira de escrita, que é o que a A9 pede e o que faltava: as flags
+   * entravam por `as` e ninguém validava nada. Cada caso abaixo **gravava e
+   * commitava** um arquivo que o próprio `read` recusa depois — memória que o
+   * sistema escreve e não consegue ler de volta.
+   */
+  it("recusa ator fora da lista, sem gravar nem commitar", async () => {
+    const app = cli();
+
+    expect(await app.run("write", "--name", "X", "--type", "user", "--actor", "hacker")).toBe(1);
+    expect(app.err).toContain("ator inválido");
+    expect(existsSync(join(app.stateDir, "memory", "user_x.md"))).toBe(false);
+  });
+
+  it("recusa escopo fora da lista com erro de domínio, e não com TypeError", async () => {
+    const app = cli();
+
+    expect(await app.run("write", "--name", "X", "--type", "user", "--scope", "worktree")).toBe(1);
+    // O sufixo, e não só o prefixo: `memoryDirFor` lança `DomainError` com a
+    // mesma abertura de mensagem, então "escopo inválido" sozinho passa mesmo
+    // sem o `asScope` — a lista de opções é o que só a CLI produz.
+    expect(app.err).toContain("escopo inválido: worktree. Um de: global, workspace, project");
+    expect(app.err).not.toContain("path");
+  });
+
+  it("recusa descrição vazia", async () => {
+    const app = cli();
+
+    expect(await app.run("write", "--name", "X", "--type", "user", "--description", "")).toBe(1);
+    expect(app.err).toContain("description");
+    expect(existsSync(join(app.stateDir, "memory", "user_x.md"))).toBe(false);
+  });
+
+  it("valor começado por traço é valor, e não flag nova", async () => {
+    const app = cli();
+
+    expect(
+      await app.run("write", "--name", "Regra", "--type", "user", "--body", "--- regra importante"),
+    ).toBe(0);
+    expect(await app.run("read", "--name", "Regra", "--type", "user")).toBe(0);
+    // Antes, o corpo virava o literal `"true"` e o comando saía 0 sem avisar.
+    expect(app.out).toContain("--- regra importante");
+  });
+
+  it("aceita a forma --flag=valor", async () => {
+    const app = cli();
+
+    expect(await app.run("write", "--name=Regra", "--type=user", "--body=corpo com = sinal")).toBe(0);
+    expect(await app.run("read", "--name=Regra", "--type=user")).toBe(0);
+    expect(app.out).toContain("corpo com = sinal");
   });
 
   it("comando desconhecido mostra o uso", async () => {

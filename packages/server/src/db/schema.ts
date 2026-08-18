@@ -144,14 +144,23 @@ export const memoryEntry = sqliteTable(
     scope: text("scope").notNull(),
     /** A segunda metade da identidade `(tipo, slug)` da Q12. */
     slug: text("slug").notNull(),
-    workspaceId: text("workspace_id"),
-    projectId: text("project_id"),
+    /**
+     * `''` quando o escopo não tem workspace — nunca NULL.
+     *
+     * O vazio é sentinela deliberada, e a razão está no índice de identidade
+     * abaixo: no SQLite NULL nunca colide com NULL, então uma coluna nula aqui
+     * desligaria a unicidade de `(tipo, slug)` em todo escopo que não seja
+     * `project`. Quem lê estas colunas trata `''` como "não se aplica".
+     */
+    workspaceId: text("workspace_id").notNull().default(""),
+    /** `''` fora do escopo `project` — mesmo motivo de `workspace_id`. */
+    projectId: text("project_id").notNull().default(""),
     name: text("name").notNull(),
     description: text("description").notNull(),
     /** Do frontmatter, para responder "por que esta memória existe" sem abrir o arquivo. */
     sourceActor: text("source_actor").notNull(),
     confidence: text("confidence").notNull(),
-    /** sha256 do arquivo inteiro: o `reindex` pula o que não mudou. */
+    /** sha256 do arquivo inteiro, para comparar conteúdo sem reler o disco. */
     contentHash: text("content_hash").notNull(),
     ...timestamps,
   },
@@ -162,6 +171,10 @@ export const memoryEntry = sqliteTable(
     ),
     check("memory_entry_scope", sql`${table.scope} IN ('global', 'workspace', 'project')`),
     // A identidade da Q12 é única dentro do escopo em que ela vale.
+    //
+    // Só funciona porque `workspace_id` e `project_id` são `''` — e não NULL —
+    // fora do escopo em que valem: no SQLite **NULL não colide com NULL**, e
+    // com colunas nulas esta unicidade valeria apenas no escopo `project`.
     uniqueIndex("memory_entry_identity").on(
       table.scope,
       table.workspaceId,

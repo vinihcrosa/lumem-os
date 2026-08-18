@@ -15,6 +15,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `server/` router tRPC | integration (caller) | Sim |
 | `server/` regra de **transporte** — limite de corpo, GET vs POST, status | integration sobre HTTP (`app.inject`) | Sim — o caller é cego a estas três |
 | `server/` endpoint WebSocket | integration | Sim |
+| `server/` CLI | integration **in-process** — a função (`runMemoryCli`) recebe `env`, `out` e `err` por parâmetro | Sim — nada de `process.env` nem de captura de `process.stdout` |
 | `web/` componente | unit (Vitest + Testing Library) | Sim |
 | `web/` tokens e paleta | unit, **e exige `python3`** — roda o gerador e compara byte a byte com o commitado | Sim |
 | `web/` fluxo de usuário | e2e (Playwright) | **Não** — daemon único, porta única, estado compartilhado |
@@ -156,6 +157,12 @@ A API importa e a troca é silenciosa: `fs/promises.realpath` canoniza a caixa d
 **Testes lendo `process.env`.** `loadConfig()` lia o ambiente direto e os testes mutavam/deletavam variáveis globais. Um desenvolvedor com `LUMEM_HOST` exportado no shell via a suíte vermelha sem ter tocado em nada. Hoje `loadConfig(env)` recebe o mapa por parâmetro e os testes passam literais.
 
 **E2E reusando o daemon do desenvolvedor.** `reuseExistingServer: true` pula o spawn quando já tem algo na porta — e pular o spawn descarta o `env`, incluindo o `LUMEM_STATE_DIR` descartável. O e2e rodava contra o `~/.lumem` real. Hoje o e2e tem portas próprias (`ports.json`) e `reuseExistingServer: false`.
+
+**A suíte unitária passando a escrever no `~/.lumem` de verdade.** Irmã direta da anterior, e descoberta na PR 01 da memória. O `bootstrap.test.ts` sempre chamou o boot sem `LUMEM_STATE_DIR` — inofensivo enquanto o boot só abria um banco que o próprio teste injetava. Quando o boot ganhou `ensureMemoryHome`, aquela mesma linha passou a **criar diretório e rodar `git init` no estado do desenvolvedor**, e a partir daí a suíte commitaria por cima da memória real de quem a rodasse.
+
+O detalhe que a torna instrutiva: **o teste não mudou.** O que mudou foi o que a função sob teste passou a fazer. Um teste que não nomeia o diretório em que escreve fica correto por sorte até o dia em que a produção cresce por baixo dele.
+
+A regra: **todo teste que toca o estado do daemon passa um `stateDir` temporário explícito**, e a mesma exigência vale para o e2e (a armadilha acima) e para o gate. Hoje cada boot do `bootstrap.test.ts` recebe um state dir próprio, e os testes de `src/memory/` criam o seu com `tempDir()`.
 
 **Constante duplicada sem teste.** A porta 4317 vivia em três arquivos e nenhum teste fixava o default; trocá-la deixava todos os gates verdes e o `pnpm dev` quebrado. Hoje `ports.json` é a fonte para os configs e `constants.test.ts` amarra as constantes de `shared` a ele.
 
