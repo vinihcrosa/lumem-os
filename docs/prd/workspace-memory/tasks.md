@@ -2,8 +2,9 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) · **Entrega de contexto:** [context-delivery.md](context-delivery.md)
 **Roadmap:** [roadmap.md](roadmap.md) — este arquivo é a execução da pilha descrita lá
-**Status:** **PR 01** (7 de 7) e **S1** (6 de 6) entregues, **PR 02 em revisão** (5 de 5) — portão
-verde (`gate:full`: 1.184 unit/integration + 16 e2e). As demais entram quando a anterior abrir PR
+**Status:** **PR 01** (7 de 7) e **S1** (6 de 6) entregues, **PR 02** (5 de 5) e **PR 03** em revisão
+— portão verde na PR 03 depois do rebase sobre a 02 (`gate:full`: 1.228 unit/integration + 16 e2e).
+As demais entram quando a anterior abrir PR
 
 ---
 
@@ -17,7 +18,7 @@ escrita contra premissa que a implementação ainda vai derrubar.
 |---|---|---|---|
 | **01** | `wm/01-armazenamento` | guarda-chuva | **entregue** — tasks e o que a execução achou, abaixo |
 | **02** | `wm/02-portao` | 01 | **em PR** — tasks e o que a execução achou, abaixo |
-| 03 | `wm/03-superficies` | 02 | idem |
+| **03** | `wm/03-superficies` | 02 | **em PR** — escopo e o que a execução achou, abaixo |
 | 04 | `wm/04-recall` | 03 | idem |
 | 05 | `wm/05-inbox-ui` | 04 | idem |
 | **S1** | `wm/s1-sinais-de-acao` | 01 | **entregue** — tasks abaixo |
@@ -206,8 +207,8 @@ chamador informar; e escopo fora da taxonomia é recusado com erro de domínio.
 
 ### T7 — A superfície mínima
 
-Um comando para escrever, um para ler, um para listar, um para `reindex`. **Sem MCP ainda** — a
-paridade CLI/MCP é a PR 03.
+Um comando para escrever, um para ler, um para listar, um para `reindex`. **Só a CLI ainda** — a
+paridade entre superfícies é a PR 03 (que entregou CLI + router tRPC; ver E1 lá).
 
 **Done when:** o ciclo inteiro roda pela linha de comando contra um `HOME` de teste, e o `git log`
 conta a história.
@@ -308,14 +309,59 @@ Os três comandos na CLI, sobre o mesmo núcleo — a paridade com MCP continua 
 **Done when:** `decisions --path` mostra só o caminho pedido, e uma rejeição aparece ali com a regra
 que bateu e sem o conteúdo.
 
-## PR 03 — `wm/03-superficies` (escopo, sem tasks)
+## PR 03 — `wm/03-superficies` (entregue)
 
-`lumem-memory` como núcleo com superfícies: CLI e MCP sobre as mesmas funções e o mesmo contrato de
-erro. Shadow por identidade entre escopos. O **funil cross-projeto nasce aqui, desligado**, com
-registro de acesso.
+`lumem-memory` como núcleo com superfícies: CLI e **router tRPC** sobre as mesmas funções, o mesmo
+contrato de erro e o **mesmo schema de entrada**. Shadow por identidade entre escopos. O **funil
+cross-projeto nasce aqui, desligado**, com registro de acesso.
 
 **Done when:** o mesmo pedido responde igual nas duas superfícies; memória de projeto sombreia a de
 workspace e o sombreamento vira evento.
+
+### O que a execução achou
+
+| # | O quê | Onde ficou |
+|---|---|---|
+| **E1** | **A segunda superfície virou router tRPC, e não MCP.** O escopo escrito era "CLI e MCP"; o daemon já fala tRPC para toda a UI, e o cliente que precisa da memória agora é a tela da PR 05 — não um agente externo. O MCP continua no plano como **terceira** superfície, e o teste de paridade que existe agora é o que impede ela de virar uma terceira semântica | `routers/memory.ts`; o MCP volta como escopo da PR 05 ou depois dela |
+| **E2** | **`list` não queria dizer a mesma coisa nas duas superfícies.** O router respondia o resolvido por shadow, a CLI respondia o catálogo cru — o que quebra o próprio `Done when` desta PR. As duas agora respondem o resolvido; a lista crua é `--all`, porque inspecionar o disco é outra pergunta | `cli.ts`, com teste nas duas superfícies |
+| **E3** | **Os limites de escrita moravam só no zod do router.** A CLI passava `--scope`/`--actor` com cast e o núcleo aceitava o que a API recusava. O schema mudou para dentro do `MemoryService`: o router o usa como `input`, e a CLI valida os dois enums pelas mesmas listas antes de montar o pedido — ela precisa do valor **tipado** para chamar `read`/`forget` — e o núcleo revalida tudo de qualquer jeito | `MemoryService.writeMemorySchema`, `cli.asScope`/`asActor` |
+| **E4** | **A Q27 não tinha nada que a aplicasse.** `contract`/`domain`/`process` de agente em escopo de workspace gravavam direto, quando a decisão manda virar proposta. Enquanto a inbox da PR 05 não existe, é **recusa com motivo** — fail-closed, o mesmo princípio da D8 —, e a recusa passa pelo portão, então fica no WAL | `entry.proposalRefusal`, `gate.refusal` |
+| **E5** | **`revert` aceitava qualquer caminho do `~/.lumem`.** O git barra `../`; ele não barra `.gitignore`, e `revert` é `rm` + commit. A contenção é por **forma** de caminho de memória, e não por presença no catálogo — desfazer um `forget` é justamente pedir um caminho que o catálogo já não tem | `paths.assertEntryPath` |
+| **E6** | **A capacidade da D8, ligada, não era funil.** Ela liberava qualquer projeto e qualquer caminho. As outras duas exigências da decisão entraram junto: o alvo tem que ser projeto **do mesmo workspace** (a lista sai do banco, não de uma allowlist paralela) e o caminho passa pelo `resolveInsideRoot` da `file-editor`, reusado | `access.evaluate` |
+| **E7** | **"Livre" (Q26) não é "sem registro".** O funil existia sem nenhum chamador de produção, então a tabela nascia e ficava vazia. Toda leitura do router — `read` e `list` — atravessa o funil e fica registrada | `routers/memory.ts` |
+
+Uma coisa **em aberto**, e é de escopo de sessão: `workspaceId`, `projectId` **e `actor`** vêm do
+**cliente**, porque a sessão ainda não carrega escopo nem identidade — isso é da `acp-sessions`.
+Enquanto vêm, três consequências, ditas em voz alta:
+
+- o filtro do shadow não é fronteira; o que existe é o **registro** de cada leitura, com quem pediu e
+  de onde;
+- o `actor` é o discriminador do fail-closed da Q27 e tem default `human`, então na fronteira a regra
+  é honor-system — ela vale contra agente que se declara, não contra cliente que mente. Os dois
+  clientes de hoje são você;
+- por isso os ids passaram a ter **charset fechado** (`paths.ts`): eles viram segmento de caminho, e
+  caminho vira pathspec de git.
+
+Quando a sessão passar a carregar workspace, projeto e identidade, esses três campos saem do input.
+
+### O que o review do rework achou
+
+O primeiro rework fechou os onze achados do review humano; o `lumem-reviewer` achou mais seis em cima
+dele, dois deles bloqueantes.
+
+| # | O quê | Onde ficou |
+|---|---|---|
+| **E8** | **A guarda de forma do `revert` aceitava glob, e o git da memória não era literal.** Com `[^/]+` no slot do id, `workspaces/<asterisco>/memory/user_a.md` passava — e pathspec com glob casa memória de **outro** workspace: o ramo de deleção respondia `deleted` sem apagar nada e o `git add --all` levava a edição pendente do vizinho. É a armadilha de [testing.md](../../project/testing.md) reaberta num caminho que agora recebe string do cliente. Charset fechado nos ids **e** `--literal-pathspecs` em todo comando git da memória | `paths.ts`, `repo.ts`, `MemoryService.git` |
+| **E9** | **A Q27 estava pinada por uma célula da matriz.** `PROPOSAL_TYPES = ["contract"]` ou `actor !== "agent"` mantinham a suíte verde — e a segunda abriria escrita direta de workspace para `distiller`, `auto_research` e `import`, que são justamente os atores que o §7 do context-delivery cobre com "proposta sempre". Teste table-driven sobre tipo × ator × escopo | `entry.test.ts` |
+| **E10** | **A Q27 valia só por escopo, e a decisão escrita é por tipo.** Um agente contornava pedindo `scope: "project"` explícito para um `contract`. Agora vale a **união dos dois eixos**, e a precisão ficou registrada na própria Q27 | `entry.proposalRefusal`, [Q27](open-questions.md) |
+| **E11** | **O funil descartava o `insideGit` da guarda de caminho.** Ligada a capacidade, `.git/config` do vizinho — que costuma carregar URL de remote com token — era leitura permitida. A `file-editor` deixa `.git` legível porque ali é o seu projeto na sua tela (right-panel Q2); aqui é outro projeto, lido por um agente | `access.evaluate` |
+| **E12** | **A escrita de agente fechou e a deleção ficou aberta.** `forget` passou a aceitar `actor` e o ignorava: o commit saía no `git log` do `~/.lumem` com a sua assinatura. A [Q29](open-questions.md) diz que apagar é sempre ação sua, então quem não é humano é recusado no núcleo | `MemoryService.forget` |
+| **E13** | **O `revert` que apaga não gravava decisão.** O `Done when` da PR 02 é "volta o conteúdo e grava uma decisão nova", e o único `revert` fora do WAL era o que mais muda o acervo (pré-existente da PR 02) | `MemoryService.revert` |
+
+E o registro do funil virou pergunta em vez de suposição: `list` grava uma linha por chamada, a tela da
+PR 05 é um chamador de `list` com refetch, e ninguém decidiu poda nem índice — é a
+[Q44](open-questions.md), aberta. O eixo de operação do funil ("sempre leitura, nunca escrita" como
+tipo, e não como ausência de chamador) foi para o [backlog](../../project/backlog.md).
 
 ## PR 04 — `wm/04-recall` (escopo, sem tasks)
 

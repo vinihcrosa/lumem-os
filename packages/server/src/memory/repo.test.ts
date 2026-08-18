@@ -78,6 +78,35 @@ describe("commitChange", () => {
     expect(await git(stateDir, "diff", "--cached", "--name-only")).toBe("anotacao-do-usuario.md");
   });
 
+  it("caminho com glob não vira pathspec: `--` não desliga wildmatch", async () => {
+    const stateDir = await home();
+    const outro = entryPathFor(stateDir, { scope: "workspace", workspaceId: "ws2" }, "user", "a");
+    mkdirSync(memoryDirFor(stateDir, { scope: "workspace", workspaceId: "ws2" }), {
+      recursive: true,
+    });
+    writeFileSync(outro, "conteúdo do vizinho\n");
+
+    const result = await commitChange({
+      stateDir,
+      paths: ["workspaces/*/memory/user_a.md"],
+      operation: "delete",
+      subject: "user/a",
+      actor: "human",
+    });
+
+    // Sem `--literal-pathspecs`, o glob casaria a memória do `ws2` e o commit
+    // sairia com o trabalho de outra operação dentro — a armadilha registrada em
+    // `docs/project/testing.md`. Com ele o git não acha o caminho literal e diz
+    // isso em voz alta, que é o resultado certo: nenhum commit, e o arquivo do
+    // vizinho intocado.
+    expect(result.commit).toBeNull();
+    expect(result.skipped).toBe("git-failed");
+    // Ainda não rastreado: nada foi staged pelo glob.
+    expect(await git(stateDir, "status", "--porcelain", "-uall")).toContain(
+      "?? workspaces/ws2/memory/user_a.md",
+    );
+  });
+
   it("não arrasta o que não é da operação", async () => {
     const stateDir = await home();
     const path = writeEntry(stateDir, "primeira");

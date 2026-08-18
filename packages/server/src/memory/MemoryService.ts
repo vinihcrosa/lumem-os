@@ -2,6 +2,7 @@ import { mkdir, readFile, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import type { FastifyBaseLogger } from "fastify";
+import { z } from "zod";
 
 import type { Db } from "../db/index.js";
 import type { MemoryDecisionRow, MemoryEntryRow } from "../db/schema.js";
@@ -29,7 +30,11 @@ import {
 } from "./gate.js";
 import {
   entrySignature,
+  MEMORY_ACTORS,
+  MEMORY_SCOPES,
+  MEMORY_TYPES,
   parseEntry,
+  proposalRefusal,
   resolveScope,
   serializeEntry,
   slugify,
@@ -38,7 +43,8 @@ import {
   type MemoryScope,
   type MemoryType,
 } from "./entry.js";
-import { entryPathFor, memoryDirFor, repoRelative, type ScopeTarget } from "./paths.js";
+import { assertEntryPath, entryPathFor, memoryDirFor, repoRelative, type ScopeTarget } from "./paths.js";
+import { resolveVisible, type ResolvedView, type ScopeFilter } from "./shadow.js";
 import { commitChange } from "./repo.js";
 
 /**
@@ -55,23 +61,38 @@ import { commitChange } from "./repo.js";
  * serviços prestados a ele, e um serviço que falha não apaga o dado que serve.
  */
 
-export interface WriteMemoryInput {
-  name: string;
-  description: string;
-  type: MemoryType;
+/**
+ * Os limites de uma escrita, **no núcleo** — e não em cada superfície.
+ *
+ * Estavam só no zod do router, e o resultado era a segunda semântica que esta
+ * PR existe para evitar, só que na entrada: a CLI passava `--scope` com um cast
+ * e o mesmo núcleo aceitava pela linha de comando o que a API recusava. O schema
+ * mora aqui, e as superfícies o **reusam** — o router como `input` (para o
+ * cliente ganhar os tipos) e este método como validação de verdade.
+ */
+export const writeMemorySchema = z.object({
+  name: z.string().min(1).max(200),
+  description: z.string().min(1).max(500),
+  type: z.enum(MEMORY_TYPES),
   /** Quando ausente, é derivado do tipo (§6 do PRD). */
-  scope?: MemoryScope;
-  workspaceId?: string;
-  projectId?: string;
-  body: string;
-  actor: MemoryActor;
-  confidence?: "low" | "medium" | "high";
+  scope: z.enum(MEMORY_SCOPES).optional(),
+  workspaceId: z.string().min(1).optional(),
+  projectId: z.string().min(1).optional(),
+  body: z.string().max(100_000).default(""),
+  actor: z.enum(MEMORY_ACTORS).default("human"),
+  confidence: z.enum(["low", "medium", "high"]).optional(),
   /** O que sustenta a memória. Obrigatório para `auto_research`, quando ele existir (D7). */
-  evidence?: string;
-  sourceSessions?: readonly string[];
+  evidence: z.string().max(4_000).optional(),
+  sourceSessions: z.array(z.string()).optional(),
   /** Worktree é origem, nunca escopo (Q5). */
-  worktreeId?: string;
-}
+  worktreeId: z.string().optional(),
+});
+
+/** O que uma superfície manda; `body` e `actor` têm default no schema. */
+export type WriteMemoryInput = z.input<typeof writeMemorySchema>;
+
+/** O mesmo pedido, já validado — o que o núcleo usa daqui para baixo. */
+type ValidatedWrite = z.output<typeof writeMemorySchema>;
 
 export interface WriteMemoryResult {
   path: string;
@@ -120,7 +141,8 @@ export class MemoryService {
   }
 
   /** Escreve — ou substitui — uma memória, pela identidade `(tipo, slug)`. */
-  async write(input: WriteMemoryInput): Promise<WriteMemoryResult> {
+  async write(requested: WriteMemoryInput): Promise<WriteMemoryResult> {
+    const input = parseWrite(requested);
     const scope = resolveScope(input.type, input.scope);
     const target = this.targetFor(scope, input);
     const slug = slugify(input.name);
@@ -152,6 +174,7 @@ export class MemoryService {
 
     const candidate = serializeEntry(entry);
     const operation = previous === null ? "add" : "update";
+    const refusal = proposalRefusal(input.type, scope, input.actor);
 
     // O portão decide antes de qualquer coisa tocar o disco (§7 do PRD).
     const decision = decide({
@@ -162,6 +185,10 @@ export class MemoryService {
       content: candidate,
       signature: entrySignature(entry),
       previousSignature: this.signatureOf(previous, path),
+      // Q27: escrita de agente para cima é proposta, e enquanto a inbox não
+      // existe é recusa com motivo. Vai pelo portão, e não antes dele, para o
+      // WAL responder "por que isso não foi salvo?" com um registro só.
+      ...(refusal === null ? {} : { refusal }),
     });
     const record = recordDecision(this.db, {
       ...decision,
@@ -288,18 +315,43 @@ export class MemoryService {
     return parseEntry(text, repoRelative(this.stateDir, path));
   }
 
-  /** O que existe, do catálogo — que é a projeção, e por isso é barato. */
+  /** Tudo que existe, sem resolver escopo. É a lista crua do catálogo. */
   list(): MemoryEntryRow[] {
     return listEntries(this.db);
   }
 
-  /** Apaga. Só quando pedido diretamente (Q29) — nada aqui apaga sozinho. */
+  /**
+   * O que o escopo ativo **enxerga**, com o que ficou sombreado ao lado.
+   *
+   * Duas listas e não uma: esconder sem dizer o que foi escondido é como o
+   * shadow vira mistério. A segunda lista é o que a UI da PR 05 mostra quando
+   * você pergunta "por que esta memória não está valendo?".
+   */
+  visible(filter: ScopeFilter = {}): ResolvedView {
+    return resolveVisible(listEntries(this.db), filter);
+  }
+
+  /**
+   * Apaga. Só quando pedido diretamente (Q29) — nada aqui apaga sozinho.
+   *
+   * E só por você: *"apagar é sempre ação sua"*. A escrita de agente virou
+   * proposta nesta PR; deixar a **deleção** aberta seria fechar a porta da frente
+   * e esquecer a dos fundos — pior, porque o commit ia para o `git log` do
+   * `~/.lumem` com a sua assinatura.
+   */
   async forget(
     type: MemoryType,
     name: string,
     scope?: MemoryScope,
-    ids: { workspaceId?: string; projectId?: string } = {},
+    ids: { workspaceId?: string; projectId?: string; actor?: MemoryActor } = {},
   ): Promise<{ path: string; commit: string | null }> {
+    const actor = ids.actor ?? "human";
+    if (actor !== "human") {
+      throw new DomainError(
+        "BLOCKED",
+        `apagar memória é sempre ação sua (Q29) — ${actor} não apaga, propõe`,
+      );
+    }
     const resolved = resolveScope(type, scope);
     const slug = slugify(name);
     const absolute = entryPathFor(this.stateDir, this.targetFor(resolved, ids), type, slug);
@@ -318,7 +370,7 @@ export class MemoryService {
       paths: [path],
       operation: "delete",
       subject: `${type}/${slug}`,
-      actor: "human",
+      actor,
       ...(this.exec ? { exec: this.exec } : {}),
       ...(this.log ? { log: this.log } : {}),
     });
@@ -338,7 +390,10 @@ export class MemoryService {
    * Se a memória só tem um commit, desfazer é apagá-la: era ela que não existia
    * antes.
    */
-  async revert(path: string): Promise<{ path: string; outcome: "reverted" | "deleted"; commit: string | null }> {
+  async revert(requested: string): Promise<{ path: string; outcome: "reverted" | "deleted"; commit: string | null }> {
+    // O caminho vem do cliente e vira `rm` + commit dentro do `~/.lumem`. O git
+    // barra `../`; ele não barra `.gitignore`.
+    const path = assertEntryPath(requested);
     const history = await this.git(["log", "-n", "2", "--format=%H", "--", path]);
     const [current, previousSha] = history.split("\n").filter(Boolean);
     if (current === undefined) {
@@ -349,6 +404,9 @@ export class MemoryService {
 
     if (previousSha === undefined) {
       // Nasceu no commit atual: desfazer é fazê-la deixar de existir.
+      // A decisão vem antes do disco, como em toda deleção: a Q29 promete que
+      // apagar é reversível pelo WAL, e o git sabe *que* o arquivo sumiu, nunca
+      // *quem pediu*.
       const record = await this.recordDeletion(path, "human");
       await rm(absolute, { force: true });
       removeEntry(this.db, path);
@@ -451,9 +509,18 @@ export class MemoryService {
       .catch(() => "");
   }
 
+  /**
+   * Git sobre o `~/.lumem`, sempre **literal**.
+   *
+   * `log -- <path>` e `show <sha>:<path>` recebem caminho vindo do cliente, e
+   * pathspec não é nome: sem isto, um `*` no lugar do id casa a memória de outro
+   * workspace. A forma do caminho já barra o glob (`assertEntryPath`); as duas
+   * guardas existem porque a de forma protege esta chamada e a de interpretação
+   * protege a próxima que alguém escrever.
+   */
   private async git(args: readonly string[]): Promise<string> {
     const exec = this.exec ?? execGit;
-    const { stdout } = await exec(args, { cwd: this.stateDir });
+    const { stdout } = await exec(["--literal-pathspecs", ...args], { cwd: this.stateDir });
     return stdout;
   }
 
@@ -486,7 +553,7 @@ export class MemoryService {
 
   private targetFor(
     scope: MemoryScope,
-    ids: { workspaceId?: string; projectId?: string },
+    ids: { workspaceId?: string | undefined; projectId?: string | undefined },
   ): ScopeTarget {
     return {
       scope,
@@ -502,4 +569,13 @@ export class MemoryService {
       projectId: target.projectId ?? null,
     };
   }
+}
+
+/** Valida na fronteira do núcleo, com o erro de domínio que as duas superfícies traduzem igual. */
+function parseWrite(requested: WriteMemoryInput): ValidatedWrite {
+  const result = writeMemorySchema.safeParse(requested);
+  if (result.success) return result.data;
+  const issue = result.error.issues[0];
+  const field = issue?.path.join(".") ?? "?";
+  throw new DomainError("INVALID_ARGUMENT", `${field} — ${issue?.message ?? "inválido"}`);
 }
