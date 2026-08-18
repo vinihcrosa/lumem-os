@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { MemoryService } from "../memory/MemoryService.js";
+import { MemoryService, writeMemorySchema } from "../memory/MemoryService.js";
+import { requireAccess } from "../memory/access.js";
 import { MEMORY_ACTORS, MEMORY_SCOPES, MEMORY_TYPES } from "../memory/entry.js";
 import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
 
@@ -20,6 +21,16 @@ import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
 const scopeIds = z.object({
   workspaceId: z.string().min(1).optional(),
   projectId: z.string().min(1).optional(),
+  /**
+   * Quem está lendo, e de onde. Não é decoração: é o que o registro de acesso
+   * guarda, e sem isso o funil responde "alguém leu algo".
+   *
+   * Vem do cliente **por enquanto** — a sessão ainda não carrega workspace e
+   * projeto (a `acp-sessions` é que vai). Enquanto vem, cada leitura atravessa o
+   * funil e fica registrada, que é a diferença entre uma fronteira e um filtro.
+   */
+  fromProjectId: z.string().min(1).optional(),
+  actor: z.enum(MEMORY_ACTORS).default("human"),
 });
 
 const identity = scopeIds.extend({
@@ -28,38 +39,50 @@ const identity = scopeIds.extend({
   scope: z.enum(MEMORY_SCOPES).optional(),
 });
 
-const writeSchema = identity.extend({
-  description: z.string().min(1).max(500),
-  body: z.string().max(100_000).default(""),
-  actor: z.enum(MEMORY_ACTORS).default("human"),
-  confidence: z.enum(["low", "medium", "high"]).optional(),
-  evidence: z.string().max(4_000).optional(),
-  sourceSessions: z.array(z.string()).optional(),
-  worktreeId: z.string().optional(),
-});
+/** O pedido que o funil registra: quem, de onde, para onde, e o que foi pedido. */
+function accessRequest(
+  input: z.output<typeof scopeIds>,
+  target: string,
+): Parameters<typeof requireAccess>[1] {
+  return {
+    fromProjectId: input.fromProjectId ?? null,
+    targetProjectId: input.projectId ?? null,
+    workspaceId: input.workspaceId ?? null,
+    kind: "memory",
+    target,
+    actor: input.actor,
+  };
+}
 
 export const memoryRouter = router({
   /** O que o escopo ativo enxerga, e o que ficou sombreado ao lado. */
-  list: publicProcedure.input(scopeIds.optional()).query(({ ctx, input }) => {
-    const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
-    const { visible, shadowed } = memory.visible({
-      workspaceId: input?.workspaceId ?? null,
-      projectId: input?.projectId ?? null,
-    });
-    return {
-      entries: visible,
-      // Duas listas, e não uma: esconder sem dizer o que foi escondido é como o
-      // shadow vira mistério.
-      shadowed: shadowed.map((pair) => ({
-        winner: pair.winner.path,
-        loser: pair.loser.path,
-        identity: `${pair.loser.type}/${pair.loser.slug}`,
-      })),
-    };
-  }),
+  list: publicProcedure.input(scopeIds.optional()).query(({ ctx, input }) =>
+    domainSafeAsync(async () => {
+      const scope = input ?? scopeIds.parse({});
+      // Livre (Q26) **e registrada** (D8): o funil não é o que nega, é o que
+      // responde depois "quem leu o quê, de onde".
+      await requireAccess(ctx.db, accessRequest(scope, "*"));
+      const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+      const { visible, shadowed } = memory.visible({
+        workspaceId: scope.workspaceId ?? null,
+        projectId: scope.projectId ?? null,
+      });
+      return {
+        entries: visible,
+        // Duas listas, e não uma: esconder sem dizer o que foi escondido é como
+        // o shadow vira mistério.
+        shadowed: shadowed.map((pair) => ({
+          winner: pair.winner.path,
+          loser: pair.loser.path,
+          identity: `${pair.loser.type}/${pair.loser.slug}`,
+        })),
+      };
+    }),
+  ),
 
   read: publicProcedure.input(identity).query(({ ctx, input }) =>
     domainSafeAsync(async () => {
+      await requireAccess(ctx.db, accessRequest(input, `${input.type}/${input.name}`));
       const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
       return memory.read(input.type, input.name, input.scope, {
         ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
@@ -68,7 +91,7 @@ export const memoryRouter = router({
     }),
   ),
 
-  write: publicProcedure.input(writeSchema).mutation(({ ctx, input }) =>
+  write: publicProcedure.input(writeMemorySchema).mutation(({ ctx, input }) =>
     domainSafeAsync(async () => {
       const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
       return memory.write(input);
