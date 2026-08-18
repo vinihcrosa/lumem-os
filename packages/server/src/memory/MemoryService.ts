@@ -166,6 +166,7 @@ export class MemoryService {
       operation,
       actor: input.actor,
       confidence: entry.provenance.confidence,
+      sourceSessions: entry.provenance.source_sessions,
     });
 
     if (decision.outcome === "rejected") {
@@ -235,6 +236,11 @@ export class MemoryService {
     const absolute = entryPathFor(this.stateDir, this.targetFor(resolved, ids), type, slug);
     const path = repoRelative(this.stateDir, absolute);
 
+    // Apagar também é decisão, e é a única que o git não consegue explicar
+    // sozinho: o commit diz *que* sumiu, nunca *quem pediu* nem *por quê*. Sem
+    // esta linha, "por que isso não está mais salvo?" não tem resposta no WAL.
+    const record = await this.recordDeletion(path, "human");
+
     await rm(absolute, { force: true });
     removeEntry(this.db, path);
 
@@ -247,6 +253,7 @@ export class MemoryService {
       ...(this.exec ? { exec: this.exec } : {}),
       ...(this.log ? { log: this.log } : {}),
     });
+    attachCommit(this.db, record.id, commit);
 
     // O arquivo saiu da árvore; o histórico continua sabendo que ele existiu.
     return { path, commit };
@@ -273,35 +280,49 @@ export class MemoryService {
 
     if (previousSha === undefined) {
       // Nasceu no commit atual: desfazer é fazê-la deixar de existir.
+      const record = await this.recordDeletion(path, "human");
       await rm(absolute, { force: true });
       removeEntry(this.db, path);
       const { commit } = await this.commit([path], "delete", path, "human");
+      attachCommit(this.db, record.id, commit);
       return { path, outcome: "deleted", commit };
     }
 
     const restored = await this.git(["show", `${previousSha}:${path}`]);
-    const entry = parseEntry(restored, path);
-    await mkdir(dirname(absolute), { recursive: true, mode: 0o700 });
-    await writeAtomically(absolute, Buffer.from(restored, "utf8"), 0o600);
-    upsertEntry(this.db, path, entry, this.locationOf(entry, path), restored);
+    const head = await this.head();
 
+    // O portão vem **antes** do disco, aqui como em `write`. O conteúdo anterior
+    // é conteúdo como qualquer outro: pode ter sido editado à mão no `~/.lumem`,
+    // ou escrito antes de o portão existir. Decidir depois de gravar seria
+    // registrar `rejected` no WAL e mandar o segredo para o `HEAD` assim mesmo.
+    const confidence = parseEntry(restored, path).provenance.confidence;
     const decision = decide({
       path,
       operation: "update",
       actor: "human",
-      confidence: entry.provenance.confidence,
+      confidence,
       content: restored,
-      // A chave carrega o commit restaurado: desfazer duas vezes para o mesmo
-      // ponto é a mesma decisão, e não duas.
-      idempotencyKey: `revert:${path}:${previousSha}`,
+      // A chave carrega o ponto restaurado **e** o `HEAD` de onde se voltou:
+      // desfazer duas vezes a partir do mesmo estado é a mesma decisão, e um
+      // commit que falhou não faz o revert seguinte herdar a linha do anterior.
+      idempotencyKey: `revert:${path}:${previousSha}:${head}`,
     });
     const record = recordDecision(this.db, {
       ...decision,
       path,
       operation: "update",
       actor: "human",
-      confidence: entry.provenance.confidence,
+      confidence,
     });
+    if (decision.outcome === "rejected") {
+      throw new MemoryRejected(path, decision.reason ?? "recusada pelo portão");
+    }
+
+    // `decision.content`, nunca `restored`: é o texto que o portão aprovou.
+    const entry = parseEntry(decision.content, path);
+    await mkdir(dirname(absolute), { recursive: true, mode: 0o700 });
+    await writeAtomically(absolute, Buffer.from(decision.content, "utf8"), 0o600);
+    upsertEntry(this.db, path, entry, this.locationOf(entry, path), decision.content);
 
     const { commit } = await this.commit([path], "update", path, "human");
     attachCommit(this.db, record.id, commit);
@@ -321,6 +342,44 @@ export class MemoryService {
   /** O hash que o catálogo guarda, exposto para quem precisa comparar sem reler. */
   static hash(text: string): string {
     return hashContent(text);
+  }
+
+  /**
+   * A decisão que registra um apagamento, **antes** de o arquivo sair da árvore.
+   *
+   * A Q29 promete que apagar é sempre reversível pelo WAL, e a Q37 lista
+   * `delete` entre os resultados. Sem esta linha, deleção só existiria no git —
+   * que sabe *que* o arquivo sumiu, nunca *quem pediu*.
+   *
+   * A chave carrega o `HEAD` do momento: apagar o mesmo caminho de novo, depois
+   * de ele voltar, é outra decisão.
+   */
+  private async recordDeletion(path: string, actor: string): Promise<MemoryDecisionRow> {
+    const head = await this.head();
+    const decision = decide({
+      path,
+      operation: "delete",
+      actor,
+      // Apagar só acontece a pedido direto (Q29): a confiança é no ato, e o ato
+      // é explícito.
+      confidence: "high",
+      content: "",
+      idempotencyKey: `delete:${path}:${head}`,
+    });
+    return recordDecision(this.db, {
+      ...decision,
+      path,
+      operation: "delete",
+      actor,
+      confidence: "high",
+    });
+  }
+
+  /** O `HEAD` do `~/.lumem`, ou vazio quando ainda não há commit nenhum. */
+  private async head(): Promise<string> {
+    return this.git(["rev-parse", "HEAD"])
+      .then((stdout) => stdout.trim())
+      .catch(() => "");
   }
 
   private async git(args: readonly string[]): Promise<string> {

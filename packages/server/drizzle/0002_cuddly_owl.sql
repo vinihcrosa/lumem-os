@@ -8,6 +8,7 @@ CREATE TABLE `memory_decision` (
 	`confidence` text NOT NULL,
 	`candidate_hash` text NOT NULL,
 	`rule_trace` text DEFAULT '[]' NOT NULL,
+	`source_sessions` text DEFAULT '[]' NOT NULL,
 	`reason` text,
 	`commit_sha` text,
 	`created_at` integer DEFAULT (unixepoch('subsec') * 1000) NOT NULL,

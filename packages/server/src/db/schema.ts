@@ -201,6 +201,13 @@ export const memoryDecision = sqliteTable(
     candidateHash: text("candidate_hash").notNull(),
     /** As regras que o scan achou, por nome. Nunca o texto que casou. */
     ruleTrace: text("rule_trace", { mode: "json" }).notNull().$type<string[]>().default([]),
+    /**
+     * As sessões que originaram o pedido — a "sessão" que a Q37 pede no WAL.
+     *
+     * Vazio quando a origem é humana e direta. É o que liga a decisão à conversa
+     * em que ela nasceu, e sem isso "de onde veio isso?" não tem resposta.
+     */
+    sourceSessions: text("source_sessions", { mode: "json" }).notNull().$type<string[]>().default([]),
     /** Por que não foi aplicada, quando não foi. */
     reason: text("reason"),
     /** O commit no `~/.lumem`. Nulo quando não houve escrita, ou quando o git falhou. */

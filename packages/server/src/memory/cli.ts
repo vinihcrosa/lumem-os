@@ -15,8 +15,10 @@ import { ensureMemoryHome } from "./home.js";
  * pela CLI é o que garante que o núcleo exista antes das superfícies — e é o
  * que permite inspecionar a memória sem subir o daemon.
  *
- * Ainda **sem portão**: o scan, o WAL e a inbox são a PR 02. Por isso nada aqui
- * está exposto a agente nenhum; quem chama é você.
+ * A PR 02 pôs o portão atrás desta superfície: `write`, `forget` e `revert`
+ * passam pelo scan e viram decisão no WAL, e `decisions` é a leitura dele —
+ * inclusive do que **não** virou arquivo. A inbox de propostas continua sendo a
+ * PR 05; até lá, o que a regra não resolve é recusa explícita, nunca palpite.
  */
 
 const USAGE = `uso: lumem-memory <comando>

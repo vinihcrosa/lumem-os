@@ -148,6 +148,34 @@ describe("lumem-memory", () => {
     expect(app.out).toContain("primeira");
   });
 
+  it("`decisions --path` mostra só o caminho pedido", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Regra", "--type", "user", "--body", "primeira");
+    await app.run("write", "--name", "Outra", "--type", "user", "--body", "segunda");
+
+    // `out` acumula entre comandos, então o que importa é só o que saiu daqui.
+    const antes = app.out.length;
+    expect(await app.run("decisions", "--path", "memory/user_regra.md")).toBe(0);
+    const listagem = app.out.slice(antes);
+
+    expect(listagem).toContain("memory/user_regra.md");
+    // Sem o filtro chegando ao SQL, `--path` seria decoração: sairia o topo do
+    // histórico inteiro, recortado pelo limite.
+    expect(listagem).not.toContain("memory/user_outra.md");
+  });
+
+  it("`forget` deixa o rastro de quem pediu, não só o commit", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Regra", "--type", "user", "--body", "primeira");
+
+    expect(await app.run("forget", "--name", "Regra", "--type", "user")).toBe(0);
+
+    const antes = app.out.length;
+    expect(await app.run("decisions", "--path", "memory/user_regra.md")).toBe(0);
+
+    expect(app.out.slice(antes)).toContain("delete");
+  });
+
   it("comando desconhecido mostra o uso", async () => {
     const app = cli();
 
