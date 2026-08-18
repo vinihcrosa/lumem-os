@@ -2,8 +2,8 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) · **Entrega de contexto:** [context-delivery.md](context-delivery.md)
 **Roadmap:** [roadmap.md](roadmap.md) — este arquivo é a execução da pilha descrita lá
-**Status:** **PR 01 entregue** (7 de 7) e **S1 em revisão** (6 de 6) — portão verde
-(`gate:full`: 1.110 unit/integration + 16 e2e). As demais entram quando a anterior abrir PR
+**Status:** **PR 01** (7 de 7) e **S1** (6 de 6) entregues, **PR 02 em revisão** (5 de 5) — portão
+verde (`gate:full`: 1.184 unit/integration + 16 e2e). As demais entram quando a anterior abrir PR
 
 ---
 
@@ -16,11 +16,11 @@ escrita contra premissa que a implementação ainda vai derrubar.
 | PR | Branch | Base | Estado |
 |---|---|---|---|
 | **01** | `wm/01-armazenamento` | guarda-chuva | **entregue** — tasks e o que a execução achou, abaixo |
-| 02 | `wm/02-portao` | 01 | escopo definido, sem tasks |
+| **02** | `wm/02-portao` | 01 | **em PR** — tasks e o que a execução achou, abaixo |
 | 03 | `wm/03-superficies` | 02 | idem |
 | 04 | `wm/04-recall` | 03 | idem |
 | 05 | `wm/05-inbox-ui` | 04 | idem |
-| **S1** | `wm/s1-sinais-de-acao` | 01 | **em PR** — tasks abaixo |
+| **S1** | `wm/s1-sinais-de-acao` | 01 | **entregue** — tasks abaixo |
 | S2 | `wm/s2-prototipo` | guarda-chuva | idem |
 
 ---
@@ -53,6 +53,7 @@ Cada uma vem de uma pergunta **respondida**. Implementar contra qualquer outra c
 | **P3** | `git init` em `~/.lumem` numa máquina onde o usuário já tem outro git ali (por sincronia manual) | a T1 detecta repositório existente e **adota** em vez de reinicializar |
 | **P4** | Commit por mudança gera histórico verboso. Se incomodar, o passo seguinte é agrupar por transação, não parar de commitar | aberta, sem bloqueio |
 | **P5** | **O `scope` do frontmatter e o diretório podem discordar, e ninguém reclama.** `rowFor` tira o escopo do frontmatter e os ids do caminho: um arquivo em `memory/` declarando `scope: workspace` é indexado como `workspace` com `workspace_id` vazio, e o `read` naquele escopo procura noutro diretório e não acha. Só acontece com arquivo editado à mão — que a A2 declara caso de primeira classe | aberta → [Q39](open-questions.md). Não bloqueia: o caminho de escrita sempre produz arquivo coerente |
+| **P6** | Um `git commit` que falha **depois** do `git add` deixa a mudança no índice, e o commit seguinte — de outra memória qualquer — a varre junto. O commit passa a conter o que ninguém pediu | anotada na PR 02, com teste que a contorna. Agrupar commit por transação (P4) resolve as duas |
 
 ---
 
@@ -213,14 +214,99 @@ conta a história.
 
 ---
 
-## PR 02 — `wm/02-portao` (escopo, sem tasks)
+## PR 02 — `wm/02-portao`
 
-O portão único de escrita: scan determinístico (segredo, injeção, Unicode invisível; anotação de tempo
-relativo), identidade `(tipo, slug)`, duplicata por hash, **WAL magro** (decisão + SHA; rejeição e
-no-op só ali), `revert`.
+**O que entrega:** o portão único de escrita. Nada é gravado sem passar por ele, e **toda decisão fica
+registrada — inclusive a que não virou arquivo**.
 
-**Done when:** uma escrita com segredo é rejeitada, não chega ao disco, e a rejeição está no WAL com o
-motivo — sem o conteúdo escaneado. Um `revert` volta o conteúdo e grava uma decisão nova.
+**Done when (da PR inteira):** uma escrita com segredo é rejeitada, não chega ao disco, e a rejeição
+está no WAL com o motivo — sem o conteúdo escaneado. Um `revert` volta o conteúdo e grava uma decisão
+nova.
+
+**Gate:** `full` antes de abrir PR; `quick` durante.
+
+### O que a execução achou
+
+Oito coisas, quase todas achadas pela **primeira rodada de review** — o que diz algo sobre a régua
+que a implementação usou primeiro.
+
+| # | O quê | Onde ficou |
+|---|---|---|
+| **E20** | **Duplicata nunca disparava.** A comparação era de bytes, e o arquivo carrega `updated_at`, que muda a cada escrita. Virou comparação de **assinatura semântica** — e o mesmo defeito estava na chave de idempotência, que também saía do texto com carimbo | `entry.ts`, `gate.ts` · [Q40](open-questions.md) |
+| **E21** | **Reverter duas vezes alterna.** É a semântica do git, não um bug — e ficou **escrita no teste** em vez de "corrigida" no código. O que a chave garante é que o mesmo ponto, do mesmo `HEAD`, nunca vira duas decisões | `MemoryService.ts` · [Q41](open-questions.md) |
+| **E22** | **O `revert` gravava antes de decidir.** Um commit anterior com segredo — editado à mão, ou escrito antes de o portão existir — ia para o disco e para o `HEAD` com a decisão registrada como `rejected`. O portão passou para antes da escrita, como no `write` | `MemoryService.ts` |
+| **E23** | **Apagar não virava decisão.** `forget` e o ramo de deleção do `revert` mexiam no disco e no git sem passar pelo WAL — e a [Q29](open-questions.md) promete que apagar é reversível por ele. O git sabe *que* sumiu, nunca *quem pediu* | `MemoryService.ts` |
+| **E24** | **A régua do scan não cobria o que hoje se cola.** Nenhuma chave que a OpenAI emite hoje, nenhum PAT fine-grained do GitHub, nenhuma linha de `.env` com `export`, indentação, aspas ou comentário, e nenhuma credencial embutida em URL. E a faixa de invisível deixava brecha de evasão | `scan.ts` · [Q43](open-questions.md) |
+| **E25** | **O scan recusava memória sobre esta própria feature.** "System prompt" é vocabulário do domínio; bloquear a expressão sozinha era o erro que a [Q10](open-questions.md) mandou não copiar. Regras ganharam severidade: bloqueia com verbo imperativo junto, anota a menção isolada | `scan.ts` · [Q42](open-questions.md) |
+| **E26** | **`--path` do `decisions` não filtrava nada.** O `where` vinha depois do `orderBy`/`limit`, então sobrava o topo global recortado. Uma superfície de CLI inteira sem teste | `gate.ts` |
+| **E27** | **Um `commit` que falha depois do `add` deixa o índice sujo**, e o commit seguinte varre a mudança junto. Apareceu ao escrever o teste da chave de idempotência, que precisava de um `commit: null` sem mover o histórico do arquivo | anotado em **P6** |
+
+---
+
+### T1 — O scan determinístico
+
+Três categorias bloqueiam — **segredo**, **prompt injection**, **Unicode invisível** (este **limpa**,
+não rejeita) — e uma anota: **tempo relativo**.
+
+- As regras do Compozy que matam memória legítima ficam **de fora**, com teste provando que passam:
+  bloco de código, caminho de repositório, a palavra "cron"
+- O motivo **nunca repete o conteúdo escaneado** — senão o log vira o vazamento que o scan existe
+  para evitar
+- Severidade por regra: o que mata memória legítima entra como anotação, nunca como bloqueio
+  ([Q42](open-questions.md))
+
+**Done when:** as formas de credencial que se cola hoje são recusadas; prosa legítima sobre este
+próprio projeto passa; e segredo escondido atrás de invisível ainda é pego.
+
+---
+
+### T2 — O portão único
+
+Toda escrita passa por um lugar só, na ordem do [§7 do PRD](prd.md).
+
+- `decide` é **puro**: decidir sem banco, persistir em transação
+- Duplicata por **assinatura semântica**, não por bytes ([Q40](open-questions.md))
+- Identidade `(tipo, slug)` decide entre `add` e `update`
+- Decisão persistida **antes** de tocar o arquivo
+
+**Done when:** escrever duas vezes o mesmo conteúdo é `noop` e não produz commit vazio; e a decisão
+existe no WAL antes de o disco mudar.
+
+---
+
+### T3 — O WAL magro (Q37)
+
+Com o `~/.lumem` versionado, o conteúdo anterior é o commit anterior. O WAL guarda a **decisão**.
+
+- Origem, sessão, regra que bateu, confiança, idempotência, e o SHA que a decisão produziu
+- **Rejeição e no-op vivem só aqui** — não viram arquivo, não viram commit
+- Nada de `prior_content`: manter os dois seria manter dois históricos do mesmo texto
+
+**Done when:** uma escrita rejeitada não existe no disco nem no git, e existe no WAL com o motivo —
+sem o conteúdo escaneado.
+
+---
+
+### T4 — `revert`
+
+Volta pelo git e grava uma **decisão nova**, sem reescrever histórico.
+
+- O conteúdo restaurado **também passa pelo portão**: ele pode ter sido editado à mão, ou escrito
+  antes de o portão existir
+- Desfazer a criação é apagar — era ela que não existia antes
+- Apagar é decisão: `forget` e o ramo de deleção registram `delete` no WAL antes de mexer no disco
+
+**Done when:** um `revert` volta o conteúdo, grava decisão nova e deixa o catálogo com o restaurado;
+e reverter para um commit que contém segredo é recusado sem tocar o disco.
+
+---
+
+### T5 — A superfície: `forget`, `revert`, `decisions`
+
+Os três comandos na CLI, sobre o mesmo núcleo — a paridade com MCP continua sendo a PR 03.
+
+**Done when:** `decisions --path` mostra só o caminho pedido, e uma rejeição aparece ali com a regra
+que bateu e sem o conteúdo.
 
 ## PR 03 — `wm/03-superficies` (escopo, sem tasks)
 

@@ -121,6 +121,61 @@ describe("lumem-memory", () => {
     expect(app.err).toContain("user_quebrada.md");
   });
 
+  it("recusa segredo pela linha de comando, e a decisão fica registrada", async () => {
+    const app = cli();
+
+    expect(
+      await app.run("write", "--name", "Chave", "--type", "user", "--body", "AKIAIOSFODNN7EXAMPLE"),
+    ).toBe(1);
+    expect(app.err).toContain("credencial");
+
+    expect(await app.run("decisions")).toBe(0);
+    expect(app.out).toContain("rejected");
+    expect(app.out).toContain("aws_access_key");
+    // O motivo não pode repetir o que foi escaneado.
+    expect(app.out).not.toContain("AKIAIOSFODNN7EXAMPLE");
+  });
+
+  it("revert desfaz a última mudança pela linha de comando", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Regra", "--type", "user", "--body", "primeira");
+    await app.run("write", "--name", "Regra", "--type", "user", "--body", "segunda");
+
+    expect(await app.run("revert", "--path", "memory/user_regra.md")).toBe(0);
+    expect(app.out).toContain("revertida: memory/user_regra.md");
+
+    expect(await app.run("read", "--name", "Regra", "--type", "user")).toBe(0);
+    expect(app.out).toContain("primeira");
+  });
+
+  it("`decisions --path` mostra só o caminho pedido", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Regra", "--type", "user", "--body", "primeira");
+    await app.run("write", "--name", "Outra", "--type", "user", "--body", "segunda");
+
+    // `out` acumula entre comandos, então o que importa é só o que saiu daqui.
+    const antes = app.out.length;
+    expect(await app.run("decisions", "--path", "memory/user_regra.md")).toBe(0);
+    const listagem = app.out.slice(antes);
+
+    expect(listagem).toContain("memory/user_regra.md");
+    // Sem o filtro chegando ao SQL, `--path` seria decoração: sairia o topo do
+    // histórico inteiro, recortado pelo limite.
+    expect(listagem).not.toContain("memory/user_outra.md");
+  });
+
+  it("`forget` deixa o rastro de quem pediu, não só o commit", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Regra", "--type", "user", "--body", "primeira");
+
+    expect(await app.run("forget", "--name", "Regra", "--type", "user")).toBe(0);
+
+    const antes = app.out.length;
+    expect(await app.run("decisions", "--path", "memory/user_regra.md")).toBe(0);
+
+    expect(app.out.slice(antes)).toContain("delete");
+  });
+
   /**
    * A fronteira de escrita, que é o que a A9 pede e o que faltava: as flags
    * entravam por `as` e ninguém validava nada. Cada caso abaixo **gravava e

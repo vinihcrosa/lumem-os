@@ -186,6 +186,29 @@ export function parseEntry(text: string, source = "memória"): MemoryEntry {
   return { ...result.data, body: body.trimEnd() };
 }
 
+/**
+ * O que "a mesma memória" quer dizer, para efeito de duplicata.
+ *
+ * **Não** é o texto do arquivo: `updated_at` muda a cada escrita, então comparar
+ * bytes faria toda regravação parecer conteúdo novo — e o portão nunca veria
+ * duplicata nenhuma. Foi exatamente o que o teste pegou.
+ *
+ * A assinatura é tudo que o usuário quis dizer, sem os carimbos que o sistema
+ * põe: se ela não mudou, gravar de novo só produziria um `updated_at` novo
+ * mentindo que algo mudou, e um commit vazio.
+ */
+export function entrySignature(entry: MemoryEntry): string {
+  const { created_at: _created, updated_at: _updated, ...provenance } = entry.provenance;
+  return JSON.stringify({
+    name: entry.name,
+    description: entry.description,
+    type: entry.type,
+    scope: entry.scope,
+    provenance,
+    body: entry.body,
+  });
+}
+
 /** O escopo pedido, ou o default do tipo. */
 export function resolveScope(type: MemoryType, scope?: MemoryScope): MemoryScope {
   return scope ?? DEFAULT_SCOPE_FOR_TYPE[type];

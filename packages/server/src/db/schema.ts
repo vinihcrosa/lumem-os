@@ -185,6 +185,57 @@ export const memoryEntry = sqliteTable(
   ],
 );
 
+/**
+ * O WAL de decisões de memória — **magro**, como a Q37 decidiu.
+ *
+ * Com o `~/.lumem` versionado por git (Q36), o conteúdo anterior é o commit
+ * anterior: guardar `prior_content` aqui seria manter dois históricos do mesmo
+ * texto. O que esta tabela guarda é a **decisão** — origem, regra que bateu,
+ * confiança, idempotência, resultado — e o SHA que ela produziu.
+ *
+ * E guarda o que o git não tem como guardar: **rejeição e no-op**. Escrita
+ * barrada pelo scan nunca vira arquivo, então ela só existe aqui — e é
+ * exatamente o que se pergunta depois ("por que isso não foi salvo?").
+ */
+export const memoryDecision = sqliteTable(
+  "memory_decision",
+  {
+    id: text("id").primaryKey(),
+    /** Repetir a mesma decisão é no-op, e é o que torna o replay seguro. */
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    /** Caminho relativo ao state dir. Presente mesmo em rejeição: é o alvo pretendido. */
+    path: text("path").notNull(),
+    operation: text("operation").notNull(),
+    outcome: text("outcome").notNull(),
+    /** Quem pediu: `human`, `agent`, `distiller`, `auto_research`, `import`. */
+    actor: text("actor").notNull(),
+    confidence: text("confidence").notNull(),
+    /** sha256 do conteúdo candidato — dedupe sem guardar o conteúdo. */
+    candidateHash: text("candidate_hash").notNull(),
+    /** As regras que o scan achou, por nome. Nunca o texto que casou. */
+    ruleTrace: text("rule_trace", { mode: "json" }).notNull().$type<string[]>().default([]),
+    /**
+     * As sessões que originaram o pedido — a "sessão" que a Q37 pede no WAL.
+     *
+     * Vazio quando a origem é humana e direta. É o que liga a decisão à conversa
+     * em que ela nasceu, e sem isso "de onde veio isso?" não tem resposta.
+     */
+    sourceSessions: text("source_sessions", { mode: "json" }).notNull().$type<string[]>().default([]),
+    /** Por que não foi aplicada, quando não foi. */
+    reason: text("reason"),
+    /** O commit no `~/.lumem`. Nulo quando não houve escrita, ou quando o git falhou. */
+    commitSha: text("commit_sha"),
+    ...timestamps,
+  },
+  (table) => [
+    check("memory_decision_operation", sql`${table.operation} IN ('add', 'update', 'delete')`),
+    check(
+      "memory_decision_outcome",
+      sql`${table.outcome} IN ('applied', 'noop', 'rejected')`,
+    ),
+  ],
+);
+
 /** O maior caminho que um checkout produz, com folga. Acima disso não é alvo. */
 export const MAX_SIGNAL_TARGET_LENGTH = 1_024;
 
@@ -248,7 +299,16 @@ export const actionSignal = sqliteTable(
   ],
 );
 
-export const schema = { workspace, project, worktree, agentConfig, session, memoryEntry, actionSignal };
+export const schema = {
+  workspace,
+  project,
+  worktree,
+  agentConfig,
+  session,
+  memoryEntry,
+  memoryDecision,
+  actionSignal,
+};
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
 export type ProjectRow = typeof project.$inferSelect;
@@ -256,4 +316,5 @@ export type WorktreeRow = typeof worktree.$inferSelect;
 export type AgentConfigRow = typeof agentConfig.$inferSelect;
 export type SessionRow = typeof session.$inferSelect;
 export type MemoryEntryRow = typeof memoryEntry.$inferSelect;
+export type MemoryDecisionRow = typeof memoryDecision.$inferSelect;
 export type ActionSignalRow = typeof actionSignal.$inferSelect;
