@@ -81,8 +81,13 @@ describe("lumem-memory", () => {
     expect(await app.run("read", "--name", "Estilo de revisão", "--type", "user")).toBe(0);
     expect(app.out).toContain("Achado primeiro.");
 
+    // `list` é o que o escopo enxerga — igual ao router. Sem `--workspace`, o
+    // escopo ativo é só o global, e a memória de `ws1` não pertence a ele.
     expect(await app.run("list")).toBe(0);
     expect(app.out).toContain("global    user      Estilo de revisão");
+    expect(app.out).not.toContain("Contrato de checkout");
+
+    expect(await app.run("list", "--workspace", "ws1")).toBe(0);
     expect(app.out).toContain("workspace contract  Contrato de checkout");
 
     expect(await app.run("reindex")).toBe(0);
@@ -226,6 +231,61 @@ describe("lumem-memory", () => {
     expect(await app.run("write", "--name=Regra", "--type=user", "--body=corpo com = sinal")).toBe(0);
     expect(await app.run("read", "--name=Regra", "--type=user")).toBe(0);
     expect(app.out).toContain("corpo com = sinal");
+  });
+
+  it("`list` responde igual ao router, e `--all` é que mostra a lista crua", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Regra", "--type", "user", "--body", "global");
+    await app.run(
+      "write", "--name", "Regra", "--type", "user",
+      "--scope", "project", "--workspace", "ws1", "--project", "p1", "--body", "do projeto",
+    );
+
+    expect(await app.run("list", "--workspace", "ws1", "--project", "p1")).toBe(0);
+    // Uma linha por identidade visível, e o sombreamento dito em voz alta: o
+    // `Done when` da PR 03 é o mesmo comando respondendo igual nas duas
+    // superfícies, e o router já respondia o resolvido.
+    expect(app.out.match(/user      Regra/g)).toHaveLength(1);
+    expect(app.out).toContain("sombreada user/regra por workspaces/ws1/projects/p1/memory/user_regra.md");
+
+    const cru = cli();
+    await cru.run("write", "--name", "Regra", "--type", "user", "--body", "global");
+    await cru.run(
+      "write", "--name", "Regra", "--type", "user",
+      "--scope", "project", "--workspace", "ws1", "--project", "p1", "--body", "do projeto",
+    );
+    expect(await cru.run("list", "--all")).toBe(0);
+    expect(cru.out.match(/user      Regra/g)).toHaveLength(2);
+  });
+
+  it("recusa escopo e ator inválidos — o que a API recusa, a CLI recusa", async () => {
+    const app = cli();
+
+    expect(await app.run("write", "--name", "X", "--type", "user", "--scope", "planeta")).toBe(1);
+    expect(app.err).toContain("escopo inválido");
+
+    expect(await app.run("write", "--name", "X", "--type", "user", "--actor", "estagiario")).toBe(1);
+    expect(app.err).toContain("ator inválido");
+  });
+
+  it("agente não escreve contract de workspace pela CLI tampouco (Q27)", async () => {
+    const app = cli();
+
+    expect(
+      await app.run(
+        "write", "--name", "Contrato", "--type", "contract",
+        "--workspace", "ws1", "--actor", "agent", "--body", "itens e cupom",
+      ),
+    ).toBe(1);
+    expect(app.err).toContain("Q27");
+  });
+
+  it("revert recusa caminho que não é de memória", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Regra", "--type", "user", "--body", "primeira");
+
+    expect(await app.run("revert", "--path", ".gitignore")).toBe(1);
+    expect(app.err).toContain("não é caminho de memória");
   });
 
   it("comando desconhecido mostra o uso", async () => {

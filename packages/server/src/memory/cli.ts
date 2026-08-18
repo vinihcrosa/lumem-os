@@ -16,16 +16,21 @@ import { ensureMemoryHome } from "./home.js";
 /**
  * A superfície mínima da T7: escrever, ler, listar, reindexar.
  *
- * Linha de comando primeiro, e não por acaso. A PR 03 vai expor as **mesmas**
- * funções por MCP, e o princípio de paridade do estudo do Compozy diz que as
- * duas superfícies chamam o mesmo núcleo com o mesmo contrato de erro. Começar
- * pela CLI é o que garante que o núcleo exista antes das superfícies — e é o
- * que permite inspecionar a memória sem subir o daemon.
+ * Linha de comando primeiro, e não por acaso. A segunda superfície — o router
+ * tRPC da PR 03 — expõe as **mesmas** funções, e o princípio de paridade do
+ * estudo do Compozy diz que as duas chamam o mesmo núcleo, com o mesmo contrato
+ * de erro e o **mesmo schema de entrada**. Começar pela CLI é o que garante que o
+ * núcleo exista antes das superfícies — e é o que permite inspecionar a memória
+ * sem subir o daemon.
  *
  * A PR 02 pôs o portão atrás desta superfície: `write`, `forget` e `revert`
  * passam pelo scan e viram decisão no WAL, e `decisions` é a leitura dele —
  * inclusive do que **não** virou arquivo. A inbox de propostas continua sendo a
  * PR 05; até lá, o que a regra não resolve é recusa explícita, nunca palpite.
+ *
+ * Paridade inclui o que `list` quer dizer: aqui e no router, `list` é o que o
+ * escopo **enxerga** (resolvido por shadow). A lista crua do catálogo é outra
+ * pergunta, e mora atrás de `--all`.
  */
 
 const USAGE = `uso: lumem-memory <comando>
@@ -35,7 +40,7 @@ const USAGE = `uso: lumem-memory <comando>
           [--actor <human|agent|distiller|auto_research|import>]
   read    --name <n> --type <t> [--scope ...] [--workspace <id>] [--project <id>]
   forget  --name <n> --type <t> [--scope ...] [--workspace <id>] [--project <id>]
-  list
+  list    [--workspace <id>] [--project <id>] [--all]
   revert  --path <caminho relativo ao ~/.lumem>
   decisions [--path <caminho>] [--limit <n>]
   reindex
@@ -145,6 +150,8 @@ export async function runMemoryCli(
           description: flags.description ?? required(flags, "name"),
           type: asType(required(flags, "type")),
           body: flags.body ?? "",
+          // Validado pela mesma lista que o schema do núcleo usa, e revalidado
+          // por ele: o cast de antes fazia a CLI aceitar o que a API recusava.
           actor: asActor(flags.actor ?? "human"),
           ...(flags.scope ? { scope: asScope(flags.scope) } : {}),
           ...(flags.workspace ? { workspaceId: flags.workspace } : {}),
@@ -172,13 +179,36 @@ export async function runMemoryCli(
       }
 
       case "list": {
-        const rows = memory.list();
-        if (rows.length === 0) {
+        // O mesmo comando responde igual nas duas superfícies: `list` é o que o
+        // escopo **enxerga**, resolvido por shadow, como no router. A lista crua
+        // do catálogo continua alcançável, atrás de `--all`, porque inspecionar o
+        // que está no disco é outra pergunta.
+        if (flags.all !== undefined) {
+          const rows = memory.list();
+          if (rows.length === 0) {
+            out("nenhuma memória ainda\n");
+            return 0;
+          }
+          for (const row of rows) {
+            out(`${row.scope.padEnd(9)} ${row.type.padEnd(9)} ${row.name}\n`);
+          }
+          return 0;
+        }
+
+        const { visible, shadowed } = memory.visible({
+          workspaceId: flags.workspace ?? null,
+          projectId: flags.project ?? null,
+        });
+        if (visible.length === 0) {
           out("nenhuma memória ainda\n");
           return 0;
         }
-        for (const row of rows) {
+        for (const row of visible) {
           out(`${row.scope.padEnd(9)} ${row.type.padEnd(9)} ${row.name}\n`);
+        }
+        // Esconder sem dizer o que foi escondido é como o shadow vira mistério.
+        for (const pair of shadowed) {
+          out(`sombreada ${pair.loser.type}/${pair.loser.slug} por ${pair.winner.path}\n`);
         }
         return 0;
       }
@@ -187,7 +217,7 @@ export async function runMemoryCli(
         const result = await memory.forget(
           asType(required(flags, "type")),
           required(flags, "name"),
-          flags.scope as MemoryScope | undefined,
+          flags.scope === undefined ? undefined : asScope(flags.scope),
           {
             ...(flags.workspace ? { workspaceId: flags.workspace } : {}),
             ...(flags.project ? { projectId: flags.project } : {}),
