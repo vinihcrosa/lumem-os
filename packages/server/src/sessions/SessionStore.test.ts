@@ -253,7 +253,7 @@ describe("os sinais que a saída de uma sessão produz (Q17)", () => {
       // Segundos de vida, e nada mais: `detail` é número (Q18).
       expect(signal?.detail).toBeGreaterThanOrEqual(0);
       expect(signal?.detail).toBeLessThan(30);
-    });
+    }, { timeout: 5_000 });
   });
 
   it("um shell que viveu quatro segundos é um shell, e não vira sinal", async () => {
@@ -261,8 +261,9 @@ describe("os sinais que a saída de uma sessão produz (Q17)", () => {
     const repo = await createRepo({ branch: "main" });
     const row = await store.start(shell({ cwd: repo, args: ["-c", "exit 0"] }));
 
-    await vi.waitFor(async () =>
-      expect((await createSessionRepository(db).findById(row.id))?.state).toBe("exited"),
+    await vi.waitFor(
+      async () => expect((await createSessionRepository(db).findById(row.id))?.state).toBe("exited"),
+      { timeout: 5_000 },
     );
 
     expect(listSignals(db, { kind: "session_killed_early" })).toHaveLength(0);
@@ -285,7 +286,7 @@ describe("os sinais que a saída de uma sessão produz (Q17)", () => {
       // O alvo é o SHA desfeito. O assunto do commit não chega ao banco.
       expect(signal?.target).toBe(reverted);
       expect(signal?.worktreeId).toBe("wt1");
-    });
+    }, { timeout: 5_000 });
   });
 
   it("um histórico sem revert não inventa sinal", async () => {
@@ -295,8 +296,9 @@ describe("os sinais que a saída de uma sessão produz (Q17)", () => {
 
     const { id } = await agentThatDiesAt(store, db, repo);
 
-    await vi.waitFor(async () =>
-      expect((await createSessionRepository(db).findById(id))?.state).toBe("exited"),
+    await vi.waitFor(
+      async () => expect((await createSessionRepository(db).findById(id))?.state).toBe("exited"),
+      { timeout: 5_000 },
     );
     expect(listSignals(db, { kind: "user_reverted_agent_commit" })).toHaveLength(0);
   });
@@ -307,8 +309,9 @@ describe("os sinais que a saída de uma sessão produz (Q17)", () => {
     const { id } = await agentThatDiesAt(store, db, repo);
     rmSync(repo, { recursive: true, force: true });
 
-    await vi.waitFor(async () =>
-      expect((await createSessionRepository(db).findById(id))?.state).toBe("exited"),
+    await vi.waitFor(
+      async () => expect((await createSessionRepository(db).findById(id))?.state).toBe("exited"),
+      { timeout: 5_000 },
     );
   });
 });

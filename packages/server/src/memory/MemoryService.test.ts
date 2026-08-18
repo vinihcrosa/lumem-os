@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
@@ -10,6 +10,7 @@ import { DomainError } from "../errors.js";
 import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
 
 import { MemoryService } from "./MemoryService.js";
+import { serializeEntry } from "./entry.js";
 import { ensureMemoryHome } from "./home.js";
 
 const run = promisify(execFile);
@@ -45,6 +46,29 @@ const preferencia = {
 };
 
 describe("MemoryService.write", () => {
+  it("reescreve por cima de um arquivo corrompido, avisando", async () => {
+    const { memory, stateDir, db } = await service();
+    await memory.write(preferencia);
+    // Alguém — ou um crash — deixou o arquivo ilegível. A ferramenta que
+    // escreveu a memória tem que conseguir consertá-la; antes ela recusava, e a
+    // única saída era apagar o arquivo por fora.
+    writeFileSync(join(stateDir, "memory/user_estilo-de-revisao.md"), "frontmatter? que frontmatter?\n");
+
+    const warns: string[] = [];
+    const rescue = new MemoryService({
+      db: db.db,
+      stateDir,
+      log: { warn: (_details: unknown, message?: string) => warns.push(message ?? "") },
+    });
+    const result = await rescue.write({ ...preferencia, body: "consertado" });
+
+    expect(result.created).toBe(false);
+    expect(readFileSync(join(stateDir, result.path), "utf8")).toContain("consertado");
+    expect(warns).toEqual(["memória anterior ilegível; a data de nascimento recomeça agora"]);
+    const entry = await rescue.read("user", preferencia.name);
+    expect(entry.body).toBe("consertado");
+  });
+
   it("escreve Markdown legível, no escopo derivado do tipo", async () => {
     const { memory, stateDir } = await service();
 
@@ -136,6 +160,94 @@ describe("MemoryService.write", () => {
     // Q5: worktree é de onde veio, não onde mora.
     expect(result.path).not.toContain("wt-abc");
     expect(readFileSync(join(stateDir, result.path), "utf8")).toContain("worktree_id: wt-abc");
+  });
+});
+
+describe("MemoryService.write — identidade já reivindicada", () => {
+  /** Uma memória válida no disco, num caminho que o `write` nunca escolheria. */
+  function put(stateDir: string, relativePath: string, name: string): void {
+    writeFileSync(
+      join(stateDir, relativePath),
+      serializeEntry({
+        name,
+        description: "escrita à mão, fora da convenção de nome",
+        type: "user",
+        scope: "global",
+        provenance: {
+          source_actor: "human",
+          source_sessions: [],
+          confidence: "medium",
+          created_at: "2026-01-01T00:00:00.000Z",
+          updated_at: "2026-01-01T00:00:00.000Z",
+        },
+        body: "Veio de antes.",
+      }),
+      "utf8",
+    );
+  }
+
+  /**
+   * O espelho, pela via do `write`, do que o `reindex` já recusava.
+   *
+   * `slugFromPath` tira o prefixo `<tipo>_`, então `memory/alfa.md` e
+   * `memory/user_alfa.md` reivindicam o mesmo `(global, '', '', user, alfa)`.
+   * Antes quem descobria isso era o índice único do SQLite — **depois** do
+   * `writeAtomically` e antes do `commitChange`: arquivo novo no disco, sem
+   * commit, catálogo ainda apontando para o antigo, e um `SqliteError` cru
+   * subindo até o usuário. Recusar antes de tocar em qualquer coisa é o que
+   * mantém os dois caminhos de acordo sobre quem é dono de uma identidade.
+   */
+  it("recusa antes de escrever, dizendo qual arquivo já é dono", async () => {
+    const { memory, stateDir } = await service();
+    put(stateDir, "memory/alfa.md", "Alfa");
+    await memory.reindex();
+    const head = await git(stateDir, "rev-parse", "HEAD");
+    const antes = memory.list();
+
+    const escrita = memory.write({ ...preferencia, name: "Alfa" });
+
+    await expect(escrita).rejects.toBeInstanceOf(DomainError);
+    // Quem lê precisa saber qual arquivo apagar ou renomear.
+    await expect(escrita).rejects.toThrow(/memory\/alfa\.md/);
+    expect(existsSync(join(stateDir, "memory", "user_alfa.md"))).toBe(false);
+    expect(await git(stateDir, "rev-parse", "HEAD")).toBe(head);
+    expect(memory.list()).toEqual(antes);
+  });
+
+  it("reescrever a mesma memória continua funcionando, com a data de nascimento", async () => {
+    const { memory, stateDir } = await service();
+    const primeira = await memory.write(preferencia);
+    const nascimento = /created_at: (\S+)/.exec(readFileSync(join(stateDir, primeira.path), "utf8"))?.[1];
+
+    const segunda = await memory.write({ ...preferencia, body: "Mudou de ideia." });
+
+    expect(segunda.created).toBe(false);
+    expect(segunda.path).toBe(primeira.path);
+    expect(readFileSync(join(stateDir, segunda.path), "utf8")).toContain(`created_at: ${nascimento}`);
+  });
+
+  it("a mesma (tipo, slug) em escopos diferentes é legítima", async () => {
+    const { memory } = await service();
+    const receita = {
+      name: "Gate rápido",
+      description: "pnpm gate:quick roda o afetado",
+      type: "project" as const,
+      body: "Comando do repositório.",
+      actor: "human" as const,
+    };
+
+    const p1 = await memory.write({ ...receita, workspaceId: "ws1", projectId: "p1" });
+    const p2 = await memory.write({ ...receita, workspaceId: "ws1", projectId: "p2" });
+    const ws = await memory.write({ ...receita, scope: "workspace", workspaceId: "ws1" });
+
+    // A identidade é `(escopo, workspace, projeto, tipo, slug)`: o mesmo par
+    // `(tipo, slug)` em escopos diferentes é memória diferente, não duplicata.
+    expect([p1.path, p2.path, ws.path]).toEqual([
+      "workspaces/ws1/projects/p1/memory/project_gate-rapido.md",
+      "workspaces/ws1/projects/p2/memory/project_gate-rapido.md",
+      "workspaces/ws1/memory/project_gate-rapido.md",
+    ]);
+    expect(memory.list()).toHaveLength(3);
   });
 });
 

@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "843383e2-22c1-412f-9f7d-e8cff4d9e2b7",
-  "prevId": "bb3a8d1e-80c5-4b61-8406-980c890b2e5f",
+  "id": "f5a7041b-05ad-4f65-be24-abe09cd80343",
+  "prevId": "95ae681f-dbb5-481c-ab9d-f63d7cd0cd20",
   "tables": {
     "action_signal": {
       "name": "action_signal",
@@ -212,15 +212,17 @@
           "name": "workspace_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
         },
         "project_id": {
           "name": "project_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
         },
         "name": {
           "name": "name",

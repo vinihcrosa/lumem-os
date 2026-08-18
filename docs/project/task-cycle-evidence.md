@@ -19,7 +19,7 @@ muda; o **anexo** é história de outro projeto e não se mexe.
 Lote fechado sem linha aqui é indistinguível de lote que nunca existiu. O mecanismo contra isso é um
 número só:
 
-> **Último commit coberto: `bd3e3f0`.**
+> **Último commit coberto: `384e465`.**
 
 `fd83053` fecha o lote `E1`, o primeiro medido. Antes dele, `6c620dc` era o fim do período **pré-skill**. As quatro features anteriores —
 `walking-skeleton`, `ui-shell`, `worktree-tabs`, `right-panel`, 79 commits — foram feitas antes da
@@ -31,7 +31,7 @@ Quem fecha um lote atualiza esse sha para o último commit do lote. Um comando d
 fora:
 
 ```bash
-git log --oneline bd3e3f0..HEAD
+git log --oneline 384e465..HEAD
 ```
 
 Commit de código que aparecer aí e não estiver dentro de nenhum `Range` da tabela é lote que entrou
@@ -42,12 +42,22 @@ O mecanismo se provou antes de completar um dia de vida: quando esta seção foi
 já devolvia o lote `E1`, que havia fechado enquanto o próprio arquivo era reescrito. Ele apareceu
 sem ninguém precisar lembrar, e virou a primeira linha da tabela.
 
-**Seis lotes medidos**, quatro deles com review de verdade. O perfil **crítico** tem três pontos —
-582k, 453k, 488k, média ≈508k, todos dentro de ±15% —, o **fronteira** tem um (466k), e o
-**desenho** um (239k). Para lote deste repositório, prefira estes números ao anexo herdado, dizendo
-o n. O que continua sem ponto amostral é a repartição por **estágio** que a §10 da skill promete:
-aqui só o total por lote é medido, porque é o que sai do relatório dos sub-agentes sem trabalho
-extra.
+**Onze lotes registrados**, nove deles com review de verdade. O perfil **crítico** tem seis pontos —
+582k, 453k, 488k, 693k, 554k e um piso de 458k —, média ≈**554k** entre os cinco medidos de fato, e
+a dispersão é bem maior do que os três primeiros sugeriam (±15% virou de 453k a 693k). O
+**fronteira** tem dois (466k e 825k), a **lógica** um (728k) — o perfil que a skill chama de "menos
+calibrado" deixou de ter zero —, e o **desenho** um (239k). Para lote deste repositório, prefira
+estes números ao anexo herdado, dizendo o n.
+
+Duas ressalvas que a tabela sozinha não conta. A primeira: o lote da `workspace-memory` é **piso**,
+não medida — só os dois subagentes estão instrumentados, e a fatia do orquestrador não. A segunda,
+e ela é uma **omissão que este arquivo tem que admitir**: `ba0ea94` e `7dac5e6`, que são as tasks
+T1–T7 da PR 01 da memória (≈3.200 linhas), não estão dentro de `Range` nenhum. Foram feitas sem o
+ciclo, então não há custo a recuperar — mas pela regra de cobertura acima elas são indistinguíveis
+de lote que nunca existiu, e ficar calado sobre isso é exatamente o defeito que a seção descreve.
+
+O que continua sem ponto amostral é a repartição por **estágio** que a §10 da skill promete: aqui só
+o total por lote é medido, porque é o que sai do relatório dos sub-agentes sem trabalho extra.
 
 ---
 
@@ -126,11 +136,22 @@ a tabela de lotes não tem tempo justamente porque o número não sobrevive à c
 | `file-editor` E9+E10 — autosave e conflito | **crítico** | `4ba7f24..bfc9c60` | 1 | 693k | 2 blockers + 6 warnings · **6 premissas derrubadas** |
 | `file-editor` E11 — CRUD na árvore | lógica | `b34050e..998b354` | 1 | 728k | 2 blockers + 7 warnings · 3 premissas derrubadas |
 | `file-editor` E12 — **o portão** | **crítico** | `7e526ff..bd3e3f0` | 1 | 554k | 0 blockers no spec · 3 warnings, 2 fora da feature |
+| `workspace-memory` PR 01 — **rework dos comentários da PR** | **crítico** | `7990289..384e465` | 1 | ≥458k¹ | **1 blocker + 4 warnings + 6 nits** · 1 efeito espelhado² · 7 mutações sobreviventes |
+
+¹ Soma dos dois subagentes (review 215k, dev 243k). A fatia do orquestrador não está instrumentada
+nesta sessão, então o número é **piso**, não medida — e é o primeiro lote da tabela em que isso
+acontece. As outras linhas cobrem a sessão inteira.
+
+² Vale nomear porque é classe nova nesta tabela e o protocolo de round existe justamente para pegá-la:
+a correção de um achado **criou** outro do mesmo formato num caminho vizinho. Ligar o índice único de
+identidade (que era o conserto) transformou uma duplicata silenciosa num `SqliteError` cru no `write`
+— o mesmo defeito que o blocker original eliminava no `reindex`, só que depois de o arquivo já estar
+no disco. Nenhum dos 13 achados do review humano original apontava para lá.
 
 Dois contadores, porque respondem a duas perguntas que a skill não consegue responder sozinha —
 *isto aqui é cerimônia?* — e custam um dígito cada:
 
-* **verificação independente do orquestrador:** 9 lotes, **1 refutação**
+* **verificação independente do orquestrador:** 10 lotes, **1 refutação**
 * **passe a frio pós-lote:** 2 passes, **22 achados** que o orquestrador com contexto não via
 
 **A verificação independente pagou o lote inteiro, e por um motivo que não estava previsto.** Não

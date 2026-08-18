@@ -14,5 +14,8 @@ CREATE TABLE `action_signal` (
         'user_reverted_agent_commit',
         'worktree_discarded',
         'session_killed_early'
-      ))
+      )),
+	CONSTRAINT "action_signal_detail_number" CHECK("action_signal"."detail" IS NULL OR typeof("action_signal"."detail") = 'integer'),
+	CONSTRAINT "action_signal_target_shape" CHECK(length("action_signal"."target") BETWEEN 1 AND 1024
+        AND instr("action_signal"."target", char(10)) = 0)
 );

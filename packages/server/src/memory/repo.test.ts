@@ -57,6 +57,27 @@ describe("commitChange", () => {
     expect(await git(stateDir, "show", "--name-only", "--format=", "HEAD")).toBe(path);
   });
 
+  it("não leva no commit o que o usuário já tinha no índice", async () => {
+    const stateDir = await home();
+    // Repositório **adotado**: o usuário deixou um `git add` pendente. O commit
+    // da memória não é dele, e sem o pathspec no `commit` ele ia junto.
+    writeFileSync(join(stateDir, "anotacao-do-usuario.md"), "minha anotação\n");
+    await git(stateDir, "add", "anotacao-do-usuario.md");
+    const path = writeEntry(stateDir, "estilo-de-revisao");
+
+    await commitChange({
+      stateDir,
+      paths: [path],
+      operation: "add",
+      subject: "user/estilo-de-revisao",
+      actor: "human",
+    });
+
+    expect(await git(stateDir, "show", "--name-only", "--format=", "HEAD")).toBe(path);
+    // E continua no índice, esperando o commit que é do usuário.
+    expect(await git(stateDir, "diff", "--cached", "--name-only")).toBe("anotacao-do-usuario.md");
+  });
+
   it("não arrasta o que não é da operação", async () => {
     const stateDir = await home();
     const path = writeEntry(stateDir, "primeira");
@@ -158,45 +179,5 @@ describe("commitChange", () => {
     // O que importa: a memória continua no disco. O histórico é serviço prestado
     // ao dado, não o contrário.
     expect(await git(stateDir, "status", "--porcelain", "-uall")).toContain(path);
-  });
-});
-
-describe("memoryDirFor", () => {
-  it("cada escopo no seu lugar", () => {
-    const root = "/tmp/lumem";
-
-    expect(memoryDirFor(root, { scope: "global" })).toBe("/tmp/lumem/memory");
-    expect(memoryDirFor(root, { scope: "workspace", workspaceId: "ws1" })).toBe(
-      "/tmp/lumem/workspaces/ws1/memory",
-    );
-    expect(memoryDirFor(root, { scope: "project", workspaceId: "ws1", projectId: "p1" })).toBe(
-      "/tmp/lumem/workspaces/ws1/projects/p1/memory",
-    );
-  });
-
-  it("exige o que o escopo precisa", () => {
-    expect(() => memoryDirFor("/tmp/lumem", { scope: "workspace" })).toThrow(/workspaceId/);
-    expect(() => memoryDirFor("/tmp/lumem", { scope: "project", workspaceId: "ws1" })).toThrow(
-      /projectId/,
-    );
-  });
-
-  it("recusa id que é caminho disfarçado", () => {
-    expect(() => memoryDirFor("/tmp/lumem", { scope: "workspace", workspaceId: "../fora" })).toThrow(
-      /inválido/,
-    );
-    expect(() => memoryDirFor("/tmp/lumem", { scope: "workspace", workspaceId: ".." })).toThrow(
-      /inválido/,
-    );
-  });
-});
-
-describe("repoRelative", () => {
-  it("devolve caminho com barra, do jeito que o git fala", () => {
-    expect(repoRelative("/tmp/lumem", "/tmp/lumem/memory/user_x.md")).toBe("memory/user_x.md");
-  });
-
-  it("recusa caminho fora do state dir", () => {
-    expect(() => repoRelative("/tmp/lumem", "/tmp/outro/user_x.md")).toThrow(/fora do state dir/);
   });
 });

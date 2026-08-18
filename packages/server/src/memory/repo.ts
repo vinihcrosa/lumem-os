@@ -73,9 +73,13 @@ export async function commitChange({
     const { stdout } = await exec(["status", "--porcelain", "--", ...paths], { cwd: stateDir });
     if (stdout.trim() === "") return { commit: null, skipped: "nothing-to-commit" };
 
-    await exec([...COMMIT_IDENTITY, "commit", "-m", messageFor(operation, subject, actor)], {
-      cwd: stateDir,
-    });
+    // Pathspec também no `commit`, e não só no `add`: sem o `-- <paths>` o git
+    // commita **o índice inteiro**, e num `~/.lumem` adotado o `git add` que o
+    // usuário deixou pendente entraria de carona no commit da memória.
+    await exec(
+      [...COMMIT_IDENTITY, "commit", "-m", messageFor(operation, subject, actor), "--", ...paths],
+      { cwd: stateDir },
+    );
 
     const { stdout: sha } = await exec(["rev-parse", "HEAD"], { cwd: stateDir });
     return { commit: sha.trim() };
