@@ -215,7 +215,7 @@ export function resolveScope(type: MemoryType, scope?: MemoryScope): MemoryScope
 }
 
 /**
- * Os tipos que um agente **não** escreve direto para cima (Q27).
+ * Os tipos que um agente não escreve direto, em escopo nenhum (Q27).
  *
  * `domain`, `process` e `contract` valem para N projetos: errar ali contamina
  * todos eles. `project` e `reference` vão direto — erram barato, e o repositório
@@ -225,6 +225,19 @@ const PROPOSAL_TYPES: readonly MemoryType[] = ["domain", "process", "contract"];
 
 /**
  * Por que esta escrita tem de virar proposta, ou `null` quando ela pode ir direto.
+ *
+ * A Q27 e o §11 do PRD dizem a mesma coisa por **dois eixos**, e a regra é a
+ * união dos dois, porque cada um sozinho deixa uma porta:
+ *
+ * - por **tipo** (Q27): `domain`, `process` e `contract` de agente são proposta.
+ *   Só pelo escopo, um agente contornaria a regra pedindo `scope: "project"`
+ *   explícito para um `contract`;
+ * - por **escopo** (§11): escrever memória de workspace ou global é proposta,
+ *   qualquer que seja o tipo. Só pelo tipo, um `project` gravado com
+ *   `scope: "workspace"` subiria direto — e "escrita para cima é revisada" é a
+ *   assimetria que faz o workspace valer a pena.
+ *
+ * Sobra o que a Q27 libera de fato: `project` e `reference` no escopo deles.
  *
  * Fail-closed enquanto a inbox não existe, pelo mesmo princípio da D8: a regra
  * nasce junto com a superfície, e não depois dela. Recusar com motivo é o pior
@@ -236,7 +249,11 @@ export function proposalRefusal(
   actor: MemoryActor,
 ): string | null {
   if (actor === "human") return null;
-  if (scope === "project") return null;
-  if (!PROPOSAL_TYPES.includes(type)) return null;
-  return `${type} em escopo ${scope} escrito por ${actor} é proposta, não escrita (Q27) — a inbox que recebe propostas é a PR 05`;
+  const porTipo = PROPOSAL_TYPES.includes(type);
+  const porEscopo = scope !== "project";
+  if (!porTipo && !porEscopo) return null;
+  const eixo = porTipo
+    ? `${type} é um dos tipos que valem para N projetos`
+    : `escrever em escopo ${scope} é escrever para cima`;
+  return `${type} em escopo ${scope} escrito por ${actor} é proposta, não escrita (Q27): ${eixo} — a inbox que recebe propostas é a PR 05`;
 }

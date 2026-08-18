@@ -98,6 +98,12 @@ export function decide(request: GateRequest): GateDecision {
 
   // Depois do scan, e não antes: quando o conteúdo também tem segredo, é o
   // segredo que a resposta precisa nomear, e o `ruleTrace` guarda os dois.
+  //
+  // E antes da duplicata sem que a ordem importe: uma escrita recusada nunca
+  // chega ao disco, então não existe arquivo idêntico dela para o dedupe abaixo
+  // comparar. O par "recusada **e** duplicata" só apareceria para uma memória já
+  // gravada com a mesma assinatura pelo mesmo ator — que é justamente o que esta
+  // recusa impede de existir.
   if (request.refusal !== undefined) {
     return { ...base, outcome: "rejected", reason: request.refusal };
   }
