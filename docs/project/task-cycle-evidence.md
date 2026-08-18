@@ -126,12 +126,32 @@ a tabela de lotes não tem tempo justamente porque o número não sobrevive à c
 | `file-editor` E9+E10 — autosave e conflito | **crítico** | `4ba7f24..bfc9c60` | 1 | 693k | 2 blockers + 6 warnings · **6 premissas derrubadas** |
 | `file-editor` E11 — CRUD na árvore | lógica | `b34050e..998b354` | 1 | 728k | 2 blockers + 7 warnings · 3 premissas derrubadas |
 | `file-editor` E12 — **o portão** | **crítico** | `7e526ff..bd3e3f0` | 1 | 554k | 0 blockers no spec · 3 warnings, 2 fora da feature |
+| revisão de docs da PR #4 | **declarativo** (documentação) | `3c94515..083c661` | 0 — **review morto pelo usuário no meio** | — | 16 do revisor humano · **1 meu** (roadmap agendava spike já feito, 9 pontos) · **1 autoinfligido** (ver abaixo) |
 
 Dois contadores, porque respondem a duas perguntas que a skill não consegue responder sozinha —
 *isto aqui é cerimônia?* — e custam um dígito cada:
 
-* **verificação independente do orquestrador:** 9 lotes, **1 refutação**
+* **verificação independente do orquestrador:** 10 lotes, **1 refutação** — e, no lote de docs da PR
+  #4, **1 defeito causado pela própria verificação** (abaixo)
 * **passe a frio pós-lote:** 2 passes, **22 achados** que o orquestrador com contexto não via
+
+### A bateria de mutação do orquestrador destruiu trabalho não commitado
+
+No lote de docs da PR #4 eu rodei a bateria de mutação da §7 da skill — *"quebre de propósito o que a
+asserção nova deveria pegar, veja vermelho, reverta sem commitar"* — sobre um working tree **que ainda
+não tinha commit**. O `git checkout <arquivo>` que reverte a mutação reverteu também as correções, em
+três dos doze arquivos, e apagou o trabalho de dez dos dezesseis achados.
+
+Deu para reconstruir porque o registro estava na conversa. Se não estivesse, o custo era refazer tudo.
+
+**A regra que faltava, e que a §7 deveria dizer explicitamente:** a mutação revertível por `git
+checkout` pressupõe que o trabalho **já esteja commitado**. Num lote onde a implementação ainda está
+no working tree, a ordem correta é **commitar primeiro, mutar depois** — o commit por task da §8 existe
+justamente para isso, e um lote sem `lumem-dev` (documentação editada pelo orquestrador) é exatamente
+o caso em que ninguém commitou nada ainda.
+
+Corolário barato: mutação sobre working tree sujo, quando inevitável, precisa de cópia fora do
+repositório antes — não de `git checkout` depois.
 
 **A verificação independente pagou o lote inteiro, e por um motivo que não estava previsto.** Não
 houve round de review: task de desenho não tem `Done when` verificável por teste, então o
