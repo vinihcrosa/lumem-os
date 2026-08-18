@@ -7,8 +7,12 @@ aqui, com o motivo.
 onde está, agrupada por tema, e ganha uma linha **Decisão:** com o que ficou valendo. Cada pergunta
 traz uma **proposta pra reagir**; discordar dela é mais rápido que escrever do zero.
 
-**Estado:** 38 perguntas · **38 respondidas · 0 abertas.** O que resta são as **D2, D5, D7 e D8**, no
+**Estado:** 42 perguntas · **42 respondidas · 0 abertas.** O que resta são as **D2, D5, D7 e D8**, no
 [context-delivery.md](context-delivery.md).
+
+**Rodada 5 (2026-08-17):** quatro decisões que **a implementação** obrigou a tomar, na seção J:
+duplicata por assinatura semântica (Q38), reverter duas vezes alterna (Q39), o scan não recusa o
+vocabulário desta própria feature (Q40), e limpar invisível ≠ normalizar para casar (Q41).
 
 **Rodada 4 (2026-08-17):** Q3.1, Q10, Q16, Q30 e Q37 fechadas. E o desenho de entrega de contexto foi
 **redesenhado por você**: índice injetado saiu, entrou *núcleo comportamental + skill + serviço
@@ -1103,3 +1107,66 @@ desenhar as duas juntas mesmo construindo uma.
 **Decisão:** memória antes de tarefas. A inbox de propostas (fase 3) e a futura fila de tarefas são
 quase a mesma tela — quando a inbox for desenhada, vale desenhar pensando nas duas, mesmo construindo
 uma.
+
+---
+
+## J. O que a implementação do portão obrigou a decidir
+
+Quatro decisões que não estavam em pergunta nenhuma e apareceram construindo a PR 02. Ficam aqui
+pelo mesmo motivo das outras: decisão de desenho não vira suposição silenciosa.
+
+### [x] Q38 — Duplicata é igualdade de bytes ou de assinatura semântica? `[lm]`
+
+O portão promete `noop` quando a escrita não muda nada ([§7 do PRD](prd.md)). A primeira versão
+comparava o **hash do arquivo serializado** — e o arquivo carrega `updated_at`, que muda a cada
+escrita. Resultado: duas escritas idênticas produziam hashes diferentes, `noop` nunca disparava, e
+cada regravação virava um commit anunciando uma mudança que não existiu.
+
+**Decisão:** duplicata é igualdade de **assinatura semântica** — tudo que o usuário quis dizer (nome,
+descrição, tipo, escopo, corpo, proveniência), **sem os carimbos que o sistema põe** (`created_at`,
+`updated_at`). É a `entrySignature` do `entry.ts`.
+
+O mesmo raciocínio derrubou a **chave de idempotência**: ela também saía do hash do arquivo, então
+duas tentativas da mesma escrita nunca casavam, e o replay pós-crash que a
+[Q9](#x-q9--wal-de-decisões-com-prior_content-e-revert-desde-o-v1-cz) promete não tinha como
+reconhecer a tentativa anterior. A chave passou a sair da assinatura.
+
+### [x] Q39 — Reverter duas vezes desfaz o revert, ou é idempotente? `[lm]`
+
+`revert` volta pelo git e grava uma **decisão nova**, sem reescrever histórico. Então o segundo
+`revert` do mesmo caminho encontra, como commit anterior, o commit que o primeiro produziu — e
+desfaz o desfazer.
+
+**Decisão:** **alternar é o comportamento correto**, e não um bug a corrigir. É a semântica de
+`git revert`, e o contrário exigiria o portão guardar um estado de "já revertido" que o git não tem.
+O que a chave de idempotência garante é outra coisa: **o mesmo ponto, revertido a partir do mesmo
+`HEAD`, nunca vira duas decisões** — uma retentativa depois de commit falho continua sendo a mesma
+decisão, com o SHA anexado quando o commit enfim acontece.
+
+### [x] Q40 — O scan pode recusar memória sobre o próprio domínio do Lumem? `[lm]`
+
+"System prompt" é vocabulário desta feature: memória legítima sobre como o bloco de memória é
+entregue ao agente contém a expressão o tempo todo. A primeira régua bloqueava a expressão sozinha —
+exatamente o erro que a [Q10](#x-q10--quão-agressivo-é-o-scan-determinístico-cz) mandou não copiar do
+Compozy.
+
+**Decisão:** o que bloqueia é **o verbo imperativo junto** (`ignore|override|reveal|… the system
+prompt`). A **menção isolada anota** e fica no rastro da decisão, para revisão barata depois. As
+regras do scan ganharam severidade por regra (`block` ou `annotate`) para sustentar isso.
+
+**Limitação aceita:** citar uma frase-gatilho entre aspas — *"nunca escreva 'you are now' em
+memória"* — continua sendo recusado. Abrir exceção para conteúdo entre aspas ou crases seria
+publicar a evasão junto com a regra. Quem precisar registrar isso reescreve sem a citação literal.
+
+### [x] Q41 — Todo caractere invisível deve ser apagado do texto gravado? `[lm]`
+
+A [Q10](#x-q10--quão-agressivo-é-o-scan-determinístico-cz) decidiu **limpar** invisível em vez de
+rejeitar, porque ele não carrega significado numa memória legítima. Só que a faixa enumerada lá
+deixava de fora `U+00AD`, `U+2060–2064` e os seletores de variação — e um invisível fora da faixa é
+evasão do scan de segredo, não curiosidade tipográfica. Ao mesmo tempo, `U+FE0F` **significa** algo:
+é ele que faz `❤️` ser emoji em vez de `❤`.
+
+**Decisão:** separar **limpar** de **normalizar**. O que não significa nada (zero-width, bidi, soft
+hyphen, word joiner, tags) é **removido do texto gravado**. Os **seletores de variação** são
+removidos apenas da cópia usada para **casar as regras** — o texto gravado continua com eles. Fecha a
+evasão sem mudar o que o usuário escreveu.
