@@ -1007,13 +1007,13 @@ busca devolve.
 |---|---|---|
 | Pesos | `0.7` lexical · `0.2` recência · `0.1` uso | o texto responde à pergunta; recência é desempate; uso diz "já foi útil antes", nunca "responde a isto" |
 | Escala do lexical | min–max **sobre os candidatos da busca** | o BM25 do SQLite vai de ~`1e-6` (termo frequente, IDF≈0) a ~`14` (termo raro). Somado cru, ou é ruído perto da recência ou a engole — nunca os três juntos. Saturar (`x/(1+x)`) achatava o topo a ponto de um casamento 3× melhor perder para o mais recente |
-| Conjunto que define a escala | uma página de 50 candidatos visíveis, mínimo | min–max é **escala**: um conjunto que encolhesse com o `limit` faria "mostre menos" trocar o primeiro colocado. Como a página é 50 e o teto de `limit` do router também é 50, o conjunto é o mesmo para qualquer limite pedido |
+| Conjunto que define a escala | 50 candidatos visíveis, **constante** | min–max é **escala**: um conjunto que mudasse com o `limit` faria "mostre mais" trocar o primeiro colocado — e faz, medido. O `limit` não entra na conta dos candidatos, e o teto de 50 vive no **núcleo**, não só no Zod do router: a CLI e a superfície MCP chamam o núcleo direto, e invariante que só existe no schema de um chamador não é invariante |
 | O que vai para `best_score` | o **bm25 cru**, não o score | o score é relativo aos candidatos daquela busca, e resultado único tira o teto por construção. Guardar o relativo faria o critério objetivo da poda saturar justamente para memória irrelevante |
 | Meia-vida da recência | 14 dias | a curva que o Compozy mediu |
 | Saturação do uso | 3 recuperações | acima disso o sinal para de crescer, senão memória velha e muito buscada trava o topo |
 | Guarda de query trivial | menos de **2** termos significativos | uma palavra casa com meio acervo; o que volta é ruído com aparência de resposta |
 | Termo significativo | ≥ 2 caracteres em `\p{L}\p{N}`, fora da lista de stopwords | o índice é `unicode61` e aceita qualquer alfabeto: cortar em `a-z0-9` fazia `"デプロイ 設定"` e `"api v2"` voltarem como query trivial — a busca dizendo "não busquei" quando o que houve foi falha de tokenização |
-| Pesos por coluna do BM25 | `0.0` path · `4.0` name · `3.0` description · `1.0` slug · `1.0` body | o peso de coluna `UNINDEXED` é **inócuo** — medido no `better-sqlite3` do repo, quatro e cinco pesos dão score idêntico, e o FTS5 completa o que falta com `1.0`. O `0.0` explícito é para o mapa posicional não mentir no dia em que alguém acrescentar coluna. `slug` fica em 1, junto do corpo, porque é derivado do nome: dar 2 a ele seria contar o título duas vezes |
+| Pesos por coluna do BM25 | `0.0` path · `4.0` name · `3.0` description · `1.0` slug · `1.0` body | o **valor** do peso de `path` é inerte — coluna `UNINDEXED` não guarda termo, e medido no `better-sqlite3` do repo `0.0` e `9.0` dão score idêntico. A **posição** não é: o FTS5 lê a lista por posição e completa o que falta com `1.0`, então passar quatro pesos desloca `name`, `description` e `slug` uma casa — que era o defeito real. Os números são **ordinais**: o que o teste pina é a ordem `name > description > {slug, body}`; as magnitudes são calibração e voltam quando houver acervo para medir. `slug` fica junto do corpo porque é derivado do nome — dar mais a ele seria contar o título duas vezes |
 | Onde o índice vive | **fora** das migrations, derivado do catálogo | migration não deriva nada. O preço é que existe banco com catálogo e sem índice (toda instalação anterior à feature), e é por isso que o boot compara as contagens e refaz quando divergem |
 | Quem registra o sinal | só o caminho do agente (`recall`, e a CLI com `--session`) | `search` é leitura: se toda chamada registrasse, refetch e retry do cliente inflariam o próprio número que o §6 do [context-delivery](context-delivery.md) quer medir, e o critério objetivo da Q25 passaria a medir o cliente |
 
@@ -1027,6 +1027,11 @@ carrega `staleIndex` — sinal, nunca recusa: um arquivo ilegível não pode mat
 Uma propriedade do BM25 que vale registrar: em acervo pequeno o IDF **colapsa** — com dois documentos
 os dois tiram zero, e o ranking vira recência mais uso. Não é bug, é a matemática; e é a razão de
 recência e uso existirem no score desde o primeiro dia.
+
+E o reparo do índice tem lugar certo: o boot do daemon, e o `search` da CLI — não o início de todo
+comando. `list` e `read` não leem o índice, e `reindex` **substitui** o catálogo (apaga e reinsere,
+sem transação): disparar isso num comando de leitura é escrita escondida, e num banco com arquivo
+ilegível é escrita escondida que faz memória sumir da lista.
 
 O que ainda **não** tem call site é o `inject` do §6: quem monta o contexto é a fase seguinte, e é lá
 que a sessão passa a ser registrada na injeção. Até lá, `memory_usage` responde "quantas perguntas, de

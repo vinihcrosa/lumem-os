@@ -88,6 +88,15 @@ function parseFlags(argv: readonly string[]): Flags {
   return flags;
 }
 
+/** `--limit abc` é erro de uso, não um `NaN` viajando até o SQL. */
+function integer(value: string, name: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) {
+    throw new DomainError("INVALID_ARGUMENT", `--${name} precisa ser um número`);
+  }
+  return parsed;
+}
+
 function required(flags: Flags, name: string): string {
   const value = flags[name];
   if (value === undefined) throw new DomainError("INVALID_ARGUMENT", `--${name} é obrigatório`);
@@ -146,12 +155,6 @@ export async function runMemoryCli(
 
   try {
     const memory = new MemoryService({ db: database.db, stateDir: config.stateDir });
-    // A CLI existe para inspecionar a memória **sem** subir o daemon, então ela
-    // não pode contar com o reparo do boot: num banco anterior a esta feature o
-    // índice não existe, e sem isto a primeira busca daqui não acharia nada.
-    const { rebuilt, indexed, failures } = await memory.ensureIndexFresh();
-    if (rebuilt) err(`índice reconstruído: ${indexed} memórias\n`);
-    for (const failure of failures) err(`falhou: ${failure.path} — ${failure.reason}\n`);
 
     switch (command) {
       case "write": {
@@ -247,19 +250,26 @@ export async function runMemoryCli(
       }
 
       case "search": {
+        // A CLI existe para inspecionar a memória **sem** subir o daemon, então
+        // ela não pode contar com o reparo do boot: num banco anterior a esta
+        // feature o índice não existe, e a busca não acharia nada. Só aqui, e
+        // não no início de todo comando: `list` e `read` não leem o índice, e
+        // reconstruir o catálogo num comando de leitura é escrita escondida.
+        const { indexed, failures } = await memory.ensureIndexFresh();
+        if (indexed > 0) err(`índice reconstruído: ${indexed} memórias\n`);
+        // Concreto, e não um "índice atrasado" genérico: o que sobrou de fora
+        // tem nome, e o `reindex` **substitui** o catálogo — quem não pôde ser
+        // lido sumiu da lista, não só da busca.
+        for (const failure of failures) err(`fora do índice: ${failure.path} — ${failure.reason}\n`);
+
         // Só o caminho do agente registra: uma busca de inspeção não pode
         // inflar o contador que decide poda e consolidação (Q25).
         const result = memory.search(required(flags, "query"), {
           ...(flags.workspace ? { workspaceId: flags.workspace } : {}),
           ...(flags.project ? { projectId: flags.project } : {}),
-          ...(flags.limit ? { limit: Number.parseInt(flags.limit, 10) } : {}),
+          ...(flags.limit ? { limit: integer(flags.limit, "limit") } : {}),
           ...(flags.session ? { record: true, sessionId: flags.session } : {}),
         });
-        if (result.staleIndex) {
-          // O índice ficou para trás do catálogo: o resultado pode estar curto,
-          // e dizer isso é diferente de deixar a lista desmentir a busca.
-          err("aviso: índice atrasado — rode `lumem-memory reindex`\n");
-        }
         if (result.skipped === "trivial_query") {
           // Dizer que **não buscou** é diferente de dizer que não achou.
           err("busca não realizada: menos de dois termos significativos\n");
@@ -295,7 +305,7 @@ export async function runMemoryCli(
       case "decisions": {
         const rows = memory.decisions({
           ...(flags.path ? { path: flags.path } : {}),
-          ...(flags.limit ? { limit: Number.parseInt(flags.limit, 10) } : {}),
+          ...(flags.limit ? { limit: integer(flags.limit, "limit") } : {}),
         });
         if (rows.length === 0) {
           out("nenhuma decisão registrada\n");

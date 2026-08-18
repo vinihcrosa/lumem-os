@@ -3,6 +3,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
+import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
@@ -30,6 +31,12 @@ function cli() {
 
   return {
     stateDir,
+    /** Simula o banco anterior à busca: catálogo de pé, índice nunca criado. */
+    dropIndex() {
+      const sqlite = new Database(join(stateDir, "lumem.db"));
+      sqlite.exec("DROP TABLE IF EXISTS memory_fts");
+      sqlite.close();
+    },
     get out() {
       return out;
     },
@@ -299,6 +306,54 @@ describe("lumem-memory", () => {
     expect(await app.run("search", "--query", "checkout consome", "--workspace", "ws1")).toBe(0);
     expect(app.out).toContain("Contrato de checkout");
     expect(app.out).toContain("lexical=");
+  });
+
+  it("busca num banco sem índice reconstrói antes, e acha pelo corpo", async () => {
+    const app = cli();
+    await app.run(
+      "write", "--name", "Rollback do checkout", "--type", "process", "--workspace", "ws1",
+      "--description", "como desfazer um deploy ruim",
+      "--body", "reverte o deploy e avisa o time",
+    );
+    app.dropIndex();
+
+    expect(await app.run("search", "--query", "avisa time", "--workspace", "ws1")).toBe(0);
+
+    // Pelo corpo: só volta se o reparo releu o disco. A CLI existe para
+    // inspecionar sem subir o daemon, então ela não pode esperar o boot.
+    expect(app.out).toContain("Rollback do checkout");
+    expect(app.err).toContain("índice reconstruído: 1");
+  });
+
+  it("memória ilegível sai do índice com nome, não em silêncio", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Gate", "--type", "user", "--body", "pnpm gate quick");
+    writeFileSync(join(app.stateDir, "memory/user_gate.md"), "isto não é uma memória");
+    app.dropIndex();
+
+    expect(await app.run("search", "--query", "gate rapido")).toBe(0);
+
+    expect(app.err).toContain("fora do índice: memory/user_gate.md");
+  });
+
+  it("comando de leitura não reconstrói nada", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Gate", "--type", "user", "--body", "x");
+    app.dropIndex();
+
+    expect(await app.run("list")).toBe(0);
+
+    // `list` lê o catálogo, não o índice. Reconstruir aqui seria escrita
+    // escondida num comando de leitura — e `reindex` apaga o catálogo inteiro.
+    expect(app.err).toBe("");
+  });
+
+  it("limite que não é número é erro de uso, não stack", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Gate", "--type", "user", "--body", "x");
+
+    expect(await app.run("search", "--query", "gate rapido", "--limit", "abc")).toBe(1);
+    expect(app.err).toContain("--limit precisa ser um número");
   });
 
   it("busca trivial diz que **não buscou**, e não que não achou", async () => {

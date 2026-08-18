@@ -43,23 +43,37 @@ const USE_SATURATION = 3;
 /**
  * Os pesos por coluna do BM25, na ordem das colunas da tabela.
  *
- * O `0.0` de `path` não corrige nada — coluna `UNINDEXED` não tem termo, e o
- * peso dela é inócuo (medido: quatro e cinco pesos dão score idêntico). Ele
- * está aqui para o mapa **posicional** não mentir no dia em que alguém
- * acrescentar coluna. E `slug` fica em 1, junto do corpo, porque ele é derivado
- * do nome: dar 2 a ele seria contar o título duas vezes.
+ * O `0.0` de `path` é **posicional**, não decorativo: o FTS5 lê a lista por
+ * posição e completa o que falta com `1.0`, então omitir o peso da coluna
+ * `UNINDEXED` desloca `name`, `description` e `slug` uma casa para a esquerda.
+ * O *valor* é que é inerte — medido, `0.0` e `9.0` dão score idêntico, porque
+ * coluna `UNINDEXED` não guarda termo.
+ *
+ * Os números são **ordinais**: o que os testes pinam é a ordem
+ * `name > description > {slug, body}`. As magnitudes são calibração, e voltam
+ * quando houver acervo para medir. `slug` fica junto do corpo porque é derivado
+ * do nome — dar mais a ele seria contar o título duas vezes.
  */
 const COLUMN_WEIGHTS = "0.0, 4.0, 3.0, 1.0, 1.0";
 
 /**
+ * O teto do que uma busca devolve.
+ *
+ * Mora aqui, e não só no Zod do router: a CLI e a superfície MCP chamam o
+ * núcleo direto, e uma invariante que só existe no schema de um dos chamadores
+ * não é invariante.
+ */
+const MAX_LIMIT = 50;
+
+/**
  * Quantos candidatos visíveis alimentam a normalização.
  *
- * Fixo, e não `limit * n`: min–max é escala, então um pool que muda com o
- * `limit` faz a mesma pergunta com "mostre mais" reordenar o topo. Só cresce
- * quando o próprio `limit` pedido é maior — não dá para devolver 50 resultados
- * olhando 20 candidatos.
+ * **Constante**, e não `limit * n`: min–max é escala, então um pool que muda
+ * com o `limit` faz a mesma pergunta com "mostre mais" reordenar o topo. Vale
+ * `MAX_LIMIT` porque devolver `n` resultados exige ter olhado ao menos `n`
+ * candidatos.
  */
-const CANDIDATE_POOL = 20;
+const CANDIDATE_POOL = MAX_LIMIT;
 
 /** Teto de varredura do `MATCH`. Sem ele, um acervo quase todo invisível varre tudo. */
 const MAX_SCAN = 5_000;
@@ -210,7 +224,7 @@ export function recall(db: Db, query: string, options: RecallOptions = {}): Reca
   ensureIndex(db);
   const stale = indexIsStale(db);
   const started = Date.now();
-  const limit = options.limit ?? 5;
+  const limit = clampLimit(options.limit);
   const match = terms.map((term) => `"${term}"*`).join(" OR ");
 
   // O escopo decide o que existe, e o shadow decide o que vale — nesta ordem,
@@ -223,7 +237,7 @@ export function recall(db: Db, query: string, options: RecallOptions = {}): Reca
     db.select().from(memorySignal).all().map((row) => [row.path, row]),
   );
 
-  const pool = candidates(db, match, byPath, limit);
+  const pool = candidates(db, match, byPath);
   // O bm25 do SQLite é **negativo**, e mais negativo é melhor: inverter é o que
   // torna o número legível. A escala vem do próprio conjunto de candidatos.
   const scale = normalizer(pool.map((row) => -row.rank));
@@ -286,15 +300,12 @@ function candidates(
   db: Db,
   match: string,
   byPath: ReadonlyMap<string, MemoryEntryRow>,
-  limit: number,
 ): Candidate[] {
-  // O pool é maior que o limite de propósito: recência e uso reordenam, então
-  // quem entra no top não é necessariamente quem o bm25 pôs na frente. E a
-  // página é o piso — como ela é 50 e o teto de `limit` do router também é 50,
-  // o conjunto de candidatos é **o mesmo** para qualquer limite pedido, que é o
-  // que impede "mostre mais" de trocar o primeiro colocado.
-  const pool = Math.max(CANDIDATE_POOL, limit);
-  const page = Math.max(pool, 50);
+  // Sem `limit` na conta, de propósito: o conjunto de candidatos é o mesmo para
+  // qualquer limite pedido, e é isso que impede "mostre mais" de trocar o
+  // primeiro colocado. O pool é maior que o topo porque recência e uso
+  // reordenam — quem entra no top não é quem o bm25 pôs na frente.
+  const page = CANDIDATE_POOL;
   const found: Candidate[] = [];
   let offset = 0;
 
@@ -310,7 +321,7 @@ function candidates(
     for (const row of rows) {
       if (byPath.has(row.path)) found.push(row);
     }
-    if (found.length >= pool || rows.length < page || offset >= MAX_SCAN) return found;
+    if (found.length >= CANDIDATE_POOL || rows.length < page || offset >= MAX_SCAN) return found;
   }
 }
 
@@ -421,6 +432,12 @@ function tokenize(query: string): string[] {
     .replace(/\p{Mn}+/gu, "")
     .split(/[^\p{L}\p{N}]+/u)
     .filter((term) => term.length >= 2 && !STOPWORDS.has(term));
+}
+
+/** O limite pedido, dentro do que a busca sabe entregar. `NaN` cai no default. */
+function clampLimit(limit: number | undefined): number {
+  if (limit === undefined || !Number.isFinite(limit)) return 5;
+  return Math.min(Math.max(1, Math.trunc(limit)), MAX_LIMIT);
 }
 
 /** 1 hoje, 0,5 depois de `days`. A mesma curva que o Compozy usa. */
