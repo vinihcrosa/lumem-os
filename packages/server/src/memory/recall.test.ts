@@ -96,7 +96,7 @@ function bulk(
           (id, path, type, scope, slug, workspace_id, project_id, name, description,
            source_actor, confidence, content_hash)
           VALUES (${newId()}, ${path}, 'domain', 'workspace', ${slug},
-                  ${workspaceId}, NULL, ${text}, ${text}, 'human', 'medium', ${`${path}-hash`})`,
+                  ${workspaceId}, '', ${text}, ${text}, 'human', 'medium', ${`${path}-hash`})`,
     );
     indexEntry(db, path, text, text, slug, body);
   }
