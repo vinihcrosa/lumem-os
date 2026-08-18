@@ -121,10 +121,75 @@ export const session = sqliteTable(
   ],
 );
 
-export const schema = { workspace, project, worktree, agentConfig, session };
+/**
+ * O catálogo de memórias — **projeção**, não fonte da verdade.
+ *
+ * A Q3 decidiu que Markdown no `~/.lumem` é a fonte; esta tabela existe para
+ * responder rápido "o que existe" e, mais tarde, para o índice FTS5 da PR 04.
+ * Apagar este banco e rodar `reindex` tem que devolver exatamente o mesmo
+ * conteúdo — é o `Done when` da T5, e a razão de nada de domínio nascer aqui.
+ *
+ * Sem foreign key para `workspace` e `project` de propósito: o id de projeto
+ * vem do `project.toml` do repositório (Q3.1) e pode existir antes de a linha
+ * existir no banco. Uma FK aqui recusaria memória de um projeto que o daemon
+ * ainda não registrou — e a fonte da verdade está no disco de qualquer forma.
+ */
+export const memoryEntry = sqliteTable(
+  "memory_entry",
+  {
+    id: text("id").primaryKey(),
+    /** Caminho relativo ao state dir, com barra. É o que o git também usa. */
+    path: text("path").notNull().unique(),
+    type: text("type").notNull(),
+    scope: text("scope").notNull(),
+    /** A segunda metade da identidade `(tipo, slug)` da Q12. */
+    slug: text("slug").notNull(),
+    /**
+     * `''` quando o escopo não tem workspace — nunca NULL.
+     *
+     * O vazio é sentinela deliberada, e a razão está no índice de identidade
+     * abaixo: no SQLite NULL nunca colide com NULL, então uma coluna nula aqui
+     * desligaria a unicidade de `(tipo, slug)` em todo escopo que não seja
+     * `project`. Quem lê estas colunas trata `''` como "não se aplica".
+     */
+    workspaceId: text("workspace_id").notNull().default(""),
+    /** `''` fora do escopo `project` — mesmo motivo de `workspace_id`. */
+    projectId: text("project_id").notNull().default(""),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    /** Do frontmatter, para responder "por que esta memória existe" sem abrir o arquivo. */
+    sourceActor: text("source_actor").notNull(),
+    confidence: text("confidence").notNull(),
+    /** sha256 do arquivo inteiro, para comparar conteúdo sem reler o disco. */
+    contentHash: text("content_hash").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "memory_entry_type",
+      sql`${table.type} IN ('user', 'feedback', 'project', 'domain', 'process', 'contract', 'reference')`,
+    ),
+    check("memory_entry_scope", sql`${table.scope} IN ('global', 'workspace', 'project')`),
+    // A identidade da Q12 é única dentro do escopo em que ela vale.
+    //
+    // Só funciona porque `workspace_id` e `project_id` são `''` — e não NULL —
+    // fora do escopo em que valem: no SQLite **NULL não colide com NULL**, e
+    // com colunas nulas esta unicidade valeria apenas no escopo `project`.
+    uniqueIndex("memory_entry_identity").on(
+      table.scope,
+      table.workspaceId,
+      table.projectId,
+      table.type,
+      table.slug,
+    ),
+  ],
+);
+
+export const schema = { workspace, project, worktree, agentConfig, session, memoryEntry };
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
 export type ProjectRow = typeof project.$inferSelect;
 export type WorktreeRow = typeof worktree.$inferSelect;
 export type AgentConfigRow = typeof agentConfig.$inferSelect;
 export type SessionRow = typeof session.$inferSelect;
+export type MemoryEntryRow = typeof memoryEntry.$inferSelect;

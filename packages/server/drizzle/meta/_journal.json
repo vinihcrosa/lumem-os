@@ -8,6 +8,20 @@
       "when": 1786757261305,
       "tag": "0000_initial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1787002227686,
+      "tag": "0001_low_invisible_woman",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787013177879,
+      "tag": "0002_freezing_the_captain",
+      "breakpoints": true
     }
   ]
 }

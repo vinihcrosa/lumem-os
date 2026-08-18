@@ -4,6 +4,7 @@ import { reconcileOnBoot } from "./boot/reconcile.js";
 import type { ServerConfig } from "./config.js";
 import { openDatabase, type Database_ } from "./db/index.js";
 import { createEventBus } from "./events.js";
+import { ensureMemoryHome } from "./memory/home.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createSessionStore } from "./sessions/SessionStore.js";
 import { createServer } from "./server.js";
@@ -47,6 +48,11 @@ export async function bootstrap({
   database,
   beforeClose,
 }: BootstrapOptions): Promise<FastifyInstance> {
+  // Antes do banco, porque o banco mora dentro do state dir e porque o
+  // `.gitignore` que exclui o próprio banco do histórico é escrito aqui: abrir
+  // o SQLite primeiro criaria o arquivo antes de existir a regra que o ignora.
+  const home = await ensureMemoryHome({ stateDir: config.stateDir });
+
   const owned = database === undefined;
   const openedDatabase = database ?? openDatabase({ path: config.databasePath });
   // One bus, shared: the session store emits from the PTY exit callback and
@@ -90,6 +96,7 @@ export async function bootstrap({
   // would read states that are about to change under it.
   const reconciled = await reconcileOnBoot({ db: openedDatabase.db, log: app.log });
   app.log.info(reconciled, "reconciliação de boot");
+  app.log.info({ ...home, stateDir: config.stateDir }, "memória do workspace");
 
   try {
     await app.listen({ port: config.port, host: config.host });
