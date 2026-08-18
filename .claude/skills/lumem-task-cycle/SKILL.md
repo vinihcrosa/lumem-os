@@ -18,7 +18,7 @@ o que é caro errar.
 
 As regras estruturais desta skill (leis, perfis de risco, raio de alcance, triagem, passe a frio)
 foram **medidas em outro projeto** — um serviço .NET/DDD, com gates de dezenas de minutos, suíte
-de ~1500 testes e interop nativo. **Seis lotes já foram medidos aqui** (veja o "Registro de lotes" do ledger), quatro deles com review; o resto desta seção continua importado.
+de ~1500 testes e interop nativo. **Onze lotes já foram registrados aqui** (veja o "Registro de lotes" do ledger), dez com número e nove com review; o resto desta seção continua importado.
 
 Trate-as como **hipóteses calibradas**, não como fatos deste repositório. O que muda aqui e pode
 mudar as conclusões: gate de **segundos** em vez de minutos, arquivos menores (mediana de 67
@@ -342,15 +342,24 @@ Não aceite o relato. Rode você mesmo:
 * os gates, **com a base certa** (`LUMEM_GATE_BASE=<sha antes do lote>`), mais `pnpm gate:build`;
 * se algum resultado verde puder ter vindo de cache do Turborepo, **force**
   (`pnpm exec turbo typecheck --force`). Já mentiu duas vezes neste repositório;
-* **quebre de propósito o que a asserção nova deveria pegar, veja vermelho, reverta sem commitar.**
-  Dois comandos, e prova o que leitura nenhuma prova. É a bateria de mutação aplicada por você.
+* **quebre de propósito o que a asserção nova deveria pegar, veja vermelho, reverta.** Prova o que
+  leitura nenhuma prova. É a bateria de mutação aplicada por você — e **onde** você a aplica depende
+  de o trabalho estar commitado:
 
-  > **`git checkout` só reverte a mutação se a linha de base já estiver commitada.** Rodar isso sobre
-  > trabalho que ainda está no working tree apaga o trabalho junto com a mutação — já aconteceu, num
-  > lote de documentação editado pelo próprio orquestrador, e custou dez achados
-  > ([task-cycle-evidence.md](../../../docs/project/task-cycle-evidence.md)). Antes de mutar:
-  > **commite**, ou **copie o repositório para fora** (`git archive HEAD | tar -x -C <scratchpad>`) e
-  > mute a cópia. Lote sem `lumem-dev` é exatamente o caso onde ninguém commitou nada ainda;
+  | Estado | Onde mutar | Como reverter |
+  |---|---|---|
+  | **trabalho commitado** | árvore de trabalho | `git checkout <arquivo>` |
+  | **trabalho ainda no working tree** | **cópia fora do repo** (`rsync -a --exclude .git ./ <scratchpad>/mut/`) | apagar a cópia |
+
+  > **`git checkout` reverte para o último commit, não para "antes da mutação".** Rodar a bateria
+  > sobre trabalho não commitado apaga o trabalho junto com a mutação — já aconteceu, num lote de
+  > documentação editado pelo próprio orquestrador, e custou dez achados
+  > ([task-cycle-evidence.md](../../../docs/project/task-cycle-evidence.md)).
+  >
+  > E **`git archive HEAD` não serve** para esse caso: ele arquiva o *commit*, então a cópia sai sem
+  > o trabalho que você quer testar. Use `rsync`/`cp -R`, ou commite antes. Lote sem `lumem-dev` — e
+  > documentação editada pelo orquestrador é o caso típico — é exatamente onde ninguém commitou nada
+  > ainda;
 * para valor derivado de fonte normativa (default de porta, limite do ring buffer, nome de
   constraint do PRD §6), **derive da fonte à mão** — PRD, `ports.json`, header da lib. Golden medido
   do próprio código sob teste confirma o bug em vez de pegá-lo.
@@ -437,7 +446,7 @@ Não são julgamento, são comando.
 
 ## 10. Custo
 
-**Há seis lotes medidos no Lumem-OS** — no "Registro de lotes" do ledger. Para lote crítico daqui, use ≈508k (n=3, três pontos dentro de ±15%); para fronteira, 466k (n=1). A tabela abaixo continua sendo de outro projeto — o que ela tem e o ledger não é a repartição por **estágio**. A ordem de grandeza dela pode não transferir; o ledger é a fonte para número deste repositório.
+**Há onze lotes registrados no Lumem-OS** — no "Registro de lotes" do ledger, que é a fonte e traz o espalhamento. Para lote crítico daqui, use ≈**554k** (n=5, de 453k a 693k — o espalhamento é ±20%, não ±15%); fronteira tem dois pontos que diferem 77% (466k e 825k), então **não use média**: use a faixa. A tabela abaixo continua sendo de outro projeto — o que ela tem e o ledger não é a repartição por **estágio**. A ordem de grandeza dela pode não transferir; o ledger é a fonte para número deste repositório.
 
 | Perfil | Dev | Review (1 round) | Rework | Total, 1 round |
 |---|---|---|---|---|
@@ -523,8 +532,9 @@ descreve o defeito que produziu a regra no projeto onde ela foi medida, exceto o
 
 ### Limites conhecidos
 
-* **seis lotes medidos no Lumem-OS**, quatro deles com review. Crítico: ≈**508k** (n=3, os três
-  dentro de ±15%). Fronteira: **466k** (n=1). Desenho: **239k** (n=1) — perfil que a §3 ainda não
+* **onze lotes registrados no Lumem-OS**, dez com número e nove com review. Crítico: ≈**554k** (n=5,
+  de 453k a 693k). Fronteira: **466k e 825k** (n=2, e os dois diferem 77% — não há média útil).
+  Lógica: **728k** (n=1). Desenho: **239k** (n=1) — perfil que a §3 ainda não
   descreve. Prefira esses números à §10 e **diga o n**. O que continua sem medição daqui é a
   repartição por estágio (dev/review/rework), porque só o total sai do relatório sem trabalho extra;
 * **o projeto de origem tem gates de minutos e suíte de ~1500 testes.** Aqui ela tem 824 e o

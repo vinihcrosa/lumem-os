@@ -165,8 +165,9 @@ Code, e o 1M é o mesmo botão do CLI. O que sobra é um risco de política — 
 anunciada e cancelada em 2026, e pode voltar com aviso. Sobra também o relato de fallback para 200K
 (issue #786): o spike confirmou que a sessão **nasce** em 1M, mas **não** exercitou contexto cheio,
 então onde a compactação dispara segue sem medida ([§9.5 do estudo](../../project/pty-vs-acp.md)). Para
-esta feature isso é o orçamento do [context-delivery](context-delivery.md) — se a janela real for 200K,
-o teto por escopo muda.
+esta feature isso é o orçamento do [context-delivery](context-delivery.md): o núcleo **não tem teto**
+([D5](context-delivery.md)), então o controle é a marca d'água — e ela foi calibrada supondo 1M. Com
+200K reais, o que muda é o quanto a marca d'água pode subir antes de doer.
 
 ---
 
@@ -466,7 +467,7 @@ depois vira React.
 | **Prompt injection persistente** | você vai ler issue e PR de terceiro, e memória entra no system prompt | scan determinístico antes de persistir; conteúdo recuperado entra cercado e marcado como dado; scrubber no streaming |
 | **Vazamento entre projetos** | workspace com repo de cliente e repo pessoal | fronteira explícita no §11, fail-closed, auditada |
 | **Memória mentindo sobre o repo** | o código mudou e a memória não | banner de frescor; regra de não salvar o que se deriva lendo o repo; verificação de contrato contra o código, se o item de **contrato-como-entidade** voltar do [backlog](../../project/backlog.md) |
-| **Degradar todo turno** | índice cresce e o contexto encolhe | teto por escopo; índice em vez de corpo; poda por uso |
+| **Degradar todo turno** | o núcleo cresce por acréscimo e o contexto encolhe | **marca d'água** medida e visível em vez de teto ([D5](context-delivery.md)); corpo no serviço em vez de injetado; poda por uso |
 | ~~Captura cooperativa não acontecer~~ — **morreu com a decisão por ACP** | era o risco de o agente nunca chamar a tool | a captura passa a ser estrutural (§4.1). O que sobra é medir e mostrar quantas sessões ensinaram algo, que continua valendo |
 | **Depender da feature maior do projeto** | as fases 4–6 esperam o ACP, que tem PRD mas ainda não tem código | as fases 1–3 foram escolhidas por não dependerem dele; se o ACP atrasar, a memória entrega o núcleo assim mesmo |
 | **A Anthropic reativar a separação de pools de billing** | anunciada para 15/jun/2026 e cancelada no mesmo dia, com promessa de retrabalhar e avisar antes (§9.2 do estudo) | `transport` continua sendo coluna: voltar uma sessão para PTY — o lado *first-party*, poupado — é config, não refactor |
@@ -479,8 +480,14 @@ depois vira React.
 
 ## 15. Fases prováveis
 
-Esta é a ordem de risco. Ela já virou pilha de PRs no [roadmap.md](roadmap.md), com a **PR 01 em
-tasks** e as demais com escopo e `Done when` em [tasks.md](tasks.md).
+Esta é a ordem de **risco**, e ela precede a decomposição. Quem vai executar deve ler o
+[roadmap.md](roadmap.md), que é a pilha de PRs real — com a **PR 01 em tasks** e as demais com escopo e
+`Done when` em [tasks.md](tasks.md).
+
+> **As duas decomposições não são um-para-um, e isto é deliberado.** A fase 1 daqui virou as PRs 01, 02
+> e 03 lá; o `auto-learn` (parte 08 do roadmap) não tem fase própria aqui; e o S1 e o S2 só existem no
+> roadmap, porque saíram de "ordem de risco" e entraram em "o que dá para paralelizar". Onde as duas
+> divergirem, **o roadmap ganha** — é ele que tem branch, base e `Done when`.
 
 | Fase | O quê | Por que aí | Depende de ACP? |
 |---|---|---|---|

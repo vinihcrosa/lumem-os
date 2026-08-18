@@ -899,7 +899,7 @@ consolidação vira LLM chutando o que importa.
 
 **Decisão:** sim, desde a fase 2. `recall_count`, `last_recalled_at` e o score do recall são o insumo
 objetivo de toda poda e de toda consolidação futura — e são o que ordena o índice quando ele estourar
-o teto de contagem ([context-delivery.md D6](context-delivery.md)).
+a marca d'água do núcleo sobe ([D5](context-delivery.md) — a D6, que falava de teto de índice, foi dissolvida junto com o índice).
 
 ---
 

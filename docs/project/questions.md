@@ -124,12 +124,12 @@ Marque tudo que quiser: convenções de código do projeto; comandos que funcion
 ### [x] Q017 — O aprendizado é automático ou curado?
 (a) o agente escreve na memória sozinho quando acha relevante; (b) tudo que ele aprende vira proposta que você aprova; (c) híbrido — automático por projeto, curado por workspace (workspace é conhecimento mais caro de errar).
 
-**R:** respondida pela feature — **(c) híbrido**, e é a assimetria que sustenta o desenho ([§1 do PRD](../prd/workspace-memory/prd.md)): o que é barato de errar (projeto) pode ser automático; o que é caro de errar (workspace) entra como **proposta** na inbox e passa por você ([Q4](../prd/workspace-memory/open-questions.md)).
+**R:** respondida pela feature — **(c) híbrido**, e é a assimetria que sustenta o desenho ([§1 do PRD](../prd/workspace-memory/prd.md)): o que é barato de errar (projeto) pode ser automático; o que é caro de errar (workspace) entra como **proposta** na inbox e passa por você ([Q27](../prd/workspace-memory/open-questions.md): `domain`, `process` e `contract` escritos por agente viram proposta; `project` e `reference` vão direto).
 
 ### [x] Q018 — Como a memória evita virar lixo?
 Memória que só cresce degrada o contexto. Precisa de: decay temporal? contagem de uso? revisão periódica? contradição detectada resolve como? Ou você prefere memória append-only e limpa na mão?
 
-**R:** respondida pela feature — **sinal de uso** (`recall_count`, `last_recalled_at`, score) na [PR 04](../prd/workspace-memory/roadmap.md), teto por escopo, e poda por uso medido em vez de decay cego. Contradição resolve por **shadow, nunca merge** — ver Q020.
+**R:** respondida pela feature — **sinal de uso** (`recall_count`, `last_recalled_at`, score) na [PR 04](../prd/workspace-memory/roadmap.md) e poda por **uso medido**, não por decay cego. Teto não é o mecanismo: a [D5](../prd/workspace-memory/context-delivery.md) decidiu **sem teto no núcleo** — cortar diretriz no meio produz regra errada, não regra menor — e pôs **marca d'água** medida e visível no lugar. Contradição resolve por **shadow, nunca merge** — ver Q020.
 
 ### [x] Q019 — Formato da memória: arquivos markdown versionados ou banco?
 (a) markdown no repo (versionado, revisável em PR, o time vê); (b) markdown fora do repo (`~/.lumem/memory/...`, privado seu); (c) banco + embeddings (busca semântica, mas opaco); (d) combinação.

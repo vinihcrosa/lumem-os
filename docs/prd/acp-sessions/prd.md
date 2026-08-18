@@ -46,7 +46,7 @@ do Claude Code**. Não pediu chave de API, não pediu login novo. O medo levanta
 ([§9.2b do estudo](../../project/pty-vs-acp.md)) é real para a **distribuição** pela JetBrains, e
 **não se aplica** a este caso: aqui o adaptador é instalado e rodado por você.
 
-### 2.2 Janela de contexto — ✅ 1M, e é o default
+### 2.2 Janela de contexto — ⚠️ parcial: nasce em 1M, compactação não exercitada
 
 ```json
 "currentValue": "opus[1m]",
@@ -59,8 +59,17 @@ do Claude Code**. Não pediu chave de API, não pediu login novo. O medo levanta
 ]
 ```
 
-A sessão **nasce** em Opus com 1M de contexto. O relato de fallback para 200K (issue #786) não se
-reproduziu aqui — e o `[1m]` é um valor de modelo selecionável, exatamente como no CLI.
+A sessão **nasce** em Opus com 1M de contexto, e o `[1m]` é um valor de modelo selecionável,
+exatamente como no CLI. O turno também reportou `size: 1000000`.
+
+**O que isto não prova, e é o limite honesto deste eixo:** o
+[§9.2 do estudo](../../project/pty-vs-acp.md) definiu que o único jeito de resolver a
+[#786](https://github.com/agentclientprotocol/claude-agent-acp/issues/786) para o nosso caso era
+**encher contexto e verificar onde a compactação dispara**. Este spike mediu um turno de **39.200
+tokens** — volume em que uma janela de 200K e uma de 1M se comportam igual. Então a #786 **continua
+aberta**, e o eixo fica **parcial** ([§9.5 do estudo](../../project/pty-vs-acp.md)). Fechar isso é
+barato junto com a primeira tela da F1, e caro depois que o orçamento de contexto da memória já
+estiver desenhado em cima de 1M.
 
 ### 2.3 Consumo — ✅ sai da assinatura, e o protocolo **entrega o estado do limite**
 
@@ -204,7 +213,7 @@ demais para justificar descartar o insumo da destilação de memória.
 
 | Fase | O quê | Done when |
 |---|---|---|
-| **0** | O spike | §2 — **feito**, os três eixos |
+| **0** | O spike | §2 — **rodado**: autenticação e consumo medidos, janela **parcial** (a #786 segue aberta) |
 | **1** | Transporte: `AcpManager`, `transport` na coluna, stream tipado, sem tela nova | Uma sessão ACP roda, responde, e os eventos chegam ao cliente (verificável por teste, não por olho) |
 | **2** | Protótipo HTML da conversa | As cinco superfícies desenhadas e renderizadas: mensagem, ferramenta, permissão, plano, uso |
 | **3** | A conversa em React: **mensagem + ferramenta + permissão**, e só ([A2](open-questions.md)) | Uma tarefa real roda do começo ao fim sem terminal |

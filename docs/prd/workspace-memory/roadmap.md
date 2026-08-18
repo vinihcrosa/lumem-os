@@ -144,7 +144,7 @@ Esse motivo **acabou**: o spike rodou, autenticação e consumo estão medidos e
 ([§9.5 do estudo](../../project/pty-vs-acp.md)).
 
 O que sobra da frente B **não é construir a ACP-1** — é **decompor a `acp-sessions` em tasks**, que é o
-que este repositório exige antes de qualquer execução. A construção continua sendo o passo 9 (§7), e
+que este repositório exige antes de qualquer execução. A construção continua sendo o passo 10 (§7), e
 continua podendo esperar. As PRs 01–05 da memória andam em paralelo, porque nenhuma delas encosta em
 transporte.
 
@@ -157,7 +157,8 @@ transporte.
 | Espinha 01 → 05 | ela mesma | agora |
 | S1 (sinais de ação) | 01 | assim que 01 abrir PR |
 | S2 (protótipo) | nada | agora, e **antes** da 05 — a 05 implementa o que ele desenhar |
-| `acp-sessions` | nada | agora, em paralelo com tudo |
+| `acp-sessions` — **escrever as tasks** | nada | agora, em paralelo com tudo |
+| `acp-sessions` — **construir (ACP-1)** | as tasks dela | passo 10 do §7, depois do merge da guarda-chuva |
 
 ---
 
@@ -183,7 +184,8 @@ ela entra na guarda-chuva.
 
 ```mermaid
 flowchart LR
-  spike["ACP-0<br/>spike medido ✓"]
+  spike["ACP-0<br/>spike ✓ (janela parcial)"]
+  atasks["tasks da acp-sessions<br/>não existem"]
   acp["ACP-1<br/>transporte + tela"]
   p1["01 armazenamento"]
   p2["02 portão"]
@@ -195,7 +197,7 @@ flowchart LR
   merge(["merge na main"])
   d["06–09<br/>injeção · captura · auto-learn · playbooks"]
 
-  spike --> acp
+  spike --> atasks --> acp
   p1 --> p2 --> p3 --> p4 --> p5
   s2 --> p5
   p1 --> s1
@@ -219,14 +221,14 @@ flowchart LR
 | **03** — superfícies (CLI + MCP) | A | 02 | 04, 08, 09 | quando a 02 abrir PR |
 | **04** — recall + instrumentação | A | 03 | 05, 08 | quando a 03 abrir PR |
 | **05** — inbox + UI | A | 04 **e** S2 | o merge da guarda-chuva | quando as duas existirem |
-| **ACP-1** — transporte + tela | B | ACP-0 (**feito**) + `acp-sessions/tasks.md` (**não existe ainda**) | 06, 07, 08, 09 | passo 9 do §7 — destravada, mas **não decomposta** |
+| **ACP-1** — transporte + tela | B | ACP-0 (**feito**) + `acp-sessions/tasks.md` (**não existe ainda**) | 06, 07, 08, 09 | passo 10 do §7 — destravada, mas **não decomposta** |
 | **06–09** | **D** | ACP-1 **e** 02/03/04 mergeadas | — | segunda guarda-chuva |
 
 ### As frentes que podem correr ao mesmo tempo
 
 | Momento | Frente A (memória) | Frente B (ACP) | Frente C (desenho) |
 |---|---|---|---|
-| **agora** | 01 armazenamento | **tasks da `acp-sessions`** (o ACP-0 fechou; a ACP-1 é o passo 9) | S2 protótipo |
+| **agora** | 01 armazenamento | **tasks da `acp-sessions`** (o ACP-0 fechou; a ACP-1 é o passo 10) | S2 protótipo |
 | **depois** | 02 → 03 → 04 | — (a ACP-1 espera o merge, §7) | — |
 | **fim da 1ª guarda-chuva** | 05 inbox (precisa da 04 e do S2) | ACP-1 começa | — |
 | **depois do merge** | — | — | 06–09, na 2ª guarda-chuva |
@@ -237,30 +239,30 @@ convivem. Dentro da frente A não há paralelismo: a espinha é corrente, cada p
 > **Trabalhando sozinho, duas frentes já é bastante.** A recomendação era **01 + ACP-0**, e o **ACP-0
 > já fechou**. A recomendação agora é **01 + as tasks da `acp-sessions`** — a 01 é o começo real do
 > código, e decompor a `acp-sessions` é barato, não conflita com nada e é o que falta para ela poder
-> começar quando chegar a vez dela (passo 9). **Construir** a ACP-1 agora abriria duas frentes de código
+> começar quando chegar a vez dela (passo 10). **Construir** a ACP-1 agora abriria duas frentes de código
 > ao mesmo tempo, que é exatamente o que esta caixa desaconselha. O S2 entra quando a 04 estiver perto,
 > porque ele só bloqueia a 05.
 
 ### Se for uma coisa de cada vez
 
 1. ~~**ACP-0** (spike)~~ — **feito** em 2026-08-17; era o único item que ficava mais caro se fosse adiado
-1b. **tasks da `acp-sessions`** — não é código, cabe em qualquer buraco, e é o que falta para o passo 9 poder começar
-2. **01** armazenamento
-3. **02** portão
-4. **03** superfícies
-5. **04** recall
-6. **S2** protótipo — antes da 05, porque ela implementa o que ele desenhar
-7. **05** inbox + UI
-8. **merge** da guarda-chuva na `main`
-9. **ACP-1** — transporte e tela da conversa
-10. **06–09** na segunda guarda-chuva
+2. **tasks da `acp-sessions`** — não é código, cabe em qualquer buraco, e é o que falta para a ACP-1 poder começar
+3. **01** armazenamento
+4. **02** portão
+5. **03** superfícies
+6. **04** recall
+7. **S2** protótipo — antes da 05, porque ela implementa o que ele desenhar
+8. **05** inbox + UI
+9. **merge** da guarda-chuva na `main`
+10. **ACP-1** — transporte e tela da conversa
+11. **06–09** na segunda guarda-chuva
 
-**S1** entra em qualquer buraco depois do passo 2.
+**S1** entra em qualquer buraco depois do passo 3.
 
 > **O passo 1 não era construir o ACP.** Era escrever o PRD e rodar o spike — **os dois já foram
 > feitos** ([PRD](../acp-sessions/prd.md), [§9.5 do estudo](../../project/pty-vs-acp.md)). A construção
-> continua sendo o passo 9 e continua podendo esperar; o que não podia esperar era a **resposta**, e ela
-> chegou. O que a `acp-sessions` ainda **não** tem é `tasks.md` — e é só isso que o passo 1b resolve.
+> continua sendo o passo 10 e continua podendo esperar; o que não podia esperar era a **resposta**, e ela
+> chegou. O que a `acp-sessions` ainda **não** tem é `tasks.md` — e é só isso que o passo 2 resolve.
 
 ---
 
