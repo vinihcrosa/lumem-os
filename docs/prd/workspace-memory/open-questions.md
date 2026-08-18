@@ -1007,6 +1007,7 @@ busca devolve.
 |---|---|---|
 | Pesos | `0.7` lexical · `0.2` recência · `0.1` uso | o texto responde à pergunta; recência é desempate; uso diz "já foi útil antes", nunca "responde a isto" |
 | Escala do lexical | min–max **sobre os candidatos da busca** | o BM25 do SQLite vai de ~`1e-6` (termo frequente, IDF≈0) a ~`14` (termo raro). Somado cru, ou é ruído perto da recência ou a engole — nunca os três juntos. Saturar (`x/(1+x)`) achatava o topo a ponto de um casamento 3× melhor perder para o mais recente |
+| Onde o teto de `limit` vive | no núcleo (`MAX_LIMIT`), e o router **recusa** onde o núcleo **clampa** | pedido malformado pelo tRPC é erro do chamador e merece erro de validação; a CLI e a superfície MCP não têm schema para dizer isso, então o núcleo aparava em vez de devolver lista vazia |
 | Conjunto que define a escala | 50 candidatos visíveis, **constante** | min–max é **escala**: um conjunto que mudasse com o `limit` faria "mostre mais" trocar o primeiro colocado — e faz, medido. O `limit` não entra na conta dos candidatos, e o teto de 50 vive no **núcleo**, não só no Zod do router: a CLI e a superfície MCP chamam o núcleo direto, e invariante que só existe no schema de um chamador não é invariante |
 | O que vai para `best_score` | o **bm25 cru**, não o score | o score é relativo aos candidatos daquela busca, e resultado único tira o teto por construção. Guardar o relativo faria o critério objetivo da poda saturar justamente para memória irrelevante |
 | Meia-vida da recência | 14 dias | a curva que o Compozy mediu |

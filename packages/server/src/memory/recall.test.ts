@@ -2,7 +2,7 @@ import { rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { newId } from "@lumem/shared";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { Db } from "../db/index.js";
@@ -63,6 +63,11 @@ async function seed(memory: MemoryService) {
   });
 }
 
+/** O sinal de um caminho. Por caminho, e não por ordem de inserção. */
+function signalOf(db: Db, path: string) {
+  return db.select().from(memorySignal).where(eq(memorySignal.path, path)).get();
+}
+
 /** Envelhece uma memória no catálogo. É a recência virando dado de teste. */
 function age(db: Db, slug: string, days: number): void {
   db.run(
@@ -76,7 +81,13 @@ function age(db: Db, slug: string, days: number): void {
  * É o único jeito de montar um acervo grande o bastante para provar o corte do
  * `MATCH` sem pagar um commit git por linha.
  */
-function bulk(db: Db, count: number, workspaceId: string, text: string, prefix = "ruido"): void {
+function bulk(
+  db: Db,
+  count: number,
+  workspaceId: string,
+  text: string,
+  { prefix = "ruido", body = text }: { prefix?: string; body?: string } = {},
+): void {
   for (let index = 0; index < count; index += 1) {
     const slug = `${prefix}-${index}`;
     const path = `workspaces/${workspaceId}/memory/domain/${slug}.md`;
@@ -85,9 +96,9 @@ function bulk(db: Db, count: number, workspaceId: string, text: string, prefix =
           (id, path, type, scope, slug, workspace_id, project_id, name, description,
            source_actor, confidence, content_hash)
           VALUES (${newId()}, ${path}, 'domain', 'workspace', ${slug},
-                  ${workspaceId}, NULL, ${text}, ${text}, 'human', 'medium', ${path})`,
+                  ${workspaceId}, NULL, ${text}, ${text}, 'human', 'medium', ${`${path}-hash`})`,
     );
-    indexEntry(db, path, text, text, slug, text);
+    indexEntry(db, path, text, text, slug, body);
   }
 }
 
@@ -434,12 +445,24 @@ describe("ranking", () => {
     // Mais linhas casando do que cabe numa página, e a única memória fresca no
     // **fim** da fila do bm25: um pool que encolhe com o `limit` para de paginar
     // antes de chegar nela, e devolve outra resposta para a mesma pergunta.
+    // Documento mais longo tem bm25 **menor**, então a fila abaixo é ordenada por
+    // score e não pelo desempate por rowid do SQLite, que não é ordem documentada
+    // e um dia muda debaixo do teste.
     bulk(db, 120, "ws2", "rollback checkout");
-    bulk(db, 30, "ws1", "rollback checkout");
+    bulk(db, 29, "ws1", "rollback checkout");
+    bulk(db, 1, "ws1", "rollback checkout", {
+      prefix: "recente",
+      body: "rollback checkout um tico mais longo",
+    });
+    // O pior de todos, e visível: sem ele a memória fresca seria o mínimo do
+    // conjunto, levaria `lexical = 0` e perderia por construção.
+    bulk(db, 1, "ws1", "rollback checkout", {
+      prefix: "pior",
+      body: `rollback checkout ${"palavra irrelevante ".repeat(60)}`,
+    });
     for (const row of memory.list()) {
-      if (row.workspaceId === "ws1") age(db, row.slug, 400);
+      if (row.workspaceId === "ws1" && row.slug !== "recente-0") age(db, row.slug, 400);
     }
-    bulk(db, 1, "ws1", "rollback checkout", "recente");
 
     const cinco = memory.search("rollback checkout", { workspaceId: "ws1", limit: 5 }).hits;
     const vinte = memory.search("rollback checkout", { workspaceId: "ws1", limit: 20 }).hits;
@@ -450,6 +473,10 @@ describe("ranking", () => {
 
   it("limite fora de faixa vira faixa, não vira lista vazia", async () => {
     const { memory, db } = await service();
+    // Invisíveis primeiro, de propósito: o pool só passa de `MAX_LIMIT` quando
+    // a primeira página é gasta com quem o escopo não enxerga. Com 60 visíveis
+    // e nada invisível, o pool para em 50 e a asserção do teto mediria o pool.
+    bulk(db, 40, "ws2", "deploy do carrinho");
     bulk(db, 60, "ws1", "deploy do carrinho");
 
     // `slice(0, 0)` devolve nada e `slice(0, -1)` come o último: limite que
@@ -529,6 +556,33 @@ describe("ranking", () => {
     // tudo o mais. Sem os pesos por coluna elas empatariam, e a segunda, por ser
     // a mais recente, ganharia o desempate.
     expect(hits[0]?.entry.slug).toBe("alpha-um");
+  });
+
+  it("casamento no nome vale mais que casamento na descrição", async () => {
+    const { memory, db } = await service();
+    bulk(db, 20, "ws1", "assunto qualquer sem relacao");
+    await memory.write({
+      name: "Estorno duplicado",
+      description: "texto neutro comum",
+      type: "process",
+      body: "nada relevante",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+    await memory.write({
+      name: "Alpha dois",
+      description: "estorno duplicado",
+      type: "process",
+      body: "nada relevante",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+
+    const hits = memory.search("estorno duplicado", { workspaceId: "ws1" }).hits;
+
+    // Nome pesa 4, descrição 3 — e a segunda memória é a **mais recente**, então
+    // sem o peso de `name` ela ganharia no desempate da recência.
+    expect(hits[0]?.entry.slug).toBe("estorno-duplicado");
   });
 
   it("a recência cai pela metade em catorze dias", async () => {
@@ -688,12 +742,13 @@ describe("sinal de uso", () => {
     });
 
     memory.search("estorno duplicado", { workspaceId: "ws1", record: true });
-    const forte = db.select().from(memorySignal).all()[0]?.bestScore ?? 0;
+    const alvo = memory.list().find((row) => row.slug === "estorno-duplicado")?.path ?? "";
+    const forte = signalOf(db, alvo)?.bestScore ?? 0;
     memory.search("estorno assunto", { workspaceId: "ws1", record: true });
 
     // Guardar o último faria uma busca fraca **apagar** a evidência de que a
     // memória já respondeu bem a alguma pergunta.
-    expect(db.select().from(memorySignal).all()[0]?.bestScore).toBe(forte);
+    expect(signalOf(db, alvo)?.bestScore).toBe(forte);
   });
 
   it("só o que voltou ganha sinal", async () => {

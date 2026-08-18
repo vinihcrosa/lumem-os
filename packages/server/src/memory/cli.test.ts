@@ -37,6 +37,15 @@ function cli() {
       sqlite.exec("DROP TABLE IF EXISTS memory_fts");
       sqlite.close();
     },
+    /** O índice existe? Estado, e não saída — é o que distingue reparo de silêncio. */
+    hasIndex() {
+      const sqlite = new Database(join(stateDir, "lumem.db"));
+      const rows = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'memory_fts'")
+        .all();
+      sqlite.close();
+      return rows.length > 0;
+    },
     get out() {
       return out;
     },
@@ -345,7 +354,22 @@ describe("lumem-memory", () => {
 
     // `list` lê o catálogo, não o índice. Reconstruir aqui seria escrita
     // escondida num comando de leitura — e `reindex` apaga o catálogo inteiro.
+    // A asserção é sobre o **estado**: silêncio no stderr também é o que um
+    // reparo sem print produz.
+    expect(app.hasIndex()).toBe(false);
     expect(app.err).toBe("");
+  });
+
+  it("busca sem --query falha antes de escrever qualquer coisa", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Gate", "--type", "user", "--body", "x");
+    app.dropIndex();
+
+    expect(await app.run("search")).toBe(1);
+
+    // Comando que vai falhar por falta de argumento não pode ter reconstruído
+    // catálogo nenhum no caminho.
+    expect(app.hasIndex()).toBe(false);
   });
 
   it("limite que não é número é erro de uso, não stack", async () => {

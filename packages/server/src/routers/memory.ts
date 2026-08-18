@@ -3,6 +3,7 @@ import { z } from "zod";
 import { MemoryService, writeMemorySchema } from "../memory/MemoryService.js";
 import { requireAccess } from "../memory/access.js";
 import { MEMORY_ACTORS, MEMORY_SCOPES, MEMORY_TYPES } from "../memory/entry.js";
+import { MAX_LIMIT } from "../memory/recall.js";
 import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
 
 /**
@@ -35,7 +36,10 @@ const scopeIds = z.object({
 
 const searchInput = scopeIds.extend({
   query: z.string().min(1).max(500),
-  limit: z.number().int().min(1).max(50).optional(),
+  // O número tem nome no núcleo, e é lá que a invariante mora. Aqui ele
+  // **recusa** em vez de clampar: pedido malformado pelo tRPC é erro do
+  // chamador, e a CLI não tem schema para dizer isso.
+  limit: z.number().int().min(1).max(MAX_LIMIT).optional(),
 });
 
 const identity = scopeIds.extend({

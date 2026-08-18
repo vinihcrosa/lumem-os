@@ -78,6 +78,18 @@ O `tsc` puro na raiz não enxergava `e2e/`, `playwright.config.ts` nem os `vites
 
 Registro do que já mordeu, pra não voltar:
 
+**Teste de corte com acervo menor que o corte.** O recall pagina o `MATCH` em páginas de 50 e só então
+decide se já tem candidatos suficientes. Havia um teste chamado *"o limite pedido não muda quem está no
+topo"* — verde — enquanto o `limit` **mudava** o primeiro colocado: o acervo do teste tinha 23 linhas,
+uma página só, e com uma página qualquer tamanho de pool devolve o mesmo conjunto. O teste passava até
+com o pool em 1.
+
+A regra que sobrou: **teste de corte, de pool ou de paginação precisa de acervo maior que o corte.**
+Abaixo dele a asserção é vácua e o nome do teste vira promessa. E se o acervo depender de desempate —
+linhas com o mesmo score, ordenadas pelo rowid que o SQLite escolher — a premissa não é estrutural:
+faça a ordem vir do **score** (documento mais longo tem bm25 menor), senão o teste fica verde no dia em
+que o desempate mudar.
+
 **Estado derivado preenchido pela metade, que passa na própria verificação de frescor.** O índice FTS5
 da memória nasce fora das migrations — migration não deriva nada —, então existe banco com catálogo e
 sem índice. A primeira tentativa de consertar isso preenchia o índice **a partir do catálogo** quando

@@ -250,6 +250,10 @@ export async function runMemoryCli(
       }
 
       case "search": {
+        // A pergunta antes do reparo: `reindex` substitui o catálogo, e comando
+        // que vai falhar por falta de argumento não pode ter escrito nada.
+        const query = required(flags, "query");
+
         // A CLI existe para inspecionar a memória **sem** subir o daemon, então
         // ela não pode contar com o reparo do boot: num banco anterior a esta
         // feature o índice não existe, e a busca não acharia nada. Só aqui, e
@@ -264,7 +268,7 @@ export async function runMemoryCli(
 
         // Só o caminho do agente registra: uma busca de inspeção não pode
         // inflar o contador que decide poda e consolidação (Q25).
-        const result = memory.search(required(flags, "query"), {
+        const result = memory.search(query, {
           ...(flags.workspace ? { workspaceId: flags.workspace } : {}),
           ...(flags.project ? { projectId: flags.project } : {}),
           ...(flags.limit ? { limit: integer(flags.limit, "limit") } : {}),

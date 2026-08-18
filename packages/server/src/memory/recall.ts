@@ -49,10 +49,10 @@ const USE_SATURATION = 3;
  * O *valor* é que é inerte — medido, `0.0` e `9.0` dão score idêntico, porque
  * coluna `UNINDEXED` não guarda termo.
  *
- * Os números são **ordinais**: o que os testes pinam é a ordem
- * `name > description > {slug, body}`. As magnitudes são calibração, e voltam
- * quando houver acervo para medir. `slug` fica junto do corpo porque é derivado
- * do nome — dar mais a ele seria contar o título duas vezes.
+ * Os números são **ordinais**: o que os testes pinam é a ordem — `name` acima de
+ * `description`, e `description` acima de `body`. As magnitudes são calibração, e
+ * voltam quando houver acervo para medir. `slug` fica junto do corpo porque é
+ * derivado do nome — dar mais a ele seria contar o título duas vezes.
  */
 const COLUMN_WEIGHTS = "0.0, 4.0, 3.0, 1.0, 1.0";
 
@@ -63,7 +63,7 @@ const COLUMN_WEIGHTS = "0.0, 4.0, 3.0, 1.0, 1.0";
  * núcleo direto, e uma invariante que só existe no schema de um dos chamadores
  * não é invariante.
  */
-const MAX_LIMIT = 50;
+export const MAX_LIMIT = 50;
 
 /**
  * Quantos candidatos visíveis alimentam a normalização.
@@ -434,9 +434,14 @@ function tokenize(query: string): string[] {
     .filter((term) => term.length >= 2 && !STOPWORDS.has(term));
 }
 
-/** O limite pedido, dentro do que a busca sabe entregar. `NaN` cai no default. */
+/**
+ * O limite pedido, dentro do que a busca sabe entregar.
+ *
+ * Ausente ou `NaN` cai no default; o resto é clampeado. `Infinity` é pedido de
+ * "tudo", e tudo é o teto — não o default.
+ */
 function clampLimit(limit: number | undefined): number {
-  if (limit === undefined || !Number.isFinite(limit)) return 5;
+  if (limit === undefined || Number.isNaN(limit)) return 5;
   return Math.min(Math.max(1, Math.trunc(limit)), MAX_LIMIT);
 }
 
