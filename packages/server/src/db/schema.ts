@@ -144,14 +144,23 @@ export const memoryEntry = sqliteTable(
     scope: text("scope").notNull(),
     /** A segunda metade da identidade `(tipo, slug)` da Q12. */
     slug: text("slug").notNull(),
-    workspaceId: text("workspace_id"),
-    projectId: text("project_id"),
+    /**
+     * `''` quando o escopo não tem workspace — nunca NULL.
+     *
+     * O vazio é sentinela deliberada, e a razão está no índice de identidade
+     * abaixo: no SQLite NULL nunca colide com NULL, então uma coluna nula aqui
+     * desligaria a unicidade de `(tipo, slug)` em todo escopo que não seja
+     * `project`. Quem lê estas colunas trata `''` como "não se aplica".
+     */
+    workspaceId: text("workspace_id").notNull().default(""),
+    /** `''` fora do escopo `project` — mesmo motivo de `workspace_id`. */
+    projectId: text("project_id").notNull().default(""),
     name: text("name").notNull(),
     description: text("description").notNull(),
     /** Do frontmatter, para responder "por que esta memória existe" sem abrir o arquivo. */
     sourceActor: text("source_actor").notNull(),
     confidence: text("confidence").notNull(),
-    /** sha256 do arquivo inteiro: o `reindex` pula o que não mudou. */
+    /** sha256 do arquivo inteiro, para comparar conteúdo sem reler o disco. */
     contentHash: text("content_hash").notNull(),
     ...timestamps,
   },
@@ -162,6 +171,10 @@ export const memoryEntry = sqliteTable(
     ),
     check("memory_entry_scope", sql`${table.scope} IN ('global', 'workspace', 'project')`),
     // A identidade da Q12 é única dentro do escopo em que ela vale.
+    //
+    // Só funciona porque `workspace_id` e `project_id` são `''` — e não NULL —
+    // fora do escopo em que valem: no SQLite **NULL não colide com NULL**, e
+    // com colunas nulas esta unicidade valeria apenas no escopo `project`.
     uniqueIndex("memory_entry_identity").on(
       table.scope,
       table.workspaceId,
@@ -223,6 +236,69 @@ export const memoryDecision = sqliteTable(
   ],
 );
 
+/** O maior caminho que um checkout produz, com folga. Acima disso não é alvo. */
+export const MAX_SIGNAL_TARGET_LENGTH = 1_024;
+
+/**
+ * O sinal de ação — o único insumo que **não depende de cooperação** (Q17).
+ *
+ * Compozy e Hermes extraem do que foi **dito**. Isto registra o que foi
+ * **feito**: você editou por cima do que o agente escreveu, reverteu o commit
+ * dele, descartou a worktree, matou a sessão em trinta segundos. É o sinal mais
+ * barato que existe, e nenhuma das quatro referências usa.
+ *
+ * A regra de privacidade da Q18 está no schema, não num comentário: **só evento
+ * estrutural**. Há `target` (o quê) e `detail` (um número), e não existe coluna
+ * de conteúdo.
+ *
+ * Não existir coluna não bastava. A afinidade INTEGER do SQLite guarda texto
+ * não numérico como TEXT, então `detail` aceitava frase; e `target` era TEXT
+ * sem limite, onde cabia um arquivo inteiro. Os dois `CHECK` abaixo são o que
+ * torna a regra estrutural em vez de disciplina de quem chama: `detail` só
+ * aceita inteiro, e `target` só aceita um identificador de uma linha — caminho,
+ * SHA ou id — nunca prosa.
+ */
+export const actionSignal = sqliteTable(
+  "action_signal",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").notNull(),
+    /** O alvo: caminho de arquivo, id de sessão, id de worktree. */
+    target: text("target").notNull(),
+    workspaceId: text("workspace_id"),
+    projectId: text("project_id"),
+    worktreeId: text("worktree_id"),
+    sessionId: text("session_id"),
+    /** Um número que qualifica — linhas trocadas, segundos de vida. Nunca texto do usuário. */
+    detail: integer("detail"),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "action_signal_kind",
+      sql`${table.kind} IN (
+        'user_edited_after_agent',
+        'user_reverted_agent_commit',
+        'worktree_discarded',
+        'session_killed_early'
+      )`,
+    ),
+    // Um número, e o banco é quem cobra. Sem isto, "12 linhas trocadas" e
+    // "TODO: pedir aumento" entram pela mesma coluna.
+    check(
+      "action_signal_detail_number",
+      sql`${table.detail} IS NULL OR typeof(${table.detail}) = 'integer'`,
+    ),
+    // Um identificador: caminho de arquivo, SHA ou id. O limite e a proibição
+    // de quebra de linha são o que separa isso de um trecho de texto.
+    check(
+      "action_signal_target_shape",
+      sql`length(${table.target}) BETWEEN 1 AND ${sql.raw(String(MAX_SIGNAL_TARGET_LENGTH))}
+        AND instr(${table.target}, char(10)) = 0`,
+    ),
+  ],
+);
+
 export const schema = {
   workspace,
   project,
@@ -231,6 +307,7 @@ export const schema = {
   session,
   memoryEntry,
   memoryDecision,
+  actionSignal,
 };
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
@@ -240,3 +317,4 @@ export type AgentConfigRow = typeof agentConfig.$inferSelect;
 export type SessionRow = typeof session.$inferSelect;
 export type MemoryEntryRow = typeof memoryEntry.$inferSelect;
 export type MemoryDecisionRow = typeof memoryDecision.$inferSelect;
+export type ActionSignalRow = typeof actionSignal.$inferSelect;

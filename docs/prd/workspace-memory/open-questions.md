@@ -7,12 +7,18 @@ aqui, com o motivo.
 onde está, agrupada por tema, e ganha uma linha **Decisão:** com o que ficou valendo. Cada pergunta
 traz uma **proposta pra reagir**; discordar dela é mais rápido que escrever do zero.
 
-**Estado:** 42 perguntas · **42 respondidas · 0 abertas.** O que resta são as **D2, D5, D7 e D8**, no
-[context-delivery.md](context-delivery.md).
+**Estado:** 44 perguntas · **42 respondidas · 2 abertas (Q38, Q39).** O que resta, além delas, são as
+**D2, D5, D7 e D8**, no [context-delivery.md](context-delivery.md).
 
-**Rodada 5 (2026-08-17):** quatro decisões que **a implementação** obrigou a tomar, na seção J:
-duplicata por assinatura semântica (Q38), reverter duas vezes alterna (Q39), o scan não recusa o
-vocabulário desta própria feature (Q40), e limpar invisível ≠ normalizar para casar (Q41).
+**Rodada 6 (2026-08-18):** quatro decisões que **a implementação do portão** obrigou a tomar, na
+seção J: duplicata por assinatura semântica (Q40), reverter duas vezes alterna (Q41), o scan não
+recusa o vocabulário desta própria feature (Q42), e limpar invisível ≠ normalizar para casar (Q43).
+
+**Rodada 5 (2026-08-17):** a revisão da PR 01 abriu duas. A **Q38** veio do `Done when` da T6, que
+prometia recusar "escopo inválido **para o tipo**" — matriz que nunca existiu em lugar nenhum do PRD;
+o desvio está registrado na [E15](tasks.md#o-que-a-execução-achou). A **Q39** veio de uma sonda do
+round 2: o `scope` do frontmatter e o diretório em que o arquivo está podem discordar, e o catálogo
+acredita nos dois ao mesmo tempo.
 
 **Rodada 4 (2026-08-17):** Q3.1, Q10, Q16, Q30 e Q37 fechadas. E o desenho de entrega de contexto foi
 **redesenhado por você**: índice injetado saiu, entrou *núcleo comportamental + skill + serviço
@@ -330,6 +336,65 @@ ou não vale. E nada aprendido numa worktree descartada vira memória de workspa
 
 **Decisão:** worktree não tem memória. Ela continua sendo **origem** — a proveniência guarda de qual
 worktree veio o que se aprendeu —, mas não é escopo de leitura nem de escrita.
+
+---
+
+### [ ] Q38 — Existe escopo **proibido** para um tipo, ou só escopo default? `[lm]`
+
+Levantada pela revisão da PR 01: o `Done when` da T6 dizia "escopo inválido para o tipo é recusado",
+e o código não recusa nada — `resolveScope` devolve o escopo pedido, qualquer que seja. A [§6 do
+PRD](prd.md#6-taxonomia-proposta) dá **escopo default** por tipo, e ao mesmo tempo diz que `reference`
+é "projeto ou workspace", o que sugere mais de um escopo legítimo. Nunca houve a matriz do que é
+proibido.
+
+Duas leituras, e elas levam a códigos diferentes:
+
+- **default e nada mais** — o tipo sugere onde a memória nasce, e o chamador que explicita ganha. Um
+  `user` em escopo de projeto é estranho, não é erro. É o que está implementado hoje.
+- **matriz fechada** — cada tipo declara os escopos em que pode viver, e o resto é `INVALID_ARGUMENT`.
+  Fecha a porta para o agente inventar escopo, que é a decisão que o §6 diz que ele mais erra.
+
+**Proposta pra reagir:** matriz fechada, com `contract` preso a workspace (ele é um fato **entre**
+projetos) e `reference` valendo em projeto e workspace. O argumento é o mesmo da A9: a taxonomia só
+dá ao sistema o direito de decidir escopo sozinho se o espaço de escopos por tipo for conhecido.
+
+**Custo de esperar:** baixo. Enquanto a escrita não estiver exposta a agente (o portão é a PR 02),
+quem escolhe escopo é você.
+
+---
+
+### [ ] Q39 — Quando o frontmatter e o diretório discordam sobre o escopo, quem manda? `[lm]`
+
+Achada por sonda durante a revisão da PR 01, e é fato medido, não hipótese:
+
+```
+memory/user_x.md com `scope: workspace` no frontmatter
+→ reindex: {"indexed":1,"failures":[]}
+→ linha:   {"path":"memory/user_x.md","scope":"workspace","workspaceId":""}
+```
+
+`rowFor` tira o **escopo** do frontmatter e os **ids** do caminho. Quando os dois discordam, a linha
+sai incoerente — escopo de workspace sem workspace — e em silêncio: o `reindex` reporta sucesso. Um
+`read` naquele escopo procura em `workspaces/<id>/memory/` e não acha o arquivo que está indexado.
+
+Só acontece com arquivo **editado à mão**, porque o caminho de escrita deriva o diretório do escopo.
+Mas editar à mão é a premissa A2, não um acidente.
+
+Três leituras:
+
+- **o diretório manda** — o `scope` do frontmatter é redundante, e o `reindex` o ignora ou o corrige.
+  Coerente com o §5 do PRD, que define o caminho **a partir** do escopo;
+- **o frontmatter manda** — mover o arquivo de diretório passa a ser consequência, não causa.
+  Exigiria o `reindex` mover arquivo, coisa que ele hoje não faz e que a Q3 desaconselha;
+- **discordar é erro** — o arquivo entra em `failures[]` com o motivo, e alguém decide. É o que o
+  `reindex` já faz com frontmatter inválido.
+
+**Proposta pra reagir:** **discordar é erro**. O `reindex` existe para reconstruir sem adivinhar, e
+as outras duas leituras pedem que ele escolha um lado em silêncio — que é como o catálogo passa a
+mentir. O `failures[]` já é o canal para "existe arquivo que eu não sei indexar".
+
+**Custo de esperar:** baixo enquanto a escrita não estiver exposta a agente (o portão é a PR 02).
+Sobe quando o recall começar a resolver escopo, porque aí a linha incoerente vira resposta errada.
 
 ---
 
@@ -756,6 +821,16 @@ cooperação do agente. Começa registrando o sinal cru, sem interpretar; interp
 cedo — editou por cima, reverteu, descartou a worktree, matou a sessão em 30s — e interpretar só
 quando houver volume.
 
+**O que a S1 fechou ao implementar.** Quatro escolhas que a decisão acima não continha, e que a
+revisão da PR cobrou por escrito em vez de deixar viver no código:
+
+| # | Escolha | Por quê |
+|---|---|---|
+| **Q17.a** | `user_edited_after_agent` é **uma vez por (tipo, alvo, escopo) a cada 5 minutos**, não por gravação | O autosave grava a cada 800 ms de pausa. Um sinal por tique mede cadência de digitação, não "editei por cima dele", e a tabela cresce sem teto |
+| **Q17.b** | Só conta **edição feita pelo editor do Lumem** | É o único caminho de escrita que o daemon vê. Editar pelo terminal, pelo Vim ou por outro editor não vira sinal — e isso é limite conhecido, não descuido |
+| **Q17.c** | Os **30 s** de `session_killed_early` são fixos, sem configuração | Número sem dado atrás não merece knob. Quando houver volume, o dado é que move o corte |
+| **Q17.d** | A varredura de revert roda no **fim de cada sessão de agente**, no checkout dela | Não há gancho para "você reverteu": você reverte por onde quiser. O fim de uma sessão de agente é quando o daemon sabe que houve agente escrevendo ali, e é barato — um `git log` de 200 commits. O preço é a latência: um revert feito hoje só vira sinal na próxima sessão de agente naquele checkout. Reencontrar o mesmo revert não grava de novo |
+
 ---
 
 ### [x] Q18 — Até onde vai o registro do seu comportamento? `[cz]`
@@ -770,6 +845,13 @@ conteúdo do que você digitou fora do que você mandou para o agente.
 
 **Decisão:** só evento estrutural, com alvo e horário. **Nunca** conteúdo do que você digitou fora do
 que foi para o agente. É regra de produto, e vira teste.
+
+**A regra é do banco, não de quem chama (S1).** Não bastava não existir coluna de conteúdo: a
+afinidade INTEGER do SQLite guarda texto não numérico como TEXT, então `detail` aceitava frase, e
+`target` era TEXT sem limite nenhum. Dois `CHECK` fecham isso — `detail` só aceita inteiro, e
+`target` só aceita identificador de uma linha, de até 1.024 caracteres. E o que a varredura de
+revert devolve é **só SHA**: o assunto do commit é frase que você digitou, e ele vive como variável
+local dentro da função, nunca como campo de um objeto que alguém possa gravar.
 
 ---
 
@@ -1115,7 +1197,7 @@ uma.
 Quatro decisões que não estavam em pergunta nenhuma e apareceram construindo a PR 02. Ficam aqui
 pelo mesmo motivo das outras: decisão de desenho não vira suposição silenciosa.
 
-### [x] Q38 — Duplicata é igualdade de bytes ou de assinatura semântica? `[lm]`
+### [x] Q40 — Duplicata é igualdade de bytes ou de assinatura semântica? `[lm]`
 
 O portão promete `noop` quando a escrita não muda nada ([§7 do PRD](prd.md)). A primeira versão
 comparava o **hash do arquivo serializado** — e o arquivo carrega `updated_at`, que muda a cada
@@ -1131,7 +1213,7 @@ duas tentativas da mesma escrita nunca casavam, e o replay pós-crash que a
 [Q9](#x-q9--wal-de-decisões-com-prior_content-e-revert-desde-o-v1-cz) promete não tinha como
 reconhecer a tentativa anterior. A chave passou a sair da assinatura.
 
-### [x] Q39 — Reverter duas vezes desfaz o revert, ou é idempotente? `[lm]`
+### [x] Q41 — Reverter duas vezes desfaz o revert, ou é idempotente? `[lm]`
 
 `revert` volta pelo git e grava uma **decisão nova**, sem reescrever histórico. Então o segundo
 `revert` do mesmo caminho encontra, como commit anterior, o commit que o primeiro produziu — e
@@ -1143,7 +1225,7 @@ O que a chave de idempotência garante é outra coisa: **o mesmo ponto, revertid
 `HEAD`, nunca vira duas decisões** — uma retentativa depois de commit falho continua sendo a mesma
 decisão, com o SHA anexado quando o commit enfim acontece.
 
-### [x] Q40 — O scan pode recusar memória sobre o próprio domínio do Lumem? `[lm]`
+### [x] Q42 — O scan pode recusar memória sobre o próprio domínio do Lumem? `[lm]`
 
 "System prompt" é vocabulário desta feature: memória legítima sobre como o bloco de memória é
 entregue ao agente contém a expressão o tempo todo. A primeira régua bloqueava a expressão sozinha —
@@ -1158,7 +1240,7 @@ regras do scan ganharam severidade por regra (`block` ou `annotate`) para susten
 memória"* — continua sendo recusado. Abrir exceção para conteúdo entre aspas ou crases seria
 publicar a evasão junto com a regra. Quem precisar registrar isso reescreve sem a citação literal.
 
-### [x] Q41 — Todo caractere invisível deve ser apagado do texto gravado? `[lm]`
+### [x] Q43 — Todo caractere invisível deve ser apagado do texto gravado? `[lm]`
 
 A [Q10](#x-q10--quão-agressivo-é-o-scan-determinístico-cz) decidiu **limpar** invisível em vez de
 rejeitar, porque ele não carrega significado numa memória legítima. Só que a faixa enumerada lá

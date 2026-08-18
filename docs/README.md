@@ -1,6 +1,6 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Em construção, a primeira feature que não é de tela: [workspace-memory](prd/workspace-memory/tasks.md) — o harness lembrar.
+Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Em construção, a primeira feature que não é de tela: [workspace-memory](prd/workspace-memory/tasks.md) — o harness lembrar. Ela anda em **pilha de PRs**: a 01 (o `~/.lumem` versionado) e o S1 (os sinais de ação) entregues, o **portão de escrita** da 02 em revisão.
 
 > **Decisão de arquitetura, 2026-08-17:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por [ACP](project/pty-vs-acp.md)**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A próxima feature a desenhar é `acp-sessions`: transporte mais a tela da conversa.
 
@@ -100,18 +100,18 @@ Sucede a `right-panel`. O split da aba **escreve**: editar o arquivo aberto com 
 
 ### [workspace-memory/](prd/workspace-memory/) — o harness lembra
 
-**Em discussão — sem tasks.** A primeira feature que não é de tela: memória compartilhada do
-workspace e aprendizado contínuo por projeto. É o pilar que dá sentido ao conceito de workspace — dois
+**Em construção, em pilha de PRs — a 01 entregue.** A primeira feature que não é de tela: memória
+compartilhada do workspace e aprendizado contínuo por projeto. É o pilar que dá sentido ao conceito de workspace — dois
 projetos que se conhecem. Foi ela que forçou a decisão do ACP: o daemon precisava entender a sessão,
 e por PTY ele só via bytes.
 
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/workspace-memory/prd.md) | As três naturezas do conhecimento, o que a decisão por ACP mudou, onde cada coisa vive, o portão de escrita, a fronteira cross-projeto, riscos |
-| [open-questions.md](prd/workspace-memory/open-questions.md) | 42 perguntas, **todas respondidas** — o registro de por que cada decisão foi tomada, inclusive as quatro que a implementação obrigou (seção J) |
-| [tasks.md](prd/workspace-memory/tasks.md) | Uma seção por PR da pilha. A **01 e a 02 têm tasks** e o que a execução achou; as demais têm escopo e `Done when` |
+| [open-questions.md](prd/workspace-memory/open-questions.md) | 44 perguntas, **42 respondidas** — o registro de por que cada decisão foi tomada. As duas abertas (Q38, Q39) saíram da revisão da PR 01; as quatro da seção J foram obrigadas pela implementação do portão |
+| [tasks.md](prd/workspace-memory/tasks.md) | Uma seção por PR da pilha. A **01, a 02 e o S1 têm tasks** e o que a execução achou; as demais têm escopo e `Done when` |
 | [roadmap.md](prd/workspace-memory/roadmap.md) | **A feature em pilha de PRs**: topologia de branches, as sete regras da pilha, as cinco partes da espinha, o que anda em paralelo e onde o ACP entra |
-| [context-delivery.md](prd/workspace-memory/context-delivery.md) | Como a memória chega no agente: **núcleo comportamental + skill + serviço `lumem-memory` com auto-learn**. O que o desenho compra, o que ele cobra, o que medir, e 4 perguntas abertas |
+| [context-delivery.md](prd/workspace-memory/context-delivery.md) | Como a memória chega no agente: **núcleo comportamental + skill + serviço `lumem-memory` com auto-learn**. O que o desenho compra, o que ele cobra, e o que medir. As **D1–D8** estão respondidas |
 
 Quatro decisões já fechadas mudaram o desenho: **nenhuma memória vive dentro do repositório** (menos o
 `id` do projeto), o **transporte passa a ser ACP**, o **`~/.lumem` é versionado por git pelo próprio

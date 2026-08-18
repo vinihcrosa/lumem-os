@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import type { WorktreeRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
+import { tryRecordSignal } from "../memory/signals.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createWorktreeRepository } from "../repositories/worktree.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
@@ -170,6 +171,20 @@ export const worktreeRouter = router({
         }
 
         await worktrees.remove(row.id);
+
+        // Sinal de ação (Q17): jogar o trabalho fora é o que mais diz sobre
+        // ele. Só depois de o git ter sucedido — uma remoção que falhou não
+        // descartou nada. `detail` separa "terminei" de "desisti": 1 quando foi
+        // preciso forçar por cima de mudanças não salvas, 0 quando saiu limpa.
+        // O alvo é o id, nunca o nome da branch, que é frase que você digitou.
+        tryRecordSignal(ctx.db, {
+          kind: "worktree_discarded",
+          target: row.id,
+          projectId: row.projectId,
+          worktreeId: row.id,
+          detail: input.force ? 1 : 0,
+        });
+
         ctx.events.emit({ type: "worktree.changed", projectId: row.projectId });
         return { ok: true as const };
       }),
