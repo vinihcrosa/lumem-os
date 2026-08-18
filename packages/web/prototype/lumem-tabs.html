@@ -8,7 +8,7 @@
    1. tokens.css — colado integralmente, gerado por
       packages/web/scripts/generate-tokens.py
    ======================================================================== */
-/* Design tokens — GERADO por scripts/generate_palette.py. Nao edite a mao. */
+/* Design tokens — GERADO por scripts/generate-tokens.py. Nao edite a mao. */
 /* Rampas em OKLCH, contraste WCAG validado na geracao. */
 
 :root {
@@ -165,11 +165,35 @@
   --color-git-removed: var(--danger-400);
   --color-git-modified: var(--warning-400);
   /* dominio — hierarquia e daemon */
+  --color-scope-global: var(--info-400);
   --color-scope-workspace: var(--brand-400);
   --color-scope-project: var(--neutral-400);
   --color-scope-worktree: var(--accent-400);
   --color-daemon-online: var(--success-400);
   --color-daemon-offline: var(--danger-400);
+  /* dominio — codigo */
+  --color-syntax-keyword: var(--brand-400);
+  --color-syntax-string: var(--accent-400);
+  --color-syntax-number: var(--warning-300);
+  --color-syntax-comment: var(--neutral-600);
+  --color-syntax-function: var(--info-400);
+  --color-syntax-type: var(--success-300);
+  --color-syntax-punctuation: var(--neutral-400);
+  --color-git-added-subtle: var(--success-950);
+  --color-git-removed-subtle: var(--danger-950);
+  --color-git-untracked: var(--info-400);
+  /* dominio — editor */
+  --color-editor-cursor: var(--brand-400);
+  --color-editor-selection: var(--brand-900);
+  --color-editor-active-line: var(--neutral-980);
+  --color-editor-line-number: var(--neutral-500);
+  --color-editor-line-number-active: var(--neutral-300);
+  --color-editor-readonly: var(--neutral-400);
+  /* dominio — salvamento */
+  --color-save-saving: var(--neutral-400);
+  --color-save-saved: var(--success-400);
+  --color-save-failed: var(--danger-400);
+  --color-save-stale: var(--warning-400);
 
   /* ---------- espacamento (nome = valor em px) ---------- */
   --space-0: 0px;
@@ -217,6 +241,11 @@
   --size-terminal-min: 420px;
   --size-dialog-width: 420px;
   --size-menu-width: 300px;
+  --size-panel-right: 360px;
+  --size-panel-right-min: 260px;
+  --size-panel-right-max: 720px;
+  --size-gutter-line: 44px;
+  --size-viewer-min: 360px;
   --border-width-none: 0px;
   --border-width-thin: 1px;
   --border-width-thick: 2px;
