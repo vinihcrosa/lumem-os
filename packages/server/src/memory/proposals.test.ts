@@ -47,6 +47,34 @@ describe("requiresProposal", () => {
   it("você escrevendo no workspace não vira proposta — você é a revisão", () => {
     expect(requiresProposal("human", "workspace", "domain")).toBe(false);
   });
+
+  // As duas metades do critério são independentes, e cada uma sozinha decide.
+  // Sem estes dois casos cruzados, apagar qualquer uma delas deixa a suíte verde.
+  it("tipo de workspace precisa de revisão mesmo gravado em escopo de projeto", () => {
+    expect(requiresProposal("agent", "project", "domain")).toBe(true);
+    expect(requiresProposal("agent", "project", "process")).toBe(true);
+    expect(requiresProposal("agent", "project", "contract")).toBe(true);
+  });
+
+  it("escopo que atravessa projeto precisa de revisão mesmo com tipo barato", () => {
+    expect(requiresProposal("agent", "workspace", "user")).toBe(true);
+    expect(requiresProposal("agent", "workspace", "reference")).toBe(true);
+  });
+
+  // Q27.1: `global` é mais largo que `workspace`. Deixá-lo livre seria guardar a
+  // porta estreita e abrir a larga — a destilação por sessão escreve exatamente
+  // aqui.
+  it("global é revisado junto com workspace, porque é mais largo", () => {
+    expect(requiresProposal("distiller", "global", "feedback")).toBe(true);
+    expect(requiresProposal("auto_research", "global", "user")).toBe(true);
+  });
+
+  it("cada ator não-humano cai na regra, e não só o `agent`", () => {
+    expect(requiresProposal("distiller", "workspace", "process")).toBe(true);
+    expect(requiresProposal("auto_research", "project", "domain")).toBe(true);
+    // `import` é você migrando dado seu: passa direto, como `human`.
+    expect(requiresProposal("import", "workspace", "domain")).toBe(false);
+  });
 });
 
 describe("a inbox", () => {
@@ -105,6 +133,24 @@ describe("a inbox", () => {
     expect(memory.proposals({ status: "pending" })).toHaveLength(0);
   });
 
+  it("aprovar guarda quem propôs, a sessão e a proposta no arquivo", async () => {
+    const { memory } = await service();
+    await memory.write({ ...doWorkspace, actor: "agent", projectId: "api", sourceSessions: ["s-7"] });
+    const [proposal] = memory.proposals();
+
+    await memory.approveProposal(proposal!.id);
+
+    const entry = await memory.read("domain", "Plano sem preço", "workspace", {
+      workspaceId: "ws1",
+    });
+    // Quem gravou é você; quem propôs continua no arquivo, com a sessão e o id
+    // da proposta — `path` sozinho não distingue duas propostas do mesmo alvo.
+    expect(entry.provenance.source_actor).toBe("human");
+    expect(entry.provenance.proposed_by).toBe("agent");
+    expect(entry.provenance.proposal_id).toBe(proposal!.id);
+    expect(entry.provenance.source_sessions).toEqual(["s-7"]);
+  });
+
   it("aprovar com edição grava o que você editou", async () => {
     const { memory } = await service();
     await memory.write({ ...doWorkspace, actor: "agent" });
@@ -142,6 +188,20 @@ describe("a inbox", () => {
     expect(rejected.resolutionNote).toContain("regra do api");
     expect(memory.proposals({ status: "rejected" })).toHaveLength(1);
     expect(memory.list()).toHaveLength(0);
+  });
+
+  it("`resolved` responde as duas juntas — aprovada e rejeitada", async () => {
+    const { memory } = await service();
+    await memory.write({ ...doWorkspace, actor: "agent" });
+    await memory.write({ ...doWorkspace, name: "Squash antes de mergear", type: "process", actor: "agent" });
+    const [primeira, segunda] = memory.proposals({ status: "pending" });
+    await memory.approveProposal(primeira!.id);
+    memory.rejectProposal(segunda!.id, "não é do produto");
+
+    // Uma pergunta só para "o que eu já decidi": a tela não deveria precisar
+    // saber que `resolved` tem dois valores por baixo.
+    expect(memory.proposals({ status: "resolved" })).toHaveLength(2);
+    expect(memory.proposals({ status: "pending" })).toHaveLength(0);
   });
 
   it("resolver duas vezes é recusado", async () => {

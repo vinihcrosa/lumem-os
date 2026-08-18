@@ -131,6 +131,82 @@ describe("memory router", () => {
     expect(summary.find((row) => row.kind === "recall")?.events).toBe(1);
   });
 
+  it("escrita de agente no workspace vira proposta pela API, e não grava", async () => {
+    const { caller } = await api();
+
+    const written = await caller.memory.write({
+      name: "Plano sem preço",
+      description: "Usuário sem plano ativo vê catálogo, não preço",
+      type: "domain",
+      workspaceId: "ws1",
+      body: "Regra de produto.",
+      actor: "agent",
+    });
+
+    expect(written.outcome).toBe("proposed");
+    const pending = await caller.memory.proposals({ status: "pending" });
+    expect(pending).toHaveLength(1);
+    // O desvio é do núcleo, e a segunda superfície não tem atalho em volta dele.
+    expect((await caller.memory.list()).entries).toHaveLength(0);
+  });
+
+  it("aprovar pela API grava no disco e resolve a proposta", async () => {
+    const { caller } = await api();
+    await caller.memory.write({
+      name: "Plano sem preço",
+      description: "Usuário sem plano ativo vê catálogo, não preço",
+      type: "domain",
+      workspaceId: "ws1",
+      body: "Regra de produto.",
+      actor: "agent",
+    });
+    const [proposal] = await caller.memory.proposals({ status: "pending" });
+
+    const result = await caller.memory.approveProposal({
+      id: proposal!.id,
+      body: "Corrigi antes de aceitar.",
+    });
+
+    expect(result.outcome).toBe("applied");
+    const read = await caller.memory.read({
+      type: "domain",
+      name: "Plano sem preço",
+      scope: "workspace",
+      workspaceId: "ws1",
+    });
+    expect(read.body).toBe("Corrigi antes de aceitar.");
+    expect(await caller.memory.proposals({ status: "approved" })).toHaveLength(1);
+  });
+
+  it("proposta que não existe é NOT_FOUND, e resolver duas vezes é CONFLICT", async () => {
+    const { caller } = await api();
+
+    // O contrato de erro é o do núcleo, traduzido pelo `domainSafe` — não uma
+    // segunda semântica desta superfície.
+    await expect(caller.memory.approveProposal({ id: "nao-existe" })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+
+    await caller.memory.write({
+      name: "Squash antes de mergear",
+      description: "O time faz squash na main",
+      type: "process",
+      workspaceId: "ws1",
+      body: "",
+      actor: "agent",
+    });
+    const [proposal] = await caller.memory.proposals({ status: "pending" });
+    const rejected = await caller.memory.rejectProposal({
+      id: proposal!.id,
+      note: "isso é regra do api",
+    });
+    expect(rejected.resolutionNote).toBe("isso é regra do api");
+
+    await expect(caller.memory.rejectProposal({ id: proposal!.id })).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
+  });
+
   it("reindex reconstrói o catálogo", async () => {
     const { caller } = await api();
     await caller.memory.write(base);

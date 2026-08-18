@@ -332,6 +332,20 @@ export const memoryProposal = sqliteTable(
   },
   (table) => [
     check("memory_proposal_status", sql`${table.status} IN ('pending', 'approved', 'rejected')`),
+    // Os mesmos CHECK do `memory_entry`: aprovar uma proposta faz
+    // `proposal.type as MemoryType`, um cast que compila em silêncio sobre
+    // qualquer string. O banco é o único lugar que consegue recusar a string
+    // antes de ela chegar ao arquivo.
+    check(
+      "memory_proposal_type",
+      sql`${table.type} IN ('user', 'feedback', 'project', 'domain', 'process', 'contract', 'reference')`,
+    ),
+    check("memory_proposal_scope", sql`${table.scope} IN ('global', 'workspace', 'project')`),
+    check(
+      "memory_proposal_actor",
+      sql`${table.actor} IN ('human', 'agent', 'distiller', 'auto_research', 'import')`,
+    ),
+    check("memory_proposal_confidence", sql`${table.confidence} IN ('low', 'medium', 'high')`),
   ],
 );
 

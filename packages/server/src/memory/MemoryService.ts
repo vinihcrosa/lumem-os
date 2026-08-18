@@ -90,6 +90,15 @@ export interface WriteMemoryInput {
   /** Worktree é origem, nunca escopo (Q5). */
   worktreeId?: string;
   /**
+   * A origem, quando a escrita vem de uma proposta aprovada.
+   *
+   * O ator da escrita passa a ser `human` — quem revisou foi você —, e é por
+   * isso que quem propôs precisa de campo próprio: sem ele a origem se perde no
+   * momento em que a proposta é aceita.
+   */
+  proposedBy?: MemoryActor;
+  proposalId?: string;
+  /**
    * `false` desliga o desvio para a inbox.
    *
    * Existe para um caso só: aprovar uma proposta é gravar, e gravar o que você
@@ -166,6 +175,8 @@ export class MemoryService {
         ...(input.worktreeId === undefined ? {} : { worktree_id: input.worktreeId }),
         confidence: input.confidence ?? "medium",
         ...(input.evidence === undefined ? {} : { evidence: input.evidence }),
+        ...(input.proposedBy === undefined ? {} : { proposed_by: input.proposedBy }),
+        ...(input.proposalId === undefined ? {} : { proposal_id: input.proposalId }),
         // Substituir preserva a data de nascimento: é ela que diz há quanto
         // tempo o sistema sabe daquilo.
         created_at: previous === null ? timestamp : parseEntry(previous, path).provenance.created_at,
@@ -415,6 +426,12 @@ export class MemoryService {
       actor: "human",
       confidence: proposal.confidence as "low" | "medium" | "high",
       ...(proposal.evidence ? { evidence: proposal.evidence } : {}),
+      // A escrita é sua, a origem é dela: quem propôs, de qual sessão, e por
+      // qual proposta ficam no arquivo — o `path` sozinho não distingue duas
+      // propostas do mesmo alvo.
+      proposedBy: proposal.actor as MemoryActor,
+      proposalId: proposal.id,
+      ...(proposal.sessionId === null ? {} : { sourceSessions: [proposal.sessionId] }),
       // Já é a revisão: não pode virar proposta de novo.
       proposal: false,
     });

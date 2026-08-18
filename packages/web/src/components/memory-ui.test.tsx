@@ -115,17 +115,127 @@ describe("MemoryPanel", () => {
     expect(screen.getByText(/Sem evidência verificável/)).toBeInTheDocument();
   });
 
+  it("a proposta mostra o corpo que vai virar arquivo", async () => {
+    trpc.memory.proposals.query.mockResolvedValue([proposal({ body: "Preço só com plano ativo." })]);
+    render();
+
+    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+
+    // Aprovar grava e commita: aprovar o que não foi lido não é revisão.
+    expect(await screen.findByText("Preço só com plano ativo.")).toBeInTheDocument();
+  });
+
   it("aprovar chama a mutation e recarrega tudo de memória", async () => {
     trpc.memory.proposals.query.mockResolvedValue([proposal()]);
     trpc.memory.approveProposal.mutate.mockResolvedValue({ outcome: "applied" });
     render();
     await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+    await waitFor(() => {
+      expect(trpc.memory.list.query).toHaveBeenCalledTimes(1);
+    });
 
     await userEvent.click(await screen.findByRole("button", { name: "Aprovar" }));
 
     await waitFor(() => {
       expect(trpc.memory.approveProposal.mutate).toHaveBeenCalledWith({ id: "prop1" });
     });
+    // A invalidação é `["memory"]` inteiro: aprovar muda a lista, a inbox, o
+    // histórico e os números. Invalidar três de quatro é como uma tela passa a
+    // discordar de si mesma — e só a lista sendo buscada de novo prova isso.
+    await waitFor(() => {
+      expect(trpc.memory.list.query).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("editar e aprovar manda o que você corrigiu, e só isso", async () => {
+    trpc.memory.proposals.query.mockResolvedValue([proposal({ body: "regra" })]);
+    trpc.memory.approveProposal.mutate.mockResolvedValue({ outcome: "applied" });
+    render();
+    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+
+    await userEvent.click(await screen.findByRole("button", { name: "Editar e aprovar" }));
+    const body = await screen.findByLabelText("Corpo");
+    await userEvent.clear(body);
+    await userEvent.type(body, "Corrigi antes de aceitar.");
+    await userEvent.click(screen.getByRole("button", { name: "Aprovar com edição" }));
+
+    await waitFor(() => {
+      expect(trpc.memory.approveProposal.mutate).toHaveBeenCalledWith({
+        id: "prop1",
+        body: "Corrigi antes de aceitar.",
+      });
+    });
+  });
+
+  it("rejeitar pede confirmação e motivo antes de resolver", async () => {
+    trpc.memory.proposals.query.mockResolvedValue([proposal()]);
+    trpc.memory.rejectProposal.mutate.mockResolvedValue({ status: "rejected" });
+    render();
+    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+
+    await userEvent.click(await screen.findByRole("button", { name: "Rejeitar" }));
+
+    // Rejeitar não tem volta e não há reabrir: um clique só seria decisão sem
+    // volta tomada sem intenção.
+    expect(trpc.memory.rejectProposal.mutate).not.toHaveBeenCalled();
+    expect(screen.getByText(/não tem volta/)).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText(/Por que não/), "regra do api");
+    await userEvent.click(screen.getByRole("button", { name: "Rejeitar" }));
+
+    await waitFor(() => {
+      expect(trpc.memory.rejectProposal.mutate).toHaveBeenCalledWith({
+        id: "prop1",
+        note: "regra do api",
+      });
+    });
+  });
+
+  it("a proposta rejeitada continua visível, com o motivo", async () => {
+    trpc.memory.proposals.query.mockImplementation(({ status }: { status: string }) =>
+      Promise.resolve(
+        status === "resolved"
+          ? [
+              proposal({
+                status: "rejected",
+                resolvedAt: new Date("2026-08-17T15:00:00Z"),
+                resolutionNote: "isso é regra do api, não do produto",
+              }),
+            ]
+          : [],
+      ),
+    );
+    render();
+    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+
+    await userEvent.click(await screen.findByRole("button", { name: "Resolvidas" }));
+
+    // Recusar é histórico: sem esta vista a proposta desapareceria da tela
+    // inteira — não está na inbox, na lista, nem no WAL.
+    expect(await screen.findByText("rejeitada")).toBeInTheDocument();
+    expect(screen.getByText("isso é regra do api, não do produto")).toBeInTheDocument();
+  });
+
+  it("inbox que falha diz o que falhou, e não fica carregando", async () => {
+    trpc.memory.proposals.query.mockRejectedValue(new Error("daemon não respondeu"));
+    render();
+
+    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+
+    expect(await screen.findByText("Não deu para ler as propostas")).toBeInTheDocument();
+    expect(screen.getByText(/daemon não respondeu/)).toBeInTheDocument();
+  });
+
+  it("histórico e números que falham também dizem o que falhou", async () => {
+    trpc.memory.decisions.query.mockRejectedValue(new Error("sem WAL"));
+    trpc.memory.usage.query.mockRejectedValue(new Error("sem números"));
+    render();
+
+    await userEvent.click(await screen.findByRole("tab", { name: "Histórico" }));
+    expect(await screen.findByText("Não deu para ler o histórico")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: "Números" }));
+    expect(await screen.findByText("Não deu para ler os números")).toBeInTheDocument();
   });
 
   it("o histórico mostra o que NÃO virou arquivo", async () => {

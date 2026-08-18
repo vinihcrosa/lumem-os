@@ -31,6 +31,15 @@ const identity = scopeIds.extend({
 const writeSchema = identity.extend({
   description: z.string().min(1).max(500),
   body: z.string().max(100_000).default(""),
+  /**
+   * Declarado, e ainda não provado.
+   *
+   * O default `human` é o da CLI, de propósito — as duas superfícies contam a
+   * mesma história. Quem **impõe** o ator (transporte, ambiente ou token de
+   * sessão) é a [Q38](../../../../docs/prd/workspace-memory/open-questions.md),
+   * aberta: até ela fechar, o desvio da Q27 protege contra engano, não contra
+   * quem quer burlá-lo.
+   */
   actor: z.enum(MEMORY_ACTORS).default("human"),
   confidence: z.enum(["low", "medium", "high"]).optional(),
   evidence: z.string().max(4_000).optional(),
@@ -109,7 +118,9 @@ export const memoryRouter = router({
     .input(
       z
         .object({
-          status: z.enum(["pending", "approved", "rejected"]).optional(),
+          // `resolved` é as duas juntas: rejeitar mantém a proposta visível, e a
+          // tela precisa de uma pergunta só para "o que eu já decidi".
+          status: z.enum(["pending", "approved", "rejected", "resolved"]).optional(),
           workspaceId: z.string().optional(),
           limit: z.number().int().min(1).max(200).optional(),
         })

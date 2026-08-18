@@ -42,7 +42,16 @@ export function useMemoryList(filter: MemoryScopeFilter): UseQueryResult<MemoryV
   });
 }
 
-export function useProposals(status: "pending" | "approved" | "rejected" = "pending") {
+/**
+ * `resolved` é uma opção porque rejeitar **não** apaga.
+ *
+ * A proposta recusada continua existindo, e uma inbox que só sabe perguntar
+ * pelas pendentes é uma tela onde ela desaparece — nem na lista, nem no
+ * histórico, que só registra o que passou pelo portão.
+ */
+export type ProposalStatus = "pending" | "approved" | "rejected" | "resolved";
+
+export function useProposals(status: ProposalStatus = "pending") {
   return useQuery({
     queryKey: memoryProposalsKey(status),
     queryFn: () => trpc.memory.proposals.query({ status }),
@@ -57,6 +66,14 @@ export function useUsage() {
   return useQuery({ queryKey: MEMORY_USAGE_KEY, queryFn: () => trpc.memory.usage.query() });
 }
 
+/** O que você pode corrigir antes de aceitar — os mesmos campos da procedure. */
+export interface ProposalEdits {
+  id: string;
+  name?: string;
+  description?: string;
+  body?: string;
+}
+
 /**
  * Resolver uma proposta invalida **tudo** de memória.
  *
@@ -64,7 +81,7 @@ export function useUsage() {
  * de quatro é exatamente como uma tela passa a discordar de si mesma.
  */
 export interface ResolveProposal {
-  approve: UseMutationResult<unknown, Error, { id: string; body?: string }>;
+  approve: UseMutationResult<unknown, Error, ProposalEdits>;
   reject: UseMutationResult<unknown, Error, { id: string; note?: string }>;
 }
 
@@ -73,7 +90,7 @@ export function useResolveProposal(): ResolveProposal {
   const invalidate = () => client.invalidateQueries({ queryKey: ["memory"] });
 
   const approve = useMutation({
-    mutationFn: (input: { id: string; body?: string }) => trpc.memory.approveProposal.mutate(input),
+    mutationFn: (input: ProposalEdits) => trpc.memory.approveProposal.mutate(input),
     onSuccess: invalidate,
   });
   const reject = useMutation({

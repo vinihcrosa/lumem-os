@@ -71,6 +71,16 @@ const provenanceSchema = z.object({
   updated_at: z.string(),
   /** Preenchido quando outra memória substituiu esta. */
   superseded_by: z.string().optional(),
+  /**
+   * A origem, quando a escrita nasceu de uma proposta aprovada.
+   *
+   * `source_actor` diz quem gravou — e aprovar grava como `human`, porque quem
+   * revisou foi você. Sem estes dois campos, "quem propôs isto" só seria
+   * reconstruível casando `path`, que se repete a cada nova proposta do mesmo
+   * alvo; o §7 do PRD pede proveniência com origem **e** sessão.
+   */
+  proposed_by: z.enum(MEMORY_ACTORS).optional(),
+  proposal_id: z.string().optional(),
 });
 
 const frontmatterSchema = z.object({

@@ -1,5 +1,5 @@
 import { newId } from "@lumem/shared";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
 import { memoryProposal, type MemoryProposalRow } from "../db/schema.js";
@@ -18,10 +18,25 @@ import type { MemoryActor, MemoryScope, MemoryType } from "./entry.js";
  * Quem decide se algo é proposta é `requiresProposal`, e o critério tem duas
  * partes que precisam ser verdadeiras juntas: **quem escreve** e **onde**. Você
  * escrevendo memória de workspace não vira proposta — você é a revisão.
+ *
+ * O que este módulo **não** garante: que `actor` seja verdade. Ele é declarado
+ * por quem chama, e a superfície ainda não prova quem está do outro lado — a
+ * pergunta, com o ponto de imposição nomeado, é a
+ * [Q38](../../../../docs/prd/workspace-memory/open-questions.md). Enquanto ela
+ * estiver aberta, o desvio protege contra engano, não contra quem quer burlá-lo.
  */
 
 /** Os tipos cujo escopo natural é o workspace, e que por isso mais contaminam. */
 const WORKSPACE_TYPES: ReadonlySet<MemoryType> = new Set(["domain", "process", "contract"]);
+
+/**
+ * Os escopos que atravessam projeto — e por isso passam pela revisão.
+ *
+ * `global` entra junto com `workspace` porque é **mais largo**: memória global
+ * vale em todos os workspaces, e deixá-la livre enquanto a de workspace é
+ * revisada seria guardar a porta estreita e deixar a larga aberta (Q27.1).
+ */
+const REVIEWED_SCOPES: ReadonlySet<MemoryScope> = new Set(["workspace", "global"]);
 
 /** Atores que não são você. */
 const NON_HUMAN: ReadonlySet<MemoryActor> = new Set(["agent", "distiller", "auto_research"]);
@@ -29,12 +44,13 @@ const NON_HUMAN: ReadonlySet<MemoryActor> = new Set(["agent", "distiller", "auto
 /**
  * Isto precisa de revisão antes de valer?
  *
- * Sim quando um ator não-humano escreve no escopo de workspace. `project` e
- * `reference` continuam diretos: erram barato, e o repositório desmente.
+ * Sim quando um ator não-humano escreve num escopo que atravessa projeto, ou um
+ * tipo cujo escopo natural é o workspace. Só `project` e `reference` dentro do
+ * próprio projeto continuam diretos: erram barato, e o repositório desmente.
  */
 export function requiresProposal(actor: MemoryActor, scope: MemoryScope, type: MemoryType): boolean {
   if (!NON_HUMAN.has(actor)) return false;
-  return scope === "workspace" || WORKSPACE_TYPES.has(type);
+  return REVIEWED_SCOPES.has(scope) || WORKSPACE_TYPES.has(type);
 }
 
 export interface CreateProposalInput {
@@ -79,15 +95,30 @@ export function createProposal(db: Db, input: CreateProposalInput): MemoryPropos
   return db.select().from(memoryProposal).where(eq(memoryProposal.id, id)).get() as MemoryProposalRow;
 }
 
+/**
+ * O que a inbox pode pedir.
+ *
+ * `resolved` é um filtro de verdade, e não a soma de duas consultas na tela: a
+ * pergunta "o que eu já decidi" é uma só, e quem pergunta não deveria precisar
+ * saber que ela tem dois valores possíveis por baixo.
+ */
+export type ProposalStatusFilter = "pending" | "approved" | "rejected" | "resolved";
+
 export interface ProposalQuery {
-  status?: "pending" | "approved" | "rejected";
+  status?: ProposalStatusFilter;
   workspaceId?: string;
   limit?: number;
 }
 
+function statusFilter(status: ProposalStatusFilter) {
+  return status === "resolved"
+    ? ne(memoryProposal.status, "pending")
+    : eq(memoryProposal.status, status);
+}
+
 export function listProposals(db: Db, query: ProposalQuery = {}): MemoryProposalRow[] {
   const filters = [
-    query.status === undefined ? undefined : eq(memoryProposal.status, query.status),
+    query.status === undefined ? undefined : statusFilter(query.status),
     query.workspaceId === undefined ? undefined : eq(memoryProposal.workspaceId, query.workspaceId),
   ].filter((filter) => filter !== undefined);
 

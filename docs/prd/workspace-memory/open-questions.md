@@ -7,8 +7,13 @@ aqui, com o motivo.
 onde está, agrupada por tema, e ganha uma linha **Decisão:** com o que ficou valendo. Cada pergunta
 traz uma **proposta pra reagir**; discordar dela é mais rápido que escrever do zero.
 
-**Estado:** 38 perguntas · **38 respondidas · 0 abertas.** O que resta são as **D2, D5, D7 e D8**, no
+**Estado:** 40 perguntas · **39 respondidas · 1 aberta** (a [Q38](#-q38--quem-prova-que-o-ator-é-quem-ele-diz-que-é-lm),
+levantada ao ligar a inbox na tela). O que resta também são as **D2, D5, D7 e D8**, no
 [context-delivery.md](context-delivery.md).
+
+**Rodada 5 (2026-08-17):** duas perguntas nasceram da PR 05, quando a inbox virou tela: a **Q27.1**
+fechou o buraco de `global` no desvio da Q27, e a **Q38** — a única aberta — nomeia onde o ator vai
+ser **imposto**, porque hoje ele é só declarado.
 
 **Rodada 4 (2026-08-17):** Q3.1, Q10, Q16, Q30 e Q37 fechadas. E o desenho de entrega de contexto foi
 **redesenhado por você**: índice injetado saiu, entrou *núcleo comportamental + skill + serviço
@@ -657,6 +662,30 @@ proposta na inbox. Efeito colateral bom: o portão inteiro fica **determinístic
 
 ---
 
+### [ ] Q38 — Quem prova que o ator é quem ele diz que é? `[lm]`
+
+O desvio da Q27 é decidido por `actor`, e `actor` é **declarado por quem chama**: o default é `human`
+no router (`z.enum(MEMORY_ACTORS).default("human")`) e na CLI (`flags.actor ?? "human"`). O agente
+roda numa sessão com shell, então `lumem-memory write --type domain --workspace ws1` sem `--actor`
+grava memória de workspace direto no disco e no git, sem passar pela inbox. Hoje a garantia da Q27
+protege contra **engano**, não contra quem quiser burlá-la.
+
+**O ponto de imposição precisa ser nomeado.** As três saídas, do mais barato ao mais correto:
+
+| Saída | Como | O que ela não resolve |
+|---|---|---|
+| Ator vindo do ambiente | daemon injeta `LUMEM_ACTOR=agent` no spawn (ele já controla `env`); CLI usa isso quando `--actor` não vem | `env -u LUMEM_ACTOR` ou `--actor human` desfazem |
+| Ator vindo do transporte | com ACP, a escrita entra pela sessão que o daemon abriu, e o ator é do **canal**, não do argumento | precisa da `acp-sessions` de pé; a CLI solta continua existindo |
+| Segredo por sessão | o daemon dá um token por sessão; `human` só é aceito de quem não tem token de sessão | é a mais cara, e vaza junto com o `env` da sessão |
+
+**Proposta pra reagir:** **ator vindo do transporte**, quando a `acp-sessions` existir — a escrita de
+agente passa a chegar por um canal que o daemon abriu, e ator deixa de ser argumento. Até lá, ator
+vindo do ambiente como redução de dano, e a CLI continua sendo uma superfície de confiança sua.
+
+**R:** _(aberta)_
+
+---
+
 ## D. Playbooks (procedimento)
 
 ### [x] Q14 — Playbook é formato próprio do Lumem, ou o Lumem gera skill no formato de cada CLI? `[hm][lm]`
@@ -931,6 +960,26 @@ direto — erra barato, o repo desmente.
 
 **Decisão:** `domain`, `process` e `contract` escritos por agente entram como **proposta** na inbox.
 `project` e `reference` vão direto. Leitura é livre (Q26); escrita para cima é revisada.
+
+---
+
+### [x] Q27.1 — E `global`, que é mais largo que `workspace`? `[lm]`
+
+A Q27 decidiu por **tipo** (`domain`, `process`, `contract`) e por escrita **no workspace**. Só que
+`global` é o escopo mais largo que existe: memória global vale em **todos** os workspaces, e é
+exatamente onde a destilação por sessão da PR 07 vai escrever `user` e `feedback`. A Q27 não falou
+dela, e o código da PR 05 estava decidindo sozinho — deixando `global` passar direto.
+
+**Proposta pra reagir:** tratar `global` **junto com** `workspace` no desvio para a inbox. Guardar a
+porta estreita e deixar a larga aberta não é uma regra de contenção, é uma que parece uma.
+
+**R:** Sim, `global` é revisado também.
+
+**Decisão:** ator não-humano escrevendo em `global` **ou** `workspace` vira proposta, e tipo de
+workspace (`domain`/`process`/`contract`) vira proposta em qualquer escopo. Só `project` e
+`reference` dentro do escopo de projeto continuam diretos. Está em `requiresProposal`, com os dois
+casos cruzados cobertos por teste — cada metade do critério decide sozinha, e apagar qualquer uma
+delas quebra a suíte.
 
 ---
 

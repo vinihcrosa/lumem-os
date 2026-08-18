@@ -588,6 +588,22 @@
         "memory_proposal_status": {
           "name": "memory_proposal_status",
           "value": "\"memory_proposal\".\"status\" IN ('pending', 'approved', 'rejected')"
+        },
+        "memory_proposal_type": {
+          "name": "memory_proposal_type",
+          "value": "\"memory_proposal\".\"type\" IN ('user', 'feedback', 'project', 'domain', 'process', 'contract', 'reference')"
+        },
+        "memory_proposal_scope": {
+          "name": "memory_proposal_scope",
+          "value": "\"memory_proposal\".\"scope\" IN ('global', 'workspace', 'project')"
+        },
+        "memory_proposal_actor": {
+          "name": "memory_proposal_actor",
+          "value": "\"memory_proposal\".\"actor\" IN ('human', 'agent', 'distiller', 'auto_research', 'import')"
+        },
+        "memory_proposal_confidence": {
+          "name": "memory_proposal_confidence",
+          "value": "\"memory_proposal\".\"confidence\" IN ('low', 'medium', 'high')"
         }
       }
     },

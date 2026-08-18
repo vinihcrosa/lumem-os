@@ -98,6 +98,9 @@ export async function runMemoryCli(
           description: flags.description ?? required(flags, "name"),
           type: asType(required(flags, "type")),
           body: flags.body ?? "",
+          // Declarado por quem chama, e o mesmo default do router. Onde o ator
+          // passa a ser **imposto** é a Q38 (aberta) em
+          // docs/prd/workspace-memory/open-questions.md.
           actor: (flags.actor ?? "human") as MemoryActor,
           ...(flags.scope ? { scope: flags.scope as MemoryScope } : {}),
           ...(flags.workspace ? { workspaceId: flags.workspace } : {}),
