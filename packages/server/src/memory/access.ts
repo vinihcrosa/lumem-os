@@ -143,12 +143,23 @@ async function evaluate(
 
   // A mesma guarda da `file-editor`: `realpath`, caminho relativo, e symlink que
   // sai da raiz recusado. Reusada, e não reescrita — duas cópias divergem.
+  let resolved;
   try {
-    await resolveInsideRoot(target.path, request.target);
+    resolved = await resolveInsideRoot(target.path, request.target);
   } catch (error) {
     return {
       decision: "denied",
       reason: error instanceof DomainError ? error.message : `caminho recusado: ${request.target}`,
+    };
+  }
+
+  // A `file-editor` deixa `.git` **legível** de propósito (right-panel Q2), e ali
+  // faz sentido: é o seu projeto, na sua tela. Aqui é outro projeto, lido por um
+  // agente — e `.git/config` costuma carregar URL de remote com token dentro.
+  if (resolved.insideGit) {
+    return {
+      decision: "denied",
+      reason: `${request.target} está dentro do .git de ${request.targetProjectId} — o funil lê fonte, não o repositório`,
     };
   }
 

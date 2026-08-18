@@ -121,6 +121,39 @@ describe("funil de acesso", () => {
     expect(inexistente.decision).toBe("denied");
   });
 
+  it("capacidade ligada não alcança o `.git` do vizinho", async () => {
+    const database = db();
+    const root = addProject(database, "ws1", "p2");
+    mkdirSync(join(root, ".git"), { recursive: true });
+    writeFileSync(join(root, ".git", "config"), "[remote \"origin\"]\n  url = https://x:token@git\n");
+
+    const result = await checkAccess(
+      database.db,
+      { ...pedido, kind: "repository", target: ".git/config" },
+      { readNeighbourRepository: true },
+    );
+
+    // A `file-editor` deixa `.git` legível porque ali é o seu projeto na sua tela
+    // (right-panel Q2). Aqui é outro projeto lido por um agente, e `.git/config`
+    // costuma carregar URL de remote com token dentro.
+    expect(result.decision).toBe("denied");
+    expect(result.reason).toContain(".git");
+  });
+
+  it("sem workspace de origem, o funil nega dizendo qual é a fronteira", async () => {
+    const database = db();
+    addProject(database, "ws1", "p2");
+
+    const result = await checkAccess(
+      database.db,
+      { ...pedido, workspaceId: null, kind: "repository", target: "src/api.ts" },
+      { readNeighbourRepository: true },
+    );
+
+    expect(result.decision).toBe("denied");
+    expect(result.reason).toContain("sem workspace de origem");
+  });
+
   it("capacidade ligada só alcança projeto **do mesmo workspace**", async () => {
     const database = db();
     addProject(database, "ws1", "p2");
