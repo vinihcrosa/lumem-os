@@ -100,12 +100,15 @@ export async function bootstrap({
   // O índice FTS5 é derivado e nasce fora das migrations: um banco com catálogo
   // e sem índice existe. Reconstruir aqui é o que impede a primeira busca de
   // responder "nada encontrado" para o acervo inteiro, sem erro e sem sinal.
-  const index = await new MemoryService({
+  const { failures, ...index } = await new MemoryService({
     db: openedDatabase.db,
     stateDir: config.stateDir,
     log: app.log,
   }).ensureIndexFresh();
-  app.log.info({ ...home, stateDir: config.stateDir, index }, "memória do workspace");
+  app.log.info(
+    { ...home, stateDir: config.stateDir, index, unreadable: failures.length },
+    "memória do workspace",
+  );
 
   try {
     await app.listen({ port: config.port, host: config.host });

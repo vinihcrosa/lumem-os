@@ -40,9 +40,41 @@ const HALF_LIFE_DAYS = 14;
 /** Quantas recuperações saturam o sinal de uso. */
 const USE_SATURATION = 3;
 
+/**
+ * Os pesos por coluna do BM25, na ordem das colunas da tabela.
+ *
+ * O `0.0` de `path` não corrige nada — coluna `UNINDEXED` não tem termo, e o
+ * peso dela é inócuo (medido: quatro e cinco pesos dão score idêntico). Ele
+ * está aqui para o mapa **posicional** não mentir no dia em que alguém
+ * acrescentar coluna. E `slug` fica em 1, junto do corpo, porque ele é derivado
+ * do nome: dar 2 a ele seria contar o título duas vezes.
+ */
+const COLUMN_WEIGHTS = "0.0, 4.0, 3.0, 1.0, 1.0";
+
+/**
+ * Quantos candidatos visíveis alimentam a normalização.
+ *
+ * Fixo, e não `limit * n`: min–max é escala, então um pool que muda com o
+ * `limit` faz a mesma pergunta com "mostre mais" reordenar o topo. Só cresce
+ * quando o próprio `limit` pedido é maior — não dá para devolver 50 resultados
+ * olhando 20 candidatos.
+ */
+const CANDIDATE_POOL = 20;
+
+/** Teto de varredura do `MATCH`. Sem ele, um acervo quase todo invisível varre tudo. */
+const MAX_SCAN = 5_000;
+
 export interface RecallHit {
   entry: MemoryEntryRow;
   score: number;
+  /**
+   * O BM25 cru, **antes** da normalização.
+   *
+   * O `score` é relativo aos candidatos desta busca — com um candidato só ele
+   * vale o teto. Só este número é comparável entre buscas, e por isso é ele que
+   * vira `memory_signal.best_score`.
+   */
+  bm25: number;
   /** Por que apareceu. Auditável, e é o que a UI mostra quando você pergunta. */
   why: readonly string[];
 }
@@ -51,6 +83,13 @@ export interface RecallResult {
   hits: readonly RecallHit[];
   /** Preenchido quando a busca **não** rodou. Silêncio aqui viraria "não achei nada". */
   skipped: "trivial_query" | null;
+  /**
+   * O índice está atrasado em relação ao catálogo — o resultado pode estar curto.
+   *
+   * Sinal, e não recusa: um arquivo ilegível deixaria a busca inteira morta se
+   * isto barrasse. Quem chama avisa; o boot e a CLI consertam.
+   */
+  staleIndex: boolean;
 }
 
 export interface RecallOptions extends ScopeFilter {
@@ -69,15 +108,18 @@ export interface RecallOptions extends ScopeFilter {
 
 const FTS_COLUMNS = sql`path UNINDEXED, name, description, slug, body, tokenize = 'unicode61 remove_diacritics 2'`;
 
-/** Cria a tabela FTS5 e a preenche a partir do catálogo. Derivada, sempre. */
-export function rebuildIndex(db: Db): number {
+/**
+ * Zera o índice. Quem o preenche é o `reindex`, lendo o disco.
+ *
+ * Preencher a partir do catálogo era tentador e é armadilha: o catálogo não
+ * guarda corpo, então o índice nasceria mudo para metade das buscas — **e com
+ * a contagem batendo**, isto é, se declarando em dia. Estado derivado pela
+ * metade que passa na própria verificação de frescor é pior que estado
+ * ausente, porque ninguém volta para consertá-lo.
+ */
+export function resetIndex(db: Db): void {
   db.run(sql`DROP TABLE IF EXISTS memory_fts`);
   db.run(sql`CREATE VIRTUAL TABLE memory_fts USING fts5(${FTS_COLUMNS})`);
-  const { changes } = db.run(
-    sql`INSERT INTO memory_fts (path, name, description, slug, body)
-        SELECT path, name, description, slug, '' FROM memory_entry`,
-  );
-  return Number(changes);
 }
 
 /** Acrescenta ou substitui uma memória no índice. */
@@ -131,15 +173,15 @@ export function indexIsStale(db: Db): boolean {
 }
 
 /**
- * Garante que a tabela existe — e, quando ela **não** existia, a preenche.
+ * Garante que a tabela existe, **vazia**.
  *
- * Criar vazia seria a pior das saídas: busca sem erro e sem resultado. Aqui o
- * que dá para reconstruir sem tocar o disco é o que está no catálogo (nome,
- * descrição, slug); o corpo vem no `reindex`, que lê os arquivos.
+ * Vazia e assumidamente atrasada: `indexIsStale` continua dizendo `true` até
+ * alguém reler o disco, e é isso que faz o reparo do boot acontecer em vez de
+ * ser dispensado por uma contagem que só bate porque foi falsificada.
  */
 function ensureIndex(db: Db): void {
   if (indexExists(db)) return;
-  rebuildIndex(db);
+  resetIndex(db);
 }
 
 /**
@@ -162,10 +204,11 @@ export function recall(db: Db, query: string, options: RecallOptions = {}): Reca
     // Guarda de query trivial: uma palavra casa com meio acervo, e o que volta
     // é ruído com aparência de resposta.
     if (options.record === true) usage(db, "recall", 0, 0, options);
-    return { hits: [], skipped: "trivial_query" };
+    return { hits: [], skipped: "trivial_query", staleIndex: indexIsStale(db) };
   }
 
   ensureIndex(db);
+  const stale = indexIsStale(db);
   const started = Date.now();
   const limit = options.limit ?? 5;
   const match = terms.map((term) => `"${term}"*`).join(" OR ");
@@ -200,6 +243,7 @@ export function recall(db: Db, query: string, options: RecallOptions = {}): Reca
     hits.push({
       entry,
       score,
+      bm25,
       why: [
         `lexical=${lexical.toFixed(3)}`,
         `bm25=${bm25.toFixed(3)}`,
@@ -214,11 +258,15 @@ export function recall(db: Db, query: string, options: RecallOptions = {}): Reca
   const top = hits.slice(0, limit);
 
   if (options.record === true) {
-    for (const hit of top) bumpSignal(db, hit.entry.path, hit.score);
+    // O bm25 cru, e não o `score`: o score é relativo aos candidatos desta
+    // busca, e resultado único sempre tira o teto. Gravar o relativo faria
+    // `best_score` saturar para memória irrelevante — e ele é o critério
+    // objetivo que a poda da Q25 vai usar.
+    for (const hit of top) bumpSignal(db, hit.entry.path, hit.bm25);
     usage(db, "recall", top.length, Date.now() - started, options);
   }
 
-  return { hits: top, skipped: null };
+  return { hits: top, skipped: null, staleIndex: stale };
 }
 
 interface Candidate {
@@ -241,17 +289,18 @@ function candidates(
   limit: number,
 ): Candidate[] {
   // O pool é maior que o limite de propósito: recência e uso reordenam, então
-  // quem entra no top não é necessariamente quem o bm25 pôs na frente.
-  const pool = Math.max(limit * 4, 20);
+  // quem entra no top não é necessariamente quem o bm25 pôs na frente. E a
+  // página é o piso — como ela é 50 e o teto de `limit` do router também é 50,
+  // o conjunto de candidatos é **o mesmo** para qualquer limite pedido, que é o
+  // que impede "mostre mais" de trocar o primeiro colocado.
+  const pool = Math.max(CANDIDATE_POOL, limit);
   const page = Math.max(pool, 50);
   const found: Candidate[] = [];
   let offset = 0;
 
   for (;;) {
     const rows = db.all<Candidate>(
-      // O primeiro peso cai em `path`, que é UNINDEXED e nunca casa — daí o
-      // `0.0`. Os que valem são name, description, slug e body.
-      sql`SELECT path, bm25(memory_fts, 0.0, 3.0, 2.0, 1.0, 1.0) AS rank
+      sql`SELECT path, bm25(memory_fts, ${sql.raw(COLUMN_WEIGHTS)}) AS rank
           FROM memory_fts WHERE memory_fts MATCH ${match}
           ORDER BY rank LIMIT ${page} OFFSET ${offset}`,
     );
@@ -261,7 +310,7 @@ function candidates(
     for (const row of rows) {
       if (byPath.has(row.path)) found.push(row);
     }
-    if (found.length >= pool || rows.length < page) return found;
+    if (found.length >= pool || rows.length < page || offset >= MAX_SCAN) return found;
   }
 }
 
@@ -280,7 +329,12 @@ function normalizer(values: readonly number[]): (value: number) => number {
   return (value) => (value - min) / (max - min);
 }
 
-/** O contador que a poda futura vai usar como critério objetivo. */
+/**
+ * O contador que a poda futura vai usar como critério objetivo.
+ *
+ * `score` aqui é o **bm25 cru**, deliberadamente: é o único número da busca que
+ * significa a mesma coisa na busca seguinte.
+ */
 export function bumpSignal(db: Db, path: string, score: number): void {
   const existing = db.select().from(memorySignal).where(eq(memorySignal.path, path)).get();
   if (existing === undefined) {

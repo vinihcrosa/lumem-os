@@ -86,7 +86,7 @@ describe("bootstrap", () => {
     expect(existsSync(join(stateDir, ".gitignore"))).toBe(true);
   });
 
-  it("refaz o índice de memória atrasado antes de servir", async () => {
+  it("rebuilds a stale memory index before serving", async () => {
     const stateDir = join(mkdtempSync(join(tmpdir(), "lumem-boot-")), ".lumem");
     stateDirs.push(stateDir);
     await ensureMemoryHome({ stateDir });
@@ -101,15 +101,15 @@ describe("bootstrap", () => {
       actor: "human",
       workspaceId: "ws1",
     });
-    // Todo banco anterior à feature de busca é isto: catálogo de pé, índice
-    // nunca criado. Sem o boot refazendo, a primeira busca responde "nada
-    // encontrado" para o acervo inteiro, sem erro e sem sinal.
+    // Every database older than the search feature looks like this: catalogue
+    // up, index never created. Without the boot rebuild the first search
+    // answers "nothing found" for the whole collection, with no error at all.
     database.db.run(sql`DROP TABLE memory_fts`);
 
     await boot({ database, stateDir });
 
-    // Pelo **corpo**, e por dois termos que só existem nele: o índice refeito a
-    // partir do catálogo não teria texto nenhum para casar.
+    // By the **body**, with two terms that live nowhere else: an index rebuilt
+    // from the catalogue alone would have no text to match.
     expect(memory.search("avisa time", { workspaceId: "ws1" }).hits).toHaveLength(1);
   });
 

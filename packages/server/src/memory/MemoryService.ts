@@ -55,7 +55,7 @@ import {
   clearSignal,
   indexEntry,
   indexIsStale,
-  rebuildIndex,
+  resetIndex,
   recall,
   removeFromIndex,
   summarizeUsage,
@@ -502,7 +502,7 @@ export class MemoryService {
    */
   async reindex(): Promise<ReindexResult> {
     const result = await reindex(this.db, this.stateDir);
-    rebuildIndex(this.db);
+    resetIndex(this.db);
     // O corpo não está no catálogo, então o índice é completado lendo o disco —
     // a mesma fonte da verdade de sempre.
     for (const row of listEntries(this.db)) {
@@ -514,7 +514,12 @@ export class MemoryService {
     return result;
   }
 
-  /** Busca lexical, explicável, com sinal de uso registrado. */
+  /**
+   * Busca lexical e explicável. **Não registra** a não ser que peçam.
+   *
+   * Registrar é escrever, e buscar é ler: quem liga o `record` é o caminho do
+   * agente, não a tela que remonta nem o retry que repete.
+   */
   search(query: string, options: RecallOptions = {}): RecallResult {
     return recall(this.db, query, options);
   }
@@ -548,10 +553,20 @@ export class MemoryService {
    * feature. Sem isto, a primeira busca acharia o índice vazio e responderia
    * "nada encontrado" para o acervo inteiro, sem erro e sem sinal.
    */
-  async ensureIndexFresh(): Promise<{ rebuilt: boolean; indexed: number }> {
-    if (!indexIsStale(this.db)) return { rebuilt: false, indexed: 0 };
+  async ensureIndexFresh(): Promise<{
+    rebuilt: boolean;
+    indexed: number;
+    failures: ReindexResult["failures"];
+  }> {
+    if (!indexIsStale(this.db)) return { rebuilt: false, indexed: 0, failures: [] };
     const result = await this.reindex();
-    return { rebuilt: true, indexed: result.indexed };
+    // As falhas sobem: o `reindex` **substitui** o catálogo, então memória que
+    // não pôde ser lida some da lista e da busca. Engolir isso num boot de
+    // upgrade seria memória desaparecendo sem uma linha de log.
+    if (result.failures.length > 0) {
+      this.log?.warn({ failures: result.failures }, "memórias ilegíveis no reindex de boot");
+    }
+    return { rebuilt: true, indexed: result.indexed, failures: result.failures };
   }
 
   /** O hash que o catálogo guarda, exposto para quem precisa comparar sem reler. */

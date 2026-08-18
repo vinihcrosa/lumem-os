@@ -1007,13 +1007,22 @@ busca devolve.
 |---|---|---|
 | Pesos | `0.7` lexical · `0.2` recência · `0.1` uso | o texto responde à pergunta; recência é desempate; uso diz "já foi útil antes", nunca "responde a isto" |
 | Escala do lexical | min–max **sobre os candidatos da busca** | o BM25 do SQLite vai de ~`1e-6` (termo frequente, IDF≈0) a ~`14` (termo raro). Somado cru, ou é ruído perto da recência ou a engole — nunca os três juntos. Saturar (`x/(1+x)`) achatava o topo a ponto de um casamento 3× melhor perder para o mais recente |
+| Conjunto que define a escala | uma página de 50 candidatos visíveis, mínimo | min–max é **escala**: um conjunto que encolhesse com o `limit` faria "mostre menos" trocar o primeiro colocado. Como a página é 50 e o teto de `limit` do router também é 50, o conjunto é o mesmo para qualquer limite pedido |
+| O que vai para `best_score` | o **bm25 cru**, não o score | o score é relativo aos candidatos daquela busca, e resultado único tira o teto por construção. Guardar o relativo faria o critério objetivo da poda saturar justamente para memória irrelevante |
 | Meia-vida da recência | 14 dias | a curva que o Compozy mediu |
 | Saturação do uso | 3 recuperações | acima disso o sinal para de crescer, senão memória velha e muito buscada trava o topo |
 | Guarda de query trivial | menos de **2** termos significativos | uma palavra casa com meio acervo; o que volta é ruído com aparência de resposta |
 | Termo significativo | ≥ 2 caracteres em `\p{L}\p{N}`, fora da lista de stopwords | o índice é `unicode61` e aceita qualquer alfabeto: cortar em `a-z0-9` fazia `"デプロイ 設定"` e `"api v2"` voltarem como query trivial — a busca dizendo "não busquei" quando o que houve foi falha de tokenização |
-| Pesos por coluna do BM25 | `0.0` path · `3.0` name · `2.0` description · `1.0` slug · `1.0` body | `path` é `UNINDEXED` e nunca casa; passar quatro pesos deslocava todos os outros |
+| Pesos por coluna do BM25 | `0.0` path · `4.0` name · `3.0` description · `1.0` slug · `1.0` body | o peso de coluna `UNINDEXED` é **inócuo** — medido no `better-sqlite3` do repo, quatro e cinco pesos dão score idêntico, e o FTS5 completa o que falta com `1.0`. O `0.0` explícito é para o mapa posicional não mentir no dia em que alguém acrescentar coluna. `slug` fica em 1, junto do corpo, porque é derivado do nome: dar 2 a ele seria contar o título duas vezes |
 | Onde o índice vive | **fora** das migrations, derivado do catálogo | migration não deriva nada. O preço é que existe banco com catálogo e sem índice (toda instalação anterior à feature), e é por isso que o boot compara as contagens e refaz quando divergem |
 | Quem registra o sinal | só o caminho do agente (`recall`, e a CLI com `--session`) | `search` é leitura: se toda chamada registrasse, refetch e retry do cliente inflariam o próprio número que o §6 do [context-delivery](context-delivery.md) quer medir, e o critério objetivo da Q25 passaria a medir o cliente |
+
+E uma armadilha que essa mesma decisão criou, e que custou uma segunda rodada: preencher o índice a
+partir do **catálogo** quando ele não existe parecia a saída gentil — só que o catálogo não guarda
+corpo, então o índice nasceria mudo para metade das buscas **e com a contagem batendo**, isto é, se
+declarando em dia para sempre. O índice ausente agora nasce **vazio e assumidamente atrasado**; quem
+preenche é o `reindex`, que lê o disco, e ele roda no boot do daemon e no início da CLI. A busca
+carrega `staleIndex` — sinal, nunca recusa: um arquivo ilegível não pode matar a busca inteira.
 
 Uma propriedade do BM25 que vale registrar: em acervo pequeno o IDF **colapsa** — com dois documentos
 os dois tiram zero, e o ranking vira recência mais uso. Não é bug, é a matemática; e é a razão de

@@ -146,6 +146,12 @@ export async function runMemoryCli(
 
   try {
     const memory = new MemoryService({ db: database.db, stateDir: config.stateDir });
+    // A CLI existe para inspecionar a memória **sem** subir o daemon, então ela
+    // não pode contar com o reparo do boot: num banco anterior a esta feature o
+    // índice não existe, e sem isto a primeira busca daqui não acharia nada.
+    const { rebuilt, indexed, failures } = await memory.ensureIndexFresh();
+    if (rebuilt) err(`índice reconstruído: ${indexed} memórias\n`);
+    for (const failure of failures) err(`falhou: ${failure.path} — ${failure.reason}\n`);
 
     switch (command) {
       case "write": {
@@ -249,6 +255,11 @@ export async function runMemoryCli(
           ...(flags.limit ? { limit: Number.parseInt(flags.limit, 10) } : {}),
           ...(flags.session ? { record: true, sessionId: flags.session } : {}),
         });
+        if (result.staleIndex) {
+          // O índice ficou para trás do catálogo: o resultado pode estar curto,
+          // e dizer isso é diferente de deixar a lista desmentir a busca.
+          err("aviso: índice atrasado — rode `lumem-memory reindex`\n");
+        }
         if (result.skipped === "trivial_query") {
           // Dizer que **não buscou** é diferente de dizer que não achou.
           err("busca não realizada: menos de dois termos significativos\n");

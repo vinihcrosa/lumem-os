@@ -342,7 +342,13 @@ export const memorySignal = sqliteTable("memory_signal", {
   path: text("path").primaryKey(),
   recallCount: integer("recall_count").notNull().default(0),
   lastRecalledAt: integer("last_recalled_at", { mode: "timestamp_ms" }),
-  /** O melhor score que esta memória já teve numa busca. */
+  /**
+   * O melhor **bm25 cru** que esta memória já teve numa busca.
+   *
+   * Cru, e não o score do ranking: aquele é normalizado contra os candidatos da
+   * busca, então resultado único sempre tira o teto e o número deixaria de
+   * discriminar exatamente onde a poda precisa dele.
+   */
   bestScore: real("best_score").notNull().default(0),
   ...timestamps,
 });
