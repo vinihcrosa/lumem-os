@@ -31,7 +31,7 @@ Quem fecha um lote atualiza esse sha para o último commit do lote. Um comando d
 fora:
 
 ```bash
-git log --oneline bd3e3f0..HEAD
+git log --oneline 384e465..HEAD
 ```
 
 Commit de código que aparecer aí e não estiver dentro de nenhum `Range` da tabela é lote que entrou
@@ -42,12 +42,22 @@ O mecanismo se provou antes de completar um dia de vida: quando esta seção foi
 já devolvia o lote `E1`, que havia fechado enquanto o próprio arquivo era reescrito. Ele apareceu
 sem ninguém precisar lembrar, e virou a primeira linha da tabela.
 
-**Seis lotes medidos**, quatro deles com review de verdade. O perfil **crítico** tem três pontos —
-582k, 453k, 488k, média ≈508k, todos dentro de ±15% —, o **fronteira** tem um (466k), e o
-**desenho** um (239k). Para lote deste repositório, prefira estes números ao anexo herdado, dizendo
-o n. O que continua sem ponto amostral é a repartição por **estágio** que a §10 da skill promete:
-aqui só o total por lote é medido, porque é o que sai do relatório dos sub-agentes sem trabalho
-extra.
+**Onze lotes registrados**, nove deles com review de verdade. O perfil **crítico** tem seis pontos —
+582k, 453k, 488k, 693k, 554k e um piso de 458k —, média ≈**554k** entre os cinco medidos de fato, e
+a dispersão é bem maior do que os três primeiros sugeriam (±15% virou de 453k a 693k). O
+**fronteira** tem dois (466k e 825k), a **lógica** um (728k) — o perfil que a skill chama de "menos
+calibrado" deixou de ter zero —, e o **desenho** um (239k). Para lote deste repositório, prefira
+estes números ao anexo herdado, dizendo o n.
+
+Duas ressalvas que a tabela sozinha não conta. A primeira: o lote da `workspace-memory` é **piso**,
+não medida — só os dois subagentes estão instrumentados, e a fatia do orquestrador não. A segunda,
+e ela é uma **omissão que este arquivo tem que admitir**: `ba0ea94` e `7dac5e6`, que são as tasks
+T1–T7 da PR 01 da memória (≈3.200 linhas), não estão dentro de `Range` nenhum. Foram feitas sem o
+ciclo, então não há custo a recuperar — mas pela regra de cobertura acima elas são indistinguíveis
+de lote que nunca existiu, e ficar calado sobre isso é exatamente o defeito que a seção descreve.
+
+O que continua sem ponto amostral é a repartição por **estágio** que a §10 da skill promete: aqui só
+o total por lote é medido, porque é o que sai do relatório dos sub-agentes sem trabalho extra.
 
 ---
 

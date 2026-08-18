@@ -2,7 +2,7 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) · **Entrega de contexto:** [context-delivery.md](context-delivery.md)
 **Roadmap:** [roadmap.md](roadmap.md) — este arquivo é a execução da pilha descrita lá
-**Status:** **PR 01 entregue** — 7 de 7, portão verde (`gate:full`: 1.070 unit/integration + 16 e2e).
+**Status:** **PR 01 entregue** — 7 de 7, portão verde (`gate:full`: 1.071 unit/integration + 16 e2e).
 As demais entram quando a anterior abrir PR
 
 ---
@@ -93,6 +93,7 @@ segunda — as três que a mutação e o teste de propriedade acharam depois que
 | **E16** | **A guarda contra identidade duplicada existia só no `reindex`.** O `write` decidia inserir ou atualizar **pelo caminho**, mas o índice único é por **identidade** — e `slugFromPath` tira o prefixo `<tipo>_`, então `memory/alfa.md` e `memory/user_alfa.md` reivindicam a mesma. O `SqliteError` estourava **depois** do `writeAtomically` e antes do commit: arquivo novo no disco, sem commit, catálogo apontando para o antigo. Hoje o `write` pergunta ao catálogo antes de tocar em qualquer coisa e recusa com `DomainError` dizendo qual arquivo é o dono | `MemoryService.ts`, `catalog.ts`, com teste |
 | **E17** | **Editar arquivo do usuário exige idempotência sobre a própria saída.** Com marcador de abertura sem fechamento, o boot anexava um bloco novo e deixava o órfão no topo; no boot seguinte o `begin` achava o órfão, o `end` achava o fechamento do bloco novo, e o `slice` apagava tudo no meio — regra do usuário incluída, com a remoção commitada. É a P3 dois boots adiante. Hoje órfão some como **linha**, nunca como intervalo, e o teste é a propriedade: `f(f(x)) === f(x)` nos quatro ramos | `home.ts`, com teste |
 | **E18** | **A E10 corrigiu a leitura do TOML e deixou a escrita no regex.** "Onde a raiz termina" continuava sendo `/^\s*\[/` linha a linha, e valor multilinha cuja continuação começa com `[` é indistinguível de cabeçalho de tabela: um array de arrays fazia o Lumem gravar **TOML inválido** no repositório do time, e uma string multilinha engolia o `id` — `readProjectId` devolvia `null` e o boot seguinte gerava outro id, que é a rotação de identidade da Q3.1. Hoje a inserção **verifica a própria saída** com o mesmo parser da leitura, tem o topo do arquivo como plano B, e recusa com `DomainError` em vez de corromper | `project-identity.ts`, com teste |
+| **E19** | **A ordenação da varredura passou dois reviews sem teste que a discriminasse.** A E6 diz que o `reindex` ordena por caminho para "quem ganha" não depender do `readdir` — e apagar o `.sort()` inteiro deixava **108 de 108** verdes, porque neste APFS o `readdir` já devolve numa ordem que coincide com a ordenada. Achado pelo passe a frio, depois de a bateria de 32 mutações do review não o pegar. O teste novo **inverte o `readdir`** e assere a mesma resposta nas duas ordens — é a única forma de a asserção falar da propriedade em vez do filesystem | `catalog.test.ts` |
 
 Mais uma de vocabulário: usei `INVALID_INPUT` e o repositório já tinha `INVALID_ARGUMENT`. Corrigido —
 taxonomia com sinônimo é taxonomia que apodrece.

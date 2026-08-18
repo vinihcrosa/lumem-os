@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Db } from "../db/index.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
@@ -10,6 +10,37 @@ import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
 
 import { hashContent, listEntries, reindex } from "./catalog.js";
 import { serializeEntry, type MemoryEntry } from "./entry.js";
+
+/**
+ * O `readdir` ao contrário, ligado só pelo teste que precisa dele.
+ *
+ * A propriedade sob teste é "o `reindex` não depende da ordem do sistema de
+ * arquivos", e ela **não dá para provar com o filesystem de verdade**: neste
+ * APFS o `readdir` já devolve numa ordem que coincide com a ordenada, então
+ * apagar o `.sort()` do `catalog.ts` deixava os 108 testes verdes. Inverter a
+ * ordem é o único jeito de a asserção discriminar — e é por isso que o dublê
+ * existe aqui, e só aqui.
+ */
+let reverseReaddir = false;
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return {
+    ...actual,
+    // Repassa a chamada inteira: `catalog.ts` usa `withFileTypes`, e reescrever
+    // a assinatura sobrecarregada do `readdir` só para inverter uma lista seria
+    // dublê com mais superfície que o original.
+    readdir: async (...args: unknown[]) => {
+      const passthrough = actual.readdir as unknown as (...a: unknown[]) => Promise<unknown[]>;
+      const entries = await passthrough(...args);
+      return reverseReaddir ? [...entries].reverse() : entries;
+    },
+  };
+});
+
+afterEach(() => {
+  reverseReaddir = false;
+});
 
 const databases: TestDb[] = [];
 
@@ -127,6 +158,32 @@ describe("reindex", () => {
         .map((row) => [row.scope, row.workspaceId, row.projectId].join("/"))
         .sort(),
     ).toEqual(["global//", "project/ws1/p1", "workspace/ws1/"]);
+  });
+
+  it("quem ganha uma identidade duplicada não depende da ordem do readdir", async () => {
+    // `memory/alfa.md` < `memory/user_alfa.md`, e os dois reduzem à mesma
+    // identidade. O primeiro em ordem de **caminho** ganha — em qualquer
+    // filesystem, e não só naquele em que o teste foi escrito.
+    const ordens: { path: string; reason: string }[][] = [];
+
+    for (const invertido of [false, true]) {
+      const { stateDir, db } = state();
+      put(stateDir, "memory/user_alfa.md", { name: "Alfa" });
+      put(stateDir, "memory/alfa.md", { name: "Alfa também" });
+
+      reverseReaddir = invertido;
+      const result = await reindex(db.db, stateDir);
+      reverseReaddir = false;
+
+      expect(listEntries(db.db).map((row) => row.path)).toEqual(["memory/alfa.md"]);
+      ordens.push([...result.failures]);
+    }
+
+    // A mesma resposta nas duas ordens — inclusive qual arquivo foi recusado.
+    expect(ordens[0]).toEqual([
+      { path: "memory/user_alfa.md", reason: "identidade já indexada por memory/alfa.md" },
+    ]);
+    expect(ordens[1]).toEqual(ordens[0]);
   });
 
   it("é determinístico: repetir devolve as mesmas linhas", async () => {
