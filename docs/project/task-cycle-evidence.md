@@ -126,13 +126,16 @@ a tabela de lotes não tem tempo justamente porque o número não sobrevive à c
 | `file-editor` E9+E10 — autosave e conflito | **crítico** | `4ba7f24..bfc9c60` | 1 | 693k | 2 blockers + 6 warnings · **6 premissas derrubadas** |
 | `file-editor` E11 — CRUD na árvore | lógica | `b34050e..998b354` | 1 | 728k | 2 blockers + 7 warnings · 3 premissas derrubadas |
 | `file-editor` E12 — **o portão** | **crítico** | `7e526ff..bd3e3f0` | 1 | 554k | 0 blockers no spec · 3 warnings, 2 fora da feature |
-| revisão de docs da PR #4 | **declarativo** (documentação) | `3c94515..083c661` | 0 — **review morto pelo usuário no meio** | — | 16 do revisor humano · **1 meu** (roadmap agendava spike já feito, 9 pontos) · **1 autoinfligido** (ver abaixo) |
+| revisão de docs da PR #4 | **declarativo** (documentação) | `3c94515..d7e27fa` | 1 (o primeiro review foi morto no meio e retomado) | ~171k só o review | 16 do revisor humano · **1 blocker + 4 warnings + 3 nits** do `lumem-reviewer` · **1 meu** (roadmap agendava spike já feito) · **1 autoinfligido** (abaixo) |
 
 Dois contadores, porque respondem a duas perguntas que a skill não consegue responder sozinha —
 *isto aqui é cerimônia?* — e custam um dígito cada:
 
 * **verificação independente do orquestrador:** 10 lotes, **1 refutação** — e, no lote de docs da PR
-  #4, **1 defeito causado pela própria verificação** (abaixo)
+  #4, **1 defeito causado pela própria verificação** (abaixo), mais **1 refutação parcial do próprio
+  revisor**: ele chamou `usage_update.size` de campo não confiável sem notar que a issue #596 está
+  marcada **fechada** no mesmo parágrafo que ele citou. O defeito que ele achou era real; a razão que
+  ele deu, em parte não
 * **passe a frio pós-lote:** 2 passes, **22 achados** que o orquestrador com contexto não via
 
 ### A bateria de mutação do orquestrador destruiu trabalho não commitado
@@ -152,6 +155,31 @@ o caso em que ninguém commitou nada ainda.
 
 Corolário barato: mutação sobre working tree sujo, quando inevitável, precisa de cópia fora do
 repositório antes — não de `git checkout` depois.
+
+**A §7 foi corrigida** neste lote (`d7e27fa`). Registro que não muda a instrução operante não impede o
+retorno — e foi o revisor que apontou que o registro, sozinho, tinha deixado a instrução de pé.
+
+### O número que este lote produziu: prosa não tem gate
+
+O revisor rodou **10 mutações** contra a documentação deste repositório. **As 10 sobreviveram.** Duas
+eram buracos do validador de links (título dentro de code fence, e `U+FE0F` descartado do slug) e foram
+consertadas. As **outras oito são afirmações de prosa**, e não têm conserto barato:
+
+| Mutação | Detectada? |
+|---|---|
+| "os três eixos medidos" → "os dois eixos medidos" | não |
+| `[Q043]` → `[Q048]` — reintroduz integralmente o achado 9 do revisor humano | não |
+| `### [x] Q019` → `### [ ] Q019` | não |
+| inverter a decisão da D8 no backlog | não |
+| "Os cinco gatilhos" → "Os três gatilhos" — reintroduz o achado 10 | não |
+| `claude` 2.1.234 → 9.9.999 (número de spike inventado) | não |
+| remover o `]` de fechamento de um nó mermaid | não |
+| `CLAUDE.md` volta a contradizer o `docs/README.md` | não |
+
+Duas dessas mutações **recolocam achados que o revisor humano tinha reportado nesta mesma PR**, e nada
+avisaria. A consequência para a skill é direta: em lote de documentação, **a revisão adversarial não é
+um controle a mais — é o único**. Calibrar profundidade de review por "é só documentação" está errado
+por um motivo que agora tem número.
 
 **A verificação independente pagou o lote inteiro, e por um motivo que não estava previsto.** Não
 houve round de review: task de desenho não tem `Done when` verificável por teste, então o
