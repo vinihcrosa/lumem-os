@@ -41,6 +41,7 @@ const USAGE = `uso: lumem-memory <comando>
   read    --name <n> --type <t> [--scope ...] [--workspace <id>] [--project <id>]
   forget  --name <n> --type <t> [--scope ...] [--workspace <id>] [--project <id>]
   list    [--workspace <id>] [--project <id>] [--all]
+          sem --workspace, o escopo ativo é só o global; --all mostra o catálogo cru
   revert  --path <caminho relativo ao ~/.lumem>
   decisions [--path <caminho>] [--limit <n>]
   reindex

@@ -104,8 +104,26 @@ describe("memory router", () => {
       kind: "memory",
       workspaceId: "ws1",
       targetProjectId: "p2",
+      // O alvo diz **qual** escopo foi listado: uma linha de auditoria que só
+      // diz "alguém listou algo" não responde nada depois.
+      target: "list:ws1/p2",
     });
     expect(rows.find((row) => row.fromProjectId === "p1")?.target).toBe("user/Estilo de revisão");
+  });
+
+  it("agente não apaga memória pela API — apagar é sempre ação sua (Q29)", async () => {
+    const { caller } = await api();
+    await caller.memory.write(base);
+
+    await expect(
+      caller.memory.forget({ type: "user", name: "Estilo de revisão", actor: "agent" }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+
+    // Fechar a escrita e deixar a deleção aberta seria fechar a porta da frente e
+    // esquecer a dos fundos.
+    expect((await caller.memory.read({ type: "user", name: "Estilo de revisão" })).body).toBe(
+      "Achado primeiro.",
+    );
   });
 
   it("revert só aceita caminho de memória — o `~/.lumem` não é editável pela API", async () => {

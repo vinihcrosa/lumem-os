@@ -61,7 +61,12 @@ export const memoryRouter = router({
       const scope = input ?? scopeIds.parse({});
       // Livre (Q26) **e registrada** (D8): o funil não é o que nega, é o que
       // responde depois "quem leu o quê, de onde".
-      await requireAccess(ctx.db, accessRequest(scope, "*"));
+      // O alvo diz **qual** escopo foi listado: `*` respondia "alguém listou
+      // algo", que é a linha de auditoria que não serve para nada.
+      await requireAccess(
+        ctx.db,
+        accessRequest(scope, `list:${scope.workspaceId ?? "-"}/${scope.projectId ?? "-"}`),
+      );
       const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
       const { visible, shadowed } = memory.visible({
         workspaceId: scope.workspaceId ?? null,
@@ -101,9 +106,13 @@ export const memoryRouter = router({
   forget: publicProcedure.input(identity).mutation(({ ctx, input }) =>
     domainSafeAsync(async () => {
       const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+      // O `actor` chega até o núcleo, e não é decoração: a Q29 diz que apagar é
+      // sempre ação sua, então quem não é humano é recusado lá — e o commit no
+      // `~/.lumem` para de sair com a sua assinatura por omissão.
       return memory.forget(input.type, input.name, input.scope, {
         ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
         ...(input.projectId ? { projectId: input.projectId } : {}),
+        actor: input.actor,
       });
     }),
   ),
