@@ -487,7 +487,8 @@ Migrar quer dizer: **ACP é o default e é onde o produto investe**. Não quer d
 
 ### 9.4 O que vem a seguir
 
-1. **Spike medido** dos três eixos do §9.2 — **feito** em 2026-08-17, resultado no §9.5.
+1. **Spike medido** dos três eixos do §9.2 — **rodado** em 2026-08-17: autenticação e consumo
+   medidos, janela **parcial**. Resultado no §9.5.
 2. **PRD próprio** ([docs/prd/acp-sessions/](../prd/acp-sessions/prd.md)) para transporte + tela da
    conversa — **escrito**, com as 12 perguntas respondidas. É a maior feature do projeto até aqui, e o
    desenho passa pelo protótipo HTML como todas as outras.
