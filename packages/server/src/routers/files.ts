@@ -1,8 +1,9 @@
 import { z } from "zod";
 
 import { createFileService, MAX_FILE_BYTES } from "../files/FileService.js";
+import { tryRecordSignal } from "../memory/signals.js";
 import { resolveScope } from "../scope.js";
-import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
+import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 
 /**
  * The checkout's files over the wire — right-panel F5.1–F5.2, file-editor
@@ -23,6 +24,27 @@ import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
 
 /** Stateless, so it is built once instead of injected through the context. */
 const files = createFileService();
+
+/**
+ * Há sessão de agente viva neste checkout?
+ *
+ * É o que distingue "editei um arquivo" de "editei por cima do agente" — e o
+ * segundo é o sinal que a Q17 quer.
+ *
+ * A pergunta vai ao banco, não ao `PtyManager`: das duas fontes, só a tabela de
+ * sessões sabe o **escopo** de cada processo, e o escopo é o que aqui importa —
+ * um agente vivo em outro checkout não diz nada sobre este arquivo. Quem mantém
+ * a linha em dia com o processo é o `trackExits`, e é ele que faz
+ * `state = 'running'` significar vivo.
+ */
+async function hasLiveAgent(
+  ctx: Context,
+  scopeType: "project" | "worktree",
+  scopeId: string,
+): Promise<boolean> {
+  const running = await ctx.sessionStore.listRunningInScope(scopeType, scopeId);
+  return running.some((session) => session.kind === "agent");
+}
 
 const scopeSchema = z.object({
   scopeType: z.enum(["project", "worktree"]),
@@ -106,10 +128,34 @@ export const filesRouter = router({
         // client as a failure to retry rather than as the choice E10 draws —
         // and would throw away the `revision` and the `changedAt` that the two
         // options are written with.
-        return files.writeFile(cwd, input.path, {
+        const result = await files.writeFile(cwd, input.path, {
           text: input.text,
           baseRevision: input.baseRevision,
         });
+
+        // Sinal de ação (Q17): você editar um arquivo pelo Lumem, com uma
+        // sessão de agente viva no mesmo checkout, é "eu mexi no que ele
+        // escreveu". Registrar o evento é barato; interpretar fica para quando
+        // houver volume. Só evento estrutural, nunca o texto (Q18).
+        //
+        // Uma vez por arquivo por janela, e sem poder derrubar a gravação: o
+        // autosave chama isto a cada 800 ms de pausa, e um sinal por tique
+        // mediria cadência de digitação em vez de "editei por cima dele".
+        // `tryRecordSignal` cuida das duas coisas — um erro aqui viraria
+        // `TRPCError`, o editor leria como falha de gravação, e a retentativa
+        // cairia no diálogo de conflito de um arquivo que ele mesmo acabou de
+        // salvar certo.
+        if (result.ok === true && (await hasLiveAgent(ctx, input.scopeType, input.scopeId))) {
+          tryRecordSignal(ctx.db, {
+            kind: "user_edited_after_agent",
+            target: input.path,
+            ...(input.scopeType === "worktree"
+              ? { worktreeId: input.scopeId }
+              : { projectId: input.scopeId }),
+          });
+        }
+
+        return result;
       }),
     ),
 

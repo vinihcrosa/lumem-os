@@ -185,7 +185,70 @@ export const memoryEntry = sqliteTable(
   ],
 );
 
-export const schema = { workspace, project, worktree, agentConfig, session, memoryEntry };
+/** O maior caminho que um checkout produz, com folga. Acima disso não é alvo. */
+export const MAX_SIGNAL_TARGET_LENGTH = 1_024;
+
+/**
+ * O sinal de ação — o único insumo que **não depende de cooperação** (Q17).
+ *
+ * Compozy e Hermes extraem do que foi **dito**. Isto registra o que foi
+ * **feito**: você editou por cima do que o agente escreveu, reverteu o commit
+ * dele, descartou a worktree, matou a sessão em trinta segundos. É o sinal mais
+ * barato que existe, e nenhuma das quatro referências usa.
+ *
+ * A regra de privacidade da Q18 está no schema, não num comentário: **só evento
+ * estrutural**. Há `target` (o quê) e `detail` (um número), e não existe coluna
+ * de conteúdo.
+ *
+ * Não existir coluna não bastava. A afinidade INTEGER do SQLite guarda texto
+ * não numérico como TEXT, então `detail` aceitava frase; e `target` era TEXT
+ * sem limite, onde cabia um arquivo inteiro. Os dois `CHECK` abaixo são o que
+ * torna a regra estrutural em vez de disciplina de quem chama: `detail` só
+ * aceita inteiro, e `target` só aceita um identificador de uma linha — caminho,
+ * SHA ou id — nunca prosa.
+ */
+export const actionSignal = sqliteTable(
+  "action_signal",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").notNull(),
+    /** O alvo: caminho de arquivo, id de sessão, id de worktree. */
+    target: text("target").notNull(),
+    workspaceId: text("workspace_id"),
+    projectId: text("project_id"),
+    worktreeId: text("worktree_id"),
+    sessionId: text("session_id"),
+    /** Um número que qualifica — linhas trocadas, segundos de vida. Nunca texto do usuário. */
+    detail: integer("detail"),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "action_signal_kind",
+      sql`${table.kind} IN (
+        'user_edited_after_agent',
+        'user_reverted_agent_commit',
+        'worktree_discarded',
+        'session_killed_early'
+      )`,
+    ),
+    // Um número, e o banco é quem cobra. Sem isto, "12 linhas trocadas" e
+    // "TODO: pedir aumento" entram pela mesma coluna.
+    check(
+      "action_signal_detail_number",
+      sql`${table.detail} IS NULL OR typeof(${table.detail}) = 'integer'`,
+    ),
+    // Um identificador: caminho de arquivo, SHA ou id. O limite e a proibição
+    // de quebra de linha são o que separa isso de um trecho de texto.
+    check(
+      "action_signal_target_shape",
+      sql`length(${table.target}) BETWEEN 1 AND ${sql.raw(String(MAX_SIGNAL_TARGET_LENGTH))}
+        AND instr(${table.target}, char(10)) = 0`,
+    ),
+  ],
+);
+
+export const schema = { workspace, project, worktree, agentConfig, session, memoryEntry, actionSignal };
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
 export type ProjectRow = typeof project.$inferSelect;
@@ -193,3 +256,4 @@ export type WorktreeRow = typeof worktree.$inferSelect;
 export type AgentConfigRow = typeof agentConfig.$inferSelect;
 export type SessionRow = typeof session.$inferSelect;
 export type MemoryEntryRow = typeof memoryEntry.$inferSelect;
+export type ActionSignalRow = typeof actionSignal.$inferSelect;

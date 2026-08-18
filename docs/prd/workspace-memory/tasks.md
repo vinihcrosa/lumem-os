@@ -2,8 +2,8 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) · **Entrega de contexto:** [context-delivery.md](context-delivery.md)
 **Roadmap:** [roadmap.md](roadmap.md) — este arquivo é a execução da pilha descrita lá
-**Status:** **PR 01 entregue** — 7 de 7, portão verde (`gate:full`: 1.071 unit/integration + 16 e2e).
-As demais entram quando a anterior abrir PR
+**Status:** **PR 01 entregue** (7 de 7) e **S1 em revisão** (6 de 6) — portão verde
+(`gate:full`: 1.110 unit/integration + 16 e2e). As demais entram quando a anterior abrir PR
 
 ---
 
@@ -20,7 +20,7 @@ escrita contra premissa que a implementação ainda vai derrubar.
 | 03 | `wm/03-superficies` | 02 | idem |
 | 04 | `wm/04-recall` | 03 | idem |
 | 05 | `wm/05-inbox-ui` | 04 | idem |
-| S1 | `wm/s1-sinais-de-acao` | 01 | idem |
+| **S1** | `wm/s1-sinais-de-acao` | 01 | **em PR** — tasks abaixo |
 | S2 | `wm/s2-prototipo` | guarda-chuva | idem |
 
 ---
@@ -247,12 +247,102 @@ linha do tempo com desfazer, e os números na tela.
 **Done when:** uma proposta é aprovada, editada ou rejeitada pela UI, e o `git log` mostra o
 resultado.
 
-## S1 — `wm/s1-sinais-de-acao` (escopo, sem tasks)
+## S1 — `wm/s1-sinais-de-acao`
 
-Registro cru dos sinais que não dependem de cooperação: edição por cima do agente, revert de commit
-dele, worktree descartada, sessão morta cedo. **Só evento estrutural, nunca conteúdo.**
+**O que entrega:** o registro cru dos quatro sinais que não dependem de cooperação. Nada aqui
+interpreta: a [Q17](open-questions.md) fechou em "sinal cru primeiro, leitura depois", e heurística
+escrita antes do dado é opinião com cara de medida.
 
-**Done when:** os quatro eventos ficam registrados com alvo e horário, e dá para listá-los.
+**Done when (da PR inteira):** os quatro eventos ficam registrados com alvo, escopo e horário por
+quem já os observa hoje, e dá para listá-los por tipo.
+
+**Gate:** `full` antes de abrir PR; `quick` durante.
+
+### T1 — A tabela e as duas regras que ela cobra
+
+`action_signal`, com os quatro tipos fechados por `CHECK` e a privacidade da
+[Q18](open-questions.md) dentro do schema.
+
+- `CHECK` de `kind` fecha a lista dos quatro
+- **Não existe coluna de conteúdo** — e não bastava: `CHECK` de `typeof(detail) = 'integer'`, porque
+  a afinidade INTEGER do SQLite guarda texto não numérico como TEXT
+- `CHECK` de forma em `target`: até 1.024 caracteres, sem quebra de linha — identificador, não prosa
+
+**Done when:** gravar frase em `detail` ou texto de várias linhas em `target` é recusado **pelo
+banco**, com o tipo do TypeScript fora do caminho.
+
+---
+
+### T2 — Gravar, listar, e não repetir
+
+`recordSignal`, `recordSignalOnce` e `listSignals`.
+
+- Descarte de repetição por (`kind`, `target`, escopo) dentro de `SIGNAL_WINDOW_MS` (Q17.a)
+- `windowMs: null` para o sinal que uma varredura reencontra: grava uma vez e nunca mais
+- `tryRecordSignal` engole a falha com log — sinal nunca derruba a ação que o produziu
+- `listSignals` corta no limite e devolve do mais recente para o mais antigo
+
+**Done when:** três gravações seguidas do mesmo arquivo no mesmo escopo viram uma linha; o mesmo
+arquivo em outro escopo vira duas; e `limit` com N+1 sinais devolve os N mais recentes, nessa ordem.
+
+---
+
+### T3 — `user_edited_after_agent`
+
+O gancho no `files.write`, que é o único caminho de escrita que o daemon vê (Q17.b).
+
+- Só grava quando há sessão de agente **`running` no mesmo escopo** — a tabela de sessões é a única
+  fonte que sabe o escopo de cada processo
+- Alvo é o caminho relativo; nada do texto entra
+- Uma vez por janela, e sem poder virar `TRPCError`: um erro aqui viraria falha de gravação, e a
+  retentativa do autosave cairia no diálogo de conflito de um arquivo salvo certo
+
+**Done when:** gravar com agente vivo no escopo produz uma linha; gravar sem agente nenhum produz
+zero; e uma rajada de autosave produz uma, não quatro.
+
+---
+
+### T4 — `worktree_discarded`
+
+O gancho no `worktree.remove`, depois de o git ter sucedido.
+
+- Alvo é o **id**, nunca o nome da branch — nome é frase que você digitou
+- `detail` separa "terminei" (`0`) de "desisti" (`1`, quando foi preciso forçar)
+- Remoção recusada não descartou nada, e não vira sinal
+
+**Done when:** remover limpa grava `detail: 0`, remover com `force` grava `1`, e uma remoção
+bloqueada por sujeira não grava nada.
+
+---
+
+### T5 — `session_killed_early`
+
+O gancho na saída da sessão, dentro do `trackExits`.
+
+- Só sessão de **agente**: um shell que viveu quatro segundos é um shell
+- `KILLED_EARLY_SECONDS` fixo em 30, sem configuração (Q17.c) — e a fronteira é aberta: exatamente
+  30 s **não** é sinal
+- `detail` são os segundos de vida
+- Roda depois do registro da saída e do evento, engolindo a própria falha
+
+**Done when:** uma sessão de agente que morre no ato grava o sinal com o id da sessão e o escopo
+dela; um shell igual não grava nada; e um erro no sinal não impede a linha de virar `exited`.
+
+---
+
+### T6 — `user_reverted_agent_commit`
+
+O que **procura** em vez de instrumentar: `git.readLog` do checkout, no fim de cada sessão de agente
+(Q17.d).
+
+- O assunto (`Revert "..."`) é o portão, com âncoras, e **morre dentro da função**
+- O alvo é o SHA que o corpo do commit nomeia (`This reverts commit ...`) — só SHA sai dali
+- Reencontrar o mesmo revert na varredura seguinte não grava de novo
+- Checkout que sumiu, ou que não é repositório, não derruba o registro da saída
+
+**Done when:** um revert feito **na mão pelo git**, sem o Lumem no meio, vira um sinal com o SHA
+desfeito; um commit que só fala sobre reverter não vira nada; e a segunda varredura do mesmo
+histórico não grava linha nova.
 
 ## S2 — `wm/s2-prototipo` (escopo, sem tasks)
 
