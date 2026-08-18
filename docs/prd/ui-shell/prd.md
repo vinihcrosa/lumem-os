@@ -50,7 +50,7 @@ Gerados por `packages/web/scripts/generate-tokens.py`, nunca escritos à mão. S
 
 Rampas em OKLCH, que é perceptualmente uniforme: uma escala de luminosidade compartilhada dá a todas as matizes o mesmo peso visual. Rampas escolhidas a olho não têm essa propriedade.
 
-**Contraste é verificado, não estimado.** 31 pares reais de uso — texto/superfície, label/botão, cada cor de domínio sobre o fundo em que ela aparece de verdade. Todos AA ou melhor. Introduzir par novo exige adicionar a checagem e rodar de novo.
+**Contraste é verificado, não estimado.** 60 pares reais de uso — texto/superfície, label/botão, cada cor de domínio sobre o fundo em que ela aparece de verdade. Todos AA ou melhor. Introduzir par novo exige adicionar a checagem e rodar de novo.
 
 ### Duas camadas
 
@@ -67,7 +67,7 @@ O que separa um design system genérico de um que serve a este produto. O vocabu
 session/running · exited · failed · shell · agent
 worktree/clean · dirty · missing
 git/branch · ahead · behind · added · removed · modified
-scope/workspace · project · worktree
+scope/global · workspace · project · worktree
 daemon/online · offline
 ```
 

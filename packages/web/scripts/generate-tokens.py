@@ -117,7 +117,12 @@ SEMANTIC = [
     ]),
     # Hierarquia e daemon: workspace > projeto > worktree, mais o unico estado
     # global que existe (o daemon respondendo ou nao).
+    # scope/global e o escopo acima do workspace — o que vale para VOCE, em
+    # qualquer workspace. Ele existe porque a memoria tem um nivel a mais que a
+    # arvore de arquivos: sem token proprio, a tela de memoria acabava pintando
+    # "voce" com um token de texto e "projeto" com o token de outro escopo.
     ("dominio — hierarquia e daemon", [
+        ("scope/global", "info/400"),
         ("scope/workspace", "brand/400"), ("scope/project", "neutral/400"),
         ("scope/worktree", "accent/400"),
         ("daemon/online", "success/400"), ("daemon/offline", "danger/400"),
@@ -250,6 +255,7 @@ CONTRAST_CHECKS = [
     ("branch / superficie",           "git/branch",      "bg/surface", 4.5),
     ("commits a frente / superficie", "git/ahead",       "bg/surface", 4.5),
     ("commits atras / superficie",    "git/behind",      "bg/surface", 4.5),
+    ("escopo global / painel",        "scope/global",    "bg/panel",   4.5),
     ("escopo projeto / painel",       "scope/project",   "bg/panel",   4.5),
     ("escopo worktree / painel",      "scope/worktree",  "bg/panel",   4.5),
     ("daemon offline / fundo",        "daemon/offline",  "bg/base",    4.5),

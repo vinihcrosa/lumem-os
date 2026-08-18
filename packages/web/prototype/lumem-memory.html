@@ -8,7 +8,7 @@
    1. tokens.css — colado integralmente, gerado por
       packages/web/scripts/generate-tokens.py
    ======================================================================== */
-/* Design tokens — GERADO por scripts/generate_palette.py. Nao edite a mao. */
+/* Design tokens — GERADO por scripts/generate-tokens.py. Nao edite a mao. */
 /* Rampas em OKLCH, contraste WCAG validado na geracao. */
 
 :root {
@@ -144,7 +144,7 @@
   /* bordas */
   --color-border-subtle: var(--neutral-960);
   --color-border-default: var(--neutral-925);
-  --color-border-strong: var(--color-text-secondary);
+  --color-border-strong: var(--neutral-800);
   --color-border-brand: var(--brand-500);
   --color-border-danger: var(--danger-500);
   --color-border-focus: var(--brand-400);
@@ -165,6 +165,7 @@
   --color-git-removed: var(--danger-400);
   --color-git-modified: var(--warning-400);
   /* dominio — hierarquia e daemon */
+  --color-scope-global: var(--info-400);
   --color-scope-workspace: var(--brand-400);
   --color-scope-project: var(--neutral-400);
   --color-scope-worktree: var(--accent-400);
@@ -181,6 +182,18 @@
   --color-git-added-subtle: var(--success-950);
   --color-git-removed-subtle: var(--danger-950);
   --color-git-untracked: var(--info-400);
+  /* dominio — editor */
+  --color-editor-cursor: var(--brand-400);
+  --color-editor-selection: var(--brand-900);
+  --color-editor-active-line: var(--neutral-980);
+  --color-editor-line-number: var(--neutral-500);
+  --color-editor-line-number-active: var(--neutral-300);
+  --color-editor-readonly: var(--neutral-400);
+  /* dominio — salvamento */
+  --color-save-saving: var(--neutral-400);
+  --color-save-saved: var(--success-400);
+  --color-save-failed: var(--danger-400);
+  --color-save-stale: var(--warning-400);
 
   /* ---------- espacamento (nome = valor em px) ---------- */
   --space-0: 0px;
@@ -281,145 +294,190 @@
 body {
   background: var(--color-bg-base);
   color: var(--color-text-primary);
-  font: 400 13px/1.5 ui-sans-serif, -apple-system, "Segoe UI", sans-serif;
-  padding: 24px;
+  font: var(--text-body-md);
+  padding: var(--space-24);
 }
 
-h1.page { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
-p.page-sub { color: var(--color-text-secondary); font-size: 12px; margin-bottom: 24px; }
+h1.page {
+  font: var(--text-heading-md); letter-spacing: var(--tracking-heading-md);
+  margin-bottom: var(--space-4);
+}
+p.page-sub { color: var(--color-text-secondary); font: var(--text-body-sm); margin-bottom: var(--space-24); }
 
-.screen { margin-bottom: 40px; }
+.screen { margin-bottom: var(--space-40); }
 .screen > h2 {
-  font-size: 11px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: .06em; color: var(--color-text-tertiary); margin-bottom: 8px;
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase;
+  color: var(--color-text-tertiary); margin-bottom: var(--space-8);
 }
-.screen > .note { color: var(--color-text-tertiary); font-size: 11px; margin-bottom: 10px; }
+.screen > .note { color: var(--color-text-tertiary); font: var(--text-caption); margin-bottom: var(--space-10); }
 
 .frame {
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
+.spacer { flex: 1; }
 
 /* -------------------- cabeçalho da coluna -------------------- */
 .panel-head {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px;
+  display: flex; align-items: center; gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
   border-bottom: 1px solid var(--color-border-subtle);
   background: var(--color-bg-raised);
 }
-.panel-head .title { font-weight: 600; font-size: 12px; }
-.panel-head .spacer { flex: 1; }
+.panel-head .title { font: var(--text-label-sm); color: var(--color-text-primary); }
 
-.seg { display: inline-flex; background: var(--color-bg-inset); border-radius: 6px; padding: 2px; gap: 2px; }
+.seg {
+  display: inline-flex; background: var(--color-bg-inset);
+  border-radius: var(--radius-md); padding: var(--space-2); gap: var(--space-2);
+}
 .seg button {
-  font: inherit; font-size: 11px; padding: 3px 10px; border: 0; border-radius: 4px;
-  background: transparent; color: var(--color-text-secondary); cursor: pointer;
+  font: var(--text-label-xs); padding: var(--space-4) var(--space-10);
+  border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--color-text-secondary); cursor: pointer;
 }
 .seg button[aria-pressed="true"] { background: var(--color-bg-surface); color: var(--color-text-primary); }
 
 .count-pill {
-  font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 999px;
+  font: var(--text-label-xs); padding: var(--space-1) var(--space-6); border-radius: var(--radius-full);
   background: var(--color-bg-brand-subtle); color: var(--color-text-brand);
 }
+.count-pill--warn { background: var(--color-bg-warning-subtle); color: var(--color-text-warning); }
 
 /* -------------------- lista de memórias -------------------- */
-.mem { border-bottom: 1px solid var(--color-border-subtle); padding: 10px 12px; display: flex; gap: 10px; }
+.mem {
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: var(--space-10) var(--space-12); display: flex; gap: var(--space-10);
+}
 .mem:last-child { border-bottom: 0; }
 .mem .body { flex: 1; min-width: 0; }
-.mem .row1 { display: flex; align-items: baseline; gap: 8px; }
-.mem .name { font-weight: 600; }
-.mem .desc { color: var(--color-text-secondary); font-size: 12px; margin-top: 2px; }
-.mem .meta { color: var(--color-text-tertiary); font-size: 11px; margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
+.mem .row1 { display: flex; align-items: baseline; gap: var(--space-8); }
+.mem .name { font: var(--text-label-md); color: var(--color-text-primary); }
+.mem .desc { color: var(--color-text-secondary); font: var(--text-body-sm); margin-top: var(--space-2); }
+.mem .meta {
+  color: var(--color-text-tertiary); font: var(--text-caption); margin-top: var(--space-4);
+  display: flex; gap: var(--space-10); flex-wrap: wrap;
+}
 
 /* Escopo e tipo respondem perguntas diferentes — "onde vale" e "o que é" —, e a
    primeira renderização deixou os dois com o mesmo peso. Escopo é chip com cor
-   de token; tipo é só texto, na fonte mono, porque ele é vocabulário fechado. */
+   de token; tipo é só texto, na fonte mono, porque ele é vocabulário fechado.
+   Cada escopo usa o SEU token de domínio: emprestar o de outro escopo faz a
+   mesma palavra mudar de cor entre a sidebar e o chip. */
 .tag {
-  font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 999px;
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs);
+  padding: var(--space-1) var(--space-6); border-radius: var(--radius-full);
   white-space: nowrap; border: 1px solid transparent;
 }
-.tag.scope-global {
-  background: var(--color-bg-neutral-subtle); color: var(--color-text-secondary);
-  border-color: var(--color-border-subtle);
-}
+.tag.scope-global { background: var(--color-bg-info-subtle); color: var(--color-scope-global); }
 .tag.scope-workspace {
   background: var(--color-bg-brand-subtle); color: var(--color-scope-workspace);
   border-color: var(--color-border-brand);
 }
-.tag.scope-project {
-  background: var(--color-bg-success-subtle); color: var(--color-scope-worktree);
-  border-color: var(--color-border-default);
-}
-.kind {
-  font: 500 10px/1 var(--font-family-mono); color: var(--color-text-tertiary);
-  letter-spacing: .02em; text-transform: uppercase;
-}
+.tag.scope-project { background: var(--color-bg-neutral-subtle); color: var(--color-scope-project); }
+.kind { font: var(--text-mono-sm); color: var(--color-text-tertiary); text-transform: uppercase; }
 
-.shadowed { opacity: .55; }
+/* A linha sombreada é para ser LIDA, não escondida: quem a sombreou está no
+   `.meta`, e é a informação que a tela promete entregar. Por isso ela recua com
+   token de texto verificado — `opacity` produziria um par de contraste que
+   nenhuma checagem do gerador cobre, justo no texto que precisa ser lido. */
+.mem.shadowed .name,
+.mem.shadowed .desc { color: var(--color-text-tertiary); }
+.mem.shadowed .meta { color: var(--color-text-secondary); }
 .shadow-note {
-  font-size: 11px; color: var(--color-text-tertiary);
-  border-left: 2px solid var(--color-border-strong); padding-left: 8px; margin-top: 6px;
+  font: var(--text-caption); color: var(--color-text-tertiary);
+  border-left: var(--space-2) solid var(--color-text-secondary);
+  padding-left: var(--space-8); margin-top: var(--space-6);
 }
 
 /* -------------------- inbox de propostas -------------------- */
-.proposal { border-bottom: 1px solid var(--color-border-subtle); padding: 12px; }
+.proposal { border-bottom: 1px solid var(--color-border-subtle); padding: var(--space-12); }
 .proposal:last-child { border-bottom: 0; }
-.proposal .head { display: flex; align-items: baseline; gap: 8px; }
-.proposal .who { color: var(--color-text-tertiary); font-size: 11px; }
+.proposal .head { display: flex; align-items: baseline; gap: var(--space-8); }
+.proposal .name { font: var(--text-label-md); color: var(--color-text-primary); }
+.proposal .desc { color: var(--color-text-secondary); font: var(--text-body-sm); margin-top: var(--space-4); }
 .proposal .why {
-  margin-top: 8px; padding: 8px 10px; border-radius: 6px;
-  background: var(--color-bg-inset); color: var(--color-text-secondary); font-size: 12px;
+  margin-top: var(--space-8); padding: var(--space-8) var(--space-10); border-radius: var(--radius-md);
+  background: var(--color-bg-inset); color: var(--color-text-secondary); font: var(--text-body-sm);
 }
-.proposal .why code { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; }
-.actions { display: flex; gap: 8px; margin-top: 10px; }
-button.btn {
-  font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
-  border: 1px solid var(--color-border-default); background: var(--color-bg-surface); color: var(--color-text-primary);
+.proposal .why code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.why--split { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-10); }
+.why__aside { color: var(--color-text-tertiary); }
+
+/* O botão é o do app (`src/ui/ui.css`), não um botão novo: a ação terciária tem
+   borda sutil, porque sem borda nenhuma ela lê como texto e deixa de parecer
+   clicável — achado já corrigido uma vez, em `docs/prd/ui-shell/prd.md`. */
+.btn {
+  display: inline-flex; align-items: center; gap: var(--space-6);
+  height: var(--size-control-lg); padding: 0 var(--space-12);
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-md);
+  background: var(--color-bg-surface); color: var(--color-text-primary);
+  font: var(--text-label-sm); white-space: nowrap; cursor: pointer;
 }
-button.btn.primary { background: var(--color-bg-brand); border-color: var(--color-bg-brand); color: var(--color-text-inverse); }
-button.btn.ghost { border-color: transparent; color: var(--color-text-secondary); }
+.btn:hover { background: var(--color-bg-raised); border-color: var(--color-border-strong); }
+.btn--primary { background: var(--color-bg-brand); border-color: var(--color-bg-brand); color: var(--color-text-on-brand); }
+.btn--primary:hover { background: var(--color-bg-brand-hover); border-color: var(--color-bg-brand-hover); }
+.btn--ghost { background: none; border-color: var(--color-border-subtle); color: var(--color-text-secondary); }
+.btn--ghost:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.actions { display: flex; gap: var(--space-8); margin-top: var(--space-10); }
 
 /* -------------------- linha do tempo -------------------- */
-.tl { padding: 4px 0; }
-.tl .item { display: grid; grid-template-columns: 92px 16px 1fr; gap: 8px; padding: 7px 12px; align-items: baseline; }
-.tl .when { color: var(--color-text-tertiary); font-size: 11px; text-align: right; }
+/* A coluna do horário é `max-content` uma vez, no container: se cada linha
+   fosse a sua própria grade, "ontem 18:31" e "hoje 14:02" empurrariam o marcador
+   para posições diferentes, e a linha do tempo perderia o eixo. */
+.tl {
+  padding: var(--space-4) 0;
+  display: grid; grid-template-columns: max-content var(--size-icon-md) 1fr;
+}
+.tl .item {
+  display: grid; grid-template-columns: subgrid; grid-column: 1 / -1;
+  gap: var(--space-8); padding: var(--space-6) var(--space-12); align-items: baseline;
+}
+.tl .when { color: var(--color-text-tertiary); font: var(--text-caption); text-align: right; }
 .tl .dot { display: flex; justify-content: center; color: var(--color-text-tertiary); }
-.tl .what .verb { font-weight: 600; }
+.tl .what .verb { font: var(--text-label-md); }
 .tl .what .detail { color: var(--color-text-secondary); }
 .tl .item.rejected .what .verb { color: var(--color-text-danger); }
 .tl .item.noop .what { color: var(--color-text-tertiary); }
-.tl .undo { font-size: 11px; color: var(--color-text-tertiary); }
+.tl .undo { font: var(--text-caption); color: var(--color-text-tertiary); }
 
 /* -------------------- números -------------------- */
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--color-border-subtle); }
-.stat { background: var(--color-bg-surface); padding: 12px; }
-.stat .n { font-size: 20px; font-weight: 600; letter-spacing: -.02em; }
-.stat .l { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
-.stat .hint { font-size: 10px; color: var(--color-text-tertiary); margin-top: 6px; }
+.stats {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-1); background: var(--color-border-subtle);
+}
+.stat { background: var(--color-bg-surface); padding: var(--space-12); }
+.stat .n { font: var(--text-display-md); letter-spacing: var(--tracking-display-md); }
+.stat .l { font: var(--text-label-xs); color: var(--color-text-secondary); margin-top: var(--space-2); }
+.stat .hint { font: var(--text-caption); color: var(--color-text-tertiary); margin-top: var(--space-6); }
 .stat.warn .n { color: var(--color-text-warning); }
 
 /* -------------------- estados vazios / degradados -------------------- */
-.empty { padding: 28px 12px; text-align: center; color: var(--color-text-tertiary); font-size: 12px; }
-.empty strong { display: block; color: var(--color-text-secondary); font-weight: 600; margin-bottom: 3px; }
-.gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.empty {
+  padding: var(--space-24) var(--space-12); text-align: center;
+  color: var(--color-text-tertiary); font: var(--text-body-sm);
+}
+.empty strong { display: block; color: var(--color-text-secondary); font: var(--text-label-md); margin-bottom: var(--space-4); }
+.empty code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-12); }
 </style>
 </head>
 <body>
 
 <h1 class="page">Memória do workspace — protótipo</h1>
 <p class="page-sub">
-  Quatro telas: o que existe, a inbox de propostas, a linha do tempo, e os números.
-  Sobre os mesmos tokens que o app usa. Nenhum literal de cor.
+  Seis telas: o que existe, a inbox de propostas, o conflito no mesmo escopo, a linha
+  do tempo, os números e os estados vazios. Sobre os mesmos tokens que o app usa,
+  sem nenhum literal.
 </p>
 
 <!-- 1 ------------------------------------------------------------------ -->
 <section class="screen">
   <h2>1 · o que existe, no escopo ativo</h2>
   <p class="note">
-    Escopo ativo = você + workspace + o projeto aberto. A memória sombreada aparece
-    apagada e <em>diz quem a sombreou</em> — esconder sem explicar é como o shadow vira mistério.
+    Escopo ativo = você + workspace + o projeto aberto. A memória sombreada recua um
+    nível de texto e <em>diz quem a sombreou</em> — esconder sem explicar é como o shadow vira mistério.
   </p>
   <div class="frame">
     <div class="panel-head">
@@ -504,9 +562,9 @@ button.btn.ghost { border-color: transparent; color: var(--color-text-secondary)
       <div class="head">
         <span class="tag scope-workspace">workspace</span>
         <span class="kind">domain</span>
-        <span class="name" style="font-weight:600">Plano sem preço</span>
+        <span class="name">Plano sem preço</span>
       </div>
-      <div class="desc" style="color:var(--color-text-secondary);margin-top:4px">
+      <div class="desc">
         Usuário sem plano ativo enxerga o catálogo, mas não o preço.
       </div>
       <div class="why">
@@ -515,9 +573,9 @@ button.btn.ghost { border-color: transparent; color: var(--color-text-secondary)
         Proposta pelo agente do projeto <strong>api</strong>, sessão de hoje 14:02.
       </div>
       <div class="actions">
-        <button class="btn primary">Aprovar</button>
+        <button class="btn btn--primary">Aprovar</button>
         <button class="btn">Editar e aprovar</button>
-        <button class="btn ghost">Rejeitar</button>
+        <button class="btn btn--ghost">Rejeitar</button>
       </div>
     </div>
 
@@ -525,9 +583,9 @@ button.btn.ghost { border-color: transparent; color: var(--color-text-secondary)
       <div class="head">
         <span class="tag scope-workspace">workspace</span>
         <span class="kind">process</span>
-        <span class="name" style="font-weight:600">Squash antes de mergear</span>
+        <span class="name">Squash antes de mergear</span>
       </div>
-      <div class="desc" style="color:var(--color-text-secondary);margin-top:4px">
+      <div class="desc">
         O time faz squash na main.
       </div>
       <div class="why">
@@ -535,9 +593,9 @@ button.btn.ghost { border-color: transparent; color: var(--color-text-secondary)
         Conclusão vira proposta; fato vira memória.
       </div>
       <div class="actions">
-        <button class="btn primary">Aprovar</button>
+        <button class="btn btn--primary">Aprovar</button>
         <button class="btn">Editar e aprovar</button>
-        <button class="btn ghost">Rejeitar</button>
+        <button class="btn btn--ghost">Rejeitar</button>
       </div>
     </div>
   </div>
@@ -555,24 +613,24 @@ button.btn.ghost { border-color: transparent; color: var(--color-text-secondary)
       <div class="head">
         <span class="tag scope-workspace">workspace</span>
         <span class="kind">process</span>
-        <span class="name" style="font-weight:600">Formato de commit</span>
-        <span class="spacer" style="flex:1"></span>
-        <span class="count-pill" style="background:var(--color-bg-warning-subtle);color:var(--color-text-warning)">conflito</span>
+        <span class="name">Formato de commit</span>
+        <span class="spacer"></span>
+        <span class="count-pill count-pill--warn">conflito</span>
       </div>
-      <div class="why" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="why why--split">
         <div>
           <strong>A que está valendo</strong><br>
           Conventional Commits, sempre.<br>
-          <span style="color:var(--color-text-tertiary)">humano · há 3 meses · recuperada 22×</span>
+          <span class="why__aside">humano · há 3 meses · recuperada 22×</span>
         </div>
         <div>
           <strong>A que chegou</strong><br>
           Mensagem livre, o time não exige prefixo.<br>
-          <span style="color:var(--color-text-tertiary)">agente · hoje · sem evidência</span>
+          <span class="why__aside">agente · hoje · sem evidência</span>
         </div>
       </div>
       <div class="actions">
-        <button class="btn primary">Manter a atual</button>
+        <button class="btn btn--primary">Manter a atual</button>
         <button class="btn">Substituir</button>
         <button class="btn">Editar e resolver</button>
       </div>

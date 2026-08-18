@@ -233,6 +233,18 @@ dele, worktree descartada, sessão morta cedo. **Só evento estrutural, nunca co
 ## S2 — `wm/s2-prototipo` (escopo, sem tasks)
 
 Protótipo HTML+CSS da inbox, da vista de memória e da linha do tempo, sobre os tokens que já existem,
-seguindo a skill `ui-design-prototype`.
+seguindo a skill `ui-design-prototype`. Vive em `packages/web/prototype/lumem-memory.html`, com seis
+telas: o escopo ativo, a inbox, o conflito no mesmo escopo, a linha do tempo, os números e os vazios.
 
-**Done when:** renderiza, e as decisões de forma estão registradas.
+### O que a renderização achou
+
+| Achado | Correção |
+|---|---|
+| Nenhum token semântico escrito de memória existia — o prefixo real é `--color-*`. A tela saiu branca | Bloco de tokens colado do `tokens.css` gerado, sem edição |
+| Escopo e tipo tinham o mesmo peso visual, e são perguntas diferentes | Escopo virou chip com cor de token; tipo, texto mono, porque é vocabulário fechado |
+| Faltava o conflito no mesmo escopo ([Q31](open-questions.md)) — shadow não resolve | Tela 2b: as duas lado a lado, decisão sua, nada de merge |
+| A memória sombreada recuava por `opacity`, que produz par de contraste que nenhuma checagem cobre — justo no texto que diz *quem* a sombreou | Recuo por token de texto verificado; `opacity` fora |
+| O chip de `projeto` pegava emprestado `--color-scope-worktree`, e "você" não tinha token nenhum | `scope/global` entrou no `CONFIG` do gerador; cada escopo usa o seu |
+| O botão do protótipo era um botão novo, e o terciário sem borda voltou a ler como texto | `.btn`/`.btn--primary`/`.btn--ghost` iguais aos de `src/ui/ui.css` |
+
+**Done when:** renderiza, e as decisões de forma estão registradas. ✅
