@@ -72,8 +72,18 @@ describe("requiresProposal", () => {
   it("cada ator não-humano cai na regra, e não só o `agent`", () => {
     expect(requiresProposal("distiller", "workspace", "process")).toBe(true);
     expect(requiresProposal("auto_research", "project", "domain")).toBe(true);
-    // `import` é você migrando dado seu: passa direto, como `human`.
+    // `import` é você migrando dado seu: passa direto, como `human`. É o segundo
+    // bypass do ator declarado, e está nomeado na Q38.
     expect(requiresProposal("import", "workspace", "domain")).toBe(false);
+  });
+
+  // A Decisão da Q27.1 é uma lista fechada: *só* `project` e `reference` no
+  // escopo de projeto passam direto. Escrito como lista negra, `feedback` com
+  // escopo explícito escapava — e `feedback` é o tipo com mais chance de ser
+  // conclusão em vez de fato.
+  it("tipo fora da lista branca é proposta mesmo no escopo de projeto", () => {
+    expect(requiresProposal("distiller", "project", "feedback")).toBe(true);
+    expect(requiresProposal("agent", "project", "user")).toBe(true);
   });
 });
 
@@ -190,10 +200,13 @@ describe("a inbox", () => {
     expect(memory.list()).toHaveLength(0);
   });
 
-  it("`resolved` responde as duas juntas — aprovada e rejeitada", async () => {
+  it("`resolved` responde as duas juntas — e exclui a que ainda está pendente", async () => {
     const { memory } = await service();
     await memory.write({ ...doWorkspace, actor: "agent" });
     await memory.write({ ...doWorkspace, name: "Squash antes de mergear", type: "process", actor: "agent" });
+    // A terceira fica pendente de propósito: sem ela, "não filtrar nada" e
+    // "filtrar o que não está pendente" devolvem a mesma lista.
+    await memory.write({ ...doWorkspace, name: "Contrato de checkout", type: "contract", actor: "agent" });
     const [primeira, segunda] = memory.proposals({ status: "pending" });
     await memory.approveProposal(primeira!.id);
     memory.rejectProposal(segunda!.id, "não é do produto");
@@ -201,7 +214,53 @@ describe("a inbox", () => {
     // Uma pergunta só para "o que eu já decidi": a tela não deveria precisar
     // saber que `resolved` tem dois valores por baixo.
     expect(memory.proposals({ status: "resolved" })).toHaveLength(2);
-    expect(memory.proposals({ status: "pending" })).toHaveLength(0);
+    expect(memory.proposals({ status: "pending" })).toHaveLength(1);
+    expect(memory.proposals()).toHaveLength(3);
+  });
+
+  it("aprovar a mesma proposta duas vezes é no-op — o carimbo não é conteúdo", async () => {
+    const { memory } = await service();
+    await memory.write({ ...doWorkspace, actor: "agent", sourceSessions: ["s-1"] });
+    const [primeira] = memory.proposals({ status: "pending" });
+    await memory.approveProposal(primeira!.id);
+    // A mesma sessão repropondo o mesmo texto: `proposal_id` é um id novo, e sem
+    // ele fora da assinatura isto viraria um commit cujo único delta é o carimbo.
+    await memory.write({ ...doWorkspace, actor: "agent", sourceSessions: ["s-1"] });
+    const [segunda] = memory.proposals({ status: "pending" });
+
+    const result = await memory.approveProposal(segunda!.id);
+
+    // Duplicata exata continua sendo `noop` (passo 3 do §7 do PRD).
+    expect(result.outcome).toBe("noop");
+    expect(memory.proposals({ status: "approved" })).toHaveLength(2);
+    const entry = await memory.read("domain", "Plano sem preço", "workspace", {
+      workspaceId: "ws1",
+    });
+    // A proveniência continua apontando para a proposta que de fato gravou.
+    expect(entry.provenance.proposal_id).toBe(primeira!.id);
+  });
+
+  it("proposta de outra sessão acumula a origem em vez de trocá-la", async () => {
+    const { memory } = await service();
+    await memory.write({ ...doWorkspace, actor: "agent", sourceSessions: ["s-1"] });
+    await memory.approveProposal(memory.proposals({ status: "pending" })[0]!.id);
+    await memory.write({ ...doWorkspace, actor: "agent", sourceSessions: ["s-2"] });
+
+    const result = await memory.approveProposal(memory.proposals({ status: "pending" })[0]!.id);
+
+    // Uma sessão nova que ensina a mesma coisa é informação nova — grava. E o
+    // que grava **soma** as origens: trocar a lista apagaria quem ensinou
+    // primeiro, e é o que fazia cada nova sessão custar um commit sem ganho.
+    expect(result.outcome).toBe("applied");
+    const entry = await memory.read("domain", "Plano sem preço", "workspace", {
+      workspaceId: "ws1",
+    });
+    expect(entry.provenance.source_sessions).toEqual(["s-1", "s-2"]);
+
+    // E aí a terceira proposta da mesma sessão volta a ser duplicata.
+    await memory.write({ ...doWorkspace, actor: "agent", sourceSessions: ["s-2"] });
+    const terceira = await memory.approveProposal(memory.proposals({ status: "pending" })[0]!.id);
+    expect(terceira.outcome).toBe("noop");
   });
 
   it("resolver duas vezes é recusado", async () => {

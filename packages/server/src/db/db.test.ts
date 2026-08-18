@@ -7,7 +7,7 @@ import { sql } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { openDatabase, type Db, type Database_ } from "./index.js";
-import { agentConfig, project, session, workspace, worktree } from "./schema.js";
+import { agentConfig, memoryProposal, project, session, workspace, worktree } from "./schema.js";
 
 const open: Database_[] = [];
 const dirs: string[] = [];
@@ -267,6 +267,58 @@ describe("state constraints", () => {
         exitCode: 0,
       }),
     ).rejects.toThrow(/CHECK/i);
+  });
+
+  // Aprovar uma proposta faz `proposal.type as MemoryType` — um cast que compila
+  // em silêncio sobre qualquer string. O banco é o último lugar que consegue
+  // recusar a string antes de ela virar arquivo, e uma guarda sem teste é uma
+  // guarda que ninguém sabe se está ligada.
+  const proposal = {
+    path: "workspaces/ws1/memory/domain_plano.md",
+    type: "domain",
+    scope: "workspace",
+    slug: "plano",
+    name: "Plano sem preço",
+    description: "Usuário sem plano ativo vê catálogo, não preço",
+    actor: "agent",
+    confidence: "medium",
+  } as const;
+
+  it.each([
+    ["type", { type: "nao_existe_na_taxonomia" }],
+    ["scope", { scope: "marte" }],
+    ["actor", { actor: "marciano" }],
+    ["confidence", { confidence: "altissima" }],
+    ["status", { status: "quase" }],
+  ])("rejects a proposal whose %s is outside the closed set", async (_column, invalid) => {
+    const { db } = freshDatabase();
+
+    await expect(
+      db.insert(memoryProposal).values({ id: newId(), ...proposal, ...invalid }),
+    ).rejects.toThrow(/CHECK/i);
+  });
+
+  it("accepts every value the taxonomy does allow", async () => {
+    const { db } = freshDatabase();
+
+    // O par do teste acima: sem ele, um typo dentro de uma das listas só
+    // apareceria para os valores que o resto da suíte exercita.
+    for (const type of ["user", "feedback", "project", "domain", "process", "contract", "reference"]) {
+      for (const scope of ["global", "workspace", "project"]) {
+        for (const actor of ["human", "agent", "distiller", "auto_research", "import"]) {
+          for (const confidence of ["low", "medium", "high"]) {
+            await db
+              .insert(memoryProposal)
+              .values({ id: newId(), ...proposal, type, scope, actor, confidence });
+          }
+        }
+      }
+    }
+
+    const [row] = await db.all<{ total: number }>(
+      sql`SELECT count(*) AS total FROM memory_proposal`,
+    );
+    expect(row?.total).toBe(7 * 3 * 5 * 3);
   });
 
   it("stores agent arguments and environment as structured values", async () => {

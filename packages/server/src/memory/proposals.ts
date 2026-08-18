@@ -26,17 +26,19 @@ import type { MemoryActor, MemoryScope, MemoryType } from "./entry.js";
  * estiver aberta, o desvio protege contra engano, não contra quem quer burlá-lo.
  */
 
-/** Os tipos cujo escopo natural é o workspace, e que por isso mais contaminam. */
-const WORKSPACE_TYPES: ReadonlySet<MemoryType> = new Set(["domain", "process", "contract"]);
-
 /**
- * Os escopos que atravessam projeto — e por isso passam pela revisão.
+ * O que um ator não-humano pode gravar sem passar por você.
  *
- * `global` entra junto com `workspace` porque é **mais largo**: memória global
- * vale em todos os workspaces, e deixá-la livre enquanto a de workspace é
- * revisada seria guardar a porta estreita e deixar a larga aberta (Q27.1).
+ * **Lista branca, e não lista negra**, porque é a redação da Q27.1: *"só
+ * `project` e `reference` dentro do escopo de projeto continuam diretos"*. Com o
+ * critério escrito ao contrário — barrar `workspace`, `global` e os tipos de
+ * workspace — sobrava uma fenda que ninguém decidiu: `feedback` com
+ * `scope: "project"` explícito passava direto, e `feedback` é o tipo com mais
+ * chance de ser conclusão em vez de fato.
+ *
+ * Estes dois erram barato: valem num projeto só, e o repositório desmente.
  */
-const REVIEWED_SCOPES: ReadonlySet<MemoryScope> = new Set(["workspace", "global"]);
+const DIRECT_TYPES: ReadonlySet<MemoryType> = new Set(["project", "reference"]);
 
 /** Atores que não são você. */
 const NON_HUMAN: ReadonlySet<MemoryActor> = new Set(["agent", "distiller", "auto_research"]);
@@ -44,13 +46,14 @@ const NON_HUMAN: ReadonlySet<MemoryActor> = new Set(["agent", "distiller", "auto
 /**
  * Isto precisa de revisão antes de valer?
  *
- * Sim quando um ator não-humano escreve num escopo que atravessa projeto, ou um
- * tipo cujo escopo natural é o workspace. Só `project` e `reference` dentro do
- * próprio projeto continuam diretos: erram barato, e o repositório desmente.
+ * Sim, para todo ator não-humano, **exceto** `project` e `reference` gravados no
+ * escopo do próprio projeto. Isso cobre a Q27 (`domain`, `process` e `contract`
+ * são proposta em qualquer escopo) e a Q27.1 (`global` é revisado junto com
+ * `workspace`, porque é mais largo).
  */
 export function requiresProposal(actor: MemoryActor, scope: MemoryScope, type: MemoryType): boolean {
   if (!NON_HUMAN.has(actor)) return false;
-  return REVIEWED_SCOPES.has(scope) || WORKSPACE_TYPES.has(type);
+  return !(scope === "project" && DIRECT_TYPES.has(type));
 }
 
 export interface CreateProposalInput {

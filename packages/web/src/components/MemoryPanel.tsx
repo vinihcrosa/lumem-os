@@ -405,6 +405,9 @@ function ConfirmReject({
         <Input
           id={`prop-${proposal.id}-note`}
           value={note}
+          // O mesmo teto do router: motivo longo não pode ser digitado em vez de
+          // virar recusa do zod depois de escrito.
+          maxLength={500}
           placeholder="isso é regra do api, não do produto"
           onChange={(event) => {
             setNote(event.target.value);

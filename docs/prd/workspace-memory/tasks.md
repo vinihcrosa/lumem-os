@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) · **Entrega de contexto:** [context-delivery.md](context-delivery.md)
 **Roadmap:** [roadmap.md](roadmap.md) — este arquivo é a execução da pilha descrita lá
 **Status:** **pilha completa** — 01 a 05, mais S1 e S2. Portão verde no topo: `gate:full` com
-**1.123 unit/integration + 16 e2e**
+**1.149 unit/integration + 16 e2e**
 
 ---
 
@@ -31,7 +31,7 @@ escrita contra premissa que a implementação ainda vai derrubar.
 | 02 | `scan.ts`, `gate.ts` | +36 |
 | 03 | `shadow.ts`, `access.ts`, `routers/memory.ts` | +22 |
 | 04 | `recall.ts` (FTS5, sinal, instrumentação) | +16 |
-| 05 | `proposals.ts`, `MemoryPanel.tsx`, `useMemory.ts`, `useScopeIds.ts` | +18 |
+| 05 | `proposals.ts`, `MemoryPanel.tsx`, `useMemory.ts`, `useScopeIds.ts` | +44 |
 | S1 | `signals.ts` | +9 |
 
 ---
@@ -51,7 +51,7 @@ Cada uma vem de uma pergunta **respondida**. Implementar contra qualquer outra c
 | **A7** | ID reivindicado por dois caminhos com remotes diferentes = **fork**: o Lumem pergunta, e rotaciona o ID se for | [Q3.1](open-questions.md) |
 | **A8** | **Worktree não tem memória**, mas é **origem**: a proveniência guarda de qual worktree veio o aprendizado | [Q5](open-questions.md) |
 | **A9** | Taxonomia fechada: `user`, `feedback`, `project`, `domain`, `process`, `contract`, `reference` — validada na fronteira | [Q4](open-questions.md) |
-| **A10** | Toda memória carrega **proveniência**: origem, sessão, projeto/worktree, confiança, `superseded_by` | §7 do PRD |
+| **A10** | Toda memória carrega **proveniência**: origem, sessão (que **acumula**, nunca troca), projeto/worktree, confiança, `superseded_by` — mais `proposed_by`/`proposal_id` quando veio de proposta aprovada | §7 do PRD |
 
 ---
 

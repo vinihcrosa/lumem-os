@@ -167,6 +167,36 @@ describe("MemoryPanel", () => {
     });
   });
 
+  it("não deixa aprovar edição que apagou nome ou descrição", async () => {
+    trpc.memory.proposals.query.mockResolvedValue([proposal()]);
+    render();
+    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Editar e aprovar" }));
+
+    await userEvent.clear(await screen.findByLabelText("Nome"));
+
+    // O router recusaria com `min(1)`; barrar aqui é a diferença entre um campo
+    // vazio e um banner de erro do zod.
+    expect(screen.getByRole("button", { name: "Aprovar com edição" })).toBeDisabled();
+  });
+
+  it("motivo em branco não vira nota vazia no histórico", async () => {
+    trpc.memory.proposals.query.mockResolvedValue([proposal()]);
+    trpc.memory.rejectProposal.mutate.mockResolvedValue({ status: "rejected" });
+    render();
+    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Rejeitar" }));
+
+    await userEvent.type(screen.getByLabelText(/Por que não/), "   ");
+    await userEvent.click(screen.getByRole("button", { name: "Rejeitar" }));
+
+    // `resolutionNote: ""` renderizaria um parágrafo vazio nas resolvidas: só
+    // `null` some, e string vazia não é `null`.
+    await waitFor(() => {
+      expect(trpc.memory.rejectProposal.mutate).toHaveBeenCalledWith({ id: "prop1" });
+    });
+  });
+
   it("rejeitar pede confirmação e motivo antes de resolver", async () => {
     trpc.memory.proposals.query.mockResolvedValue([proposal()]);
     trpc.memory.rejectProposal.mutate.mockResolvedValue({ status: "rejected" });

@@ -7,7 +7,7 @@ aqui, com o motivo.
 onde está, agrupada por tema, e ganha uma linha **Decisão:** com o que ficou valendo. Cada pergunta
 traz uma **proposta pra reagir**; discordar dela é mais rápido que escrever do zero.
 
-**Estado:** 40 perguntas · **39 respondidas · 1 aberta** (a [Q38](#-q38--quem-prova-que-o-ator-é-quem-ele-diz-que-é-lm),
+**Estado:** 40 perguntas · **39 respondidas · 1 aberta** (a [Q38](#--q38--quem-prova-que-o-ator-é-quem-ele-diz-que-é-lm),
 levantada ao ligar a inbox na tela). O que resta também são as **D2, D5, D7 e D8**, no
 [context-delivery.md](context-delivery.md).
 
@@ -667,8 +667,10 @@ proposta na inbox. Efeito colateral bom: o portão inteiro fica **determinístic
 O desvio da Q27 é decidido por `actor`, e `actor` é **declarado por quem chama**: o default é `human`
 no router (`z.enum(MEMORY_ACTORS).default("human")`) e na CLI (`flags.actor ?? "human"`). O agente
 roda numa sessão com shell, então `lumem-memory write --type domain --workspace ws1` sem `--actor`
-grava memória de workspace direto no disco e no git, sem passar pela inbox. Hoje a garantia da Q27
-protege contra **engano**, não contra quem quiser burlá-la.
+grava memória de workspace direto no disco e no git, sem passar pela inbox. E há um **segundo**
+bypass: `import` não está em `NON_HUMAN`, de propósito — é você migrando dado seu —, então
+`--actor import` também passa direto. Hoje a garantia da Q27 protege contra **engano**, não contra
+quem quiser burlá-la.
 
 **O ponto de imposição precisa ser nomeado.** As três saídas, do mais barato ao mais correto:
 

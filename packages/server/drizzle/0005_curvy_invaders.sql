@@ -19,9 +19,5 @@ CREATE TABLE `memory_proposal` (
 	`resolution_note` text,
 	`created_at` integer DEFAULT (unixepoch('subsec') * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch('subsec') * 1000) NOT NULL,
-	CONSTRAINT "memory_proposal_status" CHECK("memory_proposal"."status" IN ('pending', 'approved', 'rejected')),
-	CONSTRAINT "memory_proposal_type" CHECK("memory_proposal"."type" IN ('user', 'feedback', 'project', 'domain', 'process', 'contract', 'reference')),
-	CONSTRAINT "memory_proposal_scope" CHECK("memory_proposal"."scope" IN ('global', 'workspace', 'project')),
-	CONSTRAINT "memory_proposal_actor" CHECK("memory_proposal"."actor" IN ('human', 'agent', 'distiller', 'auto_research', 'import')),
-	CONSTRAINT "memory_proposal_confidence" CHECK("memory_proposal"."confidence" IN ('low', 'medium', 'high'))
+	CONSTRAINT "memory_proposal_status" CHECK("memory_proposal"."status" IN ('pending', 'approved', 'rejected'))
 );

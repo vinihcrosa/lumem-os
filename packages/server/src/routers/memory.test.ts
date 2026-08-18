@@ -205,6 +205,12 @@ describe("memory router", () => {
     await expect(caller.memory.rejectProposal({ id: proposal!.id })).rejects.toMatchObject({
       code: "CONFLICT",
     });
+
+    // `resolved` é valor do contrato, e não da tela: sem este caso, tirá-lo do
+    // enum passa build e suíte, e só quebra no navegador.
+    const resolvidas = await caller.memory.proposals({ status: "resolved" });
+    expect(resolvidas).toHaveLength(1);
+    expect(await caller.memory.proposals({ status: "pending" })).toHaveLength(0);
   });
 
   it("reindex reconstrói o catálogo", async () => {

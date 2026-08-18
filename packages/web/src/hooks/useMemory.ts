@@ -48,8 +48,13 @@ export function useMemoryList(filter: MemoryScopeFilter): UseQueryResult<MemoryV
  * A proposta recusada continua existindo, e uma inbox que só sabe perguntar
  * pelas pendentes é uma tela onde ela desaparece — nem na lista, nem no
  * histórico, que só registra o que passou pelo portão.
+ *
+ * Derivado do contrato, e não escrito à mão: tirar um valor do enum do router
+ * tem de virar erro de typecheck aqui, e não uma aba que só quebra no navegador.
  */
-export type ProposalStatus = "pending" | "approved" | "rejected" | "resolved";
+type ProposalQueryInput = Exclude<Parameters<typeof trpc.memory.proposals.query>[0], void | undefined>;
+
+export type ProposalStatus = NonNullable<ProposalQueryInput["status"]>;
 
 export function useProposals(status: ProposalStatus = "pending") {
   return useQuery({
@@ -66,13 +71,14 @@ export function useUsage() {
   return useQuery({ queryKey: MEMORY_USAGE_KEY, queryFn: () => trpc.memory.usage.query() });
 }
 
-/** O que você pode corrigir antes de aceitar — os mesmos campos da procedure. */
-export interface ProposalEdits {
-  id: string;
-  name?: string;
-  description?: string;
-  body?: string;
-}
+/**
+ * O que você pode corrigir antes de aceitar.
+ *
+ * Do contrato, pelo mesmo motivo: renomear um campo no router não geraria erro
+ * numa cópia manual — objeto em variável não passa por excess property check —,
+ * e a edição do revisor seria descartada em silêncio.
+ */
+export type ProposalEdits = Parameters<typeof trpc.memory.approveProposal.mutate>[0];
 
 /**
  * Resolver uma proposta invalida **tudo** de memória.

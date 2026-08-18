@@ -119,6 +119,11 @@ export interface WriteMemoryResult {
   reason: string | null;
 }
 
+/** Sem duplicata e na ordem em que apareceu — a primeira origem continua primeira. */
+function unique(values: readonly string[]): string[] {
+  return [...new Set(values)];
+}
+
 /** Escrita barrada pelo portão. Carrega o motivo, nunca o conteúdo escaneado. */
 export class MemoryRejected extends DomainError {
   constructor(
@@ -162,6 +167,7 @@ export class MemoryService {
     const path = repoRelative(this.stateDir, absolute);
 
     const previous = await readFile(absolute, "utf8").catch(() => null);
+    const before = previous === null ? null : parseEntry(previous, path);
     const timestamp = this.now().toISOString();
     const entry: MemoryEntry = {
       name: input.name,
@@ -170,7 +176,14 @@ export class MemoryService {
       scope,
       provenance: {
         source_actor: input.actor,
-        source_sessions: [...(input.sourceSessions ?? [])],
+        // Origem **acumula**, não substitui: cada sessão que ensinou a mesma
+        // coisa é uma origem a mais, e trocar a lista faria a segunda escrita
+        // apagar quem ensinou primeiro. É também o que faz a duplicata voltar a
+        // ser `noop` quando a mesma sessão repropõe o mesmo texto.
+        source_sessions: unique([
+          ...(before?.provenance.source_sessions ?? []),
+          ...(input.sourceSessions ?? []),
+        ]),
         ...(input.projectId === undefined ? {} : { project_id: input.projectId }),
         ...(input.worktreeId === undefined ? {} : { worktree_id: input.worktreeId }),
         confidence: input.confidence ?? "medium",
@@ -179,14 +192,14 @@ export class MemoryService {
         ...(input.proposalId === undefined ? {} : { proposal_id: input.proposalId }),
         // Substituir preserva a data de nascimento: é ela que diz há quanto
         // tempo o sistema sabe daquilo.
-        created_at: previous === null ? timestamp : parseEntry(previous, path).provenance.created_at,
+        created_at: before === null ? timestamp : before.provenance.created_at,
         updated_at: timestamp,
       },
       body: input.body,
     };
 
     const candidate = serializeEntry(entry);
-    const operation = previous === null ? "add" : "update";
+    const operation = before === null ? "add" : "update";
 
     // Q27: ator não-humano escrevendo no escopo de workspace vira **proposta**,
     // não memória. O desvio acontece aqui, antes do portão gravar decisão, porque
@@ -227,7 +240,7 @@ export class MemoryService {
       confidence: entry.provenance.confidence,
       content: candidate,
       signature: entrySignature(entry),
-      previousSignature: previous === null ? null : entrySignature(parseEntry(previous, path)),
+      previousSignature: before === null ? null : entrySignature(before),
     });
     const record = recordDecision(this.db, {
       ...decision,

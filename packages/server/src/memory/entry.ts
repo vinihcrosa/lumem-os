@@ -190,7 +190,18 @@ export function parseEntry(text: string, source = "memória"): MemoryEntry {
  * mentindo que algo mudou, e um commit vazio.
  */
 export function entrySignature(entry: MemoryEntry): string {
-  const { created_at: _created, updated_at: _updated, ...provenance } = entry.provenance;
+  const {
+    created_at: _created,
+    updated_at: _updated,
+    // Carimbos do caminho de escrita, e não do que a memória diz. `proposal_id`
+    // é um `newId()` por proposta: mantê-lo aqui faria a segunda proposta
+    // idêntica virar assinatura nova, e o portão gravaria e commitaria um
+    // arquivo cujo único delta é o carimbo — exatamente o commit vazio que o
+    // passo 3 do §7 do PRD existe para não produzir.
+    proposal_id: _proposal,
+    proposed_by: _proposedBy,
+    ...provenance
+  } = entry.provenance;
   return JSON.stringify({
     name: entry.name,
     description: entry.description,

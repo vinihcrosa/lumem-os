@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a656a330-f194-49f5-b209-754d3178a802",
-  "prevId": "1076f5f0-47e9-4462-832a-601b3b6b166c",
+  "id": "4eea134d-ae91-4e62-b511-f24bdeed0f90",
+  "prevId": "a656a330-f194-49f5-b209-754d3178a802",
   "tables": {
     "agent_config": {
       "name": "agent_config",
@@ -588,6 +588,22 @@
         "memory_proposal_status": {
           "name": "memory_proposal_status",
           "value": "\"memory_proposal\".\"status\" IN ('pending', 'approved', 'rejected')"
+        },
+        "memory_proposal_type": {
+          "name": "memory_proposal_type",
+          "value": "\"memory_proposal\".\"type\" IN ('user', 'feedback', 'project', 'domain', 'process', 'contract', 'reference')"
+        },
+        "memory_proposal_scope": {
+          "name": "memory_proposal_scope",
+          "value": "\"memory_proposal\".\"scope\" IN ('global', 'workspace', 'project')"
+        },
+        "memory_proposal_actor": {
+          "name": "memory_proposal_actor",
+          "value": "\"memory_proposal\".\"actor\" IN ('human', 'agent', 'distiller', 'auto_research', 'import')"
+        },
+        "memory_proposal_confidence": {
+          "name": "memory_proposal_confidence",
+          "value": "\"memory_proposal\".\"confidence\" IN ('low', 'medium', 'high')"
         }
       }
     },
