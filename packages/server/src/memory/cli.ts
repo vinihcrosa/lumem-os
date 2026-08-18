@@ -43,6 +43,9 @@ const USAGE = `uso: lumem-memory <comando>
   list    [--workspace <id>] [--project <id>] [--all]
           sem --workspace, o escopo ativo é só o global; --all mostra o catálogo cru
   revert  --path <caminho relativo ao ~/.lumem>
+  search  --query "<pergunta>" [--workspace <id>] [--project <id>] [--limit <n>]
+          [--session <id>]   registra o uso — é o caminho do agente
+  usage
   decisions [--path <caminho>] [--limit <n>]
   reindex
 
@@ -83,6 +86,15 @@ function parseFlags(argv: readonly string[]): Flags {
     if (next !== undefined) index += 1;
   }
   return flags;
+}
+
+/** `--limit abc` é erro de uso, não um `NaN` viajando até o SQL. */
+function integer(value: string, name: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) {
+    throw new DomainError("INVALID_ARGUMENT", `--${name} precisa ser um número`);
+  }
+  return parsed;
 }
 
 function required(flags: Flags, name: string): string {
@@ -237,10 +249,67 @@ export async function runMemoryCli(
         return 0;
       }
 
+      case "search": {
+        // A pergunta antes do reparo: `reindex` substitui o catálogo, e comando
+        // que vai falhar por falta de argumento não pode ter escrito nada.
+        const query = required(flags, "query");
+
+        // A CLI existe para inspecionar a memória **sem** subir o daemon, então
+        // ela não pode contar com o reparo do boot: num banco anterior a esta
+        // feature o índice não existe, e a busca não acharia nada. Só aqui, e
+        // não no início de todo comando: `list` e `read` não leem o índice, e
+        // reconstruir o catálogo num comando de leitura é escrita escondida.
+        const { indexed, failures } = await memory.ensureIndexFresh();
+        if (indexed > 0) err(`índice reconstruído: ${indexed} memórias\n`);
+        // Concreto, e não um "índice atrasado" genérico: o que sobrou de fora
+        // tem nome, e o `reindex` **substitui** o catálogo — quem não pôde ser
+        // lido sumiu da lista, não só da busca.
+        for (const failure of failures) err(`fora do índice: ${failure.path} — ${failure.reason}\n`);
+
+        // Só o caminho do agente registra: uma busca de inspeção não pode
+        // inflar o contador que decide poda e consolidação (Q25).
+        const result = memory.search(query, {
+          ...(flags.workspace ? { workspaceId: flags.workspace } : {}),
+          ...(flags.project ? { projectId: flags.project } : {}),
+          ...(flags.limit ? { limit: integer(flags.limit, "limit") } : {}),
+          ...(flags.session ? { record: true, sessionId: flags.session } : {}),
+        });
+        if (result.skipped === "trivial_query") {
+          // Dizer que **não buscou** é diferente de dizer que não achou.
+          err("busca não realizada: menos de dois termos significativos\n");
+          return 1;
+        }
+        if (result.hits.length === 0) {
+          out("nada encontrado\n");
+          return 0;
+        }
+        for (const hit of result.hits) {
+          out(`${hit.entry.scope.padEnd(9)} ${hit.entry.type.padEnd(9)} ${hit.entry.name}\n`);
+          out(`  ${hit.why.join(" · ")}\n`);
+        }
+        return 0;
+      }
+
+      case "usage": {
+        const rows = memory.usageSummary();
+        if (rows.length === 0) {
+          out("nenhum uso registrado ainda\n");
+          return 0;
+        }
+        for (const row of rows) {
+          out(
+            `${row.kind.padEnd(8)} eventos=${String(row.events).padEnd(5)} ` +
+              `sessões=${String(row.sessions).padEnd(4)} ` +
+              `total=${String(row.totalAmount).padEnd(6)} média=${row.averageDurationMs}ms\n`,
+          );
+        }
+        return 0;
+      }
+
       case "decisions": {
         const rows = memory.decisions({
           ...(flags.path ? { path: flags.path } : {}),
-          ...(flags.limit ? { limit: Number.parseInt(flags.limit, 10) } : {}),
+          ...(flags.limit ? { limit: integer(flags.limit, "limit") } : {}),
         });
         if (rows.length === 0) {
           out("nenhuma decisão registrada\n");

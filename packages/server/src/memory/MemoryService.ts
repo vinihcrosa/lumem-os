@@ -43,7 +43,28 @@ import {
   type MemoryScope,
   type MemoryType,
 } from "./entry.js";
-import { assertEntryPath, entryPathFor, memoryDirFor, repoRelative, type ScopeTarget } from "./paths.js";
+import {
+  assertEntryPath,
+  entryPathFor,
+  memoryDirFor,
+  repoRelative,
+  slugOf,
+  type ScopeTarget,
+} from "./paths.js";
+import {
+  clearSignal,
+  indexEntry,
+  indexIsStale,
+  resetIndex,
+  recall,
+  removeFromIndex,
+  summarizeUsage,
+  usage,
+  type RecallOptions,
+  type RecallResult,
+  type UsageOptions,
+  type UsageSummary,
+} from "./recall.js";
 import { resolveVisible, type ResolvedView, type ScopeFilter } from "./shadow.js";
 import { commitChange } from "./repo.js";
 
@@ -212,7 +233,9 @@ export class MemoryService {
     await mkdir(memoryDirFor(this.stateDir, target), { recursive: true, mode: 0o700 });
     await writeAtomically(absolute, Buffer.from(text, "utf8"), 0o600);
 
-    upsertEntry(this.db, path, parseEntry(text, path), this.locationFor(scope, target), text);
+    const stored = parseEntry(text, path);
+    upsertEntry(this.db, path, stored, this.locationFor(scope, target), text);
+    indexEntry(this.db, path, stored.name, stored.description, slug, stored.body);
 
     const { commit } = await commitChange({
       stateDir: this.stateDir,
@@ -364,6 +387,12 @@ export class MemoryService {
 
     await rm(absolute, { force: true });
     removeEntry(this.db, path);
+    removeFromIndex(this.db, path);
+    // O sinal vai junto: o caminho é derivado de `(tipo, slug)`, então uma
+    // memória recriada com o mesmo nome herdaria o contador da apagada — e o
+    // critério objetivo da Q25 passaria a contar recall de conteúdo que não
+    // existe mais.
+    clearSignal(this.db, path);
 
     const { commit } = await commitChange({
       stateDir: this.stateDir,
@@ -410,6 +439,8 @@ export class MemoryService {
       const record = await this.recordDeletion(path, "human");
       await rm(absolute, { force: true });
       removeEntry(this.db, path);
+      removeFromIndex(this.db, path);
+      clearSignal(this.db, path);
       const { commit } = await this.commit([path], "delete", path, "human");
       attachCommit(this.db, record.id, commit);
       return { path, outcome: "deleted", commit };
@@ -450,6 +481,7 @@ export class MemoryService {
     await mkdir(dirname(absolute), { recursive: true, mode: 0o700 });
     await writeAtomically(absolute, Buffer.from(decision.content, "utf8"), 0o600);
     upsertEntry(this.db, path, entry, this.locationOf(entry, path), decision.content);
+    indexEntry(this.db, path, entry.name, entry.description, slugOf(path, entry.type), entry.body);
 
     const { commit } = await this.commit([path], "update", path, "human");
     attachCommit(this.db, record.id, commit);
@@ -461,9 +493,80 @@ export class MemoryService {
     return listDecisions(this.db, query);
   }
 
-  /** Refaz o catálogo a partir do disco. */
+  /**
+   * Refaz o catálogo **e o índice** a partir do disco.
+   *
+   * Os dois juntos porque os dois são derivados: um `reindex` que deixasse o
+   * FTS5 para trás produziria busca que não acha o que a lista mostra — pior do
+   * que busca que não existe.
+   */
   async reindex(): Promise<ReindexResult> {
-    return reindex(this.db, this.stateDir);
+    const result = await reindex(this.db, this.stateDir);
+    resetIndex(this.db);
+    // O corpo não está no catálogo, então o índice é completado lendo o disco —
+    // a mesma fonte da verdade de sempre.
+    for (const row of listEntries(this.db)) {
+      const text = await readFile(join(this.stateDir, row.path), "utf8").catch(() => null);
+      if (text === null) continue;
+      const entry = parseEntry(text, row.path);
+      indexEntry(this.db, row.path, entry.name, entry.description, row.slug, entry.body);
+    }
+    return result;
+  }
+
+  /**
+   * Busca lexical e explicável. **Não registra** a não ser que peçam.
+   *
+   * Registrar é escrever, e buscar é ler: quem liga o `record` é o caminho do
+   * agente, não a tela que remonta nem o retry que repete.
+   */
+  search(query: string, options: RecallOptions = {}): RecallResult {
+    return recall(this.db, query, options);
+  }
+
+  /** Os números do §6 do context-delivery. */
+  usageSummary(): UsageSummary[] {
+    return summarizeUsage(this.db);
+  }
+
+  /**
+   * Registra um uso que não passou pela busca — leitura, escrita, injeção.
+   *
+   * O `sessionId` é o que separa "quantas chamadas" de "quantas chamadas **por
+   * sessão**", que é a medida que o §6 do context-delivery pede. Quem monta o
+   * contexto passa a sessão aqui quando registra o `inject`.
+   */
+  recordUsage(
+    kind: "read" | "write" | "inject",
+    amount: number,
+    durationMs = 0,
+    options: UsageOptions = {},
+  ): void {
+    usage(this.db, kind, amount, durationMs, options);
+  }
+
+  /**
+   * Reconstrói o índice quando ele está atrasado em relação ao catálogo.
+   *
+   * Chamada no boot. O índice FTS5 é derivado e nasce fora das migrations, então
+   * um banco com catálogo e sem índice existe — toda instalação anterior a esta
+   * feature. Sem isto, a primeira busca acharia o índice vazio e responderia
+   * "nada encontrado" para o acervo inteiro, sem erro e sem sinal.
+   */
+  async ensureIndexFresh(): Promise<{
+    rebuilt: boolean;
+    indexed: number;
+    failures: ReindexResult["failures"];
+  }> {
+    if (!indexIsStale(this.db)) return { rebuilt: false, indexed: 0, failures: [] };
+    const result = await this.reindex();
+    // As falhas sobem: o `reindex` **substitui** o catálogo, então memória que
+    // não pôde ser lida some da lista e da busca. Engolir isso num boot de
+    // upgrade seria memória desaparecendo sem uma linha de log.
+    if (result.failures.length > 0) {
+      this.log?.warn({ failures: result.failures }, "memórias ilegíveis no reindex de boot");
+    }
+    return { rebuilt: true, indexed: result.indexed, failures: result.failures };
   }
 
   /** O hash que o catálogo guarda, exposto para quem precisa comparar sem reler. */

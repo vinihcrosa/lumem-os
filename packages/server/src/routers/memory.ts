@@ -3,6 +3,7 @@ import { z } from "zod";
 import { MemoryService, writeMemorySchema } from "../memory/MemoryService.js";
 import { requireAccess } from "../memory/access.js";
 import { MEMORY_ACTORS, MEMORY_SCOPES, MEMORY_TYPES } from "../memory/entry.js";
+import { MAX_LIMIT } from "../memory/recall.js";
 import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
 
 /**
@@ -31,6 +32,14 @@ const scopeIds = z.object({
    */
   fromProjectId: z.string().min(1).optional(),
   actor: z.enum(MEMORY_ACTORS).default("human"),
+});
+
+const searchInput = scopeIds.extend({
+  query: z.string().min(1).max(500),
+  // O número tem nome no núcleo, e é lá que a invariante mora. Aqui ele
+  // **recusa** em vez de clampar: pedido malformado pelo tRPC é erro do
+  // chamador, e a CLI não tem schema para dizer isso.
+  limit: z.number().int().min(1).max(MAX_LIMIT).optional(),
 });
 
 const identity = scopeIds.extend({
@@ -123,6 +132,49 @@ export const memoryRouter = router({
       return memory.revert(input.path);
     }),
   ),
+
+  /**
+   * Busca lexical, explicável — e que respeita escopo e shadow.
+   *
+   * `query`, e portanto **não registra**: refetch, retry e remontagem do cliente
+   * subiriam o `recall_count` e inflariam o próprio número que o §6 quer medir.
+   * Quem registra é o `recall` abaixo, o caminho do agente.
+   */
+  search: publicProcedure
+    .input(searchInput)
+    .query(({ ctx, input }) => {
+      const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+      return memory.search(input.query, {
+        workspaceId: input.workspaceId ?? null,
+        projectId: input.projectId ?? null,
+        ...(input.limit ? { limit: input.limit } : {}),
+      });
+    }),
+
+  /**
+   * A mesma busca, pelo caminho do agente — e **com** sinal e uso registrados.
+   *
+   * Mutation de propósito: registrar é escrever, e a sessão que perguntou é o
+   * que separa "quantas chamadas" de "quantas chamadas por sessão".
+   */
+  recall: publicProcedure
+    .input(searchInput.extend({ sessionId: z.string().min(1).max(128).optional() }))
+    .mutation(({ ctx, input }) => {
+      const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+      return memory.search(input.query, {
+        workspaceId: input.workspaceId ?? null,
+        projectId: input.projectId ?? null,
+        record: true,
+        ...(input.limit ? { limit: input.limit } : {}),
+        ...(input.sessionId ? { sessionId: input.sessionId } : {}),
+      });
+    }),
+
+  /** Os números do §6 do context-delivery. */
+  usage: publicProcedure.query(({ ctx }) => {
+    const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+    return memory.usageSummary();
+  }),
 
   /** As decisões — inclusive as que não viraram arquivo. */
   decisions: publicProcedure

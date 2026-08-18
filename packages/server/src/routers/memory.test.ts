@@ -200,6 +200,43 @@ describe("memory router", () => {
     );
   });
 
+  it("search pela API respeita escopo e devolve a explicação", async () => {
+    const { caller } = await api();
+    await caller.memory.write({
+      name: "Contrato de checkout",
+      description: "api expõe POST /v2/checkout e o web consome",
+      type: "contract",
+      workspaceId: "ws1",
+      body: "itens e cupom",
+    });
+
+    const result = await caller.memory.search({ query: "checkout consome", workspaceId: "ws1" });
+
+    expect(result.hits).toHaveLength(1);
+    expect(result.hits[0]?.why.join(" ")).toContain("score=");
+
+    // Outro workspace não enxerga: escopo antes de relevância.
+    const outro = await caller.memory.search({ query: "checkout consome", workspaceId: "ws2" });
+    expect(outro.hits).toHaveLength(0);
+  });
+
+  it("busca por query não registra, e o recall do agente registra", async () => {
+    const { caller } = await api();
+    await caller.memory.write(base);
+
+    // `search` é leitura: refetch e retry do cliente não podem subir o número
+    // que o §6 usa para decidir o desenho.
+    await caller.memory.search({ query: "estilo revisao" });
+    expect(await caller.memory.usage()).toHaveLength(0);
+
+    await caller.memory.recall({ query: "estilo revisao", sessionId: "s1" });
+
+    const summary = await caller.memory.usage();
+    const recallRow = summary.find((row) => row.kind === "recall");
+    expect(recallRow?.events).toBe(1);
+    expect(recallRow?.sessions).toBe(1);
+  });
+
   it("reindex reconstrói o catálogo", async () => {
     const { caller } = await api();
     await caller.memory.write(base);

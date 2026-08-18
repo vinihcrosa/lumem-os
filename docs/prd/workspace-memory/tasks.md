@@ -371,6 +371,11 @@ score), e a instrumentação do [§6 do context-delivery](context-delivery.md).
 **Done when:** buscar acha, diz por que achou, o contador sobe, e os números de custo são
 consultáveis.
 
+Duas portas, de propósito: `search` é leitura e **não** registra (refetch do cliente não pode inflar
+o contador), e `recall` — a mutation, e a CLI com `--session` — é o caminho do agente, que registra.
+Os números do ranking e o lugar do índice FTS5 ficaram na
+[Q45](open-questions.md#x-q45--como-o-recall-combina-os-sinais-e-onde-vive-o-índice-lm).
+
 ## PR 05 — `wm/05-inbox-ui` (escopo, sem tasks)
 
 Inbox de propostas (incluindo o núcleo destilado da D1), vista por escopo com o que sombreia o quê,

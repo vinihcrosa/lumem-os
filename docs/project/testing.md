@@ -78,6 +78,33 @@ O `tsc` puro na raiz não enxergava `e2e/`, `playwright.config.ts` nem os `vites
 
 Registro do que já mordeu, pra não voltar:
 
+**Teste de corte com acervo menor que o corte.** O recall pagina o `MATCH` em páginas de 50 e só então
+decide se já tem candidatos suficientes. Havia um teste chamado *"o limite pedido não muda quem está no
+topo"* — verde — enquanto o `limit` **mudava** o primeiro colocado: o acervo do teste tinha 23 linhas,
+uma página só, e com uma página qualquer tamanho de pool devolve o mesmo conjunto. O teste passava até
+com o pool em 1.
+
+A regra que sobrou: **teste de corte, de pool ou de paginação precisa de acervo maior que o corte.**
+Abaixo dele a asserção é vácua e o nome do teste vira promessa. E se o acervo depender de desempate —
+linhas com o mesmo score, ordenadas pelo rowid que o SQLite escolher — a premissa não é estrutural:
+faça a ordem vir do **score** (documento mais longo tem bm25 menor), senão o teste fica verde no dia em
+que o desempate mudar.
+
+**Estado derivado preenchido pela metade, que passa na própria verificação de frescor.** O índice FTS5
+da memória nasce fora das migrations — migration não deriva nada —, então existe banco com catálogo e
+sem índice. A primeira tentativa de consertar isso preenchia o índice **a partir do catálogo** quando
+ele faltava. Só que o catálogo não guarda corpo: o índice nascia mudo para toda busca por texto de
+arquivo — e, como o reparo inseria uma linha por memória, a verificação de frescor (`COUNT` do índice
+contra `COUNT` do catálogo) passava a **bater**. O índice ficava permanentemente incompleto e
+permanentemente "em dia": o reparo do boot era dispensado por um número que o próprio reparo pela
+metade havia falsificado.
+
+O verde que mente aqui é duplo — a busca não erra, ela devolve menos; e a checagem não acusa, ela
+confirma. Hoje o índice ausente nasce **vazio e assumidamente atrasado**, quem preenche é o `reindex`
+lendo o disco, e o resultado da busca carrega `staleIndex` para quem chama poder avisar. A regra que
+sobrou: **estado derivado ou é reconstruído da fonte da verdade, ou continua se declarando ausente.**
+Preencher pela metade é pior que não preencher, porque ninguém volta.
+
 **O gate rápido ficava vermelho quando só o e2e mudava — e o teste dele fixava isso como certo.** `e2e/**/*.ts` casava `GRAPH_GLOBS` e ia para o `vitest run --changed`, mas os projetos do vitest são `packages/*` e `scripts`: spec de playwright não está no grafo de módulo de teste nenhum. Seleção vazia com `passWithNoTests: false` sai com código 1, e o HEAD do branch respondia vermelho ao gate que o `CLAUDE.md` manda todo mundo rodar.
 
 É a **quarta** desta família — as outras três foram cache do Turborepo (duas vezes) e `LUMEM_GATE_BASE` numérica — e a primeira em que **o próprio teste do gate congelava o defeito**: `gate-quick.test.ts` asseria que uma spec de e2e *casa* com os globs de grafo. Consertar o script sem mexer no teste deixaria o teste vermelho, e a tentação seria desfazer o conserto.
