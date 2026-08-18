@@ -4,6 +4,12 @@
 >
 > Documentos completos: [compozy.md](compozy.md) (2.399 linhas) · [superset.md](superset.md) (~1.785) · [conductor.md](conductor.md) (1.521)
 >
+> **Quarta referência, fora desta matriz:** [hermes.md](hermes.md) — estudo de recorte estreito (só
+> memória, aprendizado e curadoria), feito depois, para a feature
+> [workspace-memory](../prd/workspace-memory/prd.md). Ele não entra nas tabelas abaixo porque não foi
+> auditado nos mesmos eixos; o que ele tem de próprio está no §11 dele, que é a divergência
+> Compozy × Hermes lado a lado.
+>
 > `⚠️` = não confirmado no estudo · `—` = não existe / não se aplica
 
 ---

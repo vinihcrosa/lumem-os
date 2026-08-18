@@ -6,14 +6,16 @@ Projeto pessoal. Inspirado em compozy, superset e conductor — **não copia nad
 
 ## Estado atual
 
-Cinco features de pé — [walking-skeleton](docs/prd/walking-skeleton/tasks.md), [ui-shell](docs/prd/ui-shell/tasks.md), [worktree-tabs](docs/prd/worktree-tabs/tasks.md), [right-panel](docs/prd/right-panel/tasks.md) e [file-editor](docs/prd/file-editor/tasks.md) — esta última faz o daemon **escrever** no repositório, com autosave e CRUD pela árvore. Comece pelo [índice da documentação](docs/README.md).
+Cinco features de pé — [walking-skeleton](docs/prd/walking-skeleton/tasks.md), [ui-shell](docs/prd/ui-shell/tasks.md), [worktree-tabs](docs/prd/worktree-tabs/tasks.md), [right-panel](docs/prd/right-panel/tasks.md) e [file-editor](docs/prd/file-editor/tasks.md) — esta última faz o daemon **escrever** no repositório, com autosave e CRUD pela árvore. Em discussão, sem tasks: [workspace-memory](docs/prd/workspace-memory/prd.md), o self-learning com memória compartilhada de workspace. **Decidido em 2026-08-17:** a sessão de agente migra de PTY para [ACP](docs/project/pty-vs-acp.md) — a próxima feature a desenhar é `acp-sessions` (transporte + tela da conversa); o PTY fica para shell e como caminho alternativo. Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
 |---|---|
 | [docs/project/vision.md](docs/project/vision.md) | visão do projeto, escrita pelo Vinicius |
 | [docs/project/questions.md](docs/project/questions.md) | perguntas de design do projeto, respondidas aos poucos |
 | [docs/project/testing.md](docs/project/testing.md) | matriz de cobertura, gates, e as armadilhas já corrigidas |
-| [docs/references/](docs/references/) | estudo das três referências + comparativo |
+| [docs/project/backlog.md](docs/project/backlog.md) | tudo que ficou para depois. **Ideia adiada entra aqui na mesma hora**, com contexto curto e gatilho de volta |
+| [docs/references/](docs/references/) | estudo das quatro referências + comparativo |
+| [docs/project/pty-vs-acp.md](docs/project/pty-vs-acp.md) | a decisão de transporte: por que ACP, o que ela custa, e o que faria o PTY voltar |
 | [docs/prd/](docs/prd/) | PRD, decisões e tasks por feature |
 
 Construção é incremental: uma parte por vez, bem feita, antes de ir pra próxima.
@@ -58,3 +60,5 @@ Nada de documentação solta na raiz, nem espalhada perto do código. As únicas
 - Documentação e comunicação em português. Código, commit e nome de arquivo em inglês.
 - Nome de arquivo em kebab-case.
 - Pergunta de design não vira suposição silenciosa: vai pro arquivo de perguntas da feature, ou pro [questions.md](docs/project/questions.md) se for do projeto todo.
+- Ideia que ficou pra depois não vira memória de conversa: vai pro [backlog](docs/project/backlog.md), com uma frase de contexto, de onde veio, e o gatilho que traz de volta.
+- Discussão grande demais pra caber numa pergunta vira arquivo próprio em `docs/project/`, e a pergunta linka pra ele — como a [PTY × ACP](docs/project/pty-vs-acp.md) fez.

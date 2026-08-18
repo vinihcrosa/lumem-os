@@ -1,6 +1,8 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md).
+Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Em discussão, a primeira feature que não é de tela: [workspace-memory](prd/workspace-memory/prd.md) — o harness lembrar.
+
+> **Decisão de arquitetura, 2026-08-17:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por [ACP](project/pty-vs-acp.md)**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A próxima feature a desenhar é `acp-sessions`: transporte mais a tela da conversa.
 
 ---
 
@@ -22,12 +24,15 @@ Lendo nesta ordem você entende o projeto inteiro em três documentos:
 | [questions.md](project/questions.md) | 96 perguntas de design em duas rodadas. Fonte de verdade das decisões de longo prazo, respondida aos poucos |
 | [testing.md](project/testing.md) | Matriz de cobertura, o que cada gate garante, e as armadilhas de teste já corrigidas |
 | [task-cycle-evidence.md](project/task-cycle-evidence.md) | Linha de base medida do repositório e registro de custo do ciclo dev → review → rework. Lastro dos números que a skill `lumem-task-cycle` cita |
+| [pty-vs-acp.md](project/pty-vs-acp.md) | **Decisão de arquitetura (2026-08-17): o Lumem migra para ACP.** O custo medido, os prós e contras de cada transporte, a recomendação contrária que perdeu, e o §9.2 — billing e janela de contexto investigados na fonte, com duas das minhas próprias afirmações corrigidas |
+| [backlog.md](project/backlog.md) | **Tudo que ficou para depois**, com uma frase de contexto, de onde veio, e o gatilho que traz de volta. Toda ideia adiada entra aqui na hora |
 
 ---
 
 ## `references/` — estudo da concorrência
 
-Três produtos dissecados a fundo, com o mesmo template, pra dar pra comparar.
+Três produtos dissecados a fundo, com o mesmo template, pra dar pra comparar — mais um quarto, de
+recorte estreito, feito sob encomenda para a feature de memória.
 
 | Arquivo | O quê | Foco |
 |---|---|---|
@@ -35,6 +40,7 @@ Três produtos dissecados a fundo, com o mesmo template, pra dar pra comparar.
 | [compozy.md](references/compozy.md) | Daemon local que dirige CLIs via ACP | memória e self-learning |
 | [superset.md](references/superset.md) | Orquestrador de agentes de terminal | multi-agente, multi-host, PTY |
 | [conductor.md](references/conductor.md) | App Mac de worktrees paralelas | UX de paralelismo |
+| [hermes.md](references/hermes.md) | Agente pessoal que é dono do próprio loop | fato × procedimento, ciclo de vida por uso, curadoria |
 
 **O achado que orienta o projeto:** nenhuma das três tem agrupamento multi-repo, memória funcionando, ou isolamento de runtime. Os três pilares do Lumem-OS são o ponto cego da categoria inteira.
 
@@ -91,6 +97,36 @@ Sucede a `right-panel`. O split da aba **escreve**: editar o arquivo aberto com 
 | [prd.md](prd/file-editor/prd.md) | Por que o não-objetivo foi revertido, a segurança da escrita, a concorrência com o agente, riscos |
 | [open-questions.md](prd/file-editor/open-questions.md) | 24 perguntas, 21 respondidas |
 | [tasks.md](prd/file-editor/tasks.md) | 6 decisões e 13 tasks em 5 fases, mais as premissas travadas e as 20 pendências numeradas — **todas entregues**, mais o que o portão não prova |
+
+### [workspace-memory/](prd/workspace-memory/) — o harness lembra
+
+**Em discussão — sem tasks.** A primeira feature que não é de tela: memória compartilhada do
+workspace e aprendizado contínuo por projeto. É o pilar que dá sentido ao conceito de workspace — dois
+projetos que se conhecem. Foi ela que forçou a decisão do ACP: o daemon precisava entender a sessão,
+e por PTY ele só via bytes.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/workspace-memory/prd.md) | As três naturezas do conhecimento, o que a decisão por ACP mudou, onde cada coisa vive, o portão de escrita, a fronteira cross-projeto, riscos |
+| [open-questions.md](prd/workspace-memory/open-questions.md) | 38 perguntas, **todas respondidas** — o registro de por que cada decisão foi tomada |
+| [tasks.md](prd/workspace-memory/tasks.md) | Uma seção por PR da pilha. A **01 tem tasks**; as demais têm escopo e `Done when` |
+| [roadmap.md](prd/workspace-memory/roadmap.md) | **A feature em pilha de PRs**: topologia de branches, as sete regras da pilha, as cinco partes da espinha, o que anda em paralelo e onde o ACP entra |
+| [context-delivery.md](prd/workspace-memory/context-delivery.md) | Como a memória chega no agente: **núcleo comportamental + skill + serviço `lumem-memory` com auto-learn**. O que o desenho compra, o que ele cobra, o que medir, e 4 perguntas abertas |
+
+Quatro decisões já fechadas mudaram o desenho: **nenhuma memória vive dentro do repositório** (menos o
+`id` do projeto), o **transporte passa a ser ACP**, o **`~/.lumem` é versionado por git pelo próprio
+Lumem**, e a memória chega ao agente como **serviço, não como texto injetado**.
+
+### [acp-sessions/](prd/acp-sessions/) — a sessão vira conversa
+
+**Em discussão — o spike já foi rodado.** A sessão de agente deixa de ser um terminal e passa a ser
+uma conversa estruturada por [ACP](project/pty-vs-acp.md). Destrava as partes 06–09 da memória, o
+custo por projeto e a política de permissão.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/acp-sessions/prd.md) | O que o spike mediu (autenticação e janela de 1M **confirmadas nesta máquina**), escopo do transporte e da tela, riscos, fases |
+| [open-questions.md](prd/acp-sessions/open-questions.md) | 12 perguntas, **todas respondidas** — inclusive o volume da transcrição, medido em 675 sessões reais |
 
 ---
 
