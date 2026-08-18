@@ -1,7 +1,8 @@
 # PRD — A sessão de agente vira conversa (ACP)
 
-> **Status:** v0.3 — **as 12 perguntas de desenho estão respondidas e o spike do §2 está completo**:
-> autenticação, janela de contexto e consumo, os três medidos nesta máquina
+> **Status:** v0.3 — **as 12 perguntas de desenho estão respondidas e o spike do §2 rodou**:
+> autenticação e consumo **medidos**, janela de contexto **parcial** — a sessão nasce em 1M, mas
+> contexto cheio não foi exercitado ([§9.5 do estudo](../../project/pty-vs-acp.md))
 > **Perguntas:** [open-questions.md](open-questions.md) — 12 de 12
 > **Decisão que originou:** [pty-vs-acp.md](../../project/pty-vs-acp.md) — migrar para ACP, 2026-08-17
 > **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09

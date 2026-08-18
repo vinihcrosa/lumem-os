@@ -144,7 +144,7 @@ Se o workspace diz "sempre use camelCase" e o projeto diz "esse repo é snake_ca
 ### [x] Q021 — Aprender sobre "o comportamento do usuário" — até onde?
 Isso é potencialmente invasivo (grava tudo que você faz). Qual o limite confortável: só o que você aprova/rejeita nos diffs? suas correções em cima do agente? seus prompts? tudo?
 
-**R:** respondida pela feature — escopo **você** existe, mas nada entra sem passar pelo mesmo portão, com proveniência obrigatória e `WHAT_NOT_TO_SAVE` ([§7 do PRD](../prd/workspace-memory/prd.md)). Não há gravação passiva do que você faz: o que vira memória é o que o portão aceita, e é auditável e reversível por `git revert`.
+**R:** respondida pela feature, e os dois eixos que a pergunta mistura têm respostas diferentes. **Captura:** a transcrição da sessão é gravada **inteira** — a [A6 da acp-sessions](../prd/acp-sessions/open-questions.md) fechou em "guarda tudo, o custo é baixo", medido em 3,9 GB/ano nas suas próprias transcrições. **Memória:** nada disso vira memória sozinho. O limite não está na captura, está no **portão** ([§7 do PRD](../prd/workspace-memory/prd.md)): proveniência obrigatória, `WHAT_NOT_TO_SAVE`, e o §10 lista **"dump de transcript"** entre o que *nunca* é capturado como memória. Tudo que passa é auditável e reversível por `git revert`. Se o desconforto for com a **gravação** e não com a memória, é a A6 que precisa reabrir, não esta.
 
 ---
 
@@ -304,6 +304,11 @@ Nenhuma das três referências tem agrupamento multi-repo — `workspace_section
 
 #### [ ] Q043 — Qual a chave estável de identidade do projeto? `[cz]`
 Compozy grava ULID em `<repo>/.compozy/workspace.toml` pra sobreviver a `mv`. Candidatos: path (quebra ao mover), remote URL (quebra em repo local, fork, múltiplos remotes), ULID em arquivo no repo (entra no git, o time vê). *(refina Q008)*
+
+> **A `workspace-memory` refina esta pergunta** e já decidiu para o escopo dela: `id` em
+> `<repo>/.lumem/project.toml`, adotado se existir, gerado com permissão se não, com detecção de fork
+> por remote ([Q3.1](../prd/workspace-memory/open-questions.md)). Fica `[ ]` aqui porque a decisão do
+> **projeto todo** é mais ampla que a da feature — se esta fechar diferente, a da feature segue.
 
 **R:**
 

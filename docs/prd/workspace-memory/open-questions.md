@@ -91,9 +91,10 @@ O que isso faz com esta feature:
 - as fases foram reordenadas (§15 do PRD): as três primeiras são justamente as que **não** esperam o
   ACP, para a memória não ficar bloqueada atrás da maior feature do projeto;
 - entrou um risco novo — autenticação por assinatura, pool de billing e janela de contexto podiam não
-  ser os mesmos do binário oficial (§9.2 do estudo) — e o **spike mediu os três nesta máquina**: os
-  três voltaram a favor da migração ([§9.5 do estudo](../../project/pty-vs-acp.md)). O que sobra é o
-  risco de política, não técnico.
+  ser os mesmos do binário oficial (§9.2 do estudo). O spike atacou os três nesta máquina:
+  **autenticação e consumo voltaram medidos e a favor da migração**, e a **janela voltou parcial** — nasce em 1M,
+  mas contexto cheio não foi exercitado, então a #786 segue aberta
+  ([§9.5 do estudo](../../project/pty-vs-acp.md)). O que sobra é o risco de política mais esse eixo.
 
 ---
 

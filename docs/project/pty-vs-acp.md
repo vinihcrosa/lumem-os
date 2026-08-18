@@ -225,9 +225,13 @@ ensina nada, e o Lumem tem que **mostrar isso** em vez de fingir que aprendeu (�
 
 ## 8. Perguntas — todas respondidas
 
-> **Convenção de rótulo:** as perguntas **de transporte** deste arquivo são **TA1–TA6**. A feature
-> [acp-sessions](../prd/acp-sessions/open-questions.md) tem o próprio conjunto **A1–A12**, sobre a
-> **tela** — são dois conjuntos diferentes, e o prefixo `T` existe justamente para eles não colidirem.
+> **Convenção de rótulo:** as perguntas **de transporte** deste arquivo são **TA1–TA6**. A faixa `A…`
+> já é usada por outros dois conjuntos — as **A1–A12** de
+> [acp-sessions](../prd/acp-sessions/open-questions.md), que são sobre a **tela**, e as premissas
+> travadas **A1–A10** de [workspace-memory/tasks.md](../prd/workspace-memory/tasks.md), que não são
+> perguntas. O prefixo `T` existe para o conjunto de transporte não colidir com nenhum dos dois.
+
+
 
 > Sem apego ao CLI (TA1), um agente no começo e mais depois (TA2), permissão pelo Lumem é feature futura
 > (TA3), adaptador de terceiro é aceitável (TA4), hooks por CLI morreram com a decisão (TA5), e **não há
@@ -451,7 +455,7 @@ Team e Enterprise nos modelos atuais.
 
 **Conclusão honesta:** não é "a janela encolhe no ACP". É *"a janela é a mesma engine e o mesmo
 arquivo de configuração, com um relato aberto de fallback e sem opção de config dedicada"*. Vira item
-mensurável do spike, não motivo para não migrar.
+mensurável do spike, não motivo para não migrar. **O spike cobriu isto só em parte** — ver §9.5.
 
 #### Saúde do adaptador
 
@@ -459,10 +463,10 @@ Apache-2.0, ~2.4 mil estrelas, **release quase diária** (v0.69.0 em 16/ago/2026
 `@anthropic-ai/claude-agent-sdk` de perto. 123 issues abertas — é um projeto vivo e ativo, não um
 `npx` abandonado. Isso não elimina o risco do §4.3 (um terceiro entre você e o agente); reduz.
 
-#### O que o spike tinha que medir — e mediu
+#### O que o spike tinha que medir
 
-Três respostas objetivas, antes de qualquer tela. **Todas as três foram medidas** — o resultado está
-no §9.5.
+Três respostas objetivas, antes de qualquer tela. **Duas voltaram medidas e uma voltou parcial** — o
+resultado, com o que cada uma prova e o que não prova, está no §9.5.
 
 1. **A assinatura autentica?** Rodar o adaptador, `/login`, e confirmar que a sessão sobe sem chave de
    API.
@@ -500,12 +504,21 @@ Rodado em 2026-08-17 nesta máquina, contra `@agentclientprotocol/claude-agent-a
 | Eixo | Resultado | Evidência |
 |---|---|---|
 | **Autenticação** | ✅ a assinatura vale — sem chave de API | `initialize → authMethods: []` e `session/new` sem erro. O medo da issue #517 é da distribuição pela JetBrains, e não se aplica a adaptador instalado por você |
-| **Janela de contexto** | ✅ 1M, e é o **default** | `currentValue: "opus[1m]"`, com `default → "Opus (1M context)"`. O fallback para 200K da issue #786 **não se reproduziu** |
+| **Janela de contexto** | ⚠️ **parcial** — a sessão **nasce** em 1M | `currentValue: "opus[1m]"`, `default → "Opus (1M context)"`, e o turno reportou `size: 1000000` (campo confiável desde que a [#596](https://github.com/agentclientprotocol/claude-agent-acp/issues/596) fechou). **O que falta:** o §9.2 definiu que o único jeito de resolver a #786 era *encher contexto e ver onde a compactação dispara* — e o spike mediu um turno de 39.200 tokens, volume em que 200K e 1M se comportam igual. A #786 continua **aberta** upstream |
 | **Consumo** | ✅ sai da assinatura, e o protocolo entrega o estado do limite | `usage_update` com `rateLimitType: "seven_day"` — janela dos planos Max, não crédito de API — sem `ANTHROPIC_API_KEY` no ambiente. E vem `utilization`, `resetsAt` e `isUsingOverage` **por turno**, o que o `/usage` manual não dava |
 
-**O que isso fecha:** o §9.2 listava três riscos a medir; os três voltaram a favor da migração. O que
-**não** fecha é o risco de política do §9.2(b) — a separação de pools pode voltar com aviso, e é por
-isso que o §9.3 continua valendo: `transport` é coluna.
+**O que isso fecha:** o §9.2 listava três riscos a medir. Autenticação e consumo voltaram **a favor
+da migração e com evidência direta**. A janela voltou **parcial**: a sessão nasce em 1M, o que basta
+para não bloquear a migração, mas *onde a compactação dispara* segue sem medida — e é isso que a #786
+descreve.
+
+**O que continua aberto, e não deve ser lido como fechado:**
+
+- **o risco de política do §9.2(b)** — a separação de pools pode voltar com aviso, e é por isso que o
+  §9.3 continua valendo: `transport` é coluna;
+- **o eixo 3 do §9.2(c)** — reproduzir ou descartar a #786 exige uma sessão que **chegue perto do teto
+  de contexto**. Barato de fazer junto com a primeira tela da ACP-1, caro de descobrir depois que o
+  orçamento de contexto da memória já foi desenhado em cima de 1M.
 
 ---
 

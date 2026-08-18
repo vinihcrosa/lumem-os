@@ -162,9 +162,11 @@ do §15 foram reordenadas por causa disso, e o §16 ganhou a dependência nova.
 assinatura normalmente** — é o que a Anthropic documenta e é a mesma categoria em que o Conductor já
 roda todo dia. A janela de contexto **não encolhe por ser ACP**: a compactação é do próprio Claude
 Code, e o 1M é o mesmo botão do CLI. O que sobra é um risco de política — a separação de pools foi
-anunciada e cancelada em 2026, e pode voltar com aviso. O relato de fallback para 200K **não se
-reproduziu no spike** ([acp-sessions/prd.md §1](../acp-sessions/prd.md), [§9.5 do
-estudo](../../project/pty-vs-acp.md)).
+anunciada e cancelada em 2026, e pode voltar com aviso. Sobra também o relato de fallback para 200K
+(issue #786): o spike confirmou que a sessão **nasce** em 1M, mas **não** exercitou contexto cheio,
+então onde a compactação dispara segue sem medida ([§9.5 do estudo](../../project/pty-vs-acp.md)). Para
+esta feature isso é o orçamento do [context-delivery](context-delivery.md) — se a janela real for 200K,
+o teto por escopo muda.
 
 ---
 

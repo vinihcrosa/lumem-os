@@ -343,9 +343,14 @@ Não aceite o relato. Rode você mesmo:
 * se algum resultado verde puder ter vindo de cache do Turborepo, **force**
   (`pnpm exec turbo typecheck --force`). Já mentiu duas vezes neste repositório;
 * **quebre de propósito o que a asserção nova deveria pegar, veja vermelho, reverta sem commitar.**
-  Dois comandos, e prova o que leitura nenhuma prova. É a bateria de mutação aplicada por você, na
-  árvore de trabalho, com `git checkout` no fim — a única mutação que você pode fazer no repo, e só
-  porque é revertida antes de qualquer commit;
+  Dois comandos, e prova o que leitura nenhuma prova. É a bateria de mutação aplicada por você.
+
+  > **`git checkout` só reverte a mutação se a linha de base já estiver commitada.** Rodar isso sobre
+  > trabalho que ainda está no working tree apaga o trabalho junto com a mutação — já aconteceu, num
+  > lote de documentação editado pelo próprio orquestrador, e custou dez achados
+  > ([task-cycle-evidence.md](../../../docs/project/task-cycle-evidence.md)). Antes de mutar:
+  > **commite**, ou **copie o repositório para fora** (`git archive HEAD | tar -x -C <scratchpad>`) e
+  > mute a cópia. Lote sem `lumem-dev` é exatamente o caso onde ninguém commitou nada ainda;
 * para valor derivado de fonte normativa (default de porta, limite do ring buffer, nome de
   constraint do PRD §6), **derive da fonte à mão** — PRD, `ports.json`, header da lib. Golden medido
   do próprio código sob teste confirma o bug em vez de pegá-lo.
