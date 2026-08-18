@@ -2,7 +2,7 @@ import { join, relative, sep } from "node:path";
 
 import { DomainError } from "../errors.js";
 
-import { entryFilename, type MemoryScope, type MemoryType } from "./entry.js";
+import { entryFilename, MEMORY_TYPES, type MemoryScope, type MemoryType } from "./entry.js";
 
 /**
  * Onde cada escopo mora dentro do `~/.lumem` (§5 do PRD).
@@ -92,4 +92,35 @@ function requireId(value: string | undefined, field: string): string {
     throw new DomainError("INVALID_ARGUMENT", `${field} inválido: ${value}`);
   }
   return value;
+}
+
+/**
+ * A forma **exata** que um caminho de memória tem, e nada além dela.
+ *
+ * Existe porque `revert` recebe um caminho do cliente e o traduz em `rm` + commit
+ * dentro do `~/.lumem`. O git barra `../`, mas não barra `.gitignore`: sem esta
+ * guarda, desfazer podia apagar qualquer arquivo *tracked* do repositório do
+ * daemon. A contenção é por **forma**, e não por presença no catálogo, porque
+ * desfazer um `forget` é justamente pedir um caminho que o catálogo já não tem.
+ */
+const ENTRY_PATH = new RegExp(
+  `^(?:memory|workspaces/[^/]+/memory|workspaces/[^/]+/projects/[^/]+/memory)/(?:${MEMORY_TYPES.join("|")})_[a-z0-9-]{1,80}\\.md$`,
+);
+
+/** Devolve o caminho quando ele é o de uma memória; estoura quando não é. */
+export function assertEntryPath(path: string): string {
+  const normalized = path.split(sep).join("/");
+  const segments = normalized.split("/");
+  if (
+    normalized.includes("\0") ||
+    segments.includes("..") ||
+    segments.includes(".") ||
+    !ENTRY_PATH.test(normalized)
+  ) {
+    throw new DomainError(
+      "INVALID_ARGUMENT",
+      `${path} não é caminho de memória — só arquivos sob um diretório memory/ podem ser desfeitos`,
+    );
+  }
+  return normalized;
 }

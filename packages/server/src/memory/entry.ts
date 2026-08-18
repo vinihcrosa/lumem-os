@@ -213,3 +213,30 @@ export function entrySignature(entry: MemoryEntry): string {
 export function resolveScope(type: MemoryType, scope?: MemoryScope): MemoryScope {
   return scope ?? DEFAULT_SCOPE_FOR_TYPE[type];
 }
+
+/**
+ * Os tipos que um agente **não** escreve direto para cima (Q27).
+ *
+ * `domain`, `process` e `contract` valem para N projetos: errar ali contamina
+ * todos eles. `project` e `reference` vão direto — erram barato, e o repositório
+ * desmente.
+ */
+const PROPOSAL_TYPES: readonly MemoryType[] = ["domain", "process", "contract"];
+
+/**
+ * Por que esta escrita tem de virar proposta, ou `null` quando ela pode ir direto.
+ *
+ * Fail-closed enquanto a inbox não existe, pelo mesmo princípio da D8: a regra
+ * nasce junto com a superfície, e não depois dela. Recusar com motivo é o pior
+ * caso aceitável; gravar direto e prometer revisão para a PR 05 não é.
+ */
+export function proposalRefusal(
+  type: MemoryType,
+  scope: MemoryScope,
+  actor: MemoryActor,
+): string | null {
+  if (actor === "human") return null;
+  if (scope === "project") return null;
+  if (!PROPOSAL_TYPES.includes(type)) return null;
+  return `${type} em escopo ${scope} escrito por ${actor} é proposta, não escrita (Q27) — a inbox que recebe propostas é a PR 05`;
+}

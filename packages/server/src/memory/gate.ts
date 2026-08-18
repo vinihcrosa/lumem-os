@@ -48,6 +48,14 @@ export interface GateRequest {
   previousSignature?: string | null;
   /** Chave de idempotência; derivada quando ausente. */
   idempotencyKey?: string;
+  /**
+   * Uma recusa que **não** vem do conteúdo — permissão, e não scan.
+   *
+   * Existe para que a Q27 seja decidida pelo mesmo portão que tudo o mais, com
+   * um registro só: uma escrita recusada por quem a pediu é a mesma pergunta
+   * ("por que isso não foi salvo?") que uma recusada por segredo.
+   */
+  refusal?: string;
 }
 
 export interface GateDecision {
@@ -86,6 +94,12 @@ export function decide(request: GateRequest): GateDecision {
 
   if (scan.verdict === "reject") {
     return { ...base, outcome: "rejected", reason: describeFindings(scan.findings) };
+  }
+
+  // Depois do scan, e não antes: quando o conteúdo também tem segredo, é o
+  // segredo que a resposta precisa nomear, e o `ruleTrace` guarda os dois.
+  if (request.refusal !== undefined) {
+    return { ...base, outcome: "rejected", reason: request.refusal };
   }
 
   // Duplicata: reescrever a mesma coisa produziria commit vazio e um

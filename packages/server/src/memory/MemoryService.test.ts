@@ -251,6 +251,84 @@ describe("MemoryService.write — identidade já reivindicada", () => {
   });
 });
 
+describe("MemoryService.write — os limites moram no núcleo", () => {
+  it("recusa descrição vazia e corpo gigante, e não é o router que decide isso", async () => {
+    const { memory } = await service();
+
+    // Os limites estavam só no zod do router: a CLI aceitava pelo núcleo o que a
+    // API recusava na porta, que é a segunda semântica só na entrada.
+    await expect(memory.write({ ...preferencia, description: "" })).rejects.toThrow(DomainError);
+    await expect(memory.write({ ...preferencia, body: "x".repeat(100_001) })).rejects.toThrow(
+      DomainError,
+    );
+    await expect(
+      // @ts-expect-error é justamente o valor que o cast da CLI deixava passar
+      memory.write({ ...preferencia, scope: "planeta" }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+  });
+
+  it("agente escrevendo contract de workspace é recusado, e a recusa fica no WAL (Q27)", async () => {
+    const { memory, stateDir } = await service();
+
+    await expect(
+      memory.write({
+        name: "Contrato de checkout",
+        description: "O que o front espera do back",
+        type: "contract",
+        workspaceId: "ws1",
+        actor: "agent",
+        body: "Itens e cupom.",
+      }),
+    ).rejects.toMatchObject({ code: "BLOCKED" });
+
+    expect(memory.decisions()[0]).toMatchObject({ outcome: "rejected" });
+    expect(memory.decisions()[0]?.reason).toContain("Q27");
+    expect(() =>
+      statSync(join(stateDir, "workspaces/ws1/memory/contract_contrato-de-checkout.md")),
+    ).toThrow();
+  });
+
+  it("segredo continua vencendo a recusa de permissão — o ruleTrace guarda os dois", async () => {
+    const { memory } = await service();
+
+    await expect(
+      memory.write({
+        name: "Contrato de checkout",
+        description: "Com chave dentro",
+        type: "contract",
+        workspaceId: "ws1",
+        actor: "agent",
+        body: "AKIAIOSFODNN7EXAMPLE",
+      }),
+    ).rejects.toMatchObject({ code: "BLOCKED" });
+
+    // Quando o conteúdo também tem segredo, é o segredo que a resposta nomeia.
+    const decision = memory.decisions()[0];
+    expect(decision?.reason).toContain("credencial");
+    expect(decision?.ruleTrace).toContain("aws_access_key");
+  });
+});
+
+describe("MemoryService.revert — só caminho de memória", () => {
+  it("recusa arquivo do repositório do daemon, sem apagá-lo", async () => {
+    const { memory, stateDir } = await service();
+    await memory.write(preferencia);
+
+    await expect(memory.revert(".gitignore")).rejects.toMatchObject({
+      code: "INVALID_ARGUMENT",
+    });
+    await expect(memory.revert("memory/../.gitignore")).rejects.toMatchObject({
+      code: "INVALID_ARGUMENT",
+    });
+    await expect(memory.revert("memory/notas.txt")).rejects.toMatchObject({
+      code: "INVALID_ARGUMENT",
+    });
+
+    // O git barra `../`; ele não barra `.gitignore`, e `revert` faz `rm` + commit.
+    expect(statSync(join(stateDir, ".gitignore")).isFile()).toBe(true);
+  });
+});
+
 describe("MemoryService.read e list", () => {
   it("lê de volta o que escreveu", async () => {
     const { memory } = await service();
