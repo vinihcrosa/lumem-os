@@ -110,35 +110,41 @@ Você já usa ClickUp. Duas fontes de verdade é uma dor conhecida. Opções: (a
 
 ## D. Memória e self-learning
 
-### [ ] Q016 — O que exatamente o sistema deve aprender?
+> **Estas perguntas ganharam feature.** O desenho está em
+> [prd/workspace-memory/prd.md](../prd/workspace-memory/prd.md) e as perguntas refinadas, com proposta
+> pra reagir em cada uma, em [open-questions.md](../prd/workspace-memory/open-questions.md). As
+> Q016–Q021 continuam valendo como registro; quando uma delas for respondida lá, anote nos dois
+> arquivos — é a mesma regra da [seção G.3](#g3-memória-e-self-learning).
+
+### [x] Q016 — O que exatamente o sistema deve aprender?
 Marque tudo que quiser: convenções de código do projeto; comandos que funcionam (build/test/lint); arquitetura e onde ficam as coisas; suas preferências de estilo de resposta; erros que já cometeu e não pode repetir; conhecimento de produto/domínio; processo do time (como abre PR, formato de commit); performance/qualidade dos próprios agentes.
 
-**R:**
+**R:** respondida pela feature — [§3 do PRD](../prd/workspace-memory/prd.md): três naturezas, **fato**, **procedimento** e **contrato**, com taxonomia fechada de 7 tipos na [PR 02](../prd/workspace-memory/tasks.md). Não é um balde só chamado "memória".
 
-### [ ] Q017 — O aprendizado é automático ou curado?
+### [x] Q017 — O aprendizado é automático ou curado?
 (a) o agente escreve na memória sozinho quando acha relevante; (b) tudo que ele aprende vira proposta que você aprova; (c) híbrido — automático por projeto, curado por workspace (workspace é conhecimento mais caro de errar).
 
-**R:**
+**R:** respondida pela feature — **(c) híbrido**, e é a assimetria que sustenta o desenho ([§1 do PRD](../prd/workspace-memory/prd.md)): o que é barato de errar (projeto) pode ser automático; o que é caro de errar (workspace) entra como **proposta** na inbox e passa por você ([Q4](../prd/workspace-memory/open-questions.md)).
 
-### [ ] Q018 — Como a memória evita virar lixo?
+### [x] Q018 — Como a memória evita virar lixo?
 Memória que só cresce degrada o contexto. Precisa de: decay temporal? contagem de uso? revisão periódica? contradição detectada resolve como? Ou você prefere memória append-only e limpa na mão?
 
-**R:**
+**R:** respondida pela feature — **sinal de uso** (`recall_count`, `last_recalled_at`, score) na [PR 04](../prd/workspace-memory/roadmap.md), teto por escopo, e poda por uso medido em vez de decay cego. Contradição resolve por **shadow, nunca merge** — ver Q020.
 
-### [ ] Q019 — Formato da memória: arquivos markdown versionados ou banco?
+### [x] Q019 — Formato da memória: arquivos markdown versionados ou banco?
 (a) markdown no repo (versionado, revisável em PR, o time vê); (b) markdown fora do repo (`~/.lumem/memory/...`, privado seu); (c) banco + embeddings (busca semântica, mas opaco); (d) combinação.
 
-**R:**
+**R:** respondida pela feature — **(b) markdown fora do repo**, em `~/.lumem/`, com o **banco derivado e reconstruível** por `reindex` (premissas A1–A4 de [tasks.md](../prd/workspace-memory/tasks.md)). E o `~/.lumem` é **versionado por git pelo próprio Lumem** ([Q36](../prd/workspace-memory/open-questions.md)), o que devolve o histórico sem devolver o lixo ao repositório. Só o `id` do projeto fica dentro do repo, em `.lumem/project.toml` ([Q3.1](../prd/workspace-memory/open-questions.md)).
 
-### [ ] Q020 — Memória de workspace vs projeto: como resolve conflito?
+### [x] Q020 — Memória de workspace vs projeto: como resolve conflito?
 Se o workspace diz "sempre use camelCase" e o projeto diz "esse repo é snake_case", quem ganha? Precedência fixa (mais específico ganha) ou explícita?
 
-**R:**
+**R:** respondida pela feature — **precedência fixa por especificidade, e shadow em vez de merge** ([§7 do PRD](../prd/workspace-memory/prd.md)): projeto > workspace > global, identidade `(tipo, slug)`. O perdedor continua no disco e o sombreamento vira evento. Nada é concatenado em silêncio.
 
-### [ ] Q021 — Aprender sobre "o comportamento do usuário" — até onde?
+### [x] Q021 — Aprender sobre "o comportamento do usuário" — até onde?
 Isso é potencialmente invasivo (grava tudo que você faz). Qual o limite confortável: só o que você aprova/rejeita nos diffs? suas correções em cima do agente? seus prompts? tudo?
 
-**R:**
+**R:** respondida pela feature — escopo **você** existe, mas nada entra sem passar pelo mesmo portão, com proveniência obrigatória e `WHAT_NOT_TO_SAVE` ([§7 do PRD](../prd/workspace-memory/prd.md)). Não há gravação passiva do que você faz: o que vira memória é o que o portão aceita, e é auditável e reversível por `git revert`.
 
 ---
 

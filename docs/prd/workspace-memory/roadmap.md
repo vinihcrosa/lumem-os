@@ -124,7 +124,7 @@ guarda-chuva quando ela existir (§4).
 flowchart TD
   main["main"]
   wm["workspace-memory-selflear<br/>PRs 01–05 + S1 + S2"]
-  acp["acp-sessions<br/>spike → transporte → tela"]
+  acp["acp-sessions<br/>spike ✓ → transporte → tela"]
   wm2["workspace-memory-live<br/>PRs 06–09"]
   main --> wm
   main --> acp
@@ -139,9 +139,11 @@ deixa de estar. Melhor entregar a metade que não depende de nada, e abrir a seg
 depois, já sobre a `main` com ACP dentro.
 
 **A ordem recomendada entre as duas:** `acp-sessions` **primeiro** — não porque a memória precise, mas
-porque o spike dele (assinatura autentica? consumo sai do mesmo pool? janela de contexto é a mesma?)
-pode mudar o desenho da tela, e essa resposta é mais barata agora do que depois. As PRs 01–05 da
-memória andam em paralelo, porque nenhuma delas encosta em transporte.
+porque o spike dele podia mudar o desenho da tela, e essa resposta era mais barata antes do que depois.
+**As três perguntas dele já foram respondidas** (assinatura autentica, consumo sai do mesmo pool,
+janela é a mesma — [§9.5 do estudo](../../project/pty-vs-acp.md)), então o que sobra da frente B é a
+ACP-1: transporte e tela. As PRs 01–05 da memória andam em paralelo, porque nenhuma delas encosta em
+transporte.
 
 ---
 
@@ -178,7 +180,7 @@ ela entra na guarda-chuva.
 
 ```mermaid
 flowchart LR
-  spike["ACP-0<br/>spike medido"]
+  spike["ACP-0<br/>spike medido ✓"]
   acp["ACP-1<br/>transporte + tela"]
   p1["01 armazenamento"]
   p2["02 portão"]
@@ -206,7 +208,7 @@ flowchart LR
 
 | Parte | Trilha | Depende de | Libera | Pode começar |
 |---|---|---|---|---|
-| **ACP-0** — spike medido | **B** | nada | ACP-1, e o desenho da tela | **agora** |
+| ~~**ACP-0** — spike medido~~ | **B** | nada | ACP-1, e o desenho da tela | **feito** em 2026-08-17 ([§9.5](../../project/pty-vs-acp.md)) |
 | **01** — armazenamento | **A** | nada | 02, S1 | **agora** |
 | **S2** — protótipo da UI | **C** | nada | 05 | **agora** |
 | **02** — portão de escrita | A | 01 (branch aberta) | 03, 07 | quando a 01 abrir PR |
@@ -214,28 +216,29 @@ flowchart LR
 | **03** — superfícies (CLI + MCP) | A | 02 | 04, 08, 09 | quando a 02 abrir PR |
 | **04** — recall + instrumentação | A | 03 | 05, 08 | quando a 03 abrir PR |
 | **05** — inbox + UI | A | 04 **e** S2 | o merge da guarda-chuva | quando as duas existirem |
-| **ACP-1** — transporte + tela | B | ACP-0 | 06, 07, 08, 09 | depois do spike |
+| **ACP-1** — transporte + tela | B | ACP-0 (**feito**) | 06, 07, 08, 09 | **agora** |
 | **06–09** | **D** | ACP-1 **e** 02/03/04 mergeadas | — | segunda guarda-chuva |
 
 ### As frentes que podem correr ao mesmo tempo
 
 | Momento | Frente A (memória) | Frente B (ACP) | Frente C (desenho) |
 |---|---|---|---|
-| **agora** | 01 armazenamento | ACP-0 spike | S2 protótipo |
-| **depois** | 02 → 03 → 04 | ACP-1 transporte + tela | — |
+| **agora** | 01 armazenamento | ACP-1 transporte + tela (o ACP-0 já fechou) | S2 protótipo |
+| **depois** | 02 → 03 → 04 | ACP-1 continua | — |
 | **fim da 1ª guarda-chuva** | 05 inbox (precisa da 04 e do S2) | ACP-1 continua | — |
 | **depois do merge** | — | — | 06–09, na 2ª guarda-chuva |
 
 **As três frentes são de naturezas diferentes** — pesquisa, backend e desenho —, e é por isso que elas
 convivem. Dentro da frente A não há paralelismo: a espinha é corrente, cada parte precisa da anterior.
 
-> **Trabalhando sozinho, duas frentes já é bastante.** A recomendação prática: **01 + ACP-0**. O spike
-> é curto e responde três perguntas que hoje são premissa; a 01 é o começo real do código. O S2 entra
-> quando a 04 estiver perto, porque ele só bloqueia a 05.
+> **Trabalhando sozinho, duas frentes já é bastante.** A recomendação era **01 + ACP-0**, e o **ACP-0
+> já fechou** — as três perguntas que eram premissa estão respondidas. A recomendação agora é **01 +
+> ACP-1**: a 01 é o começo real do código, e a ACP-1 é o que o spike destravou. O S2 entra quando a 04
+> estiver perto, porque ele só bloqueia a 05.
 
 ### Se for uma coisa de cada vez
 
-1. **ACP-0** (spike) — dias, e é o único item que fica mais caro se for adiado
+1. ~~**ACP-0** (spike)~~ — **feito** em 2026-08-17; era o único item que ficava mais caro se fosse adiado
 2. **01** armazenamento
 3. **02** portão
 4. **03** superfícies
@@ -248,8 +251,10 @@ convivem. Dentro da frente A não há paralelismo: a espinha é corrente, cada p
 
 **S1** entra em qualquer buraco depois do passo 2.
 
-> **O passo 1 não é construir o ACP.** É escrever o PRD e rodar o spike. A construção é o 9, e pode
-> esperar — o que não pode esperar é a **resposta**, porque ela é premissa do desenho da tela.
+> **O passo 1 não era construir o ACP.** Era escrever o PRD e rodar o spike — **os dois já foram
+> feitos** ([PRD](../acp-sessions/prd.md), [§9.5 do estudo](../../project/pty-vs-acp.md)). A construção
+> continua sendo o passo 9 e continua podendo esperar; o que não podia esperar era a **resposta**, e
+> ela chegou.
 
 ---
 
@@ -261,4 +266,4 @@ convivem. Dentro da frente A não há paralelismo: a espinha é corrente, cada p
 | **01** | [tasks escritas](tasks.md) — 7 tasks, pronta para execução |
 | 02–05, S1, S2 | escopo e `Done when` em [tasks.md](tasks.md); tasks quando chegar a vez |
 | 06–09 | esperam `acp-sessions` |
-| **`acp-sessions`** | [PRD escrito](../acp-sessions/prd.md), **spike rodado** — autenticação e janela de 1M confirmadas; falta medir o consumo |
+| **`acp-sessions`** | [PRD escrito](../acp-sessions/prd.md), **spike rodado** — os três eixos medidos: autenticação por assinatura, janela de 1M e consumo pelo `usage_update` com `rateLimitType: "seven_day"` ([§2.3](../acp-sessions/prd.md), [§9.5 do estudo](../../project/pty-vs-acp.md)) |

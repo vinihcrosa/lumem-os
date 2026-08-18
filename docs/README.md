@@ -1,8 +1,8 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Em discussão, a primeira feature que não é de tela: [workspace-memory](prd/workspace-memory/prd.md) — o harness lembrar.
+Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Em desenho fechado e decomposta em pilha de PRs, a primeira feature que não é de tela: [workspace-memory](prd/workspace-memory/prd.md) — o harness lembrar.
 
-> **Decisão de arquitetura, 2026-08-17:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por [ACP](project/pty-vs-acp.md)**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A próxima feature a desenhar é `acp-sessions`: transporte mais a tela da conversa.
+> **Decisão de arquitetura, 2026-08-17:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por [ACP](project/pty-vs-acp.md)**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A feature [acp-sessions](prd/acp-sessions/prd.md) — transporte mais a tela da conversa — já tem PRD escrito, com o spike dos três eixos rodado nesta máquina.
 
 ---
 
@@ -100,7 +100,7 @@ Sucede a `right-panel`. O split da aba **escreve**: editar o arquivo aberto com 
 
 ### [workspace-memory/](prd/workspace-memory/) — o harness lembra
 
-**Em discussão — sem tasks.** A primeira feature que não é de tela: memória compartilhada do
+**PR 01 com tasks; 02–05, S1 e S2 com escopo e `Done when`.** A primeira feature que não é de tela: memória compartilhada do
 workspace e aprendizado contínuo por projeto. É o pilar que dá sentido ao conceito de workspace — dois
 projetos que se conhecem. Foi ela que forçou a decisão do ACP: o daemon precisava entender a sessão,
 e por PTY ele só via bytes.
@@ -111,7 +111,7 @@ e por PTY ele só via bytes.
 | [open-questions.md](prd/workspace-memory/open-questions.md) | 38 perguntas, **todas respondidas** — o registro de por que cada decisão foi tomada |
 | [tasks.md](prd/workspace-memory/tasks.md) | Uma seção por PR da pilha. A **01 tem tasks**; as demais têm escopo e `Done when` |
 | [roadmap.md](prd/workspace-memory/roadmap.md) | **A feature em pilha de PRs**: topologia de branches, as sete regras da pilha, as cinco partes da espinha, o que anda em paralelo e onde o ACP entra |
-| [context-delivery.md](prd/workspace-memory/context-delivery.md) | Como a memória chega no agente: **núcleo comportamental + skill + serviço `lumem-memory` com auto-learn**. O que o desenho compra, o que ele cobra, o que medir, e 4 perguntas abertas |
+| [context-delivery.md](prd/workspace-memory/context-delivery.md) | Como a memória chega no agente: **núcleo comportamental + skill + serviço `lumem-memory` com auto-learn**. O que o desenho compra, o que ele cobra, o que medir, e as **8 decisões (D1–D8), todas respondidas** |
 
 Quatro decisões já fechadas mudaram o desenho: **nenhuma memória vive dentro do repositório** (menos o
 `id` do projeto), o **transporte passa a ser ACP**, o **`~/.lumem` é versionado por git pelo próprio
@@ -125,7 +125,7 @@ custo por projeto e a política de permissão.
 
 | Arquivo | O quê |
 |---|---|
-| [prd.md](prd/acp-sessions/prd.md) | O que o spike mediu (autenticação e janela de 1M **confirmadas nesta máquina**), escopo do transporte e da tela, riscos, fases |
+| [prd.md](prd/acp-sessions/prd.md) | O que o spike mediu — **autenticação, janela de 1M e consumo, os três nesta máquina** —, escopo do transporte e da tela, riscos, fases |
 | [open-questions.md](prd/acp-sessions/open-questions.md) | 12 perguntas, **todas respondidas** — inclusive o volume da transcrição, medido em 675 sessões reais |
 
 ---

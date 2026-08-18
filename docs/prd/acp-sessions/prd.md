@@ -178,7 +178,7 @@ demais para justificar descartar o insumo da destilação de memória.
 | Fora | Por quê |
 |---|---|
 | Arrancar o PTY | `transport` é coluna. Shell precisa dele, e ele é a saída se o billing mudar |
-| Suportar N agentes de uma vez | **Só Claude no v1** ([A2](../../project/pty-vs-acp.md)). Codex e opencode entram um por feature |
+| Suportar N agentes de uma vez | **Só Claude no v1** ([TA2](../../project/pty-vs-acp.md)). Codex e opencode entram um por feature |
 | Política de permissão configurável | O diálogo sim, a política não. É feature própria |
 | Reimplementar o TUI do Claude Code | A tela é do Lumem, com o vocabulário do protocolo. Paridade visual com o CLI não é meta |
 | Multi-conta por agente | Backlog, e o mecanismo já está identificado (home isolation) |
