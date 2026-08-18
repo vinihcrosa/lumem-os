@@ -38,6 +38,7 @@ import {
   resolveScope,
   serializeEntry,
   slugify,
+  type MemoryActor,
   type MemoryEntry,
   type MemoryScope,
   type MemoryType,
@@ -330,13 +331,27 @@ export class MemoryService {
     return resolveVisible(listEntries(this.db), filter);
   }
 
-  /** Apaga. Só quando pedido diretamente (Q29) — nada aqui apaga sozinho. */
+  /**
+   * Apaga. Só quando pedido diretamente (Q29) — nada aqui apaga sozinho.
+   *
+   * E só por você: *"apagar é sempre ação sua"*. A escrita de agente virou
+   * proposta nesta PR; deixar a **deleção** aberta seria fechar a porta da frente
+   * e esquecer a dos fundos — pior, porque o commit ia para o `git log` do
+   * `~/.lumem` com a sua assinatura.
+   */
   async forget(
     type: MemoryType,
     name: string,
     scope?: MemoryScope,
-    ids: { workspaceId?: string; projectId?: string } = {},
+    ids: { workspaceId?: string; projectId?: string; actor?: MemoryActor } = {},
   ): Promise<{ path: string; commit: string | null }> {
+    const actor = ids.actor ?? "human";
+    if (actor !== "human") {
+      throw new DomainError(
+        "BLOCKED",
+        `apagar memória é sempre ação sua (Q29) — ${actor} não apaga, propõe`,
+      );
+    }
     const resolved = resolveScope(type, scope);
     const slug = slugify(name);
     const absolute = entryPathFor(this.stateDir, this.targetFor(resolved, ids), type, slug);
@@ -355,7 +370,7 @@ export class MemoryService {
       paths: [path],
       operation: "delete",
       subject: `${type}/${slug}`,
-      actor: "human",
+      actor,
       ...(this.exec ? { exec: this.exec } : {}),
       ...(this.log ? { log: this.log } : {}),
     });
@@ -389,6 +404,9 @@ export class MemoryService {
 
     if (previousSha === undefined) {
       // Nasceu no commit atual: desfazer é fazê-la deixar de existir.
+      // A decisão vem antes do disco, como em toda deleção: a Q29 promete que
+      // apagar é reversível pelo WAL, e o git sabe *que* o arquivo sumiu, nunca
+      // *quem pediu*.
       const record = await this.recordDeletion(path, "human");
       await rm(absolute, { force: true });
       removeEntry(this.db, path);
@@ -491,9 +509,18 @@ export class MemoryService {
       .catch(() => "");
   }
 
+  /**
+   * Git sobre o `~/.lumem`, sempre **literal**.
+   *
+   * `log -- <path>` e `show <sha>:<path>` recebem caminho vindo do cliente, e
+   * pathspec não é nome: sem isto, um `*` no lugar do id casa a memória de outro
+   * workspace. A forma do caminho já barra o glob (`assertEntryPath`); as duas
+   * guardas existem porque a de forma protege esta chamada e a de interpretação
+   * protege a próxima que alguém escrever.
+   */
   private async git(args: readonly string[]): Promise<string> {
     const exec = this.exec ?? execGit;
-    const { stdout } = await exec(args, { cwd: this.stateDir });
+    const { stdout } = await exec(["--literal-pathspecs", ...args], { cwd: this.stateDir });
     return stdout;
   }
 

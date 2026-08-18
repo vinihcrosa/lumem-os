@@ -235,7 +235,10 @@ describe("a chave de idempotência do revert", () => {
 
     let breakCommit = false;
     const exec: GitExec = async (args, options) => {
-      if (breakCommit && args[0] === "add") throw new Error("staging impedido");
+      // `includes` e não `args[0]`: os comandos da memória são prefixados com
+      // `--literal-pathspecs`, então o verbo não é mais o primeiro argumento — e
+      // uma injeção que olha só a posição 0 para de injetar em silêncio.
+      if (breakCommit && args.includes("add")) throw new Error("staging impedido");
       return execGit(args, options);
     };
 

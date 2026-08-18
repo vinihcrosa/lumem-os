@@ -17,6 +17,17 @@ import { entryFilename, MEMORY_TYPES, type MemoryScope, type MemoryType } from "
  * **origem**, não escopo. Ela entra na proveniência da memória, nunca no caminho.
  */
 
+/**
+ * O charset de um id que vira segmento de caminho.
+ *
+ * Fechado, e não "sem barra": o caminho que sai daqui é entregue ao git como
+ * **pathspec**, e pathspec não é nome — `*`, `?`, `[` e `:` mudam o significado
+ * do comando. É a armadilha registrada em `docs/project/testing.md`, e ela volta
+ * por qualquer campo que aceite mais do que um id tem. Os ids são UUID
+ * (`newId`), então isto não aperta nada que exista.
+ */
+const ID_SEGMENT = "[A-Za-z0-9_-]+";
+
 export interface ScopeTarget {
   scope: MemoryScope;
   /** Obrigatório em `workspace` e `project`. */
@@ -79,16 +90,20 @@ export function repoRelative(stateDir: string, absolutePath: string): string {
 }
 
 /**
- * Um id que vira **segmento de caminho** não pode conter caminho.
+ * Um id que vira **segmento de caminho** não pode conter caminho, nem glob.
  *
- * O id vem do banco e não do usuário — mas a guarda é barata, e a alternativa é
- * um `..` chegando aqui um dia por um caminho que ninguém previu.
+ * O id vem do cliente hoje — `workspaceId` e `projectId` chegam pelo input do
+ * router, e a sessão só vai derivá-los na `acp-sessions`. Então a lista fechada
+ * não é zelo: o caminho montado aqui vira pathspec de git, e `*` ali casa arquivo
+ * que ninguém pediu.
  */
+const ID_ONLY = new RegExp(`^${ID_SEGMENT}$`);
+
 function requireId(value: string | undefined, field: string): string {
   if (value === undefined || value === "") {
     throw new DomainError("INVALID_ARGUMENT", `${field} é obrigatório neste escopo`);
   }
-  if (value.includes("/") || value.includes("\\") || value === "." || value === "..") {
+  if (!ID_ONLY.test(value)) {
     throw new DomainError("INVALID_ARGUMENT", `${field} inválido: ${value}`);
   }
   return value;
@@ -102,21 +117,22 @@ function requireId(value: string | undefined, field: string): string {
  * guarda, desfazer podia apagar qualquer arquivo *tracked* do repositório do
  * daemon. A contenção é por **forma**, e não por presença no catálogo, porque
  * desfazer um `forget` é justamente pedir um caminho que o catálogo já não tem.
+ *
+ * O charset fechado é o que faz a forma valer contra o git também: com `[^/]+`
+ * no lugar do id, um asterisco no slot do workspace passava — e pathspec com glob
+ * casa memória de **outro** workspace. Nenhum ponto em segmento de id, então `..`
+ * não tem por onde entrar; não há guarda separada para ele porque guarda
+ * inalcançável se lê como cobertura que não existe.
  */
 const ENTRY_PATH = new RegExp(
-  `^(?:memory|workspaces/[^/]+/memory|workspaces/[^/]+/projects/[^/]+/memory)/(?:${MEMORY_TYPES.join("|")})_[a-z0-9-]{1,80}\\.md$`,
+  `^(?:memory|workspaces/${ID_SEGMENT}/memory|workspaces/${ID_SEGMENT}/projects/${ID_SEGMENT}/memory)` +
+    `/(?:${MEMORY_TYPES.join("|")})_[a-z0-9-]{1,80}\\.md$`,
 );
 
 /** Devolve o caminho quando ele é o de uma memória; estoura quando não é. */
 export function assertEntryPath(path: string): string {
   const normalized = path.split(sep).join("/");
-  const segments = normalized.split("/");
-  if (
-    normalized.includes("\0") ||
-    segments.includes("..") ||
-    segments.includes(".") ||
-    !ENTRY_PATH.test(normalized)
-  ) {
+  if (!ENTRY_PATH.test(normalized)) {
     throw new DomainError(
       "INVALID_ARGUMENT",
       `${path} não é caminho de memória — só arquivos sob um diretório memory/ podem ser desfeitos`,
