@@ -17,7 +17,7 @@ escrita contra premissa que a implementação ainda vai derrubar.
 |---|---|---|---|
 | **01** | `wm/01-armazenamento` | guarda-chuva | **entregue** — tasks e o que a execução achou, abaixo |
 | **02** | `wm/02-portao` | 01 | **em PR** — tasks e o que a execução achou, abaixo |
-| 03 | `wm/03-superficies` | 02 | idem |
+| **03** | `wm/03-superficies` | 02 | **em PR** — escopo e o que a execução achou, abaixo |
 | 04 | `wm/04-recall` | 03 | idem |
 | 05 | `wm/05-inbox-ui` | 04 | idem |
 | **S1** | `wm/s1-sinais-de-acao` | 01 | **entregue** — tasks abaixo |
@@ -308,14 +308,31 @@ Os três comandos na CLI, sobre o mesmo núcleo — a paridade com MCP continua 
 **Done when:** `decisions --path` mostra só o caminho pedido, e uma rejeição aparece ali com a regra
 que bateu e sem o conteúdo.
 
-## PR 03 — `wm/03-superficies` (escopo, sem tasks)
+## PR 03 — `wm/03-superficies` (entregue)
 
-`lumem-memory` como núcleo com superfícies: CLI e MCP sobre as mesmas funções e o mesmo contrato de
-erro. Shadow por identidade entre escopos. O **funil cross-projeto nasce aqui, desligado**, com
-registro de acesso.
+`lumem-memory` como núcleo com superfícies: CLI e **router tRPC** sobre as mesmas funções, o mesmo
+contrato de erro e o **mesmo schema de entrada**. Shadow por identidade entre escopos. O **funil
+cross-projeto nasce aqui, desligado**, com registro de acesso.
 
 **Done when:** o mesmo pedido responde igual nas duas superfícies; memória de projeto sombreia a de
 workspace e o sombreamento vira evento.
+
+### O que a execução achou
+
+| # | O quê | Onde ficou |
+|---|---|---|
+| **E1** | **A segunda superfície virou router tRPC, e não MCP.** O escopo escrito era "CLI e MCP"; o daemon já fala tRPC para toda a UI, e o cliente que precisa da memória agora é a tela da PR 05 — não um agente externo. O MCP continua no plano como **terceira** superfície, e o teste de paridade que existe agora é o que impede ela de virar uma terceira semântica | `routers/memory.ts`; o MCP volta como escopo da PR 05 ou depois dela |
+| **E2** | **`list` não queria dizer a mesma coisa nas duas superfícies.** O router respondia o resolvido por shadow, a CLI respondia o catálogo cru — o que quebra o próprio `Done when` desta PR. As duas agora respondem o resolvido; a lista crua é `--all`, porque inspecionar o disco é outra pergunta | `cli.ts`, com teste nas duas superfícies |
+| **E3** | **Os limites de escrita moravam só no zod do router.** A CLI passava `--scope`/`--actor` com cast e o núcleo aceitava o que a API recusava. O schema mudou para dentro do `MemoryService`, e as superfícies o reusam | `MemoryService.writeMemorySchema` |
+| **E4** | **A Q27 não tinha nada que a aplicasse.** `contract`/`domain`/`process` de agente em escopo de workspace gravavam direto, quando a decisão manda virar proposta. Enquanto a inbox da PR 05 não existe, é **recusa com motivo** — fail-closed, o mesmo princípio da D8 —, e a recusa passa pelo portão, então fica no WAL | `entry.proposalRefusal`, `gate.refusal` |
+| **E5** | **`revert` aceitava qualquer caminho do `~/.lumem`.** O git barra `../`; ele não barra `.gitignore`, e `revert` é `rm` + commit. A contenção é por **forma** de caminho de memória, e não por presença no catálogo — desfazer um `forget` é justamente pedir um caminho que o catálogo já não tem | `paths.assertEntryPath` |
+| **E6** | **A capacidade da D8, ligada, não era funil.** Ela liberava qualquer projeto e qualquer caminho. As outras duas exigências da decisão entraram junto: o alvo tem que ser projeto **do mesmo workspace** (a lista sai do banco, não de uma allowlist paralela) e o caminho passa pelo `resolveInsideRoot` da `file-editor`, reusado | `access.evaluate` |
+| **E7** | **"Livre" (Q26) não é "sem registro".** O funil existia sem nenhum chamador de produção, então a tabela nascia e ficava vazia. Toda leitura do router — `read` e `list` — atravessa o funil e fica registrada | `routers/memory.ts` |
+
+Uma coisa **em aberto**, e é de escopo de sessão: `workspaceId`/`projectId` vêm do **cliente**, porque
+a sessão ainda não carrega escopo — isso é da `acp-sessions`. Enquanto vem, o filtro do shadow não é
+fronteira; o que existe é o registro de cada leitura, com quem pediu e de onde. Quando a sessão passar
+a carregar workspace e projeto, esses ids saem do input.
 
 ## PR 04 — `wm/04-recall` (escopo, sem tasks)
 
