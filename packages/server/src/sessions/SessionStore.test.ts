@@ -1,3 +1,5 @@
+import { rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import { newId } from "@lumem/shared";
@@ -5,9 +7,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Db } from "../db/index.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
+import { listSignals } from "../memory/signals.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createSessionRepository } from "../repositories/session.js";
+import { cleanupGitFixtures, createRepo, runGit } from "../testing/git-fixtures.js";
 import { createSessionStore, type SessionStore } from "./SessionStore.js";
 
 const managers: PtyManager[] = [];
@@ -207,5 +211,104 @@ describe("listing", () => {
 
     expect(await store.findById(row.id)).toMatchObject({ id: row.id });
     expect(await store.findById(newId())).toBeUndefined();
+  });
+});
+
+describe("os sinais que a saída de uma sessão produz (Q17)", () => {
+  afterEach(() => {
+    cleanupGitFixtures();
+  });
+
+  /** Uma sessão de agente que morre no ato, no diretório pedido. */
+  async function agentThatDiesAt(
+    store: SessionStore,
+    db: Db,
+    cwd: string,
+  ): Promise<{ id: string }> {
+    const config = await createAgentConfigRepository(db).create({ name: "fixture", command: "sh" });
+    const row = await store.start(
+      shell({
+        kind: "agent",
+        agentConfigId: config.id,
+        scopeType: "worktree",
+        scopeId: "wt1",
+        cwd,
+        args: ["-c", "exit 0"],
+      }),
+    );
+    return { id: row.id };
+  }
+
+  it("registra a sessão de agente que morreu cedo, com quantos segundos viveu", async () => {
+    const { store, db } = setup();
+    const repo = await createRepo({ branch: "main" });
+
+    const { id } = await agentThatDiesAt(store, db, repo);
+
+    await vi.waitFor(() => {
+      const [signal] = listSignals(db, { kind: "session_killed_early" });
+      expect(signal?.target).toBe(id);
+      expect(signal?.sessionId).toBe(id);
+      expect(signal?.worktreeId).toBe("wt1");
+      // Segundos de vida, e nada mais: `detail` é número (Q18).
+      expect(signal?.detail).toBeGreaterThanOrEqual(0);
+      expect(signal?.detail).toBeLessThan(30);
+    });
+  });
+
+  it("um shell que viveu quatro segundos é um shell, e não vira sinal", async () => {
+    const { store, db } = setup();
+    const repo = await createRepo({ branch: "main" });
+    const row = await store.start(shell({ cwd: repo, args: ["-c", "exit 0"] }));
+
+    await vi.waitFor(async () =>
+      expect((await createSessionRepository(db).findById(row.id))?.state).toBe("exited"),
+    );
+
+    expect(listSignals(db, { kind: "session_killed_early" })).toHaveLength(0);
+  });
+
+  it("acha o revert no `git log` do checkout, sem ninguém ter revertido pelo Lumem", async () => {
+    // Procurar em vez de instrumentar: o revert aqui é feito pelo git, na mão.
+    const { store, db } = setup();
+    const repo = await createRepo({ branch: "main" });
+    writeFileSync(join(repo, "cache.ts"), "const cache = new Map();\n");
+    await runGit(repo, "add", "cache.ts");
+    await runGit(repo, "commit", "-m", "feat: cache agressivo no loader");
+    const reverted = (await runGit(repo, "rev-parse", "HEAD")).trim();
+    await runGit(repo, "revert", "--no-edit", "HEAD");
+
+    await agentThatDiesAt(store, db, repo);
+
+    await vi.waitFor(() => {
+      const [signal] = listSignals(db, { kind: "user_reverted_agent_commit" });
+      // O alvo é o SHA desfeito. O assunto do commit não chega ao banco.
+      expect(signal?.target).toBe(reverted);
+      expect(signal?.worktreeId).toBe("wt1");
+    });
+  });
+
+  it("um histórico sem revert não inventa sinal", async () => {
+    const { store, db } = setup();
+    const repo = await createRepo({ branch: "main" });
+    await runGit(repo, "commit", "--allow-empty", "-m", "docs: explica como reverter um commit");
+
+    const { id } = await agentThatDiesAt(store, db, repo);
+
+    await vi.waitFor(async () =>
+      expect((await createSessionRepository(db).findById(id))?.state).toBe("exited"),
+    );
+    expect(listSignals(db, { kind: "user_reverted_agent_commit" })).toHaveLength(0);
+  });
+
+  it("um checkout que sumiu junto com a sessão não derruba o registro da saída", async () => {
+    const { store, db } = setup();
+    const repo = await createRepo({ branch: "main" });
+    const { id } = await agentThatDiesAt(store, db, repo);
+    rmSync(repo, { recursive: true, force: true });
+
+    await vi.waitFor(async () =>
+      expect((await createSessionRepository(db).findById(id))?.state).toBe("exited"),
+    );
   });
 });

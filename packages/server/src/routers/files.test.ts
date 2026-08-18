@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 
 import { TRPCError } from "@trpc/server";
@@ -6,6 +14,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { ZodError } from "zod";
 
 import { MAX_FILE_BYTES } from "../files/FileService.js";
+import { listSignals } from "../memory/signals.js";
+import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 import { cleanupGitFixtures, createRepo, tempDir } from "../testing/git-fixtures.js";
 
@@ -460,5 +470,73 @@ describe("the write side's scope", () => {
     );
     await expect(ctx.api.files.remove({ ...scope, path: "a.ts" })).rejects.toThrow(refusal);
     await expect(ctx.api.files.deletePreview({ ...scope, path: "a.ts" })).rejects.toThrow(refusal);
+  });
+});
+
+describe("files.write e o sinal de ação (Q17)", () => {
+  /** Um executável qualquer, para a sessão de agente ser um processo de verdade. */
+  function fakeAgentBin(): string {
+    const dir = tempDir("lumem-bin-");
+    const file = join(dir, "fake-agent");
+    writeFileSync(file, "#!/bin/sh\ncat\n");
+    chmodSync(file, 0o755);
+    return file;
+  }
+
+  async function startAgent(ctx: TestCaller, worktreeId: string): Promise<void> {
+    const config = await createAgentConfigRepository(ctx.db).create({
+      name: "fixture",
+      command: fakeAgentBin(),
+    });
+    await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      agentConfigId: config.id,
+    });
+  }
+
+  async function writeOnce(ctx: TestCaller, worktreeId: string, text: string): Promise<void> {
+    const target = { scopeType: "worktree", scopeId: worktreeId, path: "notes.ts" } as const;
+    const before = await ctx.api.files.read(target);
+    if (before.kind !== "text") throw new Error(`a fixture veio como ${before.kind}`);
+    const result = await ctx.api.files.write({ ...target, text, baseRevision: before.revision });
+    if (!result.ok) throw new Error(`esperava gravar, veio ${result.reason}`);
+  }
+
+  it("registra a edição quando há uma sessão de agente viva no mesmo checkout", async () => {
+    const { context: ctx, worktreeId, worktreePath } = await setup();
+    writeFileSync(join(worktreePath, "notes.ts"), "const a = 1;\n");
+    await startAgent(ctx, worktreeId);
+
+    await writeOnce(ctx, worktreeId, "const a = 2;\n");
+
+    const signals = listSignals(ctx.db, { kind: "user_edited_after_agent" });
+    expect(signals).toHaveLength(1);
+    expect(signals[0]?.target).toBe("notes.ts");
+    // O escopo é o que dá sentido ao sinal: foi neste checkout que ele escrevia.
+    expect(signals[0]?.worktreeId).toBe(worktreeId);
+  });
+
+  it("não registra nada quando ninguém estava escrevendo junto", async () => {
+    const { context: ctx, worktreeId, worktreePath } = await setup();
+    writeFileSync(join(worktreePath, "notes.ts"), "const a = 1;\n");
+
+    await writeOnce(ctx, worktreeId, "const a = 2;\n");
+
+    expect(listSignals(ctx.db)).toHaveLength(0);
+  });
+
+  it("uma rajada de autosave é um sinal, não quatro", async () => {
+    // O autosave grava a cada 800 ms de pausa. Sem a janela, o que a tabela
+    // mediria é cadência de digitação.
+    const { context: ctx, worktreeId, worktreePath } = await setup();
+    writeFileSync(join(worktreePath, "notes.ts"), "const a = 1;\n");
+    await startAgent(ctx, worktreeId);
+
+    for (const text of ["const a = 2;\n", "const a = 3;\n", "const a = 4;\n"]) {
+      await writeOnce(ctx, worktreeId, text);
+    }
+
+    expect(listSignals(ctx.db, { kind: "user_edited_after_agent" })).toHaveLength(1);
   });
 });

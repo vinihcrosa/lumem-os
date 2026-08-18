@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { createFileService, MAX_FILE_BYTES } from "../files/FileService.js";
-import { recordSignal } from "../memory/signals.js";
+import { tryRecordSignal } from "../memory/signals.js";
 import { resolveScope } from "../scope.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 
@@ -29,8 +29,13 @@ const files = createFileService();
  * Há sessão de agente viva neste checkout?
  *
  * É o que distingue "editei um arquivo" de "editei por cima do agente" — e o
- * segundo é o sinal que a Q17 quer. Pergunta ao `PtyManager`, que é quem sabe o
- * que está vivo; o banco sabe o que existiu.
+ * segundo é o sinal que a Q17 quer.
+ *
+ * A pergunta vai ao banco, não ao `PtyManager`: das duas fontes, só a tabela de
+ * sessões sabe o **escopo** de cada processo, e o escopo é o que aqui importa —
+ * um agente vivo em outro checkout não diz nada sobre este arquivo. Quem mantém
+ * a linha em dia com o processo é o `trackExits`, e é ele que faz
+ * `state = 'running'` significar vivo.
  */
 async function hasLiveAgent(
   ctx: Context,
@@ -132,8 +137,16 @@ export const filesRouter = router({
         // sessão de agente viva no mesmo checkout, é "eu mexi no que ele
         // escreveu". Registrar o evento é barato; interpretar fica para quando
         // houver volume. Só evento estrutural, nunca o texto (Q18).
+        //
+        // Uma vez por arquivo por janela, e sem poder derrubar a gravação: o
+        // autosave chama isto a cada 800 ms de pausa, e um sinal por tique
+        // mediria cadência de digitação em vez de "editei por cima dele".
+        // `tryRecordSignal` cuida das duas coisas — um erro aqui viraria
+        // `TRPCError`, o editor leria como falha de gravação, e a retentativa
+        // cairia no diálogo de conflito de um arquivo que ele mesmo acabou de
+        // salvar certo.
         if (result.ok === true && (await hasLiveAgent(ctx, input.scopeType, input.scopeId))) {
-          recordSignal(ctx.db, {
+          tryRecordSignal(ctx.db, {
             kind: "user_edited_after_agent",
             target: input.path,
             ...(input.scopeType === "worktree"

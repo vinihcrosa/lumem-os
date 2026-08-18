@@ -4,7 +4,14 @@ import type { Db } from "../db/index.js";
 import type { EventBus } from "../events.js";
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
-import { isKilledEarly, recordSignal } from "../memory/signals.js";
+import { createGitService, type GitService } from "../git/GitService.js";
+import {
+  isKilledEarly,
+  recordRevertSignals,
+  REVERT_LOG_FORMAT,
+  REVERT_SCAN_COMMITS,
+  tryRecordSignal,
+} from "../memory/signals.js";
 import type { PtyManager } from "../pty/PtyManager.js";
 import {
   createSessionRepository,
@@ -59,10 +66,76 @@ export interface SessionStoreOptions {
    * changes the sidebar without anyone having clicked anything.
    */
   events?: EventBus;
+  /**
+   * Reads the checkout's history when an agent session ends.
+   *
+   * The revert signal (Q17) has no hook to hang on: you revert from wherever
+   * you like, and the daemon is not there when you do. So it looks — and the
+   * end of an agent session in that checkout is the moment it is worth
+   * looking, because it is the moment the daemon knows an agent wrote there.
+   */
+  git?: GitService;
 }
 
-export function createSessionStore({ db, ptyManager, events }: SessionStoreOptions): SessionStore {
+export function createSessionStore({
+  db,
+  ptyManager,
+  events,
+  git = createGitService(),
+}: SessionStoreOptions): SessionStore {
   const sessions = createSessionRepository(db);
+
+  /** Which column of the signal names the scope the session ran in. */
+  function scopeOf(row: SessionRow): { projectId?: string; worktreeId?: string } {
+    return row.scopeType === "worktree" ? { worktreeId: row.scopeId } : { projectId: row.scopeId };
+  }
+
+  /**
+   * The two signals an exit produces, neither of which may break the exit.
+   *
+   * `session_killed_early` is the exit itself read as a signal: below
+   * `KILLED_EARLY_SECONDS` the session did nothing, and that says something.
+   * The revert scan is the other half — a `git log` of the checkout, which is
+   * how the reverted commit is found without anyone having reverted from here.
+   *
+   * Agent sessions only: a shell that lives four seconds is a shell.
+   */
+  async function recordExitSignals(
+    row: SessionRow,
+    endedAt: Date,
+    log?: Pick<FastifyBaseLogger, "warn">,
+  ): Promise<void> {
+    if (row.kind !== "agent") return;
+
+    if (isKilledEarly(row.createdAt, endedAt)) {
+      tryRecordSignal(
+        db,
+        {
+          kind: "session_killed_early",
+          target: row.id,
+          sessionId: row.id,
+          ...scopeOf(row),
+          detail: Math.round((endedAt.getTime() - row.createdAt.getTime()) / 1000),
+        },
+        {
+          onError: (error) =>
+            log?.warn({ session: row.id, err: error }, "falha ao registrar sinal"),
+        },
+      );
+    }
+
+    try {
+      const history = await git.readLog(row.cwd, {
+        format: REVERT_LOG_FORMAT,
+        limit: REVERT_SCAN_COMMITS,
+      });
+      recordRevertSignals(db, history, { ...scopeOf(row), sessionId: row.id });
+    } catch (error) {
+      // A checkout removed while the session was dying, or a directory that is
+      // not a repository any more. Not finding a revert is not a failure.
+      log?.warn({ session: row.id, err: error }, "falha ao varrer reverts do checkout");
+    }
+  }
 
   return {
     async start(input) {
@@ -119,6 +192,7 @@ export function createSessionStore({ db, ptyManager, events }: SessionStoreOptio
           // Read before writing: the scope is what the event has to carry, and
           // after the update it is still there — but one read is enough.
           const row = await sessions.findById(info.id);
+          const endedAt = new Date();
           await sessions.markExited(info.id, info.exitCode ?? 0);
           if (row) {
             events?.emit({
@@ -126,6 +200,9 @@ export function createSessionStore({ db, ptyManager, events }: SessionStoreOptio
               scopeType: row.scopeType as "project" | "worktree",
               scopeId: row.scopeId,
             });
+            // Last, and swallowing its own failures: the record and the event
+            // are what the UI depends on, and a signal is never worth them.
+            await recordExitSignals(row, endedAt, log);
           }
         })().catch((error: unknown) => {
           log?.warn({ session: info.id, err: error }, "falha ao registrar saída de sessão");
