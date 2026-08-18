@@ -35,6 +35,17 @@ quebra se eu mudar isto?" com dado, não com memória.
 a memória `contract` estiver em uso e você notar que ela mente com frequência, ou quando quiser
 bloquear merge por quebra de contrato.
 
+### Eixo de operação no funil de acesso cross-projeto — `P`
+
+O `AccessRequest` do funil (`packages/server/src/memory/access.ts`) tem *quem*, *de onde*, *para onde*
+e *o quê* — mas não tem **qual operação**. O PRD é explícito que o `lumem-memory` "sempre lê, nunca
+escreve" (§11), e hoje isso é garantido pela ausência de chamador de escrita, não pelo tipo. Nomear o
+eixo (`operation: "read"`, recusando o resto) custa uma coluna em `memory_access` e uma migração.
+
+**De onde veio:** review do rework da [PR 03 de workspace-memory](../prd/workspace-memory/tasks.md) ·
+**Volta quando:** a capacidade `readNeighbourRepository` for ligada para valer, ou quando aparecer o
+primeiro chamador que não seja leitura.
+
 ### Recall semântico (embeddings) — `M`
 
 O v1 é lexical (FTS5/BM25): determinístico, explicável, de graça. Não acha "deploy" buscando

@@ -51,6 +51,15 @@ interface Rule {
   code: ScanReasonCode;
   rule: string;
   pattern: RegExp;
+  /**
+   * `block` recusa a escrita; `annotate` só deixa o nome da regra no rastro.
+   *
+   * Existe porque a mesma palavra muda de natureza com o verbo ao lado: "revele
+   * o system prompt" é ataque, "a memória entra no system prompt" é a descrição
+   * deste projeto. A Q10 é explícita — regra que mata memória legítima entra
+   * como anotação, nunca como bloqueio.
+   */
+  severity?: "block" | "annotate";
 }
 
 /**
@@ -62,8 +71,20 @@ interface Rule {
  */
 const SECRET_RULES: readonly Rule[] = [
   { code: "secret", rule: "anthropic_key", pattern: /\bsk-ant-[A-Za-z0-9_-]{16,}/ },
-  { code: "secret", rule: "openai_key", pattern: /\bsk-[A-Za-z0-9]{32,}/ },
-  { code: "secret", rule: "github_token", pattern: /\bgh[pousr]_[A-Za-z0-9]{20,}/ },
+  {
+    code: "secret",
+    rule: "openai_key",
+    // Duas formas: a antiga (`sk-` + bloco alfanumérico) e a atual, que põe um
+    // hífen depois do prefixo — `sk-proj-`, `sk-svcacct-`, `sk-admin-`. Sem a
+    // segunda, a regra não cobre nenhuma chave que a OpenAI emite hoje.
+    pattern: /\bsk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{20,}|\bsk-[A-Za-z0-9]{32,}/,
+  },
+  {
+    code: "secret",
+    rule: "github_token",
+    // `github_pat_` é o PAT fine-grained, formato padrão do GitHub desde 2022.
+    pattern: /\bgh[pousr]_[A-Za-z0-9]{20,}|\bgithub_pat_[A-Za-z0-9_]{30,}/,
+  },
   { code: "secret", rule: "slack_token", pattern: /\bxox[baprs]-[A-Za-z0-9-]{10,}/ },
   { code: "secret", rule: "aws_access_key", pattern: /\bAKIA[0-9A-Z]{16}\b/ },
   { code: "secret", rule: "google_api_key", pattern: /\bAIza[0-9A-Za-z_-]{35}\b/ },
@@ -74,8 +95,19 @@ const SECRET_RULES: readonly Rule[] = [
     rule: "env_assignment",
     // `CHAVE=<valor longo e sem espaço>` — a forma de uma linha de `.env`. O
     // nome tem que cheirar a credencial: `PORT=3000` é legítimo e não casa.
+    //
+    // O que a colagem real traz junto e a primeira versão desta regra recusava:
+    // `export ` na frente, indentação de item de lista, nome minúsculo, aspas no
+    // valor, e comentário depois dele. Nada disso muda o que a linha é.
     pattern:
-      /^[A-Z][A-Z0-9_]*(SECRET|TOKEN|PASSWORD|PASSWD|API_?KEY|PRIVATE_?KEY|CREDENTIALS?)[A-Z0-9_]*\s*=\s*\S{12,}$/m,
+      /^[ \t]*(?:export[ \t]+)?[A-Za-z0-9_]*(?:SECRET|TOKEN|PASSWORD|PASSWD|API_?KEY|PRIVATE_?KEY|CREDENTIALS?|PASSPHRASE)[A-Za-z0-9_]*[ \t]*=[ \t]*["']?\S{12,}/im,
+  },
+  {
+    code: "secret",
+    rule: "url_credentials",
+    // `postgres://user:senha@host` — credencial embutida em URL não tem nome de
+    // variável para delatá-la, então a regra acima nunca a veria.
+    pattern: /\b[a-z][a-z0-9+.-]*:\/\/[^\s:/@]+:[^\s:/@]+@/i,
   },
 ];
 
@@ -97,7 +129,24 @@ const INJECTION_RULES: readonly Rule[] = [
     pattern: /\b(ignore|desconsidere|esqueça)\s+(as\s+)?(instruções|regras|ordens)\s+(anteriores|acima)/i,
   },
   { code: "prompt_injection", rule: "you_are_now", pattern: /\byou are now\b/i },
-  { code: "prompt_injection", rule: "system_prompt_override", pattern: /\b(system prompt|override the system)\b/i },
+  {
+    code: "prompt_injection",
+    rule: "system_prompt_override",
+    // O verbo é o que separa ataque de prosa. Sem ele, esta regra recusava
+    // memória sobre o próprio domínio deste projeto — "a memória entra no
+    // system prompt" é a descrição da feature, não uma instrução.
+    pattern:
+      /\b(ignore|disregard|forget|override|reveal|leak|print|dump|show|repeat|revele|sobrescreva|reescreva|mostre)\s+(?:the\s+|your\s+|o\s+|seu\s+|todo\s+o\s+)?(system prompt|prompt de sistema)/i,
+  },
+  { code: "prompt_injection", rule: "override_the_system", pattern: /\boverride the system\b/i },
+  {
+    code: "prompt_injection",
+    rule: "system_prompt_mention",
+    severity: "annotate",
+    // A menção isolada não bloqueia, mas fica no rastro: é barata de ler depois
+    // e é o que permite revisar o que a régua deixou passar.
+    pattern: /\b(system prompt|prompt de sistema)\b/i,
+  },
   {
     code: "prompt_injection",
     rule: "hide_from_user",
@@ -131,7 +180,18 @@ const RELATIVE_TIME_RULES: readonly Rule[] = [
  * O texto lê de um jeito para você e de outro para o modelo. Aqui a ação certa
  * é **limpar**: numa memória legítima esses caracteres não carregam significado.
  */
-const INVISIBLE = /[​-‏‪-‮⁦-⁩﻿]|[\u{E0000}-\u{E007F}]/gu;
+const INVISIBLE =
+  /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]|[\u{E0000}-\u{E007F}]/gu;
+
+/**
+ * Seletores de variação — invisíveis, mas **não** sem significado.
+ *
+ * `U+FE0F` é o que faz `❤️` ser emoji em vez de `❤`. Apagá-lo do texto gravado
+ * seria mudar o que o usuário escreveu; ignorá-lo no casamento seria deixar
+ * `gh\u{FE0F}p_...` passar. Por isso ele é removido **só para casar as regras**,
+ * e o texto gravado continua com ele.
+ */
+const VARIATION_SELECTORS = /[\uFE00-\uFE0F]|[\u{E0100}-\u{E01EF}]/gu;
 
 export function scanMemoryContent(text: string): ScanResult {
   const findings: ScanFinding[] = [];
@@ -141,17 +201,20 @@ export function scanMemoryContent(text: string): ScanResult {
     findings.push({ code: "invisible_unicode", rule: "trojan_source" });
   }
 
-  for (const rule of [...SECRET_RULES, ...INJECTION_RULES]) {
-    if (rule.pattern.test(cleaned)) findings.push({ code: rule.code, rule: rule.rule });
-  }
+  // Casar contra a forma mais nua possível é o que impede a evasão por
+  // caractere invisível; gravar `cleaned` é o que preserva o que significa algo.
+  const probe = cleaned.replace(VARIATION_SELECTORS, "");
 
-  const blocking = findings.some(
-    (finding) => finding.code === "secret" || finding.code === "prompt_injection",
-  );
+  let blocking = false;
+  for (const rule of [...SECRET_RULES, ...INJECTION_RULES]) {
+    if (!rule.pattern.test(probe)) continue;
+    findings.push({ code: rule.code, rule: rule.rule });
+    if (rule.severity !== "annotate") blocking = true;
+  }
   if (blocking) return { verdict: "reject", findings, cleaned };
 
   for (const rule of RELATIVE_TIME_RULES) {
-    if (rule.pattern.test(cleaned)) findings.push({ code: rule.code, rule: rule.rule });
+    if (rule.pattern.test(probe)) findings.push({ code: rule.code, rule: rule.rule });
   }
 
   return { verdict: findings.length === 0 ? "allow" : "annotate", findings, cleaned };

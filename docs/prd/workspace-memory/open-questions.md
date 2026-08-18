@@ -7,13 +7,29 @@ aqui, com o motivo.
 onde está, agrupada por tema, e ganha uma linha **Decisão:** com o que ficou valendo. Cada pergunta
 traz uma **proposta pra reagir**; discordar dela é mais rápido que escrever do zero.
 
-**Estado:** 40 perguntas · **39 respondidas · 1 aberta** (a [Q38](#--q38--quem-prova-que-o-ator-é-quem-ele-diz-que-é-lm),
-levantada ao ligar a inbox na tela). O que resta também são as **D2, D5, D7 e D8**, no
-[context-delivery.md](context-delivery.md).
+**Estado:** 47 perguntas · **43 respondidas · 4 abertas (Q38, Q39, Q44, Q46).** O que resta, além delas, são as
+**D2, D5, D7 e D8**, no [context-delivery.md](context-delivery.md).
 
-**Rodada 5 (2026-08-17):** duas perguntas nasceram da PR 05, quando a inbox virou tela: a **Q27.1**
-fechou o buraco de `global` no desvio da Q27, e a **Q38** — a única aberta — nomeia onde o ator vai
-ser **imposto**, porque hoje ele é só declarado.
+**Rodada 7 (2026-08-18):** a PR 05 ligou a inbox na tela, e isso cobrou uma pergunta: a **Q46**, sobre
+onde o ator declarado passa a ser **imposto**. A Q27 ganhou o que a inbox mudou — a regra virou uma
+função só, e `import` entrou junto com os outros atores não-humanos.
+
+**Rodada 6 (2026-08-18):** quatro decisões que **a implementação do portão** obrigou a tomar, na
+seção J: duplicata por assinatura semântica (Q40), reverter duas vezes alterna (Q41), o scan não
+recusa o vocabulário desta própria feature (Q42), e limpar invisível ≠ normalizar para casar (Q43).
+
+**Rodada 5 (2026-08-17):** a revisão da PR 01 abriu duas. A **Q38** veio do `Done when` da T6, que
+prometia recusar "escopo inválido **para o tipo**" — matriz que nunca existiu em lugar nenhum do PRD;
+o desvio está registrado na [E15](tasks.md#o-que-a-execução-achou). A **Q39** veio de uma sonda do
+round 2: o `scope` do frontmatter e o diretório em que o arquivo está podem discordar, e o catálogo
+acredita nos dois ao mesmo tempo.
+
+**Rodada 7 (2026-08-18):** a execução da PR 03 abriu a **Q44** — o funil de acesso passou a registrar
+toda leitura, inclusive `list`, e ninguém decidiu poda nem índice para essa tabela.
+
+**Rodada 8 (2026-08-18):** a **Q45** nasceu da revisão da PR 04 — os números do ranking (pesos,
+meia-vida, limiar de query trivial) e o lugar do índice FTS5 eram decisão de desenho tomada dentro do
+código, sem registro em lugar nenhum.
 
 **Rodada 4 (2026-08-17):** Q3.1, Q10, Q16, Q30 e Q37 fechadas. E o desenho de entrega de contexto foi
 **redesenhado por você**: índice injetado saiu, entrou *núcleo comportamental + skill + serviço
@@ -331,6 +347,65 @@ ou não vale. E nada aprendido numa worktree descartada vira memória de workspa
 
 **Decisão:** worktree não tem memória. Ela continua sendo **origem** — a proveniência guarda de qual
 worktree veio o que se aprendeu —, mas não é escopo de leitura nem de escrita.
+
+---
+
+### [ ] Q38 — Existe escopo **proibido** para um tipo, ou só escopo default? `[lm]`
+
+Levantada pela revisão da PR 01: o `Done when` da T6 dizia "escopo inválido para o tipo é recusado",
+e o código não recusa nada — `resolveScope` devolve o escopo pedido, qualquer que seja. A [§6 do
+PRD](prd.md#6-taxonomia-proposta) dá **escopo default** por tipo, e ao mesmo tempo diz que `reference`
+é "projeto ou workspace", o que sugere mais de um escopo legítimo. Nunca houve a matriz do que é
+proibido.
+
+Duas leituras, e elas levam a códigos diferentes:
+
+- **default e nada mais** — o tipo sugere onde a memória nasce, e o chamador que explicita ganha. Um
+  `user` em escopo de projeto é estranho, não é erro. É o que está implementado hoje.
+- **matriz fechada** — cada tipo declara os escopos em que pode viver, e o resto é `INVALID_ARGUMENT`.
+  Fecha a porta para o agente inventar escopo, que é a decisão que o §6 diz que ele mais erra.
+
+**Proposta pra reagir:** matriz fechada, com `contract` preso a workspace (ele é um fato **entre**
+projetos) e `reference` valendo em projeto e workspace. O argumento é o mesmo da A9: a taxonomia só
+dá ao sistema o direito de decidir escopo sozinho se o espaço de escopos por tipo for conhecido.
+
+**Custo de esperar:** baixo. Enquanto a escrita não estiver exposta a agente (o portão é a PR 02),
+quem escolhe escopo é você.
+
+---
+
+### [ ] Q39 — Quando o frontmatter e o diretório discordam sobre o escopo, quem manda? `[lm]`
+
+Achada por sonda durante a revisão da PR 01, e é fato medido, não hipótese:
+
+```
+memory/user_x.md com `scope: workspace` no frontmatter
+→ reindex: {"indexed":1,"failures":[]}
+→ linha:   {"path":"memory/user_x.md","scope":"workspace","workspaceId":""}
+```
+
+`rowFor` tira o **escopo** do frontmatter e os **ids** do caminho. Quando os dois discordam, a linha
+sai incoerente — escopo de workspace sem workspace — e em silêncio: o `reindex` reporta sucesso. Um
+`read` naquele escopo procura em `workspaces/<id>/memory/` e não acha o arquivo que está indexado.
+
+Só acontece com arquivo **editado à mão**, porque o caminho de escrita deriva o diretório do escopo.
+Mas editar à mão é a premissa A2, não um acidente.
+
+Três leituras:
+
+- **o diretório manda** — o `scope` do frontmatter é redundante, e o `reindex` o ignora ou o corrige.
+  Coerente com o §5 do PRD, que define o caminho **a partir** do escopo;
+- **o frontmatter manda** — mover o arquivo de diretório passa a ser consequência, não causa.
+  Exigiria o `reindex` mover arquivo, coisa que ele hoje não faz e que a Q3 desaconselha;
+- **discordar é erro** — o arquivo entra em `failures[]` com o motivo, e alguém decide. É o que o
+  `reindex` já faz com frontmatter inválido.
+
+**Proposta pra reagir:** **discordar é erro**. O `reindex` existe para reconstruir sem adivinhar, e
+as outras duas leituras pedem que ele escolha um lado em silêncio — que é como o catálogo passa a
+mentir. O `failures[]` já é o canal para "existe arquivo que eu não sei indexar".
+
+**Custo de esperar:** baixo enquanto a escrita não estiver exposta a agente (o portão é a PR 02).
+Sobe quando o recall começar a resolver escopo, porque aí a linha incoerente vira resposta errada.
 
 ---
 
@@ -662,27 +737,28 @@ proposta na inbox. Efeito colateral bom: o portão inteiro fica **determinístic
 
 ---
 
-### [ ] Q38 — Quem prova que o ator é quem ele diz que é? `[lm]`
+### [ ] Q46 — Quem prova que o ator é quem ele diz que é? `[lm]`
 
 O desvio da Q27 é decidido por `actor`, e `actor` é **declarado por quem chama**: o default é `human`
-no router (`z.enum(MEMORY_ACTORS).default("human")`) e na CLI (`flags.actor ?? "human"`). O agente
-roda numa sessão com shell, então `lumem-memory write --type domain --workspace ws1` sem `--actor`
-grava memória de workspace direto no disco e no git, sem passar pela inbox. E há um **segundo**
-bypass: `import` não está em `NON_HUMAN`, de propósito — é você migrando dado seu —, então
-`--actor import` também passa direto. Hoje a garantia da Q27 protege contra **engano**, não contra
-quem quiser burlá-la.
+no schema do núcleo (`writeMemorySchema`) e, por paridade, na CLI. O agente roda numa sessão com
+shell, então `lumem-memory write --type domain --workspace ws1` sem `--actor` grava memória de
+workspace direto no disco e no git, sem passar pela inbox. Hoje a garantia da Q27 protege contra
+**engano**, não contra quem quiser burlá-la.
 
 **O ponto de imposição precisa ser nomeado.** As três saídas, do mais barato ao mais correto:
 
 | Saída | Como | O que ela não resolve |
 |---|---|---|
-| Ator vindo do ambiente | daemon injeta `LUMEM_ACTOR=agent` no spawn (ele já controla `env`); CLI usa isso quando `--actor` não vem | `env -u LUMEM_ACTOR` ou `--actor human` desfazem |
+| Ator vindo do ambiente | daemon injeta `LUMEM_ACTOR=agent` no spawn (ele já controla `env`); a CLI usa isso quando `--actor` não vem | `env -u LUMEM_ACTOR` ou `--actor human` desfazem |
 | Ator vindo do transporte | com ACP, a escrita entra pela sessão que o daemon abriu, e o ator é do **canal**, não do argumento | precisa da `acp-sessions` de pé; a CLI solta continua existindo |
 | Segredo por sessão | o daemon dá um token por sessão; `human` só é aceito de quem não tem token de sessão | é a mais cara, e vaza junto com o `env` da sessão |
 
 **Proposta pra reagir:** **ator vindo do transporte**, quando a `acp-sessions` existir — a escrita de
 agente passa a chegar por um canal que o daemon abriu, e ator deixa de ser argumento. Até lá, ator
 vindo do ambiente como redução de dano, e a CLI continua sendo uma superfície de confiança sua.
+
+O que segura a espera: o WAL registra o `actor` declarado de **toda** escrita, com o SHA que ela
+produziu. Burlar é possível, e é **visível depois do fato**.
 
 **R:** _(aberta)_
 
@@ -783,6 +859,16 @@ cooperação do agente. Começa registrando o sinal cru, sem interpretar; interp
 cedo — editou por cima, reverteu, descartou a worktree, matou a sessão em 30s — e interpretar só
 quando houver volume.
 
+**O que a S1 fechou ao implementar.** Quatro escolhas que a decisão acima não continha, e que a
+revisão da PR cobrou por escrito em vez de deixar viver no código:
+
+| # | Escolha | Por quê |
+|---|---|---|
+| **Q17.a** | `user_edited_after_agent` é **uma vez por (tipo, alvo, escopo) a cada 5 minutos**, não por gravação | O autosave grava a cada 800 ms de pausa. Um sinal por tique mede cadência de digitação, não "editei por cima dele", e a tabela cresce sem teto |
+| **Q17.b** | Só conta **edição feita pelo editor do Lumem** | É o único caminho de escrita que o daemon vê. Editar pelo terminal, pelo Vim ou por outro editor não vira sinal — e isso é limite conhecido, não descuido |
+| **Q17.c** | Os **30 s** de `session_killed_early` são fixos, sem configuração | Número sem dado atrás não merece knob. Quando houver volume, o dado é que move o corte |
+| **Q17.d** | A varredura de revert roda no **fim de cada sessão de agente**, no checkout dela | Não há gancho para "você reverteu": você reverte por onde quiser. O fim de uma sessão de agente é quando o daemon sabe que houve agente escrevendo ali, e é barato — um `git log` de 200 commits. O preço é a latência: um revert feito hoje só vira sinal na próxima sessão de agente naquele checkout. Reencontrar o mesmo revert não grava de novo |
+
 ---
 
 ### [x] Q18 — Até onde vai o registro do seu comportamento? `[cz]`
@@ -797,6 +883,13 @@ conteúdo do que você digitou fora do que você mandou para o agente.
 
 **Decisão:** só evento estrutural, com alvo e horário. **Nunca** conteúdo do que você digitou fora do
 que foi para o agente. É regra de produto, e vira teste.
+
+**A regra é do banco, não de quem chama (S1).** Não bastava não existir coluna de conteúdo: a
+afinidade INTEGER do SQLite guarda texto não numérico como TEXT, então `detail` aceitava frase, e
+`target` era TEXT sem limite nenhum. Dois `CHECK` fecham isso — `detail` só aceita inteiro, e
+`target` só aceita identificador de uma linha, de até 1.024 caracteres. E o que a varredura de
+revert devolve é **só SHA**: o assunto do commit é frase que você digitou, e ele vive como variável
+local dentro da função, nunca como campo de um objeto que alguém possa gravar.
 
 ---
 
@@ -930,6 +1023,54 @@ o teto de contagem ([context-delivery.md D6](context-delivery.md)).
 
 ---
 
+### [x] Q45 — Como o recall combina os sinais, e onde vive o índice? `[lm]`
+
+A [Q22](#x-q22--lexical-basta-no-v1-czhm-2) decidiu *lexical com interface plugável* e a
+[Q25](#x-q25--recall-registra-sinal-de-uso-cz) decidiu *registrar sinal de uso*. Nenhuma das duas diz
+**como somar** BM25, recência e uso, nem onde a tabela FTS5 nasce — e essas escolhas mudam o que a
+busca devolve.
+
+**R:** decidido na implementação da PR 04, e registrado aqui para não virar suposição silenciosa.
+
+**Decisão:**
+
+| O quê | Valor | Por quê |
+|---|---|---|
+| Pesos | `0.7` lexical · `0.2` recência · `0.1` uso | o texto responde à pergunta; recência é desempate; uso diz "já foi útil antes", nunca "responde a isto" |
+| Escala do lexical | min–max **sobre os candidatos da busca** | o BM25 do SQLite vai de ~`1e-6` (termo frequente, IDF≈0) a ~`14` (termo raro). Somado cru, ou é ruído perto da recência ou a engole — nunca os três juntos. Saturar (`x/(1+x)`) achatava o topo a ponto de um casamento 3× melhor perder para o mais recente |
+| Onde o teto de `limit` vive | no núcleo (`MAX_LIMIT`), e o router **recusa** onde o núcleo **clampa** | pedido malformado pelo tRPC é erro do chamador e merece erro de validação; a CLI e a superfície MCP não têm schema para dizer isso, então o núcleo aparava em vez de devolver lista vazia |
+| Conjunto que define a escala | 50 candidatos visíveis, **constante** | min–max é **escala**: um conjunto que mudasse com o `limit` faria "mostre mais" trocar o primeiro colocado — e faz, medido. O `limit` não entra na conta dos candidatos, e o teto de 50 vive no **núcleo**, não só no Zod do router: a CLI e a superfície MCP chamam o núcleo direto, e invariante que só existe no schema de um chamador não é invariante |
+| O que vai para `best_score` | o **bm25 cru**, não o score | o score é relativo aos candidatos daquela busca, e resultado único tira o teto por construção. Guardar o relativo faria o critério objetivo da poda saturar justamente para memória irrelevante |
+| Meia-vida da recência | 14 dias | a curva que o Compozy mediu |
+| Saturação do uso | 3 recuperações | acima disso o sinal para de crescer, senão memória velha e muito buscada trava o topo |
+| Guarda de query trivial | menos de **2** termos significativos | uma palavra casa com meio acervo; o que volta é ruído com aparência de resposta |
+| Termo significativo | ≥ 2 caracteres em `\p{L}\p{N}`, fora da lista de stopwords | o índice é `unicode61` e aceita qualquer alfabeto: cortar em `a-z0-9` fazia `"デプロイ 設定"` e `"api v2"` voltarem como query trivial — a busca dizendo "não busquei" quando o que houve foi falha de tokenização |
+| Pesos por coluna do BM25 | `0.0` path · `4.0` name · `3.0` description · `1.0` slug · `1.0` body | o **valor** do peso de `path` é inerte — coluna `UNINDEXED` não guarda termo, e medido no `better-sqlite3` do repo `0.0` e `9.0` dão score idêntico. A **posição** não é: o FTS5 lê a lista por posição e completa o que falta com `1.0`, então passar quatro pesos desloca `name`, `description` e `slug` uma casa — que era o defeito real. Os números são **ordinais**: o que o teste pina é a ordem `name > description > {slug, body}`; as magnitudes são calibração e voltam quando houver acervo para medir. `slug` fica junto do corpo porque é derivado do nome — dar mais a ele seria contar o título duas vezes |
+| Onde o índice vive | **fora** das migrations, derivado do catálogo | migration não deriva nada. O preço é que existe banco com catálogo e sem índice (toda instalação anterior à feature), e é por isso que o boot compara as contagens e refaz quando divergem |
+| Quem registra o sinal | só o caminho do agente (`recall`, e a CLI com `--session`) | `search` é leitura: se toda chamada registrasse, refetch e retry do cliente inflariam o próprio número que o §6 do [context-delivery](context-delivery.md) quer medir, e o critério objetivo da Q25 passaria a medir o cliente |
+
+E uma armadilha que essa mesma decisão criou, e que custou uma segunda rodada: preencher o índice a
+partir do **catálogo** quando ele não existe parecia a saída gentil — só que o catálogo não guarda
+corpo, então o índice nasceria mudo para metade das buscas **e com a contagem batendo**, isto é, se
+declarando em dia para sempre. O índice ausente agora nasce **vazio e assumidamente atrasado**; quem
+preenche é o `reindex`, que lê o disco, e ele roda no boot do daemon e no início da CLI. A busca
+carrega `staleIndex` — sinal, nunca recusa: um arquivo ilegível não pode matar a busca inteira.
+
+Uma propriedade do BM25 que vale registrar: em acervo pequeno o IDF **colapsa** — com dois documentos
+os dois tiram zero, e o ranking vira recência mais uso. Não é bug, é a matemática; e é a razão de
+recência e uso existirem no score desde o primeiro dia.
+
+E o reparo do índice tem lugar certo: o boot do daemon, e o `search` da CLI — não o início de todo
+comando. `list` e `read` não leem o índice, e `reindex` **substitui** o catálogo (apaga e reinsere,
+sem transação): disparar isso num comando de leitura é escrita escondida, e num banco com arquivo
+ilegível é escrita escondida que faz memória sumir da lista.
+
+O que ainda **não** tem call site é o `inject` do §6: quem monta o contexto é a fase seguinte, e é lá
+que a sessão passa a ser registrada na injeção. Até lá, `memory_usage` responde "quantas perguntas, de
+quantas sessões" — e não "quantos tokens fixos por sessão".
+
+---
+
 ## G. Cross-projeto
 
 ### [x] Q26 — Ler memória de outro projeto do mesmo workspace: livre, com registro, ou com aprovação? `[cz]`
@@ -963,25 +1104,40 @@ direto — erra barato, o repo desmente.
 **Decisão:** `domain`, `process` e `contract` escritos por agente entram como **proposta** na inbox.
 `project` e `reference` vão direto. Leitura é livre (Q26); escrita para cima é revisada.
 
+**Precisão que a implementação cobrou (PR 03):** a regra vale pelos **dois eixos**, e é a união deles
+— cada um sozinho deixa uma porta aberta:
+
+- **por tipo:** os três tipos são proposta em **qualquer** escopo. Só pelo escopo, um agente
+  contornaria a regra pedindo `scope: "project"` explícito para um `contract`;
+- **por escopo:** escrever em `workspace` ou `global` é proposta em **qualquer** tipo — é o que o §11
+  do PRD chama de "escrita para cima é revisada". Só pelo tipo, um `project` gravado com
+  `scope: "workspace"` subiria direto.
+
+Sobra indo direto o que esta decisão libera: `project` e `reference` no escopo deles.
+
+**O que a PR 05 mudou:** a inbox existe, e proposta deixou de ser recusa. A regra é uma função só —
+`requiresProposal` —, e a `proposalRefusal` que a PR 03 tinha posto no portão saiu junto com o motivo
+dela: duas leituras da Q27 em dois lugares seriam dois sistemas discordando sobre o que precisa de
+revisão. E ela vale para **todo** ator que não é você, `import` incluído — importar é trazer dado de
+fora, e o que vem de fora não é mais confiável do que o que um agente concluiu.
+
 ---
 
-### [x] Q27.1 — E `global`, que é mais largo que `workspace`? `[lm]`
+### [ ] Q44 — Quem poda o registro de acesso? `[lm]`
 
-A Q27 decidiu por **tipo** (`domain`, `process`, `contract`) e por escrita **no workspace**. Só que
-`global` é o escopo mais largo que existe: memória global vale em **todos** os workspaces, e é
-exatamente onde a destilação por sessão da PR 07 vai escrever `user` e `feedback`. A Q27 não falou
-dela, e o código da PR 05 estava decidindo sozinho — deixando `global` passar direto.
+A PR 03 ligou o registro do funil: **toda** leitura de memória grava uma linha em `memory_access`,
+inclusive `list` — e a tela da PR 05 é um chamador de `list` com refetch. A tabela cresce por leitura,
+não por escrita, e é a única do sistema com esse perfil. Hoje ela não tem poda, nem índice em
+`created_at` (que é por onde o `listAccess` ordena).
 
-**Proposta pra reagir:** tratar `global` **junto com** `workspace` no desvio para a inbox. Guardar a
-porta estreita e deixar a larga aberta não é uma regra de contenção, é uma que parece uma.
+Isso não é a mesma pergunta da [Q29](#x-q29--quem-poda-czhm-2): memória é conhecimento, e apagar é
+ação sua. Registro de acesso é **prova**, e prova velha vale menos que prova recente — mas prova
+apagada não vale nada quando alguém pergunta "quem leu isso no mês passado?".
 
-**R:** Sim, `global` é revisado também.
-
-**Decisão:** ator não-humano escrevendo em `global` **ou** `workspace` vira proposta, e tipo de
-workspace (`domain`/`process`/`contract`) vira proposta em qualquer escopo. Só `project` e
-`reference` dentro do escopo de projeto continuam diretos. Está em `requiresProposal`, com os dois
-casos cruzados cobertos por teste — cada metade do critério decide sozinha, e apagar qualquer uma
-delas quebra a suíte.
+**Proposta pra reagir:** janela por tempo (90 dias) com poda no boot, índice em `created_at`, e
+**nenhuma poda do que foi negado** — a linha negada é a que responde a pergunta que importa quando
+algo dá errado. Alternativa mais barata: registrar só acesso **dirigido** (`read`), deixando `list`
+fora, e aí a tabela volta a crescer devagar.
 
 ---
 
@@ -1154,3 +1310,66 @@ desenhar as duas juntas mesmo construindo uma.
 **Decisão:** memória antes de tarefas. A inbox de propostas (fase 3) e a futura fila de tarefas são
 quase a mesma tela — quando a inbox for desenhada, vale desenhar pensando nas duas, mesmo construindo
 uma.
+
+---
+
+## J. O que a implementação do portão obrigou a decidir
+
+Quatro decisões que não estavam em pergunta nenhuma e apareceram construindo a PR 02. Ficam aqui
+pelo mesmo motivo das outras: decisão de desenho não vira suposição silenciosa.
+
+### [x] Q40 — Duplicata é igualdade de bytes ou de assinatura semântica? `[lm]`
+
+O portão promete `noop` quando a escrita não muda nada ([§7 do PRD](prd.md)). A primeira versão
+comparava o **hash do arquivo serializado** — e o arquivo carrega `updated_at`, que muda a cada
+escrita. Resultado: duas escritas idênticas produziam hashes diferentes, `noop` nunca disparava, e
+cada regravação virava um commit anunciando uma mudança que não existiu.
+
+**Decisão:** duplicata é igualdade de **assinatura semântica** — tudo que o usuário quis dizer (nome,
+descrição, tipo, escopo, corpo, proveniência), **sem os carimbos que o sistema põe** (`created_at`,
+`updated_at`). É a `entrySignature` do `entry.ts`.
+
+O mesmo raciocínio derrubou a **chave de idempotência**: ela também saía do hash do arquivo, então
+duas tentativas da mesma escrita nunca casavam, e o replay pós-crash que a
+[Q9](#x-q9--wal-de-decisões-com-prior_content-e-revert-desde-o-v1-cz) promete não tinha como
+reconhecer a tentativa anterior. A chave passou a sair da assinatura.
+
+### [x] Q41 — Reverter duas vezes desfaz o revert, ou é idempotente? `[lm]`
+
+`revert` volta pelo git e grava uma **decisão nova**, sem reescrever histórico. Então o segundo
+`revert` do mesmo caminho encontra, como commit anterior, o commit que o primeiro produziu — e
+desfaz o desfazer.
+
+**Decisão:** **alternar é o comportamento correto**, e não um bug a corrigir. É a semântica de
+`git revert`, e o contrário exigiria o portão guardar um estado de "já revertido" que o git não tem.
+O que a chave de idempotência garante é outra coisa: **o mesmo ponto, revertido a partir do mesmo
+`HEAD`, nunca vira duas decisões** — uma retentativa depois de commit falho continua sendo a mesma
+decisão, com o SHA anexado quando o commit enfim acontece.
+
+### [x] Q42 — O scan pode recusar memória sobre o próprio domínio do Lumem? `[lm]`
+
+"System prompt" é vocabulário desta feature: memória legítima sobre como o bloco de memória é
+entregue ao agente contém a expressão o tempo todo. A primeira régua bloqueava a expressão sozinha —
+exatamente o erro que a [Q10](#x-q10--quão-agressivo-é-o-scan-determinístico-cz) mandou não copiar do
+Compozy.
+
+**Decisão:** o que bloqueia é **o verbo imperativo junto** (`ignore|override|reveal|… the system
+prompt`). A **menção isolada anota** e fica no rastro da decisão, para revisão barata depois. As
+regras do scan ganharam severidade por regra (`block` ou `annotate`) para sustentar isso.
+
+**Limitação aceita:** citar uma frase-gatilho entre aspas — *"nunca escreva 'you are now' em
+memória"* — continua sendo recusado. Abrir exceção para conteúdo entre aspas ou crases seria
+publicar a evasão junto com a regra. Quem precisar registrar isso reescreve sem a citação literal.
+
+### [x] Q43 — Todo caractere invisível deve ser apagado do texto gravado? `[lm]`
+
+A [Q10](#x-q10--quão-agressivo-é-o-scan-determinístico-cz) decidiu **limpar** invisível em vez de
+rejeitar, porque ele não carrega significado numa memória legítima. Só que a faixa enumerada lá
+deixava de fora `U+00AD`, `U+2060–2064` e os seletores de variação — e um invisível fora da faixa é
+evasão do scan de segredo, não curiosidade tipográfica. Ao mesmo tempo, `U+FE0F` **significa** algo:
+é ele que faz `❤️` ser emoji em vez de `❤`.
+
+**Decisão:** separar **limpar** de **normalizar**. O que não significa nada (zero-width, bidi, soft
+hyphen, word joiner, tags) é **removido do texto gravado**. Os **seletores de variação** são
+removidos apenas da cópia usada para **casar as regras** — o texto gravado continua com eles. Fecha a
+evasão sem mudar o que o usuário escreveu.

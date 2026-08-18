@@ -91,7 +91,7 @@ Ordem por dependência. "Depende de ACP" marca o que **não pode** ser feito ant
 |---|---|---|---|---|---|
 | **01** | `wm/01-armazenamento` | guarda-chuva | Layout do `~/.lumem`; Markdown com frontmatter e proveniência; **git gerenciado pelo Lumem** (init, commit por mudança, `.gitignore` do derivado); identidade de projeto (`<repo>/.lumem/project.toml`, adoção, geração com permissão, detecção de fork); `reindex` | Escrever, ler e reindexar uma memória pelo daemon, com o commit aparecendo no `git log` do `~/.lumem` | não |
 | **02** | `wm/02-portao` | 01 | O portão único: scan determinístico (segredo, injeção, Unicode invisível + anotação de tempo relativo); identidade `(tipo, slug)`; duplicata; **WAL magro** (decisão + SHA, rejeição e no-op só aqui); `revert`; taxonomia fechada dos 7 tipos com escopo default | Uma escrita rejeitada por segredo aparece no WAL, não no disco; um `revert` volta o conteúdo e grava nova decisão | não |
-| **03** | `wm/03-superficies` | 02 | O `lumem-memory` como **núcleo com superfícies**: CLI e MCP sobre as mesmas funções, com o mesmo contrato de erro; escopos (você/workspace/projeto) e **shadow** por identidade; o **funil cross-projeto nasce aqui, desligado**, com registro de acesso | O mesmo comando responde igual pela CLI e pela tool; memória de projeto sombreia a de workspace, e o sombreamento vira evento | não |
+| **03** | `wm/03-superficies` | 02 | O `lumem-memory` como **núcleo com superfícies**: CLI e **router tRPC** sobre as mesmas funções, com o mesmo contrato de erro e o mesmo schema de entrada (o MCP vira a **terceira** superfície — ver E1 em [tasks.md](tasks.md)); escopos (você/workspace/projeto) e **shadow** por identidade; o **funil cross-projeto nasce aqui, desligado**, com registro de acesso | O mesmo comando responde igual pela CLI e pela superfície do daemon — `list` inclusive, que é o resolvido por shadow nas duas; memória de projeto sombreia a de workspace, e o sombreamento vira evento | não |
 | **04** | `wm/04-recall` | 03 | Índice FTS5 reconstruível; busca lexical com explicação; **sinal de uso** (`recall_count`, `last_recalled_at`, score); **instrumentação** do [§6 do context-delivery](context-delivery.md) | Buscar acha, diz por que achou, e o contador sobe. Os números de custo existem e são consultáveis | não |
 | **05** | `wm/05-inbox-ui` | 04 | Inbox de propostas (escrita de workspace, e o núcleo destilado da D1); tela de memória por escopo com o que sombreia o quê; linha do tempo com desfazer; os números do §6 na tela | Uma proposta vinda de agente é aprovada, editada ou rejeitada pela UI, e o `git log` mostra o resultado | não |
 
@@ -211,7 +211,7 @@ flowchart LR
 | **S2** — protótipo da UI | **C** | nada | 05 | **agora** |
 | **02** — portão de escrita | A | 01 (branch aberta) | 03, 07 | quando a 01 abrir PR |
 | **S1** — sinais de ação | C | 01 (branch aberta) | insumo do 07 | quando a 01 abrir PR |
-| **03** — superfícies (CLI + MCP) | A | 02 | 04, 08, 09 | quando a 02 abrir PR |
+| **03** — superfícies (CLI + router tRPC) | A | 02 | 04, 08, 09 | quando a 02 abrir PR |
 | **04** — recall + instrumentação | A | 03 | 05, 08 | quando a 03 abrir PR |
 | **05** — inbox + UI | A | 04 **e** S2 | o merge da guarda-chuva | quando as duas existirem |
 | **ACP-1** — transporte + tela | B | ACP-0 | 06, 07, 08, 09 | depois do spike |

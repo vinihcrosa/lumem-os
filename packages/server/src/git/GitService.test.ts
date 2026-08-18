@@ -136,3 +136,35 @@ describe("resolveDefaultBranch", () => {
     expect((failure as Error).message).toMatch(/not a git repository/i);
   });
 });
+
+describe("readLog", () => {
+  it("devolve o histórico no formato que quem chamou pediu, do mais novo ao mais velho", async () => {
+    const repo = await createRepo({ branch: "main" });
+    writeFileSync(join(repo, "a.ts"), "const a = 1;\n");
+    await runGit(repo, "add", "a.ts");
+    await runGit(repo, "commit", "-m", "feat: a");
+
+    const log = await git.readLog(repo, { format: "%s", limit: 10 });
+
+    expect(log.trim().split("\n")).toEqual(["feat: a", "initial"]);
+  });
+
+  it("para no limite pedido — uma varredura olha para trás, não até o começo", async () => {
+    const repo = await createRepo({ branch: "main" });
+    for (const name of ["a", "b"]) {
+      writeFileSync(join(repo, `${name}.ts`), "x\n");
+      await runGit(repo, "add", `${name}.ts`);
+      await runGit(repo, "commit", "-m", `feat: ${name}`);
+    }
+
+    const log = await git.readLog(repo, { format: "%s", limit: 1 });
+
+    expect(log.trim().split("\n")).toEqual(["feat: b"]);
+  });
+
+  it("fala com a voz do git num diretório que não é repositório", async () => {
+    await expect(git.readLog(createPlainDir(), { format: "%s", limit: 1 })).rejects.toMatchObject({
+      code: "GIT_FAILED",
+    });
+  });
+});

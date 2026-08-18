@@ -146,7 +146,14 @@ describe("attach", () => {
   it("sends the buffer before any new byte", async () => {
     const id = spawnSession("cat");
     ptyManager.write(id, "old-line\n");
-    await vi.waitFor(() => expect(ptyManager.snapshot(id)).toContain("old-line"), WAIT);
+    // **Duas** cópias, e não uma: o PTY ecoa a linha digitada, e só depois o
+    // `cat` a devolve pelo stdout. Esperar pela primeira ocorrência ancora o
+    // teste no eco e deixa a saída do `cat` chegar **depois** do attach — que é
+    // exatamente o byte que a asserção lá embaixo proíbe.
+    await vi.waitFor(
+      () => expect(ptyManager.snapshot(id).match(/old-line/g)).toHaveLength(2),
+      WAIT,
+    );
 
     const client = await TestClient.connect(id);
     await client.waitForMessage("attached");

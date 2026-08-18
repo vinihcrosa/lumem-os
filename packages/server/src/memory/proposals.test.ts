@@ -8,6 +8,7 @@ import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
 
 import { MemoryService } from "./MemoryService.js";
 import { ensureMemoryHome } from "./home.js";
+import { MEMORY_ACTORS, MEMORY_SCOPES, MEMORY_TYPES } from "./entry.js";
 import { requiresProposal } from "./proposals.js";
 
 const databases: TestDb[] = [];
@@ -33,12 +34,55 @@ const doWorkspace = {
   workspaceId: "ws1",
 };
 
-describe("requiresProposal", () => {
-  it("agente escrevendo no workspace precisa de revisão", () => {
-    expect(requiresProposal("agent", "workspace", "domain")).toBe(true);
-    expect(requiresProposal("auto_research", "workspace", "contract")).toBe(true);
+describe("requiresProposal — a matriz da Q27", () => {
+  const naoHumanos = MEMORY_ACTORS.filter((actor) => actor !== "human");
+
+  it("humano escreve qualquer tipo em qualquer escopo", () => {
+    for (const type of MEMORY_TYPES) {
+      for (const scope of MEMORY_SCOPES) {
+        expect(requiresProposal("human", scope, type)).toBe(false);
+      }
+    }
   });
 
+  it("os três tipos que valem para N projetos são proposta em qualquer escopo, para qualquer não-humano", () => {
+    // Um caso por tipo e por ator, e não só `contract` × `agent`: `auto_research`
+    // e `distiller` são exatamente os atores que o §7 do context-delivery cobre
+    // com "proposta sempre, independentemente da evidência".
+    for (const type of ["domain", "process", "contract"] as const) {
+      for (const actor of naoHumanos) {
+        for (const scope of MEMORY_SCOPES) {
+          expect(requiresProposal(actor, scope, type)).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("escrever para cima é proposta mesmo para os tipos que vão direto", () => {
+    // Só pelo tipo, um `project` gravado com `scope: "workspace"` subiria direto
+    // — e "escrita para cima é revisada" é a assimetria do §11. `global` entra
+    // junto porque é mais largo que `workspace` (Q27.1).
+    for (const type of ["user", "feedback", "project", "reference"] as const) {
+      for (const actor of naoHumanos) {
+        expect(requiresProposal(actor, "workspace", type)).toBe(true);
+        expect(requiresProposal(actor, "global", type)).toBe(true);
+      }
+    }
+  });
+
+  it("o que sobra indo direto é o escopo do próprio projeto, fora dos três tipos", () => {
+    for (const actor of naoHumanos) {
+      expect(requiresProposal(actor, "project", "project")).toBe(false);
+      expect(requiresProposal(actor, "project", "reference")).toBe(false);
+      // E o inverso, para o teste não passar por vacuidade: `user` e `feedback`
+      // não têm escopo de projeto como default, mas pedido explicitamente também
+      // vão direto — a regra é a dos dois eixos, não uma lista de tipos.
+      expect(requiresProposal(actor, "project", "user")).toBe(false);
+    }
+  });
+});
+
+describe("requiresProposal — o que a inbox acrescentou", () => {
   it("agente escrevendo memória de projeto vai direto — erra barato", () => {
     expect(requiresProposal("agent", "project", "project")).toBe(false);
     expect(requiresProposal("agent", "project", "reference")).toBe(false);
@@ -69,21 +113,9 @@ describe("requiresProposal", () => {
     expect(requiresProposal("auto_research", "global", "user")).toBe(true);
   });
 
-  it("cada ator não-humano cai na regra, e não só o `agent`", () => {
-    expect(requiresProposal("distiller", "workspace", "process")).toBe(true);
-    expect(requiresProposal("auto_research", "project", "domain")).toBe(true);
-    // `import` é você migrando dado seu: passa direto, como `human`. É o segundo
-    // bypass do ator declarado, e está nomeado na Q38.
-    expect(requiresProposal("import", "workspace", "domain")).toBe(false);
-  });
-
-  // A Decisão da Q27.1 é uma lista fechada: *só* `project` e `reference` no
-  // escopo de projeto passam direto. Escrito como lista negra, `feedback` com
-  // escopo explícito escapava — e `feedback` é o tipo com mais chance de ser
-  // conclusão em vez de fato.
-  it("tipo fora da lista branca é proposta mesmo no escopo de projeto", () => {
-    expect(requiresProposal("distiller", "project", "feedback")).toBe(true);
-    expect(requiresProposal("agent", "project", "user")).toBe(true);
+  it("`import` também é revisado — o que vem de fora não é mais confiável", () => {
+    expect(requiresProposal("import", "workspace", "domain")).toBe(true);
+    expect(requiresProposal("import", "project", "reference")).toBe(false);
   });
 });
 

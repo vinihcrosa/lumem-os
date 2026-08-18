@@ -6,9 +6,22 @@ import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
-import { MEMORY_HOME_DIRS, MEMORY_HOME_GITIGNORE, ensureMemoryHome } from "./home.js";
+import {
+  GITIGNORE_BEGIN,
+  GITIGNORE_END,
+  MEMORY_HOME_DIRS,
+  MEMORY_HOME_GITIGNORE_BLOCK,
+  ensureMemoryHome,
+  gitignoreWith,
+} from "./home.js";
 
 const run = promisify(execFile);
+
+/** `mkdir -p` que devolve o caminho, para caber numa linha de arranjo. */
+function ensureDir(path: string): string {
+  mkdirSync(path, { recursive: true });
+  return path;
+}
 
 /**
  * A real repository in a real directory.
@@ -50,6 +63,77 @@ async function ignoredIn(dir: string, path: string): Promise<boolean> {
 async function commitCount(dir: string): Promise<number> {
   return Number.parseInt(await git(dir, "rev-list", "--count", "HEAD"), 10);
 }
+
+/**
+ * A função que decide o conteúdo do `.gitignore`, testada direto.
+ *
+ * Pelos quatro ramos, e não só pelo boot: o ramo que faltava — marcador de
+ * abertura sem fechamento — só aparecia **dois boots** depois, quando o órfão
+ * deixado no topo virava o `begin` da passagem seguinte e o `slice` apagava
+ * tudo entre ele e o bloco recém-anexado. O daemon apagava regra do usuário e
+ * commitava a remoção.
+ */
+describe("gitignoreWith", () => {
+  const contando = (text: string, marker: string): number =>
+    text.split("\n").filter((line) => line === marker).length;
+
+  /** Um bloco íntegro entre linhas do usuário — o arquivo de quem já bootou. */
+  const integro = `node_modules/\n*.log\n\n${MEMORY_HOME_GITIGNORE_BLOCK}\n\n# depois do bloco\n*.tmp\n`;
+  /** Alguém apagou o fechamento à mão, ou um boot antigo deixou o órfão. */
+  const abertaSemFechar = `${GITIGNORE_BEGIN}\nlumem.db\n\n# regra preciosa\n*.local\n`;
+  /** O inverso: fechamento sem abertura. */
+  const fechadaSemAbrir = `# regra preciosa\n*.local\n${GITIGNORE_END}\n`;
+
+  it("arquivo ausente ou vazio recebe só o bloco", () => {
+    expect(gitignoreWith(null)).toBe(`${MEMORY_HOME_GITIGNORE_BLOCK}\n`);
+    expect(gitignoreWith("")).toBe(`${MEMORY_HOME_GITIGNORE_BLOCK}\n`);
+    expect(gitignoreWith("\n\n")).toBe(`${MEMORY_HOME_GITIGNORE_BLOCK}\n`);
+  });
+
+  it("bloco íntegro é substituído no lugar, e o resto do arquivo fica", () => {
+    const result = gitignoreWith(integro);
+
+    expect(result).toContain(MEMORY_HOME_GITIGNORE_BLOCK);
+    expect(result).toContain("node_modules/");
+    expect(result).toContain("# depois do bloco");
+    expect(result).toContain("*.tmp");
+    expect(contando(result, GITIGNORE_BEGIN)).toBe(1);
+    // A ordem do usuário é preservada: em `.gitignore` ordem tem semântica.
+    expect(result.indexOf("node_modules/")).toBeLessThan(result.indexOf(GITIGNORE_BEGIN));
+    expect(result.indexOf("# depois do bloco")).toBeGreaterThan(result.indexOf(GITIGNORE_END));
+  });
+
+  it("abertura órfã não engole o que vem depois dela", () => {
+    const result = gitignoreWith(abertaSemFechar);
+
+    // A regra do usuário estava **depois** do marcador sem par. Adivinhar que o
+    // bloco ia até o fim do arquivo custaria exatamente ela.
+    expect(result).toContain("# regra preciosa");
+    expect(result).toContain("*.local");
+    expect(contando(result, GITIGNORE_BEGIN)).toBe(1);
+    expect(contando(result, GITIGNORE_END)).toBe(1);
+    expect(result).toContain(MEMORY_HOME_GITIGNORE_BLOCK);
+  });
+
+  it("fechamento órfão também não sobrevive à passagem", () => {
+    const result = gitignoreWith(fechadaSemAbrir);
+
+    expect(result).toContain("# regra preciosa");
+    expect(result).toContain("*.local");
+    expect(contando(result, GITIGNORE_BEGIN)).toBe(1);
+    expect(contando(result, GITIGNORE_END)).toBe(1);
+  });
+
+  it("é idempotente em todos os ramos — aplicar sobre a própria saída não muda nada", () => {
+    for (const entrada of [null, "", "node_modules/\n", integro, abertaSemFechar, fechadaSemAbrir]) {
+      const uma = gitignoreWith(entrada);
+
+      // É esta propriedade, e não a inspeção do texto, que impede o defeito de
+      // voltar: um órfão que sobrevive à primeira passagem muda a segunda.
+      expect(gitignoreWith(uma), `não é idempotente para ${JSON.stringify(entrada)}`).toBe(uma);
+    }
+  });
+});
 
 describe("ensureMemoryHome", () => {
   it("cria a estrutura de diretórios num state dir vazio", async () => {
@@ -184,18 +268,88 @@ describe("ensureMemoryHome", () => {
     expect(await commitCount(stateDir)).toBe(1);
   });
 
-  it("conserta o .gitignore que alguém editou, e não inventa commit por isso", async () => {
+  it("repõe o bloco do daemon que alguém apagou, e preserva o resto do arquivo", async () => {
     const stateDir = join(tempDir("lumem-home-"), ".lumem");
     await ensureMemoryHome({ stateDir });
-    writeFileSync(join(stateDir, ".gitignore"), "# alguém apagou tudo\n");
+    writeFileSync(join(stateDir, ".gitignore"), "# regra minha\n*.local\n");
 
     const result = await ensureMemoryHome({ stateDir });
 
-    // O arquivo volta ao que o daemon escreve — e aí ele é idêntico ao que já
-    // está no HEAD. Commitar aqui seria commit vazio.
-    expect(readFileSync(join(stateDir, ".gitignore"), "utf8")).toBe(MEMORY_HOME_GITIGNORE);
-    expect(result.committed).toBe(false);
+    const text = readFileSync(join(stateDir, ".gitignore"), "utf8");
+    // O bloco do daemon volta; o que era do usuário continua lá. Adotar é
+    // adotar o que estava no diretório, e não reescrever por cima (P3).
+    expect(text).toContain(MEMORY_HOME_GITIGNORE_BLOCK);
+    expect(text).toContain("# regra minha");
+    expect(text).toContain("*.local");
+    expect(result.committed).toBe(true);
+  });
+
+  it("não toca no .gitignore do usuário além do próprio bloco", async () => {
+    const stateDir = join(tempDir("lumem-home-"), ".lumem");
+    await git(ensureDir(stateDir), "init", "-b", "main");
+    writeFileSync(join(stateDir, ".gitignore"), "node_modules/\n*.log\n");
+
+    await ensureMemoryHome({ stateDir });
+    const first = readFileSync(join(stateDir, ".gitignore"), "utf8");
+    await ensureMemoryHome({ stateDir });
+    const second = readFileSync(join(stateDir, ".gitignore"), "utf8");
+
+    expect(first.startsWith("node_modules/\n*.log\n")).toBe(true);
+    expect(first).toContain(MEMORY_HOME_GITIGNORE_BLOCK);
+    // Idempotente: o segundo boot não empilha um bloco novo.
+    expect(second).toBe(first);
+    expect(second.match(/# >>> lumem/g)).toHaveLength(1);
+  });
+
+  /**
+   * Dois boots sobre um `.gitignore` com marcador órfão — o caso que apagava
+   * regra do usuário **e commitava a remoção**.
+   *
+   * Boot 1 anexava um bloco novo e deixava o `BEGIN` órfão no topo; no boot 2 o
+   * `begin` achava o órfão, o `end` achava o fechamento do bloco anexado, e o
+   * `slice` levava tudo que estava no meio.
+   */
+  it("dois boots seguidos não comem a regra do usuário deixada sob marcador órfão", async () => {
+    const stateDir = join(tempDir("lumem-home-"), ".lumem");
+    await git(ensureDir(stateDir), "init", "-b", "main");
+    writeFileSync(
+      join(stateDir, ".gitignore"),
+      `${MEMORY_HOME_GITIGNORE_BLOCK.split("\n")[0]}\nlumem.db\n\n# regra preciosa\n*.local\n`,
+    );
+
+    const primeiro = await ensureMemoryHome({ stateDir });
+    const depoisDoPrimeiro = readFileSync(join(stateDir, ".gitignore"), "utf8");
+    const segundo = await ensureMemoryHome({ stateDir });
+
+    const texto = readFileSync(join(stateDir, ".gitignore"), "utf8");
+    expect(primeiro.committed).toBe(true);
+    expect(texto).toContain("# regra preciosa");
+    expect(texto).toContain("*.local");
+    expect(await ignoredIn(stateDir, "qualquer.local")).toBe(true);
+    // Nada mudou no segundo boot, então não há o que commitar: o daemon não
+    // reescreve o histórico do usuário com uma remoção que ele mesmo causou.
+    expect(texto).toBe(depoisDoPrimeiro);
+    expect(segundo.committed).toBe(false);
     expect(await commitCount(stateDir)).toBe(1);
+  });
+
+  /**
+   * O clone do caso que `repo.test.ts` já cobre para `commitChange`: sem o
+   * pathspec no **`commit`**, o `git add` que o usuário deixou pendente entra
+   * de carona no commit do daemon. O `add -- .gitignore` sozinho não protege
+   * nada aqui — o que estava no índice já estava no índice.
+   */
+  it("não leva no commit do .gitignore o que o usuário já tinha no índice", async () => {
+    const stateDir = join(tempDir("lumem-home-"), ".lumem");
+    await git(ensureDir(stateDir), "init", "-b", "main");
+    writeFileSync(join(stateDir, "anotacao-do-usuario.md"), "minha anotação\n");
+    await git(stateDir, "add", "anotacao-do-usuario.md");
+
+    await ensureMemoryHome({ stateDir });
+
+    expect(await git(stateDir, "show", "--name-only", "--format=", "HEAD")).toBe(".gitignore");
+    // E continua no índice, esperando o commit que é do usuário.
+    expect(await git(stateDir, "diff", "--cached", "--name-only")).toBe("anotacao-do-usuario.md");
   });
 
   it("commita quando o .gitignore commitado está desatualizado", async () => {

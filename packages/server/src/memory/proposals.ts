@@ -5,7 +5,7 @@ import type { Db } from "../db/index.js";
 import { memoryProposal, type MemoryProposalRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 
-import type { MemoryActor, MemoryScope, MemoryType } from "./entry.js";
+import { PROPOSAL_TYPES, type MemoryActor, type MemoryScope, type MemoryType } from "./entry.js";
 
 /**
  * Propostas — a inbox da Q27.
@@ -22,38 +22,34 @@ import type { MemoryActor, MemoryScope, MemoryType } from "./entry.js";
  * O que este módulo **não** garante: que `actor` seja verdade. Ele é declarado
  * por quem chama, e a superfície ainda não prova quem está do outro lado — a
  * pergunta, com o ponto de imposição nomeado, é a
- * [Q38](../../../../docs/prd/workspace-memory/open-questions.md). Enquanto ela
+ * [Q46](../../../../docs/prd/workspace-memory/open-questions.md). Enquanto ela
  * estiver aberta, o desvio protege contra engano, não contra quem quer burlá-lo.
  */
 
 /**
- * O que um ator não-humano pode gravar sem passar por você.
- *
- * **Lista branca, e não lista negra**, porque é a redação da Q27.1: *"só
- * `project` e `reference` dentro do escopo de projeto continuam diretos"*. Com o
- * critério escrito ao contrário — barrar `workspace`, `global` e os tipos de
- * workspace — sobrava uma fenda que ninguém decidiu: `feedback` com
- * `scope: "project"` explícito passava direto, e `feedback` é o tipo com mais
- * chance de ser conclusão em vez de fato.
- *
- * Estes dois erram barato: valem num projeto só, e o repositório desmente.
- */
-const DIRECT_TYPES: ReadonlySet<MemoryType> = new Set(["project", "reference"]);
-
-/** Atores que não são você. */
-const NON_HUMAN: ReadonlySet<MemoryActor> = new Set(["agent", "distiller", "auto_research"]);
-
-/**
  * Isto precisa de revisão antes de valer?
  *
- * Sim, para todo ator não-humano, **exceto** `project` e `reference` gravados no
- * escopo do próprio projeto. Isso cobre a Q27 (`domain`, `process` e `contract`
- * são proposta em qualquer escopo) e a Q27.1 (`global` é revisado junto com
- * `workspace`, porque é mais largo).
+ * A regra é a **união de dois eixos**, e é a mesma que a PR 03 já tinha posto
+ * como recusa provisória (`proposalRefusal`) — a PR 05 só troca a recusa pela
+ * inbox. Ela é uma função só de propósito: duas leituras da Q27 em dois lugares
+ * seriam dois sistemas discordando sobre o que precisa de revisão.
+ *
+ * - por **tipo** (Q27): `domain`, `process` e `contract` são proposta em
+ *   qualquer escopo. Só pelo escopo, um agente contornaria a regra pedindo
+ *   `scope: "project"` explícito para um `contract`;
+ * - por **escopo** (§11 do PRD, e a Q27.1): escrever em `workspace` ou `global`
+ *   é escrever para cima, e vale para N projetos qualquer que seja o tipo.
+ *
+ * Sobra indo direto o que a Q27 libera: tipo que não é dos três, no escopo do
+ * próprio projeto — erra barato, e o repositório desmente.
+ *
+ * E vale para **todo** ator que não é você, `import` incluído: importar é trazer
+ * dado de fora, e o que vem de fora não é mais confiável do que o que um agente
+ * concluiu.
  */
 export function requiresProposal(actor: MemoryActor, scope: MemoryScope, type: MemoryType): boolean {
-  if (!NON_HUMAN.has(actor)) return false;
-  return !(scope === "project" && DIRECT_TYPES.has(type));
+  if (actor === "human") return false;
+  return PROPOSAL_TYPES.includes(type) || scope !== "project";
 }
 
 export interface CreateProposalInput {

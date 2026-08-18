@@ -1,12 +1,18 @@
+import { rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { newId } from "@lumem/shared";
+import { eq, sql } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { Db } from "../db/index.js";
+import { memorySignal } from "../db/schema.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
 
 import { MemoryService } from "./MemoryService.js";
 import { ensureMemoryHome } from "./home.js";
+import { indexEntry, indexIsStale } from "./recall.js";
 
 const databases: TestDb[] = [];
 
@@ -20,7 +26,14 @@ async function service() {
   await ensureMemoryHome({ stateDir });
   const db = openTestDb();
   databases.push(db);
-  return { memory: new MemoryService({ db: db.db, stateDir }), stateDir };
+  const warnings: unknown[] = [];
+  const log = { warn: (payload: unknown) => warnings.push(payload) };
+  return {
+    memory: new MemoryService({ db: db.db, stateDir, log }),
+    stateDir,
+    db: db.db,
+    warnings,
+  };
 }
 
 async function seed(memory: MemoryService) {
@@ -48,6 +61,45 @@ async function seed(memory: MemoryService) {
     body: "Sem preâmbulo.",
     actor: "human",
   });
+}
+
+/** O sinal de um caminho. Por caminho, e não por ordem de inserção. */
+function signalOf(db: Db, path: string) {
+  return db.select().from(memorySignal).where(eq(memorySignal.path, path)).get();
+}
+
+/** Envelhece uma memória no catálogo. É a recência virando dado de teste. */
+function age(db: Db, slug: string, days: number): void {
+  db.run(
+    sql`UPDATE memory_entry SET updated_at = ${Date.now() - days * 86_400_000} WHERE slug = ${slug}`,
+  );
+}
+
+/**
+ * Enfia memórias direto no catálogo e no índice, sem passar pelo disco.
+ *
+ * É o único jeito de montar um acervo grande o bastante para provar o corte do
+ * `MATCH` sem pagar um commit git por linha.
+ */
+function bulk(
+  db: Db,
+  count: number,
+  workspaceId: string,
+  text: string,
+  { prefix = "ruido", body = text }: { prefix?: string; body?: string } = {},
+): void {
+  for (let index = 0; index < count; index += 1) {
+    const slug = `${prefix}-${index}`;
+    const path = `workspaces/${workspaceId}/memory/domain/${slug}.md`;
+    db.run(
+      sql`INSERT INTO memory_entry
+          (id, path, type, scope, slug, workspace_id, project_id, name, description,
+           source_actor, confidence, content_hash)
+          VALUES (${newId()}, ${path}, 'domain', 'workspace', ${slug},
+                  ${workspaceId}, '', ${text}, ${text}, 'human', 'medium', ${`${path}-hash`})`,
+    );
+    indexEntry(db, path, text, text, slug, body);
+  }
 }
 
 describe("busca lexical", () => {
@@ -81,6 +133,22 @@ describe("busca lexical", () => {
     // resposta. Devolver vazio **com motivo** é diferente de "não achei nada".
     expect(result.skipped).toBe("trivial_query");
     expect(result.hits).toHaveLength(0);
+  });
+
+  it("termo curto e alfabeto não latino são termos, não query trivial", async () => {
+    const { memory } = await service();
+    await seed(memory);
+
+    // O índice é `unicode61` e aceita qualquer alfabeto. Cortar em `a-z0-9` e em
+    // três caracteres fazia a busca responder "não busquei porque é trivial"
+    // quando o que houve foi falha de tokenização.
+    expect(memory.search("ui do editor").skipped).toBeNull();
+    expect(memory.search("api v2").skipped).toBeNull();
+    expect(memory.search("デプロイ 設定").skipped).toBeNull();
+    expect(memory.search("как настроить контейнер").skipped).toBeNull();
+
+    // Mas o corte é em 2: uma letra solta não é termo, é sobra de digitação.
+    expect(memory.search("x y").skipped).toBe("trivial_query");
   });
 
   it("cada resultado diz por que apareceu", async () => {
@@ -136,47 +204,569 @@ describe("busca lexical", () => {
     expect(hits[0]?.entry.scope).toBe("project");
   });
 
+  it("candidato invisível não consome a vaga do visível", async () => {
+    const { memory, db } = await service();
+    await memory.write({
+      name: "Rollback do checkout",
+      description: "como fazer rollback do checkout em produção",
+      type: "process",
+      body: "reverte o deploy e avisa o time",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+    // Sessenta memórias de outro workspace casando **melhor** que a visível: o
+    // corte no SQL antes do filtro de escopo devolvia `hits: 0` aqui.
+    bulk(db, 60, "ws2", "rollback checkout rollback checkout");
+
+    const hits = memory.search("rollback checkout", { workspaceId: "ws1" }).hits;
+
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.entry.slug).toBe("rollback-do-checkout");
+  });
+
+  it("respeita o limite pedido", async () => {
+    const { memory, db } = await service();
+    bulk(db, 6, "ws1", "deploy do carrinho");
+
+    expect(memory.search("deploy carrinho", { workspaceId: "ws1" }).hits).toHaveLength(5);
+    expect(
+      memory.search("deploy carrinho", { workspaceId: "ws1", limit: 2 }).hits,
+    ).toHaveLength(2);
+  });
+
   it("apagar tira do índice", async () => {
-    const { memory } = await service();
+    const { memory, db } = await service();
     await seed(memory);
 
     await memory.forget("user", "Estilo de revisão");
 
     expect(memory.search("revisao estilo").hits).toHaveLength(0);
+    // E tira **do índice**, não só do catálogo: linha órfã no FTS5 deixa o
+    // índice atrasado em relação à lista, que é o que o boot tem que consertar.
+    expect(indexIsStale(db)).toBe(false);
   });
 
-  it("reindex reconstrói o índice junto do catálogo", async () => {
-    const { memory } = await service();
+  it("reindex tira do índice o que sumiu do disco", async () => {
+    const { memory, db, stateDir } = await service();
     await seed(memory);
-    memory.search("checkout consome", { workspaceId: "ws1" });
+    const alvo = memory.list().find((row) => row.slug === "estilo-de-revisao");
+    await rm(join(stateDir, alvo?.path ?? ""), { force: true });
+
+    await memory.reindex();
+
+    // Refazer entrada por entrada deixaria a linha do arquivo que sumiu para
+    // trás: o índice tem que ser **refeito**, não remendado.
+    expect(indexIsStale(db)).toBe(false);
+    expect(memory.search("revisao estilo").hits).toHaveLength(0);
+  });
+
+  it("índice ausente não se declara em dia, e a busca avisa", async () => {
+    const { memory, db } = await service();
+    await seed(memory);
+
+    // Todo banco anterior a esta feature é isto: catálogo de pé, índice nunca
+    // criado. Preencher a partir do catálogo faria as contagens baterem com um
+    // índice **sem corpo** — atrasado para sempre e se dizendo em dia.
+    db.run(sql`DROP TABLE memory_fts`);
+
+    const antes = memory.search("checkout consome", { workspaceId: "ws1" });
+    expect(antes.staleIndex).toBe(true);
+
+    // E o estado sobrevive à busca: quem chegar depois — o boot, a CLI — ainda
+    // encontra o índice se declarando atrasado, e conserta.
+    expect(indexIsStale(db)).toBe(true);
+    await memory.ensureIndexFresh();
+    const depois = memory.search("checkout consome", { workspaceId: "ws1" });
+    expect(depois.hits).toHaveLength(1);
+    expect(depois.staleIndex).toBe(false);
+  });
+
+  it("escrever num banco legado não falsifica o frescor do índice", async () => {
+    const { memory, db } = await service();
+    await seed(memory);
+    db.run(sql`DROP TABLE memory_fts`);
+
+    // Uma escrita indexa **uma** memória. Se ela deixasse o índice "em dia", as
+    // outras três nunca mais seriam encontráveis e ninguém voltaria para ver.
+    await memory.write({
+      name: "Nota nova",
+      description: "escrita depois do índice sumir",
+      type: "user",
+      body: "texto",
+      actor: "human",
+    });
+
+    expect(indexIsStale(db)).toBe(true);
+    const { rebuilt, indexed } = await memory.ensureIndexFresh();
+    expect(rebuilt).toBe(true);
+    expect(indexed).toBe(4);
+    // Pelo corpo: só volta se o reparo releu o disco.
+    expect(
+      memory.search("playwright completo", { workspaceId: "ws1", projectId: "p1" }).hits,
+    ).toHaveLength(1);
+  });
+
+  it("memória ilegível no reparo de boot vira falha e vira log", async () => {
+    const { memory, stateDir, db, warnings } = await service();
+    await seed(memory);
+    const alvo = memory.list().find((row) => row.slug === "estilo-de-revisao");
+    await writeFile(join(stateDir, alvo?.path ?? ""), "isto não é uma memória", "utf8");
+    db.run(sql`DROP TABLE memory_fts`);
+
+    const { failures } = await memory.ensureIndexFresh();
+
+    // O reindex **substitui** o catálogo: memória que não pôde ser lida some da
+    // lista e da busca. Sumir sem uma linha de log é o defeito.
+    expect(failures.map((failure) => failure.path)).toContain(alvo?.path);
+    expect(warnings).toHaveLength(1);
+  });
+
+  it("query trivial num banco sem índice também avisa do atraso", async () => {
+    const { memory, db } = await service();
+    await seed(memory);
+    db.run(sql`DROP TABLE memory_fts`);
+
+    // Não buscar e buscar num índice atrasado são motivos diferentes, e quem
+    // pergunta precisa dos dois — não do primeiro escondendo o segundo.
+    const result = memory.search("gate");
+
+    expect(result.skipped).toBe("trivial_query");
+    expect(result.staleIndex).toBe(true);
+  });
+
+  it("linha órfã no índice também é atraso", async () => {
+    const { memory, db } = await service();
+    await seed(memory);
+    indexEntry(db, "workspaces/ws1/memory/user_fantasma.md", "Fantasma", "não existe", "fantasma", "");
+
+    // Atraso não é só "falta"; é **divergência**. Comparar só a existência da
+    // tabela deixaria passar índice com linha a mais.
+    expect(indexIsStale(db)).toBe(true);
+    expect(memory.search("checkout consome", { workspaceId: "ws1" }).staleIndex).toBe(true);
+  });
+
+  it("reindex reconstrói o índice do zero, com corpo e tudo", async () => {
+    const { memory, db } = await service();
+    await seed(memory);
+    db.run(sql`DROP TABLE memory_fts`);
 
     await memory.reindex();
 
     // Um reindex que deixasse o FTS5 para trás produziria busca que não acha o
-    // que a lista mostra.
+    // que a lista mostra. E o corpo só volta se o reindex reler o disco: o
+    // catálogo não guarda texto.
     expect(memory.search("checkout consome", { workspaceId: "ws1" }).hits).toHaveLength(1);
+    expect(
+      memory.search("playwright completo", { workspaceId: "ws1", projectId: "p1" }).hits,
+    ).toHaveLength(1);
+  });
+});
+
+describe("índice derivado", () => {
+  it("o boot reconstrói o índice quando ele está atrasado", async () => {
+    const { memory, db } = await service();
+    await seed(memory);
+    db.run(sql`DROP TABLE memory_fts`);
+
+    const primeiro = await memory.ensureIndexFresh();
+    const segundo = await memory.ensureIndexFresh();
+
+    expect(primeiro.rebuilt).toBe(true);
+    expect(primeiro.indexed).toBe(3);
+    // Idempotente: índice em dia não paga leitura de disco nenhuma.
+    expect(segundo).toEqual({ rebuilt: false, indexed: 0, failures: [] });
+    expect(
+      memory.search("playwright completo", { workspaceId: "ws1", projectId: "p1" }).hits,
+    ).toHaveLength(1);
+  });
+});
+
+describe("ranking", () => {
+  it("casamento forte e antigo ganha de casamento fraco e recente", async () => {
+    const { memory, db } = await service();
+    // O acervo de fundo não é enfeite: com dois documentos o IDF do BM25 colapsa
+    // e todo mundo tira zero. É preciso acervo para haver termo raro.
+    bulk(db, 20, "ws1", "assunto qualquer sem relacao");
+    await memory.write({
+      name: "Rollback do checkout",
+      description: "como fazer rollback do checkout em produção",
+      type: "process",
+      body: "rollback do checkout, passo a passo",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+    await memory.write({
+      name: "Nota solta",
+      description: "lembrete sem assunto",
+      type: "user",
+      body: "rollback",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+    age(db, "rollback-do-checkout", 90);
+
+    const hits = memory.search("rollback checkout", { workspaceId: "ws1" }).hits;
+
+    // O peso maior é o lexical: recência é desempate, não critério. Se o score
+    // fosse a recência, a nota solta de hoje venceria a resposta da pergunta.
+    expect(hits[0]?.entry.slug).toBe("rollback-do-checkout");
+  });
+
+  it("com o mesmo casamento lexical, a mais recente ganha", async () => {
+    const { memory, db } = await service();
+    await memory.write({
+      name: "Alpha um",
+      description: "deploy do carrinho",
+      type: "process",
+      body: "",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+    await memory.write({
+      name: "Alpha dois",
+      description: "deploy do carrinho",
+      type: "process",
+      body: "",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+    age(db, "alpha-um", 60);
+
+    const hits = memory.search("deploy carrinho", { workspaceId: "ws1" }).hits;
+
+    expect(hits.map((hit) => hit.entry.slug)).toEqual(["alpha-dois", "alpha-um"]);
+    // Empate é casamento **cheio** para os dois, não zero para os dois: quem
+    // decide é a recência, e o lexical não pode virar penalidade silenciosa.
+    for (const hit of hits) expect(hit.why).toContain("lexical=1.000");
+  });
+
+  it("o conjunto de candidatos não encolhe com o limite pedido", async () => {
+    const { memory, db } = await service();
+    // Mais linhas casando do que cabe numa página, e a única memória fresca no
+    // **fim** da fila do bm25: um pool que encolhe com o `limit` para de paginar
+    // antes de chegar nela, e devolve outra resposta para a mesma pergunta.
+    // Documento mais longo tem bm25 **menor**, então a fila abaixo é ordenada por
+    // score e não pelo desempate por rowid do SQLite, que não é ordem documentada
+    // e um dia muda debaixo do teste.
+    bulk(db, 120, "ws2", "rollback checkout");
+    bulk(db, 29, "ws1", "rollback checkout");
+    bulk(db, 1, "ws1", "rollback checkout", {
+      prefix: "recente",
+      body: "rollback checkout um tico mais longo",
+    });
+    // O pior de todos, e visível: sem ele a memória fresca seria o mínimo do
+    // conjunto, levaria `lexical = 0` e perderia por construção.
+    bulk(db, 1, "ws1", "rollback checkout", {
+      prefix: "pior",
+      body: `rollback checkout ${"palavra irrelevante ".repeat(60)}`,
+    });
+    for (const row of memory.list()) {
+      if (row.workspaceId === "ws1" && row.slug !== "recente-0") age(db, row.slug, 400);
+    }
+
+    const cinco = memory.search("rollback checkout", { workspaceId: "ws1", limit: 5 }).hits;
+    const vinte = memory.search("rollback checkout", { workspaceId: "ws1", limit: 20 }).hits;
+
+    expect(cinco[0]?.entry.slug).toBe("recente-0");
+    expect(vinte[0]?.entry.slug).toBe("recente-0");
+  });
+
+  it("limite fora de faixa vira faixa, não vira lista vazia", async () => {
+    const { memory, db } = await service();
+    // Invisíveis primeiro, de propósito: o pool só passa de `MAX_LIMIT` quando
+    // a primeira página é gasta com quem o escopo não enxerga. Com 60 visíveis
+    // e nada invisível, o pool para em 50 e a asserção do teto mediria o pool.
+    bulk(db, 40, "ws2", "deploy do carrinho");
+    bulk(db, 60, "ws1", "deploy do carrinho");
+
+    // `slice(0, 0)` devolve nada e `slice(0, -1)` come o último: limite que
+    // chega torto do chamador não pode virar "não achei".
+    expect(memory.search("deploy carrinho", { workspaceId: "ws1", limit: 0 }).hits).toHaveLength(1);
+    expect(memory.search("deploy carrinho", { workspaceId: "ws1", limit: -3 }).hits).toHaveLength(1);
+    expect(
+      memory.search("deploy carrinho", { workspaceId: "ws1", limit: Number.NaN }).hits,
+    ).toHaveLength(5);
+    // E o teto vive no núcleo, não só no Zod do router.
+    expect(
+      memory.search("deploy carrinho", { workspaceId: "ws1", limit: 999 }).hits,
+    ).toHaveLength(50);
+  });
+
+  it("o limite pedido não muda quem está no topo", async () => {
+    const { memory, db } = await service();
+    bulk(db, 20, "ws1", "assunto qualquer sem relacao");
+    await memory.write({
+      name: "Rollback checkout completo",
+      description: "rollback checkout rollback checkout",
+      type: "process",
+      body: "rollback checkout rollback checkout",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+    await memory.write({
+      name: "Rollback checkout parcial",
+      description: "rollback checkout",
+      type: "process",
+      body: "rollback do checkout",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+    await memory.write({
+      name: "Nota de rollback",
+      description: "menciona rollback de leve",
+      type: "user",
+      body: "rollback",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+    age(db, "rollback-checkout-completo", 120);
+
+    const cinco = memory.search("rollback checkout", { workspaceId: "ws1" }).hits;
+    const um = memory.search("rollback checkout", { workspaceId: "ws1", limit: 1 }).hits;
+
+    // O pool de candidatos é fixo de propósito: min–max é escala, e um pool que
+    // encolhe com o `limit` faria "mostre menos" trocar o primeiro colocado.
+    expect(um[0]?.entry.slug).toBe(cinco[0]?.entry.slug);
+    expect(um[0]?.entry.slug).toBe("rollback-checkout-parcial");
+  });
+
+  it("casamento na descrição vale mais que casamento no corpo", async () => {
+    const { memory, db } = await service();
+    bulk(db, 20, "ws1", "assunto qualquer sem relacao");
+    await memory.write({
+      name: "Alpha um",
+      description: "estorno duplicado",
+      type: "process",
+      body: "nada relevante",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+    await memory.write({
+      name: "Alpha dois",
+      description: "nada relevante",
+      type: "process",
+      body: "estorno duplicado",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+
+    const hits = memory.search("estorno duplicado", { workspaceId: "ws1" }).hits;
+
+    // Descrição pesa 3, corpo pesa 1 — e as duas memórias são simétricas em
+    // tudo o mais. Sem os pesos por coluna elas empatariam, e a segunda, por ser
+    // a mais recente, ganharia o desempate.
+    expect(hits[0]?.entry.slug).toBe("alpha-um");
+  });
+
+  it("casamento no nome vale mais que casamento na descrição", async () => {
+    const { memory, db } = await service();
+    bulk(db, 20, "ws1", "assunto qualquer sem relacao");
+    await memory.write({
+      name: "Estorno duplicado",
+      description: "texto neutro comum",
+      type: "process",
+      body: "nada relevante",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+    await memory.write({
+      name: "Alpha dois",
+      description: "estorno duplicado",
+      type: "process",
+      body: "nada relevante",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+
+    const hits = memory.search("estorno duplicado", { workspaceId: "ws1" }).hits;
+
+    // Nome pesa 4, descrição 3 — e a segunda memória é a **mais recente**, então
+    // sem o peso de `name` ela ganharia no desempate da recência.
+    expect(hits[0]?.entry.slug).toBe("estorno-duplicado");
+  });
+
+  it("a recência cai pela metade em catorze dias", async () => {
+    const { memory, db } = await service();
+    await seed(memory);
+    age(db, "contrato-de-checkout", 14);
+
+    const [hit] = memory.search("checkout consome", { workspaceId: "ws1" }).hits;
+
+    // A meia-vida é 14 dias. Escrita como número no `why`, ela para de ser
+    // constante que ninguém confere.
+    expect(hit?.why).toContain("recencia=0.500");
+  });
+
+  it("o lexical entra normalizado, na mesma escala dos outros dois", async () => {
+    const { memory, db } = await service();
+    bulk(db, 20, "ws1", "assunto qualquer sem relacao");
+    await memory.write({
+      name: "Rollback do checkout",
+      description: "como fazer rollback do checkout em produção",
+      type: "process",
+      body: "rollback do checkout, passo a passo",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+    await memory.write({
+      name: "Nota solta",
+      description: "lembrete sem assunto",
+      type: "user",
+      body: "rollback",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+
+    const hits = memory.search("rollback checkout", { workspaceId: "ws1" }).hits;
+    const value = (hit: (typeof hits)[number] | undefined, key: string) =>
+      Number((hit?.why.find((line) => line.startsWith(`${key}=`)) ?? "").split("=")[1]);
+
+    // Somar bm25 cru a uma recência em [0, 1] é somar escalas incompatíveis: ou
+    // o lexical é ruído, ou ele engole os outros dois. Nunca os três juntos.
+    expect(value(hits[0], "bm25")).toBeGreaterThan(value(hits[1], "bm25"));
+    expect(value(hits[0], "lexical")).toBe(1);
+    expect(value(hits[1], "lexical")).toBe(0);
+    for (const hit of hits) {
+      expect(value(hit, "score")).toBeCloseTo(
+        0.7 * value(hit, "lexical") + 0.2 * value(hit, "recencia") + 0.1 * value(hit, "uso"),
+        3,
+      );
+    }
   });
 });
 
 describe("sinal de uso", () => {
   it("recuperar sobe o contador da memória recuperada", async () => {
-    const { memory } = await service();
+    const { memory, db } = await service();
+    await seed(memory);
+
+    memory.search("checkout consome", { workspaceId: "ws1", record: true });
+    const [hit] = memory.search("checkout consome", { workspaceId: "ws1", record: true }).hits;
+
+    const [signal] = db.select().from(memorySignal).all();
+    expect(signal?.path).toContain("contrato-de-checkout");
+    expect(signal?.recallCount).toBe(2);
+    expect(signal?.lastRecalledAt).not.toBeNull();
+    // Na segunda busca o sinal da primeira já conta: 1 de 3 recuperações.
+    expect(hit?.why).toContain("uso=0.333");
+  });
+
+  it("busca de inspeção não registra — o contador mede uso, não refetch", async () => {
+    const { memory, db } = await service();
     await seed(memory);
 
     memory.search("checkout consome", { workspaceId: "ws1" });
-    memory.search("checkout consome", { workspaceId: "ws1" });
 
-    const summary = memory.usageSummary();
-    const recallRow = summary.find((row) => row.kind === "recall");
+    expect(db.select().from(memorySignal).all()).toHaveLength(0);
+    expect(memory.usageSummary()).toHaveLength(0);
+  });
+
+  it("apagar apaga o sinal junto", async () => {
+    const { memory, db } = await service();
+    await seed(memory);
+    memory.search("checkout consome", { workspaceId: "ws1", record: true });
+
+    await memory.forget("contract", "Contrato de checkout", undefined, { workspaceId: "ws1" });
+
+    // O caminho é derivado de `(tipo, slug)`: sem isto, a memória recriada com o
+    // mesmo nome herda o contador da apagada.
+    expect(db.select().from(memorySignal).all()).toHaveLength(0);
+  });
+
+  it("os números do §6 contam evento, resultado e sessão", async () => {
+    const { memory } = await service();
+    await seed(memory);
+
+    memory.search("checkout consome", { workspaceId: "ws1", record: true, sessionId: "s1" });
+    memory.search("checkout consome", { workspaceId: "ws1", record: true, sessionId: "s2" });
+
+    const recallRow = memory.usageSummary().find((row) => row.kind === "recall");
     expect(recallRow?.events).toBe(2);
     expect(recallRow?.totalAmount).toBe(2);
+    expect(recallRow?.sessions).toBe(2);
+  });
+
+  it("sessão repetida conta uma vez, e sem sessão não conta nenhuma", async () => {
+    const { memory } = await service();
+    await seed(memory);
+
+    memory.search("checkout consome", { workspaceId: "ws1", record: true, sessionId: "s1" });
+    memory.search("checkout consome", { workspaceId: "ws1", record: true, sessionId: "s1" });
+    memory.search("checkout consome", { workspaceId: "ws1", record: true });
+
+    // "Quantas perguntas" e "de quantas sessões" são números diferentes, e é a
+    // distância entre eles que o §6 lê.
+    const recallRow = memory.usageSummary().find((row) => row.kind === "recall");
+    expect(recallRow?.events).toBe(3);
+    expect(recallRow?.sessions).toBe(1);
+  });
+
+  it("desfazer uma criação apaga o sinal junto", async () => {
+    const { memory, db } = await service();
+    await seed(memory);
+    memory.search("checkout consome", { workspaceId: "ws1", record: true });
+    const [signal] = db.select().from(memorySignal).all();
+
+    await memory.revert(signal?.path ?? "");
+
+    // Reverter a criação **apaga** a memória, e o caminho é derivado de
+    // `(tipo, slug)`: o contador não pode sobreviver para ser herdado.
+    expect(db.select().from(memorySignal).all()).toHaveLength(0);
+  });
+
+  it("o melhor score guardado é o bm25 cru, não o normalizado", async () => {
+    const { memory, db } = await service();
+    await seed(memory);
+
+    const [hit] = memory.search("checkout consome", { workspaceId: "ws1", record: true }).hits;
+
+    // Resultado único tira lexical=1 e score ≥ 0,7 por construção. Guardar isso
+    // faria `best_score` saturar para qualquer memória — e ele é o critério
+    // objetivo da poda da Q25.
+    expect(hit?.why).toContain("lexical=1.000");
+    const [signal] = db.select().from(memorySignal).all();
+    expect(signal?.bestScore).toBe(hit?.bm25);
+    expect(signal?.bestScore).not.toBe(hit?.score);
+  });
+
+  it("o melhor score é o melhor, não o último", async () => {
+    const { memory, db } = await service();
+    bulk(db, 20, "ws1", "assunto qualquer sem relacao");
+    await memory.write({
+      name: "Estorno duplicado",
+      description: "estorno duplicado no fechamento",
+      type: "process",
+      body: "estorno duplicado",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+
+    memory.search("estorno duplicado", { workspaceId: "ws1", record: true });
+    const alvo = memory.list().find((row) => row.slug === "estorno-duplicado")?.path ?? "";
+    const forte = signalOf(db, alvo)?.bestScore ?? 0;
+    memory.search("estorno assunto", { workspaceId: "ws1", record: true });
+
+    // Guardar o último faria uma busca fraca **apagar** a evidência de que a
+    // memória já respondeu bem a alguma pergunta.
+    expect(signalOf(db, alvo)?.bestScore).toBe(forte);
+  });
+
+  it("só o que voltou ganha sinal", async () => {
+    const { memory, db } = await service();
+    bulk(db, 6, "ws1", "deploy do carrinho");
+
+    memory.search("deploy carrinho", { workspaceId: "ws1", limit: 1, record: true });
+
+    // Candidato considerado não é candidato devolvido: contar quem ficou de
+    // fora inflaria o critério da poda com memória que ninguém viu.
+    expect(db.select().from(memorySignal).all()).toHaveLength(1);
   });
 
   it("query trivial também é registrada — saber que ninguém achou nada importa", async () => {
     const { memory } = await service();
     await seed(memory);
 
-    memory.search("gate");
+    memory.search("gate", { record: true });
 
     const recallRow = memory.usageSummary().find((row) => row.kind === "recall");
     expect(recallRow?.events).toBe(1);
@@ -186,8 +776,8 @@ describe("sinal de uso", () => {
   it("o resumo separa por tipo de uso", async () => {
     const { memory } = await service();
     await seed(memory);
-    memory.search("checkout consome", { workspaceId: "ws1" });
-    memory.recordUsage("inject", 1_800);
+    memory.search("checkout consome", { workspaceId: "ws1", record: true });
+    memory.recordUsage("inject", 1_800, 0, { sessionId: "s1", workspaceId: "ws1" });
 
     const kinds = memory.usageSummary().map((row) => row.kind);
 

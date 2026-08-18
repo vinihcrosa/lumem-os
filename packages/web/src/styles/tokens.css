@@ -155,6 +155,7 @@
   --color-git-removed: var(--danger-400);
   --color-git-modified: var(--warning-400);
   /* dominio — hierarquia e daemon */
+  --color-scope-global: var(--info-400);
   --color-scope-workspace: var(--brand-400);
   --color-scope-project: var(--neutral-400);
   --color-scope-worktree: var(--accent-400);

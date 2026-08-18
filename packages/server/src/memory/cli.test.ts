@@ -1,8 +1,9 @@
 import { execFile } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
+import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
@@ -30,6 +31,21 @@ function cli() {
 
   return {
     stateDir,
+    /** Simula o banco anterior à busca: catálogo de pé, índice nunca criado. */
+    dropIndex() {
+      const sqlite = new Database(join(stateDir, "lumem.db"));
+      sqlite.exec("DROP TABLE IF EXISTS memory_fts");
+      sqlite.close();
+    },
+    /** O índice existe? Estado, e não saída — é o que distingue reparo de silêncio. */
+    hasIndex() {
+      const sqlite = new Database(join(stateDir, "lumem.db"));
+      const rows = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'memory_fts'")
+        .all();
+      sqlite.close();
+      return rows.length > 0;
+    },
     get out() {
       return out;
     },
@@ -81,8 +97,13 @@ describe("lumem-memory", () => {
     expect(await app.run("read", "--name", "Estilo de revisão", "--type", "user")).toBe(0);
     expect(app.out).toContain("Achado primeiro.");
 
+    // `list` é o que o escopo enxerga — igual ao router. Sem `--workspace`, o
+    // escopo ativo é só o global, e a memória de `ws1` não pertence a ele.
     expect(await app.run("list")).toBe(0);
     expect(app.out).toContain("global    user      Estilo de revisão");
+    expect(app.out).not.toContain("Contrato de checkout");
+
+    expect(await app.run("list", "--workspace", "ws1")).toBe(0);
     expect(app.out).toContain("workspace contract  Contrato de checkout");
 
     expect(await app.run("reindex")).toBe(0);
@@ -148,6 +169,146 @@ describe("lumem-memory", () => {
     expect(app.out).toContain("primeira");
   });
 
+  it("`decisions --path` mostra só o caminho pedido", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Regra", "--type", "user", "--body", "primeira");
+    await app.run("write", "--name", "Outra", "--type", "user", "--body", "segunda");
+
+    // `out` acumula entre comandos, então o que importa é só o que saiu daqui.
+    const antes = app.out.length;
+    expect(await app.run("decisions", "--path", "memory/user_regra.md")).toBe(0);
+    const listagem = app.out.slice(antes);
+
+    expect(listagem).toContain("memory/user_regra.md");
+    // Sem o filtro chegando ao SQL, `--path` seria decoração: sairia o topo do
+    // histórico inteiro, recortado pelo limite.
+    expect(listagem).not.toContain("memory/user_outra.md");
+  });
+
+  it("`forget` deixa o rastro de quem pediu, não só o commit", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Regra", "--type", "user", "--body", "primeira");
+
+    expect(await app.run("forget", "--name", "Regra", "--type", "user")).toBe(0);
+
+    const antes = app.out.length;
+    expect(await app.run("decisions", "--path", "memory/user_regra.md")).toBe(0);
+
+    expect(app.out.slice(antes)).toContain("delete");
+  });
+
+  /**
+   * A fronteira de escrita, que é o que a A9 pede e o que faltava: as flags
+   * entravam por `as` e ninguém validava nada. Cada caso abaixo **gravava e
+   * commitava** um arquivo que o próprio `read` recusa depois — memória que o
+   * sistema escreve e não consegue ler de volta.
+   */
+  it("recusa ator fora da lista, sem gravar nem commitar", async () => {
+    const app = cli();
+
+    expect(await app.run("write", "--name", "X", "--type", "user", "--actor", "hacker")).toBe(1);
+    expect(app.err).toContain("ator inválido");
+    expect(existsSync(join(app.stateDir, "memory", "user_x.md"))).toBe(false);
+  });
+
+  it("recusa escopo fora da lista com erro de domínio, e não com TypeError", async () => {
+    const app = cli();
+
+    expect(await app.run("write", "--name", "X", "--type", "user", "--scope", "worktree")).toBe(1);
+    // O sufixo, e não só o prefixo: `memoryDirFor` lança `DomainError` com a
+    // mesma abertura de mensagem, então "escopo inválido" sozinho passa mesmo
+    // sem o `asScope` — a lista de opções é o que só a CLI produz.
+    expect(app.err).toContain("escopo inválido: worktree. Um de: global, workspace, project");
+    expect(app.err).not.toContain("path");
+  });
+
+  it("recusa descrição vazia", async () => {
+    const app = cli();
+
+    expect(await app.run("write", "--name", "X", "--type", "user", "--description", "")).toBe(1);
+    expect(app.err).toContain("description");
+    expect(existsSync(join(app.stateDir, "memory", "user_x.md"))).toBe(false);
+  });
+
+  it("valor começado por traço é valor, e não flag nova", async () => {
+    const app = cli();
+
+    expect(
+      await app.run("write", "--name", "Regra", "--type", "user", "--body", "--- regra importante"),
+    ).toBe(0);
+    expect(await app.run("read", "--name", "Regra", "--type", "user")).toBe(0);
+    // Antes, o corpo virava o literal `"true"` e o comando saía 0 sem avisar.
+    expect(app.out).toContain("--- regra importante");
+  });
+
+  it("aceita a forma --flag=valor", async () => {
+    const app = cli();
+
+    expect(await app.run("write", "--name=Regra", "--type=user", "--body=corpo com = sinal")).toBe(0);
+    expect(await app.run("read", "--name=Regra", "--type=user")).toBe(0);
+    expect(app.out).toContain("corpo com = sinal");
+  });
+
+  it("`list` responde igual ao router, e `--all` é que mostra a lista crua", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Regra", "--type", "user", "--body", "global");
+    await app.run(
+      "write", "--name", "Regra", "--type", "user",
+      "--scope", "project", "--workspace", "ws1", "--project", "p1", "--body", "do projeto",
+    );
+
+    expect(await app.run("list", "--workspace", "ws1", "--project", "p1")).toBe(0);
+    // Uma linha por identidade visível, e o sombreamento dito em voz alta: o
+    // `Done when` da PR 03 é o mesmo comando respondendo igual nas duas
+    // superfícies, e o router já respondia o resolvido.
+    expect(app.out.match(/user      Regra/g)).toHaveLength(1);
+    expect(app.out).toContain("sombreada user/regra por workspaces/ws1/projects/p1/memory/user_regra.md");
+
+    const cru = cli();
+    await cru.run("write", "--name", "Regra", "--type", "user", "--body", "global");
+    await cru.run(
+      "write", "--name", "Regra", "--type", "user",
+      "--scope", "project", "--workspace", "ws1", "--project", "p1", "--body", "do projeto",
+    );
+    expect(await cru.run("list", "--all")).toBe(0);
+    expect(cru.out.match(/user      Regra/g)).toHaveLength(2);
+  });
+
+  it("recusa escopo e ator inválidos — o que a API recusa, a CLI recusa", async () => {
+    const app = cli();
+
+    expect(await app.run("write", "--name", "X", "--type", "user", "--scope", "planeta")).toBe(1);
+    expect(app.err).toContain("escopo inválido");
+
+    expect(await app.run("write", "--name", "X", "--type", "user", "--actor", "estagiario")).toBe(1);
+    expect(app.err).toContain("ator inválido");
+  });
+
+  it("agente escrevendo contract de workspace propõe pela CLI, e não grava (Q27)", async () => {
+    const app = cli();
+
+    // A 03 recusava com motivo porque a inbox não existia; agora a CLI diz que
+    // propôs — e dizer "escrita" aqui seria a superfície mentindo sobre o disco.
+    expect(
+      await app.run(
+        "write", "--name", "Contrato", "--type", "contract",
+        "--workspace", "ws1", "--actor", "agent", "--body", "itens e cupom",
+      ),
+    ).toBe(0);
+    expect(app.out).toContain("proposta:");
+    expect(app.out).toContain("aguardando revisão");
+    expect(await app.run("list")).toBe(0);
+    expect(app.out).toContain("nenhuma memória ainda");
+  });
+
+  it("revert recusa caminho que não é de memória", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Regra", "--type", "user", "--body", "primeira");
+
+    expect(await app.run("revert", "--path", ".gitignore")).toBe(1);
+    expect(app.err).toContain("não é caminho de memória");
+  });
+
   it("busca e explica por que cada resultado apareceu", async () => {
     const app = cli();
     await app.run(
@@ -161,6 +322,69 @@ describe("lumem-memory", () => {
     expect(app.out).toContain("lexical=");
   });
 
+  it("busca num banco sem índice reconstrói antes, e acha pelo corpo", async () => {
+    const app = cli();
+    await app.run(
+      "write", "--name", "Rollback do checkout", "--type", "process", "--workspace", "ws1",
+      "--description", "como desfazer um deploy ruim",
+      "--body", "reverte o deploy e avisa o time",
+    );
+    app.dropIndex();
+
+    expect(await app.run("search", "--query", "avisa time", "--workspace", "ws1")).toBe(0);
+
+    // Pelo corpo: só volta se o reparo releu o disco. A CLI existe para
+    // inspecionar sem subir o daemon, então ela não pode esperar o boot.
+    expect(app.out).toContain("Rollback do checkout");
+    expect(app.err).toContain("índice reconstruído: 1");
+  });
+
+  it("memória ilegível sai do índice com nome, não em silêncio", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Gate", "--type", "user", "--body", "pnpm gate quick");
+    writeFileSync(join(app.stateDir, "memory/user_gate.md"), "isto não é uma memória");
+    app.dropIndex();
+
+    expect(await app.run("search", "--query", "gate rapido")).toBe(0);
+
+    expect(app.err).toContain("fora do índice: memory/user_gate.md");
+  });
+
+  it("comando de leitura não reconstrói nada", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Gate", "--type", "user", "--body", "x");
+    app.dropIndex();
+
+    expect(await app.run("list")).toBe(0);
+
+    // `list` lê o catálogo, não o índice. Reconstruir aqui seria escrita
+    // escondida num comando de leitura — e `reindex` apaga o catálogo inteiro.
+    // A asserção é sobre o **estado**: silêncio no stderr também é o que um
+    // reparo sem print produz.
+    expect(app.hasIndex()).toBe(false);
+    expect(app.err).toBe("");
+  });
+
+  it("busca sem --query falha antes de escrever qualquer coisa", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Gate", "--type", "user", "--body", "x");
+    app.dropIndex();
+
+    expect(await app.run("search")).toBe(1);
+
+    // Comando que vai falhar por falta de argumento não pode ter reconstruído
+    // catálogo nenhum no caminho.
+    expect(app.hasIndex()).toBe(false);
+  });
+
+  it("limite que não é número é erro de uso, não stack", async () => {
+    const app = cli();
+    await app.run("write", "--name", "Gate", "--type", "user", "--body", "x");
+
+    expect(await app.run("search", "--query", "gate rapido", "--limit", "abc")).toBe(1);
+    expect(app.err).toContain("--limit precisa ser um número");
+  });
+
   it("busca trivial diz que **não buscou**, e não que não achou", async () => {
     const app = cli();
     await app.run("write", "--name", "Gate", "--type", "user", "--body", "x");
@@ -172,10 +396,17 @@ describe("lumem-memory", () => {
   it("usage mostra os números por tipo", async () => {
     const app = cli();
     await app.run("write", "--name", "Gate rápido", "--type", "user", "--body", "pnpm gate quick");
+    // Sem `--session` a busca é inspeção e não registra; com ela, é o caminho
+    // do agente, e o §6 ganha a linha.
     await app.run("search", "--query", "gate rapido");
+    expect(await app.run("usage")).toBe(0);
+    expect(app.out).toContain("nenhum uso registrado");
+
+    await app.run("search", "--query", "gate rapido", "--session", "s1");
 
     expect(await app.run("usage")).toBe(0);
     expect(app.out).toContain("recall");
+    expect(app.out).toContain("sessões=1");
   });
 
   it("comando desconhecido mostra o uso", async () => {

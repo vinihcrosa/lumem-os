@@ -69,9 +69,46 @@ jobs:
           git config --global user.name "Lumem CI"
           git config --global user.email "ci@lumem.local"
 
+      # A versão instalada de verdade, e não a do `package.json`: o binário do
+      # navegador é casado com ela, e um cache com chave no intervalo `^1.62.1`
+      # entregaria browser de uma versão para o Playwright de outra.
+      - name: a versão do Playwright, que é a chave do cache
+        id: playwright
+        run: echo "version=$(node -p "require('./node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # O download do chromium é o custo fixo deste job, e ele não muda entre
+      # runs enquanto a versão não mudar. `restore-keys` de propósito não existe:
+      # cache de outra versão seria pior que baixar de novo.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}
+
+      # Os dois passos abaixo eram um só (`install --with-deps chromium`), e ele
+      # travou dois runs no mesmo dia — um queimou os 30 minutos do job e morreu
+      # sem nunca ter rodado um teste. Separados, o log diz **qual** dos dois
+      # parou, que é o que a versão junta não dizia.
+      #
+      # A causa, medida no log do run cancelado das 02:29 e não suposta: o
+      # `install-deps` chama `apt-get`, e o mirror `azure.archive.ubuntu.com`
+      # ficou inalcançável. O apt registrou 26 `Ign:` em oito segundos e depois
+      # **ficou mudo por 29 minutos** — os repositórios da Microsoft e do Google
+      # responderam normalmente no mesmo run, então foi o mirror, não a rede.
+      #
+      # O `timeout-minutes` aqui não conserta a rede: ele troca meia hora de
+      # silêncio por uma falha vermelha em cinco minutos, com log legível. É o
+      # que transforma "a pipeline está lenta" em "o mirror caiu".
+      - name: libs de sistema do chromium
+        timeout-minutes: 5
+        run: pnpm exec playwright install-deps chromium
+
       # Só o chromium: é o único projeto do playwright.config, e baixar os três
-      # navegadores custaria minutos por run para nada.
-      - run: pnpm exec playwright install --with-deps chromium
+      # navegadores custaria minutos por run para nada. Com o cache quente isto
+      # confere e sai; é barato o bastante para rodar sempre, e rodar sempre é o
+      # que protege de um cache pela metade.
+      - name: o binário do chromium
+        timeout-minutes: 5
+        run: pnpm exec playwright install chromium
 
       - run: pnpm test:e2e
 
