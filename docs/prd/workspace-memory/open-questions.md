@@ -7,12 +7,14 @@ aqui, com o motivo.
 onde está, agrupada por tema, e ganha uma linha **Decisão:** com o que ficou valendo. Cada pergunta
 traz uma **proposta pra reagir**; discordar dela é mais rápido que escrever do zero.
 
-**Estado:** 39 perguntas · **38 respondidas · 1 aberta (Q38).** O que resta, além dela, são as
+**Estado:** 40 perguntas · **38 respondidas · 2 abertas (Q38, Q39).** O que resta, além delas, são as
 **D2, D5, D7 e D8**, no [context-delivery.md](context-delivery.md).
 
-**Rodada 5 (2026-08-17):** a revisão da PR 01 abriu a **Q38** — o `Done when` da T6 prometia recusar
-"escopo inválido **para o tipo**", e essa matriz nunca existiu em lugar nenhum do PRD. O desvio está
-registrado na [E15](tasks.md#o-que-a-execução-achou).
+**Rodada 5 (2026-08-17):** a revisão da PR 01 abriu duas. A **Q38** veio do `Done when` da T6, que
+prometia recusar "escopo inválido **para o tipo**" — matriz que nunca existiu em lugar nenhum do PRD;
+o desvio está registrado na [E15](tasks.md#o-que-a-execução-achou). A **Q39** veio de uma sonda do
+round 2: o `scope` do frontmatter e o diretório em que o arquivo está podem discordar, e o catálogo
+acredita nos dois ao mesmo tempo.
 
 **Rodada 4 (2026-08-17):** Q3.1, Q10, Q16, Q30 e Q37 fechadas. E o desenho de entrega de contexto foi
 **redesenhado por você**: índice injetado saiu, entrou *núcleo comportamental + skill + serviço
@@ -354,6 +356,41 @@ dá ao sistema o direito de decidir escopo sozinho se o espaço de escopos por t
 
 **Custo de esperar:** baixo. Enquanto a escrita não estiver exposta a agente (o portão é a PR 02),
 quem escolhe escopo é você.
+
+---
+
+### [ ] Q39 — Quando o frontmatter e o diretório discordam sobre o escopo, quem manda? `[lm]`
+
+Achada por sonda durante a revisão da PR 01, e é fato medido, não hipótese:
+
+```
+memory/user_x.md com `scope: workspace` no frontmatter
+→ reindex: {"indexed":1,"failures":[]}
+→ linha:   {"path":"memory/user_x.md","scope":"workspace","workspaceId":""}
+```
+
+`rowFor` tira o **escopo** do frontmatter e os **ids** do caminho. Quando os dois discordam, a linha
+sai incoerente — escopo de workspace sem workspace — e em silêncio: o `reindex` reporta sucesso. Um
+`read` naquele escopo procura em `workspaces/<id>/memory/` e não acha o arquivo que está indexado.
+
+Só acontece com arquivo **editado à mão**, porque o caminho de escrita deriva o diretório do escopo.
+Mas editar à mão é a premissa A2, não um acidente.
+
+Três leituras:
+
+- **o diretório manda** — o `scope` do frontmatter é redundante, e o `reindex` o ignora ou o corrige.
+  Coerente com o §5 do PRD, que define o caminho **a partir** do escopo;
+- **o frontmatter manda** — mover o arquivo de diretório passa a ser consequência, não causa.
+  Exigiria o `reindex` mover arquivo, coisa que ele hoje não faz e que a Q3 desaconselha;
+- **discordar é erro** — o arquivo entra em `failures[]` com o motivo, e alguém decide. É o que o
+  `reindex` já faz com frontmatter inválido.
+
+**Proposta pra reagir:** **discordar é erro**. O `reindex` existe para reconstruir sem adivinhar, e
+as outras duas leituras pedem que ele escolha um lado em silêncio — que é como o catálogo passa a
+mentir. O `failures[]` já é o canal para "existe arquivo que eu não sei indexar".
+
+**Custo de esperar:** baixo enquanto a escrita não estiver exposta a agente (o portão é a PR 02).
+Sobe quando o recall começar a resolver escopo, porque aí a linha incoerente vira resposta errada.
 
 ---
 

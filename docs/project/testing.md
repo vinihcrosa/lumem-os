@@ -164,6 +164,14 @@ O detalhe que a torna instrutiva: **o teste não mudou.** O que mudou foi o que 
 
 A regra: **todo teste que toca o estado do daemon passa um `stateDir` temporário explícito**, e a mesma exigência vale para o e2e (a armadilha acima) e para o gate. Hoje cada boot do `bootstrap.test.ts` recebe um state dir próprio, e os testes de `src/memory/` criam o seu com `tempDir()`.
 
+**Bateria de mutação incompleta dá falso verde — e é pior que não ter bateria nenhuma.** No rework da PR 01 da memória, quem escreveu as correções rodou **11 mutações** e viu as 11 morrerem: relatou "cada correção verificada por mutação". O review rodou **32** na mesma árvore, e **7 sobreviveram** — quatro delas eram correções daquele mesmo lote, sem teste nenhum. Uma era `db.transaction` no `reindex`, ou seja, **exatamente a correção do bloqueante**.
+
+O mecanismo do engano é específico e vale nomear: as 11 mutações foram derivadas dos testes que tinham acabado de ser escritos, então cada uma mirava numa asserção que existia por construção. A mutação que sobrevive é a que ninguém pensou em escrever — e quem acabou de escrever o teste é justamente quem não vai pensar nela.
+
+Duas armadilhas de segunda ordem apareceram junto, e as duas produzem "sobreviveu" falso: **mutação que não aplica** (o `perl`/`python` não casa o padrão depois de um refactor renomear a função) e **mutação equivalente** (trocar a validação da CLI por um `as` continua vermelho, mas por causa de uma guarda a jusante com mensagem de prefixo igual — o teste passava sem provar o que dizia provar). A primeira se pega conferindo que o arquivo mudou (`grep -c` no padrão); a segunda, assertando o pedaço da mensagem que **só** a camada sob teste produz.
+
+A regra: **a bateria de mutação de quem escreveu o código não substitui a de quem revisa**, e toda mutação relatada precisa de prova de que aplicou. Quando o número de mutações do autor e o do revisor divergem por 3×, o do autor está medindo os testes que ele lembrou de escrever.
+
 **Constante duplicada sem teste.** A porta 4317 vivia em três arquivos e nenhum teste fixava o default; trocá-la deixava todos os gates verdes e o `pnpm dev` quebrado. Hoje `ports.json` é a fonte para os configs e `constants.test.ts` amarra as constantes de `shared` a ele.
 
 **O guarda de porta invisível ao `--changed`.** O teste acima lia `ports.json` com `readFileSync`, e `vitest --changed` seleciona por grafo de módulos: alterar `ports.json` não selecionava o teste que existe justamente para vigiá-lo. Editar `ports.json` junto com qualquer código deixava o gate rápido verde com as portas dessincronizadas. Hoje é `import ports from "../../../ports.json" with { type: "json" }` — um import de verdade, que o vitest rastreia.

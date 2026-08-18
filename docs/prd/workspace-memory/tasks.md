@@ -2,7 +2,7 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) · **Entrega de contexto:** [context-delivery.md](context-delivery.md)
 **Roadmap:** [roadmap.md](roadmap.md) — este arquivo é a execução da pilha descrita lá
-**Status:** **PR 01 entregue** — 7 de 7, portão verde (`gate:full`: 1.055 unit/integration + 16 e2e).
+**Status:** **PR 01 entregue** — 7 de 7, portão verde (`gate:full`: 1.070 unit/integration + 16 e2e).
 As demais entram quando a anterior abrir PR
 
 ---
@@ -52,6 +52,7 @@ Cada uma vem de uma pergunta **respondida**. Implementar contra qualquer outra c
 | **P2** | Dois checkouts do mesmo repo em máquinas diferentes com o mesmo `project.toml` produzem o mesmo ID — é o que se quer, e é também o que permitiria memória compartilhada um dia | anotada, sem ação ([backlog](../../project/backlog.md)) |
 | **P3** | `git init` em `~/.lumem` numa máquina onde o usuário já tem outro git ali (por sincronia manual) | a T1 detecta repositório existente e **adota** em vez de reinicializar |
 | **P4** | Commit por mudança gera histórico verboso. Se incomodar, o passo seguinte é agrupar por transação, não parar de commitar | aberta, sem bloqueio |
+| **P5** | **O `scope` do frontmatter e o diretório podem discordar, e ninguém reclama.** `rowFor` tira o escopo do frontmatter e os ids do caminho: um arquivo em `memory/` declarando `scope: workspace` é indexado como `workspace` com `workspace_id` vazio, e o `read` naquele escopo procura noutro diretório e não acha. Só acontece com arquivo editado à mão — que a A2 declara caso de primeira classe | aberta → [Q39](open-questions.md). Não bloqueia: o caminho de escrita sempre produz arquivo coerente |
 
 ---
 
