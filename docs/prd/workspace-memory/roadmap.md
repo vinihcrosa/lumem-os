@@ -211,7 +211,7 @@ flowchart LR
 | **S2** — protótipo da UI | **C** | nada | 05 | **agora** |
 | **02** — portão de escrita | A | 01 (branch aberta) | 03, 07 | quando a 01 abrir PR |
 | **S1** — sinais de ação | C | 01 (branch aberta) | insumo do 07 | quando a 01 abrir PR |
-| **03** — superfícies (CLI + MCP) | A | 02 | 04, 08, 09 | quando a 02 abrir PR |
+| **03** — superfícies (CLI + router tRPC) | A | 02 | 04, 08, 09 | quando a 02 abrir PR |
 | **04** — recall + instrumentação | A | 03 | 05, 08 | quando a 03 abrir PR |
 | **05** — inbox + UI | A | 04 **e** S2 | o merge da guarda-chuva | quando as duas existirem |
 | **ACP-1** — transporte + tela | B | ACP-0 | 06, 07, 08, 09 | depois do spike |

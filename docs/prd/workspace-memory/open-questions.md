@@ -7,7 +7,7 @@ aqui, com o motivo.
 onde está, agrupada por tema, e ganha uma linha **Decisão:** com o que ficou valendo. Cada pergunta
 traz uma **proposta pra reagir**; discordar dela é mais rápido que escrever do zero.
 
-**Estado:** 44 perguntas · **42 respondidas · 2 abertas (Q38, Q39).** O que resta, além delas, são as
+**Estado:** 45 perguntas · **42 respondidas · 3 abertas (Q38, Q39, Q44).** O que resta, além delas, são as
 **D2, D5, D7 e D8**, no [context-delivery.md](context-delivery.md).
 
 **Rodada 6 (2026-08-18):** quatro decisões que **a implementação do portão** obrigou a tomar, na
@@ -19,6 +19,9 @@ prometia recusar "escopo inválido **para o tipo**" — matriz que nunca existiu
 o desvio está registrado na [E15](tasks.md#o-que-a-execução-achou). A **Q39** veio de uma sonda do
 round 2: o `scope` do frontmatter e o diretório em que o arquivo está podem discordar, e o catálogo
 acredita nos dois ao mesmo tempo.
+
+**Rodada 7 (2026-08-18):** a execução da PR 03 abriu a **Q44** — o funil de acesso passou a registrar
+toda leitura, inclusive `list`, e ninguém decidiu poda nem índice para essa tabela.
 
 **Rodada 4 (2026-08-17):** Q3.1, Q10, Q16, Q30 e Q37 fechadas. E o desenho de entrega de contexto foi
 **redesenhado por você**: índice injetado saiu, entrou *núcleo comportamental + skill + serviço
@@ -1017,6 +1020,36 @@ direto — erra barato, o repo desmente.
 
 **Decisão:** `domain`, `process` e `contract` escritos por agente entram como **proposta** na inbox.
 `project` e `reference` vão direto. Leitura é livre (Q26); escrita para cima é revisada.
+
+**Precisão que a implementação cobrou (PR 03):** a regra vale pelos **dois eixos**, e é a união deles
+— cada um sozinho deixa uma porta aberta:
+
+- **por tipo:** os três tipos são proposta em **qualquer** escopo. Só pelo escopo, um agente
+  contornaria a regra pedindo `scope: "project"` explícito para um `contract`;
+- **por escopo:** escrever em `workspace` ou `global` é proposta em **qualquer** tipo — é o que o §11
+  do PRD chama de "escrita para cima é revisada". Só pelo tipo, um `project` gravado com
+  `scope: "workspace"` subiria direto.
+
+Sobra indo direto o que esta decisão libera: `project` e `reference` no escopo deles. Enquanto a inbox
+da PR 05 não existe, proposta é **recusa com motivo**, registrada no WAL.
+
+---
+
+### [ ] Q44 — Quem poda o registro de acesso? `[lm]`
+
+A PR 03 ligou o registro do funil: **toda** leitura de memória grava uma linha em `memory_access`,
+inclusive `list` — e a tela da PR 05 é um chamador de `list` com refetch. A tabela cresce por leitura,
+não por escrita, e é a única do sistema com esse perfil. Hoje ela não tem poda, nem índice em
+`created_at` (que é por onde o `listAccess` ordena).
+
+Isso não é a mesma pergunta da [Q29](#x-q29--quem-poda-czhm-2): memória é conhecimento, e apagar é
+ação sua. Registro de acesso é **prova**, e prova velha vale menos que prova recente — mas prova
+apagada não vale nada quando alguém pergunta "quem leu isso no mês passado?".
+
+**Proposta pra reagir:** janela por tempo (90 dias) com poda no boot, índice em `created_at`, e
+**nenhuma poda do que foi negado** — a linha negada é a que responde a pergunta que importa quando
+algo dá errado. Alternativa mais barata: registrar só acesso **dirigido** (`read`), deixando `list`
+fora, e aí a tabela volta a crescer devagar.
 
 ---
 
