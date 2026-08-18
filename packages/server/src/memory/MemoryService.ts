@@ -2,6 +2,7 @@ import { mkdir, readFile, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import type { FastifyBaseLogger } from "fastify";
+import { z } from "zod";
 
 import type { Db } from "../db/index.js";
 import type { MemoryDecisionRow, MemoryEntryRow } from "../db/schema.js";
@@ -11,7 +12,9 @@ import { execGit, type GitExec } from "../git/exec.js";
 
 import {
   hashContent,
+  identityFor,
   listEntries,
+  pathClaiming,
   reindex,
   removeEntry,
   upsertEntry,
@@ -27,7 +30,11 @@ import {
 } from "./gate.js";
 import {
   entrySignature,
+  MEMORY_ACTORS,
+  MEMORY_SCOPES,
+  MEMORY_TYPES,
   parseEntry,
+  proposalRefusal,
   resolveScope,
   serializeEntry,
   slugify,
@@ -36,16 +43,26 @@ import {
   type MemoryScope,
   type MemoryType,
 } from "./entry.js";
-import { entryPathFor, memoryDirFor, repoRelative, slugOf, type ScopeTarget } from "./paths.js";
 import {
+  assertEntryPath,
+  entryPathFor,
+  memoryDirFor,
+  repoRelative,
+  slugOf,
+  type ScopeTarget,
+} from "./paths.js";
+import {
+  clearSignal,
   indexEntry,
-  rebuildIndex,
+  indexIsStale,
+  resetIndex,
   recall,
   removeFromIndex,
   summarizeUsage,
   usage,
   type RecallOptions,
   type RecallResult,
+  type UsageOptions,
   type UsageSummary,
 } from "./recall.js";
 import { resolveVisible, type ResolvedView, type ScopeFilter } from "./shadow.js";
@@ -65,23 +82,38 @@ import { commitChange } from "./repo.js";
  * serviços prestados a ele, e um serviço que falha não apaga o dado que serve.
  */
 
-export interface WriteMemoryInput {
-  name: string;
-  description: string;
-  type: MemoryType;
+/**
+ * Os limites de uma escrita, **no núcleo** — e não em cada superfície.
+ *
+ * Estavam só no zod do router, e o resultado era a segunda semântica que esta
+ * PR existe para evitar, só que na entrada: a CLI passava `--scope` com um cast
+ * e o mesmo núcleo aceitava pela linha de comando o que a API recusava. O schema
+ * mora aqui, e as superfícies o **reusam** — o router como `input` (para o
+ * cliente ganhar os tipos) e este método como validação de verdade.
+ */
+export const writeMemorySchema = z.object({
+  name: z.string().min(1).max(200),
+  description: z.string().min(1).max(500),
+  type: z.enum(MEMORY_TYPES),
   /** Quando ausente, é derivado do tipo (§6 do PRD). */
-  scope?: MemoryScope;
-  workspaceId?: string;
-  projectId?: string;
-  body: string;
-  actor: MemoryActor;
-  confidence?: "low" | "medium" | "high";
+  scope: z.enum(MEMORY_SCOPES).optional(),
+  workspaceId: z.string().min(1).optional(),
+  projectId: z.string().min(1).optional(),
+  body: z.string().max(100_000).default(""),
+  actor: z.enum(MEMORY_ACTORS).default("human"),
+  confidence: z.enum(["low", "medium", "high"]).optional(),
   /** O que sustenta a memória. Obrigatório para `auto_research`, quando ele existir (D7). */
-  evidence?: string;
-  sourceSessions?: readonly string[];
+  evidence: z.string().max(4_000).optional(),
+  sourceSessions: z.array(z.string()).optional(),
   /** Worktree é origem, nunca escopo (Q5). */
-  worktreeId?: string;
-}
+  worktreeId: z.string().optional(),
+});
+
+/** O que uma superfície manda; `body` e `actor` têm default no schema. */
+export type WriteMemoryInput = z.input<typeof writeMemorySchema>;
+
+/** O mesmo pedido, já validado — o que o núcleo usa daqui para baixo. */
+type ValidatedWrite = z.output<typeof writeMemorySchema>;
 
 export interface WriteMemoryResult {
   path: string;
@@ -130,12 +162,14 @@ export class MemoryService {
   }
 
   /** Escreve — ou substitui — uma memória, pela identidade `(tipo, slug)`. */
-  async write(input: WriteMemoryInput): Promise<WriteMemoryResult> {
+  async write(requested: WriteMemoryInput): Promise<WriteMemoryResult> {
+    const input = parseWrite(requested);
     const scope = resolveScope(input.type, input.scope);
     const target = this.targetFor(scope, input);
     const slug = slugify(input.name);
     const absolute = entryPathFor(this.stateDir, target, input.type, slug);
     const path = repoRelative(this.stateDir, absolute);
+    this.refuseIfClaimedByAnother(scope, target, input.type, path);
 
     const previous = await readFile(absolute, "utf8").catch(() => null);
     const timestamp = this.now().toISOString();
@@ -153,7 +187,7 @@ export class MemoryService {
         ...(input.evidence === undefined ? {} : { evidence: input.evidence }),
         // Substituir preserva a data de nascimento: é ela que diz há quanto
         // tempo o sistema sabe daquilo.
-        created_at: previous === null ? timestamp : parseEntry(previous, path).provenance.created_at,
+        created_at: this.birthOf(previous, path, timestamp),
         updated_at: timestamp,
       },
       body: input.body,
@@ -161,6 +195,7 @@ export class MemoryService {
 
     const candidate = serializeEntry(entry);
     const operation = previous === null ? "add" : "update";
+    const refusal = proposalRefusal(input.type, scope, input.actor);
 
     // O portão decide antes de qualquer coisa tocar o disco (§7 do PRD).
     const decision = decide({
@@ -170,7 +205,11 @@ export class MemoryService {
       confidence: entry.provenance.confidence,
       content: candidate,
       signature: entrySignature(entry),
-      previousSignature: previous === null ? null : entrySignature(parseEntry(previous, path)),
+      previousSignature: this.signatureOf(previous, path),
+      // Q27: escrita de agente para cima é proposta, e enquanto a inbox não
+      // existe é recusa com motivo. Vai pelo portão, e não antes dele, para o
+      // WAL responder "por que isso não foi salvo?" com um registro só.
+      ...(refusal === null ? {} : { refusal }),
     });
     const record = recordDecision(this.db, {
       ...decision,
@@ -178,6 +217,7 @@ export class MemoryService {
       operation,
       actor: input.actor,
       confidence: entry.provenance.confidence,
+      sourceSessions: entry.provenance.source_sessions,
     });
 
     if (decision.outcome === "rejected") {
@@ -209,6 +249,72 @@ export class MemoryService {
     attachCommit(this.db, record.id, commit);
 
     return { path, scope, commit, created: previous === null, outcome: "applied", reason: null };
+  }
+
+  /**
+   * Recusa quando a identidade já é de **outro** arquivo.
+   *
+   * Antes desta guarda quem descobria a colisão era o índice único do banco —
+   * e descobria tarde: o `writeAtomically` já tinha acontecido, o `commitChange`
+   * ainda não, e o `SqliteError` subia cru. Sobrava arquivo novo no disco, sem
+   * commit, com o catálogo apontando para o antigo.
+   *
+   * `write` **recusa em vez de reconciliar**, e é a mesma escolha que o
+   * `reindex` faz: deixar os dois caminhos discordarem sobre quem é dono de uma
+   * identidade é pior do que qualquer conveniência. A pergunta é feita ao
+   * catálogo porque é o índice — e não o disco — que impõe a restrição.
+   */
+  private refuseIfClaimedByAnother(
+    scope: MemoryScope,
+    target: ScopeTarget,
+    type: MemoryType,
+    path: string,
+  ): void {
+    const identity = identityFor(path, { type, scope }, this.locationFor(scope, target));
+    const owner = pathClaiming(this.db, identity);
+    if (owner === undefined || owner === path) return;
+
+    throw new DomainError(
+      "DUPLICATE",
+      `a identidade ${type}/${identity.slug} em ${scope} já é de ${owner}: ` +
+        `apague ou renomeie aquele arquivo, ou reindexe se ele não existe mais`,
+    );
+  }
+
+  /**
+   * A data de nascimento do que já estava no disco — ou a de agora.
+   *
+   * Arquivo corrompido não pode **bloquear a escrita**: recusar aqui deixava a
+   * memória impossível de consertar pela própria ferramenta, e a única saída era
+   * apagar o arquivo por fora. Perder a data de nascimento de um arquivo que já
+   * não se consegue ler é o preço menor, e ele fica registrado no log.
+   */
+  /**
+   * A assinatura do que está no disco, ou `null` quando não há o que comparar.
+   *
+   * `null` também para arquivo ilegível, e pela mesma razão do `birthOf`: o que
+   * não se consegue ler não pode ser declarado duplicata, senão reescrever por
+   * cima da corrupção viraria `noop` e a memória ficaria impossível de
+   * consertar pela própria ferramenta. Sem aviso aqui — o `birthOf` já registra
+   * o mesmo arquivo, e avisar duas vezes pelo mesmo defeito é ruído.
+   */
+  private signatureOf(previous: string | null, path: string): string | null {
+    if (previous === null) return null;
+    try {
+      return entrySignature(parseEntry(previous, path));
+    } catch {
+      return null;
+    }
+  }
+
+  private birthOf(previous: string | null, path: string, fallback: string): string {
+    if (previous === null) return fallback;
+    try {
+      return parseEntry(previous, path).provenance.created_at;
+    } catch (error) {
+      this.log?.warn({ err: error, path }, "memória anterior ilegível; a data de nascimento recomeça agora");
+      return fallback;
+    }
   }
 
   /** Lê uma memória pelo par que a identifica. */
@@ -248,31 +354,56 @@ export class MemoryService {
     return resolveVisible(listEntries(this.db), filter);
   }
 
-  /** Apaga. Só quando pedido diretamente (Q29) — nada aqui apaga sozinho. */
+  /**
+   * Apaga. Só quando pedido diretamente (Q29) — nada aqui apaga sozinho.
+   *
+   * E só por você: *"apagar é sempre ação sua"*. A escrita de agente virou
+   * proposta nesta PR; deixar a **deleção** aberta seria fechar a porta da frente
+   * e esquecer a dos fundos — pior, porque o commit ia para o `git log` do
+   * `~/.lumem` com a sua assinatura.
+   */
   async forget(
     type: MemoryType,
     name: string,
     scope?: MemoryScope,
-    ids: { workspaceId?: string; projectId?: string } = {},
+    ids: { workspaceId?: string; projectId?: string; actor?: MemoryActor } = {},
   ): Promise<{ path: string; commit: string | null }> {
+    const actor = ids.actor ?? "human";
+    if (actor !== "human") {
+      throw new DomainError(
+        "BLOCKED",
+        `apagar memória é sempre ação sua (Q29) — ${actor} não apaga, propõe`,
+      );
+    }
     const resolved = resolveScope(type, scope);
     const slug = slugify(name);
     const absolute = entryPathFor(this.stateDir, this.targetFor(resolved, ids), type, slug);
     const path = repoRelative(this.stateDir, absolute);
 
+    // Apagar também é decisão, e é a única que o git não consegue explicar
+    // sozinho: o commit diz *que* sumiu, nunca *quem pediu* nem *por quê*. Sem
+    // esta linha, "por que isso não está mais salvo?" não tem resposta no WAL.
+    const record = await this.recordDeletion(path, "human");
+
     await rm(absolute, { force: true });
     removeEntry(this.db, path);
     removeFromIndex(this.db, path);
+    // O sinal vai junto: o caminho é derivado de `(tipo, slug)`, então uma
+    // memória recriada com o mesmo nome herdaria o contador da apagada — e o
+    // critério objetivo da Q25 passaria a contar recall de conteúdo que não
+    // existe mais.
+    clearSignal(this.db, path);
 
     const { commit } = await commitChange({
       stateDir: this.stateDir,
       paths: [path],
       operation: "delete",
       subject: `${type}/${slug}`,
-      actor: "human",
+      actor,
       ...(this.exec ? { exec: this.exec } : {}),
       ...(this.log ? { log: this.log } : {}),
     });
+    attachCommit(this.db, record.id, commit);
 
     // O arquivo saiu da árvore; o histórico continua sabendo que ele existiu.
     return { path, commit };
@@ -288,7 +419,10 @@ export class MemoryService {
    * Se a memória só tem um commit, desfazer é apagá-la: era ela que não existia
    * antes.
    */
-  async revert(path: string): Promise<{ path: string; outcome: "reverted" | "deleted"; commit: string | null }> {
+  async revert(requested: string): Promise<{ path: string; outcome: "reverted" | "deleted"; commit: string | null }> {
+    // O caminho vem do cliente e vira `rm` + commit dentro do `~/.lumem`. O git
+    // barra `../`; ele não barra `.gitignore`.
+    const path = assertEntryPath(requested);
     const history = await this.git(["log", "-n", "2", "--format=%H", "--", path]);
     const [current, previousSha] = history.split("\n").filter(Boolean);
     if (current === undefined) {
@@ -299,37 +433,55 @@ export class MemoryService {
 
     if (previousSha === undefined) {
       // Nasceu no commit atual: desfazer é fazê-la deixar de existir.
+      // A decisão vem antes do disco, como em toda deleção: a Q29 promete que
+      // apagar é reversível pelo WAL, e o git sabe *que* o arquivo sumiu, nunca
+      // *quem pediu*.
+      const record = await this.recordDeletion(path, "human");
       await rm(absolute, { force: true });
       removeEntry(this.db, path);
       removeFromIndex(this.db, path);
+      clearSignal(this.db, path);
       const { commit } = await this.commit([path], "delete", path, "human");
+      attachCommit(this.db, record.id, commit);
       return { path, outcome: "deleted", commit };
     }
 
     const restored = await this.git(["show", `${previousSha}:${path}`]);
-    const entry = parseEntry(restored, path);
-    await mkdir(dirname(absolute), { recursive: true, mode: 0o700 });
-    await writeAtomically(absolute, Buffer.from(restored, "utf8"), 0o600);
-    upsertEntry(this.db, path, entry, this.locationOf(entry, path), restored);
-    indexEntry(this.db, path, entry.name, entry.description, slugOf(path, entry.type), entry.body);
+    const head = await this.head();
 
+    // O portão vem **antes** do disco, aqui como em `write`. O conteúdo anterior
+    // é conteúdo como qualquer outro: pode ter sido editado à mão no `~/.lumem`,
+    // ou escrito antes de o portão existir. Decidir depois de gravar seria
+    // registrar `rejected` no WAL e mandar o segredo para o `HEAD` assim mesmo.
+    const confidence = parseEntry(restored, path).provenance.confidence;
     const decision = decide({
       path,
       operation: "update",
       actor: "human",
-      confidence: entry.provenance.confidence,
+      confidence,
       content: restored,
-      // A chave carrega o commit restaurado: desfazer duas vezes para o mesmo
-      // ponto é a mesma decisão, e não duas.
-      idempotencyKey: `revert:${path}:${previousSha}`,
+      // A chave carrega o ponto restaurado **e** o `HEAD` de onde se voltou:
+      // desfazer duas vezes a partir do mesmo estado é a mesma decisão, e um
+      // commit que falhou não faz o revert seguinte herdar a linha do anterior.
+      idempotencyKey: `revert:${path}:${previousSha}:${head}`,
     });
     const record = recordDecision(this.db, {
       ...decision,
       path,
       operation: "update",
       actor: "human",
-      confidence: entry.provenance.confidence,
+      confidence,
     });
+    if (decision.outcome === "rejected") {
+      throw new MemoryRejected(path, decision.reason ?? "recusada pelo portão");
+    }
+
+    // `decision.content`, nunca `restored`: é o texto que o portão aprovou.
+    const entry = parseEntry(decision.content, path);
+    await mkdir(dirname(absolute), { recursive: true, mode: 0o700 });
+    await writeAtomically(absolute, Buffer.from(decision.content, "utf8"), 0o600);
+    upsertEntry(this.db, path, entry, this.locationOf(entry, path), decision.content);
+    indexEntry(this.db, path, entry.name, entry.description, slugOf(path, entry.type), entry.body);
 
     const { commit } = await this.commit([path], "update", path, "human");
     attachCommit(this.db, record.id, commit);
@@ -350,7 +502,7 @@ export class MemoryService {
    */
   async reindex(): Promise<ReindexResult> {
     const result = await reindex(this.db, this.stateDir);
-    rebuildIndex(this.db);
+    resetIndex(this.db);
     // O corpo não está no catálogo, então o índice é completado lendo o disco —
     // a mesma fonte da verdade de sempre.
     for (const row of listEntries(this.db)) {
@@ -362,7 +514,12 @@ export class MemoryService {
     return result;
   }
 
-  /** Busca lexical, explicável, com sinal de uso registrado. */
+  /**
+   * Busca lexical e explicável. **Não registra** a não ser que peçam.
+   *
+   * Registrar é escrever, e buscar é ler: quem liga o `record` é o caminho do
+   * agente, não a tela que remonta nem o retry que repete.
+   */
   search(query: string, options: RecallOptions = {}): RecallResult {
     return recall(this.db, query, options);
   }
@@ -372,9 +529,44 @@ export class MemoryService {
     return summarizeUsage(this.db);
   }
 
-  /** Registra um uso que não passou pela busca — leitura, escrita, injeção. */
-  recordUsage(kind: "read" | "write" | "inject", amount: number, durationMs = 0): void {
-    usage(this.db, kind, amount, durationMs);
+  /**
+   * Registra um uso que não passou pela busca — leitura, escrita, injeção.
+   *
+   * O `sessionId` é o que separa "quantas chamadas" de "quantas chamadas **por
+   * sessão**", que é a medida que o §6 do context-delivery pede. Quem monta o
+   * contexto passa a sessão aqui quando registra o `inject`.
+   */
+  recordUsage(
+    kind: "read" | "write" | "inject",
+    amount: number,
+    durationMs = 0,
+    options: UsageOptions = {},
+  ): void {
+    usage(this.db, kind, amount, durationMs, options);
+  }
+
+  /**
+   * Reconstrói o índice quando ele está atrasado em relação ao catálogo.
+   *
+   * Chamada no boot. O índice FTS5 é derivado e nasce fora das migrations, então
+   * um banco com catálogo e sem índice existe — toda instalação anterior a esta
+   * feature. Sem isto, a primeira busca acharia o índice vazio e responderia
+   * "nada encontrado" para o acervo inteiro, sem erro e sem sinal.
+   */
+  async ensureIndexFresh(): Promise<{
+    rebuilt: boolean;
+    indexed: number;
+    failures: ReindexResult["failures"];
+  }> {
+    if (!indexIsStale(this.db)) return { rebuilt: false, indexed: 0, failures: [] };
+    const result = await this.reindex();
+    // As falhas sobem: o `reindex` **substitui** o catálogo, então memória que
+    // não pôde ser lida some da lista e da busca. Engolir isso num boot de
+    // upgrade seria memória desaparecendo sem uma linha de log.
+    if (result.failures.length > 0) {
+      this.log?.warn({ failures: result.failures }, "memórias ilegíveis no reindex de boot");
+    }
+    return { rebuilt: true, indexed: result.indexed, failures: result.failures };
   }
 
   /** O hash que o catálogo guarda, exposto para quem precisa comparar sem reler. */
@@ -382,9 +574,56 @@ export class MemoryService {
     return hashContent(text);
   }
 
+  /**
+   * A decisão que registra um apagamento, **antes** de o arquivo sair da árvore.
+   *
+   * A Q29 promete que apagar é sempre reversível pelo WAL, e a Q37 lista
+   * `delete` entre os resultados. Sem esta linha, deleção só existiria no git —
+   * que sabe *que* o arquivo sumiu, nunca *quem pediu*.
+   *
+   * A chave carrega o `HEAD` do momento: apagar o mesmo caminho de novo, depois
+   * de ele voltar, é outra decisão.
+   */
+  private async recordDeletion(path: string, actor: string): Promise<MemoryDecisionRow> {
+    const head = await this.head();
+    const decision = decide({
+      path,
+      operation: "delete",
+      actor,
+      // Apagar só acontece a pedido direto (Q29): a confiança é no ato, e o ato
+      // é explícito.
+      confidence: "high",
+      content: "",
+      idempotencyKey: `delete:${path}:${head}`,
+    });
+    return recordDecision(this.db, {
+      ...decision,
+      path,
+      operation: "delete",
+      actor,
+      confidence: "high",
+    });
+  }
+
+  /** O `HEAD` do `~/.lumem`, ou vazio quando ainda não há commit nenhum. */
+  private async head(): Promise<string> {
+    return this.git(["rev-parse", "HEAD"])
+      .then((stdout) => stdout.trim())
+      .catch(() => "");
+  }
+
+  /**
+   * Git sobre o `~/.lumem`, sempre **literal**.
+   *
+   * `log -- <path>` e `show <sha>:<path>` recebem caminho vindo do cliente, e
+   * pathspec não é nome: sem isto, um `*` no lugar do id casa a memória de outro
+   * workspace. A forma do caminho já barra o glob (`assertEntryPath`); as duas
+   * guardas existem porque a de forma protege esta chamada e a de interpretação
+   * protege a próxima que alguém escrever.
+   */
   private async git(args: readonly string[]): Promise<string> {
     const exec = this.exec ?? execGit;
-    const { stdout } = await exec(args, { cwd: this.stateDir });
+    const { stdout } = await exec(["--literal-pathspecs", ...args], { cwd: this.stateDir });
     return stdout;
   }
 
@@ -417,7 +656,7 @@ export class MemoryService {
 
   private targetFor(
     scope: MemoryScope,
-    ids: { workspaceId?: string; projectId?: string },
+    ids: { workspaceId?: string | undefined; projectId?: string | undefined },
   ): ScopeTarget {
     return {
       scope,
@@ -433,4 +672,13 @@ export class MemoryService {
       projectId: target.projectId ?? null,
     };
   }
+}
+
+/** Valida na fronteira do núcleo, com o erro de domínio que as duas superfícies traduzem igual. */
+function parseWrite(requested: WriteMemoryInput): ValidatedWrite {
+  const result = writeMemorySchema.safeParse(requested);
+  if (result.success) return result.data;
+  const issue = result.error.issues[0];
+  const field = issue?.path.join(".") ?? "?";
+  throw new DomainError("INVALID_ARGUMENT", `${field} — ${issue?.message ?? "inválido"}`);
 }

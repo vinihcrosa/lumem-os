@@ -4,7 +4,11 @@ import { DomainError } from "../errors.js";
 import {
   DEFAULT_SCOPE_FOR_TYPE,
   entryFilename,
+  MEMORY_ACTORS,
+  MEMORY_SCOPES,
+  MEMORY_TYPES,
   parseEntry,
+  proposalRefusal,
   resolveScope,
   serializeEntry,
   slugify,
@@ -126,6 +130,53 @@ describe("identidade", () => {
 
   it("recusa nome que não produz slug", () => {
     expect(() => slugify("¿?!")).toThrow(DomainError);
+  });
+});
+
+describe("proposalRefusal — a matriz da Q27", () => {
+  const naoHumanos = MEMORY_ACTORS.filter((actor) => actor !== "human");
+
+  it("humano escreve qualquer tipo em qualquer escopo", () => {
+    for (const type of MEMORY_TYPES) {
+      for (const scope of MEMORY_SCOPES) {
+        expect(proposalRefusal(type, scope, "human")).toBeNull();
+      }
+    }
+  });
+
+  it("os três tipos que valem para N projetos são proposta em qualquer escopo, para qualquer não-humano", () => {
+    // Um caso por tipo e por ator, e não só `contract` × `agent`: `auto_research`
+    // e `distiller` são exatamente os atores que o §7 do context-delivery cobre
+    // com "proposta sempre, independentemente da evidência".
+    for (const type of ["domain", "process", "contract"] as const) {
+      for (const actor of naoHumanos) {
+        for (const scope of MEMORY_SCOPES) {
+          expect(proposalRefusal(type, scope, actor)).toContain("Q27");
+        }
+      }
+    }
+  });
+
+  it("escrever para cima é proposta mesmo para os tipos que vão direto", () => {
+    // Só pelo tipo, um `project` gravado com `scope: "workspace"` subiria direto
+    // — e "escrita para cima é revisada" é a assimetria do §11.
+    for (const type of ["user", "feedback", "project", "reference"] as const) {
+      for (const actor of naoHumanos) {
+        expect(proposalRefusal(type, "workspace", actor)).toContain("escopo workspace");
+        expect(proposalRefusal(type, "global", actor)).toContain("escopo global");
+      }
+    }
+  });
+
+  it("o que sobra indo direto é `project` e `reference` no escopo deles", () => {
+    for (const actor of naoHumanos) {
+      expect(proposalRefusal("project", "project", actor)).toBeNull();
+      expect(proposalRefusal("reference", "project", actor)).toBeNull();
+      // E o inverso, para o teste não passar por vacuidade: `user` e `feedback`
+      // não têm escopo de projeto como default, mas pedido explicitamente também
+      // vão direto — a regra é a dos dois eixos, não uma lista de tipos.
+      expect(proposalRefusal("user", "project", actor)).toBeNull();
+    }
   });
 });
 

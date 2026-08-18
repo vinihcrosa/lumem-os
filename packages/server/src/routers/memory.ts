@@ -1,7 +1,9 @@
 import { z } from "zod";
 
-import { MemoryService } from "../memory/MemoryService.js";
+import { MemoryService, writeMemorySchema } from "../memory/MemoryService.js";
+import { requireAccess } from "../memory/access.js";
 import { MEMORY_ACTORS, MEMORY_SCOPES, MEMORY_TYPES } from "../memory/entry.js";
+import { MAX_LIMIT } from "../memory/recall.js";
 import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
 
 /**
@@ -20,6 +22,24 @@ import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
 const scopeIds = z.object({
   workspaceId: z.string().min(1).optional(),
   projectId: z.string().min(1).optional(),
+  /**
+   * Quem está lendo, e de onde. Não é decoração: é o que o registro de acesso
+   * guarda, e sem isso o funil responde "alguém leu algo".
+   *
+   * Vem do cliente **por enquanto** — a sessão ainda não carrega workspace e
+   * projeto (a `acp-sessions` é que vai). Enquanto vem, cada leitura atravessa o
+   * funil e fica registrada, que é a diferença entre uma fronteira e um filtro.
+   */
+  fromProjectId: z.string().min(1).optional(),
+  actor: z.enum(MEMORY_ACTORS).default("human"),
+});
+
+const searchInput = scopeIds.extend({
+  query: z.string().min(1).max(500),
+  // O número tem nome no núcleo, e é lá que a invariante mora. Aqui ele
+  // **recusa** em vez de clampar: pedido malformado pelo tRPC é erro do
+  // chamador, e a CLI não tem schema para dizer isso.
+  limit: z.number().int().min(1).max(MAX_LIMIT).optional(),
 });
 
 const identity = scopeIds.extend({
@@ -28,38 +48,55 @@ const identity = scopeIds.extend({
   scope: z.enum(MEMORY_SCOPES).optional(),
 });
 
-const writeSchema = identity.extend({
-  description: z.string().min(1).max(500),
-  body: z.string().max(100_000).default(""),
-  actor: z.enum(MEMORY_ACTORS).default("human"),
-  confidence: z.enum(["low", "medium", "high"]).optional(),
-  evidence: z.string().max(4_000).optional(),
-  sourceSessions: z.array(z.string()).optional(),
-  worktreeId: z.string().optional(),
-});
+/** O pedido que o funil registra: quem, de onde, para onde, e o que foi pedido. */
+function accessRequest(
+  input: z.output<typeof scopeIds>,
+  target: string,
+): Parameters<typeof requireAccess>[1] {
+  return {
+    fromProjectId: input.fromProjectId ?? null,
+    targetProjectId: input.projectId ?? null,
+    workspaceId: input.workspaceId ?? null,
+    kind: "memory",
+    target,
+    actor: input.actor,
+  };
+}
 
 export const memoryRouter = router({
   /** O que o escopo ativo enxerga, e o que ficou sombreado ao lado. */
-  list: publicProcedure.input(scopeIds.optional()).query(({ ctx, input }) => {
-    const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
-    const { visible, shadowed } = memory.visible({
-      workspaceId: input?.workspaceId ?? null,
-      projectId: input?.projectId ?? null,
-    });
-    return {
-      entries: visible,
-      // Duas listas, e não uma: esconder sem dizer o que foi escondido é como o
-      // shadow vira mistério.
-      shadowed: shadowed.map((pair) => ({
-        winner: pair.winner.path,
-        loser: pair.loser.path,
-        identity: `${pair.loser.type}/${pair.loser.slug}`,
-      })),
-    };
-  }),
+  list: publicProcedure.input(scopeIds.optional()).query(({ ctx, input }) =>
+    domainSafeAsync(async () => {
+      const scope = input ?? scopeIds.parse({});
+      // Livre (Q26) **e registrada** (D8): o funil não é o que nega, é o que
+      // responde depois "quem leu o quê, de onde".
+      // O alvo diz **qual** escopo foi listado: `*` respondia "alguém listou
+      // algo", que é a linha de auditoria que não serve para nada.
+      await requireAccess(
+        ctx.db,
+        accessRequest(scope, `list:${scope.workspaceId ?? "-"}/${scope.projectId ?? "-"}`),
+      );
+      const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+      const { visible, shadowed } = memory.visible({
+        workspaceId: scope.workspaceId ?? null,
+        projectId: scope.projectId ?? null,
+      });
+      return {
+        entries: visible,
+        // Duas listas, e não uma: esconder sem dizer o que foi escondido é como
+        // o shadow vira mistério.
+        shadowed: shadowed.map((pair) => ({
+          winner: pair.winner.path,
+          loser: pair.loser.path,
+          identity: `${pair.loser.type}/${pair.loser.slug}`,
+        })),
+      };
+    }),
+  ),
 
   read: publicProcedure.input(identity).query(({ ctx, input }) =>
     domainSafeAsync(async () => {
+      await requireAccess(ctx.db, accessRequest(input, `${input.type}/${input.name}`));
       const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
       return memory.read(input.type, input.name, input.scope, {
         ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
@@ -68,7 +105,7 @@ export const memoryRouter = router({
     }),
   ),
 
-  write: publicProcedure.input(writeSchema).mutation(({ ctx, input }) =>
+  write: publicProcedure.input(writeMemorySchema).mutation(({ ctx, input }) =>
     domainSafeAsync(async () => {
       const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
       return memory.write(input);
@@ -78,9 +115,13 @@ export const memoryRouter = router({
   forget: publicProcedure.input(identity).mutation(({ ctx, input }) =>
     domainSafeAsync(async () => {
       const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+      // O `actor` chega até o núcleo, e não é decoração: a Q29 diz que apagar é
+      // sempre ação sua, então quem não é humano é recusado lá — e o commit no
+      // `~/.lumem` para de sair com a sua assinatura por omissão.
       return memory.forget(input.type, input.name, input.scope, {
         ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
         ...(input.projectId ? { projectId: input.projectId } : {}),
+        actor: input.actor,
       });
     }),
   ),
@@ -92,15 +133,40 @@ export const memoryRouter = router({
     }),
   ),
 
-  /** Busca lexical, explicável — e que respeita escopo e shadow. */
+  /**
+   * Busca lexical, explicável — e que respeita escopo e shadow.
+   *
+   * `query`, e portanto **não registra**: refetch, retry e remontagem do cliente
+   * subiriam o `recall_count` e inflariam o próprio número que o §6 quer medir.
+   * Quem registra é o `recall` abaixo, o caminho do agente.
+   */
   search: publicProcedure
-    .input(scopeIds.extend({ query: z.string().min(1).max(500), limit: z.number().int().min(1).max(50).optional() }))
+    .input(searchInput)
     .query(({ ctx, input }) => {
       const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
       return memory.search(input.query, {
         workspaceId: input.workspaceId ?? null,
         projectId: input.projectId ?? null,
         ...(input.limit ? { limit: input.limit } : {}),
+      });
+    }),
+
+  /**
+   * A mesma busca, pelo caminho do agente — e **com** sinal e uso registrados.
+   *
+   * Mutation de propósito: registrar é escrever, e a sessão que perguntou é o
+   * que separa "quantas chamadas" de "quantas chamadas por sessão".
+   */
+  recall: publicProcedure
+    .input(searchInput.extend({ sessionId: z.string().min(1).max(128).optional() }))
+    .mutation(({ ctx, input }) => {
+      const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+      return memory.search(input.query, {
+        workspaceId: input.workspaceId ?? null,
+        projectId: input.projectId ?? null,
+        record: true,
+        ...(input.limit ? { limit: input.limit } : {}),
+        ...(input.sessionId ? { sessionId: input.sessionId } : {}),
       });
     }),
 

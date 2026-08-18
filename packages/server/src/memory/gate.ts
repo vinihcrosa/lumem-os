@@ -16,7 +16,7 @@ import { describeFindings, scanMemoryContent, type ScanFinding } from "./scan.js
  * a ordem é fixa e determinística (§7 do PRD):
  *
  * 1. **scan** determinístico: segredo, injeção, Unicode invisível, anotação;
- * 2. **duplicata exata** por hash do conteúdo → `noop`;
+ * 2. **duplicata** por assinatura semântica do conteúdo → `noop`;
  * 3. **identidade `(tipo, slug)`** decide entre `add` e `update`;
  * 4. **decisão persistida antes de tocar o arquivo**.
  *
@@ -48,6 +48,14 @@ export interface GateRequest {
   previousSignature?: string | null;
   /** Chave de idempotência; derivada quando ausente. */
   idempotencyKey?: string;
+  /**
+   * Uma recusa que **não** vem do conteúdo — permissão, e não scan.
+   *
+   * Existe para que a Q27 seja decidida pelo mesmo portão que tudo o mais, com
+   * um registro só: uma escrita recusada por quem a pediu é a mesma pergunta
+   * ("por que isso não foi salvo?") que uma recusada por segredo.
+   */
+  refusal?: string;
 }
 
 export interface GateDecision {
@@ -74,13 +82,30 @@ export function hashOf(text: string): string {
 export function decide(request: GateRequest): GateDecision {
   const scan = scanMemoryContent(request.content);
   const candidateHash = hashOf(scan.cleaned);
+  // A chave sai da **assinatura**, não do hash do arquivo: o arquivo carrega
+  // `updated_at`, que muda a cada tentativa, e duas tentativas da mesma escrita
+  // nunca produziriam a mesma chave — o replay prometido pela Q9 não teria como
+  // casar a tentativa anterior, e a dedup abaixo seria inalcançável.
+  const identity = request.signature ?? scan.cleaned;
   const idempotencyKey =
-    request.idempotencyKey ?? `${request.operation}:${request.path}:${candidateHash}`;
+    request.idempotencyKey ?? `${request.operation}:${request.path}:${hashOf(identity)}`;
 
   const base = { content: scan.cleaned, findings: scan.findings, idempotencyKey, candidateHash };
 
   if (scan.verdict === "reject") {
     return { ...base, outcome: "rejected", reason: describeFindings(scan.findings) };
+  }
+
+  // Depois do scan, e não antes: quando o conteúdo também tem segredo, é o
+  // segredo que a resposta precisa nomear, e o `ruleTrace` guarda os dois.
+  //
+  // E antes da duplicata sem que a ordem importe: uma escrita recusada nunca
+  // chega ao disco, então não existe arquivo idêntico dela para o dedupe abaixo
+  // comparar. O par "recusada **e** duplicata" só apareceria para uma memória já
+  // gravada com a mesma assinatura pelo mesmo ator — que é justamente o que esta
+  // recusa impede de existir.
+  if (request.refusal !== undefined) {
+    return { ...base, outcome: "rejected", reason: request.refusal };
   }
 
   // Duplicata: reescrever a mesma coisa produziria commit vazio e um
@@ -101,6 +126,8 @@ export interface RecordDecisionInput extends GateDecision {
   operation: DecisionOperation;
   actor: string;
   confidence: "low" | "medium" | "high";
+  /** As sessões que originaram o pedido — a "sessão" que a Q37 pede no WAL. */
+  sourceSessions?: readonly string[];
   /** Preenchido depois da escrita, quando houve commit. */
   commitSha?: string | null;
 }
@@ -131,6 +158,7 @@ export function recordDecision(db: Db, input: RecordDecisionInput): MemoryDecisi
     confidence: input.confidence,
     candidateHash: input.candidateHash,
     ruleTrace: input.findings.map((finding) => finding.rule),
+    sourceSessions: [...(input.sourceSessions ?? [])],
     reason: input.reason,
     commitSha: input.commitSha ?? null,
   };
@@ -150,6 +178,9 @@ export interface DecisionQuery {
 
 /** O histórico de decisões — inclusive o que **não** virou arquivo. */
 export function listDecisions(db: Db, { path, limit = 50 }: DecisionQuery = {}): MemoryDecisionRow[] {
-  const base = db.select().from(memoryDecision).orderBy(desc(memoryDecision.createdAt)).limit(limit);
-  return path === undefined ? base.all() : base.where(eq(memoryDecision.path, path)).all();
+  // O filtro vem **antes** de ordenar e limitar. Depois, ele não filtra nada:
+  // sobra o topo global recortado, e `--path` vira decoração.
+  const selection = db.select().from(memoryDecision);
+  const filtered = path === undefined ? selection : selection.where(eq(memoryDecision.path, path));
+  return filtered.orderBy(desc(memoryDecision.createdAt)).limit(limit).all();
 }

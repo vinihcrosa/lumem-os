@@ -3,12 +3,15 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { bootstrap } from "./bootstrap.js";
 import { loadConfig } from "./config.js";
 import { openTestDb, type TestDb } from "./db/testing.js";
+import { MemoryService } from "./memory/MemoryService.js";
+import { ensureMemoryHome } from "./memory/home.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createProjectRepository } from "./repositories/project.js";
 import { createWorkspaceRepository } from "./repositories/workspace.js";
@@ -26,6 +29,7 @@ async function boot(
     beforeClose?: () => Promise<void>;
     ptyManager?: PtyManager;
     database?: TestDb;
+    stateDir?: string;
   } = {},
 ) {
   const signalSource = new EventEmitter();
@@ -33,8 +37,8 @@ async function boot(
   // Never the real ~/.lumem either: boot now creates directories and a git
   // repository there, and a test suite that touches the developer's own state
   // is a test suite that eventually destroys it.
-  const stateDir = join(mkdtempSync(join(tmpdir(), "lumem-boot-")), ".lumem");
-  stateDirs.push(stateDir);
+  const stateDir = overrides.stateDir ?? join(mkdtempSync(join(tmpdir(), "lumem-boot-")), ".lumem");
+  if (!overrides.stateDir) stateDirs.push(stateDir);
   // Port 0 lets the OS pick a free one — no fixed port to collide with.
   const config = loadConfig({ LUMEM_PORT: overrides.port ?? "0", LUMEM_STATE_DIR: stateDir });
   // Never the real ~/.lumem/lumem.db: a test suite must not write to the
@@ -80,6 +84,33 @@ describe("bootstrap", () => {
     expect(existsSync(join(stateDir, "memory"))).toBe(true);
     expect(existsSync(join(stateDir, ".git"))).toBe(true);
     expect(existsSync(join(stateDir, ".gitignore"))).toBe(true);
+  });
+
+  it("rebuilds a stale memory index before serving", async () => {
+    const stateDir = join(mkdtempSync(join(tmpdir(), "lumem-boot-")), ".lumem");
+    stateDirs.push(stateDir);
+    await ensureMemoryHome({ stateDir });
+    const database = openTestDb();
+    databases.push(database);
+    const memory = new MemoryService({ db: database.db, stateDir });
+    await memory.write({
+      name: "Rollback do checkout",
+      description: "como desfazer um deploy ruim",
+      type: "process",
+      body: "reverte o deploy e avisa o time",
+      actor: "human",
+      workspaceId: "ws1",
+    });
+    // Every database older than the search feature looks like this: catalogue
+    // up, index never created. Without the boot rebuild the first search
+    // answers "nothing found" for the whole collection, with no error at all.
+    database.db.run(sql`DROP TABLE memory_fts`);
+
+    await boot({ database, stateDir });
+
+    // By the **body**, with two terms that live nowhere else: an index rebuilt
+    // from the catalogue alone would have no text to match.
+    expect(memory.search("avisa time", { workspaceId: "ws1" }).hits).toHaveLength(1);
   });
 
   it("serves the trpc router once listening", async () => {

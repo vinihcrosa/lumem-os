@@ -13,8 +13,11 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `server/` PTY manager | integration (processo real) | Sim |
 | `server/` repositório (Drizzle) | integration (SQLite em arquivo temporário) | Sim |
 | `server/` router tRPC | integration (caller) | Sim |
+| `server/` scan do portão de memória | unit puro — regex, sem disco e sem banco | Sim |
+| `server/` portão e WAL de memória | integration (`~/.lumem` temporário, git real) | Sim — cada teste cria seu próprio state dir |
 | `server/` regra de **transporte** — limite de corpo, GET vs POST, status | integration sobre HTTP (`app.inject`) | Sim — o caller é cego a estas três |
 | `server/` endpoint WebSocket | integration | Sim |
+| `server/` CLI | integration **in-process** — a função (`runMemoryCli`) recebe `env`, `out` e `err` por parâmetro | Sim — nada de `process.env` nem de captura de `process.stdout` |
 | `web/` componente | unit (Vitest + Testing Library) | Sim |
 | `web/` tokens e paleta | unit, **e exige `python3`** — roda o gerador e compara byte a byte com o commitado | Sim |
 | `web/` fluxo de usuário | e2e (Playwright) | **Não** — daemon único, porta única, estado compartilhado |
@@ -75,6 +78,33 @@ O `tsc` puro na raiz não enxergava `e2e/`, `playwright.config.ts` nem os `vites
 
 Registro do que já mordeu, pra não voltar:
 
+**Teste de corte com acervo menor que o corte.** O recall pagina o `MATCH` em páginas de 50 e só então
+decide se já tem candidatos suficientes. Havia um teste chamado *"o limite pedido não muda quem está no
+topo"* — verde — enquanto o `limit` **mudava** o primeiro colocado: o acervo do teste tinha 23 linhas,
+uma página só, e com uma página qualquer tamanho de pool devolve o mesmo conjunto. O teste passava até
+com o pool em 1.
+
+A regra que sobrou: **teste de corte, de pool ou de paginação precisa de acervo maior que o corte.**
+Abaixo dele a asserção é vácua e o nome do teste vira promessa. E se o acervo depender de desempate —
+linhas com o mesmo score, ordenadas pelo rowid que o SQLite escolher — a premissa não é estrutural:
+faça a ordem vir do **score** (documento mais longo tem bm25 menor), senão o teste fica verde no dia em
+que o desempate mudar.
+
+**Estado derivado preenchido pela metade, que passa na própria verificação de frescor.** O índice FTS5
+da memória nasce fora das migrations — migration não deriva nada —, então existe banco com catálogo e
+sem índice. A primeira tentativa de consertar isso preenchia o índice **a partir do catálogo** quando
+ele faltava. Só que o catálogo não guarda corpo: o índice nascia mudo para toda busca por texto de
+arquivo — e, como o reparo inseria uma linha por memória, a verificação de frescor (`COUNT` do índice
+contra `COUNT` do catálogo) passava a **bater**. O índice ficava permanentemente incompleto e
+permanentemente "em dia": o reparo do boot era dispensado por um número que o próprio reparo pela
+metade havia falsificado.
+
+O verde que mente aqui é duplo — a busca não erra, ela devolve menos; e a checagem não acusa, ela
+confirma. Hoje o índice ausente nasce **vazio e assumidamente atrasado**, quem preenche é o `reindex`
+lendo o disco, e o resultado da busca carrega `staleIndex` para quem chama poder avisar. A regra que
+sobrou: **estado derivado ou é reconstruído da fonte da verdade, ou continua se declarando ausente.**
+Preencher pela metade é pior que não preencher, porque ninguém volta.
+
 **O gate rápido ficava vermelho quando só o e2e mudava — e o teste dele fixava isso como certo.** `e2e/**/*.ts` casava `GRAPH_GLOBS` e ia para o `vitest run --changed`, mas os projetos do vitest são `packages/*` e `scripts`: spec de playwright não está no grafo de módulo de teste nenhum. Seleção vazia com `passWithNoTests: false` sai com código 1, e o HEAD do branch respondia vermelho ao gate que o `CLAUDE.md` manda todo mundo rodar.
 
 É a **quarta** desta família — as outras três foram cache do Turborepo (duas vezes) e `LUMEM_GATE_BASE` numérica — e a primeira em que **o próprio teste do gate congelava o defeito**: `gate-quick.test.ts` asseria que uma spec de e2e *casa* com os globs de grafo. Consertar o script sem mexer no teste deixaria o teste vermelho, e a tentação seria desfazer o conserto.
@@ -89,6 +119,18 @@ Playwright is not in this gate: run `pnpm gate:full`.
 A decisão por trás: **o gate rápido não sobe daemon.** Fazer ele rodar playwright quebraria o contrato de segundos que é a razão de ele existir, e a task de e2e já declara `Gate: full`. O que não podia continuar era o silêncio — um "nada mudou" num commit que mudou uma suíte inteira é o mesmo defeito virado do avesso.
 
 Irmão conhecido e **ainda aberto**: `playwright.config.ts` é `*.ts` na raiz, casa `GRAPH_GLOBS`, e nenhum projeto do vitest o importa. Um commit que só mexa nele vai vermelho pela mesma razão.
+
+**Esperar por texto num PTY é esperar pela primeira das duas cópias.** Um `cat` sob PTY devolve cada linha **duas vezes**: o terminal ecoa o que foi digitado, e só depois o processo a escreve de volta pelo stdout. `websocket.test.ts > attach > sends the buffer before any new byte` esperava por `old-line` no snapshot antes de conectar o cliente — e a espera era satisfeita pelo **eco**, com a cópia do `cat` chegando depois do attach, na stream que a asserção proíbe conter passado.
+
+Falhava em ~2 de 5 execuções isoladas, e mais sob carga da suíte inteira — o formato clássico de flake que passa quase sempre. Hoje a espera exige **duas** ocorrências, e o comentário no teste diz de onde vem cada uma.
+
+É prima da armadilha do eco no e2e, logo abaixo: nas duas, o que parecia sinal de "o processo rodou" era sinal de "a tecla chegou".
+
+**Um `git commit` que falha depois do `git add` deixa a mudança no índice — e o commit seguinte a varre junto.** O `commitChange` é deliberadamente não-fatal: com o repositório impedido de commitar, a escrita ainda acontece e a falha vira aviso ([T3](../prd/workspace-memory/tasks.md)). O que não estava previsto é que o `add` já rodou: o arquivo fica **staged**, e o próximo `commit` — de qualquer outra memória — leva junto o que ninguém pediu naquele commit.
+
+Apareceu escrevendo o teste da chave de idempotência do `revert`, que precisava de um `commit: null` **sem** mover o histórico do arquivo. Injetar a falha no `commit` não servia: o commit seguinte movia o histórico assim mesmo, e o teste media outra coisa. A falha passou a ser injetada no **staging**, e o comentário no teste diz por quê.
+
+Fica anotado como **P6** no [tasks.md da memória](../prd/workspace-memory/tasks.md): agrupar commit por transação resolve esta e a P4 de uma vez.
 
 **No e2e, esperar por texto no terminal é esperar pelo eco do que você digitou.** O `typeLine` escreve o comando e o xterm **ecoa cada caractere** — então `expect(.xterm-rows).toContainText("X")` é satisfeito no instante da digitação, antes de o comando começar a rodar.
 
@@ -156,6 +198,24 @@ A API importa e a troca é silenciosa: `fs/promises.realpath` canoniza a caixa d
 **Testes lendo `process.env`.** `loadConfig()` lia o ambiente direto e os testes mutavam/deletavam variáveis globais. Um desenvolvedor com `LUMEM_HOST` exportado no shell via a suíte vermelha sem ter tocado em nada. Hoje `loadConfig(env)` recebe o mapa por parâmetro e os testes passam literais.
 
 **E2E reusando o daemon do desenvolvedor.** `reuseExistingServer: true` pula o spawn quando já tem algo na porta — e pular o spawn descarta o `env`, incluindo o `LUMEM_STATE_DIR` descartável. O e2e rodava contra o `~/.lumem` real. Hoje o e2e tem portas próprias (`ports.json`) e `reuseExistingServer: false`.
+
+**A suíte unitária passando a escrever no `~/.lumem` de verdade.** Irmã direta da anterior, e descoberta na PR 01 da memória. O `bootstrap.test.ts` sempre chamou o boot sem `LUMEM_STATE_DIR` — inofensivo enquanto o boot só abria um banco que o próprio teste injetava. Quando o boot ganhou `ensureMemoryHome`, aquela mesma linha passou a **criar diretório e rodar `git init` no estado do desenvolvedor**, e a partir daí a suíte commitaria por cima da memória real de quem a rodasse.
+
+O detalhe que a torna instrutiva: **o teste não mudou.** O que mudou foi o que a função sob teste passou a fazer. Um teste que não nomeia o diretório em que escreve fica correto por sorte até o dia em que a produção cresce por baixo dele.
+
+A regra: **todo teste que toca o estado do daemon passa um `stateDir` temporário explícito**, e a mesma exigência vale para o e2e (a armadilha acima) e para o gate. Hoje cada boot do `bootstrap.test.ts` recebe um state dir próprio, e os testes de `src/memory/` criam o seu com `tempDir()`.
+
+**Bateria de mutação incompleta dá falso verde — e é pior que não ter bateria nenhuma.** No rework da PR 01 da memória, quem escreveu as correções rodou **11 mutações** e viu as 11 morrerem: relatou "cada correção verificada por mutação". O review rodou **32** na mesma árvore, e **7 sobreviveram** — quatro delas eram correções daquele mesmo lote, sem teste nenhum. Uma era `db.transaction` no `reindex`, ou seja, **exatamente a correção do bloqueante**.
+
+O mecanismo do engano é específico e vale nomear: as 11 mutações foram derivadas dos testes que tinham acabado de ser escritos, então cada uma mirava numa asserção que existia por construção. A mutação que sobrevive é a que ninguém pensou em escrever — e quem acabou de escrever o teste é justamente quem não vai pensar nela.
+
+Duas armadilhas de segunda ordem apareceram junto, e as duas produzem "sobreviveu" falso: **mutação que não aplica** (o `perl`/`python` não casa o padrão depois de um refactor renomear a função) e **mutação equivalente** (trocar a validação da CLI por um `as` continua vermelho, mas por causa de uma guarda a jusante com mensagem de prefixo igual — o teste passava sem provar o que dizia provar). A primeira se pega conferindo que o arquivo mudou (`grep -c` no padrão); a segunda, assertando o pedaço da mensagem que **só** a camada sob teste produz.
+
+A regra: **a bateria de mutação de quem escreveu o código não substitui a de quem revisa**, e toda mutação relatada precisa de prova de que aplicou. Quando o número de mutações do autor e o do revisor divergem por 3×, o do autor está medindo os testes que ele lembrou de escrever.
+
+**E o corolário, que veio do passe a frio do mesmo lote: nem a bateria do revisor basta quando o filesystem colabora com o defeito.** As 32 mutações do review também não pegaram a 8ª sobrevivente — apagar o `.sort()` da varredura do `reindex` deixava **108 de 108** verdes. O `reindex` promete ser determinístico e ordena por caminho justamente para não depender do `readdir`; acontece que neste APFS o `readdir` já devolve numa ordem que coincide com a ordenada, então **o teste concordava com o código pelo motivo errado**. Inverter o comparador matava o teste; removê-lo, não.
+
+A regra que fecha essa família: **teste de propriedade "não depende de X" tem que variar o X.** Quando X é o sistema de arquivos, o relógio ou a ordem de chegada da rede, o ambiente de teste é o pior lugar para procurar variação — ele é estável de propósito. Aqui o teste inverte o `readdir` com um dublê local e assere a mesma resposta nas duas ordens; sem inverter, ele estava medindo o APFS, não o `catalog.ts`.
 
 **Constante duplicada sem teste.** A porta 4317 vivia em três arquivos e nenhum teste fixava o default; trocá-la deixava todos os gates verdes e o `pnpm dev` quebrado. Hoje `ports.json` é a fonte para os configs e `constants.test.ts` amarra as constantes de `shared` a ele.
 

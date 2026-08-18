@@ -16,6 +16,19 @@ import { execGit, type GitExec } from "../git/exec.js";
  * histórico como se fosse o dado.
  */
 
+/**
+ * Todo comando daqui é **literal**, inclusive os que não recebem pathspec.
+ *
+ * `--` não desliga glob nem assinatura mágica: um caminho com `*` casaria outro
+ * arquivo, e `git add --all -- <glob>` commitaria a edição pendente dele. É a
+ * armadilha de `docs/project/testing.md` — e ela vale para o `~/.lumem`, onde os
+ * caminhos são montados com ids que hoje vêm do cliente.
+ *
+ * Nos quatro comandos e não só nos dois com pathspec: dois comandos sobre o mesmo
+ * arquivo com regras de interpretação diferentes é a divergência que volta.
+ */
+const LITERAL = ["--literal-pathspecs"] as const;
+
 const COMMIT_IDENTITY = [
   "-c",
   "user.name=Lumem",
@@ -68,16 +81,31 @@ export async function commitChange({
   try {
     // `--all` no add para que apagar também entre: sem ele, `git add <path>` de
     // um arquivo que não existe mais falha em vez de registrar a remoção.
-    await exec(["add", "--all", "--", ...paths], { cwd: stateDir });
+    await exec([...LITERAL, "add", "--all", "--", ...paths], { cwd: stateDir });
 
-    const { stdout } = await exec(["status", "--porcelain", "--", ...paths], { cwd: stateDir });
-    if (stdout.trim() === "") return { commit: null, skipped: "nothing-to-commit" };
-
-    await exec([...COMMIT_IDENTITY, "commit", "-m", messageFor(operation, subject, actor)], {
+    const { stdout } = await exec([...LITERAL, "status", "--porcelain", "--", ...paths], {
       cwd: stateDir,
     });
+    if (stdout.trim() === "") return { commit: null, skipped: "nothing-to-commit" };
 
-    const { stdout: sha } = await exec(["rev-parse", "HEAD"], { cwd: stateDir });
+    // Pathspec também no `commit`, e não só no `add`: sem o `-- <paths>` o git
+    // commita **o índice inteiro**, e num `~/.lumem` adotado o `git add` que o
+    // usuário deixou pendente entraria de carona no commit da memória. E literal
+    // como os outros, porque é pathspec de novo.
+    await exec(
+      [
+        ...LITERAL,
+        ...COMMIT_IDENTITY,
+        "commit",
+        "-m",
+        messageFor(operation, subject, actor),
+        "--",
+        ...paths,
+      ],
+      { cwd: stateDir },
+    );
+
+    const { stdout: sha } = await exec([...LITERAL, "rev-parse", "HEAD"], { cwd: stateDir });
     return { commit: sha.trim() };
   } catch (error) {
     // Visível, e não fatal. O `Done when` da T3 é exatamente este caso: com o
