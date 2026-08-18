@@ -71,6 +71,16 @@ const provenanceSchema = z.object({
   updated_at: z.string(),
   /** Preenchido quando outra memória substituiu esta. */
   superseded_by: z.string().optional(),
+  /**
+   * A origem, quando a escrita nasceu de uma proposta aprovada.
+   *
+   * `source_actor` diz quem gravou — e aprovar grava como `human`, porque quem
+   * revisou foi você. Sem estes dois campos, "quem propôs isto" só seria
+   * reconstruível casando `path`, que se repete a cada nova proposta do mesmo
+   * alvo; o §7 do PRD pede proveniência com origem **e** sessão.
+   */
+  proposed_by: z.enum(MEMORY_ACTORS).optional(),
+  proposal_id: z.string().optional(),
 });
 
 const frontmatterSchema = z.object({
@@ -198,7 +208,18 @@ export function parseEntry(text: string, source = "memória"): MemoryEntry {
  * mentindo que algo mudou, e um commit vazio.
  */
 export function entrySignature(entry: MemoryEntry): string {
-  const { created_at: _created, updated_at: _updated, ...provenance } = entry.provenance;
+  const {
+    created_at: _created,
+    updated_at: _updated,
+    // Carimbos do caminho de escrita, e não do que a memória diz. `proposal_id`
+    // é um `newId()` por proposta: mantê-lo aqui faria a segunda proposta
+    // idêntica virar assinatura nova, e o portão gravaria e commitaria um
+    // arquivo cujo único delta é o carimbo — exatamente o commit vazio que o
+    // passo 3 do §7 do PRD existe para não produzir.
+    proposal_id: _proposal,
+    proposed_by: _proposedBy,
+    ...provenance
+  } = entry.provenance;
   return JSON.stringify({
     name: entry.name,
     description: entry.description,
@@ -221,39 +242,6 @@ export function resolveScope(type: MemoryType, scope?: MemoryScope): MemoryScope
  * todos eles. `project` e `reference` vão direto — erram barato, e o repositório
  * desmente.
  */
-const PROPOSAL_TYPES: readonly MemoryType[] = ["domain", "process", "contract"];
+/** Compartilhado com `requiresProposal`: a regra da Q27 mora num lugar só. */
+export const PROPOSAL_TYPES: readonly MemoryType[] = ["domain", "process", "contract"];
 
-/**
- * Por que esta escrita tem de virar proposta, ou `null` quando ela pode ir direto.
- *
- * A Q27 e o §11 do PRD dizem a mesma coisa por **dois eixos**, e a regra é a
- * união dos dois, porque cada um sozinho deixa uma porta:
- *
- * - por **tipo** (Q27): `domain`, `process` e `contract` de agente são proposta.
- *   Só pelo escopo, um agente contornaria a regra pedindo `scope: "project"`
- *   explícito para um `contract`;
- * - por **escopo** (§11): escrever memória de workspace ou global é proposta,
- *   qualquer que seja o tipo. Só pelo tipo, um `project` gravado com
- *   `scope: "workspace"` subiria direto — e "escrita para cima é revisada" é a
- *   assimetria que faz o workspace valer a pena.
- *
- * Sobra o que a Q27 libera de fato: `project` e `reference` no escopo deles.
- *
- * Fail-closed enquanto a inbox não existe, pelo mesmo princípio da D8: a regra
- * nasce junto com a superfície, e não depois dela. Recusar com motivo é o pior
- * caso aceitável; gravar direto e prometer revisão para a PR 05 não é.
- */
-export function proposalRefusal(
-  type: MemoryType,
-  scope: MemoryScope,
-  actor: MemoryActor,
-): string | null {
-  if (actor === "human") return null;
-  const porTipo = PROPOSAL_TYPES.includes(type);
-  const porEscopo = scope !== "project";
-  if (!porTipo && !porEscopo) return null;
-  const eixo = porTipo
-    ? `${type} é um dos tipos que valem para N projetos`
-    : `escrever em escopo ${scope} é escrever para cima`;
-  return `${type} em escopo ${scope} escrito por ${actor} é proposta, não escrita (Q27): ${eixo} — a inbox que recebe propostas é a PR 05`;
-}

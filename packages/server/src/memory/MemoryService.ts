@@ -5,7 +5,7 @@ import type { FastifyBaseLogger } from "fastify";
 import { z } from "zod";
 
 import type { Db } from "../db/index.js";
-import type { MemoryDecisionRow, MemoryEntryRow } from "../db/schema.js";
+import type { MemoryDecisionRow, MemoryEntryRow, MemoryProposalRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import { writeAtomically } from "../files/FileService.js";
 import { execGit, type GitExec } from "../git/exec.js";
@@ -20,6 +20,7 @@ import {
   upsertEntry,
   type ReindexResult,
 } from "./catalog.js";
+import { scanMemoryContent } from "./scan.js";
 import {
   attachCommit,
   decide,
@@ -34,7 +35,6 @@ import {
   MEMORY_SCOPES,
   MEMORY_TYPES,
   parseEntry,
-  proposalRefusal,
   resolveScope,
   serializeEntry,
   slugify,
@@ -65,6 +65,14 @@ import {
   type UsageOptions,
   type UsageSummary,
 } from "./recall.js";
+import {
+  createProposal,
+  findProposal,
+  listProposals,
+  requiresProposal,
+  resolveProposal,
+  type ProposalQuery,
+} from "./proposals.js";
 import { resolveVisible, type ResolvedView, type ScopeFilter } from "./shadow.js";
 import { commitChange } from "./repo.js";
 
@@ -73,8 +81,9 @@ import { commitChange } from "./repo.js";
  *
  * A PR 01 fez o ciclo de baixo (disco, commit, catálogo); a PR 02 pôs o portão
  * na frente: nada é gravado sem passar pelo scan e sem virar decisão no WAL.
- * A inbox de propostas é a PR 05 — até lá, o que a regra não resolve é recusa
- * explícita, nunca palpite.
+ * A inbox de propostas é a PR 05, e ela existe: escrita para cima feita por
+ * quem não é você **desvia** para revisão em vez de virar recusa. O que a regra
+ * não resolve continua sendo recusa explícita, nunca palpite.
  *
  * A ordem dentro de `write` não é arbitrária. Disco, catálogo, git — nessa
  * sequência, e cada passo seguinte pode falhar sem desfazer o anterior. É a
@@ -100,6 +109,15 @@ export const writeMemorySchema = z.object({
   workspaceId: z.string().min(1).optional(),
   projectId: z.string().min(1).optional(),
   body: z.string().max(100_000).default(""),
+  /**
+   * Declarado, e ainda não provado.
+   *
+   * O default é `human` nas duas superfícies, de propósito — elas contam a mesma
+   * história. Quem **impõe** o ator (transporte, ambiente ou token de sessão) é a
+   * [Q46](../../../../docs/prd/workspace-memory/open-questions.md), aberta: até
+   * ela fechar, o desvio da Q27 protege contra engano, não contra quem quer
+   * burlá-lo — e o WAL registra o ator declarado de toda escrita.
+   */
   actor: z.enum(MEMORY_ACTORS).default("human"),
   confidence: z.enum(["low", "medium", "high"]).optional(),
   /** O que sustenta a memória. Obrigatório para `auto_research`, quando ele existir (D7). */
@@ -107,6 +125,22 @@ export const writeMemorySchema = z.object({
   sourceSessions: z.array(z.string()).optional(),
   /** Worktree é origem, nunca escopo (Q5). */
   worktreeId: z.string().optional(),
+  /**
+   * A origem, quando a escrita vem de uma proposta aprovada.
+   *
+   * O ator da escrita passa a ser `human` — quem revisou foi você —, e é por
+   * isso que quem propôs precisa de campo próprio: sem ele a origem se perde no
+   * momento em que a proposta é aceita.
+   */
+  proposedBy: z.enum(MEMORY_ACTORS).optional(),
+  proposalId: z.string().min(1).optional(),
+  /**
+   * `false` desliga o desvio para a inbox.
+   *
+   * Existe para um caso só: aprovar uma proposta é gravar, e gravar o que você
+   * acabou de aprovar não pode virar proposta outra vez.
+   */
+  proposal: z.boolean().optional(),
 });
 
 /** O que uma superfície manda; `body` e `actor` têm default no schema. */
@@ -122,7 +156,7 @@ export interface WriteMemoryResult {
   commit: string | null;
   created: boolean;
   /** O que o portão decidiu. `noop` não toca o disco. */
-  outcome: GateDecision["outcome"];
+  outcome: GateDecision["outcome"] | "proposed";
   /** Por que não foi aplicada, quando não foi. */
   reason: string | null;
 }
@@ -180,11 +214,17 @@ export class MemoryService {
       scope,
       provenance: {
         source_actor: input.actor,
-        source_sessions: [...(input.sourceSessions ?? [])],
+        // Origem **acumula**, não substitui: cada sessão que ensinou a mesma
+        // coisa é uma origem a mais, e trocar a lista faria a segunda escrita
+        // apagar quem ensinou primeiro. É também o que faz a duplicata voltar a
+        // ser `noop` quando a mesma sessão repropõe o mesmo texto.
+        source_sessions: this.originsOf(previous, path, input.sourceSessions ?? []),
         ...(input.projectId === undefined ? {} : { project_id: input.projectId }),
         ...(input.worktreeId === undefined ? {} : { worktree_id: input.worktreeId }),
         confidence: input.confidence ?? "medium",
         ...(input.evidence === undefined ? {} : { evidence: input.evidence }),
+        ...(input.proposedBy === undefined ? {} : { proposed_by: input.proposedBy }),
+        ...(input.proposalId === undefined ? {} : { proposal_id: input.proposalId }),
         // Substituir preserva a data de nascimento: é ela que diz há quanto
         // tempo o sistema sabe daquilo.
         created_at: this.birthOf(previous, path, timestamp),
@@ -195,7 +235,47 @@ export class MemoryService {
 
     const candidate = serializeEntry(entry);
     const operation = previous === null ? "add" : "update";
-    const refusal = proposalRefusal(input.type, scope, input.actor);
+
+    // Q27: ator não-humano escrevendo para cima vira **proposta**, não memória. O
+    // desvio acontece aqui, antes do portão gravar decisão, porque uma proposta
+    // não é uma escrita que falhou — é uma escrita que ainda não foi pedida.
+    //
+    // É o que a 03 deixou como `proposalRefusal`: enquanto a inbox não existia, a
+    // mesma regra recusava com motivo. Agora ela desvia, e a recusa provisória
+    // saiu junto com o motivo dela.
+    //
+    // **O scan vem primeiro, e é o único que continua recusando.** Conteúdo com
+    // segredo não vira proposta: ele seria persistido no banco e mostrado na
+    // inbox, que é exatamente o que o scan existe para impedir. Sujo cai no
+    // portão abaixo, vira `rejected` no WAL, e responde "por que isso não foi
+    // salvo?" com um registro só.
+    const suspect = scanMemoryContent(candidate).verdict === "reject";
+    if (input.proposal !== false && !suspect && requiresProposal(input.actor, scope, input.type)) {
+      const proposal = createProposal(this.db, {
+        path,
+        type: input.type,
+        scope,
+        slug,
+        workspaceId: target.workspaceId ?? null,
+        projectId: target.projectId ?? null,
+        name: input.name,
+        description: input.description,
+        body: input.body,
+        actor: input.actor,
+        fromProjectId: input.projectId ?? null,
+        sessionId: input.sourceSessions?.[0] ?? null,
+        confidence: entry.provenance.confidence,
+        evidence: input.evidence ?? null,
+      });
+      return {
+        path,
+        scope,
+        commit: null,
+        created: false,
+        outcome: "proposed",
+        reason: `aguardando revisão (proposta ${proposal.id})`,
+      };
+    }
 
     // O portão decide antes de qualquer coisa tocar o disco (§7 do PRD).
     const decision = decide({
@@ -206,10 +286,6 @@ export class MemoryService {
       content: candidate,
       signature: entrySignature(entry),
       previousSignature: this.signatureOf(previous, path),
-      // Q27: escrita de agente para cima é proposta, e enquanto a inbox não
-      // existe é recusa com motivo. Vai pelo portão, e não antes dele, para o
-      // WAL responder "por que isso não foi salvo?" com um registro só.
-      ...(refusal === null ? {} : { refusal }),
     });
     const record = recordDecision(this.db, {
       ...decision,
@@ -282,14 +358,6 @@ export class MemoryService {
   }
 
   /**
-   * A data de nascimento do que já estava no disco — ou a de agora.
-   *
-   * Arquivo corrompido não pode **bloquear a escrita**: recusar aqui deixava a
-   * memória impossível de consertar pela própria ferramenta, e a única saída era
-   * apagar o arquivo por fora. Perder a data de nascimento de um arquivo que já
-   * não se consegue ler é o preço menor, e ele fica registrado no log.
-   */
-  /**
    * A assinatura do que está no disco, ou `null` quando não há o que comparar.
    *
    * `null` também para arquivo ilegível, e pela mesma razão do `birthOf`: o que
@@ -307,6 +375,37 @@ export class MemoryService {
     }
   }
 
+  /**
+   * As sessões que originaram — **acumulando**, nunca trocando.
+   *
+   * Cada sessão que ensinou a mesma coisa é uma origem a mais. Substituir a
+   * lista apagaria quem ensinou primeiro, e faria cada nova sessão custar uma
+   * escrita cujo único delta é quem leva o crédito.
+   *
+   * Ilegível vira lista vazia, pela mesma razão do `birthOf`: arquivo corrompido
+   * não pode bloquear a escrita que o conserta. Perde-se de quem veio o que já
+   * não se consegue ler.
+   */
+  private originsOf(previous: string | null, path: string, incoming: readonly string[]): string[] {
+    let known: readonly string[] = [];
+    if (previous !== null) {
+      try {
+        known = parseEntry(previous, path).provenance.source_sessions;
+      } catch {
+        // Sem aviso: o `birthOf` já registra o mesmo arquivo.
+      }
+    }
+    return [...new Set([...known, ...incoming])];
+  }
+
+  /**
+   * A data de nascimento do que já estava no disco — ou a de agora.
+   *
+   * Arquivo corrompido não pode **bloquear a escrita**: recusar aqui deixava a
+   * memória impossível de consertar pela própria ferramenta, e a única saída era
+   * apagar o arquivo por fora. Perder a data de nascimento de um arquivo que já
+   * não se consegue ler é o preço menor, e ele fica registrado no log.
+   */
   private birthOf(previous: string | null, path: string, fallback: string): string {
     if (previous === null) return fallback;
     try {
@@ -491,6 +590,52 @@ export class MemoryService {
   /** As decisões — inclusive as que **não** viraram arquivo. */
   decisions(query: DecisionQuery = {}): MemoryDecisionRow[] {
     return listDecisions(this.db, query);
+  }
+
+  /** A inbox: o que os agentes querem ensinar ao workspace. */
+  proposals(query: ProposalQuery = {}): MemoryProposalRow[] {
+    return listProposals(this.db, query);
+  }
+
+  /**
+   * Aprova uma proposta — com edição, se você quiser.
+   *
+   * A escrita resultante é **sua**: o ator vira `human`, porque quem revisou e
+   * mandou gravar foi você. A origem continua registrada na proposta, que fica
+   * como `approved` em vez de sumir.
+   */
+  async approveProposal(
+    id: string,
+    edits: { name?: string; description?: string; body?: string } = {},
+  ): Promise<WriteMemoryResult> {
+    const proposal = findProposal(this.db, id);
+    const result = await this.write({
+      name: edits.name ?? proposal.name,
+      description: edits.description ?? proposal.description,
+      body: edits.body ?? proposal.body,
+      type: proposal.type as MemoryType,
+      scope: proposal.scope as MemoryScope,
+      ...(proposal.workspaceId ? { workspaceId: proposal.workspaceId } : {}),
+      ...(proposal.projectId ? { projectId: proposal.projectId } : {}),
+      actor: "human",
+      confidence: proposal.confidence as "low" | "medium" | "high",
+      ...(proposal.evidence ? { evidence: proposal.evidence } : {}),
+      // A escrita é sua, a origem é dela: quem propôs, de qual sessão, e por
+      // qual proposta ficam no arquivo — o `path` sozinho não distingue duas
+      // propostas do mesmo alvo.
+      proposedBy: proposal.actor as MemoryActor,
+      proposalId: proposal.id,
+      ...(proposal.sessionId === null ? {} : { sourceSessions: [proposal.sessionId] }),
+      // Já é a revisão: não pode virar proposta de novo.
+      proposal: false,
+    });
+    resolveProposal(this.db, id, "approved");
+    return result;
+  }
+
+  /** Rejeita. A proposta fica visível — recusar é histórico, não apagamento. */
+  rejectProposal(id: string, note?: string): MemoryProposalRow {
+    return resolveProposal(this.db, id, "rejected", note);
   }
 
   /**

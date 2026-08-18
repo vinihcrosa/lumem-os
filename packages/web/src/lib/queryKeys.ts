@@ -16,6 +16,10 @@ export function worktreesKey(projectId: string) {
   return ["worktree", "listByProject", projectId] as const;
 }
 
+export function projectDetailKey(projectId: string) {
+  return ["project", "detail", projectId] as const;
+}
+
 export function worktreeDetailKey(worktreeId: string) {
   return ["worktree", "detail", worktreeId] as const;
 }
@@ -56,3 +60,22 @@ export function changesKey(scopeType: string, scopeId: string, ref: string) {
 export function patchKey(scopeType: string, scopeId: string, ref: string, path: string) {
   return ["changes", "patch", scopeType, scopeId, ref, path] as const;
 }
+
+/**
+ * As quatro perguntas da memória.
+ *
+ * Prefixadas por `memory` para que aprovar uma proposta possa invalidar
+ * `["memory"]` inteiro de uma vez: aprovar muda a lista, muda a inbox, muda a
+ * linha do tempo e muda os números — e invalidar três de quatro é como uma tela
+ * passa a discordar de si mesma.
+ */
+export function memoryListKey(workspaceId: string | null, projectId: string | null) {
+  return ["memory", "list", workspaceId ?? "-", projectId ?? "-"] as const;
+}
+
+export function memoryProposalsKey(status: string) {
+  return ["memory", "proposals", status] as const;
+}
+
+export const MEMORY_DECISIONS_KEY = ["memory", "decisions"] as const;
+export const MEMORY_USAGE_KEY = ["memory", "usage"] as const;

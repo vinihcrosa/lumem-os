@@ -274,7 +274,9 @@ com a régua menor que o §12.6 daquele estudo recomendou:
    o SHA que ela produziu. Rejeição e no-op vivem **só** no WAL, porque não viram arquivo.
 
 Toda entrada carrega **proveniência**: origem, sessão, projeto, confiança, e `superseded_by` quando
-substituída. Sem isso, memória de workspace escrita por agente é irrastreável — e é a mais cara de
+substituída. Quando a escrita nasceu de uma proposta aprovada, ela carrega também `proposed_by` e
+`proposal_id` — porque aprovar grava com ator `human`, e sem esses dois campos a origem morreria no
+momento em que a proposta é aceita. Sem isso, memória de workspace escrita por agente é irrastreável — e é a mais cara de
 errar.
 
 ### Precedência: shadow, nunca merge

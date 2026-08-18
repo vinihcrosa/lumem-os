@@ -7,8 +7,12 @@ aqui, com o motivo.
 onde está, agrupada por tema, e ganha uma linha **Decisão:** com o que ficou valendo. Cada pergunta
 traz uma **proposta pra reagir**; discordar dela é mais rápido que escrever do zero.
 
-**Estado:** 46 perguntas · **43 respondidas · 3 abertas (Q38, Q39, Q44).** O que resta, além delas, são as
+**Estado:** 47 perguntas · **43 respondidas · 4 abertas (Q38, Q39, Q44, Q46).** O que resta, além delas, são as
 **D2, D5, D7 e D8**, no [context-delivery.md](context-delivery.md).
+
+**Rodada 7 (2026-08-18):** a PR 05 ligou a inbox na tela, e isso cobrou uma pergunta: a **Q46**, sobre
+onde o ator declarado passa a ser **imposto**. A Q27 ganhou o que a inbox mudou — a regra virou uma
+função só, e `import` entrou junto com os outros atores não-humanos.
 
 **Rodada 6 (2026-08-18):** quatro decisões que **a implementação do portão** obrigou a tomar, na
 seção J: duplicata por assinatura semântica (Q40), reverter duas vezes alterna (Q41), o scan não
@@ -733,6 +737,33 @@ proposta na inbox. Efeito colateral bom: o portão inteiro fica **determinístic
 
 ---
 
+### [ ] Q46 — Quem prova que o ator é quem ele diz que é? `[lm]`
+
+O desvio da Q27 é decidido por `actor`, e `actor` é **declarado por quem chama**: o default é `human`
+no schema do núcleo (`writeMemorySchema`) e, por paridade, na CLI. O agente roda numa sessão com
+shell, então `lumem-memory write --type domain --workspace ws1` sem `--actor` grava memória de
+workspace direto no disco e no git, sem passar pela inbox. Hoje a garantia da Q27 protege contra
+**engano**, não contra quem quiser burlá-la.
+
+**O ponto de imposição precisa ser nomeado.** As três saídas, do mais barato ao mais correto:
+
+| Saída | Como | O que ela não resolve |
+|---|---|---|
+| Ator vindo do ambiente | daemon injeta `LUMEM_ACTOR=agent` no spawn (ele já controla `env`); a CLI usa isso quando `--actor` não vem | `env -u LUMEM_ACTOR` ou `--actor human` desfazem |
+| Ator vindo do transporte | com ACP, a escrita entra pela sessão que o daemon abriu, e o ator é do **canal**, não do argumento | precisa da `acp-sessions` de pé; a CLI solta continua existindo |
+| Segredo por sessão | o daemon dá um token por sessão; `human` só é aceito de quem não tem token de sessão | é a mais cara, e vaza junto com o `env` da sessão |
+
+**Proposta pra reagir:** **ator vindo do transporte**, quando a `acp-sessions` existir — a escrita de
+agente passa a chegar por um canal que o daemon abriu, e ator deixa de ser argumento. Até lá, ator
+vindo do ambiente como redução de dano, e a CLI continua sendo uma superfície de confiança sua.
+
+O que segura a espera: o WAL registra o `actor` declarado de **toda** escrita, com o SHA que ela
+produziu. Burlar é possível, e é **visível depois do fato**.
+
+**R:** _(aberta)_
+
+---
+
 ## D. Playbooks (procedimento)
 
 ### [x] Q14 — Playbook é formato próprio do Lumem, ou o Lumem gera skill no formato de cada CLI? `[hm][lm]`
@@ -1082,8 +1113,13 @@ direto — erra barato, o repo desmente.
   do PRD chama de "escrita para cima é revisada". Só pelo tipo, um `project` gravado com
   `scope: "workspace"` subiria direto.
 
-Sobra indo direto o que esta decisão libera: `project` e `reference` no escopo deles. Enquanto a inbox
-da PR 05 não existe, proposta é **recusa com motivo**, registrada no WAL.
+Sobra indo direto o que esta decisão libera: `project` e `reference` no escopo deles.
+
+**O que a PR 05 mudou:** a inbox existe, e proposta deixou de ser recusa. A regra é uma função só —
+`requiresProposal` —, e a `proposalRefusal` que a PR 03 tinha posto no portão saiu junto com o motivo
+dela: duas leituras da Q27 em dois lugares seriam dois sistemas discordando sobre o que precisa de
+revisão. E ela vale para **todo** ator que não é você, `import` incluído — importar é trazer dado de
+fora, e o que vem de fora não é mais confiável do que o que um agente concluiu.
 
 ---
 

@@ -375,6 +375,69 @@ export const memoryUsage = sqliteTable("memory_usage", {
   ...timestamps,
 });
 
+/**
+ * A inbox de propostas (Q27).
+ *
+ * Escrita de **workspace** feita por agente não vira memória: vira proposta.
+ * É a assimetria que faz o workspace valer a pena sem deixar um agente
+ * contaminar N projetos — leitura livre, escrita para cima revisada.
+ *
+ * A proposta guarda o **candidato inteiro**, e não um ponteiro: ela precisa
+ * sobreviver a a memória de origem mudar, e precisa ser revisável sem que nada
+ * tenha sido gravado ainda.
+ */
+export const memoryProposal = sqliteTable(
+  "memory_proposal",
+  {
+    id: text("id").primaryKey(),
+    /** Onde ela seria gravada, se aprovada. */
+    path: text("path").notNull(),
+    type: text("type").notNull(),
+    scope: text("scope").notNull(),
+    slug: text("slug").notNull(),
+    workspaceId: text("workspace_id"),
+    projectId: text("project_id"),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    body: text("body").notNull().default(""),
+    /** Quem propôs, e de onde. */
+    actor: text("actor").notNull(),
+    fromProjectId: text("from_project_id"),
+    sessionId: text("session_id"),
+    confidence: text("confidence").notNull(),
+    /**
+     * O que sustenta a proposta.
+     *
+     * A D7 decidiu o critério: resposta apoiada em artefato verificável vira
+     * memória direta; **conclusão vira proposta**. Quando há evidência, ela vem
+     * junto — e a tela mostra a diferença.
+     */
+    evidence: text("evidence"),
+    status: text("status").notNull().default("pending"),
+    /** Preenchido quando você decide. */
+    resolvedAt: integer("resolved_at", { mode: "timestamp_ms" }),
+    resolutionNote: text("resolution_note"),
+    ...timestamps,
+  },
+  (table) => [
+    check("memory_proposal_status", sql`${table.status} IN ('pending', 'approved', 'rejected')`),
+    // Os mesmos CHECK do `memory_entry`: aprovar uma proposta faz
+    // `proposal.type as MemoryType`, um cast que compila em silêncio sobre
+    // qualquer string. O banco é o único lugar que consegue recusar a string
+    // antes de ela chegar ao arquivo.
+    check(
+      "memory_proposal_type",
+      sql`${table.type} IN ('user', 'feedback', 'project', 'domain', 'process', 'contract', 'reference')`,
+    ),
+    check("memory_proposal_scope", sql`${table.scope} IN ('global', 'workspace', 'project')`),
+    check(
+      "memory_proposal_actor",
+      sql`${table.actor} IN ('human', 'agent', 'distiller', 'auto_research', 'import')`,
+    ),
+    check("memory_proposal_confidence", sql`${table.confidence} IN ('low', 'medium', 'high')`),
+  ],
+);
+
 export const schema = {
   workspace,
   project,
@@ -387,6 +450,7 @@ export const schema = {
   memoryAccess,
   memorySignal,
   memoryUsage,
+  memoryProposal,
 };
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
@@ -400,3 +464,4 @@ export type ActionSignalRow = typeof actionSignal.$inferSelect;
 export type MemoryAccessRow = typeof memoryAccess.$inferSelect;
 export type MemorySignalRow = typeof memorySignal.$inferSelect;
 export type MemoryUsageRow = typeof memoryUsage.$inferSelect;
+export type MemoryProposalRow = typeof memoryProposal.$inferSelect;

@@ -26,7 +26,8 @@ import { ensureMemoryHome } from "./home.js";
  * A PR 02 pôs o portão atrás desta superfície: `write`, `forget` e `revert`
  * passam pelo scan e viram decisão no WAL, e `decisions` é a leitura dele —
  * inclusive do que **não** virou arquivo. A inbox de propostas continua sendo a
- * PR 05; até lá, o que a regra não resolve é recusa explícita, nunca palpite.
+ * PR 05, e ela está de pé: escrita de agente para cima sai como `proposta:`, não
+ * como escrita. O que a regra não resolve continua sendo recusa explícita.
  *
  * Paridade inclui o que `list` quer dizer: aqui e no router, `list` é o que o
  * escopo **enxerga** (resolvido por shadow). A lista crua do catálogo é outra
@@ -165,11 +166,21 @@ export async function runMemoryCli(
           body: flags.body ?? "",
           // Validado pela mesma lista que o schema do núcleo usa, e revalidado
           // por ele: o cast de antes fazia a CLI aceitar o que a API recusava.
+          //
+          // Declarado por quem chama, e o mesmo default do router. Onde o ator
+          // passa a ser **imposto** é a Q46 (aberta) em
+          // docs/prd/workspace-memory/open-questions.md.
           actor: asActor(flags.actor ?? "human"),
           ...(flags.scope ? { scope: asScope(flags.scope) } : {}),
           ...(flags.workspace ? { workspaceId: flags.workspace } : {}),
           ...(flags.project ? { projectId: flags.project } : {}),
         });
+        // Proposta não é escrita, e a CLI não pode dizer que gravou: quem grava é
+        // você, pela inbox. O motivo do núcleo já carrega o id da proposta.
+        if (result.outcome === "proposed") {
+          out(`proposta: ${result.path}\n${result.reason ?? "aguardando revisão"}\n`);
+          return 0;
+        }
         out(
           `${result.created ? "escrita" : "atualizada"}: ${result.path}\n` +
             `commit: ${result.commit ?? "(nenhum — veja o aviso acima)"}\n`,

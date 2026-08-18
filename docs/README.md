@@ -100,7 +100,7 @@ Sucede a `right-panel`. O split da aba **escreve**: editar o arquivo aberto com 
 
 ### [workspace-memory/](prd/workspace-memory/) — o harness lembra
 
-**Em construção, em pilha de PRs — a 01 entregue.** A primeira feature que não é de tela: memória
+**Em pilha de PRs — 01 a 04, S1 e S2 mergeadas; a 05 é o topo.** A primeira feature que não é de tela: memória
 compartilhada do workspace e aprendizado contínuo por projeto. É o pilar que dá sentido ao conceito de workspace — dois
 projetos que se conhecem. Foi ela que forçou a decisão do ACP: o daemon precisava entender a sessão,
 e por PTY ele só via bytes.
@@ -108,7 +108,7 @@ e por PTY ele só via bytes.
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/workspace-memory/prd.md) | As três naturezas do conhecimento, o que a decisão por ACP mudou, onde cada coisa vive, o portão de escrita, a fronteira cross-projeto, riscos |
-| [open-questions.md](prd/workspace-memory/open-questions.md) | 46 perguntas, **43 respondidas** — o registro de por que cada decisão foi tomada. As três abertas (Q38, Q39, Q44) saíram das revisões das PRs 01 e 03; as quatro da seção J foram obrigadas pela implementação do portão, e a Q45 pelo ranking do recall |
+| [open-questions.md](prd/workspace-memory/open-questions.md) | 47 perguntas, **43 respondidas** — o registro de por que cada decisão foi tomada. As quatro abertas (Q38, Q39, Q44, Q46) saíram das revisões das PRs 01, 03 e 05; as quatro da seção J foram obrigadas pela implementação do portão, e a Q45 pelo ranking do recall |
 | [tasks.md](prd/workspace-memory/tasks.md) | Uma seção por PR da pilha. A **01, a 02 e o S1 têm tasks** e o que a execução achou; as demais têm escopo e `Done when` |
 | [roadmap.md](prd/workspace-memory/roadmap.md) | **A feature em pilha de PRs**: topologia de branches, as sete regras da pilha, as cinco partes da espinha, o que anda em paralelo e onde o ACP entra |
 | [context-delivery.md](prd/workspace-memory/context-delivery.md) | Como a memória chega no agente: **núcleo comportamental + skill + serviço `lumem-memory` com auto-learn**. O que o desenho compra, o que ele cobra, e o que medir. As **D1–D8** estão respondidas |

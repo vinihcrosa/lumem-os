@@ -267,28 +267,30 @@ describe("MemoryService.write — os limites moram no núcleo", () => {
     ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
   });
 
-  it("agente escrevendo contract de workspace é recusado, e a recusa fica no WAL (Q27)", async () => {
+  it("agente escrevendo contract de workspace vira proposta, e não toca o disco (Q27)", async () => {
     const { memory, stateDir } = await service();
 
-    await expect(
-      memory.write({
-        name: "Contrato de checkout",
-        description: "O que o front espera do back",
-        type: "contract",
-        workspaceId: "ws1",
-        actor: "agent",
-        body: "Itens e cupom.",
-      }),
-    ).rejects.toMatchObject({ code: "BLOCKED" });
+    const result = await memory.write({
+      name: "Contrato de checkout",
+      description: "O que o front espera do back",
+      type: "contract",
+      workspaceId: "ws1",
+      actor: "agent",
+      body: "Itens e cupom.",
+    });
 
-    expect(memory.decisions()[0]).toMatchObject({ outcome: "rejected" });
-    expect(memory.decisions()[0]?.reason).toContain("Q27");
+    // A 03 recusava com motivo porque a inbox não existia; a 05 desvia. O que não
+    // mudou é o que importa: nada gravado sem a sua revisão.
+    expect(result.outcome).toBe("proposed");
+    expect(memory.proposals({ status: "pending" })).toHaveLength(1);
     expect(() =>
       statSync(join(stateDir, "workspaces/ws1/memory/contract_contrato-de-checkout.md")),
     ).toThrow();
+    // E proposta não é decisão: o WAL registra o que passou pelo portão.
+    expect(memory.decisions()).toHaveLength(0);
   });
 
-  it("segredo continua vencendo a recusa de permissão — o ruleTrace guarda os dois", async () => {
+  it("segredo não vira proposta: o scan recusa antes da inbox, e o WAL registra", async () => {
     const { memory } = await service();
 
     await expect(
@@ -302,10 +304,13 @@ describe("MemoryService.write — os limites moram no núcleo", () => {
       }),
     ).rejects.toMatchObject({ code: "BLOCKED" });
 
-    // Quando o conteúdo também tem segredo, é o segredo que a resposta nomeia.
+    // Quando o conteúdo tem segredo, é o segredo que a resposta nomeia — e o
+    // desvio para a inbox não acontece: guardar a chave no banco e mostrá-la na
+    // tela é exatamente o que o scan existe para impedir.
     const decision = memory.decisions()[0];
     expect(decision?.reason).toContain("credencial");
     expect(decision?.ruleTrace).toContain("aws_access_key");
+    expect(memory.proposals()).toHaveLength(0);
   });
 });
 

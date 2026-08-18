@@ -3,10 +3,13 @@ import { useState } from "react";
 
 import { useCheckoutChanges, type ChangeRef, type ChangeStatus } from "../hooks/useCheckoutChanges.js";
 import { useFileTree } from "../hooks/useFileTree.js";
+import { useProposals } from "../hooks/useMemory.js";
 import { useOpenFiles } from "../hooks/useOpenFiles.js";
+import { useScopeIds } from "../hooks/useScopeIds.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import { ChangesTab } from "./ChangesTab.js";
 import { FileTree, NewInRoot } from "./FileTree.js";
+import { MemoryPanel } from "./MemoryPanel.js";
 import { RightPanel, type RightPanelTab } from "./RightPanel.js";
 
 export interface CheckoutFilesProps {
@@ -36,6 +39,8 @@ export function CheckoutFiles({ scope, onClose, onResize }: CheckoutFilesProps) 
   const edits = useFileTree(scope);
 
   const changes = useCheckoutChanges(scope, "worktree");
+  const proposals = useProposals("pending");
+  const ids = useScopeIds(scope);
   const statusByPath = new Map<string, ChangeStatus>(
     (changes.data?.files ?? []).map((file) => [file.path, file.status as ChangeStatus]),
   );
@@ -47,6 +52,7 @@ export function CheckoutFiles({ scope, onClose, onResize }: CheckoutFilesProps) 
       tab={tab}
       onSelectTab={setTab}
       changeCount={changes.data?.files.length ?? null}
+      proposalCount={proposals.data?.length ?? null}
       // Only where it means something: on `Mudanças` there is no tree to create
       // into, and a button that opens a field on another tab is a trap.
       actions={tab === "files" ? <NewInRoot edits={edits} /> : undefined}
@@ -66,7 +72,7 @@ export function CheckoutFiles({ scope, onClose, onResize }: CheckoutFilesProps) 
           : undefined
       }
     >
-      {tab === "files" ? (
+      {tab === "files" && (
         <FileTree
           scope={scope}
           openPath={active?.view === "file" ? active.path : null}
@@ -74,13 +80,20 @@ export function CheckoutFiles({ scope, onClose, onResize }: CheckoutFilesProps) 
           statusOf={(path) => statusByPath.get(path)}
           edits={edits}
         />
-      ) : (
+      )}
+      {tab === "changes" && (
         <ChangesTab
           scope={scope}
           openPath={active?.view === "patch" ? active.path : null}
           onOpenPatch={(path, ref) => openFiles.open({ path, view: "patch", ref })}
           onRefChange={setShownRef}
         />
+      )}
+      {tab === "memory" && (
+        // O escopo da memória segue o do checkout: o projeto é sempre conhecido,
+        // e o workspace vem com ele. Uma worktree resolve para o mesmo projeto,
+        // porque worktree é origem e não escopo (Q5).
+        <MemoryPanel workspaceId={ids.workspaceId} projectId={ids.projectId} />
       )}
     </RightPanel>
   );

@@ -4,11 +4,19 @@ import { clampWidth } from "../hooks/useRightPanel.js";
 
 import "./right-panel.css";
 
-export type RightPanelTab = "files" | "changes";
+/**
+ * A terceira aba entrou com a memória.
+ *
+ * Ela pertence ao **checkout** como as outras duas — o que o workspace sabe não
+ * muda ao trocar de aba de sessão —, e por isso mora aqui e não na aba.
+ */
+export type RightPanelTab = "files" | "changes" | "memory";
 
 export interface RightPanelProps {
   tab: RightPanelTab;
   onSelectTab(tab: RightPanelTab): void;
+  /** Propostas pendentes; null enquanto ainda não se sabe. */
+  proposalCount?: number | null;
   /** Shown on the `Mudanças` tab; null while it is still unknown. */
   changeCount: number | null;
   /**
@@ -34,6 +42,7 @@ export interface RightPanelProps {
  * this is the frame they share, and the place the drag lives.
  */
 export function RightPanel({
+  proposalCount = null,
   tab,
   onSelectTab,
   changeCount,
@@ -120,6 +129,20 @@ export function RightPanel({
               someone who already opened it. */}
           {changeCount !== null && changeCount > 0 && (
             <span className="rtab__count">{changeCount}</span>
+          )}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "memory"}
+          className={`rtab${tab === "memory" ? " rtab--active" : ""}`}
+          onClick={() => onSelectTab("memory")}
+        >
+          Memória
+          {/* Pelo mesmo motivo da contagem de mudanças: o número de propostas
+              pendentes é o que decide se vale abrir a aba. */}
+          {proposalCount !== null && proposalCount > 0 && (
+            <span className="rtab__count">{proposalCount}</span>
           )}
         </button>
         <span className="rp__spacer" />

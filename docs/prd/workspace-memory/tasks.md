@@ -2,9 +2,8 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) · **Entrega de contexto:** [context-delivery.md](context-delivery.md)
 **Roadmap:** [roadmap.md](roadmap.md) — este arquivo é a execução da pilha descrita lá
-**Status:** **PR 01** (7 de 7) e **S1** (6 de 6) entregues, **PR 02** (5 de 5) e **PR 03** em revisão
-— portão verde na PR 03 depois do rebase sobre a 02 (`gate:full`: 1.228 unit/integration + 16 e2e).
-As demais entram quando a anterior abrir PR
+**Status:** **01 a 04, S1 e S2 mergeadas**; a **05** é o topo da pilha e está em revisão. Portão verde
+no topo: `gate:full` com **1.318 unit/integration + 16 e2e**
 
 ---
 
@@ -16,13 +15,13 @@ escrita contra premissa que a implementação ainda vai derrubar.
 
 | PR | Branch | Base | Estado |
 |---|---|---|---|
-| **01** | `wm/01-armazenamento` | guarda-chuva | **entregue** — tasks e o que a execução achou, abaixo |
-| **02** | `wm/02-portao` | 01 | **em PR** — tasks e o que a execução achou, abaixo |
-| **03** | `wm/03-superficies` | 02 | **em PR** — escopo e o que a execução achou, abaixo |
-| 04 | `wm/04-recall` | 03 | idem |
-| 05 | `wm/05-inbox-ui` | 04 | idem |
-| **S1** | `wm/s1-sinais-de-acao` | 01 | **entregue** — tasks abaixo |
-| S2 | `wm/s2-prototipo` | guarda-chuva | idem |
+| **01** | `wm/01-armazenamento` | guarda-chuva | **mergeada** — tasks e o que a execução achou, abaixo |
+| **02** | `wm/02-portao` | 01 | **mergeada** — tasks e o que a execução achou, abaixo |
+| **03** | `wm/03-superficies` | 02 | **mergeada** — escopo e o que a execução achou, abaixo |
+| **04** | `wm/04-recall` | 03 | **mergeada** — FTS5 explicável, sinal de uso, instrumentação |
+| **05** | `wm/05-inbox-ui` | 04 | **em PR** — propostas e a memória na tela |
+| **S1** | `wm/s1-sinais-de-acao` | 01 | **mergeada** — tasks abaixo |
+| **S2** | `wm/s2-prototipo` | 04 | **mergeada** — protótipo verificado por renderização |
 
 ---
 
@@ -41,7 +40,7 @@ Cada uma vem de uma pergunta **respondida**. Implementar contra qualquer outra c
 | **A7** | ID reivindicado por dois caminhos com remotes diferentes = **fork**: o Lumem pergunta, e rotaciona o ID se for | [Q3.1](open-questions.md) |
 | **A8** | **Worktree não tem memória**, mas é **origem**: a proveniência guarda de qual worktree veio o aprendizado | [Q5](open-questions.md) |
 | **A9** | Taxonomia fechada: `user`, `feedback`, `project`, `domain`, `process`, `contract`, `reference` — validada na fronteira | [Q4](open-questions.md) |
-| **A10** | Toda memória carrega **proveniência**: origem, sessão, projeto/worktree, confiança, `superseded_by` | §7 do PRD |
+| **A10** | Toda memória carrega **proveniência**: origem, sessão (que **acumula**, nunca troca), projeto/worktree, confiança, `superseded_by` — mais `proposed_by`/`proposal_id` quando veio de proposta aprovada | §7 do PRD |
 
 ---
 

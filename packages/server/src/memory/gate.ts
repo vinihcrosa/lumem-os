@@ -21,7 +21,7 @@ import { describeFindings, scanMemoryContent, type ScanFinding } from "./scan.js
  * 4. **decisão persistida antes de tocar o arquivo**.
  *
  * Não há LLM neste caminho (Q13). O que a regra não resolve vira proposta na
- * inbox — que é a PR 05 —, e não palpite.
+ * inbox — que a PR 05 entregou —, e não palpite.
  *
  * O WAL é o da Q37: guarda a **decisão** e o SHA, nunca o conteúdo anterior. O
  * conteúdo anterior é o commit anterior, e manter os dois seria manter dois

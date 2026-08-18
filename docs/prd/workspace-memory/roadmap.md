@@ -257,8 +257,23 @@ convivem. Dentro da frente A não há paralelismo: a espinha é corrente, cada p
 
 | Parte | Estado |
 |---|---|
-| Documentação (PRD, perguntas, entrega de contexto, roadmap) | **na guarda-chuva**, sem código ainda |
-| **01** | [tasks escritas](tasks.md) — 7 tasks, pronta para execução |
-| 02–05, S1, S2 | escopo e `Done when` em [tasks.md](tasks.md); tasks quando chegar a vez |
+| Documentação (PRD, perguntas, entrega de contexto, roadmap) | na guarda-chuva |
+| **01 → 05, S1, S2** | **entregues**, cada uma na própria branch, com portão verde |
 | 06–09 | esperam `acp-sessions` |
-| **`acp-sessions`** | [PRD escrito](../acp-sessions/prd.md), **spike rodado** — autenticação e janela de 1M confirmadas; falta medir o consumo |
+| **`acp-sessions`** | [PRD escrito](../acp-sessions/prd.md) e **spike completo** — autenticação, janela de 1M e consumo, os três medidos |
+
+### A pilha, como ela ficou
+
+```
+main
+ └── workspace-memory-selflear        (guarda-chuva · docs)
+      └── wm/01-armazenamento         ← wm/s1-sinais-de-acao
+           └── wm/02-portao
+                └── wm/03-superficies
+                     └── wm/04-recall  ← wm/s2-prototipo
+                          └── wm/05-inbox-ui
+```
+
+A profundidade chegou a 5 — um acima da regra 5, que pede no máximo 4. Foi decisão consciente para
+entregar a pilha inteira de uma vez; se o review demorar, a regra volta a valer e a base merge antes
+de qualquer PR nova.

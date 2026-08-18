@@ -27,7 +27,7 @@ import { resolveInsideRoot } from "../files/path-guard.js";
  * |---|---|
  * | ler memória do workspace, ou de qualquer projeto dele | **livre**, e registrada |
  * | ler **arquivo** de outro repositório | **negada**, com motivo |
- * | escrever memória de workspace por agente | proposta (PR 05) |
+ * | escrever memória de workspace por agente | proposta na inbox (PR 05) |
  */
 
 export type AccessKind = "memory" | "repository";

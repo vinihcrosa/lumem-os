@@ -284,16 +284,21 @@ describe("lumem-memory", () => {
     expect(app.err).toContain("ator inválido");
   });
 
-  it("agente não escreve contract de workspace pela CLI tampouco (Q27)", async () => {
+  it("agente escrevendo contract de workspace propõe pela CLI, e não grava (Q27)", async () => {
     const app = cli();
 
+    // A 03 recusava com motivo porque a inbox não existia; agora a CLI diz que
+    // propôs — e dizer "escrita" aqui seria a superfície mentindo sobre o disco.
     expect(
       await app.run(
         "write", "--name", "Contrato", "--type", "contract",
         "--workspace", "ws1", "--actor", "agent", "--body", "itens e cupom",
       ),
-    ).toBe(1);
-    expect(app.err).toContain("Q27");
+    ).toBe(0);
+    expect(app.out).toContain("proposta:");
+    expect(app.out).toContain("aguardando revisão");
+    expect(await app.run("list")).toBe(0);
+    expect(app.out).toContain("nenhuma memória ainda");
   });
 
   it("revert recusa caminho que não é de memória", async () => {

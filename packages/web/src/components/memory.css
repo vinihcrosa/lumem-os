@@ -1,0 +1,141 @@
+/* Memória — as quatro vistas. Só var(), como o resto do app. */
+
+.mem-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+
+.mem-head {
+  display: flex; align-items: center; gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+  background: var(--color-bg-raised);
+}
+.mem-head .mem-title { font-weight: 600; font-size: 12px; }
+.mem-head .mem-spacer { flex: 1; }
+
+/* As quatro vistas. Estado ativo por classe, como `tab-item--active`: sem ele
+   nenhuma das quatro aparenta estar aberta. */
+.mem-tabs { display: inline-flex; background: var(--color-bg-inset); border-radius: var(--radius-md); padding: 2px; gap: 2px; }
+.mem-tab {
+  font-size: 11px; padding: 3px 10px; border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+.mem-tab:hover { color: var(--color-text-primary); }
+.mem-tab--active {
+  background: var(--color-bg-surface); color: var(--color-text-primary); font-weight: 600;
+}
+
+.mem-count {
+  font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: var(--radius-full);
+  background: var(--color-bg-brand-subtle); color: var(--color-text-brand);
+}
+
+.mem-body { flex: 1; min-height: 0; overflow: auto; }
+
+.mem-item {
+  padding: var(--space-10) var(--space-12);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+}
+.mem-item:last-child { border-bottom: 0; }
+.mem-item.is-shadowed { opacity: .55; }
+
+.mem-row { display: flex; align-items: baseline; gap: var(--space-8); }
+.mem-name { font-weight: 600; }
+.mem-desc { color: var(--color-text-secondary); font-size: 12px; margin-top: 2px; }
+.mem-meta {
+  color: var(--color-text-tertiary); font-size: 11px; margin-top: var(--space-4);
+  display: flex; gap: var(--space-10); flex-wrap: wrap;
+}
+
+/* Escopo responde "onde vale"; tipo responde "o que é". Formas diferentes, porque
+   a primeira renderização do protótipo provou que peso igual apaga a distinção. */
+.mem-scope {
+  font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: var(--radius-full);
+  border: var(--border-width-thin) solid transparent; white-space: nowrap;
+}
+.mem-scope[data-scope="global"] {
+  background: var(--color-bg-neutral-subtle); color: var(--color-text-secondary);
+  border-color: var(--color-border-subtle);
+}
+.mem-scope[data-scope="workspace"] {
+  background: var(--color-bg-brand-subtle); color: var(--color-scope-workspace);
+  border-color: var(--color-border-brand);
+}
+.mem-scope[data-scope="project"] {
+  background: var(--color-bg-success-subtle); color: var(--color-scope-worktree);
+  border-color: var(--color-border-default);
+}
+.mem-kind {
+  font: 500 10px/1 var(--font-family-mono); color: var(--color-text-tertiary);
+  letter-spacing: .02em; text-transform: uppercase;
+}
+
+.mem-shadow-note {
+  font-size: 11px; color: var(--color-text-tertiary);
+  border-left: 2px solid var(--color-border-strong);
+  padding-left: var(--space-8); margin-top: var(--space-6);
+}
+
+/* Propostas */
+.mem-evidence {
+  margin-top: var(--space-8); padding: var(--space-8) var(--space-10);
+  border-radius: var(--radius-md); background: var(--color-bg-inset);
+  color: var(--color-text-secondary); font-size: 12px;
+}
+.mem-evidence code { font-family: var(--font-family-mono); font-size: 11px; }
+.mem-actions { display: flex; gap: var(--space-8); margin-top: var(--space-10); flex-wrap: wrap; }
+
+/* Pendentes × resolvidas. Recusar é histórico, e o histórico precisa de porta. */
+.mem-seg {
+  display: inline-flex; margin: var(--space-10) var(--space-12) 0;
+  background: var(--color-bg-inset); border-radius: var(--radius-md); padding: 2px; gap: 2px;
+}
+.mem-seg__item {
+  font-size: 11px; padding: 3px 10px; border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+.mem-seg__item--active {
+  background: var(--color-bg-surface); color: var(--color-text-primary); font-weight: 600;
+}
+
+/* O corpo é o que vira arquivo: ele aparece antes de qualquer aprovação. */
+.mem-body-text {
+  margin-top: var(--space-8); padding: var(--space-8) var(--space-10);
+  border-radius: var(--radius-md); background: var(--color-bg-inset);
+  border: var(--border-width-thin) solid var(--color-border-subtle);
+  font: var(--text-mono-sm); color: var(--color-text-primary);
+  white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto;
+}
+
+.mem-form { margin-top: var(--space-10); }
+.mem-form .input { width: 100%; }
+.mem-textarea {
+  width: 100%; padding: var(--space-8) var(--space-10);
+  font: var(--text-mono-sm); resize: vertical;
+}
+
+.mem-verdict {
+  font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: var(--radius-full);
+  text-transform: uppercase; letter-spacing: .02em;
+}
+.mem-verdict[data-status="approved"] {
+  background: var(--color-bg-success-subtle); color: var(--color-text-success);
+}
+.mem-verdict[data-status="rejected"] {
+  background: var(--color-bg-danger-subtle); color: var(--color-text-danger);
+}
+
+/* Linha do tempo */
+.mem-tl-item {
+  display: grid; grid-template-columns: 96px 14px 1fr; gap: var(--space-8);
+  padding: var(--space-6) var(--space-12); align-items: baseline;
+}
+.mem-tl-when { color: var(--color-text-tertiary); font-size: 11px; text-align: right; }
+.mem-tl-dot { color: var(--color-text-tertiary); text-align: center; }
+.mem-tl-verb { font-weight: 600; }
+.mem-tl-item[data-outcome="rejected"] .mem-tl-verb { color: var(--color-text-danger); }
+.mem-tl-item[data-outcome="noop"] { color: var(--color-text-tertiary); }
+
+/* Números */
+.mem-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--color-border-subtle); }
+.mem-stat { background: var(--color-bg-surface); padding: var(--space-12); }
+.mem-stat .n { font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
+.mem-stat .l { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }

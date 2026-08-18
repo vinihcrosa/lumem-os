@@ -141,23 +141,20 @@ describe("memory router", () => {
   it("agente não escreve contract de workspace direto — é proposta (Q27)", async () => {
     const { caller, stateDir } = await api();
 
-    await expect(
-      caller.memory.write({
-        name: "Contrato de checkout",
-        description: "O que o front espera do back",
-        type: "contract",
-        scope: "workspace",
-        workspaceId: "ws1",
-        actor: "agent",
-        body: "Itens e cupom.",
-      }),
-    ).rejects.toMatchObject({ code: "CONFLICT" });
+    const written = await caller.memory.write({
+      name: "Contrato de checkout",
+      description: "O que o front espera do back",
+      type: "contract",
+      scope: "workspace",
+      workspaceId: "ws1",
+      actor: "agent",
+      body: "Itens e cupom.",
+    });
 
-    // Fail-closed enquanto a inbox da PR 05 não existe — e a recusa fica no WAL,
-    // que é onde se pergunta "por que isso não foi salvo?".
-    const decisions = await caller.memory.decisions();
-    expect(decisions[0]?.outcome).toBe("rejected");
-    expect(decisions[0]?.reason).toContain("Q27");
+    // A 03 recusava com motivo porque a inbox não existia; a 05 desvia. O
+    // invariante é o mesmo: a segunda superfície não tem atalho em volta dele.
+    expect(written.outcome).toBe("proposed");
+    expect(await caller.memory.proposals({ status: "pending" })).toHaveLength(1);
     expect(
       existsSync(join(stateDir, "workspaces/ws1/memory/contract_contrato-de-checkout.md")),
     ).toBe(false);
@@ -235,6 +232,69 @@ describe("memory router", () => {
     const recallRow = summary.find((row) => row.kind === "recall");
     expect(recallRow?.events).toBe(1);
     expect(recallRow?.sessions).toBe(1);
+  });
+
+  it("aprovar pela API grava no disco e resolve a proposta", async () => {
+    const { caller } = await api();
+    await caller.memory.write({
+      name: "Plano sem preço",
+      description: "Usuário sem plano ativo vê catálogo, não preço",
+      type: "domain",
+      workspaceId: "ws1",
+      body: "Regra de produto.",
+      actor: "agent",
+    });
+    const [proposal] = await caller.memory.proposals({ status: "pending" });
+
+    const result = await caller.memory.approveProposal({
+      id: proposal!.id,
+      body: "Corrigi antes de aceitar.",
+    });
+
+    expect(result.outcome).toBe("applied");
+    const read = await caller.memory.read({
+      type: "domain",
+      name: "Plano sem preço",
+      scope: "workspace",
+      workspaceId: "ws1",
+    });
+    expect(read.body).toBe("Corrigi antes de aceitar.");
+    expect(await caller.memory.proposals({ status: "approved" })).toHaveLength(1);
+  });
+
+  it("proposta que não existe é NOT_FOUND, e resolver duas vezes é CONFLICT", async () => {
+    const { caller } = await api();
+
+    // O contrato de erro é o do núcleo, traduzido pelo `domainSafe` — não uma
+    // segunda semântica desta superfície.
+    await expect(caller.memory.approveProposal({ id: "nao-existe" })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+
+    await caller.memory.write({
+      name: "Squash antes de mergear",
+      description: "O time faz squash na main",
+      type: "process",
+      workspaceId: "ws1",
+      body: "",
+      actor: "agent",
+    });
+    const [proposal] = await caller.memory.proposals({ status: "pending" });
+    const rejected = await caller.memory.rejectProposal({
+      id: proposal!.id,
+      note: "isso é regra do api",
+    });
+    expect(rejected.resolutionNote).toBe("isso é regra do api");
+
+    await expect(caller.memory.rejectProposal({ id: proposal!.id })).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
+
+    // `resolved` é valor do contrato, e não da tela: sem este caso, tirá-lo do
+    // enum passa build e suíte, e só quebra no navegador.
+    const resolvidas = await caller.memory.proposals({ status: "resolved" });
+    expect(resolvidas).toHaveLength(1);
+    expect(await caller.memory.proposals({ status: "pending" })).toHaveLength(0);
   });
 
   it("reindex reconstrói o catálogo", async () => {
