@@ -752,6 +752,16 @@ cooperação do agente. Começa registrando o sinal cru, sem interpretar; interp
 cedo — editou por cima, reverteu, descartou a worktree, matou a sessão em 30s — e interpretar só
 quando houver volume.
 
+**O que a S1 fechou ao implementar.** Quatro escolhas que a decisão acima não continha, e que a
+revisão da PR cobrou por escrito em vez de deixar viver no código:
+
+| # | Escolha | Por quê |
+|---|---|---|
+| **Q17.a** | `user_edited_after_agent` é **uma vez por (tipo, alvo, escopo) a cada 5 minutos**, não por gravação | O autosave grava a cada 800 ms de pausa. Um sinal por tique mede cadência de digitação, não "editei por cima dele", e a tabela cresce sem teto |
+| **Q17.b** | Só conta **edição feita pelo editor do Lumem** | É o único caminho de escrita que o daemon vê. Editar pelo terminal, pelo Vim ou por outro editor não vira sinal — e isso é limite conhecido, não descuido |
+| **Q17.c** | Os **30 s** de `session_killed_early` são fixos, sem configuração | Número sem dado atrás não merece knob. Quando houver volume, o dado é que move o corte |
+| **Q17.d** | A varredura de revert roda no **fim de cada sessão de agente**, no checkout dela | Não há gancho para "você reverteu": você reverte por onde quiser. O fim de uma sessão de agente é quando o daemon sabe que houve agente escrevendo ali, e é barato — um `git log` de 200 commits. O preço é a latência: um revert feito hoje só vira sinal na próxima sessão de agente naquele checkout. Reencontrar o mesmo revert não grava de novo |
+
 ---
 
 ### [x] Q18 — Até onde vai o registro do seu comportamento? `[cz]`
@@ -766,6 +776,13 @@ conteúdo do que você digitou fora do que você mandou para o agente.
 
 **Decisão:** só evento estrutural, com alvo e horário. **Nunca** conteúdo do que você digitou fora do
 que foi para o agente. É regra de produto, e vira teste.
+
+**A regra é do banco, não de quem chama (S1).** Não bastava não existir coluna de conteúdo: a
+afinidade INTEGER do SQLite guarda texto não numérico como TEXT, então `detail` aceitava frase, e
+`target` era TEXT sem limite nenhum. Dois `CHECK` fecham isso — `detail` só aceita inteiro, e
+`target` só aceita identificador de uma linha, de até 1.024 caracteres. E o que a varredura de
+revert devolve é **só SHA**: o assunto do commit é frase que você digitou, e ele vive como variável
+local dentro da função, nunca como campo de um objeto que alguém possa gravar.
 
 ---
 
