@@ -50,7 +50,7 @@ Gerados por `packages/web/scripts/generate-tokens.py`, nunca escritos à mão. S
 
 Rampas em OKLCH, que é perceptualmente uniforme: uma escala de luminosidade compartilhada dá a todas as matizes o mesmo peso visual. Rampas escolhidas a olho não têm essa propriedade.
 
-**Contraste é verificado, não estimado.** 60 pares reais de uso — texto/superfície, label/botão, cada cor de domínio sobre o fundo em que ela aparece de verdade. Todos AA ou melhor. Introduzir par novo exige adicionar a checagem e rodar de novo.
+**Contraste é verificado, não estimado.** 63 pares reais de uso — texto/superfície, label/botão, cada cor de domínio sobre o fundo em que ela aparece de verdade. Todos AA ou melhor. Introduzir par novo exige adicionar a checagem e rodar de novo.
 
 ### Duas camadas
 
@@ -128,6 +128,8 @@ Cada linha é uma tentação que vai aparecer durante a implementação.
 **Componente lê só a camada semântica.** Primitiva direto em componente quebra a promessa de trocar a marca mudando uma rampa.
 
 **`tokens.css` não se edita à mão.** Edite o bloco `CONFIG` do gerador e rode de novo. O arquivo diz isso no topo.
+
+**Piso de navegador: Chrome 117, Safari 16, Firefox 71** — o que `subgrid` pede, que é o recurso mais novo em uso. Ficou escrito quando a linha do tempo da memória precisou dele: sem piso declarado, "funciona aqui" vira a especificação. CSS que o piso não cobre é descartado em silêncio pelo navegador, então recurso mais novo que isso ou ganha fallback, ou sobe o piso aqui.
 
 **Toda task fecha com o gate que ela declara.** Nenhuma fecha com teste vermelho.
 

@@ -244,7 +244,7 @@ telas: o escopo ativo, a inbox, o conflito no mesmo escopo, a linha do tempo, os
 | Escopo e tipo tinham o mesmo peso visual, e são perguntas diferentes | Escopo virou chip com cor de token; tipo, texto mono, porque é vocabulário fechado |
 | Faltava o conflito no mesmo escopo ([Q31](open-questions.md)) — shadow não resolve | Tela 2b: as duas lado a lado, decisão sua, nada de merge |
 | A memória sombreada recuava por `opacity`, que produz par de contraste que nenhuma checagem cobre — justo no texto que diz *quem* a sombreou | Recuo por token de texto verificado; `opacity` fora |
-| O chip de `projeto` pegava emprestado `--color-scope-worktree`, e "você" não tinha token nenhum | `scope/global` entrou no `CONFIG` do gerador; cada escopo usa o seu |
+| O chip de `projeto` pegava emprestado `--color-scope-worktree`, e "você" não tinha token nenhum | `scope/global` entrou no `CONFIG` do gerador em `info/400` — a memória tem um nível acima do workspace que a árvore de arquivos não tem. Cada escopo usa o seu, e os três chips ganharam par de contraste sobre o fundo que usam de verdade |
 | O botão do protótipo era um botão novo, e o terciário sem borda voltou a ler como texto | `.btn`/`.btn--primary`/`.btn--ghost` iguais aos de `src/ui/ui.css` |
 
 **Done when:** renderiza, e as decisões de forma estão registradas. ✅

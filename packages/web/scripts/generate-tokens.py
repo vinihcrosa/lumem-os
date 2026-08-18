@@ -258,6 +258,13 @@ CONTRAST_CHECKS = [
     ("escopo global / painel",        "scope/global",    "bg/panel",   4.5),
     ("escopo projeto / painel",       "scope/project",   "bg/panel",   4.5),
     ("escopo worktree / painel",      "scope/worktree",  "bg/panel",   4.5),
+    # O chip de escopo da tela de memoria nao pinta sobre o painel: cada escopo
+    # pinta sobre o SEU fundo subtle. Declarar so o par do painel deixaria de
+    # fora justo o par que a tela usa — e par nao declarado e par que ninguem
+    # verifica, que e o mesmo defeito do `opacity`.
+    ("escopo global / chip",          "scope/global",    "bg/info-subtle",    4.5),
+    ("escopo workspace / chip",       "scope/workspace", "bg/brand-subtle",   4.5),
+    ("escopo projeto / chip",         "scope/project",   "bg/neutral-subtle", 4.5),
     ("daemon offline / fundo",        "daemon/offline",  "bg/base",    4.5),
     ("daemon online / fundo",         "daemon/online",   "bg/base",    4.5),
     # a linha selecionada da sidebar tem fundo proprio: o texto precisa aguentar.

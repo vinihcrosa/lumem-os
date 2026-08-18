@@ -425,7 +425,9 @@ p.page-sub { color: var(--color-text-secondary); font: var(--text-body-sm); marg
 /* -------------------- linha do tempo -------------------- */
 /* A coluna do horário é `max-content` uma vez, no container: se cada linha
    fosse a sua própria grade, "ontem 18:31" e "hoje 14:02" empurrariam o marcador
-   para posições diferentes, e a linha do tempo perderia o eixo. */
+   para posições diferentes, e a linha do tempo perderia o eixo. `subgrid` é o
+   recurso mais novo do projeto, e foi o que fixou o piso de navegador escrito
+   em `docs/prd/ui-shell/prd.md` §5 — Chrome 117, Safari 16, Firefox 71. */
 .tl {
   padding: var(--space-4) 0;
   display: grid; grid-template-columns: max-content var(--size-icon-md) 1fr;
