@@ -52,7 +52,9 @@ import {
   type ScopeTarget,
 } from "./paths.js";
 import {
+  clearSignal,
   indexEntry,
+  indexIsStale,
   rebuildIndex,
   recall,
   removeFromIndex,
@@ -60,6 +62,7 @@ import {
   usage,
   type RecallOptions,
   type RecallResult,
+  type UsageOptions,
   type UsageSummary,
 } from "./recall.js";
 import { resolveVisible, type ResolvedView, type ScopeFilter } from "./shadow.js";
@@ -385,6 +388,11 @@ export class MemoryService {
     await rm(absolute, { force: true });
     removeEntry(this.db, path);
     removeFromIndex(this.db, path);
+    // O sinal vai junto: o caminho é derivado de `(tipo, slug)`, então uma
+    // memória recriada com o mesmo nome herdaria o contador da apagada — e o
+    // critério objetivo da Q25 passaria a contar recall de conteúdo que não
+    // existe mais.
+    clearSignal(this.db, path);
 
     const { commit } = await commitChange({
       stateDir: this.stateDir,
@@ -432,6 +440,7 @@ export class MemoryService {
       await rm(absolute, { force: true });
       removeEntry(this.db, path);
       removeFromIndex(this.db, path);
+      clearSignal(this.db, path);
       const { commit } = await this.commit([path], "delete", path, "human");
       attachCommit(this.db, record.id, commit);
       return { path, outcome: "deleted", commit };
@@ -515,9 +524,34 @@ export class MemoryService {
     return summarizeUsage(this.db);
   }
 
-  /** Registra um uso que não passou pela busca — leitura, escrita, injeção. */
-  recordUsage(kind: "read" | "write" | "inject", amount: number, durationMs = 0): void {
-    usage(this.db, kind, amount, durationMs);
+  /**
+   * Registra um uso que não passou pela busca — leitura, escrita, injeção.
+   *
+   * O `sessionId` é o que separa "quantas chamadas" de "quantas chamadas **por
+   * sessão**", que é a medida que o §6 do context-delivery pede. Quem monta o
+   * contexto passa a sessão aqui quando registra o `inject`.
+   */
+  recordUsage(
+    kind: "read" | "write" | "inject",
+    amount: number,
+    durationMs = 0,
+    options: UsageOptions = {},
+  ): void {
+    usage(this.db, kind, amount, durationMs, options);
+  }
+
+  /**
+   * Reconstrói o índice quando ele está atrasado em relação ao catálogo.
+   *
+   * Chamada no boot. O índice FTS5 é derivado e nasce fora das migrations, então
+   * um banco com catálogo e sem índice existe — toda instalação anterior a esta
+   * feature. Sem isto, a primeira busca acharia o índice vazio e responderia
+   * "nada encontrado" para o acervo inteiro, sem erro e sem sinal.
+   */
+  async ensureIndexFresh(): Promise<{ rebuilt: boolean; indexed: number }> {
+    if (!indexIsStale(this.db)) return { rebuilt: false, indexed: 0 };
+    const result = await this.reindex();
+    return { rebuilt: true, indexed: result.indexed };
   }
 
   /** O hash que o catálogo guarda, exposto para quem precisa comparar sem reler. */

@@ -33,6 +33,11 @@ const scopeIds = z.object({
   actor: z.enum(MEMORY_ACTORS).default("human"),
 });
 
+const searchInput = scopeIds.extend({
+  query: z.string().min(1).max(500),
+  limit: z.number().int().min(1).max(50).optional(),
+});
+
 const identity = scopeIds.extend({
   type: z.enum(MEMORY_TYPES),
   name: z.string().min(1).max(200),
@@ -124,15 +129,40 @@ export const memoryRouter = router({
     }),
   ),
 
-  /** Busca lexical, explicável — e que respeita escopo e shadow. */
+  /**
+   * Busca lexical, explicável — e que respeita escopo e shadow.
+   *
+   * `query`, e portanto **não registra**: refetch, retry e remontagem do cliente
+   * subiriam o `recall_count` e inflariam o próprio número que o §6 quer medir.
+   * Quem registra é o `recall` abaixo, o caminho do agente.
+   */
   search: publicProcedure
-    .input(scopeIds.extend({ query: z.string().min(1).max(500), limit: z.number().int().min(1).max(50).optional() }))
+    .input(searchInput)
     .query(({ ctx, input }) => {
       const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
       return memory.search(input.query, {
         workspaceId: input.workspaceId ?? null,
         projectId: input.projectId ?? null,
         ...(input.limit ? { limit: input.limit } : {}),
+      });
+    }),
+
+  /**
+   * A mesma busca, pelo caminho do agente — e **com** sinal e uso registrados.
+   *
+   * Mutation de propósito: registrar é escrever, e a sessão que perguntou é o
+   * que separa "quantas chamadas" de "quantas chamadas por sessão".
+   */
+  recall: publicProcedure
+    .input(searchInput.extend({ sessionId: z.string().min(1).max(128).optional() }))
+    .mutation(({ ctx, input }) => {
+      const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+      return memory.search(input.query, {
+        workspaceId: input.workspaceId ?? null,
+        projectId: input.projectId ?? null,
+        record: true,
+        ...(input.limit ? { limit: input.limit } : {}),
+        ...(input.sessionId ? { sessionId: input.sessionId } : {}),
       });
     }),
 

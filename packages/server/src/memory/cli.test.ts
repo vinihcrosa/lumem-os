@@ -312,10 +312,17 @@ describe("lumem-memory", () => {
   it("usage mostra os números por tipo", async () => {
     const app = cli();
     await app.run("write", "--name", "Gate rápido", "--type", "user", "--body", "pnpm gate quick");
+    // Sem `--session` a busca é inspeção e não registra; com ela, é o caminho
+    // do agente, e o §6 ganha a linha.
     await app.run("search", "--query", "gate rapido");
+    expect(await app.run("usage")).toBe(0);
+    expect(app.out).toContain("nenhum uso registrado");
+
+    await app.run("search", "--query", "gate rapido", "--session", "s1");
 
     expect(await app.run("usage")).toBe(0);
     expect(app.out).toContain("recall");
+    expect(app.out).toContain("sessões=1");
   });
 
   it("comando desconhecido mostra o uso", async () => {

@@ -44,6 +44,7 @@ const USAGE = `uso: lumem-memory <comando>
           sem --workspace, o escopo ativo é só o global; --all mostra o catálogo cru
   revert  --path <caminho relativo ao ~/.lumem>
   search  --query "<pergunta>" [--workspace <id>] [--project <id>] [--limit <n>]
+          [--session <id>]   registra o uso — é o caminho do agente
   usage
   decisions [--path <caminho>] [--limit <n>]
   reindex
@@ -240,10 +241,13 @@ export async function runMemoryCli(
       }
 
       case "search": {
+        // Só o caminho do agente registra: uma busca de inspeção não pode
+        // inflar o contador que decide poda e consolidação (Q25).
         const result = memory.search(required(flags, "query"), {
           ...(flags.workspace ? { workspaceId: flags.workspace } : {}),
           ...(flags.project ? { projectId: flags.project } : {}),
           ...(flags.limit ? { limit: Number.parseInt(flags.limit, 10) } : {}),
+          ...(flags.session ? { record: true, sessionId: flags.session } : {}),
         });
         if (result.skipped === "trivial_query") {
           // Dizer que **não buscou** é diferente de dizer que não achou.
@@ -270,6 +274,7 @@ export async function runMemoryCli(
         for (const row of rows) {
           out(
             `${row.kind.padEnd(8)} eventos=${String(row.events).padEnd(5)} ` +
+              `sessões=${String(row.sessions).padEnd(4)} ` +
               `total=${String(row.totalAmount).padEnd(6)} média=${row.averageDurationMs}ms\n`,
           );
         }

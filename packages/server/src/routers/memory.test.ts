@@ -220,14 +220,21 @@ describe("memory router", () => {
     expect(outro.hits).toHaveLength(0);
   });
 
-  it("usage responde os números do §6", async () => {
+  it("busca por query não registra, e o recall do agente registra", async () => {
     const { caller } = await api();
     await caller.memory.write(base);
+
+    // `search` é leitura: refetch e retry do cliente não podem subir o número
+    // que o §6 usa para decidir o desenho.
     await caller.memory.search({ query: "estilo revisao" });
+    expect(await caller.memory.usage()).toHaveLength(0);
+
+    await caller.memory.recall({ query: "estilo revisao", sessionId: "s1" });
 
     const summary = await caller.memory.usage();
-
-    expect(summary.find((row) => row.kind === "recall")?.events).toBe(1);
+    const recallRow = summary.find((row) => row.kind === "recall");
+    expect(recallRow?.events).toBe(1);
+    expect(recallRow?.sessions).toBe(1);
   });
 
   it("reindex reconstrói o catálogo", async () => {

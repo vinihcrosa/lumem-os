@@ -5,6 +5,7 @@ import type { ServerConfig } from "./config.js";
 import { openDatabase, type Database_ } from "./db/index.js";
 import { createEventBus } from "./events.js";
 import { ensureMemoryHome } from "./memory/home.js";
+import { MemoryService } from "./memory/MemoryService.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createSessionStore } from "./sessions/SessionStore.js";
 import { createServer } from "./server.js";
@@ -96,7 +97,15 @@ export async function bootstrap({
   // would read states that are about to change under it.
   const reconciled = await reconcileOnBoot({ db: openedDatabase.db, log: app.log });
   app.log.info(reconciled, "reconciliação de boot");
-  app.log.info({ ...home, stateDir: config.stateDir }, "memória do workspace");
+  // O índice FTS5 é derivado e nasce fora das migrations: um banco com catálogo
+  // e sem índice existe. Reconstruir aqui é o que impede a primeira busca de
+  // responder "nada encontrado" para o acervo inteiro, sem erro e sem sinal.
+  const index = await new MemoryService({
+    db: openedDatabase.db,
+    stateDir: config.stateDir,
+    log: app.log,
+  }).ensureIndexFresh();
+  app.log.info({ ...home, stateDir: config.stateDir, index }, "memória do workspace");
 
   try {
     await app.listen({ port: config.port, host: config.host });
