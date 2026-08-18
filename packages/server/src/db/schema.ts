@@ -172,6 +172,9 @@ export const memoryEntry = sqliteTable(
   ],
 );
 
+/** O maior caminho que um checkout produz, com folga. Acima disso não é alvo. */
+export const MAX_SIGNAL_TARGET_LENGTH = 1_024;
+
 /**
  * O sinal de ação — o único insumo que **não depende de cooperação** (Q17).
  *
@@ -182,8 +185,14 @@ export const memoryEntry = sqliteTable(
  *
  * A regra de privacidade da Q18 está no schema, não num comentário: **só evento
  * estrutural**. Há `target` (o quê) e `detail` (um número), e não existe coluna
- * de conteúdo — o que você digitou fora do que foi para o agente não entra aqui
- * porque não há onde entrar.
+ * de conteúdo.
+ *
+ * Não existir coluna não bastava. A afinidade INTEGER do SQLite guarda texto
+ * não numérico como TEXT, então `detail` aceitava frase; e `target` era TEXT
+ * sem limite, onde cabia um arquivo inteiro. Os dois `CHECK` abaixo são o que
+ * torna a regra estrutural em vez de disciplina de quem chama: `detail` só
+ * aceita inteiro, e `target` só aceita um identificador de uma linha — caminho,
+ * SHA ou id — nunca prosa.
  */
 export const actionSignal = sqliteTable(
   "action_signal",
@@ -209,6 +218,19 @@ export const actionSignal = sqliteTable(
         'worktree_discarded',
         'session_killed_early'
       )`,
+    ),
+    // Um número, e o banco é quem cobra. Sem isto, "12 linhas trocadas" e
+    // "TODO: pedir aumento" entram pela mesma coluna.
+    check(
+      "action_signal_detail_number",
+      sql`${table.detail} IS NULL OR typeof(${table.detail}) = 'integer'`,
+    ),
+    // Um identificador: caminho de arquivo, SHA ou id. O limite e a proibição
+    // de quebra de linha são o que separa isso de um trecho de texto.
+    check(
+      "action_signal_target_shape",
+      sql`length(${table.target}) BETWEEN 1 AND ${sql.raw(String(MAX_SIGNAL_TARGET_LENGTH))}
+        AND instr(${table.target}, char(10)) = 0`,
     ),
   ],
 );
