@@ -12,6 +12,11 @@ import { withConstraints, type ConstraintMap } from "./base.js";
  * state. The ring buffer stays in memory, as §7 decided: it does not survive a
  * daemon restart and neither do the processes, so persisting it would only
  * store output nobody can attach to.
+ *
+ * An ACP conversation is the exception, and it is not stored here either: it lives in
+ * one SQLite file per session under `stateDir` (F5.4). The difference is that a
+ * conversation *can* be attached to after a restart — `session/load` continues it —
+ * while a shell's scrollback belongs to a process that is gone.
  */
 
 export type SessionKind = "shell" | "agent";
@@ -40,6 +45,8 @@ export interface CreateSessionInput {
   /** Mode and model as the protocol reported them at creation. */
   mode?: string | null;
   model?: string | null;
+  /** The session this one continues, when it was born by resuming (D12). */
+  resumedFromId?: string | null;
 }
 
 export interface SessionRepository {

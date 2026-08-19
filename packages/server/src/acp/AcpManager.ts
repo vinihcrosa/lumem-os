@@ -53,6 +53,16 @@ export interface AcpSpawnOptions {
 }
 
 
+export interface AcpResumeOptions extends AcpSpawnOptions {
+  /**
+   * The adapter's own id for the conversation being continued (F5.2).
+   *
+   * Ours is not enough: `session/load` names the session in the *agent's* vocabulary,
+   * and the row that died is where that name was kept.
+   */
+  acpSessionId: string;
+}
+
 export interface AcpSessionInfo {
   id: string;
   /** The adapter's own session id — what `session/load` will need (F5.2). */
@@ -119,6 +129,15 @@ interface Session {
   terminals: TerminalBridge | undefined;
   /** One id per turn, for chunks the agent sends without a message id. */
   turnId: string;
+  /**
+   * A `session/load` is in flight, and its replay is being discarded (D14).
+   *
+   * The adapter re-streams the conversation while answering `session/load`. Those
+   * updates are dropped: the daemon already has a better copy of the same
+   * conversation on disk — one with the tool cards, the plans and the usage the
+   * replay does not carry — and recording both would show it twice.
+   */
+  loading: boolean;
 }
 
 export interface AcpManagerOptions {
@@ -224,6 +243,66 @@ export class AcpManager {
    * prompt could use.
    */
   async spawn(options: AcpSpawnOptions): Promise<AcpSessionInfo> {
+    const { session, child } = this.launch(options);
+
+    try {
+      Object.assign(session.info, await this.handshake(session, options.cwd));
+    } catch (error) {
+      child.kill();
+      throw error instanceof DomainError
+        ? error
+        : launchFailure(options.command, options.adapterVersion, error);
+    }
+
+    this.sessions.set(session.info.id, session);
+    return { ...session.info };
+  }
+
+  /**
+   * Continues a conversation in a new adapter (F5.2, A7, D12).
+   *
+   * Not a resurrection: yesterday's process is gone and nothing brings it back. This
+   * launches a new adapter and hands it the old conversation's id, which is what the
+   * protocol offers and the reason resuming produces a *new* session rather than
+   * reviving a dead one.
+   *
+   * The old transcript is not read here. The daemon keeps its own copy on disk and
+   * that is the one the client is shown — see `loading` for why the adapter's replay
+   * is thrown away.
+   */
+  async resume(options: AcpResumeOptions): Promise<AcpSessionInfo> {
+    if (options.acpSessionId.trim() === "") {
+      throw new DomainError("INVALID_ARGUMENT", "sem o id da conversa não há o que retomar");
+    }
+
+    const { session, child } = this.launch(options);
+    session.info.acpSessionId = options.acpSessionId;
+
+    try {
+      Object.assign(
+        session.info,
+        await this.handshake(session, options.cwd, options.acpSessionId),
+      );
+    } catch (error) {
+      child.kill();
+      throw error instanceof DomainError
+        ? error
+        : launchFailure(options.command, options.adapterVersion, error);
+    }
+
+    this.sessions.set(session.info.id, session);
+    return { ...session.info };
+  }
+
+  /**
+   * Everything both entry points do before the handshake.
+   *
+   * Split out rather than duplicated because the shared part is the part with the
+   * teeth: the availability check, the sniffer, the exit registration, and the two
+   * per-session bridges. A second copy of it for `resume` would be a second place for
+   * one of those to go missing.
+   */
+  private launch(options: AcpSpawnOptions): { session: Session; child: AcpProcess } {
     const { command, args = [], cwd, env, adapterVersion } = options;
 
     if (command.trim() === "") {
@@ -278,6 +357,7 @@ export class AcpManager {
         ? createTerminalBridge({ ptyManager: this.ptyManager, cwd })
         : undefined,
       turnId: newId(),
+      loading: false,
     };
 
     // The sniffer sits between the adapter and the SDK. See `unknown-updates.ts`
@@ -300,16 +380,7 @@ export class AcpManager {
     // recorded as an exit rather than leaving a row that claims to be running.
     void child.exited.then(({ exitCode }) => this.markExited(session, exitCode));
 
-    try {
-      const handshake = await this.handshake(session, cwd);
-      Object.assign(session.info, handshake);
-    } catch (error) {
-      child.kill();
-      throw error instanceof DomainError ? error : launchFailure(command, adapterVersion, error);
-    }
-
-    this.sessions.set(id, session);
-    return { ...session.info };
+    return { session, child };
   }
 
   /**
@@ -573,6 +644,16 @@ export class AcpManager {
         (params: unknown) => params as { update?: unknown },
         ({ params }) => {
           /*
+           * The replay of a `session/load` goes nowhere (D14).
+           *
+           * The adapter re-streams the whole conversation while answering the load.
+           * Recording it would show the conversation twice — once from disk and once
+           * from the agent — and the copy on disk is the better of the two, since it
+           * has the tool cards, plans and usage the replay does not carry.
+           */
+          if (session.loading) return;
+
+          /*
            * Two variants are handled here rather than in `translate`, and for the
            * same reason D8 gives: they are partial. `current_mode_update` carries a
            * mode and nothing else, `config_option_update` carries options and no
@@ -659,7 +740,11 @@ export class AcpManager {
     return session.terminals;
   }
 
-  private async handshake(session: Session, cwd: string): Promise<Partial<AcpSessionInfo>> {
+  private async handshake(
+    session: Session,
+    cwd: string,
+    loadAcpSessionId?: string,
+  ): Promise<Partial<AcpSessionInfo>> {
     const initialize = await this.withTimeout(
       session.connection.agent.request("initialize", {
         protocolVersion: ACP_PROTOCOL_VERSION,
@@ -691,6 +776,20 @@ export class AcpManager {
       );
     }
 
+    if (loadAcpSessionId !== undefined) {
+      // Asked, not assumed. An adapter without `loadSession` answers `session/load`
+      // with a method-not-found from deep inside the SDK, and F1.6's rule is that a
+      // launch failure reads as a sentence rather than as a protocol error.
+      if (initialize.agentCapabilities?.loadSession !== true) {
+        throw new DomainError(
+          "BLOCKED",
+          `o adaptador ${session.info.command} não sabe retomar conversa: ele não declara a capacidade loadSession`,
+        );
+      }
+
+      return await this.load(session, cwd, loadAcpSessionId);
+    }
+
     const created = await this.withTimeout(
       session.connection.agent.request("session/new", { cwd, mcpServers: [] }),
       "session/new",
@@ -702,6 +801,44 @@ export class AcpManager {
     return {
       acpSessionId: created.sessionId,
       mode: created.modes?.currentModeId ?? valueOf(configOptions, "mode"),
+      model: valueOf(configOptions, "model"),
+      configOptions,
+    };
+  }
+
+  /**
+   * `session/load`, with the replay muted.
+   *
+   * The flag is cleared in a `finally`: a load that fails half way through would
+   * otherwise leave the session deaf to every update that followed, which is a
+   * conversation that looks alive and says nothing.
+   */
+  private async load(
+    session: Session,
+    cwd: string,
+    acpSessionId: string,
+  ): Promise<Partial<AcpSessionInfo>> {
+    session.loading = true;
+    let loaded;
+    try {
+      loaded = await this.withTimeout(
+        session.connection.agent.request("session/load", {
+          sessionId: acpSessionId,
+          cwd,
+          mcpServers: [],
+        }),
+        "session/load",
+      );
+    } finally {
+      session.loading = false;
+    }
+
+    const configOptions = normaliseOptions(loaded?.configOptions ?? undefined, loaded?.modes);
+    session.optionTypes = typesOf(loaded?.configOptions ?? undefined);
+
+    return {
+      acpSessionId,
+      mode: loaded?.modes?.currentModeId ?? valueOf(configOptions, "mode"),
       model: valueOf(configOptions, "model"),
       configOptions,
     };

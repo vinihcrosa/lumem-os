@@ -144,6 +144,21 @@ export const session = sqliteTable(
     /** Current permission mode and model, as the protocol reports them. */
     mode: text("mode"),
     model: text("model"),
+    /**
+     * The session this one continues (F5.2, D12).
+     *
+     * `session/load` does not resurrect yesterday's process: it starts a new adapter
+     * and tells it which conversation to load. So resuming produces a *new* row that
+     * carries the old one's `acp_session_id` and points back at it — the conversation
+     * continues, and the session that died stays dead with its transcript intact.
+     *
+     * No foreign key, deliberately. This is provenance, not a dependency: deleting
+     * yesterday's session should not be blocked by the fact that today's continues
+     * it, and `ON DELETE RESTRICT` — the only cascade rule this schema allows — would
+     * do exactly that to a purge. The invariant that a resumed session is an ACP one
+     * lives in the session store, which is also the only thing that can write this.
+     */
+    resumedFromId: text("resumed_from_id"),
     ...timestamps,
   },
   (table) => [

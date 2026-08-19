@@ -1,3 +1,5 @@
+import type { LoadSessionRequest } from "@agentclientprotocol/sdk";
+
 import type { AcpEvent, AcpTranscriptEntry } from "@lumem/shared";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PtyManager } from "../pty/PtyManager.js";
 import {
   FAKE_GROUPED_CONFIG_OPTIONS,
+  FAKE_MODES,
   fakeAgentProcess,
   type FakeAgentScript,
   type FakeAgentTurn,
@@ -1313,5 +1316,180 @@ describe("where the conversation is kept", () => {
 
     expect(manager.get(sessionId)).toBeUndefined();
     expect(textsOf(transcripts.read(sessionId))).toContain("algo dito");
+  });
+});
+
+describe("resuming yesterday's conversation", () => {
+  /**
+   * F5.2, A7, D12. `session/load` does not bring the old process back — nothing can.
+   * It starts a new adapter and tells it which conversation to continue, which is why
+   * this returns a session with a **new** id of ours and the **old** id of the
+   * agent's.
+   */
+
+  interface Resumed extends Harness {
+    loaded: LoadSessionRequest[];
+  }
+
+  async function resume(
+    script: FakeAgentScript = {},
+    acpSessionId = "conversa-de-ontem",
+  ): Promise<Resumed> {
+    const loaded: LoadSessionRequest[] = [];
+    const fake = fakeAgentProcess({
+      ...script,
+      loadSession: async (params, replay) => {
+        loaded.push(params);
+        return (await script.loadSession?.(params, replay)) ?? {};
+      },
+    });
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      handshakeTimeoutMs: 2_000,
+      isAvailable: () => true,
+    });
+
+    const info = await manager.resume({
+      command: "claude-agent-acp",
+      cwd: "/repos/lorebase",
+      adapterVersion: "0.69.0",
+      acpSessionId,
+    });
+
+    const events: AcpEvent[] = [];
+    manager.onEvent(info.id, ({ event }) => events.push(event));
+
+    return {
+      manager,
+      events,
+      sessionId: info.id,
+      process: fake.process,
+      killed: fake.killed,
+      loaded,
+    };
+  }
+
+  it("keeps the agent's id and takes a new one of its own", async () => {
+    const { manager, sessionId } = await resume();
+
+    const info = manager.get(sessionId)!;
+    expect(info.acpSessionId).toBe("conversa-de-ontem");
+    // Ours is new: the row that died stays dead, with its transcript intact (D12).
+    expect(info.id).not.toBe("conversa-de-ontem");
+    expect(info.state).toBe("running");
+  });
+
+  it("names the conversation in the agent's own vocabulary", async () => {
+    const { loaded } = await resume();
+
+    expect(loaded).toHaveLength(1);
+    expect(loaded[0]).toMatchObject({ sessionId: "conversa-de-ontem", cwd: "/repos/lorebase" });
+  });
+
+  it("takes the mode and the selectors from the load, not from a new session", async () => {
+    const { manager, sessionId } = await resume({
+      loadSession: () => ({ modes: { ...FAKE_MODES, currentModeId: "plan" } }),
+    });
+
+    expect(manager.get(sessionId)?.mode).toBe("plan");
+    expect(manager.get(sessionId)?.configOptions.map((option) => option.id)).toContain("model");
+  });
+
+  it("throws away the conversation the adapter replays at it", async () => {
+    /*
+     * D14. A real adapter re-streams the whole history while answering
+     * `session/load`. The daemon already has that conversation on disk, in a better
+     * copy — one with the tool cards, the plans and the usage the replay does not
+     * carry — so recording the replay too would show the conversation twice, and the
+     * second copy would be the worse one.
+     */
+    const { manager, sessionId } = await resume({
+      loadSession: async (_params, replay) => {
+        await replay({
+          sessionUpdate: "user_message_chunk",
+          content: { type: "text", text: "o que eu disse ontem" },
+        });
+        await replay({
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "o que ele respondeu ontem" },
+        });
+      },
+    });
+
+    expect(manager.transcript(sessionId)).toEqual([]);
+  });
+
+  it("hears the next turn, once the load is done", async () => {
+    // The other half of muting the replay: a flag left set would leave a session that
+    // looks alive and says nothing.
+    const { manager, sessionId, events } = await resume({
+      async prompt(_text, turn) {
+        await say(turn, "continuando de onde paramos");
+        return "end_turn";
+      },
+      loadSession: async (_params, replay) => {
+        await replay({
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "de ontem" },
+        });
+      },
+    });
+
+    await manager.prompt(sessionId, "e agora?");
+
+    expect(typesOf(events)).toEqual(["message", "message", "turn_end"]);
+    expect(textsOf(manager.transcript(sessionId))).toContain("continuando de onde paramos");
+  });
+
+  it("refuses an adapter that cannot resume, in a sentence", async () => {
+    // F1.6's rule. Without the check the SDK answers with a method-not-found from
+    // several frames down, which says nothing about what the user asked for.
+    const fake = fakeAgentProcess({
+      initialize: () => ({
+        agentCapabilities: { promptCapabilities: { image: false, embeddedContext: false } },
+      }),
+    });
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      handshakeTimeoutMs: 2_000,
+      isAvailable: () => true,
+    });
+
+    await expect(
+      manager.resume({ command: "claude-agent-acp", cwd: "/repos/x", acpSessionId: "antiga" }),
+    ).rejects.toThrow(/loadSession/);
+    // And the adapter does not stay running behind the refusal.
+    await expect(fake.killed).resolves.toBeUndefined();
+  });
+
+  it("refuses to resume nothing", async () => {
+    const fake = fakeAgentProcess();
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+
+    await expect(
+      manager.resume({ command: "claude-agent-acp", cwd: "/repos/x", acpSessionId: "  " }),
+    ).rejects.toThrow(/retomar/);
+  });
+
+  it("reports a load the adapter refuses as a launch failure", async () => {
+    const fake = fakeAgentProcess({
+      loadSession: () => {
+        throw new Error("essa conversa não existe mais");
+      },
+    });
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      handshakeTimeoutMs: 2_000,
+      isAvailable: () => true,
+    });
+
+    await expect(
+      manager.resume({
+        command: "claude-agent-acp",
+        cwd: "/repos/x",
+        adapterVersion: "0.69.0",
+        acpSessionId: "sumiu",
+      }),
+    ).rejects.toThrow(/claude-agent-acp/);
   });
 });

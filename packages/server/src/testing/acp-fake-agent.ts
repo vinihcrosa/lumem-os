@@ -4,6 +4,8 @@ import {
   type Agent,
   type InitializeRequest,
   type InitializeResponse,
+  type LoadSessionRequest,
+  type LoadSessionResponse,
   type NewSessionRequest,
   type NewSessionResponse,
   type RequestPermissionOutcome,
@@ -67,6 +69,17 @@ export interface FakeAgentScript {
   initialize?(params: InitializeRequest): Partial<InitializeResponse> | void;
   /** Throw to make the handshake fail, as a broken adapter would. */
   newSession?(params: NewSessionRequest): Partial<NewSessionResponse> | void;
+  /**
+   * Answers `session/load` (F5.2).
+   *
+   * `replay` is what a real adapter does while answering: it re-streams the
+   * conversation as `session/update` notifications before the response lands. A
+   * script that uses it is asking whether the daemon throws that copy away (D14).
+   */
+  loadSession?(
+    params: LoadSessionRequest,
+    replay: (update: SessionUpdate) => Promise<void>,
+  ): Promise<Partial<LoadSessionResponse> | void> | Partial<LoadSessionResponse> | void;
   /**
    * The whole turn. Whatever it resolves to becomes the stop reason.
    *
@@ -205,6 +218,14 @@ export function fakeAgentProcess(script: FakeAgentScript = {}): FakeAgentHandle 
         configOptions: FAKE_CONFIG_OPTIONS,
         ...extra,
       };
+    },
+
+    async loadSession(params) {
+      const extra =
+        (await script.loadSession?.(params, (update) =>
+          conn.sessionUpdate({ sessionId: params.sessionId, update } as SessionNotification),
+        )) ?? {};
+      return { modes: FAKE_MODES, configOptions: FAKE_CONFIG_OPTIONS, ...extra };
     },
 
     async prompt(params) {

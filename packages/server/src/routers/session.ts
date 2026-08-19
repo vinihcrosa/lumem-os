@@ -129,6 +129,25 @@ export const sessionRouter = router({
       }),
     ),
 
+  /**
+   * Continues a conversation that has ended (F5.2, D12).
+   *
+   * Returns the **new** session, which is what the tab has to switch to: the old row
+   * stays exactly as it was, with its transcript, and the client's job is to point at
+   * the one that can be talked to.
+   */
+  resume: publicProcedure.input(z.object({ id: z.string().min(1) })).mutation(({ ctx, input }) =>
+    domainSafeAsync(async () => {
+      const row = await ctx.sessionStore.resume(input.id);
+      ctx.events.emit({
+        type: "session.changed",
+        scopeType: row.scopeType as "project" | "worktree",
+        scopeId: row.scopeId,
+      });
+      return toView(ctx, row);
+    }),
+  ),
+
   close: publicProcedure.input(z.object({ id: z.string().min(1) })).mutation(({ ctx, input }) =>
     domainSafeAsync(async () => {
       const row = await ctx.sessionStore.findById(input.id);

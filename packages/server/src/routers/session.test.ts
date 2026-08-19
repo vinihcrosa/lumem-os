@@ -275,6 +275,39 @@ describe("session.listByScope and getDetail", () => {
   });
 });
 
+describe("session.resume", () => {
+  /**
+   * The happy path needs an adapter, so it lives in the e2e (`acp-resume.spec.ts`):
+   * this caller has no `AcpManager` at all, which is the daemon's own wiring only in
+   * the tests that never talk to one. What belongs here is the endpoint existing, and
+   * the two refusals that never reach a process.
+   */
+
+  it("refuses a session that does not exist", async () => {
+    const { ctx } = await setup();
+
+    await expect(ctx.api.session.resume({ id: "nao-existe" })).rejects.toMatchObject({
+      message: /não existe/,
+    });
+  });
+
+  it("refuses a shell, because a shell has no conversation", async () => {
+    const { ctx, worktreeId } = await setup();
+    const created = await ctx.api.session.createShell({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+    });
+    await ctx.api.session.close({ id: created.id });
+    await vi.waitFor(async () =>
+      expect((await ctx.api.session.getDetail({ id: created.id })).state).toBe("exited"),
+    );
+
+    await expect(ctx.api.session.resume({ id: created.id })).rejects.toMatchObject({
+      message: /só conversa ACP/,
+    });
+  });
+});
+
 describe("session.close", () => {
   it("ends the process and the record follows", async () => {
     // F5.8.

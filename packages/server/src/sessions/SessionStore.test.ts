@@ -437,3 +437,135 @@ describe("the switch persists on the session", () => {
     expect(row.mode).toBeNull();
   });
 });
+
+describe("resuming", () => {
+  /**
+   * F5.2, D12. The store is where "resume" stops being a protocol call and becomes a
+   * fact about the registry: a new row, carrying the old conversation's id and
+   * pointing back at the session that died.
+   */
+
+  /** Starts an ACP session and lets it die, which is the only resumable state. */
+  async function ended(db: Db, store: SessionStore, acpManager: AcpManager) {
+    const row = await store.start(await acpAgent(db));
+    acpManager.kill(row.id);
+    await vi.waitFor(async () =>
+      expect((await store.findById(row.id))?.state).toBe("exited"),
+    );
+    return row;
+  }
+
+  it("creates a new session that points back at the old one", async () => {
+    const { store, db, acpManager } = setup();
+    const old = await ended(db, store, acpManager);
+
+    const resumed = await store.resume(old.id);
+
+    expect(resumed.id).not.toBe(old.id);
+    expect(resumed.resumedFromId).toBe(old.id);
+    // The agent's own id is the one thing carried across: it is what `session/load`
+    // names, and the reason the conversation continues instead of starting over.
+    expect(resumed.acpSessionId).toBe(old.acpSessionId);
+    expect(resumed.state).toBe("running");
+  });
+
+  it("keeps the old row exactly as it was", async () => {
+    // The session that died stays dead, with its transcript. Rewriting it would make
+    // yesterday's conversation disappear from the list the moment it was continued.
+    const { store, db, acpManager } = setup();
+    const old = await ended(db, store, acpManager);
+
+    await store.resume(old.id);
+
+    expect(await store.findById(old.id)).toMatchObject({
+      id: old.id,
+      state: "exited",
+      resumedFromId: null,
+    });
+  });
+
+  it("inherits the scope, the checkout and the configuration", async () => {
+    const { store, db, acpManager } = setup();
+    const old = await ended(db, store, acpManager);
+
+    const resumed = await store.resume(old.id);
+
+    expect(resumed).toMatchObject({
+      scopeType: old.scopeType,
+      scopeId: old.scopeId,
+      cwd: old.cwd,
+      command: old.command,
+      agentConfigId: old.agentConfigId,
+      transport: "acp",
+    });
+  });
+
+  it("refuses a session that is still alive, with a reason", async () => {
+    // Two adapters against one conversation would give the user two windows onto the
+    // same history, both able to write into it.
+    const { store, db } = setup();
+    const row = await store.start(await acpAgent(db));
+
+    await expect(store.resume(row.id)).rejects.toThrow(/ainda está viva/);
+  });
+
+  it("refuses a shell", async () => {
+    const { store } = setup();
+    const row = await store.start(shell());
+    await store.close(row.id);
+    await vi.waitFor(async () => expect((await store.findById(row.id))?.state).toBe("exited"));
+
+    await expect(store.resume(row.id)).rejects.toThrow(/só conversa ACP/);
+  });
+
+  it("refuses a session that does not exist", async () => {
+    const { store } = setup();
+
+    await expect(store.resume(newId())).rejects.toThrow(/não existe/);
+  });
+
+  it("refuses when no ACP manager was wired", async () => {
+    // A wiring mistake, and it should read like one rather than as a crash.
+    const database = openTestDb();
+    databases.push(database);
+    const ptyManager = new PtyManager();
+    managers.push(ptyManager);
+    const withAcp = setup();
+    const old = await ended(withAcp.db, withAcp.store, withAcp.acpManager);
+
+    const store = createSessionStore({ db: withAcp.db, ptyManager });
+
+    await expect(store.resume(old.id)).rejects.toThrow(/nenhum AcpManager/);
+  });
+
+  it("kills the adapter it could not write down", async () => {
+    /*
+     * Same rule as `start`: a conversation the daemon cannot describe is one nobody
+     * can find or stop from the UI.
+     *
+     * Forced with a stub rather than with a broken row, because there is no legal way
+     * in from outside: `start` can be handed a configuration id that does not exist,
+     * while everything `resume` inserts is copied from a row the schema already
+     * accepted. What the stub controls is the one thing that matters here — the id the
+     * insert will collide with.
+     */
+    const { store: seeded, db, acpManager } = setup();
+    const old = await ended(db, seeded, acpManager);
+    const taken = await seeded.start(await acpAgent(db));
+
+    const killed: string[] = [];
+    const stub = {
+      resume: () => Promise.resolve({ ...acpManager.get(taken.id)!, id: taken.id }),
+      kill: (id: string) => killed.push(id),
+    } as unknown as AcpManager;
+    // Sanity: without a collision the insert would succeed and the assertion below
+    // would pass for the wrong reason.
+    expect(await seeded.findById(taken.id)).toBeDefined();
+    const ptyManager = new PtyManager();
+    managers.push(ptyManager);
+    const store = createSessionStore({ db, ptyManager, acpManager: stub });
+
+    await expect(store.resume(old.id)).rejects.toThrow();
+    expect(killed).toEqual([taken.id]);
+  });
+});

@@ -5,7 +5,7 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** fases 1, 3 e 4 **concluídas** (26 de 26). **Fase 5 em execução — 3 de 6.**
+**Status:** fases 1, 3 e 4 **concluídas** (26 de 26). **Fase 5 em execução — 4 de 6.**
 **Total:** 32 tasks nas fases 1, 3, 4 e 5 do PRD
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
@@ -719,6 +719,19 @@ clicado numa aba para reler algo.
 
 ---
 
+#### D14 — O replay do `session/load` vai para o lixo
+
+O adaptador re-transmite a conversa inteira enquanto responde ao `session/load`. O
+daemon **descarta** essa cópia. Ele já tem a mesma conversa em disco, e a dele é
+melhor: tem os cartões de ferramenta, o plano e o consumo que o replay não carrega.
+Gravar as duas mostraria a conversa duas vezes, e a segunda cópia seria a pior.
+
+Custo nomeado: se um dia a transcrição em disco for perdida e a do agente não, não
+há como reconstruir a tela a partir do agente. É aceitável — a nossa é a que a tela
+sabe desenhar.
+
+---
+
 #### Q1: A transcrição em disco ✅
 
 **What**: Um SQLite por sessão, com a transcrição inteira, append-only.
@@ -782,21 +795,23 @@ clicado numa aba para reler algo.
 
 ---
 
-#### Q4: `session/load`
+#### Q4: `session/load` ✅
 
 **What**: Retomar a conversa de ontem num adaptador novo (F5.2, A7, D12).
 **Where**: `packages/server/src/acp/AcpManager.ts`, `packages/server/src/sessions/SessionStore.ts`, `packages/server/src/routers/session.ts` + testes
 **Depends on**: Q2
 
 **Done when**:
-- [ ] `AcpManager.resume(acpSessionId, options)` lança adaptador e chama `session/load`
-- [ ] `SessionStore.resume(sessionId)` cria **linha nova** apontando para a antiga (D12), com o mesmo escopo, cwd e configuração
-- [ ] A transcrição antiga é lida do disco e vira o ponto de partida do `attached` — a conversa continua onde parou, visualmente
-- [ ] Retomar uma sessão **viva** é recusado com motivo: já existe uma aba com ela
-- [ ] Adaptador que não declara `loadSession` é recusado com motivo, não com stack trace
-- [ ] Retomar uma sessão PTY é recusado: só ACP retoma
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 8 — retoma, linha nova aponta para a antiga, transcrição continua, recusa em sessão viva, recusa sem `loadSession`, recusa em PTY
+- [x] `AcpManager.resume({ acpSessionId, ... })` lança adaptador e chama `session/load`
+- [x] `SessionStore.resume(sessionId)` cria **linha nova** apontando para a antiga (D12), com o mesmo escopo, cwd e configuração
+- [x] Coluna `resumed_from_id`, migração `0002` — um `ALTER TABLE ADD COLUMN` só, sem rebuild. **Sem foreign key**: é procedência, não dependência, e `ON DELETE RESTRICT` — a única regra que este schema permite — travaria o purge da sessão de ontem por causa da de hoje
+- [x] `session.resume` no router, devolvendo a sessão **nova** — é para ela que a aba tem de apontar
+- [x] Retomar uma sessão **viva** é recusado com motivo: dois adaptadores na mesma conversa dariam duas janelas para o mesmo histórico, ambas podendo escrever
+- [x] Adaptador que não declara `loadSession` é recusado com frase, não com method-not-found de dentro do SDK
+- [x] Retomar uma sessão PTY é recusado: só ACP retoma — e isso **decorre da D1**, não é regra nova
+- [x] Gate: `pnpm gate:quick` — 1.530 testes verdes; `pnpm gate:build` também
+- [x] Test count: **18** — 8 no manager (id novo/id antigo, `session/load` com o id certo, modo vem do load, replay descartado, turno seguinte é ouvido, recusa sem `loadSession` matando o adaptador, recusa vazia, load recusado vira falha de lançamento), 8 no store (linha nova aponta pra antiga, linha antiga intacta, herda escopo, recusa sessão viva, recusa shell, recusa inexistente, recusa sem manager, mata o adaptador que não conseguiu registrar), 2 no router
+- [x] D14 acrescentada: o replay do `session/load` é descartado — a cópia em disco é melhor, e gravar as duas mostraria a conversa duas vezes. **Verificado por mutação**: sem o `if (session.loading) return`, o teste falha
 
 **Tests**: unit/integration com agente falso · **Gate**: quick
 **Commit**: `feat(server): resume yesterday's conversation in a new adapter`

@@ -6,6 +6,7 @@ import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import type { AcpManager } from "../acp/AcpManager.js";
 import type { PtyManager } from "../pty/PtyManager.js";
+import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import {
   createSessionRepository,
   type ScopeType,
@@ -46,6 +47,14 @@ export interface StartSessionInput {
 
 export interface SessionStore {
   start(input: StartSessionInput): Promise<SessionRow>;
+  /**
+   * Continues a conversation that has already ended (F5.2, D12).
+   *
+   * Produces a **new** row carrying the old one's `acpSessionId` and pointing back at
+   * it, because `session/load` starts a new adapter rather than reviving the dead
+   * one. The old row keeps its state and its transcript.
+   */
+  resume(id: string): Promise<SessionRow>;
   close(id: string): Promise<void>;
   findById(id: string): Promise<SessionRow | undefined>;
   listByScope(scopeType: ScopeType, scopeId: string): Promise<SessionRow[]>;
@@ -160,6 +169,84 @@ export function createSessionStore({
         });
       } catch (error) {
         ptyManager.kill(spawned.id);
+        throw error;
+      }
+    },
+
+    async resume(id) {
+      const row = await sessions.findById(id);
+      if (!row) throw new DomainError("NOT_FOUND", `sessão ${id} não existe`);
+
+      // Only ACP resumes, and that follows from D1 rather than being a separate rule:
+      // transport is chosen at birth, a resumed session is born from `session/load`,
+      // and `session/load` is a thing only an ACP adapter has.
+      if (row.transport !== "acp") {
+        throw new DomainError(
+          "BLOCKED",
+          "só conversa ACP pode ser retomada: um shell não tem conversa para carregar",
+        );
+      }
+      // A live conversation needs no resuming — it needs the tab that is already
+      // showing it. Launching a second adapter against the same conversation would
+      // give the user two windows onto one history, both able to write.
+      if (row.state === "running") {
+        throw new DomainError("BLOCKED", `a sessão ${id} ainda está viva: não há o que retomar`);
+      }
+      if (!row.acpSessionId) {
+        throw new DomainError(
+          "BLOCKED",
+          `a sessão ${id} não guardou o id da conversa no adaptador, e sem ele não há o que carregar`,
+        );
+      }
+      if (!acpManager) {
+        throw new DomainError(
+          "INVALID_ARGUMENT",
+          "esta instância não sabe retomar sessão ACP: nenhum AcpManager foi ligado",
+        );
+      }
+
+      /*
+       * `command` from the row, `args` and the pinned version from the configuration.
+       *
+       * The split is not arbitrary. What this session *is* was decided at birth and is
+       * on the row (D1); how the adapter is invoked today is configuration, and a
+       * version that has been bumped since yesterday is the version the user now wants
+       * to run. Resuming into a different adapter build is a real risk and it is the
+       * same risk as launching a new session into it, which is what A12 already
+       * answers by making the version data rather than `@latest`.
+       */
+      const config = row.agentConfigId
+        ? await createAgentConfigRepository(db).findById(row.agentConfigId)
+        : undefined;
+
+      const agent = await acpManager.resume({
+        command: row.command,
+        ...(config?.args?.length ? { args: config.args } : {}),
+        cwd: row.cwd,
+        ...(config?.env && Object.keys(config.env).length > 0 ? { env: config.env } : {}),
+        ...(config?.adapterVersion ? { adapterVersion: config.adapterVersion } : {}),
+        acpSessionId: row.acpSessionId,
+      });
+
+      try {
+        return await sessions.create({
+          id: agent.id,
+          kind: row.kind as SessionKind,
+          agentConfigId: row.agentConfigId,
+          scopeType: row.scopeType as ScopeType,
+          scopeId: row.scopeId,
+          cwd: row.cwd,
+          command: row.command,
+          transport: "acp",
+          acpSessionId: agent.acpSessionId,
+          mode: agent.mode,
+          model: agent.model,
+          resumedFromId: row.id,
+        });
+      } catch (error) {
+        // Same rule as `start`: a conversation the daemon cannot describe is one
+        // nobody can find or stop from the UI.
+        acpManager.kill(agent.id);
         throw error;
       }
     },

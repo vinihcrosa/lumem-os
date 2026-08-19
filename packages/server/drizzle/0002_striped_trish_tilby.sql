@@ -1,0 +1,1 @@
+ALTER TABLE `session` ADD `resumed_from_id` text;
