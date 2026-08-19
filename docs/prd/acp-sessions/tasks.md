@@ -5,7 +5,7 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** não iniciada — 0 de 18
+**Status:** em andamento — **5 de 18** (T1–T5 fechadas, fase 1 na T6)
 **Total:** 18 tasks em 2 fases (as fases **1** e **3** do PRD)
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
@@ -105,15 +105,15 @@ que devolve resultado em vez de lançar.
 **Depends on**: nada
 
 **Done when**:
-- [ ] `ACP_WS_PATH`, `ACP_SESSION_PARAM` e `ACP_CLOSE_SESSION_NOT_FOUND` (4404) definidos, espelhando `pty-protocol.ts`
-- [ ] Mensagens do daemon: `attached`, `message_chunk`, `thought_chunk`, `tool_call`, `tool_call_update`, `permission_request`, `permission_resolved`, `turn_end`, `error`, `unknown`
-- [ ] Mensagens do cliente: `prompt`, `cancel`, `permission_response`
-- [ ] `attached` carrega o replay da transcrição, como `snapshot` carrega o scrollback do PTY — o cliente repinta e só então aplica evento novo
-- [ ] Estado do cartão é união fechada de **cinco** valores nossos — `pending`, `running`, `ok`, `failed`, `cancelled` (D4). O ACP só tem quatro (`pending`, `in_progress`, `completed`, `failed`) e **nenhum** deles é `cancelled`: o quinto é nossa tradução, e a tabela mora no comentário do schema. Um sexto valor é recusado na decodificação
-- [ ] `decodeAcpServerMessage` / `decodeAcpClientMessage` devolvem `{ ok: false, error }` com o caminho do campo, nunca lançam
-- [ ] Existe a variante `unknown` (D3) e ela decodifica; o **tradutor** de `session/update` para essa variante é da T4, porque só o daemon vê ACP cru — o navegador nunca vê
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 8 casos — JSON inválido, tipo desconhecido, estado inválido de cartão, `unknown` aceito, ida e volta de cada direção
+- [x] `ACP_WS_PATH`, `ACP_SESSION_PARAM` e `ACP_CLOSE_SESSION_NOT_FOUND` (4404) definidos, espelhando `pty-protocol.ts`
+- [x] Mensagens do daemon: `attached`, `message_chunk`, `thought_chunk`, `tool_call`, `tool_call_update`, `permission_request`, `permission_resolved`, `turn_end`, `error`, `unknown`
+- [x] Mensagens do cliente: `prompt`, `cancel`, `permission_response`
+- [x] `attached` carrega o replay da transcrição, como `snapshot` carrega o scrollback do PTY — o cliente repinta e só então aplica evento novo
+- [x] Estado do cartão é união fechada de **cinco** valores nossos — `pending`, `running`, `ok`, `failed`, `cancelled` (D4). O ACP só tem quatro (`pending`, `in_progress`, `completed`, `failed`) e **nenhum** deles é `cancelled`: o quinto é nossa tradução, e a tabela mora no comentário do schema. Um sexto valor é recusado na decodificação
+- [x] `decodeAcpServerMessage` / `decodeAcpClientMessage` devolvem `{ ok: false, error }` com o caminho do campo, nunca lançam
+- [x] Existe a variante `unknown` (D3) e ela decodifica; o **tradutor** de `session/update` para essa variante é da T4, porque só o daemon vê ACP cru — o navegador nunca vê
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 8 casos — JSON inválido, tipo desconhecido, estado inválido de cartão, `unknown` aceito, ida e volta de cada direção
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(shared): type the ACP conversation wire protocol`
@@ -127,12 +127,12 @@ que devolve resultado em vez de lançar.
 **Depends on**: nada
 
 **Done when**:
-- [ ] `transport` com `CHECK (transport IN ('pty','acp'))` e default `'pty'`
-- [ ] Migração escreve `'pty'` em toda linha existente ([A11](open-questions.md)); teste parte de banco com linhas sem a coluna e prova que nenhuma fica `NULL`
-- [ ] Um terceiro valor é recusado pelo banco, não só pela aplicação
-- [ ] `adapterVersion` fixa na configuração, nunca `@latest` ([A12](open-questions.md), F5.5) — coluna própria, obrigatória quando `transport = 'acp'`
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 4 — migração de linha legada, `CHECK` de valor inválido, `acp` sem versão recusado, `pty` sem versão aceito
+- [x] `transport` com `CHECK (transport IN ('pty','acp'))` e default `'pty'`
+- [x] Migração escreve `'pty'` em toda linha existente ([A11](open-questions.md)); teste parte de banco com linhas sem a coluna e prova que nenhuma fica `NULL`
+- [x] Um terceiro valor é recusado pelo banco, não só pela aplicação
+- [x] `adapterVersion` fixa na configuração, nunca `@latest` ([A12](open-questions.md), F5.5) — coluna própria, obrigatória quando `transport = 'acp'`
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 4 — migração de linha legada, `CHECK` de valor inválido, `acp` sem versão recusado, `pty` sem versão aceito
 
 **Tests**: unit, com SQLite de verdade · **Gate**: quick
 **Commit**: `feat(server): make transport a column on agent_config`
@@ -146,12 +146,12 @@ que devolve resultado em vez de lançar.
 **Depends on**: T2
 
 **Done when**:
-- [ ] As quatro colunas existem; `transport` com o mesmo `CHECK` e default `'pty'`
-- [ ] `CHECK`: `transport = 'acp'` ⇒ `acp_session_id` não nulo; `transport = 'pty'` ⇒ nulo (D1)
-- [ ] Sessão de shell é sempre `'pty'`, garantido por `CHECK` (F1.2)
-- [ ] Migração escreve `'pty'` em toda sessão existente sem tocar em processo vivo
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 4 — as duas direções do `CHECK`, shell forçado a `pty`, migração de linha legada
+- [x] As quatro colunas existem; `transport` com o mesmo `CHECK` e default `'pty'`
+- [x] `CHECK`: `transport = 'acp'` ⇒ `acp_session_id` não nulo; `transport = 'pty'` ⇒ nulo (D1)
+- [x] Sessão de shell é sempre `'pty'`, garantido por `CHECK` (F1.2)
+- [x] Migração escreve `'pty'` em toda sessão existente sem tocar em processo vivo
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 4 — as duas direções do `CHECK`, shell forçado a `pty`, migração de linha legada
 
 **Tests**: unit, com SQLite de verdade · **Gate**: quick
 **Commit**: `feat(server): record transport and ACP session on session rows`
@@ -165,16 +165,16 @@ que devolve resultado em vez de lançar.
 **Depends on**: T1
 
 **Done when**:
-- [ ] `spawn` levanta o subprocesso, faz `initialize` e `session/new`, e devolve `acpSessionId`, modos e modelos disponíveis
-- [ ] `prompt`, `cancel` e `respondToPermission` implementados
-- [ ] `onEvent(id, listener)` emite a união do T1, não o payload cru do protocolo — a tradução mora aqui
-- [ ] Agente falso do outro lado do pipe: um script que fala JSON-RPC e nada mais. **Nenhum teste desta task consome token**
-- [ ] O subprocesso é do daemon e sobrevive ao cliente (F1.4), provado por teste que fecha o listener e continua recebendo evento
-- [ ] `session/update` desconhecido virou `unknown` e foi logado; a sessão continua viva (D3) — **o tradutor de ACP para a união da T1 mora aqui**, com a tabela de estado e a derivação do quinto estado a partir de `stopReason: cancelled`
-- [ ] Cartão ainda `pending` ou `running` quando o turno fecha com `stopReason: cancelled` passa a `cancelled`, não a `failed` (D4) — o ACP não tem esse estado, então é a única fonte dele
-- [ ] `killAll` com timeout, como o `PtyManager` já faz
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 10 — handshake, prompt→chunks, tool_call→update, permissão pedida e respondida, cancel, evento desconhecido, morte do subprocesso, sobrevivência ao detach
+- [x] `spawn` levanta o subprocesso, faz `initialize` e `session/new`, e devolve `acpSessionId`, modos e modelos disponíveis
+- [x] `prompt`, `cancel` e `respondToPermission` implementados
+- [x] `onEvent(id, listener)` emite a união do T1, não o payload cru do protocolo — a tradução mora aqui
+- [x] Agente falso do outro lado do pipe: um script que fala JSON-RPC e nada mais. **Nenhum teste desta task consome token**
+- [x] O subprocesso é do daemon e sobrevive ao cliente (F1.4), provado por teste que fecha o listener e continua recebendo evento
+- [x] `session/update` desconhecido virou `unknown` e foi logado; a sessão continua viva (D3) — **o tradutor de ACP para a união da T1 mora aqui**, com a tabela de estado e a derivação do quinto estado a partir de `stopReason: cancelled`
+- [x] Cartão ainda `pending` ou `running` quando o turno fecha com `stopReason: cancelled` passa a `cancelled`, não a `failed` (D4) — o ACP não tem esse estado, então é a única fonte dele
+- [x] `killAll` com timeout, como o `PtyManager` já faz
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 10 — handshake, prompt→chunks, tool_call→update, permissão pedida e respondida, cancel, evento desconhecido, morte do subprocesso, sobrevivência ao detach
 
 **Tests**: unit/integration com agente falso · **Gate**: quick
 **Commit**: `feat(server): drive an ACP agent over JSON-RPC`
@@ -188,11 +188,11 @@ que devolve resultado em vez de lançar.
 **Depends on**: T4
 
 **Done when**:
-- [ ] `isCommandAvailable` é reusado; nenhuma checagem nova de PATH é escrita
-- [ ] Erro carrega a versão fixada e a linha de `npm i -g` correspondente, montada a partir de `adapterVersion` — não hard-coded
-- [ ] Handshake que falha ou dá timeout também vira erro de domínio, não `unhandledRejection`
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 3 — comando ausente, handshake que nunca responde, `protocolVersion` incompatível
+- [x] `isCommandAvailable` é reusado; nenhuma checagem nova de PATH é escrita
+- [x] Erro carrega a versão fixada e a linha de `npm i -g` correspondente, montada a partir de `adapterVersion` — não hard-coded
+- [x] Handshake que falha ou dá timeout também vira erro de domínio, não `unhandledRejection`
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 3 — comando ausente, handshake que nunca responde, `protocolVersion` incompatível
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(server): report ACP launch failure as a domain error`
