@@ -74,6 +74,13 @@ export interface AcpSessionInfo {
 
 export type AcpEventListener = (entry: AcpTranscriptEntry) => void;
 export type AcpExitWatcher = (info: AcpSessionInfo) => void;
+/**
+ * Told whenever a session's selectors change.
+ *
+ * The seam the session store hangs off, exactly as `watchExits` is: the switch has
+ * to reach the database (D9) and the manager has no business knowing there is one.
+ */
+export type AcpConfigWatcher = (info: AcpSessionInfo) => void;
 
 interface PendingPermission {
   resolve(outcome: RequestPermissionOutcome): void;
@@ -104,6 +111,14 @@ interface Session {
    * `"true"` into a boolean for the one option that wants one.
    */
   optionTypes: Map<string, "select" | "boolean">;
+  /**
+   * A turn is running.
+   *
+   * Tracked here rather than derived from the events, because the one thing that
+   * needs the answer — refusing a switch mid-turn — has to know *before* any event
+   * about it exists.
+   */
+  promptInFlight: boolean;
   /** Disk access, scoped to this session's checkout and nothing else. */
   fs: FsBridge;
   /** One id per turn, for chunks the agent sends without a message id. */
@@ -159,6 +174,7 @@ export interface AcpManagerOptions {
 export class AcpManager {
   private readonly sessions = new Map<string, Session>();
   private readonly exitWatchers = new Set<AcpExitWatcher>();
+  private readonly configWatchers = new Set<AcpConfigWatcher>();
   private readonly spawner: AcpProcessSpawner;
   private readonly handshakeTimeoutMs: number;
   private readonly isAvailable: (command: string) => boolean;
@@ -234,6 +250,7 @@ export class AcpManager {
       openToolCalls: new Set(),
       pendingPermissions: new Map(),
       optionTypes: new Map(),
+      promptInFlight: false,
       // One bridge per session, rooted at its own cwd. A shared one would need
       // the root passed on every call, and the call that forgot would read
       // another worktree.
@@ -289,6 +306,7 @@ export class AcpManager {
     }
 
     session.turnId = newId();
+    session.promptInFlight = true;
 
     // The user's own message goes into the transcript before the agent hears it.
     // The adapter does not echo it, so without this line reopening the tab would
@@ -318,6 +336,7 @@ export class AcpManager {
     }
     session.openToolCalls.clear();
 
+    session.promptInFlight = false;
     this.emit(session, { type: "turn_end", stopReason });
     return stopReason;
   }
@@ -365,6 +384,12 @@ export class AcpManager {
   watchExits(watcher: AcpExitWatcher): () => void {
     this.exitWatchers.add(watcher);
     return () => this.exitWatchers.delete(watcher);
+  }
+
+  /** Notified whenever any session's mode or model changes. Returns an unsubscribe. */
+  watchConfig(watcher: AcpConfigWatcher): () => void {
+    this.configWatchers.add(watcher);
+    return () => this.configWatchers.delete(watcher);
   }
 
   get(id: string): AcpSessionInfo | undefined {
@@ -476,6 +501,16 @@ export class AcpManager {
         // Deliberately permissive. See the note above.
         (params: unknown) => params as { update?: unknown },
         ({ params }) => {
+          /*
+           * Two variants are handled here rather than in `translate`, and for the
+           * same reason D8 gives: they are partial. `current_mode_update` carries a
+           * mode and nothing else, `config_option_update` carries options and no
+           * mode, and the `config` event the client reads carries both. Merging
+           * needs the session's current state, which the translator — pure, one
+           * update at a time — does not have.
+           */
+          if (this.absorbConfigUpdate(session, params?.update)) return;
+
           const event = translateSessionUpdate(params?.update, {
             fallbackMessageId: session.turnId,
           });
@@ -494,6 +529,46 @@ export class AcpManager {
           this.emit(session, event);
         },
       );
+  }
+
+  /**
+   * Absorbs a partial config update, if that is what this is.
+   *
+   * Returns whether it handled the update, so the caller can fall through to the
+   * translator for everything else.
+   */
+  private absorbConfigUpdate(session: Session, update: unknown): boolean {
+    if (typeof update !== "object" || update === null) return false;
+    const record = update as Record<string, unknown>;
+
+    if (record["sessionUpdate"] === "current_mode_update") {
+      if (typeof record["currentModeId"] !== "string") return false;
+      session.info.mode = record["currentModeId"];
+      this.emitConfig(session);
+      return true;
+    }
+
+    if (record["sessionUpdate"] === "config_option_update") {
+      const options = normaliseOptions(
+        Array.isArray(record["configOptions"]) ? record["configOptions"] : [],
+        undefined,
+      );
+      // Merged rather than replaced: the update carries the options the agent
+      // changed, and the `mode` this daemon folds in from `modes` is not among
+      // them. Replacing would drop the mode selector on the first such update.
+      const merged = [...session.info.configOptions];
+      for (const option of options) {
+        const at = merged.findIndex((existing) => existing.id === option.id);
+        if (at === -1) merged.push(option);
+        else merged[at] = option;
+      }
+      session.info.configOptions = merged;
+      session.info.model = valueOf(merged, "model") || session.info.model;
+      this.emitConfig(session);
+      return true;
+    }
+
+    return false;
   }
 
   private async handshake(session: Session, cwd: string): Promise<Partial<AcpSessionInfo>> {
@@ -552,6 +627,25 @@ export class AcpManager {
       throw new DomainError("SESSION_EXITED", `session ${id} has exited`);
     }
 
+    /*
+     * Refused while a turn is running, with a reason.
+     *
+     * The protocol does not say what `session/set_mode` means half way through a
+     * turn, and the agent may already have acted under the old one. Applying it
+     * silently would let the user believe they changed the rules for what is
+     * happening now, which is the worst of the three options — the other two being
+     * refuse, or apply it to the next turn and say so.
+     *
+     * Open as A15: someone who sees a dangerous call and wants to tighten the mode
+     * *right now* has a real case, and the permission dialog is the answer today.
+     */
+    if (session.promptInFlight) {
+      throw new DomainError(
+        "BLOCKED",
+        "não dá para trocar de modo ou modelo no meio de um turno: interrompa ou espere ele acabar",
+      );
+    }
+
     if (optionId === MODE_OPTION) {
       await session.connection.agent.request("session/set_mode", {
         sessionId: session.info.acpSessionId,
@@ -593,6 +687,14 @@ export class AcpManager {
       mode: session.info.mode,
       options: [...session.info.configOptions],
     });
+
+    for (const watcher of [...this.configWatchers]) {
+      try {
+        watcher({ ...session.info });
+      } catch {
+        /* a broken watcher must not take the daemon with it */
+      }
+    }
   }
 
   /**

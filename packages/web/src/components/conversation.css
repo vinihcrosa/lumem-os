@@ -357,6 +357,56 @@
 .composer__in--empty { color: var(--color-text-tertiary); }
 .composer__bar { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-6) var(--space-8); border-top: 1px solid var(--color-border-subtle); }
 
+/*
+ * Pílula sem preenchimento: o modo pinta a cor DELE, e um fundo próprio
+ * competiria com ela. `bypass` é a exceção — não perguntar nada é estado
+ * que precisa de fundo, não só de texto.
+ */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  font: var(--text-label-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.pill__caret { font-size: var(--size-icon-xs); color: var(--color-text-tertiary); }
+.pill--auto   { color: var(--color-mode-auto); border-color: var(--color-mode-auto); }
+.pill--plan   { color: var(--color-mode-plan); border-color: var(--color-mode-plan); }
+.pill--bypass { color: var(--color-mode-bypass); border-color: var(--color-mode-bypass); background: var(--color-bg-danger-subtle); }
+.pill--model  { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/* ------------------------------- menu suspenso: seletor e comandos */
+/*
+ * Uma folha para os dois. O protótipo desenhou este bloco para os comandos de
+ * barra (F2.8) e usou a mesma forma nos seletores de modo e modelo (F2.6) — dois
+ * arquivos que têm que concordar sobre a aparência de um menu são dois arquivos
+ * que vão discordar.
+ */
+.slash {
+  width: var(--size-menu-width);
+  padding: var(--space-4);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-lg);
+}
+.slash__row { display: flex; align-items: center; gap: var(--space-8); min-height: var(--size-row-compact); padding: 0 var(--space-8); border-radius: var(--radius-sm); }
+.slash__row--on { background: var(--color-bg-active); }
+.slash__cmd { flex: none; font: var(--text-mono-md); color: var(--color-text-primary); }
+.slash__desc { flex: 1; min-width: 0; font: var(--text-body-sm); color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Não perguntar nada é estado, não preferência: ele grita na lista também. */
+.slash__row--danger .slash__cmd { color: var(--color-mode-bypass); }
+
+/* A pílula e o menu dela, ancorados juntos. */
+.config { position: relative; display: inline-flex; }
+.config .slash { position: absolute; bottom: calc(100% + var(--space-6)); left: 0; z-index: 1; }
+
 /* ----------------------------------------- vazio, retomado, e falha */
 /*
  * Sessão nova não é tela em branco: ela custa ~39k tokens de system prompt

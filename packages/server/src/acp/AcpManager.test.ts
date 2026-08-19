@@ -837,3 +837,177 @@ describe("the agent reaching the disk", () => {
     expect(leaked).toBeUndefined();
   });
 });
+
+describe("switching mode and model", () => {
+  it("uses session/set_mode for the mode, and nothing else", async () => {
+    // D8's whole point: the protocol treats mode specially, and the daemon is the
+    // only side that has to know.
+    const asked: string[] = [];
+    const { manager, sessionId } = await start({
+      setMode: (modeId) => asked.push(modeId),
+      setConfigOption: () => {
+        throw new Error("mode must not go through the generic call");
+      },
+    });
+
+    await manager.setConfig(sessionId, "mode", "plan");
+
+    expect(asked).toEqual(["plan"]);
+    expect(manager.get(sessionId)?.mode).toBe("plan");
+  });
+
+  it("uses the generic call for everything else", async () => {
+    const asked: [string, string | boolean][] = [];
+    const { manager, sessionId } = await start({
+      setConfigOption: (configId, value) => {
+        asked.push([configId, value]);
+      },
+    });
+
+    await manager.setConfig(sessionId, "model", "sonnet");
+
+    expect(asked).toEqual([["model", "sonnet"]]);
+  });
+
+  it("trusts the agent's answer over the request", async () => {
+    // An agent asked for `sonnet` may hand back `sonnet[1m]`, which is what is
+    // actually in effect. Believing the request would show a value that is not.
+    const { manager, sessionId } = await start({
+      setConfigOption: () =>
+        [
+          {
+            id: "model",
+            name: "Model",
+            category: "model",
+            type: "select",
+            currentValue: "sonnet[1m]",
+            options: [{ value: "sonnet[1m]", name: "sonnet[1m]" }],
+          },
+        ] as never,
+    });
+
+    await manager.setConfig(sessionId, "model", "sonnet");
+
+    expect(manager.get(sessionId)?.model).toBe("sonnet[1m]");
+  });
+
+  it("tells every attached client about the switch", async () => {
+    const { manager, events, sessionId } = await start();
+
+    await manager.setConfig(sessionId, "mode", "plan");
+
+    expect(events.at(-1)).toMatchObject({ type: "config", mode: "plan" });
+  });
+
+  it("refuses an option the agent does not offer", async () => {
+    const { manager, sessionId } = await start();
+
+    await expect(manager.setConfig(sessionId, "telepatia", "on")).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+
+  it("refuses a switch in the middle of a turn, with a reason", async () => {
+    // The protocol does not say what a mid-turn switch means, and the agent may
+    // already have acted under the old value. Applying it silently would let the
+    // user believe they changed the rules for what is happening now. Open as A15.
+    const { manager, sessionId } = await start({
+      async prompt(_text, turn) {
+        await turn.cancelled;
+        return "cancelled";
+      },
+    });
+
+    const turn = manager.prompt(sessionId, "roda algo longo");
+    await expect(manager.setConfig(sessionId, "mode", "plan")).rejects.toMatchObject({
+      code: "BLOCKED",
+      message: /no meio de um turno/,
+    });
+
+    manager.cancel(sessionId);
+    await turn;
+
+    // And it works again once the turn is over.
+    await expect(manager.setConfig(sessionId, "mode", "plan")).resolves.toBeUndefined();
+  });
+
+  it("refuses a switch on a session whose agent is gone", async () => {
+    const { manager, sessionId, process } = await start();
+    process.kill();
+    await waitFor(() => (manager.get(sessionId)?.state === "exited" ? true : undefined));
+
+    await expect(manager.setConfig(sessionId, "mode", "plan")).rejects.toMatchObject({
+      code: "SESSION_EXITED",
+    });
+  });
+});
+
+describe("the agent switching on its own", () => {
+  it("follows a mode the agent changed by itself", async () => {
+    // A `/plan` command makes the agent switch. The pill has to follow without the
+    // client having asked for anything.
+    const fake = fakeAgentProcess();
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+    const events: AcpEvent[] = [];
+    manager.onEvent(info.id, ({ event }) => events.push(event));
+
+    await fake.sendRaw({
+      jsonrpc: "2.0",
+      method: "session/update",
+      params: {
+        sessionId: "fake-acp-session",
+        update: { sessionUpdate: "current_mode_update", currentModeId: "plan" },
+      },
+    });
+
+    await waitFor(() => events.find((event) => event.type === "config"));
+    expect(manager.get(info.id)?.mode).toBe("plan");
+  });
+
+  it("merges an options update instead of replacing the whole set", async () => {
+    // The update carries what changed. Replacing would drop the mode selector the
+    // daemon folds in from `modes`, which is not among the agent's own options.
+    const fake = fakeAgentProcess();
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
+    const before = manager.get(info.id)?.configOptions.map((option) => option.id);
+    const events: AcpEvent[] = [];
+    manager.onEvent(info.id, ({ event }) => events.push(event));
+
+    await fake.sendRaw({
+      jsonrpc: "2.0",
+      method: "session/update",
+      params: {
+        sessionId: "fake-acp-session",
+        update: {
+          sessionUpdate: "config_option_update",
+          configOptions: [
+            {
+              id: "effort",
+              name: "Effort",
+              type: "select",
+              currentValue: "high",
+              options: [{ value: "high", name: "high" }],
+            },
+          ],
+        },
+      },
+    });
+
+    await waitFor(() => events.find((event) => event.type === "config"));
+    const after = manager.get(info.id)?.configOptions.map((option) => option.id);
+
+    expect(before).toContain("model");
+    expect(after).toContain("model");
+    expect(after).toContain("effort");
+  });
+});

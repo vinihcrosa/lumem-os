@@ -369,3 +369,71 @@ describe("transport", () => {
     expect(row.transport).toBe("acp");
   });
 });
+
+describe("the switch persists on the session", () => {
+  it("writes the mode the session chose, not the configuration's default", async () => {
+    // D9 and A8: `agent_config` keeps the default, the session keeps its choice, and
+    // reopening the tab has to show the choice.
+    const { store, db, acpManager } = setup();
+    const row = await store.start(await acpAgent(db));
+    expect(row.mode).toBe("default");
+
+    await acpManager.setConfig(row.id, "mode", "plan");
+
+    await vi.waitFor(async () => {
+      expect(await store.findById(row.id)).toMatchObject({ mode: "plan" });
+    });
+  });
+
+  it("writes the model too, as the agent reports it", async () => {
+    /*
+     * Scripted rather than left to the default fake, which answers every switch
+     * with `opus[1m]` — the first version of this test asserted `opus[1m]` after
+     * switching to `sonnet` and passed for the wrong reason. What it proves now is
+     * that the value the *agent* reports is the value that lands in the row.
+     */
+    queued.push(
+      fakeAgentProcess({
+        setConfigOption: () =>
+          [
+            {
+              id: "model",
+              name: "Model",
+              category: "model",
+              type: "select",
+              currentValue: "sonnet",
+              options: [{ value: "sonnet", name: "sonnet" }],
+            },
+          ] as never,
+      }).process,
+    );
+    const { store, db, acpManager } = setup();
+    const row = await store.start(await acpAgent(db));
+
+    await acpManager.setConfig(row.id, "model", "sonnet");
+
+    await vi.waitFor(async () => {
+      expect(await store.findById(row.id)).toMatchObject({ model: "sonnet" });
+    });
+  });
+
+  it("leaves an exited session's record alone", async () => {
+    // A switch racing an exit must not resurrect the row's idea of what it was
+    // doing. The write is scoped to `running` for that reason.
+    const { store, db } = setup();
+    const row = await store.start(await acpAgent(db));
+    const sessions = createSessionRepository(db);
+    await sessions.markExited(row.id, 0);
+
+    await sessions.setConfig(row.id, { mode: "plan" });
+
+    expect(await store.findById(row.id)).toMatchObject({ state: "exited", mode: "default" });
+  });
+
+  it("does not touch a PTY session, which has no mode to switch", async () => {
+    const { store } = setup();
+    const row = await store.start(shell());
+
+    expect(row.mode).toBeNull();
+  });
+});

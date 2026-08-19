@@ -373,3 +373,115 @@ describe("the plan", () => {
     await waitFor(() => expect(document.querySelector(".plan")).toBeNull());
   });
 });
+
+describe("the selectors", () => {
+  const modelOption: AcpConfigOption = {
+    id: "model",
+    name: "Model",
+    category: "model",
+    currentValue: "opus[1m]",
+    choices: [
+      { value: "opus[1m]", name: "opus[1m]", description: "Opus 5 · 1M" },
+      { value: "sonnet", name: "sonnet", description: null },
+    ],
+  };
+
+  it("shows the pills the attach frame already carried", async () => {
+    // On attach, not only when something changes: a tab that opened with no pills
+    // until the agent happened to mention something would look broken.
+    const { socket } = mount();
+
+    socket.deliver(attached([], [modelOption]));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Model: opus[1m]" })).toBeInTheDocument();
+    });
+  });
+
+  it("sends the switch and follows the agent's answer", async () => {
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached([], [modelOption]));
+
+    await user.click(await screen.findByRole("button", { name: /^Model:/ }));
+    await user.click(screen.getByRole("menuitemradio", { name: /sonnet/ }));
+
+    expect(socket.sent).toEqual([{ type: "set_config", optionId: "model", value: "sonnet" }]);
+
+    // The pill follows the `config` event, not the click: the agent may answer with
+    // a different value, and that one is what is in effect.
+    socket.deliver({
+      type: "event",
+      at: clock,
+      event: {
+        type: "config",
+        mode: "auto",
+        options: [{ ...modelOption, currentValue: "sonnet[1m]" }],
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Model: sonnet[1m]" })).toBeInTheDocument();
+    });
+  });
+
+  it("follows a mode the agent switched by itself", async () => {
+    const { socket } = mount();
+    socket.deliver(
+      attached([], [
+        {
+          id: "mode",
+          name: "Mode",
+          currentValue: "auto",
+          choices: [
+            { value: "auto", name: "Auto", description: null },
+            { value: "plan", name: "Plan Mode", description: null },
+          ],
+        },
+      ]),
+    );
+    await screen.findByRole("button", { name: "Mode: Auto" });
+
+    // The whole set, because that is what the event carries: the daemon merges a
+    // partial `config_option_update` before emitting, so the client replaces rather
+    // than merging. Sending `options: []` here would be testing something the wire
+    // never says — and it would correctly make every pill vanish.
+    socket.deliver({
+      type: "event",
+      at: clock,
+      event: {
+        type: "config",
+        mode: "plan",
+        options: [
+          {
+            id: "mode",
+            name: "Mode",
+            currentValue: "plan",
+            choices: [
+              { value: "auto", name: "Auto", description: null },
+              { value: "plan", name: "Plan Mode", description: null },
+            ],
+          },
+        ],
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Plan Mode/ })).toBeInTheDocument();
+    });
+  });
+
+  it("disables the pills while a turn is running", async () => {
+    const { socket } = mount();
+    socket.deliver(
+      attached(
+        [entry({ type: "message", messageId: "u-1", role: "user", text: "vai" })],
+        [modelOption],
+      ),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /^Model:/ })).toBeDisabled();
+    });
+  });
+});

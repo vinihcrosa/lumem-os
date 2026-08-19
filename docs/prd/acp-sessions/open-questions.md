@@ -3,7 +3,7 @@
 Registro de por que cada decisão foi tomada. Pergunta respondida não vira suposição silenciosa: fica
 aqui, com o motivo.
 
-**Estado:** 14 perguntas · **14 respondidas · 0 abertas**
+**Estado:** 15 perguntas · **14 respondidas · 1 aberta**
 
 **Rodada 1 (2026-08-17):** dez seguiram a proposta. Duas não: a **A9** trocou o default de permissão
 para `auto` (e o §C registra o que isso cobra), e a **A6** pediu número antes de decidir — o número
@@ -13,6 +13,10 @@ está lá, medido nas suas próprias transcrições.
 — as duas só apareceram quando a tela foi renderizada de verdade: **A13** (a descrição do modo é
 string do agente, em inglês) e **A14** (interrompido não é nenhum dos quatro estados que o PRD lista).
 As duas seguiram a proposta, então a tela já está desenhada com a decisão dentro.
+
+**Rodada 3 (2026-08-19):** a fase 4 abriu a **A15** — trocar de modo no meio de um turno. Implementei
+como recusa, que é o que a task declarava, e a pergunta está aberta porque o caso contrário tem
+argumento real.
 
 **Como usar:** responda embaixo, no `**R:**`. Cada pergunta traz uma **proposta pra reagir** —
 discordar dela é mais rápido que escrever do zero.
@@ -321,3 +325,31 @@ quatro, e `session/cancel` deixa de produzir um cartão que parece bug.
 **Decisão:** **quinto estado**, `tool/cancelled` em `neutral/400`, já no `tokens.css`. `session/cancel`
 produz cartão neutro e final, não cartão vermelho. O mapa de `stopReason` para estado de cartão passa a
 ter cinco entradas, e `cancelled` é a única que não é nem sucesso nem falha.
+
+---
+
+### [ ] A15 — Trocar de modo ou de modelo no meio de um turno: recusa, ignora, ou vale pro próximo?
+
+O protocolo não diz o que `session/set_mode` significa na metade de um turno, e o agente pode já ter
+agido sob o valor antigo. Três saídas:
+
+1. **Recusar**, dizendo por quê.
+2. **Aplicar ao próximo turno**, dizendo que é isso que vai acontecer.
+3. **Aplicar já** e aceitar que o efeito é indefinido.
+
+A 3 está fora: deixa o usuário acreditar que mudou a regra do que está acontecendo agora, e é a única
+das três que mente.
+
+**O que está implementado:** a **1**. `AcpManager.setConfig` recusa com `BLOCKED` e as pílulas ficam
+desabilitadas com o motivo no `title`.
+
+**O caso contra:** ver uma chamada perigosa e querer apertar o modo **naquele instante** é um desejo
+legítimo. Hoje a resposta é o diálogo de permissão — que resolve *aquela* chamada, não a política do
+resto do turno. Se você usar isso e sentir falta, a **2** é a próxima menos ruim: a pílula mostraria o
+valor novo com uma marca de "a partir do próximo turno", e o daemon guardaria a troca para aplicar no
+`session/prompt` seguinte.
+
+**Custo de mudar depois:** baixo. É uma condição no `setConfig` e um estado a mais na pílula; nada do
+contrato muda.
+
+**R:**

@@ -12,6 +12,7 @@ import {
 } from "../lib/conversation-model.js";
 import { connectAcpSocket, type AcpConnect } from "../lib/acp-socket.js";
 import { Banner, Button, Glyph } from "../ui/index.js";
+import { ConfigPills } from "./ConfigPills.js";
 import { Message, Thought, TurnFrame } from "./Message.js";
 import { PermissionRequest } from "./PermissionRequest.js";
 import { PlanCard } from "./PlanCard.js";
@@ -53,7 +54,14 @@ function reduce(state: ViewState, action: Action): ViewState {
       // Replayed, not merged. A reattach after a dropped socket must not stack a
       // second copy of the conversation on top of what is already there.
       return {
-        conversation: replayConversation(message.transcript),
+        // The selectors arrive on the attach frame rather than as an event, so they
+        // are seeded here — otherwise a tab would open with no pills at all until
+        // the agent happened to change something.
+        conversation: {
+          ...replayConversation(message.transcript),
+          mode: message.mode,
+          configOptions: message.configOptions,
+        },
         session: {
           acpSessionId: message.acpSessionId,
           model: message.model,
@@ -270,6 +278,19 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
             }}
           />
           <div className="composer__bar">
+            {/*
+              Disabled while a turn runs, because the daemon refuses the switch
+              then (A15). Offering it anyway would be a button whose only outcome
+              is an error the user did nothing to cause.
+            */}
+            <ConfigPills
+              mode={conversation.mode}
+              options={conversation.configOptions}
+              disabled={conversation.streaming}
+              onSwitch={(optionId, value) =>
+                socketRef.current?.send({ type: "set_config", optionId, value })
+              }
+            />
             <span className="spacer" />
             <Button variant="primary" size="sm" disabled={draft.trim() === "" || pending !== null} onClick={send}>
               enviar <span className="kbd">⌘⏎</span>

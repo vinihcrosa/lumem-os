@@ -32,6 +32,7 @@ const components = read(
   "PermissionRequest.tsx",
   "PlanCard.tsx",
   "UsageFooter.tsx",
+  "ConfigPills.tsx",
 );
 
 /** Selectors this stylesheet defines, at any position in a rule. */
@@ -64,6 +65,12 @@ const INTERPOLATED = [
   "u--warn",
   "u--over",
   "u--cost",
+  "pill--auto",
+  "pill--plan",
+  "pill--bypass",
+  "pill--model",
+  "slash__row--on",
+  "slash__row--danger",
 ];
 
 function requested(source: string): Set<string> {
@@ -161,7 +168,7 @@ describe("the stylesheet stays inside the token system", () => {
 });
 
 describe("what it deliberately does not carry", () => {
-  it.each(["pill", "slash", "daysep"])(
+  it.each(["daysep"])(
     "has no rules for %s, which is phase 4",
     (prefix) => {
       // CSS with no markup is dead CSS. Each comes with the component that uses

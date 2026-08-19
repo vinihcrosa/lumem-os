@@ -208,9 +208,26 @@ export function createSessionStore({
       const offPty = ptyManager.watchExits((info) => record(info.id, info.exitCode));
       const offAcp = acpManager?.watchExits((info) => record(info.id, info.exitCode));
 
+      /*
+       * D9: the switch persists on the session, not on the configuration.
+       *
+       * Hooked to the same subscription as the exits because it has the same shape
+       * of problem — the manager holds the truth, the row has to follow it, and
+       * neither should have to know about the other. Without this, reopening a tab
+       * would show the configuration's default instead of what was chosen.
+       */
+      const offConfig = acpManager?.watchConfig((info) => {
+        void sessions
+          .setConfig(info.id, { mode: info.mode, model: info.model })
+          .catch((error: unknown) => {
+            log?.warn({ session: info.id, err: error }, "falha ao registrar troca de configuração");
+          });
+      });
+
       return () => {
         offPty();
         offAcp?.();
+        offConfig?.();
       };
     },
   };

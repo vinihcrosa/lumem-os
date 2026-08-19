@@ -313,6 +313,14 @@ export const acpEventSchema = z.discriminatedUnion("type", [
     type: z.literal("config"),
     /** The current mode id, kept beside the options it belongs to. */
     mode: z.string(),
+    /**
+     * The whole set, always.
+     *
+     * The protocol's own `config_option_update` is partial — it carries what the
+     * agent changed — and the daemon merges it against what it already knows before
+     * sending this. So the client replaces rather than merging, and there is exactly
+     * one place that has to get the merge right.
+     */
     options: z.array(acpConfigOptionSchema),
   }),
   /** What `/` offers (F2.8). An empty list means the agent offers none. */

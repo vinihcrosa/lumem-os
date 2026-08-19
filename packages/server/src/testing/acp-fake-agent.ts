@@ -50,6 +50,15 @@ export interface FakeAgentTurn {
 }
 
 export interface FakeAgentScript {
+  /** Answers `session/set_mode`. Throw to refuse, as a real agent may. */
+  setMode?(modeId: string): void;
+  /**
+   * Answers `session/set_config_option` with the whole set, as the protocol says.
+   *
+   * Returning a different value than asked is the case worth exercising: an agent
+   * that adjusts `sonnet` to `sonnet[1m]` is reporting what is actually in effect.
+   */
+  setConfigOption?(configId: string, value: string | boolean): SessionConfigOption[] | void;
   /** Overrides the handshake response. Return nothing to keep the default. */
   initialize?(params: InitializeRequest): Partial<InitializeResponse> | void;
   /** Throw to make the handshake fail, as a broken adapter would. */
@@ -234,6 +243,20 @@ export function fakeAgentProcess(script: FakeAgentScript = {}): FakeAgentHandle 
       return { stopReason };
     },
 
+    setSessionMode(params) {
+      script.setMode?.(params.modeId);
+      return {};
+    },
+
+    setSessionConfigOption(params) {
+      const chosen = script.setConfigOption?.(
+        params.configId,
+        (params as { value: string | boolean }).value,
+      );
+      return { configOptions: chosen ?? FAKE_CONFIG_OPTIONS };
+    },
+
+    /** Lets a script push a mid-turn change the client did not ask for. */
     cancel() {
       cancelTurn();
     },

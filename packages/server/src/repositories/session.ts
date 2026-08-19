@@ -51,6 +51,13 @@ export interface SessionRepository {
   /** Idempotent: a process only exits once, but the news can arrive twice. */
   markExited(id: string, exitCode: number): Promise<void>;
   /**
+   * Records a mode or model the session switched to, D9.
+   *
+   * `agent_config` keeps the default and this keeps what *this* session chose (A8),
+   * so reopening the tab shows the choice rather than the default.
+   */
+  setConfig(id: string, config: { mode?: string; model?: string }): Promise<void>;
+  /**
    * F7.3: no PTY survives a daemon restart, so no record may claim otherwise.
    *
    * The exit code stays null on purpose — the daemon genuinely does not know
@@ -121,6 +128,19 @@ export function createSessionRepository(db: Db): SessionRepository {
             eq(session.state, "running"),
           ),
         );
+    },
+
+    async setConfig(id, config) {
+      // Scoped to `running`: a switch racing an exit must not resurrect the row's
+      // idea of what it was doing, and an exited session has nothing to switch.
+      await db
+        .update(session)
+        .set({
+          ...(config.mode === undefined ? {} : { mode: config.mode }),
+          ...(config.model === undefined ? {} : { model: config.model }),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(session.id, id), eq(session.state, "running")));
     },
 
     async markExited(id, exitCode) {
