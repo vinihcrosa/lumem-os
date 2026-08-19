@@ -170,6 +170,7 @@
   --color-syntax-punctuation: var(--neutral-400);
   --color-git-added-subtle: var(--success-950);
   --color-git-removed-subtle: var(--danger-950);
+  --color-syntax-comment-diff: var(--neutral-500);
   --color-git-untracked: var(--info-400);
   /* dominio — editor */
   --color-editor-cursor: var(--brand-400);
@@ -183,6 +184,29 @@
   --color-save-saved: var(--success-400);
   --color-save-failed: var(--danger-400);
   --color-save-stale: var(--warning-400);
+  /* dominio — conversa */
+  --color-turn-agent: var(--brand-400);
+  --color-turn-user: var(--neutral-300);
+  --color-turn-thought: var(--neutral-500);
+  --color-turn-caret: var(--brand-400);
+  --color-tool-pending: var(--neutral-500);
+  --color-tool-running: var(--info-400);
+  --color-tool-ok: var(--success-400);
+  --color-tool-failed: var(--danger-400);
+  --color-tool-cancelled: var(--neutral-400);
+  --color-permission-pending: var(--warning-400);
+  --color-permission-allowed: var(--success-400);
+  --color-permission-denied: var(--danger-400);
+  --color-plan-pending: var(--neutral-500);
+  --color-plan-active: var(--brand-400);
+  --color-plan-done: var(--success-400);
+  --color-usage-quiet: var(--neutral-400);
+  --color-usage-warn: var(--warning-400);
+  --color-usage-over: var(--danger-400);
+  --color-usage-cost: var(--accent-400);
+  --color-mode-plan: var(--info-400);
+  --color-mode-auto: var(--brand-400);
+  --color-mode-bypass: var(--danger-400);
 
   /* ---------- espacamento (nome = valor em px) ---------- */
   --space-0: 0px;
@@ -235,6 +259,9 @@
   --size-panel-right-max: 720px;
   --size-gutter-line: 44px;
   --size-viewer-min: 360px;
+  --size-turn-gutter: 20px;
+  --size-tool-output-max: 240px;
+  --size-composer-min: 72px;
   --border-width-none: 0px;
   --border-width-thin: 1px;
   --border-width-thick: 2px;

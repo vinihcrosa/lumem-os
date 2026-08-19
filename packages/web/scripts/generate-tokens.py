@@ -134,6 +134,11 @@ SEMANTIC = [
         # Fundo da linha do diff. Sutil de proposito: quem carrega o sinal e o
         # texto, e uma faixa saturada atras de codigo mono cansa em dez linhas.
         ("git/added-subtle", "success/950"), ("git/removed-subtle", "danger/950"),
+        # Comentario dentro de linha de diff. `syntax/comment` (neutral/600) da
+        # 3,44:1 sobre a faixa da linha — reprova, e comentario e o texto que
+        # MAIS explica a mudanca. Um degrau acima, e so aqui: no codigo normal
+        # o comentario continua recuando, que e o trabalho dele.
+        ("syntax/comment-diff", "neutral/500"),
         ("git/untracked", "info/400"),
     ]),
     # Editor: a primeira vez que o Lumem desenha um cursor que e do USUARIO e
@@ -158,6 +163,56 @@ SEMANTIC = [
     ("dominio — salvamento", [
         ("save/saving", "neutral/400"), ("save/saved", "success/400"),
         ("save/failed", "danger/400"), ("save/stale", "warning/400"),
+    ]),
+    # Conversa (ACP): a sessao de agente deixa de ser bytes de terminal e passa
+    # a ser evento tipado. Cada eixo abaixo e um EIXO DE COR SEPARADO, e nenhum
+    # elemento usa dois: quem fala tem cor de medianiz, a ferramenta tem cor de
+    # estado, o plano tem cor de progresso. Misturar os eixos foi o que fez o
+    # terminal virar parede de texto.
+    ("dominio — conversa", [
+        # Quem fala. O agente herda a cor que a sidebar ja usa para sessao de
+        # agente — a mesma coisa nao pode ter duas cores em duas telas.
+        ("turn/agent", "brand/400"),
+        ("turn/user", "neutral/300"),
+        # Raciocinio e colapsado por padrao (F2.2): existe, e nao compete.
+        ("turn/thought", "neutral/500"),
+        ("turn/caret", "brand/400"),
+        # Estado da chamada de ferramenta (F2.3). "rodando" e info e nao
+        # success de proposito: verde fica reservado para TERMINOU BEM, senao
+        # um cartao a meio caminho se le como cartao concluido.
+        ("tool/pending", "neutral/500"),
+        ("tool/running", "info/400"),
+        ("tool/ok", "success/400"),
+        ("tool/failed", "danger/400"),
+        # Interrompido por voce nao e falha: nada quebrou, voce parou. Pintar
+        # de vermelho ensina que apertar stop e um erro. Mais claro que
+        # pending porque e estado FINAL, e final se nota.
+        ("tool/cancelled", "neutral/400"),
+        # Permissao (F2.4). O pedido e warning, nao danger: ele interrompe, nao
+        # significa que algo deu errado. O veredito depois e que polariza.
+        ("permission/pending", "warning/400"),
+        ("permission/allowed", "success/400"),
+        ("permission/denied", "danger/400"),
+        # Plano (F2.5): tres estados, e o passo corrente e o unico que usa a
+        # cor da marca — e o "voce esta aqui".
+        ("plan/pending", "neutral/500"),
+        ("plan/active", "brand/400"),
+        ("plan/done", "success/400"),
+        # Uso e custo (F2.7). O medidor NASCE quieto: sessao em 12% da janela
+        # nao e boa noticia, e so ausencia de noticia. Ele so ganha cor quando
+        # passa o limiar que o proprio protocolo entrega (surpassedThreshold),
+        # e vira danger em isUsingOverage — o sinal que chega antes da fatura.
+        ("usage/quiet", "neutral/400"),
+        ("usage/warn", "warning/400"),
+        ("usage/over", "danger/400"),
+        # Dinheiro em accent: nao e estado de saude, e uma quarta categoria.
+        ("usage/cost", "accent/400"),
+        # Modo da sessao (F2.6). Vem do protocolo, nao inventamos. Dois deles
+        # mudam o que o agente PODE fazer sem perguntar, entao tem cor propria:
+        # plan nao executa nada, bypass nao pergunta nada.
+        ("mode/plan", "info/400"),
+        ("mode/auto", "brand/400"),
+        ("mode/bypass", "danger/400"),
     ]),
 ]
 
@@ -187,6 +242,16 @@ SIZING  = [
     # O visualizador vive num split DENTRO da aba, ao lado do terminal. Abaixo
     # disto o codigo quebra mais do que mostra, e o split deixa de valer.
     ("viewer/min", 360),
+    # Conversa: a medianiz que alinha glifo de quem fala, cartao de ferramenta
+    # e cartao de permissao numa unica coluna vertical. Sem ela cada tipo de
+    # evento comeca num x diferente e a conversa parece lista de coisas soltas.
+    ("turn/gutter", 20),
+    # Saida de ferramenta colapsada: alto o bastante para caber o fim de um
+    # `vitest run` (o que interessa), baixo o bastante para nao empurrar o
+    # proximo cartao fora da tela.
+    ("tool/output-max", 240),
+    # Composer: duas linhas de corpo mais folga. Cresce com o conteudo.
+    ("composer/min", 72),
 ]
 BORDER_WIDTH = [("none", 0), ("thin", 1), ("thick", 2), ("focus", 2)]
 
@@ -272,6 +337,23 @@ CONTRAST_CHECKS = [
     ("codigo / linha removida",       "text/code",      "git/removed-subtle", 4.5),
     ("sinal + / linha adicionada",    "git/added",      "git/added-subtle",   3.0),
     ("sinal - / linha removida",      "git/removed",    "git/removed-subtle", 3.0),
+    # O diff do cartao de ferramenta mostra codigo REALCADO sobre a faixa da
+    # linha. Antes so `text/code` estava conferido ali, e realce sobre fundo
+    # colorido e exatamente onde contraste chutado reprova.
+    ("keyword / linha adicionada",    "syntax/keyword", "git/added-subtle",   4.5),
+    ("keyword / linha removida",      "syntax/keyword", "git/removed-subtle", 4.5),
+    ("string / linha adicionada",     "syntax/string",  "git/added-subtle",   4.5),
+    ("string / linha removida",       "syntax/string",  "git/removed-subtle", 4.5),
+    ("function / linha adicionada",   "syntax/function","git/added-subtle",   4.5),
+    ("function / linha removida",     "syntax/function","git/removed-subtle", 4.5),
+    ("type / linha adicionada",       "syntax/type",    "git/added-subtle",   4.5),
+    ("type / linha removida",         "syntax/type",    "git/removed-subtle", 4.5),
+    ("number / linha adicionada",     "syntax/number",  "git/added-subtle",   4.5),
+    ("number / linha removida",       "syntax/number",  "git/removed-subtle", 4.5),
+    ("punctuation / linha adicionada","syntax/punctuation","git/added-subtle",   4.5),
+    ("punctuation / linha removida",  "syntax/punctuation","git/removed-subtle", 4.5),
+    ("comment / linha adicionada",    "syntax/comment-diff", "git/added-subtle",   4.5),
+    ("comment / linha removida",      "syntax/comment-diff", "git/removed-subtle", 4.5),
     # marcador de status na arvore de arquivos, que pinta sobre bg/panel.
     ("arquivo novo / painel",         "git/added",      "bg/panel",   4.5),
     ("arquivo modificado / painel",   "git/modified",   "bg/panel",   4.5),
@@ -296,6 +378,44 @@ CONTRAST_CHECKS = [
     ("conflito / aviso",              "save/stale",     "bg/warning-subtle", 4.5),
     ("texto primario / aviso",        "text/primary",   "bg/warning-subtle", 4.5),
     ("apagar / fundo destrutivo",     "text/danger",    "bg/danger-subtle",  4.5),
+    # conversa: quem fala. O turno do agente le sobre o fundo da conversa
+    # (bg/base); o do usuario sobre o bloco levantado que o separa.
+    ("agente / conversa",             "turn/agent",     "bg/base",    4.5),
+    ("usuario / bloco do usuario",    "turn/user",      "bg/raised",  4.5),
+    ("raciocinio / conversa",         "turn/thought",   "bg/base",    4.5),
+    ("caret do agente / conversa",    "turn/caret",     "bg/base",    3.0),
+    # ferramenta: os quatro estados vivem no cabecalho do cartao, que pinta
+    # sobre bg/surface, em label de 11px — texto, entao 4,5.
+    ("ferramenta pendente / cartao",  "tool/pending",   "bg/surface", 4.5),
+    ("ferramenta rodando / cartao",   "tool/running",   "bg/surface", 4.5),
+    ("ferramenta ok / cartao",        "tool/ok",        "bg/surface", 4.5),
+    ("ferramenta falhou / cartao",    "tool/failed",    "bg/surface", 4.5),
+    ("ferramenta interrompida / cartao", "tool/cancelled", "bg/surface", 4.5),
+    # a saida da ferramenta cai no mesmo poco do terminal, e o estado aparece
+    # de novo la dentro (sinal de saida, linha de erro).
+    ("ferramenta falhou / poco",      "tool/failed",    "bg/inset",   4.5),
+    ("ferramenta ok / poco",          "tool/ok",        "bg/inset",   4.5),
+    # permissao: o pedido pinta sobre o proprio fundo de aviso, e o veredito
+    # depois fica no cartao ja resolvido.
+    ("pedido / fundo de aviso",       "permission/pending", "bg/warning-subtle", 4.5),
+    ("permitido / cartao",            "permission/allowed", "bg/surface", 4.5),
+    ("negado / cartao",               "permission/denied",  "bg/surface", 4.5),
+    # plano: tres estados numa lista sobre bg/surface.
+    ("passo pendente / plano",        "plan/pending",   "bg/surface", 4.5),
+    ("passo corrente / plano",        "plan/active",    "bg/surface", 4.5),
+    ("passo feito / plano",           "plan/done",      "bg/surface", 4.5),
+    # uso: o medidor e o rodape da conversa, sobre bg/panel. A barra em si e
+    # objeto grafico (3:1); o numero ao lado dela e texto (4,5).
+    ("medidor quieto / rodape",       "usage/quiet",    "bg/panel",   3.0),
+    ("uso quieto / rodape",           "usage/quiet",    "bg/panel",   4.5),
+    ("uso no limiar / rodape",        "usage/warn",     "bg/panel",   4.5),
+    ("uso em overage / rodape",       "usage/over",     "bg/panel",   4.5),
+    ("custo / rodape",                "usage/cost",     "bg/panel",   4.5),
+    ("uso em overage / aviso",        "usage/over",     "bg/danger-subtle", 4.5),
+    # modo: o seletor vive na topbar da conversa, sobre bg/surface.
+    ("modo plano / seletor",          "mode/plan",      "bg/surface", 4.5),
+    ("modo auto / seletor",           "mode/auto",      "bg/surface", 4.5),
+    ("modo bypass / seletor",         "mode/bypass",    "bg/surface", 4.5),
 ]
 
 # ============================================================================

@@ -84,6 +84,7 @@ export const color = {
   'syntax/punctuation': primitives.neutral['400'], // #B2B1BB
   'git/added-subtle': primitives.success['950'], // #002614
   'git/removed-subtle': primitives.danger['950'], // #3D0808
+  'syntax/comment-diff': primitives.neutral['500'], // #91909B
   'git/untracked': primitives.info['400'], // #4FBEFF
   // dominio — editor
   'editor/cursor': primitives.brand['400'], // #B5A2FF
@@ -97,10 +98,33 @@ export const color = {
   'save/saved': primitives.success['400'], // #60CC93
   'save/failed': primitives.danger['400'], // #FF8D83
   'save/stale': primitives.warning['400'], // #E5A52E
+  // dominio — conversa
+  'turn/agent': primitives.brand['400'], // #B5A2FF
+  'turn/user': primitives.neutral['300'], // #CBCAD2
+  'turn/thought': primitives.neutral['500'], // #91909B
+  'turn/caret': primitives.brand['400'], // #B5A2FF
+  'tool/pending': primitives.neutral['500'], // #91909B
+  'tool/running': primitives.info['400'], // #4FBEFF
+  'tool/ok': primitives.success['400'], // #60CC93
+  'tool/failed': primitives.danger['400'], // #FF8D83
+  'tool/cancelled': primitives.neutral['400'], // #B2B1BB
+  'permission/pending': primitives.warning['400'], // #E5A52E
+  'permission/allowed': primitives.success['400'], // #60CC93
+  'permission/denied': primitives.danger['400'], // #FF8D83
+  'plan/pending': primitives.neutral['500'], // #91909B
+  'plan/active': primitives.brand['400'], // #B5A2FF
+  'plan/done': primitives.success['400'], // #60CC93
+  'usage/quiet': primitives.neutral['400'], // #B2B1BB
+  'usage/warn': primitives.warning['400'], // #E5A52E
+  'usage/over': primitives.danger['400'], // #FF8D83
+  'usage/cost': primitives.accent['400'], // #ABBE55
+  'mode/plan': primitives.info['400'], // #4FBEFF
+  'mode/auto': primitives.brand['400'], // #B5A2FF
+  'mode/bypass': primitives.danger['400'], // #FF8D83
 } as const
 
 export const space = { '0': 0, '1': 1, '2': 2, '4': 4, '6': 6, '8': 8, '10': 10, '12': 12, '16': 16, '20': 20, '24': 24, '32': 32, '40': 40, '48': 48, '64': 64 } as const
 export const radius = { 'none': 0, 'xs': 2, 'sm': 4, 'md': 6, 'lg': 8, 'xl': 12, '2xl': 16, 'full': 9999 } as const
-export const size = { 'control/xs': 20, 'control/sm': 24, 'control/md': 28, 'control/lg': 32, 'control/xl': 40, 'icon/xs': 12, 'icon/sm': 14, 'icon/md': 16, 'icon/lg': 20, 'row/compact': 28, 'row/cozy': 32, 'target/min': 24, 'topbar/height': 40, 'sidebar/width': 264, 'detail/max': 880, 'terminal/min': 420, 'dialog/width': 420, 'menu/width': 300, 'panel/right': 360, 'panel/right-min': 260, 'panel/right-max': 720, 'gutter/line': 44, 'viewer/min': 360 } as const
+export const size = { 'control/xs': 20, 'control/sm': 24, 'control/md': 28, 'control/lg': 32, 'control/xl': 40, 'icon/xs': 12, 'icon/sm': 14, 'icon/md': 16, 'icon/lg': 20, 'row/compact': 28, 'row/cozy': 32, 'target/min': 24, 'topbar/height': 40, 'sidebar/width': 264, 'detail/max': 880, 'terminal/min': 420, 'dialog/width': 420, 'menu/width': 300, 'panel/right': 360, 'panel/right-min': 260, 'panel/right-max': 720, 'gutter/line': 44, 'viewer/min': 360, 'turn/gutter': 20, 'tool/output-max': 240, 'composer/min': 72 } as const
 
 export type ColorToken = keyof typeof color
