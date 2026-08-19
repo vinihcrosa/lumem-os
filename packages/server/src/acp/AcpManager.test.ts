@@ -41,7 +41,7 @@ async function start(script: FakeAgentScript = {}): Promise<Harness> {
   });
 
   const events: AcpEvent[] = [];
-  manager.onEvent(info.id, (event) => events.push(event));
+  manager.onEvent(info.id, ({ event }) => events.push(event));
 
   return { manager, events, sessionId: info.id, process: fake.process, killed: fake.killed };
 }
@@ -232,11 +232,19 @@ describe("a turn", () => {
 
     await manager.prompt(sessionId, "arruma o frontmatter vazio");
 
-    expect(events).toEqual([
+    // The user's own message opens the turn. The adapter does not echo it, so
+    // recording it here is what makes a replay show the questions and not only
+    // the answers.
+    expect(events.slice(1)).toEqual([
       { type: "message", messageId: "m-1", role: "agent", text: "O parser " },
       { type: "message", messageId: "m-1", role: "agent", text: "saiu." },
       { type: "turn_end", stopReason: "end_turn" },
     ]);
+    expect(events[0]).toMatchObject({
+      type: "message",
+      role: "user",
+      text: "arruma o frontmatter vazio",
+    });
   });
 
   it("carries a tool call from announcement to result", async () => {
@@ -262,8 +270,8 @@ describe("a turn", () => {
 
     await manager.prompt(sessionId, "arruma");
 
-    expect(events[0]).toMatchObject({ type: "tool_call", status: "running", name: "Edit" });
-    expect(events[1]).toMatchObject({ type: "tool_call_update", status: "ok" });
+    expect(events[1]).toMatchObject({ type: "tool_call", status: "running", name: "Edit" });
+    expect(events[2]).toMatchObject({ type: "tool_call_update", status: "ok" });
   });
 
   it("gives each turn its own fallback message id", async () => {
@@ -283,7 +291,10 @@ describe("a turn", () => {
     await manager.prompt(sessionId, "segundo");
 
     const ids = events
-      .filter((event): event is Extract<AcpEvent, { type: "message" }> => event.type === "message")
+      .filter(
+        (event): event is Extract<AcpEvent, { type: "message" }> =>
+          event.type === "message" && event.role === "agent",
+      )
       .map((event) => event.messageId);
 
     expect(ids).toHaveLength(2);
@@ -311,7 +322,7 @@ describe("a turn", () => {
     });
     const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
     const events: AcpEvent[] = [];
-    manager.onEvent(info.id, (event) => events.push(event));
+    manager.onEvent(info.id, ({ event }) => events.push(event));
 
     await fake.sendRaw({
       jsonrpc: "2.0",
@@ -343,7 +354,7 @@ describe("a turn", () => {
 
     await manager.prompt(sessionId, "planeja");
 
-    expect(typesOf(events)).toEqual(["turn_end"]);
+    expect(typesOf(events)).toEqual(["message", "turn_end"]);
   });
 });
 
@@ -485,7 +496,7 @@ describe("interruption", () => {
     manager.cancel(sessionId);
     await turn;
 
-    expect(typesOf(events)).toEqual(["tool_call", "turn_end"]);
+    expect(typesOf(events)).toEqual(["message", "tool_call", "turn_end"]);
   });
 
   it("is a no-op on a session that already ended", async () => {
@@ -518,7 +529,7 @@ describe("the session outlives the client", () => {
 
     await manager.prompt(sessionId, "vai");
 
-    expect(manager.transcript(sessionId).some((event) => event.type === "message")).toBe(true);
+    expect(manager.transcript(sessionId).some(({ event }) => event.type === "message")).toBe(true);
   });
 
   it("replays the whole conversation to a client that attaches late", async () => {
@@ -534,7 +545,11 @@ describe("the session outlives the client", () => {
 
     await manager.prompt(sessionId, "primeiro");
 
-    expect(typesOf(manager.transcript(sessionId))).toEqual(["message", "turn_end"]);
+    expect(typesOf(manager.transcript(sessionId).map(({ event }) => event))).toEqual([
+      "message",
+      "message",
+      "turn_end",
+    ]);
   });
 
   it("hands every attached client the same events", async () => {
@@ -550,8 +565,8 @@ describe("the session outlives the client", () => {
 
     const first: AcpEvent[] = [];
     const second: AcpEvent[] = [];
-    manager.onEvent(sessionId, (event) => first.push(event));
-    manager.onEvent(sessionId, (event) => second.push(event));
+    manager.onEvent(sessionId, ({ event }) => first.push(event));
+    manager.onEvent(sessionId, ({ event }) => second.push(event));
 
     await manager.prompt(sessionId, "vai");
 
@@ -573,7 +588,7 @@ describe("the session outlives the client", () => {
     manager.onEvent(sessionId, () => {
       throw new Error("a broken client");
     });
-    manager.onEvent(sessionId, (event) => survivor.push(event));
+    manager.onEvent(sessionId, ({ event }) => survivor.push(event));
 
     await expect(manager.prompt(sessionId, "vai")).resolves.toBe("end_turn");
     expect(survivor.length).toBeGreaterThan(0);

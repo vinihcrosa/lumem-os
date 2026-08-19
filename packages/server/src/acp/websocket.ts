@@ -96,7 +96,9 @@ export function registerAcpWebSocket({
       transcript: [...acpManager.transcript(sessionId)],
     });
 
-    const offEvent = acpManager.onEvent(sessionId, (event) => send({ type: "event", event }));
+    const offEvent = acpManager.onEvent(sessionId, ({ at, event }) =>
+      send({ type: "event", at, event }),
+    );
 
     ws.on("message", (raw: RawData, isBinary: boolean) => {
       if (isBinary) {

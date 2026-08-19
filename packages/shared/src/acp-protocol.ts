@@ -216,6 +216,27 @@ export const acpEventSchema = z.discriminatedUnion("type", [
 ]);
 export type AcpEvent = z.infer<typeof acpEventSchema>;
 
+/**
+ * One transcript entry: an event, and when the daemon saw it.
+ *
+ * The timestamp lives on the envelope rather than inside every variant, because
+ * it is not part of what happened — it is when. Every event needs it and no
+ * event is about it.
+ *
+ * It exists because the card shows elapsed time, and elapsed time cannot be
+ * derived in the browser without reading a clock. A reducer that reads a clock
+ * is a reducer whose output depends on when it ran, and then replaying a
+ * transcript no longer reproduces what the live stream produced — which is the
+ * one property the whole replay design rests on. The daemon is also the only
+ * thing that can stamp it truthfully: it is what was listening.
+ */
+export const acpTranscriptEntrySchema = z.object({
+  /** Epoch milliseconds, from the daemon's clock. */
+  at: z.number().int().nonnegative(),
+  event: acpEventSchema,
+});
+export type AcpTranscriptEntry = z.infer<typeof acpTranscriptEntrySchema>;
+
 export const acpErrorCodeSchema = z.enum([
   /** No session with that id — the attach is refused and the socket closes. */
   "SESSION_NOT_FOUND",
@@ -255,9 +276,13 @@ export const acpServerMessageSchema = z.discriminatedUnion("type", [
     acpSessionId: z.string(),
     model: z.string(),
     mode: z.string(),
-    transcript: z.array(acpEventSchema),
+    transcript: z.array(acpTranscriptEntrySchema),
   }),
-  z.object({ type: z.literal("event"), event: acpEventSchema }),
+  z.object({
+    type: z.literal("event"),
+    at: z.number().int().nonnegative(),
+    event: acpEventSchema,
+  }),
   z.object({
     type: z.literal("error"),
     code: acpErrorCodeSchema,

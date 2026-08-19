@@ -198,10 +198,18 @@ describe("attaching", () => {
     const client = await TestClient.connect(sessionId);
     const attached = await client.waitForMessage("attached");
 
-    expect(attached.type === "attached" && attached.transcript).toEqual([
+    const replayed =
+      attached.type === "attached" ? attached.transcript.map(({ event }) => event) : [];
+    expect(replayed).toEqual([
+      { type: "message", messageId: expect.any(String), role: "user", text: "primeiro" },
       { type: "message", messageId: "m-1", role: "agent", text: "antes de você chegar" },
       { type: "turn_end", stopReason: "end_turn" },
     ]);
+    // Every entry is stamped, which is what lets a card show elapsed time
+    // without the browser reading a clock.
+    expect(
+      attached.type === "attached" && attached.transcript.every(({ at }) => at > 0),
+    ).toBe(true);
   });
 
   it("hands back an empty transcript for a session that has said nothing", async () => {
@@ -275,9 +283,18 @@ describe("a turn over the wire", () => {
 
     client.send({ type: "prompt", text: "arruma o frontmatter" });
 
-    const message = await client.waitForEvent("message");
-    expect(message).toMatchObject({ text: "recebi: arruma o frontmatter" });
+    // `waitForEvent("message")` finds the user's own turn first now, so the
+    // assertion has to name whose message it is looking for.
     await client.waitForEvent("turn_end");
+    const spoken = client
+      .events()
+      .filter((event) => event.type === "message")
+      .map((event) => (event.type === "message" ? { role: event.role, text: event.text } : null));
+
+    expect(spoken).toEqual([
+      { role: "user", text: "arruma o frontmatter" },
+      { role: "agent", text: "recebi: arruma o frontmatter" },
+    ]);
   });
 
   it("gives both attached clients the same events", async () => {
@@ -472,7 +489,9 @@ describe("detaching", () => {
     await acpManager.prompt(sessionId, "vai sem mim");
 
     expect(acpManager.get(sessionId)?.state).toBe("running");
-    expect(acpManager.transcript(sessionId).some((event) => event.type === "message")).toBe(true);
+    expect(acpManager.transcript(sessionId).some(({ event }) => event.type === "message")).toBe(
+      true,
+    );
   });
 
   it("shows a reattached client everything it missed", async () => {
@@ -498,7 +517,7 @@ describe("detaching", () => {
     expect(
       attached.type === "attached" &&
         attached.transcript.some(
-          (event) => event.type === "message" && event.text === "enquanto-fora",
+          ({ event }) => event.type === "message" && event.text === "enquanto-fora",
         ),
     ).toBe(true);
   });

@@ -110,7 +110,7 @@ describe("decodeAcpServerMessage — attach", () => {
       acpSessionId: "d81b05ee",
       model: "opus[1m]",
       mode: "auto",
-      transcript: [toolCall],
+      transcript: [{ at: 1_700_000_000_000, event: toolCall }],
     };
 
     expect(decodeAcpServerMessage(encodeAcpServerMessage(message))).toEqual({ ok: true, message });
@@ -142,7 +142,7 @@ describe("decodeAcpServerMessage — attach", () => {
         acpSessionId: "d81b05ee",
         model: "opus[1m]",
         mode: "auto",
-        transcript: [{ type: "nonsense" }],
+        transcript: [{ at: 1, event: { type: "nonsense" } }],
       }),
     );
 
@@ -217,7 +217,7 @@ describe("decodeAcpServerMessage — events", () => {
     ["a turn ending", { type: "turn_end", stopReason: "end_turn" }],
     ["a turn the user interrupted", { type: "turn_end", stopReason: "cancelled" }],
   ])("accepts %s", (_label, event) => {
-    const message: AcpServerMessage = { type: "event", event };
+    const message: AcpServerMessage = { type: "event", at: 1_700_000_000_000, event };
 
     expect(decodeAcpServerMessage(encodeAcpServerMessage(message))).toEqual({ ok: true, message });
   });
@@ -228,6 +228,7 @@ describe("decodeAcpServerMessage — events", () => {
     // a decode failure, which would look like a broken daemon.
     const message: AcpServerMessage = {
       type: "event",
+      at: 1_700_000_000_000,
       event: { type: "unknown", sessionUpdate: "steering_update" },
     };
 
@@ -238,7 +239,7 @@ describe("decodeAcpServerMessage — events", () => {
     // `unknown` is a deliberate shape the daemon produces, not a hole anything
     // can fall into: a typo in our own code must still fail loudly.
     const result = decodeAcpServerMessage(
-      JSON.stringify({ type: "event", event: { type: "tool_cal", toolCallId: "tc-1" } }),
+      JSON.stringify({ type: "event", at: 1, event: { type: "tool_cal", toolCallId: "tc-1" } }),
     );
 
     expect(result.ok).toBe(false);
@@ -250,6 +251,7 @@ describe("decodeAcpServerMessage — the five card states", () => {
     const result = decodeAcpServerMessage(
       JSON.stringify({
         type: "event",
+        at: 1,
         event: { type: "tool_call_update", toolCallId: "tc-1", status },
       }),
     );
@@ -268,6 +270,7 @@ describe("decodeAcpServerMessage — the five card states", () => {
     const result = decodeAcpServerMessage(
       JSON.stringify({
         type: "event",
+        at: 1,
         event: { type: "tool_call_update", toolCallId: "tc-1", status },
       }),
     );
@@ -310,7 +313,7 @@ describe("decode failures name the field", () => {
     // Every caller is inside a socket handler, and the only thing that makes a
     // rejected frame debuggable is knowing which field failed.
     const result = decodeAcpServerMessage(
-      JSON.stringify({ type: "event", event: { type: "tool_call", title: "Edit" } }),
+      JSON.stringify({ type: "event", at: 1, event: { type: "tool_call", title: "Edit" } }),
     );
 
     expect(result.ok).toBe(false);

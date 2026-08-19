@@ -7,7 +7,7 @@ import {
   type StopReason,
   type ToolCallUpdate,
 } from "@agentclientprotocol/sdk";
-import { newId, type AcpEvent } from "@lumem/shared";
+import { newId, type AcpEvent, type AcpTranscriptEntry } from "@lumem/shared";
 
 import type { FastifyBaseLogger } from "fastify";
 
@@ -64,7 +64,7 @@ export interface AcpSessionInfo {
   availableModels: readonly AcpChoice[];
 }
 
-export type AcpEventListener = (event: AcpEvent) => void;
+export type AcpEventListener = (entry: AcpTranscriptEntry) => void;
 export type AcpExitWatcher = (info: AcpSessionInfo) => void;
 
 interface PendingPermission {
@@ -83,7 +83,7 @@ interface Session {
    * ceiling for now; F5.4 moves it to a database per session, with compression
    * past thirty days, and that is where a bound belongs.
    */
-  transcript: AcpEvent[];
+  transcript: AcpTranscriptEntry[];
   listeners: Set<AcpEventListener>;
   /** Calls still open, so a cancelled turn can close them (A14). */
   openToolCalls: Set<string>;
@@ -95,6 +95,14 @@ interface Session {
 export interface AcpManagerOptions {
   spawner?: AcpProcessSpawner;
   handshakeTimeoutMs?: number;
+  /**
+   * The clock that stamps transcript entries.
+   *
+   * A seam because a test that asserts on elapsed time cannot depend on how long
+   * the machine took, and because `Date.now()` buried in a method is a
+   * dependency nobody can see.
+   */
+  now?: () => number;
   /**
    * How the daemon decides the adapter exists. A seam for tests only — the
    * production answer is `isCommandAvailable`, reused as it stands (F1.6).
@@ -128,17 +136,20 @@ export class AcpManager {
   private readonly spawner: AcpProcessSpawner;
   private readonly handshakeTimeoutMs: number;
   private readonly isAvailable: (command: string) => boolean;
+  private readonly now: () => number;
   private readonly log: Pick<FastifyBaseLogger, "warn"> | undefined;
 
   constructor({
     spawner = spawnAcpProcess,
     handshakeTimeoutMs = DEFAULT_HANDSHAKE_TIMEOUT_MS,
     isAvailable = (command) => isCommandAvailable(command),
+    now = () => Date.now(),
     log,
   }: AcpManagerOptions = {}) {
     this.spawner = spawner;
     this.handshakeTimeoutMs = handshakeTimeoutMs;
     this.isAvailable = isAvailable;
+    this.now = now;
     this.log = log;
   }
 
@@ -246,6 +257,18 @@ export class AcpManager {
 
     session.turnId = newId();
 
+    // The user's own message goes into the transcript before the agent hears it.
+    // The adapter does not echo it, so without this line reopening the tab would
+    // show every answer and none of the questions — and the replay would not
+    // reproduce what the live client saw, since the live client would have had to
+    // paint its own message locally.
+    this.emit(session, {
+      type: "message",
+      messageId: session.turnId,
+      role: "user",
+      text,
+    });
+
     const { stopReason } = await session.connection.agent.request("session/prompt", {
       sessionId: session.info.acpSessionId,
       prompt: [{ type: "text", text }],
@@ -295,7 +318,7 @@ export class AcpManager {
   }
 
   /** Everything an attaching client needs to catch up, in one frame. */
-  transcript(id: string): readonly AcpEvent[] {
+  transcript(id: string): readonly AcpTranscriptEntry[] {
     return [...this.require(id).transcript];
   }
 
@@ -507,13 +530,14 @@ export class AcpManager {
       }
     }
 
-    session.transcript.push(event);
+    const entry: AcpTranscriptEntry = { at: this.now(), event };
+    session.transcript.push(entry);
 
     // A throwing listener must not take down the daemon or starve the other
     // attached clients — the same rule the PTY manager follows.
     for (const listener of [...session.listeners]) {
       try {
-        listener(event);
+        listener(entry);
       } catch {
         /* a broken client is the client's problem */
       }
