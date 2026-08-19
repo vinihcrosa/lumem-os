@@ -71,6 +71,16 @@ export function Terminal({ sessionId, connect = connectPtySocket, onReady, onMes
     const socket = connect(sessionId, {
       onMessage(message) {
         if (message.type === "attached") {
+          /*
+           * Fit again, before writing.
+           *
+           * `fit()` already ran at mount, but a terminal mounted into a container
+           * that was just revealed — the agent's terminal opens inside a tool
+           * card — can be measured before the layout settles, and the resize that
+           * follows discards rows the snapshot had already written into. Fitting
+           * first means the scrollback lands at the size it will be read at.
+           */
+          fitQuietly(fit);
           // A repaint, not an append: remounting must not stack the buffer on
           // top of whatever the previous view left behind.
           terminal.reset();

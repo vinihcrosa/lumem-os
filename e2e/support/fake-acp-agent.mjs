@@ -11,12 +11,13 @@
  * Hand-rolled JSON-RPC rather than the SDK, deliberately. The e2e boots the built
  * daemon and a Vite dev server; adding a module resolution step for a fixture is
  * a way for the suite to fail for reasons that have nothing to do with the app.
- * The protocol surface needed here is four methods.
+ * The protocol surface needed here is small enough to read in one sitting.
  *
- * It never calls a model, so the e2e spends nothing. What it does do is act out
- * one turn with every shape the conversation renders: a thought, a streamed
- * message, a tool call that finishes, a permission request that blocks until
- * answered, and a write whose diff the card paints.
+ * It never calls a model, so the e2e spends nothing. What it does do is act out one
+ * turn using every shape the conversation renders: a thought, a streamed message, a
+ * tool call that finishes, a write whose diff the card paints, a permission request
+ * that blocks until answered, a plan it reissues as it advances, the commands it
+ * offers, a terminal it asks the *client* to open, and what the turn cost.
  */
 
 import { createInterface } from "node:readline";
@@ -25,6 +26,11 @@ const SESSION_ID = "e2e-acp-session";
 
 /** Resolves when the client answers the permission request. */
 let resolvePermission = null;
+/** Resolves when the client answers `terminal/create`. */
+let resolveTerminal = null;
+/** Answers to `session/set_mode` and `session/set_config_option`. */
+let currentMode = "auto";
+let currentModel = "opus[1m]";
 
 function write(message) {
   process.stdout.write(`${JSON.stringify(message)}\n`);
@@ -44,14 +50,48 @@ function update(update_) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** The selectors, in the shape the real adapter sends them. */
+function configOptions() {
+  return [
+    {
+      id: "model",
+      name: "Model",
+      category: "model",
+      type: "select",
+      currentValue: currentModel,
+      options: [
+        { value: "opus[1m]", name: "opus[1m]", description: "Opus 5 · 1M" },
+        { value: "sonnet", name: "sonnet", description: "Sonnet 5" },
+      ],
+    },
+  ];
+}
+
 /**
  * The turn the e2e reads.
  *
- * Paced with small delays so the streaming is observable: without them every
- * chunk lands in one frame and the test cannot tell a stream from a single
- * message.
+ * Paced with small delays so the streaming is observable: without them every chunk
+ * lands in one frame and the test cannot tell a stream from a single message.
  */
 async function runTurn(text) {
+  // The plan, reissued whole as it advances — which is what the card's "one card
+  // that rewrites itself" has to survive.
+  update({
+    sessionUpdate: "plan",
+    entries: [
+      { content: "ler o loader", status: "in_progress", priority: "high" },
+      { content: "extrair o parser", status: "pending", priority: "medium" },
+    ],
+  });
+
+  update({
+    sessionUpdate: "available_commands_update",
+    availableCommands: [
+      { name: "gate", description: "roda o gate declarado pela task" },
+      { name: "compact", description: "comprime a conversa", input: { hint: "quanto" } },
+    ],
+  });
+
   update({
     sessionUpdate: "agent_thought_chunk",
     messageId: "t-1",
@@ -150,6 +190,67 @@ async function runTurn(text) {
     content: [{ type: "content", content: { type: "text", text: allowed ? "limpo" : "recusado" } }],
   });
 
+  // A terminal the agent asks the *client* for. The card embeds the xterm against
+  // the PTY session the daemon opens for it (D7).
+  update({
+    sessionUpdate: "tool_call",
+    toolCallId: "tc-term",
+    title: "Bash echo do-agente",
+    name: "Bash",
+    kind: "execute",
+    status: "in_progress",
+    locations: [],
+  });
+
+  const terminal = await new Promise((resolve) => {
+    resolveTerminal = resolve;
+    write({
+      jsonrpc: "2.0",
+      id: "term-1",
+      method: "terminal/create",
+      params: {
+        sessionId: SESSION_ID,
+        command: "sh",
+        args: ["-c", "echo saida-do-terminal; sleep 30"],
+      },
+    });
+  });
+
+  update({
+    sessionUpdate: "tool_call_update",
+    toolCallId: "tc-term",
+    status: terminal ? "in_progress" : "failed",
+    content: terminal
+      ? [{ type: "terminal", terminalId: terminal.terminalId }]
+      : [{ type: "content", content: { type: "text", text: "o cliente recusou o terminal" } }],
+  });
+
+  // The plan advances, and the card has to rewrite rather than accumulate.
+  update({
+    sessionUpdate: "plan",
+    entries: [
+      { content: "ler o loader", status: "completed", priority: "high" },
+      { content: "extrair o parser", status: "in_progress", priority: "medium" },
+    ],
+  });
+
+  // What the turn cost, with the subscription's own limit attached — the block the
+  // spike found and the reason `/usage` is unnecessary.
+  update({
+    sessionUpdate: "usage_update",
+    used: 39_200,
+    size: 1_000_000,
+    cost: { amount: 0.235433, currency: "USD" },
+    _meta: {
+      "_claude/rateLimit": {
+        rateLimitType: "seven_day",
+        utilization: 0.31,
+        isUsingOverage: false,
+        surpassedThreshold: 0.75,
+      },
+    },
+  });
+
   await sleep(20);
   update({
     sessionUpdate: "agent_message_chunk",
@@ -170,10 +271,23 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     return;
   }
 
-  // The answer to our own request, rather than a call to us.
+  // The answer to one of our own requests, rather than a call to us.
   if (message.id === "perm-1" && message.result) {
     resolvePermission?.(message.result.outcome);
     resolvePermission = null;
+    return;
+  }
+  if (message.id === "term-1") {
+    /*
+     * Resolved on an error too, with nothing.
+     *
+     * A fake that only reacted to `result` hung forever when the client refused —
+     * and a hanging agent shows up as a turn that never ends, which points at the
+     * conversation rather than at the refusal that caused it. It cost exactly that
+     * confusion once.
+     */
+    resolveTerminal?.(message.result ?? null);
+    resolveTerminal = null;
     return;
   }
 
@@ -195,28 +309,16 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       reply(message.id, {
         sessionId: SESSION_ID,
         modes: {
-          currentModeId: "auto",
+          currentModeId: currentMode,
           availableModes: [
             { id: "auto", name: "Auto", description: "Use a model classifier" },
             { id: "default", name: "Default", description: "Standard behavior" },
             { id: "plan", name: "Plan Mode", description: "No actual tool execution" },
           ],
         },
-        configOptions: [
-          {
-            id: "model",
-            name: "Model",
-            category: "model",
-            type: "select",
-            currentValue: "opus[1m]",
-            // `value`, not `id` — the shape the real adapter sends, and the one
-            // the in-process fake got wrong until a real handshake said so.
-            options: [
-              { value: "opus[1m]", name: "opus[1m]", description: "Opus 5 · 1M" },
-              { value: "sonnet", name: "sonnet", description: "Sonnet 5" },
-            ],
-          },
-        ],
+        // `value`, not `id` — the shape the real adapter sends, and the one the
+        // in-process fake got wrong until a real handshake said so.
+        configOptions: configOptions(),
       });
       return;
 
@@ -227,6 +329,19 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       void runTurn(text).then((stopReason) => reply(message.id, { stopReason }));
       return;
     }
+
+    case "session/set_mode":
+      currentMode = message.params?.modeId ?? currentMode;
+      reply(message.id, {});
+      // Reported back as the protocol does, so the pill follows the agent and not
+      // the click.
+      update({ sessionUpdate: "current_mode_update", currentModeId: currentMode });
+      return;
+
+    case "session/set_config_option":
+      if (message.params?.configId === "model") currentModel = message.params.value;
+      reply(message.id, { configOptions: configOptions() });
+      return;
 
     case "session/cancel":
       // Unblocks a turn waiting on permission, so cancelling works even mid-ask.

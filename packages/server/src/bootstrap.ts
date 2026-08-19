@@ -75,6 +75,11 @@ export async function bootstrap({
   const acp =
     acpManager ??
     new AcpManager({
+      // The `PtyManager` the daemon already owns, so the agent can be given a
+      // terminal (F3.2, D7). Without it the capability is never declared and the
+      // whole feature is dead in the real daemon while every unit test passes —
+      // which is exactly how the e2e found this line missing.
+      ptyManager,
       log: {
         warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
           bootedApp?.log.warn(...args);

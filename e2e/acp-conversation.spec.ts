@@ -35,6 +35,9 @@ const WORKTREES = {
   fullTurn: "conversa-turno",
   replay: "conversa-replay",
   width: "conversa-largura",
+  parity: "conversa-paridade",
+  switch: "conversa-troca",
+  terminal: "conversa-terminal",
 } as const;
 
 /** The conversation of the tab that is open. */
@@ -237,4 +240,123 @@ test("the file name survives the width the column actually has", async ({ page }
   // And the name is still readable, not shrunk to an ellipsis: the directory is
   // what gives way.
   expect(await name.innerText()).toContain("file-tree-keyboard");
+});
+
+test("everything phase 4 added is on the screen in one turn", async ({ page }) => {
+  await arrive(page, WORKTREES.parity);
+  await openConversation(page);
+  const conv = conversation(page);
+
+  await conv.getByLabel("mensagem para o agente").click();
+  await page.keyboard.type("faz o trabalho todo");
+  await page.keyboard.press("ControlOrMeta+Enter");
+
+  // The plan arrives and then advances. One card, rewritten — two would mean the
+  // conversation is accumulating near-identical copies.
+  await expect(conv.locator(".plan")).toHaveCount(1, { timeout: 20_000 });
+  await expect(conv.getByText("0 de 2")).toBeVisible();
+
+  const permission = conv.getByRole("group", { name: "pedido de permissão" });
+  await expect(permission).toBeVisible({ timeout: 20_000 });
+  await permission.getByRole("button", { name: /permitir uma vez/ }).click();
+
+  await expect(conv.getByText("1 de 2")).toBeVisible({ timeout: 20_000 });
+  await expect(conv.locator(".plan")).toHaveCount(1);
+
+  // What the turn cost, and the subscription's own limit — the block that made
+  // `/usage` unnecessary.
+  const usage = conv.locator(".usage");
+  await expect(usage).toBeVisible({ timeout: 20_000 });
+  await expect(usage).toContainText("39,2k / 1M");
+  await expect(usage).toContainText("US$ 0,2354");
+  await expect(usage).toContainText("31%");
+  // Below the agent's own threshold, so the meter stays quiet and there is no band.
+  await expect(conv.locator(".u--warn")).toHaveCount(0);
+  await expect(conv.locator(".overage")).toHaveCount(0);
+
+  // The meter actually fills, which is the regression the prototype shipped.
+  const fill = await usage.locator(".meter").first().getAttribute("data-fill");
+  expect(fill).toBe("3.92%");
+
+  // The agent's own commands, offered by `/` and inserted rather than sent.
+  const box = conv.getByLabel("mensagem para o agente");
+  await box.click();
+  await page.keyboard.type("/");
+  await expect(conv.getByRole("option", { name: /gate/ })).toBeVisible();
+
+  /*
+   * Chosen with the keyboard, which is the primary path for a command palette and
+   * the deterministic one here. Selection happens on mouse *down* — the textarea
+   * loses focus otherwise — so Playwright's click sees the element replaced between
+   * down and up and retries until the test times out. The behaviour is right; the
+   * gesture is what a real user rarely uses.
+   */
+  await page.keyboard.press("Enter");
+  await expect(box).toHaveValue("/gate");
+});
+
+test("the model switch survives a reload", async ({ page }) => {
+  await arrive(page, WORKTREES.switch);
+  await openConversation(page);
+  const conv = conversation(page);
+
+  // Seeded by the attach frame, not by waiting for the agent to mention something.
+  const pill = conv.getByRole("button", { name: /^Model:/ });
+  await expect(pill).toBeVisible({ timeout: 20_000 });
+  await expect(pill).toHaveAccessibleName("Model: opus[1m]");
+
+  await pill.click();
+  await conv.getByRole("menuitemradio", { name: /sonnet/ }).click();
+
+  // The pill follows the agent's answer rather than the click.
+  await expect(conv.getByRole("button", { name: "Model: sonnet" })).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await page.reload();
+  await ensureWorkspace(page);
+  await openProject(page, "repo-acp");
+  const expand = page.getByRole("button", { name: "expandir repo-acp" });
+  if (await expand.isVisible().catch(() => false)) await expand.click();
+  await page
+    .getByRole("complementary", { name: "navegação" })
+    .getByRole("button", { name: new RegExp(`^${WORKTREES.switch}\\b`) })
+    .click();
+  await page.getByRole("tab", { name: new RegExp(`^${AGENT}\\b`) }).click();
+
+  // D9: the row keeps the choice, so the tab reopens on `sonnet` and not on the
+  // configuration's default.
+  await expect(
+    conversation(page).getByRole("button", { name: "Model: sonnet" }),
+  ).toBeVisible({ timeout: 20_000 });
+});
+
+test("the terminal the agent asks for lives inside its card", async ({ page }) => {
+  await arrive(page, WORKTREES.terminal);
+  await openConversation(page);
+  const conv = conversation(page);
+
+  await conv.getByLabel("mensagem para o agente").click();
+  await page.keyboard.type("roda um comando");
+  await page.keyboard.press("ControlOrMeta+Enter");
+
+  const permission = conv.getByRole("group", { name: "pedido de permissão" });
+  await expect(permission).toBeVisible({ timeout: 20_000 });
+  await permission.getByRole("button", { name: /permitir uma vez/ }).click();
+
+  // The card that asked for a terminal, opened.
+  const card = conv.locator(".tc", { hasText: "echo do-agente" });
+  await expect(card).toBeVisible({ timeout: 20_000 });
+  await card.getByRole("button", { name: /mostrar o resultado/ }).click();
+
+  // D7 and F3.2: the app's own `Terminal`, attached to the PTY the daemon opened —
+  // and printing, which proves the socket found a real session rather than an id.
+  await expect(card.locator(".xterm")).toBeVisible({ timeout: 20_000 });
+  await expect(card.locator(".xterm-rows")).toContainText("saida-do-terminal", {
+    timeout: 20_000,
+  });
+
+  // Inside the card, never as a tab of its own: the user did not start it and
+  // cannot close it, so a tab would offer a close button that fights the agent.
+  await expect(page.getByRole("tab", { name: /^sh\b/ })).toHaveCount(0);
 });
