@@ -93,6 +93,10 @@ export function registerAcpWebSocket({
       acpSessionId: info.acpSessionId,
       model: info.model,
       mode: info.mode,
+      // Filled in on attach, not only when something changes: a tab that opened
+      // with empty dropdowns until the agent happened to mention something would
+      // look broken for as long as nothing did.
+      configOptions: [...info.configOptions],
       transcript: [...acpManager.transcript(sessionId)],
     });
 
@@ -126,6 +130,17 @@ export function registerAcpWebSocket({
         }
         if (message.type === "cancel") {
           acpManager.cancel(sessionId);
+          return;
+        }
+        if (message.type === "set_config") {
+          // Not awaited, for the reason a prompt is not: the agent answers with
+          // the whole set of options, and the `config` event it produces travels
+          // on this socket.
+          void acpManager
+            .setConfig(sessionId, message.optionId, message.value)
+            .catch((error: unknown) => {
+              reportFailure(error, "set_config");
+            });
           return;
         }
         acpManager.respondToPermission(sessionId, message.requestId, message.optionId);

@@ -59,7 +59,8 @@ describe.skipIf(!installed)(`${ADAPTER} handshake`, () => {
     // grow between versions, so the assertion is that the ones the UI relies on
     // are there — `default` because a session has to start somewhere, `plan`
     // because the prototype gives it its own colour.
-    const modes = info.availableModes.map((mode) => mode.id);
+    const modeOption = info.configOptions.find((option) => option.id === "mode");
+    const modes = (modeOption?.choices ?? []).map((choice) => choice.value);
     expect(modes).toContain("default");
     expect(modes).toContain("plan");
     expect(modes).toContain(info.mode);
@@ -67,13 +68,14 @@ describe.skipIf(!installed)(`${ADAPTER} handshake`, () => {
     // The model lives inside `configOptions`, not in a field of its own. If a
     // future adapter moves it, this is what says so — and every model selector
     // in the UI would otherwise render empty with no explanation.
+    const modelOption = info.configOptions.find((option) => option.id === "model");
     expect(info.model).not.toBe("");
-    expect(info.availableModels.map((model) => model.id)).toContain(info.model);
+    expect((modelOption?.choices ?? []).map((choice) => choice.value)).toContain(info.model);
 
     // A13: the description is the agent's own string, carried verbatim. Its
     // presence is what the UI shows next to each option.
     expect(
-      info.availableModes.some((mode) => (mode.description ?? "").length > 0),
+      (modeOption?.choices ?? []).some((choice) => (choice.description ?? "").length > 0),
     ).toBe(true);
   });
 

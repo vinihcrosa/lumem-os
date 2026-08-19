@@ -410,3 +410,158 @@ describe("replay and live stream agree", () => {
     expect(replayConversation([])).toEqual(emptyConversation());
   });
 });
+
+describe("what phase 4 carries", () => {
+  it("keeps one plan, replaced whole", () => {
+    // The agent reissues the entire plan on every change. Merging would need a
+    // key the protocol does not give, and a history would fill the screen with
+    // copies of one thing.
+    const state = from(
+      at({ type: "plan", entries: [{ content: "ler", status: "in_progress" }] }),
+      at({
+        type: "plan",
+        entries: [
+          { content: "ler", status: "completed" },
+          { content: "extrair", status: "in_progress" },
+        ],
+      }),
+    );
+
+    expect(state.plan).toEqual([
+      { content: "ler", status: "completed" },
+      { content: "extrair", status: "in_progress" },
+    ]);
+  });
+
+  it("tells an empty plan apart from no plan", () => {
+    // An empty plan is a plan with no steps yet; `plan_removed` is the agent
+    // withdrawing it. Collapsing the two would make a card flicker away and back.
+    expect(from(at({ type: "plan", entries: [] })).plan).toEqual([]);
+    expect(
+      from(at({ type: "plan", entries: [] }), at({ type: "plan_removed" })).plan,
+    ).toBeNull();
+  });
+
+  it("keeps the newest usage report", () => {
+    const state = from(
+      at({ type: "usage", used: 100, size: 1_000_000 }),
+      at({ type: "usage", used: 39_200, size: 1_000_000 }),
+    );
+
+    expect(state.usage).toMatchObject({ used: 39_200, size: 1_000_000 });
+  });
+
+  it("adds cost up as it arrives, so a replay reaches the same total", () => {
+    // No event carries the session total, and deriving it at render time from a
+    // single report would show the last turn's cost as the session's.
+    const state = from(
+      at({ type: "usage", used: 10, size: 1_000, cost: { amount: 0.25, currency: "USD" } }),
+      at({ type: "usage", used: 20, size: 1_000, cost: { amount: 0.5, currency: "USD" } }),
+    );
+
+    expect(state.usage?.totalCost).toBeCloseTo(0.75);
+    expect(state.usage?.currency).toBe("USD");
+  });
+
+  it("does not invent a cost for an agent that reports none", () => {
+    const state = from(at({ type: "usage", used: 10, size: 1_000 }));
+
+    expect(state.usage?.cost).toBeNull();
+    expect(state.usage?.totalCost).toBe(0);
+    expect(state.usage?.currency).toBeNull();
+  });
+
+  it("remembers a currency a later report left out", () => {
+    // The agent reports money once and then stops mentioning it. Forgetting the
+    // currency would leave a number with no unit.
+    const state = from(
+      at({ type: "usage", used: 10, size: 1_000, cost: { amount: 1, currency: "USD" } }),
+      at({ type: "usage", used: 20, size: 1_000 }),
+    );
+
+    expect(state.usage?.currency).toBe("USD");
+  });
+
+  it("carries what the subscription's limit is doing", () => {
+    const state = from(
+      at({
+        type: "usage",
+        used: 1,
+        size: 1_000,
+        rateLimit: { utilization: 0.94, surpassedThreshold: 0.75, isUsingOverage: false },
+      }),
+    );
+
+    expect(state.usage?.rateLimit).toMatchObject({ utilization: 0.94, isUsingOverage: false });
+  });
+
+  it("keeps the selectors and which mode is current", () => {
+    const state = from(
+      at({
+        type: "config",
+        mode: "plan",
+        options: [
+          {
+            id: "model",
+            name: "Model",
+            currentValue: "sonnet",
+            choices: [{ value: "sonnet", name: "sonnet" }],
+          },
+        ],
+      }),
+    );
+
+    expect(state.mode).toBe("plan");
+    expect(state.configOptions).toHaveLength(1);
+  });
+
+  it("keeps the commands the agent offers, and an empty list as empty", () => {
+    const withCommands = from(
+      at({
+        type: "commands",
+        commands: [{ name: "gate", description: "roda o gate", takesInput: false }],
+      }),
+    );
+    expect(withCommands.commands).toHaveLength(1);
+
+    expect(from(at({ type: "commands", commands: [] })).commands).toEqual([]);
+  });
+
+  it("records a terminal once, however many times it is announced", () => {
+    // `terminal/create` can be answered twice for one card if the agent retries,
+    // and two entries would mount two xterms against the same PTY.
+    const state = from(
+      at({ type: "terminal", terminalId: "t-1", ptySessionId: "se_a", command: "pnpm test" }),
+      at({ type: "terminal", terminalId: "t-1", ptySessionId: "se_b", command: "pnpm test" }),
+    );
+
+    expect(state.terminals).toEqual([
+      { terminalId: "t-1", ptySessionId: "se_b", command: "pnpm test" },
+    ]);
+  });
+
+  it("keeps several terminals in the order they were opened", () => {
+    const state = from(
+      at({ type: "terminal", terminalId: "t-1", ptySessionId: "se_a", command: "um" }),
+      at({ type: "terminal", terminalId: "t-2", ptySessionId: "se_b", command: "dois" }),
+    );
+
+    expect(state.terminals.map((terminal) => terminal.terminalId)).toEqual(["t-1", "t-2"]);
+  });
+
+  it("still agrees between replay and live stream", () => {
+    // The property the whole design rests on, re-checked with the new fields:
+    // an accumulated total is exactly the kind of thing that drifts.
+    clock = 1_700_000_000_000;
+    const entries = [
+      at({ type: "config", mode: "auto", options: [] }),
+      at({ type: "plan", entries: [{ content: "um", status: "in_progress" }] }, 10),
+      at({ type: "usage", used: 10, size: 1_000, cost: { amount: 0.5, currency: "USD" } }, 10),
+      at({ type: "terminal", terminalId: "t-1", ptySessionId: "se_a", command: "ls" }, 5),
+      at({ type: "usage", used: 20, size: 1_000, cost: { amount: 0.25, currency: "USD" } }, 5),
+      at({ type: "turn_end", stopReason: "end_turn" }, 5),
+    ];
+
+    expect(replayConversation(entries)).toEqual(feed(emptyConversation(), ...entries));
+  });
+});

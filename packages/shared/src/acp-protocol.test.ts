@@ -110,6 +110,7 @@ describe("decodeAcpServerMessage — attach", () => {
       acpSessionId: "d81b05ee",
       model: "opus[1m]",
       mode: "auto",
+      configOptions: [],
       transcript: [{ at: 1_700_000_000_000, event: toolCall }],
     };
 
@@ -318,5 +319,169 @@ describe("decode failures name the field", () => {
 
     expect(result.ok).toBe(false);
     expect(result.ok ? "" : result.error).toContain("toolCallId");
+  });
+});
+
+describe("what phase 4 added", () => {
+  const configOption = {
+    id: "model",
+    name: "Model",
+    category: "model",
+    currentValue: "opus[1m]",
+    choices: [
+      { value: "opus[1m]", name: "opus[1m]", description: "Opus 5 · 1M" },
+      { value: "sonnet", name: "sonnet", description: null },
+    ],
+  };
+
+  it.each<[string, AcpEvent]>([
+    [
+      "a plan, whole",
+      {
+        type: "plan",
+        entries: [
+          { content: "ler o loader", status: "completed", priority: "high" },
+          { content: "extrair o parser", status: "in_progress", priority: null },
+          { content: "rodar o gate", status: "pending", priority: "low" },
+        ],
+      },
+    ],
+    ["a plan being withdrawn", { type: "plan_removed" }],
+    [
+      "usage with cost and the subscription's limit",
+      {
+        type: "usage",
+        used: 39_200,
+        size: 1_000_000,
+        cost: { amount: 0.235433, currency: "USD" },
+        rateLimit: {
+          utilization: 0.94,
+          surpassedThreshold: 0.75,
+          isUsingOverage: false,
+          resetsAt: 1_787_004_000,
+          kind: "seven_day",
+        },
+      },
+    ],
+    [
+      "usage from an agent that reports no money",
+      { type: "usage", used: 10, size: 200_000, cost: null, rateLimit: null },
+    ],
+    ["the selectors' state", { type: "config", mode: "auto", options: [configOption] }],
+    [
+      "the commands on offer",
+      {
+        type: "commands",
+        commands: [
+          { name: "gate", description: "roda o gate declarado pela task", takesInput: false },
+          { name: "compact", description: "comprime a conversa", takesInput: true },
+        ],
+      },
+    ],
+    [
+      "a terminal, carrying the PTY session it attaches to",
+      {
+        type: "terminal",
+        terminalId: "t-1",
+        ptySessionId: "se_abc123",
+        command: "pnpm vitest run",
+      },
+    ],
+  ])("accepts %s", (_label, event) => {
+    const message: AcpServerMessage = { type: "event", at: 1_700_000_000_000, event };
+
+    expect(decodeAcpServerMessage(encodeAcpServerMessage(message))).toEqual({ ok: true, message });
+  });
+
+  it("refuses a plan status nobody defined", () => {
+    // The plan has ACP's three and no more. Unlike the tool card, it needs no
+    // fifth: a cancelled turn leaves its steps exactly where they were, which is
+    // the truth about them.
+    const result = decodeAcpServerMessage(
+      JSON.stringify({
+        type: "event",
+        at: 1,
+        event: { type: "plan", entries: [{ content: "x", status: "cancelled" }] },
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("refuses a usage report with no window to measure against", () => {
+    const result = decodeAcpServerMessage(
+      JSON.stringify({ type: "event", at: 1, event: { type: "usage", used: 10, size: 0 } }),
+    );
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("refuses a terminal with no PTY session behind it", () => {
+    // D7: the id is what the embedded xterm attaches to. Without it the card has
+    // a terminal it cannot show.
+    const result = decodeAcpServerMessage(
+      JSON.stringify({
+        type: "event",
+        at: 1,
+        event: { type: "terminal", terminalId: "t-1", command: "ls" },
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("accepts an attach that already carries the selectors", () => {
+    // Filled in on attach, not only when something changes: a tab that opened with
+    // empty dropdowns until the agent happened to mention something would look
+    // broken for as long as nothing did.
+    const result = decodeAcpServerMessage(
+      JSON.stringify({
+        type: "attached",
+        sessionId: "s-1",
+        state: "running",
+        acpSessionId: "d81b05ee",
+        model: "opus[1m]",
+        mode: "auto",
+        configOptions: [configOption],
+        transcript: [],
+      }),
+    );
+
+    expect(result.ok && result.message.type === "attached" && result.message.configOptions).toEqual([
+      configOption,
+    ]);
+  });
+
+  it("defaults the selectors to none, for a daemon that sent none", () => {
+    const result = decodeAcpServerMessage(
+      JSON.stringify({
+        type: "attached",
+        sessionId: "s-1",
+        state: "running",
+        acpSessionId: "d81b05ee",
+        model: "",
+        mode: "",
+        transcript: [],
+      }),
+    );
+
+    expect(result.ok && result.message.type === "attached" && result.message.configOptions).toEqual(
+      [],
+    );
+  });
+
+  it("accepts a switch of anything the selectors offer", () => {
+    const message: AcpClientMessage = { type: "set_config", optionId: "model", value: "sonnet" };
+
+    expect(decodeAcpClientMessage(encodeAcpClientMessage(message))).toEqual({ ok: true, message });
+  });
+
+  it("refuses a switch with nothing to switch to", () => {
+    const result = decodeAcpClientMessage(
+      JSON.stringify({ type: "set_config", optionId: "model", value: "" }),
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.ok ? "" : result.error).toContain("value");
   });
 });

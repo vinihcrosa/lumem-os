@@ -1,5 +1,9 @@
 import type {
+  AcpCommand,
+  AcpConfigOption,
   AcpEvent,
+  AcpPlanEntry,
+  AcpRateLimit,
   AcpPermissionOption,
   AcpStopReason,
   AcpToolContent,
@@ -72,6 +76,25 @@ export interface Turn {
   blocks: Block[];
 }
 
+/** A terminal the agent asked for, and the PTY session behind it (D7). */
+export interface TerminalView {
+  terminalId: string;
+  /** What the embedded `xterm` attaches to, via the endpoint that already exists. */
+  ptySessionId: string;
+  command: string;
+}
+
+/** What the turn cost, and what the subscription's limit is doing (F2.7). */
+export interface UsageView {
+  used: number;
+  size: number;
+  cost: { amount: number; currency: string } | null;
+  rateLimit: AcpRateLimit | null;
+  /** Everything the session has spent, not just this turn. */
+  totalCost: number;
+  currency: string | null;
+}
+
 export interface ConversationState {
   turns: Turn[];
   /**
@@ -93,6 +116,23 @@ export interface ConversationState {
    * that lost its beginning.
    */
   orphanUpdates: number;
+  /**
+   * The plan, or null when there is none.
+   *
+   * One plan per conversation, replaced wholesale: the agent reissues it entire on
+   * every change, and keeping a history of near-identical versions would fill the
+   * screen with copies of one thing.
+   */
+  plan: readonly AcpPlanEntry[] | null;
+  /** The newest usage report. Null until the agent sends one. */
+  usage: UsageView | null;
+  /** The selectors, and which mode is current (F2.6). */
+  mode: string;
+  configOptions: readonly AcpConfigOption[];
+  /** What `/` offers (F2.8). Empty when the agent offers nothing. */
+  commands: readonly AcpCommand[];
+  /** Terminals the agent opened, newest last, keyed by the id it used. */
+  terminals: readonly TerminalView[];
 }
 
 export function emptyConversation(): ConversationState {
@@ -102,6 +142,12 @@ export function emptyConversation(): ConversationState {
     streaming: false,
     lastStopReason: null,
     orphanUpdates: 0,
+    plan: null,
+    usage: null,
+    mode: "",
+    configOptions: [],
+    commands: [],
+    terminals: [],
   };
 }
 
@@ -214,6 +260,58 @@ export function reduceConversation(
           state.pendingPermission?.requestId === event.requestId ? null : state.pendingPermission,
       };
       return chosen ? updateCall(next, pending.toolCallId, (call) => ({ ...call, verdict: chosen })) : next;
+    }
+
+    case "plan":
+      // Replaced, not merged. The agent sends the whole plan every time.
+      return { ...state, plan: event.entries };
+
+    case "plan_removed":
+      // Distinct from an empty plan, which is a plan with no steps yet.
+      return { ...state, plan: null };
+
+    case "usage": {
+      const amount = event.cost?.amount ?? 0;
+      return {
+        ...state,
+        usage: {
+          used: event.used,
+          size: event.size,
+          cost: event.cost ?? null,
+          rateLimit: event.rateLimit ?? null,
+          // Accumulated here because no single event carries it, and the sum has
+          // to survive a replay: adding it up as events arrive is what makes the
+          // total the same whether it was watched live or rebuilt.
+          totalCost: (state.usage?.totalCost ?? 0) + amount,
+          currency: event.cost?.currency ?? state.usage?.currency ?? null,
+        },
+      };
+    }
+
+    case "config":
+      return { ...state, mode: event.mode, configOptions: event.options };
+
+    case "commands":
+      return { ...state, commands: event.commands };
+
+    case "terminal": {
+      // Keyed by the agent's own id: `terminal/create` can be answered twice for
+      // one card if the agent retries, and two entries would mount two `xterm`s
+      // against the same PTY.
+      const without = state.terminals.filter(
+        (terminal) => terminal.terminalId !== event.terminalId,
+      );
+      return {
+        ...state,
+        terminals: [
+          ...without,
+          {
+            terminalId: event.terminalId,
+            ptySessionId: event.ptySessionId,
+            command: event.command,
+          },
+        ],
+      };
     }
 
     case "turn_end":

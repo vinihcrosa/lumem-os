@@ -77,15 +77,17 @@ describe("handshake", () => {
     const { manager, sessionId } = await start();
     const info = manager.get(sessionId);
 
+    const mode = info?.configOptions.find((option) => option.id === "mode");
+
     expect(info?.mode).toBe("default");
-    expect(info?.availableModes.map((mode) => mode.id)).toEqual([
+    expect(mode?.choices.map((choice) => choice.value)).toEqual([
       "auto",
       "default",
       "acceptEdits",
       "plan",
       "bypassPermissions",
     ]);
-    expect(info?.availableModes.find((mode) => mode.id === "acceptEdits")?.description).toBe(
+    expect(mode?.choices.find((choice) => choice.value === "acceptEdits")?.description).toBe(
       "Auto-accept file edit operations",
     );
   });
@@ -94,8 +96,10 @@ describe("handshake", () => {
     const { manager, sessionId } = await start();
     const info = manager.get(sessionId);
 
+    const model = info?.configOptions.find((option) => option.id === "model");
+
     expect(info?.model).toBe("opus[1m]");
-    expect(info?.availableModels.map((model) => model.id)).toEqual(["opus[1m]", "sonnet"]);
+    expect(model?.choices.map((choice) => choice.value)).toEqual(["opus[1m]", "sonnet"]);
   });
 
   it("flattens a grouped model select", async () => {
@@ -108,12 +112,10 @@ describe("handshake", () => {
 
     const info = manager.get(sessionId);
 
+    const model = info?.configOptions.find((option) => option.id === "model");
+
     expect(info?.model).toBe("opus[1m]");
-    expect(info?.availableModels.map((model) => model.id)).toEqual([
-      "opus[1m]",
-      "sonnet",
-      "haiku",
-    ]);
+    expect(model?.choices.map((choice) => choice.value)).toEqual(["opus[1m]", "sonnet", "haiku"]);
   });
 
   it("survives an adapter that offers no model select at all", async () => {

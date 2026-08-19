@@ -7,7 +7,12 @@ import {
   type StopReason,
   type ToolCallUpdate,
 } from "@agentclientprotocol/sdk";
-import { newId, type AcpEvent, type AcpTranscriptEntry } from "@lumem/shared";
+import {
+  newId,
+  type AcpConfigOption,
+  type AcpEvent,
+  type AcpTranscriptEntry,
+} from "@lumem/shared";
 
 import type { FastifyBaseLogger } from "fastify";
 
@@ -44,12 +49,6 @@ export interface AcpSpawnOptions {
   adapterVersion?: string;
 }
 
-export interface AcpChoice {
-  id: string;
-  name: string;
-  /** The agent's own words, kept verbatim (A13). */
-  description?: string | null;
-}
 
 export interface AcpSessionInfo {
   id: string;
@@ -62,8 +61,15 @@ export interface AcpSessionInfo {
   exitCode: number | null;
   mode: string;
   model: string;
-  availableModes: readonly AcpChoice[];
-  availableModels: readonly AcpChoice[];
+  /**
+   * Every selector the agent offers, normalised (F2.6).
+   *
+   * One list rather than a field per selector. The protocol reports mode, model,
+   * effort, fast and agent the same way, and the only irregularity — that mode
+   * has a dedicated `session/set_mode` — is the daemon's to absorb, not the
+   * browser's (D8).
+   */
+  configOptions: readonly AcpConfigOption[];
 }
 
 export type AcpEventListener = (entry: AcpTranscriptEntry) => void;
@@ -90,6 +96,14 @@ interface Session {
   /** Calls still open, so a cancelled turn can close them (A14). */
   openToolCalls: Set<string>;
   pendingPermissions: Map<string, PendingPermission>;
+  /**
+   * What kind of value each selector takes.
+   *
+   * Kept beside the normalised options because `session/set_config_option` needs
+   * it and the browser does not: the wire carries a string, and this is what turns
+   * `"true"` into a boolean for the one option that wants one.
+   */
+  optionTypes: Map<string, "select" | "boolean">;
   /** Disk access, scoped to this session's checkout and nothing else. */
   fs: FsBridge;
   /** One id per turn, for chunks the agent sends without a message id. */
@@ -211,8 +225,7 @@ export class AcpManager {
         exitCode: null,
         mode: "",
         model: "",
-        availableModes: [],
-        availableModels: [],
+        configOptions: [],
       },
       process: child,
       connection: undefined as unknown as ClientConnection,
@@ -220,6 +233,7 @@ export class AcpManager {
       listeners: new Set(),
       openToolCalls: new Set(),
       pendingPermissions: new Map(),
+      optionTypes: new Map(),
       // One bridge per session, rooted at its own cwd. A shared one would need
       // the root passed on every call, and the call that forgot would read
       // another worktree.
@@ -513,12 +527,72 @@ export class AcpManager {
       "session/new",
     );
 
+    const configOptions = normaliseOptions(created.configOptions, created.modes);
+    session.optionTypes = typesOf(created.configOptions);
+
     return {
       acpSessionId: created.sessionId,
-      mode: created.modes?.currentModeId ?? "",
-      availableModes: (created.modes?.availableModes ?? []).map(toChoice),
-      ...modelsOf(created.configOptions),
+      mode: created.modes?.currentModeId ?? valueOf(configOptions, "mode"),
+      model: valueOf(configOptions, "model"),
+      configOptions,
     };
+  }
+
+  /**
+   * Switches a selector (D8).
+   *
+   * The one place that knows the protocol treats mode specially. Everything else
+   * goes through `session/set_config_option`, and the browser sends the same
+   * message either way — putting the irregularity on the wire would mean every
+   * client had to learn it.
+   */
+  async setConfig(id: string, optionId: string, value: string): Promise<void> {
+    const session = this.require(id);
+    if (session.info.state === "exited") {
+      throw new DomainError("SESSION_EXITED", `session ${id} has exited`);
+    }
+
+    if (optionId === MODE_OPTION) {
+      await session.connection.agent.request("session/set_mode", {
+        sessionId: session.info.acpSessionId,
+        modeId: value,
+      });
+      session.info.mode = value;
+      this.emitConfig(session);
+      return;
+    }
+
+    const kind = session.optionTypes.get(optionId);
+    if (!kind) {
+      throw new DomainError("NOT_FOUND", `o agente não oferece a opção "${optionId}"`);
+    }
+
+    const response = await session.connection.agent.request("session/set_config_option", {
+      sessionId: session.info.acpSessionId,
+      configId: optionId,
+      // The wire carries a string because a select is the common case; the one
+      // boolean option is coerced here, where the declared type is known.
+      ...(kind === "boolean" ? { type: "boolean", value: value === "true" } : { type: "select", value }),
+    });
+
+    // The agent answers with the whole set, which is also how it reports a value
+    // it adjusted on its own — asking for `sonnet` and being given `sonnet[1m]`,
+    // say. Trusting the request over the response would show a value that is not
+    // the one in effect.
+    const configOptions = normaliseOptions(response.configOptions, undefined);
+    session.optionTypes = typesOf(response.configOptions);
+    session.info.configOptions = configOptions;
+    session.info.model = valueOf(configOptions, "model") || session.info.model;
+    this.emitConfig(session);
+  }
+
+  /** The selectors as an event, so every attached client sees the same switch. */
+  private emitConfig(session: Session): void {
+    this.emit(session, {
+      type: "config",
+      mode: session.info.mode,
+      options: [...session.info.configOptions],
+    });
   }
 
   /**
@@ -609,57 +683,99 @@ export class AcpManager {
   }
 }
 
-function toChoice(mode: { id: string; name: string; description?: string | null }): AcpChoice {
-  return { id: mode.id, name: mode.name, description: mode.description ?? null };
+/** The one option the protocol has a dedicated call for. */
+const MODE_OPTION = "mode";
+
+/**
+ * The agent's selectors, in the shape the browser reads.
+ *
+ * Two facts about `configOptions` cost a bug each before a real handshake said
+ * so, and both are absorbed here: an option is keyed by **`value`** rather than
+ * `id`, and its choices may arrive **grouped** rather than flat. A reader that
+ * assumes either renders an empty dropdown with nothing to explain it.
+ *
+ * `modes` is folded in as the `mode` option when `configOptions` does not already
+ * carry one. The adapter seen so far sends both, and the dedicated `modes` field
+ * is the authority on which one is current.
+ */
+function normaliseOptions(
+  raw: readonly unknown[] | null | undefined,
+  modes: { currentModeId: string; availableModes: readonly unknown[] } | null | undefined,
+): AcpConfigOption[] {
+  const options = (raw ?? []).flatMap((entry) => {
+    if (typeof entry !== "object" || entry === null) return [];
+    const record = entry as Record<string, unknown>;
+    if (typeof record["id"] !== "string") return [];
+
+    return [
+      {
+        id: record["id"],
+        name: typeof record["name"] === "string" ? record["name"] : record["id"],
+        category: typeof record["category"] === "string" ? record["category"] : null,
+        currentValue: currentValueOf(record),
+        choices: flattenChoices(record["options"]),
+      },
+    ];
+  });
+
+  if (modes && !options.some((option) => option.id === MODE_OPTION)) {
+    options.unshift({
+      id: MODE_OPTION,
+      name: "Mode",
+      category: MODE_OPTION,
+      currentValue: modes.currentModeId,
+      choices: flattenChoices(modes.availableModes),
+    });
+  }
+
+  return options;
+}
+
+/** A boolean option reports `true`; the wire carries strings. */
+function currentValueOf(record: Record<string, unknown>): string {
+  const value = record["currentValue"];
+  if (typeof value === "string") return value;
+  if (typeof value === "boolean") return String(value);
+  return "";
+}
+
+/** What kind of value each option takes, for `session/set_config_option`. */
+function typesOf(raw: readonly unknown[] | null | undefined): Map<string, "select" | "boolean"> {
+  const types = new Map<string, "select" | "boolean">();
+  for (const entry of raw ?? []) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const record = entry as Record<string, unknown>;
+    if (typeof record["id"] !== "string") continue;
+    types.set(record["id"], record["type"] === "boolean" ? "boolean" : "select");
+  }
+  return types;
+}
+
+function valueOf(options: readonly AcpConfigOption[], id: string): string {
+  return options.find((option) => option.id === id)?.currentValue ?? "";
 }
 
 /**
- * Reads the model list out of `configOptions`.
+ * Select choices, flat or grouped, as one list.
  *
- * The models are not a field of their own: the protocol reports them as one
- * select among several (`mode`, `model`, `effort`, `fast`, `agent`). An adapter
- * that offers no model select is not broken, so this degrades to empty.
- *
- * Two shapes to get right, and the real adapter is the only thing that says so:
- *
- * - A select option is keyed by **`value`**, not `id`. Reading `id` produced a
- *   list of `undefined` against `claude-agent-acp`, and every model selector in
- *   the UI would have rendered blank with nothing to explain it. The fake agent
- *   had the same field wrong, which is exactly why it passed.
- * - Options may be **grouped**: `Array<SessionConfigSelectGroup>`, each with its
- *   own `options`. A reader that assumes a flat list silently finds none.
+ * A group carries its own `options` and no value of its own, so it recurses. Also
+ * accepts the `modes` shape, which keys by `id` — the only place two shapes meet,
+ * and folding them here keeps every reader downstream on one.
  */
-function modelsOf(
-  options: readonly unknown[] | null | undefined,
-): Pick<AcpSessionInfo, "model" | "availableModels"> {
-  const select = (options ?? []).find(
-    (option): option is { id: string; currentValue?: string; options?: unknown[] } =>
-      typeof option === "object" && option !== null && (option as { id?: string }).id === "model",
-  );
-  if (!select) return { model: "", availableModels: [] };
-
-  return {
-    model: select.currentValue ?? "",
-    availableModels: flattenChoices(select.options),
-  };
-}
-
-/** Select options, flat or grouped, as one list of choices. */
-function flattenChoices(options: unknown): AcpChoice[] {
+function flattenChoices(options: unknown): AcpConfigOption["choices"] {
   if (!Array.isArray(options)) return [];
 
   return options.flatMap((entry) => {
     if (typeof entry !== "object" || entry === null) return [];
     const record = entry as Record<string, unknown>;
 
-    // A group carries its own options and no value of its own.
     if (Array.isArray(record["options"])) return flattenChoices(record["options"]);
 
-    const value = record["value"];
+    const value = record["value"] ?? record["id"];
     if (typeof value !== "string") return [];
     return [
       {
-        id: value,
+        value,
         name: typeof record["name"] === "string" ? record["name"] : value,
         description: typeof record["description"] === "string" ? record["description"] : null,
       },

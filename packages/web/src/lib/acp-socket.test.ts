@@ -130,6 +130,7 @@ describe("receiving", () => {
       acpSessionId: "d81b05ee",
       model: "opus[1m]",
       mode: "auto",
+      configOptions: [],
       transcript: [],
     });
 
@@ -162,6 +163,7 @@ describe("receiving", () => {
       acpSessionId: "d81b05ee",
       model: "opus[1m]",
       mode: "auto",
+      configOptions: [],
       transcript: [
         { at: 1_700_000_000_000, event: { type: "turn_end", stopReason: "end_turn" } },
       ],

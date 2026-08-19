@@ -1,4 +1,4 @@
-import type { AcpServerMessage, AcpTranscriptEntry } from "@lumem/shared";
+import type { AcpConfigOption, AcpServerMessage, AcpTranscriptEntry } from "@lumem/shared";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
@@ -64,7 +64,10 @@ function entry(event: AcpTranscriptEntry["event"], deltaMs = 0): AcpTranscriptEn
   return { at: clock, event };
 }
 
-function attached(transcript: AcpTranscriptEntry[] = []): AcpServerMessage {
+function attached(
+  transcript: AcpTranscriptEntry[] = [],
+  configOptions: AcpConfigOption[] = [],
+): AcpServerMessage {
   return {
     type: "attached",
     sessionId: "s-1",
@@ -72,6 +75,7 @@ function attached(transcript: AcpTranscriptEntry[] = []): AcpServerMessage {
     acpSessionId: "d81b05ee-d361",
     model: "opus[1m]",
     mode: "auto",
+    configOptions,
     transcript,
   };
 }
