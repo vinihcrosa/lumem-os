@@ -9,6 +9,14 @@ export interface SessionTab {
   state: string;
   exitCode: number | null;
   command: string;
+  /**
+   * Which manager owns this session, and therefore what the tab renders.
+   *
+   * Read from the row rather than from the agent configuration: transport is
+   * chosen when a session is born and never changes (D1), and the configuration
+   * may have been edited since. A shell is always `pty`.
+   */
+  transport: "pty" | "acp";
   /** Only the second and later homonyms carry one. */
   ordinal?: number;
 }
@@ -74,6 +82,7 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
         state: session.state,
         exitCode: session.exitCode,
         command: session.command,
+        transport: session.transport === "acp" ? "acp" : "pty",
         ...(nth > 1 ? { ordinal: nth } : {}),
       };
     });
