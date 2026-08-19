@@ -20,6 +20,8 @@ import { isCommandAvailable } from "../agents/availability.js";
 import { DomainError } from "../errors.js";
 import { createFileService, type FileService } from "../files/FileService.js";
 import { createFsBridge, type FsBridge } from "./fs-bridge.js";
+import { createTerminalBridge, type TerminalBridge } from "./terminal-bridge.js";
+import type { PtyManager } from "../pty/PtyManager.js";
 import { spawnAcpProcess, type AcpProcess, type AcpProcessSpawner } from "./process.js";
 import { translateSessionUpdate } from "./translate.js";
 import { sniffUnknownUpdates } from "./unknown-updates.js";
@@ -121,6 +123,8 @@ interface Session {
   promptInFlight: boolean;
   /** Disk access, scoped to this session's checkout and nothing else. */
   fs: FsBridge;
+  /** Terminals the agent asked for. Absent when no `PtyManager` was wired. */
+  terminals: TerminalBridge | undefined;
   /** One id per turn, for chunks the agent sends without a message id. */
   turnId: string;
 }
@@ -136,6 +140,14 @@ export interface AcpManagerOptions {
    * guard, without exception" true rather than aspirational.
    */
   files?: FileService;
+  /**
+   * The one the daemon already owns (F3.2, D7).
+   *
+   * Required for `terminal/*`: without it the capability is not declared and the
+   * agent never asks. Optional so a manager built for a test that never touches a
+   * terminal does not have to build one.
+   */
+  ptyManager?: PtyManager;
   /**
    * The clock that stamps transcript entries.
    *
@@ -179,6 +191,7 @@ export class AcpManager {
   private readonly handshakeTimeoutMs: number;
   private readonly isAvailable: (command: string) => boolean;
   private readonly files: FileService;
+  private readonly ptyManager: PtyManager | undefined;
   private readonly now: () => number;
   private readonly log: Pick<FastifyBaseLogger, "warn"> | undefined;
 
@@ -187,6 +200,7 @@ export class AcpManager {
     handshakeTimeoutMs = DEFAULT_HANDSHAKE_TIMEOUT_MS,
     isAvailable = (command) => isCommandAvailable(command),
     files = createFileService(),
+    ptyManager,
     now = () => Date.now(),
     log,
   }: AcpManagerOptions = {}) {
@@ -194,6 +208,7 @@ export class AcpManager {
     this.handshakeTimeoutMs = handshakeTimeoutMs;
     this.isAvailable = isAvailable;
     this.files = files;
+    this.ptyManager = ptyManager;
     this.now = now;
     this.log = log;
   }
@@ -255,6 +270,12 @@ export class AcpManager {
       // the root passed on every call, and the call that forgot would read
       // another worktree.
       fs: createFsBridge({ files: this.files, root: cwd }),
+      // One bridge per session too, for the same reason: its default cwd is this
+      // session's checkout, and a shared one would run the agent's commands wherever
+      // the last caller happened to be.
+      terminals: this.ptyManager
+        ? createTerminalBridge({ ptyManager: this.ptyManager, cwd })
+        : undefined,
       turnId: newId(),
     };
 
@@ -473,6 +494,46 @@ export class AcpManager {
         await session.fs.write(params.path, params.content);
         return {};
       })
+      .onRequest("terminal/create", ({ params }) => {
+        const bridge = this.requireTerminals(session);
+        const { terminalId, ptySessionId } = bridge.create({
+          command: params.command,
+          ...(params.args ? { args: params.args } : {}),
+          ...(params.env
+            ? { env: Object.fromEntries(params.env.map(({ name, value }) => [name, value])) }
+            : {}),
+          cwd: params.cwd ?? null,
+          outputByteLimit: params.outputByteLimit ?? null,
+        });
+
+        // The event is what lets the card show it (D7). Emitted here rather than
+        // when the agent first mentions the terminal in a tool call, because this is
+        // the moment the PTY exists and the card needs its id to attach.
+        this.emit(session, {
+          type: "terminal",
+          terminalId,
+          ptySessionId,
+          command: params.command,
+        });
+
+        return { terminalId };
+      })
+      .onRequest("terminal/output", ({ params }) =>
+        this.requireTerminals(session).output(params.terminalId),
+      )
+      // Flat, not nested under `exitStatus`: `terminal/output` wraps it and
+      // `wait_for_exit` does not, which is the protocol's shape rather than ours.
+      .onRequest("terminal/wait_for_exit", ({ params }) =>
+        this.requireTerminals(session).waitForExit(params.terminalId),
+      )
+      .onRequest("terminal/kill", ({ params }) => {
+        this.requireTerminals(session).kill(params.terminalId);
+        return {};
+      })
+      .onRequest("terminal/release", ({ params }) => {
+        this.requireTerminals(session).release(params.terminalId);
+        return {};
+      })
       .onRequest("session/request_permission", ({ params }) => {
         const requestId = newId();
 
@@ -571,6 +632,23 @@ export class AcpManager {
     return false;
   }
 
+  /**
+   * The terminal bridge, or a refusal the agent can read.
+   *
+   * Reachable only if the agent asks despite the capability not being declared —
+   * which a well-behaved one will not, and a broken one should be told about rather
+   * than crashing on.
+   */
+  private requireTerminals(session: Session): TerminalBridge {
+    if (!session.terminals) {
+      throw new DomainError(
+        "BLOCKED",
+        "esta sessão não oferece terminal: nenhum PtyManager foi ligado ao AcpManager",
+      );
+    }
+    return session.terminals;
+  }
+
   private async handshake(session: Session, cwd: string): Promise<Partial<AcpSessionInfo>> {
     const initialize = await this.withTimeout(
       session.connection.agent.request("initialize", {
@@ -584,7 +662,13 @@ export class AcpManager {
          * handshake. `terminal` stays unclaimed until the five methods behind it
          * do exist.
          */
-        clientCapabilities: { fs: { readTextFile: true, writeTextFile: true } },
+        clientCapabilities: {
+          fs: { readTextFile: true, writeTextFile: true },
+          // Only when there is a `PtyManager` behind it. Claiming it without one
+          // would have the agent ask for a shell and get an error mid-turn, which
+          // is exactly what declaring capabilities honestly avoids.
+          ...(this.ptyManager ? { terminal: true } : {}),
+        },
         clientInfo: { name: "lumem", version: LUMEM_CLIENT_VERSION },
       }),
       "initialize",
@@ -768,6 +852,21 @@ export class AcpManager {
     }
     session.pendingPermissions.clear();
     session.listeners.clear();
+
+    /*
+     * The agent's terminals go with it.
+     *
+     * They are children of the daemon, not of the adapter, so nothing else would
+     * end them — and an orphaned shell with nothing pointing at it is precisely
+     * what `killAll` exists to prevent for the sessions the user started.
+     */
+    for (const ptySessionId of session.terminals?.ptySessionIds() ?? []) {
+      try {
+        this.ptyManager?.kill(ptySessionId);
+      } catch {
+        /* already gone is the common case, not a failure */
+      }
+    }
 
     for (const watcher of [...this.exitWatchers]) {
       try {

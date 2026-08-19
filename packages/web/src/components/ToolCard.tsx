@@ -2,8 +2,9 @@ import { useState } from "react";
 
 import type { AcpToolKind, AcpToolStatus } from "@lumem/shared";
 
-import type { ToolCallView } from "../lib/conversation-model.js";
+import type { TerminalView, ToolCallView } from "../lib/conversation-model.js";
 import { DiffLines, diffLines, type DiffLine } from "./DiffLines.js";
+import { Terminal } from "./Terminal.js";
 
 /**
  * The element that replaces text scrolling past (F2.3).
@@ -56,15 +57,24 @@ export const OUTPUT_LINE_CEILING = 12;
 
 export interface ToolCardProps {
   call: ToolCallView;
+  /**
+   * Terminals the agent opened, so the card can find its own (F3, A5, D7).
+   *
+   * Looked up by the id the call's own content names, which means a card shows a
+   * terminal only if the tool call said it had one — the conversation's list is
+   * shared, and a card guessing from position would show a neighbour's.
+   */
+  terminals?: readonly TerminalView[];
   /** Opens with the body already expanded. Used by the styleguide. */
   defaultOpen?: boolean;
 }
 
-export function ToolCard({ call, defaultOpen = false }: ToolCardProps) {
+export function ToolCard({ call, terminals = [], defaultOpen = false }: ToolCardProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   const body = bodyOf(call);
   const target = targetOf(call);
+  const terminal = terminalOf(call, terminals);
 
   return (
     <div className={`tc tc--${call.status}`}>
@@ -112,7 +122,7 @@ export function ToolCard({ call, defaultOpen = false }: ToolCardProps) {
           {STATUS_LABEL[call.status]}
         </span>
 
-        {body && (
+        {(body || terminal) && (
           <button
             type="button"
             className="tc__twist focus-ring"
@@ -125,7 +135,21 @@ export function ToolCard({ call, defaultOpen = false }: ToolCardProps) {
         )}
       </div>
 
-      {open && body && (
+      {open && terminal && (
+        <div className="tc__body">
+          {/*
+            The `Terminal` the app already has, unmodified, pointed at the PTY
+            session the daemon opened (D7). It lives inside the card because the
+            result belongs to the turn that asked for it (A5) — "open in a tab" is
+            for the command that turns interactive, which is a later feature.
+          */}
+          <div className="tc__term">
+            <Terminal sessionId={terminal.ptySessionId} />
+          </div>
+        </div>
+      )}
+
+      {open && !terminal && body && (
         <div className="tc__body">
           {body.kind === "diff" ? (
             <DiffLines lines={body.lines} wrap={false} />
@@ -183,6 +207,22 @@ function bodyOf(call: ToolCallView): TextBody | DiffBody | null {
   // it passed. A `vitest` run's first twelve lines are the banner.
   const shown = all.slice(Math.max(0, all.length - OUTPUT_LINE_CEILING));
   return { kind: "text", lines: shown, hidden: all.length - shown.length };
+}
+
+/**
+ * The terminal this card is about, if it has one.
+ *
+ * Matched on the id the call's own content names. The conversation keeps one list
+ * of terminals for every card, so a card that guessed from position would embed a
+ * neighbour's shell.
+ */
+function terminalOf(
+  call: ToolCallView,
+  terminals: readonly TerminalView[],
+): TerminalView | null {
+  const named = call.content.find((item) => item.type === "terminal");
+  if (named?.type !== "terminal") return null;
+  return terminals.find((terminal) => terminal.terminalId === named.terminalId) ?? null;
 }
 
 interface Target {

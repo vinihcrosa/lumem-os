@@ -111,6 +111,10 @@ const BORROWED = new Set([
   "empty__glyph",
   "empty__title",
   "empty__sub",
+  // The agent's terminal is the app's own `Terminal`, whose classes live in
+  // `terminal.css` (F3.2 — nothing new was built).
+  "term",
+  "term-head",
 ]);
 
 describe("every class the conversation asks for exists", () => {

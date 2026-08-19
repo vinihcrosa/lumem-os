@@ -13,6 +13,8 @@ import {
   type SessionNotification,
   type SessionUpdate,
   type StopReason,
+  type CreateTerminalRequest,
+  type TerminalHandle,
 } from "@agentclientprotocol/sdk";
 
 import type { AcpProcess } from "../acp/process.js";
@@ -45,6 +47,8 @@ export interface FakeAgentTurn {
   readFile(path: string, window?: { line?: number; limit?: number }): Promise<string>;
   /** Asks the client to write a file. */
   writeFile(path: string, content: string): Promise<void>;
+  /** Asks the client for a terminal, as `terminal/create` does. */
+  createTerminal(command: string, args?: string[]): Promise<TerminalHandle>;
   /** Resolves when the client sends `session/cancel`. */
   readonly cancelled: Promise<void>;
 }
@@ -234,6 +238,12 @@ export function fakeAgentProcess(script: FakeAgentScript = {}): FakeAgentHandle 
         writeFile: async (path, content) => {
           await conn.writeTextFile({ sessionId: params.sessionId, path, content });
         },
+        createTerminal: (command, args) =>
+          conn.createTerminal({
+            sessionId: params.sessionId,
+            command,
+            ...(args ? { args } : {}),
+          } as CreateTerminalRequest),
         cancelled,
       };
 

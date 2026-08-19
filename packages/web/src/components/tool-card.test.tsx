@@ -292,3 +292,86 @@ describe("the verdict", () => {
     expect(container.querySelector(".verdict")).toBeNull();
   });
 });
+
+describe("the agent's terminal", () => {
+  const withTerminal = call({
+    name: "Bash",
+    kind: "execute",
+    title: "Bash pnpm vitest run",
+    locations: [],
+    status: "running",
+    content: [{ type: "terminal", terminalId: "t-1" }],
+  });
+
+  const terminals = [
+    { terminalId: "t-1", ptySessionId: "se_abc", command: "pnpm vitest run" },
+  ];
+
+  it("mounts the app's own Terminal against the PTY the daemon opened", async () => {
+    // D7 and F3.2: no new streaming path and no new component. The card points what
+    // already exists at a session id that already means something.
+    const user = userEvent.setup();
+    const { container } = render(<ToolCard call={withTerminal} terminals={terminals} />);
+
+    await user.click(screen.getByRole("button", { name: /mostrar o resultado/ }));
+
+    expect(container.querySelector(".tc__term")).not.toBeNull();
+  });
+
+  it("offers a body for a terminal even with nothing printed yet", async () => {
+    // A `terminal` content item is not text, so `bodyOf` finds nothing — without
+    // counting it the card would have no toggle and the terminal would be
+    // unreachable.
+    render(<ToolCard call={withTerminal} terminals={terminals} />);
+
+    expect(screen.getByRole("button", { name: /mostrar o resultado/ })).toBeInTheDocument();
+  });
+
+  it("shows no terminal for a card whose call did not name one", async () => {
+    // The list is shared by every card. A card guessing from position would embed a
+    // neighbour's shell.
+    const user = userEvent.setup();
+    const { container } = render(
+      <ToolCard
+        call={call({ content: [{ type: "content", text: "só texto" }] })}
+        terminals={terminals}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /mostrar o resultado/ }));
+
+    expect(container.querySelector(".tc__term")).toBeNull();
+    expect(screen.getByText("só texto")).toBeInTheDocument();
+  });
+
+  it("waits for the terminal the daemon has not announced yet", () => {
+    // The tool call can mention a terminal id before the `terminal` event arrives.
+    // Mounting an xterm against an id nobody has is a socket that closes at once.
+    render(<ToolCard call={withTerminal} terminals={[]} />);
+
+    expect(screen.queryByRole("button", { name: /mostrar o resultado/ })).not.toBeInTheDocument();
+  });
+
+  it("prefers the terminal over text the tool also printed", async () => {
+    // The live terminal is the answer; a snapshot of its first lines beside it would
+    // be the same output twice, one of them stale.
+    const user = userEvent.setup();
+    const { container } = render(
+      <ToolCard
+        call={call({
+          ...withTerminal,
+          content: [
+            { type: "content", text: "abrindo terminal" },
+            { type: "terminal", terminalId: "t-1" },
+          ],
+        })}
+        terminals={terminals}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /mostrar o resultado/ }));
+
+    expect(container.querySelector(".tc__term")).not.toBeNull();
+    expect(screen.queryByText("abrindo terminal")).not.toBeInTheDocument();
+  });
+});

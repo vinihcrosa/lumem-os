@@ -208,6 +208,18 @@ export class PtyManager {
     return this.require(id).buffer.snapshot();
   }
 
+  /**
+   * How many lines the scrollback has dropped.
+   *
+   * Exposed for the agent's own terminal (F3): ACP's `terminal/output` reports
+   * whether the output was truncated, and an agent reasoning about partial output as
+   * though it were whole is the failure that answer exists to prevent. The browser
+   * never needed it — a person can see the scrollback end.
+   */
+  droppedLines(id: string): number {
+    return this.require(id).buffer.dropped;
+  }
+
   get(id: string): SessionInfo | undefined {
     const session = this.sessions.get(id);
     return session ? { ...session.info } : undefined;

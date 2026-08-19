@@ -3,8 +3,9 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { PtyManager } from "../pty/PtyManager.js";
 import {
   FAKE_GROUPED_CONFIG_OPTIONS,
   fakeAgentProcess,
@@ -54,7 +55,10 @@ const typesOf = (events: readonly AcpEvent[]): string[] => events.map((event) =>
 
 /** Temporary checkouts the disk tests make, cleaned up together. */
 const dirs: string[] = [];
-afterEach(() => {
+/** PTY managers the terminal tests build, killed together. */
+const ptyManagers: PtyManager[] = [];
+afterEach(async () => {
+  await Promise.all(ptyManagers.splice(0).map((manager) => manager.killAll()));
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -1009,5 +1013,137 @@ describe("the agent switching on its own", () => {
     expect(before).toContain("model");
     expect(after).toContain("model");
     expect(after).toContain("effort");
+  });
+});
+
+describe("the terminal the agent asks for", () => {
+  async function startWithPty(script: FakeAgentScript = {}) {
+    const fake = fakeAgentProcess(script);
+    const ptyManager = new PtyManager();
+    ptyManagers.push(ptyManager);
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+      ptyManager,
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: tmpdir() });
+    const events: AcpEvent[] = [];
+    manager.onEvent(info.id, ({ event }) => events.push(event));
+    return { manager, ptyManager, events, sessionId: info.id, process: fake.process };
+  }
+
+  it("declares the capability only when there is a PtyManager behind it", async () => {
+    let withPty: unknown;
+    let withoutPty: unknown;
+
+    await startWithPty({
+      initialize: (params) => {
+        withPty = params.clientCapabilities;
+        return {};
+      },
+    });
+    await start({
+      initialize: (params) => {
+        withoutPty = params.clientCapabilities;
+        return {};
+      },
+    });
+
+    expect(withPty).toMatchObject({ terminal: true });
+    // Claiming it without one would have the agent ask for a shell and get an error
+    // mid-turn, which is what declaring capabilities honestly avoids.
+    expect((withoutPty as { terminal?: unknown }).terminal).not.toBe(true);
+  });
+
+  it("runs the command and tells the card which PTY to attach to", async () => {
+    // D7: the event carries a PTY session id, so the embedded xterm uses the endpoint
+    // that already exists and no second streaming path had to be built.
+    const { manager, ptyManager, events, sessionId } = await startWithPty({
+      async prompt(_text, turn) {
+        await turn.createTerminal("sh", ["-c", "echo do-agente"]);
+        return "end_turn";
+      },
+    });
+
+    await manager.prompt(sessionId, "roda algo");
+
+    const terminal = events.find((event) => event.type === "terminal");
+    expect(terminal).toMatchObject({ command: "sh" });
+    const ptySessionId = (terminal as Extract<AcpEvent, { type: "terminal" }>).ptySessionId;
+    await vi.waitFor(() => expect(ptyManager.snapshot(ptySessionId)).toContain("do-agente"));
+  });
+
+  it("keeps the agent's terminal out of the worktree's session list", async () => {
+    /*
+     * A5 and D7: it lives inside the card. The user did not start it and cannot close
+     * it — the agent owns its lifetime — so a tab for it would offer a close button
+     * that fights the agent for control.
+     *
+     * The PTY exists in the manager, which is how the xterm reaches it; what must not
+     * happen is a `session` row, and nothing here writes one.
+     */
+    const { manager, ptyManager, sessionId } = await startWithPty({
+      async prompt(_text, turn) {
+        await turn.createTerminal("sh", ["-c", "sleep 30"]);
+        return "end_turn";
+      },
+    });
+
+    await manager.prompt(sessionId, "roda");
+
+    expect(ptyManager.list()).toHaveLength(1);
+    // The ACP session is the only thing the manager lists as a session.
+    expect(manager.list()).toHaveLength(1);
+  });
+
+  it("kills the agent's terminals when the agent itself dies", async () => {
+    // They are children of the daemon, not of the adapter, so nothing else would end
+    // them — and an orphaned shell with nothing pointing at it is exactly what
+    // `killAll` exists to prevent for the sessions a user started.
+    const { manager, ptyManager, events, sessionId, process } = await startWithPty({
+      async prompt(_text, turn) {
+        await turn.createTerminal("sh", ["-c", "sleep 30"]);
+        await turn.cancelled;
+        return "cancelled";
+      },
+    });
+
+    const turn = manager.prompt(sessionId, "roda");
+    await waitFor(() => events.find((event) => event.type === "terminal"));
+    const ptySessionId = (
+      events.find((event) => event.type === "terminal") as Extract<
+        AcpEvent,
+        { type: "terminal" }
+      >
+    ).ptySessionId;
+    expect(ptyManager.get(ptySessionId)?.state).toBe("running");
+
+    process.kill();
+    manager.cancel(sessionId);
+    await turn.catch(() => {});
+
+    await waitFor(() =>
+      ptyManager.get(ptySessionId)?.state === "exited" ? true : undefined,
+    );
+  });
+
+  it("refuses politely when no PtyManager was wired", async () => {
+    // Only reachable from an agent that asks despite the capability not being
+    // declared. Telling it beats crashing on it.
+    let refusal: string | undefined;
+    const { manager, sessionId } = await start({
+      async prompt(_text, turn) {
+        try {
+          await turn.createTerminal("sh", ["-c", "true"]);
+        } catch (error) {
+          refusal = error instanceof Error ? error.message : String(error);
+        }
+        return "end_turn";
+      },
+    });
+
+    await expect(manager.prompt(sessionId, "tenta")).resolves.toBe("end_turn");
+    expect(refusal).toBeDefined();
   });
 });

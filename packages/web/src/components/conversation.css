@@ -450,3 +450,17 @@
 .perm__head .spacer {
   flex: 1;
 }
+/*
+ * O terminal do agente, dentro do cartão (F3, A5, D7).
+ *
+ * O protótipo desenhou o poço de saída, não um `xterm` — então esta é a única
+ * regra desta folha que não vem dele, e ela existe só para dar altura ao terminal:
+ * um `xterm` num contêiner sem altura renderiza zero linha e some.
+ */
+.tc__term {
+  height: var(--size-terminal-min);
+  min-height: 0;
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-inset);
+}
+

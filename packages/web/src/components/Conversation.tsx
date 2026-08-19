@@ -9,6 +9,7 @@ import {
   replayConversation,
   type Block,
   type ConversationState,
+  type TerminalView,
 } from "../lib/conversation-model.js";
 import { connectAcpSocket, type AcpConnect } from "../lib/acp-socket.js";
 import { Banner, Button, Glyph } from "../ui/index.js";
@@ -224,6 +225,7 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
               <BlockView
                 key={blockIndex}
                 block={block}
+                terminals={conversation.terminals}
                 // Only the last block of the last turn can still be growing.
                 streaming={
                   conversation.streaming &&
@@ -326,6 +328,8 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
 
 interface BlockViewProps {
   block: Block;
+  /** The conversation's terminals; a card picks out its own by id. */
+  terminals: readonly TerminalView[];
   streaming: boolean;
   openThoughts: ReadonlySet<string>;
   onToggleThought(messageId: string): void;
@@ -334,6 +338,7 @@ interface BlockViewProps {
 
 function BlockView({
   block,
+  terminals,
   streaming,
   openThoughts,
   onToggleThought,
@@ -352,7 +357,7 @@ function BlockView({
         />
       );
     case "tool":
-      return <ToolCard call={block.call} />;
+      return <ToolCard call={block.call} terminals={terminals} />;
     case "permission":
       return <PermissionRequest request={block.request} onRespond={onRespond} />;
     case "note":
