@@ -5,7 +5,7 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** fases 1, 3, 4 e 5 **concluídas — 32 de 32.** **Fase 6 em execução — 2 de 3.**
+**Status:** fases 1, 3, 4, 5 e 6 **concluídas — 35 de 35.** Gate cheio verde (1.568 unit/integration + 25 e2e).
 **Total:** 35 tasks nas fases 1, 3, 4, 5 e 6 do PRD
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
@@ -973,17 +973,18 @@ remédio — que é exatamente a reclamação que abriu esta fase.
 
 ---
 
-#### R3: O e2e que apaga o `curl`
+#### R3: O e2e que apaga o `curl` ✅
 
 **What**: Criar a configuração ACP pela tela e conversar com ela.
 **Where**: `e2e/acp-agent-config.spec.ts`, `docs/project/testing.md`
 **Depends on**: R2
 
 **Done when**:
-- [ ] O e2e cria a configuração ACP **pela UI**, sem tocar na API, e abre uma conversa com ela
-- [ ] É a única prova que interessa: o resto da suíte cria a configuração pela API, o que é justamente o caminho que esta fase existe para tornar dispensável
-- [ ] Gate: `pnpm gate:full`
-- [ ] Test count: ao menos 1 — criar pela tela e conversar
+- [x] O e2e cria a configuração ACP **pela UI**, sem tocar na API, e abre uma conversa com ela
+- [x] É a única prova que interessa: o resto da suíte cria a configuração pela API, o que é justamente o caminho que esta fase existe para tornar dispensável
+- [x] **Verificado por mutação**: sem enviar `transport` e `adapterVersion`, o spec falha
+- [x] Gate: `pnpm gate:full` — 1.568 unit/integration + 25 e2e
+- [x] Test count: **1** — criar pela tela, ler o chip de transporte de volta do daemon, lançar e conversar
 
 **Tests**: e2e · **Gate**: full
 **Commit**: `test(e2e): create the ACP agent from the screen, then talk to it`
