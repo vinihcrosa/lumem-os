@@ -25,7 +25,11 @@ interface Harness {
 
 async function start(script: FakeAgentScript = {}): Promise<Harness> {
   const fake = fakeAgentProcess(script);
-  const manager = new AcpManager({ spawner: () => fake.process, handshakeTimeoutMs: 2_000 });
+  const manager = new AcpManager({
+    spawner: () => fake.process,
+    handshakeTimeoutMs: 2_000,
+    isAvailable: () => true,
+  });
 
   const info = await manager.spawn({
     command: "claude-agent-acp",
@@ -46,7 +50,7 @@ describe("handshake", () => {
     // A PTY is usable the moment it exists; an ACP session is not. Returning
     // before `session/new` answers would hand out an id no prompt could use.
     const fake = fakeAgentProcess();
-    const manager = new AcpManager({ spawner: () => fake.process });
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
 
     const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
 
@@ -91,7 +95,7 @@ describe("handshake", () => {
 
   it("refuses an adapter speaking a protocol version it does not know", async () => {
     const fake = fakeAgentProcess({ initialize: () => ({ protocolVersion: 99 }) });
-    const manager = new AcpManager({ spawner: () => fake.process });
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
 
     await expect(
       manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" }),
@@ -101,7 +105,7 @@ describe("handshake", () => {
   it("kills the adapter it could not finish talking to", async () => {
     // Otherwise a failed handshake leaves a live subprocess nothing references.
     const fake = fakeAgentProcess({ initialize: () => ({ protocolVersion: 99 }) });
-    const manager = new AcpManager({ spawner: () => fake.process });
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
 
     await expect(
       manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" }),
@@ -109,8 +113,77 @@ describe("handshake", () => {
     await expect(fake.killed).resolves.toBeUndefined();
   });
 
+  it("says the adapter is missing before waiting on a handshake that cannot happen", async () => {
+    // F1.6, and the reason it is checked up front: without this the failure
+    // surfaces as a handshake timeout fifteen seconds later, and the user reads
+    // a message about a protocol step they never chose.
+    const manager = new AcpManager({
+      spawner: () => {
+        throw new Error("nunca deveria chegar aqui");
+      },
+      isAvailable: () => false,
+    });
+
+    await expect(
+      manager.spawn({
+        command: "claude-agent-acp",
+        cwd: "/repos/lorebase",
+        adapterVersion: "0.69.0",
+      }),
+    ).rejects.toMatchObject({
+      code: "SPAWN_FAILED",
+      message: /não está no PATH.*0\.69\.0.*npm i -g @agentclientprotocol\/claude-agent-acp@0\.69\.0/s,
+    });
+  });
+
+  it("builds the install line from the pinned version, never a hard-coded one", async () => {
+    // A hard-coded version would drift from `agent_config` and send the user to
+    // install something this session would then refuse (A12).
+    const manager = new AcpManager({
+      spawner: () => fakeAgentProcess().process,
+      isAvailable: () => false,
+    });
+
+    await expect(
+      manager.spawn({ command: "claude-agent-acp", cwd: "/r", adapterVersion: "0.40.0" }),
+    ).rejects.toMatchObject({ message: /@0\.40\.0/ });
+  });
+
+  it("still says something useful when no version is pinned", async () => {
+    const manager = new AcpManager({
+      spawner: () => fakeAgentProcess().process,
+      isAvailable: () => false,
+    });
+
+    await expect(
+      manager.spawn({ command: "meu-agente", cwd: "/r" }),
+    ).rejects.toMatchObject({ message: /deixe "meu-agente" no PATH/ });
+  });
+
+  it("reports an adapter that accepts the connection and then never answers", async () => {
+    // The failure with no symptom: no error, no log, and a tab that spins. A
+    // deadline is what turns it into something the user can read.
+    const silent = fakeAgentProcess({
+      initialize: () => {
+        throw new Error("this agent never answers");
+      },
+    });
+    const manager = new AcpManager({
+      spawner: () => silent.process,
+      handshakeTimeoutMs: 50,
+      isAvailable: () => true,
+    });
+
+    await expect(
+      manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" }),
+    ).rejects.toMatchObject({ code: "SPAWN_FAILED" });
+  });
+
   it("refuses an empty command instead of spawning nothing", async () => {
-    const manager = new AcpManager({ spawner: () => fakeAgentProcess().process });
+    const manager = new AcpManager({
+      spawner: () => fakeAgentProcess().process,
+      isAvailable: () => true,
+    });
 
     await expect(manager.spawn({ command: "  ", cwd: "/repos/lorebase" })).rejects.toMatchObject({
       code: "INVALID_ARGUMENT",
@@ -210,7 +283,11 @@ describe("a turn", () => {
     // variant the current schema rejects. What is being asked here is what
     // happens when a *future* adapter sends a field this daemon never saw.
     const fake = fakeAgentProcess();
-    const manager = new AcpManager({ spawner: () => fake.process, handshakeTimeoutMs: 2_000 });
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      handshakeTimeoutMs: 2_000,
+      isAvailable: () => true,
+    });
     const info = await manager.spawn({ command: "claude-agent-acp", cwd: "/repos/lorebase" });
     const events: AcpEvent[] = [];
     manager.onEvent(info.id, (event) => events.push(event));
@@ -526,7 +603,7 @@ describe("the end of a session", () => {
     const first = fakeAgentProcess();
     const second = fakeAgentProcess();
     const queue = [first.process, second.process];
-    const manager = new AcpManager({ spawner: () => queue.shift()! });
+    const manager = new AcpManager({ spawner: () => queue.shift()!, isAvailable: () => true });
     await manager.spawn({ command: "a", cwd: "/repos/lorebase" });
     await manager.spawn({ command: "b", cwd: "/repos/lorebase" });
 
@@ -537,7 +614,10 @@ describe("the end of a session", () => {
   });
 
   it("answers about a session that never existed", async () => {
-    const manager = new AcpManager({ spawner: () => fakeAgentProcess().process });
+    const manager = new AcpManager({
+      spawner: () => fakeAgentProcess().process,
+      isAvailable: () => true,
+    });
 
     expect(() => manager.transcript("nope")).toThrow(/no session/);
     expect(manager.get("nope")).toBeUndefined();

@@ -11,6 +11,7 @@ import { newId, type AcpEvent } from "@lumem/shared";
 
 import type { FastifyBaseLogger } from "fastify";
 
+import { isCommandAvailable } from "../agents/availability.js";
 import { DomainError } from "../errors.js";
 import { spawnAcpProcess, type AcpProcess, type AcpProcessSpawner } from "./process.js";
 import { translateSessionUpdate } from "./translate.js";
@@ -95,6 +96,11 @@ export interface AcpManagerOptions {
   spawner?: AcpProcessSpawner;
   handshakeTimeoutMs?: number;
   /**
+   * How the daemon decides the adapter exists. A seam for tests only — the
+   * production answer is `isCommandAvailable`, reused as it stands (F1.6).
+   */
+  isAvailable?: (command: string) => boolean;
+  /**
    * Where an unrecognised event goes.
    *
    * "Ignored with a log, never thrown" (D3) needs somewhere for the log to
@@ -121,15 +127,18 @@ export class AcpManager {
   private readonly exitWatchers = new Set<AcpExitWatcher>();
   private readonly spawner: AcpProcessSpawner;
   private readonly handshakeTimeoutMs: number;
+  private readonly isAvailable: (command: string) => boolean;
   private readonly log: Pick<FastifyBaseLogger, "warn"> | undefined;
 
   constructor({
     spawner = spawnAcpProcess,
     handshakeTimeoutMs = DEFAULT_HANDSHAKE_TIMEOUT_MS,
+    isAvailable = (command) => isCommandAvailable(command),
     log,
   }: AcpManagerOptions = {}) {
     this.spawner = spawner;
     this.handshakeTimeoutMs = handshakeTimeoutMs;
+    this.isAvailable = isAvailable;
     this.log = log;
   }
 
@@ -146,6 +155,15 @@ export class AcpManager {
 
     if (command.trim() === "") {
       throw new DomainError("INVALID_ARGUMENT", "command must not be empty");
+    }
+
+    // Asked before spawning, not discovered after. A missing adapter otherwise
+    // shows up as a handshake that times out fifteen seconds later — the user
+    // waits, and then reads a message about a protocol step they never chose.
+    // `isCommandAvailable` already answers this for the PTY path; F1.6 asks for
+    // the same answer, not a second implementation of it.
+    if (!this.isAvailable(command)) {
+      throw notInstalled(command, adapterVersion);
     }
 
     const id = newId();
@@ -571,6 +589,27 @@ function commandOf(toolCall: ToolCallUpdate): string | null {
     if (typeof command === "string") return command;
   }
   return null;
+}
+
+/**
+ * The adapter is not on the PATH.
+ *
+ * Its own error rather than a generic spawn failure, because it is the one
+ * launch failure with a known cure — and the install line is built from the
+ * pinned version so it cannot drift from `agent_config` and send the user to
+ * install something this session would refuse (A12).
+ */
+function notInstalled(command: string, adapterVersion: string | undefined): DomainError {
+  const pinned = adapterVersion ?? "";
+  const remedy = pinned
+    ? `npm i -g @agentclientprotocol/claude-agent-acp@${pinned}`
+    : `instale o adaptador e deixe "${command}" no PATH`;
+  const version = pinned ? ` Esta sessão fixa a versão ${pinned}.` : "";
+
+  return new DomainError(
+    "SPAWN_FAILED",
+    `"${command}" não está no PATH.${version} Para resolver: ${remedy}`,
+  );
 }
 
 /**
