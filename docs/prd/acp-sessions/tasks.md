@@ -5,7 +5,7 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** em andamento — **5 de 18** (T1–T5 fechadas, fase 1 na T6)
+**Status:** em andamento — **fase 1 completa, 8 de 18**. Próxima: C1
 **Total:** 18 tasks em 2 fases (as fases **1** e **3** do PRD)
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
@@ -206,13 +206,13 @@ que devolve resultado em vez de lançar.
 **Depends on**: T1, T4
 
 **Done when**:
-- [ ] Attach responde `attached` como primeiro frame, com a transcrição inteira para replay
-- [ ] Sessão inexistente fecha com 4404, como o `/pty` faz
-- [ ] Dois clientes na mesma sessão recebem os mesmos eventos
-- [ ] Detach não mata o subprocesso
-- [ ] Frame inválido do cliente responde `error` com código e **mantém a conexão aberta** — a mesma política do PTY
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 6 — replay, 4404, dois clientes, detach, frame inválido, prompt chegando ao agente falso
+- [x] Attach responde `attached` como primeiro frame, com a transcrição inteira para replay
+- [x] Sessão inexistente fecha com 4404, como o `/pty` faz
+- [x] Dois clientes na mesma sessão recebem os mesmos eventos
+- [x] Detach não mata o subprocesso
+- [x] Frame inválido do cliente responde `error` com código e **mantém a conexão aberta** — a mesma política do PTY
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 6 — replay, 4404, dois clientes, detach, frame inválido, prompt chegando ao agente falso
 
 **Tests**: integration, websocket de verdade · **Gate**: quick
 **Commit**: `feat(server): serve the ACP event stream over a websocket`
@@ -226,12 +226,12 @@ que devolve resultado em vez de lançar.
 **Depends on**: T3, T4
 
 **Done when**:
-- [ ] `start` lê o `transport` do `agent_config`, grava na sessão, e chama o manager certo
-- [ ] Sessão de shell nunca chega ao `AcpManager`
-- [ ] `trackExits` cobre as duas origens; sessão ACP que morre vira `exited` com `exitCode`
-- [ ] Reconciliação de boot marca sessão ACP órfã como `exited`, igual PTY, e não tenta religar
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 6 — roteamento por transporte, shell forçado a PTY, saída rastreada nos dois, reconciliação órfã nos dois
+- [x] `start` lê o `transport` do `agent_config`, grava na sessão, e chama o manager certo
+- [x] Sessão de shell nunca chega ao `AcpManager`
+- [x] `trackExits` cobre as duas origens; sessão ACP que morre vira `exited` com `exitCode`
+- [x] Reconciliação de boot marca sessão ACP órfã como `exited`, igual PTY, e não tenta religar
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 6 — roteamento por transporte, shell forçado a PTY, saída rastreada nos dois, reconciliação órfã nos dois
 
 **Tests**: unit/integration · **Gate**: quick
 **Commit**: `feat(server): route session lifecycle by transport`
@@ -245,12 +245,12 @@ que devolve resultado em vez de lançar.
 **Depends on**: T4, T5
 
 **Done when**:
-- [ ] Marcado e pulado quando o adaptador não está no PATH, como o teste de `git` real faz
-- [ ] Roda `initialize` + `session/new` + `session/close` e **nada mais** — zero token consumido, medido no spike
-- [ ] Falha se `protocolVersion`, `authMethods` ou a forma de `configOptions` divergirem do contrato — é o detector de quebra de versão do adaptador
-- [ ] `testing.md` ganha a linha do novo teste marcado e como rodá-lo
-- [ ] Gate: `pnpm gate:full`
-- [ ] Test count: 1 caso, e ele vale mais que dez falsos
+- [x] Marcado e pulado quando o adaptador não está no PATH, como o teste de `git` real faz
+- [x] Roda `initialize` + `session/new` + `session/close` e **nada mais** — zero token consumido, medido no spike
+- [x] Falha se `protocolVersion`, `authMethods` ou a forma de `configOptions` divergirem do contrato — é o detector de quebra de versão do adaptador
+- [x] `testing.md` ganha a linha do novo teste marcado e como rodá-lo
+- [x] Gate: `pnpm gate:full`
+- [x] Test count: 1 caso, e ele vale mais que dez falsos
 
 **Tests**: integration marcado, processo real · **Gate**: full
 **Commit**: `test(server): pin the ACP handshake against the real adapter`
