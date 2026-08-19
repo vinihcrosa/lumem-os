@@ -64,12 +64,18 @@ export async function reconcileWorktrees({ db, log }: ReconcileOptions): Promise
 }
 
 /**
- * Sessions that outlived their daemon, PRD F7.3.
+ * Sessions that outlived their daemon, PRD F7.3 and F5.3.
  *
- * A PTY is a child of the process that spawned it, so a restart kills every
- * one of them. A record left `running` would make F4.9 block a worktree
- * removal on a session that has not existed since the last boot — and the user
- * would have no way to close it, because there is nothing to close.
+ * A PTY is a child of the process that spawned it, so a restart kills every one
+ * of them. A record left `running` would make F4.9 block a worktree removal on a
+ * session that has not existed since the last boot — and the user would have no
+ * way to close it, because there is nothing to close.
+ *
+ * An ACP adapter is a child too, so this covers both transports without asking
+ * which one a row is: `transport` decides who *owns* a live session, and after a
+ * restart there are none. Reconnecting to a surviving conversation is a
+ * different feature — `session/load`, phase 5 — and it will need this to have
+ * already told the truth about what did not survive.
  */
 export async function reconcileOrphanSessions({ db, log }: ReconcileOptions): Promise<number> {
   const closed = await createSessionRepository(db).markAllRunningExited();

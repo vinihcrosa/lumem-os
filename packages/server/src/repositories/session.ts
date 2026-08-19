@@ -19,7 +19,7 @@ export type ScopeType = "project" | "worktree";
 export type SessionState = "running" | "exited";
 
 export interface CreateSessionInput {
-  /** The PTY's own id. One identity for the process and its record. */
+  /** The manager's own id. One identity for the process and its record. */
   id: string;
   kind: SessionKind;
   agentConfigId?: string | null;
@@ -28,6 +28,18 @@ export interface CreateSessionInput {
   cwd: string;
   /** What was actually launched, so the detail view never has to guess. */
   command: string;
+  /**
+   * What this session is, decided at birth and never changed (D1).
+   *
+   * Defaulted rather than required: every caller written before ACP existed
+   * meant `pty`, and the row it produces has to keep meaning that.
+   */
+  transport?: "pty" | "acp";
+  /** The adapter's own session id. Only an ACP session has one. */
+  acpSessionId?: string | null;
+  /** Mode and model as the protocol reported them at creation. */
+  mode?: string | null;
+  model?: string | null;
 }
 
 export interface SessionRepository {
@@ -57,6 +69,15 @@ const CONSTRAINTS: ConstraintMap = {
   "check:session_kind": { code: "INVALID_ARGUMENT", message: "tipo de sessão inválido" },
   "check:session_scope_type": { code: "INVALID_ARGUMENT", message: "escopo de sessão inválido" },
   "check:session_state": { code: "INVALID_ARGUMENT", message: "estado de sessão inválido" },
+  "check:session_transport": { code: "INVALID_ARGUMENT", message: "transporte de sessão inválido" },
+  "check:session_shell_transport": {
+    code: "INVALID_ARGUMENT",
+    message: "sessão de shell é sempre PTY: não existe conversa com um shell",
+  },
+  "check:session_acp_id": {
+    code: "INVALID_ARGUMENT",
+    message: "sessão ACP exige o id de sessão do adaptador, e sessão PTY não pode ter um",
+  },
 };
 
 export function createSessionRepository(db: Db): SessionRepository {

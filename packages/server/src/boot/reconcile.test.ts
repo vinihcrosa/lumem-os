@@ -149,6 +149,48 @@ describe("reconcileOrphanSessions", () => {
     });
   });
 
+  it("closes an ACP conversation the same way it closes a terminal", async () => {
+    // F5.3. The adapter is a child of the daemon too, so a restart ended it —
+    // and a row still saying `running` would put a live-looking conversation in
+    // front of a process that does not exist. Reconnecting to one is phase 5,
+    // and it needs this to have already told the truth about what did not
+    // survive.
+    await withTestDb(async (db) => {
+      const config = await createAgentConfigRepository(db).create({
+        name: "claude-acp",
+        command: "claude-agent-acp",
+        transport: "acp",
+        adapterVersion: "0.69.0",
+      });
+      const sessions = createSessionRepository(db);
+      await sessions.create({
+        id: newId(),
+        kind: "agent",
+        agentConfigId: config.id,
+        scopeType: "worktree",
+        scopeId: "w1",
+        cwd: "/repo",
+        command: "claude-agent-acp",
+        transport: "acp",
+        acpSessionId: "d81b05ee",
+        mode: "auto",
+        model: "opus[1m]",
+      });
+      await sessions.create({
+        id: newId(),
+        kind: "shell",
+        scopeType: "project",
+        scopeId: "p1",
+        cwd: "/repo",
+        command: "/bin/sh",
+      });
+
+      // Both, in one pass, without asking which transport a row is.
+      expect(await reconcileOrphanSessions({ db })).toBe(2);
+      expect(await sessions.listRunning()).toEqual([]);
+    });
+  });
+
   it("leaves the exit code null rather than claiming a clean finish", async () => {
     await withTestDb(async (db) => {
       const sessions = createSessionRepository(db);

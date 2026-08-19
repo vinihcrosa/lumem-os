@@ -146,7 +146,15 @@ describe("attach", () => {
   it("sends the buffer before any new byte", async () => {
     const id = spawnSession("cat");
     ptyManager.write(id, "old-line\n");
-    await vi.waitFor(() => expect(ptyManager.snapshot(id)).toContain("old-line"), WAIT);
+    // Both copies, not one. `cat` under a PTY produces the line twice — the
+    // terminal echoes the input and `cat` writes it back — so waiting for the
+    // first `toContain` can attach while the second is still in flight, and it
+    // then arrives on the stream and fails the assertion below. The race is in
+    // the wait, not in the endpoint, and it only shows under load.
+    await vi.waitFor(
+      () => expect(ptyManager.snapshot(id).split("old-line")).toHaveLength(3),
+      WAIT,
+    );
 
     const client = await TestClient.connect(id);
     await client.waitForMessage("attached");

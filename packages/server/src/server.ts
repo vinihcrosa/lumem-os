@@ -94,7 +94,7 @@ export async function createServer({
   db,
   ptyManager,
   acpManager = new AcpManager(),
-  sessionStore = createSessionStore({ db, ptyManager }),
+  sessionStore = createSessionStore({ db, ptyManager, acpManager }),
   events = createEventBus(),
   git = createGitService(),
   logger = false,

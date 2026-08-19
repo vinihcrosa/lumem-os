@@ -111,6 +111,12 @@ export const sessionRouter = router({
           args: config.args,
           // F5.5: the daemon's environment plus what the configuration declares.
           env: config.env,
+          // Read from the configuration that was just validated, and passed on
+          // rather than re-read downstream: two reads could disagree if the
+          // configuration changed in between, and the session would then be one
+          // thing in the row and another in the manager.
+          transport: config.transport === "acp" ? "acp" : "pty",
+          adapterVersion: config.adapterVersion,
           ...(input.cols === undefined ? {} : { cols: input.cols }),
           ...(input.rows === undefined ? {} : { rows: input.rows }),
         });
