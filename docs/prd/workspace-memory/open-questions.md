@@ -7,8 +7,8 @@ aqui, com o motivo.
 onde está, agrupada por tema, e ganha uma linha **Decisão:** com o que ficou valendo. Cada pergunta
 traz uma **proposta pra reagir**; discordar dela é mais rápido que escrever do zero.
 
-**Estado:** 38 perguntas · **38 respondidas · 0 abertas.** O que resta são as **D2, D5, D7 e D8**, no
-[context-delivery.md](context-delivery.md).
+**Estado:** 38 perguntas · **38 respondidas · 0 abertas.** As **8 decisões de entrega de contexto
+(D1–D8)** também estão todas respondidas, no [context-delivery.md](context-delivery.md).
 
 **Rodada 4 (2026-08-17):** Q3.1, Q10, Q16, Q30 e Q37 fechadas. E o desenho de entrega de contexto foi
 **redesenhado por você**: índice injetado saiu, entrou *núcleo comportamental + skill + serviço
@@ -28,8 +28,9 @@ time; o que é da instância é do Lumem*.
 
 **Rodada 2 (2026-08-17):** **Q1 fechada em ACP** — a decisão de arquitetura mais cara do projeto, e
 a que mais muda este arquivo. Ela dissolve a restrição do §4 do PRD, reordena as fases, e reabre
-cinco perguntas que só existiam porque o daemon era cego: **Q19, Q20, Q21 e Q35** estão marcadas com
-o que muda em cada uma.
+quatro perguntas que só existiam porque o daemon era cego: **Q19, Q20, Q21 e Q35** estão marcadas com
+o que muda em cada uma. (O [§9.4 do estudo](../../project/pty-vs-acp.md) lista cinco porque conta
+também a própria Q1.)
 
 **Tags de origem:** `[cz]` compozy · `[hm]` hermes · `[×2]` levantada pelas duas de forma independente
 (sinal forte) · `[lm]` específica do Lumem-OS, sem precedente nas referências.
@@ -47,7 +48,7 @@ o que muda em cada uma.
 A sessão de agente é um `node-pty` rodando um CLI de terceiro. O daemon vê bytes de terminal com
 ANSI e spinner — não vê turno, não vê tool, não vê fim de raciocínio. O Compozy resolveu sendo dono
 do protocolo (ACP); o Hermes, sendo o agente. Não somos nenhum dos dois. As cinco saídas estão na
-tabela do [§4 do PRD](prd.md#4-a-restrição-que-decide-tudo).
+tabela do [§4 do PRD](prd.md#4-a-restrição-que-decidia-tudo--e-a-decisão-que-a-dissolveu).
 
 **Proposta pra reagir:** **MCP para escrever e buscar + arquivo gerado no checkout para ler**. Hooks
 do CLI entram depois, por CLI que suportar. Ler transcript de terceiro e trocar PTY por ACP ficam
@@ -74,7 +75,7 @@ contra este repositório. O resumo, para não precisar abrir o arquivo agora:
 
 A recomendação do arquivo é **não migrar agora e não fechar a porta**: MCP + injeção no lançamento
 agora, hooks por CLI depois se doer, e ACP como experimento fechado para um agente. As perguntas
-A1–A6 lá dentro são o que falta para fechar esta.
+TA1–TA6 lá dentro (as de **transporte**) são o que falta para fechar esta.
 
 **R (rodada 2):** Migrar para ACP.
 
@@ -89,9 +90,11 @@ O que isso faz com esta feature:
 - as tools de memória continuam sendo **MCP**, agora declaradas no `session/new`;
 - as fases foram reordenadas (§15 do PRD): as três primeiras são justamente as que **não** esperam o
   ACP, para a memória não ficar bloqueada atrás da maior feature do projeto;
-- entra um risco novo, que o spike da feature de ACP tem que medir antes da tela: autenticação por
-  assinatura, pool de billing e janela de contexto podem não ser os mesmos do binário oficial
-  (§9.2 do estudo).
+- entrou um risco novo — autenticação por assinatura, pool de billing e janela de contexto podiam não
+  ser os mesmos do binário oficial (§9.2 do estudo). O spike atacou os três nesta máquina:
+  **autenticação e consumo voltaram medidos e a favor da migração**, e a **janela voltou parcial** — nasce em 1M,
+  mas contexto cheio não foi exercitado, então a #786 segue aberta
+  ([§9.5 do estudo](../../project/pty-vs-acp.md)). O que sobra é o risco de política mais esse eixo.
 
 ---
 
@@ -124,12 +127,13 @@ sobrevive a `mv`. O Compozy grava um ULID em arquivo dentro do repo e resolve po
 root*.
 
 **Proposta pra reagir:** ULID em `<repo>/.lumem/project.toml` para projeto, e ULID no diretório do
-workspace no servidor. Refina a Q048 do projeto — se ela fechar diferente, esta segue.
+workspace no servidor. Refina a [Q043](../../project/questions.md) do projeto — se ela fechar
+diferente, esta segue.
 
 **R:** gostei da idéia mas com uma ressalva, não gostaria de guardar a memória do projeto dentro do projeto, isso pode se torna um tipo de conecimento que é do Lumem sobre o projeto, e se o usuário parar de usar o Lumem esse conhecimento vira um monte de arquivo perdido lá, acho melhor guardar as memórias do projeto no lumem por exemplo `~/.lumem/memory/<project>` ou coisa parecida.
 
-**Decisão (vale também para a [Q7](#-q7--memória-de-projeto-vive-dentro-do-repo-czhm-2) e a
-[Q8](#-q8--o-que-acontece-com-um-repo-que-você-não-pode-poluir-lm)):** **nenhuma memória vive dentro
+**Decisão (vale também para a [Q7](#x-q7--memória-de-projeto-vive-dentro-do-repo-czhm-2) e a
+[Q8](#x-q8--o-que-acontece-com-um-repo-que-você-não-pode-poluir-lm)):** **nenhuma memória vive dentro
 do repositório.** Tudo — projeto, workspace, você — fica sob `~/.lumem/`, gerenciado pelo Lumem, com
 interface própria. O §5 do PRD foi reescrito.
 
@@ -141,9 +145,9 @@ veio.
 
 | Perdido | Consequência |
 |---|---|
-| Versionamento por git | não dá para ver "quando essa memória mudou" pelo histórico do repo — quem passa a fazer isso é o WAL da [Q9](#-q9--wal-de-decisões-com-prior_content-e-revert-desde-o-v1-cz) |
+| Versionamento por git | não dá para ver "quando essa memória mudou" pelo histórico do repo — quem passa a fazer isso é o WAL da [Q9](#x-q9--wal-de-decisões-com-prior_content-e-revert-desde-o-v1-cz) |
 | Review em PR | memória errada não morre numa review de código. Morre na inbox, que agora é o único portão |
-| Herança pelo time | quem clonar o repo **não** recebe nada. O conhecimento é da sua máquina — ver [Q36](#-q36--se-o-conhecimento-não-vive-no-repo-como-ele-sai-da-sua-máquina-lm) |
+| Herança pelo time | quem clonar o repo **não** recebe nada. O conhecimento é da sua máquina — ver [Q36](#x-q36--se-o-conhecimento-não-vive-no-repo-como-ele-sai-da-sua-máquina-lm) |
 | "O conhecimento anda com o repo" | passa a andar com o Lumem. Backup e migração de máquina viram problema real, não teórico |
 
 E ganha-se: repositório limpo, um lugar só para olhar, funciona em repo de cliente, e desinstalar o
@@ -359,7 +363,7 @@ de ninguém.
 **Decisão:** fora do repo, sempre — o registro completo, com o que se perde, está na
 [Q3](#x-q3--qual-é-a-unidade-de-identidade-estável-do-workspace-e-do-projeto-cz). Consequência que
 ainda precisa de resposta: como a memória **chega** no agente sem um arquivo dentro do checkout
-([Q35](#-q35--como-a-memória-chega-no-cli-sem-escrever-nada-no-repositório-lm)).
+([Q35](#x-q35--como-a-memória-chega-no-cli-sem-escrever-nada-no-repositório-lm)).
 
 ---
 
@@ -463,7 +467,7 @@ O que isso compra, e é mais do que parece:
   histórico do git vira a auditoria *depois*.
 
 O que ele cobra, e precisa de resposta: sobreposição com o WAL
-([Q37](#-q37--git-no-lumem-e-o-wal-de-decisões-se-sobrepõem-quem-guarda-o-quê-lm)), e conflito quando
+([Q37](#x-q37--git-no-lumem-e-o-wal-de-decisões-se-sobrepõem-quem-guarda-o-quê-lm)), e conflito quando
 o mesmo diretório é sincronizado em duas máquinas.
 
 ---
@@ -637,7 +641,7 @@ como conveniência de edição manual.
 **R:** concordo
 
 **Decisão:** identidade `(tipo, slug)`, corpo inteiro substituído. É o que faz o shadow da
-[Q31](#-q31--contradição-entre-memórias-como-resolve-lm) e a proveniência (`superseded_by`)
+[Q31](#x-q31--contradição-entre-memórias-como-resolve-lm) e a proveniência (`superseded_by`)
 funcionarem — os dois dependem de uma memória ter nome estável.
 
 ---
@@ -895,7 +899,7 @@ consolidação vira LLM chutando o que importa.
 
 **Decisão:** sim, desde a fase 2. `recall_count`, `last_recalled_at` e o score do recall são o insumo
 objetivo de toda poda e de toda consolidação futura — e são o que ordena o índice quando ele estourar
-o teto de contagem ([context-delivery.md D6](context-delivery.md)).
+a marca d'água do núcleo sobe ([D5](context-delivery.md) — a D6, que falava de teto de índice, foi dissolvida junto com o índice).
 
 ---
 
@@ -963,9 +967,9 @@ desuso, com reativação por uso; apagar de verdade é sempre seu, e sempre reve
 
 **Decisão:** nada é apagado automaticamente. Memória decai em **relevância** (ranking, banner de
 frescor, shadow); playbook decai em **estado** (`stale` → sugestão de arquivar, nunca automático,
-[Q16](#-q16--como-o-lumem-mede-o-uso-de-um-playbook-se-ele-não-controla-o-agente-lm)). Apagar é
+[Q16](#x-q16--como-o-lumem-mede-o-uso-de-um-playbook-se-ele-não-controla-o-agente-lm)). Apagar é
 sempre ação sua — e reversível pelo histórico, que agora é git **e** WAL
-([Q37](#-q37--git-no-lumem-e-o-wal-de-decisões-se-sobrepõem-quem-guarda-o-quê-lm)).
+([Q37](#x-q37--git-no-lumem-e-o-wal-de-decisões-se-sobrepõem-quem-guarda-o-quê-lm)).
 
 ---
 

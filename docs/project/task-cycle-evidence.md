@@ -19,7 +19,7 @@ muda; o **anexo** é história de outro projeto e não se mexe.
 Lote fechado sem linha aqui é indistinguível de lote que nunca existiu. O mecanismo contra isso é um
 número só:
 
-> **Último commit coberto: `bd3e3f0`.**
+> **Último commit coberto: `4fcb7ec`.**
 
 `fd83053` fecha o lote `E1`, o primeiro medido. Antes dele, `6c620dc` era o fim do período **pré-skill**. As quatro features anteriores —
 `walking-skeleton`, `ui-shell`, `worktree-tabs`, `right-panel`, 79 commits — foram feitas antes da
@@ -42,12 +42,26 @@ O mecanismo se provou antes de completar um dia de vida: quando esta seção foi
 já devolvia o lote `E1`, que havia fechado enquanto o próprio arquivo era reescrito. Ele apareceu
 sem ninguém precisar lembrar, e virou a primeira linha da tabela.
 
-**Seis lotes medidos**, quatro deles com review de verdade. O perfil **crítico** tem três pontos —
-582k, 453k, 488k, média ≈508k, todos dentro de ±15% —, o **fronteira** tem um (466k), e o
-**desenho** um (239k). Para lote deste repositório, prefira estes números ao anexo herdado, dizendo
-o n. O que continua sem ponto amostral é a repartição por **estágio** que a §10 da skill promete:
-aqui só o total por lote é medido, porque é o que sai do relatório dos sub-agentes sem trabalho
-extra.
+**Onze lotes registrados, dez com número, nove com round de review.** Recalculado da tabela abaixo,
+não de memória — a versão anterior desta linha dizia "seis lotes" e "crítico ≈508k, todos dentro de
+±15%", e o passe a frio mostrou que a própria tabela já a refutava:
+
+| Perfil | n | Média | Espalhamento |
+|---|---|---|---|
+| **crítico** | 5 | **554k** | 453k a 693k — **−18% a +25%**, não ±15% |
+| **fronteira** | 2 | 646k | 466k e 825k — os dois pontos diferem 77% |
+| **lógica** | 1 | 728k | — |
+| **desenho** | 1 | 239k | — |
+| **declarativo** (docs) | 1 | ~171k *só o review* | — |
+
+Para lote deste repositório, prefira estes números ao anexo herdado, **dizendo o n e o
+espalhamento**. "Crítico custa ~554k" é útil; "crítico custa 554k ±15%" é falso. O que continua sem
+ponto amostral é a repartição por **estágio** que a §10 da skill promete: aqui só o total por lote é
+medido, porque é o que sai do relatório dos sub-agentes sem trabalho extra.
+
+> **Lição de manutenção, e ela é a razão desta caixa existir:** estes números viveram desatualizados
+> por cinco lotes porque a tabela cresce e o parágrafo-resumo não. Quem acrescentar linha na tabela
+> **recalcula aqui** — ou apaga a média e deixa só a tabela.
 
 ---
 
@@ -126,12 +140,88 @@ a tabela de lotes não tem tempo justamente porque o número não sobrevive à c
 | `file-editor` E9+E10 — autosave e conflito | **crítico** | `4ba7f24..bfc9c60` | 1 | 693k | 2 blockers + 6 warnings · **6 premissas derrubadas** |
 | `file-editor` E11 — CRUD na árvore | lógica | `b34050e..998b354` | 1 | 728k | 2 blockers + 7 warnings · 3 premissas derrubadas |
 | `file-editor` E12 — **o portão** | **crítico** | `7e526ff..bd3e3f0` | 1 | 554k | 0 blockers no spec · 3 warnings, 2 fora da feature |
+| revisão de docs da PR #4 | **declarativo** (documentação) | `3c94515..d7e27fa` | 1 (o primeiro review foi morto no meio e retomado) | ~171k só o review | 16 do revisor humano · **1 blocker + 4 warnings + 3 nits** do `lumem-reviewer` · **1 meu** (roadmap agendava spike já feito) · **1 autoinfligido** (abaixo) |
 
 Dois contadores, porque respondem a duas perguntas que a skill não consegue responder sozinha —
 *isto aqui é cerimônia?* — e custam um dígito cada:
 
-* **verificação independente do orquestrador:** 9 lotes, **1 refutação**
-* **passe a frio pós-lote:** 2 passes, **22 achados** que o orquestrador com contexto não via
+* **verificação independente do orquestrador:** 10 lotes, **1 refutação** — e, no lote de docs da PR
+  #4, **1 defeito causado pela própria verificação** (abaixo), mais **1 refutação parcial do próprio
+  revisor**: ele chamou `usage_update.size` de campo não confiável sem notar que a issue #596 está
+  marcada **fechada** no mesmo parágrafo que ele citou. O defeito que ele achou era real; a razão que
+  ele deu, em parte não
+* **passe a frio pós-lote:** 3 passes, **36 achados** que o orquestrador com contexto não via — o
+  terceiro, no lote de docs da PR #4, achou **14** depois de um review completo já ter passado, e um
+  deles era **blocker** (ver abaixo)
+
+### A bateria de mutação do orquestrador destruiu trabalho não commitado
+
+No lote de docs da PR #4 eu rodei a bateria de mutação da §7 da skill — *"quebre de propósito o que a
+asserção nova deveria pegar, veja vermelho, reverta sem commitar"* — sobre um working tree **que ainda
+não tinha commit**. O `git checkout <arquivo>` que reverte a mutação reverteu também as correções, em
+três dos doze arquivos, e apagou o trabalho de dez dos dezesseis achados.
+
+Deu para reconstruir porque o registro estava na conversa. Se não estivesse, o custo era refazer tudo.
+
+**A regra que faltava, e que a §7 deveria dizer explicitamente:** a mutação revertível por `git
+checkout` pressupõe que o trabalho **já esteja commitado**. Num lote onde a implementação ainda está
+no working tree, a ordem correta é **commitar primeiro, mutar depois** — o commit por task da §8 existe
+justamente para isso, e um lote sem `lumem-dev` (documentação editada pelo orquestrador) é exatamente
+o caso em que ninguém commitou nada ainda.
+
+Corolário barato: mutação sobre working tree sujo, quando inevitável, precisa de cópia fora do
+repositório antes — não de `git checkout` depois.
+
+**A §7 foi corrigida** neste lote (`d7e27fa`). Registro que não muda a instrução operante não impede o
+retorno — e foi o revisor que apontou que o registro, sozinho, tinha deixado a instrução de pé.
+
+### O número que este lote produziu: prosa não tem gate
+
+O revisor rodou **10 mutações** contra a documentação deste repositório. **As 10 sobreviveram.** Duas
+eram buracos do validador de links (título dentro de code fence, e `U+FE0F` descartado do slug) e foram
+consertadas. As **outras oito são afirmações de prosa**, e não têm conserto barato:
+
+| Mutação | Detectada? |
+|---|---|
+| "os três eixos medidos" → "os dois eixos medidos" | não |
+| `[Q043]` → `[Q048]` — reintroduz integralmente o achado 9 do revisor humano | não |
+| `### [x] Q019` → `### [ ] Q019` | não |
+| inverter a decisão da D8 no backlog | não |
+| "Os cinco gatilhos" → "Os três gatilhos" — reintroduz o achado 10 | não |
+| `claude` 2.1.234 → 9.9.999 (número de spike inventado) | não |
+| remover o `]` de fechamento de um nó mermaid | não — **mas este é gateável**, ver abaixo |
+| `CLAUDE.md` volta a contradizer o `docs/README.md` | não |
+
+Duas dessas mutações **recolocam achados que o revisor humano tinha reportado nesta mesma PR**, e nada
+avisaria. A consequência para a skill é direta: em lote de documentação, **a revisão adversarial não é
+um controle a mais — é o único**. Calibrar profundidade de review por "é só documentação" está errado
+por um motivo que agora tem número.
+
+**Com uma correção, feita pelo passe a frio:** o mermaid quebrado **não** é prosa. É erro de sintaxe, e
+o passe a frio o pegou rodando `mermaid@11.16.1` de verdade sob jsdom — 9 de 9 blocos deste repositório
+válidos, com o harness provado discriminante (tirar um `]` de `p2["02 portão"]` falha com
+`Expecting 'SQE'`). Agrupar mermaid com as afirmações de prosa subestimava o que dá para automatizar:
+**dois** dos dez eixos são gateáveis por máquina (links e mermaid), e ambos agora têm ferramenta.
+Sobram **oito** sem conserto barato.
+
+### O passe a frio achou o que o review não achou — inclusive uma mentira minha
+
+Depois de o `lumem-reviewer` fechar com round 1 e o rework ser aplicado, o passe a frio (§9.7) trouxe
+**14 achados**, um deles blocker. Os três que mais importam, porque nenhum é sobre estilo:
+
+| Achado | O que era |
+|---|---|
+| **blocker** | o commit do rework afirmava ter corrigido um fato **"em todos os seis lugares que o espelhavam"**. Corrigiu quatro. Dois — `acp-sessions/prd.md` §2.2 e o `Done when` da fase 0 — ficaram com `✅` e *"não se reproduziu"*, exatamente a afirmação que o review tinha rebaixado |
+| **warning** | a ressalva que eu adicionei à §7 desta skill mandava copiar o repo com `git archive HEAD`. **`git archive` arquiva o commit**, então para o único caso em que a ressalva existe — trabalho não commitado — a cópia sai sem o trabalho e a mutação testa nada. A correção que "consertava" o acidente o reproduzia por outro caminho |
+| **warning** | o validador de links não entrava em diretório oculto (`glob('**/*.md')`), então **19 arquivos sob `.claude/` nunca foram abertos** — incluindo o `SKILL.md` que este ciclo editou. E o fix de `U+FE0F` tinha sido feito por whitelist de categoria Unicode, o que quebrou **38 slugs**: o GitHub mantém o variation selector e **remove** o emoji base |
+
+**A lição operacional, e ela custou pouco para aprender aqui:** *"corrigi em todos os N lugares"* é uma
+afirmação verificável, e quem acabou de corrigir é a pessoa menos capaz de verificá-la. O review pegou o
+defeito original; o passe a frio pegou o **relato** sobre a correção. São dois controles diferentes, e o
+segundo não é redundante.
+
+Consequência para a §9.7: o passe a frio **não** é opcional depois de um round de rework que tocou fato
+espelhado em vários arquivos. É justamente aí que ele paga.
 
 **A verificação independente pagou o lote inteiro, e por um motivo que não estava previsto.** Não
 houve round de review: task de desenho não tem `Done when` verificável por teste, então o
@@ -146,9 +236,9 @@ Vale a distinção que a própria skill exige: isto **confirma** que verificaç�
 que review não acharia, e **não** confirma nada sobre o valor dela em lote de código — é n=1, num
 perfil que a §3 nem descreve. A hipótese 5 desta página previu esse buraco antes do lote fechar.
 
-**O que não dá para dizer deste lote:** nada sobre custo de review, porque não houve review; e nada
-sobre a repartição dev/review/rework, porque só o estágio de dev existiu. Os 239k são um dev de
-desenho sozinho, com renderização e leitura de PNG dentro.
+**O que não dá para dizer do lote `E1`** — o de protótipo, não o de docs logo acima: nada sobre custo
+de review, porque não houve review; e nada sobre a repartição dev/review/rework, porque só o estágio
+de dev existiu. Os 239k são um dev de desenho sozinho, com renderização e leitura de PNG dentro.
 
 **O primeiro lote de código: 2 rounds, e os dois se pagaram por motivos diferentes.** O round 1 achou um blocker que destruía a worktree — `.GIT` num filesystem insensível a caixa atravessava a recusa de `.git`, porque a última componente do caminho era a única coisa que nunca passava por `realpath`. O revisor não argumentou: pegou a saída da guarda, rodou contra um repositório de verdade e apagou o `.git` dele. **Nenhum dos 685 testes existentes podia ter pego isso, e o CI também não** — em `ubuntu-latest`, `.GIT` é outro nome e o caso não existe.
 

@@ -2077,6 +2077,16 @@ Cada item com o "por quê" em uma frase.
 
 Numeração continuando de `questions.md` (que vai até Q028), rodada **R2**.
 
+> **⚠️ Os números desta seção NÃO valem no `questions.md`.** Ao serem consolidadas lá, estas perguntas
+> foram **reordenadas por tema**, não apenas deslocadas — então não existe offset que converta um
+> número no outro. Exemplos medidos: a `Q048` daqui ("o que identifica um projeto") é a
+> **[Q043](../project/questions.md)** lá; a `Q029` daqui ("markdown autoritativo ou banco") é a
+> **[Q050](../project/questions.md)** lá.
+>
+> **Cite sempre pelo texto da pergunta, ou pelo número do
+> [questions.md](../project/questions.md)** — nunca pelo número deste arquivo. Citar daqui já produziu
+> uma referência errada que sobreviveu a uma revisão inteira (achado 9 da PR #4).
+
 ### Memória e aprendizado
 
 **Q029 — Markdown autoritativo ou banco autoritativo?**

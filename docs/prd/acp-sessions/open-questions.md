@@ -13,7 +13,8 @@ está lá, medido nas suas próprias transcrições.
 discordar dela é mais rápido que escrever do zero.
 
 > As decisões de **transporte** já estão fechadas em [pty-vs-acp.md](../../project/pty-vs-acp.md)
-> (A1–A6). Aqui é o que sobra: a **tela**, o modelo de sessão, e o que fazer com o que o protocolo
+> (**TA1–TA6** lá — prefixo `T` de transporte, para não colidir com as **A1–A12** deste arquivo).
+> Aqui é o que sobra: a **tela**, o modelo de sessão, e o que fazer com o que o protocolo
 > oferece a mais.
 
 ---

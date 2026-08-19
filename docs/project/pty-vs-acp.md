@@ -1,9 +1,9 @@
 # PTY ou ACP — como o Lumem-OS fala com o agente
 
-> **Status:** **DECIDIDO em 2026-08-17 — migrar para ACP. Discussão encerrada, A1–A6 respondidas.**
+> **Status:** **DECIDIDO em 2026-08-17 — migrar para ACP. Discussão encerrada, TA1–TA6 respondidas.**
 > O registro da decisão, o que ela obriga e o que ela derrubou estão no §9. Os §§1–7 ficam como
 > estavam: é o material que sustentou a escolha, inclusive a recomendação contrária, que perdeu.
-> **Não há gatilho formal de reabertura** (A6) — a garantia é o `transport` continuar sendo coluna.
+> **Não há gatilho formal de reabertura** (TA6) — a garantia é o `transport` continuar sendo coluna.
 > **Origem:** [Q1 da workspace-memory](../prd/workspace-memory/open-questions.md). **Responde** as
 > [Q002, Q029, Q030 e Q031 do projeto](questions.md).
 > **Por que existe:** a memória do workspace depende de o daemon **entender** a sessão, e hoje ele só
@@ -225,11 +225,19 @@ ensina nada, e o Lumem tem que **mostrar isso** em vez de fingir que aprendeu (�
 
 ## 8. Perguntas — todas respondidas
 
-> Sem apego ao CLI (A1), um agente no começo e mais depois (A2), permissão pelo Lumem é feature futura
-> (A3), adaptador de terceiro é aceitável (A4), hooks por CLI morreram com a decisão (A5), e **não há
-> gatilho formal de reabertura** (A6).
+> **Convenção de rótulo:** as perguntas **de transporte** deste arquivo são **TA1–TA6**. A faixa `A…`
+> já é usada por outros dois conjuntos — as **A1–A12** de
+> [acp-sessions](../prd/acp-sessions/open-questions.md), que são sobre a **tela**, e as premissas
+> travadas **A1–A10** de [workspace-memory/tasks.md](../prd/workspace-memory/tasks.md), que não são
+> perguntas. O prefixo `T` existe para o conjunto de transporte não colidir com nenhum dos dois.
 
-### [x] A1 — O terminal do agente é temporário ou é o produto?
+
+
+> Sem apego ao CLI (TA1), um agente no começo e mais depois (TA2), permissão pelo Lumem é feature futura
+> (TA3), adaptador de terceiro é aceitável (TA4), hooks por CLI morreram com a decisão (TA5), e **não há
+> gatilho formal de reabertura** (TA6).
+
+### [x] TA1 — O terminal do agente é temporário ou é o produto?
 
 Se um dia a tela do Lumem for melhor que a do CLI, o terminal vira legado. Se o valor está
 justamente em rodar **o CLI que você já usa, do jeito que ele é**, então ACP nunca é o caminho
@@ -239,7 +247,7 @@ principal — é no máximo um modo alternativo. Isso muda a resposta inteira.
 
 ---
 
-### [x] A2 — Quantos agentes diferentes você quer rodar de verdade?
+### [x] TA2 — Quantos agentes diferentes você quer rodar de verdade?
 
 Se são um ou dois, ACP é viável e hooks por CLI são baratos. Se você quer testar o que sai toda
 semana, PTY é a única coisa que escala — e a memória tem que funcionar no denominador comum.
@@ -273,7 +281,7 @@ conta)*.
 
 ---
 
-### [x] A3 — Você quer que o Lumem seja dono da política de permissão?
+### [x] TA3 — Você quer que o Lumem seja dono da política de permissão?
 
 Hoje quem pergunta "posso escrever neste arquivo?" é o CLI. Com ACP, quem pergunta é o Lumem — e aí
 dá para ter regra por projeto, negar escrita fora do checkout, e auditar. É um ganho real de produto,
@@ -283,7 +291,7 @@ e é o argumento mais forte a favor do ACP que não tem nada a ver com memória.
 
 ---
 
-### [x] A4 — Aceitar dependência de adaptador de terceiro?
+### [x] TA4 — Aceitar dependência de adaptador de terceiro?
 
 `claude-agent-acp` é da Zed, não da Anthropic. Se ele quebrar, o Lumem quebra junto e você não
 conserta. Com PTY, o binário oficial é o contrato.
@@ -292,7 +300,7 @@ conserta. Com PTY, o binário oficial é o contrato.
 
 ---
 
-### [x] A5 — Hooks por CLI: quantos você topa manter?
+### [x] TA5 — Hooks por CLI: quantos você topa manter?
 
 Um por CLI, cada um com modelo próprio de evento. Vale para 1 (Claude Code) e provavelmente não vale
 para 5.
@@ -325,7 +333,7 @@ queira que alimente a memória.
 
 ---
 
-### [x] A6 — Quando esta decisão volta para a mesa?
+### [x] TA6 — Quando esta decisão volta para a mesa?
 
 Proposta original: uma lista de gatilhos observáveis para não virar debate eterno — a tela ficar pior
 que o terminal, a Anthropic reativar a separação de pools, ou um agente sem adaptador.
@@ -349,8 +357,8 @@ o argumento registrado por ele:
 > *"é uma escolha complicada, mas é o melhor jeito de ter controle de várias features como a memória,
 > e outras que são futuro como consumo de token por projeto, por feature, e assim por diante."*
 
-O que sustentou: sem apego ao CLI (A1), adaptador de terceiro é aceitável (A4), e a política de
-permissão pelo Lumem é feature desejada, só que depois (A3).
+O que sustentou: sem apego ao CLI (TA1), adaptador de terceiro é aceitável (TA4), e a política de
+permissão pelo Lumem é feature desejada, só que depois (TA3).
 
 **A recomendação do §7 perdeu, e o motivo é legítimo.** Ela otimizava para reversibilidade e custo
 imediato; a decisão otimiza para o que o produto quer ser. O que o §7 dizia continua verdadeiro como
@@ -365,8 +373,8 @@ imediato; a decisão otimiza para o que o produto quer ser. O que o §7 dizia co
 | Captura de aprendizado | cooperativa (o agente tem que chamar a tool) | **estrutural** — turno, `tool_call`, arquivo escrito e `usage_update` chegam sozinhos |
 | Injeção de memória | flag no lançamento, ou arquivo fora do checkout | o Lumem monta o prompt: prepend no `session/prompt` e MCP declarado no `session/new` |
 | Custo por token | invisível | `usage_update` por turno → consumo por projeto, por worktree, por feature |
-| Permissão | do CLI | do Lumem, quando a A3 virar prioridade |
-| Agente sem adaptador ACP | funcionava | não entra na lista (ver A2) |
+| Permissão | do CLI | do Lumem, quando a TA3 virar prioridade |
+| Agente sem adaptador ACP | funcionava | não entra na lista (ver TA2) |
 
 **Consequência direta na feature de memória:** a frase *"captura vira cooperativa"*, que era o preço
 mais duro do §4 do PRD, **deixa de valer**. O daemon passa a saber quando o turno acabou, o que foi
@@ -396,7 +404,7 @@ Se voltar como foi desenhada, o desenho era: crédito mensal de US$ 100 no Max 5
 e depois disso *extra usage* — e o próprio time do Zed confirmou na issue #658 que *"usage in Zed via
 ACP (since we use the 'blessed' path of SDK usage) will count against this credit"*.
 
-**O dado que fecha a conta, e que já estava neste repositório:** o [Conductor](../references/conductor.md#1-o-que-é)
+**O dado que fecha a conta, e que já estava neste repositório:** o [Conductor](../references/conductor.md#1-visão-geral)
 — que o Vinicius usa **hoje**, no Max 5x — roda o Claude Code **via SDK**, não via TUI. O fundador
 disse na época do anúncio: *"If you're on a max subscription you get $200 in credits and then can pay
 at API costs — if you use Big Terminal Mode you won't be affected."*
@@ -447,7 +455,7 @@ Team e Enterprise nos modelos atuais.
 
 **Conclusão honesta:** não é "a janela encolhe no ACP". É *"a janela é a mesma engine e o mesmo
 arquivo de configuração, com um relato aberto de fallback e sem opção de config dedicada"*. Vira item
-mensurável do spike, não motivo para não migrar.
+mensurável do spike, não motivo para não migrar. **O spike cobriu isto só em parte** — ver §9.5.
 
 #### Saúde do adaptador
 
@@ -455,9 +463,10 @@ Apache-2.0, ~2.4 mil estrelas, **release quase diária** (v0.69.0 em 16/ago/2026
 `@anthropic-ai/claude-agent-sdk` de perto. 123 issues abertas — é um projeto vivo e ativo, não um
 `npx` abandonado. Isso não elimina o risco do §4.3 (um terceiro entre você e o agente); reduz.
 
-#### O que o spike tem que medir
+#### O que o spike tinha que medir
 
-Três respostas objetivas, antes de qualquer tela:
+Três respostas objetivas, antes de qualquer tela. **Duas voltaram medidas e uma voltou parcial** — o
+resultado, com o que cada uma prova e o que não prova, está no §9.5.
 
 1. **A assinatura autentica?** Rodar o adaptador, `/login`, e confirmar que a sessão sobe sem chave de
    API.
@@ -478,12 +487,39 @@ Migrar quer dizer: **ACP é o default e é onde o produto investe**. Não quer d
 
 ### 9.4 O que vem a seguir
 
-1. **Spike medido** dos três eixos do §9.2 — antes de qualquer tela.
-2. **PRD próprio** (`docs/prd/acp-sessions/`) para transporte + tela da conversa. É a maior feature
-   do projeto até aqui, e o desenho passa pelo protótipo HTML como todas as outras.
+1. **Spike medido** dos três eixos do §9.2 — **rodado** em 2026-08-17: autenticação e consumo
+   medidos, janela **parcial**. Resultado no §9.5.
+2. **PRD próprio** ([docs/prd/acp-sessions/](../prd/acp-sessions/prd.md)) para transporte + tela da
+   conversa — **escrito**, com as 12 perguntas respondidas. É a maior feature do projeto até aqui, e o
+   desenho passa pelo protótipo HTML como todas as outras.
 3. **Reescrever o §4 do PRD da memória**, que foi escrito assumindo cegueira — feito.
 4. As perguntas de memória que existiam **por causa** do PTY mudam de resposta: Q1, Q19, Q20, Q21 e
-   Q35. Está anotado em cada uma.
+   Q35 — quatro delas mais a própria Q1. Está anotado em cada uma.
+
+### 9.5 O resultado do spike
+
+Rodado em 2026-08-17 nesta máquina, contra `@agentclientprotocol/claude-agent-acp@0.69.0` com o
+`claude` 2.1.234. O detalhe, com os payloads, está no
+[§2 do PRD de acp-sessions](../prd/acp-sessions/prd.md). Os três eixos:
+
+| Eixo | Resultado | Evidência |
+|---|---|---|
+| **Autenticação** | ✅ a assinatura vale — sem chave de API | `initialize → authMethods: []` e `session/new` sem erro. O medo da issue #517 é da distribuição pela JetBrains, e não se aplica a adaptador instalado por você |
+| **Janela de contexto** | ⚠️ **parcial** — a sessão **nasce** em 1M | `currentValue: "opus[1m]"`, `default → "Opus (1M context)"`, e o turno reportou `size: 1000000` (campo confiável desde que a [#596](https://github.com/agentclientprotocol/claude-agent-acp/issues/596) fechou). **O que falta:** o §9.2 definiu que o único jeito de resolver a #786 era *encher contexto e ver onde a compactação dispara* — e o spike mediu um turno de 39.200 tokens, volume em que 200K e 1M se comportam igual. A #786 continua **aberta** upstream |
+| **Consumo** | ✅ sai da assinatura, e o protocolo entrega o estado do limite | `usage_update` com `rateLimitType: "seven_day"` — janela dos planos Max, não crédito de API — sem `ANTHROPIC_API_KEY` no ambiente. E vem `utilization`, `resetsAt` e `isUsingOverage` **por turno**, o que o `/usage` manual não dava |
+
+**O que isso fecha:** o §9.2 listava três riscos a medir. Autenticação e consumo voltaram **a favor
+da migração e com evidência direta**. A janela voltou **parcial**: a sessão nasce em 1M, o que basta
+para não bloquear a migração, mas *onde a compactação dispara* segue sem medida — e é isso que a #786
+descreve.
+
+**O que continua aberto, e não deve ser lido como fechado:**
+
+- **o risco de política do §9.2(b)** — a separação de pools pode voltar com aviso, e é por isso que o
+  §9.3 continua valendo: `transport` é coluna;
+- **o eixo 3 do §9.2(c)** — reproduzir ou descartar a #786 exige uma sessão que **chegue perto do teto
+  de contexto**. Barato de fazer junto com a primeira tela da ACP-1, caro de descobrir depois que o
+  orçamento de contexto da memória já foi desenhado em cima de 1M.
 
 ---
 

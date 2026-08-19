@@ -1,8 +1,9 @@
 # PRD — Memória de workspace e aprendizado contínuo
 
-> **Status:** v0.4 — **desenho em discussão**, nenhuma task escrita. Três rodadas de respostas aplicadas
-> **Perguntas:** [open-questions.md](open-questions.md) — 38, **todas respondidas**. O que resta são
-> quatro decisões de entrega de contexto (D2, D5, D7, D8)
+> **Status:** v0.4 — desenho fechado e decomposto em pilha de PRs. **PR 01 com tasks**; 02–05, S1 e
+> S2 com escopo e `Done when`
+> **Perguntas:** [open-questions.md](open-questions.md) — 38, **todas respondidas**. Mais as **8
+> decisões de entrega de contexto (D1–D8), todas respondidas**
 > **Execução:** [roadmap.md](roadmap.md) — a feature decomposta em pilha de PRs
 > **Discussão separada:** [context-delivery.md](context-delivery.md) — como a memória chega no agente,
 > a única decisão desta feature cujo custo é cobrado em todo turno
@@ -13,7 +14,7 @@
 > **Estudo derivado:** [PTY × ACP](../../project/pty-vs-acp.md), onde a decisão está registrada
 > **Referências:** [compozy](../../references/compozy.md) §5 · [hermes](../../references/hermes.md) §3–5
 > **Perguntas do projeto que esta feature responde:** [Q016–Q021](../../project/questions.md) e [Q050–Q066](../../project/questions.md)
-> **Sucede:** [file-editor](../file-editor/prd.md) · **Depende de:** `acp-sessions` (a desenhar) nas fases 4–6
+> **Sucede:** [file-editor](../file-editor/prd.md) · **Depende de:** [acp-sessions](../acp-sessions/prd.md) (PRD escrito, spike rodado) nas fases 4–6
 
 ---
 
@@ -135,7 +136,7 @@ O **(a)** sobrevive dentro do **(d)**: as tools de memória continuam sendo MCP,
 > do produto" — medido, é falso: o transporte é pequeno e isolado, o caro é a tela. E a v0.1 propunha
 > gerar um bloco dentro do `AGENTS.md`/`CLAUDE.md` **do checkout**; a decisão do §5 derrubou isso, e
 > com o ACP o problema deixa de existir — o Lumem monta o prompt, sem tocar em arquivo do repositório
-> ([Q35](open-questions.md#-q35--como-a-memória-chega-no-cli-sem-escrever-nada-no-repositório-lm)).
+> ([Q35](open-questions.md#x-q35--como-a-memória-chega-no-cli-sem-escrever-nada-no-repositório-lm)).
 
 ### 4.1 O que a decisão por ACP muda aqui
 
@@ -161,8 +162,12 @@ do §15 foram reordenadas por causa disso, e o §16 ganhou a dependência nova.
 assinatura normalmente** — é o que a Anthropic documenta e é a mesma categoria em que o Conductor já
 roda todo dia. A janela de contexto **não encolhe por ser ACP**: a compactação é do próprio Claude
 Code, e o 1M é o mesmo botão do CLI. O que sobra é um risco de política — a separação de pools foi
-anunciada e cancelada em 2026, e pode voltar com aviso — e um relato aberto de fallback para 200K que
-o spike tem que reproduzir ou descartar.
+anunciada e cancelada em 2026, e pode voltar com aviso. Sobra também o relato de fallback para 200K
+(issue #786): o spike confirmou que a sessão **nasce** em 1M, mas **não** exercitou contexto cheio,
+então onde a compactação dispara segue sem medida ([§9.5 do estudo](../../project/pty-vs-acp.md)). Para
+esta feature isso é o orçamento do [context-delivery](context-delivery.md): o núcleo **não tem teto**
+([D5](context-delivery.md)), então o controle é a marca d'água — e ela foi calibrada supondo 1M. Com
+200K reais, o que muda é o quanto a marca d'água pode subir antes de doer.
 
 ---
 
@@ -288,8 +293,8 @@ Identidade `(tipo, slug)`. O escopo mais específico **sombreia** o mais genéri
 
 > **Discussão própria:** [context-delivery.md](context-delivery.md). É a única decisão desta feature
 > cujo custo é **recorrente** — cobrado em todo turno de toda sessão —, e por isso ganhou arquivo
-> separado, com os quatro desenhos possíveis, o que o ACP muda, o que precisa ser medido, e seis
-> perguntas abertas (D1–D6).
+> separado, com os quatro desenhos possíveis, o que o ACP muda, o que precisa ser medido, e as **8
+> decisões (D1–D8), todas respondidas**.
 
 O resumo, para não precisar abrir o arquivo agora — **núcleo, skill e serviço**:
 
@@ -461,10 +466,10 @@ depois vira React.
 | **Envenenamento cruzado** | um agente errado ensina o workspace, e N projetos herdam o erro | escrita para cima é proposta; proveniência obrigatória; `revert` real; nenhum agente aprova a própria proposta |
 | **Prompt injection persistente** | você vai ler issue e PR de terceiro, e memória entra no system prompt | scan determinístico antes de persistir; conteúdo recuperado entra cercado e marcado como dado; scrubber no streaming |
 | **Vazamento entre projetos** | workspace com repo de cliente e repo pessoal | fronteira explícita no §11, fail-closed, auditada |
-| **Memória mentindo sobre o repo** | o código mudou e a memória não | banner de frescor; regra de não salvar o que se deriva lendo o repo; verificação de contrato contra o código, se a Q1 fechar em entidade |
-| **Degradar todo turno** | índice cresce e o contexto encolhe | teto por escopo; índice em vez de corpo; poda por uso |
+| **Memória mentindo sobre o repo** | o código mudou e a memória não | banner de frescor; regra de não salvar o que se deriva lendo o repo; verificação de contrato contra o código, se o item de **contrato-como-entidade** voltar do [backlog](../../project/backlog.md) |
+| **Degradar todo turno** | o núcleo cresce por acréscimo e o contexto encolhe | **marca d'água** medida e visível em vez de teto ([D5](context-delivery.md)); corpo no serviço em vez de injetado; poda por uso |
 | ~~Captura cooperativa não acontecer~~ — **morreu com a decisão por ACP** | era o risco de o agente nunca chamar a tool | a captura passa a ser estrutural (§4.1). O que sobra é medir e mostrar quantas sessões ensinaram algo, que continua valendo |
-| **Depender da feature maior do projeto** | as fases 4–6 esperam o ACP, que ainda nem tem PRD | as fases 1–3 foram escolhidas por não dependerem dele; se o ACP atrasar, a memória entrega o núcleo assim mesmo |
+| **Depender da feature maior do projeto** | as fases 4–6 esperam o ACP, que tem PRD mas ainda não tem código | as fases 1–3 foram escolhidas por não dependerem dele; se o ACP atrasar, a memória entrega o núcleo assim mesmo |
 | **A Anthropic reativar a separação de pools de billing** | anunciada para 15/jun/2026 e cancelada no mesmo dia, com promessa de retrabalhar e avisar antes (§9.2 do estudo) | `transport` continua sendo coluna: voltar uma sessão para PTY — o lado *first-party*, poupado — é config, não refactor |
 | **Segredo virar memória** | agente cola `.env` no que "aprendeu" | scan bloqueia; e o teste dessa regra é obrigatório |
 | **Auto-learn inventar e a invenção virar verdade** | o `lumem-memory` responde o que não sabe subindo um agente que pesquisa — e o resultado vira memória sem ninguém revisar | mesmo portão, `source_actor: auto_research`, evidência obrigatória, confiança baixa, marcada como **não verificada**, e escopo de workspace só como proposta ([context-delivery §5.2](context-delivery.md)) |
@@ -475,7 +480,14 @@ depois vira React.
 
 ## 15. Fases prováveis
 
-Sem tasks ainda — isto é a ordem de risco proposta para a discussão fechar em cima.
+Esta é a ordem de **risco**, e ela precede a decomposição. Quem vai executar deve ler o
+[roadmap.md](roadmap.md), que é a pilha de PRs real — com a **PR 01 em tasks** e as demais com escopo e
+`Done when` em [tasks.md](tasks.md).
+
+> **As duas decomposições não são um-para-um, e isto é deliberado.** A fase 1 daqui virou as PRs 01, 02
+> e 03 lá; o `auto-learn` (parte 08 do roadmap) não tem fase própria aqui; e o S1 e o S2 só existem no
+> roadmap, porque saíram de "ordem de risco" e entraram em "o que dá para paralelizar". Onde as duas
+> divergirem, **o roadmap ganha** — é ele que tem branch, base e `Done when`.
 
 | Fase | O quê | Por que aí | Depende de ACP? |
 |---|---|---|---|
@@ -499,12 +511,12 @@ autenticação, billing e janela de contexto — mas ele pertence à feature de 
 ## 16. Dependências
 
 - **Sessão de agente por ACP** — §4.1. Bloqueia as **fases 4, 5 e 6**; as três primeiras andam sem
-  ela. É a maior dependência que esta feature já teve, e ela virou feature própria a desenhar
-  (`docs/prd/acp-sessions/`, ainda não escrita).
+  ela. É a maior dependência que esta feature já teve, e ela virou feature própria, já desenhada
+  ([acp-sessions/prd.md](../acp-sessions/prd.md) — PRD escrito, spike rodado).
 - **Workspace como entidade real.** Existe na tabela (`packages/server/src/db/schema.ts`) e não tem
   identidade estável em disco. Memória amarrada a `id` de linha não sobrevive a nada; precisa de
   identificador durável que **não** more no repositório — a proposta é o hash do primeiro commit
-  ([Q3.1](open-questions.md), refina a Q048 do projeto).
+  ([Q3.1](open-questions.md), refina a [Q043](../../project/questions.md) do projeto).
 - **Projeto com identidade estável** — resolvido na [Q3.1](open-questions.md): `id` em
   `<repo>/.lumem/project.toml`, adotado se existir, gerado e escrito com sua permissão se não. O
   commit raiz e o remote continuam sendo usados, mas só para **detectar fork** — quando dois caminhos

@@ -70,8 +70,9 @@ worktree. É o sinal mais barato que existe e **nenhuma das quatro referências 
 ## B. Como o daemon fala com o agente
 
 > **Saiu daqui em 2026-08-17:** *transporte ACP*. Deixou de ser ideia adiada e virou **decisão**
-> ([pty-vs-acp.md §9](pty-vs-acp.md)) — a próxima feature a desenhar é `acp-sessions`: transporte
-> mais a tela da conversa. O que ficou no backlog é o que a decisão empurrou para depois **dela**.
+> ([pty-vs-acp.md §9](pty-vs-acp.md)) — e virou feature própria, [acp-sessions](../prd/acp-sessions/prd.md):
+> transporte mais a tela da conversa, com PRD escrito e spike rodado. O que ficou no backlog é o que a
+> decisão empurrou para depois **dela**.
 
 ### Política de permissão do lado do Lumem — `G`
 
@@ -226,11 +227,15 @@ um dia compartilhar memória de projeto, ou de contrato, entre pessoas do time �
 **De onde veio:** [workspace-memory Q3.1](../prd/workspace-memory/open-questions.md) · **Volta
 quando:** existir uma segunda pessoa usando Lumem no mesmo repositório.
 
-### `lumem-memory` lendo os repositórios para responder — `G`
+### `lumem-memory` lendo os repositórios — só a **capacidade ligada** ficou para depois — `M`
 
-O serviço começa respondendo **só a partir do acervo de memória**. Deixá-lo ler o código dos projetos
-do workspace responde muito mais — e o transforma num agente com acesso a disco atravessando a
-fronteira do §11 do PRD. Precisaria de capacidade declarada por projeto e registro de acesso.
+A D8 decidiu que ler os repositórios do workspace é **objetivo declarado, não "talvez"**. Por isso o
+**funil de acesso cross-projeto e o registro de acesso nascem na PR 03**
+([roadmap](../prd/workspace-memory/roadmap.md)) — com a capacidade **desligada**, porque adaptar
+depois seria retrabalho no lugar mais sensível do sistema.
+
+O que ficou aqui é só **ligar a capacidade**: declarar por projeto quais repositórios o serviço pode
+ler, e o serviço passar a responder a partir do código além do acervo.
 
 **De onde veio:** [context-delivery D8](../prd/workspace-memory/context-delivery.md) · **Volta
 quando:** a taxa de "não sei" do serviço for alta e o acervo, sozinho, não der conta.

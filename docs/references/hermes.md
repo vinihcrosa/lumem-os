@@ -19,6 +19,13 @@ o Hermes **é** o loop: ele fala com o LLM, executa as tools, mantém o contexto
 É o oposto arquitetural do Compozy (que possui estado e dirige CLIs alheios via ACP) e do Lumem-OS
 (que dirige CLIs por PTY).
 
+> **Nota, 2026-08-17 — este parágrafo descreve o desenho anterior do Lumem-OS.** A
+> [Q1 fechou em ACP](../project/pty-vs-acp.md): o Lumem passa a dirigir CLIs por **conversa
+> estruturada**, não por bytes de terminal. O PTY continua existindo para shell e como caminho
+> alternativo. O estudo abaixo foi escrito antes disso, e é justamente ele que forçou a decisão — vale
+> ler com essa lente: o que o §9 chama de "custa caro para quem não é dono do loop" ficou **mais
+> barato** depois do ACP.
+
 Essa diferença **é a razão de ler o Hermes**: como ele é dono do loop, ele consegue fazer coisas de
 aprendizado que nem o Compozy nem o Lumem-OS conseguem de graça — forkar a si mesmo depois de cada
 turno, contar turnos para cutucar o modelo, medir uso de cada skill. Metade das ideias boas daqui
@@ -154,7 +161,7 @@ recuperada é dado, e não pode nem instruir o modelo nem vazar para a tela como
 
 ## 4. Aprendizado — o loop fechado
 
-### 4.1 Os três gatilhos
+### 4.1 Os cinco gatilhos — dois de graça, três que gastam token
 
 | Gatilho | Quando | Custo |
 |---|---|---|
@@ -165,7 +172,8 @@ recuperada é dado, e não pode nem instruir o modelo nem vazar para a tela como
 | **Curator** | por inatividade, a cada `interval_hours` (7 dias) com ≥2h ocioso | uma chamada auxiliar, opcional |
 
 Note a diferença de vocabulário: **nudge não é captura** — é um lembrete determinístico, de custo
-zero, para o agente considerar salvar. Só o review e o curator gastam token.
+zero, para o agente considerar salvar. Os dois nudges são grátis; o flush, o review e o curator são os
+três que gastam token.
 
 ### 4.2 Background review — forkar a si mesmo
 
@@ -480,10 +488,14 @@ com ciclo de vida por uso do Hermes.
 ## 12. Perguntas que este estudo levanta
 
 Vão numeradas na feature ([workspace-memory/open-questions.md](../prd/workspace-memory/open-questions.md)),
-mas o resumo é este:
+mas o resumo é este. **Escritas antes da decisão por [ACP](../project/pty-vs-acp.md)** — as que
+supunham daemon cego estão marcadas.
 
-- Se o Lumem-OS **não** é dono do loop do agente (PTY dirigindo CLI), **quem** faz o papel do fork de
-  review? Hook do CLI, MCP, ou leitura do transcript no disco? *(é a pergunta que decide a feature)*
+- ~~Se o Lumem-OS **não** é dono do loop do agente (PTY dirigindo CLI), **quem** faz o papel do fork de
+  review? Hook do CLI, MCP, ou leitura do transcript no disco?~~ — **respondida em 2026-08-17 pela
+  [Q1](../project/pty-vs-acp.md): ACP.** Era a pergunta que decidia a feature, e decidiu. O daemon
+  passa a ver turno, `tool_call` e `usage_update` pelo protocolo; o papel do fork de review cabe ao
+  próprio daemon, sem hook nem leitura de transcript alheio.
 - Fato e procedimento são duas coisas no Lumem-OS, ou uma só? Se são duas, playbook de projeto vive
   no repo (e o time herda) ou no servidor?
 - O teto é em caracteres (Hermes) ou o índice é injetado e o corpo é sob demanda (Compozy)? Ou os

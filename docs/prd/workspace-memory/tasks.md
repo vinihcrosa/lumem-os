@@ -51,6 +51,8 @@ Cada uma vem de uma pergunta **respondida**. Implementar contra qualquer outra c
 | **P2** | Dois checkouts do mesmo repo em máquinas diferentes com o mesmo `project.toml` produzem o mesmo ID — é o que se quer, e é também o que permitiria memória compartilhada um dia | anotada, sem ação ([backlog](../../project/backlog.md)) |
 | **P3** | `git init` em `~/.lumem` numa máquina onde o usuário já tem outro git ali (por sincronia manual) | a T1 detecta repositório existente e **adota** em vez de reinicializar |
 | **P4** | Commit por mudança gera histórico verboso. Se incomodar, o passo seguinte é agrupar por transação, não parar de commitar | aberta, sem bloqueio |
+| **P5** | **A janela real de contexto no ACP não foi medida sob carga.** O spike provou que a sessão *nasce* em 1M, mas não encheu contexto, então a [#786](https://github.com/agentclientprotocol/claude-agent-acp/issues/786) segue aberta ([§9.5 do estudo](../../project/pty-vs-acp.md)). O orçamento do [context-delivery](context-delivery.md) e a marca d'água da [D5](context-delivery.md) foram calibrados supondo 1M | **aberta** — não bloqueia a PR 01, que não injeta nada. Bloqueia calibrar a marca d'água. Barato de medir junto com a primeira tela da ACP-1 |
+| **P6** | **A `acp-sessions` não tem `tasks.md`.** É a frente B recomendada agora ([roadmap §5–§7](roadmap.md)), e sem ela a ACP-1 não é executável pelo critério deste repositório | aberta, sem bloqueio para as PRs 01–05 |
 
 ---
 

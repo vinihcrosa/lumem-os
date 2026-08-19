@@ -4,8 +4,8 @@
 > o §5 é o que ele cobra e como fechar cada buraco. A proposta original (índice injetado + tool) foi
 > substituída pelo Vinicius por *núcleo comportamental + skill + serviço `lumem-memory`*. Escrito a
 > pedido da
-> [Q23](open-questions.md#-q23--índice-corpo-ou-os-dois-czhm-2), que absorveu também a
-> [Q24](open-questions.md#-q24--qual-é-o-teto-e-por-escopo-ou-total-hm) e o fluxo *lazy* levantado na
+> [Q23](open-questions.md#x-q23--índice-corpo-ou-os-dois-czhm-2), que absorveu também a
+> [Q24](open-questions.md#x-q24--qual-é-o-teto-e-por-escopo-ou-total-hm) e o fluxo *lazy* levantado na
 > [Q33](open-questions.md).
 >
 > **A pergunta:** memória só existe se chegar ao agente. Como ela chega — e quanto isso custa em
