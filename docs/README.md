@@ -2,7 +2,7 @@
 
 Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Em desenho fechado e decomposta em pilha de PRs, a primeira feature que não é de tela: [workspace-memory](prd/workspace-memory/prd.md) — o harness lembrar.
 
-> **Decisão de arquitetura, 2026-08-17:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por [ACP](project/pty-vs-acp.md)**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A feature [acp-sessions](prd/acp-sessions/prd.md) — transporte mais a tela da conversa — já tem PRD escrito e spike rodado: autenticação e consumo medidos, janela de contexto parcial.
+> **Decisão de arquitetura, 2026-08-17:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por [ACP](project/pty-vs-acp.md)**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A feature [acp-sessions](prd/acp-sessions/prd.md) — transporte mais a tela da conversa — já tem PRD escrito, spike rodado (autenticação e consumo medidos, janela de contexto parcial) e, desde 2026-08-19, **protótipo da conversa renderizado** em `packages/web/prototype/lumem-acp-conversation.html`.
 
 ---
 
@@ -119,16 +119,18 @@ Lumem**, e a memória chega ao agente como **serviço, não como texto injetado*
 
 ### [acp-sessions/](prd/acp-sessions/) — a sessão vira conversa
 
-**Desenho fechado, spike rodado — sem tasks ainda.** As 12 perguntas estão respondidas e o spike
-mediu autenticação e consumo (janela ficou parcial), mas a feature **não tem `tasks.md`**, então não
-está pronta para execução. A sessão de agente deixa de ser um terminal e passa a ser uma conversa
-estruturada por [ACP](project/pty-vs-acp.md). Destrava as partes 06–09 da memória, o custo por
-projeto e a política de permissão.
+**Pronta para execução — 18 tasks, nenhuma iniciada.** As 14 perguntas de desenho estão respondidas, o
+spike mediu autenticação e consumo (janela ficou parcial), e a **fase 2 está feita**: a conversa existe
+como protótipo HTML renderizado. A sessão de agente deixa de ser um terminal e passa a ser uma conversa
+estruturada por [ACP](project/pty-vs-acp.md). Destrava as partes 06–09 da memória, o custo por projeto e
+a política de permissão.
 
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/acp-sessions/prd.md) | O que o spike mediu — **autenticação e consumo nesta máquina**, e a janela só até "nasce em 1M" —, escopo do transporte e da tela, riscos, fases |
-| [open-questions.md](prd/acp-sessions/open-questions.md) | 12 perguntas, **todas respondidas** — inclusive o volume da transcrição, medido em 675 sessões reais |
+| [open-questions.md](prd/acp-sessions/open-questions.md) | 14 perguntas, **todas respondidas** — inclusive o volume da transcrição medido em 675 sessões reais. As duas últimas (**A13**, **A14**) nasceram no protótipo |
+| [tasks.md](prd/acp-sessions/tasks.md) | **18 tasks nas fases 1 e 3** do PRD: o transporte com agente falso, depois mensagem + ferramenta + permissão. Diz também por que a fase 3 não começa antes da 1 |
+| `packages/web/prototype/lumem-acp-conversation.html` | O protótipo da fase 2: seis telas — conversa, ferramenta, permissão, plano, uso, limites. Não é documentação, é o desenho executável; fica junto dos outros protótipos |
 
 ---
 

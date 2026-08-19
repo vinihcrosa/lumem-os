@@ -3,11 +3,16 @@
 Registro de por que cada decisão foi tomada. Pergunta respondida não vira suposição silenciosa: fica
 aqui, com o motivo.
 
-**Estado:** 12 perguntas · **12 respondidas · 0 abertas**
+**Estado:** 14 perguntas · **14 respondidas · 0 abertas**
 
 **Rodada 1 (2026-08-17):** dez seguiram a proposta. Duas não: a **A9** trocou o default de permissão
 para `auto` (e o §C registra o que isso cobra), e a **A6** pediu número antes de decidir — o número
 está lá, medido nas suas próprias transcrições.
+
+**Rodada 2 (2026-08-19):** o protótipo da fase 2 levantou duas perguntas que não existiam no papel
+— as duas só apareceram quando a tela foi renderizada de verdade: **A13** (a descrição do modo é
+string do agente, em inglês) e **A14** (interrompido não é nenhum dos quatro estados que o PRD lista).
+As duas seguiram a proposta, então a tela já está desenhada com a decisão dentro.
 
 **Como usar:** responda embaixo, no `**R:**`. Cada pergunta traz uma **proposta pra reagir** —
 discordar dela é mais rápido que escrever do zero.
@@ -266,3 +271,53 @@ adaptador que muda sozinho debaixo de uma sessão em andamento é a definição 
 
 **Decisão:** versão **fixa** no `agent_config` (hoje `@0.69.0`), atualização como ação sua. O spike já
 rodou contra versão fixa, então o número medido no PRD tem significado.
+
+---
+
+## E. O que o protótipo levantou
+
+> As duas perguntas desta seção nasceram na **fase 2** — o protótipo em
+> `packages/web/prototype/lumem-acp-conversation.html`. Nenhuma delas era visível lendo o PRD; as duas
+> apareceram ao olhar o pixel. O protótipo já mostra a proposta funcionando, então discordar aqui
+> custa uma rodada de CSS, não uma refatoração de React.
+
+### [x] A13 — Texto que vem do agente: cola como veio, ou traduz?
+
+O `configOptions` entrega `description` por opção, e vem em inglês: `"Use a model classifier to
+approve/deny permission prompts"`, `"Bypass all permission checks"`. O mesmo vale para
+`available_commands_update` e para os nomes de modo (`Accept Edits`, `Plan Mode`).
+
+O repositório fala português na interface. Mas esse texto **não é nosso** — é dado que o agente manda,
+e ele muda de versão para versão do adaptador.
+
+**Proposta pra reagir:** **colar como veio**, sem traduzir. Três motivos: traduzir cria uma tabela de
+tradução que envelhece a cada release do adaptador; o texto é a fonte da verdade sobre o que a opção
+faz, e uma tradução nossa que discorda dele é pior que inglês; e um agente que não é o Claude vai
+mandar outras strings, então a tabela nunca fecharia. O que é **nosso** — rótulo de campo, estado,
+mensagem de erro — continua em português.
+
+**R:** Concordo.
+
+**Decisão:** texto que vem do agente vai **verbatim**, sem tradução — `description` de
+`configOptions`, nome de modo, e a lista de `available_commands_update`. O que é do Lumem — rótulo de
+campo, estado de cartão, mensagem de erro, tudo que a tela inventa — continua em português. A fronteira
+é a origem do texto, não o idioma dele.
+
+---
+
+### [x] A14 — `stopReason: cancelled` é falha?
+
+O PRD lista quatro estados para o cartão de ferramenta: pendente, rodando, ok, falhou
+([F2.3](prd.md)). Interromper o turno não é nenhum dos quatro. No protótipo, pintar o cartão
+interrompido de vermelho ficou errado ao olhar: nada quebrou, **você** parou.
+
+**Proposta pra reagir:** um **quinto estado**, `tool/cancelled`, em neutro claro (`neutral/400`) — mais
+claro que `pendente` porque é estado **final** e final se nota, e sem cor de status porque não é nem
+sucesso nem falha. Consequência: o `stopReason` do protocolo passa a mapear para cinco estados, não
+quatro, e `session/cancel` deixa de produzir um cartão que parece bug.
+
+**R:** concordo.
+
+**Decisão:** **quinto estado**, `tool/cancelled` em `neutral/400`, já no `tokens.css`. `session/cancel`
+produz cartão neutro e final, não cartão vermelho. O mapa de `stopReason` para estado de cartão passa a
+ter cinco entradas, e `cancelled` é a única que não é nem sucesso nem falha.

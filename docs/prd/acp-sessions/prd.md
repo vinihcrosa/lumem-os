@@ -1,9 +1,11 @@
 # PRD — A sessão de agente vira conversa (ACP)
 
-> **Status:** v0.3 — **as 12 perguntas de desenho estão respondidas e o spike do §2 rodou**:
-> autenticação e consumo **medidos**, janela de contexto **parcial** — a sessão nasce em 1M, mas
-> contexto cheio não foi exercitado ([§9.5 do estudo](../../project/pty-vs-acp.md))
-> **Perguntas:** [open-questions.md](open-questions.md) — 12 de 12
+> **Status:** v0.4 — spike do §2 rodou e a **fase 2 (protótipo) está de pé**: as cinco superfícies
+> desenhadas e renderizadas em `packages/web/prototype/lumem-acp-conversation.html`. Autenticação e
+> consumo **medidos**, janela de contexto **parcial** — a sessão nasce em 1M, mas contexto cheio não
+> foi exercitado ([§9.5 do estudo](../../project/pty-vs-acp.md))
+> **Perguntas:** [open-questions.md](open-questions.md) — **14 de 14**
+> **Tasks:** [tasks.md](tasks.md) — 18 tasks nas fases 1 e 3, nenhuma iniciada
 > **Decisão que originou:** [pty-vs-acp.md](../../project/pty-vs-acp.md) — migrar para ACP, 2026-08-17
 > **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
 > **Sucede:** [file-editor](../file-editor/prd.md)
@@ -136,7 +138,8 @@ isso para o PTY e a lógica é a mesma.
 
 **F2.1** Renderizador de mensagem, com `agent_message_chunk` em streaming.
 **F2.2** Raciocínio (`agent_thought_chunk`) colapsado por padrão.
-**F2.3** **Cartão de chamada de ferramenta**, com estado (pendente, rodando, ok, falhou), alvo e
+**F2.3** **Cartão de chamada de ferramenta**, com estado (pendente, rodando, ok, falhou, e
+**interrompido** — o quinto estado que o protótipo obrigou a existir, [A14](open-questions.md)), alvo e
 resultado. É o elemento que substitui o "texto rolando" do terminal.
 **F2.4** **Diálogo de permissão** (`session/request_permission`). Sem ele o agente trava — é o único
 item da F2 que é bloqueante de verdade. O default é `auto` ([A9](open-questions.md)), e isso **não**
@@ -200,7 +203,7 @@ demais para justificar descartar o insumo da destilação de memória.
 
 | O quê | Por quê | Mitigação |
 |---|---|---|
-| A tela ficar pior que o terminal | é uma reimplementação de algo maduro | protótipo antes de React, como toda tela deste repo; e o PTY continua a um `transport` de distância |
+| A tela ficar pior que o terminal | é uma reimplementação de algo maduro | protótipo antes de React, como toda tela deste repo — **feito**, e ele já pagou: pegou medidor que nunca enchia, nome de arquivo atropelando o chip de estado a 360px, e comentário de diff a 3,44:1. E o PTY continua a um `transport` de distância |
 | Adaptador de terceiro quebrar | `claude-agent-acp` é da Zed, com release quase diária | pinar versão, e tratar erro de protocolo como falha de domínio visível — nunca silenciosa |
 | Billing mudar | anunciado e cancelado uma vez em 2026 | §2.3 mostra que hoje sai da assinatura, e o `transport` continua sendo a saída. O `_claude/rateLimit` por turno é o detector: `isUsingOverage` mudando de `false` é o aviso que chega antes da fatura |
 | Permissão travar a sessão | sem o diálogo, o agente espera para sempre — e com o default `auto` ele é acionado raramente, então quebra em silêncio | F2.4 é a primeira coisa da F2 a existir, **com teste próprio**; e o pedido fora da aba visível marca a aba e conta na sidebar |
@@ -215,7 +218,7 @@ demais para justificar descartar o insumo da destilação de memória.
 |---|---|---|
 | **0** | O spike | §2 — **rodado**: autenticação e consumo medidos, janela **parcial** (a #786 segue aberta) |
 | **1** | Transporte: `AcpManager`, `transport` na coluna, stream tipado, sem tela nova | Uma sessão ACP roda, responde, e os eventos chegam ao cliente (verificável por teste, não por olho) |
-| **2** | Protótipo HTML da conversa | As cinco superfícies desenhadas e renderizadas: mensagem, ferramenta, permissão, plano, uso |
+| **2** | Protótipo HTML da conversa | §2 — **rodado**: `lumem-acp-conversation.html`, seis telas, 99 pares de contraste validados. Abriu **A13** e **A14**, e três tokens novos de domínio (`tool/cancelled`, `syntax/comment-diff`, e o bloco `conversa`) |
 | **3** | A conversa em React: **mensagem + ferramenta + permissão**, e só ([A2](open-questions.md)) | Uma tarefa real roda do começo ao fim sem terminal |
 | **4** | Terminal embutido, plano, modos, modelos, comandos de barra, uso | Paridade funcional com o uso diário |
 | **5** | Retomar sessão (`session/load`), reconciliação no boot | Fechar o Lumem e voltar não perde conversa |
