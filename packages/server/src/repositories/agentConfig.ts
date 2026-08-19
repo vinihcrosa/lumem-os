@@ -14,11 +14,28 @@ import { withConstraints, type ConstraintMap } from "./base.js";
  * nothing in the daemon knows what "claude" is.
  */
 
+/**
+ * How the daemon talks to an agent.
+ *
+ * Not a free string: the daemon has exactly one manager per value, and a third
+ * value would be a configuration nothing can launch.
+ */
+export type AgentTransport = "pty" | "acp";
+
 export interface AgentConfigInput {
   name: string;
   command: string;
   args?: string[];
   env?: Record<string, string>;
+  /** Defaults to `pty`, so an existing caller keeps the behaviour it had. */
+  transport?: AgentTransport;
+  /**
+   * Required on `acp`, forbidden on `pty` — the same shape the CHECK enforces.
+   *
+   * Pinned, never `@latest` (A12): the adapter publishes almost daily, and one
+   * that changes underneath a running session fails invisibly.
+   */
+  adapterVersion?: string | null;
 }
 
 export interface AgentConfigRepository {
@@ -38,6 +55,7 @@ export const DEFAULT_AGENT_CONFIG: AgentConfigInput = {
   command: "claude",
   args: [],
   env: {},
+  transport: "pty",
 };
 
 function conflicts(name: string): ConstraintMap {
@@ -50,6 +68,17 @@ function conflicts(name: string): ConstraintMap {
       code: "IN_USE",
       message: "a configuração ainda está em uso por alguma sessão",
     },
+    // Without this the CHECK surfaces as a raw SQLite error, which reads as a
+    // daemon defect rather than as the one thing the caller got wrong.
+    "check:agent_config_adapter_version": {
+      code: "INVALID_ARGUMENT",
+      message:
+        "configuração ACP precisa de uma versão de adaptador fixa, e configuração PTY não pode ter uma",
+    },
+    "check:agent_config_transport": {
+      code: "INVALID_ARGUMENT",
+      message: "transporte precisa ser pty ou acp",
+    },
   };
 }
 
@@ -61,12 +90,12 @@ export function createAgentConfigRepository(db: Db): AgentConfigRepository {
   }
 
   return {
-    async create({ name, command, args = [], env = {} }) {
+    async create({ name, command, args = [], env = {}, transport = "pty", adapterVersion = null }) {
       const [row] = await withConstraints(
         () =>
           db
             .insert(agentConfig)
-            .values({ id: newId(), name, command, args, env })
+            .values({ id: newId(), name, command, args, env, transport, adapterVersion })
             .returning(),
         conflicts(name),
       );
@@ -125,6 +154,9 @@ export function createAgentConfigRepository(db: Db): AgentConfigRepository {
         command: DEFAULT_AGENT_CONFIG.command,
         args: DEFAULT_AGENT_CONFIG.args ?? [],
         env: DEFAULT_AGENT_CONFIG.env ?? {},
+        // Still PTY. The default configuration changes transport when the
+        // conversation can render one end to end, not when the column exists.
+        transport: DEFAULT_AGENT_CONFIG.transport ?? "pty",
       });
     },
   };

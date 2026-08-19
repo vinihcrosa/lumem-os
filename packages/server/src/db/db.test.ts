@@ -188,6 +188,190 @@ describe("referential integrity", () => {
   });
 });
 
+describe("transport", () => {
+  it("defaults an agent configuration to the transport that already worked", async () => {
+    // A11: nothing existing changes behaviour by being migrated. A row written
+    // without an opinion is a PTY row, because that is what it was.
+    const { db } = freshDatabase();
+    await db.insert(agentConfig).values({ id: newId(), name: "zsh-agent", command: "claude" });
+
+    const [row] = await db.select().from(agentConfig);
+
+    expect(row?.transport).toBe("pty");
+  });
+
+  it("rejects a transport the daemon has no manager for", async () => {
+    const { db } = freshDatabase();
+
+    await expect(
+      db.insert(agentConfig).values({
+        id: newId(),
+        name: "sse-agent",
+        command: "claude",
+        transport: "sse",
+      }),
+    ).rejects.toThrow(/CHECK/i);
+  });
+
+  it("refuses an ACP configuration with no pinned adapter version", async () => {
+    // F5.5 and A12: an adapter that changes under a running session is the
+    // definition of an invisible failure, so `@latest` is not expressible.
+    const { db } = freshDatabase();
+
+    await expect(
+      db.insert(agentConfig).values({
+        id: newId(),
+        name: "claude-acp",
+        command: "claude-agent-acp",
+        transport: "acp",
+      }),
+    ).rejects.toThrow(/CHECK/i);
+  });
+
+  it("accepts an ACP configuration that pins its adapter", async () => {
+    const { db } = freshDatabase();
+    await db.insert(agentConfig).values({
+      id: newId(),
+      name: "claude-acp",
+      command: "claude-agent-acp",
+      transport: "acp",
+      adapterVersion: "0.69.0",
+    });
+
+    const [row] = await db.select().from(agentConfig);
+
+    expect(row).toMatchObject({ transport: "acp", adapterVersion: "0.69.0" });
+  });
+
+  it("refuses a PTY configuration that pins an adapter it will never launch", async () => {
+    // A version on a PTY row is a claim about something that does not run, and
+    // the next reader would have no way to know it is noise.
+    const { db } = freshDatabase();
+
+    await expect(
+      db.insert(agentConfig).values({
+        id: newId(),
+        name: "claude-code",
+        command: "claude",
+        transport: "pty",
+        adapterVersion: "0.69.0",
+      }),
+    ).rejects.toThrow(/CHECK/i);
+  });
+
+  it("defaults a session to PTY and keeps its ACP fields empty", async () => {
+    const { db } = freshDatabase();
+    await db.insert(session).values({
+      id: newId(),
+      kind: "shell",
+      scopeType: "project",
+      scopeId: "p1",
+      cwd: "/repo",
+      command: "/bin/zsh",
+    });
+
+    const [row] = await db.select().from(session);
+
+    expect(row).toMatchObject({ transport: "pty", acpSessionId: null, mode: null, model: null });
+  });
+
+  it("refuses an ACP session with no ACP session id", async () => {
+    // D1: the row records what the session *is*, and an ACP session without the
+    // adapter's own id cannot be reconciled on the next boot.
+    const { db } = freshDatabase();
+    const configId = newId();
+    await db.insert(agentConfig).values({
+      id: configId,
+      name: "claude-acp",
+      command: "claude-agent-acp",
+      transport: "acp",
+      adapterVersion: "0.69.0",
+    });
+
+    await expect(
+      db.insert(session).values({
+        id: newId(),
+        kind: "agent",
+        agentConfigId: configId,
+        scopeType: "worktree",
+        scopeId: "w1",
+        cwd: "/w/t",
+        command: "claude-agent-acp",
+        transport: "acp",
+      }),
+    ).rejects.toThrow(/CHECK/i);
+  });
+
+  it("refuses a PTY session carrying an ACP session id", async () => {
+    const { db } = freshDatabase();
+
+    await expect(
+      db.insert(session).values({
+        id: newId(),
+        kind: "shell",
+        scopeType: "project",
+        scopeId: "p1",
+        cwd: "/repo",
+        command: "/bin/zsh",
+        transport: "pty",
+        acpSessionId: "d81b05ee",
+      }),
+    ).rejects.toThrow(/CHECK/i);
+  });
+
+  it("refuses a shell session on ACP", async () => {
+    // F1.2: a shell is always a PTY. There is no conversation to have with one.
+    const { db } = freshDatabase();
+
+    await expect(
+      db.insert(session).values({
+        id: newId(),
+        kind: "shell",
+        scopeType: "project",
+        scopeId: "p1",
+        cwd: "/repo",
+        command: "/bin/zsh",
+        transport: "acp",
+        acpSessionId: "d81b05ee",
+      }),
+    ).rejects.toThrow(/CHECK/i);
+  });
+
+  it("accepts an ACP agent session with the adapter's session id", async () => {
+    const { db } = freshDatabase();
+    const configId = newId();
+    await db.insert(agentConfig).values({
+      id: configId,
+      name: "claude-acp",
+      command: "claude-agent-acp",
+      transport: "acp",
+      adapterVersion: "0.69.0",
+    });
+    await db.insert(session).values({
+      id: newId(),
+      kind: "agent",
+      agentConfigId: configId,
+      scopeType: "worktree",
+      scopeId: "w1",
+      cwd: "/w/t",
+      command: "claude-agent-acp",
+      transport: "acp",
+      acpSessionId: "d81b05ee",
+      mode: "auto",
+      model: "opus[1m]",
+    });
+
+    const [row] = await db.select().from(session);
+
+    expect(row).toMatchObject({
+      transport: "acp",
+      acpSessionId: "d81b05ee",
+      mode: "auto",
+      model: "opus[1m]",
+    });
+  });
+});
+
 describe("state constraints", () => {
   it("rejects a worktree state the code cannot interpret", async () => {
     const { db } = freshDatabase();

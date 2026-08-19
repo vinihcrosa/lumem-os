@@ -67,16 +67,47 @@ export const worktree = sqliteTable(
   ],
 );
 
-export const agentConfig = sqliteTable("agent_config", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  command: text("command").notNull(),
-  /** JSON array. SQLite has no list type and a join table would buy nothing. */
-  args: text("args", { mode: "json" }).notNull().$type<string[]>().default([]),
-  /** JSON object of extra environment variables. */
-  env: text("env", { mode: "json" }).notNull().$type<Record<string, string>>().default({}),
-  ...timestamps,
-});
+export const agentConfig = sqliteTable(
+  "agent_config",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull().unique(),
+    command: text("command").notNull(),
+    /** JSON array. SQLite has no list type and a join table would buy nothing. */
+    args: text("args", { mode: "json" }).notNull().$type<string[]>().default([]),
+    /** JSON object of extra environment variables. */
+    env: text("env", { mode: "json" }).notNull().$type<Record<string, string>>().default({}),
+    /**
+     * How the daemon talks to this agent.
+     *
+     * Defaults to `pty` so that migrating an existing row changes nothing about
+     * how it behaves (A11): every configuration that already worked was a PTY
+     * configuration, and a default of `acp` would silently re-point it at a
+     * transport it was never tested on.
+     */
+    transport: text("transport").notNull().default("pty"),
+    /**
+     * The ACP adapter version, pinned.
+     *
+     * Never `@latest` (A12, F5.5). The adapter publishes almost daily, and one
+     * that changes underneath a running session is the definition of an
+     * invisible failure — so the version is data, and updating it is an act.
+     */
+    adapterVersion: text("adapter_version"),
+    ...timestamps,
+  },
+  (table) => [
+    check("agent_config_transport", sql`${table.transport} IN ('pty', 'acp')`),
+    // Both directions. An ACP row with no version cannot be launched
+    // reproducibly; a PTY row with one makes a claim about something it never
+    // runs, and the next reader has no way to tell that it is noise.
+    check(
+      "agent_config_adapter_version",
+      sql`(${table.transport} = 'acp' AND ${table.adapterVersion} IS NOT NULL)
+        OR (${table.transport} = 'pty' AND ${table.adapterVersion} IS NULL)`,
+    ),
+  ],
+);
 
 export const session = sqliteTable(
   "session",
@@ -99,6 +130,20 @@ export const session = sqliteTable(
     command: text("command").notNull(),
     state: text("state").notNull().default("running"),
     exitCode: integer("exit_code"),
+    /**
+     * What this session *is*, not what its configuration currently asks for.
+     *
+     * Denormalised from `agent_config` on purpose (D1): transport is chosen when
+     * the session is born and never changes, and boot reconciliation has to know
+     * which manager owns a row without going back to a configuration that may
+     * have been edited since.
+     */
+    transport: text("transport").notNull().default("pty"),
+    /** The adapter's own session id. Only an ACP session has one. */
+    acpSessionId: text("acp_session_id"),
+    /** Current permission mode and model, as the protocol reports them. */
+    mode: text("mode"),
+    model: text("model"),
     ...timestamps,
   },
   (table) => [
@@ -117,6 +162,19 @@ export const session = sqliteTable(
       "session_exit_code",
       sql`(${table.state} = 'running' AND ${table.exitCode} IS NULL)
         OR (${table.state} = 'exited')`,
+    ),
+    check("session_transport", sql`${table.transport} IN ('pty', 'acp')`),
+    // A shell is always a PTY (F1.2). There is no conversation to have with one,
+    // and letting the column say otherwise would put a shell in front of the
+    // conversation renderer.
+    check("session_shell_transport", sql`${table.kind} = 'agent' OR ${table.transport} = 'pty'`),
+    // Both directions again: an ACP session without the adapter's id cannot be
+    // reconciled after a restart, and a PTY session carrying one is claiming a
+    // conversation that does not exist.
+    check(
+      "session_acp_id",
+      sql`(${table.transport} = 'acp' AND ${table.acpSessionId} IS NOT NULL)
+        OR (${table.transport} = 'pty' AND ${table.acpSessionId} IS NULL)`,
     ),
   ],
 );

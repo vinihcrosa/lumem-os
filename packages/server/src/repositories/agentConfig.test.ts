@@ -203,3 +203,73 @@ describe("isCommandAvailable", () => {
     expect(isCommandAvailable("definitely-not-a-real-binary-xyz")).toBe(false);
   });
 });
+
+describe("transport", () => {
+  it("creates a PTY configuration when nothing asks otherwise", async () => {
+    // A11 again, one layer up: a caller written before transport existed keeps
+    // producing exactly the row it used to.
+    await withTestDb(async (db) => {
+      const repo = createAgentConfigRepository(db);
+
+      const row = await repo.create({ name: "zsh-agent", command: "claude" });
+
+      expect(row).toMatchObject({ transport: "pty", adapterVersion: null });
+    });
+  });
+
+  it("creates an ACP configuration with its adapter pinned", async () => {
+    await withTestDb(async (db) => {
+      const repo = createAgentConfigRepository(db);
+
+      const row = await repo.create({
+        name: "claude-acp",
+        command: "claude-agent-acp",
+        transport: "acp",
+        adapterVersion: "0.69.0",
+      });
+
+      expect(row).toMatchObject({ transport: "acp", adapterVersion: "0.69.0" });
+    });
+  });
+
+  it("refuses an ACP configuration with a floating adapter, as a domain error", async () => {
+    // The CHECK is the enforcement; this is about what the caller is told. A raw
+    // SQLite message reads as a daemon defect rather than as a fixable mistake.
+    await withTestDb(async (db) => {
+      const repo = createAgentConfigRepository(db);
+
+      await expect(
+        repo.create({ name: "claude-acp", command: "claude-agent-acp", transport: "acp" }),
+      ).rejects.toMatchObject({ code: "INVALID_ARGUMENT", message: /versão de adaptador fixa/ });
+    });
+  });
+
+  it("refuses a PTY configuration that pins an adapter, as a domain error", async () => {
+    await withTestDb(async (db) => {
+      const repo = createAgentConfigRepository(db);
+
+      await expect(
+        repo.create({
+          name: "claude-code",
+          command: "claude",
+          transport: "pty",
+          adapterVersion: "0.69.0",
+        }),
+      ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+    });
+  });
+
+  it("still seeds the default agent on PTY", async () => {
+    // The default moves to ACP when the conversation renders a task end to end,
+    // not when the column exists. Seeding it as `acp` now would point the one
+    // configuration everybody has at a screen that is not written yet.
+    await withTestDb(async (db) => {
+      const repo = createAgentConfigRepository(db);
+      await repo.seedDefaults();
+
+      const seeded = await repo.findByName(DEFAULT_AGENT_CONFIG.name);
+
+      expect(seeded).toMatchObject({ transport: "pty", adapterVersion: null });
+    });
+  });
+});
