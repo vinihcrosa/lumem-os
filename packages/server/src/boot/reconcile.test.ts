@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 import { newId } from "@lumem/shared";
@@ -12,7 +12,13 @@ import { createWorktreeRepository } from "../repositories/worktree.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createSessionRepository } from "../repositories/session.js";
 import { tempDir } from "../testing/git-fixtures.js";
+import { createTranscriptStore } from "../acp/TranscriptStore.js";
 import { reconcileOnBoot, reconcileOrphanSessions, reconcileWorktrees } from "./reconcile.js";
+
+/** A throwaway transcript directory, since boot now sweeps one. */
+function transcriptsDir(): string {
+  return tempDir("lumem-reconcile-transcripts-");
+}
 
 async function projectIn(db: Db, name = "lorebase"): Promise<string> {
   const workspace = await createWorkspaceRepository(db).create({ name: `ws-${name}` });
@@ -236,7 +242,7 @@ describe("reconcileOnBoot", () => {
   it("seeds the default agent configuration", async () => {
     // F6.4: a first boot that finished without it would show an empty menu.
     await withTestDb(async (db) => {
-      await reconcileOnBoot({ db });
+      await reconcileOnBoot({ db, transcriptsDir: transcriptsDir() });
 
       expect((await createAgentConfigRepository(db).list()).map((row) => row.name)).toEqual([
         "claude-code",
@@ -261,17 +267,59 @@ describe("reconcileOnBoot", () => {
         command: "/bin/sh",
       });
 
-      const report = await reconcileOnBoot({ db });
+      const report = await reconcileOnBoot({ db, transcriptsDir: transcriptsDir() });
 
       expect(report.worktrees.markedMissing).toBe(1);
       expect(report.orphanSessions).toBe(1);
     });
   });
 
+  it("sweeps the transcript of a session the registry no longer has", async () => {
+    /*
+     * The order inside `reconcileOnBoot` is what this really checks. A session the
+     * last daemon left `running` is marked exited first, which both makes it a
+     * candidate for the sweep and moves its timestamp — so the sweep sees it as
+     * freshly ended and leaves it warm, while a conversation with no row at all is
+     * deleted on the spot.
+     */
+    await withTestDb(async (db) => {
+      const dir = transcriptsDir();
+      const store = createTranscriptStore({ dir });
+      const projectId = await projectIn(db, "sweep");
+      const worktreeId = await registerPresent(db, projectId, "sweep");
+      const live = newId();
+      await createSessionRepository(db).create({
+        id: live,
+        kind: "shell",
+        scopeType: "worktree",
+        scopeId: worktreeId,
+        cwd: "/w",
+        command: "/bin/sh",
+      });
+      store.append(live, {
+        at: 1,
+        event: { type: "message", messageId: "m", role: "agent", text: "sobrevive" },
+      });
+      store.append("ninguem-me-quer", {
+        at: 1,
+        event: { type: "message", messageId: "m", role: "agent", text: "vai embora" },
+      });
+      store.close();
+
+      const report = await reconcileOnBoot({ db, transcriptsDir: dir });
+
+      expect(report.transcripts.dropped).toBe(1);
+      expect(report.transcripts.compressed).toBe(0);
+      expect(existsSync(join(dir, `${live}.db`))).toBe(true);
+      expect(existsSync(join(dir, "ninguem-me-quer.db"))).toBe(false);
+    });
+  });
+
   it("is idempotent across restarts", async () => {
     await withTestDb(async (db) => {
-      await reconcileOnBoot({ db });
-      await reconcileOnBoot({ db });
+      const dir = transcriptsDir();
+      await reconcileOnBoot({ db, transcriptsDir: dir });
+      await reconcileOnBoot({ db, transcriptsDir: dir });
 
       expect(await createAgentConfigRepository(db).list()).toHaveLength(1);
     });

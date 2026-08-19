@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 
 import type { FastifyBaseLogger } from "fastify";
 
+import { sweepTranscripts, type TranscriptSweepReport } from "../acp/transcript-maintenance.js";
 import type { Db } from "../db/index.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createSessionRepository } from "../repositories/session.js";
@@ -19,6 +20,17 @@ import { createWorktreeRepository } from "../repositories/worktree.js";
 export interface ReconcileOptions {
   db: Db;
   log?: Pick<FastifyBaseLogger, "info" | "warn">;
+}
+
+export interface ReconcileOnBootOptions extends ReconcileOptions {
+  /**
+   * Where conversations are kept (F5.4).
+   *
+   * Required rather than defaulted: the pass deletes transcripts the registry no
+   * longer owns, and a default would point that at whatever directory happened to be
+   * guessed. The daemon has the answer in its config and has to say it.
+   */
+  transcriptsDir: string;
 }
 
 export interface ReconcileReport {
@@ -84,17 +96,44 @@ export async function reconcileOrphanSessions({ db, log }: ReconcileOptions): Pr
 }
 
 /**
+ * The transcript directory, aligned with the registry (F5.4, D11).
+ *
+ * Runs *after* the orphan sessions are marked exited, and that order matters: a
+ * session the last daemon left `running` has to become `exited` before the pass can
+ * see it as a candidate at all, and marking it moves its timestamp so the pass then
+ * correctly leaves it warm.
+ */
+export async function reconcileTranscripts({
+  db,
+  transcriptsDir,
+  log,
+}: ReconcileOnBootOptions): Promise<TranscriptSweepReport> {
+  const sessions = await createSessionRepository(db).listAll();
+  return sweepTranscripts({
+    dir: transcriptsDir,
+    sessions: sessions.map((row) => ({
+      id: row.id,
+      state: row.state === "running" ? "running" : "exited",
+      updatedAt: row.updatedAt.getTime(),
+    })),
+    ...(log ? { log } : {}),
+  });
+}
+
+/**
  * Everything the daemon aligns before it accepts a connection.
  *
  * Seeding is part of it: F6.4 promises the Claude Code configuration exists,
  * and a first boot that finished without it would show an empty agent menu.
  */
-export async function reconcileOnBoot(options: ReconcileOptions): Promise<{
+export async function reconcileOnBoot(options: ReconcileOnBootOptions): Promise<{
   worktrees: ReconcileReport;
   orphanSessions: number;
+  transcripts: TranscriptSweepReport;
 }> {
   await createAgentConfigRepository(options.db).seedDefaults();
   const worktrees = await reconcileWorktrees(options);
   const orphanSessions = await reconcileOrphanSessions(options);
-  return { worktrees, orphanSessions };
+  const transcripts = await reconcileTranscripts(options);
+  return { worktrees, orphanSessions, transcripts };
 }

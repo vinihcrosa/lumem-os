@@ -47,6 +47,13 @@ export interface SessionRepository {
   findById(id: string): Promise<SessionRow | undefined>;
   listByScope(scopeType: ScopeType, scopeId: string): Promise<SessionRow[]>;
   listRunning(): Promise<SessionRow[]>;
+  /**
+   * Every session, whatever its state.
+   *
+   * For the boot pass over the transcript directory, which has to tell a
+   * conversation that belongs to nobody from one that is simply old.
+   */
+  listAll(): Promise<SessionRow[]>;
   listRunningInScope(scopeType: ScopeType, scopeId: string): Promise<SessionRow[]>;
   /** Idempotent: a process only exits once, but the news can arrive twice. */
   markExited(id: string, exitCode: number): Promise<void>;
@@ -115,6 +122,10 @@ export function createSessionRepository(db: Db): SessionRepository {
 
     listRunning() {
       return db.select().from(session).where(eq(session.state, "running"));
+    },
+
+    listAll() {
+      return db.select().from(session);
     },
 
     listRunningInScope(scopeType, scopeId) {

@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 
 import DatabaseCtor, { type Database } from "better-sqlite3";
 import type { FastifyBaseLogger } from "fastify";
@@ -30,6 +31,12 @@ import { DomainError } from "../errors.js";
  * not: WAL means three files where D10 promises one, and the point of one file is
  * that compressing and purging are file operations. Writers here are also a single
  * process appending in order, which is the case WAL exists to relax.
+ *
+ * **Cold files are gzipped whole** (D11). A conversation that has been over for a
+ * month is read rarely and never written, so the archive is the file itself with a
+ * `.gz` on the end — see `transcript-maintenance.ts` for who does it and when. This
+ * module is the half that has to not care: a read of an archived transcript
+ * decompresses into memory, and a write thaws it back onto disk first.
  *
  * **Append-only, and it shows.** There is no update and no delete — the only write
  * is an `INSERT`. A transcript that can be edited is not a record of what happened,
@@ -76,10 +83,26 @@ export interface TranscriptStoreOptions {
  */
 const SAFE_ID = /^[A-Za-z0-9_-]+$/;
 
+/** What an archived transcript is called. The maintenance pass writes these. */
+export const ARCHIVE_SUFFIX = ".gz";
+
+/** Puts an archived transcript back on disk, so it can be written to again. */
+function thaw(file: string, archive: string): void {
+  writeFileSync(file, gunzipSync(readFileSync(archive)));
+  rmSync(archive, { force: true });
+}
+
 export function createTranscriptStore({ dir, log }: TranscriptStoreOptions): TranscriptStore {
   mkdirSync(dir, { recursive: true });
 
   const open = new Map<string, Database>();
+  /**
+   * Sessions currently open from an archive, and therefore in memory.
+   *
+   * Tracked because a write to one of these would go nowhere: the handle is a
+   * deserialised copy, not a file. `append` uses this to thaw first.
+   */
+  const frozen = new Set<string>();
 
   function fileFor(sessionId: string): string {
     if (!SAFE_ID.test(sessionId)) {
@@ -93,6 +116,22 @@ export function createTranscriptStore({ dir, log }: TranscriptStoreOptions): Tra
     if (cached) return cached;
 
     const file = fileFor(sessionId);
+    const archive = `${file}${ARCHIVE_SUFFIX}`;
+
+    if (!existsSync(file) && existsSync(archive)) {
+      if (!create) {
+        // Read from a deserialised copy rather than thawing on the way past. A read
+        // that writes to disk is a surprise — a read-only volume, or a purge that
+        // races it, turns "show me the conversation" into a failure — and reopening
+        // an archived conversation is rare enough to pay a decompression for.
+        const db = new DatabaseCtor(gunzipSync(readFileSync(archive)));
+        open.set(sessionId, db);
+        frozen.add(sessionId);
+        return db;
+      }
+      thaw(file, archive);
+    }
+
     // Reading must not bring a file into existence: an empty transcript and a
     // conversation that was purged should both read as nothing, and neither should
     // leave a file behind for the maintenance pass to find.
@@ -113,6 +152,15 @@ export function createTranscriptStore({ dir, log }: TranscriptStoreOptions): Tra
 
   return {
     append(sessionId, entry) {
+      // An archived transcript is open in memory, where a write would be lost. Only
+      // reachable if something reads an old conversation and then writes to it, which
+      // resuming deliberately does not do — it writes under a new session id (D12).
+      if (frozen.has(sessionId)) {
+        open.get(sessionId)?.close();
+        open.delete(sessionId);
+        frozen.delete(sessionId);
+      }
+
       const db = handle(sessionId, true)!;
       db.prepare("INSERT INTO transcript (at, event) VALUES (?, ?)").run(
         entry.at,
@@ -146,7 +194,8 @@ export function createTranscriptStore({ dir, log }: TranscriptStoreOptions): Tra
       // The sidecars too. Nothing here opens WAL, but a crash mid-write can leave a
       // rollback journal, and a journal without its database is a file that outlives
       // every reference to it.
-      for (const suffix of ["", "-journal", "-wal", "-shm"]) {
+      frozen.delete(sessionId);
+      for (const suffix of ["", ARCHIVE_SUFFIX, "-journal", "-wal", "-shm"]) {
         rmSync(`${file}${suffix}`, { force: true });
       }
     },
@@ -154,11 +203,13 @@ export function createTranscriptStore({ dir, log }: TranscriptStoreOptions): Tra
     release(sessionId) {
       open.get(sessionId)?.close();
       open.delete(sessionId);
+      frozen.delete(sessionId);
     },
 
     close() {
       for (const db of open.values()) db.close();
       open.clear();
+      frozen.clear();
     },
   };
 }

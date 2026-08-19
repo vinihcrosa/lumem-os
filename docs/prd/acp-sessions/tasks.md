@@ -5,7 +5,7 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** fases 1, 3 e 4 **concluídas** (26 de 26). **Fase 5 em execução — 2 de 6.**
+**Status:** fases 1, 3 e 4 **concluídas** (26 de 26). **Fase 5 em execução — 3 de 6.**
 **Total:** 32 tasks nas fases 1, 3, 4 e 5 do PRD
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
@@ -761,20 +761,21 @@ clicado numa aba para reler algo.
 
 ---
 
-#### Q3: Comprimir o que ficou frio, e apagar o que ninguém quer
+#### Q3: Comprimir o que ficou frio, e apagar o que ninguém quer ✅
 
 **What**: Passe de manutenção no boot: comprime sessão fria, apaga transcrição órfã.
 **Where**: `packages/server/src/acp/transcript-maintenance.ts` + teste, `boot/reconcile.ts`
 **Depends on**: Q1
 
 **Done when**:
-- [ ] Sessão encerrada há mais de 30 dias tem o arquivo comprimido (D11), e a leitura descomprime sem o chamador saber
-- [ ] Sessão **viva** nunca é comprimida, qualquer que seja a idade da linha
-- [ ] Transcrição sem linha de sessão correspondente é apagada — é o que sobra de um purge de banco
-- [ ] Um arquivo que não abre não impede o passe de tratar os outros; conta como falha no relatório
-- [ ] O passe roda no boot, **antes de aceitar conexão**, como a reconciliação de worktree já faz
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 6 — comprime a fria, poupa a nova, poupa a viva, lê comprimida, apaga órfã, um arquivo ruim não para o passe
+- [x] Sessão encerrada há mais de 30 dias tem o arquivo comprimido (D11), e a leitura descomprime sem o chamador saber
+- [x] Sessão **viva** nunca é comprimida, qualquer que seja a idade da linha
+- [x] Transcrição sem linha de sessão correspondente é apagada — é o que sobra de um purge de banco
+- [x] Um arquivo que não abre não impede o passe de tratar os outros; conta como falha no relatório
+- [x] O passe roda no boot, **antes de aceitar conexão**, e **depois** da reconciliação de sessão órfã: marcar a órfã como `exited` é o que a torna candidata, e mexer no timestamp dela é o que a mantém quente por mais 30 dias — conservador na direção certa
+- [x] Ler um arquivo comprimido **não o descomprime em disco**; escrever nele descongela primeiro, para a escrita não cair num handle em memória
+- [x] Gate: `pnpm gate:quick` — 311 afetados verdes, 815 na suíte inteira do server
+- [x] Test count: **15** — comprime a fria, poupa a de ontem, poupa a viva, não comprime duas vezes, o arquivo encolhe de fato, lê comprimida, leitura não escreve, escrita descongela, `drop` leva o `.gz`, apaga órfã crua e comprimida, arquivo ilegível não para o passe, arquivo estranho ignorado, diretório inexistente, e o passe no `reconcileOnBoot`
 
 **Tests**: integration com filesystem de verdade · **Gate**: quick
 **Commit**: `feat(server): compress cold transcripts and drop orphaned ones`
