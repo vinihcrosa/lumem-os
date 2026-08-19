@@ -1,7 +1,7 @@
 import type { AcpConfigOption, AcpServerMessage, AcpTranscriptEntry } from "@lumem/shared";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { AwaitingPermissionProvider } from "../hooks/useAwaitingPermission.js";
 import type { AcpClientMessage } from "@lumem/shared";
@@ -565,5 +565,154 @@ describe("slash commands in the composer", () => {
     await user.keyboard("{Meta>}{Enter}{/Meta}");
 
     expect(socket.sent).toEqual([{ type: "prompt", text: "/gate" }]);
+  });
+});
+
+describe("a conversation that has ended", () => {
+  /**
+   * D13: reading is not resuming. Nothing is attached and nothing is launched — the
+   * transcript comes off the daemon's disk, and the composer is closed.
+   */
+
+  function readOnly(
+    transcript: AcpTranscriptEntry[] = [],
+    options: { onResume?: () => void; resuming?: boolean } = {},
+  ): { connects: number; loads: string[] } {
+    const connects: number[] = [];
+    const loads: string[] = [];
+
+    const connect = () => {
+      connects.push(1);
+      return new FakeSocket();
+    };
+    const load = (sessionId: string): Promise<AcpServerMessage> => {
+      loads.push(sessionId);
+      return Promise.resolve({ ...attached(transcript), state: "exited" } as AcpServerMessage);
+    };
+
+    render(
+      <AwaitingPermissionProvider>
+        <Conversation
+          sessionId="s-1"
+          live={false}
+          connect={connect}
+          load={load}
+          {...(options.onResume ? { onResume: options.onResume } : {})}
+          resuming={options.resuming ?? false}
+        />
+      </AwaitingPermissionProvider>,
+    );
+
+    return { connects: connects.length, loads };
+  }
+
+  it("shows the conversation without opening a socket", async () => {
+    // The whole point: an adapter costs ~39k tokens of system prompt before the first
+    // word, and clicking a tab to reread something must not spend that.
+    const { connects, loads } = readOnly([
+      entry({ type: "message", messageId: "m-1", role: "user", text: "o que eu perguntei" }),
+      entry({ type: "message", messageId: "m-2", role: "agent", text: "o que ele respondeu" }),
+    ]);
+
+    expect(await screen.findByText("o que ele respondeu")).toBeInTheDocument();
+    expect(screen.getByText("o que eu perguntei")).toBeInTheDocument();
+    expect(connects).toBe(0);
+    expect(loads).toEqual(["s-1"]);
+  });
+
+  it("closes the composer and says why", async () => {
+    readOnly();
+
+    const box = await screen.findByLabelText("mensagem para o agente");
+    expect(box).toBeDisabled();
+    expect(box).toHaveAttribute("placeholder", expect.stringContaining("terminou"));
+    expect(screen.getByRole("button", { name: /enviar/ })).toBeDisabled();
+  });
+
+  it("says the record ends here", async () => {
+    // An empty scroll and a finished conversation look the same otherwise.
+    readOnly();
+
+    expect(await screen.findByText("conversa encerrada")).toBeInTheDocument();
+  });
+
+  it("offers to resume, and only says so once asked", async () => {
+    const onResume = vi.fn();
+    readOnly([], { onResume });
+
+    const button = await screen.findByRole("button", { name: /retomar/ });
+    expect(onResume).not.toHaveBeenCalled();
+
+    await userEvent.click(button);
+
+    expect(onResume).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not offer to resume when the caller has nowhere to put the new session", async () => {
+    readOnly();
+
+    await screen.findByText("conversa encerrada");
+    expect(screen.queryByRole("button", { name: /retomar/ })).not.toBeInTheDocument();
+  });
+
+  it("says the resume is happening while it is", async () => {
+    readOnly([], { onResume: vi.fn(), resuming: true });
+
+    expect(await screen.findByRole("button", { name: /retomando/ })).toBeDisabled();
+  });
+
+  it("reports a read that failed instead of showing an empty conversation", async () => {
+    render(
+      <AwaitingPermissionProvider>
+        <Conversation
+          sessionId="s-1"
+          live={false}
+          connect={() => new FakeSocket()}
+          load={() => Promise.reject(new Error("a transcrição não abriu"))}
+        />
+      </AwaitingPermissionProvider>,
+    );
+
+    expect(await screen.findByText("a transcrição não abriu")).toBeInTheDocument();
+  });
+});
+
+describe("the mark between two conversations", () => {
+  it("draws a separator where the conversation was resumed", async () => {
+    // From the recorded event, so a replay puts it where the live client did (D12).
+    const { socket } = mount();
+
+    socket.deliver(
+      attached([
+        entry({ type: "message", messageId: "m-1", role: "agent", text: "de ontem" }),
+        entry({ type: "resumed", fromSessionId: "sessao-de-ontem" }),
+        entry({ type: "message", messageId: "m-2", role: "user", text: "de hoje" }),
+      ]),
+    );
+
+    await waitFor(() => expect(screen.getByText(/retomada/)).toBeInTheDocument());
+    expect(screen.getByText("de ontem")).toBeInTheDocument();
+    expect(screen.getByText("de hoje")).toBeInTheDocument();
+  });
+
+  it("keeps the two conversations apart instead of merging them", async () => {
+    /*
+     * Without its own turn the mark would be appended to whatever the agent was
+     * saying, and the last message of yesterday and the first of today would end up
+     * inside one frame — which reads as one uninterrupted answer.
+     */
+    const { socket } = mount();
+
+    socket.deliver(
+      attached([
+        entry({ type: "message", messageId: "m-1", role: "agent", text: "de ontem" }),
+        entry({ type: "resumed", fromSessionId: "sessao-de-ontem" }),
+        entry({ type: "message", messageId: "m-2", role: "agent", text: "de hoje" }),
+      ]),
+    );
+
+    await waitFor(() => expect(screen.getByText(/retomada/)).toBeInTheDocument());
+    // Two agent frames, not one: the separator broke the run.
+    expect(document.querySelectorAll(".turn--agent")).toHaveLength(2);
   });
 });

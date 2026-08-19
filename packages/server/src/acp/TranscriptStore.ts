@@ -49,6 +49,16 @@ export interface TranscriptStore {
   append(sessionId: string, entry: AcpTranscriptEntry): void;
   /** The whole conversation, in the order it was written. Empty if there is none. */
   read(sessionId: string): AcpTranscriptEntry[];
+  /**
+   * Copies one conversation to the front of another (D15).
+   *
+   * What resuming does with the record. The alternative — leaving the history where
+   * it was and walking the chain on every read — would make a session's transcript
+   * depend on files the registry is allowed to delete, and would put an `await` in
+   * the middle of the attach frame, which is the one place that must stay
+   * synchronous.
+   */
+  copy(fromSessionId: string, toSessionId: string): number;
   /** Erases the conversation. For purge, and for a session nobody wants back. */
   drop(sessionId: string): void;
   /**
@@ -187,6 +197,27 @@ export function createTranscriptStore({ dir, log }: TranscriptStoreOptions): Tra
       return entries;
     },
 
+    copy(fromSessionId, toSessionId) {
+      const source = handle(fromSessionId, false);
+      if (!source) return 0;
+
+      const rows = source
+        .prepare("SELECT at, event FROM transcript ORDER BY seq ASC")
+        .all() as { at: number; event: string }[];
+      if (rows.length === 0) return 0;
+
+      const target = handle(toSessionId, true)!;
+      const insert = target.prepare("INSERT INTO transcript (at, event) VALUES (?, ?)");
+      // One transaction: half a conversation is worse than none, because the missing
+      // half is invisible — the reader has no way to tell a short history from a
+      // truncated one.
+      target.transaction(() => {
+        for (const row of rows) insert.run(row.at, row.event);
+      })();
+
+      return rows.length;
+    },
+
     drop(sessionId) {
       const file = fileFor(sessionId);
       open.get(sessionId)?.close();
@@ -267,6 +298,12 @@ export function createMemoryTranscriptStore(): TranscriptStore {
     },
     read(sessionId) {
       return [...(sessions.get(sessionId) ?? [])];
+    },
+    copy(fromSessionId, toSessionId) {
+      const source = sessions.get(fromSessionId) ?? [];
+      if (source.length === 0) return 0;
+      sessions.set(toSessionId, [...(sessions.get(toSessionId) ?? []), ...source]);
+      return source.length;
     },
     drop(sessionId) {
       sessions.delete(sessionId);

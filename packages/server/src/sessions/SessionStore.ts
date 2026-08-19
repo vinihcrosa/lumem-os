@@ -2,6 +2,8 @@ import type { FastifyBaseLogger } from "fastify";
 
 import type { Db } from "../db/index.js";
 import type { EventBus } from "../events.js";
+import type { AcpServerMessage } from "@lumem/shared";
+
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import type { AcpManager } from "../acp/AcpManager.js";
@@ -55,6 +57,13 @@ export interface SessionStore {
    * one. The old row keeps its state and its transcript.
    */
   resume(id: string): Promise<SessionRow>;
+  /**
+   * A finished conversation, read from disk (F5.4, D13).
+   *
+   * The same frame the websocket sends on attach, so the client has one input rather
+   * than two shapes to reconcile — and nothing is launched to produce it.
+   */
+  transcript(id: string): Promise<AcpAttachedFrame>;
   close(id: string): Promise<void>;
   findById(id: string): Promise<SessionRow | undefined>;
   listByScope(scopeType: ScopeType, scopeId: string): Promise<SessionRow[]>;
@@ -68,6 +77,15 @@ export interface SessionStore {
    */
   trackExits(log?: Pick<FastifyBaseLogger, "warn">): () => void;
 }
+
+/**
+ * What an attaching client is sent, for a session that is not running.
+ *
+ * The websocket's own frame, not a shape of its own: the client rebuilds the view from
+ * one input either way, and two shapes would be two ways for the same conversation to
+ * look different.
+ */
+export type AcpAttachedFrame = Extract<AcpServerMessage, { type: "attached" }>;
 
 export interface SessionStoreOptions {
   db: Db;
@@ -226,6 +244,9 @@ export function createSessionStore({
         ...(config?.env && Object.keys(config.env).length > 0 ? { env: config.env } : {}),
         ...(config?.adapterVersion ? { adapterVersion: config.adapterVersion } : {}),
         acpSessionId: row.acpSessionId,
+        // What makes the new session's transcript self-contained (D15): the old
+        // conversation is copied in front of it, and the separator recorded after.
+        fromSessionId: row.id,
       });
 
       try {
@@ -249,6 +270,39 @@ export function createSessionStore({
         acpManager.kill(agent.id);
         throw error;
       }
+    },
+
+    async transcript(id) {
+      const row = await sessions.findById(id);
+      if (!row) throw new DomainError("NOT_FOUND", `sessão ${id} não existe`);
+      if (row.transport !== "acp") {
+        throw new DomainError("BLOCKED", "um shell não tem conversa: o que ele tem é scrollback");
+      }
+      if (!acpManager) {
+        throw new DomainError(
+          "INVALID_ARGUMENT",
+          "esta instância não sabe ler conversa ACP: nenhum AcpManager foi ligado",
+        );
+      }
+
+      return {
+        type: "attached" as const,
+        sessionId: row.id,
+        state: row.state === "running" ? ("running" as const) : ("exited" as const),
+        acpSessionId: row.acpSessionId ?? "",
+        model: row.model ?? "",
+        mode: row.mode ?? "",
+        /*
+         * Empty, and honestly so.
+         *
+         * The selectors are the *agent's* answer to what it offers, and there is no
+         * agent here. The row remembers which model and mode were in effect (D9) and
+         * those are shown; a list of choices nobody can choose from would be an
+         * interface offering something it cannot do.
+         */
+        configOptions: [],
+        transcript: [...acpManager.storedTranscript(row.id)],
+      };
     },
 
     async close(id) {

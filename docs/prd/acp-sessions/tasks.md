@@ -5,7 +5,7 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** fases 1, 3 e 4 **concluídas** (26 de 26). **Fase 5 em execução — 4 de 6.**
+**Status:** fases 1, 3 e 4 **concluídas** (26 de 26). **Fase 5 em execução — 5 de 6.**
 **Total:** 32 tasks nas fases 1, 3, 4 e 5 do PRD
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
@@ -732,6 +732,21 @@ sabe desenhar.
 
 ---
 
+#### D15 — Retomar copia a transcrição para frente
+
+A conversa antiga é **copiada** para o arquivo da sessão nova, e só então a nova escreve.
+A alternativa — deixar o histórico onde está e andar a cadeia de `resumed_from_id` a cada
+leitura — teria dois custos, e os dois batem em promessas já feitas: a transcrição de uma
+sessão passaria a depender de arquivos que o registro tem o direito de apagar (contra a
+D10), e o `attached` precisaria de um `await` no meio, quando ele é justamente o lugar que
+tem de ser síncrono para não abrir buraco entre transcrição e stream.
+
+Custo nomeado: uma conversa retomada guarda o histórico duas vezes, e uma corrente de
+retomadas multiplica isso. Aceitável porque retomar é raro, o arquivo antigo esfria e é
+comprimido, e um purge da linha antiga apaga a cópia antiga sem estragar a nova.
+
+---
+
 #### Q1: A transcrição em disco ✅
 
 **What**: Um SQLite por sessão, com a transcrição inteira, append-only.
@@ -818,21 +833,24 @@ sabe desenhar.
 
 ---
 
-#### Q5: A aba que reabre, e o botão que retoma
+#### Q5: A aba que reabre, e o botão que retoma ✅
 
 **What**: Reabrir uma sessão encerrada mostra a conversa; retomar é explícito (D13).
 **Where**: `packages/web/src/components/Conversation.tsx`, `packages/server/src/acp/websocket.ts`, `packages/web/src/hooks/useWorktreeTabs.ts` + testes, `conversation.css`
 **Depends on**: Q4
 
 **Done when**:
-- [ ] Aba de sessão ACP encerrada abre em **leitura**: a conversa inteira, composer desabilitado, dizendo que acabou
-- [ ] Nenhum adaptador sobe por reabrir — subir custa ~39k tokens antes da primeira palavra (D13)
-- [ ] Um botão **retomar** que cria a sessão nova e troca a aba para ela
-- [ ] O separador de retomada do protótipo (`.daysep`) marca onde a conversa antiga termina e a nova começa
-- [ ] Sessão encerrada continua listada e reabrível pelo `reopen` que já existe
-- [ ] O CSS de `.daysep` entra agora
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 6 — leitura, composer travado, botão retoma, separador, PTY sem botão
+- [x] Aba de sessão ACP encerrada abre em **leitura**: a conversa inteira, composer desabilitado, dizendo que acabou
+- [x] Nenhum adaptador sobe por reabrir — subir custa ~39k tokens antes da primeira palavra (D13)
+- [x] `session.transcript` no router devolve **o mesmo frame `attached`** que o websocket manda, então o cliente tem uma entrada só e não duas formas de a mesma conversa parecer diferente
+- [x] Um botão **retomar** que cria a sessão nova e troca a aba para ela — a seleção acontece no `onSuccess`, porque aba só existe para sessão que a lista conhece
+- [x] O separador de retomada (`.daysep`) marca onde a conversa antiga termina e a nova começa, desenhado a partir do **evento gravado** e não da coluna `resumed_from_id` — assim ele cai no mesmo lugar no replay e ao vivo
+- [x] `resumed` é **turno próprio**, não bloco: como bloco entraria na moldura de quem falou, recuado sob a calha, como se alguém tivesse dito
+- [x] Sessão encerrada continua listada e reabrível pelo `reopen` que já existia
+- [x] O CSS de `.daysep` entra agora, e a lista "o que ele deliberadamente não carrega" do teste de porte **esvaziou** — foi retirada com a nota do porquê
+- [x] Descoberto: o composer também trava numa sessão que **morreu com a aba aberta** — o daemon lembra da conversa encerrada, então o socket conecta e reporta `exited`. Os dois casos são a mesma coisa para o composer
+- [x] Gate: `pnpm gate:quick` — 1.553 testes verdes; `pnpm gate:build` também
+- [x] Test count: **17** — 7 de leitura no componente (mostra sem abrir socket, composer travado com motivo, fim do registro, oferece retomar, não oferece sem quem receba, diz que está retomando, leitura que falhou), 2 do separador, 3 no modelo (turno próprio, carimbo do daemon, mantém plano e consumo), 4 na transcrição do store, 1 no `resumed` do store
 
 **Tests**: componente + integration do endpoint · **Gate**: quick
 **Commit**: `feat(web): reopen a finished conversation, and offer to resume it`

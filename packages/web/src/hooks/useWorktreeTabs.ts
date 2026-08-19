@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { sessionsKey } from "../lib/queryKeys.js";
+import { trpc } from "../lib/trpc.js";
 import { useSessionsByScope, type Scope } from "./useSessionsByScope.js";
 
 export interface SessionTab {
@@ -36,6 +40,16 @@ export interface WorktreeTabs {
   close(sessionId: string): void;
   /** Brings an exited session back as a tab, for as long as its buffer lives. */
   reopen(sessionId: string): void;
+  /**
+   * Continues a finished ACP conversation in a new session (F5.2, D12).
+   *
+   * The new session is what the tab switches to: `session/load` starts a new adapter
+   * rather than reviving the old one, so there are two rows and only one of them can
+   * be talked to.
+   */
+  resume(sessionId: string): void;
+  /** The session a resume is in flight for, or null. */
+  resuming: string | null;
   sessions: ReturnType<typeof useSessionsByScope>;
 }
 
@@ -53,6 +67,7 @@ export interface WorktreeTabs {
  */
 export function useWorktreeTabs(scope: Scope): WorktreeTabs {
   const sessions = useSessionsByScope(scope);
+  const queryClient = useQueryClient();
   const [activeId, setActiveId] = useState<string | null>(null);
   /** Exited sessions the user asked to see again, and ones they dismissed. */
   const [reopened, setReopened] = useState<ReadonlySet<string>>(new Set());
@@ -126,5 +141,36 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
     setActiveId(sessionId);
   }, []);
 
-  return { tabs, activeId, select, close, reopen, sessions };
+  /*
+   * The new session is selected in `onSuccess`, not optimistically.
+   *
+   * A tab only exists for a session the list knows about, so selecting an id before the
+   * refetch would set an active tab that is not in `tabs` — and the effect above would
+   * immediately bounce the selection back to the context tab.
+   */
+  const resumption = useMutation({
+    mutationFn: (sessionId: string) => trpc.session.resume.mutate({ id: sessionId }),
+    onSuccess: async (row) => {
+      await queryClient.invalidateQueries({
+        queryKey: sessionsKey(scope.scopeType, scope.scopeId),
+      });
+      setActiveId(row.id);
+    },
+  });
+
+  const resume = useCallback(
+    (sessionId: string) => resumption.mutate(sessionId),
+    [resumption],
+  );
+
+  return {
+    tabs,
+    activeId,
+    select,
+    close,
+    reopen,
+    resume,
+    resuming: resumption.isPending ? (resumption.variables ?? null) : null,
+    sessions,
+  };
 }

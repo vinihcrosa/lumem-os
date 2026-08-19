@@ -15,6 +15,15 @@ export interface SessionTabPanelProps {
   active: boolean;
   /** A file or a patch being read beside this session, or null (D3.2). */
   viewer?: ReactNode | null;
+  /**
+   * Offers to continue a finished conversation (F5.2).
+   *
+   * Passed down rather than called here: resuming creates a *new* session, and the tab
+   * strip is what can switch to it.
+   */
+  onResume?: () => void;
+  /** True while this session's resume is in flight. */
+  resuming?: boolean;
 }
 
 /**
@@ -31,6 +40,8 @@ export function SessionTabPanel({
   cwd,
   active,
   viewer = null,
+  onResume,
+  resuming = false,
 }: SessionTabPanelProps) {
   const agent = tab.kind === "agent";
   const conversation = tab.transport === "acp";
@@ -77,7 +88,15 @@ export function SessionTabPanel({
           PTY agent keeps exactly the terminal it had.
         */}
         {tab.transport === "acp" ? (
-          <Conversation key={tab.sessionId} sessionId={tab.sessionId} />
+          <Conversation
+            key={tab.sessionId}
+            sessionId={tab.sessionId}
+            // A finished conversation opens in read mode: the transcript comes off the
+            // daemon's disk and no adapter is launched (D13).
+            live={tab.state === "running"}
+            {...(onResume ? { onResume } : {})}
+            resuming={resuming}
+          />
         ) : (
           <Terminal key={tab.sessionId} sessionId={tab.sessionId} />
         )}

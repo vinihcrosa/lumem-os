@@ -342,6 +342,17 @@ export const acpEventSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("turn_end"), stopReason: acpStopReasonSchema }),
   /**
+   * The conversation was picked up again in a new adapter (F5.2, D12).
+   *
+   * An event rather than a flag on the attach frame, for the same reason everything
+   * else here is: the separator the client draws has to appear in the same place when
+   * the transcript is replayed as it did when it happened live, and the only thing
+   * that guarantees that is being part of the stream. `fromSessionId` is the session
+   * that ended — ours, not the adapter's, because it is what the user can go and look
+   * at.
+   */
+  z.object({ type: z.literal("resumed"), fromSessionId: z.string() }),
+  /**
    * An event the daemon received and could not name.
    *
    * A deliberate shape, not a hole: the daemon produces it after failing to

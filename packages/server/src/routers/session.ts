@@ -130,6 +130,17 @@ export const sessionRouter = router({
     ),
 
   /**
+   * A finished conversation, without launching anything (D13).
+   *
+   * Reading is not resuming. Standing up an adapter costs ~39k tokens of system prompt
+   * before the first word (§2.3 of the PRD), and nobody should pay that for clicking a
+   * tab to reread something.
+   */
+  transcript: publicProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .query(({ ctx, input }) => domainSafeAsync(() => ctx.sessionStore.transcript(input.id))),
+
+  /**
    * Continues a conversation that has ended (F5.2, D12).
    *
    * Returns the **new** session, which is what the tab has to switch to: the old row

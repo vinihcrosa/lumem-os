@@ -61,6 +61,14 @@ export interface AcpResumeOptions extends AcpSpawnOptions {
    * and the row that died is where that name was kept.
    */
   acpSessionId: string;
+  /**
+   * The session that ended, ours (D12, D15).
+   *
+   * Given, not derived: the manager knows the adapter's id for the conversation and
+   * nothing about the registry. With it, the record of the old conversation is copied
+   * forward and the new transcript is self-contained.
+   */
+  fromSessionId?: string;
 }
 
 export interface AcpSessionInfo {
@@ -291,6 +299,29 @@ export class AcpManager {
     }
 
     this.sessions.set(session.info.id, session);
+
+    /*
+     * The old record is copied forward before anything new is written (D15), so the
+     * order on disk is the order on screen: yesterday's conversation, the separator,
+     * then today's.
+     *
+     * A failure here loses the history and not the session, so it is logged and the
+     * conversation goes on — the same trade `emit` makes about a write that fails.
+     */
+    if (options.fromSessionId !== undefined) {
+      try {
+        this.transcripts.copy(options.fromSessionId, session.info.id);
+      } catch (error) {
+        this.log?.warn(
+          { sessionId: session.info.id, from: options.fromSessionId, err: error },
+          "falha ao copiar a transcrição anterior para a sessão retomada",
+        );
+      }
+      // Recorded rather than inferred: the client draws a separator here, and a
+      // separator that only existed live would be missing from every replay.
+      this.emit(session, { type: "resumed", fromSessionId: options.fromSessionId });
+    }
+
     return { ...session.info };
   }
 
@@ -471,6 +502,18 @@ export class AcpManager {
   transcript(id: string): readonly AcpTranscriptEntry[] {
     this.require(id);
     return this.transcripts.read(id);
+  }
+
+  /**
+   * A conversation with no live session behind it (F5.2, D13).
+   *
+   * Straight from disk, and deliberately without `require`: the whole point is a
+   * session that is gone. Reading is not attaching — nothing is launched, nothing is
+   * subscribed, and the ~39k tokens of system prompt an adapter costs are not spent
+   * because someone clicked a tab to reread something.
+   */
+  storedTranscript(sessionId: string): readonly AcpTranscriptEntry[] {
+    return this.transcripts.read(sessionId);
   }
 
   /** Returns an unsubscribe function. Detaching must never end the session. */

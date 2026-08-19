@@ -100,6 +100,20 @@ que sobe para o humano é justamente o caso raro.
 **De onde veio:** [acp-sessions A10](../prd/acp-sessions/open-questions.md) · **Volta quando:** você
 perder tempo com agente parado sem perceber.
 
+### Regra de CSS sem markup no `conversation.css` — `P`
+
+O `conversation-css.test.ts` garante que toda classe pedida por um componente existe no
+stylesheet. A verificação **inversa** — toda regra tem markup que a pede — hoje encontra uma dúzia
+de regras sem ninguém: estados que o protótipo desenhou e nenhum componente precisou ainda
+(`conv__scroll--flow`, `out--short`, `count--asking`, `stab__dot--asking`, `perm__why`, `err`, `ok`,
+`path`, `plan__glyph--done`, `btn--warn`, `btn--brand`, `composer__box--focus`). Ligar o teste é
+junto com limpar essas regras — separar as duas coisas deixaria a suíte vermelha sem ninguém para
+consertar.
+
+**De onde veio:** [acp-sessions Q5](../prd/acp-sessions/tasks.md) — a lista "o que ele
+deliberadamente não carrega" esvaziou quando o `.daysep` chegou · **Volta quando:** alguém for
+editar o `conversation.css` e não souber qual metade está viva.
+
 ### Forkar uma conversa — `M`
 
 O protocolo expõe `fork` junto de `resume` e `list`. Duplicar uma conversa a partir de um ponto é

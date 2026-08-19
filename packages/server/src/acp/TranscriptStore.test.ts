@@ -151,6 +151,60 @@ describe("when a row does not decode", () => {
   });
 });
 
+describe("copying a conversation forward", () => {
+  /**
+   * What resuming does with the record (D15). The new session's file ends up holding
+   * the whole history, which is what keeps "one file per session" true after a resume:
+   * the alternative is a transcript that depends on files the registry may delete.
+   */
+
+  it("puts the old conversation in front of the new one, in order", () => {
+    const { store: transcripts } = store();
+    transcripts.append("antiga", message("primeira", 1));
+    transcripts.append("antiga", message("segunda", 2));
+
+    const copied = transcripts.copy("antiga", "nova");
+    transcripts.append("nova", message("terceira", 3));
+
+    expect(copied).toBe(2);
+    expect(transcripts.read("nova")).toEqual([
+      message("primeira", 1),
+      message("segunda", 2),
+      message("terceira", 3),
+    ]);
+  });
+
+  it("leaves the old conversation exactly as it was", () => {
+    // A copy, not a move: the session that ended keeps its transcript, which is what
+    // makes reopening it afterwards still work.
+    const { store: transcripts } = store();
+    transcripts.append("antiga", message("de ontem"));
+
+    transcripts.copy("antiga", "nova");
+
+    expect(transcripts.read("antiga")).toEqual([message("de ontem")]);
+  });
+
+  it("copies nothing from a session that never spoke, and creates no file", () => {
+    const { store: transcripts, dir } = store();
+
+    expect(transcripts.copy("nunca-falou", "nova")).toBe(0);
+    expect(readdirSync(dir)).toEqual([]);
+  });
+
+  it("survives the process, like anything else it wrote", () => {
+    const { store: transcripts, dir } = store();
+    transcripts.append("antiga", message("de ontem"));
+    transcripts.copy("antiga", "nova");
+    transcripts.close();
+
+    const reopened = createTranscriptStore({ dir });
+    stores.push(reopened);
+
+    expect(reopened.read("nova")).toEqual([message("de ontem")]);
+  });
+});
+
 describe("dropping", () => {
   it("removes the file, so a purge is a file away", () => {
     const { store: transcripts, dir } = store();

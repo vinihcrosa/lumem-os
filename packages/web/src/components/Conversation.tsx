@@ -12,6 +12,7 @@ import {
   type TerminalView,
 } from "../lib/conversation-model.js";
 import { connectAcpSocket, type AcpConnect } from "../lib/acp-socket.js";
+import { trpc } from "../lib/trpc.js";
 import { Banner, Button, Glyph } from "../ui/index.js";
 import { ConfigPills } from "./ConfigPills.js";
 import { Message, Thought, TurnFrame } from "./Message.js";
@@ -96,13 +97,44 @@ function reduce(state: ViewState, action: Action): ViewState {
   }
 }
 
+/** How a finished conversation is fetched. Module level, so the effect is stable. */
+const loadStored = (sessionId: string): Promise<AcpServerMessage> =>
+  trpc.session.transcript.query({ id: sessionId });
+
 export interface ConversationProps {
   sessionId: string;
+  /**
+   * False for a conversation that has ended (D13).
+   *
+   * Then nothing is attached and nothing is launched: the transcript comes off the
+   * daemon's disk and the composer is closed. Standing up an adapter costs ~39k tokens
+   * of system prompt before the first word, and clicking a tab to reread something
+   * must not spend that.
+   */
+  live?: boolean;
   /** Injectable so a test needs no daemon. */
   connect?: AcpConnect;
+  /** Same, for the read path. */
+  load?: (sessionId: string) => Promise<AcpServerMessage>;
+  /**
+   * Offers to continue it (F5.2).
+   *
+   * Absent when the caller has nowhere to put the new session — resuming creates a new
+   * one and something has to switch to it, which this component cannot do.
+   */
+  onResume?: () => void;
+  /** True while the resume is in flight, so the button can say so. */
+  resuming?: boolean;
 }
 
-export function Conversation({ sessionId, connect = connectAcpSocket }: ConversationProps) {
+export function Conversation({
+  sessionId,
+  live = true,
+  connect = connectAcpSocket,
+  load = loadStored,
+  onResume,
+  resuming = false,
+}: ConversationProps) {
   const [state, dispatch] = useReducer(reduce, initial);
   const [draft, setDraft] = useState("");
   const [openThoughts, setOpenThoughts] = useState<ReadonlySet<string>>(new Set());
@@ -111,9 +143,50 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
 
   const { conversation, session, failure } = state;
   const pending = conversation.pendingPermission;
+  /*
+   * Closed for writing.
+   *
+   * Two ways in: the tab was opened on a session that had already ended, and a session
+   * that ended while its tab was open — the daemon remembers an exited conversation
+   * until it is forgotten, so the socket attaches and reports `exited`. Both are the
+   * same thing to the composer, and treating them as one is what keeps a prompt from
+   * being sent into a session that cannot answer it.
+   */
+  const readOnly = !live || session?.state === "exited";
 
   useEffect(() => {
     dispatch({ kind: "reset" });
+
+    if (!live) {
+      /*
+       * One read, no socket (D13).
+       *
+       * The daemon answers with the same `attached` frame the websocket would send, so
+       * the reducer below is unchanged — there is one way to build this view, not a
+       * live one and a stored one that can disagree about what a conversation looks
+       * like.
+       */
+      let current = true;
+      void load(sessionId)
+        .then((message) => {
+          if (current) dispatch({ kind: "message", message });
+        })
+        .catch((error: unknown) => {
+          if (!current) return;
+          dispatch({
+            kind: "message",
+            message: {
+              type: "error",
+              code: "INTERNAL",
+              message: error instanceof Error ? error.message : "não deu para ler a conversa",
+            },
+          });
+        });
+      return () => {
+        current = false;
+      };
+    }
+
     const socket = connect(sessionId, {
       onMessage: (message) => dispatch({ kind: "message", message }),
     });
@@ -124,7 +197,7 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
       // Detach only. The daemon keeps the conversation.
       socket.close();
     };
-  }, [sessionId, connect]);
+  }, [sessionId, live, connect, load]);
 
   // The tab strip and the sidebar read this. Reported from here because this is
   // the only thing that knows.
@@ -152,10 +225,10 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
 
   const send = useCallback(() => {
     const text = draft.trim();
-    if (text === "" || pending !== null) return;
+    if (text === "" || pending !== null || readOnly) return;
     socketRef.current?.send({ type: "prompt", text });
     setDraft("");
-  }, [draft, pending]);
+  }, [draft, pending, readOnly]);
 
   // Null unless the draft is a lone `/word` at the very start: a `/` inside a
   // sentence is a path, and offering a command menu over `src/lore` would be the
@@ -177,7 +250,17 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
           </span>
         )}
         <span className="spacer" />
-        {conversation.streaming && (
+        {/*
+          Resuming is an act, not something a tab does by being opened (D13). The
+          button is here rather than in the composer because it is about the session
+          and not about the message being written — there is no message being written.
+        */}
+        {readOnly && onResume && (
+          <Button variant="primary" size="sm" disabled={resuming} onClick={onResume}>
+            {resuming ? "retomando…" : "↻ retomar"}
+          </Button>
+        )}
+        {conversation.streaming && !readOnly && (
           <Button
             variant="ghost"
             size="sm"
@@ -219,7 +302,10 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
         */}
         {conversation.plan && <PlanCard entries={conversation.plan} />}
 
-        {conversation.turns.map((turn, turnIndex) => (
+        {conversation.turns.map((turn, turnIndex) =>
+          turn.role === "resumed" ? (
+            <ResumeMark key={turnIndex} at={turn.at ?? null} />
+          ) : (
           <TurnFrame key={turnIndex} role={turn.role}>
             {turn.blocks.map((block, blockIndex) => (
               <BlockView
@@ -253,7 +339,17 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
               />
             ))}
           </TurnFrame>
-        ))}
+          ),
+        )}
+
+        {/*
+          The end of the record, said once, at the bottom.
+
+          The chip in the tab strip already says `exited`; what is missing there is that
+          there is nothing more to read — an empty scroll and a finished conversation
+          look the same otherwise.
+        */}
+        {readOnly && session && <div className="daysep">conversa encerrada</div>}
       </div>
 
       {/*
@@ -282,11 +378,13 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
           <textarea
             className={`composer__in${draft === "" ? " composer__in--empty" : ""}`}
             value={draft}
-            disabled={pending !== null}
+            disabled={pending !== null || readOnly}
             placeholder={
-              pending !== null
-                ? "responda o pedido de permissão para continuar"
-                : "escreva, ou / para comandos"
+              readOnly
+                ? "esta conversa terminou — retome para continuar"
+                : pending !== null
+                  ? "responda o pedido de permissão para continuar"
+                  : "escreva, ou / para comandos"
             }
             aria-label="mensagem para o agente"
             onChange={(event) => setDraft(event.target.value)}
@@ -308,13 +406,18 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
             <ConfigPills
               mode={conversation.mode}
               options={conversation.configOptions}
-              disabled={conversation.streaming}
+              disabled={conversation.streaming || readOnly}
               onSwitch={(optionId, value) =>
                 socketRef.current?.send({ type: "set_config", optionId, value })
               }
             />
             <span className="spacer" />
-            <Button variant="primary" size="sm" disabled={draft.trim() === "" || pending !== null} onClick={send}>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={draft.trim() === "" || pending !== null || readOnly}
+              onClick={send}
+            >
               enviar <span className="kbd">⌘⏎</span>
             </Button>
           </div>
@@ -322,6 +425,30 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
       </div>
     </div>
   );
+}
+
+/**
+ * Where one conversation ended and the next picked it up (F5.2, D12).
+ *
+ * Drawn from a recorded event rather than from the fact that the session has a
+ * `resumedFromId`, so it lands in the same place on a replay as it did live.
+ */
+function ResumeMark({ at }: { at: number | null }) {
+  return (
+    <div className="daysep">
+      retomada{at === null ? "" : ` · ${formatWhen(at)}`}
+    </div>
+  );
+}
+
+/** `21 ago 09:02`. Short, because it is a divider and not a record. */
+function formatWhen(at: number): string {
+  return new Date(at).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 // ------------------------------------------------------------------ the blocks

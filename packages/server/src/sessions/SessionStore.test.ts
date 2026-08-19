@@ -10,6 +10,10 @@ import { PtyManager } from "../pty/PtyManager.js";
 import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createSessionRepository } from "../repositories/session.js";
+import {
+  createMemoryTranscriptStore,
+  type TranscriptStore,
+} from "../acp/TranscriptStore.js";
 import { createSessionStore, type SessionStore } from "./SessionStore.js";
 
 const managers: PtyManager[] = [];
@@ -24,20 +28,25 @@ function setup(): {
   db: Db;
   ptyManager: PtyManager;
   acpManager: AcpManager;
+  transcripts: TranscriptStore;
 } {
   const database = openTestDb();
   databases.push(database);
   const ptyManager = new PtyManager();
   managers.push(ptyManager);
+  // Named here rather than left to the manager's default, so a test can read what the
+  // conversation recorded — which is how "resuming carries the history" is checked.
+  const transcripts = createMemoryTranscriptStore();
   const acpManager = new AcpManager({
     spawner: () => queued.shift() ?? fakeAgentProcess().process,
     isAvailable: () => true,
     handshakeTimeoutMs: 2_000,
+    transcripts,
   });
   acpManagers.push(acpManager);
   const store = createSessionStore({ db: database.db, ptyManager, acpManager });
   unsubscribes.push(store.trackExits());
-  return { store, db: database.db, ptyManager, acpManager };
+  return { store, db: database.db, ptyManager, acpManager, transcripts };
 }
 
 /** An agent configuration and the input that starts a session against it. */
@@ -445,9 +454,15 @@ describe("resuming", () => {
    * pointing back at the session that died.
    */
 
-  /** Starts an ACP session and lets it die, which is the only resumable state. */
+  /**
+   * Starts an ACP session, says one thing, and lets it die.
+   *
+   * The turn is not decoration: a session that never spoke has nothing to carry
+   * forward, and the assertions about the history would pass on an empty copy.
+   */
   async function ended(db: Db, store: SessionStore, acpManager: AcpManager) {
     const row = await store.start(await acpAgent(db));
+    await acpManager.prompt(row.id, "algo dito ontem");
     acpManager.kill(row.id);
     await vi.waitFor(async () =>
       expect((await store.findById(row.id))?.state).toBe("exited"),
@@ -538,6 +553,25 @@ describe("resuming", () => {
     await expect(store.resume(old.id)).rejects.toThrow(/nenhum AcpManager/);
   });
 
+  it("carries the conversation forward, with a separator", async () => {
+    // D15: the new session's transcript is self-contained — the old conversation copied
+    // in front of it, and the resume recorded as an event so a replay draws the
+    // separator in the same place the live client did.
+    const { store, db, acpManager, transcripts } = setup();
+    const old = await ended(db, store, acpManager);
+
+    const resumed = await store.resume(old.id);
+
+    const events = transcripts.read(resumed.id).map((entry) => entry.event.type);
+    // The history first, the separator last: the order on disk is the order on screen.
+    expect(events).toEqual(["message", "turn_end", "resumed"]);
+    // And the old record is still its own — a copy, not a move.
+    expect(transcripts.read(old.id).map((entry) => entry.event.type)).toEqual([
+      "message",
+      "turn_end",
+    ]);
+  });
+
   it("kills the adapter it could not write down", async () => {
     /*
      * Same rule as `start`: a conversation the daemon cannot describe is one nobody
@@ -567,5 +601,64 @@ describe("resuming", () => {
 
     await expect(store.resume(old.id)).rejects.toThrow();
     expect(killed).toEqual([taken.id]);
+  });
+});
+
+describe("reading a finished conversation", () => {
+  /**
+   * D13: reading is not resuming. Nothing is launched to answer this — standing up an
+   * adapter costs ~39k tokens of system prompt before the first word, and clicking a
+   * tab to reread something must not spend that.
+   */
+
+  it("gives back the same frame an attach would", async () => {
+    const { store, db, acpManager } = setup();
+    const row = await store.start(await acpAgent(db));
+    await acpManager.prompt(row.id, "uma pergunta");
+    acpManager.kill(row.id);
+    await vi.waitFor(async () => expect((await store.findById(row.id))?.state).toBe("exited"));
+
+    const frame = await store.transcript(row.id);
+
+    expect(frame).toMatchObject({
+      type: "attached",
+      sessionId: row.id,
+      state: "exited",
+      acpSessionId: "fake-acp-session",
+      model: "opus[1m]",
+    });
+    expect(frame.transcript.length).toBeGreaterThan(0);
+  });
+
+  it("does not bring the session back to life", async () => {
+    const { store, db, acpManager } = setup();
+    const row = await store.start(await acpAgent(db));
+    acpManager.kill(row.id);
+    await vi.waitFor(async () => expect((await store.findById(row.id))?.state).toBe("exited"));
+
+    await store.transcript(row.id);
+
+    expect(acpManager.list().every((info) => info.state === "exited")).toBe(true);
+    expect((await store.findById(row.id))?.state).toBe("exited");
+  });
+
+  it("reads a session that never spoke as an empty conversation", async () => {
+    const { store, db } = setup();
+    const row = await store.start(await acpAgent(db));
+
+    expect((await store.transcript(row.id)).transcript).toEqual([]);
+  });
+
+  it("refuses a shell: what a shell has is scrollback", async () => {
+    const { store } = setup();
+    const row = await store.start(shell());
+
+    await expect(store.transcript(row.id)).rejects.toThrow(/scrollback/);
+  });
+
+  it("refuses a session that does not exist", async () => {
+    const { store } = setup();
+
+    await expect(store.transcript(newId())).rejects.toThrow(/não existe/);
   });
 });

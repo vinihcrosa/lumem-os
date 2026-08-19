@@ -17,7 +17,11 @@ import {
 } from "../testing/acp-fake-agent.js";
 import { AcpManager } from "./AcpManager.js";
 import type { AcpProcess } from "./process.js";
-import { createTranscriptStore, type TranscriptStore } from "./TranscriptStore.js";
+import {
+  createMemoryTranscriptStore,
+  createTranscriptStore,
+  type TranscriptStore,
+} from "./TranscriptStore.js";
 
 /**
  * The transport, proven without spending a token.
@@ -1273,6 +1277,7 @@ describe("where the conversation is kept", () => {
         throw new Error("disco cheio");
       },
       read: () => [],
+      copy: () => 0,
       drop() {},
       release() {},
       close() {},
@@ -1439,6 +1444,82 @@ describe("resuming yesterday's conversation", () => {
 
     expect(typesOf(events)).toEqual(["message", "message", "turn_end"]);
     expect(textsOf(manager.transcript(sessionId))).toContain("continuando de onde paramos");
+  });
+
+  it("brings the old conversation with it, and records where it resumed", async () => {
+    /*
+     * D15 and D12 together. The history is copied into the new session's file before
+     * anything new is written, and the resume itself is an *event* — so the separator
+     * the client draws sits in the same place on a replay as it did live, which is the
+     * property the whole transcript design rests on.
+     */
+    const transcripts = createMemoryTranscriptStore();
+    transcripts.append("sessao-de-ontem", {
+      at: 1,
+      event: { type: "message", messageId: "m-1", role: "user", text: "o que eu disse ontem" },
+    });
+    const fake = fakeAgentProcess({
+      async prompt(_text, turn) {
+        await say(turn, "e hoje");
+        return "end_turn";
+      },
+    });
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      handshakeTimeoutMs: 2_000,
+      isAvailable: () => true,
+      transcripts,
+    });
+
+    const info = await manager.resume({
+      command: "claude-agent-acp",
+      cwd: "/repos/lorebase",
+      acpSessionId: "conversa-de-ontem",
+      fromSessionId: "sessao-de-ontem",
+    });
+    await manager.prompt(info.id, "e agora?");
+
+    expect(manager.transcript(info.id).map((entry) => entry.event.type)).toEqual([
+      "message",
+      "resumed",
+      "message",
+      "message",
+      "turn_end",
+    ]);
+    expect(textsOf(manager.transcript(info.id))).toContain("o que eu disse ontem");
+    // The session that ended keeps its own record: a copy, not a move.
+    expect(textsOf(transcripts.read("sessao-de-ontem"))).toEqual(["o que eu disse ontem"]);
+  });
+
+  it("still resumes when the old transcript cannot be copied", async () => {
+    // Losing the history is bad; losing the conversation because the history could not
+    // be copied is worse. The same trade a failed write makes.
+    const warn = vi.fn();
+    const refusing = {
+      ...createMemoryTranscriptStore(),
+      copy: () => {
+        throw new Error("disco cheio");
+      },
+    };
+    const fake = fakeAgentProcess();
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      handshakeTimeoutMs: 2_000,
+      isAvailable: () => true,
+      transcripts: refusing,
+      log: { warn },
+    });
+
+    const info = await manager.resume({
+      command: "claude-agent-acp",
+      cwd: "/repos/x",
+      acpSessionId: "conversa-de-ontem",
+      fromSessionId: "sessao-de-ontem",
+    });
+
+    expect(info.state).toBe("running");
+    expect(manager.transcript(info.id).map((entry) => entry.event.type)).toEqual(["resumed"]);
+    expect(warn).toHaveBeenCalled();
   });
 
   it("refuses an adapter that cannot resume, in a sentence", async () => {

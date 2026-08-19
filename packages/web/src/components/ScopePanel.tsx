@@ -36,7 +36,8 @@ export interface ScopePanelProps {
  */
 export function ScopePanel({ scope, header, context, cwd }: ScopePanelProps) {
   const queryClient = useQueryClient();
-  const { tabs, activeId, select, close, reopen, sessions } = useWorktreeTabs(scope);
+  const { tabs, activeId, select, close, reopen, resume, resuming, sessions } =
+    useWorktreeTabs(scope);
   const awaiting = useAwaitingPermission();
   const openFiles = useOpenFiles();
 
@@ -211,6 +212,10 @@ export function ScopePanel({ scope, header, context, cwd }: ScopePanelProps) {
           cwd={cwd}
           active={activeId === tab.sessionId}
           viewer={viewerFor(tab.sessionId)}
+          // Only a conversation can be resumed; a PTY tab gets no button, because
+          // `session/load` is something only an ACP adapter has (D1).
+          {...(tab.transport === "acp" ? { onResume: () => resume(tab.sessionId) } : {})}
+          resuming={resuming === tab.sessionId}
         />
       ))}
     </section>

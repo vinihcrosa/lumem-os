@@ -172,15 +172,16 @@ describe("the stylesheet stays inside the token system", () => {
   });
 });
 
-describe("what it deliberately does not carry", () => {
-  it.each(["daysep"])(
-    "has no rules for %s, which is phase 4",
-    (prefix) => {
-      // CSS with no markup is dead CSS. Each comes with the component that uses
-      // it — the alternative is a stylesheet nobody can safely edit because
-      // nobody knows which half is live. `plan` left this list when `PlanCard`
-      // arrived, which is the list working as intended.
-      expect(stylesheet).not.toMatch(new RegExp(`^\\.${prefix}[\\s{_-]`, "m"));
-    },
-  );
-});
+/*
+ * There was a third `describe` here: the list of prototype classes this stylesheet
+ * deliberately did *not* carry yet, because CSS with no markup is dead CSS.
+ *
+ * It is gone because it emptied. `plan` left it when `PlanCard` arrived and `daysep`
+ * left it when the resume mark did (F5.2), which is the list working exactly as
+ * intended rather than a guard being dropped.
+ *
+ * What replaced it is nothing, and that is worth naming: the inverse check — every
+ * rule here has markup asking for it — currently finds a dozen rules that do not, most
+ * of them states the prototype drew and no component has needed yet. Turning it on
+ * belongs with cleaning those up, and that is in the backlog.
+ */

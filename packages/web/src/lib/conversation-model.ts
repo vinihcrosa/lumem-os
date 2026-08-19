@@ -72,8 +72,19 @@ export type Block =
   | { kind: "note"; text: string };
 
 export interface Turn {
-  role: "user" | "agent";
+  /**
+   * Who is speaking, or `resumed` for the mark between two conversations.
+   *
+   * The separator is a turn rather than a block because it belongs *between* turns:
+   * the prototype draws it as a full-width rule, and a block would sit inside a
+   * speaker's frame, indented under their gutter as though someone had said it.
+   */
+  role: "user" | "agent" | "resumed";
   blocks: Block[];
+  /** When it happened, on the resume mark only. The client formats it. */
+  at?: number;
+  /** The session that ended, on the resume mark only. */
+  fromSessionId?: string;
 }
 
 /** A terminal the agent asked for, and the PTY session behind it (D7). */
@@ -316,6 +327,24 @@ export function reduceConversation(
 
     case "turn_end":
       return { ...state, streaming: false, lastStopReason: event.stopReason };
+
+    case "resumed":
+      /*
+       * Always its own turn, never appended to the last one.
+       *
+       * `appendBlock` would merge it into whatever the agent was saying, and the mark
+       * has to sit between the two conversations rather than inside the older one. It
+       * also resets nothing else: the plan, the usage and the selectors carried over
+       * with the history, and blanking them would make a resumed session look like it
+       * had never spent anything.
+       */
+      return {
+        ...state,
+        turns: [
+          ...state.turns,
+          { role: "resumed", blocks: [], at, fromSessionId: event.fromSessionId },
+        ],
+      };
 
     case "unknown":
       return appendBlock(state, "agent", {

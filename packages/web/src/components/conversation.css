@@ -464,3 +464,25 @@
   background: var(--color-bg-inset);
 }
 
+/*
+ * Onde uma conversa termina e a próxima continua (F5.2, D12).
+ *
+ * Irmão do `.turn`, não filho: a régua atravessa a coluna inteira, e dentro de um
+ * turno ela ficaria recuada sob a calha de quem fala, como se alguém tivesse dito.
+ */
+.daysep {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.daysep::before,
+.daysep::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border-subtle);
+}

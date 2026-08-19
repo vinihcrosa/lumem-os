@@ -378,6 +378,10 @@ describe("replay and live stream agree", () => {
       at({ type: "unknown", sessionUpdate: "goal_update" }, 5),
       agentSaid("Pronto.", "a-2"),
       at({ type: "turn_end", stopReason: "end_turn" }, 10),
+      // The resume is part of the stream, so it is part of what has to agree: a
+      // separator that only appeared live would be missing from every replay.
+      at({ type: "resumed", fromSessionId: "sessao-de-ontem" }, 40_000),
+      userSaid("e agora apaga o legado"),
     ];
   }
 
@@ -563,5 +567,48 @@ describe("what phase 4 carries", () => {
     ];
 
     expect(replayConversation(entries)).toEqual(feed(emptyConversation(), ...entries));
+  });
+});
+
+describe("the conversation was picked up again", () => {
+  it("marks the resume as a turn of its own", () => {
+    // Not a block: `appendBlock` would fold it into whatever the agent was saying, and
+    // the mark belongs *between* the two conversations rather than inside the older
+    // one.
+    const state = feed(
+      emptyConversation(),
+      agentSaid("de ontem", "a-1"),
+      at({ type: "resumed", fromSessionId: "sessao-de-ontem" }, 40_000),
+      agentSaid("de hoje", "a-2"),
+    );
+
+    expect(state.turns.map((turn) => turn.role)).toEqual(["agent", "resumed", "agent"]);
+    expect(state.turns[1]).toMatchObject({ blocks: [], fromSessionId: "sessao-de-ontem" });
+  });
+
+  it("carries the daemon's stamp, so the client formats a time it did not invent", () => {
+    // The reducer reads no clock; if it did, replaying a transcript would stop
+    // reproducing the live stream.
+    clock = 1_700_000_000_000;
+    const state = feed(emptyConversation(), at({ type: "resumed", fromSessionId: "antiga" }, 500));
+
+    expect(state.turns[0]?.at).toBe(1_700_000_000_500);
+  });
+
+  it("keeps what the history already established", () => {
+    /*
+     * The plan and the usage were copied forward with the transcript (D15), and a
+     * resume that blanked them would make a continued conversation look like one that
+     * had never spent anything.
+     */
+    const state = feed(
+      emptyConversation(),
+      at({ type: "plan", entries: [{ content: "ler o loader", status: "pending", priority: "high" }] }),
+      at({ type: "usage", used: 1_000, size: 200_000, cost: { amount: 0.5, currency: "USD" } }),
+      at({ type: "resumed", fromSessionId: "antiga" }, 10),
+    );
+
+    expect(state.plan).toHaveLength(1);
+    expect(state.usage?.totalCost).toBe(0.5);
   });
 });
