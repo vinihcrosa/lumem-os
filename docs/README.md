@@ -119,17 +119,16 @@ Lumem**, e a memória chega ao agente como **serviço, não como texto injetado*
 
 ### [acp-sessions/](prd/acp-sessions/) — a sessão vira conversa
 
-**Pronta para execução — 18 tasks, nenhuma iniciada.** As 14 perguntas de desenho estão respondidas, o
-spike mediu autenticação e consumo (janela ficou parcial), e a **fase 2 está feita**: a conversa existe
-como protótipo HTML renderizado. A sessão de agente deixa de ser um terminal e passa a ser uma conversa
-estruturada por [ACP](project/pty-vs-acp.md). Destrava as partes 06–09 da memória, o custo por projeto e
+**Fases 1 e 3 entregues — 18 de 18 tasks, gate cheio verde.** A conversa roda: uma tarefa vai do começo ao fim sem terminal. Faltam as fases 4 e 5. As 14 perguntas de desenho estão respondidas e o
+spike mediu autenticação e consumo (a janela ficou parcial). A sessão de agente deixou de ser um terminal
+e passou a ser uma conversa estruturada por [ACP](project/pty-vs-acp.md). Destrava as partes 06–09 da memória, o custo por projeto e
 a política de permissão.
 
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/acp-sessions/prd.md) | O que o spike mediu — **autenticação e consumo nesta máquina**, e a janela só até "nasce em 1M" —, escopo do transporte e da tela, riscos, fases |
 | [open-questions.md](prd/acp-sessions/open-questions.md) | 14 perguntas, **todas respondidas** — inclusive o volume da transcrição medido em 675 sessões reais. As duas últimas (**A13**, **A14**) nasceram no protótipo |
-| [tasks.md](prd/acp-sessions/tasks.md) | **18 tasks nas fases 1 e 3** do PRD: o transporte com agente falso, depois mensagem + ferramenta + permissão. Diz também por que a fase 3 não começa antes da 1 |
+| [tasks.md](prd/acp-sessions/tasks.md) | **18 tasks, todas fechadas**: o transporte com agente falso, depois mensagem + ferramenta + permissão. Diz também por que a fase 3 não começa antes da 1, e o que ficou para as fases 4 e 5 |
 | `packages/web/prototype/lumem-acp-conversation.html` | O protótipo da fase 2: seis telas — conversa, ferramenta, permissão, plano, uso, limites. Não é documentação, é o desenho executável; fica junto dos outros protótipos |
 
 ---
