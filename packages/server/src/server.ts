@@ -9,6 +9,8 @@ import type { Db } from "./db/index.js";
 import { createEventBus, type EventBus } from "./events.js";
 import { MAX_FILE_BYTES } from "./files/FileService.js";
 import { createGitService, type GitService } from "./git/GitService.js";
+import { AcpManager } from "./acp/AcpManager.js";
+import { registerAcpWebSocket } from "./acp/websocket.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import { registerPtyWebSocket } from "./pty/websocket.js";
 import { createSessionStore, type SessionStore } from "./sessions/SessionStore.js";
@@ -66,6 +68,15 @@ export interface CreateServerOptions {
    */
   ptyManager: PtyManager;
   /**
+   * Owner of every ACP agent the daemon has launched.
+   *
+   * Same reasoning as `ptyManager`: it outlives the HTTP server, because
+   * shutdown has to end the conversations before closing the socket they travel
+   * on. Defaulted rather than required so that a test which only cares about the
+   * PTY does not have to build one.
+   */
+  acpManager?: AcpManager;
+  /**
    * Keeps records in step with processes. Built here when absent, but the
    * daemon passes its own so shutdown can unhook the exit watcher.
    */
@@ -82,6 +93,7 @@ export async function createServer({
   config,
   db,
   ptyManager,
+  acpManager = new AcpManager(),
   sessionStore = createSessionStore({ db, ptyManager }),
   events = createEventBus(),
   git = createGitService(),
@@ -111,6 +123,7 @@ export async function createServer({
   });
 
   registerPtyWebSocket({ app, ptyManager });
+  registerAcpWebSocket({ app, acpManager });
 
   return app;
 }

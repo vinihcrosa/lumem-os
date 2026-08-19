@@ -1,4 +1,3 @@
-import type { StopReason } from "@agentclientprotocol/sdk";
 import type { AcpEvent } from "@lumem/shared";
 import { describe, expect, it } from "vitest";
 
@@ -194,7 +193,7 @@ describe("handshake", () => {
 describe("a turn", () => {
   it("streams message chunks in order", async () => {
     const { manager, events, sessionId } = await start({
-      async prompt(_text, turn): Promise<StopReason> {
+      async prompt(_text, turn) {
         await turn.update({
           sessionUpdate: "agent_message_chunk",
           messageId: "m-1",
@@ -220,7 +219,7 @@ describe("a turn", () => {
 
   it("carries a tool call from announcement to result", async () => {
     const { manager, events, sessionId } = await start({
-      async prompt(_text, turn): Promise<StopReason> {
+      async prompt(_text, turn) {
         await turn.update({
           sessionUpdate: "tool_call",
           toolCallId: "tc-1",
@@ -249,7 +248,7 @@ describe("a turn", () => {
     // Chunks with no `messageId` belong to the turn that produced them. Sharing
     // one id across turns would glue yesterday's answer to today's.
     const { manager, events, sessionId } = await start({
-      async prompt(text, turn): Promise<StopReason> {
+      async prompt(text, turn) {
         await turn.update({
           sessionUpdate: "agent_message_chunk",
           content: { type: "text", text },
@@ -314,7 +313,7 @@ describe("a turn", () => {
     // Phase 4 renders plans. Calling one "unrecognised" today would put a grey
     // apology on screen about something the protocol defines.
     const { manager, events, sessionId } = await start({
-      async prompt(_text, turn): Promise<StopReason> {
+      async prompt(_text, turn) {
         await turn.update({ sessionUpdate: "plan", entries: [] } as never);
         return "end_turn";
       },
@@ -330,7 +329,7 @@ describe("permission", () => {
   it("emits the request, waits, and lets the agent finish once answered", async () => {
     let outcome: unknown;
     const { manager, events, sessionId } = await start({
-      async prompt(_text, turn): Promise<StopReason> {
+      async prompt(_text, turn) {
         await turn.update({
           sessionUpdate: "tool_call",
           toolCallId: "tc-1",
@@ -391,7 +390,7 @@ describe("permission", () => {
 
   it("releases a request the agent will never get an answer to when it dies", async () => {
     const { manager, events, sessionId, process } = await start({
-      async prompt(_text, turn): Promise<StopReason> {
+      async prompt(_text, turn) {
         await turn.requestPermission({
           toolCall: { toolCallId: "tc-1", title: "Bash" },
           options: [{ optionId: "allow", name: "allow", kind: "allow_once" }],
@@ -416,7 +415,7 @@ describe("interruption", () => {
     // `cancelled` tool status, so a call still open when the user pressed stop
     // would otherwise stay `running` forever or be painted red.
     const { manager, events, sessionId } = await start({
-      async prompt(_text, turn): Promise<StopReason> {
+      async prompt(_text, turn) {
         await turn.update({
           sessionUpdate: "tool_call",
           toolCallId: "tc-1",
@@ -446,7 +445,7 @@ describe("interruption", () => {
     // Only what was still open gets closed. Re-marking a completed call would
     // rewrite history the user already read.
     const { manager, events, sessionId } = await start({
-      async prompt(_text, turn): Promise<StopReason> {
+      async prompt(_text, turn) {
         await turn.update({
           sessionUpdate: "tool_call",
           toolCallId: "tc-1",
@@ -481,7 +480,7 @@ describe("the session outlives the client", () => {
     // F1.4. The subprocess belongs to the daemon, so closing the browser must
     // not end the conversation — and the transcript is what proves it happened.
     const { manager, events, sessionId } = await start({
-      async prompt(_text, turn): Promise<StopReason> {
+      async prompt(_text, turn) {
         await turn.update({
           sessionUpdate: "agent_message_chunk",
           content: { type: "text", text: "continuei sozinho" },
@@ -502,7 +501,7 @@ describe("the session outlives the client", () => {
 
   it("replays the whole conversation to a client that attaches late", async () => {
     const { manager, sessionId } = await start({
-      async prompt(_text, turn): Promise<StopReason> {
+      async prompt(_text, turn) {
         await turn.update({
           sessionUpdate: "agent_message_chunk",
           content: { type: "text", text: "oi" },
@@ -518,7 +517,7 @@ describe("the session outlives the client", () => {
 
   it("hands every attached client the same events", async () => {
     const { manager, sessionId } = await start({
-      async prompt(_text, turn): Promise<StopReason> {
+      async prompt(_text, turn) {
         await turn.update({
           sessionUpdate: "agent_message_chunk",
           content: { type: "text", text: "para os dois" },
@@ -539,7 +538,7 @@ describe("the session outlives the client", () => {
 
   it("keeps serving the other clients when one listener throws", async () => {
     const { manager, sessionId } = await start({
-      async prompt(_text, turn): Promise<StopReason> {
+      async prompt(_text, turn) {
         await turn.update({
           sessionUpdate: "agent_message_chunk",
           content: { type: "text", text: "sobrevivi" },

@@ -1,6 +1,3 @@
-import type { IncomingMessage } from "node:http";
-import type { Duplex } from "node:stream";
-
 import {
   encodePtyServerMessage,
   decodePtyClientMessage,
@@ -14,6 +11,7 @@ import type { FastifyInstance } from "fastify";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 
 import { isDomainError, type DomainErrorCode } from "../errors.js";
+import { onUpgradePath } from "../ws/upgrade.js";
 import type { PtyManager } from "./PtyManager.js";
 
 /**
@@ -64,28 +62,6 @@ export function registerPtyWebSocket({
   path = PTY_WS_PATH,
 }: RegisterPtyWebSocketOptions): void {
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
-
-  const onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer): void => {
-    const url = new URL(request.url ?? "/", "http://localhost");
-    if (url.pathname !== path) {
-      // This is the daemon's only upgrade handler. Leaving a stray socket open
-      // until the kernel times it out hides the typo; answering does not.
-      // A second websocket endpoint must be dispatched from here too.
-      socket.write("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n");
-      socket.destroy();
-      return;
-    }
-
-    // An id that is missing or unknown is answered *after* the upgrade, as a
-    // protocol error, rather than by failing the handshake: a browser exposes
-    // almost nothing about a rejected handshake, so the user would get a blank
-    // terminal and no reason.
-    const sessionId = url.searchParams.get(PTY_SESSION_PARAM) ?? "";
-
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      attach(ws, sessionId);
-    });
-  };
 
   function attach(ws: WebSocket, sessionId: string): void {
     const send = (message: PtyServerMessage): void => {
@@ -168,10 +144,21 @@ export function registerPtyWebSocket({
     });
   }
 
-  app.server.on("upgrade", onUpgrade);
+  // The 404 for an unknown path now lives in the router, which is the only
+  // place that can know no sibling endpoint wanted the socket.
+  onUpgradePath(app, path, (request, socket, head, url) => {
+    // An id that is missing or unknown is answered *after* the upgrade, as a
+    // protocol error, rather than by failing the handshake: a browser exposes
+    // almost nothing about a rejected handshake, so the user would get a blank
+    // terminal and no reason.
+    const sessionId = url.searchParams.get(PTY_SESSION_PARAM) ?? "";
+
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      attach(ws, sessionId);
+    });
+  });
 
   app.addHook("onClose", async () => {
-    app.server.off("upgrade", onUpgrade);
     for (const client of wss.clients) client.close(CLOSE_GOING_AWAY, "daemon shutting down");
     await new Promise<void>((resolve) => {
       wss.close(() => resolve());

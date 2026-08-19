@@ -50,8 +50,15 @@ export interface FakeAgentScript {
   initialize?(params: InitializeRequest): Partial<InitializeResponse> | void;
   /** Throw to make the handshake fail, as a broken adapter would. */
   newSession?(params: NewSessionRequest): Partial<NewSessionResponse> | void;
-  /** The whole turn. Whatever it returns becomes the stop reason. */
-  prompt?(text: string, turn: FakeAgentTurn): Promise<StopReason> | StopReason;
+  /**
+   * The whole turn. Whatever it resolves to becomes the stop reason.
+   *
+   * `Promise<StopReason>` rather than `MaybePromise<StopReason>`: a union return
+   * type defeats contextual typing, so every `async prompt() { return
+   * "end_turn" }` in every test widened to `Promise<string>` and had to be
+   * annotated by hand. Every script here is async anyway.
+   */
+  prompt?(text: string, turn: FakeAgentTurn): Promise<StopReason>;
 }
 
 const DEFAULT_SESSION_ID = "fake-acp-session";
