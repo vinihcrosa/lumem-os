@@ -1,11 +1,11 @@
 # PRD — A sessão de agente vira conversa (ACP)
 
-> **Status:** v1.0 — **fases 0 a 3 entregues.** A conversa roda: uma tarefa vai do começo ao fim sem
-> terminal, com mensagem, cartão de ferramenta e permissão, contra agente falso e sem consumir token.
-> Gate cheio verde. Autenticação e consumo **medidos**; janela de contexto **parcial** — a sessão nasce
-> em 1M, mas contexto cheio não foi exercitado ([§9.5 do estudo](../../project/pty-vs-acp.md)).
-> **Falta:** fases 4 (plano, uso, modos, comandos, terminal embutido, `fs/*`) e 5 (`session/load`,
-> transcrição no banco)
+> **Status:** v2.0 — **fases 0 a 4 entregues.** Paridade funcional com o uso diário: mensagem,
+> ferramenta, permissão, plano, uso e custo, seletores de modo e modelo, comandos de barra, o terminal
+> que o agente pede, e `fs/*` pelo `FileService`. Tudo contra agente falso, sem consumir token. Gate
+> cheio verde. Autenticação e consumo **medidos**; janela de contexto **parcial** — a sessão nasce em
+> 1M, mas contexto cheio não foi exercitado ([§9.5 do estudo](../../project/pty-vs-acp.md)).
+> **Falta:** fase 5 — `session/load`, reconciliação de conversa no boot, transcrição no banco
 > **Perguntas:** [open-questions.md](open-questions.md) — **14 de 14**
 > **Tasks:** [tasks.md](tasks.md) — 18 tasks nas fases 1 e 3, nenhuma iniciada
 > **Decisão que originou:** [pty-vs-acp.md](../../project/pty-vs-acp.md) — migrar para ACP, 2026-08-17
@@ -222,7 +222,7 @@ demais para justificar descartar o insumo da destilação de memória.
 | **1** | Transporte: `AcpManager`, `transport` na coluna, stream tipado, sem tela nova | §3 — **rodado**: 8 tasks, tudo contra agente falso, zero token. Dois bugs da migração gerada e uma limitação do SDK ([`unknown-updates.ts`](../../../packages/server/src/acp/unknown-updates.ts)) documentados no caminho |
 | **2** | Protótipo HTML da conversa | §2 — **rodado**: `lumem-acp-conversation.html`, seis telas, 99 pares de contraste validados. Abriu **A13** e **A14**, e três tokens novos de domínio (`tool/cancelled`, `syntax/comment-diff`, e o bloco `conversa`) |
 | **3** | A conversa em React: **mensagem + ferramenta + permissão**, e só ([A2](open-questions.md)) | §3 — **rodado**: 10 tasks. O e2e `acp-conversation.spec.ts` roda a tarefa inteira sem terminal, e mede a 360px o que jsdom não mede |
-| **4** | Terminal embutido, plano, modos, modelos, comandos de barra, uso | Paridade funcional com o uso diário |
+| **4** | Terminal embutido, plano, modos, modelos, comandos de barra, uso, `fs/*` | §3 — **rodado**: 8 tasks. A escrita em disco veio primeiro, por ser a única que sai perigosa se sair errada. Abriu a **A15** (troca no meio do turno) e achou o snapshot do terminal se perdendo em contêiner recém-revelado |
 | **5** | Retomar sessão (`session/load`), reconciliação no boot | Fechar o Lumem e voltar não perde conversa |
 
 ---

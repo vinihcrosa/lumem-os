@@ -5,7 +5,7 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** fases 1 e 3 **concluídas** (18 de 18). **Fase 4 em execução — 0 de 8.**
+**Status:** fases 1, 3 e 4 **concluídas — 26 de 26.** Gate cheio verde (1.398 unit/integration + 22 e2e). Falta a **fase 5**.
 **Total:** 26 tasks nas fases 1, 3 e 4 do PRD
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
@@ -509,13 +509,13 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 **Depends on**: nada
 
 **Done when**:
-- [ ] O teste da guarda vem **antes** da primeira escrita: caminho absoluto fora do checkout, `..` normalizado, symlink que escapa — todos recusados, e o `path-guard` é reusado sem exceção nova
-- [ ] `fs/read_text_file` respeita `line` e `limit` quando o agente os manda, e o teto de bytes do `FileService`
-- [ ] `fs/write_text_file` cria arquivo novo e sobrescreve existente, sempre dentro do checkout
-- [ ] Recusa vira erro de protocolo que o agente entende, não exceção que derruba a sessão
-- [ ] `clientCapabilities` passa a declarar `fs`, e **só depois** de os dois métodos existirem — um agente que ouve "sei escrever" e descobre que não, falha no meio do turno em vez de no handshake
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 8 — leitura, leitura com janela, arquivo grande, escrita nova, sobrescrita, e as três recusas da guarda
+- [x] O teste da guarda vem **antes** da primeira escrita: caminho absoluto fora do checkout, `..` normalizado, symlink que escapa — todos recusados, e o `path-guard` é reusado sem exceção nova
+- [x] `fs/read_text_file` respeita `line` e `limit` quando o agente os manda, e o teto de bytes do `FileService`
+- [x] `fs/write_text_file` cria arquivo novo e sobrescreve existente, sempre dentro do checkout
+- [x] Recusa vira erro de protocolo que o agente entende, não exceção que derruba a sessão
+- [x] `clientCapabilities` passa a declarar `fs`, e **só depois** de os dois métodos existirem — um agente que ouve "sei escrever" e descobre que não, falha no meio do turno em vez de no handshake
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 8 — leitura, leitura com janela, arquivo grande, escrita nova, sobrescrita, e as três recusas da guarda
 
 **Tests**: unit/integration com filesystem de verdade — symlink não se simula · **Gate**: quick
 **Commit**: `feat(server): let the agent read and write inside the checkout`
@@ -529,14 +529,14 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 **Depends on**: nada
 
 **Done when**:
-- [ ] Eventos novos: `plan`, `usage`, `config` (modo, modelo e o resto de `configOptions`), `commands`, `terminal`
-- [ ] `plan` carrega as entradas com status de **três** valores (`pending`, `in_progress`, `completed`) — os do protocolo, sem quinto estado inventado
-- [ ] `usage` carrega `used`, `size`, custo opcional, e o **estado do limite** que o `_meta._claude/rateLimit` entrega: utilização, limiar, `isUsingOverage`, reset
-- [ ] `terminal` carrega o **id de sessão de PTY** (D7), não um canal novo
-- [ ] Mensagem do cliente: `set_config` com `optionId` e `value` (D8)
-- [ ] `attached` passa a carregar os `configOptions` correntes, para o seletor nascer preenchido em vez de vazio até o primeiro evento
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 10 — ida e volta de cada evento novo, `set_config`, status de plano inválido recusado, `usage` sem custo aceito
+- [x] Eventos novos: `plan`, `usage`, `config` (modo, modelo e o resto de `configOptions`), `commands`, `terminal`
+- [x] `plan` carrega as entradas com status de **três** valores (`pending`, `in_progress`, `completed`) — os do protocolo, sem quinto estado inventado
+- [x] `usage` carrega `used`, `size`, custo opcional, e o **estado do limite** que o `_meta._claude/rateLimit` entrega: utilização, limiar, `isUsingOverage`, reset
+- [x] `terminal` carrega o **id de sessão de PTY** (D7), não um canal novo
+- [x] Mensagem do cliente: `set_config` com `optionId` e `value` (D8)
+- [x] `attached` passa a carregar os `configOptions` correntes, para o seletor nascer preenchido em vez de vazio até o primeiro evento
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 10 — ida e volta de cada evento novo, `set_config`, status de plano inválido recusado, `usage` sem custo aceito
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(shared): type what the conversation still has to show`
@@ -550,14 +550,14 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 **Depends on**: P2
 
 **Done when**:
-- [ ] **Um** cartão por sessão, que se reescreve: o agente reenvia o plano inteiro, e cada versão virando bloco novo encheria a conversa de cópias quase iguais
-- [ ] `plan_removed` apaga o cartão
-- [ ] Três estados com os tokens de `plan/*`; o passo corrente é o único com a cor da marca
-- [ ] Plano terminado **colapsa** para o cabeçalho com a contagem
-- [ ] Passo comprido **quebra**, não trunca — testado na largura de 360px do protótipo
-- [ ] O CSS de `.plan*` entra agora, junto do componente
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 8 — três estados, reescrita, remoção, colapso, quebra, e o redutor mantendo um só cartão
+- [x] **Um** cartão por sessão, que se reescreve: o agente reenvia o plano inteiro, e cada versão virando bloco novo encheria a conversa de cópias quase iguais
+- [x] `plan_removed` apaga o cartão
+- [x] Três estados com os tokens de `plan/*`; o passo corrente é o único com a cor da marca
+- [x] Plano terminado **colapsa** para o cabeçalho com a contagem
+- [x] Passo comprido **quebra**, não trunca — testado na largura de 360px do protótipo
+- [x] O CSS de `.plan*` entra agora, junto do componente
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 8 — três estados, reescrita, remoção, colapso, quebra, e o redutor mantendo um só cartão
 
 **Tests**: unit (tradutor, redutor) + componente · **Gate**: quick
 **Commit**: `feat(web): show the plan as one card that rewrites itself`
@@ -571,14 +571,14 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 **Depends on**: P2
 
 **Done when**:
-- [ ] Janela, cache, custo do turno e custo acumulado da sessão
-- [ ] O medidor **nasce quieto**: `usage/quiet` até passar o `surpassedThreshold` que o próprio protocolo entrega, `usage/warn` depois, `usage/over` em `isUsingOverage`
-- [ ] `isUsingOverage` virando `true` sai do rodapé e vira **faixa** — rodapé é o que se aprende a não ler
-- [ ] O medidor de verdade enche: teste que prova largura proporcional, porque foi exatamente isso que o protótipo errou
-- [ ] Sessão sem custo reportado não mostra um `US$ 0,00` que ninguém mediu
-- [ ] O CSS de `.usage*`, `.u*`, `.meter*` e `.overage` entra agora
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 8 — três tons do medidor, faixa de overage, custo ausente, acumulado, e a largura proporcional
+- [x] Janela, cache, custo do turno e custo acumulado da sessão
+- [x] O medidor **nasce quieto**: `usage/quiet` até passar o `surpassedThreshold` que o próprio protocolo entrega, `usage/warn` depois, `usage/over` em `isUsingOverage`
+- [x] `isUsingOverage` virando `true` sai do rodapé e vira **faixa** — rodapé é o que se aprende a não ler
+- [x] O medidor de verdade enche: teste que prova largura proporcional, porque foi exatamente isso que o protótipo errou
+- [x] Sessão sem custo reportado não mostra um `US$ 0,00` que ninguém mediu
+- [x] O CSS de `.usage*`, `.u*`, `.meter*` e `.overage` entra agora
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 8 — três tons do medidor, faixa de overage, custo ausente, acumulado, e a largura proporcional
 
 **Tests**: unit + componente · **Gate**: quick
 **Commit**: `feat(web): report what the turn cost, per turn`
@@ -592,15 +592,15 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 **Depends on**: P2
 
 **Done when**:
-- [ ] Uma mensagem `set_config` do cliente, e o daemon decide entre `session/set_mode` e a chamada de `configOptions` (D8)
-- [ ] A troca **persiste na sessão**: as colunas `mode` e `model` são escritas, e reabrir a aba mostra o que estava escolhido (D9)
-- [ ] Descrição de opção vai **verbatim**, em inglês (A13)
-- [ ] `bypassPermissions` tem tom próprio na lista e na pílula — não perguntar nada é estado, não preferência
-- [ ] `config_option_update` e `current_mode_update` vindos do agente atualizam a pílula sem o cliente ter pedido
-- [ ] Trocar durante um turno é recusado com motivo, não silenciosamente ignorado
-- [ ] O CSS de `.pill*` e do menu entra agora
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 10 — troca de modo, troca de modelo, persistência, atualização vinda do agente, recusa durante turno, tom do bypass
+- [x] Uma mensagem `set_config` do cliente, e o daemon decide entre `session/set_mode` e a chamada de `configOptions` (D8)
+- [x] A troca **persiste na sessão**: as colunas `mode` e `model` são escritas, e reabrir a aba mostra o que estava escolhido (D9)
+- [x] Descrição de opção vai **verbatim**, em inglês (A13)
+- [x] `bypassPermissions` tem tom próprio na lista e na pílula — não perguntar nada é estado, não preferência
+- [x] `config_option_update` e `current_mode_update` vindos do agente atualizam a pílula sem o cliente ter pedido
+- [x] Trocar durante um turno é recusado com motivo, não silenciosamente ignorado
+- [x] O CSS de `.pill*` e do menu entra agora
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 10 — troca de modo, troca de modelo, persistência, atualização vinda do agente, recusa durante turno, tom do bypass
 
 **Tests**: unit/integration (daemon) + componente · **Gate**: quick
 **Commit**: `feat(web): switch mode and model, and remember the switch`
@@ -614,14 +614,14 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 **Depends on**: P2
 
 **Done when**:
-- [ ] `/` no começo do composer abre o menu; texto depois filtra
-- [ ] A lista é **do agente**, com a descrição verbatim (A13) — as skills do repositório aparecem sem o Lumem saber que existem
-- [ ] Escolher insere o comando no composer; **não** envia sozinho — o comando pode pedir argumento
-- [ ] Setas e `⏎` navegam; `esc` fecha sem inserir
-- [ ] Agente que não manda comando nenhum não mostra menu vazio
-- [ ] O CSS de `.slash*` entra agora
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 8 — abre, filtra, insere sem enviar, teclado nas três direções, lista vazia
+- [x] `/` no começo do composer abre o menu; texto depois filtra
+- [x] A lista é **do agente**, com a descrição verbatim (A13) — as skills do repositório aparecem sem o Lumem saber que existem
+- [x] Escolher insere o comando no composer; **não** envia sozinho — o comando pode pedir argumento
+- [x] Setas e `⏎` navegam; `esc` fecha sem inserir
+- [x] Agente que não manda comando nenhum não mostra menu vazio
+- [x] O CSS de `.slash*` entra agora
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 8 — abre, filtra, insere sem enviar, teclado nas três direções, lista vazia
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): offer the agent's own slash commands`
@@ -635,14 +635,14 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 **Depends on**: P1, P2
 
 **Done when**:
-- [ ] Os cinco métodos atendidos pelo `PtyManager` que já existe — **nenhum gerenciador de processo novo**
-- [ ] O terminal do agente é uma sessão de PTY com id, e o cartão monta o `Terminal` existente apontado para `/pty?session=<id>` (D7)
-- [ ] `release` esquece a sessão; `kill` mata; sessão de terminal não aparece como aba na worktree
-- [ ] `wait_for_exit` resolve com o código de saída de verdade
-- [ ] Terminal do agente é limpo quando a sessão ACP morre — subprocesso órfão é o que o `killAll` existe para evitar
-- [ ] `clientCapabilities` passa a declarar `terminal`, depois de os cinco existirem
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 8 — criar, ler saída, esperar saída, matar, liberar, não virar aba, limpeza na morte da sessão
+- [x] Os cinco métodos atendidos pelo `PtyManager` que já existe — **nenhum gerenciador de processo novo**
+- [x] O terminal do agente é uma sessão de PTY com id, e o cartão monta o `Terminal` existente apontado para `/pty?session=<id>` (D7)
+- [x] `release` esquece a sessão; `kill` mata; sessão de terminal não aparece como aba na worktree
+- [x] `wait_for_exit` resolve com o código de saída de verdade
+- [x] Terminal do agente é limpo quando a sessão ACP morre — subprocesso órfão é o que o `killAll` existe para evitar
+- [x] `clientCapabilities` passa a declarar `terminal`, depois de os cinco existirem
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 8 — criar, ler saída, esperar saída, matar, liberar, não virar aba, limpeza na morte da sessão
 
 **Tests**: integration com PTY de verdade · **Gate**: quick
 **Commit**: `feat(server): give the agent a terminal inside its own card`
@@ -656,12 +656,12 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 **Depends on**: P3, P4, P5, P6, P7
 
 **Done when**:
-- [ ] O agente falso passa a mandar plano, uso, comandos e a pedir um terminal — ainda **zero token**
-- [ ] O e2e vê: plano avançando, rodapé de uso com número, menu de barra abrindo, terminal do agente dentro do cartão
-- [ ] Troca de modelo pela pílula, e o valor sobrevive a um recarregamento
-- [ ] `testing.md` ganha a linha do que a fase 4 acrescentou
-- [ ] Gate: `pnpm gate:full`
-- [ ] Test count: ao menos 3 — o turno completo, a troca persistida, o terminal embutido
+- [x] O agente falso passa a mandar plano, uso, comandos e a pedir um terminal — ainda **zero token**
+- [x] O e2e vê: plano avançando, rodapé de uso com número, menu de barra abrindo, terminal do agente dentro do cartão
+- [x] Troca de modelo pela pílula, e o valor sobrevive a um recarregamento
+- [x] `testing.md` ganha a linha do que a fase 4 acrescentou
+- [x] Gate: `pnpm gate:full`
+- [x] Test count: ao menos 3 — o turno completo, a troca persistida, o terminal embutido
 
 **Tests**: e2e · **Gate**: full
 **Commit**: `test(e2e): exercise everything phase 4 added`
