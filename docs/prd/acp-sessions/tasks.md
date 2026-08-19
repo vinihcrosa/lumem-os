@@ -5,8 +5,8 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** **concluída — 18 de 18.** Fases 1 e 3 do PRD entregues, gate cheio verde (1.208 unit/integration + 19 e2e). Próximo: fase 4
-**Total:** 18 tasks em 2 fases (as fases **1** e **3** do PRD)
+**Status:** fases 1 e 3 **concluídas** (18 de 18). **Fase 4 em execução — 0 de 8.**
+**Total:** 26 tasks nas fases 1, 3 e 4 do PRD
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
 > tokens (turno, estado de ferramenta, permissão, plano, uso, modo), mais `tool/cancelled` e
@@ -458,13 +458,223 @@ permissão — e só (D6).
 
 ---
 
+## Fase 4 — Paridade funcional com o uso diário
+
+**Done when da fase:** o que o protótipo desenha está na tela, o agente consegue pedir um terminal e
+tocar arquivo pelo `FileService`, e a sessão troca de modo e de modelo. Nada de `session/load` — isso é
+fase 5.
+
+### Ordem, e por quê ela é essa
+
+**A escrita em disco primeiro.** A `P1` é a única parte da fase que, se sair errada, sai **perigosa**:
+`fs/write_text_file` é superfície nova de escrita, e com o default `auto` há menos confirmação humana no
+caminho ([risco no §6](prd.md)). Ela vem antes de tudo, com o teste da guarda antes da primeira escrita
+— a mesma regra que a `right-panel` seguiu.
+
+**Depois o contrato,** pela lição da T1: contrato depois de implementação é contrato que descreve o que
+já foi escrito.
+
+**Depois o que só lê,** em ordem de custo: plano, uso, modos, comandos. Cada um traz **o seu bloco de
+CSS** — o C8 não portou nenhum deles de propósito, e CSS sem markup é CSS morto.
+
+**O terminal embutido por último dos de tela,** porque é onde os dois transportes se encontram e é a
+única task da fase que mexe no `PtyManager`.
+
+### Decisões que sustentam esta fase
+
+#### D7 — O terminal do agente é uma sessão de PTY, e o cliente já sabe desenhar isso
+
+`terminal/create` é o agente pedindo um shell ao **cliente**. O daemon atende com o `PtyManager` que já
+existe (F3.2) — o que significa que o terminal tem um id de sessão de PTY, e o `xterm` embutido no cartão
+se liga no `/pty?session=<id>` exatamente como qualquer terminal. **Nenhum caminho de streaming novo**, e
+o componente `Terminal` entra sem modificação.
+
+#### D8 — Troca de modo e de modelo é uma mensagem só
+
+O protocolo tem `session/set_mode` para modo e `configOptions` para o resto. Do lado do navegador é uma
+mensagem — `set_config` com `optionId` e `value` — e o daemon decide qual chamada do protocolo fazer. Uma
+mensagem por seletor obrigaria o cliente a saber qual campo o protocolo trata de forma especial.
+
+#### D9 — A troca persiste na sessão, não na configuração
+
+[A8](open-questions.md): `agent_config` define o default, a sessão troca, e a troca vale para aquela
+sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas quando a troca acontece.
+
+---
+
+#### P1: `fs/read_text_file` e `fs/write_text_file`
+
+**What**: O agente lê e escreve arquivo pelo `FileService`, com **a mesma guarda de caminho** da `file-editor`.
+**Where**: `packages/server/src/acp/AcpManager.ts`, `packages/server/src/acp/fs-bridge.ts` + teste
+**Depends on**: nada
+
+**Done when**:
+- [ ] O teste da guarda vem **antes** da primeira escrita: caminho absoluto fora do checkout, `..` normalizado, symlink que escapa — todos recusados, e o `path-guard` é reusado sem exceção nova
+- [ ] `fs/read_text_file` respeita `line` e `limit` quando o agente os manda, e o teto de bytes do `FileService`
+- [ ] `fs/write_text_file` cria arquivo novo e sobrescreve existente, sempre dentro do checkout
+- [ ] Recusa vira erro de protocolo que o agente entende, não exceção que derruba a sessão
+- [ ] `clientCapabilities` passa a declarar `fs`, e **só depois** de os dois métodos existirem — um agente que ouve "sei escrever" e descobre que não, falha no meio do turno em vez de no handshake
+- [ ] Gate: `pnpm gate:quick`
+- [ ] Test count: ao menos 8 — leitura, leitura com janela, arquivo grande, escrita nova, sobrescrita, e as três recusas da guarda
+
+**Tests**: unit/integration com filesystem de verdade — symlink não se simula · **Gate**: quick
+**Commit**: `feat(server): let the agent read and write inside the checkout`
+
+---
+
+#### P2: O contrato da fase 4
+
+**What**: Os eventos que a fase 4 renderiza, e a mensagem que troca modo e modelo.
+**Where**: `packages/shared/src/acp-protocol.ts` + teste
+**Depends on**: nada
+
+**Done when**:
+- [ ] Eventos novos: `plan`, `usage`, `config` (modo, modelo e o resto de `configOptions`), `commands`, `terminal`
+- [ ] `plan` carrega as entradas com status de **três** valores (`pending`, `in_progress`, `completed`) — os do protocolo, sem quinto estado inventado
+- [ ] `usage` carrega `used`, `size`, custo opcional, e o **estado do limite** que o `_meta._claude/rateLimit` entrega: utilização, limiar, `isUsingOverage`, reset
+- [ ] `terminal` carrega o **id de sessão de PTY** (D7), não um canal novo
+- [ ] Mensagem do cliente: `set_config` com `optionId` e `value` (D8)
+- [ ] `attached` passa a carregar os `configOptions` correntes, para o seletor nascer preenchido em vez de vazio até o primeiro evento
+- [ ] Gate: `pnpm gate:quick`
+- [ ] Test count: ao menos 10 — ida e volta de cada evento novo, `set_config`, status de plano inválido recusado, `usage` sem custo aceito
+
+**Tests**: unit · **Gate**: quick
+**Commit**: `feat(shared): type what the conversation still has to show`
+
+---
+
+#### P3: O plano na tela
+
+**What**: `plan` e `plan_update` traduzidos, e o cartão que se reescreve (F2.5).
+**Where**: `packages/server/src/acp/translate.ts`, `packages/web/src/lib/conversation-model.ts`, `packages/web/src/components/PlanCard.tsx` + testes, `conversation.css`
+**Depends on**: P2
+
+**Done when**:
+- [ ] **Um** cartão por sessão, que se reescreve: o agente reenvia o plano inteiro, e cada versão virando bloco novo encheria a conversa de cópias quase iguais
+- [ ] `plan_removed` apaga o cartão
+- [ ] Três estados com os tokens de `plan/*`; o passo corrente é o único com a cor da marca
+- [ ] Plano terminado **colapsa** para o cabeçalho com a contagem
+- [ ] Passo comprido **quebra**, não trunca — testado na largura de 360px do protótipo
+- [ ] O CSS de `.plan*` entra agora, junto do componente
+- [ ] Gate: `pnpm gate:quick`
+- [ ] Test count: ao menos 8 — três estados, reescrita, remoção, colapso, quebra, e o redutor mantendo um só cartão
+
+**Tests**: unit (tradutor, redutor) + componente · **Gate**: quick
+**Commit**: `feat(web): show the plan as one card that rewrites itself`
+
+---
+
+#### P4: Uso e custo
+
+**What**: `usage_update` traduzido, e o rodapé que substitui o `/usage` (F2.7).
+**Where**: `packages/server/src/acp/translate.ts`, `packages/web/src/lib/conversation-model.ts`, `packages/web/src/components/UsageFooter.tsx` + testes, `conversation.css`
+**Depends on**: P2
+
+**Done when**:
+- [ ] Janela, cache, custo do turno e custo acumulado da sessão
+- [ ] O medidor **nasce quieto**: `usage/quiet` até passar o `surpassedThreshold` que o próprio protocolo entrega, `usage/warn` depois, `usage/over` em `isUsingOverage`
+- [ ] `isUsingOverage` virando `true` sai do rodapé e vira **faixa** — rodapé é o que se aprende a não ler
+- [ ] O medidor de verdade enche: teste que prova largura proporcional, porque foi exatamente isso que o protótipo errou
+- [ ] Sessão sem custo reportado não mostra um `US$ 0,00` que ninguém mediu
+- [ ] O CSS de `.usage*`, `.u*`, `.meter*` e `.overage` entra agora
+- [ ] Gate: `pnpm gate:quick`
+- [ ] Test count: ao menos 8 — três tons do medidor, faixa de overage, custo ausente, acumulado, e a largura proporcional
+
+**Tests**: unit + componente · **Gate**: quick
+**Commit**: `feat(web): report what the turn cost, per turn`
+
+---
+
+#### P5: Modo e modelo
+
+**What**: Os seletores, a troca, e a persistência na sessão (F2.6, D8, D9).
+**Where**: `packages/server/src/acp/AcpManager.ts`, `packages/server/src/acp/websocket.ts`, `packages/server/src/sessions/SessionStore.ts`, `packages/web/src/components/ConfigPills.tsx` + testes, `conversation.css`
+**Depends on**: P2
+
+**Done when**:
+- [ ] Uma mensagem `set_config` do cliente, e o daemon decide entre `session/set_mode` e a chamada de `configOptions` (D8)
+- [ ] A troca **persiste na sessão**: as colunas `mode` e `model` são escritas, e reabrir a aba mostra o que estava escolhido (D9)
+- [ ] Descrição de opção vai **verbatim**, em inglês (A13)
+- [ ] `bypassPermissions` tem tom próprio na lista e na pílula — não perguntar nada é estado, não preferência
+- [ ] `config_option_update` e `current_mode_update` vindos do agente atualizam a pílula sem o cliente ter pedido
+- [ ] Trocar durante um turno é recusado com motivo, não silenciosamente ignorado
+- [ ] O CSS de `.pill*` e do menu entra agora
+- [ ] Gate: `pnpm gate:quick`
+- [ ] Test count: ao menos 10 — troca de modo, troca de modelo, persistência, atualização vinda do agente, recusa durante turno, tom do bypass
+
+**Tests**: unit/integration (daemon) + componente · **Gate**: quick
+**Commit**: `feat(web): switch mode and model, and remember the switch`
+
+---
+
+#### P6: Comandos de barra
+
+**What**: O menu vindo de `available_commands_update` (F2.8).
+**Where**: `packages/server/src/acp/translate.ts`, `packages/web/src/components/SlashMenu.tsx` + testes, `conversation.css`
+**Depends on**: P2
+
+**Done when**:
+- [ ] `/` no começo do composer abre o menu; texto depois filtra
+- [ ] A lista é **do agente**, com a descrição verbatim (A13) — as skills do repositório aparecem sem o Lumem saber que existem
+- [ ] Escolher insere o comando no composer; **não** envia sozinho — o comando pode pedir argumento
+- [ ] Setas e `⏎` navegam; `esc` fecha sem inserir
+- [ ] Agente que não manda comando nenhum não mostra menu vazio
+- [ ] O CSS de `.slash*` entra agora
+- [ ] Gate: `pnpm gate:quick`
+- [ ] Test count: ao menos 8 — abre, filtra, insere sem enviar, teclado nas três direções, lista vazia
+
+**Tests**: componente · **Gate**: quick
+**Commit**: `feat(web): offer the agent's own slash commands`
+
+---
+
+#### P7: O terminal que o agente pede
+
+**What**: `terminal/create`, `output`, `wait_for_exit`, `kill`, `release` atendidos pelo `PtyManager`, e o `xterm` dentro do cartão (F3, A5, D7).
+**Where**: `packages/server/src/acp/AcpManager.ts`, `packages/server/src/acp/terminal-bridge.ts` + teste, `packages/web/src/components/ToolCard.tsx`
+**Depends on**: P1, P2
+
+**Done when**:
+- [ ] Os cinco métodos atendidos pelo `PtyManager` que já existe — **nenhum gerenciador de processo novo**
+- [ ] O terminal do agente é uma sessão de PTY com id, e o cartão monta o `Terminal` existente apontado para `/pty?session=<id>` (D7)
+- [ ] `release` esquece a sessão; `kill` mata; sessão de terminal não aparece como aba na worktree
+- [ ] `wait_for_exit` resolve com o código de saída de verdade
+- [ ] Terminal do agente é limpo quando a sessão ACP morre — subprocesso órfão é o que o `killAll` existe para evitar
+- [ ] `clientCapabilities` passa a declarar `terminal`, depois de os cinco existirem
+- [ ] Gate: `pnpm gate:quick`
+- [ ] Test count: ao menos 8 — criar, ler saída, esperar saída, matar, liberar, não virar aba, limpeza na morte da sessão
+
+**Tests**: integration com PTY de verdade · **Gate**: quick
+**Commit**: `feat(server): give the agent a terminal inside its own card`
+
+---
+
+#### P8: O e2e da paridade
+
+**What**: Um turno que usa tudo o que a fase 4 acrescentou.
+**Where**: `e2e/acp-conversation.spec.ts`, `e2e/support/fake-acp-agent.mjs`, `docs/project/testing.md`
+**Depends on**: P3, P4, P5, P6, P7
+
+**Done when**:
+- [ ] O agente falso passa a mandar plano, uso, comandos e a pedir um terminal — ainda **zero token**
+- [ ] O e2e vê: plano avançando, rodapé de uso com número, menu de barra abrindo, terminal do agente dentro do cartão
+- [ ] Troca de modelo pela pílula, e o valor sobrevive a um recarregamento
+- [ ] `testing.md` ganha a linha do que a fase 4 acrescentou
+- [ ] Gate: `pnpm gate:full`
+- [ ] Test count: ao menos 3 — o turno completo, a troca persistida, o terminal embutido
+
+**Tests**: e2e · **Gate**: full
+**Commit**: `test(e2e): exercise everything phase 4 added`
+
+---
+
 ## O que fica de fora, e onde entra
 
 | Fora desta pilha | Onde |
 |---|---|
-| Plano na tela, uso e custo, seletor de modo/modelo/esforço, comandos de barra | **Fase 4** do PRD. O protótipo já os desenha, e o CSS deles **não** vem no C8: CSS sem markup é CSS morto, e uma folha em que ninguém sabe qual metade está viva é uma folha que ninguém edita com segurança. Cada bloco vem junto do componente que o usa |
-| Terminal que o agente pede (`terminal/*`) | **Fase 4**, F3 do PRD — é onde os dois transportes se encontram |
-| `fs/read_text_file` e `fs/write_text_file` atendidos pelo `FileService` | **Fase 4**, F4 do PRD. Até lá o agente usa as ferramentas dele, como hoje |
+| Plano na tela, uso e custo, seletor de modo/modelo/esforço, comandos de barra | **Fase 4**, `P3`–`P6` desta pilha. Cada bloco de CSS vem junto do componente que o usa |
+| Terminal que o agente pede (`terminal/*`) | **Fase 4**, `P7` — é onde os dois transportes se encontram |
+| `fs/read_text_file` e `fs/write_text_file` atendidos pelo `FileService` | **Fase 4**, `P1` — a primeira da fase, porque é a única que sai perigosa se sair errada |
 | Retomar sessão (`session/load`), reconciliação de conversa no boot | **Fase 5** do PRD |
 | Transcrição inteira no banco, com compressão acima de 30 dias (F5.4) | **Fase 5** — o replay do T1/C1 vive em memória até lá, e isso é suficiente para a fase 3 fechar |
 | Política de permissão configurável | Feature própria — [backlog](../../project/backlog.md) |
