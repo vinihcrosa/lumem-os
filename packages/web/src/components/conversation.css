@@ -1,0 +1,318 @@
+/*
+ * A conversa (ACP) — portado de `packages/web/prototype/lumem-acp-conversation.html`.
+ *
+ * As classes vêm do protótipo com o mesmo nome: divergência aqui é bug de porte,
+ * não escolha. Nenhum valor literal de cor, espaçamento ou dimensão — só `var()`,
+ * com a exceção dos fios óticos de 1–2px que o resto do app também usa.
+ *
+ * O que o protótipo desenha e este arquivo NÃO traz: plano, rodapé de uso e
+ * custo, pílulas de modo/modelo/esforço, menu de comandos de barra, separador de
+ * retomada e a faixa de overage. Tudo isso é fase 4 (A2, D6), e CSS sem markup é
+ * CSS morto — ele vem junto do componente que o usa, quando vier.
+ *
+ * O diff do cartão usa `.patch`/`.dl` do painel direito, não uma segunda
+ * pintura (A4). Por isso o poço de diff do protótipo não está aqui.
+ */
+
+/* ==================================================================== */
+/* A CONVERSA — o que substitui o terminal                              */
+/* ==================================================================== */
+/*
+ * O terminal era uma superfície: bytes chegam, rolam, somem. A conversa é
+ * uma LISTA DE EVENTOS TIPADOS, e o desenho inteiro sai daí — cada evento
+ * do protocolo tem um bloco com forma própria, e a forma é o que deixa
+ * varrer a conversa com o olho em vez de ler linha por linha.
+ *
+ * Um eixo de cor por elemento, nunca dois: a medianiz diz QUEM falou, o
+ * cartão de ferramenta diz EM QUE ESTADO está, o plano diz ONDE estamos.
+ * Foi misturar esses três num só fluxo de texto que fez o terminal virar
+ * parede.
+ */
+.pane--conv { padding: 0; }
+
+.conv { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* --------------------------------------------- barra da sessão de agente */
+/*
+ * Modo, modelo e esforço vêm de `configOptions` — são dado do protocolo,
+ * não invenção nossa. Ficam aqui em cima porque valem para a sessão toda;
+ * o que vale só para a próxima mensagem fica no composer.
+ */
+.conv__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  height: var(--size-topbar-height);
+  padding: 0 var(--space-20);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.conv__who { display: inline-flex; align-items: center; gap: var(--space-8); font: var(--text-label-md); }
+.conv__adapter { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+
+.conv__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-16) var(--space-20) var(--space-20);
+  display: grid;
+  align-content: start;
+  gap: var(--space-16);
+}
+/* Nas telas de galeria a conversa não rola: ela cresce e a página rola. */
+.conv__scroll--flow { overflow: visible; }
+
+/* ------------------------------------------------------------- o turno */
+/*
+ * A medianiz de 20px é o que alinha glifo de quem fala, cartão de
+ * ferramenta, plano e pedido de permissão numa única coluna. Sem ela cada
+ * tipo de evento começaria num x diferente e a conversa pareceria uma
+ * lista de coisas soltas em vez de um diálogo.
+ */
+.turn { display: grid; grid-template-columns: var(--size-turn-gutter) 1fr; gap: var(--space-10); align-items: start; }
+.turn__g { flex: none; text-align: center; font-size: var(--size-icon-sm); line-height: var(--space-20); }
+.turn--agent .turn__g { color: var(--color-turn-agent); }
+.turn--user  .turn__g { color: var(--color-turn-user); }
+.turn__b { min-width: 0; display: grid; gap: var(--space-10); }
+
+.msg { font: var(--text-body-lg); color: var(--color-text-primary); }
+.msg p { margin: 0 0 var(--space-10); }
+.msg p:last-child { margin: 0; }
+.msg code { font: var(--text-mono-md); color: var(--color-text-code); background: var(--color-bg-surface); border-radius: var(--radius-xs); padding: 0 var(--space-4); }
+/*
+ * O turno do usuário ganha fundo levantado e o resto não: é o único jeito
+ * de achar "onde eu pedi isso" rolando uma conversa de duas horas.
+ */
+.turn--user .msg {
+  padding: var(--space-10) var(--space-12);
+  background: var(--color-bg-raised);
+  border-radius: var(--radius-md);
+  color: var(--color-turn-user);
+}
+/* Streaming (F2.1): o caret é o único sinal de que o turno não acabou. */
+.mcaret {
+  display: inline-block;
+  width: var(--space-2);
+  height: var(--space-16);
+  margin-left: var(--space-2);
+  background: var(--color-turn-caret);
+  vertical-align: text-bottom;
+}
+
+/* ------------------------------------------------------- o raciocínio */
+/*
+ * Colapsado por padrão (F2.2). Existe, dá para abrir, e não compete com a
+ * resposta — quem lê a conversa depois quer saber O QUE foi feito, não o
+ * caminho até a decisão. Quem quer o caminho abre.
+ */
+.thought {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-body-sm);
+  color: var(--color-turn-thought);
+}
+.thought__twist { font-size: var(--size-icon-xs); }
+.thought__peek { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
+.thought__text {
+  border-left: 1px solid var(--color-border-default);
+  padding-left: var(--space-12);
+  font: var(--text-body-md);
+  color: var(--color-turn-thought);
+}
+.thought__text p { margin: 0 0 var(--space-8); }
+.thought__text p:last-child { margin: 0; }
+
+/* ------------------------------------------ o cartão de ferramenta (F2.3) */
+/*
+ * É O elemento que substitui o texto rolando. Quatro estados, e a barra de
+ * 2px na esquerda existe para que uma falha no meio de vinte chamadas seja
+ * achada de relance, sem ler nenhum rótulo.
+ *
+ * "rodando" é info e não success de propósito: verde fica reservado para
+ * TERMINOU BEM. Um cartão a meio caminho pintado de verde se lê como
+ * cartão concluído, e aí o estado deixa de informar.
+ */
+.tc {
+  --tc: var(--color-tool-pending);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-left: var(--border-width-thick) solid var(--tc);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.tc--pending { --tc: var(--color-tool-pending); }
+.tc--running { --tc: var(--color-tool-running); }
+.tc--ok      { --tc: var(--color-tool-ok); }
+.tc--failed  { --tc: var(--color-tool-failed); }
+.tc--cancelled { --tc: var(--color-tool-cancelled); }
+
+.tc__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--size-row-compact);
+  padding: 0 var(--space-10);
+}
+.tc__glyph { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); color: var(--tc); }
+.tc__verb { flex: none; font: var(--text-label-sm); color: var(--color-text-primary); }
+/*
+ * O alvo trunca pelo DIRETÓRIO e nunca pelo nome do arquivo. Um caminho
+ * cortado no fim (`…/__tests__/file-tree-keyboard-nav…`) não diz em que
+ * arquivo o agente mexeu, que é a única coisa que a linha precisa dizer.
+ */
+.tc__target { flex: 1; min-width: 0; display: flex; font: var(--text-mono-sm); }
+.tc__dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-tertiary); }
+.tc__name { flex: none; color: var(--color-text-code); }
+.tc__arg { flex: 1; min-width: 0; font: var(--text-mono-sm); color: var(--color-text-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tc__st {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--tc);
+}
+/*
+ * Pendente é anel e o resto é disco cheio: o estado se lê sem depender de
+ * distinguir cinza de azul, e sobrevive a captura de tela em escala de cinza.
+ */
+.tc__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+.tc--pending .tc__dot { background: none; box-shadow: inset 0 0 0 var(--border-width-thin) currentColor; }
+.tc__delta { flex: none; font: var(--text-mono-sm); }
+.tc__delta .plus { color: var(--color-git-added); }
+.tc__delta .minus { color: var(--color-git-removed); }
+.tc__time { flex: none; font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.tc__twist { flex: none; font-size: var(--size-icon-xs); color: var(--color-text-tertiary); }
+.tc__body { border-top: 1px solid var(--color-border-subtle); }
+.tc__more {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-height: var(--size-control-sm);
+  padding: 0 var(--space-10);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  font: var(--text-label-xs);
+  color: var(--color-text-tertiary);
+}
+/* Veredito de permissão, quando o cartão nasceu de um pedido (F2.4). */
+.verdict { flex: none; display: inline-flex; align-items: center; gap: var(--space-4); font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; }
+.verdict--allowed { color: var(--color-permission-allowed); }
+.verdict--denied  { color: var(--color-permission-denied); }
+
+/* --------------------------------------------- o poço da saída */
+/*
+ * Mesmo poço do terminal, e de propósito: saída de processo é saída de
+ * processo, e ela não deve mudar de aparência por estar dentro de um cartão.
+ */
+.out {
+  max-height: var(--size-tool-output-max);
+  overflow: hidden;
+  padding: var(--space-8) var(--space-12);
+  background: var(--color-bg-inset);
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+  white-space: normal;
+}
+.out .l { display: block; white-space: pre; min-height: var(--space-8); }
+.out .ok { color: var(--color-tool-ok); }
+.out .err { color: var(--color-tool-failed); }
+.out .dim { color: var(--color-text-tertiary); }
+.out .path { color: var(--color-git-branch); }
+.out--short { max-height: none; }
+
+/* ---------------------------------------- o pedido de permissão (F2.4) */
+/*
+ * O único bloco da conversa que PARA tudo: sem resposta, o agente espera
+ * para sempre. Por isso ele é o mais alto contraste da tela, mostra o
+ * comando exato sem truncar, e as saídas são botões e não menu.
+ *
+ * Fundo de aviso, não de perigo: o pedido interrompe, não significa que
+ * algo deu errado. Quem polariza é o veredito depois.
+ */
+.perm {
+  background: var(--color-bg-warning-subtle);
+  border: 1px solid var(--color-permission-pending);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.perm__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--size-row-compact);
+  padding: 0 var(--space-10);
+  font: var(--text-label-sm);
+  color: var(--color-permission-pending);
+}
+.perm__glyph { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); }
+.perm__body { padding: 0 var(--space-10) var(--space-10); display: grid; gap: var(--space-10); }
+.perm__what { display: grid; gap: var(--space-6); }
+/* Sem truncar, e quebrando: `rm -rf` cortado é `rm -rf` que se aprova no escuro. */
+.perm__cmd {
+  padding: var(--space-8) var(--space-10);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-sm);
+  font: var(--text-mono-md);
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.perm__where { font: var(--text-mono-sm); color: var(--color-text-secondary); }
+.perm__why { font: var(--text-body-sm); color: var(--color-text-primary); }
+.perm__opts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+.kbd { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.btn--brand { background: var(--color-bg-brand); border-color: var(--color-bg-brand); color: var(--color-text-on-brand); }
+.btn--warn { background: none; border-color: var(--color-permission-pending); color: var(--color-permission-pending); }
+
+/* ------------------------------------------------------------ o composer */
+.composer { flex: none; padding: var(--space-12) var(--space-20) var(--space-16); }
+.composer__box { background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); overflow: hidden; }
+.composer__box--focus { border-color: var(--color-border-focus); }
+.composer__in { min-height: var(--size-composer-min); padding: var(--space-10) var(--space-12); font: var(--text-body-lg); color: var(--color-text-primary); }
+.composer__in--empty { color: var(--color-text-tertiary); }
+.composer__bar { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-6) var(--space-8); border-top: 1px solid var(--color-border-subtle); }
+
+/* ----------------------------------------- vazio, retomado, e falha */
+/*
+ * Sessão nova não é tela em branco: ela custa ~39k tokens de system prompt
+ * antes de qualquer palavra nossa (medido no spike), e isso é a primeira
+ * coisa que o usuário merece saber ao abrir a aba.
+ */
+.empty { display: grid; justify-items: center; align-content: center; gap: var(--space-8); padding: var(--space-48) var(--space-20); text-align: center; }
+.empty__glyph { font-size: var(--size-icon-lg); color: var(--color-turn-agent); }
+.empty__title { font: var(--text-heading-md); color: var(--color-text-primary); }
+.empty__sub { font: var(--text-body-md); color: var(--color-text-tertiary); max-width: var(--size-terminal-min); }
+
+/* Falha de lançamento é resposta de domínio, não stack trace (F1.6). */
+.fail { display: grid; gap: var(--space-8); padding: var(--space-12); background: var(--color-bg-danger-subtle); border: 1px solid var(--color-border-danger); border-radius: var(--radius-md); }
+.fail__title { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-md); color: var(--color-text-danger); }
+.fail__body { font: var(--text-body-md); color: var(--color-text-primary); }
+.fail__cmd { padding: var(--space-8) var(--space-10); background: var(--color-bg-inset); border-radius: var(--radius-sm); font: var(--text-mono-sm); color: var(--color-text-code); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/*
+ * Evento que o cliente não conhece é IGNORADO COM LOG, nunca lançado — o
+ * protocolo evolui e a v2 é rascunho. Fica visível em cinza porque
+ * silêncio total é o que faz uma aba parecer travada sem motivo.
+ */
+.unknown { border-left: var(--border-width-thick) solid var(--color-border-default); padding-left: var(--space-10); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+
+/* Aba com pedido de permissão esperando, e o mesmo sinal na sidebar. */
+.stab__dot--asking { background: var(--color-permission-pending); }
+.count--asking { background: var(--color-bg-warning-subtle); color: var(--color-permission-pending); }
+
+/*
+ * Empurra o que vem depois para a direita, e só nestes dois cabeçalhos.
+ *
+ * O protótipo tinha `.spacer` como utilitário global; o app não tem utilitário
+ * de layout, e introduzir um por causa de dois lugares é abrir uma porta que não
+ * fecha. Escopado, é a mesma regra sem a porta.
+ */
+.conv__head .spacer,
+.perm__head .spacer {
+  flex: 1;
+}

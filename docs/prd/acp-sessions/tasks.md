@@ -410,7 +410,8 @@ permissão — e só (D6).
 
 **Done when**:
 - [ ] Nenhum valor literal de cor, espaçamento ou dimensão — só `var()`, exceto fio ótico de 1–2px
-- [ ] As classes vêm do protótipo com o mesmo nome; divergência é bug de porte, não escolha
+- [ ] As classes vêm do protótipo com o mesmo nome; divergência é bug de porte, não escolha — **e existe teste que compara os dois arquivos**, porque jsdom não aplica folha de estilo e nenhum teste de componente vê regra faltando
+- [ ] Nada de CSS de fase 4: o que não tem markup hoje vem com o componente que o usará
 - [ ] `tokens.css` **não** é editado
 - [ ] Gate: `pnpm gate:quick`
 
@@ -461,7 +462,7 @@ permissão — e só (D6).
 
 | Fora desta pilha | Onde |
 |---|---|
-| Plano na tela, uso e custo, seletor de modo/modelo/esforço, comandos de barra | **Fase 4** do PRD — o protótipo já os desenha, e o CSS deles já está portado no C8 |
+| Plano na tela, uso e custo, seletor de modo/modelo/esforço, comandos de barra | **Fase 4** do PRD. O protótipo já os desenha, e o CSS deles **não** vem no C8: CSS sem markup é CSS morto, e uma folha em que ninguém sabe qual metade está viva é uma folha que ninguém edita com segurança. Cada bloco vem junto do componente que o usa |
 | Terminal que o agente pede (`terminal/*`) | **Fase 4**, F3 do PRD — é onde os dois transportes se encontram |
 | `fs/read_text_file` e `fs/write_text_file` atendidos pelo `FileService` | **Fase 4**, F4 do PRD. Até lá o agente usa as ferramentas dele, como hoje |
 | Retomar sessão (`session/load`), reconciliação de conversa no boot | **Fase 5** do PRD |
