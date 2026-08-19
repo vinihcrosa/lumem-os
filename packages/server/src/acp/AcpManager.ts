@@ -560,6 +560,15 @@ function toChoice(mode: { id: string; name: string; description?: string | null 
  * The models are not a field of their own: the protocol reports them as one
  * select among several (`mode`, `model`, `effort`, `fast`, `agent`). An adapter
  * that offers no model select is not broken, so this degrades to empty.
+ *
+ * Two shapes to get right, and the real adapter is the only thing that says so:
+ *
+ * - A select option is keyed by **`value`**, not `id`. Reading `id` produced a
+ *   list of `undefined` against `claude-agent-acp`, and every model selector in
+ *   the UI would have rendered blank with nothing to explain it. The fake agent
+ *   had the same field wrong, which is exactly why it passed.
+ * - Options may be **grouped**: `Array<SessionConfigSelectGroup>`, each with its
+ *   own `options`. A reader that assumes a flat list silently finds none.
  */
 function modelsOf(
   options: readonly unknown[] | null | undefined,
@@ -570,15 +579,33 @@ function modelsOf(
   );
   if (!select) return { model: "", availableModels: [] };
 
-  const choices = Array.isArray(select.options)
-    ? select.options.flatMap((choice) =>
-        typeof choice === "object" && choice !== null
-          ? [toChoice(choice as { id: string; name: string; description?: string | null })]
-          : [],
-      )
-    : [];
+  return {
+    model: select.currentValue ?? "",
+    availableModels: flattenChoices(select.options),
+  };
+}
 
-  return { model: select.currentValue ?? "", availableModels: choices };
+/** Select options, flat or grouped, as one list of choices. */
+function flattenChoices(options: unknown): AcpChoice[] {
+  if (!Array.isArray(options)) return [];
+
+  return options.flatMap((entry) => {
+    if (typeof entry !== "object" || entry === null) return [];
+    const record = entry as Record<string, unknown>;
+
+    // A group carries its own options and no value of its own.
+    if (Array.isArray(record["options"])) return flattenChoices(record["options"]);
+
+    const value = record["value"];
+    if (typeof value !== "string") return [];
+    return [
+      {
+        id: value,
+        name: typeof record["name"] === "string" ? record["name"] : value,
+        description: typeof record["description"] === "string" ? record["description"] : null,
+      },
+    ];
+  });
 }
 
 /** The command a permission request is about, when the tool call names one. */

@@ -75,6 +75,14 @@ export const FAKE_MODES: SessionModeState = {
   ],
 };
 
+/**
+ * The model select, in the shape the real adapter actually sends.
+ *
+ * `value`, not `id`. The first version of this fixture used `id`, the code under
+ * test read `id`, and both were wrong together — which is the failure mode a
+ * fake has that a real process does not. Only
+ * `AcpManager.integration.test.ts` caught it.
+ */
 export const FAKE_CONFIG_OPTIONS = [
   {
     id: "model",
@@ -83,8 +91,34 @@ export const FAKE_CONFIG_OPTIONS = [
     type: "select" as const,
     currentValue: "opus[1m]",
     options: [
-      { id: "opus[1m]", name: "opus[1m]", description: "Opus 5 · 1M context" },
-      { id: "sonnet", name: "sonnet", description: "Sonnet 5" },
+      { value: "opus[1m]", name: "opus[1m]", description: "Opus 5 · 1M context" },
+      { value: "sonnet", name: "sonnet", description: "Sonnet 5" },
+    ],
+  },
+] as unknown as SessionConfigOption[];
+
+/** The same select, grouped — the other shape the protocol allows. */
+export const FAKE_GROUPED_CONFIG_OPTIONS = [
+  {
+    id: "model",
+    name: "Model",
+    category: "model",
+    type: "select" as const,
+    currentValue: "opus[1m]",
+    options: [
+      {
+        group: "claude",
+        name: "Claude",
+        options: [
+          { value: "opus[1m]", name: "opus[1m]", description: "Opus 5 · 1M context" },
+          { value: "sonnet", name: "sonnet", description: "Sonnet 5" },
+        ],
+      },
+      {
+        group: "outros",
+        name: "Outros",
+        options: [{ value: "haiku", name: "haiku", description: "Haiku 4.5" }],
+      },
     ],
   },
 ] as unknown as SessionConfigOption[];

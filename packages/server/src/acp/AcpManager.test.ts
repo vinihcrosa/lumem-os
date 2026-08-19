@@ -1,7 +1,11 @@
 import type { AcpEvent } from "@lumem/shared";
 import { describe, expect, it } from "vitest";
 
-import { fakeAgentProcess, type FakeAgentScript } from "../testing/acp-fake-agent.js";
+import {
+  FAKE_GROUPED_CONFIG_OPTIONS,
+  fakeAgentProcess,
+  type FakeAgentScript,
+} from "../testing/acp-fake-agent.js";
 import { AcpManager } from "./AcpManager.js";
 import type { AcpProcess } from "./process.js";
 
@@ -82,6 +86,24 @@ describe("handshake", () => {
 
     expect(info?.model).toBe("opus[1m]");
     expect(info?.availableModels.map((model) => model.id)).toEqual(["opus[1m]", "sonnet"]);
+  });
+
+  it("flattens a grouped model select", async () => {
+    // The protocol allows `Array<SessionConfigSelectGroup>` as well as a flat
+    // list. A reader that assumes flat silently finds no models at all, and the
+    // selector renders empty with nothing to explain it.
+    const { manager, sessionId } = await start({
+      newSession: () => ({ configOptions: FAKE_GROUPED_CONFIG_OPTIONS }),
+    });
+
+    const info = manager.get(sessionId);
+
+    expect(info?.model).toBe("opus[1m]");
+    expect(info?.availableModels.map((model) => model.id)).toEqual([
+      "opus[1m]",
+      "sonnet",
+      "haiku",
+    ]);
   });
 
   it("survives an adapter that offers no model select at all", async () => {

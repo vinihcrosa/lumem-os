@@ -15,6 +15,8 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `server/` router tRPC | integration (caller) | Sim |
 | `server/` regra de **transporte** — limite de corpo, GET vs POST, status | integration sobre HTTP (`app.inject`) | Sim — o caller é cego a estas três |
 | `server/` endpoint WebSocket | integration | Sim |
+| `server/` transporte **ACP** | integration com **agente falso** no outro lado do pipe — o SDK nos dois lados, wire ndjson de verdade, **zero token** | Sim |
+| `server/` handshake do **adaptador real** | integration **marcado**: pulado quando `claude-agent-acp` não está no PATH. Para em `initialize` + `session/new`, que o spike mediu em zero token | Sim |
 | `web/` componente | unit (Vitest + Testing Library) | Sim |
 | `web/` tokens e paleta | unit, **e exige `python3`** — roda o gerador e compara byte a byte com o commitado | Sim |
 | `web/` fluxo de usuário | e2e (Playwright) | **Não** — daemon único, porta única, estado compartilhado |
@@ -176,6 +178,8 @@ A API importa e a troca é silenciosa: `fs/promises.realpath` canoniza a caixa d
 **Classificar por prefixo de diretório em vez de por rastreabilidade.** `packages/**` roteava `index.html` e `.css` para `--changed`, que não sabe rastreá-los, e a run falhava com "No test files found"; ao mesmo tempo `drizzle/0001.sql` não casava com prefixo nenhum e ficava invisível. Hoje a divisão é por o que o vitest consegue resolver: `*.ts`/`*.tsx` vão para `--changed`, e todo o resto que não seja documentação roda a suíte inteira.
 
 **Config do Playwright reavaliado em cada worker.** Mover a limpeza do state dir do `globalSetup` para o corpo do módulo resolveu a ordem, mas o config é avaliado também em cada processo worker — medido, 2,1s depois do daemon subir. A segunda limpeza cairia com o handle aberto. Hoje há guarda `TEST_WORKER_INDEX === undefined`.
+
+**Agente falso e código errados juntos.** O `configOptions` do ACP chaveia opção de select por **`value`**; o `AcpManager` lia `id`, e o agente falso *também* enviava `id`. Os dois erros se cancelavam e a suíte ficava verde com uma lista de modelos toda `undefined` — que na tela viraria seletor vazio sem explicação. Só o `AcpManager.integration.test.ts`, contra o adaptador de verdade, pegou. A regra que fica: fixture que eu escrevo não é evidência sobre formato de terceiro; **um** teste contra o processo real por contrato externo paga por si.
 
 **Esperar uma cópia de uma saída que vem duas vezes.** O teste de attach do `/pty` escrevia `old-line` num `cat` e esperava o snapshot conter a linha — mas `cat` sob PTY produz a linha **duas** vezes: o terminal ecoa a entrada e o `cat` escreve de volta. O `waitFor` passava na primeira cópia, o cliente atacava, e a segunda chegava pelo stream fazendo o teste falhar em "não deve conter old-line". Verde em máquina folgada, vermelho quando a suíte inteira roda junto — e o vermelho aponta para o endpoint, que está correto. Hoje o wait exige as duas cópias. A regra que fica: quando a asserção é sobre **ausência**, o wait tem que esperar o fim da produção, não o primeiro sinal dela.
 
