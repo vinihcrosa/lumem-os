@@ -1,5 +1,9 @@
 import type { AcpEvent } from "@lumem/shared";
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   FAKE_GROUPED_CONFIG_OPTIONS,
@@ -47,6 +51,12 @@ async function start(script: FakeAgentScript = {}): Promise<Harness> {
 }
 
 const typesOf = (events: readonly AcpEvent[]): string[] => events.map((event) => event.type);
+
+/** Temporary checkouts the disk tests make, cleaned up together. */
+const dirs: string[] = [];
+afterEach(() => {
+  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
 
 describe("handshake", () => {
   it("does not hand back a session until the adapter has given it a name", async () => {
@@ -676,3 +686,129 @@ async function waitFor<T>(probe: () => T | undefined, timeoutMs = 2_000): Promis
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
 }
+
+describe("the agent reaching the disk", () => {
+  /** A checkout the manager is allowed to touch, and one it is not. */
+  function checkout(): { root: string; outside: string } {
+    const base = mkdtempSync(join(tmpdir(), "lumem-acp-mgr-fs-"));
+    dirs.push(base);
+    const root = join(base, "repo");
+    mkdirSync(root, { recursive: true });
+    writeFileSync(join(root, "notas.md"), "linha um\n");
+    const outside = join(base, "fora");
+    mkdirSync(outside, { recursive: true });
+    writeFileSync(join(outside, "segredo.txt"), "não\n");
+    return { root, outside };
+  }
+
+  async function startIn(root: string, script: FakeAgentScript) {
+    const fake = fakeAgentProcess(script);
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: root });
+    return { manager, sessionId: info.id };
+  }
+
+  it("declares the capability, now that both methods exist", async () => {
+    // Claimed only after they do. An agent told the client can write, that then
+    // finds it cannot, fails in the middle of a turn instead of at the handshake.
+    let capabilities: unknown;
+    const { root } = checkout();
+    const { manager, sessionId } = await startIn(root, {
+      initialize: (params) => {
+        capabilities = params.clientCapabilities;
+        return {};
+      },
+    });
+
+    expect(capabilities).toMatchObject({ fs: { readTextFile: true, writeTextFile: true } });
+    // And nothing claimed about the terminal, which does not exist yet. The SDK
+    // normalises the absent field to `false`, so the assertion is about the
+    // claim rather than about the key being there.
+    expect((capabilities as { terminal?: unknown }).terminal).not.toBe(true);
+    expect(manager.get(sessionId)?.state).toBe("running");
+  });
+
+  it("reads a file inside the session's own checkout", async () => {
+    const { root } = checkout();
+    let read: string | undefined;
+    const { manager, sessionId } = await startIn(root, {
+      async prompt(_text, turn) {
+        read = await turn.readFile(join(root, "notas.md"));
+        return "end_turn";
+      },
+    });
+
+    await manager.prompt(sessionId, "lê");
+
+    expect(read).toBe("linha um\n");
+  });
+
+  it("writes a file inside the checkout", async () => {
+    const { root } = checkout();
+    const { manager, sessionId } = await startIn(root, {
+      async prompt(_text, turn) {
+        await turn.writeFile(join(root, "src", "novo.ts"), "export {};\n");
+        return "end_turn";
+      },
+    });
+
+    await manager.prompt(sessionId, "escreve");
+
+    expect(readFileSync(join(root, "src", "novo.ts"), "utf8")).toBe("export {};\n");
+  });
+
+  it("refuses a path outside the checkout, and the session keeps going", async () => {
+    /*
+     * The refusal has to reach the agent as a protocol error rather than as an
+     * exception that ends the conversation. With `auto` as the default mode there
+     * is less human confirmation in this path than anywhere else, so the guard is
+     * the floor — and a floor that takes the session down with it is a floor
+     * nobody can act on.
+     */
+    const { root, outside } = checkout();
+    let refusal: string | undefined;
+    const { manager, sessionId } = await startIn(root, {
+      async prompt(_text, turn) {
+        try {
+          await turn.readFile(join(outside, "segredo.txt"));
+        } catch (error) {
+          refusal = error instanceof Error ? error.message : String(error);
+        }
+        return "end_turn";
+      },
+    });
+
+    await expect(manager.prompt(sessionId, "tenta")).resolves.toBe("end_turn");
+
+    expect(refusal).toBeDefined();
+    expect(manager.get(sessionId)?.state).toBe("running");
+  });
+
+  it("scopes each session to its own checkout", async () => {
+    // One bridge per session, rooted at its own cwd. A shared one would need the
+    // root passed on every call, and the call that forgot would read a neighbour.
+    const first = checkout();
+    const second = checkout();
+    writeFileSync(join(second.root, "notas.md"), "do segundo\n");
+
+    let leaked: string | undefined;
+    const { manager, sessionId } = await startIn(first.root, {
+      async prompt(_text, turn) {
+        try {
+          leaked = await turn.readFile(join(second.root, "notas.md"));
+        } catch {
+          leaked = undefined;
+        }
+        return "end_turn";
+      },
+    });
+
+    await manager.prompt(sessionId, "tenta o vizinho");
+
+    expect(leaked).toBeUndefined();
+  });
+});

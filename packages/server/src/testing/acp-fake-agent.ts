@@ -41,6 +41,10 @@ export interface FakeAgentTurn {
   requestPermission(
     request: Omit<RequestPermissionRequest, "sessionId">,
   ): Promise<RequestPermissionOutcome>;
+  /** Asks the client to read a file, as the agent would. */
+  readFile(path: string, window?: { line?: number; limit?: number }): Promise<string>;
+  /** Asks the client to write a file. */
+  writeFile(path: string, content: string): Promise<void>;
   /** Resolves when the client sends `session/cancel`. */
   readonly cancelled: Promise<void>;
 }
@@ -208,6 +212,18 @@ export function fakeAgentProcess(script: FakeAgentScript = {}): FakeAgentHandle 
             sessionId: params.sessionId,
           } as RequestPermissionRequest);
           return response.outcome;
+        },
+        readFile: async (path, window) => {
+          const response = await conn.readTextFile({
+            sessionId: params.sessionId,
+            path,
+            ...(window?.line === undefined ? {} : { line: window.line }),
+            ...(window?.limit === undefined ? {} : { limit: window.limit }),
+          });
+          return response.content;
+        },
+        writeFile: async (path, content) => {
+          await conn.writeTextFile({ sessionId: params.sessionId, path, content });
         },
         cancelled,
       };

@@ -13,6 +13,8 @@ import type { FastifyBaseLogger } from "fastify";
 
 import { isCommandAvailable } from "../agents/availability.js";
 import { DomainError } from "../errors.js";
+import { createFileService, type FileService } from "../files/FileService.js";
+import { createFsBridge, type FsBridge } from "./fs-bridge.js";
 import { spawnAcpProcess, type AcpProcess, type AcpProcessSpawner } from "./process.js";
 import { translateSessionUpdate } from "./translate.js";
 import { sniffUnknownUpdates } from "./unknown-updates.js";
@@ -88,6 +90,8 @@ interface Session {
   /** Calls still open, so a cancelled turn can close them (A14). */
   openToolCalls: Set<string>;
   pendingPermissions: Map<string, PendingPermission>;
+  /** Disk access, scoped to this session's checkout and nothing else. */
+  fs: FsBridge;
   /** One id per turn, for chunks the agent sends without a message id. */
   turnId: string;
 }
@@ -95,6 +99,14 @@ interface Session {
 export interface AcpManagerOptions {
   spawner?: AcpProcessSpawner;
   handshakeTimeoutMs?: number;
+  /**
+   * How the agent reaches the disk (F4.1).
+   *
+   * Injectable so a test can hand it a checkout of its own; the production value
+   * is the same `FileService` the editor uses, which is what makes "the same
+   * guard, without exception" true rather than aspirational.
+   */
+  files?: FileService;
   /**
    * The clock that stamps transcript entries.
    *
@@ -136,6 +148,7 @@ export class AcpManager {
   private readonly spawner: AcpProcessSpawner;
   private readonly handshakeTimeoutMs: number;
   private readonly isAvailable: (command: string) => boolean;
+  private readonly files: FileService;
   private readonly now: () => number;
   private readonly log: Pick<FastifyBaseLogger, "warn"> | undefined;
 
@@ -143,12 +156,14 @@ export class AcpManager {
     spawner = spawnAcpProcess,
     handshakeTimeoutMs = DEFAULT_HANDSHAKE_TIMEOUT_MS,
     isAvailable = (command) => isCommandAvailable(command),
+    files = createFileService(),
     now = () => Date.now(),
     log,
   }: AcpManagerOptions = {}) {
     this.spawner = spawner;
     this.handshakeTimeoutMs = handshakeTimeoutMs;
     this.isAvailable = isAvailable;
+    this.files = files;
     this.now = now;
     this.log = log;
   }
@@ -205,6 +220,10 @@ export class AcpManager {
       listeners: new Set(),
       openToolCalls: new Set(),
       pendingPermissions: new Map(),
+      // One bridge per session, rooted at its own cwd. A shared one would need
+      // the root passed on every call, and the call that forgot would read
+      // another worktree.
+      fs: createFsBridge({ files: this.files, root: cwd }),
       turnId: newId(),
     };
 
@@ -388,10 +407,11 @@ export class AcpManager {
   /**
    * The client half of the protocol.
    *
-   * Only the two methods a conversation needs are registered. `fs/*` and the
-   * terminal methods are left out, and that is what makes `clientCapabilities`
-   * in the handshake honest: an agent told the client can write files, that
-   * then finds it cannot, fails in the middle of a turn instead of at the
+   * `fs/read_text_file` and `fs/write_text_file` go through the same
+   * `FileService` — and therefore the same path guard — that the editor uses,
+   * scoped per session to its own checkout. The terminal methods are still left
+   * out, and `clientCapabilities` says so: an agent told the client can do
+   * something it cannot fails in the middle of a turn instead of at the
    * handshake.
    *
    * `session/update` is registered with a **passthrough parser**, and that is
@@ -407,6 +427,13 @@ export class AcpManager {
    */
   private appFor(session: Session) {
     return client({ name: "lumem" })
+      .onRequest("fs/read_text_file", async ({ params }) => ({
+        content: await session.fs.read(params.path, { line: params.line, limit: params.limit }),
+      }))
+      .onRequest("fs/write_text_file", async ({ params }) => {
+        await session.fs.write(params.path, params.content);
+        return {};
+      })
       .onRequest("session/request_permission", ({ params }) => {
         const requestId = newId();
 
@@ -459,8 +486,16 @@ export class AcpManager {
     const initialize = await this.withTimeout(
       session.connection.agent.request("initialize", {
         protocolVersion: ACP_PROTOCOL_VERSION,
-        // Claims nothing the client cannot do. See `appFor`.
-        clientCapabilities: {},
+        /*
+         * Declared only for what `appFor` actually registers.
+         *
+         * `fs` is claimed now that both methods exist — and not before, which is
+         * the whole point of the order: an agent told the client can write, that
+         * then finds it cannot, fails in the middle of a turn instead of at the
+         * handshake. `terminal` stays unclaimed until the five methods behind it
+         * do exist.
+         */
+        clientCapabilities: { fs: { readTextFile: true, writeTextFile: true } },
         clientInfo: { name: "lumem", version: LUMEM_CLIENT_VERSION },
       }),
       "initialize",
