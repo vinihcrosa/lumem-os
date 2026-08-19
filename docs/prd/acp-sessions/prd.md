@@ -223,7 +223,8 @@ demais para justificar descartar o insumo da destilação de memória.
 | **2** | Protótipo HTML da conversa | §2 — **rodado**: `lumem-acp-conversation.html`, seis telas, 99 pares de contraste validados. Abriu **A13** e **A14**, e três tokens novos de domínio (`tool/cancelled`, `syntax/comment-diff`, e o bloco `conversa`) |
 | **3** | A conversa em React: **mensagem + ferramenta + permissão**, e só ([A2](open-questions.md)) | §3 — **rodado**: 10 tasks. O e2e `acp-conversation.spec.ts` roda a tarefa inteira sem terminal, e mede a 360px o que jsdom não mede |
 | **4** | Terminal embutido, plano, modos, modelos, comandos de barra, uso, `fs/*` | §3 — **rodado**: 8 tasks. A escrita em disco veio primeiro, por ser a única que sai perigosa se sair errada. Abriu a **A15** (troca no meio do turno) e achou o snapshot do terminal se perdendo em contêiner recém-revelado |
-| **5** | Retomar sessão (`session/load`), reconciliação no boot | Fechar o Lumem e voltar não perde conversa |
+| **5** | Retomar sessão (`session/load`), reconciliação no boot | **rodado**: 6 tasks. Fechar o Lumem e voltar não perde conversa, e retomar continua de onde parou. O e2e pegou o mute do replay sendo liberado pela resposta do `session/load` em vez de pelo primeiro prompt — verde em processo, vermelho contra subprocesso de verdade |
+| **6** | A configuração ACP pela UI | Ninguém precisa de `curl` para ter um agente ACP. A feature exige dois campos — `transport` (F1.2) e a versão pinada (F5.5) — que nenhuma tela sabia escrever: ela abriu o buraco, ela fecha |
 
 ---
 

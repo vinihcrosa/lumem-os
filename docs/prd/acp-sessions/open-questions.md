@@ -353,3 +353,30 @@ valor novo com uma marca de "a partir do próximo turno", e o daemon guardaria a
 contrato muda.
 
 **R:**
+
+---
+
+### [ ] A16 — Onde vive a configuração de agente na tela, se ela é global e a sidebar é do workspace?
+
+`agent_config` não tem coluna de workspace: uma configuração vale para o daemon inteiro. A ação de
+criar uma nasceu no **rodapé da sidebar**, ao lado de `adicionar projeto` — que é ação de workspace.
+
+Isso conta uma mentira pequena: sugere que o agente pertence ao workspace aberto. Três saídas:
+
+1. **Rodapé da sidebar**, como está. Descobrível — é onde o usuário está quando percebe que falta o
+   agente — e reusa o formulário em linha que o `AddProjectDialog` já desenhou.
+2. **Tela de preferências** própria, alcançada pela topbar. Sem mentira nenhuma, e é uma tela nova:
+   protótipo primeiro, e um lugar no `App` que hoje só o `FirstRun` ocupa.
+3. **Configuração por workspace**, tornando a mentira verdade. Muda schema e é decisão de produto:
+   "o mesmo Claude em todo workspace" é provavelmente o que se quer.
+
+**O que está implementado:** a **1**, com a mentira nomeada aqui em vez de escondida.
+
+**Custo de mudar depois:** baixo para a **2** — o componente é um formulário e uma lista, e mudar de
+lugar é mudar quem o renderiza. Alto para a **3**: é coluna nova, migração, e uma pergunta de produto
+antes disso.
+
+**Volta quando:** existir uma segunda coisa para configurar globalmente. Aí a tela de preferências
+deixa de ser exagero e passa a ser o lugar óbvio das duas.
+
+**R:**

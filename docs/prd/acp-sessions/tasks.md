@@ -5,8 +5,8 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** fases 1, 3, 4 e 5 **concluídas — 32 de 32.** Gate cheio verde (1.555 unit/integration + 24 e2e).
-**Total:** 32 tasks nas fases 1, 3, 4 e 5 do PRD
+**Status:** fases 1, 3, 4 e 5 **concluídas — 32 de 32.** **Fase 6 em execução — 0 de 3.**
+**Total:** 35 tasks nas fases 1, 3, 4, 5 e 6 do PRD
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
 > tokens (turno, estado de ferramenta, permissão, plano, uso, modo), mais `tool/cancelled` e
@@ -874,6 +874,110 @@ comprimido, e um purge da linha antiga apaga a cópia antiga sem estragar a nova
 
 **Tests**: e2e · **Gate**: full
 **Commit**: `test(e2e): restart the daemon and keep the conversation`
+
+---
+
+## Fase 6 — Criar a configuração ACP sem sair da tela
+
+**Done when da fase:** ninguém precisa de `curl` para ter um agente ACP.
+
+### Por que isso é desta feature, e não da `walking-skeleton`
+
+A CRUD de `agent_config` é da [walking-skeleton](../walking-skeleton/tasks.md), e ela nunca precisou
+de tela: a configuração semeada — `claude-code`, PTY — já vinha pronta no boot (F6.4), e criar outra
+era conveniência.
+
+A `acp-sessions` mudou isso e não notou. Uma configuração ACP exige **dois campos que nenhuma tela
+sabe escrever**: o `transport` (F1.2) e a versão pinada do adaptador (F5.5, [A12](open-questions.md)).
+Sem eles não existe conversa — e como não há tela, o único caminho para usar a feature inteira é uma
+chamada HTTP na mão. A feature abriu o buraco, então é ela que fecha.
+
+### Decisões que sustentam esta fase
+
+#### D16 — O rodapé da sidebar, e a mentira que isso conta
+
+A ação nasce ao lado de **adicionar projeto**, no rodapé da sidebar, com o mesmo padrão de formulário
+em linha do [`AddProjectDialog`](../../../packages/web/src/components/AddProjectDialog.tsx) — mesma
+`Card`, mesmos `Field`, mesmo erro vindo do daemon.
+
+A mentira, nomeada: `agent_config` **não tem workspace** — é global —, e o rodapé é do workspace. Uma
+tela de preferências seria o lugar certo, e ela não existe. Fica registrado como
+[A16](open-questions.md), com o gatilho que a move.
+
+#### D17 — A validação é a do daemon, repetida de propósito
+
+O CHECK do banco diz: versão obrigatória em `acp`, proibida em `pty`. O formulário **desabilita o
+envio** nos mesmos termos, em vez de deixar o daemon recusar.
+
+Repetir regra é dívida, e aqui ela se paga: sem isso o único jeito de descobrir que falta a versão é
+enviar e ler um erro — e a regra em questão é a que separa "conversa" de "terminal", que é a escolha
+mais importante do formulário. O daemon continua sendo a autoridade: o que ele recusar aparece com as
+palavras dele.
+
+#### D18 — Sem tela nova, sem protótipo novo
+
+Toda tela deste repo passa por protótipo HTML antes de React. Esta não, e a razão é que ela **não é
+tela nova**: é o formulário do `AddProjectDialog` com dois campos a mais e um `<select>` que o
+[`WorkspaceSelector`](../../../packages/web/src/components/WorkspaceSelector.tsx) já desenhou. Um
+protótipo aqui redesenharia o que já está desenhado.
+
+Se a fase virar uma tela de preferências — a A16 —, aí sim: protótipo primeiro.
+
+---
+
+#### R1: O formulário
+
+**What**: Criar configuração de agente pela UI, com transporte e versão do adaptador.
+**Where**: `packages/web/src/components/AgentConfigDialog.tsx` + teste, `sidebar.css`, `App.tsx`
+**Depends on**: nada — o `agentConfig.create` já aceita os dois campos desde a fase 1
+
+**Done when**:
+- [ ] Nome, comando, argumentos, transporte e versão do adaptador
+- [ ] Argumentos são uma linha, separados por espaço — e o que o daemon recebe é a lista
+- [ ] `transport: acp` **exige** a versão e `pty` a **proíbe**, no formulário (D17)
+- [ ] O erro do daemon aparece com as palavras dele — nome duplicado é o caso comum
+- [ ] Ao criar, a lista de `nova sessão` já mostra o agente novo, sem recarregar
+- [ ] Gate: `pnpm gate:quick`
+- [ ] Test count: ao menos 7 — cria PTY, cria ACP, versão exigida em acp, versão escondida em pty, argumentos partidos, erro do daemon, lista invalidada
+
+**Tests**: componente · **Gate**: quick
+**Commit**: `feat(web): add an agent configuration without leaving the app`
+
+---
+
+#### R2: A lista, e o que fazer com um erro de digitação
+
+**What**: Ver as configurações que existem, com o transporte de cada uma, e remover.
+**Where**: `packages/web/src/components/AgentConfigDialog.tsx` + teste
+**Depends on**: R1
+
+**Done when**:
+- [ ] Cada configuração aparece com o comando e um chip dizendo **conversa** ou **terminal**
+- [ ] Remover, com o refresh que faz o menu de sessão acompanhar
+- [ ] Configuração em uso por alguma sessão é recusada pelo daemon (`IN_USE`) e a recusa aparece — sem isso o usuário lê "não deu" e não sabe por quê
+- [ ] Fora do PATH aparece na lista também, como já aparece no menu (F6.5): a lista não é um lugar diferente da verdade
+- [ ] Gate: `pnpm gate:quick`
+- [ ] Test count: ao menos 5 — lista com chip por transporte, remove, recusa em uso, fora do PATH marcado
+
+**Tests**: componente · **Gate**: quick
+**Commit**: `feat(web): list agent configurations, and remove one`
+
+---
+
+#### R3: O e2e que apaga o `curl`
+
+**What**: Criar a configuração ACP pela tela e conversar com ela.
+**Where**: `e2e/acp-agent-config.spec.ts`, `docs/project/testing.md`
+**Depends on**: R2
+
+**Done when**:
+- [ ] O e2e cria a configuração ACP **pela UI**, sem tocar na API, e abre uma conversa com ela
+- [ ] É a única prova que interessa: o resto da suíte cria a configuração pela API, o que é justamente o caminho que esta fase existe para tornar dispensável
+- [ ] Gate: `pnpm gate:full`
+- [ ] Test count: ao menos 1 — criar pela tela e conversar
+
+**Tests**: e2e · **Gate**: full
+**Commit**: `test(e2e): create the ACP agent from the screen, then talk to it`
 
 ---
 
