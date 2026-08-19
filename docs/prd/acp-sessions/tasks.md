@@ -5,7 +5,7 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** fases 1, 3 e 4 **concluídas** (26 de 26). **Fase 5 em execução — 5 de 6.**
+**Status:** fases 1, 3, 4 e 5 **concluídas — 32 de 32.** Gate cheio verde (1.555 unit/integration + 24 e2e).
 **Total:** 32 tasks nas fases 1, 3, 4 e 5 do PRD
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
@@ -857,19 +857,20 @@ comprimido, e um purge da linha antiga apaga a cópia antiga sem estragar a nova
 
 ---
 
-#### Q6: O e2e da frase da fase
+#### Q6: O e2e da frase da fase ✅
 
 **What**: Matar o daemon, subir de novo, reabrir, continuar.
 **Where**: `e2e/acp-resume.spec.ts`, `e2e/support/fake-acp-agent.mjs`, `docs/project/testing.md`
 **Depends on**: Q5
 
 **Done when**:
-- [ ] O agente falso passa a atender `session/load`, ainda **zero token**
-- [ ] O e2e: conversa, reinicia o daemon, reabre a aba, vê a conversa inteira, retoma, e o turno novo continua depois do separador
-- [ ] A transcrição sobrevive ao reinício — é o que a fase promete
-- [ ] `testing.md` ganha a linha do que a fase 5 acrescentou
-- [ ] Gate: `pnpm gate:full`
-- [ ] Test count: ao menos 2 — o ciclo inteiro, e a conversa aparecendo em leitura sem adaptador ter subido
+- [x] O agente falso passa a atender `session/load`, ainda **zero token** — e ele **re-transmite** a conversa de propósito, para o e2e poder afirmar que o daemon descarta essa cópia
+- [x] O e2e em **duas metades**, porque a afirmação tem duas: o reinício só dá contra daemon que a suíte controla, e esse daemon não tem browser apontado para ele. Metade pela API, metade pelo browser
+- [x] A transcrição sobrevive ao reinício — é o que a fase promete
+- [x] `testing.md` ganha as três linhas da matriz e duas armadilhas novas
+- [x] Gate: `pnpm gate:full` — 1.555 unit/integration + 24 e2e verdes
+- [x] **Verificado por mutação**: sem o `copy` e sem o evento `resumed`, os dois specs falham
+- [x] Test count: **2** — o ciclo inteiro pela API (conversa, reinício, transcrição intacta, retomada, linha nova apontando pra antiga, histórico à frente, separador no fim, replay descartado, turno novo funcionando), e a tela (leitura, composer travado, `conversa encerrada`, botão, separador visível, replay ausente, e a conversa nova falando)
 
 **Tests**: e2e · **Gate**: full
 **Commit**: `test(e2e): restart the daemon and keep the conversation`

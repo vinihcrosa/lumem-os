@@ -138,14 +138,21 @@ interface Session {
   /** One id per turn, for chunks the agent sends without a message id. */
   turnId: string;
   /**
-   * A `session/load` is in flight, and its replay is being discarded (D14).
+   * The agent is still replaying a loaded conversation (D14).
    *
-   * The adapter re-streams the conversation while answering `session/load`. Those
-   * updates are dropped: the daemon already has a better copy of the same
-   * conversation on disk — one with the tool cards, the plans and the usage the
-   * replay does not carry — and recording both would show it twice.
+   * The adapter re-streams the whole history around `session/load`. Those updates are
+   * dropped: the daemon already has a better copy of the same conversation on disk —
+   * one with the tool cards, the plans and the usage the replay does not carry — and
+   * recording both would show it twice.
+   *
+   * Cleared by the **first prompt**, not by the load's own response. The response and
+   * the notifications travel the same pipe and the SDK does not promise that a
+   * notification written before a reply is *handled* before it: clearing on the reply
+   * dropped the replay in-process and recorded it against a real subprocess, which is
+   * the worst possible shape for a bug. Nothing new happens in a conversation nobody
+   * has spoken to yet, so "before the first prompt" is a boundary that cannot race.
    */
-  loading: boolean;
+  replaying: boolean;
 }
 
 export interface AcpManagerOptions {
@@ -388,7 +395,7 @@ export class AcpManager {
         ? createTerminalBridge({ ptyManager: this.ptyManager, cwd })
         : undefined,
       turnId: newId(),
-      loading: false,
+      replaying: false,
     };
 
     // The sniffer sits between the adapter and the SDK. See `unknown-updates.ts`
@@ -431,6 +438,9 @@ export class AcpManager {
 
     session.turnId = newId();
     session.promptInFlight = true;
+    // Whatever the agent said before this moment was it retelling a conversation the
+    // daemon already had on disk (D14). From here on it is answering.
+    session.replaying = false;
 
     // The user's own message goes into the transcript before the agent hears it.
     // The adapter does not echo it, so without this line reopening the tab would
@@ -687,16 +697,6 @@ export class AcpManager {
         (params: unknown) => params as { update?: unknown },
         ({ params }) => {
           /*
-           * The replay of a `session/load` goes nowhere (D14).
-           *
-           * The adapter re-streams the whole conversation while answering the load.
-           * Recording it would show the conversation twice — once from disk and once
-           * from the agent — and the copy on disk is the better of the two, since it
-           * has the tool cards, plans and usage the replay does not carry.
-           */
-          if (session.loading) return;
-
-          /*
            * Two variants are handled here rather than in `translate`, and for the
            * same reason D8 gives: they are partial. `current_mode_update` carries a
            * mode and nothing else, `config_option_update` carries options and no
@@ -721,6 +721,18 @@ export class AcpManager {
               "evento ACP malformado, ignorado",
             );
           }
+
+          /*
+           * The replay of a loaded conversation goes nowhere (D14).
+           *
+           * Content only: the selectors and the command list are the agent describing
+           * *itself*, not retelling the conversation, and dropping those would leave a
+           * resumed tab with no pills and an empty slash menu.
+           */
+          if (session.replaying && event.type !== "config" && event.type !== "commands") {
+            return;
+          }
+
           this.emit(session, event);
         },
       );
@@ -852,29 +864,23 @@ export class AcpManager {
   /**
    * `session/load`, with the replay muted.
    *
-   * The flag is cleared in a `finally`: a load that fails half way through would
-   * otherwise leave the session deaf to every update that followed, which is a
-   * conversation that looks alive and says nothing.
+   * The mute is lifted by the first prompt rather than here — see `replaying`. A load
+   * that fails takes the adapter with it, so a session left muted is not reachable.
    */
   private async load(
     session: Session,
     cwd: string,
     acpSessionId: string,
   ): Promise<Partial<AcpSessionInfo>> {
-    session.loading = true;
-    let loaded;
-    try {
-      loaded = await this.withTimeout(
-        session.connection.agent.request("session/load", {
-          sessionId: acpSessionId,
-          cwd,
-          mcpServers: [],
-        }),
-        "session/load",
-      );
-    } finally {
-      session.loading = false;
-    }
+    session.replaying = true;
+    const loaded = await this.withTimeout(
+      session.connection.agent.request("session/load", {
+        sessionId: acpSessionId,
+        cwd,
+        mcpServers: [],
+      }),
+      "session/load",
+    );
 
     const configOptions = normaliseOptions(loaded?.configOptions ?? undefined, loaded?.modes);
     session.optionTypes = typesOf(loaded?.configOptions ?? undefined);

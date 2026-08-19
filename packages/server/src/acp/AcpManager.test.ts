@@ -1424,6 +1424,86 @@ describe("resuming yesterday's conversation", () => {
     expect(manager.transcript(sessionId)).toEqual([]);
   });
 
+  it("keeps discarding the replay after the load has already answered", async () => {
+    /*
+     * The boundary is the first prompt, not the load's response, and this is the test
+     * that says so.
+     *
+     * The reply and the notifications travel the same pipe, and the SDK does not
+     * promise that a notification written before a reply is *handled* before it. The
+     * first version cleared the mute in the load's `finally`: in-process the replay was
+     * dropped and the unit suite was green, and against a real subprocess the same
+     * replay was recorded — the conversation appeared twice on screen, and only the e2e
+     * saw it.
+     *
+     * What is left uncovered, and named rather than hidden: a replay line still in
+     * flight when the user prompts *is* recorded. Nothing in the protocol says how long
+     * a replay lasts, and the user cannot type before the tab is open, so the window is
+     * small — but it is real.
+     */
+    const fake = fakeAgentProcess({
+      async prompt(_text, turn) {
+        await say(turn, "respondendo de verdade");
+        return "end_turn";
+      },
+    });
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      handshakeTimeoutMs: 2_000,
+      isAvailable: () => true,
+    });
+    const info = await manager.resume({
+      command: "claude-agent-acp",
+      cwd: "/repos/lorebase",
+      acpSessionId: "fake-acp-session",
+    });
+
+    // Both written after the load answered, which is where the race was. The command
+    // list survives the mute and the message does not, so the first one arriving is the
+    // proof that the second was *handled* and dropped rather than merely late.
+    for (const update of [
+      { sessionUpdate: "available_commands_update", availableCommands: [{ name: "gate", description: "roda o gate" }] },
+      { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "replay-atrasado" } },
+    ]) {
+      await fake.sendRaw({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: { sessionId: "fake-acp-session", update },
+      });
+    }
+    await waitFor(() =>
+      manager.transcript(info.id).some((entry) => entry.event.type === "commands")
+        ? true
+        : undefined,
+    );
+
+    await manager.prompt(info.id, "e agora?");
+
+    expect(textsOf(manager.transcript(info.id))).not.toContain("replay-atrasado");
+    expect(textsOf(manager.transcript(info.id))).toContain("respondendo de verdade");
+  });
+
+  it("keeps the selectors and the commands the agent sends while replaying", async () => {
+    // Content only. The selectors and the slash list are the agent describing *itself*
+    // rather than retelling the conversation, and dropping them would leave a resumed
+    // tab with no pills and an empty menu.
+    const { manager, sessionId, events } = await resume({
+      loadSession: async (_params, replay) => {
+        await replay({
+          sessionUpdate: "available_commands_update",
+          availableCommands: [{ name: "gate", description: "roda o gate" }],
+        });
+        await replay({
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "o que foi dito ontem" },
+        });
+      },
+    });
+
+    expect(typesOf(events)).toEqual([]);
+    expect(manager.transcript(sessionId).map((entry) => entry.event.type)).toEqual(["commands"]);
+  });
+
   it("hears the next turn, once the load is done", async () => {
     // The other half of muting the replay: a flag left set would leave a session that
     // looks alive and says nothing.

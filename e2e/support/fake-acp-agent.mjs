@@ -13,6 +13,9 @@
  * a way for the suite to fail for reasons that have nothing to do with the app.
  * The protocol surface needed here is small enough to read in one sitting.
  *
+ * It also answers `session/load`, which is what lets the resume spec restart the
+ * daemon and continue yesterday's conversation — still without calling a model.
+ *
  * It never calls a model, so the e2e spends nothing. What it does do is act out one
  * turn using every shape the conversation renders: a thought, a streamed message, a
  * tool call that finishes, a write whose diff the card paints, a permission request
@@ -318,6 +321,31 @@ createInterface({ input: process.stdin }).on("line", (line) => {
         },
         // `value`, not `id` — the shape the real adapter sends, and the one the
         // in-process fake got wrong until a real handshake said so.
+        configOptions: configOptions(),
+      });
+      return;
+
+    /*
+     * Retomar (F5.2). Um adaptador de verdade re-transmite a conversa inteira
+     * enquanto responde, e é isso que a linha abaixo faz — de propósito, para o e2e
+     * poder afirmar que o daemon **descarta** essa cópia (D14). Se ela aparecesse na
+     * tela, a conversa apareceria duas vezes.
+     */
+    case "session/load":
+      update({
+        sessionUpdate: "agent_message_chunk",
+        messageId: "replay-1",
+        content: { type: "text", text: "replay-do-adaptador" },
+      });
+      reply(message.id, {
+        modes: {
+          currentModeId: currentMode,
+          availableModes: [
+            { id: "auto", name: "Auto", description: "Use a model classifier" },
+            { id: "default", name: "Default", description: "Standard behavior" },
+            { id: "plan", name: "Plan Mode", description: "No actual tool execution" },
+          ],
+        },
         configOptions: configOptions(),
       });
       return;
