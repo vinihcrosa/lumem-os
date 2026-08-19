@@ -1,0 +1,302 @@
+import { describe, expect, it } from "vitest";
+
+import { translateSessionUpdate, type TranslateContext } from "./translate.js";
+
+/**
+ * The only place ACP's vocabulary meets ours.
+ *
+ * Everything here is about a boundary, so the cases are about what crosses it
+ * and what does not: statuses that get renamed, variants that are known but not
+ * rendered yet, and variants nobody has seen. Getting this wrong is invisible
+ * downstream — a mistranslated status just paints the wrong colour.
+ */
+
+const context: TranslateContext = { fallbackMessageId: "turn-1" };
+
+describe("message chunks", () => {
+  it("translates an agent chunk", () => {
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "agent_message_chunk",
+          messageId: "m-7",
+          content: { type: "text", text: "O parser " },
+        },
+        context,
+      ),
+    ).toEqual({ type: "message", messageId: "m-7", role: "agent", text: "O parser " });
+  });
+
+  it("translates a user chunk", () => {
+    expect(
+      translateSessionUpdate(
+        { sessionUpdate: "user_message_chunk", messageId: "m-6", content: { type: "text", text: "oi" } },
+        context,
+      ),
+    ).toEqual({ type: "message", messageId: "m-6", role: "user", text: "oi" });
+  });
+
+  it("translates a thought chunk", () => {
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "agent_thought_chunk",
+          messageId: "m-7",
+          content: { type: "text", text: "separar o parser" },
+        },
+        context,
+      ),
+    ).toEqual({ type: "thought", messageId: "m-7", text: "separar o parser" });
+  });
+
+  it("falls back to the turn's id when the agent sends no message id", () => {
+    // `messageId` is optional in ACP, and the spec's own reading is that its
+    // absence means every chunk belongs to one message. Inventing a fresh id per
+    // chunk would render one paragraph per token.
+    expect(
+      translateSessionUpdate(
+        { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "ok" } },
+        context,
+      ),
+    ).toEqual({ type: "message", messageId: "turn-1", role: "agent", text: "ok" });
+  });
+
+  it("ignores a chunk carrying content it cannot show", () => {
+    // `promptCapabilities.image` is true, and rendering images is phase 4. An
+    // image is not an unrecognised event, so it must not be reported as one —
+    // the tab would say "ignored" about something the protocol defines.
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "agent_message_chunk",
+          messageId: "m-7",
+          content: { type: "image", data: "…", mimeType: "image/png" },
+        },
+        context,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("tool calls", () => {
+  it("translates a call with everything filled in", () => {
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "tool_call",
+          toolCallId: "tc-1",
+          title: "Edit src/lore/loader.ts",
+          name: "Edit",
+          kind: "edit",
+          status: "in_progress",
+          locations: [{ path: "/repo/src/lore/loader.ts", line: 41 }],
+        },
+        context,
+      ),
+    ).toEqual({
+      type: "tool_call",
+      toolCallId: "tc-1",
+      title: "Edit src/lore/loader.ts",
+      name: "Edit",
+      kind: "edit",
+      status: "running",
+      locations: [{ path: "/repo/src/lore/loader.ts", line: 41 }],
+    });
+  });
+
+  it("defaults a call the agent barely described", () => {
+    // Only `toolCallId` and `title` are required by ACP. A card still has to
+    // render, so the gaps become the least-committal values there are.
+    expect(
+      translateSessionUpdate(
+        { sessionUpdate: "tool_call", toolCallId: "tc-2", title: "doing something" },
+        context,
+      ),
+    ).toEqual({
+      type: "tool_call",
+      toolCallId: "tc-2",
+      title: "doing something",
+      name: null,
+      kind: "other",
+      status: "pending",
+      locations: [],
+    });
+  });
+
+  it.each([
+    ["pending", "pending"],
+    ["in_progress", "running"],
+    ["completed", "ok"],
+    ["failed", "failed"],
+  ])("maps ACP status %s to %s", (acp, ours) => {
+    const event = translateSessionUpdate(
+      { sessionUpdate: "tool_call_update", toolCallId: "tc-1", status: acp },
+      context,
+    );
+
+    expect(event).toMatchObject({ status: ours });
+  });
+
+  it("never produces the fifth state on its own", () => {
+    // `cancelled` has no ACP counterpart (A14). It is derived when a turn ends
+    // as cancelled, which happens in the manager — not here. If translation
+    // could produce it, there would be two sources for one state.
+    const statuses = ["pending", "in_progress", "completed", "failed"].map((status) =>
+      translateSessionUpdate(
+        { sessionUpdate: "tool_call_update", toolCallId: "tc-1", status },
+        context,
+      ),
+    );
+
+    expect(statuses.map((event) => (event as { status: string }).status)).not.toContain("cancelled");
+  });
+
+  it("carries only the fields an update actually changed", () => {
+    // Every field but the id is optional in ACP: the adapter sends what moved.
+    // Filling in the rest would overwrite a title the client already has.
+    expect(
+      translateSessionUpdate(
+        { sessionUpdate: "tool_call_update", toolCallId: "tc-1", status: "completed" },
+        context,
+      ),
+    ).toEqual({ type: "tool_call_update", toolCallId: "tc-1", status: "ok" });
+  });
+
+  it("translates text output", () => {
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "tool_call_update",
+          toolCallId: "tc-1",
+          content: [{ type: "content", content: { type: "text", text: "214 passed" } }],
+        },
+        context,
+      ),
+    ).toEqual({
+      type: "tool_call_update",
+      toolCallId: "tc-1",
+      content: [{ type: "content", text: "214 passed" }],
+    });
+  });
+
+  it("translates a diff, including a file being created", () => {
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "tool_call_update",
+          toolCallId: "tc-1",
+          content: [{ type: "diff", path: "/repo/src/lore/frontmatter.ts", newText: "export {}" }],
+        },
+        context,
+      ),
+    ).toEqual({
+      type: "tool_call_update",
+      toolCallId: "tc-1",
+      content: [
+        { type: "diff", path: "/repo/src/lore/frontmatter.ts", oldText: null, newText: "export {}" },
+      ],
+    });
+  });
+
+  it("carries a terminal it cannot render yet", () => {
+    // Dropping it would leave the agent waiting on a call the client silently
+    // discarded. Carrying it costs one variant the UI ignores until F3.
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "tool_call_update",
+          toolCallId: "tc-1",
+          content: [{ type: "terminal", terminalId: "t-1" }],
+        },
+        context,
+      ),
+    ).toEqual({
+      type: "tool_call_update",
+      toolCallId: "tc-1",
+      content: [{ type: "terminal", terminalId: "t-1" }],
+    });
+  });
+
+  it("drops a content item it cannot show, keeping the ones it can", () => {
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "tool_call_update",
+          toolCallId: "tc-1",
+          content: [
+            { type: "content", content: { type: "image", data: "…", mimeType: "image/png" } },
+            { type: "content", content: { type: "text", text: "ok" } },
+          ],
+        },
+        context,
+      ),
+    ).toEqual({
+      type: "tool_call_update",
+      toolCallId: "tc-1",
+      content: [{ type: "content", text: "ok" }],
+    });
+  });
+});
+
+describe("variants that are known but not rendered yet", () => {
+  it.each([
+    "plan",
+    "plan_update",
+    "plan_removed",
+    "available_commands_update",
+    "current_mode_update",
+    "config_option_update",
+    "session_info_update",
+    "usage_update",
+  ])("ignores %s without calling it unrecognised", (sessionUpdate) => {
+    // Phase 4 renders all of these. Reporting them as `unknown` today would put
+    // "unrecognised event" in the tab about things the protocol defines and the
+    // prototype already draws — which is a lie the user would have to debug.
+    expect(translateSessionUpdate({ sessionUpdate }, context)).toBeNull();
+  });
+});
+
+describe("variants nobody has seen", () => {
+  it("reports an unrecognised update rather than throwing", () => {
+    expect(translateSessionUpdate({ sessionUpdate: "steering_update" }, context)).toEqual({
+      type: "unknown",
+      sessionUpdate: "steering_update",
+    });
+  });
+
+  it("reports an update with no discriminator at all", () => {
+    // A malformed notification is still not a reason to take down the session.
+    expect(translateSessionUpdate({ nothing: true }, context)).toEqual({
+      type: "unknown",
+      sessionUpdate: "<missing>",
+    });
+  });
+
+  it("survives a chunk with no content field", () => {
+    expect(
+      translateSessionUpdate({ sessionUpdate: "agent_message_chunk" }, context),
+    ).toBeNull();
+  });
+
+  it("reports an unknown tool status instead of guessing one", () => {
+    // Guessing `failed` would paint a red card over something that may have
+    // succeeded; guessing `ok` is worse. Neither is ours to decide.
+    expect(
+      translateSessionUpdate(
+        { sessionUpdate: "tool_call_update", toolCallId: "tc-1", status: "wedged" },
+        context,
+      ),
+    ).toEqual({ type: "unknown", sessionUpdate: "tool_call_update:status=wedged" });
+  });
+
+  it("reports an unknown tool kind instead of rejecting the call", () => {
+    // The kind drives a glyph and nothing else, so an unknown one degrades to
+    // `other` — losing a card over an icon would be the worse trade.
+    expect(
+      translateSessionUpdate(
+        { sessionUpdate: "tool_call", toolCallId: "tc-1", title: "?", kind: "telepathy" },
+        context,
+      ),
+    ).toMatchObject({ type: "tool_call", kind: "other" });
+  });
+});
