@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { AddProjectDialog } from "./components/AddProjectDialog.js";
+import { AgentConfigDialog } from "./components/AgentConfigDialog.js";
 import { CheckoutFiles } from "./components/CheckoutFiles.js";
 import { FirstRun } from "./components/FirstRun.js";
 import { LocalPanel } from "./components/LocalPanel.js";
@@ -158,6 +159,15 @@ export function App() {
               }
             />
             <div className="sidebar__foot">
+              {/*
+                The agents this daemon can launch, and how to add one.
+
+                Here because it is where the user is standing when they notice the
+                agent is missing — they open "nova sessão" and it is not in the list.
+                The placement tells a small lie, and A16 names it: `agent_config` is
+                global and this footer is the workspace's.
+              */}
+              <AgentConfigDialog />
               {/* Adding a project is an action of the workspace, not an item of
                   the list it appends to. */}
               <AddProjectDialog

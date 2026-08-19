@@ -5,7 +5,7 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** fases 1, 3, 4 e 5 **concluídas — 32 de 32.** **Fase 6 em execução — 0 de 3.**
+**Status:** fases 1, 3, 4 e 5 **concluídas — 32 de 32.** **Fase 6 em execução — 2 de 3.**
 **Total:** 35 tasks nas fases 1, 3, 4, 5 e 6 do PRD
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
@@ -925,39 +925,48 @@ Se a fase virar uma tela de preferências — a A16 —, aí sim: protótipo pri
 
 ---
 
-#### R1: O formulário
+#### R1: O formulário ✅
 
 **What**: Criar configuração de agente pela UI, com transporte e versão do adaptador.
 **Where**: `packages/web/src/components/AgentConfigDialog.tsx` + teste, `sidebar.css`, `App.tsx`
 **Depends on**: nada — o `agentConfig.create` já aceita os dois campos desde a fase 1
 
 **Done when**:
-- [ ] Nome, comando, argumentos, transporte e versão do adaptador
-- [ ] Argumentos são uma linha, separados por espaço — e o que o daemon recebe é a lista
-- [ ] `transport: acp` **exige** a versão e `pty` a **proíbe**, no formulário (D17)
-- [ ] O erro do daemon aparece com as palavras dele — nome duplicado é o caso comum
-- [ ] Ao criar, a lista de `nova sessão` já mostra o agente novo, sem recarregar
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 7 — cria PTY, cria ACP, versão exigida em acp, versão escondida em pty, argumentos partidos, erro do daemon, lista invalidada
+- [x] Nome, comando, argumentos, transporte e versão do adaptador
+- [x] Argumentos são uma linha, separados por espaço — e o que o daemon recebe é a lista
+- [x] `transport: acp` **exige** a versão e `pty` a **proíbe**, no formulário (D17)
+- [x] O erro do daemon aparece com as palavras dele — nome duplicado é o caso comum
+- [x] Ao criar, a lista de `nova sessão` já mostra o agente novo, sem recarregar — uma chave de query, dois leitores
+- [x] Padrão é **`acp`**: a A11 defaulta a *coluna* para `pty` para que migrar não mude comportamento; humano digitando neste formulário é outra pergunta — a config PTY já existe do seed, e o motivo de estar aqui é a conversa
+- [x] Gate: `pnpm gate:quick` — 1.568 testes verdes
+- [x] Test count: **13** (R1 + R2 juntas) — envia os dois campos que nenhuma tela escrevia, cria PTY sem versão, esconde a versão em pty, recusa envio de acp sem versão, parte os argumentos, erro do daemon, lista invalidada, formulário limpo, chip por transporte com a versão pinada na tela, fora do PATH, lista vazia, remove em dois cliques, recusa de config em uso
+- [x] **Variáveis de ambiente ficaram de fora** — controle de chave/valor é outro componente. Foi para o [backlog](../../project/backlog.md)
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): add an agent configuration without leaving the app`
 
 ---
 
-#### R2: A lista, e o que fazer com um erro de digitação
+#### R2: A lista, e o que fazer com um erro de digitação ✅ — entregue junto da R1
 
 **What**: Ver as configurações que existem, com o transporte de cada uma, e remover.
 **Where**: `packages/web/src/components/AgentConfigDialog.tsx` + teste
 **Depends on**: R1
 
 **Done when**:
-- [ ] Cada configuração aparece com o comando e um chip dizendo **conversa** ou **terminal**
-- [ ] Remover, com o refresh que faz o menu de sessão acompanhar
-- [ ] Configuração em uso por alguma sessão é recusada pelo daemon (`IN_USE`) e a recusa aparece — sem isso o usuário lê "não deu" e não sabe por quê
-- [ ] Fora do PATH aparece na lista também, como já aparece no menu (F6.5): a lista não é um lugar diferente da verdade
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 5 — lista com chip por transporte, remove, recusa em uso, fora do PATH marcado
+**Entregue no mesmo commit da R1, e de propósito:** a lista e o formulário são um painel só, e um
+commit que adicionasse o formulário sem a lista entregaria uma tela onde um erro de digitação não tem
+remédio — que é exatamente a reclamação que abriu esta fase.
+
+- [x] Cada configuração aparece com o comando e um chip dizendo **conversa** ou **terminal**
+- [x] O chip é **neutro**: a cor já está falada pelo estado (`fora do PATH`), e elemento com dois eixos de cor não tem nenhum — a palavra carrega o fato
+- [x] Remover, com o refresh que faz o menu de sessão acompanhar
+- [x] **Dois cliques** para remover, não um: um clique errado custa redigitar quatro campos. Não é modal — o daemon recusando config em uso é a guarda que importa, esta é só sobre o ponteiro escorregar
+- [x] Configuração em uso por alguma sessão é recusada pelo daemon (`IN_USE`) e a recusa aparece — sem isso o usuário lê "não deu" e não sabe por quê
+- [x] Fora do PATH aparece na lista também, como já aparece no menu (F6.5): a lista não é um lugar diferente da verdade
+- [x] A versão pinada aparece na linha (`claude-agent-acp @0.40.0`) — a A12 tornou a versão dado justamente para poder ser lida
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: contadas na R1
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): list agent configurations, and remove one`

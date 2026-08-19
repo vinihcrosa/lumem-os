@@ -100,6 +100,15 @@ que sobe para o humano é justamente o caso raro.
 **De onde veio:** [acp-sessions A10](../prd/acp-sessions/open-questions.md) · **Volta quando:** você
 perder tempo com agente parado sem perceber.
 
+### Variáveis de ambiente na configuração de agente pela UI — `P`
+
+O `agent_config` guarda `env` (objeto JSON) e o router aceita, mas o formulário da fase 6 não escreve:
+controle de chave/valor é outro componente, e nenhum agente hoje precisa de variável para subir. Quem
+precisar continua tendo a API.
+
+**De onde veio:** [acp-sessions R1](../prd/acp-sessions/tasks.md) · **Volta quando:** algum agente
+exigir variável de ambiente para autenticar ou para achar o binário.
+
 ### Regra de CSS sem markup no `conversation.css` — `P`
 
 O `conversation-css.test.ts` garante que toda classe pedida por um componente existe no

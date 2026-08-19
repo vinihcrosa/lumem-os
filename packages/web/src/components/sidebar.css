@@ -103,3 +103,50 @@
    cabe formulário ao lado de árvore. */
 .add-project { padding-top: var(--space-4); }
 .add-project__actions { display: flex; gap: var(--space-6); }
+
+/* ------------------------------------------------- agentes do daemon
+ *
+ * Duas linhas por agente, e não uma: a sidebar tem 264px, e nome + comando + chip +
+ * botão numa linha só quebra. A primeira linha diz o que é, a segunda o que roda.
+ */
+.agents { padding-top: var(--space-4); }
+.agents__empty {
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+.agents__row {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.agents__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+.agents__name {
+  font: var(--text-label-md);
+  color: var(--color-text-primary);
+}
+.agents__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+/* O comando cede, o botão não: um botão cortado é um botão que não se clica. */
+.agents__cmd {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+}
+.agents__form {
+  display: grid;
+  gap: var(--space-8);
+  padding-top: var(--space-8);
+}
+.agents__actions { display: flex; gap: var(--space-6); }

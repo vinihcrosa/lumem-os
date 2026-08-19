@@ -57,6 +57,11 @@ function createTrpcMock() {
       getDetail: { query: vi.fn() },
       createShell: { mutate: vi.fn() },
       createAgent: { mutate: vi.fn() },
+      // Phase 5's two, and they were missing here for exactly the reason this mock
+      // exists: nothing failed while the client called procedures the mock did not
+      // have, because the tests that use them inject their own loader.
+      transcript: { query: vi.fn() },
+      resume: { mutate: vi.fn() },
       close: { mutate: vi.fn() },
     },
   };
