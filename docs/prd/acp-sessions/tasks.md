@@ -5,7 +5,7 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** fases 1, 3 e 4 **concluídas** (26 de 26). **Fase 5 em execução — 1 de 6.**
+**Status:** fases 1, 3 e 4 **concluídas** (26 de 26). **Fase 5 em execução — 2 de 6.**
 **Total:** 32 tasks nas fases 1, 3, 4 e 5 do PRD
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
@@ -740,19 +740,21 @@ clicado numa aba para reler algo.
 
 ---
 
-#### Q2: O manager grava e lê pelo disco
+#### Q2: O manager grava e lê pelo disco ✅
 
 **What**: `AcpManager.transcript` deixa de ser um array em memória.
 **Where**: `packages/server/src/acp/AcpManager.ts` + teste
 **Depends on**: Q1
 
 **Done when**:
-- [ ] Cada evento emitido é gravado; o `attached` lê do disco
-- [ ] O array em memória sai — hoje ele cresce sem teto e é a razão pela qual a F5.4 existe
-- [ ] Uma falha de escrita é **logada e não interrompe a conversa**: perder uma linha de transcrição é ruim, perder o turno é pior
-- [ ] Injetável, para o teste não precisar de arquivo quando o assunto não é disco
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 5 — grava, lê no attach, sobrevive a falha de escrita, duas sessões separadas
+- [x] Cada evento emitido é gravado; o `attached` lê do disco
+- [x] O array em memória sai — ele crescia sem teto e é a razão pela qual a F5.4 existe
+- [x] Uma falha de escrita é **logada e não interrompe a conversa**: perder uma linha de transcrição é ruim, perder o turno é pior
+- [x] Injetável, e **em memória por padrão** — o preço é que uma ligação de produção esquecida perde transcrição em silêncio, e é por isso que o `bootstrap` ganhou teste
+- [x] `forget` solta o handle e **mantém o arquivo**: esquecer o processo não é esquecer a conversa (descoberto na task — um handle por sessão pela vida do daemon é um descritor que não volta)
+- [x] O `bootstrap` abre o store sob `stateDir`, e o teste de boot passa a usar um `stateDir` descartável — booting agora cria diretório, e suíte não escreve no `~/.lumem` do dev
+- [x] Gate: `pnpm gate:quick` — 304 testes verdes
+- [x] Test count: **6** — grava e lê no attach, sobrevive ao daemon que escreveu, duas sessões em dois arquivos, turno termina com disco recusando a escrita, conversa sobrevive ao `forget`, `bootstrap` abre o store
 
 **Tests**: unit/integration · **Gate**: quick
 **Commit**: `feat(server): read the transcript from disk instead of memory`

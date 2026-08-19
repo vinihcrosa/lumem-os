@@ -6,6 +6,7 @@ import { openDatabase, type Database_ } from "./db/index.js";
 import { createEventBus } from "./events.js";
 import { AcpManager } from "./acp/AcpManager.js";
 import { PtyManager } from "./pty/PtyManager.js";
+import { createTranscriptStore, type TranscriptStore } from "./acp/TranscriptStore.js";
 import { createSessionStore } from "./sessions/SessionStore.js";
 import { createServer } from "./server.js";
 import { createShutdownHandler } from "./shutdown.js";
@@ -28,6 +29,14 @@ export interface BootstrapOptions {
    * socket they travel on.
    */
   acpManager?: AcpManager;
+  /**
+   * Where conversations are kept (F5.4).
+   *
+   * Opened here from `config.transcriptsDir` unless a test hands one over. Closed on
+   * shutdown, with the database, for the same reason: an open SQLite handle at exit
+   * leaves a journal beside the file.
+   */
+  transcripts?: TranscriptStore;
   /**
    * Already-open database. Injected by tests that want a throwaway file;
    * otherwise opened here from `config.databasePath` and closed on shutdown.
@@ -52,11 +61,14 @@ export async function bootstrap({
   logger = true,
   ptyManager = new PtyManager(),
   acpManager,
+  transcripts,
   database,
   beforeClose,
 }: BootstrapOptions): Promise<FastifyInstance> {
   const owned = database === undefined;
   const openedDatabase = database ?? openDatabase({ path: config.databasePath });
+  const ownedTranscripts = transcripts === undefined;
+  const openedTranscripts = transcripts ?? createTranscriptStore({ dir: config.transcriptsDir });
   // One bus, shared: the session store emits from the PTY exit callback and
   // the router emits from procedures, and both have to reach the same clients.
   const events = createEventBus();
@@ -80,6 +92,11 @@ export async function bootstrap({
       // whole feature is dead in the real daemon while every unit test passes —
       // which is exactly how the e2e found this line missing.
       ptyManager,
+      // Without this the manager falls back to its in-memory store and the daemon
+      // loses every conversation on exit, while every unit test still passes — the
+      // same shape of mistake as the `ptyManager` line above, which is why the proof
+      // that this one is wired lives in the e2e that restarts the daemon.
+      transcripts: openedTranscripts,
       log: {
         warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
           bootedApp?.log.warn(...args);
@@ -121,6 +138,7 @@ export async function bootstrap({
       // Last: a handler still finishing a request would otherwise write to a
       // closed handle. Only if we opened it — an injected one is the caller's.
       if (owned) openedDatabase.close();
+      if (ownedTranscripts) openedTranscripts.close();
     },
   };
 

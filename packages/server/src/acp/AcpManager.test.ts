@@ -1,4 +1,4 @@
-import type { AcpEvent } from "@lumem/shared";
+import type { AcpEvent, AcpTranscriptEntry } from "@lumem/shared";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,9 +10,11 @@ import {
   FAKE_GROUPED_CONFIG_OPTIONS,
   fakeAgentProcess,
   type FakeAgentScript,
+  type FakeAgentTurn,
 } from "../testing/acp-fake-agent.js";
 import { AcpManager } from "./AcpManager.js";
 import type { AcpProcess } from "./process.js";
+import { createTranscriptStore, type TranscriptStore } from "./TranscriptStore.js";
 
 /**
  * The transport, proven without spending a token.
@@ -31,12 +33,23 @@ interface Harness {
   killed: Promise<void>;
 }
 
-async function start(script: FakeAgentScript = {}): Promise<Harness> {
+interface StartOptions {
+  /** Where the conversation is kept. Defaults to the manager's in-memory store. */
+  transcripts?: TranscriptStore;
+  log?: { warn: (...args: never[]) => void };
+}
+
+async function start(
+  script: FakeAgentScript = {},
+  options: StartOptions = {},
+): Promise<Harness> {
   const fake = fakeAgentProcess(script);
   const manager = new AcpManager({
     spawner: () => fake.process,
     handshakeTimeoutMs: 2_000,
     isAvailable: () => true,
+    ...(options.transcripts ? { transcripts: options.transcripts } : {}),
+    ...(options.log ? { log: options.log as unknown as { warn: () => void } } : {}),
   });
 
   const info = await manager.spawn({
@@ -53,12 +66,26 @@ async function start(script: FakeAgentScript = {}): Promise<Harness> {
 
 const typesOf = (events: readonly AcpEvent[]): string[] => events.map((event) => event.type);
 
+/** Every piece of text a transcript holds, for asserting what was recorded. */
+const textsOf = (entries: readonly AcpTranscriptEntry[]): string[] =>
+  entries.flatMap((entry) => ("text" in entry.event ? [entry.event.text] : []));
+
+/** One agent message, the way the protocol sends one. */
+const say = (turn: FakeAgentTurn, text: string): Promise<void> =>
+  turn.update({
+    sessionUpdate: "agent_message_chunk",
+    content: { type: "text", text },
+  });
+
 /** Temporary checkouts the disk tests make, cleaned up together. */
 const dirs: string[] = [];
 /** PTY managers the terminal tests build, killed together. */
 const ptyManagers: PtyManager[] = [];
+/** Transcript stores the disk tests open, closed together. */
+const stores: TranscriptStore[] = [];
 afterEach(async () => {
   await Promise.all(ptyManagers.splice(0).map((manager) => manager.killAll()));
+  for (const store of stores.splice(0)) store.close();
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -1145,5 +1172,146 @@ describe("the terminal the agent asks for", () => {
 
     await expect(manager.prompt(sessionId, "tenta")).resolves.toBe("end_turn");
     expect(refusal).toBeDefined();
+  });
+});
+
+describe("where the conversation is kept", () => {
+  /**
+   * F5.4. Until this, the transcript was an array on the session object: it grew for
+   * the life of the conversation with no ceiling, and it died with the daemon. Both
+   * halves of that are the point — the ceiling is why the task exists, and the
+   * dying is why phase 5 exists.
+   */
+
+  function onDisk(): { transcripts: TranscriptStore; dir: string } {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-acp-transcript-"));
+    dirs.push(dir);
+    const transcripts = createTranscriptStore({ dir });
+    stores.push(transcripts);
+    return { transcripts, dir };
+  }
+
+  it("writes the turn to the store, and reads the attach back out of it", async () => {
+    const { transcripts } = onDisk();
+    const { manager, sessionId } = await start(
+      {
+        async prompt(_text, turn) {
+          await say(turn, "respondido");
+          return "end_turn";
+        },
+      },
+      { transcripts },
+    );
+
+    await manager.prompt(sessionId, "pergunta");
+
+    // What `attached` sends. Same list either way, which is the invariant that
+    // makes replaying equal to having been there.
+    expect(manager.transcript(sessionId).map((entry) => entry.event.type)).toEqual([
+      "message",
+      "message",
+      "turn_end",
+    ]);
+    expect(transcripts.read(sessionId).map((entry) => entry.event.type)).toEqual([
+      "message",
+      "message",
+      "turn_end",
+    ]);
+  });
+
+  it("survives the daemon that wrote it", async () => {
+    // The whole promise of the phase, at the level where it is cheap to prove: a
+    // second store over the same directory is what a restart looks like from here.
+    const { transcripts, dir } = onDisk();
+    const { manager, sessionId } = await start(
+      {
+        async prompt(_text, turn) {
+          await say(turn, "de ontem");
+          return "end_turn";
+        },
+      },
+      { transcripts },
+    );
+    await manager.prompt(sessionId, "pergunta de ontem");
+    transcripts.close();
+
+    const reopened = createTranscriptStore({ dir });
+    stores.push(reopened);
+
+    expect(reopened.read(sessionId).map((entry) => entry.event.type)).toEqual([
+      "message",
+      "message",
+      "turn_end",
+    ]);
+  });
+
+  it("keeps two sessions in two files", async () => {
+    const { transcripts } = onDisk();
+    const first = await start({}, { transcripts });
+    const second = await start({}, { transcripts });
+
+    await first.manager.prompt(first.sessionId, "da primeira");
+    await second.manager.prompt(second.sessionId, "da segunda");
+
+    expect(textsOf(transcripts.read(first.sessionId))).toContain("da primeira");
+    expect(textsOf(transcripts.read(first.sessionId))).not.toContain("da segunda");
+  });
+
+  it("finishes the turn even when the disk refuses the write", async () => {
+    /*
+     * A full disk, a revoked permission, a state directory that moved. Losing a line
+     * of the record is bad; losing the answer the user is waiting for because the
+     * record could not be written is worse — so the failure is logged and the turn
+     * goes on.
+     */
+    const warn = vi.fn();
+    const refusing: TranscriptStore = {
+      append() {
+        throw new Error("disco cheio");
+      },
+      read: () => [],
+      drop() {},
+      release() {},
+      close() {},
+    };
+
+    const { manager, sessionId, events } = await start(
+      {
+        async prompt(_text, turn) {
+          await say(turn, "respondido mesmo assim");
+          return "end_turn";
+        },
+      },
+      { transcripts: refusing, log: { warn } as never },
+    );
+
+    await expect(manager.prompt(sessionId, "pergunta")).resolves.toBe("end_turn");
+    // The live client still saw everything; only the record was lost.
+    expect(typesOf(events)).toContain("turn_end");
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it("keeps the conversation when the process is forgotten", async () => {
+    /*
+     * Forgetting the process is not forgetting the conversation: `forget` drops the
+     * manager's record and releases the file handle, and the file stays. Erasing it is
+     * `drop` on the store, which is a different decision made in a different place.
+     *
+     * The handle being released is fd hygiene — a handle per session held for the
+     * life of the daemon is a descriptor that never comes back — and it is not
+     * observable from here. What is observable, and what would actually hurt, is the
+     * conversation disappearing.
+     */
+    const { transcripts } = onDisk();
+    const { manager, sessionId, process } = await start({}, { transcripts });
+
+    await manager.prompt(sessionId, "algo dito");
+    process.kill();
+    await waitFor(() => (manager.get(sessionId)?.state === "exited" ? true : undefined));
+
+    manager.forget(sessionId);
+
+    expect(manager.get(sessionId)).toBeUndefined();
+    expect(textsOf(transcripts.read(sessionId))).toContain("algo dito");
   });
 });

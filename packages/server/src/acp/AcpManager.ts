@@ -23,6 +23,7 @@ import { createFsBridge, type FsBridge } from "./fs-bridge.js";
 import { createTerminalBridge, type TerminalBridge } from "./terminal-bridge.js";
 import type { PtyManager } from "../pty/PtyManager.js";
 import { spawnAcpProcess, type AcpProcess, type AcpProcessSpawner } from "./process.js";
+import { createMemoryTranscriptStore, type TranscriptStore } from "./TranscriptStore.js";
 import { translateSessionUpdate } from "./translate.js";
 import { sniffUnknownUpdates } from "./unknown-updates.js";
 
@@ -92,15 +93,6 @@ interface Session {
   info: AcpSessionInfo;
   process: AcpProcess;
   connection: ClientConnection;
-  /**
-   * Every event this session has produced, in order.
-   *
-   * Held so an attaching client can be brought up to date in one frame — the
-   * same promise the PTY endpoint makes with its scrollback. It grows without a
-   * ceiling for now; F5.4 moves it to a database per session, with compression
-   * past thirty days, and that is where a bound belongs.
-   */
-  transcript: AcpTranscriptEntry[];
   listeners: Set<AcpEventListener>;
   /** Calls still open, so a cancelled turn can close them (A14). */
   openToolCalls: Set<string>;
@@ -162,6 +154,13 @@ export interface AcpManagerOptions {
    */
   isAvailable?: (command: string) => boolean;
   /**
+   * Where the conversation is kept (F5.4).
+   *
+   * Injectable, and in-memory by default, so a test that is not about the disk does
+   * not have to name a directory. `bootstrap` passes the real one.
+   */
+  transcripts?: TranscriptStore;
+  /**
    * Where an unrecognised event goes.
    *
    * "Ignored with a log, never thrown" (D3) needs somewhere for the log to
@@ -193,6 +192,7 @@ export class AcpManager {
   private readonly files: FileService;
   private readonly ptyManager: PtyManager | undefined;
   private readonly now: () => number;
+  private readonly transcripts: TranscriptStore;
   private readonly log: Pick<FastifyBaseLogger, "warn"> | undefined;
 
   constructor({
@@ -202,6 +202,7 @@ export class AcpManager {
     files = createFileService(),
     ptyManager,
     now = () => Date.now(),
+    transcripts = createMemoryTranscriptStore(),
     log,
   }: AcpManagerOptions = {}) {
     this.spawner = spawner;
@@ -210,6 +211,7 @@ export class AcpManager {
     this.files = files;
     this.ptyManager = ptyManager;
     this.now = now;
+    this.transcripts = transcripts;
     this.log = log;
   }
 
@@ -260,7 +262,6 @@ export class AcpManager {
       },
       process: child,
       connection: undefined as unknown as ClientConnection,
-      transcript: [],
       listeners: new Set(),
       openToolCalls: new Set(),
       pendingPermissions: new Map(),
@@ -390,9 +391,15 @@ export class AcpManager {
     this.emit(session, { type: "permission_resolved", requestId, outcome: { optionId } });
   }
 
-  /** Everything an attaching client needs to catch up, in one frame. */
+  /**
+   * Everything an attaching client needs to catch up, in one frame.
+   *
+   * Read from the store, not from memory: the array this replaced grew for the life
+   * of the session with no ceiling, which is the reason F5.4 exists at all.
+   */
   transcript(id: string): readonly AcpTranscriptEntry[] {
-    return [...this.require(id).transcript];
+    this.require(id);
+    return this.transcripts.read(id);
   }
 
   /** Returns an unsubscribe function. Detaching must never end the session. */
@@ -435,6 +442,9 @@ export class AcpManager {
       throw new DomainError("INVALID_ARGUMENT", `session ${id} is still running`);
     }
     this.sessions.delete(id);
+    // The file stays; only the handle goes. Dropping the conversation is `drop` on
+    // the store, and it is a different decision from forgetting the process.
+    this.transcripts.release(id);
   }
 
   /** What shutdown calls, for the reason `PtyManager.killAll` exists. */
@@ -826,7 +836,17 @@ export class AcpManager {
     }
 
     const entry: AcpTranscriptEntry = { at: this.now(), event };
-    session.transcript.push(entry);
+    try {
+      this.transcripts.append(session.info.id, entry);
+    } catch (error) {
+      // A disk that refuses the write must not take the turn with it. Losing one
+      // line of the record is bad; losing the answer the user is waiting for
+      // because the record could not be written is worse.
+      this.log?.warn(
+        { sessionId: session.info.id, err: error },
+        "falha ao gravar a transcrição, evento só foi entregue ao vivo",
+      );
+    }
 
     // A throwing listener must not take down the daemon or starve the other
     // attached clients — the same rule the PTY manager follows.

@@ -1,5 +1,7 @@
 import { EventEmitter } from "node:events";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -16,6 +18,8 @@ import { SHUTDOWN_SIGNALS } from "./signals.js";
 const started: FastifyInstance[] = [];
 const managers: PtyManager[] = [];
 const databases: TestDb[] = [];
+/** State directories the boots write into, removed together. */
+const stateDirs: string[] = [];
 
 async function boot(
   overrides: {
@@ -27,8 +31,13 @@ async function boot(
 ) {
   const signalSource = new EventEmitter();
   const exit = vi.fn();
+  // A throwaway state directory, for the same reason the database is a throwaway
+  // file: booting the daemon now creates directories under `stateDir`, and a test
+  // suite must not leave anything in the developer's own `~/.lumem`.
+  const stateDir = mkdtempSync(join(tmpdir(), "lumem-boot-state-"));
+  stateDirs.push(stateDir);
   // Port 0 lets the OS pick a free one — no fixed port to collide with.
-  const config = loadConfig({ LUMEM_PORT: overrides.port ?? "0" });
+  const config = loadConfig({ LUMEM_PORT: overrides.port ?? "0", LUMEM_STATE_DIR: stateDir });
   // Never the real ~/.lumem/lumem.db: a test suite must not write to the
   // developer's own state.
   const database = overrides.database ?? openTestDb();
@@ -52,6 +61,7 @@ afterEach(async () => {
   await Promise.all(started.splice(0).map((app) => app.close()));
   await Promise.all(managers.splice(0).map((manager) => manager.killAll()));
   for (const database of databases.splice(0)) database.cleanup();
+  for (const dir of stateDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
 describe("bootstrap", () => {
@@ -60,6 +70,21 @@ describe("bootstrap", () => {
 
     expect(app.server.listening).toBe(true);
     expect(app.server.address()).toMatchObject({ address: "127.0.0.1" });
+  });
+
+  it("opens the transcript store under the state dir", async () => {
+    /*
+     * The wiring, not the writing. What is actually at stake is that the manager gets
+     * the disk store rather than falling back to its in-memory default — and that
+     * fallback is invisible from here, because proving it takes a real adapter and a
+     * restart. So this asserts the one thing it can, that the store was opened at all,
+     * and the e2e that kills the daemon and reads the conversation back proves the
+     * rest. The `ptyManager` line above this one in `bootstrap` went missing exactly
+     * this way, and only the e2e found it.
+     */
+    const { config } = await boot();
+
+    expect(existsSync(config.transcriptsDir)).toBe(true);
   });
 
   it("serves the trpc router once listening", async () => {

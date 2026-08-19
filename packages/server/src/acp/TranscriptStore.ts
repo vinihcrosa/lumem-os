@@ -44,6 +44,13 @@ export interface TranscriptStore {
   read(sessionId: string): AcpTranscriptEntry[];
   /** Erases the conversation. For purge, and for a session nobody wants back. */
   drop(sessionId: string): void;
+  /**
+   * Closes this session's file handle, leaving the file alone.
+   *
+   * A handle per session held for the life of the daemon is a file descriptor that
+   * never comes back; a later read reopens on demand, so releasing costs nothing.
+   */
+  release(sessionId: string): void;
   /** Releases every open file handle. */
   close(): void;
 }
@@ -144,6 +151,11 @@ export function createTranscriptStore({ dir, log }: TranscriptStoreOptions): Tra
       }
     },
 
+    release(sessionId) {
+      open.get(sessionId)?.close();
+      open.delete(sessionId);
+    },
+
     close() {
       for (const db of open.values()) db.close();
       open.clear();
@@ -181,4 +193,38 @@ function decode(
     return null;
   }
   return parsed.data;
+}
+
+/**
+ * The same store, in memory, for a test whose subject is not the disk.
+ *
+ * It is also the `AcpManager`'s default, and that is a deliberate trade: making the
+ * disk store mandatory would mean threading a directory through every test that
+ * merely wants to drive a conversation. The cost is that a production wiring which
+ * forgets to pass the real one loses transcripts silently — so `bootstrap` has a
+ * test that asserts the file appears on disk, which is the only place that mistake
+ * can be made.
+ */
+export function createMemoryTranscriptStore(): TranscriptStore {
+  const sessions = new Map<string, AcpTranscriptEntry[]>();
+
+  return {
+    append(sessionId, entry) {
+      const entries = sessions.get(sessionId) ?? [];
+      entries.push(entry);
+      sessions.set(sessionId, entries);
+    },
+    read(sessionId) {
+      return [...(sessions.get(sessionId) ?? [])];
+    },
+    drop(sessionId) {
+      sessions.delete(sessionId);
+    },
+    release() {
+      /* nothing to release */
+    },
+    close() {
+      sessions.clear();
+    },
+  };
 }
