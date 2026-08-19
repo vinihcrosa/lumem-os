@@ -207,6 +207,13 @@
   border-radius: var(--radius-full);
   background: currentColor;
 }
+/* Esperando permissão troca o verde, não soma outro sinal: a linha tem uma
+   contagem, e "alguém precisa responder" é o que ela deve dizer quando é o caso
+   — é o único estado que não termina sozinho. */
+.row__count--asking {
+  background: var(--color-bg-warning-subtle);
+  color: var(--color-permission-pending);
+}
 
 /* ---------------------------------------------------- linha de detalhe */
 .item {
@@ -577,6 +584,8 @@
 }
 .tab-item__dot--exited { background: var(--color-session-exited); }
 .tab-item__dot--failed { background: var(--color-session-failed); }
+/* Mesma regra da contagem: substitui o ponto de rodando em vez de somar. */
+.tab-item__dot--asking { background: var(--color-permission-pending); }
 
 .tab-item__close {
   display: inline-flex;

@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, type ReactNode } from "react";
 
+import { useAwaitingPermission } from "../hooks/useAwaitingPermission.js";
 import { useOpenFiles, tabKey } from "../hooks/useOpenFiles.js";
 import { useWorktreeTabs } from "../hooks/useWorktreeTabs.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
@@ -36,6 +37,7 @@ export interface ScopePanelProps {
 export function ScopePanel({ scope, header, context, cwd }: ScopePanelProps) {
   const queryClient = useQueryClient();
   const { tabs, activeId, select, close, reopen, sessions } = useWorktreeTabs(scope);
+  const awaiting = useAwaitingPermission();
   const openFiles = useOpenFiles();
 
   // The column opens files into whichever tab is in front, so the tab has to
@@ -108,7 +110,15 @@ export function ScopePanel({ scope, header, context, cwd }: ScopePanelProps) {
               </Glyph>
             }
             state={
-              tab.state === "running" ? "running" : tab.exitCode === 0 ? "exited" : "failed"
+              // Waiting on a person outranks being busy: a tab shows one dot,
+              // and "answer me" is the state that will not resolve itself.
+              awaiting.isWaiting(tab.sessionId)
+                ? "asking"
+                : tab.state === "running"
+                  ? "running"
+                  : tab.exitCode === 0
+                    ? "exited"
+                    : "failed"
             }
             active={activeId === tab.sessionId}
             onSelect={() => select(tab.sessionId)}

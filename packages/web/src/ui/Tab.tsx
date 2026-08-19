@@ -1,6 +1,13 @@
 import type { ReactNode } from "react";
 
-export type TabState = "running" | "exited" | "failed";
+/**
+ * What the tab's dot reports.
+ *
+ * `asking` is not a session state — a session waiting on permission is still
+ * running. It is here because it *replaces* the running dot: a tab cannot show
+ * two dots, and "someone has to answer me" outranks "I am busy" (F2.4, A10).
+ */
+export type TabState = "running" | "exited" | "failed" | "asking";
 
 export interface TabProps {
   label: string;

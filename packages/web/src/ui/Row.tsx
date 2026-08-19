@@ -17,6 +17,14 @@ export interface RowProps {
   expanded?: boolean;
   onToggle?: () => void;
   glyph?: ReactNode;
+  /**
+   * What the count is counting.
+   *
+   * `asking` outranks `running` for the same reason it does on a tab: a worktree
+   * with one session waiting on an answer and two busy ones needs the sidebar to
+   * say the first thing, because that is the one that will not finish on its own.
+   */
+  countTone?: "running" | "asking";
   /** Trailing note: a count, `ausente`, `saiu`. */
   meta?: ReactNode;
   /**
@@ -49,6 +57,7 @@ export function Row({
   glyph,
   meta,
   count,
+  countTone = "running",
 }: RowProps) {
   const classes = [
     "row",
@@ -85,11 +94,17 @@ export function Row({
             itself as part of the button's own name every time focus lands. As
             hidden text it still reaches a screen reader, once, in order. */}
         {count !== undefined && count > 0 && (
-          <span className="row__count">
+          <span className={`row__count row__count--${countTone}`}>
             <span className="row__count__dot" aria-hidden="true" />
             {count}
             <span className="sr-only">
-              {count === 1 ? " sessão rodando" : " sessões rodando"}
+              {countTone === "asking"
+                ? count === 1
+                  ? " sessão esperando permissão"
+                  : " sessões esperando permissão"
+                : count === 1
+                  ? " sessão rodando"
+                  : " sessões rodando"}
             </span>
           </span>
         )}

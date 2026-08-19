@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { useRunningAcross, type Scope } from "../hooks/useSessionsByScope.js";
+import { useAwaitingPermission } from "../hooks/useAwaitingPermission.js";
+import { useRunningAcross, useSessionsByScope, type Scope } from "../hooks/useSessionsByScope.js";
 import type { TreeExpansion } from "../hooks/useTreeExpansion.js";
 import { projectsKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
@@ -231,6 +232,12 @@ function WorktreeNode({
   const missing = worktree.state === "missing";
   const scope: Scope = { scopeType: "worktree", scopeId: worktree.id };
   const running = useRunningAcross([scope]);
+  const awaiting = useAwaitingPermission();
+  const sessions = useSessionsByScope(scope);
+  // Only what is waiting on a person. A worktree with one blocked session and two
+  // busy ones has to report the blocked one: it is the only one that will not
+  // finish on its own (A10).
+  const asking = awaiting.countIn((sessions.data ?? []).map((session) => session.id));
 
   return (
     <div data-kind="worktree" data-state={worktree.state}>
@@ -241,7 +248,8 @@ function WorktreeNode({
         // F7.4: it stays visible and says so, instead of disappearing.
         muted={missing}
         meta={worktreeMeta(worktree)}
-        count={running > 0 ? running : undefined}
+        count={asking > 0 ? asking : running > 0 ? running : undefined}
+        countTone={asking > 0 ? "asking" : "running"}
         selected={selected}
         onSelect={() => onSelect(projectId, scope)}
       />

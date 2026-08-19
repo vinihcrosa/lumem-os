@@ -10,6 +10,7 @@ import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
 import { WorktreePanel } from "./components/WorktreePanel.js";
 import { useActiveWorkspace } from "./hooks/useActiveWorkspace.js";
 import { useLiveState } from "./hooks/useLiveState.js";
+import { AwaitingPermissionProvider } from "./hooks/useAwaitingPermission.js";
 import { OpenFilesProvider } from "./hooks/useOpenFiles.js";
 import { useRightPanel } from "./hooks/useRightPanel.js";
 import type { Scope } from "./hooks/useSessionsByScope.js";
@@ -62,28 +63,35 @@ export function App() {
   useLiveState();
 
   return (
-    <OpenFilesProvider>
-      <div className="app">
-      <Topbar
-        version={health.data?.version ?? null}
-        unreachable={health.isError}
-        // Nothing to show the files of until a checkout is selected.
-        filesPanel={selection === null ? undefined : rightPanel}
-      />
-      {/* The topbar dot says it quietly; this says what it means. Every action
+    // `AwaitingPermissionProvider` is installed once, here. A conversation that
+    // thought it reported a pending permission and did not is the one failure
+    // this must never have, and that is not something a caller should be able to
+    // forget per tab.
+    <AwaitingPermissionProvider>
+      <OpenFilesProvider>
+        <div className="app">
+          <Topbar
+            version={health.data?.version ?? null}
+            unreachable={health.isError}
+            // Nothing to show the files of until a checkout is selected.
+            filesPanel={selection === null ? undefined : rightPanel}
+          />
+          {/* The topbar dot says it quietly; this says what it means. Every action
           below is a call to a daemon that is not answering, and a sidebar that
           merely looks stale gives no reason for why nothing works. */}
-      {health.isError && (
-        <div className="app__banner">
-          <Banner tone="danger">
-            <strong>Daemon inacessível.</strong> Nada aqui responde até ele voltar. As sessões
-            continuam rodando no servidor — o que caiu é a conexão com ele.
-          </Banner>
+          {health.isError && (
+            <div className="app__banner">
+              <Banner tone="danger">
+                <strong>Daemon inacessível.</strong> Nada aqui responde até ele
+                voltar. As sessões continuam rodando no servidor — o que caiu é
+                a conexão com ele.
+              </Banner>
+            </div>
+          )}
+          {renderBody()}
         </div>
-      )}
-      {renderBody()}
-      </div>
-    </OpenFilesProvider>
+      </OpenFilesProvider>
+    </AwaitingPermissionProvider>
   );
 
   function renderBody() {
@@ -117,7 +125,8 @@ export function App() {
     // Bound here so `renderPanel` can read it: the narrowing above does not
     // survive into a nested function.
     const list = workspaces.data;
-    const activeName = list.find((workspace) => workspace.id === activeId)?.name ?? "";
+    const activeName =
+      list.find((workspace) => workspace.id === activeId)?.name ?? "";
 
     return (
       <AppShell
@@ -144,7 +153,9 @@ export function App() {
                 scopeType: selection?.scope.scopeType ?? null,
                 scopeId: selection?.scope.scopeId ?? null,
               }}
-              onSelect={(projectId, scope) => setSelection({ projectId, scope })}
+              onSelect={(projectId, scope) =>
+                setSelection({ projectId, scope })
+              }
             />
             <div className="sidebar__foot">
               {/* Adding a project is an action of the workspace, not an item of
@@ -152,7 +163,10 @@ export function App() {
               <AddProjectDialog
                 workspaceId={activeId}
                 onAdded={(projectId) =>
-                  setSelection({ projectId, scope: { scopeType: "project", scopeId: projectId } })
+                  setSelection({
+                    projectId,
+                    scope: { scopeType: "project", scopeId: projectId },
+                  })
                 }
               />
             </div>
@@ -199,7 +213,10 @@ export function App() {
           projectId={projectId}
           workspaceName={workspaceName}
           onRemoved={() =>
-            setSelection({ projectId, scope: { scopeType: "project", scopeId: projectId } })
+            setSelection({
+              projectId,
+              scope: { scopeType: "project", scopeId: projectId },
+            })
           }
         />
       );
@@ -213,7 +230,10 @@ export function App() {
         workspaceName={workspaceName}
         onRemoved={() => setSelection(null)}
         onSelectWorktree={(worktreeId) =>
-          setSelection({ projectId, scope: { scopeType: "worktree", scopeId: worktreeId } })
+          setSelection({
+            projectId,
+            scope: { scopeType: "worktree", scopeId: worktreeId },
+          })
         }
       />
     );
