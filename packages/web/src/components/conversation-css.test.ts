@@ -30,6 +30,7 @@ const components = read(
   "Message.tsx",
   "ToolCard.tsx",
   "PermissionRequest.tsx",
+  "PlanCard.tsx",
 );
 
 /** Selectors this stylesheet defines, at any position in a rule. */
@@ -56,6 +57,9 @@ const INTERPOLATED = [
   "turn--agent",
   "verdict--allowed",
   "verdict--denied",
+  "plan__row--pending",
+  "plan__row--active",
+  "plan__row--done",
 ];
 
 function requested(source: string): Set<string> {
@@ -153,12 +157,13 @@ describe("the stylesheet stays inside the token system", () => {
 });
 
 describe("what it deliberately does not carry", () => {
-  it.each(["plan", "usage", "meter", "pill", "slash", "daysep", "overage"])(
+  it.each(["usage", "meter", "pill", "slash", "daysep", "overage"])(
     "has no rules for %s, which is phase 4",
     (prefix) => {
-      // CSS with no markup is dead CSS. These come with the components that use
-      // them (A2, D6) — the alternative is a stylesheet nobody can safely edit
-      // because nobody knows which half is live.
+      // CSS with no markup is dead CSS. Each comes with the component that uses
+      // it — the alternative is a stylesheet nobody can safely edit because
+      // nobody knows which half is live. `plan` left this list when `PlanCard`
+      // arrived, which is the list working as intended.
       expect(stylesheet).not.toMatch(new RegExp(`^\\.${prefix}[\\s{_-]`, "m"));
     },
   );

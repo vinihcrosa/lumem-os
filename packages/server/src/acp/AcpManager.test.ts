@@ -354,17 +354,40 @@ describe("a turn", () => {
     await expect(manager.prompt(info.id, "e agora?")).resolves.toBe("end_turn");
   });
 
-  it("does not report a plan as unrecognised", async () => {
-    // Phase 4 renders plans. Calling one "unrecognised" today would put a grey
-    // apology on screen about something the protocol defines.
+  it("forwards a plan, now that there is somewhere to show it", async () => {
+    // This test used to assert the opposite — that a plan was ignored without
+    // being called unrecognised, which was true while nothing rendered one. The
+    // plan card is what changed the premise.
     const { manager, events, sessionId } = await start({
       async prompt(_text, turn) {
-        await turn.update({ sessionUpdate: "plan", entries: [] } as never);
+        await turn.update({
+          sessionUpdate: "plan",
+          entries: [{ content: "extrair o parser", status: "in_progress", priority: "high" }],
+        } as never);
         return "end_turn";
       },
     });
 
     await manager.prompt(sessionId, "planeja");
+
+    expect(typesOf(events)).toEqual(["message", "plan", "turn_end"]);
+    expect(events[1]).toEqual({
+      type: "plan",
+      entries: [{ content: "extrair o parser", status: "in_progress", priority: "high" }],
+    });
+  });
+
+  it("still ignores what phase 4 has not reached", async () => {
+    // The ignore list shrinks one task at a time. What is still on it must stay
+    // silent rather than showing up as an unrecognised event.
+    const { manager, events, sessionId } = await start({
+      async prompt(_text, turn) {
+        await turn.update({ sessionUpdate: "session_info_update", title: "algo" } as never);
+        return "end_turn";
+      },
+    });
+
+    await manager.prompt(sessionId, "conta");
 
     expect(typesOf(events)).toEqual(["message", "turn_end"]);
   });

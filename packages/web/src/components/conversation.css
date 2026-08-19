@@ -225,6 +225,39 @@
 .out .path { color: var(--color-git-branch); }
 .out--short { max-height: none; }
 
+/* ------------------------------------------------------- o plano (F2.5) */
+/*
+ * O plano é UM cartão que se reescreve, não uma sequência de mensagens.
+ * O agente reenvia o plano inteiro a cada mudança; se cada versão virasse
+ * um bloco novo, a conversa encheria de cópias quase iguais.
+ */
+.plan { background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); overflow: hidden; }
+.plan__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--size-row-compact);
+  padding: 0 var(--space-10);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font: var(--text-label-sm);
+  color: var(--color-text-primary);
+}
+.plan__glyph { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); color: var(--color-plan-active); }
+.plan__glyph--done { color: var(--color-plan-done); }
+.plan__count { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.plan__row { display: flex; align-items: flex-start; gap: var(--space-8); padding: var(--space-6) var(--space-10); font: var(--text-body-md); }
+.plan__mark { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); line-height: var(--space-16); }
+.plan__what { min-width: 0; }
+.plan__now { flex: none; font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; color: var(--color-plan-active); }
+.plan__row--pending { color: var(--color-text-secondary); }
+.plan__row--pending .plan__mark { color: var(--color-plan-pending); }
+.plan__row--active { color: var(--color-text-primary); }
+.plan__row--active .plan__mark { color: var(--color-plan-active); }
+.plan__row--active .plan__what { font: var(--text-label-md); }
+/* Feito recua para terciário: já rendeu, e o que interessa é o que falta. */
+.plan__row--done { color: var(--color-text-tertiary); }
+.plan__row--done .plan__mark { color: var(--color-plan-done); }
+
 /* ---------------------------------------- o pedido de permissão (F2.4) */
 /*
  * O único bloco da conversa que PARA tudo: sem resposta, o agente espera

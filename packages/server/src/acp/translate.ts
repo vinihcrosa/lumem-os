@@ -1,4 +1,11 @@
-import type { AcpEvent, AcpToolContent, AcpToolKind, AcpToolStatus } from "@lumem/shared";
+import type {
+  AcpEvent,
+  AcpPlanEntry,
+  AcpPlanStatus,
+  AcpToolContent,
+  AcpToolKind,
+  AcpToolStatus,
+} from "@lumem/shared";
 
 /**
  * Translates ACP's `session/update` into the events the browser reads.
@@ -131,11 +138,9 @@ function unknown(sessionUpdate: string): AcpEvent {
  * adapter still reaches the user as `unknown` instead of vanishing.
  */
 const IGNORED = new Set([
-  // Phase 4: the plan card, the usage footer, the mode and model selectors, and
-  // slash commands. All drawn in the prototype, none wired yet (A2).
-  "plan",
-  "plan_update",
-  "plan_removed",
+  // Still phase 4 work, in tasks that have not run yet. `session_info_update` is
+  // the only one with no home planned: it reports a session title, and nothing in
+  // the design shows one.
   "available_commands_update",
   "current_mode_update",
   "config_option_update",
@@ -156,6 +161,9 @@ export const KNOWN_SESSION_UPDATES: ReadonlySet<string> = new Set([
   "agent_thought_chunk",
   "tool_call",
   "tool_call_update",
+  "plan",
+  "plan_update",
+  "plan_removed",
   ...IGNORED,
 ]);
 
@@ -239,9 +247,62 @@ export function translateSessionUpdate(
       return event;
     }
 
+    case "plan":
+    case "plan_update": {
+      /*
+       * Both spellings, one event.
+       *
+       * The protocol has `plan` and `plan_update`, and the adapter has been seen
+       * to send either — but both carry the *whole* plan, not a delta, so telling
+       * them apart downstream would be a distinction with no consequence. The
+       * client keeps one card and rewrites it either way.
+       */
+      const entries = planEntries(update["entries"]);
+      if (entries === null) return unknown(`${kind}:malformed`);
+      return { type: "plan", entries };
+    }
+
+    case "plan_removed":
+      return { type: "plan_removed" };
+
     default:
       return unknown(kind);
   }
+}
+
+const PLAN_STATUSES: readonly AcpPlanStatus[] = ["pending", "in_progress", "completed"];
+
+/**
+ * The plan's steps, or null when the payload is not a plan at all.
+ *
+ * A step with an unrecognised status drops the whole plan rather than being
+ * guessed at: a plan is read as a sequence, and one step silently downgraded to
+ * `pending` would misreport progress in the one place that exists to report it.
+ * An empty list is a legitimate plan — the agent announcing it has one before
+ * filling it in.
+ */
+function planEntries(raw: unknown): AcpPlanEntry[] | null {
+  if (!Array.isArray(raw)) return null;
+
+  const entries: AcpPlanEntry[] = [];
+  for (const item of raw) {
+    if (!isRecord(item)) return null;
+    const content = item["content"];
+    const status = item["status"];
+    if (typeof content !== "string") return null;
+    if (!PLAN_STATUSES.includes(status as AcpPlanStatus)) return null;
+
+    entries.push({
+      content,
+      status: status as AcpPlanStatus,
+      priority: isPriority(item["priority"]) ? item["priority"] : null,
+    });
+  }
+  return entries;
+}
+
+function isPriority(value: unknown): value is "high" | "medium" | "low" {
+  return value === "high" || value === "medium" || value === "low";
 }
 
 /**

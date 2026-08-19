@@ -238,11 +238,80 @@ describe("tool calls", () => {
   });
 });
 
+describe("the plan", () => {
+  it("translates a plan with its three statuses", () => {
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "plan",
+          entries: [
+            { content: "ler o loader", status: "completed", priority: "high" },
+            { content: "extrair o parser", status: "in_progress" },
+            { content: "rodar o gate", status: "pending", priority: "low" },
+          ],
+        },
+        context,
+      ),
+    ).toEqual({
+      type: "plan",
+      entries: [
+        { content: "ler o loader", status: "completed", priority: "high" },
+        { content: "extrair o parser", status: "in_progress", priority: null },
+        { content: "rodar o gate", status: "pending", priority: "low" },
+      ],
+    });
+  });
+
+  it("treats plan_update the same way, because both carry the whole plan", () => {
+    // The protocol has both spellings and the adapter has been seen to send
+    // either. Neither is a delta, so telling them apart downstream would be a
+    // distinction with no consequence.
+    const entries = [{ content: "um", status: "pending" }];
+
+    expect(translateSessionUpdate({ sessionUpdate: "plan_update", entries }, context)).toEqual(
+      translateSessionUpdate({ sessionUpdate: "plan", entries }, context),
+    );
+  });
+
+  it("accepts an empty plan, which is the agent announcing it has one", () => {
+    expect(translateSessionUpdate({ sessionUpdate: "plan", entries: [] }, context)).toEqual({
+      type: "plan",
+      entries: [],
+    });
+  });
+
+  it("translates the plan being withdrawn", () => {
+    expect(translateSessionUpdate({ sessionUpdate: "plan_removed" }, context)).toEqual({
+      type: "plan_removed",
+    });
+  });
+
+  it("drops the whole plan rather than guessing one step's status", () => {
+    // A plan is read as a sequence. One step silently downgraded to `pending`
+    // would misreport progress in the one place that exists to report it.
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "plan",
+          entries: [
+            { content: "ok", status: "completed" },
+            { content: "?", status: "abandonado" },
+          ],
+        },
+        context,
+      ),
+    ).toEqual({ type: "unknown", sessionUpdate: "plan:malformed" });
+  });
+
+  it("reports a plan whose entries are not entries", () => {
+    expect(
+      translateSessionUpdate({ sessionUpdate: "plan", entries: "nada" }, context),
+    ).toMatchObject({ type: "unknown" });
+  });
+});
+
 describe("variants that are known but not rendered yet", () => {
   it.each([
-    "plan",
-    "plan_update",
-    "plan_removed",
     "available_commands_update",
     "current_mode_update",
     "config_option_update",

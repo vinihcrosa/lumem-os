@@ -328,3 +328,48 @@ describe("what goes wrong", () => {
     expect(screen.getByText("segui adiante")).toBeInTheDocument();
   });
 });
+
+describe("the plan", () => {
+  it("shows the plan above the turns, and follows its rewrites", async () => {
+    // Above the turns because the plan belongs to the conversation, not to the
+    // turn that announced it: nested, the card would jump down the page every
+    // time a step finished.
+    const { socket } = mount();
+    socket.deliver(attached());
+
+    socket.deliver({
+      type: "event",
+      at: clock,
+      event: { type: "plan", entries: [{ content: "extrair o parser", status: "in_progress" }] },
+    });
+    await waitFor(() => expect(screen.getByText("0 de 1")).toBeInTheDocument());
+
+    socket.deliver({
+      type: "event",
+      at: clock,
+      event: {
+        type: "plan",
+        entries: [
+          { content: "extrair o parser", status: "completed" },
+          { content: "rodar o gate", status: "in_progress" },
+        ],
+      },
+    });
+
+    // One card, rewritten. Two would mean the conversation is accumulating copies.
+    await waitFor(() => expect(screen.getByText("1 de 2")).toBeInTheDocument());
+    expect(document.querySelectorAll(".plan")).toHaveLength(1);
+  });
+
+  it("takes the card away when the agent withdraws the plan", async () => {
+    const { socket } = mount();
+    socket.deliver(
+      attached([entry({ type: "plan", entries: [{ content: "um", status: "pending" }] })]),
+    );
+    await waitFor(() => expect(document.querySelector(".plan")).not.toBeNull());
+
+    socket.deliver({ type: "event", at: clock, event: { type: "plan_removed" } });
+
+    await waitFor(() => expect(document.querySelector(".plan")).toBeNull());
+  });
+});

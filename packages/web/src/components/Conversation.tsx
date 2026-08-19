@@ -14,6 +14,7 @@ import { connectAcpSocket, type AcpConnect } from "../lib/acp-socket.js";
 import { Banner, Button, Glyph } from "../ui/index.js";
 import { Message, Thought, TurnFrame } from "./Message.js";
 import { PermissionRequest } from "./PermissionRequest.js";
+import { PlanCard } from "./PlanCard.js";
 import { ToolCard } from "./ToolCard.js";
 
 import "./conversation.css";
@@ -191,6 +192,16 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
         )}
 
         {conversation.turns.length === 0 && !failure && <EmptyConversation ready={session !== null} />}
+
+        {/*
+          Above the turns, not inside one.
+          
+          The plan belongs to the conversation rather than to the turn that
+          announced it: the agent reissues it across turns, and a card nested in
+          whichever turn happened to mention it last would jump down the page every
+          time a step finished.
+        */}
+        {conversation.plan && <PlanCard entries={conversation.plan} />}
 
         {conversation.turns.map((turn, turnIndex) => (
           <TurnFrame key={turnIndex} role={turn.role}>
