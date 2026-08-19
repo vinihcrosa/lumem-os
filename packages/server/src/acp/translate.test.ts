@@ -310,13 +310,113 @@ describe("the plan", () => {
   });
 });
 
+describe("usage and the subscription's limit", () => {
+  it("translates a usage report with everything the spike measured", () => {
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "usage_update",
+          used: 39_200,
+          size: 1_000_000,
+          cost: { amount: 0.235433, currency: "USD" },
+          _meta: {
+            "_claude/rateLimit": {
+              status: "allowed_warning",
+              rateLimitType: "seven_day",
+              utilization: 0.94,
+              isUsingOverage: false,
+              surpassedThreshold: 0.75,
+              resetsAt: 1_787_004_000,
+            },
+          },
+        },
+        context,
+      ),
+    ).toEqual({
+      type: "usage",
+      used: 39_200,
+      size: 1_000_000,
+      cost: { amount: 0.235433, currency: "USD" },
+      rateLimit: {
+        utilization: 0.94,
+        isUsingOverage: false,
+        surpassedThreshold: 0.75,
+        resetsAt: 1_787_004_000,
+        kind: "seven_day",
+      },
+    });
+  });
+
+  it("reports no cost rather than a cost of nothing", () => {
+    // An agent that does not report money must not look like one that charged
+    // nothing. The footer shows a dash, and a dash is the honest answer.
+    expect(
+      translateSessionUpdate({ sessionUpdate: "usage_update", used: 10, size: 200_000 }, context),
+    ).toMatchObject({ cost: null });
+  });
+
+  it("keeps a usage report whose rate limit block is missing", () => {
+    // The block is a Claude extension. Another agent will not send it, and losing
+    // a perfectly good usage report over its absence would make Lumem stricter
+    // than the protocol.
+    expect(
+      translateSessionUpdate({ sessionUpdate: "usage_update", used: 10, size: 200_000 }, context),
+    ).toMatchObject({ used: 10, rateLimit: null });
+  });
+
+  it("drops a rate limit block that does not say whether it is in overage", () => {
+    // `isUsingOverage` is the detector that arrives before the invoice, so it is
+    // the one field this refuses to guess. Defaulting it to `false` would be the
+    // system reporting good news it does not have.
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "usage_update",
+          used: 10,
+          size: 200_000,
+          _meta: { "_claude/rateLimit": { utilization: 0.99 } },
+        },
+        context,
+      ),
+    ).toMatchObject({ rateLimit: null });
+  });
+
+  it("survives a rate limit block with only the two fields it needs", () => {
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "usage_update",
+          used: 10,
+          size: 200_000,
+          _meta: { "_claude/rateLimit": { utilization: 0.2, isUsingOverage: false } },
+        },
+        context,
+      ),
+    ).toMatchObject({
+      rateLimit: { utilization: 0.2, isUsingOverage: false, surpassedThreshold: null, kind: null },
+    });
+  });
+
+  it("refuses a report with no window to measure against", () => {
+    // Everything downstream divides by `size`.
+    expect(
+      translateSessionUpdate({ sessionUpdate: "usage_update", used: 10, size: 0 }, context),
+    ).toEqual({ type: "unknown", sessionUpdate: "usage_update:malformed" });
+  });
+
+  it("refuses a report that counts nothing", () => {
+    expect(
+      translateSessionUpdate({ sessionUpdate: "usage_update", size: 200_000 }, context),
+    ).toMatchObject({ type: "unknown" });
+  });
+});
+
 describe("variants that are known but not rendered yet", () => {
   it.each([
     "available_commands_update",
     "current_mode_update",
     "config_option_update",
     "session_info_update",
-    "usage_update",
   ])("ignores %s without calling it unrecognised", (sessionUpdate) => {
     // Phase 4 renders all of these. Reporting them as `unknown` today would put
     // "unrecognised event" in the tab about things the protocol defines and the

@@ -1,6 +1,7 @@
 import type {
   AcpEvent,
   AcpPlanEntry,
+  AcpRateLimit,
   AcpPlanStatus,
   AcpToolContent,
   AcpToolKind,
@@ -145,7 +146,6 @@ const IGNORED = new Set([
   "current_mode_update",
   "config_option_update",
   "session_info_update",
-  "usage_update",
 ]);
 
 /**
@@ -164,6 +164,7 @@ export const KNOWN_SESSION_UPDATES: ReadonlySet<string> = new Set([
   "plan",
   "plan_update",
   "plan_removed",
+  "usage_update",
   ...IGNORED,
 ]);
 
@@ -265,9 +266,73 @@ export function translateSessionUpdate(
     case "plan_removed":
       return { type: "plan_removed" };
 
+    case "usage_update": {
+      const used = update["used"];
+      const size = update["size"];
+      // A window of zero is not a window: everything downstream divides by it.
+      if (typeof used !== "number" || typeof size !== "number" || size <= 0) {
+        return unknown("usage_update:malformed");
+      }
+
+      return {
+        type: "usage",
+        used: Math.max(0, Math.round(used)),
+        size: Math.round(size),
+        cost: costOf(update["cost"]),
+        rateLimit: rateLimitOf(update["_meta"]),
+      };
+    }
+
     default:
       return unknown(kind);
   }
+}
+
+/**
+ * What the turn cost, when the agent says.
+ *
+ * Null rather than zero when it does not. An agent that reports no money must not
+ * be made to look like one that charged nothing — the footer shows a dash, and a
+ * dash is the honest answer.
+ */
+function costOf(raw: unknown): { amount: number; currency: string } | null {
+  if (!isRecord(raw)) return null;
+  const amount = raw["amount"];
+  const currency = raw["currency"];
+  if (typeof amount !== "number" || typeof currency !== "string") return null;
+  return { amount, currency };
+}
+
+/**
+ * The subscription's own limit, from `_meta._claude/rateLimit`.
+ *
+ * A Claude extension, read defensively for exactly that reason: another agent
+ * will not send it, and a future version of this one may change its shape. A
+ * missing or malformed block means "no information about the limit", which is a
+ * state the footer already has to render — not a reason to lose a usage report
+ * that is otherwise perfectly good.
+ *
+ * `isUsingOverage` turning true is what the PRD calls the detector that arrives
+ * before the invoice, so it is the one field this refuses to guess: absent means
+ * absent, and the whole block is dropped rather than defaulted to `false`.
+ */
+function rateLimitOf(meta: unknown): AcpRateLimit | null {
+  if (!isRecord(meta)) return null;
+  const raw = meta["_claude/rateLimit"];
+  if (!isRecord(raw)) return null;
+
+  const utilization = raw["utilization"];
+  const isUsingOverage = raw["isUsingOverage"];
+  if (typeof utilization !== "number" || typeof isUsingOverage !== "boolean") return null;
+
+  return {
+    utilization,
+    isUsingOverage,
+    surpassedThreshold:
+      typeof raw["surpassedThreshold"] === "number" ? raw["surpassedThreshold"] : null,
+    resetsAt: typeof raw["resetsAt"] === "number" ? Math.round(raw["resetsAt"]) : null,
+    kind: typeof raw["rateLimitType"] === "string" ? raw["rateLimitType"] : null,
+  };
 }
 
 const PLAN_STATUSES: readonly AcpPlanStatus[] = ["pending", "in_progress", "completed"];

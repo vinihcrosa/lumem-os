@@ -16,6 +16,7 @@ import { Message, Thought, TurnFrame } from "./Message.js";
 import { PermissionRequest } from "./PermissionRequest.js";
 import { PlanCard } from "./PlanCard.js";
 import { ToolCard } from "./ToolCard.js";
+import { UsageFooter } from "./UsageFooter.js";
 
 import "./conversation.css";
 
@@ -238,6 +239,13 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
           </TurnFrame>
         ))}
       </div>
+
+      {/*
+        Between the conversation and the composer, as the prototype puts it.
+        Continuous state about the session belongs at its edge — as an event in the
+        flow it would arrive again on every turn and bury what the turn said.
+      */}
+      {conversation.usage && <UsageFooter usage={conversation.usage} />}
 
       <div className="composer">
         <div className="composer__box">

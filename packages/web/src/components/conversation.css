@@ -302,6 +302,53 @@
 .btn--brand { background: var(--color-bg-brand); border-color: var(--color-bg-brand); color: var(--color-text-on-brand); }
 .btn--warn { background: none; border-color: var(--color-permission-pending); color: var(--color-permission-pending); }
 
+/* ---------------------------------------------- uso e custo (F2.7) */
+/*
+ * O `/usage` deixou de ser necessário: o protocolo entrega utilização,
+ * reset e limiar POR TURNO. Fica no rodapé porque é estado contínuo da
+ * sessão, não evento — se fosse bloco na conversa, encheria de cópias.
+ *
+ * O medidor NASCE quieto. Sessão em 4% da janela não é boa notícia, é
+ * ausência de notícia — pintar de verde treina o olho a ignorar a cor.
+ */
+.usage {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-16);
+  padding: var(--space-8) var(--space-20);
+  background: var(--color-bg-panel);
+  border-top: 1px solid var(--color-border-subtle);
+  font: var(--text-mono-sm);
+  color: var(--color-usage-quiet);
+}
+.u { display: inline-flex; align-items: center; gap: var(--space-6); white-space: nowrap; }
+.u__k { font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; color: var(--color-text-tertiary); }
+.meter { flex: none; width: calc(var(--space-64) + var(--space-16)); height: var(--space-4); border-radius: var(--radius-full); background: var(--color-bg-active); overflow: hidden; }
+/*
+ * `display: block` não é detalhe: `.meter__f` é um span, e span inline ignora
+ * width e height — o medidor renderizava a trilha vazia em TODOS os estados,
+ * inclusive 94%. Só apareceu ao olhar o pixel.
+ */
+.meter__f { display: block; height: 100%; width: var(--w); background: currentColor; }
+.u--warn { color: var(--color-usage-warn); }
+.u--over { color: var(--color-usage-over); }
+.u--cost { color: var(--color-usage-cost); }
+.usage__spacer { flex: 1; }
+/* Overage é o aviso que chega ANTES da fatura: sai do rodapé e vira faixa. */
+.overage {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-20);
+  background: var(--color-bg-danger-subtle);
+  border-top: 1px solid var(--color-border-danger);
+  font: var(--text-body-sm);
+  color: var(--color-usage-over);
+}
+
 /* ------------------------------------------------------------ o composer */
 .composer { flex: none; padding: var(--space-12) var(--space-20) var(--space-16); }
 .composer__box { background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); overflow: hidden; }
