@@ -59,10 +59,23 @@ export async function openProject(page: Page, name = "fixture"): Promise<void> {
 export async function createAgentConfig(
   request: APIRequestContext,
   daemonUrl: string,
-  input: { name: string; command: string; args?: string[] },
+  input: {
+    name: string;
+    command: string;
+    args?: string[];
+    /** Omitted means `pty`, which is what every existing caller meant. */
+    transport?: "pty" | "acp";
+    adapterVersion?: string;
+  },
 ): Promise<void> {
   const response = await request.post(`${daemonUrl}/trpc/agentConfig.create`, {
-    data: { name: input.name, command: input.command, args: input.args ?? [] },
+    data: {
+      name: input.name,
+      command: input.command,
+      args: input.args ?? [],
+      ...(input.transport ? { transport: input.transport } : {}),
+      ...(input.adapterVersion ? { adapterVersion: input.adapterVersion } : {}),
+    },
   });
   // A duplicate is fine: specs share one daemon and the first one to run wins.
   if (!response.ok() && response.status() !== 409) {

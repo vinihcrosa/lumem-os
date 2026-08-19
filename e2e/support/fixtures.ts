@@ -29,8 +29,20 @@ export const E2E_FIXTURE_REPO_FILES = join(E2E_FIXTURE_DIR, "repo-files");
  */
 export const E2E_FIXTURE_REPO_EDITOR = join(E2E_FIXTURE_DIR, "repo-editor");
 
+/** Where the ACP conversation spec makes its worktree. */
+export const E2E_FIXTURE_REPO_ACP = join(E2E_FIXTURE_DIR, "repo-acp");
+
 /** An "agent CLI" that echoes what it is given. Never the real `claude`. */
 export const E2E_FIXTURE_AGENT = join(E2E_FIXTURE_DIR, "bin", "fake-agent");
+
+/**
+ * An ACP agent that speaks the protocol over stdio and never calls a model.
+ *
+ * Lives beside the specs rather than in the generated fixture directory: it is
+ * source, not a fixture, and it is the only thing here that has to be readable
+ * when a test about it fails.
+ */
+export const E2E_FAKE_ACP_AGENT = fileURLToPath(new URL("./fake-acp-agent.mjs", import.meta.url));
 
 function git(cwd: string, ...args: string[]): void {
   execFileSync("git", args, {
@@ -61,6 +73,7 @@ export function createFixtures(): void {
     E2E_FIXTURE_REPO_ALT,
     E2E_FIXTURE_REPO_FILES,
     E2E_FIXTURE_REPO_EDITOR,
+    E2E_FIXTURE_REPO_ACP,
   ]) {
     mkdirSync(repo, { recursive: true });
     git(repo, "init", "--initial-branch", "main", ".");

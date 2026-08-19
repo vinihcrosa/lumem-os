@@ -16,6 +16,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `server/` regra de **transporte** — limite de corpo, GET vs POST, status | integration sobre HTTP (`app.inject`) | Sim — o caller é cego a estas três |
 | `server/` endpoint WebSocket | integration | Sim |
 | `server/` transporte **ACP** | integration com **agente falso** no outro lado do pipe — o SDK nos dois lados, wire ndjson de verdade, **zero token** | Sim |
+| **conversa ACP** de ponta a ponta | e2e contra `e2e/support/fake-acp-agent.mjs` — agente ACP de verdade sobre stdio de verdade, **zero token**. É onde vivem as medidas que jsdom não faz, porque jsdom não tem layout | **Não** |
 | `server/` handshake do **adaptador real** | integration **marcado**: pulado quando `claude-agent-acp` não está no PATH. Para em `initialize` + `session/new`, que o spike mediu em zero token | Sim |
 | `web/` componente | unit (Vitest + Testing Library) | Sim |
 | `web/` tokens e paleta | unit, **e exige `python3`** — roda o gerador e compara byte a byte com o commitado | Sim |
@@ -178,6 +179,10 @@ A API importa e a troca é silenciosa: `fs/promises.realpath` canoniza a caixa d
 **Classificar por prefixo de diretório em vez de por rastreabilidade.** `packages/**` roteava `index.html` e `.css` para `--changed`, que não sabe rastreá-los, e a run falhava com "No test files found"; ao mesmo tempo `drizzle/0001.sql` não casava com prefixo nenhum e ficava invisível. Hoje a divisão é por o que o vitest consegue resolver: `*.ts`/`*.tsx` vão para `--changed`, e todo o resto que não seja documentação roda a suíte inteira.
 
 **Config do Playwright reavaliado em cada worker.** Mover a limpeza do state dir do `globalSetup` para o corpo do módulo resolveu a ordem, mas o config é avaliado também em cada processo worker — medido, 2,1s depois do daemon subir. A segunda limpeza cairia com o handle aberto. Hoje há guarda `TEST_WORKER_INDEX === undefined`.
+
+**Asserção de contagem com `getByText` por substring.** O e2e do replay checava que "primeira pergunta" aparecia **uma** vez e achava duas — porque a resposta do agente cita a pergunta de volta, e `getByText` casa por substring. O código estava certo; o teste acusava duplicação que não existia. Falso vermelho é tão caro quanto falso verde: gasta o tempo procurando um bug no lugar errado. Quando a asserção é sobre **quantidade**, o texto tem que ser `exact`.
+
+**Nome acessível que cresce sozinho.** Depois que a contagem da sidebar passou a anunciar "1 sessão rodando" em `sr-only`, o nome acessível do botão da worktree virou `"conversa-replay 1 sessão rodando"` — e todo `getByRole(..., { exact: true })` que apontava para ela parou de casar. O texto sr-only está certo: é ele que faz a contagem existir para quem não vê cor. A regra que fica: localizador por nome acessível usa âncora (`^nome\b`), não igualdade, sempre que o elemento puder ganhar um sufixo anunciado.
 
 **Efeito de limpeza que depende do valor de um contexto.** O `Conversation` reportava "esperando permissão" num efeito e limpava noutro, e o segundo tinha `awaiting` nas dependências. `awaiting` é objeto novo a cada mudança do conjunto compartilhado, então a limpeza rodava a cada mudança: limpava a marca, a limpeza mudava o conjunto, a identidade nova rodava a limpeza de novo, e o primeiro efeito remarcava. Os dois oscilaram para sempre — e o sintoma foi a suíte **travar**, não falhar, que é o vermelho mais caro de diagnosticar porque não existe vermelho. Hoje a limpeza de desmontagem passa por `useRef` e depende só do id. A regra que fica: limpeza de desmontagem não depende de valor de contexto; ela lê o último por `ref`.
 

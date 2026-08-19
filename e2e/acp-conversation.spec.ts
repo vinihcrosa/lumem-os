@@ -1,0 +1,240 @@
+import { expect, test, type Page } from "@playwright/test";
+
+import {
+  createAgentConfig,
+  ensureProject,
+  ensureWorkspace,
+  openProject,
+} from "./support/app.js";
+import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js";
+import { E2E_SERVER_PORT } from "../ports.js";
+
+/**
+ * The sentence phase 3 exists to make true: a task runs end to end, without a
+ * terminal.
+ *
+ * Against the fake ACP agent, never the real `claude` — the suite spends
+ * nothing. What only a browser can answer lives here too: jsdom does no layout,
+ * so the one measurement the component tests cannot make is the one the
+ * prototype got wrong.
+ */
+
+const DAEMON = `http://127.0.0.1:${E2E_SERVER_PORT}`;
+const AGENT = "acp-falso";
+
+/**
+ * One worktree per test, rather than one shared.
+ *
+ * The specs share a daemon and a state directory, so a name reused across tests
+ * is state carried between them: the second test finds the worktree already
+ * there, its idempotency check races the sidebar's render, and it tries to create
+ * a duplicate. Unique names make each test start from nothing without any
+ * cleanup.
+ */
+const WORKTREES = {
+  fullTurn: "conversa-turno",
+  replay: "conversa-replay",
+  width: "conversa-largura",
+} as const;
+
+/** The conversation of the tab that is open. */
+function conversation(page: Page) {
+  return page.locator("[role=tabpanel]:not([hidden]) .conv");
+}
+
+async function openConversation(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /nova sessão/ }).click();
+  await page.getByRole("menuitem", { name: new RegExp(`^${AGENT}\\b`) }).click();
+  await expect(conversation(page)).toBeVisible({ timeout: 20_000 });
+}
+
+async function createWorktree(page: Page, name: string): Promise<void> {
+  await page.getByRole("button", { name: "nova worktree" }).click();
+  await page.getByLabel("Nome da worktree").fill(name);
+  await page.getByRole("button", { name: "criar" }).click();
+  await expect(page.getByRole("heading", { name })).toBeVisible({ timeout: 30_000 });
+}
+
+/** Everything up to an open, empty worktree of this test's own. */
+async function arrive(page: Page, worktree: string): Promise<void> {
+  await page.goto("/");
+  await ensureWorkspace(page);
+  await ensureProject(page, E2E_FIXTURE_REPO_ACP, "repo-acp");
+  await openProject(page, "repo-acp");
+  await createWorktree(page, worktree);
+}
+
+test.beforeEach(async ({ request }) => {
+  // `node` runs the script: the configuration carries the command and its args,
+  // which is exactly how a real adapter is pointed at too.
+  await createAgentConfig(request, DAEMON, {
+    name: AGENT,
+    command: process.execPath,
+    args: [E2E_FAKE_ACP_AGENT],
+    transport: "acp",
+    adapterVersion: "0.0.0-fake",
+  });
+});
+
+test("a real task runs from start to finish, with no terminal", async ({ page }) => {
+  await arrive(page, WORKTREES.fullTurn);
+  await openConversation(page);
+  const conv = conversation(page);
+
+  // No terminal anywhere in this tab. The claim of the whole phase.
+  await expect(page.locator("[role=tabpanel]:not([hidden]) .xterm")).toHaveCount(0);
+
+  // A brand new session says what it already cost, rather than showing nothing.
+  await expect(conv.getByText("sessão aberta, nada pedido ainda")).toBeVisible();
+
+  const box = conv.getByLabel("mensagem para o agente");
+  await box.click();
+  await page.keyboard.type("arruma o frontmatter vazio");
+  await page.keyboard.press("ControlOrMeta+Enter");
+
+  // The message the user sent is in the conversation, not only in the box they
+  // typed it into.
+  await expect(conv.getByText("arruma o frontmatter vazio")).toBeVisible();
+
+  // Reasoning arrives collapsed (A3).
+  await expect(conv.getByRole("button", { name: /pens/ })).toBeVisible();
+  await expect(conv.locator(".thought__text")).toHaveCount(0);
+
+  // Streamed, and assembled into one message rather than one per chunk.
+  await expect(conv.getByText("Vou separar o parser antes de consertar.")).toBeVisible({
+    timeout: 20_000,
+  });
+
+  // A card that finished on its own.
+  const readCard = conv.locator(".tc", { hasText: "Read" });
+  await expect(readCard).toHaveClass(/tc--ok/, { timeout: 20_000 });
+
+  // The write's diff, painted by the right panel's own renderer (A4).
+  const writeCard = conv.locator(".tc", { hasText: "Write" });
+  await expect(writeCard).toHaveClass(/tc--ok/);
+  await writeCard.getByRole("button", { name: /mostrar o resultado/ }).click();
+  await expect(writeCard.locator(".dl--add")).toContainText("parseFrontmatter");
+  await expect(writeCard.locator(".dl--del")).toContainText("const FENCE");
+
+  // And the one that stops everything until a person answers.
+  const permission = conv.getByRole("group", { name: "pedido de permissão" });
+  await expect(permission).toBeVisible({ timeout: 20_000 });
+  await expect(permission.getByText("rm -rf node_modules/.vite")).toBeVisible();
+  // The composer says why it cannot be used.
+  await expect(box).toBeDisabled();
+
+  await permission.getByRole("button", { name: /permitir uma vez/ }).click();
+
+  // The answered ask becomes the verdict on the card, and stops being a block.
+  const bashCard = conv.locator(".tc", { hasText: "Bash" });
+  await expect(bashCard.locator(".verdict--allowed")).toBeVisible({ timeout: 20_000 });
+  await expect(conv.getByRole("group", { name: "pedido de permissão" })).toHaveCount(0);
+
+  // The turn closes: the interrupt button goes away and the composer comes back.
+  await expect(conv.getByText("Pronto. Você pediu: arruma o frontmatter vazio")).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(box).not.toBeDisabled();
+  await expect(conv.getByRole("button", { name: /interromper/ })).toHaveCount(0);
+});
+
+test("reloading replays the conversation instead of losing it", async ({ page }) => {
+  await arrive(page, WORKTREES.replay);
+  await openConversation(page);
+  const conv = conversation(page);
+
+  await conv.getByLabel("mensagem para o agente").click();
+  await page.keyboard.type("primeira pergunta");
+  await page.keyboard.press("ControlOrMeta+Enter");
+
+  const permission = conv.getByRole("group", { name: "pedido de permissão" });
+  await expect(permission).toBeVisible({ timeout: 20_000 });
+  await permission.getByRole("button", { name: /permitir uma vez/ }).click();
+  await expect(conv.getByText(/Pronto\. Você pediu: primeira pergunta/)).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await page.reload();
+  await ensureWorkspace(page);
+  await openProject(page, "repo-acp");
+
+  // The tree does not remember its expansion across a reload, so the worktree
+  // has to be uncovered before it can be clicked.
+  const expand = page.getByRole("button", { name: `expandir repo-acp` });
+  if (await expand.isVisible().catch(() => false)) await expand.click();
+
+  /*
+   * Scoped to the sidebar, and anchored rather than exact.
+   *
+   * Anchored because a worktree with a live session carries the count's own
+   * announcement in its accessible name — "conversa-replay 1 sessão rodando" —
+   * which is the sr-only text doing its job. Scoped because the project's own
+   * context tab lists the same worktree with its path, so the name matches twice.
+   */
+  const worktree = page
+    .getByRole("complementary", { name: "navegação" })
+    .getByRole("button", { name: new RegExp(`^${WORKTREES.replay}\\b`) });
+  await expect(worktree).toBeVisible({ timeout: 20_000 });
+  await worktree.click();
+
+  // A reload lands on the context tab, not on the session — which is the existing
+  // tab behaviour and not this feature's to change. So the test does what the user
+  // does: it opens the tab again.
+  await page.getByRole("tab", { name: new RegExp(`^${AGENT}\\b`) }).click();
+
+  const after = conversation(page);
+  await expect(after).toBeVisible({ timeout: 20_000 });
+
+  // Everything is back — the question, the answer, the cards and the verdict —
+  // and each of them once, not twice.
+  //
+  // `exact`, because the agent's reply quotes the question back: a substring match
+  // finds two elements and the count assertion turns into a false alarm about
+  // duplication.
+  await expect(after.getByText("primeira pergunta", { exact: true })).toHaveCount(1);
+  await expect(after.getByText(/Pronto\. Você pediu: primeira pergunta/)).toHaveCount(1);
+  await expect(after.locator(".tc", { hasText: "Bash" }).locator(".verdict--allowed")).toBeVisible();
+  await expect(after.getByRole("group", { name: "pedido de permissão" })).toHaveCount(0);
+});
+
+test("the file name survives the width the column actually has", async ({ page }) => {
+  /*
+   * The measurement jsdom cannot make.
+   *
+   * The prototype passed this at full width and overran the status chip at
+   * 360px, which is the width of the column the conversation sits beside. Every
+   * width in jsdom is zero, so a component test would assert it and mean
+   * nothing — only a real browser has an answer.
+   *
+   * What is checked is the property, not a pixel: the file name's box must end
+   * before the status chip's begins. The directory is allowed to disappear
+   * entirely; the name is what answers "where did the agent touch".
+   */
+  await page.setViewportSize({ width: 900, height: 800 });
+  await arrive(page, WORKTREES.width);
+  await openConversation(page);
+  const conv = conversation(page);
+
+  await conv.getByLabel("mensagem para o agente").click();
+  await page.keyboard.type("mexe no arquivo de nome comprido");
+  await page.keyboard.press("ControlOrMeta+Enter");
+
+  const card = conv.locator(".tc", { hasText: "Write" });
+  await expect(card).toBeVisible({ timeout: 20_000 });
+
+  const name = card.locator(".tc__name");
+  const status = card.locator(".tc__st");
+  const nameBox = await name.boundingBox();
+  const statusBox = await status.boundingBox();
+
+  expect(nameBox, "o nome do arquivo tem que estar visível").not.toBeNull();
+  expect(statusBox, "o chip de estado tem que estar visível").not.toBeNull();
+  expect(
+    nameBox!.x + nameBox!.width,
+    "o nome do arquivo invadiu o chip de estado",
+  ).toBeLessThanOrEqual(statusBox!.x + 1);
+
+  // And the name is still readable, not shrunk to an ellipsis: the directory is
+  // what gives way.
+  expect(await name.innerText()).toContain("file-tree-keyboard");
+});

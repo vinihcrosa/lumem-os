@@ -1,9 +1,10 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 
 import { reconcileOnBoot } from "./boot/reconcile.js";
 import type { ServerConfig } from "./config.js";
 import { openDatabase, type Database_ } from "./db/index.js";
 import { createEventBus } from "./events.js";
+import { AcpManager } from "./acp/AcpManager.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createSessionStore } from "./sessions/SessionStore.js";
 import { createServer } from "./server.js";
@@ -21,6 +22,12 @@ export interface BootstrapOptions {
    * need to inspect the sessions after shutdown.
    */
   ptyManager?: PtyManager;
+  /**
+   * Owner of every ACP agent. Same reasoning as `ptyManager`: it outlives the
+   * HTTP server, because shutdown has to end the conversations before closing the
+   * socket they travel on.
+   */
+  acpManager?: AcpManager;
   /**
    * Already-open database. Injected by tests that want a throwaway file;
    * otherwise opened here from `config.databasePath` and closed on shutdown.
@@ -44,6 +51,7 @@ export async function bootstrap({
   exit = (code) => process.exit(code),
   logger = true,
   ptyManager = new PtyManager(),
+  acpManager,
   database,
   beforeClose,
 }: BootstrapOptions): Promise<FastifyInstance> {
@@ -52,15 +60,43 @@ export async function bootstrap({
   // One bus, shared: the session store emits from the PTY exit callback and
   // the router emits from procedures, and both have to reach the same clients.
   const events = createEventBus();
-  const sessionStore = createSessionStore({ db: openedDatabase.db, ptyManager, events });
+  // Built here rather than defaulted inside `createServer`, because the store and
+  // the server both need the *same* one and shutdown needs it too. The first
+  // version of this let `createServer` default it, and the daemon then refused
+  // every ACP session with "nenhum AcpManager foi ligado" — the store it was
+  // handed had been built without one.
+  /*
+   * The manager needs a logger and the logger does not exist yet: `app.log` comes
+   * from `createServer`, which needs the store, which needs the manager. Rather
+   * than reorder that or drop the log, the manager gets a forwarder that resolves
+   * `app` when a message actually happens — which is always after boot.
+   */
+  let bootedApp: FastifyInstance | undefined;
+  const acp =
+    acpManager ??
+    new AcpManager({
+      log: {
+        warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+          bootedApp?.log.warn(...args);
+        },
+      },
+    });
+  const sessionStore = createSessionStore({
+    db: openedDatabase.db,
+    ptyManager,
+    acpManager: acp,
+    events,
+  });
   const app = await createServer({
     config,
     db: openedDatabase.db,
     ptyManager,
+    acpManager: acp,
     sessionStore,
     events,
     logger,
   });
+  bootedApp = app;
 
   const target = {
     log: app.log,
@@ -72,6 +108,9 @@ export async function bootstrap({
       // those exits would write "exited" rows the next boot has to redo anyway.
       stopTracking();
       await ptyManager.killAll();
+      // Conversations too: an adapter left running is a subprocess with nothing
+      // pointing at it, exactly like an orphaned shell.
+      await acp.killAll();
       if (beforeClose) await beforeClose();
       await app.close();
       // Last: a handler still finishing a request would otherwise write to a

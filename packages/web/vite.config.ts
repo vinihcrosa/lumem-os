@@ -30,6 +30,11 @@ export default defineConfig({
     proxy: {
       "/trpc": { target: serverOrigin, changeOrigin: true },
       "/pty": { target: serverOrigin, ws: true, changeOrigin: true },
+      // The conversation's own endpoint. Listed separately because the daemon
+      // serves the two protocols on two paths (D2), and a proxy that only knows
+      // about one leaves the other's socket connecting forever — which on screen
+      // is a conversation stuck on "conectando…" with nothing to explain it.
+      "/acp": { target: serverOrigin, ws: true, changeOrigin: true },
     },
   },
 });

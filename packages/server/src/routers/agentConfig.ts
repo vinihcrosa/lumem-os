@@ -26,6 +26,18 @@ export const agentConfigRouter = router({
         command: z.string().trim().min(1),
         args: z.array(z.string()).default([]),
         env: z.record(z.string()).default({}),
+        /**
+         * Defaults to `pty`, so a caller written before ACP existed keeps
+         * producing the configuration it used to (A11).
+         */
+        transport: z.enum(["pty", "acp"]).default("pty"),
+        /**
+         * Required on `acp`, forbidden on `pty` — the CHECK enforces it, and the
+         * repository turns that into a domain error. Present here so the API can
+         * do everything the client can (PRD §7): without it an ACP configuration
+         * would be creatable only by writing to the database by hand.
+         */
+        adapterVersion: z.string().trim().min(1).nullish(),
       }),
     )
     .mutation(({ ctx, input }) =>
