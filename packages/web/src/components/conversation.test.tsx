@@ -485,3 +485,85 @@ describe("the selectors", () => {
     });
   });
 });
+
+describe("slash commands in the composer", () => {
+  const withCommands = (): AcpTranscriptEntry[] => [
+    entry({
+      type: "commands",
+      commands: [
+        { name: "gate", description: "roda o gate declarado pela task", takesInput: false },
+        { name: "compact", description: "comprime a conversa", takesInput: true },
+      ],
+    }),
+  ];
+
+  it("opens on a lone slash and inserts without sending", async () => {
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached(withCommands()));
+
+    const box = await screen.findByLabelText("mensagem para o agente");
+    await user.click(box);
+    await user.keyboard("/");
+
+    await user.click(await screen.findByRole("option", { name: /gate/ }));
+
+    expect(box).toHaveValue("/gate");
+    // Inserted, not sent: a command may take an argument.
+    expect(socket.sent).toEqual([]);
+  });
+
+  it("does not open for a path inside a sentence", async () => {
+    // `/` mid-sentence is a path. Offering a command menu over `src/lore` would be
+    // the interface arguing with what is being typed.
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached(withCommands()));
+
+    const box = await screen.findByLabelText("mensagem para o agente");
+    await user.click(box);
+    await user.keyboard("olha em src/lore");
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("filters as more is typed", async () => {
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached(withCommands()));
+
+    const box = await screen.findByLabelText("mensagem para o agente");
+    await user.click(box);
+    await user.keyboard("/comp");
+
+    expect(screen.getAllByRole("option")).toHaveLength(1);
+    expect(screen.getByRole("option")).toHaveTextContent("/compact");
+  });
+
+  it("shows nothing for an agent that offers no commands", async () => {
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached());
+
+    const box = await screen.findByLabelText("mensagem para o agente");
+    await user.click(box);
+    await user.keyboard("/");
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("still sends on ⌘⏎ once a command has been chosen", async () => {
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached(withCommands()));
+
+    const box = await screen.findByLabelText("mensagem para o agente");
+    await user.click(box);
+    await user.keyboard("/");
+    await user.click(await screen.findByRole("option", { name: /gate/ }));
+    await user.click(box);
+    await user.keyboard("{Meta>}{Enter}{/Meta}");
+
+    expect(socket.sent).toEqual([{ type: "prompt", text: "/gate" }]);
+  });
+});

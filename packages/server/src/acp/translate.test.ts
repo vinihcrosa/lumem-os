@@ -411,9 +411,75 @@ describe("usage and the subscription's limit", () => {
   });
 });
 
+describe("slash commands", () => {
+  it("translates the list the agent offers", () => {
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "available_commands_update",
+          availableCommands: [
+            { name: "gate", description: "roda o gate declarado pela task" },
+            { name: "compact", description: "comprime a conversa", input: { hint: "quanto" } },
+          ],
+        },
+        context,
+      ),
+    ).toEqual({
+      type: "commands",
+      commands: [
+        { name: "gate", description: "roda o gate declarado pela task", takesInput: false },
+        { name: "compact", description: "comprime a conversa", takesInput: true },
+      ],
+    });
+  });
+
+  it("accepts an agent that offers none", () => {
+    expect(
+      translateSessionUpdate(
+        { sessionUpdate: "available_commands_update", availableCommands: [] },
+        context,
+      ),
+    ).toEqual({ type: "commands", commands: [] });
+  });
+
+  it("skips a malformed command rather than losing the whole menu", () => {
+    // Unlike a plan, the menu is a set of independent entries. Dropping all of them
+    // because one arrived without a name would take away a feature over a typo.
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "available_commands_update",
+          availableCommands: [{ description: "sem nome" }, { name: "gate", description: "ok" }],
+        },
+        context,
+      ),
+    ).toEqual({
+      type: "commands",
+      commands: [{ name: "gate", description: "ok", takesInput: false }],
+    });
+  });
+
+  it("tolerates a command with no description", () => {
+    expect(
+      translateSessionUpdate(
+        { sessionUpdate: "available_commands_update", availableCommands: [{ name: "gate" }] },
+        context,
+      ),
+    ).toMatchObject({ commands: [{ name: "gate", description: "" }] });
+  });
+
+  it("reports a payload that is not a list at all", () => {
+    expect(
+      translateSessionUpdate(
+        { sessionUpdate: "available_commands_update", availableCommands: "nada" },
+        context,
+      ),
+    ).toMatchObject({ type: "unknown" });
+  });
+});
+
 describe("variants that are known but not rendered yet", () => {
   it.each([
-    "available_commands_update",
     "current_mode_update",
     "config_option_update",
     "session_info_update",

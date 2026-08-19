@@ -33,6 +33,7 @@ const components = read(
   "PlanCard.tsx",
   "UsageFooter.tsx",
   "ConfigPills.tsx",
+  "SlashMenu.tsx",
 );
 
 /** Selectors this stylesheet defines, at any position in a rule. */

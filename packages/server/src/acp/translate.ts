@@ -1,4 +1,5 @@
 import type {
+  AcpCommand,
   AcpEvent,
   AcpPlanEntry,
   AcpRateLimit,
@@ -139,10 +140,17 @@ function unknown(sessionUpdate: string): AcpEvent {
  * adapter still reaches the user as `unknown` instead of vanishing.
  */
 const IGNORED = new Set([
-  // Still phase 4 work, in tasks that have not run yet. `session_info_update` is
-  // the only one with no home planned: it reports a session title, and nothing in
-  // the design shows one.
-  "available_commands_update",
+  /*
+   * Handled elsewhere, or nowhere.
+   *
+   * The two `*_update` config variants are absorbed by `AcpManager` before reaching
+   * here, because they are partial and merging them needs the session's state —
+   * they stay listed so that a path which does reach this function treats them as
+   * known rather than reporting them in grey.
+   *
+   * `session_info_update` is the only one with no home planned at all: it reports a
+   * session title, and nothing in the design shows one.
+   */
   "current_mode_update",
   "config_option_update",
   "session_info_update",
@@ -165,6 +173,7 @@ export const KNOWN_SESSION_UPDATES: ReadonlySet<string> = new Set([
   "plan_update",
   "plan_removed",
   "usage_update",
+  "available_commands_update",
   ...IGNORED,
 ]);
 
@@ -266,6 +275,12 @@ export function translateSessionUpdate(
     case "plan_removed":
       return { type: "plan_removed" };
 
+    case "available_commands_update": {
+      const commands = commandsOf(update["availableCommands"]);
+      if (commands === null) return unknown("available_commands_update:malformed");
+      return { type: "commands", commands };
+    }
+
     case "usage_update": {
       const used = update["used"];
       const size = update["size"];
@@ -286,6 +301,32 @@ export function translateSessionUpdate(
     default:
       return unknown(kind);
   }
+}
+
+/**
+ * The slash commands the agent offers, or null when the payload is not a list.
+ *
+ * A command missing its name is skipped rather than dropping the list: unlike a
+ * plan, the menu is a set of independent entries, and losing every command because
+ * one arrived malformed would take away a feature over a typo.
+ *
+ * `takesInput` decides whether choosing the command leaves the caret waiting. ACP
+ * models it as an `input` object; whether it is present is the only part the menu
+ * needs.
+ */
+function commandsOf(raw: unknown): AcpCommand[] | null {
+  if (!Array.isArray(raw)) return null;
+
+  return raw.flatMap((item) => {
+    if (!isRecord(item) || typeof item["name"] !== "string") return [];
+    return [
+      {
+        name: item["name"],
+        description: typeof item["description"] === "string" ? item["description"] : "",
+        takesInput: isRecord(item["input"]),
+      },
+    ];
+  });
 }
 
 /**

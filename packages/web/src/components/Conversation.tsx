@@ -16,6 +16,7 @@ import { ConfigPills } from "./ConfigPills.js";
 import { Message, Thought, TurnFrame } from "./Message.js";
 import { PermissionRequest } from "./PermissionRequest.js";
 import { PlanCard } from "./PlanCard.js";
+import { SlashMenu, slashQuery } from "./SlashMenu.js";
 import { ToolCard } from "./ToolCard.js";
 import { UsageFooter } from "./UsageFooter.js";
 
@@ -155,6 +156,11 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
     setDraft("");
   }, [draft, pending]);
 
+  // Null unless the draft is a lone `/word` at the very start: a `/` inside a
+  // sentence is a path, and offering a command menu over `src/lore` would be the
+  // interface arguing with what is being typed.
+  const query = slashQuery(draft);
+
   const scroll = useAutoScroll([conversation.turns.length, conversation.streaming]);
 
   return (
@@ -257,6 +263,20 @@ export function Conversation({ sessionId, connect = connectAcpSocket }: Conversa
 
       <div className="composer">
         <div className="composer__box">
+          {/*
+            Above the box, anchored to it. The list is the agent's own (F2.8), and
+            choosing inserts rather than sends: a command may take an argument, and
+            firing on selection would send `/compact` when the user meant
+            `/compact até o último commit`.
+          */}
+          {query !== null && (
+            <SlashMenu
+              commands={conversation.commands}
+              query={query}
+              onChoose={setDraft}
+              onDismiss={() => setDraft("")}
+            />
+          )}
           <textarea
             className={`composer__in${draft === "" ? " composer__in--empty" : ""}`}
             value={draft}

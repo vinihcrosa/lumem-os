@@ -407,6 +407,10 @@
 .config { position: relative; display: inline-flex; }
 .config .slash { position: absolute; bottom: calc(100% + var(--space-6)); left: 0; z-index: 1; }
 
+/* O menu de comandos, ancorado na caixa do composer em vez de numa pílula. */
+.composer__box { position: relative; }
+.composer__box > .slash { position: absolute; bottom: calc(100% + var(--space-6)); left: var(--space-8); z-index: 1; }
+
 /* ----------------------------------------- vazio, retomado, e falha */
 /*
  * Sessão nova não é tela em branco: ela custa ~39k tokens de system prompt
