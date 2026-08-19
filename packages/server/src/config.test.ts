@@ -23,6 +23,7 @@ describe("loadConfig", () => {
 
     expect(config.databasePath).toBe("/tmp/lumem-test/lumem.db");
     expect(config.worktreesDir).toBe("/tmp/lumem-test/worktrees");
+    expect(config.transcriptsDir).toBe("/tmp/lumem-test/transcripts");
   });
 
   it("lets an explicit database path override the derived one", () => {

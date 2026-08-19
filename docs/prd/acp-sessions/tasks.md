@@ -5,7 +5,7 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** fases 1, 3 e 4 **concluídas** (26 de 26). **Fase 5 em execução — 0 de 6.**
+**Status:** fases 1, 3 e 4 **concluídas** (26 de 26). **Fase 5 em execução — 1 de 6.**
 **Total:** 32 tasks nas fases 1, 3, 4 e 5 do PRD
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
@@ -719,21 +719,21 @@ clicado numa aba para reler algo.
 
 ---
 
-#### Q1: A transcrição em disco
+#### Q1: A transcrição em disco ✅
 
 **What**: Um SQLite por sessão, com a transcrição inteira, append-only.
 **Where**: `packages/server/src/acp/TranscriptStore.ts` + teste, `packages/server/src/config.ts`
 **Depends on**: nada
 
 **Done when**:
-- [ ] Um arquivo por sessão, sob `stateDir`, com o id da sessão no nome (D10)
-- [ ] `append(entry)` e `read()`; a ordem de leitura é a de escrita, sempre
-- [ ] Escrita é **append-only**: nada reescreve nem apaga uma entrada já gravada
-- [ ] Sessão sem transcrição lê vazio em vez de estourar — é o estado de uma sessão que nunca falou
-- [ ] Uma entrada que não decodifica é **pulada com log**, não derruba a leitura: um arquivo de uma versão anterior do contrato não pode inutilizar a conversa toda
-- [ ] `drop(id)` apaga o arquivo, para o purge da Q3
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 8 — round-trip, ordem, arquivo ausente, entrada inválida pulada, drop, dois arquivos não se misturam
+- [x] Um arquivo por sessão, sob `stateDir`, com o id da sessão no nome (D10)
+- [x] `append(sessionId, entry)` e `read(sessionId)`; a ordem de leitura é a de escrita, sempre
+- [x] Escrita é **append-only**: nada reescreve nem apaga uma entrada já gravada
+- [x] Sessão sem transcrição lê vazio em vez de estourar — é o estado de uma sessão que nunca falou
+- [x] Uma entrada que não decodifica é **pulada com log**, não derruba a leitura: um arquivo de uma versão anterior do contrato não pode inutilizar a conversa toda
+- [x] `drop(id)` apaga o arquivo, para o purge da Q3
+- [x] Gate: `pnpm gate:quick` — 214 testes verdes
+- [x] Test count: **12** — round-trip, ordem por `seq` e não por relógio, sobrevive ao processo, dois arquivos separados, sessão que nunca falou, evento fora do contrato pulado, linha que não é JSON, drop, drop do que não existe, id que escaparia do diretório, diretório criado no primeiro boot
 
 **Tests**: integration com SQLite em arquivo temporário · **Gate**: quick
 **Commit**: `feat(server): keep every conversation on disk, one file per session`

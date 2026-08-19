@@ -15,6 +15,14 @@ export interface ServerConfig {
   /** Where managed git worktrees are created. */
   worktreesDir: string;
   /**
+   * One SQLite file per session, holding its whole conversation (F5.4, D10).
+   *
+   * Beside the registry rather than inside it: these are the only files here that
+   * grow without a ceiling, and keeping them in their own directory is what makes
+   * "archive last year" a directory listing instead of a query.
+   */
+  transcriptsDir: string;
+  /**
    * Shell used for interactive sessions.
    *
    * The user's login shell, because a session that ignores their aliases and
@@ -74,6 +82,7 @@ export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
     stateDir,
     databasePath: env.LUMEM_DB_PATH ?? join(stateDir, "lumem.db"),
     worktreesDir: join(stateDir, "worktrees"),
+    transcriptsDir: join(stateDir, "transcripts"),
     // /bin/sh exists on every POSIX system this daemon can run on; SHELL is
     // unset under launchd and in some containers.
     shell: env.SHELL === undefined || env.SHELL === "" ? "/bin/sh" : env.SHELL,
