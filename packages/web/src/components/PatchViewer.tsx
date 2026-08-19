@@ -5,6 +5,7 @@ import type { ChangeRef } from "../hooks/useCheckoutChanges.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import { patchKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
+import { DiffLines, type DiffLine } from "./DiffLines.js";
 import { ViewerFrame } from "./ViewerFrame.js";
 
 export interface PatchViewerProps {
@@ -86,30 +87,15 @@ export function PatchViewer({ scope, path, changeRef, onClose }: PatchViewerProp
       );
     }
 
-    return (
-      <div className={`patch${wrap ? "" : " patch--nowrap"}`}>
-        {lines.map((line, index) =>
-          line.kind === "hunk" ? (
-            <div className="hunk" key={index}>
-              {line.text}
-            </div>
-          ) : (
-            <div className={`dl${line.kind === "add" ? " dl--add" : line.kind === "del" ? " dl--del" : ""}`} key={index}>
-              <span className="dl__sig" aria-hidden="true">
-                {line.kind === "add" ? "+" : line.kind === "del" ? "−" : " "}
-              </span>
-              <span className="dl__t">{line.text}</span>
-            </div>
-          ),
-        )}
-      </div>
-    );
+    // The painting moved to `DiffLines` when the conversation needed the same
+    // thing (A4). Reading a diff and painting one are different jobs: this one
+    // fetches from git and parses; the conversation is handed two file versions.
+    return <DiffLines lines={lines} wrap={wrap} />;
   }
 }
 
-export type PatchLine =
-  | { kind: "hunk"; text: string }
-  | { kind: "add" | "del" | "context"; text: string };
+/** The same shape `DiffLines` paints. Re-exported so callers keep one import. */
+export type PatchLine = DiffLine;
 
 /**
  * Turns a unified diff into lines the viewer can paint.

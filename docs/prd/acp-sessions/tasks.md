@@ -330,7 +330,7 @@ permissão — e só (D6).
 **Done when**:
 - [ ] Os **cinco** estados renderizam, cada um com sua cor de token — nenhuma cor literal
 - [ ] Glifo por **categoria** (ler, escrever, executar, rede, delegar), nome da ferramenta em texto — não uma cor por ferramenta
-- [ ] Alvo trunca pelo diretório primeiro e pelo nome só depois: **teste na largura de 360px prova que o nome não sobrepõe o chip de estado** (o protótipo pegou exatamente isso)
+- [ ] Alvo trunca pelo diretório primeiro e pelo nome só depois. O componente é testado na estrutura — os dois `span` na ordem certa, com as classes de que o CSS depende. **A prova de que o nome não sobrepõe o chip a 360px não cabe aqui:** jsdom não faz layout, toda largura é zero. Ela é da C10, que roda em Chromium
 - [ ] Corpo colapsado com teto de altura, e a contagem do que ficou de fora é dita na tela ("mostrar as 2.387 linhas")
 - [ ] Diff de escrita renderizado pelo componente que a `right-panel` já tem (A4) — nenhum renderizador de patch novo
 - [ ] Saída sem ligadura de fonte: `!==` não pode virar `≠`
@@ -445,6 +445,7 @@ permissão — e só (D6).
 
 **Done when**:
 - [ ] Contra o agente falso do T4, não contra o Claude — o e2e não consome token
+- [ ] **A medida que jsdom não faz:** com a conversa a 360px, o nome do arquivo não sobrepõe o chip de estado. É o bug que o protótipo pegou, e só um navegador de verdade responde
 - [ ] O caminho inteiro: abrir sessão ACP, mandar prompt, ver mensagem em streaming, ver cartão de ferramenta virar `ok`, responder um pedido de permissão, ver o turno fechar
 - [ ] Recarregar a página no meio replaya a transcrição e mostra o mesmo estado
 - [ ] `testing.md` ganha a linha da nova suíte
