@@ -5,8 +5,8 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** fases 1, 3 e 4 **concluídas — 26 de 26.** Gate cheio verde (1.398 unit/integration + 22 e2e). Falta a **fase 5**.
-**Total:** 26 tasks nas fases 1, 3 e 4 do PRD
+**Status:** fases 1, 3 e 4 **concluídas** (26 de 26). **Fase 5 em execução — 0 de 6.**
+**Total:** 32 tasks nas fases 1, 3, 4 e 5 do PRD
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
 > tokens (turno, estado de ferramenta, permissão, plano, uso, modo), mais `tool/cancelled` e
@@ -668,6 +668,178 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 
 ---
 
+## Fase 5 — Fechar o Lumem e voltar não perde conversa
+
+**Done when da fase:** matar o daemon, subir de novo, reabrir a aba e continuar a conversa de ontem.
+
+### Ordem, e por quê ela é essa
+
+**A gravação antes de qualquer coisa que dependa dela.** Sem transcrição em disco não existe "reabrir";
+e uma transcrição escrita errado é a única parte desta fase que **perde dado do usuário**, o que a
+coloca no mesmo lugar que a `P1` teve na fase 4.
+
+**Depois a leitura, depois o resume.** Ler a conversa de ontem não precisa de agente nenhum; retomá-la
+precisa de processo novo e de `session/load`. São duas features, e a primeira é a que faz a gravação
+valer — então ela vem antes.
+
+**A compressão por último dos de servidor,** porque ela mexe em arquivo que já tem dado dentro.
+
+### Decisões que sustentam esta fase
+
+#### D10 — Um banco por sessão
+
+[A6](open-questions.md): a transcrição inteira vai para disco, num SQLite **por sessão**. Purge e
+arquivamento ficam triviais — é um arquivo. O custo medido no uso real do Vinicius: 3,9 GB/ano cru,
+~1 GB/ano comprimido, e o fluxo ACP deve ser **menor** que isso porque o `.jsonl` do Claude Code carrega
+`file-history-snapshot` e anexos que o protocolo não repassa. Trate 3,9 GB como teto, não previsão.
+
+#### D11 — A compressão é do arquivo, não da linha
+
+"Comprimir o que passou de 30 dias" tem duas leituras. Comprimir **linha por linha** rende pouco — JSON
+de um evento é pequeno e o cabeçalho do gzip domina — e complica todo caminho de leitura. Comprimir o
+**arquivo inteiro** de uma sessão fria rende o máximo e não toca o caminho de leitura quente: sessão de
+mais de 30 dias já acabou, e reabrir uma é raro. O custo, nomeado: reabrir uma conversa de 40 dias paga
+uma descompressão.
+
+#### D12 — Retomar é sessão nova apontando para a antiga
+
+`session/load` não ressuscita o processo de ontem: ele nasce um adaptador novo e diz a ele qual conversa
+carregar. Então retomar **cria uma linha de sessão nova**, com o `acpSessionId` da antiga e um ponteiro
+para ela. A conversa continua; a sessão que morreu continua morta, com sua transcrição intacta.
+
+Isso também é o que mantém a D1 verdadeira: `transport` é escolhido no nascimento e nunca muda, e uma
+sessão retomada nasce ACP porque só ACP retoma.
+
+#### D13 — Ler não é retomar
+
+Reabrir a aba de uma sessão que acabou mostra a conversa **de leitura**, direto do disco, sem subir
+adaptador nenhum. Retomar é um ato explícito, com um botão — porque subir um adaptador custa ~39k tokens
+de system prompt antes da primeira palavra ([§2.3 do PRD](prd.md)), e ninguém deve pagar isso por ter
+clicado numa aba para reler algo.
+
+---
+
+#### Q1: A transcrição em disco
+
+**What**: Um SQLite por sessão, com a transcrição inteira, append-only.
+**Where**: `packages/server/src/acp/TranscriptStore.ts` + teste, `packages/server/src/config.ts`
+**Depends on**: nada
+
+**Done when**:
+- [ ] Um arquivo por sessão, sob `stateDir`, com o id da sessão no nome (D10)
+- [ ] `append(entry)` e `read()`; a ordem de leitura é a de escrita, sempre
+- [ ] Escrita é **append-only**: nada reescreve nem apaga uma entrada já gravada
+- [ ] Sessão sem transcrição lê vazio em vez de estourar — é o estado de uma sessão que nunca falou
+- [ ] Uma entrada que não decodifica é **pulada com log**, não derruba a leitura: um arquivo de uma versão anterior do contrato não pode inutilizar a conversa toda
+- [ ] `drop(id)` apaga o arquivo, para o purge da Q3
+- [ ] Gate: `pnpm gate:quick`
+- [ ] Test count: ao menos 8 — round-trip, ordem, arquivo ausente, entrada inválida pulada, drop, dois arquivos não se misturam
+
+**Tests**: integration com SQLite em arquivo temporário · **Gate**: quick
+**Commit**: `feat(server): keep every conversation on disk, one file per session`
+
+---
+
+#### Q2: O manager grava e lê pelo disco
+
+**What**: `AcpManager.transcript` deixa de ser um array em memória.
+**Where**: `packages/server/src/acp/AcpManager.ts` + teste
+**Depends on**: Q1
+
+**Done when**:
+- [ ] Cada evento emitido é gravado; o `attached` lê do disco
+- [ ] O array em memória sai — hoje ele cresce sem teto e é a razão pela qual a F5.4 existe
+- [ ] Uma falha de escrita é **logada e não interrompe a conversa**: perder uma linha de transcrição é ruim, perder o turno é pior
+- [ ] Injetável, para o teste não precisar de arquivo quando o assunto não é disco
+- [ ] Gate: `pnpm gate:quick`
+- [ ] Test count: ao menos 5 — grava, lê no attach, sobrevive a falha de escrita, duas sessões separadas
+
+**Tests**: unit/integration · **Gate**: quick
+**Commit**: `feat(server): read the transcript from disk instead of memory`
+
+---
+
+#### Q3: Comprimir o que ficou frio, e apagar o que ninguém quer
+
+**What**: Passe de manutenção no boot: comprime sessão fria, apaga transcrição órfã.
+**Where**: `packages/server/src/acp/transcript-maintenance.ts` + teste, `boot/reconcile.ts`
+**Depends on**: Q1
+
+**Done when**:
+- [ ] Sessão encerrada há mais de 30 dias tem o arquivo comprimido (D11), e a leitura descomprime sem o chamador saber
+- [ ] Sessão **viva** nunca é comprimida, qualquer que seja a idade da linha
+- [ ] Transcrição sem linha de sessão correspondente é apagada — é o que sobra de um purge de banco
+- [ ] Um arquivo que não abre não impede o passe de tratar os outros; conta como falha no relatório
+- [ ] O passe roda no boot, **antes de aceitar conexão**, como a reconciliação de worktree já faz
+- [ ] Gate: `pnpm gate:quick`
+- [ ] Test count: ao menos 6 — comprime a fria, poupa a nova, poupa a viva, lê comprimida, apaga órfã, um arquivo ruim não para o passe
+
+**Tests**: integration com filesystem de verdade · **Gate**: quick
+**Commit**: `feat(server): compress cold transcripts and drop orphaned ones`
+
+---
+
+#### Q4: `session/load`
+
+**What**: Retomar a conversa de ontem num adaptador novo (F5.2, A7, D12).
+**Where**: `packages/server/src/acp/AcpManager.ts`, `packages/server/src/sessions/SessionStore.ts`, `packages/server/src/routers/session.ts` + testes
+**Depends on**: Q2
+
+**Done when**:
+- [ ] `AcpManager.resume(acpSessionId, options)` lança adaptador e chama `session/load`
+- [ ] `SessionStore.resume(sessionId)` cria **linha nova** apontando para a antiga (D12), com o mesmo escopo, cwd e configuração
+- [ ] A transcrição antiga é lida do disco e vira o ponto de partida do `attached` — a conversa continua onde parou, visualmente
+- [ ] Retomar uma sessão **viva** é recusado com motivo: já existe uma aba com ela
+- [ ] Adaptador que não declara `loadSession` é recusado com motivo, não com stack trace
+- [ ] Retomar uma sessão PTY é recusado: só ACP retoma
+- [ ] Gate: `pnpm gate:quick`
+- [ ] Test count: ao menos 8 — retoma, linha nova aponta para a antiga, transcrição continua, recusa em sessão viva, recusa sem `loadSession`, recusa em PTY
+
+**Tests**: unit/integration com agente falso · **Gate**: quick
+**Commit**: `feat(server): resume yesterday's conversation in a new adapter`
+
+---
+
+#### Q5: A aba que reabre, e o botão que retoma
+
+**What**: Reabrir uma sessão encerrada mostra a conversa; retomar é explícito (D13).
+**Where**: `packages/web/src/components/Conversation.tsx`, `packages/server/src/acp/websocket.ts`, `packages/web/src/hooks/useWorktreeTabs.ts` + testes, `conversation.css`
+**Depends on**: Q4
+
+**Done when**:
+- [ ] Aba de sessão ACP encerrada abre em **leitura**: a conversa inteira, composer desabilitado, dizendo que acabou
+- [ ] Nenhum adaptador sobe por reabrir — subir custa ~39k tokens antes da primeira palavra (D13)
+- [ ] Um botão **retomar** que cria a sessão nova e troca a aba para ela
+- [ ] O separador de retomada do protótipo (`.daysep`) marca onde a conversa antiga termina e a nova começa
+- [ ] Sessão encerrada continua listada e reabrível pelo `reopen` que já existe
+- [ ] O CSS de `.daysep` entra agora
+- [ ] Gate: `pnpm gate:quick`
+- [ ] Test count: ao menos 6 — leitura, composer travado, botão retoma, separador, PTY sem botão
+
+**Tests**: componente + integration do endpoint · **Gate**: quick
+**Commit**: `feat(web): reopen a finished conversation, and offer to resume it`
+
+---
+
+#### Q6: O e2e da frase da fase
+
+**What**: Matar o daemon, subir de novo, reabrir, continuar.
+**Where**: `e2e/acp-resume.spec.ts`, `e2e/support/fake-acp-agent.mjs`, `docs/project/testing.md`
+**Depends on**: Q5
+
+**Done when**:
+- [ ] O agente falso passa a atender `session/load`, ainda **zero token**
+- [ ] O e2e: conversa, reinicia o daemon, reabre a aba, vê a conversa inteira, retoma, e o turno novo continua depois do separador
+- [ ] A transcrição sobrevive ao reinício — é o que a fase promete
+- [ ] `testing.md` ganha a linha do que a fase 5 acrescentou
+- [ ] Gate: `pnpm gate:full`
+- [ ] Test count: ao menos 2 — o ciclo inteiro, e a conversa aparecendo em leitura sem adaptador ter subido
+
+**Tests**: e2e · **Gate**: full
+**Commit**: `test(e2e): restart the daemon and keep the conversation`
+
+---
+
 ## O que fica de fora, e onde entra
 
 | Fora desta pilha | Onde |
@@ -675,7 +847,8 @@ sessão. As colunas `mode` e `model` já existem (T3) e passam a ser escritas qu
 | Plano na tela, uso e custo, seletor de modo/modelo/esforço, comandos de barra | **Fase 4**, `P3`–`P6` desta pilha. Cada bloco de CSS vem junto do componente que o usa |
 | Terminal que o agente pede (`terminal/*`) | **Fase 4**, `P7` — é onde os dois transportes se encontram |
 | `fs/read_text_file` e `fs/write_text_file` atendidos pelo `FileService` | **Fase 4**, `P1` — a primeira da fase, porque é a única que sai perigosa se sair errada |
-| Retomar sessão (`session/load`), reconciliação de conversa no boot | **Fase 5** do PRD |
-| Transcrição inteira no banco, com compressão acima de 30 dias (F5.4) | **Fase 5** — o replay do T1/C1 vive em memória até lá, e isso é suficiente para a fase 3 fechar |
+| Retomar sessão (`session/load`) | **Fase 5**, `Q4`–`Q5` desta pilha |
+| Transcrição inteira no banco, com compressão acima de 30 dias (F5.4) | **Fase 5**, `Q1`–`Q3` — vem primeiro na fase, porque é a única parte dela que perde dado do usuário se sair errada |
+| **Forkar** uma conversa | [backlog](../../project/backlog.md) ([A7](open-questions.md)) — o protocolo oferece, e é desenho de produto, não de transporte |
 | Política de permissão configurável | Feature própria — [backlog](../../project/backlog.md) |
 | Fechar a [#786](https://github.com/agentclientprotocol/claude-agent-acp/issues/786): encher contexto e ver onde a compactação dispara | O PRD diz que é **barato junto da primeira tela e caro depois**. Não é task daqui, mas é a hora — entra como medição na fase 4 |
