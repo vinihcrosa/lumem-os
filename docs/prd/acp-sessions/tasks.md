@@ -5,7 +5,7 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../file-editor/tasks.md)
 **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-**Status:** em andamento — **fase 1 completa, 8 de 18**. Próxima: C1
+**Status:** **concluída — 18 de 18.** Fases 1 e 3 do PRD entregues, gate cheio verde (1.208 unit/integration + 19 e2e). Próximo: fase 4
 **Total:** 18 tasks em 2 fases (as fases **1** e **3** do PRD)
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
@@ -269,14 +269,14 @@ permissão — e só (D6).
 **Depends on**: T1
 
 **Done when**:
-- [ ] `reduce(state, event)` puro, sem `Date.now()` nem efeito
-- [ ] `message_chunk` e `thought_chunk` concatenam delta no turno corrente; chunk que chega sem turno aberto abre um
-- [ ] `tool_call_update` acha o cartão por id e muda estado, duração, delta e saída — update para id inexistente é ignorado com aviso, não estoura
-- [ ] `permission_request` marca a conversa como **bloqueada**, e `permission_resolved` converte o pedido no cartão da ferramenta com o veredito (o protótipo mostra isso)
-- [ ] `unknown` acumula numa lista visível; nunca lança
-- [ ] Replay de `attached` produz exatamente o mesmo estado que o stream incremental equivalente — **teste de equivalência**, porque é a garantia de que reabrir a aba não muda o que se vê
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 12 — cada tipo de evento, chunk órfão, update órfão, ordem fora de sequência, equivalência replay/incremental
+- [x] `reduce(state, event)` puro, sem `Date.now()` nem efeito
+- [x] `message_chunk` e `thought_chunk` concatenam delta no turno corrente; chunk que chega sem turno aberto abre um
+- [x] `tool_call_update` acha o cartão por id e muda estado, duração, delta e saída — update para id inexistente é ignorado com aviso, não estoura
+- [x] `permission_request` marca a conversa como **bloqueada**, e `permission_resolved` converte o pedido no cartão da ferramenta com o veredito (o protótipo mostra isso)
+- [x] `unknown` acumula numa lista visível; nunca lança
+- [x] Replay de `attached` produz exatamente o mesmo estado que o stream incremental equivalente — **teste de equivalência**, porque é a garantia de que reabrir a aba não muda o que se vê
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 12 — cada tipo de evento, chunk órfão, update órfão, ordem fora de sequência, equivalência replay/incremental
 
 **Tests**: unit · **Gate**: quick
 **Commit**: `feat(web): reduce ACP events into a conversation view model`
@@ -290,12 +290,12 @@ permissão — e só (D6).
 **Depends on**: T1
 
 **Done when**:
-- [ ] `connectAcpSocket(sessionId, handlers)` com a mesma forma de `connectPtySocket`
-- [ ] Frame que não decodifica é reportado e descartado; a conexão não cai
-- [ ] Fechamento 4404 é distinguido de queda de rede
-- [ ] `send` recusa mensagem que não passa no schema **antes** de escrever no socket
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 5 — attach, frame inválido, 4404, queda de rede, envio inválido barrado
+- [x] `connectAcpSocket(sessionId, handlers)` com a mesma forma de `connectPtySocket`
+- [x] Frame que não decodifica é reportado e descartado; a conexão não cai
+- [x] Fechamento 4404 é distinguido de queda de rede
+- [x] `send` recusa mensagem que não passa no schema **antes** de escrever no socket
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 5 — attach, frame inválido, 4404, queda de rede, envio inválido barrado
 
 **Tests**: unit, com fake de WebSocket · **Gate**: quick
 **Commit**: `feat(web): connect the browser to the ACP event stream`
@@ -309,12 +309,12 @@ permissão — e só (D6).
 **Depends on**: C1
 
 **Done when**:
-- [ ] Turno do usuário e do agente com a medianiz de 20px do protótipo, e a marcação portada dele
-- [ ] Caret visível enquanto o turno não terminou, ausente depois
-- [ ] Raciocínio colapsado por padrão, com linha viva enquanto escreve, e expansível (A3)
-- [ ] Mensagem vazia não renderiza bloco vazio
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 6 — dois papéis, caret durante/depois, colapso, expansão, mensagem vazia
+- [x] Turno do usuário e do agente com a medianiz de 20px do protótipo, e a marcação portada dele
+- [x] Caret visível enquanto o turno não terminou, ausente depois
+- [x] Raciocínio colapsado por padrão, com linha viva enquanto escreve, e expansível (A3)
+- [x] Mensagem vazia não renderiza bloco vazio
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 6 — dois papéis, caret durante/depois, colapso, expansão, mensagem vazia
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): render agent messages and collapsed reasoning`
@@ -328,14 +328,14 @@ permissão — e só (D6).
 **Depends on**: C1
 
 **Done when**:
-- [ ] Os **cinco** estados renderizam, cada um com sua cor de token — nenhuma cor literal
-- [ ] Glifo por **categoria** (ler, escrever, executar, rede, delegar), nome da ferramenta em texto — não uma cor por ferramenta
-- [ ] Alvo trunca pelo diretório primeiro e pelo nome só depois. O componente é testado na estrutura — os dois `span` na ordem certa, com as classes de que o CSS depende. **A prova de que o nome não sobrepõe o chip a 360px não cabe aqui:** jsdom não faz layout, toda largura é zero. Ela é da C10, que roda em Chromium
-- [ ] Corpo colapsado com teto de altura, e a contagem do que ficou de fora é dita na tela ("mostrar as 2.387 linhas")
-- [ ] Diff de escrita renderizado pelo componente que a `right-panel` já tem (A4) — nenhum renderizador de patch novo
-- [ ] Saída sem ligadura de fonte: `!==` não pode virar `≠`
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 10 — cinco estados, cinco categorias, truncamento a 360px, colapso, contagem do resto, reuso do visualizador de patch
+- [x] Os **cinco** estados renderizam, cada um com sua cor de token — nenhuma cor literal
+- [x] Glifo por **categoria** (ler, escrever, executar, rede, delegar), nome da ferramenta em texto — não uma cor por ferramenta
+- [x] Alvo trunca pelo diretório primeiro e pelo nome só depois. O componente é testado na estrutura — os dois `span` na ordem certa, com as classes de que o CSS depende. **A prova de que o nome não sobrepõe o chip a 360px não cabe aqui:** jsdom não faz layout, toda largura é zero. Ela é da C10, que roda em Chromium
+- [x] Corpo colapsado com teto de altura, e a contagem do que ficou de fora é dita na tela ("mostrar as 2.387 linhas")
+- [x] Diff de escrita renderizado pelo componente que a `right-panel` já tem (A4) — nenhum renderizador de patch novo
+- [x] Saída sem ligadura de fonte: `!==` não pode virar `≠`
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 10 — cinco estados, cinco categorias, truncamento a 360px, colapso, contagem do resto, reuso do visualizador de patch
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): render tool calls as cards with five states`
@@ -349,14 +349,14 @@ permissão — e só (D6).
 **Depends on**: C1, C2
 
 **Done when**:
-- [ ] Comando aparece **inteiro**, quebrando em vez de truncar — `rm -rf` cortado é `rm -rf` aprovado no escuro
-- [ ] `cwd` visível
-- [ ] Opções vêm do protocolo, com o texto verbatim (D5); uma só é primária, e a de negar permanente é destrutiva
-- [ ] `⏎` aceita a primária, `esc` nega uma vez; o foco cai no diálogo quando ele aparece
-- [ ] Enquanto pendente, o composer está desabilitado e diz por quê
-- [ ] Responder envia `permission_response` uma **única** vez; segundo clique é inerte
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 8 — render, comando longo quebrando, teclado nas duas direções, foco, composer travado, duplo clique barrado, opções verbatim
+- [x] Comando aparece **inteiro**, quebrando em vez de truncar — `rm -rf` cortado é `rm -rf` aprovado no escuro
+- [x] `cwd` visível
+- [x] Opções vêm do protocolo, com o texto verbatim (D5); uma só é primária, e a de negar permanente é destrutiva
+- [x] `⏎` aceita a primária, `esc` nega uma vez; o foco cai no diálogo quando ele aparece
+- [x] Enquanto pendente, o composer está desabilitado e diz por quê
+- [x] Responder envia `permission_response` uma **única** vez; segundo clique é inerte
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 8 — render, comando longo quebrando, teclado nas duas direções, foco, composer travado, duplo clique barrado, opções verbatim
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): ask for permission without stalling the session`
@@ -370,11 +370,11 @@ permissão — e só (D6).
 **Depends on**: C1
 
 **Done when**:
-- [ ] Aba com pedido pendente ganha o marcador de `permission/pending`, distinto do ponto de `running`
-- [ ] A contagem na worktree usa o mesmo tom, e some quando o pedido é respondido
-- [ ] Abrir a aba não responde o pedido sozinho
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 4 — marca aparece, contagem muda de tom, resposta limpa os dois, abrir não responde
+- [x] Aba com pedido pendente ganha o marcador de `permission/pending`, distinto do ponto de `running`
+- [x] A contagem na worktree usa o mesmo tom, e some quando o pedido é respondido
+- [x] Abrir a aba não responde o pedido sozinho
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 4 — marca aparece, contagem muda de tom, resposta limpa os dois, abrir não responde
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): flag a tab waiting on permission`
@@ -388,14 +388,14 @@ permissão — e só (D6).
 **Depends on**: C3, C4, C5
 
 **Done when**:
-- [ ] Composer manda com `⌘⏎`; vazio não manda
-- [ ] Botão de interromper aparece só com turno no ar, e manda `cancel`
-- [ ] Rola para o fim quando chega evento novo **e o usuário já estava no fim**; não arranca a rolagem de quem subiu para ler
-- [ ] Sessão nova mostra o estado vazio do protótipo, com o custo fixo de abrir a sessão dito na tela
-- [ ] Falha de lançamento (T5) aparece como o bloco de domínio do protótipo, com o comando que resolve
-- [ ] Evento desconhecido aparece em cinza e não derruba a aba (D3)
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 8 — envio, vazio barrado, interromper, rolagem nas duas situações, vazio, falha de lançamento, evento desconhecido
+- [x] Composer manda com `⌘⏎`; vazio não manda
+- [x] Botão de interromper aparece só com turno no ar, e manda `cancel`
+- [x] Rola para o fim quando chega evento novo **e o usuário já estava no fim**; não arranca a rolagem de quem subiu para ler
+- [x] Sessão nova mostra o estado vazio do protótipo, com o custo fixo de abrir a sessão dito na tela
+- [x] Falha de lançamento (T5) aparece como o bloco de domínio do protótipo, com o comando que resolve
+- [x] Evento desconhecido aparece em cinza e não derruba a aba (D3)
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 8 — envio, vazio barrado, interromper, rolagem nas duas situações, vazio, falha de lançamento, evento desconhecido
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): assemble the ACP conversation with its composer`
@@ -409,11 +409,11 @@ permissão — e só (D6).
 **Depends on**: C3, C4, C5, C7
 
 **Done when**:
-- [ ] Nenhum valor literal de cor, espaçamento ou dimensão — só `var()`, exceto fio ótico de 1–2px
-- [ ] As classes vêm do protótipo com o mesmo nome; divergência é bug de porte, não escolha — **e existe teste que compara os dois arquivos**, porque jsdom não aplica folha de estilo e nenhum teste de componente vê regra faltando
-- [ ] Nada de CSS de fase 4: o que não tem markup hoje vem com o componente que o usará
-- [ ] `tokens.css` **não** é editado
-- [ ] Gate: `pnpm gate:quick`
+- [x] Nenhum valor literal de cor, espaçamento ou dimensão — só `var()`, exceto fio ótico de 1–2px
+- [x] As classes vêm do protótipo com o mesmo nome; divergência é bug de porte, não escolha — **e existe teste que compara os dois arquivos**, porque jsdom não aplica folha de estilo e nenhum teste de componente vê regra faltando
+- [x] Nada de CSS de fase 4: o que não tem markup hoje vem com o componente que o usará
+- [x] `tokens.css` **não** é editado
+- [x] Gate: `pnpm gate:quick`
 
 **Tests**: coberto pelos testes de componente · **Gate**: quick
 **Commit**: `feat(web): port the conversation stylesheet from the prototype`
@@ -427,11 +427,11 @@ permissão — e só (D6).
 **Depends on**: C7, T7
 
 **Done when**:
-- [ ] `transport: 'acp'` monta `Conversation`; `'pty'` continua montando `Terminal`, sem mudança nenhuma
-- [ ] A conversa também fica **montada e escondida** quando outra aba está ativa — a mesma promessa que o terminal já faz, pelo mesmo motivo
-- [ ] Sessão de shell nunca monta conversa
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 4 — cada transporte, shell, montada-e-escondida
+- [x] `transport: 'acp'` monta `Conversation`; `'pty'` continua montando `Terminal`, sem mudança nenhuma
+- [x] A conversa também fica **montada e escondida** quando outra aba está ativa — a mesma promessa que o terminal já faz, pelo mesmo motivo
+- [x] Sessão de shell nunca monta conversa
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 4 — cada transporte, shell, montada-e-escondida
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): pick conversation or terminal by session transport`
@@ -445,13 +445,13 @@ permissão — e só (D6).
 **Depends on**: C9, T8
 
 **Done when**:
-- [ ] Contra o agente falso do T4, não contra o Claude — o e2e não consome token
-- [ ] **A medida que jsdom não faz:** com a conversa a 360px, o nome do arquivo não sobrepõe o chip de estado. É o bug que o protótipo pegou, e só um navegador de verdade responde
-- [ ] O caminho inteiro: abrir sessão ACP, mandar prompt, ver mensagem em streaming, ver cartão de ferramenta virar `ok`, responder um pedido de permissão, ver o turno fechar
-- [ ] Recarregar a página no meio replaya a transcrição e mostra o mesmo estado
-- [ ] `testing.md` ganha a linha da nova suíte
-- [ ] Gate: `pnpm gate:full`
-- [ ] Test count: ao menos 2 — o caminho inteiro, e o replay depois do recarregamento
+- [x] Contra o agente falso do T4, não contra o Claude — o e2e não consome token
+- [x] **A medida que jsdom não faz:** com a conversa a 360px, o nome do arquivo não sobrepõe o chip de estado. É o bug que o protótipo pegou, e só um navegador de verdade responde
+- [x] O caminho inteiro: abrir sessão ACP, mandar prompt, ver mensagem em streaming, ver cartão de ferramenta virar `ok`, responder um pedido de permissão, ver o turno fechar
+- [x] Recarregar a página no meio replaya a transcrição e mostra o mesmo estado
+- [x] `testing.md` ganha a linha da nova suíte
+- [x] Gate: `pnpm gate:full`
+- [x] Test count: ao menos 2 — o caminho inteiro, e o replay depois do recarregamento
 
 **Tests**: e2e · **Gate**: full
 **Commit**: `test(e2e): run a real task through the conversation, no terminal`
