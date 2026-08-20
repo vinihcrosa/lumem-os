@@ -281,3 +281,63 @@ describe("worktree.remove", () => {
     });
   });
 });
+
+describe("worktree.plan", () => {
+  it("previews the path, the branch, the base and the command", async () => {
+    const { context: ctx, projectId } = await setup();
+
+    const plan = await ctx.api.worktree.plan({ projectId, name: "primeira-tarefa" });
+
+    expect(plan.branch).toBe("primeira-tarefa");
+    expect(plan.path).toContain("primeira-tarefa");
+    expect(plan.baseBranch).toBe("main");
+    expect(plan.baseSha).toMatch(/^[0-9a-f]{7,}$/);
+    expect(plan.refusal).toBeNull();
+  });
+
+  it("shows the command that will actually run", async () => {
+    // Onboarding O13: it is ferramenta de dev, and it makes the screen auditable
+    // — if the result surprises you, the command was on screen. Which is why it
+    // is built where it is executed, not assembled a second time in the client.
+    const { context: ctx, projectId } = await setup();
+
+    const plan = await ctx.api.worktree.plan({ projectId, name: "tarefa" });
+
+    expect(plan.command).toBe(`git worktree add -b tarefa ${plan.path} main`);
+  });
+
+  it("writes nothing", async () => {
+    const { context: ctx, projectId } = await setup();
+
+    await ctx.api.worktree.plan({ projectId, name: "tarefa" });
+
+    expect(await ctx.api.worktree.listByProject({ projectId })).toHaveLength(0);
+  });
+
+  it("says the branch is taken before the creation does", async () => {
+    // Cheaper before: the refusal costs a keystroke here and a failed
+    // `worktree add` there.
+    const { context: ctx, projectId } = await setup();
+    await ctx.api.worktree.create({ projectId, name: "ja-existe" });
+
+    const plan = await ctx.api.worktree.plan({ projectId, name: "ja-existe" });
+
+    expect(plan.refusal).toMatch(/já existe/);
+  });
+
+  it("refuses a name git would not take, with the rule that refused it", async () => {
+    const { context: ctx, projectId } = await setup();
+
+    await expect(ctx.api.worktree.plan({ projectId, name: "com espaço" })).rejects.toThrow(
+      /caracteres/,
+    );
+  });
+
+  it("reports a project that does not exist", async () => {
+    const { context: ctx } = await setup();
+
+    await expect(ctx.api.worktree.plan({ projectId: "nope", name: "tarefa" })).rejects.toMatchObject(
+      { code: "NOT_FOUND" },
+    );
+  });
+});

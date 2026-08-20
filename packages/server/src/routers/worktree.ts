@@ -61,6 +61,50 @@ export const worktreeRouter = router({
       return rows.map(withPresence);
     }),
 
+  /**
+   * What `create` is about to do, without doing it (onboarding F5.1).
+   *
+   * The command in the response is built by `worktreeCommand`, which is also what
+   * `GitService.addWorktree` runs — one place, so the preview cannot drift from
+   * the execution. A second assembly in the client would be a sentence that lies
+   * the first time a flag changes.
+   */
+  plan: publicProcedure
+    .input(z.object({ projectId: z.string().min(1), name: nameSchema }))
+    .query(({ ctx, input }) =>
+      domainSafeAsync(async () => {
+        const project = await requireProject(ctx, input.projectId);
+        const path = worktreePath(ctx.config.worktreesDir, project.name, input.name);
+
+        const [branchTaken, occupied, base] = await Promise.all([
+          ctx.git.branchExists(project.path, input.name),
+          Promise.resolve(existsSync(path)),
+          // The sha the branch would start from. Null in a repository with no
+          // commit yet, which is a repository someone can still cut a worktree
+          // from — so it reports null instead of refusing.
+          ctx.git
+            .describe(project.path)
+            .then((described) => described.head.shortSha)
+            .catch(() => null),
+        ]);
+
+        return {
+          name: input.name,
+          branch: input.name,
+          path,
+          baseBranch: project.defaultBranch,
+          baseSha: base,
+          command: `git worktree add -b ${input.name} ${path} ${project.defaultBranch}`,
+          /** Said here rather than at creation: the refusal is cheaper before. */
+          refusal: branchTaken
+            ? `a branch "${input.name}" já existe; escolha outro nome`
+            : occupied
+              ? `${path} já existe`
+              : null,
+        };
+      }),
+    ),
+
   create: publicProcedure
     .input(z.object({ projectId: z.string().min(1), name: nameSchema }))
     .mutation(({ ctx, input }) =>
