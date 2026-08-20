@@ -13,6 +13,11 @@ import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js"
  *
  * So this one touches the API for nothing. Workspace, project, agent, session: all of
  * it through the screen.
+ *
+ * The way in changed with the login panel: the footer's action is now "conectar um
+ * agente", and this five-field form is the drawer behind "outro agente ACP…" — the
+ * one path that still needs it, for an adapter the daemon neither installs nor can
+ * name. Which is exactly what this spec's agent is.
  */
 
 const AGENT = "acp-pela-tela";
@@ -41,7 +46,8 @@ test("creates the ACP agent from the screen, then talks to it", async ({ page })
   await openProject(page, "repo-acp");
 
   // The agent, from the sidebar footer. This is the whole point of the spec.
-  await page.getByRole("button", { name: /agentes/ }).click();
+  await page.getByRole("button", { name: /conectar um agente|^claude/ }).first().click();
+  await page.getByRole("button", { name: /outro agente ACP/ }).click();
   await agents(page).getByLabel("Nome").fill(AGENT);
   await agents(page).getByLabel("Comando").fill(process.execPath);
   // Space-separated, the way a command line is written. No path here has a space in
