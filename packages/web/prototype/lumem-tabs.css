@@ -1,0 +1,565 @@
+/* ========================================================================
+   2. estilos do protótipo — só var(), nenhum literal
+   ======================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font: var(--text-body-md);
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* ---------------------------------------------------- chrome do protótipo */
+/* Não faz parte do desenho: é só a navegação entre telas do arquivo. */
+.tabbar {
+  display: flex;
+  align-items: stretch;
+  height: var(--size-control-lg);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.tab {
+  padding: 0 var(--space-12);
+  font: var(--text-label-sm);
+  color: var(--color-text-tertiary);
+  border-bottom: 2px solid transparent;
+}
+.tab.is-active { color: var(--color-text-primary); border-bottom-color: var(--color-border-brand); }
+
+.screen { display: none; }
+.screen.is-active { display: block; }
+
+/* ------------------------------------------------------------- app frame */
+.app {
+  height: calc(100vh - var(--size-control-lg));
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-base);
+}
+.app--flow { height: auto; }
+
+.topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  height: var(--size-topbar-height);
+  padding: 0 var(--space-12);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  font: var(--text-heading-sm);
+  letter-spacing: var(--tracking-label-xs);
+}
+.wordmark__dot {
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-brand-hover);
+  box-shadow: 0 0 var(--space-8) var(--color-bg-brand);
+}
+.spacer { flex: 1; }
+.daemon {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+}
+.daemon__dot {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-daemon-online);
+}
+
+.body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--size-sidebar-width) 1fr;
+  min-height: 0;
+}
+
+/* --------------------------------------------------------------- sidebar */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-bg-panel);
+  border-right: 1px solid var(--color-border-subtle);
+}
+.tree { flex: 1; overflow: auto; padding: var(--space-4) var(--space-6); }
+.sidebar__foot { border-top: 1px solid var(--color-border-subtle); padding: var(--space-6); }
+
+.ws {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-8);
+  margin: var(--space-6);
+  border-radius: var(--radius-md);
+  font: var(--text-label-md);
+}
+.ws__icon { color: var(--color-scope-workspace); font-size: var(--size-icon-sm); }
+.ws__caret { color: var(--color-text-tertiary); font-size: var(--size-icon-xs); }
+.ws-wrap { border-bottom: 1px solid var(--color-border-subtle); }
+
+/* Rótulo de seção da sidebar — a referência separa PROJETOS do resto. */
+.tree__label {
+  padding: var(--space-10) var(--space-8) var(--space-4);
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-disabled);
+}
+
+/*
+ * A árvore agora tem dois níveis, não três.
+ *
+ * Sessão saiu daqui e virou aba. O que a sidebar responde é "onde eu trabalho",
+ * e a resposta é sempre uma worktree — inclusive a `local`, que é o próprio
+ * checkout do projeto.
+ */
+.row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--size-row-compact);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+.row:hover { background: var(--color-bg-hover); }
+.row--selected {
+  background: var(--color-bg-selected);
+  color: var(--color-text-primary);
+  box-shadow: inset 2px 0 0 var(--color-border-brand);
+}
+.row--muted { color: var(--color-text-disabled); }
+.row--project { color: var(--color-text-primary); }
+
+.row__twist {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-icon-md);
+  height: 100%;
+  margin-left: calc(var(--space-4) + var(--depth, 0) * var(--space-12));
+  font-size: var(--size-icon-xs);
+  color: var(--color-text-tertiary);
+}
+.row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: 100%;
+  padding: 0 var(--space-8) 0 var(--space-4);
+  color: inherit;
+  font: var(--text-body-md);
+  text-align: left;
+}
+.row--project .row__main { font: var(--text-label-md); }
+.row__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row__meta { flex: none; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+.glyph { flex: none; width: var(--size-icon-sm); text-align: center; font-size: var(--size-icon-sm); line-height: 1; }
+.glyph--project  { color: var(--color-scope-project); }
+.glyph--worktree { color: var(--color-scope-worktree); }
+.glyph--local    { color: var(--color-scope-project); }
+.glyph--shell    { color: var(--color-session-shell); }
+.glyph--agent    { color: var(--color-session-agent); }
+.glyph--warn     { color: var(--color-worktree-missing); }
+.glyph--off      { color: var(--color-text-disabled); }
+
+/*
+ * Contagem de sessões na linha da worktree.
+ *
+ * Substitui o pip: com as sessões fora da árvore, "tem algo vivo aqui dentro"
+ * deixa de ser um ponto e passa a ser um número — é a única pista que sobra de
+ * quanto está acontecendo lá.
+ */
+.count {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--size-control-xs);
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-neutral-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.count--running {
+  background: var(--color-bg-success-subtle);
+  color: var(--color-session-running);
+}
+.count__dot {
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+.add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-md);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+}
+.add:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+/* ------------------------------------------------------------ área principal */
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Cabeçalho da worktree: fica ACIMA das abas porque é o contexto de todas
+   elas. Uma aba nova não muda a branch nem o caminho. */
+.wt-head {
+  flex: none;
+  padding: var(--space-16) var(--space-20) var(--space-12);
+}
+.crumb { display: flex; align-items: center; gap: var(--space-6); font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.crumb__sep { color: var(--color-text-disabled); }
+.crumb__here { color: var(--color-text-secondary); }
+
+.wt-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  margin: var(--space-6) 0 var(--space-10);
+}
+.wt-title h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  font: var(--text-display-md);
+  letter-spacing: var(--tracking-display-md);
+}
+.wt-title .glyph { font-size: var(--size-icon-lg); width: auto; }
+
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  font: var(--text-mono-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.chip__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+.chip--branch { color: var(--color-git-branch); }
+.chip--clean { color: var(--color-worktree-clean); }
+.chip--dirty { color: var(--color-worktree-dirty); }
+.chip--missing { color: var(--color-worktree-missing); border-color: var(--color-border-danger); }
+.chip .ahead { color: var(--color-git-ahead); }
+.chip .dim { color: var(--color-text-tertiary); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.btn:hover { background: var(--color-bg-raised); }
+.btn--primary { background: var(--color-bg-brand); border-color: var(--color-bg-brand); color: var(--color-text-on-brand); }
+.btn--danger { color: var(--color-text-danger); }
+.btn--ghost { background: none; border-color: var(--color-border-subtle); color: var(--color-text-secondary); }
+.btn--sm { height: var(--size-control-sm); padding: 0 var(--space-8); font: var(--text-label-xs); }
+
+/* ----------------------------------------------------------------- abas */
+/*
+ * As sessões da worktree. Uma faixa, não uma lista: elas são o que está
+ * aberto agora, e trocar entre elas é a ação mais frequente do produto.
+ */
+/*
+ * A faixa é dois elementos, não um.
+ *
+ * `+ nova sessão` fica FORA da parte que rola: um menu ancorado nela seria
+ * recortado pelo `overflow` do contêiner — e, mais importante, o botão que
+ * abre trabalho novo não pode sair da tela porque há muito trabalho aberto.
+ */
+.tabs-bar {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  padding: 0 var(--space-12);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.stab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-10);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.stab:hover { background: var(--color-bg-hover); color: var(--color-text-secondary); }
+.stab--active {
+  background: var(--color-bg-surface);
+  border-bottom-color: var(--color-border-brand);
+  color: var(--color-text-primary);
+}
+/* A aba de contexto não fecha e não é uma sessão — por isso o separador. */
+.stab--overview { margin-right: var(--space-8); }
+.tabs__sep {
+  flex: none;
+  align-self: center;
+  width: 1px;
+  height: var(--size-icon-md);
+  margin-right: var(--space-8);
+  background: var(--color-border-default);
+}
+
+.stab__dot {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-session-running);
+}
+/* Nao existe aba de sessao encerrada — o dot morto so aparece no instante
+   entre o processo sair e a aba fechar. O estado vive na lista da aba de
+   contexto, de onde a sessao pode ser reaberta enquanto o buffer existir. */
+.stab__dot--exited { background: var(--color-session-exited); }
+.stab__dot--failed { background: var(--color-session-failed); }
+.stab__close {
+  margin-left: var(--space-2);
+  margin-right: calc(-1 * var(--space-4));
+  padding: 0 var(--space-4);
+  color: var(--color-text-disabled);
+  font-size: var(--size-icon-xs);
+}
+.stab__close:hover { color: var(--color-text-primary); }
+/* Índice do homônimo: duas sessões do mesmo agente são indistinguíveis sem
+   ele. Ver a pergunta aberta sobre nome de sessão. */
+.stab__ord { color: var(--color-text-disabled); font: var(--text-mono-sm); }
+
+.tabs__new {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  align-self: center;
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-xs);
+}
+.tabs__new:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.tabs__spacer { flex: 1; }
+
+/* --------------------------------------------------------------- painel */
+.pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-12) var(--space-20) var(--space-16);
+  overflow: auto;
+}
+.pane--term { overflow: hidden; }
+
+.term-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  flex: none;
+  padding: var(--space-8) var(--space-12);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.term-head__cmd { flex: 1; min-width: 0; font: var(--text-mono-sm); color: var(--color-text-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.term {
+  flex: 1;
+  min-height: var(--size-terminal-min);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  padding: var(--space-10) var(--space-12);
+  font: var(--text-mono-md);
+  color: var(--color-text-primary);
+  white-space: normal;
+  overflow: hidden;
+}
+.term .l { display: block; white-space: pre; min-height: var(--space-8); }
+.term .dim { color: var(--color-text-tertiary); }
+.term .agent { color: var(--color-session-agent); }
+.term .ok { color: var(--color-git-added); }
+.term .err { color: var(--color-session-failed); }
+.term .path { color: var(--color-git-branch); }
+.term .you { color: var(--color-text-primary); font-weight: 500; }
+.cursor { display: inline-block; width: var(--space-8); height: var(--space-12); background: var(--color-text-primary); vertical-align: text-bottom; }
+
+/* grade e listas da aba de contexto */
+.meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-6) var(--space-16);
+  margin: 0 0 var(--space-16);
+  max-width: var(--size-detail-max);
+  padding: var(--space-12) var(--space-16);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+.meta dt {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  padding-top: var(--space-2);
+}
+.meta dd { margin: 0; min-width: 0; font: var(--text-mono-md); color: var(--color-text-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); margin-bottom: var(--space-16); max-width: var(--size-detail-max); }
+.actions__spacer { flex: 1; }
+
+.section { margin-top: var(--space-8); max-width: var(--size-detail-max); }
+.section__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.section__title {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.section__count { font: var(--text-caption); color: var(--color-text-disabled); }
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  height: var(--size-row-cozy);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+}
+.item:hover { background: var(--color-bg-hover); }
+.item__name { flex: none; font: var(--text-label-sm); color: var(--color-text-primary); }
+.item__detail { flex: 1; min-width: 0; font: var(--text-mono-sm); color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item__state { flex: none; font: var(--text-mono-sm); }
+.item__age { flex: none; min-width: var(--space-64); text-align: right; font: var(--text-caption); color: var(--color-text-tertiary); }
+.state--running { color: var(--color-session-running); }
+.state--exited { color: var(--color-session-exited); }
+.state--failed { color: var(--color-session-failed); }
+.item__act { flex: none; padding-left: var(--space-8); }
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  max-width: var(--size-detail-max);
+  margin-bottom: var(--space-12);
+  padding: var(--space-10) var(--space-12);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-warning-subtle);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+.banner__glyph { flex: none; color: var(--color-text-warning); font-size: var(--size-icon-md); }
+.banner strong { color: var(--color-text-primary); font-weight: 500; }
+.banner code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/* menu de nova sessão, ancorado no + da faixa de abas */
+.menu-wrap { position: relative; display: inline-flex; align-self: center; flex: none; padding-left: var(--space-8); }
+.menu {
+  position: absolute;
+  top: calc(100% + var(--space-4));
+  right: 0;
+  z-index: 10;
+  width: var(--size-menu-width);
+  padding: var(--space-4);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-lg);
+}
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  height: var(--size-control-lg);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  font: var(--text-label-sm);
+  text-align: left;
+}
+.menu__item:hover { background: var(--color-bg-hover); }
+.menu__hint { margin-left: auto; font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+
+/* galeria da última tela */
+.gallery { padding: var(--space-24); display: grid; gap: var(--space-24); }
+.case { display: grid; gap: var(--space-8); }
+.case__label {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.case__label b { color: var(--color-text-brand); font-weight: 500; }
+.case__frame {
+  padding: var(--space-16);
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+.case__frame--panel { background: var(--color-bg-panel); max-width: var(--size-sidebar-width); }
+.gallery__cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-24); align-items: start; }

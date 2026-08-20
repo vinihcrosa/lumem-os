@@ -1,0 +1,815 @@
+/* ========================================================================
+   2. estilos do protótipo — só var(), nenhum literal
+   ======================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font: var(--text-body-md);
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* ---------------------------------------------------- chrome do protótipo */
+/* Não faz parte do desenho: é só a navegação entre telas do arquivo. */
+.tabbar {
+  display: flex;
+  align-items: stretch;
+  height: var(--size-control-lg);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.tab {
+  padding: 0 var(--space-12);
+  font: var(--text-label-sm);
+  color: var(--color-text-tertiary);
+  border-bottom: 2px solid transparent;
+}
+.tab.is-active { color: var(--color-text-primary); border-bottom-color: var(--color-border-brand); }
+
+.screen { display: none; }
+.screen.is-active { display: block; }
+
+/* ------------------------------------------------------------- app frame */
+.app {
+  height: calc(100vh - var(--size-control-lg));
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-base);
+}
+.app--flow { height: auto; }
+
+.topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  height: var(--size-topbar-height);
+  padding: 0 var(--space-12);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  font: var(--text-heading-sm);
+  letter-spacing: var(--tracking-label-xs);
+}
+.wordmark__dot {
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-brand-hover);
+  box-shadow: 0 0 var(--space-8) var(--color-bg-brand);
+}
+.spacer { flex: 1; }
+.daemon {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+}
+.daemon__dot {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-daemon-online);
+}
+
+.rp-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-xs);
+}
+.rp-toggle--on { background: var(--color-bg-active); color: var(--color-text-primary); }
+
+.body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--size-sidebar-width) 1fr var(--size-panel-right);
+  min-height: 0;
+}
+
+/* --------------------------------------------------------------- sidebar */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-bg-panel);
+  border-right: 1px solid var(--color-border-subtle);
+}
+.tree { flex: 1; overflow: hidden; padding: var(--space-4) var(--space-6); }
+.sidebar__foot { border-top: 1px solid var(--color-border-subtle); padding: var(--space-6); }
+
+.ws {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-8);
+  margin: var(--space-6);
+  border-radius: var(--radius-md);
+  font: var(--text-label-md);
+}
+.ws__icon { color: var(--color-scope-workspace); font-size: var(--size-icon-sm); }
+.ws__caret { color: var(--color-text-tertiary); font-size: var(--size-icon-xs); }
+.ws-wrap { border-bottom: 1px solid var(--color-border-subtle); }
+
+.tree__label {
+  padding: var(--space-10) var(--space-8) var(--space-4);
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-disabled);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--size-row-compact);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+.row--selected {
+  background: var(--color-bg-selected);
+  color: var(--color-text-primary);
+  box-shadow: inset 2px 0 0 var(--color-border-brand);
+}
+.row--muted { color: var(--color-text-disabled); }
+.row--project { color: var(--color-text-primary); }
+
+.row__twist {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-icon-md);
+  height: 100%;
+  margin-left: calc(var(--space-4) + var(--depth, 0) * var(--space-12));
+  font-size: var(--size-icon-xs);
+  color: var(--color-text-tertiary);
+}
+.row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: 100%;
+  padding: 0 var(--space-8) 0 var(--space-4);
+  color: inherit;
+  font: var(--text-body-md);
+  text-align: left;
+}
+.row--project .row__main { font: var(--text-label-md); }
+.row__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row__meta { flex: none; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+.glyph { flex: none; width: var(--size-icon-sm); text-align: center; font-size: var(--size-icon-sm); line-height: 1; }
+.glyph--project  { color: var(--color-scope-project); }
+.glyph--worktree { color: var(--color-scope-worktree); }
+.glyph--local    { color: var(--color-scope-project); }
+.glyph--shell    { color: var(--color-session-shell); }
+.glyph--agent    { color: var(--color-session-agent); }
+.glyph--warn     { color: var(--color-worktree-missing); }
+
+.count {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--size-control-xs);
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-neutral-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.count--running { background: var(--color-bg-success-subtle); color: var(--color-session-running); }
+.count__dot { width: var(--space-4); height: var(--space-4); border-radius: var(--radius-full); background: currentColor; }
+
+.add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-md);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+}
+
+/* ------------------------------------------------------------ área principal */
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+.wt-head { flex: none; padding: var(--space-16) var(--space-20) var(--space-12); }
+.crumb { display: flex; align-items: center; gap: var(--space-6); font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.crumb__sep { color: var(--color-text-disabled); }
+.crumb__here { color: var(--color-text-secondary); }
+
+.wt-title { display: flex; align-items: center; gap: var(--space-10); margin: var(--space-6) 0 var(--space-10); }
+.wt-title h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  font: var(--text-display-md);
+  letter-spacing: var(--tracking-display-md);
+}
+.wt-title .glyph { font-size: var(--size-icon-lg); width: auto; }
+
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  font: var(--text-mono-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.chip__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+.chip--branch { color: var(--color-git-branch); }
+.chip--clean { color: var(--color-worktree-clean); }
+.chip--dirty { color: var(--color-worktree-dirty); }
+.chip .ahead { color: var(--color-git-ahead); }
+.chip .dim { color: var(--color-text-tertiary); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.btn:hover { background: var(--color-bg-raised); }
+.btn--ghost { background: none; border-color: var(--color-border-subtle); color: var(--color-text-secondary); }
+.btn--sm { height: var(--size-control-sm); padding: 0 var(--space-8); font: var(--text-label-xs); }
+/*
+ * Destrutivo por contorno, não por preenchimento. Apagar é irreversível fora
+ * do git, então o botão precisa gritar — mas um bloco vermelho sólido no meio
+ * de um diálogo escuro vira o único ponto de fuga da tela e é clicado por
+ * gravidade. O contorno diz "perigo" sem puxar o dedo.
+ */
+.btn--danger { background: var(--color-bg-danger-subtle); border-color: var(--color-border-danger); color: var(--color-text-danger); }
+.btn--danger:hover { background: var(--color-bg-danger-subtle); border-color: var(--color-text-danger); }
+
+/* ----------------------------------------------------------------- abas */
+.tabs-bar {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  padding: 0 var(--space-12);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.tabs { flex: 1; min-width: 0; display: flex; align-items: stretch; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; }
+
+.stab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-10);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.stab--active { background: var(--color-bg-surface); border-bottom-color: var(--color-border-brand); color: var(--color-text-primary); }
+.stab--overview { margin-right: var(--space-8); }
+.tabs__sep { flex: none; align-self: center; width: 1px; height: var(--size-icon-md); margin-right: var(--space-8); background: var(--color-border-default); }
+.stab__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: var(--color-session-running); }
+.stab__close { margin-left: var(--space-2); margin-right: calc(-1 * var(--space-4)); padding: 0 var(--space-4); color: var(--color-text-disabled); font-size: var(--size-icon-xs); }
+.tabs__new {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  align-self: center;
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-xs);
+}
+.menu-wrap { position: relative; display: inline-flex; align-self: center; flex: none; padding-left: var(--space-8); }
+
+/* --------------------------------------------------------------- painel */
+.pane { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--space-12) var(--space-20) var(--space-16); overflow: hidden; }
+
+.term-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  flex: none;
+  padding: var(--space-8) var(--space-12);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.term-head__cmd { flex: 1; min-width: 0; font: var(--text-mono-sm); color: var(--color-text-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.term {
+  flex: 1;
+  min-height: 0;
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  padding: var(--space-10) var(--space-12);
+  font: var(--text-mono-md);
+  color: var(--color-text-primary);
+  white-space: normal;
+  overflow: hidden;
+}
+.term .l { display: block; white-space: pre; min-height: var(--space-8); }
+.term .dim { color: var(--color-text-tertiary); }
+.term .agent { color: var(--color-session-agent); }
+.term .ok { color: var(--color-git-added); }
+.term .err { color: var(--color-session-failed); }
+.term .path { color: var(--color-git-branch); }
+.term .you { color: var(--color-text-primary); font-weight: 500; }
+.cursor { display: inline-block; width: var(--space-8); height: var(--space-12); background: var(--color-text-primary); vertical-align: text-bottom; }
+
+/* ------------------------------------------------------------ a coluna */
+.rp {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--color-bg-panel);
+  border-left: 1px solid var(--color-border-subtle);
+}
+.rp__bar {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  height: var(--size-topbar-height);
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.rtab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 0 var(--space-8);
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.rtab--active { color: var(--color-text-primary); border-bottom-color: var(--color-border-brand); }
+.rtab__count {
+  min-width: var(--size-icon-md);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-neutral-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+.rtab--active .rtab__count { background: var(--color-bg-brand-subtle); color: var(--color-text-brand); }
+
+.rp__icon {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+}
+.rp__icon--on { background: var(--color-bg-active); color: var(--color-text-primary); }
+
+.rp__body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.rp__scroll { flex: 1; min-height: 0; overflow: auto; padding: var(--space-4) var(--space-4) var(--space-12); }
+.rp__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-md);
+  padding: 0 var(--space-8);
+  border-top: 1px solid var(--color-border-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-disabled);
+}
+
+/* --------------------------------------------------------- árvore de arquivos */
+.frow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-sm);
+  padding-right: var(--space-6);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font: var(--text-mono-md);
+  text-align: left;
+}
+.frow:hover { background: var(--color-bg-hover); }
+.frow--open {
+  background: var(--color-bg-selected);
+  color: var(--color-text-primary);
+  box-shadow: inset 2px 0 0 var(--color-border-brand);
+}
+.frow--dir { color: var(--color-text-primary); }
+.frow--dim { color: var(--color-text-disabled); }
+.frow__twist {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-icon-md);
+  height: 100%;
+  margin-left: calc(var(--space-2) + var(--depth, 0) * var(--space-12));
+  font-size: var(--size-icon-xs);
+  color: var(--color-text-tertiary);
+}
+.frow__name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frow__size { flex: none; padding-left: var(--space-8); font: var(--text-caption); color: var(--color-text-disabled); }
+.frow__gap { flex: 1; }
+
+.mark { flex: none; width: var(--size-icon-sm); text-align: center; font: var(--text-mono-sm); }
+.mark--a { color: var(--color-git-added); }
+.mark--m { color: var(--color-git-modified); }
+.mark--d { color: var(--color-git-removed); }
+.mark--u { color: var(--color-git-untracked); }
+
+.fnote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-8) var(--space-8);
+  margin-left: calc(var(--space-2) + var(--depth, 0) * var(--space-12));
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.fnote__glyph { flex: none; color: var(--color-text-warning); }
+.fnote code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.fnote button { color: var(--color-text-link); font: var(--text-caption); text-decoration: underline; }
+
+/* ======================================================================== */
+/* O QUE ESTA FEATURE ACRESCENTA À ÁRVORE — criar, renomear, apagar          */
+/* ======================================================================== */
+/*
+ * As ações moram na linha, não numa barra: renomear e apagar precisam de um
+ * alvo, e uma barra global obrigaria a inventar "o que está selecionado" numa
+ * árvore que hoje só tem "o que está aberto no split". Aparecem no hover, e
+ * `⋯` abre as quatro — quatro ícones de 20px numa linha de 24px numa coluna de
+ * 260px não sobra largura para o nome, que é o conteúdo.
+ */
+.frow__acts { flex: none; display: none; align-items: center; gap: var(--space-2); }
+.frow:hover .frow__acts, .frow--acts .frow__acts { display: flex; }
+.fact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-xs);
+  height: var(--size-control-xs);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-xs);
+}
+.fact:hover { background: var(--color-bg-active); color: var(--color-text-primary); }
+
+/* O nome é digitado na própria linha, na indentação em que o arquivo vai
+   nascer — é o que responde "onde isto está sendo criado" sem uma frase. */
+.fedit { display: flex; align-items: center; gap: var(--space-6); width: 100%; height: var(--size-control-sm); padding-right: var(--space-6); }
+.finput {
+  flex: 1;
+  min-width: 0;
+  height: var(--size-control-xs);
+  padding: 0 var(--space-6);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-focus);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font: var(--text-mono-md);
+}
+.finput--error { border-color: var(--color-border-danger); }
+.fhint { padding: var(--space-2) var(--space-8) var(--space-6); margin-left: calc(var(--space-2) + var(--depth, 0) * var(--space-12)); font: var(--text-caption); color: var(--color-text-tertiary); }
+.fhint code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.fhint--error { color: var(--color-text-danger); }
+
+.menu-anchor { position: relative; }
+.menu {
+  width: var(--size-menu-width);
+  max-width: 100%;
+  padding: var(--space-4);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-lg);
+}
+/* Ancorado na própria linha (`top: 100%`), e com a largura do conteúdo: numa
+   coluna de 260px um menu de largura fixa ou sai da tela ou tapa a linha que
+   ele descreve — e a linha é a resposta para "o alvo é qual?". */
+.menu--row { position: absolute; z-index: 1; right: var(--space-8); top: 100%; width: max-content; }
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  height: var(--size-control-md);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  font: var(--text-label-sm);
+  text-align: left;
+}
+.menu__item:hover { background: var(--color-bg-hover); }
+.menu__item--danger { color: var(--color-text-danger); }
+.menu__glyph { flex: none; width: var(--size-icon-sm); text-align: center; color: var(--color-text-tertiary); }
+.menu__item--danger .menu__glyph { color: var(--color-text-danger); }
+.menu__sep { height: 1px; margin: var(--space-4) var(--space-6); background: var(--color-border-subtle); }
+
+/* ======================================================================== */
+/* O SPLIT DA ABA — onde o arquivo abre, e agora é editado                   */
+/* ======================================================================== */
+.pane--split { flex-direction: row; gap: var(--space-4); }
+.split__side { display: flex; flex-direction: column; min-height: 0; }
+.split__side--term { flex: 1 1 0; min-width: var(--size-terminal-min); }
+.split__side--viewer { flex: 1 1 0; min-width: var(--size-viewer-min); }
+.split__grip { flex: none; align-self: stretch; width: var(--space-4); border-radius: var(--radius-full); cursor: col-resize; }
+
+.viewer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.viewer__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-12);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.viewer__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  height: var(--size-control-md);
+  padding: 0 var(--space-12);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-disabled);
+}
+.viewer__meta { flex: none; white-space: nowrap; }
+
+.fpath {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  font: var(--text-mono-md);
+  color: var(--color-text-primary);
+  overflow: hidden;
+}
+.fpath__dir { flex: 0 1 auto; min-width: 0; color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; unicode-bidi: plaintext; text-align: left; }
+.fpath__name { flex: none; white-space: nowrap; }
+
+.code {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-8) 0 var(--space-16);
+  background: var(--color-bg-inset);
+  font: var(--text-mono-md);
+  white-space: normal;
+}
+.code .l { display: flex; align-items: flex-start; white-space: pre-wrap; overflow-wrap: anywhere; }
+.code--nowrap .l { white-space: pre; overflow-wrap: normal; }
+.code--nowrap { overflow-x: auto; }
+/*
+ * A medianiz gruda e agora é LEGÍVEL: o `text-disabled` herdado dava 2,96:1
+ * sobre o poço, abaixo até do mínimo de objeto gráfico. Número de linha é o
+ * endereço que se lê em voz alta — no editor ele também é para onde o erro do
+ * teste aponta, e ninguém aperta os olhos para conferir uma coisa dessas.
+ */
+.code .n {
+  position: sticky;
+  left: 0;
+  flex: none;
+  width: var(--size-gutter-line);
+  padding-right: var(--space-10);
+  text-align: right;
+  color: var(--color-editor-line-number);
+  background: var(--color-bg-inset);
+  user-select: none;
+}
+.code .t { flex: 1; padding-right: var(--space-12); padding-left: var(--space-12); text-indent: calc(-1 * var(--space-12)); color: var(--color-text-code); }
+.k  { color: var(--color-syntax-keyword); }
+.s  { color: var(--color-syntax-string); }
+.nu { color: var(--color-syntax-number); }
+.c  { color: var(--color-syntax-comment); }
+.fn { color: var(--color-syntax-function); }
+.ty { color: var(--color-syntax-type); }
+.pu { color: var(--color-syntax-punctuation); }
+
+/* ---------------------------------------------------------- o editor */
+/*
+ * Isto aqui não é CSS que vai virar CSS: o CodeMirror monta o tema em
+ * TypeScript, a partir de `tokens.ts`. O protótipo existe para escolher os
+ * VALORES — quanto a linha ativa pode acender sem virar destaque, e quanto o
+ * cursor precisa gritar sobre o poço.
+ */
+.l--active { background: var(--color-editor-active-line); }
+.l--active .n { background: var(--color-editor-active-line); color: var(--color-editor-line-number-active); }
+.sel { background: var(--color-editor-selection); border-radius: var(--radius-xs); }
+/* 2px, não 1: sobre o poço mais escuro do app, um fio de 1px desaparece na
+   primeira linha com fundo aceso. A margem negativa impede o cursor de somar
+   largura à linha e desalinhar a coluna do texto. */
+.caret {
+  display: inline-block;
+  width: var(--space-2);
+  height: var(--space-16);
+  margin: 0 calc(-1 * var(--space-1));
+  background: var(--color-editor-cursor);
+  vertical-align: text-bottom;
+}
+
+/* --------------------------------------------- rodapé: o estado do salvamento */
+/*
+ * Com autosave não existe botão de salvar nem estado sujo persistente, então
+ * este rodapé é a única coisa que o salvamento diz de si. Fica no canto do
+ * arquivo a que se refere — não numa barra global — porque cada aba tem o seu.
+ */
+.save { flex: none; display: inline-flex; align-items: center; gap: var(--space-6); }
+.save__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+/* Glifo de texto, não emoji: um 🔒 ignora `color` e volta com a cor da fonte
+   do sistema — o único elemento da tela que não obedece aos tokens. */
+.save__mark { font-size: var(--size-icon-sm); line-height: 1; }
+.save--saving { color: var(--color-save-saving); }
+.save--saved { color: var(--color-save-saved); }
+.save--failed { color: var(--color-save-failed); }
+.save--stale { color: var(--color-save-stale); }
+.save--readonly { color: var(--color-editor-readonly); }
+/* O motivo do daemon vem literal (PRD §8) e é longo. Ele toma a largura que a
+   contagem de bytes estava usando: numa falha, saber quantos KB o arquivo tem
+   é a informação menos útil da tela. */
+.save__why { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-tertiary); }
+.save__act { flex: none; color: var(--color-text-link); font: var(--text-caption); text-decoration: underline; }
+
+/* --------------------------------------------------------------- conflito */
+/*
+ * Dentro da moldura e acima do código, não em modal: enquanto o conflito está
+ * na tela, o texto digitado é o único lugar onde aquele trabalho existe. Um
+ * modal por cima esconderia exatamente a coisa que a escolha vai destruir.
+ */
+.conflict {
+  flex: none;
+  padding: var(--space-10) var(--space-12);
+  background: var(--color-bg-warning-subtle);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.conflict__head { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-sm); color: var(--color-text-primary); }
+.conflict__glyph { flex: none; color: var(--color-save-stale); }
+.conflict__why { margin: var(--space-6) 0 var(--space-10); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.conflict__why code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.conflict__exits { display: grid; gap: var(--space-6); }
+/*
+ * As duas saídas são o MESMO botão (D3.1): nenhuma é o default, porque
+ * escolher por conta própria seria escolher de quem é o trabalho descartável.
+ * O que as separa é o custo, dito em texto — não o peso visual.
+ */
+.exit {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  width: 100%;
+  padding: var(--space-8) var(--space-10);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  text-align: left;
+}
+.exit:hover { background: var(--color-bg-raised); }
+.exit__what { flex: none; font: var(--text-label-sm); color: var(--color-text-primary); }
+.exit__cost { flex: 1; min-width: 0; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------- somente leitura */
+/* Uma faixa, não um cadeado no canto: o motivo é a informação, e ele não cabe
+   em um ícone. O fundo é o mesmo da moldura para não virar aviso de erro. */
+.robar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-6) var(--space-12);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+.robar__glyph { flex: none; color: var(--color-editor-readonly); }
+.robar code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+.refuse {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-8);
+  padding: var(--space-24) var(--space-16);
+  background: var(--color-bg-inset);
+}
+.refuse__glyph { font-size: var(--size-icon-lg); color: var(--color-text-tertiary); }
+.refuse__title { font: var(--text-label-md); color: var(--color-text-primary); }
+.refuse__why { font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.refuse code { font: var(--text-mono-sm); color: var(--color-text-code); word-break: break-all; }
+
+/* ---------------------------------------------------------- diálogo */
+.card {
+  width: var(--size-dialog-width);
+  max-width: 100%;
+  padding: var(--space-20);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-xl);
+}
+.card h3 { margin: 0 0 var(--space-8); font: var(--text-heading-md); letter-spacing: var(--tracking-heading-md); }
+/* O alvo é dito por extenso e em mono, no caminho relativo ao checkout: numa
+   árvore com `loader.ts` em três diretórios, o nome sozinho não identifica. */
+.card__target { display: block; margin: 0 0 var(--space-10); font: var(--text-mono-md); color: var(--color-text-primary); word-break: break-all; }
+.card p { margin: 0 0 var(--space-12); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.card__actions { display: flex; justify-content: flex-end; gap: var(--space-8); }
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-10);
+  margin: 0 0 var(--space-12);
+  padding: var(--space-10) var(--space-12);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+.banner__glyph { flex: none; font-size: var(--size-icon-md); }
+.banner strong { color: var(--color-text-primary); font-weight: 500; }
+.banner code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.banner--danger { background: var(--color-bg-danger-subtle); border-color: var(--color-border-danger); }
+.banner--danger .banner__glyph { color: var(--color-text-danger); }
+.banner--warning { background: var(--color-bg-warning-subtle); border-color: var(--color-border-default); }
+.banner--warning .banner__glyph { color: var(--color-text-warning); }
+.banner--info { background: var(--color-bg-info-subtle); border-color: var(--color-border-default); }
+.banner--info .banner__glyph { color: var(--color-text-info); }
+
+/* --------------------------------------------------------------- galeria */
+.gallery { padding: var(--space-24); display: grid; gap: var(--space-24); }
+.case { display: grid; gap: var(--space-8); }
+.case__label { font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; color: var(--color-text-tertiary); }
+.case__label b { color: var(--color-text-brand); font-weight: 500; }
+.case__frame { background: var(--color-bg-panel); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); overflow: hidden; }
+.case__frame--pad { padding: var(--space-16); background: var(--color-bg-base); overflow: visible; }
+.gallery__cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-20); align-items: start; }
+.gallery__cols--3 { grid-template-columns: 1fr 1fr 1fr; }
+.box { display: flex; flex-direction: column; height: calc(var(--space-64) * 3); }
+/* A árvore só se testa na largura que ela tem. Numa caixa de galeria larga,
+   nome, marcador, `⋯` e campo de renomear cabem sempre — e o teste passa sem
+   ter acontecido. Estas duas larguras são as reais da coluna. */
+.box--col { width: var(--size-panel-right); }
+.box--col-min { width: var(--size-panel-right-min); }
+.box--tall { height: calc(var(--space-64) * 4); }
+.box--short { height: calc(var(--space-64) * 2); }
+.cards { display: flex; flex-wrap: wrap; gap: var(--space-16); }

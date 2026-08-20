@@ -1,5 +1,6 @@
-/* Design tokens — GERADO por scripts/generate-tokens.py. Nao edite a mao. */
-/* Rampas em OKLCH, contraste WCAG validado na geracao. */
+/* Design tokens do Lumem-OS. A fonte é este arquivo, no Open Design. */
+/* Rampas em OKLCH. Os pares de contraste sao verificados no gate, em
+   packages/web/src/styles/contrast.ts — mexer numa cor pede rodar a suite. */
 
 :root {
   /* ---------- primitivas — nunca use direto em componente ---------- */

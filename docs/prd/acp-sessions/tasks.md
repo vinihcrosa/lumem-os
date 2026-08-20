@@ -8,10 +8,11 @@
 **Status:** fases 1, 3, 4, 5 e 6 **concluídas — 35 de 35.** Gate cheio verde (1.568 unit/integration + 25 e2e).
 **Total:** 35 tasks nas fases 1, 3, 4, 5 e 6 do PRD
 
-> **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` do gerador de
-> tokens (turno, estado de ferramenta, permissão, plano, uso, modo), mais `tool/cancelled` e
+> **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` dos tokens
+> (turno, estado de ferramenta, permissão, plano, uso, modo), mais `tool/cancelled` e
 > `syntax/comment-diff`. São 99 pares de contraste validados. **Nenhuma task escreve `tokens.css` à
-> mão** — quem precisar de token novo edita `packages/web/scripts/generate-tokens.py` e regera.
+> mão** — token novo nasce no Open Design e chega por `pnpm --filter @lumem/web design:sync`
+> ([decisão](../../project/design-source-of-truth.md); até 2026-08-19 era o `generate-tokens.py`).
 
 ---
 

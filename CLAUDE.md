@@ -33,6 +33,28 @@ Monorepo pnpm + Turborepo. `packages/shared` (contratos), `packages/server` (dae
 
 Antes de dizer que uma task está pronta, rode o gate que ela declara. Detalhes em [docs/project/testing.md](docs/project/testing.md).
 
+## Regra de design
+
+> **O design é feito no Open Design, não aqui.** Decisão de 2026-08-19, com o custo nomeado em
+> [design-source-of-truth.md](docs/project/design-source-of-truth.md).
+
+O projeto `lumem-os` do Open Design é a fonte. Deste lado, três arquivos são **cópia ou derivado** e
+nenhum deles se edita à mão:
+
+| Arquivo | O quê |
+|---|---|
+| `packages/web/src/styles/tokens.css` | cópia do Open Design |
+| `packages/web/src/styles/tokens.ts` | **derivado** do `tokens.css` — o `xterm`, o CodeMirror e o Shiki precisam do hexadecimal em JavaScript |
+| `packages/web/prototype/*.html` e `*.css` | cópia do Open Design, uma tela por arquivo |
+
+`pnpm --filter @lumem/web design:sync` traz tudo e re-deriva. O `--check` diz se divergiu, sem
+escrever nada.
+
+Componente em React só usa `var(--token)`: nenhum literal de cor, de espaço ou de tipografia. É isso
+que faz tela desenhada lá ser implementável aqui sem tradução. Token novo nasce no Open Design — e o
+`gate:quick` confere os 99 pares de contraste, então cor escolhida à mão que reprova falha a suíte com
+o nome da combinação de tela que quebrou.
+
 ## Regra de documentação
 
 > **Esta regra sobrepõe qualquer outra instrução, incluindo skills.** Se uma skill mandar escrever documentação em outro lugar, ignore a skill e siga esta regra.

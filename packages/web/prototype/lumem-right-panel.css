@@ -1,0 +1,791 @@
+/* ========================================================================
+   2. estilos do protótipo — só var(), nenhum literal
+   ======================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font: var(--text-body-md);
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* ---------------------------------------------------- chrome do protótipo */
+/* Não faz parte do desenho: é só a navegação entre telas do arquivo. */
+.tabbar {
+  display: flex;
+  align-items: stretch;
+  height: var(--size-control-lg);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-default);
+}
+.tab {
+  padding: 0 var(--space-12);
+  font: var(--text-label-sm);
+  color: var(--color-text-tertiary);
+  border-bottom: 2px solid transparent;
+}
+.tab.is-active { color: var(--color-text-primary); border-bottom-color: var(--color-border-brand); }
+
+.screen { display: none; }
+.screen.is-active { display: block; }
+
+/* ------------------------------------------------------------- app frame */
+.app {
+  height: calc(100vh - var(--size-control-lg));
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-base);
+}
+.app--flow { height: auto; }
+
+.topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  height: var(--size-topbar-height);
+  padding: 0 var(--space-12);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  font: var(--text-heading-sm);
+  letter-spacing: var(--tracking-label-xs);
+}
+.wordmark__dot {
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-brand-hover);
+  box-shadow: 0 0 var(--space-8) var(--color-bg-brand);
+}
+.spacer { flex: 1; }
+.daemon {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+}
+.daemon__dot {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-daemon-online);
+}
+
+/*
+ * O botão que traz a coluna de volta.
+ *
+ * Mora na topbar e não na worktree: a coluna é do checkout, mas o gesto de
+ * mostrar e esconder é da janela — e quando ela está fechada não sobrou nada
+ * na tela onde pendurar o botão.
+ */
+.rp-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-xs);
+}
+.rp-toggle:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.rp-toggle--on { background: var(--color-bg-active); color: var(--color-text-primary); }
+
+.body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--size-sidebar-width) 1fr;
+  min-height: 0;
+}
+/* Com a coluna aberta: três colunas. É esta linha, e só ela, que muda a forma
+   da tela — por isso o refit do terminal pendura aqui. */
+.body--right { grid-template-columns: var(--size-sidebar-width) 1fr var(--size-panel-right); }
+.body--right-min { grid-template-columns: var(--size-sidebar-width) 1fr var(--size-panel-right-min); }
+.body--right-max { grid-template-columns: var(--size-sidebar-width) 1fr var(--size-panel-right-max); }
+
+/* --------------------------------------------------------------- sidebar */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-bg-panel);
+  border-right: 1px solid var(--color-border-subtle);
+}
+.tree { flex: 1; overflow: auto; padding: var(--space-4) var(--space-6); }
+.sidebar__foot { border-top: 1px solid var(--color-border-subtle); padding: var(--space-6); }
+
+.ws {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-8);
+  margin: var(--space-6);
+  border-radius: var(--radius-md);
+  font: var(--text-label-md);
+}
+.ws__icon { color: var(--color-scope-workspace); font-size: var(--size-icon-sm); }
+.ws__caret { color: var(--color-text-tertiary); font-size: var(--size-icon-xs); }
+.ws-wrap { border-bottom: 1px solid var(--color-border-subtle); }
+
+.tree__label {
+  padding: var(--space-10) var(--space-8) var(--space-4);
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-disabled);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--size-row-compact);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+.row:hover { background: var(--color-bg-hover); }
+.row--selected {
+  background: var(--color-bg-selected);
+  color: var(--color-text-primary);
+  box-shadow: inset 2px 0 0 var(--color-border-brand);
+}
+.row--muted { color: var(--color-text-disabled); }
+.row--project { color: var(--color-text-primary); }
+
+.row__twist {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-icon-md);
+  height: 100%;
+  margin-left: calc(var(--space-4) + var(--depth, 0) * var(--space-12));
+  font-size: var(--size-icon-xs);
+  color: var(--color-text-tertiary);
+}
+.row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: 100%;
+  padding: 0 var(--space-8) 0 var(--space-4);
+  color: inherit;
+  font: var(--text-body-md);
+  text-align: left;
+}
+.row--project .row__main { font: var(--text-label-md); }
+.row__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row__meta { flex: none; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+.glyph { flex: none; width: var(--size-icon-sm); text-align: center; font-size: var(--size-icon-sm); line-height: 1; }
+.glyph--project  { color: var(--color-scope-project); }
+.glyph--worktree { color: var(--color-scope-worktree); }
+.glyph--local    { color: var(--color-scope-project); }
+.glyph--shell    { color: var(--color-session-shell); }
+.glyph--agent    { color: var(--color-session-agent); }
+.glyph--warn     { color: var(--color-worktree-missing); }
+.glyph--off      { color: var(--color-text-disabled); }
+.glyph--dir      { color: var(--color-text-tertiary); }
+
+.count {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--size-control-xs);
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-neutral-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.count--running { background: var(--color-bg-success-subtle); color: var(--color-session-running); }
+.count__dot { width: var(--space-4); height: var(--space-4); border-radius: var(--radius-full); background: currentColor; }
+
+.add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-md);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+}
+.add:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+/* ------------------------------------------------------------ área principal */
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+.wt-head { flex: none; padding: var(--space-16) var(--space-20) var(--space-12); }
+.crumb { display: flex; align-items: center; gap: var(--space-6); font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.crumb__sep { color: var(--color-text-disabled); }
+.crumb__here { color: var(--color-text-secondary); }
+
+.wt-title { display: flex; align-items: center; gap: var(--space-10); margin: var(--space-6) 0 var(--space-10); }
+.wt-title h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  font: var(--text-display-md);
+  letter-spacing: var(--tracking-display-md);
+}
+.wt-title .glyph { font-size: var(--size-icon-lg); width: auto; }
+
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  font: var(--text-mono-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.chip__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+.chip--branch { color: var(--color-git-branch); }
+.chip--clean { color: var(--color-worktree-clean); }
+.chip--dirty { color: var(--color-worktree-dirty); }
+.chip .ahead { color: var(--color-git-ahead); }
+.chip .dim { color: var(--color-text-tertiary); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.btn:hover { background: var(--color-bg-raised); }
+.btn--ghost { background: none; border-color: var(--color-border-subtle); color: var(--color-text-secondary); }
+.btn--sm { height: var(--size-control-sm); padding: 0 var(--space-8); font: var(--text-label-xs); }
+
+/* ----------------------------------------------------------------- abas */
+.tabs-bar {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  padding: 0 var(--space-12);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.tabs { flex: 1; min-width: 0; display: flex; align-items: stretch; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+
+.stab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-10);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.stab:hover { background: var(--color-bg-hover); color: var(--color-text-secondary); }
+.stab--active { background: var(--color-bg-surface); border-bottom-color: var(--color-border-brand); color: var(--color-text-primary); }
+.stab--overview { margin-right: var(--space-8); }
+.tabs__sep { flex: none; align-self: center; width: 1px; height: var(--size-icon-md); margin-right: var(--space-8); background: var(--color-border-default); }
+.stab__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: var(--color-session-running); }
+.stab__close { margin-left: var(--space-2); margin-right: calc(-1 * var(--space-4)); padding: 0 var(--space-4); color: var(--color-text-disabled); font-size: var(--size-icon-xs); }
+.stab__ord { color: var(--color-text-disabled); font: var(--text-mono-sm); }
+.tabs__new {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  align-self: center;
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-xs);
+}
+.menu-wrap { position: relative; display: inline-flex; align-self: center; flex: none; padding-left: var(--space-8); }
+
+/* --------------------------------------------------------------- painel */
+.pane { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--space-12) var(--space-20) var(--space-16); overflow: auto; }
+.pane--term { overflow: hidden; }
+
+.term-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  flex: none;
+  padding: var(--space-8) var(--space-12);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.term-head__cmd { flex: 1; min-width: 0; font: var(--text-mono-sm); color: var(--color-text-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.term {
+  flex: 1;
+  min-height: var(--size-terminal-min);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  padding: var(--space-10) var(--space-12);
+  font: var(--text-mono-md);
+  color: var(--color-text-primary);
+  white-space: normal;
+  overflow: hidden;
+}
+.term .l { display: block; white-space: pre; min-height: var(--space-8); }
+.term .dim { color: var(--color-text-tertiary); }
+.term .agent { color: var(--color-session-agent); }
+.term .ok { color: var(--color-git-added); }
+.term .err { color: var(--color-session-failed); }
+.term .path { color: var(--color-git-branch); }
+.term .you { color: var(--color-text-primary); font-weight: 500; }
+.cursor { display: inline-block; width: var(--space-8); height: var(--space-12); background: var(--color-text-primary); vertical-align: text-bottom; }
+
+/* ======================================================================== */
+/* A COLUNA DA DIREITA — o que esta feature acrescenta                      */
+/* ======================================================================== */
+/*
+ * Ela é do checkout, não da aba: trocar de sessão não muda quais arquivos
+ * existem. Por isso vive fora do `.main`, irmã dele, e não dentro da faixa.
+ */
+.rp {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--color-bg-panel);
+  border-left: 1px solid var(--color-border-subtle);
+}
+
+/* A alça de arrasto. Fica sobre a borda e é mais larga que ela: uma borda de
+   1px é um alvo que se erra. */
+.rp__grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * var(--space-2));
+  width: var(--space-4);
+  cursor: col-resize;
+}
+.rp__grip:hover { background: var(--color-border-brand); }
+
+/* A faixa da coluna tem a altura da topbar de propósito: as duas terminam na
+   mesma linha e a coluna parece cortada da janela, não colada nela. */
+.rp__bar {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  height: var(--size-topbar-height);
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.rtab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 0 var(--space-8);
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.rtab:hover { color: var(--color-text-secondary); }
+.rtab--active { color: var(--color-text-primary); border-bottom-color: var(--color-border-brand); }
+/* Quantos arquivos mudaram, na própria aba: é o número que decide se vale
+   abrir a aba, e escondê-lo dentro dela obrigaria a abrir para descobrir. */
+.rtab__count {
+  min-width: var(--size-icon-md);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-neutral-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+.rtab--active .rtab__count { background: var(--color-bg-brand-subtle); color: var(--color-text-brand); }
+
+.rp__icon {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+}
+.rp__icon:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.rp__icon--on { background: var(--color-bg-active); color: var(--color-text-primary); }
+
+.rp__body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.rp__scroll { flex: 1; min-height: 0; overflow: auto; padding: var(--space-4) var(--space-4) var(--space-12); }
+
+/* Rodapé de estado: quando a coluna leu o disco pela última vez. Sem watcher
+   (ver Q6), "há 12 s" é a única coisa que separa dado fresco de dado velho. */
+.rp__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-md);
+  padding: 0 var(--space-8);
+  border-top: 1px solid var(--color-border-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-disabled);
+}
+
+/* --------------------------------------------------------- árvore de arquivos */
+/*
+ * Mais densa que a sidebar: 24px, não 28px. A sidebar tem dezenas de linhas e
+ * a árvore tem centenas — e caminho é literal do domínio, então mono.
+ */
+.frow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-sm);
+  padding-right: var(--space-6);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font: var(--text-mono-md);
+  text-align: left;
+}
+.frow:hover { background: var(--color-bg-hover); }
+.frow--open {
+  background: var(--color-bg-selected);
+  color: var(--color-text-primary);
+  box-shadow: inset 2px 0 0 var(--color-border-brand);
+}
+.frow--dir { color: var(--color-text-primary); }
+.frow--dim { color: var(--color-text-disabled); }
+.frow__twist {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-icon-md);
+  height: 100%;
+  margin-left: calc(var(--space-2) + var(--depth, 0) * var(--space-12));
+  font-size: var(--size-icon-xs);
+  color: var(--color-text-tertiary);
+}
+/* O nome encolhe, o marcador anda junto com ele: numa coluna larga, um `M`
+   grudado na borda direita fica a meia tela do arquivo que ele descreve. */
+.frow__name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frow__size { flex: none; padding-left: var(--space-8); font: var(--text-caption); color: var(--color-text-disabled); }
+.frow__gap { flex: 1; }
+
+/* Marcador de status. Uma letra, não um ponto: `A` e `M` são distinguíveis em
+   preto e branco, e a árvore inteira é texto mono de 12px. */
+.mark { flex: none; width: var(--size-icon-sm); text-align: center; font: var(--text-mono-sm); }
+.mark--a { color: var(--color-git-added); }
+.mark--m { color: var(--color-git-modified); }
+.mark--d { color: var(--color-git-removed); }
+.mark--u { color: var(--color-git-untracked); }
+
+/* Truncamento, vazio e recusa. Sempre com o motivo — uma listagem que para no
+   meio sem dizer nada lê como "acabou". */
+.fnote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-8) var(--space-8);
+  margin-left: calc(var(--space-2) + var(--depth, 0) * var(--space-12));
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.fnote__glyph { flex: none; color: var(--color-text-warning); }
+.fnote code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.fnote button { color: var(--color-text-link); font: var(--text-caption); text-decoration: underline; }
+
+/* --------------------------------------------------------- visualizador */
+.fv { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.fv__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-6) 0 var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+}
+.back:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+/* O caminho trunca do começo: o nome do arquivo é o que identifica, e é ele
+   que sobreviveria a um `text-overflow` — se o corte fosse no fim, morreria. */
+.fpath {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  font: var(--text-mono-md);
+  color: var(--color-text-primary);
+  overflow: hidden;
+}
+/* `direction: rtl` sozinho move a barra final do diretório para a frente —
+   `src/lore/` vira `/src/lore`. Com `unicode-bidi: plaintext` o texto continua
+   lido da esquerda para a direita e só o corte muda de lado. */
+.fpath__dir { flex: 0 1 auto; min-width: 0; color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; unicode-bidi: plaintext; text-align: left; }
+.fpath__name { flex: none; white-space: nowrap; }
+.fv__meta { flex: none; font: var(--text-caption); color: var(--color-text-disabled); white-space: nowrap; }
+
+.code {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-8) 0 var(--space-16);
+  background: var(--color-bg-inset);
+  font: var(--text-mono-md);
+  white-space: normal;
+}
+/*
+ * Quebra ligada por padrão, e este é o achado da renderização: numa coluna de
+ * 360px, código de 80 colunas some do lado direito sem nem uma barra de rolagem
+ * para denunciar. Ler pela metade é pior que ler quebrado. O botão `⇄` desliga.
+ */
+.code .l { display: flex; align-items: flex-start; white-space: pre-wrap; overflow-wrap: anywhere; }
+.code--nowrap .l { white-space: pre; overflow-wrap: normal; }
+.code--nowrap { overflow-x: auto; }
+.code .l:hover { background: var(--color-bg-panel); }
+/* A medianiz gruda: rolar o código na horizontal não pode levar o número da
+   linha embora, que é o endereço que se lê em voz alta. */
+.code .n {
+  position: sticky;
+  left: 0;
+  flex: none;
+  width: var(--size-gutter-line);
+  padding-right: var(--space-10);
+  text-align: right;
+  color: var(--color-text-disabled);
+  background: var(--color-bg-inset);
+  user-select: none;
+}
+/* A continuação de uma linha quebrada entra recuada: sem isso ela se alinha
+   com o código de verdade e passa por linha própria. */
+.code .t { flex: 1; padding-right: var(--space-12); padding-left: var(--space-12); text-indent: calc(-1 * var(--space-12)); color: var(--color-text-code); }
+.k  { color: var(--color-syntax-keyword); }
+.s  { color: var(--color-syntax-string); }
+.nu { color: var(--color-syntax-number); }
+.c  { color: var(--color-syntax-comment); }
+.fn { color: var(--color-syntax-function); }
+.ty { color: var(--color-syntax-type); }
+.pu { color: var(--color-syntax-punctuation); }
+
+/* Recusa de leitura: binário, grande demais, symlink que sai do checkout. */
+.refuse {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-8);
+  padding: var(--space-24) var(--space-16);
+  background: var(--color-bg-inset);
+}
+.refuse__glyph { font-size: var(--size-icon-lg); color: var(--color-text-tertiary); }
+.refuse__title { font: var(--text-label-md); color: var(--color-text-primary); }
+.refuse__why { font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.refuse code { font: var(--text-mono-sm); color: var(--color-text-code); word-break: break-all; }
+
+/* ------------------------------------------------------------- mudanças */
+/* O alternador. Segmentado e não menu: são dois, ambos frequentes, e a troca
+   é a ação — um menu esconderia metade da feature atrás de um clique. */
+.seg-wrap { flex: none; display: flex; padding: var(--space-8) var(--space-8) var(--space-4); }
+.seg {
+  display: inline-flex;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+.seg__btn {
+  flex: none;
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.seg__btn:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.seg__btn--on { background: var(--color-bg-active); border-color: var(--color-border-default); color: var(--color-text-primary); }
+.seg__btn--off { color: var(--color-text-disabled); cursor: not-allowed; }
+.seg__btn--off:hover { background: none; color: var(--color-text-disabled); }
+
+.sum { flex: none; display: flex; align-items: center; gap: var(--space-8); padding: 0 var(--space-8) var(--space-6); font: var(--text-caption); color: var(--color-text-tertiary); }
+.plus { color: var(--color-git-added); }
+.minus { color: var(--color-git-removed); }
+
+.drow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-sm);
+  padding: 0 var(--space-6) 0 var(--space-4);
+  border-radius: var(--radius-sm);
+  font: var(--text-mono-md);
+  color: var(--color-text-secondary);
+  text-align: left;
+}
+.drow:hover { background: var(--color-bg-hover); }
+.drow--open { background: var(--color-bg-selected); color: var(--color-text-primary); box-shadow: inset 2px 0 0 var(--color-border-brand); }
+/* Diretório apagado, nome do arquivo aceso: numa lista de caminhos longos, o
+   que diferencia uma linha da outra é o fim, não o começo. */
+.dpath { flex: 0 1 auto; min-width: 0; display: flex; overflow: hidden; }
+.drow__gap { flex: 1; }
+.dpath__dir { flex: 0 1 auto; min-width: 0; color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; unicode-bidi: plaintext; text-align: left; }
+.dpath__name { flex: none; white-space: nowrap; }
+.dstat { flex: none; font: var(--text-mono-sm); }
+.drow__was { font: var(--text-caption); color: var(--color-text-disabled); }
+
+.hunk {
+  padding: var(--space-2) var(--space-8);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+  white-space: pre;
+}
+.patch { flex: 1; min-height: 0; overflow: auto; background: var(--color-bg-inset); font: var(--text-mono-md); white-space: normal; }
+.dl { display: flex; align-items: flex-start; white-space: pre-wrap; overflow-wrap: anywhere; }
+.patch--nowrap .dl { white-space: pre; overflow-wrap: normal; }
+.dl__sig { flex: none; width: var(--size-icon-md); text-align: center; user-select: none; color: var(--color-text-disabled); }
+.dl__t { flex: 1; padding-right: var(--space-12); padding-left: var(--space-12); text-indent: calc(-1 * var(--space-12)); color: var(--color-text-code); }
+.dl--add { background: var(--color-git-added-subtle); }
+.dl--add .dl__sig { color: var(--color-git-added); }
+.dl--del { background: var(--color-git-removed-subtle); }
+.dl--del .dl__sig { color: var(--color-git-removed); }
+
+
+/* ======================================================================== */
+/* O SPLIT DA ABA — onde o arquivo abre                                     */
+/* ======================================================================== */
+/*
+ * O arquivo NÃO abre dentro da coluna. Ele abre ao lado da sessão, dentro da
+ * aba, e a coluna continua sendo a árvore — que é o que torna possível abrir o
+ * próximo arquivo sem fechar este. A coluna navega; o split lê.
+ *
+ * Consequência de layout: agora são duas coisas que mexem na caixa do xterm —
+ * a coluna e o split. As duas precisam remedir o terminal.
+ */
+.pane--split { flex-direction: row; gap: var(--space-4); }
+.split__side { display: flex; flex-direction: column; min-height: 0; }
+.split__side--term { flex: 1 1 0; min-width: var(--size-terminal-min); }
+.split__side--viewer { flex: 1 1 0; min-width: var(--size-viewer-min); }
+.split__grip {
+  flex: none;
+  align-self: stretch;
+  width: var(--space-4);
+  border-radius: var(--radius-full);
+  cursor: col-resize;
+}
+.split__grip:hover { background: var(--color-border-brand); }
+
+.viewer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.viewer__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-12);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.viewer__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-md);
+  padding: 0 var(--space-12);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-disabled);
+}
+
+/* --------------------------------------------------------- estados vazios */
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  padding: var(--space-24) var(--space-16);
+  text-align: center;
+}
+.empty__glyph { font-size: var(--size-icon-lg); color: var(--color-text-disabled); }
+.empty__title { font: var(--text-label-sm); color: var(--color-text-secondary); }
+.empty__why { font: var(--text-caption); color: var(--color-text-disabled); }
+
+/* Esqueleto de carregamento: linhas de largura variada, porque uma árvore de
+   arquivos não tem linhas do mesmo tamanho e a fileira uniforme entrega que é
+   um placeholder antes de o dado chegar. */
+.skel { height: var(--space-8); margin: var(--space-8) var(--space-8); border-radius: var(--radius-xs); background: var(--color-bg-hover); }
+
+/* --------------------------------------------------------------- galeria */
+.gallery { padding: var(--space-24); display: grid; gap: var(--space-24); }
+.case { display: grid; gap: var(--space-8); }
+.case__label { font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; color: var(--color-text-tertiary); }
+.case__label b { color: var(--color-text-brand); font-weight: 500; }
+.case__frame { background: var(--color-bg-panel); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); overflow: hidden; }
+.case__frame--pad { padding: var(--space-12); background: var(--color-bg-base); }
+.gallery__cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-20); align-items: start; }
+.gallery__cols--2 { grid-template-columns: 1fr 1fr; }
+.box { display: flex; flex-direction: column; height: var(--space-64); }
+.box--tall { height: calc(var(--space-64) * 3); }
+.box--code { height: calc(var(--space-64) * 3); }

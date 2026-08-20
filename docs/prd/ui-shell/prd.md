@@ -48,6 +48,11 @@ Cada um destes foi encontrado olhando o PNG, não lendo o código — e é o arg
 
 Gerados por `packages/web/scripts/generate-tokens.py`, nunca escritos à mão. Saída em `packages/web/src/styles/`: `tokens.css` (o que o CSS lê), `tokens.ts` (o que o JavaScript lê — o tema do xterm precisa dos valores), `palette.json`.
 
+> **Não é mais assim, desde 2026-08-19.** O gerador saiu e o design passou a ser feito inteiramente no
+> Open Design: `tokens.css` é sincronizado de lá, `tokens.ts` é derivado dele, e `palette.json` foi
+> apagado por não ter leitor. Ver [design-source-of-truth.md](../../project/design-source-of-truth.md).
+> O parágrafo acima fica como registro do que a `ui-shell` construiu.
+
 Rampas em OKLCH, que é perceptualmente uniforme: uma escala de luminosidade compartilhada dá a todas as matizes o mesmo peso visual. Rampas escolhidas a olho não têm essa propriedade.
 
 **Contraste é verificado, não estimado.** 31 pares reais de uso — texto/superfície, label/botão, cada cor de domínio sobre o fundo em que ela aparece de verdade. Todos AA ou melhor. Introduzir par novo exige adicionar a checagem e rodar de novo.

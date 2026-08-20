@@ -23,7 +23,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | **configuração de agente pela tela** | e2e que não toca na API para nada: workspace, projeto, agente e sessão, tudo pelo formulário. É a única prova que interessa, porque o resto da suíte cria a configuração pela API — que é justamente o caminho que a fase 6 existe para tornar dispensável | **Não** |
 | **retomada de conversa** de ponta a ponta | e2e em duas metades, porque a afirmação tem duas. O **reinício** só dá contra daemon que a suíte controla (o Playwright não reinicia o que ele gerencia) e é conduzido pela API, que o §7 do PRD exige poder fazer tudo que o cliente faz; a **tela** — conversa encerrada em leitura e o botão que retoma — é a metade do browser, contra o daemon compartilhado. Ambas com o agente falso, **zero token** | **Não** |
 | `web/` componente | unit (Vitest + Testing Library) | Sim |
-| `web/` tokens e paleta | unit, **e exige `python3`** — roda o gerador e compara byte a byte com o commitado | Sim |
+| `web/` tokens e paleta | unit — roda os 99 pares de contraste declarados, a escada de cinzas, e confere que o `tokens.ts` commitado é o que a derivação produz do `tokens.css` | Sim |
 | `web/` fluxo de usuário | e2e (Playwright) | **Não** — daemon único, porta única, estado compartilhado |
 
 **Consequência dura:** task cujo `Tests` é `e2e` **não pode** receber `[P]`. O gargalo é a execução do teste, não o código.
@@ -121,9 +121,18 @@ Consequência prática desta suíte: onde há relógio falso, digitação em edi
 
 É a mesma família de "o próprio gate sem teste" das duas armadilhas abaixo, com um detalhe que a torna pior: **ninguém descobre por sintoma.** Cor com contraste ruim não quebra teste, não quebra build, e a pessoa que a introduz é justamente quem não vai olhar o número.
 
-Hoje um teste de vitest roda o gerador num tmpdir e compara `tokens.css`, `tokens.ts` e `palette.json` **byte a byte** com os commitados. A propriedade é mais forte que rodar o script: ela pega **regressão de contraste** (o gerador sai com código 1 diante de qualquer par reprovado) e **edição à mão do arquivo gerado**, que é o outro jeito de a paleta derivar.
+A correção da época foi um teste de vitest que rodava o gerador num tmpdir e comparava os arquivos gerados byte a byte com os commitados — o que pegava regressão de contraste e edição à mão de arquivo gerado de uma vez.
 
-Consequência operacional, e ela é nova: **a suíte unitária do `web` passou a exigir `python3`.** Numa máquina sem ele o teste **falha, não pula** — guarda que se auto-desliga é exatamente o defeito que este registro descreve. O `ubuntu-latest` do CI já traz `python3`, e o gerador só usa biblioteca padrão.
+**Hoje o gerador não existe mais** ([o design é feito no Open Design](design-source-of-truth.md)) e a
+verificação ficou, sem Python: os 99 pares foram portados para `packages/web/src/styles/contrast.ts` e
+`tokens.test.ts` os roda no `gate:quick`, junto com a monotonia da escada de cinzas e a igualdade
+entre o `tokens.ts` commitado e o que a derivação produz do `tokens.css`. Essa última asserção é a
+herdeira direta da comparação byte a byte: ela pega edição à mão do derivado **e** sync sem derivar.
+
+O que a mudança de fonte custou está nomeado na decisão, e o item que interessa a este arquivo é este:
+**o contraste deixou de ser conferido no momento em que a cor nasce.** Quem escolhe cor no Open Design
+descobre a reprovação ao rodar a suíte aqui, não antes. Em troca, a suíte do `web` **deixou de exigir
+`python3`** — a guarda que antes falhava numa máquina sem ele hoje roda em qualquer lugar.
 
 **O caller tRPC não enxerga o transporte, e a matriz dizia que router se testa com ele.** Os 16 casos de router do `file-editor` passavam verdes enquanto o navegador teria recebido **413 em toda gravação de arquivo grande**: o `bodyLimit` default do Fastify é 1 MiB, exatamente o teto de arquivo, e o corpo é o texto mais o envelope JSON mais o escape. Medido: 1.024.011 bytes passam, 1.048.587 voltam `FST_ERR_CTP_BODY_TOO_LARGE`.
 

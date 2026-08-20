@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — as telas</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<style>
+/* Só a folha de contato. Nenhum componente do produto vive aqui — os
+   componentes estão em cada tela, e duplicá-los aqui criaria uma segunda
+   verdade sobre como um cartão do Lumem se parece. */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: var(--space-32);
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font: var(--text-body-md);
+  font-family: var(--font-sans);
+}
+h1 { font: var(--text-display-md); margin: 0 0 var(--space-8); }
+.lede { font: var(--text-body-lg); color: var(--color-text-secondary); max-width: 64ch; margin: 0 0 var(--space-32); }
+.grid { display: grid; gap: var(--space-16); grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.card {
+  display: grid;
+  gap: var(--space-10);
+  padding: var(--space-16);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: inherit;
+}
+.card:hover { border-color: var(--color-border-strong); background: var(--color-bg-hover); }
+.card__n { font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; color: var(--color-text-tertiary); }
+.card__t { font: var(--text-heading-md); }
+.card__d { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.states { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.state {
+  padding: var(--space-2) var(--space-6);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inset);
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+}
+footer { margin-top: var(--space-32); padding-top: var(--space-16); border-top: 1px solid var(--color-border-subtle); font: var(--text-body-sm); color: var(--color-text-tertiary); max-width: 72ch; }
+code { font: var(--text-mono-sm); color: var(--color-text-code); }
+</style>
+</head>
+<body>
+<h1>Lumem-OS — as telas</h1>
+<p class="lede">
+  Cinco telas, vinte e quatro estados. Cada arquivo abre com uma faixa de abas em cima: as abas são
+  os estados daquela tela, não navegação do produto.
+</p>
+
+<div class="grid">
+  <a class="card" href="lumem-shell.html">
+    <span class="card__n">01 · ui-shell</span>
+    <span class="card__t">A casca</span>
+    <span class="card__d">Sidebar, topbar, painel de detalhe. Onde workspace, projeto e worktree viram uma coisa só.</span>
+    <span class="states"><span class="state">worktree</span><span class="state">sessão</span><span class="state">projeto</span><span class="state">estados e erros</span></span>
+  </a>
+
+  <a class="card" href="lumem-tabs.html">
+    <span class="card__n">02 · worktree-tabs</span>
+    <span class="card__t">Abas de sessão</span>
+    <span class="card__d">Uma aba por sessão viva, mais a aba de contexto. O que a faixa de abas diz sem ninguém clicar.</span>
+    <span class="states"><span class="state">aba de agente</span><span class="state">aba de contexto</span><span class="state">worktree local</span><span class="state">detalhe</span></span>
+  </a>
+
+  <a class="card" href="lumem-right-panel.html">
+    <span class="card__n">03 · right-panel</span>
+    <span class="card__t">A coluna da direita</span>
+    <span class="card__d">Árvore do checkout, arquivo ao lado da sessão, mudanças e patch. O split que não fecha a sessão.</span>
+    <span class="states"><span class="state">arquivos</span><span class="state">arquivo no split</span><span class="state">mudanças</span><span class="state">patch</span><span class="state">estados</span></span>
+  </a>
+
+  <a class="card" href="lumem-file-editor.html">
+    <span class="card__n">04 · file-editor</span>
+    <span class="card__t">O editor</span>
+    <span class="card__d">A primeira tela que faz o daemon escrever no repositório: autosave, conflito, e CRUD pela árvore.</span>
+    <span class="states"><span class="state">editando</span><span class="state">salvamento</span><span class="state">conflito</span><span class="state">somente leitura</span><span class="state">árvore</span></span>
+  </a>
+
+  <a class="card" href="lumem-acp-conversation.html">
+    <span class="card__n">05 · acp-sessions</span>
+    <span class="card__t">A conversa</span>
+    <span class="card__d">A sessão de agente deixa de ser terminal e vira conversa: cartão de ferramenta, permissão, plano, uso.</span>
+    <span class="states"><span class="state">conversa</span><span class="state">ferramenta</span><span class="state">permissão</span><span class="state">plano</span><span class="state">uso</span><span class="state">limites</span></span>
+  </a>
+</div>
+
+<footer>
+  <p>
+    <strong>O <code>tokens.css</code> é gerado, não escrito.</strong> Ele sai de
+    <code>packages/web/scripts/generate-tokens.py</code>: rampas em OKLCH, e cada par de contraste
+    verificado no momento da geração. Editar o arquivo à mão desfaz essa verificação sem avisar
+    ninguém — mexer é no gerador, no repositório, e recopiar aqui.
+  </p>
+  <p>
+    Toda tela nova nasce sobre esses tokens e só usa <code>var(--token)</code>: nenhum literal de
+    cor, de espaço ou de tipografia. É isso que faz uma tela desenhada aqui ser implementável lá sem
+    tradução.
+  </p>
+</footer>
+</body>
+</html>

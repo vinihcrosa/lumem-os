@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "design:sync": "tsx scripts/design-sync.ts",
     "test": "vitest run"
   },
   "dependencies": {

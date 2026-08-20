@@ -1,4 +1,4 @@
-// Design tokens — GERADO por scripts/generate-tokens.py. Nao edite a mao.
+// Design tokens — DERIVADO de tokens.css por scripts/design-sync.ts. Nao edite a mao.
 
 export const primitives = {
   brand: { '50': '#F8F7FF', '100': '#EFECFF', '200': '#DFD9FF', '300': '#CCC2FF', '400': '#B5A2FF', '500': '#9774FD', '600': '#7955D7', '700': '#603FAF', '800': '#492F88', '900': '#321F5F', '950': '#211441' },
