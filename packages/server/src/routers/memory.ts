@@ -134,6 +134,50 @@ export const memoryRouter = router({
   ),
 
   /**
+   * Põe — ou tira — uma memória do núcleo.
+   *
+   * `mutation`, e sem `actor` no input: fixar é ato **seu** (o serviço recusa
+   * qualquer outro ator), e aceitar o ator pelo pedido seria oferecer pela API a
+   * porta que o serviço fecha.
+   */
+  pin: publicProcedure
+    .input(z.object({ path: z.string().min(1).max(4_096), pinned: z.boolean() }))
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(() => {
+        const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+        return memory.pin(input.path, input.pinned);
+      }),
+    ),
+
+  /**
+   * A marca d'água: o que o núcleo custa em toda sessão.
+   *
+   * Sem o `text`. Ele é grande, a tela não mostra, e trafegar o núcleo inteiro
+   * para desenhar um número seria pagar o próprio custo que a tela existe para
+   * vigiar.
+   */
+  core: publicProcedure.input(scopeIds.optional()).query(({ ctx, input }) =>
+    domainSafeAsync(async () => {
+      const scope = input ?? scopeIds.parse({});
+      const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
+      const core = await memory.core({
+        workspaceId: scope.workspaceId ?? null,
+        projectId: scope.projectId ?? null,
+      });
+      return {
+        chars: core.chars,
+        recentChars: core.recentChars,
+        entries: core.entries.map(({ path, name, scope: entryScope, chars }) => ({
+          path,
+          name,
+          scope: entryScope,
+          chars,
+        })),
+      };
+    }),
+  ),
+
+  /**
    * Busca lexical, explicável — e que respeita escopo e shadow.
    *
    * `query`, e portanto **não registra**: refetch, retry e remontagem do cliente

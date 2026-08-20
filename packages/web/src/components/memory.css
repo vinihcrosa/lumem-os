@@ -98,6 +98,26 @@
   letter-spacing: var(--tracking-label-xs); text-transform: uppercase;
 }
 
+/* O núcleo, portado do `lumem-memory.css` do Open Design.
+   Fixar é o gesto mais caro da tela — o que entra é cobrado em toda sessão —,
+   então o custo fica ao lado do botão, e fixado é estado (`aria-pressed`), não
+   ícone. Em 360px o botão é a primeira coisa que precisa continuar clicável, e
+   por isso ele não encolhe. */
+.mem-pin {
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs);
+  padding: var(--space-2) var(--space-8); border-radius: var(--radius-full);
+  border: var(--border-width-thin) solid var(--color-border-default);
+  background: none; color: var(--color-text-tertiary);
+  white-space: nowrap; cursor: pointer; flex-shrink: 0;
+}
+.mem-pin:hover:enabled { color: var(--color-text-secondary); border-color: var(--color-border-strong); }
+.mem-pin:disabled { cursor: default; }
+.mem-pin[aria-pressed="true"] {
+  background: var(--color-bg-brand-subtle); color: var(--color-text-brand);
+  border-color: var(--color-border-brand);
+}
+.mem-pin-cost { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+
 .mem-shadow-note {
   font: var(--text-caption); color: var(--color-text-tertiary);
   /* Fio ótico: a exceção que o repositório declara. */
@@ -162,6 +182,9 @@
 }
 
 /* Linha do tempo */
+/* O `<ol>` sem regra ficava com marcador e recuo do navegador — a auditoria de
+   porte pegou, e é exatamente o defeito que o jsdom não vê. */
+.mem-tl { list-style: none; margin: 0; padding: var(--space-4) 0; }
 .mem-tl-item {
   display: grid;
   /* A coluna da hora cabe `20 ago 09:41`; a do marcador é um glifo. */
@@ -187,6 +210,10 @@
   color: var(--color-text-primary);
 }
 .mem-stat .l { font: var(--text-caption); color: var(--color-text-tertiary); margin-top: var(--space-2); }
+/* A terceira linha do cartão: o que o número quer dizer. É o `.hint` do desenho,
+   e é onde a variação da marca d'água mora. */
+.mem-stat .hint { font: var(--text-caption); color: var(--color-text-tertiary); margin-top: var(--space-6); }
+.mem-stat--warn .n { color: var(--color-text-warning); }
 
 /* Um grupo por escopo. O chip que estava em toda linha vive aqui, dito uma vez —
    e a ordem é a da precedência: projeto vence workspace, que vence global. */

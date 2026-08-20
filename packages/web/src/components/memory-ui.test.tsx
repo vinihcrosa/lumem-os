@@ -26,6 +26,7 @@ function entry(overrides: Record<string, unknown> = {}) {
     description: "camelCase em todo o workspace",
     sourceActor: "human",
     confidence: "high",
+    pinned: false,
     contentHash: "h",
     ...stamps,
     ...overrides,
@@ -63,6 +64,7 @@ beforeEach(() => {
   trpc.memory.proposals.query.mockResolvedValue([]);
   trpc.memory.decisions.query.mockResolvedValue([]);
   trpc.memory.usage.query.mockResolvedValue([]);
+  trpc.memory.core.query.mockResolvedValue({ chars: 0, recentChars: 0, entries: [] });
 });
 
 function render() {
@@ -302,5 +304,64 @@ describe("MemoryPanel", () => {
     render();
 
     expect(await screen.findByText("Nada aprendido ainda")).toBeInTheDocument();
+  });
+});
+
+describe("o núcleo, na tela", () => {
+  it("fixar é um gesto com estado, e a entrada diz em qual", async () => {
+    render();
+
+    const button = await screen.findByRole("button", { name: "fixar no núcleo" });
+    expect(button).toHaveAttribute("aria-pressed", "false");
+
+    await userEvent.click(button);
+
+    expect(trpc.memory.pin.mutate).toHaveBeenCalledWith({
+      path: "workspaces/ws1/memory/process_convencao.md",
+      pinned: true,
+    });
+  });
+
+  it("o custo da entrada fica ao lado do botão que o produziu", async () => {
+    trpc.memory.list.query.mockResolvedValue({ entries: [entry({ pinned: true })], shadowed: [] });
+    trpc.memory.core.query.mockResolvedValue({
+      chars: 1_240,
+      recentChars: 0,
+      entries: [
+        {
+          path: "workspaces/ws1/memory/process_convencao.md",
+          name: "Convenção de nomes",
+          scope: "workspace",
+          chars: 312,
+        },
+      ],
+    });
+
+    render();
+
+    expect(await screen.findByRole("button", { name: "no núcleo" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByText("312 car.")).toBeInTheDocument();
+  });
+
+  it("a marca d'água mostra o tamanho, a variação, e avisa quando é hora de consolidar", async () => {
+    trpc.memory.core.query.mockResolvedValue({
+      chars: 4_500,
+      recentChars: 1_240,
+      entries: [
+        { path: "a.md", name: "A", scope: "global", chars: 3_000 },
+        { path: "b.md", name: "B", scope: "workspace", chars: 1_500 },
+      ],
+    });
+
+    renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="numbers" />);
+
+    expect(await screen.findByText("4.500")).toBeInTheDocument();
+    expect(screen.getByText("caracteres no núcleo")).toBeInTheDocument();
+    // Sem teto (D5): o alarme avisa, e não corta nada.
+    expect(screen.getByText(/hora de consolidar/)).toBeInTheDocument();
+    expect(screen.getByText(/1.240 entraram em 30 dias/)).toBeInTheDocument();
   });
 });

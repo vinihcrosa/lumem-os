@@ -4,6 +4,8 @@ import {
   useDecisions,
   useMemoryList,
   useProposals,
+  useMemoryCore,
+  usePinMemory,
   useResolveProposal,
   useUsage,
   type Decision,
@@ -54,6 +56,7 @@ export function MemoryPanel({ workspaceId, projectId, tab, onTabChange }: Memory
   };
 
   const list = useMemoryList({ workspaceId, projectId });
+  const core = useMemoryCore({ workspaceId, projectId });
   const proposals = useProposals("pending");
 
   return (
@@ -90,14 +93,24 @@ export function MemoryPanel({ workspaceId, projectId, tab, onTabChange }: Memory
       </header>
 
       <div className="mem-body" id="mem-panel-body" role="tabpanel" aria-labelledby={`mem-tab-${active}`}>
-        {active === "entries" ? <Entries query={list} /> : null}
+        {active === "entries" ? <Entries query={list} core={core} /> : null}
         {active === "inbox" ? <Inbox /> : null}
         {active === "timeline" ? <Timeline /> : null}
-        {active === "numbers" ? <Numbers /> : null}
+        {active === "numbers" ? <Numbers core={core} /> : null}
       </div>
     </section>
   );
 }
+
+/**
+ * Onde o alarme toca — não onde o corte acontece (D5).
+ *
+ * Não existe teto: passar disto não corta nada e não recusa nada, só diz que o
+ * núcleo virou documentação e que consolidar é decisão sua. A referência é o
+ * teto do Hermes (2.200 caracteres), mais a folga que o §6 autoriza depois de o
+ * spike mostrar que o piso de uma sessão é ~39k tokens — e não nosso.
+ */
+const CORE_ALARM_CHARS = 4_000;
 
 /**
  * O valor de confiança em português.
@@ -123,7 +136,13 @@ const SCOPE_LABEL: Record<string, string> = {
   project: "projeto",
 };
 
-function Entries({ query }: { query: ReturnType<typeof useMemoryList> }) {
+function Entries({
+  query,
+  core,
+}: {
+  query: ReturnType<typeof useMemoryList>;
+  core: ReturnType<typeof useMemoryCore>;
+}) {
   if (query.isPending) return <p className="mem-meta">carregando…</p>;
   if (query.isError) return <EmptyState title="Não deu para ler a memória">{query.error.message}</EmptyState>;
 
@@ -151,6 +170,9 @@ function Entries({ query }: { query: ReturnType<typeof useMemoryList> }) {
    *
    * A ordem é a da precedência: o mais específico primeiro, porque é o que vence.
    */
+  // O custo por entrada vem da marca d'água, que é quem leu os arquivos.
+  const cost = new Map((core.data?.entries ?? []).map((entry) => [entry.path, entry.chars]));
+
   const order = ["project", "workspace", "global"];
   const groups = order
     .map((scope) => ({ scope, rows: entries.filter((entry) => entry.scope === scope) }))
@@ -159,7 +181,9 @@ function Entries({ query }: { query: ReturnType<typeof useMemoryList> }) {
   return (
     <>
       {groups.map((group) => (
-        <section className="mem-group" key={group.scope}>
+        // Sem classe no `<section>`: o cabeçalho grudento é quem tem pintura, e
+        // classe sem regra é o outro lado do defeito que a auditoria procura.
+        <section key={group.scope}>
           <h3 className="mem-group__t">
             <span className="mem-scope" data-scope={group.scope}>
               {SCOPE_LABEL[group.scope] ?? group.scope}
@@ -174,6 +198,15 @@ function Entries({ query }: { query: ReturnType<typeof useMemoryList> }) {
                 <p className="mem-meta">
                   <span>{ACTOR[entry.sourceActor] ?? entry.sourceActor}</span>
                   <span>confiança {CONFIDENCE[entry.confidence] ?? entry.confidence}</span>
+                  <PinButton entry={entry} />
+                  {/* O custo ao lado do gesto que o produziu: uma tela que
+                      deixa fixar e mostra a conta noutra aba esconde a
+                      consequência do próprio botão. */}
+                  {entry.pinned && cost.get(entry.path) !== undefined ? (
+                    <span className="mem-pin-cost">
+                      {(cost.get(entry.path) ?? 0).toLocaleString("pt-BR")} car.
+                    </span>
+                  ) : null}
                 </p>
                 {losersByWinner.get(entry.path)?.map((identity) => (
                   <p key={identity} className="mem-shadow-note">
@@ -186,6 +219,29 @@ function Entries({ query }: { query: ReturnType<typeof useMemoryList> }) {
         </section>
       ))}
     </>
+  );
+}
+
+/**
+ * Fixar e desfixar — o gesto mais caro da tela.
+ *
+ * `aria-pressed` e não um ícone: fixado é **estado** da entrada, e quem lê com
+ * leitor de tela precisa ouvir "no núcleo, pressionado" em vez de um símbolo sem
+ * nome. Desabilitado enquanto a escrita está no ar, porque fixar grava arquivo e
+ * commita no `~/.lumem` — dois cliques seriam dois commits.
+ */
+function PinButton({ entry }: { entry: MemoryEntry }) {
+  const pin = usePinMemory();
+  return (
+    <button
+      type="button"
+      className="mem-pin focus-ring"
+      aria-pressed={entry.pinned}
+      disabled={pin.isPending}
+      onClick={() => pin.mutate({ path: entry.path, pinned: !entry.pinned })}
+    >
+      {entry.pinned ? "no núcleo" : "fixar no núcleo"}
+    </button>
   );
 }
 
@@ -596,19 +652,41 @@ function formatStamp(when: Date | string): string {
  * perguntas feitas. Perto de zero perguntas significa que a camada 3 é
  * decoração — e é a medida que decide se o desenho continua de pé.
  */
-function Numbers() {
+function Numbers({ core }: { core: ReturnType<typeof useMemoryCore> }) {
   const usage = useUsage();
 
   if (usage.isPending) return <p className="mem-meta">carregando…</p>;
   if (usage.isError) {
     return <EmptyState title="Não deu para ler os números">{usage.error.message}</EmptyState>;
   }
-  if (usage.data.length === 0) {
+
+  const watermark = core.data;
+  if (usage.data.length === 0 && (watermark === undefined || watermark.entries.length === 0)) {
     return <EmptyState title="Sem uso registrado">Os números aparecem depois da primeira busca.</EmptyState>;
   }
 
   return (
     <div className="mem-stats">
+      {/*
+       * A marca d'água vem primeiro, e é o único número desta aba que descreve um
+       * custo **recorrente**: o núcleo é cobrado em toda sessão. Não há teto (D5)
+       * — cortar diretriz no meio produz regra errada, não regra menor —, então
+       * medir é a única coisa que impede "sem teto" de virar "sem controle".
+       */}
+      {watermark !== undefined && watermark.entries.length > 0 ? (
+        <div className={`mem-stat${watermark.chars > CORE_ALARM_CHARS ? " mem-stat--warn" : ""}`}>
+          <div className="n">{watermark.chars.toLocaleString("pt-BR")}</div>
+          <div className="l">caracteres no núcleo</div>
+          <div className="hint">
+            {watermark.entries.length}{" "}
+            {watermark.entries.length === 1 ? "diretriz fixada" : "diretrizes fixadas"}
+            {watermark.recentChars > 0
+              ? ` · ${watermark.recentChars.toLocaleString("pt-BR")} entraram em 30 dias`
+              : ""}
+            {watermark.chars > CORE_ALARM_CHARS ? " · hora de consolidar" : ""}
+          </div>
+        </div>
+      ) : null}
       {usage.data.map((row) => (
         <div key={row.kind} className="mem-stat">
           <div className="n">{row.events}</div>

@@ -77,5 +77,10 @@ export function memoryProposalsKey(status: string) {
   return ["memory", "proposals", status] as const;
 }
 
+/** A marca d'água do núcleo, por escopo — muda quando alguém fixa ou desfixa. */
+export function memoryCoreKey(workspaceId: string | null, projectId: string | null) {
+  return ["memory", "core", workspaceId ?? "-", projectId ?? "-"] as const;
+}
+
 export const MEMORY_DECISIONS_KEY = ["memory", "decisions"] as const;
 export const MEMORY_USAGE_KEY = ["memory", "usage"] as const;

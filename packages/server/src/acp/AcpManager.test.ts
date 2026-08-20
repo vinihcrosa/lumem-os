@@ -1382,6 +1382,7 @@ describe("resuming yesterday's conversation", () => {
       sessionId: info.id,
       process: fake.process,
       killed: fake.killed,
+      promptBlocks: fake.promptBlocks,
       loaded,
     };
   }

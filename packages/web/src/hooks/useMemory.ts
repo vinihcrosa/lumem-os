@@ -9,6 +9,7 @@ import {
 import {
   MEMORY_DECISIONS_KEY,
   MEMORY_USAGE_KEY,
+  memoryCoreKey,
   memoryListKey,
   memoryProposalsKey,
 } from "../lib/queryKeys.js";
@@ -25,6 +26,7 @@ export type MemoryEntry = MemoryView["entries"][number];
 export type Proposal = Awaited<ReturnType<typeof trpc.memory.proposals.query>>[number];
 export type Decision = Awaited<ReturnType<typeof trpc.memory.decisions.query>>[number];
 export type UsageSummary = Awaited<ReturnType<typeof trpc.memory.usage.query>>;
+export type MemoryCore = Awaited<ReturnType<typeof trpc.memory.core.query>>;
 
 export interface MemoryScopeFilter {
   workspaceId: string | null;
@@ -65,6 +67,40 @@ export function useProposals(status: ProposalStatus = "pending") {
 
 export function useDecisions() {
   return useQuery({ queryKey: MEMORY_DECISIONS_KEY, queryFn: () => trpc.memory.decisions.query() });
+}
+
+/**
+ * O que o núcleo custa neste escopo.
+ *
+ * Query própria e não um campo do `list`: a lista responde "o que existe" e é
+ * lida em toda abertura do painel; a marca d'água lê o disco de cada memória
+ * fixada, e pendurá-la no `list` faria toda abertura pagar isso.
+ */
+export function useMemoryCore(filter: MemoryScopeFilter): UseQueryResult<MemoryCore> {
+  return useQuery({
+    queryKey: memoryCoreKey(filter.workspaceId, filter.projectId),
+    queryFn: () =>
+      trpc.memory.core.query({
+        ...(filter.workspaceId ? { workspaceId: filter.workspaceId } : {}),
+        ...(filter.projectId ? { projectId: filter.projectId } : {}),
+      }),
+  });
+}
+
+/**
+ * Fixar e desfixar — e invalidar **tudo** de memória.
+ *
+ * Fixar muda a lista (a entrada mostra que está no núcleo), a marca d'água, a
+ * linha do tempo (virou decisão no WAL) e o commit no `~/.lumem`. Invalidar três
+ * de quatro é exatamente como uma tela passa a discordar de si mesma — a lição
+ * já está paga no `useResolveProposal`.
+ */
+export function usePinMemory(): UseMutationResult<unknown, Error, { path: string; pinned: boolean }> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { path: string; pinned: boolean }) => trpc.memory.pin.mutate(input),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["memory"] }),
+  });
 }
 
 export function useUsage() {

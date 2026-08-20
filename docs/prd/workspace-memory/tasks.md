@@ -482,13 +482,22 @@ instalar nada, e o agente já tem shell. Fora do `/trpc` porque uma chamada tRPC
 #### N5: Fixar pela tela, e ver o que custa
 
 **What**: Pin/unpin no painel, e a marca d'água na aba de números.
-**Where**: `components/MemoryPanel.tsx`, `routers/memory.ts`, `hooks/useMemory.ts` + testes
+**Where**: `components/MemoryPanel.tsx`, `memory.css`, `routers/memory.ts`, `hooks/useMemory.ts` + testes
+
+**O desenho foi feito no Open Design, como manda a regra.** O `lumem-memory.html` do S2 era o único
+protótipo que vivia **só** neste repositório — anterior à regra de 2026-08-19. Ele foi levado para o
+projeto do Open Design (com `lumem-memory.css` separado, como todas as outras telas), o "fixar no
+núcleo" e a marca d'água foram desenhados lá, e o `design:sync` trouxe de volta. O `--check` agora
+diz "21 arquivos, nada mudou".
 
 **Done when**:
-- [ ] Fixar e desfixar da própria entrada, com o custo dela ao lado (D1: *"deve ter UI para tudo isso"*)
-- [ ] A aba de números mostra o tamanho do núcleo e quantas entradas ele tem
-- [ ] Fixar é gesto **seu**: ator não-humano não fixa
-- [ ] Gate: `pnpm gate:quick`
+- [x] Fixar e desfixar da própria entrada, com o custo dela ao lado (D1: *"deve ter UI para tudo isso"*)
+- [x] A aba de números mostra o tamanho do núcleo e quantas entradas ele tem
+- [x] Fixar é gesto **seu**: ator não-humano não fixa
+- [x] A auditoria de porte do CSS, nas duas direções — e ela achou dois defeitos reais que o jsdom
+      não vê: o `<ol>` da linha do tempo sem regra (marcador do navegador à vista) e `.mem-group`
+      pedida sem pintura nenhuma
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): fixar memória no núcleo, e ver a marca d'água`
 
