@@ -60,6 +60,8 @@ export async function startDaemon(options: {
   port: number;
   stateDir: string;
   shell?: string;
+  /** Variáveis a mais — o que um spec precisa ligar só para ele. */
+  env?: Record<string, string>;
 }): Promise<ManagedDaemon> {
   const child = spawn("pnpm", ["--filter", "@lumem/server", "start"], {
     cwd: REPO_ROOT,
@@ -68,6 +70,7 @@ export async function startDaemon(options: {
       LUMEM_PORT: String(options.port),
       LUMEM_STATE_DIR: options.stateDir,
       SHELL: options.shell ?? "/bin/sh",
+      ...options.env,
     },
     stdio: "ignore",
     // Its own process group, so stopping it can reach the daemon underneath.

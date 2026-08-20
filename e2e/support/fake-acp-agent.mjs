@@ -79,6 +79,33 @@ function configOptions() {
 /** A frase que pede o eco. Combinada com o spec, e com mais nada. */
 const ECHO = "eco do que recebeu";
 
+/** A primeira linha do prompt de destilação, como o daemon a escreve. */
+const DISTILL_OPENER = "Uma sessão de trabalho terminou.";
+
+/** Um candidato de memória, no formato que o destilador valida. */
+async function runDistill() {
+  update({
+    sessionUpdate: "agent_message_chunk",
+    messageId: "destilacao",
+    content: {
+      type: "text",
+      text: JSON.stringify({
+        memories: [
+          {
+            type: "process",
+            name: "O frontmatter deste repo",
+            description: "frontmatter vazio é erro, não ausência",
+            body: "Frontmatter vazio quebra o loader: trate como erro nomeado.",
+            evidence: "src/lore/loader.ts:1",
+          },
+        ],
+      }),
+    },
+  });
+  await sleep(10);
+  return "end_turn";
+}
+
 /**
  * Repete o que chegou, bloco por bloco.
  *
@@ -383,6 +410,13 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       // prova que o daemon montou o bloco; só o agente repetindo o que recebeu
       // prova que ele chegou do outro lado. Sai antes do turno roteirizado
       // porque o roteiro pede permissão e trava — e este teste não é sobre isso.
+      // A destilação (PR 07) pergunta sobre a sessão que terminou, e responde-se
+      // com JSON. Antes do turno roteirizado, que pede permissão e trava — não
+      // há ninguém para responder permissão numa destilação.
+      if (text.startsWith(DISTILL_OPENER)) {
+        void runDistill().then((stopReason) => reply(message.id, { stopReason }));
+        return;
+      }
       if (text.includes(ECHO)) {
         void runEcho(blocks).then((stopReason) => reply(message.id, { stopReason }));
         return;

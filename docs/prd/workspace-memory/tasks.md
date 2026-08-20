@@ -597,7 +597,10 @@ derivável do repositório, e **dump de transcript**.
 - [x] Roda quando a sessão de **agente** morre, junto dos sinais de saída da S1
 - [x] Falha da destilação **não** quebra a saída da sessão: exit é fato, destilação é opinião
 - [x] Só sessão raiz (Q21): sessão retomada não redestila a conversa que já foi destilada
-- [x] Sessão morta cedo (`session_killed_early`) não destila: ela já é um sinal de que nada aconteceu
+- [x] ~~Sessão morta cedo (`session_killed_early`) não destila~~ — **saiu.** Quem sabe se a sessão fez
+      algo é a **projeção**, não o relógio: sessão que edita um arquivo e é fechada em vinte segundos
+      fez trabalho, e sessão aberta a tarde toda conversando não fez nenhum. O sinal continua
+      existindo (S1) como insumo para ponderar depois, não como motivo para não olhar
 - [x] Instrumentada (Q20): quantos candidatos, quantos passaram o portão, e o que custou
 - [x] Gate: `pnpm gate:quick`
 
@@ -611,11 +614,26 @@ derivável do repositório, e **dump de transcript**.
 **Where**: `e2e/memory-distill.spec.ts`, `e2e/support/fake-acp-agent.mjs`
 
 **Done when**:
-- [ ] O agente falso responde à destilação com um candidato, e o spec o encontra na inbox
-- [ ] Aprovar pela tela transforma em memória — o caminho todo, do turno ao acervo
-- [ ] Gate: `pnpm gate:full`
+- [x] O agente falso responde à destilação com um candidato, e o spec o encontra na inbox
+- [x] Aprovar transforma em memória — o caminho todo, do turno ao acervo. **Pela API, e não pela
+      tela**: a destilação vem desligada, e ligar no daemon compartilhado faria toda sessão de agente
+      de todo spec produzir uma proposta, quebrando os specs que asseguram o conteúdo da inbox. A
+      aprovação pela tela é o segundo spec do `memory.spec.ts`, que é onde há navegador apontado
+- [x] Gate: `pnpm gate:full`
 
 **Commit**: `test(e2e): a sessão termina, e o que ela ensinou espera revisão`
+
+---
+
+### O que a 07 decidiu enquanto executava
+
+| # | O quê | Onde |
+|---|---|---|
+| **D1** | **A guarda por tempo de vida saiu.** Ela pulava a sessão morta em segundos, e estava errada: quem sabe se a sessão fez algo é a **projeção**, não o relógio. O e2e foi quem cobrou — uma sessão de teste vive segundos e faz trabalho de verdade | `memory/capture.ts` |
+| **D2** | **A sessão de destilação não tem linha no banco**, e é isso que a mantém invisível: não aparece em aba, não é reconciliada no boot, e **não recebe o núcleo da memória** — o preâmbulo passou a recusar sessão que o daemon não registrou. Injetar diretriz numa destilação seria pedir que ela obedecesse regras sobre um trabalho que não está fazendo | `memory/preamble.ts` |
+| **D3** | **A destilação não escolhe escopo.** O escopo vem do tipo e do escopo da sessão; deixar o agente escolher seria deixá-lo escolher se passa pela sua revisão | `memory/capture.ts` |
+| **D4** | **A aba de números não some mais quando não há uso.** Ela retornava um estado vazio, e isso passou a esconder a marca d'água e o estado da destilação junto. Zero é um número | `MemoryPanel` |
+| **D5** | **`distill` entrou no `memory_usage` como `kind` próprio** — quantos candidatos, quanto tempo, e também quando não achou nada. É a instrumentação que a Q20 pede desde o primeiro dia, e é o número que decide se isto vale o que custa | `recall.usage` |
 
 ---
 

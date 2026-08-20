@@ -189,12 +189,15 @@ describe("createSessionCapture", () => {
     expect(memory.proposals({ status: "pending" })).toHaveLength(0);
   });
 
-  it("sessão morta em segundos não destila: ela já é um sinal", async () => {
+  it("quem decide é a projeção, não o relógio: sessão curta que trabalhou destila", async () => {
+    // A guarda por tempo de vida existiu por um dia e saiu: uma sessão que edita
+    // um arquivo e é fechada em vinte segundos **fez** trabalho, e uma que ficou
+    // aberta a tarde toda conversando não fez nenhum.
     const { capture, memory, row } = await world();
 
     await capture(row, new Date(row.createdAt.getTime() + 2_000));
 
-    expect(memory.proposals({ status: "pending" })).toHaveLength(0);
+    expect(memory.proposals({ status: "pending" })).toHaveLength(1);
   });
 
   it("sessão que só conversou não sobe agente nenhum", async () => {

@@ -4,7 +4,6 @@ import type { AcpManager } from "../acp/AcpManager.js";
 import type { Db } from "../db/index.js";
 import type { SessionRow } from "../db/schema.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
-import { isKilledEarly } from "./signals.js";
 
 import { MemoryService } from "./MemoryService.js";
 import { distill, type Distiller } from "./distiller.js";
@@ -34,7 +33,11 @@ export interface SessionCaptureOptions {
   now?: () => number;
 }
 
-export type SessionCapture = (row: SessionRow, endedAt: Date) => Promise<void>;
+/**
+ * `endedAt` fica na assinatura por contrato do `SessionStore`, e não por uso: o
+ * que decide se há o que aprender é a projeção, não o relógio.
+ */
+export type SessionCapture = (row: SessionRow, endedAt?: Date) => Promise<void>;
 
 export function createSessionCapture({
   db,
@@ -44,7 +47,7 @@ export function createSessionCapture({
   log,
   now = () => Date.now(),
 }: SessionCaptureOptions): SessionCapture {
-  return async (row, endedAt) => {
+  return async (row) => {
     if (!enabled) return;
     // Sessão de agente por ACP: um shell não tem transcrição para projetar, e
     // uma sessão PTY de agente não emite `tool_call` — a captura estrutural é o
@@ -59,9 +62,16 @@ export function createSessionCapture({
      * voltariam para a inbox toda vez que a conversa fosse retomada.
      */
     if (row.resumedFromId !== null) return;
-    // Sessão morta em segundos já é um sinal (`session_killed_early`), e o que
-    // ela tem para ensinar é que nada aconteceu.
-    if (isKilledEarly(row.createdAt, endedAt)) return;
+    /*
+     * **Não** há guarda por tempo de vida, e ela existiu por um dia.
+     *
+     * A ideia era pular a sessão que morreu em segundos, porque ela "não fez
+     * nada". Mas quem sabe se a sessão fez algo é a **projeção**, não o relógio:
+     * uma sessão que edita um arquivo e é fechada em vinte segundos fez trabalho,
+     * e uma que ficou aberta a tarde toda conversando não fez nenhum. O
+     * `session_killed_early` continua existindo como sinal (S1) — ele é insumo
+     * para ponderar depois, não motivo para não olhar.
+     */
 
     const startedAt = now();
     const memory = new MemoryService({ db, stateDir, ...(log ? { log } : {}) });
