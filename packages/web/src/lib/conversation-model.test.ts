@@ -612,3 +612,34 @@ describe("the conversation was picked up again", () => {
     expect(state.usage?.totalCost).toBe(0.5);
   });
 });
+describe("núcleo da memória", () => {
+  it("aparece na conversa, com o que custou", () => {
+    const state = feed(emptyConversation(), at({ type: "memory_core", entries: 3, chars: 1_240 }));
+
+    // Injeção invisível é o que o PRD proíbe por nome: o número de diretrizes e
+    // o custo em caracteres ficam na conversa, no lugar em que aconteceram.
+    expect(state.turns).toHaveLength(1);
+    const block = state.turns[0]?.blocks[0];
+    expect(block?.kind).toBe("meta");
+    expect(block?.kind === "meta" && block.text).toContain("3 diretrizes fixadas");
+    expect(block?.kind === "meta" && block.text).toContain("1.240 caracteres");
+  });
+
+  it("uma diretriz é diretriz, não diretrizes", () => {
+    const state = feed(emptyConversation(), at({ type: "memory_core", entries: 1, chars: 400 }));
+
+    const block = state.turns[0]?.blocks[0];
+    expect(block?.kind === "meta" && block.text).toContain("1 diretriz fixada");
+  });
+
+  it("é turno próprio: não cola no que o agente estava dizendo", () => {
+    const state = feed(
+      emptyConversation(),
+      at({ type: "message", messageId: "m1", role: "agent", text: "oi" }),
+      at({ type: "memory_core", entries: 1, chars: 400 }),
+    );
+
+    expect(state.turns).toHaveLength(2);
+  });
+});
+

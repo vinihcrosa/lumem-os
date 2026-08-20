@@ -7,6 +7,7 @@ import { createEventBus } from "./events.js";
 import { AcpManager } from "./acp/AcpManager.js";
 import { ensureMemoryHome } from "./memory/home.js";
 import { MemoryService } from "./memory/MemoryService.js";
+import { createMemoryPreamble } from "./memory/preamble.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createTranscriptStore, type TranscriptStore } from "./acp/TranscriptStore.js";
 import { createSessionStore } from "./sessions/SessionStore.js";
@@ -109,6 +110,15 @@ export async function bootstrap({
           bootedApp?.log.warn(...args);
         },
       },
+      // A memória entra na conversa aqui, e só aqui: é o único lugar que conhece
+      // o banco, o `~/.lumem` e o endereço do próprio daemon ao mesmo tempo.
+      // Um `AcpManager` injetado por teste não recebe nada — a conversa dele é a
+      // que era antes desta feature.
+      preamble: createMemoryPreamble({
+        db: openedDatabase.db,
+        stateDir: config.stateDir,
+        askUrl: `http://${config.host}:${String(config.port)}/memory/ask`,
+      }),
     });
   const sessionStore = createSessionStore({
     db: openedDatabase.db,

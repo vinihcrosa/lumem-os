@@ -545,6 +545,11 @@ function BlockView({
       // reports about itself. This is the first. Grey, in place, and never thrown
       // (D3); silence is what makes a tab look stuck for no reason.
       return <div className="unknown">{block.text}</div>;
+    case "meta":
+      // `.meta`, e não `.unknown`: a sessão contando o que ela fez não é um
+      // evento que ninguém reconheceu. Mesma forma, outro significado — o
+      // protótipo mantém as duas classes justamente por isso.
+      return <div className="meta">{block.text}</div>;
   }
 }
 

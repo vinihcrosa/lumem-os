@@ -69,7 +69,16 @@ export type Block =
   | { kind: "tool"; call: ToolCallView }
   | { kind: "permission"; request: PendingPermission }
   /** Something the client received and could not name. Grey, in place. */
-  | { kind: "note"; text: string };
+  | { kind: "note"; text: string }
+  /**
+   * Algo que a **sessão** conta sobre si mesma — hoje, o núcleo da memória.
+   *
+   * Separado do `note` porque as duas coisas dizem coisas diferentes, e o
+   * protótipo mantém duas classes exatamente por isso: `.unknown` é evento que
+   * ninguém reconheceu, `.meta` é a sessão se declarando. Juntar os dois faria a
+   * injeção parecer um defeito.
+   */
+  | { kind: "meta"; text: string };
 
 export interface Turn {
   /**
@@ -343,6 +352,35 @@ export function reduceConversation(
         turns: [
           ...state.turns,
           { role: "resumed", blocks: [], at, fromSessionId: event.fromSessionId },
+        ],
+      };
+
+    case "memory_core":
+      /*
+       * Turno próprio, e antes da mensagem da pessoa.
+       *
+       * `appendBlock` colaria isso no que o agente estava dizendo — e não é o
+       * agente dizendo: é o daemon declarando o que enfiou no prompt antes de
+       * qualquer um falar. Injeção invisível é o que o §12 do PRD proíbe por
+       * nome, e "visível" aqui quer dizer no lugar certo da ordem.
+       */
+      return {
+        ...state,
+        turns: [
+          ...state.turns,
+          {
+            role: "agent",
+            blocks: [
+              {
+                kind: "meta",
+                text:
+                  `memória do workspace: ${String(event.entries)} ` +
+                  `${event.entries === 1 ? "diretriz fixada" : "diretrizes fixadas"}` +
+                  ` · ${event.chars.toLocaleString("pt-BR")} caracteres neste turno`,
+              },
+            ],
+            at,
+          },
         ],
       };
 

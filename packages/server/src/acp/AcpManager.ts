@@ -221,6 +221,16 @@ interface Session {
    * has spoken to yet, so "before the first prompt" is a boundary that cannot race.
    */
   replaying: boolean;
+  /**
+   * O núcleo da memória já entrou nesta sessão (workspace-memory, D2).
+   *
+   * O bloco vai **uma vez**, no primeiro turno, e não em todo turno. A razão é o
+   * cache do provedor: prompt que muda no meio da conversa invalida o prefixo
+   * cacheado, e o spike do `acp-sessions` mediu 22.708 tokens de escrita de
+   * cache num turno trivial. Reinjetar diretriz que o agente já leu é pagar
+   * aquilo de novo para não dizer nada de novo.
+   */
+  coreInjected: boolean;
 }
 
 export interface AcpManagerOptions {
@@ -269,6 +279,32 @@ export interface AcpManagerOptions {
    * land, and a `console.warn` in a daemon is a message nobody reads.
    */
   log?: Pick<FastifyBaseLogger, "warn">;
+  /**
+   * O que a memória do workspace tem a dizer antes da primeira mensagem.
+   *
+   * Uma função injetada, e não um `MemoryService` aqui dentro, por direção de
+   * dependência: este arquivo é o único que entende ACP, e ele não tem por que
+   * aprender o que é um escopo de memória. Quem constrói o manager sabe as duas
+   * coisas e amarra uma na outra.
+   *
+   * Ausente é o default: um manager de teste que não é sobre memória não
+   * injeta nada, e a conversa é exatamente a que era antes desta feature.
+   */
+  preamble?: AcpPreambleSource;
+}
+
+/**
+ * O bloco que entra antes da primeira mensagem da pessoa.
+ *
+ * `null` quando não há o que dizer — e é diferente de bloco vazio: sessão sem
+ * memória nenhuma não recebe cabeçalho de uma seção que não existe.
+ */
+export type AcpPreambleSource = (session: AcpSessionInfo) => Promise<AcpPreamble | null>;
+
+export interface AcpPreamble {
+  text: string;
+  /** Quantas memórias fixadas ele carrega — a marca d'água, na conversa. */
+  entries: number;
 }
 
 /**
@@ -296,6 +332,7 @@ export class AcpManager {
   private readonly now: () => number;
   private readonly transcripts: TranscriptStore;
   private readonly log: Pick<FastifyBaseLogger, "warn"> | undefined;
+  private readonly preamble: AcpPreambleSource | undefined;
 
   constructor({
     spawner = spawnAcpProcess,
@@ -306,6 +343,7 @@ export class AcpManager {
     now = () => Date.now(),
     transcripts = createMemoryTranscriptStore(),
     log,
+    preamble,
   }: AcpManagerOptions = {}) {
     this.spawner = spawner;
     this.handshakeTimeoutMs = handshakeTimeoutMs;
@@ -315,6 +353,7 @@ export class AcpManager {
     this.now = now;
     this.transcripts = transcripts;
     this.log = log;
+    this.preamble = preamble;
   }
 
   /**
@@ -573,6 +612,7 @@ export class AcpManager {
         : undefined,
       turnId: newId(),
       replaying: false,
+      coreInjected: false,
     };
 
     // The sniffer sits between the adapter and the SDK. See `unknown-updates.ts`
@@ -619,6 +659,22 @@ export class AcpManager {
     // daemon already had on disk (D14). From here on it is answering.
     session.replaying = false;
 
+    // O núcleo da memória, e só no primeiro turno (workspace-memory, D2). Antes
+    // da mensagem da pessoa na transcrição porque foi antes dela no prompt: a
+    // conversa gravada tem que estar na ordem em que o agente leu.
+    const preamble = session.coreInjected ? null : await this.coreFor(session);
+    if (preamble !== null) {
+      // Marcado antes de emitir: se o `session/prompt` falhar, o núcleo já foi
+      // para a transcrição e reinjetar no turno seguinte diria duas vezes a
+      // mesma coisa. Um turno perdido é menos ruim que diretriz duplicada.
+      session.coreInjected = true;
+      this.emit(session, {
+        type: "memory_core",
+        entries: preamble.entries,
+        chars: preamble.text.length,
+      });
+    }
+
     // The user's own message goes into the transcript before the agent hears it.
     // The adapter does not echo it, so without this line reopening the tab would
     // show every answer and none of the questions — and the replay would not
@@ -633,7 +689,12 @@ export class AcpManager {
 
     const { stopReason } = await session.connection.agent.request("session/prompt", {
       sessionId: session.info.acpSessionId,
-      prompt: [{ type: "text", text }],
+      // Bloco **separado**, nunca concatenado: o texto da pessoa vai verbatim,
+      // como sempre foi, e o que o daemon acrescentou é distinguível de fora.
+      prompt:
+        preamble === null
+          ? [{ type: "text", text }]
+          : [{ type: "text", text: preamble.text }, { type: "text", text }],
     });
 
     // The fifth card state, and the only place it can be derived (A14). ACP has
@@ -650,6 +711,27 @@ export class AcpManager {
     session.promptInFlight = false;
     this.emit(session, { type: "turn_end", stopReason });
     return stopReason;
+  }
+
+  /**
+   * O que a memória do workspace tem a dizer, ou `null`.
+   *
+   * Falha aqui **não** derruba o turno: memória é o que melhora a resposta, não
+   * o que autoriza a pergunta. Um `~/.lumem` corrompido ou um banco travado
+   * viraria sessão inutilizável, e o agente funcionava sem nada disso até esta
+   * feature existir.
+   */
+  private async coreFor(session: Session): Promise<AcpPreamble | null> {
+    if (this.preamble === undefined) return null;
+    try {
+      return await this.preamble({ ...session.info });
+    } catch (error) {
+      this.log?.warn(
+        { sessionId: session.info.id, err: error },
+        "não foi possível montar o núcleo da memória; a sessão segue sem ele",
+      );
+      return null;
+    }
   }
 
   /** Asks the agent to stop. The turn's own promise reports how it ended. */

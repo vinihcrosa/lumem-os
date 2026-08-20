@@ -15,7 +15,7 @@ import {
   type FakeAgentScript,
   type FakeAgentTurn,
 } from "../testing/acp-fake-agent.js";
-import { AcpManager } from "./AcpManager.js";
+import { AcpManager, type AcpManagerOptions } from "./AcpManager.js";
 import type { AcpProcess } from "./process.js";
 import {
   createMemoryTranscriptStore,
@@ -38,12 +38,16 @@ interface Harness {
   sessionId: string;
   process: AcpProcess;
   killed: Promise<void>;
+  /** Os blocos de cada `session/prompt`, para provar o que atravessou. */
+  promptBlocks: readonly (readonly string[])[];
 }
 
 interface StartOptions {
   /** Where the conversation is kept. Defaults to the manager's in-memory store. */
   transcripts?: TranscriptStore;
   log?: { warn: (...args: never[]) => void };
+  /** O que a memória do workspace tem a dizer. Ausente é o default. */
+  preamble?: AcpManagerOptions["preamble"];
 }
 
 async function start(
@@ -57,6 +61,7 @@ async function start(
     isAvailable: () => true,
     ...(options.transcripts ? { transcripts: options.transcripts } : {}),
     ...(options.log ? { log: options.log as unknown as { warn: () => void } } : {}),
+    ...(options.preamble ? { preamble: options.preamble } : {}),
   });
 
   const info = await manager.spawn({
@@ -68,7 +73,14 @@ async function start(
   const events: AcpEvent[] = [];
   manager.onEvent(info.id, ({ event }) => events.push(event));
 
-  return { manager, events, sessionId: info.id, process: fake.process, killed: fake.killed };
+  return {
+    manager,
+    events,
+    sessionId: info.id,
+    process: fake.process,
+    killed: fake.killed,
+    promptBlocks: fake.promptBlocks,
+  };
 }
 
 const typesOf = (events: readonly AcpEvent[]): string[] => events.map((event) => event.type);
@@ -1652,5 +1664,77 @@ describe("resuming yesterday's conversation", () => {
         acpSessionId: "sumiu",
       }),
     ).rejects.toThrow(/claude-agent-acp/);
+  });
+});
+
+describe("núcleo da memória no prompt", () => {
+  const core = { text: "# Memória do workspace\n\nCommit em inglês.", entries: 2 };
+
+  it("entra como bloco separado, e a mensagem da pessoa vai verbatim", async () => {
+    const { manager, sessionId, promptBlocks } = await start(
+      {},
+      { preamble: () => Promise.resolve(core) },
+    );
+
+    await manager.prompt(sessionId, "arruma o frontmatter");
+
+    // Dois blocos, não um texto colado: o que a pessoa escreveu continua sendo
+    // exatamente o que ela escreveu, e o acréscimo do daemon é distinguível.
+    expect(promptBlocks[0]).toEqual([core.text, "arruma o frontmatter"]);
+  });
+
+  it("vai uma vez, e não em todo turno (D2)", async () => {
+    const { manager, sessionId, promptBlocks } = await start(
+      {},
+      { preamble: () => Promise.resolve(core) },
+    );
+
+    await manager.prompt(sessionId, "primeira");
+    await manager.prompt(sessionId, "segunda");
+
+    // Reinjetar invalidaria o prefixo cacheado para não dizer nada de novo.
+    expect(promptBlocks[1]).toEqual(["segunda"]);
+  });
+
+  it("a injeção fica visível na conversa, com o custo", async () => {
+    const { manager, sessionId, events } = await start(
+      {},
+      { preamble: () => Promise.resolve(core) },
+    );
+
+    await manager.prompt(sessionId, "arruma");
+
+    const injected = events.find((event) => event.type === "memory_core");
+    expect(injected).toEqual({ type: "memory_core", entries: 2, chars: core.text.length });
+    // Antes da mensagem da pessoa, porque foi antes dela no prompt.
+    expect(typesOf(events).indexOf("memory_core")).toBeLessThan(typesOf(events).indexOf("message"));
+  });
+
+  it("sem memória nenhuma, nada é injetado e nada é anunciado", async () => {
+    const { manager, sessionId, events, promptBlocks } = await start(
+      {},
+      { preamble: () => Promise.resolve(null) },
+    );
+
+    await manager.prompt(sessionId, "arruma");
+
+    expect(promptBlocks[0]).toEqual(["arruma"]);
+    expect(typesOf(events)).not.toContain("memory_core");
+  });
+
+  it("memória que falha não derruba o turno", async () => {
+    const warns: unknown[] = [];
+    const { manager, sessionId, promptBlocks } = await start(
+      {},
+      {
+        preamble: () => Promise.reject(new Error("~/.lumem corrompido")),
+        log: { warn: ((...args: unknown[]) => warns.push(args)) as never },
+      },
+    );
+
+    // Memória é o que melhora a resposta, não o que autoriza a pergunta.
+    await expect(manager.prompt(sessionId, "arruma")).resolves.toBeDefined();
+    expect(promptBlocks[0]).toEqual(["arruma"]);
+    expect(warns).toHaveLength(1);
   });
 });

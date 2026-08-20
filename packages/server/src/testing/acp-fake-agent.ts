@@ -169,6 +169,14 @@ export interface FakeAgentHandle {
    * that question.
    */
   sendRaw(message: unknown): Promise<void>;
+  /**
+   * Os blocos de cada `session/prompt`, crus.
+   *
+   * O `script.prompt` recebe o texto já concatenado, o que é o que quase todo
+   * teste quer. Um não quer: o núcleo da memória entra como **bloco separado**,
+   * e concatenado os dois casos são indistinguíveis.
+   */
+  readonly promptBlocks: readonly (readonly string[])[];
 }
 
 /**
@@ -179,6 +187,7 @@ export interface FakeAgentHandle {
  * the code under test can detect is a test of the double.
  */
 export function fakeAgentProcess(script: FakeAgentScript = {}): FakeAgentHandle {
+  const promptBlocks: string[][] = [];
   // Two pipes: what the client writes, and what the agent writes back.
   const toAgent = new TransformStream<Uint8Array, Uint8Array>();
   const fromAgent = new TransformStream<Uint8Array, Uint8Array>();
@@ -229,6 +238,7 @@ export function fakeAgentProcess(script: FakeAgentScript = {}): FakeAgentHandle 
     },
 
     async prompt(params) {
+      promptBlocks.push(params.prompt.map((block) => (block.type === "text" ? block.text : "")));
       const text = params.prompt
         .map((block) => (block.type === "text" ? block.text : ""))
         .join("");
@@ -321,5 +331,6 @@ export function fakeAgentProcess(script: FakeAgentScript = {}): FakeAgentHandle 
     },
     killed,
     sendRaw: (message) => out.write(new TextEncoder().encode(`${JSON.stringify(message)}\n`)),
+    promptBlocks,
   };
 }

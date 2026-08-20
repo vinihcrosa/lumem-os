@@ -353,6 +353,26 @@ export const acpEventSchema = z.discriminatedUnion("type", [
    */
   z.object({ type: z.literal("resumed"), fromSessionId: z.string() }),
   /**
+   * O núcleo da memória entrou no prompt (workspace-memory, D2).
+   *
+   * Evento, e não silêncio: injeção invisível é o que o §12 do PRD proíbe por
+   * nome. O que o agente recebeu antes da sua mensagem tem que estar na
+   * conversa, com o custo do lado — é o único jeito de "por que ele respondeu
+   * isso?" ter resposta, e de a marca d'água ser uma coisa que você **vê** em
+   * vez de um número numa tela que ninguém abre.
+   *
+   * Vai uma vez por sessão porque a injeção vai uma vez por sessão: o bloco
+   * entra só no primeiro turno, para o prompt ficar estável e o cache do
+   * provedor sobreviver.
+   */
+  z.object({
+    type: z.literal("memory_core"),
+    /** Quantas memórias fixadas entraram. */
+    entries: z.number().int().nonnegative(),
+    /** O tamanho do bloco, em caracteres — a marca d'água. */
+    chars: z.number().int().nonnegative(),
+  }),
+  /**
    * An event the daemon received and could not name.
    *
    * A deliberate shape, not a hole: the daemon produces it after failing to

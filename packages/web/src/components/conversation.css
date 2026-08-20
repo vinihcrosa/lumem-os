@@ -461,6 +461,12 @@
  * silêncio total é o que faz uma aba parecer travada sem motivo.
  */
 .unknown { border-left: var(--border-width-thick) solid var(--color-border-default); padding-left: var(--space-10); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+/*
+ * Mesma forma, outro significado: `.meta` é o que a SESSÃO diz de si — hoje, o
+ * núcleo da memória que entrou no primeiro turno. Separado de `.unknown` porque
+ * um dia um deles vai querer mudar sem o outro.
+ */
+.meta { border-left: var(--border-width-thick) solid var(--color-border-subtle); padding-left: var(--space-10); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
 
 /* Aba com pedido de permissão esperando, e o mesmo sinal na sidebar. */
 .stab__dot--asking { background: var(--color-permission-pending); }

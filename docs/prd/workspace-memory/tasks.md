@@ -467,13 +467,13 @@ instalar nada, e o agente já tem shell. Fora do `/trpc` porque uma chamada tRPC
 **Where**: `acp/AcpManager.ts`, `sessions/SessionStore.ts` + testes
 
 **Done when**:
-- [ ] Só no **primeiro** prompt (D2): cache preservado, prompt estável
-- [ ] Bloco separado, antes da mensagem da pessoa — o texto dela vai verbatim, como sempre foi
-- [ ] **Visível**: um evento na conversa diz que o núcleo entrou e quanto custou. Injeção invisível é
+- [x] Só no **primeiro** prompt (D2): cache preservado, prompt estável
+- [x] Bloco separado, antes da mensagem da pessoa — o texto dela vai verbatim, como sempre foi
+- [x] **Visível**: um evento na conversa diz que o núcleo entrou e quanto custou. Injeção invisível é
       a coisa que o §12 do PRD proíbe por nome
-- [ ] Sessão sem memória nenhuma não injeta bloco vazio
-- [ ] O escopo da sessão decide a cadeia: worktree herda o projeto dela
-- [ ] Gate: `pnpm gate:quick`
+- [x] Sessão sem memória nenhuma não injeta bloco vazio
+- [x] O escopo da sessão decide a cadeia: worktree herda o projeto dela
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(acp): o núcleo da memória entra no primeiro turno`
 
