@@ -97,6 +97,13 @@ export interface FilePatch {
   patch: string;
 }
 
+export interface ReadLogInput {
+  /** A `git log --format` string. */
+  format: string;
+  /** How many commits back to read. */
+  limit: number;
+}
+
 export interface GitService {
   /**
    * Whether a path is the root of a git repository — and if not, which of the
@@ -127,6 +134,15 @@ export interface GitService {
    * worktree was cut from — so committed work shows up too.
    */
   listChanges(path: string, input: ChangesInput): Promise<ChangeSet>;
+  /**
+   * Raw `git log`, in the caller's own `--format`.
+   *
+   * The format is not this service's business: the one caller today is the
+   * revert scan of the action signals (Q17), and what it needs out of a commit
+   * is not what a history view would need. Bounded by `limit` because a scan
+   * looks back, not all the way.
+   */
+  readLog(path: string, input: ReadLogInput): Promise<string>;
   /**
    * The unified diff of a single file, F4.4.
    *
@@ -227,6 +243,13 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       }
 
       return { ok: true, root };
+    },
+
+    async readLog(path, { format, limit }) {
+      const { stdout } = await exec(["log", `--max-count=${limit}`, `--format=${format}`], {
+        cwd: path,
+      });
+      return stdout;
     },
 
     async resolveDefaultBranch(path) {

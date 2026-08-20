@@ -1,0 +1,212 @@
+import { execFile } from "node:child_process";
+import { chmodSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { promisify } from "node:util";
+
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
+import { ensureMemoryHome } from "./home.js";
+import { memoryDirFor, entryPathFor, repoRelative } from "./paths.js";
+import { commitChange } from "./repo.js";
+
+const run = promisify(execFile);
+
+afterEach(() => {
+  cleanupGitFixtures();
+});
+
+async function git(cwd: string, ...args: string[]): Promise<string> {
+  const { stdout } = await run("git", args, {
+    cwd,
+    env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_TERMINAL_PROMPT: "0" },
+  });
+  return stdout.trim();
+}
+
+async function home(): Promise<string> {
+  const stateDir = join(tempDir("lumem-repo-"), ".lumem");
+  await ensureMemoryHome({ stateDir });
+  return stateDir;
+}
+
+/** Escreve uma memória de mentira no lugar certo e devolve o caminho relativo. */
+function writeEntry(stateDir: string, slug: string, content = "conteúdo\n"): string {
+  const path = entryPathFor(stateDir, { scope: "global" }, "user", slug);
+  mkdirSync(memoryDirFor(stateDir, { scope: "global" }), { recursive: true });
+  writeFileSync(path, content);
+  return repoRelative(stateDir, path);
+}
+
+describe("commitChange", () => {
+  it("commita o que a operação tocou, com mensagem legível", async () => {
+    const stateDir = await home();
+    const path = writeEntry(stateDir, "estilo-de-revisao");
+
+    const result = await commitChange({
+      stateDir,
+      paths: [path],
+      operation: "add",
+      subject: "user/estilo-de-revisao",
+      actor: "human",
+    });
+
+    expect(result.commit).toMatch(/^[0-9a-f]{40}$/);
+    expect(await git(stateDir, "log", "-1", "--format=%s")).toBe("aprende: user/estilo-de-revisao");
+    expect(await git(stateDir, "log", "-1", "--format=%b")).toContain("Origem: human");
+    expect(await git(stateDir, "show", "--name-only", "--format=", "HEAD")).toBe(path);
+  });
+
+  it("não leva no commit o que o usuário já tinha no índice", async () => {
+    const stateDir = await home();
+    // Repositório **adotado**: o usuário deixou um `git add` pendente. O commit
+    // da memória não é dele, e sem o pathspec no `commit` ele ia junto.
+    writeFileSync(join(stateDir, "anotacao-do-usuario.md"), "minha anotação\n");
+    await git(stateDir, "add", "anotacao-do-usuario.md");
+    const path = writeEntry(stateDir, "estilo-de-revisao");
+
+    await commitChange({
+      stateDir,
+      paths: [path],
+      operation: "add",
+      subject: "user/estilo-de-revisao",
+      actor: "human",
+    });
+
+    expect(await git(stateDir, "show", "--name-only", "--format=", "HEAD")).toBe(path);
+    // E continua no índice, esperando o commit que é do usuário.
+    expect(await git(stateDir, "diff", "--cached", "--name-only")).toBe("anotacao-do-usuario.md");
+  });
+
+  it("caminho com glob não vira pathspec: `--` não desliga wildmatch", async () => {
+    const stateDir = await home();
+    const outro = entryPathFor(stateDir, { scope: "workspace", workspaceId: "ws2" }, "user", "a");
+    mkdirSync(memoryDirFor(stateDir, { scope: "workspace", workspaceId: "ws2" }), {
+      recursive: true,
+    });
+    writeFileSync(outro, "conteúdo do vizinho\n");
+
+    const result = await commitChange({
+      stateDir,
+      paths: ["workspaces/*/memory/user_a.md"],
+      operation: "delete",
+      subject: "user/a",
+      actor: "human",
+    });
+
+    // Sem `--literal-pathspecs`, o glob casaria a memória do `ws2` e o commit
+    // sairia com o trabalho de outra operação dentro — a armadilha registrada em
+    // `docs/project/testing.md`. Com ele o git não acha o caminho literal e diz
+    // isso em voz alta, que é o resultado certo: nenhum commit, e o arquivo do
+    // vizinho intocado.
+    expect(result.commit).toBeNull();
+    expect(result.skipped).toBe("git-failed");
+    // Ainda não rastreado: nada foi staged pelo glob.
+    expect(await git(stateDir, "status", "--porcelain", "-uall")).toContain(
+      "?? workspaces/ws2/memory/user_a.md",
+    );
+  });
+
+  it("não arrasta o que não é da operação", async () => {
+    const stateDir = await home();
+    const path = writeEntry(stateDir, "primeira");
+    writeEntry(stateDir, "outra-em-voo");
+    writeFileSync(join(stateDir, "memory", "rascunho.md"), "meu rascunho\n");
+
+    await commitChange({
+      stateDir,
+      paths: [path],
+      operation: "add",
+      subject: "user/primeira",
+      actor: "human",
+    });
+
+    // `git add <paths>`, nunca `-A`: o ~/.lumem é um diretório vivo.
+    const committed = await git(stateDir, "show", "--name-only", "--format=", "HEAD");
+    expect(committed).toBe(path);
+    const pending = await git(stateDir, "status", "--porcelain", "-uall");
+    expect(pending).toContain("outra-em-voo");
+    expect(pending).toContain("rascunho.md");
+  });
+
+  it("registra a remoção de um arquivo apagado", async () => {
+    const stateDir = await home();
+    const path = writeEntry(stateDir, "temporaria");
+    await commitChange({
+      stateDir,
+      paths: [path],
+      operation: "add",
+      subject: "user/temporaria",
+      actor: "human",
+    });
+    rmSync(join(stateDir, path));
+
+    const result = await commitChange({
+      stateDir,
+      paths: [path],
+      operation: "delete",
+      subject: "user/temporaria",
+      actor: "human",
+    });
+
+    expect(result.commit).not.toBeNull();
+    expect(await git(stateDir, "log", "-1", "--format=%s")).toBe("esquece: user/temporaria");
+    // O arquivo saiu da árvore, e o histórico continua sabendo que ele existiu.
+    expect(await git(stateDir, "log", "--format=%s", "--", path)).toContain(
+      "aprende: user/temporaria",
+    );
+  });
+
+  it("não inventa commit quando nada mudou", async () => {
+    const stateDir = await home();
+    const path = writeEntry(stateDir, "estavel");
+    await commitChange({
+      stateDir,
+      paths: [path],
+      operation: "add",
+      subject: "user/estavel",
+      actor: "human",
+    });
+
+    const again = await commitChange({
+      stateDir,
+      paths: [path],
+      operation: "update",
+      subject: "user/estavel",
+      actor: "human",
+    });
+
+    expect(again.commit).toBeNull();
+    expect(again.skipped).toBe("nothing-to-commit");
+  });
+
+  it("falha de git não desfaz a escrita — e não fica em silêncio", async () => {
+    const stateDir = await home();
+    const path = writeEntry(stateDir, "sobrevivente");
+    // Impede o commit sem impedir a escrita: o índice do git vira ilegível.
+    const gitDir = join(stateDir, ".git");
+    chmodSync(gitDir, 0o500);
+    const warn = vi.fn();
+
+    try {
+      const result = await commitChange({
+        stateDir,
+        paths: [path],
+        operation: "add",
+        subject: "user/sobrevivente",
+        actor: "human",
+        log: { warn },
+      });
+
+      expect(result.commit).toBeNull();
+      expect(result.skipped).toBe("git-failed");
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      chmodSync(gitDir, 0o700);
+    }
+
+    // O que importa: a memória continua no disco. O histórico é serviço prestado
+    // ao dado, não o contrário.
+    expect(await git(stateDir, "status", "--porcelain", "-uall")).toContain(path);
+  });
+});

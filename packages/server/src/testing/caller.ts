@@ -60,7 +60,7 @@ export function createTestCaller(
   const config = loadConfig(env);
   const git = createGitService();
   const events = createEventBus();
-  const sessionStore = createSessionStore({ db: database.db, ptyManager, events });
+  const sessionStore = createSessionStore({ db: database.db, ptyManager, events, git });
   // Same wiring the daemon uses: without it a session that ends on its own
   // stays `running` and the removal rules read stale state.
   const stopTracking = sessionStore.trackExits();

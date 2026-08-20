@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { listSignals } from "../memory/signals.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 import { cleanupGitFixtures, createRepo, runGit, tempDir } from "../testing/git-fixtures.js";
 
@@ -339,5 +340,42 @@ describe("worktree.plan", () => {
     await expect(ctx.api.worktree.plan({ projectId: "nope", name: "tarefa" })).rejects.toMatchObject(
       { code: "NOT_FOUND" },
     );
+  });
+});
+
+describe("worktree.remove e o sinal de ação (Q17)", () => {
+  it("registra o descarte, e o `detail` diz que ela saiu limpa", async () => {
+    const { context: ctx, projectId } = await setup();
+    const created = await ctx.api.worktree.create({ projectId, name: "teste" });
+
+    await ctx.api.worktree.remove({ id: created.id });
+
+    const [signal] = listSignals(ctx.db, { kind: "worktree_discarded" });
+    // O alvo é o id, não o nome da branch: nome é frase que você digitou.
+    expect(signal?.target).toBe(created.id);
+    expect(signal?.projectId).toBe(projectId);
+    expect(signal?.detail).toBe(0);
+  });
+
+  it("`detail` separa 'terminei' de 'desisti'", async () => {
+    const { context: ctx, projectId } = await setup();
+    const created = await ctx.api.worktree.create({ projectId, name: "teste" });
+    writeFileSync(join(created.path, "README.md"), "changed");
+
+    await ctx.api.worktree.remove({ id: created.id, force: true });
+
+    expect(listSignals(ctx.db, { kind: "worktree_discarded" })[0]?.detail).toBe(1);
+  });
+
+  it("uma remoção recusada não descartou nada, e não vira sinal", async () => {
+    const { context: ctx, projectId } = await setup();
+    const created = await ctx.api.worktree.create({ projectId, name: "teste" });
+    writeFileSync(join(created.path, "novo.txt"), "x");
+
+    await expect(ctx.api.worktree.remove({ id: created.id })).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
+
+    expect(listSignals(ctx.db)).toHaveLength(0);
   });
 });

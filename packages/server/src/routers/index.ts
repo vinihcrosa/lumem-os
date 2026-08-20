@@ -5,6 +5,7 @@ import { agentConfigRouter } from "./agentConfig.js";
 import { changesRouter } from "./changes.js";
 import { eventsRouter } from "./events.js";
 import { filesRouter } from "./files.js";
+import { memoryRouter } from "./memory.js";
 import { projectRouter } from "./project.js";
 import { sessionRouter } from "./session.js";
 import { setupRouter } from "./setup.js";
@@ -20,6 +21,7 @@ export const appRouter = router({
   changes: changesRouter,
   events: eventsRouter,
   files: filesRouter,
+  memory: memoryRouter,
   project: projectRouter,
   session: sessionRouter,
   setup: setupRouter,

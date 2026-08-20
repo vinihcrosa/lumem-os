@@ -146,13 +146,15 @@ describe("attach", () => {
   it("sends the buffer before any new byte", async () => {
     const id = spawnSession("cat");
     ptyManager.write(id, "old-line\n");
-    // Both copies, not one. `cat` under a PTY produces the line twice — the
-    // terminal echoes the input and `cat` writes it back — so waiting for the
-    // first `toContain` can attach while the second is still in flight, and it
-    // then arrives on the stream and fails the assertion below. The race is in
-    // the wait, not in the endpoint, and it only shows under load.
+    // **Duas** cópias, e não uma: o PTY ecoa a linha digitada, e só depois o
+    // `cat` a devolve pelo stdout. Esperar pela primeira ocorrência ancora o
+    // teste no eco e deixa a saída do `cat` chegar **depois** do attach — que é
+    // exatamente o byte que a asserção lá embaixo proíbe.
+    //
+    // As duas pilhas acharam esta corrida separadamente e escreveram a mesma
+    // asserção de dois jeitos. Ficou o mais direto.
     await vi.waitFor(
-      () => expect(ptyManager.snapshot(id).split("old-line")).toHaveLength(3),
+      () => expect(ptyManager.snapshot(id).match(/old-line/g)).toHaveLength(2),
       WAIT,
     );
 

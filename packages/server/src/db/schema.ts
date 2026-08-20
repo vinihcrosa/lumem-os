@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /**
  * The daemon's state, as PRD §6 describes it.
@@ -194,10 +194,347 @@ export const session = sqliteTable(
   ],
 );
 
-export const schema = { workspace, project, worktree, agentConfig, session };
+/**
+ * O catálogo de memórias — **projeção**, não fonte da verdade.
+ *
+ * A Q3 decidiu que Markdown no `~/.lumem` é a fonte; esta tabela existe para
+ * responder rápido "o que existe" e, mais tarde, para o índice FTS5 da PR 04.
+ * Apagar este banco e rodar `reindex` tem que devolver exatamente o mesmo
+ * conteúdo — é o `Done when` da T5, e a razão de nada de domínio nascer aqui.
+ *
+ * Sem foreign key para `workspace` e `project` de propósito: o id de projeto
+ * vem do `project.toml` do repositório (Q3.1) e pode existir antes de a linha
+ * existir no banco. Uma FK aqui recusaria memória de um projeto que o daemon
+ * ainda não registrou — e a fonte da verdade está no disco de qualquer forma.
+ */
+export const memoryEntry = sqliteTable(
+  "memory_entry",
+  {
+    id: text("id").primaryKey(),
+    /** Caminho relativo ao state dir, com barra. É o que o git também usa. */
+    path: text("path").notNull().unique(),
+    type: text("type").notNull(),
+    scope: text("scope").notNull(),
+    /** A segunda metade da identidade `(tipo, slug)` da Q12. */
+    slug: text("slug").notNull(),
+    /**
+     * `''` quando o escopo não tem workspace — nunca NULL.
+     *
+     * O vazio é sentinela deliberada, e a razão está no índice de identidade
+     * abaixo: no SQLite NULL nunca colide com NULL, então uma coluna nula aqui
+     * desligaria a unicidade de `(tipo, slug)` em todo escopo que não seja
+     * `project`. Quem lê estas colunas trata `''` como "não se aplica".
+     */
+    workspaceId: text("workspace_id").notNull().default(""),
+    /** `''` fora do escopo `project` — mesmo motivo de `workspace_id`. */
+    projectId: text("project_id").notNull().default(""),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    /** Do frontmatter, para responder "por que esta memória existe" sem abrir o arquivo. */
+    sourceActor: text("source_actor").notNull(),
+    confidence: text("confidence").notNull(),
+    /** sha256 do arquivo inteiro, para comparar conteúdo sem reler o disco. */
+    contentHash: text("content_hash").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "memory_entry_type",
+      sql`${table.type} IN ('user', 'feedback', 'project', 'domain', 'process', 'contract', 'reference')`,
+    ),
+    check("memory_entry_scope", sql`${table.scope} IN ('global', 'workspace', 'project')`),
+    // A identidade da Q12 é única dentro do escopo em que ela vale.
+    //
+    // Só funciona porque `workspace_id` e `project_id` são `''` — e não NULL —
+    // fora do escopo em que valem: no SQLite **NULL não colide com NULL**, e
+    // com colunas nulas esta unicidade valeria apenas no escopo `project`.
+    uniqueIndex("memory_entry_identity").on(
+      table.scope,
+      table.workspaceId,
+      table.projectId,
+      table.type,
+      table.slug,
+    ),
+  ],
+);
+
+/**
+ * O WAL de decisões de memória — **magro**, como a Q37 decidiu.
+ *
+ * Com o `~/.lumem` versionado por git (Q36), o conteúdo anterior é o commit
+ * anterior: guardar `prior_content` aqui seria manter dois históricos do mesmo
+ * texto. O que esta tabela guarda é a **decisão** — origem, regra que bateu,
+ * confiança, idempotência, resultado — e o SHA que ela produziu.
+ *
+ * E guarda o que o git não tem como guardar: **rejeição e no-op**. Escrita
+ * barrada pelo scan nunca vira arquivo, então ela só existe aqui — e é
+ * exatamente o que se pergunta depois ("por que isso não foi salvo?").
+ */
+export const memoryDecision = sqliteTable(
+  "memory_decision",
+  {
+    id: text("id").primaryKey(),
+    /** Repetir a mesma decisão é no-op, e é o que torna o replay seguro. */
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    /** Caminho relativo ao state dir. Presente mesmo em rejeição: é o alvo pretendido. */
+    path: text("path").notNull(),
+    operation: text("operation").notNull(),
+    outcome: text("outcome").notNull(),
+    /** Quem pediu: `human`, `agent`, `distiller`, `auto_research`, `import`. */
+    actor: text("actor").notNull(),
+    confidence: text("confidence").notNull(),
+    /** sha256 do conteúdo candidato — dedupe sem guardar o conteúdo. */
+    candidateHash: text("candidate_hash").notNull(),
+    /** As regras que o scan achou, por nome. Nunca o texto que casou. */
+    ruleTrace: text("rule_trace", { mode: "json" }).notNull().$type<string[]>().default([]),
+    /**
+     * As sessões que originaram o pedido — a "sessão" que a Q37 pede no WAL.
+     *
+     * Vazio quando a origem é humana e direta. É o que liga a decisão à conversa
+     * em que ela nasceu, e sem isso "de onde veio isso?" não tem resposta.
+     */
+    sourceSessions: text("source_sessions", { mode: "json" }).notNull().$type<string[]>().default([]),
+    /** Por que não foi aplicada, quando não foi. */
+    reason: text("reason"),
+    /** O commit no `~/.lumem`. Nulo quando não houve escrita, ou quando o git falhou. */
+    commitSha: text("commit_sha"),
+    ...timestamps,
+  },
+  (table) => [
+    check("memory_decision_operation", sql`${table.operation} IN ('add', 'update', 'delete')`),
+    check(
+      "memory_decision_outcome",
+      sql`${table.outcome} IN ('applied', 'noop', 'rejected')`,
+    ),
+  ],
+);
+
+/** O maior caminho que um checkout produz, com folga. Acima disso não é alvo. */
+export const MAX_SIGNAL_TARGET_LENGTH = 1_024;
+
+/**
+ * O sinal de ação — o único insumo que **não depende de cooperação** (Q17).
+ *
+ * Compozy e Hermes extraem do que foi **dito**. Isto registra o que foi
+ * **feito**: você editou por cima do que o agente escreveu, reverteu o commit
+ * dele, descartou a worktree, matou a sessão em trinta segundos. É o sinal mais
+ * barato que existe, e nenhuma das quatro referências usa.
+ *
+ * A regra de privacidade da Q18 está no schema, não num comentário: **só evento
+ * estrutural**. Há `target` (o quê) e `detail` (um número), e não existe coluna
+ * de conteúdo.
+ *
+ * Não existir coluna não bastava. A afinidade INTEGER do SQLite guarda texto
+ * não numérico como TEXT, então `detail` aceitava frase; e `target` era TEXT
+ * sem limite, onde cabia um arquivo inteiro. Os dois `CHECK` abaixo são o que
+ * torna a regra estrutural em vez de disciplina de quem chama: `detail` só
+ * aceita inteiro, e `target` só aceita um identificador de uma linha — caminho,
+ * SHA ou id — nunca prosa.
+ */
+export const actionSignal = sqliteTable(
+  "action_signal",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").notNull(),
+    /** O alvo: caminho de arquivo, id de sessão, id de worktree. */
+    target: text("target").notNull(),
+    workspaceId: text("workspace_id"),
+    projectId: text("project_id"),
+    worktreeId: text("worktree_id"),
+    sessionId: text("session_id"),
+    /** Um número que qualifica — linhas trocadas, segundos de vida. Nunca texto do usuário. */
+    detail: integer("detail"),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "action_signal_kind",
+      sql`${table.kind} IN (
+        'user_edited_after_agent',
+        'user_reverted_agent_commit',
+        'worktree_discarded',
+        'session_killed_early'
+      )`,
+    ),
+    // Um número, e o banco é quem cobra. Sem isto, "12 linhas trocadas" e
+    // "TODO: pedir aumento" entram pela mesma coluna.
+    check(
+      "action_signal_detail_number",
+      sql`${table.detail} IS NULL OR typeof(${table.detail}) = 'integer'`,
+    ),
+    // Um identificador: caminho de arquivo, SHA ou id. O limite e a proibição
+    // de quebra de linha são o que separa isso de um trecho de texto.
+    check(
+      "action_signal_target_shape",
+      sql`length(${table.target}) BETWEEN 1 AND ${sql.raw(String(MAX_SIGNAL_TARGET_LENGTH))}
+        AND instr(${table.target}, char(10)) = 0`,
+    ),
+  ],
+);
+
+/**
+ * O registro de acesso cross-projeto (D8).
+ *
+ * Guarda **os dois** casos: o que foi permitido responde "o que foi lido"; o que
+ * foi negado responde "o que alguém tentou ler" — e é essa a pergunta que
+ * importa quando algo dá errado.
+ */
+export const memoryAccess = sqliteTable(
+  "memory_access",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id"),
+    /** Quem pediu — o projeto da sessão. */
+    fromProjectId: text("from_project_id"),
+    /** O que ele quis alcançar. */
+    targetProjectId: text("target_project_id"),
+    kind: text("kind").notNull(),
+    /** O alvo pedido: identidade de memória, ou caminho de arquivo. */
+    target: text("target").notNull(),
+    decision: text("decision").notNull(),
+    reason: text("reason"),
+    actor: text("actor").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    check("memory_access_kind", sql`${table.kind} IN ('memory', 'repository')`),
+    check("memory_access_decision", sql`${table.decision} IN ('allowed', 'denied')`),
+  ],
+);
+
+/**
+ * O sinal de uso (Q25) — o insumo objetivo de toda poda e consolidação futura.
+ *
+ * O Compozy promove só o que o recall já validou: *memória nunca recuperada
+ * nunca é promovida*. Sem estes contadores, consolidar vira o LLM chutando o
+ * que é importante — e é a diferença entre um sistema que aprende o que usa e
+ * um que acumula o que gerou.
+ */
+export const memorySignal = sqliteTable("memory_signal", {
+  /** O caminho é a chave: ele já é único no catálogo, e sobrevive ao reindex. */
+  path: text("path").primaryKey(),
+  recallCount: integer("recall_count").notNull().default(0),
+  lastRecalledAt: integer("last_recalled_at", { mode: "timestamp_ms" }),
+  /**
+   * O melhor **bm25 cru** que esta memória já teve numa busca.
+   *
+   * Cru, e não o score do ranking: aquele é normalizado contra os candidatos da
+   * busca, então resultado único sempre tira o teto e o número deixaria de
+   * discriminar exatamente onde a poda precisa dele.
+   */
+  bestScore: real("best_score").notNull().default(0),
+  ...timestamps,
+});
+
+/**
+ * A instrumentação do §6 do context-delivery.
+ *
+ * O número que mais importa é "quantas vezes o agente perguntou": perto de zero
+ * significa que a camada 3 é decoração, e que o desenho precisa mudar. Medir é
+ * o que separa decidir com dado de decidir com fé.
+ */
+export const memoryUsage = sqliteTable("memory_usage", {
+  id: text("id").primaryKey(),
+  /** `recall`, `read`, `write`, `inject` — o que foi feito. */
+  kind: text("kind").notNull(),
+  /** A sessão que originou, quando houver. */
+  sessionId: text("session_id"),
+  workspaceId: text("workspace_id"),
+  projectId: text("project_id"),
+  /** Quantos resultados a busca devolveu, ou quantos caracteres foram injetados. */
+  amount: integer("amount").notNull().default(0),
+  /** Quanto tempo custou, em milissegundos. */
+  durationMs: integer("duration_ms").notNull().default(0),
+  ...timestamps,
+});
+
+/**
+ * A inbox de propostas (Q27).
+ *
+ * Escrita de **workspace** feita por agente não vira memória: vira proposta.
+ * É a assimetria que faz o workspace valer a pena sem deixar um agente
+ * contaminar N projetos — leitura livre, escrita para cima revisada.
+ *
+ * A proposta guarda o **candidato inteiro**, e não um ponteiro: ela precisa
+ * sobreviver a a memória de origem mudar, e precisa ser revisável sem que nada
+ * tenha sido gravado ainda.
+ */
+export const memoryProposal = sqliteTable(
+  "memory_proposal",
+  {
+    id: text("id").primaryKey(),
+    /** Onde ela seria gravada, se aprovada. */
+    path: text("path").notNull(),
+    type: text("type").notNull(),
+    scope: text("scope").notNull(),
+    slug: text("slug").notNull(),
+    workspaceId: text("workspace_id"),
+    projectId: text("project_id"),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    body: text("body").notNull().default(""),
+    /** Quem propôs, e de onde. */
+    actor: text("actor").notNull(),
+    fromProjectId: text("from_project_id"),
+    sessionId: text("session_id"),
+    confidence: text("confidence").notNull(),
+    /**
+     * O que sustenta a proposta.
+     *
+     * A D7 decidiu o critério: resposta apoiada em artefato verificável vira
+     * memória direta; **conclusão vira proposta**. Quando há evidência, ela vem
+     * junto — e a tela mostra a diferença.
+     */
+    evidence: text("evidence"),
+    status: text("status").notNull().default("pending"),
+    /** Preenchido quando você decide. */
+    resolvedAt: integer("resolved_at", { mode: "timestamp_ms" }),
+    resolutionNote: text("resolution_note"),
+    ...timestamps,
+  },
+  (table) => [
+    check("memory_proposal_status", sql`${table.status} IN ('pending', 'approved', 'rejected')`),
+    // Os mesmos CHECK do `memory_entry`: aprovar uma proposta faz
+    // `proposal.type as MemoryType`, um cast que compila em silêncio sobre
+    // qualquer string. O banco é o único lugar que consegue recusar a string
+    // antes de ela chegar ao arquivo.
+    check(
+      "memory_proposal_type",
+      sql`${table.type} IN ('user', 'feedback', 'project', 'domain', 'process', 'contract', 'reference')`,
+    ),
+    check("memory_proposal_scope", sql`${table.scope} IN ('global', 'workspace', 'project')`),
+    check(
+      "memory_proposal_actor",
+      sql`${table.actor} IN ('human', 'agent', 'distiller', 'auto_research', 'import')`,
+    ),
+    check("memory_proposal_confidence", sql`${table.confidence} IN ('low', 'medium', 'high')`),
+  ],
+);
+
+export const schema = {
+  workspace,
+  project,
+  worktree,
+  agentConfig,
+  session,
+  memoryEntry,
+  memoryDecision,
+  actionSignal,
+  memoryAccess,
+  memorySignal,
+  memoryUsage,
+  memoryProposal,
+};
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
 export type ProjectRow = typeof project.$inferSelect;
 export type WorktreeRow = typeof worktree.$inferSelect;
 export type AgentConfigRow = typeof agentConfig.$inferSelect;
 export type SessionRow = typeof session.$inferSelect;
+export type MemoryEntryRow = typeof memoryEntry.$inferSelect;
+export type MemoryDecisionRow = typeof memoryDecision.$inferSelect;
+export type ActionSignalRow = typeof actionSignal.$inferSelect;
+export type MemoryAccessRow = typeof memoryAccess.$inferSelect;
+export type MemorySignalRow = typeof memorySignal.$inferSelect;
+export type MemoryUsageRow = typeof memoryUsage.$inferSelect;
+export type MemoryProposalRow = typeof memoryProposal.$inferSelect;

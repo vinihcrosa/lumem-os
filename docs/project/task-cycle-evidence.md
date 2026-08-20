@@ -19,7 +19,10 @@ muda; o **anexo** é história de outro projeto e não se mexe.
 Lote fechado sem linha aqui é indistinguível de lote que nunca existiu. O mecanismo contra isso é um
 número só:
 
-> **Último commit coberto: `4fcb7ec`.**
+> **Últimos commits cobertos: `4fcb7ec`** (a linhagem do ACP, do onboarding e do agent-login) **e
+> `384e465`** (a linhagem da memória). As duas foram medidas em branches que divergiram por ~70
+> commits e só se encontraram no merge de integração — os agregados abaixo **não** foram recalculados
+> sobre a tabela unida.
 
 `fd83053` fecha o lote `E1`, o primeiro medido. Antes dele, `6c620dc` era o fim do período **pré-skill**. As quatro features anteriores —
 `walking-skeleton`, `ui-shell`, `worktree-tabs`, `right-panel`, 79 commits — foram feitas antes da
@@ -31,7 +34,7 @@ Quem fecha um lote atualiza esse sha para o último commit do lote. Um comando d
 fora:
 
 ```bash
-git log --oneline bd3e3f0..HEAD
+git log --oneline 384e465..HEAD
 ```
 
 Commit de código que aparecer aí e não estiver dentro de nenhum `Range` da tabela é lote que entrou
@@ -141,6 +144,17 @@ a tabela de lotes não tem tempo justamente porque o número não sobrevive à c
 | `file-editor` E11 — CRUD na árvore | lógica | `b34050e..998b354` | 1 | 728k | 2 blockers + 7 warnings · 3 premissas derrubadas |
 | `file-editor` E12 — **o portão** | **crítico** | `7e526ff..bd3e3f0` | 1 | 554k | 0 blockers no spec · 3 warnings, 2 fora da feature |
 | revisão de docs da PR #4 | **declarativo** (documentação) | `3c94515..d7e27fa` | 1 (o primeiro review foi morto no meio e retomado) | ~171k só o review | 16 do revisor humano · **1 blocker + 4 warnings + 3 nits** do `lumem-reviewer` · **1 meu** (roadmap agendava spike já feito) · **1 autoinfligido** (abaixo) |
+| `workspace-memory` PR 01 — **rework dos comentários da PR** | **crítico** | `7990289..384e465` | 1 | ≥458k¹ | **1 blocker + 4 warnings + 6 nits** · 1 efeito espelhado² · 7 mutações sobreviventes |
+
+¹ Soma dos dois subagentes (review 215k, dev 243k). A fatia do orquestrador não está instrumentada
+nesta sessão, então o número é **piso**, não medida — e é o primeiro lote da tabela em que isso
+acontece. As outras linhas cobrem a sessão inteira.
+
+² Vale nomear porque é classe nova nesta tabela e o protocolo de round existe justamente para pegá-la:
+a correção de um achado **criou** outro do mesmo formato num caminho vizinho. Ligar o índice único de
+identidade (que era o conserto) transformou uma duplicata silenciosa num `SqliteError` cru no `write`
+— o mesmo defeito que o blocker original eliminava no `reindex`, só que depois de o arquivo já estar
+no disco. Nenhum dos 13 achados do review humano original apontava para lá.
 
 Dois contadores, porque respondem a duas perguntas que a skill não consegue responder sozinha —
 *isto aqui é cerimônia?* — e custam um dígito cada:
@@ -222,6 +236,8 @@ segundo não é redundante.
 
 Consequência para a §9.7: o passe a frio **não** é opcional depois de um round de rework que tocou fato
 espelhado em vários arquivos. É justamente aí que ele paga.
+* **verificação independente do orquestrador:** 10 lotes, **1 refutação**
+* **passe a frio pós-lote:** 2 passes, **22 achados** que o orquestrador com contexto não via
 
 **A verificação independente pagou o lote inteiro, e por um motivo que não estava previsto.** Não
 houve round de review: task de desenho não tem `Done when` verificável por teste, então o

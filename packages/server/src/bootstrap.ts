@@ -5,6 +5,8 @@ import type { ServerConfig } from "./config.js";
 import { openDatabase, type Database_ } from "./db/index.js";
 import { createEventBus } from "./events.js";
 import { AcpManager } from "./acp/AcpManager.js";
+import { ensureMemoryHome } from "./memory/home.js";
+import { MemoryService } from "./memory/MemoryService.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createTranscriptStore, type TranscriptStore } from "./acp/TranscriptStore.js";
 import { createSessionStore } from "./sessions/SessionStore.js";
@@ -65,6 +67,11 @@ export async function bootstrap({
   database,
   beforeClose,
 }: BootstrapOptions): Promise<FastifyInstance> {
+  // Antes do banco, porque o banco mora dentro do state dir e porque o
+  // `.gitignore` que exclui o próprio banco do histórico é escrito aqui: abrir
+  // o SQLite primeiro criaria o arquivo antes de existir a regra que o ignora.
+  const home = await ensureMemoryHome({ stateDir: config.stateDir });
+
   const owned = database === undefined;
   const openedDatabase = database ?? openDatabase({ path: config.databasePath });
   const ownedTranscripts = transcripts === undefined;
@@ -156,6 +163,18 @@ export async function bootstrap({
     log: app.log,
   });
   app.log.info(reconciled, "reconciliação de boot");
+  // O índice FTS5 é derivado e nasce fora das migrations: um banco com catálogo
+  // e sem índice existe. Reconstruir aqui é o que impede a primeira busca de
+  // responder "nada encontrado" para o acervo inteiro, sem erro e sem sinal.
+  const { failures, ...index } = await new MemoryService({
+    db: openedDatabase.db,
+    stateDir: config.stateDir,
+    log: app.log,
+  }).ensureIndexFresh();
+  app.log.info(
+    { ...home, stateDir: config.stateDir, index, unreadable: failures.length },
+    "memória do workspace",
+  );
 
   try {
     await app.listen({ port: config.port, host: config.host });
