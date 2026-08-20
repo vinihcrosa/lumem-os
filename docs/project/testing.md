@@ -66,6 +66,10 @@ Falha guarda `playwright-report/` e `test-results/` como artefato por 7 dias: o 
 
 **O CI achou três defeitos de teste na primeira execução, nenhum de produto** — todos escondidos por o desenvolvimento acontecer só no macOS:
 
+| O quê | Por que ninguém via |
+|---|---|
+| **A suíte gravava no `~/.lumem` de verdade.** `createTestCaller()` chamava `loadConfig({})`, que resolve o `stateDir` para o estado real da máquina — e `worktree.create` cria worktree dentro de `worktreesDir`. Vinte e sete diretórios `lumem-git-*` foram encontrados no estado real de quem escreveu isto, cada um com uma worktree `externa` órfã cujo repositório de origem era um tmpdir que já não existia | Porque nada falha. O teste passa, a asserção é sobre o retorno, e o efeito colateral fica num diretório que ninguém abre. O banco já era descartável desde sempre; o **diretório** não era, e a diferença passou anos sem ser notada. Agora todo caller nasce com um `stateDir` de mentira, e `caller.test.ts` é a guarda que impede desfazer isso sem ver |
+
 | O quê | Por que passava no macOS |
 |---|---|
 | `PtyManager` assertava buffer vazio ao spawnar binário inexistente | O Linux escreve `execvp(3) failed.` no PTY; o macOS não escreve nada |

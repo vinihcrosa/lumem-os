@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { AcpManager } from "../acp/AcpManager.js";
 import { loadConfig, type ConfigEnv, type ServerConfig } from "../config.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
@@ -47,6 +51,23 @@ export function createTestCaller(
   env: ConfigEnv = {},
   overrides: TestCallerOverrides = {},
 ): TestCaller {
+  /*
+   * Um `stateDir` descartável, sempre, mesmo quando o teste não pede.
+   *
+   * `loadConfig({})` resolve para o `~/.lumem` **de verdade**, e o que corre por
+   * cima dele grava: `worktree.create` cria worktree dentro de
+   * `~/.lumem/worktrees/<projeto>/`, e as fixtures de git têm nome de tmpdir. O
+   * resultado, medido na máquina de quem escreveu isto: **nove diretórios
+   * `lumem-git-*`** no estado real, deixados por suítes que já tinham passado.
+   *
+   * A regra que o resto do arquivo já segue para o banco vale para o diretório:
+   * teste que toca o estado do desenvolvedor é teste que uma hora o destrói.
+   */
+  const stateDir =
+    env.LUMEM_STATE_DIR ?? mkdtempSync(join(tmpdir(), "lumem-caller-"));
+  const scoped: ConfigEnv = { ...env, LUMEM_STATE_DIR: stateDir };
+  const ownedStateDir = env.LUMEM_STATE_DIR === undefined;
+
   const database: TestDb = openTestDb();
   const ptyManager = new PtyManager();
   /*
@@ -57,7 +78,7 @@ export function createTestCaller(
    * and a context missing it would fail at the type level for every other router.
    */
   const acpManager = overrides.acpManager ?? new AcpManager();
-  const config = loadConfig(env);
+  const config = loadConfig(scoped);
   const git = createGitService();
   const events = createEventBus();
   const sessionStore = createSessionStore({ db: database.db, ptyManager, events, git });
@@ -87,6 +108,8 @@ export function createTestCaller(
       await acpManager.killAll();
       await ptyManager.killAll();
       database.cleanup();
+      // Só o que este caller criou: um `LUMEM_STATE_DIR` vindo do teste é do teste.
+      if (ownedStateDir) rmSync(stateDir, { recursive: true, force: true });
     },
   };
 }
