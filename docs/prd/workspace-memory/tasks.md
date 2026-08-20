@@ -637,6 +637,121 @@ derivável do repositório, e **dump de transcript**.
 
 ---
 
+## PR 09 — Playbooks: o procedimento, com ciclo de vida por uso
+
+**Depende de:** PR 03 (existe) + ACP (existe). **Branch:** direto em `main`.
+
+**Playbook não é memória, e o §6 do PRD diz isso por escrito** — *"separado da tabela porque não é
+memória"*. Memória é fato ou diretriz; playbook é **procedimento**: tem corpo, é carregado sob
+demanda, e envelhece por uso. Então ele tem tabela, diretório e ciclo de vida próprios — e reusa do
+resto o que é infraestrutura: o portão (scan + WAL), o commit no `~/.lumem`, e o `~/.lumem` como
+fonte única.
+
+**O que o §9 manda:** nomeado por **classe de tarefa** e nunca por artefato de sessão; ordem de
+preferência fechada na escrita; telemetria de carregamento; ciclo `active → stale → archived`
+derivado do uso, com **nada arquivado automaticamente** — vira sugestão na revisão; `pinned` como
+opt-out ortogonal; e (Q14) **fonte única no Lumem, projeção por CLI**.
+
+---
+
+#### P1: O playbook no disco, e no catálogo
+
+**What**: `PLAYBOOK.md` por escopo, com tabela derivada — a mesma divisão de trabalho da memória.
+**Where**: `memory/playbook.ts`, `memory/paths.ts`, `db/schema.ts`, migração + testes
+
+**Done when**:
+- [ ] Arquivo em `<escopo>/playbooks/<slug>/PLAYBOOK.md`. Diretório por playbook desde já, porque o
+      `references/` do §9 vai morar ao lado — e mudar o caminho depois é migrar disco de gente
+- [ ] Nomeado por **classe de tarefa**: o campo existe, e a validação recusa nome que é artefato de
+      sessão (`#123`, `PR 412`)
+- [ ] Passa pelo **mesmo portão** da memória: scan de segredo, decisão no WAL, commit no `~/.lumem`
+- [ ] Escopo `project` ou `workspace`, nunca `global`: procedimento é de um repositório ou de um time
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(memory): o playbook, com corpo e ciclo de vida próprios`
+
+---
+
+#### P2: O ciclo de vida, derivado do uso
+
+**What**: `active → stale → archived`, com nada acontecendo sozinho.
+**Where**: `memory/playbook.ts` + teste
+
+**Done when**:
+- [ ] `stale` é **derivado**, não gravado: dias sem carregamento. Estado calculado não desatualiza
+- [ ] `archived` só por gesto seu. *"Nada é arquivado automaticamente"* (§9) — a subcontagem da
+      telemetria (Q16) é a razão, e ela não tem cura
+- [ ] Arquivar **não apaga**, e carregar reativa: o arquivo continua no disco e no git
+- [ ] `pinned` é opt-out ortogonal — playbook fixado não envelhece, porque envelhecer é o que
+      acontece com o que ninguém escolheu
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(memory): o ciclo de vida do playbook, sem arquivar nada sozinho`
+
+---
+
+#### P3: A telemetria que vem do protocolo
+
+**What**: O carregamento chega como `tool_call` de Skill (Q16), e vira contagem.
+**Where**: `memory/playbook-telemetry.ts`, `acp/AcpManager.ts` ou o ouvinte + testes
+
+**Done when**:
+- [ ] Um `tool_call` cujo alvo é um playbook conhecido incrementa carregamento e data
+- [ ] Reconhecimento por **slug**, e conservador: nome parecido não conta. Subcontar é o preço aceito;
+      superconter faria a sugestão de arquivar mentir na direção que não se percebe
+- [ ] A contagem não atrapalha o turno: falha dela é aviso
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(acp): contar o carregamento de playbook pelo que o protocolo diz`
+
+---
+
+#### P4: A projeção por CLI (Q14)
+
+**What**: O Lumem é a fonte; a CLI é como cada agente lê.
+**Where**: `memory/cli.ts` + teste
+
+**Done when**:
+- [ ] `playbook list` e `playbook show` — a fonte única projetada em texto
+- [ ] `playbook show` **conta como carregamento**: é o caminho do agente, e é o mesmo princípio do
+      `search --session`
+- [ ] A ordem de preferência da escrita (§9) aparece no `--help`: é regra de comportamento, e o lugar
+      dela é onde quem vai escrever está olhando
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(memory): projetar playbook pela CLI, que é como o agente lê`
+
+---
+
+#### P5: Na tela, com a sugestão de arquivar
+
+**What**: Uma aba de playbooks, com uso e ciclo de vida.
+**Where**: `routers/memory.ts`, `components/MemoryPanel.tsx`, `memory.css` + testes
+
+**Done when**:
+- [ ] Lista com classe de tarefa, carregamentos, último uso e estado
+- [ ] O parado há muito tempo **sugere** arquivar; arquivar é botão seu
+- [ ] Arquivado continua visível, atrás de um filtro — arquivar não é apagar
+- [ ] Só `var(--token)`, e a auditoria de porte do CSS cobre as classes novas
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(web): a aba de playbooks, com a sugestão de arquivar`
+
+---
+
+#### P6: O e2e do ciclo
+
+**What**: Criar, carregar pela CLI, ver o uso subir, arquivar pela tela.
+**Where**: `e2e/playbooks.spec.ts`
+
+**Done when**:
+- [ ] O ciclo inteiro num navegador, contra o daemon compartilhado
+- [ ] Gate: `pnpm gate:full`
+
+**Commit**: `test(e2e): o ciclo de vida de um playbook, do uso ao arquivo`
+
+---
+
 ## S1 — `wm/s1-sinais-de-acao`
 
 **O que entrega:** o registro cru dos quatro sinais que não dependem de cooperação. Nada aqui
