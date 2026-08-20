@@ -407,10 +407,10 @@ caminho degradado do PTY.
 **Where**: `memory/entry.ts`, `db/schema.ts`, migração, `memory/catalog.ts`, `MemoryService`
 
 **Done when**:
-- [ ] `pinned: boolean` no frontmatter, default `false` — Markdown é a fonte, a coluna é projeção
-- [ ] `reindex` reconstrói o campo a partir do arquivo, como faz com o resto
-- [ ] Uma memória editada à mão com `pinned: true` entra no núcleo sem passar por API nenhuma
-- [ ] Gate: `pnpm gate:quick`
+- [x] `pinned: boolean` no frontmatter, default `false` — Markdown é a fonte, a coluna é projeção
+- [x] `reindex` reconstrói o campo a partir do arquivo, como faz com o resto
+- [x] Uma memória editada à mão com `pinned: true` entra no núcleo sem passar por API nenhuma
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(memory): marcar uma memória como parte do núcleo`
 

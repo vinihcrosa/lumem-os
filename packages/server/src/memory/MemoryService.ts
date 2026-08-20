@@ -230,6 +230,11 @@ export class MemoryService {
         created_at: this.birthOf(previous, path, timestamp),
         updated_at: timestamp,
       },
+      // Fixar é curadoria, não conteúdo: reescrever o texto de uma memória não
+      // pode tirá-la do núcleo. A `entrySignature` já ignora `pinned` — sem esta
+      // linha, a próxima reescrita gravaria o default `false` e desfixaria em
+      // silêncio uma memória que alguém escolheu à mão.
+      pinned: this.pinnedOf(previous, path),
       body: input.body,
     };
 
@@ -416,6 +421,22 @@ export class MemoryService {
     }
   }
 
+  /**
+   * Se o que está no disco faz parte do núcleo.
+   *
+   * `false` para arquivo ilegível, pela mesma razão do `birthOf`: quem não se
+   * consegue ler não pode bloquear a escrita que o conserta. Sem aviso — o
+   * `birthOf` já registra o mesmo arquivo.
+   */
+  private pinnedOf(previous: string | null, path: string): boolean {
+    if (previous === null) return false;
+    try {
+      return parseEntry(previous, path).pinned;
+    } catch {
+      return false;
+    }
+  }
+
   /** Lê uma memória pelo par que a identifica. */
   async read(
     type: MemoryType,
@@ -585,6 +606,71 @@ export class MemoryService {
     const { commit } = await this.commit([path], "update", path, "human");
     attachCommit(this.db, record.id, commit);
     return { path, outcome: "reverted", commit };
+  }
+
+  /**
+   * Põe — ou tira — uma memória do **núcleo**, o texto que entra em toda sessão.
+   *
+   * Ato **seu**, e só seu. Um agente que pudesse se fixar no núcleo escolheria
+   * sozinho o que todo turno seguinte carrega: o custo é recorrente e cobrado
+   * de você, então a escolha é sua. É a mesma linha que o `forget` desenha.
+   *
+   * Escreve o arquivo, e não só a coluna: o Markdown é a fonte, e um `pinned`
+   * que morasse no banco desapareceria no primeiro `reindex`. Vai ao portão pela
+   * mesma razão que o `revert` vai — o conteúdo pode ter sido editado à mão
+   * desde a última passagem, e o núcleo é justamente o texto que o agente lê.
+   */
+  async pin(requested: string, pinned: boolean, actor: MemoryActor = "human"): Promise<{
+    path: string;
+    pinned: boolean;
+    commit: string | null;
+    changed: boolean;
+  }> {
+    if (actor !== "human") {
+      throw new DomainError("BLOCKED", `fixar memória no núcleo é sempre ação sua — ${actor} não fixa`);
+    }
+    const path = assertEntryPath(requested);
+    const absolute = join(this.stateDir, path);
+    const text = await readFile(absolute, "utf8").catch(() => null);
+    if (text === null) throw new DomainError("NOT_FOUND", `${path} não existe`);
+
+    const current = parseEntry(text, path);
+    // Já está como se pediu: nem commit vazio, nem linha no WAL. É o mesmo
+    // `noop` que o portão daria, decidido antes de escrever para não gastá-lo.
+    if (current.pinned === pinned) {
+      return { path, pinned, commit: null, changed: false };
+    }
+
+    const candidate = serializeEntry({ ...current, pinned });
+    const decision = decide({
+      path,
+      operation: "update",
+      actor,
+      confidence: current.provenance.confidence,
+      content: candidate,
+      // A chave carrega o estado pedido: fixar duas vezes é a mesma decisão,
+      // fixar e desfixar são duas.
+      idempotencyKey: `pin:${path}:${pinned}`,
+    });
+    const record = recordDecision(this.db, {
+      ...decision,
+      path,
+      operation: "update",
+      actor,
+      confidence: current.provenance.confidence,
+    });
+    if (decision.outcome === "rejected") {
+      throw new MemoryRejected(path, decision.reason ?? "recusada pelo portão");
+    }
+
+    const entry = parseEntry(decision.content, path);
+    await writeAtomically(absolute, Buffer.from(decision.content, "utf8"), 0o600);
+    upsertEntry(this.db, path, entry, this.locationOf(entry, path), decision.content);
+    indexEntry(this.db, path, entry.name, entry.description, slugOf(path, entry.type), entry.body);
+
+    const { commit } = await this.commit([path], "update", path, actor);
+    attachCommit(this.db, record.id, commit);
+    return { path, pinned: entry.pinned, commit, changed: true };
   }
 
   /** As decisões — inclusive as que **não** viraram arquivo. */

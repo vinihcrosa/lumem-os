@@ -173,6 +173,7 @@ describe("MemoryService.write — identidade já reivindicada", () => {
         description: "escrita à mão, fora da convenção de nome",
         type: "user",
         scope: "global",
+        pinned: false,
         provenance: {
           source_actor: "human",
           source_sessions: [],
@@ -364,6 +365,62 @@ describe("MemoryService.revert — só caminho de memória", () => {
     const decisions = memory.decisions({ path: written.path });
     expect(decisions[0]).toMatchObject({ operation: "delete", outcome: "applied" });
     expect(decisions[0]?.commitSha).toMatch(/^[0-9a-f]{40}$/);
+  });
+});
+
+describe("MemoryService.pin — o núcleo é escolha sua", () => {
+  it("grava no arquivo, porque o Markdown é a fonte", async () => {
+    const { memory, stateDir } = await service();
+    const { path } = await memory.write(preferencia);
+
+    const result = await memory.pin(path, true);
+
+    expect(result).toMatchObject({ pinned: true, changed: true });
+    expect(result.commit).not.toBeNull();
+    // No arquivo, e não só na coluna: um `pinned` que morasse no banco
+    // desapareceria no primeiro `reindex`.
+    expect(readFileSync(join(stateDir, path), "utf8")).toContain("pinned: true");
+  });
+
+  it("uma memória editada à mão entra no núcleo sem passar por API nenhuma", async () => {
+    const { memory, stateDir, db } = await service();
+    const { path } = await memory.write(preferencia);
+    const file = join(stateDir, path);
+    writeFileSync(file, readFileSync(file, "utf8").replace("pinned: false", "pinned: true"));
+
+    await memory.reindex();
+
+    const row = db.db.$client.prepare("SELECT pinned FROM memory_entry WHERE path = ?").get(path) as {
+      pinned: number;
+    };
+    expect(row.pinned).toBe(1);
+  });
+
+  it("reescrever o texto não desfixa: fixar é curadoria, não conteúdo", async () => {
+    const { memory, stateDir } = await service();
+    const { path } = await memory.write(preferencia);
+    await memory.pin(path, true);
+
+    await memory.write({ ...preferencia, body: "Outro corpo, mesma memória." });
+
+    expect(readFileSync(join(stateDir, path), "utf8")).toContain("pinned: true");
+  });
+
+  it("fixar duas vezes não produz commit vazio", async () => {
+    const { memory } = await service();
+    const { path } = await memory.write(preferencia);
+    await memory.pin(path, true);
+
+    const again = await memory.pin(path, true);
+
+    expect(again).toMatchObject({ changed: false, commit: null });
+  });
+
+  it("ator não-humano não fixa", async () => {
+    const { memory } = await service();
+    const { path } = await memory.write(preferencia);
+
+    await expect(memory.pin(path, true, "agent")).rejects.toThrow(DomainError);
   });
 });
 

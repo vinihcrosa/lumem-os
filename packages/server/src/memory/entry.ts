@@ -88,6 +88,19 @@ const frontmatterSchema = z.object({
   description: z.string().min(1),
   type: z.enum(MEMORY_TYPES),
   scope: z.enum(MEMORY_SCOPES),
+  /**
+   * Esta memória faz parte do **núcleo** — o texto que entra em toda sessão.
+   *
+   * No frontmatter, e não só numa coluna, porque o Markdown é a fonte da verdade
+   * e a A2 declara arquivo editado à mão como caso de primeira classe: quem
+   * escrever `pinned: true` no editor entra no núcleo sem passar por API nenhuma,
+   * e o `reindex` reconstrói o fato a partir do arquivo.
+   *
+   * Default `false`, e o default importa: todo arquivo escrito antes desta
+   * decisão continua válido e continua fora do núcleo, que é a resposta certa —
+   * o núcleo é o que alguém escolheu, nunca o que sobrou.
+   */
+  pinned: z.boolean().default(false),
   provenance: provenanceSchema,
 });
 

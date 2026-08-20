@@ -63,6 +63,7 @@ function put(stateDir: string, relativePath: string, entry: Partial<MemoryEntry>
     description: "Achado com arquivo e linha antes do texto",
     type: "user",
     scope: "global",
+    pinned: false,
     provenance: {
       source_actor: "human",
       source_sessions: [],

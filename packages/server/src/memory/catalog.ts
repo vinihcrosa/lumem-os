@@ -199,6 +199,7 @@ function rowFor(
     description: entry.description,
     sourceActor: entry.provenance.source_actor,
     confidence: entry.provenance.confidence,
+    pinned: entry.pinned,
     contentHash,
     // As datas da linha espelham a proveniência, e não o instante em que o
     // índice foi construído. Isso faz `reindex` ser **determinístico**: apagar o

@@ -234,6 +234,14 @@ export const memoryEntry = sqliteTable(
     sourceActor: text("source_actor").notNull(),
     confidence: text("confidence").notNull(),
     /** sha256 do arquivo inteiro, para comparar conteúdo sem reler o disco. */
+    /**
+     * Projeção do `pinned` do frontmatter — o núcleo, em forma de consulta.
+     *
+     * Existe como coluna para uma pergunta só: montar o núcleo é filtrar por
+     * escopo mais `pinned`, e ler os arquivos todos para descobrir isso seria
+     * pagar o acervo inteiro em cada primeiro turno.
+     */
+    pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
     contentHash: text("content_hash").notNull(),
     ...timestamps,
   },
