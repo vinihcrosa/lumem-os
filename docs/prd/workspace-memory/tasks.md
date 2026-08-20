@@ -766,6 +766,95 @@ opt-out ortogonal; e (Q14) **fonte única no Lumem, projeção por CLI**.
 
 ---
 
+## PR 08 — Auto-learn: a pergunta sem resposta vira memória
+
+**Depende de:** PR 03, PR 04 (existem) + a porta HTTP da 06. **Branch:** direto em `main`.
+
+**A parte mais poderosa e a mais perigosa**, e o §5.2 do context-delivery diz por quê: uma pergunta
+passa a **criar memória**, sem você pedir e sem ninguém revisar no momento. *"O agente pergunta, o
+sistema inventa, a invenção vira memória, e a memória vira verdade permanente que outro projeto
+herda."*
+
+Então tudo aqui é contenção, e nada é negociável:
+
+- **mesmo portão** (§7 do PRD): scan, identidade, WAL, git. Sem exceção de origem;
+- **proveniência própria**: `source_actor: auto_research`, com **evidência** e confiança baixa;
+- **critério de evidência** (D7): artefato verificável → memória direta com a evidência anexada;
+  síntese → **proposta**. *"Se o agente consegue apontar de onde tirou, é fato; se ele conseguiu
+  apenas concluir, é proposta"*;
+- **workspace é proposta sempre** (Q27), com evidência ou sem;
+- **orçamento, timeout, cache por sessão, profundidade 1** (§5.4) — e **degradação que diz que
+  degradou**, nunca sessão travada.
+
+---
+
+#### A1: O agente que pesquisa, com profundidade 1
+
+**What**: A pergunta sem resposta sobe um agente barato, que devolve candidato com evidência.
+**Where**: `memory/research.ts` + teste
+
+**Done when**:
+- [ ] **Profundidade 1**: o agente de pesquisa **não** tem a skill de memória, e não pode perguntar
+      ao `lumem-memory`. Sem isso existe loop, e o §5.4 nomeia
+- [ ] Timeout por pergunta: a sessão principal está esperando, e uma pergunta que sobe agente não pode
+      demorar o que um agente demora
+- [ ] Devolve estruturado, com **evidência separada** do corpo: é ela que decide direto × proposta
+- [ ] Falha, timeout e resposta fora do formato **degradam** para o que já existia — a busca lexical —
+      e o texto **diz** que degradou
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(memory): a pergunta sem resposta sobe um agente, com profundidade 1`
+
+---
+
+#### A2: O critério de evidência (D7)
+
+**What**: Artefato verificável vira memória; síntese vira proposta.
+**Where**: `memory/evidence.ts` + teste
+
+**Done when**:
+- [ ] Aceita como evidência o que se pode **conferir**: caminho com linha, comando com saída
+- [ ] Recusa o que é conclusão — *"eu concluí"*, *"provavelmente"*, texto sem referência
+- [ ] Escopo de workspace é proposta **sempre**, tenha evidência ou não
+- [ ] Confiança baixa por padrão, e a memória nasce **marcada como não verificada**
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(memory): o critério que separa fato de conclusão`
+
+---
+
+#### A3: Ligado no `/memory/ask`, com cache e orçamento
+
+**What**: "não sei" deixa de ser o fim da resposta.
+**Where**: `memory/http.ts`, `config.ts` + testes
+
+**Done when**:
+- [ ] Só quando a busca **não acha nada**: auto-learn é o que cobre o buraco, não o caminho normal
+- [ ] **Cache por sessão**: a mesma pergunta duas vezes não sobe agente duas vezes (§5.4)
+- [ ] Orçamento por sessão: passou do limite, responde "não sei" e diz que o orçamento acabou
+- [ ] **Desligado por padrão**, como a destilação, e visível na tela
+- [ ] A resposta cita a fonte e diz que ela é nova e não verificada (§5.5)
+- [ ] Instrumentado: quantas subiram agente, quantas viraram memória, quantas viraram proposta
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(memory): auto-learn atrás de cache, orçamento e um interruptor`
+
+---
+
+#### A4: O e2e do buraco preenchido
+
+**What**: Perguntar o que não existe, e a memória nascer marcada.
+**Where**: `e2e/memory-auto-learn.spec.ts`
+
+**Done when**:
+- [ ] Um daemon com auto-learn ligado, uma pergunta sem resposta, e a memória com evidência
+- [ ] A mesma pergunta de novo não sobe agente de novo
+- [ ] Gate: `pnpm gate:full`
+
+**Commit**: `test(e2e): a pergunta sem resposta preenche o próprio buraco`
+
+---
+
 ## S1 — `wm/s1-sinais-de-acao`
 
 **O que entrega:** o registro cru dos quatro sinais que não dependem de cooperação. Nada aqui
