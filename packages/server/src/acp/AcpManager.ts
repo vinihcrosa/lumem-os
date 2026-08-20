@@ -93,6 +93,34 @@ export interface AcpSessionInfo {
   configOptions: readonly AcpConfigOption[];
 }
 
+/**
+ * What one handshake said, without a session existing afterwards (onboarding F3.3).
+ *
+ * Every field is something the adapter reported — nothing here is inferred. That is
+ * the point of the screen it feeds: it is the proof that the thing connected, and a
+ * proof made of guesses proves nothing.
+ */
+export interface AcpProbeReport {
+  command: string;
+  args: readonly string[];
+  /** The adapter's own name and version, when it declares them. */
+  agentInfo: { name: string; title: string | null; version: string } | null;
+  protocolVersion: number;
+  /**
+   * Empty means the adapter asked for nothing — it used a credential it already
+   * had. That is what the spike measured, and what makes the auth step a report
+   * rather than a choice (F3.6).
+   */
+  authMethods: readonly { id: string; name: string | null }[];
+  capabilities: readonly string[];
+  /** The test session's id. It is dead by the time this is read. */
+  acpSessionId: string;
+  modes: readonly string[];
+  currentMode: string | null;
+  /** Milliseconds, per stage. The screen reports them; nothing branches on them. */
+  timings: { spawnMs: number; initializeMs: number; sessionMs: number };
+}
+
 export type AcpEventListener = (entry: AcpTranscriptEntry) => void;
 export type AcpExitWatcher = (info: AcpSessionInfo) => void;
 /**
@@ -131,6 +159,14 @@ interface Session {
    * about it exists.
    */
   promptInFlight: boolean;
+  /**
+   * This is a probe, not a session (onboarding D4).
+   *
+   * The only thing it changes is who gets told when the process dies: a probe has
+   * no row in the database, so notifying the exit watchers would have the session
+   * store looking for an id it never wrote.
+   */
+  probe: boolean;
   /** Disk access, scoped to this session's checkout and nothing else. */
   fs: FsBridge;
   /** Terminals the agent asked for. Absent when no `PtyManager` was wired. */
@@ -333,6 +369,93 @@ export class AcpManager {
   }
 
   /**
+   * Connects, asks what the adapter is, and throws the session away (F3.3, D4).
+   *
+   * Not `spawn` with a flag: this is a different question. `spawn` exists to hand
+   * back something a prompt can use, and everything about it — the row in the
+   * database, the exit watchers, the transcript — is about keeping a conversation
+   * alive. This one exists to answer "does this work here", and the honest shape of
+   * that answer is a report plus a dead process.
+   *
+   * It costs **no tokens**. `initialize` and `session/new` are the whole path, and
+   * the spike measured both at zero: nothing is generated until `session/prompt`,
+   * which never happens here.
+   */
+  async probe(options: AcpSpawnOptions): Promise<AcpProbeReport> {
+    const startedAt = this.now();
+    const { session, child } = this.launch(options, { probe: true });
+    const spawnedAt = this.now();
+
+    try {
+      const initialize = await this.initialize(session);
+      const initializedAt = this.now();
+
+      if (initialize.protocolVersion !== ACP_PROTOCOL_VERSION) {
+        throw new DomainError(
+          "SPAWN_FAILED",
+          `o adaptador fala a versão ${initialize.protocolVersion} do protocolo, e este daemon fala a ${ACP_PROTOCOL_VERSION}`,
+        );
+      }
+
+      const created = await this.withTimeout(
+        session.connection.agent.request("session/new", { cwd: options.cwd, mcpServers: [] }),
+        "session/new",
+      );
+      const createdAt = this.now();
+
+      const capabilities = initialize.agentCapabilities ?? {};
+      const declared: string[] = [];
+      if (capabilities.loadSession === true) declared.push("loadSession");
+      if (capabilities.promptCapabilities?.image === true) declared.push("prompt.image");
+      if (capabilities.promptCapabilities?.audio === true) declared.push("prompt.audio");
+      if (capabilities.promptCapabilities?.embeddedContext === true) {
+        declared.push("prompt.embeddedContext");
+      }
+
+      return {
+        command: options.command,
+        args: [...(options.args ?? [])],
+        agentInfo:
+          initialize.agentInfo === undefined || initialize.agentInfo === null
+            ? null
+            : {
+                name: initialize.agentInfo.name,
+                title: initialize.agentInfo.title ?? null,
+                version: initialize.agentInfo.version,
+              },
+        protocolVersion: initialize.protocolVersion,
+        authMethods: (initialize.authMethods ?? []).map((method) => ({
+          id: method.id,
+          name: method.name ?? null,
+        })),
+        capabilities: declared,
+        acpSessionId: created.sessionId,
+        modes: created.modes?.availableModes.map((mode) => mode.id) ?? [],
+        currentMode: created.modes?.currentModeId ?? null,
+        timings: {
+          spawnMs: spawnedAt - startedAt,
+          initializeMs: initializedAt - spawnedAt,
+          sessionMs: createdAt - initializedAt,
+        },
+      };
+    } catch (error) {
+      throw error instanceof DomainError
+        ? error
+        : launchFailure(options.command, options.adapterVersion, error);
+    } finally {
+      /*
+       * Always, and this is the line that matters most in the method.
+       *
+       * The path where `session/new` refuses — an adapter that wants
+       * authentication first — is the one where a leaked adapter process is
+       * easiest to produce and hardest to notice: the screen shows a refusal, and
+       * a stray Node process keeps running until the machine is rebooted.
+       */
+      child.kill();
+    }
+  }
+
+  /**
    * Everything both entry points do before the handshake.
    *
    * Split out rather than duplicated because the shared part is the part with the
@@ -340,7 +463,10 @@ export class AcpManager {
    * per-session bridges. A second copy of it for `resume` would be a second place for
    * one of those to go missing.
    */
-  private launch(options: AcpSpawnOptions): { session: Session; child: AcpProcess } {
+  private launch(
+    options: AcpSpawnOptions,
+    { probe = false }: { probe?: boolean } = {},
+  ): { session: Session; child: AcpProcess } {
     const { command, args = [], cwd, env, adapterVersion } = options;
 
     if (command.trim() === "") {
@@ -384,6 +510,7 @@ export class AcpManager {
       pendingPermissions: new Map(),
       optionTypes: new Map(),
       promptInFlight: false,
+      probe,
       // One bridge per session, rooted at its own cwd. A shared one would need
       // the root passed on every call, and the call that forgot would read
       // another worktree.
@@ -795,12 +922,15 @@ export class AcpManager {
     return session.terminals;
   }
 
-  private async handshake(
-    session: Session,
-    cwd: string,
-    loadAcpSessionId?: string,
-  ): Promise<Partial<AcpSessionInfo>> {
-    const initialize = await this.withTimeout(
+  /**
+   * The `initialize` request, in one place.
+   *
+   * Extracted because the probe needs the *same* declaration a real session
+   * makes: a probe that claimed different capabilities would answer a different
+   * question from the one the user is asking, which is "will my agent work here".
+   */
+  private async initialize(session: Session) {
+    return this.withTimeout(
       session.connection.agent.request("initialize", {
         protocolVersion: ACP_PROTOCOL_VERSION,
         /*
@@ -823,6 +953,14 @@ export class AcpManager {
       }),
       "initialize",
     );
+  }
+
+  private async handshake(
+    session: Session,
+    cwd: string,
+    loadAcpSessionId?: string,
+  ): Promise<Partial<AcpSessionInfo>> {
+    const initialize = await this.initialize(session);
 
     if (initialize.protocolVersion !== ACP_PROTOCOL_VERSION) {
       throw new DomainError(
@@ -1073,6 +1211,9 @@ export class AcpManager {
         /* already gone is the common case, not a failure */
       }
     }
+
+    // A probe has no row anywhere, so there is nothing for a watcher to update.
+    if (session.probe) return;
 
     for (const watcher of [...this.exitWatchers]) {
       try {

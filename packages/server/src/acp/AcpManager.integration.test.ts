@@ -113,3 +113,34 @@ describe.skipIf(installed)(`${ADAPTER} handshake`, () => {
     expect(installed).toBe(false);
   });
 });
+
+describe.skipIf(!installed)(`${ADAPTER} probe`, () => {
+  it("reports its own version, which is what the flow pins", async () => {
+    /*
+     * The detector for the risk the PRD names, in the one place it can be caught
+     * before a user meets it: `agentInfo` is where the onboarding gets
+     * `agent_config.adapter_version` from (F3.5), so an adapter release that
+     * stops sending it turns the flow's central promise — the version is
+     * detected, not typed — into a silent null.
+     *
+     * Same price as the handshake above: `initialize` plus `session/new`, which
+     * the spike measured at zero tokens.
+     */
+    const manager = new AcpManager({ handshakeTimeoutMs: 30_000 });
+    managers.push(manager);
+
+    const report = await manager.probe({ command: ADAPTER, cwd: cwd() });
+
+    expect(report.protocolVersion).toBe(1);
+    expect(report.agentInfo).not.toBeNull();
+    expect(report.agentInfo?.version).toMatch(/^\d+\.\d+/);
+    // §2.1: an empty list plus a session that was created is what proves the
+    // local credential works. A list with entries means the adapter wants
+    // something, and the screen has to say which method.
+    expect(Array.isArray(report.authMethods)).toBe(true);
+    expect(report.acpSessionId).not.toBe("");
+
+    // D4: the probe is not a session, and the process is gone by now.
+    expect(manager.list()).toHaveLength(0);
+  });
+});

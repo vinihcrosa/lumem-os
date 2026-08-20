@@ -4,6 +4,7 @@ import type { ServerConfig } from "./config.js";
 import type { Db } from "./db/index.js";
 import type { EventBus } from "./events.js";
 import { isDomainError, type DomainErrorCode } from "./errors.js";
+import type { AcpManager } from "./acp/AcpManager.js";
 import type { GitService } from "./git/GitService.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import type { SessionStore } from "./sessions/SessionStore.js";
@@ -17,6 +18,14 @@ export interface Context {
   config: ServerConfig;
   db: Db;
   ptyManager: PtyManager;
+  /**
+   * Reachable directly, and only for the probe (onboarding F3.3).
+   *
+   * Everything else about a conversation goes through `sessionStore`, which is
+   * what keeps a row and a process from disagreeing. The probe has no row on
+   * purpose (D4), so it is the one caller with nothing for the store to do.
+   */
+  acpManager: AcpManager;
   sessionStore: SessionStore;
   git: GitService;
   events: EventBus;

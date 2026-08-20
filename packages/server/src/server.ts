@@ -107,7 +107,15 @@ export async function createServer({
     forceCloseConnections: true,
   });
 
-  const createContext = (): Context => ({ config, db, ptyManager, sessionStore, git, events });
+  const createContext = (): Context => ({
+    config,
+    db,
+    ptyManager,
+    acpManager,
+    sessionStore,
+    git,
+    events,
+  });
 
   await app.register(fastifyTRPCPlugin, {
     prefix: "/trpc",
