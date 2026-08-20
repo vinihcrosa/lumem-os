@@ -113,7 +113,6 @@ e por PTY ele só via bytes.
 | [tasks.md](prd/workspace-memory/tasks.md) | Uma seção por PR da pilha. A **01, a 02 e o S1 têm tasks** e o que a execução achou; as demais têm escopo e `Done when` |
 | [roadmap.md](prd/workspace-memory/roadmap.md) | **A feature em pilha de PRs**: topologia de branches, as sete regras da pilha, as cinco partes da espinha, o que anda em paralelo e onde o ACP entra |
 | `packages/web/prototype/lumem-memory.html` | O protótipo do **S2**, verificado por renderização: o que existe no escopo ativo, a inbox, o conflito no mesmo escopo, a linha do tempo, os números, e os estados vazios e degradados. É ele que a PR 05 implementou |
-| `packages/web/prototype/lumem-workspace-memory.html` | **Um segundo desenho da mesma tela** (2026-08-20), feito no Open Design sem olhar o primeiro. Acerta três coisas que o S2 não tem — precedência sombreando à vista, custo por entrada no núcleo, rejeição na linha do tempo — e perde duas que ele tem. **Os dois precisam ser reconciliados num só** |
 | [context-delivery.md](prd/workspace-memory/context-delivery.md) | Como a memória chega no agente: **núcleo comportamental + skill + serviço `lumem-memory` com auto-learn**. O que o desenho compra, o que ele cobra, o que medir, e as **8 decisões (D1–D8)** |
 
 Quatro decisões já fechadas mudaram o desenho: **nenhuma memória vive dentro do repositório** (menos o

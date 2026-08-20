@@ -1,4 +1,19 @@
-/* Memória — as quatro vistas. Só var(), como o resto do app. */
+/*
+ * Memória — as quatro vistas.
+ *
+ * **Só `var()`, e agora é verdade.** A primeira linha deste arquivo dizia isso
+ * desde o começo e ele tinha 21 literais: `font-size` em 10, 11, 12 e 18px,
+ * padding em 1, 2, 3 e 7px, uma altura de 220px e uma grade de 96px por 14px.
+ * A tela é anterior à decisão de 2026-08-19 que moveu o design para o Open
+ * Design, foi feita sob o regime antigo, e ninguém a revisitou depois — é por
+ * isso que ela tinha 11px onde o resto do app tem `--text-caption`.
+ *
+ * Cada tamanho aqui saiu de um token que já existia. Nenhum token novo foi
+ * preciso, o que é a prova de que a escala dava conta desde o início.
+ *
+ * As duas exceções são as que o repositório já declara: o fio ótico de 1–2px, e
+ * nada mais.
+ */
 
 .mem-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 
@@ -8,25 +23,28 @@
   border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
   background: var(--color-bg-raised);
 }
-.mem-head .mem-title { font-weight: 600; font-size: 12px; }
-.mem-head .mem-spacer { flex: 1; }
 
 /* As quatro vistas. Estado ativo por classe, como `tab-item--active`: sem ele
-   nenhuma das quatro aparenta estar aberta. */
-.mem-tabs { display: inline-flex; background: var(--color-bg-inset); border-radius: var(--radius-md); padding: 2px; gap: 2px; }
+   nenhuma das quatro aparenta estar aberta.
+
+   Sem mudança de peso entre ativa e inativa: o fundo e a cor já dizem qual é, e
+   um peso a mais era o único lugar do arquivo que pedia uma tipografia sem
+   token. */
+.mem-tabs {
+  display: inline-flex;
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  gap: var(--space-2);
+}
 .mem-tab {
-  font-size: 11px; padding: 3px 10px; border-radius: var(--radius-sm);
+  font: var(--text-label-xs);
+  padding: var(--space-4) var(--space-10);
+  border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
 }
 .mem-tab:hover { color: var(--color-text-primary); }
-.mem-tab--active {
-  background: var(--color-bg-surface); color: var(--color-text-primary); font-weight: 600;
-}
-
-.mem-count {
-  font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: var(--radius-full);
-  background: var(--color-bg-brand-subtle); color: var(--color-text-brand);
-}
+.mem-tab--active { background: var(--color-bg-surface); color: var(--color-text-primary); }
 
 .mem-body { flex: 1; min-height: 0; overflow: auto; }
 
@@ -35,21 +53,33 @@
   border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
 }
 .mem-item:last-child { border-bottom: 0; }
-.mem-item.is-shadowed { opacity: .55; }
+/*
+ * Sombreada, sem `opacity`.
+ *
+ * `opacity: .55` era o único jeito de o arquivo produzir uma cor que o gate de
+ * contraste não sabe verificar — o par declarado é token contra token, e uma
+ * transparência por cima sai de fora da conta. O apagado agora é um token, e o
+ * risco no nome é o que diz que ela perdeu a precedência sem escondê-la.
+ */
+.mem-item.is-shadowed .mem-name { color: var(--color-text-disabled); text-decoration: line-through; }
+.mem-item.is-shadowed .mem-desc { color: var(--color-text-disabled); }
 
 .mem-row { display: flex; align-items: baseline; gap: var(--space-8); }
-.mem-name { font-weight: 600; }
-.mem-desc { color: var(--color-text-secondary); font-size: 12px; margin-top: 2px; }
+.mem-name { font: var(--text-label-sm); color: var(--color-text-primary); }
+.mem-desc { color: var(--color-text-secondary); font: var(--text-body-sm); margin-top: var(--space-2); }
 .mem-meta {
-  color: var(--color-text-tertiary); font-size: 11px; margin-top: var(--space-4);
+  color: var(--color-text-tertiary); font: var(--text-caption); margin-top: var(--space-4);
   display: flex; gap: var(--space-10); flex-wrap: wrap;
 }
 
 /* Escopo responde "onde vale"; tipo responde "o que é". Formas diferentes, porque
    a primeira renderização do protótipo provou que peso igual apaga a distinção. */
 .mem-scope {
-  font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: var(--radius-full);
-  border: var(--border-width-thin) solid transparent; white-space: nowrap;
+  font: var(--text-label-xs);
+  padding: var(--space-2) var(--space-6);
+  border-radius: var(--radius-full);
+  border: var(--border-width-thin) solid transparent;
+  white-space: nowrap;
 }
 .mem-scope[data-scope="global"] {
   background: var(--color-bg-neutral-subtle); color: var(--color-text-secondary);
@@ -64,12 +94,13 @@
   border-color: var(--color-border-default);
 }
 .mem-kind {
-  font: 500 10px/1 var(--font-family-mono); color: var(--color-text-tertiary);
-  letter-spacing: .02em; text-transform: uppercase;
+  font: var(--text-mono-sm); color: var(--color-text-tertiary);
+  letter-spacing: var(--tracking-label-xs); text-transform: uppercase;
 }
 
 .mem-shadow-note {
-  font-size: 11px; color: var(--color-text-tertiary);
+  font: var(--text-caption); color: var(--color-text-tertiary);
+  /* Fio ótico: a exceção que o repositório declara. */
   border-left: 2px solid var(--color-border-strong);
   padding-left: var(--space-8); margin-top: var(--space-6);
 }
@@ -78,31 +109,36 @@
 .mem-evidence {
   margin-top: var(--space-8); padding: var(--space-8) var(--space-10);
   border-radius: var(--radius-md); background: var(--color-bg-inset);
-  color: var(--color-text-secondary); font-size: 12px;
+  color: var(--color-text-secondary); font: var(--text-body-sm);
 }
-.mem-evidence code { font-family: var(--font-family-mono); font-size: 11px; }
+.mem-evidence code { font: var(--text-mono-sm); }
 .mem-actions { display: flex; gap: var(--space-8); margin-top: var(--space-10); flex-wrap: wrap; }
 
 /* Pendentes × resolvidas. Recusar é histórico, e o histórico precisa de porta. */
 .mem-seg {
   display: inline-flex; margin: var(--space-10) var(--space-12) 0;
-  background: var(--color-bg-inset); border-radius: var(--radius-md); padding: 2px; gap: 2px;
+  background: var(--color-bg-inset); border-radius: var(--radius-md);
+  padding: var(--space-2); gap: var(--space-2);
 }
 .mem-seg__item {
-  font-size: 11px; padding: 3px 10px; border-radius: var(--radius-sm);
+  font: var(--text-label-xs);
+  padding: var(--space-4) var(--space-10);
+  border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
 }
-.mem-seg__item--active {
-  background: var(--color-bg-surface); color: var(--color-text-primary); font-weight: 600;
-}
+.mem-seg__item--active { background: var(--color-bg-surface); color: var(--color-text-primary); }
 
-/* O corpo é o que vira arquivo: ele aparece antes de qualquer aprovação. */
+/* O corpo é o que vira arquivo: ele aparece antes de qualquer aprovação.
+
+   O teto é o mesmo do resultado de ferramenta, e pelo mesmo motivo: um corpo de
+   duas mil linhas não pode empurrar os botões de decisão fora da tela. */
 .mem-body-text {
   margin-top: var(--space-8); padding: var(--space-8) var(--space-10);
   border-radius: var(--radius-md); background: var(--color-bg-inset);
   border: var(--border-width-thin) solid var(--color-border-subtle);
   font: var(--text-mono-sm); color: var(--color-text-primary);
-  white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto;
+  white-space: pre-wrap; word-break: break-word;
+  max-height: var(--size-tool-output-max); overflow: auto;
 }
 
 .mem-form { margin-top: var(--space-10); }
@@ -113,8 +149,10 @@
 }
 
 .mem-verdict {
-  font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: var(--radius-full);
-  text-transform: uppercase; letter-spacing: .02em;
+  font: var(--text-label-xs);
+  padding: var(--space-2) var(--space-6);
+  border-radius: var(--radius-full);
+  text-transform: uppercase; letter-spacing: var(--tracking-label-xs);
 }
 .mem-verdict[data-status="approved"] {
   background: var(--color-bg-success-subtle); color: var(--color-text-success);
@@ -125,17 +163,39 @@
 
 /* Linha do tempo */
 .mem-tl-item {
-  display: grid; grid-template-columns: 96px 14px 1fr; gap: var(--space-8);
+  display: grid;
+  /* A coluna da hora cabe `20 ago 09:41`; a do marcador é um glifo. */
+  grid-template-columns: calc(var(--space-64) + var(--space-32)) var(--size-icon-sm) 1fr;
+  gap: var(--space-8);
   padding: var(--space-6) var(--space-12); align-items: baseline;
 }
-.mem-tl-when { color: var(--color-text-tertiary); font-size: 11px; text-align: right; }
+.mem-tl-when { color: var(--color-text-tertiary); font: var(--text-caption); text-align: right; }
 .mem-tl-dot { color: var(--color-text-tertiary); text-align: center; }
-.mem-tl-verb { font-weight: 600; }
+.mem-tl-verb { font: var(--text-label-sm); color: var(--color-text-primary); }
 .mem-tl-item[data-outcome="rejected"] .mem-tl-verb { color: var(--color-text-danger); }
 .mem-tl-item[data-outcome="noop"] { color: var(--color-text-tertiary); }
 
 /* Números */
-.mem-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--color-border-subtle); }
+.mem-stats {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  /* Fio ótico entre as células, e é o fundo que o desenha. */
+  gap: 1px; background: var(--color-border-subtle);
+}
 .mem-stat { background: var(--color-bg-surface); padding: var(--space-12); }
-.mem-stat .n { font-size: 18px; font-weight: 600; letter-spacing: -.02em; }
-.mem-stat .l { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
+.mem-stat .n {
+  font: var(--text-heading-lg); letter-spacing: var(--tracking-heading-lg);
+  color: var(--color-text-primary);
+}
+.mem-stat .l { font: var(--text-caption); color: var(--color-text-tertiary); margin-top: var(--space-2); }
+
+/* Um grupo por escopo. O chip que estava em toda linha vive aqui, dito uma vez —
+   e a ordem é a da precedência: projeto vence workspace, que vence global. */
+.mem-group__t {
+  display: flex; align-items: center; gap: var(--space-6);
+  margin: 0; padding: var(--space-8) var(--space-12) var(--space-4);
+  background: var(--color-bg-panel);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+  position: sticky; top: 0; z-index: 1;
+}
+.mem-group__n { margin-left: auto; font: var(--text-caption); color: var(--color-text-disabled); }
+.mem-list { list-style: none; margin: 0; padding: 0; }

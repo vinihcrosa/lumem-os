@@ -30,6 +30,7 @@ function Harness() {
               tab={tab}
               onSelectTab={setTab}
               changeCount={6}
+              proposalCount={3}
               onReload={() => {}}
               onClose={panel.toggle}
               onResize={panel.setWidth}
@@ -132,6 +133,26 @@ describe("a coluna de arquivos", () => {
     fireEvent(window, new MouseEvent("pointermove", { clientX: -400, bubbles: true }));
 
     expect(onResize).not.toHaveBeenCalled();
+  });
+});
+
+describe("a contagem na faixa", () => {
+  it("mostra quantas propostas esperam, na aba que decide se vale abrir", async () => {
+    /*
+     * Aqui, e não dentro do painel de memória.
+     *
+     * O painel tinha a mesma contagem no cabeçalho dele, e o resultado em 360px
+     * era a palavra "Memória" três vezes na mesma linha — a faixa, o cabeçalho e
+     * a primeira aba — com a quarta aba cortada por falta de largura. O número
+     * pertence a quem responde "vale abrir?", que é a faixa.
+     */
+    // A coluna nasce fechada, para a tela nascer com um terminal grande.
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole("button", { name: /arquivos/ }));
+
+    const tab = await screen.findByRole("tab", { name: /Memória/ });
+    expect(tab).toHaveTextContent("3");
   });
 });
 

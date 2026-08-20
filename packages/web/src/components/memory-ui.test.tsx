@@ -93,13 +93,15 @@ describe("MemoryPanel", () => {
     expect(screen.getByText("process/convencao")).toBeInTheDocument();
   });
 
-  it("conta as propostas pendentes no cabeçalho", async () => {
-    trpc.memory.proposals.query.mockResolvedValue([proposal(), proposal({ id: "prop2" })]);
-
-    render();
-
-    expect(await screen.findByTitle("propostas aguardando revisão")).toHaveTextContent("2");
-  });
+  /*
+   * O teste da contagem saiu daqui, e a contagem também.
+   *
+   * Ela era duplicada: a faixa do painel direito já mostra "Memória 1", e o
+   * comentário lá diz o motivo — o número de propostas pendentes é o que decide
+   * se vale abrir a aba. Renderizado em 360px, a palavra "Memória" aparecia três
+   * vezes na mesma linha e a quarta aba ficava cortada. A asserção agora vive em
+   * `right-panel.test.tsx`, junto do elemento que a exibe.
+   */
 
   it("a proposta com evidência mostra a evidência; sem, diz que é conclusão", async () => {
     trpc.memory.proposals.query.mockResolvedValue([

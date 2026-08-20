@@ -441,24 +441,33 @@ Nada disso é útil se for invisível — a lição do `journey` do Hermes.
   medição é fé.
 - Um sinal discreto na aba quando a sessão em curso escreveu ou propôs algo.
 
-**O desenho existe** (2026-08-20): `packages/web/prototype/lumem-workspace-memory.html`, seis telas —
-acervo por escopo, os quatro estados de uma entrada, a inbox de propostas com diff, a linha do tempo com
-os dois desfazeres, os números, e as regras de forma que ela assume. Feito no Open Design, que é a fonte
-([decisão](../../project/design-source-of-truth.md)), e trazido por `design:sync`.
+**O desenho existe, e é um só.** O protótipo do S2 —
+`packages/web/prototype/lumem-memory.html` — é o desenho de registro, e a PR 05 o implementou: a
+memória é a **terceira aba do painel direito**, ao lado de arquivos e mudanças, com escopo seguindo o
+checkout selecionado.
 
-É a **primeira tela deste repositório desenhada antes de existir daemon para ela** — as outras oito
-desenharam o que já rodava. O que ela mostra sai das decisões já fechadas aqui e não de invenção da
-tela: os sete tipos do §6, a precedência do §7, a proveniência, o portão, e os números do
-[§6 do context-delivery](context-delivery.md). Três coisas o desenho **corrigiu** ao renderizar, e
-valem para a implementação:
+Em 2026-08-20 um **segundo** desenho da mesma tela foi feito no Open Design, sem olhar o primeiro, e
+propunha o oposto: destino de workspace na área principal, com lista e entrada em duas colunas. Ele foi
+**apagado** — dois desenhos da mesma tela é pior que um desenho imperfeito. Antes de sair, três coisas
+que ele acertava foram implementadas no produto:
 
-- **Sombreada não ganha palavra na lista.** O slug riscado já diz, e a palavra roubava o espaço do
-  slug — que é a única coisa que a linha tem para dizer.
-- **O núcleo aparece como marca d'água, com o custo por entrada.** Sem teto, como a
-  [D5](context-delivery.md) decidiu, e por isso o alarme precisa de um número ao lado de cada entrada
-  fixada.
-- **Rejeição precisa de lugar na tela.** Ela vive só no WAL e não vira arquivo, então some de qualquer
-  vista que liste arquivos. Aparece na linha do tempo, sem desfazer — não há commit a reverter.
+- **Agrupar por escopo.** Havia um chip de escopo em toda linha; com três entradas do mesmo escopo, em
+  360px, eram três chips idênticos empilhados. O escopo responde "onde isto vale", e isso se responde
+  uma vez por grupo — na ordem da precedência, o mais específico primeiro.
+- **Precedência sem `opacity`.** A entrada sombreada era `opacity: .55`, que produz uma cor que o gate
+  de contraste não sabe verificar. Virou token apagado mais risco no nome: ela perdeu, e continua lá.
+- **O teto que não corta.** O corpo da proposta usa o mesmo teto do resultado de ferramenta, pelo mesmo
+  motivo — um corpo de duas mil linhas não pode empurrar os botões de decisão fora da tela.
+
+Duas coisas que **o primeiro** tem e o segundo não tinha, e que ficam como referência: **conflito no
+mesmo escopo** (duas escritas na mesma identidade, que não é sombreamento) e os **estados vazios e
+degradados**.
+
+E o que a comparação achou, que nenhum dos dois desenhos previa: o `memory.css` tinha **21 valores
+literais** em 141 linhas — `font-size` em 10, 11, 12 e 18px, uma altura de 220px, uma grade de 96px.
+A tela é anterior à decisão que moveu o design para o Open Design, foi feita sob o regime antigo, e a
+primeira linha do arquivo dizia "só `var()`" desde o começo. Todos os 21 tinham token; nenhum token
+novo foi preciso.
 
 ---
 

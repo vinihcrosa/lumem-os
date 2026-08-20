@@ -58,14 +58,14 @@ export function MemoryPanel({ workspaceId, projectId, tab, onTabChange }: Memory
 
   return (
     <section className="mem-panel" aria-label="Memória do workspace">
+      {/*
+        Sem título próprio, e sem repetir a contagem.
+        A faixa do painel direito já diz "Memória" e já traz o número — e a
+        primeira aba aqui também se chama Memória. Renderizado em 360px, a mesma
+        palavra aparecia três vezes na mesma linha, e a quarta aba (`Números`)
+        ficava cortada porque não sobrava largura para ela.
+      */}
       <header className="mem-head">
-        <span className="mem-title">Memória</span>
-        {proposals.data && proposals.data.length > 0 ? (
-          <span className="mem-count" title="propostas aguardando revisão">
-            {proposals.data.length}
-          </span>
-        ) : null}
-        <span className="mem-spacer" />
         <div role="tablist" aria-label="Vistas da memória" className="mem-tabs">
           {TABS.map((item) => (
             <button
@@ -99,6 +99,30 @@ export function MemoryPanel({ workspaceId, projectId, tab, onTabChange }: Memory
   );
 }
 
+/**
+ * O valor de confiança em português.
+ *
+ * O daemon fala `low | medium | high`, que é o vocabulário do dado. Ecoar isso
+ * numa tela em português deixava "confiança medium" na linha de toda entrada.
+ */
+const CONFIDENCE: Record<string, string> = { low: "baixa", medium: "média", high: "alta" };
+
+/** Quem escreveu, em português. O daemon fala o vocabulário do dado. */
+const ACTOR: Record<string, string> = {
+  human: "você",
+  agent: "agente",
+  distiller: "destilação",
+  auto_research: "auto-learn",
+  import: "importação",
+};
+
+/** O rótulo do grupo responde "onde isto vale". */
+const SCOPE_LABEL: Record<string, string> = {
+  global: "você · atravessa workspace",
+  workspace: "workspace",
+  project: "projeto",
+};
+
 function Entries({ query }: { query: ReturnType<typeof useMemoryList> }) {
   if (query.isPending) return <p className="mem-meta">carregando…</p>;
   if (query.isError) return <EmptyState title="Não deu para ler a memória">{query.error.message}</EmptyState>;
@@ -117,33 +141,58 @@ function Entries({ query }: { query: ReturnType<typeof useMemoryList> }) {
     losersByWinner.set(pair.winner, [...(losersByWinner.get(pair.winner) ?? []), pair.identity]);
   }
 
+  /*
+   * Agrupado por escopo, e não um chip por linha.
+   *
+   * Renderizado em 360px com três entradas do mesmo escopo, o resultado eram três
+   * chips `workspace` idênticos empilhados — a mesma informação repetida onde a
+   * largura é a restrição mais dura da tela. O escopo é a pergunta "onde isto
+   * vale", e ela se responde **uma vez por grupo**.
+   *
+   * A ordem é a da precedência: o mais específico primeiro, porque é o que vence.
+   */
+  const order = ["project", "workspace", "global"];
+  const groups = order
+    .map((scope) => ({ scope, rows: entries.filter((entry) => entry.scope === scope) }))
+    .filter((group) => group.rows.length > 0);
+
   return (
-    <ul className="mem-list">
-      {entries.map((entry) => (
-        <li key={entry.path} className="mem-item">
-          <EntryHead entry={entry} />
-          <p className="mem-desc">{entry.description}</p>
-          <p className="mem-meta">
-            <span>{entry.sourceActor}</span>
-            <span>confiança {entry.confidence}</span>
-          </p>
-          {losersByWinner.get(entry.path)?.map((identity) => (
-            <p key={identity} className="mem-shadow-note">
-              sombreia <strong>{identity}</strong> — continua no disco
-            </p>
-          ))}
-        </li>
+    <>
+      {groups.map((group) => (
+        <section className="mem-group" key={group.scope}>
+          <h3 className="mem-group__t">
+            <span className="mem-scope" data-scope={group.scope}>
+              {SCOPE_LABEL[group.scope] ?? group.scope}
+            </span>
+            <span className="mem-group__n">{group.rows.length}</span>
+          </h3>
+          <ul className="mem-list">
+            {group.rows.map((entry) => (
+              <li key={entry.path} className="mem-item">
+                <EntryHead entry={entry} />
+                <p className="mem-desc">{entry.description}</p>
+                <p className="mem-meta">
+                  <span>{ACTOR[entry.sourceActor] ?? entry.sourceActor}</span>
+                  <span>confiança {CONFIDENCE[entry.confidence] ?? entry.confidence}</span>
+                </p>
+                {losersByWinner.get(entry.path)?.map((identity) => (
+                  <p key={identity} className="mem-shadow-note">
+                    sombreia <strong>{identity}</strong> — continua no disco
+                  </p>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </section>
       ))}
-    </ul>
+    </>
   );
 }
 
 function EntryHead({ entry }: { entry: MemoryEntry }) {
+  // Sem o chip de escopo: ele subiu para o cabeçalho do grupo, onde é dito uma vez.
   return (
     <p className="mem-row">
-      <span className="mem-scope" data-scope={entry.scope}>
-        {entry.scope === "global" ? "você" : entry.scope}
-      </span>
       <span className="mem-kind">{entry.type}</span>
       <span className="mem-name">{entry.name}</span>
     </p>
