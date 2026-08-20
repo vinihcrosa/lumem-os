@@ -95,6 +95,11 @@ test("an empty machine reaches the first turn, entirely through the screen", asy
   await expect(page.getByLabel("Workspace", { exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible();
   await expect(conversation(page)).toBeVisible({ timeout: 20_000 });
+  // Attached, not merely visible: the panel renders while the socket connects,
+  // and the composer only accepts a message once the `attached` frame lands.
+  await expect(conversation(page).getByText("sessão aberta, nada pedido ainda")).toBeVisible({
+    timeout: 20_000,
+  });
 
   // And it answers. Without every step above, this line has nothing to talk to.
   await conversation(page).getByLabel("mensagem para o agente").fill("arruma o frontmatter vazio");

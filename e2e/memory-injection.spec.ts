@@ -86,6 +86,8 @@ test("o agente recebe o núcleo, e só uma vez", async ({ page, request }) => {
   await page.getByRole("menuitem", { name: new RegExp(`^${AGENT}\\b`) }).click();
   const conv = conversation(page);
   await expect(conv).toBeVisible({ timeout: 20_000 });
+  // Atada, e não só visível: o composer só aceita mensagem depois do `attached`.
+  await expect(conv.getByText("sessão aberta, nada pedido ainda")).toBeVisible({ timeout: 20_000 });
 
   await send(page, ECHO);
 

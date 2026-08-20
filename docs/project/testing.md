@@ -289,6 +289,24 @@ A regra que fecha essa família: **teste de propriedade "não depende de X" tem 
 
 ---
 
+**A janela entre "renderizou" e "atado" — e o CI foi o único a ver.** Depois da `workspace-memory`
+inteira ficar verde na minha máquina, o CI reprovou no `00-onboarding`: a mensagem era digitada, o
+botão clicado, e o primeiro turno **não acontecia**. O painel da conversa renderiza enquanto o socket
+conecta; o `acp-socket` recusa escrita antes de abrir, de propósito — *"mandar antes de o socket abrir
+é bug de quem chamou"* —, e o bug era o `send` do composer: ele mandava, o socket largava, e o
+`setDraft("")` limpava o texto de qualquer jeito. Numa máquina mais lenta o `attached` chega depois do
+primeiro clique, e a pessoa perde a mensagem sem a tela dizer nada.
+
+Duas correções, e a segunda é o teste: o composer **não envia** antes de atar e **não limpa** o
+rascunho quando não deu para enviar; e cada spec que digita na conversa espera pelo sinal de atado
+(`sessão aberta, nada pedido ainda`) em vez de pelo painel visível.
+
+A regra: **"o elemento apareceu" não é "o elemento funciona".** Quando o que faz um controle funcionar
+é uma conexão, o teste tem que esperar pela conexão — e o controle tem que se desabilitar até lá, que é
+o que faz o `click()` do Playwright esperar sozinho. E o corolário desconfortável: **uma suíte que só
+roda numa máquina não cobre corrida de rede.** Esta passou 34/34 localmente em três execuções
+seguidas, e reprovou na primeira vez que rodou num runner mais lento.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

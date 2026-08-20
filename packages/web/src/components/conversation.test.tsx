@@ -232,6 +232,35 @@ describe("sending", () => {
     expect(screen.getByRole("button", { name: /enviar/ })).toBeDisabled();
   });
 
+  it("não envia antes de a sessão estar atada — e não perde o texto", async () => {
+    /*
+     * O socket recusa escrita antes de abrir, e o rascunho tinha que sobreviver a
+     * isso. Antes, o envio saía, o socket largava, e o texto era limpo de
+     * qualquer jeito: a pessoa perdia a mensagem e a tela não dizia nada.
+     *
+     * Quem cobrou foi o CI, e só no Linux — numa máquina mais lenta o `attached`
+     * chega depois do primeiro clique, e o primeiro turno não acontecia.
+     */
+    const user = userEvent.setup();
+    const { socket } = mount();
+    // Sem `socket.deliver(attached())`: é exatamente a janela do defeito.
+
+    const box = await screen.findByLabelText("mensagem para o agente");
+    await user.click(box);
+    await user.type(box, "arruma o frontmatter");
+    await user.keyboard("{Enter}");
+
+    expect(socket.sent).toEqual([]);
+    expect(box).toHaveValue("arruma o frontmatter");
+    expect(screen.getByRole("button", { name: /enviar/ })).toBeDisabled();
+
+    // E quando ata, o mesmo texto vai — sem redigitar nada.
+    socket.deliver(attached());
+    await user.keyboard("{Enter}");
+
+    expect(socket.sent).toEqual([{ type: "prompt", text: "arruma o frontmatter" }]);
+  });
+
   it("detaches on unmount without ending the conversation", () => {
     const { socket } = mount();
     const view = render(<div />);

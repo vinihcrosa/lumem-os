@@ -75,6 +75,11 @@ test("creates the ACP agent from the screen, then talks to it", async ({ page })
   await page.getByRole("button", { name: /nova sessão/ }).click();
   await page.getByRole("menuitem", { name: new RegExp(`^${AGENT}\\b`) }).click();
   await expect(conversation(page)).toBeVisible({ timeout: 20_000 });
+  // Attached, not merely visible: the composer only accepts a message once the
+  // `attached` frame lands, and CI on Linux is where that window shows up.
+  await expect(conversation(page).getByText("sessão aberta, nada pedido ainda")).toBeVisible({
+    timeout: 20_000,
+  });
 
   await conversation(page).getByLabel("mensagem para o agente").fill("arruma o frontmatter vazio");
   await conversation(page).getByRole("button", { name: /enviar/ }).click();

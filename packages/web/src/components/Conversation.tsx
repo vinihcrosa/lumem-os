@@ -231,12 +231,26 @@ export function Conversation({
     [sessionId],
   );
 
+  /*
+   * Nada é enviado antes de a sessão estar atada, e o rascunho **não** é limpo
+   * quando não deu para enviar.
+   *
+   * O socket recusa escrita antes de abrir, de propósito — *"mandar antes de o
+   * socket abrir é bug de quem chamou"*, diz o `acp-socket`. O bug era aqui: o
+   * envio saía, o socket largava, e o `setDraft("")` limpava o texto de qualquer
+   * jeito. A pessoa perdia a mensagem e a tela não dizia nada.
+   *
+   * Foi o CI que cobrou, e só o Linux: numa máquina mais lenta o `attached`
+   * chega depois do primeiro clique, e o primeiro turno simplesmente não
+   * acontecia. Na minha máquina passava sempre.
+   */
+  const attached = session !== null;
   const send = useCallback(() => {
     const text = draft.trim();
-    if (text === "" || pending !== null || readOnly) return;
+    if (text === "" || pending !== null || readOnly || !attached) return;
     socketRef.current?.send({ type: "prompt", text });
     setDraft("");
-  }, [draft, pending, readOnly]);
+  }, [attached, draft, pending, readOnly]);
 
   // Null unless the draft is a lone `/word` at the very start: a `/` inside a
   // sentence is a path, and offering a command menu over `src/lore` would be the
@@ -442,7 +456,7 @@ export function Conversation({
             <Button
               variant="primary"
               size="sm"
-              disabled={draft.trim() === "" || pending !== null || readOnly}
+              disabled={draft.trim() === "" || pending !== null || readOnly || !attached}
               onClick={send}
             >
               enviar <span className="kbd">⏎</span>

@@ -218,6 +218,11 @@ test("reopening a finished conversation reads it, and the button continues it", 
   await page.getByRole("button", { name: /nova sessão/ }).click();
   await page.getByRole("menuitem", { name: new RegExp(`^${AGENT}\\b`) }).click();
   await expect(conversation(page)).toBeVisible({ timeout: 20_000 });
+  // Attached, not merely visible: the composer only accepts a message once the
+  // `attached` frame lands.
+  await expect(conversation(page).getByText("sessão aberta, nada pedido ainda")).toBeVisible({
+    timeout: 20_000,
+  });
 
   // Something worth reading later.
   await composer(page).fill("arruma o frontmatter vazio");

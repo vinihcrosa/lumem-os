@@ -50,6 +50,12 @@ async function openConversation(page: Page): Promise<void> {
   await page.getByRole("button", { name: /nova sessão/ }).click();
   await page.getByRole("menuitem", { name: new RegExp(`^${AGENT}\\b`) }).click();
   await expect(conversation(page)).toBeVisible({ timeout: 20_000 });
+  // Atada, e não só visível. O painel renderiza enquanto o socket conecta, e o
+  // composer só aceita mensagem depois do `attached` — CI no Linux é onde essa
+  // janela aparece, e onde ela custou um turno perdido.
+  await expect(conversation(page).getByText("sessão aberta, nada pedido ainda")).toBeVisible({
+    timeout: 20_000,
+  });
 }
 
 async function createWorktree(page: Page, name: string): Promise<void> {
