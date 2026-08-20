@@ -117,6 +117,12 @@ quem manda na autenticação.
 
 
 **Implementado como proposto (2026-08-20).** A tela 3 relata `ANTHROPIC_API_KEY` presente ou ausente, e a tela 4 relata `authMethods`. Nenhum rádio.
+
+**Revisto no mesmo dia, e a proposta perde metade da razão.** A [agent-login §2.1](../agent-login/prd.md)
+mediu que `authMethods` vinha vazio porque o Lumem não declarava `clientCapabilities.auth.terminal` —
+não porque o adaptador não tivesse o que oferecer. Com a capacidade declarada ele oferece **dois**
+métodos, e aí existe escolha de verdade: com qual conta entrar. O relato continua certo para o passo 3
+do fluxo (ali ainda não há handshake); a escolha existe, e mora no painel de login.
 **R:**
 
 ### [ ] O6 — "Instalar agora" existe?

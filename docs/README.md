@@ -151,6 +151,24 @@ Duas coisas que este PRD achou e valem fora dele, as duas agora **medidas** e n�
 vez de digitada — provado por um integration marcado contra o `claude-agent-acp` de verdade; e a
 "escolha" de autenticação do desenho não escolhia nada, então virou relato do que a sonda achou.
 
+### [agent-login/](prd/agent-login/) — conectar agente é login, e só
+
+**Completa — 8 de 8 tasks.** O rodapé da sidebar pedia cinco campos — nome, transporte, comando,
+argumentos, versão do adaptador. Nenhum era escolha de quem usa. Agora é uma linha com o estado da
+conexão e um painel que **pergunta uma coisa**: com qual conta você entra. Os botões vêm do
+`authMethods` do handshake; o adaptador o daemon instala sozinho, numa versão fixa.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/agent-login/prd.md) | O **§2 é o coração**: quatro medições contra o adaptador real, duas delas derrubando premissas já publicadas neste repositório. Mais a reversão nomeada da decisão de ontem sobre instalar, e a tabela de onde o desenho e o protocolo discordaram |
+| [open-questions.md](prd/agent-login/open-questions.md) | 8 perguntas, **todas fechadas** — seis pela medição, duas por decisão do Vinicius (o escopo, e onde a chave de API moraria quando voltar) |
+| [tasks.md](prd/agent-login/tasks.md) | 8 tasks em 3 fases, começando por **medir**. No fim, cinco coisas que a execução achou — inclusive um bug de 15 segundos por carga de página que o e2e pegou |
+
+O achado que vale fora da feature: **o `claude-agent-acp` não oferece login a quem não pede.**
+`authMethods` vinha vazio porque o Lumem nunca declarou `clientCapabilities.auth.terminal` — não porque
+o adaptador não tivesse o que oferecer. Com a capacidade declarada, ele oferece dois métodos, os dois
+`type: "terminal"`: o login é um comando dele rodando num terminal, e não uma chamada de `authenticate`.
+
 ---
 
 ## Convenções

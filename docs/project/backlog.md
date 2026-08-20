@@ -296,7 +296,10 @@ deles, e a v1 do fluxo não implementa nenhum.
 
 | Item | Peso | Contexto de uma frase | Volta quando |
 |---|---|---|---|
-| Instalar o adaptador pela tela | `P` | o desenho tem o botão; um daemon que roda `npm i -g` porque um navegador clicou é procurador confuso, e a saída não tem onde aparecer — sessão precisa de escopo | instalar à mão virar a reclamação mais comum de quem tenta usar |
+| ~~Instalar o adaptador pela tela~~ — **feito em 2026-08-20** | — | saiu do backlog na [agent-login](../prd/agent-login/prd.md): o que estava recusado era `npm i -g`, e o que foi feito é `--prefix` numa pasta do daemon, com versão fixa | — |
+| Chave de API colada na tela | `P` | o desenho tem o caminho; o adaptador não oferece método `env_var` nenhum, então seria mecanismo do Lumem. **Onde ela mora já está decidido:** `agent_config.env`, no SQLite — e a tela terá de dizer que fica no registro do Lumem, não no chaveiro | você precisar de cobrança por token, ou de uma conta que não seja a do login local |
+| Editar o adaptador pela gaveta `avançado` | `P` | hoje é leitura; trocar é remover e criar em "outro agente ACP…". Falta um `agentConfig.update` | alguém querer trocar só os argumentos sem perder a configuração |
+| Login em daemon sem navegador | `P` | o adaptador troca os métodos e oferece `claude-login`, que é o mesmo mecanismo de terminal — funciona por construção e nunca foi exercitado | o daemon rodar em SSH ou container |
 | Clonar projeto de uma URL | `M` | a tela 6 oferece; rede, credencial, progresso e cancelamento são feature, não um campo | você querer adicionar repo que ainda não está na máquina |
 | Worktrees `externas` na sidebar | `M` | o passo 6 **detecta** as que existem fora do Lumem; listá-las pede reconciliação e ciclo de vida próprios | alguém perder tempo procurando onde foi uma worktree criada fora do Lumem |
 | Paleta de comandos `⌘K` | `M` | a tela 9 promete; hoje o único atalho que existe é `⌘⏎` | a sidebar deixar de dar conta de achar as coisas |

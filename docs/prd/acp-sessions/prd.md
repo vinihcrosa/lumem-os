@@ -45,10 +45,17 @@ initialize → protocolVersion: 1, authMethods: []
 session/new → sessionId, sem erro de autenticação
 ```
 
-`authMethods: []` mais `session/new` bem-sucedido significa que **o adaptador usou a credencial local
-do Claude Code**. Não pediu chave de API, não pediu login novo. O medo levantado pela issue #517
+`session/new` bem-sucedido significa que **o adaptador usou a credencial local do Claude Code**. Não
+pediu chave de API, não pediu login novo. O medo levantado pela issue #517
 ([§9.2b do estudo](../../project/pty-vs-acp.md)) é real para a **distribuição** pela JetBrains, e
 **não se aplica** a este caso: aqui o adaptador é instalado e rodado por você.
+
+> **Correção de 2026-08-20, medida na [agent-login](../agent-login/prd.md) §2.1.** A leitura original
+> dizia que `authMethods: []` *mais* o `session/new` provavam que o adaptador "não pediu nada". A
+> segunda metade estava errada: **ele nunca foi perguntado.** O `claude-agent-acp` só oferece método de
+> login a um cliente que declara `clientCapabilities.auth.terminal`, e o spike não declarava. Com a
+> capacidade declarada ele oferece dois. O que o spike provou, e continua provando, é o mais estreito e
+> o que importava: uma credencial local válida faz `session/new` responder.
 
 ### 2.2 Janela de contexto — ⚠️ parcial: nasce em 1M, compactação não exercitada
 

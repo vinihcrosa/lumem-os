@@ -498,13 +498,16 @@ Migrar quer dizer: **ACP é o default e é onde o produto investe**. Não quer d
 
 ### 9.5 O resultado do spike
 
-Rodado em 2026-08-17 nesta máquina, contra `@agentclientprotocol/claude-agent-acp@0.69.0` com o
+Rodado em 2026-08-17 nesta máquina, contra `@agentclientprotocol/claude-agent-acp@0.69.0` — número que
+**não bate** com o que o binário instalado reporta: em 2026-08-20 o `agentInfo.version` dele diz
+`0.40.0`, e é esse que a [agent-login](../prd/agent-login/open-questions.md) fixou. Onde os dois
+discordam, vale o que o handshake respondeu. Com o
 `claude` 2.1.234. O detalhe, com os payloads, está no
 [§2 do PRD de acp-sessions](../prd/acp-sessions/prd.md). Os três eixos:
 
 | Eixo | Resultado | Evidência |
 |---|---|---|
-| **Autenticação** | ✅ a assinatura vale — sem chave de API | `initialize → authMethods: []` e `session/new` sem erro. O medo da issue #517 é da distribuição pela JetBrains, e não se aplica a adaptador instalado por você |
+| **Autenticação** | ✅ a assinatura vale — sem chave de API | `session/new` sem erro. O medo da issue #517 é da distribuição pela JetBrains, e não se aplica a adaptador instalado por você. **Corrigido em 2026-08-20:** este quadro dizia também `initialize → authMethods: []`, e tirava disso que o adaptador "não pediu nada" — ele não foi perguntado. Só oferece login a quem declara `clientCapabilities.auth.terminal`, o que o spike não fazia ([agent-login §2.1](../prd/agent-login/prd.md)) |
 | **Janela de contexto** | ⚠️ **parcial** — a sessão **nasce** em 1M | `currentValue: "opus[1m]"`, `default → "Opus (1M context)"`, e o turno reportou `size: 1000000` (campo confiável desde que a [#596](https://github.com/agentclientprotocol/claude-agent-acp/issues/596) fechou). **O que falta:** o §9.2 definiu que o único jeito de resolver a #786 era *encher contexto e ver onde a compactação dispara* — e o spike mediu um turno de 39.200 tokens, volume em que 200K e 1M se comportam igual. A #786 continua **aberta** upstream |
 | **Consumo** | ✅ sai da assinatura, e o protocolo entrega o estado do limite | `usage_update` com `rateLimitType: "seven_day"` — janela dos planos Max, não crédito de API — sem `ANTHROPIC_API_KEY` no ambiente. E vem `utilization`, `resetsAt` e `isUsingOverage` **por turno**, o que o `/usage` manual não dava |
 

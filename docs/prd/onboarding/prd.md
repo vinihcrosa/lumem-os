@@ -163,6 +163,12 @@ que manda a pessoa instalar um pacote que não é o que o daemon vai executar.
 
 ### Divergência 2 — a escolha de autenticação não escolhe nada
 
+> **Corrigida em 2026-08-20, no mesmo dia.** Esta divergência estava meio errada, e o que a
+> desmentiu foi medir o adaptador declarando `clientCapabilities.auth.terminal` — ver
+> [agent-login §2.1](../agent-login/prd.md). Existe escolha, ela vem do `authMethods`, e ela mora no
+> painel de login. O que continua valendo é o passo 3 deste fluxo: ali ainda não houve handshake, então
+> o que ele pode fazer é relatar qual credencial está no ambiente.
+
 O desenho oferece **Assinatura Claude** × **Chave de API** como duas opções com marcador de rádio.
 
 O adaptador não pergunta ao Lumem: ele usa a credencial que achar. O spike mediu `authMethods: []` e um
