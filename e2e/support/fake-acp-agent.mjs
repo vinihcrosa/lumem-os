@@ -76,6 +76,29 @@ function configOptions() {
  * Paced with small delays so the streaming is observable: without them every chunk
  * lands in one frame and the test cannot tell a stream from a single message.
  */
+/** A frase que pede o eco. Combinada com o spec, e com mais nada. */
+const ECHO = "eco do que recebeu";
+
+/**
+ * Repete o que chegou, bloco por bloco.
+ *
+ * Numerado de propósito: o que o teste precisa saber não é só o texto, é
+ * **quantos blocos** vieram e em que ordem — o núcleo entra como bloco separado
+ * antes da mensagem da pessoa, e concatenado isso é indistinguível de um texto
+ * que alguém colou na mensagem.
+ */
+async function runEcho(blocks) {
+  for (const [index, block] of blocks.entries()) {
+    update({
+      sessionUpdate: "agent_message_chunk",
+      messageId: "eco",
+      content: { type: "text", text: `[bloco ${index + 1}] ${block}\n` },
+    });
+    await sleep(10);
+  }
+  return "end_turn";
+}
+
 async function runTurn(text) {
   // The plan, reissued whole as it advances — which is what the card's "one card
   // that rewrites itself" has to survive.
@@ -351,9 +374,19 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       return;
 
     case "session/prompt": {
-      const text = (message.params?.prompt ?? [])
-        .map((block) => (block.type === "text" ? block.text : ""))
-        .join("");
+      const blocks = (message.params?.prompt ?? []).map((block) =>
+        block.type === "text" ? block.text : "",
+      );
+      const text = blocks.join("");
+      // O eco existe por um teste só, e é o único que ele pode provar: que o
+      // núcleo da memória **atravessou o protocolo**. Ver o evento na conversa
+      // prova que o daemon montou o bloco; só o agente repetindo o que recebeu
+      // prova que ele chegou do outro lado. Sai antes do turno roteirizado
+      // porque o roteiro pede permissão e trava — e este teste não é sobre isso.
+      if (text.includes(ECHO)) {
+        void runEcho(blocks).then((stopReason) => reply(message.id, { stopReason }));
+        return;
+      }
       void runTurn(text).then((stopReason) => reply(message.id, { stopReason }));
       return;
     }

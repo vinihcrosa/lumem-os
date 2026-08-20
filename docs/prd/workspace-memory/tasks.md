@@ -509,10 +509,10 @@ diz "21 arquivos, nada mudou".
 **Where**: `e2e/memory-injection.spec.ts`, `e2e/support/fake-acp-agent.mjs`
 
 **Done when**:
-- [ ] O agente falso **repete o que recebeu**, e o spec lê o núcleo lá — é a única prova de que a
+- [x] O agente falso **repete o que recebeu**, e o spec lê o núcleo lá — é a única prova de que a
       injeção atravessou o protocolo
-- [ ] O segundo turno **não** leva o núcleo de novo
-- [ ] Gate: `pnpm gate:full`
+- [x] O segundo turno **não** leva o núcleo de novo
+- [x] Gate: `pnpm gate:full`
 
 **Commit**: `test(e2e): o agente recebe o núcleo, e só uma vez`
 
