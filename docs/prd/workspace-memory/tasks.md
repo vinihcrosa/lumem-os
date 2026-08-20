@@ -696,11 +696,11 @@ opt-out ortogonal; e (Q14) **fonte única no Lumem, projeção por CLI**.
 **Where**: `memory/playbook-telemetry.ts`, `acp/AcpManager.ts` ou o ouvinte + testes
 
 **Done when**:
-- [ ] Um `tool_call` cujo alvo é um playbook conhecido incrementa carregamento e data
-- [ ] Reconhecimento por **slug**, e conservador: nome parecido não conta. Subcontar é o preço aceito;
+- [x] Um `tool_call` cujo alvo é um playbook conhecido incrementa carregamento e data
+- [x] Reconhecimento por **slug**, e conservador: nome parecido não conta. Subcontar é o preço aceito;
       superconter faria a sugestão de arquivar mentir na direção que não se percebe
-- [ ] A contagem não atrapalha o turno: falha dela é aviso
-- [ ] Gate: `pnpm gate:quick`
+- [x] A contagem não atrapalha o turno: falha dela é aviso
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(acp): contar o carregamento de playbook pelo que o protocolo diz`
 

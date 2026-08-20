@@ -163,6 +163,9 @@ export type AcpExitWatcher = (info: AcpSessionInfo) => void;
  */
 export type AcpConfigWatcher = (info: AcpSessionInfo) => void;
 
+/** Um evento, e de qual sessão ele veio. */
+export type AcpEventWatcher = (frame: { sessionId: string; event: AcpEvent }) => void;
+
 interface PendingPermission {
   resolve(outcome: RequestPermissionOutcome): void;
 }
@@ -324,6 +327,7 @@ export class AcpManager {
   private readonly sessions = new Map<string, Session>();
   private readonly exitWatchers = new Set<AcpExitWatcher>();
   private readonly configWatchers = new Set<AcpConfigWatcher>();
+  private readonly eventWatchers = new Set<AcpEventWatcher>();
   private readonly spawner: AcpProcessSpawner;
   private readonly handshakeTimeoutMs: number;
   private readonly isAvailable: (command: string) => boolean;
@@ -790,6 +794,20 @@ export class AcpManager {
     const session = this.require(id);
     session.listeners.add(listener);
     return () => session.listeners.delete(listener);
+  }
+
+  /**
+   * Todo evento de toda sessão, para quem não pode se inscrever numa só.
+   *
+   * O `onEvent` serve um cliente que abriu uma aba; isto serve o daemon
+   * reagindo ao que qualquer sessão faz — hoje, contar carregamento de playbook
+   * pelo `tool_call` que a Q16 nomeia. É o mesmo formato do `watchExits` e do
+   * `watchConfig`, que existem pela mesma razão: algo de fora precisa saber, e
+   * não tem como saber em qual sessão vai acontecer.
+   */
+  watchEvents(watcher: AcpEventWatcher): () => void {
+    this.eventWatchers.add(watcher);
+    return () => this.eventWatchers.delete(watcher);
   }
 
   watchExits(watcher: AcpExitWatcher): () => void {
@@ -1346,6 +1364,16 @@ export class AcpManager {
         listener(entry);
       } catch {
         /* a broken client is the client's problem */
+      }
+    }
+
+    // E os observadores globais, pela mesma regra: um que estoura não pode levar
+    // o turno com ele.
+    for (const watcher of [...this.eventWatchers]) {
+      try {
+        watcher({ sessionId: session.info.id, event });
+      } catch {
+        /* um observador quebrado é problema dele */
       }
     }
   }

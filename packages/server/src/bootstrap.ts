@@ -8,6 +8,8 @@ import { AcpManager } from "./acp/AcpManager.js";
 import { ensureMemoryHome } from "./memory/home.js";
 import { MemoryService } from "./memory/MemoryService.js";
 import { createSessionCapture } from "./memory/capture.js";
+import { createPlaybookService } from "./memory/playbook.js";
+import { trackPlaybookLoads } from "./memory/playbook-tracking.js";
 import { createMemoryPreamble } from "./memory/preamble.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createTranscriptStore, type TranscriptStore } from "./acp/TranscriptStore.js";
@@ -140,6 +142,19 @@ export async function bootstrap({
       },
     }),
   });
+  // A telemetria de playbook (Q16): o carregamento chega como `tool_call`, e o
+  // ciclo de vida do §9 é derivado dela. Desligar o observador junto com o resto,
+  // porque ele guarda uma referência ao banco.
+  const stopPlaybookTracking = trackPlaybookLoads({
+    acpManager: acp,
+    playbooks: createPlaybookService({ db: openedDatabase.db, stateDir: config.stateDir }),
+    log: {
+      warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+        bootedApp?.log.warn(...args);
+      },
+    },
+  });
+
   const app = await createServer({
     config,
     db: openedDatabase.db,
@@ -160,6 +175,7 @@ export async function bootstrap({
       // Unhook first: killAll is about to end every session, and recording
       // those exits would write "exited" rows the next boot has to redo anyway.
       stopTracking();
+      stopPlaybookTracking();
       await ptyManager.killAll();
       // Conversations too: an adapter left running is a subprocess with nothing
       // pointing at it, exactly like an orphaned shell.
