@@ -575,14 +575,14 @@ derivável do repositório, e **dump de transcript**.
 **Where**: `memory/distiller.ts` + teste, `config.ts`
 
 **Done when**:
-- [ ] **Desligada por padrão** (§10). Ligar é `LUMEM_MEMORY_DISTILL=1`, e o estado aparece na tela
-- [ ] Uma chamada por **sessão**, nunca por turno
-- [ ] O candidato sai estruturado — tipo, nome, descrição, corpo, evidência — ou é descartado. Texto
+- [x] **Desligada por padrão** (§10). Ligar é `LUMEM_MEMORY_DISTILL=1`, e o estado aparece na tela
+- [x] Uma chamada por **sessão**, nunca por turno
+- [x] O candidato sai estruturado — tipo, nome, descrição, corpo, evidência — ou é descartado. Texto
       livre viraria memória que ninguém consegue indexar
-- [ ] Ator `distiller`: a Q27 então manda `domain`/`process`/`contract` em workspace para a inbox, e é
+- [x] Ator `distiller`: a Q27 então manda `domain`/`process`/`contract` em workspace para a inbox, e é
       exatamente o que se quer. Nada de caminho novo de escrita
-- [ ] Projeção vazia não chama agente nenhum: sessão que não fez nada não tem o que ensinar
-- [ ] Gate: `pnpm gate:quick`
+- [x] Projeção vazia não chama agente nenhum: sessão que não fez nada não tem o que ensinar
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(memory): destilar uma sessão em candidatos, sob revisão`
 

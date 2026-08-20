@@ -36,6 +36,15 @@ export interface ServerConfig {
    * it belongs to. Until then the vertical slice needs *somewhere* to run.
    */
   defaultCwd: string;
+  /**
+   * A destilação de fim de sessão está ligada (workspace-memory §10).
+   *
+   * **Desligada por padrão**, e o PRD é explícito sobre o porquê: *"até o portão
+   * provar que segura"*. É a única parte do sistema que gasta token sem você
+   * pedir — uma sessão de agente por sessão de agente —, e ligar isso por default
+   * seria dobrar o custo do produto numa linha de configuração que ninguém leu.
+   */
+  distill: boolean;
 }
 
 /** Only the variables this module reads. Keeps tests from touching process.env. */
@@ -46,6 +55,7 @@ export type ConfigEnv = Partial<
     | "LUMEM_STATE_DIR"
     | "LUMEM_DB_PATH"
     | "LUMEM_DEFAULT_CWD"
+    | "LUMEM_MEMORY_DISTILL"
     | "SHELL",
     string
   >
@@ -87,5 +97,8 @@ export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
     // unset under launchd and in some containers.
     shell: env.SHELL === undefined || env.SHELL === "" ? "/bin/sh" : env.SHELL,
     defaultCwd: env.LUMEM_DEFAULT_CWD ?? homedir(),
+    // Só `1` e `true` ligam. Um valor que ninguém reconhece é um valor que
+    // alguém digitou errado, e o lado seguro de "não entendi" é desligado.
+    distill: env.LUMEM_MEMORY_DISTILL === "1" || env.LUMEM_MEMORY_DISTILL === "true",
   };
 }

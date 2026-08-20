@@ -17,7 +17,7 @@ const read = (path: string): AcpEvent => ({
   title: `Read ${path}`,
   name: "Read",
   kind: "read",
-  status: "in_progress",
+  status: "running",
   locations: [{ path }],
 });
 
@@ -69,13 +69,13 @@ describe("projectSession", () => {
           title: "Bash pnpm gate:quick",
           name: "Bash",
           kind: "execute",
-          status: "in_progress",
+          status: "running",
           locations: [],
         }),
         at({
           type: "tool_call_update",
           toolCallId: "tc-bash",
-          status: "completed",
+          status: "ok",
           content: [{ type: "content", text: "AWS_SECRET=abc" }],
         }),
       ],
