@@ -79,6 +79,40 @@ function configOptions() {
 /** A frase que pede o eco. Combinada com o spec, e com mais nada. */
 const ECHO = "eco do que recebeu";
 
+/** A primeira linha do prompt de pesquisa, como o daemon a escreve. */
+const RESEARCH_OPENER = "Você é o serviço de memória de um workspace";
+
+/**
+ * Responde a pergunta com evidência — ou sem, quando o spec pede.
+ *
+ * A frase mágica está na própria pergunta: um spec que quer testar o caminho da
+ * proposta pergunta algo com "sem evidência" no meio.
+ */
+async function runResearch(prompt) {
+  const withEvidence = !prompt.includes("sem evidencia");
+  update({
+    sessionUpdate: "agent_message_chunk",
+    messageId: "pesquisa",
+    content: {
+      type: "text",
+      text: JSON.stringify({
+        answer: "O loader recusa frontmatter vazio com erro nomeado.",
+        memories: [
+          {
+            type: "project",
+            name: "Frontmatter vazio no loader",
+            description: "vazio é erro nomeado, não ausência",
+            body: "O loader recusa frontmatter vazio com erro nomeado.",
+            ...(withEvidence ? { evidence: "src/lore/loader.ts:12" } : {}),
+          },
+        ],
+      }),
+    },
+  });
+  await sleep(10);
+  return "end_turn";
+}
+
 /** A primeira linha do prompt de destilação, como o daemon a escreve. */
 const DISTILL_OPENER = "Uma sessão de trabalho terminou.";
 
@@ -413,6 +447,13 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       // A destilação (PR 07) pergunta sobre a sessão que terminou, e responde-se
       // com JSON. Antes do turno roteirizado, que pede permissão e trava — não
       // há ninguém para responder permissão numa destilação.
+      // O auto-learn (PR 08) pergunta como serviço de memória, e responde-se com
+      // JSON. Mesmo motivo do eco e da destilação: o turno roteirizado trava em
+      // permissão, e não há ninguém para responder.
+      if (text.startsWith(RESEARCH_OPENER)) {
+        void runResearch(text).then((stopReason) => reply(message.id, { stopReason }));
+        return;
+      }
       if (text.startsWith(DISTILL_OPENER)) {
         void runDistill().then((stopReason) => reply(message.id, { stopReason }));
         return;

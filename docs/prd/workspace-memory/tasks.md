@@ -847,11 +847,24 @@ Então tudo aqui é contenção, e nada é negociável:
 **Where**: `e2e/memory-auto-learn.spec.ts`
 
 **Done when**:
-- [ ] Um daemon com auto-learn ligado, uma pergunta sem resposta, e a memória com evidência
-- [ ] A mesma pergunta de novo não sobe agente de novo
-- [ ] Gate: `pnpm gate:full`
+- [x] Um daemon com auto-learn ligado, uma pergunta sem resposta, e a memória com evidência
+- [x] A mesma pergunta de novo não sobe agente de novo
+- [x] Gate: `pnpm gate:full`
 
 **Commit**: `test(e2e): a pergunta sem resposta preenche o próprio buraco`
+
+---
+
+### O que a 08 decidiu enquanto executava
+
+| # | O quê | Onde |
+|---|---|---|
+| **L1** | **O `proposal` do `MemoryService` ganhou um terceiro estado.** `true` propõe **sempre**, mesmo onde a Q27 deixaria passar direto. Foi o teste que cobrou: auto-learn sem evidência em escopo de projeto ia direto para o acervo — e é justamente o caso em que ninguém revisou e o agente não conseguiu apontar de onde tirou. É o único caminho do sistema que **aperta** a regra | `MemoryService.write` |
+| **L2** | **Profundidade 1 saiu de graça do desenho da 07.** A sessão de pesquisa não tem linha no banco, e o preâmbulo já recusava sessão que o daemon não registrou — então ela não recebe a skill que ensina a chamar o serviço, que é o que fecharia o loop. Duas features, uma guarda | `memory/preamble.ts` |
+| **L3** | **O cache é em memória, e por sessão.** O que ele protege é uma sessão em curso — um agente que repete a pergunta no mesmo turno. Persistir faria a mesma pergunta, feita amanhã, nunca mais subir agente, e o acervo muda | `auto-learn.ts` |
+| **L4** | **A marca de não verificada foi para o corpo**, não para uma coluna: é o corpo que o agente lê, e numa coluna a marca não chegaria em quem precisa desconfiar | `evidence.ts` |
+| **L5** | **A classificação de evidência recusa por palavra**, e é grosseira de propósito: o custo de tratar um fato como proposta é uma revisão sua; o de tratar uma conclusão como fato é uma invenção que N projetos herdam | `evidence.ts` |
+| **L6** | **O funil de acesso cross-projeto continua desligado.** O agente de pesquisa lê o checkout da sessão que perguntou, e nada além — a D8 fica no [backlog](../../project/backlog.md), como já estava | — |
 
 ---
 
