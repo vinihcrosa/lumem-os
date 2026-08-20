@@ -24,7 +24,9 @@ afterEach(async () => {
   cleanupGitFixtures();
 });
 
-async function daemon(): Promise<{ app: FastifyInstance; memory: MemoryService; stateDir: string }> {
+async function daemon(
+  env: Record<string, string> = {},
+): Promise<{ app: FastifyInstance; memory: MemoryService; stateDir: string }> {
   const stateDir = join(tempDir("lumem-ask-"), ".lumem");
   await ensureMemoryHome({ stateDir });
   const database = openTestDb();
@@ -32,7 +34,7 @@ async function daemon(): Promise<{ app: FastifyInstance; memory: MemoryService; 
   const ptyManager = new PtyManager();
   ptys.push(ptyManager);
   const app = await createServer({
-    config: loadConfig({ LUMEM_STATE_DIR: stateDir }),
+    config: loadConfig({ LUMEM_STATE_DIR: stateDir, ...env }),
     db: database.db,
     ptyManager,
   });
@@ -138,5 +140,34 @@ describe("frescor", () => {
     // Envelhecer não é o mesmo que estar errado: o aviso acompanha, não filtra.
     expect(response.body).toContain("POST /v2/checkout");
     expect(response.body).toContain("verifique contra o estado atual");
+  });
+});
+
+describe("auto-learn no /memory/ask", () => {
+  it("sem auto-learn, \"não sei\" é a resposta final", async () => {
+    const { app } = await daemon();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/memory/ask?q=" + encodeURIComponent("qual é a política de retry do checkout"),
+    });
+
+    expect(response.body).toContain("não sei");
+    expect(response.body).not.toContain("pesquisado agora");
+  });
+
+  it("ligado sem agente ACP configurado, degrada e diz que degradou", async () => {
+    // A degradação honesta: um daemon com auto-learn ligado e nenhum agente para
+    // subir não pode travar a pergunta nem mentir que pesquisou.
+    const { app } = await daemon({ LUMEM_MEMORY_AUTO_LEARN: "1" });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/memory/ask?q=" + encodeURIComponent("qual é a política de retry do checkout"),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("não sei");
+    expect(response.body).toContain("não conseguiu responder");
   });
 });

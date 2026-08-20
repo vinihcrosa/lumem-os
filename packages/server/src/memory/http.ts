@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { Db } from "../db/index.js";
 
 import { MemoryService } from "./MemoryService.js";
+import type { AutoLearn } from "./auto-learn.js";
 import { memoryScopeOfSession } from "./scope-of-session.js";
 
 /**
@@ -42,9 +43,14 @@ export interface RegisterMemoryHttpOptions {
   app: FastifyInstance;
   db: Db;
   stateDir: string;
+  /**
+   * O auto-learn (PR 08). Ausente é o default: sem ele, "não sei" é a resposta
+   * final, que é o comportamento que existia antes desta feature.
+   */
+  autoLearn?: AutoLearn;
 }
 
-export function registerMemoryHttp({ app, db, stateDir }: RegisterMemoryHttpOptions): void {
+export function registerMemoryHttp({ app, db, stateDir, autoLearn }: RegisterMemoryHttpOptions): void {
   app.get("/memory/ask", async (request, reply) => {
     const parsed = askQuery.safeParse(request.query);
     if (!parsed.success) {
@@ -79,8 +85,37 @@ export function registerMemoryHttp({ app, db, stateDir }: RegisterMemoryHttpOpti
       return reply.send("pergunta muito curta: use pelo menos dois termos com significado\n");
     }
     if (result.hits.length === 0) {
+      /*
+       * O buraco no acervo é o gatilho do auto-learn (§5.2), e **só** ele: subir
+       * agente quando a busca já achou algo seria pagar por uma resposta que
+       * existia. Aqui é onde "não sei" deixa de ser o fim.
+       */
+      const learned = autoLearn === undefined ? null : await autoLearn(query, session);
+      if (learned?.answer != null) {
+        const provenance = learned.written.map(
+          (written) =>
+            `- ${written.name} — ${written.route === "direct" ? "gravada" : "aguardando sua revisão"}`,
+        );
+        return reply.send(
+          [
+            learned.answer,
+            "",
+            "Isto **não estava** na memória: foi pesquisado agora, e não está verificado.",
+            ...(provenance.length > 0 ? ["", "O que ficou guardado:", ...provenance] : []),
+            "",
+          ].join("\n"),
+        );
+      }
+
+      // Degradou, estourou o orçamento, ou está desligado: a resposta honesta é a
+      // que sempre foi, e ela **diz** que houve tentativa quando houve.
       return reply.send(
         "não sei — não existe memória sobre isso.\n" +
+          (learned?.skipped === "degraded"
+            ? "A pesquisa automática não conseguiu responder desta vez.\n"
+            : learned?.skipped === "over_budget"
+              ? "O orçamento de pesquisa automática desta sessão acabou.\n"
+              : "") +
           "Se você descobrir a resposta, vale registrar: é assim que o acervo cresce.\n",
       );
     }

@@ -65,7 +65,11 @@ beforeEach(() => {
   trpc.memory.decisions.query.mockResolvedValue([]);
   trpc.memory.usage.query.mockResolvedValue([]);
   trpc.memory.core.query.mockResolvedValue({ chars: 0, recentChars: 0, entries: [] });
-  trpc.memory.settings.query.mockResolvedValue({ distill: false });
+  trpc.memory.settings.query.mockResolvedValue({
+    distill: false,
+    autoLearn: false,
+    autoLearnBudget: 3,
+  });
   trpc.memory.playbooks.query.mockResolvedValue([]);
 });
 
@@ -372,13 +376,18 @@ describe("a destilação, na tela", () => {
   it("desligada aparece desligada, e diz como ligar", async () => {
     renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="numbers" />);
 
-    // Desligado por padrão só é honesto se for visível.
-    expect(await screen.findByText("off")).toBeInTheDocument();
+    // Desligado por padrão só é honesto se for visível. Dois interruptores, e os
+    // dois desligados: a destilação e a pesquisa automática.
+    expect(await screen.findAllByText("off")).toHaveLength(2);
     expect(screen.getByText(/LUMEM_MEMORY_DISTILL=1/)).toBeInTheDocument();
   });
 
   it("ligada diz o que custa", async () => {
-    trpc.memory.settings.query.mockResolvedValue({ distill: true });
+    trpc.memory.settings.query.mockResolvedValue({
+      distill: true,
+      autoLearn: false,
+      autoLearnBudget: 3,
+    });
 
     renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="numbers" />);
 
@@ -452,5 +461,20 @@ describe("a aba de playbooks", () => {
     renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="playbooks" />);
 
     expect(await screen.findByText("nunca carregado")).toBeInTheDocument();
+  });
+});
+
+describe("a pesquisa automática, na tela", () => {
+  it("ligada diz o orçamento, porque é o que limita o custo", async () => {
+    trpc.memory.settings.query.mockResolvedValue({
+      distill: false,
+      autoLearn: true,
+      autoLearnBudget: 5,
+    });
+
+    renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="numbers" />);
+
+    expect(await screen.findByText("pesquisa automática")).toBeInTheDocument();
+    expect(screen.getByText(/até 5 por sessão/)).toBeInTheDocument();
   });
 });

@@ -231,7 +231,11 @@ export const memoryRouter = router({
    * Existe porque desligado por padrão só é honesto se for **visível**: uma
    * captura que ninguém sabe se está ligada é uma captura que ninguém confere.
    */
-  settings: publicProcedure.query(({ ctx }) => ({ distill: ctx.config.distill })),
+  settings: publicProcedure.query(({ ctx }) => ({
+    distill: ctx.config.distill,
+    autoLearn: ctx.config.autoLearn,
+    autoLearnBudget: ctx.config.autoLearnBudget,
+  })),
 
   /**
    * A marca d'água: o que o núcleo custa em toda sessão.

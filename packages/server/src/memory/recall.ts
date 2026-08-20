@@ -376,7 +376,9 @@ export function usage(
   // `distill` é a destilação de fim de sessão (PR 07): quantos candidatos ela
   // produziu, e quanto tempo custou. É a instrumentação que a Q20 pede desde o
   // primeiro dia — sem ela, decidir entre "por sessão" e "por turno" é palpite.
-  kind: "recall" | "read" | "write" | "inject" | "distill",
+  // `research` é o auto-learn (PR 08): quantas perguntas subiram agente, quantas
+  // memórias saíram, e quanto tempo custou — incluindo as que degradaram.
+  kind: "recall" | "read" | "write" | "inject" | "distill" | "research",
   amount: number,
   durationMs: number,
   options: UsageOptions = {},

@@ -45,6 +45,17 @@ export interface ServerConfig {
    * seria dobrar o custo do produto numa linha de configuração que ninguém leu.
    */
   distill: boolean;
+  /**
+   * O auto-learn está ligado (§5.2 do context-delivery).
+   *
+   * **Desligado por padrão**, e por um motivo mais forte que o da destilação:
+   * aqui uma pergunta passa a **criar memória**, sem você pedir e sem ninguém
+   * revisar no momento. As contenções todas existem — evidência, portão, inbox —,
+   * e mesmo assim o default é não.
+   */
+  autoLearn: boolean;
+  /** Quantas perguntas de uma sessão podem subir agente. O orçamento do §5.4. */
+  autoLearnBudget: number;
 }
 
 /** Only the variables this module reads. Keeps tests from touching process.env. */
@@ -56,6 +67,8 @@ export type ConfigEnv = Partial<
     | "LUMEM_DB_PATH"
     | "LUMEM_DEFAULT_CWD"
     | "LUMEM_MEMORY_DISTILL"
+    | "LUMEM_MEMORY_AUTO_LEARN"
+    | "LUMEM_MEMORY_AUTO_LEARN_BUDGET"
     | "SHELL",
     string
   >
@@ -84,6 +97,18 @@ function readPort(raw: string | undefined): number {
  * The map is a parameter rather than a direct `process.env` read so tests can
  * pass a literal instead of mutating (and having to restore) global state.
  */
+/**
+ * O orçamento de auto-learn por sessão.
+ *
+ * Valor ilegível cai no default em vez de estourar: o daemon não pode deixar de
+ * subir por causa de um número torto numa variável opcional, e o default é
+ * conservador — três perguntas por sessão.
+ */
+function readBudget(raw: string | undefined): number {
+  if (raw === undefined || !/^\d+$/.test(raw.trim())) return 3;
+  return Number.parseInt(raw.trim(), 10);
+}
+
 export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
   const stateDir = env.LUMEM_STATE_DIR ?? join(homedir(), ".lumem");
   return {
@@ -100,5 +125,7 @@ export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
     // Só `1` e `true` ligam. Um valor que ninguém reconhece é um valor que
     // alguém digitou errado, e o lado seguro de "não entendi" é desligado.
     distill: env.LUMEM_MEMORY_DISTILL === "1" || env.LUMEM_MEMORY_DISTILL === "true",
+    autoLearn: env.LUMEM_MEMORY_AUTO_LEARN === "1" || env.LUMEM_MEMORY_AUTO_LEARN === "true",
+    autoLearnBudget: readBudget(env.LUMEM_MEMORY_AUTO_LEARN_BUDGET),
   };
 }

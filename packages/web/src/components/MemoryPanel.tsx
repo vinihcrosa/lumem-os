@@ -805,6 +805,21 @@ function Numbers({ core }: { core: ReturnType<typeof useMemoryCore> }) {
           </div>
         </div>
       ) : null}
+      {/*
+       * O auto-learn é o único lugar em que uma pergunta **cria** memória sem
+       * ninguém pedir. Se isso está ligado, tem que estar escrito na tela.
+       */}
+      {settings.data !== undefined ? (
+        <div className="mem-stat">
+          <div className="n">{settings.data.autoLearn ? "on" : "off"}</div>
+          <div className="l">pesquisa automática</div>
+          <div className="hint">
+            {settings.data.autoLearn
+              ? `pergunta sem resposta sobe um agente · até ${String(settings.data.autoLearnBudget)} por sessão`
+              : "ligue com LUMEM_MEMORY_AUTO_LEARN=1"}
+          </div>
+        </div>
+      ) : null}
       {usage.data.map((row) => (
         <div key={row.kind} className="mem-stat">
           <div className="n">{row.events}</div>

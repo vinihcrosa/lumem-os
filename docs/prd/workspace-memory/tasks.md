@@ -829,13 +829,13 @@ Então tudo aqui é contenção, e nada é negociável:
 **Where**: `memory/http.ts`, `config.ts` + testes
 
 **Done when**:
-- [ ] Só quando a busca **não acha nada**: auto-learn é o que cobre o buraco, não o caminho normal
-- [ ] **Cache por sessão**: a mesma pergunta duas vezes não sobe agente duas vezes (§5.4)
-- [ ] Orçamento por sessão: passou do limite, responde "não sei" e diz que o orçamento acabou
-- [ ] **Desligado por padrão**, como a destilação, e visível na tela
-- [ ] A resposta cita a fonte e diz que ela é nova e não verificada (§5.5)
-- [ ] Instrumentado: quantas subiram agente, quantas viraram memória, quantas viraram proposta
-- [ ] Gate: `pnpm gate:quick`
+- [x] Só quando a busca **não acha nada**: auto-learn é o que cobre o buraco, não o caminho normal
+- [x] **Cache por sessão**: a mesma pergunta duas vezes não sobe agente duas vezes (§5.4)
+- [x] Orçamento por sessão: passou do limite, responde "não sei" e diz que o orçamento acabou
+- [x] **Desligado por padrão**, como a destilação, e visível na tela
+- [x] A resposta cita a fonte e diz que ela é nova e não verificada (§5.5)
+- [x] Instrumentado: quantas subiram agente, quantas viraram memória, quantas viraram proposta
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(memory): auto-learn atrás de cache, orçamento e um interruptor`
 

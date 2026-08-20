@@ -422,6 +422,47 @@ describe("MemoryService.pin — o núcleo é escolha sua", () => {
   });
 });
 
+describe("MemoryService.write — o terceiro estado do `proposal`", () => {
+  it("`true` manda para a inbox mesmo onde a Q27 deixaria passar direto", async () => {
+    const { memory } = await service();
+
+    // `project` em escopo de projeto, escrito por agente: a Q27 deixa passar. O
+    // auto-learn sem evidência é o único caminho que **aperta** a regra.
+    const result = await memory.write({
+      name: "Endpoint de checkout",
+      description: "o caminho que o web consome",
+      type: "project",
+      scope: "project",
+      workspaceId: "ws1",
+      projectId: "p1",
+      body: "POST /v2/checkout",
+      actor: "auto_research",
+      proposal: true,
+    });
+
+    expect(result.outcome).toBe("proposed");
+    expect(memory.list()).toHaveLength(0);
+    expect(memory.proposals({ status: "pending" })).toHaveLength(1);
+  });
+
+  it("ausente continua sendo a Q27 decidindo", async () => {
+    const { memory } = await service();
+
+    const result = await memory.write({
+      name: "Endpoint de checkout",
+      description: "o caminho que o web consome",
+      type: "project",
+      scope: "project",
+      workspaceId: "ws1",
+      projectId: "p1",
+      body: "POST /v2/checkout",
+      actor: "agent",
+    });
+
+    expect(result.outcome).toBe("applied");
+  });
+});
+
 describe("MemoryService.core", () => {
   it("monta o texto a partir do disco, e só com o que foi fixado", async () => {
     const { memory } = await service();

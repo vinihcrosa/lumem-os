@@ -136,10 +136,17 @@ export const writeMemorySchema = z.object({
   proposedBy: z.enum(MEMORY_ACTORS).optional(),
   proposalId: z.string().min(1).optional(),
   /**
-   * `false` desliga o desvio para a inbox.
+   * Se esta escrita deve passar pela inbox — e quem decide.
    *
-   * Existe para um caso só: aprovar uma proposta é gravar, e gravar o que você
-   * acabou de aprovar não pode virar proposta outra vez.
+   * Três estados, e cada um tem um chamador:
+   *
+   * - **ausente**: a Q27 decide. É o caso de toda escrita normal;
+   * - **`false`**: nunca propõe. Aprovar uma proposta é gravar, e gravar o que
+   *   você acabou de aprovar não pode virar proposta outra vez;
+   * - **`true`**: propõe **sempre**, mesmo onde a Q27 deixaria passar direto. É o
+   *   auto-learn sem evidência verificável (D7): ele é o único caminho do sistema
+   *   que **aperta** a regra em vez de relaxá-la, porque ali ninguém revisou nem
+   *   o agente conseguiu apontar de onde tirou.
    */
   proposal: z.boolean().optional(),
 });
@@ -256,7 +263,12 @@ export class MemoryService {
     // portão abaixo, vira `rejected` no WAL, e responde "por que isso não foi
     // salvo?" com um registro só.
     const suspect = scanMemoryContent(candidate).verdict === "reject";
-    if (input.proposal !== false && !suspect && requiresProposal(input.actor, scope, input.type)) {
+    const proposeAnyway = input.proposal === true;
+    if (
+      input.proposal !== false &&
+      !suspect &&
+      (proposeAnyway || requiresProposal(input.actor, scope, input.type))
+    ) {
       const proposal = createProposal(this.db, {
         path,
         type: input.type,
@@ -798,7 +810,7 @@ export class MemoryService {
    * contexto passa a sessão aqui quando registra o `inject`.
    */
   recordUsage(
-    kind: "read" | "write" | "inject" | "distill",
+    kind: "read" | "write" | "inject" | "distill" | "research",
     amount: number,
     durationMs = 0,
     options: UsageOptions = {},

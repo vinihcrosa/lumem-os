@@ -12,6 +12,7 @@ import { createGitService, type GitService } from "./git/GitService.js";
 import { AcpManager } from "./acp/AcpManager.js";
 import { registerAcpWebSocket } from "./acp/websocket.js";
 import type { PtyManager } from "./pty/PtyManager.js";
+import { createAutoLearn } from "./memory/auto-learn.js";
 import { registerMemoryHttp } from "./memory/http.js";
 import { registerPtyWebSocket } from "./pty/websocket.js";
 import { createSessionStore, type SessionStore } from "./sessions/SessionStore.js";
@@ -133,7 +134,26 @@ export async function createServer({
 
   // Fora do `/trpc`: é a porta que o prompt do agente ensina, e o que entra no
   // prompt tem que ser copiável sem raciocínio.
-  registerMemoryHttp({ app, db, stateDir: config.stateDir });
+  registerMemoryHttp({
+    app,
+    db,
+    stateDir: config.stateDir,
+    // O auto-learn depende do `AcpManager` para subir o agente que pesquisa, e é
+    // por isso que ele nasce aqui e não dentro da rota: quem sabe montar isso é
+    // quem já tem os dois na mão.
+    ...(config.autoLearn
+      ? {
+          autoLearn: createAutoLearn({
+            db,
+            stateDir: config.stateDir,
+            acpManager,
+            enabled: true,
+            budget: config.autoLearnBudget,
+            log: app.log,
+          }),
+        }
+      : {}),
+  });
 
   registerPtyWebSocket({ app, ptyManager });
   registerAcpWebSocket({ app, acpManager });
