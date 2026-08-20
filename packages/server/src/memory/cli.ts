@@ -12,6 +12,7 @@ import {
   type MemoryType,
 } from "./entry.js";
 import { ensureMemoryHome } from "./home.js";
+import { createPlaybookService, lifecycleOf } from "./playbook.js";
 
 /**
  * A superfície mínima da T7: escrever, ler, listar, reindexar.
@@ -49,6 +50,18 @@ const USAGE = `uso: lumem-memory <comando>
   usage
   decisions [--path <caminho>] [--limit <n>]
   reindex
+
+  playbook list  [--workspace <id>] [--project <id>] [--archived]
+  playbook show  --path <caminho>   projeta o procedimento, e conta como uso
+  playbook write --task-class <classe> --description <d> --body <texto>
+                 --scope <workspace|project> [--workspace <id>] [--project <id>]
+
+sobre escrever playbook — a ordem de preferência é fechada (§9 do PRD):
+  1. atualize o playbook que estava carregado
+  2. atualize um guarda-chuva que já existe
+  3. acrescente arquivo de apoio
+  4. só então crie um novo
+  e o nome é a **classe de tarefa** — "investigar teste flaky", nunca "consertar o PR 412"
 
 tipos: ${MEMORY_TYPES.join(", ")}
 
@@ -332,6 +345,67 @@ export async function runMemoryCli(
           out(`${row.outcome.padEnd(8)} ${row.operation.padEnd(6)} ${row.path}${trace}${motivo}\n`);
         }
         return 0;
+      }
+
+      case "playbook": {
+        // Subcomando, e não `playbook-list`: playbook tem verbo próprio para
+        // listar, mostrar e escrever, e achatar isso em nomes com hífen faria a
+        // ajuda crescer numa lista plana que ninguém lê até o fim.
+        const [verb] = rest;
+        const playbooks = createPlaybookService({ db: database.db, stateDir: config.stateDir });
+        const sub = parseFlags(rest.slice(1));
+
+        switch (verb) {
+          case "list": {
+            const rows = playbooks.list({
+              ...(sub.workspace ? { workspaceId: sub.workspace } : {}),
+              ...(sub.project ? { projectId: sub.project } : {}),
+              archived: rest.includes("--archived"),
+            });
+            if (rows.length === 0) {
+              out("nenhum playbook aqui\n");
+              return 0;
+            }
+            for (const row of rows) {
+              // O estado é derivado na hora, e é o que a CLI tem para dizer
+              // sobre "isto ainda vale?".
+              out(
+                `${lifecycleOf(row).padEnd(8)} ${String(row.loads).padStart(4)}× ` +
+                  `${row.taskClass}\n  ${row.path}\n`,
+              );
+            }
+            return 0;
+          }
+
+          case "show": {
+            const path = required(sub, "path");
+            const entry = await playbooks.read(path);
+            // Contar **antes** de imprimir: quem chamou já pediu o procedimento,
+            // e um `EPIPE` na saída não desfaz o fato de ele ter sido carregado.
+            playbooks.recordLoad(path);
+            out(`# ${entry.task_class}\n\n${entry.description}\n\n${entry.body}\n`);
+            return 0;
+          }
+
+          case "write": {
+            const scope = sub.scope === "project" ? "project" : "workspace";
+            const result = await playbooks.write({
+              taskClass: required(sub, "task-class"),
+              description: sub.description ?? required(sub, "task-class"),
+              body: sub.body ?? "",
+              scope,
+              ...(sub.workspace ? { workspaceId: sub.workspace } : {}),
+              ...(sub.project ? { projectId: sub.project } : {}),
+              actor: sub.actor ?? "human",
+            });
+            out(`${result.created ? "criado" : "atualizado"} ${result.path}\n`);
+            return 0;
+          }
+
+          default:
+            err(`playbook: comando desconhecido: ${verb ?? "(nenhum)"}\n\n${USAGE}`);
+            return 1;
+        }
       }
 
       case "reindex": {

@@ -417,3 +417,78 @@ describe("lumem-memory", () => {
     expect(app.err).toContain("uso: lumem-memory");
   });
 });
+
+describe("lumem-memory playbook", () => {
+  it("escreve, lista e projeta — e mostrar conta como uso", async () => {
+    const app = cli();
+
+    expect(
+      await app.run(
+        "playbook",
+        "write",
+        "--task-class",
+        "Investigar teste flaky",
+        "--description",
+        "o caminho que já funcionou duas vezes",
+        "--scope",
+        "workspace",
+        "--workspace",
+        "ws1",
+        "--body",
+        "1. rode isolado\n2. rode a suíte\n3. compare o estado compartilhado",
+      ),
+    ).toBe(0);
+    expect(app.out).toContain("criado workspaces/ws1/playbooks/investigar-teste-flaky/PLAYBOOK.md");
+
+    expect(await app.run("playbook", "list", "--workspace", "ws1")).toBe(0);
+    // Nunca carregado ainda: ativo, zero vezes.
+    expect(app.out).toContain("active");
+    expect(app.out).toContain("0×");
+    expect(app.out).toContain("Investigar teste flaky");
+
+    expect(
+      await app.run(
+        "playbook",
+        "show",
+        "--path",
+        "workspaces/ws1/playbooks/investigar-teste-flaky/PLAYBOOK.md",
+      ),
+    ).toBe(0);
+    expect(app.out).toContain("compare o estado compartilhado");
+
+    // `show` é o caminho do agente, então ele registra — o mesmo princípio do
+    // `search --session`.
+    expect(await app.run("playbook", "list", "--workspace", "ws1")).toBe(0);
+    expect(app.out).toContain("1×");
+  });
+
+  it("recusa nome que é artefato de sessão, com o que se esperava no lugar", async () => {
+    const app = cli();
+
+    expect(
+      await app.run(
+        "playbook",
+        "write",
+        "--task-class",
+        "Consertar o PR 412",
+        "--scope",
+        "workspace",
+        "--workspace",
+        "ws1",
+        "--body",
+        "x",
+      ),
+    ).toBe(1);
+    expect(app.err).toContain("classe de tarefa");
+  });
+
+  it("a ordem de preferência da escrita está na ajuda", async () => {
+    const app = cli();
+
+    await app.run("--help");
+
+    // Regra de comportamento fica onde quem vai escrever está olhando.
+    expect(app.out).toContain("atualize o playbook que estava carregado");
+    expect(app.out).toContain("nunca \"consertar o PR 412\"");
+  });
+});

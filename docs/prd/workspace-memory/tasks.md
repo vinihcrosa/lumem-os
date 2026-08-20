@@ -712,12 +712,12 @@ opt-out ortogonal; e (Q14) **fonte única no Lumem, projeção por CLI**.
 **Where**: `memory/cli.ts` + teste
 
 **Done when**:
-- [ ] `playbook list` e `playbook show` — a fonte única projetada em texto
-- [ ] `playbook show` **conta como carregamento**: é o caminho do agente, e é o mesmo princípio do
+- [x] `playbook list` e `playbook show` — a fonte única projetada em texto
+- [x] `playbook show` **conta como carregamento**: é o caminho do agente, e é o mesmo princípio do
       `search --session`
-- [ ] A ordem de preferência da escrita (§9) aparece no `--help`: é regra de comportamento, e o lugar
+- [x] A ordem de preferência da escrita (§9) aparece no `--help`: é regra de comportamento, e o lugar
       dela é onde quem vai escrever está olhando
-- [ ] Gate: `pnpm gate:quick`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(memory): projetar playbook pela CLI, que é como o agente lê`
 
