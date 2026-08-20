@@ -183,6 +183,37 @@ export const memoryRouter = router({
       }),
     ),
 
+  /**
+   * Escreve — ou substitui — um playbook.
+   *
+   * Existe por **paridade**: a CLI escreve, e uma superfície que só sabe ler é
+   * uma superfície onde a mesma pergunta tem duas respostas. O ator default é
+   * `human` porque quem chama daqui é a tela.
+   */
+  writePlaybook: publicProcedure
+    .input(
+      scopeIds.extend({
+        taskClass: z.string().min(1).max(200),
+        description: z.string().min(1).max(500),
+        body: z.string().max(20_000),
+        scope: z.enum(["workspace", "project"]).default("workspace"),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(() => {
+        const playbooks = createPlaybookService({ db: ctx.db, stateDir: ctx.config.stateDir });
+        return playbooks.write({
+          taskClass: input.taskClass,
+          description: input.description,
+          body: input.body,
+          scope: input.scope,
+          ...(input.workspaceId === undefined ? {} : { workspaceId: input.workspaceId }),
+          ...(input.projectId === undefined ? {} : { projectId: input.projectId }),
+          actor: input.actor,
+        });
+      }),
+    ),
+
   /** Arquiva ou desarquiva um playbook. Sempre gesto seu (§9). */
   archivePlaybook: publicProcedure
     .input(z.object({ path: z.string().min(1).max(4_096), archived: z.boolean() }))

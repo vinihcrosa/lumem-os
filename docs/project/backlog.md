@@ -274,6 +274,30 @@ ler, e o serviço passar a responder a partir do código além do acervo.
 **De onde veio:** [context-delivery D8](../prd/workspace-memory/context-delivery.md) · **Volta
 quando:** a taxa de "não sei" do serviço for alta e o acervo, sozinho, não der conta.
 
+### `references/` do playbook — o material de apoio carregado sob demanda — `P`
+
+O §9 da `workspace-memory` desenha o playbook como `PLAYBOOK.md` **mais** um `references/` carregado
+sob demanda: o corpo é o procedimento curto, e o material longo — saída de comando exemplo, tabela de
+códigos de erro, trecho de log — fica ao lado, lido só quando o passo precisa.
+
+A PR 09 entregou o corpo e deixou o lugar pronto: o playbook mora num **diretório próprio** desde o
+primeiro dia, justamente para o `references/` poder nascer ali sem migrar o disco de ninguém.
+
+**De onde veio:** [§9 do PRD](../prd/workspace-memory/prd.md) e a PR 09 · **Volta quando:** o primeiro
+playbook precisar de anexo — sinal de que o corpo está virando documento em vez de procedimento.
+
+### Índice de regras com carregamento sob demanda — `M`
+
+Hoje o núcleo da memória entra inteiro no primeiro turno, sem teto (D5). A ideia do Vinicius para
+quando o alarme da marca d'água começar a tocar: o núcleo injeta um **índice de regras**, e o agente
+busca a regra específica quando esbarra nela — "vou commitar, deixa eu ver a regra de commit".
+
+É mais elegante que teto, porque nunca corta diretriz no meio; e é mais barato que o núcleo inteiro,
+porque o que entra em todo turno passa a ser uma linha por regra em vez do corpo dela.
+
+**De onde veio:** [context-delivery D5](../prd/workspace-memory/context-delivery.md) · **Volta
+quando:** a marca d'água do núcleo passar do alarme e consolidar não resolver.
+
 ### Autenticação do daemon — `M`
 
 O daemon escreve no disco com as suas permissões e não pede nada a ninguém. A `file-editor` tornou

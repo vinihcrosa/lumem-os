@@ -741,14 +741,28 @@ opt-out ortogonal; e (Q14) **fonte única no Lumem, projeção por CLI**.
 
 #### P6: O e2e do ciclo
 
-**What**: Criar, carregar pela CLI, ver o uso subir, arquivar pela tela.
+**What**: Criar, ver o uso, arquivar pela tela, e continuar existindo.
 **Where**: `e2e/playbooks.spec.ts`
 
 **Done when**:
-- [ ] O ciclo inteiro num navegador, contra o daemon compartilhado
-- [ ] Gate: `pnpm gate:full`
+- [x] O ciclo inteiro num navegador, contra o daemon compartilhado
+- [x] Gate: `pnpm gate:full`
 
 **Commit**: `test(e2e): o ciclo de vida de um playbook, do uso ao arquivo`
+
+---
+
+### O que a 09 decidiu enquanto executava
+
+| # | O quê | Onde |
+|---|---|---|
+| **E1** | **Playbook ganhou tabela e diretório próprios, e não um tipo de memória.** O §6 do PRD já dizia *"separado da tabela porque não é memória"*, e a implementação confirmou por que: memória precisa de precedência entre escopos e não envelhece; playbook envelhece e não precisa de precedência. Um tipo só compartilharia o nome | `db/schema.ts` |
+| **E2** | **A telemetria ficou no banco, e não em sidecar no disco** como o §9 propunha. Dois arquivos por playbook, um versionado e outro mudando a cada carregamento, produziriam **commit a cada uso** — e o `~/.lumem` é um repositório git | `playbook` |
+| **E3** | **O reconhecimento de carregamento é exato, e as duas versões por substring foram derrubadas por teste.** A primeira contava um `Read` do próprio arquivo, porque o caminho contém a palavra "playbook"; a segunda fazia slug curto engolir vizinho (`revisar` dentro de `revisar-pr-grande`) | `playbook-telemetry.ts` |
+| **E4** | **`AcpManager.watchEvents` nasceu aqui** — o irmão do `watchExits` e do `watchConfig`. O `onEvent` serve um cliente que abriu uma aba; contar carregamento é o daemon reagindo a qualquer sessão, e não havia como se inscrever nisso | `acp/AcpManager.ts` |
+| **E5** | **`--color-border-warning` não existe, e não foi criado à mão.** Token novo nasce no Open Design: o chip de "parado" ficou com fundo e texto de aviso, sem borda própria | `lumem-memory.css` |
+| **E6** | **`memory.writePlaybook` entrou por paridade.** A CLI escrevia e o router só lia — uma superfície que só sabe ler é uma superfície onde a mesma pergunta tem duas respostas | `routers/memory.ts` |
+| **E7** | **O `references/` do §9 ficou de fora**, e o diretório por playbook está lá esperando por ele. Está no [backlog](../../project/backlog.md) com o gatilho: o primeiro playbook que precisar de anexo | — |
 
 ---
 
