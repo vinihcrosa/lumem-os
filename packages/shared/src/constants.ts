@@ -40,3 +40,26 @@ export const ANTHROPIC_API_KEY_ENV = "ANTHROPIC_API_KEY";
  * is a hard floor rather than a recommendation.
  */
 export const MIN_GIT_VERSION = { major: 2, minor: 30 } as const;
+
+/**
+ * The adapter version the daemon installs and pins.
+ *
+ * A constant, so bumping it is a code change someone reviewed — never
+ * `@latest`, because an overnight release of a third-party adapter must not
+ * change how the agent behaves. Measured: this is what
+ * `@agentclientprotocol/claude-agent-acp` reported as `agentInfo.version` on the
+ * machine this was written on.
+ */
+export const ACP_ADAPTER_PINNED_VERSION = "0.40.0";
+
+/** Where the daemon keeps the adapter it installed, under the state directory. */
+export const ADAPTERS_DIR_NAME = "adapters";
+
+/**
+ * The JSON-RPC code ACP uses for "you have to log in first".
+ *
+ * `session/new` answers with it when the agent has no usable credential, and it
+ * is the signal that opens the login panel — not a guess about the credential's
+ * state (`RequestError.authRequired` in the SDK).
+ */
+export const ACP_AUTH_REQUIRED_CODE = -32000;

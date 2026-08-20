@@ -158,62 +158,53 @@
             <span class="wizard__eyebrow">passo 2 de 5</span>
             <h1 class="wizard__title">Conecte o Claude Code</h1>
             <p class="wizard__lede">
-              O Lumem conversa com agentes por <b>ACP</b> — o daemon sobe o adaptador como processo
-              e troca mensagens por stdio. É o que faz ferramenta, plano e pedido de permissão
-              chegarem como blocos, e não como texto rolando num terminal.
+              O Lumem conversa com agentes por <b>ACP</b> — o daemon sobe o adaptador como processo e
+              troca mensagens por stdio. Você não configura nada disso: instala é com ele, e o jeito de
+              entrar quem diz é o próprio Claude, no handshake.
             </p>
           </div>
 
           <div class="wizard__sec" data-od-id="sec-adaptador">
-            <span class="wizard__sec-t">o que foi encontrado na sua máquina</span>
+            <span class="wizard__sec-t">o que o daemon está preparando — automático</span>
             <div class="check">
               <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">claude</span><span class="ck__val">2.0.14 · /opt/homebrew/bin/claude</span><span class="ck__st">ok</span></div>
-              <div class="ck ck--fail">
-                <span class="ck__glyph">✕</span><span class="ck__what">claude-agent-acp</span>
-                <span class="ck__val">adaptador ACP não está no PATH</span>
-                <span class="ck__st">falta</span>
-              </div>
-            </div>
-            <div class="copy" data-od-id="copy-instalar-adaptador">
-              <span class="copy__cmd">npm i -g @agentclientprotocol/claude-agent-acp</span>
-              <button class="btn btn--sm btn--ghost">copiar</button>
+              <div class="ck ck--running"><span class="ck__glyph">◐</span><span class="ck__what">adaptador ACP</span><span class="ck__val">instalando na pasta do app · versão fixada 0.69.0</span><span class="ck__st">instalando</span></div>
             </div>
             <span class="field__help">
-              O adaptador é um processo seu, na sua máquina. O Lumem só o <b>executa</b>: instalar é
-              você, no seu terminal. Um daemon local que instala software global porque um navegador
-              clicou é procurador confuso — e a saída de um install não tem onde aparecer aqui.
+              Nada para rodar no terminal. O adaptador fica dentro do Lumem, com versão fixa — nunca
+              <code>@latest</code>, para uma atualização de madrugada não mudar o comportamento do agente.
             </span>
-            <div class="chips">
-              <button class="btn btn--sm btn--ghost" data-od-id="cta-verificar-adaptador">Já instalei — verificar</button>
-            </div>
           </div>
 
           <div class="wizard__sec" data-od-id="sec-auth">
-            <span class="wizard__sec-t">como o Claude vai se autenticar — o que foi encontrado</span>
-            <div class="check">
-              <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">credencial local</span><span class="ck__val">assinatura Claude, no chaveiro do sistema</span><span class="ck__st">em uso</span></div>
-              <div class="ck"><span class="ck__glyph">·</span><span class="ck__what">ANTHROPIC_API_KEY</span><span class="ck__val">ausente no ambiente do daemon</span><span class="ck__st">—</span></div>
+            <span class="wizard__sec-t">entrar — as opções vieram do handshake, não de uma lista nossa</span>
+            <div class="choices choices--2">
+              <button class="choice is-on" data-od-id="auth-assinatura">
+                <span class="choice__top"><span class="glyph glyph--agent">◆</span><span class="choice__t">Assinatura Claude</span><span class="choice__mark">◉</span></span>
+                <span class="choice__d">Pro ou Max. Abre o navegador uma vez; o token fica no chaveiro do sistema — nunca no projeto.</span>
+              </button>
+              <button class="choice" data-od-id="auth-console">
+                <span class="choice__top"><span class="glyph">⌘</span><span class="choice__t">Anthropic Console</span><span class="choice__mark">○</span></span>
+                <span class="choice__d">Cobrança por uso, sem limite semanal. Também abre o navegador.</span>
+              </button>
             </div>
-            <span class="field__help">
-              Não é escolha sua nem do Lumem: o adaptador usa a credencial que <b>encontrar</b>. Esta
-              linha é o que a sonda achou — e é o passo 4 que confirma que ela vale.
-            </span>
+            <button class="linkish" data-od-id="auth-chave">colar uma chave de API em vez de entrar</button>
           </div>
 
           <button class="adv" data-od-id="adv-agente">
             <span class="adv__k">avançado</span>
-            <span class="adv__v">comando: claude-agent-acp · args: --stdio · env herdado do daemon</span>
+            <span class="adv__v">usar um adaptador que eu mesmo mantenho</span>
             <span class="caret">▸</span>
           </button>
 
           <div class="banner banner--warning" data-od-id="banner-outros-agentes">
             <span class="banner__glyph">⚠</span>
-            <span><strong>codex</strong> e <strong>gemini</strong> não foram encontrados. Qualquer agente que fale ACP entra depois em Configurações — o Lumem não é preso ao Claude.</span>
+            <span><strong>Codex</strong> e <strong>Gemini</strong> ainda não têm adaptador ACP publicado. Quando tiverem, entram aqui do mesmo jeito — o Lumem não é preso ao Claude.</span>
           </div>
 
           <div class="wizard__foot">
-            <button class="btn btn--brand" disabled data-od-id="cta-agente-continuar">Testar conexão <span class="kbd">⏎</span></button>
-            <span class="hint">o botão libera quando o adaptador responder</span>
+            <button class="btn btn--brand" data-od-id="cta-agente-continuar">Entrar com a assinatura <span class="kbd">⏎</span></button>
+            <span class="hint">abre o navegador · esta tela avança sozinha quando você voltar</span>
             <span class="spacer"></span>
             <button class="btn btn--ghost">Voltar</button>
           </div>
@@ -258,7 +249,7 @@
           <div class="check" data-od-id="check-handshake">
             <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">processo</span><span class="ck__val">claude-agent-acp --stdio · pid 48219 · subiu em 0,6 s</span><span class="ck__st">ok</span></div>
             <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">protocolo</span><span class="ck__val">ACP v1 · claude-agent-acp 0.69.0</span><span class="ck__st">ok</span></div>
-            <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">autenticação</span><span class="ck__val">assinatura Claude · token no chaveiro do sistema</span><span class="ck__st">ok</span></div>
+            <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">login</span><span class="ck__val">authenticate · claude-ai-login · token no chaveiro do sistema</span><span class="ck__st">ok</span></div>
             <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">capacidades</span><span class="ck__val">fs.readTextFile · fs.writeTextFile · terminal · permissões</span><span class="ck__st">ok</span></div>
             <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">sessão</span><span class="ck__val">session/new devolveu d81b05ee em 1,2 s</span><span class="ck__st">ok</span></div>
           </div>
@@ -267,7 +258,9 @@
             <span class="wizard__sec-t">a troca, sem tradução</span>
             <div class="wire">
               <span class="wire__l"><span class="wire__d wire__d--out">→</span><span class="wire__c"><span class="k">initialize</span> { <span class="k">protocolVersion</span>: <span class="nu">1</span>, <span class="k">clientCapabilities</span>: { <span class="k">fs</span>: { <span class="k">readTextFile</span>: <span class="nu">true</span>, <span class="k">writeTextFile</span>: <span class="nu">true</span> }, <span class="k">terminal</span>: <span class="nu">true</span> } }</span></span>
-              <span class="wire__l"><span class="wire__d wire__d--in">←</span><span class="wire__c">{ <span class="k">protocolVersion</span>: <span class="nu">1</span>, <span class="k">agentCapabilities</span>: { <span class="k">promptCapabilities</span>: { <span class="k">image</span>: <span class="nu">true</span>, <span class="k">embeddedContext</span>: <span class="nu">true</span> } }, <span class="k">authMethods</span>: [<span class="s">"claude-login"</span>, <span class="s">"anthropic-api-key"</span>] }</span></span>
+              <span class="wire__l"><span class="wire__d wire__d--in">←</span><span class="wire__c">{ <span class="k">protocolVersion</span>: <span class="nu">1</span>, <span class="k">agentCapabilities</span>: { <span class="k">promptCapabilities</span>: { <span class="k">image</span>: <span class="nu">true</span>, <span class="k">embeddedContext</span>: <span class="nu">true</span> } }, <span class="k">authMethods</span>: [<span class="s">"claude-ai-login"</span>, <span class="s">"console-login"</span>], <span class="k">agentCapabilities</span>: { <span class="k">auth</span>: { <span class="k">logout</span>: {} } } }</span></span>
+              <span class="wire__l"><span class="wire__d wire__d--out">→</span><span class="wire__c"><span class="k">authenticate</span> { <span class="k">methodId</span>: <span class="s">"claude-ai-login"</span> } <span class="c">// o clique no botão, nada além disto</span></span></span>
+              <span class="wire__l"><span class="wire__d wire__d--in">←</span><span class="wire__c">{} <span class="c">// resultado vazio = entrou</span></span></span>
               <span class="wire__l"><span class="wire__d wire__d--out">→</span><span class="wire__c"><span class="k">session/new</span> { <span class="k">cwd</span>: <span class="s">"~/.lumem/probe"</span>, <span class="k">mcpServers</span>: [] }</span></span>
               <span class="wire__l"><span class="wire__d wire__d--in">←</span><span class="wire__c">{ <span class="k">sessionId</span>: <span class="s">"d81b05ee"</span>, <span class="k">modes</span>: { <span class="k">current</span>: <span class="s">"default"</span>, <span class="k">available</span>: [<span class="s">"default"</span>, <span class="s">"plan"</span>, <span class="s">"bypassPermissions"</span>] } }</span></span>
               <span class="wire__l"><span class="wire__d wire__d--in">←</span><span class="wire__c"><span class="c">// sessão de teste encerrada. Nenhum token consumido.</span></span></span>
@@ -290,7 +283,7 @@
             <button class="btn btn--brand" data-od-id="cta-handshake-continuar">Continuar <span class="kbd">⏎</span></button>
             <button class="btn btn--ghost">Testar de novo</button>
             <span class="spacer"></span>
-            <span class="hint">salvo em <b>~/.lumem/agents.toml</b></span>
+            <span class="hint">conta salva no chaveiro · adaptador em <b>~/.lumem/agents.toml</b></span>
           </div>
         </div>
       </div>

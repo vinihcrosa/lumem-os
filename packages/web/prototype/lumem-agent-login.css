@@ -1,0 +1,131 @@
+/* ============================================================================
+   Lumem-OS — conectar agente pelo rodapé da sidebar. Só o que é desta tela.
+   Componentes compartilhados: lumem-ds.css. Valores: tokens.css.
+
+   Restrição que manda no desenho: 264px. Tudo aqui cabe na sidebar, sem modal
+   e sem formulário que exija digitar comando.
+   ========================================================================= */
+
+/* moldura de sidebar usada na galeria de estados */
+.sbframe {
+  width: var(--size-sidebar-width);
+  /* Altura pelo conteúdo, com piso: painel de login cresce por estado, e altura
+     fixa cortava a última opção justamente nos estados de escolha. */
+  min-height: calc(var(--space-64) * 5);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.sbframe--tall { min-height: calc(var(--space-64) * 7); }
+.sbframe .tree { overflow: hidden; min-height: calc(var(--space-64) * 2); }
+.sbframe .sidebar { border-right: 0; background: none; flex: 1; }
+
+/* o rodapé: uma linha por coisa que se conecta, mais adicionar projeto */
+.foot-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  height: var(--size-control-lg);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-md);
+  font: var(--text-label-sm);
+  color: var(--color-text-secondary);
+  text-align: left;
+}
+.foot-row:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.foot-row__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.foot-row__st { flex: none; font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; }
+.foot-row--on .foot-row__st { color: var(--color-daemon-online); }
+.foot-row--off .foot-row__st { color: var(--color-text-tertiary); }
+.foot-row--err .foot-row__st { color: var(--color-text-danger); }
+.pip { flex: none; width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+
+/* o painel: mora na coluna, empurra a árvore, nunca cobre a tela */
+.setup {
+  flex: none;
+  display: grid;
+  gap: var(--space-10);
+  padding: var(--space-12) var(--space-10);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-subtle);
+}
+.setup__head { display: flex; align-items: center; gap: var(--space-8); }
+.setup__t { flex: 1; min-width: 0; font: var(--text-label-md); color: var(--color-text-primary); }
+.setup__x { flex: none; padding: var(--space-2) var(--space-4); color: var(--color-text-tertiary); font-size: var(--size-icon-xs); }
+.setup__x:hover { color: var(--color-text-primary); }
+.setup__note { font: var(--text-caption); color: var(--color-text-tertiary); }
+.setup__note b { color: var(--color-text-secondary); font-weight: 400; }
+
+/* opção de login — vem do authMethods do handshake, não de uma lista nossa */
+.opt {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-8) var(--space-10);
+  text-align: left;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+}
+.opt:hover { background: var(--color-bg-active); border-color: var(--color-border-strong); }
+.opt__t { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-sm); }
+.opt__d { font: var(--text-caption); color: var(--color-text-tertiary); }
+.opt__g { flex: none; font-size: var(--size-icon-sm); }
+/* o preenchido é um só por painel: o caminho que resolve para quase todo mundo */
+.opt--primary { background: var(--color-bg-brand); border-color: var(--color-bg-brand); color: var(--color-text-on-brand); }
+.opt--primary:hover { background: var(--color-bg-brand-hover); border-color: var(--color-bg-brand-hover); color: var(--color-text-on-brand); }
+/* 0,85 e não 0,78: sobre brand-500 o texto de 11px passa de 4,58 para 5,11:1. */
+.opt--primary .opt__d { color: var(--color-text-on-brand); opacity: 0.85; }
+.opt[disabled] { color: var(--color-text-disabled); cursor: not-allowed; }
+.opt[disabled]:hover { background: var(--color-bg-raised); border-color: var(--color-border-default); }
+.opt[disabled] .opt__d { color: var(--color-text-disabled); }
+
+/* botão de texto — terceira opção, nunca um terceiro preenchido */
+.linkbtn {
+  justify-self: start;
+  padding: var(--space-2) 0;
+  font: var(--text-body-sm);
+  color: var(--color-text-link);
+  text-decoration: underline;
+  text-underline-offset: var(--space-2);
+}
+.linkbtn:hover { color: var(--color-text-primary); }
+
+/* preparo automático: o que o daemon está fazendo por você, em três linhas */
+.prep { display: grid; gap: var(--space-4); }
+.prep__r { display: flex; align-items: center; gap: var(--space-8); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.prep__m { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); }
+.prep__r--done { color: var(--color-text-tertiary); }
+.prep__r--done .prep__m { color: var(--color-plan-done); }
+.prep__r--now .prep__m { color: var(--color-tool-running); }
+.prep__r--now { color: var(--color-text-primary); }
+.prep__r--wait { color: var(--color-text-disabled); }
+.prep__r--wait .prep__m { color: var(--color-tool-pending); }
+.prep .meter { width: 100%; }
+
+/* conta conectada */
+.acct { display: grid; gap: var(--space-6); padding: var(--space-8) var(--space-10); background: var(--color-bg-inset); border-radius: var(--radius-md); }
+.acct__r { display: flex; align-items: baseline; gap: var(--space-8); min-width: 0; }
+.acct__k { flex: none; width: calc(var(--space-48) + var(--space-4)); font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; color: var(--color-text-tertiary); }
+.acct__v { min-width: 0; font: var(--text-mono-sm); color: var(--color-text-code); overflow-wrap: anywhere; }
+.acct__v b { color: var(--color-text-primary); font-weight: 500; }
+
+.setup__acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+
+/* chave colada, nunca digitada em pedaços */
+.key-in { display: flex; align-items: center; gap: var(--space-6); }
+.key-in .input { flex: 1; min-width: 0; height: var(--size-control-lg); padding: 0 var(--space-8); font: var(--text-mono-sm); }
+
+/* galeria de estados desta tela */
+.flowgrid { display: grid; grid-template-columns: repeat(auto-fit, var(--size-sidebar-width)); gap: var(--space-24); justify-content: start; align-items: start; }
+.stepcap { display: grid; gap: var(--space-6); justify-items: start; }
+.stepcap__n { font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; color: var(--color-text-tertiary); }
+.stepcap__n b { color: var(--color-text-brand); font-weight: 500; }
+.stepcap__d { max-width: var(--size-sidebar-width); font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.stepcap__d code { font: var(--text-mono-sm); }

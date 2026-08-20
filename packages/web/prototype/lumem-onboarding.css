@@ -79,3 +79,14 @@
 @media (max-width: 900px) {
   .tri { grid-template-columns: 1fr; }
 }
+
+/* terceiro caminho do login: link, nunca um terceiro botão cheio */
+.linkish {
+  justify-self: start;
+  padding: var(--space-2) 0;
+  font: var(--text-body-sm);
+  color: var(--color-text-link);
+  text-decoration: underline;
+  text-underline-offset: var(--space-2);
+}
+.linkish:hover { color: var(--color-text-primary); }

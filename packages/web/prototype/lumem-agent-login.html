@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumem-OS — conectar agente (login, sem comando)</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<link rel="stylesheet" href="lumem-agent-login.css">
+</head>
+<body data-od-id="agent-login">
+
+<nav class="tabbar" data-od-id="login-tabbar">
+  <button class="tab is-active" data-screen="fluxo">Fluxo</button>
+  <button class="tab" data-screen="no-app">No app</button>
+  <button class="tab" data-screen="casos">Casos</button>
+  <button class="tab" data-screen="protocolo">Protocolo</button>
+</nav>
+
+<!-- ==================================================================== -->
+<!-- FLUXO — sete estados, na ordem em que acontecem                      -->
+<!-- ==================================================================== -->
+<section class="screen is-active" id="screen-fluxo">
+  <div class="doc">
+    <header data-od-id="fluxo-header">
+      <h1 class="doc__h1">Conectar agente: login, e só</h1>
+      <p class="doc__lede">
+        O rodapé da sidebar pedia nome, transporte, comando, argumentos e versão do adaptador — cinco
+        campos que só quem mantém o próprio adaptador sabe responder. Nada disso é escolha de quem usa:
+        o comando e a versão o daemon resolve, e o jeito de entrar quem dita é o <b>próprio agente</b>,
+        no handshake. Sobra uma decisão real: <b>com qual conta você entra</b>.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="fluxo-galeria">
+      <div class="sec__h">
+        <h2 class="sec__t">Do zero ao conectado</h2>
+        <p class="sec__d">Tudo dentro dos 264px da sidebar, em linha, sem modal. Nenhum estado pede terminal.</p>
+      </div>
+
+      <div class="flowgrid">
+
+        <!-- 1 — repouso, nenhum agente -->
+        <div class="stepcap" data-od-id="estado-repouso">
+          <span class="stepcap__n"><b>01</b> · repouso</span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__label">Projetos</div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></div>
+                <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--local">▭</span><span class="row__label">local</span><span class="row__meta">main</span></div>
+                <div class="row" style="--depth:1"><span class="row__twist">▸</span><span class="glyph glyph--worktree">◇</span><span class="row__label">primeira-tarefa</span></div>
+              </div>
+            </div>
+            <div class="sidebar__foot">
+              <button class="foot-row foot-row--off"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">conectar um agente</span><span class="foot-row__st">nenhum</span></button>
+              <button class="add"><span>＋</span>adicionar projeto</button>
+            </div>
+          </div>
+          <p class="stepcap__d">Uma linha, um verbo. Sem agente conectado, criar sessão de agente fica desabilitado e aponta para cá.</p>
+        </div>
+
+        <!-- 2 — escolher o agente -->
+        <div class="stepcap" data-od-id="estado-escolher">
+          <span class="stepcap__n"><b>02</b> · escolher</span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__label">Projetos</div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Conectar agente</span><button class="setup__x">✕</button></div>
+              <button class="opt opt--primary">
+                <span class="opt__t"><span class="opt__g">◆</span>Claude Code</span>
+                <span class="opt__d">encontrado na sua máquina · 2.0.14</span>
+              </button>
+              <button class="opt" disabled>
+                <span class="opt__t"><span class="opt__g">◆</span>Codex</span>
+                <span class="opt__d">sem adaptador ACP publicado ainda</span>
+              </button>
+              <button class="linkbtn">outro agente ACP…</button>
+            </div>
+            <div class="sidebar__foot"><button class="add"><span>＋</span>adicionar projeto</button></div>
+          </div>
+          <p class="stepcap__d">O que não está disponível continua na lista, com o motivo. Sumir com ele deixa a pessoa procurando.</p>
+        </div>
+
+        <!-- 3 — preparo automático -->
+        <div class="stepcap" data-od-id="estado-preparando">
+          <span class="stepcap__n"><b>03</b> · preparo automático</span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__label">Projetos</div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Preparando o Claude Code</span></div>
+              <div class="prep">
+                <div class="prep__r prep__r--done"><span class="prep__m">✓</span>CLI encontrado</div>
+                <div class="prep__r prep__r--now"><span class="prep__m">◐</span>instalando o adaptador ACP</div>
+                <div class="prep__r prep__r--wait"><span class="prep__m">○</span>handshake</div>
+                <span class="meter" style="color:var(--color-tool-running)"><span class="meter__f" style="--w:58%"></span></span>
+              </div>
+              <span class="setup__note">Nada para rodar no terminal: o adaptador é instalado <b>dentro da pasta do app</b> e fixado numa versão.</span>
+            </div>
+            <div class="sidebar__foot"><button class="add"><span>＋</span>adicionar projeto</button></div>
+          </div>
+          <p class="stepcap__d">O passo que era um <code>npm i -g</code> copiado à mão. Continua visível — automático não é escondido.</p>
+        </div>
+
+        <!-- 4 — entrar -->
+        <div class="stepcap" data-od-id="estado-entrar">
+          <span class="stepcap__n"><b>04</b> · entrar</span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__label">Projetos</div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Entrar no Claude</span><button class="setup__x">✕</button></div>
+              <button class="opt opt--primary">
+                <span class="opt__t"><span class="opt__g">◆</span>Entrar com a assinatura</span>
+                <span class="opt__d">Pro ou Max · abre o navegador</span>
+              </button>
+              <button class="opt">
+                <span class="opt__t"><span class="opt__g">⌘</span>Anthropic Console</span>
+                <span class="opt__d">cobrança por uso · abre o navegador</span>
+              </button>
+              <button class="linkbtn">colar uma chave de API</button>
+              <span class="setup__note">Estas opções vieram <b>do próprio adaptador</b>, no handshake. O Lumem não inventa método de login.</span>
+            </div>
+            <div class="sidebar__foot"><button class="add"><span>＋</span>adicionar projeto</button></div>
+          </div>
+          <p class="stepcap__d">Um preenchido só. O segundo caminho é contorno, e o terceiro é link — não três botões iguais.</p>
+        </div>
+
+        <!-- 5 — esperando o navegador -->
+        <div class="stepcap" data-od-id="estado-navegador">
+          <span class="stepcap__n"><b>05</b> · navegador aberto</span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__label">Projetos</div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Esperando o navegador</span></div>
+              <div class="prep">
+                <div class="prep__r prep__r--done"><span class="prep__m">✓</span>adaptador de pé</div>
+                <div class="prep__r prep__r--now"><span class="prep__m">◐</span>autorize em claude.ai e volte</div>
+              </div>
+              <div class="setup__acts">
+                <button class="btn btn--sm btn--ghost">abrir de novo</button>
+                <button class="btn btn--sm btn--ghost">cancelar</button>
+              </div>
+              <span class="setup__note">Terminou lá? Esta tela muda sozinha — não precisa clicar em nada aqui.</span>
+            </div>
+            <div class="sidebar__foot"><button class="add"><span>＋</span>adicionar projeto</button></div>
+          </div>
+          <p class="stepcap__d">Sem botão "já entrei": quem confirma é o adaptador respondendo, não a pessoa afirmando.</p>
+        </div>
+
+        <!-- 6 — chave de API -->
+        <div class="stepcap" data-od-id="estado-chave">
+          <span class="stepcap__n"><b>06</b> · chave de API <span class="dim">(caminho alternativo)</span></span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__label">Projetos</div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Chave da Anthropic</span><button class="setup__x">✕</button></div>
+              <div class="key-in">
+                <span class="input input--focus"><span class="input__val">sk-ant-api03-••••••••••••••••</span></span>
+                <button class="btn btn--sm btn--brand">usar</button>
+              </div>
+              <span class="setup__note">Vai para o <b>chaveiro do sistema</b>. Não fica no projeto, nem em arquivo do Lumem, nem no histórico do shell.</span>
+              <button class="linkbtn">voltar aos jeitos de entrar</button>
+            </div>
+            <div class="sidebar__foot"><button class="add"><span>＋</span>adicionar projeto</button></div>
+          </div>
+          <p class="stepcap__d">Colar, não digitar: campo único, sem confirmação em dois passos e sem pedir nome para a chave.</p>
+        </div>
+
+        <!-- 7 — conectado -->
+        <div class="stepcap" data-od-id="estado-conectado">
+          <span class="stepcap__n"><b>07</b> · conectado</span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__label">Projetos</div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></div>
+                <div class="row" style="--depth:1"><span class="row__twist">▾</span><span class="glyph glyph--worktree">◇</span><span class="row__label">primeira-tarefa</span><span class="count count--running"><span class="count__dot"></span>1</span></div>
+                <div class="row" style="--depth:2"><span class="row__twist"></span><span class="glyph glyph--agent">◆</span><span class="row__label">claude</span></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Claude Code</span><button class="setup__x">✕</button></div>
+              <div class="acct">
+                <div class="acct__r"><span class="acct__k">conta</span><span class="acct__v">vinicius@technomar.com.br</span></div>
+                <div class="acct__r"><span class="acct__k">plano</span><span class="acct__v"><b>Claude Max</b> · assinatura</span></div>
+                <div class="acct__r"><span class="acct__k">padrão</span><span class="acct__v">opus[1m] · Auto</span></div>
+              </div>
+              <div class="setup__acts">
+                <button class="btn btn--sm btn--ghost">trocar conta</button>
+                <button class="btn btn--sm btn--ghost">sair</button>
+              </div>
+            </div>
+            <div class="sidebar__foot">
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+              <button class="add"><span>＋</span>adicionar projeto</button>
+            </div>
+          </div>
+          <p class="stepcap__d"><b>sair</b> só aparece quando o handshake trouxe <code>auth.logout</code>. Sem isso, o botão mentiria.</p>
+        </div>
+
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- NO APP — a prova de que cabe em 264px                                -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-no-app">
+  <div class="app">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="body">
+      <aside class="sidebar" data-od-id="sidebar-com-login">
+        <div class="ws-wrap"><button class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></button></div>
+        <div class="tree">
+          <div class="tree__label">Projetos</div>
+          <button class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></button>
+          <button class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--local">▭</span><span class="row__label">local</span><span class="row__meta">main</span></button>
+          <button class="row is-selected" style="--depth:1"><span class="row__twist">▸</span><span class="glyph glyph--worktree">◇</span><span class="row__label">primeira-tarefa</span></button>
+          <button class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span></button>
+        </div>
+        <div class="setup">
+          <div class="setup__head"><span class="setup__t">Entrar no Claude</span><button class="setup__x">✕</button></div>
+          <button class="opt opt--primary">
+            <span class="opt__t"><span class="opt__g">◆</span>Entrar com a assinatura</span>
+            <span class="opt__d">Pro ou Max · abre o navegador</span>
+          </button>
+          <button class="opt">
+            <span class="opt__t"><span class="opt__g">⌘</span>Anthropic Console</span>
+            <span class="opt__d">cobrança por uso · abre o navegador</span>
+          </button>
+          <button class="linkbtn">colar uma chave de API</button>
+        </div>
+        <div class="sidebar__foot">
+          <button class="foot-row foot-row--off"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="foot-row__st">entrando…</span></button>
+          <button class="add"><span>＋</span>adicionar projeto</button>
+        </div>
+      </aside>
+
+      <main class="main" data-od-id="main-sem-agente">
+        <div class="wt-head">
+          <nav class="crumb">pessoal<span class="crumb__sep">/</span>lorebase<span class="crumb__sep">/</span><span class="crumb__here">primeira-tarefa</span></nav>
+          <div class="wt-title">
+            <h2><span class="glyph glyph--worktree">◇</span>primeira-tarefa</h2>
+            <span class="spacer"></span>
+            <button class="btn btn--sm" disabled>◆ nova sessão de agente</button>
+            <button class="btn btn--sm btn--ghost">● novo shell</button>
+          </div>
+          <div class="chips">
+            <span class="chip chip--branch"><span class="chip__dot"></span>primeira-tarefa</span>
+            <span class="chip chip--clean"><span class="chip__dot"></span>limpa</span>
+          </div>
+        </div>
+        <div class="pane">
+          <div class="empty" data-od-id="empty-sem-agente">
+            <span class="empty__glyph">◆</span>
+            <span class="empty__title">nenhum agente conectado ainda</span>
+            <span class="empty__sub">A worktree está pronta e o shell funciona. Falta entrar no Claude — o painel está aberto no rodapé da coluna, à esquerda.</span>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- CASOS — o que fazer quando o caminho fácil não serve                 -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-casos">
+  <div class="doc">
+    <header>
+      <h1 class="doc__h1">Casos</h1>
+      <p class="doc__lede">
+        Quatro situações em que login com um clique não resolve sozinho. Nenhuma delas volta a pedir
+        comando por padrão — a única que mostra terminal é a que o próprio adaptador exige.
+      </p>
+    </header>
+
+    <section class="sec">
+      <div class="sec__h"><h2 class="sec__t">Quando não há navegador na máquina do daemon</h2>
+        <p class="sec__d">Em SSH ou container, o adaptador troca os métodos: some o login por navegador e sobra <code>claude-login</code>, que pede o terminal <em>daquela</em> máquina. O Lumem abre esse terminal para você em vez de mandar você procurá-lo.</p>
+      </div>
+      <div class="flowgrid">
+        <div class="stepcap" data-od-id="caso-remoto">
+          <span class="stepcap__n">daemon remoto</span>
+          <div class="sbframe sbframe--tall">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>cliente<span class="caret">▾</span></div></div>
+              <div class="tree"><div class="tree__label">Projetos</div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">api-gateway</span></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Entrar no Claude</span><button class="setup__x">✕</button></div>
+              <div class="banner banner--info"><span class="banner__glyph">◇</span><span>O daemon roda em <strong>build-01</strong> e não tem navegador. O login acontece lá.</span></div>
+              <button class="opt opt--primary">
+                <span class="opt__t"><span class="opt__g">●</span>Abrir um shell em build-01</span>
+                <span class="opt__d">o Lumem já digita <code>claude /login</code> por você</span>
+              </button>
+              <button class="linkbtn">colar uma chave de API</button>
+              <span class="setup__note">É a única tela do fluxo com comando — porque é o único método que o adaptador oferece aqui.</span>
+            </div>
+            <div class="sidebar__foot"><button class="add"><span>＋</span>adicionar projeto</button></div>
+          </div>
+          <p class="stepcap__d">O comando aparece, mas quem o executa é o botão. A pessoa vê o que vai acontecer e não precisa copiar nada.</p>
+        </div>
+
+        <div class="stepcap" data-od-id="caso-expirado">
+          <span class="stepcap__n">sessão expirada</span>
+          <div class="sbframe sbframe--tall">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree"><div class="tree__label">Projetos</div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></div>
+                <div class="row is-muted" style="--depth:1"><span class="row__twist">▸</span><span class="glyph glyph--worktree">◇</span><span class="row__label">primeira-tarefa</span></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Claude Code</span><button class="setup__x">✕</button></div>
+              <div class="banner banner--warning"><span class="banner__glyph">⚠</span><span>O token expirou. As conversas continuam no disco; nenhum turno se perdeu.</span></div>
+              <button class="opt opt--primary">
+                <span class="opt__t"><span class="opt__g">◆</span>Entrar de novo</span>
+                <span class="opt__d">mesma conta · vinicius@technomar.com.br</span>
+              </button>
+              <button class="linkbtn">entrar com outra conta</button>
+            </div>
+            <div class="sidebar__foot">
+              <button class="foot-row foot-row--err"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="foot-row__st">expirado</span></button>
+              <button class="add"><span>＋</span>adicionar projeto</button>
+            </div>
+          </div>
+          <p class="stepcap__d">Reentrar mantém a conta. Trocar de conta é o caminho secundário, porque é o caso raro.</p>
+        </div>
+
+        <div class="stepcap" data-od-id="caso-falha">
+          <span class="stepcap__n">o adaptador não subiu</span>
+          <div class="sbframe sbframe--tall">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree"><div class="tree__label">Projetos</div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Não deu para conectar</span><button class="setup__x">✕</button></div>
+              <div class="fail">
+                <span class="fail__title"><span>✕</span>saiu com código 127</span>
+                <span class="fail__body">O adaptador foi instalado, mas não carregou o runtime.</span>
+                <div class="fail__cmd">error while loading shared libraries: libnode.so.115</div>
+              </div>
+              <div class="setup__acts">
+                <button class="btn btn--sm btn--brand">tentar de novo</button>
+                <button class="btn btn--sm btn--ghost">ver log</button>
+              </div>
+            </div>
+            <div class="sidebar__foot">
+              <button class="foot-row foot-row--err"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="foot-row__st">falhou</span></button>
+              <button class="add"><span>＋</span>adicionar projeto</button>
+            </div>
+          </div>
+          <p class="stepcap__d">Erro do processo aparece literal, em mono. A explicação vai acima dele, em prosa — nunca no lugar dele.</p>
+        </div>
+
+        <div class="stepcap" data-od-id="caso-avancado">
+          <span class="stepcap__n">avançado <span class="dim">(fechado por padrão)</span></span>
+          <div class="sbframe sbframe--tall">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree"><div class="tree__label">Projetos</div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Adaptador</span><button class="setup__x">✕</button></div>
+              <div class="field"><label>comando</label><div class="input"><span class="input__val">claude-agent-acp</span></div></div>
+              <div class="field"><label>argumentos</label><div class="input input--empty"><span class="input__val">--flag valor</span></div></div>
+              <div class="field"><label>versão fixada</label><div class="input"><span class="input__val">0.69.0</span><span class="input__suf">atualizar</span></div></div>
+              <span class="setup__note">Só para quem mantém o próprio adaptador. Em branco, o Lumem usa o que instalou e a versão que fixou.</span>
+            </div>
+            <div class="sidebar__foot">
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+              <button class="add"><span>＋</span>adicionar projeto</button>
+            </div>
+          </div>
+          <p class="stepcap__d">Os cinco campos antigos não sumiram: viraram uma gaveta que ninguém precisa abrir para começar.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- PROTOCOLO — de onde cada pedaço da tela vem                          -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-protocolo">
+  <div class="doc">
+    <header>
+      <h1 class="doc__h1">De onde a tela tira o que mostra</h1>
+      <p class="doc__lede">
+        Nenhum botão desta tela é lista fixa nossa. Os jeitos de entrar chegam no <code>initialize</code>,
+        e o Lumem só desenha o que o agente disse que aceita — por isso a mesma tela serve para
+        qualquer agente ACP, hoje e depois.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="mapa-acp">
+      <div class="sec__h"><h2 class="sec__t">Tela ↔ protocolo</h2></div>
+      <table class="tbl">
+        <thead><tr><th>Na tela</th><th>No ACP</th><th>Quem decide</th></tr></thead>
+        <tbody>
+          <tr><td><b>Lista de jeitos de entrar</b></td><td><code>initialize</code> → <code>authMethods[]</code> com <code>id</code>, <code>name</code>, <code>description</code></td><td>o agente</td></tr>
+          <tr><td><b>Clique em "Entrar com a assinatura"</b></td><td><code>authenticate({ methodId: "claude-ai-login" })</code></td><td>a pessoa</td></tr>
+          <tr><td><b>"Anthropic Console"</b></td><td><code>authenticate({ methodId: "console-login" })</code></td><td>a pessoa</td></tr>
+          <tr><td><b>"Abrir um shell em build-01"</b></td><td><code>claude-login</code> — método que o adaptador só oferece sem navegador</td><td>o ambiente</td></tr>
+          <tr><td><b>Painel abre sozinho</b></td><td><code>session/new</code> respondeu <code>auth_required</code></td><td>o agente</td></tr>
+          <tr><td><b>Botão "sair"</b></td><td>só existe se veio <code>agentCapabilities.auth.logout</code></td><td>o agente</td></tr>
+          <tr><td><b>Comando, args, versão</b></td><td>não é ACP — é config do daemon, e ele preenche sozinho</td><td>o daemon</td></tr>
+        </tbody>
+      </table>
+      <p class="case__note">
+        Ordem real: <code>initialize</code> → (se preciso) <code>authenticate</code> → <code>session/new</code>.
+        O painel de login nasce dessa segunda etapa, e some assim que ela passa.
+      </p>
+    </section>
+
+    <section class="sec" data-od-id="antes-depois">
+      <div class="sec__h"><h2 class="sec__t">O que saiu do caminho</h2></div>
+      <div class="grid grid--2">
+        <div class="rule rule--no">
+          <span class="rule__t">Campo NOME</span>
+          <span class="rule__d">O nome era rótulo interno de uma config global. O agente já tem nome: <em>Claude Code</em>. Some.</span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">Campo TRANSPORTE</span>
+          <span class="rule__d">Havia uma opção real (conversa ACP) e uma legada (terminal). Escolher transporte é escolher se a sessão tem cartão de ferramenta — decisão do produto, não do usuário.</span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">COMANDO e ARGUMENTOS</span>
+          <span class="rule__d">Só quem mantém adaptador sabe responder. Vira gaveta <em>avançado</em>, fechada.</span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">VERSÃO DO ADAPTADOR</span>
+          <span class="rule__d">Continua fixada — e continua importante —, mas quem fixa é o daemon. Aparece como fato em <em>avançado</em>, não como campo a preencher.</span>
+        </div>
+        <div class="rule rule--yes">
+          <span class="rule__t">Entrou: estado de conexão no rodapé</span>
+          <span class="rule__d">Uma linha com pip: <em>nenhum</em>, <em>entrando</em>, <em>conectado</em>, <em>expirado</em>, <em>falhou</em>. Antes não havia onde ler isso.</span>
+        </div>
+        <div class="rule rule--yes">
+          <span class="rule__t">Entrou: instalação automática, visível</span>
+          <span class="rule__d">O adaptador é instalado pelo daemon, na pasta do app, com versão fixa — e o progresso aparece em três linhas em vez de um comando para copiar.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="regras-login">
+      <div class="sec__h"><h2 class="sec__t">Regras que este fluxo assume</h2></div>
+      <div class="grid grid--2">
+        <div class="rule rule--yes"><span class="rule__t">Um preenchido por painel</span><span class="rule__d">O caminho que serve para quase todo mundo. Os outros são contorno e link.</span></div>
+        <div class="rule rule--yes"><span class="rule__t">Segredo nunca na tela</span><span class="rule__d">Chave aparece mascarada, vai para o chaveiro do sistema, e nunca é ecoada de volta.</span></div>
+        <div class="rule rule--yes"><span class="rule__t">Quem confirma é o agente</span><span class="rule__d">Não existe botão "já entrei". O painel troca de estado quando o <code>authenticate</code> volta.</span></div>
+        <div class="rule rule--no"><span class="rule__t">Sem modal</span><span class="rule__d">O painel mora na coluna e empurra a árvore. A sessão que estiver rodando continua visível ao lado.</span></div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<script>
+var tabs = document.querySelectorAll('.tabbar .tab');
+function show(id) {
+  tabs.forEach(function (t) { t.classList.toggle('is-active', t.dataset.screen === id); });
+  document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('is-active', s.id === 'screen-' + id); });
+  localStorage.setItem('lumem-agent-login-screen', id);
+  window.scrollTo(0, 0);
+}
+tabs.forEach(function (tab) { tab.addEventListener('click', function () { show(tab.dataset.screen); }); });
+var saved = localStorage.getItem('lumem-agent-login-screen');
+if (saved && document.getElementById('screen-' + saved)) { show(saved); }
+</script>
+</body>
+</html>
