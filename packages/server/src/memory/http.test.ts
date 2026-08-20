@@ -1,3 +1,4 @@
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { FastifyInstance } from "fastify";
@@ -23,7 +24,7 @@ afterEach(async () => {
   cleanupGitFixtures();
 });
 
-async function daemon(): Promise<{ app: FastifyInstance; memory: MemoryService }> {
+async function daemon(): Promise<{ app: FastifyInstance; memory: MemoryService; stateDir: string }> {
   const stateDir = join(tempDir("lumem-ask-"), ".lumem");
   await ensureMemoryHome({ stateDir });
   const database = openTestDb();
@@ -36,7 +37,7 @@ async function daemon(): Promise<{ app: FastifyInstance; memory: MemoryService }
     ptyManager,
   });
   apps.push(app);
-  return { app, memory: new MemoryService({ db: database.db, stateDir }) };
+  return { app, memory: new MemoryService({ db: database.db, stateDir }), stateDir };
 }
 
 describe("GET /memory/ask", () => {
@@ -109,5 +110,33 @@ describe("GET /memory/ask", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.body).toContain("Achado primeiro");
+  });
+});
+
+describe("frescor", () => {
+  it("memória de mais de um dia entra com aviso, e não filtrada", async () => {
+    const { app, memory, stateDir } = await daemon();
+    await memory.write({
+      name: "Endpoint de checkout",
+      description: "o contrato que o web consome",
+      type: "contract",
+      scope: "global",
+      body: "POST /v2/checkout",
+      actor: "human",
+    });
+    // O carimbo é da proveniência, e o `reindex` o reconstrói do arquivo — então
+    // envelhecer a memória é editar o arquivo, como o tempo faria.
+    const file = join(stateDir, "memory/contract_endpoint-de-checkout.md");
+    writeFileSync(file, readFileSync(file, "utf8").replace(/updated_at: .*/, "updated_at: '2026-01-01T00:00:00.000Z'"));
+    await memory.reindex();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/memory/ask?q=" + encodeURIComponent("contrato do endpoint de checkout"),
+    });
+
+    // Envelhecer não é o mesmo que estar errado: o aviso acompanha, não filtra.
+    expect(response.body).toContain("POST /v2/checkout");
+    expect(response.body).toContain("verifique contra o estado atual");
   });
 });

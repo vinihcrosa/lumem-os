@@ -521,7 +521,7 @@ Esta é a ordem de **risco**, e ela precede a decomposição. Quem vai executar 
 | **1** | Escrita e leitura de memória com escopo, portão único, WAL, proveniência e **git** — via tool MCP e comando | É o núcleo, e é a única parte grande que **não** depende de transporte. Pode andar em paralelo com a feature de ACP | não |
 | **2** | Recall lexical (FTS5) com tool de busca, com sinal de uso **e a instrumentação do [§6 do context-delivery](context-delivery.md)** | Faz a memória grande valer a pena, é insumo de toda poda futura, e é o que permite decidir as camadas com dado em vez de palpite | não |
 | **3** | Inbox de propostas + UI de revisão — inclusive a revisão do **núcleo** destilado ([D1](context-delivery.md)) | Destrava a memória de workspace escrita por agente, e o núcleo é o texto de maior alcance do sistema | não |
-| **4** | Injeção no `session/prompt` + MCP declarado no `session/new` | Primeiro valor real dentro da sessão | **sim** |
+| **4** | Injeção no `session/prompt` + MCP declarado no `session/new` | Primeiro valor real dentro da sessão | **sim** — **entregue** pela PR 06, com HTTP no lugar do MCP ([por quê](tasks.md)) |
 | **5** | Captura estrutural: fim de turno, `tool_call`, `usage_update` | O que a decisão por ACP comprou — e só faz sentido com o portão da fase 1 provado | **sim** |
 | **6** | Playbooks com ciclo de vida por uso | A segunda natureza, depois que a primeira estiver de pé | parcial (medir uso é melhor com ACP) |
 

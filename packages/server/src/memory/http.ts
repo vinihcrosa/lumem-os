@@ -22,6 +22,17 @@ import { memoryScopeOfSession } from "./scope-of-session.js";
 
 const ASK_LIMIT = 5;
 
+/**
+ * A partir de quando uma memória entra com aviso de frescor (§8 do PRD).
+ *
+ * *"Envelhecer não é o mesmo que estar errado"* — então o aviso acompanha, e não
+ * filtra. Ele mora **aqui** e não no núcleo, e isso é uma leitura do §8: o banner
+ * foi desenhado quando a injeção carregava **fatos**. O núcleo carrega diretriz,
+ * e "escreva commit em inglês (verifique antes de afirmar como fato)" é ruído.
+ * Fato é o que este endpoint serve, e é onde o aviso significa algo.
+ */
+const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+
 const askQuery = z.object({
   q: z.string().min(1),
   session: z.string().min(1).optional(),
@@ -86,8 +97,15 @@ export function registerMemoryHttp({ app, db, stateDir }: RegisterMemoryHttpOpti
         })
         .then((entry) => entry.body)
         .catch(() => hit.entry.description);
+      const stale = Date.now() - hit.entry.updatedAt.getTime() > STALE_AFTER_MS;
       answers.push(
-        [`## ${hit.entry.name}`, `fonte: ${hit.entry.path} · ${hit.entry.scope} · ${hit.entry.type}`, "", body].join("\n"),
+        [
+          `## ${hit.entry.name}`,
+          `fonte: ${hit.entry.path} · ${hit.entry.scope} · ${hit.entry.type}`,
+          ...(stale ? ["verifique contra o estado atual antes de afirmar como fato"] : []),
+          "",
+          body,
+        ].join("\n"),
       );
     }
 

@@ -518,6 +518,21 @@ diz "21 arquivos, nada mudou".
 
 ---
 
+### O que a 06 decidiu enquanto executava
+
+| # | O quê | Onde |
+|---|---|---|
+| **N1** | **A superfície do agente virou HTTP, não a CLI.** A D4 diz "não me importa o formato", e a CLI existe — mas ela é TypeScript rodado por `tsx` dentro do monorepo, e a sessão não sabe onde o daemon foi instalado. `curl` funciona de qualquer `cwd`, sem instalar nada. Fora do `/trpc` porque o envelope `?input={...}` codificado não é copiável sem raciocínio, e o que entra no prompt tem que ser | `memory/http.ts` |
+| **N2** | **O aviso de frescor do §8 mudou de lugar.** Ele foi desenhado quando a injeção carregava **fatos**; o núcleo carrega diretriz, e *"escreva commit em inglês (verifique antes de afirmar como fato)"* é ruído. Fato é o que o `/memory/ask` serve, e é lá que o aviso significa algo | `memory/http.ts` |
+| **N3** | **O "snapshot congelado" do §8 saiu de graça, e o congelamento é no primeiro turno, não no `session/new`.** É melhor assim: fixar uma memória vale para a próxima coisa que você pedir, e não só para a próxima sessão | `AcpManager.prompt` |
+| **N4** | **`pinned` não entra na `entrySignature`.** Fixar é curadoria, não conteúdo — e sem isso a próxima reescrita do texto gravaria o default `false` e desfixaria em silêncio uma memória escolhida à mão | `MemoryService.write` |
+| **N5** | **A variação da marca d'água é a data de nascimento, não uma série.** A D5 pede `+38% em 30 dias`; ninguém registrou série histórica, então o que existe é "quanto do núcleo nasceu nos últimos 30 dias". Responde a pergunta que importa sem inventar curva | `memory/core.ts` |
+| **N6** | **O desenho da memória entrou no Open Design.** O `lumem-memory.html` do S2 era o único protótipo que vivia **só** neste repositório, anterior à regra de 2026-08-19. Foi levado para lá com `lumem-memory.css` separado, o "fixar no núcleo" e a marca d'água foram desenhados no Open Design, e o `design:sync --check` volta a dizer que nada divergiu | `prototype/lumem-memory.*` |
+| **N7** | **A auditoria de porte do CSS nasceu nesta PR e achou dois defeitos.** O `<ol>` da linha do tempo sem regra nenhuma (marcador do navegador à vista) e `.mem-group` pedida sem pintura. Os dois são invisíveis para o jsdom, que mede tudo como zero | `memory-css.test.ts` |
+| **N8** | **O alarme da marca d'água ficou em 4.000 caracteres**, e ele **avisa** — não corta, não recusa. A referência é o teto do Hermes (2.200) mais a folga que o §6 autoriza depois de o spike mostrar que o piso de uma sessão é ~39k tokens, e não nosso | `MemoryPanel` |
+
+---
+
 ## S1 — `wm/s1-sinais-de-acao`
 
 **O que entrega:** o registro cru dos quatro sinais que não dependem de cooperação. Nada aqui
