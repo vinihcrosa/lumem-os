@@ -385,6 +385,118 @@ linha do tempo com desfazer, e os números na tela.
 **Done when:** uma proposta é aprovada, editada ou rejeitada pela UI, e o `git log` mostra o
 resultado.
 
+## PR 06 — Injeção: o núcleo chega no agente
+
+**Depende de:** ACP (existe) + PR 01 (existe). **Branch:** direto em `main`, porque a pilha acabou.
+
+**Por que ela é a próxima.** Tudo que as PRs 01–05 construíram é uma biblioteca que ninguém chama: o
+agente não sabe que a memória existe. Esta é a PR em que ela passa a mudar comportamento — e é o
+único ponto da feature em que o custo é **recorrente**, cobrado em todo turno de toda sessão.
+
+**As decisões que a governam**, todas já fechadas em [context-delivery](context-delivery.md):
+o núcleo é **comportamental e só** (§4.1: *"isto muda o que o agente faz"* entra, *"isto explica como
+algo funciona"* não), vai **só no primeiro `session/prompt`** (D2), **sem teto** — marca d'água e
+alarme (D5) —, e a superfície que o agente usa é a **CLI** (D4), que já existe e funciona também no
+caminho degradado do PTY.
+
+---
+
+#### N1: `pinned` é frontmatter, não coluna inventada
+
+**What**: Marcar uma memória como parte do núcleo, no Markdown.
+**Where**: `memory/entry.ts`, `db/schema.ts`, migração, `memory/catalog.ts`, `MemoryService`
+
+**Done when**:
+- [ ] `pinned: boolean` no frontmatter, default `false` — Markdown é a fonte, a coluna é projeção
+- [ ] `reindex` reconstrói o campo a partir do arquivo, como faz com o resto
+- [ ] Uma memória editada à mão com `pinned: true` entra no núcleo sem passar por API nenhuma
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(memory): marcar uma memória como parte do núcleo`
+
+---
+
+#### N2: O núcleo montado, com a marca d'água
+
+**What**: `MemoryService.core()` — as memórias fixadas da cadeia de escopo, e o que elas custam.
+**Where**: `memory/core.ts` + teste, `MemoryService`
+
+**Done when**:
+- [ ] Ordem geral → específico: global, workspace, projeto. Diretriz específica refina a genérica, e
+      quem lê por último decide
+- [ ] Só `pinned`. Uma memória não fixada **não** entra, por mais curta que seja
+- [ ] Precedência respeitada: memória sombreada não entra no núcleo — ela perdeu
+- [ ] A marca d'água vem junto: caracteres, contagem de entradas, e o custo de cada uma
+- [ ] **Sem teto** (D5): estourar não corta nada, e a medida é o que existe
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(memory): montar o núcleo, e medir o que ele custa`
+
+---
+
+#### N3: A skill que ensina a perguntar
+
+**What**: O texto fixo que ensina a estrutura da memória e como chamar a CLI.
+**Where**: `memory/skill.ts` + teste
+
+**Done when**:
+- [ ] Fixo: **não** cresce com o acervo. É a diferença central do redesenho (§4)
+- [ ] Ensina a **perguntar**, não diz o que existe (§5.1) — a lista de memórias nunca entra no prompt
+- [ ] Cita os sete tipos e os três escopos, porque é o vocabulário das respostas
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(memory): a skill que ensina o agente a perguntar`
+
+---
+
+#### N4: A injeção, no primeiro turno e só nele
+
+**What**: O núcleo e a skill entram no primeiro `session/prompt` da sessão.
+**Where**: `acp/AcpManager.ts`, `sessions/SessionStore.ts` + testes
+
+**Done when**:
+- [ ] Só no **primeiro** prompt (D2): cache preservado, prompt estável
+- [ ] Bloco separado, antes da mensagem da pessoa — o texto dela vai verbatim, como sempre foi
+- [ ] **Visível**: um evento na conversa diz que o núcleo entrou e quanto custou. Injeção invisível é
+      a coisa que o §12 do PRD proíbe por nome
+- [ ] Sessão sem memória nenhuma não injeta bloco vazio
+- [ ] O escopo da sessão decide a cadeia: worktree herda o projeto dela
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(acp): o núcleo da memória entra no primeiro turno`
+
+---
+
+#### N5: Fixar pela tela, e ver o que custa
+
+**What**: Pin/unpin no painel, e a marca d'água na aba de números.
+**Where**: `components/MemoryPanel.tsx`, `routers/memory.ts`, `hooks/useMemory.ts` + testes
+
+**Done when**:
+- [ ] Fixar e desfixar da própria entrada, com o custo dela ao lado (D1: *"deve ter UI para tudo isso"*)
+- [ ] A aba de números mostra o tamanho do núcleo e quantas entradas ele tem
+- [ ] Fixar é gesto **seu**: ator não-humano não fixa
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(web): fixar memória no núcleo, e ver a marca d'água`
+
+---
+
+#### N6: O e2e que prova que o agente recebeu
+
+**What**: Uma sessão real, e o núcleo no primeiro turno.
+**Where**: `e2e/memory-injection.spec.ts`, `e2e/support/fake-acp-agent.mjs`
+
+**Done when**:
+- [ ] O agente falso **repete o que recebeu**, e o spec lê o núcleo lá — é a única prova de que a
+      injeção atravessou o protocolo
+- [ ] O segundo turno **não** leva o núcleo de novo
+- [ ] Gate: `pnpm gate:full`
+
+**Commit**: `test(e2e): o agente recebe o núcleo, e só uma vez`
+
+---
+
 ## S1 — `wm/s1-sinais-de-acao`
 
 **O que entrega:** o registro cru dos quatro sinais que não dependem de cooperação. Nada aqui
