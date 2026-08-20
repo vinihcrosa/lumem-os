@@ -729,11 +729,11 @@ opt-out ortogonal; e (Q14) **fonte única no Lumem, projeção por CLI**.
 **Where**: `routers/memory.ts`, `components/MemoryPanel.tsx`, `memory.css` + testes
 
 **Done when**:
-- [ ] Lista com classe de tarefa, carregamentos, último uso e estado
-- [ ] O parado há muito tempo **sugere** arquivar; arquivar é botão seu
-- [ ] Arquivado continua visível, atrás de um filtro — arquivar não é apagar
-- [ ] Só `var(--token)`, e a auditoria de porte do CSS cobre as classes novas
-- [ ] Gate: `pnpm gate:quick`
+- [x] Lista com classe de tarefa, carregamentos, último uso e estado
+- [x] O parado há muito tempo **sugere** arquivar; arquivar é botão seu
+- [x] Arquivado continua visível, atrás de um filtro — arquivar não é apagar
+- [x] Só `var(--token)`, e a auditoria de porte do CSS cobre as classes novas
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): a aba de playbooks, com a sugestão de arquivar`
 

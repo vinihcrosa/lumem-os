@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { MemoryService, writeMemorySchema } from "../memory/MemoryService.js";
+import { createPlaybookService, lifecycleOf } from "../memory/playbook.js";
 import { requireAccess } from "../memory/access.js";
 import { MEMORY_ACTORS, MEMORY_SCOPES, MEMORY_TYPES } from "../memory/entry.js";
 import { MAX_LIMIT } from "../memory/recall.js";
@@ -146,6 +147,50 @@ export const memoryRouter = router({
       domainSafeAsync(() => {
         const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
         return memory.pin(input.path, input.pinned);
+      }),
+    ),
+
+  /**
+   * Os playbooks do escopo, com o uso e o estado do ciclo de vida.
+   *
+   * O estado é derivado aqui e não no cliente: `lifecycleOf` é a mesma função que
+   * a CLI usa, e duas respostas para "isto ainda vale?" seriam duas verdades.
+   */
+  playbooks: publicProcedure
+    .input(scopeIds.extend({ archived: z.boolean().optional() }).optional())
+    .query(({ ctx, input }) =>
+      domainSafeAsync(() => {
+        const scope = input ?? scopeIds.parse({});
+        const playbooks = createPlaybookService({ db: ctx.db, stateDir: ctx.config.stateDir });
+        const rows = playbooks.list({
+          ...(scope.workspaceId === undefined ? {} : { workspaceId: scope.workspaceId }),
+          archived: input?.archived ?? false,
+        });
+        return Promise.resolve(
+          rows.map((row) => ({
+            path: row.path,
+            slug: row.slug,
+            scope: row.scope,
+            taskClass: row.taskClass,
+            description: row.description,
+            loads: row.loads,
+            lastLoadedAt: row.lastLoadedAt,
+            pinned: row.pinned,
+            archived: row.archived,
+            lifecycle: lifecycleOf(row),
+          })),
+        );
+      }),
+    ),
+
+  /** Arquiva ou desarquiva um playbook. Sempre gesto seu (§9). */
+  archivePlaybook: publicProcedure
+    .input(z.object({ path: z.string().min(1).max(4_096), archived: z.boolean() }))
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(() => {
+        const playbooks = createPlaybookService({ db: ctx.db, stateDir: ctx.config.stateDir });
+        const row = playbooks.setArchived(input.path, input.archived);
+        return Promise.resolve({ path: row.path, archived: row.archived });
       }),
     ),
 

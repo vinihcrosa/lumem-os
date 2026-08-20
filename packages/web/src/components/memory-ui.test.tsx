@@ -66,6 +66,7 @@ beforeEach(() => {
   trpc.memory.usage.query.mockResolvedValue([]);
   trpc.memory.core.query.mockResolvedValue({ chars: 0, recentChars: 0, entries: [] });
   trpc.memory.settings.query.mockResolvedValue({ distill: false });
+  trpc.memory.playbooks.query.mockResolvedValue([]);
 });
 
 function render() {
@@ -383,5 +384,73 @@ describe("a destilação, na tela", () => {
 
     expect(await screen.findByText("on")).toBeInTheDocument();
     expect(screen.getByText(/custa uma sessão de destilação/)).toBeInTheDocument();
+  });
+});
+
+describe("a aba de playbooks", () => {
+  const playbook = (overrides: Record<string, unknown> = {}) => ({
+    path: "workspaces/ws1/playbooks/investigar-teste-flaky/PLAYBOOK.md",
+    slug: "investigar-teste-flaky",
+    scope: "workspace",
+    taskClass: "Investigar teste flaky",
+    description: "o caminho que já funcionou duas vezes",
+    loads: 14,
+    lastLoadedAt: new Date("2026-08-18T12:00:00Z"),
+    pinned: false,
+    archived: false,
+    lifecycle: "active",
+    ...overrides,
+  });
+
+  it("mostra uso e estado, porque é disso que o ciclo de vida é derivado", async () => {
+    trpc.memory.playbooks.query.mockResolvedValue([playbook()]);
+
+    renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="playbooks" />);
+
+    expect(await screen.findByText("Investigar teste flaky")).toBeInTheDocument();
+    expect(screen.getByText("14×")).toBeInTheDocument();
+    expect(screen.getByText("ativo")).toBeInTheDocument();
+  });
+
+  it("o parado sugere arquivar, e arquivar é botão seu", async () => {
+    trpc.memory.playbooks.query.mockResolvedValue([playbook({ lifecycle: "stale" })]);
+
+    renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="playbooks" />);
+
+    expect(await screen.findByText("parado")).toBeInTheDocument();
+    // Sugestão, nunca ação: a telemetria subconta.
+    expect(screen.getByText(/talvez o procedimento tenha mudado/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "arquivar" }));
+
+    expect(trpc.memory.archivePlaybook.mutate).toHaveBeenCalledWith({
+      path: "workspaces/ws1/playbooks/investigar-teste-flaky/PLAYBOOK.md",
+      archived: true,
+    });
+  });
+
+  it("arquivado é uma vista, e de lá dá para voltar", async () => {
+    trpc.memory.playbooks.query.mockImplementation((input?: { archived?: boolean }) =>
+      Promise.resolve(
+        input?.archived === true ? [playbook({ archived: true, lifecycle: "archived" })] : [],
+      ),
+    );
+
+    renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="playbooks" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "arquivados" }));
+
+    // Arquivar não apaga: uma lista que só soubesse mostrar o que está vivo
+    // faria arquivar parecer deleção.
+    expect(await screen.findByText("arquivado")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "desarquivar" })).toBeInTheDocument();
+  });
+
+  it("nunca carregado diz isso, e não uma data inventada", async () => {
+    trpc.memory.playbooks.query.mockResolvedValue([playbook({ loads: 0, lastLoadedAt: null })]);
+
+    renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="playbooks" />);
+
+    expect(await screen.findByText("nunca carregado")).toBeInTheDocument();
   });
 });

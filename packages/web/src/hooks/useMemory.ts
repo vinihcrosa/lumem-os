@@ -13,6 +13,7 @@ import {
   memoryCoreKey,
   memoryListKey,
   memoryProposalsKey,
+  playbooksKey,
 } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 
@@ -108,6 +109,37 @@ export function usePinMemory(): UseMutationResult<unknown, Error, { path: string
 /** O que está ligado no daemon. Hoje, a destilação de fim de sessão. */
 export function useMemorySettings(): UseQueryResult<MemorySettings> {
   return useQuery({ queryKey: MEMORY_SETTINGS_KEY, queryFn: () => trpc.memory.settings.query() });
+}
+
+export type Playbook = Awaited<ReturnType<typeof trpc.memory.playbooks.query>>[number];
+
+/** Os playbooks do escopo. `archived` é uma vista, não um estado escondido. */
+export function usePlaybooks(
+  filter: MemoryScopeFilter & { archived?: boolean },
+): UseQueryResult<Playbook[]> {
+  const archived = filter.archived ?? false;
+  return useQuery({
+    queryKey: playbooksKey(filter.workspaceId, archived),
+    queryFn: () =>
+      trpc.memory.playbooks.query({
+        ...(filter.workspaceId ? { workspaceId: filter.workspaceId } : {}),
+        archived,
+      }),
+  });
+}
+
+/** Arquivar e desarquivar — e as duas vistas mudam juntas. */
+export function useArchivePlaybook(): UseMutationResult<
+  unknown,
+  Error,
+  { path: string; archived: boolean }
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { path: string; archived: boolean }) =>
+      trpc.memory.archivePlaybook.mutate(input),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["memory"] }),
+  });
 }
 
 export function useUsage() {

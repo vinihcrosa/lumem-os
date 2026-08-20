@@ -10,9 +10,9 @@
 
 <h1 class="page">Memória do workspace — protótipo</h1>
 <p class="page-sub">
-  Seis telas: o que existe, a inbox de propostas, o conflito no mesmo escopo, a linha
-  do tempo, os números e os estados vazios. Sobre os mesmos tokens que o app usa,
-  sem nenhum literal.
+  Sete telas: o que existe, a inbox de propostas, o conflito no mesmo escopo, a linha
+  do tempo, os números, os estados vazios e os playbooks. Sobre os mesmos tokens que
+  o app usa, sem nenhum literal.
 </p>
 
 <!-- 1 ------------------------------------------------------------------ -->
@@ -286,6 +286,73 @@
       <strong>Índice desatualizado</strong>
       Um arquivo não pôde ser lido. <code>memory/user_quebrada.md</code> — frontmatter não foi fechado.
     </div></div>
+  </div>
+</section>
+
+<!-- 6 ------------------------------------------------------------------ -->
+<section class="screen">
+  <h2>6 · playbooks — procedimento, com ciclo de vida por uso</h2>
+  <p class="note">
+    Playbook não é memória: tem corpo, é carregado sob demanda, e envelhece. Então a
+    lista não fala de escopo e precedência — fala de <em>uso</em>. O parado
+    <strong>sugere</strong> arquivar; arquivar é botão seu, porque a telemetria subconta.
+  </p>
+  <div class="frame">
+    <div class="panel-head">
+      <span class="title">Playbooks</span>
+      <span class="count-pill">3</span>
+      <span class="spacer"></span>
+      <div class="seg">
+        <button aria-pressed="true">Ativos</button>
+        <button aria-pressed="false">Arquivados</button>
+      </div>
+    </div>
+
+    <div class="pb">
+      <div class="row1">
+        <span class="life active">ativo</span>
+        <span class="class">Investigar teste flaky</span>
+      </div>
+      <div class="desc">O caminho que já funcionou duas vezes: isolado, suíte, estado compartilhado.</div>
+      <div class="use">
+        <span class="loads">14×</span>
+        <span>último uso há 2 dias</span>
+        <span class="tag scope-workspace">workspace</span>
+        <button class="pb-act focus-ring">arquivar</button>
+      </div>
+    </div>
+
+    <div class="pb">
+      <div class="row1">
+        <span class="life active">ativo</span>
+        <span class="class">Revisar migração de banco</span>
+      </div>
+      <div class="desc">Antes de mexer em migration, o que conferir e em que ordem.</div>
+      <div class="use">
+        <span class="loads">6×</span>
+        <span>último uso há 9 dias</span>
+        <span class="tag scope-project">projeto</span>
+        <button class="pb-act focus-ring">arquivar</button>
+      </div>
+    </div>
+
+    <div class="pb">
+      <div class="row1">
+        <span class="life stale">parado</span>
+        <span class="class">Preparar release manual</span>
+      </div>
+      <div class="desc">O passo a passo de quando o release era feito na mão.</div>
+      <div class="use">
+        <span class="loads">2×</span>
+        <span>último uso há 8 meses</span>
+        <span class="tag scope-workspace">workspace</span>
+        <button class="pb-act focus-ring">arquivar</button>
+      </div>
+      <div class="suggest">
+        Parado há mais de 60 dias — talvez o procedimento tenha mudado. Arquivar não apaga:
+        carregar de novo o reativa.
+      </div>
+    </div>
   </div>
 </section>
 

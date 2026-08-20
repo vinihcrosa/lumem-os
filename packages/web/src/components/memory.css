@@ -226,3 +226,42 @@
 }
 .mem-group__n { margin-left: auto; font: var(--text-caption); color: var(--color-text-disabled); }
 .mem-list { list-style: none; margin: 0; padding: 0; }
+
+/* Playbooks, portado do `lumem-memory.css` do Open Design.
+
+   Playbook não é memória (§6 do PRD), e a lista mostra isso: o que importa aqui
+   não é escopo e precedência, é **uso**. Quantas vezes foi carregado e quando —
+   porque é disso que o ciclo de vida é derivado. */
+.pb { border-bottom: var(--border-width-thin) solid var(--color-border-subtle); padding: var(--space-10) var(--space-12); }
+.pb:last-child { border-bottom: 0; }
+.pb__row { display: flex; align-items: baseline; gap: var(--space-8); }
+.pb__class { font: var(--text-label-sm); color: var(--color-text-primary); }
+.pb__desc { color: var(--color-text-secondary); font: var(--text-body-sm); margin-top: var(--space-2); }
+.pb__use {
+  color: var(--color-text-tertiary); font: var(--text-caption); margin-top: var(--space-4);
+  display: flex; gap: var(--space-10); flex-wrap: wrap; align-items: baseline;
+}
+/* Mono porque este número é para ser comparado de olho, linha a linha. */
+.pb__loads { font: var(--text-mono-sm); color: var(--color-text-secondary); }
+
+/* O estado tem três valores, e só um pede ação. */
+.life {
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs);
+  padding: var(--space-2) var(--space-6); border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+.life[data-life="active"] { background: var(--color-bg-success-subtle); color: var(--color-text-success); }
+.life[data-life="stale"] { background: var(--color-bg-warning-subtle); color: var(--color-text-warning); }
+.life[data-life="archived"] { background: var(--color-bg-neutral-subtle); color: var(--color-text-tertiary); }
+
+/* A sugestão fica ao lado do gesto: o texto diz por que, o botão faz. */
+.pb__suggest { font: var(--text-caption); color: var(--color-text-warning); margin-top: var(--space-4); }
+.pb__act {
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs);
+  padding: var(--space-2) var(--space-8); border-radius: var(--radius-full);
+  border: var(--border-width-thin) solid var(--color-border-default);
+  background: none; color: var(--color-text-tertiary);
+  white-space: nowrap; cursor: pointer; flex-shrink: 0;
+}
+.pb__act:hover:enabled { color: var(--color-text-secondary); border-color: var(--color-border-strong); }
+.pb__act:disabled { cursor: default; }

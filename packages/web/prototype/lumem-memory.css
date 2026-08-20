@@ -202,3 +202,46 @@ p.page-sub { color: var(--color-text-secondary); font: var(--text-body-sm); marg
 .empty strong { display: block; color: var(--color-text-secondary); font: var(--text-label-md); margin-bottom: var(--space-4); }
 .empty code { font: var(--text-mono-sm); color: var(--color-text-code); }
 .gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-12); }
+
+/* -------------------- playbooks --------------------
+
+   Playbook não é memória (§6 do PRD), e a lista mostra isso: o que importa aqui
+   não é escopo e precedência, é **uso**. Quantas vezes foi carregado e quando —
+   porque é disso que o ciclo de vida é derivado.
+
+   O estado é um chip com três valores, e `stale` é o único que pede ação. Ele
+   **sugere**, e nunca arquiva: a telemetria subconta (Q16), e uma tela que
+   arquivasse sozinha estaria apagando o que ela não tem como saber que morreu. */
+.pb { border-bottom: 1px solid var(--color-border-subtle); padding: var(--space-10) var(--space-12); }
+.pb:last-child { border-bottom: 0; }
+.pb .row1 { display: flex; align-items: baseline; gap: var(--space-8); }
+.pb .class { font: var(--text-label-md); color: var(--color-text-primary); }
+.pb .desc { color: var(--color-text-secondary); font: var(--text-body-sm); margin-top: var(--space-2); }
+.pb .use {
+  color: var(--color-text-tertiary); font: var(--text-caption); margin-top: var(--space-4);
+  display: flex; gap: var(--space-10); flex-wrap: wrap; align-items: baseline;
+}
+/* O contador é mono porque ele é para ser comparado de olho, linha a linha. */
+.pb .loads { font: var(--text-mono-sm); color: var(--color-text-secondary); }
+
+.life {
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs);
+  padding: var(--space-1) var(--space-6); border-radius: var(--radius-full);
+  white-space: nowrap; border: 1px solid transparent;
+}
+.life.active { background: var(--color-bg-success-subtle); color: var(--color-text-success); }
+/* Sem borda própria: não existe `--color-border-warning`, e token novo nasce no
+   Open Design — não numa linha de CSS escrita com pressa. O fundo e o texto de
+   aviso já dizem o que precisa ser dito. */
+.life.stale { background: var(--color-bg-warning-subtle); color: var(--color-text-warning); }
+.life.archived { background: var(--color-bg-neutral-subtle); color: var(--color-text-tertiary); }
+
+/* A sugestão, no lugar do gesto: o texto diz por que, o botão faz. */
+.suggest { font: var(--text-caption); color: var(--color-text-warning); margin-top: var(--space-4); }
+.pb-act {
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs);
+  padding: var(--space-2) var(--space-8); border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-default); background: none;
+  color: var(--color-text-tertiary); white-space: nowrap; cursor: pointer;
+}
+.pb-act:hover { color: var(--color-text-secondary); border-color: var(--color-border-strong); }

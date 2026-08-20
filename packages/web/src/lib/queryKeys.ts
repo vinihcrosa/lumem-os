@@ -85,3 +85,8 @@ export function memoryCoreKey(workspaceId: string | null, projectId: string | nu
 export const MEMORY_DECISIONS_KEY = ["memory", "decisions"] as const;
 export const MEMORY_USAGE_KEY = ["memory", "usage"] as const;
 export const MEMORY_SETTINGS_KEY = ["memory", "settings"] as const;
+
+/** Os playbooks de um escopo. `archived` é filtro, e por isso entra na chave. */
+export function playbooksKey(workspaceId: string | null, archived: boolean) {
+  return ["memory", "playbooks", workspaceId ?? "-", archived ? "arquivados" : "ativos"] as const;
+}
