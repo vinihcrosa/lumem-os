@@ -3,6 +3,7 @@ import type { FastifyBaseLogger } from "fastify";
 import type { AcpPreamble, AcpPreambleSource } from "../acp/AcpManager.js";
 import type { Db } from "../db/index.js";
 import { createProjectRepository } from "../repositories/project.js";
+import { createSessionRepository } from "../repositories/session.js";
 
 import { MemoryService } from "./MemoryService.js";
 import { memoryScopeOfSession } from "./scope-of-session.js";
@@ -36,6 +37,16 @@ export function createMemoryPreamble({
   log,
 }: MemoryPreambleOptions): AcpPreambleSource {
   return async (session): Promise<AcpPreamble | null> => {
+    /*
+     * Sessão que o daemon não registrou não recebe núcleo.
+     *
+     * A destilação de fim de sessão (PR 07) sobe um agente sem linha no banco:
+     * ela não é um trabalho seu, e injetar diretriz de comportamento nela seria
+     * pedir que ela obedecesse regras sobre um trabalho que não está fazendo —
+     * pagando o núcleo de novo, para nada.
+     */
+    if ((await createSessionRepository(db).findById(session.id)) === undefined) return null;
+
     const memory = new MemoryService({ db, stateDir, ...(log ? { log } : {}) });
     const scope = await memoryScopeOfSession(db, session.id);
     const core = await memory.core(scope);

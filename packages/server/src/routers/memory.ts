@@ -150,6 +150,14 @@ export const memoryRouter = router({
     ),
 
   /**
+   * O que está ligado — hoje, só a destilação de fim de sessão.
+   *
+   * Existe porque desligado por padrão só é honesto se for **visível**: uma
+   * captura que ninguém sabe se está ligada é uma captura que ninguém confere.
+   */
+  settings: publicProcedure.query(({ ctx }) => ({ distill: ctx.config.distill })),
+
+  /**
    * A marca d'água: o que o núcleo custa em toda sessão.
    *
    * Sem o `text`. Ele é grande, a tela não mostra, e trafegar o núcleo inteiro

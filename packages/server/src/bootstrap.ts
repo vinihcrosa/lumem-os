@@ -7,6 +7,7 @@ import { createEventBus } from "./events.js";
 import { AcpManager } from "./acp/AcpManager.js";
 import { ensureMemoryHome } from "./memory/home.js";
 import { MemoryService } from "./memory/MemoryService.js";
+import { createSessionCapture } from "./memory/capture.js";
 import { createMemoryPreamble } from "./memory/preamble.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createTranscriptStore, type TranscriptStore } from "./acp/TranscriptStore.js";
@@ -125,6 +126,19 @@ export async function bootstrap({
     ptyManager,
     acpManager: acp,
     events,
+    // A captura de fim de sessão (§10). Desligada por padrão, e a configuração é
+    // quem diz: `LUMEM_MEMORY_DISTILL=1`.
+    onEnded: createSessionCapture({
+      db: openedDatabase.db,
+      stateDir: config.stateDir,
+      acpManager: acp,
+      enabled: config.distill,
+      log: {
+        warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+          bootedApp?.log.warn(...args);
+        },
+      },
+    }),
   });
   const app = await createServer({
     config,

@@ -5,6 +5,7 @@ import {
   useMemoryList,
   useProposals,
   useMemoryCore,
+  useMemorySettings,
   usePinMemory,
   useResolveProposal,
   useUsage,
@@ -654,6 +655,7 @@ function formatStamp(when: Date | string): string {
  */
 function Numbers({ core }: { core: ReturnType<typeof useMemoryCore> }) {
   const usage = useUsage();
+  const settings = useMemorySettings();
 
   if (usage.isPending) return <p className="mem-meta">carregando…</p>;
   if (usage.isError) {
@@ -661,9 +663,6 @@ function Numbers({ core }: { core: ReturnType<typeof useMemoryCore> }) {
   }
 
   const watermark = core.data;
-  if (usage.data.length === 0 && (watermark === undefined || watermark.entries.length === 0)) {
-    return <EmptyState title="Sem uso registrado">Os números aparecem depois da primeira busca.</EmptyState>;
-  }
 
   return (
     <div className="mem-stats">
@@ -687,6 +686,22 @@ function Numbers({ core }: { core: ReturnType<typeof useMemoryCore> }) {
           </div>
         </div>
       ) : null}
+      {/*
+       * Desligado por padrão só é honesto se for visível: uma captura que ninguém
+       * sabe se está ligada é uma captura que ninguém confere. E ela é a única
+       * parte do sistema que gasta token sem você pedir.
+       */}
+      {settings.data !== undefined ? (
+        <div className="mem-stat">
+          <div className="n">{settings.data.distill ? "on" : "off"}</div>
+          <div className="l">destilação de fim de sessão</div>
+          <div className="hint">
+            {settings.data.distill
+              ? "cada sessão de agente que termina custa uma sessão de destilação"
+              : "ligue com LUMEM_MEMORY_DISTILL=1"}
+          </div>
+        </div>
+      ) : null}
       {usage.data.map((row) => (
         <div key={row.kind} className="mem-stat">
           <div className="n">{row.events}</div>
@@ -695,6 +710,16 @@ function Numbers({ core }: { core: ReturnType<typeof useMemoryCore> }) {
           </div>
         </div>
       ))}
+      {/* Zero é um número, e é diferente de tela vazia: antes esta aba sumia
+          inteira enquanto ninguém tivesse buscado, escondendo a marca d'água e o
+          estado da destilação junto. */}
+      {usage.data.length === 0 ? (
+        <div className="mem-stat">
+          <div className="n">0</div>
+          <div className="l">uso registrado</div>
+          <div className="hint">os números aparecem depois da primeira busca</div>
+        </div>
+      ) : null}
     </div>
   );
 }

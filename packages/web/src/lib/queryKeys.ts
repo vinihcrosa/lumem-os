@@ -84,3 +84,4 @@ export function memoryCoreKey(workspaceId: string | null, projectId: string | nu
 
 export const MEMORY_DECISIONS_KEY = ["memory", "decisions"] as const;
 export const MEMORY_USAGE_KEY = ["memory", "usage"] as const;
+export const MEMORY_SETTINGS_KEY = ["memory", "settings"] as const;

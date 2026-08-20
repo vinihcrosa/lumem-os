@@ -373,7 +373,10 @@ export interface UsageOptions {
 /** Um evento de uso. É o §6 do context-delivery virando linha. */
 export function usage(
   db: Db,
-  kind: "recall" | "read" | "write" | "inject",
+  // `distill` é a destilação de fim de sessão (PR 07): quantos candidatos ela
+  // produziu, e quanto tempo custou. É a instrumentação que a Q20 pede desde o
+  // primeiro dia — sem ela, decidir entre "por sessão" e "por turno" é palpite.
+  kind: "recall" | "read" | "write" | "inject" | "distill",
   amount: number,
   durationMs: number,
   options: UsageOptions = {},

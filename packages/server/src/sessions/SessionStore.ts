@@ -122,6 +122,15 @@ export interface SessionStoreOptions {
    * looking, because it is the moment the daemon knows an agent wrote there.
    */
   git?: GitService;
+  /**
+   * O que fazer com uma sessão que acabou de morrer, além de anotar.
+   *
+   * A captura da PR 07 entra por aqui, e como função injetada pela mesma razão
+   * que o preâmbulo entra no `AcpManager`: este arquivo cuida do ciclo de vida de
+   * processo, e não tem por que aprender o que é memória. Ausente é o default —
+   * um store de teste que não é sobre isso não recebe nada.
+   */
+  onEnded?: (row: SessionRow, endedAt: Date) => Promise<void>;
 }
 
 export function createSessionStore({
@@ -130,6 +139,7 @@ export function createSessionStore({
   acpManager,
   events,
   git = createGitService(),
+  onEnded,
 }: SessionStoreOptions): SessionStore {
   const sessions = createSessionRepository(db);
 
@@ -416,6 +426,13 @@ export function createSessionStore({
             // Last, and swallowing its own failures: the record and the event
             // are what the UI depends on, and a signal is never worth them.
             await recordExitSignals(row, endedAt, log);
+            // E por último de tudo, a captura: sair é fato, destilar é opinião.
+            // Uma opinião que falha não pode fazer a saída parecer que falhou.
+            if (onEnded) {
+              await onEnded(row, endedAt).catch((error: unknown) => {
+                log?.warn({ session: row.id, err: error }, "falha ao destilar a sessão");
+              });
+            }
           }
         })().catch((error: unknown) => {
           log?.warn({ session: id, err: error }, "falha ao registrar saída de sessão");

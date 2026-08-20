@@ -798,7 +798,7 @@ export class MemoryService {
    * contexto passa a sessão aqui quando registra o `inject`.
    */
   recordUsage(
-    kind: "read" | "write" | "inject",
+    kind: "read" | "write" | "inject" | "distill",
     amount: number,
     durationMs = 0,
     options: UsageOptions = {},

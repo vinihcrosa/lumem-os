@@ -594,12 +594,12 @@ derivável do repositório, e **dump de transcript**.
 **Where**: `sessions/SessionStore.ts`, `bootstrap.ts` + testes
 
 **Done when**:
-- [ ] Roda quando a sessão de **agente** morre, junto dos sinais de saída da S1
-- [ ] Falha da destilação **não** quebra a saída da sessão: exit é fato, destilação é opinião
-- [ ] Só sessão raiz (Q21): sessão retomada não redestila a conversa que já foi destilada
-- [ ] Sessão morta cedo (`session_killed_early`) não destila: ela já é um sinal de que nada aconteceu
-- [ ] Instrumentada (Q20): quantos candidatos, quantos passaram o portão, e o que custou
-- [ ] Gate: `pnpm gate:quick`
+- [x] Roda quando a sessão de **agente** morre, junto dos sinais de saída da S1
+- [x] Falha da destilação **não** quebra a saída da sessão: exit é fato, destilação é opinião
+- [x] Só sessão raiz (Q21): sessão retomada não redestila a conversa que já foi destilada
+- [x] Sessão morta cedo (`session_killed_early`) não destila: ela já é um sinal de que nada aconteceu
+- [x] Instrumentada (Q20): quantos candidatos, quantos passaram o portão, e o que custou
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(sessions): destilar no fim da sessão, sem atrapalhar a saída`
 

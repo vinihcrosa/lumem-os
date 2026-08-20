@@ -8,6 +8,7 @@ import {
 
 import {
   MEMORY_DECISIONS_KEY,
+  MEMORY_SETTINGS_KEY,
   MEMORY_USAGE_KEY,
   memoryCoreKey,
   memoryListKey,
@@ -27,6 +28,7 @@ export type Proposal = Awaited<ReturnType<typeof trpc.memory.proposals.query>>[n
 export type Decision = Awaited<ReturnType<typeof trpc.memory.decisions.query>>[number];
 export type UsageSummary = Awaited<ReturnType<typeof trpc.memory.usage.query>>;
 export type MemoryCore = Awaited<ReturnType<typeof trpc.memory.core.query>>;
+export type MemorySettings = Awaited<ReturnType<typeof trpc.memory.settings.query>>;
 
 export interface MemoryScopeFilter {
   workspaceId: string | null;
@@ -101,6 +103,11 @@ export function usePinMemory(): UseMutationResult<unknown, Error, { path: string
     mutationFn: (input: { path: string; pinned: boolean }) => trpc.memory.pin.mutate(input),
     onSuccess: () => client.invalidateQueries({ queryKey: ["memory"] }),
   });
+}
+
+/** O que está ligado no daemon. Hoje, a destilação de fim de sessão. */
+export function useMemorySettings(): UseQueryResult<MemorySettings> {
+  return useQuery({ queryKey: MEMORY_SETTINGS_KEY, queryFn: () => trpc.memory.settings.query() });
 }
 
 export function useUsage() {

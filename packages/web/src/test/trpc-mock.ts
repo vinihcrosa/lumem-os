@@ -77,6 +77,7 @@ function createTrpcMock() {
       decisions: { query: vi.fn() },
       usage: { query: vi.fn() },
       core: { query: vi.fn() },
+      settings: { query: vi.fn() },
       pin: { mutate: vi.fn() },
       proposals: { query: vi.fn() },
       approveProposal: { mutate: vi.fn() },

@@ -65,6 +65,7 @@ beforeEach(() => {
   trpc.memory.decisions.query.mockResolvedValue([]);
   trpc.memory.usage.query.mockResolvedValue([]);
   trpc.memory.core.query.mockResolvedValue({ chars: 0, recentChars: 0, entries: [] });
+  trpc.memory.settings.query.mockResolvedValue({ distill: false });
 });
 
 function render() {
@@ -363,5 +364,24 @@ describe("o núcleo, na tela", () => {
     // Sem teto (D5): o alarme avisa, e não corta nada.
     expect(screen.getByText(/hora de consolidar/)).toBeInTheDocument();
     expect(screen.getByText(/1.240 entraram em 30 dias/)).toBeInTheDocument();
+  });
+});
+
+describe("a destilação, na tela", () => {
+  it("desligada aparece desligada, e diz como ligar", async () => {
+    renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="numbers" />);
+
+    // Desligado por padrão só é honesto se for visível.
+    expect(await screen.findByText("off")).toBeInTheDocument();
+    expect(screen.getByText(/LUMEM_MEMORY_DISTILL=1/)).toBeInTheDocument();
+  });
+
+  it("ligada diz o que custa", async () => {
+    trpc.memory.settings.query.mockResolvedValue({ distill: true });
+
+    renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="numbers" />);
+
+    expect(await screen.findByText("on")).toBeInTheDocument();
+    expect(screen.getByText(/custa uma sessão de destilação/)).toBeInTheDocument();
   });
 });

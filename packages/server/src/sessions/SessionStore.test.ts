@@ -667,6 +667,55 @@ describe("reading a finished conversation", () => {
   });
 });
 
+describe("a captura de fim de sessão (PR 07)", () => {
+  it("é chamada quando a sessão morre, com a linha e a hora", async () => {
+    const database = openTestDb();
+    databases.push(database);
+    const ptyManager = new PtyManager();
+    managers.push(ptyManager);
+    const ended: { id: string; at: Date }[] = [];
+    const store = createSessionStore({
+      db: database.db,
+      ptyManager,
+      onEnded: (row, endedAt) => {
+        ended.push({ id: row.id, at: endedAt });
+        return Promise.resolve();
+      },
+    });
+    unsubscribes.push(store.trackExits());
+
+    const row = await store.start(shell({ args: ["-c", "exit 0"] }));
+
+    await vi.waitFor(() => expect(ended[0]?.id).toBe(row.id), { timeout: 5_000 });
+    expect(ended[0]?.at).toBeInstanceOf(Date);
+  });
+
+  it("captura que falha não faz a saída falhar: sair é fato, destilar é opinião", async () => {
+    const database = openTestDb();
+    databases.push(database);
+    const ptyManager = new PtyManager();
+    managers.push(ptyManager);
+    const warns: string[] = [];
+    const store = createSessionStore({
+      db: database.db,
+      ptyManager,
+      onEnded: () => Promise.reject(new Error("o agente da destilação não subiu")),
+    });
+    unsubscribes.push(
+      store.trackExits({ warn: (_object: unknown, message?: string) => void warns.push(message ?? "") } as never),
+    );
+
+    const row = await store.start(shell({ args: ["-c", "exit 0"] }));
+
+    await vi.waitFor(
+      async () =>
+        expect((await createSessionRepository(database.db).findById(row.id))?.state).toBe("exited"),
+      { timeout: 5_000 },
+    );
+    await vi.waitFor(() => expect(warns.join(" ")).toContain("destilar"), { timeout: 5_000 });
+  });
+});
+
 describe("os sinais que a saída de uma sessão produz (Q17)", () => {
   afterEach(() => {
     cleanupGitFixtures();
