@@ -74,6 +74,7 @@ import {
   type ProposalQuery,
 } from "./proposals.js";
 import { resolveVisible, type ResolvedView, type ScopeFilter } from "./shadow.js";
+import { pinnedFor, renderCore, type MemoryCore } from "./core.js";
 import { commitChange } from "./repo.js";
 
 /**
@@ -461,6 +462,35 @@ export class MemoryService {
   /** Tudo que existe, sem resolver escopo. É a lista crua do catálogo. */
   list(): MemoryEntryRow[] {
     return listEntries(this.db);
+  }
+
+  /**
+   * O **núcleo**: o texto que entra no primeiro turno de toda sessão.
+   *
+   * Lê os corpos do disco, e não do índice: o índice guarda nome e descrição
+   * para busca, e o núcleo é o corpo. Ler N arquivos pequenos é barato porque o
+   * núcleo é pequeno por construção — se um dia não for, a marca d'água é
+   * exatamente o número que vai dizer isso.
+   *
+   * Arquivo ilegível **não** derruba a sessão: ele fica de fora, com aviso. Uma
+   * memória corrompida não pode impedir o agente de receber as outras nove.
+   */
+  async core(filter: ScopeFilter = {}): Promise<MemoryCore> {
+    const rows = pinnedFor(listEntries(this.db), filter);
+    const loaded: { row: MemoryEntryRow; body: string }[] = [];
+    for (const row of rows) {
+      const text = await readFile(join(this.stateDir, row.path), "utf8").catch(() => null);
+      if (text === null) {
+        this.log?.warn({ path: row.path }, "memória fixada não está no disco; fora do núcleo");
+        continue;
+      }
+      try {
+        loaded.push({ row, body: parseEntry(text, row.path).body });
+      } catch (error) {
+        this.log?.warn({ err: error, path: row.path }, "memória fixada ilegível; fora do núcleo");
+      }
+    }
+    return renderCore(loaded, this.now());
   }
 
   /**

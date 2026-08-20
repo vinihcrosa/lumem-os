@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
@@ -383,17 +383,15 @@ describe("MemoryService.pin — o núcleo é escolha sua", () => {
   });
 
   it("uma memória editada à mão entra no núcleo sem passar por API nenhuma", async () => {
-    const { memory, stateDir, db } = await service();
+    const { memory, stateDir } = await service();
     const { path } = await memory.write(preferencia);
     const file = join(stateDir, path);
     writeFileSync(file, readFileSync(file, "utf8").replace("pinned: false", "pinned: true"));
 
     await memory.reindex();
 
-    const row = db.db.$client.prepare("SELECT pinned FROM memory_entry WHERE path = ?").get(path) as {
-      pinned: number;
-    };
-    expect(row.pinned).toBe(1);
+    // Pelo catálogo, que é a projeção que o núcleo consulta.
+    expect(memory.list().find((row) => row.path === path)?.pinned).toBe(true);
   });
 
   it("reescrever o texto não desfixa: fixar é curadoria, não conteúdo", async () => {
@@ -421,6 +419,65 @@ describe("MemoryService.pin — o núcleo é escolha sua", () => {
     const { path } = await memory.write(preferencia);
 
     await expect(memory.pin(path, true, "agent")).rejects.toThrow(DomainError);
+  });
+});
+
+describe("MemoryService.core", () => {
+  it("monta o texto a partir do disco, e só com o que foi fixado", async () => {
+    const { memory } = await service();
+    const { path } = await memory.write(preferencia);
+    await memory.write({
+      name: "Endpoint de checkout",
+      description: "explicação, não diretriz",
+      type: "reference",
+      scope: "global",
+      body: "POST /v2/checkout",
+      actor: "human",
+    });
+    await memory.pin(path, true);
+
+    const core = await memory.core();
+
+    expect(core.text).toContain("Achado primeiro, explicação depois.");
+    // A referência não fixada fica de fora, por mais curta que seja.
+    expect(core.text).not.toContain("POST /v2/checkout");
+    expect(core.entries).toHaveLength(1);
+    expect(core.chars).toBe(core.text.length);
+  });
+
+  it("sem nada fixado, o núcleo é vazio", async () => {
+    const { memory } = await service();
+    await memory.write(preferencia);
+
+    expect((await memory.core()).text).toBe("");
+  });
+
+  it("memória fixada que sumiu do disco não derruba o núcleo", async () => {
+    const { memory, stateDir, db } = await service();
+    const outra = await memory.write(preferencia);
+    await memory.pin(outra.path, true);
+    const some = await memory.write({
+      name: "Não relaxe teste",
+      description: "conserte o código",
+      type: "feedback",
+      body: "Teste vermelho é o código, não o teste.",
+      actor: "human",
+    });
+    await memory.pin(some.path, true);
+    rmSync(join(stateDir, some.path));
+
+    const warns: string[] = [];
+    const rescue = new MemoryService({
+      db: db.db,
+      stateDir,
+      log: { warn: (_first: unknown, message?: string) => void warns.push(message ?? "") },
+    });
+    const core = await rescue.core();
+
+    // As outras chegam. Uma memória corrompida não pode calar as nove restantes.
+    expect(core.text).toContain("Achado primeiro");
+    expect(core.text).not.toContain("Teste vermelho");
+    expect(warns.join(" ")).toContain("fora do núcleo");
   });
 });
 

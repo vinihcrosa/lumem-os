@@ -422,13 +422,13 @@ caminho degradado do PTY.
 **Where**: `memory/core.ts` + teste, `MemoryService`
 
 **Done when**:
-- [ ] Ordem geral → específico: global, workspace, projeto. Diretriz específica refina a genérica, e
+- [x] Ordem geral → específico: global, workspace, projeto. Diretriz específica refina a genérica, e
       quem lê por último decide
-- [ ] Só `pinned`. Uma memória não fixada **não** entra, por mais curta que seja
-- [ ] Precedência respeitada: memória sombreada não entra no núcleo — ela perdeu
-- [ ] A marca d'água vem junto: caracteres, contagem de entradas, e o custo de cada uma
-- [ ] **Sem teto** (D5): estourar não corta nada, e a medida é o que existe
-- [ ] Gate: `pnpm gate:quick`
+- [x] Só `pinned`. Uma memória não fixada **não** entra, por mais curta que seja
+- [x] Precedência respeitada: memória sombreada não entra no núcleo — ela perdeu
+- [x] A marca d'água vem junto: caracteres, contagem de entradas, e o custo de cada uma
+- [x] **Sem teto** (D5): estourar não corta nada, e a medida é o que existe
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(memory): montar o núcleo, e medir o que ele custa`
 
