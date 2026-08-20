@@ -389,7 +389,11 @@ permissão — e só (D6).
 **Depends on**: C3, C4, C5
 
 **Done when**:
-- [x] Composer manda com `⌘⏎`; vazio não manda
+- [x] Composer manda com `⌘⏎`; vazio não manda. **Revisto em 2026-08-20:** agora **`⏎` envia** e
+      `⇧⏎` quebra linha — o `⌘⏎` continua funcionando. A regra original valia o argumento que a
+      sustentava (prompt costuma ter várias linhas), e perdeu para o que o dedo já faz numa caixa de
+      conversa. O custo, dito: prompt de várias linhas paga um modificador em vez de ganhar um de
+      graça. `⏎` durante composição de IME não envia
 - [x] Botão de interromper aparece só com turno no ar, e manda `cancel`
 - [x] Rola para o fim quando chega evento novo **e o usuário já estava no fim**; não arranca a rolagem de quem subiu para ler
 - [x] Sessão nova mostra o estado vazio do protótipo, com o custo fixo de abrir a sessão dito na tela

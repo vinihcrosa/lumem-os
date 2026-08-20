@@ -143,9 +143,9 @@ export function Done({ result, skipped, onOpen, onReview }: DoneProps) {
       */}
       <div className="keys">
         <div className="key">
-          <span className="key__k">⌘⏎</span>
+          <span className="key__k">⏎</span>
           <span className="key__d">
-            enviar o turno — <span className="dim">⏎ faz linha nova</span>
+            enviar o turno — <span className="dim">⇧⏎ faz linha nova</span>
           </span>
         </div>
         <div className="key">

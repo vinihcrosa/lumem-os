@@ -30,7 +30,10 @@
  */
 .pane--conv { padding: 0; }
 
-.conv { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* `min-width: 0` junto do `min-height: 0`, pelo mesmo motivo: sem ele, a largura
+   intrínseca de um filho — o `textarea` do composer — vira piso e empurra a coluna
+   inteira para fora do split. */
+.conv { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
 
 /* --------------------------------------------- barra da sessão de agente */
 /*
@@ -354,7 +357,30 @@
 .composer { flex: none; padding: var(--space-12) var(--space-20) var(--space-16); }
 .composer__box { background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); overflow: hidden; }
 .composer__box--focus { border-color: var(--color-border-focus); }
-.composer__in { min-height: var(--size-composer-min); padding: var(--space-10) var(--space-12); font: var(--text-body-lg); color: var(--color-text-primary); }
+/*
+ * A caixa é um `textarea`, e o protótipo desenhou um `div`.
+ *
+ * Três declarações que o desenho não precisava e o elemento real precisa, e sem
+ * elas a caixa vaza do cartão: `textarea` tem largura intrínseca própria (o
+ * `cols` padrão), que num contêiner flex vira piso de largura e empurra o painel
+ * inteiro para fora; tem `box-sizing: content-box`, então o padding soma por
+ * cima dos 100%; e tem alça de redimensionar, que deixa arrastar a caixa para
+ * além da moldura que a contém.
+ */
+.composer__in {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  resize: none;
+  min-height: var(--size-composer-min);
+  padding: var(--space-10) var(--space-12);
+  font: var(--text-body-lg);
+  color: var(--color-text-primary);
+  background: none;
+  border: 0;
+}
+.composer__in:focus { outline: none; }
 .composer__in--empty { color: var(--color-text-tertiary); }
 .composer__bar { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-6) var(--space-8); border-top: 1px solid var(--color-border-subtle); }
 

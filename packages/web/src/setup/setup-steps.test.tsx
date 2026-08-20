@@ -338,7 +338,9 @@ describe("done", () => {
 
     done();
 
-    expect(await screen.findByText("⌘⏎")).toBeInTheDocument();
+    // Scoped to the key column: the primary button also carries a ⏎ hint now that
+    // Enter is what sends, so a bare text match finds two.
+    expect(await screen.findByText("⏎", { selector: ".key__k" })).toBeInTheDocument();
     expect(screen.queryByText("⌘K")).not.toBeInTheDocument();
     expect(screen.queryByText("⌘⇧N")).not.toBeInTheDocument();
     expect(screen.queryByText("⌥⇧P")).not.toBeInTheDocument();

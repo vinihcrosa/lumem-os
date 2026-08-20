@@ -1,5 +1,5 @@
 import type { AcpConfigOption, AcpServerMessage, AcpTranscriptEntry } from "@lumem/shared";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -156,19 +156,66 @@ describe("sending", () => {
     expect(box).toHaveValue("");
   });
 
-  it("does not send on a plain Enter", async () => {
-    // A prompt is often several lines. A conversation that fires on the first
-    // newline cannot take one.
+  it("sends on a plain Enter", async () => {
+    /*
+     * Reversed on purpose, and it is a product decision made twice.
+     *
+     * It used to be ⌘⏎ to send and Enter for a newline, because a prompt is often
+     * several lines. The other way round won: Enter is what fingers already do in
+     * a chat box, and a multi-line prompt pays a modifier instead of getting one
+     * for free.
+     */
     const user = userEvent.setup();
     const { socket } = mount();
     socket.deliver(attached());
 
     const box = await screen.findByLabelText("mensagem para o agente");
     await user.click(box);
-    await user.keyboard("primeira linha{Enter}segunda");
+    await user.keyboard("uma linha{Enter}");
+
+    expect(socket.sent).toEqual([{ type: "prompt", text: "uma linha" }]);
+    expect(box).toHaveValue("");
+  });
+
+  it("makes a newline on ⇧⏎, so a multi-line prompt is still possible", async () => {
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached());
+
+    const box = await screen.findByLabelText("mensagem para o agente");
+    await user.click(box);
+    await user.keyboard("primeira linha{Shift>}{Enter}{/Shift}segunda");
 
     expect(socket.sent).toEqual([]);
     expect(box).toHaveValue("primeira linha\nsegunda");
+  });
+
+  it("keeps ⌘⏎ working, so nothing anyone learned stopped working", async () => {
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached());
+
+    const box = await screen.findByLabelText("mensagem para o agente");
+    await user.click(box);
+    await user.type(box, "oi");
+    await user.keyboard("{Meta>}{Enter}{/Meta}");
+
+    expect(socket.sent).toEqual([{ type: "prompt", text: "oi" }]);
+  });
+
+  it("does not send while an IME is composing", async () => {
+    // Enter accepts a candidate there. Sending would cut the word in half and
+    // fire the turn on it.
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached());
+
+    const box = await screen.findByLabelText("mensagem para o agente");
+    await user.click(box);
+    await user.type(box, "こんにち");
+    fireEvent.keyDown(box, { key: "Enter", isComposing: true });
+
+    expect(socket.sent).toEqual([]);
   });
 
   it("refuses to send nothing", async () => {

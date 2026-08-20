@@ -35,6 +35,7 @@ const WORKTREES = {
   fullTurn: "conversa-turno",
   replay: "conversa-replay",
   width: "conversa-largura",
+  composer: "conversa-composer",
   parity: "conversa-paridade",
   switch: "conversa-troca",
   terminal: "conversa-terminal",
@@ -240,6 +241,58 @@ test("the file name survives the width the column actually has", async ({ page }
   // And the name is still readable, not shrunk to an ellipsis: the directory is
   // what gives way.
   expect(await name.innerText()).toContain("file-tree-keyboard");
+});
+
+test("the composer fits the card it lives in", async ({ page }) => {
+  /*
+   * The other measurement jsdom cannot make, and this one shipped broken.
+   *
+   * The prototype drew the input as a `div`; the app renders a `textarea`, which
+   * brings three things a div does not — an intrinsic width from `cols`,
+   * `content-box` sizing that adds padding on top of 100%, and a resize handle.
+   * The result was a box wider than the card, with its right border off screen.
+   *
+   * Asserted as a property rather than a pixel: the composer's box must end
+   * before its card does, at a narrow width where the difference shows.
+   */
+  await page.setViewportSize({ width: 900, height: 800 });
+  await arrive(page, WORKTREES.composer);
+  await openConversation(page);
+  const conv = conversation(page);
+
+  const box = conv.getByLabel("mensagem para o agente");
+  await expect(box).toBeVisible();
+
+  const inner = await box.boundingBox();
+  const card = await conv.locator(".composer__box").boundingBox();
+  const column = await conv.boundingBox();
+
+  expect(inner, "o campo tem que estar visível").not.toBeNull();
+  expect(card, "a caixa do composer tem que estar visível").not.toBeNull();
+  expect(column, "a coluna da conversa tem que estar visível").not.toBeNull();
+
+  /*
+   * It fills the card, and that is the bug that shipped.
+   *
+   * A `textarea` with no width is as wide as its `cols` attribute — about 340px —
+   * so the field sat inside a card twice its width with dead space to the right
+   * of it. Asserting "fits" would have passed on the broken version.
+   */
+  expect(inner!.width, "o campo não ocupa a largura da caixa").toBeGreaterThan(
+    card!.width - 4,
+  );
+  expect(
+    inner!.x + inner!.width,
+    "o campo passou da direita da caixa do composer",
+  ).toBeLessThanOrEqual(card!.x + card!.width + 1);
+  expect(
+    card!.x + card!.width,
+    "a caixa do composer passou da direita da coluna",
+  ).toBeLessThanOrEqual(column!.x + column!.width + 1);
+
+  // And it does not carry a drag handle: a box the user can pull past its own
+  // card is a box that can be pulled past its own card.
+  expect(await box.evaluate((node) => getComputedStyle(node).resize)).toBe("none");
 });
 
 test("everything phase 4 added is on the screen in one turn", async ({ page }) => {

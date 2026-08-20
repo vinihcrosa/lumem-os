@@ -398,12 +398,30 @@ export function Conversation({
             aria-label="mensagem para o agente"
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
-              // ⌘⏎ sends, Enter does not: a prompt is often several lines, and a
-              // conversation that fires on the first newline cannot take one.
-              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                event.preventDefault();
-                send();
-              }
+              if (event.key !== "Enter") return;
+
+              /*
+               * Enter sends. ⇧⏎ makes a newline.
+               *
+               * This reverses the earlier rule — ⌘⏎ to send, Enter for a newline —
+               * which was chosen because a prompt is often several lines. It is a
+               * product decision, and it was made again the other way: Enter is
+               * what everyone's fingers already do in a chat box, and the cost is
+               * that a multi-line prompt needs a modifier instead of not needing
+               * one. ⌘⏎ keeps working, so nothing anyone learned stopped working.
+               *
+               * The slash menu never gets here: it listens on the window in the
+               * capture phase and stops the event, so Enter with the menu open
+               * chooses a command instead of sending.
+               */
+              if (event.shiftKey) return;
+
+              // An IME uses Enter to accept a candidate. Sending there would cut
+              // the word being typed in half and fire the turn.
+              if (event.nativeEvent.isComposing) return;
+
+              event.preventDefault();
+              send();
             }}
           />
           <div className="composer__bar">
@@ -427,7 +445,7 @@ export function Conversation({
               disabled={draft.trim() === "" || pending !== null || readOnly}
               onClick={send}
             >
-              enviar <span className="kbd">⌘⏎</span>
+              enviar <span className="kbd">⏎</span>
             </Button>
           </div>
         </div>
