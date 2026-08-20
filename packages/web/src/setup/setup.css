@@ -138,6 +138,16 @@
  */
 .wizard__foot .spacer { flex: 1; }
 
+/*
+ * Uma fileira de botões dentro de um passo.
+ *
+ * Terceira classe que o protótipo não tem, e a razão é a mesma das outras duas: o
+ * protótipo usa `.chips` aqui, que existe em `detail.css` — e `detail.css` só é
+ * carregado quando um escopo está selecionado, o que durante o fluxo nunca é
+ * verdade. Reusar aquele nome deixaria os botões sem pintura exatamente aqui.
+ */
+.wizard__acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+
 /* O "voltar ao fluxo" do recibo: link dentro de uma linha de texto. */
 .key__link { color: var(--color-text-link); text-decoration: underline; }
 

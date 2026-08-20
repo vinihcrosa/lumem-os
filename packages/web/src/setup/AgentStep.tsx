@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { trpc } from "../lib/trpc.js";
 import {
@@ -22,20 +22,32 @@ export interface AgentStepProps {
 }
 
 /**
- * Step 2: connect the agent — and the one screen that refuses to install anything.
+ * Step 2: connect the agent — and the daemon installs the adapter.
  *
- * The command is handed over selectable, and running it is the person's job in a
- * real terminal (D5). A daemon that runs `npm i -g` because a browser clicked is
- * a confused deputy out of a textbook: it runs as the user, the install may want
- * `sudo`, `npm` may not even be their package manager, and there is nowhere here
- * for two minutes of output to go — a session needs a scope, and at this step
- * neither a project nor a worktree exists yet.
+ * This reverses what shipped a day earlier, and the reversal is deliberate: what
+ * was refused was `npm i -g`, global and possibly needing `sudo`, with nowhere for
+ * two minutes of output to go. What the design asked for instead is an install
+ * **into the daemon's own directory**, at a pinned version, with the progress
+ * visible in three lines. That needs no privilege, and the only thing it can
+ * break is itself.
+ *
+ * The copyable command stays, and it is not decoration: `npm` may be missing or a
+ * registry unreachable, and on that machine the person still has a way through.
  */
 export function AgentStep({ onNext, onBack, onSkip }: AgentStepProps) {
+  const queryClient = useQueryClient();
+
   const agents = useQuery({
     queryKey: AGENTS_KEY,
     queryFn: () => trpc.setup.agents.query(),
     refetchOnWindowFocus: false,
+  });
+
+  const install = useMutation({
+    mutationFn: () => trpc.setup.installAdapter.mutate(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: AGENTS_KEY });
+    },
   });
 
   const adapter = agents.data?.adapter;
@@ -97,16 +109,22 @@ export function AgentStep({ onNext, onBack, onSkip }: AgentStepProps) {
               />
             </CheckList>
 
-            {adapter.install !== null && adapter.path === null && (
+            {adapter.path === null && (
               <>
-                <CopyCommand command={adapter.install} />
                 <span className="field__help">
-                  O adaptador é um processo seu, na sua máquina. O Lumem só o <b>executa</b>:
-                  instalar é você, no seu terminal — um daemon local que instala software global
-                  porque um navegador clicou é procurador confuso, e a saída de um install não tem
-                  onde aparecer aqui.
+                  Nada para rodar no terminal: o Lumem instala o adaptador <b>dentro da pasta dele</b>
+                  , numa versão fixa — nunca <code>@latest</code>, para uma atualização de madrugada
+                  não mudar o comportamento do agente.
                 </span>
-                <div>
+                <div className="wizard__acts">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={install.isPending}
+                    onClick={() => install.mutate()}
+                  >
+                    {install.isPending ? "instalando…" : "Instalar o adaptador"}
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -116,7 +134,26 @@ export function AgentStep({ onNext, onBack, onSkip }: AgentStepProps) {
                     {agents.isFetching ? "verificando…" : "Já instalei — verificar"}
                   </Button>
                 </div>
+
+                {install.isError && (
+                  <>
+                    <Banner tone="danger">{install.error.message}</Banner>
+                    {/*
+                      The way through on the machine where the install cannot work:
+                      no npm, a registry behind a proxy, a mirror without the
+                      package. The command is the same one the daemon would run.
+                    */}
+                    {adapter.install !== null && <CopyCommand command={adapter.install} />}
+                  </>
+                )}
               </>
+            )}
+
+            {adapter.managed && (
+              <span className="field__help">
+                Instalado pelo Lumem, na pasta dele — é esta cópia que o daemon executa, e não uma
+                que esteja no seu <code>PATH</code>.
+              </span>
             )}
           </WizardSection>
 

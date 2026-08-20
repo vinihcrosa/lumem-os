@@ -46,6 +46,7 @@ const AGENTS = {
     version: "2.0.14",
     versionNote: null,
     install: null,
+    managed: false,
   },
   adapter: {
     command: "claude-agent-acp",
@@ -53,6 +54,7 @@ const AGENTS = {
     version: "0.69.0",
     versionNote: null,
     install: "npm i -g @agentclientprotocol/claude-agent-acp",
+    managed: false,
   },
   apiKeyInEnv: false,
 };
@@ -194,22 +196,54 @@ describe("agent step", () => {
     expect(screen.getByText(/0\.69\.0 · \/opt\/homebrew\/bin\/claude-agent-acp/)).toBeInTheDocument();
   });
 
-  it("hands over the install command and nothing that installs", async () => {
+  it("installs the adapter itself, into the daemon's own directory", async () => {
+    /*
+     * The reversal, and why it is not the thing that was refused.
+     *
+     * What was refused was `npm i -g` — global, possibly needing `sudo`, with
+     * nowhere for the output to go. This writes inside `~/.lumem/adapters` at a
+     * pinned version, needs no privilege, and can only break itself.
+     */
     const user = userEvent.setup();
     trpc.setup.agents.query.mockResolvedValue({
       ...AGENTS,
       adapter: { ...AGENTS.adapter, path: null, version: null },
     });
+    trpc.setup.installAdapter.mutate.mockResolvedValue({
+      path: "/tmp/lumem/adapters/node_modules/.bin/claude-agent-acp",
+      version: "0.40.0",
+      alreadyInstalled: false,
+    });
 
     render();
     await reachAgent(user);
 
-    expect(
-      await screen.findByText("npm i -g @agentclientprotocol/claude-agent-acp"),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Instalar agora/ })).not.toBeInTheDocument();
-    // And the step cannot continue: there is nothing to probe.
+    await user.click(await screen.findByRole("button", { name: /Instalar o adaptador/ }));
+
+    await waitFor(() => expect(trpc.setup.installAdapter.mutate).toHaveBeenCalledOnce());
+    // Until it is there, the step cannot continue: there is nothing to probe.
     expect(screen.getByRole("button", { name: /Testar conexão/ })).toBeDisabled();
+  });
+
+  it("falls back to the command when the install cannot work", async () => {
+    // No npm, a registry behind a proxy, a mirror without the package. On that
+    // machine the person still needs a way through, and it is the same command
+    // the daemon would have run.
+    const user = userEvent.setup();
+    trpc.setup.agents.query.mockResolvedValue({
+      ...AGENTS,
+      adapter: { ...AGENTS.adapter, path: null, version: null },
+    });
+    trpc.setup.installAdapter.mutate.mockRejectedValue(new Error("spawn npm ENOENT"));
+
+    render();
+    await reachAgent(user);
+    await user.click(await screen.findByRole("button", { name: /Instalar o adaptador/ }));
+
+    expect(await screen.findByText(/ENOENT/)).toBeInTheDocument();
+    expect(
+      screen.getByText("npm i -g @agentclientprotocol/claude-agent-acp"),
+    ).toBeInTheDocument();
   });
 
   it("re-reads when told the adapter was installed", async () => {
