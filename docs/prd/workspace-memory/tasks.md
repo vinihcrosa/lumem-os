@@ -434,16 +434,28 @@ caminho degradado do PTY.
 
 ---
 
-#### N3: A skill que ensina a perguntar
+#### N3: A skill que ensina a perguntar — e a porta que ela ensina
 
-**What**: O texto fixo que ensina a estrutura da memória e como chamar a CLI.
-**Where**: `memory/skill.ts` + teste
+**What**: O texto fixo que ensina a estrutura da memória e como chamar o serviço.
+**Where**: `memory/skill.ts`, `memory/http.ts`, `memory/scope-of-session.ts`, `server.ts` + testes
+
+**A superfície mudou de CLI para HTTP, e o motivo importa.** A D4 diz *"não me importa o formato"*,
+e a CLI existe — mas ela depende de saber **onde o daemon foi instalado**, e a sessão não sabe: o
+binário é TypeScript rodado por `tsx` dentro do monorepo. `curl` funciona de qualquer `cwd`, sem
+instalar nada, e o agente já tem shell. Fora do `/trpc` porque uma chamada tRPC pede o envelope
+`?input={...}` codificado, e o que entra no prompt tem que ser copiável sem raciocínio.
 
 **Done when**:
-- [ ] Fixo: **não** cresce com o acervo. É a diferença central do redesenho (§4)
-- [ ] Ensina a **perguntar**, não diz o que existe (§5.1) — a lista de memórias nunca entra no prompt
-- [ ] Cita os sete tipos e os três escopos, porque é o vocabulário das respostas
-- [ ] Gate: `pnpm gate:quick`
+- [x] Fixo: **não** cresce com o acervo. É a diferença central do redesenho (§4)
+- [x] Ensina a **perguntar**, não diz o que existe (§5.1) — a lista de memórias nunca entra no prompt
+- [x] Carrega um **mapa**: os projetos do workspace. Cresce com o workspace, nunca com o acervo
+- [x] Cita os sete tipos e os três escopos, porque é o vocabulário das respostas
+- [x] `MEMORY_DIRECTIVE`: as três linhas de comportamento que vão no **núcleo** — o item 2 do §5.1,
+      o único não-opcional, porque descoberta que depende de a skill ser lida é recursiva
+- [x] `GET /memory/ask?q=&session=` responde em texto puro, **citando a fonte** (§5.5)
+- [x] A sessão dá o escopo e registra o uso — é o número que o §6 chama de mais importante
+- [x] "não sei" é resposta, e diz que o acervo tem buraco ali
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(memory): a skill que ensina o agente a perguntar`
 

@@ -12,6 +12,7 @@ import { createGitService, type GitService } from "./git/GitService.js";
 import { AcpManager } from "./acp/AcpManager.js";
 import { registerAcpWebSocket } from "./acp/websocket.js";
 import type { PtyManager } from "./pty/PtyManager.js";
+import { registerMemoryHttp } from "./memory/http.js";
 import { registerPtyWebSocket } from "./pty/websocket.js";
 import { createSessionStore, type SessionStore } from "./sessions/SessionStore.js";
 import { appRouter, type AppRouter } from "./routers/index.js";
@@ -129,6 +130,10 @@ export async function createServer({
       },
     } satisfies FastifyTRPCPluginOptions<AppRouter>["trpcOptions"],
   });
+
+  // Fora do `/trpc`: é a porta que o prompt do agente ensina, e o que entra no
+  // prompt tem que ser copiável sem raciocínio.
+  registerMemoryHttp({ app, db, stateDir: config.stateDir });
 
   registerPtyWebSocket({ app, ptyManager });
   registerAcpWebSocket({ app, acpManager });
