@@ -134,6 +134,41 @@ export interface GitService {
    * `maxBuffer` of `execGit`, and one file would take the tab down with it.
    */
   filePatch(path: string, file: string, input: ChangesInput): Promise<FilePatch>;
+  /**
+   * Everything the onboarding shows about a repository before adding it.
+   *
+   * One method rather than five calls from the router, because the five reads
+   * have to agree about *when* they happened: a repository that gets committed to
+   * between the commit count and the status would be reported as clean with a
+   * stale count.
+   */
+  describe(path: string): Promise<RepoDescription>;
+}
+
+/**
+ * What a repository *is*, read before it is registered (onboarding F4.3).
+ *
+ * Every field is optional-shaped rather than throwing, because each of these is a
+ * normal state for a real repository: no remote, no commit yet, a detached HEAD.
+ * A screen that refused to describe a fresh `git init` would be refusing the case
+ * it is most likely to meet on someone's first day.
+ */
+export interface RepoDescription {
+  root: string;
+  /** Null in a repository with no commit yet. */
+  head: { branch: string | null; shortSha: string | null };
+  /** Null when there is no `origin`. Other remotes are not asked about. */
+  origin: string | null;
+  /** Zero in a repository with no commit yet. */
+  commits: number;
+  status: WorktreeStatus;
+  /**
+   * Every checkout git knows about, the main one included.
+   *
+   * The main checkout is in this list — `git worktree list` always prints it —
+   * and the caller is the one that knows which of the others it created.
+   */
+  worktrees: WorktreeEntry[];
 }
 
 export interface GitServiceOptions {
@@ -152,7 +187,7 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
     }
   }
 
-  return {
+  const service: GitService = {
     async isGitRepo(path) {
       let info;
       try {
@@ -307,7 +342,40 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       const binary = /^Binary files .* differ$/m.test(stdout);
       return { path: file, binary, patch: binary ? "" : stdout };
     },
+
+    async describe(path) {
+      const check = await service.isGitRepo(path);
+      if (!check.ok) throw new DomainError("INVALID_ARGUMENT", check.message);
+
+      /*
+       * Each read answers on its own.
+       *
+       * A repository with no commit fails `rev-parse HEAD` and counts no commits;
+       * one with no remote has no `origin`. Both are ordinary, so neither may take
+       * the description down — the caller is describing a repository precisely
+       * because it does not know yet what shape it is in.
+       */
+      const [branch, shortSha, origin, commits, status, worktrees] = await Promise.all([
+        exec(["branch", "--show-current"], { cwd: path })
+          .then(({ stdout }) => (stdout.trim() === "" ? null : stdout.trim()))
+          .catch(() => null),
+        exec(["rev-parse", "--short", "HEAD"], { cwd: path })
+          .then(({ stdout }) => stdout.trim())
+          .catch(() => null),
+        exec(["remote", "get-url", "origin"], { cwd: path })
+          .then(({ stdout }) => stdout.trim())
+          .catch(() => null),
+        exec(["rev-list", "--count", "HEAD"], { cwd: path })
+          .then(({ stdout }) => Number.parseInt(stdout.trim(), 10) || 0)
+          .catch(() => 0),
+        service.getStatus(path),
+        service.listWorktrees(path),
+      ]);
+
+      return { root: check.root, head: { branch, shortSha }, origin, commits, status, worktrees };
+    },
   };
+
 
   /**
    * What the working tree is compared against, for either view.
@@ -400,6 +468,8 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       }),
     );
   }
+
+  return service;
 }
 
 /**

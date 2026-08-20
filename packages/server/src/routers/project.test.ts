@@ -1,4 +1,4 @@
-import { rmSync, writeFileSync } from "node:fs";
+import { realpathSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -221,5 +221,105 @@ describe("project.remove", () => {
     await expect(ctx.api.project.remove({ id: "nope" })).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
+  });
+});
+
+describe("project.inspect", () => {
+  it("describes a repository without registering it", async () => {
+    // The order `add` already keeps, with the reading half on its own: the flow
+    // shows what it understood *before* anything is written (onboarding F4.3).
+    const { context: ctx, workspaceId } = await setup();
+    const repo = await createRepo({ branch: "main" });
+
+    const described = await ctx.api.project.inspect({ path: repo });
+
+    expect(described).toMatchObject({
+      // The input, echoed. `root` is git's answer and comes back resolved —
+      // `/private/var/...` on macOS — which is a different fact and stays one.
+      path: repo,
+      root: realpathSync(repo),
+      commits: 1,
+      clean: true,
+      changedFiles: 0,
+      origin: null,
+      alreadyRegistered: null,
+      defaultBranch: "main",
+    });
+    expect(described.head.branch).toBe("main");
+    expect(described.head.shortSha).toMatch(/^[0-9a-f]{7,}$/);
+    // Nothing was written: the workspace still has no project.
+    expect(await ctx.api.project.listByWorkspace({ workspaceId })).toHaveLength(0);
+  });
+
+  it("reports a dirty tree with the count", async () => {
+    const { context: ctx } = await setup();
+    const repo = await createRepo();
+    writeFileSync(join(repo, "novo.ts"), "export {};\n");
+
+    const described = await ctx.api.project.inspect({ path: repo });
+
+    expect(described.clean).toBe(false);
+    expect(described.changedFiles).toBe(1);
+  });
+
+  it("reports the remote when there is one", async () => {
+    const { context: ctx } = await setup();
+    const repo = await createRepo({ remoteHead: "main" });
+
+    const described = await ctx.api.project.inspect({ path: repo });
+
+    expect(described.origin).toContain("example.invalid");
+  });
+
+  it("describes a repository with no commit yet", async () => {
+    // A fresh `git init` is the most likely thing to meet on someone's first
+    // day, and refusing to describe it would be refusing the common case.
+    const { context: ctx } = await setup();
+    const repo = await createRepo({ empty: true });
+
+    const described = await ctx.api.project.inspect({ path: repo });
+
+    expect(described.commits).toBe(0);
+    expect(described.head.shortSha).toBeNull();
+    expect(described.head.branch).toBe("main");
+  });
+
+  it("counts the worktrees git already knows about, minus the checkout itself", async () => {
+    // `git worktree list` always prints the main checkout. Counting it would
+    // make every repository look like it had one worktree already.
+    const { context: ctx, workspaceId } = await setup();
+    const repo = await createRepo();
+    const project = await ctx.api.project.add({ workspaceId, path: repo });
+    await ctx.api.worktree.create({ projectId: project.id, name: "externa" });
+
+    const described = await ctx.api.project.inspect({ path: repo });
+
+    expect(described.worktrees).toHaveLength(1);
+    expect(described.worktrees[0]?.branch).toBe("externa");
+  });
+
+  it("says when the path is already a project here", async () => {
+    // So the flow can point at it instead of failing on a unique constraint.
+    const { context: ctx, workspaceId } = await setup();
+    const repo = await createRepo();
+    const project = await ctx.api.project.add({ workspaceId, path: repo });
+
+    const described = await ctx.api.project.inspect({ path: repo });
+
+    expect(described.alreadyRegistered).toEqual({ id: project.id, name: basename(repo) });
+  });
+
+  it("names which check failed for something that is not a repository", async () => {
+    const { context: ctx } = await setup();
+
+    await expect(ctx.api.project.inspect({ path: createPlainDir() })).rejects.toThrow(
+      /não é um repositório/i,
+    );
+  });
+
+  it("refuses a relative path, like add does", async () => {
+    const { context: ctx } = await setup();
+
+    await expect(ctx.api.project.inspect({ path: "./relativo" })).rejects.toThrow(/absoluto/);
   });
 });
