@@ -533,6 +533,92 @@ diz "21 arquivos, nada mudou".
 
 ---
 
+## PR 07 — Captura: o sistema aprende sozinho, e passa por você
+
+**Depende de:** PR 06 (existe) + o portão da 02 (existe). **Branch:** direto em `main`.
+
+**Por que ela vem agora.** A 06 fez a memória **chegar**. Esta faz ela **crescer** sem você digitar —
+e é a primeira parte da feature em que o sistema escreve por conta própria. Ela só é segura porque o
+portão (02), a proveniência (01) e a inbox (05) já existem: destilação de agente em escopo de
+workspace **já** vira proposta pela Q27, sem uma linha nova.
+
+**O que o §10 do PRD manda, e que decide o desenho:** *"uma chamada por sessão, não por turno"*,
+*"sobre uma projeção limitada"*, *"desligado por padrão até o portão provar que segura"*, *"só a
+sessão raiz alimenta a memória automaticamente"* (Q21), e *"instrumentado desde o primeiro dia"*
+(Q20). E a lista do **que nunca é capturado**: segredo, estado efêmero, histórico do git, estrutura
+derivável do repositório, e **dump de transcript**.
+
+---
+
+#### C1: A projeção — o que a sessão fez, sem o que ela disse
+
+**What**: Da transcrição para uma estrutura pequena: arquivos tocados, comandos, custo, fim de turno.
+**Where**: `memory/projection.ts` + teste
+
+**Done when**:
+- [ ] Nada de prosa: mensagem da pessoa e texto do agente **não** entram. Dump de transcript é o item
+      nomeado no §10 como coisa que nunca é capturada
+- [ ] Vem dos três eventos que o roadmap nomeia: `tool_call` (o que tocou), `usage_update` (o que
+      custou), `turn_end` (quantos turnos, e como terminaram)
+- [ ] Teto duro: N arquivos e N comandos, os mais frequentes. Projeção que cresce com a sessão é a
+      destilação ficando cara sem ninguém decidir
+- [ ] Caminho fica **relativo ao checkout** — caminho absoluto carrega o nome da máquina e da pessoa
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(memory): a projeção de uma sessão, sem uma linha de prosa`
+
+---
+
+#### C2: A destilação, desligada por padrão
+
+**What**: Da projeção para candidatos de memória, com um agente barato — uma chamada por sessão.
+**Where**: `memory/distiller.ts` + teste, `config.ts`
+
+**Done when**:
+- [ ] **Desligada por padrão** (§10). Ligar é `LUMEM_MEMORY_DISTILL=1`, e o estado aparece na tela
+- [ ] Uma chamada por **sessão**, nunca por turno
+- [ ] O candidato sai estruturado — tipo, nome, descrição, corpo, evidência — ou é descartado. Texto
+      livre viraria memória que ninguém consegue indexar
+- [ ] Ator `distiller`: a Q27 então manda `domain`/`process`/`contract` em workspace para a inbox, e é
+      exatamente o que se quer. Nada de caminho novo de escrita
+- [ ] Projeção vazia não chama agente nenhum: sessão que não fez nada não tem o que ensinar
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(memory): destilar uma sessão em candidatos, sob revisão`
+
+---
+
+#### C3: Ligada no fim da sessão, e só na raiz
+
+**What**: O gatilho, no mesmo lugar em que os sinais de saída já são gravados.
+**Where**: `sessions/SessionStore.ts`, `bootstrap.ts` + testes
+
+**Done when**:
+- [ ] Roda quando a sessão de **agente** morre, junto dos sinais de saída da S1
+- [ ] Falha da destilação **não** quebra a saída da sessão: exit é fato, destilação é opinião
+- [ ] Só sessão raiz (Q21): sessão retomada não redestila a conversa que já foi destilada
+- [ ] Sessão morta cedo (`session_killed_early`) não destila: ela já é um sinal de que nada aconteceu
+- [ ] Instrumentada (Q20): quantos candidatos, quantos passaram o portão, e o que custou
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(sessions): destilar no fim da sessão, sem atrapalhar a saída`
+
+---
+
+#### C4: O e2e que prova que a inbox recebeu
+
+**What**: Uma sessão real que termina, e a proposta na tela.
+**Where**: `e2e/memory-distill.spec.ts`, `e2e/support/fake-acp-agent.mjs`
+
+**Done when**:
+- [ ] O agente falso responde à destilação com um candidato, e o spec o encontra na inbox
+- [ ] Aprovar pela tela transforma em memória — o caminho todo, do turno ao acervo
+- [ ] Gate: `pnpm gate:full`
+
+**Commit**: `test(e2e): a sessão termina, e o que ela ensinou espera revisão`
+
+---
+
 ## S1 — `wm/s1-sinais-de-acao`
 
 **O que entrega:** o registro cru dos quatro sinais que não dependem de cooperação. Nada aqui
