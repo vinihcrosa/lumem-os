@@ -286,3 +286,23 @@ cobre boa parte desse caso.
 
 **De onde veio:** [questions.md Q008](questions.md) · **Volta quando:** a memória de workspace não
 der conta.
+
+---
+
+## G. Primeiro acesso e casca do app
+
+Todos vindos do [onboarding §6](../prd/onboarding/prd.md) — o desenho das nove telas propõe cada um
+deles, e a v1 do fluxo não implementa nenhum.
+
+| Item | Peso | Contexto de uma frase | Volta quando |
+|---|---|---|---|
+| Instalar o adaptador pela tela | `P` | o desenho tem o botão; um daemon que roda `npm i -g` porque um navegador clicou é procurador confuso, e a saída não tem onde aparecer — sessão precisa de escopo | instalar à mão virar a reclamação mais comum de quem tenta usar |
+| Clonar projeto de uma URL | `M` | a tela 6 oferece; rede, credencial, progresso e cancelamento são feature, não um campo | você querer adicionar repo que ainda não está na máquina |
+| Worktrees `externas` na sidebar | `M` | o passo 6 **detecta** as que existem fora do Lumem; listá-las pede reconciliação e ciclo de vida próprios | alguém perder tempo procurando onde foi uma worktree criada fora do Lumem |
+| Paleta de comandos `⌘K` | `M` | a tela 9 promete; hoje o único atalho que existe é `⌘⏎` | a sidebar deixar de dar conta de achar as coisas |
+| `⌘⇧N` (nova tarefa) e `⌥⇧P` (trocar o modo) | `P` | prometidos pela mesma tela, e são dois atalhos para ações que já existem em botão | os dois botões virarem caminho longo demais |
+| Caminho das worktrees editável | `P` | hoje é `LUMEM_STATE_DIR`, global; editar pede coluna, migração e "e as que já estão no caminho antigo?" | o `~/.lumem` ficar no disco errado para alguém |
+| Padrão de modelo e modo por workspace | `P` | a tela 4 oferece o seletor e não há coluna onde guardar; a conversa já escolhe por sessão | repetir a mesma troca em toda sessão nova incomodar |
+| Tela de preferências | `M` | é onde `agent_config` deveria morar (buraco nº 1 do `FEATURES.md` do Open Design, e a [A16](../prd/acp-sessions/open-questions.md)); as primitivas do fluxo são o que ela vai reusar | existir a segunda coisa global para configurar |
+| Renomear e remover workspace pela tela | `P` | buraco nº 2 do `FEATURES.md`: o fluxo **cria** workspace, e nada administra | você ter mais de dois workspaces |
+| Pré-voo em Linux e Windows | `P` | as cinco checagens são as de macOS; Linux provavelmente passa e ninguém verificou | o Lumem rodar em outra máquina que não a sua |

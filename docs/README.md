@@ -1,6 +1,6 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Em desenho fechado e decomposta em pilha de PRs, a primeira feature que não é de tela: [workspace-memory](prd/workspace-memory/prd.md) — o harness lembrar.
+Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Fechando o caminho de entrada, o [onboarding](prd/onboarding/prd.md) — as nove telas que fazem uma máquina vazia chegar até a primeira conversa. Em desenho fechado e decomposta em pilha de PRs, a primeira feature que não é de tela: [workspace-memory](prd/workspace-memory/prd.md) — o harness lembrar.
 
 > **Decisão de arquitetura, 2026-08-17:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por [ACP](project/pty-vs-acp.md)**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A feature [acp-sessions](prd/acp-sessions/prd.md) — transporte mais a tela da conversa — está **completa**: PRD escrito, spike rodado (autenticação e consumo medidos, janela de contexto parcial), protótipo renderizado em `packages/web/prototype/lumem-acp-conversation.html`, e as fases 1, 3, 4, 5 e 6 entregues — uma tarefa roda do começo ao fim sem terminal, fechar o daemon não perde a conversa, e o agente ACP se cria pela tela.
 
@@ -131,6 +131,25 @@ a política de permissão.
 | [open-questions.md](prd/acp-sessions/open-questions.md) | 16 perguntas, **14 respondidas** — inclusive o volume da transcrição medido em 675 sessões reais. **A13** e **A14** nasceram no protótipo; a **A15** nasceu na fase 4 e a **A16** na fase 6, as duas abertas |
 | [tasks.md](prd/acp-sessions/tasks.md) | **35 tasks, todas fechadas**, nas fases 1, 3, 4, 5 e 6 do PRD. Diz também por que a fase 3 não começa antes da 1, por que a escrita em disco vem antes de tudo na 4, e por que a gravação da transcrição vem antes de tudo na 5 |
 | `packages/web/prototype/lumem-acp-conversation.html` | O protótipo da fase 2: seis telas — conversa, ferramenta, permissão, plano, uso, limites. Não é documentação, é o desenho executável; fica junto dos outros protótipos |
+
+### [onboarding/](prd/onboarding/) — a máquina vazia chega até a primeira conversa
+
+**Completa — 21 de 21 tasks.** Nove telas, do pré-voo da máquina ao primeiro turno com o Claude por
+ACP. Era a maior distância entre desenho e produto do projeto: a máquina vazia chegava ao `FirstRun`
+— um campo e um botão — e parava, e o caminho até uma conversa exigia seis fatos que só existiam em PRD
+e em código. Agora um e2e sai de `~/.lumem` vazio e chega a um turno respondido **sem tocar a API**. O
+`FirstRun` foi apagado: o fluxo é a única porta de entrada.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/onboarding/prd.md) | O que existe hoje **tela por tela**, medido no código; as quatro leituras novas do daemon; e o §4 — as **cinco divergências** entre o desenho e o produto, com quem ganha em cada uma (a mais séria: o desenho manda instalar um pacote que não é o que o daemon executa) |
+| [open-questions.md](prd/onboarding/open-questions.md) | 17 perguntas, **todas implementadas como propostas e todas ainda abertas** — proposta seguida não é pergunta respondida, e cada uma traz embaixo o que a implementação fez e o que custou |
+| [tasks.md](prd/onboarding/tasks.md) | 21 tasks em 4 fases, **todas fechadas**, começando pela **T0**: corrigir o desenho antes de portar. No fim, **o que a execução achou** — nove coisas que o plano não previa — e o que o portão não prova |
+
+Duas coisas que este PRD achou e valem fora dele, as duas agora **medidas** e não supostas: o
+`initialize` do ACP devolve `agentInfo.version`, então a versão pinada do adaptador **é detectada** em
+vez de digitada — provado por um integration marcado contra o `claude-agent-acp` de verdade; e a
+"escolha" de autenticação do desenho não escolhia nada, então virou relato do que a sonda achou.
 
 ---
 
