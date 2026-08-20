@@ -35,6 +35,21 @@ export const E2E_FIXTURE_REPO_ACP = join(E2E_FIXTURE_DIR, "repo-acp");
 /** An "agent CLI" that echoes what it is given. Never the real `claude`. */
 export const E2E_FIXTURE_AGENT = join(E2E_FIXTURE_DIR, "bin", "fake-agent");
 
+/** Where the first-access spec makes its project. */
+export const E2E_FIXTURE_REPO_ONBOARDING = join(E2E_FIXTURE_DIR, "repo-onboarding");
+
+/**
+ * The adapter, under the name the onboarding looks for.
+ *
+ * The flow detects `claude-agent-acp` on the daemon's PATH and then spawns it —
+ * that detection *is* what the first-access spec is about, so it cannot be
+ * side-stepped by configuring a command by hand the way the other specs do. This
+ * is a shim with the right name in a directory the config puts on the daemon's
+ * PATH; what it execs is the same fake agent everything else here uses.
+ */
+export const E2E_FIXTURE_BIN = join(E2E_FIXTURE_DIR, "bin");
+export const E2E_FIXTURE_ADAPTER = join(E2E_FIXTURE_BIN, "claude-agent-acp");
+
 /**
  * An ACP agent that speaks the protocol over stdio and never calls a model.
  *
@@ -74,6 +89,7 @@ export function createFixtures(): void {
     E2E_FIXTURE_REPO_FILES,
     E2E_FIXTURE_REPO_EDITOR,
     E2E_FIXTURE_REPO_ACP,
+    E2E_FIXTURE_REPO_ONBOARDING,
   ]) {
     mkdirSync(repo, { recursive: true });
     git(repo, "init", "--initial-branch", "main", ".");
@@ -110,6 +126,19 @@ export function createFixtures(): void {
   writeFileSync(
     E2E_FIXTURE_AGENT,
     ['#!/bin/sh', 'echo "fake-agent pronto em $(pwd)"', "cat", ""].join("\n"),
+    { mode: 0o755 },
+  );
+
+  // `--version` too, because the agent step reads it: a binary that answers
+  // nothing is a different case, and it has its own unit test.
+  writeFileSync(
+    E2E_FIXTURE_ADAPTER,
+    [
+      "#!/bin/sh",
+      'if [ "$1" = "--version" ]; then echo "0.0.0"; exit 0; fi',
+      `exec ${JSON.stringify(process.execPath)} ${JSON.stringify(E2E_FAKE_ACP_AGENT)} "$@"`,
+      "",
+    ].join("\n"),
     { mode: 0o755 },
   );
 }

@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig, devices } from "@playwright/test";
 
+import { E2E_FIXTURE_BIN } from "./e2e/support/fixtures.js";
 import { E2E_SERVER_PORT, E2E_STATE_DIR, E2E_WEB_PORT } from "./ports.js";
 
 /**
@@ -69,6 +70,17 @@ export default defineConfig({
         // Not the developer's shell: a login zsh sources their whole profile,
         // and the suite would then depend on whatever their prompt prints.
         SHELL: "/bin/sh",
+        /*
+         * The fixture bin directory first on the daemon's PATH.
+         *
+         * The first-access flow *detects* `claude-agent-acp` and then spawns what
+         * it found — that detection is the subject of `00-onboarding.spec.ts`, so
+         * it cannot be side-stepped by configuring a command by hand the way the
+         * other specs do. The directory does not exist yet at this point: it is
+         * created by `globalSetup`, which playwright runs after the servers, and
+         * PATH is resolved per exec rather than now.
+         */
+        PATH: `${E2E_FIXTURE_BIN}:${process.env["PATH"] ?? ""}`,
       },
       // Never reuse: reuse skips the spawn, and skipping the spawn silently
       // drops the env above — including the throwaway state dir.
