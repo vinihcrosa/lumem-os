@@ -13,10 +13,11 @@ import {
 } from "../lib/conversation-model.js";
 import { connectAcpSocket, type AcpConnect } from "../lib/acp-socket.js";
 import { trpc } from "../lib/trpc.js";
-import { Banner, Button, Glyph } from "../ui/index.js";
+import { Banner, Button, Coach, Glyph } from "../ui/index.js";
 import { ConfigPills } from "./ConfigPills.js";
 import { Message, Thought, TurnFrame } from "./Message.js";
 import { PermissionRequest } from "./PermissionRequest.js";
+import { useFirstPermissionCoach, type FirstPermissionCoach } from "../hooks/useFirstPermissionCoach.js";
 import { PlanCard } from "./PlanCard.js";
 import { SlashMenu, slashQuery } from "./SlashMenu.js";
 import { ToolCard } from "./ToolCard.js";
@@ -140,9 +141,16 @@ export function Conversation({
   const [openThoughts, setOpenThoughts] = useState<ReadonlySet<string>>(new Set());
   const socketRef = useRef<ReturnType<AcpConnect> | null>(null);
   const awaiting = useAwaitingPermission();
-
   const { conversation, session, failure } = state;
   const pending = conversation.pendingPermission;
+  /**
+   * The first permission on this machine gets an explanation (F5.4).
+   *
+   * Driven by whether one is pending rather than by a counter: the balloon is
+   * about the concept, and the concept happens exactly when the turn stops and
+   * asks.
+   */
+  const coach = useFirstPermissionCoach(pending !== null);
   /*
    * Closed for writing.
    *
@@ -336,6 +344,7 @@ export function Conversation({
                     optionId,
                   });
                 }}
+                coach={coach}
               />
             ))}
           </TurnFrame>
@@ -461,6 +470,8 @@ interface BlockViewProps {
   openThoughts: ReadonlySet<string>;
   onToggleThought(messageId: string): void;
   onRespond(optionId: string): void;
+  /** The first-time explanation of `Auto`, if it is still owed. */
+  coach: FirstPermissionCoach;
 }
 
 function BlockView({
@@ -470,6 +481,7 @@ function BlockView({
   openThoughts,
   onToggleThought,
   onRespond,
+  coach,
 }: BlockViewProps) {
   switch (block.kind) {
     case "message":
@@ -486,7 +498,29 @@ function BlockView({
     case "tool":
       return <ToolCard call={block.call} terminals={terminals} />;
     case "permission":
-      return <PermissionRequest request={block.request} onRespond={onRespond} />;
+      return (
+        <>
+          <PermissionRequest request={block.request} onRespond={onRespond} />
+          {/*
+            Depois do pedido, nunca sobre ele (F5.4).
+            A primeira ação continua sendo responder: o balão explica o modo, e o
+            turno está parado esperando uma pessoa — pôr a lição na frente da
+            decisão atrasaria as duas.
+          */}
+          {coach.show && (
+            <Coach
+              title="a primeira vez que isso aparece"
+              onUnderstood={coach.dismiss}
+              onNever={coach.never}
+            >
+              É assim que o Lumem te mantém no controle: o modo <b>Auto</b> resolve sozinho o que é
+              leitura e escrita dentro desta worktree, e para em tudo que sai disso — rede, comando
+              global, arquivo fora dela. Para ver o plano antes de qualquer execução, troque para{" "}
+              <b>Plano</b> na barra acima.
+            </Coach>
+          )}
+        </>
+      );
     case "note":
       // `.unknown`, not `.meta`: the prototype keeps two classes because they say
       // different things — an event nobody recognised, and something the session

@@ -1,7 +1,7 @@
 import type { AcpConfigOption, AcpServerMessage, AcpTranscriptEntry } from "@lumem/shared";
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AwaitingPermissionProvider } from "../hooks/useAwaitingPermission.js";
 import type { AcpClientMessage } from "@lumem/shared";
@@ -235,6 +235,15 @@ describe("interrupting", () => {
   });
 });
 
+/*
+ * O balão da primeira permissão lembra que já foi visto, e a memória é do
+ * navegador. Sem limpar, o segundo teste que o exercita herda a decisão do
+ * primeiro — e passa por engano.
+ */
+beforeEach(() => {
+  window.localStorage.clear();
+});
+
 describe("a permission blocks the composer", () => {
   it("disables the box and says why", async () => {
     const { socket } = mount();
@@ -258,6 +267,44 @@ describe("a permission blocks the composer", () => {
     expect(socket.sent).toEqual([
       { type: "permission_response", requestId: "rq-1", optionId: "allow" },
     ]);
+  });
+
+  it("explains the Auto mode the first time it stops and asks", async () => {
+    // Depois do pedido, nunca sobre ele: a primeira ação continua sendo
+    // responder, e o turno está parado esperando uma pessoa (F5.4).
+    const { socket } = mount();
+    socket.deliver(attached([entry(permissionRequest)]));
+
+    expect(await screen.findByRole("note")).toHaveTextContent(/modo/);
+    expect(screen.getByRole("button", { name: /permitir uma vez/ })).toBeInTheDocument();
+  });
+
+  it("does not explain it again after 'não mostrar de novo'", async () => {
+    const user = userEvent.setup();
+    const first = mount();
+    first.socket.deliver(attached([entry(permissionRequest)]));
+
+    await user.click(await screen.findByRole("button", { name: "não mostrar de novo" }));
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+
+    // Uma vez por máquina, não por sessão: o que se ensina é o conceito, e ele
+    // se aprende na primeira vez que acontece.
+    cleanup();
+    const second = mount();
+    second.socket.deliver(attached([entry(permissionRequest)]));
+
+    await screen.findByRole("button", { name: /permitir uma vez/ });
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+  });
+
+  it("dismisses the explanation without remembering it", async () => {
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached([entry(permissionRequest)]));
+    await user.click(await screen.findByRole("button", { name: "entendi" }));
+
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    expect(window.localStorage.getItem("lumem.coach.permission")).toBeNull();
   });
 
   it("frees the composer once the request is resolved", async () => {
