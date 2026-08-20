@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumem-OS — primeiro acesso</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<link rel="stylesheet" href="lumem-onboarding.css">
+</head>
+<body data-od-id="onboarding-flow">
+
+<nav class="tabbar" data-od-id="flow-tabbar">
+  <button class="tab is-active" data-screen="boas-vindas">1 · Boas-vindas</button>
+  <button class="tab" data-screen="maquina">2 · Máquina</button>
+  <button class="tab" data-screen="agente">3 · Agente (ACP)</button>
+  <button class="tab" data-screen="handshake">4 · Handshake</button>
+  <button class="tab" data-screen="workspace">5 · Workspace</button>
+  <button class="tab" data-screen="projeto">6 · Projeto</button>
+  <button class="tab" data-screen="worktree">7 · Primeira tarefa</button>
+  <button class="tab" data-screen="conversa">8 · A conversa</button>
+  <button class="tab" data-screen="pronto">9 · Pronto</button>
+</nav>
+
+<!-- ==================================================================== -->
+<!-- 1 — BOAS-VINDAS                                                      -->
+<!-- O daemon já subiu antes desta tela existir. A primeira frase diz     -->
+<!-- isso: não é cadastro, é uma máquina sendo configurada.               -->
+<!-- ==================================================================== -->
+<section class="screen is-active" id="screen-boas-vindas">
+  <div class="flow">
+    <header class="topbar" data-od-id="topbar-boas-vindas">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="flow__body">
+      <div class="wizard">
+        <div class="wizard__card" data-od-id="card-boas-vindas">
+          <div class="wizard__head">
+            <span class="wordmark wordmark--lg"><span class="wordmark__dot"></span>LUMEM</span>
+            <h1 class="wizard__title">O daemon já está rodando. Falta dizer com o que ele trabalha.</h1>
+            <p class="wizard__lede">
+              O Lumem roda inteiro na sua máquina: um daemon local em <code>:4317</code>, seus
+              repositórios onde já estão, e agentes que você mesmo instalou. Nada sai daqui — o que
+              vai para a Anthropic é o que você escrever para o Claude, pela sua própria conta.
+            </p>
+          </div>
+
+          <div class="tri" data-od-id="tri-valor">
+            <div class="tri__i">
+              <span class="tri__g glyph glyph--worktree">◇</span>
+              <span class="tri__t">Uma tarefa, uma worktree</span>
+              <span class="tri__d">Cada tarefa ganha branch e pasta próprias. O agente trabalha lá; seu checkout não é tocado.</span>
+            </div>
+            <div class="tri__i">
+              <span class="tri__g glyph glyph--agent">◆</span>
+              <span class="tri__t">Agente por ACP</span>
+              <span class="tri__d">Claude Code entra por protocolo, não por terminal simulado. Ferramenta, plano e permissão viram blocos.</span>
+            </div>
+            <div class="tri__i">
+              <span class="tri__g glyph glyph--project">■</span>
+              <span class="tri__t">Vários ao mesmo tempo</span>
+              <span class="tri__d">Sessões paralelas em worktrees diferentes, sem uma pisar na outra.</span>
+            </div>
+          </div>
+
+          <div class="wizard__foot">
+            <button class="btn btn--brand btn--lg" data-od-id="cta-comecar">Configurar em 5 passos <span class="kbd">⏎</span></button>
+            <span class="spacer"></span>
+            <span class="hint">leva ~2 min</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 2 — MÁQUINA                                                          -->
+<!-- Pré-voo. Quem reprova traz a saída junto e a ação na própria linha.  -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-maquina">
+  <div class="flow">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="flow__body">
+      <div class="wizard">
+        <div class="steps" data-od-id="steps-maquina">
+          <span class="steps__i steps__i--now"><span class="steps__n">1</span><span class="steps__l">máquina</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">2</span><span class="steps__l">agente</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">3</span><span class="steps__l">workspace</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">4</span><span class="steps__l">projeto</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">5</span><span class="steps__l">tarefa</span></span>
+        </div>
+
+        <div class="wizard__card" data-od-id="card-maquina">
+          <div class="wizard__head">
+            <span class="wizard__eyebrow">passo 1 de 5</span>
+            <h1 class="wizard__title">O que o Lumem precisa da sua máquina</h1>
+            <p class="wizard__lede">
+              Cinco verificações, todas locais. Nenhuma delas instala nada sem você mandar.
+            </p>
+          </div>
+
+          <div class="check" data-od-id="check-maquina">
+            <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">daemon</span><span class="ck__val">v0.1.0 · escutando em 127.0.0.1:4317</span><span class="ck__st">ok</span></div>
+            <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">git</span><span class="ck__val">2.45.1 · <code>git worktree</code> disponível</span><span class="ck__st">ok</span></div>
+            <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">node</span><span class="ck__val">22.11.0 · /opt/homebrew/bin/node</span><span class="ck__st">ok</span></div>
+            <div class="ck ck--warn"><span class="ck__glyph">⚠</span><span class="ck__what">~/.lumem</span><span class="ck__val">a pasta ainda não existe — será criada no passo 3</span><span class="ck__st">vai criar</span></div>
+            <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">disco</span><span class="ck__val">184 GB livres em ~ · cada worktree custa o tamanho do checkout</span><span class="ck__st">ok</span></div>
+          </div>
+
+          <div class="banner banner--info" data-od-id="banner-git-min">
+            <span class="banner__glyph">◇</span>
+            <span>Git abaixo de <strong>2.30</strong> não serve: o Lumem usa <code>git worktree</code> com <code>--orphan</code> e o comportamento muda antes dessa versão.</span>
+          </div>
+
+          <div class="wizard__foot">
+            <button class="btn btn--brand" data-od-id="cta-maquina-continuar">Continuar <span class="kbd">⏎</span></button>
+            <button class="btn btn--ghost" data-od-id="cta-maquina-reverificar">Verificar de novo</button>
+            <span class="spacer"></span>
+            <span class="hint"><b>esc</b> volta</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 3 — AGENTE (ACP)                                                     -->
+<!-- O passo que o produto inteiro depende. O adaptador não está          -->
+<!-- instalado, e essa é a tela em que isso se resolve, não uma docs.     -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-agente">
+  <div class="flow">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="flow__body">
+      <div class="wizard">
+        <div class="steps" data-od-id="steps-agente">
+          <span class="steps__i steps__i--done"><span class="steps__n">✓</span><span class="steps__l">máquina</span></span><span class="steps__bar"></span>
+          <span class="steps__i steps__i--now"><span class="steps__n">2</span><span class="steps__l">agente</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">3</span><span class="steps__l">workspace</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">4</span><span class="steps__l">projeto</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">5</span><span class="steps__l">tarefa</span></span>
+        </div>
+
+        <div class="wizard__card" data-od-id="card-agente">
+          <div class="wizard__head">
+            <span class="wizard__eyebrow">passo 2 de 5</span>
+            <h1 class="wizard__title">Conecte o Claude Code</h1>
+            <p class="wizard__lede">
+              O Lumem conversa com agentes por <b>ACP</b> — o daemon sobe o adaptador como processo
+              e troca mensagens por stdio. É o que faz ferramenta, plano e pedido de permissão
+              chegarem como blocos, e não como texto rolando num terminal.
+            </p>
+          </div>
+
+          <div class="wizard__sec" data-od-id="sec-adaptador">
+            <span class="wizard__sec-t">o que foi encontrado na sua máquina</span>
+            <div class="check">
+              <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">claude</span><span class="ck__val">2.0.14 · /opt/homebrew/bin/claude</span><span class="ck__st">ok</span></div>
+              <div class="ck ck--fail">
+                <span class="ck__glyph">✕</span><span class="ck__what">claude-agent-acp</span>
+                <span class="ck__val">adaptador ACP não está no PATH</span>
+                <span class="ck__st">falta</span>
+              </div>
+            </div>
+            <div class="copy" data-od-id="copy-instalar-adaptador">
+              <span class="copy__cmd">npm i -g @agentclientprotocol/claude-agent-acp</span>
+              <button class="btn btn--sm btn--ghost">copiar</button>
+            </div>
+            <span class="field__help">
+              O adaptador é um processo seu, na sua máquina. O Lumem só o <b>executa</b>: instalar é
+              você, no seu terminal. Um daemon local que instala software global porque um navegador
+              clicou é procurador confuso — e a saída de um install não tem onde aparecer aqui.
+            </span>
+            <div class="chips">
+              <button class="btn btn--sm btn--ghost" data-od-id="cta-verificar-adaptador">Já instalei — verificar</button>
+            </div>
+          </div>
+
+          <div class="wizard__sec" data-od-id="sec-auth">
+            <span class="wizard__sec-t">como o Claude vai se autenticar — o que foi encontrado</span>
+            <div class="check">
+              <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">credencial local</span><span class="ck__val">assinatura Claude, no chaveiro do sistema</span><span class="ck__st">em uso</span></div>
+              <div class="ck"><span class="ck__glyph">·</span><span class="ck__what">ANTHROPIC_API_KEY</span><span class="ck__val">ausente no ambiente do daemon</span><span class="ck__st">—</span></div>
+            </div>
+            <span class="field__help">
+              Não é escolha sua nem do Lumem: o adaptador usa a credencial que <b>encontrar</b>. Esta
+              linha é o que a sonda achou — e é o passo 4 que confirma que ela vale.
+            </span>
+          </div>
+
+          <button class="adv" data-od-id="adv-agente">
+            <span class="adv__k">avançado</span>
+            <span class="adv__v">comando: claude-agent-acp · args: --stdio · env herdado do daemon</span>
+            <span class="caret">▸</span>
+          </button>
+
+          <div class="banner banner--warning" data-od-id="banner-outros-agentes">
+            <span class="banner__glyph">⚠</span>
+            <span><strong>codex</strong> e <strong>gemini</strong> não foram encontrados. Qualquer agente que fale ACP entra depois em Configurações — o Lumem não é preso ao Claude.</span>
+          </div>
+
+          <div class="wizard__foot">
+            <button class="btn btn--brand" disabled data-od-id="cta-agente-continuar">Testar conexão <span class="kbd">⏎</span></button>
+            <span class="hint">o botão libera quando o adaptador responder</span>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost">Voltar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 4 — HANDSHAKE                                                        -->
+<!-- O initialize aparece literal: é a prova de que conectou, e é o       -->
+<!-- lugar onde o usuário vê o que o agente pode fazer.                   -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-handshake">
+  <div class="flow">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="flow__body">
+      <div class="wizard">
+        <div class="steps" data-od-id="steps-handshake">
+          <span class="steps__i steps__i--done"><span class="steps__n">✓</span><span class="steps__l">máquina</span></span><span class="steps__bar"></span>
+          <span class="steps__i steps__i--now"><span class="steps__n">2</span><span class="steps__l">agente</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">3</span><span class="steps__l">workspace</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">4</span><span class="steps__l">projeto</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">5</span><span class="steps__l">tarefa</span></span>
+        </div>
+
+        <div class="wizard__card" data-od-id="card-handshake">
+          <div class="wizard__head">
+            <span class="wizard__eyebrow">passo 2 de 5 · conexão</span>
+            <h1 class="wizard__title">Claude Code conectado</h1>
+            <p class="wizard__lede">
+              O daemon subiu o adaptador, trocou o <code>initialize</code> e abriu uma sessão de teste.
+              Isto é o que ele respondeu.
+            </p>
+          </div>
+
+          <div class="check" data-od-id="check-handshake">
+            <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">processo</span><span class="ck__val">claude-agent-acp --stdio · pid 48219 · subiu em 0,6 s</span><span class="ck__st">ok</span></div>
+            <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">protocolo</span><span class="ck__val">ACP v1 · claude-agent-acp 0.69.0</span><span class="ck__st">ok</span></div>
+            <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">autenticação</span><span class="ck__val">assinatura Claude · token no chaveiro do sistema</span><span class="ck__st">ok</span></div>
+            <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">capacidades</span><span class="ck__val">fs.readTextFile · fs.writeTextFile · terminal · permissões</span><span class="ck__st">ok</span></div>
+            <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">sessão</span><span class="ck__val">session/new devolveu d81b05ee em 1,2 s</span><span class="ck__st">ok</span></div>
+          </div>
+
+          <div class="wizard__sec" data-od-id="sec-wire">
+            <span class="wizard__sec-t">a troca, sem tradução</span>
+            <div class="wire">
+              <span class="wire__l"><span class="wire__d wire__d--out">→</span><span class="wire__c"><span class="k">initialize</span> { <span class="k">protocolVersion</span>: <span class="nu">1</span>, <span class="k">clientCapabilities</span>: { <span class="k">fs</span>: { <span class="k">readTextFile</span>: <span class="nu">true</span>, <span class="k">writeTextFile</span>: <span class="nu">true</span> }, <span class="k">terminal</span>: <span class="nu">true</span> } }</span></span>
+              <span class="wire__l"><span class="wire__d wire__d--in">←</span><span class="wire__c">{ <span class="k">protocolVersion</span>: <span class="nu">1</span>, <span class="k">agentCapabilities</span>: { <span class="k">promptCapabilities</span>: { <span class="k">image</span>: <span class="nu">true</span>, <span class="k">embeddedContext</span>: <span class="nu">true</span> } }, <span class="k">authMethods</span>: [<span class="s">"claude-login"</span>, <span class="s">"anthropic-api-key"</span>] }</span></span>
+              <span class="wire__l"><span class="wire__d wire__d--out">→</span><span class="wire__c"><span class="k">session/new</span> { <span class="k">cwd</span>: <span class="s">"~/.lumem/probe"</span>, <span class="k">mcpServers</span>: [] }</span></span>
+              <span class="wire__l"><span class="wire__d wire__d--in">←</span><span class="wire__c">{ <span class="k">sessionId</span>: <span class="s">"d81b05ee"</span>, <span class="k">modes</span>: { <span class="k">current</span>: <span class="s">"default"</span>, <span class="k">available</span>: [<span class="s">"default"</span>, <span class="s">"plan"</span>, <span class="s">"bypassPermissions"</span>] } }</span></span>
+              <span class="wire__l"><span class="wire__d wire__d--in">←</span><span class="wire__c"><span class="c">// sessão de teste encerrada. Nenhum token consumido.</span></span></span>
+            </div>
+          </div>
+
+          <div class="wizard__sec" data-od-id="sec-padroes">
+            <span class="wizard__sec-t">como as próximas sessões nascem</span>
+            <div class="recap">
+              <div class="recap__r"><span class="recap__k">modelo</span><span class="recap__v">o que o agente oferecer <span class="dim">— trocável em cada conversa</span></span></div>
+              <div class="recap__r"><span class="recap__k">modo</span><span class="recap__v">Auto <span class="dim">— aprova dentro da worktree, pergunta fora</span></span></div>
+            </div>
+            <span class="field__help">
+              Leitura, não escolha: o Lumem não tem onde guardar um padrão seu, e a conversa já
+              escolhe modelo e modo por sessão — com o agente como autoridade sobre a lista.
+            </span>
+          </div>
+
+          <div class="wizard__foot">
+            <button class="btn btn--brand" data-od-id="cta-handshake-continuar">Continuar <span class="kbd">⏎</span></button>
+            <button class="btn btn--ghost">Testar de novo</button>
+            <span class="spacer"></span>
+            <span class="hint">salvo em <b>~/.lumem/agents.toml</b></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 5 — WORKSPACE                                                        -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-workspace">
+  <div class="flow">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="flow__body">
+      <div class="wizard">
+        <div class="steps" data-od-id="steps-workspace">
+          <span class="steps__i steps__i--done"><span class="steps__n">✓</span><span class="steps__l">máquina</span></span><span class="steps__bar"></span>
+          <span class="steps__i steps__i--done"><span class="steps__n">✓</span><span class="steps__l">agente</span></span><span class="steps__bar"></span>
+          <span class="steps__i steps__i--now"><span class="steps__n">3</span><span class="steps__l">workspace</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">4</span><span class="steps__l">projeto</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">5</span><span class="steps__l">tarefa</span></span>
+        </div>
+
+        <div class="wizard__card" data-od-id="card-workspace">
+          <div class="wizard__head">
+            <span class="wizard__eyebrow">passo 3 de 5</span>
+            <h1 class="wizard__title">Crie seu primeiro workspace</h1>
+            <p class="wizard__lede">
+              Um workspace agrupa projetos e guarda as worktrees deles num lugar só. Quem trabalha
+              em coisas separadas — pessoal e cliente, por exemplo — mantém dois, e eles nunca se
+              veem.
+            </p>
+          </div>
+
+          <div class="wizard__body">
+            <div class="field">
+              <label>nome</label>
+              <div class="input input--focus"><span class="glyph glyph--workspace input__pre">◈</span><span class="input__val">pessoal</span></div>
+              <span class="field__help">Aparece no topo da coluna da esquerda. Dá para renomear depois.</span>
+            </div>
+
+            <div class="field">
+              <label>onde ficam as worktrees <span class="dim">— leitura</span></label>
+              <div class="input input--empty"><span class="input__val">~/.lumem/worktrees</span><span class="input__suf">LUMEM_STATE_DIR</span></div>
+              <span class="field__help">
+                Fora dos seus repositórios, de propósito: worktree dentro do checkout suja
+                <code>git status</code> e acaba commitada por acidente.
+              </span>
+            </div>
+          </div>
+
+          <div class="wizard__sec" data-od-id="sec-workspace-escrita">
+            <span class="wizard__sec-t">o que este passo escreve no disco</span>
+            <div class="recap">
+              <div class="recap__r"><span class="recap__k">config</span><span class="recap__v">~/.lumem/config.toml</span></div>
+              <div class="recap__r"><span class="recap__k">agentes</span><span class="recap__v">~/.lumem/agents.toml</span></div>
+              <div class="recap__r"><span class="recap__k">worktrees</span><span class="recap__v">~/.lumem/worktrees/</span></div>
+              <div class="recap__r"><span class="recap__k">estado</span><span class="recap__v">~/.lumem/state.db <span class="dim">— sessões e histórico, só local</span></span></div>
+            </div>
+          </div>
+
+          <div class="wizard__foot">
+            <button class="btn btn--brand" data-od-id="cta-workspace-criar">Criar workspace <span class="kbd">⏎</span></button>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost">Voltar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 6 — PROJETO                                                          -->
+<!-- Detecção é resposta, não formulário: o Lumem lê o repositório e      -->
+<!-- mostra o que entendeu antes de pedir confirmação.                    -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-projeto">
+  <div class="flow">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="flow__body">
+      <div class="wizard">
+        <div class="steps" data-od-id="steps-projeto">
+          <span class="steps__i steps__i--done"><span class="steps__n">✓</span><span class="steps__l">máquina</span></span><span class="steps__bar"></span>
+          <span class="steps__i steps__i--done"><span class="steps__n">✓</span><span class="steps__l">agente</span></span><span class="steps__bar"></span>
+          <span class="steps__i steps__i--done"><span class="steps__n">✓</span><span class="steps__l">workspace</span></span><span class="steps__bar"></span>
+          <span class="steps__i steps__i--now"><span class="steps__n">4</span><span class="steps__l">projeto</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">5</span><span class="steps__l">tarefa</span></span>
+        </div>
+
+        <div class="wizard__card" data-od-id="card-projeto">
+          <div class="wizard__head">
+            <span class="wizard__eyebrow">passo 4 de 5 · workspace <b>pessoal</b></span>
+            <h1 class="wizard__title">Adicione o primeiro projeto</h1>
+            <p class="wizard__lede">
+              Projeto é um repositório git que <b>já existe</b> na sua máquina. O Lumem não move nem
+              reescreve nada dele — só passa a criar worktrees a partir dele. Clonar de uma URL é
+              outra história: rede, credencial e progresso são feature, não um campo.
+            </p>
+          </div>
+
+          <div class="field">
+            <label>pasta do projeto <span class="dim">— caminho absoluto</span></label>
+            <div class="input input--focus"><span class="input__val">~/Documents/GitHub/lorebase</span></div>
+          </div>
+
+          <div class="wizard__sec" data-od-id="sec-deteccao">
+            <span class="wizard__sec-t">o que o Lumem leu daí</span>
+            <div class="check">
+              <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">repositório</span><span class="ck__val">git · 1.284 commits · HEAD em <code>main</code></span><span class="ck__st">ok</span></div>
+              <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">remoto</span><span class="ck__val">origin · github.com/vrosa/lorebase</span><span class="ck__st">ok</span></div>
+              <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">árvore</span><span class="ck__val">limpa · nada por commitar</span><span class="ck__st">ok</span></div>
+              <div class="ck ck--warn"><span class="ck__glyph">⚠</span><span class="ck__what">worktrees</span><span class="ck__val">2 worktrees já registradas neste repositório, criadas fora do Lumem</span><span class="ck__st">atenção</span></div>
+            </div>
+            <span class="field__help">
+              As duas continuam onde estão. O Lumem passa a listá-las como <em>externas</em> e não
+              mexe em nenhuma delas sem você pedir.
+            </span>
+          </div>
+
+          <div class="banner banner--info" data-od-id="banner-checkout-intacto">
+            <span class="banner__glyph">◇</span>
+            <span>Seu checkout em <code>~/Documents/GitHub/lorebase</code> continua sendo seu. O agente trabalha nas worktrees irmãs, em <strong>~/.lumem/worktrees/lorebase/</strong>.</span>
+          </div>
+
+          <div class="wizard__foot">
+            <button class="btn btn--brand" data-od-id="cta-projeto-adicionar">Adicionar projeto <span class="kbd">⏎</span></button>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost">Voltar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 7 — PRIMEIRA TAREFA (worktree + sessão)                              -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-worktree">
+  <div class="flow">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="flow__body">
+      <div class="wizard">
+        <div class="steps" data-od-id="steps-worktree">
+          <span class="steps__i steps__i--done"><span class="steps__n">✓</span><span class="steps__l">máquina</span></span><span class="steps__bar"></span>
+          <span class="steps__i steps__i--done"><span class="steps__n">✓</span><span class="steps__l">agente</span></span><span class="steps__bar"></span>
+          <span class="steps__i steps__i--done"><span class="steps__n">✓</span><span class="steps__l">workspace</span></span><span class="steps__bar"></span>
+          <span class="steps__i steps__i--done"><span class="steps__n">✓</span><span class="steps__l">projeto</span></span><span class="steps__bar"></span>
+          <span class="steps__i steps__i--now"><span class="steps__n">5</span><span class="steps__l">tarefa</span></span>
+        </div>
+
+        <div class="wizard__card" data-od-id="card-worktree">
+          <div class="wizard__head">
+            <span class="wizard__eyebrow">passo 5 de 5 · lorebase</span>
+            <h1 class="wizard__title">Toda tarefa vira uma worktree</h1>
+            <p class="wizard__lede">
+              É a ideia central: em vez de trocar de branch no seu checkout, cada tarefa ganha uma
+              branch e uma pasta próprias. Você pode ter três agentes trabalhando ao mesmo tempo e
+              nenhum encosta no que o outro está fazendo.
+            </p>
+          </div>
+
+          <div class="wizard__body">
+            <div class="field">
+              <label>nome da tarefa</label>
+              <div class="input input--focus"><span class="glyph glyph--worktree input__pre">◇</span><span class="input__val">primeira-tarefa</span></div>
+              <span class="field__help">Vira o nome da branch e o nome da pasta.</span>
+            </div>
+
+            <div class="field">
+              <label>nasce de</label>
+              <div class="input"><span class="input__val">main</span><span class="input__suf">trocar</span></div>
+            </div>
+
+            <div class="recap" data-od-id="recap-worktree">
+              <div class="recap__r"><span class="recap__k">branch</span><span class="recap__v">primeira-tarefa <span class="dim">← main · 8f3c1de</span></span></div>
+              <div class="recap__r"><span class="recap__k">pasta</span><span class="recap__v">~/.lumem/worktrees/lorebase/primeira-tarefa</span></div>
+              <div class="recap__r"><span class="recap__k">comando</span><span class="recap__v">git worktree add -b primeira-tarefa …/primeira-tarefa main</span></div>
+            </div>
+          </div>
+
+          <div class="wizard__sec" data-od-id="sec-sessao-inicial">
+            <span class="wizard__sec-t">o que abre junto</span>
+            <div class="choices choices--2">
+              <button class="choice is-on" data-od-id="sessao-claude">
+                <span class="choice__top"><span class="glyph glyph--agent">◆</span><span class="choice__t">Uma sessão do Claude</span><span class="choice__mark">◉</span></span>
+                <span class="choice__d">Abre a conversa já dentro da worktree, no modo Auto.</span>
+                <span class="choice__meta">opus[1m] · Auto</span>
+              </button>
+              <button class="choice" data-od-id="sessao-vazia">
+                <span class="choice__top"><span class="glyph glyph--shell">●</span><span class="choice__t">Só a worktree</span><span class="choice__mark">○</span></span>
+                <span class="choice__d">Cria a pasta e a branch. Você abre sessão quando quiser.</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="wizard__foot">
+            <button class="btn btn--brand" data-od-id="cta-criar-worktree">Criar e abrir a conversa <span class="kbd">⏎</span></button>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost">Voltar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 8 — A CONVERSA                                                       -->
+<!-- O fluxo termina dentro do produto, não numa tela de sucesso. A casca -->
+<!-- completa aparece aqui pela primeira vez, já com o que foi criado.    -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-conversa">
+  <div class="app">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="body">
+      <aside class="sidebar" data-od-id="sidebar-primeira-sessao">
+        <div class="ws-wrap">
+          <button class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></button>
+        </div>
+        <div class="tree">
+          <div class="tree__label">Projetos</div>
+          <button class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></button>
+          <button class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--local">▭</span><span class="row__label">local</span><span class="row__meta">main</span></button>
+          <button class="row is-selected" style="--depth:1"><span class="row__twist">▾</span><span class="glyph glyph--worktree">◇</span><span class="row__label">primeira-tarefa</span><span class="count count--running"><span class="count__dot"></span>1</span></button>
+          <button class="row" style="--depth:2"><span class="row__twist"></span><span class="glyph glyph--agent">◆</span><span class="row__label">claude</span></button>
+          <div class="tree__label">Externas</div>
+          <button class="row is-muted" style="--depth:1"><span class="row__twist">▸</span><span class="glyph glyph--worktree">◇</span><span class="row__label">hotfix-boot</span><span class="row__meta">fora do Lumem</span></button>
+        </div>
+        <div class="sidebar__foot"><button class="add"><span>＋</span>adicionar projeto</button></div>
+      </aside>
+
+      <main class="main" data-od-id="main-primeira-conversa">
+        <div class="wt-head">
+          <nav class="crumb">pessoal<span class="crumb__sep">/</span>lorebase<span class="crumb__sep">/</span><span class="crumb__here">primeira-tarefa</span></nav>
+          <div class="wt-title">
+            <h2><span class="glyph glyph--worktree">◇</span>primeira-tarefa</h2>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost btn--sm">abrir no editor</button>
+          </div>
+          <div class="chips">
+            <span class="chip chip--branch"><span class="chip__dot"></span>primeira-tarefa</span>
+            <span class="chip chip--clean"><span class="chip__dot"></span>limpa</span>
+            <span class="chip"><span class="dim">criada agora · de main</span></span>
+          </div>
+        </div>
+
+        <div class="tabs-bar">
+          <div class="tabs">
+            <button class="stab stab--overview">contexto</button>
+            <span class="tabs__sep"></span>
+            <button class="stab stab--active"><span class="glyph glyph--agent">◆</span>claude<span class="stab__dot"></span><span class="stab__close">✕</span></button>
+          </div>
+          <button class="tabs__new">＋ nova sessão</button>
+        </div>
+
+        <div class="pane">
+          <div class="conv">
+            <div class="conv__head">
+              <span class="conv__who"><span class="glyph glyph--agent">◆</span>claude</span>
+              <span class="conv__adapter">claude-agent-acp 0.69.0 · sessão 3f10a2c7</span>
+              <span class="spacer"></span>
+              <span class="pill pill--model">opus[1m] <span class="pill__caret">▾</span></span>
+              <span class="pill pill--auto">Auto <span class="pill__caret">▾</span></span>
+              <button class="btn btn--ghost btn--sm">■ interromper</button>
+            </div>
+
+            <div class="conv__scroll" data-od-id="conversa-primeiro-turno">
+              <div class="turn turn--user">
+                <span class="turn__g">❯</span>
+                <div class="turn__b"><div class="msg">me explica o que este repositório faz e onde ficam os testes</div></div>
+              </div>
+
+              <div class="turn turn--agent">
+                <span class="turn__g">◆</span>
+                <div class="turn__b">
+                  <div class="thought"><span class="thought__twist">▸</span>pensou 5 s<span class="thought__peek">· começar pelo README e pelo package.json diz mais rápido o que isto é do que abrir src/</span></div>
+
+                  <div class="tc tc--ok">
+                    <div class="tc__head">
+                      <span class="tc__glyph">▤</span><span class="tc__verb">Read</span>
+                      <span class="tc__target"><span class="tc__dir">./</span><span class="tc__name">README.md</span></span>
+                      <span class="tc__time">0,3 s</span>
+                      <span class="tc__st"><span class="tc__dot"></span>ok</span>
+                      <span class="tc__twist">▸</span>
+                    </div>
+                  </div>
+
+                  <div class="tc tc--ok">
+                    <div class="tc__head">
+                      <span class="tc__glyph">▤</span><span class="tc__verb">Grep</span>
+                      <span class="tc__arg">"describe\(|it\(" em src/ e test/</span>
+                      <span class="tc__time">0,2 s</span>
+                      <span class="tc__st"><span class="tc__dot"></span>ok</span>
+                      <span class="tc__twist">▾</span>
+                    </div>
+                    <div class="tc__body">
+                      <div class="out out--short">
+<span class="l"><span class="path">src/lore/__tests__/loader.test.ts</span><span class="dim">:11</span>  describe("loader", () =&gt; {</span>
+<span class="l"><span class="path">src/cli/__tests__/lint.test.ts</span><span class="dim">:7</span>   describe("lint", () =&gt; {</span>
+<span class="l"><span class="dim">… 14 arquivos</span></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="msg">
+                    <p>O <b>lorebase</b> é uma CLI que lê arquivos markdown com frontmatter e monta um índice consultável. O código vive em <code>src/lore/</code> (leitura e parsing) e <code>src/cli/</code> (comandos).</p>
+                    <p>Os testes ficam colados no código que testam, em <code>__tests__/</code> dentro de cada pasta — 14 arquivos, rodados por <code>vitest</code>. Quero rodar a suíte para confirmar que ela passa antes de qualquer mudança:</p>
+                  </div>
+
+                  <div class="perm" data-od-id="primeira-permissao">
+                    <div class="perm__head"><span class="perm__glyph">⚠</span>Permissão<span class="spacer"></span><span class="kbd">o turno está parado aqui</span></div>
+                    <div class="perm__body">
+                      <div class="perm__what">
+                        <div class="perm__cmd">pnpm install --frozen-lockfile</div>
+                        <div class="perm__where">cwd ~/.lumem/worktrees/lorebase/primeira-tarefa</div>
+                      </div>
+                      <div class="perm__why">O modo <b>Auto</b> aprova ler e escrever dentro desta worktree. Este comando acessa a rede — por isso ele para e pergunta.</div>
+                      <div class="perm__opts">
+                        <button class="btn btn--sm btn--brand">permitir uma vez <span class="kbd">⏎</span></button>
+                        <button class="btn btn--sm btn--ghost">sempre nesta sessão</button>
+                        <button class="btn btn--sm btn--ghost">negar <span class="kbd">esc</span></button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="coach coach--after" data-od-id="coach-permissao">
+                    <span class="coach__t"><span>◆</span>a primeira vez que isso aparece</span>
+                    <span class="coach__b">
+                      É assim que o Lumem te mantém no controle: <b>Auto</b> resolve sozinho o que é
+                      leitura e escrita aqui dentro, e para em tudo que sai disso — rede, comando
+                      global, arquivo fora da worktree. Se preferir ver o plano antes de qualquer
+                      execução, troque para <b>Plano</b> na barra acima.
+                    </span>
+                    <span class="coach__acts">
+                      <button class="btn btn--sm btn--brand">entendi</button>
+                      <button class="btn btn--sm btn--ghost">não mostrar de novo</button>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="composer">
+              <div class="composer__box">
+                <div class="composer__in composer__in--empty">responda a permissão para continuar</div>
+                <div class="composer__bar">
+                  <span class="pill pill--model">opus[1m] <span class="pill__caret">▾</span></span>
+                  <span class="pill pill--auto">Auto <span class="pill__caret">▾</span></span>
+                  <span class="spacer"></span>
+                  <span class="kbd">⌘⏎ enviar · ⏎ nova linha · / comandos</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="usage">
+              <span class="u"><span class="u__k">janela</span>41,3k / 1M<span class="meter"><span class="meter__f" style="--w:4%"></span></span></span>
+              <span class="u"><span class="u__k">semana</span>3%<span class="meter"><span class="meter__f" style="--w:3%"></span></span></span>
+              <span class="u u--cost"><span class="u__k">sessão</span>US$ 0,04</span>
+              <span class="usage__spacer"></span>
+              <span class="u"><span class="u__k">reset</span>em 6 d 2 h</span>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 9 — PRONTO                                                           -->
+<!-- Fecha listando o que existe agora no disco. Ferramenta de dev que    -->
+<!-- esconde onde escreveu é ferramenta em que não se confia.             -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-pronto">
+  <div class="flow">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="flow__body">
+      <div class="wizard">
+        <div class="wizard__card wizard__card--narrow" data-od-id="card-pronto">
+          <div class="wizard__head">
+            <span class="wizard__eyebrow">tudo configurado</span>
+            <h1 class="wizard__title">Pronto. O resto acontece dentro do produto.</h1>
+            <p class="wizard__lede">Foi isto que passou a existir na sua máquina:</p>
+          </div>
+
+          <div class="recap" data-od-id="recap-final" style="text-align:left">
+            <div class="recap__r"><span class="recap__k">workspace</span><span class="recap__v">pessoal</span></div>
+            <div class="recap__r"><span class="recap__k">agente</span><span class="recap__v">claude-agent-acp 0.69.0 · credencial local</span></div>
+            <div class="recap__r"><span class="recap__k">projeto</span><span class="recap__v">~/Documents/GitHub/lorebase</span></div>
+            <div class="recap__r"><span class="recap__k">worktree</span><span class="recap__v">~/.lumem/worktrees/lorebase/primeira-tarefa</span></div>
+            <div class="recap__r"><span class="recap__k">sessão</span><span class="recap__v">claude · opus[1m] · Auto</span></div>
+          </div>
+
+          <div class="keys" data-od-id="onde-ficam">
+            <div class="key"><span class="key__k">⌘⏎</span><span class="key__d">enviar o turno — <span class="dim">⏎ faz linha nova</span></span></div>
+            <div class="key"><span class="key__k">esquerda</span><span class="key__d">projetos e worktrees; o rodapé adiciona projeto e configura agente</span></div>
+            <div class="key"><span class="key__k">abas</span><span class="key__d">uma por sessão viva, mais <b>contexto</b> — a worktree em si</span></div>
+            <div class="key"><span class="key__k">direita</span><span class="key__d">arquivos do checkout e o que mudou neles, ao lado da conversa</span></div>
+          </div>
+
+          <div class="wizard__foot" style="justify-content:center">
+            <button class="btn btn--brand btn--lg" data-od-id="cta-abrir-workspace">Abrir o workspace <span class="kbd">⏎</span></button>
+            <button class="btn btn--ghost btn--lg">Revisar a configuração</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+var tabs = document.querySelectorAll('.tabbar .tab');
+function show(id) {
+  tabs.forEach(function (t) { t.classList.toggle('is-active', t.dataset.screen === id); });
+  document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('is-active', s.id === 'screen-' + id); });
+  localStorage.setItem('lumem-onboarding-screen', id);
+  window.scrollTo(0, 0);
+}
+tabs.forEach(function (tab) { tab.addEventListener('click', function () { show(tab.dataset.screen); }); });
+var saved = localStorage.getItem('lumem-onboarding-screen');
+if (saved && document.getElementById('screen-' + saved)) { show(saved); }
+</script>
+</body>
+</html>

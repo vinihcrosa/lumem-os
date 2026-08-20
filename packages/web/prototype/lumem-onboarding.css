@@ -1,0 +1,81 @@
+/* ============================================================================
+   Lumem-OS — primeiro acesso. Só o que é desta tela.
+   Componentes compartilhados: lumem-ds.css. Valores: tokens.css.
+   ========================================================================= */
+
+/* A casca do fluxo não tem sidebar: não há workspace ainda para mostrar nela.
+   Ela aparece pela primeira vez no passo da conversa, e isso é intencional. */
+.flow { min-height: calc(100vh - var(--size-control-lg)); display: grid; grid-template-rows: var(--size-topbar-height) 1fr; background: var(--color-bg-base); }
+.flow__body { min-height: 0; overflow: auto; }
+
+/* três frases na boas-vindas — o que o produto é, antes de pedir qualquer coisa */
+.tri { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-12); width: 100%; text-align: left; }
+.tri__i { display: grid; gap: var(--space-4); align-content: start; padding: var(--space-12); background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); }
+.tri__g { font-size: var(--size-icon-md); line-height: 1; }
+.tri__t { font: var(--text-label-md); color: var(--color-text-primary); text-wrap: balance; }
+.tri__d { font: var(--text-body-sm); color: var(--color-text-tertiary); }
+
+/* linha "avançado": o caminho do binário existe, mas não abre o passo */
+.adv {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  min-height: var(--size-row-cozy);
+  padding: var(--space-4) var(--space-10);
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-md);
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+  text-align: left;
+}
+.adv:hover { border-color: var(--color-border-strong); color: var(--color-text-secondary); }
+.adv__k { flex: none; font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; }
+.adv__v { flex: 1; min-width: 0; font: var(--text-mono-sm); color: var(--color-text-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* escolha em linha — modelo e modo da primeira sessão */
+.modes { display: flex; flex-wrap: wrap; gap: var(--space-6); }
+.mode {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-10);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  font: var(--text-label-sm);
+  color: var(--color-text-secondary);
+}
+.mode:hover { background: var(--color-bg-raised); border-color: var(--color-border-strong); color: var(--color-text-primary); }
+.mode.is-on { background: var(--color-bg-brand-subtle); border-color: var(--color-border-brand); color: var(--color-text-primary); }
+.mode__d { font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.mode.is-on .mode__d { color: var(--color-text-secondary); }
+.mode--risk.is-on { background: var(--color-bg-danger-subtle); border-color: var(--color-border-danger); }
+.mode--risk.is-on .mode__d { color: var(--color-text-danger); }
+
+/* o handshake literal — é o que o daemon trocou, sem tradução */
+.wire { display: grid; gap: var(--space-2); padding: var(--space-10) var(--space-12); background: var(--color-bg-inset); border-radius: var(--radius-md); font: var(--text-mono-sm); font-variant-ligatures: none; }
+.wire__l { display: flex; min-width: 0; gap: var(--space-8); color: var(--color-text-code); overflow-wrap: anywhere; }
+.wire__d { flex: none; width: var(--size-icon-md); text-align: center; }
+.wire__d--out { color: var(--color-turn-user); }
+.wire__d--in { color: var(--color-turn-agent); }
+.wire__c { min-width: 0; }
+.wire .k { color: var(--color-syntax-keyword); }
+.wire .s { color: var(--color-syntax-string); }
+.wire .nu { color: var(--color-syntax-number); }
+.wire .c { color: var(--color-syntax-comment); }
+
+/* fim do fluxo: atalhos que valem o resto da vida do app */
+.keys { display: grid; gap: var(--space-2); width: 100%; min-width: 0; text-align: left; }
+.key { display: flex; min-width: 0; align-items: center; gap: var(--space-10); min-height: var(--size-row-cozy); padding: var(--space-4) var(--space-10); border-radius: var(--radius-sm); }
+.key:nth-child(odd) { background: var(--color-bg-surface); }
+.key__k { flex: none; width: calc(var(--space-64) + var(--space-16)); font: var(--text-mono-sm); color: var(--color-text-code); }
+.key__d { min-width: 0; font: var(--text-body-sm); color: var(--color-text-secondary); }
+
+/* o balão de ensino na conversa aponta para o bloco de cima */
+.coach--after { margin-top: calc(-1 * var(--space-4)); }
+
+@media (max-width: 900px) {
+  .tri { grid-template-columns: 1fr; }
+}

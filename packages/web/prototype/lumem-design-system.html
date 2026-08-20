@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumem-OS — o design system</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+</head>
+<body data-od-id="design-system">
+
+<nav class="tabbar" data-od-id="ds-tabbar">
+  <button class="tab is-active" data-screen="fundacoes">Fundações</button>
+  <button class="tab" data-screen="cor">Cor</button>
+  <button class="tab" data-screen="tipografia">Tipografia</button>
+  <button class="tab" data-screen="componentes">Componentes</button>
+  <button class="tab" data-screen="conversa">Conversa</button>
+  <button class="tab" data-screen="primeiro-acesso">Primeiro acesso</button>
+  <button class="tab" data-screen="regras">Regras</button>
+</nav>
+
+<!-- ==================================================================== -->
+<!-- FUNDAÇÕES                                                            -->
+<!-- ==================================================================== -->
+<section class="screen is-active" id="screen-fundacoes">
+  <div class="doc">
+    <header data-od-id="ds-header">
+      <h1 class="doc__h1">Lumem-OS — o design system</h1>
+      <p class="doc__lede">
+        Três camadas, e a ordem importa. <code>tokens.css</code> tem os valores e é gerado, com as
+        rampas em OKLCH e os pares de contraste verificados na geração. <code>lumem-ds.css</code> tem
+        os componentes e só usa <code>var(--token)</code>. Cada tela tem a sua folha, com o que é
+        daquela tela e de mais nenhuma. Uma tela nova que linka as duas primeiras nasce dentro do
+        sistema; uma que reescreve CSS nasce numa cópia dele.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="ds-camadas">
+      <div class="sec__h">
+        <h2 class="sec__t">As camadas</h2>
+        <p class="sec__d">Onde cada coisa mora, e o que acontece quando a regra é quebrada.</p>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>Camada</th><th>Arquivo</th><th>Contém</th><th>Se for editada à mão</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>Valores</b></td>
+            <td><code>tokens.css</code></td>
+            <td>Rampas primitivas, semântica, espaço, raio, tipografia, elevação.</td>
+            <td>Desfaz a verificação de contraste sem avisar. Mexer é no gerador do repositório e recopiar.</td>
+          </tr>
+          <tr>
+            <td><b>Componentes</b></td>
+            <td><code>lumem-ds.css</code></td>
+            <td>Botão, linha da árvore, cartão de ferramenta, permissão, composer, passos.</td>
+            <td>Um literal aqui vira uma cor que nenhum gate vê.</td>
+          </tr>
+          <tr>
+            <td><b>Tela</b></td>
+            <td><code>&lt;tela&gt;.css</code></td>
+            <td>Só o layout e os casos daquela tela.</td>
+            <td>Componente duplicado aqui vira a segunda verdade sobre como o Lumem se parece.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="sec" data-od-id="ds-espaco">
+      <div class="sec__h">
+        <h2 class="sec__t">Espaço</h2>
+        <p class="sec__d">O nome é o valor em px. Densidade de ferramenta de dev: o passo útil vive entre 4 e 16, e 24+ é para separar regiões, não elementos.</p>
+      </div>
+      <div class="scale">
+        <div class="scale__r"><span class="scale__n">--space-2</span><span class="scale__b" style="--w:var(--space-2)"></span></div>
+        <div class="scale__r"><span class="scale__n">--space-4</span><span class="scale__b" style="--w:var(--space-4)"></span></div>
+        <div class="scale__r"><span class="scale__n">--space-6</span><span class="scale__b" style="--w:var(--space-6)"></span></div>
+        <div class="scale__r"><span class="scale__n">--space-8</span><span class="scale__b" style="--w:var(--space-8)"></span></div>
+        <div class="scale__r"><span class="scale__n">--space-10</span><span class="scale__b" style="--w:var(--space-10)"></span></div>
+        <div class="scale__r"><span class="scale__n">--space-12</span><span class="scale__b" style="--w:var(--space-12)"></span></div>
+        <div class="scale__r"><span class="scale__n">--space-16</span><span class="scale__b" style="--w:var(--space-16)"></span></div>
+        <div class="scale__r"><span class="scale__n">--space-20</span><span class="scale__b" style="--w:var(--space-20)"></span></div>
+        <div class="scale__r"><span class="scale__n">--space-24</span><span class="scale__b" style="--w:var(--space-24)"></span></div>
+        <div class="scale__r"><span class="scale__n">--space-32</span><span class="scale__b" style="--w:var(--space-32)"></span></div>
+        <div class="scale__r"><span class="scale__n">--space-48</span><span class="scale__b" style="--w:var(--space-48)"></span></div>
+        <div class="scale__r"><span class="scale__n">--space-64</span><span class="scale__b" style="--w:var(--space-64)"></span></div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="ds-raio-elevacao">
+      <div class="sec__h">
+        <h2 class="sec__t">Raio e elevação</h2>
+        <p class="sec__d">Raio cresce com a superfície: <code>sm</code> em item de lista, <code>md</code> em cartão dentro da conversa, <code>xl</code> e <code>2xl</code> só em diálogo. Sombra só onde algo flutua de verdade — menu, diálogo, cartão do primeiro acesso.</p>
+      </div>
+      <div class="radii">
+        <div class="radii__i"><span class="radii__b" style="--r:var(--radius-xs)"></span><span class="radii__n">xs · 2</span></div>
+        <div class="radii__i"><span class="radii__b" style="--r:var(--radius-sm)"></span><span class="radii__n">sm · 4</span></div>
+        <div class="radii__i"><span class="radii__b" style="--r:var(--radius-md)"></span><span class="radii__n">md · 6</span></div>
+        <div class="radii__i"><span class="radii__b" style="--r:var(--radius-lg)"></span><span class="radii__n">lg · 8</span></div>
+        <div class="radii__i"><span class="radii__b" style="--r:var(--radius-xl)"></span><span class="radii__n">xl · 12</span></div>
+        <div class="radii__i"><span class="radii__b" style="--r:var(--radius-2xl)"></span><span class="radii__n">2xl · 16</span></div>
+        <div class="radii__i"><span class="radii__b" style="--r:var(--radius-full)"></span><span class="radii__n">full</span></div>
+      </div>
+      <div class="grid grid--4">
+        <div class="elev elev--sm">elevation-sm</div>
+        <div class="elev elev--md">elevation-md</div>
+        <div class="elev elev--lg">elevation-lg</div>
+        <div class="elev elev--xl">elevation-xl</div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="ds-dimensoes">
+      <div class="sec__h">
+        <h2 class="sec__t">Dimensões fixas</h2>
+        <p class="sec__d">Altura de controle e de linha são tokens porque são a densidade do produto — mudar uma delas muda quantas worktrees cabem na tela.</p>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>Token</th><th>Valor</th><th>Onde</th></tr></thead>
+        <tbody>
+          <tr><td><code>--size-row-compact</code></td><td>28</td><td>Linha da árvore, cabeçalho de cartão de ferramenta</td></tr>
+          <tr><td><code>--size-control-sm / lg / xl</code></td><td>24 / 32 / 40</td><td>Chip e pílula · botão padrão · campo e botão de diálogo</td></tr>
+          <tr><td><code>--size-topbar-height</code></td><td>40</td><td>Barra do topo</td></tr>
+          <tr><td><code>--size-sidebar-width</code></td><td>264</td><td>Coluna de workspace, projeto e worktree</td></tr>
+          <tr><td><code>--size-panel-right</code></td><td>360</td><td>Coluna de arquivos e mudanças</td></tr>
+          <tr><td><code>--size-wizard-width</code></td><td>derivado: dialog + 3×64</td><td>Cartão do primeiro acesso</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- COR                                                                  -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-cor">
+  <div class="doc">
+    <header>
+      <h1 class="doc__h1">Cor</h1>
+      <p class="doc__lede">
+        Rampas primitivas nunca entram em componente. O componente pede a semântica, e é a semântica
+        que carrega o significado: <code>--color-tool-running</code> é azul porque verde está reservado
+        para <em>terminou bem</em>. Pintar de verde o que ainda está a meio caminho treina o olho a
+        ignorar a cor.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="cor-rampas">
+      <div class="sec__h">
+        <h2 class="sec__t">Rampas primitivas</h2>
+        <p class="sec__d">Geradas em OKLCH. A neutra tem oito degraus abaixo de 950 porque a interface é escura e precisa de superfícies que se distingam sem borda.</p>
+      </div>
+      <div class="grid">
+        <div class="ramp">
+          <div class="ramp__t">brand <span>50 → 950</span></div>
+          <div class="ramp__row">
+            <span class="ramp__c" style="--c:var(--brand-50)"></span><span class="ramp__c" style="--c:var(--brand-100)"></span><span class="ramp__c" style="--c:var(--brand-200)"></span><span class="ramp__c" style="--c:var(--brand-300)"></span><span class="ramp__c" style="--c:var(--brand-400)"></span><span class="ramp__c" style="--c:var(--brand-500)"></span><span class="ramp__c" style="--c:var(--brand-600)"></span><span class="ramp__c" style="--c:var(--brand-700)"></span><span class="ramp__c" style="--c:var(--brand-800)"></span><span class="ramp__c" style="--c:var(--brand-900)"></span><span class="ramp__c" style="--c:var(--brand-950)"></span>
+          </div>
+        </div>
+        <div class="ramp">
+          <div class="ramp__t">accent <span>50 → 950</span></div>
+          <div class="ramp__row">
+            <span class="ramp__c" style="--c:var(--accent-50)"></span><span class="ramp__c" style="--c:var(--accent-100)"></span><span class="ramp__c" style="--c:var(--accent-200)"></span><span class="ramp__c" style="--c:var(--accent-300)"></span><span class="ramp__c" style="--c:var(--accent-400)"></span><span class="ramp__c" style="--c:var(--accent-500)"></span><span class="ramp__c" style="--c:var(--accent-600)"></span><span class="ramp__c" style="--c:var(--accent-700)"></span><span class="ramp__c" style="--c:var(--accent-800)"></span><span class="ramp__c" style="--c:var(--accent-900)"></span><span class="ramp__c" style="--c:var(--accent-950)"></span>
+          </div>
+        </div>
+        <div class="ramp">
+          <div class="ramp__t">neutral <span>0 → 1010</span></div>
+          <div class="ramp__row">
+            <span class="ramp__c" style="--c:var(--neutral-0)"></span><span class="ramp__c" style="--c:var(--neutral-100)"></span><span class="ramp__c" style="--c:var(--neutral-300)"></span><span class="ramp__c" style="--c:var(--neutral-500)"></span><span class="ramp__c" style="--c:var(--neutral-700)"></span><span class="ramp__c" style="--c:var(--neutral-900)"></span><span class="ramp__c" style="--c:var(--neutral-950)"></span><span class="ramp__c" style="--c:var(--neutral-970)"></span><span class="ramp__c" style="--c:var(--neutral-980)"></span><span class="ramp__c" style="--c:var(--neutral-990)"></span><span class="ramp__c" style="--c:var(--neutral-1000)"></span>
+          </div>
+        </div>
+        <div class="ramp">
+          <div class="ramp__t">estado <span>success · warning · danger · info</span></div>
+          <div class="ramp__row">
+            <span class="ramp__c" style="--c:var(--success-300)"></span><span class="ramp__c" style="--c:var(--success-400)"></span><span class="ramp__c" style="--c:var(--success-600)"></span><span class="ramp__c" style="--c:var(--warning-300)"></span><span class="ramp__c" style="--c:var(--warning-400)"></span><span class="ramp__c" style="--c:var(--warning-600)"></span><span class="ramp__c" style="--c:var(--danger-300)"></span><span class="ramp__c" style="--c:var(--danger-400)"></span><span class="ramp__c" style="--c:var(--danger-600)"></span><span class="ramp__c" style="--c:var(--info-300)"></span><span class="ramp__c" style="--c:var(--info-400)"></span><span class="ramp__c" style="--c:var(--info-600)"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="cor-superficies">
+      <div class="sec__h">
+        <h2 class="sec__t">Superfícies</h2>
+        <p class="sec__d">Cinco degraus, e cada um tem função: <code>base</code> é o app, <code>panel</code> é a coluna, <code>surface</code> é o cartão, <code>raised</code> é o que flutua, <code>inset</code> é onde entra saída de processo.</p>
+      </div>
+      <div class="grid grid--3">
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-bg-base)"></span><span class="sw__b"><span class="sw__n">--color-bg-base</span><span class="sw__d">fundo do app</span></span></div>
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-bg-panel)"></span><span class="sw__b"><span class="sw__n">--color-bg-panel</span><span class="sw__d">sidebar, barras</span></span></div>
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-bg-surface)"></span><span class="sw__b"><span class="sw__n">--color-bg-surface</span><span class="sw__d">cartão, botão</span></span></div>
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-bg-raised)"></span><span class="sw__b"><span class="sw__n">--color-bg-raised</span><span class="sw__d">menu, hover de botão</span></span></div>
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-bg-inset)"></span><span class="sw__b"><span class="sw__n">--color-bg-inset</span><span class="sw__d">terminal, diff, campo</span></span></div>
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-bg-selected)"></span><span class="sw__b"><span class="sw__n">--color-bg-selected</span><span class="sw__d">linha selecionada</span></span></div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="cor-dominio">
+      <div class="sec__h">
+        <h2 class="sec__t">Cor de domínio</h2>
+        <p class="sec__d">A parte do sistema que não é decoração: cada conceito do Lumem tem uma cor, e ela é a mesma na árvore, na aba, no cartão e no rodapé.</p>
+      </div>
+      <div class="grid grid--3">
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-scope-workspace)"></span><span class="sw__b"><span class="sw__n">--color-scope-workspace</span><span class="sw__d">workspace ◈</span></span></div>
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-scope-project)"></span><span class="sw__b"><span class="sw__n">--color-scope-project</span><span class="sw__d">projeto ■</span></span></div>
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-scope-worktree)"></span><span class="sw__b"><span class="sw__n">--color-scope-worktree</span><span class="sw__d">worktree ◇</span></span></div>
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-session-agent)"></span><span class="sw__b"><span class="sw__n">--color-session-agent</span><span class="sw__d">sessão de agente ◆</span></span></div>
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-session-shell)"></span><span class="sw__b"><span class="sw__n">--color-session-shell</span><span class="sw__d">sessão de shell ●</span></span></div>
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-git-branch)"></span><span class="sw__b"><span class="sw__n">--color-git-branch</span><span class="sw__d">branch e caminho</span></span></div>
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-tool-running)"></span><span class="sw__b"><span class="sw__n">--color-tool-running</span><span class="sw__d">ferramenta rodando</span></span></div>
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-tool-ok)"></span><span class="sw__b"><span class="sw__n">--color-tool-ok</span><span class="sw__d">terminou bem</span></span></div>
+        <div class="sw"><span class="sw__chip" style="--c:var(--color-permission-pending)"></span><span class="sw__b"><span class="sw__n">--color-permission-pending</span><span class="sw__d">o turno parou aqui</span></span></div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="cor-texto">
+      <div class="sec__h">
+        <h2 class="sec__t">Texto sobre superfície</h2>
+        <p class="sec__d">Quatro níveis e nada além. <code>disabled</code> é o único que pode reprovar no contraste de leitura, porque a informação dele é justamente não estar disponível.</p>
+      </div>
+      <div class="case__frame">
+        <p style="margin:0 0 var(--space-8); color:var(--color-text-primary); font:var(--text-body-lg)">primary — o conteúdo, o nome do arquivo, a resposta do agente</p>
+        <p style="margin:0 0 var(--space-8); color:var(--color-text-secondary); font:var(--text-body-md)">secondary — apoio, descrição de campo, corpo de banner</p>
+        <p style="margin:0 0 var(--space-8); color:var(--color-text-tertiary); font:var(--text-body-md)">tertiary — metadado, tempo, caminho de diretório truncado</p>
+        <p style="margin:0; color:var(--color-text-disabled); font:var(--text-body-md)">disabled — indisponível: adaptador fora do PATH, worktree sem disco</p>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- TIPOGRAFIA                                                           -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-tipografia">
+  <div class="doc">
+    <header>
+      <h1 class="doc__h1">Tipografia</h1>
+      <p class="doc__lede">
+        Duas famílias com papéis separados, não por estilo: a sans é a interface, a mono é
+        <em>tudo que o computador escreveu</em> — caminho, branch, comando, saída, diff. Ler um caminho
+        em sans é ler um caminho que pode estar mentindo sobre o espaço em branco.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="tipo-escala">
+      <div class="sec__h">
+        <h2 class="sec__t">Escala</h2>
+        <p class="sec__d">Um token por papel, com peso e entrelinha já dentro do <code>font</code> shorthand. Trocar o shorthand para mudar só o peso traz a entrelinha errada junto.</p>
+      </div>
+      <div class="case__frame">
+        <div class="spec"><span class="spec__n">display-lg</span><span class="spec__s" style="font:var(--text-display-lg); letter-spacing:var(--tracking-display-lg)">Primeiro acesso</span></div>
+        <div class="spec"><span class="spec__n">display-md</span><span class="spec__s" style="font:var(--text-display-md); letter-spacing:var(--tracking-display-md)">Conecte o Claude Code</span></div>
+        <div class="spec"><span class="spec__n">heading-lg</span><span class="spec__s" style="font:var(--text-heading-lg); letter-spacing:var(--tracking-heading-lg)">Título de tela e de diálogo</span></div>
+        <div class="spec"><span class="spec__n">heading-md</span><span class="spec__s" style="font:var(--text-heading-md)">Título de seção</span></div>
+        <div class="spec"><span class="spec__n">heading-sm</span><span class="spec__s" style="font:var(--text-heading-sm)">LUMEM · marca na barra</span></div>
+        <div class="spec"><span class="spec__n">body-lg</span><span class="spec__s" style="font:var(--text-body-lg)">Mensagem da conversa e texto do composer</span></div>
+        <div class="spec"><span class="spec__n">body-md</span><span class="spec__s" style="font:var(--text-body-md)">Corpo padrão da interface</span></div>
+        <div class="spec"><span class="spec__n">body-sm</span><span class="spec__s" style="font:var(--text-body-sm)">Apoio, descrição, motivo de permissão</span></div>
+        <div class="spec"><span class="spec__n">label-md</span><span class="spec__s" style="font:var(--text-label-md)">Rótulo de projeto e de escolha</span></div>
+        <div class="spec"><span class="spec__n">label-sm</span><span class="spec__s" style="font:var(--text-label-sm)">Rótulo de botão e de aba</span></div>
+        <div class="spec"><span class="spec__n">label-xs</span><span class="spec__s" style="font:var(--text-label-xs); letter-spacing:var(--tracking-label-xs); text-transform:uppercase">Estado em versalete</span></div>
+        <div class="spec"><span class="spec__n">mono-lg</span><span class="spec__s" style="font:var(--text-mono-lg)">~/.lumem/worktrees/lorebase/main</span></div>
+        <div class="spec"><span class="spec__n">mono-md</span><span class="spec__s" style="font:var(--text-mono-md)">claude-agent-acp --stdio</span></div>
+        <div class="spec"><span class="spec__n">mono-sm</span><span class="spec__s" style="font:var(--text-mono-sm)">daemon v0.1.0 · :4317 · sessão d81b05ee</span></div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="tipo-regras">
+      <div class="sec__h">
+        <h2 class="sec__t">Regras de uso</h2>
+      </div>
+      <div class="grid grid--2">
+        <div class="rule rule--yes">
+          <span class="rule__t">Mono para o que o computador escreveu</span>
+          <span class="rule__d">Caminho, branch, comando, saída, sessão, versão do adaptador. Com <code>font-variant-ligatures: none</code> em saída e diff: <code>!==</code> desenhado como <code>≠</code> é a saída mentindo sobre o arquivo.</span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">Nunca mono para prosa</span>
+          <span class="rule__d">Explicação de permissão, descrição de escolha e texto de erro humano são sans. Mono ali só diminui a leitura e não sinaliza nada.</span>
+        </div>
+        <div class="rule rule--yes">
+          <span class="rule__t">Versalete só para estado</span>
+          <span class="rule__d"><code>label-xs</code> em caixa alta com <code>--tracking-label-xs</code> marca estado — <em>ok</em>, <em>falhou</em>, <em>agora</em>. É o único lugar onde caixa alta aparece.</span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">Nunca truncar o nome do arquivo</span>
+          <span class="rule__d">Em caminho, quem cede é o diretório (<code>flex-shrink: 999</code>) até sobrar <code>…</code>. Um caminho cortado no fim não diz em que arquivo o agente mexeu.</span>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- COMPONENTES                                                          -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-componentes">
+  <div class="doc">
+    <header>
+      <h1 class="doc__h1">Componentes</h1>
+      <p class="doc__lede">
+        Cada bloco aqui está no <code>lumem-ds.css</code> e é o mesmo em todas as telas. Hover mexe no
+        fundo ou na borda; nunca clareia o texto na direção do fundo.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="comp-botoes">
+      <div class="sec__h">
+        <h2 class="sec__t">Botão</h2>
+        <p class="sec__d">Um único preenchido por ação na tela. O resto é <code>ghost</code> ou texto — inclusive quando repete a mesma ação em outro lugar.</p>
+      </div>
+      <div class="case__frame">
+        <div class="chips" style="gap:var(--space-8)">
+          <button class="btn btn--brand">Continuar <span class="kbd">⏎</span></button>
+          <button class="btn">Escolher pasta…</button>
+          <button class="btn btn--ghost">Voltar</button>
+          <button class="btn btn--danger">Remover worktree</button>
+          <button class="btn" disabled>Continuar</button>
+          <button class="btn btn--sm">sm</button>
+          <button class="btn btn--lg">lg</button>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>Estado:</b> <code>brand</code> inverte fundo e texto na mesma regra — o preenchido clareia
+        para <code>brand-400</code> e o texto continua <code>text-on-brand</code>, então o contraste sobe.
+        <code>ghost</code> ganha fundo e texto primário. <code>disabled</code> é o único que baixa contraste.
+      </p>
+    </section>
+
+    <section class="sec" data-od-id="comp-chips">
+      <div class="sec__h">
+        <h2 class="sec__t">Chip, pílula e contador</h2>
+        <p class="sec__d">Chip descreve a worktree, pílula descreve a sessão, contador descreve quantas coisas estão vivas ali dentro.</p>
+      </div>
+      <div class="case__frame">
+        <div class="chips">
+          <span class="chip chip--branch"><span class="chip__dot"></span>frontmatter-vazio</span>
+          <span class="chip chip--dirty"><span class="chip__dot"></span>suja · 3 arquivos</span>
+          <span class="chip chip--clean"><span class="chip__dot"></span>limpa</span>
+          <span class="chip"><span class="ahead">↑1</span> <span class="dim">de main</span></span>
+          <span class="pill pill--model">opus[1m] <span class="pill__caret">▾</span></span>
+          <span class="pill pill--auto">Auto <span class="pill__caret">▾</span></span>
+          <span class="pill pill--plan">Plano <span class="pill__caret">▾</span></span>
+          <span class="pill pill--bypass">Sem perguntar <span class="pill__caret">▾</span></span>
+          <span class="count count--running"><span class="count__dot"></span>2</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="comp-arvore">
+      <div class="sec__h">
+        <h2 class="sec__t">Linha da árvore</h2>
+        <p class="sec__d">A âncora de densidade da interface: 28px, recuo por <code>--depth</code>, estrutura discreta e cor reservada para o que está vivo.</p>
+      </div>
+      <div class="case__frame case__frame--flat" style="max-width:var(--size-sidebar-width)">
+        <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></div>
+        <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--local">▭</span><span class="row__label">local</span></div>
+        <div class="row is-selected" style="--depth:1"><span class="row__twist">▾</span><span class="glyph glyph--worktree">◇</span><span class="row__label">frontmatter-vazio</span><span class="count count--running"><span class="count__dot"></span>2</span></div>
+        <div class="row" style="--depth:2"><span class="row__twist"></span><span class="glyph glyph--agent">◆</span><span class="row__label">claude</span></div>
+        <div class="row is-muted" style="--depth:1"><span class="row__twist">▸</span><span class="glyph glyph--warn">⚠</span><span class="row__label">ui-polish</span><span class="row__meta">ausente</span></div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="comp-campos">
+      <div class="sec__h">
+        <h2 class="sec__t">Campo</h2>
+        <p class="sec__d">Valor sempre em mono: nome de branch e caminho são texto de máquina. O erro fica abaixo, com a mesma largura do campo, e nunca vira tooltip.</p>
+      </div>
+      <div class="grid grid--2">
+        <div class="case">
+          <span class="case__label">padrão e foco</span>
+          <div class="case__frame">
+            <div class="field" style="margin-bottom:var(--space-12)">
+              <label>nome do workspace</label>
+              <div class="input"><span class="input__val">pessoal</span></div>
+            </div>
+            <div class="field">
+              <label>pasta das worktrees</label>
+              <div class="input input--focus"><span class="input__val">~/.lumem/worktrees</span><span class="input__suf">alterar</span></div>
+              <span class="field__help">Cada worktree vira uma pasta aqui dentro, fora do seu repositório.</span>
+            </div>
+          </div>
+        </div>
+        <div class="case">
+          <span class="case__label">erro</span>
+          <div class="case__frame">
+            <div class="field">
+              <label>pasta do projeto</label>
+              <div class="input input--error"><span class="input__val">~/Documents/notas</span><span class="input__suf">escolher…</span></div>
+              <span class="field__error">Não é um repositório git — não existe <code>.git</code> aqui nem acima.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="comp-avisos">
+      <div class="sec__h">
+        <h2 class="sec__t">Aviso e falha</h2>
+        <p class="sec__d">Faixa quando o estado é da tela inteira; cartão de falha quando é de uma ação. Saída do git aparece literal, sem tradução.</p>
+      </div>
+      <div class="grid">
+        <div class="banner banner--info"><span class="banner__glyph">◇</span><span>O daemon está em <strong>:4317</strong> e responde. Nada foi escrito no seu repositório ainda.</span></div>
+        <div class="banner banner--warning"><span class="banner__glyph">⚠</span><span><strong>codex</strong> não está no PATH. O adaptador pode ser apontado à mão depois, em Configurações.</span><span class="banner__actions"><button class="btn btn--ghost btn--sm">apontar caminho</button></span></div>
+        <div class="fail">
+          <span class="fail__title"><span>✕</span>o adaptador saiu antes do handshake</span>
+          <span class="fail__body">O processo terminou com código 127 em 0,3 s. O binário existe, mas não conseguiu carregar o runtime.</span>
+          <div class="fail__cmd">claude-agent-acp: error while loading shared libraries: libnode.so.115: cannot open shared object file</div>
+          <div class="chips"><button class="btn btn--sm btn--brand">tentar de novo</button><button class="btn btn--sm btn--ghost">ver log completo</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="comp-menu">
+      <div class="sec__h">
+        <h2 class="sec__t">Menu</h2>
+        <p class="sec__d">O item indisponível continua na lista, e o motivo fica na coluna da direita: sumir com ele esconde que o Lumem sabe que ele existe.</p>
+      </div>
+      <div class="case__frame case__frame--flat">
+        <div class="menu">
+          <button class="menu__item"><span class="glyph glyph--agent">◆</span>claude<span class="menu__hint">claude-agent-acp</span></button>
+          <button class="menu__item" disabled><span class="glyph">◆</span>codex<span class="menu__hint">fora do PATH</span></button>
+          <div class="menu__sep"></div>
+          <button class="menu__item"><span class="glyph glyph--shell">●</span>shell de login<span class="menu__hint">/bin/zsh -l</span></button>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- CONVERSA                                                             -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-conversa">
+  <div class="doc">
+    <header>
+      <h1 class="doc__h1">Conversa</h1>
+      <p class="doc__lede">
+        Os blocos que substituem o texto rolando do terminal. Todos nascem de eventos do ACP, e cada
+        um tem um estado que se lê de relance, sem ler rótulo nenhum.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="conv-turno">
+      <div class="sec__h">
+        <h2 class="sec__t">Turno e raciocínio</h2>
+      </div>
+      <div class="case__frame">
+        <div style="display:grid; gap:var(--space-16)">
+          <div class="turn turn--user"><span class="turn__g">❯</span><div class="turn__b"><div class="msg">roda o gate e me diz o que quebrou</div></div></div>
+          <div class="turn turn--agent"><span class="turn__g">◆</span><div class="turn__b">
+            <div class="thought"><span class="thought__twist">▸</span>pensou 4 s<span class="thought__peek">· o gate roda lint, tipos e testes — vale ver qual dos três falhou antes de ler saída</span></div>
+            <div class="msg"><p>Rodei <code>pnpm gate:quick</code>. Lint e tipos passaram; um teste falhou em <code>frontmatter.test.ts</code>.</p></div>
+          </div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="conv-ferramenta">
+      <div class="sec__h">
+        <h2 class="sec__t">Cartão de ferramenta</h2>
+        <p class="sec__d">Cinco estados na barra de 2px da esquerda. <em>Rodando</em> é azul e não verde: verde fica reservado para terminou bem, e um cartão a meio caminho pintado de verde se lê como cartão concluído.</p>
+      </div>
+      <div class="case__frame" style="display:grid; gap:var(--space-8)">
+        <div class="tc tc--pending"><div class="tc__head"><span class="tc__glyph">▤</span><span class="tc__verb">Read</span><span class="tc__target"><span class="tc__dir">src/lore/</span><span class="tc__name">loader.ts</span></span><span class="tc__st"><span class="tc__dot"></span>na fila</span><span class="tc__twist">▸</span></div></div>
+        <div class="tc tc--running"><div class="tc__head"><span class="tc__glyph">▤</span><span class="tc__verb">Bash</span><span class="tc__arg">pnpm gate:quick</span><span class="tc__time">8,1 s</span><span class="tc__st"><span class="tc__dot"></span>rodando</span><span class="tc__twist">▾</span></div></div>
+        <div class="tc tc--ok"><div class="tc__head"><span class="tc__glyph">✎</span><span class="tc__verb">Edit</span><span class="tc__target"><span class="tc__dir">src/lore/</span><span class="tc__name">frontmatter.ts</span></span><span class="tc__delta"><span class="plus">+18</span> <span class="minus">−4</span></span><span class="tc__st"><span class="tc__dot"></span>ok</span><span class="tc__twist">▸</span></div></div>
+        <div class="tc tc--failed"><div class="tc__head"><span class="tc__glyph">▤</span><span class="tc__verb">Bash</span><span class="tc__arg">pnpm test frontmatter</span><span class="tc__time">3,4 s</span><span class="tc__st"><span class="tc__dot"></span>falhou</span><span class="tc__twist">▾</span></div>
+          <div class="tc__body"><div class="out out--short"><span class="l"><span class="err">✕</span> frontmatter vazio devolve objeto vazio</span><span class="l"><span class="dim">  esperado</span> {} <span class="dim">recebido</span> undefined</span></div></div>
+        </div>
+        <div class="tc tc--cancelled"><div class="tc__head"><span class="tc__glyph">▤</span><span class="tc__verb">Bash</span><span class="tc__arg">pnpm build</span><span class="tc__st"><span class="tc__dot"></span>cancelada</span><span class="verdict verdict--denied">negada</span></div></div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="conv-plano-permissao">
+      <div class="sec__h">
+        <h2 class="sec__t">Plano e permissão</h2>
+        <p class="sec__d">O plano é <em>um</em> cartão que se reescreve. A permissão é o único bloco que para o turno — por isso é o de maior contraste da tela, mostra o comando inteiro sem truncar, e as saídas são botões, não menu.</p>
+      </div>
+      <div class="grid grid--2">
+        <div class="plan">
+          <div class="plan__head"><span class="plan__glyph">☰</span>Plano<span class="spacer"></span><span class="plan__count">2 de 4</span></div>
+          <div class="plan__row plan__row--done"><span class="plan__mark">✓</span><span class="plan__what">ler o loader</span></div>
+          <div class="plan__row plan__row--done"><span class="plan__mark">✓</span><span class="plan__what">extrair o parser</span></div>
+          <div class="plan__row plan__row--active"><span class="plan__mark">◐</span><span class="plan__what">cobrir frontmatter vazio</span><span class="spacer"></span><span class="plan__now">agora</span></div>
+          <div class="plan__row plan__row--pending"><span class="plan__mark">○</span><span class="plan__what">rodar <code>pnpm gate:quick</code></span></div>
+        </div>
+        <div class="perm">
+          <div class="perm__head"><span class="perm__glyph">⚠</span>Permissão<span class="spacer"></span><span class="kbd">o turno está parado aqui</span></div>
+          <div class="perm__body">
+            <div class="perm__what">
+              <div class="perm__cmd">rm -rf node_modules/.vite</div>
+              <div class="perm__where">cwd ~/.lumem/worktrees/lorebase/frontmatter-vazio</div>
+            </div>
+            <div class="perm__why">O modo <b>Auto</b> não resolveu: <code>rm -rf</code> com caminho relativo está fora do que ele aprova sozinho.</div>
+            <div class="perm__opts">
+              <button class="btn btn--sm btn--brand">permitir uma vez <span class="kbd">⏎</span></button>
+              <button class="btn btn--sm btn--ghost">sempre nesta sessão</button>
+              <button class="btn btn--sm btn--ghost">negar <span class="kbd">esc</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="conv-composer-uso">
+      <div class="sec__h">
+        <h2 class="sec__t">Composer e uso</h2>
+        <p class="sec__d">O medidor nasce quieto: 4% da janela não é boa notícia, é ausência de notícia. Ele só ganha cor em <em>warn</em> e <em>over</em>.</p>
+      </div>
+      <div class="case__frame case__frame--flat" style="padding:0; overflow:hidden">
+        <div class="composer">
+          <div class="composer__box composer__box--focus">
+            <div class="composer__in composer__in--empty">escreva, ou / para comandos</div>
+            <div class="composer__bar">
+              <span class="pill pill--model">opus[1m] <span class="pill__caret">▾</span></span>
+              <span class="pill pill--auto">Auto <span class="pill__caret">▾</span></span>
+              <span class="spacer"></span>
+              <span class="kbd">⏎ enviar · ⇧⏎ nova linha</span>
+              <button class="btn btn--sm btn--brand">enviar</button>
+            </div>
+          </div>
+        </div>
+        <div class="usage">
+          <span class="u"><span class="u__k">janela</span>39,2k / 1M<span class="meter"><span class="meter__f" style="--w:4%"></span></span></span>
+          <span class="u u--warn"><span class="u__k">semana</span>78%<span class="meter"><span class="meter__f" style="--w:78%"></span></span></span>
+          <span class="u u--cost"><span class="u__k">sessão</span>US$ 0,41</span>
+          <span class="usage__spacer"></span>
+          <span class="u"><span class="u__k">reset</span>em 2 d 4 h</span>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- PRIMEIRO ACESSO                                                      -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-primeiro-acesso">
+  <div class="doc">
+    <header>
+      <h1 class="doc__h1">Primeiro acesso</h1>
+      <p class="doc__lede">
+        Os componentes que só existem no fluxo de instalação — e a razão de existirem: o primeiro
+        acesso do Lumem não é cadastro, é <em>configuração de máquina</em>. Cada passo mostra o que foi
+        verificado e o que foi escrito no disco. O fluxo inteiro está em
+        <code>lumem-onboarding-flow.html</code>.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="oa-passos">
+      <div class="sec__h">
+        <h2 class="sec__t">Trilho de passos</h2>
+        <p class="sec__d">Sempre visível, sempre com o total. Passo cumprido vira anel verde e continua clicável — voltar não desfaz o que já foi escrito.</p>
+      </div>
+      <div class="case__frame">
+        <div class="steps" style="width:auto">
+          <span class="steps__i steps__i--done"><span class="steps__n">✓</span><span class="steps__l">máquina</span></span><span class="steps__bar"></span>
+          <span class="steps__i steps__i--done"><span class="steps__n">✓</span><span class="steps__l">agente</span></span><span class="steps__bar"></span>
+          <span class="steps__i steps__i--now"><span class="steps__n">3</span><span class="steps__l">workspace</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">4</span><span class="steps__l">projeto</span></span><span class="steps__bar"></span>
+          <span class="steps__i"><span class="steps__n">5</span><span class="steps__l">conversa</span></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="oa-checagem">
+      <div class="sec__h">
+        <h2 class="sec__t">Linha de checagem</h2>
+        <p class="sec__d">Verificação de máquina e handshake usam a mesma linha. Falha traz a ação junto, na própria linha: um pré-voo que só reprova é um pré-voo que empurra o problema para o Google.</p>
+      </div>
+      <div class="check">
+        <div class="ck ck--ok"><span class="ck__glyph">✓</span><span class="ck__what">git</span><span class="ck__val">2.45.1 · worktrees suportadas</span><span class="ck__st">ok</span></div>
+        <div class="ck ck--running"><span class="ck__glyph">◐</span><span class="ck__what">handshake ACP</span><span class="ck__val">initialize → protocolo v1</span><span class="ck__st">rodando</span></div>
+        <div class="ck ck--warn"><span class="ck__glyph">⚠</span><span class="ck__what">~/.lumem</span><span class="ck__val">não existe — será criada agora</span><span class="ck__st">atenção</span></div>
+        <div class="ck ck--fail"><span class="ck__glyph">✕</span><span class="ck__what">claude</span><span class="ck__val">não encontrado no PATH</span><span class="ck__act"><button class="btn btn--sm btn--ghost">como instalar</button></span><span class="ck__st">falhou</span></div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="oa-escolha">
+      <div class="sec__h">
+        <h2 class="sec__t">Cartão de escolha</h2>
+        <p class="sec__d">Usado onde a decisão muda o resto do fluxo: autenticação, origem do projeto, modo da primeira sessão. Indisponível continua visível, com o motivo.</p>
+      </div>
+      <div class="choices choices--2">
+        <button class="choice is-on">
+          <span class="choice__top"><span class="glyph glyph--agent">◆</span><span class="choice__t">Assinatura Claude</span><span class="choice__mark">◉</span></span>
+          <span class="choice__d">Abre o navegador uma vez. O token fica no chaveiro do sistema, nunca no projeto.</span>
+          <span class="choice__meta">claude setup-token</span>
+        </button>
+        <button class="choice">
+          <span class="choice__top"><span class="glyph">⌘</span><span class="choice__t">Chave de API</span><span class="choice__mark">○</span></span>
+          <span class="choice__d">Para quem paga por uso. Cobrança por token, sem limite semanal.</span>
+          <span class="choice__meta">ANTHROPIC_API_KEY</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="oa-outros">
+      <div class="sec__h">
+        <h2 class="sec__t">Comando, semente, balão e resumo</h2>
+      </div>
+      <div class="grid grid--2">
+        <div class="case">
+          <span class="case__label">comando copiável</span>
+          <div class="copy"><span class="copy__cmd">npm i -g @zed-industries/claude-code-acp</span><button class="btn btn--sm btn--ghost">copiar</button></div>
+        </div>
+        <div class="case">
+          <span class="case__label">semente do primeiro turno</span>
+          <div class="seeds">
+            <button class="seed"><span class="seed__g">◆</span>me explica a arquitetura deste repositório<span class="seed__k">⏎</span></button>
+            <button class="seed"><span class="seed__g">◆</span>roda o gate e me diz o que quebrou</button>
+          </div>
+        </div>
+        <div class="case">
+          <span class="case__label">balão de ensino</span>
+          <div class="coach">
+            <span class="coach__t"><span>◆</span>por que apareceu esta pergunta</span>
+            <span class="coach__b">No modo <b>Auto</b>, o Lumem aprova leitura e escrita dentro da worktree sozinho. Qualquer comando fora disso para o turno e pergunta — é o que você acabou de ver.</span>
+            <span class="coach__acts"><button class="btn btn--sm btn--brand">entendi</button><button class="btn btn--sm btn--ghost">não mostrar de novo</button></span>
+          </div>
+        </div>
+        <div class="case">
+          <span class="case__label">resumo do que foi escrito</span>
+          <div class="recap">
+            <div class="recap__r"><span class="recap__k">workspace</span><span class="recap__v">pessoal</span></div>
+            <div class="recap__r"><span class="recap__k">projeto</span><span class="recap__v">~/Documents/GitHub/lorebase</span></div>
+            <div class="recap__r"><span class="recap__k">worktree</span><span class="recap__v">~/.lumem/worktrees/lorebase/primeira-tarefa</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- REGRAS                                                               -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-regras">
+  <div class="doc">
+    <header>
+      <h1 class="doc__h1">Regras</h1>
+      <p class="doc__lede">
+        O que não é gosto. Cada linha aqui já quebrou uma tela pelo menos uma vez.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="regras-estado">
+      <div class="sec__h">
+        <h2 class="sec__t">Estado interativo</h2>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>Estado</th><th>O que muda</th><th>Contraste</th></tr></thead>
+        <tbody>
+          <tr><td><b>hover</b></td><td>Um degrau do fundo na rampa neutra (<code>surface → raised</code>, <code>panel → hover</code>) ou a borda para <code>border-strong</code>.</td><td>Igual ou maior. Texto nunca vai para <code>--muted</code>.</td></tr>
+          <tr><td><b>focus-visible</b></td><td><code>--focus-ring</code>: anel duplo, com um vão na cor do fundo do app.</td><td>Obrigatório em todo alvo focável, sem exceção.</td></tr>
+          <tr><td><b>selecionado</b></td><td><code>--color-bg-selected</code> e texto primário.</td><td>Maior que o repouso.</td></tr>
+          <tr><td><b>preenchido em hover</b></td><td>Fundo e texto trocam <b>na mesma regra</b>.</td><td>Maior: <code>brand-500 → brand-400</code> com texto escuro fixo.</td></tr>
+          <tr><td><b>disabled</b></td><td><code>--color-text-disabled</code>, borda <code>subtle</code>, cursor <code>not-allowed</code>.</td><td>O único que pode baixar.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="sec" data-od-id="regras-nao">
+      <div class="sec__h">
+        <h2 class="sec__t">O que o sistema não faz</h2>
+      </div>
+      <div class="grid grid--2">
+        <div class="rule rule--no"><span class="rule__t">Verde em ação a meio caminho</span><span class="rule__d">Verde é <em>terminou bem</em>. Rodando é <code>info</code>; pendente é anel vazio, não disco cinza.</span></div>
+        <div class="rule rule--no"><span class="rule__t">Erro traduzido</span><span class="rule__d">Saída de git e do adaptador aparece literal, em mono, no poço <code>inset</code>. A explicação vem <em>acima</em> dela, em sans — não no lugar dela.</span></div>
+        <div class="rule rule--no"><span class="rule__t">Emoji como ícone</span><span class="rule__d">Os glifos são geométricos: ◈ workspace, ■ projeto, ◇ worktree, ◆ agente, ● shell. Cada um com a cor de domínio.</span></div>
+        <div class="rule rule--no"><span class="rule__t">Dois botões preenchidos para a mesma ação</span><span class="rule__d">Um por tela. No primeiro acesso, o preenchido é sempre o "continuar" do passo atual.</span></div>
+        <div class="rule rule--yes"><span class="rule__t">Mostrar o que foi escrito no disco</span><span class="rule__d">Todo passo que cria algo termina com o caminho real. Ferramenta de dev que esconde onde escreveu é ferramenta em que não se confia.</span></div>
+        <div class="rule rule--yes"><span class="rule__t">Ensinar no momento em que acontece</span><span class="rule__d">O conceito de permissão é explicado quando a primeira permissão aparece, não numa tela de boas-vindas com cinco tópicos.</span></div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<script>
+document.querySelectorAll('.tabbar .tab').forEach(function (tab) {
+  tab.addEventListener('click', function () {
+    var id = tab.dataset.screen;
+    document.querySelectorAll('.tabbar .tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
+    document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('is-active', s.id === 'screen-' + id); });
+    localStorage.setItem('lumem-ds-screen', id);
+    window.scrollTo(0, 0);
+  });
+});
+var saved = localStorage.getItem('lumem-ds-screen');
+if (saved && document.getElementById('screen-' + saved)) {
+  var el = document.querySelector('.tabbar .tab[data-screen="' + saved + '"]');
+  if (el) el.click();
+}
+</script>
+</body>
+</html>

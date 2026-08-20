@@ -15,7 +15,7 @@ body {
   background: var(--color-bg-base);
   color: var(--color-text-primary);
   font: var(--text-body-md);
-  font-family: var(--font-sans);
+  font-family: var(--font-family-sans);
 }
 h1 { font: var(--text-display-md); margin: 0 0 var(--space-8); }
 .lede { font: var(--text-body-lg); color: var(--color-text-secondary); max-width: 64ch; margin: 0 0 var(--space-32); }
@@ -49,11 +49,24 @@ code { font: var(--text-mono-sm); color: var(--color-text-code); }
 <body>
 <h1>Lumem-OS — as telas</h1>
 <p class="lede">
-  Cinco telas, vinte e quatro estados. Cada arquivo abre com uma faixa de abas em cima: as abas são
-  os estados daquela tela, não navegação do produto.
+  O sistema, um fluxo e cinco telas. Cada arquivo abre com uma faixa de abas em cima: as abas são
+  os estados daquele arquivo, não navegação do produto.
 </p>
 
 <div class="grid">
+  <a class="card" href="lumem-design-system.html">
+    <span class="card__n">00 · design-system</span>
+    <span class="card__t">O sistema</span>
+    <span class="card__d">Tokens, componentes e as regras que não são gosto. A camada que <code>lumem-ds.css</code> implementa.</span>
+    <span class="states"><span class="state">fundações</span><span class="state">cor</span><span class="state">tipografia</span><span class="state">componentes</span><span class="state">conversa</span><span class="state">primeiro acesso</span><span class="state">regras</span></span>
+  </a>
+
+  <a class="card" href="lumem-onboarding-flow.html">
+    <span class="card__n">06 · onboarding</span>
+    <span class="card__t">O primeiro acesso</span>
+    <span class="card__d">Da máquina vazia até o primeiro turno: pré-voo, Claude Code por ACP, workspace, projeto, worktree e a conversa.</span>
+    <span class="states"><span class="state">boas-vindas</span><span class="state">máquina</span><span class="state">agente</span><span class="state">handshake</span><span class="state">workspace</span><span class="state">projeto</span><span class="state">tarefa</span><span class="state">conversa</span><span class="state">pronto</span></span>
+  </a>
   <a class="card" href="lumem-shell.html">
     <span class="card__n">01 · ui-shell</span>
     <span class="card__t">A casca</span>
@@ -96,6 +109,13 @@ code { font: var(--text-mono-sm); color: var(--color-text-code); }
     <code>packages/web/scripts/generate-tokens.py</code>: rampas em OKLCH, e cada par de contraste
     verificado no momento da geração. Editar o arquivo à mão desfaz essa verificação sem avisar
     ninguém — mexer é no gerador, no repositório, e recopiar aqui.
+  </p>
+  <p>
+    <strong>Os componentes moram em <code>lumem-ds.css</code>.</strong> Botão, linha da árvore,
+    cartão de ferramenta, pedido de permissão, composer e os blocos do primeiro acesso são um só
+    lugar, compartilhado. Uma tela que linka <code>tokens.css</code> e <code>lumem-ds.css</code>
+    nasce dentro do sistema; uma que reescreve CSS nasce numa cópia dele. As cinco telas acima ainda
+    trazem a própria folha, de quando vieram do repositório.
   </p>
   <p>
     Toda tela nova nasce sobre esses tokens e só usa <code>var(--token)</code>: nenhum literal de
