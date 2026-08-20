@@ -317,10 +317,40 @@ export const memoryRouter = router({
     )
     .query(({ ctx, input }) => {
       const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
-      return memory.proposals({
+      const proposals = memory.proposals({
         ...(input?.status ? { status: input.status } : {}),
         ...(input?.workspaceId ? { workspaceId: input.workspaceId } : {}),
         ...(input?.limit ? { limit: input.limit } : {}),
+      });
+
+      /*
+       * O **conflito no mesmo escopo**, resolvido aqui e não na tela.
+       *
+       * O shadow resolve o cruzamento de escopos: projeto vence workspace, e o
+       * perdedor fica no disco. Duas memórias do **mesmo** escopo que se
+       * contradizem não é precedência — é bug de curadoria, e a única resposta
+       * honesta é mostrar as duas e deixar você decidir. Nada de merge.
+       *
+       * A detecção é por caminho, que é a identidade `(tipo, slug)` já resolvida:
+       * se existe memória onde a proposta seria gravada, a proposta **substitui**
+       * algo — e isso é uma decisão diferente de aceitar algo novo.
+       */
+      const byPath = new Map(memory.list().map((entry) => [entry.path, entry]));
+      return proposals.map((proposal) => {
+        const current = byPath.get(proposal.path);
+        return {
+          ...proposal,
+          current:
+            current === undefined
+              ? null
+              : {
+                  name: current.name,
+                  description: current.description,
+                  sourceActor: current.sourceActor,
+                  confidence: current.confidence,
+                  updatedAt: current.updatedAt,
+                },
+        };
       });
     }),
 

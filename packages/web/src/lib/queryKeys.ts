@@ -82,6 +82,11 @@ export function memoryCoreKey(workspaceId: string | null, projectId: string | nu
   return ["memory", "core", workspaceId ?? "-", projectId ?? "-"] as const;
 }
 
+/** Uma busca. A pergunta entra na chave, senão duas buscas dividem cache. */
+export function memorySearchKey(workspaceId: string | null, projectId: string | null, query: string) {
+  return ["memory", "search", workspaceId ?? "-", projectId ?? "-", query] as const;
+}
+
 export const MEMORY_DECISIONS_KEY = ["memory", "decisions"] as const;
 export const MEMORY_USAGE_KEY = ["memory", "usage"] as const;
 export const MEMORY_SETTINGS_KEY = ["memory", "settings"] as const;

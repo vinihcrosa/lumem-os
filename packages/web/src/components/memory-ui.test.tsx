@@ -53,6 +53,7 @@ function proposal(overrides: Record<string, unknown> = {}) {
     status: "pending",
     resolvedAt: null,
     resolutionNote: null,
+    current: null,
     ...stamps,
     ...overrides,
   };
@@ -71,6 +72,7 @@ beforeEach(() => {
     autoLearnBudget: 3,
   });
   trpc.memory.playbooks.query.mockResolvedValue([]);
+  trpc.memory.search.query.mockResolvedValue({ hits: [], skipped: null, staleIndex: false });
 });
 
 function render() {
@@ -476,5 +478,108 @@ describe("a pesquisa automática, na tela", () => {
 
     expect(await screen.findByText("pesquisa automática")).toBeInTheDocument();
     expect(screen.getByText(/até 5 por sessão/)).toBeInTheDocument();
+  });
+});
+
+describe("conflito no mesmo escopo", () => {
+  it("mostra as duas lado a lado, e diz que aprovar substitui", async () => {
+    trpc.memory.proposals.query.mockResolvedValue([
+      proposal({
+        description: "Mensagem livre, o time não exige prefixo",
+        evidence: null,
+        current: {
+          name: "Formato de commit",
+          description: "Conventional Commits, sempre",
+          sourceActor: "human",
+          confidence: "high",
+          updatedAt: new Date("2026-05-01T12:00:00Z"),
+        },
+      }),
+    ]);
+
+    renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="inbox" />);
+
+    expect(await screen.findByText("conflito no mesmo escopo")).toBeInTheDocument();
+    // As duas visíveis: o que vai ser perdido aparece antes do clique.
+    expect(screen.getByText("A que está valendo")).toBeInTheDocument();
+    expect(screen.getByText("Conventional Commits, sempre")).toBeInTheDocument();
+    expect(screen.getByText("A que chegou")).toBeInTheDocument();
+    // Duas vezes na tela, e é certo: a descrição da proposta é o cabeçalho dela e
+    // é também o lado direito da comparação.
+    expect(screen.getAllByText("Mensagem livre, o time não exige prefixo")).toHaveLength(2);
+    expect(screen.getByText(/aprovar substitui/)).toBeInTheDocument();
+    // Sem merge: os botões continuam sendo aprovar, editar e rejeitar.
+    expect(screen.getByRole("button", { name: "Aprovar" })).toBeInTheDocument();
+  });
+
+  it("proposta sem memória no mesmo lugar não vira aviso de conflito", async () => {
+    trpc.memory.proposals.query.mockResolvedValue([proposal()]);
+
+    renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="inbox" />);
+
+    expect(await screen.findByRole("button", { name: "Aprovar" })).toBeInTheDocument();
+    expect(screen.queryByText("conflito no mesmo escopo")).not.toBeInTheDocument();
+  });
+});
+
+describe("a busca na memória", () => {
+  const hit = (overrides: Record<string, unknown> = {}) => ({
+    entry: entry(),
+    score: 1,
+    bm25: -2.5,
+    why: ["nome", "corpo"],
+    ...overrides,
+  });
+
+  async function search(term: string) {
+    renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" />);
+    await userEvent.type(await screen.findByLabelText("Buscar na memória"), term);
+  }
+
+  it("mostra o achado com o porquê dele", async () => {
+    trpc.memory.search.query.mockResolvedValue({
+      hits: [hit()],
+      skipped: null,
+      staleIndex: false,
+    });
+
+    await search("convenção");
+
+    // O `why` é metade do valor: sem ele o resultado apareceu por magia.
+    expect(await screen.findByText("nome")).toBeInTheDocument();
+    expect(screen.getByText("corpo")).toBeInTheDocument();
+  });
+
+  it("não buscou é diferente de não achou", async () => {
+    trpc.memory.search.query.mockResolvedValue({
+      hits: [],
+      skipped: "trivial_query",
+      staleIndex: false,
+    });
+
+    await search("de");
+
+    expect(await screen.findByText("Busca não realizada")).toBeInTheDocument();
+  });
+
+  it("índice atrasado avisa, e não recusa", async () => {
+    trpc.memory.search.query.mockResolvedValue({
+      hits: [hit()],
+      skipped: null,
+      staleIndex: true,
+    });
+
+    await search("convenção");
+
+    // Sinal, nunca recusa: o resultado vale, e pode estar curto.
+    expect(await screen.findByText(/índice desatualizado/)).toBeInTheDocument();
+    expect(screen.getByText("Convenção de nomes")).toBeInTheDocument();
+  });
+
+  it("campo vazio volta para a lista agrupada, sem buscar", async () => {
+    renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" />);
+
+    expect(await screen.findByText("Convenção de nomes")).toBeInTheDocument();
+    expect(trpc.memory.search.query).not.toHaveBeenCalled();
   });
 });

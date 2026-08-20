@@ -6,6 +6,7 @@ import {
   useProposals,
   useArchivePlaybook,
   useMemoryCore,
+  useMemorySearch,
   useMemorySettings,
   usePlaybooks,
   usePinMemory,
@@ -99,7 +100,9 @@ export function MemoryPanel({ workspaceId, projectId, tab, onTabChange }: Memory
       </header>
 
       <div className="mem-body" id="mem-panel-body" role="tabpanel" aria-labelledby={`mem-tab-${active}`}>
-        {active === "entries" ? <Entries query={list} core={core} /> : null}
+        {active === "entries" ? (
+          <Entries query={list} core={core} scope={{ workspaceId, projectId }} />
+        ) : null}
         {active === "inbox" ? <Inbox /> : null}
         {active === "playbooks" ? <Playbooks workspaceId={workspaceId} projectId={projectId} /> : null}
         {active === "timeline" ? <Timeline /> : null}
@@ -146,10 +149,42 @@ const SCOPE_LABEL: Record<string, string> = {
 function Entries({
   query,
   core,
+  scope,
 }: {
   query: ReturnType<typeof useMemoryList>;
   core: ReturnType<typeof useMemoryCore>;
+  scope: MemoryScopeFilter;
 }) {
+  const [term, setTerm] = useState("");
+  const found = useMemorySearch(scope, term);
+
+  const search = (
+    /*
+     * A busca vive na primeira aba porque é a mesma pergunta que a lista responde
+     * — "o que existe" —, com um filtro. Aba própria faria escolher entre navegar
+     * e procurar, quando as duas coisas são a mesma.
+     */
+    <div className="mem-find">
+      <input
+        type="search"
+        className="focus-ring"
+        placeholder="buscar na memória…"
+        aria-label="Buscar na memória"
+        value={term}
+        onChange={(event) => setTerm(event.target.value)}
+      />
+    </div>
+  );
+
+  if (term.trim() !== "") {
+    return (
+      <>
+        {search}
+        <SearchResults found={found} />
+      </>
+    );
+  }
+
   if (query.isPending) return <p className="mem-meta">carregando…</p>;
   if (query.isError) return <EmptyState title="Não deu para ler a memória">{query.error.message}</EmptyState>;
 
@@ -187,6 +222,7 @@ function Entries({
 
   return (
     <>
+      {search}
       {groups.map((group) => (
         // Sem classe no `<section>`: o cabeçalho grudento é quem tem pintura, e
         // classe sem regra é o outro lado do defeito que a auditoria procura.
@@ -249,6 +285,65 @@ function PinButton({ entry }: { entry: MemoryEntry }) {
     >
       {entry.pinned ? "no núcleo" : "fixar no núcleo"}
     </button>
+  );
+}
+
+/**
+ * O resultado da busca, com o **porquê** de cada achado.
+ *
+ * O `why` é o `WhyRecalled` do Compozy, e ele é metade do valor: sem ele o
+ * resultado é uma lista que apareceu por magia, e ninguém consegue contestar a
+ * ordem. Os dois estados degradados também moram aqui, porque é aqui que eles
+ * acontecem — *"dizer que não buscou é diferente de dizer que não achou"*.
+ */
+function SearchResults({ found }: { found: ReturnType<typeof useMemorySearch> }) {
+  if (found.isPending) return <p className="mem-meta">buscando…</p>;
+  if (found.isError) {
+    return <EmptyState title="Não deu para buscar">{found.error.message}</EmptyState>;
+  }
+  if (found.data.skipped === "trivial_query") {
+    return (
+      <EmptyState title="Busca não realizada">
+        Menos de dois termos significativos — dizer que não buscou é diferente de dizer que não
+        achou.
+      </EmptyState>
+    );
+  }
+
+  return (
+    <>
+      {/* O índice é derivado, e pode estar atrás do catálogo — arquivo que não
+          pôde ser lido, ou banco anterior à feature. Sinal, nunca recusa: o
+          resultado vale, e pode estar curto. */}
+      {found.data.staleIndex ? (
+        <p className="mem-stale">índice desatualizado — o resultado pode estar curto</p>
+      ) : null}
+      {found.data.hits.length === 0 ? (
+        <EmptyState title="Nada encontrado">
+          Nenhuma memória casa com esses termos no escopo ativo.
+        </EmptyState>
+      ) : (
+        <ul className="mem-list">
+          {found.data.hits.map((hit) => (
+            <li key={hit.entry.path} className="mem-item">
+              <p className="mem-row">
+                <span className="mem-scope" data-scope={hit.entry.scope}>
+                  {SCOPE_LABEL[hit.entry.scope] ?? hit.entry.scope}
+                </span>
+                <span className="mem-kind">{hit.entry.type}</span>
+                <span className="mem-name">{hit.entry.name}</span>
+              </p>
+              <p className="mem-desc">{hit.entry.description}</p>
+              <p className="mem-why">
+                {hit.why.map((reason) => (
+                  <span key={reason}>{reason}</span>
+                ))}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 
@@ -344,6 +439,54 @@ function ProposalList({
 /** Nenhum gesto aberto, o formulário de edição, ou a confirmação da recusa. */
 type ProposalGesture = "none" | "edit" | "reject";
 
+/**
+ * Duas memórias do **mesmo** escopo dizendo coisas diferentes.
+ *
+ * O shadow resolve o cruzamento de escopos — projeto vence workspace, e o perdedor
+ * fica no disco. Isto é outra coisa: no mesmo escopo não há precedência a aplicar,
+ * então é **bug de curadoria**, e a única resposta honesta é mostrar as duas e
+ * deixar você decidir. Nada de merge automático: concatenar dois textos produz um
+ * terceiro que ninguém escreveu e ninguém revisou.
+ *
+ * Não muda os botões, e isso é deliberado — aprovar já **substitui**, rejeitar já
+ * **mantém**. O que faltava não era ação, era ver o que vai ser perdido antes de
+ * clicar.
+ */
+function Conflict({
+  current,
+  proposal,
+}: {
+  current: NonNullable<Proposal["current"]>;
+  proposal: Proposal;
+}) {
+  return (
+    <div className="mem-conflict">
+      <p className="mem-conflict__t">
+        <span className="mem-warn">conflito no mesmo escopo</span>
+        já existe memória aqui — aprovar substitui
+      </p>
+      <div className="mem-split">
+        <div>
+          <strong>A que está valendo</strong>
+          <p className="mem-desc">{current.description}</p>
+          <p className="mem-meta">
+            <span>{ACTOR[current.sourceActor] ?? current.sourceActor}</span>
+            <span>confiança {CONFIDENCE[current.confidence] ?? current.confidence}</span>
+          </p>
+        </div>
+        <div>
+          <strong>A que chegou</strong>
+          <p className="mem-desc">{proposal.description}</p>
+          <p className="mem-meta">
+            <span>{ACTOR[proposal.actor] ?? proposal.actor}</span>
+            <span>{proposal.evidence === null ? "sem evidência" : "com evidência"}</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PendingProposal({ proposal }: { proposal: Proposal }) {
   const { approve, reject } = useResolveProposal();
   const [gesture, setGesture] = useState<ProposalGesture>("none");
@@ -358,6 +501,7 @@ function PendingProposal({ proposal }: { proposal: Proposal }) {
         {proposal.body === "" ? "(sem corpo — só nome e descrição)" : proposal.body}
       </pre>
       <Evidence proposal={proposal} />
+      {proposal.current === null ? null : <Conflict current={proposal.current} proposal={proposal} />}
 
       {gesture === "edit" ? (
         <EditAndApprove

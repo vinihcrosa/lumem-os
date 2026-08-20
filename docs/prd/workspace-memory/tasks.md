@@ -868,6 +868,50 @@ Então tudo aqui é contenção, e nada é negociável:
 
 ---
 
+## As duas telas que faltavam do S2
+
+O S2 desenhou seis telas; a PR 05 implementou quatro. As duas que ficaram foram fechadas depois da
+PR 09, e a segunda cobrou uma feature que ninguém tinha notado que faltava.
+
+#### T1: Conflito no mesmo escopo
+
+**Where**: `routers/memory.ts`, `components/MemoryPanel.tsx`, `memory.css` + testes
+
+**Done when**:
+- [x] A proposta que cairia **onde já existe memória** mostra as duas lado a lado
+- [x] Detecção por caminho, que é a identidade `(tipo, slug)` já resolvida
+- [x] **Nada de merge**: concatenar dois textos produz um terceiro que ninguém escreveu
+- [x] Os botões não mudam — aprovar já substitui, rejeitar já mantém. O que faltava não era ação, era
+      **ver o que vai ser perdido antes de clicar**
+- [x] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(web): o conflito no mesmo escopo, lado a lado`
+
+---
+
+#### T2: Estados vazios e degradados — e a busca que eles pressupunham
+
+**Where**: `hooks/useMemory.ts`, `components/MemoryPanel.tsx`, `memory.css`, Open Design + testes
+
+**O que o desenho revelou.** Dois dos quatro estados da galeria — *"busca não realizada"* e *"índice
+desatualizado"* — só existem **durante uma busca**, e a memória não tinha campo de busca em tela
+nenhuma. O `search` existia no daemon desde a PR 04 e nenhuma superfície gráfica o chamava. Então a
+tela dos estados degradados cobrou a busca, e ela foi desenhada no Open Design antes de existir aqui.
+
+**Done when**:
+- [x] Campo de busca na **primeira aba**, e não numa própria: é a mesma pergunta que a lista responde
+- [x] Cada achado mostra o **porquê** — o `WhyRecalled` do Compozy, sem o qual o resultado apareceu
+      por magia e ninguém consegue contestar a ordem
+- [x] "Busca não realizada" quando a pergunta é trivial: dizer que não buscou é diferente de dizer
+      que não achou
+- [x] "Índice desatualizado" como **sinal**, nunca recusa — o resultado vale, e pode estar curto
+- [x] Campo vazio volta para a lista agrupada, e **não** dispara busca
+- [x] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(web): buscar na memória, com o porquê de cada achado`
+
+---
+
 ## S1 — `wm/s1-sinais-de-acao`
 
 **O que entrega:** o registro cru dos quatro sinais que não dependem de cooperação. Nada aqui

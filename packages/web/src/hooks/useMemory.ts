@@ -13,6 +13,7 @@ import {
   memoryCoreKey,
   memoryListKey,
   memoryProposalsKey,
+  memorySearchKey,
   playbooksKey,
 } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
@@ -65,6 +66,31 @@ export function useProposals(status: ProposalStatus = "pending") {
   return useQuery({
     queryKey: memoryProposalsKey(status),
     queryFn: () => trpc.memory.proposals.query({ status }),
+  });
+}
+
+export type SearchResult = Awaited<ReturnType<typeof trpc.memory.search.query>>;
+
+/**
+ * A busca na memória — `query` vazia não busca nada.
+ *
+ * `enabled: false` com pergunta vazia, e não uma busca por `""`: o servidor
+ * recusaria, e a recusa apareceria como erro na tela de quem só apagou o campo.
+ */
+export function useMemorySearch(
+  filter: MemoryScopeFilter,
+  query: string,
+): UseQueryResult<SearchResult> {
+  const trimmed = query.trim();
+  return useQuery({
+    queryKey: memorySearchKey(filter.workspaceId, filter.projectId, trimmed),
+    queryFn: () =>
+      trpc.memory.search.query({
+        query: trimmed,
+        ...(filter.workspaceId ? { workspaceId: filter.workspaceId } : {}),
+        ...(filter.projectId ? { projectId: filter.projectId } : {}),
+      }),
+    enabled: trimmed !== "",
   });
 }
 

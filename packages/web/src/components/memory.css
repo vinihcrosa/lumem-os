@@ -265,3 +265,62 @@
 }
 .pb__act:hover:enabled { color: var(--color-text-secondary); border-color: var(--color-border-strong); }
 .pb__act:disabled { cursor: default; }
+
+/* Conflito no mesmo escopo, portado do `lumem-memory.css` do Open Design.
+
+   O shadow resolve cruzamento de escopos; isto é o mesmo escopo se contradizendo,
+   que é bug de curadoria. As duas lado a lado, e nada de merge: concatenar dois
+   textos produz um terceiro que ninguém escreveu. */
+.mem-conflict {
+  margin-top: var(--space-10); padding: var(--space-10);
+  background: var(--color-bg-inset); border-radius: var(--radius-md);
+}
+.mem-conflict__t {
+  display: flex; align-items: center; gap: var(--space-8);
+  font: var(--text-caption); color: var(--color-text-tertiary);
+}
+.mem-warn {
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs);
+  padding: var(--space-2) var(--space-6); border-radius: var(--radius-full);
+  background: var(--color-bg-warning-subtle); color: var(--color-text-warning);
+  white-space: nowrap;
+}
+/* Duas colunas quando cabe; uma quando o painel está em 360px — comparar em duas
+   colunas de 160px é pior que comparar em duas linhas.
+
+   O mínimo é o `--size-panel-right-min`, e não um token novo: ele é exatamente a
+   pergunta "qual é a largura mínima em que um texto deste painel ainda se lê", e
+   ela já tem resposta. Token novo nasce no Open Design, não aqui. */
+.mem-split {
+  display: grid; gap: var(--space-10); margin-top: var(--space-8);
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-panel-right-min), 1fr));
+}
+.mem-split strong { font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); color: var(--color-text-secondary); }
+
+/* Busca, portada do `lumem-memory.css` do Open Design.
+
+   O `why` de cada achado é o `WhyRecalled` do Compozy: sem ele o resultado é uma
+   lista que apareceu por magia, e ninguém consegue contestar a ordem. */
+.mem-find { padding: var(--space-8) var(--space-12); }
+.mem-find input {
+  width: 100%; box-sizing: border-box; min-width: 0;
+  padding: var(--space-6) var(--space-10);
+  font: var(--text-body-sm); color: var(--color-text-primary);
+  background: var(--color-bg-inset);
+  border: var(--border-width-thin) solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+.mem-find input::placeholder { color: var(--color-text-tertiary); }
+.mem-find input:focus-visible { border-color: var(--color-border-brand); }
+
+.mem-why {
+  font: var(--text-caption); color: var(--color-text-tertiary); margin-top: var(--space-2);
+  display: flex; gap: var(--space-6); flex-wrap: wrap;
+}
+.mem-why span { font: var(--text-mono-sm); }
+
+/* O índice atrasado é sinal, não recusa: o resultado vale, e pode estar curto. */
+.mem-stale {
+  margin: var(--space-8) var(--space-12) 0;
+  font: var(--text-caption); color: var(--color-text-warning);
+}

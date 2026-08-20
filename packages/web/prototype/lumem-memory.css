@@ -245,3 +245,29 @@ p.page-sub { color: var(--color-text-secondary); font: var(--text-body-sm); marg
   color: var(--color-text-tertiary); white-space: nowrap; cursor: pointer;
 }
 .pb-act:hover { color: var(--color-text-secondary); border-color: var(--color-border-strong); }
+
+/* -------------------- busca na memória --------------------
+
+   A busca vive na primeira aba porque é a mesma pergunta que a lista responde —
+   "o que existe" —, só com um filtro. Aba própria faria a pessoa escolher entre
+   navegar e procurar, quando as duas coisas são a mesma.
+
+   O `why` ao lado de cada achado é o `WhyRecalled` do Compozy: sem ele o
+   resultado é uma lista que apareceu por magia, e a explicabilidade era metade do
+   valor do recall. */
+.find { padding: var(--space-8) var(--space-12); }
+.find input {
+  width: 100%; box-sizing: border-box; min-width: 0;
+  padding: var(--space-6) var(--space-10);
+  font: var(--text-body-sm); color: var(--color-text-primary);
+  background: var(--color-bg-inset); border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+.find input::placeholder { color: var(--color-text-tertiary); }
+.find input:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--color-border-brand); }
+
+.why-line {
+  font: var(--text-caption); color: var(--color-text-tertiary); margin-top: var(--space-2);
+  display: flex; gap: var(--space-6); flex-wrap: wrap;
+}
+.why-line span { font: var(--text-mono-sm); }
