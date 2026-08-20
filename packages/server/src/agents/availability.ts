@@ -23,23 +23,38 @@ function isExecutable(candidate: string): boolean {
   }
 }
 
-export function isCommandAvailable(
+export function isCommandAvailable(command: string, options: AvailabilityOptions = {}): boolean {
+  return resolveCommandPath(command, options) !== null;
+}
+
+/**
+ * Where the command actually is, or `null`.
+ *
+ * The same walk `isCommandAvailable` always did, with the answer kept instead of
+ * thrown away — the onboarding preflight has to *show* the path, because
+ * "encontrado" and "encontrado em /opt/homebrew/bin" are different amounts of
+ * help when two versions of a CLI are installed and the wrong one is first.
+ */
+export function resolveCommandPath(
   command: string,
   { path = process.env["PATH"] }: AvailabilityOptions = {},
-): boolean {
+): string | null {
   const trimmed = command.trim();
-  if (trimmed === "") return false;
+  if (trimmed === "") return null;
 
   // A path rather than a name is not looked up: `./bin/agent` and `/usr/local/
   // bin/claude` mean exactly where they say.
   if (trimmed.includes("/")) {
-    return isAbsolute(trimmed) ? isExecutable(trimmed) : false;
+    if (!isAbsolute(trimmed)) return null;
+    return isExecutable(trimmed) ? trimmed : null;
   }
 
-  if (path === undefined || path === "") return false;
+  if (path === undefined || path === "") return null;
 
-  return path
-    .split(delimiter)
-    .filter((entry) => entry !== "")
-    .some((entry) => isExecutable(join(entry, trimmed)));
+  for (const entry of path.split(delimiter)) {
+    if (entry === "") continue;
+    const candidate = join(entry, trimmed);
+    if (isExecutable(candidate)) return candidate;
+  }
+  return null;
 }

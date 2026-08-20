@@ -7,6 +7,7 @@ import { eventsRouter } from "./events.js";
 import { filesRouter } from "./files.js";
 import { projectRouter } from "./project.js";
 import { sessionRouter } from "./session.js";
+import { setupRouter } from "./setup.js";
 import { workspaceRouter } from "./workspace.js";
 import { worktreeRouter } from "./worktree.js";
 
@@ -21,6 +22,7 @@ export const appRouter = router({
   files: filesRouter,
   project: projectRouter,
   session: sessionRouter,
+  setup: setupRouter,
   workspace: workspaceRouter,
   worktree: worktreeRouter,
 });
