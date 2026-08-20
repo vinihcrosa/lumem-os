@@ -556,14 +556,14 @@ derivável do repositório, e **dump de transcript**.
 **Where**: `memory/projection.ts` + teste
 
 **Done when**:
-- [ ] Nada de prosa: mensagem da pessoa e texto do agente **não** entram. Dump de transcript é o item
+- [x] Nada de prosa: mensagem da pessoa e texto do agente **não** entram. Dump de transcript é o item
       nomeado no §10 como coisa que nunca é capturada
-- [ ] Vem dos três eventos que o roadmap nomeia: `tool_call` (o que tocou), `usage_update` (o que
+- [x] Vem dos três eventos que o roadmap nomeia: `tool_call` (o que tocou), `usage_update` (o que
       custou), `turn_end` (quantos turnos, e como terminaram)
-- [ ] Teto duro: N arquivos e N comandos, os mais frequentes. Projeção que cresce com a sessão é a
+- [x] Teto duro: N arquivos e N comandos, os mais frequentes. Projeção que cresce com a sessão é a
       destilação ficando cara sem ninguém decidir
-- [ ] Caminho fica **relativo ao checkout** — caminho absoluto carrega o nome da máquina e da pessoa
-- [ ] Gate: `pnpm gate:quick`
+- [x] Caminho fica **relativo ao checkout** — caminho absoluto carrega o nome da máquina e da pessoa
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(memory): a projeção de uma sessão, sem uma linha de prosa`
 
