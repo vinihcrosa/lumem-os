@@ -1,6 +1,6 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Fechando o caminho de entrada, o [onboarding](prd/onboarding/prd.md) e o [agent-login](prd/agent-login/prd.md). E o harness passou a lembrar: a [workspace-memory](prd/workspace-memory/tasks.md) entrou por pilha de PRs — 01 a 05, S1 e S2 —, a primeira feature que não é de tela.
+Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Fechando o caminho de entrada, o [onboarding](prd/onboarding/prd.md) e o [agent-login](prd/agent-login/prd.md). E o harness passou a lembrar: a [workspace-memory](prd/workspace-memory/tasks.md) está **completa** — nove PRs, a primeira feature que não é de tela, e a única em que o sistema escreve sozinho (atrás de portão, inbox e interruptor desligado).
 
 > **Decisão de arquitetura, 2026-08-17:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por [ACP](project/pty-vs-acp.md)**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A feature [acp-sessions](prd/acp-sessions/prd.md) — transporte mais a tela da conversa — está **completa**: PRD escrito, spike rodado (autenticação e consumo medidos, janela de contexto parcial), protótipo renderizado em `packages/web/prototype/lumem-acp-conversation.html`, e as fases 1, 3, 4, 5 e 6 entregues — uma tarefa roda do começo ao fim sem terminal, fechar o daemon não perde a conversa, e o agente ACP se cria pela tela.
 
@@ -101,8 +101,8 @@ Sucede a `right-panel`. O split da aba **escreve**: editar o arquivo aberto com 
 
 ### [workspace-memory/](prd/workspace-memory/) — o harness lembra
 
-**Em pilha de PRs — 01 a 05, S1 e S2 integradas.** A primeira feature que não é de tela: memória
-compartilhada do workspace e aprendizado contínuo por projeto. É o pilar que dá sentido ao conceito de workspace — dois
+**Completa — nove PRs, mais o S1, o S2 e as duas telas que faltavam.** A primeira feature que não é
+de tela: memória compartilhada do workspace e aprendizado contínuo por projeto. É o pilar que dá sentido ao conceito de workspace — dois
 projetos que se conhecem. Foi ela que forçou a decisão do ACP: o daemon precisava entender a sessão,
 e por PTY ele só via bytes.
 
@@ -110,9 +110,9 @@ e por PTY ele só via bytes.
 |---|---|
 | [prd.md](prd/workspace-memory/prd.md) | As três naturezas do conhecimento, o que a decisão por ACP mudou, onde cada coisa vive, o portão de escrita, a fronteira cross-projeto, riscos |
 | [open-questions.md](prd/workspace-memory/open-questions.md) | 47 perguntas, **43 respondidas** — o registro de por que cada decisão foi tomada. As quatro abertas (Q38, Q39, Q44, Q46) saíram das revisões das PRs 01, 03 e 05; as quatro da seção J foram obrigadas pela implementação do portão, e a Q45 pelo ranking do recall |
-| [tasks.md](prd/workspace-memory/tasks.md) | Uma seção por PR da pilha. A **01, a 02 e o S1 têm tasks** e o que a execução achou; as demais têm escopo e `Done when` |
+| [tasks.md](prd/workspace-memory/tasks.md) | Uma seção por PR. Cada uma termina com a tabela do que ela **decidiu enquanto executava** — as decisões que o desenho não previu e que a implementação cobrou. É onde ler quando algo no código parecer arbitrário |
 | [roadmap.md](prd/workspace-memory/roadmap.md) | **A feature em pilha de PRs**: topologia de branches, as sete regras da pilha, as cinco partes da espinha, o que anda em paralelo e onde o ACP entra |
-| `packages/web/prototype/lumem-memory.html` | O protótipo do **S2**, verificado por renderização: o que existe no escopo ativo, a inbox, o conflito no mesmo escopo, a linha do tempo, os números, e os estados vazios e degradados. É ele que a PR 05 implementou |
+| `packages/web/prototype/lumem-memory.html` | O protótipo, agora com **sete telas** e vindo do Open Design como todos os outros: o que existe no escopo ativo (com busca), a inbox, o conflito no mesmo escopo, a linha do tempo, os números, os estados degradados e os playbooks. Era o único protótipo que vivia só neste repositório — anterior à regra de 2026-08-19 |
 | [context-delivery.md](prd/workspace-memory/context-delivery.md) | Como a memória chega no agente: **núcleo comportamental + skill + serviço `lumem-memory` com auto-learn**. O que o desenho compra, o que ele cobra, o que medir, e as **8 decisões (D1–D8)** |
 
 Quatro decisões já fechadas mudaram o desenho: **nenhuma memória vive dentro do repositório** (menos o
