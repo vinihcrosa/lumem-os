@@ -794,14 +794,14 @@ Então tudo aqui é contenção, e nada é negociável:
 **Where**: `memory/research.ts` + teste
 
 **Done when**:
-- [ ] **Profundidade 1**: o agente de pesquisa **não** tem a skill de memória, e não pode perguntar
+- [x] **Profundidade 1**: o agente de pesquisa **não** tem a skill de memória, e não pode perguntar
       ao `lumem-memory`. Sem isso existe loop, e o §5.4 nomeia
-- [ ] Timeout por pergunta: a sessão principal está esperando, e uma pergunta que sobe agente não pode
+- [x] Timeout por pergunta: a sessão principal está esperando, e uma pergunta que sobe agente não pode
       demorar o que um agente demora
-- [ ] Devolve estruturado, com **evidência separada** do corpo: é ela que decide direto × proposta
-- [ ] Falha, timeout e resposta fora do formato **degradam** para o que já existia — a busca lexical —
+- [x] Devolve estruturado, com **evidência separada** do corpo: é ela que decide direto × proposta
+- [x] Falha, timeout e resposta fora do formato **degradam** para o que já existia — a busca lexical —
       e o texto **diz** que degradou
-- [ ] Gate: `pnpm gate:quick`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(memory): a pergunta sem resposta sobe um agente, com profundidade 1`
 
@@ -813,11 +813,11 @@ Então tudo aqui é contenção, e nada é negociável:
 **Where**: `memory/evidence.ts` + teste
 
 **Done when**:
-- [ ] Aceita como evidência o que se pode **conferir**: caminho com linha, comando com saída
-- [ ] Recusa o que é conclusão — *"eu concluí"*, *"provavelmente"*, texto sem referência
-- [ ] Escopo de workspace é proposta **sempre**, tenha evidência ou não
-- [ ] Confiança baixa por padrão, e a memória nasce **marcada como não verificada**
-- [ ] Gate: `pnpm gate:quick`
+- [x] Aceita como evidência o que se pode **conferir**: caminho com linha, comando com saída
+- [x] Recusa o que é conclusão — *"eu concluí"*, *"provavelmente"*, texto sem referência
+- [x] Escopo de workspace é proposta **sempre**, tenha evidência ou não
+- [x] Confiança baixa por padrão, e a memória nasce **marcada como não verificada**
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(memory): o critério que separa fato de conclusão`
 
