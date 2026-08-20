@@ -23,9 +23,23 @@ type Transport = "pty" | "acp";
  * lie in the placement is named in A16: `agent_config` has no workspace, and the
  * footer does — a preferences screen would be the honest home, and it does not exist.
  */
-export function AgentConfigDialog() {
+export interface AgentConfigDialogProps {
+  /**
+   * Rendered already open, without its own trigger.
+   *
+   * True when it is embedded in the login panel, which is the only way in now:
+   * the footer's action is "conectar um agente", and this form is the drawer
+   * behind "outro agente ACP…" — a trigger of its own there would be a second
+   * button that opens what is already open.
+   */
+  embedded?: boolean;
+  /** Called when the embedded form is done with the panel. */
+  onClose?: () => void;
+}
+
+export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDialogProps = {}) {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(embedded);
 
   const configs = useQuery({
     queryKey: AGENT_CONFIGS_KEY,
@@ -233,7 +247,13 @@ export function AgentConfigDialog() {
             <Button type="submit" variant="primary" disabled={create.isPending || !complete}>
               {create.isPending ? "criando…" : "adicionar"}
             </Button>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                if (embedded) onClose?.();
+                else setOpen(false);
+              }}
+            >
               fechar
             </Button>
           </div>

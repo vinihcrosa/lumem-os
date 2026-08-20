@@ -51,10 +51,18 @@ beforeEach(() => {
   trpc.agentConfig.list.query.mockResolvedValue([]);
 });
 
-/** Opens the footer panel and returns it. */
+/**
+ * Opens the footer panel and returns it.
+ *
+ * Two clicks now, and the second one is the point: the footer's action became
+ * "conectar um agente", and this form is the drawer behind "outro agente ACP…" —
+ * the one path that still needs five fields, because it is for an adapter the
+ * daemon neither installs nor can name.
+ */
 async function panel() {
   renderWithProviders(<App />);
-  await userEvent.click(await screen.findByRole("button", { name: /agentes/ }));
+  await userEvent.click(await screen.findByRole("button", { name: /conectar um agente/ }));
+  await userEvent.click(await screen.findByRole("button", { name: /outro agente ACP/ }));
   return screen.getByRole("button", { name: "adicionar" }).closest(".agents") as HTMLElement;
 }
 
@@ -188,7 +196,15 @@ describe("adding one", () => {
     await waitFor(() =>
       expect(screen.getByText("eco", { selector: ".agents__name" })).toBeInTheDocument(),
     );
-    expect(trpc.agentConfig.list.query).toHaveBeenCalledTimes(2);
+    /*
+     * Asserted as an outcome, not as a call count.
+     *
+     * It used to count `list.query` at exactly two. The login panel is a third
+     * reader of the same key, and a number that changes when a component is added
+     * elsewhere was measuring the wiring instead of the promise. The promise is
+     * that the agent is on screen without a reload, which the line above checks.
+     */
+    expect(trpc.agentConfig.list.query).toHaveBeenCalled();
   });
 
   it("clears the form so the next one starts empty", async () => {

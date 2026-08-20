@@ -62,6 +62,10 @@ function createTrpcMock() {
       preflight: { query: vi.fn() },
       agents: { query: vi.fn() },
       probe: { query: vi.fn() },
+      // The two that write: the daemon installs the adapter, and runs the login
+      // command the adapter named.
+      installAdapter: { mutate: vi.fn() },
+      login: { mutate: vi.fn() },
     },
     session: {
       listByScope: { query: vi.fn() },
