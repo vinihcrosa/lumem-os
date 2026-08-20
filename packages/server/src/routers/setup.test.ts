@@ -103,3 +103,83 @@ describe("setup.probe", () => {
     expect(report.args).toEqual(["--stdio"]);
   });
 });
+
+describe("setup.login", () => {
+  function loginHarness(script: Parameters<typeof fakeAgentProcess>[0] = {}) {
+    const fake = fakeAgentProcess(script);
+    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+    context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") }, { acpManager });
+    return { fake, acpManager, ctx: context };
+  }
+
+  /** The two methods the real adapter offers, with the meta it offers them with. */
+  const TERMINAL_METHOD = {
+    id: "claude-ai-login",
+    name: "Claude Subscription",
+    description: "Use Claude subscription",
+    type: "terminal",
+    args: ["--cli"],
+    _meta: {
+      "terminal-auth": {
+        command: "/bin/echo",
+        args: ["logging", "in"],
+        label: "Claude Login",
+      },
+    },
+  };
+
+  it("runs the command the adapter named, in a terminal the daemon owns", async () => {
+    const { ctx } = loginHarness({ initialize: () => ({ authMethods: [TERMINAL_METHOD] }) });
+
+    const terminal = await ctx.api.setup.login({ methodId: "claude-ai-login" });
+
+    expect(terminal.command).toBe("/bin/echo");
+    expect(terminal.args).toEqual(["logging", "in"]);
+    // A PTY the client can attach to, and *not* a session: there is no scope it
+    // belongs to, and a row in `session` would be a conversation that never was.
+    expect(ctx.ptyManager.get(terminal.ptySessionId)).toBeDefined();
+    expect(await ctx.db.query.session.findMany()).toHaveLength(0);
+  });
+
+  it("refuses a method the adapter never offered", async () => {
+    // The client sends an id, never a command line. A client that could name the
+    // binary would be a client that can run anything on the daemon's machine.
+    const { ctx } = loginHarness({ initialize: () => ({ authMethods: [TERMINAL_METHOD] }) });
+
+    await expect(ctx.api.setup.login({ methodId: "rm-rf-login" })).rejects.toThrow(
+      /não oferece o método/,
+    );
+  });
+
+  it("refuses a method it cannot execute, and says which kind it was", async () => {
+    const { ctx } = loginHarness({
+      initialize: () => ({
+        authMethods: [{ id: "gateway", name: "Custom gateway", type: "agent" }],
+      }),
+    });
+
+    await expect(ctx.api.setup.login({ methodId: "gateway" })).rejects.toThrow(/tipo agent/);
+  });
+
+  it("refuses a terminal method the adapter gave no command for", async () => {
+    const { ctx } = loginHarness({
+      initialize: () => ({
+        authMethods: [{ id: "claude-login", name: "Log in", type: "terminal", args: ["--cli"] }],
+      }),
+    });
+
+    await expect(ctx.api.setup.login({ methodId: "claude-login" })).rejects.toThrow(
+      /não disse qual comando rodar/,
+    );
+  });
+});
+
+describe("setup.installAdapter", () => {
+  it("is a mutation, because it downloads and writes", async () => {
+    // Asserted on the router rather than on the installer: what matters here is
+    // that a browser cannot fire it with a GET, which is what a query would allow.
+    context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") });
+
+    expect(typeof context.api.setup.installAdapter).toBe("function");
+  });
+});

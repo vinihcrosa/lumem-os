@@ -23,6 +23,8 @@ export interface BinaryReport {
   versionNote: string | null;
   /** The command that installs it, for the one that has an unambiguous one. */
   install: string | null;
+  /** True when this is the copy the daemon installed, not one from the PATH. */
+  managed: boolean;
 }
 
 export interface AgentsReport {
@@ -42,6 +44,14 @@ export interface AgentsOptions {
   path?: string | undefined;
   env?: Record<string, string | undefined>;
   run?: CommandRunner;
+  /**
+   * Where the daemon installs the adapter, checked before the PATH.
+   *
+   * Before, deliberately: a machine where the daemon installed it has no reason to
+   * also have it globally, and finding a stale global copy first would report a
+   * version the daemon is not the one running.
+   */
+  installedAt?: string | undefined;
 }
 
 /** `2.0.14 (Claude Code)` → `2.0.14`; anything shapeless comes back whole. */
@@ -55,12 +65,15 @@ export function parseVersion(output: string): string | null {
 async function inspect(
   command: string,
   install: string | null,
-  { path, run }: { path: string | undefined; run: CommandRunner },
+  { path, run, preferred }: { path: string | undefined; run: CommandRunner; preferred?: string | undefined },
 ): Promise<BinaryReport> {
-  const resolved = resolveCommandPath(command, { path });
+  const resolved =
+    preferred !== undefined && resolveCommandPath(preferred, { path }) !== null
+      ? preferred
+      : resolveCommandPath(command, { path });
 
   if (resolved === null) {
-    return { command, path: null, version: null, versionNote: null, install };
+    return { command, path: null, managed: false, version: null, versionNote: null, install };
   }
 
   const outcome = await run(resolved, ["--version"]);
@@ -69,6 +82,7 @@ async function inspect(
   return {
     command,
     path: resolved,
+    managed: preferred !== undefined && resolved === preferred,
     version,
     // A binary that is there but will not say what it is stays usable: the
     // probe is what answers the question that matters.
@@ -81,10 +95,11 @@ export async function detectAgents({
   path = process.env["PATH"],
   env = process.env,
   run = runCommand,
+  installedAt,
 }: AgentsOptions = {}): Promise<AgentsReport> {
   const [claude, adapter] = await Promise.all([
     inspect(CLAUDE_CLI_COMMAND, null, { path, run }),
-    inspect(ACP_ADAPTER_COMMAND, ACP_ADAPTER_INSTALL, { path, run }),
+    inspect(ACP_ADAPTER_COMMAND, ACP_ADAPTER_INSTALL, { path, run, preferred: installedAt }),
   ]);
 
   const key = env[ANTHROPIC_API_KEY_ENV];
