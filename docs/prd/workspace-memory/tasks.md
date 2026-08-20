@@ -2,8 +2,11 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) · **Entrega de contexto:** [context-delivery.md](context-delivery.md)
 **Roadmap:** [roadmap.md](roadmap.md) — este arquivo é a execução da pilha descrita lá
-**Status:** **01 a 04, S1 e S2 mergeadas**; a **05** é o topo da pilha e está em revisão. Portão verde
-no topo: `gate:full` com **1.318 unit/integration + 16 e2e**
+**Status:** **feature completa.** As nove PRs, o S1, o S2 e as duas telas que faltavam estão na `main`.
+Portão verde: `gate:full` com **2.198 unit/integration + 34 e2e**.
+
+Cada PR tem, ao fim das suas tasks, a tabela do que ela **decidiu enquanto executava** — as decisões
+que o desenho não previu e que a implementação cobrou. É onde ler quando algo aqui parecer arbitrário.
 
 ---
 

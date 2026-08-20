@@ -1,7 +1,10 @@
 # PRD — Memória de workspace e aprendizado contínuo
 
-> **Status:** v0.4 — desenho fechado e decomposto em pilha de PRs. **PR 01 com tasks**; 02–05, S1 e
-> S2 com escopo e `Done when`
+> **Status:** v0.5 — **feature completa e entregue.** As nove PRs mais o S1 e o S2 estão na `main`,
+> com as tasks e as decisões de execução em [tasks.md](tasks.md). O que ficou de fora está no
+> [backlog](../../project/backlog.md) com gatilho: o `references/` do playbook, o índice de regras com
+> carregamento sob demanda, e a capacidade de o serviço **ler os repositórios** (D8), cujo funil já
+> existe desligado
 > **Perguntas:** [open-questions.md](open-questions.md) — 38, **todas respondidas**. Mais as **8
 > decisões de entrega de contexto (D1–D8), todas respondidas**
 > **Execução:** [roadmap.md](roadmap.md) — a feature decomposta em pilha de PRs
@@ -14,7 +17,7 @@
 > **Estudo derivado:** [PTY × ACP](../../project/pty-vs-acp.md), onde a decisão está registrada
 > **Referências:** [compozy](../../references/compozy.md) §5 · [hermes](../../references/hermes.md) §3–5
 > **Perguntas do projeto que esta feature responde:** [Q016–Q021](../../project/questions.md) e [Q050–Q066](../../project/questions.md)
-> **Sucede:** [file-editor](../file-editor/prd.md) · **Depende de:** [acp-sessions](../acp-sessions/prd.md) (PRD escrito, spike rodado) nas fases 4–6
+> **Sucede:** [file-editor](../file-editor/prd.md) · **Depende de:** [acp-sessions](../acp-sessions/prd.md) — **completa**, e é o que destravou as fases 4–6
 
 ---
 
@@ -522,8 +525,8 @@ Esta é a ordem de **risco**, e ela precede a decomposição. Quem vai executar 
 | **2** | Recall lexical (FTS5) com tool de busca, com sinal de uso **e a instrumentação do [§6 do context-delivery](context-delivery.md)** | Faz a memória grande valer a pena, é insumo de toda poda futura, e é o que permite decidir as camadas com dado em vez de palpite | não |
 | **3** | Inbox de propostas + UI de revisão — inclusive a revisão do **núcleo** destilado ([D1](context-delivery.md)) | Destrava a memória de workspace escrita por agente, e o núcleo é o texto de maior alcance do sistema | não |
 | **4** | Injeção no `session/prompt` + MCP declarado no `session/new` | Primeiro valor real dentro da sessão | **sim** — **entregue** pela PR 06, com HTTP no lugar do MCP ([por quê](tasks.md)) |
-| **5** | Captura estrutural: fim de turno, `tool_call`, `usage_update` | O que a decisão por ACP comprou — e só faz sentido com o portão da fase 1 provado | **sim** |
-| **6** | Playbooks com ciclo de vida por uso | A segunda natureza, depois que a primeira estiver de pé | parcial (medir uso é melhor com ACP) |
+| **5** | Captura estrutural: fim de turno, `tool_call`, `usage_update` | O que a decisão por ACP comprou — e só faz sentido com o portão da fase 1 provado | **sim** — **entregue** pela PR 07 |
+| **6** | Playbooks com ciclo de vida por uso | A segunda natureza, depois que a primeira estiver de pé | parcial (medir uso é melhor com ACP) — **entregue** pela PR 09 |
 
 **A reordenação é consequência direta da decisão por ACP.** As três primeiras fases foram escolhidas
 por serem exatamente o que **não** espera a feature de transporte — assim a memória avança enquanto
