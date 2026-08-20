@@ -7,7 +7,18 @@ name: CI
 # que sai de outra feature ainda não mergeada — passava sem CI nenhum, e ninguém
 # via, porque a ausência de check não é vermelho: é silêncio. Foi assim que 50
 # commits de escrita em disco chegaram a uma PR sem nunca ter rodado em Linux.
-on: pull_request
+#
+# E `pull_request` sozinho tem o mesmo buraco por outra porta: **push direto em
+# `main` não rodava nada**. Aconteceu — 113 commits de duas pilhas integradas
+# subiram por fast-forward, verificados só em macOS, e o histórico deste arquivo
+# diz por que isso importa: as armadilhas de `testing.md` que dizem "por que
+# passava no macOS" são exatamente as que só o Linux acha.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Para poder verificar `main` sob demanda sem inventar um commit vazio.
+  workflow_dispatch:
 
 # Um push novo na mesma PR cancela o run anterior: o resultado do commit
 # anterior não interessa a ninguém depois que ele deixou de ser o topo.
