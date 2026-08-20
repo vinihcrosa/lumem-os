@@ -25,52 +25,27 @@ beforeEach(() => {
   trpc.project.listByWorkspace.query.mockResolvedValue([]);
 });
 
-describe("first run", () => {
-  it("asks for a workspace and shows nothing else", async () => {
-    // PRD §5: "a tela de criação e nada mais". Everything below is scoped to a
-    // workspace, so an empty sidebar would present a broken app.
+describe("first access", () => {
+  it("hands an empty machine the flow, not the app", async () => {
+    // PRD §5 still holds — everything below is scoped to a workspace, so an empty
+    // sidebar would present a broken app. What changed is what fills the screen
+    // instead: the whole first-access flow, not a single field.
     renderWithProviders(<App />);
 
-    expect(await screen.findByLabelText("Nome do workspace")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /O daemon já está rodando/ }),
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText("Workspace")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("árvore de projetos")).not.toBeInTheDocument();
   });
 
-  it("creates the first workspace and moves on", async () => {
-    const user = userEvent.setup();
-    trpc.workspace.create.mutate.mockImplementation(async ({ name }: { name: string }) => {
-      const created = workspace("w1", name);
-      trpc.workspace.list.query.mockResolvedValue([created]);
-      return created;
-    });
+  it("does not show the flow to a machine that already has a workspace", async () => {
+    trpc.workspace.list.query.mockResolvedValue([workspace("w1", "pessoal")]);
 
     renderWithProviders(<App />);
-    await user.type(await screen.findByLabelText("Nome do workspace"), "pessoal");
-    await user.click(screen.getByRole("button", { name: "criar workspace" }));
 
     expect(await screen.findByLabelText("Workspace")).toHaveValue("w1");
-  });
-
-  it("shows the daemon's refusal instead of failing silently", async () => {
-    const user = userEvent.setup();
-    trpc.workspace.create.mutate.mockRejectedValue(
-      new Error('já existe um workspace chamado "pessoal"'),
-    );
-
-    renderWithProviders(<App />);
-    await user.type(await screen.findByLabelText("Nome do workspace"), "pessoal");
-    await user.click(screen.getByRole("button", { name: "criar workspace" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      'já existe um workspace chamado "pessoal"',
-    );
-  });
-
-  it("refuses to submit an empty name without asking the daemon", async () => {
-    renderWithProviders(<App />);
-
-    expect(await screen.findByRole("button", { name: "criar workspace" })).toBeDisabled();
-    expect(trpc.workspace.create.mutate).not.toHaveBeenCalled();
+    expect(screen.queryByRole("heading", { name: /O daemon já está rodando/ })).not.toBeInTheDocument();
   });
 });
 

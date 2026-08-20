@@ -14,6 +14,8 @@ export interface WorktreePanelProps {
   projectId: string;
   workspaceName: string;
   onRemoved: () => void;
+  /** Passed through to the tabs: a session to open on arrival, once. */
+  openSessionId?: string | undefined;
 }
 
 /** Branch, path, cleanliness and distance from the base — F4.10 — plus its tabs. */
@@ -22,6 +24,7 @@ export function WorktreePanel({
   projectId,
   workspaceName,
   onRemoved,
+  openSessionId,
 }: WorktreePanelProps) {
   const queryClient = useQueryClient();
   const [confirmingForce, setConfirmingForce] = useState(false);
@@ -68,6 +71,7 @@ export function WorktreePanel({
     <ScopePanel
       scope={scope}
       cwd={path}
+      openSessionId={openSessionId}
       header={
         <>
           <nav className="crumb">

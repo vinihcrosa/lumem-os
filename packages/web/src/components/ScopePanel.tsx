@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { useAwaitingPermission } from "../hooks/useAwaitingPermission.js";
 import { useOpenFiles, tabKey } from "../hooks/useOpenFiles.js";
@@ -25,6 +25,15 @@ export interface ScopePanelProps {
   context: ReactNode;
   /** Where a session launched here will run. */
   cwd: string;
+  /**
+   * A session to bring to the front, once, when it shows up.
+   *
+   * The first-access flow promises "criar e abrir a conversa", and landing on the
+   * context tab would break that promise on the one screen where it was made.
+   * One-shot on purpose: after that first arrival, which tab is in front is the
+   * user's business.
+   */
+  openSessionId?: string | undefined;
 }
 
 /**
@@ -34,12 +43,22 @@ export interface ScopePanelProps {
  * session does not change the branch, the path, or whether the tree is dirty.
  * Switching tabs must not make that information move.
  */
-export function ScopePanel({ scope, header, context, cwd }: ScopePanelProps) {
+export function ScopePanel({ scope, header, context, cwd, openSessionId }: ScopePanelProps) {
   const queryClient = useQueryClient();
   const { tabs, activeId, select, close, reopen, resume, resuming, sessions } =
     useWorktreeTabs(scope);
   const awaiting = useAwaitingPermission();
   const openFiles = useOpenFiles();
+
+  // Once, and only when the tab exists: the session is created a round trip
+  // before the list that turns it into a tab arrives.
+  const opened = useRef(false);
+  useEffect(() => {
+    if (openSessionId === undefined || opened.current) return;
+    if (!tabs.some((tab) => tab.sessionId === openSessionId)) return;
+    opened.current = true;
+    select(openSessionId);
+  }, [openSessionId, tabs, select]);
 
   // The column opens files into whichever tab is in front, so the tab has to
   // say which one that is. Nothing else in the shell knows.

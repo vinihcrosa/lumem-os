@@ -1,0 +1,146 @@
+/*
+ * Primeiro acesso — portado de `packages/web/prototype/lumem-onboarding.css`.
+ *
+ * Só o que é desta tela. Os componentes compartilhados — `wizard`, `steps`,
+ * `ck`, `choice`, `copy`, `coach`, `recap` — vivem em `ui/ui.css`, porque é o
+ * mesmo corte que o Open Design fez entre `lumem-ds.css` e este arquivo
+ * (decisão D1 de `docs/prd/onboarding/tasks.md`).
+ *
+ * As classes vêm do protótipo com o mesmo nome: divergência aqui é bug de
+ * porte, e `setup-css.test.ts` reprova nas duas direções — classe pedida que
+ * não existe, e classe definida que ninguém pede.
+ *
+ * Nenhum literal de cor, espaço ou tipografia — só `var()`.
+ */
+
+/*
+ * A casca do fluxo, e a única divergência deliberada do protótipo.
+ *
+ * Lá o `.flow` desenha a própria topbar, porque o arquivo é uma tela solta. Aqui
+ * o `App` já a desenhou, e o fluxo é só o corpo que rola debaixo dela — repetir
+ * a topbar daria duas.
+ */
+.flow {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--color-bg-base);
+}
+
+/*
+ * O `<form>` que faz `⏎` funcionar, sem virar uma caixa no layout.
+ *
+ * `StepShell` envolve o cartão num formulário de propósito — é o que dá a `⏎` o
+ * significado nativo de "avançar" sem um listener que dispararia duas vezes com
+ * o foco num botão. Aqui ele só repassa a largura para o cartão.
+ */
+.wizard__form { display: grid; justify-items: center; width: 100%; min-width: 0; }
+
+/* Três frases na boas-vindas — o que o produto é, antes de pedir qualquer coisa. */
+.tri {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-12);
+  width: 100%;
+  text-align: left;
+}
+.tri__i {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  padding: var(--space-12);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+.tri__g { font-size: var(--size-icon-md); line-height: 1; }
+.tri__t { font: var(--text-label-md); color: var(--color-text-primary); text-wrap: balance; }
+.tri__d { font: var(--text-body-sm); color: var(--color-text-tertiary); }
+
+/* Linha "avançado": o caminho do binário existe, mas não abre o passo. */
+.adv {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  min-height: var(--size-row-cozy);
+  padding: var(--space-4) var(--space-10);
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-md);
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+  text-align: left;
+}
+.adv__k {
+  flex: none;
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+}
+.adv__v {
+  flex: 1;
+  min-width: 0;
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* O handshake literal — é o que o daemon trocou, sem tradução. */
+.wire {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-10) var(--space-12);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-md);
+  font: var(--text-mono-sm);
+  font-variant-ligatures: none;
+}
+.wire__l {
+  display: flex;
+  min-width: 0;
+  gap: var(--space-8);
+  color: var(--color-text-code);
+  overflow-wrap: anywhere;
+}
+.wire__d { flex: none; width: var(--size-icon-md); text-align: center; }
+.wire__d--out { color: var(--color-turn-user); }
+.wire__d--in { color: var(--color-turn-agent); }
+.wire__c { min-width: 0; }
+
+/* Fim do fluxo: onde as coisas ficam, que é o que se procura em seguida. */
+.keys { display: grid; gap: var(--space-2); width: 100%; min-width: 0; text-align: left; }
+.key {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: var(--size-row-cozy);
+  padding: var(--space-4) var(--space-10);
+  border-radius: var(--radius-sm);
+}
+.key:nth-child(odd) { background: var(--color-bg-surface); }
+.key__k {
+  flex: none;
+  width: calc(var(--space-64) + var(--space-16));
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+}
+.key__d { min-width: 0; font: var(--text-body-sm); color: var(--color-text-secondary); }
+.key .dim { color: var(--color-text-tertiary); }
+
+/*
+ * O rodapé do cartão empurra a dica para a direita.
+ *
+ * Escopado, não utilitário: `conversation.css` já registrou por que este app não
+ * tem um `.spacer` global.
+ */
+.wizard__foot .spacer { flex: 1; }
+
+/* O "voltar ao fluxo" do recibo: link dentro de uma linha de texto. */
+.key__link { color: var(--color-text-link); text-decoration: underline; }
+
+@media (max-width: 900px) {
+  .tri { grid-template-columns: 1fr; }
+}

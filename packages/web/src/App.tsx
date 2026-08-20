@@ -1,10 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AddProjectDialog } from "./components/AddProjectDialog.js";
 import { AgentConfigDialog } from "./components/AgentConfigDialog.js";
 import { CheckoutFiles } from "./components/CheckoutFiles.js";
-import { FirstRun } from "./components/FirstRun.js";
 import { LocalPanel } from "./components/LocalPanel.js";
 import { SidebarTree } from "./components/SidebarTree.js";
 import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
@@ -18,6 +17,7 @@ import type { Scope } from "./hooks/useSessionsByScope.js";
 import { useTreeExpansion } from "./hooks/useTreeExpansion.js";
 import { AppShell } from "./layout/AppShell.js";
 import { Topbar } from "./layout/Topbar.js";
+import { SetupFlow } from "./setup/SetupFlow.js";
 import { WORKSPACES_KEY } from "./lib/queryKeys.js";
 import { trpc } from "./lib/trpc.js";
 import { Banner, Skeleton } from "./ui/index.js";
@@ -38,6 +38,18 @@ type Selection = { projectId: string; scope: Scope } | null;
 export function App() {
   const queryClient = useQueryClient();
   const [selection, setSelection] = useState<Selection>(null);
+  /**
+   * Whether the first-access flow is on screen.
+   *
+   * `null` until the workspace list has answered once, and then decided **once**:
+   * derived state would be wrong here, because the flow creates the workspace at
+   * step 3 and would then unmount itself two steps before the end (onboarding
+   * F1.3). No flag on disk either (D2) — what answers "already set up?" is a
+   * workspace existing, which is exactly what this reads.
+   */
+  const [setupOpen, setSetupOpen] = useState<boolean | null>(null);
+  /** A session the setup flow opened, for the tabs to bring to the front once. */
+  const [openSessionId, setOpenSessionId] = useState<string | undefined>(undefined);
   const expansion = useTreeExpansion();
   const rightPanel = useRightPanel();
 
@@ -58,6 +70,11 @@ export function App() {
   });
 
   const { activeId, select } = useActiveWorkspace(workspaces.data ?? []);
+
+  useEffect(() => {
+    if (setupOpen !== null || !workspaces.isSuccess) return;
+    setSetupOpen(workspaces.data.length === 0);
+  }, [setupOpen, workspaces.isSuccess, workspaces.data]);
 
   // F3.7: the daemon pushes, the sidebar follows. Everything below still polls
   // as a backstop, but this is what makes a change show up at once.
@@ -111,13 +128,38 @@ export function App() {
       );
     }
 
-    // PRD §5: no workspace, no app. Everything below is scoped to one.
-    if (workspaces.data.length === 0 || activeId === null) {
+    // Waiting on the one decision that cannot be derived (see `setupOpen`).
+    if (setupOpen === null) {
       return (
-        <FirstRun
-          onCreated={async (id) => {
+        <div className="pane">
+          <Skeleton label="conectando ao daemon" />
+        </div>
+      );
+    }
+
+    // PRD §5: no workspace, no app. What used to be `FirstRun` — one field and a
+    // button — is the whole first-access flow now, and it is the only way in.
+    if (setupOpen || workspaces.data.length === 0 || activeId === null) {
+      return (
+        <SetupFlow
+          daemonVersion={health.data?.version ?? null}
+          daemonUnreachable={health.isError}
+          onFinish={async (result) => {
             await queryClient.invalidateQueries({ queryKey: WORKSPACES_KEY });
-            select(id);
+            if (result.workspaceId !== undefined) select(result.workspaceId);
+            // Land on what was created, not on "selecione uma worktree": the
+            // flow just made the thing the person came here to use.
+            setOpenSessionId(result.sessionId);
+            if (result.projectId !== undefined) {
+              setSelection({
+                projectId: result.projectId,
+                scope:
+                  result.worktreeId === undefined
+                    ? { scopeType: "project", scopeId: result.projectId }
+                    : { scopeType: "worktree", scopeId: result.worktreeId },
+              });
+            }
+            setSetupOpen(false);
           }}
         />
       );
@@ -221,6 +263,7 @@ export function App() {
           key={scope.scopeId}
           worktreeId={scope.scopeId}
           projectId={projectId}
+          openSessionId={openSessionId}
           workspaceName={workspaceName}
           onRemoved={() =>
             setSelection({

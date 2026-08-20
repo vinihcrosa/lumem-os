@@ -21,6 +21,10 @@ function createTrpcMock() {
     project: {
       listByWorkspace: { query: vi.fn() },
       get: { query: vi.fn() },
+      // A query, and it stays one: the flow shows what the daemon read *before*
+      // anything is registered, and a mock that made it a mutation would hide the
+      // one property that matters about it.
+      inspect: { query: vi.fn() },
       add: { mutate: vi.fn() },
       rename: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
@@ -28,6 +32,7 @@ function createTrpcMock() {
     worktree: {
       listByProject: { query: vi.fn() },
       getDetail: { query: vi.fn() },
+      plan: { query: vi.fn() },
       create: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
     },
@@ -51,6 +56,12 @@ function createTrpcMock() {
     changes: {
       list: { query: vi.fn() },
       patch: { query: vi.fn() },
+    },
+    /** The three reads of the first-access flow. All queries; it writes nothing. */
+    setup: {
+      preflight: { query: vi.fn() },
+      agents: { query: vi.fn() },
+      probe: { query: vi.fn() },
     },
     session: {
       listByScope: { query: vi.fn() },
