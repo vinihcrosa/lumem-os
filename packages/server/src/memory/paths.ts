@@ -65,6 +65,78 @@ function assertNeverScope(scope: never): never {
   throw new DomainError("INVALID_ARGUMENT", `escopo inválido: ${String(scope)}`);
 }
 
+/**
+ * O diretório de um playbook, absoluto — um diretório por playbook.
+ *
+ * Diretório e não arquivo solto desde o primeiro dia, porque o `references/` do
+ * §9 vai morar ao lado do `PLAYBOOK.md`. Mudar isso depois seria migrar o disco
+ * de quem já usa, por um detalhe que era barato acertar agora.
+ */
+export function playbookDirFor(stateDir: string, target: ScopeTarget, slug: string): string {
+  if (target.scope === "global") {
+    throw new DomainError(
+      "INVALID_ARGUMENT",
+      "playbook não tem escopo global: procedimento é de um repositório ou de um time",
+    );
+  }
+  return join(scopeDirFor(stateDir, target), "playbooks", assertSlug(slug));
+}
+
+/** O `PLAYBOOK.md` de um playbook, absoluto. */
+export function playbookPathFor(stateDir: string, target: ScopeTarget, slug: string): string {
+  return join(playbookDirFor(stateDir, target, slug), PLAYBOOK_FILE);
+}
+
+export const PLAYBOOK_FILE = "PLAYBOOK.md";
+
+/** A raiz de um escopo, sem o `memory/` no fim. */
+function scopeDirFor(stateDir: string, target: ScopeTarget): string {
+  switch (target.scope) {
+    case "global":
+      return stateDir;
+    case "workspace":
+      return join(stateDir, "workspaces", requireId(target.workspaceId, "workspaceId"));
+    case "project":
+      return join(
+        stateDir,
+        "workspaces",
+        requireId(target.workspaceId, "workspaceId"),
+        "projects",
+        requireId(target.projectId, "projectId"),
+      );
+    default:
+      return assertNeverScope(target.scope);
+  }
+}
+
+const SLUG_ONLY = /^[a-z0-9-]{1,80}$/;
+
+function assertSlug(slug: string): string {
+  if (!SLUG_ONLY.test(slug)) {
+    throw new DomainError("INVALID_ARGUMENT", `slug inválido: ${slug}`);
+  }
+  return slug;
+}
+
+/**
+ * A forma exata do caminho de um playbook.
+ *
+ * O mesmo raciocínio do `ENTRY_PATH`: o caminho vem do cliente e vira pathspec de
+ * git, então a contenção é por forma, com charset fechado.
+ */
+const PLAYBOOK_PATH = new RegExp(
+  `^workspaces/${ID_SEGMENT}(?:/projects/${ID_SEGMENT})?/playbooks/[a-z0-9-]{1,80}/${PLAYBOOK_FILE}$`,
+);
+
+/** Devolve o caminho quando ele é o de um playbook; estoura quando não é. */
+export function assertPlaybookPath(path: string): string {
+  const normalized = path.split(sep).join("/");
+  if (!PLAYBOOK_PATH.test(normalized)) {
+    throw new DomainError("INVALID_ARGUMENT", `${path} não é caminho de playbook`);
+  }
+  return normalized;
+}
+
 /** O arquivo de uma memória, absoluto. */
 export function entryPathFor(
   stateDir: string,

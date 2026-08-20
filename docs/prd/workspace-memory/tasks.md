@@ -660,13 +660,13 @@ opt-out ortogonal; e (Q14) **fonte única no Lumem, projeção por CLI**.
 **Where**: `memory/playbook.ts`, `memory/paths.ts`, `db/schema.ts`, migração + testes
 
 **Done when**:
-- [ ] Arquivo em `<escopo>/playbooks/<slug>/PLAYBOOK.md`. Diretório por playbook desde já, porque o
+- [x] Arquivo em `<escopo>/playbooks/<slug>/PLAYBOOK.md`. Diretório por playbook desde já, porque o
       `references/` do §9 vai morar ao lado — e mudar o caminho depois é migrar disco de gente
-- [ ] Nomeado por **classe de tarefa**: o campo existe, e a validação recusa nome que é artefato de
+- [x] Nomeado por **classe de tarefa**: o campo existe, e a validação recusa nome que é artefato de
       sessão (`#123`, `PR 412`)
-- [ ] Passa pelo **mesmo portão** da memória: scan de segredo, decisão no WAL, commit no `~/.lumem`
-- [ ] Escopo `project` ou `workspace`, nunca `global`: procedimento é de um repositório ou de um time
-- [ ] Gate: `pnpm gate:quick`
+- [x] Passa pelo **mesmo portão** da memória: scan de segredo, decisão no WAL, commit no `~/.lumem`
+- [x] Escopo `project` ou `workspace`, nunca `global`: procedimento é de um repositório ou de um time
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(memory): o playbook, com corpo e ciclo de vida próprios`
 
@@ -678,13 +678,13 @@ opt-out ortogonal; e (Q14) **fonte única no Lumem, projeção por CLI**.
 **Where**: `memory/playbook.ts` + teste
 
 **Done when**:
-- [ ] `stale` é **derivado**, não gravado: dias sem carregamento. Estado calculado não desatualiza
-- [ ] `archived` só por gesto seu. *"Nada é arquivado automaticamente"* (§9) — a subcontagem da
+- [x] `stale` é **derivado**, não gravado: dias sem carregamento. Estado calculado não desatualiza
+- [x] `archived` só por gesto seu. *"Nada é arquivado automaticamente"* (§9) — a subcontagem da
       telemetria (Q16) é a razão, e ela não tem cura
-- [ ] Arquivar **não apaga**, e carregar reativa: o arquivo continua no disco e no git
-- [ ] `pinned` é opt-out ortogonal — playbook fixado não envelhece, porque envelhecer é o que
+- [x] Arquivar **não apaga**, e carregar reativa: o arquivo continua no disco e no git
+- [x] `pinned` é opt-out ortogonal — playbook fixado não envelhece, porque envelhecer é o que
       acontece com o que ninguém escolheu
-- [ ] Gate: `pnpm gate:quick`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(memory): o ciclo de vida do playbook, sem arquivar nada sozinho`
 

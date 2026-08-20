@@ -457,6 +457,53 @@ export const memoryUsage = sqliteTable("memory_usage", {
 });
 
 /**
+ * O playbook — procedimento, e **não** memória (§6 e §9 do PRD).
+ *
+ * Tabela própria porque a diferença não é de tipo, é de natureza: memória é fato
+ * ou diretriz, e vale por si; playbook é procedimento, tem corpo, é carregado sob
+ * demanda e **envelhece por uso**. Nada na memória tem ciclo de vida, e nada no
+ * playbook precisa de precedência por escopo.
+ *
+ * Como no catálogo de memórias, a linha é **projeção**: a verdade é o
+ * `PLAYBOOK.md` no `~/.lumem`, e esta tabela existe para as perguntas que arquivo
+ * não responde — "quais estão parados", "qual foi carregado mais vezes".
+ *
+ * A telemetria mora aqui e não num sidecar em disco (o §9 dizia sidecar): dois
+ * arquivos por playbook, um versionado e outro mudando a cada carregamento,
+ * produziriam commit a cada uso — e o `~/.lumem` é um repositório git.
+ */
+export const playbook = sqliteTable(
+  "playbook",
+  {
+    id: text("id").primaryKey(),
+    /** Relativo ao `~/.lumem`, com barra. */
+    path: text("path").notNull().unique(),
+    scope: text("scope").notNull(),
+    slug: text("slug").notNull(),
+    workspaceId: text("workspace_id").notNull().default(""),
+    projectId: text("project_id").notNull().default(""),
+    /** A **classe de tarefa**: "investigar teste flaky", nunca "consertar o PR 412". */
+    taskClass: text("task_class").notNull(),
+    description: text("description").notNull(),
+    /** Fixado por você: não envelhece. O opt-out ortogonal do §9. */
+    pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
+    /** Arquivado — **só por gesto seu**, nunca automático. */
+    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    /** Quantas vezes foi carregado. Subcontagem aceita (Q16). */
+    loads: integer("loads").notNull().default(0),
+    lastLoadedAt: integer("last_loaded_at", { mode: "timestamp_ms" }),
+    contentHash: text("content_hash").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    // Procedimento é de um repositório ou de um time. `global` seria "como eu
+    // trabalho em qualquer lugar", e isso é `user` — memória, não playbook.
+    check("playbook_scope", sql`${table.scope} IN ('workspace', 'project')`),
+    uniqueIndex("playbook_identity").on(table.scope, table.workspaceId, table.projectId, table.slug),
+  ],
+);
+
+/**
  * A inbox de propostas (Q27).
  *
  * Escrita de **workspace** feita por agente não vira memória: vira proposta.
@@ -532,6 +579,7 @@ export const schema = {
   memorySignal,
   memoryUsage,
   memoryProposal,
+  playbook,
 };
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
@@ -540,6 +588,7 @@ export type WorktreeRow = typeof worktree.$inferSelect;
 export type AgentConfigRow = typeof agentConfig.$inferSelect;
 export type SessionRow = typeof session.$inferSelect;
 export type MemoryEntryRow = typeof memoryEntry.$inferSelect;
+export type PlaybookRow = typeof playbook.$inferSelect;
 export type MemoryDecisionRow = typeof memoryDecision.$inferSelect;
 export type ActionSignalRow = typeof actionSignal.$inferSelect;
 export type MemoryAccessRow = typeof memoryAccess.$inferSelect;
