@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { DomainError } from "../errors.js";
+
 import {
+  assertScopeForType,
   DEFAULT_SCOPE_FOR_TYPE,
   entryFilename,
   parseEntry,
@@ -143,5 +145,27 @@ describe("escopo default por tipo", () => {
 
   it("escopo explícito vence o default", () => {
     expect(resolveScope("user", "project")).toBe("project");
+  });
+});
+
+describe("assertScopeForType (Q38)", () => {
+  it("`contract` só vive em workspace: ele é um fato entre projetos", () => {
+    expect(assertScopeForType("contract", "workspace")).toBe("workspace");
+    // Em projeto seria uma promessa que o outro lado não enxerga; em global, uma
+    // promessa entre projetos que não se conhecem.
+    expect(() => assertScopeForType("contract", "project")).toThrow(DomainError);
+    expect(() => assertScopeForType("contract", "global")).toThrow(DomainError);
+  });
+
+  it("os outros tipos seguem o default e aceitam o explícito", () => {
+    // A matriz apertada foi tentada e recuada: o shadow existe porque a mesma
+    // identidade vive em mais de um escopo, e restringir tipo a tipo mataria a
+    // precedência para quase todos.
+    expect(assertScopeForType("user", "project")).toBe("project");
+    expect(assertScopeForType("project", "workspace")).toBe("workspace");
+  });
+
+  it("a mensagem diz onde o tipo pode viver", () => {
+    expect(() => assertScopeForType("contract", "global")).toThrow(/só em workspace/);
   });
 });

@@ -7,8 +7,15 @@ aqui, com o motivo.
 onde está, agrupada por tema, e ganha uma linha **Decisão:** com o que ficou valendo. Cada pergunta
 traz uma **proposta pra reagir**; discordar dela é mais rápido que escrever do zero.
 
-**Estado:** 47 perguntas · **43 respondidas · 4 abertas (Q38, Q39, Q44, Q46).** O que resta, além delas, são as
-**D2, D5, D7 e D8**, no [context-delivery.md](context-delivery.md).
+**Estado:** 47 perguntas · **44 respondidas · 3 abertas (Q39, Q44, Q46).** As oito decisões do
+[context-delivery.md](context-delivery.md) — D1 a D8 — estão todas respondidas e **implementadas**.
+
+**Rodada 8 (2026-08-20):** a feature fechou, e a **Q38** com ela: o custo de esperar era baixo *"porque
+quem escolhe escopo é você"*, e as PRs 07 e 08 fizeram o agente escrever. A resposta ficou mais estreita
+do que a proposta — matriz só onde o escopo é definição (`contract`), porque a matriz apertada mata o
+shadow, que é uma promessa maior. As três que restam são de curadoria (Q39, Q44) e de identidade de
+ator (Q46, que é a [autenticação do daemon](../../project/backlog.md) e é do projeto, não desta
+feature).
 
 **Rodada 7 (2026-08-18):** a PR 05 ligou a inbox na tela, e isso cobrou uma pergunta: a **Q46**, sobre
 onde o ator declarado passa a ser **imposto**. A Q27 ganhou o que a inbox mudou — a regra virou uma
@@ -354,7 +361,7 @@ worktree veio o que se aprendeu —, mas não é escopo de leitura nem de escrit
 
 ---
 
-### [ ] Q38 — Existe escopo **proibido** para um tipo, ou só escopo default? `[lm]`
+### [x] Q38 — Existe escopo **proibido** para um tipo, ou só escopo default? `[lm]`
 
 Levantada pela revisão da PR 01: o `Done when` da T6 dizia "escopo inválido para o tipo é recusado",
 e o código não recusa nada — `resolveScope` devolve o escopo pedido, qualquer que seja. A [§6 do
@@ -375,6 +382,26 @@ dá ao sistema o direito de decidir escopo sozinho se o espaço de escopos por t
 
 **Custo de esperar:** baixo. Enquanto a escrita não estiver exposta a agente (o portão é a PR 02),
 quem escolhe escopo é você.
+
+**Decisão (PR 08): matriz, mas só onde o escopo é definição — e não preferência.**
+
+O custo de esperar deixou de ser baixo: o `distiller` (PR 07) e o `auto_research` (PR 08) escrevem
+agora, e escolher escopo é a decisão que o §6 diz que o agente mais erra. Então a matriz fechada foi
+implementada — e **recuada no mesmo dia**, por um motivo que vale mais que ela.
+
+A matriz apertada (`user` só global, `project` só projeto, …) derrubou seis testes, e um deles pelo
+motivo certo: **o shadow existe porque a mesma identidade `(tipo, slug)` vive em mais de um escopo**
+([Q31](#x-q31)). Restringir tipo a tipo mataria a precedência para quase todos os tipos — uma promessa
+maior do que a que a matriz protegia.
+
+Ficou o único caso em que o escopo não é preferência, é **definição**: `contract` só vive em
+workspace. Em escopo de projeto ele seria uma promessa que o outro lado não enxerga; em global, uma
+promessa entre projetos que não se conhecem. Para todos os outros tipos, o default guia e quem
+explicita ganha.
+
+E a guarda vale **na escrita, não na leitura**: arquivo que já existe fora da matriz continua legível,
+porque a A2 declara arquivo editado à mão como caso de primeira classe — matriz que apagasse memória
+antiga do índice seria a taxonomia comendo o acervo.
 
 ---
 

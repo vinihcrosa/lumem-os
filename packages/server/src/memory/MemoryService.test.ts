@@ -471,7 +471,8 @@ describe("MemoryService.core", () => {
       name: "Endpoint de checkout",
       description: "explicação, não diretriz",
       type: "reference",
-      scope: "global",
+      scope: "workspace",
+      workspaceId: "ws1",
       body: "POST /v2/checkout",
       actor: "human",
     });

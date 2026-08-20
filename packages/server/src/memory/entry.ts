@@ -53,6 +53,45 @@ export const DEFAULT_SCOPE_FOR_TYPE: Readonly<Record<MemoryType, MemoryScope>> =
   reference: "project",
 };
 
+/**
+ * Os escopos em que cada tipo **pode** viver (Q38).
+ *
+ * A pergunta ficou aberta porque *"custo de esperar: baixo — quem escolhe escopo é
+ * você"*. As PRs 07 e 08 mudaram isso: o `distiller` e o `auto_research` escrevem
+ * agora, e escolher escopo é a decisão que o §6 do PRD diz que o agente mais erra.
+ *
+ * **A matriz fechada foi tentada e recuada, e vale registrar por quê.** Restringir
+ * cada tipo ao seu escopo natural — `user` só global, `project` só projeto —
+ * derrubou seis testes, e um deles pelo motivo certo: **o shadow existe porque a
+ * mesma identidade `(tipo, slug)` vive em mais de um escopo** (Q31). Uma matriz
+ * apertada mataria a precedência para quase todos os tipos, que é uma promessa
+ * maior do que a que ela protegia.
+ *
+ * Sobra o único caso em que o escopo não é preferência, é **definição**:
+ * `contract` é um fato **entre** projetos. Em escopo de projeto ele seria uma
+ * promessa que o outro lado não enxerga; em global, uma promessa entre projetos
+ * que não se conhecem. Para todos os outros tipos, o escopo default guia e quem
+ * explicita ganha.
+ *
+ * **Vale na escrita, não na leitura.** Um arquivo que já existe com escopo fora da
+ * matriz continua legível: a A2 declara arquivo editado à mão como caso de
+ * primeira classe, e uma matriz que apagasse memória antiga do índice seria a
+ * taxonomia comendo o acervo.
+ */
+export const ALLOWED_SCOPES: Readonly<Partial<Record<MemoryType, readonly MemoryScope[]>>> = {
+  contract: ["workspace"],
+};
+
+/** Recusa o escopo que o tipo não admite, dizendo quais admite. */
+export function assertScopeForType(type: MemoryType, scope: MemoryScope): MemoryScope {
+  const allowed = ALLOWED_SCOPES[type];
+  if (allowed === undefined || allowed.includes(scope)) return scope;
+  throw new DomainError(
+    "INVALID_ARGUMENT",
+    `${type} não vive em escopo ${scope} — só em ${allowed.join(" ou ")}`,
+  );
+}
+
 /** Quem escreveu. `auto_research` é o auto-learn, e nasce com confiança baixa. */
 export const MEMORY_ACTORS = ["human", "agent", "distiller", "auto_research", "import"] as const;
 export type MemoryActor = (typeof MEMORY_ACTORS)[number];

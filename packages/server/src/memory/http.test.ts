@@ -121,14 +121,16 @@ describe("frescor", () => {
     await memory.write({
       name: "Endpoint de checkout",
       description: "o contrato que o web consome",
-      type: "contract",
+      // Global, e não workspace: esta pergunta não tem sessão, então o escopo
+      // ativo é só o global — o tipo aqui é detalhe, o assunto é o frescor.
+      type: "process",
       scope: "global",
       body: "POST /v2/checkout",
       actor: "human",
     });
     // O carimbo é da proveniência, e o `reindex` o reconstrói do arquivo — então
     // envelhecer a memória é editar o arquivo, como o tempo faria.
-    const file = join(stateDir, "memory/contract_endpoint-de-checkout.md");
+    const file = join(stateDir, "memory/process_endpoint-de-checkout.md");
     writeFileSync(file, readFileSync(file, "utf8").replace(/updated_at: .*/, "updated_at: '2026-01-01T00:00:00.000Z'"));
     await memory.reindex();
 

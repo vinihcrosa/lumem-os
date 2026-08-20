@@ -86,12 +86,13 @@ describe("createMemoryPreamble", () => {
   });
 
   it("com memória mas nada fixado, a diretiva e a skill valem — a porta existe", async () => {
-    const { preamble, memory, sessionId } = await world();
+    const { preamble, memory, sessionId, workspaceId } = await world();
     await memory.write({
       name: "Endpoint de checkout",
       description: "explicação, não diretriz",
       type: "reference",
-      scope: "global",
+      scope: "workspace",
+      workspaceId,
       body: "POST /v2/checkout",
       actor: "human",
     });

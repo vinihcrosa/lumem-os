@@ -30,6 +30,7 @@ import {
   type GateDecision,
 } from "./gate.js";
 import {
+  assertScopeForType,
   entrySignature,
   MEMORY_ACTORS,
   MEMORY_SCOPES,
@@ -206,7 +207,10 @@ export class MemoryService {
   /** Escreve — ou substitui — uma memória, pela identidade `(tipo, slug)`. */
   async write(requested: WriteMemoryInput): Promise<WriteMemoryResult> {
     const input = parseWrite(requested);
-    const scope = resolveScope(input.type, input.scope);
+    // A matriz da Q38, e **aqui**: na escrita, e não na leitura. Um arquivo que já
+    // existe fora da matriz continua legível (A2); o que a matriz impede é criar
+    // mais — e ela vale para toda superfície porque toda escrita passa por aqui.
+    const scope = assertScopeForType(input.type, resolveScope(input.type, input.scope));
     const target = this.targetFor(scope, input);
     const slug = slugify(input.name);
     const absolute = entryPathFor(this.stateDir, target, input.type, slug);
