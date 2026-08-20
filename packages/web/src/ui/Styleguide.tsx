@@ -4,7 +4,13 @@ import {
   Banner,
   Button,
   Card,
+  CheckList,
+  CheckRow,
   Chip,
+  Choice,
+  ChoiceGroup,
+  Coach,
+  CopyCommand,
   EmptyState,
   Field,
   Glyph,
@@ -17,8 +23,11 @@ import {
   Row,
   SectionHead,
   Skeleton,
+  Steps,
   Tab,
   TabStrip,
+  WizardCard,
+  WizardSection,
 } from "./index.js";
 import { RightPanel } from "../components/RightPanel.js";
 
@@ -285,6 +294,98 @@ export function Styleguide() {
             { label: "criada", value: "hoje, 09:14" },
           ]}
         />
+      </Section>
+
+      <Section title="MetaGrid — recibo" note="a mesma dl, na densidade que se lê">
+        <MetaGrid
+          variant="recap"
+          entries={[
+            { label: "workspace", value: "pessoal" },
+            { label: "agente", value: "claude-agent-acp 0.69.0 · credencial local" },
+            { label: "worktree", value: "~/.lumem/worktrees/lorebase/primeira-tarefa" },
+          ]}
+        />
+      </Section>
+
+      <Section title="Steps" note="decorativo: a posição também vem em texto">
+        <Steps steps={["máquina", "agente", "workspace", "projeto", "tarefa"]} current={2} />
+      </Section>
+
+      <Section title="CheckRow" note="os quatro estados">
+        <CheckList label="pré-voo de exemplo">
+          <CheckRow state="ok" what="git" value="2.45.1 · git worktree disponível" status="ok" />
+          <CheckRow state="running" what="node" value="verificando…" status="lendo" />
+          <CheckRow
+            state="warn"
+            what="~/.lumem"
+            value="a pasta ainda não existe"
+            status="vai criar"
+          />
+          <CheckRow
+            state="fail"
+            what="claude-agent-acp"
+            value="adaptador ACP não está no PATH"
+            status="falta"
+            action={<Button size="sm" variant="ghost">verificar</Button>}
+          />
+        </CheckList>
+      </Section>
+
+      <Section title="Choice">
+        <ChoiceGroup label="o que abre junto">
+          <Choice
+            title="Uma sessão do Claude"
+            description="Abre a conversa já dentro da worktree, no modo Auto."
+            meta="opus[1m] · Auto"
+            glyph={<Glyph tone="agent">◆</Glyph>}
+            selected
+            onSelect={() => {}}
+          />
+          <Choice
+            title="Só a worktree"
+            description="Cria a pasta e a branch. Você abre sessão quando quiser."
+            glyph={<Glyph tone="shell">●</Glyph>}
+            selected={false}
+            onSelect={() => {}}
+          />
+        </ChoiceGroup>
+      </Section>
+
+      <Section title="CopyCommand" note="o daemon nunca roda isto">
+        <CopyCommand command="npm i -g @agentclientprotocol/claude-agent-acp" />
+      </Section>
+
+      <Section title="Coach">
+        <Coach title="a primeira vez que isso aparece" onUnderstood={() => {}} onNever={() => {}}>
+          O modo <b>Auto</b> resolve sozinho leitura e escrita dentro da worktree, e para em tudo
+          que sai disso.
+        </Coach>
+      </Section>
+
+      <Section title="WizardCard" note="um passo inteiro">
+        <div className="wizard">
+          <WizardCard
+            eyebrow="passo 2 de 5"
+            title="Conecte o Claude Code"
+            lede="O Lumem conversa com agentes por ACP — o daemon sobe o adaptador como processo."
+            footer={
+              <>
+                <Button variant="primary">
+                  Testar conexão <span className="kbd">⏎</span>
+                </Button>
+                <span className="hint">
+                  <b>esc</b> volta
+                </span>
+              </>
+            }
+          >
+            <WizardSection title="o que foi encontrado na sua máquina">
+              <CheckList label="binários">
+                <CheckRow state="ok" what="claude" value="2.0.14 · /opt/homebrew/bin/claude" status="ok" />
+              </CheckList>
+            </WizardSection>
+          </WizardCard>
+        </div>
       </Section>
 
       <Section title="SectionHead">

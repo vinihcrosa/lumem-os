@@ -106,6 +106,9 @@ const BORROWED = new Set([
   // Shared primitives.
   "glyph",
   "btn",
+  // Subiu para `ui/ui.css` quando o fluxo de primeiro acesso passou a pedir a
+  // mesma dica de tecla.
+  "kbd",
   "focus-ring",
   "empty",
   "empty__glyph",

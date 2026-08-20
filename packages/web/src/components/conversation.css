@@ -298,7 +298,8 @@
 .perm__where { font: var(--text-mono-sm); color: var(--color-text-secondary); }
 .perm__why { font: var(--text-body-sm); color: var(--color-text-primary); }
 .perm__opts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
-.kbd { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+/* `.kbd` mora em `ui/ui.css`: o fluxo de primeiro acesso pede a mesma dica de
+   tecla, e dica de tecla é do app, não da conversa. */
 .btn--brand { background: var(--color-bg-brand); border-color: var(--color-bg-brand); color: var(--color-text-on-brand); }
 .btn--warn { background: none; border-color: var(--color-permission-pending); color: var(--color-permission-pending); }
 

@@ -2,8 +2,8 @@
  * Primitivas de UI. Nenhuma tela mora aqui — só os blocos de que elas são
  * feitas. Portadas do protótipo `packages/web/prototype/lumem-shell.html`.
  *
- * Só `var()`. Um literal aqui quebra a promessa de que trocar uma rampa em
- * `generate-tokens.py` troca a interface inteira.
+ * Só `var()`. Um literal aqui quebra a promessa de que trocar uma rampa no Open
+ * Design troca a interface inteira — ver `docs/project/design-source-of-truth.md`.
  */
 
 /* --------------------------------------------------------------- glifo */
@@ -610,3 +610,306 @@
   white-space: nowrap;
 }
 .tabs-new:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+/* ==================================================================== */
+/* FLUXO DE PASSOS — portado de `prototype/lumem-ds.css`                */
+/* ==================================================================== */
+/*
+ * Estas classes são a camada compartilhada do desenho (`lumem-ds.css`), não a
+ * tela de primeiro acesso: `wizard`, `steps`, `ck`, `choice`, `copy`, `coach` e
+ * `recap` são o vocabulário de qualquer tela que faça pergunta em sequência —
+ * a de preferências, quando existir, é a próxima. O que é só do fluxo mora em
+ * `setup/setup.css`.
+ */
+
+/*
+ * Composições, não tokens novos.
+ *
+ * Cada uma sai de token existente por `calc`, exatamente como o `lumem-ds.css`
+ * faz no `:root` dele. Valor novo nasce no Open Design e chega por
+ * `design:sync` — ver `docs/project/design-source-of-truth.md`.
+ */
+:root {
+  --size-wizard-width: calc(var(--size-dialog-width) + var(--space-64) * 3);
+  --size-wizard-narrow: calc(var(--size-dialog-width) + var(--space-64));
+  --size-step-dot: var(--size-control-xs);
+  --size-choice-min: calc(var(--space-64) * 2 + var(--space-32));
+}
+
+/* ------------------------------------------------------- cartão do passo */
+.wizard {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: var(--space-24);
+  padding: var(--space-48) var(--space-24);
+}
+.wizard__card {
+  width: var(--size-wizard-width);
+  max-width: 100%;
+  display: grid;
+  gap: var(--space-20);
+  padding: var(--space-32);
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--elevation-xl);
+}
+.wizard__card--narrow {
+  width: var(--size-wizard-narrow);
+  text-align: center;
+  justify-items: center;
+}
+.wizard__head { display: grid; gap: var(--space-8); }
+.wizard__eyebrow {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-brand);
+}
+.wizard__title {
+  margin: 0;
+  font: var(--text-display-md);
+  letter-spacing: var(--tracking-display-md);
+  color: var(--color-text-primary);
+  text-wrap: balance;
+}
+.wizard__lede {
+  margin: 0;
+  font: var(--text-body-lg);
+  color: var(--color-text-secondary);
+  max-width: 58ch;
+  text-wrap: pretty;
+}
+.wizard__body { display: grid; gap: var(--space-12); }
+.wizard__sec { display: grid; gap: var(--space-8); }
+.wizard__sec-t {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.wizard__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  padding-top: var(--space-4);
+}
+/* Sem isto, um único filho de conteúdo largo estica o cartão de largura fixa. */
+.wizard__card > *,
+.wizard__body > *,
+.wizard__sec > *,
+.wizard__head > *,
+.check > * { min-width: 0; }
+
+/* ---------------------------------------------------- trilho de passos */
+.steps {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: var(--size-wizard-width);
+  max-width: 100%;
+}
+.steps__i { flex: none; display: inline-flex; align-items: center; gap: var(--space-6); }
+.steps__n {
+  width: var(--size-step-dot);
+  height: var(--size-step-dot);
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-default);
+  font: var(--text-label-xs);
+  color: var(--color-text-tertiary);
+}
+.steps__l { font: var(--text-label-xs); color: var(--color-text-tertiary); white-space: nowrap; }
+.steps__bar { flex: 1; height: 1px; min-width: var(--space-8); background: var(--color-border-default); }
+.steps__i--done .steps__n { border-color: var(--color-plan-done); color: var(--color-plan-done); }
+.steps__i--done .steps__l { color: var(--color-text-secondary); }
+.steps__i--done + .steps__bar { background: var(--color-plan-done); }
+.steps__i--now .steps__n {
+  background: var(--color-bg-brand);
+  border-color: var(--color-bg-brand);
+  color: var(--color-text-on-brand);
+}
+.steps__i--now .steps__l { color: var(--color-text-primary); font-weight: 500; }
+
+/* ------------------------------------------------- linha de checagem */
+/*
+ * Um eixo de cor: `--ck` é o estado, e o glifo e a palavra de status os dois
+ * andam nele. A categoria é dita por `ck__what`, em texto.
+ */
+.ck {
+  --ck: var(--color-tool-pending);
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: var(--size-row-cozy);
+  padding: var(--space-6) var(--space-10);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+.check { display: grid; gap: var(--space-2); }
+.ck--ok { --ck: var(--color-tool-ok); }
+.ck--running { --ck: var(--color-tool-running); }
+.ck--warn { --ck: var(--color-permission-pending); }
+.ck--fail {
+  --ck: var(--color-tool-failed);
+  border-color: var(--color-border-danger);
+  background: var(--color-bg-danger-subtle);
+}
+.ck__glyph {
+  flex: none;
+  width: var(--size-icon-md);
+  text-align: center;
+  font-size: var(--size-icon-sm);
+  color: var(--ck);
+}
+.ck__what { flex: none; font: var(--text-label-sm); color: var(--color-text-primary); }
+/*
+ * Sem `nowrap`: `min-width: 0` deixa o item encolher, mas não reduz o
+ * min-content do container flex — e o mínimo automático da coluna do grid do
+ * cartão é justamente esse min-content. Com `nowrap`, uma linha comprida
+ * empurrava o cartão inteiro para fora da própria caixa.
+ */
+.ck__val {
+  flex: 1;
+  min-width: 0;
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+  overflow-wrap: anywhere;
+}
+.ck__st {
+  flex: none;
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--ck);
+}
+.ck__act { flex: none; }
+.ck .dim { color: var(--color-text-disabled); }
+
+/* ------------------------------------------------ cartão de escolha */
+.choices { display: grid; gap: var(--space-8); }
+.choices--2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.choice {
+  display: grid;
+  gap: var(--space-4);
+  min-height: var(--size-choice-min);
+  padding: var(--space-12);
+  text-align: left;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-secondary);
+}
+.choice:hover {
+  background: var(--color-bg-raised);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+.choice.is-on {
+  background: var(--color-bg-brand-subtle);
+  border-color: var(--color-border-brand);
+  color: var(--color-text-primary);
+}
+.choice[disabled] { color: var(--color-text-disabled); cursor: not-allowed; }
+.choice[disabled]:hover {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-default);
+  color: var(--color-text-disabled);
+}
+.choice__top { display: flex; align-items: center; gap: var(--space-8); }
+.choice__t { font: var(--text-label-md); color: inherit; }
+/* 3:1 mínimo em glifo com significado — `text-disabled` dá 2,76:1 aqui. */
+.choice__mark { margin-left: auto; font-size: var(--size-icon-sm); color: var(--color-text-tertiary); }
+.choice.is-on .choice__mark { color: var(--color-text-brand); }
+.choice__d { font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.choice.is-on .choice__d { color: var(--color-text-secondary); }
+.choice__meta { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.choice[disabled] .choice__d,
+.choice[disabled] .choice__meta { color: var(--color-text-disabled); }
+
+/* ------------------------------------------------ comando copiável */
+.copy {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-12);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+.copy__cmd {
+  flex: 1;
+  min-width: 0;
+  font: var(--text-mono-md);
+  color: var(--color-text-code);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-ligatures: none;
+}
+
+/* --------------------------------------------------- balão de ensino */
+.coach {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-12);
+  background: var(--color-bg-brand-subtle);
+  border: 1px solid var(--color-border-brand);
+  border-radius: var(--radius-md);
+}
+.coach__t {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font: var(--text-label-sm);
+  color: var(--color-text-brand);
+}
+.coach__b { font: var(--text-body-sm); color: var(--color-text-primary); }
+.coach__acts { display: flex; align-items: center; gap: var(--space-8); padding-top: var(--space-2); }
+
+/* ------------------------------------- recibo: o `MetaGrid` que se lê */
+.recap {
+  display: grid;
+  gap: var(--space-6);
+  margin: 0;
+  padding: var(--space-12);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-md);
+  min-width: 0;
+  text-align: left;
+}
+.recap__r { display: flex; align-items: baseline; gap: var(--space-10); font: var(--text-body-sm); min-width: 0; }
+.recap__k {
+  flex: none;
+  width: calc(var(--space-64) + var(--space-16));
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.recap__v {
+  margin: 0;
+  min-width: 0;
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+  overflow-wrap: anywhere;
+}
+.recap .dim { color: var(--color-text-tertiary); }
+
+/* ------------------------------------------------ dica e tecla */
+/*
+ * `.kbd` nasceu em `conversation.css` e subiu para cá quando o fluxo de passos
+ * passou a precisar dele: dica de tecla não é assunto da conversa, é do app.
+ */
+.kbd { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.btn .kbd { color: inherit; opacity: 0.72; }
+.hint { display: flex; align-items: center; gap: var(--space-12); font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.hint b { font: var(--text-mono-sm); color: var(--color-text-secondary); font-weight: 400; }
+/* A frase que explica um campo, abaixo dele. O erro do daemon é `field__error`. */
+.field__help { font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.field__help code { font: var(--text-mono-sm); color: var(--color-text-code); }
