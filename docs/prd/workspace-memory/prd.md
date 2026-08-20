@@ -439,8 +439,24 @@ Nada disso é útil se for invisível — a lição do `journey` do Hermes.
   medição é fé.
 - Um sinal discreto na aba quando a sessão em curso escreveu ou propôs algo.
 
-O desenho passa pela skill `ui-design-prototype`, como todas as features de tela deste repo — e só
-depois vira React.
+**O desenho existe** (2026-08-20): `packages/web/prototype/lumem-workspace-memory.html`, seis telas —
+acervo por escopo, os quatro estados de uma entrada, a inbox de propostas com diff, a linha do tempo com
+os dois desfazeres, os números, e as regras de forma que ela assume. Feito no Open Design, que é a fonte
+([decisão](../../project/design-source-of-truth.md)), e trazido por `design:sync`.
+
+É a **primeira tela deste repositório desenhada antes de existir daemon para ela** — as outras oito
+desenharam o que já rodava. O que ela mostra sai das decisões já fechadas aqui e não de invenção da
+tela: os sete tipos do §6, a precedência do §7, a proveniência, o portão, e os números do
+[§6 do context-delivery](context-delivery.md). Três coisas o desenho **corrigiu** ao renderizar, e
+valem para a implementação:
+
+- **Sombreada não ganha palavra na lista.** O slug riscado já diz, e a palavra roubava o espaço do
+  slug — que é a única coisa que a linha tem para dizer.
+- **O núcleo aparece como marca d'água, com o custo por entrada.** Sem teto, como a
+  [D5](context-delivery.md) decidiu, e por isso o alarme precisa de um número ao lado de cada entrada
+  fixada.
+- **Rejeição precisa de lugar na tela.** Ela vive só no WAL e não vira arquivo, então some de qualquer
+  vista que liste arquivos. Aparece na linha do tempo, sem desfazer — não há commit a reverter.
 
 ---
 

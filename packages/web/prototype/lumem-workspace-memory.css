@@ -1,0 +1,265 @@
+/* ============================================================================
+   Lumem-OS — memória do workspace. Só o que é desta tela.
+   Componentes compartilhados: lumem-ds.css. Valores: tokens.css.
+
+   A regra que manda no desenho: memória tem sete tipos e três escopos, e
+   misturar isso num balde só chamado "memória" é o erro que o PRD nomeia. Aqui
+   o **glifo diz o tipo**, o **agrupamento diz o escopo**, e a **cor diz o
+   estado** — proposta, aplicada, sombreada, rejeitada. Nenhum elemento carrega
+   dois eixos de cor.
+   ========================================================================= */
+
+/*
+ * Composições, não tokens novos.
+ *
+ * Cada uma sai de token existente por `calc`, como o `lumem-ds.css` faz no
+ * `:root` dele. Valor novo nasce em `tokens.css`, e nada aqui escolhe cor.
+ */
+:root {
+  /* A lista de entradas tem a largura da sidebar: `slug` é curto por construção. */
+  --size-mem-list: var(--size-sidebar-width);
+  --size-num-min: calc(var(--space-64) * 4);
+  --size-gal-min: calc(var(--size-sidebar-width) + var(--space-64));
+}
+
+/* ---------------------------------------------- acervo: lista + entrada */
+/*
+ * Duas colunas dentro do painel, não um painel novo.
+ *
+ * A coluna da direita do app é dos arquivos do checkout; memória é do
+ * workspace e não tem checkout. Então a divisão mora aqui dentro, e a lista
+ * tem largura fixa pelo mesmo motivo da sidebar: `slug` é curto por
+ * construção, e o que precisa de espaço é o corpo da entrada.
+ */
+.mem {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--size-mem-list) minmax(0, 1fr);
+}
+.mem__list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-panel);
+}
+.mem__find { flex: none; display: grid; gap: var(--space-6); padding: var(--space-10); border-bottom: 1px solid var(--color-border-subtle); }
+.mem__scroll { flex: 1; min-height: 0; overflow: auto; padding-bottom: var(--space-12); }
+
+/* Um grupo por escopo, e o rótulo diz de quem é o conhecimento. */
+.mgroup { display: grid; gap: var(--space-2); padding-top: var(--space-8); }
+.mgroup__t {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-10);
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.mgroup__n { margin-left: auto; font: var(--text-caption); color: var(--color-text-disabled); }
+.mgroup__w { color: var(--color-scope-workspace); }
+.mgroup__p { color: var(--color-scope-project); }
+
+/* A linha da entrada. Densidade de ferramenta: 28px, como a árvore. */
+.mrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  min-height: var(--size-row-compact);
+  padding: 0 var(--space-10);
+  text-align: left;
+  color: var(--color-text-secondary);
+  font: var(--text-body-sm);
+}
+.mrow:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.mrow.is-selected { background: var(--color-bg-selected); color: var(--color-text-primary); }
+.mrow__g { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); color: var(--color-text-tertiary); }
+.mrow__slug { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Marca de estado, e ela é a única cor da linha. */
+.mrow__m { flex: none; font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; }
+.mrow__m--core { color: var(--color-text-brand); }
+.mrow__m--new { color: var(--color-permission-pending); }
+.mrow__m--shadow { color: var(--color-tool-cancelled); }
+/*
+ * Sombreada continua na lista, apagada — nunca escondida.
+ * "Nada desaparece sozinho": o perdedor da precedência fica no disco, e uma
+ * lista que o esconde faz o sombreamento parecer perda de dado.
+ */
+.mrow--shadowed .mrow__slug { color: var(--color-text-disabled); text-decoration: line-through; }
+.mrow--shadowed .mrow__g { color: var(--color-text-disabled); }
+
+/* ------------------------------------------------------ a entrada aberta */
+.mdet { min-width: 0; overflow: auto; padding: var(--space-16) var(--space-20) var(--space-32); display: grid; gap: var(--space-16); align-content: start; }
+.mdet__head { display: grid; gap: var(--space-8); }
+.mdet__slug { display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
+.mdet__g { flex: none; font-size: var(--size-icon-md); color: var(--color-text-tertiary); }
+.mdet__t { margin: 0; min-width: 0; font: var(--text-heading-md); color: var(--color-text-primary); overflow-wrap: anywhere; }
+
+/*
+ * O corpo é markdown, e é a fonte da verdade.
+ * O banco é derivado; então o que se lê aqui é o arquivo, e não uma renderização
+ * de campos de tabela.
+ */
+.mbody { display: grid; gap: var(--space-8); max-width: 68ch; font: var(--text-body-md); color: var(--color-text-secondary); }
+.mbody p { margin: 0; }
+.mbody h3 { margin: var(--space-4) 0 0; font: var(--text-label-md); color: var(--color-text-primary); }
+.mbody ul { margin: 0; padding-left: var(--space-16); display: grid; gap: var(--space-4); }
+.mbody code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.mbody strong { color: var(--color-text-primary); font-weight: 500; }
+
+/*
+ * Rótulo de seção dentro do painel, e não o `sec__t` do documento.
+ *
+ * Renderizado, o `sec__t` saiu em 19px e competiu com o nome da entrada — que é
+ * o único título que aquele painel tem. Aqui é etiqueta, no mesmo tamanho do
+ * resto dos rótulos da tela.
+ */
+.mdet__sec {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.mdet__grp { display: grid; gap: var(--space-6); }
+
+/* Proveniência: sem isto, memória escrita por agente é irrastreável. */
+.prov { display: grid; gap: var(--space-6); padding: var(--space-10) var(--space-12); background: var(--color-bg-inset); border-radius: var(--radius-md); }
+.prov__r { display: flex; align-items: baseline; gap: var(--space-10); min-width: 0; font: var(--text-body-sm); }
+.prov__k {
+  flex: none;
+  width: calc(var(--space-64) + var(--space-16));
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.prov__v { min-width: 0; font: var(--text-mono-sm); color: var(--color-text-code); overflow-wrap: anywhere; }
+.prov__v b { color: var(--color-text-primary); font-weight: 500; }
+
+/* Evidência: caminho e trecho, que é o que separa memória direta de proposta. */
+.evid { display: grid; gap: var(--space-4); padding: var(--space-8) var(--space-10); background: var(--color-bg-inset); border-left: 2px solid var(--color-tool-ok); border-radius: var(--radius-sm); }
+.evid__p { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.evid__l { font: var(--text-mono-sm); color: var(--color-text-code); overflow-wrap: anywhere; }
+
+/* Sombreamento: quem sombreia quem, e nunca uma concatenação silenciosa. */
+.shadow { display: grid; gap: var(--space-6); padding: var(--space-10) var(--space-12); border: 1px dashed var(--color-border-default); border-radius: var(--radius-md); }
+.shadow__t { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-sm); color: var(--color-tool-cancelled); }
+.shadow__d { font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.shadow__l { justify-self: start; font: var(--text-mono-sm); color: var(--color-text-link); text-decoration: underline; text-underline-offset: var(--space-2); }
+
+/* ----------------------------------------------------------- propostas */
+/*
+ * A inbox é a revisão que acontece **antes**. Cada proposta mostra de onde veio,
+ * o que sustenta, e o que muda — e o que muda é diff, não prosa.
+ */
+.prop { display: grid; gap: var(--space-10); padding: var(--space-12) var(--space-16); background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-left: 2px solid var(--color-permission-pending); border-radius: var(--radius-lg); }
+.prop__head { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; }
+.prop__slug { font: var(--text-label-md); color: var(--color-text-primary); }
+.prop__why { font: var(--text-body-sm); color: var(--color-text-secondary); max-width: 72ch; }
+.prop__acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); padding-top: var(--space-2); }
+.prop__spacer { flex: 1; }
+
+/* --------------------------------------------------------- linha do tempo */
+.tl { display: grid; gap: var(--space-16); }
+.tl__day { display: grid; gap: var(--space-4); }
+.tl__d {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.tl__r {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-10);
+  min-width: 0;
+  min-height: var(--size-row-cozy);
+  padding: var(--space-4) var(--space-10);
+  border-radius: var(--radius-sm);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+.tl__r:nth-child(even) { background: var(--color-bg-surface); }
+.tl__m { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); }
+.tl__r--add .tl__m { color: var(--color-tool-ok); }
+.tl__r--shadow .tl__m { color: var(--color-tool-cancelled); }
+.tl__r--reject .tl__m { color: var(--color-permission-denied); }
+.tl__r--revert .tl__m { color: var(--color-permission-pending); }
+.tl__what { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.tl__what b { color: var(--color-text-primary); font-weight: 500; }
+.tl__meta { flex: none; font: var(--text-mono-sm); color: var(--color-text-disabled); }
+/*
+ * O desfazer mora na linha, e só aparece no hover.
+ *
+ * Sempre visível, seis linhas viram seis botões e a leitura da linha do tempo
+ * passa a ser leitura de botões. Ausente quando a linha não virou arquivo — não
+ * há o que reverter numa rejeição.
+ */
+.tl__undo { flex: none; font: var(--text-body-sm); color: var(--color-text-link); text-decoration: underline; text-underline-offset: var(--space-2); opacity: 0; }
+.tl__r:hover .tl__undo { opacity: 1; }
+
+/* ---------------------------------------------------------------- números */
+/* Sistema que aprende sozinho sem medição é fé. */
+.nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--size-num-min), 1fr)); gap: var(--space-12); }
+.num { display: grid; gap: var(--space-4); padding: var(--space-12); background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); }
+.num__k {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.num__v { font: var(--text-display-md); letter-spacing: var(--tracking-display-md); color: var(--color-text-primary); }
+.num__v small { font: var(--text-body-md); color: var(--color-text-tertiary); }
+.num__d { font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.num--alarm .num__v { color: var(--color-usage-warn); }
+.num--quiet .num__v { color: var(--color-text-tertiary); }
+
+/* Ações da entrada e da coluna de propostas. */
+.macts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+.macts .spacer { flex: 1; }
+.inbox { flex: 1; min-height: 0; overflow: auto; max-width: var(--size-detail-max); padding: var(--space-16) var(--space-20) var(--space-40); display: grid; gap: var(--space-16); align-content: start; }
+
+/* ------------------------------------------------------------------ diff */
+/*
+ * Pintura **provisória**, e é dívida declarada.
+ *
+ * Os nomes são os de verdade — `patch`, `hunk`, `dl`, `dl--add`, `dl--del` —
+ * porque são os do painel direito, e a implementação tem de reusar aquela folha
+ * em vez de pintar um segundo diff (foi a decisão A4 da conversa por ACP). O
+ * `lumem-ds.css` ainda não subiu esses blocos, então aqui vai o mínimo para o
+ * protótipo renderizar: quando o diff migrar para a camada de componente, estas
+ * seis regras saem daqui sem tocar no HTML.
+ */
+.patch { display: grid; background: var(--color-bg-inset); border-radius: var(--radius-md); overflow: hidden; }
+.patch--nowrap .dl__t { white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+.hunk { padding: var(--space-4) var(--space-10); background: var(--color-bg-raised); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.dl { display: flex; gap: var(--space-8); padding: var(--space-2) var(--space-10); font: var(--text-mono-sm); color: var(--color-text-secondary); }
+.dl__sig { flex: none; width: var(--space-10); text-align: center; }
+.dl__t { min-width: 0; }
+.dl--add { background: var(--color-git-added-subtle); }
+.dl--add .dl__sig { color: var(--color-git-added); }
+.dl--del { background: var(--color-git-removed-subtle); }
+.dl--del .dl__sig { color: var(--color-git-removed); }
+
+/* Galeria: um cartão por estado da entrada. */
+.gal { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--size-gal-min), 1fr)); gap: var(--space-20); align-items: start; }
+.galcap { display: grid; gap: var(--space-6); }
+.galcap__n {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.galcap__n b { color: var(--color-text-brand); font-weight: 500; }
+.galcap__f { display: grid; gap: var(--space-12); padding: var(--space-16); background: var(--color-bg-panel); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); }
+.galcap__d { font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.galcap__d code { font: var(--text-mono-sm); }
+
+@media (max-width: 900px) {
+  .mem { grid-template-columns: 1fr; }
+  .mem__list { border-right: 0; border-bottom: 1px solid var(--color-border-subtle); }
+}

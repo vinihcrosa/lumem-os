@@ -112,6 +112,7 @@ e por PTY ele só via bytes.
 | [open-questions.md](prd/workspace-memory/open-questions.md) | 38 perguntas, **todas respondidas** — o registro de por que cada decisão foi tomada |
 | [tasks.md](prd/workspace-memory/tasks.md) | Uma seção por PR da pilha. A **01 tem tasks**; as demais têm escopo e `Done when` |
 | [roadmap.md](prd/workspace-memory/roadmap.md) | **A feature em pilha de PRs**: topologia de branches, as sete regras da pilha, as cinco partes da espinha, o que anda em paralelo e onde o ACP entra |
+| `packages/web/prototype/lumem-workspace-memory.html` | **O desenho de ver a memória** (2026-08-20): acervo por escopo com a precedência sombreando à vista, os quatro estados de uma entrada, a inbox de propostas com diff, a linha do tempo com os dois desfazeres, e os seis números. Primeira tela deste repo desenhada **antes** de existir daemon para ela |
 | [context-delivery.md](prd/workspace-memory/context-delivery.md) | Como a memória chega no agente: **núcleo comportamental + skill + serviço `lumem-memory` com auto-learn**. O que o desenho compra, o que ele cobra, o que medir, e as **8 decisões (D1–D8), todas respondidas** |
 
 Quatro decisões já fechadas mudaram o desenho: **nenhuma memória vive dentro do repositório** (menos o

@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumem-OS — memória do workspace</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<link rel="stylesheet" href="lumem-workspace-memory.css">
+</head>
+<body data-od-id="workspace-memory">
+
+<nav class="tabbar" data-od-id="memory-tabbar">
+  <button class="tab is-active" data-screen="acervo">Acervo</button>
+  <button class="tab" data-screen="estados">Estados da entrada</button>
+  <button class="tab" data-screen="propostas">Propostas</button>
+  <button class="tab" data-screen="tempo">Linha do tempo</button>
+  <button class="tab" data-screen="numeros">Números</button>
+  <button class="tab" data-screen="regras">Regras</button>
+</nav>
+
+<!-- ==================================================================== -->
+<!-- ACERVO — a tela principal: ver o que o workspace sabe                -->
+<!-- ==================================================================== -->
+<section class="screen is-active" id="screen-acervo">
+  <div class="app">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="body">
+
+      <aside class="sidebar" data-od-id="sidebar-com-memoria">
+        <div class="ws-wrap"><button class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></button></div>
+        <div class="tree">
+          <!-- Memória é do workspace, então mora acima de Projetos e não dentro
+               de nenhum. A contagem é de propostas esperando você — o único
+               número aqui que pede ação. -->
+          <div class="tree__label">Workspace</div>
+          <button class="row is-selected" style="--depth:0" data-od-id="row-memoria">
+            <span class="row__twist"></span><span class="glyph glyph--workspace">◈</span>
+            <span class="row__label">memória</span><span class="count count--running"><span class="count__dot"></span>3</span>
+          </button>
+          <div class="tree__label">Projetos</div>
+          <button class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></button>
+          <button class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span></button>
+        </div>
+        <div class="sidebar__foot"><button class="add"><span>＋</span>adicionar projeto</button></div>
+      </aside>
+
+      <main class="main" data-od-id="main-acervo">
+        <div class="wt-head">
+          <nav class="crumb">pessoal<span class="crumb__sep">/</span><span class="crumb__here">memória</span></nav>
+          <div class="wt-title">
+            <h2><span class="glyph glyph--workspace">◈</span>Memória do workspace</h2>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost btn--sm">reindexar</button>
+          </div>
+          <div class="chips">
+            <span class="chip">47 entradas</span>
+            <span class="chip"><span class="dim">3 propostas esperando você</span></span>
+            <!-- Marca d'água, não teto: o núcleo nunca é cortado, e cresce por
+                 acréscimo. O que a tela faz é medir e avisar. -->
+            <span class="chip">núcleo 4.100 chars <span class="dim">· +38% em 30 d</span></span>
+          </div>
+        </div>
+
+        <div class="tabs-bar">
+          <div class="tabs">
+            <button class="stab stab--active">acervo</button>
+            <span class="tabs__sep"></span>
+            <button class="stab">propostas<span class="stab__dot"></span></button>
+            <button class="stab">linha do tempo</button>
+            <button class="stab">números</button>
+          </div>
+        </div>
+
+        <div class="mem" data-od-id="acervo">
+          <div class="mem__list">
+            <div class="mem__find">
+              <!-- Busca lexical (FTS5), não semântica: determinística, explicável
+                   e de graça. O v1 não traz vetor, e a caixa não promete que traz. -->
+              <span class="input input--empty"><span class="input__val">buscar no acervo</span></span>
+              <div class="chips">
+                <span class="chip">tudo</span>
+                <span class="chip"><span class="dim">só o núcleo</span></span>
+              </div>
+            </div>
+
+            <div class="mem__scroll">
+              <!-- VOCÊ — atravessa workspace. É o único escopo que não é deste
+                   workspace, e por isso vem primeiro e diz "global". -->
+              <div class="mgroup" data-od-id="grupo-global">
+                <span class="mgroup__t">você <span class="dim">· global</span><span class="mgroup__n">6</span></span>
+                <button class="mrow"><span class="mrow__g">◉</span><span class="mrow__slug">revisao-arquivo-linha</span><span class="mrow__m mrow__m--core">núcleo</span></button>
+                <button class="mrow"><span class="mrow__g">◉</span><span class="mrow__slug">portugues-na-doc</span><span class="mrow__m mrow__m--core">núcleo</span></button>
+                <button class="mrow"><span class="mrow__g">↺</span><span class="mrow__slug">nao-inventar-numero</span><span class="mrow__m mrow__m--core">núcleo</span></button>
+                <button class="mrow"><span class="mrow__g">↺</span><span class="mrow__slug">medir-antes-de-desenhar</span></button>
+              </div>
+
+              <div class="mgroup" data-od-id="grupo-workspace">
+                <span class="mgroup__t"><span class="mgroup__w">workspace</span> · pessoal<span class="mgroup__n">14</span></span>
+                <button class="mrow"><span class="mrow__g">◆</span><span class="mrow__slug">checkout-e-carrinho</span></button>
+                <button class="mrow"><span class="mrow__g">◆</span><span class="mrow__slug">vocabulario-lore</span></button>
+                <button class="mrow"><span class="mrow__g">▤</span><span class="mrow__slug">pr-so-com-gate-verde</span><span class="mrow__m mrow__m--core">núcleo</span></button>
+                <button class="mrow"><span class="mrow__g">▤</span><span class="mrow__slug">commit-conventional</span></button>
+                <button class="mrow is-selected"><span class="mrow__g">⇄</span><span class="mrow__slug">checkout-v2</span></button>
+                <button class="mrow mrow--shadowed" title="sombreada por project · lorebase"><span class="mrow__g">◆</span><span class="mrow__slug">porta-do-api</span><span class="mrow__m mrow__m--shadow">⇊</span></button>
+              </div>
+
+              <div class="mgroup" data-od-id="grupo-projeto">
+                <span class="mgroup__t"><span class="mgroup__p">projeto</span> · lorebase<span class="mgroup__n">19</span></span>
+                <button class="mrow"><span class="mrow__g">■</span><span class="mrow__slug">frontmatter-e-fonte</span></button>
+                <button class="mrow"><span class="mrow__g">■</span><span class="mrow__slug">porta-do-api</span><span class="mrow__m mrow__m--new">nova</span></button>
+                <button class="mrow"><span class="mrow__g">▭</span><span class="mrow__slug">runbook-release</span></button>
+                <button class="mrow"><span class="mrow__g">▶</span><span class="mrow__slug">playbook · teste-flaky</span></button>
+              </div>
+
+              <div class="mgroup" data-od-id="grupo-projeto-2">
+                <span class="mgroup__t"><span class="mgroup__p">projeto</span> · lumem-os<span class="mgroup__n">8</span></span>
+                <button class="mrow"><span class="mrow__g">■</span><span class="mrow__slug">design-vem-do-open-design</span></button>
+                <button class="mrow"><span class="mrow__g">■</span><span class="mrow__slug">memoria-fora-do-repo</span></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mdet" data-od-id="entrada-contrato">
+            <div class="mdet__head">
+              <div class="mdet__slug">
+                <span class="mdet__g">⇄</span>
+                <h3 class="mdet__t">checkout-v2</h3>
+              </div>
+              <div class="chips">
+                <span class="chip">contrato</span>
+                <span class="chip"><span class="dim">workspace</span></span>
+                <span class="chip chip--clean"><span class="chip__dot"></span>aplicada</span>
+              </div>
+            </div>
+
+            <div class="mbody">
+              <p>
+                O <strong>api</strong> expõe <code>POST /v2/checkout</code> com <code>{ items, cupom?,
+                idempotency_key }</code> e responde <code>201</code> com o pedido criado. O
+                <code>cupom</code> passou a ser opcional na v2.
+              </p>
+              <h3>Quem depende</h3>
+              <ul>
+                <li><code>web</code> — tela de carrinho, chama no submit</li>
+                <li><code>mobile</code> — mesma chamada, sem cupom</li>
+              </ul>
+              <p>
+                Mudar o corpo aqui quebra os dois. A <code>idempotency_key</code> é o que permite
+                repetir a chamada sem cobrar duas vezes.
+              </p>
+            </div>
+
+            <!-- Contrato é a única natureza com dois donos, e é ela que justifica
+                 a hierarquia inteira. Então o dono e os consumidores são campo, não
+                 prosa: é o que responde "o que quebra se eu mudar isto?". -->
+            <div class="mdet__grp">
+              <span class="mdet__sec">partes do contrato</span>
+              <div class="prov" data-od-id="contrato-partes">
+              <div class="prov__r"><span class="prov__k">dono</span><span class="prov__v"><b>api</b></span></div>
+                <div class="prov__r"><span class="prov__k">consomem</span><span class="prov__v">web · mobile</span></div>
+              </div>
+            </div>
+
+            <div class="mdet__grp">
+              <span class="mdet__sec">proveniência</span>
+              <div class="prov" data-od-id="proveniencia">
+                <div class="prov__r"><span class="prov__k">origem</span><span class="prov__v">proposta aprovada por você</span></div>
+                <div class="prov__r"><span class="prov__k">sessão</span><span class="prov__v">3f10a2c7 <span class="dim">· claude · api/contrato-v2</span></span></div>
+                <div class="prov__r"><span class="prov__k">confiança</span><span class="prov__v">alta <span class="dim">· evidência de arquivo</span></span></div>
+                <div class="prov__r"><span class="prov__k">criada</span><span class="prov__v">18 ago, 14:02</span></div>
+                <div class="prov__r"><span class="prov__k">atualizada</span><span class="prov__v">20 ago, 09:41 <span class="dim">· 2 revisões</span></span></div>
+                <div class="prov__r"><span class="prov__k">arquivo</span><span class="prov__v">~/.lumem/workspaces/pessoal/memory/contract_checkout-v2.md</span></div>
+                <div class="prov__r"><span class="prov__k">commit</span><span class="prov__v">8f3c1de</span></div>
+              </div>
+            </div>
+
+            <div class="mdet__grp">
+              <span class="mdet__sec">o que sustenta</span>
+              <div class="evid" data-od-id="evidencia">
+                <span class="evid__p">api/src/routes/checkout.ts:41</span>
+                <span class="evid__l">router.post("/v2/checkout", validate(bodyV2), createOrder)</span>
+              </div>
+            </div>
+
+            <div class="macts">
+              <button class="btn btn--sm btn--ghost">editar</button>
+              <button class="btn btn--sm btn--ghost">fixar no núcleo</button>
+              <button class="btn btn--sm btn--ghost">histórico</button>
+              <span class="spacer"></span>
+              <button class="btn btn--sm btn--ghost">remover</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- ESTADOS — a mesma entrada, nos quatro estados que importam            -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-estados">
+  <div class="doc">
+    <header>
+      <h1 class="doc__h1">A entrada, nos estados que importam</h1>
+      <p class="doc__lede">
+        Quatro, e nenhum deles é decoração: memória escrita por agente sem proveniência é
+        irrastreável, e é a mais cara de errar. O que muda entre eles é <b>de onde veio</b> e
+        <b>quem venceu a precedência</b> — nunca a cor de duas coisas ao mesmo tempo.
+      </p>
+    </header>
+
+    <section class="sec">
+      <div class="gal">
+
+        <div class="galcap" data-od-id="estado-direta">
+          <span class="galcap__n"><b>01</b> · direta, com evidência</span>
+          <div class="galcap__f">
+            <div class="mdet__slug"><span class="mdet__g">■</span><h3 class="mdet__t">porta-do-api</h3></div>
+            <div class="chips">
+              <span class="chip">project</span><span class="chip"><span class="dim">lorebase</span></span>
+              <span class="chip chip--clean"><span class="chip__dot"></span>aplicada</span>
+            </div>
+            <div class="mbody"><p>O <code>api</code> roda na porta <code>4000</code> em dev.</p></div>
+            <div class="evid">
+              <span class="evid__p">api/.env.example:3</span>
+              <span class="evid__l">PORT=4000</span>
+            </div>
+            <div class="prov">
+              <div class="prov__r"><span class="prov__k">origem</span><span class="prov__v">auto-learn <span class="dim">· escreveu direto</span></span></div>
+              <div class="prov__r"><span class="prov__k">confiança</span><span class="prov__v">alta</span></div>
+            </div>
+          </div>
+          <p class="galcap__d">
+            O agente apontou de onde tirou, então virou memória <b>sem passar pela inbox</b>. O critério
+            é a evidência, não o assunto — e a evidência fica anexada, o que torna uma memória direta
+            errada fácil de contestar depois.
+          </p>
+        </div>
+
+        <div class="galcap" data-od-id="estado-sombreada">
+          <span class="galcap__n"><b>02</b> · sombreada</span>
+          <div class="galcap__f">
+            <div class="mdet__slug"><span class="mdet__g">◆</span><h3 class="mdet__t">porta-do-api</h3></div>
+            <div class="chips">
+              <span class="chip">domain</span><span class="chip"><span class="dim">workspace</span></span>
+              <span class="chip">sombreada</span>
+            </div>
+            <div class="mbody"><p>O <code>api</code> roda na porta <code>3000</code>.</p></div>
+            <div class="shadow">
+              <span class="shadow__t"><span>⇊</span>sombreada por escopo mais específico</span>
+              <span class="shadow__d">
+                <code>project · lorebase</code> tem uma entrada com a mesma identidade
+                <code>(tipo, slug)</code>. Projeto vence workspace, e workspace vence global.
+              </span>
+              <a class="shadow__l" href="#">ver quem sombreia →</a>
+            </div>
+          </div>
+          <p class="galcap__d">
+            Ela <b>continua no disco</b> e continua na lista, riscada. Nada é concatenado em silêncio, e
+            nada desaparece sozinho — o sombreamento é evento, não exclusão.
+          </p>
+        </div>
+
+        <div class="galcap" data-od-id="estado-nucleo">
+          <span class="galcap__n"><b>03</b> · no núcleo</span>
+          <div class="galcap__f">
+            <div class="mdet__slug"><span class="mdet__g">▤</span><h3 class="mdet__t">pr-so-com-gate-verde</h3></div>
+            <div class="chips">
+              <span class="chip">process</span><span class="chip"><span class="dim">workspace</span></span>
+              <span class="chip chip--branch"><span class="chip__dot"></span>no núcleo</span>
+            </div>
+            <div class="mbody">
+              <p>Nenhum PR sobe com o gate vermelho. O gate que vale é o que a task declara.</p>
+            </div>
+            <div class="prov">
+              <div class="prov__r"><span class="prov__k">custo</span><span class="prov__v">142 chars <span class="dim">· 3,5% do núcleo</span></span></div>
+              <div class="prov__r"><span class="prov__k">fixada</span><span class="prov__v">por você <span class="dim">· 12 ago</span></span></div>
+            </div>
+            <div class="macts"><button class="btn btn--sm btn--ghost">tirar do núcleo</button></div>
+          </div>
+          <p class="galcap__d">
+            O núcleo é o único texto que entra em <b>toda</b> requisição, então cada entrada nele mostra
+            o que custa. <b>Sem teto</b> — cortar diretriz no meio faz dela uma regra errada, não uma
+            regra menor. O que existe é marca d'água e alarme.
+          </p>
+        </div>
+
+        <div class="galcap" data-od-id="estado-rejeitada">
+          <span class="galcap__n"><b>04</b> · rejeitada <span class="dim">(só no WAL)</span></span>
+          <div class="galcap__f">
+            <div class="mdet__slug"><span class="mdet__g">◆</span><h3 class="mdet__t">estrutura-de-pastas</h3></div>
+            <div class="chips">
+              <span class="chip">domain</span><span class="chip"><span class="dim">workspace</span></span>
+              <span class="chip">rejeitada</span>
+            </div>
+            <div class="fail">
+              <span class="fail__title"><span>✕</span>o portão recusou, antes de você ver</span>
+              <span class="fail__body">
+                <b>WHAT_NOT_TO_SAVE</b>: o que dá para derivar lendo o repositório não é memória. Vale
+                mesmo quando alguém pede para salvar.
+              </span>
+              <div class="fail__cmd">regra: derivable-from-repo · origem: destilação de fim de sessão</div>
+            </div>
+            <div class="prov">
+              <div class="prov__r"><span class="prov__k">arquivo</span><span class="prov__v"><span class="dim">nenhum — rejeição não vira arquivo</span></span></div>
+            </div>
+          </div>
+          <p class="galcap__d">
+            Rejeição e <i>no-op</i> vivem <b>só no WAL</b>, porque não viram arquivo. Ficam visíveis na
+            linha do tempo — um portão que recusa em silêncio é um portão em que não se confia.
+          </p>
+        </div>
+
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- PROPOSTAS — a revisão que acontece antes                             -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-propostas">
+  <div class="app">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+    </header>
+    <div class="body">
+      <aside class="sidebar">
+        <div class="ws-wrap"><button class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></button></div>
+        <div class="tree">
+          <div class="tree__label">Workspace</div>
+          <button class="row is-selected" style="--depth:0"><span class="row__twist"></span><span class="glyph glyph--workspace">◈</span><span class="row__label">memória</span><span class="count count--running"><span class="count__dot"></span>3</span></button>
+          <div class="tree__label">Projetos</div>
+          <button class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></button>
+        </div>
+        <div class="sidebar__foot"><button class="add"><span>＋</span>adicionar projeto</button></div>
+      </aside>
+
+      <main class="main" data-od-id="main-propostas">
+        <div class="wt-head">
+          <nav class="crumb">pessoal<span class="crumb__sep">/</span>memória<span class="crumb__sep">/</span><span class="crumb__here">propostas</span></nav>
+          <div class="wt-title">
+            <h2><span class="glyph glyph--workspace">◈</span>3 propostas esperando você</h2>
+          </div>
+          <div class="chips">
+            <span class="chip"><span class="dim">escrever para baixo é livre; para cima é proposta</span></span>
+          </div>
+        </div>
+
+        <div class="tabs-bar">
+          <div class="tabs">
+            <button class="stab">acervo</button>
+            <span class="tabs__sep"></span>
+            <button class="stab stab--active">propostas<span class="stab__dot"></span></button>
+            <button class="stab">linha do tempo</button>
+            <button class="stab">números</button>
+          </div>
+        </div>
+
+        <div class="pane">
+          <div class="inbox" data-od-id="inbox">
+
+            <div class="prop" data-od-id="proposta-domain">
+              <div class="prop__head">
+                <span class="mrow__g">◆</span>
+                <span class="prop__slug">carrinho-expira-em-30min</span>
+                <span class="chip">domain</span>
+                <span class="chip"><span class="dim">workspace</span></span>
+                <span class="prop__spacer"></span>
+                <span class="chip"><span class="dim">agora</span></span>
+              </div>
+
+              <p class="prop__why">
+                Vem de uma <b>síntese</b>, não de um arquivo: o agente concluiu a regra lendo dois
+                trechos e juntando. Por isso é proposta — se ele conseguisse apontar de onde tirou,
+                seria memória direta.
+              </p>
+
+              <div class="prov">
+                <div class="prov__r"><span class="prov__k">origem</span><span class="prov__v">auto-learn <span class="dim">· pergunta sem resposta no acervo</span></span></div>
+                <div class="prov__r"><span class="prov__k">sessão</span><span class="prov__v">a91f04 <span class="dim">· claude · lorebase/carrinho</span></span></div>
+                <div class="prov__r"><span class="prov__k">confiança</span><span class="prov__v">média <span class="dim">· inferência</span></span></div>
+              </div>
+
+              <div class="evid">
+                <span class="evid__p">o que o agente citou</span>
+                <span class="evid__l">api/src/cart/ttl.ts:8 → CART_TTL_MINUTES = 30</span>
+                <span class="evid__l">api/src/cart/job.ts:22 → cron("*/5 * * * *", expireCarts)</span>
+              </div>
+
+              <div class="patch patch--nowrap">
+                <div class="hunk">memory/domain_carrinho-expira-em-30min.md · novo arquivo</div>
+                <div class="dl dl--add"><span class="dl__sig">+</span><span class="dl__t">Carrinho abandonado expira em 30 minutos; um job varre a cada 5.</span></div>
+                <div class="dl dl--add"><span class="dl__sig">+</span><span class="dl__t">Expirar devolve estoque — não é só marcar como morto.</span></div>
+              </div>
+
+              <div class="prop__acts">
+                <button class="btn btn--sm btn--brand">aprovar</button>
+                <button class="btn btn--sm btn--ghost">editar e aprovar</button>
+                <button class="btn btn--sm btn--ghost">rejeitar com motivo</button>
+                <span class="prop__spacer"></span>
+                <span class="hint">rejeitar ensina: o motivo vira regra do portão</span>
+              </div>
+            </div>
+
+            <div class="prop" data-od-id="proposta-contrato">
+              <div class="prop__head">
+                <span class="mrow__g">⇄</span>
+                <span class="prop__slug">checkout-v2</span>
+                <span class="chip">contrato</span>
+                <span class="chip"><span class="dim">workspace · dono api</span></span>
+                <span class="prop__spacer"></span>
+                <span class="chip"><span class="dim">há 2 h</span></span>
+              </div>
+
+              <p class="prop__why">
+                Atualiza uma entrada que já existe — mesma identidade <code>(tipo, slug)</code>, então é
+                <b>update</b> e não um segundo arquivo. O agente que propôs é o do projeto
+                <b>dono</b>; um agente do <code>web</code> não poderia propor isto.
+              </p>
+
+              <div class="prov">
+                <div class="prov__r"><span class="prov__k">origem</span><span class="prov__v">tool <code>lumem_remember</code> <span class="dim">· chamada explícita</span></span></div>
+                <div class="prov__r"><span class="prov__k">sessão</span><span class="prov__v">3f10a2c7 <span class="dim">· claude · api/contrato-v2</span></span></div>
+                <div class="prov__r"><span class="prov__k">confiança</span><span class="prov__v">alta <span class="dim">· evidência de arquivo</span></span></div>
+              </div>
+
+              <div class="patch patch--nowrap">
+                <div class="hunk">memory/contract_checkout-v2.md · atualiza</div>
+                <div class="dl dl--del"><span class="dl__sig">−</span><span class="dl__t">Corpo: { items, cupom, idempotency_key } — cupom obrigatório.</span></div>
+                <div class="dl dl--add"><span class="dl__sig">+</span><span class="dl__t">Corpo: { items, cupom?, idempotency_key } — cupom passou a ser opcional na v2.</span></div>
+              </div>
+
+              <div class="prop__acts">
+                <button class="btn btn--sm btn--brand">aprovar</button>
+                <button class="btn btn--sm btn--ghost">editar e aprovar</button>
+                <button class="btn btn--sm btn--ghost">rejeitar com motivo</button>
+              </div>
+            </div>
+
+            <div class="prop" data-od-id="proposta-vizinha">
+              <div class="prop__head">
+                <span class="mrow__g">■</span>
+                <span class="prop__slug">web-usa-cupom-opcional</span>
+                <span class="chip">project</span>
+                <span class="chip">escopo de outro projeto</span>
+                <span class="prop__spacer"></span>
+                <span class="chip"><span class="dim">há 2 h</span></span>
+              </div>
+
+              <p class="prop__why">
+                A sessão rodava no <b>api</b> e quis escrever memória do <b>web</b>. Isso é
+                <b>negado</b>, não proposto: memória de projeto é do agente daquele projeto. O que
+                sobra é virar tarefa lá.
+              </p>
+
+              <div class="banner banner--warning">
+                <span class="banner__glyph">⚠</span>
+                <span>
+                  Escrever memória de <strong>outro projeto</strong> é negado sempre. Ler é livre — e é
+                  para isso que o workspace existe.
+                </span>
+              </div>
+
+              <div class="prop__acts">
+                <button class="btn btn--sm btn--ghost">criar tarefa no web</button>
+                <button class="btn btn--sm btn--ghost">descartar</button>
+              </div>
+            </div>
+
+            <div class="banner banner--info" data-od-id="regra-auto-aprovacao">
+              <span class="banner__glyph">◇</span>
+              <span>
+                <strong>Um agente nunca aprova a própria proposta.</strong> Nem o agente de memória — e
+                é por isso que esta caixa existe em vez de um índice que se escreve sozinho.
+              </span>
+            </div>
+
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- LINHA DO TEMPO — o que foi aprendido, e o desfazer                    -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-tempo">
+  <div class="doc">
+    <header>
+      <h1 class="doc__h1">Linha do tempo</h1>
+      <p class="doc__lede">
+        O que foi aprendido, quando, e por qual sessão — inclusive o que <b>não</b> virou arquivo. O
+        desfazer tem dois caminhos, e a tela diz qual: o <b>WAL</b> guarda a decisão, e o
+        <code>git</code> do <code>~/.lumem</code> guarda o conteúdo anterior.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="timeline">
+      <div class="tl">
+        <div class="tl__day">
+          <span class="tl__d">hoje · 20 ago</span>
+          <div class="tl__r tl__r--add">
+            <span class="tl__m">＋</span>
+            <span class="tl__what"><b>contract · checkout-v2</b> atualizada — cupom passou a ser opcional <span class="dim">· aprovada por você</span></span>
+            <span class="tl__meta">09:41 · 8f3c1de</span>
+            <a class="tl__undo" href="#">desfazer</a>
+          </div>
+          <div class="tl__r tl__r--shadow">
+            <span class="tl__m">⇊</span>
+            <span class="tl__what"><b>domain · porta-do-api</b> passou a ser sombreada por <b>project · lorebase</b> <span class="dim">· continua no disco</span></span>
+            <span class="tl__meta">09:41 · 8f3c1de</span>
+            <a class="tl__undo" href="#">desfazer</a>
+          </div>
+          <div class="tl__r tl__r--add">
+            <span class="tl__m">＋</span>
+            <span class="tl__what"><b>project · porta-do-api</b> criada direto <span class="dim">· auto-learn, evidência em api/.env.example:3</span></span>
+            <span class="tl__meta">09:40 · c41ba08</span>
+            <a class="tl__undo" href="#">desfazer</a>
+          </div>
+          <div class="tl__r tl__r--reject">
+            <span class="tl__m">✕</span>
+            <span class="tl__what"><b>domain · estrutura-de-pastas</b> recusada pelo portão <span class="dim">· derivável do repositório · só no WAL</span></span>
+            <!-- Sem desfazer: rejeição não virou arquivo, então não há commit a
+                 reverter. O que existe dela está no WAL. -->
+            <span class="tl__meta">09:12 · —</span>
+          </div>
+        </div>
+
+        <div class="tl__day">
+          <span class="tl__d">ontem · 19 ago</span>
+          <div class="tl__r tl__r--revert">
+            <span class="tl__m">↺</span>
+            <span class="tl__what"><b>process · commit-conventional</b> revertida por você <span class="dim">· voltou ao conteúdo de 17 ago</span></span>
+            <span class="tl__meta">18:20 · a90d117</span>
+          </div>
+          <div class="tl__r tl__r--add">
+            <span class="tl__m">＋</span>
+            <span class="tl__what"><b>user · medir-antes-de-desenhar</b> criada <span class="dim">· destilação de fim de sessão, aprovada por você</span></span>
+            <span class="tl__meta">17:55 · 4b2e9c0</span>
+            <a class="tl__undo" href="#">desfazer</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="desfazer">
+      <div class="sec__h">
+        <h2 class="sec__t">Os dois desfazeres, e quando cada um serve</h2>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>Caminho</th><th>Desfaz o quê</th><th>Serve quando</th></tr></thead>
+        <tbody>
+          <tr><td><b>WAL</b></td><td>a decisão: origem, regra, confiança, idempotência, resultado</td><td>a escrita foi aceita e não devia ter sido — inclusive quando não virou arquivo</td></tr>
+          <tr><td><b><code>git revert</code></b></td><td>o conteúdo: o commit anterior <i>é</i> a versão anterior</td><td>o arquivo mudou e você quer o texto de volta, com diff legível</td></tr>
+        </tbody>
+      </table>
+      <p class="case__note">
+        Por isso o WAL ficou magro: ele guarda a <b>decisão</b> e o SHA que ela produziu, não uma
+        segunda cópia do conteúdo. E é por isso que rejeição aparece aqui — ela existe só no WAL.
+      </p>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- NÚMEROS — porque sistema que aprende sozinho sem medição é fé         -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-numeros">
+  <div class="doc">
+    <header>
+      <h1 class="doc__h1">Números</h1>
+      <p class="doc__lede">
+        Seis, e cada um responde uma pergunta que decide se a feature fica. O piso de contexto de uma
+        sessão <b>não é nosso</b>: um turno trivial mediu 39.200 tokens de system prompt do próprio
+        Claude Code. Isso não autoriza inchar o núcleo — autoriza parar de tratar cada token dele como
+        se fosse o custo dominante.
+      </p>
+    </header>
+
+    <section class="sec">
+      <div class="nums" data-od-id="medidas">
+        <div class="num">
+          <span class="num__k">tokens fixos por sessão</span>
+          <span class="num__v">1.180 <small>· 3% do piso</small></span>
+          <span class="num__d">núcleo mais skill. Quanto <b>nós</b> acrescentamos aos ~39k do agente.</span>
+        </div>
+        <div class="num">
+          <span class="num__k">chamadas ao lumem-memory</span>
+          <span class="num__v">4,2 <small>/ sessão</small></span>
+          <span class="num__d">O número mais importante. Perto de zero significa que a camada de serviço é decoração.</span>
+        </div>
+        <div class="num num--alarm">
+          <span class="num__k">"não sei" ÷ perguntas</span>
+          <span class="num__v">31%</span>
+          <span class="num__d">O acervo tem buraco — e é o gatilho natural do auto-learn.</span>
+        </div>
+        <div class="num">
+          <span class="num__k">custo por pergunta</span>
+          <span class="num__v">US$ 0,004 <small>· 1,4 s</small></span>
+          <span class="num__d">Com agente. Sem agente é busca lexical: de graça e imediata.</span>
+        </div>
+        <div class="num">
+          <span class="num__k">escrito por auto-learn</span>
+          <span class="num__v">38%</span>
+          <span class="num__d">Do acervo todo. Quanto o sistema escreveu sozinho — e portanto quanto vale auditar.</span>
+        </div>
+        <div class="num num--quiet">
+          <span class="num__k">sessões que ensinaram algo</span>
+          <span class="num__v">12%</span>
+          <span class="num__d">Está aprendendo, ou só lendo? Baixo aqui com uso alto é sinal de que a captura não pegou.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="nucleo-marca">
+      <div class="sec__h">
+        <h2 class="sec__t">O núcleo: marca d'água, nunca teto</h2>
+        <p class="sec__d">
+          O núcleo é o único texto que entra em toda requisição, e cresce por acréscimo — cada
+          destilação aprovada empurra um pouco. Cortar no meio faria de uma diretriz uma regra errada,
+          então o mecanismo é medir e avisar.
+        </p>
+      </div>
+      <div class="nums">
+        <div class="num num--alarm">
+          <span class="num__k">tamanho do núcleo</span>
+          <span class="num__v">4.100 <small>chars · +38% em 30 d</small></span>
+          <span class="num__d">
+            Passou do valor que você definiu (3.000). O aviso diz que é hora de olhar, não que algo
+            foi cortado — nada é cortado.
+          </span>
+        </div>
+        <div class="num">
+          <span class="num__k">entradas no núcleo</span>
+          <span class="num__v">9 <small>de 47</small></span>
+          <span class="num__d">Cada uma mostra o que custa, na própria entrada.</span>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- REGRAS — de onde a tela tira o que mostra                            -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-regras">
+  <div class="doc">
+    <header>
+      <h1 class="doc__h1">De onde a tela tira o que mostra</h1>
+      <p class="doc__lede">
+        Nada aqui é categoria que a interface inventou. Os sete tipos, os três escopos e a precedência
+        vêm do PRD; o que a tela escolhe é <b>como</b> mostrá-los — e a escolha é sempre a mesma:
+        glifo é tipo, grupo é escopo, cor é estado.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="tipos">
+      <div class="sec__h"><h2 class="sec__t">Os sete tipos, e o glifo de cada um</h2></div>
+      <table class="tbl">
+        <thead><tr><th>Glifo</th><th>Tipo</th><th>O quê</th><th>Escopo default</th><th>Quem escreve</th></tr></thead>
+        <tbody>
+          <tr><td>◉</td><td><b>user</b></td><td>você: preferências, jeito de trabalhar</td><td>global</td><td>agente propõe, você aplica</td></tr>
+          <tr><td>↺</td><td><b>feedback</b></td><td>correção recorrente, erro que não pode repetir</td><td>global</td><td>agente propõe, você aplica</td></tr>
+          <tr><td>◆</td><td><b>domain</b></td><td>produto e negócio: regra, conceito, vocabulário</td><td>workspace</td><td>agente propõe, você aplica</td></tr>
+          <tr><td>▤</td><td><b>process</b></td><td>como o time trabalha: PR, commit, release</td><td>workspace</td><td>agente propõe, você aplica</td></tr>
+          <tr><td>⇄</td><td><b>contract</b></td><td>o que um projeto promete a outro</td><td>workspace, com dono</td><td>agente do dono propõe</td></tr>
+          <tr><td>■</td><td><b>project</b></td><td>decisão, constraint, arquitetura viva deste repo</td><td>projeto</td><td>agente, direto</td></tr>
+          <tr><td>▭</td><td><b>reference</b></td><td>fato externo, runbook, link que não muda</td><td>projeto ou workspace</td><td>agente, direto</td></tr>
+          <tr><td>▶</td><td><b>playbook</b></td><td><i>não é memória</i>: procedimento com corpo, carregado sob demanda</td><td>projeto</td><td>ciclo de vida por uso</td></tr>
+        </tbody>
+      </table>
+      <p class="case__note">
+        O <code>playbook</code> aparece na mesma lista de propósito — é onde a pessoa vai procurar — mas
+        com glifo próprio e sem estado de precedência, porque ele não participa de sombreamento.
+      </p>
+    </section>
+
+    <section class="sec" data-od-id="regras-forma">
+      <div class="sec__h"><h2 class="sec__t">Regras que este desenho assume</h2></div>
+      <div class="grid grid--2">
+        <div class="rule rule--yes">
+          <span class="rule__t">Glifo é tipo, grupo é escopo, cor é estado</span>
+          <span class="rule__d">Sete tipos e três escopos não cabem em cor. O que fica colorido é o que muda: proposta, aplicada, sombreada, rejeitada, no núcleo.</span>
+        </div>
+        <div class="rule rule--yes">
+          <span class="rule__t">Sombreada continua na lista</span>
+          <span class="rule__d">Riscada e apagada, nunca escondida. O perdedor da precedência fica no disco, e esconder faria o sombreamento parecer perda de dado.</span>
+        </div>
+        <div class="rule rule--yes">
+          <span class="rule__t">Proveniência é campo, não nota de pé</span>
+          <span class="rule__d">Origem, sessão, projeto, confiança, arquivo e commit. Memória escrita por agente sem isso é irrastreável — e é a mais cara de errar.</span>
+        </div>
+        <div class="rule rule--yes">
+          <span class="rule__t">O que muda é diff</span>
+          <span class="rule__d">Proposta mostra <code>+</code> e <code>−</code> com as mesmas classes do painel direito. Aprovar sem ver o texto exato é aprovar no escuro.</span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">Sem teto no núcleo</span>
+          <span class="rule__d">Marca d'água e alarme. Cortar diretriz no meio não dá uma regra menor: dá uma regra errada.</span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">Sem busca semântica</span>
+          <span class="rule__d">A caixa busca por termo (FTS5) e não promete achar "release" digitando "deploy". Vetor está no backlog.</span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">Sem memória por worktree</span>
+          <span class="rule__d">Worktree é execução. Se o que se aprendeu ali vale, vale para o projeto — e nada de worktree descartada sobe sem revisão.</span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">Sem modal</span>
+          <span class="rule__d">Aprovar, editar e rejeitar acontecem na própria linha da proposta. O painel mora no lugar, como todo o resto do app.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="precedencia">
+      <div class="sec__h">
+        <h2 class="sec__t">Precedência: shadow, nunca merge</h2>
+        <p class="sec__d">Identidade é <code>(tipo, slug)</code>. O escopo mais específico sombreia o mais genérico.</p>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>Vence</th><th>Sobre</th><th>O que acontece com o perdedor</th></tr></thead>
+        <tbody>
+          <tr><td><b>projeto</b></td><td>workspace</td><td>fica no disco, riscado na lista, e o sombreamento vira evento na linha do tempo</td></tr>
+          <tr><td><b>workspace</b></td><td>global</td><td>igual — e nunca concatenado em silêncio</td></tr>
+        </tbody>
+      </table>
+      <p class="case__note">
+        Escrever para baixo é livre; escrever para cima é proposta. É a assimetria que faz o workspace
+        valer a pena sem deixar um agente contaminar N projetos.
+      </p>
+    </section>
+  </div>
+</section>
+
+<script>
+var tabs = document.querySelectorAll('.tabbar .tab');
+function show(id) {
+  tabs.forEach(function (t) { t.classList.toggle('is-active', t.dataset.screen === id); });
+  document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('is-active', s.id === 'screen-' + id); });
+  localStorage.setItem('lumem-workspace-memory-screen', id);
+  window.scrollTo(0, 0);
+}
+tabs.forEach(function (tab) { tab.addEventListener('click', function () { show(tab.dataset.screen); }); });
+var saved = localStorage.getItem('lumem-workspace-memory-screen');
+if (saved && document.getElementById('screen-' + saved)) { show(saved); }
+</script>
+</body>
+</html>
