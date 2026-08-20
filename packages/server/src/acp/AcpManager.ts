@@ -1,6 +1,7 @@
 import {
   client,
   ndJsonStream,
+  type NewSessionResponse,
   type ClientConnection,
   type RequestPermissionOutcome,
   type RequestPermissionResponse,
@@ -8,6 +9,7 @@ import {
   type ToolCallUpdate,
 } from "@agentclientprotocol/sdk";
 import {
+  ACP_AUTH_REQUIRED_CODE,
   newId,
   type AcpConfigOption,
   type AcpEvent,
@@ -107,11 +109,21 @@ export interface AcpProbeReport {
   agentInfo: { name: string; title: string | null; version: string } | null;
   protocolVersion: number;
   /**
-   * Empty means the adapter asked for nothing — it used a credential it already
-   * had. That is what the spike measured, and what makes the auth step a report
-   * rather than a choice (F3.6).
+   * How this adapter says a person logs in — its list, not ours.
+   *
+   * Empty means it offers nothing, which for `claude-agent-acp` happens when the
+   * client does not declare `auth.terminal`; the daemon declares it, so an empty
+   * list here means the adapter really has nothing to offer.
+   *
+   * Every method the daemon can act on is `type: "terminal"`: a command to run in
+   * a real terminal, which is what the two Claude logins actually are. `agent`
+   * methods would go through `authenticate`, and `env_var` ones would need a
+   * secret stored somewhere — neither is offered by this adapter, and both are
+   * reported here as unusable rather than drawn as a button that fails.
    */
-  authMethods: readonly { id: string; name: string | null }[];
+  authMethods: readonly AcpAuthMethod[];
+  /** `session/new` refused with `auth_required`: there is no usable credential. */
+  authRequired: boolean;
   capabilities: readonly string[];
   /** The test session's id. It is dead by the time this is read. */
   acpSessionId: string;
@@ -119,6 +131,26 @@ export interface AcpProbeReport {
   currentMode: string | null;
   /** Milliseconds, per stage. The screen reports them; nothing branches on them. */
   timings: { spawnMs: number; initializeMs: number; sessionMs: number };
+}
+
+/**
+ * One way in, as the adapter described it.
+ *
+ * `command` and `args` are what the daemon will run. They come from the method's
+ * `_meta["terminal-auth"]` when the adapter provides it — which is the honest
+ * source, because the adapter knows which binary of itself to launch — and are
+ * null for a method the daemon cannot execute, so the screen can say why instead
+ * of offering it.
+ */
+export interface AcpAuthMethod {
+  id: string;
+  name: string;
+  description: string | null;
+  type: "terminal" | "agent" | "env_var" | "unknown";
+  command: string | null;
+  args: readonly string[];
+  /** What to call the terminal that runs it. */
+  label: string | null;
 }
 
 export type AcpEventListener = (entry: AcpTranscriptEntry) => void;
@@ -397,10 +429,30 @@ export class AcpManager {
         );
       }
 
-      const created = await this.withTimeout(
-        session.connection.agent.request("session/new", { cwd: options.cwd, mcpServers: [] }),
-        "session/new",
-      );
+      /*
+       * `auth_required` is an answer, not a failure.
+       *
+       * It is the whole reason the login panel exists, and the only way to know a
+       * credential is missing without spending a turn to find out. Anything else
+       * that goes wrong here still throws.
+       */
+      /*
+       * The SDK's own response type, reached through the request it answers.
+       *
+       * Spelling the shape out by hand drifts: `modes` is nullable there and was
+       * not here, and the compiler caught it — which is the argument for not
+       * writing a second copy of a type the SDK already owns.
+       */
+      let created: NewSessionResponse | null;
+      try {
+        created = await this.withTimeout(
+          session.connection.agent.request("session/new", { cwd: options.cwd, mcpServers: [] }),
+          "session/new",
+        );
+      } catch (error) {
+        if (!isAuthRequired(error)) throw error;
+        created = null;
+      }
       const createdAt = this.now();
 
       const capabilities = initialize.agentCapabilities ?? {};
@@ -415,6 +467,7 @@ export class AcpManager {
       return {
         command: options.command,
         args: [...(options.args ?? [])],
+        authRequired: created === null,
         agentInfo:
           initialize.agentInfo === undefined || initialize.agentInfo === null
             ? null
@@ -424,14 +477,11 @@ export class AcpManager {
                 version: initialize.agentInfo.version,
               },
         protocolVersion: initialize.protocolVersion,
-        authMethods: (initialize.authMethods ?? []).map((method) => ({
-          id: method.id,
-          name: method.name ?? null,
-        })),
+        authMethods: (initialize.authMethods ?? []).map(toAuthMethod),
         capabilities: declared,
-        acpSessionId: created.sessionId,
-        modes: created.modes?.availableModes.map((mode) => mode.id) ?? [],
-        currentMode: created.modes?.currentModeId ?? null,
+        acpSessionId: created?.sessionId ?? "",
+        modes: created?.modes?.availableModes.map((mode) => mode.id) ?? [],
+        currentMode: created?.modes?.currentModeId ?? null,
         timings: {
           spawnMs: spawnedAt - startedAt,
           initializeMs: initializedAt - spawnedAt,
@@ -948,7 +998,23 @@ export class AcpManager {
           // would have the agent ask for a shell and get an error mid-turn, which
           // is exactly what declaring capabilities honestly avoids.
           ...(this.ptyManager ? { terminal: true } : {}),
+          /*
+           * Login by terminal, declared for the same reason and with the same rule.
+           *
+           * Measured, not assumed: `claude-agent-acp` advertises **no** `authMethods`
+           * to a client that does not declare this — which is why the spike read an
+           * empty list and concluded "it asked for nothing". It was never asked.
+           * With `auth.terminal` it offers `claude-ai-login` and `console-login`,
+           * both `type: "terminal"`; with `_meta["terminal-auth"]` it also hands over
+           * the exact command and args to run, so the daemon does not have to guess
+           * which binary logs in.
+           *
+           * Gated on the `PtyManager` too: the methods it offers are commands, and
+           * a client that cannot run one has no business being offered it.
+           */
+          ...(this.ptyManager ? { auth: { terminal: true } } : {}),
         },
+        ...(this.ptyManager ? { _meta: { "terminal-auth": true } } : {}),
         clientInfo: { name: "lumem", version: LUMEM_CLIENT_VERSION },
       }),
       "initialize",
@@ -983,10 +1049,29 @@ export class AcpManager {
       return await this.load(session, cwd, loadAcpSessionId);
     }
 
-    const created = await this.withTimeout(
-      session.connection.agent.request("session/new", { cwd, mcpServers: [] }),
-      "session/new",
-    );
+    let created;
+    try {
+      created = await this.withTimeout(
+        session.connection.agent.request("session/new", { cwd, mcpServers: [] }),
+        "session/new",
+      );
+    } catch (error) {
+      /*
+       * The one refusal a person can act on, so it gets its own sentence.
+       *
+       * Everything else that goes wrong here is a broken adapter or a broken
+       * machine. This one means "log in", and the place to do that is a screen —
+       * so the message names it instead of surfacing a JSON-RPC code.
+       */
+      if (isAuthRequired(error)) {
+        throw new DomainError(
+          "BLOCKED",
+          `o agente ${session.info.command} não tem credencial: entre na conta em "conectar um agente", no rodapé da coluna da esquerda`,
+          { cause: error },
+        );
+      }
+      throw error;
+    }
 
     const configOptions = normaliseOptions(created.configOptions, created.modes);
     session.optionTypes = typesOf(created.configOptions);
@@ -1377,4 +1462,52 @@ function launchFailure(command: string, adapterVersion: string | undefined, caus
     `não foi possível iniciar o adaptador "${command}".${pinned} (${detail})`,
     { cause },
   );
+}
+
+/**
+ * Whether a failure is the agent saying "log in first".
+ *
+ * By code, not by message: the text is the adapter's and may be translated or
+ * reworded, while `-32000` is the protocol's (`RequestError.authRequired`).
+ */
+function isAuthRequired(error: unknown): boolean {
+  const code = (error as { code?: unknown }).code;
+  return code === ACP_AUTH_REQUIRED_CODE;
+}
+
+/**
+ * One `authMethods` entry, in the shape a screen can act on.
+ *
+ * The command comes from `_meta["terminal-auth"]` when the adapter sent it. A
+ * `terminal` method without that meta has `args` but no binary to run them
+ * against — the adapter means "itself", and guessing which of its two names is on
+ * this machine is exactly the guess that produced the wrong install command in
+ * the first place. So it reports `command: null` and the screen says why.
+ */
+function toAuthMethod(method: {
+  id: string;
+  name?: string | null;
+  description?: string | null;
+  type?: string;
+  args?: readonly string[];
+  _meta?: Record<string, unknown> | null;
+}): AcpAuthMethod {
+  const meta = method._meta?.["terminal-auth"] as
+    | { command?: string; args?: string[]; label?: string }
+    | undefined;
+
+  const type =
+    method.type === "terminal" || method.type === "agent" || method.type === "env_var"
+      ? method.type
+      : "unknown";
+
+  return {
+    id: method.id,
+    name: method.name ?? method.id,
+    description: method.description ?? null,
+    type,
+    command: type === "terminal" ? meta?.command ?? null : null,
+    args: meta?.args ?? [...(method.args ?? [])],
+    label: meta?.label ?? null,
+  };
 }
