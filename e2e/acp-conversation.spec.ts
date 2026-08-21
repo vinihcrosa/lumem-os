@@ -35,6 +35,7 @@ const WORKTREES = {
   fullTurn: "conversa-turno",
   replay: "conversa-replay",
   width: "conversa-largura",
+  markdown: "conversa-markdown",
   composer: "conversa-composer",
   parity: "conversa-paridade",
   switch: "conversa-troca",
@@ -418,4 +419,68 @@ test("the terminal the agent asks for lives inside its card", async ({ page }) =
   // Inside the card, never as a tab of its own: the user did not start it and
   // cannot close it, so a tab would offer a close button that fights the agent.
   await expect(page.getByRole("tab", { name: /^sh\b/ })).toHaveCount(0);
+});
+
+test("o markdown da resposta é renderizado, e o que é largo rola dentro de si", async ({ page }) => {
+  /*
+   * O defeito: a mensagem do agente ia inteira dentro de um `<p>` só, e título,
+   * lista e cerca de código apareciam como `##`, `-` e ``` numa parede de texto
+   * sem quebra nenhuma.
+   *
+   * Aqui pelo caminho do eco — o agente falso repete o que recebeu —, porque é o
+   * único jeito de ter markdown de verdade atravessando o protocolo. E a segunda
+   * metade é layout, que **só** um navegador responde: uma linha de código de 300
+   * caracteres não pode empurrar a coluna da conversa.
+   */
+  await page.setViewportSize({ width: 900, height: 800 });
+  await arrive(page, WORKTREES.markdown);
+  await openConversation(page);
+  const conv = conversation(page);
+
+  const long = "const caminhoMuitoLongo = ".concat("x".repeat(300), ";");
+  const markdown = [
+    "## O que entrou",
+    "",
+    "Duas coisas, e a segunda é a que importa:",
+    "",
+    "- injeção do núcleo",
+    "- captura de fim de sessão",
+    "",
+    "```ts",
+    long,
+    "```",
+    "",
+    "| parte | estado |",
+    "|---|---|",
+    "| 06 | entregue |",
+  ].join("\n");
+
+  const box = conv.getByLabel("mensagem para o agente");
+  await box.fill(`eco do que recebeu\n\n${markdown}`);
+  await conv.getByRole("button", { name: /enviar/ }).click();
+
+  // Renderizado: título é `h2`, lista é `li`, cerca é `pre`, tabela é `table`.
+  const answer = conv.locator(".turn--agent .msg").last();
+  await expect(answer.locator("h2")).toBeVisible({ timeout: 30_000 });
+  await expect(answer.locator("li").first()).toBeVisible();
+  await expect(answer.locator("pre code")).toBeVisible();
+  await expect(answer.locator("table th").first()).toBeVisible();
+  // E o `##` não aparece como texto em lugar nenhum.
+  await expect(answer).not.toContainText("## O que entrou");
+
+  // A coluna não cresceu: o bloco largo rola dentro do próprio contêiner.
+  const column = await conv.boundingBox();
+  const pre = await answer.locator("pre").boundingBox();
+  expect(column, "a coluna da conversa tem que estar visível").not.toBeNull();
+  expect(pre, "a cerca de código tem que estar visível").not.toBeNull();
+  expect(
+    pre!.x + pre!.width,
+    "a cerca de código passou da direita da coluna",
+  ).toBeLessThanOrEqual(column!.x + column!.width + 1);
+
+  // E a página não ganhou rolagem horizontal, que é o sintoma de fora.
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow, "a página ganhou rolagem horizontal").toBeLessThanOrEqual(1);
 });

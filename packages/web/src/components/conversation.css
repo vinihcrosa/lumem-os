@@ -78,10 +78,106 @@
 .turn--user  .turn__g { color: var(--color-turn-user); }
 .turn__b { min-width: 0; display: grid; gap: var(--space-10); }
 
-.msg { font: var(--text-body-lg); color: var(--color-text-primary); }
+/*
+ * `min-width: 0` é o que faz a rolagem interna funcionar.
+ *
+ * `.msg` é item de grid do `.turn__b`, e item de grid nasce com `min-width: auto`
+ * — ele cresce até caber o conteúdo. Com uma cerca de 300 caracteres dentro, o
+ * `overflow-x: auto` do `pre` nunca era usado: quem esticava era a mensagem, e a
+ * coluna ia com ela. O e2e mediu 2.516px de `pre` numa coluna de 881px.
+ */
+.msg { font: var(--text-body-lg); color: var(--color-text-primary); min-width: 0; }
 .msg p { margin: 0 0 var(--space-10); }
 .msg p:last-child { margin: 0; }
 .msg code { font: var(--text-mono-md); color: var(--color-text-code); background: var(--color-bg-surface); border-radius: var(--radius-xs); padding: 0 var(--space-4); }
+
+/*
+ * O MARKDOWN DA MENSAGEM.
+ *
+ * Este bloco sempre foi pressuposto e nunca foi escrito: o protótipo desenha
+ * `.msg` com `<p>` e `<code>` dentro desde o começo, então o desenho já dizia
+ * que a mensagem é markdown renderizado. Faltava o resto do que um agente
+ * escreve — título, lista, cerca, citação, tabela.
+ *
+ * Três decisões, e todas sobre isto ser CONVERSA e não documento:
+ *
+ * 1. **título de mensagem é pequeno.** O `h1` do app é o produto, na topbar; o
+ *    `##` que um agente escreve é uma seção de resposta, não de página. Então a
+ *    escala aqui começa em `--text-label-md` e não em display — um título de 28px
+ *    dentro de um turno grita mais alto que o turno inteiro.
+ * 2. **nada de tipografia nova.** Tudo sai dos mesmos tokens do corpo e do mono;
+ *    o que separa um título de um parágrafo é peso e espaço, não tamanho novo.
+ * 3. **conteúdo largo rola dentro de si.** Cerca de código e tabela têm
+ *    `overflow-x: auto`: uma linha de 300 caracteres não pode empurrar a coluna
+ *    da conversa, que é a mesma regra do resultado de ferramenta.
+ */
+.msg h1, .msg h2, .msg h3, .msg h4, .msg h5, .msg h6 {
+  margin: var(--space-12) 0 var(--space-6);
+  /* `--text-label-md` já carrega o peso 500: um título aqui é o corpo com mais
+     peso e mais ar, e não um tamanho novo. */
+  font: var(--text-label-md);
+  color: var(--color-text-primary);
+}
+.msg h1:first-child, .msg h2:first-child, .msg h3:first-child { margin-top: 0; }
+/* Do terceiro nível em diante o título é uma etiqueta: menor que o corpo e em
+   caixa alta, porque aninhamento fundo numa mensagem é raro e curto. */
+.msg h4, .msg h5, .msg h6 {
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs);
+  color: var(--color-text-secondary); text-transform: uppercase;
+}
+
+.msg ul, .msg ol { margin: 0 0 var(--space-10); padding-left: var(--space-20); }
+.msg ul:last-child, .msg ol:last-child { margin-bottom: 0; }
+.msg li { margin: var(--space-2) 0; }
+/* Lista dentro de lista não ganha margem própria: ela já está recuada. */
+.msg li > ul, .msg li > ol { margin: var(--space-2) 0 0; }
+
+/* `strong` herda o peso do próprio navegador (bold): não existe token de peso
+   solto neste sistema, e inventar um aqui seria criar token fora do lugar. */
+.msg strong { color: var(--color-text-primary); }
+.msg em { font-style: italic; }
+.msg del { color: var(--color-text-tertiary); }
+.msg a { color: var(--color-text-brand); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Cerca de código: bloco, não `<code>` inline — fundo próprio, rolagem própria,
+   e sem o `padding` lateral do inline, que dentro de um bloco viraria recuo. */
+.msg pre {
+  margin: 0 0 var(--space-10); padding: var(--space-10) var(--space-12);
+  background: var(--color-bg-inset); border-radius: var(--radius-md);
+  overflow-x: auto; max-width: 100%;
+}
+.msg pre:last-child { margin-bottom: 0; }
+.msg pre code {
+  display: block; background: none; padding: 0; border-radius: 0;
+  font: var(--text-mono-sm); color: var(--color-text-code);
+  white-space: pre;
+}
+
+.msg blockquote {
+  margin: 0 0 var(--space-10); padding-left: var(--space-10);
+  border-left: var(--border-width-thick) solid var(--color-border-default);
+  color: var(--color-text-secondary);
+}
+.msg blockquote:last-child { margin-bottom: 0; }
+
+.msg hr {
+  margin: var(--space-12) 0; border: 0;
+  border-top: var(--border-width-thin) solid var(--color-border-subtle);
+}
+
+/* Tabela: o agente escreve muitas, e ela é a coisa mais larga que ele produz.
+   Rola dentro do próprio contêiner, e a primeira coluna não encolhe até virar
+   uma letra por linha. */
+.msg .table-scroll { overflow-x: auto; margin: 0 0 var(--space-10); }
+.msg .table-scroll:last-child { margin-bottom: 0; }
+.msg table { border-collapse: collapse; font: var(--text-body-sm); }
+.msg th, .msg td {
+  padding: var(--space-4) var(--space-10);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+  text-align: left; vertical-align: top; white-space: nowrap;
+}
+.msg th { font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); color: var(--color-text-secondary); }
+.msg tr:last-child td { border-bottom: 0; }
 /*
  * O turno do usuário ganha fundo levantado e o resto não: é o único jeito
  * de achar "onde eu pedi isso" rolando uma conversa de duas horas.

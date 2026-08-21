@@ -1,5 +1,7 @@
 import { Glyph } from "../ui/index.js";
 
+import { Markdown } from "./Markdown.js";
+
 /**
  * One person's or one agent's contribution, in the conversation's gutter grid.
  *
@@ -38,13 +40,19 @@ export interface MessageProps {
   streaming?: boolean;
 }
 
+/**
+ * Markdown, e não texto cru.
+ *
+ * O que um agente escreve é markdown — título, lista, cerca de código, tabela —,
+ * e isto renderizava tudo dentro de um `<p>` só. O resultado era uma parede de
+ * texto com `##` e `**` à vista, numa linha, sem nem as quebras que ele mandou.
+ * O protótipo do Open Design nunca supôs outra coisa: `.msg` sempre teve `<p>` e
+ * `<code>` dentro.
+ */
 export function Message({ text, streaming = false }: MessageProps) {
   return (
     <div className="msg">
-      <p>
-        {text}
-        {streaming && <span className="mcaret" aria-hidden="true" />}
-      </p>
+      <Markdown text={text} streaming={streaming} />
     </div>
   );
 }
@@ -84,10 +92,9 @@ export function Thought({ text, open, onToggle, streaming = false }: ThoughtProp
       </button>
       {open && (
         <div className="thought__text">
-          <p>
-            {text}
-            {streaming && <span className="mcaret" aria-hidden="true" />}
-          </p>
+          {/* Raciocínio também é markdown: o agente numera passos e cita código
+              ali como cita em qualquer outro lugar. */}
+          <Markdown text={text} streaming={streaming} />
         </div>
       )}
     </>

@@ -307,6 +307,15 @@ o que faz o `click()` do Playwright esperar sozinho. E o corolário desconfortá
 roda numa máquina não cobre corrida de rede.** Esta passou 34/34 localmente em três execuções
 seguidas, e reprovou na primeira vez que rodou num runner mais lento.
 
+**Laço que não avança falha por OOM, e isso é sorte.** O parser de markdown da mensagem tinha um
+ramo — linha com barras que não é tabela — que nenhum bloco consumia e que o parágrafo se recusava a
+consumir. O `index` ficava parado, o laço enchia a memória de parágrafos vazios, e o `vitest` morreu
+com *heap out of memory* e stack nativo de 49 quadros. O teste que provocou isso tem uma linha.
+
+A regra: **todo laço que consome entrada tem que garantir consumo no ramo de fallback.** No parser é
+literal — o parágrafo pega a primeira linha **sempre**, e só depois decide se continua. E o corolário
+de teste: **um caso "isto não é X" vale o dobro**, porque ele é o que cai no fallback.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
