@@ -618,6 +618,12 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .code--nowrap .l { white-space: pre; overflow-wrap: normal; }
 .code--nowrap { overflow-x: auto; }
 /*
+ * `.code` sem variante é viewer. `.code--edit` é a área que aceita digitação, e
+ * a única diferença que a pessoa vê ANTES de clicar é o cursor de texto —
+ * linha ativa, seleção e caret só aparecem depois que ela já clicou.
+ */
+.code--edit { cursor: text; caret-color: var(--color-editor-cursor); }
+/*
  * A medianiz gruda e agora é LEGÍVEL: o `text-disabled` herdado dava 2,96:1
  * sobre o poço, abaixo até do mínimo de objeto gráfico. Número de linha é o
  * endereço que se lê em voz alta — no editor ele também é para onde o erro do

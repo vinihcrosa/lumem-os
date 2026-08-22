@@ -4,67 +4,71 @@
 <meta charset="utf-8">
 <title>Lumem-OS — a sessão de agente vira conversa (ACP)</title>
 <link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
 <link rel="stylesheet" href="lumem-acp-conversation.css">
 </head>
 <body>
 
-<nav class="tabbar">
-  <button class="tab is-active" data-screen="conversa">Conversa</button>
-  <button class="tab" data-screen="ferramenta">Ferramenta</button>
-  <button class="tab" data-screen="permissao">Permissão</button>
-  <button class="tab" data-screen="plano">Plano</button>
-  <button class="tab" data-screen="uso">Uso</button>
-  <button class="tab" data-screen="limites">Limites</button>
+<h1 class="vh">Lumem-OS — a sessão de agente vira conversa (ACP): sete estados da tela</h1>
+
+<nav class="tabbar" role="tablist" aria-label="Estados desta tela" data-od-id="state-tabs">
+  <button class="tab" id="tab-conversa" role="tab" data-screen="conversa" aria-selected="true" aria-controls="screen-conversa" tabindex="0">Conversa</button>
+  <button class="tab" id="tab-ferramenta" role="tab" data-screen="ferramenta" aria-selected="false" aria-controls="screen-ferramenta" tabindex="-1">Ferramenta</button>
+  <button class="tab" id="tab-permissao" role="tab" data-screen="permissao" aria-selected="false" aria-controls="screen-permissao" tabindex="-1">Permissão</button>
+  <button class="tab" id="tab-plano" role="tab" data-screen="plano" aria-selected="false" aria-controls="screen-plano" tabindex="-1">Plano</button>
+  <button class="tab" id="tab-uso" role="tab" data-screen="uso" aria-selected="false" aria-controls="screen-uso" tabindex="-1">Uso</button>
+  <button class="tab" id="tab-limites" role="tab" data-screen="limites" aria-selected="false" aria-controls="screen-limites" tabindex="-1">Limites</button>
+  <button class="tab" id="tab-conexao" role="tab" data-screen="conexao" aria-selected="false" aria-controls="screen-conexao" tabindex="-1">Conexão</button>
 </nav>
 
 <!-- ==================================================================== -->
 <!-- TELA 1 — a frase do PRD: uma tarefa real do dia a dia, sem terminal   -->
 <!-- ==================================================================== -->
-<section class="screen is-active" id="screen-conversa">
+<section class="screen is-active" id="screen-conversa" role="tabpanel" aria-labelledby="tab-conversa" tabindex="0" data-od-id="panel-conversa">
   <div class="app app--flow">
     <header class="topbar">
-      <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+      <div class="wordmark" data-od-id="wordmark"><span class="wordmark__dot" aria-hidden="true"></span>LUMEM</div>
       <span class="spacer"></span>
       <button class="rp-toggle">▤ arquivos</button>
-      <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+      <span class="daemon"><span class="daemon__dot" aria-hidden="true"></span>daemon v0.1.0 · :4317</span>
     </header>
     <div class="body body--noright">
       <aside class="sidebar">
         <div class="ws-wrap">
-          <div class="ws"><span class="ws__icon">◈</span>pessoal<span class="spacer"></span><span class="ws__caret">▾</span></div>
+          <div class="ws"><span class="ws__icon" aria-hidden="true">◈</span>pessoal<span class="spacer"></span><span class="ws__caret" aria-hidden="true">▾</span></div>
         </div>
         <div class="tree">
           <div class="tree__label">Projetos</div>
-          <div class="row row--project"><span class="row__twist" style="--depth:0">▾</span><span class="row__main"><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></span></div>
-          <div class="row"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--local">▭</span><span class="row__label">local</span></span></div>
-          <div class="row row--selected"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--worktree">◇</span><span class="row__label">frontmatter-vazio</span><span class="count count--running"><span class="count__dot"></span>2</span></span></div>
-          <div class="row"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--worktree">◇</span><span class="row__label">feat/reconciliacao-de-boot-com-nome-comprido</span></span></div>
-          <div class="row row--muted"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--warn">⚠</span><span class="row__label">ui-polish</span><span class="row__meta">ausente</span></span></div>
-          <div class="row row--project"><span class="row__twist" style="--depth:0">▸</span><span class="row__main"><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span></span></div>
+          <div class="row row--project"><span class="row__twist" style="--depth:0" aria-hidden="true">▾</span><span class="row__main"><span class="glyph glyph--project" aria-hidden="true">■</span><span class="row__label">lorebase</span></span></div>
+          <div class="row"><span class="row__twist" style="--depth:1" aria-hidden="true"></span><span class="row__main"><span class="glyph glyph--local" aria-hidden="true">▭</span><span class="row__label">local</span></span></div>
+          <div class="row row--selected"><span class="row__twist" style="--depth:1" aria-hidden="true"></span><span class="row__main"><span class="glyph glyph--worktree" aria-hidden="true">◇</span><span class="row__label">frontmatter-vazio</span><span class="count count--running"><span class="count__dot" aria-hidden="true"></span>2<span class="vh"> sessões rodando</span></span></span></div>
+          <div class="row"><span class="row__twist" style="--depth:1" aria-hidden="true"></span><span class="row__main"><span class="glyph glyph--worktree" aria-hidden="true">◇</span><span class="row__label">feat/reconciliacao-de-boot-com-nome-comprido</span></span></div>
+          <div class="row row--muted"><span class="row__twist" style="--depth:1" aria-hidden="true"></span><span class="row__main"><span class="glyph glyph--warn" aria-hidden="true">⚠</span><span class="row__label">ui-polish</span><span class="row__meta">ausente</span></span></div>
+          <div class="row row--project"><span class="row__twist" style="--depth:0" aria-hidden="true">▸</span><span class="row__main"><span class="glyph glyph--project" aria-hidden="true">■</span><span class="row__label">lumem-os</span></span></div>
         </div>
-        <div class="sidebar__foot"><button class="add"><span class="glyph">＋</span>adicionar projeto</button></div>
+        <div class="sidebar__foot"><button class="add"><span class="glyph" aria-hidden="true">＋</span>adicionar projeto</button></div>
       </aside>
 
       <main class="main">
         <div class="wt-head">
-          <nav class="crumb">pessoal<span class="crumb__sep">/</span>lorebase<span class="crumb__sep">/</span><span class="crumb__here">frontmatter-vazio</span></nav>
+          <nav class="crumb">pessoal<span class="crumb__sep" aria-hidden="true">/</span>lorebase<span class="crumb__sep" aria-hidden="true">/</span><span class="crumb__here">frontmatter-vazio</span></nav>
           <div class="wt-title">
-            <h2><span class="glyph glyph--worktree">◇</span>frontmatter-vazio</h2>
+            <h2><span class="glyph glyph--worktree" aria-hidden="true">◇</span>frontmatter-vazio</h2>
             <span class="spacer"></span>
             <button class="btn btn--ghost btn--sm">remover worktree</button>
           </div>
           <div class="chips">
-            <span class="chip chip--branch"><span class="chip__dot"></span>frontmatter-vazio</span>
-            <span class="chip chip--dirty"><span class="chip__dot"></span>suja · 3 arquivos</span>
+            <span class="chip chip--branch"><span class="chip__dot" aria-hidden="true"></span>frontmatter-vazio</span>
+            <span class="chip chip--dirty"><span class="chip__dot" aria-hidden="true"></span>suja · 3 arquivos</span>
             <span class="chip"><span class="ahead">↑1</span> <span class="dim">de main</span></span>
           </div>
         </div>
 
         <div class="tabs-bar"><div class="tabs">
-          <button class="stab stab--overview">contexto</button>
+          <div class="stab stab--overview"><button class="stab__label">contexto</button></div>
           <span class="tabs__sep"></span>
-          <button class="stab stab--active"><span class="glyph glyph--agent">◆</span>claude<span class="stab__dot"></span><span class="stab__close">✕</span></button>
-          <button class="stab"><span class="glyph glyph--shell">●</span>shell<span class="stab__dot"></span><span class="stab__close">✕</span></button>
+          <div class="stab stab--active"><button class="stab__label"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude<span class="stab__dot" aria-hidden="true"></span></button><button class="stab__close" aria-label="Encerrar sessão claude">✕</button></div>
+          <div class="stab"><button class="stab__label"><span class="glyph glyph--shell" aria-hidden="true">●</span>shell<span class="stab__dot" aria-hidden="true"></span></button><button class="stab__close" aria-label="Encerrar sessão shell">✕</button></div>
           </div>
           <span class="menu-wrap"><button class="tabs__new">＋ nova sessão</button></span>
         </div>
@@ -72,52 +76,54 @@
         <div class="pane pane--conv">
           <div class="conv">
             <div class="conv__head">
-              <span class="conv__who"><span class="glyph glyph--agent">◆</span>claude</span>
+              <span class="conv__who"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude</span>
               <span class="conv__adapter">claude-agent-acp 0.69.0 · sessão d81b05ee</span>
               <span class="spacer"></span>
-              <span class="pill pill--model">opus[1m] <span class="pill__caret">▾</span></span>
-              <span class="pill pill--auto">Auto <span class="pill__caret">▾</span></span>
+              <button class="pill pill--model" disabled title="O daemon recusa a troca no meio do turno">opus[1m] <span class="pill__caret" aria-hidden="true">▾</span></button>
+              <button class="pill pill--auto" disabled title="O daemon recusa a troca no meio do turno">Auto <span class="pill__caret" aria-hidden="true">▾</span></button>
               <button class="btn btn--ghost btn--sm">■ interromper</button>
             </div>
 
             <div class="conv__scroll conv__scroll--flow">
               <div class="turn turn--user">
-                <span class="turn__g">❯</span>
+                <span class="vh">Você:</span>
+                <span class="turn__g" aria-hidden="true">❯</span>
                 <div class="turn__b"><div class="msg">o loader do lorebase quebra quando o frontmatter é vazio — <code>---</code> na primeira linha e <code>---</code> na segunda. arruma isso, e cobre com teste.</div></div>
               </div>
 
               <div class="turn turn--agent">
-                <span class="turn__g">◆</span>
+                <span class="vh">claude:</span>
+                <span class="turn__g" aria-hidden="true">◆</span>
                 <div class="turn__b">
-                  <div class="thought"><span class="thought__twist">▸</span>pensou 6 s<span class="thought__peek">· o parser está embutido no loader, então o caso vazio não tem onde ser testado</span></div>
+                  <div class="thought"><span class="thought__twist" aria-hidden="true">▸</span>pensou 6 s<span class="thought__peek">· o parser está embutido no loader, então o caso vazio não tem onde ser testado</span></div>
                   <div class="msg"><p>O parser está inline no <code>loader.ts</code> e trata <code>---\n---</code> como frontmatter aberto e nunca fechado, então estoura. Vou separar o parser antes de consertar — assim o caso vazio ganha teste próprio em vez de virar mais um caminho dentro do loader.</p></div>
 
                   <div class="plan">
-                    <div class="plan__head"><span class="plan__glyph">☰</span>Plano<span class="spacer"></span><span class="plan__count">2 de 5</span></div>
-                    <div class="plan__row plan__row--done"><span class="plan__mark">✓</span><span class="plan__what">ler o loader e achar onde o frontmatter é lido</span></div>
-                    <div class="plan__row plan__row--done"><span class="plan__mark">✓</span><span class="plan__what">extrair o parser para <code>src/lore/frontmatter.ts</code></span></div>
-                    <div class="plan__row plan__row--active"><span class="plan__mark">◐</span><span class="plan__what">cobrir frontmatter vazio, aberto e ausente</span><span class="spacer"></span><span class="plan__now">agora</span></div>
-                    <div class="plan__row plan__row--pending"><span class="plan__mark">○</span><span class="plan__what">apontar o loader para o parser novo</span></div>
-                    <div class="plan__row plan__row--pending"><span class="plan__mark">○</span><span class="plan__what">rodar <code>pnpm gate:quick</code></span></div>
+                    <div class="plan__head"><span class="plan__glyph" aria-hidden="true">☰</span>Plano<span class="spacer"></span><span class="plan__count">2 de 5</span></div>
+                    <div class="plan__row plan__row--done"><span class="plan__mark" aria-hidden="true">✓</span><span class="vh">Feito:</span><span class="plan__what">ler o loader e achar onde o frontmatter é lido</span></div>
+                    <div class="plan__row plan__row--done"><span class="plan__mark" aria-hidden="true">✓</span><span class="vh">Feito:</span><span class="plan__what">extrair o parser para <code>src/lore/frontmatter.ts</code></span></div>
+                    <div class="plan__row plan__row--active"><span class="plan__mark" aria-hidden="true">◐</span><span class="plan__what">cobrir frontmatter vazio, aberto e ausente</span><span class="spacer"></span><span class="plan__now">agora</span></div>
+                    <div class="plan__row plan__row--pending"><span class="plan__mark" aria-hidden="true">○</span><span class="vh">Pendente:</span><span class="plan__what">apontar o loader para o parser novo</span></div>
+                    <div class="plan__row plan__row--pending"><span class="plan__mark" aria-hidden="true">○</span><span class="vh">Pendente:</span><span class="plan__what">rodar <code>pnpm gate:quick</code></span></div>
                   </div>
 
                   <div class="tc tc--ok">
                     <div class="tc__head">
-                      <span class="tc__glyph">▤</span><span class="tc__verb">Read</span>
+                      <span class="tc__glyph" aria-hidden="true">▤</span><span class="tc__verb">Read</span>
                       <span class="tc__target"><span class="tc__dir">src/lore/</span><span class="tc__name">loader.ts</span></span>
                       <span class="tc__time">0,4 s</span>
-                      <span class="tc__st"><span class="tc__dot"></span>ok</span>
-                      <span class="tc__twist">▸</span>
+                      <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span>
+                      <span class="tc__twist" aria-hidden="true">▸</span>
                     </div>
                   </div>
 
                   <div class="tc tc--ok">
                     <div class="tc__head">
-                      <span class="tc__glyph">▤</span><span class="tc__verb">Grep</span>
+                      <span class="tc__glyph" aria-hidden="true">▤</span><span class="tc__verb">Grep</span>
                       <span class="tc__arg">"parseFrontmatter|FENCE" em src/</span>
                       <span class="tc__time">0,2 s</span>
-                      <span class="tc__st"><span class="tc__dot"></span>ok</span>
-                      <span class="tc__twist">▾</span>
+                      <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span>
+                      <span class="tc__twist" aria-hidden="true">▾</span>
                     </div>
                     <div class="tc__body">
                       <div class="out out--short">
@@ -130,23 +136,23 @@
 
                   <div class="tc tc--ok">
                     <div class="tc__head">
-                      <span class="tc__glyph">▣</span><span class="tc__verb">Write</span>
+                      <span class="tc__glyph" aria-hidden="true">▣</span><span class="tc__verb">Write</span>
                       <span class="tc__target"><span class="tc__dir">src/lore/</span><span class="tc__name">frontmatter.ts</span></span>
                       <span class="tc__delta"><span class="plus">+68</span></span>
                       <span class="tc__time">1,1 s</span>
-                      <span class="tc__st"><span class="tc__dot"></span>ok</span>
-                      <span class="tc__twist">▸</span>
+                      <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span>
+                      <span class="tc__twist" aria-hidden="true">▸</span>
                     </div>
                   </div>
 
                   <div class="tc tc--ok">
                     <div class="tc__head">
-                      <span class="tc__glyph">▣</span><span class="tc__verb">Edit</span>
+                      <span class="tc__glyph" aria-hidden="true">▣</span><span class="tc__verb">Edit</span>
                       <span class="tc__target"><span class="tc__dir">src/lore/</span><span class="tc__name">loader.ts</span></span>
                       <span class="tc__delta"><span class="plus">+4</span> <span class="minus">−61</span></span>
                       <span class="tc__time">0,8 s</span>
-                      <span class="tc__st"><span class="tc__dot"></span>ok</span>
-                      <span class="tc__twist">▾</span>
+                      <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span>
+                      <span class="tc__twist" aria-hidden="true">▾</span>
                     </div>
                     <div class="tc__body">
                       <div class="code code--in-card code--nowrap">
@@ -167,11 +173,11 @@
 
                   <div class="tc tc--running">
                     <div class="tc__head">
-                      <span class="tc__glyph">❯</span><span class="tc__verb">Bash</span>
+                      <span class="tc__glyph" aria-hidden="true">❯</span><span class="tc__verb">Bash</span>
                       <span class="tc__arg">pnpm vitest run src/lore</span>
                       <span class="tc__time">4,2 s</span>
-                      <span class="tc__st"><span class="tc__dot"></span>rodando</span>
-                      <span class="tc__twist">▾</span>
+                      <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>rodando</span>
+                      <span class="tc__twist" aria-hidden="true">▾</span>
                     </div>
                     <div class="tc__body">
                       <div class="out out--short">
@@ -183,26 +189,26 @@
                     </div>
                   </div>
 
-                  <div class="msg"><p>O parser saiu para <code>frontmatter.ts</code> com os três casos cobertos, e o loader agora só chama. Rodando a suíte de <code>src/lore</code> para confirmar que nada mais dependia do parser antigo<span class="mcaret"></span></p></div>
+                  <div class="msg"><p>O parser saiu para <code>frontmatter.ts</code> com os três casos cobertos, e o loader agora só chama. Rodando a suíte de <code>src/lore</code> para confirmar que nada mais dependia do parser antigo<span class="mcaret" aria-hidden="true"></span></p></div>
                 </div>
               </div>
             </div>
 
             <div class="usage">
-              <span class="u"><span class="u__k">janela</span>39,2k / 1M<span class="meter"><span class="meter__f" style="--w:4%"></span></span></span>
+              <span class="u"><span class="u__k">janela</span>39,2k / 1M<span class="meter"><span class="meter__f" style="--w:4%" aria-hidden="true"></span></span></span>
               <span class="u"><span class="u__k">cache</span>22,7k esc · 16,5k lei</span>
               <span class="u u--cost"><span class="u__k">turno</span>US$ 0,2354</span>
               <span class="usage__spacer"></span>
-              <span class="u u--warn"><span class="u__k">assinatura</span>94%<span class="meter"><span class="meter__f" style="--w:94%"></span></span>reseta 19:00</span>
+              <span class="u u--warn"><span class="u__k">assinatura</span>94%<span class="meter"><span class="meter__f" style="--w:94%" aria-hidden="true"></span></span>reseta 19:00</span>
             </div>
 
             <div class="composer">
               <div class="composer__box">
                 <div class="composer__in composer__in--empty">escreva, ou / para comandos</div>
                 <div class="composer__bar">
-                  <span class="pill pill--model">opus[1m] <span class="pill__caret">▾</span></span>
-                  <span class="pill pill--auto">Auto <span class="pill__caret">▾</span></span>
-                  <span class="pill">esforço médio <span class="pill__caret">▾</span></span>
+                  <button class="pill pill--model">opus[1m] <span class="pill__caret" aria-hidden="true">▾</span></button>
+                  <button class="pill pill--auto">Auto <span class="pill__caret" aria-hidden="true">▾</span></button>
+                  <button class="pill">esforço médio <span class="pill__caret" aria-hidden="true">▾</span></button>
                   <span class="spacer"></span>
                   <button class="btn btn--brand btn--sm">enviar <span class="kbd">⏎</span></button>
                 </div>
@@ -218,12 +224,12 @@
 <!-- ==================================================================== -->
 <!-- TELA 2 — o cartão de ferramenta: estados, categorias, e os casos feios -->
 <!-- ==================================================================== -->
-<section class="screen" id="screen-ferramenta">
+<section class="screen" id="screen-ferramenta" role="tabpanel" aria-labelledby="tab-ferramenta" data-od-id="panel-ferramenta">
   <div class="app app--flow">
     <header class="topbar">
-      <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+      <div class="wordmark" data-od-id="wordmark"><span class="wordmark__dot" aria-hidden="true"></span>LUMEM</div>
       <span class="spacer"></span>
-      <span class="daemon"><span class="daemon__dot"></span>o cartão que substitui o texto rolando</span>
+      <span class="daemon"><span class="daemon__dot" aria-hidden="true"></span>o cartão que substitui o texto rolando</span>
     </header>
 
     <div class="gallery">
@@ -233,38 +239,38 @@
           <div class="conv__scroll conv__scroll--flow">
             <div class="tc tc--pending">
               <div class="tc__head">
-                <span class="tc__glyph">▤</span><span class="tc__verb">Read</span>
+                <span class="tc__glyph" aria-hidden="true">▤</span><span class="tc__verb">Read</span>
                 <span class="tc__target"><span class="tc__dir">docs/prd/acp-sessions/</span><span class="tc__name">prd.md</span></span>
-                <span class="tc__st"><span class="tc__dot"></span>na fila</span>
-                <span class="tc__twist">▸</span>
+                <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>na fila</span>
+                <span class="tc__twist" aria-hidden="true">▸</span>
               </div>
             </div>
             <div class="tc tc--running">
               <div class="tc__head">
-                <span class="tc__glyph">❯</span><span class="tc__verb">Bash</span>
+                <span class="tc__glyph" aria-hidden="true">❯</span><span class="tc__verb">Bash</span>
                 <span class="tc__arg">pnpm gate:quick</span>
                 <span class="tc__time">18,7 s</span>
-                <span class="tc__st"><span class="tc__dot"></span>rodando</span>
-                <span class="tc__twist">▸</span>
+                <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>rodando</span>
+                <span class="tc__twist" aria-hidden="true">▸</span>
               </div>
             </div>
             <div class="tc tc--ok">
               <div class="tc__head">
-                <span class="tc__glyph">▣</span><span class="tc__verb">Edit</span>
+                <span class="tc__glyph" aria-hidden="true">▣</span><span class="tc__verb">Edit</span>
                 <span class="tc__target"><span class="tc__dir">packages/server/src/acp/</span><span class="tc__name">acp-manager.ts</span></span>
                 <span class="tc__delta"><span class="plus">+22</span> <span class="minus">−3</span></span>
                 <span class="tc__time">0,6 s</span>
-                <span class="tc__st"><span class="tc__dot"></span>ok</span>
-                <span class="tc__twist">▸</span>
+                <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span>
+                <span class="tc__twist" aria-hidden="true">▸</span>
               </div>
             </div>
             <div class="tc tc--failed">
               <div class="tc__head">
-                <span class="tc__glyph">❯</span><span class="tc__verb">Bash</span>
+                <span class="tc__glyph" aria-hidden="true">❯</span><span class="tc__verb">Bash</span>
                 <span class="tc__arg">pnpm typecheck</span>
                 <span class="tc__time">11,3 s</span>
-                <span class="tc__st"><span class="tc__dot"></span>falhou</span>
-                <span class="tc__twist">▾</span>
+                <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>falhou</span>
+                <span class="tc__twist" aria-hidden="true">▾</span>
               </div>
               <div class="tc__body">
                 <div class="out">
@@ -284,12 +290,12 @@
         <div class="case__label">Categoria por glifo, ferramenta por nome. <b>Ler, escrever, executar, buscar na rede, delegar</b> — cinco formas, não uma cor por ferramenta</div>
         <div class="case__frame case__frame--pad">
           <div class="conv__scroll conv__scroll--flow">
-            <div class="tc tc--ok"><div class="tc__head"><span class="tc__glyph">▤</span><span class="tc__verb">Read</span><span class="tc__target"><span class="tc__dir">src/lore/</span><span class="tc__name">index.ts</span></span><span class="tc__time">0,3 s</span><span class="tc__st"><span class="tc__dot"></span>ok</span><span class="tc__twist">▸</span></div></div>
-            <div class="tc tc--ok"><div class="tc__head"><span class="tc__glyph">▤</span><span class="tc__verb">Glob</span><span class="tc__arg">src/**/*.test.ts</span><span class="tc__time">0,1 s</span><span class="tc__st"><span class="tc__dot"></span>ok · 34 arquivos</span><span class="tc__twist">▸</span></div></div>
-            <div class="tc tc--ok"><div class="tc__head"><span class="tc__glyph">▣</span><span class="tc__verb">Write</span><span class="tc__target"><span class="tc__dir">src/lore/</span><span class="tc__name">frontmatter.test.ts</span></span><span class="tc__delta"><span class="plus">+96</span></span><span class="tc__time">1,4 s</span><span class="tc__st"><span class="tc__dot"></span>ok</span><span class="tc__twist">▸</span></div></div>
-            <div class="tc tc--ok"><div class="tc__head"><span class="tc__glyph">❯</span><span class="tc__verb">Bash</span><span class="tc__arg">git diff --stat</span><span class="tc__time">0,2 s</span><span class="tc__st"><span class="tc__dot"></span>ok</span><span class="tc__twist">▸</span></div></div>
-            <div class="tc tc--ok"><div class="tc__head"><span class="tc__glyph">↓</span><span class="tc__verb">WebFetch</span><span class="tc__arg">agentclientprotocol.com/protocol/schema</span><span class="tc__time">2,9 s</span><span class="tc__st"><span class="tc__dot"></span>ok</span><span class="tc__twist">▸</span></div></div>
-            <div class="tc tc--running"><div class="tc__head"><span class="tc__glyph">◈</span><span class="tc__verb">Task</span><span class="tc__arg">lumem-reviewer · revisar o AcpManager</span><span class="tc__time">1 min 12 s</span><span class="tc__st"><span class="tc__dot"></span>rodando</span><span class="tc__twist">▸</span></div></div>
+            <div class="tc tc--ok"><div class="tc__head"><span class="tc__glyph" aria-hidden="true">▤</span><span class="tc__verb">Read</span><span class="tc__target"><span class="tc__dir">src/lore/</span><span class="tc__name">index.ts</span></span><span class="tc__time">0,3 s</span><span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span><span class="tc__twist" aria-hidden="true">▸</span></div></div>
+            <div class="tc tc--ok"><div class="tc__head"><span class="tc__glyph" aria-hidden="true">▤</span><span class="tc__verb">Glob</span><span class="tc__arg">src/**/*.test.ts</span><span class="tc__time">0,1 s</span><span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok · 34 arquivos</span><span class="tc__twist" aria-hidden="true">▸</span></div></div>
+            <div class="tc tc--ok"><div class="tc__head"><span class="tc__glyph" aria-hidden="true">▣</span><span class="tc__verb">Write</span><span class="tc__target"><span class="tc__dir">src/lore/</span><span class="tc__name">frontmatter.test.ts</span></span><span class="tc__delta"><span class="plus">+96</span></span><span class="tc__time">1,4 s</span><span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span><span class="tc__twist" aria-hidden="true">▸</span></div></div>
+            <div class="tc tc--ok"><div class="tc__head"><span class="tc__glyph" aria-hidden="true">❯</span><span class="tc__verb">Bash</span><span class="tc__arg">git diff --stat</span><span class="tc__time">0,2 s</span><span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span><span class="tc__twist" aria-hidden="true">▸</span></div></div>
+            <div class="tc tc--ok"><div class="tc__head"><span class="tc__glyph" aria-hidden="true">↓</span><span class="tc__verb">WebFetch</span><span class="tc__arg">agentclientprotocol.com/protocol/schema</span><span class="tc__time">2,9 s</span><span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span><span class="tc__twist" aria-hidden="true">▸</span></div></div>
+            <div class="tc tc--running"><div class="tc__head"><span class="tc__glyph" aria-hidden="true">◈</span><span class="tc__verb">Task</span><span class="tc__arg">lumem-reviewer · revisar o AcpManager</span><span class="tc__time">1 min 12 s</span><span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>rodando</span><span class="tc__twist" aria-hidden="true">▸</span></div></div>
           </div>
         </div>
       </div>
@@ -300,34 +306,34 @@
           <div class="conv__scroll conv__scroll--flow">
             <div class="tc tc--ok">
               <div class="tc__head">
-                <span class="tc__glyph">▣</span><span class="tc__verb">Edit</span>
+                <span class="tc__glyph" aria-hidden="true">▣</span><span class="tc__verb">Edit</span>
                 <span class="tc__target"><span class="tc__dir">packages/web/src/components/right-panel/__tests__/</span><span class="tc__name">file-tree-keyboard-navigation.test.tsx</span></span>
                 <span class="tc__delta"><span class="plus">+7</span></span>
                 <span class="tc__time">0,5 s</span>
-                <span class="tc__st"><span class="tc__dot"></span>ok</span>
-                <span class="tc__twist">▸</span>
+                <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span>
+                <span class="tc__twist" aria-hidden="true">▸</span>
               </div>
             </div>
             <div class="narrow">
               <div class="tc tc--ok">
                 <div class="tc__head">
-                  <span class="tc__glyph">▣</span><span class="tc__verb">Edit</span>
+                  <span class="tc__glyph" aria-hidden="true">▣</span><span class="tc__verb">Edit</span>
                   <span class="tc__target"><span class="tc__dir">packages/web/src/components/right-panel/__tests__/</span><span class="tc__name">file-tree-keyboard-navigation.test.tsx</span></span>
                   <span class="tc__delta"><span class="plus">+7</span></span>
                   <span class="tc__time">0,5 s</span>
-                  <span class="tc__st"><span class="tc__dot"></span>ok</span>
-                  <span class="tc__twist">▸</span>
+                  <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span>
+                  <span class="tc__twist" aria-hidden="true">▸</span>
                 </div>
               </div>
             </div>
             <div class="cap">O mesmo cartão na largura em que ele realmente aperta. <b>O diretório some, o nome do arquivo fica</b> — é o nome que responde "onde o agente mexeu".</div>
             <div class="tc tc--ok">
               <div class="tc__head">
-                <span class="tc__glyph">❯</span><span class="tc__verb">Bash</span>
+                <span class="tc__glyph" aria-hidden="true">❯</span><span class="tc__verb">Bash</span>
                 <span class="tc__arg">pnpm gate:full</span>
                 <span class="tc__time">3 min 41 s</span>
-                <span class="tc__st"><span class="tc__dot"></span>ok</span>
-                <span class="tc__twist">▾</span>
+                <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span>
+                <span class="tc__twist" aria-hidden="true">▾</span>
               </div>
               <div class="tc__body">
                 <div class="out">
@@ -345,19 +351,19 @@
             </div>
             <div class="tc tc--ok">
               <div class="tc__head">
-                <span class="tc__glyph">▤</span><span class="tc__verb">Grep</span>
+                <span class="tc__glyph" aria-hidden="true">▤</span><span class="tc__verb">Grep</span>
                 <span class="tc__arg">"PtyManager" em packages/server/src</span>
                 <span class="tc__time">0,2 s</span>
-                <span class="tc__st"><span class="tc__dot"></span>ok · nada encontrado</span>
-                <span class="tc__twist">▸</span>
+                <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok · nada encontrado</span>
+                <span class="tc__twist" aria-hidden="true">▸</span>
               </div>
             </div>
             <div class="tc tc--failed">
               <div class="tc__head">
-                <span class="tc__glyph">▤</span><span class="tc__verb">Read</span>
+                <span class="tc__glyph" aria-hidden="true">▤</span><span class="tc__verb">Read</span>
                 <span class="tc__target"><span class="tc__dir">../../../etc/</span><span class="tc__name">passwd</span></span>
-                <span class="tc__st"><span class="tc__dot"></span>fora do checkout</span>
-                <span class="tc__twist">▾</span>
+                <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>fora do checkout</span>
+                <span class="tc__twist" aria-hidden="true">▾</span>
               </div>
               <div class="tc__body">
                 <div class="out out--short">
@@ -375,15 +381,17 @@
         <div class="case__frame case__frame--pad">
           <div class="conv__scroll conv__scroll--flow">
             <div class="turn turn--agent">
-              <span class="turn__g">◆</span>
+                <span class="vh">claude:</span>
+              <span class="turn__g" aria-hidden="true">◆</span>
               <div class="turn__b">
-                <div class="thought"><span class="thought__twist">▸</span>pensou 6 s<span class="thought__peek">· o parser está embutido no loader, então o caso vazio não tem onde ser testado</span></div>
+                <div class="thought"><span class="thought__twist" aria-hidden="true">▸</span>pensou 6 s<span class="thought__peek">· o parser está embutido no loader, então o caso vazio não tem onde ser testado</span></div>
               </div>
             </div>
             <div class="turn turn--agent">
-              <span class="turn__g">◆</span>
+                <span class="vh">claude:</span>
+              <span class="turn__g" aria-hidden="true">◆</span>
               <div class="turn__b">
-                <div class="thought"><span class="thought__twist">▾</span>pensou 6 s</div>
+                <div class="thought"><span class="thought__twist" aria-hidden="true">▾</span>pensou 6 s</div>
                 <div class="thought__text">
                   <p>Duas saídas: consertar o <code>indexOf</code> dentro do loader, ou tirar o parser de lá. A primeira é uma linha e não deixa teste possível — o caso vazio só se alcança carregando um documento inteiro.</p>
                   <p>Vou separar. Custa um arquivo novo e paga com três casos testáveis direto.</p>
@@ -400,12 +408,12 @@
 <!-- ==================================================================== -->
 <!-- TELA 3 — permissão: o único bloco que trava a sessão                  -->
 <!-- ==================================================================== -->
-<section class="screen" id="screen-permissao">
+<section class="screen" id="screen-permissao" role="tabpanel" aria-labelledby="tab-permissao" data-od-id="panel-permissao">
   <div class="app app--flow">
     <header class="topbar">
-      <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+      <div class="wordmark" data-od-id="wordmark"><span class="wordmark__dot" aria-hidden="true"></span>LUMEM</div>
       <span class="spacer"></span>
-      <span class="daemon"><span class="daemon__dot"></span>sem isto o agente espera para sempre</span>
+      <span class="daemon"><span class="daemon__dot" aria-hidden="true"></span>sem isto o agente espera para sempre</span>
     </header>
 
     <div class="gallery">
@@ -414,11 +422,12 @@
         <div class="case__frame case__frame--pad">
           <div class="conv__scroll conv__scroll--flow">
             <div class="turn turn--agent">
-              <span class="turn__g">◆</span>
+                <span class="vh">claude:</span>
+              <span class="turn__g" aria-hidden="true">◆</span>
               <div class="turn__b">
                 <div class="msg"><p>O cache do Vite está com o parser antigo. Preciso limpar antes de rodar a suíte de novo.</p></div>
                 <div class="perm">
-                  <div class="perm__head"><span class="perm__glyph">⚠</span>Permissão<span class="spacer"></span><span class="kbd">o turno está parado aqui</span></div>
+                  <div class="perm__head"><span class="perm__glyph" aria-hidden="true">⚠</span>Permissão<span class="spacer"></span><span class="kbd">o turno está parado aqui</span></div>
                   <div class="perm__body">
                     <div class="perm__what">
                       <div class="perm__cmd">rm -rf node_modules/.vite packages/web/node_modules/.vite</div>
@@ -445,32 +454,32 @@
           <div class="conv__scroll conv__scroll--flow">
             <div class="tc tc--ok">
               <div class="tc__head">
-                <span class="tc__glyph">❯</span><span class="tc__verb">Bash</span>
+                <span class="tc__glyph" aria-hidden="true">❯</span><span class="tc__verb">Bash</span>
                 <span class="tc__arg">rm -rf node_modules/.vite packages/web/node_modules/.vite</span>
                 <span class="verdict verdict--allowed">✓ você permitiu</span>
                 <span class="tc__time">0,4 s</span>
-                <span class="tc__st"><span class="tc__dot"></span>ok</span>
-                <span class="tc__twist">▸</span>
+                <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span>
+                <span class="tc__twist" aria-hidden="true">▸</span>
               </div>
             </div>
             <div class="tc tc--ok">
               <div class="tc__head">
-                <span class="tc__glyph">▣</span><span class="tc__verb">Write</span>
+                <span class="tc__glyph" aria-hidden="true">▣</span><span class="tc__verb">Write</span>
                 <span class="tc__target"><span class="tc__dir">src/lore/</span><span class="tc__name">frontmatter.test.ts</span></span>
                 <span class="verdict verdict--allowed">✓ sempre para Write</span>
                 <span class="tc__delta"><span class="plus">+96</span></span>
                 <span class="tc__time">1,4 s</span>
-                <span class="tc__st"><span class="tc__dot"></span>ok</span>
-                <span class="tc__twist">▸</span>
+                <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span>
+                <span class="tc__twist" aria-hidden="true">▸</span>
               </div>
             </div>
             <div class="tc tc--failed">
               <div class="tc__head">
-                <span class="tc__glyph">❯</span><span class="tc__verb">Bash</span>
+                <span class="tc__glyph" aria-hidden="true">❯</span><span class="tc__verb">Bash</span>
                 <span class="tc__arg">git push --force origin frontmatter-vazio</span>
                 <span class="verdict verdict--denied">✕ você negou</span>
-                <span class="tc__st"><span class="tc__dot"></span>não rodou</span>
-                <span class="tc__twist">▸</span>
+                <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>não rodou</span>
+                <span class="tc__twist" aria-hidden="true">▸</span>
               </div>
             </div>
           </div>
@@ -483,10 +492,10 @@
           <div class="conv__scroll conv__scroll--flow">
             <div class="tc tc--failed">
               <div class="tc__head">
-                <span class="tc__glyph">▣</span><span class="tc__verb">Write</span>
+                <span class="tc__glyph" aria-hidden="true">▣</span><span class="tc__verb">Write</span>
                 <span class="tc__target"><span class="tc__dir">~/.claude/</span><span class="tc__name">settings.json</span></span>
-                <span class="tc__st"><span class="tc__dot"></span>recusado</span>
-                <span class="tc__twist">▾</span>
+                <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>recusado</span>
+                <span class="tc__twist" aria-hidden="true">▾</span>
               </div>
               <div class="tc__body">
                 <div class="out out--short">
@@ -506,10 +515,10 @@
         <div class="gallery__cols">
           <div class="case__frame">
             <div class="tabs-bar"><div class="tabs">
-              <button class="stab stab--overview">contexto</button>
+              <div class="stab stab--overview"><button class="stab__label">contexto</button></div>
               <span class="tabs__sep"></span>
-              <button class="stab"><span class="glyph glyph--agent">◆</span>claude<span class="stab__dot stab__dot--asking"></span><span class="stab__close">✕</span></button>
-              <button class="stab stab--active"><span class="glyph glyph--shell">●</span>shell<span class="stab__dot"></span><span class="stab__close">✕</span></button>
+              <div class="stab"><button class="stab__label"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude<span class="stab__dot stab__dot--asking" aria-hidden="true"></span><span class="vh"> — esperando sua resposta</span></button><button class="stab__close" aria-label="Encerrar sessão claude">✕</button></div>
+              <div class="stab stab--active"><button class="stab__label"><span class="glyph glyph--shell" aria-hidden="true">●</span>shell<span class="stab__dot" aria-hidden="true"></span></button><button class="stab__close" aria-label="Encerrar sessão shell">✕</button></div>
               </div>
               <span class="menu-wrap"><button class="tabs__new">＋ nova sessão</button></span>
             </div>
@@ -517,9 +526,9 @@
           <div class="case__frame">
             <div class="tree">
               <div class="tree__label">Projetos</div>
-              <div class="row row--project"><span class="row__twist" style="--depth:0">▾</span><span class="row__main"><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></span></div>
-              <div class="row"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--worktree">◇</span><span class="row__label">frontmatter-vazio</span><span class="count count--asking"><span class="count__dot"></span>1</span></span></div>
-              <div class="row"><span class="row__twist" style="--depth:1"></span><span class="row__main"><span class="glyph glyph--worktree">◇</span><span class="row__label">migrar-para-acp</span><span class="count count--running"><span class="count__dot"></span>2</span></span></div>
+              <div class="row row--project"><span class="row__twist" style="--depth:0" aria-hidden="true">▾</span><span class="row__main"><span class="glyph glyph--project" aria-hidden="true">■</span><span class="row__label">lorebase</span></span></div>
+              <div class="row"><span class="row__twist" style="--depth:1" aria-hidden="true"></span><span class="row__main"><span class="glyph glyph--worktree" aria-hidden="true">◇</span><span class="row__label">frontmatter-vazio</span><span class="count count--asking"><span class="count__dot" aria-hidden="true"></span>1</span></span></div>
+              <div class="row"><span class="row__twist" style="--depth:1" aria-hidden="true"></span><span class="row__main"><span class="glyph glyph--worktree" aria-hidden="true">◇</span><span class="row__label">migrar-para-acp</span><span class="count count--running"><span class="count__dot" aria-hidden="true"></span>2<span class="vh"> sessões rodando</span></span></span></div>
             </div>
           </div>
         </div>
@@ -540,12 +549,12 @@
 <!-- ==================================================================== -->
 <!-- TELA 4 — o plano: um cartão que se reescreve                          -->
 <!-- ==================================================================== -->
-<section class="screen" id="screen-plano">
+<section class="screen" id="screen-plano" role="tabpanel" aria-labelledby="tab-plano" data-od-id="panel-plano">
   <div class="app app--flow">
     <header class="topbar">
-      <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+      <div class="wordmark" data-od-id="wordmark"><span class="wordmark__dot" aria-hidden="true"></span>LUMEM</div>
       <span class="spacer"></span>
-      <span class="daemon"><span class="daemon__dot"></span>o agente reenvia o plano inteiro; a tela guarda um só</span>
+      <span class="daemon"><span class="daemon__dot" aria-hidden="true"></span>o agente reenvia o plano inteiro; a tela guarda um só</span>
     </header>
 
     <div class="gallery">
@@ -554,27 +563,27 @@
         <div class="gallery__cols gallery__cols--3">
           <div class="case__frame case__frame--pad">
             <div class="plan">
-              <div class="plan__head"><span class="plan__glyph">☰</span>Plano<span class="spacer"></span><span class="plan__count">0 de 5</span></div>
-              <div class="plan__row plan__row--active"><span class="plan__mark">◐</span><span class="plan__what">ler o loader e achar onde o frontmatter é lido</span><span class="spacer"></span><span class="plan__now">agora</span></div>
-              <div class="plan__row plan__row--pending"><span class="plan__mark">○</span><span class="plan__what">extrair o parser para <code>frontmatter.ts</code></span></div>
-              <div class="plan__row plan__row--pending"><span class="plan__mark">○</span><span class="plan__what">cobrir frontmatter vazio, aberto e ausente</span></div>
-              <div class="plan__row plan__row--pending"><span class="plan__mark">○</span><span class="plan__what">apontar o loader para o parser novo</span></div>
-              <div class="plan__row plan__row--pending"><span class="plan__mark">○</span><span class="plan__what">rodar <code>pnpm gate:quick</code></span></div>
+              <div class="plan__head"><span class="plan__glyph" aria-hidden="true">☰</span>Plano<span class="spacer"></span><span class="plan__count">0 de 5</span></div>
+              <div class="plan__row plan__row--active"><span class="plan__mark" aria-hidden="true">◐</span><span class="plan__what">ler o loader e achar onde o frontmatter é lido</span><span class="spacer"></span><span class="plan__now">agora</span></div>
+              <div class="plan__row plan__row--pending"><span class="plan__mark" aria-hidden="true">○</span><span class="vh">Pendente:</span><span class="plan__what">extrair o parser para <code>frontmatter.ts</code></span></div>
+              <div class="plan__row plan__row--pending"><span class="plan__mark" aria-hidden="true">○</span><span class="vh">Pendente:</span><span class="plan__what">cobrir frontmatter vazio, aberto e ausente</span></div>
+              <div class="plan__row plan__row--pending"><span class="plan__mark" aria-hidden="true">○</span><span class="vh">Pendente:</span><span class="plan__what">apontar o loader para o parser novo</span></div>
+              <div class="plan__row plan__row--pending"><span class="plan__mark" aria-hidden="true">○</span><span class="vh">Pendente:</span><span class="plan__what">rodar <code>pnpm gate:quick</code></span></div>
             </div>
           </div>
           <div class="case__frame case__frame--pad">
             <div class="plan">
-              <div class="plan__head"><span class="plan__glyph">☰</span>Plano<span class="spacer"></span><span class="plan__count">2 de 5</span></div>
-              <div class="plan__row plan__row--done"><span class="plan__mark">✓</span><span class="plan__what">ler o loader e achar onde o frontmatter é lido</span></div>
-              <div class="plan__row plan__row--done"><span class="plan__mark">✓</span><span class="plan__what">extrair o parser para <code>frontmatter.ts</code></span></div>
-              <div class="plan__row plan__row--active"><span class="plan__mark">◐</span><span class="plan__what">cobrir frontmatter vazio, aberto e ausente</span><span class="spacer"></span><span class="plan__now">agora</span></div>
-              <div class="plan__row plan__row--pending"><span class="plan__mark">○</span><span class="plan__what">apontar o loader para o parser novo</span></div>
-              <div class="plan__row plan__row--pending"><span class="plan__mark">○</span><span class="plan__what">rodar <code>pnpm gate:quick</code></span></div>
+              <div class="plan__head"><span class="plan__glyph" aria-hidden="true">☰</span>Plano<span class="spacer"></span><span class="plan__count">2 de 5</span></div>
+              <div class="plan__row plan__row--done"><span class="plan__mark" aria-hidden="true">✓</span><span class="vh">Feito:</span><span class="plan__what">ler o loader e achar onde o frontmatter é lido</span></div>
+              <div class="plan__row plan__row--done"><span class="plan__mark" aria-hidden="true">✓</span><span class="vh">Feito:</span><span class="plan__what">extrair o parser para <code>frontmatter.ts</code></span></div>
+              <div class="plan__row plan__row--active"><span class="plan__mark" aria-hidden="true">◐</span><span class="plan__what">cobrir frontmatter vazio, aberto e ausente</span><span class="spacer"></span><span class="plan__now">agora</span></div>
+              <div class="plan__row plan__row--pending"><span class="plan__mark" aria-hidden="true">○</span><span class="vh">Pendente:</span><span class="plan__what">apontar o loader para o parser novo</span></div>
+              <div class="plan__row plan__row--pending"><span class="plan__mark" aria-hidden="true">○</span><span class="vh">Pendente:</span><span class="plan__what">rodar <code>pnpm gate:quick</code></span></div>
             </div>
           </div>
           <div class="case__frame case__frame--pad">
             <div class="plan">
-              <div class="plan__head"><span class="plan__glyph plan__glyph--done">✓</span>Plano<span class="spacer"></span><span class="plan__count">5 de 5</span><span class="tc__twist">▸</span></div>
+              <div class="plan__head"><span class="plan__glyph plan__glyph--done" aria-hidden="true">✓</span>Plano<span class="spacer"></span><span class="plan__count">5 de 5</span><span class="tc__twist" aria-hidden="true">▸</span></div>
             </div>
             <div class="cap">Terminado, <b>colapsa</b>: cinco linhas riscadas não dizem nada que a contagem não diga.</div>
           </div>
@@ -586,11 +595,11 @@
         <div class="case__frame case__frame--pad">
           <div class="narrow">
             <div class="plan">
-              <div class="plan__head"><span class="plan__glyph">☰</span>Plano<span class="spacer"></span><span class="plan__count">1 de 4</span></div>
-              <div class="plan__row plan__row--done"><span class="plan__mark">✓</span><span class="plan__what">levantar o <code>AcpManager</code> com um agente falso do outro lado do pipe</span></div>
-              <div class="plan__row plan__row--active"><span class="plan__mark">◐</span><span class="plan__what">migrar toda configuração existente para <code>transport: 'pty'</code>, sem tocar em sessão viva, e conferir que a reconciliação de boot continua achando as duas</span></div>
-              <div class="plan__row plan__row--pending"><span class="plan__mark">○</span><span class="plan__what">fixar a versão do adaptador em <code>agent_config</code>, nunca <code>@latest</code></span></div>
-              <div class="plan__row plan__row--pending"><span class="plan__mark">○</span><span class="plan__what">tratar evento desconhecido como log, nunca como exceção</span></div>
+              <div class="plan__head"><span class="plan__glyph" aria-hidden="true">☰</span>Plano<span class="spacer"></span><span class="plan__count">1 de 4</span></div>
+              <div class="plan__row plan__row--done"><span class="plan__mark" aria-hidden="true">✓</span><span class="vh">Feito:</span><span class="plan__what">levantar o <code>AcpManager</code> com um agente falso do outro lado do pipe</span></div>
+              <div class="plan__row plan__row--active"><span class="plan__mark" aria-hidden="true">◐</span><span class="plan__what">migrar toda configuração existente para <code>transport: 'pty'</code>, sem tocar em sessão viva, e conferir que a reconciliação de boot continua achando as duas</span></div>
+              <div class="plan__row plan__row--pending"><span class="plan__mark" aria-hidden="true">○</span><span class="vh">Pendente:</span><span class="plan__what">fixar a versão do adaptador em <code>agent_config</code>, nunca <code>@latest</code></span></div>
+              <div class="plan__row plan__row--pending"><span class="plan__mark" aria-hidden="true">○</span><span class="vh">Pendente:</span><span class="plan__what">tratar evento desconhecido como log, nunca como exceção</span></div>
             </div>
           </div>
         </div>
@@ -601,19 +610,21 @@
         <div class="case__frame case__frame--pad">
           <div class="conv__scroll conv__scroll--flow">
             <div class="turn turn--user">
-              <span class="turn__g">❯</span>
+                <span class="vh">Você:</span>
+              <span class="turn__g" aria-hidden="true">❯</span>
               <div class="turn__b"><div class="msg">antes de mexer: como você faria a migração do PTY pro ACP sem derrubar sessão viva?</div></div>
             </div>
             <div class="turn turn--agent">
-              <span class="turn__g">◆</span>
+                <span class="vh">claude:</span>
+              <span class="turn__g" aria-hidden="true">◆</span>
               <div class="turn__b">
-                <div class="tc tc--ok"><div class="tc__head"><span class="tc__glyph">▤</span><span class="tc__verb">Read</span><span class="tc__target"><span class="tc__dir">packages/server/src/pty/</span><span class="tc__name">pty-manager.ts</span></span><span class="tc__time">0,4 s</span><span class="tc__st"><span class="tc__dot"></span>ok</span><span class="tc__twist">▸</span></div></div>
+                <div class="tc tc--ok"><div class="tc__head"><span class="tc__glyph" aria-hidden="true">▤</span><span class="tc__verb">Read</span><span class="tc__target"><span class="tc__dir">packages/server/src/pty/</span><span class="tc__name">pty-manager.ts</span></span><span class="tc__time">0,4 s</span><span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span><span class="tc__twist" aria-hidden="true">▸</span></div></div>
                 <div class="msg"><p>Sessão viva não migra: <code>transport</code> é escolhido no nascimento da sessão e não muda depois. A migração escreve <code>'pty'</code> em toda configuração existente e as sessões abertas seguem inalteradas.</p></div>
                 <div class="plan">
-                  <div class="plan__head"><span class="plan__glyph">☰</span>Plano proposto<span class="spacer"></span><span class="plan__count">nada foi executado</span></div>
-                  <div class="plan__row plan__row--pending"><span class="plan__mark">○</span><span class="plan__what">coluna <code>transport</code> com default <code>'pty'</code></span></div>
-                  <div class="plan__row plan__row--pending"><span class="plan__mark">○</span><span class="plan__what"><code>AcpManager</code> irmão do <code>PtyManager</code>, mesmo ciclo de vida</span></div>
-                  <div class="plan__row plan__row--pending"><span class="plan__mark">○</span><span class="plan__what">stream tipado no mesmo attach/detach de WebSocket</span></div>
+                  <div class="plan__head"><span class="plan__glyph" aria-hidden="true">☰</span>Plano proposto<span class="spacer"></span><span class="plan__count">nada foi executado</span></div>
+                  <div class="plan__row plan__row--pending"><span class="plan__mark" aria-hidden="true">○</span><span class="vh">Pendente:</span><span class="plan__what">coluna <code>transport</code> com default <code>'pty'</code></span></div>
+                  <div class="plan__row plan__row--pending"><span class="plan__mark" aria-hidden="true">○</span><span class="vh">Pendente:</span><span class="plan__what"><code>AcpManager</code> irmão do <code>PtyManager</code>, mesmo ciclo de vida</span></div>
+                  <div class="plan__row plan__row--pending"><span class="plan__mark" aria-hidden="true">○</span><span class="vh">Pendente:</span><span class="plan__what">stream tipado no mesmo attach/detach de WebSocket</span></div>
                 </div>
               </div>
             </div>
@@ -622,9 +633,9 @@
             <div class="composer__box">
               <div class="composer__in composer__in--empty">no modo plano nada é executado — aprove o plano para sair dele</div>
               <div class="composer__bar">
-                <span class="pill pill--model">opus[1m] <span class="pill__caret">▾</span></span>
-                <span class="pill pill--plan">Plan Mode <span class="pill__caret">▾</span></span>
-                <span class="pill">esforço alto <span class="pill__caret">▾</span></span>
+                <button class="pill pill--model">opus[1m] <span class="pill__caret" aria-hidden="true">▾</span></button>
+                <button class="pill pill--plan">Plan Mode <span class="pill__caret" aria-hidden="true">▾</span></button>
+                <button class="pill">esforço alto <span class="pill__caret" aria-hidden="true">▾</span></button>
                 <span class="spacer"></span>
                 <button class="btn btn--brand btn--sm">enviar <span class="kbd">⏎</span></button>
               </div>
@@ -639,12 +650,12 @@
 <!-- ==================================================================== -->
 <!-- TELA 5 — uso, custo, e os controles que o protocolo entrega           -->
 <!-- ==================================================================== -->
-<section class="screen" id="screen-uso">
+<section class="screen" id="screen-uso" role="tabpanel" aria-labelledby="tab-uso" data-od-id="panel-uso">
   <div class="app app--flow">
     <header class="topbar">
-      <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+      <div class="wordmark" data-od-id="wordmark"><span class="wordmark__dot" aria-hidden="true"></span>LUMEM</div>
       <span class="spacer"></span>
-      <span class="daemon"><span class="daemon__dot"></span>o <code>/usage</code> deixou de ser necessário</span>
+      <span class="daemon"><span class="daemon__dot" aria-hidden="true"></span>o <code>/usage</code> deixou de ser necessário</span>
     </header>
 
     <div class="gallery">
@@ -652,11 +663,11 @@
         <div class="case__label">O rodapé nasce <b>quieto</b>. Sessão em 4% da janela não é boa notícia, é ausência de notícia — pintar de verde treina o olho a ignorar a cor</div>
         <div class="case__frame">
           <div class="usage">
-            <span class="u"><span class="u__k">janela</span>39,2k / 1M<span class="meter"><span class="meter__f" style="--w:4%"></span></span></span>
+            <span class="u"><span class="u__k">janela</span>39,2k / 1M<span class="meter"><span class="meter__f" style="--w:4%" aria-hidden="true"></span></span></span>
             <span class="u"><span class="u__k">cache</span>22,7k esc · 16,5k lei</span>
             <span class="u u--cost"><span class="u__k">turno</span>US$ 0,2354</span>
             <span class="usage__spacer"></span>
-            <span class="u"><span class="u__k">assinatura</span>31%<span class="meter"><span class="meter__f" style="--w:31%"></span></span>reseta em 4 d</span>
+            <span class="u"><span class="u__k">assinatura</span>31%<span class="meter"><span class="meter__f" style="--w:31%" aria-hidden="true"></span></span>reseta em 4 d</span>
           </div>
         </div>
       </div>
@@ -665,11 +676,11 @@
         <div class="case__label">Passou o <code>surpassedThreshold</code> que o protocolo entrega (0,75). <b>Só então ele ganha cor</b></div>
         <div class="case__frame">
           <div class="usage">
-            <span class="u"><span class="u__k">janela</span>412k / 1M<span class="meter"><span class="meter__f" style="--w:41%"></span></span></span>
+            <span class="u"><span class="u__k">janela</span>412k / 1M<span class="meter"><span class="meter__f" style="--w:41%" aria-hidden="true"></span></span></span>
             <span class="u"><span class="u__k">cache</span>318k esc · 94k lei</span>
             <span class="u u--cost"><span class="u__k">turno</span>US$ 1,8102 <span class="u__k">sessão</span>US$ 14,26</span>
             <span class="usage__spacer"></span>
-            <span class="u u--warn"><span class="u__k">assinatura</span>94%<span class="meter"><span class="meter__f" style="--w:94%"></span></span>reseta 19:00</span>
+            <span class="u u--warn"><span class="u__k">assinatura</span>94%<span class="meter"><span class="meter__f" style="--w:94%" aria-hidden="true"></span></span>reseta 19:00</span>
           </div>
         </div>
       </div>
@@ -684,10 +695,10 @@
             <button class="btn btn--danger btn--sm">nova sessão em PTY</button>
           </div>
           <div class="usage">
-            <span class="u"><span class="u__k">janela</span>688k / 1M<span class="meter"><span class="meter__f" style="--w:69%"></span></span></span>
+            <span class="u"><span class="u__k">janela</span>688k / 1M<span class="meter"><span class="meter__f" style="--w:69%" aria-hidden="true"></span></span></span>
             <span class="u u--cost"><span class="u__k">turno</span>US$ 3,0417 <span class="u__k">sessão</span>US$ 41,88</span>
             <span class="usage__spacer"></span>
-            <span class="u u--over"><span class="u__k">assinatura</span>100%<span class="meter"><span class="meter__f" style="--w:100%"></span></span>em overage</span>
+            <span class="u u--over"><span class="u__k">assinatura</span>100%<span class="meter"><span class="meter__f" style="--w:100%" aria-hidden="true"></span></span>em overage</span>
           </div>
         </div>
       </div>
@@ -716,12 +727,12 @@
           </div>
           <div class="case__frame case__frame--pad">
             <div class="chips">
-              <span class="pill pill--auto">Auto <span class="pill__caret">▾</span></span>
-              <span class="pill pill--plan">Plan Mode <span class="pill__caret">▾</span></span>
-              <span class="pill pill--bypass">Bypass <span class="pill__caret">▾</span></span>
-              <span class="pill pill--model">opus[1m] <span class="pill__caret">▾</span></span>
-              <span class="pill">esforço baixo <span class="pill__caret">▾</span></span>
-              <span class="pill">esforço máximo <span class="pill__caret">▾</span></span>
+              <span class="pill pill--auto">Auto <span class="pill__caret" aria-hidden="true">▾</span></span>
+              <span class="pill pill--plan">Plan Mode <span class="pill__caret" aria-hidden="true">▾</span></span>
+              <span class="pill pill--bypass">Bypass <span class="pill__caret" aria-hidden="true">▾</span></span>
+              <span class="pill pill--model">opus[1m] <span class="pill__caret" aria-hidden="true">▾</span></span>
+              <span class="pill">esforço baixo <span class="pill__caret" aria-hidden="true">▾</span></span>
+              <span class="pill">esforço máximo <span class="pill__caret" aria-hidden="true">▾</span></span>
             </div>
           </div>
         </div>
@@ -746,12 +757,12 @@
 <!-- ==================================================================== -->
 <!-- TELA 6 — vazio, retomado, interrompido, e o que o cliente não conhece -->
 <!-- ==================================================================== -->
-<section class="screen" id="screen-limites">
+<section class="screen" id="screen-limites" role="tabpanel" aria-labelledby="tab-limites" data-od-id="panel-limites">
   <div class="app app--flow">
     <header class="topbar">
-      <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+      <div class="wordmark" data-od-id="wordmark"><span class="wordmark__dot" aria-hidden="true"></span>LUMEM</div>
       <span class="spacer"></span>
-      <span class="daemon"><span class="daemon__dot"></span>os estados que não são a resposta chegando</span>
+      <span class="daemon"><span class="daemon__dot" aria-hidden="true"></span>os estados que não são a resposta chegando</span>
     </header>
 
     <div class="gallery">
@@ -759,15 +770,15 @@
         <div class="case__label">Sessão nova não é tela em branco. <b>Ela já custou 39,2k tokens de system prompt antes da primeira palavra nossa</b> — medido no spike, e é a primeira coisa que a aba deve dizer</div>
         <div class="case__frame">
           <div class="empty">
-            <span class="empty__glyph">◆</span>
+            <span class="empty__glyph" aria-hidden="true">◆</span>
             <span class="empty__title">sessão aberta, nada pedido ainda</span>
             <span class="empty__sub">O adaptador subiu e o handshake passou sem consumir nada. O primeiro turno já entra com <b>39,2k</b> de contexto — system prompt e ferramentas do próprio Claude Code, não do Lumem.</span>
           </div>
           <div class="usage">
-            <span class="u"><span class="u__k">janela</span>0 / 1M<span class="meter"><span class="meter__f" style="--w:0%"></span></span></span>
+            <span class="u"><span class="u__k">janela</span>0 / 1M<span class="meter"><span class="meter__f" style="--w:0%" aria-hidden="true"></span></span></span>
             <span class="u"><span class="u__k">turno</span>—</span>
             <span class="usage__spacer"></span>
-            <span class="u"><span class="u__k">assinatura</span>31%<span class="meter"><span class="meter__f" style="--w:31%"></span></span>reseta em 4 d</span>
+            <span class="u"><span class="u__k">assinatura</span>31%<span class="meter"><span class="meter__f" style="--w:31%" aria-hidden="true"></span></span>reseta em 4 d</span>
           </div>
         </div>
       </div>
@@ -777,12 +788,14 @@
         <div class="case__frame case__frame--pad">
           <div class="conv__scroll conv__scroll--flow">
             <div class="turn turn--agent">
-              <span class="turn__g">◆</span>
+                <span class="vh">claude:</span>
+              <span class="turn__g" aria-hidden="true">◆</span>
               <div class="turn__b"><div class="msg"><p>Deixei o parser separado e a suíte verde. Falta apagar o parser legado.</p></div></div>
             </div>
             <div class="daysep">retomada · ontem 23:14 → hoje 09:02</div>
             <div class="turn turn--user">
-              <span class="turn__g">❯</span>
+                <span class="vh">Você:</span>
+              <span class="turn__g" aria-hidden="true">❯</span>
               <div class="turn__b"><div class="msg">apaga o legado e roda o gate</div></div>
             </div>
           </div>
@@ -809,15 +822,16 @@
         <div class="case__frame case__frame--pad">
           <div class="conv__scroll conv__scroll--flow">
             <div class="turn turn--agent">
-              <span class="turn__g">◆</span>
+                <span class="vh">claude:</span>
+              <span class="turn__g" aria-hidden="true">◆</span>
               <div class="turn__b">
                 <div class="tc tc--cancelled">
                   <div class="tc__head">
-                    <span class="tc__glyph">❯</span><span class="tc__verb">Bash</span>
+                    <span class="tc__glyph" aria-hidden="true">❯</span><span class="tc__verb">Bash</span>
                     <span class="tc__arg">pnpm gate:full</span>
                     <span class="tc__time">47,1 s</span>
-                    <span class="tc__st"><span class="tc__dot"></span>interrompido</span>
-                    <span class="tc__twist">▸</span>
+                    <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>interrompido</span>
+                    <span class="tc__twist" aria-hidden="true">▸</span>
                   </div>
                 </div>
                 <div class="meta">turno interrompido por você às 09:41 · <code>stopReason: cancelled</code> · 118k tokens no turno, US$ 0,94</div>

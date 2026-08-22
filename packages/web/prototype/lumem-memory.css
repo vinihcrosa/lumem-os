@@ -17,7 +17,7 @@ p.page-sub { color: var(--color-text-secondary); font: var(--text-body-sm); marg
 
 .screen { margin-bottom: var(--space-40); }
 .screen > h2 {
-  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase;
+  font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase;
   color: var(--color-text-tertiary); margin-bottom: var(--space-8);
 }
 .screen > .note { color: var(--color-text-tertiary); font: var(--text-caption); margin-bottom: var(--space-10); }

@@ -30,7 +30,7 @@
   text-align: left;
 }
 .adv:hover { border-color: var(--color-border-strong); color: var(--color-text-secondary); }
-.adv__k { flex: none; font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; }
+.adv__k { flex: none; font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
 .adv__v { flex: 1; min-width: 0; font: var(--text-mono-sm); color: var(--color-text-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* escolha em linha — modelo e modo da primeira sessão */

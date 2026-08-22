@@ -244,6 +244,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-6);
   height: var(--size-control-lg);
   padding: 0 var(--space-12);

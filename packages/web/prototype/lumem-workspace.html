@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — a tela do workspace</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<link rel="stylesheet" href="lumem-workspace.css">
+</head>
+<body>
+
+<h1 class="page">A tela do workspace — protótipo</h1>
+<p class="page-sub">
+  Três telas: o painel do workspace, o consumo por worktree na visão do projeto, e o
+  workspace vazio — que é hoje o único lugar do produto onde <em>nada</em> é alcançável.
+  Sobre os mesmos tokens e os mesmos componentes do resto, sem literal nenhum.
+</p>
+
+<!-- 1 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>1 · o painel do workspace</h2>
+  <p class="note">
+    Ele ocupa o lugar onde hoje está escrito <em>"selecione uma worktree"</em> — a única
+    resposta do produto a "onde eu estou" que é uma instrução em vez de uma tela.
+    <strong>Sem abas</strong> (W5): uma coluna, e a memória é uma parte dela e não um
+    segundo conjunto de abas para a pessoa aprender.
+  </p>
+
+  <div class="frame">
+    <div class="wsp">
+      <div class="crumb">
+        <span>pessoal</span>
+      </div>
+      <div class="wsp__title">
+        <h3>pessoal</h3>
+        <span class="kind">workspace</span>
+        <span class="spacer"></span>
+        <button class="btn btn--sm focus-ring">renomear</button>
+        <!-- Desabilitado com o motivo ao lado (W2): o banco recusa por
+             ON DELETE RESTRICT, e a tela diz antes de você clicar. -->
+        <button class="btn btn--sm btn--danger focus-ring" disabled>remover</button>
+        <span class="wsp__why">2 projetos dentro</span>
+      </div>
+
+      <dl class="meta">
+        <dt>projetos</dt><dd>2</dd>
+        <dt>worktrees</dt><dd>5 <span class="dim">· 1 sem diretório</span></dd>
+        <dt>sessões vivas</dt><dd>1</dd>
+      </dl>
+
+      <!-- CONSUMO (W4) --------------------------------------------------
+           A janela é um segmentado, e o número é sempre dois: tokens e
+           dinheiro. Sem gráfico e sem série — é soma por escopo, e o
+           não-objetivo do PRD é a defesa disso. -->
+      <div class="section">
+        <div class="section__head">
+          <span class="section__t">Consumo</span>
+          <span class="spacer"></span>
+          <div class="seg">
+            <button class="seg__btn" aria-pressed="false">1d</button>
+            <button class="seg__btn" aria-pressed="true">7d</button>
+            <button class="seg__btn" aria-pressed="false">1m</button>
+            <button class="seg__btn" aria-pressed="false">6m</button>
+            <button class="seg__btn" aria-pressed="false">1a</button>
+          </div>
+        </div>
+
+        <div class="spend">
+          <div class="spend__row">
+            <span class="glyph" style="color: var(--color-scope-project)">▣</span>
+            <span class="spend__name">lorebase</span>
+            <span class="spend__bar"><span class="spend__fill" style="--w: 78%"></span></span>
+            <span class="spend__tok">1,4M</span>
+            <span class="spend__cost">US$ 12,4071</span>
+            <span class="spend__turns">86 turnos</span>
+          </div>
+          <div class="spend__row">
+            <span class="glyph" style="color: var(--color-scope-project)">▣</span>
+            <span class="spend__name">api</span>
+            <span class="spend__bar"><span class="spend__fill" style="--w: 22%"></span></span>
+            <span class="spend__tok">402k</span>
+            <span class="spend__cost">US$ 3,2210</span>
+            <span class="spend__turns">31 turnos</span>
+          </div>
+          <!-- Quem não gastou aparece com zero e NÃO desaparece: uma lista que
+               esconde obriga a pessoa a lembrar o que deveria estar ali. -->
+          <div class="spend__row spend__row--idle">
+            <span class="glyph">▣</span>
+            <span class="spend__name">web</span>
+            <span class="spend__bar"></span>
+            <span class="spend__tok">0</span>
+            <span class="spend__cost spend__cost--none">sem custo reportado</span>
+            <span class="spend__turns">nenhum turno</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- MEMÓRIA -------------------------------------------------------
+           O mesmo componente da aba do projeto, com o escopo do workspace: o
+           grupo `projeto` não existe aqui, e essa ausência é a diferença
+           visível entre os dois lugares. -->
+      <div class="section">
+        <div class="section__head">
+          <span class="section__t">Memória</span>
+          <span class="count-pill">8</span>
+          <span class="spacer"></span>
+          <span class="dim">workspace e você — nada de projeto</span>
+        </div>
+        <div class="wsp__mem">
+          <p class="dim">aqui entra o painel de memória, inteiro, como ele já existe</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>2 · o consumo por worktree, na visão do projeto</h2>
+  <p class="note">
+    A mesma linguagem um nível abaixo: quem aprendeu a ler lá lê aqui. E a linha que
+    não é worktree nenhuma — <strong>direto no projeto</strong> — tem lugar próprio,
+    porque sem ela a soma das worktrees não fecha com o total do projeto e a diferença
+    apareceria como número faltando sem explicação.
+  </p>
+
+  <div class="frame">
+    <div class="wsp">
+      <div class="section" style="margin-top: 0">
+        <div class="section__head">
+          <span class="section__t">Consumo por worktree</span>
+          <span class="spacer"></span>
+          <div class="seg">
+            <button class="seg__btn" aria-pressed="true">7d</button>
+            <button class="seg__btn" aria-pressed="false">1m</button>
+          </div>
+        </div>
+
+        <div class="spend">
+          <div class="spend__row">
+            <span class="glyph" style="color: var(--color-scope-worktree)">◫</span>
+            <span class="spend__name">feat-checkout</span>
+            <span class="spend__bar"><span class="spend__fill" style="--w: 64%"></span></span>
+            <span class="spend__tok">890k</span>
+            <span class="spend__cost">US$ 7,9010</span>
+            <span class="spend__turns">52 turnos</span>
+          </div>
+          <div class="spend__row">
+            <span class="glyph" style="color: var(--color-scope-worktree)">◫</span>
+            <span class="spend__name">fix-loader</span>
+            <span class="spend__bar"><span class="spend__fill" style="--w: 26%"></span></span>
+            <span class="spend__tok">360k</span>
+            <span class="spend__cost">US$ 3,1200</span>
+            <span class="spend__turns">24 turnos</span>
+          </div>
+          <div class="spend__row spend__row--outside">
+            <span class="glyph" style="color: var(--color-scope-project)">▣</span>
+            <span class="spend__name">direto no projeto <span class="dim">· fora de worktree</span></span>
+            <span class="spend__bar"><span class="spend__fill" style="--w: 10%"></span></span>
+            <span class="spend__tok">150k</span>
+            <span class="spend__cost">US$ 1,3861</span>
+            <span class="spend__turns">10 turnos</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>3 · o workspace vazio</h2>
+  <p class="note">
+    O caso que originou a feature. Hoje, workspace sem projeto não tem porta nenhuma:
+    o botão que abre o painel direito só aparece com um checkout selecionado, então
+    memória de workspace e memória global ficam inalcançáveis. Aqui a memória está
+    presente <em>antes</em> de existir projeto.
+  </p>
+
+  <div class="frame">
+    <div class="wsp">
+      <div class="wsp__title">
+        <h3>trabalho</h3>
+        <span class="kind">workspace</span>
+        <span class="spacer"></span>
+        <button class="btn btn--sm focus-ring">renomear</button>
+        <button class="btn btn--sm btn--danger focus-ring">remover</button>
+      </div>
+
+      <div class="empty">
+        <span class="empty__glyph">▣</span>
+        <span class="empty__title">Nenhum projeto ainda</span>
+        <span class="empty__sub">
+          Um workspace é um conjunto de projetos que se conhecem. Adicione o primeiro pela
+          barra da esquerda — e o que você ensinar aqui já vale para todos eles.
+        </span>
+        <button class="btn btn--brand focus-ring">adicionar projeto</button>
+      </div>
+
+      <div class="section">
+        <div class="section__head">
+          <span class="section__t">Memória</span>
+          <span class="spacer"></span>
+          <span class="dim">vale sem projeto nenhum</span>
+        </div>
+        <div class="wsp__mem">
+          <p class="dim">o painel de memória, alcançável mesmo com o workspace vazio</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

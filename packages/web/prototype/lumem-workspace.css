@@ -1,0 +1,112 @@
+/* ============================================================================
+   Lumem-OS — a tela do workspace
+
+   O workspace é o conceito central do produto e nunca teve tela: ele existe como
+   um seletor no topo da sidebar e como um `id` que atravessa o resto. Tudo que se
+   fazia com ele se fazia pela API.
+
+   Três decisões de desenho, e todas vêm das respostas em
+   `docs/prd/workspace-screen/open-questions.md`:
+
+   1. **é o painel central** (W1), no lugar de "selecione uma worktree" — a única
+      resposta do produto a "onde eu estou" que era uma instrução;
+   2. **sem abas** (W5): uma coluna. Duas barras de aba na mesma tela obrigariam a
+      pessoa a aprender qual é qual;
+   3. **o consumo é soma, não painel de BI** (W4 e o não-objetivo do PRD): uma
+      linha por escopo, tokens e dinheiro, e uma barra só para comparar de olho.
+      Sem série temporal, sem comparação entre janelas, sem gráfico.
+
+   Nada aqui é componente novo quando já existe um: `.btn`, `.chip`, `.seg`,
+   `.meta`, `.empty` e `.glyph` vêm do `lumem-ds.css`. O que este arquivo
+   acrescenta é a lista de consumo e a moldura da tela.
+   ========================================================================= */
+
+body {
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font: var(--text-body-md);
+  padding: var(--space-24);
+}
+.page { font: var(--text-display-md); letter-spacing: var(--tracking-display-md); margin: 0 0 var(--space-8); }
+.page-sub { color: var(--color-text-secondary); max-width: var(--size-detail-max); margin: 0 0 var(--space-32); }
+.screen-demo { margin-bottom: var(--space-40); }
+.screen-demo h2 { font: var(--text-heading-md); color: var(--color-text-secondary); margin: 0 0 var(--space-8); }
+.note { color: var(--color-text-tertiary); font: var(--text-body-sm); max-width: var(--size-detail-max); margin: 0 0 var(--space-12); }
+.frame {
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  max-width: var(--size-detail-max);
+}
+
+/* -------------------- a moldura da tela -------------------- */
+/* Mesma medida do `.detail` do shell: o painel do workspace é uma página de
+   detalhe como a do projeto e a da worktree, e não um lugar novo. */
+.wsp { padding: var(--space-20) var(--space-24) var(--space-32); display: grid; gap: var(--space-16); }
+.wsp__title { display: flex; align-items: baseline; gap: var(--space-8); flex-wrap: wrap; }
+.wsp__title h3 { margin: 0; font: var(--text-display-md); letter-spacing: var(--tracking-display-md); }
+.wsp__title .kind { font: var(--text-body-md); color: var(--color-scope-workspace); }
+/* O motivo ao lado do botão desabilitado (W2). Sem ele, o botão apagado é uma
+   recusa sem explicação — e a pessoa vai clicar de novo. */
+.wsp__why { font: var(--text-caption); color: var(--color-text-tertiary); }
+.wsp__mem {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-12);
+  background: var(--color-bg-surface);
+}
+.crumb { display: flex; align-items: center; gap: var(--space-6); font: var(--text-body-sm); color: var(--color-text-tertiary); }
+
+.section { display: grid; gap: var(--space-8); }
+.section__head { display: flex; align-items: center; gap: var(--space-8); }
+.section__t {
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase; color: var(--color-text-tertiary);
+}
+.count-pill {
+  font: var(--text-label-xs); padding: var(--space-1) var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-brand-subtle); color: var(--color-text-brand);
+}
+
+/* -------------------- o consumo --------------------
+
+   Uma linha por escopo, e a ordem é a do gasto: quem gastou mais vem primeiro,
+   porque a primeira pergunta de quem abre isto é "onde foi meu dinheiro".
+
+   A barra é comparação, não medida: ela não tem eixo e não tem número em cima
+   dela. Quem quer o número lê a coluna ao lado — a barra existe para a diferença
+   entre 1,4M e 402k ser vista antes de ser lida. */
+.spend { display: grid; }
+.spend__row {
+  display: grid;
+  grid-template-columns: var(--size-icon-sm) minmax(var(--size-menu-width), 1fr) 1fr max-content max-content max-content;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-8) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.spend__row:last-child { border-bottom: 0; }
+.spend__name { font: var(--text-label-md); color: var(--color-text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.spend__bar { height: var(--space-4); border-radius: var(--radius-full); background: var(--color-bg-inset); overflow: hidden; }
+.spend__fill { display: block; height: 100%; width: var(--w, 0%); background: var(--color-bg-brand); }
+
+/* Número em mono e alinhado à direita: estas colunas existem para serem
+   comparadas verticalmente, e proporcional faz dígito não bater com dígito. */
+.spend__tok, .spend__cost, .spend__turns { font: var(--text-mono-sm); text-align: right; white-space: nowrap; }
+.spend__tok { color: var(--color-text-primary); }
+.spend__cost { color: var(--color-text-code); }
+.spend__turns { color: var(--color-text-tertiary); }
+
+/* Custo que ninguém reportou NÃO é zero: um agente que não informa dinheiro não
+   pode parecer grátis. */
+.spend__cost--none { font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/* Quem não gastou continua na lista, recuado — "não gastou" é resposta. */
+.spend__row--idle .spend__name, .spend__row--idle .spend__tok { color: var(--color-text-tertiary); }
+/* O que rodou fora de worktree fecha a conta do projeto, e por isso é a última
+   linha e não um item entre iguais. */
+.spend__row--outside { border-top: 1px solid var(--color-border-default); }
+.spend__row--outside .spend__name { color: var(--color-text-secondary); }

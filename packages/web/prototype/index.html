@@ -71,7 +71,14 @@ code { font: var(--text-mono-sm); color: var(--color-text-code); }
     <span class="card__n">07 · agent-login</span>
     <span class="card__t">Conectar agente</span>
     <span class="card__d">O rodapé da sidebar sem comando: os jeitos de entrar vêm do <code>authMethods</code> do handshake, e o adaptador o daemon instala sozinho.</span>
-    <span class="states"><span class="state">repouso</span><span class="state">escolher</span><span class="state">preparo</span><span class="state">entrar</span><span class="state">navegador</span><span class="state">chave</span><span class="state">conectado</span><span class="state">casos</span></span>
+    <span class="states"><span class="state">fluxo</span><span class="state">no app</span><span class="state">casos</span><span class="state">protocolo</span></span>
+  </a>
+
+  <a class="card" href="lumem-memory.html">
+    <span class="card__n">08 · workspace-memory</span>
+    <span class="card__t">A memória</span>
+    <span class="card__d">A terceira aba do painel direito: o que o sistema aprendeu, por escopo, com precedência à vista e custo por entrada no núcleo.</span>
+    <span class="states"><span class="state">escopo ativo</span><span class="state">inbox</span><span class="state">conflito</span><span class="state">linha do tempo</span><span class="state">números</span><span class="state">vazios</span><span class="state">playbooks</span></span>
   </a>
 
     <a class="card" href="lumem-shell.html">
@@ -112,10 +119,11 @@ code { font: var(--text-mono-sm); color: var(--color-text-code); }
 
 <footer>
   <p>
-    <strong>O <code>tokens.css</code> é gerado, não escrito.</strong> Ele sai de
-    <code>packages/web/scripts/generate-tokens.py</code>: rampas em OKLCH, e cada par de contraste
-    verificado no momento da geração. Editar o arquivo à mão desfaz essa verificação sem avisar
-    ninguém — mexer é no gerador, no repositório, e recopiar aqui.
+    <strong>O <code>tokens.css</code> nasce aqui.</strong> Desde 2026-08-19 não existe mais gerador no
+    repositório: este arquivo é a fonte, e o repositório recebe cópia por
+    <code>pnpm --filter @lumem/web design:sync</code>. As rampas são derivadas em OKLCH e entregues em
+    hex. Os 99 pares de contraste continuam verificados — não mais na geração, e sim no
+    <code>gate:quick</code> do repositório, que falha nomeando a combinação de tela que quebrou.
   </p>
   <p>
     <strong>Os componentes moram em <code>lumem-ds.css</code>.</strong> Botão, linha da árvore,
