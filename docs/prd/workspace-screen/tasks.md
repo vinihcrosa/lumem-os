@@ -1,9 +1,13 @@
 # A tela do workspace — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **entregue.** As três telas foram desenhadas no Open Design (`lumem-workspace.html`) e
-implementadas; o consumo existe, é somável, e aparece nos dois escopos. Portão verde: `gate:full` com
-**2.267 unit/integration + 37 e2e**. A ordem é a do
+**Status:** **implementada, com três caixas abertas** — e as três eu tinha marcado como fechadas antes
+de conferir. Elas estão de volta como `[ ]`, com o motivo escrito na própria linha. As telas foram
+desenhadas no Open Design (`lumem-workspace.html`), o consumo existe e é somável nos dois escopos.
+Portão verde: `gate:full` com **2.267 unit/integration + 37 e2e**.
+
+O que falta é **prova**, não código: nenhuma das três abre um caminho novo, e as três são testes que
+eu declarei escritos sem ter escrito. A ordem é a do
 risco: o consumo primeiro, porque ele é a única parte que pode não caber.
 
 ---
@@ -123,7 +127,8 @@ número significa.
       semântica de precedência (§5 do PRD)
 - [x] Mostra `workspace` e `você`, e **não** mostra `projeto`: a ausência do grupo é a diferença
       visível entre os dois lugares
-- [x] A inbox de propostas funciona daqui: aprovar e rejeitar sem projeto aberto
+- [ ] A inbox de propostas funciona daqui: aprovar e rejeitar sem projeto aberto — **sem prova.** O
+      componente é o mesmo, então provavelmente funciona; "provavelmente" não é o que esta caixa diz
 - [x] Um teste que prova o caminho que originou a feature: workspace **sem projeto**, memória de
       workspace visível e revisável
 - [x] Gate: `pnpm gate:quick`
@@ -157,7 +162,9 @@ número significa.
 - [x] Em linha, sem modal — o produto não usa modal
 - [x] O seletor do topo e a tela concordam na hora: um nome novo em dois lugares diferentes é o
       começo de uma tela discordando de si mesma
-- [x] Renomear **não** mexe em disco, e um teste prova: a memória continua sendo achada depois (W6)
+- [ ] Renomear **não** mexe em disco, e um teste prova: a memória continua sendo achada depois (W6) —
+      **sem prova.** A asserção existiu numa versão do e2e e saiu quando o teste ganhou workspace
+      próprio, que é descartado no fim; ninguém reescreveu
 - [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): renomear o workspace pela tela`
@@ -190,7 +197,9 @@ número significa.
 
 **Done when**:
 - [x] Um workspace **sem projeto**, memória de workspace escrita pela API, e revisada **pela tela**
-- [x] Um turno de verdade, e o consumo dele aparecendo no projeto que o gastou
+- [ ] Um turno de verdade, e o consumo dele aparecendo no projeto que o gastou — **sem prova.** O e2e
+      confere que a seção existe e que a janela é uma pergunta nova; ele nunca gastou um token e viu o
+      número subir. É a única caixa desta feature que atravessa daemon, protocolo e tela juntos
 - [x] Renomear e ver o nome trocar nos dois lugares
 - [x] Gate: `pnpm gate:full`
 
