@@ -1,7 +1,8 @@
 # A tela do workspace — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **as seis perguntas respondidas**, escopo fechado, execução começando. A ordem é a do
+**Status:** **fase 1 entregue** — o consumo existe e é somável. As telas (fases 2 a 4) esperam o
+desenho no Open Design. A ordem é a do
 risco: o consumo primeiro, porque ele é a única parte que pode não caber.
 
 ---
@@ -29,17 +30,17 @@ número significa.
 **Where**: `db/schema.ts`, migração, `usage/record.ts` (ou `sessions/usage.ts`) + testes
 
 **Done when**:
-- [ ] Tabela com **delta de tokens** e **custo do turno**, carimbo de tempo, `sessionId`, `projectId` e
+- [x] Tabela com **delta de tokens** e **custo do turno**, carimbo de tempo, `sessionId`, `projectId` e
       `worktreeId` — resolvidos na escrita, porque agregar depois seria join polimórfico em
       `session.scope_id`
-- [ ] O delta é `used - último used da sessão`, com piso zero: somar `used` cru conta o mesmo token N
+- [x] O delta é `used - último used da sessão`, com piso zero: somar `used` cru conta o mesmo token N
       vezes, e é a armadilha que o §6 nomeia
-- [ ] Sessão **retomada** começa a janela de novo, e o primeiro delta dela é o valor inteiro — quem
+- [x] Sessão **retomada** começa a janela de novo, e o primeiro delta dela é o valor inteiro — quem
       retoma paga o contexto recarregado
-- [ ] `cost` soma direto: ele já é por turno
-- [ ] Quem escreve é o `AcpManager.watchEvents` que a `workspace-memory` instalou — **nenhum caminho
+- [x] `cost` soma direto: ele já é por turno
+- [x] Quem escreve é o `AcpManager.watchEvents` que a `workspace-memory` instalou — **nenhum caminho
       novo**, e falha dele não atrapalha o turno
-- [ ] Gate: `pnpm gate:quick`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(sessions): gravar o consumo de cada turno, por projeto e worktree`
 
@@ -51,16 +52,28 @@ número significa.
 **Where**: `usage/query.ts`, `routers/usage.ts` + testes
 
 **Done when**:
-- [ ] Janela por **enum** — `1d`, `7d`, `1m`, `6m`, `1y` —, e o corte calculado no servidor: o relógio
+- [x] Janela por **enum** — `1d`, `7d`, `1m`, `6m`, `1y` —, e o corte calculado no servidor: o relógio
       do cliente não decide o que "últimos 7 dias" quer dizer, senão duas telas dão duas respostas
-- [ ] `byProject` agrupa por projeto dentro de um workspace; `byWorktree` agrupa por worktree dentro de
+- [x] `byProject` agrupa por projeto dentro de um workspace; `byWorktree` agrupa por worktree dentro de
       um projeto
-- [ ] Projeto sem consumo aparece com **zero**, e não desaparece: "não gastou" é resposta
-- [ ] Tokens e custo separados — custo pode não vir (agente que não reporta dinheiro não pode parecer
+- [x] Projeto sem consumo aparece com **zero**, e não desaparece: "não gastou" é resposta
+- [x] Tokens e custo separados — custo pode não vir (agente que não reporta dinheiro não pode parecer
       grátis)
-- [ ] Gate: `pnpm gate:quick`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(server): somar consumo por projeto e por worktree, com janela de tempo`
+
+---
+
+### O que a fase 1 achou
+
+| # | O quê | Onde |
+|---|---|---|
+| **U1** | **`count(*)` num `LEFT JOIN` conta a linha vazia.** O projeto que não gastou nada reportava "1 turno", porque o join produz a linha dele com o consumo todo nulo. `count(<coluna>)` ignora nulo, que é exatamente a pergunta | `usage/query.ts` |
+| **U2** | **O corte de tempo mora no `JOIN`, não no `WHERE`.** No `where` ele elimina a linha do projeto que só gastou fora da janela — e a lista volta a esconder quem não gastou, que é o oposto do que a decisão pede | `usage/query.ts` |
+| **U3** | **A soma das worktrees não fecha com o total do projeto**, porque sessão de escopo `project` grava `worktree_id = ''`. Então `byWorktree` devolve as worktrees **e** o `outside` na mesma resposta: em duas chamadas, a tela poderia mostrar uma sem a outra e o número faltando não teria explicação | `routers/usage.ts` |
+| **U4** | **Sessão que o daemon sobe para si não é cobrada de ninguém.** Destilação de memória e agente de pesquisa do auto-learn não têm linha em `session`, então não têm projeto. O consumo delas é real, e atribuí-lo a um projeto seria contar como trabalho seu algo que o sistema fez sozinho — fica de fora, e a decisão está no código | `usage/record.ts` |
+| **U5** | **Janela que encolheu não vira consumo negativo.** O adaptador reporta menos depois de compactar a conversa, e o delta tem piso zero | `usage/record.ts` |
 
 ---
 

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /**
  * The daemon's state, as PRD §6 describes it.
@@ -457,6 +457,57 @@ export const memoryUsage = sqliteTable("memory_usage", {
 });
 
 /**
+ * O que cada turno consumiu (`workspace-screen`, W4).
+ *
+ * O `usage_update` do ACP sempre existiu como **evento**: ele chega, a aba que o
+ * gastou mostra janela, cache e custo, e some quando ela fecha. Isso responde
+ * "quanto custou este turno" e não responde nada sobre projeto, semana ou mês.
+ *
+ * Duas decisões estão dentro das colunas, e as duas vêm de como o dado é:
+ *
+ * - **`tokens` é delta, não ocupação.** O `used` do protocolo é a ocupação da
+ *   janela de contexto, acumulada na sessão: somar `used` entre turnos conta o
+ *   mesmo token tantas vezes quantos turnos houver. O que se soma é a variação.
+ *   `cost` não tem esse problema — ele já é por turno.
+ * - **`projectId` e `worktreeId` são resolvidos na escrita.** `session.scope_id`
+ *   é polimórfico e por isso não tem chave estrangeira; agregar por escopo depois
+ *   exigiria um join que o schema não permite expressar. Resolver uma vez, ao
+ *   gravar, troca esse join por um `GROUP BY`.
+ *
+ * Sem chave estrangeira para a sessão, e de propósito: consumo é **histórico**.
+ * Apagar a sessão de ontem não pode apagar o que ela gastou, nem ser barrado por
+ * isso — é a mesma razão do `resumed_from_id` não ter uma.
+ */
+export const sessionUsage = sqliteTable(
+  "session_usage",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id").notNull(),
+    /** Quem paga a conta. Resolvido na escrita, nunca por join depois. */
+    projectId: text("project_id").notNull(),
+    /** A worktree, quando a sessão rodou numa. `''` quando ela é do projeto. */
+    worktreeId: text("worktree_id").notNull().default(""),
+    /** A variação da janela de contexto neste turno. Nunca negativa. */
+    tokens: integer("tokens").notNull().default(0),
+    /**
+     * O custo do turno, na moeda que o agente reportou.
+     *
+     * `null` quando ele não reporta dinheiro — e a diferença entre `null` e `0`
+     * importa: um agente que não informa custo não pode parecer grátis.
+     */
+    cost: real("cost"),
+    currency: text("currency"),
+    ...timestamps,
+  },
+  (table) => [
+    check("session_usage_tokens", sql`${table.tokens} >= 0`),
+    // As duas perguntas que a tela faz, e as duas ordenam por tempo.
+    index("session_usage_project_at").on(table.projectId, table.createdAt),
+    index("session_usage_worktree_at").on(table.worktreeId, table.createdAt),
+  ],
+);
+
+/**
  * O playbook — procedimento, e **não** memória (§6 e §9 do PRD).
  *
  * Tabela própria porque a diferença não é de tipo, é de natureza: memória é fato
@@ -580,6 +631,7 @@ export const schema = {
   memoryUsage,
   memoryProposal,
   playbook,
+  sessionUsage,
 };
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
@@ -589,6 +641,7 @@ export type AgentConfigRow = typeof agentConfig.$inferSelect;
 export type SessionRow = typeof session.$inferSelect;
 export type MemoryEntryRow = typeof memoryEntry.$inferSelect;
 export type PlaybookRow = typeof playbook.$inferSelect;
+export type SessionUsageRow = typeof sessionUsage.$inferSelect;
 export type MemoryDecisionRow = typeof memoryDecision.$inferSelect;
 export type ActionSignalRow = typeof actionSignal.$inferSelect;
 export type MemoryAccessRow = typeof memoryAccess.$inferSelect;

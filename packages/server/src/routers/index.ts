@@ -9,6 +9,7 @@ import { memoryRouter } from "./memory.js";
 import { projectRouter } from "./project.js";
 import { sessionRouter } from "./session.js";
 import { setupRouter } from "./setup.js";
+import { usageRouter } from "./usage.js";
 import { workspaceRouter } from "./workspace.js";
 import { worktreeRouter } from "./worktree.js";
 
@@ -25,6 +26,7 @@ export const appRouter = router({
   project: projectRouter,
   session: sessionRouter,
   setup: setupRouter,
+  usage: usageRouter,
   workspace: workspaceRouter,
   worktree: worktreeRouter,
 });
