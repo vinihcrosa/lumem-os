@@ -298,6 +298,31 @@ porque o que entra em todo turno passa a ser uma linha por regra em vez do corpo
 **De onde veio:** [context-delivery D5](../prd/workspace-memory/context-delivery.md) · **Volta
 quando:** a marca d'água do núcleo passar do alarme e consolidar não resolver.
 
+### `session_usage` cresce para sempre — `P`
+
+A tabela do consumo (`workspace-screen`, W4) ganha uma linha por `usage_update`, ou seja, algumas por
+turno. Nada a poda. Numa máquina em uso diário isso é um número pequeno por muito tempo — mas é a
+segunda tabela do sistema que cresce sem teto, e a primeira (as transcrições) já ganhou diretório
+próprio e manutenção justamente por isso.
+
+O que provavelmente resolve: agregar em bucket diário por escopo depois de N dias e apagar as linhas
+cruas. A janela de `1y` é a única que precisa de granularidade fina e ninguém a olha por dia.
+
+**De onde veio:** a PR do consumo · **Volta quando:** a tabela passar de alguns milhões de linhas, ou
+a query de `1y` começar a aparecer no tempo de carregamento da tela.
+
+### O que o Lumem gasta sozinho — `P`
+
+A destilação de fim de sessão e o agente de pesquisa do auto-learn sobem sessões ACP **sem linha no
+banco**, de propósito. Como consequência, o consumo delas não é cobrado de projeto nenhum: atribuir a
+um projeto seria contar como trabalho seu algo que o sistema fez por conta própria.
+
+Isso deixa uma pergunta sem resposta: **quanto o Lumem gasta sozinho.** Hoje os dois interruptores
+vêm desligados, então a resposta é zero — quando alguém ligar, ela deixa de ser.
+
+**De onde veio:** `usage/record.ts`, a decisão U4 da [tela do workspace](../prd/workspace-screen/tasks.md) ·
+**Volta quando:** o primeiro interruptor de token for ligado por mais de um dia.
+
 ### Tela de preferências — a configuração de agente não é do workspace — `M`
 
 `agent_config` é **global** e mora no rodapé da sidebar, que é do workspace. A `agent-login` já nomeia
