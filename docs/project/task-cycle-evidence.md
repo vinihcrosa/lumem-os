@@ -1,11 +1,15 @@
 # Evidência do ciclo de tasks
 
-Registro de custo e achados do ciclo `lumem-dev` → `lumem-reviewer` → rework → commit, orquestrado
-pela skill [`lumem-task-cycle`](../../.claude/skills/lumem-task-cycle/SKILL.md).
+Registro de custo e achados do ciclo `lumem-dev` → `lumem-reviewer` → rework → commit.
 
-Existe por uma regra da própria skill: **regra que cita número precisa de arquivo que sobreviva a
-`clone`**. Sem ele a skill viaja com estimativa sem lastro, e ninguém consegue dizer se ela está
-calibrada ou repetindo folclore.
+> **A skill que orquestrava isso foi removida em 2026-08-22** — ela não estava funcionando bem. O que
+> ficou é este arquivo, e ele fica por um motivo que não depende dela: **são medições deste
+> repositório**, feitas ao longo de onze lotes. A linha de base (tamanho da suíte, tempo de gate,
+> mediana de arquivo) e o que cada lote achou continuam valendo, e são o único lastro que existe para
+> discutir custo de review aqui em vez de repetir folclore.
+>
+> Os agentes `lumem-dev` e `lumem-reviewer` continuam em `.claude/agents/` e continuam chamáveis
+> direto. O que sumiu foi o orquestrador.
 
 Este arquivo tem três partes com custos de manutenção muito diferentes, e vale saber qual é qual:
 a **linha de lote** é o que alguém preenche em dois minutos e é a única coisa obrigatória; a

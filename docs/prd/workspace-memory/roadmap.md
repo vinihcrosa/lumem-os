@@ -75,7 +75,7 @@ Sete, e cada uma existe por uma dor conhecida:
 ### O ciclo de cada parte
 
 O mesmo do resto do repositório: `tasks.md` da parte → dev → review → rework → commits atômicos →
-`gate:full` → PR. A skill `lumem-task-cycle` já descreve isso; o roadmap só diz **onde** cada ciclo
+`gate:full` → PR. O roadmap só diz **onde** cada ciclo
 começa e termina.
 
 ---
