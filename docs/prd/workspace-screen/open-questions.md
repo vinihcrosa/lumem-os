@@ -9,7 +9,7 @@ aqui, com o motivo.
 **Decisão:**. Cada pergunta traz uma **proposta pra reagir** — discordar dela é mais rápido que
 escrever do zero.
 
-**Estado:** 6 perguntas · **6 respondidas**. A W4 mudou o escopo da feature: consumo por projeto
+**Estado:** 7 perguntas · **7 respondidas**. A W4 mudou o escopo da feature: consumo por projeto
 entrou, e trouxe trabalho de daemon com ela.
 
 ---
@@ -130,6 +130,33 @@ memória volta a ser aba — e aí é decisão com sintoma, não com palpite.
 **Decisão: sem abas.** Uma coluna: cabeçalho, projetos com consumo, memória. Dois conjuntos de abas na
 mesma tela obrigariam a pessoa a aprender qual barra é qual. Se um dia não couber, a memória volta a
 ser aba — e aí é decisão com sintoma, não com palpite.
+
+---
+
+### [x] W7 — Como se volta para a tela do workspace? `[lm]`
+
+Levantada pelo uso, depois da feature entregue: *"quando eu entro em um projeto, eu não tenho como
+voltar a ver as informações do workspace"*. E é literal — o painel do workspace só aparece quando
+`selection === null`, e **nada** desfaz a seleção. A única saída hoje é trocar de workspace e voltar,
+porque trocar limpa a seleção.
+
+Três formas, e elas custam coisas diferentes:
+
+- **botão na topbar** — um controle novo, ao lado do seletor de workspace que já está ali. Duas coisas
+  competindo pela mesma pergunta ("qual workspace?" e "me leve ao workspace");
+- **linha na sidebar**, acima da árvore — o lugar da navegação. Mas o elemento do workspace na sidebar
+  é um `<select>` nativo, e escolher o valor que já está escolhido não dispara evento nenhum;
+- **o breadcrumb** — que já existe em **toda** tela de detalhe, já está escrito com o nome do
+  workspace, e é **texto morto** desde sempre.
+
+**R (decisão):** o breadcrumb. E **todo segmento menos o último** navega, não só o workspace.
+
+Duas razões. A primeira é não inventar chrome: o nome do workspace já está na tela, no lugar certo,
+dizendo exatamente para onde leva. A segunda é que resolver só o workspace deixaria o mesmo beco um
+nível abaixo — de dentro de uma worktree não há como voltar ao **projeto** dela tampouco.
+
+Desenhado no Open Design: `lumem-workspace.html`, tela 4, com o `.crumb__up` na camada de componentes
+(`lumem-ds.css`) — porque o breadcrumb é de toda tela de detalhe, não desta.
 
 ---
 

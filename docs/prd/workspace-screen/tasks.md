@@ -1,7 +1,9 @@
 # A tela do workspace — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **entregue, com as nove tasks fechadas de verdade.** Três caixas ficaram marcadas sem prova
+**Status:** **nove tasks entregues; a T8 nasceu do uso e está aberta.** Entrar num projeto era um beco
+sem saída — o painel do workspace só aparece com nada selecionado, e nada desfazia a seleção. O desenho
+do caminho de volta está feito ([W7](open-questions.md)); a implementação é a fase 5. Três caixas ficaram marcadas sem prova
 por um dia — auditoria própria as devolveu para aberto, e depois elas foram fechadas com teste. As
 telas foram desenhadas no Open Design (`lumem-workspace.html`), o consumo existe e é somável nos dois
 escopos. Portão verde: `gate:full` com **2.270 unit/integration + 38 e2e**. A ordem é a do
@@ -217,6 +219,30 @@ número significa.
 | **W13** | **Três caixas marcadas sem prova.** A auditoria foi minha e um dia depois: o componente da inbox é o mesmo da aba do projeto ("provavelmente funciona" não é o que a caixa diz), a asserção de renomear saiu do e2e quando ele ganhou workspace próprio, e o e2e do consumo conferia a seção sem nunca gastar um token. As três fechadas com teste; a lição é que caixa marcada por inferência é pior que caixa vazia | `tasks.md` |
 | **W12** | **Um teste passou por acidente, e a mutação mostrou.** O "depois de remover, o seletor aponta para o que sobrou" passava sem a validação contra a lista: com nada no `localStorage` o ativo é o primeiro, então depois da remoção ele já seria o certo sem ninguém validar. Selecionar explicitamente antes de remover é o que faz o teste medir o que ele diz medir | `workspace-ui.test.tsx` |
 | **W11** | **O e2e de renomear ganhou workspace próprio.** A primeira versão renomeava o `e2e` compartilhado e devolvia o nome no fim; uma falha no meio deixaria todos os specs seguintes procurando um nome que não existe mais | `e2e/workspace-screen.spec.ts` |
+
+---
+
+## Fase 5 — o caminho de volta (W7)
+
+Levantada pelo uso, **depois** da feature entregue: entrar num projeto era um beco sem saída. O
+desenho está no Open Design (`lumem-workspace.html`, tela 4); falta implementar.
+
+#### T8: O breadcrumb navega
+
+**What**: Todo segmento menos o último leva ao escopo dele.
+**Where**: `App.tsx`, `components/{WorktreePanel,LocalPanel}.tsx`, `ui.css` + testes
+
+**Done when**:
+- [ ] O nome do workspace no breadcrumb leva ao painel do workspace — de dentro de um projeto **e** de
+      dentro de uma worktree
+- [ ] O nome do projeto, na tela de uma worktree, leva ao projeto: resolver só o workspace deixaria o
+      mesmo beco um nível abaixo
+- [ ] O último segmento continua sendo onde você está — sem clique, sem sublinhado
+- [ ] `<button>` e não `<div onClick>`: é navegação, e teclado tem que alcançar
+- [ ] Um teste que fecha o beco: entrar no projeto, voltar, e a tela do workspace estar lá
+- [ ] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(web): o breadcrumb navega, e o projeto deixa de ser um beco`
 
 ---
 

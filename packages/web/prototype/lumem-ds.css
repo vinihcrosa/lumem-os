@@ -736,6 +736,44 @@ code { font: var(--text-mono-md); color: var(--color-text-code); }
 .crumb { display: flex; align-items: center; gap: var(--space-6); font: var(--text-body-sm); color: var(--color-text-tertiary); }
 .crumb__sep { color: var(--color-text-disabled); }
 .crumb__here { color: var(--color-text-secondary); }
+
+/* --------------------------------------------------------------------------
+   O BREADCRUMB PASSA A NAVEGAR — E ISSO CONSERTA UM BECO SEM SAÍDA.
+
+   Ele existia em toda tela de detalhe como TEXTO MORTO: `pessoal / lorebase /
+   teste-prd` desenhado e sem clique. Enquanto o workspace não tinha tela, isso
+   era só uma etiqueta de contexto. Agora que ele tem, o texto morto virou o
+   único lugar onde o caminho de volta cabe — e sem ele o produto não tem
+   caminho de volta nenhum: quem entra num projeto só volta ao painel do
+   workspace trocando de workspace e voltando.
+
+   Duas escolhas de desenho, e as duas são por não inventar chrome:
+
+   1. **é o segmento, não um botão novo.** "Voltar para o workspace" como botão
+      na topbar seria um controle a mais competindo com o seletor que já está
+      ali. O nome do workspace já está escrito na tela, no lugar certo, dizendo
+      exatamente onde ele leva;
+   2. **todo segmento menos o último navega.** O último é onde você está — ele
+      continua `.crumb__here`, sem clique. Fazer só o workspace navegar
+      resolveria o pedido e deixaria "voltar para o projeto" faltando na tela de
+      uma worktree, que é o mesmo beco um nível abaixo.
+
+   Alvo de clique: o texto, com a área mínima do sistema. `text-decoration` só
+   no hover/focus — sublinhar tudo transformaria o cabeçalho de contexto num
+   menu.
+   -------------------------------------------------------------------------- */
+.crumb__up {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  min-height: var(--size-target-min);
+  display: inline-flex;
+  align-items: center;
+}
+.crumb__up:hover { color: var(--color-text-primary); text-decoration: underline; text-underline-offset: 2px; }
 .wt-title { display: flex; align-items: center; gap: var(--space-10); margin: var(--space-6) 0 var(--space-10); }
 .wt-title h2 { margin: 0; display: inline-flex; align-items: center; gap: var(--space-8); font: var(--text-heading-lg); letter-spacing: var(--tracking-heading-lg); }
 .wt-title .glyph { font-size: var(--size-icon-lg); width: auto; }

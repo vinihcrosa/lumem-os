@@ -11,8 +11,9 @@
 
 <h1 class="page">A tela do workspace — protótipo</h1>
 <p class="page-sub">
-  Três telas: o painel do workspace, o consumo por worktree na visão do projeto, e o
-  workspace vazio — que é hoje o único lugar do produto onde <em>nada</em> é alcançável.
+  Quatro telas: o painel do workspace, o consumo por worktree na visão do projeto, o
+  workspace vazio — hoje o único lugar do produto onde <em>nada</em> é alcançável — e o
+  caminho de volta, que não existe.
   Sobre os mesmos tokens e os mesmos componentes do resto, sem literal nenhum.
 </p>
 
@@ -206,6 +207,61 @@
         <div class="wsp__mem">
           <p class="dim">o painel de memória, alcançável mesmo com o workspace vazio</p>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>4 · como voltar — o breadcrumb navega</h2>
+  <p class="note">
+    O problema que isto conserta: <strong>quem entra num projeto não tem caminho de
+    volta.</strong> O painel do workspace só aparece quando nada está selecionado, e
+    nada desfaz a seleção — hoje a única saída é trocar de workspace e voltar.
+  </p>
+  <p class="note">
+    A resposta não é um botão novo. O breadcrumb já está em toda tela de detalhe,
+    escrito com o nome do workspace, e é texto morto desde sempre. Ele passa a
+    navegar: <em>todo segmento menos o último</em>. O último é onde você está.
+  </p>
+
+  <div class="frame">
+    <div class="wsp">
+      <div class="crumb">
+        <button class="crumb__up focus-ring">pessoal</button>
+        <span class="crumb__sep">/</span>
+        <button class="crumb__up focus-ring">lorebase</button>
+        <span class="crumb__sep">/</span>
+        <span class="crumb__here">teste-prd</span>
+      </div>
+      <div class="wsp__title">
+        <h3>teste-prd</h3>
+        <span class="kind" style="color: var(--color-scope-worktree)">worktree</span>
+      </div>
+      <p class="note" style="margin: 0">
+        Da worktree, dois cliques possíveis: o workspace e o projeto. Sem o segundo, o
+        mesmo beco existiria um nível abaixo.
+      </p>
+    </div>
+  </div>
+
+  <p class="note" style="margin-top: var(--space-16)">
+    E na tela do projeto, o único segmento clicável é o workspace — porque é o único
+    lugar acima dele.
+  </p>
+  <div class="frame">
+    <div class="wsp">
+      <div class="crumb">
+        <button class="crumb__up focus-ring">pessoal</button>
+        <span class="crumb__sep">/</span>
+        <button class="crumb__up focus-ring">lorebase</button>
+        <span class="crumb__sep">/</span>
+        <span class="crumb__here">local</span>
+      </div>
+      <div class="wsp__title">
+        <h3>local</h3>
+        <span class="kind" style="color: var(--color-scope-project)">projeto</span>
       </div>
     </div>
   </div>
