@@ -99,6 +99,18 @@ Sucede a `right-panel`. O split da aba **escreve**: editar o arquivo aberto com 
 | [open-questions.md](prd/file-editor/open-questions.md) | 24 perguntas, 21 respondidas |
 | [tasks.md](prd/file-editor/tasks.md) | 6 decisões e 13 tasks em 5 fases, mais as premissas travadas e as 20 pendências numeradas — **todas entregues**, mais o que o portão não prova |
 
+### [workspace-screen/](prd/workspace-screen/) — o workspace ganha uma tela
+
+**Escrita, não implementada.** Nasceu de uma pergunta de uso: *"tem uma memória do workspace? como eu
+acesso?"* — e a resposta é que só através de um projeto, porque o botão que abre o painel direito só
+aparece com um checkout selecionado. Workspace sem projeto não tem porta nenhuma.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/workspace-screen/prd.md) | O que o workspace não tem, o que a tela é, o que fica fora e por quê, e as três telas que precisam nascer no Open Design |
+| [open-questions.md](prd/workspace-screen/open-questions.md) | 6 perguntas. A **W1** decide o tamanho da feature: painel central, ou só liberar o painel direito |
+| [tasks.md](prd/workspace-screen/tasks.md) | 5 tasks em 3 fases. Duas coisas travam a primeira, e nenhuma é código: a W1 e o desenho |
+
 ### [workspace-memory/](prd/workspace-memory/) — o harness lembra
 
 **Completa — nove PRs, mais o S1, o S2 e as duas telas que faltavam.** A primeira feature que não é

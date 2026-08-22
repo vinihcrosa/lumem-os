@@ -298,6 +298,29 @@ porque o que entra em todo turno passa a ser uma linha por regra em vez do corpo
 **De onde veio:** [context-delivery D5](../prd/workspace-memory/context-delivery.md) · **Volta
 quando:** a marca d'água do núcleo passar do alarme e consolidar não resolver.
 
+### Consumo por projeto e por worktree — `M`
+
+O consumo existe **por turno**: o `usage_update` do ACP chega, a conversa mostra janela, cache e custo.
+Ninguém soma por projeto, por worktree ou por semana — então "onde meu dinheiro foi" não tem resposta.
+
+Ficou fora da [tela do workspace](../prd/workspace-screen/prd.md) de propósito: agregar é trabalho de
+daemon, e a tela dela só usa números que já existem.
+
+**De onde veio:** buraco 5 dos [buracos conhecidos do Open Design] e o §4 do PRD da tela do
+workspace · **Volta quando:** a primeira conta doer, ou quando alguém perguntar quanto custou um
+projeto.
+
+### Tela de preferências — a configuração de agente não é do workspace — `M`
+
+`agent_config` é **global** e mora no rodapé da sidebar, que é do workspace. A `agent-login` já nomeia
+a mentira (A16); a [tela do workspace](../prd/workspace-screen/prd.md) recusou herdá-la, porque
+misturar global com workspace numa tela nova é repetir o erro em outro lugar.
+
+O lugar certo é uma tela de preferências, que não existe.
+
+**De onde veio:** A16 da `agent-login`, e o §4 do PRD da tela do workspace · **Volta quando:** existir
+uma segunda coisa global para configurar — política de permissão é a candidata óbvia.
+
 ### Autenticação do daemon — `M`
 
 O daemon escreve no disco com as suas permissões e não pede nada a ninguém. A `file-editor` tornou
