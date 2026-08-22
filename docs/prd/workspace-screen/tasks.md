@@ -1,13 +1,10 @@
 # A tela do workspace — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **implementada, com três caixas abertas** — e as três eu tinha marcado como fechadas antes
-de conferir. Elas estão de volta como `[ ]`, com o motivo escrito na própria linha. As telas foram
-desenhadas no Open Design (`lumem-workspace.html`), o consumo existe e é somável nos dois escopos.
-Portão verde: `gate:full` com **2.267 unit/integration + 37 e2e**.
-
-O que falta é **prova**, não código: nenhuma das três abre um caminho novo, e as três são testes que
-eu declarei escritos sem ter escrito. A ordem é a do
+**Status:** **entregue, com as nove tasks fechadas de verdade.** Três caixas ficaram marcadas sem prova
+por um dia — auditoria própria as devolveu para aberto, e depois elas foram fechadas com teste. As
+telas foram desenhadas no Open Design (`lumem-workspace.html`), o consumo existe e é somável nos dois
+escopos. Portão verde: `gate:full` com **2.270 unit/integration + 38 e2e**. A ordem é a do
 risco: o consumo primeiro, porque ele é a única parte que pode não caber.
 
 ---
@@ -127,8 +124,9 @@ número significa.
       semântica de precedência (§5 do PRD)
 - [x] Mostra `workspace` e `você`, e **não** mostra `projeto`: a ausência do grupo é a diferença
       visível entre os dois lugares
-- [ ] A inbox de propostas funciona daqui: aprovar e rejeitar sem projeto aberto — **sem prova.** O
-      componente é o mesmo, então provavelmente funciona; "provavelmente" não é o que esta caixa diz
+- [x] A inbox de propostas funciona daqui: aprovar e rejeitar sem projeto aberto — provado com o
+      workspace **vazio**, que é o caso em que antes não havia porta. Rejeitar em duas etapas,
+      inclusive: recusar sem dizer por que perde o histórico que a inbox existe para guardar
 - [x] Um teste que prova o caminho que originou a feature: workspace **sem projeto**, memória de
       workspace visível e revisável
 - [x] Gate: `pnpm gate:quick`
@@ -162,9 +160,9 @@ número significa.
 - [x] Em linha, sem modal — o produto não usa modal
 - [x] O seletor do topo e a tela concordam na hora: um nome novo em dois lugares diferentes é o
       começo de uma tela discordando de si mesma
-- [ ] Renomear **não** mexe em disco, e um teste prova: a memória continua sendo achada depois (W6) —
-      **sem prova.** A asserção existiu numa versão do e2e e saiu quando o teste ganhou workspace
-      próprio, que é descartado no fim; ninguém reescreveu
+- [x] Renomear **não** mexe em disco, e um teste prova: a memória continua sendo achada depois (W6).
+      No servidor, e não no e2e — a pergunta é do daemon: o caminho é `workspaces/<id>/`, e o teste
+      confere que o nome novo não aparece em caminho nenhum
 - [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): renomear o workspace pela tela`
@@ -197,9 +195,10 @@ número significa.
 
 **Done when**:
 - [x] Um workspace **sem projeto**, memória de workspace escrita pela API, e revisada **pela tela**
-- [ ] Um turno de verdade, e o consumo dele aparecendo no projeto que o gastou — **sem prova.** O e2e
-      confere que a seção existe e que a janela é uma pergunta nova; ele nunca gastou um token e viu o
-      número subir. É a única caixa desta feature que atravessa daemon, protocolo e tela juntos
+- [x] Um turno de verdade, e o consumo dele aparecendo no projeto que o gastou. **Worktree própria
+      da prova**, e é isso que faz o número ser exato — outros specs rodam turnos no mesmo projeto, e o
+      total dele acumula. `39,2k`, `US$ 0,2354`, `1 turnos`, do `usage_update` do adaptador falso até
+      a linha na tela
 - [x] Renomear e ver o nome trocar nos dois lugares
 - [x] Gate: `pnpm gate:full`
 
@@ -215,6 +214,7 @@ número significa.
 | **W8** | **Dois botões `remover` na mesma tela.** O rodapé da sidebar tem o do agente; o meu virou `remover workspace`, seguindo o `remover projeto` que já existia. É ambiguidade para leitor de tela antes de ser ambiguidade em teste | `WorkspacePanel` |
 | **W9** | **Uma tela nova que consulta o daemon no `mount` quebra teste antigo.** Seis suítes caíram com *"Found multiple elements with the role alert"* — elas usam `vi.resetAllMocks()`, que apaga implementação, e query sem implementação devolve `undefined`, que o `useQuery` recusa. `installTrpcDefaults()` é o remendo nomeado, e o default é sempre resposta **vazia** | `test/trpc-mock.ts` |
 | **W10** | **O segmentado subiu para `ui/ui.css`** quando ganhou o segundo usuário: a terceira cópia é onde as três param de concordar. Estado é `aria-pressed` e não classe — o Open Design já tinha passado por essa decisão e a registrou | `ui/ui.css` |
+| **W13** | **Três caixas marcadas sem prova.** A auditoria foi minha e um dia depois: o componente da inbox é o mesmo da aba do projeto ("provavelmente funciona" não é o que a caixa diz), a asserção de renomear saiu do e2e quando ele ganhou workspace próprio, e o e2e do consumo conferia a seção sem nunca gastar um token. As três fechadas com teste; a lição é que caixa marcada por inferência é pior que caixa vazia | `tasks.md` |
 | **W12** | **Um teste passou por acidente, e a mutação mostrou.** O "depois de remover, o seletor aponta para o que sobrou" passava sem a validação contra a lista: com nada no `localStorage` o ativo é o primeiro, então depois da remoção ele já seria o certo sem ninguém validar. Selecionar explicitamente antes de remover é o que faz o teste medir o que ele diz medir | `workspace-ui.test.tsx` |
 | **W11** | **O e2e de renomear ganhou workspace próprio.** A primeira versão renomeava o `e2e` compartilhado e devolvia o nome no fim; uma falha no meio deixaria todos os specs seguintes procurando um nome que não existe mais | `e2e/workspace-screen.spec.ts` |
 

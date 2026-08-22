@@ -224,3 +224,85 @@ describe("remover — o caminho da recusa (W2, T6)", () => {
     expect(screen.getByRole("heading", { name: "pessoal" })).toBeInTheDocument();
   });
 });
+
+describe("a inbox de propostas, sem projeto aberto (T3)", () => {
+  /*
+   * O que esta prova acrescenta: que a inbox **funciona daqui**.
+   *
+   * A `MemoryPanel` é o mesmo componente da aba do projeto, então "provavelmente
+   * funciona" era verdade — e é exatamente o tipo de afirmação que uma caixa de
+   * `Done when` não pode carregar. O que muda no painel do workspace é o escopo
+   * (`projectId: null`), e o que precisa ser dito é que revisar não depende de
+   * haver checkout selecionado.
+   */
+  const proposal = {
+    id: "prop1",
+    path: "workspaces/ws1/memory/domain_plano-sem-preco.md",
+    type: "domain",
+    scope: "workspace",
+    slug: "plano-sem-preco",
+    workspaceId: "ws1",
+    projectId: null,
+    name: "Plano sem preço",
+    description: "Usuário sem plano vê catálogo, não preço",
+    body: "regra",
+    actor: "agent",
+    fromProjectId: "api",
+    sessionId: null,
+    confidence: "medium",
+    evidence: "api/src/billing/plan.ts:88",
+    status: "pending",
+    resolvedAt: null,
+    resolutionNote: null,
+    current: null,
+    createdAt: new Date("2026-08-20T12:00:00Z"),
+    updatedAt: new Date("2026-08-20T12:00:00Z"),
+  };
+
+  it("a proposta é revisada e aprovada sem nenhum projeto aberto", async () => {
+    trpc.project.listByWorkspace.query.mockResolvedValue([]);
+    trpc.usage.byProject.query.mockResolvedValue([]);
+    trpc.memory.proposals.query.mockResolvedValue([proposal]);
+    trpc.memory.approveProposal.mutate.mockResolvedValue({ path: proposal.path });
+
+    render();
+
+    // Workspace vazio: é o caso em que, antes desta feature, não havia porta.
+    await screen.findByText("Nenhum projeto ainda");
+    await userEvent.click(await screen.findByRole("tab", { name: /Propostas/ }));
+
+    expect(await screen.findByText("Plano sem preço")).toBeInTheDocument();
+    // A evidência aparece: é o que separa fato de conclusão na revisão.
+    expect(screen.getByText("api/src/billing/plan.ts:88")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Aprovar" }));
+
+    expect(trpc.memory.approveProposal.mutate).toHaveBeenCalledWith({ id: "prop1" });
+  });
+
+  it("rejeitar também, e a recusa é histórico e não apagamento", async () => {
+    trpc.project.listByWorkspace.query.mockResolvedValue([]);
+    trpc.usage.byProject.query.mockResolvedValue([]);
+    trpc.memory.proposals.query.mockResolvedValue([proposal]);
+    trpc.memory.rejectProposal.mutate.mockResolvedValue({ ...proposal, status: "rejected" });
+
+    render();
+    await userEvent.click(await screen.findByRole("tab", { name: /Propostas/ }));
+    await screen.findByText("Plano sem preço");
+
+    // O primeiro `Rejeitar` abre o campo da nota; o segundo confirma. Duas
+    // etapas de propósito: recusar sem dizer por que perde o histórico que a
+    // inbox existe para guardar.
+    await userEvent.click(screen.getByRole("button", { name: "Rejeitar" }));
+    await userEvent.type(
+      screen.getByLabelText(/por que/i),
+      "isso é regra do api, não do produto",
+    );
+    await userEvent.click(screen.getAllByRole("button", { name: "Rejeitar" })[0]!);
+
+    expect(trpc.memory.rejectProposal.mutate).toHaveBeenCalledWith({
+      id: "prop1",
+      note: "isso é regra do api, não do produto",
+    });
+  });
+});

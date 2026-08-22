@@ -105,6 +105,48 @@ describe("workspace.rename", () => {
     });
   });
 
+  it("não mexe em disco: a memória do workspace continua sendo achada", async () => {
+    /*
+     * A W6 da [tela do workspace](../../../../docs/prd/workspace-screen/open-questions.md):
+     * renomear é uma coluna, e nada mais.
+     *
+     * O caminho da memória é `workspaces/<id>/`, por **id** — então o nome pode
+     * mudar à vontade. O oposto valeria para o **projeto**, cujo `id` está no
+     * `.lumem` do repositório, e é por isso que isto é teste em vez de comentário.
+     */
+    const { api } = caller();
+    const created = await api.workspace.create({ name: "pessoal" });
+    const written = await api.memory.write({
+      name: "Release deste workspace",
+      description: "tag assinada, sempre",
+      body: "Release sai de tag assinada.",
+      type: "process",
+      scope: "workspace",
+      workspaceId: created.id,
+      actor: "human",
+    });
+
+    await api.workspace.rename({ id: created.id, name: "particular" });
+
+    // O mesmo caminho, achado pela mesma identidade.
+    const read = await api.memory.read({
+      type: "process",
+      name: "Release deste workspace",
+      scope: "workspace",
+      workspaceId: created.id,
+    });
+    expect(read.body).toContain("tag assinada");
+    expect(written.path).toContain(`workspaces/${created.id}/`);
+    // E o nome novo não aparece em caminho nenhum: se aparecesse, renomear
+    // significaria mover diretório.
+    expect(written.path).not.toContain("particular");
+    // `await` no `resolves`: sem ele a asserção vira promessa que ninguém espera,
+    // e o teste passa mesmo quando ela falharia.
+    await expect(api.memory.list({ workspaceId: created.id })).resolves.toMatchObject({
+      entries: [{ name: "Release deste workspace" }],
+    });
+  });
+
   it("reports a name collision as a conflict", async () => {
     const { api } = caller();
     await api.workspace.create({ name: "pessoal" });

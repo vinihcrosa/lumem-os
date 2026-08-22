@@ -114,7 +114,7 @@ janela de tempo. E ele não era uma query nova — era um dado que o daemon **n�
 |---|---|
 | [prd.md](prd/workspace-screen/prd.md) | O que o workspace não tem, o que a tela é, o que fica fora e por quê, e as três telas que precisam nascer no Open Design |
 | [open-questions.md](prd/workspace-screen/open-questions.md) | 6 perguntas, **todas respondidas**. A W4 é a que mudou o escopo, e a decisão dela explica por que o consumo exige tabela nova |
-| [tasks.md](prd/workspace-screen/tasks.md) | 9 tasks em 4 fases, **todas fechadas**, mais as duas tabelas do que a execução achou — inclusive um teste que passava por acidente e a mutação pegou |
+| [tasks.md](prd/workspace-screen/tasks.md) | 9 tasks em 4 fases, **todas fechadas com prova**, mais as duas tabelas do que a execução achou — inclusive um teste que passava por acidente (pego por mutação) e três caixas que ficaram marcadas por inferência até uma auditoria devolvê-las para aberto |
 
 ### [workspace-memory/](prd/workspace-memory/) — o harness lembra
 

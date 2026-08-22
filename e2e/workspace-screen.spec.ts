@@ -1,9 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_SERVER_PORT } from "../ports.js";
-import { ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import { createAgentConfig, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
 import { call, query } from "./support/daemon.js";
-import { E2E_FIXTURE_REPO } from "./support/fixtures.js";
+import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js";
 
 /**
  * A tela do workspace — e o caminho que originou a feature.
@@ -115,4 +115,69 @@ test("renomear o workspace troca o nome nos dois lugares", async ({ page }) => {
   } finally {
     await call(DAEMON, "workspace.remove", { id: created.id }).catch(() => undefined);
   }
+});
+
+test("um turno de verdade, e o consumo dele na tela do projeto que o gastou", async ({
+  page,
+  request,
+}) => {
+  /*
+   * A prova que atravessa tudo: daemon, protocolo e tela.
+   *
+   * Os testes de unidade provam que o delta é calculado, que a soma agrupa e que
+   * a linha desenha. Nenhum deles gasta um token. Aqui um turno **de verdade**
+   * roda contra o agente falso — que reporta `usage_update` como um adaptador
+   * reporta —, e o número aparece na tela do projeto que o gastou.
+   *
+   * A worktree é **desta prova**, e é isso que faz o número ser exato: outros
+   * specs rodam turnos no mesmo projeto, então o total dele acumula; a worktree
+   * criada aqui só recebeu o meu turno.
+   */
+  const WORKTREE = "consumo-de-um-turno";
+  await createAgentConfig(request, DAEMON, {
+    name: "acp-falso",
+    command: process.execPath,
+    args: [E2E_FAKE_ACP_AGENT],
+    transport: "acp",
+    adapterVersion: "0.0.0-fake",
+  });
+
+  await page.goto("/");
+  await ensureWorkspace(page);
+  await ensureProject(page, E2E_FIXTURE_REPO_ACP, "repo-acp");
+  await openProject(page, "repo-acp");
+  await page.getByRole("button", { name: "nova worktree" }).click();
+  await page.getByLabel("Nome da worktree").fill(WORKTREE);
+  await page.getByRole("button", { name: "criar" }).click();
+  await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
+
+  // O turno. O agente falso pede permissão no meio, como um de verdade.
+  await page.getByRole("button", { name: /nova sessão/ }).click();
+  await page.getByRole("menuitem", { name: /^acp-falso\b/ }).click();
+  const conv = page.locator("[role=tabpanel]:not([hidden]) .conv");
+  await expect(conv).toBeVisible({ timeout: 20_000 });
+  await expect(conv.getByText("sessão aberta, nada pedido ainda")).toBeVisible({ timeout: 20_000 });
+
+  await conv.getByLabel("mensagem para o agente").fill("arruma o frontmatter vazio");
+  await conv.getByRole("button", { name: /enviar/ }).click();
+  await conv.getByRole("button", { name: /permitir uma vez/ }).click();
+  // O rodapé de consumo aparecendo é o sinal de que o `usage_update` chegou.
+  await expect(conv.getByText(/39,2k/)).toBeVisible({ timeout: 30_000 });
+
+  // A tela do projeto: o consumo por worktree, com a minha worktree nele.
+  await openProject(page, "repo-acp");
+  const row = page.locator(".spend__row", { hasText: WORKTREE });
+  await expect(row).toBeVisible({ timeout: 20_000 });
+  // Exato, porque só o meu turno rodou nesta worktree.
+  await expect(row.locator(".spend__tok")).toHaveText("39,2k");
+  await expect(row.locator(".spend__cost")).toContainText("US$ 0,2354");
+  await expect(row.locator(".spend__turns")).toHaveText("1 turnos");
+
+  // E o projeto que a gastou aparece na tela do workspace com o total dele — que
+  // acumula os turnos dos outros specs, então a asserção é "não é zero".
+  await page.reload();
+  await expect(panel(page)).toBeVisible({ timeout: 20_000 });
+  const projectRow = panel(page).locator(".spend__row", { hasText: "repo-acp" });
+  await expect(projectRow).toBeVisible();
+  await expect(projectRow.locator(".spend__tok")).not.toHaveText("0");
 });
