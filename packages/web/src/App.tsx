@@ -286,6 +286,15 @@ export function App() {
               scope: { scopeType: "project", scopeId: projectId },
             })
           }
+          /*
+           * O caminho de volta (W7). `setSelection(null)` é o que faz o painel do
+           * workspace aparecer — e era o que nada chamava: quem entrava num
+           * projeto só voltava trocando de workspace e voltando.
+           */
+          onOpenWorkspace={() => setSelection(null)}
+          onOpenProject={() =>
+            setSelection({ projectId, scope: { scopeType: "project", scopeId: projectId } })
+          }
         />
       );
     }
@@ -297,6 +306,7 @@ export function App() {
         workspaceId={workspaceId}
         workspaceName={workspaceName}
         onRemoved={() => setSelection(null)}
+        onOpenWorkspace={() => setSelection(null)}
         onSelectWorktree={(worktreeId) =>
           setSelection({
             projectId,

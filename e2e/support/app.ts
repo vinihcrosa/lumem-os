@@ -74,9 +74,21 @@ export async function ensureProject(page: Page, path: string, name = "fixture"):
   await expect(entry).toBeVisible({ timeout: 15_000 });
 }
 
-/** Selects a project in the sidebar. */
+/**
+ * Selects a project **in the sidebar**.
+ *
+ * Scoped to the tree, and that is not decoration: since the breadcrumb started
+ * navigating (`workspace-screen`, W7), the project's name is a button in two
+ * places — the tree row and the crumb segment of the worktree screen. Both go to
+ * the same place, and an unscoped locator matches two elements and fails.
+ */
 export async function openProject(page: Page, name = "fixture"): Promise<void> {
-  await page.getByRole("button", { name, exact: true }).click();
+  // `getByLabel` e não `getByRole("tree")`: a árvore da sidebar é um `div` com
+  // `aria-label` e sem `role` — inconsistência com a árvore de arquivos, que é
+  // `role="tree"`. Anotada no backlog; consertar aqui exigiria `treeitem` nas
+  // linhas, e árvore sem itens é pior que div rotulada.
+  const tree = page.getByLabel("árvore de projetos");
+  await tree.getByRole("button", { name, exact: true }).click();
 }
 
 /**

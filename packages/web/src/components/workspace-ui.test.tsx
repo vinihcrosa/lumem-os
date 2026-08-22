@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -176,5 +176,116 @@ describe("remover o workspace pela tela (T6)", () => {
     await user.click(screen.getByRole("button", { name: "remover workspace" }));
 
     expect(await screen.findByRole("button", { name: /Configurar em 5 passos/ })).toBeInTheDocument();
+  });
+});
+
+describe("o caminho de volta (W7, T8)", () => {
+  /*
+   * O beco: o painel do workspace só aparece com nada selecionado, e nada
+   * desfazia a seleção. A única saída era trocar de workspace e voltar — porque
+   * trocar limpa a seleção.
+   */
+  const project = (id: string, name: string) => ({
+    id,
+    workspaceId: "w1",
+    name,
+    path: `/repos/${name}`,
+    defaultBranch: "main",
+    available: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  const worktree = {
+    id: "wt1",
+    projectId: "p1",
+    name: "teste-prd",
+    branch: "teste-prd",
+    path: "/repos/lorebase-wt/teste-prd",
+    state: "active",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  beforeEach(() => {
+    trpc.workspace.list.query.mockResolvedValue([workspace("w1", "pessoal")]);
+    trpc.project.listByWorkspace.query.mockResolvedValue([project("p1", "lorebase")]);
+    trpc.project.get.query.mockResolvedValue(project("p1", "lorebase"));
+    trpc.worktree.listByProject.query.mockResolvedValue([worktree]);
+    trpc.worktree.getDetail.query.mockResolvedValue({
+      ...worktree,
+      baseBranch: "main",
+      status: { clean: true, changedFiles: 0 },
+      aheadBehind: { ahead: 0, behind: 0 },
+    });
+    trpc.session.listByScope.query.mockResolvedValue([]);
+  });
+
+  it("do projeto, o nome do workspace no breadcrumb volta para a tela dele", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
+
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await screen.findByRole("heading", { name: "local" });
+
+    // O segmento do workspace: era texto morto, e agora é a saída.
+    const crumb = document.querySelector(".crumb") as HTMLElement;
+    await user.click(within(crumb).getByRole("button", { name: "pessoal" }));
+
+    expect(await screen.findByRole("heading", { name: "pessoal" })).toBeInTheDocument();
+  });
+
+  it("da worktree, dá para voltar ao projeto — o mesmo beco um nível abaixo", async () => {
+    // Resolver só o workspace deixaria isto de fora: de dentro de uma worktree
+    // também não havia como voltar ao projeto dela.
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
+
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    // Na árvore da sidebar, e não em qualquer lugar: o nome da worktree também
+    // aparece no chip de branch do painel dela.
+    const tree = await screen.findByLabelText("árvore de projetos");
+    await user.click(await within(tree).findByRole("button", { name: /^teste-prd/ }));
+    await screen.findByRole("heading", { name: "teste-prd" });
+
+    // No breadcrumb, e não na sidebar: os dois levam ao mesmo lugar, e o que está
+    // sob teste é o de dentro da tela.
+    const crumb = document.querySelector(".crumb") as HTMLElement;
+    await user.click(within(crumb).getByRole("button", { name: "lorebase" }));
+
+    expect(await screen.findByRole("heading", { name: "local" })).toBeInTheDocument();
+  });
+
+  it("da worktree, o workspace também está a um clique", async () => {
+    /*
+     * O desenho diz "da worktree, dois cliques possíveis". Este é o segundo, e
+     * ele não tinha teste: a mutação mostrou — quebrar o `onOpenWorkspace` do
+     * painel da worktree não derrubava nada, porque um teste ia do **projeto** e
+     * o outro ia da worktree para o projeto.
+     */
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
+
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    const tree = await screen.findByLabelText("árvore de projetos");
+    await user.click(await within(tree).findByRole("button", { name: /^teste-prd/ }));
+    await screen.findByRole("heading", { name: "teste-prd" });
+
+    const crumb = document.querySelector(".crumb") as HTMLElement;
+    await user.click(within(crumb).getByRole("button", { name: "pessoal" }));
+
+    expect(await screen.findByRole("heading", { name: "pessoal" })).toBeInTheDocument();
+  });
+
+  it("o último segmento não é botão: é onde você está", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
+
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await screen.findByRole("heading", { name: "local" });
+
+    const crumb = document.querySelector(".crumb")!;
+    expect(crumb.querySelectorAll("button")).toHaveLength(1);
+    expect(crumb.textContent).toContain("local");
   });
 });

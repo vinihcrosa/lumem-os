@@ -181,3 +181,29 @@ test("um turno de verdade, e o consumo dele na tela do projeto que o gastou", as
   await expect(projectRow).toBeVisible();
   await expect(projectRow.locator(".spend__tok")).not.toHaveText("0");
 });
+
+test("entrar num projeto deixou de ser um beco: o breadcrumb volta (W7)", async ({ page }) => {
+  /*
+   * O beco era literal: o painel do workspace só aparece com nada selecionado, e
+   * nada desfazia a seleção — a única saída era trocar de workspace e voltar.
+   *
+   * Em navegador porque é navegação: o teste de componente prova o `onClick`, e o
+   * que só aqui se vê é a tela **trocando** de verdade, com o daemon respondendo
+   * as duas telas.
+   */
+  await page.goto("/");
+  await ensureWorkspace(page);
+  await ensureProject(page, E2E_FIXTURE_REPO, "fixture");
+  await openProject(page, "fixture");
+
+  // Dentro do projeto: o painel do workspace saiu de cena.
+  await expect(page.getByRole("heading", { name: "local" })).toBeVisible({ timeout: 20_000 });
+  await expect(panel(page)).toHaveCount(0);
+
+  // O nome do workspace no breadcrumb — que era texto morto — é a saída.
+  const crumb = page.locator("[role=tabpanel]:not([hidden]) .crumb, .crumb").first();
+  await crumb.getByRole("button", { name: "e2e" }).click();
+
+  await expect(panel(page)).toBeVisible({ timeout: 20_000 });
+  await expect(panel(page).getByRole("heading", { name: "e2e" })).toBeVisible();
+});

@@ -14,6 +14,14 @@ export interface WorktreePanelProps {
   projectId: string;
   workspaceName: string;
   onRemoved: () => void;
+  /**
+   * O caminho de volta (W7).
+   *
+   * Dois, e não um: de dentro de uma worktree, o workspace **e** o projeto dela
+   * estão acima. Resolver só o workspace deixaria o mesmo beco um nível abaixo.
+   */
+  onOpenWorkspace: () => void;
+  onOpenProject: () => void;
   /** Passed through to the tabs: a session to open on arrival, once. */
   openSessionId?: string | undefined;
 }
@@ -24,6 +32,8 @@ export function WorktreePanel({
   projectId,
   workspaceName,
   onRemoved,
+  onOpenWorkspace,
+  onOpenProject,
   openSessionId,
 }: WorktreePanelProps) {
   const queryClient = useQueryClient();
@@ -75,11 +85,16 @@ export function WorktreePanel({
       header={
         <>
           <nav className="crumb">
-            {workspaceName}
+            {/* Todo segmento menos o último navega. O último é onde você está. */}
+            <button type="button" className="crumb__up focus-ring" onClick={onOpenWorkspace}>
+              {workspaceName}
+            </button>
             <span className="crumb__sep" aria-hidden="true">
               /
             </span>
-            {project.data?.name ?? "…"}
+            <button type="button" className="crumb__up focus-ring" onClick={onOpenProject}>
+              {project.data?.name ?? "…"}
+            </button>
             <span className="crumb__sep" aria-hidden="true">
               /
             </span>

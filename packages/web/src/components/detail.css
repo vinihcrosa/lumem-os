@@ -10,6 +10,35 @@
 .crumb__sep { color: var(--color-text-disabled); }
 .crumb__here { color: var(--color-text-secondary); }
 
+/*
+ * O BREADCRUMB NAVEGA — portado do `lumem-ds.css` do Open Design (W7).
+ *
+ * Ele existia em toda tela de detalhe como **texto morto**. Enquanto o workspace
+ * não tinha tela, isso era só etiqueta de contexto; depois que ele ganhou uma,
+ * virou o único lugar onde o caminho de volta cabe — e sem ele o produto não tinha
+ * caminho de volta nenhum: quem entrava num projeto só voltava trocando de
+ * workspace e voltando.
+ *
+ * `text-decoration` só no hover e no foco: sublinhar sempre transformaria o
+ * cabeçalho de contexto num menu.
+ */
+.crumb__up {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  min-height: var(--size-target-min);
+  display: inline-flex;
+  align-items: center;
+}
+.crumb__up:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .detail__title {
   display: flex;
   align-items: center;

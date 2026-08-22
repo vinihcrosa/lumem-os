@@ -18,6 +18,8 @@ export interface LocalPanelProps {
   workspaceId: string;
   workspaceName: string;
   onRemoved: () => void;
+  /** O caminho de volta (W7): daqui, o único lugar acima é o workspace. */
+  onOpenWorkspace: () => void;
   onSelectWorktree: (worktreeId: string) => void;
 }
 
@@ -107,6 +109,7 @@ export function LocalPanel({
   workspaceId,
   workspaceName,
   onRemoved,
+  onOpenWorkspace,
   onSelectWorktree,
 }: LocalPanelProps) {
   const queryClient = useQueryClient();
@@ -156,7 +159,9 @@ export function LocalPanel({
       header={
         <>
           <nav className="crumb">
-            {workspaceName}
+            <button type="button" className="crumb__up focus-ring" onClick={onOpenWorkspace}>
+              {workspaceName}
+            </button>
             <span className="crumb__sep" aria-hidden="true">
               /
             </span>

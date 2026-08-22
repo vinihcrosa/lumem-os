@@ -1,9 +1,9 @@
 # A tela do workspace — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **nove tasks entregues; a T8 nasceu do uso e está aberta.** Entrar num projeto era um beco
-sem saída — o painel do workspace só aparece com nada selecionado, e nada desfazia a seleção. O desenho
-do caminho de volta está feito ([W7](open-questions.md)); a implementação é a fase 5. Três caixas ficaram marcadas sem prova
+**Status:** **dez tasks, todas entregues com prova.** A T8 nasceu do uso — entrar num projeto era um
+beco sem saída, porque o painel do workspace só aparece com nada selecionado e nada desfazia a
+seleção. Portão verde: `gate:full` com **2.274 unit/integration + 39 e2e**. Três caixas ficaram marcadas sem prova
 por um dia — auditoria própria as devolveu para aberto, e depois elas foram fechadas com teste. As
 telas foram desenhadas no Open Design (`lumem-workspace.html`), o consumo existe e é somável nos dois
 escopos. Portão verde: `gate:full` com **2.270 unit/integration + 38 e2e**. A ordem é a do
@@ -216,6 +216,7 @@ número significa.
 | **W8** | **Dois botões `remover` na mesma tela.** O rodapé da sidebar tem o do agente; o meu virou `remover workspace`, seguindo o `remover projeto` que já existia. É ambiguidade para leitor de tela antes de ser ambiguidade em teste | `WorkspacePanel` |
 | **W9** | **Uma tela nova que consulta o daemon no `mount` quebra teste antigo.** Seis suítes caíram com *"Found multiple elements with the role alert"* — elas usam `vi.resetAllMocks()`, que apaga implementação, e query sem implementação devolve `undefined`, que o `useQuery` recusa. `installTrpcDefaults()` é o remendo nomeado, e o default é sempre resposta **vazia** | `test/trpc-mock.ts` |
 | **W10** | **O segmentado subiu para `ui/ui.css`** quando ganhou o segundo usuário: a terceira cópia é onde as três param de concordar. Estado é `aria-pressed` e não classe — o Open Design já tinha passado por essa decisão e a registrou | `ui/ui.css` |
+| **W14** | **O breadcrumb navegando quebrou um helper do e2e.** O `openProject` clicava por nome sem escopo, e o nome do projeto passou a ser botão em dois lugares — a linha da árvore e o segmento do crumb. O helper passou a escopar na sidebar, e a tentativa de usar `role="tree"` revelou que a árvore da sidebar é um `div` com `aria-label` e sem `role`, ao contrário da árvore de arquivos: [backlog](../../project/backlog.md) | `e2e/support/app.ts` |
 | **W13** | **Três caixas marcadas sem prova.** A auditoria foi minha e um dia depois: o componente da inbox é o mesmo da aba do projeto ("provavelmente funciona" não é o que a caixa diz), a asserção de renomear saiu do e2e quando ele ganhou workspace próprio, e o e2e do consumo conferia a seção sem nunca gastar um token. As três fechadas com teste; a lição é que caixa marcada por inferência é pior que caixa vazia | `tasks.md` |
 | **W12** | **Um teste passou por acidente, e a mutação mostrou.** O "depois de remover, o seletor aponta para o que sobrou" passava sem a validação contra a lista: com nada no `localStorage` o ativo é o primeiro, então depois da remoção ele já seria o certo sem ninguém validar. Selecionar explicitamente antes de remover é o que faz o teste medir o que ele diz medir | `workspace-ui.test.tsx` |
 | **W11** | **O e2e de renomear ganhou workspace próprio.** A primeira versão renomeava o `e2e` compartilhado e devolvia o nome no fim; uma falha no meio deixaria todos os specs seguintes procurando um nome que não existe mais | `e2e/workspace-screen.spec.ts` |
@@ -233,14 +234,18 @@ desenho está no Open Design (`lumem-workspace.html`, tela 4); falta implementar
 **Where**: `App.tsx`, `components/{WorktreePanel,LocalPanel}.tsx`, `ui.css` + testes
 
 **Done when**:
-- [ ] O nome do workspace no breadcrumb leva ao painel do workspace — de dentro de um projeto **e** de
+- [x] O nome do workspace no breadcrumb leva ao painel do workspace — de dentro de um projeto **e** de
       dentro de uma worktree
-- [ ] O nome do projeto, na tela de uma worktree, leva ao projeto: resolver só o workspace deixaria o
+- [x] O nome do projeto, na tela de uma worktree, leva ao projeto: resolver só o workspace deixaria o
       mesmo beco um nível abaixo
-- [ ] O último segmento continua sendo onde você está — sem clique, sem sublinhado
-- [ ] `<button>` e não `<div onClick>`: é navegação, e teclado tem que alcançar
-- [ ] Um teste que fecha o beco: entrar no projeto, voltar, e a tela do workspace estar lá
-- [ ] Gate: `pnpm gate:quick`
+- [x] O último segmento continua sendo onde você está — sem clique, sem sublinhado
+- [x] `<button>` e não `<div onClick>`: é navegação, e teclado tem que alcançar
+- [x] Um teste que fecha o beco: entrar no projeto, voltar, e a tela do workspace estar lá — em
+      componente **e** em navegador, porque navegação é o que só o navegador responde
+- [x] Os **três** caminhos com teste: projeto → workspace, worktree → projeto, worktree → workspace. O
+      terceiro faltava, e a mutação mostrou: quebrar o `onOpenWorkspace` do painel da worktree não
+      derrubava nada
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): o breadcrumb navega, e o projeto deixa de ser um beco`
 

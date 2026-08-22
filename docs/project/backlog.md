@@ -323,6 +323,20 @@ vêm desligados, então a resposta é zero — quando alguém ligar, ela deixa d
 **De onde veio:** `usage/record.ts`, a decisão U4 da [tela do workspace](../prd/workspace-screen/tasks.md) ·
 **Volta quando:** o primeiro interruptor de token for ligado por mais de um dia.
 
+### A árvore da sidebar não é uma árvore para quem usa leitor de tela — `P`
+
+A árvore de **arquivos** do painel direito é `role="tree"`. A árvore de **projetos** da sidebar é um
+`div` com `aria-label` e sem `role` — ou seja, o rótulo não é anunciado, e a estrutura (projeto →
+worktree → sessão) não existe para tecnologia assistiva.
+
+Consertar não é acrescentar `role="tree"` e pronto: sem `treeitem` nas linhas, uma árvore sem itens é
+pior que uma div rotulada. Precisa de `treeitem`, `aria-expanded` nas linhas que abrem, e
+`aria-level`.
+
+**De onde veio:** o `openProject` do e2e, que precisou escopar por `aria-label` porque `role="tree"`
+não casa · **Volta quando:** alguém navegar o app por teclado, ou na primeira passada de
+acessibilidade.
+
 ### Tela de preferências — a configuração de agente não é do workspace — `M`
 
 `agent_config` é **global** e mora no rodapé da sidebar, que é do workspace. A `agent-login` já nomeia
