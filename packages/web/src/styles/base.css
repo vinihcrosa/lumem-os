@@ -2,14 +2,37 @@
  * Estilos de documento. Nada de componente vive aqui.
  *
  * Só `var()`: qualquer literal de cor ou espaçamento nesta folha quebra a
- * promessa de que trocar uma rampa em `generate-tokens.py` troca a interface
- * inteira. Exceção tolerada: ajuste ótico de 1–2px sem token.
+ * promessa de que trocar uma rampa nos tokens troca a interface inteira. Exceção
+ * tolerada: ajuste ótico de 1–2px sem token.
  */
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/*
+ * A COLUNA DE GRID NASCE LIVRE, E NESTA INTERFACE ISSO É UM BUG DE FÁBRICA.
+ *
+ * Portado do `lumem-ds.css` do Open Design, e a razão é a mesma que já cobrou
+ * caro aqui: faixa de grid `auto` — o que uma coluna implícita é — cresce até
+ * caber o conteúdo. Numa página de texto isso é certo. Aqui o conteúdo é caminho
+ * de arquivo, cerca de código, saída de processo e nome de branch: coisas sem
+ * ponto natural de quebra. A coluna passa da viewport e o corte aparece na
+ * **borda direita da tela**, que é o único lugar onde quem revisa não está
+ * olhando.
+ *
+ * Neste repositório o defeito apareceu no `.msg` da conversa — uma cerca de
+ * código de 300 caracteres esticou a coluna para 2.516px, e quem mediu foi o
+ * e2e. `min-width: 0` conserta um caso; isto muda o default.
+ *
+ * `:where()` tem especificidade **zero**: todo bloco que precisa de colunas de
+ * verdade declara e ganha, sem `!important` e sem depender de ordem de arquivo.
+ * Em elemento que não é grid, a linha é inerte.
+ */
+:where(*) {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 html,

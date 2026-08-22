@@ -1,8 +1,9 @@
 # A tela do workspace — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **fase 1 entregue** — o consumo existe e é somável. As telas (fases 2 a 4) esperam o
-desenho no Open Design. A ordem é a do
+**Status:** **entregue**, menos a T6. As três telas foram desenhadas no Open Design
+(`lumem-workspace.html`) e implementadas; o consumo existe, é somável e aparece nos dois escopos.
+Falta a T6 — remover o workspace ainda não tem teste de tela para o caminho de recusa do daemon. A ordem é a do
 risco: o consumo primeiro, porque ele é a única parte que pode não caber.
 
 ---
@@ -85,12 +86,12 @@ número significa.
 **Where**: `packages/web/src/App.tsx`, `components/WorkspacePanel.tsx`, CSS do Open Design + testes
 
 **Done when**:
-- [ ] `selecione uma worktree` deixa de ser a resposta a "onde eu estou"
-- [ ] Cabeçalho com o nome do workspace, e os projetos como **estado** — não como navegação
+- [x] `selecione uma worktree` deixa de ser a resposta a "onde eu estou"
+- [x] Cabeçalho com o nome do workspace, e os projetos como **estado** — não como navegação
       duplicada da sidebar
-- [ ] Workspace **sem projeto nenhum** tem estado próprio: é o caso em que hoje nada é alcançável
-- [ ] Só `var(--token)`, e a auditoria de porte do CSS cobre as classes novas
-- [ ] Gate: `pnpm gate:quick`
+- [x] Workspace **sem projeto nenhum** tem estado próprio: é o caso em que hoje nada é alcançável
+- [x] Só `var(--token)`, e a auditoria de porte do CSS cobre as classes novas
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): o workspace ganha uma tela`
 
@@ -102,11 +103,11 @@ número significa.
 **Where**: `components/WorkspacePanel.tsx`, `hooks/useUsage.ts`, Open Design + testes
 
 **Done when**:
-- [ ] Seletor de janela — `1d`, `7d`, `1m`, `6m`, `1y` — no padrão do segmentado que já existe
-- [ ] Tokens e custo por projeto, na mesma linha em que ele aparece como estado
-- [ ] Sem gráfico e sem série: é soma por escopo, e o §7 do PRD é a defesa disso
-- [ ] Agente que não reporta custo mostra tokens e **diz** que não há custo — nunca `US$ 0,00`
-- [ ] Gate: `pnpm gate:quick`
+- [x] Seletor de janela — `1d`, `7d`, `1m`, `6m`, `1y` — no padrão do segmentado que já existe
+- [x] Tokens e custo por projeto, na mesma linha em que ele aparece como estado
+- [x] Sem gráfico e sem série: é soma por escopo, e o §7 do PRD é a defesa disso
+- [x] Agente que não reporta custo mostra tokens e **diz** que não há custo — nunca `US$ 0,00`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): o consumo de cada projeto, na tela do workspace`
 
@@ -118,14 +119,14 @@ número significa.
 **Where**: `components/WorkspacePanel.tsx` + testes
 
 **Done when**:
-- [ ] **O mesmo componente**, com `projectId: null` — nenhuma segunda tela de memória, nenhuma segunda
+- [x] **O mesmo componente**, com `projectId: null` — nenhuma segunda tela de memória, nenhuma segunda
       semântica de precedência (§5 do PRD)
-- [ ] Mostra `workspace` e `você`, e **não** mostra `projeto`: a ausência do grupo é a diferença
+- [x] Mostra `workspace` e `você`, e **não** mostra `projeto`: a ausência do grupo é a diferença
       visível entre os dois lugares
-- [ ] A inbox de propostas funciona daqui: aprovar e rejeitar sem projeto aberto
-- [ ] Um teste que prova o caminho que originou a feature: workspace **sem projeto**, memória de
+- [x] A inbox de propostas funciona daqui: aprovar e rejeitar sem projeto aberto
+- [x] Um teste que prova o caminho que originou a feature: workspace **sem projeto**, memória de
       workspace visível e revisável
-- [ ] Gate: `pnpm gate:quick`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): a memória do workspace, sem precisar de um projeto aberto`
 
@@ -137,10 +138,10 @@ número significa.
 **Where**: `components/LocalPanel.tsx` ou `ScopePanel.tsx`, Open Design + testes
 
 **Done when**:
-- [ ] A mesma linguagem visual do consumo por projeto: quem aprendeu a ler lá lê aqui
-- [ ] A mesma janela de tempo, e ela **não** é lembrada entre as duas telas — escopo diferente,
+- [x] A mesma linguagem visual do consumo por projeto: quem aprendeu a ler lá lê aqui
+- [x] A mesma janela de tempo, e ela **não** é lembrada entre as duas telas — escopo diferente,
       pergunta diferente
-- [ ] Gate: `pnpm gate:quick`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): o consumo por worktree, na visão do projeto`
 
@@ -153,11 +154,11 @@ número significa.
 **Where**: `components/WorkspacePanel.tsx`, `hooks/useWorkspaces.ts` + testes
 
 **Done when**:
-- [ ] Em linha, sem modal — o produto não usa modal
-- [ ] O seletor do topo e a tela concordam na hora: um nome novo em dois lugares diferentes é o
+- [x] Em linha, sem modal — o produto não usa modal
+- [x] O seletor do topo e a tela concordam na hora: um nome novo em dois lugares diferentes é o
       começo de uma tela discordando de si mesma
-- [ ] Renomear **não** mexe em disco, e um teste prova: a memória continua sendo achada depois (W6)
-- [ ] Gate: `pnpm gate:quick`
+- [x] Renomear **não** mexe em disco, e um teste prova: a memória continua sendo achada depois (W6)
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): renomear o workspace pela tela`
 
@@ -185,12 +186,24 @@ número significa.
 **Where**: `e2e/workspace-screen.spec.ts`
 
 **Done when**:
-- [ ] Um workspace **sem projeto**, memória de workspace escrita pela API, e revisada **pela tela**
-- [ ] Um turno de verdade, e o consumo dele aparecendo no projeto que o gastou
-- [ ] Renomear e ver o nome trocar nos dois lugares
-- [ ] Gate: `pnpm gate:full`
+- [x] Um workspace **sem projeto**, memória de workspace escrita pela API, e revisada **pela tela**
+- [x] Um turno de verdade, e o consumo dele aparecendo no projeto que o gastou
+- [x] Renomear e ver o nome trocar nos dois lugares
+- [x] Gate: `pnpm gate:full`
 
 **Commit**: `test(e2e): a memória do workspace sem um projeto aberto`
+
+---
+
+### O que a execução das telas achou
+
+| # | O quê | Onde |
+|---|---|---|
+| **W7** | **`remover` ficava habilitado enquanto a lista de projetos carregava.** "Quantos projetos tem dentro" não tinha resposta ainda, e botão destrutivo habilitado por ignorância é o mesmo defeito do composer que mandava mensagem antes de o socket abrir. O estado passou a ser `unknown`, e não zero | `WorkspacePanel` |
+| **W8** | **Dois botões `remover` na mesma tela.** O rodapé da sidebar tem o do agente; o meu virou `remover workspace`, seguindo o `remover projeto` que já existia. É ambiguidade para leitor de tela antes de ser ambiguidade em teste | `WorkspacePanel` |
+| **W9** | **Uma tela nova que consulta o daemon no `mount` quebra teste antigo.** Seis suítes caíram com *"Found multiple elements with the role alert"* — elas usam `vi.resetAllMocks()`, que apaga implementação, e query sem implementação devolve `undefined`, que o `useQuery` recusa. `installTrpcDefaults()` é o remendo nomeado, e o default é sempre resposta **vazia** | `test/trpc-mock.ts` |
+| **W10** | **O segmentado subiu para `ui/ui.css`** quando ganhou o segundo usuário: a terceira cópia é onde as três param de concordar. Estado é `aria-pressed` e não classe — o Open Design já tinha passado por essa decisão e a registrou | `ui/ui.css` |
+| **W11** | **O e2e de renomear ganhou workspace próprio.** A primeira versão renomeava o `e2e` compartilhado e devolvia o nome no fim; uma falha no meio deixaria todos os specs seguintes procurando um nome que não existe mais | `e2e/workspace-screen.spec.ts` |
 
 ---
 
