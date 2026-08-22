@@ -1,9 +1,9 @@
 # A tela do workspace — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **entregue**, menos a T6. As três telas foram desenhadas no Open Design
-(`lumem-workspace.html`) e implementadas; o consumo existe, é somável e aparece nos dois escopos.
-Falta a T6 — remover o workspace ainda não tem teste de tela para o caminho de recusa do daemon. A ordem é a do
+**Status:** **entregue.** As três telas foram desenhadas no Open Design (`lumem-workspace.html`) e
+implementadas; o consumo existe, é somável, e aparece nos dois escopos. Portão verde: `gate:full` com
+**2.267 unit/integration + 37 e2e**. A ordem é a do
 risco: o consumo primeiro, porque ele é a única parte que pode não caber.
 
 ---
@@ -169,11 +169,14 @@ número significa.
 **Where**: `components/WorkspacePanel.tsx` + testes
 
 **Done when**:
-- [ ] Desabilitado enquanto houver projeto, **com o motivo ao lado** — o mesmo padrão do `remover
+- [x] Desabilitado enquanto houver projeto, **com o motivo ao lado** — o mesmo padrão do `remover
       projeto` (W2)
-- [ ] A recusa do daemon, se chegar, aparece como recusa e não como tela quebrada
-- [ ] Remover leva a algum lugar: o seletor não pode ficar apontando para o que não existe mais
-- [ ] Gate: `pnpm gate:quick`
+- [x] A recusa do daemon, se chegar, aparece como recusa e não como tela quebrada — o botão
+      desabilitado cobre o caminho previsto; o teste cobre a **corrida**, o projeto entrar entre a
+      leitura da lista e o clique
+- [x] Remover leva a algum lugar: o seletor não pode ficar apontando para o que não existe mais, e o
+      último workspace removido devolve o **primeiro acesso** em vez de uma tela vazia
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): remover o workspace, só quando ele está vazio`
 
@@ -203,6 +206,7 @@ número significa.
 | **W8** | **Dois botões `remover` na mesma tela.** O rodapé da sidebar tem o do agente; o meu virou `remover workspace`, seguindo o `remover projeto` que já existia. É ambiguidade para leitor de tela antes de ser ambiguidade em teste | `WorkspacePanel` |
 | **W9** | **Uma tela nova que consulta o daemon no `mount` quebra teste antigo.** Seis suítes caíram com *"Found multiple elements with the role alert"* — elas usam `vi.resetAllMocks()`, que apaga implementação, e query sem implementação devolve `undefined`, que o `useQuery` recusa. `installTrpcDefaults()` é o remendo nomeado, e o default é sempre resposta **vazia** | `test/trpc-mock.ts` |
 | **W10** | **O segmentado subiu para `ui/ui.css`** quando ganhou o segundo usuário: a terceira cópia é onde as três param de concordar. Estado é `aria-pressed` e não classe — o Open Design já tinha passado por essa decisão e a registrou | `ui/ui.css` |
+| **W12** | **Um teste passou por acidente, e a mutação mostrou.** O "depois de remover, o seletor aponta para o que sobrou" passava sem a validação contra a lista: com nada no `localStorage` o ativo é o primeiro, então depois da remoção ele já seria o certo sem ninguém validar. Selecionar explicitamente antes de remover é o que faz o teste medir o que ele diz medir | `workspace-ui.test.tsx` |
 | **W11** | **O e2e de renomear ganhou workspace próprio.** A primeira versão renomeava o `e2e` compartilhado e devolvia o nome no fim; uma falha no meio deixaria todos os specs seguintes procurando um nome que não existe mais | `e2e/workspace-screen.spec.ts` |
 
 ---

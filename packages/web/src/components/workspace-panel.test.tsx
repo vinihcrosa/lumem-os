@@ -197,3 +197,30 @@ describe("WorkspacePanel", () => {
     expect(screen.getByText(/conjunto de projetos que se conhecem/)).toBeInTheDocument();
   });
 });
+
+describe("remover — o caminho da recusa (W2, T6)", () => {
+  it("a recusa do daemon aparece como recusa, e a tela continua de pé", async () => {
+    /*
+     * O botão desabilitado cobre o caminho **previsto**: enquanto a lista diz que
+     * há projeto dentro, não há clique. O que este teste cobre é a corrida — o
+     * projeto entrar entre a leitura da lista e o clique —, e nela quem recusa é o
+     * banco, por `ON DELETE RESTRICT`. A recusa tem que chegar na tela com o motivo:
+     * "não deu" não deixa nada para agir.
+     */
+    trpc.project.listByWorkspace.query.mockResolvedValue([]);
+    trpc.usage.byProject.query.mockResolvedValue([]);
+    trpc.workspace.remove.mutate.mockRejectedValue(
+      new Error("o workspace ainda tem projetos dentro"),
+    );
+
+    render();
+
+    await screen.findByText("Nenhum projeto ainda");
+    await userEvent.click(screen.getByRole("button", { name: "remover workspace" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("ainda tem projetos dentro");
+    // A tela continua utilizável: o botão volta a valer, e nada foi desmontado.
+    expect(screen.getByRole("button", { name: "remover workspace" })).toBeEnabled();
+    expect(screen.getByRole("heading", { name: "pessoal" })).toBeInTheDocument();
+  });
+});
