@@ -108,10 +108,18 @@
 .pu { color: var(--color-syntax-punctuation); }
 
 /* --------------------------------------------------------------- galeria */
-.gallery { padding: var(--space-24); display: grid; gap: var(--space-24); }
+/*
+ * `minmax(0, 1fr)` em toda coluna de galeria, e nao `1fr` nem coluna implicita.
+ * Coluna de grid nasce com `min-width: auto` e cresce ate caber o conteudo: um
+ * rotulo comprido, um caminho de arquivo ou um quadro de largura fixa esticavam
+ * a coluna PARA FORA da viewport, e o corte aparecia na borda direita da tela,
+ * onde ninguem esta olhando. Terceira vez que este bug aparece neste arquivo —
+ * `.turn` e `.body--noright` foram as outras duas. A causa e sempre a mesma.
+ */
+.gallery { padding: var(--space-24); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-24); }
 .case__frame--pad { padding: var(--space-16); background: var(--color-bg-base); overflow: visible; }
-.gallery__cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-20); align-items: start; }
-.gallery__cols--3 { grid-template-columns: 1fr 1fr 1fr; }
+.gallery__cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-20); align-items: start; }
+.gallery__cols--3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
 /* O rótulo é maiúsculo, o código dentro dele NÃO: `rm -rf` virava `RM -RF` e
    `surpassedThreshold` virava outro identificador. Nome de coisa é literal. */
 .case__label code, .case__label b code { text-transform: none; letter-spacing: normal; }

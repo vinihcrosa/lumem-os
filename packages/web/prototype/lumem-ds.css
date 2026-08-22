@@ -33,6 +33,24 @@
    -------------------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }
 
+/*
+ * A COLUNA DE GRID NASCE LIVRE, E NESTA INTERFACE ISSO É UM BUG DE FÁBRICA.
+ *
+ * Faixa de grid `auto` — o que uma coluna implícita é — cresce até caber o
+ * conteúdo. Numa página de texto isso é o comportamento certo. Aqui o conteúdo é
+ * caminho de arquivo, cerca de código, saída de processo e nome de branch: coisas
+ * sem ponto natural de quebra. A coluna passa da viewport, e o corte aparece na
+ * BORDA DIREITA DA TELA — o único lugar onde quem revisa não está olhando. O bug
+ * apareceu quatro vezes neste projeto (`.turn`, `.body--noright`, `.gallery`,
+ * `.app`) e havia 31 blocos de grid no sistema esperando a quinta.
+ *
+ * Então o padrão do sistema passa a ser o oposto do padrão do CSS: uma coluna,
+ * limitada pelo contêiner. `:where()` tem especificidade ZERO — todo bloco que
+ * precisa de colunas de verdade declara e ganha, sem `!important` e sem ordem de
+ * arquivo importar. Em elemento que não é grid a linha é inerte.
+ */
+:where(*) { grid-template-columns: minmax(0, 1fr); }
+
 body {
   margin: 0;
   background: var(--color-bg-base);
@@ -111,6 +129,11 @@ code { font: var(--text-mono-md); color: var(--color-text-code); }
 .app {
   height: calc(100vh - var(--size-control-lg));
   display: grid;
+  /* A coluna TAMBEM precisa de minmax(0, …). `.app` era grid so de linhas, e a
+     coluna implicita nasce `auto` — ou seja, larga o quanto o conteudo pedir.
+     Com uma galeria de quadros dentro, ela passava da viewport e o corte
+     aparecia na borda direita, fora do campo de visao de quem revisa. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--size-topbar-height) 1fr;
   background: var(--color-bg-base);
 }
@@ -432,6 +455,7 @@ code { font: var(--text-mono-md); color: var(--color-text-code); }
    sessão, não camada acima dela. */
 .reconn {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-8);
   padding: var(--space-6) var(--space-12);
@@ -441,7 +465,7 @@ code { font: var(--text-mono-md); color: var(--color-text-code); }
   color: var(--color-text-secondary);
 }
 .reconn__glyph { flex: none; color: var(--color-text-warning); font-size: var(--size-icon-sm); }
-.reconn__note { color: var(--color-text-tertiary); font: var(--text-caption); margin-left: auto; }
+.reconn__note { min-width: 0; color: var(--color-text-tertiary); font: var(--text-caption); margin-left: auto; }
 
 /* "Morreu enquanto você não olhava." Reinício do daemon mata todo processo:
    a sessão que era `running` volta `exited`. Isso não é erro da pessoa e não

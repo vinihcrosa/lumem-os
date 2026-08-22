@@ -854,14 +854,148 @@
   </div>
 </section>
 
+<!-- ==================================================================== -->
+<!-- TELA 7 — a conexão caída. DESIGN.md §1 pede este estado em TODA tela, -->
+<!-- e esta — onde cair a conexão dói mais — não tinha nenhum dos dois.    -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-conexao" role="tabpanel" aria-labelledby="tab-conexao" data-od-id="panel-conexao">
+  <div class="app app--flow">
+    <header class="topbar">
+      <div class="wordmark" data-od-id="wordmark"><span class="wordmark__dot" aria-hidden="true"></span>LUMEM</div>
+      <span class="spacer"></span>
+      <span class="daemon daemon--off" data-od-id="daemon-offline"><span class="daemon__dot" aria-hidden="true"></span>daemon inacessível · reconectando…</span>
+    </header>
+
+    <div class="gallery">
+
+      <div class="case" data-od-id="case-offline">
+        <div class="case__label">Conexão caída · <b>com o turno no ar</b></div>
+        <div class="case__frame case__frame--pad">
+          <div class="offline" data-od-id="offline-banner">
+            <span class="offline__glyph" aria-hidden="true">⚠</span>
+            <div class="offline__body">
+              <span class="offline__what">Sem conexão com o daemon</span>
+              <span class="offline__why">As duas sessões continuam rodando no servidor — o que caiu foi esta janela. Ao voltar, o scrollback é reproduzido do ponto onde você parou.</span>
+              <span class="offline__next">Tentativa 4 de reconexão a <code>ws://127.0.0.1:4317</code> · próxima em 8 s</span>
+            </div>
+            <span class="offline__actions"><button class="btn btn--sm">Tentar agora</button></span>
+          </div>
+          <p class="cap">O ponto do topbar é o alarme; a faixa é a explicação. A frase que ela precisa dizer é <b>o que continua de pé</b> — o processo é do daemon, e ninguém perdeu trabalho. Aviso e não perigo: o vermelho fica no ponto, que é binário e se vê de relance; pintar a faixa de vermelho diria que algo deu errado, e nada deu.</p>
+        </div>
+      </div>
+
+      <div class="case" data-od-id="case-composer-blocked">
+        <div class="case__label">Composer <b>bloqueado</b></div>
+        <div class="case__frame case__frame--pad">
+          <div class="composer">
+            <div class="composer__box composer__box--blocked" data-od-id="composer-blocked">
+              <div class="composer__in composer__in--empty">sem conexão com o daemon — a mensagem não sairia daqui</div>
+              <div class="composer__bar">
+                <button class="pill pill--model" disabled title="Sem conexão com o daemon">opus[1m] <span class="pill__caret" aria-hidden="true">▾</span></button>
+                <button class="pill pill--auto" disabled title="Sem conexão com o daemon">Auto <span class="pill__caret" aria-hidden="true">▾</span></button>
+                <span class="spacer"></span>
+                <button class="btn btn--brand btn--sm" disabled>enviar <span class="kbd" aria-hidden="true">⏎</span></button>
+              </div>
+            </div>
+          </div>
+          <p class="cap">Mesmo mecanismo do pedido de permissão: o motivo no lugar do texto. Mas o campo <b>parece</b> indisponível antes de a frase ser lida — motivo é frase, e frase se lê depois.</p>
+        </div>
+      </div>
+
+      <div class="case" data-od-id="case-reconnecting">
+        <div class="case__label">Reconectando · <b>a sessão volta</b></div>
+        <div class="case__frame case__frame--pad">
+          <div class="case__frame" data-od-id="reconn-session">
+            <div class="reconn">
+              <span class="reconn__glyph" aria-hidden="true">◌</span>
+              Reconectando à sessão <code>d81b05ee</code>
+              <span class="reconn__note">reproduzindo o scrollback do ponto onde você parou</span>
+            </div>
+            <div class="conv__scroll conv__scroll--flow">
+              <div class="turn turn--agent">
+                <span class="vh">claude:</span>
+                <span class="turn__g" aria-hidden="true">◆</span>
+                <div class="turn__b"><div class="msg"><p>…e o loader agora só chama o parser. Rodando a suíte de <code>src/lore</code>.</p></div></div>
+              </div>
+            </div>
+          </div>
+          <p class="cap">O daemon guarda 10.000 linhas e reproduz o snapshot antes de qualquer byte novo. <b>Reconectar não é instantâneo e não deve fingir que é</b> — sem esta faixa, os segundos de silêncio são indistinguíveis de uma aba travada, e foi assim que o terminal escondeu falha por três dias.</p>
+        </div>
+      </div>
+
+      <div class="case" data-od-id="case-dead">
+        <div class="case__label"><b>Morreu enquanto você não olhava</b></div>
+        <div class="case__frame case__frame--pad">
+          <div class="dead" data-od-id="dead-session">
+            <div class="dead__head">
+              <span class="glyph glyph--agent" aria-hidden="true">◆</span>
+              Sessão encerrada durante o reinício do daemon
+              <span class="spacer"></span>
+              <span class="dead__code">exit 143 · SIGTERM · há 12 min</span>
+            </div>
+            <span>A transcrição está em disco e a conversa pode ser retomada. <b>Retomar cria uma sessão nova</b> apontando para esta, e um separador marca onde uma termina e a outra começa — reabrir não sobe o adaptador de novo.</span>
+            <div class="dead__actions">
+              <button class="btn btn--sm">Retomar conversa</button>
+              <button class="btn btn--ghost btn--sm">Ver transcrição</button>
+            </div>
+          </div>
+          <p class="cap">Reinício do daemon mata todo processo: a sessão que era <code>running</code> volta <code>exited</code>. É <b>fato, não erro seu</b>. A aba desapareceu sozinha quando o processo parou e nada se perdeu com ela — a sessão continua listada em <b>Sessões</b> com o código de saída, e quem decide apagar é a pessoa.</p>
+        </div>
+      </div>
+
+      <div class="case" data-od-id="case-dead-failed">
+        <div class="case__label">Mesma forma · <b>barra na cor de falha</b></div>
+        <div class="case__frame case__frame--pad">
+          <div class="dead dead--failed" data-od-id="dead-session-failed">
+            <div class="dead__head">
+              <span class="glyph glyph--agent" aria-hidden="true">◆</span>
+              O adaptador saiu no meio do turno
+              <span class="spacer"></span>
+              <span class="dead__code">exit 1 · há 4 min</span>
+            </div>
+            <span>O turno não foi concluído. A transcrição tem tudo até a última ferramenta que respondeu — o cartão que estava no ar ficou marcado como cancelado.</span>
+            <div class="dead__actions">
+              <button class="btn btn--sm">Retomar conversa</button>
+              <button class="btn btn--ghost btn--sm">Ver saída do adaptador</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
 <script>
   // Não faz parte do desenho: é só a navegação entre as telas do arquivo.
-  document.querySelectorAll('.tab').forEach(function (tab) {
-    tab.addEventListener('click', function () {
-      document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('is-active'); });
-      document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('is-active'); });
-      tab.classList.add('is-active');
-      document.getElementById('screen-' + tab.dataset.screen).classList.add('is-active');
+  // Padrão tablist da APG — `aria-selected` é a fonte do estado, e o tabindex
+  // rotativo faz Tab entrar na faixa uma vez e as setas andarem dentro dela.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+
+  function select(tab, moveFocus) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      var panel = document.getElementById('screen-' + t.dataset.screen);
+      if (!panel) return;
+      panel.classList.toggle('is-active', on);
+      if (on) { panel.setAttribute('tabindex', '0'); } else { panel.removeAttribute('tabindex'); }
+    });
+    if (moveFocus) tab.focus();
+  }
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () { select(tab, false); });
+    tab.addEventListener('keydown', function (e) {
+      var i = tabs.indexOf(tab), to = null;
+      if (e.key === 'ArrowRight') to = tabs[(i + 1) % tabs.length];
+      else if (e.key === 'ArrowLeft') to = tabs[(i - 1 + tabs.length) % tabs.length];
+      else if (e.key === 'Home') to = tabs[0];
+      else if (e.key === 'End') to = tabs[tabs.length - 1];
+      if (!to) return;
+      e.preventDefault();
+      select(to, true);
     });
   });
 </script>
