@@ -91,6 +91,21 @@ export const MEMORY_DECISIONS_KEY = ["memory", "decisions"] as const;
 export const MEMORY_USAGE_KEY = ["memory", "usage"] as const;
 export const MEMORY_SETTINGS_KEY = ["memory", "settings"] as const;
 
+/**
+ * O consumo de um escopo numa janela.
+ *
+ * A janela entra na chave porque ela é a pergunta: `7d` e `1m` são dois
+ * resultados diferentes, e compartilhar cache entre eles mostraria o número de
+ * uma janela sob o rótulo da outra.
+ */
+export function usageByProjectKey(workspaceId: string, period: string) {
+  return ["usage", "byProject", workspaceId, period] as const;
+}
+
+export function usageByWorktreeKey(projectId: string, period: string) {
+  return ["usage", "byWorktree", projectId, period] as const;
+}
+
 /** Os playbooks de um escopo. `archived` é filtro, e por isso entra na chave. */
 export function playbooksKey(workspaceId: string | null, archived: boolean) {
   return ["memory", "playbooks", workspaceId ?? "-", archived ? "arquivados" : "ativos"] as const;

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 import { AddProjectDialog } from "./components/AddProjectDialog.js";
 import { AgentLogin } from "./components/AgentLogin.js";
+import { WorkspacePanel } from "./components/WorkspacePanel.js";
 import { CheckoutFiles } from "./components/CheckoutFiles.js";
 import { LocalPanel } from "./components/LocalPanel.js";
 import { SidebarTree } from "./components/SidebarTree.js";
@@ -249,10 +250,23 @@ export function App() {
 
   function renderPanel(workspaceId: string, workspaceName: string) {
     if (selection === null) {
+      /*
+       * A tela do workspace (`workspace-screen`, W1).
+       *
+       * O que estava aqui era a frase "selecione uma worktree" — a única resposta
+       * do produto a "onde eu estou" que era uma instrução. E era também o motivo
+       * pelo qual a memória de workspace só existia através de um projeto: sem
+       * checkout selecionado não há painel direito, então não havia porta.
+       */
       return (
-        <div className="pane">
-          <p>selecione uma worktree</p>
-        </div>
+        <WorkspacePanel
+          key={workspaceId}
+          workspaceId={workspaceId}
+          workspaceName={workspaceName}
+          onRemoved={async () => {
+            await queryClient.invalidateQueries({ queryKey: WORKSPACES_KEY });
+          }}
+        />
       );
     }
 

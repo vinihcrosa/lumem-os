@@ -69,6 +69,7 @@ export const color = {
   'git/removed': primitives.danger['400'], // #FF8D83
   'git/modified': primitives.warning['400'], // #E5A52E
   // dominio — hierarquia e daemon
+  'scope/global': primitives.info['400'], // #4FBEFF
   'scope/workspace': primitives.brand['400'], // #B5A2FF
   'scope/project': primitives.neutral['400'], // #B2B1BB
   'scope/worktree': primitives.accent['400'], // #ABBE55

@@ -1,13 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 import type { Scope } from "../hooks/useSessionsByScope.js";
+import { useUsageByWorktree, USAGE_WINDOWS, type UsageWindow } from "../hooks/useUsage.js";
 import { projectsKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, Chip, Glyph, Item, MetaGrid, SectionHead, Skeleton } from "../ui/index.js";
 import { CreateWorktreeDialog } from "./CreateWorktreeDialog.js";
 import { ScopePanel } from "./ScopePanel.js";
+import { SpendList, type SpendRow } from "./SpendList.js";
 
 import "./detail.css";
+import "./workspace.css";
 
 export interface LocalPanelProps {
   projectId: string;
@@ -24,6 +28,80 @@ export interface LocalPanelProps {
  * of worktrees, and the actions on the registration — because that is where a
  * user standing in the main checkout would look for them.
  */
+/**
+ * O que cada worktree deste projeto gastou (`workspace-screen`, W4).
+ *
+ * A janela **não** é lembrada da tela do workspace: escopo diferente é pergunta
+ * diferente, e herdar o `1m` que você escolheu lá mostraria aqui um número que
+ * você não pediu.
+ *
+ * A linha `direto no projeto` fecha a conta: sessão de escopo `project` não
+ * pertence a worktree nenhuma, e sem ela a soma das worktrees não bate com o
+ * total que a tela do workspace mostra para este projeto — a diferença apareceria
+ * como número faltando sem explicação.
+ */
+function ProjectSpend({ projectId }: { projectId: string }) {
+  const [period, setPeriod] = useState<NonNullable<UsageWindow>>("7d");
+  const usage = useUsageByWorktree(projectId, period);
+
+  const rows: SpendRow[] = [
+    ...(usage.data?.worktrees ?? []).map((row) => ({
+      id: row.worktreeId,
+      name: row.name,
+      tokens: row.tokens,
+      cost: row.cost,
+      currency: row.currency,
+      turns: row.turns,
+      kind: "worktree" as const,
+    })),
+  ];
+  const outside = usage.data?.outside;
+  if (outside !== undefined && (outside.turns > 0 || rows.length > 0)) {
+    rows.push({
+      id: "__outside__",
+      name: "direto no projeto",
+      tokens: outside.tokens,
+      cost: outside.cost,
+      currency: outside.currency,
+      turns: outside.turns,
+      kind: "project",
+      outside: true,
+    });
+  }
+
+  return (
+    <section className="section">
+      <SectionHead
+        title="Consumo por worktree"
+        aside={
+          <div className="seg" role="group" aria-label="Janela de tempo do consumo do projeto">
+            {USAGE_WINDOWS.map((window) => (
+              <button
+                key={window.id}
+                type="button"
+                className="seg__btn"
+                aria-pressed={period === window.id}
+                onClick={() => setPeriod(window.id)}
+              >
+                {window.label}
+              </button>
+            ))}
+          </div>
+        }
+      />
+      {usage.isError ? (
+        <Banner tone="danger">{usage.error.message}</Banner>
+      ) : usage.isPending ? (
+        <p className="detail__hint">somando o consumo…</p>
+      ) : rows.length === 0 ? (
+        <p className="detail__hint">nada gasto ainda neste projeto</p>
+      ) : (
+        <SpendList rows={rows} />
+      )}
+    </section>
+  );
+}
+
 export function LocalPanel({
   projectId,
   workspaceId,
@@ -162,6 +240,13 @@ export function LocalPanel({
               <div className="actions">
                 <CreateWorktreeDialog projectId={projectId} onCreated={onSelectWorktree} />
               </div>
+
+              {/*
+                O consumo por worktree (`workspace-screen`, W4): a mesma linguagem
+                da tela do workspace, um nível abaixo — quem aprendeu a ler lá lê
+                aqui.
+              */}
+              <ProjectSpend projectId={projectId} />
 
               <section className="section">
                 <SectionHead title="Worktrees deste projeto" count={list.length} />

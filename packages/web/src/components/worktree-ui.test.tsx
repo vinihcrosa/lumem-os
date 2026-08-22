@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App.js";
 import { renderWithProviders } from "../test/render.js";
-import { trpcMock as trpc } from "../test/trpc-mock.js";
+import { installTrpcDefaults, trpcMock as trpc } from "../test/trpc-mock.js";
 
 vi.mock("../lib/trpc.js", async () => ({
   trpc: (await import("../test/trpc-mock.js")).trpcMock,
@@ -64,6 +64,10 @@ async function selectWorktree(user: ReturnType<typeof userEvent.setup>): Promise
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // `resetAllMocks` apaga implementação, e as telas que consultam o daemon no
+  // `mount` — a do workspace e o consumo do projeto — voltariam a devolver
+  // `undefined`, botando um `role="alert"` a mais na tela.
+  installTrpcDefaults();
   window.localStorage.clear();
   trpc.health.query.mockResolvedValue({ ok: true, version: "0.0.0" });
   trpc.session.listByScope.query.mockResolvedValue([]);

@@ -1,0 +1,74 @@
+/*
+ * A tela do workspace, portada do `lumem-workspace.css` do Open Design.
+ *
+ * O que não está aqui é de propósito: `.btn`, `.chip`, `.seg`, `.glyph`, `.meta` e
+ * `.empty` já existem no app, e a tela do workspace usa os que existem. O que ela
+ * acrescenta é a lista de consumo e a moldura.
+ */
+
+.wsp { display: grid; gap: var(--space-16); align-content: start; }
+.wsp__kind { font: var(--text-body-md); color: var(--color-scope-workspace); }
+.wsp__rename { display: flex; align-items: center; gap: var(--space-8); }
+.wsp__input {
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  font: var(--text-body-sm);
+  color: var(--color-text-primary);
+  background: var(--color-bg-inset);
+  border: var(--border-width-thin) solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+}
+/* O motivo ao lado do botão desabilitado (W2). Sem ele, o botão apagado é uma
+   recusa sem explicação — e a pessoa clica de novo. */
+.wsp__why { font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/* -------------------- o consumo --------------------
+
+   Uma linha por escopo, na ordem do gasto: a primeira pergunta de quem abre isto
+   é "onde foi meu dinheiro".
+
+   A barra é comparação, não medida — sem eixo, sem número em cima. Ela existe
+   para a diferença entre 1,4M e 402k ser vista antes de ser lida; quem quer o
+   número lê a coluna ao lado. */
+.spend { display: grid; }
+.spend__row {
+  display: grid;
+  grid-template-columns:
+    var(--size-icon-sm) minmax(var(--size-menu-width), 1fr) minmax(0, 1fr)
+    max-content max-content max-content;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-8) var(--space-4);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+}
+.spend__row:last-child { border-bottom: 0; }
+.spend__name {
+  font: var(--text-label-md); color: var(--color-text-primary);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.spend__bar {
+  height: var(--space-4); border-radius: var(--radius-full);
+  background: var(--color-bg-inset); overflow: hidden;
+}
+.spend__fill { display: block; height: 100%; width: var(--w, 0%); background: var(--color-bg-brand); }
+
+/* Mono e à direita: estas colunas existem para ser comparadas verticalmente, e
+   fonte proporcional faz dígito não bater com dígito. */
+.spend__tok,
+.spend__cost,
+.spend__turns { font: var(--text-mono-sm); text-align: right; white-space: nowrap; }
+.spend__tok { color: var(--color-text-primary); }
+.spend__cost { color: var(--color-text-code); }
+.spend__turns { color: var(--color-text-tertiary); }
+
+/* Custo que ninguém reportou não é zero: agente que não informa dinheiro não pode
+   parecer grátis. */
+.spend__cost--none { font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/* Quem não gastou continua na lista, recuado — "não gastou" é resposta. */
+.spend__row--idle .spend__name,
+.spend__row--idle .spend__tok { color: var(--color-text-tertiary); }
+/* O que rodou fora de worktree fecha a conta do projeto: última linha, separada. */
+.spend__row--outside { border-top: var(--border-width-thin) solid var(--color-border-default); }
+.spend__row--outside .spend__name { color: var(--color-text-secondary); }

@@ -913,3 +913,42 @@
 /* A frase que explica um campo, abaixo dele. O erro do daemon é `field__error`. */
 .field__help { font: var(--text-body-sm); color: var(--color-text-tertiary); }
 .field__help code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/*
+ * O segmentado, portado do `lumem-ds.css` do Open Design.
+ *
+ * Ele sobe para cá porque agora tem dois usuários — a janela de tempo do consumo
+ * e o filtro da inbox de memória — e a terceira cópia é onde as três param de
+ * concordar. O Open Design já tinha passado por isso: `.seg` teve duas
+ * implementações incompatíveis (uma com `--on/--off`, outra com `aria-pressed`) e
+ * a segunda ficou, porque **estado de controle é atributo, não classe** — assim o
+ * leitor de tela sabe sem ninguém escrever `aria-*` de novo em cada tela.
+ *
+ * O trilho é `inset` (buraco) e a opção escolhida é `surface`, que sobe dele.
+ */
+.seg {
+  display: inline-flex;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-md);
+}
+.seg__btn {
+  flex: none;
+  height: var(--size-control-sm);
+  padding: 0 var(--space-10);
+  border: var(--border-width-thin) solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: var(--text-label-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.seg__btn:hover:enabled { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.seg__btn[aria-pressed="true"] {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
+}
+.seg__btn:disabled { color: var(--color-text-disabled); cursor: not-allowed; }

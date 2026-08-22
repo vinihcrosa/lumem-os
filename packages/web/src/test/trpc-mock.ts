@@ -6,7 +6,26 @@ import { vi } from "vitest";
  * Every component test mocks the same module, and each one re-declaring the
  * shape by hand is how a procedure gets renamed on the server while the tests
  * keep passing against a mock that no longer matches anything.
+ *
+ * **Algumas queries têm resposta default, e é de propósito.** `useQuery` estoura
+ * quando a `queryFn` devolve `undefined`, e uma tela nova que consulta o daemon no
+ * `mount` faz cada teste antigo que renderiza o `App` cair — não porque o teste
+ * ficou errado, mas porque o mock dele não conhecia a tela. Isso aconteceu quando
+ * a tela do workspace nasceu: seis testes de projeto quebraram com "Found multiple
+ * elements with the role alert", que é o banner de erro de uma query que ninguém
+ * pediu.
+ *
+ * O default é sempre a **resposta vazia**, nunca dado inventado: quem quer
+ * asserir sobre conteúdo continua obrigado a dizer qual é o conteúdo.
+ *
+ * `vi.clearAllMocks()` limpa chamadas e preserva implementação, então o default
+ * atravessa o `beforeEach` das suítes que usam ele. `vi.resetAllMocks()` **apaga a
+ * implementação** — quem chama aquele precisa de `installTrpcDefaults()` depois,
+ * senão volta a receber `undefined`.
  */
+const EMPTY_MEMORY = { entries: [], shadowed: [] };
+const EMPTY_CORE = { chars: 0, recentChars: 0, entries: [] };
+const DEFAULT_SETTINGS = { distill: false, autoLearn: false, autoLearnBudget: 3 };
 function createTrpcMock() {
   return {
     health: { query: vi.fn() },
@@ -68,23 +87,32 @@ function createTrpcMock() {
       login: { mutate: vi.fn() },
     },
     memory: {
-      list: { query: vi.fn() },
+      list: { query: vi.fn().mockResolvedValue(EMPTY_MEMORY) },
       read: { query: vi.fn() },
       write: { mutate: vi.fn() },
       forget: { mutate: vi.fn() },
       revert: { mutate: vi.fn() },
       search: { query: vi.fn() },
-      decisions: { query: vi.fn() },
-      usage: { query: vi.fn() },
-      core: { query: vi.fn() },
-      settings: { query: vi.fn() },
-      playbooks: { query: vi.fn() },
+      decisions: { query: vi.fn().mockResolvedValue([]) },
+      usage: { query: vi.fn().mockResolvedValue([]) },
+      core: { query: vi.fn().mockResolvedValue(EMPTY_CORE) },
+      settings: { query: vi.fn().mockResolvedValue(DEFAULT_SETTINGS) },
+      playbooks: { query: vi.fn().mockResolvedValue([]) },
       archivePlaybook: { mutate: vi.fn() },
       pin: { mutate: vi.fn() },
-      proposals: { query: vi.fn() },
+      proposals: { query: vi.fn().mockResolvedValue([]) },
       approveProposal: { mutate: vi.fn() },
       rejectProposal: { mutate: vi.fn() },
       reindex: { mutate: vi.fn() },
+    },
+    usage: {
+      byProject: { query: vi.fn().mockResolvedValue([]) },
+      byWorktree: {
+        query: vi.fn().mockResolvedValue({
+          worktrees: [],
+          outside: { tokens: 0, cost: null, currency: null, turns: 0 },
+        }),
+      },
     },
     session: {
       listByScope: { query: vi.fn() },
@@ -112,3 +140,34 @@ export type TrpcMock = ReturnType<typeof createTrpcMock>;
  * module registries.
  */
 export const trpcMock: TrpcMock = createTrpcMock();
+
+/**
+ * Reinstala as respostas default das queries que toda tela consulta.
+ *
+ * Existe para as suítes que usam `vi.resetAllMocks()`: ele apaga implementação, e
+ * uma query sem implementação devolve `undefined`, que é o que o `useQuery`
+ * recusa. O sintoma não parece isso — vem como um banner de erro a mais na tela e
+ * um `Found multiple elements with the role "alert"` num teste que não fala de
+ * erro nenhum.
+ *
+ * Chamar isto depois do reset é o que mantém um teste de projeto falando de
+ * projeto quando uma tela nova passa a consultar o daemon no `mount`.
+ */
+export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
+  mock.usage.byProject.query.mockResolvedValue([]);
+  mock.usage.byWorktree.query.mockResolvedValue({
+    worktrees: [],
+    outside: { tokens: 0, cost: null, currency: null, turns: 0 },
+  });
+  mock.memory.list.query.mockResolvedValue({ entries: [], shadowed: [] });
+  mock.memory.core.query.mockResolvedValue({ chars: 0, recentChars: 0, entries: [] });
+  mock.memory.settings.query.mockResolvedValue({
+    distill: false,
+    autoLearn: false,
+    autoLearnBudget: 3,
+  });
+  mock.memory.proposals.query.mockResolvedValue([]);
+  mock.memory.decisions.query.mockResolvedValue([]);
+  mock.memory.usage.query.mockResolvedValue([]);
+  mock.memory.playbooks.query.mockResolvedValue([]);
+}

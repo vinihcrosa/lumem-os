@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App.js";
 import { renderWithProviders } from "../test/render.js";
-import { trpcMock as trpc } from "../test/trpc-mock.js";
+import { installTrpcDefaults, trpcMock as trpc } from "../test/trpc-mock.js";
 
 vi.mock("../lib/trpc.js", async () => ({
   trpc: (await import("../test/trpc-mock.js")).trpcMock,
@@ -39,6 +39,10 @@ function config(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // `resetAllMocks` apaga implementação: sem isto, as queries que a tela do
+  // workspace faz no `mount` voltam a devolver `undefined`, e o banner de erro
+  // aparece como um `role="alert"` a mais num teste que não fala de erro.
+  installTrpcDefaults();
   window.localStorage.clear();
   trpc.health.query.mockResolvedValue({ ok: true, version: "0.0.0" });
   trpc.workspace.list.query.mockResolvedValue([
@@ -260,9 +264,11 @@ describe("the list", () => {
     // One click is a mis-click away from retyping four fields.
     trpc.agentConfig.list.query.mockResolvedValue([config()]);
     trpc.agentConfig.remove.mutate.mockResolvedValue({ ok: true });
-    await panel();
+    const box = await panel();
 
-    await userEvent.click(screen.getByRole("button", { name: /remover/ }));
+    // Escopado no painel: a tela do workspace, atrás deste, tem o `remover
+    // workspace` dela — e `/remover/` solto casava os dois.
+    await userEvent.click(within(box).getByRole("button", { name: /remover/ }));
     expect(trpc.agentConfig.remove.mutate).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole("button", { name: "confirmar" }));
@@ -277,9 +283,9 @@ describe("the list", () => {
     trpc.agentConfig.remove.mutate.mockRejectedValue(
       new Error("a configuração ainda está em uso por alguma sessão"),
     );
-    await panel();
+    const box = await panel();
 
-    await userEvent.click(screen.getByRole("button", { name: /remover/ }));
+    await userEvent.click(within(box).getByRole("button", { name: /remover/ }));
     await userEvent.click(screen.getByRole("button", { name: "confirmar" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("ainda está em uso");

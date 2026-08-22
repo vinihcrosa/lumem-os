@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App.js";
 import { renderWithProviders } from "../test/render.js";
-import { trpcMock as trpc } from "../test/trpc-mock.js";
+import { installTrpcDefaults, trpcMock as trpc } from "../test/trpc-mock.js";
 
 vi.mock("../lib/trpc.js", async () => ({
   trpc: (await import("../test/trpc-mock.js")).trpcMock,
@@ -26,6 +26,10 @@ function project(id: string, name: string, available = true) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // `resetAllMocks` apaga implementação: sem isto, as queries que a tela do
+  // workspace faz no `mount` voltam a devolver `undefined`, e o banner de erro
+  // aparece como um `role="alert"` a mais num teste que não fala de erro.
+  installTrpcDefaults();
   window.localStorage.clear();
   trpc.health.query.mockResolvedValue({ ok: true, version: "0.0.0" });
   trpc.session.listByScope.query.mockResolvedValue([]);
@@ -200,7 +204,10 @@ describe("project detail", () => {
 
     await user.click(screen.getByRole("button", { name: "remover projeto" }));
 
-    expect(await screen.findByText("selecione uma worktree")).toBeInTheDocument();
+    // O que sobra depois de remover o projeto é a **tela do workspace**, e não
+    // mais a frase "selecione uma worktree": o painel central passou a responder
+    // "onde eu estou" com uma tela (`workspace-screen`, W1).
+    expect(await screen.findByText("Nenhum projeto ainda")).toBeInTheDocument();
   });
 
   it("shows the daemon's reason when removal is refused", async () => {
@@ -217,5 +224,59 @@ describe("project detail", () => {
     await user.click(await screen.findByRole("button", { name: "remover projeto" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("ainda tem worktrees");
+  });
+});
+
+describe("consumo por worktree, na visão do projeto (W4)", () => {
+  it("mostra cada worktree e a linha que fecha a conta", async () => {
+    /*
+     * A linha `direto no projeto` existe porque sessão de escopo `project` não
+     * pertence a worktree nenhuma: sem ela, a soma das worktrees não bate com o
+     * total que a tela do workspace mostra para este projeto, e a diferença
+     * apareceria como número faltando sem explicação.
+     */
+    trpc.usage.byWorktree.query.mockResolvedValue({
+      worktrees: [
+        {
+          worktreeId: "wt1",
+          name: "feat-checkout",
+          tokens: 890_000,
+          cost: 7.901,
+          currency: "USD",
+          turns: 52,
+        },
+      ],
+      outside: { tokens: 150_000, cost: 1.3861, currency: "USD", turns: 10 },
+    });
+
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+
+    renderWithProviders(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /^lorebase/ }));
+
+    expect(await screen.findByText("feat-checkout")).toBeInTheDocument();
+    expect(screen.getByText("890k")).toBeInTheDocument();
+    expect(screen.getByText("direto no projeto")).toBeInTheDocument();
+    expect(screen.getByText("US$ 1,3861")).toBeInTheDocument();
+  });
+
+  it("a janela do projeto é uma pergunta própria, não a do workspace", async () => {
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+
+    renderWithProviders(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await screen.findByText("nada gasto ainda neste projeto");
+
+    const group = screen.getByRole("group", { name: "Janela de tempo do consumo do projeto" });
+    await userEvent.click(within(group).getByRole("button", { name: "6m" }));
+
+    expect(trpc.usage.byWorktree.query).toHaveBeenLastCalledWith({
+      projectId: "p1",
+      period: "6m",
+    });
   });
 });
