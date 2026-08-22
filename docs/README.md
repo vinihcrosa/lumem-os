@@ -101,15 +101,18 @@ Sucede a `right-panel`. O split da aba **escreve**: editar o arquivo aberto com 
 
 ### [workspace-screen/](prd/workspace-screen/) — o workspace ganha uma tela
 
-**Escrita, não implementada.** Nasceu de uma pergunta de uso: *"tem uma memória do workspace? como eu
-acesso?"* — e a resposta é que só através de um projeto, porque o botão que abre o painel direito só
-aparece com um checkout selecionado. Workspace sem projeto não tem porta nenhuma.
+**Escopo fechado, execução começando.** Nasceu de uma pergunta de uso: *"tem uma memória do workspace?
+como eu acesso?"* — e a resposta é que só através de um projeto, porque o botão que abre o painel
+direito só aparece com um checkout selecionado. Workspace sem projeto não tem porta nenhuma.
+
+A resposta da **W4** mudou o tamanho da feature: consumo de tokens por projeto e por worktree, com
+janela de tempo, entrou no escopo — e ele não é uma query nova, é um dado que o daemon **não grava**.
 
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/workspace-screen/prd.md) | O que o workspace não tem, o que a tela é, o que fica fora e por quê, e as três telas que precisam nascer no Open Design |
-| [open-questions.md](prd/workspace-screen/open-questions.md) | 6 perguntas. A **W1** decide o tamanho da feature: painel central, ou só liberar o painel direito |
-| [tasks.md](prd/workspace-screen/tasks.md) | 5 tasks em 3 fases. Duas coisas travam a primeira, e nenhuma é código: a W1 e o desenho |
+| [open-questions.md](prd/workspace-screen/open-questions.md) | 6 perguntas, **todas respondidas**. A W4 é a que mudou o escopo, e a decisão dela explica por que o consumo exige tabela nova |
+| [tasks.md](prd/workspace-screen/tasks.md) | 9 tasks em 4 fases. O consumo vem primeiro, porque é a única parte que pode não caber |
 
 ### [workspace-memory/](prd/workspace-memory/) — o harness lembra
 

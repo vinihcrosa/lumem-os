@@ -298,18 +298,6 @@ porque o que entra em todo turno passa a ser uma linha por regra em vez do corpo
 **De onde veio:** [context-delivery D5](../prd/workspace-memory/context-delivery.md) · **Volta
 quando:** a marca d'água do núcleo passar do alarme e consolidar não resolver.
 
-### Consumo por projeto e por worktree — `M`
-
-O consumo existe **por turno**: o `usage_update` do ACP chega, a conversa mostra janela, cache e custo.
-Ninguém soma por projeto, por worktree ou por semana — então "onde meu dinheiro foi" não tem resposta.
-
-Ficou fora da [tela do workspace](../prd/workspace-screen/prd.md) de propósito: agregar é trabalho de
-daemon, e a tela dela só usa números que já existem.
-
-**De onde veio:** buraco 5 dos [buracos conhecidos do Open Design] e o §4 do PRD da tela do
-workspace · **Volta quando:** a primeira conta doer, ou quando alguém perguntar quanto custou um
-projeto.
-
 ### Tela de preferências — a configuração de agente não é do workspace — `M`
 
 `agent_config` é **global** e mora no rodapé da sidebar, que é do workspace. A `agent-login` já nomeia
