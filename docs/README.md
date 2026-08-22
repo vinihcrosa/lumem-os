@@ -1,6 +1,6 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Fechando o caminho de entrada, o [onboarding](prd/onboarding/prd.md) e o [agent-login](prd/agent-login/prd.md). E o harness passou a lembrar: a [workspace-memory](prd/workspace-memory/tasks.md) está **completa** — nove PRs, a primeira feature que não é de tela, e a única em que o sistema escreve sozinho (atrás de portão, inbox e interruptor desligado).
+Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Fechando o caminho de entrada, o [onboarding](prd/onboarding/prd.md) e o [agent-login](prd/agent-login/prd.md). E o harness passou a lembrar: a [workspace-memory](prd/workspace-memory/tasks.md) está **completa** — nove PRs, a primeira feature que não é de tela, e a única em que o sistema escreve sozinho (atrás de portão, inbox e interruptor desligado). Fechando o círculo, a [workspace-screen](prd/workspace-screen/prd.md) deu tela ao workspace: a memória dele deixou de depender de um projeto aberto, e o consumo de tokens passou a ser somável por projeto e por worktree.
 
 > **Decisão de arquitetura, 2026-08-17:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por [ACP](project/pty-vs-acp.md)**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A feature [acp-sessions](prd/acp-sessions/prd.md) — transporte mais a tela da conversa — está **completa**: PRD escrito, spike rodado (autenticação e consumo medidos, janela de contexto parcial), protótipo renderizado em `packages/web/prototype/lumem-acp-conversation.html`, e as fases 1, 3, 4, 5 e 6 entregues — uma tarefa roda do começo ao fim sem terminal, fechar o daemon não perde a conversa, e o agente ACP se cria pela tela.
 
@@ -101,18 +101,20 @@ Sucede a `right-panel`. O split da aba **escreve**: editar o arquivo aberto com 
 
 ### [workspace-screen/](prd/workspace-screen/) — o workspace ganha uma tela
 
-**Escopo fechado, execução começando.** Nasceu de uma pergunta de uso: *"tem uma memória do workspace?
-como eu acesso?"* — e a resposta é que só através de um projeto, porque o botão que abre o painel
-direito só aparece com um checkout selecionado. Workspace sem projeto não tem porta nenhuma.
+**Entregue.** Nasceu de uma pergunta de uso: *"tem uma memória do workspace? como eu acesso?"* — e a
+resposta era que só através de um projeto, porque o botão que abre o painel direito só aparece com um
+checkout selecionado. Workspace sem projeto não tinha porta nenhuma. Agora o painel central **é** a
+tela do workspace, no lugar onde estava escrito "selecione uma worktree".
 
 A resposta da **W4** mudou o tamanho da feature: consumo de tokens por projeto e por worktree, com
-janela de tempo, entrou no escopo — e ele não é uma query nova, é um dado que o daemon **não grava**.
+janela de tempo. E ele não era uma query nova — era um dado que o daemon **não gravava**: o
+`usage_update` chegava, aparecia na aba que o gastou e sumia com ela.
 
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/workspace-screen/prd.md) | O que o workspace não tem, o que a tela é, o que fica fora e por quê, e as três telas que precisam nascer no Open Design |
 | [open-questions.md](prd/workspace-screen/open-questions.md) | 6 perguntas, **todas respondidas**. A W4 é a que mudou o escopo, e a decisão dela explica por que o consumo exige tabela nova |
-| [tasks.md](prd/workspace-screen/tasks.md) | 9 tasks em 4 fases. O consumo vem primeiro, porque é a única parte que pode não caber |
+| [tasks.md](prd/workspace-screen/tasks.md) | 9 tasks em 4 fases, **todas fechadas**, mais as duas tabelas do que a execução achou — inclusive um teste que passava por acidente e a mutação pegou |
 
 ### [workspace-memory/](prd/workspace-memory/) — o harness lembra
 
