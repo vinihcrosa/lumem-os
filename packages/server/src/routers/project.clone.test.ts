@@ -199,6 +199,54 @@ describe("project.clone", () => {
   });
 });
 
+describe("o que a corrida de nome move, e o que ela deixa para trás", () => {
+  it("recolhe a home vazia do nome original quando o clone é relocado", async () => {
+    // `prepareCloneTarget` cria `<ws>/<nome>/` antes do download. Se o nome for
+    // tomado durante ele, o `rename` leva os bytes para outra home e a primeira
+    // fica vazia — andaime que ninguém planejou, e que ninguém coletaria: o
+    // `collectEmptyProjectHome` só roda na remoção do projeto.
+    const { ctx, workspaceId } = await setup();
+    const origem = await createHeavyRepo();
+    const job = await ctx.api.project.clone({ workspaceId, source: `file://${origem}`, name: "api" });
+    await ctx.api.project.add({ workspaceId, path: await createRepo(), name: "api" });
+
+    await untilDone(ctx, job.id);
+
+    expect(existsSync(join(ctx.config.workspacesDir, "pessoal", "api"))).toBe(false);
+    expect(existsSync(join(await realpath(ctx.config.workspacesDir), "pessoal", "api-2", "repo"))).toBe(
+      true,
+    );
+  });
+
+  it("apaga o que existe, e não o que estava planejado, quando falha depois de mover", async () => {
+    // A invariante do §8 tem um jeito de vazar: `registerCloned` move o
+    // diretório ao perder a corrida de nome, e se a tentativa seguinte falhar,
+    // o `catch` apagaria o caminho de **antes** do rename. O `rm` viraria no-op
+    // e sobraria um checkout populado que o daemon não rastreia mais.
+    const { ctx, workspaceId } = await setup();
+    const origem = await createHeavyRepo();
+    const git = ctx.ctx.git;
+    const resolveDefaultBranch = git.resolveDefaultBranch.bind(git);
+    // Falha só na segunda tentativa — a que roda já com o nome sufixado, depois
+    // de o diretório ter sido movido.
+    git.resolveDefaultBranch = async (path: string) =>
+      path.includes("api-2")
+        ? Promise.reject(new Error("falha depois do rename"))
+        : resolveDefaultBranch(path);
+
+    const job = await ctx.api.project.clone({ workspaceId, source: `file://${origem}`, name: "api" });
+    await ctx.api.project.add({ workspaceId, path: await createRepo(), name: "api" });
+    const fim = await untilDone(ctx, job.id);
+
+    expect(fim.state).toBe("failed");
+    const pessoal = join(await realpath(ctx.config.workspacesDir), "pessoal");
+    expect(existsSync(join(pessoal, "api-2", "repo"))).toBe(false);
+    expect(existsSync(join(pessoal, "api"))).toBe(false);
+    // E o projeto que ganhou a corrida continua registrado, intocado.
+    expect(await ctx.api.project.listByWorkspace({ workspaceId })).toHaveLength(1);
+  });
+});
+
 describe("repositório vazio", () => {
   it("clona, e o projeto nasce válido", async () => {
     // Q19: dá para começar no Lumem no dia 0.

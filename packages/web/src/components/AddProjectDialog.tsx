@@ -104,12 +104,24 @@ export function AddProjectDialog({
 
   const isUrl = plan?.kind === "url";
   const refused = plan?.kind === "refused";
+  /**
+   * The same rule the server applies, used for one thing only: knowing whether
+   * the answer is still on its way.
+   *
+   * Pressing Enter inside the 250 ms debounce leaves `plan` null, and with it
+   * null a URL reads as a path and gets sent to `project.add` — which refuses
+   * it as "not absolute", a message about the wrong thing entirely. So a URL
+   * waits for the daemon to speak; a path never has to, because there is
+   * nothing to wait for.
+   */
+  const looksLocal = source.trim().startsWith("/") || source.trim().startsWith("~");
+  const waiting = plan === null && !looksLocal && source.trim() !== "";
   const busy = add.isPending || clone.isPending;
   const failure = add.isError ? add.error.message : clone.isError ? clone.error.message : undefined;
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
-    if (source.trim() === "" || refused) return;
+    if (source.trim() === "" || refused || waiting) return;
     if (isUrl) clone.mutate();
     else add.mutate();
   };
@@ -172,9 +184,17 @@ export function AddProjectDialog({
           <Button
             type="submit"
             variant="primary"
-            disabled={busy || source.trim() === "" || refused || (isUrl && running !== null)}
+            disabled={
+              busy || source.trim() === "" || refused || waiting || (isUrl && running !== null)
+            }
           >
-            {clone.isPending ? "clonando…" : add.isPending ? "validando…" : isUrl ? "clonar" : "adicionar"}
+            {clone.isPending
+              ? "clonando…"
+              : add.isPending
+                ? "validando…"
+                : isUrl
+                  ? "clonar"
+                  : "adicionar"}
           </Button>
           <Button variant="ghost" onClick={close}>
             cancelar

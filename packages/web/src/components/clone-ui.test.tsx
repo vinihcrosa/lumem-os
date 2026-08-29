@@ -141,6 +141,53 @@ describe("o campo que aceita as duas coisas", () => {
     expect(trpc.project.add.mutate).not.toHaveBeenCalled();
   });
 
+  it("segura o envio até o daemon responder, para uma URL não virar caminho", async () => {
+    // Apertar Enter dentro do debounce deixava o plano nulo, e com ele nulo uma
+    // URL lia como caminho e ia para `project.add` — que a recusa por "não é
+    // absoluto", uma mensagem sobre outra coisa.
+    const user = userEvent.setup();
+    let responder: (plan: unknown) => void = () => {};
+    trpc.project.parseSource.query.mockImplementation(
+      () => new Promise((resolve) => (responder = resolve)),
+    );
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
+    await user.type(screen.getByLabelText("Caminho ou URL"), "https://github.com/org/api.git{Enter}");
+
+    expect(trpc.project.add.mutate).not.toHaveBeenCalled();
+    expect(trpc.project.clone.mutate).not.toHaveBeenCalled();
+
+    // Só depois do debounce a pergunta chega a ser feita — antes disso não há
+    // nem query para responder, que é exatamente a janela do defeito.
+    await waitFor(() => expect(trpc.project.parseSource.query).toHaveBeenCalled());
+
+    // E assim que ele responde, o gesto volta a valer.
+    responder({
+      kind: "url",
+      scheme: "https",
+      url: "https://github.com/org/api.git",
+      insecure: false,
+      name: "api",
+      targetPath: "/estado/workspaces/pessoal/api/repo",
+    });
+    expect(await screen.findByRole("button", { name: "clonar" })).toBeEnabled();
+  });
+
+  it("não faz um caminho local esperar por resposta nenhuma", async () => {
+    // Não há o que esperar: o caminho já é caminho, e o fluxo antigo não pode
+    // ficar mais lento por causa de uma pergunta que só a URL precisa fazer.
+    const user = userEvent.setup();
+    trpc.project.parseSource.query.mockImplementation(() => new Promise(() => {}));
+    trpc.project.add.mutate.mockResolvedValue({ id: "p1" });
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
+    await user.type(screen.getByLabelText("Caminho ou URL"), "/repos/lorebase");
+
+    expect(screen.getByRole("button", { name: "adicionar" })).toBeEnabled();
+  });
+
   it("diz qual clone está rodando em vez de enfileirar em silêncio", async () => {
     // A11: um por vez.
     const user = userEvent.setup();

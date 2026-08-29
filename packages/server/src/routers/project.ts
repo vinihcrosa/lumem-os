@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { rename, rm } from "node:fs/promises";
-import { basename, isAbsolute, normalize } from "node:path";
+import { basename, dirname, isAbsolute, normalize } from "node:path";
 
 import { z } from "zod";
 
@@ -372,8 +372,34 @@ async function runCloneJob(
   job: CloneJob,
   { rawUrl, url, name }: { rawUrl: string; url: string; name: string },
 ): Promise<void> {
+  /**
+   * Where the repository is **right now**, kept current at every move.
+   *
+   * Three different steps can relocate it — the rename inside
+   * `cloneRepository`, the one `resolveTarget` asks for, and the one
+   * `registerCloned` does when it loses the name race — and the `catch` has to
+   * delete what exists rather than what was planned. A stale value here is not
+   * a cosmetic bug: it leaves a populated checkout on disk that the daemon no
+   * longer tracks, which is the §8 invariant this whole block exists to keep.
+   */
   let landed: string | null = null;
   let finalName = name;
+  /** Project homes the daemon created and then moved away from. */
+  const abandoned: string[] = [];
+
+  /**
+   * The leftovers, swept before the job is allowed to say it ended.
+   *
+   * Before and not after, because the terminal snapshot is what the sidebar
+   * reacts to: publishing it first would mean the job reads as settled while
+   * the daemon still has an empty directory of its own to remove. Only what is
+   * empty goes — a home that somehow still holds something is left alone.
+   */
+  async function sweep(): Promise<void> {
+    for (const home of abandoned) {
+      await collectEmptyProjectHome(home, ctx.config.workspacesDir).catch(() => false);
+    }
+  }
 
   try {
     const target = await prepareCloneTarget(job.targetPath, {
@@ -393,11 +419,21 @@ async function runCloneJob(
         // registered and the bytes never move twice.
         finalName = await resolveAvailableName(ctx, job.workspaceId, name);
         if (finalName === name) return target;
+        // The home `prepareCloneTarget` made for the original name is left
+        // behind here, empty. Recorded so the `finally` can collect it — an
+        // empty directory nobody planned is scaffolding, and scaffolding that
+        // accumulates is what F6.9 exists to stop.
+        abandoned.push(dirname(target));
         const workspace = await requireWorkspace(ctx, job.workspaceId);
-        return prepareCloneTarget(
+        const relocated = await prepareCloneTarget(
           repoDir(projectHome(ctx.config.workspacesDir, workspace.name, finalName)),
           { workspacesDir: ctx.config.workspacesDir },
         );
+        // Before the rename that is about to happen, not after: if it throws
+        // halfway the bytes are at one of the two, and the cleanup has to know
+        // which — so it is told about the new one first.
+        landed = relocated;
+        return relocated;
       },
     });
 
@@ -407,10 +443,15 @@ async function runCloneJob(
       path: landed,
       name: finalName,
       url,
+      onRelocated: (from, to) => {
+        abandoned.push(dirname(from));
+        landed = to;
+      },
     });
     landed = registered.project.path;
     finalName = registered.project.name;
 
+    await sweep();
     ctx.clones.done(
       job.id,
       registered.project.id,
@@ -422,6 +463,7 @@ async function runCloneJob(
     // The registration refused what the disk already has. Keeping it would
     // produce a directory the daemon does not know about and cannot clean up.
     if (landed !== null) await rm(landed, { recursive: true, force: true }).catch(() => {});
+    await sweep();
 
     // A cancelled job is already in a terminal state, and marking it failed on
     // top would be an illegal transition — the abort is what made this throw.
@@ -448,7 +490,25 @@ async function runCloneJob(
  */
 async function registerCloned(
   ctx: Context,
-  { workspaceId, path, name, url }: { workspaceId: string; path: string; name: string; url: string },
+  {
+    workspaceId,
+    path,
+    name,
+    url,
+    onRelocated,
+  }: {
+    workspaceId: string;
+    path: string;
+    name: string;
+    url: string;
+    /**
+     * Called **after** every move, including the ones this function then dies
+     * on. The caller cleans up by deleting what exists, and it can only do that
+     * if it is told where the bytes went — a path from before a rename makes
+     * the `rm` a no-op and orphans a populated checkout.
+     */
+    onRelocated: (from: string, to: string) => void;
+  },
 ): Promise<{ project: ProjectView }> {
   let current = path;
   let currentName = name;
@@ -475,6 +535,7 @@ async function registerCloned(
         { workspacesDir: ctx.config.workspacesDir },
       );
       await rename(current, next);
+      onRelocated(current, next);
       current = next;
     }
   }
