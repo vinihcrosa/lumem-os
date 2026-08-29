@@ -4,6 +4,7 @@ import type { ServerConfig } from "./config.js";
 import type { Db } from "./db/index.js";
 import type { EventBus } from "./events.js";
 import { isDomainError, type DomainErrorCode } from "./errors.js";
+import type { CloneJobStore } from "./git/CloneJobStore.js";
 import type { GitService } from "./git/GitService.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import type { SessionStore } from "./sessions/SessionStore.js";
@@ -19,6 +20,10 @@ export interface Context {
   ptyManager: PtyManager;
   sessionStore: SessionStore;
   git: GitService;
+  /**
+   * The clone that is running, if any. In memory, and one at a time — Q4, Q17.
+   */
+  clones: CloneJobStore;
   events: EventBus;
 }
 

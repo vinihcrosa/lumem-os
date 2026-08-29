@@ -364,7 +364,7 @@ Nome padrão é o último segmento do caminho da URL, sem `.git`; editável ante
 
 O nome é checado contra o workspace **antes** de começar. Se ainda assim colidir na hora de registrar — outro cliente registrou nesses quatro minutos — o projeto é registrado com sufixo `-2`, `-3`, e o job diz isso por extenso: *"o nome api já existia; registrado como api-2"*.
 
-Como o nome é o diretório, o sufixo move os bytes junto: o `rename` final usa o nome já resolvido, e não há um segundo movimento depois.
+Como o nome é o diretório, o sufixo move os bytes junto. O `rename` final usa o nome resolvido logo antes dele, então o caso comum não move nada duas vezes — **mas a corrida de verdade é mais tarde do que este parágrafo supunha**: ela vai da última resolução até o `INSERT`, e quem perde ali já tem o diretório no lugar. Aí o registro pega o próximo nome livre e move os bytes uma vez a mais. Medido na implementação, não previsto no desenho.
 
 ### F6.5 — Progresso com fase nomeada em português
 

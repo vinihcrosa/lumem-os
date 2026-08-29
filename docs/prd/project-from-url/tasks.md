@@ -310,7 +310,7 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Done when**:
 - [ ] As cinco existem com o contrato do §7 do PRD
 - [ ] `clone` valida URL e nome **antes** de qualquer processo nascer, e devolve a recusa com a regra nomeada (F6.2)
-- [ ] `clone` checa colisão de nome no workspace antes de começar, e o `rename` final usa o nome já resolvido — os bytes não se movem duas vezes (F6.4)
+- [x] `clone` checa colisão de nome no workspace antes de começar, e o `rename` final usa o nome resolvido logo antes dele. **A corrida que sobra é do último `resolve` até o `INSERT`**, e quem perde ali move os bytes uma vez a mais em vez de perder o download (F6.4)
 - [ ] `clone` responde `BLOCKED` nomeando o clone em andamento quando já houver um (A11)
 - [ ] O clone termina chamando `registerProject` com `managed = true`
 - [ ] `cloneProgress` é `subscription`, e o estado terminal também emite `project.changed` no canal comum (A3)

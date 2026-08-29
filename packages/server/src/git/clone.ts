@@ -62,6 +62,17 @@ export interface CloneOptions {
   targetPath: string;
   /** Sibling of the target, so the final `rename` stays on one filesystem. */
   tempPath: string;
+  /**
+   * The destination, decided after the download and before the rename, F6.4.
+   *
+   * The name a project is registered under can move between the moment the
+   * clone starts and the moment it ends — somebody else took it. Resolving the
+   * final name here means the directory is created with the name that will
+   * actually be registered, so the bytes never move twice.
+   *
+   * Returns `targetPath` when nothing changed.
+   */
+  resolveTarget?: () => Promise<string>;
   onProgress?: (progress: CloneProgress) => void;
   /** Aborting kills the process and removes the temporary directory. */
   signal?: AbortSignal;
@@ -83,14 +94,17 @@ const STDERR_RING_BYTES = 64 * 1024;
 /** One line of remote-controlled text is not a paragraph. */
 const MAX_LINE = 500;
 
-export async function cloneRepository(options: CloneOptions): Promise<void> {
-  const { targetPath, tempPath } = options;
+/** Where the repository ended up. The caller asked for it; this is what it got. */
+export async function cloneRepository(options: CloneOptions): Promise<string> {
+  const { targetPath, tempPath, resolveTarget } = options;
   try {
     await runClone(options);
     await rewriteOrigin(options);
+    const finalTarget = resolveTarget ? await resolveTarget() : targetPath;
     // The instant the repository starts existing for anyone looking. Atomic
     // because the temporary is its sibling, so this never crosses a filesystem.
-    await rename(tempPath, targetPath);
+    await rename(tempPath, finalTarget);
+    return finalTarget;
   } catch (error) {
     // The temporary is the only thing on disk between the start and the end,
     // and §8 is explicit that a creation which fails leaves nothing behind.

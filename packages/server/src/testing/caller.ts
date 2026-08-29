@@ -2,6 +2,7 @@ import { loadConfig, type ConfigEnv, type ServerConfig } from "../config.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import type { Db } from "../db/index.js";
 import { createEventBus, type EventBus } from "../events.js";
+import { createCloneJobStore } from "../git/CloneJobStore.js";
 import { createGitService, type GitService } from "../git/GitService.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { createSessionStore, type SessionStore } from "../sessions/SessionStore.js";
@@ -42,7 +43,15 @@ export function createTestCaller(env: ConfigEnv = {}): TestCaller {
   // stays `running` and the removal rules read stale state.
   const stopTracking = sessionStore.trackExits();
 
-  const ctx: Context = { config, db: database.db, ptyManager, sessionStore, git, events };
+  const ctx: Context = {
+    config,
+    db: database.db,
+    ptyManager,
+    sessionStore,
+    git,
+    clones: createCloneJobStore(),
+    events,
+  };
 
   return {
     api: createCaller(ctx),
