@@ -576,6 +576,16 @@
 .tab-item__label { max-width: var(--size-detail-max); overflow: hidden; text-overflow: ellipsis; }
 .tab-item__ord { color: var(--color-text-disabled); font: var(--text-mono-sm); }
 
+/* Não é estado, é natureza: a aba de uma sessão encerrada é um registro pra
+   ler, e o ponto sozinho não dizia isso (issue #14). */
+.tab-item__note {
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-xs);
+}
+
 .tab-item__dot {
   width: var(--space-6);
   height: var(--space-6);
