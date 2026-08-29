@@ -2,13 +2,13 @@ import { existsSync } from "node:fs";
 
 import { z } from "zod";
 
-import type { ProjectRow, WorktreeRow } from "../db/schema.js";
+import type { WorktreeRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import { createProjectRepository } from "../repositories/project.js";
-import { createWorkspaceRepository } from "../repositories/workspace.js";
 import { createWorktreeRepository } from "../repositories/worktree.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
-import { projectHome, worktreeDir } from "../workspace-layout.js";
+import { homeOfProject } from "./project.js";
+import { worktreeDir } from "../workspace-layout.js";
 
 /**
  * Worktrees over the wire, PRD F4.1–F4.10.
@@ -49,21 +49,6 @@ async function requireProject(ctx: Context, projectId: string) {
   return project;
 }
 
-/**
- * Where this project's worktrees live, F6.12.
- *
- * The workspace is looked up rather than passed in because since Q20 the path
- * needs it: `project_name_per_workspace` is unique per workspace and not
- * globally, so two workspaces may legitimately both have an `api`, and one
- * segment less would collide them on disk.
- */
-export async function homeOfProject(ctx: Context, project: ProjectRow): Promise<string> {
-  const workspace = await createWorkspaceRepository(ctx.db).findById(project.workspaceId);
-  if (!workspace) {
-    throw new DomainError("NOT_FOUND", `workspace ${project.workspaceId} não existe`);
-  }
-  return projectHome(ctx.config.workspacesDir, workspace.name, project.name);
-}
 
 export const worktreeRouter = router({
   listByProject: publicProcedure

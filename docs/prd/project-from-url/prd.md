@@ -248,7 +248,7 @@ Superfície nova, criada pelo §2.1, e a de consequência menos reversível do d
 | **A2** | Só apaga o que estiver **dentro** de `~/.lumem/workspaces`, verificado por `realpath` com separador no momento de apagar, e não pelo que a linha do banco diz |
 | **A2.1** | Apaga `projectHome/repo`; e então apaga `projectHome` **se ele tiver ficado vazio**. Nunca apaga um `projectHome` que ainda tenha alguma coisa dentro — o que sobrou é sinal de que algo não foi contabilizado |
 | **A3** | Nunca segue symlink: um `path` que virou link é motivo de recusa, não de travessia |
-| **A4** | Worktrees já bloqueiam por `ON DELETE RESTRICT`, e sessões rodando já bloqueiam pela regra do §6 do walking-skeleton. As duas continuam valendo, antes de qualquer `rm` |
+| **A4** | Worktrees e sessões rodando continuam bloqueando, **antes de qualquer `rm`**. E isso exigiu uma checagem própria: o `ON DELETE RESTRICT` dispara no `DELETE`, que roda **depois** de o diretório já ter sido apagado. Confiar só na chave estrangeira aqui seria apagar primeiro e recusar depois |
 | **A5** | Confirmação **diz o caminho**, e o registro sai só depois de o diretório sumir — a ordem inversa deixaria bytes órfãos sem nome |
 
 A A2 é a que carrega o peso: ela é a diferença entre "apago o que a linha manda" e "apago o que eu provo que é meu".

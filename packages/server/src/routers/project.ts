@@ -8,9 +8,11 @@ import type { ProjectRow } from "../db/schema.js";
 import { DomainError, isDomainError } from "../errors.js";
 import { cloneRepository, type CloneFailure } from "../git/clone.js";
 import { planClone, rawUrlOf, tempCloneDir } from "../git/clone-plan.js";
+import { collectEmptyProjectHome, deleteManagedRepo } from "../git/managed-dir.js";
 import type { CloneJob } from "../git/CloneJobStore.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createWorkspaceRepository } from "../repositories/workspace.js";
+import { createWorktreeRepository } from "../repositories/worktree.js";
 import { domainSafe, domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 import { prepareCloneTarget, projectHome, repoDir } from "../workspace-layout.js";
 
@@ -180,8 +182,43 @@ export const projectRouter = router({
       const projects = createProjectRepository(ctx.db);
       const row = await projects.findById(input.id);
 
-      // F2.5: the registration goes, the disk is never touched. Not even when
-      // the worktrees the daemon created live under ~/.lumem.
+      // Before anything is deleted, and not left to the foreign key: the FK
+      // fires on `projects.remove`, which runs *after* the directory would be
+      // gone. A4 is explicit that worktrees block before any `rm`, and the
+      // ordering is the whole difference between a refusal and a data loss.
+      if (row) {
+        const worktrees = await createWorktreeRepository(ctx.db).listByProject(row.id);
+        if (worktrees.length > 0) {
+          // Same words the foreign key's mapping already uses, with the count
+          // added: this check only moves *when* the refusal happens, and a
+          // reader who knew the old message must not have to learn a new one.
+          throw new DomainError(
+            "IN_USE",
+            `o projeto ainda tem worktrees registradas (${worktrees.length}); remova-as antes`,
+          );
+        }
+      }
+
+      if (row) {
+        // F6.9, and this reverts F2.5 of the walking-skeleton for exactly one
+        // class of project: the one whose bytes the daemon wrote, into a
+        // directory the daemon chose. `managed` is a column and not a
+        // deduction, because the failure mode of guessing here is deleting
+        // somebody else's repository.
+        //
+        // The directory goes **before** the registration (A5). The other order
+        // would leave orphaned bytes with nothing naming them.
+        if (row.managed) {
+          await deleteManagedRepo({ path: row.path, workspacesDir: ctx.config.workspacesDir });
+        }
+        // Runs for a project registered by path too, and deletes nothing of
+        // theirs: what it collects is the daemon's own scaffolding (A2.1).
+        await collectEmptyProjectHome(
+          await homeOfProject(ctx, row),
+          ctx.config.workspacesDir,
+        ).catch(() => false);
+      }
+
       await projects.remove(input.id);
       if (row) ctx.events.emit({ type: "project.changed", workspaceId: row.workspaceId });
       return { ok: true as const };
@@ -281,6 +318,23 @@ export const projectRouter = router({
       }),
     ),
 });
+
+/**
+ * Where this project's directory is, F6.12.
+ *
+ * The workspace is looked up rather than passed in because since Q20 the path
+ * needs it: `project_name_per_workspace` is unique per workspace and not
+ * globally, so two workspaces may legitimately both have an `api`, and one
+ * segment less would collide them on disk.
+ *
+ * A function of `(workspace, projeto)` and never of `managed` (A16): a project
+ * registered by path has a home here too — without a `repo/`, because its
+ * repository lives wherever the user left it, but with a `worktrees/`.
+ */
+export async function homeOfProject(ctx: Context, project: ProjectRow): Promise<string> {
+  const workspace = await requireWorkspace(ctx, project.workspaceId);
+  return projectHome(ctx.config.workspacesDir, workspace.name, project.name);
+}
 
 async function requireWorkspace(ctx: Context, workspaceId: string) {
   const workspace = await createWorkspaceRepository(ctx.db).findById(workspaceId);
