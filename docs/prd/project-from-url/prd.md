@@ -1,6 +1,6 @@
 # PRD — Projeto a partir de uma URL git
 
-> **Status:** especificada, **não construída** — 22 perguntas, todas respondidas
+> **Status:** **entregue** — 17 tasks, portão verde
 > **Versão:** v0.3 — a v0.1 tinha destino editável e remoção que não tocava no disco ([Q14](open-questions.md), [Q15](open-questions.md)); a v0.2 ainda deixava as worktrees na árvore antiga ([Q20](open-questions.md))
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)

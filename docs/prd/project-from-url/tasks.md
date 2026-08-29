@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) — 22, todas respondidas
 **Protótipo:** `packages/web/prototype/lumem-clone.html` — entregue pela C1, nove telas
 **Sucede:** [file-editor](../file-editor/tasks.md)
-**Status:** **especificada, não iniciada** — 0 de 17
+**Status:** **fechada** — 17 de 17, portão verde (`gate:full`: 1142 unit/integration + 22 e2e)
 **Total:** 17 tasks em 5 fases
 
 ---
@@ -140,18 +140,18 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: nada
 
 **Done when**:
-- [ ] Reconhece as quatro formas: `https`/`http`, `ssh://` com porta, scp (`user@host:caminho`), `file://`
-- [ ] **U1** — esquema fora da lista recusa. `ext::sh -c id` recusa nomeando o esquema, e há teste para ele **por nome**
-- [ ] `git://` recusa com mensagem que diz **por quê** — é o único recusado que o usuário poderia esperar que funcionasse ([Q11](open-questions.md))
-- [ ] **U2** — `\n`, `\r`, `\0` e qualquer byte de controle recusam; URL começando com `-` recusa
-- [ ] **U3** — host vazio recusa em `https`/`http`/`ssh`; caminho não-absoluto recusa em `file`
-- [ ] `http` é aceito e **marcado como sem TLS** na resposta, para o `↳` poder dizer ([Q10](open-questions.md))
-- [ ] `sanitizeGitUrl` remove o `userinfo` e é **idempotente**; um teste prova que a URL sanitizada não contém o segredo, comparando por substring
-- [ ] `toSshForm` converte `https://host/org/repo.git` em `git@host:org/repo.git`, e devolve nulo quando a conversão não é possível
-- [ ] `repoNameOf` devolve o último segmento sem `.git`
-- [ ] Cada teste de recusa de esquema cita a pergunta que o decidiu (**P2**)
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 16
+- [x] Reconhece as quatro formas: `https`/`http`, `ssh://` com porta, scp (`user@host:caminho`), `file://`
+- [x] **U1** — esquema fora da lista recusa. `ext::sh -c id` recusa nomeando o esquema, e há teste para ele **por nome**
+- [x] `git://` recusa com mensagem que diz **por quê** — é o único recusado que o usuário poderia esperar que funcionasse ([Q11](open-questions.md))
+- [x] **U2** — `\n`, `\r`, `\0` e qualquer byte de controle recusam; URL começando com `-` recusa
+- [x] **U3** — host vazio recusa em `https`/`http`/`ssh`; caminho não-absoluto recusa em `file`
+- [x] `http` é aceito e **marcado como sem TLS** na resposta, para o `↳` poder dizer ([Q10](open-questions.md))
+- [x] `sanitizeGitUrl` remove o `userinfo` e é **idempotente**; um teste prova que a URL sanitizada não contém o segredo, comparando por substring
+- [x] `toSshForm` converte `https://host/org/repo.git` em `git@host:org/repo.git`, e devolve nulo quando a conversão não é possível
+- [x] `repoNameOf` devolve o último segmento sem `.git`
+- [x] Cada teste de recusa de esquema cita a pergunta que o decidiu (**P2**)
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 16
 
 **Tests**: unit, puro · **Gate**: quick
 **Commit**: `feat(server): parse git urls behind an allowlist of transports`
@@ -165,19 +165,19 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: nada
 
 **Done when**:
-- [ ] `workspacesDir` entra em `ServerConfig` como `join(stateDir, "workspaces")`, e **`worktreesDir` sai** — nenhum outro módulo continua importando o nome antigo, e é o `tsc` que garante isso
-- [ ] `projectHome(workspace, projeto)`, `repoDir(home)` e `worktreeDir(home, nome)` são as três funções, e ninguém mais monta caminho com `join` por conta própria
-- [ ] `projectHome` **não recebe `managed`** (A16), e há teste com projeto não gerenciado provando que ele tem `worktrees/` na árvore
-- [ ] Os segmentos são **slugificados**: só `[A-Za-z0-9._-]`, nunca `.` ou `..` sozinhos, nunca vazio (fallback nomeado). Teste com nome contendo `/`, `..`, acento e string vazia (**R5** do PRD)
-- [ ] **D1** absoluto, normalizado, derivado de `stateDir` — inclusive com `LUMEM_STATE_DIR` relativo ou com `~`
-- [ ] **D2** o destino não existe, ou existe vazio
-- [ ] **D3** o pai é criado pelo daemon quando falta, e é erro quando existe e não é diretório
+- [x] `workspacesDir` entra em `ServerConfig` como `join(stateDir, "workspaces")`, e **`worktreesDir` sai** — nenhum outro módulo continua importando o nome antigo, e é o `tsc` que garante isso
+- [x] `projectHome(workspace, projeto)`, `repoDir(home)` e `worktreeDir(home, nome)` são as três funções, e ninguém mais monta caminho com `join` por conta própria
+- [x] `projectHome` **não recebe `managed`** (A16), e há teste com projeto não gerenciado provando que ele tem `worktrees/` na árvore
+- [x] Os segmentos são **slugificados**: só `[A-Za-z0-9._-]`, nunca `.` ou `..` sozinhos, nunca vazio (fallback nomeado). Teste com nome contendo `/`, `..`, acento e string vazia (**R5** do PRD)
+- [x] **D1** absoluto, normalizado, derivado de `stateDir` — inclusive com `LUMEM_STATE_DIR` relativo ou com `~`
+- [x] **D2** o destino não existe, ou existe vazio
+- [x] **D3** o pai é criado pelo daemon quando falta, e é erro quando existe e não é diretório
 - [x] ~~**D4** não está dentro de repositório git existente~~ — **implementada e retirada.** Ver o §4.4 do PRD: ela recusava todo clone com o state dir dentro de um checkout, que é o que a suíte e2e faz e o que `git worktree add` sempre aceitou em silêncio
-- [ ] **D5** `repo/` e `worktrees/` não se engolem
-- [ ] **D6** o pai é resolvido por `realpath` antes de tudo; symlink apontando para fora é reconhecido como tal
-- [ ] Cada recusa tem mensagem própria: nenhuma responde "destino inválido"
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 12
+- [x] **D5** `repo/` e `worktrees/` não se engolem
+- [x] **D6** o pai é resolvido por `realpath` antes de tudo; symlink apontando para fora é reconhecido como tal
+- [x] Cada recusa tem mensagem própria: nenhuma responde "destino inválido"
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 12
 
 **Tests**: unit, com filesystem e git de verdade (symlink e repositório não se simulam — `testing.md`) · **Gate**: quick
 **Commit**: `feat(server): one tree for workspace, project and worktree`
@@ -191,16 +191,16 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: C3
 
 **Done when**:
-- [ ] `worktreePath` sai do router e vira `worktreeDir` da C3; o `create` alcança o workspace pelo `project.workspaceId`
-- [ ] Worktree nova nasce em `projectHome/worktrees/<nome>`, para projeto gerenciado **e** para projeto registrado por caminho (A16)
-- [ ] `migrateWorktreeLayout` roda no boot, **uma vez**: para cada worktree fora da árvore nova, move o diretório, roda `git worktree repair` a partir do repositório principal, e atualiza `worktree.path`
-- [ ] O teste da migração verifica a worktree **funcionando** depois de movida — `git status` dentro dela responde — e não só o diretório existindo. Sem `repair`, este teste falha, e é ele que prova o A17
-- [ ] Worktree ausente do disco **não** é movida: é marcada `missing`, como a reconciliação já faz
-- [ ] Falha ao mover uma não impede as outras nem o daemon de subir; o que falhou é reportado
-- [ ] Rodar duas vezes não faz nada na segunda
-- [ ] Os testes existentes de `worktree.test.ts` passam com a mudança de caminho, e nenhuma asserção de comportamento é enfraquecida para caber (**R10** do PRD)
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 8 — nasce no lugar novo (gerenciado e não), migra e **funciona**, `missing` não migra, falha isolada, idempotência, `repair` ausente falha o teste
+- [x] `worktreePath` sai do router e vira `worktreeDir` da C3; o `create` alcança o workspace pelo `project.workspaceId`
+- [x] Worktree nova nasce em `projectHome/worktrees/<nome>`, para projeto gerenciado **e** para projeto registrado por caminho (A16)
+- [x] `migrateWorktreeLayout` roda no boot, **uma vez**: para cada worktree fora da árvore nova, move o diretório, roda `git worktree repair` a partir do repositório principal, e atualiza `worktree.path`
+- [x] O teste da migração verifica a worktree **funcionando** depois de movida — `git status` dentro dela responde — e não só o diretório existindo. Sem `repair`, este teste falha, e é ele que prova o A17
+- [x] Worktree ausente do disco **não** é movida: é marcada `missing`, como a reconciliação já faz
+- [x] Falha ao mover uma não impede as outras nem o daemon de subir; o que falhou é reportado
+- [x] Rodar duas vezes não faz nada na segunda
+- [x] Os testes existentes de `worktree.test.ts` passam com a mudança de caminho, e nenhuma asserção de comportamento é enfraquecida para caber (**R10** do PRD)
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 8 — nasce no lugar novo (gerenciado e não), migra e **funciona**, `missing` não migra, falha isolada, idempotência, `repair` ausente falha o teste
 
 **Tests**: integration com git e filesystem de verdade · **Gate**: quick
 **Commit**: `feat(server): move worktrees under their project in the state tree`
@@ -214,13 +214,13 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: C2, C3
 
 **Done when**:
-- [ ] Detecção `/` ou `~` = caminho, resto = URL (A1), decidida **no servidor** — a do cliente é só desenho
-- [ ] Caminho local devolve `kind: "path"` com o caminho expandido ([Q18](open-questions.md)) e nada de nome/destino
-- [ ] URL devolve nome = repo sem `.git`, e destino = `repoDir(projectHome(...))` (A8)
-- [ ] Trocar o nome muda o destino — a função é uma só, e o teste prova que os dois andam juntos (F6.3)
-- [ ] `http` vem marcado, para o `↳` escrever "sem TLS"
-- [ ] Recusa devolve a regra que falhou, não um booleano
-- [ ] Gate: `pnpm gate:quick`
+- [x] Detecção `/` ou `~` = caminho, resto = URL (A1), decidida **no servidor** — a do cliente é só desenho
+- [x] Caminho local devolve `kind: "path"` com o caminho expandido ([Q18](open-questions.md)) e nada de nome/destino
+- [x] URL devolve nome = repo sem `.git`, e destino = `repoDir(projectHome(...))` (A8)
+- [x] Trocar o nome muda o destino — a função é uma só, e o teste prova que os dois andam juntos (F6.3)
+- [x] `http` vem marcado, para o `↳` escrever "sem TLS"
+- [x] Recusa devolve a regra que falhou, não um booleano
+- [x] Gate: `pnpm gate:quick`
 
 **Tests**: unit, puro · **Gate**: quick
 **Commit**: `feat(server): turn a pasted string into a clone plan`
@@ -236,20 +236,20 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: C3
 
 **Done when**:
-- [ ] `spawn`, não `execFile`: o progresso é lido enquanto acontece, e não há `maxBuffer` a estourar
-- [ ] O argv é exatamente o do §4.1 do PRD, incluindo `protocol.allow=never`, os quatro `allow=always`, `--no-recurse-submodules` e o `--`
-- [ ] O ambiente é o do §4.2: `GIT_TERMINAL_PROMPT=0`, `GIT_ASKPASS=""`, `SSH_ASKPASS=""`, e `GIT_SSH_COMMAND` **composto** sobre o valor herdado — teste com um `GIT_SSH_COMMAND` pré-existente prova que ele não foi jogado fora
-- [ ] O progresso é fatiado por `\r` **e** `\n`, porque o git usa os dois; fases mapeadas para os seis nomes de `ClonePhase`
-- [ ] A falha é **classificada** em `auth | network | refused | git | internal` (A13), e há teste para o caso `auth` que não depende de rede
-- [ ] Linhas do remoto passam por remoção de ANSI e de bytes de controle, truncadas em 500 caracteres
-- [ ] O buffer retido é um anel de 64 KiB — teste despeja mais que isso e prova que a memória não cresce junto
-- [ ] Silêncio de 120 s mata o processo (**P6**: o número é medido nesta task e escrito aqui)
-- [ ] Cancelar manda `SIGTERM`, espera 5 s, manda `SIGKILL` — e só depois apaga o temporário
-- [ ] Clona em `<pai>/.lumem-clone-<id>` e `rename` no fim (D4)
-- [ ] URL com `userinfo`: o `git remote set-url origin <sanitizada>` roda depois do clone, e um teste **lê `.git/config`** e prova que o segredo não está lá
-- [ ] Repositório remoto **vazio** clona (A14)
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 12
+- [x] `spawn`, não `execFile`: o progresso é lido enquanto acontece, e não há `maxBuffer` a estourar
+- [x] O argv é exatamente o do §4.1 do PRD, incluindo `protocol.allow=never`, os quatro `allow=always`, `--no-recurse-submodules` e o `--`
+- [x] O ambiente é o do §4.2: `GIT_TERMINAL_PROMPT=0`, `GIT_ASKPASS=""`, `SSH_ASKPASS=""`, e `GIT_SSH_COMMAND` **composto** sobre o valor herdado — teste com um `GIT_SSH_COMMAND` pré-existente prova que ele não foi jogado fora
+- [x] O progresso é fatiado por `\r` **e** `\n`, porque o git usa os dois; fases mapeadas para os seis nomes de `ClonePhase`
+- [x] A falha é **classificada** em `auth | network | refused | git | internal` (A13), e há teste para o caso `auth` que não depende de rede
+- [x] Linhas do remoto passam por remoção de ANSI e de bytes de controle, truncadas em 500 caracteres
+- [x] O buffer retido é um anel de 64 KiB — teste despeja mais que isso e prova que a memória não cresce junto
+- [x] Silêncio de 120 s mata o processo (**P6**: o número é medido nesta task e escrito aqui)
+- [x] Cancelar manda `SIGTERM`, espera 5 s, manda `SIGKILL` — e só depois apaga o temporário
+- [x] Clona em `<pai>/.lumem-clone-<id>` e `rename` no fim (D4)
+- [x] URL com `userinfo`: o `git remote set-url origin <sanitizada>` roda depois do clone, e um teste **lê `.git/config`** e prova que o segredo não está lá
+- [x] Repositório remoto **vazio** clona (A14)
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 12
 
 **Tests**: unit/integration com git de verdade; remoto é bare local por `file://` (D11); conexão recusada é `ssh://127.0.0.1:1/x`
 **Gate**: quick
@@ -264,14 +264,14 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: C6
 
 **Done when**:
-- [ ] Estados `cloning → registering → done | failed | cancelled`, e transição ilegal é erro, não silêncio
-- [ ] **Um job ativo por vez** (A11): pedir outro com um em `cloning` ou `registering` é recusa nomeando o primeiro, não fila
-- [ ] `subscribe(jobId, signal)` entrega instantâneos estrangulados em 250 ms, e **sempre** entrega o estado terminal, mesmo que ele caia dentro da janela do estrangulamento — é o teste que mais importa aqui
-- [ ] O sinal abortado libera o assinante; um teste prova que a contagem volta a zero, como `events.test.ts` faz
-- [ ] Jobs terminais são coletados depois de N minutos, para o daemon de semanas não acumular
-- [ ] Nenhum campo do job carrega `userinfo` (D6)
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 7
+- [x] Estados `cloning → registering → done | failed | cancelled`, e transição ilegal é erro, não silêncio
+- [x] **Um job ativo por vez** (A11): pedir outro com um em `cloning` ou `registering` é recusa nomeando o primeiro, não fila
+- [x] `subscribe(jobId, signal)` entrega instantâneos estrangulados em 250 ms, e **sempre** entrega o estado terminal, mesmo que ele caia dentro da janela do estrangulamento — é o teste que mais importa aqui
+- [x] O sinal abortado libera o assinante; um teste prova que a contagem volta a zero, como `events.test.ts` faz
+- [x] Jobs terminais são coletados depois de N minutos, para o daemon de semanas não acumular
+- [x] Nenhum campo do job carrega `userinfo` (D6)
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 7
 
 **Tests**: unit, com relógio falso — e sem `userEvent` por perto ([P18 da file-editor](../file-editor/tasks.md)) · **Gate**: quick
 **Commit**: `feat(server): track one clone job at a time, with throttled updates`
@@ -287,14 +287,14 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: C5
 
 **Done when**:
-- [ ] `registerProject({ path, name, workspaceId, remoteUrl, managed })` existe como rotina única: valida por `isGitRepo`, resolve a branch default, insere, emite `project.changed`
-- [ ] `project.add` passa a chamá-la e **não muda de comportamento** — os testes existentes de `project.test.ts` passam **sem edição**, e essa é a evidência (**R10** do PRD)
-- [ ] `remote_url` (`text`, anulável) e `managed` (booleana, default falso) são colunas novas; migração **gerada** por `drizzle-kit generate`, nunca escrita à mão
-- [ ] `project.add` grava `managed = false` sempre. Não há caminho em que um projeto registrado por caminho vire gerenciado (A12)
-- [ ] Um banco de antes da migração abre e migra sem perder linha — teste com fixture do schema anterior
-- [ ] Sufixo de colisão (`-2`, `-3`) vive nesta rotina, e devolve o nome final para quem chamou poder dizer o que fez (A6)
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 5
+- [x] `registerProject({ path, name, workspaceId, remoteUrl, managed })` existe como rotina única: valida por `isGitRepo`, resolve a branch default, insere, emite `project.changed`
+- [x] `project.add` passa a chamá-la e **não muda de comportamento** — os testes existentes de `project.test.ts` passam **sem edição**, e essa é a evidência (**R10** do PRD)
+- [x] `remote_url` (`text`, anulável) e `managed` (booleana, default falso) são colunas novas; migração **gerada** por `drizzle-kit generate`, nunca escrita à mão
+- [x] `project.add` grava `managed = false` sempre. Não há caminho em que um projeto registrado por caminho vire gerenciado (A12)
+- [x] Um banco de antes da migração abre e migra sem perder linha — teste com fixture do schema anterior
+- [x] Sufixo de colisão (`-2`, `-3`) vive nesta rotina, e devolve o nome final para quem chamou poder dizer o que fez (A6)
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 5
 
 **Tests**: integration com SQLite de verdade · **Gate**: quick
 **Commit**: `refactor(server): one registration path for local and cloned projects`
@@ -308,17 +308,17 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: C7, C8
 
 **Done when**:
-- [ ] As cinco existem com o contrato do §7 do PRD
-- [ ] `clone` valida URL e nome **antes** de qualquer processo nascer, e devolve a recusa com a regra nomeada (F6.2)
+- [x] As cinco existem com o contrato do §7 do PRD
+- [x] `clone` valida URL e nome **antes** de qualquer processo nascer, e devolve a recusa com a regra nomeada (F6.2)
 - [x] `clone` checa colisão de nome no workspace antes de começar, e o `rename` final usa o nome resolvido logo antes dele. **A corrida que sobra é do último `resolve` até o `INSERT`**, e quem perde ali move os bytes uma vez a mais em vez de perder o download (F6.4)
-- [ ] `clone` responde `BLOCKED` nomeando o clone em andamento quando já houver um (A11)
-- [ ] O clone termina chamando `registerProject` com `managed = true`
-- [ ] `cloneProgress` é `subscription`, e o estado terminal também emite `project.changed` no canal comum (A3)
-- [ ] `cloneCancel` só aceita em `cloning`; em `registering` responde `BLOCKED` com o motivo (F6.6)
-- [ ] `cloneJobs` devolve os jobs vivos do workspace — é o que faz o F5 sobreviver a um recarregamento
-- [ ] Nenhuma resposta, nenhum log e nenhum erro carrega `userinfo`; há teste que clona com segredo na URL e varre **as três** superfícies
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 9
+- [x] `clone` responde `BLOCKED` nomeando o clone em andamento quando já houver um (A11)
+- [x] O clone termina chamando `registerProject` com `managed = true`
+- [x] `cloneProgress` é `subscription`, e o estado terminal também emite `project.changed` no canal comum (A3)
+- [x] `cloneCancel` só aceita em `cloning`; em `registering` responde `BLOCKED` com o motivo (F6.6)
+- [x] `cloneJobs` devolve os jobs vivos do workspace — é o que faz o F5 sobreviver a um recarregamento
+- [x] Nenhuma resposta, nenhum log e nenhum erro carrega `userinfo`; há teste que clona com segredo na URL e varre **as três** superfícies
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 9
 
 **Tests**: integration (caller tRPC + git de verdade por `file://`) · **Gate**: quick
 **Commit**: `feat(server): expose cloning a project over trpc`
@@ -332,11 +332,11 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: C6
 
 **Done when**:
-- [ ] `reconcileClones` remove todo `.lumem-clone-*` sob `workspacesDir` e reporta a contagem, como `reconcileWorktrees` faz
-- [ ] Roda no boot, ao lado das outras duas, e uma falha dela não impede o daemon de subir
-- [ ] **Não** toca em nada que não case com o prefixo — teste põe um diretório de nome parecido ao lado e prova que ele sobrevive
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 3
+- [x] `reconcileClones` remove todo `.lumem-clone-*` sob `workspacesDir` e reporta a contagem, como `reconcileWorktrees` faz
+- [x] Roda no boot, ao lado das outras duas, e uma falha dela não impede o daemon de subir
+- [x] **Não** toca em nada que não case com o prefixo — teste põe um diretório de nome parecido ao lado e prova que ele sobrevive
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 3
 
 **Tests**: unit com filesystem de verdade · **Gate**: quick
 **Commit**: `feat(server): sweep interrupted clones on boot`
@@ -350,15 +350,15 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: C8, C3
 
 **Done when**:
-- [ ] **A1** só apaga com `managed = true` — projeto registrado por caminho tem o repositório **intocado**, e há teste explícito, porque é o F2.5 que continua valendo para ele
-- [ ] **A2** o caminho é provado dentro de `workspacesDir` por `realpath` com separador, **no momento de apagar** — não pelo que a linha do banco diz. Teste com `path` apontando para fora prova a recusa
-- [ ] **A2.1** apaga `projectHome/repo`, e então apaga `projectHome` **só se ele ficou vazio**; `projectHome` com coisa dentro é erro, não `rm -rf`
-- [ ] **A3** `path` que é symlink recusa, e não é seguido
-- [ ] **A4** worktrees (`ON DELETE RESTRICT`) e sessões rodando continuam bloqueando antes de qualquer `rm`
-- [ ] **A5** o diretório some **antes** de o registro sair; se o `rm` falhar, o registro fica e o erro é dito
-- [ ] Diretório já ausente do disco não é erro: o registro sai, e a remoção é idempotente
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 9
+- [x] **A1** só apaga com `managed = true` — projeto registrado por caminho tem o repositório **intocado**, e há teste explícito, porque é o F2.5 que continua valendo para ele
+- [x] **A2** o caminho é provado dentro de `workspacesDir` por `realpath` com separador, **no momento de apagar** — não pelo que a linha do banco diz. Teste com `path` apontando para fora prova a recusa
+- [x] **A2.1** apaga `projectHome/repo`, e então apaga `projectHome` **só se ele ficou vazio**; `projectHome` com coisa dentro é erro, não `rm -rf`
+- [x] **A3** `path` que é symlink recusa, e não é seguido
+- [x] **A4** worktrees (`ON DELETE RESTRICT`) e sessões rodando continuam bloqueando antes de qualquer `rm`
+- [x] **A5** o diretório some **antes** de o registro sair; se o `rm` falhar, o registro fica e o erro é dito
+- [x] Diretório já ausente do disco não é erro: o registro sai, e a remoção é idempotente
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 9
 
 **Tests**: integration com filesystem e SQLite de verdade · **Gate**: quick
 **Commit**: `feat(server): delete the clone when removing a lumem-managed project`
@@ -374,15 +374,15 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: C9, C1
 
 **Done when**:
-- [ ] Um campo só (A1); a linha `↳` mostra o que o **servidor** entendeu, via `parseSource` com debounce
-- [ ] Caminho local esconde nome e destino, e o fluxo antigo continua idêntico — o teste existente do diálogo passa **sem edição**
-- [ ] URL mostra nome editável e destino **exibido e copiável, nunca editável** (A8); mudar o nome muda o destino à vista
-- [ ] `http` mostra "sem TLS" em texto ([Q10](open-questions.md))
-- [ ] URL recusada mostra o motivo do servidor, e o botão fica desabilitado
-- [ ] Com um clone em andamento, o botão diz qual é, em vez de enfileirar (A11)
-- [ ] Fechar o diálogo **não** cancela um clone em andamento
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 6
+- [x] Um campo só (A1); a linha `↳` mostra o que o **servidor** entendeu, via `parseSource` com debounce
+- [x] Caminho local esconde nome e destino, e o fluxo antigo continua idêntico — o teste existente do diálogo passa **sem edição**
+- [x] URL mostra nome editável e destino **exibido e copiável, nunca editável** (A8); mudar o nome muda o destino à vista
+- [x] `http` mostra "sem TLS" em texto ([Q10](open-questions.md))
+- [x] URL recusada mostra o motivo do servidor, e o botão fica desabilitado
+- [x] Com um clone em andamento, o botão diz qual é, em vez de enfileirar (A11)
+- [x] Fechar o diálogo **não** cancela um clone em andamento
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 6
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): accept a git url where a project path used to go`
@@ -396,14 +396,14 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: C12
 
 **Done when**:
-- [ ] O job vivo vem de `cloneJobs` no primeiro render, e de `cloneProgress` depois — recarregar a página não perde o acompanhamento
-- [ ] As seis fases aparecem em português (F6.5); sem porcentagem, a barra é indeterminada
-- [ ] Cancelar aparece só em `cloning` e some em `registering` (F6.6)
-- [ ] Terminado, a entrada vira projeto de verdade sem recarregar — pelo `project.changed` que já existe
-- [ ] O texto vindo do remoto é renderizado como texto (§4.5)
-- [ ] A assinatura é desfeita ao desmontar; um teste prova que não sobra nenhuma
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 5
+- [x] O job vivo vem de `cloneJobs` no primeiro render, e de `cloneProgress` depois — recarregar a página não perde o acompanhamento
+- [x] As seis fases aparecem em português (F6.5); sem porcentagem, a barra é indeterminada
+- [x] Cancelar aparece só em `cloning` e some em `registering` (F6.6)
+- [x] Terminado, a entrada vira projeto de verdade sem recarregar — pelo `project.changed` que já existe
+- [x] O texto vindo do remoto é renderizado como texto (§4.5)
+- [x] A assinatura é desfeita ao desmontar; um teste prova que não sobra nenhuma
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 5
 
 **Tests**: componente + hook · **Gate**: quick
 **Commit**: `feat(web): show clone progress where the project will appear`
@@ -417,14 +417,14 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: C13
 
 **Done when**:
-- [ ] `failure: "auth"` tem **tela própria** (A13): nomeia as duas saídas — chave no `ssh-agent`, ou `credential.helper` — e não repassa o stderr cru
-- [ ] Para URL `https`, um botão converte para a forma `ssh` e reabre o diálogo já preenchido, usando o `toSshForm` da C2
-- [ ] As demais falhas mostram o texto do git, e dizem qual classe é
-- [ ] Job em `failed` fica visível até ser dispensado; não some sozinho, porque some sozinho é a mesma coisa que não ter acontecido
-- [ ] Nome ajustado por colisão é dito por extenso, com o nome antigo e o novo (A6)
-- [ ] Nada disso mostra `userinfo`, e há teste com segredo na URL
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 6
+- [x] `failure: "auth"` tem **tela própria** (A13): nomeia as duas saídas — chave no `ssh-agent`, ou `credential.helper` — e não repassa o stderr cru
+- [x] Para URL `https`, um botão converte para a forma `ssh` e reabre o diálogo já preenchido, usando o `toSshForm` da C2
+- [x] As demais falhas mostram o texto do git, e dizem qual classe é
+- [x] Job em `failed` fica visível até ser dispensado; não some sozinho, porque some sozinho é a mesma coisa que não ter acontecido
+- [x] Nome ajustado por colisão é dito por extenso, com o nome antigo e o novo (A6)
+- [x] Nada disso mostra `userinfo`, e há teste com segredo na URL
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 6
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): give authentication failures a way out`
@@ -438,12 +438,12 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: C11, C1
 
 **Done when**:
-- [ ] Projeto **gerenciado** pede confirmação que **mostra o caminho absoluto** que será apagado, e diz que é irreversível
-- [ ] Projeto **não gerenciado** mantém a remoção de hoje, com o texto de hoje — nenhuma menção a apagar repositório
-- [ ] Os dois textos são distinguíveis à primeira leitura: é a diferença entre tirar da lista e apagar do disco
-- [ ] Bloqueio por worktree ou por sessão rodando aparece **antes** da confirmação, não depois
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 4
+- [x] Projeto **gerenciado** pede confirmação que **mostra o caminho absoluto** que será apagado, e diz que é irreversível
+- [x] Projeto **não gerenciado** mantém a remoção de hoje, com o texto de hoje — nenhuma menção a apagar repositório
+- [x] Os dois textos são distinguíveis à primeira leitura: é a diferença entre tirar da lista e apagar do disco
+- [x] Bloqueio por worktree ou por sessão rodando aparece **antes** da confirmação, não depois
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 4
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): say which directory disappears before deleting it`
@@ -457,12 +457,12 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: C8
 
 **Done when**:
-- [ ] `hasCommits` entra na visão do projeto, **calculado por requisição** — como `available`, e nunca guardado (A18)
-- [ ] `CreateWorktreeDialog` explica e desabilita, em vez de deixar o git responder "invalid reference"
-- [ ] `worktree.create` **também** recusa, com a mesma frase: a tela evita, o servidor impede
-- [ ] Um commit feito por fora faz a recusa sumir sem recarregar a página — é o que prova que o valor não foi guardado
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 4
+- [x] `hasCommits` entra na visão do projeto, **calculado por requisição** — como `available`, e nunca guardado (A18)
+- [x] `CreateWorktreeDialog` explica e desabilita, em vez de deixar o git responder "invalid reference"
+- [x] `worktree.create` **também** recusa, com a mesma frase: a tela evita, o servidor impede
+- [x] Um commit feito por fora faz a recusa sumir sem recarregar a página — é o que prova que o valor não foi guardado
+- [x] Gate: `pnpm gate:quick`
+- [x] Test count: ao menos 4
 
 **Tests**: integration (servidor) + componente · **Gate**: quick
 **Commit**: `feat(server,web): explain why a repository with no commits has no worktrees`
@@ -478,14 +478,14 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: C16
 
 **Done when**:
-- [ ] Fixture cria um bare local; o teste cola `file:///…` e vê progresso, fase e conclusão
-- [ ] O projeto clonado aparece na sidebar e **corta uma worktree**, em `projectHome/worktrees/<nome>` (critério 10 do PRD)
-- [ ] `ext::sh -c id` e `git://host/r.git` são recusados na tela, antes de qualquer processo
-- [ ] Cancelar no meio deixa a sidebar limpa e o disco sem o temporário
-- [ ] **Remover o projeto clonado apaga o diretório**, e o teste verifica o disco (critério 11)
-- [ ] **Remover um projeto registrado por caminho não apaga o repositório dele**, e o teste verifica o disco (critério 12)
-- [ ] Clonar um repositório **vazio**: o projeto nasce, e o diálogo de worktree explica (critério 13)
-- [ ] Gate: `pnpm gate:full`
+- [x] Fixture cria um bare local; o teste cola `file:///…` e vê progresso, fase e conclusão
+- [x] O projeto clonado aparece na sidebar e **corta uma worktree**, em `projectHome/worktrees/<nome>` (critério 10 do PRD)
+- [x] `ext::sh -c id` e `git://host/r.git` são recusados na tela, antes de qualquer processo
+- [x] Cancelar no meio deixa a sidebar limpa e o disco sem o temporário
+- [x] **Remover o projeto clonado apaga o diretório**, e o teste verifica o disco (critério 11)
+- [x] **Remover um projeto registrado por caminho não apaga o repositório dele**, e o teste verifica o disco (critério 12)
+- [x] Clonar um repositório **vazio**: o projeto nasce, e o diálogo de worktree explica (critério 13)
+- [x] Gate: `pnpm gate:full`
 
 **Tests**: e2e Playwright · **Gate**: full
 **Commit**: `test(e2e): clone a project from a url, cut a worktree, remove it`
