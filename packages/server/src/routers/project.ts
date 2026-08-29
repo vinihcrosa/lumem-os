@@ -35,10 +35,23 @@ const nameSchema = z.string().trim().min(1, "o nome não pode ficar vazio").max(
  */
 export interface ProjectView extends ProjectRow {
   available: boolean;
+  /**
+   * The repository has at least one commit, F6.13.
+   *
+   * Null when the directory is not there to be asked. Computed per request for
+   * the same reason as `available`: the first commit may happen in the terminal
+   * next door, and a stored value would be a lie that outlives the fact.
+   */
+  hasCommits: boolean | null;
 }
 
-function withAvailability(row: ProjectRow): ProjectView {
-  return { ...row, available: existsSync(row.path) };
+async function withStatus(ctx: Context, row: ProjectRow): Promise<ProjectView> {
+  const available = existsSync(row.path);
+  return {
+    ...row,
+    available,
+    hasCommits: available ? await ctx.git.hasCommits(row.path).catch(() => null) : null,
+  };
 }
 
 export interface RegisterProjectInput {
@@ -85,7 +98,7 @@ export async function registerProject(
     managed,
   });
   ctx.events.emit({ type: "project.changed", workspaceId });
-  return withAvailability(created);
+  return withStatus(ctx, created);
 }
 
 /**
@@ -125,14 +138,14 @@ export const projectRouter = router({
       const rows = await createProjectRepository(ctx.db).listByWorkspace(input.workspaceId);
       // PRD §8: a repository removed from disk stays registered and is shown
       // as unavailable, with its actions blocked.
-      return rows.map(withAvailability);
+      return Promise.all(rows.map((row) => withStatus(ctx, row)));
     }),
 
   get: publicProcedure
     .input(z.object({ id: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       const row = await createProjectRepository(ctx.db).findById(input.id);
-      return row ? withAvailability(row) : null;
+      return row ? withStatus(ctx, row) : null;
     }),
 
   add: publicProcedure
@@ -162,7 +175,7 @@ export const projectRouter = router({
       domainSafeAsync(async () => {
         const renamed = await createProjectRepository(ctx.db).rename(input.id, input.name);
         ctx.events.emit({ type: "project.changed", workspaceId: renamed.workspaceId });
-        return withAvailability(renamed);
+        return withStatus(ctx, renamed);
       }),
     ),
 

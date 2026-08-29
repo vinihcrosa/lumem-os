@@ -112,6 +112,15 @@ export interface GitService {
   resolveDefaultBranch(path: string): Promise<string>;
   /** Whether a local branch of that name already exists, F4.2. */
   branchExists(repoPath: string, branch: string): Promise<boolean>;
+  /**
+   * Whether the repository has any commit at all, F6.13.
+   *
+   * A repository cloned empty is a legitimate project (Q19) and cannot have a
+   * worktree cut from it: the branch exists as a name and not as a commit, and
+   * `git worktree add` fails on an invalid reference. Asked out loud so the
+   * screen can explain instead of letting git answer.
+   */
+  hasCommits(path: string): Promise<boolean>;
   /** `git worktree add -b`, F4.1–F4.5. */
   addWorktree(input: AddWorktreeInput): Promise<void>;
   listWorktrees(repoPath: string): Promise<WorktreeEntry[]>;
@@ -168,6 +177,8 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
   }
 
   return {
+    hasCommits,
+
     async isGitRepo(path) {
       let info;
       try {
@@ -363,6 +374,8 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       await exec(["rev-parse", "--verify", "--quiet", "HEAD"], { cwd: path });
       return true;
     } catch {
+      // `--verify --quiet` says nothing and exits non-zero on an unborn HEAD,
+      // which is the answer rather than a failure.
       return false;
     }
   }

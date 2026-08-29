@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { readdir, realpath } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -9,6 +9,7 @@ import {
   cleanupGitFixtures,
   createHeavyRepo,
   createRepo,
+  runGit,
   tempDir,
 } from "../testing/git-fixtures.js";
 import type { CloneJob } from "../git/CloneJobStore.js";
@@ -192,6 +193,54 @@ describe("project.clone", () => {
 
     const home = join(ctx.config.workspacesDir, "pessoal", "api");
     expect(await readdir(home)).toEqual(["repo"]);
+  });
+});
+
+describe("repositório vazio", () => {
+  it("clona, e o projeto nasce válido", async () => {
+    // Q19: dá para começar no Lumem no dia 0.
+    const { ctx, workspaceId } = await setup();
+    const vazio = await createRepo({ empty: true });
+
+    const job = await ctx.api.project.clone({ workspaceId, source: `file://${vazio}`, name: "dia0" });
+    const fim = await untilDone(ctx, job.id);
+
+    expect(fim.state).toBe("done");
+    const [projeto] = await ctx.api.project.listByWorkspace({ workspaceId });
+    expect(projeto).toMatchObject({ name: "dia0", available: true, hasCommits: false });
+  });
+
+  it("explica por que ainda não corta worktree, em vez de repassar o erro do git", async () => {
+    // F6.13. "invalid reference" não explica nada a ninguém.
+    const { ctx, workspaceId } = await setup();
+    const vazio = await createRepo({ empty: true });
+    const job = await ctx.api.project.clone({ workspaceId, source: `file://${vazio}`, name: "dia0" });
+    await untilDone(ctx, job.id);
+    const [projeto] = await ctx.api.project.listByWorkspace({ workspaceId });
+
+    await expect(
+      ctx.api.worktree.create({ projectId: projeto!.id, name: "teste" }),
+    ).rejects.toThrow(/ainda não tem nenhum commit/);
+  });
+
+  it("volta a cortar assim que houver um commit, sem ninguém avisar o daemon", async () => {
+    // `hasCommits` é calculado por requisição, como `available`: o primeiro
+    // commit pode acontecer no terminal ao lado, e um valor guardado seria uma
+    // mentira que sobrevive ao fato.
+    const { ctx, workspaceId } = await setup();
+    const vazio = await createRepo({ empty: true });
+    const job = await ctx.api.project.clone({ workspaceId, source: `file://${vazio}`, name: "dia0" });
+    await untilDone(ctx, job.id);
+    const [projeto] = await ctx.api.project.listByWorkspace({ workspaceId });
+
+    writeFileSync(join(projeto!.path, "primeiro.md"), "# oi\n");
+    await runGit(projeto!.path, "add", "primeiro.md");
+    await runGit(projeto!.path, "commit", "-m", "primeiro");
+
+    expect(await ctx.api.project.get({ id: projeto!.id })).toMatchObject({ hasCommits: true });
+    await expect(
+      ctx.api.worktree.create({ projectId: projeto!.id, name: "teste" }),
+    ).resolves.toMatchObject({ name: "teste" });
   });
 });
 

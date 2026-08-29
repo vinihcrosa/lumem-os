@@ -63,6 +63,19 @@ export const worktreeRouter = router({
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
         const project = await requireProject(ctx, input.projectId);
+
+        // F6.13. Without a commit there is nothing to cut from: the branch
+        // exists as a name and not as a commit, and git answers "invalid
+        // reference", which explains nothing. The screen avoids it, the server
+        // forbids it — and a repository cloned empty is legitimate (Q19), so
+        // this is a state a project can simply be in for a while.
+        if (!(await ctx.git.hasCommits(project.path))) {
+          throw new DomainError(
+            "BLOCKED",
+            `o repositório ${project.name} ainda não tem nenhum commit — faça o primeiro para poder cortar worktrees`,
+          );
+        }
+
         // The same tree for a cloned project and for one registered by path:
         // `projectHome` is a function of (workspace, project) and never of
         // `managed` (A16). The one without a clone simply has no `repo/`.
