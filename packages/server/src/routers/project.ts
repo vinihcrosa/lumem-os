@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { ProjectRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import { createProjectRepository } from "../repositories/project.js";
-import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
+import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 
 /**
  * Projects over the wire, PRD F2.1–F2.5.
@@ -31,6 +31,74 @@ export interface ProjectView extends ProjectRow {
 
 function withAvailability(row: ProjectRow): ProjectView {
   return { ...row, available: existsSync(row.path) };
+}
+
+export interface RegisterProjectInput {
+  workspaceId: string;
+  /** Absolute path to the repository root. Already final. */
+  path: string;
+  name: string;
+  /** Sanitized, or null when registered by path. */
+  remoteUrl?: string | null;
+  managed?: boolean;
+}
+
+/**
+ * The one way a project gets registered, A5.
+ *
+ * Cloning is a step **before** registering, not a second way of registering.
+ * Two routines would be two definitions of "a valid project", and the second
+ * would fall behind the first time the first one changed. With one, a clone
+ * that ends up somewhere that is not a repository root is refused exactly like
+ * a typed path — the clone gets no discount for having taken four minutes.
+ */
+export async function registerProject(
+  ctx: Context,
+  { workspaceId, path, name, remoteUrl = null, managed = false }: RegisterProjectInput,
+): Promise<ProjectView> {
+  const check = await ctx.git.isGitRepo(path);
+  if (!check.ok) {
+    // The message names which of the four checks failed — F2.2 is explicit
+    // that "invalid path" is not an answer.
+    throw new DomainError("INVALID_ARGUMENT", check.message);
+  }
+
+  // Before the insert, deliberately: a repository whose branch cannot be
+  // resolved is a repository the daemon cannot cut worktrees from, and
+  // registering it would only defer the failure to a worse moment.
+  const defaultBranch = await ctx.git.resolveDefaultBranch(path);
+
+  const created = await createProjectRepository(ctx.db).create({
+    workspaceId,
+    name,
+    path,
+    defaultBranch,
+    remoteUrl,
+    managed,
+  });
+  ctx.events.emit({ type: "project.changed", workspaceId });
+  return withAvailability(created);
+}
+
+/**
+ * The desired name, or the first free variation of it, F6.4.
+ *
+ * Called by the clone just before the final `rename`, so the directory is
+ * created with the name that will actually be registered and the bytes never
+ * move twice. Failing instead would mean throwing away a four-minute download
+ * over a string: renaming is undone with one click, the download is not.
+ */
+export async function resolveAvailableName(
+  ctx: Context,
+  workspaceId: string,
+  desired: string,
+): Promise<string> {
+  const taken = new Set(await createProjectRepository(ctx.db).namesIn(workspaceId));
+  if (!taken.has(desired)) return desired;
+  for (let suffix = 2; ; suffix += 1) {
+    const candidate = `${desired}-${suffix}`;
+    if (!taken.has(candidate)) return candidate;
+  }
 }
 
 const pathSchema = z
@@ -69,28 +137,15 @@ export const projectRouter = router({
       }),
     )
     .mutation(({ ctx, input }) =>
-      domainSafeAsync(async () => {
-        const check = await ctx.git.isGitRepo(input.path);
-        if (!check.ok) {
-          // The message names which of the four checks failed — F2.2 is
-          // explicit that "invalid path" is not an answer.
-          throw new DomainError("INVALID_ARGUMENT", check.message);
-        }
-
-        // Before the insert, deliberately: a repository whose branch cannot be
-        // resolved is a repository the daemon cannot cut worktrees from, and
-        // registering it would only defer the failure to a worse moment.
-        const defaultBranch = await ctx.git.resolveDefaultBranch(input.path);
-
-        const created = await createProjectRepository(ctx.db).create({
+      domainSafeAsync(() =>
+        // `managed` stays false here, always: there is no path by which a
+        // project registered from disk becomes one the daemon may delete (A12).
+        registerProject(ctx, {
           workspaceId: input.workspaceId,
-          name: input.name ?? basename(input.path),
           path: input.path,
-          defaultBranch,
-        });
-        ctx.events.emit({ type: "project.changed", workspaceId: input.workspaceId });
-        return withAvailability(created);
-      }),
+          name: input.name ?? basename(input.path),
+        }),
+      ),
     ),
 
   rename: publicProcedure

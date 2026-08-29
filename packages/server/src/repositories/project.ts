@@ -19,6 +19,10 @@ export interface CreateProjectInput {
   /** Absolute path to the repository root. */
   path: string;
   defaultBranch: string;
+  /** Sanitized, or null for a project registered by path, F6.8. */
+  remoteUrl?: string | null;
+  /** The Lumem cloned it, into a directory the Lumem chose. Default false. */
+  managed?: boolean;
 }
 
 export interface ProjectRepository {
@@ -26,6 +30,8 @@ export interface ProjectRepository {
   listByWorkspace(workspaceId: string): Promise<ProjectRow[]>;
   findById(id: string): Promise<ProjectRow | undefined>;
   findByPath(path: string): Promise<ProjectRow | undefined>;
+  /** Names already taken in a workspace, for F6.4 to pick the next free one. */
+  namesIn(workspaceId: string): Promise<string[]>;
   rename(id: string, name: string): Promise<ProjectRow>;
   remove(id: string): Promise<void>;
 }
@@ -83,6 +89,14 @@ export function createProjectRepository(db: Db): ProjectRepository {
 
     findByPath(path) {
       return db.query.project.findFirst({ where: eq(project.path, path) });
+    },
+
+    async namesIn(workspaceId) {
+      const rows = await db
+        .select({ name: project.name })
+        .from(project)
+        .where(eq(project.workspaceId, workspaceId));
+      return rows.map((row) => row.name);
     },
 
     async rename(id, name) {
