@@ -2,12 +2,14 @@
 #
 # Apaga o estado que este workspace criou fora do checkout.
 #
-# O worktree em si o Superset remove. O que sobreviveria é o state dir do
+# Ponto de entrada do `teardown` do Superset e do `archive` do Conductor.
+#
+# O worktree em si o harness remove. O que sobreviveria é o state dir do
 # daemon, com o banco e as worktrees que ele criou — lixo acumulando em
 # ~/.lumem-dev a cada workspace descartado.
 set -euo pipefail
 
-source "$(dirname "${BASH_SOURCE[0]}")/workspace.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 
 # Três guardas antes de um rm -rf, porque um slug vazio aqui apagaria o
 # ~/.lumem-dev inteiro — o estado de todos os outros workspaces.

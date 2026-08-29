@@ -21,6 +21,7 @@ Lendo nesta ordem você entende o projeto inteiro em três documentos:
 | [vision.md](project/vision.md) | Visão, hierarquia pretendida, o que o Vinicius quer do sistema |
 | [questions.md](project/questions.md) | 96 perguntas de design em duas rodadas. Fonte de verdade das decisões de longo prazo, respondida aos poucos |
 | [testing.md](project/testing.md) | Matriz de cobertura, o que cada gate garante, e as armadilhas de teste já corrigidas |
+| [workspaces.md](project/workspaces.md) | Os scripts de setup, run e teardown em `scripts/workspace/`, e como Superset e Conductor só apontam para eles |
 | [task-cycle-evidence.md](project/task-cycle-evidence.md) | Linha de base medida do repositório e registro de custo do ciclo dev → review → rework. Lastro dos números que a skill `lumem-task-cycle` cita |
 
 ---
