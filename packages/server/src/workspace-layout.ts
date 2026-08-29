@@ -2,7 +2,6 @@ import { lstat, mkdir, readdir, realpath } from "node:fs/promises";
 import { dirname, join, sep } from "node:path";
 
 import { DomainError } from "./errors.js";
-import { execGit, type GitExec } from "./git/exec.js";
 
 /**
  * Where everything the daemon owns lives on disk, Q20.
@@ -101,10 +100,30 @@ export function slugSegment(raw: string, fallback: string): string {
   return slug;
 }
 
+/*
+ * D4 — "o destino não está dentro de um repositório que já existe" — foi
+ * implementada, medida e **retirada**.
+ *
+ * A regra parecia certa no papel: repositório aninhado em outro é armadilha,
+ * porque o `git status` do de fora passa a mentir. O que a suíte e2e mostrou é
+ * que ela recusava **todo** clone sempre que `LUMEM_STATE_DIR` cai dentro de um
+ * checkout — que é exatamente o que o próprio harness faz, e o que qualquer dev
+ * faz ao apontar o estado para dentro do repositório em que trabalha.
+ *
+ * O argumento que decidiu não é esse, e sim a incoerência: `git worktree add`
+ * já cria checkouts nessa mesma árvore, há três features, sem objeção nenhuma.
+ * Uma regra que recusa ao clone o que a worktree faz em silêncio não protege
+ * ninguém — só torna o clone o único gesto que quebra numa configuração que o
+ * resto do produto aceita.
+ *
+ * Desde a Q14 o destino não vem mais do cliente: ele é derivado de `stateDir`.
+ * Onde o `stateDir` fica é decisão do operador, tomada uma vez, e não entrada
+ * hostil a conter a cada clone.
+ */
+
 export interface CloneTargetOptions {
   /** The root everything has to stay inside of. */
   workspacesDir: string;
-  exec?: GitExec;
 }
 
 /**
@@ -121,7 +140,7 @@ export interface CloneTargetOptions {
  */
 export async function prepareCloneTarget(
   target: string,
-  { workspacesDir, exec = execGit }: CloneTargetOptions,
+  { workspacesDir }: CloneTargetOptions,
 ): Promise<string> {
   // D1. The caller computed this from `stateDir`, so a relative path here means
   // a defect upstream rather than bad input — which is exactly why it is worth
@@ -153,7 +172,6 @@ export async function prepareCloneTarget(
 
   const resolved = join(realParent, basenameOf(target));
   await refuseIfOccupied(resolved);
-  await refuseIfNested(realParent, exec);
   return resolved;
 }
 
@@ -181,26 +199,6 @@ async function refuseIfOccupied(target: string): Promise<void> {
     throw new DomainError(
       "BLOCKED",
       `${target} já existe e tem ${entries.length} item(ns) dentro`,
-    );
-  }
-}
-
-/**
- * D4: the destination is not inside a repository that already exists.
- *
- * A repository nested inside another is a trap — the outer one's `git status`
- * starts lying about a directory it does not track. Asked of git rather than by
- * looking for `.git` by hand, because a worktree's `.git` is a file and a
- * submodule's is a pointer, and only git knows all three.
- */
-async function refuseIfNested(parent: string, exec: GitExec): Promise<void> {
-  const found = await exec(["rev-parse", "--show-toplevel"], { cwd: parent })
-    .then(({ stdout }) => stdout.trim())
-    .catch(() => "");
-  if (found !== "") {
-    throw new DomainError(
-      "BLOCKED",
-      `${parent} está dentro do repositório ${found}; um repositório aninhado em outro faz o de fora mentir`,
     );
   }
 }

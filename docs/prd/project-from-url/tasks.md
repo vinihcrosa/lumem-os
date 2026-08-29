@@ -172,7 +172,7 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 - [ ] **D1** absoluto, normalizado, derivado de `stateDir` — inclusive com `LUMEM_STATE_DIR` relativo ou com `~`
 - [ ] **D2** o destino não existe, ou existe vazio
 - [ ] **D3** o pai é criado pelo daemon quando falta, e é erro quando existe e não é diretório
-- [ ] **D4** não está dentro de repositório git existente (por `rev-parse --show-toplevel` no pai, não procurando `.git` na mão)
+- [x] ~~**D4** não está dentro de repositório git existente~~ — **implementada e retirada.** Ver o §4.4 do PRD: ela recusava todo clone com o state dir dentro de um checkout, que é o que a suíte e2e faz e o que `git worktree add` sempre aceitou em silêncio
 - [ ] **D5** `repo/` e `worktrees/` não se engolem
 - [ ] **D6** o pai é resolvido por `realpath` antes de tudo; symlink apontando para fora é reconhecido como tal
 - [ ] Cada recusa tem mensagem própria: nenhuma responde "destino inválido"

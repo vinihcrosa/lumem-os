@@ -238,7 +238,7 @@ As regras continuam existindo, com outro papel — deixam de defender contra ata
 | **D1** | Absoluto, normalizado, derivado de `stateDir` | um `stateDir` vindo de `LUMEM_STATE_DIR` ainda é entrada externa |
 | **D2** | Não existe, **ou** existe vazio | resto de clone anterior, ou projeto removido do registro sem o disco ter sido limpo |
 | **D3** | O pai existe e é diretório | `~/.lumem/workspaces/<workspace>` é criado pelo daemon, e criar é diferente de supor |
-| **D4** | Não está dentro de repositório git existente | repositório aninhado é armadilha: o `git status` do de fora passa a mentir |
+| ~~**D4**~~ | ~~Não está dentro de repositório git existente~~ | **implementada, medida e retirada.** Ela recusava *todo* clone sempre que `LUMEM_STATE_DIR` caísse dentro de um checkout — o que o próprio harness e2e faz. O que decidiu não foi a inconveniência, foi a incoerência: `git worktree add` cria checkouts nessa mesma árvore há três features, sem objeção nenhuma. Uma regra que recusa ao clone o que a worktree faz em silêncio não protege ninguém |
 | **D5** | Não colide com `projectHome/worktrees` | são irmãos na mesma pasta desde a [Q20](open-questions.md), e um clone na raiz do `projectHome` engoliria o outro |
 | **D6** | O caminho real do pai é resolvido com `realpath` antes de tudo | simbólico apontando para fora é a mesma evasão que a `path-guard` já fecha |
 

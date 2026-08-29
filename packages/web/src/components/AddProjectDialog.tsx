@@ -197,7 +197,10 @@ export function AddProjectDialog({
 function Echo({ plan }: { plan: Plan }) {
   if (plan.kind === "refused") {
     return (
-      <p className="echo echo--refused" role="alert">
+      // `status`, not `alert`: this arrives while somebody is still typing and
+      // not in response to a click. The field's own error announces on submit,
+      // and two live regions saying different things at once is worse than one.
+      <p className="echo echo--refused" role="status">
         <span className="echo__arrow" aria-hidden="true">
           ↳
         </span>

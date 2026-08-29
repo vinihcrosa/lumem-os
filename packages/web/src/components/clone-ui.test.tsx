@@ -110,7 +110,8 @@ describe("o campo que aceita as duas coisas", () => {
     await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
     await user.type(screen.getByLabelText("Caminho ou URL"), "ext::sh -c id");
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("não está na lista");
+    // `status` e não `alert`: isto chega enquanto a pessoa ainda digita.
+    expect(await screen.findByText(/não está na lista/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "adicionar" })).toBeDisabled();
   });
 

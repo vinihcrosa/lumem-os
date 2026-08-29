@@ -166,7 +166,10 @@ describe("project.clone", () => {
     // A corrida que sobra depois da checagem prévia. Falhar aqui significaria
     // apagar o download por causa de uma string.
     const { ctx, workspaceId } = await setup();
-    const origem = await createRepo();
+    // Pesado de propósito: com um repositório pequeno o clone termina antes de
+    // o concorrente registrar, e o teste passaria a exercitar o caminho feliz
+    // sem dizer que deixou de exercitar a corrida.
+    const origem = await createHeavyRepo();
     const job = await ctx.api.project.clone({ workspaceId, source: `file://${origem}`, name: "api" });
     // Enquanto o clone roda, alguém registra o nome.
     await ctx.api.project.add({ workspaceId, path: await createRepo(), name: "api" });

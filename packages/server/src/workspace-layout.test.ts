@@ -195,14 +195,17 @@ describe("prepareCloneTarget", () => {
     ).rejects.toThrow(/não é um diretório/);
   });
 
-  it("recusa um destino dentro de um repositório que já existe", async () => {
-    // D4. Perguntado ao git, e não procurando `.git` na mão: o `.git` de uma
-    // worktree é um arquivo, e o de um submódulo é um ponteiro.
+  it("aceita um destino dentro de um repositório, porque a worktree já aceita", async () => {
+    // A D4 foi implementada e retirada. Ela recusava **todo** clone sempre que
+    // `LUMEM_STATE_DIR` caísse dentro de um checkout — que é o que o harness
+    // e2e faz — enquanto `git worktree add` cria checkouts nessa mesma árvore
+    // há três features sem objeção nenhuma. Uma regra que recusa ao clone o que
+    // a worktree faz em silêncio não protege ninguém.
     const repo = await realpath(await createRepo());
 
     await expect(
       prepareCloneTarget(join(repo, "pessoal", "api", "repo"), { workspacesDir: repo }),
-    ).rejects.toThrow(/está dentro do repositório/);
+    ).resolves.toContain("repo");
   });
 
   it("recusa um destino relativo", async () => {
