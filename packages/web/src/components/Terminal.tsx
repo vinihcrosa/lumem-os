@@ -18,6 +18,14 @@ export interface TerminalProps {
   /** Injected by tests; defaults to a real websocket to the daemon. */
   connect?: PtyConnect;
   /**
+   * The session behind this view has already exited.
+   *
+   * The buffer stays on screen — that is F5.9 — but it is a record, and the
+   * view has to say so: no cursor, no focus stolen, and nothing sent to a PTY
+   * that is not there to read it.
+   */
+  readOnly?: boolean;
+  /**
    * Handed the xterm instance once it is live.
    *
    * The terminal owns its own DOM, so this is the only way anything outside can
@@ -35,8 +43,19 @@ export interface TerminalProps {
  * the socket and disposes the renderer. Neither touches the process: the
  * session outlives every view of it.
  */
-export function Terminal({ sessionId, connect = connectPtySocket, onReady, onMessage }: TerminalProps) {
+export function Terminal({
+  sessionId,
+  connect = connectPtySocket,
+  readOnly = false,
+  onReady,
+  onMessage,
+}: TerminalProps) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const terminalRef = useRef<XTerm | null>(null);
+  // Read inside the effect for the same reason the callbacks are: a session
+  // dying must not tear down the view that is showing why.
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
   // Read inside the effect so a changing callback does not tear down the
   // terminal and lose the scrollback.
   const onReadyRef = useRef(onReady);
@@ -52,7 +71,8 @@ export function Terminal({ sessionId, connect = connectPtySocket, onReady, onMes
       // The daemon replays raw bytes, escape sequences included. Anything that
       // rewrites them here would corrupt a repaint.
       convertEol: false,
-      cursorBlink: true,
+      cursorBlink: !readOnlyRef.current,
+      disableStdin: readOnlyRef.current,
       scrollback: 10_000,
       // The emulator paints a canvas and never sees the stylesheet, so its
       // palette and type have to be handed over as values. Both come from the
@@ -65,8 +85,11 @@ export function Terminal({ sessionId, connect = connectPtySocket, onReady, onMes
     const fit = new FitAddon();
     terminal.loadAddon(fit);
     terminal.open(host);
+    terminalRef.current = terminal;
     fitQuietly(fit);
-    terminal.focus();
+    // A record does not take the caret. Focusing it would put a blinking
+    // cursor on a buffer nothing can be typed into.
+    if (!readOnlyRef.current) terminal.focus();
 
     const socket = connect(sessionId, {
       onMessage(message) {
@@ -92,7 +115,12 @@ export function Terminal({ sessionId, connect = connectPtySocket, onReady, onMes
       },
     });
 
-    const typing = terminal.onData((data) => socket.send({ type: "input", data }));
+    const typing = terminal.onData((data) => {
+      // `disableStdin` already stops the keyboard; this stops everything else
+      // xterm can emit — a paste, a bracketed-paste sequence, a mouse report.
+      if (readOnlyRef.current) return;
+      socket.send({ type: "input", data });
+    });
     const resizing = terminal.onResize(({ cols, rows }) =>
       socket.send({ type: "resize", cols, rows }),
     );
@@ -120,10 +148,34 @@ export function Terminal({ sessionId, connect = connectPtySocket, onReady, onMes
       // Detach, then drop the renderer. The session keeps running on the daemon.
       socket.close();
       terminal.dispose();
+      terminalRef.current = null;
     };
   }, [sessionId, connect]);
 
-  return <div className="terminal" data-testid="terminal" ref={hostRef} />;
+  // A session that exits while its tab is open becomes a record without
+  // remounting: flipping the options in place keeps the scrollback, and the
+  // position the user had scrolled to, exactly where they were.
+  useEffect(() => {
+    const terminal = terminalRef.current;
+    if (terminal === null) return;
+    terminal.options.disableStdin = readOnly;
+    terminal.options.cursorBlink = !readOnly;
+    // A session dying while its view held focus would leave a caret blinking on
+    // a buffer nothing can be typed into. Drop the focus on the way into the
+    // record — but only if it is ours, so a click elsewhere is not stolen back.
+    if (readOnly && hostRef.current?.contains(document.activeElement)) {
+      terminal.blur();
+    }
+  }, [readOnly]);
+
+  return (
+    <div
+      className="terminal"
+      data-testid="terminal"
+      data-readonly={readOnly ? "true" : undefined}
+      ref={hostRef}
+    />
+  );
 }
 
 /**

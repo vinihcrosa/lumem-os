@@ -13,8 +13,10 @@ vi.mock("../lib/trpc.js", async () => ({
 // The terminal has its own tests; here it would only assert that jsdom still
 // has no layout.
 vi.mock("./Terminal.js", () => ({
-  Terminal: ({ sessionId }: { sessionId: string }) => (
-    <div data-testid="terminal-mock">{sessionId}</div>
+  Terminal: ({ sessionId, readOnly }: { sessionId: string; readOnly?: boolean }) => (
+    <div data-testid="terminal-mock" data-readonly={readOnly === true ? "true" : undefined}>
+      {sessionId}
+    </div>
   ),
 }));
 
@@ -159,8 +161,10 @@ describe("sessões como abas", () => {
     await openTabs(user);
 
     expect(screen.queryByRole("tab", { name: /shell/ })).not.toBeInTheDocument();
-    // The record survives the tab, which is the whole reason dropping it is safe.
-    expect(screen.getByRole("button", { name: /reabrir/ })).toBeInTheDocument();
+    // The record survives the tab, which is the whole reason dropping it is
+    // safe — and the verb says what comes back is a record (issue #14).
+    expect(screen.getByRole("button", { name: /ver registro/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reabrir/ })).not.toBeInTheDocument();
   });
 
   it("brings an exited session back as a tab on request", async () => {
@@ -170,10 +174,116 @@ describe("sessões como abas", () => {
     );
 
     await openTabs(user);
-    await user.click(screen.getByRole("button", { name: /reabrir/ }));
+    await user.click(screen.getByRole("button", { name: /ver registro/ }));
 
     // Where the output of something that crashed gets read after the fact.
     expect(screen.getByRole("tab", { name: /shell/ })).toBeInTheDocument();
+  });
+
+  it("presents the tab of a dead session as a record, not as a terminal", async () => {
+    // Issue #14: the reopened tab looked exactly like a live one — same head,
+    // same blinking cursor — and typing into it failed in silence.
+    const user = userEvent.setup();
+    trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
+      scopeType === "worktree" ? [session({ state: "exited", exitCode: 1 })] : [],
+    );
+
+    await openTabs(user);
+    await user.click(screen.getByRole("button", { name: /ver registro/ }));
+
+    expect(screen.getByRole("tab", { name: /registro/ })).toBeInTheDocument();
+    const panel = screen.getByRole("tabpanel", { name: /registro de shell/ });
+    expect(within(panel).getByText(/somente leitura/)).toBeInTheDocument();
+    expect(within(panel).getByTestId("terminal-mock")).toHaveAttribute("data-readonly", "true");
+  });
+
+  it("offers the same session again as the way back to working", async () => {
+    // The dead process cannot be resumed, so the record says what it is and
+    // points at the only thing the daemon can actually do.
+    const user = userEvent.setup();
+    trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
+      scopeType === "worktree" ? [session({ state: "exited", exitCode: 1 })] : [],
+    );
+    trpc.session.createShell.mutate.mockImplementation(async () => {
+      const created = session({ id: "s2" });
+      trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
+        scopeType === "worktree"
+          ? [session({ state: "exited", exitCode: 1 }), created]
+          : [],
+      );
+      return created;
+    });
+
+    await openTabs(user);
+    await user.click(screen.getByRole("button", { name: /ver registro/ }));
+    await user.click(screen.getByRole("button", { name: /nova sessão igual/ }));
+
+    await waitFor(() =>
+      expect(trpc.session.createShell.mutate).toHaveBeenCalledWith({
+        scopeType: "worktree",
+        scopeId: "wt1",
+      }),
+    );
+    // The new tab is the one in front, and it is a live terminal.
+    const live = await screen.findByRole("tabpanel", { name: "sessão shell" });
+    expect(within(live).getByTestId("terminal-mock")).toHaveTextContent("s2");
+    expect(within(live).getByTestId("terminal-mock")).not.toHaveAttribute("data-readonly");
+  });
+
+  it("starts the agent again from the record of an agent session", async () => {
+    const user = userEvent.setup();
+    trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
+      scopeType === "worktree"
+        ? [
+            session({
+              kind: "agent",
+              agentConfigId: "ac1",
+              agentName: "claude-code",
+              state: "exited",
+              exitCode: 1,
+            }),
+          ]
+        : [],
+    );
+    trpc.session.createAgent.mutate.mockResolvedValue(session({ id: "s2" }));
+
+    await openTabs(user);
+    await user.click(screen.getByRole("button", { name: /ver registro/ }));
+    await user.click(screen.getByRole("button", { name: /nova sessão igual/ }));
+
+    await waitFor(() =>
+      expect(trpc.session.createAgent.mutate).toHaveBeenCalledWith({
+        scopeType: "worktree",
+        scopeId: "wt1",
+        agentConfigId: "ac1",
+      }),
+    );
+  });
+
+  it("says why starting the session again was refused", async () => {
+    const user = userEvent.setup();
+    trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
+      scopeType === "worktree"
+        ? [
+            session({
+              kind: "agent",
+              agentConfigId: "ac1",
+              agentName: "claude-code",
+              state: "exited",
+              exitCode: 1,
+            }),
+          ]
+        : [],
+    );
+    trpc.session.createAgent.mutate.mockRejectedValue(
+      new Error('"claude" não está no PATH do servidor'),
+    );
+
+    await openTabs(user);
+    await user.click(screen.getByRole("button", { name: /ver registro/ }));
+    await user.click(screen.getByRole("button", { name: /nova sessão igual/ }));
+
+    expect(await screen.findByText(/não está no PATH do servidor/)).toBeInTheDocument();
   });
 
   it("tells homonyms apart with an ordinal", async () => {

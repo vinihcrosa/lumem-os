@@ -369,6 +369,21 @@ describe("Tab", () => {
 
     expect(screen.getByRole("tab", { name: "claude-code 2" })).toBeInTheDocument();
   });
+
+  it("says when a tab is a record rather than live work", () => {
+    // The state dot answers "how did it end". The note answers "what is this",
+    // which is what issue #14 found nothing on the tab was saying.
+    render(
+      <>
+        <Tab label="shell" state="running" onSelect={vi.fn()} />
+        <Tab label="shell" state="failed" note="registro" onSelect={vi.fn()} />
+      </>,
+    );
+
+    const [live, record] = screen.getAllByRole("tab");
+    expect(live).toHaveAccessibleName("shell");
+    expect(record).toHaveAccessibleName("shell registro");
+  });
 });
 
 describe("TabStrip", () => {

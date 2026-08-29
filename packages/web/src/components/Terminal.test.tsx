@@ -52,13 +52,14 @@ function screen(terminal: XTerm): string {
   return lines.join("\n");
 }
 
-function renderTerminal(sessionId = "s1") {
+function renderTerminal(sessionId = "s1", readOnly = false) {
   const { connect, state, deliver } = fakeConnect();
   let terminal: XTerm | undefined;
   const result = render(
     <Terminal
       sessionId={sessionId}
       connect={connect}
+      readOnly={readOnly}
       onReady={(instance) => {
         terminal = instance;
       }}
@@ -160,6 +161,55 @@ describe("Terminal", () => {
     // A frame in flight when the view goes away must not explode.
     expect(() => deliver({ type: "output", data: "after unmount" })).not.toThrow();
     expect(state.closes).toBe(1);
+  });
+
+  it("refuses to send anything from the record of a session that exited", () => {
+    // Issue #14: the buffer of a dead session stays readable, but it is a
+    // record. Typing into it used to fail in silence — now the view does not
+    // pretend there is a prompt.
+    const { state, terminal, getByTestId } = renderTerminal("s1", true);
+
+    terminal.input("ls\r");
+
+    expect(state.sent).toEqual([]);
+    expect(terminal.options.disableStdin).toBe(true);
+    expect(terminal.options.cursorBlink).toBe(false);
+    expect(getByTestId("terminal")).toHaveAttribute("data-readonly", "true");
+  });
+
+  it("turns into a record in place when the session dies under it", () => {
+    // The tab is open and the process exits. Remounting would repaint and lose
+    // where the user had scrolled to, so the options flip in place instead.
+    const { connect, state } = fakeConnect();
+    let terminal: XTerm | undefined;
+    const view = (readOnly: boolean) => (
+      <Terminal
+        sessionId="a"
+        connect={connect}
+        readOnly={readOnly}
+        onReady={(instance) => {
+          terminal = instance;
+        }}
+      />
+    );
+
+    const { rerender } = render(view(false));
+    terminal?.input("while alive\r");
+    // Live, it holds the caret — that is what dying under focus has to undo.
+    expect(document.activeElement).toBe(terminal?.textarea);
+    rerender(view(true));
+    terminal?.input("after it died\r");
+
+    // Same attachment, no reconnect — and only what was typed while the
+    // session was alive ever left the browser.
+    expect(state.attachedTo).toEqual(["a"]);
+    expect(state.closes).toBe(0);
+    expect(state.sent).toEqual([{ type: "input", data: "while alive\r" }]);
+    // And the emulator itself knows: no caret, no stdin, without a remount.
+    expect(terminal?.options.disableStdin).toBe(true);
+    expect(terminal?.options.cursorBlink).toBe(false);
+    // The focus it held while alive is dropped, so no caret blinks on the record.
+    expect(document.activeElement).not.toBe(terminal?.textarea);
   });
 
   it("reattaches when the session changes", () => {

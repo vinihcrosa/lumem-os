@@ -140,6 +140,9 @@ export function ScopePanel({ scope, header, context, cwd, openSessionId }: Scope
                     ? "exited"
                     : "failed"
             }
+            // The dot alone said "exited", which a session that has just died
+            // also says. This says what the tab *is*: something to read (D5).
+            note={tab.state === "running" ? undefined : "registro"}
             active={activeId === tab.sessionId}
             onSelect={() => select(tab.sessionId)}
             onClose={() => {
@@ -211,8 +214,14 @@ export function ScopePanel({ scope, header, context, cwd, openSessionId }: Scope
                       // The record outlives the tab, and so does the daemon's
                       // ring buffer — this is how the output of something that
                       // crashed gets read after its tab went away.
+                      //
+                      // Only an exited session ever lands here — a running one
+                      // cannot lose its tab. The verb has to be honest about
+                      // what comes back: a PTY tab is a frozen buffer, so "ver
+                      // registro" (issue #14); an ACP conversation reopens
+                      // readable and can still be continued, so "reabrir" (D13).
                       <Button size="sm" variant="ghost" onClick={() => reopen(session.id)}>
-                        reabrir
+                        {session.transport === "acp" ? "reabrir" : "ver registro"}
                       </Button>
                     )
                   }
@@ -228,7 +237,9 @@ export function ScopePanel({ scope, header, context, cwd, openSessionId }: Scope
         <SessionTabPanel
           key={tab.sessionId}
           tab={tab}
+          scope={scope}
           cwd={cwd}
+          onStarted={select}
           active={activeId === tab.sessionId}
           viewer={viewerFor(tab.sessionId)}
           // Only a conversation can be resumed; a PTY tab gets no button, because

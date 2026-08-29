@@ -2,8 +2,8 @@
 
 **Protótipo:** `packages/web/prototype/lumem-tabs.html`
 **Sucede:** [ui-shell](../ui-shell/tasks.md), que vestiu a árvore de três níveis
-**Status:** concluída — 7 de 7 entregues, gate cheio verde
-**Total:** 7 tasks
+**Status:** concluída — 8 de 8 entregues, gate cheio verde
+**Total:** 8 tasks (a oitava veio depois, da [issue #14](https://github.com/vinihcrosa/lumem-os/issues/14))
 
 ---
 
@@ -25,7 +25,7 @@ Decidido pelo Vinicius: *"não devem ter abas mortas, só vai poluir a UI"*.
 
 O custo: o F5.9 do walking-skeleton diz que o buffer de uma sessão morta continua legível até você fechar — e é ali que mora o motivo de um agente ter caído, que o exit code sozinho não conta.
 
-A conciliação não custa nada no servidor. Fechar a aba de uma sessão encerrada é **só descartar a visão**: o `sessionStore.close` já é no-op para sessão que saiu, o registro permanece e o ring buffer continua na memória do daemon. Então a aba some, a sessão continua listada na aba de contexto com seu exit code, e o botão `reabrir` traz o buffer de volta como aba enquanto ele existir.
+A conciliação não custa nada no servidor. Fechar a aba de uma sessão encerrada é **só descartar a visão**: o `sessionStore.close` já é no-op para sessão que saiu, o registro permanece e o ring buffer continua na memória do daemon. Então a aba some, a sessão continua listada na aba de contexto com seu exit code, e o botão `ver registro` traz o buffer de volta como aba enquanto ele existir — como registro, não como terminal (D5).
 
 ### D2 — `local` é a worktree do próprio checkout.
 
@@ -40,6 +40,23 @@ Com as sessões fora da árvore, a linha precisa dizer *quanto* está vivo ali d
 ### D4 — Homônimo ganha índice.
 
 Sessão não tem nome — só o da configuração de agente. Três `claude-code` na mesma worktree são três abas iguais, então a segunda em diante recebe um ordinal. Renomear sessão é campo novo no contrato e fica fora.
+
+### D5 — Aba de sessão encerrada é registro, e se apresenta como tal.
+
+A D1 diz que aba é trabalho vivo e o F5.9 diz que o buffer de uma sessão morta continua legível. As duas juntas produziram o que a [issue #14](https://github.com/vinihcrosa/lumem-os/issues/14) achou: `reabrir` devolvia uma aba idêntica à de uma sessão viva — mesmo cabeçalho, mesmo cursor piscando — onde digitar não fazia nada e não dizia nada.
+
+O comportamento estava certo; a **afordância** estava mentindo. O que muda é só o que a tela promete:
+
+| Antes | Agora |
+|---|---|
+| botão `reabrir` | botão `ver registro` — só sessão encerrada chega aqui, porque viva não perde aba |
+| aba igual à de sessão viva, com o ponto de estado como único sinal | aba com a nota `registro` ao lado do rótulo |
+| cursor piscando, foco roubado, digitar falha calado | terminal em somente leitura: `disableStdin`, sem cursor, sem foco, e nada sai do navegador |
+| nenhuma saída dali | frase dizendo o que é aquilo, e `nova sessão igual` ao lado |
+
+**O que continua fora:** retomar o processo morto. O daemon não tem isso — o PTY acabou —, então a tela não insinua que tem. `nova sessão igual` abre uma sessão nova, com o mesmo comando e no mesmo escopo, e é a coisa mais próxima que existe de verdade. Retomar contexto de agente (o `/resume` do Claude CLI) é feature própria, não afordância de aba.
+
+A troca de somente leitura acontece **no lugar**, sem remontar: sessão que morre com a aba aberta viraria repintura e perderia a rolagem de quem estava lendo.
 
 ---
 
@@ -173,12 +190,32 @@ Sessão não tem nome — só o da configuração de agente. Três `claude-code`
 
 ---
 
+#### W8: O registro de uma sessão encerrada
+
+**What**: A aba de sessão morta para de se passar por terminal (D5, issue #14).
+**Where**: `packages/web/src/components/{Terminal,SessionTab,ScopePanel}.tsx`, `hooks/useWorktreeTabs.ts`, `ui/{Tab,Styleguide}.tsx`, `ui.css`, `terminal.css`, os testes de `Terminal`, `session-ui` e `ui`, e `e2e/session-record.spec.ts`
+**Depends on**: W6
+
+**Done when**:
+- [x] `Terminal` aceita `readOnly`: `disableStdin`, sem cursor, sem roubar foco, e nada enviado ao daemon — nem tecla, nem colagem, nem relatório de mouse
+- [x] Sessão que morre com a aba aberta vira registro **sem remontar**, preservando o scrollback
+- [x] Aba de encerrada leva a nota `registro`; o painel leva chip, frase de somente leitura e `nova sessão igual`
+- [x] `ver registro` no lugar de `reabrir` na lista da aba de contexto
+- [x] `nova sessão igual` abre shell ou agente conforme a sessão de origem, e a recusa do daemon aparece na tela
+- [x] Gate: `pnpm gate:full`
+- [x] Test count: 2 unit no `Terminal`, 4 unit de fluxo, 1 na primitiva de aba, 1 e2e com PTY de verdade saindo por `exit`
+
+**Tests**: unit + e2e · **Gate**: full
+**Commit**: `fix(web): the tab of a dead session is a record, and says so`
+
+---
+
 ## Risco
 
 | O quê | Por quê | Mitigação |
 |---|---|---|
 | Trocar de aba desmontando o terminal | Seria a regressão mais cara da mudança: mata o buffer e força repintura a cada troca | W6 tem teste dedicado; abas inativas ficam montadas e escondidas |
-| Aba somindo sozinha assusta | A sessão sai e a aba desaparece sem o usuário ter pedido | A linha continua na aba de contexto com exit code e `reabrir` (D1) |
+| Aba somindo sozinha assusta | A sessão sai e a aba desaparece sem o usuário ter pedido | A linha continua na aba de contexto com exit code e `ver registro` (D1, D5) |
 | `local` confundido com worktree de verdade | Remover `local` seria remover o projeto | Glifo próprio e aviso na tela (D2) |
 
 ## O que a execução achou
@@ -186,5 +223,7 @@ Sessão não tem nome — só o da configuração de agente. Três `claude-code`
 **A recusa da remoção renderizava dentro da aba de contexto.** O botão vive no cabeçalho, que está sempre visível, mas o aviso caía num painel que podia estar fechado — clicar e não ver nada. Foi pro cabeçalho, junto da ação.
 
 **A confirmação de forçar escondia o botão normal.** Depois de encerrar as sessões que o daemon nomeou, não havia como tentar de novo pelo caminho seguro: só forçar. O botão ficou.
+
+**A aba de uma sessão morta mentia por omissão.** Foi a [issue #14](https://github.com/vinihcrosa/lumem-os/issues/14), depois da entrega: o comportamento decidido na D1 estava implementado corretamente e ainda assim errado na tela, porque nada distinguia ler de trabalhar. O custo de conciliar D1 e F5.9 não era zero como a decisão dizia — era um rótulo, uma frase e um `disableStdin`. Está na D5 e na W8.
 
 **Aba montada é aba que responde por si.** Com todas as sessões montadas ao mesmo tempo, `.xterm-rows` passou a casar uma por aba, e os e2e tiveram de mirar `[role=tabpanel]:not([hidden])`. É o preço de não desmontar — e valeu: teste ao vivo confirma que trocar de aba preserva o buffer.
