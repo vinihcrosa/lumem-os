@@ -118,13 +118,13 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 **Depends on**: nada
 
 **Done when**:
-- [ ] Os nove estados existem: caminho local; URL reconhecida (https/ssh/file, com **"sem TLS"** no caso `http`); URL recusada com motivo; clonando com as quatro fases; **falha de autenticação com as duas saídas e o botão de converter para ssh**; falha genérica dispensável; concluído com nome ajustado; **confirmação de remoção com o caminho que vai sumir**; **projeto sem commit no diálogo de worktree**
-- [ ] O destino aparece como **resposta**, não como campo — e tem o gesto de copiar (A8)
-- [ ] O progresso está **na sidebar**, não num modal, e a barra indeterminada tem forma própria
-- [ ] A confirmação de remoção é desenhada como o que ela é: a mais perigosa das nove
-- [ ] Nenhuma cor literal: tudo por token existente. Token novo, se houver, sai do gerador (`packages/web/scripts/generate-tokens.py`) e a suíte de contraste continua toda AA ou melhor
-- [ ] Verificado por renderização, não por leitura do HTML
-- [ ] O que a renderização achou vai para o §3 do PRD, como nas quatro features anteriores
+- [x] Os nove estados existem: caminho local; URL reconhecida (https/ssh/file, com **"sem TLS"** no caso `http`); URL recusada com motivo; clonando com as quatro fases; **falha de autenticação com as duas saídas e o botão de converter para ssh**; falha genérica dispensável; concluído com nome ajustado; **confirmação de remoção com o caminho que vai sumir**; **projeto sem commit no diálogo de worktree**
+- [x] O destino aparece como **resposta**, não como campo — e tem o gesto de copiar (A8). **A primeira versão errou isto** e a renderização pegou
+- [x] O progresso está **na sidebar**, não num modal, e a barra indeterminada tem forma própria
+- [x] A confirmação de remoção é desenhada como o que ela é: a mais perigosa das nove
+- [x] Nenhuma cor literal: tudo por token existente. **Nenhum token novo foi preciso** — o que a feature pede já existia em `save/*`, `danger/*` e `warning/*`
+- [x] Verificado por renderização, não por leitura do HTML — e ela pegou quatro coisas, uma delas um defeito do gerador que deixava as telas vazias
+- [x] O que a renderização achou vai para o §3 do PRD, como nas quatro features anteriores
 
 **Tests**: renderização · **Gate**: nenhum (não há código de app)
 **Commit**: `docs(prototype): draw the nine states of cloning and removing a project`

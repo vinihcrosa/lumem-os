@@ -134,6 +134,19 @@ Estados que o protótipo tem que mostrar, porque são eles que o desenho erra (n
 8. **confirmação de remoção de projeto gerenciado**, com o caminho que vai sumir — a tela nova que o §2.1 criou, e a mais perigosa das nove;
 9. **projeto sem nenhum commit** no diálogo de criar worktree, explicando por que ainda não dá (F6.13) — a tela que o §2.2 trouxe de carona.
 
+#### O que a renderização achou
+
+Quatro coisas que só apareceram com a tela na frente, e nenhuma delas estava no texto:
+
+| # | O que a renderização mostrou | O que mudou |
+|---|---|---|
+| 1 | O campo **"Vai em"** foi desenhado como os campos acima dele e ficou **indistinguível de um input** — exatamente o mal-entendido que a Q14 existe para evitar | Perdeu caixa, borda e altura de controle. É texto monoespaçado com um botão de copiar, e não um controle |
+| 2 | O botão que converte para `ssh` levava a URL inteira no rótulo, quebrava em duas linhas e dominava o cartão de falha | Virou **"tentar por ssh"**, com a URL resultante logo abaixo, em texto |
+| 3 | Os dois textos de remoção — apagar o clone e tirar da lista — **são** distinguíveis à primeira leitura pela cor e pela borda, o que era a dúvida do §3 | Nada a mudar. Confirmado, não suposto |
+| 4 | A barra indeterminada precisa de forma própria: com largura fixa ela lê como "35%" | Ganhou movimento, e a fase escreve por extenso que não há porcentagem |
+
+Um erro do próprio gerador do protótipo também só apareceu na renderização: as telas saíam com o texto de nota no lugar do corpo, e a página parecia vazia abaixo das abas. Ler o HTML não teria pego.
+
 ---
 
 ## 4. Segurança
