@@ -6,7 +6,7 @@ Projeto pessoal. Inspirado em compozy, superset e conductor — **não copia nad
 
 ## Estado atual
 
-Cinco features de pé — [walking-skeleton](docs/prd/walking-skeleton/tasks.md), [ui-shell](docs/prd/ui-shell/tasks.md), [worktree-tabs](docs/prd/worktree-tabs/tasks.md), [right-panel](docs/prd/right-panel/tasks.md) e [file-editor](docs/prd/file-editor/tasks.md) — esta última faz o daemon **escrever** no repositório, com autosave e CRUD pela árvore. Comece pelo [índice da documentação](docs/README.md).
+Cinco features de pé — [walking-skeleton](docs/prd/walking-skeleton/tasks.md), [ui-shell](docs/prd/ui-shell/tasks.md), [worktree-tabs](docs/prd/worktree-tabs/tasks.md), [right-panel](docs/prd/right-panel/tasks.md) e [file-editor](docs/prd/file-editor/tasks.md) — esta última faz o daemon **escrever** no repositório, com autosave e CRUD pela árvore. Uma sexta, [project-from-url](docs/prd/project-from-url/prd.md), está **especificada e ainda não construída**: criar projeto clonando de uma URL git qualquer. Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
 |---|---|

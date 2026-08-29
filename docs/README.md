@@ -1,6 +1,6 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md).
+Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Uma sexta, [project-from-url](prd/project-from-url/prd.md), está **especificada e ainda não construída**.
 
 ---
 
@@ -92,6 +92,16 @@ Sucede a `right-panel`. O split da aba **escreve**: editar o arquivo aberto com 
 | [prd.md](prd/file-editor/prd.md) | Por que o não-objetivo foi revertido, a segurança da escrita, a concorrência com o agente, riscos |
 | [open-questions.md](prd/file-editor/open-questions.md) | 24 perguntas, 21 respondidas |
 | [tasks.md](prd/file-editor/tasks.md) | 6 decisões e 13 tasks em 5 fases, mais as premissas travadas e as 20 pendências numeradas — **todas entregues**, mais o que o portão não prova |
+
+### [project-from-url/](prd/project-from-url/) — o projeto vem de uma URL
+
+Sucede a `file-editor`, e é a única pasta **especificada e não construída**. Hoje só se registra repositório que já está no disco; esta feature clona de qualquer URL git — GitHub, GitLab, Gitea, servidor da empresa. É a primeira em que o daemon **executa rede a partir de uma string colada** e a primeira em que ele **apaga** um diretório, o que faz da segurança a maior seção do PRD. Reverte o F2.5 do walking-skeleton para projeto gerenciado, e reorganiza o diretório de estado numa árvore só — `~/.lumem/workspaces/<workspace>/<projeto>/{repo,worktrees}`.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/project-from-url/prd.md) | Escopo, a lista de permissão de transporte, o segredo que morre na fronteira, o clone como job, e por que remover um projeto clonado agora **apaga** o clone |
+| [open-questions.md](prd/project-from-url/open-questions.md) | 22 perguntas, **todas respondidas**. Quatro respostas derrubaram desenho |
+| [tasks.md](prd/project-from-url/tasks.md) | 11 decisões e 17 tasks em 5 fases, mais as 10 pendências numeradas |
 
 ---
 
