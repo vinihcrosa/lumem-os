@@ -145,6 +145,8 @@ Quatro coisas que só apareceram com a tela na frente, e nenhuma delas estava no
 | 3 | Os dois textos de remoção — apagar o clone e tirar da lista — **são** distinguíveis à primeira leitura pela cor e pela borda, o que era a dúvida do §3 | Nada a mudar. Confirmado, não suposto |
 | 4 | A barra indeterminada precisa de forma própria: com largura fixa ela lê como "35%" | Ganhou movimento, e a fase escreve por extenso que não há porcentagem |
 
+| 5 | **O protótipo escondia o campo Nome no caminho local** — e implementar isso teria apagado o F2.3 em silêncio | O campo aparece nos dois casos. Nomear um projeto diferente da pasta existe desde o walking-skeleton e não tem nada a ver com clonar. Achado na implementação, não no desenho |
+
 Um erro do próprio gerador do protótipo também só apareceu na renderização: as telas saíam com o texto de nota no lugar do corpo, e a página parecia vazia abaixo das abas. Ler o HTML não teria pego.
 
 ---

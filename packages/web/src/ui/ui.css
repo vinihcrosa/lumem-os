@@ -109,6 +109,8 @@
   color: var(--color-worktree-missing);
   border-color: var(--color-border-danger);
 }
+/* Sem TLS: aviso, e não erro — a URL funciona, o que não há é sigilo. */
+.chip--insecure { color: var(--color-text-warning); }
 .chip--running { color: var(--color-session-running); }
 .chip--exited { color: var(--color-session-exited); }
 .chip--failed {
