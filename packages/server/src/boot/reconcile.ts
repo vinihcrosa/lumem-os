@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
-import { mkdir, rename } from "node:fs/promises";
-import { dirname } from "node:path";
+import { mkdir, readdir, rename, rm } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
 import type { FastifyBaseLogger } from "fastify";
 
@@ -39,6 +39,9 @@ export interface LayoutMigrationReport {
   moved: number;
   failed: number;
 }
+
+/** The prefix `cloneRepository` gives the only directory it leaves lying about. */
+export const CLONE_TEMP_PREFIX = ".lumem-clone-";
 
 export interface ReconcileReport {
   checked: number;
@@ -181,6 +184,46 @@ export async function migrateWorktreeLayout({
 }
 
 /**
+ * What an interrupted clone left behind, F6.7.
+ *
+ * A clone runs for minutes, so the daemon dying in the middle of one is the
+ * ordinary case rather than the rare one. The job that knew about it was in
+ * memory and died with the process (Q4) — which is exactly why the temporary
+ * directory is named after a fixed prefix instead: the sweep recognises it
+ * without needing to have been told anything.
+ *
+ * Nothing outside that prefix is touched, ever. This function deletes, and a
+ * function that deletes has to be boring about what it matches.
+ */
+export async function reconcileClones({ config, log }: BootOptions): Promise<number> {
+  let removed = 0;
+
+  for (const workspace of await subdirectories(config.workspacesDir)) {
+    for (const project of await subdirectories(workspace)) {
+      for (const entry of await readdir(project, { withFileTypes: true }).catch(() => [])) {
+        if (!entry.name.startsWith(CLONE_TEMP_PREFIX)) continue;
+        try {
+          await rm(join(project, entry.name), { recursive: true, force: true });
+          removed += 1;
+        } catch (error) {
+          // Same rule as everything else at boot: one path nobody can delete
+          // must not stop the daemon from starting.
+          log?.warn({ path: join(project, entry.name), err: error }, "não deu para limpar clone");
+        }
+      }
+    }
+  }
+
+  if (removed > 0) log?.info({ removed }, "restos de clone removidos");
+  return removed;
+}
+
+async function subdirectories(path: string): Promise<string[]> {
+  const entries = await readdir(path, { withFileTypes: true }).catch(() => []);
+  return entries.filter((entry) => entry.isDirectory()).map((entry) => join(path, entry.name));
+}
+
+/**
  * Everything the daemon aligns before it accepts a connection.
  *
  * Seeding is part of it: F6.4 promises the Claude Code configuration exists,
@@ -188,6 +231,7 @@ export async function migrateWorktreeLayout({
  */
 export async function reconcileOnBoot(options: BootOptions): Promise<{
   layout: LayoutMigrationReport;
+  clones: number;
   worktrees: ReconcileReport;
   orphanSessions: number;
 }> {
@@ -195,7 +239,8 @@ export async function reconcileOnBoot(options: BootOptions): Promise<{
   // Before the reconciliation, not after: it is the one that decides which
   // worktrees are missing, and it has to judge the paths the migration wrote.
   const layout = await migrateWorktreeLayout(options);
+  const clones = await reconcileClones(options).catch(() => 0);
   const worktrees = await reconcileWorktrees(options);
   const orphanSessions = await reconcileOrphanSessions(options);
-  return { layout, worktrees, orphanSessions };
+  return { layout, clones, worktrees, orphanSessions };
 }

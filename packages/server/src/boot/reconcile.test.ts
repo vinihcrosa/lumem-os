@@ -16,6 +16,7 @@ import { cleanupGitFixtures, createRepo, runGit, tempDir } from "../testing/git-
 import { loadConfig } from "../config.js";
 import {
   migrateWorktreeLayout,
+  reconcileClones,
   reconcileOnBoot,
   reconcileOrphanSessions,
   reconcileWorktrees,
@@ -339,6 +340,55 @@ describe("migrateWorktreeLayout", () => {
       expect((await createWorktreeRepository(db).findById(worktreeId))!.path).toContain(
         "workspaces",
       );
+    });
+  });
+});
+
+describe("reconcileClones", () => {
+  /** A árvore que um clone interrompido deixa: `<ws>/<projeto>/.lumem-clone-x`. */
+  function withLeftovers(config: ReturnType<typeof loadConfig>): {
+    lixo: string;
+    repo: string;
+  } {
+    const home = join(config.workspacesDir, "pessoal", "api");
+    const lixo = join(home, ".lumem-clone-j1");
+    const repo = join(home, "repo");
+    for (const dir of [lixo, repo]) mkdirSync(dir, { recursive: true });
+    return { lixo, repo };
+  }
+
+  it("remove o temporário e conta quantos removeu", async () => {
+    await withTestDb(async (db) => {
+      const config = testConfig();
+      const { lixo, repo } = withLeftovers(config);
+
+      const removed = await reconcileClones({ db, config });
+
+      expect(removed).toBe(1);
+      expect(existsSync(lixo)).toBe(false);
+      expect(existsSync(repo)).toBe(true);
+    });
+  });
+
+  it("não toca em nada que não case com o prefixo", async () => {
+    // Esta função apaga. Uma função que apaga tem que ser chata com o que casa.
+    await withTestDb(async (db) => {
+      const config = testConfig();
+      const home = join(config.workspacesDir, "pessoal", "api");
+      mkdirSync(join(home, "nao-e-clone"), { recursive: true });
+      mkdirSync(join(home, "lumem-clone-sem-ponto"), { recursive: true });
+
+      await reconcileClones({ db, config });
+
+      expect(existsSync(join(home, "nao-e-clone"))).toBe(true);
+      expect(existsSync(join(home, "lumem-clone-sem-ponto"))).toBe(true);
+    });
+  });
+
+  it("não reclama quando a árvore ainda não existe", async () => {
+    // Primeiro boot de uma instalação nova.
+    await withTestDb(async (db) => {
+      await expect(reconcileClones({ db, config: testConfig() })).resolves.toBe(0);
     });
   });
 });
