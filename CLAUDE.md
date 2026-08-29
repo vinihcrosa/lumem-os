@@ -13,6 +13,7 @@ Cinco features de pé — [walking-skeleton](docs/prd/walking-skeleton/tasks.md)
 | [docs/project/vision.md](docs/project/vision.md) | visão do projeto, escrita pelo Vinicius |
 | [docs/project/questions.md](docs/project/questions.md) | perguntas de design do projeto, respondidas aos poucos |
 | [docs/project/testing.md](docs/project/testing.md) | matriz de cobertura, gates, e as armadilhas já corrigidas |
+| [docs/project/workspaces.md](docs/project/workspaces.md) | scripts de setup/run/teardown, isolamento de portas e state dir por worktree |
 | [docs/references/](docs/references/) | estudo das três referências + comparativo |
 | [docs/prd/](docs/prd/) | PRD, decisões e tasks por feature |
 
