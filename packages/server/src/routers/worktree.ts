@@ -1,13 +1,14 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
 
 import { z } from "zod";
 
-import type { WorktreeRow } from "../db/schema.js";
+import type { ProjectRow, WorktreeRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import { createProjectRepository } from "../repositories/project.js";
+import { createWorkspaceRepository } from "../repositories/workspace.js";
 import { createWorktreeRepository } from "../repositories/worktree.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
+import { projectHome, worktreeDir } from "../workspace-layout.js";
 
 /**
  * Worktrees over the wire, PRD F4.1–F4.10.
@@ -42,15 +43,26 @@ function withPresence(row: WorktreeRow): WorktreeView {
   return { ...row, present: existsSync(row.path) };
 }
 
-/** `~/.lumem/worktrees/<projeto>/<nome>`, F4.4 — outside the repository. */
-export function worktreePath(worktreesDir: string, projectName: string, name: string): string {
-  return join(worktreesDir, projectName, name);
-}
-
 async function requireProject(ctx: Context, projectId: string) {
   const project = await createProjectRepository(ctx.db).findById(projectId);
   if (!project) throw new DomainError("NOT_FOUND", `projeto ${projectId} não existe`);
   return project;
+}
+
+/**
+ * Where this project's worktrees live, F6.12.
+ *
+ * The workspace is looked up rather than passed in because since Q20 the path
+ * needs it: `project_name_per_workspace` is unique per workspace and not
+ * globally, so two workspaces may legitimately both have an `api`, and one
+ * segment less would collide them on disk.
+ */
+export async function homeOfProject(ctx: Context, project: ProjectRow): Promise<string> {
+  const workspace = await createWorkspaceRepository(ctx.db).findById(project.workspaceId);
+  if (!workspace) {
+    throw new DomainError("NOT_FOUND", `workspace ${project.workspaceId} não existe`);
+  }
+  return projectHome(ctx.config.workspacesDir, workspace.name, project.name);
 }
 
 export const worktreeRouter = router({
@@ -66,7 +78,10 @@ export const worktreeRouter = router({
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
         const project = await requireProject(ctx, input.projectId);
-        const path = worktreePath(ctx.config.worktreesDir, project.name, input.name);
+        // The same tree for a cloned project and for one registered by path:
+        // `projectHome` is a function of (workspace, project) and never of
+        // `managed` (A16). The one without a clone simply has no `repo/`.
+        const path = worktreeDir(await homeOfProject(ctx, project), input.name);
 
         // git first. If this throws — branch taken, target occupied, repository
         // gone — nothing has been written, which is exactly what §8 requires.

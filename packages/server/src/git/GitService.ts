@@ -117,6 +117,21 @@ export interface GitService {
   listWorktrees(repoPath: string): Promise<WorktreeEntry[]>;
   /** `git worktree remove`. Never deletes the branch, F4.7. */
   removeWorktree(input: RemoveWorktreeInput): Promise<void>;
+  /**
+   * `git worktree repair`, after a checkout has been moved, F6.12.
+   *
+   * A worktree keeps **absolute** paths on both sides of its link: the `.git`
+   * file inside it, and `gitdir` under `<repo>/.git/worktrees/<nome>/`. A plain
+   * `mv` only invalidates the second one — measured, not assumed: the moved
+   * checkout still answers `git status`, because its own `.git` points at a
+   * repository that did not move.
+   *
+   * What breaks is the repository's side. It goes on listing the old path, and
+   * a `git worktree prune` — which git runs on its own during several ordinary
+   * operations — then deletes the administrative directory of a worktree it
+   * believes is gone. The checkout breaks later, far from the move that did it.
+   */
+  repairWorktree(input: { repoPath: string; path: string }): Promise<void>;
   getStatus(path: string): Promise<WorktreeStatus>;
   getAheadBehind(path: string, baseBranch: string): Promise<AheadBehind>;
   /**
@@ -256,6 +271,12 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       // No branch deletion anywhere in here: F4.7 keeps the work reachable
       // after the checkout is gone.
       await exec(["worktree", "remove", ...(force ? ["--force"] : []), path], { cwd: repoPath });
+    },
+
+    async repairWorktree({ repoPath, path }) {
+      // From the main repository, and naming the new location: git rewrites
+      // both sides of the link from here.
+      await exec(["worktree", "repair", path], { cwd: repoPath });
     },
 
     async getStatus(path) {

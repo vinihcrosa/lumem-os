@@ -77,7 +77,7 @@ A [Q20](open-questions.md) respondeu que as worktrees se mudam junto. O diretór
 Duas coisas que a nova árvore obriga:
 
 - **`projectHome` é função de `(workspace, projeto)`, nunca de `managed`.** Projeto registrado por caminho também ganha a pasta: ele não tem `repo/`, porque o repositório dele mora onde o usuário o deixou, mas tem `worktrees/`. Se o cálculo do caminho dependesse de ter sido clonado, haveria dois cálculos, e as regras do §4.4 valeriam só para metade dos projetos.
-- **Worktree que se muda precisa de `git worktree repair`.** Ela guarda caminhos absolutos em dois lugares — o arquivo `.git` dentro dela e o `gitdir` em `<repo>/.git/worktrees/<nome>/`. Um `mv` sozinho a quebra em silêncio. É o único detalhe desta mudança que, esquecido, corrompe dado.
+- **Worktree que se muda precisa de `git worktree repair`.** Ela guarda caminhos absolutos nos **dois lados** do vínculo — o arquivo `.git` dentro dela e o `gitdir` em `<repo>/.git/worktrees/<nome>/` — e um `mv` invalida só o segundo. Medido, não suposto: o checkout movido continua respondendo `git status`, porque o `.git` dele aponta para um repositório que não se moveu. O que quebra é o lado do repositório, que passa a listar uma worktree que não está mais lá — e um `git worktree prune`, que o git roda sozinho em várias operações comuns, apaga a administração dela. Aí ela quebra de vez, longe do movimento que a quebrou. É o único detalhe desta mudança que, esquecido, corrompe dado.
 
 ---
 

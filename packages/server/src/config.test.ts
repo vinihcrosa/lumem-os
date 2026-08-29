@@ -1,4 +1,5 @@
 import { homedir } from "node:os";
+import { join } from "node:path";
 
 import { DEFAULT_SERVER_PORT } from "@lumem/shared";
 import { describe, expect, it } from "vitest";
@@ -18,11 +19,23 @@ describe("loadConfig", () => {
     expect(loadConfig({ LUMEM_PORT: "5000" }).port).toBe(5000);
   });
 
-  it("derives the database and worktree paths from the state dir", () => {
+  it("derives the database and workspace paths from the state dir", () => {
     const config = loadConfig({ LUMEM_STATE_DIR: "/tmp/lumem-test" });
 
     expect(config.databasePath).toBe("/tmp/lumem-test/lumem.db");
-    expect(config.worktreesDir).toBe("/tmp/lumem-test/worktrees");
+    expect(config.workspacesDir).toBe("/tmp/lumem-test/workspaces");
+  });
+
+  it("resolves a state dir written with ~ or relative to the cwd", () => {
+    // Every path the daemon computes hangs off this one, including the ones it
+    // later deletes from. A literal `~` is a directory named `~`, and a relative
+    // one moves with whatever directory the daemon happened to start in.
+    expect(loadConfig({ LUMEM_STATE_DIR: "~/estado" }).workspacesDir).toBe(
+      join(homedir(), "estado", "workspaces"),
+    );
+    expect(loadConfig({ LUMEM_STATE_DIR: "estado" }).workspacesDir).toBe(
+      join(process.cwd(), "estado", "workspaces"),
+    );
   });
 
   it("lets an explicit database path override the derived one", () => {

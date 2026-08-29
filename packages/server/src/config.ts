@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 
 import { DEFAULT_SERVER_PORT } from "@lumem/shared";
 
@@ -12,8 +12,16 @@ export interface ServerConfig {
   stateDir: string;
   /** SQLite database file. */
   databasePath: string;
-  /** Where managed git worktrees are created. */
-  worktreesDir: string;
+  /**
+   * Root of the tree that mirrors the product's hierarchy on disk, Q20.
+   *
+   * `<workspacesDir>/<workspace>/<projeto>/{repo,worktrees}` — the clone under
+   * `repo/`, every worktree under `worktrees/`, for a project that was cloned
+   * and for one that was registered by path alike. There is no second tree:
+   * `worktreesDir` used to be one, and two trees describing one hierarchy is
+   * how they drift.
+   */
+  workspacesDir: string;
   /**
    * Shell used for interactive sessions.
    *
@@ -61,19 +69,33 @@ function readPort(raw: string | undefined): number {
 }
 
 /**
+ * `~` and relative paths, resolved against the daemon's own home and cwd.
+ *
+ * `LUMEM_STATE_DIR` is external input, and every path the daemon computes hangs
+ * off it — including the ones it later deletes. A relative state dir would move
+ * with the working directory the daemon happened to start from, and `~` written
+ * literally is a directory named `~`, which is nobody's intent.
+ */
+function absoluteDir(raw: string): string {
+  const expanded =
+    raw === "~" || raw.startsWith("~/") ? join(homedir(), raw.slice(1)) : raw;
+  return isAbsolute(expanded) ? join(expanded) : resolve(expanded);
+}
+
+/**
  * Reads configuration from an environment map.
  *
  * The map is a parameter rather than a direct `process.env` read so tests can
  * pass a literal instead of mutating (and having to restore) global state.
  */
 export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
-  const stateDir = env.LUMEM_STATE_DIR ?? join(homedir(), ".lumem");
+  const stateDir = absoluteDir(env.LUMEM_STATE_DIR ?? join(homedir(), ".lumem"));
   return {
     port: readPort(env.LUMEM_PORT),
     host: env.LUMEM_HOST ?? "127.0.0.1",
     stateDir,
     databasePath: env.LUMEM_DB_PATH ?? join(stateDir, "lumem.db"),
-    worktreesDir: join(stateDir, "worktrees"),
+    workspacesDir: join(stateDir, "workspaces"),
     // /bin/sh exists on every POSIX system this daemon can run on; SHELL is
     // unset under launchd and in some containers.
     shell: env.SHELL === undefined || env.SHELL === "" ? "/bin/sh" : env.SHELL,
