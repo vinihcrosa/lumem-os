@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 import { DEFAULT_SERVER_PORT } from "@lumem/shared";
 import { describe, expect, it } from "vitest";
@@ -102,5 +102,16 @@ describe("loadConfig", () => {
     });
     expect(loadConfig({ LUMEM_RUN_PORT_RANGE: "torto" }).runPortRange).toEqual({ ...DEFAULT_PORT_RANGE });
     expect(loadConfig({}).runPortRange).toEqual({ ...DEFAULT_PORT_RANGE });
+  });
+  it("não tem web root até alguém apontar um", () => {
+    // O caminho normal: o daemon empacotado acha o `dist/web` ao lado de si
+    // mesmo, e rodando do código-fonte quem serve é o vite.
+    expect(loadConfig({}).webRoot).toBeNull();
+    expect(loadConfig({ LUMEM_WEB_ROOT: "" }).webRoot).toBeNull();
+  });
+
+  it("resolve o web root relativo, como faz com os outros caminhos", () => {
+    expect(loadConfig({ LUMEM_WEB_ROOT: "/srv/web" }).webRoot).toBe("/srv/web");
+    expect(loadConfig({ LUMEM_WEB_ROOT: "web" }).webRoot).toBe(resolve("web"));
   });
 });

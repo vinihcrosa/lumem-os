@@ -64,6 +64,15 @@ export interface ServerConfig {
    * e mesmo assim o default é não.
    */
   autoLearn: boolean;
+  /**
+   * Onde está o web construído, quando não é o lugar de sempre.
+   *
+   * Quase sempre `null`: o daemon empacotado acha o `dist/web` ao lado de si
+   * mesmo, e rodando do código-fonte não existe nenhum — é o vite que serve.
+   * A variável existe para quem serve um build de outro lugar (um bisect entre
+   * duas versões do web, um bundle servido de fora do pacote).
+   */
+  webRoot: string | null;
   /** Quantas perguntas de uma sessão podem subir agente. O orçamento do §5.4. */
   autoLearnBudget: number;
   /**
@@ -84,6 +93,7 @@ export type ConfigEnv = Partial<
     | "LUMEM_STATE_DIR"
     | "LUMEM_DB_PATH"
     | "LUMEM_DEFAULT_CWD"
+    | "LUMEM_WEB_ROOT"
     | "LUMEM_MEMORY_DISTILL"
     | "LUMEM_MEMORY_AUTO_LEARN"
     | "LUMEM_MEMORY_AUTO_LEARN_BUDGET"
@@ -155,6 +165,10 @@ export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
     // unset under launchd and in some containers.
     shell: env.SHELL === undefined || env.SHELL === "" ? "/bin/sh" : env.SHELL,
     defaultCwd: env.LUMEM_DEFAULT_CWD ?? homedir(),
+    webRoot:
+      env.LUMEM_WEB_ROOT === undefined || env.LUMEM_WEB_ROOT === ""
+        ? null
+        : absoluteDir(env.LUMEM_WEB_ROOT),
     // Só `1` e `true` ligam. Um valor que ninguém reconhece é um valor que
     // alguém digitou errado, e o lado seguro de "não entendi" é desligado.
     distill: env.LUMEM_MEMORY_DISTILL === "1" || env.LUMEM_MEMORY_DISTILL === "true",
