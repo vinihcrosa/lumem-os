@@ -10,7 +10,7 @@ Dez features de pé — [walking-skeleton](docs/prd/walking-skeleton/tasks.md), 
 [workspace-screen](docs/prd/workspace-screen/prd.md) fecha o círculo: o workspace ganhou **tela** — no
 lugar de "selecione uma worktree" —, a memória dele deixou de depender de um projeto aberto, e o
 consumo de tokens virou dado somável (`session_usage`), por projeto e por worktree, com janela de
-tempo resolvida no daemon. Comece pelo [índice da documentação](docs/README.md).
+tempo resolvida no daemon. E uma décima primeira, [worktree-from-source](docs/prd/worktree-from-source/tasks.md), está **em desenho**: a worktree passa a nascer de branch existente, PR ou issue, já com um agente trabalhando. Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
 |---|---|
