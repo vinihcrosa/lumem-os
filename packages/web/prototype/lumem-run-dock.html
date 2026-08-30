@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — o rodapé de execução: setup, run e terminal</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<link rel="stylesheet" href="lumem-run-dock.css">
+</head>
+<body>
+
+<div class="doc">
+
+  <header>
+    <h1 class="doc__h1">O rodapé de execução</h1>
+    <p class="doc__lede">
+      O Lumem cria worktrees que não rodam: nascem sem dependência, sem build e sem nenhum
+      lugar no produto onde subir a aplicação e ver a mudança de pé. Esta tela é a segunda
+      metade da feature <b>project-scripts</b> — a primeira é uma tabela <code>[scripts]</code>
+      no <code>&lt;repo&gt;/.lumem/project.toml</code>, que já existe e hoje só guarda o
+      <code>id</code> do projeto.
+    </p>
+    <p class="doc__lede">
+      Sete quadros. O primeiro e o segundo são <b>as duas leituras da S1</b> — o rodapé na
+      coluna da direita ou atravessando o painel central. Os outros cinco são os estados que
+      o §9 do PRD pediu.
+    </p>
+  </header>
+
+  <!-- =================================================================== 1 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">1 · o rodapé embaixo da árvore</h2>
+      <p class="sec__d">
+        <span class="q">S1 · proposta</span> A associação que a imagem de referência faz:
+        <b>o repositório em cima, o que ele faz quando roda embaixo</b>. Três abas que são a
+        mesma primitiva — sessão com terminal —, e o que muda entre elas é só quem escolheu o
+        comando: o <code>project.toml</code> nas duas primeiras, você na terceira.
+      </p>
+      <p class="sec__d">
+        O custo, e é ele que está desenhado aqui: com o rodapé aberto, o teto de largura da
+        coluna sobe. Um terminal de 80 colunas não cabe em 360px, e uma coluna que não cabe é
+        uma coluna que ninguém usa duas vezes.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">run rodando · a coluna em <b>720px</b></div>
+      <div class="shot bleed">
+        <div class="app">
+          <header class="topbar">
+            <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+            <span class="spacer"></span>
+            <button class="rp-toggle rp-toggle--on">▤ arquivos</button>
+            <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+          </header>
+
+          <div class="body body--right-max">
+            <aside class="sidebar">
+              <div class="ws-wrap">
+                <div class="ws"><span class="ws__icon">◈</span>pessoal<span class="spacer"></span><span class="ws__caret">▾</span></div>
+              </div>
+              <div class="tree">
+                <div class="tree__label">Projetos</div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span></div>
+                <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--local">▭</span><span class="row__label">local</span></div>
+                <!-- O sinal de "tem coisa de pé aqui" fora do rodapé: ver quadro 6. -->
+                <div class="row row is-selected" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">bandung</span><span class="runmark"><span class="runmark__glyph">▶</span>:55061</span></div>
+                <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">fix-loader</span></div>
+              </div>
+              <div class="sidebar__foot"><button class="add"><span class="glyph">＋</span>adicionar projeto</button></div>
+            </aside>
+
+            <main class="main">
+              <div class="wt-head">
+                <nav class="crumb"><button class="crumb__up">pessoal</button><span class="crumb__sep">/</span><button class="crumb__up">lumem-os</button><span class="crumb__sep">/</span><span class="crumb__here">bandung</span></nav>
+                <div class="wt-title">
+                  <h2><span class="glyph glyph--worktree">◇</span>bandung</h2>
+                </div>
+                <div class="chips">
+                  <span class="chip chip--branch"><span class="chip__dot"></span>bandung</span>
+                  <span class="chip chip--dirty"><span class="chip__dot"></span>suja · 4 arquivos</span>
+                </div>
+              </div>
+              <div class="tabs-bar">
+                <div class="tabs">
+                  <button class="stab stab--overview">contexto</button>
+                  <span class="tabs__sep"></span>
+                  <button class="stab stab--active"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__dot"></span></button>
+                </div>
+                <span class="menu-wrap"><button class="tabs__new">＋ nova sessão</button></span>
+              </div>
+              <div class="pane">
+                <div class="turn turn--agent">
+                  <span class="turn__g">⏺</span>
+                  <div class="turn__b">Separei o rodapé em três abas e liguei o run ao project.toml. Sobe com pnpm dev quando quiser conferir.</div>
+                </div>
+              </div>
+            </main>
+
+            <aside class="rp">
+              <span class="rp__grip"></span>
+              <div class="rp__bar">
+                <button class="rtab rtab--active">Arquivos</button>
+                <button class="rtab">Mudanças<span class="rtab__count">4</span></button>
+                <button class="rtab">Memória</button>
+                <span class="spacer"></span>
+                <button class="rp__icon" title="recarregar">⟳</button>
+                <button class="rp__icon" title="fechar a coluna">›</button>
+              </div>
+
+              <div class="rp__body">
+                <div class="rp__scroll">
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">.lumem</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:1"></span><span class="frow__name">project.toml</span><span class="mark mark--m">M</span><span class="frow__gap"></span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">docs</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">packages</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">scripts</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▾</span><span class="frow__name">workspace</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:2"></span><span class="frow__name">run.sh</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:2"></span><span class="frow__name">setup.sh</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">package.json</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">ports.json</span></button>
+                </div>
+
+                <!-- ================================================== rodapé -->
+                <div class="dock">
+                  <span class="dock__grip"></span>
+                  <div class="dock__bar">
+                    <button class="dock__fold" title="recolher">⌄</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Setup</button>
+                    <button class="dtab dtab--active"><span class="dtab__dot dtab__dot--run"></span>Run</button>
+                    <button class="dtab">Terminal</button>
+                    <button class="dock__new" title="nova aba de terminal">＋</button>
+                    <span class="spacer"></span>
+                    <div class="dock__acts">
+                      <button class="openbtn"><span>Abrir</span><span class="openbtn__port">:55061</span></button>
+                      <button class="btn btn--sm"><span class="btn__glyph stopglyph">⏹</span>parar <span class="kbd">⌘R</span></button>
+                    </div>
+                  </div>
+
+                  <div class="dock__state">
+                    <span class="chip chip--clean"><span class="chip__dot"></span>rodando · 4 min</span>
+                    <span class="dock__cmd">./scripts/workspace/run.sh</span>
+                    <span class="spacer"></span>
+                    <span class="openbtn__from dock__note">porta lida da saída · <code>[scripts]</code> desta branch</span>
+                  </div>
+
+                <div class="dockout"><span class="l"><span class="px">@lumem/web:dev:</span> <span class="brand">VITE</span> v6.4.3  <span class="dim">ready in</span> <span class="ok">688 ms</span></span><span class="l"><span class="px">@lumem/web:dev:</span></span><span class="l"><span class="px">@lumem/web:dev:</span>   ➜  <span class="you">Local:</span>   <span class="link">http://127.0.0.1:55061/</span></span><span class="l"><span class="px">@lumem/web:dev:</span>   ➜  <span class="dim">press h + enter to show help</span></span><span class="l"><span class="px">@lumem/server:dev:</span> <span class="dim">{"level":30,"msg":"reconciliação de boot","worktrees":{"checked":0,"restored":0}}</span></span><span class="l"><span class="px">@lumem/server:dev:</span> <span class="dim">{"level":30,"port":55060,"msg":"lumem daemon listening"}</span></span><span class="l"><span class="cursor"></span></span></div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>O ponto na aba, e não dentro dela.</b> <span class="dtab__dot dtab__dot--run" style="display:inline-block"></span> verde no
+        <code>Run</code> é "tem coisa de pé"; <span class="dtab__dot dtab__dot--ok" style="display:inline-block"></span> no <code>Setup</code>
+        é "a última passou". As duas perguntas que trazem alguém até aqui são exatamente essas,
+        e escondê-las dentro da aba obrigaria a abrir para descobrir — o mesmo motivo pelo qual
+        o contador de <code>Mudanças</code> mora na aba.
+      </p>
+      <p class="case__note">
+        <span class="q">S6</span> <b>“porta lida da saída”</b> não é decoração. A porta pode vir de dois
+        lugares — da variável <code>LUMEM_RUN_PORT</code>, que é determinística, ou de uma regex na
+        saída, que acerta o Vite e erra o resto. Um botão que abre a porta errada é pior que
+        não ter botão, então ele diz de onde tirou o número.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 2 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">2 · a alternativa: o rodapé no painel central</h2>
+      <p class="sec__d">
+        <span class="q">S1 · alternativa</span> O mesmo componente, atravessando a largura toda,
+        abaixo da conversa. <b>Cabe sem negociar pixel nenhum</b> — e paga com a associação: o
+        <code>run</code> deixa de estar junto da árvore de arquivos, que é o que fazia o quadro
+        anterior se explicar sozinho. Aqui a coluna da direita fica nos 360px de sempre.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o mesmo run, no meio</div>
+      <div class="shot shot--short bleed">
+        <div class="app">
+          <header class="topbar">
+            <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+            <span class="spacer"></span>
+            <button class="rp-toggle rp-toggle--on">▤ arquivos</button>
+            <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+          </header>
+
+          <div class="body body--right">
+            <aside class="sidebar">
+              <div class="ws-wrap">
+                <div class="ws"><span class="ws__icon">◈</span>pessoal<span class="spacer"></span><span class="ws__caret">▾</span></div>
+              </div>
+              <div class="tree">
+                <div class="tree__label">Projetos</div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span></div>
+                <div class="row row is-selected" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">bandung</span><span class="runmark"><span class="runmark__glyph">▶</span>:55061</span></div>
+              </div>
+              <div class="sidebar__foot"><button class="add"><span class="glyph">＋</span>adicionar projeto</button></div>
+            </aside>
+
+            <main class="main">
+              <div class="tabs-bar">
+                <div class="tabs">
+                  <button class="stab stab--overview">contexto</button>
+                  <span class="tabs__sep"></span>
+                  <button class="stab stab--active"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__dot"></span></button>
+                </div>
+                <span class="menu-wrap"><button class="tabs__new">＋ nova sessão</button></span>
+              </div>
+              <div class="pane">
+                <div class="turn turn--agent">
+                  <span class="turn__g">⏺</span>
+                  <div class="turn__b">A conversa continua sendo o centro. O rodapé só rouba altura dela — nunca largura.</div>
+                </div>
+              </div>
+
+              <div class="dock dock--main">
+                <span class="dock__grip"></span>
+                <div class="dock__bar">
+                  <button class="dock__fold" title="recolher">⌄</button>
+                  <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Setup</button>
+                  <button class="dtab dtab--active"><span class="dtab__dot dtab__dot--run"></span>Run</button>
+                  <button class="dtab">Terminal</button>
+                  <button class="dock__new">＋</button>
+                  <span class="spacer"></span>
+                  <div class="dock__acts">
+                    <button class="openbtn"><span>Abrir</span><span class="openbtn__port">:55061</span></button>
+                    <button class="btn btn--sm"><span class="btn__glyph stopglyph">⏹</span>parar <span class="kbd">⌘R</span></button>
+                  </div>
+                </div>
+                <div class="dock__state">
+                  <span class="chip chip--clean"><span class="chip__dot"></span>rodando · 4 min</span>
+                  <span class="dock__cmd">./scripts/workspace/run.sh</span>
+                  <span class="spacer"></span>
+                  <span class="openbtn__from dock__note">porta de <code>LUMEM_RUN_PORT</code></span>
+                </div>
+                <div class="dockout"><span class="l"><span class="px">@lumem/web:dev:</span> <span class="brand">VITE</span> v6.4.3  <span class="dim">ready in</span> <span class="ok">688 ms</span></span><span class="l"><span class="px">@lumem/web:dev:</span>   ➜  <span class="you">Local:</span>   <span class="link">http://127.0.0.1:55061/</span></span><span class="l"><span class="px">@lumem/server:dev:</span> <span class="dim">{"level":30,"port":55060,"msg":"lumem daemon listening"}</span></span><span class="l"><span class="cursor"></span></span></div>
+              </div>
+            </main>
+
+            <aside class="rp">
+              <span class="rp__grip"></span>
+              <div class="rp__bar">
+                <button class="rtab rtab--active">Arquivos</button>
+                <button class="rtab">Mudanças<span class="rtab__count">4</span></button>
+                <span class="spacer"></span>
+                <button class="rp__icon">⟳</button>
+                <button class="rp__icon">›</button>
+              </div>
+              <div class="rp__body">
+                <div class="rp__scroll">
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">.lumem</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:1"></span><span class="frow__name">project.toml</span><span class="mark mark--m">M</span><span class="frow__gap"></span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">docs</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">packages</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">scripts</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">package.json</span></button>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>A escolha, em uma frase.</b> Quadro 1 acerta o modelo mental e cobra largura; quadro 2
+        acerta o espaço e cobra o significado. A leitura que falta nos dois é a terceira, que o
+        produto já tem hoje e ninguém usa para isso: o <code>run</code> como mais uma aba de
+        sessão, competindo com a conversa.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 3 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">3 · Setup — o que termina</h2>
+      <p class="sec__d">
+        Setup e run não são a mesma coisa, e a diferença é o <b>fim</b>. Setup termina: o que
+        interessa dele é o código de saída e quando foi. Run não termina: o que interessa é
+        estar vivo. Por isso esta aba tem histórico e a outra tem estado.
+      </p>
+    </div>
+
+    <div class="grid grid--2">
+      <div class="case">
+        <div class="case__label">a última passou</div>
+        <div class="case__frame case__frame--flat">
+          <div class="dock" style="height: calc(var(--space-64) * 3.5)">
+            <div class="dock__bar">
+              <button class="dock__fold">⌄</button>
+              <button class="dtab dtab--active"><span class="dtab__dot dtab__dot--ok"></span>Setup</button>
+              <button class="dtab">Run</button>
+              <button class="dtab">Terminal</button>
+              <button class="dock__new">＋</button>
+              <span class="spacer"></span>
+              <div class="dock__acts">
+                <button class="btn btn--sm">▶ rodar de novo</button>
+              </div>
+            </div>
+            <div class="dock__state">
+              <span class="chip chip--clean"><span class="chip__dot"></span>saiu 0 · há 6 min</span>
+              <span class="dock__cmd">./scripts/workspace/setup.sh</span>
+              <span class="spacer"></span>
+              <span class="dock__note">rodou sozinho</span>
+            </div>
+            <div class="dockout"><span class="l"><span class="dim">==&gt;</span> node</span><span class="l">    v22.14.0</span><span class="l"><span class="dim">==&gt;</span> dependências</span><span class="l">    <span class="ok">+1284</span> pacotes em 38,2s</span><span class="l"><span class="dim">==&gt;</span> navegador do playwright</span><span class="l">    chromium já instalado</span><span class="l"></span><span class="l"><span class="ok">==&gt; pronto</span></span><span class="l">    <span class="dim">state dir</span> <span class="path">~/.lumem-dev/bandung-7f3a</span></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="case">
+        <div class="case__label"><b>o pior estado da feature:</b> a worktree existe, o setup não</div>
+        <div class="case__frame case__frame--flat">
+          <div class="dock" style="height: calc(var(--space-64) * 3.5)">
+            <div class="dock__bar">
+              <button class="dock__fold">⌄</button>
+              <button class="dtab dtab--active"><span class="dtab__dot dtab__dot--fail"></span>Setup</button>
+              <button class="dtab">Run</button>
+              <button class="dtab">Terminal</button>
+              <button class="dock__new">＋</button>
+              <span class="spacer"></span>
+              <div class="dock__acts">
+                <button class="btn btn--sm btn--brand">▶ tentar de novo</button>
+              </div>
+            </div>
+            <div class="dock__banner">
+              <span class="glyph glyph--warn">⚠</span>
+              <span><b>A worktree foi criada; o setup dela falhou.</b> Ela funciona — só não está preparada.</span>
+              <span class="spacer"></span>
+            </div>
+            <div class="dock__state">
+              <span class="chip"><span class="chip__dot"></span>saiu 1 · há 12 s</span>
+              <span class="dock__cmd">./scripts/workspace/setup.sh</span>
+            </div>
+            <div class="dockout"><span class="l"><span class="dim">==&gt;</span> node</span><span class="l">    v22.14.0</span><span class="l"><span class="dim">==&gt;</span> dependências</span><span class="l"><span class="err">ERR_PNPM_FETCH_404</span>  GET https://registry.npmjs.org/@lumem%2Ficons: Not Found</span><span class="l"><span class="err">✗</span> pnpm install --frozen-lockfile <span class="dim">saiu 1 em 4,1s</span></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="case__note">
+      <span class="q">S4</span> <b>A worktree fica.</b> Desfazer seria apagar diretório por causa de rede
+      ruim. O que muda é esta tira — e ela é uma tira, não um diálogo: diálogo some, e leva o
+      motivo junto. O mesmo aviso aparece na linha da worktree na sidebar, com o mesmo
+      <span class="dtab__dot dtab__dot--fail" style="display:inline-block"></span>.
+    </p>
+  </section>
+
+  <!-- =================================================================== 4 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">4 · Terminal — o que já existe, num lugar novo</h2>
+      <p class="sec__d">
+        A terceira aba não é feature nova: é a sessão de shell que o daemon já sabe abrir, com o
+        <code>cwd</code> do checkout. O <code>＋</code> abre outra. Fechar o navegador não mata
+        nenhuma delas — o processo vive no daemon, e sempre viveu.
+      </p>
+    </div>
+    <div class="case">
+      <div class="case__label">duas shells no mesmo checkout</div>
+      <div class="case__frame case__frame--flat">
+        <div class="dock dock--tall">
+          <div class="dock__bar">
+            <button class="dock__fold">⌄</button>
+            <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Setup</button>
+            <button class="dtab"><span class="dtab__dot dtab__dot--run"></span>Run</button>
+            <button class="dtab dtab--active">Terminal</button>
+            <button class="dtab">Terminal 2<span class="dtab__dot dtab__dot--run"></span></button>
+            <button class="dock__new" title="nova aba de terminal">＋</button>
+            <span class="spacer"></span>
+            <div class="dock__acts">
+              <button class="btn btn--sm btn--ghost">✕ fechar</button>
+            </div>
+          </div>
+          <div class="dock__state">
+            <span class="chip chip--clean"><span class="chip__dot"></span>zsh · viva</span>
+            <span class="dock__cmd dock__cmd--dim">cwd ~/.lumem/workspaces/pessoal/lumem-os/worktrees/bandung</span>
+          </div>
+          <div class="dockout"><span class="l"><span class="you">➜</span>  <span class="path">bandung</span> git status --short</span><span class="l"> <span class="ok">M</span> docs/prd/project-scripts/prd.md</span><span class="l"> <span class="ok">M</span> docs/README.md</span><span class="l"></span><span class="l"><span class="you">➜</span>  <span class="path">bandung</span> pnpm gate:quick</span><span class="l"><span class="dim">  2.274 testes · </span><span class="ok">tudo verde</span><span class="dim"> em 41,2s</span></span><span class="l"><span class="you">➜</span>  <span class="path">bandung</span> <span class="cursor"></span></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================== 5 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">5 · o projeto sem <code>[scripts]</code></h2>
+      <p class="sec__d">
+        <b>Este é o estado normal</b>, não o excepcional: todo projeto entra no Lumem assim. E é
+        a única superfície do produto onde alguém descobre que esse arquivo existe — então o
+        vazio ensina, com o texto pronto para colar e o caminho exato onde ele mora.
+      </p>
+    </div>
+    <div class="case">
+      <div class="case__label">o vazio que ensina</div>
+      <div class="case__frame case__frame--flat">
+        <div class="dock dock--tall">
+          <div class="dock__bar">
+            <button class="dock__fold">⌄</button>
+            <button class="dtab dtab--active">Setup</button>
+            <button class="dtab">Run</button>
+            <button class="dtab">Terminal</button>
+            <button class="dock__new">＋</button>
+            <span class="spacer"></span>
+          </div>
+          <div class="noscripts">
+            <span class="noscripts__t">Este projeto não diz como rodar.</span>
+            <p class="noscripts__d">
+              O Lumem lê os comandos de um arquivo <b>do repositório</b>, versionado junto com o
+              código: quem clonar depois herda o mesmo setup, com Lumem ou sem. Enquanto ele não
+              existir, as abas <code>Setup</code> e <code>Run</code> ficam vazias — o
+              <code>Terminal</code> continua funcionando.
+            </p>
+            <span class="noscripts__where">.lumem/project.toml</span>
+            <div class="toml"><span class="c"># o id já está aqui; o que falta é o resto</span>
+<span class="k">id</span> = <span class="s">"prj_7f3a1c…"</span>
+
+<span class="k">[scripts]</span>
+<span class="k">setup</span>    = <span class="s">"./scripts/setup.sh"</span>
+<span class="k">run</span>      = <span class="s">"pnpm dev"</span>
+<span class="k">teardown</span> = <span class="s">"./scripts/teardown.sh"</span></div>
+            <div class="noscripts__acts">
+              <button class="btn btn--sm btn--brand">criar o arquivo</button>
+              <button class="btn btn--sm">copiar</button>
+              <button class="btn btn--sm btn--ghost">como isso funciona</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>“criar o arquivo” escreve no repositório de quem está lendo</b> — então ele preserva o
+        que já estava lá e aparece como uma mudança comum na aba <code>Mudanças</code>, para você
+        commitar. É a mesma regra que o daemon já segue para o <code>id</code>: ele nunca reescreve
+        o TOML inteiro.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 6 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">6 · recolhido — e o run visto de fora</h2>
+      <p class="sec__d">
+        O rodapé pode estar fechado, ou você em outra worktree. Sem sinal fora dele, “tem um dev
+        server de pé aqui” vira coisa que só o <code>lsof</code> sabe — e a próxima vez que você
+        rodar, a porta já está ocupada por você mesmo.
+      </p>
+    </div>
+
+    <div class="grid grid--2">
+      <div class="case">
+        <div class="case__label">a tira recolhida ainda diz o que está vivo</div>
+        <div class="case__frame case__frame--flat">
+          <div class="dock dock--collapsed">
+            <div class="dock__folded">
+              <button class="dock__fold">⌃</button>
+              <span class="runmark"><span class="runmark__glyph">▶</span>run · :55061</span>
+              <span>terminal · 2</span>
+              <span class="spacer"></span>
+              <button class="openbtn"><span>Abrir</span><span class="openbtn__port">:55061</span></button>
+              <button class="btn btn--sm"><span class="btn__glyph stopglyph">⏹</span>parar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="case">
+        <div class="case__label">na sidebar, uma worktree por linha</div>
+        <div class="case__frame case__frame--flat">
+          <div class="tree">
+            <div class="tree__label">Projetos</div>
+            <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span></div>
+            <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--local">▭</span><span class="row__label">local</span></div>
+            <div class="row row is-selected" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">bandung</span><span class="runmark"><span class="runmark__glyph">▶</span>:55061</span></div>
+            <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">fix-loader</span><span class="count count--running"><span class="count__dot"></span>1</span></div>
+            <div class="row row is-muted" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--warn">⚠</span><span class="row__label">ui-polish</span><span class="row__meta">setup falhou</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="case__note">
+      Três sinais, três coisas diferentes, e nenhum deles inventa vocabulário novo:
+      <span class="runmark"><span class="runmark__glyph">▶</span>:55061</span> é <b>run de pé, nesta porta</b>;
+      <span class="count count--running"><span class="count__dot"></span>1</span> é <b>sessão de agente viva</b>, que a sidebar já usa;
+      <span class="row__meta">setup falhou</span> é o mesmo lugar onde <em>ausente</em> já aparece hoje.
+    </p>
+  </section>
+
+  <!-- =================================================================== 7 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">7 · a primeira execução de um projeto que veio de uma URL</h2>
+      <p class="sec__d">
+        <span class="q">S11 · segurança</span> Desde a <b>project-from-url</b>, um projeto entra no
+        Lumem a partir de uma string colada. Somado ao setup automático, colar uma URL passaria a
+        significar <b>executar um script de um estranho</b>. Então o <code>[scripts]</code> de um
+        projeto recém-clonado nasce <b>não confiado</b>: a primeira execução é sempre um gesto, com
+        o comando visível.
+      </p>
+    </div>
+    <div class="case">
+      <div class="case__label">o comando aparece antes de virar processo</div>
+      <div class="case__frame case__frame--flat">
+        <div class="dock dock--tall">
+          <div class="dock__bar">
+            <button class="dock__fold">⌄</button>
+            <button class="dtab dtab--active">Setup</button>
+            <button class="dtab">Run</button>
+            <button class="dtab">Terminal</button>
+            <button class="dock__new">＋</button>
+            <span class="spacer"></span>
+          </div>
+          <div class="trust">
+            <div class="trust__head"><span class="trust__glyph">⚠</span>Este comando vem do repositório, não de você.</div>
+            <p class="trust__why">
+              <code>lorebase</code> foi clonado de <code>github.com/outra-pessoa/lorebase</code> há
+              2 minutos. O que está escrito abaixo estava dentro dele, e vai rodar na sua máquina
+              com as suas permissões.
+            </p>
+            <div class="trust__cmd">./scripts/bootstrap.sh --with-secrets</div>
+            <div class="trust__acts">
+              <button class="btn btn--sm btn--brand">rodar uma vez</button>
+              <button class="btn btn--sm">confiar neste projeto</button>
+              <button class="btn btn--sm btn--ghost">abrir o arquivo</button>
+              <span class="spacer"></span>
+              <span class="case__note">“confiar” vale para este projeto nesta máquina — e volta a perguntar se o comando mudar.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        O que isto <b>não</b> protege: um script que você aprovou faz tudo que você faria. Sandbox
+        de execução é outro problema, e ele está no backlog — não escondido atrás desta tela.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================================================================ fim -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">o que este desenho deixa decidido, e o que ele devolve para você</h2>
+    </div>
+    <div class="grid grid--2">
+      <div class="case">
+        <div class="case__label">decidido aqui</div>
+        <div class="case__frame">
+          <ul class="legend" style="display:grid; gap: var(--space-8)">
+            <li>três abas, uma primitiva — o que muda é quem escolheu o comando</li>
+            <li>estado na aba (ponto), não dentro dela</li>
+            <li><code>Setup</code> tem histórico; <code>Run</code> tem estado</li>
+            <li>a porta diz de onde veio</li>
+            <li>o vazio ensina o arquivo em vez de pedir desculpa</li>
+            <li>run de pé aparece na sidebar, com a porta</li>
+          </ul>
+        </div>
+      </div>
+      <div class="case">
+        <div class="case__label">devolvido para você</div>
+        <div class="case__frame">
+          <ul class="legend" style="display:grid; gap: var(--space-8)">
+            <li><b>S1</b> — quadro 1 (coluna, com o teto de largura subindo) ou quadro 2 (painel central)</li>
+            <li><b>S3</b> — o setup roda sozinho quando a worktree nasce? o quadro 3 assume que sim</li>
+            <li><b>S9</b> — um <code>run</code> só, como está desenhado, ou um seletor de scripts na faixa</li>
+            <li><b>S11</b> — “confiar neste projeto” é por projeto, ou some e cada execução é um gesto</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

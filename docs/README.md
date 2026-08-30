@@ -199,6 +199,20 @@ O achado que vale fora da feature: **o `claude-agent-acp` não oferece login a q
 o adaptador não tivesse o que oferecer. Com a capacidade declarada, ele oferece dois métodos, os dois
 `type: "terminal"`: o login é um comando dele rodando num terminal, e não uma chamada de `authenticate`.
 
+### [project-scripts/](prd/project-scripts/) — os scripts do projeto, e o rodapé que os mostra
+
+**Escrita, não começada.** O Lumem cria worktrees que não rodam: nascem sem dependência, sem build e
+sem nenhum lugar no produto onde subir a aplicação. Esta feature põe `setup`, `run` e `teardown` no
+`<repo>/.lumem/project.toml` — o arquivo que já existe, com o `id` dentro — e dá a eles uma faixa
+abaixo da árvore de arquivos, com três abas: `Setup`, `Run` e `Terminal`. Fecha o item **F** do
+[backlog](project/backlog.md).
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/project-scripts/prd.md) | A ironia medida neste repositório (o `scripts/workspace/` que o Superset e o Conductor leem e o Lumem não), o formato do `[scripts]`, o contrato de variáveis de ambiente, e o §8 — executar string vinda de repositório de terceiro |
+| [open-questions.md](prd/project-scripts/open-questions.md) | 11 perguntas, **nenhuma respondida**. A S1 (onde o rodapé cabe, com o painel direito indo só até 720 px) e a S5 (o Lumem virar alocador de portas) são as que mudam o tamanho da feature |
+| `lumem-run-dock.html` (Open Design) | **Sete quadros, aguardando aprovação.** As duas leituras da S1 desenhadas lado a lado, mais Setup (passou e falhou), Terminal, o vazio que ensina o arquivo, o rodapé recolhido com o run visto de fora, e a primeira execução de um projeto clonado. Vem para o repositório por `design:sync` |
+
 ---
 
 ## Convenções
