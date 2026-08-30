@@ -107,9 +107,38 @@ jobs:
       # existe justamente para provar que o pacote não precisa delas.
       - run: npx --yes tsx@4 scripts/smoke-install.ts "${{ needs.package.outputs.tarball }}"
 
+  # O segredo existir não é o mesmo que o segredo publicar: um token de leitura,
+  # expirado, ou de outra conta passa por toda a configuração e só falha no
+  # `npm publish` — que é o passo que não desfaz. Este job pergunta ao registry
+  # quem é o token, e roda **também no ensaio**, que é onde a resposta é barata.
+  credential:
+    name: o token, conferido
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: npm
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: quem é este token
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::NPM_TOKEN não chegou neste job"
+            exit 1
+          fi
+          echo "npm whoami: $(npm whoami)"
+          # `lumem` ainda não existe no registry na primeira publicação, e 404
+          # aqui é a resposta certa — o que interessa é não ser 403.
+          npm access list packages 2>/dev/null | head -20 || true
+
   publish:
     name: npm
-    needs: [package, smoke]
+    needs: [package, smoke, credential]
     if: github.ref_type == 'tag' || inputs.dry_run == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
