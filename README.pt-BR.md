@@ -16,15 +16,17 @@ várias tarefas rodam ao mesmo tempo sem uma atropelar a outra.
 ## Instalar
 
 ```sh
-npm i -g lumem
+npm i -g @vinihcrosa/lumem
 lumem
 ```
 
 O daemon sobe em `http://127.0.0.1:4317` e serve a interface na mesma porta.
 `lumem --open` abre o navegador junto.
 
-Ainda não está publicado — quem publica é a primeira tag `v0.1.0`. Até lá, de um
-clone:
+O escopo não é enfeite: o npm recusa o nome puro `lumem` por ser parecido demais
+com o `mem`, que já existe. O binário continua sendo `lumem`.
+
+De um clone, se preferir construir:
 
 ```sh
 pnpm install

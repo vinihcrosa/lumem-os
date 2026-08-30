@@ -16,14 +16,17 @@ side by side without stepping on each other.
 ## Install
 
 ```sh
-npm i -g lumem
+npm i -g @vinihcrosa/lumem
 lumem
 ```
 
 The daemon starts on `http://127.0.0.1:4317` and serves the interface from the
 same port. `lumem --open` opens a browser too.
 
-Not published yet — the first `v0.1.0` tag does that. Until then, from a clone:
+The scope is not decoration: npm refuses the bare name `lumem` as too similar to
+the existing `mem`. The binary is still `lumem`.
+
+From a clone, if you would rather build it yourself:
 
 ```sh
 pnpm install
