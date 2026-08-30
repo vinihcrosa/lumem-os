@@ -286,3 +286,53 @@ describe("0007 — a origem e a gerência do projeto", () => {
     expect(await second.db.select().from(schema.project)).toHaveLength(1);
   });
 });
+
+describe("0008 — a sessão de script", () => {
+  /**
+   * A 0008 reconstrói a tabela `session` inteira — é o que o SQLite exige para
+   * mexer num CHECK. Reconstrução com linha dentro é exatamente o caso que este
+   * arquivo existe para vigiar: a primeira versão gerada copiava `script_name` da
+   * tabela **de origem**, onde ela não existe.
+   */
+  it("mantém as sessões que já existiam, agora sem fase nenhuma", async () => {
+    const handle = openDatabase({ path: databaseAtInitialRevision() });
+    open.push(handle);
+
+    const rows = await handle.db.select().from(schema.session);
+
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.scriptName)).toEqual([null, null]);
+    // E o que elas eram continua sendo o que elas são.
+    expect(rows.find((row) => row.id === "se-1")).toMatchObject({
+      kind: "agent",
+      agentConfigId: "cfg-1",
+      state: "running",
+    });
+    expect(rows.find((row) => row.id === "se-2")).toMatchObject({
+      kind: "shell",
+      state: "exited",
+      exitCode: 0,
+    });
+  });
+
+  it("aceita a sessão de script depois de migrado", async () => {
+    const handle = openDatabase({ path: databaseAtInitialRevision() });
+    open.push(handle);
+
+    await handle.db.insert(schema.session).values({
+      id: "se-3",
+      kind: "script",
+      scriptName: "run",
+      scopeType: "project",
+      scopeId: "pr-1",
+      cwd: "/repos/lorebase",
+      command: "pnpm dev",
+    });
+
+    const [row] = await handle.db
+      .select()
+      .from(schema.session)
+      .where(eq(schema.session.id, "se-3"));
+    expect(row).toMatchObject({ kind: "script", scriptName: "run", transport: "pty" });
+  });
+});

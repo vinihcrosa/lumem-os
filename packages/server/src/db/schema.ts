@@ -131,6 +131,15 @@ export const session = sqliteTable(
   {
     id: text("id").primaryKey(),
     kind: text("kind").notNull(),
+    /**
+     * Qual script esta sessão é — `setup`, `run` ou `teardown`.
+     *
+     * Coluna, e não dedução do `command`, porque a pergunta do rodapé é *"tem run
+     * vivo neste checkout?"* e procurar por string de comando responderia errado no
+     * dia em que dois projetos rodam o mesmo `pnpm dev`. Nula para tudo que não é
+     * script, e obrigatória para o que é — o CHECK cobra os dois sentidos.
+     */
+    scriptName: text("script_name"),
     agentConfigId: text("agent_config_id").references(() => agentConfig.id, {
       onDelete: "restrict",
     }),
@@ -179,7 +188,7 @@ export const session = sqliteTable(
     ...timestamps,
   },
   (table) => [
-    check("session_kind", sql`${table.kind} IN ('shell', 'agent')`),
+    check("session_kind", sql`${table.kind} IN ('shell', 'agent', 'script')`),
     check("session_scope_type", sql`${table.scopeType} IN ('project', 'worktree')`),
     check("session_state", sql`${table.state} IN ('running', 'exited')`),
     // Both directions: an agent session without a config cannot be relaunched
@@ -187,7 +196,21 @@ export const session = sqliteTable(
     check(
       "session_agent_config",
       sql`(${table.kind} = 'agent' AND ${table.agentConfigId} IS NOT NULL)
-        OR (${table.kind} = 'shell' AND ${table.agentConfigId} IS NULL)`,
+        OR (${table.kind} <> 'agent' AND ${table.agentConfigId} IS NULL)`,
+    ),
+    // Os dois sentidos, como o `session_agent_config`: script sem nome de fase é
+    // sessão que o rodapé não sabe em qual aba mostrar, e nome de fase numa shell
+    // é uma sessão mentindo sobre quem escolheu o comando dela.
+    //
+    // O `IS NOT NULL` explícito não é redundante, e o teste que o exigiu está no
+    // `db.test.ts`: `NULL IN ('setup', …)` avalia para NULL, e um CHECK só recusa
+    // quando avalia para FALSE. Sem ele, `kind='script'` com fase nula passava —
+    // exatamente a linha que este CHECK existe para impedir.
+    check(
+      "session_script_name",
+      sql`(${table.kind} = 'script' AND ${table.scriptName} IS NOT NULL
+          AND ${table.scriptName} IN ('setup', 'run', 'teardown'))
+        OR (${table.kind} <> 'script' AND ${table.scriptName} IS NULL)`,
     ),
     // A running process cannot have an exit code, and an exited one must.
     check(

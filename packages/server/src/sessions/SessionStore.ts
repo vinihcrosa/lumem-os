@@ -20,6 +20,7 @@ import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import {
   createSessionRepository,
   type ScopeType,
+  type ScriptPhase,
   type SessionKind,
 } from "../repositories/session.js";
 
@@ -33,6 +34,8 @@ import {
 
 export interface StartSessionInput {
   kind: SessionKind;
+  /** Which script this is. Required for `kind: "script"` and refused otherwise. */
+  scriptName?: ScriptPhase | null;
   agentConfigId?: string | null;
   scopeType: ScopeType;
   scopeId: string;
@@ -198,10 +201,12 @@ export function createSessionStore({
   return {
     async start(input) {
       const { kind, agentConfigId = null, scopeType, scopeId, cwd, command } = input;
+      const scriptName = input.scriptName ?? null;
 
-      // A shell is always a PTY (F1.2). The column enforces it too, but failing
-      // here says why, instead of surfacing a CHECK the caller has to decode.
-      const transport = kind === "shell" ? "pty" : (input.transport ?? "pty");
+      // A shell is always a PTY (F1.2), and so is a script — there is no
+      // conversation to have with `pnpm install`. The column enforces both, but
+      // failing here says why instead of surfacing a CHECK the caller has to decode.
+      const transport = kind === "agent" ? (input.transport ?? "pty") : "pty";
 
       if (transport === "acp") {
         if (!acpManager) {
@@ -258,6 +263,7 @@ export function createSessionStore({
         return await sessions.create({
           id: spawned.id,
           kind,
+          scriptName,
           agentConfigId,
           scopeType,
           scopeId,
