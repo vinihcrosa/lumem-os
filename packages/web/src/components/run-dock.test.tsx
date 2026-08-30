@@ -271,10 +271,19 @@ describe("a saída que não existe mais", () => {
       }),
     );
 
-    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+    const { container } = renderWithProviders(<RunDock scope={scope} dock={dock} />);
 
-    // `findAllByText`: a frase é do `span` e do `div` que o contém.
-    expect(await screen.findAllByText(/A saída desta execução não existe mais/)).not.toHaveLength(0);
+    // Uma vez só, e no corpo — não na linha de estado.
+    //
+    // A primeira versão deste teste aceitava qualquer número de ocorrências, e
+    // passou verde com a frase renderizada DUAS vezes: uma delas dentro do
+    // `.dock__state`, empurrando o chip de saída para fora. Contar é o que
+    // separa "a tela diz" de "a tela diz no lugar certo".
+    await screen.findByText(/A saída desta execução não existe mais/);
+    expect(container.querySelectorAll(".dock__idle")).toHaveLength(1);
+    expect(container.querySelector(".dock__state .dock__idle")).toBeNull();
+    // E a linha de estado continua dizendo como a execução terminou.
+    expect(screen.getByText(/saiu 1/)).toBeInTheDocument();
     expect(screen.queryByTestId("terminal")).not.toBeInTheDocument();
   });
 });
