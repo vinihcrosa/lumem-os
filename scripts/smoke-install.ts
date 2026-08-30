@@ -14,7 +14,7 @@
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -49,6 +49,16 @@ async function waitForListening(daemon: ChildProcess, output: () => string): Pro
   throw new Error(`o daemon não atendeu em 60s:\n${output()}`);
 }
 
+/**
+ * A tarball to test instead of building one.
+ *
+ * The release passes the artefact it is about to publish, which is the only way
+ * the smoke proves anything about *that* file rather than about a rebuild of the
+ * same source — they are supposed to be identical, and the whole point of this
+ * script is to stop supposing.
+ */
+const given = process.argv[2];
+
 async function main(): Promise<void> {
   const prefix = mkdtempSync(join(tmpdir(), "lumem-prefix-"));
   const stateDir = mkdtempSync(join(tmpdir(), "lumem-smoke-state-"));
@@ -56,16 +66,23 @@ async function main(): Promise<void> {
   let output = "";
 
   try {
-    step("empacotando");
-    // `npm pack` runs `prepack`, which builds. Publishing without the assets is
-    // therefore not something this script can accidentally bless.
-    run("npm", ["pack", "--pack-destination", prefix], packageRoot);
-    const tarball = readdirSync(prefix).find((name) => name.endsWith(".tgz"));
-    if (tarball === undefined) throw new Error("npm pack não escreveu tarball nenhum");
+    let tarball: string;
+    if (given === undefined) {
+      step("empacotando");
+      // `npm pack` runs `prepack`, which builds. Publishing without the assets is
+      // therefore not something this script can accidentally bless.
+      run("npm", ["pack", "--pack-destination", prefix], packageRoot);
+      const packed = readdirSync(prefix).find((name) => name.endsWith(".tgz"));
+      if (packed === undefined) throw new Error("npm pack não escreveu tarball nenhum");
+      tarball = join(prefix, packed);
+    } else {
+      step("usando o tarball recebido");
+      tarball = resolve(given);
+    }
     console.log(`  ${tarball}`);
 
     step("instalando num prefixo descartável");
-    run("npm", ["install", "--global", "--prefix", prefix, join(prefix, tarball)], prefix);
+    run("npm", ["install", "--global", "--prefix", prefix, tarball], prefix);
 
     step("subindo o binário instalado");
     const binary = join(prefix, "bin", "lumem");
