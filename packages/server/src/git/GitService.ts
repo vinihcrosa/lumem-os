@@ -26,6 +26,24 @@ export interface WorktreeEntry {
   prunable: boolean;
 }
 
+/** One line of the branch tab, F7.3. */
+export interface BranchItem {
+  /** Short name — `feat/login`, with no `refs/heads/` and no remote prefix. */
+  name: string;
+  /** The remote it lives on, or null for a local branch. */
+  remote: string | null;
+  /** Milliseconds since the epoch, from the commit the ref points at. */
+  lastCommitAt: number;
+  /**
+   * The checkout that already holds this branch, or null.
+   *
+   * A **path**, because that is all git knows: the worktree's name lives in
+   * the database, and the router is what turns one into the other for the
+   * sentence F7.4 requires.
+   */
+  usedByPath: string | null;
+}
+
 export interface AddWorktreeInput {
   repoPath: string;
   /** Branch to create. Same as the worktree's name, F4.2. */
@@ -119,6 +137,15 @@ export interface GitService {
   resolveDefaultBranch(path: string): Promise<string>;
   /** Whether a local branch of that name already exists, F4.2. */
   branchExists(repoPath: string, branch: string): Promise<boolean>;
+  /**
+   * Every branch this repository knows about, F7.3.
+   *
+   * From the disk, never from the network: F4.3 settled that for the base
+   * branch and a list is no reason to revisit it. A branch that exists locally
+   * and on a remote appears **once**, as local — two entries would offer the
+   * same work twice and do different things when picked.
+   */
+  listBranches(repoPath: string): Promise<BranchItem[]>;
   /**
    * Whether the repository has any commit at all, F6.13.
    *
@@ -308,6 +335,65 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
     },
 
     branchExists,
+
+    async listBranches(repoPath) {
+      // `%00` between the fields, and a ref per line: a branch name may contain
+      // anything but a NUL, so this is the only separator that cannot appear
+      // inside the value it separates.
+      const { stdout } = await exec(
+        [
+          "for-each-ref",
+          "--format=%(refname)%00%(committerdate:unix)",
+          "refs/heads",
+          "refs/remotes",
+        ],
+        { cwd: repoPath },
+      );
+
+      const held = new Map<string, string>();
+      for (const entry of await this.listWorktrees(repoPath)) {
+        if (entry.branch !== null) held.set(entry.branch, entry.path);
+      }
+
+      const locals = new Set<string>();
+      const remotes: BranchItem[] = [];
+      const items: BranchItem[] = [];
+
+      for (const line of stdout.split("\n")) {
+        if (line === "") continue;
+        const [refname = "", seconds = ""] = line.split("\0");
+        const lastCommitAt = Number(seconds) * 1000;
+
+        if (refname.startsWith("refs/heads/")) {
+          const name = refname.slice("refs/heads/".length);
+          locals.add(name);
+          items.push({ name, remote: null, lastCommitAt, usedByPath: held.get(name) ?? null });
+          continue;
+        }
+
+        const rest = refname.slice("refs/remotes/".length);
+        const separator = rest.indexOf("/");
+        if (separator === -1) continue;
+        const name = rest.slice(separator + 1);
+        // `origin/HEAD` is a pointer at another branch, not a branch. Cutting a
+        // worktree from it would cut from a name that moves.
+        if (name === "HEAD") continue;
+        remotes.push({ name, remote: rest.slice(0, separator), lastCommitAt, usedByPath: null });
+      }
+
+      for (const branch of remotes) {
+        if (!locals.has(branch.name)) items.push(branch);
+      }
+
+      // Name as the second key: git records dates by the second, and two
+      // branches touched in the same second are ordinary. Without it the list
+      // reorders itself between two identical calls.
+      return items.sort((a, b) =>
+        b.lastCommitAt === a.lastCommitAt
+          ? a.name.localeCompare(b.name)
+          : b.lastCommitAt - a.lastCommitAt,
+      );
+    },
 
     async addWorktree({ repoPath, branch, targetPath, baseBranch }) {
       // Checked here, not left to git, because F4.2 wants the user told to pick

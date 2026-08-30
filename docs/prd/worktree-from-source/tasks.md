@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) — 23, **todas respondidas**
 **Protótipo:** `packages/web/prototype/lumem-worktree-source.html` — entregue pela S1
 **Sucede:** [project-from-url](../project-from-url/tasks.md)
-**Status:** **em curso** — 1 de 19 (S1 entregue)
+**Status:** **em curso** — 2 de 19
 **Total:** 19 tasks em 6 fases
 
 ---
@@ -136,15 +136,20 @@ Repositório fixture local para o git; um script `gh` de mentira no `PATH` para 
 **Depends on**: nada
 
 **Done when**:
-- [ ] `for-each-ref` com formato explícito sobre `refs/heads` e `refs/remotes`, ordenado por `committerdate` decrescente
-- [ ] `origin/HEAD` é filtrado — é ponteiro, não branch
-- [ ] Cada item traz `name`, `remote` (nulo para local) e `lastCommitAt`
-- [ ] Uma branch que existe local **e** em `origin` aparece **uma vez**, como local
-- [ ] `usedBy` vem de `listWorktrees`, e é o **nome** da worktree, não o caminho (A7)
-- [ ] Repositório sem commit devolve lista vazia, não erro
-- [ ] Nome com acento e com barra voltam íntegros — formato com `-z`, como no resto do serviço
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 8
+- [x] `for-each-ref` com formato explícito sobre `refs/heads` e `refs/remotes`, ordenado por `committerdate` decrescente
+- [x] `origin/HEAD` é filtrado — é ponteiro, não branch
+- [x] Cada item traz `name`, `remote` (nulo para local) e `lastCommitAt`
+- [x] Uma branch que existe local **e** em `origin` aparece **uma vez**, como local
+- [x] ~~`usedBy` é o **nome** da worktree~~ — **a implementação derrubou isto.** O git só sabe caminho; o nome mora no banco. O campo virou `usedByPath`, e quem o transforma na frase do F7.4 é o router (S9/S11)
+- [x] Repositório sem commit devolve lista vazia, não erro
+- [x] Nome com acento e com barra voltam íntegros — separador `%00`, o único byte que não pode aparecer dentro de um nome de ref
+- [x] Gate: `pnpm gate:quick` — 1157 testes
+- [x] Test count: 11
+
+**O que a execução achou**
+
+- **Empate de segundo é o caso comum, não a exceção.** O git grava data de commit com granularidade de segundo, e duas branches tocadas no mesmo segundo — um rebase, um script — empatavam. Sem segunda chave a lista se reordenava sozinha entre duas chamadas idênticas. Ordena por data e, no empate, por nome. O teste que pegou isso só existe porque o primeiro teste de ordenação estava, sem saber, asserindo sobre um empate: os dois commits caíam no mesmo segundo. A fixture ganhou data explícita.
+- **O `/private` do macOS de novo.** `git worktree list` responde com o caminho **resolvido**, e a fixture entrega o `/var` que é symlink. É a mesma armadilha que o `isGitRepo` já documenta, e agora ela é um requisito de quem for comparar `usedByPath` com uma linha do banco: resolver os dois lados.
 
 **Tests**: unit, com git de verdade (`testing.md`: git nunca é dublado) · **Gate**: quick
 **Commit**: `feat(server): list branches with the worktree that already holds them`
