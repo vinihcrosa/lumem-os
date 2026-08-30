@@ -256,7 +256,10 @@ projeto é confiado.
 **Done when**:
 - [x] `Abrir :PORTA` abre `http://127.0.0.1:PORTA`, e **diz de onde veio a porta**
 - [x] `parar` não é botão vermelho cheio (é rotina reversível); `rodar de novo` só onde faz sentido
-- [x] Sem `[scripts]`: o texto pronto, o caminho do arquivo, `criar o arquivo` e `copiar`
+- [x] Sem `[scripts]`: o caminho do arquivo, o exemplo para copiar, e **`pedir para o agente criar`**
+      — que abre uma conversa nova já com o pedido dentro (as três fases, o que cada uma significa, e
+      a instrução de ler o repositório antes de inventar). Desabilitado com o motivo quando não há
+      agente ACP conectado
 - [x] Projeto não confiado: o comando aparece **antes** de rodar, com `rodar uma vez` e `confiar`
 - [x] Gate: `pnpm gate:quick`
 
@@ -305,6 +308,20 @@ clicar — que é o que o [testing.md](../../project/testing.md) chama de "o que
 | **A sessão de script se apresentava como shell** | A lista de sessões do projeto mostrava `shell /bin/zsh` para toda execução: o tipo errado e o mecanismo no lugar da intenção | A linha guarda o comando **declarado** (`recordedCommand`), e o painel rotula pela fase, com glifo próprio |
 | **A saída sumida virava um retângulo preto** | O scrollback vive na memória do daemon; reiniciar o daemon apaga a saída e deixa a linha do banco. A tela mostrava um terminal vazio, que é a pior forma de dizer "isto não existe mais" | `outputAvailable` viaja no status, e a aba escreve o motivo |
 | **`[scripts]` inválido travava a tela em "lendo o checkout…"** | Achado pelo e2e, não pelo browser — mas é o mesmo tipo de buraco: o daemon recusava com um motivo e a tela não sabia mostrá-lo | A aba mostra o erro do daemon |
+
+### O que veio depois, pelo uso
+
+**O vazio pedia para o produto escrever o arquivo, e o produto não sabe o comando.** A primeira versão
+tinha um botão `criar o arquivo` que gravava `run = "pnpm dev"` — certo neste repositório e errado na
+maioria dos outros. Ele virou **`pedir para o agente criar`**: abre uma conversa nova no checkout e
+manda o pedido sozinha. O `scripts.writeFile` do daemon continua existindo como caminho de API — é o
+escritor que preserva o resto do arquivo —, mas saiu do cliente.
+
+Isso trouxe uma peça nova para a conversa: `initialPrompt`, uma primeira mensagem que ela envia **uma
+vez**, depois de anexar, e nunca numa sessão encerrada. A trava de "uma vez" custou um teste que
+sobreviveu a duas mutações antes de virar prova: `waitFor` acerta na primeira checagem — quando o
+contador ainda é 1 — e passa mesmo com o segundo envio saindo logo depois. Com `act` drenando os
+efeitos, a mutação morre.
 
 E uma quarta, que é sobre o teste e não sobre o produto: a correção da segunda linha
 **apareceu duas vezes** na tela — uma delas dentro da linha de estado, empurrando o chip de saída

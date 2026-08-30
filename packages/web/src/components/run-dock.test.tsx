@@ -194,6 +194,8 @@ describe("rodar e parar", () => {
 });
 
 describe("o projeto sem [scripts]", () => {
+  const acpAgent = { id: "cfg_1", name: "claude", transport: "acp" };
+
   it("ensina o arquivo em vez de pedir desculpa", async () => {
     // O estado normal, não o excepcional: é a única superfície onde alguém
     // descobre que esse arquivo existe.
@@ -204,19 +206,60 @@ describe("o projeto sem [scripts]", () => {
     expect(screen.getByText(/\[scripts\]/)).toBeInTheDocument();
   });
 
-  it("criar o arquivo escreve no repositório de quem está lendo", async () => {
-    trpcMock.scripts.writeFile.mutate.mockResolvedValue({
-      setup: null,
-      run: "pnpm dev",
-      teardown: null,
-    });
+  /**
+   * O gesto principal é pedir para o agente, e não escrever um exemplo: um
+   * `run = "pnpm dev"` chutado pelo produto está errado na maioria dos
+   * repositórios, e o agente é quem lê o `package.json` antes de responder.
+   */
+  it("abre uma conversa nova e manda o pedido para ela", async () => {
+    trpcMock.agentConfig.list.query.mockResolvedValue([acpAgent]);
+    trpcMock.session.createAgent.mutate.mockResolvedValue({ id: "se_novo", kind: "agent" });
+    const onAskAgent = vi.fn();
 
-    renderWithProviders(<RunDock scope={scope} dock={dock} />);
-    await userEvent.click(await screen.findByRole("button", { name: "criar o arquivo" }));
+    renderWithProviders(<RunDock scope={scope} dock={dock} onAskAgent={onAskAgent} />);
+    await userEvent.click(await screen.findByRole("button", { name: "pedir para o agente criar" }));
 
     await waitFor(() => {
-      expect(trpcMock.scripts.writeFile.mutate).toHaveBeenCalledWith({ ...scope, run: "pnpm dev" });
+      expect(trpcMock.session.createAgent.mutate).toHaveBeenCalledWith({
+        ...scope,
+        agentConfigId: "cfg_1",
+      });
     });
+    // O pedido vai amarrado à sessão que acabou de nascer, e diz o caminho do
+    // arquivo que ele quer.
+    await waitFor(() => {
+      expect(onAskAgent).toHaveBeenCalledWith("se_novo", expect.stringContaining("[scripts]"));
+    });
+    expect(onAskAgent.mock.calls[0]?.[1]).toContain("/repo/.lumem/project.toml");
+    // E a instrução que separa "escreveu um script" de "escreveu o script deste
+    // repositório".
+    expect(onAskAgent.mock.calls[0]?.[1]).toMatch(/leia o repositório/i);
+    expect(onAskAgent.mock.calls[0]?.[1]).toContain("LUMEM_RUN_PORT");
+  });
+
+  it("sem agente conectado, o botão diz por que não dá", async () => {
+    trpcMock.agentConfig.list.query.mockResolvedValue([]);
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} onAskAgent={vi.fn()} />);
+
+    expect(await screen.findByRole("button", { name: "pedir para o agente criar" })).toBeDisabled();
+    expect(screen.getByText(/conecte um agente/)).toBeInTheDocument();
+  });
+
+  it("agente por PTY não serve: o pedido é uma pergunta, não um terminal", async () => {
+    trpcMock.agentConfig.list.query.mockResolvedValue([
+      { id: "cfg_pty", name: "claude-code", transport: "pty" },
+    ]);
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} onAskAgent={vi.fn()} />);
+
+    expect(await screen.findByRole("button", { name: "pedir para o agente criar" })).toBeDisabled();
+  });
+
+  it("copiar continua existindo, para quem prefere escrever à mão", async () => {
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    expect(await screen.findByRole("button", { name: "copiar o exemplo" })).toBeEnabled();
   });
 });
 

@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import type { RunDockState } from "../hooks/useRunDock.js";
@@ -19,6 +19,13 @@ export type DockTab = "setup" | "run" | "terminal";
 export interface RunDockProps {
   scope: Scope;
   dock: RunDockState;
+  /**
+   * Abre uma conversa nova já com o pedido dentro.
+   *
+   * O rodapé sabe **o que** perguntar; quem sabe pôr uma aba na frente é o `App`,
+   * porque as abas são do painel central. Ausente quando não há onde abrir.
+   */
+  onAskAgent?: (sessionId: string, prompt: string) => void;
 }
 
 /**
@@ -32,7 +39,7 @@ export interface RunDockProps {
  * Ele pertence ao **checkout**, como a árvore: trocar de aba de sessão não muda o
  * que está rodando; trocar de worktree, muda.
  */
-export function RunDock({ scope, dock }: RunDockProps) {
+export function RunDock({ scope, dock, onAskAgent }: RunDockProps) {
   const [tab, setTab] = useState<DockTab>("run");
   const status = useScripts(scope);
   const actions = useScriptActions(scope);
@@ -92,7 +99,13 @@ export function RunDock({ scope, dock }: RunDockProps) {
           <span>{status.error.message}</span>
         </div>
       ) : (
-        <PhasePanel scope={scope} phase={tab} status={status.data} actions={actions} />
+        <PhasePanel
+          scope={scope}
+          phase={tab}
+          status={status.data}
+          actions={actions}
+          onAskAgent={onAskAgent}
+        />
       )}
     </div>
   );
@@ -224,16 +237,20 @@ function PhasePanel({
   phase,
   status,
   actions,
+  onAskAgent,
 }: {
   scope: Scope;
   phase: "setup" | "run";
   status: ScriptStatus | undefined;
   actions: Actions;
+  onAskAgent?: ((sessionId: string, prompt: string) => void) | undefined;
 }) {
   if (!status) return <div className="dock__idle">lendo o checkout…</div>;
 
   const declared = status[phase].command;
-  if (declared === null) return <NoScripts status={status} actions={actions} />;
+  if (declared === null) {
+    return <NoScripts scope={scope} status={status} onAskAgent={onAskAgent} />;
+  }
   if (!status.trusted) return <TrustGate status={status} phase={phase} actions={actions} />;
 
   const last = status[phase].last;
@@ -302,13 +319,77 @@ function PhasePanel({
 }
 
 /**
+ * O prompt que o botão manda.
+ *
+ * Escrito aqui, e não digitado por quem clica, porque o valor do gesto é
+ * exatamente esse: o pedido já vem com as três fases, com o que cada uma
+ * significa, e com a instrução que separa "escreveu um script" de "escreveu o
+ * script deste repositório" — **leia antes de inventar**.
+ */
+export function askScriptsPrompt(file: string): string {
+  return [
+    "Este checkout ainda não diz ao Lumem como rodar.",
+    "",
+    `Escreva a tabela \`[scripts]\` em \`${file}\`, com as três fases:`,
+    "",
+    "- `setup`: deixa um checkout novo pronto para trabalhar — instalar dependências, preparar banco, o que for. Precisa ser idempetente: rodar de novo não pode estragar nada.",
+    "- `run`: sobe a aplicação em primeiro plano (nada de daemon em background). Se ela aceitar porta configurável, use `$LUMEM_RUN_PORT` — é a porta que o Lumem reserva para este checkout, e é o que faz duas worktrees rodarem ao mesmo tempo.",
+    "- `teardown`: desfaz o que sobrevive ao diretório — container, volume, porta presa. Se não houver nada assim, omita a linha.",
+    "",
+    "Antes de escrever, **leia o repositório** para descobrir os comandos de verdade: `package.json`, `Makefile`, `docker-compose.yml`, `README`, e o que mais existir. Não invente comando que não está lá; se não achar o de alguma fase, diga isso em vez de chutar.",
+    "",
+    "Cada valor é uma string só, executada pelo shell de login no diretório do checkout. Preserve o resto do arquivo — ele pode já ter o `id` do projeto dentro, e ele é do time.",
+    "",
+    "Não commite: eu reviso a mudança.",
+  ].join("\n");
+}
+
+/**
  * O vazio que ensina o arquivo.
  *
  * Este é o estado **normal**, não o excepcional: é assim que todo projeto entra no
  * Lumem, e é a única superfície do produto onde alguém descobre que esse arquivo
  * existe.
+ *
+ * O gesto principal é **pedir para o agente**, e não escrever um arquivo de
+ * exemplo: um `run = "pnpm dev"` chutado pelo produto está errado na maioria dos
+ * repositórios, e o agente é quem consegue ler o `package.json` antes de responder.
  */
-function NoScripts({ status, actions }: { status: ScriptStatus; actions: Actions }) {
+function NoScripts({
+  scope,
+  status,
+  onAskAgent,
+}: {
+  scope: Scope;
+  status: ScriptStatus;
+  onAskAgent?: ((sessionId: string, prompt: string) => void) | undefined;
+}) {
+  const queryClient = useQueryClient();
+  const configs = useQuery({
+    queryKey: ["agentConfig", "list"],
+    queryFn: () => trpc.agentConfig.list.query(),
+  });
+
+  // Só conversa serve: o pedido é uma pergunta em texto, e um agente por PTY é um
+  // terminal — mandar texto nele seria digitar no prompt de outra coisa.
+  const agent = (configs.data ?? []).find((config) => config.transport === "acp") ?? null;
+
+  const ask = useMutation({
+    mutationFn: async () => {
+      if (agent === null) throw new Error("nenhum agente conectado");
+      const created = await trpc.session.createAgent.mutate({
+        scopeType: scope.scopeType,
+        scopeId: scope.scopeId,
+        agentConfigId: agent.id,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: sessionsKey(scope.scopeType, scope.scopeId),
+      });
+      return created.id;
+    },
+    onSuccess: (sessionId) => onAskAgent?.(sessionId, askScriptsPrompt(status.file)),
+  });
+
   const example = useMemo(
     () =>
       [
@@ -338,14 +419,25 @@ function NoScripts({ status, actions }: { status: ScriptStatus; actions: Actions
         <Button
           size="sm"
           variant="primary"
-          disabled={actions.writeFile.isPending}
-          onClick={() => actions.writeFile.mutate({ run: "pnpm dev" })}
+          disabled={agent === null || onAskAgent === undefined || ask.isPending}
+          onClick={() => ask.mutate()}
         >
-          criar o arquivo
+          {ask.isPending ? "abrindo a conversa…" : "pedir para o agente criar"}
         </Button>
         <Button size="sm" onClick={() => void navigator.clipboard?.writeText(example)}>
-          copiar
+          copiar o exemplo
         </Button>
+        {agent === null && (
+          // O motivo ao lado do botão desabilitado, como o `remover workspace` faz.
+          <span className="trust__note">
+            conecte um agente na barra da esquerda para pedir — ou escreva o arquivo à mão
+          </span>
+        )}
+        {ask.isError && (
+          <span className="trust__note" role="alert">
+            {ask.error.message}
+          </span>
+        )}
       </div>
     </div>
   );

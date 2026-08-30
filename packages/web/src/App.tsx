@@ -55,6 +55,14 @@ export function App() {
   /** A session the setup flow opened, for the tabs to bring to the front once. */
   const [openSessionId, setOpenSessionId] = useState<string | undefined>(undefined);
   /**
+   * Uma conversa aberta **para** uma pergunta, e a pergunta.
+   *
+   * Hoje vem de um lugar só: o rodapé de execução, quando o projeto não declara
+   * `[scripts]` e a pessoa pede para o agente escrever. Mora aqui porque as abas
+   * são do painel central, e o rodapé é da coluna da direita.
+   */
+  const [ask, setAsk] = useState<{ sessionId: string; text: string } | null>(null);
+  /**
    * A URL handed back to the dialog, F6.10 of project-from-url.
    *
    * The way out of an authentication failure is the same address spelled for
@@ -261,6 +269,10 @@ export function App() {
         scope={selection.scope}
         onClose={rightPanel.toggle}
         onResize={rightPanel.setWidth}
+        onAskAgent={(sessionId, text) => {
+          setAsk({ sessionId, text });
+          setOpenSessionId(sessionId);
+        }}
         dock={{
           ...dock,
           // Abrir o rodapé alarga a coluna quando ela é estreita demais para um
@@ -309,6 +321,7 @@ export function App() {
           worktreeId={scope.scopeId}
           projectId={projectId}
           openSessionId={openSessionId}
+          initialPrompt={ask ?? undefined}
           workspaceName={workspaceName}
           onRemoved={() =>
             setSelection({
@@ -335,6 +348,8 @@ export function App() {
         projectId={projectId}
         workspaceId={workspaceId}
         workspaceName={workspaceName}
+        openSessionId={openSessionId}
+        initialPrompt={ask ?? undefined}
         onRemoved={() => setSelection(null)}
         onOpenWorkspace={() => setSelection(null)}
         onSelectWorktree={(worktreeId) =>

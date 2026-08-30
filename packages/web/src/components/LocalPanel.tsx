@@ -21,6 +21,10 @@ export interface LocalPanelProps {
   /** O caminho de volta (W7): daqui, o único lugar acima é o workspace. */
   onOpenWorkspace: () => void;
   onSelectWorktree: (worktreeId: string) => void;
+  /** Uma sessão para trazer à frente, uma vez — ver `ScopePanel`. */
+  openSessionId?: string | undefined;
+  /** O pedido que abriu uma conversa (ver `ScopePanel`). */
+  initialPrompt?: { sessionId: string; text: string } | undefined;
 }
 
 /**
@@ -111,6 +115,8 @@ export function LocalPanel({
   onRemoved,
   onOpenWorkspace,
   onSelectWorktree,
+  openSessionId,
+  initialPrompt,
 }: LocalPanelProps) {
   const queryClient = useQueryClient();
   const scope: Scope = { scopeType: "project", scopeId: projectId };
@@ -173,6 +179,8 @@ export function LocalPanel({
     <ScopePanel
       scope={scope}
       cwd={path}
+      openSessionId={openSessionId}
+      initialPrompt={initialPrompt}
       header={
         <>
           <nav className="crumb">

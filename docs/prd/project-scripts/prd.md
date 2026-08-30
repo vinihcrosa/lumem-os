@@ -123,7 +123,9 @@ hash do caminho — e que qualquer outro projeto teria de resolver de novo.
 - `teardown` na remoção da worktree ([S8](open-questions.md));
 - as variáveis de ambiente do §4, e a reserva de porta por checkout;
 - a tela que **falta o arquivo**: projeto sem `[scripts]` não é erro, é o estado normal — e o rodapé é
-  o lugar onde se aprende que ele existe.
+  o lugar onde se aprende que ele existe. O gesto ali é **pedir para o agente escrever**: um
+  `run = "pnpm dev"` chutado pelo produto está errado na maioria dos repositórios, e quem consegue
+  ler o `package.json` antes de responder é o agente.
 
 **Não entra, e por quê:**
 
@@ -203,7 +205,7 @@ está escrito acima. O que ele deixa decidido:
 | `Setup` tem **histórico** (saiu 0, há 6 min); `Run` tem **estado** (rodando, 4 min, porta) | quadro 3 |
 | o botão `Abrir :PORTA` **diz de onde tirou o número** — da variável ou da saída | quadros 1 e 2 |
 | `parar` não é botão vermelho cheio: parar um run é rotina e reversível, e esse vocabulário é de remover worktree | quadros 1 e 6 |
-| o vazio **ensina o arquivo** em vez de pedir desculpa — com o TOML pronto e o caminho onde ele mora | quadro 5 |
+| o vazio **ensina o arquivo** em vez de pedir desculpa — com o caminho onde ele mora, o exemplo para copiar, e o gesto principal sendo **pedir para o agente escrever** | quadro 5 |
 | run de pé aparece **na sidebar**, com a porta, porque o rodapé pode estar fechado | quadro 6 |
 | o comando de repositório clonado aparece **antes** de virar processo | quadro 7 |
 

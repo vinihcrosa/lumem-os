@@ -48,7 +48,15 @@ export function useScripts(scope: Scope): UseQueryResult<ScriptStatus> {
   });
 }
 
-/** Os gestos do rodapé. Todos invalidam a mesma leitura, que é a da tela inteira. */
+/**
+ * Os gestos do rodapé. Todos invalidam a mesma leitura, que é a da tela inteira.
+ *
+ * **Não há `writeFile` aqui**, e é decisão: o vazio sem `[scripts]` pede para o
+ * *agente* escrever, porque um `run = "pnpm dev"` chutado pelo produto está errado
+ * na maioria dos repositórios. O `scripts.writeFile` do daemon continua existindo
+ * como caminho de API — é o escritor que preserva o resto do arquivo —, e quem o
+ * exercita é a suíte do servidor.
+ */
 export function useScriptActions(scope: Scope) {
   const queryClient = useQueryClient();
   const invalidate = () => {
@@ -73,17 +81,5 @@ export function useScriptActions(scope: Scope) {
     onSettled: invalidate,
   });
 
-  const writeFile = useMutation({
-    mutationFn: (changes: Partial<Record<ScriptPhase, string | null>>) =>
-      trpc.scripts.writeFile.mutate({ ...scope, ...changes }),
-    onSettled: () => {
-      invalidate();
-      // O arquivo entra no repositório de quem está lendo: ele aparece na aba
-      // `Mudanças` na mesma hora, e não no próximo refresh.
-      void queryClient.invalidateQueries({ queryKey: ["changes"] });
-      void queryClient.invalidateQueries({ queryKey: ["files"] });
-    },
-  });
-
-  return { start, stop, trust, writeFile };
+  return { start, stop, trust };
 }

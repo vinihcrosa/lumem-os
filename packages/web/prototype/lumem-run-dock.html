@@ -436,10 +436,18 @@
         </div>
       </div>
       <p class="case__note">
-        <b>“criar o arquivo” escreve no repositório de quem está lendo</b> — então ele preserva o
-        que já estava lá e aparece como uma mudança comum na aba <code>Mudanças</code>, para você
-        commitar. É a mesma regra que o daemon já segue para o <code>id</code>: ele nunca reescreve
-        o TOML inteiro.
+        <b>O gesto principal é pedir para o agente, e não escrever um arquivo de exemplo.</b>
+        Um <code>run = "pnpm dev"</code> chutado pelo produto está errado na maioria dos
+        repositórios; quem consegue ler o <code>package.json</code>, o <code>Makefile</code> e o
+        <code>docker-compose.yml</code> antes de responder é o agente. O clique abre uma
+        <b>conversa nova</b> já com o pedido dentro — as três fases, o que cada uma significa, e a
+        instrução de ler o repositório antes de inventar. O arquivo aparece como mudança comum na
+        aba <code>Mudanças</code>, para você revisar e commitar.
+      </p>
+      <p class="case__note">
+        Sem agente conectado, o botão fica desabilitado com o motivo ao lado — o mesmo padrão do
+        <code>remover workspace</code>. E <code>copiar o exemplo</code> continua ali para quem
+        prefere escrever à mão.
       </p>
     </div>
   </section>

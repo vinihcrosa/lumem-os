@@ -26,6 +26,8 @@ export interface CheckoutFilesProps {
    * largura já era: valem para qualquer checkout, não para este.
    */
   dock: RunDockState;
+  /** Abre uma conversa nova com o pedido dentro — ver `RunDock`. */
+  onAskAgent?: (sessionId: string, prompt: string) => void;
 }
 
 /**
@@ -36,7 +38,13 @@ export interface CheckoutFilesProps {
  * tab — which is why the opening goes through `useOpenFiles` instead of state
  * held here.
  */
-export function CheckoutFiles({ scope, onClose, onResize, dock }: CheckoutFilesProps) {
+export function CheckoutFiles({
+  scope,
+  onClose,
+  onResize,
+  dock,
+  onAskAgent,
+}: CheckoutFilesProps) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<RightPanelTab>("files");
   const [shownRef, setShownRef] = useState<ChangeRef>("worktree");
@@ -73,7 +81,7 @@ export function CheckoutFiles({ scope, onClose, onResize, dock }: CheckoutFilesP
       }}
       onClose={onClose}
       onResize={onResize}
-      dock={<RunDock scope={scope} dock={dock} />}
+      dock={<RunDock scope={scope} dock={dock} onAskAgent={onAskAgent} />}
       footLeft={changes.isError ? "não deu para ler o checkout" : undefined}
       footRight={
         tab === "changes"
