@@ -27,6 +27,40 @@ importers:
         specifier: ^3.0.5
         version: 3.2.7(@types/node@22.20.1)(jsdom@25.0.1)(tsx@4.23.12)(yaml@2.9.0)
 
+  packages/cli:
+    dependencies:
+      better-sqlite3:
+        specifier: ^13.0.3
+        version: 13.0.3
+      node-pty:
+        specifier: ^1.1.0
+        version: 1.1.0
+    devDependencies:
+      '@lumem/server':
+        specifier: workspace:*
+        version: link:../server
+      '@lumem/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@lumem/web':
+        specifier: workspace:*
+        version: link:../web
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.1
+      esbuild:
+        specifier: ^0.25.12
+        version: 0.25.12
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.12
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.5
+        version: 3.2.7(@types/node@22.20.1)(jsdom@25.0.1)(tsx@4.23.12)(yaml@2.9.0)
+
   packages/server:
     dependencies:
       '@agentclientprotocol/sdk':

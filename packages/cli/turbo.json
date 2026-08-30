@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build", "typecheck"],
+      // Three directories, not one: `bin/` and `drizzle/` are written by this
+      // package's build too, and a cache hit that restored only `dist/` would
+      // leave a package with no binary in it — which installs fine and does
+      // nothing.
+      "outputs": ["dist/**", "bin/**", "drizzle/**"]
+    }
+  }
+}

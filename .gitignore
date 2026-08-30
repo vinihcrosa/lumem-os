@@ -3,6 +3,12 @@ dist/
 build/
 .turbo/
 
+# Saída da montagem do pacote publicado (`packages/cli/build.ts`). O `dist/`
+# acima já cobre metade; estes dois são cópias que o build faz para dentro do
+# pacote, e commitá-las seria versionar o mesmo byte duas vezes.
+packages/cli/bin/
+packages/cli/drizzle/
+
 *.db
 *.db-journal
 *.db-shm
