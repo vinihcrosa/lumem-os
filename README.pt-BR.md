@@ -21,20 +21,25 @@ lumem
 ```
 
 O daemon sobe em `http://127.0.0.1:4317` e serve a interface na mesma porta.
-`lumem --open` abre o navegador junto.
+`lumem --open` abre o navegador junto. Atualizar é o mesmo comando de novo, com
+`@latest`.
 
 O nome não é curto nem bonito por um motivo: o npm recusa `lumem` puro por
 parecer demais com o `mem`, e o `@vinihcrosa/lumem` já é outro projeto. O comando
 continua sendo `lumem` — e `lumem-os` é instalado como segundo nome do mesmo
 binário, para quem tiver os dois pacotes.
 
-De um clone, se preferir construir:
+De um clone, se preferir construir — pelo tarball, e não `npm i -g
+./packages/cli`, que faz link simbólico para o checkout em vez de instalar uma
+cópia dele, então mover o clone depois quebra o comando:
 
 ```sh
 pnpm install
-pnpm build
-npm i -g ./packages/cli
+npm i -g "$(npm pack ./packages/cli | tail -1)"
 ```
+
+O `npm pack` roda o `prepack`, que constrói — não há um `pnpm build` separado. É
+o caminho que o `pnpm smoke:install` exercita, um prefixo descartável por vez.
 
 **O que a máquina precisa:**
 
@@ -43,7 +48,7 @@ npm i -g ./packages/cli
 | Node | 22 ou mais novo |
 | git | 2.30 ou mais novo — o produto inteiro é worktree |
 | Um agente ACP | o CLI `claude`, para a conversa. A tela de primeiro acesso instala o adaptador |
-| Sistema | macOS e Linux. Windows não é suportado ([por quê](docs/project/backlog.md)) |
+| Sistema | macOS e Linux. Windows não é suportado ([por quê](docs/prd/distribution/prd.md)) |
 
 Nada além disso: as duas dependências nativas (`better-sqlite3`, `node-pty`)
 publicam binários prontos, então a instalação global não compila nada nas
@@ -60,7 +65,7 @@ conversas, memória. `--state-dir` muda o lugar.
 | [Projetos e worktrees](docs/prd/walking-skeleton/prd.md) | registre um repo por caminho ou [clone de uma URL](docs/prd/project-from-url/prd.md); corte worktrees pelo produto, e não pelo terminal |
 | [Conversa por ACP](docs/prd/acp-sessions/prd.md) | plano, uso e custo, comandos de barra, terminal embutido, e a conversa **em disco** — fechar o Lumem não perde nada |
 | [Arquivos, diff e editor](docs/prd/file-editor/prd.md) | navegue o checkout, leia o diff contra a branch base, edite com autosave |
-| [Scripts do projeto](docs/prd/project-scripts/prd.md) | `setup`, `run` e `test` moram no `<repo>/.lumem/project.toml`; a worktree nova nasce preparada, e um clique sobe a aplicação numa porta reservada para aquele checkout |
+| [Scripts do projeto](docs/prd/project-scripts/prd.md) | `setup`, `run`, `test` e `teardown` moram no `<repo>/.lumem/project.toml`; a worktree nova nasce preparada, e um clique sobe a aplicação numa porta reservada para aquele checkout |
 | [Memória do workspace](docs/prd/workspace-memory/prd.md) | o que o harness aprendeu, versionado em git, atrás de um portão de escrita e de uma inbox de propostas. Os três interruptores que gastam token vêm **desligados** |
 | [Status de PR](docs/prd/pull-request-status/prd.md) | desenhado, não implementado: qual das suas worktrees dá pra mesclar |
 
