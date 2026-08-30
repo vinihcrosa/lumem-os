@@ -40,7 +40,7 @@ describe("addWorktree", () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
 
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
 
     expect(existsSync(join(target, "README.md"))).toBe(true);
     expect((await runGit(target, "branch", "--show-current")).trim()).toBe("teste");
@@ -52,7 +52,7 @@ describe("addWorktree", () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
 
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
 
     expect(await runGit(repo, "worktree", "list")).toContain("teste");
   });
@@ -64,6 +64,7 @@ describe("addWorktree", () => {
     const target = join(root, "main-again");
 
     const failure = git.addWorktree({
+      mode: "create",
       repoPath: repo,
       branch: "main",
       targetPath: target,
@@ -82,6 +83,7 @@ describe("addWorktree", () => {
     const target = join(root, "feat/login");
 
     await git.addWorktree({
+      mode: "create",
       repoPath: repo,
       branch: "feat/login",
       targetPath: target,
@@ -101,6 +103,7 @@ describe("addWorktree", () => {
     const target = join(root, "from-main");
 
     await git.addWorktree({
+      mode: "create",
       repoPath: repo,
       branch: "from-main",
       targetPath: target,
@@ -119,6 +122,7 @@ describe("addWorktree", () => {
 
     await expect(
       git.addWorktree({
+        mode: "create",
         repoPath: repo,
         branch: "teste",
         targetPath: occupied,
@@ -137,10 +141,11 @@ describe("addWorktree", () => {
     mkdirSync(occupied, { recursive: true });
     writeFileSync(join(occupied, "in-the-way.txt"), "x");
     await expect(
-      git.addWorktree({ repoPath: repo, branch: "teste", targetPath: occupied, baseBranch: "main" }),
+      git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: occupied, baseBranch: "main" }),
     ).rejects.toThrow();
 
     await git.addWorktree({
+      mode: "create",
       repoPath: repo,
       branch: "teste",
       targetPath: join(root, "teste"),
@@ -155,6 +160,7 @@ describe("addWorktree", () => {
 
     await expect(
       git.addWorktree({
+        mode: "create",
         repoPath: repo,
         branch: "teste",
         targetPath: join(root, "teste"),
@@ -168,6 +174,7 @@ describe("listWorktrees", () => {
   it("lists the main repository and every worktree with its branch", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     await git.addWorktree({
+      mode: "create",
       repoPath: repo,
       branch: "teste",
       targetPath: join(root, "teste"),
@@ -185,7 +192,7 @@ describe("listWorktrees", () => {
   it("marks a worktree whose directory was deleted by hand as prunable", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
 
     rmSync(target, { recursive: true, force: true });
 
@@ -228,7 +235,7 @@ describe("removeWorktree", () => {
     // would throw away commits nobody asked to lose.
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
 
     await git.removeWorktree({ repoPath: repo, path: target });
 
@@ -239,7 +246,7 @@ describe("removeWorktree", () => {
   it("refuses a dirty worktree unless forced", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
     writeFileSync(join(target, "README.md"), "changed");
 
     await expect(git.removeWorktree({ repoPath: repo, path: target })).rejects.toThrow(DomainError);
@@ -249,7 +256,7 @@ describe("removeWorktree", () => {
   it("removes a dirty worktree when forced", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
     writeFileSync(join(target, "README.md"), "changed");
 
     await git.removeWorktree({ repoPath: repo, path: target, force: true });
@@ -260,7 +267,7 @@ describe("removeWorktree", () => {
   it("runs from the repository, so a directory deleted by hand can still be dropped", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
     rmSync(target, { recursive: true, force: true });
 
     await git.removeWorktree({ repoPath: repo, path: target, force: true });
@@ -273,7 +280,7 @@ describe("getStatus", () => {
   it("reports a fresh worktree as clean", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
 
     expect(await git.getStatus(target)).toEqual({ clean: true, changedFiles: 0 });
   });
@@ -281,7 +288,7 @@ describe("getStatus", () => {
   it("counts a modified file", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
     writeFileSync(join(target, "README.md"), "changed");
 
     expect(await git.getStatus(target)).toEqual({ clean: false, changedFiles: 1 });
@@ -292,7 +299,7 @@ describe("getStatus", () => {
     // removal is the worst outcome this whole check exists to prevent.
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
     writeFileSync(join(target, "novo.txt"), "x");
 
     expect(await git.getStatus(target)).toEqual({ clean: false, changedFiles: 1 });
@@ -303,7 +310,7 @@ describe("getStatus", () => {
     // how many files are in it.
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
     mkdirSync(join(target, "novo"));
     writeFileSync(join(target, "novo", "a.txt"), "x");
     writeFileSync(join(target, "novo", "b.txt"), "x");
@@ -314,7 +321,7 @@ describe("getStatus", () => {
   it("adds up several kinds of change", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
     writeFileSync(join(target, "README.md"), "changed");
     writeFileSync(join(target, "novo.txt"), "x");
 
@@ -342,7 +349,7 @@ describe("getAheadBehind", () => {
   it("is zero and zero right after creation", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
 
     expect(await git.getAheadBehind(target, "main")).toEqual({ ahead: 0, behind: 0 });
   });
@@ -350,7 +357,7 @@ describe("getAheadBehind", () => {
   it("counts commits made in the worktree as ahead", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
     writeFileSync(join(target, "a.txt"), "x");
     await runGit(target, "add", "a.txt");
     await runGit(target, "commit", "-m", "work");
@@ -361,7 +368,7 @@ describe("getAheadBehind", () => {
   it("counts commits made on the base as behind", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
     writeFileSync(join(repo, "b.txt"), "x");
     await runGit(repo, "add", "b.txt");
     await runGit(repo, "commit", "-m", "moved on");
@@ -372,7 +379,7 @@ describe("getAheadBehind", () => {
   it("counts both sides when they diverged", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ mode: "create", repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
     writeFileSync(join(target, "a.txt"), "x");
     await runGit(target, "add", "a.txt");
     await runGit(target, "commit", "-m", "work");

@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) — 23, **todas respondidas**
 **Protótipo:** `packages/web/prototype/lumem-worktree-source.html` — entregue pela S1
 **Sucede:** [project-from-url](../project-from-url/tasks.md)
-**Status:** **em curso** — 2 de 19
+**Status:** **em curso** — 3 de 19
 **Total:** 19 tasks em 6 fases
 
 ---
@@ -163,15 +163,16 @@ Repositório fixture local para o git; um script `gh` de mentira no `PATH` para 
 **Depends on**: S2
 
 **Done when**:
-- [ ] A entrada vira união discriminada; nenhum chamador passa `branch` e `baseBranch` juntos "por via das dúvidas"
-- [ ] `create`: `worktree add -b`, inalterado, **inclusive o `branch -D` de limpeza** quando o `add` falha depois de criar a branch
-- [ ] `existing`: `worktree add <path> <branch>`, e **recusa antes do git** quando a branch já está em outra worktree, nomeando-a (F7.4)
-- [ ] `track`: `worktree add --track -b <local> <path> <remote>/<branch>`, e um teste prova o upstream por `rev-parse --abbrev-ref @{upstream}` — não por inspeção da saída do `add`
-- [ ] `detach`: `worktree add --detach <path> <commit-ish>`, para a S10
-- [ ] Nenhum modo depende de `checkout.guess` nem de `--guess-remote`: um teste roda com `checkout.guess=false` explícito
-- [ ] Branch local que existe e diverge do remoto **recusa**, dizendo quantos commits atrás está ([Q22](open-questions.md)). O número vem do `getAheadBehind`, que já existe — a mensagem diz o atraso, nunca "conflito"
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 12
+- [x] A entrada virou união discriminada; nenhum chamador passa `branch` e `baseBranch` juntos "por via das dúvidas"
+- [x] `create`: `worktree add -b`, inalterado, **inclusive o `branch -D` de limpeza** quando o `add` falha depois de criar a branch — agora extraído em `withBranchCleanup` e usado também pelo `track`
+- [x] `existing`: `worktree add <path> <branch>`, e **recusa antes do git** quando a branch já está em outra worktree, nomeando o caminho dela (F7.4). Branch que não existe recusa como `NOT_FOUND`
+- [x] `track`: `worktree add --track -b <local> <path> <remote>/<branch>`, e um teste prova o upstream por `rev-parse --abbrev-ref @{upstream}` — não pela saída do `add`
+- [x] `detach`: `worktree add --detach <path> <commit-ish>`, para a S10 — e um teste prova que ele **não cria branch nenhuma**
+- [x] Nenhum modo depende de `checkout.guess` nem de `--guess-remote`: um teste roda com `checkout.guess=false` explícito
+- [x] Branch local que existe e diverge do remoto **recusa**, dizendo quantos commits atrás está ([Q22](open-questions.md)); quando divergiu dos dois lados, diz os dois números
+- [x] Branch local que existe e está **em dia** não recusa: cai no `existing` e usa o que já está lá
+- [x] Gate: `pnpm gate:quick` — 1169 testes; `pnpm gate:build` verde
+- [x] Test count: 12 novos (mais 25 chamadas migradas para a união)
 
 **Tests**: unit, com git de verdade · **Gate**: quick
 **Commit**: `feat(server): cut a worktree from an existing local or remote branch`

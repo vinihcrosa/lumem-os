@@ -96,6 +96,7 @@ describe("listBranches", () => {
     const repo = await createRepo({ branch: "main" });
     const target = join(tempDir("lumem-worktrees-"), "huygens");
     await git.addWorktree({
+      mode: "create",
       repoPath: repo,
       branch: "feat/editor",
       targetPath: target,

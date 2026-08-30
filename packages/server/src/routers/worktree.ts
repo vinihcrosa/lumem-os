@@ -134,6 +134,7 @@ export const worktreeRouter = router({
         // The branch comes from `default_branch` as recorded when the project
         // was added, with no fetch: F4.3 says use what is on disk.
         await ctx.git.addWorktree({
+          mode: "create",
           repoPath: project.path,
           branch: input.name,
           targetPath: path,

@@ -44,14 +44,53 @@ export interface BranchItem {
   usedByPath: string | null;
 }
 
-export interface AddWorktreeInput {
-  repoPath: string;
-  /** Branch to create. Same as the worktree's name, F4.2. */
-  branch: string;
-  targetPath: string;
-  /** Where the new branch starts, F4.3. */
-  baseBranch: string;
-}
+/**
+ * The four ways a worktree can come into being, §4 of the worktree-from-source
+ * PRD.
+ *
+ * A discriminated union rather than optional fields: `create` and `existing`
+ * differ by whether the branch is supposed to exist, and a shape that allows
+ * both to be passed at once would let a caller ask for something that has no
+ * meaning.
+ */
+export type AddWorktreeInput =
+  | {
+      /** A branch that does not exist yet, cut from `baseBranch`. F4.1–F4.5. */
+      mode: "create";
+      repoPath: string;
+      branch: string;
+      targetPath: string;
+      /** Where the new branch starts, F4.3. */
+      baseBranch: string;
+    }
+  | {
+      /** A local branch that is already there. F7.4. */
+      mode: "existing";
+      repoPath: string;
+      branch: string;
+      targetPath: string;
+    }
+  | {
+      /** A branch that only exists on a remote, tracked from it. F7.5. */
+      mode: "track";
+      repoPath: string;
+      /** Short name, with no remote prefix — `feat/login`. */
+      branch: string;
+      remote: string;
+      targetPath: string;
+    }
+  | {
+      /**
+       * No branch at all, F7.6.
+       *
+       * What the pull request path cuts before handing the checkout to `gh`,
+       * which is what puts a branch on it.
+       */
+      mode: "detach";
+      repoPath: string;
+      targetPath: string;
+      commitish: string;
+    };
 
 export interface RemoveWorktreeInput {
   /**
@@ -155,7 +194,13 @@ export interface GitService {
    * screen can explain instead of letting git answer.
    */
   hasCommits(path: string): Promise<boolean>;
-  /** `git worktree add -b`, F4.1–F4.5. */
+  /**
+   * `git worktree add`, in one of the four modes above.
+   *
+   * Every refusal this makes on its own is one git would also make, worded so
+   * the user knows what to do: git's own message for a branch that is already
+   * checked out talks about refs and buries the path that matters.
+   */
   addWorktree(input: AddWorktreeInput): Promise<void>;
   listWorktrees(repoPath: string): Promise<WorktreeEntry[]>;
   /** `git worktree remove`. Never deletes the branch, F4.7. */
@@ -251,6 +296,58 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       // `--verify --quiet` exits non-zero and says nothing when the ref is
       // absent, which is the answer rather than a failure.
       return false;
+    }
+  }
+
+  /**
+   * Refuses a branch some other worktree already has checked out, F7.4.
+   *
+   * git refuses this too, with an absolute path buried in the middle of its
+   * stderr. The path is the only part the user needs, so it is the message.
+   */
+  async function refuseIfHeld(repoPath: string, branch: string): Promise<void> {
+    const { stdout } = await exec(["worktree", "list", "--porcelain", "-z"], { cwd: repoPath });
+    const holder = parseWorktreeList(stdout).find((entry) => entry.branch === branch);
+    if (holder === undefined) return;
+    throw new DomainError(
+      "BLOCKED",
+      `a branch "${branch}" já está aberta na worktree em ${holder.path}`,
+    );
+  }
+
+  /** How far apart two refs are, in commits, in both directions. */
+  async function divergence(
+    repoPath: string,
+    local: string,
+    remoteRef: string,
+  ): Promise<AheadBehind> {
+    const { stdout } = await exec(
+      ["rev-list", "--left-right", "--count", `${local}...${remoteRef}`],
+      { cwd: repoPath },
+    );
+    const [ahead, behind] = stdout.trim().split(/\s+/).map(Number);
+    return { ahead: ahead ?? 0, behind: behind ?? 0 };
+  }
+
+  /**
+   * Deletes the branch when the checkout fails.
+   *
+   * Measured, not assumed: `worktree add` creates the branch *before* it
+   * discovers the target directory is unusable, and leaves it behind. The PRD
+   * says a failed creation registers nothing, and a stray branch is worse than
+   * nothing — it makes the next attempt with the same name fail on "branch
+   * already exists".
+   */
+  async function withBranchCleanup(
+    repoPath: string,
+    branch: string,
+    run: () => Promise<unknown>,
+  ): Promise<void> {
+    try {
+      await run();
+    } catch (error) {
+      await exec(["branch", "-D", branch], { cwd: repoPath }).catch(() => {});
+      throw error;
     }
   }
 
@@ -395,24 +492,65 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       );
     },
 
-    async addWorktree({ repoPath, branch, targetPath, baseBranch }) {
-      // Checked here, not left to git, because F4.2 wants the user told to pick
-      // another name — and git's own message for this talks about refs.
-      if (await branchExists(repoPath, branch)) {
-        throw new DomainError("BLOCKED", `a branch "${branch}" já existe; escolha outro nome`);
+    async addWorktree(input) {
+      const { repoPath, targetPath } = input;
+
+      if (input.mode === "detach") {
+        await exec(["worktree", "add", "--detach", targetPath, input.commitish], { cwd: repoPath });
+        return;
       }
 
-      try {
-        await exec(["worktree", "add", "-b", branch, targetPath, baseBranch], { cwd: repoPath });
-      } catch (error) {
-        // Measured, not assumed: `worktree add` creates the branch *before* it
-        // discovers the target directory is unusable, and leaves it behind. The
-        // PRD says a failed creation registers nothing, and a stray branch is
-        // worse than nothing — it makes the next attempt with the same name
-        // fail on "branch already exists".
-        await exec(["branch", "-D", branch], { cwd: repoPath }).catch(() => {});
-        throw error;
+      if (input.mode === "existing") {
+        if (!(await branchExists(repoPath, input.branch))) {
+          throw new DomainError("NOT_FOUND", `a branch "${input.branch}" não existe`);
+        }
+        await refuseIfHeld(repoPath, input.branch);
+        await exec(["worktree", "add", targetPath, input.branch], { cwd: repoPath });
+        return;
       }
+
+      if (input.mode === "track") {
+        const remoteRef = `${input.remote}/${input.branch}`;
+
+        if (await branchExists(repoPath, input.branch)) {
+          await refuseIfHeld(repoPath, input.branch);
+          // Q22: a local branch that is behind would open the worktree on old
+          // code without anybody noticing, and resetting it would write over
+          // work. Both are worse than one more click.
+          const { ahead, behind } = await divergence(repoPath, input.branch, remoteRef);
+          if (behind > 0) {
+            const extra = ahead > 0 ? ` e ${plural(ahead, "à frente", "à frente")}` : "";
+            throw new DomainError(
+              "BLOCKED",
+              `a branch local "${input.branch}" está ${plural(behind, "commit atrás", "commits atrás")} de "${remoteRef}"${extra} — atualize-a antes de cortar uma worktree dela`,
+            );
+          }
+          await exec(["worktree", "add", targetPath, input.branch], { cwd: repoPath });
+          return;
+        }
+
+        // `--track -b` explicitly, never the DWIM: guessing the remote depends
+        // on `checkout.guess`, and with it off the implicit version produces a
+        // detached HEAD that only surfaces at the first push.
+        await withBranchCleanup(repoPath, input.branch, () =>
+          exec(["worktree", "add", "--track", "-b", input.branch, targetPath, remoteRef], {
+            cwd: repoPath,
+          }),
+        );
+        return;
+      }
+
+      // Checked here, not left to git, because F4.2 wants the user told to pick
+      // another name — and git's own message for this talks about refs.
+      if (await branchExists(repoPath, input.branch)) {
+        throw new DomainError("BLOCKED", `a branch "${input.branch}" já existe; escolha outro nome`);
+      }
+
+      await withBranchCleanup(repoPath, input.branch, () =>
+        exec(["worktree", "add", "-b", input.branch, targetPath, input.baseBranch], {
+          cwd: repoPath,
+        }),
+      );
     },
 
     async listWorktrees(repoPath) {
@@ -728,6 +866,11 @@ export function parseUntracked(stdout: string): string[] {
  * Records are separated by an empty NUL-terminated line, so the stream is
  * `key value\0key value\0\0key value\0…`.
  */
+/** "1 commit atrás" and "2 commits atrás" — the number is the point of the sentence. */
+function plural(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
 export function parseWorktreeList(stdout: string): WorktreeEntry[] {
   const entries: WorktreeEntry[] = [];
   let current: WorktreeEntry | null = null;
