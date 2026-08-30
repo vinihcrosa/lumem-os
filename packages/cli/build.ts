@@ -17,7 +17,7 @@
  * this tree is flattened — the daemon boots, finds no tables, and serves
  * nothing.
  */
-import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -61,6 +61,25 @@ export async function assemble({ target = here }: AssembleOptions = {}): Promise
     banner: { js: "#!/usr/bin/env node" },
     logLevel: "info",
   });
+
+  // Separate entry point, because npm runs it as a script and not as the CLI.
+  await build({
+    entryPoints: [join(here, "src", "postinstall.ts")],
+    outfile: join(target, "bin", "postinstall.mjs"),
+    bundle: true,
+    platform: "node",
+    target: "node22",
+    format: "esm",
+    banner: { js: "#!/usr/bin/env node" },
+    logLevel: "info",
+  });
+
+  // The two files npm shows on the package page. Copied rather than symlinked:
+  // a tarball follows neither.
+  for (const file of ["README.md", "LICENSE"]) {
+    const source = join(repoRoot, file);
+    if (existsSync(source)) cpSync(source, join(target, file));
+  }
 }
 
 if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {

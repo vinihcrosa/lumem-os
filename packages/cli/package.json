@@ -1,6 +1,6 @@
 {
   "name": "lumem",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Local harness for orchestrating AI coding agents across git worktrees",
   "license": "MIT",
   "type": "module",
@@ -24,9 +24,10 @@
   "homepage": "https://github.com/vinihcrosa/lumem-os",
   "scripts": {
     "build": "tsx build.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "postinstall": "node bin/postinstall.mjs 2>/dev/null || exit 0",
+    "prepack": "tsx build.ts",
     "test": "vitest run",
-    "prepack": "tsx build.ts"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
