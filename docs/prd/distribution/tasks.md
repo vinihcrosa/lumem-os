@@ -339,9 +339,11 @@ turbo quente.
 com `403 — Package name too similar to existing package mem`, depois de os gates, o tarball, o token
 e a instalação em duas plataformas terem passado. A regra anti-typosquatting do registry só existe no
 `PUT`; `npm publish --dry-run` valida o nome **localmente** e passa. O pacote virou
-`@vinihcrosa/lumem` — escopo não passa pela regra —, e o binário continua sendo `lumem`. O custo real
-foi baixo (nada foi publicado, a versão continuou livre), mas o custo poderia ter sido o nome errado
-publicado para sempre.
+`@vinihcrosa/lumem` — e **falhou de novo**, agora com `You cannot publish over the previously
+published versions: 0.1.0`: aquele nome já era de outro projeto do mesmo escopo. Terminou em
+`@vinihcrosa/lumem-os`, com dois binários (`lumem` e `lumem-os`) porque o outro pacote também instala
+um `lumem`. Duas tentativas, duas recusas, e a mesma causa: **só o `PUT` decide**, e nenhuma leitura o
+antecipa. O custo real foi baixo — nada foi publicado nas duas vezes, e a versão continuou livre.
 
 **7. A imagem do README é o produto rodando, e não um protótipo.** Ela foi tirada de um daemon de
 verdade, com um projeto registrado e uma worktree cortada — e num `--state-dir` temporário em `/tmp`,

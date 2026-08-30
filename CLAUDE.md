@@ -17,7 +17,7 @@ Agora `setup`, `run` e `teardown` moram no `<repo>/.lumem/project.toml` (o arqui
 um clique — com um bloco de portas reservado por checkout, e um portão de confiança para o
 `[scripts]` que veio de um repositório clonado. E a [distribution](docs/prd/distribution/prd.md) — **completa, 16 tasks** — tira o produto do
 checkout: o daemon virou **um bundle ESM** com só o par nativo por fora, ele **serve o web na própria
-porta**, o binário `lumem` sobe tudo, e `npm i -g @vinihcrosa/lumem` instala — com uma pipeline de release cujo
+porta**, o binário `lumem` sobe tudo, e `npm i -g @vinihcrosa/lumem-os` instala — com uma pipeline de release cujo
 passo central é **instalar o tarball num runner limpo**, porque é o único que pega `require`
 dinâmico, prebuild ausente e arquivo fora do pacote. A raiz ganhou `README.md` (em inglês, com
 tradução ao lado) e `LICENSE` (MIT). Comece pelo [índice da documentação](docs/README.md).

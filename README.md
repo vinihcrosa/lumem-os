@@ -16,15 +16,17 @@ side by side without stepping on each other.
 ## Install
 
 ```sh
-npm i -g @vinihcrosa/lumem
+npm i -g @vinihcrosa/lumem-os
 lumem
 ```
 
 The daemon starts on `http://127.0.0.1:4317` and serves the interface from the
 same port. `lumem --open` opens a browser too.
 
-The scope is not decoration: npm refuses the bare name `lumem` as too similar to
-the existing `mem`. The binary is still `lumem`.
+The name is neither short nor pretty for a reason: npm refuses the bare `lumem`
+as too similar to `mem`, and `@vinihcrosa/lumem` is already a different project.
+The command is still `lumem` — and `lumem-os` is installed as a second name for
+the same binary, for machines that have both packages.
 
 From a clone, if you would rather build it yourself:
 
