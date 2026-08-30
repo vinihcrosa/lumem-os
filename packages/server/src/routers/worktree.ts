@@ -8,6 +8,7 @@ import { tryRecordSignal } from "../memory/signals.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createWorktreeRepository } from "../repositories/worktree.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
+import { releasePort } from "../scripts/ports.js";
 import { homeOfProject } from "./project.js";
 import { worktreeDir } from "../workspace-layout.js";
 
@@ -148,6 +149,26 @@ export const worktreeRouter = router({
             path,
           });
           ctx.events.emit({ type: "worktree.changed", projectId: project.id });
+
+          // O setup do projeto, se houver (project-scripts S3).
+          //
+          // **Em segundo plano, e sem await**: criar worktree é uma operação de
+          // segundos e o `pnpm install` é de minutos. Esperar transformaria o
+          // gesto mais comum do produto numa barra de progresso, e a conversa
+          // com o agente ficaria bloqueada por uma preparação que ela não usa
+          // ainda. Quem acompanha é a aba `Setup` do rodapé.
+          //
+          // Falhar aqui **não desfaz nada** (S4): a worktree existe, funciona, e
+          // o que ela não tem é preparo — desfazer seria apagar diretório por
+          // causa de rede ruim.
+          void ctx.scripts
+            .start({ scopeType: "worktree", scopeId: created.id }, "setup")
+            .catch(() => {
+              // Sem setup declarado, ou projeto ainda não confiado: os dois são
+              // estados legítimos, e nenhum deles é assunto de quem criou a
+              // worktree. O rodapé conta a história.
+            });
+
           return withPresence(created);
         } catch (error) {
           // The registry refused what git already did — a duplicate name that
@@ -201,7 +222,13 @@ export const worktreeRouter = router({
         // the user has to act on first. There is no `force` past this one: a
         // live process holding the directory has to be closed, not overridden,
         // and §6 forbids leaving a session pointing at a scope that is gone.
-        const running = await ctx.sessionStore.listRunningInScope("worktree", row.id);
+        // Sessão de script não conta aqui, e a diferença é de quem manda nela: a
+        // shell e o agente são seus — fechar é decisão sua —, enquanto o `run` e o
+        // `setup` são do daemon, que os desliga logo abaixo. Bloquear por causa
+        // deles mandaria você caçar um processo que você não abriu.
+        const running = (await ctx.sessionStore.listRunningInScope("worktree", row.id)).filter(
+          (session) => session.kind !== "script",
+        );
         if (running.length > 0) {
           throw new DomainError(
             "BLOCKED",
@@ -221,6 +248,22 @@ export const worktreeRouter = router({
           }
         }
 
+        // O teardown do projeto, antes de o diretório sumir (S8).
+        //
+        // Esperado, ao contrário do setup: ele existe para desfazer alguma coisa
+        // — derrubar container, liberar volume — e uma remoção que não espera
+        // teria apagado o diretório debaixo do próprio script. Com teto de tempo,
+        // e **falha dele não impede a remoção**: worktree que não se apaga por
+        // causa de um script quebrado é pior que a sujeira que ele ia limpar.
+        const scope = { scopeType: "worktree", scopeId: row.id } as const;
+        if (existsSync(row.path)) {
+          await ctx.scripts.runToCompletion(scope, "teardown").catch(() => {});
+        }
+        // E o que sobrou de pé morre com o checkout: um `run` segurando a porta
+        // de uma worktree que não existe mais é um processo órfão com uma porta
+        // reservada para ninguém.
+        await ctx.scripts.stopAll(scope);
+
         if (existsSync(row.path)) {
           // F4.7: the checkout goes, the branch stays.
           await ctx.git.removeWorktree({
@@ -231,6 +274,9 @@ export const worktreeRouter = router({
         }
 
         await worktrees.remove(row.id);
+        // Sem isto a faixa vaza: cada worktree criada e removida levaria dez
+        // portas consigo, e "não há bloco livre" chegaria sem nada rodando.
+        await releasePort(ctx.db, scope);
 
         // Sinal de ação (Q17): jogar o trabalho fora é o que mais diz sobre
         // ele. Só depois de o git ter sucedido — uma remoção que falhou não

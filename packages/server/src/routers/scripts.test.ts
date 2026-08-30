@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PROJECT_FILE } from "../memory/project-identity.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
-import { cleanupGitFixtures, createRepo, tempDir } from "../testing/git-fixtures.js";
+import { cleanupGitFixtures, createRepo, runGit, tempDir } from "../testing/git-fixtures.js";
 
 let context: TestCaller;
 
@@ -27,6 +27,20 @@ function declare(checkout: string, scripts: Record<string, string>): void {
     .map(([phase, command]) => `${phase} = ${JSON.stringify(command)}`)
     .join("\n");
   writeFileSync(path, `id = "prj_teste"\n\n[scripts]\n${body}\n`, "utf8");
+}
+
+/**
+ * Declara e **commita**.
+ *
+ * Worktree nova é um checkout do que está commitado: um `project.toml` que só
+ * existe na árvore de trabalho do projeto não chega nela. É a consequência direta
+ * da S7 — o arquivo que vale é o do checkout —, e é o que faz o gancho de criação
+ * só funcionar para quem versionou os scripts, que é a promessa da feature.
+ */
+async function declareCommitted(repo: string, scripts: Record<string, string>): Promise<void> {
+  declare(repo, scripts);
+  await runGit(repo, "add", "-A");
+  await runGit(repo, "commit", "-m", "scripts do projeto");
 }
 
 async function setup(): Promise<Fixture> {
@@ -441,5 +455,123 @@ describe("hashScripts é sobre os três juntos", () => {
     });
     expect(status.trusted).toBe(false);
     expect(createProjectRepository(fixture.ctx.db)).toBeDefined();
+  });
+});
+
+describe("os ganchos de ciclo de vida", () => {
+  it("worktree nova roda o setup sozinha, em segundo plano (S3)", async () => {
+    const { ctx, projectId, repo } = await setup();
+    await declareCommitted(repo, { setup: "echo preparada > preparada.txt" });
+
+    const worktree = await ctx.api.worktree.create({ projectId, name: "nova" });
+
+    // A mutação voltou antes de o script terminar — é isso que "segundo plano"
+    // quer dizer —, e o rodapé é quem conta o resto.
+    await vi.waitFor(
+      async () => {
+        const status = await ctx.api.scripts.status({
+          scopeType: "worktree",
+          scopeId: worktree.id,
+        });
+        expect(status.setup.last?.running).toBe(false);
+        expect(status.setup.last?.exitCode).toBe(0);
+      },
+      { timeout: 10_000 },
+    );
+    expect(existsSync(join(worktree.path, "preparada.txt"))).toBe(true);
+  });
+
+  it("setup que falha deixa a worktree de pé, marcada (S4)", async () => {
+    // Desfazer seria apagar diretório por causa de rede ruim.
+    const { ctx, projectId, repo } = await setup();
+    await declareCommitted(repo, { setup: "exit 1" });
+
+    const worktree = await ctx.api.worktree.create({ projectId, name: "quebrada" });
+
+    await vi.waitFor(async () => {
+      const status = await ctx.api.scripts.status({
+        scopeType: "worktree",
+        scopeId: worktree.id,
+      });
+      expect(status.setup.last?.exitCode).toBe(1);
+    }, { timeout: 10_000 });
+    const worktrees = await ctx.api.worktree.listByProject({ projectId });
+    expect(worktrees.find((row) => row.id === worktree.id)?.present).toBe(true);
+  });
+
+  it("projeto sem setup declarado cria worktree e não roda nada — isso não é erro", async () => {
+    const { ctx, projectId } = await setup();
+
+    const worktree = await ctx.api.worktree.create({ projectId, name: "sem-setup" });
+
+    const status = await ctx.api.scripts.status({ scopeType: "worktree", scopeId: worktree.id });
+    expect(status.setup.last).toBeNull();
+  });
+
+  it("remover roda o teardown antes de o diretório sumir (S8)", async () => {
+    const { ctx, projectId, repo } = await setup();
+    const marca = join(repo, "teardown-rodou.txt");
+    await declareCommitted(repo, { teardown: `echo tchau > ${marca}` });
+    const worktree = await ctx.api.worktree.create({ projectId, name: "com-teardown" });
+
+    await ctx.api.worktree.remove({ id: worktree.id });
+
+    expect(existsSync(marca)).toBe(true);
+    expect(existsSync(worktree.path)).toBe(false);
+  });
+
+  it("teardown que falha NÃO impede a remoção", async () => {
+    // Worktree que não se apaga por causa de um script quebrado é pior que a
+    // sujeira que o script ia limpar.
+    const { ctx, projectId, repo } = await setup();
+    await declareCommitted(repo, { teardown: "exit 1" });
+    const worktree = await ctx.api.worktree.create({ projectId, name: "teardown-ruim" });
+
+    await ctx.api.worktree.remove({ id: worktree.id });
+
+    expect(existsSync(worktree.path)).toBe(false);
+  });
+
+  it("run vivo não bloqueia a remoção: ele é do daemon, e morre com o checkout", async () => {
+    const { ctx, projectId, repo } = await setup();
+    await declareCommitted(repo, { run: "sleep 30" });
+    const worktree = await ctx.api.worktree.create({ projectId, name: "com-run" });
+    const scope = { scopeType: "worktree", scopeId: worktree.id } as const;
+    const started = await ctx.api.scripts.start({ ...scope, phase: "run" });
+
+    await ctx.api.worktree.remove({ id: worktree.id });
+
+    expect(existsSync(worktree.path)).toBe(false);
+    await vi.waitFor(() => {
+      expect(ctx.ptyManager.get(started.sessionId)?.state).toBe("exited");
+    });
+  });
+
+  it("sessão de agente continua bloqueando — essa é sua", async () => {
+    const { ctx, projectId } = await setup();
+    const worktree = await ctx.api.worktree.create({ projectId, name: "com-shell" });
+    await ctx.api.session.createShell({ scopeType: "worktree", scopeId: worktree.id });
+
+    await expect(ctx.api.worktree.remove({ id: worktree.id })).rejects.toMatchObject({
+      message: /encerre-as antes/,
+    });
+  });
+
+  it("remover devolve o bloco de portas", async () => {
+    // Sem isto a faixa vaza: cada worktree criada e removida levaria dez portas.
+    const { ctx, projectId, repo } = await setup();
+    await declareCommitted(repo, { run: "true" });
+    const first = await ctx.api.worktree.create({ projectId, name: "primeira" });
+    await ctx.api.scripts.start({ scopeType: "worktree", scopeId: first.id, phase: "run" });
+    const port = (await ctx.api.scripts.status({ scopeType: "worktree", scopeId: first.id }))
+      .reservedPort;
+
+    await ctx.api.worktree.remove({ id: first.id, force: true });
+    const second = await ctx.api.worktree.create({ projectId, name: "segunda" });
+    await ctx.api.scripts.start({ scopeType: "worktree", scopeId: second.id, phase: "run" });
+
+    expect(
+      (await ctx.api.scripts.status({ scopeType: "worktree", scopeId: second.id })).reservedPort,
+    ).toBe(port);
   });
 });
