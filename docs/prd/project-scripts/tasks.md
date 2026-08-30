@@ -311,6 +311,18 @@ clicar — que é o que o [testing.md](../../project/testing.md) chama de "o que
 
 ### O que veio depois, pelo uso
 
+**A aba `Testes`, e a altura do rodapé.** Duas coisas que só o uso mostra:
+
+| O quê | Por quê |
+|---|---|
+| **`test` virou a quarta fase** do `[scripts]` (migração `0011`) e a quarta aba do rodapé | rodar a suíte é a coisa que mais se repete num dia, e estava fora do produto: quem quisesse testar abria um terminal e digitava o comando de novo. Ela termina, como o `setup` — o que interessa dela é o código de saída, e é por isso que o comando declarado não pode ser *watch* |
+| **O rodapé nasce com metade da janela**, e não com 256px | fixo, ele nascia como uma tira colada no pé da tela: a saída de um `pnpm dev` mal cabia, e a primeira coisa que se fazia ao abrir era arrastar. A altura agora é calculada da janela — uma constante estaria errada nas duas pontas, apertada no monitor grande e grande demais no notebook — e o teto deixa a árvore continuar existindo |
+
+O hash de confiança (S11) é sobre o **conjunto** das fases, então ele mudou junto: aprovar um
+`[scripts]` sem `test` e ganhar um `test` de brinde é exatamente o buraco que a S11 fecha, e há teste
+para isso.
+
+
 **O vazio pedia para o produto escrever o arquivo, e o produto não sabe o comando.** A primeira versão
 tinha um botão `criar o arquivo` que gravava `run = "pnpm dev"` — certo neste repositório e errado na
 maioria dos outros. Ele virou **`pedir para o agente criar`**: abre uma conversa nova no checkout e

@@ -28,7 +28,7 @@ export type SessionKind = "shell" | "agent" | "script";
  * de criação de worktree e o de remoção —, e "a string 'run'" espalhada por eles é
  * como um erro de digitação vira uma aba que nunca acende.
  */
-export type ScriptPhase = "setup" | "run" | "teardown";
+export type ScriptPhase = "setup" | "run" | "test" | "teardown";
 export type ScopeType = "project" | "worktree";
 export type SessionState = "running" | "exited";
 

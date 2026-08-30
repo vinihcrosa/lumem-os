@@ -162,6 +162,7 @@ export function createFixtures(): void {
       // travou numa tela que não sabia mostrar o erro. As duas coisas foram
       // consertadas.
       "run = 'echo \"Local: http://127.0.0.1:$LUMEM_RUN_PORT/\"; sleep 120'",
+      "test = 'echo 3 testes, tudo verde'",
       "teardown = 'echo tchau > /dev/null'",
       "",
     ].join("\n"),

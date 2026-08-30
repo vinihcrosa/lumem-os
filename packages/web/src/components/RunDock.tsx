@@ -14,7 +14,7 @@ import { Terminal } from "./Terminal.js";
 import "./run-dock.css";
 import "./terminal.css";
 
-export type DockTab = "setup" | "run" | "terminal";
+export type DockTab = "setup" | "run" | "test" | "terminal";
 
 export interface RunDockProps {
   scope: Scope;
@@ -80,12 +80,25 @@ export function RunDock({ scope, dock, onAskAgent }: RunDockProps) {
           dot={dotFor(status.data?.run)}
           onClick={() => setTab("run")}
         />
+        {/*
+          Testes ao lado do run, e não escondido atrás de um menu: rodar a suíte é
+          a coisa que mais se repete num dia de trabalho, e o ponto na aba responde
+          "passou?" sem ninguém abrir nada.
+        */}
+        <DockTabButton
+          label="Testes"
+          active={tab === "test"}
+          dot={dotFor(status.data?.test)}
+          onClick={() => setTab("test")}
+        />
         <DockTabButton label="Terminal" active={tab === "terminal"} onClick={() => setTab("terminal")} />
 
         <span className="dock__spacer" />
         <div className="dock__acts">
           {tab === "run" && <RunActions status={status.data} actions={actions} />}
-          {tab === "setup" && <SetupActions status={status.data} actions={actions} />}
+          {(tab === "setup" || tab === "test") && (
+            <PhaseActions phase={tab} status={status.data} actions={actions} />
+          )}
         </div>
       </div>
 
@@ -206,27 +219,42 @@ function RunActions({
   );
 }
 
-function SetupActions({ status, actions }: { status: ScriptStatus | undefined; actions: Actions }) {
-  const live = status?.setup.last?.running === true;
-  if (status?.setup.command === null || status === undefined) return null;
+/**
+ * As ações de uma fase que **termina** — `setup` e `test`.
+ *
+ * Uma função para as duas porque o gesto é o mesmo: rodar, ver como foi, rodar de
+ * novo. O `run` tem as suas, e a diferença não é cosmética — ele não termina, então
+ * o que ele oferece é abrir a porta e parar.
+ */
+function PhaseActions({
+  phase,
+  status,
+  actions,
+}: {
+  phase: "setup" | "test";
+  status: ScriptStatus | undefined;
+  actions: Actions;
+}) {
+  if (status === undefined || status[phase].command === null) return null;
+  const last = status[phase].last;
 
-  if (live) {
+  if (last?.running === true) {
     return (
-      <Button size="sm" glyph={<span className="stopglyph">⏹</span>} onClick={() => actions.stop.mutate("setup")}>
+      <Button size="sm" glyph={<span className="stopglyph">⏹</span>} onClick={() => actions.stop.mutate(phase)}>
         parar
       </Button>
     );
   }
 
-  const failed = status.setup.last !== null && status.setup.last.exitCode !== 0;
+  const failed = last !== null && last.exitCode !== 0;
   return (
     <Button
       size="sm"
       variant={failed ? "primary" : "default"}
       disabled={actions.start.isPending}
-      onClick={() => actions.start.mutate("setup")}
+      onClick={() => actions.start.mutate(phase)}
     >
-      ▶ {failed ? "tentar de novo" : "rodar de novo"}
+      ▶ {last === null ? "rodar" : failed ? "tentar de novo" : "rodar de novo"}
     </Button>
   );
 }
@@ -240,7 +268,7 @@ function PhasePanel({
   onAskAgent,
 }: {
   scope: Scope;
-  phase: "setup" | "run";
+  phase: "setup" | "run" | "test";
   status: ScriptStatus | undefined;
   actions: Actions;
   onAskAgent?: ((sessionId: string, prompt: string) => void) | undefined;
@@ -301,7 +329,10 @@ function PhasePanel({
         // cópias do mesmo gesto a uma mão de distância é o defeito que a sidebar
         // já tinha evitado com o `adicionar projeto`.
         <div className="dock__idle">
-          <span>Este checkout ainda não rodou o {phase}. O botão está ali em cima.</span>
+          <span>
+            Este checkout ainda não rodou {phase === "test" ? "os testes" : `o ${phase}`}. O botão
+            está ali em cima.
+          </span>
         </div>
       ) : (
         <div className="dock__out">
@@ -330,10 +361,11 @@ export function askScriptsPrompt(file: string): string {
   return [
     "Este checkout ainda não diz ao Lumem como rodar.",
     "",
-    `Escreva a tabela \`[scripts]\` em \`${file}\`, com as três fases:`,
+    `Escreva a tabela \`[scripts]\` em \`${file}\`, com as quatro fases:`,
     "",
     "- `setup`: deixa um checkout novo pronto para trabalhar — instalar dependências, preparar banco, o que for. Precisa ser idempetente: rodar de novo não pode estragar nada.",
     "- `run`: sobe a aplicação em primeiro plano (nada de daemon em background). Se ela aceitar porta configurável, use `$LUMEM_RUN_PORT` — é a porta que o Lumem reserva para este checkout, e é o que faz duas worktrees rodarem ao mesmo tempo.",
+    "- `test`: roda a suíte de testes do projeto, uma vez e até o fim (nada de modo watch — o rodapé quer um código de saída, não um processo que fica).",
     "- `teardown`: desfaz o que sobrevive ao diretório — container, volume, porta presa. Se não houver nada assim, omita a linha.",
     "",
     "Antes de escrever, **leia o repositório** para descobrir os comandos de verdade: `package.json`, `Makefile`, `docker-compose.yml`, `README`, e o que mais existir. Não invente comando que não está lá; se não achar o de alguma fase, diga isso em vez de chutar.",
@@ -399,6 +431,7 @@ function NoScripts({
         "[scripts]",
         'setup    = "./scripts/setup.sh"',
         'run      = "pnpm dev"',
+        'test     = "pnpm test"',
         'teardown = "./scripts/teardown.sh"',
       ].join("\n"),
     [],
@@ -455,7 +488,7 @@ function TrustGate({
   actions,
 }: {
   status: ScriptStatus;
-  phase: "setup" | "run";
+  phase: "setup" | "run" | "test";
   actions: Actions;
 }) {
   return (

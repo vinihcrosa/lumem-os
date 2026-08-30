@@ -2,10 +2,33 @@ import { useCallback, useEffect, useState } from "react";
 
 const STORAGE_KEY = "lumem.runDock";
 
-/** Alto o bastante para uma saída de `pnpm dev` caber sem rolar. */
-export const RUN_DOCK_DEFAULT_HEIGHT = 256;
 export const RUN_DOCK_MIN_HEIGHT = 96;
-export const RUN_DOCK_MAX_HEIGHT = 720;
+
+/**
+ * A altura que ele nasce: **metade da janela**.
+ *
+ * A primeira versão nascia com 256px fixos e ficava colada no rodapé da tela — a
+ * saída de um `pnpm dev` mal cabia, e a primeira coisa que se fazia ao abrir era
+ * arrastar. Metade é o que faz o rodapé ser uma das duas metades da coluna em vez
+ * de uma tira no pé dela.
+ *
+ * Calculada na hora de ler, e não constante: a resposta depende da janela de quem
+ * está olhando, e uma constante estaria errada nas duas pontas — apertada no
+ * monitor grande, grande demais no notebook.
+ */
+export function defaultHeight(viewport = window.innerHeight): number {
+  return clampHeight(Math.round(viewport / 2), viewport);
+}
+
+/**
+ * O teto é a janela menos o que a árvore precisa para continuar existindo.
+ *
+ * Sem isso, arrastar até em cima deixaria a coluna sem lista de arquivos — e o
+ * rodapé é a segunda metade da coluna, não o lugar dela.
+ */
+export function maxHeight(viewport = window.innerHeight): number {
+  return Math.max(RUN_DOCK_MIN_HEIGHT, viewport - 160);
+}
 
 /**
  * A largura mínima que a coluna ganha quando o rodapé abre (S1).
@@ -21,12 +44,12 @@ interface Stored {
   height: number;
 }
 
-export function clampHeight(height: number): number {
-  return Math.min(RUN_DOCK_MAX_HEIGHT, Math.max(RUN_DOCK_MIN_HEIGHT, Math.round(height)));
+export function clampHeight(height: number, viewport = window.innerHeight): number {
+  return Math.min(maxHeight(viewport), Math.max(RUN_DOCK_MIN_HEIGHT, Math.round(height)));
 }
 
 function read(): Stored {
-  const fallback: Stored = { open: false, height: RUN_DOCK_DEFAULT_HEIGHT };
+  const fallback: Stored = { open: false, height: defaultHeight() };
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw === null) return fallback;

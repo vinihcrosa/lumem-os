@@ -77,6 +77,18 @@ test("o run sobe pelo rodapé, e o botão abre a porta que ele anunciou", async 
   await expect(dock.getByRole("link", { name: /Abrir/ })).toHaveCount(0, { timeout: 20_000 });
 });
 
+test("a aba de testes roda a suíte do projeto e diz como ela terminou", async ({ page }) => {
+  await openDock(page);
+  await page.getByRole("tab", { name: /^Testes/ }).click();
+
+  const dock = page.getByTestId("run-dock");
+  await dock.getByRole("button", { name: /rodar/ }).click();
+
+  await expect(dock.locator(".xterm-rows")).toContainText("tudo verde", { timeout: 30_000 });
+  // O que a aba acrescenta ao terminal: o código de saída, guardado.
+  await expect(dock.getByText(/saiu 0/)).toBeVisible({ timeout: 30_000 });
+});
+
 test("worktree nova nasce preparada: o setup roda sozinho e a aba conta como foi", async ({
   page,
 }) => {

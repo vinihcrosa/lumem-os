@@ -68,10 +68,11 @@ id = "prj_7f3a…"
 [scripts]
 setup = "./scripts/workspace/setup.sh"
 run = "./scripts/workspace/run.sh"
+test = "pnpm gate:quick"
 teardown = "./scripts/workspace/teardown.sh"
 ```
 
-Três comandos, um por linha, executados pelo shell de login no diretório do checkout. É deliberadamente
+Quatro comandos, um por linha, executados pelo shell de login no diretório do checkout. É deliberadamente
 menor que o `.conductor/settings.toml` (que tem N scripts de run nomeados, ícone, `default`) e do
 tamanho do `.superset/config.json` — o menor formato que resolve o caso de hoje, e que cabe dentro de
 um arquivo que já é de outra coisa. Ver [S2](open-questions.md) e [S9](open-questions.md).
@@ -86,10 +87,16 @@ quando roda está aqui embaixo"*.
 |---|---|
 | `Setup` | a última execução do script de setup deste checkout — saída inteira, e um botão de rodar de novo |
 | `Run` | o processo do script de run: `▶ Rodar` / `⏹ Parar`, a saída ao vivo, e `Abrir :PORTA` quando a porta foi descoberta |
+| `Testes` | a suíte do projeto, rodada de dentro do produto — e o ponto na aba responde "passou?" sem abrir |
 | `Terminal` | shell no diretório do checkout. O `+` abre outra |
 
-As três são a **mesma primitiva**: sessão PTY com scrollback, anexada por WebSocket. O que muda é
-quem escolheu o comando — o `project.toml` nas duas primeiras, você na terceira.
+As quatro são a **mesma primitiva**: sessão PTY com scrollback, anexada por WebSocket. O que muda é
+quem escolheu o comando — o `project.toml` nas três primeiras, você na última.
+
+A aba `Testes` **entrou depois**, por uso: rodar a suíte é a coisa que mais se repete num dia de
+trabalho, e ela estava fora do produto — quem quisesse testar abria um terminal e digitava o comando
+de novo, toda vez. Ela é uma fase que **termina**, como o `setup`: o que interessa dela é o código de
+saída, e é por isso que o comando declarado não pode ser modo *watch*.
 
 O rodapé pertence ao **checkout**, como a árvore de arquivos: trocar de aba de sessão não muda o que
 está rodando; trocar de worktree, muda.

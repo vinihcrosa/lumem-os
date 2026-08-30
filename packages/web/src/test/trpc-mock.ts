@@ -34,13 +34,14 @@ const DEFAULT_SETTINGS = { distill: false, autoLearn: false, autoLearnBudget: 3 
  * teste que fala de outra coisa não pode quebrar por causa disso.
  */
 export const NO_SCRIPTS_STATUS = {
-  scripts: { setup: null, run: null, teardown: null },
+  scripts: { setup: null, run: null, test: null, teardown: null },
   file: "/repo/.lumem/project.toml",
   trusted: true,
   reservedPort: null,
   port: null,
   setup: { command: null, last: null },
   run: { command: null, last: null },
+  test: { command: null, last: null },
   teardown: { command: null, last: null },
 };
 

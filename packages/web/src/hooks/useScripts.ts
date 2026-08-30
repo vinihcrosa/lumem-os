@@ -4,7 +4,14 @@ import { scriptsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import type { Scope } from "./useSessionsByScope.js";
 
-export type ScriptPhase = "setup" | "run" | "teardown";
+/**
+ * As fases que o rodapé conhece.
+ *
+ * Escrita à mão e não derivada do daemon de propósito: é o que o **cliente** manda,
+ * e o `zod` do lado de lá é quem recusa o que não existe. Um tipo derivado esconderia
+ * uma fase nova aparecendo sem ninguém decidir onde ela vai na tela.
+ */
+export type ScriptPhase = "setup" | "run" | "test" | "teardown";
 
 /**
  * O estado como ele **chega**, e não como o daemon o declara.
@@ -40,7 +47,9 @@ export function useScripts(scope: Scope): UseQueryResult<ScriptStatus> {
     refetchInterval: (query) => {
       const data = query.state.data;
       if (!data) return false;
-      const alive = [data.setup, data.run, data.teardown].some((phase) => phase.last?.running);
+      const alive = [data.setup, data.run, data.test, data.teardown].some(
+        (phase) => phase.last?.running,
+      );
       // Um `run` que acabou de subir ainda não imprimiu a porta: continuar
       // perguntando por um tempo é o que faz o botão `Abrir` aparecer sozinho.
       return alive ? LIVE_POLL_MS : false;

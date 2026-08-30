@@ -12,25 +12,32 @@ import { PROJECT_FILE } from "../memory/project-identity.js";
  * O arquivo já existia com o `id` dentro (Q3.1 da workspace-memory) e o comentário
  * de lá já dizia o que ia acontecer: *"amanhã aquele arquivo carrega script de setup
  * e de run"*. A regra que o delimita continua a mesma, e é ela que autoriza estes
- * três a morarem lá:
+ * quatro a morarem lá:
  *
  * > O que é do repositório é do time; o que é da instância é do Lumem.
  *
- * Script de setup e de run passa nessa regra por definição: quem clona o repositório
- * precisa dos dois, com Lumem ou sem. O que **não** passa é script que só uma pessoa
+ * Script de setup, de run e de teste passa nessa regra por definição: quem clona o
+ * repositório precisa dos três, com Lumem ou sem. O que **não** passa é script que só uma pessoa
  * roda — esse mora no banco, e a S10 já nomeou o lugar dele.
  *
  * O que este módulo lê é sempre o arquivo do **checkout** (S7): cada worktree tem o
  * seu, e uma branch que mexe no setup muda o setup só dela.
  */
 
-export const SCRIPT_PHASES = ["setup", "run", "teardown"] as const;
+/**
+ * As quatro fases, na ordem em que uma pessoa as usa.
+ *
+ * `test` entrou depois das outras três, por uso: rodar a suíte é a coisa que mais
+ * se repete num dia de trabalho, e ela estava fora do produto — quem quisesse
+ * testar abria um terminal e digitava o comando de novo, toda vez.
+ */
+export const SCRIPT_PHASES = ["setup", "run", "test", "teardown"] as const;
 export type ScriptPhase = (typeof SCRIPT_PHASES)[number];
 
 /** Uma fase por chave, e `null` para a que o repositório não declarou. */
 export type ProjectScripts = Readonly<Record<ScriptPhase, string | null>>;
 
-export const NO_SCRIPTS: ProjectScripts = { setup: null, run: null, teardown: null };
+export const NO_SCRIPTS: ProjectScripts = { setup: null, run: null, test: null, teardown: null };
 
 export interface ReadScriptsOptions {
   /** Recebe o motivo de um valor ter sido ignorado. Silencioso por padrão. */
@@ -141,11 +148,12 @@ export async function writeProjectScripts(
   await writeFile(path, next, "utf8");
 
   const table = (parsed["scripts"] ?? {}) as Record<string, unknown>;
-  return {
-    setup: typeof table["setup"] === "string" ? table["setup"] : null,
-    run: typeof table["run"] === "string" ? table["run"] : null,
-    teardown: typeof table["teardown"] === "string" ? table["teardown"] : null,
-  };
+  return Object.fromEntries(
+    SCRIPT_PHASES.map((phase) => [
+      phase,
+      typeof table[phase] === "string" ? (table[phase] as string) : null,
+    ]),
+  ) as ProjectScripts;
 }
 
 const SCRIPTS_HEADER = /^\s*\[\s*scripts\s*\]\s*$/;

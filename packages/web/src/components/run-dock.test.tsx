@@ -81,6 +81,68 @@ describe("as três abas", () => {
   });
 });
 
+describe("a aba de testes", () => {
+  it("roda a suíte declarada, e o ponto diz se passou", async () => {
+    // Rodar teste é a coisa que mais se repete num dia, e estava fora do produto:
+    // quem quisesse testar abria um terminal e digitava o comando de novo.
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: null, run: null, test: "pnpm test", teardown: null },
+        test: { command: "pnpm test", last: execution({ running: false, exitCode: 0 }) },
+      }),
+    );
+    trpcMock.scripts.start.mutate.mockResolvedValue({ sessionId: "se_t", stoppedPrevious: null });
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+    await userEvent.click(await screen.findByRole("tab", { name: /Testes/ }));
+
+    expect(await screen.findByTestId("dot-testes")).toHaveClass("dtab__dot--ok");
+    await userEvent.click(screen.getByRole("button", { name: /rodar de novo/ }));
+    await waitFor(() => {
+      expect(trpcMock.scripts.start.mutate).toHaveBeenCalledWith({ ...scope, phase: "test" });
+    });
+  });
+
+  it("suíte vermelha oferece tentar de novo", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: null, run: null, test: "pnpm test", teardown: null },
+        test: { command: "pnpm test", last: execution({ running: false, exitCode: 1 }) },
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+    await userEvent.click(await screen.findByRole("tab", { name: /Testes/ }));
+
+    expect(await screen.findByTestId("dot-testes")).toHaveClass("dtab__dot--fail");
+    expect(screen.getByRole("button", { name: /tentar de novo/ })).toBeInTheDocument();
+  });
+
+  it("suíte rodando pode ser parada", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: null, run: null, test: "pnpm test", teardown: null },
+        test: { command: "pnpm test", last: execution() },
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+    await userEvent.click(await screen.findByRole("tab", { name: /Testes/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /parar/ }));
+
+    await waitFor(() => {
+      expect(trpcMock.scripts.stop.mutate).toHaveBeenCalledWith({ ...scope, phase: "test" });
+    });
+  });
+
+  it("projeto que não declara `test` cai no vazio que ensina o arquivo", async () => {
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+    await userEvent.click(await screen.findByRole("tab", { name: /Testes/ }));
+
+    expect(await screen.findByText(/não diz como rodar/)).toBeInTheDocument();
+  });
+});
+
 describe("o ponto de estado mora na aba", () => {
   it("verde quando tem coisa de pé", async () => {
     trpcMock.scripts.status.query.mockResolvedValue(
@@ -235,6 +297,9 @@ describe("o projeto sem [scripts]", () => {
     // repositório".
     expect(onAskAgent.mock.calls[0]?.[1]).toMatch(/leia o repositório/i);
     expect(onAskAgent.mock.calls[0]?.[1]).toContain("LUMEM_RUN_PORT");
+    // E a fase de teste vem junto, com a regra que a torna útil no rodapé.
+    expect(onAskAgent.mock.calls[0]?.[1]).toMatch(/`test`/);
+    expect(onAskAgent.mock.calls[0]?.[1]).toMatch(/watch/i);
   });
 
   it("sem agente conectado, o botão diz por que não dá", async () => {

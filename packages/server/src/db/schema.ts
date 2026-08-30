@@ -222,7 +222,7 @@ export const session = sqliteTable(
     check(
       "session_script_name",
       sql`(${table.kind} = 'script' AND ${table.scriptName} IS NOT NULL
-          AND ${table.scriptName} IN ('setup', 'run', 'teardown'))
+          AND ${table.scriptName} IN ('setup', 'run', 'teardown', 'test'))
         OR (${table.kind} <> 'script' AND ${table.scriptName} IS NULL)`,
     ),
     // A running process cannot have an exit code, and an exited one must.

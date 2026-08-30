@@ -15,7 +15,7 @@ import type { ScopeType } from "../scope.js";
 import type { SessionStore } from "../sessions/SessionStore.js";
 import { PortWatcher, usesReservedPort, type DiscoveredPort } from "./port-sniff.js";
 import { findReservedPort, portBlock, reservePort, type PortRange } from "./ports.js";
-import { readProjectScripts, type ProjectScripts } from "./project-scripts.js";
+import { SCRIPT_PHASES, readProjectScripts, type ProjectScripts } from "./project-scripts.js";
 
 /**
  * Quem roda os scripts do projeto.
@@ -69,6 +69,7 @@ export interface ScriptStatus {
   port: DiscoveredPort | null;
   setup: PhaseStatus;
   run: PhaseStatus;
+  test: PhaseStatus;
   teardown: PhaseStatus;
 }
 
@@ -214,9 +215,10 @@ export function createScriptRunner({
         warn: (message) => log?.warn({ scope, message }, "scripts ignorados"),
       });
 
-      const [setup, run, teardown, reservedPort] = await Promise.all([
+      const [setup, run, test, teardown, reservedPort] = await Promise.all([
         lastExecution(scope, "setup"),
         lastExecution(scope, "run"),
+        lastExecution(scope, "test"),
         lastExecution(scope, "teardown"),
         findReservedPort(db, scope),
       ]);
@@ -229,6 +231,7 @@ export function createScriptRunner({
         port: run?.running ? (discovered.get(run.sessionId) ?? null) : null,
         setup: { command: scripts.setup, last: setup },
         run: { command: scripts.run, last: run },
+        test: { command: scripts.test, last: test },
         teardown: { command: scripts.teardown, last: teardown },
       };
     },
@@ -346,7 +349,7 @@ export function createScriptRunner({
     },
 
     async stopAll(scope) {
-      for (const phase of ["run", "setup", "teardown"] as const) {
+      for (const phase of ["run", "setup", "test", "teardown"] as const) {
         const live = await liveSession(scope, phase);
         if (!live) continue;
         await sessionStore.close(live.id).catch(() => {});
@@ -394,7 +397,10 @@ function projectFileOf(cwd: string): string {
  */
 export function hashScripts(scripts: ProjectScripts): string {
   return createHash("sha256")
-    .update(JSON.stringify([scripts.setup, scripts.run, scripts.teardown]))
+    // A ordem é a do `SCRIPT_PHASES`, e o hash muda quando uma fase nova entra —
+    // de propósito: um `[scripts]` com um comando a mais é outro `[scripts]`, e a
+    // confiança é sobre o conjunto (S11).
+    .update(JSON.stringify(SCRIPT_PHASES.map((phase) => scripts[phase])))
     .digest("hex");
 }
 

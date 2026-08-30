@@ -42,16 +42,24 @@ describe("readProjectScripts", () => {
     expect(await readProjectScripts(checkout('id = "prj_1"\n'))).toEqual(NO_SCRIPTS);
   });
 
-  it("lê as três fases", async () => {
+  it("lê as quatro fases", async () => {
     const root = checkout(
-      ['id = "prj_1"', "", "[scripts]", 'setup = "./setup.sh"', 'run = "pnpm dev"', 'teardown = "./down.sh"', ""].join(
-        "\n",
-      ),
+      [
+        'id = "prj_1"',
+        "",
+        "[scripts]",
+        'setup = "./setup.sh"',
+        'run = "pnpm dev"',
+        'test = "pnpm test"',
+        'teardown = "./down.sh"',
+        "",
+      ].join("\n"),
     );
 
     expect(await readProjectScripts(root)).toEqual({
       setup: "./setup.sh",
       run: "pnpm dev",
+      test: "pnpm test",
       teardown: "./down.sh",
     });
   });

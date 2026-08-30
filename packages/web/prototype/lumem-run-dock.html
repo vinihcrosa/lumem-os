@@ -33,9 +33,19 @@
       <h2 class="sec__t">1 · o rodapé embaixo da árvore</h2>
       <p class="sec__d">
         <span class="q">S1 · proposta</span> A associação que a imagem de referência faz:
-        <b>o repositório em cima, o que ele faz quando roda embaixo</b>. Três abas que são a
+        <b>o repositório em cima, o que ele faz quando roda embaixo</b>. Quatro abas que são a
         mesma primitiva — sessão com terminal —, e o que muda entre elas é só quem escolheu o
-        comando: o <code>project.toml</code> nas duas primeiras, você na terceira.
+        comando: o <code>project.toml</code> nas três primeiras, você na última.
+      </p>
+      <p class="sec__d">
+        <b>Testes entrou por uso</b>, depois das outras: rodar a suíte é a coisa que mais se
+        repete num dia de trabalho, e ela estava fora do produto — quem quisesse testar abria um
+        terminal e digitava o comando de novo, toda vez. O ponto na aba responde <em>"passou?"</em>
+        sem ninguém precisar abrir.
+      </p>
+      <p class="sec__d">
+        E o rodapé nasce ocupando <b>metade da janela</b>, não uma tira no pé dela: a primeira
+        versão tinha 256px fixos, e a primeira coisa que se fazia ao abrir era arrastar.
       </p>
       <p class="sec__d">
         O custo, e é ele que está desenhado aqui: com o rodapé aberto, o teto de largura da
@@ -130,6 +140,7 @@
                     <button class="dock__fold" title="recolher">⌄</button>
                     <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Setup</button>
                     <button class="dtab dtab--active"><span class="dtab__dot dtab__dot--run"></span>Run</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Testes</button>
                     <button class="dtab">Terminal</button>
                     <button class="dock__new" title="nova aba de terminal">＋</button>
                     <span class="spacer"></span>
@@ -227,6 +238,7 @@
                   <button class="dock__fold" title="recolher">⌄</button>
                   <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Setup</button>
                   <button class="dtab dtab--active"><span class="dtab__dot dtab__dot--run"></span>Run</button>
+                  <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Testes</button>
                   <button class="dtab">Terminal</button>
                   <button class="dock__new">＋</button>
                   <span class="spacer"></span>
@@ -297,6 +309,7 @@
               <button class="dock__fold">⌄</button>
               <button class="dtab dtab--active"><span class="dtab__dot dtab__dot--ok"></span>Setup</button>
               <button class="dtab">Run</button>
+              <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Testes</button>
               <button class="dtab">Terminal</button>
               <button class="dock__new">＋</button>
               <span class="spacer"></span>
@@ -323,6 +336,7 @@
               <button class="dock__fold">⌄</button>
               <button class="dtab dtab--active"><span class="dtab__dot dtab__dot--fail"></span>Setup</button>
               <button class="dtab">Run</button>
+              <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Testes</button>
               <button class="dtab">Terminal</button>
               <button class="dock__new">＋</button>
               <span class="spacer"></span>
@@ -371,6 +385,7 @@
             <button class="dock__fold">⌄</button>
             <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Setup</button>
             <button class="dtab"><span class="dtab__dot dtab__dot--run"></span>Run</button>
+            <button class="dtab"><span class="dtab__dot dtab__dot--fail"></span>Testes</button>
             <button class="dtab dtab--active">Terminal</button>
             <button class="dtab">Terminal 2<span class="dtab__dot dtab__dot--run"></span></button>
             <button class="dock__new" title="nova aba de terminal">＋</button>
@@ -407,6 +422,7 @@
             <button class="dock__fold">⌄</button>
             <button class="dtab dtab--active">Setup</button>
             <button class="dtab">Run</button>
+            <button class="dtab">Testes</button>
             <button class="dtab">Terminal</button>
             <button class="dock__new">＋</button>
             <span class="spacer"></span>
@@ -426,6 +442,7 @@
 <span class="k">[scripts]</span>
 <span class="k">setup</span>    = <span class="s">"./scripts/setup.sh"</span>
 <span class="k">run</span>      = <span class="s">"pnpm dev"</span>
+<span class="k">test</span>     = <span class="s">"pnpm test"</span>
 <span class="k">teardown</span> = <span class="s">"./scripts/teardown.sh"</span></div>
             <div class="noscripts__acts">
               <button class="btn btn--sm btn--brand">criar o arquivo</button>
@@ -523,6 +540,7 @@
             <button class="dock__fold">⌄</button>
             <button class="dtab dtab--active">Setup</button>
             <button class="dtab">Run</button>
+            <button class="dtab">Testes</button>
             <button class="dtab">Terminal</button>
             <button class="dock__new">＋</button>
             <span class="spacer"></span>

@@ -279,13 +279,14 @@ describe("o run visto de fora do rodapé", () => {
   /** O status de um checkout, com o que o teste quer dizer. */
   function scriptStatus(overrides: Record<string, unknown> = {}) {
     return {
-      scripts: { setup: null, run: null, teardown: null },
+      scripts: { setup: null, run: null, test: null, teardown: null },
       file: "/repos/lorebase/.lumem/project.toml",
       trusted: true,
       reservedPort: null,
       port: null,
       setup: { command: null, last: null },
       run: { command: null, last: null },
+      test: { command: null, last: null },
       teardown: { command: null, last: null },
       ...overrides,
     };
@@ -299,6 +300,7 @@ describe("o run visto de fora do rodapé", () => {
       startedAt: new Date().toISOString(),
       finishedAt: null,
       command: "pnpm dev",
+      outputAvailable: true,
       ...overrides,
     };
   }
