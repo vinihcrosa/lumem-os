@@ -115,6 +115,9 @@ export function SessionTabPanel({
             // A finished conversation opens in read mode: the transcript comes off the
             // daemon's disk and no adapter is launched (D13).
             live={tab.state === "running"}
+            // As abas escondidas seguem montadas, e o `esc` da conversa é um
+            // ouvinte de janela: sem isto ele interromperia o turno de todas.
+            active={active}
             {...(onResume ? { onResume } : {})}
             resuming={resuming}
             initialPrompt={initialPrompt}

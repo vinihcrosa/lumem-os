@@ -174,7 +174,7 @@ de caminho** da `file-editor`. O agente não ganha um caminho novo para escapar 
 
 ### F5 — Ciclo de vida
 
-**F5.1** `session/cancel` ligado ao botão de interromper.
+**F5.1** `session/cancel` ligado ao botão de interromper — e a `esc`, que é onde a mão já está.
 **F5.2** `session/load` para retomar sessão anterior (o spike confirmou `loadSession: true`).
 **F5.3** Boot do daemon reconcilia sessões ACP como já reconcilia PTY.
 **F5.4** A **transcrição inteira é guardada**, num banco por sessão, com compressão do que passou de
