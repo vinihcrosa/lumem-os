@@ -8,8 +8,10 @@
    1. tokens.css — colado integralmente, gerado por
       packages/web/scripts/generate-tokens.py. Nenhuma cor literal abaixo.
    ======================================================================== */
-/* Design tokens — GERADO por scripts/generate-tokens.py. Nao edite a mao. */
-/* Rampas em OKLCH, contraste WCAG validado na geracao. */
+/* Design tokens do Lumem-OS. A fonte é este arquivo, no Open Design. */
+/* Rampas derivadas em OKLCH, entregues em hex. Os pares de contraste sao
+   verificados no gate, em packages/web/src/styles/contrast.ts — mexer numa cor
+   pede rodar a suite. */
 
 :root {
   /* ---------- primitivas — nunca use direto em componente ---------- */
@@ -165,6 +167,7 @@
   --color-git-removed: var(--danger-400);
   --color-git-modified: var(--warning-400);
   /* dominio — hierarquia e daemon */
+  --color-scope-global: var(--info-400);
   --color-scope-workspace: var(--brand-400);
   --color-scope-project: var(--neutral-400);
   --color-scope-worktree: var(--accent-400);
@@ -180,6 +183,7 @@
   --color-syntax-punctuation: var(--neutral-400);
   --color-git-added-subtle: var(--success-950);
   --color-git-removed-subtle: var(--danger-950);
+  --color-syntax-comment-diff: var(--neutral-500);
   --color-git-untracked: var(--info-400);
   /* dominio — editor */
   --color-editor-cursor: var(--brand-400);
@@ -193,6 +197,29 @@
   --color-save-saved: var(--success-400);
   --color-save-failed: var(--danger-400);
   --color-save-stale: var(--warning-400);
+  /* dominio — conversa */
+  --color-turn-agent: var(--brand-400);
+  --color-turn-user: var(--neutral-300);
+  --color-turn-thought: var(--neutral-500);
+  --color-turn-caret: var(--brand-400);
+  --color-tool-pending: var(--neutral-500);
+  --color-tool-running: var(--info-400);
+  --color-tool-ok: var(--success-400);
+  --color-tool-failed: var(--danger-400);
+  --color-tool-cancelled: var(--neutral-400);
+  --color-permission-pending: var(--warning-400);
+  --color-permission-allowed: var(--success-400);
+  --color-permission-denied: var(--danger-400);
+  --color-plan-pending: var(--neutral-500);
+  --color-plan-active: var(--brand-400);
+  --color-plan-done: var(--success-400);
+  --color-usage-quiet: var(--neutral-400);
+  --color-usage-warn: var(--warning-400);
+  --color-usage-over: var(--danger-400);
+  --color-usage-cost: var(--accent-400);
+  --color-mode-plan: var(--info-400);
+  --color-mode-auto: var(--brand-400);
+  --color-mode-bypass: var(--danger-400);
 
   /* ---------- espacamento (nome = valor em px) ---------- */
   --space-0: 0px;
@@ -245,6 +272,9 @@
   --size-panel-right-max: 720px;
   --size-gutter-line: 44px;
   --size-viewer-min: 360px;
+  --size-turn-gutter: 20px;
+  --size-tool-output-max: 240px;
+  --size-composer-min: 72px;
   --border-width-none: 0px;
   --border-width-thin: 1px;
   --border-width-thick: 2px;
@@ -269,6 +299,11 @@
   --text-label-sm: 500 12px/16px var(--font-family-sans);
   --text-label-xs: 500 11px/14px var(--font-family-sans);
   --tracking-label-xs: 0.015em;
+  /* Caixa-alta pede tracking proprio, e nao o do TAMANHO. `label-xs` a 0.015em
+     e o valor de um rotulo minusculo; aplicado a maiuscula ele fecha as
+     contraformas e o rotulo vira um bloco. O piso tipografico para caps e
+     0.06em (5-10% do em); 0.07em fica dentro da faixa sem alargar chip curto. */
+  --tracking-caps: 0.07em;
   --text-caption: 400 11px/14px var(--font-family-sans);
   --text-mono-lg: 400 13px/20px var(--font-family-mono);
   --text-mono-md: 400 12px/18px var(--font-family-mono);
@@ -292,14 +327,37 @@
  * Estilos de documento. Nada de componente vive aqui.
  *
  * Só `var()`: qualquer literal de cor ou espaçamento nesta folha quebra a
- * promessa de que trocar uma rampa em `generate-tokens.py` troca a interface
- * inteira. Exceção tolerada: ajuste ótico de 1–2px sem token.
+ * promessa de que trocar uma rampa nos tokens troca a interface inteira. Exceção
+ * tolerada: ajuste ótico de 1–2px sem token.
  */
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/*
+ * A COLUNA DE GRID NASCE LIVRE, E NESTA INTERFACE ISSO É UM BUG DE FÁBRICA.
+ *
+ * Portado do `lumem-ds.css` do Open Design, e a razão é a mesma que já cobrou
+ * caro aqui: faixa de grid `auto` — o que uma coluna implícita é — cresce até
+ * caber o conteúdo. Numa página de texto isso é certo. Aqui o conteúdo é caminho
+ * de arquivo, cerca de código, saída de processo e nome de branch: coisas sem
+ * ponto natural de quebra. A coluna passa da viewport e o corte aparece na
+ * **borda direita da tela**, que é o único lugar onde quem revisa não está
+ * olhando.
+ *
+ * Neste repositório o defeito apareceu no `.msg` da conversa — uma cerca de
+ * código de 300 caracteres esticou a coluna para 2.516px, e quem mediu foi o
+ * e2e. `min-width: 0` conserta um caso; isto muda o default.
+ *
+ * `:where()` tem especificidade **zero**: todo bloco que precisa de colunas de
+ * verdade declara e ganha, sem `!important` e sem depender de ordem de arquivo.
+ * Em elemento que não é grid, a linha é inerte.
+ */
+:where(*) {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 html,
