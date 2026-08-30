@@ -192,10 +192,13 @@ export function ScopePanel({ scope, header, context, cwd, openSessionId }: Scope
               return (
                 <Item
                   key={session.id}
-                  name={session.agentName ?? "shell"}
+                  // Uma sessão de script não é uma shell, e chamá-la assim é a
+                  // mesma mentira que o `command` guardava até a project-scripts:
+                  // ela descreve o mecanismo em vez do que está acontecendo.
+                  name={session.agentName ?? session.scriptName ?? "shell"}
                   glyph={
                     <Glyph tone={session.kind === "agent" ? "agent" : "shell"}>
-                      {session.kind === "agent" ? "◆" : "●"}
+                      {session.kind === "agent" ? "◆" : session.kind === "script" ? "▶" : "●"}
                     </Glyph>
                   }
                   detail={session.command}

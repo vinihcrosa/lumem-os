@@ -270,6 +270,9 @@ export function createScriptRunner({
         // funciona no terminal dela — o pior modo de falha possível.
         command: shell,
         args: ["-lc", command],
+        // A linha guarda o comando declarado, não o shell que o carrega: é o
+        // que a lista de sessões mostra, e `/bin/zsh` ali não diz nada.
+        recordedCommand: command,
         env: {
           LUMEM_WORKSPACE_ID: project.workspaceId,
           LUMEM_PROJECT_ID: project.id,

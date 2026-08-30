@@ -56,6 +56,17 @@ export interface StartSessionInput {
   transport?: "pty" | "acp";
   /** Pinned adapter version, for the launch failure message (F1.6). */
   adapterVersion?: string | null;
+  /**
+   * O que **gravar** como comando, quando ele difere do que é executado.
+   *
+   * Existe por causa da sessão de script: ela lança `$SHELL -lc "<comando>"`, e a
+   * linha que diz `/bin/zsh` descreve o mecanismo em vez da intenção — quem lê a
+   * lista de sessões quer ver `./scripts/workspace/run.sh`. Sem isto, o painel do
+   * projeto mostrava toda execução de script como "shell /bin/zsh".
+   *
+   * Opcional, e ignorado por todo mundo que lança o que quer dizer.
+   */
+  recordedCommand?: string;
 }
 
 export interface SessionStore {
@@ -268,7 +279,7 @@ export function createSessionStore({
           scopeType,
           scopeId,
           cwd,
-          command,
+          command: input.recordedCommand ?? command,
           transport: "pty",
         });
       } catch (error) {

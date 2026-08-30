@@ -219,6 +219,20 @@ describe("scripts.start", () => {
     expect(status.setup.last?.running).toBe(true);
   });
 
+  it("a linha guarda o comando declarado, e não o shell que o carrega", async () => {
+    // Visto rodando o produto: a lista de sessões do projeto mostrava toda
+    // execução de script como "shell /bin/zsh" — o mecanismo no lugar da intenção.
+    const { ctx, worktreeId, worktreePath } = await setup();
+    declare(worktreePath, { run: "sleep 30" });
+    const scope = { scopeType: "worktree", scopeId: worktreeId } as const;
+
+    const started = await ctx.api.scripts.start({ ...scope, phase: "run" });
+
+    const row = await ctx.api.session.getDetail({ id: started.sessionId });
+    expect(row.command).toBe("sleep 30");
+    expect(row.scriptName).toBe("run");
+  });
+
   it("a sessão de script não vira aba de sessão", async () => {
     // O rodapé é o lugar dela. Aparecer também como aba seria a mesma coisa em
     // dois lugares, com dois jeitos de fechar.
