@@ -1,6 +1,6 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Fechando o caminho de entrada, o [onboarding](prd/onboarding/prd.md) e o [agent-login](prd/agent-login/prd.md). E o harness passou a lembrar: a [workspace-memory](prd/workspace-memory/tasks.md) está **completa** — nove PRs, a primeira feature que não é de tela, e a única em que o sistema escreve sozinho (atrás de portão, inbox e interruptor desligado). Fechando o círculo, a [workspace-screen](prd/workspace-screen/prd.md) deu tela ao workspace: a memória dele deixou de depender de um projeto aberto, e o consumo de tokens passou a ser somável por projeto e por worktree.
+Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). A [project-from-url](prd/project-from-url/prd.md) traz o projeto de fora: cola-se uma URL git e o daemon clona, num diretório de estado que passou a ser uma árvore só. Fechando o caminho de entrada, o [onboarding](prd/onboarding/prd.md) e o [agent-login](prd/agent-login/prd.md). E o harness passou a lembrar: a [workspace-memory](prd/workspace-memory/tasks.md) está **completa** — nove PRs, a primeira feature que não é de tela, e a única em que o sistema escreve sozinho (atrás de portão, inbox e interruptor desligado). Fechando o círculo, a [workspace-screen](prd/workspace-screen/prd.md) deu tela ao workspace: a memória dele deixou de depender de um projeto aberto, e o consumo de tokens passou a ser somável por projeto e por worktree.
 
 > **Decisão de arquitetura, 2026-08-17:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por [ACP](project/pty-vs-acp.md)**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A feature [acp-sessions](prd/acp-sessions/prd.md) — transporte mais a tela da conversa — está **completa**: PRD escrito, spike rodado (autenticação e consumo medidos, janela de contexto parcial), protótipo renderizado em `packages/web/prototype/lumem-acp-conversation.html`, e as fases 1, 3, 4, 5 e 6 entregues — uma tarefa roda do começo ao fim sem terminal, fechar o daemon não perde a conversa, e o agente ACP se cria pela tela.
 
@@ -23,6 +23,8 @@ Lendo nesta ordem você entende o projeto inteiro em três documentos:
 | [vision.md](project/vision.md) | Visão, hierarquia pretendida, o que o Vinicius quer do sistema |
 | [questions.md](project/questions.md) | 96 perguntas de design em duas rodadas. Fonte de verdade das decisões de longo prazo, respondida aos poucos |
 | [testing.md](project/testing.md) | Matriz de cobertura, o que cada gate garante, e as armadilhas de teste já corrigidas |
+| [workspaces.md](project/workspaces.md) | Os scripts de setup, run e teardown em `scripts/workspace/`, e como Superset e Conductor só apontam para eles |
+| [task-cycle-evidence.md](project/task-cycle-evidence.md) | Linha de base medida do repositório e registro de custo do ciclo dev → review → rework. Lastro dos números que a skill `lumem-task-cycle` cita |
 | [task-cycle-evidence.md](project/task-cycle-evidence.md) | Linha de base medida do repositório e registro de custo do ciclo dev → review → rework, ao longo de onze lotes. A skill que orquestrava o ciclo foi removida; as medições ficaram, porque são deste repositório |
 | [design-source-of-truth.md](project/design-source-of-truth.md) | **Decisão (2026-08-19): o design é feito inteiramente no Open Design.** O gerador Python saiu, o `tokens.css` passou a ser sincronizado, e a verificação de contraste ficou — com o custo de cada uma dessas três coisas nomeado |
 | [pty-vs-acp.md](project/pty-vs-acp.md) | **Decisão de arquitetura (2026-08-17): o Lumem migra para ACP.** O custo medido, os prós e contras de cada transporte, a recomendação contrária que perdeu, e o §9.2 — billing e janela de contexto investigados na fonte, com duas das minhas próprias afirmações corrigidas |
@@ -98,6 +100,16 @@ Sucede a `right-panel`. O split da aba **escreve**: editar o arquivo aberto com 
 | [prd.md](prd/file-editor/prd.md) | Por que o não-objetivo foi revertido, a segurança da escrita, a concorrência com o agente, riscos |
 | [open-questions.md](prd/file-editor/open-questions.md) | 24 perguntas, 21 respondidas |
 | [tasks.md](prd/file-editor/tasks.md) | 6 decisões e 13 tasks em 5 fases, mais as premissas travadas e as 20 pendências numeradas — **todas entregues**, mais o que o portão não prova |
+
+### [project-from-url/](prd/project-from-url/) — o projeto vem de uma URL
+
+Sucede a `file-editor`. Antes dela só se registrava repositório que já estava no disco; esta feature clona de qualquer URL git — GitHub, GitLab, Gitea, servidor da empresa. É a primeira em que o daemon **executa rede a partir de uma string colada** e a primeira em que ele **apaga** um diretório, o que faz da segurança a maior seção do PRD. Reverte o F2.5 do walking-skeleton para projeto gerenciado, e reorganiza o diretório de estado numa árvore só — `~/.lumem/workspaces/<workspace>/<projeto>/{repo,worktrees}`.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/project-from-url/prd.md) | Escopo, a lista de permissão de transporte, o segredo que morre na fronteira, o clone como job, e por que remover um projeto clonado agora **apaga** o clone |
+| [open-questions.md](prd/project-from-url/open-questions.md) | 22 perguntas, **todas respondidas**. Quatro respostas derrubaram desenho |
+| [tasks.md](prd/project-from-url/tasks.md) | 11 decisões e 17 tasks em 5 fases — **todas entregues** — mais as 10 pendências numeradas e a regra que a suíte e2e matou |
 
 ### [workspace-screen/](prd/workspace-screen/) — o workspace ganha uma tela
 

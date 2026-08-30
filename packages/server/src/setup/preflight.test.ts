@@ -96,7 +96,7 @@ describe("preflight", () => {
 
     expect(paths.stateDir).toBe(stateDir);
     expect(paths.databasePath).toBe(join(stateDir, "lumem.db"));
-    expect(paths.worktreesDir).toBe(join(stateDir, "worktrees"));
+    expect(paths.workspacesDir).toBe(join(stateDir, "workspaces"));
     expect(paths.transcriptsDir).toBe(join(stateDir, "transcripts"));
   });
 

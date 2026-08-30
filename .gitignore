@@ -31,3 +31,4 @@ packages/web/prototype/preview/
 
 .agents/.skill-lock.json.backup
 .superset/config.local.json
+.conductor/settings.local.toml

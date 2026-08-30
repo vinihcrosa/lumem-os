@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — projeto a partir de uma URL git</title>
+<style>
+/* ========================================================================
+   1. tokens.css — colado integralmente, gerado por
+      packages/web/scripts/generate-tokens.py. Nenhuma cor literal abaixo.
+   ======================================================================== */
+/* Design tokens — GERADO por scripts/generate-tokens.py. Nao edite a mao. */
+/* Rampas em OKLCH, contraste WCAG validado na geracao. */
+
+:root {
+  /* ---------- primitivas — nunca use direto em componente ---------- */
+  /* brand */
+  --brand-50: #F8F7FF;
+  --brand-100: #EFECFF;
+  --brand-200: #DFD9FF;
+  --brand-300: #CCC2FF;
+  --brand-400: #B5A2FF;
+  --brand-500: #9774FD;
+  --brand-600: #7955D7;
+  --brand-700: #603FAF;
+  --brand-800: #492F88;
+  --brand-900: #321F5F;
+  --brand-950: #211441;
+  /* accent */
+  --accent-50: #F6FAEB;
+  --accent-100: #ECF3D8;
+  --accent-200: #DAE5B3;
+  --accent-300: #C5D587;
+  --accent-400: #ABBE55;
+  --accent-500: #8A9D0E;
+  --accent-600: #6D7D00;
+  --accent-700: #556200;
+  --accent-800: #414A00;
+  --accent-900: #2C3300;
+  --accent-950: #1C2200;
+  /* neutral */
+  --neutral-0: #FFFFFF;
+  --neutral-50: #F8F7F9;
+  --neutral-100: #EFEEF1;
+  --neutral-200: #DEDEE3;
+  --neutral-300: #CBCAD2;
+  --neutral-400: #B2B1BB;
+  --neutral-500: #91909B;
+  --neutral-600: #73727C;
+  --neutral-700: #5A5962;
+  --neutral-800: #44434A;
+  --neutral-900: #2E2E33;
+  --neutral-925: #26252C;
+  --neutral-950: #1E1E22;
+  --neutral-960: #19181F;
+  --neutral-970: #14131A;
+  --neutral-980: #100F15;
+  --neutral-990: #0C0B11;
+  --neutral-1000: #08070D;
+  --neutral-1010: #050408;
+  /* success */
+  --success-50: #EEFCF3;
+  --success-100: #DCF7E6;
+  --success-200: #BAEDCE;
+  --success-300: #91E0B3;
+  --success-400: #60CC93;
+  --success-500: #1AAC6E;
+  --success-600: #008955;
+  --success-700: #006C42;
+  --success-800: #005331;
+  --success-900: #003920;
+  --success-950: #002614;
+  /* warning */
+  --warning-50: #FFF7EA;
+  --warning-100: #FEECD2;
+  --warning-200: #FAD9A7;
+  --warning-300: #F4C273;
+  --warning-400: #E5A52E;
+  --warning-500: #BF8500;
+  --warning-600: #986900;
+  --warning-700: #785200;
+  --warning-800: #5C3E00;
+  --warning-900: #402A00;
+  --warning-950: #2B1B00;
+  /* danger */
+  --danger-50: #FFF5F4;
+  --danger-100: #FFE9E6;
+  --danger-200: #FFD3CD;
+  --danger-300: #FFB6AE;
+  --danger-400: #FF8D83;
+  --danger-500: #F0554F;
+  --danger-600: #C93433;
+  --danger-700: #A32223;
+  --danger-800: #7E1718;
+  --danger-900: #580F0F;
+  --danger-950: #3D0808;
+  /* info */
+  --info-50: #F1F9FF;
+  --info-100: #DFF2FF;
+  --info-200: #BEE5FF;
+  --info-300: #94D4FF;
+  --info-400: #4FBEFF;
+  --info-500: #009CE0;
+  --info-600: #007CB2;
+  --info-700: #00618D;
+  --info-800: #004A6D;
+  --info-900: #00334C;
+  --info-950: #002134;
+
+  /* ---------- semantica — use estas ---------- */
+  /* superficies */
+  --color-bg-base: var(--neutral-1000);
+  --color-bg-panel: var(--neutral-990);
+  --color-bg-surface: var(--neutral-980);
+  --color-bg-raised: var(--neutral-970);
+  --color-bg-inset: var(--neutral-1010);
+  --color-bg-hover: var(--neutral-960);
+  --color-bg-active: var(--neutral-925);
+  --color-bg-selected: var(--brand-950);
+  /* marca */
+  --color-bg-brand: var(--brand-500);
+  --color-bg-brand-hover: var(--brand-400);
+  --color-bg-brand-subtle: var(--brand-950);
+  --color-bg-brand-muted: var(--brand-900);
+  /* fundos de status */
+  --color-bg-success-subtle: var(--success-950);
+  --color-bg-warning-subtle: var(--warning-950);
+  --color-bg-danger-subtle: var(--danger-950);
+  --color-bg-info-subtle: var(--info-950);
+  --color-bg-neutral-subtle: var(--neutral-925);
+  /* texto */
+  --color-text-primary: var(--neutral-50);
+  --color-text-secondary: var(--neutral-400);
+  --color-text-tertiary: var(--neutral-500);
+  --color-text-disabled: var(--neutral-700);
+  --color-text-inverse: var(--neutral-1000);
+  --color-text-on-brand: var(--neutral-1000);
+  --color-text-brand: var(--brand-400);
+  --color-text-link: var(--brand-400);
+  --color-text-code: var(--neutral-300);
+  --color-text-success: var(--success-400);
+  --color-text-warning: var(--warning-400);
+  --color-text-danger: var(--danger-400);
+  --color-text-info: var(--info-400);
+  /* bordas */
+  --color-border-subtle: var(--neutral-960);
+  --color-border-default: var(--neutral-925);
+  --color-border-strong: var(--neutral-800);
+  --color-border-brand: var(--brand-500);
+  --color-border-danger: var(--danger-500);
+  --color-border-focus: var(--brand-400);
+  /* dominio — sessao */
+  --color-session-running: var(--success-400);
+  --color-session-exited: var(--neutral-500);
+  --color-session-failed: var(--danger-400);
+  --color-session-shell: var(--info-400);
+  --color-session-agent: var(--brand-400);
+  /* dominio — worktree e git */
+  --color-worktree-clean: var(--success-400);
+  --color-worktree-dirty: var(--warning-400);
+  --color-worktree-missing: var(--danger-400);
+  --color-git-branch: var(--accent-400);
+  --color-git-ahead: var(--info-400);
+  --color-git-behind: var(--warning-400);
+  --color-git-added: var(--success-400);
+  --color-git-removed: var(--danger-400);
+  --color-git-modified: var(--warning-400);
+  /* dominio — hierarquia e daemon */
+  --color-scope-workspace: var(--brand-400);
+  --color-scope-project: var(--neutral-400);
+  --color-scope-worktree: var(--accent-400);
+  --color-daemon-online: var(--success-400);
+  --color-daemon-offline: var(--danger-400);
+  /* dominio — codigo */
+  --color-syntax-keyword: var(--brand-400);
+  --color-syntax-string: var(--accent-400);
+  --color-syntax-number: var(--warning-300);
+  --color-syntax-comment: var(--neutral-600);
+  --color-syntax-function: var(--info-400);
+  --color-syntax-type: var(--success-300);
+  --color-syntax-punctuation: var(--neutral-400);
+  --color-git-added-subtle: var(--success-950);
+  --color-git-removed-subtle: var(--danger-950);
+  --color-git-untracked: var(--info-400);
+  /* dominio — editor */
+  --color-editor-cursor: var(--brand-400);
+  --color-editor-selection: var(--brand-900);
+  --color-editor-active-line: var(--neutral-980);
+  --color-editor-line-number: var(--neutral-500);
+  --color-editor-line-number-active: var(--neutral-300);
+  --color-editor-readonly: var(--neutral-400);
+  /* dominio — salvamento */
+  --color-save-saving: var(--neutral-400);
+  --color-save-saved: var(--success-400);
+  --color-save-failed: var(--danger-400);
+  --color-save-stale: var(--warning-400);
+
+  /* ---------- espacamento (nome = valor em px) ---------- */
+  --space-0: 0px;
+  --space-1: 1px;
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+
+  /* ---------- raio ---------- */
+  --radius-none: 0px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* ---------- dimensoes ---------- */
+  --size-control-xs: 20px;
+  --size-control-sm: 24px;
+  --size-control-md: 28px;
+  --size-control-lg: 32px;
+  --size-control-xl: 40px;
+  --size-icon-xs: 12px;
+  --size-icon-sm: 14px;
+  --size-icon-md: 16px;
+  --size-icon-lg: 20px;
+  --size-row-compact: 28px;
+  --size-row-cozy: 32px;
+  --size-target-min: 24px;
+  --size-topbar-height: 40px;
+  --size-sidebar-width: 264px;
+  --size-detail-max: 880px;
+  --size-terminal-min: 420px;
+  --size-dialog-width: 420px;
+  --size-menu-width: 300px;
+  --size-panel-right: 360px;
+  --size-panel-right-min: 260px;
+  --size-panel-right-max: 720px;
+  --size-gutter-line: 44px;
+  --size-viewer-min: 360px;
+  --border-width-none: 0px;
+  --border-width-thin: 1px;
+  --border-width-thick: 2px;
+  --border-width-focus: 2px;
+
+  /* ---------- tipografia ---------- */
+  --font-family-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-display-lg: 600 28px/34px var(--font-family-sans);
+  --tracking-display-lg: -0.02em;
+  --text-display-md: 600 22px/28px var(--font-family-sans);
+  --tracking-display-md: -0.015em;
+  --text-heading-lg: 600 18px/24px var(--font-family-sans);
+  --tracking-heading-lg: -0.01em;
+  --text-heading-md: 600 15px/20px var(--font-family-sans);
+  --tracking-heading-md: -0.005em;
+  --text-heading-sm: 600 13px/18px var(--font-family-sans);
+  --text-body-lg: 400 14px/20px var(--font-family-sans);
+  --text-body-md: 400 13px/18px var(--font-family-sans);
+  --text-body-sm: 400 12px/16px var(--font-family-sans);
+  --text-label-md: 500 13px/16px var(--font-family-sans);
+  --text-label-sm: 500 12px/16px var(--font-family-sans);
+  --text-label-xs: 500 11px/14px var(--font-family-sans);
+  --tracking-label-xs: 0.015em;
+  --text-caption: 400 11px/14px var(--font-family-sans);
+  --text-mono-lg: 400 13px/20px var(--font-family-mono);
+  --text-mono-md: 400 12px/18px var(--font-family-mono);
+  --text-mono-sm: 400 11px/16px var(--font-family-mono);
+
+  /* ---------- elevacao ---------- */
+  --elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.32);
+  --elevation-md: 0 2px 4px -1px rgb(0 0 0 / 0.34), 0 4px 8px -2px rgb(0 0 0 / 0.30);
+  --elevation-lg: 0 4px 8px -2px rgb(0 0 0 / 0.38), 0 12px 24px -4px rgb(0 0 0 / 0.36);
+  --elevation-xl: 0 8px 16px -4px rgb(0 0 0 / 0.42), 0 24px 48px -8px rgb(0 0 0 / 0.44);
+  --focus-ring: 0 0 0 1px var(--color-bg-base), 0 0 0 3px var(--color-border-focus);
+}
+
+/* Anel de foco padrao — aplique em todo alvo interativo */
+.focus-ring:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ========================================================================
+   2. base.css — o mesmo reset do app
+   ======================================================================== */
+/*
+ * Estilos de documento. Nada de componente vive aqui.
+ *
+ * Só `var()`: qualquer literal de cor ou espaçamento nesta folha quebra a
+ * promessa de que trocar uma rampa em `generate-tokens.py` troca a interface
+ * inteira. Exceção tolerada: ajuste ótico de 1–2px sem token.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font: var(--text-body-md);
+  -webkit-font-smoothing: antialiased;
+  /* O app é uma moldura de altura de viewport: quem rola são as colunas. */
+  overflow: hidden;
+}
+
+/* O navegador não herda fonte em controle de formulário. Sem isto, todo
+   `button` e `input` volta pro default do sistema. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* Campo herdar só a cor do texto seria um bug: o fundo continuaria o branco do
+   navegador e o texto claro sumiria dentro dele. Os dois andam juntos. */
+input,
+select,
+textarea {
+  background: var(--color-bg-inset);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+
+::placeholder {
+  color: var(--color-text-disabled);
+}
+
+a {
+  color: var(--color-text-link);
+}
+
+/* Um alvo interativo sem foco visível é inoperável no teclado. O anel sai do
+   gerador para que a cor acompanhe a marca. */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Texto que só o leitor de tela recebe. `display: none` o removeria da árvore
+   de acessibilidade junto com a tela — isto tira da tela e mantém na árvore. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Barras de rolagem: a padrão do sistema é clara e corta o fundo escuro. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-default) transparent;
+}
+
+::-webkit-scrollbar {
+  width: var(--space-10);
+  height: var(--space-10);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-default);
+  border-radius: var(--radius-full);
+  /* Borda transparente com `background-clip` afina o polegar sem mudar a
+     área de acerto do ponteiro. */
+  border: var(--space-2) solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-strong);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner,
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+/* ========================================================================
+   3. o desenho desta feature — só token, nenhuma cor literal
+   ======================================================================== */
+body { background: var(--color-bg-base); color: var(--color-text-primary); }
+
+.page { max-width: 1080px; margin: 0 auto; padding: var(--space-24); }
+.page__title { font: var(--text-heading-lg); letter-spacing: var(--tracking-heading-lg); }
+.page__sub { font: var(--text-body-sm); color: var(--color-text-secondary); margin-top: var(--space-4); }
+
+.tabs { display: flex; flex-wrap: wrap; gap: var(--space-4); margin: var(--space-20) 0; }
+.tab {
+  height: var(--size-control-md); padding: 0 var(--space-12);
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-full);
+  background: var(--color-bg-surface); color: var(--color-text-secondary);
+  font: var(--text-label-sm); cursor: pointer;
+}
+.tab:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.tab.is-active {
+  background: var(--color-bg-brand-subtle); border-color: var(--color-border-brand);
+  color: var(--color-text-brand);
+}
+
+.screen { display: none; }
+.screen.is-active { display: block; }
+.screen__note {
+  font: var(--text-body-sm); color: var(--color-text-secondary);
+  margin-bottom: var(--space-16); max-width: 62ch;
+}
+.stage { display: flex; gap: var(--space-24); align-items: flex-start; }
+
+/* --------------------------------------------------------- a sidebar */
+.sidebar {
+  width: var(--size-sidebar-width); flex: none;
+  background: var(--color-bg-panel); border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg); overflow: hidden;
+}
+.sidebar__head {
+  height: var(--size-topbar-height); display: flex; align-items: center;
+  padding: 0 var(--space-12); gap: var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font: var(--text-label-sm); color: var(--color-text-secondary);
+}
+.sidebar__glyph { color: var(--color-scope-workspace); }
+.sidebar__body { padding: var(--space-6); }
+.sidebar__section {
+  font: var(--text-label-xs); color: var(--color-text-tertiary);
+  text-transform: uppercase; letter-spacing: .06em;
+  padding: var(--space-8) var(--space-8) var(--space-4);
+}
+.row {
+  display: flex; align-items: center; gap: var(--space-8);
+  height: var(--size-row-cozy); padding: 0 var(--space-8);
+  border-radius: var(--radius-sm); font: var(--text-body-sm);
+}
+.row:hover { background: var(--color-bg-hover); }
+.row__glyph { color: var(--color-scope-project); font-size: var(--size-icon-sm); }
+.row__meta { margin-left: auto; font: var(--text-label-xs); color: var(--color-text-tertiary); }
+.sidebar__add {
+  display: flex; align-items: center; gap: var(--space-6); width: 100%;
+  height: var(--size-control-md); padding: 0 var(--space-8);
+  border-radius: var(--radius-sm); color: var(--color-text-tertiary);
+  font: var(--text-label-sm); background: none; border: 0; cursor: pointer;
+}
+.sidebar__add:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+/* ------------------------------------------------ o clone na sidebar */
+.clone-row { padding: var(--space-8); border-radius: var(--radius-sm); background: var(--color-bg-surface); }
+.clone-row__top { display: flex; align-items: center; gap: var(--space-8); }
+.clone-row__name { font: var(--text-body-sm); }
+.clone-row__pct { margin-left: auto; font: var(--text-label-xs); color: var(--color-text-secondary); }
+.clone-row__cancel {
+  width: var(--size-control-sm); height: var(--size-control-sm);
+  border: 0; border-radius: var(--radius-sm); background: none;
+  color: var(--color-text-tertiary); cursor: pointer;
+}
+.clone-row__cancel:hover { background: var(--color-bg-hover); color: var(--color-text-danger); }
+.bar {
+  height: var(--space-4); margin-top: var(--space-8);
+  background: var(--color-bg-inset); border-radius: var(--radius-full); overflow: hidden;
+}
+.bar__fill { height: 100%; background: var(--color-bg-brand); border-radius: var(--radius-full); }
+/* Sem porcentagem a barra é indeterminada: a forma diz "não sei quanto falta"
+   em vez de fingir um número. */
+.bar--unknown .bar__fill {
+  width: 35%; animation: slide 1.4s ease-in-out infinite;
+  background: linear-gradient(90deg, var(--color-bg-brand-muted), var(--color-bg-brand));
+}
+@keyframes slide { 0% { margin-left: 0 } 50% { margin-left: 65% } 100% { margin-left: 0 } }
+.clone-row__phase { margin-top: var(--space-6); font: var(--text-label-xs); color: var(--color-text-secondary); }
+
+/* ---------------------------------------------------------- o diálogo */
+.dialog {
+  width: var(--size-dialog-width); flex: none;
+  background: var(--color-bg-surface); border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg); padding: var(--space-16);
+}
+.dialog__title { font: var(--text-heading-md); margin-bottom: var(--space-16); }
+.field { margin-bottom: var(--space-16); }
+.field__label { display: block; font: var(--text-label-sm); color: var(--color-text-secondary); margin-bottom: var(--space-6); }
+.input {
+  width: 100%; height: var(--size-control-lg); padding: 0 var(--space-10);
+  background: var(--color-bg-inset); color: var(--color-text-primary);
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-md);
+  font: var(--text-code-sm); font-family: var(--font-family-mono);
+}
+.input:focus { outline: none; border-color: var(--color-border-focus); }
+.input.is-invalid { border-color: var(--color-border-danger); }
+
+/* A linha que impede a detecção automática de ser mágica: ela diz, em
+   português, o que o servidor entendeu — antes de qualquer ação. */
+.echo {
+  display: flex; align-items: center; gap: var(--space-6);
+  margin-top: var(--space-8); font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+.echo__arrow { color: var(--color-text-tertiary); }
+.echo--refused { color: var(--color-text-danger); }
+.chip {
+  display: inline-flex; align-items: center; height: var(--size-control-xs);
+  padding: 0 var(--space-8); border-radius: var(--radius-full);
+  font: var(--text-label-xs);
+}
+.chip--warning { background: var(--color-bg-warning-subtle); color: var(--color-text-warning); }
+
+/* O destino é resposta, não pergunta (Q14).
+   Sem caixa, sem borda, sem altura de controle: a primeira versão deste
+   protótipo o desenhou como os campos acima e a renderização mostrou que ele
+   ficava indistinguível de um input — que é exatamente o mal-entendido que a
+   Q14 existe para evitar. */
+.answer { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-2) 0; }
+.answer__path {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-family-mono); font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.answer__copy {
+  flex: none; width: var(--size-control-sm); height: var(--size-control-sm);
+  border: 0; background: none; border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary); cursor: pointer;
+}
+.answer__copy:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+.actions { display: flex; gap: var(--space-8); margin-top: var(--space-20); }
+.btn {
+  height: var(--size-control-lg); padding: 0 var(--space-16);
+  border-radius: var(--radius-md); border: 1px solid transparent;
+  font: var(--text-label-sm); cursor: pointer;
+}
+.btn--primary { background: var(--color-bg-brand); color: var(--color-text-on-brand); }
+.btn--primary:hover { background: var(--color-bg-brand-hover); }
+.btn--primary[disabled] { background: var(--color-bg-neutral-subtle); color: var(--color-text-disabled); cursor: not-allowed; }
+.btn--ghost { background: none; color: var(--color-text-secondary); }
+.btn--ghost:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.btn--danger { background: var(--color-bg-danger-subtle); color: var(--color-text-danger); border-color: var(--color-border-danger); }
+.btn--danger:hover { background: var(--danger-900); }
+
+/* --------------------------------------------------------- as falhas */
+.notice {
+  border-radius: var(--radius-md); padding: var(--space-12);
+  border: 1px solid var(--color-border-default); background: var(--color-bg-raised);
+}
+.notice--danger { border-color: var(--color-border-danger); background: var(--color-bg-danger-subtle); }
+.notice--success { border-color: var(--success-800); background: var(--color-bg-success-subtle); }
+.notice--warning { border-color: var(--warning-800); background: var(--color-bg-warning-subtle); }
+.notice__title { font: var(--text-label-md); margin-bottom: var(--space-6); }
+.notice__body { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.notice__body strong { color: var(--color-text-primary); font-weight: 600; }
+/* Texto que veio do servidor remoto: sempre como texto, nunca como marcação. */
+.notice__git {
+  display: block; margin-top: var(--space-8); padding: var(--space-8);
+  border-radius: var(--radius-sm); background: var(--color-bg-inset);
+  font-family: var(--font-family-mono); font-size: 12px;
+  color: var(--color-text-code); white-space: pre-wrap; word-break: break-word;
+}
+.notice__ways { margin: var(--space-10) 0 0; padding-left: var(--space-16); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.notice__ways li { margin-bottom: var(--space-4); }
+.notice__actions { display: flex; gap: var(--space-8); margin-top: var(--space-12); }
+
+.path-callout {
+  margin-top: var(--space-12); padding: var(--space-10);
+  border-radius: var(--radius-md); background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-danger);
+  font-family: var(--font-family-mono); font-size: 12px; color: var(--color-text-code);
+  word-break: break-all;
+}
+
+</style>
+</head>
+<body>
+<main class="page">
+  <h1 class="page__title">Projeto a partir de uma URL git</h1>
+  <p class="page__sub">Nove estados, e sete não são o caminho feliz. PRD: <code>docs/prd/project-from-url/prd.md</code></p>
+  <nav class="tabs">
+<button class="tab is-active" data-screen="caminho">Caminho local</button>
+<button class="tab" data-screen="url">URL reconhecida</button>
+<button class="tab" data-screen="recusa">URL recusada</button>
+<button class="tab" data-screen="clonando">Clonando</button>
+<button class="tab" data-screen="auth">Falha de autenticação</button>
+<button class="tab" data-screen="falha">Falha genérica</button>
+<button class="tab" data-screen="ajustado">Nome ajustado</button>
+<button class="tab" data-screen="apagar">Remover projeto gerenciado</button>
+<button class="tab" data-screen="sem-commit">Projeto sem commit</button>
+  </nav>
+<section class="screen is-active" id="screen-caminho">
+<p class="screen__note">O mesmo campo aceita as duas coisas. Caminho de projeto já é obrigatoriamente absoluto, então o que não começa com <code>/</code> ou <code>~</code> é URL — não há ambiguidade a desempatar. Aqui nome e destino somem: quem registra é o fluxo que já existia.</p>
+<div class="stage"><aside class="sidebar">
+  <div class="sidebar__head"><span class="sidebar__glyph">◈</span>pessoal</div>
+  <div class="sidebar__body">
+    <div class="sidebar__section">projetos</div>
+    <div class="row"><span class="row__glyph">▣</span>lorebase<span class="row__meta">12 worktrees</span></div>
+    
+    <button class="sidebar__add">＋ adicionar projeto</button>
+  </div>
+</aside><div class="dialog"><div class="dialog__title">adicionar projeto</div><div class="field"><label class="field__label">Caminho ou URL</label><input class="input" value="~/Documents/GitHub/lorebase" readonly></div><div class="echo"><span class="echo__arrow">↳</span>registrar o repositório em <strong>/Users/vc/Documents/GitHub/lorebase</strong></div><div class="actions"><button class="btn btn--primary">adicionar</button><button class="btn btn--ghost">cancelar</button></div></div></div>
+</section>
+
+<section class="screen" id="screen-url">
+<p class="screen__note">As três formas que a lista de permissão aceita. O destino é <strong>resposta</strong>, não pergunta: mostrado e copiável, nunca digitável. Trocar o nome muda o caminho à vista, porque os dois são a mesma decisão.</p>
+<div class="stage"><aside class="sidebar">
+  <div class="sidebar__head"><span class="sidebar__glyph">◈</span>pessoal</div>
+  <div class="sidebar__body">
+    <div class="sidebar__section">projetos</div>
+    <div class="row"><span class="row__glyph">▣</span>lorebase<span class="row__meta">12 worktrees</span></div>
+    
+    <button class="sidebar__add">＋ adicionar projeto</button>
+  </div>
+</aside><div class="dialog"><div class="dialog__title">adicionar projeto</div><div class="field"><label class="field__label">Caminho ou URL</label><input class="input" value="git@gitlab.interno.empresa:time/api.git" readonly></div><div class="echo"><span class="echo__arrow">↳</span>clonar de <strong>gitlab.interno.empresa</strong> via ssh</div><div style="height:var(--space-16)"></div><div class="field"><label class="field__label">Nome</label><input class="input" value="api" readonly></div><div class="field"><label class="field__label">Vai em</label><div class="answer"><span class="answer__path">~/.lumem/workspaces/pessoal/api/repo</span><button class="answer__copy" title="copiar">⧉</button></div></div><div class="actions"><button class="btn btn--primary">clonar</button><button class="btn btn--ghost">cancelar</button></div></div><div class="dialog" style="margin-left:var(--space-8)">
+  <div class="dialog__title">as outras duas</div>
+  <div class="field"><label class="field__label"></label><input class="input" value="https://github.com/vinihcrosa/lorebase.git" readonly></div><div class="echo"><span class="echo__arrow">↳</span>clonar de <strong>github.com</strong> via https</div><div style="height:var(--space-16)"></div><div class="field"><label class="field__label"></label><input class="input" value="file:///Volumes/nfs/espelhos/api.git" readonly></div><div class="echo"><span class="echo__arrow">↳</span>clonar do espelho local <strong>/Volumes/nfs/espelhos/api.git</strong></div><div style="height:var(--space-16)"></div><div class="field"><label class="field__label"></label><input class="input" value="http://git.interno/time/api.git" readonly></div><div class="echo"><span class="echo__arrow">↳</span>clonar de <strong>git.interno</strong> via http <span class="chip chip--warning">sem TLS</span></div></div></div>
+</section>
+
+<section class="screen" id="screen-recusa">
+<p class="screen__note">A recusa nomeia a regra que falhou — “caminho inválido” não é resposta. <code>git://</code> ganha frase própria porque é a única recusa que alguém poderia razoavelmente esperar que funcionasse.</p>
+<div class="stage"><aside class="sidebar">
+  <div class="sidebar__head"><span class="sidebar__glyph">◈</span>pessoal</div>
+  <div class="sidebar__body">
+    <div class="sidebar__section">projetos</div>
+    <div class="row"><span class="row__glyph">▣</span>lorebase<span class="row__meta">12 worktrees</span></div>
+    
+    <button class="sidebar__add">＋ adicionar projeto</button>
+  </div>
+</aside><div class="dialog"><div class="dialog__title">adicionar projeto</div><div class="field"><label class="field__label">Caminho ou URL</label><input class="input is-invalid" value="ext::sh -c id" readonly></div><div class="echo echo--refused"><span class="echo__arrow">↳</span>o transporte <strong>&quot;ext&quot;</strong> não está na lista de transportes aceitos (https, http, ssh, file)</div><div style="height:var(--space-16)"></div><div class="field"><label class="field__label"></label><input class="input is-invalid" value="git://host/repo.git" readonly></div><div class="echo echo--refused"><span class="echo__arrow">↳</span>o transporte git:// não é aceito: ele não autentica nem verifica integridade — use a URL https ou ssh do mesmo repositório</div><div class="actions"><button class="btn btn--primary" disabled>clonar</button><button class="btn btn--ghost">cancelar</button></div></div></div>
+</section>
+
+<section class="screen" id="screen-clonando">
+<p class="screen__note">O progresso mora na sidebar, no lugar onde o projeto vai nascer — não num modal, porque o clone dura minutos e o modal prenderia a tela inteira. Fechar o diálogo não cancela nada; recarregar a página não perde nada.</p>
+<div class="stage"><aside class="sidebar">
+  <div class="sidebar__head"><span class="sidebar__glyph">◈</span>pessoal</div>
+  <div class="sidebar__body">
+    <div class="sidebar__section">projetos</div>
+    <div class="row"><span class="row__glyph">▣</span>lorebase<span class="row__meta">12 worktrees</span></div>
+    <div class="clone-row">
+      <div class="clone-row__top">
+        <span class="row__glyph">▣</span><span class="clone-row__name">api</span>
+        <span class="clone-row__pct">61%</span>
+        <button class="clone-row__cancel" title="cancelar">✕</button>
+      </div>
+      <div class="bar"><div class="bar__fill" style="width:61%"></div></div>
+      <div class="clone-row__phase">recebendo objetos</div>
+    </div>
+    <button class="sidebar__add">＋ adicionar projeto</button>
+  </div>
+</aside><div class="dialog"><div class="dialog__title">as quatro fases</div>
+  <div class="clone-row" style="margin-bottom:var(--space-12)">
+    <div class="clone-row__top"><span class="clone-row__name">conectando</span></div>
+    <div class="bar bar--unknown"><div class="bar__fill"></div></div>
+    <div class="clone-row__phase">sem porcentagem: a barra diz que não sabe, em vez de fingir</div>
+  </div>
+  <div class="clone-row" style="margin-bottom:var(--space-12)">
+    <div class="clone-row__top"><span class="clone-row__name">contando objetos</span><span class="clone-row__pct">100%</span></div>
+    <div class="bar"><div class="bar__fill" style="width:100%"></div></div>
+  </div>
+  <div class="clone-row" style="margin-bottom:var(--space-12)">
+    <div class="clone-row__top"><span class="clone-row__name">recebendo objetos</span><span class="clone-row__pct">61%</span></div>
+    <div class="bar"><div class="bar__fill" style="width:61%"></div></div>
+    <div class="clone-row__phase">remote: Enumerating objects: 4821, done.</div>
+  </div>
+  <div class="clone-row">
+    <div class="clone-row__top"><span class="clone-row__name">preparando arquivos</span><span class="clone-row__pct">18%</span></div>
+    <div class="bar"><div class="bar__fill" style="width:18%"></div></div>
+  </div>
+  </div></div>
+</section>
+
+<section class="screen" id="screen-auth">
+<p class="screen__note">A falha mais frequente que existe, e a única com fluxo próprio. Ela nomeia as duas saídas e, para uma URL <code>https</code>, oferece a conversão para <code>ssh</code> em um clique — que é a saída mais rápida para quem já tem chave no agente.</p>
+<div class="stage"><aside class="sidebar">
+  <div class="sidebar__head"><span class="sidebar__glyph">◈</span>pessoal</div>
+  <div class="sidebar__body">
+    <div class="sidebar__section">projetos</div>
+    <div class="row"><span class="row__glyph">▣</span>lorebase<span class="row__meta">12 worktrees</span></div>
+    
+    <button class="sidebar__add">＋ adicionar projeto</button>
+  </div>
+</aside><div class="dialog"><div class="dialog__title">clonar api</div><div class="notice notice--danger">
+      <div class="notice__title">não consegui autenticar em github.com</div>
+      <div class="notice__body">O Lumem usa as credenciais que já estão na sua máquina — ele não guarda token nenhum. Duas saídas:</div>
+      <ul class="notice__ways">
+        <li>usar a URL <strong>ssh</strong> do mesmo repositório, com a chave no <code>ssh-agent</code>;</li>
+        <li>configurar um <code>credential.helper</code> para https.</li>
+      </ul>
+      <code class="notice__git">fatal: Authentication failed for 'https://github.com/org/repo.git/'</code>
+      <div class="notice__actions">
+        <button class="btn btn--primary">tentar por ssh</button>
+        <button class="btn btn--ghost">dispensar</button>
+      </div>
+      <div class="answer" style="margin-top:var(--space-8)">
+        <span class="answer__path">git@github.com:org/repo.git</span>
+      </div>
+    </div></div></div>
+</section>
+
+<section class="screen" id="screen-falha">
+<p class="screen__note">As demais falhas mostram o texto do git e dizem qual classe é. O aviso fica até ser dispensado: sumir sozinho é a mesma coisa que não ter acontecido.</p>
+<div class="stage"><aside class="sidebar">
+  <div class="sidebar__head"><span class="sidebar__glyph">◈</span>pessoal</div>
+  <div class="sidebar__body">
+    <div class="sidebar__section">projetos</div>
+    <div class="row"><span class="row__glyph">▣</span>lorebase<span class="row__meta">12 worktrees</span></div>
+    
+    <button class="sidebar__add">＋ adicionar projeto</button>
+  </div>
+</aside><div class="dialog"><div class="dialog__title">clonar api</div><div class="notice notice--danger">
+      <div class="notice__title">o servidor recusou a conexão</div>
+      <div class="notice__body">Nada foi registrado, e nada ficou no disco.</div>
+      <code class="notice__git">ssh: connect to host git.interno port 22: Connection refused</code>
+      <div class="notice__actions"><button class="btn btn--ghost">dispensar</button></div>
+    </div></div></div>
+</section>
+
+<section class="screen" id="screen-ajustado">
+<p class="screen__note">A corrida que a checagem prévia não fecha: alguém registrou o nome enquanto o clone rodava. Falhar ali significaria apagar o download por causa de uma string — então o registro pega o próximo nome livre, e diz.</p>
+<div class="stage"><aside class="sidebar">
+  <div class="sidebar__head"><span class="sidebar__glyph">◈</span>pessoal</div>
+  <div class="sidebar__body">
+    <div class="sidebar__section">projetos</div>
+    <div class="row"><span class="row__glyph">▣</span>lorebase<span class="row__meta">12 worktrees</span></div>
+    <div class="row"><span class="row__glyph">▣</span>api-2<span class="row__meta">agora</span></div>
+    <button class="sidebar__add">＋ adicionar projeto</button>
+  </div>
+</aside><div class="dialog"><div class="notice notice--success">
+      <div class="notice__title">api-2 pronto</div>
+      <div class="notice__body">o nome <strong>api</strong> já existia; registrado como <strong>api-2</strong>.
+      O diretório usa o mesmo nome — renomear se desfaz com um clique.</div>
+      <div class="notice__actions"><button class="btn btn--ghost">entendi</button></div>
+    </div></div></div>
+</section>
+
+<section class="screen" id="screen-apagar">
+<p class="screen__note">A tela mais perigosa das nove. Remover um projeto <strong>clonado</strong> apaga o diretório, porque foi o Lumem que escreveu aqueles bytes. Remover um projeto registrado por caminho continua sem tocar no disco — e os dois textos precisam ser distinguíveis à primeira leitura.</p>
+<div class="stage"><div class="dialog"><div class="notice notice--danger">
+      <div class="notice__title">apagar api do disco?</div>
+      <div class="notice__body">Este projeto foi clonado pelo Lumem. Remover tira do registro <strong>e apaga o
+      diretório</strong>. Não dá para desfazer.</div>
+      <div class="path-callout">~/.lumem/workspaces/pessoal/api/repo</div>
+      <div class="notice__actions">
+        <button class="btn btn--danger">apagar</button>
+        <button class="btn btn--ghost">cancelar</button>
+      </div>
+    </div></div><div class="dialog" style="margin-left:var(--space-8)"><div class="notice">
+      <div class="notice__title">remover lorebase da lista?</div>
+      <div class="notice__body">Este projeto aponta para um repositório <strong>seu</strong>. Sai da lista; o
+      diretório fica exatamente onde está.</div>
+      <div class="notice__actions">
+        <button class="btn btn--primary">remover</button>
+        <button class="btn btn--ghost">cancelar</button>
+      </div>
+    </div><div class="notice notice--warning" style="margin-top:var(--space-12)">
+      <div class="notice__title">bloqueado antes de perguntar</div>
+      <div class="notice__body">o projeto ainda tem worktrees registradas (2); remova-as antes.</div>
+    </div></div></div>
+</section>
+
+<section class="screen" id="screen-sem-commit">
+<p class="screen__note">Consequência de clonar um repositório vazio, que é caso legítimo: dá para começar no Lumem no dia 0. Sem nenhum commit não há de onde cortar worktree, e “invalid reference” não explica isso a ninguém.</p>
+<div class="stage"><div class="dialog"><div class="dialog__title">nova worktree em dia0</div><div class="field"><label class="field__label">Nome</label><input class="input" value="feat/login" readonly></div><div class="notice notice--warning" style="margin-top:var(--space-12)">
+      <div class="notice__body">este repositório ainda não tem nenhum commit — faça o primeiro para poder cortar
+      worktrees.</div>
+    </div><div class="actions"><button class="btn btn--primary" disabled>criar</button><button class="btn btn--ghost">cancelar</button></div></div></div>
+</section>
+
+</main>
+<script>
+document.querySelectorAll(".tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("is-active"));
+    document.querySelectorAll(".screen").forEach((s) => s.classList.remove("is-active"));
+    tab.classList.add("is-active");
+    document.getElementById("screen-" + tab.dataset.screen).classList.add("is-active");
+  });
+});
+</script>
+</body>
+</html>

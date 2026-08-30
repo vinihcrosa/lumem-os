@@ -235,3 +235,54 @@ describe("0001 — transport", () => {
     expect(await second.db.select().from(schema.session)).toHaveLength(2);
   });
 });
+
+describe("0007 — a origem e a gerência do projeto", () => {
+  /**
+   * Um banco parado na 0001, com as linhas que um usuário teria.
+   *
+   * O mesmo `migrationsUpTo` do bloco acima: o ponto de parada é o que muda, e
+   * o que se prova é que as colunas novas chegam com default em cima de linha
+   * que já existia — não que elas existem num banco vazio.
+   */
+  function databaseBeforeOrigin(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-legacy-origin-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite, { schema }), { migrationsFolder: migrationsUpTo(1) });
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'pessoal')`).run();
+    sqlite
+      .prepare(
+        `INSERT INTO project (id, workspace_id, name, path, default_branch)
+         VALUES ('p1', 'w1', 'lorebase', '/repos/lorebase', 'main')`,
+      )
+      .run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("dá as colunas novas a uma linha que já existia, com os defaults", async () => {
+    const handle = openDatabase({ path: databaseBeforeOrigin() });
+    open.push(handle);
+
+    const [row] = await handle.db.select().from(schema.project);
+
+    expect(row).toMatchObject({ id: "p1", name: "lorebase", path: "/repos/lorebase" });
+    // A12: nada que veio do disco do usuário nasce gerenciado.
+    expect(row?.remoteUrl).toBeNull();
+    expect(row?.managed).toBe(false);
+  });
+
+  it("é idempotente — reabrir não migra de novo", async () => {
+    const path = databaseBeforeOrigin();
+    openDatabase({ path }).close();
+
+    const second = openDatabase({ path });
+    open.push(second);
+
+    expect(await second.db.select().from(schema.project)).toHaveLength(1);
+  });
+});

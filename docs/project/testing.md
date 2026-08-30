@@ -316,6 +316,17 @@ A regra: **todo laço que consome entrada tem que garantir consumo no ramo de fa
 literal — o parágrafo pega a primeira linha **sempre**, e só depois decide se continua. E o corolário
 de teste: **um caso "isto não é X" vale o dobro**, porque ele é o que cai no fallback.
 
+**Esperar o processo morrer não é esperar a saída dele chegar.** O teste de scrollback do `PtyManager`
+mandava `sh` imprimir 200 linhas, esperava o processo **sair** e então exigia `line200` no buffer. No
+macOS ocioso passa sempre; num runner de CI carregado ele parou na `line181`. A causa não é lentidão, é
+ordem: `onData` e `onExit` são dois callbacks do node-pty, e o exit chega com o último pedaço ainda na
+fila. O arquivo já tinha o helper certo — `waitForOutput` — e todos os outros testes dele já esperavam
+pela saída; só este esperava pelo cadáver.
+
+A regra: **espere pela evidência que você vai asserir, não por um evento que costuma vir antes dela.**
+E o sinal de alerta barato: um teste que usa um helper de espera diferente do que todos os seus vizinhos
+usam para a mesma classe de asserção.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

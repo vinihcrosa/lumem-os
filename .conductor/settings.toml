@@ -1,0 +1,17 @@
+# Conductor só aponta para os scripts de ciclo de vida em `scripts/workspace/`,
+# os mesmos que `.superset/config.json` usa. A lógica de portas, state dir e
+# identidade do workspace vive lá, uma vez só.
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+setup = "./scripts/workspace/setup.sh"
+archive = "./scripts/workspace/teardown.sh"
+
+# Cada workspace escuta num par de portas próprio e escreve num state dir
+# próprio — nada compartilhado que impeça dois rodando ao mesmo tempo.
+run_mode = "concurrent"
+
+[scripts.run.dev]
+command = "./scripts/workspace/run.sh"
+default = true
+icon = "play"

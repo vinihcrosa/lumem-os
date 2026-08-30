@@ -1,0 +1,189 @@
+/*
+ * Clonar um projeto a partir de uma URL git.
+ *
+ * Portado do protótipo `packages/web/prototype/lumem-clone.html`, que lê o
+ * mesmo tokens.css. Nenhum valor literal aqui — se aparecer um, o protótipo e o
+ * app deixaram de compartilhar a fonte.
+ */
+
+/* A linha que impede a detecção automática de ser mágica: ela diz, em
+   português, o que o **servidor** entendeu, antes de qualquer ação. */
+.echo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  margin: calc(var(--space-8) * -1) 0 var(--space-16);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+.echo__arrow { color: var(--color-text-tertiary); }
+.echo--refused { color: var(--color-text-danger); }
+
+/* O destino é resposta, não pergunta (Q14). Sem caixa, sem borda e sem altura
+   de controle: a primeira versão do protótipo o desenhou como um campo e a
+   renderização mostrou que ficava indistinguível de um input. */
+.add-project__answer {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  margin: calc(var(--space-8) * -1) 0 var(--space-8);
+  min-width: 0;
+}
+.add-project__answer-label {
+  flex: none;
+  font: var(--text-label-sm);
+  color: var(--color-text-secondary);
+}
+.add-project__answer-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.add-project__blocked {
+  margin-top: var(--space-8);
+  font: var(--text-label-xs);
+  color: var(--color-text-warning);
+}
+
+/* ------------------------------------------------- o clone na sidebar */
+.clone-row {
+  padding: var(--space-8);
+  margin-bottom: var(--space-8);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+}
+.clone-row__top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+.clone-row__name { font: var(--text-body-sm); }
+.clone-row__pct {
+  margin-left: auto;
+  font: var(--text-label-xs);
+  color: var(--color-text-secondary);
+}
+.clone-row__cancel {
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+.clone-row__cancel:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-danger);
+}
+.clone-row__phase {
+  margin-top: var(--space-6);
+  font: var(--text-label-xs);
+  color: var(--color-text-secondary);
+}
+
+.bar {
+  height: var(--space-4);
+  margin-top: var(--space-8);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.bar__fill {
+  height: 100%;
+  background: var(--color-bg-brand);
+  border-radius: var(--radius-full);
+}
+/* Sem porcentagem a barra é indeterminada, e precisa de forma própria: com
+   largura fixa ela lê como "35%". */
+.bar--unknown .bar__fill {
+  width: 35%;
+  background: linear-gradient(90deg, var(--color-bg-brand-muted), var(--color-bg-brand));
+  animation: clone-slide 1.4s ease-in-out infinite;
+}
+@keyframes clone-slide {
+  0% { margin-left: 0; }
+  50% { margin-left: 65%; }
+  100% { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar--unknown .bar__fill { animation: none; width: 100%; opacity: 0.4; }
+}
+
+/* -------------------------------------------------------- os desfechos */
+.clone-outcome {
+  padding: var(--space-12);
+  margin-bottom: var(--space-8);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-raised);
+}
+.clone-outcome--failed {
+  border-color: var(--color-border-danger);
+  background: var(--color-bg-danger-subtle);
+}
+.clone-outcome--done {
+  border-color: var(--success-800);
+  background: var(--color-bg-success-subtle);
+}
+.clone-outcome__title { font: var(--text-label-md); margin-bottom: var(--space-6); }
+.clone-outcome__body { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.clone-outcome__ways {
+  margin: var(--space-8) 0 0;
+  padding-left: var(--space-16);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+/* Texto escolhido pelo servidor remoto: como texto, nunca como marcação. */
+.clone-outcome__git {
+  display: block;
+  margin-top: var(--space-8);
+  padding: var(--space-8);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inset);
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+  color: var(--color-text-code);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.clone-outcome__actions { display: flex; gap: var(--space-8); margin-top: var(--space-12); }
+.clone-outcome__path {
+  margin-top: var(--space-8);
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
+/* --------------------------------------------- a confirmação de apagar */
+.remove-confirm {
+  max-width: var(--size-detail-max);
+  margin: var(--space-24) auto;
+  padding: var(--space-20);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+}
+.remove-confirm__title { font: var(--text-heading-md); margin-bottom: var(--space-8); }
+.remove-confirm__body { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.remove-confirm__body strong { color: var(--color-text-primary); font-weight: 600; }
+/* O caminho que vai deixar de existir, dito por extenso. */
+.remove-confirm__path {
+  margin-top: var(--space-12);
+  padding: var(--space-10);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-danger);
+  background: var(--color-bg-inset);
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+  color: var(--color-text-code);
+  word-break: break-all;
+}
+.remove-confirm__actions { display: flex; gap: var(--space-8); margin-top: var(--space-20); }

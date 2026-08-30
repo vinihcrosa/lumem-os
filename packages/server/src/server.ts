@@ -8,6 +8,7 @@ import type { ServerConfig } from "./config.js";
 import type { Db } from "./db/index.js";
 import { createEventBus, type EventBus } from "./events.js";
 import { MAX_FILE_BYTES } from "./files/FileService.js";
+import { createCloneJobStore, type CloneJobStore } from "./git/CloneJobStore.js";
 import { createGitService, type GitService } from "./git/GitService.js";
 import { AcpManager } from "./acp/AcpManager.js";
 import { registerAcpWebSocket } from "./acp/websocket.js";
@@ -87,6 +88,8 @@ export interface CreateServerOptions {
   events?: EventBus;
   /** Overridable only so a test can watch the commands; nothing mocks git. */
   git?: GitService;
+  /** Lives as long as the daemon: a clone outlives the request that began it. */
+  clones?: CloneJobStore;
   /** Fastify's own request logging. Off in tests, on for the daemon. */
   logger?: boolean;
 }
@@ -99,6 +102,7 @@ export async function createServer({
   sessionStore = createSessionStore({ db, ptyManager, acpManager }),
   events = createEventBus(),
   git = createGitService(),
+  clones = createCloneJobStore(),
   logger = false,
 }: CreateServerOptions): Promise<FastifyInstance> {
   const app = Fastify({
@@ -116,6 +120,7 @@ export async function createServer({
     acpManager,
     sessionStore,
     git,
+    clones,
     events,
   });
 

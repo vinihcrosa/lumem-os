@@ -80,12 +80,13 @@ export function WorkspaceStep({ onNext, onBack }: WorkspaceStepProps) {
         </span>
 
         {paths !== undefined && (
-          <Field id="setup-worktrees-dir" label="Onde ficam as worktrees — leitura">
-            <Input id="setup-worktrees-dir" value={paths.worktreesDir} readOnly />
+          <Field id="setup-workspaces-dir" label="Onde o Lumem escreve — leitura">
+            <Input id="setup-workspaces-dir" value={paths.workspacesDir} readOnly />
           </Field>
         )}
         <span className="field__help">
-          Fora dos seus repositórios, de propósito: worktree dentro do checkout suja{" "}
+          Uma árvore por workspace, com o clone e as worktrees de cada projeto debaixo dele. Fora
+          dos seus repositórios, de propósito: worktree dentro do checkout suja{" "}
           <code>git status</code> e acaba commitada por acidente. Quem muda o lugar é a variável{" "}
           <code>LUMEM_STATE_DIR</code> do daemon.
         </span>
@@ -100,7 +101,7 @@ export function WorkspaceStep({ onNext, onBack }: WorkspaceStepProps) {
             variant="recap"
             entries={[
               { label: "registro", value: paths.databasePath },
-              { label: "worktrees", value: paths.worktreesDir },
+              { label: "workspaces", value: paths.workspacesDir },
               {
                 label: "conversas",
                 value: (

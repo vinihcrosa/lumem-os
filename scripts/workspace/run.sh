@@ -1,23 +1,24 @@
 #!/usr/bin/env bash
 #
 # Sobe daemon + web deste workspace, em portas e state dir só dele.
+#
+# Ponto de entrada do `run` de qualquer harness — Superset, Conductor ou a mão.
 set -euo pipefail
 
-source "$(dirname "${BASH_SOURCE[0]}")/workspace.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 cd "$REPO_ROOT"
 
-ports="$(node .superset/pick-ports.mjs "$REPO_ROOT")"
-LUMEM_PORT="${ports% *}"
-LUMEM_WEB_PORT="${ports#* }"
+resolve_ports
 
 # O vite lê as duas: LUMEM_WEB_PORT para escutar, LUMEM_PORT para apontar o
 # proxy de /trpc e /pty. Definir só uma deixa a UI conversando com o daemon
-# errado — ou com nenhum.
-export LUMEM_PORT LUMEM_WEB_PORT LUMEM_STATE_DIR
+# errado — ou com nenhum. `resolve_ports` já exporta as duas; LUMEM_STATE_DIR
+# vem do env.sh.
+export LUMEM_STATE_DIR
 
 mkdir -p "$LUMEM_STATE_DIR"
 
-echo "→ workspace  $WORKSPACE_SLUG"
+echo "→ workspace  $WORKSPACE_SLUG ($WORKSPACE_HARNESS)"
 echo "→ daemon     127.0.0.1:$LUMEM_PORT"
 echo "→ web        http://localhost:$LUMEM_WEB_PORT"
 echo "→ state dir  $LUMEM_STATE_DIR"

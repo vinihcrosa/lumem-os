@@ -9,7 +9,9 @@ export type ChipTone =
   | "missing"
   | "running"
   | "exited"
-  | "failed";
+  | "failed"
+  /** A transport with no TLS. Named after the fact, not after the colour. */
+  | "insecure";
 
 export interface ChipProps {
   tone?: ChipTone;

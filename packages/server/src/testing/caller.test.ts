@@ -39,12 +39,12 @@ describe("createTestCaller", () => {
   });
 
   it("deriva o banco e as worktrees do mesmo diretório descartável", () => {
-    // É o que fecha o buraco: `worktreesDir` é o que `worktree.create` usa, e era
-    // por ele que a suíte escrevia no `~/.lumem` real.
+    // É o que fecha o buraco: `workspacesDir` é a árvore em que `worktree.create`
+    // escreve, e era por ela que a suíte escrevia no `~/.lumem` real.
     context = createTestCaller();
-    const { stateDir, worktreesDir, transcriptsDir } = context.config;
+    const { stateDir, workspacesDir, transcriptsDir } = context.config;
 
-    expect(worktreesDir.startsWith(stateDir)).toBe(true);
+    expect(workspacesDir.startsWith(stateDir)).toBe(true);
     expect(transcriptsDir.startsWith(stateDir)).toBe(true);
   });
 });
