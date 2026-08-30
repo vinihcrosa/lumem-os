@@ -8,6 +8,8 @@ build/
 # pacote, e commitá-las seria versionar o mesmo byte duas vezes.
 packages/cli/bin/
 packages/cli/drizzle/
+packages/cli/README.md
+packages/cli/LICENSE
 
 *.db
 *.db-journal

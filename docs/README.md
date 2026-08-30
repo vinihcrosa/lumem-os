@@ -237,18 +237,19 @@ e sujeira somem da vista, e quem paga são o ponto na aba e o marcador na sideba
 
 ### [distribution/](prd/distribution/) — o Lumem sai do checkout
 
-**Escrita, nada implementado.** Onze features de pé e nenhuma forma de *ter* o produto que não seja
-clonar o monorepo: `@lumem/server` não tem build, o daemon roda por `tsx`, o web só existe no vite, e
-o repositório público não tem `README.md` — nunca teve. Esta feature empacota: bundle ESM do daemon
-com **só o par nativo por fora**, o web servido pelo próprio daemon na mesma porta, um binário
-`lumem`, e `npm i -g lumem` — nome verificado como livre. O canal foi escolhido antes do PRD; o resto
-é medição.
+**Completa: 16 tasks, seis fases, tudo entregue em 2026-08-30.** Onze features de pé e nenhuma forma
+de *ter* o produto que não fosse clonar o monorepo: `@lumem/server` não tinha build, o daemon rodava
+por `tsx`, o web só existia no vite, e o repositório público não tinha `README.md` — nunca teve — nem
+`LICENSE`, o que significava todos os direitos reservados. Agora o daemon é **um bundle ESM** com só
+o par nativo por fora, ele **serve o web na própria porta**, o binário `lumem` sobe tudo, e `npm i -g
+lumem` instala — medido: 55 arquivos, 1,3 MB empacotados, e sobe num prefixo limpo.
 
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/distribution/prd.md) | O que falta hoje, item por item e medido; o bundle que **subiu de verdade** (3,0 MB, 123 ms) e a armadilha do `MIGRATIONS_DIR` que ele achou; a pipeline de release, cujo passo central é **instalar o tarball num runner limpo** — o único que pega dependência com `require` dinâmico, prebuild ausente e arquivo fora do pacote |
-| [open-questions.md](prd/distribution/open-questions.md) | 11 perguntas, **nenhuma fechada**. A D1 (o nome), a D2 (foreground ou daemon), a D3 (porta ocupada) e a D4 (e2e em produção) travam a implementação; a D8 é a que não é de empacotamento — **o repositório público não tem licença**, o que hoje significa todos os direitos reservados |
-| [tasks.md](prd/distribution/tasks.md) | 16 tasks em 6 fases, na ordem do risco: a prova de que o artefato sobe vem na T2, antes de existir CLI, e o smoke de instalação vem antes de qualquer publicação |
+| [open-questions.md](prd/distribution/open-questions.md) | 11 perguntas, **todas fechadas** numa resposta só. Oito foram proposta aceita; a D2 foi aceita **com prazo** (foreground agora, background depois) e a D11 veio com uma correção de rumo maior que a pergunta — o projeto todo vai para inglês. As duas viraram backlog na hora |
+| [tasks.md](prd/distribution/tasks.md) | 16 tasks em 6 fases, **todas entregues**, na ordem do risco: a prova de que o artefato sobe veio na T2, antes de existir CLI, e o smoke de instalação vem antes de qualquer publicação |
+| [../README.md](../README.md) | a porta do repositório, em inglês, com [tradução](../README.pt-BR.md) ao lado — o primeiro arquivo do outro lado da D11 |
 
 ---
 

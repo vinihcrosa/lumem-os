@@ -37,6 +37,10 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `web/` tokens e paleta | unit — roda os 99 pares de contraste declarados, a escada de cinzas, e confere que o `tokens.ts` commitado é o que a derivação produz do `tokens.css` | Sim |
 | `server/` **scripts do projeto** | integration pelo caller, com repositório git de verdade e processo de verdade: o comando declarado no `project.toml` roda, escreve no disco do checkout e recebe as variáveis do §4. Nada de dublê — a coisa sob teste é justamente "isto vira processo" | Sim — cada teste faz seu repositório e seu state dir |
 | **rodapé de execução** de ponta a ponta | e2e `run-dock.spec.ts`, com um repositório de fixture que traz `[scripts]` **commitado** — a única forma de ele existir numa worktree recém-criada. Prova as duas coisas que só o navegador responde: o `run` sobe pela tela e o botão abre **a mesma porta** que a saída anunciou, e a worktree nova nasce preparada sem ninguém pedir | **Não** |
+| **artefato publicado** — o bundle do daemon | integration que **roda o bundle**: sobe `dist/server/main.mjs` num state dir temporário, chama tRPC e depois **abre o SQLite para ler o esquema**. Ler o esquema é o ponto: um bundle na profundidade errada sobe feliz, com um banco sem tabela nenhuma, e só quebra na primeira query. Mais um teste que lê os `import` do bundle e falha se aparecer uma terceira dependência bare | Sim — cada teste faz seu state dir |
+| **artefato publicado** — o tarball | integration que roda `pnpm build` e depois `npm pack --dry-run`: `bin/`, `dist/server`, `dist/web` e o `drizzle/` **inteiro** (migração faltando para o banco do usuário na versão que o tarball levou). Constrói antes de olhar, senão mede o que sobrou de um build anterior | Sim |
+| **produto instalado** | `pnpm smoke:install` — **não é vitest**. Empacota, instala num prefixo global descartável, sobe o binário e pede a página e o `/trpc/health`. É o único lugar onde `require` dinâmico de dependência nova, prebuild nativo ausente e arquivo fora do `files` aparecem antes da máquina de outra pessoa | Sim |
+| **produto servido pelo daemon** | e2e, projeto `production` do playwright: um processo, sem vite, contra `dist`. Quatro specs sobre o que só a produção muda — fallback de SPA com reload, `/trpc` sob `Accept: text/html`, e o `cache-control` do asset com hash | **Não** |
 | `web/` fluxo de usuário | e2e (Playwright) | **Não** — daemon único, porta única, estado compartilhado |
 
 **Consequência dura:** task cujo `Tests` é `e2e` **não pode** receber `[P]`. O gargalo é a execução do teste, não o código.
@@ -49,7 +53,8 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 |---|---|---|
 | `quick` | `pnpm gate:quick` | Testes afetados pelo trabalho atual |
 | `full` | `pnpm gate:full` | Suíte inteira + e2e |
-| `build` | `pnpm gate:build` | Typecheck de todo TS do repositório + build do web |
+| `build` | `pnpm gate:build` | Typecheck de todo TS do repositório + build do web **e do bundle do daemon** |
+| `smoke` | `pnpm smoke:install` | O pacote publicado instala num prefixo limpo e sobe. Não faz parte dos três gates de todo dia: roda no release, e à mão antes de publicar |
 
 ### Na PR, os mesmos gates
 

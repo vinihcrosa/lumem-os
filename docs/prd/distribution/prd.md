@@ -1,6 +1,6 @@
 # PRD — Distribuição: `npm i -g lumem`, e o build que a torna possível
 
-> **Status:** v1.0 — escopo fechado, **11 perguntas respondidas** em 2026-08-30.
+> **Status:** v1.0 — **completa**. 11 perguntas respondidas e 16 tasks entregues em 2026-08-30.
 > **Nasceu de:** *"precisamos implementar uma pipeline de build, e uma forma de instalar, além de
 > atualizar o README.md"* — 2026-08-30. O canal de instalação (**npm global**) foi escolhido na mesma
 > conversa.
