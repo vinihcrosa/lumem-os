@@ -322,12 +322,17 @@ describe("scrollback", () => {
       args: ["-c", "for i in $(seq 1 200); do echo line$i; done"],
       cwd: tmpdir(),
     });
-    await waitForExit(manager, session.id);
+    // The **output**, not the exit. `onData` and `onExit` are two callbacks, and
+    // on Linux the exit arrives with the last chunk still queued — so waiting
+    // for the process to die proves nothing about the buffer having its last
+    // line. Measured on CI: the snapshot stopped at line181 while the assertion
+    // asked for line200, on a runner under load. Every other test in this file
+    // already waits for the output it asserts on; this one did not.
+    await waitForOutput(manager, session.id, "line200");
 
     const lines = manager.snapshot(session.id).split("\n");
 
     expect(lines.length).toBeLessThanOrEqual(20);
-    expect(manager.snapshot(session.id)).toContain("line200");
     expect(manager.snapshot(session.id)).not.toContain("line1\n");
   });
 });
