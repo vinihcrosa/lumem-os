@@ -3,6 +3,8 @@ import { isAbsolute, join, resolve } from "node:path";
 
 import { DEFAULT_SERVER_PORT } from "@lumem/shared";
 
+import { parsePortRange, type PortRange } from "./scripts/ports.js";
+
 export interface ServerConfig {
   /** TCP port the HTTP server binds to. */
   port: number;
@@ -64,6 +66,14 @@ export interface ServerConfig {
   autoLearn: boolean;
   /** Quantas perguntas de uma sessão podem subir agente. O orçamento do §5.4. */
   autoLearnBudget: number;
+  /**
+   * De onde saem as portas que cada checkout reserva para rodar (S5).
+   *
+   * Configurável porque a faixa boa depende da máquina — quem tem um serviço
+   * corporativo morando nos 45000 precisa de outra —, e um default que não dá para
+   * mudar vira um bug que só aparece na máquina de alguém.
+   */
+  runPortRange: PortRange;
 }
 
 /** Only the variables this module reads. Keeps tests from touching process.env. */
@@ -77,6 +87,7 @@ export type ConfigEnv = Partial<
     | "LUMEM_MEMORY_DISTILL"
     | "LUMEM_MEMORY_AUTO_LEARN"
     | "LUMEM_MEMORY_AUTO_LEARN_BUDGET"
+    | "LUMEM_RUN_PORT_RANGE"
     | "SHELL",
     string
   >
@@ -149,5 +160,6 @@ export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
     distill: env.LUMEM_MEMORY_DISTILL === "1" || env.LUMEM_MEMORY_DISTILL === "true",
     autoLearn: env.LUMEM_MEMORY_AUTO_LEARN === "1" || env.LUMEM_MEMORY_AUTO_LEARN === "true",
     autoLearnBudget: readBudget(env.LUMEM_MEMORY_AUTO_LEARN_BUDGET),
+    runPortRange: parsePortRange(env.LUMEM_RUN_PORT_RANGE),
   };
 }

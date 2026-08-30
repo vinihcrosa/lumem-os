@@ -64,6 +64,13 @@
       "when": 1788064129792,
       "tag": "0008_sessao_de_script",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1788064296845,
+      "tag": "0009_porta_por_checkout",
+      "breakpoints": true
     }
   ]
 }

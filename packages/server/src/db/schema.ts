@@ -235,6 +235,41 @@ export const session = sqliteTable(
 );
 
 /**
+ * A porta que cada checkout ganha para rodar (project-scripts S5).
+ *
+ * Sem isto, duas worktrees do mesmo projeto sobem na mesma porta e a segunda morre
+ * com um erro que ninguém lê — que é exatamente o cenário que o Lumem existe para
+ * não ter. O precedente é o `CONDUCTOR_PORT`, que o `scripts/workspace/env.sh` deste
+ * repositório já lê.
+ *
+ * **Gravada, e não sorteada a cada run**: o valor entra em `.env`, em configuração
+ * de proxy e na barra do navegador de quem está trabalhando. Porta que muda a cada
+ * start é porta que não serve para nada disso.
+ *
+ * Sem foreign key, pelo mesmo motivo de `session.scope_id`: a coluna é polimórfica
+ * — projeto ou worktree. Quem apaga o checkout apaga a reserva.
+ */
+export const checkoutPort = sqliteTable(
+  "checkout_port",
+  {
+    id: text("id").primaryKey(),
+    scopeType: text("scope_type").notNull(),
+    scopeId: text("scope_id").notNull(),
+    /** A primeira porta do bloco. O bloco inteiro é dela até `base + tamanho - 1`. */
+    port: integer("port").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("checkout_port_scope").on(table.scopeType, table.scopeId),
+    // Duas reservas na mesma porta seriam duas aplicações brigando por ela — o
+    // problema que a tabela existe para resolver, reintroduzido pela tabela.
+    uniqueIndex("checkout_port_port").on(table.port),
+    check("checkout_port_scope_type", sql`${table.scopeType} IN ('project', 'worktree')`),
+    check("checkout_port_range", sql`${table.port} > 0 AND ${table.port} < 65536`),
+  ],
+);
+
+/**
  * O catálogo de memórias — **projeção**, não fonte da verdade.
  *
  * A Q3 decidiu que Markdown no `~/.lumem` é a fonte; esta tabela existe para
@@ -672,6 +707,7 @@ export const schema = {
   memoryProposal,
   playbook,
   sessionUsage,
+  checkoutPort,
 };
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
@@ -682,6 +718,7 @@ export type SessionRow = typeof session.$inferSelect;
 export type MemoryEntryRow = typeof memoryEntry.$inferSelect;
 export type PlaybookRow = typeof playbook.$inferSelect;
 export type SessionUsageRow = typeof sessionUsage.$inferSelect;
+export type CheckoutPortRow = typeof checkoutPort.$inferSelect;
 export type MemoryDecisionRow = typeof memoryDecision.$inferSelect;
 export type ActionSignalRow = typeof actionSignal.$inferSelect;
 export type MemoryAccessRow = typeof memoryAccess.$inferSelect;

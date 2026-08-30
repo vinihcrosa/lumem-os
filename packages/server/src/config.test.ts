@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { DEFAULT_SERVER_PORT } from "@lumem/shared";
 import { describe, expect, it } from "vitest";
 
+import { DEFAULT_PORT_RANGE } from "./scripts/ports.js";
 import { loadConfig } from "./config.js";
 
 describe("loadConfig", () => {
@@ -90,5 +91,16 @@ describe("loadConfig", () => {
 
   it("takes the session directory from the environment", () => {
     expect(loadConfig({ LUMEM_DEFAULT_CWD: "/srv/work" }).defaultCwd).toBe("/srv/work");
+  });
+
+  it("reads the run port range, and falls back when it is unreadable", () => {
+    // Configurável porque a faixa boa depende da máquina; com default porque um
+    // traço trocado numa variável opcional não pode impedir o daemon de subir.
+    expect(loadConfig({ LUMEM_RUN_PORT_RANGE: "50000-50100" }).runPortRange).toEqual({
+      from: 50_000,
+      to: 50_100,
+    });
+    expect(loadConfig({ LUMEM_RUN_PORT_RANGE: "torto" }).runPortRange).toEqual({ ...DEFAULT_PORT_RANGE });
+    expect(loadConfig({}).runPortRange).toEqual({ ...DEFAULT_PORT_RANGE });
   });
 });
