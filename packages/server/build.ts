@@ -6,7 +6,7 @@
  * means shipping it. So the daemon becomes one file, and the only things left
  * outside it are the two packages that contain machine code.
  */
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
@@ -41,10 +41,19 @@ const REQUIRE_SHIM =
  */
 export const OUTFILE = "dist/server/main.mjs";
 
+/**
+ * The package root, resolved from this module rather than from `process.cwd()`.
+ *
+ * `pnpm test` runs vitest from the repository root, so a relative entry point
+ * resolves against the wrong directory and the build fails with
+ * `Could not resolve "src/main.ts"` — in the suite, not in the build.
+ */
+const packageRoot = dirname(fileURLToPath(import.meta.url));
+
 export async function bundle(outfile: string = OUTFILE): Promise<void> {
   await build({
-    entryPoints: ["src/main.ts"],
-    outfile,
+    entryPoints: [resolve(packageRoot, "src", "main.ts")],
+    outfile: resolve(packageRoot, outfile),
     bundle: true,
     platform: "node",
     target: "node22",
