@@ -11,4 +11,9 @@
 [scripts]
 setup = "./scripts/workspace/setup.sh"
 run = "./scripts/workspace/run.sh"
+# A suíte inteira que responde em segundos. Roda no shell de login, como todas —
+# e foi assim que a aba `Testes` mostrou que o Node default desta máquina (v26)
+# quebra o jsdom, enquanto o do terminal (v22) passa. O comando está certo; a
+# versão de Node é que não estava.
+test = "pnpm gate:quick"
 teardown = "./scripts/workspace/teardown.sh"
