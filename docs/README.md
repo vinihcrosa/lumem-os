@@ -199,6 +199,22 @@ O achado que vale fora da feature: **o `claude-agent-acp` não oferece login a q
 o adaptador não tivesse o que oferecer. Com a capacidade declarada, ele oferece dois métodos, os dois
 `type: "terminal"`: o login é um comando dele rodando num terminal, e não uma chamada de `authenticate`.
 
+### [project-scripts/](prd/project-scripts/) — os scripts do projeto, e o rodapé que os mostra
+
+**Completa — 14 tasks, gate cheio verde.** O Lumem criava worktrees que não rodavam: nasciam sem
+dependência, sem build e sem nenhum lugar no produto onde subir a aplicação. Agora `setup`, `run` e
+`teardown` moram no `<repo>/.lumem/project.toml` — o arquivo que já existia, com o `id` dentro — e
+ganharam uma faixa abaixo da árvore de arquivos, com `Setup`, `Run` e `Terminal`. Worktree nova nasce
+preparada, o `run` sobe com um clique e o botão `Abrir :PORTA` diz de onde tirou o número. Fecha o
+item **F** do [backlog](project/backlog.md).
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/project-scripts/prd.md) | A ironia medida neste repositório (o `scripts/workspace/` que o Superset e o Conductor leem e o Lumem não), o formato do `[scripts]`, o contrato de variáveis de ambiente, e o §8 — executar string vinda de repositório de terceiro |
+| [open-questions.md](prd/project-scripts/open-questions.md) | 11 perguntas, **todas fechadas** — quatro pelo desenho aprovado, sete como proposta seguida, e a diferença entre as duas coisas está escrita. A S1 (onde o rodapé cabe) e a S5 (o Lumem virar alocador de portas) são as que mudaram o tamanho da feature |
+| [tasks.md](prd/project-scripts/tasks.md) | 14 tasks em 4 fases, **todas entregues**, mais as sete coisas que a execução achou — inclusive um CHECK que não recusava nada porque `NULL IN (…)` avalia para NULL |
+| `lumem-run-dock.html` (Open Design) | **Sete quadros, aprovados em 2026-08-30** e já no repositório. As duas leituras da S1 lado a lado, mais Setup (passou e falhou), Terminal, o vazio que ensina o arquivo, o rodapé recolhido com o run visto de fora, e a primeira execução de um projeto clonado |
+
 ---
 
 ## Convenções

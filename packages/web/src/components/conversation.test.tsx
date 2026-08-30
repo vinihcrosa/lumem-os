@@ -1,5 +1,5 @@
 import type { AcpConfigOption, AcpServerMessage, AcpTranscriptEntry } from "@lumem/shared";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -269,6 +269,135 @@ describe("sending", () => {
 
     // The component's own cleanup closes the socket; the daemon keeps the agent.
     expect(socket.closed).toBe(false);
+  });
+});
+
+describe("a conversa que nasceu de um pedido", () => {
+  /** O mesmo `mount`, com uma primeira mensagem que o produto já traz escrita. */
+  function mountWithPrompt(text: string): { socket: FakeSocket; rerender: () => void } {
+    const socket = new FakeSocket();
+    const connect = (
+      _sessionId: string,
+      handlers: { onMessage(message: AcpServerMessage): void },
+    ) => {
+      socket.deliver = handlers.onMessage;
+      return socket;
+    };
+
+    const view = render(
+      <AwaitingPermissionProvider>
+        <Conversation sessionId="s-1" connect={connect} initialPrompt={text} />
+      </AwaitingPermissionProvider>,
+    );
+    return {
+      socket,
+      rerender: () =>
+        view.rerender(
+          <AwaitingPermissionProvider>
+            <Conversation sessionId="s-1" connect={connect} initialPrompt={text} />
+          </AwaitingPermissionProvider>,
+        ),
+    };
+  }
+
+  it("manda o pedido sozinha, depois de anexar", async () => {
+    // O valor do botão "pedir para o agente criar" é não obrigar ninguém a
+    // redigitar a pergunta: a conversa é aberta **para** ela.
+    const { socket } = mountWithPrompt("escreva o [scripts] deste projeto");
+
+    expect(socket.sent).toHaveLength(0);
+    socket.deliver(attached());
+
+    await waitFor(() => {
+      expect(socket.sent).toEqual([
+        { type: "prompt", text: "escreva o [scripts] deste projeto" },
+      ]);
+    });
+  });
+
+  /**
+   * Uma vez, mesmo quando o efeito roda de novo.
+   *
+   * O `useEffect` já não dispara por repintura — as dependências não mudam —, então
+   * a trava do `ref` existe para o caso em que ele **roda outra vez**: o
+   * `StrictMode` do `main.tsx`, que monta, desmonta e monta de novo em
+   * desenvolvimento, e qualquer pai que passe um `connect` novo a cada render, que
+   * reseta o estado e faz `attached` voltar de falso para verdadeiro.
+   *
+   * O preço de não ter a trava é um turno duplicado — e turno custa dinheiro.
+   */
+  it("manda uma vez só, mesmo se o efeito rodar de novo", async () => {
+    const socket = new FakeSocket();
+    const view = render(
+      <AwaitingPermissionProvider>
+        <Conversation
+          sessionId="s-1"
+          connect={(_id, handlers) => {
+            socket.deliver = handlers.onMessage;
+            return socket;
+          }}
+          initialPrompt="pergunta"
+        />
+      </AwaitingPermissionProvider>,
+    );
+    socket.deliver(attached());
+    await waitFor(() => expect(socket.sent).toHaveLength(1));
+
+    // Um `connect` novo: o efeito de conexão reseta o estado, `attached` cai para
+    // falso e volta com o próximo frame.
+    view.rerender(
+      <AwaitingPermissionProvider>
+        <Conversation
+          sessionId="s-1"
+          connect={(_id, handlers) => {
+            socket.deliver = handlers.onMessage;
+            return socket;
+          }}
+          initialPrompt="pergunta"
+        />
+      </AwaitingPermissionProvider>,
+    );
+    // `act` em vez de `waitFor`: o `waitFor` acerta na primeira checagem — quando
+    // ainda é 1 — e passaria mesmo com o segundo envio saindo logo depois. Provado
+    // por mutação: com a trava removida, esta versão falha e a anterior não.
+    await act(async () => {
+      socket.deliver(attached());
+      await Promise.resolve();
+    });
+
+    expect(socket.sent).toHaveLength(1);
+  });
+
+  it("não manda antes de o socket abrir", () => {
+    // O `acp-socket` recusa escrita antes de abrir de propósito, e mandar assim
+    // perderia a mensagem em silêncio — o defeito que o CI já cobrou uma vez.
+    const { socket } = mountWithPrompt("pergunta");
+
+    expect(socket.sent).toHaveLength(0);
+  });
+
+  it("conversa encerrada não recebe pedido nenhum", async () => {
+    // Ela é um registro: não há socket, e mandar prompt para uma sessão que não
+    // pode responder é a coisa que o `readOnly` existe para impedir.
+    const socket = new FakeSocket();
+    const connect = vi.fn(() => socket);
+    render(
+      <AwaitingPermissionProvider>
+        <Conversation
+          sessionId="s-1"
+          live={false}
+          load={async () => ({ ...attached(), state: "exited" as const })}
+          connect={connect}
+          initialPrompt="pergunta"
+        />
+      </AwaitingPermissionProvider>,
+    );
+
+    // Espera o caminho de leitura terminar antes de afirmar sobre o socket: sem
+    // isto o teste passaria por chegar cedo demais, e não por estar certo.
+    await waitFor(() => expect(document.querySelector(".conv__scroll")).not.toBeNull());
+    expect(connect).not.toHaveBeenCalled();
+    expect(socket.sent).toHaveLength(0);
   });
 });
 

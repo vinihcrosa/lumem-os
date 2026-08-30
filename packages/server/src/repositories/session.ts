@@ -19,7 +19,16 @@ import { withConstraints, type ConstraintMap } from "./base.js";
  * while a shell's scrollback belongs to a process that is gone.
  */
 
-export type SessionKind = "shell" | "agent";
+export type SessionKind = "shell" | "agent" | "script";
+
+/**
+ * Qual script a sessão é.
+ *
+ * Um tipo próprio porque três lugares perguntam a mesma coisa — o rodapé, o gancho
+ * de criação de worktree e o de remoção —, e "a string 'run'" espalhada por eles é
+ * como um erro de digitação vira uma aba que nunca acende.
+ */
+export type ScriptPhase = "setup" | "run" | "test" | "teardown";
 export type ScopeType = "project" | "worktree";
 export type SessionState = "running" | "exited";
 
@@ -27,6 +36,8 @@ export interface CreateSessionInput {
   /** The manager's own id. One identity for the process and its record. */
   id: string;
   kind: SessionKind;
+  /** Required for `kind: "script"`, forbidden for the others — the CHECK agrees. */
+  scriptName?: ScriptPhase | null;
   agentConfigId?: string | null;
   scopeType: ScopeType;
   scopeId: string;
@@ -99,16 +110,20 @@ const CONSTRAINTS: ConstraintMap = {
     code: "INVALID_ARGUMENT",
     message: "sessão ACP exige o id de sessão do adaptador, e sessão PTY não pode ter um",
   },
+  "check:session_script_name": {
+    code: "INVALID_ARGUMENT",
+    message: "sessão de script exige a fase (setup, run ou teardown), e as outras não podem ter uma",
+  },
 };
 
 export function createSessionRepository(db: Db): SessionRepository {
   return {
-    async create({ agentConfigId = null, ...input }) {
+    async create({ agentConfigId = null, scriptName = null, ...input }) {
       const [row] = await withConstraints(
         () =>
           db
             .insert(session)
-            .values({ ...input, agentConfigId })
+            .values({ ...input, agentConfigId, scriptName })
             .returning(),
         CONSTRAINTS,
       );

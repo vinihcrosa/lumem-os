@@ -1,0 +1,1 @@
+ALTER TABLE `project` ADD `scripts_trusted_hash` text;

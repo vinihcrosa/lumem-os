@@ -134,6 +134,17 @@ export interface ConversationProps {
    * o turno de todas as conversas abertas de uma vez.
    */
   active?: boolean;
+  /**
+   * Uma primeira mensagem que a conversa manda sozinha, uma vez.
+   *
+   * Existe por causa do rodapé de execução: o vazio sem `[scripts]` oferece
+   * *"pedir para o agente criar"*, e o valor daquele botão é justamente não obrigar
+   * ninguém a redigitar o pedido. A conversa é aberta **para** essa pergunta.
+   *
+   * Uma vez, e só depois de `attached`: o socket recusa escrita antes de abrir, e
+   * mandar de novo a cada re-render seria um turno por repintura.
+   */
+  initialPrompt?: string | undefined;
 }
 
 export function Conversation({
@@ -144,6 +155,7 @@ export function Conversation({
   onResume,
   resuming = false,
   active = true,
+  initialPrompt,
 }: ConversationProps) {
   const [state, dispatch] = useReducer(reduce, initial);
   const [draft, setDraft] = useState("");
@@ -260,6 +272,20 @@ export function Conversation({
     socketRef.current?.send({ type: "prompt", text });
     setDraft("");
   }, [attached, draft, pending, readOnly]);
+
+  /**
+   * O pedido que abriu a conversa, mandado uma vez.
+   *
+   * O `ref` é o que garante "uma vez": `attached` vira verdadeiro num render e
+   * continua verdadeiro nos seguintes, e sem ele todo re-render mandaria o mesmo
+   * texto de novo — um turno por repintura, cada um custando tokens.
+   */
+  const asked = useRef(false);
+  useEffect(() => {
+    if (initialPrompt === undefined || asked.current || !attached || readOnly) return;
+    asked.current = true;
+    socketRef.current?.send({ type: "prompt", text: initialPrompt });
+  }, [attached, initialPrompt, readOnly]);
 
   // Null unless the draft is a lone `/word` at the very start: a `/` inside a
   // sentence is a path, and offering a command menu over `src/lore` would be the

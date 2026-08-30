@@ -16,6 +16,7 @@ import type { PtyManager } from "./pty/PtyManager.js";
 import { createAutoLearn } from "./memory/auto-learn.js";
 import { registerMemoryHttp } from "./memory/http.js";
 import { registerPtyWebSocket } from "./pty/websocket.js";
+import { createScriptRunner, type ScriptRunner } from "./scripts/ScriptRunner.js";
 import { createSessionStore, type SessionStore } from "./sessions/SessionStore.js";
 import { appRouter, type AppRouter } from "./routers/index.js";
 import type { Context } from "./trpc.js";
@@ -84,6 +85,8 @@ export interface CreateServerOptions {
    * daemon passes its own so shutdown can unhook the exit watcher.
    */
   sessionStore?: SessionStore;
+  /** Quem roda os scripts do projeto. Construído aqui quando o daemon não passa. */
+  scripts?: ScriptRunner;
   /** Fan-out of state changes to connected clients. */
   events?: EventBus;
   /** Overridable only so a test can watch the commands; nothing mocks git. */
@@ -101,6 +104,14 @@ export async function createServer({
   acpManager = new AcpManager(),
   sessionStore = createSessionStore({ db, ptyManager, acpManager }),
   events = createEventBus(),
+  scripts = createScriptRunner({
+    db,
+    sessionStore,
+    ptyManager,
+    shell: config.shell,
+    portRange: config.runPortRange,
+    events,
+  }),
   git = createGitService(),
   clones = createCloneJobStore(),
   logger = false,
@@ -119,6 +130,7 @@ export async function createServer({
     ptyManager,
     acpManager,
     sessionStore,
+    scripts,
     git,
     clones,
     events,

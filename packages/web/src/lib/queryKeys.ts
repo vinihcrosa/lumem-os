@@ -29,6 +29,17 @@ export function sessionsKey(scopeType: string, scopeId: string) {
 }
 
 /**
+ * O estado dos scripts de um checkout — as três abas do rodapé de uma vez.
+ *
+ * Uma chave só porque é uma leitura só: `setup`, `run` e `terminal` mostram partes
+ * do mesmo estado, e três chaves dariam três respostas de instantes diferentes na
+ * mesma tela.
+ */
+export function scriptsKey(scopeType: string, scopeId: string) {
+  return ["scripts", "status", scopeType, scopeId] as const;
+}
+
+/**
  * The right panel's three questions.
  *
  * Prefixed by kind so the column's reload button can invalidate `["files"]` and

@@ -241,16 +241,20 @@ Todos vindos de [right-panel §8](../prd/right-panel/prd.md) e [file-editor §9]
 
 ## F. Plataforma
 
-### Configuração de projeto versionada no repo — `M`
+### ~~Configuração de projeto versionada no repo~~ — **virou feature**, em [project-scripts](../prd/project-scripts/prd.md)
 
 O arquivo `<repo>/.lumem/project.toml` **já vai existir** — a [Q3.1](../prd/workspace-memory/open-questions.md)
 decidiu que o `id` do projeto mora nele. O que ficou para depois é o **resto** do conteúdo: script de
 setup, script de run, comandos do projeto. A regra que delimita o arquivo: **o que é do repositório é
 do time; o que é da instância é do Lumem.**
 
-**De onde veio:** [workspace-memory Q3.1](../prd/workspace-memory/open-questions.md) · **Volta
-quando:** você quiser que abrir um projeto novo já venha configurado, ou que um colega com Lumem herde
-o setup.
+**De onde veio:** [workspace-memory Q3.1](../prd/workspace-memory/open-questions.md) · **Voltou em:**
+2026-08-30, como a feature [project-scripts](../prd/project-scripts/prd.md) — o gatilho foi a
+worktree que nasce sem rodar.
+
+**Ficou aqui, e é filho desta:** **copiar arquivos para a worktree nova** (`.env`, credenciais). É
+sobre segredo, não sobre script, e merece decisão própria — `M`. **Volta quando:** alguém copiar `.env`
+na mão pela terceira vez.
 
 ### Memória compartilhada entre instâncias do Lumem — `G`
 

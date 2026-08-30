@@ -309,6 +309,55 @@ describe("transport", () => {
     expect(row).toMatchObject({ transport: "pty", acpSessionId: null });
   });
 
+  /**
+   * A sessão de script é a mesma primitiva das outras duas (project-scripts A3): o
+   * que a distingue é a fase, e é ela que responde "tem run vivo neste checkout?"
+   * sem ninguém procurar por string de comando.
+   */
+  it("starts a script session carrying its phase, always on PTY", async () => {
+    const { store } = setup();
+
+    const row = await store.start({
+      kind: "script",
+      scriptName: "run",
+      scopeType: "worktree",
+      scopeId: "w1",
+      cwd: tmpdir(),
+      command: "sh",
+      args: ["-c", "sleep 30"],
+      transport: "acp",
+    });
+
+    expect(row).toMatchObject({
+      kind: "script",
+      scriptName: "run",
+      transport: "pty",
+      acpSessionId: null,
+      agentConfigId: null,
+    });
+  });
+
+  it("refuses a script session with no phase, before the process outlives the row", async () => {
+    const { store, ptyManager } = setup();
+
+    await expect(
+      store.start({
+        kind: "script",
+        scopeType: "worktree",
+        scopeId: "w1",
+        cwd: tmpdir(),
+        command: "sh",
+        args: ["-c", "sleep 30"],
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+
+    // E o processo não fica órfão: o mesmo cuidado do caminho ACP vale aqui. O
+    // `waitFor` é porque matar é assíncrono — o sinal vai, o `exit` volta depois.
+    await vi.waitFor(() =>
+      expect(ptyManager.list().filter((info) => info.state === "running")).toHaveLength(0),
+    );
+  });
+
   it("says so plainly when no ACP manager is wired", async () => {
     // A wiring mistake, and it should read like one rather than as a crash
     // somewhere inside a spawn.

@@ -21,10 +21,18 @@ ciclo de vida — preparar, subir, descartar — vivem **num lugar só**, em
 |---|---|---|
 | Superset | `.superset/config.json` | `setup` / `run` / `teardown` |
 | Conductor | `.conductor/settings.toml` | `scripts.setup` / `scripts.run.dev.command` / `scripts.archive` |
+| **Lumem** | `.lumem/project.toml` | `scripts.setup` / `scripts.run` / `scripts.teardown` |
 | À mão | — | `bash scripts/workspace/setup.sh` e depois `run.sh` |
 
-Nenhum dos dois arquivos de configuração tem lógica. Se um passo mudar, ele muda
-em `scripts/workspace/` e vale para os dois na mesma hora.
+Nenhum desses arquivos de configuração tem lógica. Se um passo mudar, ele muda
+em `scripts/workspace/` e vale para todos na mesma hora.
+
+> **O Lumem entrou nesta tabela em 2026-08-30**, com a
+> [project-scripts](../prd/project-scripts/prd.md). Até então este repositório
+> tinha três scripts de ciclo de vida que o Superset e o Conductor liam e o
+> **produto não** — a ironia que abre o PRD dela. O `env.sh` continua sendo quem
+> resolve portas, e agora ele tem uma terceira fonte para ler: o `LUMEM_RUN_PORT`
+> que o daemon reserva por checkout, no mesmo molde do `CONDUCTOR_PORT`.
 
 ## O que é isolado por workspace, e por quê
 

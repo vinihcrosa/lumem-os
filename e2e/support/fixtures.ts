@@ -47,6 +47,15 @@ export const E2E_FIXTURE_REPO_EMPTY = join(E2E_FIXTURE_DIR, "repo-empty");
 /** An "agent CLI" that echoes what it is given. Never the real `claude`. */
 export const E2E_FIXTURE_AGENT = join(E2E_FIXTURE_DIR, "bin", "fake-agent");
 
+/**
+ * Um sétimo, e este já vem com `[scripts]` commitado.
+ *
+ * Commitado, e não escrito na árvore de trabalho, porque é isso que a feature
+ * promete: worktree nova é checkout do que está versionado, e um `project.toml`
+ * fora do commit não chega nela.
+ */
+export const E2E_FIXTURE_REPO_SCRIPTS = join(E2E_FIXTURE_DIR, "repo-scripts");
+
 /** Where the first-access spec makes its project. */
 export const E2E_FIXTURE_REPO_ONBOARDING = join(E2E_FIXTURE_DIR, "repo-onboarding");
 
@@ -103,6 +112,7 @@ export function createFixtures(): void {
     E2E_FIXTURE_REPO_ACP,
     E2E_FIXTURE_REPO_ONBOARDING,
     E2E_FIXTURE_REPO_ORIGIN,
+    E2E_FIXTURE_REPO_SCRIPTS,
   ]) {
     mkdirSync(repo, { recursive: true });
     git(repo, "init", "--initial-branch", "main", ".");
@@ -133,6 +143,32 @@ export function createFixtures(): void {
   );
   git(E2E_FIXTURE_REPO_EDITOR, "add", "-A");
   git(E2E_FIXTURE_REPO_EDITOR, "commit", "-m", "arquivo para o editor");
+
+  // Os scripts do projeto, versionados: um `setup` que deixa marca no disco e um
+  // `run` que imprime a linha do Vite e fica de pé. O `run` lê `LUMEM_RUN_PORT`
+  // de propósito — é o caminho determinístico da S6, e o que o botão `Abrir`
+  // deveria preferir.
+  mkdirSync(join(E2E_FIXTURE_REPO_SCRIPTS, ".lumem"), { recursive: true });
+  writeFileSync(
+    join(E2E_FIXTURE_REPO_SCRIPTS, ".lumem", "project.toml"),
+    [
+      'id = "prj_e2e_scripts"',
+      "",
+      "[scripts]",
+      "setup = 'echo preparada > preparada.txt'",
+      // Aspas simples: em TOML elas fazem string literal, e o comando tem aspas
+      // duplas dentro. A primeira versão deste arquivo usou aspas duplas nos dois
+      // níveis e gravou TOML inválido — o daemon recusou, como deve, e o e2e
+      // travou numa tela que não sabia mostrar o erro. As duas coisas foram
+      // consertadas.
+      "run = 'echo \"Local: http://127.0.0.1:$LUMEM_RUN_PORT/\"; sleep 120'",
+      "test = 'echo 3 testes, tudo verde'",
+      "teardown = 'echo tchau > /dev/null'",
+      "",
+    ].join("\n"),
+  );
+  git(E2E_FIXTURE_REPO_SCRIPTS, "add", "-A");
+  git(E2E_FIXTURE_REPO_SCRIPTS, "commit", "-m", "scripts do projeto");
 
   // Um repositório sem nenhum commit, para o F6.13: ele clona, o projeto nasce
   // válido, e a tela de criar worktree explica por que ainda não dá.

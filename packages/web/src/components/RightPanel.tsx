@@ -28,6 +28,14 @@ export interface RightPanelProps {
   onReload(): void;
   onClose(): void;
   onResize(width: number): void;
+  /**
+   * O rodapé de execução (project-scripts), ancorado abaixo de tudo.
+   *
+   * Irmão do que rola, e não filho: a árvore rola por cima dele, e ele fica onde
+   * está. Fosse filho do scroll, rolar a árvore levaria o terminal junto para fora
+   * da tela.
+   */
+  dock?: ReactNode;
   /** What the bottom strip says on the left — usually how fresh the read is. */
   footLeft?: ReactNode;
   footRight?: ReactNode;
@@ -50,6 +58,7 @@ export function RightPanel({
   onReload,
   onClose,
   onResize,
+  dock,
   footLeft,
   footRight,
   children,
@@ -162,6 +171,7 @@ export function RightPanel({
           <span className="rp__spacer" />
           <span>{footRight}</span>
         </div>
+        {dock}
       </div>
     </aside>
   );
