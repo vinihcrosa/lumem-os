@@ -30,9 +30,14 @@ export function tempDir(prefix = "lumem-git-"): string {
 }
 
 async function git(cwd: string, ...args: string[]): Promise<string> {
+  return gitAt(cwd, undefined, ...args);
+}
+
+async function gitAt(cwd: string, at: string | undefined, ...args: string[]): Promise<string> {
   const { stdout } = await run("git", args, {
     cwd,
     env: {
+      ...(at === undefined ? {} : { GIT_AUTHOR_DATE: at, GIT_COMMITTER_DATE: at }),
       ...process.env,
       GIT_TERMINAL_PROMPT: "0",
       // Deterministic authorship: a machine with no user.name configured would
@@ -111,4 +116,57 @@ export async function createHeavyRepo(megabytes = 24): Promise<string> {
   await git(dir, "add", "big.bin");
   await git(dir, "commit", "-m", "big");
   return dir;
+}
+
+export interface OriginOptions {
+  /** Branches to create upstream, each with a commit of its own. */
+  branches?: readonly string[];
+}
+
+/**
+ * An upstream repository and a clone of it, joined by a real `origin`.
+ *
+ * Cloned over the filesystem rather than faked with `remote add`: the tests
+ * that matter here — a remote-tracking branch, a fetch that actually moves a
+ * ref, an upstream that a push would go to — are exactly the ones a fake
+ * remote cannot answer.
+ */
+export async function createRepoWithOrigin(
+  options: OriginOptions = {},
+): Promise<{ repo: string; upstream: string }> {
+  const upstream = await createRepo({ branch: "main" });
+
+  for (const branch of options.branches ?? []) {
+    await git(upstream, "checkout", "-q", "-b", branch, "main");
+    await commitOn(upstream, `${branch.replace(/\//g, "-")}.txt`, branch);
+  }
+  await git(upstream, "checkout", "-q", "main");
+
+  const parent = tempDir("lumem-clone-");
+  const repo = join(parent, "repo");
+  await git(parent, "clone", "-q", upstream, repo);
+
+  return { repo, upstream };
+}
+
+/**
+ * One more commit on the branch that is checked out.
+ *
+ * `at` sets the committer date. Without it, every commit a test makes lands in
+ * the same second, and git records dates with second granularity — so an
+ * ordering test would be asserting over a tie.
+ */
+export async function commitOn(
+  repoPath: string,
+  file: string,
+  content: string,
+  at?: string,
+): Promise<void> {
+  writeFileSync(join(repoPath, file), `${content}\n`);
+  await git(repoPath, "add", file);
+  if (at === undefined) {
+    await git(repoPath, "commit", "-qm", content);
+    return;
+  }
+  await gitAt(repoPath, at, "commit", "-qm", content);
 }

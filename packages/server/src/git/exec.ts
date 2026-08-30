@@ -11,6 +11,14 @@ export const DEFAULT_GIT_TIMEOUT_MS = 30_000;
 export interface GitExecOptions {
   cwd: string;
   timeoutMs?: number;
+  /**
+   * Replaces the daemon's environment for this command.
+   *
+   * Only the commands that reach the network need it — a fetch has to run
+   * where nothing can ask the user anything (F7.15). Everything else inherits
+   * the environment below, which is already the right one.
+   */
+  env?: NodeJS.ProcessEnv;
 }
 
 export interface GitResult {
@@ -28,7 +36,7 @@ export interface GitResult {
  */
 export type GitExec = (args: readonly string[], options: GitExecOptions) => Promise<GitResult>;
 
-export const execGit: GitExec = async (args, { cwd, timeoutMs = DEFAULT_GIT_TIMEOUT_MS }) => {
+export const execGit: GitExec = async (args, { cwd, timeoutMs = DEFAULT_GIT_TIMEOUT_MS, env }) => {
   try {
     const { stdout, stderr } = await run("git", [...args], {
       cwd,
@@ -37,7 +45,7 @@ export const execGit: GitExec = async (args, { cwd, timeoutMs = DEFAULT_GIT_TIME
       // Nothing reads them as paths yet; the day something does, this is the
       // bug nobody would think to look for.
       env: {
-        ...process.env,
+        ...(env ?? process.env),
         // Without this a repository needing credentials hangs the daemon until
         // the timeout instead of failing with something readable.
         GIT_TERMINAL_PROMPT: "0",

@@ -1,7 +1,17 @@
 import { realpath, stat } from "node:fs/promises";
 
 import { DomainError } from "../errors.js";
+import { cloneEnv } from "./clone.js";
 import { execGit, type GitExec } from "./exec.js";
+
+/**
+ * How long a fetch gets, F7.15.
+ *
+ * **Chosen, not measured**, like the clone's silence timeout: long enough for
+ * a branch on a slow remote, short enough that a daemon holding a request open
+ * is not doing it for two minutes. A fetch here is one ref, not a clone.
+ */
+export const FETCH_TIMEOUT_MS = 90_000;
 
 /**
  * Everything the daemon does to git, PRD §7 ("git via CLI, não biblioteca").
@@ -26,14 +36,71 @@ export interface WorktreeEntry {
   prunable: boolean;
 }
 
-export interface AddWorktreeInput {
-  repoPath: string;
-  /** Branch to create. Same as the worktree's name, F4.2. */
-  branch: string;
-  targetPath: string;
-  /** Where the new branch starts, F4.3. */
-  baseBranch: string;
+/** One line of the branch tab, F7.3. */
+export interface BranchItem {
+  /** Short name — `feat/login`, with no `refs/heads/` and no remote prefix. */
+  name: string;
+  /** The remote it lives on, or null for a local branch. */
+  remote: string | null;
+  /** Milliseconds since the epoch, from the commit the ref points at. */
+  lastCommitAt: number;
+  /**
+   * The checkout that already holds this branch, or null.
+   *
+   * A **path**, because that is all git knows: the worktree's name lives in
+   * the database, and the router is what turns one into the other for the
+   * sentence F7.4 requires.
+   */
+  usedByPath: string | null;
 }
+
+/**
+ * The four ways a worktree can come into being, §4 of the worktree-from-source
+ * PRD.
+ *
+ * A discriminated union rather than optional fields: `create` and `existing`
+ * differ by whether the branch is supposed to exist, and a shape that allows
+ * both to be passed at once would let a caller ask for something that has no
+ * meaning.
+ */
+export type AddWorktreeInput =
+  | {
+      /** A branch that does not exist yet, cut from `baseBranch`. F4.1–F4.5. */
+      mode: "create";
+      repoPath: string;
+      branch: string;
+      targetPath: string;
+      /** Where the new branch starts, F4.3. */
+      baseBranch: string;
+    }
+  | {
+      /** A local branch that is already there. F7.4. */
+      mode: "existing";
+      repoPath: string;
+      branch: string;
+      targetPath: string;
+    }
+  | {
+      /** A branch that only exists on a remote, tracked from it. F7.5. */
+      mode: "track";
+      repoPath: string;
+      /** Short name, with no remote prefix — `feat/login`. */
+      branch: string;
+      remote: string;
+      targetPath: string;
+    }
+  | {
+      /**
+       * No branch at all, F7.6.
+       *
+       * What the pull request path cuts before handing the checkout to `gh`,
+       * which is what puts a branch on it.
+       */
+      mode: "detach";
+      repoPath: string;
+      targetPath: string;
+      commitish: string;
+    };
 
 export interface RemoveWorktreeInput {
   /**
@@ -120,6 +187,15 @@ export interface GitService {
   /** Whether a local branch of that name already exists, F4.2. */
   branchExists(repoPath: string, branch: string): Promise<boolean>;
   /**
+   * Every branch this repository knows about, F7.3.
+   *
+   * From the disk, never from the network: F4.3 settled that for the base
+   * branch and a list is no reason to revisit it. A branch that exists locally
+   * and on a remote appears **once**, as local — two entries would offer the
+   * same work twice and do different things when picked.
+   */
+  listBranches(repoPath: string): Promise<BranchItem[]>;
+  /**
    * Whether the repository has any commit at all, F6.13.
    *
    * A repository cloned empty is a legitimate project (Q19) and cannot have a
@@ -128,7 +204,22 @@ export interface GitService {
    * screen can explain instead of letting git answer.
    */
   hasCommits(path: string): Promise<boolean>;
-  /** `git worktree add -b`, F4.1–F4.5. */
+  /**
+   * One ref from one remote, F7.3 and F7.5.
+   *
+   * Targeted rather than whole: this runs while the user waits for a worktree,
+   * and a full fetch on a big repository is a different order of wait.
+   */
+  fetchRef(repoPath: string, input: { remote: string; ref: string }): Promise<void>;
+  /** `git fetch --prune`, behind the `atualizar` button of F7.3. */
+  fetchAll(repoPath: string, input?: { remote?: string }): Promise<void>;
+  /**
+   * `git worktree add`, in one of the four modes above.
+   *
+   * Every refusal this makes on its own is one git would also make, worded so
+   * the user knows what to do: git's own message for a branch that is already
+   * checked out talks about refs and buries the path that matters.
+   */
   addWorktree(input: AddWorktreeInput): Promise<void>;
   listWorktrees(repoPath: string): Promise<WorktreeEntry[]>;
   /** `git worktree remove`. Never deletes the branch, F4.7. */
@@ -227,6 +318,58 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
     }
   }
 
+  /**
+   * Refuses a branch some other worktree already has checked out, F7.4.
+   *
+   * git refuses this too, with an absolute path buried in the middle of its
+   * stderr. The path is the only part the user needs, so it is the message.
+   */
+  async function refuseIfHeld(repoPath: string, branch: string): Promise<void> {
+    const { stdout } = await exec(["worktree", "list", "--porcelain", "-z"], { cwd: repoPath });
+    const holder = parseWorktreeList(stdout).find((entry) => entry.branch === branch);
+    if (holder === undefined) return;
+    throw new DomainError(
+      "BLOCKED",
+      `a branch "${branch}" já está aberta na worktree em ${holder.path}`,
+    );
+  }
+
+  /** How far apart two refs are, in commits, in both directions. */
+  async function divergence(
+    repoPath: string,
+    local: string,
+    remoteRef: string,
+  ): Promise<AheadBehind> {
+    const { stdout } = await exec(
+      ["rev-list", "--left-right", "--count", `${local}...${remoteRef}`],
+      { cwd: repoPath },
+    );
+    const [ahead, behind] = stdout.trim().split(/\s+/).map(Number);
+    return { ahead: ahead ?? 0, behind: behind ?? 0 };
+  }
+
+  /**
+   * Deletes the branch when the checkout fails.
+   *
+   * Measured, not assumed: `worktree add` creates the branch *before* it
+   * discovers the target directory is unusable, and leaves it behind. The PRD
+   * says a failed creation registers nothing, and a stray branch is worse than
+   * nothing — it makes the next attempt with the same name fail on "branch
+   * already exists".
+   */
+  async function withBranchCleanup(
+    repoPath: string,
+    branch: string,
+    run: () => Promise<unknown>,
+  ): Promise<void> {
+    try {
+      await run();
+    } catch (error) {
+      await exec(["branch", "-D", branch], { cwd: repoPath }).catch(() => {});
+      throw error;
+    }
+  }
+
   const service: GitService = {
     hasCommits,
 
@@ -309,24 +452,143 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
 
     branchExists,
 
-    async addWorktree({ repoPath, branch, targetPath, baseBranch }) {
-      // Checked here, not left to git, because F4.2 wants the user told to pick
-      // another name — and git's own message for this talks about refs.
-      if (await branchExists(repoPath, branch)) {
-        throw new DomainError("BLOCKED", `a branch "${branch}" já existe; escolha outro nome`);
+    async listBranches(repoPath) {
+      // `%00` between the fields, and a ref per line: a branch name may contain
+      // anything but a NUL, so this is the only separator that cannot appear
+      // inside the value it separates.
+      const { stdout } = await exec(
+        [
+          "for-each-ref",
+          "--format=%(refname)%00%(committerdate:unix)",
+          "refs/heads",
+          "refs/remotes",
+        ],
+        { cwd: repoPath },
+      );
+
+      const held = new Map<string, string>();
+      for (const entry of await this.listWorktrees(repoPath)) {
+        if (entry.branch !== null) held.set(entry.branch, entry.path);
       }
 
-      try {
-        await exec(["worktree", "add", "-b", branch, targetPath, baseBranch], { cwd: repoPath });
-      } catch (error) {
-        // Measured, not assumed: `worktree add` creates the branch *before* it
-        // discovers the target directory is unusable, and leaves it behind. The
-        // PRD says a failed creation registers nothing, and a stray branch is
-        // worse than nothing — it makes the next attempt with the same name
-        // fail on "branch already exists".
-        await exec(["branch", "-D", branch], { cwd: repoPath }).catch(() => {});
-        throw error;
+      const locals = new Set<string>();
+      const remotes: BranchItem[] = [];
+      const items: BranchItem[] = [];
+
+      for (const line of stdout.split("\n")) {
+        if (line === "") continue;
+        const [refname = "", seconds = ""] = line.split("\0");
+        const lastCommitAt = Number(seconds) * 1000;
+
+        if (refname.startsWith("refs/heads/")) {
+          const name = refname.slice("refs/heads/".length);
+          locals.add(name);
+          items.push({ name, remote: null, lastCommitAt, usedByPath: held.get(name) ?? null });
+          continue;
+        }
+
+        const rest = refname.slice("refs/remotes/".length);
+        const separator = rest.indexOf("/");
+        if (separator === -1) continue;
+        const name = rest.slice(separator + 1);
+        // `origin/HEAD` is a pointer at another branch, not a branch. Cutting a
+        // worktree from it would cut from a name that moves.
+        if (name === "HEAD") continue;
+        remotes.push({ name, remote: rest.slice(0, separator), lastCommitAt, usedByPath: null });
       }
+
+      for (const branch of remotes) {
+        if (!locals.has(branch.name)) items.push(branch);
+      }
+
+      // Name as the second key: git records dates by the second, and two
+      // branches touched in the same second are ordinary. Without it the list
+      // reorders itself between two identical calls.
+      return items.sort((a, b) =>
+        b.lastCommitAt === a.lastCommitAt
+          ? a.name.localeCompare(b.name)
+          : b.lastCommitAt - a.lastCommitAt,
+      );
+    },
+
+    async fetchRef(repoPath, { remote, ref }) {
+      refuseFlagLike(remote, ref);
+      await exec(["fetch", "--", remote, ref], {
+        cwd: repoPath,
+        timeoutMs: FETCH_TIMEOUT_MS,
+        env: cloneEnv(),
+      });
+    },
+
+    async fetchAll(repoPath, input = {}) {
+      const remote = input.remote ?? "origin";
+      refuseFlagLike(remote);
+      await exec(["fetch", "--prune", "--", remote], {
+        cwd: repoPath,
+        timeoutMs: FETCH_TIMEOUT_MS,
+        env: cloneEnv(),
+      });
+    },
+
+    async addWorktree(input) {
+      const { repoPath, targetPath } = input;
+
+      if (input.mode === "detach") {
+        await exec(["worktree", "add", "--detach", targetPath, input.commitish], { cwd: repoPath });
+        return;
+      }
+
+      if (input.mode === "existing") {
+        if (!(await branchExists(repoPath, input.branch))) {
+          throw new DomainError("NOT_FOUND", `a branch "${input.branch}" não existe`);
+        }
+        await refuseIfHeld(repoPath, input.branch);
+        await exec(["worktree", "add", targetPath, input.branch], { cwd: repoPath });
+        return;
+      }
+
+      if (input.mode === "track") {
+        const remoteRef = `${input.remote}/${input.branch}`;
+
+        if (await branchExists(repoPath, input.branch)) {
+          await refuseIfHeld(repoPath, input.branch);
+          // Q22: a local branch that is behind would open the worktree on old
+          // code without anybody noticing, and resetting it would write over
+          // work. Both are worse than one more click.
+          const { ahead, behind } = await divergence(repoPath, input.branch, remoteRef);
+          if (behind > 0) {
+            const extra = ahead > 0 ? ` e ${plural(ahead, "à frente", "à frente")}` : "";
+            throw new DomainError(
+              "BLOCKED",
+              `a branch local "${input.branch}" está ${plural(behind, "commit atrás", "commits atrás")} de "${remoteRef}"${extra} — atualize-a antes de cortar uma worktree dela`,
+            );
+          }
+          await exec(["worktree", "add", targetPath, input.branch], { cwd: repoPath });
+          return;
+        }
+
+        // `--track -b` explicitly, never the DWIM: guessing the remote depends
+        // on `checkout.guess`, and with it off the implicit version produces a
+        // detached HEAD that only surfaces at the first push.
+        await withBranchCleanup(repoPath, input.branch, () =>
+          exec(["worktree", "add", "--track", "-b", input.branch, targetPath, remoteRef], {
+            cwd: repoPath,
+          }),
+        );
+        return;
+      }
+
+      // Checked here, not left to git, because F4.2 wants the user told to pick
+      // another name — and git's own message for this talks about refs.
+      if (await branchExists(repoPath, input.branch)) {
+        throw new DomainError("BLOCKED", `a branch "${input.branch}" já existe; escolha outro nome`);
+      }
+
+      await withBranchCleanup(repoPath, input.branch, () =>
+        exec(["worktree", "add", "-b", input.branch, targetPath, input.baseBranch], {
+          cwd: repoPath,
+        }),
+      );
     },
 
     async listWorktrees(repoPath) {
@@ -642,6 +904,29 @@ export function parseUntracked(stdout: string): string[] {
  * Records are separated by an empty NUL-terminated line, so the stream is
  * `key value\0key value\0\0key value\0…`.
  */
+/**
+ * Refuses an argument git would read as an option.
+ *
+ * `--` covers the positional side, and this covers what `--` cannot: a value
+ * that reaches a place where git still parses options. Both, because one of
+ * them being enough is the kind of thing that stops being true.
+ */
+function refuseFlagLike(...values: readonly string[]): void {
+  for (const value of values) {
+    if (value.startsWith("-")) {
+      throw new DomainError("INVALID_ARGUMENT", `"${value}" começa com "-" e seria lido como opção`);
+    }
+    if (value === "" || /[\s\0]/.test(value)) {
+      throw new DomainError("INVALID_ARGUMENT", `"${value}" não é um nome de remoto ou ref válido`);
+    }
+  }
+}
+
+/** "1 commit atrás" and "2 commits atrás" — the number is the point of the sentence. */
+function plural(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
 export function parseWorktreeList(stdout: string): WorktreeEntry[] {
   const entries: WorktreeEntry[] = [];
   let current: WorktreeEntry | null = null;

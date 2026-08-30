@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — worktree a partir de branch, PR ou issue</title>
+<style>
+/* ========================================================================
+   1. tokens.css — colado integralmente, gerado por
+      packages/web/scripts/generate-tokens.py. Nenhuma cor literal abaixo.
+   ======================================================================== */
+/* Design tokens do Lumem-OS. A fonte é este arquivo, no Open Design. */
+/* Rampas derivadas em OKLCH, entregues em hex. Os pares de contraste sao
+   verificados no gate, em packages/web/src/styles/contrast.ts — mexer numa cor
+   pede rodar a suite. */
+
+:root {
+  /* ---------- primitivas — nunca use direto em componente ---------- */
+  /* brand */
+  --brand-50: #F8F7FF;
+  --brand-100: #EFECFF;
+  --brand-200: #DFD9FF;
+  --brand-300: #CCC2FF;
+  --brand-400: #B5A2FF;
+  --brand-500: #9774FD;
+  --brand-600: #7955D7;
+  --brand-700: #603FAF;
+  --brand-800: #492F88;
+  --brand-900: #321F5F;
+  --brand-950: #211441;
+  /* accent */
+  --accent-50: #F6FAEB;
+  --accent-100: #ECF3D8;
+  --accent-200: #DAE5B3;
+  --accent-300: #C5D587;
+  --accent-400: #ABBE55;
+  --accent-500: #8A9D0E;
+  --accent-600: #6D7D00;
+  --accent-700: #556200;
+  --accent-800: #414A00;
+  --accent-900: #2C3300;
+  --accent-950: #1C2200;
+  /* neutral */
+  --neutral-0: #FFFFFF;
+  --neutral-50: #F8F7F9;
+  --neutral-100: #EFEEF1;
+  --neutral-200: #DEDEE3;
+  --neutral-300: #CBCAD2;
+  --neutral-400: #B2B1BB;
+  --neutral-500: #91909B;
+  --neutral-600: #73727C;
+  --neutral-700: #5A5962;
+  --neutral-800: #44434A;
+  --neutral-900: #2E2E33;
+  --neutral-925: #26252C;
+  --neutral-950: #1E1E22;
+  --neutral-960: #19181F;
+  --neutral-970: #14131A;
+  --neutral-980: #100F15;
+  --neutral-990: #0C0B11;
+  --neutral-1000: #08070D;
+  --neutral-1010: #050408;
+  /* success */
+  --success-50: #EEFCF3;
+  --success-100: #DCF7E6;
+  --success-200: #BAEDCE;
+  --success-300: #91E0B3;
+  --success-400: #60CC93;
+  --success-500: #1AAC6E;
+  --success-600: #008955;
+  --success-700: #006C42;
+  --success-800: #005331;
+  --success-900: #003920;
+  --success-950: #002614;
+  /* warning */
+  --warning-50: #FFF7EA;
+  --warning-100: #FEECD2;
+  --warning-200: #FAD9A7;
+  --warning-300: #F4C273;
+  --warning-400: #E5A52E;
+  --warning-500: #BF8500;
+  --warning-600: #986900;
+  --warning-700: #785200;
+  --warning-800: #5C3E00;
+  --warning-900: #402A00;
+  --warning-950: #2B1B00;
+  /* danger */
+  --danger-50: #FFF5F4;
+  --danger-100: #FFE9E6;
+  --danger-200: #FFD3CD;
+  --danger-300: #FFB6AE;
+  --danger-400: #FF8D83;
+  --danger-500: #F0554F;
+  --danger-600: #C93433;
+  --danger-700: #A32223;
+  --danger-800: #7E1718;
+  --danger-900: #580F0F;
+  --danger-950: #3D0808;
+  /* info */
+  --info-50: #F1F9FF;
+  --info-100: #DFF2FF;
+  --info-200: #BEE5FF;
+  --info-300: #94D4FF;
+  --info-400: #4FBEFF;
+  --info-500: #009CE0;
+  --info-600: #007CB2;
+  --info-700: #00618D;
+  --info-800: #004A6D;
+  --info-900: #00334C;
+  --info-950: #002134;
+
+  /* ---------- semantica — use estas ---------- */
+  /* superficies */
+  --color-bg-base: var(--neutral-1000);
+  --color-bg-panel: var(--neutral-990);
+  --color-bg-surface: var(--neutral-980);
+  --color-bg-raised: var(--neutral-970);
+  --color-bg-inset: var(--neutral-1010);
+  --color-bg-hover: var(--neutral-960);
+  --color-bg-active: var(--neutral-925);
+  --color-bg-selected: var(--brand-950);
+  /* marca */
+  --color-bg-brand: var(--brand-500);
+  --color-bg-brand-hover: var(--brand-400);
+  --color-bg-brand-subtle: var(--brand-950);
+  --color-bg-brand-muted: var(--brand-900);
+  /* fundos de status */
+  --color-bg-success-subtle: var(--success-950);
+  --color-bg-warning-subtle: var(--warning-950);
+  --color-bg-danger-subtle: var(--danger-950);
+  --color-bg-info-subtle: var(--info-950);
+  --color-bg-neutral-subtle: var(--neutral-925);
+  /* texto */
+  --color-text-primary: var(--neutral-50);
+  --color-text-secondary: var(--neutral-400);
+  --color-text-tertiary: var(--neutral-500);
+  --color-text-disabled: var(--neutral-700);
+  --color-text-inverse: var(--neutral-1000);
+  --color-text-on-brand: var(--neutral-1000);
+  --color-text-brand: var(--brand-400);
+  --color-text-link: var(--brand-400);
+  --color-text-code: var(--neutral-300);
+  --color-text-success: var(--success-400);
+  --color-text-warning: var(--warning-400);
+  --color-text-danger: var(--danger-400);
+  --color-text-info: var(--info-400);
+  /* bordas */
+  --color-border-subtle: var(--neutral-960);
+  --color-border-default: var(--neutral-925);
+  --color-border-strong: var(--neutral-800);
+  --color-border-brand: var(--brand-500);
+  --color-border-danger: var(--danger-500);
+  --color-border-focus: var(--brand-400);
+  /* dominio — sessao */
+  --color-session-running: var(--success-400);
+  --color-session-exited: var(--neutral-500);
+  --color-session-failed: var(--danger-400);
+  --color-session-shell: var(--info-400);
+  --color-session-agent: var(--brand-400);
+  /* dominio — worktree e git */
+  --color-worktree-clean: var(--success-400);
+  --color-worktree-dirty: var(--warning-400);
+  --color-worktree-missing: var(--danger-400);
+  --color-git-branch: var(--accent-400);
+  --color-git-ahead: var(--info-400);
+  --color-git-behind: var(--warning-400);
+  --color-git-added: var(--success-400);
+  --color-git-removed: var(--danger-400);
+  --color-git-modified: var(--warning-400);
+  /* dominio — hierarquia e daemon */
+  --color-scope-global: var(--info-400);
+  --color-scope-workspace: var(--brand-400);
+  --color-scope-project: var(--neutral-400);
+  --color-scope-worktree: var(--accent-400);
+  --color-daemon-online: var(--success-400);
+  --color-daemon-offline: var(--danger-400);
+  /* dominio — codigo */
+  --color-syntax-keyword: var(--brand-400);
+  --color-syntax-string: var(--accent-400);
+  --color-syntax-number: var(--warning-300);
+  --color-syntax-comment: var(--neutral-600);
+  --color-syntax-function: var(--info-400);
+  --color-syntax-type: var(--success-300);
+  --color-syntax-punctuation: var(--neutral-400);
+  --color-git-added-subtle: var(--success-950);
+  --color-git-removed-subtle: var(--danger-950);
+  --color-syntax-comment-diff: var(--neutral-500);
+  --color-git-untracked: var(--info-400);
+  /* dominio — editor */
+  --color-editor-cursor: var(--brand-400);
+  --color-editor-selection: var(--brand-900);
+  --color-editor-active-line: var(--neutral-980);
+  --color-editor-line-number: var(--neutral-500);
+  --color-editor-line-number-active: var(--neutral-300);
+  --color-editor-readonly: var(--neutral-400);
+  /* dominio — salvamento */
+  --color-save-saving: var(--neutral-400);
+  --color-save-saved: var(--success-400);
+  --color-save-failed: var(--danger-400);
+  --color-save-stale: var(--warning-400);
+  /* dominio — conversa */
+  --color-turn-agent: var(--brand-400);
+  --color-turn-user: var(--neutral-300);
+  --color-turn-thought: var(--neutral-500);
+  --color-turn-caret: var(--brand-400);
+  --color-tool-pending: var(--neutral-500);
+  --color-tool-running: var(--info-400);
+  --color-tool-ok: var(--success-400);
+  --color-tool-failed: var(--danger-400);
+  --color-tool-cancelled: var(--neutral-400);
+  --color-permission-pending: var(--warning-400);
+  --color-permission-allowed: var(--success-400);
+  --color-permission-denied: var(--danger-400);
+  --color-plan-pending: var(--neutral-500);
+  --color-plan-active: var(--brand-400);
+  --color-plan-done: var(--success-400);
+  --color-usage-quiet: var(--neutral-400);
+  --color-usage-warn: var(--warning-400);
+  --color-usage-over: var(--danger-400);
+  --color-usage-cost: var(--accent-400);
+  --color-mode-plan: var(--info-400);
+  --color-mode-auto: var(--brand-400);
+  --color-mode-bypass: var(--danger-400);
+
+  /* ---------- espacamento (nome = valor em px) ---------- */
+  --space-0: 0px;
+  --space-1: 1px;
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+
+  /* ---------- raio ---------- */
+  --radius-none: 0px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* ---------- dimensoes ---------- */
+  --size-control-xs: 20px;
+  --size-control-sm: 24px;
+  --size-control-md: 28px;
+  --size-control-lg: 32px;
+  --size-control-xl: 40px;
+  --size-icon-xs: 12px;
+  --size-icon-sm: 14px;
+  --size-icon-md: 16px;
+  --size-icon-lg: 20px;
+  --size-row-compact: 28px;
+  --size-row-cozy: 32px;
+  --size-target-min: 24px;
+  --size-topbar-height: 40px;
+  --size-sidebar-width: 264px;
+  --size-detail-max: 880px;
+  --size-terminal-min: 420px;
+  --size-dialog-width: 420px;
+  --size-menu-width: 300px;
+  --size-panel-right: 360px;
+  --size-panel-right-min: 260px;
+  --size-panel-right-max: 720px;
+  --size-gutter-line: 44px;
+  --size-viewer-min: 360px;
+  --size-turn-gutter: 20px;
+  --size-tool-output-max: 240px;
+  --size-composer-min: 72px;
+  --border-width-none: 0px;
+  --border-width-thin: 1px;
+  --border-width-thick: 2px;
+  --border-width-focus: 2px;
+
+  /* ---------- tipografia ---------- */
+  --font-family-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-display-lg: 600 28px/34px var(--font-family-sans);
+  --tracking-display-lg: -0.02em;
+  --text-display-md: 600 22px/28px var(--font-family-sans);
+  --tracking-display-md: -0.015em;
+  --text-heading-lg: 600 18px/24px var(--font-family-sans);
+  --tracking-heading-lg: -0.01em;
+  --text-heading-md: 600 15px/20px var(--font-family-sans);
+  --tracking-heading-md: -0.005em;
+  --text-heading-sm: 600 13px/18px var(--font-family-sans);
+  --text-body-lg: 400 14px/20px var(--font-family-sans);
+  --text-body-md: 400 13px/18px var(--font-family-sans);
+  --text-body-sm: 400 12px/16px var(--font-family-sans);
+  --text-label-md: 500 13px/16px var(--font-family-sans);
+  --text-label-sm: 500 12px/16px var(--font-family-sans);
+  --text-label-xs: 500 11px/14px var(--font-family-sans);
+  --tracking-label-xs: 0.015em;
+  /* Caixa-alta pede tracking proprio, e nao o do TAMANHO. `label-xs` a 0.015em
+     e o valor de um rotulo minusculo; aplicado a maiuscula ele fecha as
+     contraformas e o rotulo vira um bloco. O piso tipografico para caps e
+     0.06em (5-10% do em); 0.07em fica dentro da faixa sem alargar chip curto. */
+  --tracking-caps: 0.07em;
+  --text-caption: 400 11px/14px var(--font-family-sans);
+  --text-mono-lg: 400 13px/20px var(--font-family-mono);
+  --text-mono-md: 400 12px/18px var(--font-family-mono);
+  --text-mono-sm: 400 11px/16px var(--font-family-mono);
+
+  /* ---------- elevacao ---------- */
+  --elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.32);
+  --elevation-md: 0 2px 4px -1px rgb(0 0 0 / 0.34), 0 4px 8px -2px rgb(0 0 0 / 0.30);
+  --elevation-lg: 0 4px 8px -2px rgb(0 0 0 / 0.38), 0 12px 24px -4px rgb(0 0 0 / 0.36);
+  --elevation-xl: 0 8px 16px -4px rgb(0 0 0 / 0.42), 0 24px 48px -8px rgb(0 0 0 / 0.44);
+  --focus-ring: 0 0 0 1px var(--color-bg-base), 0 0 0 3px var(--color-border-focus);
+}
+
+/* Anel de foco padrao — aplique em todo alvo interativo */
+.focus-ring:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ========================================================================
+   2. base.css — o mesmo reset do app
+   ======================================================================== */
+/*
+ * Estilos de documento. Nada de componente vive aqui.
+ *
+ * Só `var()`: qualquer literal de cor ou espaçamento nesta folha quebra a
+ * promessa de que trocar uma rampa nos tokens troca a interface inteira. Exceção
+ * tolerada: ajuste ótico de 1–2px sem token.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/*
+ * A COLUNA DE GRID NASCE LIVRE, E NESTA INTERFACE ISSO É UM BUG DE FÁBRICA.
+ *
+ * Portado do `lumem-ds.css` do Open Design, e a razão é a mesma que já cobrou
+ * caro aqui: faixa de grid `auto` — o que uma coluna implícita é — cresce até
+ * caber o conteúdo. Numa página de texto isso é certo. Aqui o conteúdo é caminho
+ * de arquivo, cerca de código, saída de processo e nome de branch: coisas sem
+ * ponto natural de quebra. A coluna passa da viewport e o corte aparece na
+ * **borda direita da tela**, que é o único lugar onde quem revisa não está
+ * olhando.
+ *
+ * Neste repositório o defeito apareceu no `.msg` da conversa — uma cerca de
+ * código de 300 caracteres esticou a coluna para 2.516px, e quem mediu foi o
+ * e2e. `min-width: 0` conserta um caso; isto muda o default.
+ *
+ * `:where()` tem especificidade **zero**: todo bloco que precisa de colunas de
+ * verdade declara e ganha, sem `!important` e sem depender de ordem de arquivo.
+ * Em elemento que não é grid, a linha é inerte.
+ */
+:where(*) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font: var(--text-body-md);
+  -webkit-font-smoothing: antialiased;
+  /* O app é uma moldura de altura de viewport: quem rola são as colunas. */
+  overflow: hidden;
+}
+
+/* O navegador não herda fonte em controle de formulário. Sem isto, todo
+   `button` e `input` volta pro default do sistema. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* Campo herdar só a cor do texto seria um bug: o fundo continuaria o branco do
+   navegador e o texto claro sumiria dentro dele. Os dois andam juntos. */
+input,
+select,
+textarea {
+  background: var(--color-bg-inset);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+
+::placeholder {
+  color: var(--color-text-disabled);
+}
+
+a {
+  color: var(--color-text-link);
+}
+
+/* Um alvo interativo sem foco visível é inoperável no teclado. O anel sai do
+   gerador para que a cor acompanhe a marca. */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Texto que só o leitor de tela recebe. `display: none` o removeria da árvore
+   de acessibilidade junto com a tela — isto tira da tela e mantém na árvore. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Barras de rolagem: a padrão do sistema é clara e corta o fundo escuro. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-default) transparent;
+}
+
+::-webkit-scrollbar {
+  width: var(--space-10);
+  height: var(--space-10);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-default);
+  border-radius: var(--radius-full);
+  /* Borda transparente com `background-clip` afina o polegar sem mudar a
+     área de acerto do ponteiro. */
+  border: var(--space-2) solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-strong);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner,
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+/* ========================================================================
+   3. o desenho desta feature — só token, nenhuma cor literal
+   ======================================================================== */
+body { background: var(--color-bg-base); color: var(--color-text-primary); overflow: auto; }
+
+.page { max-width: 1180px; margin: 0 auto; padding: var(--space-24); }
+.page__title { font: var(--text-heading-lg); }
+.page__sub { font: var(--text-body-sm); color: var(--color-text-secondary); margin-top: var(--space-4); }
+
+.tabs { display: flex; flex-wrap: wrap; gap: var(--space-4); margin: var(--space-20) 0; }
+.tab {
+  height: var(--size-control-md); padding: 0 var(--space-12);
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-full);
+  background: var(--color-bg-surface); color: var(--color-text-secondary);
+  font: var(--text-label-sm); cursor: pointer;
+}
+.tab:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.tab.is-active {
+  background: var(--color-bg-brand-subtle); border-color: var(--color-border-brand);
+  color: var(--color-text-brand);
+}
+
+.screen { display: none; }
+.screen.is-active { display: block; }
+.screen__note {
+  font: var(--text-body-sm); color: var(--color-text-secondary);
+  margin-bottom: var(--space-16); max-width: 70ch;
+}
+.stage { display: flex; gap: var(--space-16); align-items: flex-start; flex-wrap: wrap; }
+
+/* ---------------------------------------------------------- o diálogo */
+.dialog {
+  width: 420px; flex: none;
+  background: var(--color-bg-surface); border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg); padding: var(--space-16);
+}
+.dialog--wide { width: 520px; }
+.dialog__title { font: var(--text-heading-sm); margin-bottom: var(--space-12); }
+.dialog__caption { font: var(--text-label-xs); color: var(--color-text-tertiary); margin-bottom: var(--space-12); }
+
+/* A origem é a primeira escolha, e ela troca o corpo do formulário — por isso
+   é uma fita de abas dentro do diálogo, e não um seletor. */
+.srcbar { display: flex; gap: var(--space-4); margin-bottom: var(--space-16); }
+.srcbar__tab {
+  flex: 1; height: var(--size-control-md); border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-subtle); background: var(--color-bg-inset);
+  color: var(--color-text-secondary); font: var(--text-label-sm); cursor: pointer;
+}
+.srcbar__tab.is-active {
+  background: var(--color-bg-selected); border-color: var(--color-border-brand);
+  color: var(--color-text-primary);
+}
+.srcbar__tab[disabled] { color: var(--color-text-disabled); cursor: not-allowed; }
+
+.field { margin-bottom: var(--space-16); }
+.field__label { display: block; font: var(--text-label-sm); color: var(--color-text-secondary); margin-bottom: var(--space-6); }
+.field__row { display: flex; align-items: center; gap: var(--space-6); }
+.input {
+  width: 100%; height: var(--size-control-lg); padding: 0 var(--space-10);
+  background: var(--color-bg-inset); color: var(--color-text-primary);
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-md);
+  font: var(--text-mono-sm); font-family: var(--font-family-mono);
+}
+.input.is-placeholder { color: var(--color-text-disabled); }
+.copy {
+  flex: none; width: var(--size-control-lg); height: var(--size-control-lg);
+  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
+  background: none; color: var(--color-text-tertiary); cursor: pointer;
+}
+.copy:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.textarea {
+  width: 100%; min-height: 68px; padding: var(--space-8) var(--space-10);
+  background: var(--color-bg-inset); color: var(--color-text-primary);
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-md);
+  font: var(--text-body-sm); resize: vertical;
+}
+.select {
+  height: var(--size-control-md); padding: 0 var(--space-8);
+  background: var(--color-bg-inset); color: var(--color-text-primary);
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-md);
+  font: var(--text-label-sm);
+}
+.hint { font: var(--text-label-xs); color: var(--color-text-tertiary); margin-top: var(--space-6); }
+
+/* ------------------------------------------------------------ a busca */
+.search { position: relative; margin-bottom: var(--space-10); }
+.search .input { padding-left: var(--space-32); font-family: inherit; font: var(--text-body-sm); }
+.search__glyph {
+  position: absolute; left: var(--space-10); top: 50%; transform: translateY(-50%);
+  color: var(--color-text-tertiary); font-size: var(--size-icon-sm);
+}
+.listhead { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-6); }
+.listhead__label { font: var(--text-label-xs); color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: .06em; }
+.listhead__action { margin-left: auto; font: var(--text-label-xs); color: var(--color-text-link); background: none; border: 0; cursor: pointer; }
+
+.list {
+  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
+  background: var(--color-bg-panel); overflow: hidden; max-height: 268px; overflow-y: auto;
+}
+.item {
+  display: flex; gap: var(--space-8); align-items: flex-start;
+  padding: var(--space-8) var(--space-10); border-bottom: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+}
+.item:last-child { border-bottom: 0; }
+.item:hover { background: var(--color-bg-hover); }
+.item.is-selected { background: var(--color-bg-selected); }
+.item.is-disabled { cursor: not-allowed; opacity: .55; }
+.item.is-disabled:hover { background: none; }
+.item__num { font: var(--text-mono-sm); font-family: var(--font-family-mono); color: var(--color-text-tertiary); flex: none; width: 44px; }
+.item__body { min-width: 0; flex: 1; }
+.item__title { font: var(--text-body-sm); color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item__meta { font: var(--text-label-xs); color: var(--color-text-tertiary); margin-top: var(--space-2); }
+.item__branch { color: var(--color-git-branch); font-family: var(--font-family-mono); }
+.item__tail { flex: none; align-self: center; }
+
+.chip {
+  display: inline-flex; align-items: center; height: var(--size-control-xs);
+  padding: 0 var(--space-8); border-radius: var(--radius-full); font: var(--text-label-xs);
+}
+.chip--warning { background: var(--color-bg-warning-subtle); color: var(--color-text-warning); }
+.chip--info { background: var(--color-bg-info-subtle); color: var(--color-text-info); }
+.chip--muted { background: var(--color-bg-neutral-subtle); color: var(--color-text-tertiary); }
+/* A renderização mostrou que `remota` em amarelo lia como aviso: é só
+   procedência, e a cor tem que dizer isso — não urgência. */
+.chip--remote { background: var(--color-bg-neutral-subtle); color: var(--color-git-branch); }
+
+/* Carregando é esqueleto, não spinner: a lista já tem forma, e a forma é a
+   informação de que ela está vindo. */
+.sk { padding: var(--space-8) var(--space-10); border-bottom: 1px solid var(--color-border-subtle); }
+.sk__line { height: var(--space-8); border-radius: var(--radius-full); background: var(--color-bg-inset); }
+.sk__line + .sk__line { margin-top: var(--space-6); width: 55%; }
+.empty { padding: var(--space-24) var(--space-16); text-align: center; }
+.empty__title { font: var(--text-label-md); color: var(--color-text-secondary); }
+.empty__body { font: var(--text-body-sm); color: var(--color-text-tertiary); margin-top: var(--space-4); }
+
+.actions { display: flex; gap: var(--space-8); margin-top: var(--space-16); align-items: center; }
+.btn {
+  height: var(--size-control-lg); padding: 0 var(--space-16);
+  border-radius: var(--radius-md); border: 1px solid transparent;
+  font: var(--text-label-sm); cursor: pointer;
+}
+.btn--primary { background: var(--color-bg-brand); color: var(--color-text-on-brand); }
+.btn--primary[disabled] { background: var(--color-bg-neutral-subtle); color: var(--color-text-disabled); cursor: not-allowed; }
+.btn--ghost { background: none; color: var(--color-text-secondary); }
+.btn--ghost:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+/* Ação dentro de estado vazio precisa de borda: sem ela a renderização mostrou
+   que "tentar de novo" lia como legenda, não como botão. */
+.btn--outline { background: none; color: var(--color-text-primary); border-color: var(--color-border-default); }
+.btn--outline:hover { background: var(--color-bg-hover); }
+.btn--sm { height: var(--size-control-md); padding: 0 var(--space-10); }
+
+.notice {
+  border-radius: var(--radius-md); padding: var(--space-12);
+  border: 1px solid var(--color-border-default); background: var(--color-bg-raised);
+}
+.notice + .notice { margin-top: var(--space-10); }
+.notice--danger { border-color: var(--color-border-danger); background: var(--color-bg-danger-subtle); }
+.notice--warning { border-color: var(--color-border-default); background: var(--color-bg-warning-subtle); }
+.notice--info { border-color: var(--color-border-default); background: var(--color-bg-info-subtle); }
+.notice--success { border-color: var(--color-border-default); background: var(--color-bg-success-subtle); }
+.notice__title { font: var(--text-label-md); margin-bottom: var(--space-6); }
+.notice__body { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.notice__body strong { color: var(--color-text-primary); font-weight: 600; }
+/* Comando que o usuário vai copiar: monoespaçado, e como texto. */
+.notice__cmd {
+  display: block; margin-top: var(--space-8); padding: var(--space-8);
+  border-radius: var(--radius-sm); background: var(--color-bg-inset);
+  font-family: var(--font-family-mono); font-size: 12px; color: var(--color-text-code);
+  white-space: pre-wrap; word-break: break-word;
+}
+.notice__actions { display: flex; gap: var(--space-8); margin-top: var(--space-10); }
+
+/* --------------------------------------------- a worktree já nascida */
+.panel {
+  width: 420px; flex: none; background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); padding: var(--space-16);
+}
+.panel__title { font: var(--text-heading-sm); display: flex; align-items: center; gap: var(--space-8); }
+.panel__glyph { color: var(--color-scope-worktree); }
+.meta { margin-top: var(--space-12); display: grid; grid-template-columns: 92px 1fr; gap: var(--space-6) var(--space-10); }
+.meta__k { font: var(--text-label-xs); color: var(--color-text-tertiary); }
+.meta__v { font: var(--text-body-sm); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.meta__v code { font-family: var(--font-family-mono); font-size: 12px; color: var(--color-text-code); }
+.prompt-echo {
+  margin-top: var(--space-12); padding: var(--space-10); border-radius: var(--radius-md);
+  background: var(--color-bg-inset); font: var(--text-body-sm); color: var(--color-text-secondary);
+}
+.prompt-echo__head { font: var(--text-label-xs); color: var(--color-text-tertiary); margin-bottom: var(--space-4); }
+.dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); display: inline-block; }
+.dot--running { background: var(--color-session-running); }
+.dot--failed { background: var(--color-session-failed); }
+
+</style>
+</head>
+<body>
+<main class="page">
+  <h1 class="page__title">Worktree a partir de branch, PR ou issue</h1>
+  <p class="page__sub">Oito estados, e cinco não são o caminho feliz. PRD: <code>docs/prd/worktree-from-source/prd.md</code></p>
+  <nav class="tabs">
+<button class="tab is-active" data-screen="origem">A origem</button>
+<button class="tab" data-screen="branch">Branch</button>
+<button class="tab" data-screen="pr">PR</button>
+<button class="tab" data-screen="issue">Issue</button>
+<button class="tab" data-screen="estados">Vazio e erro</button>
+<button class="tab" data-screen="bloqueado">Forge indisponível</button>
+<button class="tab" data-screen="recusas">As recusas</button>
+<button class="tab" data-screen="nascida">Já nascida</button>
+  </nav>
+<section class="screen is-active" id="screen-origem">
+<p class="screen__note">A origem é a primeira escolha porque ela troca o corpo do formulário — não é um adjetivo da criação. Em <code>branch nova</code> não há lista nenhuma; nas outras três a lista é o conteúdo principal. Trocar de aba não perde nome nem prompt já digitados.</p>
+<div class="stage"><div class="dialog"><div class="dialog__title">nova worktree</div><div class="srcbar"><button class="srcbar__tab is-active">branch nova</button><button class="srcbar__tab">branch</button><button class="srcbar__tab">PR</button><button class="srcbar__tab">issue</button></div><div class="field"><label class="field__label">Nome</label><div class="field__row"><input class="input is-placeholder" value="fresnel" readonly><button class="copy" title="copiar">&#10697;</button></div><div class="hint">vazio sorteia. A branch tem o mesmo nome; barra vira diretório aninhado</div></div><div class="field"><label class="field__label">Prompt</label><textarea class="textarea" placeholder="o que o agente deve fazer nesta worktree" readonly></textarea></div><div class="field"><label class="field__label">Agente</label><select class="select"><option>claude</option></select></div><div class="actions"><button class="btn btn--primary">criar</button><button class="btn btn--ghost">cancelar</button></div></div><div class="dialog dialog--wide"><div class="dialog__title">nova worktree</div><div class="dialog__caption">a mesma tela, na aba issue: o corpo muda</div><div class="srcbar"><button class="srcbar__tab">branch nova</button><button class="srcbar__tab">branch</button><button class="srcbar__tab">PR</button><button class="srcbar__tab is-active">issue</button></div><div class="search"><span class="search__glyph">&#8981;</span><input class="input" value="" placeholder="número, título ou descrição" readonly></div><div class="list"><div class="item is-selected"><div class="item__num">#418</div><div class="item__body"><div class="item__title">worktree não some da sidebar depois de remover</div><div class="item__meta">aberta há 2 dias · bug</div></div></div><div class="item "><div class="item__num">#402</div><div class="item__body"><div class="item__title">clone de repositório grande estoura o timeout</div><div class="item__meta">aberta há 6 dias</div></div></div><div class="item "><div class="item__num">#399</div><div class="item__body"><div class="item__title">atalho para trocar de aba de sessão</div><div class="item__meta">aberta há 8 dias · ideia</div></div></div></div>
+<div class="field">
+  <label class="field__label">Nome</label>
+  <div class="field__row">
+    <input class="input is-placeholder" value="fresnel" readonly>
+    <button class="copy" title="copiar">&#10697;</button>
+  </div>
+  <div class="hint">vazio sorteia — <code>fresnel</code> é o que sai daqui</div>
+</div>
+<div class="field">
+  <label class="field__label">Prompt</label>
+  <textarea class="textarea" readonly>resolve a issue #418 — worktree não some da sidebar depois de remover
+https://github.com/vinihcrosa/lumem-os/issues/418</textarea>
+  <div class="hint">o que você escrever aqui, o agente lê. O corpo da issue não entra</div>
+</div>
+<div class="field">
+  <label class="field__label">Agente</label>
+  <select class="select"><option>claude</option><option>codex</option></select>
+</div>
+<div class="actions"><button class="btn btn--primary">criar</button><button class="btn btn--ghost">cancelar</button></div></div></div>
+</section>
+<section class="screen" id="screen-branch">
+<p class="screen__note">A lista vem do <strong>disco</strong> — <code>refs/heads</code> e <code>refs/remotes</code>, ordenadas pelo commit mais recente. Rede só quando pedida, no <code>atualizar</code>. Uma branch que já está aberta em outra worktree aparece desabilitada, com o nome de quem a tem.</p>
+<div class="stage"><div class="dialog dialog--wide"><div class="dialog__title">nova worktree</div><div class="srcbar"><button class="srcbar__tab">branch nova</button><button class="srcbar__tab is-active">branch</button><button class="srcbar__tab">PR</button><button class="srcbar__tab">issue</button></div><div class="search"><span class="search__glyph">&#8981;</span><input class="input" value="" placeholder="número, título ou descrição" readonly></div><div class="listhead"><span class="listhead__label">branches</span><button class="listhead__action">atualizar</button></div><div class="list"><div class="item is-selected"><div class="item__body"><div class="item__title">corrige-sidebar</div><div class="item__meta">local · há 2 horas</div></div></div><div class="item is-disabled"><div class="item__body"><div class="item__title">feat/editor-autosave</div><div class="item__meta">local · há 1 dia</div></div><div class="item__tail"><span class="chip chip--muted"><span>aberta em <b>huygens</b></span></span></div></div><div class="item "><div class="item__body"><div class="item__title">origin/feat/clone-cancelavel</div><div class="item__meta">remota · há 3 dias</div></div><div class="item__tail"><span class="chip chip--remote">remota</span></div></div><div class="item "><div class="item__body"><div class="item__title">origin/renovate/vitest</div><div class="item__meta">remota · há 5 dias</div></div><div class="item__tail"><span class="chip chip--remote">remota</span></div></div><div class="item "><div class="item__body"><div class="item__title">right-sidebar-files-diff</div><div class="item__meta">local · há 6 dias</div></div></div></div><div class="field" style="margin-top:var(--space-16)"><label class="field__label">Nome</label><div class="field__row"><input class="input" value="corrige-sidebar" readonly><button class="copy" title="copiar">&#10697;</button></div><div class="hint">veio da branch escolhida; dá para editar</div></div><div class="actions"><button class="btn btn--primary">criar</button><button class="btn btn--ghost">cancelar</button></div></div><div class="dialog"><div class="dialog__title">o que cada marca diz</div><div class="notice"><div class="notice__title">aberta em <strong>huygens</strong></div><div class="notice__body">O git recusaria isto com <em>“is already used by worktree at …”</em> e um caminho absoluto no meio do stderr. A tela recusa antes, dizendo o nome — e o servidor recusa de novo.</div></div><div class="notice"><div class="notice__title">remota</div><div class="notice__body">Vira branch local rastreando <code>origin/…</code>. Sem <code>--track</code> explícito o git entregaria HEAD destacado, e isso só apareceria no primeiro push.</div></div></div></div>
+</section>
+<section class="screen" id="screen-pr">
+<p class="screen__note">PR e issue são busca no servidor: quem procura é o <code>gh</code>. Enquanto ele não responde, a lista tem esqueleto — a forma já é a informação de que ela está vindo. O de fork é o caso que justifica deixar o CLI fazer o checkout.</p>
+<div class="stage"><div class="dialog dialog--wide"><div class="dialog__title">nova worktree</div><div class="srcbar"><button class="srcbar__tab">branch nova</button><button class="srcbar__tab">branch</button><button class="srcbar__tab is-active">PR</button><button class="srcbar__tab">issue</button></div><div class="search"><span class="search__glyph">&#8981;</span><input class="input" value="" placeholder="número, título ou descrição" readonly></div><div class="list"><div class="item "><div class="item__num">#431</div><div class="item__body"><div class="item__title">clone cancelável no meio do checkout</div><div class="item__meta">por <b>vinihcrosa</b> · atualizado há 4 horas · <span class="item__branch">feat/clone-cancelavel</span></div></div><div class="item__tail"><span class="chip chip--info">rascunho</span></div></div><div class="item "><div class="item__num">#428</div><div class="item__body"><div class="item__title">editor perde o cursor ao trocar de aba</div><div class="item__meta">por <b>ana</b> · atualizado ontem · <span class="item__branch">fix/editor-cursor</span></div></div></div><div class="item "><div class="item__num">#417</div><div class="item__body"><div class="item__title">sobe o vitest para a 3.x</div><div class="item__meta">por <b>renovate[bot]</b> · há 3 dias · <span class="item__branch">forkuser:renovate/vitest</span></div></div><div class="item__tail"><span class="chip chip--muted">fork</span></div></div></div><div class="field" style="margin-top:var(--space-16)"><label class="field__label">Nome</label><div class="field__row"><input class="input" value="fix-editor-cursor" readonly><button class="copy" title="copiar">&#10697;</button></div><div class="hint">derivado da branch do PR, sanitizado para virar diretório</div></div><div class="actions"><button class="btn btn--primary">criar</button><button class="btn btn--ghost">cancelar</button></div></div><div class="dialog"><div class="dialog__title">nova worktree</div><div class="dialog__caption">esperando o gh responder</div><div class="srcbar"><button class="srcbar__tab">branch nova</button><button class="srcbar__tab">branch</button><button class="srcbar__tab is-active">PR</button><button class="srcbar__tab">issue</button></div><div class="search"><span class="search__glyph">&#8981;</span><input class="input" value="" placeholder="número, título ou descrição" readonly></div><div class="list"><div class="sk"><div class="sk__line"></div><div class="sk__line"></div></div><div class="sk"><div class="sk__line"></div><div class="sk__line"></div></div><div class="sk"><div class="sk__line"></div><div class="sk__line"></div></div><div class="sk"><div class="sk__line"></div><div class="sk__line"></div></div></div></div></div>
+</section>
+<section class="screen" id="screen-issue">
+<p class="screen__note">O nome sorteado aparece no <strong>placeholder</strong>, antes de criar, e não muda enquanto o diálogo está aberto. O prompt vem com a <strong>referência</strong> — número, título e URL. O corpo da issue nunca entra: é texto de estranho, e o agente pede se quiser.</p>
+<div class="stage"><div class="dialog dialog--wide"><div class="dialog__title">nova worktree</div><div class="srcbar"><button class="srcbar__tab">branch nova</button><button class="srcbar__tab">branch</button><button class="srcbar__tab">PR</button><button class="srcbar__tab is-active">issue</button></div><div class="search"><span class="search__glyph">&#8981;</span><input class="input" value="" placeholder="número, título ou descrição" readonly></div><div class="list"><div class="item is-selected"><div class="item__num">#418</div><div class="item__body"><div class="item__title">worktree não some da sidebar depois de remover</div><div class="item__meta">aberta há 2 dias · bug</div></div></div><div class="item "><div class="item__num">#402</div><div class="item__body"><div class="item__title">clone de repositório grande estoura o timeout</div><div class="item__meta">aberta há 6 dias</div></div></div><div class="item "><div class="item__num">#399</div><div class="item__body"><div class="item__title">atalho para trocar de aba de sessão</div><div class="item__meta">aberta há 8 dias · ideia</div></div></div></div>
+<div class="field">
+  <label class="field__label">Nome</label>
+  <div class="field__row">
+    <input class="input is-placeholder" value="fresnel" readonly>
+    <button class="copy" title="copiar">&#10697;</button>
+  </div>
+  <div class="hint">vazio sorteia — <code>fresnel</code> é o que sai daqui</div>
+</div>
+<div class="field">
+  <label class="field__label">Prompt</label>
+  <textarea class="textarea" readonly>resolve a issue #418 — worktree não some da sidebar depois de remover
+https://github.com/vinihcrosa/lumem-os/issues/418</textarea>
+  <div class="hint">o que você escrever aqui, o agente lê. O corpo da issue não entra</div>
+</div>
+<div class="field">
+  <label class="field__label">Agente</label>
+  <select class="select"><option>claude</option><option>codex</option></select>
+</div>
+<div class="actions"><button class="btn btn--primary">criar</button><button class="btn btn--ghost">cancelar</button></div></div><div class="dialog"><div class="dialog__title">por que só a referência</div><div class="notice notice--warning"><div class="notice__title">o corpo é texto de estranho</div><div class="notice__body">O prompt é a instrução de um processo que executa comandos. Pré-carregar o corpo da issue faria texto de terceiro chegar como <strong>instrução do usuário</strong>. Pedido pelo agente, ele chega como <strong>resultado de ferramenta</strong> — que é onde um agente já sabe desconfiar.</div></div><div class="notice"><div class="notice__title">nome difícil faz parte</div><div class="notice__body">São 150+ sobrenomes de quem fez a física e a computação: <code>schrodinger</code>, <code>roentgen</code>, <code>fraunhofer</code>. Ascii, transliterados, sempre válidos como branch e como diretório — e com o gesto de copiar do lado, porque ninguém digita <code>fraunhofer</code> certo de primeira.</div></div></div></div>
+</section>
+<section class="screen" id="screen-estados">
+<p class="screen__note">Vazio e erro não são a mesma tela. O vazio diz que a busca não achou; o erro diz que a pergunta não chegou, e oferece a única ação que resolve. As outras abas continuam usáveis nos dois.</p>
+<div class="stage"><div class="dialog"><div class="dialog__title">nova worktree</div><div class="srcbar"><button class="srcbar__tab">branch nova</button><button class="srcbar__tab">branch</button><button class="srcbar__tab">PR</button><button class="srcbar__tab is-active">issue</button></div><div class="search"><span class="search__glyph">&#8981;</span><input class="input" value="autosave no readme" readonly></div><div class="list"><div class="empty"><div class="empty__title">nenhuma issue com isso</div><div class="empty__body">a busca vai inteira para o <code>gh</code>, como um argumento só</div></div></div></div><div class="dialog"><div class="dialog__title">nova worktree</div><div class="dialog__caption">e a aba branch continua criando worktree</div><div class="srcbar"><button class="srcbar__tab">branch nova</button><button class="srcbar__tab">branch</button><button class="srcbar__tab is-active">PR</button><button class="srcbar__tab">issue</button></div><div class="search"><span class="search__glyph">&#8981;</span><input class="input" value="" placeholder="número, título ou descrição" readonly></div><div class="list"><div class="empty"><div class="empty__title">a lista não veio</div><div class="empty__body">o <code>gh</code> respondeu erro de rede</div><div class="notice__actions" style="justify-content:center"><button class="btn btn--sm btn--outline">tentar de novo</button></div></div></div></div></div>
+</section>
+<section class="screen" id="screen-bloqueado">
+<p class="screen__note">Três situações diferentes, três frases, três ações. Nenhuma é “erro”, nenhuma mostra stderr cru, e a terceira <strong>diz o comando</strong> — porque a autenticação mora na máquina do usuário, não no Lumem.</p>
+<div class="stage"><div class="dialog dialog--wide"><div class="dialog__title">nova worktree</div><div class="srcbar"><button class="srcbar__tab">branch nova</button><button class="srcbar__tab is-active">branch</button><button class="srcbar__tab" disabled>PR</button><button class="srcbar__tab" disabled>issue</button></div><div class="notice"><div class="notice__title">este projeto não tem origem registrada</div><div class="notice__body">Ele foi adicionado por caminho e não tem <code>origin</code>. PR e issue precisam de um remoto para existir; branch e branch nova continuam funcionando.</div></div><div class="notice"><div class="notice__title">nem <code>gh</code> nem <code>glab</code> estão no PATH do servidor</div><div class="notice__body">O daemon procura os dois pelo PATH dele, que pode não ser o do seu shell.</div></div><div class="notice"><div class="notice__title">nenhum CLI configurado responde por <strong>git.empresa.com</strong></div><div class="notice__body">O <code>gh</code> está instalado, mas não conhece este host. Autentique na máquina:</div><code class="notice__cmd">gh auth login --hostname git.empresa.com</code></div></div><div class="dialog"><div class="dialog__title">o que ainda funciona</div><div class="notice notice--info"><div class="notice__body">As abas <strong>branch nova</strong> e <strong>branch</strong> não dependem de provedor nenhum. Uma feature com dependência externa que não trata a ausência dela vira feature quebrada na máquina do próximo.</div></div><div class="notice"><div class="notice__title">quem decide não é o hostname</div><div class="notice__body">O Lumem pergunta ao CLI: <code>gh auth status --hostname &lt;host&gt;</code>. Assim um GitHub Enterprise ou um GitLab interno <strong>já configurados</strong> funcionam sem nenhum passo a mais — e um host que ninguém reivindica não é “desconhecido”, é não configurado.</div></div></div></div>
+</section>
+<section class="screen" id="screen-recusas">
+<p class="screen__note">As duas recusas do lado do git. Nenhuma delas escreve por cima de nada: a primeira aponta quem já tem a branch, a segunda diz o atraso e deixa a decisão com você.</p>
+<div class="stage"><div class="dialog dialog--wide"><div class="dialog__title">nova worktree</div><div class="srcbar"><button class="srcbar__tab">branch nova</button><button class="srcbar__tab is-active">branch</button><button class="srcbar__tab">PR</button><button class="srcbar__tab">issue</button></div><div class="listhead"><span class="listhead__label">branches</span><button class="listhead__action">atualizar</button></div><div class="list"><div class="item is-disabled"><div class="item__body"><div class="item__title">feat/editor-autosave</div><div class="item__meta">local · há 1 dia</div></div><div class="item__tail"><span class="chip chip--muted"><span>aberta em <b>huygens</b></span></span></div></div><div class="item is-selected"><div class="item__body"><div class="item__title">origin/feat/login</div><div class="item__meta">remota · há 4 horas</div></div></div></div><div class="notice notice--warning" style="margin-top:var(--space-12)"><div class="notice__title">a branch local <code>feat/login</code> está 3 commits atrás de <code>origin/feat/login</code></div><div class="notice__body">Usar a local abriria a worktree em código velho sem você perceber; resetá-la seria escrever por cima de trabalho.</div><div class="notice__actions"><button class="btn btn--sm btn--outline">atualizar</button></div></div><div class="actions"><button class="btn btn--primary" disabled>criar</button><button class="btn btn--ghost">cancelar</button></div></div><div class="dialog"><div class="dialog__title">e a que o servidor recusa de qualquer jeito</div><div class="notice notice--danger"><div class="notice__title">o repositório ainda não tem nenhum commit</div><div class="notice__body">Sem commit não há de onde cortar. A tela evita, o daemon proíbe, e nenhum dos dois deixa o git responder <em>“invalid reference”</em>.</div></div></div></div>
+</section>
+<section class="screen" id="screen-nascida">
+<p class="screen__note">Depois de criada, a worktree diz de onde veio e com o que nasceu. Origem <code>blank</code> não mostra linha nenhuma: ausência de origem não é uma origem.</p>
+<div class="stage"><div class="panel"><div class="panel__title"><span class="panel__glyph">◆</span>fresnel</div><div class="meta"><div class="meta__k">branch</div><div class="meta__v"><code>fresnel</code></div><div class="meta__k">origem</div><div class="meta__v">issue <a href="#">#418</a> — worktree não some da sidebar depois de remover</div><div class="meta__k">base</div><div class="meta__v"><code>main</code> · limpa</div></div><div class="prompt-echo"><div class="prompt-echo__head"><span class="dot dot--running"></span> entregue ao <b>claude</b></div>resolve a issue #418 — worktree não some da sidebar depois de remover</div></div><div class="panel"><div class="panel__title"><span class="panel__glyph">◆</span>huygens</div><div class="meta"><div class="meta__k">branch</div><div class="meta__v"><code>fix/editor-cursor</code></div><div class="meta__k">origem</div><div class="meta__v">PR <a href="#">#428</a> — editor perde o cursor ao trocar de aba</div></div><div class="prompt-echo"><div class="prompt-echo__head"><span class="dot dot--failed"></span> não entregue</div>“claude” não está no PATH do servidor. A worktree ficou; o prompt também. Abrir de novo é um clique.</div></div><div class="panel"><div class="panel__title"><span class="panel__glyph">◆</span>planck</div><div class="meta"><div class="meta__k">branch</div><div class="meta__v"><code>planck</code></div><div class="meta__k">base</div><div class="meta__v"><code>main</code> · 2 arquivos modificados</div></div><div class="hint" style="margin-top:var(--space-12)">nasceu sem origem e sem prompt — nada a mostrar</div></div></div>
+</section>
+</main>
+<script>
+document.querySelectorAll(".tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("is-active"));
+    document.querySelectorAll(".screen").forEach((s) => s.classList.remove("is-active"));
+    tab.classList.add("is-active");
+    document.getElementById("screen-" + tab.dataset.screen).classList.add("is-active");
+  });
+});
+</script>
+</body>
+</html>
