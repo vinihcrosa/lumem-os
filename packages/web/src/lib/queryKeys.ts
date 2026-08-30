@@ -110,3 +110,14 @@ export function usageByWorktreeKey(projectId: string, period: string) {
 export function playbooksKey(workspaceId: string | null, archived: boolean) {
   return ["memory", "playbooks", workspaceId ?? "-", archived ? "arquivados" : "ativos"] as const;
 }
+
+/**
+ * The clone jobs of a workspace, F5 of project-from-url.
+ *
+ * Only the first render reads it: from there the dedicated subscription
+ * carries the progress, because the coarse `events.onChange` channel says
+ * which list is stale and progress is data with no list to invalidate.
+ */
+export function cloneJobsKey(workspaceId: string) {
+  return ["project", "cloneJobs", workspaceId] as const;
+}

@@ -19,6 +19,9 @@ function project(id: string, name: string, available = true) {
     path: `/repos/${name}`,
     defaultBranch: "main",
     available,
+    hasCommits: true,
+    remoteUrl: null,
+    managed: false,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -43,6 +46,10 @@ beforeEach(() => {
   // The sidebar renders a worktree tree per project; an unstubbed query there
   // fails and puts a second role="alert" on screen.
   trpc.worktree.listByProject.query.mockResolvedValue([]);
+  // The `↳` line asks the daemon what it understood; with nothing stubbed the
+  // query errors and puts a second role="alert" on screen.
+  trpc.project.parseSource.query.mockResolvedValue({ kind: "path", path: "/repos/lorebase" });
+  trpc.project.cloneJobs.query.mockResolvedValue([]);
 });
 
 describe("project list", () => {
@@ -93,7 +100,7 @@ describe("add project", () => {
 
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
-    await user.type(screen.getByLabelText("Caminho do repositório"), "/repos/lorebase");
+    await user.type(screen.getByLabelText("Caminho ou URL"), "/repos/lorebase");
     await user.click(screen.getByRole("button", { name: "adicionar" }));
 
     await waitFor(() =>
@@ -114,8 +121,8 @@ describe("add project", () => {
 
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
-    await user.type(screen.getByLabelText("Caminho do repositório"), "/repos/lorebase");
-    await user.type(screen.getByLabelText("Nome (opcional)"), "lore");
+    await user.type(screen.getByLabelText("Caminho ou URL"), "/repos/lorebase");
+    await user.type(screen.getByLabelText("Nome"), "lore");
     await user.click(screen.getByRole("button", { name: "adicionar" }));
 
     await waitFor(() =>
@@ -136,7 +143,7 @@ describe("add project", () => {
 
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
-    await user.type(screen.getByLabelText("Caminho do repositório"), "/repos/x");
+    await user.type(screen.getByLabelText("Caminho ou URL"), "/repos/x");
     await user.click(screen.getByRole("button", { name: "adicionar" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("não é a raiz dele");
@@ -148,11 +155,11 @@ describe("add project", () => {
 
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
-    await user.type(screen.getByLabelText("Caminho do repositório"), "/tmp");
+    await user.type(screen.getByLabelText("Caminho ou URL"), "/tmp");
     await user.click(screen.getByRole("button", { name: "adicionar" }));
     await screen.findByRole("alert");
 
-    expect(screen.getByLabelText("Caminho do repositório")).toHaveValue("/tmp");
+    expect(screen.getByLabelText("Caminho ou URL")).toHaveValue("/tmp");
   });
 });
 
@@ -203,6 +210,13 @@ describe("project detail", () => {
     expect(await screen.findByText(/o diretório e o que está dentro dele ficam no disco/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "remover projeto" }));
+    // F6.9 put a confirmation in front of this: for a project registered by
+    // path it promises the disk is untouched, and it has to say which of the
+    // two removals this is before anything happens.
+    const confirmacao = await screen.findByRole("alertdialog");
+    expect(confirmacao).toHaveTextContent("aponta para um repositório");
+    expect(confirmacao).toHaveTextContent("fica exatamente onde está");
+    await user.click(within(confirmacao).getByRole("button", { name: "remover" }));
 
     // O que sobra depois de remover o projeto é a **tela do workspace**, e não
     // mais a frase "selecione uma worktree": o painel central passou a responder
@@ -222,7 +236,11 @@ describe("project detail", () => {
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
     await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+    const confirmacao = await screen.findByRole("alertdialog");
+    await user.click(within(confirmacao).getByRole("button", { name: "remover" }));
 
+    // A recusa aparece na própria confirmação: ninguém deveria confirmar algo
+    // que vai ser recusado, e a razão tem que chegar onde o clique foi dado.
     expect(await screen.findByRole("alert")).toHaveTextContent("ainda tem worktrees");
   });
 });

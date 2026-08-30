@@ -34,7 +34,7 @@ const PREFLIGHT = {
   paths: {
     stateDir: "/tmp/lumem",
     databasePath: "/tmp/lumem/lumem.db",
-    worktreesDir: "/tmp/lumem/worktrees",
+    workspacesDir: "/tmp/lumem/workspaces",
     transcriptsDir: "/tmp/lumem/transcripts",
   },
 };
@@ -425,7 +425,7 @@ describe("workspace step", () => {
 
     expect(screen.getByText("/tmp/lumem/lumem.db")).toBeInTheDocument();
     expect(screen.getByText("/tmp/lumem/transcripts")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Onde ficam as worktrees/)).toHaveValue("/tmp/lumem/worktrees");
+    expect(screen.getByLabelText(/Onde o Lumem escreve/)).toHaveValue("/tmp/lumem/workspaces");
   });
 
   it("shows the daemon's refusal in its own words", async () => {

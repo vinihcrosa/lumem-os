@@ -42,6 +42,23 @@ export const project = sqliteTable(
     path: text("path").notNull().unique(),
     /** Resolved once, when the project is added. */
     defaultBranch: text("default_branch").notNull(),
+    /**
+     * Where it was cloned from, sanitized — never with a credential, F6.8.
+     *
+     * Null means "registered by path, with no known origin". It is the first
+     * piece of data Q291 (stable project identity) needs in order to be
+     * discussed at all, and what any future `fetch` will read.
+     */
+    remoteUrl: text("remote_url"),
+    /**
+     * The Lumem wrote these bytes, into a directory the Lumem chose.
+     *
+     * A column and not a deduction from `remote_url != null` or from the path's
+     * prefix: `project.remove` deletes the directory when this is true (F6.9),
+     * and a deduction fails silently the first time somebody moves something —
+     * where the failure is deleting somebody else's repository.
+     */
+    managed: integer("managed", { mode: "boolean" }).notNull().default(false),
     ...timestamps,
   },
   (table) => [uniqueIndex("project_name_per_workspace").on(table.workspaceId, table.name)],

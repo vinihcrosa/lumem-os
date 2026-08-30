@@ -32,6 +32,18 @@ export const E2E_FIXTURE_REPO_EDITOR = join(E2E_FIXTURE_DIR, "repo-editor");
 /** Where the ACP conversation spec makes its worktree. */
 export const E2E_FIXTURE_REPO_ACP = join(E2E_FIXTURE_DIR, "repo-acp");
 
+/**
+ * A fifth, and this one is never registered — it is cloned *from*.
+ *
+ * `file://` is the transport, because D11 says no test of this feature touches
+ * the network, and it is the same code path the product runs for any other
+ * address.
+ */
+export const E2E_FIXTURE_REPO_ORIGIN = join(E2E_FIXTURE_DIR, "repo-origin");
+
+/** A sixth, cloned from and holding no commit at all — Q19. */
+export const E2E_FIXTURE_REPO_EMPTY = join(E2E_FIXTURE_DIR, "repo-empty");
+
 /** An "agent CLI" that echoes what it is given. Never the real `claude`. */
 export const E2E_FIXTURE_AGENT = join(E2E_FIXTURE_DIR, "bin", "fake-agent");
 
@@ -90,6 +102,7 @@ export function createFixtures(): void {
     E2E_FIXTURE_REPO_EDITOR,
     E2E_FIXTURE_REPO_ACP,
     E2E_FIXTURE_REPO_ONBOARDING,
+    E2E_FIXTURE_REPO_ORIGIN,
   ]) {
     mkdirSync(repo, { recursive: true });
     git(repo, "init", "--initial-branch", "main", ".");
@@ -120,6 +133,11 @@ export function createFixtures(): void {
   );
   git(E2E_FIXTURE_REPO_EDITOR, "add", "-A");
   git(E2E_FIXTURE_REPO_EDITOR, "commit", "-m", "arquivo para o editor");
+
+  // Um repositório sem nenhum commit, para o F6.13: ele clona, o projeto nasce
+  // válido, e a tela de criar worktree explica por que ainda não dá.
+  mkdirSync(E2E_FIXTURE_REPO_EMPTY, { recursive: true });
+  git(E2E_FIXTURE_REPO_EMPTY, "init", "--initial-branch", "main", ".");
 
   const binDir = join(E2E_FIXTURE_DIR, "bin");
   mkdirSync(binDir, { recursive: true });

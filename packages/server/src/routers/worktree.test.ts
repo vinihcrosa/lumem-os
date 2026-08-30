@@ -34,8 +34,9 @@ describe("worktree.create", () => {
 
     const created = await ctx.api.worktree.create({ projectId, name: "teste" });
 
-    // F4.4: ~/.lumem/worktrees/<projeto>/<nome>, outside the repository.
-    expect(created.path).toBe(join(ctx.config.worktreesDir, "lorebase", "teste"));
+    // F6.12: ~/.lumem/workspaces/<workspace>/<projeto>/worktrees/<nome>, one
+    // tree for the whole hierarchy, and outside the repository as F4.4 wants.
+    expect(created.path).toBe(join(ctx.config.workspacesDir, "pessoal", "lorebase", "worktrees", "teste"));
     expect(existsSync(join(created.path, "README.md"))).toBe(true);
     expect(created).toMatchObject({ branch: "teste", state: "active", present: true });
   });
@@ -75,7 +76,7 @@ describe("worktree.create", () => {
 
     const created = await ctx.api.worktree.create({ projectId, name: "feat/login" });
 
-    expect(created.path).toBe(join(ctx.config.worktreesDir, "lorebase", "feat", "login"));
+    expect(created.path).toBe(join(ctx.config.workspacesDir, "pessoal", "lorebase", "worktrees", "feat", "login"));
     expect(existsSync(join(created.path, "README.md"))).toBe(true);
   });
 

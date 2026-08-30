@@ -213,6 +213,7 @@ export async function bootstrap({
   // would read states that are about to change under it.
   const reconciled = await reconcileOnBoot({
     db: openedDatabase.db,
+    config,
     transcriptsDir: config.transcriptsDir,
     log: app.log,
   });

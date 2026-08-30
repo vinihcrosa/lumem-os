@@ -5,6 +5,7 @@ import { AddProjectDialog } from "./components/AddProjectDialog.js";
 import { AgentLogin } from "./components/AgentLogin.js";
 import { WorkspacePanel } from "./components/WorkspacePanel.js";
 import { CheckoutFiles } from "./components/CheckoutFiles.js";
+import { CloneStatus } from "./components/CloneStatus.js";
 import { LocalPanel } from "./components/LocalPanel.js";
 import { SidebarTree } from "./components/SidebarTree.js";
 import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
@@ -24,6 +25,7 @@ import { trpc } from "./lib/trpc.js";
 import { Banner, Skeleton } from "./ui/index.js";
 
 import "./components/sidebar.css";
+import "./components/clone.css";
 import "./layout/layout.css";
 
 /**
@@ -51,6 +53,14 @@ export function App() {
   const [setupOpen, setSetupOpen] = useState<boolean | null>(null);
   /** A session the setup flow opened, for the tabs to bring to the front once. */
   const [openSessionId, setOpenSessionId] = useState<string | undefined>(undefined);
+  /**
+   * A URL handed back to the dialog, F6.10 of project-from-url.
+   *
+   * The way out of an authentication failure is the same address spelled for
+   * ssh, and the person should not have to retype it. It lives here because the
+   * failure is shown by one component and answered by another.
+   */
+  const [prefill, setPrefill] = useState<string | null>(null);
   const expansion = useTreeExpansion();
   const rightPanel = useRightPanel();
 
@@ -212,10 +222,15 @@ export function App() {
                 global and this footer is the workspace's.
               */}
               <AgentLogin />
+              {/* The clone sits right above the button that starts one, which
+                  is also where the project it produces will appear. */}
+              <CloneStatus workspaceId={activeId} onRetry={setPrefill} />
               {/* Adding a project is an action of the workspace, not an item of
                   the list it appends to. */}
               <AddProjectDialog
                 workspaceId={activeId}
+                prefill={prefill}
+                onPrefillConsumed={() => setPrefill(null)}
                 onAdded={(projectId) =>
                   setSelection({
                     projectId,
