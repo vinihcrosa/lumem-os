@@ -19,7 +19,7 @@ import { Message, Thought, TurnFrame } from "./Message.js";
 import { PermissionRequest } from "./PermissionRequest.js";
 import { useFirstPermissionCoach, type FirstPermissionCoach } from "../hooks/useFirstPermissionCoach.js";
 import { PlanCard } from "./PlanCard.js";
-import { SlashMenu, slashQuery } from "./SlashMenu.js";
+import { SlashMenu, filterCommands, slashQuery } from "./SlashMenu.js";
 import { ToolCard } from "./ToolCard.js";
 import { UsageFooter } from "./UsageFooter.js";
 
@@ -126,6 +126,14 @@ export interface ConversationProps {
   onResume?: () => void;
   /** True while the resume is in flight, so the button can say so. */
   resuming?: boolean;
+  /**
+   * False enquanto outra aba está aberta.
+   *
+   * As abas ficam **montadas** quando escondidas (`SessionTab`), então o atalho
+   * de teclado precisa saber qual delas está na tela: sem isso um `esc` cancelaria
+   * o turno de todas as conversas abertas de uma vez.
+   */
+  active?: boolean;
 }
 
 export function Conversation({
@@ -135,6 +143,7 @@ export function Conversation({
   load = loadStored,
   onResume,
   resuming = false,
+  active = true,
 }: ConversationProps) {
   const [state, dispatch] = useReducer(reduce, initial);
   const [draft, setDraft] = useState("");
@@ -257,6 +266,45 @@ export function Conversation({
   // interface arguing with what is being typed.
   const query = slashQuery(draft);
 
+  const interrupt = useCallback(() => {
+    socketRef.current?.send({ type: "cancel" });
+  }, []);
+
+  /*
+   * `esc` interrompe o turno.
+   *
+   * O `cancel` existe desde a F5.1, mas só pelo botão do cabeçalho — e a mão de
+   * quem está esperando está no composer, não no topo da tela. `esc` é o reflexo
+   * de quem usa um agente no terminal, e aqui ele não fazia nada: a pessoa via o
+   * turno correr sem ter como pará-lo.
+   *
+   * A ordem dos três `esc` da tela é a que já existia, e é por isso que estes
+   * guardas são condições e não um ouvinte em captura: com o menu de barra aberto
+   * `esc` fecha o menu, com uma permissão no ar `esc` nega uma vez, e só quando
+   * nenhum dos dois está na frente é que sobra o turno para interromper. Quem
+   * chegou antes continua chegando antes.
+   *
+   * Ouvinte da janela porque o foco pode estar em qualquer lugar da conversa — no
+   * textarea, num cartão, em nada. Só a aba visível reage (`active`).
+   */
+  const streaming = conversation.streaming;
+  // O menu só engole `esc` quando está **na tela**: com `/xyz` que não casa com
+  // nada ele não renderiza, e aí o `esc` é do turno como seria sem barra nenhuma.
+  const menuOpen = query !== null && filterCommands(conversation.commands, query).length > 0;
+  useEffect(() => {
+    if (!active || readOnly || !streaming) return;
+    if (pending !== null || menuOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      interrupt();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [active, readOnly, streaming, pending, menuOpen, interrupt]);
+
   const scroll = useAutoScroll([conversation.turns.length, conversation.streaming]);
 
   return (
@@ -283,12 +331,8 @@ export function Conversation({
           </Button>
         )}
         {conversation.streaming && !readOnly && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => socketRef.current?.send({ type: "cancel" })}
-          >
-            ■ interromper
+          <Button variant="ghost" size="sm" onClick={interrupt}>
+            ■ interromper <span className="kbd">esc</span>
           </Button>
         )}
       </div>

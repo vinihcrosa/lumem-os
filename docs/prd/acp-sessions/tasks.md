@@ -394,13 +394,20 @@ permissão — e só (D6).
       sustentava (prompt costuma ter várias linhas), e perdeu para o que o dedo já faz numa caixa de
       conversa. O custo, dito: prompt de várias linhas paga um modificador em vez de ganhar um de
       graça. `⏎` durante composição de IME não envia
-- [x] Botão de interromper aparece só com turno no ar, e manda `cancel`
+- [x] Botão de interromper aparece só com turno no ar, e manda `cancel`. **Revisto em 2026-08-30:**
+      o botão era a **única** forma de parar, e ficava no cabeçalho enquanto a mão de quem espera
+      está no composer — quem tentou `esc`, o reflexo de quem usa agente no terminal, viu o turno
+      seguir correndo. Agora `esc` também interrompe, e o botão diz isso (`esc`, do jeito que o
+      protótipo já escrevia atalho em botão fantasma). A ordem dos três `esc` da tela é a que já
+      existia: menu de barra aberto fecha o menu, permissão no ar nega uma vez, e só então sobra o
+      turno. Só a aba **visível** reage — as escondidas seguem montadas, e sem essa guarda um `esc`
+      cancelaria o turno de todas
 - [x] Rola para o fim quando chega evento novo **e o usuário já estava no fim**; não arranca a rolagem de quem subiu para ler
 - [x] Sessão nova mostra o estado vazio do protótipo, com o custo fixo de abrir a sessão dito na tela
 - [x] Falha de lançamento (T5) aparece como o bloco de domínio do protótipo, com o comando que resolve
 - [x] Evento desconhecido aparece em cinza e não derruba a aba (D3)
 - [x] Gate: `pnpm gate:quick`
-- [x] Test count: ao menos 8 — envio, vazio barrado, interromper, rolagem nas duas situações, vazio, falha de lançamento, evento desconhecido
+- [x] Test count: ao menos 8 — envio, vazio barrado, interromper (botão e `esc`, com as três precedências e a aba escondida), rolagem nas duas situações, vazio, falha de lançamento, evento desconhecido
 
 **Tests**: componente · **Gate**: quick
 **Commit**: `feat(web): assemble the ACP conversation with its composer`

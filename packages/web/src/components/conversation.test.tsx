@@ -30,8 +30,9 @@ class FakeSocket {
   }
 }
 
-function mount(): { socket: FakeSocket; rerender: () => void } {
+function mount(options: { active?: boolean } = {}): { socket: FakeSocket; rerender: () => void } {
   const socket = new FakeSocket();
+  const { active = true } = options;
 
   const connect = (
     _sessionId: string,
@@ -43,7 +44,7 @@ function mount(): { socket: FakeSocket; rerender: () => void } {
 
   const view = render(
     <AwaitingPermissionProvider>
-      <Conversation sessionId="s-1" connect={connect} />
+      <Conversation sessionId="s-1" connect={connect} active={active} />
     </AwaitingPermissionProvider>,
   );
 
@@ -52,7 +53,7 @@ function mount(): { socket: FakeSocket; rerender: () => void } {
     rerender: () =>
       view.rerender(
         <AwaitingPermissionProvider>
-          <Conversation sessionId="s-1" connect={connect} />
+          <Conversation sessionId="s-1" connect={connect} active={active} />
         </AwaitingPermissionProvider>,
       ),
   };
@@ -308,6 +309,93 @@ describe("interrupting", () => {
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: /interromper/ })).not.toBeInTheDocument();
     });
+  });
+});
+
+/*
+ * `esc` interrompe.
+ *
+ * O botão do cabeçalho já existia e não era suficiente: a mão de quem espera está
+ * no composer, e `esc` é o reflexo de quem usa um agente no terminal. O que estes
+ * testes fixam não é só que ele manda `cancel` — é a **ordem** dos três `esc` da
+ * tela, porque cada um deles já tinha dono antes deste chegar.
+ */
+describe("esc interrupts the turn", () => {
+  it("sends a cancel while a turn is in flight", async () => {
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached([entry({ type: "message", messageId: "u-1", role: "user", text: "vai" })]));
+    await screen.findByRole("button", { name: /interromper/ });
+
+    await user.keyboard("{Escape}");
+
+    expect(socket.sent).toEqual([{ type: "cancel" }]);
+  });
+
+  it("does nothing when no turn is running", async () => {
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached());
+    await screen.findByLabelText("mensagem para o agente");
+
+    await user.keyboard("{Escape}");
+
+    expect(socket.sent).toEqual([]);
+  });
+
+  it("denies the permission instead, when one is waiting", async () => {
+    // O turno já está parado no pedido: ali `esc` é "não, uma vez" (F5.4), e
+    // cancelar a conversa inteira por reflexo seria outra coisa.
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(
+      attached([
+        entry({ type: "message", messageId: "u-1", role: "user", text: "vai" }),
+        entry(permissionRequest),
+      ]),
+    );
+    await screen.findByRole("group", { name: "pedido de permissão" });
+
+    await user.keyboard("{Escape}");
+
+    expect(socket.sent).toEqual([
+      { type: "permission_response", requestId: "rq-1", optionId: "no" },
+    ]);
+  });
+
+  it("closes the slash menu instead, when it is open", async () => {
+    const user = userEvent.setup();
+    const { socket } = mount();
+    socket.deliver(attached([entry({ type: "message", messageId: "u-1", role: "user", text: "vai" })]));
+    socket.deliver({
+      type: "event",
+      at: clock,
+      event: {
+        type: "commands",
+        commands: [{ name: "compact", description: "resume a conversa", takesInput: false }],
+      },
+    });
+
+    await user.type(await screen.findByLabelText("mensagem para o agente"), "/comp");
+    await screen.findByRole("listbox", { name: "comandos do agente" });
+
+    await user.keyboard("{Escape}");
+
+    expect(socket.sent).toEqual([]);
+    expect(screen.queryByRole("listbox", { name: "comandos do agente" })).not.toBeInTheDocument();
+  });
+
+  it("stays quiet in a tab that is not the one on screen", async () => {
+    // As abas escondidas seguem montadas. Um ouvinte de janela sem esta guarda
+    // cancelaria o turno de todas as conversas abertas de uma vez.
+    const user = userEvent.setup();
+    const { socket } = mount({ active: false });
+    socket.deliver(attached([entry({ type: "message", messageId: "u-1", role: "user", text: "vai" })]));
+    await screen.findByRole("button", { name: /interromper/ });
+
+    await user.keyboard("{Escape}");
+
+    expect(socket.sent).toEqual([]);
   });
 });
 
