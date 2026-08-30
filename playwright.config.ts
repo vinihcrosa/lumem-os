@@ -4,7 +4,14 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 
 import { E2E_FIXTURE_BIN } from "./e2e/support/fixtures.js";
-import { E2E_SERVER_PORT, E2E_STATE_DIR, E2E_WEB_PORT } from "./ports.js";
+import {
+  E2E_PRODUCTION_PORT,
+  E2E_PRODUCTION_STATE_DIR,
+  E2E_SERVER_PORT,
+  E2E_STATE_DIR,
+  E2E_WEB_PORT,
+  WEB_DIST_DIR,
+} from "./ports.js";
 
 /**
  * Where e2e sessions run.
@@ -38,7 +45,11 @@ const isWorker = process.env["TEST_WORKER_INDEX"] !== undefined;
 const isListing = process.argv.includes("--list");
 if (!isWorker && !isListing) {
   rmSync(E2E_STATE_DIR, { recursive: true, force: true });
+  rmSync(E2E_PRODUCTION_STATE_DIR, { recursive: true, force: true });
 }
+
+/** Specs that only make sense against the installed shape of the product. */
+const PRODUCTION_SPECS = /production\.spec\.ts$/;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -58,8 +69,58 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${E2E_WEB_PORT}`,
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      // The suite proper runs against vite, as it always has.
+      testIgnore: PRODUCTION_SPECS,
+    },
+    {
+      /*
+       * The product as installed: one daemon, one port, no vite.
+       *
+       * A handful of specs rather than the whole suite, because what changes in
+       * production is how the assets travel — the SPA fallback, the MIME types,
+       * and the route that must not swallow `/trpc`. None of that is exercised
+       * by a run behind a dev proxy, and all of it breaks the product outright.
+       */
+      name: "production",
+      testMatch: PRODUCTION_SPECS,
+      use: {
+        ...devices["Desktop Chrome"],
+        baseURL: `http://127.0.0.1:${E2E_PRODUCTION_PORT}`,
+      },
+    },
+  ],
   webServer: [
+    {
+      /*
+       * The installed shape, built and started as one process.
+       *
+       * `pnpm build` rather than a hand-written pair of commands: turbo caches
+       * it, so the cost after the first run is a cache lookup — and the thing
+       * being tested is the artefact the release publishes, which is exactly
+       * what `pnpm build` produces.
+       */
+      command: "pnpm build && node packages/server/dist/server/main.mjs",
+      url: `http://127.0.0.1:${E2E_PRODUCTION_PORT}/trpc/health`,
+      env: {
+        LUMEM_PORT: String(E2E_PRODUCTION_PORT),
+        LUMEM_STATE_DIR: E2E_PRODUCTION_STATE_DIR,
+        // The daemon finds `dist/web` beside itself only once packaged; here it
+        // is pointed at what vite just wrote, which is the same bytes.
+        LUMEM_WEB_ROOT: WEB_DIST_DIR,
+        LUMEM_DEFAULT_CWD: E2E_SESSION_CWD,
+        SHELL: "/bin/sh",
+        PATH: `${E2E_FIXTURE_BIN}:${process.env["PATH"] ?? ""}`,
+      },
+      reuseExistingServer: false,
+      // Includes a cold build of both packages on a fresh runner.
+      timeout: process.env["CI"] ? 300_000 : 180_000,
+      stdout: "ignore",
+      stderr: "pipe",
+    },
     {
       command: "pnpm --filter @lumem/server dev",
       url: `http://127.0.0.1:${E2E_SERVER_PORT}/trpc/health`,

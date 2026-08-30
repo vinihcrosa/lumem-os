@@ -33,6 +33,16 @@ export const E2E_WEB_PORT = required("e2eWeb");
 export const E2E_RESTART_PORT = required("e2eRestart");
 
 /**
+ * The daemon serving the built web on its own, with no vite anywhere.
+ *
+ * A separate port because it is a separate daemon, with its own state: the
+ * production run boots from an empty `~/.lumem` like a fresh install does, and
+ * sharing state with the dev run would mean each one deciding what the other
+ * saw first.
+ */
+export const E2E_PRODUCTION_PORT = required("e2eProduction");
+
+/**
  * Throwaway daemon state for e2e. Deliberately inside the repo and gitignored,
  * so a failed run leaves something inspectable instead of polluting ~/.lumem.
  *
@@ -40,3 +50,11 @@ export const E2E_RESTART_PORT = required("e2eRestart");
  * under a path with a space would produce a literal "Meus%20Projetos" directory.
  */
 export const E2E_STATE_DIR = fileURLToPath(new URL(".lumem-e2e/", import.meta.url));
+
+/** The same, for the production run. Separate daemon, separate state. */
+export const E2E_PRODUCTION_STATE_DIR = fileURLToPath(
+  new URL(".lumem-e2e-production/", import.meta.url),
+);
+
+/** What `vite build` writes, and what the daemon serves in the production run. */
+export const WEB_DIST_DIR = fileURLToPath(new URL("packages/web/dist/", import.meta.url));

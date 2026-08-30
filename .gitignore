@@ -18,6 +18,7 @@ packages/web/prototype/preview/
 # saída do verificador de protótipo (scripts/verify_prototype.mjs)
 .preview/
 .lumem-e2e/
+.lumem-e2e-production/
 .lumem-e2e-fixtures/
 
 .DS_Store

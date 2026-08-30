@@ -3,5 +3,6 @@
   "web": 4318,
   "e2eServer": 4417,
   "e2eWeb": 4418,
-  "e2eRestart": 4419
+  "e2eRestart": 4419,
+  "e2eProduction": 4420
 }
