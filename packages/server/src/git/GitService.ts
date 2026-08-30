@@ -1,7 +1,17 @@
 import { realpath, stat } from "node:fs/promises";
 
 import { DomainError } from "../errors.js";
+import { cloneEnv } from "./clone.js";
 import { execGit, type GitExec } from "./exec.js";
+
+/**
+ * How long a fetch gets, F7.15.
+ *
+ * **Chosen, not measured**, like the clone's silence timeout: long enough for
+ * a branch on a slow remote, short enough that a daemon holding a request open
+ * is not doing it for two minutes. A fetch here is one ref, not a clone.
+ */
+export const FETCH_TIMEOUT_MS = 90_000;
 
 /**
  * Everything the daemon does to git, PRD §7 ("git via CLI, não biblioteca").
@@ -194,6 +204,15 @@ export interface GitService {
    * screen can explain instead of letting git answer.
    */
   hasCommits(path: string): Promise<boolean>;
+  /**
+   * One ref from one remote, F7.3 and F7.5.
+   *
+   * Targeted rather than whole: this runs while the user waits for a worktree,
+   * and a full fetch on a big repository is a different order of wait.
+   */
+  fetchRef(repoPath: string, input: { remote: string; ref: string }): Promise<void>;
+  /** `git fetch --prune`, behind the `atualizar` button of F7.3. */
+  fetchAll(repoPath: string, input?: { remote?: string }): Promise<void>;
   /**
    * `git worktree add`, in one of the four modes above.
    *
@@ -490,6 +509,25 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
           ? a.name.localeCompare(b.name)
           : b.lastCommitAt - a.lastCommitAt,
       );
+    },
+
+    async fetchRef(repoPath, { remote, ref }) {
+      refuseFlagLike(remote, ref);
+      await exec(["fetch", "--", remote, ref], {
+        cwd: repoPath,
+        timeoutMs: FETCH_TIMEOUT_MS,
+        env: cloneEnv(),
+      });
+    },
+
+    async fetchAll(repoPath, input = {}) {
+      const remote = input.remote ?? "origin";
+      refuseFlagLike(remote);
+      await exec(["fetch", "--prune", "--", remote], {
+        cwd: repoPath,
+        timeoutMs: FETCH_TIMEOUT_MS,
+        env: cloneEnv(),
+      });
     },
 
     async addWorktree(input) {
@@ -866,6 +904,24 @@ export function parseUntracked(stdout: string): string[] {
  * Records are separated by an empty NUL-terminated line, so the stream is
  * `key value\0key value\0\0key value\0…`.
  */
+/**
+ * Refuses an argument git would read as an option.
+ *
+ * `--` covers the positional side, and this covers what `--` cannot: a value
+ * that reaches a place where git still parses options. Both, because one of
+ * them being enough is the kind of thing that stops being true.
+ */
+function refuseFlagLike(...values: readonly string[]): void {
+  for (const value of values) {
+    if (value.startsWith("-")) {
+      throw new DomainError("INVALID_ARGUMENT", `"${value}" começa com "-" e seria lido como opção`);
+    }
+    if (value === "" || /[\s\0]/.test(value)) {
+      throw new DomainError("INVALID_ARGUMENT", `"${value}" não é um nome de remoto ou ref válido`);
+    }
+  }
+}
+
 /** "1 commit atrás" and "2 commits atrás" — the number is the point of the sentence. */
 function plural(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;

@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) — 23, **todas respondidas**
 **Protótipo:** `packages/web/prototype/lumem-worktree-source.html` — entregue pela S1
 **Sucede:** [project-from-url](../project-from-url/tasks.md)
-**Status:** **em curso** — 3 de 19
+**Status:** **em curso** — 4 de 19 · Fases 0 e 1 fechadas
 **Total:** 19 tasks em 6 fases
 
 ---
@@ -182,25 +182,30 @@ Repositório fixture local para o git; um script `gh` de mentira no `PATH` para 
 #### S4: `fetchRef` — busca alvejada, sem perguntar nada
 
 **What**: Buscar **uma** ref do remoto, para cortar de branch remota e para o botão `atualizar`.
-**Where**: `packages/server/src/git/GitService.ts` + teste
+**Where**: `packages/server/src/git/GitService.ts`, `packages/server/src/git/exec.ts` + teste
 **Depends on**: nada
 
 **Done when**:
-- [ ] `fetchRef(repoPath, { remote, ref })` roda `fetch <remote> <ref>` com `--` antes do que veio de fora
-- [ ] `fetchAll(repoPath)` roda `fetch --prune`, para o botão `atualizar`
-- [ ] Ambos usam o `cloneEnv` da project-from-url — `GIT_ASKPASS`/`SSH_ASKPASS` vazios, `BatchMode=yes` **composto** sobre o `GIT_SSH_COMMAND` existente (A14)
-- [ ] Falha de autenticação é distinguida de falha de rede, com a mesma classificação que o clone já faz
-- [ ] Timeout próprio, maior que o `DEFAULT_GIT_TIMEOUT_MS` e menor que o de clone; o número escolhido está num comentário que diz que foi escolhido
-- [ ] Teste de recusa contra `ssh://127.0.0.1:1/x`, que falha na hora e não depende de rede (D9)
-- [ ] Gate: `pnpm gate:quick`
-- [ ] Test count: ao menos 6
+- [x] `fetchRef(repoPath, { remote, ref })` roda `fetch -- <remote> <ref>`, e um teste prova pelo argv que o `--` está lá
+- [x] `fetchAll(repoPath)` roda `fetch --prune`, para o botão `atualizar` — teste com branch apagada no upstream
+- [x] Ambos usam o `cloneEnv` da project-from-url — `GIT_ASKPASS`/`SSH_ASKPASS` vazios, `BatchMode=yes` **composto** sobre o `GIT_SSH_COMMAND` existente (A14). Provado por `GitExec` espião, não por leitura
+- [x] `execGit` ganhou passagem de `env`, que ele não tinha: era o único jeito de um comando ter ambiente próprio sem duplicar o executor
+- [x] Argumento que começa com `-` recusa como `INVALID_ARGUMENT` **além** do `--`. Os dois, porque "um deles basta" é o tipo de coisa que deixa de ser verdade
+- [x] Timeout próprio (`FETCH_TIMEOUT_MS`, 90 s), maior que o `DEFAULT_GIT_TIMEOUT_MS` e menor que o do clone; o comentário diz que o número foi **escolhido**
+- [x] Teste de recusa contra `ssh://127.0.0.1:1/x`, que falha na hora e não depende de rede (D9)
+- [x] Gate: `pnpm gate:quick` — 1177 testes; `pnpm gate:build` verde
+- [x] Test count: 8
 
-**Tests**: unit, com fixture local por `file://` · **Gate**: quick
+**O que a execução achou**
+
+O `gate:quick` passou com a interface do `GitService` **sem** os dois métodos novos: o vitest não faz typecheck, e o objeto literal os tinha. Quem pegou foi o `gate:build`. É a razão de a task declarar os dois portões, e não só o rápido.
+
+**Tests**: unit, com fixture local por clone de filesystem · **Gate**: quick + build
 **Commit**: `feat(server): fetch a single ref without ever prompting`
 
 ---
 
-## Fase 2 — O forge, como leitura pura
+## Fase 2 — O forge, como leitura pura## Fase 2 — O forge, como leitura pura
 
 #### S5: Quem responde pelo host, e `forge.status`
 
