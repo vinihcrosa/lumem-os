@@ -5,6 +5,7 @@ import { parse as parseToml } from "smol-toml";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PROJECT_FILE } from "../memory/project-identity.js";
+import type { ScriptPhase } from "../scripts/project-scripts.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 import { cleanupGitFixtures, createRepo, runGit, tempDir } from "../testing/git-fixtures.js";
@@ -62,8 +63,18 @@ async function setup(): Promise<Fixture> {
   };
 }
 
-/** Espera a fase terminar, sem depender de tempo de máquina. */
-async function waitExited(ctx: TestCaller, scope: { scopeType: "worktree"; scopeId: string }, phase: "setup" | "run" | "teardown") {
+/**
+ * Espera a fase terminar, sem depender de tempo de máquina.
+ *
+ * A fase vem do `SCRIPT_PHASES`, e não de uma união escrita à mão: a lista escrita
+ * aqui ficou para trás quando `test` entrou, e o `tsc` do CI cobrou o que a suíte
+ * não cobra — vitest não faz typecheck.
+ */
+async function waitExited(
+  ctx: TestCaller,
+  scope: { scopeType: "worktree"; scopeId: string },
+  phase: ScriptPhase,
+) {
   await vi.waitFor(
     async () => {
       const status = await ctx.api.scripts.status(scope);
