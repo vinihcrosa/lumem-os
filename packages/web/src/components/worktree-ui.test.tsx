@@ -274,3 +274,85 @@ describe("worktree detail", () => {
     expect(screen.getByText("desconhecido")).toBeInTheDocument();
   });
 });
+
+describe("o run visto de fora do rodapé", () => {
+  /** O status de um checkout, com o que o teste quer dizer. */
+  function scriptStatus(overrides: Record<string, unknown> = {}) {
+    return {
+      scripts: { setup: null, run: null, teardown: null },
+      file: "/repos/lorebase/.lumem/project.toml",
+      trusted: true,
+      reservedPort: null,
+      port: null,
+      setup: { command: null, last: null },
+      run: { command: null, last: null },
+      teardown: { command: null, last: null },
+      ...overrides,
+    };
+  }
+
+  function execution(overrides: Record<string, unknown> = {}) {
+    return {
+      sessionId: "se_1",
+      exitCode: null,
+      running: true,
+      startedAt: new Date().toISOString(),
+      finishedAt: null,
+      command: "pnpm dev",
+      ...overrides,
+    };
+  }
+
+  it("a worktree com run vivo mostra a porta na própria linha", async () => {
+    // Sem isto, "tem um dev server nesta worktree" só o `lsof` sabe — até a
+    // próxima vez que você rodar e a porta já estiver ocupada por você mesmo.
+    trpc.worktree.listByProject.query.mockResolvedValue([worktree("wt1", "teste")]);
+    trpc.scripts.status.query.mockImplementation((input: { scopeId: string }) =>
+      Promise.resolve(
+        input.scopeId === "wt1"
+          ? scriptStatus({
+              run: { command: "pnpm dev", last: execution() },
+              port: { port: 55061, source: "output" },
+            })
+          : scriptStatus(),
+      ),
+    );
+
+    const user = userEvent.setup();
+    await selectProject(user);
+
+    const tree = screen.getByLabelText("árvore de projetos");
+    expect(await within(tree).findByText(":55061")).toBeInTheDocument();
+  });
+
+  it("a worktree cujo setup falhou diz isso onde `ausente` já aparece", async () => {
+    trpc.worktree.listByProject.query.mockResolvedValue([worktree("wt1", "teste")]);
+    trpc.scripts.status.query.mockResolvedValue(
+      scriptStatus({
+        setup: {
+          command: "./setup.sh",
+          last: execution({ running: false, exitCode: 1 }),
+        },
+      }),
+    );
+
+    const user = userEvent.setup();
+    await selectProject(user);
+
+    const tree = screen.getByLabelText("árvore de projetos");
+    expect(await within(tree).findAllByText("setup falhou")).not.toHaveLength(0);
+  });
+
+  it("checkout sem nada rodando não ganha marca nenhuma", async () => {
+    trpc.worktree.listByProject.query.mockResolvedValue([worktree("wt1", "teste")]);
+    trpc.scripts.status.query.mockResolvedValue(scriptStatus());
+
+    const user = userEvent.setup();
+    await selectProject(user);
+
+    const tree = screen.getByLabelText("árvore de projetos");
+    await within(tree).findByRole("button", { name: /^teste/ });
+    expect(within(tree).queryByText(/^:\d+$/)).not.toBeInTheDocument();
+    expect(within(tree).queryByText("setup falhou")).not.toBeInTheDocument();
+  });
+});

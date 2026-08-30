@@ -7,6 +7,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/render.js";
 import { trpcMock } from "../test/trpc-mock.js";
 
+const dock = {
+  open: false,
+  height: 256,
+  toggle: () => {},
+  setHeight: () => {},
+  beginResize: () => {},
+};
+
 vi.mock("../lib/trpc.js", async () => ({ trpc: (await import("../test/trpc-mock.js")).trpcMock }));
 
 const { CheckoutFiles } = await import("./CheckoutFiles.js");
@@ -64,7 +72,7 @@ function render({ split = false } = {}) {
     <OpenFilesProvider>
       <FakeTab />
       {split && <FakeSplit />}
-      <CheckoutFiles scope={scope} onClose={() => {}} onResize={() => {}} />
+      <CheckoutFiles scope={scope} onClose={() => {}} onResize={() => {}} dock={dock} />
     </OpenFilesProvider>,
   );
 }

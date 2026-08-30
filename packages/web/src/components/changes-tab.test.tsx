@@ -6,6 +6,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/render.js";
 import { trpcMock } from "../test/trpc-mock.js";
 
+const dock = {
+  open: false,
+  height: 256,
+  toggle: () => {},
+  setHeight: () => {},
+  beginResize: () => {},
+};
+
+
 vi.mock("../lib/trpc.js", async () => ({ trpc: (await import("../test/trpc-mock.js")).trpcMock }));
 
 const { CheckoutFiles } = await import("./CheckoutFiles.js");
@@ -38,7 +47,7 @@ async function openChangesTab() {
   renderWithProviders(
     <OpenFilesProvider>
       <FakeTab />
-      <CheckoutFiles scope={scope} onClose={() => {}} onResize={() => {}} />
+      <CheckoutFiles scope={scope} onClose={() => {}} onResize={() => {}} dock={dock} />
     </OpenFilesProvider>,
   );
   await user.click(await screen.findByRole("tab", { name: /Mudanças/ }));

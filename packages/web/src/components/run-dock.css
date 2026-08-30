@@ -1,0 +1,301 @@
+/* ============================================================================
+   O rodapé de execução — setup, run e terminal.
+
+   Portado de `prototype/lumem-run-dock.css`, que veio do Open Design. Só
+   var(--token): nenhum literal de cor, espaço, raio ou tipografia.
+
+   Ele é **irmão** do scroll da árvore, não filho: a árvore rola por cima, o
+   rodapé fica ancorado embaixo. Fosse filho, rolar a árvore levaria o terminal
+   junto para fora da tela.
+   ========================================================================= */
+
+:root {
+  /* Alto o bastante para o Vite caber inteiro, baixo o bastante para a árvore
+     continuar sendo a coisa principal da coluna. */
+  --size-dock-height: calc(var(--space-64) * 4);
+  --size-dock-min: calc(var(--space-64) + var(--space-32));
+}
+
+.dock {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--color-border-default);
+  background: var(--color-bg-panel);
+}
+.dock--collapsed { height: auto; }
+
+/* A alça horizontal, como a `.rp__grip` é a vertical: mais larga que a borda que
+   ela move, porque 1px é alvo que se erra. */
+.dock__grip {
+  flex: none;
+  height: var(--space-4);
+  margin-top: calc(-1 * var(--space-2));
+  cursor: row-resize;
+}
+.dock__grip:hover { background: var(--color-border-brand); }
+
+.dock__bar {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-6);
+}
+
+/* O chevron que recolhe, antes das abas: quem quer a árvore inteira de volta não
+   precisa procurar. */
+.dock__fold {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-xs);
+}
+.dock__fold:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+.dtab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 0 var(--space-8);
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.dtab:hover { color: var(--color-text-secondary); }
+.dtab--active { color: var(--color-text-primary); border-bottom-color: var(--color-border-brand); }
+
+/*
+ * O ponto de estado na PRÓPRIA aba.
+ *
+ * A mesma decisão do `.rtab__count`: o dado que decide se vale abrir a aba não
+ * pode morar dentro dela. Aqui é mais forte ainda — "tem coisa rodando" e "o
+ * setup falhou" são as duas perguntas que trazem alguém ao rodapé.
+ */
+.dtab__dot {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-text-disabled);
+}
+.dtab__dot--run { background: var(--color-session-running); }
+.dtab__dot--fail { background: var(--color-session-failed); }
+.dtab__dot--ok { background: var(--color-git-added); }
+
+.dock__new {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+}
+.dock__new:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+.dock__acts { display: flex; align-items: center; gap: var(--space-6); align-self: center; }
+.dock__spacer { flex: 1; }
+
+/*
+ * `Abrir :55061` é o botão que carrega metade do valor do `run` — e o único do
+ * rodapé que pode MENTIR (S6). Por isso a porta vem em mono e a proveniência
+ * aparece ao lado dele, fora dele.
+ */
+.openbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--text-label-sm);
+}
+.openbtn:hover { background: var(--color-bg-hover); border-color: var(--color-border-strong); }
+.openbtn__port { font: var(--text-mono-sm); color: var(--color-text-link); }
+.openbtn__from { font: var(--text-caption); color: var(--color-text-disabled); align-self: center; }
+
+/*
+ * Parar um `run` é rotina e reversível: o processo volta com um clique. Botão
+ * vermelho cheio é o vocabulário de "isto não volta" — gastá-lo aqui tira força
+ * de onde ele importa (remover worktree, remover projeto).
+ */
+.stopglyph { color: var(--color-text-danger); }
+
+/* A linha de estado: "isto está vivo?" e "desde quando?". Nada além disso. */
+.dock__state {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  height: var(--size-control-md);
+  padding: 0 var(--space-10);
+  border-top: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.dock__cmd {
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.dock__cmd--dim { color: var(--color-text-tertiary); }
+/* A nota da direita é a primeira coisa que pode sair: numa coluna estreita ela
+   competiria com o comando, que é o que identifica a execução. */
+.dock__note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* A saída ao vivo é o `Terminal` de sempre — este é só o box que ele preenche. */
+.dock__out {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-inset);
+}
+.dock__out .xterm { padding: var(--space-8) var(--space-10); }
+
+/* Nada rodou ainda: a aba existe, e o que ela tem para dizer é isso. */
+.dock__idle {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: var(--space-8);
+  padding: var(--space-16);
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+
+/*
+ * Projeto sem `[scripts]` é o estado NORMAL, não o excepcional: é assim que todo
+ * projeto entra no Lumem. Então o vazio não pede desculpa — ele ensina o arquivo,
+ * que é a única superfície onde alguém descobre que ele existe.
+ */
+.noscripts {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+  display: grid;
+  align-content: start;
+  gap: var(--space-10);
+  padding: var(--space-16);
+}
+.noscripts__t { font: var(--text-label-md); color: var(--color-text-secondary); }
+.noscripts__d { margin: 0; font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.noscripts__where { font: var(--text-mono-sm); color: var(--color-text-code); overflow-wrap: anywhere; }
+.toml {
+  padding: var(--space-10) var(--space-12);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-sm);
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+  white-space: pre;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+.noscripts__acts { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+
+/*
+ * A primeira execução de um projeto que veio de uma URL (S11). O comando é string
+ * de um repositório que talvez não seja seu, então ele aparece ANTES de virar
+ * processo — o mesmo padrão do `worktree.plan`, que já mostra o comando de git.
+ */
+.trust {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+  display: grid;
+  align-content: start;
+  gap: var(--space-10);
+  padding: var(--space-16);
+}
+.trust__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font: var(--text-label-md);
+  color: var(--color-text-primary);
+}
+.trust__glyph { color: var(--color-text-warning); }
+.trust__why { margin: 0; font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.trust__cmd {
+  padding: var(--space-10) var(--space-12);
+  background: var(--color-bg-inset);
+  border-left: 2px solid var(--color-border-danger);
+  border-radius: var(--radius-sm);
+  font: var(--text-mono-md);
+  color: var(--color-text-code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.trust__acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); }
+.trust__note { font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/* O setup que falhou: uma tira, não um diálogo. Diálogo some e leva o motivo. */
+.dock__banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-10);
+  background: var(--color-bg-danger-subtle);
+  border-bottom: 1px solid var(--color-border-danger);
+  font: var(--text-body-sm);
+  color: var(--color-text-primary);
+}
+
+/* A tira recolhida: uma linha, e ela ainda diz o que está vivo. */
+.dock__folded {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  white-space: nowrap;
+  height: var(--size-control-lg);
+  padding: 0 var(--space-10);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+
+/*
+ * O run visto de fora do rodapé.
+ *
+ * O rodapé pode estar fechado, ou você em outra worktree. Sem um sinal fora dele,
+ * "tem um dev server de pé nesta worktree" vira coisa que só o `lsof` sabe — e a
+ * próxima vez que você rodar, a porta já está ocupada por você mesmo.
+ */
+.runmark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  white-space: nowrap;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-success-subtle);
+  color: var(--color-git-added);
+  font: var(--text-caption);
+}
+.runmark__glyph { font-size: var(--size-icon-xs); }
