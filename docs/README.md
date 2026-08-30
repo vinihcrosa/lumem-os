@@ -242,7 +242,7 @@ de *ter* o produto que não fosse clonar o monorepo: `@lumem/server` não tinha 
 por `tsx`, o web só existia no vite, e o repositório público não tinha `README.md` — nunca teve — nem
 `LICENSE`, o que significava todos os direitos reservados. Agora o daemon é **um bundle ESM** com só
 o par nativo por fora, ele **serve o web na própria porta**, o binário `lumem` sobe tudo, e `npm i -g
-@vinihcrosa/lumem` instala — medido: 55 arquivos, 1,3 MB empacotados, e sobe num prefixo limpo.
+@vinihcrosa/lumem-os` instala — medido: 55 arquivos, 1,3 MB empacotados, e sobe num prefixo limpo.
 
 | Arquivo | O quê |
 |---|---|

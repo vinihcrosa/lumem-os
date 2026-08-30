@@ -43,10 +43,23 @@ publicável.** A regra anti-typosquatting do npm mora no `PUT`, e nenhum comando
 executa — nem `npm publish --dry-run`, que valida o nome só localmente. A única forma de saber é
 tentar publicar.
 
-O escopo escapa da regra por construção, e o `@vinihcrosa` já existia. O que **não** muda: o binário
-continua se chamando `lumem`, que é o nome que alguém digita depois de instalar. Um `@lumem/*` foi
-considerado e pedia criar a organização antes — fica disponível para quando houver um segundo pacote
-para publicar.
+**E corrigida uma segunda vez, pelo mesmo caminho: `@vinihcrosa/lumem-os`.** O
+`@vinihcrosa/lumem` também foi recusado — `You cannot publish over the previously published versions:
+0.1.0` —, porque o escopo **já tinha um pacote com esse nome**: o
+[vinihcrosa/lumem](https://github.com/vinihcrosa/lumem), a camada de memória, com três versões
+publicadas em agosto de 2026. O 403 protegeu; nada foi sobrescrito.
+
+Duas coisas ficaram decididas junto:
+
+- **o nome é `@vinihcrosa/lumem-os`**, igual ao repositório. Um `@lumem/*` foi considerado e pedia
+  criar a organização antes — fica para quando houver um segundo pacote deste projeto para publicar;
+- **o pacote instala dois binários** apontando para o mesmo arquivo: `lumem`, que é o comando, e
+  `lumem-os`. O outro pacote também cria um link chamado `lumem`, e o último a instalar ganha — o
+  segundo nome é o que continua funcionando numa máquina que tem os dois.
+
+**A lição, agora com duas evidências:** o registry é a única autoridade sobre o nome, e ele só
+responde no `PUT`. Um 404 de leitura não diz nada sobre similaridade, e nem sobre o que já existe
+dentro do seu próprio escopo.
 
 ---
 

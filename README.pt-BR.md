@@ -16,15 +16,17 @@ várias tarefas rodam ao mesmo tempo sem uma atropelar a outra.
 ## Instalar
 
 ```sh
-npm i -g @vinihcrosa/lumem
+npm i -g @vinihcrosa/lumem-os
 lumem
 ```
 
 O daemon sobe em `http://127.0.0.1:4317` e serve a interface na mesma porta.
 `lumem --open` abre o navegador junto.
 
-O escopo não é enfeite: o npm recusa o nome puro `lumem` por ser parecido demais
-com o `mem`, que já existe. O binário continua sendo `lumem`.
+O nome não é curto nem bonito por um motivo: o npm recusa `lumem` puro por
+parecer demais com o `mem`, e o `@vinihcrosa/lumem` já é outro projeto. O comando
+continua sendo `lumem` — e `lumem-os` é instalado como segundo nome do mesmo
+binário, para quem tiver os dois pacotes.
 
 De um clone, se preferir construir:
 

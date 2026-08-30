@@ -40,13 +40,17 @@ describe("o manifesto publicado", () => {
   });
 
   it("é o pacote que a decisão D1 e a D8 descrevem", () => {
-    // Escopado, e não `lumem` puro: o registry recusa o nome curto por
-    // similaridade com `mem` — ver a D1. O binário continua se chamando `lumem`,
-    // que é o nome que alguém digita depois de instalar.
-    expect(manifest.name).toBe("@vinihcrosa/lumem");
+    // Nem `lumem` (o registry recusa por similaridade com `mem`) nem
+    // `@vinihcrosa/lumem` (que já é outro projeto, a camada de memória) — ver a
+    // D1, que a publicação corrigiu duas vezes.
+    expect(manifest.name).toBe("@vinihcrosa/lumem-os");
     expect(manifest.license).toBe("MIT");
     expect(manifest.engines.node).toBe(">=22");
     expect(manifest.bin["lumem"]).toBe("bin/lumem.mjs");
+    // Dois nomes para o mesmo arquivo: `lumem` é o comando, e `lumem-os` é o que
+    // continua funcionando numa máquina que também tem o outro pacote instalado
+    // — os dois criam um link chamado `lumem`, e o último a instalar ganha.
+    expect(manifest.bin["lumem-os"]).toBe("bin/lumem.mjs");
   });
 });
 
