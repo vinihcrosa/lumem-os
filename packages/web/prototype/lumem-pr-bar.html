@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — a barra da pull request</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<link rel="stylesheet" href="lumem-pr-bar.css">
+</head>
+<body>
+
+<h1 class="page">A barra da pull request — protótipo</h1>
+<p class="page-sub">
+  Duas mudanças de estrutura, e a barra da PR dentro delas.
+  <strong>A coluna do meio começa nas abas</strong> — acima delas fica só o caminho —, e a
+  <strong>primeira aba é a da worktree</strong>: título, branch, sujeira, caminho em disco e ações
+  saem do cabeçalho fixo e viram conteúdo.
+  <strong>A barra da PR mora no topo do painel direito</strong>, acima da faixa de abas dele, e a
+  quarta aba do painel — <code>PR</code>, com a lista de verificações — só existe quando existe PR.
+  Zero token novo: os estados caem sobre as rampas semânticas que já existem.
+</p>
+
+<!-- 1 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>1 · a tela</h2>
+  <p class="note">
+    Três colunas. A do meio: caminho, faixa de abas, conteúdo da aba — nesta ordem, e sem cabeçalho
+    fixo entre elas. A da direita: a barra da PR, a faixa de abas do painel, o conteúdo.
+    O que a mudança <strong>cobra</strong> está dito no §7: com uma aba de sessão na frente, branch e
+    sujeira somem da vista.
+  </p>
+
+  <div class="frame frame--app">
+    <div class="appmock">
+      <!-- SIDEBAR ------------------------------------------------------ -->
+      <aside class="appmock__side">
+        <div class="rows">
+          <div class="row row--on"><span class="glyph" aria-hidden="true">◇</span><span class="row__label">pr-bar</span><span class="spacer"></span><span class="prmark prmark--ready"><span class="prmark__dot"></span>#19</span></div>
+          <div class="row"><span class="glyph" aria-hidden="true">◇</span><span class="row__label">acp-fs</span><span class="spacer"></span><span class="prmark prmark--blocked"><span class="prmark__dot"></span>#18</span></div>
+          <div class="row"><span class="glyph" aria-hidden="true">◇</span><span class="row__label">memory-inbox</span><span class="spacer"></span><span class="prmark prmark--pending"><span class="prmark__dot"></span>#17</span></div>
+          <div class="row"><span class="glyph" aria-hidden="true">◇</span><span class="row__label">tokens-sync</span><span class="spacer"></span><span class="prmark prmark--merged"><span class="prmark__dot"></span>#16</span></div>
+          <div class="row"><span class="glyph" aria-hidden="true">◇</span><span class="row__label">rascunho-x</span></div>
+        </div>
+      </aside>
+
+      <!-- MEIO --------------------------------------------------------- -->
+      <main class="appmock__main">
+        <div class="crumbbar"><nav class="crumb">pessoal <span aria-hidden="true">/</span> lumem-os <span aria-hidden="true">/</span> <span class="crumb__here">pr-bar</span></nav></div>
+
+        <div class="tabs-bar">
+          <!-- Primeira, fixa, sem `✕`: fechar a worktree dentro da worktree não
+               quer dizer nada. O ponto ao lado é a sujeira — o pedaço do estado
+               que sobrevive quando outra aba está na frente. -->
+          <button class="stab stab--wt stab--active"><span class="glyph" aria-hidden="true">◇</span>pr-bar<span class="stab__dot" title="3 arquivos sujos"></span></button>
+          <span class="tabs__sep"></span>
+          <button class="stab"><span class="glyph" aria-hidden="true">◆</span>claude-code</button>
+          <button class="stab"><span class="glyph" aria-hidden="true">●</span>shell</button>
+          <button class="tabs__new">＋ nova sessão</button>
+        </div>
+
+        <div class="wtab">
+          <div class="wtab__title">
+            <h2><span class="glyph" aria-hidden="true">◇</span>pr-bar</h2>
+            <span class="wtab__kind">worktree</span>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost btn--sm focus-ring">remover worktree</button>
+          </div>
+
+          <dl class="wtab__meta">
+            <dt>branch</dt><dd><span class="chip chip--branch"><span class="chip__dot"></span>pr-bar</span></dd>
+            <dt>base</dt><dd>main <span class="dim">· ↑7 ↓0</span></dd>
+            <dt>estado</dt><dd><span class="chip chip--dirty"><span class="chip__dot"></span>suja · 3 arquivos</span></dd>
+            <dt>caminho</dt><dd class="wtab__path">~/.lumem/workspaces/pessoal/lumem-os/worktrees/pr-bar</dd>
+          </dl>
+
+          <div class="wtab__sec">
+            <div class="wtab__sech"><span class="wtab__sect">sessões</span><span class="count-pill">2</span></div>
+            <div class="wtab__list">
+              <div class="wtab__row"><span class="glyph" aria-hidden="true">◆</span>claude-code<span class="spacer"></span><span class="chip chip--clean"><span class="chip__dot"></span>rodando</span><span class="wtab__when">há 12 min</span></div>
+              <div class="wtab__row wtab__row--shell"><span class="glyph" aria-hidden="true">●</span>shell<span class="spacer"></span><span class="wtab__when">encerrada há 2 h</span></div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- PAINEL DIREITO ----------------------------------------------- -->
+      <aside class="appmock__right">
+        <div class="prbar prbar--ready">
+          <div class="prbar__top">
+            <a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#19</span><span class="prbar__go" aria-hidden="true">↗</span><span class="vh">abrir a pull request 19 no navegador</span></a>
+            <span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>pronta para merge</span></span>
+          </div>
+          <div class="prbar__reason">
+            <span class="prbar__why">5 verificações passaram · aprovada por <b>vinihcrosa</b></span>
+            <span class="prbar__fresh">há 3 s</span>
+          </div>
+        </div>
+
+        <div class="rp__bar" role="tablist">
+          <button class="rtab" role="tab" aria-selected="false">Arquivos</button>
+          <button class="rtab" role="tab" aria-selected="false">Mudanças<span class="rtab__count">61</span></button>
+          <button class="rtab" role="tab" aria-selected="false">Memória</button>
+          <button class="rtab rtab--active" role="tab" aria-selected="true">PR<span class="rtab__count rtab__count--ok">✓5</span></button>
+        </div>
+
+        <div class="checks">
+          <div class="checks__group">passaram</div>
+          <a class="checks__row checks__row--ok focus-ring" href="#"><span class="checks__glyph" aria-hidden="true">✓</span><span class="vh">passou</span><span class="checks__body"><span class="checks__name">lint</span><span class="checks__app">GitHub Actions</span></span><span class="spacer"></span><span class="checks__time">38s</span><span class="checks__go" aria-hidden="true">↗</span></a>
+          <a class="checks__row checks__row--ok focus-ring" href="#"><span class="checks__glyph" aria-hidden="true">✓</span><span class="vh">passou</span><span class="checks__body"><span class="checks__name">typecheck</span><span class="checks__app">GitHub Actions</span></span><span class="spacer"></span><span class="checks__time">1m02s</span><span class="checks__go" aria-hidden="true">↗</span></a>
+          <a class="checks__row checks__row--ok focus-ring" href="#"><span class="checks__glyph" aria-hidden="true">✓</span><span class="vh">passou</span><span class="checks__body"><span class="checks__name">unit</span><span class="checks__app">GitHub Actions</span></span><span class="spacer"></span><span class="checks__time">2m19s</span><span class="checks__go" aria-hidden="true">↗</span></a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- 2 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>2 · a aba da worktree, sozinha</h2>
+  <p class="note">
+    O que ganha com a mudança: no cabeçalho fixo tudo isto tinha de caber em duas linhas e virava fila
+    de chips truncados. Como aba, cada coisa tem lugar — e a que mais sofria, <strong>o caminho em
+    disco</strong>, cabe inteira e dá para copiar. A aba é a primeira, não fecha, e é para onde a
+    seleção volta quando a última sessão é fechada.
+  </p>
+
+  <div class="frame">
+    <div class="crumbbar"><nav class="crumb">pessoal <span aria-hidden="true">/</span> lumem-os <span aria-hidden="true">/</span> <span class="crumb__here">pr-bar</span></nav></div>
+    <div class="tabs-bar">
+      <button class="stab stab--wt stab--active"><span class="glyph" aria-hidden="true">◇</span>pr-bar<span class="stab__dot"></span></button>
+      <span class="tabs__sep"></span>
+      <button class="stab"><span class="glyph" aria-hidden="true">◆</span>claude-code</button>
+      <button class="stab"><span class="glyph" aria-hidden="true">●</span>shell</button>
+      <button class="tabs__new">＋ nova sessão</button>
+    </div>
+    <div class="wtab">
+      <div class="wtab__title">
+        <h2><span class="glyph" aria-hidden="true">◇</span>pr-bar</h2>
+        <span class="wtab__kind">worktree</span>
+        <span class="spacer"></span>
+        <button class="btn btn--ghost btn--sm focus-ring">remover worktree</button>
+      </div>
+
+      <dl class="wtab__meta">
+        <dt>branch</dt><dd><span class="chip chip--branch"><span class="chip__dot"></span>pr-bar</span></dd>
+        <dt>base</dt><dd>main <span class="dim">· ↑7 ↓0</span></dd>
+        <dt>estado</dt><dd><span class="chip chip--dirty"><span class="chip__dot"></span>suja · 3 arquivos</span></dd>
+        <dt>caminho</dt><dd class="wtab__path">~/.lumem/workspaces/pessoal/lumem-os/worktrees/pr-bar</dd>
+        <dt>criada</dt><dd>há 2 dias, de <span class="dim">main@a3f91c2</span></dd>
+      </dl>
+
+      <div class="wtab__sec">
+        <div class="wtab__sech"><span class="wtab__sect">sessões</span><span class="count-pill">2</span></div>
+        <div class="wtab__list">
+          <div class="wtab__row"><span class="glyph" aria-hidden="true">◆</span>claude-code<span class="spacer"></span><span class="chip chip--clean"><span class="chip__dot"></span>rodando</span><span class="wtab__when">há 12 min</span></div>
+          <div class="wtab__row wtab__row--shell"><span class="glyph" aria-hidden="true">●</span>shell<span class="spacer"></span><span class="wtab__when">encerrada há 2 h</span></div>
+        </div>
+      </div>
+
+      <div class="wtab__acts">
+        <button class="btn btn--sm focus-ring">＋ nova sessão</button>
+        <button class="btn btn--sm focus-ring">abrir no editor</button>
+        <button class="btn btn--sm focus-ring">copiar caminho</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>3 · os cinco estados, na largura do painel</h2>
+  <p class="note">
+    Duas linhas, e não uma: em 360px o motivo é metade da mensagem, e forçá-lo na linha do veredito o
+    faria truncar sempre. Em cima, identidade e veredito; embaixo, motivo e idade.
+    A contagem das verificações não está aqui — ela é o distintivo da <strong>aba <code>PR</code></strong>,
+    que é onde ela já teria de estar para poder ser clicada.
+  </p>
+
+  <div class="stack">
+    <div>
+      <p class="caption">sem PR — a branch está publicada, ninguém abriu PR</p>
+      <div class="frame frame--panel">
+        <div class="prbar prbar--none">
+          <div class="prbar__top">
+            <span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>sem pull request</span></span>
+          </div>
+          <div class="prbar__reason">
+            <span class="prbar__why">↑7 de <b>main</b> · publicada em <b>origin</b></span>
+            <span class="prbar__fresh">há 12 s</span>
+          </div>
+          <!-- Isto NÃO cria PR: abre a tela de comparação do host, já com base e
+               head preenchidas. Criar é escrita no remoto, e escrita no remoto é
+               decisão sua — ver Q4. -->
+          <div class="prbar__acts"><a class="btn btn--sm focus-ring" href="#">abrir PR no GitHub <span class="btn__glyph">↗</span></a></div>
+        </div>
+        <div class="rp__bar" role="tablist">
+          <button class="rtab rtab--active" role="tab" aria-selected="true">Arquivos</button>
+          <button class="rtab" role="tab" aria-selected="false">Mudanças<span class="rtab__count">61</span></button>
+          <button class="rtab" role="tab" aria-selected="false">Memória</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="caption">verificando — âmbar, porque ainda não se sabe</p>
+      <div class="frame frame--panel">
+        <div class="prbar prbar--pending">
+          <div class="prbar__top">
+            <a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#19</span><span class="prbar__go" aria-hidden="true">↗</span><span class="vh">abrir a pull request 19 no navegador</span></a>
+            <span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>2 verificações rodando</span></span>
+          </div>
+          <div class="prbar__reason">
+            <span class="prbar__why"><b>e2e (macOS)</b> há 4 min</span>
+            <span class="prbar__fresh">há 8 s</span>
+          </div>
+        </div>
+        <div class="rp__bar" role="tablist">
+          <button class="rtab" role="tab" aria-selected="false">Arquivos</button>
+          <button class="rtab" role="tab" aria-selected="false">Mudanças<span class="rtab__count">61</span></button>
+          <button class="rtab" role="tab" aria-selected="false">Memória</button>
+          <button class="rtab" role="tab" aria-selected="false">PR<span class="rtab__count rtab__count--run">●2</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="caption">pronta — verde. Nada impede</p>
+      <div class="frame frame--panel">
+        <div class="prbar prbar--ready">
+          <div class="prbar__top">
+            <a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#19</span><span class="prbar__go" aria-hidden="true">↗</span></a>
+            <span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>pronta para merge</span></span>
+          </div>
+          <div class="prbar__reason">
+            <span class="prbar__why">5 verificações passaram · aprovada por <b>vinihcrosa</b></span>
+            <span class="prbar__fresh">há 3 s</span>
+          </div>
+        </div>
+        <div class="rp__bar" role="tablist">
+          <button class="rtab" role="tab" aria-selected="false">Arquivos</button>
+          <button class="rtab" role="tab" aria-selected="false">Mudanças<span class="rtab__count">61</span></button>
+          <button class="rtab" role="tab" aria-selected="false">Memória</button>
+          <button class="rtab" role="tab" aria-selected="false">PR<span class="rtab__count rtab__count--ok">✓5</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="caption">bloqueada — vermelho, e o culpado tem nome</p>
+      <div class="frame frame--panel">
+        <div class="prbar prbar--blocked">
+          <div class="prbar__top">
+            <a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#19</span><span class="prbar__go" aria-hidden="true">↗</span></a>
+            <span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>1 verificação falhou</span></span>
+          </div>
+          <div class="prbar__reason">
+            <span class="prbar__why"><b>e2e (macOS)</b> · 4 min 12 s</span>
+            <span class="prbar__fresh">há 5 s</span>
+          </div>
+        </div>
+        <div class="rp__bar" role="tablist">
+          <button class="rtab" role="tab" aria-selected="false">Arquivos</button>
+          <button class="rtab" role="tab" aria-selected="false">Mudanças<span class="rtab__count">61</span></button>
+          <button class="rtab" role="tab" aria-selected="false">Memória</button>
+          <button class="rtab rtab--active" role="tab" aria-selected="true">PR<span class="rtab__count rtab__count--bad">✕1</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="caption">mesclada — brand, e não verde: acabou, não é sucesso de CI</p>
+      <div class="frame frame--panel">
+        <div class="prbar prbar--merged">
+          <div class="prbar__top">
+            <a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#19</span><span class="prbar__go" aria-hidden="true">↗</span></a>
+            <span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>mesclada</span></span>
+          </div>
+          <div class="prbar__reason">
+            <span class="prbar__why">em <b>main</b>, há 6 min · esta worktree pode ser removida</span>
+            <span class="prbar__fresh">há 6 s</span>
+          </div>
+        </div>
+        <div class="rp__bar" role="tablist">
+          <button class="rtab rtab--active" role="tab" aria-selected="true">Arquivos</button>
+          <button class="rtab" role="tab" aria-selected="false">Mudanças</button>
+          <button class="rtab" role="tab" aria-selected="false">Memória</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>4 · bloqueada tem quatro causas, e cada uma diz a sua</h2>
+  <p class="note">
+    Vermelho é <em>definitivo</em>: algo que só sai do caminho com uma ação sua. Verificação rodando
+    não entra aqui — é âmbar. A frase nomeia a causa <strong>de maior prioridade</strong>
+    (conflito &gt; check reprovado &gt; review pediu mudança &gt; regra do host): quatro motivos
+    empilhados não cabem em 360px, e você resolve um por vez de qualquer forma.
+  </p>
+
+  <div class="stack">
+    <div class="frame frame--panel"><div class="prbar prbar--blocked">
+      <div class="prbar__top"><a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#19</span><span class="prbar__go" aria-hidden="true">↗</span></a><span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>conflito com a base</span></span></div>
+      <div class="prbar__reason"><span class="prbar__why">não mescla sozinha em <b>main</b> · ↓14 atrás</span><span class="prbar__fresh">há 9 s</span></div>
+    </div></div>
+
+    <div class="frame frame--panel"><div class="prbar prbar--blocked">
+      <div class="prbar__top"><a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#19</span><span class="prbar__go" aria-hidden="true">↗</span></a><span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>2 verificações falharam</span></span></div>
+      <div class="prbar__reason"><span class="prbar__why"><b>lint</b>, <b>e2e (macOS)</b></span><span class="prbar__fresh">há 4 s</span></div>
+    </div></div>
+
+    <div class="frame frame--panel"><div class="prbar prbar--blocked">
+      <div class="prbar__top"><a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#19</span><span class="prbar__go" aria-hidden="true">↗</span></a><span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>mudanças pedidas</span></span></div>
+      <div class="prbar__reason"><span class="prbar__why">por <b>joao</b> · 3 comentários</span><span class="prbar__fresh">há 11 s</span></div>
+    </div></div>
+
+    <div class="frame frame--panel"><div class="prbar prbar--blocked">
+      <div class="prbar__top"><a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#19</span><span class="prbar__go" aria-hidden="true">↗</span></a><span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>falta revisão</span></span></div>
+      <!-- A regra é do host, e a frase repete o que ele disse. O Lumem não
+           reimplementa branch protection: mostra o veredito de quem manda. -->
+      <div class="prbar__reason"><span class="prbar__why">regra da base exige 1 aprovação</span><span class="prbar__fresh">há 7 s</span></div>
+    </div></div>
+
+    <div>
+      <p class="caption">rascunho — neutro. Não está bloqueada, está <em>não pronta ainda</em></p>
+      <div class="frame frame--panel"><div class="prbar prbar--none">
+        <div class="prbar__top"><a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#21</span><span class="prbar__go" aria-hidden="true">↗</span></a><span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>rascunho</span></span></div>
+        <div class="prbar__reason"><span class="prbar__why">5 verificações passaram · marque como pronta no GitHub</span><span class="prbar__fresh">há 2 s</span></div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>5 · a aba <code>PR</code> — as verificações</h2>
+  <p class="note">
+    Quarta aba do painel, e <strong>só existe quando existe PR</strong> — aba permanente que passa a
+    vida vazia ensina o olho a pular a faixa inteira. <strong>O nome saiu da régua:</strong> com
+    <code>Verificações</code> as quatro abas somavam ~352px numa faixa de 348 úteis, e a quarta ficava
+    atrás de uma barra de rolagem — o pior lugar possível para o único aviso de que algo quebrou.
+    Agrupada, com o reprovado no topo: o que precisa de você não pode estar abaixo de trinta linhas
+    verdes. Cada linha tem o seu <code>↗</code>, que abre <em>aquela</em> execução, e não a PR — é a
+    diferença entre "vi que quebrou" e "vi o log". Em 360px, quem executou não cabe ao lado do nome:
+    vai para baixo dele.
+  </p>
+
+  <div class="frame frame--panel">
+    <div class="prbar prbar--blocked">
+      <div class="prbar__top"><a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#19</span><span class="prbar__go" aria-hidden="true">↗</span></a><span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>1 verificação falhou</span></span></div>
+      <div class="prbar__reason"><span class="prbar__why"><b>e2e (macOS)</b> · 4 min 12 s</span><span class="prbar__fresh">há 5 s</span></div>
+    </div>
+
+    <div class="rp__bar" role="tablist">
+      <button class="rtab" role="tab" aria-selected="false">Arquivos</button>
+      <button class="rtab" role="tab" aria-selected="false">Mudanças<span class="rtab__count">61</span></button>
+      <button class="rtab" role="tab" aria-selected="false">Memória</button>
+      <button class="rtab rtab--active" role="tab" aria-selected="true">PR<span class="rtab__count rtab__count--bad">✕1</span></button>
+    </div>
+
+    <div class="checks">
+      <div class="checks__group">precisa de você</div>
+      <a class="checks__row checks__row--bad focus-ring" href="#"><span class="checks__glyph" aria-hidden="true">✕</span><span class="vh">falhou</span><span class="checks__body"><span class="checks__name">e2e (macOS)</span><span class="checks__app">GitHub Actions</span></span><span class="spacer"></span><span class="checks__time">4m12s</span><span class="checks__go" aria-hidden="true">↗</span></a>
+
+      <div class="checks__group">em andamento</div>
+      <a class="checks__row checks__row--run focus-ring" href="#"><span class="checks__glyph" aria-hidden="true">●</span><span class="vh">rodando</span><span class="checks__body"><span class="checks__name">build (ubuntu)</span><span class="checks__app">GitHub Actions</span></span><span class="spacer"></span><span class="checks__time">1m40s</span><span class="checks__go" aria-hidden="true">↗</span></a>
+      <a class="checks__row checks__row--wait focus-ring" href="#"><span class="checks__glyph" aria-hidden="true">○</span><span class="vh">na fila</span><span class="checks__body"><span class="checks__name">deploy preview</span><span class="checks__app">Vercel</span></span><span class="spacer"></span><span class="checks__time">—</span><span class="checks__go" aria-hidden="true">↗</span></a>
+
+      <div class="checks__group">passaram</div>
+      <a class="checks__row checks__row--ok focus-ring" href="#"><span class="checks__glyph" aria-hidden="true">✓</span><span class="vh">passou</span><span class="checks__body"><span class="checks__name">lint</span><span class="checks__app">GitHub Actions</span></span><span class="spacer"></span><span class="checks__time">38s</span><span class="checks__go" aria-hidden="true">↗</span></a>
+      <a class="checks__row checks__row--ok focus-ring" href="#"><span class="checks__glyph" aria-hidden="true">✓</span><span class="vh">passou</span><span class="checks__body"><span class="checks__name">typecheck</span><span class="checks__app">GitHub Actions</span></span><span class="spacer"></span><span class="checks__time">1m02s</span><span class="checks__go" aria-hidden="true">↗</span></a>
+      <a class="checks__row checks__row--ok focus-ring" href="#"><span class="checks__glyph" aria-hidden="true">✓</span><span class="vh">passou</span><span class="checks__body"><span class="checks__name">unit</span><span class="checks__app">GitHub Actions</span></span><span class="spacer"></span><span class="checks__time">2m19s</span><span class="checks__go" aria-hidden="true">↗</span></a>
+      <a class="checks__row checks__row--ok focus-ring" href="#"><span class="checks__glyph" aria-hidden="true">✓</span><span class="vh">passou</span><span class="checks__body"><span class="checks__name">CodeQL</span><span class="checks__app">GitHub</span></span><span class="spacer"></span><span class="checks__time">3m04s</span><span class="checks__go" aria-hidden="true">↗</span></a>
+
+      <div class="checks__group">ignoradas</div>
+      <a class="checks__row checks__row--skip focus-ring" href="#"><span class="checks__glyph" aria-hidden="true">–</span><span class="vh">pulada</span><span class="checks__body"><span class="checks__name">docs</span><span class="checks__app">GitHub Actions</span></span><span class="spacer"></span><span class="checks__time">—</span><span class="checks__go" aria-hidden="true">↗</span></a>
+
+      <!-- O que a aba NÃO faz, dito nela mesma: reexecutar é escrita no host, e
+           fica de fora do v1 junto com o merge. -->
+      <div class="checks__foot">lido do <code>gh</code> há 5 s · reexecutar e mesclar se fazem no navegador</div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>6 · quando não dá para saber</h2>
+  <p class="note">
+    Metade desta feature é dependência de coisa fora do Lumem: um CLI instalado, uma sessão
+    autenticada, uma rede. A regra é a mesma do resto do produto — <strong>dizer o que houve e o que
+    fazer</strong>, e nunca inventar um verde. Nenhum destes estados derruba o painel: as abas
+    continuam ali, funcionando.
+  </p>
+
+  <div class="stack">
+    <div>
+      <p class="caption">o <code>gh</code> não está instalado</p>
+      <div class="frame frame--panel"><div class="prbar prbar--none">
+        <div class="prbar__top"><span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>sem integração com o GitHub</span></span></div>
+        <div class="prbar__reason"><span class="prbar__why">instale o <b>gh</b> para ver PR e verificações aqui</span></div>
+        <div class="prbar__acts"><button class="btn btn--sm focus-ring">como instalar</button><button class="btn btn--ghost btn--sm focus-ring">não mostrar mais</button></div>
+      </div></div>
+    </div>
+
+    <div>
+      <p class="caption">instalado, não autenticado — o comando de sair da situação é literal</p>
+      <div class="frame frame--panel"><div class="prbar prbar--none">
+        <div class="prbar__top"><span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>gh não autenticado</span></span></div>
+        <div class="prbar__reason"><span class="prbar__why">rode <b>gh auth login</b> num shell desta worktree</span></div>
+        <div class="prbar__acts"><button class="btn btn--sm focus-ring">abrir shell aqui</button><button class="btn btn--ghost btn--sm focus-ring">tentar de novo</button></div>
+      </div></div>
+    </div>
+
+    <div>
+      <p class="caption">o host não é GitHub — dito, e não silenciado</p>
+      <div class="frame frame--panel"><div class="prbar prbar--none">
+        <div class="prbar__top"><span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>sem integração com <b>gitlab.com</b></span></span></div>
+        <div class="prbar__reason"><span class="prbar__why">o v1 fala só GitHub · o adaptador de host é a porta para os outros</span></div>
+        <div class="prbar__acts"><button class="btn btn--ghost btn--sm focus-ring">não mostrar mais</button></div>
+      </div></div>
+    </div>
+
+    <div>
+      <p class="caption">offline — o último dado conhecido fica, com a idade em âmbar</p>
+      <div class="frame frame--panel"><div class="prbar prbar--ready">
+        <div class="prbar__top"><a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#19</span><span class="prbar__go" aria-hidden="true">↗</span></a><span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>pronta para merge</span></span></div>
+        <div class="prbar__reason"><span class="prbar__why">5 verificações passaram · <b>sem rede desde 02:14</b></span><span class="prbar__fresh prbar__fresh--stale">há 6 min</span></div>
+        <div class="prbar__acts"><button class="btn btn--ghost btn--sm focus-ring">tentar de novo</button></div>
+      </div></div>
+      <p class="note">
+        Verde velho continua verde — mas a idade fica âmbar e o motivo diz desde quando. Apagar a cor
+        por causa da rede seria trocar uma informação verdadeira e velha por nenhuma.
+      </p>
+    </div>
+
+    <div>
+      <p class="caption">limite de API do host — a barra diz quando volta</p>
+      <div class="frame frame--panel"><div class="prbar prbar--none">
+        <div class="prbar__top"><a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#19</span><span class="prbar__go" aria-hidden="true">↗</span></a><span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>limite do GitHub atingido</span></span></div>
+        <div class="prbar__reason"><span class="prbar__why">volta a consultar às <b>03:10</b> · o dado acima é de antes</span><span class="prbar__fresh prbar__fresh--stale">há 21 min</span></div>
+      </div></div>
+    </div>
+
+    <div>
+      <p class="caption">a branch não foi publicada — não há o que consultar</p>
+      <div class="frame frame--panel"><div class="prbar prbar--none">
+        <div class="prbar__top"><span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>branch não publicada</span></span></div>
+        <div class="prbar__reason"><span class="prbar__why">↑7 commits locais · nenhum remoto conhece <b>pr-bar</b></span><span class="prbar__fresh">há 4 s</span></div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>7 · o painel fechado — o que a mudança cobra</h2>
+  <p class="note">
+    A barra mora no painel direito, e o painel <strong>colapsa</strong> — e nasce colapsado no primeiro
+    uso. Então o marcador na sidebar deixou de ser enfeite: ele é o único sinal de PR que sobrevive ao
+    painel fechado, e é ele que responde a pergunta que a feature existe para responder — qual das oito
+    worktrees está pronta, e qual quebrou. Worktree sem PR não ganha marcador: marcador cinza em cinco
+    linhas ensina o olho a ignorar a coluna inteira.
+  </p>
+
+  <div class="side-by-side">
+    <div class="frame" style="max-width: var(--size-sidebar-width)">
+      <div class="rows">
+        <div class="row row--on"><span class="glyph" aria-hidden="true">◇</span><span class="row__label">pr-bar</span><span class="spacer"></span><span class="prmark prmark--ready"><span class="prmark__dot"></span>#19</span></div>
+        <div class="row"><span class="glyph" aria-hidden="true">◇</span><span class="row__label">acp-fs</span><span class="spacer"></span><span class="prmark prmark--blocked"><span class="prmark__dot"></span>#18</span></div>
+        <div class="row"><span class="glyph" aria-hidden="true">◇</span><span class="row__label">memory-inbox</span><span class="spacer"></span><span class="prmark prmark--pending"><span class="prmark__dot"></span>#17</span></div>
+        <div class="row"><span class="glyph" aria-hidden="true">◇</span><span class="row__label">tokens-sync</span><span class="spacer"></span><span class="prmark prmark--merged"><span class="prmark__dot"></span>#16</span></div>
+        <div class="row"><span class="glyph" aria-hidden="true">◇</span><span class="row__label">rascunho-x</span></div>
+      </div>
+    </div>
+
+    <p class="note" style="max-width: calc(var(--size-detail-max) / 2)">
+      A outra parte da conta: com uma aba de <em>sessão</em> na frente, branch e sujeira somem — hoje
+      elas ficam num cabeçalho acima da faixa de abas justamente para não sumir. O que sobra é o
+      <strong>ponto na aba da worktree</strong> (sujeira) e o <strong>marcador na sidebar</strong>
+      (estado da PR). É pouco de propósito: o resto está a um clique, na primeira aba.
+    </p>
+  </div>
+</section>
+
+<!-- 8 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>8 · as duas larguras extremas do painel</h2>
+  <p class="note">
+    Ele arrasta entre 260 e 720. A ordem de sacrifício é <strong>declarada</strong>, e não emergente:
+    em 260 some a idade e o motivo cai para uma linha; em 720 a barra volta a caber numa linha só, com
+    o motivo ao lado do veredito. O número, o ponto, a palavra do estado e o <code>↗</code> nunca saem
+    — são a resposta.
+  </p>
+
+  <div class="side-by-side">
+    <div>
+      <p class="caption">260 — o mínimo</p>
+      <div class="frame frame--panel-min"><div class="prbar prbar--blocked">
+        <div class="prbar__top"><a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#19</span><span class="prbar__go" aria-hidden="true">↗</span></a><span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>1 verificação falhou</span></span></div>
+        <div class="prbar__reason"><span class="prbar__why"><b>e2e (macOS)</b> · 4 min 12 s · disparada por push há 6 min</span><span class="prbar__fresh">há 5 s</span></div>
+      </div></div>
+    </div>
+
+    <div>
+      <p class="caption">720 — o máximo</p>
+      <div class="frame frame--panel-max"><div class="prbar prbar--blocked">
+        <div class="prbar__top"><a class="prbar__pr focus-ring" href="#"><span class="prbar__num">#19</span><span class="prbar__go" aria-hidden="true">↗</span></a><span class="prbar__state"><span class="prbar__dot" aria-hidden="true"></span><span>1 verificação falhou</span></span></div>
+        <div class="prbar__reason"><span class="prbar__why"><b>e2e (macOS)</b> · 4 min 12 s · disparada por push há 6 min</span><span class="prbar__fresh">há 5 s</span></div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 9 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>9 · o que esta barra não faz</h2>
+  <p class="note">
+    O botão <em>Merge</em> da referência não está aqui, e a ausência é a decisão mais cara do desenho.
+    Mesclar, reexecutar verificação, aprovar e comentar são <strong>escrita no remoto</strong>: cada um
+    é uma superfície de risco própria, com confirmação própria e modo de falha próprio. O v1 lê, e o
+    <code>↗</code> entrega a pessoa no lugar onde essas ações já existem, com um clique.
+    Ver a Q3 e a Q4 das perguntas da feature.
+  </p>
+</section>
+
+</body>
+</html>
