@@ -40,6 +40,15 @@ export interface ScriptExecution {
   startedAt: Date;
   finishedAt: Date | null;
   command: string;
+  /**
+   * A saída desta execução ainda pode ser lida.
+   *
+   * O scrollback vive na memória do daemon, então **reiniciar o daemon o apaga** —
+   * a linha do banco sobrevive e o buffer não. Sem este campo a tela mostrava um
+   * retângulo preto vazio, que é a pior forma de dizer "isto não existe mais".
+   * Visto rodando o produto, não num teste.
+   */
+  outputAvailable: boolean;
 }
 
 export interface PhaseStatus {
@@ -165,7 +174,8 @@ export function createScriptRunner({
     // O que a tabela diz e o que o processo diz podem discordar por um instante —
     // e depois de um restart discordam de vez, porque a linha sobreviveu e o
     // processo não. Quem manda é o `PtyManager`: ele é o que ainda existe.
-    const live = ptyManager.get(row.id)?.state === "running";
+    const known = ptyManager.get(row.id);
+    const live = known?.state === "running";
     return {
       sessionId: row.id,
       exitCode: row.exitCode,
@@ -173,6 +183,7 @@ export function createScriptRunner({
       startedAt: row.createdAt,
       finishedAt: row.state === "exited" ? row.updatedAt : null,
       command: row.command,
+      outputAvailable: known !== undefined,
     };
   }
 

@@ -252,7 +252,16 @@ function PhasePanel({
       )}
 
       <div className="dock__state">
-        {last === null ? (
+        {last !== null && !last.outputAvailable ? (
+        // O buffer vive na memória do daemon: reiniciar o daemon apaga a saída e
+        // deixa a linha. Dizer isso é melhor que um retângulo preto vazio.
+        <div className="dock__idle">
+          <span>
+            A saída desta execução não existe mais — ela vivia na memória do daemon, e ele
+            reiniciou desde então.
+          </span>
+        </div>
+      ) : last === null ? (
           <Chip>nunca rodou</Chip>
         ) : last.running ? (
           <Chip tone="clean" dot>
@@ -270,7 +279,16 @@ function PhasePanel({
         </span>
       </div>
 
-      {last === null ? (
+      {last !== null && !last.outputAvailable ? (
+        // O buffer vive na memória do daemon: reiniciar o daemon apaga a saída e
+        // deixa a linha. Dizer isso é melhor que um retângulo preto vazio.
+        <div className="dock__idle">
+          <span>
+            A saída desta execução não existe mais — ela vivia na memória do daemon, e ele
+            reiniciou desde então.
+          </span>
+        </div>
+      ) : last === null ? (
         // Sem botão aqui: `▶ rodar` já está na barra, dois passos acima. Duas
         // cópias do mesmo gesto a uma mão de distância é o defeito que a sidebar
         // já tinha evitado com o `adicionar projeto`.

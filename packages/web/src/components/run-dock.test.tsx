@@ -38,6 +38,7 @@ function execution(overrides: Record<string, unknown> = {}) {
     startedAt: new Date().toISOString(),
     finishedAt: null,
     command: "pnpm dev",
+    outputAvailable: true,
     ...overrides,
   };
 }
@@ -253,6 +254,28 @@ describe("o portão de confiança (S11)", () => {
       expect(trpcMock.scripts.trust.mutate).toHaveBeenCalledWith(scope);
     });
     expect(screen.getByText(/volta a perguntar se o comando mudar/)).toBeInTheDocument();
+  });
+});
+
+describe("a saída que não existe mais", () => {
+  it("diz que o daemon reiniciou, em vez de mostrar um retângulo preto", async () => {
+    // Visto rodando o produto: o scrollback vive na memória do daemon, e um
+    // reinício apaga a saída deixando a linha do banco de pé.
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: null, run: "pnpm dev", teardown: null },
+        run: {
+          command: "pnpm dev",
+          last: execution({ running: false, exitCode: 1, outputAvailable: false }),
+        },
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    // `findAllByText`: a frase é do `span` e do `div` que o contém.
+    expect(await screen.findAllByText(/A saída desta execução não existe mais/)).not.toHaveLength(0);
+    expect(screen.queryByTestId("terminal")).not.toBeInTheDocument();
   });
 });
 

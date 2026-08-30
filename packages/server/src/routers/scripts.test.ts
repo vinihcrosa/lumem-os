@@ -317,6 +317,25 @@ describe("a porta do run, e de onde ela veio", () => {
   });
 });
 
+describe("a saída que o daemon não guarda mais", () => {
+  it("uma execução cujo processo o daemon esqueceu diz que não tem saída", async () => {
+    // O scrollback vive na memória do daemon. A linha do banco sobrevive a um
+    // reinício; o buffer não — e a tela precisa saber a diferença.
+    const { ctx, worktreeId, worktreePath } = await setup();
+    declare(worktreePath, { setup: "true" });
+    const scope = { scopeType: "worktree", scopeId: worktreeId } as const;
+    const started = await ctx.api.scripts.start({ ...scope, phase: "setup" });
+    await waitExited(ctx, scope, "setup");
+
+    expect((await ctx.api.scripts.status(scope)).setup.last?.outputAvailable).toBe(true);
+
+    // `forget` é o que o boot faria por não ter o processo de volta.
+    ctx.ptyManager.forget(started.sessionId);
+
+    expect((await ctx.api.scripts.status(scope)).setup.last?.outputAvailable).toBe(false);
+  });
+});
+
 describe("o portão de confiança (S11)", () => {
   /** Projeto gerenciado é o que veio de uma URL colada. */
   async function managed(fixture: Fixture): Promise<void> {

@@ -295,6 +295,17 @@ quatro são decisões que a implementação cobrou.
 | **O tipo do status não atravessa como está escrito** | `hooks/useScripts.ts` | Sem transformer, um `Date` do daemon chega como texto. O tipo é derivado do **cliente**, não importado do servidor — importar prometeria um `Date` que nunca chega. (E `@trpc/server` não é dependência do web de propósito) |
 | **Ler o rodapé não pode alocar porta** | `ScriptRunner.status` | A tela pergunta muito mais vezes do que alguém roda. `findReservedPort` existe separado de `reservePort` por isso: abrir o rodapé de um checkout que nunca vai rodar nada não consome bloco |
 
+### E três que só apareceram rodando o produto
+
+Nenhuma delas foi achada por teste. As três vieram de abrir o Lumem, apontar para este repositório e
+clicar — que é o que o [testing.md](../../project/testing.md) chama de "o que o portão não prova".
+
+| O quê | O que estava errado | O que mudou |
+|---|---|---|
+| **A sessão de script se apresentava como shell** | A lista de sessões do projeto mostrava `shell /bin/zsh` para toda execução: o tipo errado e o mecanismo no lugar da intenção | A linha guarda o comando **declarado** (`recordedCommand`), e o painel rotula pela fase, com glifo próprio |
+| **A saída sumida virava um retângulo preto** | O scrollback vive na memória do daemon; reiniciar o daemon apaga a saída e deixa a linha do banco. A tela mostrava um terminal vazio, que é a pior forma de dizer "isto não existe mais" | `outputAvailable` viaja no status, e a aba escreve o motivo |
+| **`[scripts]` inválido travava a tela em "lendo o checkout…"** | Achado pelo e2e, não pelo browser — mas é o mesmo tipo de buraco: o daemon recusava com um motivo e a tela não sabia mostrá-lo | A aba mostra o erro do daemon |
+
 ### O que o portão não prova
 
 - **A regex de porta contra servidores de verdade.** Ela foi testada contra as linhas do Vite, do
