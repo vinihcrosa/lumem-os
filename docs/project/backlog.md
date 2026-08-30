@@ -406,3 +406,34 @@ deles, e a v1 do fluxo não implementa nenhum.
 | Tela de preferências | `M` | é onde `agent_config` deveria morar (buraco nº 1 do `FEATURES.md` do Open Design, e a [A16](../prd/acp-sessions/open-questions.md)); as primitivas do fluxo são o que ela vai reusar | existir a segunda coisa global para configurar |
 | Renomear e remover workspace pela tela | `P` | buraco nº 2 do `FEATURES.md`: o fluxo **cria** workspace, e nada administra | você ter mais de dois workspaces |
 | Pré-voo em Linux e Windows | `P` | as cinco checagens são as de macOS; Linux provavelmente passa e ninguém verificou | o Lumem rodar em outra máquina que não a sua |
+
+---
+
+## H. Distribuição e projeto
+
+Os dois vieram das respostas da [distribution](../prd/distribution/open-questions.md), em 2026-08-30,
+e os dois foram adiados **na mesma frase que os prometeu**.
+
+### O daemon em background — `M`
+
+`lumem start` volta ao prompt, e aí precisam existir `stop`, `status` e `logs`, um pidfile no state
+dir, e uma resposta para "o processo morreu e o pidfile ficou". A v1 é foreground, como `vite`, e o
+CLI já nasce com forma de subcomando para que isto seja acréscimo e não reescrita.
+
+**De onde veio:** [D2](../prd/distribution/open-questions.md) — *"pode ser foreground, mas no futuro
+deve ser background"* · **Volta quando:** você deixar o Lumem ligado o dia inteiro e o terminal
+ocupado incomodar.
+
+### O projeto todo em inglês — `M`
+
+Documentação e comunicação são em português por convenção do `CLAUDE.md`; código, commit e nome de
+arquivo já são em inglês. O `README.md` da raiz é o primeiro arquivo do outro lado — em inglês por
+decisão, porque é a porta do repositório público e da página do npm.
+
+Migrar o resto não é traduzir: são ~40 arquivos em `/docs`, o `CLAUDE.md`, as mensagens de erro que
+aparecem em tela, e a regra de convenção que hoje diz o contrário. É trabalho de uma feature, com
+gate próprio, e feito pela metade fica pior que não feito.
+
+**De onde veio:** [D11](../prd/distribution/open-questions.md) — *"concordo com você, mas deixando
+claro que eu quero passar tudo para inglês em breve"* · **Volta quando:** a primeira pessoa que não
+fala português chegar ao repositório — ou você decidir a data.

@@ -235,6 +235,23 @@ e sujeira somem da vista, e quem paga são o ponto na aba e o marcador na sideba
 | [tasks.md](prd/pull-request-status/tasks.md) | 16 tasks em 6 fases. A primeira é a **estrutura** — ela mexe em tela que já funciona —, e a segunda é um **spike**: a saída `--json` do `gh` é contrato de outro projeto, e ninguém mediu ainda |
 | `packages/web/prototype/lumem-pr-bar.html` | O protótipo, vindo do Open Design: nove telas — a tela inteira, a aba da worktree, os cinco estados na largura do painel, as causas de bloqueio, a aba `PR`, os seis estados degradados, o painel fechado, as duas larguras extremas, e o que a barra não faz. **Zero token novo**; cinco pares de contraste novos, já medidos |
 
+### [distribution/](prd/distribution/) — o Lumem sai do checkout
+
+**Escrita, nada implementado.** Onze features de pé e nenhuma forma de *ter* o produto que não seja
+clonar o monorepo: `@lumem/server` não tem build, o daemon roda por `tsx`, o web só existe no vite, e
+o repositório público não tem `README.md` — nunca teve. Esta feature empacota: bundle ESM do daemon
+com **só o par nativo por fora**, o web servido pelo próprio daemon na mesma porta, um binário
+`lumem`, e `npm i -g lumem` — nome verificado como livre. O canal foi escolhido antes do PRD; o resto
+é medição.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/distribution/prd.md) | O que falta hoje, item por item e medido; o bundle que **subiu de verdade** (3,0 MB, 123 ms) e a armadilha do `MIGRATIONS_DIR` que ele achou; a pipeline de release, cujo passo central é **instalar o tarball num runner limpo** — o único que pega dependência com `require` dinâmico, prebuild ausente e arquivo fora do pacote |
+| [open-questions.md](prd/distribution/open-questions.md) | 11 perguntas, **nenhuma fechada**. A D1 (o nome), a D2 (foreground ou daemon), a D3 (porta ocupada) e a D4 (e2e em produção) travam a implementação; a D8 é a que não é de empacotamento — **o repositório público não tem licença**, o que hoje significa todos os direitos reservados |
+| [tasks.md](prd/distribution/tasks.md) | 16 tasks em 6 fases, na ordem do risco: a prova de que o artefato sobe vem na T2, antes de existir CLI, e o smoke de instalação vem antes de qualquer publicação |
+
+---
+
 ---
 
 ## Convenções
