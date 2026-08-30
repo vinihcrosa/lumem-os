@@ -214,6 +214,26 @@ item **F** do [backlog](project/backlog.md).
 | [open-questions.md](prd/project-scripts/open-questions.md) | 11 perguntas, **todas fechadas** — quatro pelo desenho aprovado, sete como proposta seguida, e a diferença entre as duas coisas está escrita. A S1 (onde o rodapé cabe) e a S5 (o Lumem virar alocador de portas) são as que mudaram o tamanho da feature |
 | [tasks.md](prd/project-scripts/tasks.md) | 14 tasks em 4 fases, **todas entregues**, mais as sete coisas que a execução achou — inclusive um CHECK que não recusava nada porque `NULL IN (…)` avalia para NULL |
 | `lumem-run-dock.html` (Open Design) | **Sete quadros, aprovados em 2026-08-30** e já no repositório. As duas leituras da S1 lado a lado, mais Setup (passou e falhou), Terminal, o vazio que ensina o arquivo, o rodapé recolhido com o run visto de fora, e a primeira execução de um projeto clonado |
+### [pull-request-status/](prd/pull-request-status/) — a worktree diz se dá pra mesclar
+
+**Desenhada, nada implementado.** Quando a worktree tem PR aberta, o topo do painel direito responde
+uma pergunta só — **dá pra mesclar?** — em verde, vermelho ou âmbar, com o motivo escrito ao lado e um
+`↗` que abre a PR no navegador. O que ela resolve não é "ver PR dentro do editor": é que descobrir qual
+das oito worktrees está pronta e qual quebrou custa hoje uma ida ao navegador **por worktree** — um
+custo que cresce com a única coisa que o produto promete deixar crescer. Sai do backlog o item
+*"abstração de git host"*, com o corte que ele mesmo pedia: **ler, não agir**.
+
+Ela trouxe junto uma **mudança de estrutura** (v0.2): a coluna do meio passa a começar nas abas, e a
+**primeira aba é a da worktree** — título, branch, sujeira, caminho em disco e ações saem do cabeçalho
+fixo e viram conteúdo. O que isso cobra está escrito onde dói: com uma aba de sessão na frente, branch
+e sujeira somem da vista, e quem paga são o ponto na aba e o marcador na sidebar.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/pull-request-status/prd.md) | O §2.1 (a mudança de estrutura, com a conta dela), a regra de cor como decisão de produto, o adaptador de host, a consulta **por projeto** (oito worktrees = um processo), e o §4 — executar binário de terceiro e renderizar texto que veio da internet |
+| [open-questions.md](prd/pull-request-status/open-questions.md) | 11 perguntas, **1 respondida** (a Q2, que moveu a barra para o painel). A Q1 (`gh` ou token nosso) trava o daemon; a Q3 e a Q4 decidem se a feature termina lendo ou passa a escrever no remoto |
+| [tasks.md](prd/pull-request-status/tasks.md) | 16 tasks em 6 fases. A primeira é a **estrutura** — ela mexe em tela que já funciona —, e a segunda é um **spike**: a saída `--json` do `gh` é contrato de outro projeto, e ninguém mediu ainda |
+| `packages/web/prototype/lumem-pr-bar.html` | O protótipo, vindo do Open Design: nove telas — a tela inteira, a aba da worktree, os cinco estados na largura do painel, as causas de bloqueio, a aba `PR`, os seis estados degradados, o painel fechado, as duas larguras extremas, e o que a barra não faz. **Zero token novo**; cinco pares de contraste novos, já medidos |
 
 ---
 

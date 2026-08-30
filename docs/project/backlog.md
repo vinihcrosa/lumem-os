@@ -206,13 +206,21 @@ e mais de um agente rodando sem você olhando.
 
 ## D. Git e integrações
 
-### Abstração de git host (GitLab, e não só GitHub) — `M`
+### ~~Abstração de git host (GitLab, e não só GitHub)~~ — **virou PRD**
 
-Ver PR, status de CI e review dentro do Lumem, com adapter por host. A vision pede; o escopo mata
-quem tenta fazer completo de primeira.
+Ganhou pasta: [pull-request-status](../prd/pull-request-status/prd.md). O corte foi o que o próprio
+item avisava que era preciso — **ler, não agir**: a barra mostra estado de PR e de verificações e
+abre no navegador, e o adaptador de host nasce com uma implementação só (GitHub pelo `gh`).
 
-**De onde veio:** [vision.md](vision.md), [questions.md Q022](questions.md) · **Volta quando:** a aba
-de review existir.
+O que **ficou** de fora dela, e portanto continua aqui:
+
+| Item | Peso | Contexto de uma frase | Volta quando |
+|---|---|---|---|
+| Mesclar e criar PR pela barra | `M` | escrita no remoto, irreversível para o time, com estratégia e confirmação próprias | a ida ao navegador para mesclar doer com frequência que você consiga nomear |
+| Reexecutar verificação, aprovar, comentar | `M` | idem, cada uma com o seu modo de falha | junto com a de cima |
+| O segundo host (GitLab por `glab`) | `M` | é o teste real do adaptador — o primeiro sempre cabe na abstração que ele mesmo gerou | existir um repositório GitLab de verdade em uso |
+| Notificação quando a PR fica verde ou quebra | `P` | tentador e barato de errar: exige política de ruído | você se pegar olhando a sidebar de minuto em minuto |
+| "O check quebrou, peça ao agente para consertar" | `M` | a ponte entre a barra e a sessão ACP — e a mais perigosa, porque põe texto da internet dentro de um prompt | o §4.7 do PRD ganhar um portão de verdade |
 
 ### Stage, commit e revert pela UI — a aba `Review` — `M`
 

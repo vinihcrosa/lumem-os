@@ -1,0 +1,374 @@
+/* ============================================================================
+   Lumem-OS — a barra da pull request, e a worktree como primeira aba
+
+   DUAS MUDANÇAS DE ESTRUTURA, decididas com a referência na mão:
+
+   1. A COLUNA DO MEIO COMEÇA NAS ABAS. Acima delas fica só o caminho
+      (`workspace / projeto / worktree`). Título, branch, sujeira, caminho em
+      disco, distância da base e as ações da worktree saem do cabeçalho fixo e
+      passam a ser o conteúdo da PRIMEIRA ABA — a aba da worktree.
+   2. A BARRA DA PR MORA NO PAINEL DIREITO, no topo dele, acima da faixa de
+      abas do painel. Não é mais uma faixa da largura da tela: é um bloco de
+      360px, e por isso ele empilha em duas linhas em vez de uma.
+
+   O que isso cobra, escrito onde dói: com uma aba de sessão na frente, a
+   branch e a sujeira SOMEM da vista — o `ScopePanel` de hoje mantém o
+   cabeçalho acima da faixa justamente para isso não acontecer. Quem paga a
+   conta são dois sinais que ficam sempre visíveis: o marcador da worktree na
+   sidebar e a própria barra da PR, no painel.
+
+   Camadas: tokens.css → lumem-ds.css → este arquivo. Nenhuma cor, medida ou
+   tipografia literal. **Nenhum token novo**: os estados caem sobre as rampas
+   semânticas que já existem (success, danger, warning, brand, neutral).
+
+   A regra de cor, que é a decisão de produto inteira em uma linha:
+
+     verde    nada impede o merge
+     vermelho algo impede, e é DEFINITIVO (check falhou, conflito, review
+              pediu mudança) — precisa de você
+     âmbar    ainda não se sabe (verificação rodando ou na fila)
+     neutro   não há o que decidir (sem PR, rascunho, fechada, sem integração)
+     brand    mesclada — terminou, e não é sucesso de CI, é fim de vida
+
+   Pintar "rodando" de vermelho seria gritar lobo: metade da vida de uma PR é
+   verificação em andamento, e um vermelho que aparece sozinho toda vez deixa
+   de ser lido.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+   0. chrome do protótipo — a página, não o produto
+   -------------------------------------------------------------------------- */
+body { padding: var(--space-32); }
+.page { font: var(--text-display-md); letter-spacing: var(--tracking-display-md); margin: 0 0 var(--space-8); }
+.page-sub { color: var(--color-text-secondary); max-width: var(--size-detail-max); margin: 0 0 var(--space-32); }
+.screen-demo { margin-bottom: var(--space-40); }
+.screen-demo h2 { font: var(--text-heading-md); color: var(--color-text-secondary); margin: 0 0 var(--space-8); }
+.note { color: var(--color-text-tertiary); font: var(--text-body-sm); max-width: var(--size-detail-max); margin: 0 0 var(--space-12); }
+.note code { font: var(--text-mono-sm); }
+.frame {
+  border: var(--border-width-thin) solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-panel);
+  overflow: hidden;
+  max-width: var(--size-detail-max);
+}
+.frame--panel { max-width: var(--size-panel-right); }
+.frame--panel-min { max-width: var(--size-panel-right-min); }
+.frame--panel-max { max-width: var(--size-panel-right-max); }
+.frame--app { max-width: none; }
+.stack { display: grid; gap: var(--space-16); max-width: var(--size-detail-max); }
+.stack .frame { max-width: var(--size-panel-right); }
+.side-by-side { display: flex; flex-wrap: wrap; gap: var(--space-16); align-items: flex-start; }
+.caption { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); margin: 0 0 var(--space-4); }
+
+/* ---------------------------------------------------------------------------
+   1. A TELA — três colunas, para julgar a barra onde ela vive
+   -------------------------------------------------------------------------- */
+/* `.appmock`, e nao `.app`: o design system JA tem um `.app`, com altura de
+   viewport e duas linhas de grid. Reaproveitar o nome punha os tres paineis na
+   primeira linha de 40px — foi o que a renderizacao achou, e o custo de um nome
+   colidido e sempre esse. */
+.appmock {
+  display: grid;
+  grid-template-columns: var(--size-sidebar-width) minmax(0, 1fr) var(--size-panel-right);
+  background: var(--color-bg-base);
+  min-height: calc(var(--space-64) * 7);
+}
+.appmock__side { border-right: var(--border-width-thin) solid var(--color-border-subtle); background: var(--color-bg-panel); }
+.appmock__main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.appmock__right { border-left: var(--border-width-thin) solid var(--color-border-subtle); background: var(--color-bg-panel); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+/* O caminho, e só ele, acima da faixa de abas. Navegação é chrome; estado da
+   worktree virou conteúdo, e conteúdo mora em aba. O `.crumb` de dentro é o do
+   design system, inteiro; daqui sai só a faixa que o segura. */
+.crumbbar {
+  display: flex;
+  align-items: center;
+  min-height: var(--size-topbar-height);
+  padding: 0 var(--space-12);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+}
+.crumb__here { color: var(--color-text-secondary); }
+
+.tabs-bar { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-6) var(--space-12); border-bottom: var(--border-width-thin) solid var(--color-border-subtle); }
+.stab { height: var(--size-control-md); padding: 0 var(--space-10); border-radius: var(--radius-sm); font: var(--text-label-sm); color: var(--color-text-secondary); display: inline-flex; align-items: center; gap: var(--space-6); }
+.stab:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.stab--active { background: var(--color-bg-active); color: var(--color-text-primary); }
+.stab .glyph { color: var(--color-session-agent); }
+/* A ABA DA WORKTREE. Primeira, fixa, sem `✕` — ela não fecha, porque fechar a
+   worktree dentro da worktree não quer dizer nada. O losango é o mesmo glifo da
+   sidebar, e o ponto ao lado é a sujeira: é o resto do estado que sobrevive
+   quando outra aba está na frente. */
+.stab--wt .glyph { color: var(--color-scope-worktree); }
+.stab__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: var(--color-worktree-dirty); }
+.tabs__sep { width: var(--border-width-thin); align-self: stretch; margin: 0 var(--space-4); background: var(--color-border-default); }
+.tabs__new { margin-left: auto; height: var(--size-control-md); padding: 0 var(--space-8); border-radius: var(--radius-sm); color: var(--color-text-tertiary); font: var(--text-label-xs); }
+.tabs__new:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+.pane-mock { flex: 1; padding: var(--space-24) var(--space-16); color: var(--color-text-tertiary); font: var(--text-mono-sm); background: var(--color-bg-inset); }
+
+/* ---------------------------------------------------------------------------
+   2. A ABA DA WORKTREE — o que era cabeçalho, agora com espaço para respirar
+
+   Ganho da mudança: no cabeçalho fixo, tudo isto tinha de caber em duas linhas
+   e virava fila de chips truncados. Como aba, cada coisa tem lugar — e a que
+   mais custa hoje (o caminho em disco) cabe inteira.
+   -------------------------------------------------------------------------- */
+.wtab { padding: var(--space-16); display: grid; gap: var(--space-16); align-content: start; max-width: var(--size-detail-max); }
+.wtab__title { display: flex; align-items: center; gap: var(--space-8); }
+.wtab__title h2 { font: var(--text-heading-lg); letter-spacing: var(--tracking-heading-lg); margin: 0; display: flex; align-items: center; gap: var(--space-6); }
+.wtab__title .glyph { color: var(--color-scope-worktree); font-size: var(--size-icon-lg); }
+.wtab__kind { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+
+.wtab__meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-6) var(--space-16); margin: 0; }
+.wtab__meta dt { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.wtab__meta dd { margin: 0; font: var(--text-body-sm); color: var(--color-text-primary); min-width: 0; }
+.wtab__path { font: var(--text-mono-sm); color: var(--color-text-code); overflow-wrap: anywhere; }
+
+.wtab__sec { display: grid; gap: var(--space-8); }
+.wtab__sech { display: flex; align-items: center; gap: var(--space-8); }
+.wtab__sect { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.wtab__list { display: grid; gap: var(--space-2); }
+.wtab__row { display: flex; align-items: center; gap: var(--space-8); min-height: var(--size-row-cozy); padding: 0 var(--space-8); border-radius: var(--radius-sm); font: var(--text-body-sm); }
+.wtab__row:hover { background: var(--color-bg-hover); }
+.wtab__row .glyph { color: var(--color-session-agent); }
+.wtab__row--shell .glyph { color: var(--color-session-shell); }
+.wtab__when { font: var(--text-caption); color: var(--color-text-tertiary); }
+.wtab__acts { display: flex; gap: var(--space-8); flex-wrap: wrap; }
+
+/* ---------------------------------------------------------------------------
+   3. A BARRA DA PR — topo do painel direito, 360px, duas linhas
+
+   Uma linha só é o desenho de uma faixa larga. Aqui a largura é a do painel, e
+   o motivo é a metade da mensagem: forçá-lo na mesma linha do veredito o faria
+   truncar sempre. Então empilha — identidade e veredito em cima, motivo e
+   idade embaixo — e a contagem das verificações vai para a ABA, que é onde ela
+   já teria de estar para poder ser clicada.
+   -------------------------------------------------------------------------- */
+.prbar {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-12);
+  background: var(--color-bg-neutral-subtle);
+  border-bottom: var(--border-width-thin) solid var(--color-border-default);
+  /* `color` é o canal: tudo que carrega estado herda daqui, e o modificador
+     troca UMA declaração em vez de seis. */
+  color: var(--color-text-secondary);
+}
+.prbar--ready   { background: var(--color-bg-success-subtle); color: var(--color-text-success); border-bottom-color: var(--success-800); }
+.prbar--blocked { background: var(--color-bg-danger-subtle);  color: var(--color-text-danger);  border-bottom-color: var(--danger-800); }
+.prbar--pending { background: var(--color-bg-warning-subtle); color: var(--color-text-warning); border-bottom-color: var(--warning-800); }
+.prbar--merged  { background: var(--color-bg-brand-subtle);   color: var(--color-text-brand);   border-bottom-color: var(--brand-800); }
+.prbar--none    { background: var(--color-bg-neutral-subtle); color: var(--color-text-secondary); }
+
+.prbar__top { display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
+
+/* A pastilha do número É o link. Um alvo só, e o `↗` separado por uma divisa
+   diz para onde ele leva — que é a única coisa que esta feature faz sair do
+   Lumem. Mono porque `#19` é valor de máquina (regra D1 do design system). */
+.prbar__pr {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: var(--size-control-sm);
+  border: var(--border-width-thin) solid currentColor;
+  border-radius: var(--radius-sm);
+  font: var(--text-mono-sm);
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+}
+.prbar__num { padding: 0 var(--space-6); }
+.prbar__go {
+  display: grid;
+  place-items: center;
+  width: var(--size-target-min);
+  align-self: stretch;
+  border-left: var(--border-width-thin) solid currentColor;
+  font-size: var(--size-icon-xs);
+}
+.prbar__pr:hover { background: var(--color-bg-hover); }
+.prbar__pr:hover .prbar__go { background: var(--color-bg-active); }
+
+/* O estado em palavra. O ponto é a categoria; a palavra é a resposta. Os dois
+   existem porque cor sozinha não é sinal acessível — e porque "bloqueada" sem
+   dizer POR QUÊ é um vermelho que não ajuda ninguém. */
+.prbar__state {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-label-sm);
+  color: inherit;
+}
+.prbar__state span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prbar__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; flex: none; }
+/* Rodando pulsa — devagar, e só se a pessoa não pediu para parar de mexer. */
+.prbar--pending .prbar__dot { animation: prpulse 1.6s ease-in-out infinite; }
+@keyframes prpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .prbar--pending .prbar__dot { animation: none; } }
+
+/* Linha 2: o motivo e a idade. Texto secundário — o tingimento já gritou; esta
+   parte é para ler. Duas linhas no máximo: motivo de PR é frase curta, e o que
+   passar disso é nome de check, que trunca no fim. */
+.prbar__reason { display: flex; align-items: baseline; gap: var(--space-8); min-width: 0; }
+.prbar__why {
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font: var(--text-body-sm);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.prbar__why b { font: var(--text-mono-sm); color: var(--color-text-primary); font-weight: inherit; }
+/* Quão fresco é o dado. Aparece sempre, e não só quando envelhece: número que
+   só existe no erro é número que ninguém aprende a ler. */
+.prbar__fresh { flex: none; margin-left: auto; font: var(--text-caption); color: var(--color-text-tertiary); }
+.prbar__fresh--stale { color: var(--color-text-warning); }
+
+.prbar__acts { display: flex; align-items: center; gap: var(--space-6); flex-wrap: wrap; }
+/* Metade das ações desta barra é `<a>` — elas levam para fora do Lumem —, e
+   âncora com cara de botão vinha sublinhada. Foi o que a renderização achou. */
+.prbar .btn { flex: none; text-decoration: none; }
+
+/* ---------------------------------------------------------------------------
+   4. AS ABAS DO PAINEL DIREITO
+
+   `Verificações` é a quarta, e só existe quando existe PR. É ela que carrega a
+   contagem: a barra diz o veredito, a aba diz de quantas coisas ele saiu — e
+   como contagem é o que se quer clicar, ela nasce sendo um alvo em vez de
+   virar um depois.
+   -------------------------------------------------------------------------- */
+/* A faixa é a do painel direito, como ela já é: altura de topbar, aba com
+   sublinhado, `.rtab` e `.rtab--active` vindos do design system. Daqui sai só o
+   que a quarta aba acrescenta.
+
+   A ABA SE CHAMA `PR`, E O NOME SAIU DA RÉGUA. Com `Verificações` as quatro
+   abas somavam ~352px numa faixa de 348 úteis a 360px de painel — e a quarta
+   ficava atrás de uma barra de rolagem horizontal, que é o pior lugar possível
+   para o único aviso de que algo quebrou. `PR` cabe com folga, é o mesmo termo
+   que a barra logo acima já usa (`#19`), e sobra espaço para a contagem, que é
+   o que a pessoa procura. */
+.rp__bar {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  height: var(--size-topbar-height);
+  padding: 0 var(--space-6);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+}
+.rtab__count--bad { background: var(--color-bg-danger-subtle); color: var(--color-text-danger); }
+.rtab__count--run { background: var(--color-bg-warning-subtle); color: var(--color-text-warning); }
+.rtab__count--ok  { background: var(--color-bg-success-subtle); color: var(--color-text-success); }
+
+/* O RODAPÉ DE EXECUÇÃO, que chegou no painel pela `project-scripts` (S1: "o
+   repositório em cima, o que ele faz embaixo"). Ele não é desta feature — está
+   aqui para a barra ser julgada com o painel que existe de verdade, e para a
+   conta de altura ficar visível: barra (~52px) + faixa de abas (40px) +
+   conteúdo + rodapé. É o argumento para a barra ter duas linhas e não três. */
+.dockmock {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--size-control-lg);
+  padding: 0 var(--space-12);
+  border-top: var(--border-width-thin) solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  font: var(--text-label-xs);
+  color: var(--color-text-tertiary);
+}
+.dockmock__on { color: var(--color-session-running); }
+
+/* ---------------------------------------------------------------------------
+   5. A ABA `VERIFICAÇÕES` — a lista, dentro do painel
+
+   Agrupada, com o que precisa de você primeiro. Reprovado abaixo de trinta
+   linhas verdes é reprovado invisível.
+   -------------------------------------------------------------------------- */
+/* `flex: 1` para o rodapé ancorar embaixo, e não colar no fim da lista: no
+   painel de verdade ele é IRMÃO do que rola, e rolar a árvore não o leva junto. */
+.checks { flex: 1; min-height: 0; padding: var(--space-4) 0; overflow-y: auto; }
+.checks__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-8) var(--space-12) var(--space-2);
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.checks__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  min-height: var(--size-row-compact);
+  padding: 0 var(--space-12);
+  color: var(--color-text-primary);
+  font: var(--text-body-sm);
+  text-decoration: none;
+}
+.checks__row:hover { background: var(--color-bg-hover); }
+/* O glifo é a categoria e o olho lê primeiro; a palavra mora no `.vh` para o
+   leitor de tela. Mesma regra do resto do sistema. */
+.checks__glyph { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); }
+.checks__row--ok   .checks__glyph { color: var(--color-tool-ok); }
+.checks__row--bad  .checks__glyph { color: var(--color-tool-failed); }
+.checks__row--run  .checks__glyph { color: var(--color-tool-running); }
+.checks__row--wait .checks__glyph { color: var(--color-tool-pending); }
+.checks__row--skip .checks__glyph { color: var(--color-tool-cancelled); }
+.checks__body { min-width: 0; display: grid; }
+.checks__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Em 360px, "quem executou" não cabe na mesma linha do nome — e é a metade
+   descartável. Vai para baixo, em caption. */
+.checks__app { font: var(--text-caption); color: var(--color-text-tertiary); }
+.checks__time { flex: none; font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.checks__go { flex: none; width: var(--size-target-min); text-align: center; color: var(--color-text-tertiary); font-size: var(--size-icon-xs); }
+.checks__row:hover .checks__go { color: var(--color-text-link); }
+.checks__foot { padding: var(--space-8) var(--space-12); font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------------------------------
+   6. O MARCADOR NA SIDEBAR
+
+   Ele deixou de ser enfeite e virou parte do desenho: com a barra dentro do
+   painel direito — que é colapsável, e nasce colapsado —, o marcador é o ÚNICO
+   sinal de PR que sobrevive ao painel fechado. E é ele que responde a pergunta
+   que a feature existe para responder: qual das oito worktrees está pronta.
+   -------------------------------------------------------------------------- */
+.rows { padding: var(--space-8); display: grid; gap: var(--space-2); }
+.row { display: flex; align-items: center; gap: var(--space-8); min-height: var(--size-row-compact); padding: 0 var(--space-8); border-radius: var(--radius-sm); font: var(--text-body-sm); }
+.row:hover { background: var(--color-bg-hover); }
+.row--on { background: var(--color-bg-selected); }
+.row__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .glyph { color: var(--color-scope-worktree); }
+
+.prmark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+}
+.prmark__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+.prmark--ready   { color: var(--color-text-success); }
+.prmark--blocked { color: var(--color-text-danger); }
+.prmark--pending { color: var(--color-text-warning); }
+.prmark--merged  { color: var(--color-text-brand); }
+
+/* ---------------------------------------------------------------------------
+   7. AS DUAS LARGURAS EXTREMAS DO PAINEL
+
+   Ele arrasta entre 260 e 720. A ordem de sacrifício é declarada, e não
+   emergente: em 260 some a idade e o motivo cai para uma linha; em 720 a barra
+   volta a caber numa linha só e o motivo fica ao lado do veredito.
+   O número, o ponto, a palavra do estado e o `↗` NUNCA saem — são a resposta.
+   -------------------------------------------------------------------------- */
+.frame--panel-min .prbar__fresh { display: none; }
+.frame--panel-min .prbar__why { -webkit-line-clamp: 1; }
+.frame--panel-max .prbar { grid-template-columns: max-content minmax(0, 1fr); align-items: center; column-gap: var(--space-8); }
+.frame--panel-max .prbar__why { -webkit-line-clamp: 1; }
