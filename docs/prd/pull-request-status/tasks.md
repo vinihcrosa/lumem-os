@@ -1,7 +1,9 @@
 # A barra da pull request — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **16 tasks em 6 fases, nenhuma iniciada.** O desenho está fechado no Open Design
+**Status:** **16 tasks em 6 fases, nenhuma iniciada.** Rebaseada sobre a `main` que trouxe a
+[project-scripts](../project-scripts/prd.md) — o painel direito ganhou um rodapé de execução, e a
+conta de altura dele está no §2.2 do PRD. O desenho está fechado no Open Design
 (`lumem-pr-bar.html`), renderizado e verificado. A ordem é a do risco, e ela mudou na v0.2: a
 **estrutura vem primeiro** — ela mexe em tela que já funciona —, e o spike do `gh` vem em seguida,
 porque a feature inteira depende de uma saída de programa que ninguém mediu ainda.
@@ -226,7 +228,10 @@ none | draft | merged | closed` mais a `reason`.
 **Where**: `packages/web/src/components/RightPanel.tsx`, `hooks/usePullRequest.ts` + testes
 
 **Done when**:
-- [ ] Fica **acima** da faixa de abas do painel, e não empurra a faixa para fora da vista
+- [ ] Fica **acima** da faixa de abas do painel, como um **slot novo** do quadro que já existe — os
+      outros três andares (abas, conteúdo, rodapé de execução) não mudam de dono
+- [ ] Aparecer e sumir **remede o terminal do rodapé** de execução: ele mede uma caixa que encolheu
+      (§2.2 do PRD), com teste
 - [ ] Ritmo da [Q5](open-questions.md), **pausado com a janela oculta** e **pausado com o painel
       colapsado**, com teste dos dois casos: painel fechado que continua consultando é processo gasto
       para ninguém ver

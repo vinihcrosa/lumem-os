@@ -2,7 +2,9 @@
 
 > **Status:** desenho fechado, nada implementado
 > **Versão:** v0.2 — a v0.1 punha a barra acima do cabeçalho da worktree; o Vinicius mudou a
-> estrutura ([§2.1](#21-a-mudança-de-estrutura)), e a barra foi para o painel direito
+> estrutura ([§2.1](#21-a-mudança-de-estrutura)), e a barra foi para o painel direito. O rebase em
+> cima da `main` trouxe a [project-scripts](../project-scripts/prd.md), que ancorou um **rodapé de
+> execução** no mesmo painel — absorvido no §2.2
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
 > **Protótipo:** `packages/web/prototype/lumem-pr-bar.html` — abra no navegador
@@ -77,7 +79,28 @@ O que se ganha em troca: no cabeçalho fixo tudo aquilo tinha de caber em duas l
 chips truncados — e a informação que mais sofria, **o caminho em disco**, agora cabe inteira e dá para
 copiar.
 
-### 2.2 A regra de cor
+### 2.2 O painel direito agora tem quatro andares
+
+A [project-scripts](../project-scripts/prd.md) entrou na `main` enquanto esta feature era desenhada, e
+a decisão **S1** dela ancorou o rodapé de execução (`Setup`, `Run`, `Terminal`) **no painel direito** —
+*"o repositório em cima, o que ele faz embaixo"*. Somando com esta feature, a coluna passa a ter, de
+cima para baixo:
+
+| Andar | De quem | Altura |
+|---|---|---|
+| a barra da PR | esta feature | ~52px (duas linhas) |
+| a faixa de abas | `right-panel` | 40px |
+| o conteúdo | a aba em foco | o que sobrar |
+| o rodapé de execução | `project-scripts` | do usuário, arrastável |
+
+**É essa conta que faz a barra ter duas linhas e não três.** A contagem das verificações, que numa
+faixa larga seria uma terceira linha ou um botão à direita, virou o distintivo da aba `PR` — cabe onde
+já havia lugar, e nasce sendo um alvo clicável em vez de virar um depois.
+
+O `RightPanel` já é um quadro de slots (`actions`, `dock`, `footLeft`, `footRight`), então a barra
+entra como **mais um slot**, acima do `rp__bar`. Nenhum dos andares existentes muda de dono.
+
+### 2.3 A regra de cor
 
 **A cor é a resposta; a palavra confirma; o motivo explica.** Os três existem porque cor sozinha não é
 sinal acessível, e porque um vermelho que não diz o que houve manda você para o navegador — que é
@@ -91,7 +114,7 @@ exatamente a ida que a feature promete evitar.
 | **neutro** | não há o que decidir — sem PR, rascunho, fechada sem merge, sem integração | ausência é resposta, e resposta não é erro |
 | **brand** | mesclada | acabou. Não é sucesso de CI, é fim de vida — e é o sinal de que a worktree pode ser removida |
 
-### 2.3 O desenho
+### 2.4 O desenho
 
 Feito **inteiramente no Open Design** ([regra](../../project/design-source-of-truth.md)), no projeto
 `lumem-os`, e trazido pelo `design:sync`: `lumem-pr-bar.html` + `lumem-pr-bar.css`. Nove telas em um
@@ -142,7 +165,8 @@ some.
 
 ### F1 — A barra, no topo do painel direito
 
-**F1.1** Bloco no topo do `RightPanel`, **acima** da faixa de abas dele, em duas linhas.
+**F1.1** Bloco no topo do `RightPanel`, **acima** da faixa de abas dele, em duas linhas. Entra como um
+slot novo do quadro que já existe — os outros três andares (§2.2) não mudam de dono nem de altura.
 **F1.2** Sete estados: `sem PR`, `rascunho`, `verificando`, `pronta`, `bloqueada`, `mesclada`,
 `fechada`. Cada um com cor, palavra e motivo.
 **F1.3** A pastilha `#<número>` **é o link**: abre a PR no navegador, com o `↗` separado por uma divisa
@@ -291,6 +315,7 @@ do desenho.
 | **A regra de "pronta" divergir do host** | `mergeable` do GitHub tem estados que não são sim/não, e branch protection muda a resposta | O veredito é uma função pura testada por tabela (F4.4), e a frase **cita a regra do host** em vez de reimplementá-la |
 | **Texto de fora na tela** | Título e nome de check vêm da internet | §4.5 e §4.6 |
 | **A barra roubar altura do painel** | Ela nasce no topo do painel direito, e o `FitAddon` do terminal mede a coluna do meio | Menor que na v0.1 — a barra não fica mais sobre o terminal —, mas a F0 muda a altura do meio: **aparecer e sumir remede o terminal** continua sendo *Done when*, agora da F0 |
+| **Quatro andares num painel de 260px de largura** | A barra da PR chegou depois do rodapé de execução, e os dois comem altura do conteúdo (§2.2) | A barra tem duas linhas e some quando não há PR; a contagem foi para a aba em vez de virar terceira linha; e o **terminal do rodapé remede** quando a barra aparece ou some — mesmo *Done when* da P6 |
 
 ---
 
@@ -323,7 +348,7 @@ O desenho de teste que sai disso:
 
 | # | Tela | O que ela decide |
 |---|---|---|
-| 1 | a tela inteira, três colunas | onde cada coisa passa a morar |
+| 1 | a tela inteira, três colunas, com o rodapé de execução no painel | onde cada coisa passa a morar, e a conta de altura da coluna da direita |
 | 2 | a aba da worktree, sozinha | o que era cabeçalho, com espaço para respirar |
 | 3 | os cinco estados, na largura do painel | duas linhas, e a contagem indo para a aba |
 | 4 | as quatro causas de bloqueio + rascunho | vermelho é definitivo; rascunho não é bloqueio |

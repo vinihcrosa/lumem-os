@@ -263,13 +263,34 @@ body { padding: var(--space-32); }
 .rtab__count--run { background: var(--color-bg-warning-subtle); color: var(--color-text-warning); }
 .rtab__count--ok  { background: var(--color-bg-success-subtle); color: var(--color-text-success); }
 
+/* O RODAPÉ DE EXECUÇÃO, que chegou no painel pela `project-scripts` (S1: "o
+   repositório em cima, o que ele faz embaixo"). Ele não é desta feature — está
+   aqui para a barra ser julgada com o painel que existe de verdade, e para a
+   conta de altura ficar visível: barra (~52px) + faixa de abas (40px) +
+   conteúdo + rodapé. É o argumento para a barra ter duas linhas e não três. */
+.dockmock {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--size-control-lg);
+  padding: 0 var(--space-12);
+  border-top: var(--border-width-thin) solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  font: var(--text-label-xs);
+  color: var(--color-text-tertiary);
+}
+.dockmock__on { color: var(--color-session-running); }
+
 /* ---------------------------------------------------------------------------
    5. A ABA `VERIFICAÇÕES` — a lista, dentro do painel
 
    Agrupada, com o que precisa de você primeiro. Reprovado abaixo de trinta
    linhas verdes é reprovado invisível.
    -------------------------------------------------------------------------- */
-.checks { min-height: 0; padding: var(--space-4) 0; overflow-y: auto; }
+/* `flex: 1` para o rodapé ancorar embaixo, e não colar no fim da lista: no
+   painel de verdade ele é IRMÃO do que rola, e rolar a árvore não o leva junto. */
+.checks { flex: 1; min-height: 0; padding: var(--space-4) 0; overflow-y: auto; }
 .checks__group {
   display: flex;
   align-items: center;

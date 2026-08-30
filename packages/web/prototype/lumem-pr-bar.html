@@ -25,7 +25,9 @@
   <h2>1 · a tela</h2>
   <p class="note">
     Três colunas. A do meio: caminho, faixa de abas, conteúdo da aba — nesta ordem, e sem cabeçalho
-    fixo entre elas. A da direita: a barra da PR, a faixa de abas do painel, o conteúdo.
+    fixo entre elas. A da direita, de cima para baixo: a barra da PR, a faixa de abas do painel, o
+    conteúdo, e o <strong>rodapé de execução</strong> que a <code>project-scripts</code> ancorou ali.
+    Quatro coisas empilhadas numa coluna de 360px — é essa conta que faz a barra ter duas linhas.
     O que a mudança <strong>cobra</strong> está dito no §7: com uma aba de sessão na frente, branch e
     sujeira somem da vista.
   </p>
@@ -109,6 +111,13 @@
           <a class="checks__row checks__row--ok focus-ring" href="#"><span class="checks__glyph" aria-hidden="true">✓</span><span class="vh">passou</span><span class="checks__body"><span class="checks__name">typecheck</span><span class="checks__app">GitHub Actions</span></span><span class="spacer"></span><span class="checks__time">1m02s</span><span class="checks__go" aria-hidden="true">↗</span></a>
           <a class="checks__row checks__row--ok focus-ring" href="#"><span class="checks__glyph" aria-hidden="true">✓</span><span class="vh">passou</span><span class="checks__body"><span class="checks__name">unit</span><span class="checks__app">GitHub Actions</span></span><span class="spacer"></span><span class="checks__time">2m19s</span><span class="checks__go" aria-hidden="true">↗</span></a>
         </div>
+
+        <!-- Não é desta feature: é o rodapé de execução da `project-scripts`,
+             que ancorou no painel direito pela decisão S1. Está aqui para a
+             barra ser julgada com o painel que existe de verdade — e porque a
+             conta de altura (barra + abas + conteúdo + rodapé) é o argumento
+             para a barra ter duas linhas e não três. -->
+        <div class="dockmock">Setup · <span class="dockmock__on">Run ●</span> · Terminal<span class="spacer"></span>Abrir :5173 ↗</div>
       </aside>
     </div>
   </div>
