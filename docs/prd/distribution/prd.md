@@ -1,4 +1,4 @@
-# PRD — Distribuição: `npm i -g lumem`, e o build que a torna possível
+# PRD — Distribuição: `npm i -g @vinihcrosa/lumem`, e o build que a torna possível
 
 > **Status:** v1.0 — **completa**. 11 perguntas respondidas e 16 tasks entregues em 2026-08-30.
 > **Nasceu de:** *"precisamos implementar uma pipeline de build, e uma forma de instalar, além de
@@ -96,12 +96,14 @@ produção elimina é o segundo processo e a segunda porta, não o fluxo de trab
 ### 3.3 Um pacote, um binário
 
 ```
-npm i -g lumem
+npm i -g @vinihcrosa/lumem
 lumem
 ```
 
-**O nome está livre.** Verificado em 2026-08-30: `npm view lumem` responde 404, e `lumem-os` e
-`@lumem/cli` também.
+**O nome curto não deu.** Verificado em 2026-08-30 que `npm view lumem` responde 404 — e isso provou
+menos do que parecia: o registry recusou o `PUT` com *"Package name too similar to existing package
+mem"*. A regra anti-typosquatting só roda na publicação, então nenhuma leitura a antecipa. O pacote
+é escopado; o binário continua sendo `lumem`. Ver a [D1](open-questions.md).
 
 O binário sobe o daemon, imprime o endereço e — se você deixar — abre o navegador. O produto inteiro
 está no outro lado dessa URL, incluindo a primeira tela do onboarding, que é quem diagnostica a
@@ -110,7 +112,7 @@ máquina.
 O que o pacote publicado contém, e nada além:
 
 ```
-lumem/
+@vinihcrosa/lumem/
   package.json      # 2 dependências: better-sqlite3, node-pty
   bin/lumem.mjs     # o CLI
   dist/server/main.mjs
@@ -120,7 +122,7 @@ lumem/
   LICENSE
 ```
 
-Nenhuma dependência de runtime que não seja nativa: o resto foi bundlado. Isso torna `npm i -g lumem`
+Nenhuma dependência de runtime que não seja nativa: o resto foi bundlado. Isso torna a instalação
 um download de ~5 MB mais dois prebuilds — sem compilar nada em macOS e Linux comuns, porque os dois
 pacotes nativos publicam binários prontos.
 
@@ -168,7 +170,7 @@ decide que não quer, em dois minutos.**
 | Seção | O quê |
 |---|---|
 | O que é | uma frase, e uma imagem do produto rodando |
-| Instalar | `npm i -g lumem` e o que a máquina precisa: node 22, git 2.30, e o `claude` CLI para a conversa |
+| Instalar | `npm i -g @vinihcrosa/lumem` e o que a máquina precisa: node 22, git 2.30, e o `claude` CLI para a conversa |
 | Rodar | `lumem`, a URL, e a primeira tela |
 | O que ele faz | workspace → projeto → worktree, conversa por ACP, memória, scripts do projeto — a lista curta, cada item linkando o PRD |
 | Como funciona | cinco linhas de arquitetura: daemon Fastify + tRPC, web React, SQLite em `~/.lumem`, worktrees de verdade no disco |
@@ -188,7 +190,7 @@ Nomeado, para não virar escopo por acidente:
 | Fora | Por quê |
 |---|---|
 | Windows | o produto é worktree, PTY e shell de login. Vale uma feature, não um bullet |
-| Auto-update | `npm i -g lumem@latest` é a atualização da v1 |
+| Auto-update | `npm i -g @vinihcrosa/lumem@latest` é a atualização da v1 |
 | Homebrew, Docker, AppImage, `.dmg` | canais adicionais só fazem sentido depois de o primeiro ter usuários |
 | Assinatura e notarização | não há binário nativo próprio para assinar |
 | Daemon remoto, multiusuário, autenticação | o Lumem escuta em `127.0.0.1` por decisão de projeto. Mudar isso é outra feature, e é uma feature de segurança |

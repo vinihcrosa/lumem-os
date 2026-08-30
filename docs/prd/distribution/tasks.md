@@ -335,6 +335,14 @@ mediria o que sobrou de um build anterior — e o modo de falhar que ele existe 
 que **deixou** de ser gerado) passaria despercebido. Custo medido: 13 s a frio, ~2,5 s com o cache do
 turbo quente.
 
-**6. A imagem do README é o produto rodando, e não um protótipo.** Ela foi tirada de um daemon de
+**6. `npm view <nome>` respondendo 404 não é permissão para publicar.** A T14 falhou no `npm publish`
+com `403 — Package name too similar to existing package mem`, depois de os gates, o tarball, o token
+e a instalação em duas plataformas terem passado. A regra anti-typosquatting do registry só existe no
+`PUT`; `npm publish --dry-run` valida o nome **localmente** e passa. O pacote virou
+`@vinihcrosa/lumem` — escopo não passa pela regra —, e o binário continua sendo `lumem`. O custo real
+foi baixo (nada foi publicado, a versão continuou livre), mas o custo poderia ter sido o nome errado
+publicado para sempre.
+
+**7. A imagem do README é o produto rodando, e não um protótipo.** Ela foi tirada de um daemon de
 verdade, com um projeto registrado e uma worktree cortada — e num `--state-dir` temporário em `/tmp`,
 para não publicar o caminho de casa de ninguém numa imagem num repositório público.

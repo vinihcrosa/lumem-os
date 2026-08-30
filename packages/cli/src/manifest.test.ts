@@ -40,7 +40,10 @@ describe("o manifesto publicado", () => {
   });
 
   it("é o pacote que a decisão D1 e a D8 descrevem", () => {
-    expect(manifest.name).toBe("lumem");
+    // Escopado, e não `lumem` puro: o registry recusa o nome curto por
+    // similaridade com `mem` — ver a D1. O binário continua se chamando `lumem`,
+    // que é o nome que alguém digita depois de instalar.
+    expect(manifest.name).toBe("@vinihcrosa/lumem");
     expect(manifest.license).toBe("MIT");
     expect(manifest.engines.node).toBe(">=22");
     expect(manifest.bin["lumem"]).toBe("bin/lumem.mjs");

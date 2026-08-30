@@ -1,5 +1,5 @@
 {
-  "name": "lumem",
+  "name": "@vinihcrosa/lumem",
   "version": "0.1.0",
   "description": "Local harness for orchestrating AI coding agents across git worktrees",
   "license": "MIT",

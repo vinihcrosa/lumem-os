@@ -36,6 +36,18 @@ O produto se chama Lumem; o repositório é que tem sufixo.
 repositório, e ninguém digita repositório. O nome estava livre em 2026-08-30 e a publicação o
 consome para sempre — é a decisão menos reversível desta feature, e foi tomada de olho nisso.
 
+**Corrigida no mesmo dia, pelo registry: `@vinihcrosa/lumem`.** O `npm publish` recusou com
+`403 — Package name too similar to existing package mem`. E aqui está a lição, porque ela custou um
+release inteiro: **`npm view lumem` respondendo 404 prova que o nome está livre, não que ele é
+publicável.** A regra anti-typosquatting do npm mora no `PUT`, e nenhum comando de leitura a
+executa — nem `npm publish --dry-run`, que valida o nome só localmente. A única forma de saber é
+tentar publicar.
+
+O escopo escapa da regra por construção, e o `@vinihcrosa` já existia. O que **não** muda: o binário
+continua se chamando `lumem`, que é o nome que alguém digita depois de instalar. Um `@lumem/*` foi
+considerado e pedia criar a organização antes — fica disponível para quando houver um segundo pacote
+para publicar.
+
 ---
 
 ### [x] D2 — `lumem` sozinho sobe em foreground, ou vira daemon de verdade?
