@@ -21,20 +21,25 @@ lumem
 ```
 
 The daemon starts on `http://127.0.0.1:4317` and serves the interface from the
-same port. `lumem --open` opens a browser too.
+same port. `lumem --open` opens a browser too. Updating is the same command
+again, with `@latest`.
 
 The name is neither short nor pretty for a reason: npm refuses the bare `lumem`
 as too similar to `mem`, and `@vinihcrosa/lumem` is already a different project.
 The command is still `lumem` — and `lumem-os` is installed as a second name for
 the same binary, for machines that have both packages.
 
-From a clone, if you would rather build it yourself:
+From a clone, if you would rather build it yourself — through the tarball, and
+not `npm i -g ./packages/cli`, which symlinks the checkout rather than installing
+a copy of it, so moving the clone later breaks the command:
 
 ```sh
 pnpm install
-pnpm build
-npm i -g ./packages/cli
+npm i -g "$(npm pack ./packages/cli | tail -1)"
 ```
+
+`npm pack` runs `prepack`, which builds — there is no separate `pnpm build` step.
+This is the path `pnpm smoke:install` exercises, one throwaway prefix at a time.
 
 **What the machine needs:**
 
@@ -43,7 +48,7 @@ npm i -g ./packages/cli
 | Node | 22 or newer |
 | git | 2.30 or newer — the whole product is worktrees |
 | An ACP agent | the `claude` CLI, for the agent conversation. The first-run screen installs the adapter for you |
-| OS | macOS and Linux. Windows is not supported ([why](docs/project/backlog.md)) |
+| OS | macOS and Linux. Windows is not supported ([why](docs/prd/distribution/prd.md)) |
 
 Nothing else: the two native dependencies (`better-sqlite3`, `node-pty`) ship
 prebuilt binaries, so a global install compiles nothing on the common platforms.
@@ -59,7 +64,7 @@ conversations, memory. `--state-dir` moves it.
 | [Projects and worktrees](docs/prd/walking-skeleton/prd.md) | register a repo by path or [clone it from a URL](docs/prd/project-from-url/prd.md); cut worktrees from the product instead of the terminal |
 | [Agent conversations over ACP](docs/prd/acp-sessions/prd.md) | plan, usage and cost, slash commands, an embedded terminal, and the conversation **on disk** — closing Lumem does not lose it |
 | [Files, diff and an editor](docs/prd/file-editor/prd.md) | browse the checkout, read the diff against the base branch, and edit with autosave |
-| [Project scripts](docs/prd/project-scripts/prd.md) | `setup`, `run` and `test` live in `<repo>/.lumem/project.toml`; a new worktree is born prepared, and one click brings the app up on a port reserved for that checkout |
+| [Project scripts](docs/prd/project-scripts/prd.md) | `setup`, `run`, `test` and `teardown` live in `<repo>/.lumem/project.toml`; a new worktree is born prepared, and one click brings the app up on a port reserved for that checkout |
 | [Workspace memory](docs/prd/workspace-memory/prd.md) | what the harness learned, versioned in git, behind a write gate and an inbox of proposals. The three switches that spend tokens ship **off** |
 | [Pull request status](docs/prd/pull-request-status/prd.md) | designed, not built: which of your worktrees is actually mergeable |
 

@@ -12,7 +12,7 @@ lugar de "selecione uma worktree" —, a memória dele deixou de depender de um 
 consumo de tokens virou dado somável (`session_usage`), por projeto e por worktree, com janela de
 tempo resolvida no daemon. A [project-scripts](docs/prd/project-scripts/prd.md) — **completa, 14
 tasks** — conserta o que faltava depois de tudo isso: o Lumem criava worktrees que **não rodavam**.
-Agora `setup`, `run` e `teardown` moram no `<repo>/.lumem/project.toml` (o arquivo que já tinha o
+Agora `setup`, `run`, `test` e `teardown` moram no `<repo>/.lumem/project.toml` (o arquivo que já tinha o
 `id`), a worktree nova nasce preparada, e o rodapé abaixo da árvore de arquivos sobe a aplicação com
 um clique — com um bloco de portas reservado por checkout, e um portão de confiança para o
 `[scripts]` que veio de um repositório clonado. E a [distribution](docs/prd/distribution/prd.md) — **completa, 16 tasks** — tira o produto do
