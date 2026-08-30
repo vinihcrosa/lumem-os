@@ -114,6 +114,19 @@ Cinco coisas que a forma decide:
 4. **O prompt é um campo comum, editável, e vem pré-preenchido com uma referência curta** (`resolve a issue #418`) — nunca com o corpo da issue. O porquê está no §9.
 5. **Nada aqui é modal bloqueante.** Cortar worktree é rápido; o que pode demorar é o `gh`, e o que a lista mostra enquanto espera é esqueleto, não bloqueio.
 
+### O que a renderização achou
+
+O protótipo (`packages/web/prototype/lumem-worktree-source.html`, oito telas) foi verificado renderizando, não lendo o HTML. Seis correções saíram daí, e três são de significado, não de acabamento:
+
+| O que apareceu | O que mudou |
+|---|---|
+| As três razões de forge indisponível estavam em **cores diferentes** — uma neutra, duas amarelas | Elas são **pares**: mesma gravidade, ações diferentes. Cor distinta inventava uma hierarquia que não existe. Agora as três são neutras e o que as separa é a frase |
+| A recusa da [Q22](open-questions.md) estava em **vermelho**, igual à de repositório sem commit | Ela não é falha: é escolha adiada. Virou aviso, e ganhou o botão **`atualizar`** dentro — a ação que resolve estava a três parágrafos de distância |
+| A marca `remota` estava na cor de "atrás do remoto" | Procedência não é urgência. Amarelo ali lia como aviso sobre uma branch que não tem nada de errado |
+| `tentar de novo` sem borda | Lia como legenda do estado vazio, não como botão. Ganhou contorno |
+| `aberta em huygens` saía **`aberta emhuygens`** | O `inline-flex` da marca engole o espaço entre nós de texto |
+| Branch longa quebrava a linha do item de PR em duas | Fica anotado para a implementação: truncar com reticências, e o título nunca ceder espaço para a branch |
+
 ---
 
 ## 4. As quatro origens

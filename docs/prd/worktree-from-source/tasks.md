@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) — 23, **todas respondidas**
 **Protótipo:** `packages/web/prototype/lumem-worktree-source.html` — entregue pela S1
 **Sucede:** [project-from-url](../project-from-url/tasks.md)
-**Status:** **aberta** — 0 de 19
+**Status:** **em curso** — 1 de 19 (S1 entregue)
 **Total:** 19 tasks em 6 fases
 
 ---
@@ -110,14 +110,17 @@ Repositório fixture local para o git; um script `gh` de mentira no `PATH` para 
 **Depends on**: nada
 
 **Done when**:
-- [ ] As quatro abas existem, e `branch nova` mostra que o corpo do formulário **muda** de forma entre elas
-- [ ] Lista de PR e de issue com número, título, autor e idade; estado de carregando (esqueleto), vazio e erro com `tentar de novo`
-- [ ] Lista de branches com marca de **já aberta em `<worktree>`** (A7) e o botão `atualizar`
-- [ ] O campo de nome mostra o sorteado no **placeholder** (A4, D7)
-- [ ] O campo de prompt com a referência pré-preenchida e o seletor de agente
-- [ ] Os três estados de forge indisponível, com as **três frases diferentes** do F7.12
-- [ ] Nenhuma cor literal: tudo por token existente. Token novo, se preciso, é justificado no PRD
-- [ ] Verificado por renderização, não por leitura do HTML — e o que ela achar vai para o §3 do PRD
+- [x] As quatro abas existem, e `branch nova` mostra que o corpo do formulário **muda** de forma entre elas
+- [x] Lista de PR e de issue com número, título, autor e idade; estado de carregando (esqueleto), vazio e erro com `tentar de novo`
+- [x] Lista de branches com marca de **já aberta em `<worktree>`** (A7) e o botão `atualizar`
+- [x] O campo de nome mostra o sorteado no **placeholder** (A4, D7)
+- [x] O campo de prompt com a referência pré-preenchida e o seletor de agente
+- [x] Os três estados de forge indisponível, com as **três frases diferentes** do F7.12 — e a terceira com o `gh auth login --hostname` dentro
+- [x] As duas recusas do git: branch já aberta (desabilitada, com o nome de quem a tem) e a divergência da [Q22](open-questions.md)
+- [x] A worktree já nascida, com origem, link e o que aconteceu com o prompt — inclusive a que nasceu sem origem nenhuma
+- [x] Nenhuma cor literal: tudo por token existente. **Nenhum token novo foi preciso**
+- [x] Verificado por renderização, não por leitura do HTML — e ela achou **seis** coisas, três delas de significado
+- [x] O que a renderização achou foi para o §3 do PRD, como nas cinco features anteriores
 
 **Tests**: renderização · **Gate**: nenhum (não há código de app)
 **Commit**: `docs(prototype): draw the worktree source dialog`
