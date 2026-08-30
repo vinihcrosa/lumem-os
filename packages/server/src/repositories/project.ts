@@ -33,6 +33,14 @@ export interface ProjectRepository {
   /** Names already taken in a workspace, for F6.4 to pick the next free one. */
   namesIn(workspaceId: string): Promise<string[]>;
   rename(id: string, name: string): Promise<ProjectRow>;
+  /**
+   * Marca o `[scripts]` que a pessoa aceitou rodar (project-scripts S11).
+   *
+   * Um hash, e não um booleano: confiança é sobre **este** comando, e um
+   * `[scripts]` que muda depois de aprovado — porque veio um `git pull` — volta a
+   * perguntar.
+   */
+  setScriptsTrustedHash(id: string, hash: string | null): Promise<void>;
   remove(id: string): Promise<void>;
 }
 
@@ -111,6 +119,14 @@ export function createProjectRepository(db: Db): ProjectRepository {
         conflicts(name),
       );
       return row!;
+    },
+
+    async setScriptsTrustedHash(id, hash) {
+      await require_(id);
+      await db
+        .update(project)
+        .set({ scriptsTrustedHash: hash, updatedAt: new Date() })
+        .where(eq(project.id, id));
     },
 
     async remove(id) {

@@ -59,6 +59,19 @@ export const project = sqliteTable(
      * where the failure is deleting somebody else's repository.
      */
     managed: integer("managed", { mode: "boolean" }).notNull().default(false),
+    /**
+     * A assinatura do `[scripts]` que você já leu e aceitou rodar (S11).
+     *
+     * Um projeto clonado de uma URL traz comandos de alguém, e depois da
+     * `project-from-url` "colei uma URL para dar uma olhada" não pode significar
+     * execução arbitrária. Então o `[scripts]` de um projeto **gerenciado** nasce
+     * não confiado, e a primeira execução mostra o comando antes de rodar.
+     *
+     * Um hash e não um booleano: confiança é sobre **este** comando. Um `[scripts]`
+     * que muda depois de aprovado — porque você deu `git pull` — volta a perguntar,
+     * que é o único jeito de a aprovação querer dizer alguma coisa.
+     */
+    scriptsTrustedHash: text("scripts_trusted_hash"),
     ...timestamps,
   },
   (table) => [uniqueIndex("project_name_per_workspace").on(table.workspaceId, table.name)],

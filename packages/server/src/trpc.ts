@@ -8,6 +8,7 @@ import type { AcpManager } from "./acp/AcpManager.js";
 import type { CloneJobStore } from "./git/CloneJobStore.js";
 import type { GitService } from "./git/GitService.js";
 import type { PtyManager } from "./pty/PtyManager.js";
+import type { ScriptRunner } from "./scripts/ScriptRunner.js";
 import type { SessionStore } from "./sessions/SessionStore.js";
 
 /**
@@ -28,6 +29,13 @@ export interface Context {
    */
   acpManager: AcpManager;
   sessionStore: SessionStore;
+  /**
+   * Quem roda `setup`, `run` e `teardown` (project-scripts).
+   *
+   * No contexto e não construído por procedure porque ele guarda estado que não
+   * cabe no banco: a porta de cada run vivo, que morre com o processo.
+   */
+  scripts: ScriptRunner;
   git: GitService;
   /**
    * The clone that is running, if any. In memory, and one at a time — Q4, Q17.

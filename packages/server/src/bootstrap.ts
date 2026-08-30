@@ -14,6 +14,7 @@ import { trackSessionUsage } from "./usage/record.js";
 import { createMemoryPreamble } from "./memory/preamble.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createTranscriptStore, type TranscriptStore } from "./acp/TranscriptStore.js";
+import { createScriptRunner } from "./scripts/ScriptRunner.js";
 import { createSessionStore } from "./sessions/SessionStore.js";
 import { createServer } from "./server.js";
 import { createShutdownHandler } from "./shutdown.js";
@@ -174,6 +175,24 @@ export async function bootstrap({
     ptyManager,
     acpManager: acp,
     sessionStore,
+    // Construído aqui, e não pelo default do servidor, só por causa do log: um
+    // `[scripts]` com valor torto vira aviso, e aviso sem log é silêncio.
+    scripts: createScriptRunner({
+      db: openedDatabase.db,
+      sessionStore,
+      ptyManager,
+      shell: config.shell,
+      portRange: config.runPortRange,
+      events,
+      log: {
+        warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+          bootedApp?.log.warn(...args);
+        },
+        info: (...args: Parameters<FastifyBaseLogger["info"]>) => {
+          bootedApp?.log.info(...args);
+        },
+      },
+    }),
     events,
     logger,
   });
