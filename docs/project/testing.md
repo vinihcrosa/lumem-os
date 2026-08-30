@@ -99,6 +99,14 @@ O `tsc` puro na raiz não enxergava `e2e/`, `playwright.config.ts` nem os `vites
 
 Registro do que já mordeu, pra não voltar:
 
+**Suíte verde sobre um tipo errado, porque vitest não faz typecheck.** A `project-scripts`
+acrescentou a fase `test` ao `[scripts]`, e um helper do teste de router continuou listando as três
+fases originais numa união escrita à mão. Todos os testes passaram — `gate:quick` e `gate:full` — e o
+CI reprovou no `gate:build`, que é o único que roda `tsc`. A regra: **os três gates respondem
+perguntas diferentes**, e "a suíte passou" não é resposta para "o repositório compila". Quando o tipo
+tem uma fonte (`SCRIPT_PHASES`, um enum, um `zod`), derive dela em vez de reescrever a união — a lista
+escrita à mão é a que fica para trás.
+
 **CHECK que não recusa nada, porque `NULL IN (…)` é NULL.** A `session_script_name` nasceu como
 `(kind = 'script' AND script_name IN ('setup','run','teardown')) OR (kind <> 'script' AND script_name
 IS NULL)`. Um CHECK do SQLite só recusa quando a expressão avalia para **FALSE**, e `NULL IN (…)`
