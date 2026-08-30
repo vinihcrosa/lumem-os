@@ -18,6 +18,7 @@ import { registerMemoryHttp } from "./memory/http.js";
 import { registerPtyWebSocket } from "./pty/websocket.js";
 import { createScriptRunner, type ScriptRunner } from "./scripts/ScriptRunner.js";
 import { createSessionStore, type SessionStore } from "./sessions/SessionStore.js";
+import { registerWeb, resolveWebRoot } from "./web/static.js";
 import { appRouter, type AppRouter } from "./routers/index.js";
 import type { Context } from "./trpc.js";
 
@@ -174,6 +175,24 @@ export async function createServer({
 
   registerPtyWebSocket({ app, ptyManager });
   registerAcpWebSocket({ app, acpManager });
+
+  // Por último, de propósito: o web é quem responde por tudo o que sobrou, e o
+  // que sobrou só é conhecido depois que todas as rotas do daemon existem.
+  const webRoot = resolveWebRoot(config.webRoot);
+  if (webRoot === null) {
+    // Rodando do código-fonte: quem serve a interface é o vite, na outra porta.
+    // Um 404 mudo aqui manda a pessoa procurar o erro no daemon, que não tem
+    // nenhum.
+    app.get("/", (_request, reply) =>
+      reply.code(404).send({
+        error: "o web não foi construído",
+        hint: "em desenvolvimento a interface é servida pelo vite (`pnpm dev`); num Lumem instalado ela vem de dist/web",
+      }),
+    );
+  } else {
+    await registerWeb({ app, root: webRoot });
+    app.log.info({ root: webRoot }, "servindo o web da própria porta");
+  }
 
   return app;
 }

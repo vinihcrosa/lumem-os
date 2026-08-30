@@ -15,7 +15,12 @@ tasks** — conserta o que faltava depois de tudo isso: o Lumem criava worktrees
 Agora `setup`, `run` e `teardown` moram no `<repo>/.lumem/project.toml` (o arquivo que já tinha o
 `id`), a worktree nova nasce preparada, e o rodapé abaixo da árvore de arquivos sobe a aplicação com
 um clique — com um bloco de portas reservado por checkout, e um portão de confiança para o
-`[scripts]` que veio de um repositório clonado. Comece pelo [índice da documentação](docs/README.md).
+`[scripts]` que veio de um repositório clonado. E a [distribution](docs/prd/distribution/prd.md) — **completa, 16 tasks** — tira o produto do
+checkout: o daemon virou **um bundle ESM** com só o par nativo por fora, ele **serve o web na própria
+porta**, o binário `lumem` sobe tudo, e `npm i -g lumem` instala — com uma pipeline de release cujo
+passo central é **instalar o tarball num runner limpo**, porque é o único que pega `require`
+dinâmico, prebuild ausente e arquivo fora do pacote. A raiz ganhou `README.md` (em inglês, com
+tradução ao lado) e `LICENSE` (MIT). Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
 |---|---|
@@ -40,6 +45,8 @@ Monorepo pnpm + Turborepo. `packages/shared` (contratos), `packages/server` (dae
 | `pnpm gate:quick` | testes afetados pelo trabalho atual |
 | `pnpm gate:full` | suíte inteira + e2e |
 | `pnpm gate:build` | typecheck de tudo + build |
+| `pnpm smoke:install` | empacota o `lumem`, instala num prefixo descartável e sobe — a prova de que o pacote publicado presta |
+| `pnpm version:set <x.y.z>` | escreve a versão nos três lugares que têm que concordar |
 
 Antes de dizer que uma task está pronta, rode o gate que ela declara. Detalhes em [docs/project/testing.md](docs/project/testing.md).
 

@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // nodenext, like the server: this package runs on node, and the CLI's whole
+    // job is to be launched by one.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"]
+  },
+  "include": ["src/**/*", "build.ts", "vitest.config.ts"]
+}

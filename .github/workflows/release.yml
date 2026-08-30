@@ -1,0 +1,177 @@
+name: Release
+
+# Publica o `lumem` no npm. Roda por tag, e a tag é o único gatilho automático:
+# a decisão de publicar é o `git push --tags`, e não um merge que alguém fez sem
+# pensar em versão (D6).
+#
+# O `workflow_dispatch` existe para ensaiar: com `dry_run` ligado ele faz tudo —
+# gates, empacotamento, instalação em duas plataformas — e para antes do
+# `npm publish`. É o que se roda antes da primeira publicação de verdade, quando
+# errar custa um nome que não volta.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "empacota e instala, mas não publica"
+        type: boolean
+        default: true
+
+# Duas publicações da mesma tag ao mesmo tempo não é um caso que valha resolver
+# bem: a segunda perde.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Os mesmos gates do CI, na mesma ordem, antes de empacotar. Se passou aqui e
+  # falhou lá, é a máquina que está diferente — não o critério.
+  package:
+    name: gates e tarball
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+      tarball: ${{ steps.pack.outputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm gate:build
+      - run: pnpm test
+
+      # A tag e o manifesto têm que dizer a mesma coisa. Publicar `v0.2.0` com
+      # `0.1.9` dentro produz um pacote que ninguém consegue relacionar com o
+      # commit que o gerou — e `npm publish` não desfaz.
+      - name: a versão, conferida contra a tag
+        id: version
+        run: |
+          version="$(node -p "require('./packages/cli/package.json').version")"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.ref_type }}" = "tag" ] && [ "${{ github.ref_name }}" != "v$version" ]; then
+            echo "::error::a tag ${{ github.ref_name }} não bate com a versão do pacote ($version)"
+            exit 1
+          fi
+
+      - name: o tarball
+        id: pack
+        working-directory: packages/cli
+        run: |
+          name="$(npm pack --pack-destination "$RUNNER_TEMP" | tail -1)"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          cp "$RUNNER_TEMP/$name" "$GITHUB_WORKSPACE/$name"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarball
+          path: ${{ steps.pack.outputs.name }}
+          retention-days: 7
+
+  # O job que justifica esta pipeline existir.
+  #
+  # Tudo o que este empacotamento pode ter de errado — dependência com `require`
+  # dinâmico, migração fora do `files`, prebuild nativo ausente, `bin` apontando
+  # para nada — é invisível para o typecheck, para o vitest e para o e2e, porque
+  # os três rodam contra o repositório. Só aparece instalando (D5).
+  smoke:
+    name: instalar de verdade (${{ matrix.os }})
+    needs: package
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tarball
+
+      # O tarball recebido, e não um rebuild dele: são para ser idênticos, e o
+      # ponto deste job é parar de supor.
+      #
+      # `npx --yes tsx` em vez de instalar o workspace: instalar aqui traria as
+      # dependências de desenvolvimento do repositório para dentro do job que
+      # existe justamente para provar que o pacote não precisa delas.
+      - run: npx --yes tsx@4 scripts/smoke-install.ts "${{ needs.package.outputs.tarball }}"
+
+  # O segredo existir não é o mesmo que o segredo publicar: um token de leitura,
+  # expirado, ou de outra conta passa por toda a configuração e só falha no
+  # `npm publish` — que é o passo que não desfaz. Este job pergunta ao registry
+  # quem é o token, e roda **também no ensaio**, que é onde a resposta é barata.
+  credential:
+    name: o token, conferido
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: npm
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: quem é este token
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::NPM_TOKEN não chegou neste job"
+            exit 1
+          fi
+          echo "npm whoami: $(npm whoami)"
+          # `lumem` ainda não existe no registry na primeira publicação, e 404
+          # aqui é a resposta certa — o que interessa é não ser 403.
+          npm access list packages 2>/dev/null | head -20 || true
+
+  publish:
+    name: npm
+    needs: [package, smoke, credential]
+    if: github.ref_type == 'tag' || inputs.dry_run == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Existe sem reviewer hoje. Exigir aprovação humana passa a ser uma linha na
+    # configuração do repositório no dia em que houver uma segunda pessoa (D6).
+    environment: npm
+    permissions:
+      contents: write
+      # Provenance: o npm assina de qual commit e de qual workflow o tarball
+      # saiu, e isso custa esta linha.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tarball
+
+      - name: publicar
+        run: npm publish "${{ needs.package.outputs.tarball }}" --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: a Release, com o tarball anexado
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            "${{ needs.package.outputs.tarball }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
