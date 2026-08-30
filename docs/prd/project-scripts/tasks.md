@@ -306,6 +306,13 @@ clicar — que é o que o [testing.md](../../project/testing.md) chama de "o que
 | **A saída sumida virava um retângulo preto** | O scrollback vive na memória do daemon; reiniciar o daemon apaga a saída e deixa a linha do banco. A tela mostrava um terminal vazio, que é a pior forma de dizer "isto não existe mais" | `outputAvailable` viaja no status, e a aba escreve o motivo |
 | **`[scripts]` inválido travava a tela em "lendo o checkout…"** | Achado pelo e2e, não pelo browser — mas é o mesmo tipo de buraco: o daemon recusava com um motivo e a tela não sabia mostrá-lo | A aba mostra o erro do daemon |
 
+E uma quarta, que é sobre o teste e não sobre o produto: a correção da segunda linha
+**apareceu duas vezes** na tela — uma delas dentro da linha de estado, empurrando o chip de saída
+para fora — e o teste passou verde, porque ele só perguntava *"a frase aparece?"*. Ele agora conta os
+`.dock__idle`, exige que nenhum esteja dentro do `.dock__state` e cobra o chip ao lado; a mutação foi
+reintroduzida para confirmar que ele falha. **Asserção de existência não vê duplicata**, e duplicata
+foi metade dos defeitos de tela desta feature.
+
 ### O que o portão não prova
 
 - **A regex de porta contra servidores de verdade.** Ela foi testada contra as linhas do Vite, do
