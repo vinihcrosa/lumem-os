@@ -1,5 +1,4 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
 
 import { z } from "zod";
 
@@ -8,6 +7,8 @@ import { DomainError } from "../errors.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createWorktreeRepository } from "../repositories/worktree.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
+import { homeOfProject } from "./project.js";
+import { worktreeDir } from "../workspace-layout.js";
 
 /**
  * Worktrees over the wire, PRD F4.1–F4.10.
@@ -42,16 +43,12 @@ function withPresence(row: WorktreeRow): WorktreeView {
   return { ...row, present: existsSync(row.path) };
 }
 
-/** `~/.lumem/worktrees/<projeto>/<nome>`, F4.4 — outside the repository. */
-export function worktreePath(worktreesDir: string, projectName: string, name: string): string {
-  return join(worktreesDir, projectName, name);
-}
-
 async function requireProject(ctx: Context, projectId: string) {
   const project = await createProjectRepository(ctx.db).findById(projectId);
   if (!project) throw new DomainError("NOT_FOUND", `projeto ${projectId} não existe`);
   return project;
 }
+
 
 export const worktreeRouter = router({
   listByProject: publicProcedure
@@ -66,7 +63,23 @@ export const worktreeRouter = router({
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
         const project = await requireProject(ctx, input.projectId);
-        const path = worktreePath(ctx.config.worktreesDir, project.name, input.name);
+
+        // F6.13. Without a commit there is nothing to cut from: the branch
+        // exists as a name and not as a commit, and git answers "invalid
+        // reference", which explains nothing. The screen avoids it, the server
+        // forbids it — and a repository cloned empty is legitimate (Q19), so
+        // this is a state a project can simply be in for a while.
+        if (!(await ctx.git.hasCommits(project.path))) {
+          throw new DomainError(
+            "BLOCKED",
+            `o repositório ${project.name} ainda não tem nenhum commit — faça o primeiro para poder cortar worktrees`,
+          );
+        }
+
+        // The same tree for a cloned project and for one registered by path:
+        // `projectHome` is a function of (workspace, project) and never of
+        // `managed` (A16). The one without a clone simply has no `repo/`.
+        const path = worktreeDir(await homeOfProject(ctx, project), input.name);
 
         // git first. If this throws — branch taken, target occupied, repository
         // gone — nothing has been written, which is exactly what §8 requires.

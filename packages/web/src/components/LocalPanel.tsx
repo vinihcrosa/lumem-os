@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import { projectsKey, worktreesKey } from "../lib/queryKeys.js";
@@ -45,6 +46,8 @@ export function LocalPanel({
     enabled: project.data?.available === true,
   });
 
+  const [confirming, setConfirming] = useState(false);
+
   const remove = useMutation({
     mutationFn: () => trpc.project.remove.mutate({ id: projectId }),
     onSuccess: async () => {
@@ -52,6 +55,21 @@ export function LocalPanel({
       onRemoved();
     },
   });
+
+  if (confirming && project.data) {
+    return (
+      <RemoveProjectConfirm
+        project={project.data}
+        pending={remove.isPending}
+        error={remove.isError ? remove.error.message : null}
+        onCancel={() => {
+          setConfirming(false);
+          remove.reset();
+        }}
+        onConfirm={() => remove.mutate()}
+      />
+    );
+  }
 
   if (project.isPending) {
     return (
@@ -97,7 +115,7 @@ export function LocalPanel({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => remove.mutate()}
+              onClick={() => setConfirming(true)}
               disabled={remove.isPending}
             >
               {remove.isPending ? "removendo…" : "remover projeto"}
@@ -160,7 +178,11 @@ export function LocalPanel({
           {available && (
             <>
               <div className="actions">
-                <CreateWorktreeDialog projectId={projectId} onCreated={onSelectWorktree} />
+                <CreateWorktreeDialog
+                  projectId={projectId}
+                  onCreated={onSelectWorktree}
+                  hasCommits={project.data.hasCommits}
+                />
               </div>
 
               <section className="section">
@@ -193,5 +215,70 @@ export function LocalPanel({
         </>
       }
     />
+  );
+}
+
+/**
+ * The most dangerous screen of the nine, F6.9.
+ *
+ * Two removals wearing one word. For a **cloned** project it deletes the
+ * directory, because the daemon wrote those bytes into a directory the daemon
+ * chose. For a project registered by path it takes it off the list and the disk
+ * is untouched, exactly as F2.5 has always promised.
+ *
+ * The two texts have to be told apart at first reading — which is why they are
+ * two texts and not one text with a conditional clause, and why the destructive
+ * one prints the absolute path that is about to stop existing.
+ */
+function RemoveProjectConfirm({
+  project,
+  pending,
+  error,
+  onCancel,
+  onConfirm,
+}: {
+  project: { name: string; path: string; managed: boolean };
+  pending: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="pane">
+      <div className="remove-confirm" role="alertdialog" aria-label="confirmar remoção">
+        {project.managed ? (
+          <>
+            <h2 className="remove-confirm__title">apagar {project.name} do disco?</h2>
+            <p className="remove-confirm__body">
+              Este projeto foi clonado pelo Lumem. Remover tira do registro <strong>e apaga o
+              diretório</strong>. Não dá para desfazer.
+            </p>
+            <p className="remove-confirm__path">{project.path}</p>
+          </>
+        ) : (
+          <>
+            <h2 className="remove-confirm__title">remover {project.name} da lista?</h2>
+            <p className="remove-confirm__body">
+              Este projeto aponta para um repositório <strong>seu</strong>. Sai da lista; o
+              diretório fica exatamente onde está.
+            </p>
+          </>
+        )}
+
+        {/* Worktrees and running sessions refuse before anything is deleted, and
+            the refusal shows here rather than after the confirmation — nobody
+            should be asked to confirm something that is going to be refused. */}
+        {error !== null && <Banner tone="danger">{error}</Banner>}
+
+        <div className="remove-confirm__actions">
+          <Button variant={project.managed ? "danger" : "primary"} onClick={onConfirm} disabled={pending}>
+            {pending ? "removendo…" : project.managed ? "apagar" : "remover"}
+          </Button>
+          <Button variant="ghost" onClick={onCancel}>
+            cancelar
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }

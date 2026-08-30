@@ -31,6 +31,8 @@ export interface WorktreeRepository {
   findById(id: string): Promise<WorktreeRow | undefined>;
   /** Boot reconciliation, F7.4. Never deletes — the branch is still there. */
   setState(id: string, state: WorktreeState): Promise<WorktreeRow>;
+  /** After the checkout has been moved on disk, F6.12. */
+  setPath(id: string, path: string): Promise<WorktreeRow>;
   remove(id: string): Promise<void>;
 }
 
@@ -92,6 +94,20 @@ export function createWorktreeRepository(db: Db): WorktreeRepository {
           db
             .update(worktree)
             .set({ state, updatedAt: new Date() })
+            .where(eq(worktree.id, id))
+            .returning(),
+        conflicts(""),
+      );
+      return row!;
+    },
+
+    async setPath(id, path) {
+      await require_(id);
+      const [row] = await withConstraints(
+        () =>
+          db
+            .update(worktree)
+            .set({ path, updatedAt: new Date() })
             .where(eq(worktree.id, id))
             .returning(),
         conflicts(""),

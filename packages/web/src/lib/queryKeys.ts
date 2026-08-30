@@ -56,3 +56,14 @@ export function changesKey(scopeType: string, scopeId: string, ref: string) {
 export function patchKey(scopeType: string, scopeId: string, ref: string, path: string) {
   return ["changes", "patch", scopeType, scopeId, ref, path] as const;
 }
+
+/**
+ * The clone jobs of a workspace, F5 of the PRD.
+ *
+ * Only the first render reads it: from there the dedicated subscription
+ * carries the progress, because the coarse `events.onChange` channel says
+ * which list is stale and progress is data with no list to invalidate.
+ */
+export function cloneJobsKey(workspaceId: string) {
+  return ["project", "cloneJobs", workspaceId] as const;
+}

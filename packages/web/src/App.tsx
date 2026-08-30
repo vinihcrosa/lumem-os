@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { AddProjectDialog } from "./components/AddProjectDialog.js";
 import { CheckoutFiles } from "./components/CheckoutFiles.js";
+import { CloneStatus } from "./components/CloneStatus.js";
 import { FirstRun } from "./components/FirstRun.js";
 import { LocalPanel } from "./components/LocalPanel.js";
 import { SidebarTree } from "./components/SidebarTree.js";
@@ -21,6 +22,7 @@ import { trpc } from "./lib/trpc.js";
 import { Banner, Skeleton } from "./ui/index.js";
 
 import "./components/sidebar.css";
+import "./components/clone.css";
 import "./layout/layout.css";
 
 /**
@@ -36,6 +38,14 @@ type Selection = { projectId: string; scope: Scope } | null;
 export function App() {
   const queryClient = useQueryClient();
   const [selection, setSelection] = useState<Selection>(null);
+  /**
+   * A URL handed back to the dialog, F6.10.
+   *
+   * The way out of an authentication failure is the same address spelled for
+   * ssh, and the person should not have to retype it. It lives here because the
+   * failure is shown by one component and answered by another.
+   */
+  const [prefill, setPrefill] = useState<string | null>(null);
   const expansion = useTreeExpansion();
   const rightPanel = useRightPanel();
 
@@ -147,10 +157,15 @@ export function App() {
               onSelect={(projectId, scope) => setSelection({ projectId, scope })}
             />
             <div className="sidebar__foot">
+              {/* The clone sits right above the button that starts one, which
+                  is also where the project it produces will appear. */}
+              <CloneStatus workspaceId={activeId} onRetry={setPrefill} />
               {/* Adding a project is an action of the workspace, not an item of
                   the list it appends to. */}
               <AddProjectDialog
                 workspaceId={activeId}
+                prefill={prefill}
+                onPrefillConsumed={() => setPrefill(null)}
                 onAdded={(projectId) =>
                   setSelection({ projectId, scope: { scopeType: "project", scopeId: projectId } })
                 }

@@ -24,6 +24,21 @@ function createTrpcMock() {
       add: { mutate: vi.fn() },
       rename: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
+      // What the `↳` line reads. A query, and it stays one: it runs while the
+      // person is still typing and before anything has been agreed to.
+      parseSource: { query: vi.fn() },
+      clone: { mutate: vi.fn() },
+      cloneJobs: { query: vi.fn() },
+      cloneCancel: { mutate: vi.fn() },
+      // Typed as the real client's shape — input first, handlers second — so a
+      // test can drive `onData` without the mock's signature disagreeing.
+      cloneProgress: {
+        subscribe: vi.fn(
+          (_input: { jobId: string }, _handlers: { onData: (job: unknown) => void }) => ({
+            unsubscribe: () => {},
+          }),
+        ),
+      },
     },
     worktree: {
       listByProject: { query: vi.fn() },

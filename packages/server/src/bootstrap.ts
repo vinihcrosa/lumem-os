@@ -88,7 +88,7 @@ export async function bootstrap({
 
   // Before listening, deliberately: a client that connects mid-reconciliation
   // would read states that are about to change under it.
-  const reconciled = await reconcileOnBoot({ db: openedDatabase.db, log: app.log });
+  const reconciled = await reconcileOnBoot({ db: openedDatabase.db, config, log: app.log });
   app.log.info(reconciled, "reconciliação de boot");
 
   try {

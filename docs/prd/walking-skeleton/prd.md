@@ -78,6 +78,8 @@ Na primeira execução, sem nenhum workspace, o cliente pede pra criar um antes 
 **F2.4** Listar projetos do workspace ativo.
 **F2.5** Remover projeto **não toca no disco** — só tira o registro. Bloqueado se houver worktrees registradas.
 
+> **Revertido em parte pela [project-from-url](../project-from-url/prd.md#21-isto-reverte-um-requisito-do-walking-skeleton).** Continua valendo inteiro para projeto registrado por caminho, que é o único que existia quando isto foi escrito. Para um projeto **clonado pelo Lumem**, remover apaga o diretório: os bytes são de um clone que o daemon escreveu, num diretório que o daemon escolheu, e deixá-los para trás é acúmulo que ninguém vai limpar. O que autoriza é a coluna `managed`, e não uma dedução.
+
 Não há clone. O repo já tem que estar no disco.
 
 ### F3 — Sidebar

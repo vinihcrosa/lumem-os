@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -94,3 +95,20 @@ export function createSubdir(repoPath: string, name = "packages/inner"): string 
 }
 
 export { git as runGit };
+
+/**
+ * A repository big enough that cloning it takes long enough to interrupt.
+ *
+ * Cancellation is only observable while the process is alive, and a two-file
+ * repository clones faster than a test can react to it.
+ */
+export async function createHeavyRepo(megabytes = 24): Promise<string> {
+  const dir = tempDir("lumem-heavy-");
+  await git(dir, "init", "--initial-branch", "main", ".");
+  // Random rather than zeroes: git compresses a predictable file into nothing,
+  // and a packfile of nothing is exactly as fast as an empty repository.
+  writeFileSync(join(dir, "big.bin"), randomBytes(megabytes * 1024 * 1024));
+  await git(dir, "add", "big.bin");
+  await git(dir, "commit", "-m", "big");
+  return dir;
+}

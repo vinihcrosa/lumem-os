@@ -6,7 +6,7 @@ Projeto pessoal. Inspirado em compozy, superset e conductor — **não copia nad
 
 ## Estado atual
 
-Cinco features de pé — [walking-skeleton](docs/prd/walking-skeleton/tasks.md), [ui-shell](docs/prd/ui-shell/tasks.md), [worktree-tabs](docs/prd/worktree-tabs/tasks.md), [right-panel](docs/prd/right-panel/tasks.md) e [file-editor](docs/prd/file-editor/tasks.md) — esta última faz o daemon **escrever** no repositório, com autosave e CRUD pela árvore. Comece pelo [índice da documentação](docs/README.md).
+Seis features de pé — [walking-skeleton](docs/prd/walking-skeleton/tasks.md), [ui-shell](docs/prd/ui-shell/tasks.md), [worktree-tabs](docs/prd/worktree-tabs/tasks.md), [right-panel](docs/prd/right-panel/tasks.md), [file-editor](docs/prd/file-editor/tasks.md) e [project-from-url](docs/prd/project-from-url/tasks.md). A quinta faz o daemon **escrever** no repositório, com autosave e CRUD pela árvore; a sexta o faz **clonar** de uma URL git qualquer, reorganiza o diretório de estado numa árvore só, e é a primeira em que remover um projeto **apaga** o que o Lumem escreveu. Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
 |---|---|

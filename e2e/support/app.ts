@@ -35,11 +35,22 @@ export async function ensureProject(page: Page, path: string, name = "fixture"):
   // `exact`, because the agent buttons in the main area say "novo <config>"
   // and a substring match would find those too.
   const entry = page.getByRole("button", { name, exact: true });
-  if (await entry.isVisible().catch(() => false)) return;
+
+  // Waited for, not merely asked about. `isVisible` answers immediately, and
+  // immediately after `ensureWorkspace` the project list is still in flight —
+  // so a project that *is* registered reads as absent, gets added a second
+  // time, and the duplicate error stays on screen poisoning the next assertion
+  // in the spec. Measured: that is how a second test in the same file starts
+  // failing on a `role=alert` it never created.
+  const alreadyThere = await entry
+    .waitFor({ state: "visible", timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (alreadyThere) return;
 
   await page.getByRole("button", { name: "adicionar projeto" }).click();
-  await page.getByLabel("Caminho do repositório").fill(path);
-  await page.getByLabel("Nome (opcional)").fill(name);
+  await page.getByLabel("Caminho ou URL").fill(path);
+  await page.getByLabel("Nome").fill(name);
   await page.getByRole("button", { name: "adicionar" }).click();
   await expect(entry).toBeVisible({ timeout: 15_000 });
 }
