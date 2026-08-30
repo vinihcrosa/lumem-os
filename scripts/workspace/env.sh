@@ -49,12 +49,19 @@ export REPO_ROOT WORKSPACE_SLUG WORKSPACE_HARNESS LUMEM_DEV_HOME LUMEM_STATE_DIR
 # Define LUMEM_PORT e LUMEM_WEB_PORT: um par livre e estável para este workspace.
 #
 # O Conductor já reserva dez portas por workspace e passa a primeira em
-# CONDUCTOR_PORT — usar a reserva dele é melhor que sortear por fora, porque é
+# LUMEM_RUN_PORT ou CONDUCTOR_PORT — usar a reserva deles é melhor que sortear por fora, porque é
 # ela que aparece na UI e no encaminhamento. O Superset não reserva nada, então
 # aí o par sai de pick-ports.mjs, derivado do caminho do worktree.
 resolve_ports() {
   if [ -n "${LUMEM_PORT:-}" ] && [ -n "${LUMEM_WEB_PORT:-}" ]; then
     :
+  elif [ -n "${LUMEM_RUN_PORT:-}" ]; then
+    # O próprio Lumem, rodando este repositório pelo rodapé de execução: ele
+    # reserva um bloco por checkout e passa a primeira porta aqui. Mesma ideia do
+    # CONDUCTOR_PORT abaixo, e a razão de ela vir antes é a mesma — quem reservou
+    # é quem mostra o número na tela.
+    LUMEM_PORT="$LUMEM_RUN_PORT"
+    LUMEM_WEB_PORT="$((LUMEM_RUN_PORT + 1))"
   elif [ -n "${CONDUCTOR_PORT:-}" ]; then
     LUMEM_PORT="$CONDUCTOR_PORT"
     LUMEM_WEB_PORT="$((CONDUCTOR_PORT + 1))"

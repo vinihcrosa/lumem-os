@@ -1,0 +1,14 @@
+# Os scripts deste projeto, lidos pelo Lumem.
+#
+# Commite este arquivo: quem clonar depois herda o mesmo setup, com Lumem ou sem.
+# Cada comando roda no diretório do checkout, pelo shell de login.
+#
+# Estes três são os mesmos que o `.superset/config.json` e o
+# `.conductor/settings.toml` apontam. A `project-scripts` fez o produto entrar
+# nessa lista — até então este repositório tinha ciclo de vida que os outros
+# harnesses liam e o Lumem não.
+
+[scripts]
+setup = "./scripts/workspace/setup.sh"
+run = "./scripts/workspace/run.sh"
+teardown = "./scripts/workspace/teardown.sh"
