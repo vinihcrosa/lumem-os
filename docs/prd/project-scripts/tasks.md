@@ -1,10 +1,16 @@
 # Os scripts do projeto — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** desenho **aprovado** (2026-08-30, `lumem-run-dock.html`, sete quadros). 14 tasks em 4
-fases. A ordem é a do risco: a configuração e a execução primeiro, os ganchos depois, a tela por
-último — porque a tela é a única parte que já está desenhada e, portanto, a única que não pode
+**Status:** **14 de 14 entregues.** Desenho aprovado em 2026-08-30 (`lumem-run-dock.html`, sete
+quadros) e portado. A ordem foi a do risco: a configuração e a execução primeiro, os ganchos depois, a
+tela por último — porque a tela era a única parte já desenhada e, portanto, a única que não podia
 surpreender.
+
+As tasks foram entregues em **seis commits**, e não em quatorze: a T2, a T3, a T6, a T7 e a T8 são um
+router só e nasceram juntas, porque separar `status` de `start` teria produzido uma leitura sem nada
+para ler. O que cada commit fez está na mensagem dele.
+
+**O que a execução achou** está no fim deste arquivo.
 
 ---
 
@@ -37,12 +43,12 @@ seguida. Divergir de qualquer uma delas é mudar a resposta lá, não aqui.
 **Where**: `packages/server/src/scripts/project-scripts.ts` + teste
 
 **Done when**:
-- [ ] Sem arquivo, sem `[scripts]`, ou tabela vazia → `{ setup: null, run: null, teardown: null }`.
+- [x] Sem arquivo, sem `[scripts]`, ou tabela vazia → `{ setup: null, run: null, teardown: null }`.
       **Não é erro**: é o estado normal de todo projeto que entra no Lumem
-- [ ] TOML inválido → `DomainError` nomeando o arquivo e a linha, e **não** um `{}` silencioso
-- [ ] Valor que não é string, ou string vazia → tratado como ausente, com aviso no log
-- [ ] Lê do caminho do **checkout** recebido, não da raiz do projeto (A2) — worktree tem o seu
-- [ ] Gate: `pnpm gate:quick`
+- [x] TOML inválido → `DomainError` nomeando o arquivo e a linha, e **não** um `{}` silencioso
+- [x] Valor que não é string, ou string vazia → tratado como ausente, com aviso no log
+- [x] Lê do caminho do **checkout** recebido, não da raiz do projeto (A2) — worktree tem o seu
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(server): ler a tabela [scripts] do project.toml do checkout`
 
@@ -55,11 +61,11 @@ projeto é confiado.
 **Where**: `packages/server/src/routers/scripts.ts`, `routers/index.ts` + testes
 
 **Done when**:
-- [ ] Resolve o `cwd` pelo `resolveScope` que a `session` já usa — nenhuma segunda resolução de escopo
-- [ ] Devolve `{ file, setup, run, teardown, trusted }`; `file` existe mesmo quando o arquivo não
-- [ ] `trusted` é falso para projeto **gerenciado** (clonado de URL) que ainda não foi confiado (S11)
-- [ ] Escopo que não existe → `NOT_FOUND`, não `{}`
-- [ ] Gate: `pnpm gate:quick`
+- [x] Resolve o `cwd` pelo `resolveScope` que a `session` já usa — nenhuma segunda resolução de escopo
+- [x] Devolve `{ file, setup, run, teardown, trusted }`; `file` existe mesmo quando o arquivo não
+- [x] `trusted` é falso para projeto **gerenciado** (clonado de URL) que ainda não foi confiado (S11)
+- [x] Escopo que não existe → `NOT_FOUND`, não `{}`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(server): expor os scripts do projeto por escopo`
 
@@ -71,11 +77,11 @@ projeto é confiado.
 **Where**: `scripts/project-scripts.ts`, `routers/scripts.ts` + testes
 
 **Done when**:
-- [ ] Arquivo inexistente → criado com `[scripts]` e nada mais
-- [ ] Arquivo com `id` → o `id` continua **byte a byte** onde estava (A5)
-- [ ] `[scripts]` já existente → as chaves passadas são substituídas, as outras ficam
-- [ ] Escreve dentro do repositório do usuário, então aparece como mudança comum na aba `Mudanças`
-- [ ] Gate: `pnpm gate:quick`
+- [x] Arquivo inexistente → criado com `[scripts]` e nada mais
+- [x] Arquivo com `id` → o `id` continua **byte a byte** onde estava (A5)
+- [x] `[scripts]` já existente → as chaves passadas são substituídas, as outras ficam
+- [x] Escreve dentro do repositório do usuário, então aparece como mudança comum na aba `Mudanças`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(server): criar o [scripts] sem reescrever o project.toml`
 
@@ -89,12 +95,12 @@ projeto é confiado.
 **Where**: `db/schema.ts`, migração `0008_*.sql`, `repositories/session.ts`, `sessions/SessionStore.ts` + testes
 
 **Done when**:
-- [ ] `session_kind` passa a aceitar `'script'`; `script_name` aceita `'setup' | 'run' | 'teardown'`
+- [x] `session_kind` passa a aceitar `'script'`; `script_name` aceita `'setup' | 'run' | 'teardown'`
       e é **obrigatório** para `kind='script'` e **nulo** para os outros — nos dois sentidos
-- [ ] `kind='script'` implica `transport='pty'` e `agent_config_id IS NULL`
-- [ ] A migração roda sobre um banco com dados e não perde linha nenhuma
-- [ ] `listByScope` continua devolvendo o que devolvia; script **não** vira aba de sessão
-- [ ] Gate: `pnpm gate:quick`
+- [x] `kind='script'` implica `transport='pty'` e `agent_config_id IS NULL`
+- [x] A migração roda sobre um banco com dados e não perde linha nenhuma
+- [x] `listByScope` continua devolvendo o que devolvia; script **não** vira aba de sessão
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(db): a sessão de script, com o subtipo no CHECK`
 
@@ -106,12 +112,12 @@ projeto é confiado.
 **Where**: `db/schema.ts` + migração, `scripts/ports.ts` + testes
 
 **Done when**:
-- [ ] Primeira chamada aloca e **grava**; as seguintes devolvem a mesma porta (S5)
-- [ ] A porta é procurada livre no momento da alocação, e a busca não empresta uma porta já
+- [x] Primeira chamada aloca e **grava**; as seguintes devolvem a mesma porta (S5)
+- [x] A porta é procurada livre no momento da alocação, e a busca não empresta uma porta já
       reservada por outro checkout
-- [ ] Faixa configurável por variável de ambiente, com default documentado
-- [ ] Remover o checkout libera a reserva
-- [ ] Gate: `pnpm gate:quick`
+- [x] Faixa configurável por variável de ambiente, com default documentado
+- [x] Remover o checkout libera a reserva
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(server): reservar um bloco de portas por checkout`
 
@@ -123,15 +129,15 @@ projeto é confiado.
 **Where**: `scripts/ScriptRunner.ts`, `routers/scripts.ts` + testes
 
 **Done when**:
-- [ ] `start` lê o comando na hora (A2), monta o env do §4 do PRD e spawna via `SessionStore`
-- [ ] **Run é único por checkout** (A4): começar com outro vivo para o anterior, e a resposta diz que
+- [x] `start` lê o comando na hora (A2), monta o env do §4 do PRD e spawna via `SessionStore`
+- [x] **Run é único por checkout** (A4): começar com outro vivo para o anterior, e a resposta diz que
       parou
-- [ ] `setup` e `run` podem correr ao mesmo tempo — são coisas diferentes
-- [ ] Projeto sem o comando pedido → `BLOCKED` com o motivo, não um spawn de string vazia
-- [ ] Projeto **não confiado** → `BLOCKED` citando a S11, e o comando vem junto na recusa para a tela
+- [x] `setup` e `run` podem correr ao mesmo tempo — são coisas diferentes
+- [x] Projeto sem o comando pedido → `BLOCKED` com o motivo, não um spawn de string vazia
+- [x] Projeto **não confiado** → `BLOCKED` citando a S11, e o comando vem junto na recusa para a tela
       poder mostrá-lo
-- [ ] `stop` mata o processo e deixa o registro `exited`; parar o que não está rodando é no-op
-- [ ] Gate: `pnpm gate:quick`
+- [x] `stop` mata o processo e deixa o registro `exited`; parar o que não está rodando é no-op
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(server): rodar e parar os scripts do projeto`
 
@@ -143,13 +149,13 @@ projeto é confiado.
 **Where**: `scripts/port-sniff.ts`, `ScriptRunner`, `routers/scripts.ts` + testes
 
 **Done when**:
-- [ ] Se o script usou `LUMEM_RUN_PORT`, a porta é essa e a origem é `env` — **sem regex**
-- [ ] Senão, regex sobre no máximo os primeiros N KB da saída depois do start (S6); o teto é
+- [x] Se o script usou `LUMEM_RUN_PORT`, a porta é essa e a origem é `env` — **sem regex**
+- [x] Senão, regex sobre no máximo os primeiros N KB da saída depois do start (S6); o teto é
       constante nomeada, e a busca para nele
-- [ ] Acha `http://127.0.0.1:5173/`, `localhost:3000`, `Listening on port 8080`; **não** acha número
+- [x] Acha `http://127.0.0.1:5173/`, `localhost:3000`, `Listening on port 8080`; **não** acha número
       solto em log de JSON
-- [ ] A origem viaja para a tela (`env` | `output` | `null`) — o botão diz de onde tirou o número
-- [ ] Gate: `pnpm gate:quick`
+- [x] A origem viaja para a tela (`env` | `output` | `null`) — o botão diz de onde tirou o número
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(server): descobrir a porta do run, e dizer de onde ela veio`
 
@@ -161,12 +167,12 @@ projeto é confiado.
 **Where**: `routers/scripts.ts` + testes
 
 **Done when**:
-- [ ] Devolve, por fase: sessão viva (se há), última execução (código de saída e quando), e a porta
+- [x] Devolve, por fase: sessão viva (se há), última execução (código de saída e quando), e a porta
       com a origem
-- [ ] A última execução do `setup` sobrevive ao fim do processo — é o histórico que a aba mostra
-- [ ] Sem daemon reiniciado no meio: depois de um restart, run vivo vira "parado", porque o processo
+- [x] A última execução do `setup` sobrevive ao fim do processo — é o histórico que a aba mostra
+- [x] Sem daemon reiniciado no meio: depois de um restart, run vivo vira "parado", porque o processo
       morreu com o daemon e mentir sobre isso é pior que a verdade
-- [ ] Gate: `pnpm gate:quick`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(server): o estado dos scripts de um checkout`
 
@@ -180,10 +186,10 @@ projeto é confiado.
 **Where**: `routers/worktree.ts`, `ScriptRunner` + testes
 
 **Done when**:
-- [ ] Roda **em segundo plano**: a mutação de criar volta na hora, e a worktree é utilizável
-- [ ] Falha do setup **não desfaz** a worktree (S4) — ela fica, marcada
-- [ ] Projeto sem `setup`, ou não confiado, simplesmente não roda nada — e isso não é erro
-- [ ] Gate: `pnpm gate:quick`
+- [x] Roda **em segundo plano**: a mutação de criar volta na hora, e a worktree é utilizável
+- [x] Falha do setup **não desfaz** a worktree (S4) — ela fica, marcada
+- [x] Projeto sem `setup`, ou não confiado, simplesmente não roda nada — e isso não é erro
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(server): rodar o setup quando a worktree nasce`
 
@@ -195,11 +201,11 @@ projeto é confiado.
 **Where**: `routers/worktree.ts` + testes
 
 **Done when**:
-- [ ] Roda antes de apagar, com timeout curto e constante nomeada
-- [ ] Falha ou timeout **não impedem** a remoção — worktree que não se apaga por causa de script é
+- [x] Roda antes de apagar, com timeout curto e constante nomeada
+- [x] Falha ou timeout **não impedem** a remoção — worktree que não se apaga por causa de script é
       pior que sujeira
-- [ ] Run vivo daquele checkout é parado junto
-- [ ] Gate: `pnpm gate:quick`
+- [x] Run vivo daquele checkout é parado junto
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(server): teardown ao remover a worktree`
 
@@ -216,11 +222,11 @@ projeto é confiado.
 **Where**: `packages/web/src/components/RunDock.tsx`, `run-dock.css` + testes
 
 **Done when**:
-- [ ] Três abas com o ponto de estado **na aba** (verde rodando, vermelho falhou, cinza parado)
-- [ ] `Setup` mostra a última execução; `Run` mostra o estado; `Terminal` abre shell e o `＋` outra
-- [ ] A saída é o `Terminal` que já existe, anexado por WebSocket — nenhuma segunda implementação
-- [ ] Nenhum literal de cor, espaço ou tipografia; o CSS sai do protótipo
-- [ ] Gate: `pnpm gate:quick`
+- [x] Três abas com o ponto de estado **na aba** (verde rodando, vermelho falhou, cinza parado)
+- [x] `Setup` mostra a última execução; `Run` mostra o estado; `Terminal` abre shell e o `＋` outra
+- [x] A saída é o `Terminal` que já existe, anexado por WebSocket — nenhuma segunda implementação
+- [x] Nenhum literal de cor, espaço ou tipografia; o CSS sai do protótipo
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): o rodapé de execução, com setup, run e terminal`
 
@@ -232,11 +238,11 @@ projeto é confiado.
 **Where**: `components/CheckoutFiles.tsx`, `hooks/useRunDock.ts`, `right-panel.css` + testes
 
 **Done when**:
-- [ ] Irmão do scroll da árvore, não filho: rolar a árvore não leva o terminal junto
-- [ ] Altura arrastável, com mínimo, e lembrada como a largura da coluna já é
-- [ ] Aberto, o teto de largura da coluna sobe; recolhido, volta
-- [ ] Recolhido continua dizendo o que está vivo
-- [ ] Gate: `pnpm gate:quick`
+- [x] Irmão do scroll da árvore, não filho: rolar a árvore não leva o terminal junto
+- [x] Altura arrastável, com mínimo, e lembrada como a largura da coluna já é
+- [x] Aberto, o teto de largura da coluna sobe; recolhido, volta
+- [x] Recolhido continua dizendo o que está vivo
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): o rodapé mora abaixo da árvore, com altura própria`
 
@@ -248,11 +254,11 @@ projeto é confiado.
 **Where**: `RunDock.tsx`, `components/NoScripts.tsx` + testes
 
 **Done when**:
-- [ ] `Abrir :PORTA` abre `http://127.0.0.1:PORTA`, e **diz de onde veio a porta**
-- [ ] `parar` não é botão vermelho cheio (é rotina reversível); `rodar de novo` só onde faz sentido
-- [ ] Sem `[scripts]`: o texto pronto, o caminho do arquivo, `criar o arquivo` e `copiar`
-- [ ] Projeto não confiado: o comando aparece **antes** de rodar, com `rodar uma vez` e `confiar`
-- [ ] Gate: `pnpm gate:quick`
+- [x] `Abrir :PORTA` abre `http://127.0.0.1:PORTA`, e **diz de onde veio a porta**
+- [x] `parar` não é botão vermelho cheio (é rotina reversível); `rodar de novo` só onde faz sentido
+- [x] Sem `[scripts]`: o texto pronto, o caminho do arquivo, `criar o arquivo` e `copiar`
+- [x] Projeto não confiado: o comando aparece **antes** de rodar, com `rodar uma vez` e `confiar`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): as ações do rodapé, o vazio e o portão de confiança`
 
@@ -264,9 +270,37 @@ projeto é confiado.
 **Where**: `components/SidebarTree.tsx`, `hooks/useScriptStatus.ts` + testes
 
 **Done when**:
-- [ ] Worktree com run vivo mostra a marca com a porta, no vocabulário que a sidebar já usa
-- [ ] Worktree com setup falho mostra o motivo onde `ausente` já aparece hoje
-- [ ] Nenhuma requisição nova por linha: a leitura é compartilhada por chave de cache
-- [ ] Gate: `pnpm gate:full`
+- [x] Worktree com run vivo mostra a marca com a porta, no vocabulário que a sidebar já usa
+- [x] Worktree com setup falho mostra o motivo onde `ausente` já aparece hoje
+- [x] Nenhuma requisição nova por linha: a leitura é compartilhada por chave de cache
+- [x] Gate: `pnpm gate:full`
 
 **Commit**: `feat(web): run de pé e setup falho aparecem fora do rodapé`
+
+
+---
+
+## O que a execução achou
+
+Sete coisas que o plano não previa. As três primeiras são defeitos que um teste pegou; as outras
+quatro são decisões que a implementação cobrou.
+
+| O quê | Onde | O que mudou |
+|---|---|---|
+| **`NULL IN (…)` não recusa nada** | `db/schema.ts` | Um CHECK só falha quando avalia para FALSE, e `NULL IN ('setup', …)` avalia para NULL. `kind='script'` sem fase passava. O `IS NOT NULL` explícito não é redundância — é o que faz o CHECK existir |
+| **A migração lia uma coluna que ainda não existe** | `drizzle/0008` | O gerador escreveu `SELECT "script_name"` da tabela **de origem**. É a mesma armadilha que o `migrations.test.ts` documenta desde a 0001, e só o teste de upgrade a pega |
+| **`printenv` para na primeira variável vazia** | teste da T6 | O teste do ambiente media a ordem dos argumentos em vez do ambiente. Virou `echo` linha a linha |
+| **Worktree nova é checkout do que está commitado** | teste da T9 | Um `[scripts]` que só existe na árvore de trabalho não chega na worktree nova. É consequência direta da S7, e significa que o gancho de criação **só funciona para quem versionou os scripts** — que é a promessa da feature, agora provada |
+| **Sessão de script não pode bloquear a remoção** | `routers/worktree.ts` | A regra de "encerre as sessões antes" existe para o que é **seu**; o `run` é do daemon. Bloquear por causa dele mandaria a pessoa caçar um processo que ela não abriu |
+| **O tipo do status não atravessa como está escrito** | `hooks/useScripts.ts` | Sem transformer, um `Date` do daemon chega como texto. O tipo é derivado do **cliente**, não importado do servidor — importar prometeria um `Date` que nunca chega. (E `@trpc/server` não é dependência do web de propósito) |
+| **Ler o rodapé não pode alocar porta** | `ScriptRunner.status` | A tela pergunta muito mais vezes do que alguém roda. `findReservedPort` existe separado de `reservePort` por isso: abrir o rodapé de um checkout que nunca vai rodar nada não consome bloco |
+
+### O que o portão não prova
+
+- **A regex de porta contra servidores de verdade.** Ela foi testada contra as linhas do Vite, do
+  Next e de um log JSON, escritas à mão. O primeiro projeto com um formato exótico vai revelar o que
+  falta — e o botão diz de onde tirou o número justamente para esse dia;
+- **O `teardown` derrubando algo de verdade** (container, volume). O teste prova que ele roda, que o
+  tempo tem teto e que a remoção continua; não prova que alguém escreveu um teardown útil;
+- **Duas instâncias do Lumem na mesma faixa de portas.** A reserva é única dentro de um banco, e dois
+  daemons têm dois bancos.

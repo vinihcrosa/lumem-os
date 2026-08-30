@@ -77,13 +77,20 @@ export function RunDock({ scope, dock }: RunDockProps) {
 
         <span className="dock__spacer" />
         <div className="dock__acts">
-          {tab === "run" && <RunActions scope={scope} status={status.data} actions={actions} />}
+          {tab === "run" && <RunActions status={status.data} actions={actions} />}
           {tab === "setup" && <SetupActions status={status.data} actions={actions} />}
         </div>
       </div>
 
       {tab === "terminal" ? (
         <TerminalTab scope={scope} />
+      ) : status.isError ? (
+        // O caso que o e2e achou: `[scripts]` com TOML quebrado. O daemon recusa
+        // com o motivo — e sem isto a tela ficava para sempre em "lendo o
+        // checkout…", que é a pior forma de dizer "não consegui".
+        <div className="dock__idle" role="alert">
+          <span>{status.error.message}</span>
+        </div>
       ) : (
         <PhasePanel scope={scope} phase={tab} status={status.data} actions={actions} />
       )}
@@ -133,11 +140,9 @@ function DockTabButton({
 }
 
 function RunActions({
-  scope,
   status,
   actions,
 }: {
-  scope: Scope;
   status: ScriptStatus | undefined;
   actions: Actions;
 }) {
@@ -184,9 +189,6 @@ function RunActions({
       >
         parar
       </Button>
-      <span className="dock__note" aria-hidden="true">
-        {scope.scopeType === "worktree" ? "" : ""}
-      </span>
     </>
   );
 }
@@ -269,11 +271,11 @@ function PhasePanel({
       </div>
 
       {last === null ? (
+        // Sem botão aqui: `▶ rodar` já está na barra, dois passos acima. Duas
+        // cópias do mesmo gesto a uma mão de distância é o defeito que a sidebar
+        // já tinha evitado com o `adicionar projeto`.
         <div className="dock__idle">
-          <span>Este checkout ainda não rodou o {phase}.</span>
-          <Button size="sm" onClick={() => actions.start.mutate(phase)}>
-            ▶ rodar agora
-          </Button>
+          <span>Este checkout ainda não rodou o {phase}. O botão está ali em cima.</span>
         </div>
       ) : (
         <div className="dock__out">
