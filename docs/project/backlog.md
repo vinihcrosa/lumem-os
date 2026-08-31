@@ -214,6 +214,21 @@ quem tenta fazer completo de primeira.
 **De onde veio:** [vision.md](vision.md), [questions.md Q022](questions.md) · **Volta quando:** a aba
 de review existir.
 
+### Worktree de projeto removido não pode ser recriada — `P`
+
+Remover projeto tira o registro das worktrees e **não toca no disco** ([WS-Q22](../prd/walking-skeleton/open-questions.md)).
+O que fica para trás é git, não Lumem: o diretório, a branch e a entrada em `.git/worktrees` do repo.
+Como o caminho é determinístico (`worktreesDir/<projeto>/<nome>`), re-adicionar o mesmo repositório e
+criar a worktree `feat-x` de novo falha em `a branch "feat-x" já existe`. Pelo app, é permanente — sai
+só com `git worktree remove` na mão. Bate no onboarding, que sempre cria worktree na primeira tarefa.
+
+Os dois caminhos que resolvem são features: **adotar worktree que já existe** (o mesmo mecanismo das
+"worktrees externas na sidebar", §G) ou **limpar o disco na cascata**, que contradiz a WS-Q22 e pede a
+confirmação de "sujo" para N worktrees de uma vez.
+
+**De onde veio:** a review da PR de remover projeto · **Volta quando:** alguém re-adicionar um projeto
+e não conseguir recriar a worktree que tinha antes.
+
 ### Stage, commit e revert pela UI — a aba `Review` — `M`
 
 Diff é ler; git é agir. Ficou fora da `right-panel` de propósito.
@@ -310,6 +325,22 @@ cruas. A janela de `1y` é a única que precisa de granularidade fina e ninguém
 
 **De onde veio:** a PR do consumo · **Volta quando:** a tabela passar de alguns milhões de linhas, ou
 a query de `1y` começar a aparecer no tempo de carregamento da tela.
+
+### Linhas órfãs, e a transcrição que sobrevive ao dono — `P`
+
+Remover projeto apaga `project` e `worktree`. Continuam apontando para ids que não existem mais
+`session`, `session_usage`, `memory_entry`, `action_signal`, `playbook` e `memory_proposal` — todas
+com a coluna `text` e sem FK, então nada reclama. Os números da tela não erram: `usageByProject` e
+`usageByWorktree` fazem `LEFT JOIN` **a partir** de `project`/`worktree`, e órfão não entra na conta.
+
+O que vaza é disco. `sweepTranscripts` só apaga o arquivo cujo dono sumiu do registro
+(`acp/transcript-maintenance.ts`), e a linha de `session` sobrevive à remoção — então a conversa de um
+projeto que não existe mais fica em `~/.lumem` para sempre, comprimida aos 30 dias e nunca apagada.
+**É pré-existente**, não veio da cascata: `worktree.remove` também deixa `session` para trás. A cascata
+só multiplica por N.
+
+**De onde veio:** a review da PR de remover projeto · **Volta quando:** o diretório de transcrições
+crescer sem explicação, ou a primeira consulta precisar varrer órfão.
 
 ### O que o Lumem gasta sozinho — `P`
 

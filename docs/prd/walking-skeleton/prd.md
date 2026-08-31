@@ -76,7 +76,7 @@ Na primeira execução, sem nenhum workspace, o cliente pede pra criar um antes 
 **F2.2** Validar na adição: caminho existe, é diretório, é raiz de repo git. Falhou, recusa dizendo qual.
 **F2.3** Nome do projeto default é o nome do diretório, editável.
 **F2.4** Listar projetos do workspace ativo.
-**F2.5** Remover projeto **não toca no disco** — só tira o registro. As worktrees registradas saem **junto** (só o registro delas; os checkouts sob `~/.lumem` ficam no disco). Bloqueado apenas por sessão rodando — a do projeto ou a de qualquer worktree dele (§6). Ver [WS-Q22](open-questions.md).
+**F2.5** Remover projeto **não toca no disco** — só tira o registro. As worktrees registradas saem **junto** (só o registro delas; os checkouts sob `~/.lumem` ficam no disco). A tela **pergunta antes**, nomeando quantas worktrees vão junto e dizendo que os diretórios ficam — não porque o disco corra risco, mas porque não há como readotar um checkout depois. Bloqueado apenas por sessão rodando — a do projeto ou a de qualquer worktree dele (§6). Ver [WS-Q22](open-questions.md).
 
 Não há clone. O repo já tem que estar no disco.
 
