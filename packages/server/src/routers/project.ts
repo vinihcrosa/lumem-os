@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { ProjectRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import { createProjectRepository } from "../repositories/project.js";
+import { createWorktreeRepository } from "../repositories/worktree.js";
 import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
 
 /**
@@ -149,24 +150,37 @@ export const projectRouter = router({
 
   remove: publicProcedure.input(z.object({ id: z.string().min(1) })).mutation(({ ctx, input }) =>
     domainSafeAsync(async () => {
-      // Same rule as a worktree, for the same reason: §6 forbids a session
-      // whose scope no longer exists, and the user would have no way to reach
-      // one pointing at a project that is gone from the sidebar.
-      const running = await ctx.sessionStore.listRunningInScope("project", input.id);
-      if (running.length > 0) {
+      const projects = createProjectRepository(ctx.db);
+      const worktrees = createWorktreeRepository(ctx.db);
+
+      // Removing a project takes its worktree registrations with it (F2.5), so a
+      // worktree of the project is a scope about to disappear too — §6 forbids
+      // leaving a running session pointing at one as firmly as it does for the
+      // project's own sessions. The count folds both together so the message
+      // names the real total the user has to close.
+      const owned = await worktrees.listByProject(input.id);
+      const runningLists = await Promise.all([
+        ctx.sessionStore.listRunningInScope("project", input.id),
+        ...owned.map((wt) => ctx.sessionStore.listRunningInScope("worktree", wt.id)),
+      ]);
+      const running = runningLists.reduce((total, list) => total + list.length, 0);
+      if (running > 0) {
         throw new DomainError(
           "BLOCKED",
-          `o projeto tem ${running.length} sessão(ões) rodando; encerre-as antes de remover`,
+          `o projeto tem ${running} sessão(ões) rodando; encerre-as antes de remover`,
         );
       }
 
-      const projects = createProjectRepository(ctx.db);
       const row = await projects.findById(input.id);
 
-      // F2.5: the registration goes, the disk is never touched. Not even when
-      // the worktrees the daemon created live under ~/.lumem.
+      // F2.5: the registration goes, the disk is never touched — not the
+      // repository at its path, and not the worktrees the daemon cut under
+      // ~/.lumem. Their rows go with the project; the directories stay.
       await projects.remove(input.id);
-      if (row) ctx.events.emit({ type: "project.changed", workspaceId: row.workspaceId });
+      if (row) {
+        ctx.events.emit({ type: "project.changed", workspaceId: row.workspaceId });
+        if (owned.length > 0) ctx.events.emit({ type: "worktree.changed", projectId: input.id });
+      }
       return { ok: true as const };
     }),
   ),

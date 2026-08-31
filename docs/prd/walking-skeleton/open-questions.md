@@ -225,3 +225,14 @@ Mas a pergunta original era outra: **quando você registra um monorepo como proj
 Nesta versão a resposta é forçada — projeto = raiz de repo git, então é uma entrada. A pergunta é se isso te incomoda a ponto de precisar resolver já.
 
 **R:** pode ser assim mesmo, o projeto é a raiz do repo git.
+
+### 🟢 [x] WS-Q22 — Remover projeto com worktrees: bloqueia ou cascateia?
+O PRD original (F2.5) e o schema (`worktree.project_id` com `ON DELETE RESTRICT`) diziam **bloqueia**: remover projeto exigia remover cada worktree à mão antes. O mesmo padrão sem-cascata do workspace (F1.5).
+
+Na prática isso deixou o botão inútil: o onboarding **sempre** cria uma worktree na primeira tarefa (*"Toda tarefa vira uma worktree"*), então todo projeto real nasce com pelo menos uma. Clicar em "remover projeto" só devolvia `o projeto ainda tem worktrees registradas; remova-as antes`, e o projeto ficava preso na barra — o bug relatado.
+
+**Decisão: cascateia, mas só o registro.** Remover projeto tira o registro dele **e o das worktrees**, numa transação só (é o que satisfaz a FK sem afrouxá-la para `CASCADE` no schema). **Nenhum diretório é tocado** — nem o repositório no caminho da máquina, nem os checkouts sob `~/.lumem`, com trabalho não commitado e tudo. Como nada some do disco, a cascata é não-destrutiva e dispensa a confirmação de "sujo" que a remoção de worktree tem.
+
+O único bloqueio que sobra é **sessão rodando** (§6): a do projeto ou a de qualquer worktree dele — remover deixaria um processo apontando para um escopo que sumiu. A mensagem soma as duas contagens.
+
+Isto **reverte** o "sem cascata" da F2.5 para projeto. A F1.5 (workspace) continua bloqueando: workspace não tem artefato no disco a preservar, e o precedente de "zero projetos antes" segue de pé.

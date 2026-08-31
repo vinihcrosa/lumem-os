@@ -2,7 +2,7 @@ import { newId } from "@lumem/shared";
 import { asc, eq } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
-import { project, type ProjectRow } from "../db/schema.js";
+import { project, worktree, type ProjectRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import { withConstraints, type ConstraintMap } from "./base.js";
 
@@ -101,13 +101,14 @@ export function createProjectRepository(db: Db): ProjectRepository {
 
     async remove(id) {
       await require_(id);
-      // F2.5: the registration goes, the disk does not. Blocked while worktrees
-      // still point here — the database is what enforces it.
-      await withConstraints(() => db.delete(project).where(eq(project.id, id)).returning(), {
-        foreignKey: {
-          code: "IN_USE",
-          message: "o projeto ainda tem worktrees registradas; remova-as antes",
-        },
+      // F2.5: the registration goes, the disk never does — not the repository at
+      // its path, and not the worktrees the daemon cut under ~/.lumem. Their rows
+      // go with the project in one transaction, so the FK that forbids orphaning
+      // a worktree is satisfied without a single directory being touched. The
+      // checkouts, uncommitted work and all, stay exactly where they are.
+      db.transaction((tx) => {
+        tx.delete(worktree).where(eq(worktree.projectId, id)).run();
+        tx.delete(project).where(eq(project.id, id)).run();
       });
     },
   };

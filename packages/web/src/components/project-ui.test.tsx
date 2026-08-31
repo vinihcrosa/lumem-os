@@ -211,19 +211,22 @@ describe("project detail", () => {
   });
 
   it("shows the daemon's reason when removal is refused", async () => {
+    // Worktrees no longer block: they are removed with the project (F2.5). The
+    // one refusal left is a running session — the project's, or one of its
+    // worktrees' — which §6 forbids orphaning.
     const user = userEvent.setup();
     const selected = project("p1", "lorebase");
     trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
     trpc.project.get.query.mockResolvedValue(selected);
     trpc.project.remove.mutate.mockRejectedValue(
-      new Error("o projeto ainda tem worktrees registradas; remova-as antes"),
+      new Error("o projeto tem 2 sessão(ões) rodando; encerre-as antes de remover"),
     );
 
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
     await user.click(await screen.findByRole("button", { name: "remover projeto" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("ainda tem worktrees");
+    expect(await screen.findByRole("alert")).toHaveTextContent("sessão(ões) rodando");
   });
 });
 

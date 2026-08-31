@@ -262,16 +262,17 @@ describe("worktree.remove", () => {
     expect(await ctx.api.worktree.listByProject({ projectId })).toEqual([]);
   });
 
-  it("frees the project to be removed", async () => {
+  it("drops only its own registration, leaving the project and its siblings", async () => {
+    // Removing a project cascades to its worktrees (F2.5, WS-Q22); the reverse
+    // is not true — removing one worktree leaves the project and the others.
     const { context: ctx, projectId } = await setup();
-    const created = await ctx.api.worktree.create({ projectId, name: "teste" });
-    await expect(ctx.api.project.remove({ id: projectId })).rejects.toMatchObject({
-      code: "CONFLICT",
-    });
+    const a = await ctx.api.worktree.create({ projectId, name: "a" });
+    await ctx.api.worktree.create({ projectId, name: "b" });
 
-    await ctx.api.worktree.remove({ id: created.id });
+    await ctx.api.worktree.remove({ id: a.id });
 
-    await expect(ctx.api.project.remove({ id: projectId })).resolves.toEqual({ ok: true });
+    expect((await ctx.api.worktree.listByProject({ projectId })).map((w) => w.name)).toEqual(["b"]);
+    expect(await ctx.api.project.get({ id: projectId })).not.toBeNull();
   });
 
   it("reports a worktree that does not exist", async () => {
