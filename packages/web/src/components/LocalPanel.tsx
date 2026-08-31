@@ -104,6 +104,20 @@ function ProjectSpend({ projectId }: { projectId: string }) {
   );
 }
 
+/**
+ * A pergunta da confirmação, com o número que a torna útil.
+ *
+ * `worktrees` é `null` quando o repositório sumiu do disco: a lista nem é
+ * buscada nesse caso, e dizer "e o registro de 0 worktrees" seria afirmar algo
+ * que a tela não sabe.
+ */
+function removalQuestion(name: string, worktrees: number | null): string {
+  if (worktrees === null) return `remover "${name}" e o registro das worktrees dele?`;
+  if (worktrees === 0) return `remover "${name}"?`;
+  const plural = worktrees === 1 ? "1 worktree" : `${worktrees} worktrees`;
+  return `remover "${name}" e o registro de ${plural}?`;
+}
+
 export function LocalPanel({
   projectId,
   workspaceId,
@@ -133,6 +147,21 @@ export function LocalPanel({
       onRemoved();
     },
   });
+
+  /*
+   * Removing the project asks first (F2.5).
+   *
+   * Not because the disk is at risk — it never is — but because there is no way
+   * back: adopting a checkout the Lumem no longer knows about is in the backlog,
+   * unbuilt, so the registration is the only handle on those worktrees and one
+   * click drops N of them. The asymmetry is what settles it: removing *one*
+   * dirty worktree asks, and this takes the whole set without a word.
+   *
+   * Client-side, unlike the worktree's: there the daemon refuses first and the
+   * banner answers the refusal. Here the daemon has nothing to refuse, and a
+   * `force` on the route would be a gate with nothing behind it.
+   */
+  const [confirming, setConfirming] = useState(false);
 
   if (project.isPending) {
     return (
@@ -180,7 +209,7 @@ export function LocalPanel({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => remove.mutate()}
+              onClick={() => setConfirming(true)}
               disabled={remove.isPending}
             >
               {remove.isPending ? "removendo…" : "remover projeto"}
@@ -200,6 +229,42 @@ export function LocalPanel({
               </Chip>
             )}
           </div>
+
+          {confirming && (
+            <div className="detail__banner">
+              {/* In the header, next to the button that opened it: a question
+                  rendered inside a tab the user does not have open reads as the
+                  click having done nothing. */}
+              <Banner
+                tone="danger"
+                actions={
+                  <>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => remove.mutate()}
+                      disabled={remove.isPending}
+                    >
+                      remover
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>
+                      cancelar
+                    </Button>
+                  </>
+                }
+              >
+                {remove.isError ? (
+                  remove.error.message
+                ) : (
+                  <>
+                    <strong>{removalQuestion(name, available ? list.length : null)}</strong> Os
+                    diretórios continuam no disco — some a alça que o Lumem tem sobre eles, e
+                    readotar um checkout que já existe é coisa que o Lumem ainda não sabe fazer.
+                  </>
+                )}
+              </Banner>
+            </div>
+          )}
         </>
       }
       context={
@@ -217,12 +282,6 @@ export function LocalPanel({
                 <strong>O repositório não está mais em {path}.</strong> As ações sobre ele ficam
                 bloqueadas até que ele volte; o registro continua aqui.
               </Banner>
-            </div>
-          )}
-
-          {remove.isError && (
-            <div className="detail__banner">
-              <Banner tone="danger">{remove.error.message}</Banner>
             </div>
           )}
 

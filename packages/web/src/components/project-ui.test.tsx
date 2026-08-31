@@ -24,6 +24,19 @@ function project(id: string, name: string, available = true) {
   };
 }
 
+function worktree(id: string, name: string) {
+  return {
+    id,
+    projectId: "p1",
+    name,
+    branch: name,
+    path: `/repos/lorebase-wt/${name}`,
+    state: "active",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   // `resetAllMocks` apaga implementação: sem isto, as queries que a tela do
@@ -203,11 +216,52 @@ describe("project detail", () => {
     expect(await screen.findByText(/o diretório e o que está dentro dele ficam no disco/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "remover projeto" }));
+    await user.click(await screen.findByRole("button", { name: "remover" }));
 
     // O que sobra depois de remover o projeto é a **tela do workspace**, e não
     // mais a frase "selecione uma worktree": o painel central passou a responder
     // "onde eu estou" com uma tela (`workspace-screen`, W1).
     expect(await screen.findByText("Nenhum projeto ainda")).toBeInTheDocument();
+  });
+
+  it("asks before removing, naming how many worktrees go along", async () => {
+    // F2.5. O disco nunca corre risco; o que não tem volta é o registro — e ele
+    // leva N worktrees de uma vez. A pergunta diz o número porque é ele que
+    // muda a resposta.
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+    trpc.worktree.listByProject.query.mockResolvedValue([
+      worktree("wt1", "feat-x"),
+      worktree("wt2", "feat-y"),
+      worktree("wt3", "feat-z"),
+    ]);
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      'remover "lorebase" e o registro de 3 worktrees?',
+    );
+    expect(trpc.project.remove.mutate).not.toHaveBeenCalled();
+  });
+
+  it("removes nothing when the confirmation is refused", async () => {
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+    await user.click(await screen.findByRole("button", { name: "cancelar" }));
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(trpc.project.remove.mutate).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "remover projeto" })).toBeEnabled();
   });
 
   it("shows the daemon's reason when removal is refused", async () => {
@@ -225,7 +279,10 @@ describe("project detail", () => {
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
     await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+    await user.click(await screen.findByRole("button", { name: "remover" }));
 
+    // A recusa responde dentro da própria confirmação: é onde o clique
+    // aconteceu, e é o que ainda está na tela.
     expect(await screen.findByRole("alert")).toHaveTextContent("sessão(ões) rodando");
   });
 });
