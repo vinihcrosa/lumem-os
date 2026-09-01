@@ -40,6 +40,77 @@ test.beforeEach(async ({ page }) => {
   await openProject(page, PROJECT);
 });
 
+/**
+ * A chegada: o que se vê ao entrar numa worktree sem nunca ter tocado no rodapé.
+ *
+ * É a `run-dock-open` inteira, e ela é sobre o que **não** acontece: a coluna não
+ * salta de largura, nem ao entrar, nem ao mandar rodar. O piso de 640px continua
+ * existindo — mas só para quem abre o rodapé de propósito, que é onde ele sempre
+ * esteve (`App.tsx`).
+ */
+test("a chegada numa worktree mostra o run sem clique, e sem alargar a coluna", async ({ page }) => {
+  await openColumn(page);
+
+  // Sem `localStorage`, sem clique: a faixa de execução já está aqui.
+  await expect(page.getByRole("tablist", { name: "execução do checkout" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "abrir o rodapé" })).toHaveCount(0);
+
+  // A largura com que se chega. Guardada em vez de comparada com um número: o
+  // que a feature promete é que ela **não muda**, e o segundo teste prova que
+  // abrir de propósito ainda a muda.
+  const column = page.getByLabel("arquivos do checkout");
+  const arrived = (await column.boundingBox())!.width;
+
+  // A faixa de abas caberia? Ela mede 494px com os botões de ação dentro, e é por
+  // isso que eles moram na linha de estado. Aqui a pergunta é a de verdade: sobra
+  // algum controle fora da tela?
+  const strip = page.getByRole("tablist", { name: "execução do checkout" });
+  const overflow = await strip.evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+
+  // E o que a área da saída diz antes de existir saída — em vez de um terminal
+  // preto. A faixa de portas fica de fora desta afirmação de propósito: a reserva
+  // só existe depois do primeiro start, e afirmar aqui atrelaria o teste à ordem
+  // da suíte. As duas metades da linha estão cobertas no teste de componente.
+  const dock = page.getByTestId("run-dock");
+  await expect(dock.getByText(/ainda não rodou o run/)).toBeVisible();
+
+  // Mandar rodar roda, e não mexe na tela (Q5).
+  await dock.getByRole("button", { name: /rodar/ }).click();
+  await expect(dock.getByRole("link", { name: /Abrir/ })).toBeVisible({ timeout: 30_000 });
+  expect((await column.boundingBox())!.width).toBe(arrived);
+
+  await dock.getByRole("button", { name: /parar/ }).click();
+  await expect(dock.getByRole("link", { name: /Abrir/ })).toHaveCount(0, { timeout: 20_000 });
+});
+
+test("quem fecha o rodapé encontra fechado — e reabrir ainda alarga a coluna", async ({ page }) => {
+  await openColumn(page);
+  await page.getByRole("button", { name: "recolher o rodapé" }).click();
+
+  const folded = page.getByRole("button", { name: "abrir o rodapé" });
+  await expect(folded).toBeVisible();
+
+  await page.reload();
+  // Recarregar volta para a tela do workspace: a seleção não é lembrada, e o
+  // `▤ arquivos` só existe com um checkout na frente.
+  await openProject(page, PROJECT);
+  await openColumn(page);
+  // A preferência ganha do padrão: o padrão é o primeiro contato, não uma regra.
+  await expect(page.getByRole("button", { name: "abrir o rodapé" })).toBeVisible();
+
+  const column = page.getByLabel("arquivos do checkout");
+  const foldedWidth = (await column.boundingBox())!.width;
+
+  // Abrir de propósito continua levando a coluna com ele, como sempre levou —
+  // um terminal de 80 colunas não cabe na largura de chegada.
+  await page.getByRole("button", { name: "abrir o rodapé" }).click();
+  await expect(page.getByRole("tablist", { name: "execução do checkout" })).toBeVisible();
+  await expect
+    .poll(async () => (await column.boundingBox())!.width, { timeout: 5_000 })
+    .toBeGreaterThan(foldedWidth);
+});
+
 test("o run sobe pelo rodapé, e o botão abre a porta que ele anunciou", async ({ page }) => {
   await openDock(page);
   await page.getByRole("tab", { name: /^Run/ }).click();

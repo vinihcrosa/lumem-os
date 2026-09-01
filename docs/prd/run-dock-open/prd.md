@@ -1,10 +1,11 @@
 # PRD — O rodapé de execução nasce aberto
 
-> **Status:** v0.2 — **desenhada e decidida em 2026-09-01**, nada implementado. Uma anotação do
+> **Status:** v1.0 — **completa em 2026-09-01**: desenhada, decidida e implementada em quatro tasks.
+> Uma anotação do
 > agentation sobre o `FoldedDock`: *"isso deveria ser por default
 > aberto"*
 > **Perguntas:** [open-questions.md](open-questions.md) — **5 de 5 respondidas**
-> **Tasks:** [tasks.md](tasks.md)
+> **Tasks:** [tasks.md](tasks.md) — **4 de 4 entregues**
 > **Sucede:** [project-scripts](../project-scripts/prd.md), que construiu o rodapé e o fez nascer
 > **fechado**
 > **Desenho:** `packages/web/prototype/lumem-run-dock-open.html` — **seis quadros**, feitos no Open

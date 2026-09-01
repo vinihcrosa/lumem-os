@@ -386,6 +386,23 @@ der conta.
 
 ---
 
+### A porta de e2e é global entre worktrees do Conductor — `P`
+
+`E2E_STATE_DIR` é por worktree (`.lumem-e2e/` ao lado do módulo), mas `e2eServer` e `e2eWeb` vêm do
+`ports.json` e são os mesmos para todas. Duas sessões do Conductor rodando `playwright` ao mesmo tempo
+colidem com *"http://127.0.0.1:4420/trpc/health is already used"* — e a segunda não tem saída boa:
+`reuseExistingServer` testaria o build da outra branch, e matar o processo estraga o run de quem
+chegou primeiro.
+
+O conserto é derivar a porta de e2e do diretório do worktree, como o `E2E_STATE_DIR` já é — um hash
+do caminho dentro de uma faixa, com o `playwright.config` e o `ports.ts` lendo o mesmo lugar.
+
+**De onde veio:** a T4 da [run-dock-open](../prd/run-dock-open/tasks.md), que esperou vinte minutos a
+suíte de outra sessão terminar · **Volta quando:** duas sessões precisarem rodar e2e ao mesmo tempo
+mais de uma vez no mesmo dia.
+
+---
+
 ## G. Primeiro acesso e casca do app
 
 Todos vindos do [onboarding §6](../prd/onboarding/prd.md) — o desenho das nove telas propõe cada um
@@ -437,3 +454,4 @@ gate próprio, e feito pela metade fica pior que não feito.
 **De onde veio:** [D11](../prd/distribution/open-questions.md) — *"concordo com você, mas deixando
 claro que eu quero passar tudo para inglês em breve"* · **Volta quando:** a primeira pessoa que não
 fala português chegar ao repositório — ou você decidir a data.
+
