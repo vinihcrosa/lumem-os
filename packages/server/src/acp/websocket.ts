@@ -104,6 +104,7 @@ export function registerAcpWebSocket({
       modeOwner: modeOwnerOf(info),
       lumemMode: info.lumemMode,
       lumemModeDefault: info.lumemModeDefault,
+      cwd: info.cwd,
       transcript: [...acpManager.transcript(sessionId)],
     });
 

@@ -550,6 +550,15 @@ export const acpServerMessageSchema = z.discriminatedUnion("type", [
     modeOwner: acpModeOwnerSchema.default("agent"),
     lumemMode: lumemModeSchema.default("ask"),
     lumemModeDefault: lumemModeDefaultSchema.default("ask"),
+    /**
+     * The checkout this conversation runs in.
+     *
+     * Here because the `free` gate has to name what it is opening, and it names
+     * it as a **path on disk** rather than as "the worktree": the path is what
+     * says the size of the damage (Q4). A gate that could not say it would be
+     * asking for a decision without stating its scope.
+     */
+    cwd: z.string().default(""),
     transcript: z.array(acpTranscriptEntrySchema),
   }),
   z.object({

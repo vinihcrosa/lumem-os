@@ -503,6 +503,25 @@
 .pill--bypass { color: var(--color-mode-bypass); border-color: var(--color-mode-bypass); background: var(--color-bg-danger-subtle); }
 .pill--model  { font: var(--text-mono-sm); color: var(--color-text-code); }
 
+/* ------------------------------- a pílula do Lumem (session-mode) */
+/*
+ * O eixo de AUTORIA, e ele não é cor.
+ *
+ * Cor já carrega a consequência acima, e um objeto de 24px com dois eixos de cor
+ * não se lê. Então a autoria vai no glifo `◈` — e ganha de graça um segundo
+ * sinal que já estava no dado: o Lumem rotula em português e em caixa de frase,
+ * o agente entrega a string crua do protocolo. Duas pílulas lado a lado nunca
+ * vão parecer da mesma origem.
+ */
+.pill__own { flex: none; font-size: var(--size-icon-xs); line-height: 1; color: currentColor; }
+.pill[disabled] .pill__own { color: var(--color-text-disabled); }
+/*
+ * Neutro deliberado: "perguntar tudo" é o piso, e piso não pede atenção. Borda
+ * `default` e não `subtle` para não passar por pílula desabilitada — a única do
+ * sistema autorizada a baixar contraste.
+ */
+.pill--ask { color: var(--color-text-secondary); border-color: var(--color-border-default); }
+
 /* ------------------------------- menu suspenso: seletor e comandos */
 /*
  * Uma folha para os dois. O protótipo desenhou este bloco para os comandos de
@@ -529,6 +548,104 @@
 /* A pílula e o menu dela, ancorados juntos. */
 .config { position: relative; display: inline-flex; }
 .config .slash { position: absolute; bottom: calc(100% + var(--space-6)); left: 0; z-index: 1; }
+
+/* ------------------------------- o menu do modo do Lumem (session-mode) */
+/*
+ * Uma folha própria, e não o `.slash`.
+ *
+ * O `.slash` mostra a string crua do agente numa linha só, truncada com
+ * reticências — é a forma certa para dado que não é nosso. Este menu é o
+ * oposto: o texto é escrito por nós, decide uma política de permissão, e tem que
+ * caber inteiro. Reaproveitar o `.slash` cortaria a descrição do `automático`
+ * exatamente onde ela diz o que passa sozinho.
+ */
+.mmenu {
+  position: absolute;
+  bottom: calc(100% + var(--space-6));
+  left: 0;
+  z-index: 1;
+  width: var(--size-menu-width);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-lg);
+  overflow: hidden;
+}
+.mmenu__head {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-10);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.mmenu__who { display: flex; align-items: center; gap: var(--space-6); font: var(--text-label-sm); color: var(--color-text-primary); }
+.mmenu__why { font: var(--text-caption); color: var(--color-text-tertiary); }
+.mopt { display: grid; gap: var(--space-2); width: 100%; padding: var(--space-8) var(--space-10); text-align: left; }
+.mopt + .mopt { border-top: 1px solid var(--color-border-subtle); }
+.mopt:hover { background: var(--color-bg-hover); }
+.mopt--on, .mopt--on:hover { background: var(--color-bg-active); }
+.mopt__t { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-sm); color: var(--color-text-primary); }
+.mopt__mark { margin-left: auto; flex: none; font-size: var(--size-icon-sm); color: var(--color-text-brand); }
+/*
+ * Secundário, e não terciário: esta descrição é o texto que decide uma política
+ * de permissão. Terciário é para metadado — hora, contagem, caminho —, não para
+ * a frase que a pessoa lê antes de liberar escrita numa worktree.
+ */
+.mopt__d { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.mopt--auto .mopt__t { color: var(--color-mode-auto); }
+.mopt--free .mopt__t { color: var(--color-mode-bypass); }
+.mmenu__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-8) var(--space-10);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.mmenu__foot b { color: var(--color-text-secondary); font-weight: 400; }
+
+/* ------------------------------- o portão do `liberado` (session-mode) */
+/*
+ * Molde da `project-scripts`, com uma diferença que importa: lá o portão é por
+ * ORIGEM, porque confiar num repositório é durável; aqui é por SESSÃO, porque
+ * soltar um agente não é. Por isso não existe caixinha de lembrar — e por isso
+ * o botão que confirma é `btn--danger` e não o primário.
+ */
+.gate {
+  position: absolute;
+  bottom: calc(100% + var(--space-6));
+  left: 0;
+  z-index: 2;
+  width: var(--size-dialog-width);
+  display: grid;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-danger);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-xl);
+}
+.gate__t { display: flex; align-items: center; gap: var(--space-8); font: var(--text-heading-md); color: var(--color-text-primary); }
+.gate__g { flex: none; font-size: var(--size-icon-lg); color: var(--color-text-danger); }
+.gate__b { font: var(--text-body-md); color: var(--color-text-secondary); }
+.gate__b b { color: var(--color-text-primary); font-weight: 500; }
+.gate__list {
+  display: grid;
+  gap: var(--space-6);
+  margin: 0;
+  padding: var(--space-10) var(--space-12);
+  list-style: none;
+  background: var(--color-bg-danger-subtle);
+  border-radius: var(--radius-md);
+}
+.gate__list li { display: flex; gap: var(--space-8); font: var(--text-body-sm); color: var(--color-text-primary); }
+.gate__list li::before { content: "›"; flex: none; color: var(--color-text-danger); }
+.gate__list li > span { min-width: 0; }
+/* O caminho quebra onde precisar: cortá-lo seria esconder metade do escopo. */
+.gate__scope { font: var(--text-mono-sm); color: var(--color-text-code); overflow-wrap: anywhere; }
+.gate__acts { display: flex; align-items: center; gap: var(--space-8); }
+.gate__note { font: var(--text-caption); color: var(--color-text-tertiary); }
 
 /* O menu de comandos, ancorado na caixa do composer em vez de numa pílula. */
 .composer__box { position: relative; }

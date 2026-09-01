@@ -33,6 +33,8 @@ const components = read(
   "PlanCard.tsx",
   "UsageFooter.tsx",
   "ConfigPills.tsx",
+  "LumemModePill.tsx",
+  "FreeModeGate.tsx",
   "SlashMenu.tsx",
 );
 
@@ -70,6 +72,12 @@ const INTERPOLATED = [
   "pill--plan",
   "pill--bypass",
   "pill--model",
+  // A pílula do Lumem monta o tom a partir de uma constante (`current.tone`), e
+  // então nenhum dos três nomes aparece literalmente no componente.
+  "pill--ask",
+  "mopt--on",
+  "mopt--auto",
+  "mopt--free",
   "slash__row--on",
   "slash__row--danger",
 ];
@@ -106,6 +114,16 @@ const BORROWED = new Set([
   // Shared primitives.
   "glyph",
   "btn",
+  // Texto só para leitor de tela, definido no `base.css`. O protótipo chama de
+  // `.vh` e o app de `.sr-only`; quem portar copiando o nome do protótipo deixa
+  // o texto visível, e é este audit que pega.
+  "sr-only",
+  // Variantes do botão do sistema, definidas no `ui/ui.css`. O portão usa as
+  // duas de propósito: o que confirma é `danger`, e não o primário — botão
+  // perigoso que parece a ação esperada é o desenho recomendando o perigo.
+  "btn--danger",
+  "btn--ghost",
+  "btn--sm",
   // Subiu para `ui/ui.css` quando o fluxo de primeiro acesso passou a pedir a
   // mesma dica de tecla.
   "kbd",

@@ -111,6 +111,7 @@ describe("decodeAcpServerMessage — attach", () => {
       model: "opus[1m]",
       mode: "auto",
       configOptions: [],
+      cwd: "/repos/lorebase",
       modeOwner: "agent",
       lumemMode: "ask",
       lumemModeDefault: "ask",
@@ -635,6 +636,10 @@ describe("o modo do Lumem", () => {
       modeOwner: "agent",
       lumemMode: "ask",
       lumemModeDefault: "ask",
+      // Vazio, e não ausente: um attach gravado antes desta feature não diz em
+      // que checkout rodou — e o portão que depende do caminho não é oferecido
+      // numa conversa encerrada de qualquer forma.
+      cwd: "",
     });
   });
 });

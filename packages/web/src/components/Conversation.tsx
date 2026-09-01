@@ -15,6 +15,8 @@ import { connectAcpSocket, type AcpConnect } from "../lib/acp-socket.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, Coach, Glyph } from "../ui/index.js";
 import { ConfigPills } from "./ConfigPills.js";
+import { FreeModeGate } from "./FreeModeGate.js";
+import { LumemModePill } from "./LumemModePill.js";
 import { Message, Thought, TurnFrame } from "./Message.js";
 import { PermissionRequest } from "./PermissionRequest.js";
 import { useFirstPermissionCoach, type FirstPermissionCoach } from "../hooks/useFirstPermissionCoach.js";
@@ -42,7 +44,14 @@ type Action =
 interface ViewState {
   conversation: ConversationState;
   /** Set once the daemon answers the attach. Null while connecting. */
-  session: { acpSessionId: string; model: string; mode: string; state: string } | null;
+  session: {
+    acpSessionId: string;
+    model: string;
+    mode: string;
+    state: string;
+    /** O checkout, porque é ele que o portão do `liberado` nomeia (Q4). */
+    cwd: string;
+  } | null;
   /** A launch failure or a refusal — something with a remedy, or a dead end. */
   failure: { message: string; remedy: string | null; fatal: boolean } | null;
 }
@@ -65,12 +74,16 @@ function reduce(state: ViewState, action: Action): ViewState {
           ...replayConversation(message.transcript),
           mode: message.mode,
           configOptions: message.configOptions,
+          modeOwner: message.modeOwner,
+          lumemMode: message.lumemMode,
+          lumemModeDefault: message.lumemModeDefault,
         },
         session: {
           acpSessionId: message.acpSessionId,
           model: message.model,
           mode: message.mode,
           state: message.state,
+          cwd: message.cwd,
         },
         failure: null,
       };
@@ -159,6 +172,13 @@ export function Conversation({
 }: ConversationProps) {
   const [state, dispatch] = useReducer(reduce, initial);
   const [draft, setDraft] = useState("");
+  /*
+   * O portão do `liberado`, aberto e ainda não atravessado (Q4).
+   *
+   * Estado do componente, e não da sessão: ele não sobrevive a nada. Guardar que
+   * alguém já viu o portão é o primeiro passo para ele deixar de ser portão.
+   */
+  const [gateOpen, setGateOpen] = useState(false);
   const [openThoughts, setOpenThoughts] = useState<ReadonlySet<string>>(new Set());
   const socketRef = useRef<ReturnType<AcpConnect> | null>(null);
   const awaiting = useAwaitingPermission();
@@ -514,6 +534,32 @@ export function Conversation({
               then (A15). Offering it anyway would be a button whose only outcome
               is an error the user did nothing to cause.
             */}
+            {/*
+              Uma pílula de modo, sempre, e nunca duas (A1).
+              O `modeOwner` vem do daemon: derivar aqui "o agente não mandou
+              `mode`, então a pílula é do Lumem" seria uma segunda cópia da regra,
+              livre para discordar da primeira.
+            */}
+            {gateOpen && (
+              <FreeModeGate
+                cwd={session?.cwd ?? ""}
+                onCancel={() => setGateOpen(false)}
+                onConfirm={() => {
+                  setGateOpen(false);
+                  socketRef.current?.send({ type: "set_lumem_mode", mode: "free" });
+                }}
+              />
+            )}
+            {conversation.modeOwner === "lumem" && (
+              <LumemModePill
+                mode={conversation.lumemMode}
+                workspaceDefault={conversation.lumemModeDefault}
+                disabled={conversation.streaming}
+                readOnly={readOnly}
+                onSwitch={(mode) => socketRef.current?.send({ type: "set_lumem_mode", mode })}
+                onFreeRequested={() => setGateOpen(true)}
+              />
+            )}
             <ConfigPills
               mode={conversation.mode}
               options={conversation.configOptions}

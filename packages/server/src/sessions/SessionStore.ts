@@ -410,6 +410,7 @@ export function createSessionStore({
         modeOwner: row.mode ? ("agent" as const) : ("lumem" as const),
         lumemMode: "ask" as const,
         lumemModeDefault: "ask" as const,
+        cwd: row.cwd,
         transcript: [...acpManager.storedTranscript(row.id)],
       };
     },

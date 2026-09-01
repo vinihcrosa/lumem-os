@@ -68,10 +68,13 @@ function entry(event: AcpTranscriptEntry["event"], deltaMs = 0): AcpTranscriptEn
 function attached(
   transcript: AcpTranscriptEntry[] = [],
   configOptions: AcpConfigOption[] = [],
+  /** Quem é o dono do seletor de modo (`session-mode`, A1). */
+  modeOwner: "agent" | "lumem" = "agent",
 ): AcpServerMessage {
   return {
     type: "attached",
-    modeOwner: "agent",
+    modeOwner,
+    cwd: "/repos/lorebase",
     lumemMode: "ask",
     lumemModeDefault: "ask",
     sessionId: "s-1",
@@ -1069,5 +1072,66 @@ describe("the mark between two conversations", () => {
     await waitFor(() => expect(screen.getByText(/retomada/)).toBeInTheDocument());
     // Two agent frames, not one: the separator broke the run.
     expect(document.querySelectorAll(".turn--agent")).toHaveLength(2);
+  });
+});
+
+/**
+ * A pílula de modo, no composer (`session-mode`, T2).
+ *
+ * O componente isolado é testado em `lumem-mode-pill.test.tsx`. O que só se pode
+ * provar aqui é a regra que vale entre os dois: **uma pílula de modo, sempre, e
+ * nunca duas.** É a A1 na tela, e ela é a única coisa que impede alguém de trocar
+ * a política do Lumem achando que pôs o agente em modo plano.
+ */
+/** O seletor de modo do agente, como o adaptador o relata. */
+const modeOption: AcpConfigOption = {
+  id: "mode",
+  name: "Mode",
+  currentValue: "auto",
+  choices: [
+    { value: "auto", name: "Auto", description: null },
+    { value: "plan", name: "Plan Mode", description: null },
+  ],
+};
+
+describe("a pílula de modo no composer", () => {
+  it("mostra a pílula do Lumem quando o agente não relata modos", async () => {
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+
+    expect(await screen.findByRole("button", { name: /regra do Lumem/i })).toBeInTheDocument();
+  });
+
+  it("não mostra a do Lumem quando o agente é o dono do seletor", async () => {
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [modeOption], "agent")));
+
+    expect(await screen.findByRole("button", { name: /Mode: Auto/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /regra do Lumem/i })).not.toBeInTheDocument();
+  });
+
+  it("troca a política sem falar com o agente", async () => {
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+
+    await userEvent.click(await screen.findByRole("button", { name: /regra do Lumem/i }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: /Automático/ }));
+
+    expect(socket.sent).toContainEqual({ type: "set_lumem_mode", mode: "auto" });
+  });
+
+  it("só manda liberado depois do portão, e o portão nomeia o checkout", async () => {
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+
+    await userEvent.click(await screen.findByRole("button", { name: /regra do Lumem/i }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: /Liberado/ }));
+
+    // Nada foi mandado ainda: o clique abriu o portão, não trocou o modo (Q4).
+    expect(socket.sent).not.toContainEqual({ type: "set_lumem_mode", mode: "free" });
+    expect(screen.getByText("/repos/lorebase")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /liberar esta sessão/ }));
+    expect(socket.sent).toContainEqual({ type: "set_lumem_mode", mode: "free" });
   });
 });

@@ -126,6 +126,7 @@ describe("receiving", () => {
     fake.deliver({
       type: "attached",
       modeOwner: "agent",
+      cwd: "/repos/lorebase",
       lumemMode: "ask",
       lumemModeDefault: "ask",
       sessionId: "s-1",
@@ -162,6 +163,7 @@ describe("receiving", () => {
     fake.deliver({
       type: "attached",
       modeOwner: "agent",
+      cwd: "/repos/lorebase",
       lumemMode: "ask",
       lumemModeDefault: "ask",
       sessionId: "s-1",

@@ -2,6 +2,7 @@ import type {
   AcpCommand,
   AcpConfigOption,
   AcpEvent,
+  AcpModeOwner,
   AcpPlanEntry,
   AcpRateLimit,
   AcpPermissionOption,
@@ -11,6 +12,8 @@ import type {
   AcpToolLocation,
   AcpToolStatus,
   AcpTranscriptEntry,
+  LumemMode,
+  LumemModeDefault,
 } from "@lumem/shared";
 
 /**
@@ -149,6 +152,18 @@ export interface ConversationState {
   /** The selectors, and which mode is current (F2.6). */
   mode: string;
   configOptions: readonly AcpConfigOption[];
+  /**
+   * Which of the two authorities owns the mode selector (`session-mode`, A1).
+   *
+   * Read off the daemon's field rather than derived from `configOptions`: the
+   * rule that they never coexist is the daemon's, and rediscovering it here
+   * would be a second copy of it, free to drift.
+   */
+  modeOwner: AcpModeOwner;
+  /** The policy in effect while the owner is Lumem. */
+  lumemMode: LumemMode;
+  /** What a new session in this workspace would start at — the menu's footer. */
+  lumemModeDefault: LumemModeDefault;
   /** What `/` offers (F2.8). Empty when the agent offers nothing. */
   commands: readonly AcpCommand[];
   /** Terminals the agent opened, newest last, keyed by the id it used. */
@@ -166,6 +181,9 @@ export function emptyConversation(): ConversationState {
     usage: null,
     mode: "",
     configOptions: [],
+    modeOwner: "agent",
+    lumemMode: "ask",
+    lumemModeDefault: "ask",
     commands: [],
     terminals: [],
   };
@@ -309,7 +327,14 @@ export function reduceConversation(
     }
 
     case "config":
-      return { ...state, mode: event.mode, configOptions: event.options };
+      return {
+        ...state,
+        mode: event.mode,
+        configOptions: event.options,
+        modeOwner: event.modeOwner,
+        lumemMode: event.lumemMode,
+        lumemModeDefault: event.lumemModeDefault,
+      };
 
     case "commands":
       return { ...state, commands: event.commands };
