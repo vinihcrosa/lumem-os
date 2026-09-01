@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Desenho:** `packages/web/prototype/lumem-sidebar-actions.html` — oito quadros, feitos no Open Design
 e sincronizados ([regra](../../project/design-source-of-truth.md))
-**Status:** **2 de 10.** Escopo fechado — as seis perguntas foram respondidas pelo desenho de
+**Status:** **3 de 10.** Escopo fechado — as seis perguntas foram respondidas pelo desenho de
 2026-09-01.
 
 ---
@@ -103,17 +103,17 @@ no foco.
 **Where**: `packages/web/src/components/CreateWorktreeDialog.tsx` + `worktree-ui.test.tsx`
 
 **Done when**:
-- [ ] `open` e `onClose` vêm de fora (A2); o componente **não** renderiza mais o botão
+- [x] `open` e `onClose` vêm de fora (A2); o componente **não** renderiza mais o botão
       `nova worktree` quando fechado
-- [ ] Busca `project.get` **enquanto aberto** para saber `hasCommits` — quem abre é a árvore, e a
+- [x] Busca `project.get` **enquanto aberto** para saber `hasCommits` — quem abre é a árvore, e a
       árvore não tem esse dado; fechado, não pergunta nada
-- [ ] Repositório sem commit: o diálogo **abre** e explica no `Banner`, com `criar` desabilitado. O
+- [x] Repositório sem commit: o diálogo **abre** e explica no `Banner`, com `criar` desabilitado. O
       `+` da linha não fica cinza (o desenho diz por quê: um `+` de 24px desabilitado é um botão sem
       motivo à vista)
-- [ ] O cabeçalho diz de onde a ação veio — `em ■ <projeto>` —, e não existe seletor de projeto
-- [ ] Criar com sucesso: fecha, e chama `onCreated` com a worktree nova
-- [ ] Erro do daemon continua sendo mostrado com as palavras dele, no `Field`
-- [ ] Gate: `pnpm gate:quick`
+- [x] O cabeçalho diz de onde a ação veio — `em ■ <projeto>` —, e não existe seletor de projeto
+- [x] Criar com sucesso: fecha, e chama `onCreated` com a worktree nova
+- [x] Erro do daemon continua sendo mostrado com as palavras dele, no `Field`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `refactor(web): o diálogo de worktree controlado, dentro do modal`
 
@@ -261,4 +261,12 @@ já fazem.
 
 ## O que a execução achou
 
-_A preencher enquanto as tasks forem entregues — como a `project-scripts` e a `acp-sessions` fizeram._
+**T3 — um `useEffect` com o resultado da mutação nas dependências estourou a memória da suíte.**
+A primeira versão do diálogo limpava o campo num efeito com `[open, create]`, e o objeto que o
+`useMutation` do react-query devolve é **novo a cada render**: o efeito rodava sempre, chamava
+`create.reset()` sempre, e o processo **principal** do vitest morria de `heap out of memory` depois
+de uns 47 arquivos — com **zero** testes falhando antes disso. Um teste isolado não pega: só a suíte
+inteira acumula o suficiente. O conserto foi apagar o efeito, porque todo caminho de saída já passa
+pelo `close()` — é o `Modal` que o chama no `Esc`, no véu e no `✕`.
+
+**Fica valendo:** dependência de efeito tem de ser valor estável. Objeto de resultado de hook não é.

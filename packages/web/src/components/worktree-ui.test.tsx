@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App.js";
+import { CreateWorktreeDialog } from "./CreateWorktreeDialog.js";
 import { renderWithProviders } from "../test/render.js";
 import { installTrpcDefaults, trpcMock as trpc } from "../test/trpc-mock.js";
 
@@ -166,7 +167,7 @@ describe("create worktree", () => {
     await user.type(screen.getByLabelText("Nome da worktree"), "teste");
     await user.click(screen.getByRole("button", { name: "criar" }));
 
-    expect(await screen.findByText("criando a worktree…")).toBeInTheDocument();
+    expect(await screen.findByText(/copiando o checkout/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "criando…" })).toBeDisabled();
   });
 
@@ -356,5 +357,64 @@ describe("o run visto de fora do rodapé", () => {
     await within(tree).findByRole("button", { name: /^teste/ });
     expect(within(tree).queryByText(/^:\d+$/)).not.toBeInTheDocument();
     expect(within(tree).queryByText("setup falhou")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * O diálogo por si, agora que ele é controlado.
+ *
+ * Montado direto e não pela tela: o que estas asserções cobrem é o contrato com
+ * quem o abre — que fechado ele não existe, e que aberto ele repete de onde a
+ * ação veio em vez de perguntar de novo.
+ */
+describe("CreateWorktreeDialog", () => {
+  it("renders nothing when closed, and owns no button of its own", () => {
+    renderWithProviders(
+      <CreateWorktreeDialog
+        projectId="p1"
+        projectName="lorebase"
+        open={false}
+        onClose={vi.fn()}
+        onCreated={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "nova worktree" })).not.toBeInTheDocument();
+    expect(trpc.project.get.query).not.toHaveBeenCalled();
+  });
+
+  it("says which project it will cut from, instead of asking", async () => {
+    renderWithProviders(
+      <CreateWorktreeDialog
+        projectId="p1"
+        projectName="lorebase"
+        open
+        onClose={vi.fn()}
+        onCreated={vi.fn()}
+      />,
+    );
+
+    const dialog = await screen.findByRole("dialog", { name: "Nova worktree" });
+    expect(within(dialog).getByText("lorebase")).toBeInTheDocument();
+    // Nenhum seletor de projeto: a escolha foi feita no gesto que abriu isto.
+    expect(within(dialog).queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  it("explains an empty repository here, and not in a 24px button", async () => {
+    trpc.project.get.query.mockResolvedValue({ ...project(), hasCommits: false });
+
+    renderWithProviders(
+      <CreateWorktreeDialog
+        projectId="p1"
+        projectName="lorebase"
+        open
+        onClose={vi.fn()}
+        onCreated={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText(/ainda não tem nenhum commit/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "criar" })).toBeDisabled();
   });
 });

@@ -133,6 +133,7 @@ export function LocalPanel({
   });
 
   const [confirming, setConfirming] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const remove = useMutation({
     mutationFn: () => trpc.project.remove.mutate({ id: projectId }),
@@ -268,10 +269,18 @@ export function LocalPanel({
           {available && (
             <>
               <div className="actions">
+                {/* Provisório: o diálogo virou controlado (T3) e a ação vai
+                    embora daqui na T8 — a aba de contexto do `local` é para ler
+                    o checkout, não para criar irmãos dele (Q4). */}
+                <Button variant="primary" glyph={<Glyph>◇</Glyph>} onClick={() => setCreating(true)}>
+                  nova worktree
+                </Button>
                 <CreateWorktreeDialog
                   projectId={projectId}
+                  projectName={project.data.name}
+                  open={creating}
+                  onClose={() => setCreating(false)}
                   onCreated={onSelectWorktree}
-                  hasCommits={project.data.hasCommits}
                 />
               </div>
 

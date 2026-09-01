@@ -449,18 +449,26 @@ describe("projeto sem commit", () => {
   it("explica por que ainda não corta worktree, em vez de deixar o git responder", async () => {
     // F6.13. Clonar um repositório vazio é caso legítimo (Q19), e "invalid
     // reference" não explica isso a ninguém.
+    //
+    // Quem explica é o **diálogo**, e não mais o botão desabilitado: desde a
+    // sidebar-actions a ação nasce de um `+` de 24px na árvore, e um `+` cinza
+    // é um botão sem motivo à vista.
     const user = userEvent.setup();
     await openLocal(user, project({ hasCommits: false }));
 
-    const botao = screen.getByRole("button", { name: /nova worktree/ });
-    expect(botao).toBeDisabled();
-    expect(botao).toHaveAttribute("title", expect.stringContaining("nenhum commit"));
+    await user.click(screen.getByRole("button", { name: /nova worktree/ }));
+
+    expect(await screen.findByText(/ainda não tem nenhum commit/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "criar" })).toBeDisabled();
   });
 
   it("deixa cortar assim que houver commit", async () => {
     const user = userEvent.setup();
     await openLocal(user, project({ hasCommits: true }));
 
-    expect(screen.getByRole("button", { name: /nova worktree/ })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: /nova worktree/ }));
+
+    await screen.findByRole("dialog", { name: "Nova worktree" });
+    expect(screen.queryByText(/ainda não tem nenhum commit/)).not.toBeInTheDocument();
   });
 });
