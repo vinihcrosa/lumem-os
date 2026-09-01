@@ -1,5 +1,19 @@
 import type { CSSProperties, ReactNode } from "react";
 
+/**
+ * A ação que a linha oferece — o `+` que corta uma worktree do projeto.
+ *
+ * Um objeto e não um `ReactNode`: assim a `Row` é dona do botão, e com ele do
+ * tamanho do alvo, do lugar no `Tab` e do nome. `＋` sozinho não é nome de
+ * nada, então `label` é obrigatório.
+ */
+export interface RowAction {
+  label: string;
+  /** `＋` para acrescentar, `✕` para cancelar o que está acontecendo na linha. */
+  glyph: string;
+  onClick: () => void;
+}
+
 export interface RowProps {
   /** Nesting level. Drives indentation through the `--depth` custom property. */
   depth: number;
@@ -27,6 +41,20 @@ export interface RowProps {
   countTone?: "running" | "asking";
   /** Trailing note: a count, `ausente`, `saiu`. */
   meta?: ReactNode;
+  /**
+   * A ação à direita, e o espaço dela.
+   *
+   * Três valores, e os três importam: um objeto desenha o botão; `null` **reserva
+   * os 24px sem oferecer ação** — é o projeto fora do disco, que não tem de onde
+   * cortar worktree; `undefined` não reserva nada, que é o caso da worktree, que
+   * não acrescenta nada abaixo de si.
+   *
+   * Reservar é o requisito, e não o botão: sem o espaço guardado, a linha se
+   * reorganiza no instante em que o ponteiro chega — o label encolhe e o contador
+   * anda 24px para a esquerda, debaixo de uma mão que já está a caminho do
+   * clique.
+   */
+  action?: RowAction | null;
   /**
    * How many sessions are running in here.
    *
@@ -58,6 +86,7 @@ export function Row({
   meta,
   count,
   countTone = "running",
+  action,
 }: RowProps) {
   const classes = [
     "row",
@@ -109,6 +138,23 @@ export function Row({
           </span>
         )}
       </button>
+
+      {/*
+        Irmão do `row__main`, e não filho: `button` dentro de `button` é HTML
+        inválido, e é por isso que clicar aqui não seleciona nem expande sem
+        precisar de `stopPropagation` — o clique nunca passa pelo outro botão.
+      */}
+      {action === null && <span className="row__slot" aria-hidden="true" />}
+      {action !== null && action !== undefined && (
+        <button
+          type="button"
+          className="row__act"
+          aria-label={action.label}
+          onClick={action.onClick}
+        >
+          <span aria-hidden="true">{action.glyph}</span>
+        </button>
+      )}
     </div>
   );
 }

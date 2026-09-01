@@ -122,6 +122,57 @@ describe("Row", () => {
     expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 
+  it("keeps the action out of the row's own button, so clicking it is not navigating", async () => {
+    const onSelect = vi.fn();
+    const onToggle = vi.fn();
+    const onClick = vi.fn();
+    render(
+      <Row
+        depth={0}
+        label="lumem-os"
+        expanded={false}
+        onToggle={onToggle}
+        onSelect={onSelect}
+        action={{ label: "nova worktree em lumem-os", glyph: "＋", onClick }}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "nova worktree em lumem-os" }));
+    expect(onClick).toHaveBeenCalledOnce();
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it("reserves the slot with no action in it, so the row does not shift under the pointer", () => {
+    const { container, rerender } = render(
+      <Row depth={0} label="graphify-out" muted action={null} onSelect={vi.fn()} />,
+    );
+    expect(container.querySelector(".row__slot")).toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(1); // só a linha
+
+    // Sem `action` nenhuma — a worktree, que não acrescenta nada abaixo de si.
+    rerender(<Row depth={1} label="pr-bar" onSelect={vi.fn()} />);
+    expect(container.querySelector(".row__slot")).not.toBeInTheDocument();
+    expect(container.querySelector(".row__act")).not.toBeInTheDocument();
+  });
+
+  it("keeps the action reachable by keyboard, because hover is not a way in", () => {
+    render(
+      <Row
+        depth={0}
+        label="lumem-os"
+        count={2}
+        onSelect={vi.fn()}
+        action={{ label: "nova worktree em lumem-os", glyph: "＋", onClick: vi.fn() }}
+      />,
+    );
+
+    // No DOM mesmo em repouso: é `opacity` que a esconde, e não `display`, que a
+    // tiraria da ordem de `Tab`. E o contador continua lá, ao lado dela.
+    expect(screen.getByRole("button", { name: "nova worktree em lumem-os" })).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+  });
+
   it("carries the depth as a custom property rather than hard-coded padding", () => {
     const { container } = render(<Row depth={3} label="shell" onSelect={vi.fn()} />);
     expect(container.querySelector(".row")).toHaveAttribute("style", expect.stringContaining("--depth: 3"));

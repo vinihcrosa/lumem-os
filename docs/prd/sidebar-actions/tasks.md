@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Desenho:** `packages/web/prototype/lumem-sidebar-actions.html` — oito quadros, feitos no Open Design
 e sincronizados ([regra](../../project/design-source-of-truth.md))
-**Status:** **1 de 10.** Escopo fechado — as seis perguntas foram respondidas pelo desenho de
+**Status:** **2 de 10.** Escopo fechado — as seis perguntas foram respondidas pelo desenho de
 2026-09-01.
 
 ---
@@ -80,15 +80,15 @@ no foco.
 **Where**: `packages/web/src/ui/Row.tsx`, `ui/ui.css` + `ui/ui.test.tsx`
 
 **Done when**:
-- [ ] `action?: ReactNode` — quando ausente **numa linha que declara ter slot**, o espaço continua
+- [x] `action?: ReactNode` — quando ausente **numa linha que declara ter slot**, o espaço continua
       reservado (A3), e é isso que o teste mede: a largura do label não muda entre ter e não ter `+`
-- [ ] O slot fica **fora** do `row__main` (A4): clicar nele não dispara `onSelect` nem `onToggle`
-- [ ] Invisível em repouso (`opacity: 0`), visível em `:hover` da linha e em `:focus-visible` do
+- [x] O slot fica **fora** do `row__main` (A4): clicar nele não dispara `onSelect` nem `onToggle`
+- [x] Invisível em repouso (`opacity: 0`), visível em `:hover` da linha e em `:focus-visible` do
       próprio botão — nunca `display: none`, que tiraria o botão da ordem de `Tab`
-- [ ] O `count` **continua no lugar** com o slot pintado: a linha não se reorganiza no hover (Q1)
-- [ ] O glifo de linha `muted` passa a ser o desligado, e não o de perigo — `sem disco` não é falha
-- [ ] Nenhuma outra linha da árvore muda de altura, de indentação ou de ordem de foco
-- [ ] Gate: `pnpm gate:quick`
+- [x] O `count` **continua no lugar** com o slot pintado: a linha não se reorganiza no hover (Q1)
+- [x] O glifo de linha `muted` passa a ser o desligado, e não o de perigo — `sem disco` não é falha
+- [x] Nenhuma outra linha da árvore muda de altura, de indentação ou de ordem de foco
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): o slot de ação da linha da árvore`
 

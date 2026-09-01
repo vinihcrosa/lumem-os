@@ -217,6 +217,45 @@
   color: var(--color-permission-pending);
 }
 
+/*
+ * O slot de ação da linha: 24px reservados sempre, pintados no hover e no foco.
+ *
+ * `opacity` e não `display: none`: escondido de verdade, o botão sairia da ordem
+ * de `Tab`, e quem navega por teclado perderia a ação que a linha oferece.
+ * Invisível ele continua alcançável — e aparecer no foco é o que fecha o buraco
+ * que o hover sozinho deixaria.
+ */
+.row__act {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-target-min);
+  height: var(--size-target-min);
+  margin-right: var(--space-4);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+}
+.row:hover .row__act,
+.row__act:focus-visible { opacity: 1; }
+.row__act:hover { background: var(--color-bg-active); color: var(--color-text-primary); }
+
+/* Sem ação, o espaço fica: alinhamento de coluna não é decoração, é o que faz a
+   árvore ser lida de cima a baixo. */
+.row__slot { flex: none; width: var(--size-target-min); margin-right: var(--space-4); }
+
+/* O glifo de um projeto fora do disco é DESLIGADO, não perigoso. `sem disco` não
+   é falha — é um repositório que saiu de onde estava, e a linha continua na lista
+   porque as worktrees registradas nela continuam existindo. Vermelho aqui
+   competiria com o vermelho que quer dizer "quebrou". */
+.row--muted .glyph { color: var(--color-text-disabled); }
+
 /* ---------------------------------------------------- linha de detalhe */
 .item {
   display: flex;
