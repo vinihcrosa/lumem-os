@@ -2,7 +2,7 @@ import type { FastifyBaseLogger } from "fastify";
 
 import type { Db } from "../db/index.js";
 import type { EventBus } from "../events.js";
-import type { AcpServerMessage } from "@lumem/shared";
+import type { AcpServerMessage, LumemMode, LumemModeDefault } from "@lumem/shared";
 
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
@@ -17,12 +17,15 @@ import {
 } from "../memory/signals.js";
 import type { PtyManager } from "../pty/PtyManager.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
+import { createProjectRepository } from "../repositories/project.js";
 import {
   createSessionRepository,
   type ScopeType,
   type ScriptPhase,
   type SessionKind,
 } from "../repositories/session.js";
+import { createWorkspaceRepository } from "../repositories/workspace.js";
+import { createWorktreeRepository } from "../repositories/worktree.js";
 
 /**
  * The process and its record, kept in step.
@@ -209,6 +212,41 @@ export function createSessionStore({
     }
   }
 
+  /**
+   * O padrão que uma sessão nova herda do workspace (`session-mode`, Q5).
+   *
+   * Sobe pela hierarquia — worktree → projeto → workspace — porque é onde o
+   * valor mora, e o escopo de uma sessão pode ser qualquer um dos dois de baixo.
+   *
+   * Nunca lança: um workspace que sumiu no meio do caminho não é motivo para
+   * recusar uma sessão, e a resposta segura já é o default. Herdar errado aqui
+   * seria abrir permissão por acidente, então o erro cai para `ask`.
+   */
+  async function inheritedMode(
+    scopeType: ScopeType,
+    scopeId: string,
+  ): Promise<LumemModeDefault> {
+    try {
+      const projects = createProjectRepository(db);
+      const projectId =
+        scopeType === "project"
+          ? scopeId
+          : (await createWorktreeRepository(db).findById(scopeId))?.projectId;
+      if (!projectId) return "ask";
+
+      const project = await projects.findById(projectId);
+      if (!project) return "ask";
+
+      const workspace = await createWorkspaceRepository(db).findById(project.workspaceId);
+      // O CHECK da coluna já recusa `'free'`, então o que chega aqui é `ask` ou
+      // `auto`. A comparação existe para o caso de o banco ter sido editado por
+      // fora: mesmo aí, ninguém nasce liberado.
+      return workspace?.defaultLumemMode === "auto" ? "auto" : "ask";
+    } catch {
+      return "ask";
+    }
+  }
+
   return {
     async start(input) {
       const { kind, agentConfigId = null, scopeType, scopeId, cwd, command } = input;
@@ -227,6 +265,8 @@ export function createSessionStore({
           );
         }
 
+        const inherited = await inheritedMode(scopeType, scopeId);
+
         // The agent first, so its id is the record's id — the same identity rule
         // the PTY path follows, for the same reason.
         const agent = await acpManager.spawn({
@@ -235,6 +275,10 @@ export function createSessionStore({
           cwd,
           ...(input.env ? { env: input.env } : {}),
           ...(input.adapterVersion ? { adapterVersion: input.adapterVersion } : {}),
+          // O modo herdado, e ele é o mesmo nos dois campos: uma sessão nova
+          // começa no padrão do workspace, e o menu mostra de onde veio.
+          lumemMode: inherited,
+          lumemModeDefault: inherited,
         });
 
         try {
@@ -341,6 +385,16 @@ export function createSessionStore({
         ...(config?.env && Object.keys(config.env).length > 0 ? { env: config.env } : {}),
         ...(config?.adapterVersion ? { adapterVersion: config.adapterVersion } : {}),
         acpSessionId: row.acpSessionId,
+        /*
+         * A política volta como estava (F1.4).
+         *
+         * `lumemMode` da linha morta, e não o padrão do workspace: retomar é
+         * continuar a mesma conversa, e uma que estava em `auto` voltar
+         * perguntando tudo seria a feature desfazendo a escolha em silêncio.
+         * Inclusive `free` — o portão já foi atravessado por esta conversa.
+         */
+        lumemMode: row.lumemMode as LumemMode,
+        lumemModeDefault: await inheritedMode(row.scopeType as ScopeType, row.scopeId),
         // What makes the new session's transcript self-contained (D15): the old
         // conversation is copied in front of it, and the separator recorded after.
         fromSessionId: row.id,
@@ -398,6 +452,19 @@ export function createSessionStore({
          * interface offering something it cannot do.
          */
         configOptions: [],
+        /*
+         * O modo em que a conversa **esteve** (F1.8).
+         *
+         * A autoria sai de `row.mode`, e não de `configOptions`: aqui a lista é
+         * vazia por construção, e perguntar a ela quem era o dono responderia
+         * "o Lumem" para toda conversa morta — inclusive as que rodaram com um
+         * agente cheio de modos. O que a linha guarda é qual modo estava valendo,
+         * e ter um é a prova de que o agente era o dono.
+         */
+        modeOwner: row.mode ? ("agent" as const) : ("lumem" as const),
+        lumemMode: row.lumemMode as LumemMode,
+        lumemModeDefault: "ask" as const,
+        cwd: row.cwd,
         transcript: [...acpManager.storedTranscript(row.id)],
       };
     },
@@ -469,7 +536,11 @@ export function createSessionStore({
        */
       const offConfig = acpManager?.watchConfig((info) => {
         void sessions
-          .setConfig(info.id, { mode: info.mode, model: info.model })
+          .setConfig(info.id, {
+            mode: info.mode,
+            model: info.model,
+            lumemMode: info.lumemMode,
+          })
           .catch((error: unknown) => {
             log?.warn({ session: info.id, err: error }, "falha ao registrar troca de configuração");
           });

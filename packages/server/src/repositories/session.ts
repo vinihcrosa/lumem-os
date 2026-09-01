@@ -1,5 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
 
+import type { LumemMode } from "@lumem/shared";
+
 import type { Db } from "../db/index.js";
 import { session, type SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
@@ -81,7 +83,7 @@ export interface SessionRepository {
    * `agent_config` keeps the default and this keeps what *this* session chose (A8),
    * so reopening the tab shows the choice rather than the default.
    */
-  setConfig(id: string, config: { mode?: string; model?: string }): Promise<void>;
+  setConfig(id: string, config: { mode?: string; model?: string; lumemMode?: LumemMode }): Promise<void>;
   /**
    * F7.3: no PTY survives a daemon restart, so no record may claim otherwise.
    *
@@ -171,6 +173,10 @@ export function createSessionRepository(db: Db): SessionRepository {
         .set({
           ...(config.mode === undefined ? {} : { mode: config.mode }),
           ...(config.model === undefined ? {} : { model: config.model }),
+          // A política do Lumem entra pelo mesmo caminho do modo do protocolo,
+          // e em coluna diferente: uma é o que o agente relatou, a outra é o que
+          // o daemon responde. Guardar as duas juntas apagaria a diferença.
+          ...(config.lumemMode === undefined ? {} : { lumemMode: config.lumemMode }),
           updatedAt: new Date(),
         })
         .where(and(eq(session.id, id), eq(session.state, "running")));

@@ -15,7 +15,7 @@ import {
   type FakeAgentScript,
   type FakeAgentTurn,
 } from "../testing/acp-fake-agent.js";
-import { AcpManager, type AcpManagerOptions } from "./AcpManager.js";
+import { AcpManager, modeOwnerOf, type AcpManagerOptions } from "./AcpManager.js";
 import type { AcpProcess } from "./process.js";
 import {
   createMemoryTranscriptStore,
@@ -492,6 +492,8 @@ describe("permission", () => {
     expect(events).toContainEqual({
       type: "permission_resolved",
       requestId: request.requestId,
+      by: "user",
+      reason: null,
       outcome: { optionId: "allow" },
     });
   });
@@ -1737,5 +1739,381 @@ describe("núcleo da memória no prompt", () => {
     await expect(manager.prompt(sessionId, "arruma")).resolves.toBeDefined();
     expect(promptBlocks[0]).toEqual(["arruma"]);
     expect(warns).toHaveLength(1);
+  });
+});
+
+/**
+ * O modo do Lumem (`session-mode`, T1).
+ *
+ * A regra que sustenta tudo é a A1: as duas autoridades **nunca coexistem**. O
+ * agente que relata modos é dono do seletor; o que não relata cede o seletor
+ * para a política do daemon. Ela é imposta aqui, e não na tela, porque uma cópia
+ * dela no browser seria uma cópia livre para discordar desta.
+ */
+describe("o modo do Lumem", () => {
+  /** Um adaptador que não oferece modo nenhum — o caso que a anotação viu. */
+  const noModes: FakeAgentScript = {
+    newSession: () => ({ modes: null, configOptions: [] }),
+  };
+
+  it("dá o seletor ao Lumem quando o agente não relata modos", async () => {
+    const { manager, sessionId } = await start(noModes);
+
+    expect(modeOwnerOf(manager.get(sessionId)!)).toBe("lumem");
+  });
+
+  it("deixa o seletor com o agente quando ele relata modos", async () => {
+    const { manager, sessionId } = await start();
+
+    expect(modeOwnerOf(manager.get(sessionId)!)).toBe("agent");
+  });
+
+  it("nasce perguntando tudo, e nenhuma sessão nasce liberada", async () => {
+    const { manager, sessionId } = await start(noModes);
+
+    expect(manager.get(sessionId)?.lumemMode).toBe("ask");
+  });
+
+  it("troca o modo sem falar com o agente", async () => {
+    // O ponto inteiro da feature: isto muda o que o daemon responde a um pedido
+    // de permissão, e o agente não fica sabendo que existe uma política.
+    const { manager, sessionId, events } = await start(noModes);
+
+    manager.setLumemMode(sessionId, "auto");
+
+    expect(manager.get(sessionId)?.lumemMode).toBe("auto");
+    const config = events.filter((event) => event.type === "config").at(-1);
+    expect(config).toMatchObject({ modeOwner: "lumem", lumemMode: "auto" });
+  });
+
+  it("recusa a troca quando o agente é o dono do seletor", async () => {
+    // Não "ignora": erro nomeado. Uma troca que não acontece e não diz nada é a
+    // forma mais barata de a tela mentir.
+    const { manager, sessionId } = await start();
+
+    expect(() => manager.setLumemMode(sessionId, "auto")).toThrow(/agente/);
+  });
+
+  it("recusa a troca no meio de um turno, com a mensagem de sempre", async () => {
+    const { manager, sessionId, events } = await start({
+      ...noModes,
+      prompt: async (_text, turn) => {
+        await say(turn, "comecei");
+        await turn.cancelled;
+        return "cancelled";
+      },
+    });
+
+    const running = manager.prompt(sessionId, "vai");
+    await vi.waitFor(() => expect(typesOf(events)).toContain("message"));
+
+    expect(() => manager.setLumemMode(sessionId, "auto")).toThrow(/meio de um turno/);
+
+    manager.cancel(sessionId);
+    await running.catch(() => undefined);
+  });
+
+  it("assina como sua a permissão que você respondeu", async () => {
+    // O contrário — o Lumem assinando — chega na T7. O que este teste guarda é
+    // que o caminho humano continua dizendo "você", e não passa a dizer "Lumem"
+    // por descuido de default.
+    const { manager, sessionId, events } = await start({
+      prompt: async (_text, turn) => {
+        void turn.requestPermission({
+          toolCall: { toolCallId: "tc-1", title: "Bash rm -rf" },
+          options: [{ optionId: "allow", name: "permitir uma vez", kind: "allow_once" }],
+        });
+        await turn.cancelled;
+        return "cancelled";
+      },
+    });
+
+    const running = manager.prompt(sessionId, "vai");
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === "permission_request")).toBe(true);
+    });
+    const request = events.find((event) => event.type === "permission_request")!;
+    manager.respondToPermission(sessionId, request.requestId, "allow");
+
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === "permission_resolved")).toBe(true);
+    });
+    expect(events.find((event) => event.type === "permission_resolved")).toMatchObject({
+      by: "user",
+      reason: null,
+    });
+
+    manager.cancel(sessionId);
+    await running.catch(() => undefined);
+  });
+});
+
+/**
+ * A política respondendo ao pedido (`session-mode`, T7 e T8).
+ *
+ * O `permission-policy.test.ts` prova a decisão. O que só se prova aqui é o
+ * acoplamento: que o pedido **aparece na conversa** antes de qualquer veredito,
+ * que o agente recebe a opção que ele mesmo ofereceu, e que um agente dono dos
+ * próprios modos não passa pela política em nenhum valor.
+ */
+describe("a política respondendo ao pedido", () => {
+  const noModes: FakeAgentScript = {
+    newSession: () => ({ modes: null, configOptions: [] }),
+  };
+
+  /** Um turno que pede permissão para uma chamada e devolve o resultado. */
+  function asking(
+    toolCall: Record<string, unknown>,
+    options: { optionId: string; name: string; kind: string }[] = [
+      { optionId: "allow", name: "permitir uma vez", kind: "allow_once" },
+    ],
+  ): FakeAgentScript {
+    return {
+      ...noModes,
+      prompt: async (_text, turn) => {
+        outcomes.push(
+          await turn.requestPermission({
+            toolCall: toolCall as never,
+            options: options as never,
+          }),
+        );
+        return "end_turn";
+      },
+    };
+  }
+
+  let outcomes: unknown[] = [];
+  afterEach(() => {
+    outcomes = [];
+  });
+
+  it("aprova leitura dentro do checkout, e o pedido não desaparece do registro", async () => {
+    // F1.6: aprovado sozinho vira os MESMOS dois eventos do aprovado por você.
+    // Sem o primeiro, a transcrição tem um veredito sobre nada.
+    const { manager, sessionId, events } = await start(
+      asking({
+        toolCallId: "tc-1",
+        title: "Read tokens.css",
+        kind: "read",
+        locations: [{ path: "/repos/lorebase/tokens.css" }],
+      }),
+    );
+    manager.setLumemMode(sessionId, "auto");
+
+    await manager.prompt(sessionId, "leia");
+
+    expect(typesOf(events)).toEqual(
+      expect.arrayContaining(["permission_request", "permission_resolved"]),
+    );
+    expect(events.find((event) => event.type === "permission_resolved")).toMatchObject({
+      by: "lumem",
+      outcome: { optionId: "allow" },
+      reason: expect.stringContaining("Automático"),
+    });
+    // O agente recebeu a opção que ele próprio ofereceu — o daemon não inventa id.
+    expect(outcomes).toEqual([{ outcome: "selected", optionId: "allow" }]);
+  });
+
+  it("deixa a escrita subir, dizendo por que a regra não cobriu", async () => {
+    const { manager, sessionId, events } = await start(
+      asking({
+        toolCallId: "tc-2",
+        title: "Write tokens.css",
+        kind: "edit",
+        locations: [{ path: "/repos/lorebase/tokens.css" }],
+      }),
+    );
+    manager.setLumemMode(sessionId, "auto");
+
+    const running = manager.prompt(sessionId, "escreva");
+    await vi.waitFor(() => expect(typesOf(events)).toContain("permission_request"));
+
+    const request = events.find((event) => event.type === "permission_request")!;
+    expect(request).toMatchObject({ policyReason: expect.stringContaining("só leitura") });
+    // Nada foi respondido: o turno está parado esperando alguém.
+    expect(typesOf(events)).not.toContain("permission_resolved");
+
+    manager.respondToPermission(sessionId, request.requestId, "allow");
+    await running;
+  });
+
+  it("em liberado aprova qualquer chamada", async () => {
+    const { manager, sessionId, events } = await start(
+      asking({
+        toolCallId: "tc-3",
+        title: "Bash rm -rf",
+        kind: "execute",
+        locations: [],
+      }),
+    );
+    manager.setLumemMode(sessionId, "free");
+
+    await manager.prompt(sessionId, "rode");
+
+    expect(events.find((event) => event.type === "permission_resolved")).toMatchObject({
+      by: "lumem",
+      reason: expect.stringContaining("Liberado"),
+    });
+  });
+
+  it("sem opção de permitir, sobe para a pessoa em vez de negar", async () => {
+    /*
+     * A Q6, no acoplamento. É o único caminho que poderia fazer o `automático`
+     * negar em silêncio: o daemon escolhe uma das opções do agente, e aqui não
+     * existe nenhuma que sirva.
+     */
+    const { manager, sessionId, events } = await start(
+      asking(
+        {
+          toolCallId: "tc-4",
+          title: "Read tokens.css",
+          kind: "read",
+          locations: [{ path: "/repos/lorebase/tokens.css" }],
+        },
+        [{ optionId: "no", name: "não", kind: "reject_once" }],
+      ),
+    );
+    manager.setLumemMode(sessionId, "free");
+
+    const running = manager.prompt(sessionId, "leia");
+    await vi.waitFor(() => expect(typesOf(events)).toContain("permission_request"));
+
+    const request = events.find((event) => event.type === "permission_request")!;
+    expect(request).toMatchObject({ policyReason: expect.stringContaining("não ofereceu") });
+    expect(typesOf(events)).not.toContain("permission_resolved");
+
+    manager.respondToPermission(sessionId, request.requestId, "no");
+    await running;
+  });
+
+  it("não aplica política nenhuma quando o agente é dono dos próprios modos", async () => {
+    /*
+     * A A1 no caminho que importa. O valor guardado é `free`, e mesmo assim o
+     * pedido sobe: uma segunda autoridade em cima da do agente responderia sob um
+     * modo que ninguém escolheu — a pílula diria `plan` e as escritas passariam.
+     */
+    const { manager, sessionId, events } = await start({
+      prompt: async (_text, turn) => {
+        void turn.requestPermission({
+          toolCall: { toolCallId: "tc-5", title: "Read", kind: "read" } as never,
+          options: [{ optionId: "allow", name: "uma vez", kind: "allow_once" }] as never,
+        });
+        await turn.cancelled;
+        return "cancelled";
+      },
+    });
+
+    const running = manager.prompt(sessionId, "leia");
+    await vi.waitFor(() => expect(typesOf(events)).toContain("permission_request"));
+
+    expect(typesOf(events)).not.toContain("permission_resolved");
+    expect(events.find((event) => event.type === "permission_request")).toMatchObject({
+      policyReason: null,
+    });
+
+    manager.cancel(sessionId);
+    await running.catch(() => undefined);
+  });
+});
+
+/**
+ * A autoridade trocando com a sessão viva (`session-mode`, T12).
+ *
+ * O caso que a A1 promete impedir e que ninguém tinha decidido: um adaptador que
+ * **passa a** relatar modos depois do handshake. Ele existe — `config_option_update`
+ * e `current_mode_update` são notificações, e nada no protocolo diz que o conjunto
+ * de opções é fixo.
+ */
+describe("a autoridade do modo trocando no meio", () => {
+  const noModes: FakeAgentScript = {
+    newSession: () => ({ modes: null, configOptions: [] }),
+  };
+
+  it("passa a autoridade para o agente quando ele anuncia uma opção de modo", async () => {
+    const { manager, sessionId, events } = await start({
+      ...noModes,
+      prompt: async (_text, turn) => {
+        await turn.update({
+          sessionUpdate: "config_option_update",
+          configOptions: [
+            {
+              id: "mode",
+              name: "Mode",
+              currentValue: "plan",
+              type: "select",
+              options: [{ value: "plan", name: "Plan Mode" }],
+            },
+          ],
+        } as never);
+        return "end_turn";
+      },
+    });
+    manager.setLumemMode(sessionId, "auto");
+
+    await manager.prompt(sessionId, "vai");
+
+    expect(modeOwnerOf(manager.get(sessionId)!)).toBe("agent");
+    expect(events.filter((event) => event.type === "config").at(-1)).toMatchObject({
+      modeOwner: "agent",
+      // O valor NÃO é apagado: se o agente sumir com os modos de novo, ele volta.
+      lumemMode: "auto",
+    });
+  });
+
+  it("passa a autoridade também quando o agente só anuncia o modo corrente", async () => {
+    /*
+     * `current_mode_update` não põe opção nenhuma no conjunto — então a derivação
+     * por lista de opções sozinha deixaria as duas autoridades vivas ao mesmo
+     * tempo: o agente escolhendo o que tentar e o Lumem decidindo o que passa,
+     * sob um modo que nenhum dos dois combinou.
+     */
+    const { manager, sessionId } = await start({
+      ...noModes,
+      prompt: async (_text, turn) => {
+        await turn.update({
+          sessionUpdate: "current_mode_update",
+          currentModeId: "plan",
+        } as never);
+        return "end_turn";
+      },
+    });
+
+    await manager.prompt(sessionId, "vai");
+
+    expect(modeOwnerOf(manager.get(sessionId)!)).toBe("agent");
+  });
+
+  it("a política para de valer na mesma hora", async () => {
+    // O que aconteceria sem isto: o agente em modo plano, a política em
+    // `liberado`, e escritas passando sem ninguém ter pedido.
+    const { manager, sessionId, events } = await start({
+      ...noModes,
+      prompt: async (_text, turn) => {
+        await turn.update({
+          sessionUpdate: "current_mode_update",
+          currentModeId: "plan",
+        } as never);
+        void turn.requestPermission({
+          toolCall: {
+            toolCallId: "tc-1",
+            title: "Read",
+            kind: "read",
+            locations: [{ path: "/repos/lorebase/a.ts" }],
+          } as never,
+          options: [{ optionId: "allow", name: "uma vez", kind: "allow_once" }] as never,
+        });
+        await turn.cancelled;
+        return "cancelled";
+      },
+    });
+    manager.setLumemMode(sessionId, "free");
+
+    const running = manager.prompt(sessionId, "vai");
+    await vi.waitFor(() => expect(typesOf(events)).toContain("permission_request"));
+
+    expect(typesOf(events)).not.toContain("permission_resolved");
+
+    manager.cancel(sessionId);
+    await running.catch(() => undefined);
   });
 });

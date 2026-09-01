@@ -11,7 +11,13 @@ import { AcpManager } from "../acp/AcpManager.js";
 import { listSignals } from "../memory/signals.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
+import { eq } from "drizzle-orm";
+
+import * as schema from "../db/schema.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
+import { createProjectRepository } from "../repositories/project.js";
+import { createWorkspaceRepository } from "../repositories/workspace.js";
+import { createWorktreeRepository } from "../repositories/worktree.js";
 import { createSessionRepository } from "../repositories/session.js";
 import {
   createMemoryTranscriptStore,
@@ -865,5 +871,129 @@ describe("os sinais que a saída de uma sessão produz (Q17)", () => {
       { timeout: 5_000 },
     );
 
+  });
+});
+
+/**
+ * O modo do Lumem, na fronteira entre processo e registro (`session-mode`, T5).
+ *
+ * O `AcpManager` guarda o valor na memória e o repositório guarda a linha;
+ * este é o único lugar que segura os dois, e portanto o único que pode provar
+ * as três coisas que a feature promete: que uma sessão nova **herda**, que uma
+ * troca **sobrevive**, e que retomar **continua** — inclusive quando o que se
+ * continua é uma conversa que passou pelo portão.
+ */
+describe("o modo do Lumem", () => {
+  /**
+   * Enfileira adaptadores que **não relatam modos** — o caso da feature.
+   * Um por spawn: retomar spawna de novo, e a fila esvazia.
+   */
+  function withoutModes(count = 1): void {
+    for (let i = 0; i < count; i += 1) {
+      queued.push(
+        fakeAgentProcess({ newSession: () => ({ modes: null, configOptions: [] }) }).process,
+      );
+    }
+  }
+
+  /** Um workspace real, com projeto e worktree, para a herança ter de onde vir. */
+  async function hierarchy(db: Db, defaultLumemMode: "ask" | "auto") {
+    const workspace = await createWorkspaceRepository(db).create({ name: `ws-${newId()}` });
+    await db
+      .update(schema.workspace)
+      .set({ defaultLumemMode })
+      .where(eq(schema.workspace.id, workspace.id));
+
+    const project = await createProjectRepository(db).create({
+      workspaceId: workspace.id,
+      name: `p-${newId()}`,
+      path: join(tmpdir(), `p-${newId()}`),
+      defaultBranch: "main",
+    });
+    const tree = await createWorktreeRepository(db).create({
+      projectId: project.id,
+      name: `wt-${newId()}`,
+      branch: "feat",
+      path: join(tmpdir(), `wt-${newId()}`),
+    });
+    return { workspaceId: workspace.id, worktreeId: tree.id };
+  }
+
+  it("herda o padrão do workspace ao nascer", async () => {
+    const { store, db, acpManager } = setup();
+    const { worktreeId } = await hierarchy(db, "auto");
+
+    const row = await store.start(await acpAgent(db, { scopeId: worktreeId }));
+
+    expect(acpManager.get(row.id)?.lumemMode).toBe("auto");
+    expect(acpManager.get(row.id)?.lumemModeDefault).toBe("auto");
+  });
+
+  it("nasce perguntando tudo quando o workspace não pediu outra coisa", async () => {
+    const { store, db, acpManager } = setup();
+    const { worktreeId } = await hierarchy(db, "ask");
+
+    const row = await store.start(await acpAgent(db, { scopeId: worktreeId }));
+
+    expect(acpManager.get(row.id)?.lumemMode).toBe("ask");
+  });
+
+  it("grava a troca na linha, para ela sobreviver a fechar o Lumem", async () => {
+    // F1.4. Sem isto o valor mora só na memória de um processo que morre, e a
+    // pílula volta ao padrão sem ninguém ter escolhido isso.
+    const { store, db, acpManager } = setup();
+    const { worktreeId } = await hierarchy(db, "ask");
+    withoutModes();
+    const row = await store.start(
+      await acpAgent(db, { scopeId: worktreeId, transport: "acp" }),
+    );
+
+    acpManager.setLumemMode(row.id, "auto");
+
+    await vi.waitFor(async () =>
+      expect((await store.findById(row.id))?.lumemMode).toBe("auto"),
+    );
+  });
+
+  it("retoma no modo em que a conversa estava, e não no padrão", async () => {
+    /*
+     * Retomar é continuar a MESMA conversa. Uma que estava em `auto` voltar
+     * perguntando tudo seria a feature desfazendo a escolha em silêncio — e o
+     * padrão do workspace aqui é `ask` justamente para o teste falhar se alguém
+     * trocar a linha morta pelo default.
+     */
+    const { store, db, acpManager } = setup();
+    const { worktreeId } = await hierarchy(db, "ask");
+    withoutModes(2);
+    const old = await store.start(await acpAgent(db, { scopeId: worktreeId }));
+    acpManager.setLumemMode(old.id, "auto");
+    await vi.waitFor(async () =>
+      expect((await store.findById(old.id))?.lumemMode).toBe("auto"),
+    );
+    acpManager.kill(old.id);
+    await vi.waitFor(async () => expect((await store.findById(old.id))?.state).toBe("exited"));
+
+    const resumed = await store.resume(old.id);
+
+    expect(acpManager.get(resumed.id)?.lumemMode).toBe("auto");
+  });
+
+  it("uma conversa encerrada diz em que modo ela esteve", async () => {
+    // F1.8. O caminho de leitura não tem agente nenhum do outro lado, então o
+    // único lugar de onde a resposta pode sair é a linha.
+    const { store, db, acpManager } = setup();
+    const { worktreeId } = await hierarchy(db, "ask");
+    withoutModes();
+    const row = await store.start(await acpAgent(db, { scopeId: worktreeId }));
+    acpManager.setLumemMode(row.id, "auto");
+    await vi.waitFor(async () =>
+      expect((await store.findById(row.id))?.lumemMode).toBe("auto"),
+    );
+    acpManager.kill(row.id);
+    await vi.waitFor(async () => expect((await store.findById(row.id))?.state).toBe("exited"));
+
+    const frame = await store.transcript(row.id);
+
+    expect(frame).toMatchObject({ lumemMode: "auto" });
   });
 });

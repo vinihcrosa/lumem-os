@@ -24,11 +24,26 @@ const timestamps = {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(NOW),
 };
 
-export const workspace = sqliteTable("workspace", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  ...timestamps,
-});
+export const workspace = sqliteTable(
+  "workspace",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull().unique(),
+    /**
+     * O modo do Lumem que uma sessão nova deste workspace herda (`session-mode`, Q5).
+     *
+     * Sem `'free'` no CHECK, e isso é a decisão inteira em uma linha: o portão do
+     * `liberado` é **por sessão**, e um padrão que o atravessasse sozinho o
+     * anularia. Recusar na ESCRITA, e não silenciar na leitura — silenciar é o
+     * modo de falha que ninguém percebe.
+     */
+    defaultLumemMode: text("default_lumem_mode").notNull().default("ask"),
+    ...timestamps,
+  },
+  (table) => [
+    check("workspace_default_lumem_mode", sql`${table.defaultLumemMode} IN ('ask', 'auto')`),
+  ],
+);
 
 export const project = sqliteTable(
   "project",
@@ -184,6 +199,18 @@ export const session = sqliteTable(
     mode: text("mode"),
     model: text("model"),
     /**
+     * A política do Lumem desta conversa (`session-mode`, F1.4).
+     *
+     * Coluna própria, e **não** reaproveitamento do `mode` acima: aquele é o modo
+     * do protocolo, relatado pelo agente, e este é o que o daemon responde a um
+     * pedido de permissão. Guardar os dois no mesmo lugar seria perder a única
+     * informação que separa "o agente tentou" de "o Lumem deixou passar".
+     *
+     * `NOT NULL DEFAULT 'ask'` faz toda sessão gravada antes desta feature
+     * acordar perguntando — nenhuma acorda liberada.
+     */
+    lumemMode: text("lumem_mode").notNull().default("ask"),
+    /**
      * The session this one continues (F5.2, D12).
      *
      * `session/load` does not resurrect yesterday's process: it starts a new adapter
@@ -244,6 +271,9 @@ export const session = sqliteTable(
       sql`(${table.transport} = 'acp' AND ${table.acpSessionId} IS NOT NULL)
         OR (${table.transport} = 'pty' AND ${table.acpSessionId} IS NULL)`,
     ),
+    // Os três valores da política, e o `free` entra aqui — o que o workspace não
+    // pode é *herdar* liberado; uma sessão pode chegar lá pelo portão.
+    check("session_lumem_mode", sql`${table.lumemMode} IN ('ask', 'auto', 'free')`),
   ],
 );
 

@@ -26,6 +26,8 @@ function call(overrides: Partial<ToolCallView> = {}): ToolCallView {
     added: null,
     removed: null,
     verdict: null,
+    verdictBy: "user",
+    verdictReason: null,
     startedAt: 0,
     ...overrides,
   };
@@ -373,5 +375,49 @@ describe("the agent's terminal", () => {
 
     expect(container.querySelector(".tc__term")).not.toBeNull();
     expect(screen.queryByText("abrindo terminal")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Quem assinou o veredito (`session-mode`, T8).
+ *
+ * O cartão já mostrava o que foi respondido. O que faltava é **quem** respondeu,
+ * e é a única coisa que separa uma transcrição auditável de uma que diz que
+ * alguém decidiu quando ninguém decidiu.
+ */
+describe("de quem é o veredito", () => {
+  const allowed = { optionId: "allow", name: "permitir uma vez", kind: "allow_once" } as const;
+
+  it("diz que foi você, quando foi você", () => {
+    render(
+      <ToolCard call={call({ verdict: allowed, verdictBy: "user" })} />,
+    );
+
+    expect(screen.getByText(/permitir uma vez/)).toBeInTheDocument();
+    expect(screen.queryByText(/o Lumem aprovou/)).not.toBeInTheDocument();
+  });
+
+  it("diz que foi o Lumem, e mostra com base em quê", () => {
+    render(
+      <ToolCard
+        call={call({
+          verdict: allowed,
+          verdictBy: "lumem",
+          verdictReason: "Modo Automático: leitura de arquivo, caminho dentro do checkout.",
+        })}
+      />,
+    );
+
+    expect(screen.getByText(/o Lumem aprovou/)).toBeInTheDocument();
+    // Visível, e não num `title`: quem lê a transcrição depois não passa o mouse.
+    expect(screen.getByText(/leitura de arquivo, caminho dentro do checkout/)).toBeInTheDocument();
+  });
+
+  it("pinta o veredito do Lumem com o tom dele, e não com o de permitido", () => {
+    render(
+      <ToolCard call={call({ verdict: allowed, verdictBy: "lumem", verdictReason: "porque" })} />,
+    );
+
+    expect(screen.getByText(/o Lumem aprovou/).closest(".verdict")).toHaveClass("verdict--lumem");
   });
 });

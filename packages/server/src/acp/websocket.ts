@@ -12,6 +12,7 @@ import { WebSocket, WebSocketServer, type RawData } from "ws";
 
 import { isDomainError, type DomainErrorCode } from "../errors.js";
 import { onUpgradePath } from "../ws/upgrade.js";
+import { modeOwnerOf } from "./AcpManager.js";
 import type { AcpManager } from "./AcpManager.js";
 
 /**
@@ -97,6 +98,13 @@ export function registerAcpWebSocket({
       // with empty dropdowns until the agent happened to mention something would
       // look broken for as long as nothing did.
       configOptions: [...info.configOptions],
+      // Who owns the mode selector, and what the policy is set to — on attach for
+      // the same reason `configOptions` is: a composer whose mode pill appeared
+      // only once something changed would look broken for as long as nothing did.
+      modeOwner: modeOwnerOf(info),
+      lumemMode: info.lumemMode,
+      lumemModeDefault: info.lumemModeDefault,
+      cwd: info.cwd,
       transcript: [...acpManager.transcript(sessionId)],
     });
 
@@ -141,6 +149,13 @@ export function registerAcpWebSocket({
             .catch((error: unknown) => {
               reportFailure(error, "set_config");
             });
+          return;
+        }
+        if (message.type === "set_lumem_mode") {
+          // Awaited by nobody because nothing is awaited: the policy never leaves
+          // the daemon, so the `config` event it produces is already on this
+          // socket by the time this returns.
+          acpManager.setLumemMode(sessionId, message.mode);
           return;
         }
         acpManager.respondToPermission(sessionId, message.requestId, message.optionId);
