@@ -125,6 +125,9 @@ describe("receiving", () => {
 
     fake.deliver({
       type: "attached",
+      modeOwner: "agent",
+      lumemMode: "ask",
+      lumemModeDefault: "ask",
       sessionId: "s-1",
       state: "running",
       acpSessionId: "d81b05ee",
@@ -158,6 +161,9 @@ describe("receiving", () => {
 
     fake.deliver({
       type: "attached",
+      modeOwner: "agent",
+      lumemMode: "ask",
+      lumemModeDefault: "ask",
       sessionId: "s-1",
       state: "running",
       acpSessionId: "d81b05ee",

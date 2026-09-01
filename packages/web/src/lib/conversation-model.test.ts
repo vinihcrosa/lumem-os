@@ -280,7 +280,13 @@ describe("permission", () => {
       userSaid("limpa"),
       at(call),
       at(request),
-      at({ type: "permission_resolved", requestId: "rq-1", outcome: { optionId: "allow" } }),
+      at({
+        type: "permission_resolved",
+        requestId: "rq-1",
+        outcome: { optionId: "allow" },
+        by: "user",
+        reason: null,
+      }),
     );
 
     expect(state.pendingPermission).toBeNull();
@@ -298,7 +304,13 @@ describe("permission", () => {
     const state = from(
       at(call),
       at(request),
-      at({ type: "permission_resolved", requestId: "rq-1", outcome: "cancelled" }),
+      at({
+        type: "permission_resolved",
+        requestId: "rq-1",
+        outcome: "cancelled",
+        by: "user",
+        reason: null,
+      }),
     );
 
     expect(state.pendingPermission).toBeNull();
@@ -307,7 +319,13 @@ describe("permission", () => {
 
   it("keeps a resolution for a request it never saw from getting lost", () => {
     const state = from(
-      at({ type: "permission_resolved", requestId: "rq-nada", outcome: { optionId: "allow" } }),
+      at({
+        type: "permission_resolved",
+        requestId: "rq-nada",
+        outcome: { optionId: "allow" },
+        by: "user",
+        reason: null,
+      }),
     );
 
     expect(state.pendingPermission).toBeNull();
@@ -373,7 +391,13 @@ describe("replay and live stream agree", () => {
         },
         20,
       ),
-      at({ type: "permission_resolved", requestId: "rq-1", outcome: { optionId: "allow" } }, 900),
+      at({
+        type: "permission_resolved",
+        requestId: "rq-1",
+        outcome: { optionId: "allow" },
+        by: "user",
+        reason: null,
+      }, 900),
       at({ type: "tool_call_update", toolCallId: "tc-1", status: "ok" }, 300),
       at({ type: "unknown", sessionUpdate: "goal_update" }, 5),
       agentSaid("Pronto.", "a-2"),
@@ -503,6 +527,9 @@ describe("what phase 4 carries", () => {
     const state = from(
       at({
         type: "config",
+        modeOwner: "agent",
+        lumemMode: "ask",
+        lumemModeDefault: "ask",
         mode: "plan",
         options: [
           {
@@ -558,7 +585,14 @@ describe("what phase 4 carries", () => {
     // an accumulated total is exactly the kind of thing that drifts.
     clock = 1_700_000_000_000;
     const entries = [
-      at({ type: "config", mode: "auto", options: [] }),
+      at({
+        type: "config",
+        mode: "auto",
+        options: [],
+        modeOwner: "agent",
+        lumemMode: "ask",
+        lumemModeDefault: "ask",
+      }),
       at({ type: "plan", entries: [{ content: "um", status: "in_progress" }] }, 10),
       at({ type: "usage", used: 10, size: 1_000, cost: { amount: 0.5, currency: "USD" } }, 10),
       at({ type: "terminal", terminalId: "t-1", ptySessionId: "se_a", command: "ls" }, 5),

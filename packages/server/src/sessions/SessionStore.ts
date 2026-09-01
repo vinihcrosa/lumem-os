@@ -398,6 +398,18 @@ export function createSessionStore({
          * interface offering something it cannot do.
          */
         configOptions: [],
+        /*
+         * O modo em que a conversa **esteve** (F1.8).
+         *
+         * A autoria sai de `row.mode`, e não de `configOptions`: aqui a lista é
+         * vazia por construção, e perguntar a ela quem era o dono responderia
+         * "o Lumem" para toda conversa morta — inclusive as que rodaram com um
+         * agente cheio de modos. O que a linha guarda é qual modo estava valendo,
+         * e ter um é a prova de que o agente era o dono.
+         */
+        modeOwner: row.mode ? ("agent" as const) : ("lumem" as const),
+        lumemMode: "ask" as const,
+        lumemModeDefault: "ask" as const,
         transcript: [...acpManager.storedTranscript(row.id)],
       };
     },

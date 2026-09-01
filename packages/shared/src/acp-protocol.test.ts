@@ -111,6 +111,9 @@ describe("decodeAcpServerMessage — attach", () => {
       model: "opus[1m]",
       mode: "auto",
       configOptions: [],
+      modeOwner: "agent",
+      lumemMode: "ask",
+      lumemModeDefault: "ask",
       transcript: [{ at: 1_700_000_000_000, event: toolCall }],
     };
 
@@ -209,11 +212,23 @@ describe("decodeAcpServerMessage — events", () => {
     ],
     [
       "a permission resolved by the user",
-      { type: "permission_resolved", requestId: "rq-1", outcome: { optionId: "allow" } },
+      {
+        type: "permission_resolved",
+        requestId: "rq-1",
+        outcome: { optionId: "allow" },
+        by: "user",
+        reason: null,
+      },
     ],
     [
       "a permission the agent gave up on",
-      { type: "permission_resolved", requestId: "rq-1", outcome: "cancelled" },
+      {
+        type: "permission_resolved",
+        requestId: "rq-1",
+        outcome: "cancelled",
+        by: "user",
+        reason: null,
+      },
     ],
     ["a turn ending", { type: "turn_end", stopReason: "end_turn" }],
     ["a turn the user interrupted", { type: "turn_end", stopReason: "cancelled" }],
@@ -367,7 +382,17 @@ describe("what phase 4 added", () => {
       "usage from an agent that reports no money",
       { type: "usage", used: 10, size: 200_000, cost: null, rateLimit: null },
     ],
-    ["the selectors' state", { type: "config", mode: "auto", options: [configOption] }],
+    [
+      "the selectors' state",
+      {
+        type: "config",
+        mode: "auto",
+        options: [configOption],
+        modeOwner: "agent",
+        lumemMode: "ask",
+        lumemModeDefault: "ask",
+      },
+    ],
     [
       "the commands on offer",
       {
@@ -483,5 +508,133 @@ describe("what phase 4 added", () => {
 
     expect(result.ok).toBe(false);
     expect(result.ok ? "" : result.error).toContain("value");
+  });
+});
+
+/**
+ * O modo do Lumem (`session-mode`, T1).
+ *
+ * Três coisas entram no contrato: o enum, a mensagem que o troca, e os dois
+ * campos que fazem o veredito dizer **quem assinou**. O último é o que separa
+ * "você permitiu" de "o Lumem aprovou" numa transcrição lida seis meses depois —
+ * e é por isso que ele vive no evento gravado, e não numa dedução do cliente.
+ */
+describe("o modo do Lumem", () => {
+  it("aceita a troca do modo do Lumem", () => {
+    const message: AcpClientMessage = { type: "set_lumem_mode", mode: "auto" };
+
+    expect(decodeAcpClientMessage(encodeAcpClientMessage(message))).toEqual({ ok: true, message });
+  });
+
+  it("recusa um modo que a política não tem", () => {
+    const result = decodeAcpClientMessage(
+      JSON.stringify({ type: "set_lumem_mode", mode: "bypassPermissions" }),
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.ok ? "" : result.error).toContain("mode");
+  });
+
+  it("carrega quem assinou a permissão, e o porquê", () => {
+    const message: AcpServerMessage = {
+      type: "event",
+      at: 1_700_000_000_000,
+      event: {
+        type: "permission_resolved",
+        requestId: "rq-1",
+        outcome: { optionId: "allow" },
+        by: "lumem",
+        reason: "leitura de arquivo, caminho dentro do checkout",
+      },
+    };
+
+    expect(decodeAcpServerMessage(encodeAcpServerMessage(message))).toEqual({ ok: true, message });
+  });
+
+  /*
+   * A razão de `default` e não `optional`: uma conversa gravada antes desta
+   * feature não tem os campos, e uma conversa que deixa de abrir é pior que
+   * qualquer coisa que esta feature entrega. O default também é a resposta
+   * certa — tudo que foi respondido antes dela foi respondido por uma pessoa.
+   */
+  it("lê uma permissão gravada antes desta feature como respondida por você", () => {
+    const result = decodeAcpServerMessage(
+      JSON.stringify({
+        type: "event",
+        at: 1_700_000_000_000,
+        event: { type: "permission_resolved", requestId: "rq-1", outcome: { optionId: "allow" } },
+      }),
+    );
+
+    expect(result.ok && result.message.type === "event" && result.message.event).toEqual({
+      type: "permission_resolved",
+      requestId: "rq-1",
+      outcome: { optionId: "allow" },
+      by: "user",
+      reason: null,
+    });
+  });
+
+  /*
+   * `modeOwner` é campo, e não dedução de `options.some(o => o.id === "mode")`.
+   * A regra — as duas autoridades nunca coexistem — é do daemon (A1), e um
+   * cliente que a redescobrisse por conta própria seria uma segunda cópia dela,
+   * livre para discordar.
+   */
+  it("diz de quem é a autoridade do modo, em vez de deixar o cliente adivinhar", () => {
+    const message: AcpServerMessage = {
+      type: "event",
+      at: 1_700_000_000_000,
+      event: {
+        type: "config",
+        mode: "",
+        options: [],
+        modeOwner: "lumem",
+        lumemMode: "auto",
+        lumemModeDefault: "ask",
+      },
+    };
+
+    expect(decodeAcpServerMessage(encodeAcpServerMessage(message))).toEqual({ ok: true, message });
+  });
+
+  it("lê um config gravado antes desta feature como sendo do agente", () => {
+    const result = decodeAcpServerMessage(
+      JSON.stringify({
+        type: "event",
+        at: 1_700_000_000_000,
+        event: { type: "config", mode: "auto", options: [] },
+      }),
+    );
+
+    expect(result.ok && result.message.type === "event" && result.message.event).toEqual({
+      type: "config",
+      mode: "auto",
+      options: [],
+      modeOwner: "agent",
+      lumemMode: "ask",
+      lumemModeDefault: "ask",
+    });
+  });
+
+  it("traz o modo do Lumem já no attach, para a pílula não nascer vazia", () => {
+    const result = decodeAcpServerMessage(
+      JSON.stringify({
+        type: "attached",
+        sessionId: "s-1",
+        state: "running",
+        acpSessionId: "acp-1",
+        model: "opus",
+        mode: "",
+        configOptions: [],
+        transcript: [],
+      }),
+    );
+
+    expect(result.ok && result.message.type === "attached" && result.message).toMatchObject({
+      modeOwner: "agent",
+      lumemMode: "ask",
+      lumemModeDefault: "ask",
+    });
   });
 });

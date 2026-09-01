@@ -118,6 +118,40 @@ export const acpPermissionOptionKindSchema = z.enum([
 ]);
 export type AcpPermissionOptionKind = z.infer<typeof acpPermissionOptionKindSchema>;
 
+/**
+ * The permission policy Lumem applies when the agent offers no modes of its own
+ * (`session-mode`, Q1).
+ *
+ * Three values, and they are not the agent's: the agent's mode changes what it
+ * *tries to do*, and this changes what *gets through*. `ask` stops on every
+ * request, `auto` answers file reads inside the checkout, `free` answers
+ * everything. Nothing here ever answers "no" — denial stays a human act (Q6).
+ */
+export const lumemModeSchema = z.enum(["ask", "auto", "free"]);
+export type LumemMode = z.infer<typeof lumemModeSchema>;
+
+/**
+ * What a new session inherits from its workspace (Q5).
+ *
+ * Deliberately narrower than `LumemMode`: `free` is missing because its gate is
+ * per session, and a default that walked through the gate on its own would
+ * annul it. The narrowing is a *type*, so `free` is refused where it is written
+ * rather than silenced where it is read — the failure mode nobody notices.
+ */
+export const lumemModeDefaultSchema = z.enum(["ask", "auto"]);
+export type LumemModeDefault = z.infer<typeof lumemModeDefaultSchema>;
+
+/**
+ * Who owns the mode selector of this conversation (A1).
+ *
+ * A field rather than something the client derives from `options.some(o => o.id
+ * === "mode")`. The rule that the two authorities never coexist belongs to the
+ * daemon, and a client that rediscovered it would be a second copy of it — free
+ * to disagree.
+ */
+export const acpModeOwnerSchema = z.enum(["agent", "lumem"]);
+export type AcpModeOwner = z.infer<typeof acpModeOwnerSchema>;
+
 export const acpPermissionOptionSchema = z.object({
   optionId: z.string(),
   /** The agent's own label, shown verbatim (A13). */
@@ -277,6 +311,23 @@ export const acpEventSchema = z.discriminatedUnion("type", [
     requestId: z.string(),
     /** `"cancelled"` is the agent giving up on the ask, not the user denying. */
     outcome: z.union([z.literal("cancelled"), z.object({ optionId: z.string() })]),
+    /**
+     * Who signed it (F1.6).
+     *
+     * `default` and not `optional`, for two reasons that point the same way: a
+     * transcript recorded before this feature has no field and must still open,
+     * and `"user"` is the truthful answer for every one of them — nothing but a
+     * person could answer a permission request back then.
+     */
+    by: z.enum(["user", "lumem"]).default("user"),
+    /**
+     * Why the policy answered, in the words the card shows.
+     *
+     * Only ever set when `by` is `"lumem"`: a person clicking a button is its
+     * own reason, and inventing prose for it would be the daemon narrating the
+     * user's intent.
+     */
+    reason: z.string().nullable().default(null),
   }),
   /**
    * The plan, whole (F2.5).
@@ -322,6 +373,23 @@ export const acpEventSchema = z.discriminatedUnion("type", [
      * one place that has to get the merge right.
      */
     options: z.array(acpConfigOptionSchema),
+    /**
+     * Which of the two authorities is in charge right now (A1).
+     *
+     * Defaults to `"agent"` so a transcript recorded before `session-mode` reads
+     * as what it was: a conversation where only the agent could offer a mode.
+     */
+    modeOwner: acpModeOwnerSchema.default("agent"),
+    /**
+     * The policy value, whoever owns the selector.
+     *
+     * Sent even while the agent owns the mode, and that is on purpose: the value
+     * is *kept*, not erased, so an agent that stops reporting modes hands the
+     * conversation back to the policy it already had (T12).
+     */
+    lumemMode: lumemModeSchema.default("ask"),
+    /** What a new session in this workspace would start at — the menu's footer (Q5). */
+    lumemModeDefault: lumemModeDefaultSchema.default("ask"),
   }),
   /** What `/` offers (F2.8). An empty list means the agent offers none. */
   z.object({ type: z.literal("commands"), commands: z.array(acpCommandSchema) }),
@@ -440,6 +508,16 @@ export const acpClientMessageSchema = z.discriminatedUnion("type", [
     optionId: z.string().min(1),
     value: z.string().min(1),
   }),
+  /**
+   * Switch the policy Lumem applies when the agent offers no modes (F1.1).
+   *
+   * A message of its own rather than a `set_config` with `optionId: "mode"`,
+   * because it is not the same act: `set_config` forwards a value to the agent
+   * and this one never leaves the daemon. Sharing the message would put two
+   * destinations behind one name, and the first bug would be a policy change
+   * quietly forwarded to an agent that does not have the option.
+   */
+  z.object({ type: z.literal("set_lumem_mode"), mode: lumemModeSchema }),
 ]);
 export type AcpClientMessage = z.infer<typeof acpClientMessageSchema>;
 
@@ -464,6 +542,14 @@ export const acpServerMessageSchema = z.discriminatedUnion("type", [
      * broken for as long as nothing changed.
      */
     configOptions: z.array(acpConfigOptionSchema).default([]),
+    /**
+     * The mode state, on attach, for the same reason `configOptions` is here: a
+     * composer whose mode pill appeared only once something changed would look
+     * broken for as long as nothing did.
+     */
+    modeOwner: acpModeOwnerSchema.default("agent"),
+    lumemMode: lumemModeSchema.default("ask"),
+    lumemModeDefault: lumemModeDefaultSchema.default("ask"),
     transcript: z.array(acpTranscriptEntrySchema),
   }),
   z.object({

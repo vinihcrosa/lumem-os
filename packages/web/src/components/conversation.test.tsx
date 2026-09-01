@@ -71,6 +71,9 @@ function attached(
 ): AcpServerMessage {
   return {
     type: "attached",
+    modeOwner: "agent",
+    lumemMode: "ask",
+    lumemModeDefault: "ask",
     sessionId: "s-1",
     state: "running",
     acpSessionId: "d81b05ee-d361",
@@ -608,7 +611,13 @@ describe("a permission blocks the composer", () => {
     socket.deliver({
       type: "event",
       at: clock,
-      event: { type: "permission_resolved", requestId: "rq-1", outcome: { optionId: "allow" } },
+      event: {
+        type: "permission_resolved",
+        requestId: "rq-1",
+        outcome: { optionId: "allow" },
+        by: "user",
+        reason: null,
+      },
     });
 
     await waitFor(() => {
@@ -755,6 +764,9 @@ describe("the selectors", () => {
       at: clock,
       event: {
         type: "config",
+        modeOwner: "agent",
+        lumemMode: "ask",
+        lumemModeDefault: "ask",
         mode: "auto",
         options: [{ ...modelOption, currentValue: "sonnet[1m]" }],
       },
@@ -791,6 +803,9 @@ describe("the selectors", () => {
       at: clock,
       event: {
         type: "config",
+        modeOwner: "agent",
+        lumemMode: "ask",
+        lumemModeDefault: "ask",
         mode: "plan",
         options: [
           {

@@ -13,7 +13,10 @@ import {
   newId,
   type AcpConfigOption,
   type AcpEvent,
+  type AcpModeOwner,
   type AcpTranscriptEntry,
+  type LumemMode,
+  type LumemModeDefault,
 } from "@lumem/shared";
 
 import type { FastifyBaseLogger } from "fastify";
@@ -93,6 +96,29 @@ export interface AcpSessionInfo {
    * browser's (D8).
    */
   configOptions: readonly AcpConfigOption[];
+  /**
+   * The policy Lumem applies when the agent offers no modes of its own (Q1).
+   *
+   * Kept even while the agent owns the selector, and that is deliberate: an
+   * adapter that stops reporting modes hands the conversation back to the policy
+   * it already had, instead of to a default nobody chose (T12).
+   */
+  lumemMode: LumemMode;
+  /** What a new session in this workspace starts at — the menu's footer (Q5). */
+  lumemModeDefault: LumemModeDefault;
+}
+
+/**
+ * Which of the two authorities owns the mode selector of a session (A1).
+ *
+ * Derived, and derived *here*, because the rule is the daemon's: the agent's
+ * mode and Lumem's never coexist. Deriving it in the browser would be a second
+ * copy of the rule, free to drift from this one.
+ */
+export function modeOwnerOf(info: {
+  configOptions: readonly AcpConfigOption[];
+}): AcpModeOwner {
+  return info.configOptions.some((option) => option.id === MODE_OPTION) ? "agent" : "lumem";
 }
 
 /**
@@ -595,6 +621,16 @@ export class AcpManager {
         mode: "",
         model: "",
         configOptions: [],
+        /*
+         * A session is born asking, always (F1.5).
+         *
+         * The workspace default is applied by the caller that knows which
+         * workspace this is — the store — and even that one cannot make a
+         * session start free: the gate for `free` is per session, and a default
+         * that walked through it would annul it (Q5).
+         */
+        lumemMode: "ask",
+        lumemModeDefault: "ask",
       },
       process: child,
       connection: undefined as unknown as ClientConnection,
@@ -763,7 +799,54 @@ export class AcpManager {
 
     session.pendingPermissions.delete(requestId);
     pending.resolve({ outcome: "selected", optionId });
-    this.emit(session, { type: "permission_resolved", requestId, outcome: { optionId } });
+    this.emit(session, {
+      type: "permission_resolved",
+      requestId,
+      outcome: { optionId },
+      by: "user",
+      reason: null,
+    });
+  }
+
+  /**
+   * Switch the policy Lumem applies to permission requests (F1.1).
+   *
+   * Synchronous, and that is the whole difference from `setConfig`: nothing
+   * leaves the daemon. `setConfig` forwards a value to the agent and waits for it
+   * to answer; this changes what *we* answer, and the agent never learns a policy
+   * exists.
+   *
+   * Two refusals, and both are named rather than silent:
+   *
+   * - **the agent owns the selector** (A1). Accepting the switch and doing
+   *   nothing with it would leave a stored value that never applies — the tell
+   *   would be a pill that changes and a behaviour that does not.
+   * - **a turn is running** (F1.7). Same reason `setConfig` refuses, and
+   *   deliberately the same message: from where the user stands it is the same
+   *   act, and two wordings for one rule teach that there are two rules.
+   */
+  setLumemMode(id: string, mode: LumemMode): void {
+    const session = this.require(id);
+    if (session.info.state === "exited") {
+      throw new DomainError("SESSION_EXITED", `session ${id} has exited`);
+    }
+
+    if (modeOwnerOf(session.info) === "agent") {
+      throw new DomainError(
+        "BLOCKED",
+        "este agente oferece modos próprios: troque o modo dele, não a política do Lumem",
+      );
+    }
+
+    if (session.promptInFlight) {
+      throw new DomainError(
+        "BLOCKED",
+        "não dá para trocar de modo ou modelo no meio de um turno: interrompa ou espere ele acabar",
+      );
+    }
+
+    session.info.lumemMode = mode;
+    this.emitConfig(session);
   }
 
   /**
@@ -1289,6 +1372,9 @@ export class AcpManager {
       type: "config",
       mode: session.info.mode,
       options: [...session.info.configOptions],
+      modeOwner: modeOwnerOf(session.info),
+      lumemMode: session.info.lumemMode,
+      lumemModeDefault: session.info.lumemModeDefault,
     });
 
     for (const watcher of [...this.configWatchers]) {

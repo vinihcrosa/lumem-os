@@ -15,7 +15,7 @@ import {
   type FakeAgentScript,
   type FakeAgentTurn,
 } from "../testing/acp-fake-agent.js";
-import { AcpManager, type AcpManagerOptions } from "./AcpManager.js";
+import { AcpManager, modeOwnerOf, type AcpManagerOptions } from "./AcpManager.js";
 import type { AcpProcess } from "./process.js";
 import {
   createMemoryTranscriptStore,
@@ -492,6 +492,8 @@ describe("permission", () => {
     expect(events).toContainEqual({
       type: "permission_resolved",
       requestId: request.requestId,
+      by: "user",
+      reason: null,
       outcome: { optionId: "allow" },
     });
   });
@@ -1737,5 +1739,111 @@ describe("núcleo da memória no prompt", () => {
     await expect(manager.prompt(sessionId, "arruma")).resolves.toBeDefined();
     expect(promptBlocks[0]).toEqual(["arruma"]);
     expect(warns).toHaveLength(1);
+  });
+});
+
+/**
+ * O modo do Lumem (`session-mode`, T1).
+ *
+ * A regra que sustenta tudo é a A1: as duas autoridades **nunca coexistem**. O
+ * agente que relata modos é dono do seletor; o que não relata cede o seletor
+ * para a política do daemon. Ela é imposta aqui, e não na tela, porque uma cópia
+ * dela no browser seria uma cópia livre para discordar desta.
+ */
+describe("o modo do Lumem", () => {
+  /** Um adaptador que não oferece modo nenhum — o caso que a anotação viu. */
+  const noModes: FakeAgentScript = {
+    newSession: () => ({ modes: null, configOptions: [] }),
+  };
+
+  it("dá o seletor ao Lumem quando o agente não relata modos", async () => {
+    const { manager, sessionId } = await start(noModes);
+
+    expect(modeOwnerOf(manager.get(sessionId)!)).toBe("lumem");
+  });
+
+  it("deixa o seletor com o agente quando ele relata modos", async () => {
+    const { manager, sessionId } = await start();
+
+    expect(modeOwnerOf(manager.get(sessionId)!)).toBe("agent");
+  });
+
+  it("nasce perguntando tudo, e nenhuma sessão nasce liberada", async () => {
+    const { manager, sessionId } = await start(noModes);
+
+    expect(manager.get(sessionId)?.lumemMode).toBe("ask");
+  });
+
+  it("troca o modo sem falar com o agente", async () => {
+    // O ponto inteiro da feature: isto muda o que o daemon responde a um pedido
+    // de permissão, e o agente não fica sabendo que existe uma política.
+    const { manager, sessionId, events } = await start(noModes);
+
+    manager.setLumemMode(sessionId, "auto");
+
+    expect(manager.get(sessionId)?.lumemMode).toBe("auto");
+    const config = events.filter((event) => event.type === "config").at(-1);
+    expect(config).toMatchObject({ modeOwner: "lumem", lumemMode: "auto" });
+  });
+
+  it("recusa a troca quando o agente é o dono do seletor", async () => {
+    // Não "ignora": erro nomeado. Uma troca que não acontece e não diz nada é a
+    // forma mais barata de a tela mentir.
+    const { manager, sessionId } = await start();
+
+    expect(() => manager.setLumemMode(sessionId, "auto")).toThrow(/agente/);
+  });
+
+  it("recusa a troca no meio de um turno, com a mensagem de sempre", async () => {
+    const { manager, sessionId, events } = await start({
+      ...noModes,
+      prompt: async (_text, turn) => {
+        await say(turn, "comecei");
+        await turn.cancelled;
+        return "cancelled";
+      },
+    });
+
+    const running = manager.prompt(sessionId, "vai");
+    await vi.waitFor(() => expect(typesOf(events)).toContain("message"));
+
+    expect(() => manager.setLumemMode(sessionId, "auto")).toThrow(/meio de um turno/);
+
+    manager.cancel(sessionId);
+    await running.catch(() => undefined);
+  });
+
+  it("assina como sua a permissão que você respondeu", async () => {
+    // O contrário — o Lumem assinando — chega na T7. O que este teste guarda é
+    // que o caminho humano continua dizendo "você", e não passa a dizer "Lumem"
+    // por descuido de default.
+    const { manager, sessionId, events } = await start({
+      prompt: async (_text, turn) => {
+        void turn.requestPermission({
+          toolCall: { toolCallId: "tc-1", title: "Bash rm -rf" },
+          options: [{ optionId: "allow", name: "permitir uma vez", kind: "allow_once" }],
+        });
+        await turn.cancelled;
+        return "cancelled";
+      },
+    });
+
+    const running = manager.prompt(sessionId, "vai");
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === "permission_request")).toBe(true);
+    });
+    const request = events.find((event) => event.type === "permission_request")!;
+    manager.respondToPermission(sessionId, request.requestId, "allow");
+
+    await vi.waitFor(() => {
+      expect(events.some((event) => event.type === "permission_resolved")).toBe(true);
+    });
+    expect(events.find((event) => event.type === "permission_resolved")).toMatchObject({
+      by: "user",
+      reason: null,
+    });
+
+    manager.cancel(sessionId);
+    await running.catch(() => undefined);
   });
 });
