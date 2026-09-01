@@ -1160,6 +1160,77 @@ describe("as bordas da pílula de modo", () => {
     expect(screen.getByRole("button", { name: /regra do Lumem/i })).toBeDisabled();
   });
 
+  it("fecha o menu quando o turno começa, em vez de deixá-lo clicável", async () => {
+    /*
+     * O caminho que uma revisão achou e nenhum teste cobria.
+     *
+     * A pílula desligava no meio do turno, mas o MENU só olhava se estava aberto.
+     * Abrir parado, o turno começar, e clicar numa opção mandava
+     * `set_lumem_mode` — o daemon responde `BLOCKED`, e a pessoa lê um erro que
+     * não causou.
+     */
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+    await userEvent.click(await screen.findByRole("button", { name: /regra do Lumem/i }));
+    expect(screen.getByRole("menu", { name: /regra do Lumem/i })).toBeInTheDocument();
+
+    act(() =>
+      socket.deliver({
+        type: "event",
+        at: 1_700_000_000_000,
+        event: { type: "message", messageId: "m-1", role: "user", text: "vai" },
+      }),
+    );
+
+    expect(screen.queryByRole("menu", { name: /regra do Lumem/i })).not.toBeInTheDocument();
+  });
+
+  it("não reabre o menu sozinho quando o turno acaba", async () => {
+    // Esconder no render sem limpar o estado devolveria um popover que a pessoa
+    // não abriu.
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+    await userEvent.click(await screen.findByRole("button", { name: /regra do Lumem/i }));
+
+    act(() =>
+      socket.deliver({
+        type: "event",
+        at: 1,
+        event: { type: "message", messageId: "m-1", role: "user", text: "vai" },
+      }),
+    );
+    act(() =>
+      socket.deliver({
+        type: "event",
+        at: 2,
+        event: { type: "turn_end", stopReason: "end_turn" },
+      }),
+    );
+
+    expect(screen.queryByRole("menu", { name: /regra do Lumem/i })).not.toBeInTheDocument();
+  });
+
+  it("fecha o portão do liberado quando o turno começa", async () => {
+    // Mesmo caminho, e mais caro: confirmar um portão que já não vale manda
+    // `set_lumem_mode: free` para um daemon que vai recusar.
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+    await userEvent.click(await screen.findByRole("button", { name: /regra do Lumem/i }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: /Liberado/ }));
+    expect(screen.getByRole("dialog", { name: /liberar esta sessão/ })).toBeInTheDocument();
+
+    act(() =>
+      socket.deliver({
+        type: "event",
+        at: 1,
+        event: { type: "message", messageId: "m-1", role: "user", text: "vai" },
+      }),
+    );
+
+    expect(screen.queryByRole("dialog", { name: /liberar esta sessão/ })).not.toBeInTheDocument();
+    expect(socket.sent).not.toContainEqual({ type: "set_lumem_mode", mode: "free" });
+  });
+
   it("continua na barra quando o daemon reclama", async () => {
     /*
      * Some da barra quem some do protocolo. O modo do Lumem é estado local da

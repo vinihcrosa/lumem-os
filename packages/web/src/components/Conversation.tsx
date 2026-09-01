@@ -293,6 +293,31 @@ export function Conversation({
    * acontecia. Na minha máquina passava sempre.
    */
   const attached = session !== null;
+
+  /*
+   * Uma condição, e os três a usam: a pílula, o menu e o portão.
+   *
+   * O daemon recusa a troca no meio de um turno e o socket não leva nada quando
+   * não está atado. Enquanto isto morava só no `disabled` da pílula, havia um
+   * caminho: abrir o menu parado, o turno começar, e o menu continuar clicável —
+   * o clique mandava `set_lumem_mode`, o daemon respondia `BLOCKED`, e a pessoa
+   * lia um erro que não causou. Uma condição derivada uma vez é o que impede a
+   * pílula e o menu de discordarem.
+   */
+  const canSwitchMode = !conversation.streaming && attached;
+
+  /*
+   * E os dois FECHAM quando ela cai.
+   *
+   * Só esconder no render deixaria o estado para trás: o turno acaba, o menu
+   * reaparece aberto, e o que a pessoa vê é um popover que ela não abriu.
+   */
+  useEffect(() => {
+    if (canSwitchMode) return;
+    setModeMenuOpen(false);
+    setGateOpen(false);
+  }, [canSwitchMode]);
+
   const send = useCallback(() => {
     const text = draft.trim();
     if (text === "" || pending !== null || readOnly || !attached) return;
@@ -489,7 +514,7 @@ export function Conversation({
           navegador de verdade. Ancorá-los no `.composer` é o que faz o clique
           chegar neles.
         */}
-        {conversation.modeOwner === "lumem" && modeMenuOpen && !readOnly && (
+        {conversation.modeOwner === "lumem" && modeMenuOpen && canSwitchMode && (
           <LumemModeMenu
             mode={conversation.lumemMode}
             workspaceDefault={conversation.lumemModeDefault}
@@ -503,7 +528,7 @@ export function Conversation({
             }}
           />
         )}
-        {gateOpen && (
+        {gateOpen && canSwitchMode && (
           <FreeModeGate
             cwd={session?.cwd ?? ""}
             onCancel={() => setGateOpen(false)}
@@ -591,7 +616,7 @@ export function Conversation({
                  * troca viaja pelo socket, e um botão cujo único resultado é
                  * erro não é um botão.
                  */
-                disabled={conversation.streaming || !attached}
+                disabled={!canSwitchMode}
                 readOnly={readOnly}
                 open={modeMenuOpen}
                 onToggle={() => setModeMenuOpen(!modeMenuOpen)}

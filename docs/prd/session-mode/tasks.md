@@ -291,6 +291,14 @@ clique ia para a conversa.
 > **O `.slash` continua vulnerável** ao mesmo problema — um menu de modo com seis opções longas
 > passaria da altura da caixa. Fora de escopo aqui, e anotado.
 
+**O menu ficava aberto e clicável quando o turno começava.** A pílula desligava (`disabled`), mas o
+menu só olhava se estava aberto — abrir parado, o turno começar, e clicar numa opção mandava
+`set_lumem_mode` para um daemon que responde `BLOCKED`. A pessoa lia um erro que não causou, e o
+portão tinha o mesmo caminho, mais caro. Achado numa **revisão**, não por teste: os três estados
+(pílula, menu, portão) tinham cada um a sua condição, e duas delas discordavam. Virou uma condição
+derivada uma vez — `canSwitchMode` — mais um efeito que **fecha** os dois quando ela cai, porque só
+esconder no render devolveria um popover que ninguém abriu.
+
 **O fake do e2e casava o id da permissão por igualdade.** Ele só reconhecia `perm-1`, então o segundo
 pedido do turno (`perm-read`) deixava o adaptador pendurado — turno parado, cartão eternamente "na
 fila". Virou prefixo.
