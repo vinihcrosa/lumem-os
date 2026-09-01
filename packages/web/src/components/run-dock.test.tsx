@@ -215,8 +215,10 @@ describe("o botão que abre a porta", () => {
 });
 
 describe("rodar e parar", () => {
-  it("o gesto de rodar existe uma vez só, na barra", async () => {
-    // Achado pelo e2e: o corpo repetia o botão da barra, a uma mão de distância.
+  it("o gesto de rodar existe uma vez só, na linha de estado", async () => {
+    // Achado pelo e2e: o corpo repetia o botão, a uma mão de distância. E o lugar
+    // dele mudou na `run-dock-open` — ele saiu da faixa de abas, que não cabia em
+    // 360px, e desceu para a linha de estado.
     trpcMock.scripts.status.query.mockResolvedValue(
       status({
         scripts: { setup: null, run: "pnpm dev", teardown: null },
@@ -226,7 +228,63 @@ describe("rodar e parar", () => {
 
     renderWithProviders(<RunDock scope={scope} dock={dock} />);
 
-    expect(await screen.findAllByRole("button", { name: /rodar/ })).toHaveLength(1);
+    const run = await screen.findAllByRole("button", { name: /rodar/ });
+    expect(run).toHaveLength(1);
+    expect(await screen.findByTestId("dock-state")).toContainElement(run[0]!);
+  });
+
+  /**
+   * A faixa de abas completa mede 494px, e a coluna da direita tem 360.
+   *
+   * O que estourava eram `Abrir :porta` e `parar`; o chevron e as quatro abas
+   * cabem. Então os dois desceram para a linha de estado — em **qualquer**
+   * largura, porque dois lugares onde `parar` pode estar é o defeito que a Q6
+   * recusou.
+   */
+  it("`Abrir` e `parar` moram na linha de estado, e não na faixa de abas", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        run: { command: "pnpm dev", last: execution() },
+        port: { port: 5173, source: "output" },
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    const state = await screen.findByTestId("dock-state");
+    expect(state).toContainElement(await screen.findByRole("link", { name: /Abrir/ }));
+    expect(state).toContainElement(screen.getByRole("button", { name: /parar/ }));
+
+    const strip = screen.getByRole("tablist", { name: "execução do checkout" });
+    expect(strip).not.toContainElement(screen.getByRole("link", { name: /Abrir/ }));
+    expect(strip).not.toContainElement(screen.getByRole("button", { name: /parar/ }));
+  });
+
+  it("com o run vivo, a porta reservada sai da linha — quem fala de porta é a proveniência", async () => {
+    // Duas notas de porta na mesma linha, numa coluna de 360px, é uma competindo
+    // com o comando — que é o que identifica a execução.
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        run: { command: "pnpm dev", last: execution() },
+        port: { port: 5173, source: "output" },
+        reservedPort: 55060,
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    expect(await screen.findByText("porta lida da saída")).toBeInTheDocument();
+    expect(screen.queryByText(/porta reservada/)).not.toBeInTheDocument();
+  });
+
+  it("sem run vivo, a porta reservada continua sendo dita", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({ run: { command: "pnpm dev", last: null }, port: null, reservedPort: 55060 }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    expect(await screen.findByText("porta reservada :55060")).toBeInTheDocument();
   });
 
   it("roda o que o repositório declara", async () => {
