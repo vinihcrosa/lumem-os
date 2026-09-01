@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Desenho:** `packages/web/prototype/lumem-sidebar-actions.html` — oito quadros, feitos no Open Design
 e sincronizados ([regra](../../project/design-source-of-truth.md))
-**Status:** **7 de 10.** A T8 veio junto com a T6 — a razão está no fim. Escopo fechado — as seis perguntas foram respondidas pelo desenho de
+**Status:** **8 de 10.** A T8 veio junto com a T6 — a razão está no fim. Escopo fechado — as seis perguntas foram respondidas pelo desenho de
 2026-09-01.
 
 ---
@@ -190,14 +190,15 @@ lista está vazia.
 **Done when**:
 - [x] **Entregue na T5**: o rodapé fica só com o `AgentLogin`, e nenhum segundo caminho para
       adicionar projeto sobra em lugar nenhum da tela
-- [ ] O clone em andamento aparece **dentro da árvore**, logo abaixo do cabeçalho, com a geometria de
+- [x] O clone em andamento aparece **dentro da árvore**, logo abaixo do cabeçalho, com a geometria de
       uma linha de projeto: mesmo glifo, mesma indentação, mesmo slot — carregando `✕` (A5)
-- [ ] A barra de progresso fica embaixo, na largura da linha; sem percentual conhecido, o estado
+- [x] A barra de progresso fica embaixo, na largura da linha; sem percentual conhecido, o estado
       indeterminado continua sendo o de hoje
-- [ ] O clone que falhou usa o cartão da coluna (`.cfail`), e não o `.fail` do painel central — a URL
-      numa linha só, cortada. Fica até ser dispensado
-- [ ] `tentar de novo` continua reabrindo o diálogo com a origem preenchida (o `prefill` da T4)
-- [ ] Gate: `pnpm gate:quick`
+- [x] O clone que falhou **já** usava cartão de coluna (`clone-outcome--failed`), desenhado para os
+      264px e com as duas saídas escritas. O `.cfail` do protótipo era a simplificação de um `.fail`
+      que só existia lá — não foi portado, e o cartão que existe ficou
+- [x] `tentar de novo` continua reabrindo o diálogo com a origem preenchida (o `prefill` da T4)
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): o clone acontece onde o projeto vai nascer`
 
@@ -287,6 +288,12 @@ o botão ainda no `LocalPanel`, dois testes do clone quebraram em
 `nova worktree em lorebase` e o botão do painel se chamava `nova worktree`, e a regex pegava os dois.
 Duas ações para o mesmo trabalho não sobrevivem nem a uma suíte, que dirá a um dia de uso — então a
 ação saiu do painel do `local` na mesma entrega em que nasceu na árvore.
+
+**T7 — o `.cfail` do protótipo não precisava existir.** O desenho inventou um cartão de falha para a
+coluna porque, no protótipo, o que estava à mão era o `.fail` do design system — feito para o painel
+central, e que quebra a URL no meio de um token dentro de 264px. O app já tinha o cartão certo desde
+a `project-from-url`: o `clone-outcome--failed`, com as duas saídas escritas e a URL numa linha. Foi
+o protótipo que estava atrás do código, e não o contrário.
 
 **Padrão que apareceu duas vezes:** a ponte provisória entre "o diálogo virou controlado" e "a árvore
 manda" **não** dura um commit. Nas duas vezes o que a cobrou foi a suíte, e nas duas o conserto foi

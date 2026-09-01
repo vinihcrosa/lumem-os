@@ -5,7 +5,6 @@ import { AddProjectDialog } from "./components/AddProjectDialog.js";
 import { AgentLogin } from "./components/AgentLogin.js";
 import { WorkspacePanel } from "./components/WorkspacePanel.js";
 import { CheckoutFiles } from "./components/CheckoutFiles.js";
-import { CloneStatus } from "./components/CloneStatus.js";
 import { LocalPanel } from "./components/LocalPanel.js";
 import { SidebarTree } from "./components/SidebarTree.js";
 import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
@@ -214,6 +213,7 @@ export function App() {
             <SidebarTree
               workspaceId={activeId}
               onAddProject={() => setAdding(true)}
+              onCloneRetry={setPrefill}
               expansion={expansion}
               selection={{
                 scopeType: selection?.scope.scopeType ?? null,
@@ -234,9 +234,6 @@ export function App() {
                 global and this footer is the workspace's.
               */}
               <AgentLogin />
-              {/* The clone sits right above the button that starts one, which
-                  is also where the project it produces will appear. */}
-              <CloneStatus workspaceId={activeId} onRetry={setPrefill} />
               {/* F1.6: o botão do rodapé saiu. Uma ação, um lugar — e o lugar é
                   o cabeçalho da lista, que é a coisa que ela acrescenta. O que
                   ficou aqui é o diálogo, que não tem forma nenhuma fechado. */}

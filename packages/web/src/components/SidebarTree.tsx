@@ -8,6 +8,7 @@ import type { TreeExpansion } from "../hooks/useTreeExpansion.js";
 import { projectsKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { EmptyState, Glyph, Row, Skeleton } from "../ui/index.js";
+import { CloneStatus } from "./CloneStatus.js";
 import { CreateWorktreeDialog } from "./CreateWorktreeDialog.js";
 
 import "./run-dock.css";
@@ -37,6 +38,8 @@ export interface SidebarTreeProps {
    * onde ele se afastava da lista a cada projeto que ela ganhava.
    */
   onAddProject: () => void;
+  /** Reabrir o diálogo com o endereço de um clone que falhou por credencial. */
+  onCloneRetry?: (source: string) => void;
 }
 
 /** Projects and their worktrees — F3.1 through F3.3. */
@@ -78,6 +81,15 @@ export function SidebarTree(props: SidebarTreeProps) {
           <span aria-hidden="true">＋</span>
         </button>
       </div>
+
+      {/*
+        O clone em andamento, acima da lista e dentro dela: é onde o projeto vai
+        nascer, e é onde já se olha para saber se ele chegou (Q5).
+      */}
+      <CloneStatus
+        workspaceId={props.workspaceId}
+        {...(props.onCloneRetry === undefined ? {} : { onRetry: props.onCloneRetry })}
+      />
 
       {projects.isError && (
         <p className="tree__message" role="alert">

@@ -389,6 +389,22 @@ async function openLocal(user: ReturnType<typeof userEvent.setup>, row: ReturnTy
   await screen.findByRole("heading", { name: "local" });
 }
 
+describe("o clone dentro da árvore", () => {
+  it("mostra o clone onde o projeto vai nascer, e não no rodapé", async () => {
+    // Q5: o modal fecha quando o clone começa, e o progresso passa a morar na
+    // árvore — que é onde já se olha para saber se o projeto chegou.
+    trpc.project.cloneJobs.query.mockResolvedValue([
+      job({ state: "cloning", percent: 47, phase: "receiving" }),
+    ]);
+
+    renderWithProviders(<App />);
+
+    const tree = await screen.findByLabelText("árvore de projetos");
+    expect(await within(tree).findByLabelText(/^clonando /)).toBeInTheDocument();
+    expect(within(tree).getByRole("button", { name: /^cancelar o clone/ })).toBeInTheDocument();
+  });
+});
+
 describe("a confirmação de apagar", () => {
   it("diz o caminho que vai sumir, para projeto gerenciado", async () => {
     // A tela mais perigosa das nove.
