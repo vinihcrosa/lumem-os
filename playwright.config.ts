@@ -162,6 +162,9 @@ export default defineConfig({
       env: {
         LUMEM_PORT: String(E2E_SERVER_PORT),
         LUMEM_WEB_PORT: String(E2E_WEB_PORT),
+        // A barra do agentation é um elemento fixo por cima da aplicação: no
+        // dev ela é o ponto, aqui ela só disputaria o clique com a suíte.
+        VITE_AGENTATION: "off",
       },
       reuseExistingServer: false,
       timeout: process.env["CI"] ? 180_000 : 60_000,

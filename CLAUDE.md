@@ -27,6 +27,7 @@ tradução ao lado) e `LICENSE` (MIT). Comece pelo [índice da documentação](d
 | [docs/project/vision.md](docs/project/vision.md) | visão do projeto, escrita pelo Vinicius |
 | [docs/project/questions.md](docs/project/questions.md) | perguntas de design do projeto, respondidas aos poucos |
 | [docs/project/testing.md](docs/project/testing.md) | matriz de cobertura, gates, e as armadilhas já corrigidas |
+| [docs/project/agentation.md](docs/project/agentation.md) | a barra de anotação visual do dev — clicar na tela vira contexto estruturado para o agente, pelo MCP `agentation` |
 | [docs/project/backlog.md](docs/project/backlog.md) | tudo que ficou para depois. **Ideia adiada entra aqui na mesma hora**, com contexto curto e gatilho de volta |
 | [docs/project/workspaces.md](docs/project/workspaces.md) | scripts de setup/run/teardown, isolamento de portas e state dir por worktree |
 | [docs/references/](docs/references/) | estudo das quatro referências + comparativo |
