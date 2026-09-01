@@ -554,7 +554,15 @@ export function Conversation({
               <LumemModePill
                 mode={conversation.lumemMode}
                 workspaceDefault={conversation.lumemModeDefault}
-                disabled={conversation.streaming}
+                /*
+                 * Desligada no meio do turno (F1.7) e sem daemon.
+                 *
+                 * A pílula **fica** nos dois casos — ela é estado local da
+                 * sessão, e não depende de handshake para ser exibida —, mas a
+                 * troca viaja pelo socket, e um botão cujo único resultado é
+                 * erro não é um botão.
+                 */
+                disabled={conversation.streaming || !attached}
                 readOnly={readOnly}
                 onSwitch={(mode) => socketRef.current?.send({ type: "set_lumem_mode", mode })}
                 onFreeRequested={() => setGateOpen(true)}

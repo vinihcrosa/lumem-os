@@ -1136,3 +1136,45 @@ describe("a pílula de modo no composer", () => {
     expect(socket.sent).toContainEqual({ type: "set_lumem_mode", mode: "free" });
   });
 });
+
+/**
+ * As bordas da pílula (`session-mode`, T11).
+ *
+ * Nenhuma delas é comportamento novo: são a checagem de que a feature não abriu
+ * buraco nos estados que já estavam resolvidos.
+ */
+describe("as bordas da pílula de modo", () => {
+  it("não oferece troca no meio de um turno", async () => {
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+    await screen.findByRole("button", { name: /regra do Lumem/i });
+
+    act(() =>
+      socket.deliver({
+        type: "event",
+        at: 1_700_000_000_000,
+        event: { type: "message", messageId: "m-1", role: "user", text: "vai" },
+      }),
+    );
+
+    expect(screen.getByRole("button", { name: /regra do Lumem/i })).toBeDisabled();
+  });
+
+  it("continua na barra quando o daemon reclama", async () => {
+    /*
+     * Some da barra quem some do protocolo. O modo do Lumem é estado local da
+     * sessão — ele não depende de handshake para ser exibido —, então uma falha
+     * do daemon não pode fazer a barra voltar a ser muda, que é exatamente o
+     * pixel que esta feature existe para tirar do ar.
+     */
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+    await screen.findByRole("button", { name: /regra do Lumem/i });
+
+    act(() =>
+      socket.deliver({ type: "error", code: "SESSION_EXITED", message: "a sessão morreu" }),
+    );
+
+    expect(screen.getByRole("button", { name: /regra do Lumem/i })).toBeInTheDocument();
+  });
+});
