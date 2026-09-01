@@ -5,7 +5,17 @@ import type { Scope } from "../hooks/useSessionsByScope.js";
 import { useUsageByWorktree, USAGE_WINDOWS, type UsageWindow } from "../hooks/useUsage.js";
 import { projectsKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
-import { Banner, Button, Chip, Glyph, Item, MetaGrid, SectionHead, Skeleton } from "../ui/index.js";
+import {
+  Banner,
+  Button,
+  Chip,
+  CopyablePath,
+  Glyph,
+  Item,
+  MetaGrid,
+  SectionHead,
+  Skeleton,
+} from "../ui/index.js";
 import { CreateWorktreeDialog } from "./CreateWorktreeDialog.js";
 import { ScopePanel } from "./ScopePanel.js";
 import { SpendList, type SpendRow } from "./SpendList.js";
@@ -21,6 +31,15 @@ export interface LocalPanelProps {
   /** O caminho de volta (W7): daqui, o único lugar acima é o workspace. */
   onOpenWorkspace: () => void;
   onSelectWorktree: (worktreeId: string) => void;
+  /**
+   * O interruptor da coluna de arquivos.
+   *
+   * Vem de fora porque o estado é do app — um `useRightPanel` só, com o valor
+   * em `localStorage`. O botão mudou de lugar, não de dono (Q4): uma coluna que
+   * abre e fecha sozinha ao trocar de worktree seria pior que uma que fica onde
+   * você deixou.
+   */
+  filesPanel: { open: boolean; toggle(): void };
   /** Uma sessão para trazer à frente, uma vez — ver `ScopePanel`. */
   openSessionId?: string | undefined;
   /** O pedido que abriu uma conversa (ver `ScopePanel`). */
@@ -117,6 +136,7 @@ export function LocalPanel({
   onSelectWorktree,
   openSessionId,
   initialPrompt,
+  filesPanel,
 }: LocalPanelProps) {
   const queryClient = useQueryClient();
   const scope: Scope = { scopeType: "project", scopeId: projectId };
@@ -181,26 +201,33 @@ export function LocalPanel({
       cwd={path}
       openSessionId={openSessionId}
       initialPrompt={initialPrompt}
-      header={
+      filesPanel={filesPanel}
+      crumb={
+        <nav className="crumb">
+          <button type="button" className="crumb__up focus-ring" onClick={onOpenWorkspace}>
+            {workspaceName}
+          </button>
+          <span className="crumb__sep" aria-hidden="true">
+            /
+          </span>
+          {name}
+          <span className="crumb__sep" aria-hidden="true">
+            /
+          </span>
+          <span className="crumb__here">local</span>
+        </nav>
+      }
+      // Mesma gramática da worktree, e as diferenças são as de verdade. Duas
+      // gramáticas para dois checkouts que se alternam na mesma coluna seria a
+      // inconsistência que esta estrutura existe para tirar (Q5).
+      checkout={{ name: "local", glyph: <Glyph tone={available ? "project" : "off"}>▭</Glyph> }}
+      context={
         <>
-          <nav className="crumb">
-            <button type="button" className="crumb__up focus-ring" onClick={onOpenWorkspace}>
-              {workspaceName}
-            </button>
-            <span className="crumb__sep" aria-hidden="true">
-              /
-            </span>
-            {name}
-            <span className="crumb__sep" aria-hidden="true">
-              /
-            </span>
-            <span className="crumb__here">local</span>
-          </nav>
-
           <div className="detail__title">
             <h2>
               <Glyph tone={available ? "project" : "off"}>▭</Glyph> local
             </h2>
+            <span className="detail__kind">checkout do projeto</span>
             <span className="actions__spacer" />
             <Button
               variant="ghost"
@@ -212,23 +239,6 @@ export function LocalPanel({
             </Button>
           </div>
 
-          <div className="chips">
-            {/* No clean/dirty chip: the daemon reports status for a worktree it
-                created, not for the checkout it merely registered. Saying
-                nothing beats guessing. */}
-            <Chip tone="branch" dot>
-              {defaultBranch}
-            </Chip>
-            {available && (
-              <Chip>
-                {list.length} {list.length === 1 ? "worktree" : "worktrees"}
-              </Chip>
-            )}
-          </div>
-        </>
-      }
-      context={
-        <>
           {available ? (
             <div className="detail__banner">
               <Banner tone="info">
@@ -251,17 +261,38 @@ export function LocalPanel({
             </div>
           )}
 
+          {/*
+            Sem `em relação a`, e sem estado da árvore. Este checkout É a base,
+            então distância dele para ele mesmo não é informação — e o daemon
+            reporta status da worktree que ele criou, não do repositório que ele
+            apenas registrou: não dizer bate não chutar.
+          */}
           <MetaGrid
             entries={[
-              { label: "caminho", value: path, title: path },
               {
                 label: "branch base",
                 value: (
                   <>
-                    {defaultBranch} <span className="dim">· resolvida na adição</span>
+                    <Chip tone="branch" dot>
+                      {defaultBranch}
+                    </Chip>{" "}
+                    <span className="dim">resolvida na adição</span>
                   </>
                 ),
               },
+              { label: "caminho", value: <CopyablePath path={path} /> },
+              ...(available
+                ? [
+                    {
+                      label: "worktrees",
+                      value: (
+                        <span className="dim">
+                          {list.length} {list.length === 1 ? "worktree" : "worktrees"}
+                        </span>
+                      ),
+                    },
+                  ]
+                : []),
             ]}
           />
 

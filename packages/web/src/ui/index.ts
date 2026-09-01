@@ -13,6 +13,7 @@ export { Chip, type ChipProps, type ChipTone } from "./Chip.js";
 export { Choice, ChoiceGroup, type ChoiceGroupProps, type ChoiceProps } from "./Choice.js";
 export { Coach, type CoachProps } from "./Coach.js";
 export { CopyCommand, type CopyCommandProps } from "./CopyCommand.js";
+export { CopyablePath, type CopyablePathProps } from "./CopyablePath.js";
 export { EmptyState, Skeleton, type EmptyStateProps, type SkeletonProps } from "./EmptyState.js";
 export { Field, Input, type FieldProps, type InputProps } from "./Field.js";
 export { Glyph, type GlyphProps, type GlyphTone } from "./Glyph.js";
@@ -22,7 +23,15 @@ export { MetaGrid, type MetaEntry, type MetaGridProps, type MetaVariant } from "
 export { Row, type RowProps } from "./Row.js";
 export { SectionHead, type SectionHeadProps } from "./SectionHead.js";
 export { Steps, type StepsProps } from "./Steps.js";
-export { Tab, TabStrip, type TabProps, type TabState, type TabStripProps } from "./Tab.js";
+export {
+  Tab,
+  TabStrip,
+  TabToggle,
+  type TabProps,
+  type TabState,
+  type TabStripProps,
+  type TabToggleProps,
+} from "./Tab.js";
 export {
   WizardCard,
   WizardSection,

@@ -302,6 +302,27 @@
   white-space: nowrap;
 }
 .meta .dim { color: var(--color-text-tertiary); }
+/* A exceção declarada ao `ellipsis` do `dd`: um caminho cortado é o mesmo que
+   um caminho ausente, porque ninguém redigita esse de cabeça. Ele quebra em
+   duas linhas, que custa uma linha, em vez de esconder o fim, que custa a
+   resposta. */
+.meta dd:has(.path) { overflow: visible; text-overflow: clip; white-space: normal; }
+.path { display: inline-flex; align-items: flex-start; gap: var(--space-6); min-width: 0; }
+.path__value { overflow-wrap: anywhere; }
+.path__copy {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: var(--size-target-min);
+  height: var(--size-target-min);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+  cursor: pointer;
+}
+.path__copy:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
 
 /* -------------------------------------------------- cabeçalho de seção */
 .section-head {
@@ -545,6 +566,9 @@
 }
 
 .tabs-bar__action { flex: none; align-self: center; padding-left: var(--space-8); }
+/* O segundo slot da direita. O separador antes dele não é enfeite: é o que diz
+   que o que cria e o que liga obedecem a regras diferentes. */
+.tabs-bar__end { flex: none; align-self: center; }
 
 .tab-item {
   flex: none;
@@ -598,6 +622,30 @@
 .tab-item__dot--failed { background: var(--color-session-failed); }
 /* Mesma regra da contagem: substitui o ponto de rodando em vez de somar. */
 .tab-item__dot--asking { background: var(--color-permission-pending); }
+/* Sujeira, e não sessão. Âmbar como no chip da aba, na sidebar e em todo o
+   resto do produto — o verde de `running` ao lado dele é a razão de este
+   degrau existir em vez de reaproveitar um. */
+.tab-item__dot--dirty { background: var(--color-worktree-dirty); }
+
+/* O interruptor da faixa. 24x24 é o piso AA de alvo (WCAG 2.5.8), o mesmo do
+   `✕` da aba: o glifo continua pequeno e o alvo mora em volta dele. O estado
+   é `aria-pressed`, não classe — estado de controle é atributo, e assim o
+   leitor de tela sabe sem ninguém escrever `aria-*` de novo. */
+.tab-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-md);
+  line-height: 1;
+  cursor: pointer;
+}
+.tab-toggle:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.tab-toggle[aria-pressed="true"] { background: var(--color-bg-active); color: var(--color-text-primary); }
 
 .tab-item__close {
   display: inline-flex;

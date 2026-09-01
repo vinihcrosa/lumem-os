@@ -121,6 +121,18 @@ A troca de somente leitura acontece **no lugar**, sem remontar: sessão que morr
 
 #### W4: Painel da worktree
 
+> **Revertida em 2026-09-01, com o motivo escrito.** O cabeçalho fixo desta task virou a **primeira
+> aba** — ver [worktree-first-tab](../worktree-first-tab/prd.md), que está completa. A razão de ele
+> ficar acima da faixa era verdadeira e continua escrita no `ScopePanel`: uma sessão nova não muda a
+> branch, o caminho, nem se a árvore está suja, e trocar de aba não podia mexer nisso.
+>
+> O que ela não dizia é o preço. O cabeçalho gastava altura em **toda** aba para dizer o que interessa
+> a uma, e a informação que ele espremia era o caminho em disco — o único valor da tela que ninguém
+> redigita de cabeça. A aba de contexto passou a se chamar pelo nome do checkout, e a sujeira, que era
+> chip, virou o ponto da aba.
+>
+> Decisão revertida sem registro é decisão que volta sozinha; por isso esta nota, e não uma edição.
+
 **What**: Cabeçalho fixo, faixa de abas, aba de contexto.
 **Where**: `packages/web/src/components/WorktreePanel.tsx`, `detail.css`, `App.tsx`
 **Depends on**: W3

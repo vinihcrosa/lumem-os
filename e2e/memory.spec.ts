@@ -34,7 +34,7 @@ function memory(page: Page) {
 
 /** Abre o painel direito na aba da memória. */
 async function openMemory(page: Page): Promise<void> {
-  const toggle = page.getByRole("button", { name: /arquivos/ });
+  const toggle = page.getByRole("button", { name: "abrir a coluna de arquivos" });
   if ((await toggle.getAttribute("aria-pressed")) !== "true") await toggle.click();
   await page.getByRole("tab", { name: "Memória" }).click();
   await expect(memory(page)).toBeVisible({ timeout: 15_000 });

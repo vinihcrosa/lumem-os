@@ -8,7 +8,17 @@ import type { Scope } from "../hooks/useSessionsByScope.js";
 import { relativeAge } from "../lib/relative-time.js";
 import { sessionsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
-import { Banner, Button, Glyph, Item, SectionHead, Tab, TabStrip } from "../ui/index.js";
+import {
+  Banner,
+  Button,
+  Glyph,
+  Item,
+  SectionHead,
+  Tab,
+  TabStrip,
+  TabToggle,
+  type TabState,
+} from "../ui/index.js";
 import { FileViewer } from "./FileViewer.js";
 import { NewSessionMenu } from "./NewSessionMenu.js";
 import { PatchViewer } from "./PatchViewer.js";
@@ -19,10 +29,35 @@ import "./detail.css";
 
 export interface ScopePanelProps {
   scope: Scope;
-  /** Breadcrumb, title, chips and the scope's own destructive action. */
-  header: ReactNode;
-  /** What the context tab shows: metadata, actions, lists. */
+  /**
+   * The path, and nothing else.
+   *
+   * Navigation is chrome; the state of the checkout is content, and content
+   * lives in a tab. Everything that used to sit here beside the crumb — title,
+   * branch, dirtiness, the destructive action — is now what `context` renders.
+   */
+  crumb: ReactNode;
+  /** How the checkout's own tab names and reports itself in the strip. */
+  checkout: {
+    name: string;
+    glyph: ReactNode;
+    /** The dot. Absent while nothing is known — a dot that guesses is worse. */
+    state?: TabState;
+    /** What the dot means, spelled out: a colour has no name. */
+    stateLabel?: string;
+  };
+  /** What the checkout's own tab shows: metadata, actions, lists. */
   context: ReactNode;
+  /**
+   * O interruptor da coluna de arquivos.
+   *
+   * Vem de fora porque o estado é do app — um `useRightPanel` só, com o valor
+   * em `localStorage`. O botão mudou de lugar, não de dono (Q4): uma coluna que
+   * abre e fecha sozinha ao trocar de worktree seria pior que uma que fica onde
+   * você deixou.
+   */
+  filesPanel: { open: boolean; toggle(): void };
+
   /** Where a session launched here will run. */
   cwd: string;
   /**
@@ -48,14 +83,27 @@ export interface ScopePanelProps {
 /**
  * A worktree — or the project's own checkout — and everything open inside it.
  *
- * The header sits above the strip because it is the context of every tab: a new
- * session does not change the branch, the path, or whether the tree is dirty.
- * Switching tabs must not make that information move.
+ * The column is path → tabs → content, and the checkout is the FIRST TAB.
+ *
+ * It used to be a fixed header above the strip, with a reason written here: a
+ * new session does not change the branch, the path, or whether the tree is
+ * dirty, so switching tabs must not make that information move. That reason was
+ * true and it was not free — the header spent height in EVERY tab to say
+ * something that interests one, and the thing it squeezed hardest was the disk
+ * path, which is exactly the piece nobody can retype from memory.
+ *
+ * So the trade was taken, and this is what it costs: with a session tab in
+ * front, the branch and the dirtiness are no longer on screen. Two signals pay
+ * for it and they do not depend on which tab is open — the dot on the checkout
+ * tab (the tree is dirty) and the crumb above the strip (where you are). The
+ * rest is one click away, in a tab that cannot be closed.
  */
 export function ScopePanel({
   scope,
-  header,
+  crumb,
+  checkout,
   context,
+  filesPanel,
   cwd,
   openSessionId,
   initialPrompt,
@@ -120,12 +168,22 @@ export function ScopePanel({
 
   return (
     <section className="scope">
-      <div className="scope__head">{header}</div>
+      <div className="scope__crumb">{crumb}</div>
 
       <TabStrip
         label={`sessões de ${cwd}`}
         lead={
-          <Tab label="contexto" active={activeId === null} onSelect={() => select(null)} />
+          // First, fixed, and no `✕`: closing the worktree from inside the
+          // worktree does not mean anything. It is also where the selection
+          // returns to when the last session tab goes away.
+          <Tab
+            label={checkout.name}
+            glyph={checkout.glyph}
+            active={activeId === null}
+            onSelect={() => select(null)}
+            {...(checkout.state !== undefined ? { state: checkout.state } : {})}
+            {...(checkout.stateLabel !== undefined ? { stateLabel: checkout.stateLabel } : {})}
+          />
         }
         action={
           <NewSessionMenu
@@ -133,6 +191,20 @@ export function ScopePanel({
             scopeId={scope.scopeId}
             onCreated={(sessionId) => select(sessionId)}
           />
+        }
+        end={
+          // The files column belongs to a checkout, so its switch lives in the
+          // one row that exists in every tab of a checkout and nowhere outside
+          // one. It has to be here rather than in the column's own header for a
+          // blunter reason: with the column closed, that header does not exist,
+          // and a switch that only exists while it is on is not a switch.
+          <TabToggle
+            label="a coluna de arquivos"
+            pressed={filesPanel.open}
+            onToggle={filesPanel.toggle}
+          >
+            ▤
+          </TabToggle>
         }
       >
         {tabs.map((tab) => (
@@ -178,7 +250,7 @@ export function ScopePanel({
         className="pane"
         role="tabpanel"
         hidden={activeId !== null}
-        aria-label="contexto"
+        aria-label={checkout.name}
       >
         <TabSplit viewer={viewerFor(null)}>
         {end.isError && (

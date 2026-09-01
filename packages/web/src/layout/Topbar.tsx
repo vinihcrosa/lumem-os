@@ -2,8 +2,6 @@ export interface TopbarProps {
   /** Null while the first health check is still in flight. */
   version: string | null;
   unreachable: boolean;
-  /** Absent before a checkout is selected, when there is nothing to show. */
-  filesPanel?: { open: boolean; toggle(): void };
 }
 
 /**
@@ -12,8 +10,11 @@ export interface TopbarProps {
  * That is why the daemon's state lives here and nowhere else: every other part
  * of the screen is downstream of a working connection, so a failure has to
  * surface in the one place that survives it.
+ *
+ * And it is why nothing scoped lives here: a control for something that only
+ * exists inside a checkout says, by being here, that it belongs to the product.
  */
-export function Topbar({ version, unreachable, filesPanel }: TopbarProps) {
+export function Topbar({ version, unreachable }: TopbarProps) {
   return (
     <header className="topbar">
       {/* The `h1` is the product, not the current selection: the selection has
@@ -24,18 +25,10 @@ export function Topbar({ version, unreachable, filesPanel }: TopbarProps) {
         Lumem-OS
       </h1>
       <span className="topbar__spacer" />
-      {/* The toggle lives here rather than in the panel because when the panel
-          is closed there is nothing left on screen to hang it on. */}
-      {filesPanel !== undefined && (
-        <button
-          type="button"
-          className={`rp-toggle${filesPanel.open ? " rp-toggle--on" : ""}`}
-          aria-pressed={filesPanel.open}
-          onClick={filesPanel.toggle}
-        >
-          <span aria-hidden="true">▤</span> arquivos
-        </button>
-      )}
+      {/* The files toggle used to live here, and it was the one control in this
+          strip that did not apply to the whole screen: the column belongs to a
+          checkout, and the button vanished when no checkout was selected, which
+          was the tell. It moved to the checkout's own tab strip. */}
       {unreachable ? (
         <span className="daemon daemon--off" role="alert">
           <span className="daemon__dot" aria-hidden="true" />

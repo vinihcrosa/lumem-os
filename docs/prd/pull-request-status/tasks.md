@@ -28,10 +28,14 @@ alvo dos testes da [worktree-tabs](../worktree-tabs/tasks.md) muda no caminho.
 
 ## Fase 1 — a estrutura: a worktree vira a primeira aba
 
-> **Movida em 2026-09-01.** As E1, E2 e E3 saíram desta feature e viraram a
-> [worktree-first-tab](../worktree-first-tab/prd.md): elas não dependem de saber ler PR, e esta
-> feature está travada na Q1. Ficam aqui como registro do que a barra da PR **pressupõe** — quando
-> ela voltar a andar, a estrutura já vai estar de pé, ou é ela que entra primeiro.
+> **Movida em 2026-09-01, e entregue no mesmo dia.** As E1, E2 e E3 saíram desta feature e viraram a
+> [worktree-first-tab](../worktree-first-tab/prd.md), que está **completa**. Ficam aqui como registro
+> do que a barra da PR pressupõe — e ela já pode pressupor: a coluna do meio é `caminho → abas →
+> conteúdo`, a primeira aba é a do checkout, e o ponto de sujeira dela é o `dirty` do `TabState`.
+>
+> Duas coisas que esta feature ganhou de graça e precisa saber: o `TabStrip` tem **dois** slots fixos
+> à direita (o segundo é o interruptor da coluna de arquivos), e a aba do checkout **já tem ponto** —
+> se a barra da PR quiser um sinal na aba, ele não pode ser um segundo ponto na mesma aba.
 
 #### E1: O cabeçalho vira aba
 
