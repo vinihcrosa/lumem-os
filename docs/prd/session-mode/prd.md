@@ -7,8 +7,13 @@
 > **Tasks:** ainda não escritas
 > **Sucede:** [acp-sessions](../acp-sessions/prd.md), que trouxe os seletores (F2.6) e o pedido de
 > permissão
-> **Desenho:** a fazer no Open Design — o estado "modo que o Lumem impõe" não existe no
-> `lumem-acp-conversation.html`
+> **Desenho:** feito no Open Design — `packages/web/prototype/lumem-session-mode.html`. Sete seções:
+> a barra muda ao lado do que entra no lugar dela, o eixo de autoria, os três valores, o rastro do
+> `automático`, o portão do `liberado`, as bordas, e o que isto cobra. Ele **desenha as propostas** da
+> [Q2](open-questions.md) (glifo `◈` + rótulo em português), da [Q3](open-questions.md) (a regra na
+> descrição do menu, sem lista de exceção), da [Q4](open-questions.md) (portão por sessão, sem "não
+> perguntar de novo") e da [Q5](open-questions.md) (rodapé do menu com o padrão do workspace) — as
+> quatro continuam **abertas**, e agora se responde olhando em vez de imaginando.
 
 ---
 
