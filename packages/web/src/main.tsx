@@ -8,6 +8,7 @@ import "./styles/fonts.css";
 import "./styles/base.css";
 
 import { App } from "./App.js";
+import { mountAgentation } from "./lib/agentation.js";
 import { createQueryClient } from "./lib/queryClient.js";
 import "./ui/ui.css";
 
@@ -42,3 +43,11 @@ if (wantsStyleguide) {
     </StrictMode>,
   );
 }
+
+/**
+ * O anotador entra depois do render, e sem `await` no caminho da tela: ele é
+ * ferramenta de dev, e uma falha ao carregá-lo não pode atrasar nem derrubar a
+ * aplicação. Em produção a chamada volta na primeira linha e o bundler já
+ * removeu o pacote.
+ */
+void mountAgentation();

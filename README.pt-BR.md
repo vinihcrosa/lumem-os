@@ -88,6 +88,12 @@ pnpm install
 pnpm dev            # daemon na :4317, vite na :4318
 ```
 
+O `pnpm dev` escreve em `~/.lumem-dev/shared`, e não no `~/.lumem` do Lumem
+instalado: mesma forma, banco separado, então um bug em desenvolvimento não
+encosta nos projetos com que você trabalha de verdade. Os detalhes, e como
+rodar dois worktrees ao mesmo tempo, em
+[docs/project/workspaces.md](docs/project/workspaces.md).
+
 | Comando | O que roda |
 |---|---|
 | `pnpm gate:quick` | os testes afetados pelo trabalho atual |
