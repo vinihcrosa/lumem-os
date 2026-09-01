@@ -1,3 +1,4 @@
+import { PORT_BLOCK_SIZE } from "@lumem/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
@@ -341,15 +342,7 @@ function PhasePanel({
           </span>
         </div>
       ) : last === null ? (
-        // Sem botão aqui: `▶ rodar` está na linha de estado, logo acima. Duas
-        // cópias do mesmo gesto a uma mão de distância é o defeito que a sidebar
-        // já tinha evitado com o `adicionar projeto`.
-        <div className="dock__idle">
-          <span>
-            Este checkout ainda não rodou {phase === "test" ? "os testes" : `o ${phase}`}. O botão
-            está na linha acima.
-          </span>
-        </div>
+        <NeverRan phase={phase} status={status} />
       ) : (
         <div className="dock__out">
           <Terminal
@@ -362,6 +355,54 @@ function PhasePanel({
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * O corpo de uma fase que nunca rodou neste checkout.
+ *
+ * O que estava aqui era uma frase — *"ainda não rodou; o botão está ali em cima"* —
+ * e ela bastava enquanto o rodapé nascia fechado: quem o abria já sabia o que ia
+ * fazer. Nascendo aberto, esta área é **a primeira coisa que se vê ao chegar numa
+ * worktree**, e uma frase que só diz "não" desperdiça a chegada.
+ *
+ * Então ela diz o que o daemon **já sabe** antes de existir processo: a faixa de
+ * portas que é desta worktree e de nenhuma outra, e como foi o último setup. Nada
+ * aqui é chute — linha sem fonte não aparece, e é por isso que cada uma tem
+ * guarda. Sem botão: `▶ rodar` está na linha de estado, uma linha acima. Duas
+ * cópias do mesmo gesto a uma mão de distância é o defeito que a sidebar já tinha
+ * evitado com o `adicionar projeto`.
+ */
+function NeverRan({ phase, status }: { phase: "setup" | "run" | "test"; status: ScriptStatus }) {
+  const setup = status.setup.last;
+
+  return (
+    <div className="dock__never">
+      <span className="dock__never-t">
+        Este checkout ainda não rodou {phase === "test" ? "os testes" : `o ${phase}`}. O botão está na
+        linha acima.
+      </span>
+
+      {status.reservedPort !== null && (
+        <span className="dock__never-l">
+          portas reservadas <b>:{status.reservedPort}–{status.reservedPort + PORT_BLOCK_SIZE - 1}</b>{" "}
+          — desta worktree e de nenhuma outra. O run recebe a primeira em{" "}
+          <code>LUMEM_RUN_PORT</code>.
+        </span>
+      )}
+
+      {phase !== "setup" && status.setup.command !== null && (
+        <span className="dock__never-l">
+          {setup === null
+            ? "o setup deste checkout nunca rodou"
+            : setup.running
+              ? `o setup está rodando agora · ${relativeAge(setup.startedAt)}`
+              : setup.exitCode === 0
+                ? `o setup passou · ${relativeAge(setup.finishedAt ?? setup.startedAt)}`
+                : `o setup falhou (saiu ${String(setup.exitCode ?? "?")}) · ${relativeAge(setup.finishedAt ?? setup.startedAt)}`}
+        </span>
+      )}
+    </div>
   );
 }
 

@@ -386,6 +386,108 @@ describe("o projeto sem [scripts]", () => {
   });
 });
 
+/**
+ * Nascendo aberto, esta área é a primeira coisa que se vê ao chegar numa worktree.
+ *
+ * Antes era uma frase que só dizia "não". Agora diz o que o daemon já sabe antes
+ * de existir processo — e nada além do que ele sabe.
+ */
+describe("a fase que nunca rodou", () => {
+  it("diz a faixa de portas do checkout, em vez de um terminal vazio", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: null, run: "pnpm dev", teardown: null },
+        run: { command: "pnpm dev", last: null },
+        reservedPort: 55060,
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    // Dez portas, e o número vem do contrato — não de um `10` escrito aqui.
+    expect(await screen.findByText(":55060–55069")).toBeInTheDocument();
+    expect(screen.getByText(/LUMEM_RUN_PORT/)).toBeInTheDocument();
+    expect(screen.queryByTestId("terminal")).not.toBeInTheDocument();
+  });
+
+  it("sem reserva, não inventa faixa: a linha simplesmente não existe", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: null, run: "pnpm dev", teardown: null },
+        run: { command: "pnpm dev", last: null },
+        reservedPort: null,
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    await screen.findByText(/ainda não rodou o run/);
+    expect(screen.queryByText(/portas reservadas/)).not.toBeInTheDocument();
+  });
+
+  it("conta como foi o último setup, que é a outra metade da pergunta", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: "./setup.sh", run: "pnpm dev", teardown: null },
+        setup: { command: "./setup.sh", last: execution({ running: false, exitCode: 0 }) },
+        run: { command: "pnpm dev", last: null },
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    expect(await screen.findByText(/o setup passou/)).toBeInTheDocument();
+  });
+
+  it("setup que falhou aparece com o código, e ainda não é um alerta", async () => {
+    // "ainda não começou" não é "quebrou": nenhuma cor de perigo, nenhum role de
+    // alerta nesta área — o banner de setup falhado é outra coisa, e é dele o papel.
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: "./setup.sh", run: "pnpm dev", teardown: null },
+        setup: { command: "./setup.sh", last: execution({ running: false, exitCode: 1 }) },
+        run: { command: "pnpm dev", last: null },
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    expect(await screen.findByText(/o setup falhou \(saiu 1\)/)).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("na aba do próprio setup, não fala do setup — falaria de si mesma", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: "./setup.sh", run: null, teardown: null },
+        setup: { command: "./setup.sh", last: null },
+        reservedPort: 55060,
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+    await userEvent.click(await screen.findByRole("tab", { name: /Setup/ }));
+
+    await screen.findByText(/ainda não rodou o setup/);
+    expect(screen.queryByText(/o setup nunca rodou/)).not.toBeInTheDocument();
+  });
+
+  it("com execução, o terminal toma a área de volta", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: null, run: "pnpm dev", teardown: null },
+        run: { command: "pnpm dev", last: execution() },
+        reservedPort: 55060,
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    expect(await screen.findByTestId("terminal")).toBeInTheDocument();
+    expect(screen.queryByText(/portas reservadas/)).not.toBeInTheDocument();
+  });
+});
+
 describe("o portão de confiança (S11)", () => {
   it("mostra o comando ANTES de rodar, e não oferece rodar", async () => {
     trpcMock.scripts.status.query.mockResolvedValue(
