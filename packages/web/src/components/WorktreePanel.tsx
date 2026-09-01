@@ -88,6 +88,8 @@ export function WorktreePanel({
   const { name, branch, path, state, present, status, aheadBehind, baseBranch, createdAt } =
     detail.data;
   const gone = !present || state === "missing";
+  /** Quantos arquivos sujos, ou `null` quando não há sujeira a reportar. */
+  const dirty = gone || status === null || status.clean ? null : status.changedFiles;
   const scope: Scope = { scopeType: "worktree", scopeId: worktreeId };
 
   return (
@@ -111,10 +113,34 @@ export function WorktreePanel({
           <span className="crumb__sep" aria-hidden="true">
             /
           </span>
+          {/*
+            Q1, leitura B′. Com uma aba de sessão na frente, a branch sai da
+            tela — e o caminho é o que sobra dizendo onde você está. Ele escreve
+            o NOME do checkout, que no caminho comum é a mesma string da branch:
+            imprimir as duas seria imprimir uma duas vezes.
+
+            Quando elas divergem — worktree importada, ou clonada de fora — o
+            nome deixa de responder "qual branch", e aí a branch entra. É a
+            mesma regra que a sidebar já aplica na linha da worktree, e mantê-la
+            aqui é o que impede a promessa de valer só no caso fácil.
+          */}
           <span className="crumb__here">{name}</span>
+          {branch !== name && <span className="crumb__branch">{branch}</span>}
         </nav>
       }
-      checkout={{ name, glyph: <Glyph tone={gone ? "warn" : "worktree"}>{gone ? "⚠" : "◇"}</Glyph> }}
+      checkout={{
+        name,
+        glyph: <Glyph tone={gone ? "warn" : "worktree"}>{gone ? "⚠" : "◇"}</Glyph>,
+        // O ponto é o que sobrevive a outra aba estar na frente. Só a sujeira o
+        // acende: limpa não põe nada, porque ponto que está sempre lá deixa de
+        // ser sinal, e uma worktree ausente não tem árvore para estar suja.
+        ...(dirty === null
+          ? {}
+          : {
+              state: "dirty" as const,
+              stateLabel: `árvore suja · ${dirty} ${dirty === 1 ? "arquivo" : "arquivos"}`,
+            }),
+      }}
       context={
         <>
           <div className="detail__title">

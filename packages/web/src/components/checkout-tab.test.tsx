@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -207,6 +207,64 @@ describe("a worktree como primeira aba", () => {
 
     const panel = await screen.findByRole("tabpanel", { name: "teste" });
     expect(within(panel).getByText("worktree")).toBeInTheDocument();
+  });
+
+  it("acende o ponto da aba quando a árvore está suja, e diz quantos", async () => {
+    // O único sinal de sujeira que sobrevive a outra aba estar na frente.
+    const user = userEvent.setup();
+    trpc.worktree.getDetail.query.mockResolvedValue(
+      detail({ status: { clean: false, changedFiles: 3 } }),
+    );
+
+    await selectWorktree(user);
+
+    expect(
+      await screen.findByRole("tab", { name: "teste árvore suja · 3 arquivos" }),
+    ).toBeInTheDocument();
+  });
+
+  it("não põe ponto nenhum numa árvore limpa", async () => {
+    // Ponto que está sempre lá deixa de ser sinal.
+    const user = userEvent.setup();
+    await selectWorktree(user);
+
+    const tab = await screen.findByRole("tab", { name: "teste" });
+    expect(tab.querySelector(".tab-item__dot")).toBeNull();
+  });
+
+  it("não chuta ponto quando o daemon não sabe o estado da árvore", async () => {
+    const user = userEvent.setup();
+    trpc.worktree.getDetail.query.mockResolvedValue(detail({ status: null }));
+
+    await selectWorktree(user);
+
+    const tab = await screen.findByRole("tab", { name: "teste" });
+    expect(tab.querySelector(".tab-item__dot")).toBeNull();
+  });
+
+  it("escreve a branch no caminho só quando ela não é o nome do checkout", async () => {
+    // Q1, leitura B′. No caminho comum nome e branch são a mesma string, e
+    // imprimir as duas seria imprimir uma duas vezes. Quando divergem — worktree
+    // importada, ou clonada de fora — o nome para de responder "qual branch".
+    const user = userEvent.setup();
+    await selectWorktree(user);
+    const crumb = await screen.findByRole("navigation");
+    expect(crumb).not.toHaveTextContent(/teste\s*teste/);
+
+    cleanup();
+    vi.mocked(trpc.worktree.listByProject.query).mockResolvedValue([
+      { ...WORKTREE, name: "outra", branch: "feature/outra" },
+    ]);
+    trpc.worktree.getDetail.query.mockResolvedValue(
+      detail({ name: "outra", branch: "feature/outra" }),
+    );
+
+    renderWithProviders(<App />);
+    const tree = await screen.findByLabelText("árvore de projetos");
+    await user.click(await within(tree).findByRole("button", { name: /^lorebase/ }));
+    await user.click(await within(tree).findByRole("button", { name: /^outra/ }));
+
+    expect(await screen.findByRole("navigation")).toHaveTextContent("feature/outra");
   });
 
   it("dá ao checkout do projeto a mesma primeira aba, com o glifo dele", async () => {

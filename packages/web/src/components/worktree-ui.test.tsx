@@ -213,7 +213,12 @@ describe("worktree detail", () => {
 
     // The count is the whole point: "suja" alone does not tell the user
     // whether removing it would cost a typo or a day.
-    expect(await screen.findByText(/suja · 3 arquivos/)).toBeInTheDocument();
+    //
+    // Inside the checkout's tab, because it is said twice on purpose now: the
+    // chip here, and the tab's own dot for when another tab is in front. The
+    // second one is proved by `checkout-tab.test.tsx`.
+    const panel = await screen.findByRole("tabpanel", { name: "teste" });
+    expect(within(panel).getByText(/suja · 3 arquivos/)).toBeInTheDocument();
   });
 
   it("removes a clean worktree", async () => {
