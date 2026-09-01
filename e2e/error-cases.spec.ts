@@ -69,7 +69,9 @@ test("a worktree with a live session cannot be removed", async ({ page }) => {
   await page.getByRole("menuitem", { name: /^shell/ }).click();
   await expect(page.locator("[role=tabpanel]:not([hidden])").getByTestId("terminal")).toBeVisible();
 
-  await page.getByRole("button", { name: new RegExp(`^${name}`) }).first().click();
+  // A ação destrutiva mora na aba do checkout, e a sessão está na frente:
+  // voltar para a aba dela é parte do gesto agora.
+  await page.getByRole("tab", { name }).click();
   await page.getByRole("button", { name: "remover worktree" }).click();
 
   // F4.9, and PRD §5: the message names the session, not the dirt.
@@ -85,7 +87,6 @@ test("a worktree with a live session cannot be removed", async ({ page }) => {
     timeout: 20_000,
   });
 
-  await page.getByRole("button", { name: new RegExp(`^${name}`) }).first().click();
   await page.getByRole("button", { name: "remover worktree" }).click();
   await expect(page.getByRole("heading", { name })).toBeHidden({ timeout: 20_000 });
 });
@@ -101,7 +102,7 @@ test("a dirty worktree is refused, and forcing it works", async ({ page }) => {
 
   const path = (
     await page
-      .getByRole("tabpanel", { name: "contexto" })
+      .getByRole("tabpanel", { name })
       .getByText(/\.lumem.*worktrees/)
       .first()
       .innerText()

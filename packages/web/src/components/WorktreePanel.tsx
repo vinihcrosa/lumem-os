@@ -66,13 +66,25 @@ export function WorktreePanel({
     queryFn: () => trpc.worktree.getDetail.query({ id: worktreeId }),
   });
 
-  // A mesma chave da sidebar, então o nome do checkout durante o carregamento
-  // custa uma leitura de cache e nenhuma chamada a mais.
-  const listed = useQuery({
-    queryKey: worktreesKey(projectId),
-    queryFn: () => trpc.worktree.listByProject.query({ projectId }),
-  });
-  const known = listed.data?.find((worktree) => worktree.id === worktreeId);
+  /**
+   * O nome do checkout antes do `getDetail`, lido do cache da sidebar.
+   *
+   * `getQueryData` e **não** `useQuery`: assinar esta chave aqui inscreveria o
+   * painel nas invalidações dela, e criar uma sessão invalida a lista de
+   * worktrees (é dela que sai o "1 sessão rodando" da sidebar). O re-render
+   * extra cai no meio da janela entre `select(novaSessão)` e a lista de sessões
+   * chegar — e o efeito que devolve a seleção para a aba do checkout quando a
+   * aba escolhida não existe ainda dispara e desfaz a seleção. Custou um teste
+   * e2e para aparecer, porque em jsdom a janela não existe.
+   *
+   * Uma leitura, sem inscrição: é o que o estado de carregamento precisa, e ele
+   * dura o tempo de uma resposta.
+   */
+  const known = queryClient
+    .getQueryData<{ id: string; name: string; branch: string; path: string }[]>(
+      worktreesKey(projectId),
+    )
+    ?.find((worktree) => worktree.id === worktreeId);
 
   // Same key the local panel uses, so the crumb costs a cache read.
   const project = useQuery({

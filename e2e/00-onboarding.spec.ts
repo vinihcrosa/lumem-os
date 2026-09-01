@@ -93,7 +93,11 @@ test("an empty machine reaches the first turn, entirely through the screen", asy
   // ------------------------------------------------------------------ a conversa
   // Out of the flow and into the product, on the tab the flow just created.
   await expect(page.getByLabel("Workspace", { exact: true })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible();
+  // A worktree **na aba**, e não como título da coluna: o fluxo prometeu "criar
+  // e abrir a conversa", então é a conversa que está na frente, e o nome do
+  // checkout é o que a primeira aba diz. É exatamente o que a mudança de
+  // estrutura cobra, e é por isso que ele está escrito na aba.
+  await expect(page.getByRole("tab", { name: WORKTREE })).toBeVisible();
   await expect(conversation(page)).toBeVisible({ timeout: 20_000 });
   // Attached, not merely visible: the panel renders while the socket connects,
   // and the composer only accepts a message once the `attached` frame lands.
