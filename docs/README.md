@@ -285,7 +285,8 @@ saber ler PR, e a outra está travada.
 |---|---|
 | [prd.md](prd/worktree-first-tab/prd.md) | O §4 — com uma aba de sessão na frente, branch e sujeira somem da vista, e quem paga são o ponto na aba e o caminho acima dela |
 | [open-questions.md](prd/worktree-first-tab/open-questions.md) | 5 perguntas. A Q1 é a Q11 herdada da barra da PR: o que a worktree ainda diz quando não está em foco |
-| `packages/web/prototype/lumem-worktree-tab.html` | O protótipo, vindo do Open Design: oito telas — antes × depois da moldura, a tela inteira, a barra de abas de perto com os estados do `▤`, a aba da worktree sozinha, o `▭ local`, as três leituras da Q1, os dois lugares do `▤` na Q2, e o que o desenho não faz. **Zero token novo**; um componente novo só, o `.tabs__files` |
+| [tasks.md](prd/worktree-first-tab/tasks.md) | 9 tasks em 4 fases, nenhuma iniciada. Não tem daemon: o risco desta feature é de **regressão**, e o §Antes de começar nomeia os três arquivos de teste que se movem em vez de sumir |
+| `packages/web/prototype/lumem-worktree-tab.html` | O protótipo, vindo do Open Design: dez telas — antes × depois da moldura, a tela inteira, a barra de abas de perto com os estados do `▤`, a aba da worktree sozinha, o `▭ local`, as quatro leituras da Q1, os dois lugares do `▤` na Q2, os dois estados degradados que a aba herda, e o que o desenho não faz. **Zero token novo**; um componente novo só, o `.tabs__files` |
 
 ### [run-dock-open/](prd/run-dock-open/) — o rodapé nasce aberto
 

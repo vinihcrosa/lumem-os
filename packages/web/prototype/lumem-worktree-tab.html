@@ -354,7 +354,7 @@
         Idêntica à A <strong>no desenho</strong>, e é esse o argumento: nesta versão do produto o nome
         do checkout e o nome da branch são a <strong>mesma string</strong>, e o caminho já a escreve.
         A leitura B não pede pixel nenhum a mais — pede que a branch continue sendo o último segmento
-        do caminho. O dia em que worktree e branch puderem divergir, B deixa de valer de graça.
+        do caminho. Essa promessa <strong>já tem exceção</strong>, e ela está desenhada no caso D.
       </p>
     </div>
 
@@ -375,6 +375,21 @@
       <p class="case__note">
         Resolve, e é o cabeçalho de volta — só que mais magro. Três andares acima do conteúdo outra
         vez, em toda aba, e a razão de mover era ganhar a altura de volta.
+      </p>
+    </div>
+  <div class="case">
+      <p class="case__label">D · <b>quando nome ≠ branch</b> — o caso que a B perde</p>
+      <div class="frame">
+        <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">outra</span></nav></div>
+        <div class="tabs-bar"><div class="tabs"><span class="stab stab--overview"><button class="stab__label" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>outra<span class="stab__dot stab__dot--dirty"></span></button></span><span class="tabs__sep"></span><span class="stab stab--active"><button class="stab__label" type="button"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude-code</button><button class="stab__close" type="button" aria-label="fechar">✕</button></span></div><button class="tabs__new" type="button">＋ nova sessão</button><span class="tabs__sep"></span><button class="tabs__files" type="button" aria-pressed="true"><span aria-hidden="true">▤</span></button></div>
+        <div class="pane-mock">a conversa — e a branch <b>feature/outra</b> não está escrita em lugar nenhum</div>
+      </div>
+      <p class="case__note">
+        A sidebar do produto <strong>já</strong> imprime as duas coisas quando elas divergem
+        (<code>outra feature/outra</code>), e o caminho acima das abas imprime só o <strong>nome</strong>.
+        Então a leitura B vale por padrão e falha exatamente no caso em que a branch importa: worktree
+        importada, ou clonada de fora. Duas saídas, e nenhuma é grátis — o caminho passar a escrever a
+        branch quando ela diverge, ou o <code>title</code> da aba dizê-la. A pergunta é da Q1.
       </p>
     </div>
   </div>
@@ -425,7 +440,69 @@
 
 <!-- 8 ------------------------------------------------------------------ -->
 <section class="screen-demo">
-  <h2>8 · o que este desenho não faz</h2>
+  <h2>8 · os dois estados que a aba herda do cabeçalho</h2>
+  <p class="note">
+    Nem toda worktree responde. O cabeçalho de hoje já desenha os dois, e a aba herda os dois junto
+    com o resto — deixá-los de fora seria mover a informação boa e esquecer a ruim. A regra é a mesma
+    nos dois: <strong>a aba continua existindo</strong>. Ela é a única que não fecha, e uma aba fixa
+    que some é uma faixa que muda de forma sozinha.
+  </p>
+
+  <div class="side-by-side">
+    <div style="max-width: calc(var(--size-detail-max) / 2)">
+      <p class="caption">a worktree sumiu do disco</p>
+      <div class="frame frame--col">
+        <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">teste-prd</span></nav></div>
+        <div class="tabs-bar"><div class="tabs"><span class="stab stab--overview stab--active"><button class="stab__label" type="button"><span class="glyph glyph--warn" aria-hidden="true">⚠</span>teste-prd</button></span></div><button class="tabs__new" type="button">＋ nova sessão</button><span class="tabs__sep"></span><button class="tabs__files" type="button" aria-pressed="false"><span aria-hidden="true">▤</span></button></div>
+        <div class="wtab">
+          <div class="wtab__title">
+            <h2><span class="glyph glyph--warn" aria-hidden="true">⚠</span>teste-prd</h2>
+            <span class="wtab__kind">worktree ausente</span>
+          </div>
+          <div class="banner banner--warning"><span class="banner__glyph" aria-hidden="true">⚠</span><span>O diretório não está mais no disco, e o registro do git ainda está. Remover aqui limpa os dois.</span></div>
+          <dl class="wtab__meta">
+            <dt>branch</dt><dd><span class="chip chip--branch"><span class="chip__dot"></span>teste-prd</span></dd>
+            <dt>caminho</dt><dd><span class="wtab__path">~/.lumem/workspaces/pessoal/lumem-os/worktrees/teste-prd</span></dd>
+          </dl>
+          <div class="wtab__acts"><button class="btn btn--sm focus-ring" type="button">remover registro</button></div>
+        </div>
+      </div>
+      <p class="note">
+        O glifo troca (<code>◇</code> → <code>⚠</code>) e o ponto de sujeira <strong>não existe</strong>:
+        não há árvore para estar suja. Sem base, sem distância, sem sessões — o que sobra é o que ainda
+        é verdade, mais o caminho, que é como se confere. O <code>▤</code> continua na faixa e continua
+        clicável: a coluna de arquivos de uma worktree ausente é uma coluna vazia, e vazia é resposta.
+      </p>
+    </div>
+
+    <div style="max-width: calc(var(--size-detail-max) / 2)">
+      <p class="caption">o daemon ainda não respondeu</p>
+      <div class="frame frame--col">
+        <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">teste-prd</span></nav></div>
+        <div class="tabs-bar"><div class="tabs"><span class="stab stab--overview stab--active"><button class="stab__label" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>teste-prd</button></span></div><button class="tabs__new" type="button">＋ nova sessão</button><span class="tabs__sep"></span><button class="tabs__files" type="button" aria-pressed="false"><span aria-hidden="true">▤</span></button></div>
+        <div class="wtab">
+          <div class="wtab__title">
+            <h2><span class="glyph glyph--worktree" aria-hidden="true">◇</span>teste-prd</h2>
+            <span class="wtab__kind">worktree</span>
+          </div>
+          <div class="skel" style="width: 40%"></div>
+          <div class="skel" style="width: 62%"></div>
+          <div class="skel" style="width: 28%"></div>
+        </div>
+      </div>
+      <p class="note">
+        O nome e o glifo vêm da sidebar e já são conhecidos — então o título nasce escrito, e só o que
+        depende do <code>getDetail</code> é que espera. A aba <strong>não</strong> mostra ponto enquanto
+        não sabe: ponto ausente já quer dizer "limpa", e chutar limpo por meio segundo é dizer a coisa
+        errada com confiança.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- 9 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>9 · o que este desenho não faz</h2>
   <p class="note">
     <strong>A barra da PR não está aqui</strong>, e o marcador de PR na sidebar também não: são da
     <code>pull-request-status</code>, travada na Q1 dela. A estrutura desta tela é pré-requisito de

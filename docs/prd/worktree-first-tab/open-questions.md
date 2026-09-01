@@ -6,7 +6,7 @@ Registro de por que cada decisão foi tomada. Pergunta respondida não vira supo
 aqui, com o motivo.
 
 **Protótipo:** `packages/web/prototype/lumem-worktree-tab.html`. Ele **desenha** a proposta de cada
-pergunta em vez de descrevê-la — a Q1 no §6, a Q2 no §7, a Q3 no §3, a Q5 no §5. Desenhar não é
+pergunta em vez de descrevê-la — a Q1 nos §6 A–D, a Q2 no §7, a Q3 no §3, a Q5 no §5. Desenhar não é
 responder: a resposta continua sendo do Vinicius, e o campo `R:` continua vazio.
 
 **Estado:** 5 perguntas · **0 respondidas**. A Q1 é herdada da
@@ -26,16 +26,30 @@ em foco. Três leituras:
 - **uma linha fina de estado** entre o caminho e as abas — resolve, e é exatamente o cabeçalho de
   volta, só que mais magro.
 
-**Proposta pra reagir:** **ponto na aba + caminho**. A terceira opção é a primeira versão renomeada,
-e a razão de mover era ganhar a altura de volta.
+**Proposta pra reagir:** **ponto na aba + caminho, com o caminho escrevendo a branch quando ela
+diverge do nome** (a B′ abaixo). A terceira opção é a primeira versão renomeada, e a razão de mover
+era ganhar a altura de volta.
 
 **Custo de esperar:** trava a implementação — é a diferença entre a coluna ter dois andares acima do
 conteúdo ou três.
 
-**O que o desenho acrescentou (§6):** A e B saem **idênticas** na tela, e é esse o argumento — nesta
-versão do produto o nome do checkout e o nome da branch são a mesma string, e o caminho já a escreve.
-B não pede um pixel a mais que A; pede que a branch continue sendo o último segmento do caminho. O dia
-em que worktree e branch puderem divergir, B deixa de valer de graça.
+**O que o desenho acrescentou (§6):** A e B saem **idênticas** na tela. O argumento de B é que, no
+caminho padrão, o nome do checkout e o nome da branch são a mesma string e o caminho já a escreve —
+então B não pede um pixel a mais que A.
+
+**E o que o código desmentiu.** Esse "padrão" não é regra. O
+`components/worktree-ui.test.tsx:97` já prova o contrário — uma worktree chamada `outra` com a branch
+`feature/outra`, e a sidebar imprime as duas quando divergem. O `crumb__here` imprime o **nome**.
+Então B perde a branch exatamente no caso em que ela importa: worktree importada, ou clonada de fora
+pela [project-from-url](../project-from-url/prd.md). O caso está desenhado no **§6 D** do protótipo, e
+com ele a pergunta ganha uma quarta leitura:
+
+- **B′ — ponto + caminho, e o caminho escreve a branch quando ela diverge.** Custa uma linha de
+  lógica, nenhum pixel no caso comum, e mantém a promessa em vez de assumi-la. É o que eu proponho
+  agora, no lugar de B.
+
+A alternativa barata seria pôr a branch no `title` da aba, mas informação que só existe em `title` não
+existe para quem não usa mouse.
 
 **R:**
 
