@@ -22,24 +22,29 @@ passo central é **instalar o tarball num runner limpo**, porque é o único que
 dinâmico, prebuild ausente e arquivo fora do pacote. A raiz ganhou `README.md` (em inglês, com
 tradução ao lado) e `LICENSE` (MIT).
 
-Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**:
-[sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto e worktree de onde se olha),
-[worktree-first-tab](docs/prd/worktree-first-tab/prd.md) (o cabeçalho vira a primeira aba, e o
-`▤ arquivos` sai da topbar — extraída da Fase 1 da barra da PR) e
-[run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de execução nasce aberto) seguem **sem
-tasks**. A nona anotação era sobre uma PR aberta que não aparece: a
+Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**. Duas já estão
+fechadas; duas seguem **sem tasks** — [sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto
+e worktree de onde se olha) e [run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de execução
+nasce aberto). A nona anotação era sobre uma PR aberta que não aparece: a
 [pull-request-status](docs/prd/pull-request-status/prd.md) está desenhada e **não implementada**,
 travada na Q1.
 
-A quarta, a [session-mode](docs/prd/session-mode/prd.md), está **completa — 12 tasks**. Ela conserta
-um composer que ficava **mudo**: as pílulas eram derivadas inteiramente do `configOptions`, e um vazio
-produzia zero pílula — então um agente que não relata `modes` desenhava o mesmo pixel que um bug de
-transporte. Agora a pílula de modo existe sempre, e quando o agente não tem modos ela é a **política do
-Lumem**: `perguntar tudo`, `automático` (leitura de arquivo dentro do checkout passa sozinha) e
-`liberado`, atrás de um portão por sessão sem "não perguntar de novo". A autoria não é cor — é o glifo
-`◈` mais o idioma do rótulo —, o que passa sozinho **aparece na conversa** assinado (`◈ o Lumem
-aprovou`) com a linha de fecho contando o turno, e **nenhum caminho da feature nega sozinho**: sem
-opção de permitir, o pedido sobe dizendo por quê.
+A [worktree-first-tab](docs/prd/worktree-first-tab/prd.md) está **completa** — 9 tasks, 5 perguntas
+respondidas. A coluna do meio é **caminho → abas → conteúdo**: o cabeçalho fixo do checkout virou a
+**primeira aba** (fixa, sem `✕`, com o ponto de sujeira que sobrevive a outra aba estar na frente), e o
+`▤ arquivos` saiu da topbar para a faixa de abas do checkout. Ela reverte, com o motivo escrito, a W4
+da [worktree-tabs](docs/prd/worktree-tabs/tasks.md) — e o e2e provou de graça o que a mudança cobra:
+com a conversa na frente, o nome da worktree só existe na aba.
+
+A [session-mode](docs/prd/session-mode/prd.md) está **completa** — 12 tasks, 6 perguntas fechadas. Ela
+conserta um composer que ficava **mudo**: as pílulas eram derivadas inteiramente do `configOptions`, e
+um vazio produzia zero pílula — então um agente que não relata `modes` desenhava o mesmo pixel que um
+bug de transporte. Agora a pílula de modo existe sempre, e quando o agente não tem modos ela é a
+**política do Lumem**: `perguntar tudo`, `automático` (leitura de arquivo dentro do checkout passa
+sozinha) e `liberado`, atrás de um portão por sessão sem "não perguntar de novo". A autoria não é cor —
+é o glifo `◈` mais o idioma do rótulo —, o que passa sozinho **aparece na conversa** assinado (`◈ o
+Lumem aprovou`) com a linha de fecho contando o turno, e **nenhum caminho da feature nega sozinho**:
+sem opção de permitir, o pedido sobe dizendo por quê.
 
 Comece pelo [índice da documentação](docs/README.md).
 

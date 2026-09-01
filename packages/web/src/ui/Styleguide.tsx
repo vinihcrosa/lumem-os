@@ -26,6 +26,7 @@ import {
   Steps,
   Tab,
   TabStrip,
+  TabToggle,
   WizardCard,
   WizardSection,
 } from "./index.js";
@@ -69,16 +70,18 @@ export function Styleguide() {
 
       <Section title="Coluna de arquivos">
         <p className="sg__note">
-          A coluna nasce fechada; o botão da topbar é o que sobra dela. Aqui ela aparece nas
-          duas pontas da largura que o arrasto permite.
+          A coluna nasce fechada, e o interruptor dela mora na faixa de abas do checkout — o
+          único lugar que existe em todas as abas de um escopo e em nenhum lugar fora dele.
+          Desligado à esquerda, ligado à direita. Aqui a coluna aparece nas duas pontas da
+          largura que o arrasto permite.
         </p>
         <div className="sg__inline">
-          <button type="button" className="rp-toggle">
-            <span aria-hidden="true">▤</span> arquivos
-          </button>
-          <button type="button" className="rp-toggle rp-toggle--on">
-            <span aria-hidden="true">▤</span> arquivos
-          </button>
+          <TabToggle label="a coluna de arquivos" pressed={false} onToggle={() => undefined}>
+            ▤
+          </TabToggle>
+          <TabToggle label="a coluna de arquivos" pressed onToggle={() => undefined}>
+            ▤
+          </TabToggle>
         </div>
         <div className="sg__columns">
           <div className="sg__column" style={{ width: "var(--size-panel-right-min)" }}>
@@ -452,11 +455,28 @@ export function Styleguide() {
         </div>
       </Section>
 
-      <Section title="TabStrip" note="a aba de contexto e a ação ficam fixas; o meio rola">
+      <Section
+        title="TabStrip"
+        note="a aba do checkout e as duas ações ficam fixas; o meio rola"
+      >
         <TabStrip
           label="sessões de teste-prd"
-          lead={<Tab label="contexto" active onSelect={() => undefined} />}
+          lead={
+            <Tab
+              label="teste-prd"
+              glyph={<Glyph tone="worktree">◇</Glyph>}
+              state="dirty"
+              stateLabel="árvore suja · 3 arquivos"
+              active
+              onSelect={() => undefined}
+            />
+          }
           action={<button type="button" className="tabs-new">＋ nova sessão</button>}
+          end={
+            <TabToggle label="a coluna de arquivos" pressed onToggle={() => undefined}>
+              ▤
+            </TabToggle>
+          }
         >
           <Tab
             label="claude-code"

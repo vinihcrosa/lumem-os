@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — a worktree como primeira aba</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<link rel="stylesheet" href="lumem-worktree-tab.css">
+</head>
+<body>
+
+<h1 class="page">A worktree como primeira aba — protótipo</h1>
+<p class="page-sub">
+  Duas coisas que pertencem a uma worktree estão desenhadas como se pertencessem ao aplicativo, e as
+  duas na moldura. <strong>O cabeçalho do checkout</strong> — título, branch, sujeira, caminho, ações
+  — sai da faixa fixa acima das abas e vira o conteúdo da <strong>primeira aba</strong>: primeira,
+  fixa, sem <code>✕</code>. <strong>O <code>▤ arquivos</code></strong> sai da topbar e vai para a
+  ponta direita da barra de abas do checkout. A coluna do meio passa a ser
+  <strong>caminho → abas → conteúdo</strong>. Nenhum token novo, e um componente novo só:
+  <code>.tabs__files</code>.
+</p>
+
+<!-- 1 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>1 · antes × depois — a mudança é de moldura</h2>
+  <p class="note">
+    Os dois lados são a mesma tela, na mesma altura, com a mesma sessão em foco. À esquerda, três
+    andares acima do conteúdo e um interruptor de escopo morando na faixa do produto. À direita, dois
+    andares, e o interruptor onde a coisa que ele liga existe. O que a coluna da esquerda gasta em
+    cabeçalho ela gasta <strong>em toda aba</strong>, para dizer algo que só interessa a uma.
+  </p>
+
+  <div class="side-by-side">
+    <div>
+      <p class="caption">hoje</p>
+      <div class="frame frame--col">
+        <div class="topbar topmock">
+          <h1 class="wordmark"><span class="wordmark__dot" aria-hidden="true"></span>Lumem-OS</h1>
+          <span class="spacer"></span>
+          <!-- Um interruptor de escopo na faixa do produto. Ele nem aparece quando
+               não há checkout selecionado — o que já denuncia o lugar. -->
+          <span class="topfiles"><span aria-hidden="true">▤</span> arquivos</span>
+          <span class="daemon"><span class="daemon__dot" aria-hidden="true"></span>v0.4.1</span>
+        </div>
+        <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">pr-bar</span></nav></div>
+        <div class="hdrmock">
+          <div class="hdrmock__title"><span class="glyph" aria-hidden="true">◇</span>pr-bar<span class="spacer"></span><span class="btn btn--ghost btn--sm">remover</span></div>
+          <div class="hdrmock__chips">
+            <span class="chip chip--branch"><span class="chip__dot"></span>pr-bar</span>
+            <span class="chip chip--dirty"><span class="chip__dot"></span>suja · 3</span>
+            <span class="hdrmock__path">~/.lumem/workspaces/pessoal/lumem-os/worktrees/pr-bar</span>
+          </div>
+        </div>
+        <div class="tabs-bar">
+          <div class="tabs">
+            <span class="stab stab--overview"><button class="stab__label focus-ring" type="button">contexto</button></span>
+            <span class="stab stab--active"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude-code</button><button class="stab__close focus-ring" type="button" aria-label="fechar">✕</button></span>
+          </div>
+          <button class="tabs__new focus-ring" type="button">＋ nova sessão</button>
+        </div>
+        <div class="pane-mock">a conversa</div>
+      </div>
+      <div class="tags">
+        <span class="tag tag--out">▤ na topbar: escopo dentro do produto</span>
+        <span class="tag tag--out">cabeçalho fixo: caminho truncado, em toda aba</span>
+      </div>
+    </div>
+
+    <div>
+      <p class="caption">depois</p>
+      <div class="frame frame--col">
+        <div class="topbar topmock">
+          <h1 class="wordmark"><span class="wordmark__dot" aria-hidden="true"></span>Lumem-OS</h1>
+          <span class="spacer"></span>
+          <span class="daemon"><span class="daemon__dot" aria-hidden="true"></span>v0.4.1</span>
+        </div>
+        <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">pr-bar</span></nav></div>
+        <div class="tabs-bar">
+          <div class="tabs">
+            <!-- Primeira, fixa, sem `✕`: fechar a worktree dentro da worktree não quer
+                 dizer nada. O ponto ao lado é a sujeira — o pedaço do estado que
+                 sobrevive quando outra aba está na frente. -->
+            <span class="stab stab--overview"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>pr-bar<span class="stab__dot stab__dot--dirty" title="árvore suja · 3 arquivos"></span></button></span>
+            <span class="tabs__sep"></span>
+            <span class="stab stab--active"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude-code</button><button class="stab__close focus-ring" type="button" aria-label="fechar">✕</button></span>
+          </div>
+          <button class="tabs__new focus-ring" type="button">＋ nova sessão</button>
+          <span class="tabs__sep"></span>
+          <button class="tabs__files focus-ring" type="button" aria-pressed="true"><span aria-hidden="true">▤</span><span class="vh">coluna de arquivos</span></button>
+        </div>
+        <div class="pane-mock">a conversa — mais alta pela altura que o cabeçalho devolveu</div>
+      </div>
+      <div class="tags">
+        <span class="tag tag--in">▤ na barra de abas do checkout</span>
+        <span class="tag tag--in">ponto na aba: a sujeira sobrevive ao foco</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>2 · a tela</h2>
+  <p class="note">
+    Três colunas. A do meio: caminho, barra de abas, conteúdo da aba — nesta ordem, e sem cabeçalho
+    fixo entre elas. O <code>▤</code> fica na ponta direita da barra, depois do <code>＋</code> e de um
+    separador: os dois são ações da barra, mas um cria sessão e o outro liga uma coluna, e um
+    separador é mais barato que um rótulo. A barra da PR e o rodapé de execução <strong>não estão
+    aqui</strong> — são de outras features, e o §7 diz por quê.
+  </p>
+
+  <div class="frame frame--app">
+    <div class="appmock">
+      <aside class="appmock__side">
+        <div class="rows">
+          <div class="row row--on"><span class="glyph glyph--worktree" aria-hidden="true">◇</span><span class="row__label">pr-bar</span></div>
+          <div class="row"><span class="glyph glyph--worktree" aria-hidden="true">◇</span><span class="row__label">acp-fs</span></div>
+          <div class="row"><span class="glyph glyph--worktree" aria-hidden="true">◇</span><span class="row__label">memory-inbox</span></div>
+          <div class="row"><span class="glyph glyph--local" aria-hidden="true">▭</span><span class="row__label">local</span></div>
+        </div>
+      </aside>
+
+      <main class="appmock__main">
+        <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">pr-bar</span></nav></div>
+
+        <div class="tabs-bar">
+          <div class="tabs">
+            <span class="stab stab--overview stab--active"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>pr-bar<span class="stab__dot stab__dot--dirty" title="árvore suja · 3 arquivos"></span></button></span>
+            <span class="tabs__sep"></span>
+            <span class="stab"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude-code</button><button class="stab__close focus-ring" type="button" aria-label="fechar">✕</button></span>
+            <span class="stab"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--shell" aria-hidden="true">●</span>shell</button><button class="stab__close focus-ring" type="button" aria-label="fechar">✕</button></span>
+          </div>
+          <button class="tabs__new focus-ring" type="button">＋ nova sessão</button>
+          <span class="tabs__sep"></span>
+          <button class="tabs__files focus-ring" type="button" aria-pressed="true"><span aria-hidden="true">▤</span><span class="vh">fechar a coluna de arquivos</span></button>
+        </div>
+
+        <div class="wtab">
+          <div class="wtab__title">
+            <h2><span class="glyph glyph--worktree" aria-hidden="true">◇</span>pr-bar</h2>
+            <span class="wtab__kind">worktree</span>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost btn--sm focus-ring" type="button">remover worktree</button>
+          </div>
+
+          <dl class="wtab__meta">
+            <dt>branch</dt><dd><span class="chip chip--branch"><span class="chip__dot"></span>pr-bar</span></dd>
+            <dt>base</dt><dd>main <span class="dim">· ↑7 ↓0</span></dd>
+            <dt>estado</dt><dd><span class="chip chip--dirty"><span class="chip__dot"></span>suja · 3 arquivos</span></dd>
+            <dt>caminho</dt><dd><span class="wtab__path">~/.lumem/workspaces/pessoal/lumem-os/worktrees/pr-bar</span><button class="wtab__copy focus-ring" type="button"><span aria-hidden="true">⧉</span><span class="vh">copiar caminho</span></button></dd>
+          </dl>
+
+          <div class="wtab__sec">
+            <div class="wtab__sech"><span class="wtab__sect">sessões</span><span class="count count--running"><span class="count__dot"></span>2</span></div>
+            <div class="wtab__list">
+              <div class="wtab__row"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude-code<span class="spacer"></span><span class="chip chip--clean"><span class="chip__dot"></span>rodando</span><span class="wtab__when">há 12 min</span></div>
+              <div class="wtab__row"><span class="glyph glyph--shell" aria-hidden="true">●</span>shell<span class="spacer"></span><span class="wtab__when">encerrada há 2 h</span></div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <aside class="appmock__right">
+        <div class="filesmock__head"><span aria-hidden="true">▤</span> arquivos<span class="spacer"></span><span class="dim">⟳</span><span class="dim">✕</span></div>
+        <div class="filesmock">
+          <div class="filesmock__row"><span class="glyph" aria-hidden="true">▤</span>packages</div>
+          <div class="filesmock__row"><span class="glyph" aria-hidden="true">▤</span>docs</div>
+          <div class="filesmock__row"><span class="glyph" aria-hidden="true">▪</span>CLAUDE.md</div>
+          <div class="filesmock__row"><span class="glyph" aria-hidden="true">▪</span>README.md</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- 3 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>3 · a barra de abas, de perto</h2>
+  <p class="note">
+    Tudo aqui já é do design system menos uma peça. A ordem é deliberada: o que <em>é</em> o escopo
+    fica na esquerda, o que <em>se faz</em> nele fica na direita, e um separador entre a aba fixa e as
+    que fecham diz que as duas metades obedecem a regras diferentes.
+  </p>
+
+  <div class="anat">
+    <div class="frame">
+      <div class="tabs-bar">
+        <div class="tabs">
+          <span class="stab stab--overview stab--active"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>pr-bar<span class="stab__dot stab__dot--dirty"></span></button></span>
+          <span class="tabs__sep"></span>
+          <span class="stab"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude-code</button><button class="stab__close focus-ring" type="button" aria-label="fechar">✕</button></span>
+          <span class="stab"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--shell" aria-hidden="true">●</span>shell</button><button class="stab__close focus-ring" type="button" aria-label="fechar">✕</button></span>
+        </div>
+        <button class="tabs__new focus-ring" type="button">＋ nova sessão</button>
+        <span class="tabs__sep"></span>
+        <button class="tabs__files focus-ring" type="button" aria-pressed="true"><span aria-hidden="true">▤</span><span class="vh">fechar a coluna de arquivos</span></button>
+      </div>
+    </div>
+
+    <ol class="anat__list">
+      <li class="anat__item"><span class="cnum">1</span><span><strong>a aba do checkout</strong> — primeira, fixa, sem <code>✕</code>, com o glifo do escopo (<code>◇</code> worktree, <code>▭</code> local) e o nome do checkout. É a aba padrão ao entrar, e para onde a seleção volta quando a última sessão fecha.</span></li>
+      <li class="anat__item"><span class="cnum">2</span><span><strong>o ponto</strong> — árvore suja. Âmbar, o mesmo <code>--color-worktree-dirty</code> do chip lá dentro; não o verde do ponto de sessão rodando.</span></li>
+      <li class="anat__item"><span class="cnum">3</span><span><strong>o separador</strong> — à esquerda o que não fecha, à direita o que fecha.</span></li>
+      <li class="anat__item"><span class="cnum">4</span><span><strong>as abas de sessão</strong> — inalteradas. O <code>✕</code> continua sendo um botão irmão, não um filho clicável do botão da aba.</span></li>
+      <li class="anat__item"><span class="cnum">5</span><span><strong><code>＋ nova sessão</code></strong> — cria algo que ainda não existe, então tem verbo.</span></li>
+      <li class="anat__item"><span class="cnum">6</span><span><strong><code>▤</code></strong> — a peça nova. Interruptor da coluna de arquivos, com <code>aria-pressed</code>, alvo de 24×24, e só o glifo: o estado ligado já está desenhado ao lado dele, na tela.</span></li>
+    </ol>
+  </div>
+
+  <p class="caption" style="margin-top: var(--space-16)">os estados do ▤</p>
+  <div class="side-by-side">
+    <div>
+      <p class="caption">ligado — a coluna está aberta</p>
+      <div class="frame frame--col"><div class="tabs-bar"><div class="tabs"><span class="stab stab--overview stab--active"><button class="stab__label" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>pr-bar<span class="stab__dot stab__dot--dirty"></span></button></span></div><button class="tabs__new" type="button">＋ nova sessão</button><span class="tabs__sep"></span><button class="tabs__files" type="button" aria-pressed="true"><span aria-hidden="true">▤</span></button></div></div>
+    </div>
+    <div>
+      <p class="caption">desligado — e é o único jeito de reabrir</p>
+      <div class="frame frame--col"><div class="tabs-bar"><div class="tabs"><span class="stab stab--overview stab--active"><button class="stab__label" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>pr-bar<span class="stab__dot stab__dot--dirty"></span></button></span></div><button class="tabs__new" type="button">＋ nova sessão</button><span class="tabs__sep"></span><button class="tabs__files" type="button" aria-pressed="false"><span aria-hidden="true">▤</span></button></div></div>
+    </div>
+  </div>
+  <p class="note" style="margin-top: var(--space-8)">
+    O estado aberto/fechado continua sendo o mesmo do app (<code>useRightPanel</code>, em
+    <code>localStorage</code>): o botão muda de lugar, não de dono — ver a Q4. E abrir ou fechar a
+    coluna <strong>remede a coluna do meio</strong>: com uma sessão de PTY viva, o terminal precisa
+    refitar, que é o que o <code>terminal-refit.test.tsx</code> já sabe provar.
+  </p>
+</section>
+
+<!-- 4 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>4 · a aba da worktree, sozinha</h2>
+  <p class="note">
+    O que ganha com a mudança: no cabeçalho fixo tudo isto tinha de caber em duas linhas e virava fila
+    de chips truncados. Como aba, cada coisa tem lugar — e a que mais sofria, <strong>o caminho em
+    disco</strong>, cabe inteira e dá para copiar. Aqui também cabe o que <em>nunca</em> coube:
+    a distância da base e a idade. A ação destrutiva fica no título, e é a única da aba —
+    <code>＋ nova sessão</code> já mora na faixa acima, e repetir a mesma ação em dois lugares é
+    como uma tela passa a ter duas respostas para a mesma pergunta.
+  </p>
+
+  <div class="frame">
+    <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">pr-bar</span></nav></div>
+    <div class="tabs-bar">
+      <div class="tabs">
+        <span class="stab stab--overview stab--active"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>pr-bar<span class="stab__dot stab__dot--dirty"></span></button></span>
+        <span class="tabs__sep"></span>
+        <span class="stab"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude-code</button><button class="stab__close focus-ring" type="button" aria-label="fechar">✕</button></span>
+      </div>
+      <button class="tabs__new focus-ring" type="button">＋ nova sessão</button>
+      <span class="tabs__sep"></span>
+      <button class="tabs__files focus-ring" type="button" aria-pressed="false"><span aria-hidden="true">▤</span><span class="vh">abrir a coluna de arquivos</span></button>
+    </div>
+    <div class="wtab">
+      <div class="wtab__title">
+        <h2><span class="glyph glyph--worktree" aria-hidden="true">◇</span>pr-bar</h2>
+        <span class="wtab__kind">worktree</span>
+        <span class="spacer"></span>
+        <button class="btn btn--ghost btn--sm focus-ring" type="button">remover worktree</button>
+      </div>
+
+      <dl class="wtab__meta">
+        <dt>branch</dt><dd><span class="chip chip--branch"><span class="chip__dot"></span>pr-bar</span></dd>
+        <dt>base</dt><dd>main <span class="dim">· ↑7 ↓0</span></dd>
+        <dt>estado</dt><dd><span class="chip chip--dirty"><span class="chip__dot"></span>suja · 3 arquivos</span></dd>
+        <dt>caminho</dt><dd><span class="wtab__path">~/.lumem/workspaces/pessoal/lumem-os/worktrees/pr-bar</span><button class="wtab__copy focus-ring" type="button"><span aria-hidden="true">⧉</span><span class="vh">copiar caminho</span></button></dd>
+        <dt>criada</dt><dd>há 2 dias, de <span class="dim">main@a3f91c2</span></dd>
+      </dl>
+
+      <div class="wtab__sec">
+        <div class="wtab__sech"><span class="wtab__sect">sessões</span><span class="count count--running"><span class="count__dot"></span>2</span></div>
+        <div class="wtab__list">
+          <div class="wtab__row"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude-code<span class="spacer"></span><span class="chip chip--clean"><span class="chip__dot"></span>rodando</span><span class="wtab__when">há 12 min</span></div>
+          <div class="wtab__row"><span class="glyph glyph--shell" aria-hidden="true">●</span>shell<span class="spacer"></span><span class="wtab__when">encerrada há 2 h</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- 5 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>5 · o <code>▭ local</code> — a mesma gramática</h2>
+  <p class="note">
+    O checkout do próprio projeto é um checkout, e não é uma worktree. Duas gramáticas para dois
+    escopos que se <strong>alternam na mesma coluna</strong> seria exatamente a inconsistência que
+    esta feature existe para tirar — então recebe o mesmo tratamento, e as diferenças são as de
+    verdade: glifo <code>▭</code>, sem base nem distância (ele <em>é</em> a base) e sem estado da
+    árvore (o daemon reporta status da worktree que ele criou, não do repositório que ele apenas
+    registrou). A ação destrutiva existe e diz outra coisa: <code>remover projeto</code>, que não
+    confirma em banner como a worktree e sim <strong>abre uma tela própria</strong> — para um
+    projeto clonado ela apaga o diretório, e isso não cabe num banner.
+  </p>
+
+  <div class="frame">
+    <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">local</span></nav></div>
+    <div class="tabs-bar">
+      <div class="tabs">
+        <span class="stab stab--overview stab--active"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--local" aria-hidden="true">▭</span>local</button></span>
+        <span class="tabs__sep"></span>
+        <span class="stab"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--shell" aria-hidden="true">●</span>shell</button><button class="stab__close focus-ring" type="button" aria-label="fechar">✕</button></span>
+      </div>
+      <button class="tabs__new focus-ring" type="button">＋ nova sessão</button>
+      <span class="tabs__sep"></span>
+      <button class="tabs__files focus-ring" type="button" aria-pressed="true"><span aria-hidden="true">▤</span><span class="vh">fechar a coluna de arquivos</span></button>
+    </div>
+    <div class="wtab">
+      <div class="wtab__title">
+        <h2><span class="glyph glyph--local" aria-hidden="true">▭</span>local</h2>
+        <span class="wtab__kind">checkout do projeto</span>
+        <span class="spacer"></span>
+        <button class="btn btn--ghost btn--sm focus-ring" type="button">remover projeto</button>
+      </div>
+      <dl class="wtab__meta">
+        <dt>branch</dt><dd><span class="chip chip--branch"><span class="chip__dot"></span>main</span></dd>
+        <dt>estado</dt><dd><span class="chip chip--clean"><span class="chip__dot"></span>limpa</span></dd>
+        <dt>caminho</dt><dd><span class="wtab__path">~/.lumem/workspaces/pessoal/lumem-os/repo</span><button class="wtab__copy focus-ring" type="button"><span aria-hidden="true">⧉</span><span class="vh">copiar caminho</span></button></dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- 6 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>6 · Q1 — com uma sessão na frente, o que a worktree ainda diz?</h2>
+  <p class="note">
+    Esta é a conta que a mudança cobra, e ela tem três leituras. Todas mostram a mesma worktree suja,
+    com a mesma sessão em foco — a diferença é só quanto estado sobra acima do conteúdo.
+  </p>
+
+  <div class="stack">
+    <div class="case">
+      <p class="case__label">A · <b>só o ponto</b></p>
+      <div class="frame">
+        <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">pr-bar</span></nav></div>
+        <div class="tabs-bar"><div class="tabs"><span class="stab stab--overview"><button class="stab__label" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>pr-bar<span class="stab__dot stab__dot--dirty"></span></button></span><span class="tabs__sep"></span><span class="stab stab--active"><button class="stab__label" type="button"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude-code</button><button class="stab__close" type="button" aria-label="fechar">✕</button></span></div><button class="tabs__new" type="button">＋ nova sessão</button><span class="tabs__sep"></span><button class="tabs__files" type="button" aria-pressed="true"><span aria-hidden="true">▤</span></button></div>
+        <div class="pane-mock">a conversa</div>
+      </div>
+      <p class="case__note">Mínimo. Diz <em>que</em> está suja e obriga a clicar para saber qual branch é.</p>
+    </div>
+
+    <div class="case">
+      <p class="case__label">B · <b>ponto + caminho</b> — a proposta</p>
+      <div class="frame">
+        <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">pr-bar</span></nav></div>
+        <div class="tabs-bar"><div class="tabs"><span class="stab stab--overview"><button class="stab__label" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>pr-bar<span class="stab__dot stab__dot--dirty"></span></button></span><span class="tabs__sep"></span><span class="stab stab--active"><button class="stab__label" type="button"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude-code</button><button class="stab__close" type="button" aria-label="fechar">✕</button></span></div><button class="tabs__new" type="button">＋ nova sessão</button><span class="tabs__sep"></span><button class="tabs__files" type="button" aria-pressed="true"><span aria-hidden="true">▤</span></button></div>
+        <div class="pane-mock">a conversa</div>
+      </div>
+      <p class="case__note">
+        Idêntica à A <strong>no desenho</strong>, e é esse o argumento: nesta versão do produto o nome
+        do checkout e o nome da branch são a <strong>mesma string</strong>, e o caminho já a escreve.
+        A leitura B não pede pixel nenhum a mais — pede que a branch continue sendo o último segmento
+        do caminho. Essa promessa <strong>já tem exceção</strong>, e ela está desenhada no caso D.
+      </p>
+    </div>
+
+    <div class="case">
+      <p class="case__label">C · <b>uma linha fina de estado</b></p>
+      <div class="frame">
+        <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">pr-bar</span></nav></div>
+        <div class="hdrmock">
+          <div class="hdrmock__chips">
+            <span class="chip chip--branch"><span class="chip__dot"></span>pr-bar</span>
+            <span class="chip chip--dirty"><span class="chip__dot"></span>suja · 3</span>
+            <span class="dim">↑7 ↓0</span>
+          </div>
+        </div>
+        <div class="tabs-bar"><div class="tabs"><span class="stab stab--overview"><button class="stab__label" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>pr-bar<span class="stab__dot stab__dot--dirty"></span></button></span><span class="tabs__sep"></span><span class="stab stab--active"><button class="stab__label" type="button"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude-code</button><button class="stab__close" type="button" aria-label="fechar">✕</button></span></div><button class="tabs__new" type="button">＋ nova sessão</button><span class="tabs__sep"></span><button class="tabs__files" type="button" aria-pressed="true"><span aria-hidden="true">▤</span></button></div>
+        <div class="pane-mock">a conversa</div>
+      </div>
+      <p class="case__note">
+        Resolve, e é o cabeçalho de volta — só que mais magro. Três andares acima do conteúdo outra
+        vez, em toda aba, e a razão de mover era ganhar a altura de volta.
+      </p>
+    </div>
+  <div class="case">
+      <p class="case__label">D · <b>quando nome ≠ branch</b> — o caso que a B perde</p>
+      <div class="frame">
+        <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">outra</span></nav></div>
+        <div class="tabs-bar"><div class="tabs"><span class="stab stab--overview"><button class="stab__label" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>outra<span class="stab__dot stab__dot--dirty"></span></button></span><span class="tabs__sep"></span><span class="stab stab--active"><button class="stab__label" type="button"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude-code</button><button class="stab__close" type="button" aria-label="fechar">✕</button></span></div><button class="tabs__new" type="button">＋ nova sessão</button><span class="tabs__sep"></span><button class="tabs__files" type="button" aria-pressed="true"><span aria-hidden="true">▤</span></button></div>
+        <div class="pane-mock">a conversa — e a branch <b>feature/outra</b> não está escrita em lugar nenhum</div>
+      </div>
+      <p class="case__note">
+        A sidebar do produto <strong>já</strong> imprime as duas coisas quando elas divergem
+        (<code>outra feature/outra</code>), e o caminho acima das abas imprime só o <strong>nome</strong>.
+        Então a leitura B vale por padrão e falha exatamente no caso em que a branch importa: worktree
+        importada, ou clonada de fora. Duas saídas, e nenhuma é grátis — o caminho passar a escrever a
+        branch quando ela diverge, ou o <code>title</code> da aba dizê-la. A pergunta é da Q1.
+      </p>
+    </div>
+  </div>
+
+  <div class="side-by-side" style="margin-top: var(--space-16)">
+    <div class="rule rule--yes"><span class="rule__t">B — ponto + caminho</span><span class="rule__d">Custa zero pixel, e o que ela promete o produto já cumpre hoje.</span></div>
+    <div class="rule rule--no"><span class="rule__t">C — a linha fina</span><span class="rule__d">É a primeira versão renomeada. Desfaz a feature enquanto a implementa.</span></div>
+  </div>
+</section>
+
+<!-- 7 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>7 · Q2 — os dois lugares possíveis do <code>▤</code></h2>
+  <p class="note">
+    A anotação diz que ele não é do topo do app. Sobram dois lugares: a barra de abas do checkout, ou o
+    cabeçalho da própria coluna direita, ao lado do <code>⟳</code> e do <code>✕</code> que ela já tem.
+    O segundo é mais arrumado — e <strong>desaparece junto com a coluna</strong>.
+  </p>
+
+  <div class="side-by-side">
+    <div>
+      <p class="caption">no cabeçalho da coluna — com a coluna fechada</p>
+      <div class="frame frame--col">
+        <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">pr-bar</span></nav></div>
+        <div class="tabs-bar"><div class="tabs"><span class="stab stab--overview stab--active"><button class="stab__label" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>pr-bar<span class="stab__dot stab__dot--dirty"></span></button></span></div><button class="tabs__new" type="button">＋ nova sessão</button></div>
+        <div class="pane-mock">nenhum controle na tela reabre a coluna</div>
+      </div>
+      <div class="tags"><span class="tag tag--out">beco sem saída</span></div>
+    </div>
+
+    <div>
+      <p class="caption">na barra de abas — com a coluna fechada</p>
+      <div class="frame frame--col">
+        <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">pr-bar</span></nav></div>
+        <div class="tabs-bar"><div class="tabs"><span class="stab stab--overview stab--active"><button class="stab__label" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>pr-bar<span class="stab__dot stab__dot--dirty"></span></button></span></div><button class="tabs__new" type="button">＋ nova sessão</button><span class="tabs__sep"></span><button class="tabs__files focus-ring" type="button" aria-pressed="false"><span aria-hidden="true">▤</span><span class="vh">abrir a coluna de arquivos</span></button></div>
+        <div class="pane-mock">o interruptor sobrevive ao que ele desliga</div>
+      </div>
+      <div class="tags"><span class="tag tag--in">o único que funciona nos dois estados</span></div>
+    </div>
+  </div>
+
+  <p class="note" style="margin-top: var(--space-12)">
+    O <code>✕</code> da coluna continua existindo: fechar por dentro é o gesto natural de quem está
+    olhando para ela. O que ele não pode ser é o <em>único</em> — um interruptor que só existe quando
+    está ligado não é interruptor, é botão de desligar.
+  </p>
+</section>
+
+<!-- 8 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>8 · os dois estados que a aba herda do cabeçalho</h2>
+  <p class="note">
+    Nem toda worktree responde. O cabeçalho de hoje já desenha os dois, e a aba herda os dois junto
+    com o resto — deixá-los de fora seria mover a informação boa e esquecer a ruim. A regra é a mesma
+    nos dois: <strong>a aba continua existindo</strong>. Ela é a única que não fecha, e uma aba fixa
+    que some é uma faixa que muda de forma sozinha.
+  </p>
+
+  <div class="side-by-side">
+    <div style="max-width: calc(var(--size-detail-max) / 2)">
+      <p class="caption">a worktree sumiu do disco</p>
+      <div class="frame frame--col">
+        <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">teste-prd</span></nav></div>
+        <div class="tabs-bar"><div class="tabs"><span class="stab stab--overview stab--active"><button class="stab__label" type="button"><span class="glyph glyph--warn" aria-hidden="true">⚠</span>teste-prd</button></span></div><button class="tabs__new" type="button">＋ nova sessão</button><span class="tabs__sep"></span><button class="tabs__files" type="button" aria-pressed="false"><span aria-hidden="true">▤</span></button></div>
+        <div class="wtab">
+          <div class="wtab__title">
+            <h2><span class="glyph glyph--warn" aria-hidden="true">⚠</span>teste-prd</h2>
+            <span class="wtab__kind">worktree ausente</span>
+          </div>
+          <div class="banner banner--warning"><span class="banner__glyph" aria-hidden="true">⚠</span><span>O diretório não está mais no disco, e o registro do git ainda está. Remover aqui limpa os dois.</span></div>
+          <dl class="wtab__meta">
+            <dt>branch</dt><dd><span class="chip chip--branch"><span class="chip__dot"></span>teste-prd</span></dd>
+            <dt>caminho</dt><dd><span class="wtab__path">~/.lumem/workspaces/pessoal/lumem-os/worktrees/teste-prd</span></dd>
+          </dl>
+          <div class="wtab__acts"><button class="btn btn--sm focus-ring" type="button">remover registro</button></div>
+        </div>
+      </div>
+      <p class="note">
+        O glifo troca (<code>◇</code> → <code>⚠</code>) e o ponto de sujeira <strong>não existe</strong>:
+        não há árvore para estar suja. Sem base, sem distância, sem sessões — o que sobra é o que ainda
+        é verdade, mais o caminho, que é como se confere. O <code>▤</code> continua na faixa e continua
+        clicável: a coluna de arquivos de uma worktree ausente é uma coluna vazia, e vazia é resposta.
+      </p>
+    </div>
+
+    <div style="max-width: calc(var(--size-detail-max) / 2)">
+      <p class="caption">o daemon ainda não respondeu</p>
+      <div class="frame frame--col">
+        <div class="crumbbar"><nav class="crumb">pessoal <span class="crumb__sep" aria-hidden="true">/</span> lumem-os <span class="crumb__sep" aria-hidden="true">/</span> <span class="crumb__here">teste-prd</span></nav></div>
+        <div class="tabs-bar"><div class="tabs"><span class="stab stab--overview stab--active"><button class="stab__label" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>teste-prd</button></span></div><button class="tabs__new" type="button">＋ nova sessão</button><span class="tabs__sep"></span><button class="tabs__files" type="button" aria-pressed="false"><span aria-hidden="true">▤</span></button></div>
+        <div class="wtab">
+          <div class="wtab__title">
+            <h2><span class="glyph glyph--worktree" aria-hidden="true">◇</span>teste-prd</h2>
+            <span class="wtab__kind">worktree</span>
+          </div>
+          <div class="skel" style="width: 40%"></div>
+          <div class="skel" style="width: 62%"></div>
+          <div class="skel" style="width: 28%"></div>
+        </div>
+      </div>
+      <p class="note">
+        O nome e o glifo vêm da sidebar e já são conhecidos — então o título nasce escrito, e só o que
+        depende do <code>getDetail</code> é que espera. A aba <strong>não</strong> mostra ponto enquanto
+        não sabe: ponto ausente já quer dizer "limpa", e chutar limpo por meio segundo é dizer a coisa
+        errada com confiança.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- 9 ------------------------------------------------------------------ -->
+<section class="screen-demo">
+  <h2>9 · o que este desenho não faz</h2>
+  <p class="note">
+    <strong>A barra da PR não está aqui</strong>, e o marcador de PR na sidebar também não: são da
+    <code>pull-request-status</code>, travada na Q1 dela. A estrutura desta tela é pré-requisito de
+    lá, e não o contrário — foi para isso que ela virou feature própria. <strong>O rodapé de
+    execução</strong> também não: a altura padrão dele é da <code>run-dock-open</code>. E
+    <strong>criar worktree pela sidebar</strong> é da <code>sidebar-actions</code>. Cada uma dessas
+    ausências é uma feature que anda sozinha; desenhá-las juntas produziria um diff em que ninguém
+    consegue dizer o que quebrou o quê.
+  </p>
+</section>
+
+</body>
+</html>

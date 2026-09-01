@@ -275,16 +275,22 @@ cabeçalho `Projetos` e um `+` na linha de cada projeto, com os diálogos virand
 
 ### [worktree-first-tab/](prd/worktree-first-tab/) — o que é da worktree mora na worktree
 
-O cabeçalho do checkout ocupa altura em **todas** as abas para dizer o que só interessa a uma, e o
-`▤ arquivos` mora na `Topbar` — interruptor global para uma coluna que pertence a um checkout.
-A coluna do meio passa a ser **caminho → abas → conteúdo**, com a worktree como primeira aba, fixa e
-sem `✕`. Extraída da Fase 1 da [pull-request-status](prd/pull-request-status/): ela não depende de
-saber ler PR, e a outra está travada.
+**Completa.** A coluna do meio é **caminho → abas → conteúdo**, e a worktree é a primeira aba: fixa,
+sem `✕`, com o ponto de sujeira que é o único sinal a sobreviver a outra aba estar na frente. O
+`▤ arquivos` saiu da `Topbar` — era o único controle daquela faixa que não valia para a tela toda — e
+foi para a ponta direita da faixa de abas do checkout, o único lugar que existe em todas as abas de um
+checkout e em nenhum lugar fora dele. Extraída da Fase 1 da
+[pull-request-status](prd/pull-request-status/), que continuava travada, e entregue sem ela.
+
+O que a mudança cobra está escrito onde dói, e o e2e do onboarding provou de graça: com a conversa na
+frente, o nome da worktree só existe na aba.
 
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/worktree-first-tab/prd.md) | O §4 — com uma aba de sessão na frente, branch e sujeira somem da vista, e quem paga são o ponto na aba e o caminho acima dela |
-| [open-questions.md](prd/worktree-first-tab/open-questions.md) | 5 perguntas. A Q1 é a Q11 herdada da barra da PR: o que a worktree ainda diz quando não está em foco |
+| [open-questions.md](prd/worktree-first-tab/open-questions.md) | 5 perguntas, **5 respondidas** — e o registro de **como**: cada uma pela proposta já desenhada. A Q1, herdada da barra da PR, mudou de forma antes de virar linha, porque o código desmentiu o argumento dela |
+| [tasks.md](prd/worktree-first-tab/tasks.md) | 9 tasks em 4 fases, **todas entregues**. Sem daemon: o risco era de **regressão**. Termina com o que a execução achou — inclusive o bug que 826 testes de componente não pegam e o e2e pega |
+| `packages/web/prototype/lumem-worktree-tab.html` | O protótipo, vindo do Open Design: dez telas — antes × depois da moldura, a tela inteira, a barra de abas de perto com os estados do `▤`, a aba da worktree sozinha, o `▭ local`, as quatro leituras da Q1, os dois lugares do `▤` na Q2, os dois estados degradados que a aba herda, e o que o desenho não faz. **Zero token novo**; um componente novo só, o `.tabs__files` |
 
 ### [run-dock-open/](prd/run-dock-open/) — o rodapé nasce aberto
 
@@ -309,7 +315,7 @@ na conversa assinado; e nenhum caminho da feature nega sozinho.
 |---|---|
 | [prd.md](prd/session-mode/prd.md) | Os dois donos de um modo (o do agente muda o que ele *tenta*; o do Lumem muda o que *passa*), e os três valores da política, com `liberado` atrás de portão |
 | [open-questions.md](prd/session-mode/open-questions.md) | 6 perguntas, 6 fechadas. A Q1 decidiu o tamanho — tela **e** política — e a Q6 nasceu no código: sem opção de permitir, o `automático` negaria em silêncio |
-| [tasks.md](prd/session-mode/tasks.md) | 12 tasks em 4 fases, entregues em seis commits, e as três coisas que os testes acharam antes da tela |
+| [tasks.md](prd/session-mode/tasks.md) | 12 tasks em 4 fases, as duas fusões que a execução cobrou, e os cinco achados — inclusive o `overflow: hidden` que só o e2e podia ver e o menu que ficava clicável, achado em revisão |
 
 ---
 

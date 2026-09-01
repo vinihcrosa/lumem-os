@@ -437,3 +437,34 @@ gate próprio, e feito pela metade fica pior que não feito.
 **De onde veio:** [D11](../prd/distribution/open-questions.md) — *"concordo com você, mas deixando
 claro que eu quero passar tudo para inglês em breve"* · **Volta quando:** a primeira pessoa que não
 fala português chegar ao repositório — ou você decidir a data.
+
+### A lista de sessões de uma worktree ausente — `P`
+
+A aba do checkout, quando a worktree sumiu do disco, some com o que deixou de ser verdade — base,
+distância, idade — e mantém a lista de sessões, que é do `ScopePanel` e compartilhada com o `local` e
+com a worktree viva. O §8 do protótipo não a desenha. A lista não mente: sessão de uma worktree que
+sumiu continua existindo como registro, com buffer legível. Mas ela ocupa a metade de baixo de uma aba
+cuja única ação útil é limpar o registro.
+
+Tirar exige um prop novo no `ScopePanel` — o que é um custo real por um ganho de arrumação.
+
+**De onde veio:** [worktree-first-tab T7](../prd/worktree-first-tab/tasks.md), onde o desenho e o
+código discordaram e o código ganhou · **Volta quando:** alguém abrir uma worktree ausente e a lista
+de sessões atrapalhar em vez de informar.
+
+### A sessão nova não vem sempre para a frente — `P`
+
+Criar uma sessão seleciona a aba dela: o `NewSessionMenu` espera a lista de sessões chegar e só então
+chama `onCreated`. Mas o daemon também **empurra** estado, e um payload que chega em seguida sem a
+sessão nova muda a identidade de `tabs` — o efeito do `useWorktreeTabs` que devolve a seleção para a aba
+do checkout quando a aba escolhida não está na lista dispara e desfaz a seleção. O resultado é uma
+sessão criada que fica atrás, de vez em quando.
+
+Anterior à [worktree-first-tab](../prd/worktree-first-tab/prd.md), e nada nela mudou isso — só ficou
+mais visível, porque a aba para onde a seleção volta agora tem nome. O conserto provável é o efeito
+distinguir "a aba sumiu" de "a aba ainda não chegou", e isso quer dizer guardar uma seleção pendente:
+lógica de estado nova numa parte que hoje é uma linha.
+
+**De onde veio:** o e2e da worktree-first-tab, que precisou clicar na aba da sessão em vez de confiar
+na seleção · **Volta quando:** aparecer em uso, ou quando a próxima feature de aba precisar confiar
+que a sessão criada está na frente.
