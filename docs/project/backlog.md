@@ -451,3 +451,20 @@ Tirar exige um prop novo no `ScopePanel` — o que é um custo real por um ganho
 **De onde veio:** [worktree-first-tab T7](../prd/worktree-first-tab/tasks.md), onde o desenho e o
 código discordaram e o código ganhou · **Volta quando:** alguém abrir uma worktree ausente e a lista
 de sessões atrapalhar em vez de informar.
+
+### A sessão nova não vem sempre para a frente — `P`
+
+Criar uma sessão seleciona a aba dela: o `NewSessionMenu` espera a lista de sessões chegar e só então
+chama `onCreated`. Mas o daemon também **empurra** estado, e um payload que chega em seguida sem a
+sessão nova muda a identidade de `tabs` — o efeito do `useWorktreeTabs` que devolve a seleção para a aba
+do checkout quando a aba escolhida não está na lista dispara e desfaz a seleção. O resultado é uma
+sessão criada que fica atrás, de vez em quando.
+
+Anterior à [worktree-first-tab](../prd/worktree-first-tab/prd.md), e nada nela mudou isso — só ficou
+mais visível, porque a aba para onde a seleção volta agora tem nome. O conserto provável é o efeito
+distinguir "a aba sumiu" de "a aba ainda não chegou", e isso quer dizer guardar uma seleção pendente:
+lógica de estado nova numa parte que hoje é uma linha.
+
+**De onde veio:** o e2e da worktree-first-tab, que precisou clicar na aba da sessão em vez de confiar
+na seleção · **Volta quando:** aparecer em uso, ou quando a próxima feature de aba precisar confiar
+que a sessão criada está na frente.

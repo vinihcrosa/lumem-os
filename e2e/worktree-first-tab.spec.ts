@@ -53,15 +53,47 @@ async function openOwnWorktree(page: Page): Promise<void> {
     name: new RegExp(`^${WORKTREE}`),
   });
 
-  if ((await row.count()) === 0) {
+  /*
+   * Esperada, e não apenas contada.
+   *
+   * `count()` responde sobre **este** quadro, e a lista de worktrees chega uma
+   * volta depois da sidebar. Ler cedo responde "não existe" para uma worktree
+   * que existe, e a duplicata que vem em seguida é recusada pelo daemon — uma
+   * falha que parece bug de produto e não é. Mesma armadilha que o
+   * `ensureProject` documenta, e ela custou uma rodada do gate.
+   */
+  const present = await row
+    .first()
+    .waitFor({ state: "visible", timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false);
+
+  if (present) await row.first().click();
+  else {
     await page.getByRole("button", { name: "nova worktree" }).click();
     await page.getByLabel("Nome da worktree").fill(WORKTREE);
     await page.getByRole("button", { name: "criar" }).click();
-  } else {
-    await row.first().click();
   }
 
   await expect(page.getByRole("tab", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
+}
+
+/**
+ * Abre uma shell **e traz a aba dela para a frente**.
+ *
+ * O clique na aba não é redundante. `NewSessionMenu` já espera a lista de
+ * sessões antes de selecionar a nova, mas o daemon também **empurra** estado, e
+ * um payload que chega em seguida sem a sessão nova muda a identidade de `tabs`
+ * — e o efeito que devolve a seleção para a aba do checkout quando a aba
+ * escolhida não está na lista desfaz a seleção. É uma corrida que existia antes
+ * desta feature; ela está no backlog. Aqui ela não é o assunto: o assunto é o
+ * que acontece quando a última sessão **fecha**.
+ */
+async function openShell(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /nova sessão/ }).click();
+  await page.getByRole("menuitem", { name: /^shell/ }).click();
+  await page.getByRole("tab", { name: /^shell/ }).first().click();
+  await expect(visiblePanel(page).locator(".xterm-rows")).toBeVisible({ timeout: 20_000 });
 }
 
 test.beforeEach(async ({ page }) => {
@@ -97,9 +129,7 @@ test("entra no checkout e cai na aba dele, com o que era cabeçalho dentro", asy
 
 test("a seleção volta para a aba do checkout quando a última sessão fecha", async ({ page }) => {
   await openOwnWorktree(page);
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: /^shell/ }).click();
-  await expect(visiblePanel(page).locator(".xterm-rows")).toBeVisible({ timeout: 20_000 });
+  await openShell(page);
   await expect(page.getByRole("tab", { name: WORKTREE })).toHaveAttribute(
     "aria-selected",
     "false",
@@ -116,10 +146,8 @@ test("a seleção volta para a aba do checkout quando a última sessão fecha", 
 
 test("o interruptor da faixa abre e fecha a coluna, e o terminal remede", async ({ page }) => {
   await openOwnWorktree(page);
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: /^shell/ }).click();
+  await openShell(page);
   const rows = visiblePanel(page).locator(".xterm-rows");
-  await expect(rows).toBeVisible({ timeout: 20_000 });
 
   // O botão vive na faixa de abas do checkout, e não na topbar.
   const strip = page.getByRole("tablist", { name: /sessões/ });
