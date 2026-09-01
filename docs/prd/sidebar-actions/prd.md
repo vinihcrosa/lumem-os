@@ -1,12 +1,13 @@
 # PRD — As ações da árvore: criar projeto e criar worktree de onde se olha
 
-> **Status:** v0.3 — **desenho feito e tasks escritas em 2026-09-01**, nada implementado. Nasceu de três anotações do
+> **Status:** v1 — **completa em 2026-09-01**: desenho, 10 tasks e implementação. `gate:quick`
+> (156 arquivos), `gate:full` (55 specs e2e) e `gate:build` verdes. Nasceu de três anotações do
 > agentation na tela `/`, todas dizendo a mesma coisa por ângulos
 > diferentes: *"deveria ter um botão na direita para poder adicionar um projeto direto por aqui"*,
 > *"no canto direito deveria ter um botão + para criar uma worktree direto por ali"*, *"esse botão
 > não deveria estar aqui"*
 > **Perguntas:** [open-questions.md](open-questions.md) — **as 6 respondidas pelo desenho**
-> **Tasks:** [tasks.md](tasks.md) — **10 tasks em 4 fases**, nenhuma entregue
+> **Tasks:** [tasks.md](tasks.md) — **10 de 10 entregues**, em 8 commits
 > **Depende de:** `project.create`/`project.parseSource` e `worktree.create` — as duas mutations já
 > existem e não mudam. Esta feature é de **onde se clica**, não de o que acontece depois
 > **Desenho:** `lumem-sidebar-actions.html` — feito no Open Design, projeto `lumem-os`, e sincronizado
