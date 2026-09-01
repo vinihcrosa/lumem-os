@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Desenho:** `packages/web/prototype/lumem-sidebar-actions.html` — oito quadros, feitos no Open Design
 e sincronizados ([regra](../../project/design-source-of-truth.md))
-**Status:** **9 de 10.** A T8 veio junto com a T6 — a razão está no fim. Escopo fechado — as seis perguntas foram respondidas pelo desenho de
+**Status:** **10 de 10 entregues.** A T8 veio junto com a T6 — a razão está no fim. Escopo fechado — as seis perguntas foram respondidas pelo desenho de
 2026-09-01.
 
 ---
@@ -249,12 +249,12 @@ já fazem.
 **Where**: `packages/web/src/components/sidebar-css.test.ts` (novo)
 
 **Done when**:
-- [ ] As classes que a tela usa existem no protótipo com o mesmo nome — `row__act`, `row__slot`,
+- [x] As classes que a tela usa existem no protótipo com o mesmo nome — `row__act`, `row__slot`,
       `tree__head`, `modal`, `modal__scrim`, `modal__card`, `cfail`
-- [ ] Nenhum literal de cor, espaço, raio ou tipografia nas folhas novas — só `var(--token)` (A6)
-- [ ] `pnpm --filter @lumem/web design:sync --check` roda limpo na máquina de quem entregar (é para a
+- [x] Nenhum literal de cor, espaço, raio ou tipografia nas folhas novas — só `var(--token)` (A6)
+- [x] `pnpm --filter @lumem/web design:sync --check` roda limpo na máquina de quem entregar (é para a
       pessoa, não para o gate)
-- [ ] Gate: `pnpm gate:quick`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `test(web): as classes da sidebar são as do protótipo`
 
@@ -307,6 +307,12 @@ ser decisão de um lugar só, e o nome do projeto passa a ser obrigatório na pr
 projeto está fechado só funciona com **um** projeto na árvore. A árvore é markup plano, e no run
 completo cada projeto tem o seu `local`. A afirmação certa é a seta dizendo `expandir` — que é o que
 um leitor de tela ouviria.
+
+**T10 — o teste de porte achou quatro violações da regra de design que ninguém tinha escrito nesta
+feature.** `clone.css` tinha `font-family: var(--font-family-mono); font-size: 12px;` em quatro
+lugares, desde a `project-from-url` — que é exatamente o `--text-mono-md` escrito à mão. Trocados
+pelo token. O teste também confirmou o `.cfail`: classe desenhada no protótipo e ausente do app, que
+é o defeito silencioso que a direção contrária existe para pegar.
 
 **Padrão que apareceu duas vezes:** a ponte provisória entre "o diálogo virou controlado" e "a árvore
 manda" **não** dura um commit. Nas duas vezes o que a cobrou foi a suíte, e nas duas o conserto foi
