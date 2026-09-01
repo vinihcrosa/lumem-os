@@ -5,7 +5,17 @@ import type { Scope } from "../hooks/useSessionsByScope.js";
 import { useUsageByWorktree, USAGE_WINDOWS, type UsageWindow } from "../hooks/useUsage.js";
 import { projectsKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
-import { Banner, Button, Chip, Glyph, Item, MetaGrid, SectionHead, Skeleton } from "../ui/index.js";
+import {
+  Banner,
+  Button,
+  Chip,
+  CopyablePath,
+  Glyph,
+  Item,
+  MetaGrid,
+  SectionHead,
+  Skeleton,
+} from "../ui/index.js";
 import { CreateWorktreeDialog } from "./CreateWorktreeDialog.js";
 import { ScopePanel } from "./ScopePanel.js";
 import { SpendList, type SpendRow } from "./SpendList.js";
@@ -217,6 +227,7 @@ export function LocalPanel({
             <h2>
               <Glyph tone={available ? "project" : "off"}>▭</Glyph> local
             </h2>
+            <span className="detail__kind">checkout do projeto</span>
             <span className="actions__spacer" />
             <Button
               variant="ghost"
@@ -226,20 +237,6 @@ export function LocalPanel({
             >
               {remove.isPending ? "removendo…" : "remover projeto"}
             </Button>
-          </div>
-
-          <div className="chips">
-            {/* No clean/dirty chip: the daemon reports status for a worktree it
-                created, not for the checkout it merely registered. Saying
-                nothing beats guessing. */}
-            <Chip tone="branch" dot>
-              {defaultBranch}
-            </Chip>
-            {available && (
-              <Chip>
-                {list.length} {list.length === 1 ? "worktree" : "worktrees"}
-              </Chip>
-            )}
           </div>
 
           {available ? (
@@ -264,17 +261,38 @@ export function LocalPanel({
             </div>
           )}
 
+          {/*
+            Sem `em relação a`, e sem estado da árvore. Este checkout É a base,
+            então distância dele para ele mesmo não é informação — e o daemon
+            reporta status da worktree que ele criou, não do repositório que ele
+            apenas registrou: não dizer bate não chutar.
+          */}
           <MetaGrid
             entries={[
-              { label: "caminho", value: path, title: path },
               {
                 label: "branch base",
                 value: (
                   <>
-                    {defaultBranch} <span className="dim">· resolvida na adição</span>
+                    <Chip tone="branch" dot>
+                      {defaultBranch}
+                    </Chip>{" "}
+                    <span className="dim">resolvida na adição</span>
                   </>
                 ),
               },
+              { label: "caminho", value: <CopyablePath path={path} /> },
+              ...(available
+                ? [
+                    {
+                      label: "worktrees",
+                      value: (
+                        <span className="dim">
+                          {list.length} {list.length === 1 ? "worktree" : "worktrees"}
+                        </span>
+                      ),
+                    },
+                  ]
+                : []),
             ]}
           />
 

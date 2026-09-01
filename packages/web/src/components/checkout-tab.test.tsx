@@ -336,4 +336,20 @@ describe("a worktree como primeira aba", () => {
     expect(first).toHaveTextContent("▭");
     expect(screen.queryByRole("button", { name: "fechar local" })).not.toBeInTheDocument();
   });
+
+  it("dá ao local a mesma grade, sem o que não vale para ele", async () => {
+    // Ele É a base: distância dele para ele mesmo não é informação. E o daemon
+    // reporta status da worktree que criou, não do repositório que registrou —
+    // não dizer bate chutar.
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
+    const tree = await screen.findByLabelText("árvore de projetos");
+    await user.click(await within(tree).findByRole("button", { name: /^lorebase/ }));
+
+    const panel = await screen.findByRole("tabpanel", { name: "local" });
+    expect(within(panel).getByText("checkout do projeto")).toBeInTheDocument();
+    expect(within(panel).getByText(PROJECT.path)).toBeInTheDocument();
+    expect(within(panel).queryByText(/em relação a/)).not.toBeInTheDocument();
+    expect(within(panel).queryByText(/^suja|^limpa/)).not.toBeInTheDocument();
+  });
 });

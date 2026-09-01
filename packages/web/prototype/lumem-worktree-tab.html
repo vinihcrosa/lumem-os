@@ -233,8 +233,9 @@
     O que ganha com a mudança: no cabeçalho fixo tudo isto tinha de caber em duas linhas e virava fila
     de chips truncados. Como aba, cada coisa tem lugar — e a que mais sofria, <strong>o caminho em
     disco</strong>, cabe inteira e dá para copiar. Aqui também cabe o que <em>nunca</em> coube:
-    a distância da base e a idade. A ação destrutiva fica no título, longe da fila de ações — numa
-    fila de quatro botões iguais, o que remove worktree é o que não pode ser clicado por engano.
+    a distância da base e a idade. A ação destrutiva fica no título, e é a única da aba —
+    <code>＋ nova sessão</code> já mora na faixa acima, e repetir a mesma ação em dois lugares é
+    como uma tela passa a ter duas respostas para a mesma pergunta.
   </p>
 
   <div class="frame">
@@ -273,11 +274,6 @@
         </div>
       </div>
 
-      <div class="wtab__acts">
-        <button class="btn btn--sm focus-ring" type="button">＋ nova sessão</button>
-        <button class="btn btn--sm focus-ring" type="button">abrir no editor</button>
-        <button class="btn btn--sm focus-ring" type="button">abrir shell</button>
-      </div>
     </div>
   </div>
 </section>
@@ -289,8 +285,11 @@
     O checkout do próprio projeto é um checkout, e não é uma worktree. Duas gramáticas para dois
     escopos que se <strong>alternam na mesma coluna</strong> seria exatamente a inconsistência que
     esta feature existe para tirar — então recebe o mesmo tratamento, e as diferenças são as de
-    verdade: glifo <code>▭</code>, sem base nem distância (ele <em>é</em> a base), e nenhuma ação
-    destrutiva — remover o local seria remover o projeto, que é outra tela.
+    verdade: glifo <code>▭</code>, sem base nem distância (ele <em>é</em> a base) e sem estado da
+    árvore (o daemon reporta status da worktree que ele criou, não do repositório que ele apenas
+    registrou). A ação destrutiva existe e diz outra coisa: <code>remover projeto</code>, que não
+    confirma em banner como a worktree e sim <strong>abre uma tela própria</strong> — para um
+    projeto clonado ela apaga o diretório, e isso não cabe num banner.
   </p>
 
   <div class="frame">
@@ -309,17 +308,14 @@
       <div class="wtab__title">
         <h2><span class="glyph glyph--local" aria-hidden="true">▭</span>local</h2>
         <span class="wtab__kind">checkout do projeto</span>
+        <span class="spacer"></span>
+        <button class="btn btn--ghost btn--sm focus-ring" type="button">remover projeto</button>
       </div>
       <dl class="wtab__meta">
         <dt>branch</dt><dd><span class="chip chip--branch"><span class="chip__dot"></span>main</span></dd>
         <dt>estado</dt><dd><span class="chip chip--clean"><span class="chip__dot"></span>limpa</span></dd>
         <dt>caminho</dt><dd><span class="wtab__path">~/.lumem/workspaces/pessoal/lumem-os/repo</span><button class="wtab__copy focus-ring" type="button"><span aria-hidden="true">⧉</span><span class="vh">copiar caminho</span></button></dd>
       </dl>
-      <div class="wtab__acts">
-        <button class="btn btn--sm focus-ring" type="button">＋ nova sessão</button>
-        <button class="btn btn--sm focus-ring" type="button">abrir no editor</button>
-        <button class="btn btn--sm focus-ring" type="button">abrir shell</button>
-      </div>
     </div>
   </div>
 </section>
