@@ -376,6 +376,23 @@ A regra: **espere pela evidência que você vai asserir, não por um evento que 
 E o sinal de alerta barato: um teste que usa um helper de espera diferente do que todos os seus vizinhos
 usam para a mesma classe de asserção.
 
+**`useQuery` numa chave que outra tela invalida é um re-render que você não pediu.** A
+[worktree-first-tab](../prd/worktree-first-tab/prd.md) precisava do nome do checkout **antes** do
+`getDetail` responder, para a primeira aba não aparecer meio segundo depois. O nome está no cache que
+a sidebar já carregou, então o painel abriu um `useQuery` na mesma chave — e o e2e passou a falhar
+numa spec que nada tinha a ver: a sessão recém-criada não vinha para a frente.
+
+A causa é uma janela. `select(novaSessão)` roda antes de a lista de sessões chegar, e existe um efeito
+que devolve a seleção para a aba do checkout quando a aba escolhida não está na lista. Criar sessão
+invalida a lista de **worktrees** também — é dela que sai o "1 sessão rodando" da sidebar —, e a
+inscrição nova fazia o painel re-renderizar exatamente dentro dessa janela, disparando o efeito.
+
+A regra: **para ler o cache, leia o cache** — `queryClient.getQueryData` em vez de `useQuery` quando o
+que se quer é o valor e não as atualizações dele. Uma inscrição é um acoplamento a *quem invalida a
+chave*, e quem invalida uma chave costuma ser outra tela. E o corolário de teste: **isto só aparece com
+layout e tempo reais.** Em jsdom a janela não existe, os 826 testes de componente passaram, e o que
+achou foi o e2e — que por isso não é redundante com eles.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

@@ -336,3 +336,80 @@ describe("0008 — a sessão de script", () => {
     expect(row).toMatchObject({ kind: "script", scriptName: "run", transport: "pty" });
   });
 });
+
+/**
+ * 0012 — o modo do Lumem (`session-mode`, T4).
+ *
+ * Duas colunas e dois CHECKs, e o que este bloco guarda é a assimetria entre
+ * eles: a sessão aceita `free`, o workspace não. Um padrão de workspace que
+ * pudesse ser `free` atravessaria sozinho o portão que existe justamente para
+ * ninguém liberar uma worktree por acidente (Q5).
+ */
+describe("0012 — o modo do Lumem", () => {
+  it("acorda toda sessão gravada antes da feature perguntando tudo", async () => {
+    // Nenhuma conversa que existia acorda liberada — nem `auto`. O default é o
+    // comportamento que ela já tinha, que é parar em todo pedido.
+    const path = databaseAtInitialRevision();
+    const handle = openDatabase({ path });
+    open.push(handle);
+
+    const sessions = await handle.db.select().from(schema.session);
+
+    expect(sessions).toHaveLength(2);
+    for (const row of sessions) expect(row.lumemMode).toBe("ask");
+  });
+
+  it("recusa um modo que a política não tem", async () => {
+    const path = databaseAtInitialRevision();
+    const handle = openDatabase({ path });
+    open.push(handle);
+
+    await expect(
+      handle.db
+        .update(schema.session)
+        .set({ lumemMode: "bypassPermissions" })
+        .where(eq(schema.session.id, "se-1")),
+    ).rejects.toThrow(/CHECK/i);
+  });
+
+  it("deixa uma sessão chegar em liberado, porque o portão leva até lá", async () => {
+    const path = databaseAtInitialRevision();
+    const handle = openDatabase({ path });
+    open.push(handle);
+
+    await handle.db
+      .update(schema.session)
+      .set({ lumemMode: "free" })
+      .where(eq(schema.session.id, "se-1"));
+
+    const [row] = await handle.db
+      .select()
+      .from(schema.session)
+      .where(eq(schema.session.id, "se-1"));
+    expect(row?.lumemMode).toBe("free");
+  });
+
+  it("recusa um workspace que herde liberado", async () => {
+    /*
+     * O teste que sustenta a Q5.
+     *
+     * Sem ele, alguém escreve `free` no padrão do workspace num dia qualquer e
+     * toda sessão nova nasce sem perguntar nada — com o portão inteiro
+     * intacto no código, e nunca chamado.
+     */
+    const path = databaseAtInitialRevision();
+    const handle = openDatabase({ path });
+    open.push(handle);
+
+    await handle.db
+      .insert(schema.workspace)
+      .values({ id: "ws-lumem", name: "com-politica" });
+
+    await expect(
+      handle.db
+        .update(schema.workspace)
+        .set({ defaultLumemMode: "free" })
+        .where(eq(schema.workspace.id, "ws-lumem")),
+    ).rejects.toThrow(/CHECK/i);
+  });
+});

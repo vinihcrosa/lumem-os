@@ -22,15 +22,40 @@ passo central é **instalar o tarball num runner limpo**, porque é o único que
 dinâmico, prebuild ausente e arquivo fora do pacote. A raiz ganhou `README.md` (em inglês, com
 tradução ao lado) e `LICENSE` (MIT).
 
-Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas** — três sem tasks ainda, e uma já entregue:
-[sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto e worktree de onde se olha),
-[worktree-first-tab](docs/prd/worktree-first-tab/prd.md) (o cabeçalho vira a primeira aba, e o
-`▤ arquivos` sai da topbar — extraída da Fase 1 da barra da PR),
-[run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de execução nasce aberto — **completa em 2026-09-01, 4 tasks**: a altura ficou em metade da janela e a coluna em 360px, então a feature caiu em quase uma linha; o que sobrou de trabalho foram as duas consequências de a coluna ficar estreita — os botões de ação na linha de estado, e o `Run` vazio dizendo a faixa de portas do checkout em vez de um terminal preto) e
-[session-mode](docs/prd/session-mode/prd.md) (o modo sempre na tela, com política do Lumem quando o
-agente não tem). A nona anotação era sobre uma PR aberta que não aparece: a
+Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**. Três já estão
+fechadas; uma segue **sem tasks** — [sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto
+e worktree de onde se olha). A nona anotação era sobre uma PR aberta que não aparece: a
 [pull-request-status](docs/prd/pull-request-status/prd.md) está desenhada e **não implementada**,
 travada na Q1.
+
+A [worktree-first-tab](docs/prd/worktree-first-tab/prd.md) está **completa** — 9 tasks, 5 perguntas
+respondidas. A coluna do meio é **caminho → abas → conteúdo**: o cabeçalho fixo do checkout virou a
+**primeira aba** (fixa, sem `✕`, com o ponto de sujeira que sobrevive a outra aba estar na frente), e o
+`▤ arquivos` saiu da topbar para a faixa de abas do checkout. Ela reverte, com o motivo escrito, a W4
+da [worktree-tabs](docs/prd/worktree-tabs/tasks.md) — e o e2e provou de graça o que a mudança cobra:
+com a conversa na frente, o nome da worktree só existe na aba.
+
+A [session-mode](docs/prd/session-mode/prd.md) está **completa** — 12 tasks, 6 perguntas fechadas. Ela
+conserta um composer que ficava **mudo**: as pílulas eram derivadas inteiramente do `configOptions`, e
+um vazio produzia zero pílula — então um agente que não relata `modes` desenhava o mesmo pixel que um
+bug de transporte. Agora a pílula de modo existe sempre, e quando o agente não tem modos ela é a
+**política do Lumem**: `perguntar tudo`, `automático` (leitura de arquivo dentro do checkout passa
+sozinha) e `liberado`, atrás de um portão por sessão sem "não perguntar de novo". A autoria não é cor —
+é o glifo `◈` mais o idioma do rótulo —, o que passa sozinho **aparece na conversa** assinado (`◈ o
+Lumem aprovou`) com a linha de fecho contando o turno, e **nenhum caminho da feature nega sozinho**:
+sem opção de permitir, o pedido sobe dizendo por quê.
+
+A [run-dock-open](docs/prd/run-dock-open/prd.md) está **completa** — 4 tasks, 6 perguntas fechadas — e
+ela encolheu ao ser desenhada. A PRD supunha que "nascer aberto" custava a coluna direita em 640px e a
+árvore pela metade; **medir** mudou as duas contas: com a mesma lista de 16 arquivos, a árvore mostra
+11 linhas com metade da coluna contra 14 com uma altura de leitura de 192px — três linhas não pagam um
+segundo número de altura —, e o piso de 640 já se aplicava **só no `toggle`**, então chegar não alarga
+nada e a decisão custou zero linha. Sobrou o que a coluna estreita cobra de verdade: a faixa de abas
+completa mede **494px**, então `Abrir :porta` e `parar` desceram para a **linha de estado** (em
+qualquer largura — dois lugares para o `parar` seria o mesmo defeito que duas alturas), e o corpo do
+`Run` que nunca rodou passou a dizer o que o daemon já sabe — a faixa de portas do checkout e o último
+setup — em vez de um terminal preto. O preço aceito, com o nome certo: a saída nasce com **~45
+colunas**, porque ela é `xterm` com `FitAddon` e o daemon redimensiona o PTY junto.
 
 Comece pelo [índice da documentação](docs/README.md).
 

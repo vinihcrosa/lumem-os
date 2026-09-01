@@ -152,6 +152,21 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   { label: "modo plano / seletor", fg: "mode/plan", bg: "bg/surface", min: 4.5 },
   { label: "modo auto / seletor", fg: "mode/auto", bg: "bg/surface", min: 4.5 },
   { label: "modo bypass / seletor", fg: "mode/bypass", bg: "bg/surface", min: 4.5 },
+  // modo do Lumem: quando o agente nao relata `modes`, quem oferece modo e o
+  // daemon, e o menu dele pinta sobre bg/raised — um degrau MAIS CLARO que a
+  // superficie, entao os pares acima nao cobrem. A opcao escolhida ainda ganha
+  // bg/active por cima. Ver `docs/prd/session-mode/prd.md`.
+  { label: "titulo de opcao / menu de modo", fg: "text/primary", bg: "bg/raised", min: 4.5 },
+  { label: "descricao de opcao / menu de modo", fg: "text/secondary", bg: "bg/raised", min: 4.5 },
+  { label: "de quem e a regra / menu de modo", fg: "text/tertiary", bg: "bg/raised", min: 3.0 },
+  { label: "modo auto / menu de modo", fg: "mode/auto", bg: "bg/raised", min: 4.5 },
+  { label: "modo bypass / menu de modo", fg: "mode/bypass", bg: "bg/raised", min: 4.5 },
+  { label: "titulo de opcao / opcao escolhida", fg: "text/primary", bg: "bg/active", min: 4.5 },
+  { label: "descricao de opcao / opcao escolhida", fg: "text/secondary", bg: "bg/active", min: 4.5 },
+  // o portao do modo `liberado` lista o que passa a acontecer dentro de um poco
+  // destrutivo — texto normal sobre bg/danger-subtle, que so tinha o par do
+  // texto em vermelho.
+  { label: "o que passa a acontecer / portao", fg: "text/primary", bg: "bg/danger-subtle", min: 4.5 },
 ];
 
 /** Luminância relativa, WCAG 2.1. */

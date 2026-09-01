@@ -21,6 +21,7 @@ function request(overrides: Partial<PendingPermission> = {}): PendingPermission 
     title: "Bash rm -rf node_modules/.vite",
     command: "rm -rf node_modules/.vite packages/web/node_modules/.vite",
     cwd: "/repos/lorebase/frontmatter-vazio",
+    policyReason: null,
     options: [
       { optionId: "allow", name: "permitir uma vez", kind: "allow_once" },
       { optionId: "always", name: "sempre para Bash", kind: "allow_always" },
@@ -226,5 +227,35 @@ describe("options the agent chose not to offer", () => {
     render(<PermissionRequest request={request()} onRespond={vi.fn()} />);
 
     expect(screen.getByRole("group", { name: "pedido de permissão" })).toBeInTheDocument();
+  });
+});
+
+/**
+ * Por que a política não respondeu esta (`session-mode`, T7).
+ *
+ * O caso que esta linha resolve: alguém está em `automático`, o pedido para, e a
+ * tela não diz nada. O modo passa a parecer quebrado exatamente quando está
+ * funcionando como prometido.
+ */
+describe("o motivo da política", () => {
+  it("diz por que o modo automático não cobriu a chamada", () => {
+    render(
+      <PermissionRequest
+        request={request({
+          policyReason: "O modo Automático do Lumem aprova sozinho só leitura de arquivo.",
+        })}
+        onRespond={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/só leitura de arquivo/)).toBeInTheDocument();
+  });
+
+  it("não escreve nada quando perguntar é a própria regra", () => {
+    // Sob `perguntar tudo` não há nada a explicar, e uma justificativa em todo
+    // cartão treinaria a pessoa a não ler nenhuma.
+    render(<PermissionRequest request={request()} onRespond={vi.fn()} />);
+
+    expect(document.querySelector(".perm__why")).toBeNull();
   });
 });

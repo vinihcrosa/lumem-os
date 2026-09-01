@@ -43,7 +43,7 @@ function announcing(command: string, word: string): string {
 }
 
 async function openColumn(page: Page): Promise<void> {
-  const toggle = page.getByRole("button", { name: "arquivos", exact: true });
+  const toggle = page.getByRole("button", { name: "abrir a coluna de arquivos" });
   if ((await page.getByLabel("arquivos do checkout").count()) === 0) await toggle.click();
   await expect(page.getByLabel("arquivos do checkout")).toBeVisible();
 }
@@ -132,7 +132,10 @@ test("collapsing the column leaves the terminal with a size it can use", async (
   const rows = visiblePanel(page).locator(".xterm-rows");
   await expect(rows).toBeVisible({ timeout: 20_000 });
 
-  await page.getByRole("button", { name: "arquivos", exact: true }).click();
+  // O interruptor diz o verbo, e aqui a coluna já está aberta pelo `beforeEach`:
+  // é `fechar`. Um botão cujo nome não muda com o estado seria um que se lê como
+  // fazendo uma coisa só.
+  await page.getByRole("button", { name: "fechar a coluna de arquivos" }).click();
   await expect(page.getByLabel("arquivos do checkout")).toHaveCount(0);
 
   // The box changed with the window standing still. A terminal that did not
