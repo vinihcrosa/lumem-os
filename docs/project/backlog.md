@@ -310,6 +310,23 @@ porque o que entra em todo turno passa a ser uma linha por regra em vez do corpo
 **De onde veio:** [context-delivery D5](../prd/workspace-memory/context-delivery.md) · **Volta
 quando:** a marca d'água do núcleo passar do alarme e consolidar não resolver.
 
+### Duas chaves de cache para a mesma leitura do projeto — `P`
+
+O `queryKeys.ts` abre dizendo que "dois componentes invalidando o mesmo dado com chaves que diferem
+por um caractere é um bug que parece UI velha, e é invisível em review" — e o repositório tem
+exatamente isso: `["project", "get", id]` no `LocalPanel`, no `WorktreePanel`, no `setup/Done` e no
+`useLiveState`, contra `projectDetailKey` (`["project", "detail", id]`) no `useScopeIds`. As duas
+chamam `project.get`. Quem usa a segunda **não** é invalidado pelo push do daemon.
+
+Unificar é mecânico — quatro literais e uma função —, mas não é dentro do escopo de nenhuma feature
+de tela, e mexer em chave compartilhada pede rodar a suíte inteira por um motivo que não é o da
+entrega em curso.
+
+**De onde veio:** a [sidebar-actions](../prd/sidebar-actions/tasks.md) T3 — o diálogo de worktree
+precisava do `hasCommits` e teve de escolher a chave literal, com um comentário explicando por quê ·
+**Volta quando:** alguém ver dado de projeto velho numa tela depois de o daemon avisar que mudou, ou
+na próxima feature que leia projeto.
+
 ### `session_usage` cresce para sempre — `P`
 
 A tabela do consumo (`workspace-screen`, W4) ganha uma linha por `usage_update`, ou seja, algumas por
