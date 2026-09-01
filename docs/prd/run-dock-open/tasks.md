@@ -2,7 +2,7 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Status:** **0 de 4 entregues.** Desenho feito e decidido em 2026-09-01
-(`lumem-run-dock-open.html`, seis quadros), com as cinco perguntas respondidas.
+(`lumem-run-dock-open.html`, seis quadros), com as **seis perguntas respondidas**. Nada aberto.
 
 A feature encolheu ao ser desenhada, e as tasks refletem isso: a **T1 é a feature**, e ela tem
 poucas linhas. A T2 e a T3 existem porque a coluna ficar em 360px tem duas consequências visíveis, e
@@ -16,8 +16,9 @@ a T4 é a prova de que a chegada é o que o desenho diz.
 preferência, o piso de largura no `toggle` (`App.tsx:283`), o `FoldedDock`, as quatro abas, o
 `noscripts` e o e2e `run-dock.spec.ts` — cujo `openDock()` já tolera encontrar o rodapé aberto.
 
-**O que a execução precisa decidir e o PRD não decide:** só a [Q6](open-questions.md), e ela é de
-CSS. As outras cinco estão fechadas; divergir de qualquer uma é mudar a resposta lá, não aqui.
+**O que a execução precisa decidir e o PRD não decide:** nada de escopo. As seis perguntas estão
+fechadas em [open-questions.md](open-questions.md); divergir de qualquer uma é mudar a resposta lá,
+não aqui.
 
 **Premissas travadas:**
 
@@ -27,6 +28,8 @@ CSS. As outras cinco estão fechadas; divergir de qualquer uma é mudar a respos
 - **A3** — a preferência gravada **sempre** ganha do padrão. O padrão é o primeiro contato.
 - **A4** — a dobra da saída **não é nossa**: `xterm` + `FitAddon` refluem, e o daemon redimensiona o
   PTY. Ninguém escreve CSS de dobra (Q4).
+- **A5** — **um layout só** para a linha de estado, em qualquer largura. Nenhuma `@container`, nenhum
+  ponto de quebra (Q6).
 
 ---
 
@@ -74,6 +77,9 @@ completa quer **494px** e a coluna tem 360 — e são esses dois que estouram (F
       pediu
 - [ ] A linha de estado cresce para a altura de um botão pequeno mais respiro
       (`--size-control-lg`), e continua truncando o comando antes de truncar o estado
+- [ ] **Em qualquer largura** (A5): a mesma linha em 360 e em 640, sem `@container`. Em 640, o espaço
+      que sobra é preenchido pelo comando e pela proveniência da porta — e é isso que os dois quadros
+      da largura desenham
 - [ ] Os testes que hoje procuram `Abrir`/`parar` dentro da faixa passam a procurá-los onde eles
       estão — mesmo papel (`role`), lugar novo
 - [ ] Só `var(--token)`: nenhum literal de cor, espaço ou tipografia

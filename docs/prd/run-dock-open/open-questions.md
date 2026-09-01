@@ -2,8 +2,8 @@
 
 **PRD:** [prd.md](prd.md)
 
-**Estado:** 6 perguntas · **5 respondidas em 2026-09-01**. A Q6 nasceu ao escrever as tasks e é a
-única aberta — e ela não trava a T1. Todas foram desenhadas antes de
+**Estado:** 6 perguntas · **6 respondidas em 2026-09-01**. Nada aberto. Todas foram desenhadas antes
+de respondidas, e três respostas mataram o que o desenho propunha. Todas foram desenhadas antes de
 respondidas — `packages/web/prototype/lumem-run-dock-open.html` —, e três respostas **mataram** o que
 o desenho propunha. O protótipo guarda as duas colunas: o que foi decidido, e o que foi recusado.
 
@@ -146,7 +146,7 @@ pessoa muda, pelo chevron ou pela alça.
 
 ---
 
-### [ ] Q6 — Os dois botões descem **sempre**, ou só quando a coluna é estreita?
+### [x] Q6 — Os dois botões descem **sempre**, ou só quando a coluna é estreita?
 
 Nasceu da T2. A faixa completa mede 494px e a coluna tem 360, então `Abrir :porta` e `parar` têm que
 sair de lá — isso está decidido. O que não está: o que acontece quando a coluna **é** larga.
@@ -165,4 +165,10 @@ linha abaixo. É mudança visível numa tela que ninguém reclamou.
 
 **Custo de esperar:** baixo, e localizado. A T1 (a feature) não depende dela; só a T2.
 
-**R:**
+**R:** **Sempre — um layout só.** Nenhuma `@container`, nenhuma segunda posição para `parar`.
+
+O quadro 4 do protótipo passou a desenhar as duas larguras com a **mesma** linha de estado, e
+apareceu um ganho que a proposta não tinha previsto: em 640px sobra espaço nela, e o que entra é o
+comando (`./scripts/workspace/run.sh`) mais a proveniência da porta — as duas coisas que em 360px são
+as primeiras a sair. A linha de estado não é o mesmo conteúdo esticado; é o mesmo **lugar**, com mais
+coisa quando cabe.

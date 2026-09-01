@@ -298,7 +298,7 @@ com o nome certo, é **~45 colunas de terminal** na chegada.
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/run-dock-open/prd.md) | As três parcelas da conta — largura, altura e processo. Mais o §4, escrito **depois** das decisões: o que o desenho propôs e sobreviveu (os dois botões descendo para a linha de estado, a saída vazia que informa) e o que ele propôs e morreu (a altura de leitura, o vazio compacto, a dobra que não é nossa) |
-| [open-questions.md](prd/run-dock-open/open-questions.md) | 6 perguntas, **5 respondidas em 2026-09-01**. Três respostas mataram o que o desenho propunha, e a Q4 se dissolveu quando o código mostrou que a dobra é do `xterm`. A Q6 nasceu ao escrever as tasks |
+| [open-questions.md](prd/run-dock-open/open-questions.md) | 6 perguntas, **6 respondidas em 2026-09-01**. Três respostas mataram o que o desenho propunha, e a Q4 se dissolveu quando o código mostrou que a dobra é do `xterm`. A Q6 nasceu ao escrever as tasks e fechou no mesmo dia: um layout só |
 | [tasks.md](prd/run-dock-open/tasks.md) | 4 tasks. A T1 é a feature inteira e tem poucas linhas; a T2 e a T3 são as duas consequências visíveis de a coluna ficar em 360px; a T4 é o e2e da chegada |
 | `packages/web/prototype/lumem-run-dock-open.html` | O protótipo, vindo do Open Design em 2026-09-01 e renderizado: **seis quadros** — a chegada sem nada de pé, a chegada com run vivo contra a tira de hoje, as três alturas com o número de arquivos **medido** em cada uma (16 / 14 / 11 de 16), as duas larguras em colunas de terminal (~45 contra 80), o checkout sem `[scripts]`, e o que a preferência de quem fechou continua mandando. Guarda as duas colunas: o decidido e o recusado. **Zero token novo** |
 

@@ -524,7 +524,7 @@
 
           <div class="cmp__col">
             <div class="mini mini--wide">
-              <div class="mini__count">depois do chevron · 80 colunas</div>
+              <div class="mini__count">depois do chevron · 80 colunas · mesma linha de estado</div>
               <div class="rp__body">
                 <div class="rp__scroll">
                   <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">packages</span></button>
@@ -543,16 +543,22 @@
                     <button class="dtab dtab--active">Terminal</button>
                     <button class="dock__new" title="nova aba de terminal">＋</button>
                     <span class="spacer"></span>
-                    <div class="dock__acts">
-                      <button class="openbtn"><span>Abrir</span><span class="openbtn__port">:55061</span></button>
-                      <button class="btn btn--sm"><span class="btn__glyph stopglyph">⏹</span>parar <span class="kbd">⌘R</span></button>
-                    </div>
+                    <button class="dock__more" title="mais">⋯</button>
+                  </div>
+
+                  <div class="dock__state dock__state--acts">
+                    <span class="chip chip--clean"><span class="chip__dot"></span>rodando · 4 min</span>
+                    <span class="dock__cmd">./scripts/workspace/run.sh</span>
+                    <span class="spacer"></span>
+                    <span class="openbtn__from dock__note">porta lida da saída</span>
+                    <button class="openbtn"><span>Abrir</span><span class="openbtn__port">:55061</span></button>
+                    <button class="btn btn--sm"><span class="btn__glyph stopglyph">⏹</span>parar <span class="kbd">⌘R</span></button>
                   </div>
                   <div class="dockout"><span class="l"><span class="you">bandung</span> <span class="path">~/.lumem/workspaces/pessoal/lumem-os/worktrees/bandung</span></span><span class="l">$ pnpm vitest run packages/web/src/hooks/run-dock.test.ts</span><span class="l"> <span class="ok">✓</span> src/hooks/run-dock.test.ts (7 tests) <span class="dim">412ms</span></span><span class="l"> Test Files  <span class="ok">1 passed</span> (1)</span><span class="l">$ <span class="cursor"></span></span></div>
                 </div>
               </div>
             </div>
-            <p class="cmp__n"><b>640px · 80 colunas</b> · depois do chevron<br>o piso sobe porque você abriu, como já é hoje</p>
+            <p class="cmp__n"><b>640px · 80 colunas</b> · depois do chevron<br>a linha de estado é a mesma: <b>um layout só</b> (Q6)</p>
           </div>
         </div>
       </div>
@@ -565,10 +571,17 @@
         </div>
       </div>
       <p class="case__note">
-        <b>Nenhuma linha de código novo sai desta decisão.</b> A regra acima é o que
+        <b>Nenhuma linha de código novo sai da decisão de largura.</b> A regra acima é o que
         <code>App.tsx:283</code> já implementa — o piso sobe no <code>toggle</code>, só para cima, e
         só uma vez. A feature não acrescenta gatilho nenhum; ela só faz o rodapé <b>já estar aberto</b>
         antes do primeiro <code>toggle</code>, e a consequência é que a coluna fica onde está.
+      </p>
+      <p class="case__note">
+        <b>O que sai daqui é uma linha de layout, e ela vale para as duas larguras</b>
+        (<span class="q">Q6</span>, decidida em 2026-09-01). Os dois quadros acima têm a mesma linha de
+        estado: em 640px ela não precisaria existir, e existir de qualquer jeito é o preço de não ter
+        dois lugares onde <code>parar</code> pode estar. Em 640 ela ganha de volta a proveniência da
+        porta, que em 360 é a primeira coisa a sair.
       </p>
     </div>
   </section>
@@ -702,7 +715,7 @@
             <li><b>Q3</b> — vale para o checkout sem <code>[scripts]</code>, com o bloco intacto</li>
             <li><b>Q4</b> — não existe “dobrar”: é o <code>xterm</code> refluindo, e <b>~45 colunas</b> na chegada é o preço aceito</li>
             <li><b>Q5</b> — mandar rodar <b>não</b> alarga a coluna. Rodar roda</li>
-            <li>a faixa mede <b>494px</b> e estoura em 360: <code>Abrir :porta</code> e <code>parar</code> descem para a linha de estado</li>
+            <li><b>Q6</b> — a faixa mede <b>494px</b> e estoura em 360: <code>Abrir :porta</code> e <code>parar</code> descem para a linha de estado, e <b>em qualquer largura</b> — um layout só</li>
             <li>a saída vazia mostra o que o daemon já sabe — comando, portas do checkout, último setup</li>
           </ul>
         </div>
@@ -715,6 +728,7 @@
             <li>o <b>piso de 640 por gesto</b> — mais gatilhos, mais coisa que mexe na tela sem ninguém pedir (quadro 4)</li>
             <li>o <b>vazio compacto</b> com <code>ver o exemplo</code> — desnecessário com metade da coluna (quadro 5)</li>
             <li>o <b>convite a alargar</b> no <code>Terminal</code> — a decisão da Q2 aceitou as 45 colunas em vez de negociá-las</li>
+            <li>a <b>faixa por largura</b>, com os botões voltando ao seu lugar acima de 640px — dois lugares para <code>parar</code> é o mesmo pecado da altura dupla</li>
           </ul>
         </div>
       </div>

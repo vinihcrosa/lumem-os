@@ -97,6 +97,10 @@ completa do rodapé mede **494px**, e numa coluna de 360 ela estoura em 134. O q
 linha de estado, onde são lidos junto com o estado que os justifica. É a **única** mudança de layout
 que a feature exige, e ela existe porque a coluna fica em 360.
 
+**Em qualquer largura** ([Q6](open-questions.md)): um layout só, sem `@container` e sem uma segunda
+posição para `parar`. Em 640px sobra espaço na linha, e o que entra é o comando mais a proveniência da
+porta — as duas coisas que em 360 são as primeiras a sair.
+
 **F1.7 — não existe.** *(era: "a saída dobra enquanto a coluna está estreita")* A saída do rodapé é
 `xterm` com `FitAddon`. Ele reflui sozinho e o daemon redimensiona o PTY junto — a dobra não é nossa
 para escolher, e não há CSS a escrever. O que a decisão da [Q2](open-questions.md) aceitou é o
