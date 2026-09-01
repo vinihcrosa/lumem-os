@@ -297,17 +297,19 @@ resposta chega recolhida. Mudar o padrão não é uma linha: o rodapé aberto so
 | [prd.md](prd/run-dock-open/prd.md) | As três parcelas da conta — largura, altura e processo — e por que só a terceira é barata |
 | [open-questions.md](prd/run-dock-open/open-questions.md) | 3 perguntas, e as duas primeiras são a mesma conta de espaço |
 
-### [session-mode/](prd/session-mode/) — o modo sempre na tela
+### [session-mode/](prd/session-mode/) — o modo sempre na tela · **completa**
 
-O seletor de modo existe, mas é inteiramente derivado do que o agente relata: `configOptions` vazio
-produz **um composer mudo**, igualzinho a um bug de transporte. E o que o modo controla — *"se tá
-liberado, se tem que perguntar tudo"* — é hoje inteiramente do agente: sem modos relatados, o Lumem
-não tem política própria para oferecer.
+O seletor de modo existia, mas era inteiramente derivado do que o agente relata: `configOptions` vazio
+produzia **um composer mudo**, igualzinho a um bug de transporte. Agora a pílula existe sempre, e
+quando o agente não oferece modos ela é a **política do Lumem** — o que o daemon responde a
+`session/request_permission`. A autoria vai em glifo e idioma, não em cor; o que passa sozinho aparece
+na conversa assinado; e nenhum caminho da feature nega sozinho.
 
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/session-mode/prd.md) | Os dois donos de um modo (o do agente muda o que ele *tenta*; o do Lumem muda o que *passa*), e os três valores da política, com `liberado` atrás de portão |
-| [open-questions.md](prd/session-mode/open-questions.md) | 5 perguntas. A Q1 decide o tamanho da feature: só tela, ou tela + política no daemon |
+| [open-questions.md](prd/session-mode/open-questions.md) | 6 perguntas, 6 fechadas. A Q1 decidiu o tamanho — tela **e** política — e a Q6 nasceu no código: sem opção de permitir, o `automático` negaria em silêncio |
+| [tasks.md](prd/session-mode/tasks.md) | 12 tasks em 4 fases, entregues em seis commits, e as três coisas que os testes acharam antes da tela |
 
 ---
 
