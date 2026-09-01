@@ -27,6 +27,14 @@ export interface SidebarTreeProps {
   expansion: TreeExpansion;
   selection: TreeSelection;
   onSelect: (projectId: string, scope: Scope) => void;
+  /**
+   * Abrir o diálogo de acrescentar projeto.
+   *
+   * A árvore pede; quem hospeda o diálogo é a tela. O `+` mora aqui porque o
+   * botão fica no cabeçalho da coisa que ele acrescenta — e não no rodapé, de
+   * onde ele se afastava da lista a cada projeto que ela ganhava.
+   */
+  onAddProject: () => void;
 }
 
 /** Projects and their worktrees — F3.1 through F3.3. */
@@ -36,40 +44,50 @@ export function SidebarTree(props: SidebarTreeProps) {
     queryFn: () => trpc.project.listByWorkspace.query({ workspaceId: props.workspaceId }),
   });
 
-  if (projects.isError) {
-    return (
-      <p className="tree__message" role="alert">
-        {projects.error.message}
-      </p>
-    );
-  }
-
-  if (projects.isPending) {
-    return (
-      <div className="tree">
-        <Skeleton label="carregando os projetos" widths={["80%", "60%", "70%"]} />
-      </div>
-    );
-  }
-
   const list = projects.data ?? [];
-
-  if (list.length === 0) {
-    return (
-      <div className="tree">
-        {/* No action of its own: `adicionar projeto` sits in the footer right
-            below this, always visible. A second copy would be two buttons for
-            one job, a hand's width apart. */}
-        <EmptyState title="Nenhum projeto aqui">
-          Aponte para a raiz de um repositório git que já está no disco. O Lumem não clona nada.
-        </EmptyState>
-      </div>
-    );
-  }
 
   return (
     <div className="tree" aria-label="árvore de projetos">
-      <p className="tree__label">Projetos</p>
+      {/*
+        O cabeçalho existe em TODOS os estados — carregando, com erro, vazio e
+        cheio —, e é o único `+` sempre visível dos dois.
+
+        Ele é o caminho para o **primeiro** projeto, e com zero projetos não há
+        linha onde passar o ponteiro: um botão que só aparece no hover, num
+        estado em que não existe nada para apontar, é uma saída que não existe.
+      */}
+      <div className="tree__head">
+        <p className="tree__label">Projetos</p>
+        <button
+          type="button"
+          className="tree__act"
+          // `＋` sozinho não é nome de nada.
+          aria-label="adicionar projeto"
+          onClick={props.onAddProject}
+        >
+          <span aria-hidden="true">＋</span>
+        </button>
+      </div>
+
+      {projects.isError && (
+        <p className="tree__message" role="alert">
+          {projects.error.message}
+        </p>
+      )}
+
+      {projects.isPending && (
+        <Skeleton label="carregando os projetos" widths={["80%", "60%", "70%"]} />
+      )}
+
+      {/* Sem ação própria: o `+` do cabeçalho, logo acima, é o caminho — e é o
+          mesmo em todos os estados. Uma segunda cópia aqui seriam dois botões
+          para um trabalho, a uma mão de distância um do outro. */}
+      {projects.isSuccess && list.length === 0 && (
+        <EmptyState title="Nenhum projeto aqui">
+          Aponte para a raiz de um repositório git no disco, ou cole uma URL para clonar.
+        </EmptyState>
+      )}
+
       {list.map((project) => (
         <ProjectNode key={project.id} project={project} {...props} />
       ))}

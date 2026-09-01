@@ -67,13 +67,34 @@ describe("project list", () => {
     expect(within(list).getByRole("button", { name: /^outro/ })).toBeInTheDocument();
   });
 
-  it("says so when the workspace has no projects", async () => {
+  it("says so when the workspace has no projects, with exactly one way out", async () => {
     renderWithProviders(<App />);
 
-    // An empty state, not a shrug: it says what a project is here and the
-    // footer action sits right below it.
+    // Um estado vazio, e não um encolher de ombros: ele diz o que é um projeto
+    // aqui, e a ação está no cabeçalho logo acima — em **um** lugar. Dois
+    // botões para um trabalho é o que a feature veio desfazer, então a
+    // contagem é parte da afirmação.
     expect(await screen.findByText("Nenhum projeto aqui")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /adicionar projeto/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /adicionar projeto/ })).toHaveLength(1);
+  });
+
+  it("keeps the header — and its + — while the projects are still loading", async () => {
+    trpc.project.listByWorkspace.query.mockReturnValue(new Promise(() => {}));
+    renderWithProviders(<App />);
+
+    // O cabeçalho não espera a resposta: ele é o caminho para o primeiro
+    // projeto, e um caminho que aparece depois é um caminho que não estava lá
+    // quando alguém procurou.
+    expect(await screen.findByRole("button", { name: "adicionar projeto" })).toBeInTheDocument();
+    expect(screen.getByText("Projetos")).toBeInTheDocument();
+  });
+
+  it("keeps the header when the daemon refuses to list", async () => {
+    trpc.project.listByWorkspace.query.mockRejectedValue(new Error("banco travado"));
+    renderWithProviders(<App />);
+
+    expect(await screen.findByText("banco travado")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "adicionar projeto" })).toBeInTheDocument();
   });
 
   it("marks a project whose repository is gone", async () => {

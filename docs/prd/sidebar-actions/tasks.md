@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Desenho:** `packages/web/prototype/lumem-sidebar-actions.html` — oito quadros, feitos no Open Design
 e sincronizados ([regra](../../project/design-source-of-truth.md))
-**Status:** **4 de 10.** Escopo fechado — as seis perguntas foram respondidas pelo desenho de
+**Status:** **5 de 10.** Escopo fechado — as seis perguntas foram respondidas pelo desenho de
 2026-09-01.
 
 ---
@@ -148,14 +148,14 @@ lista está vazia.
 `project-ui.test.tsx`
 
 **Done when**:
-- [ ] `Projetos` à esquerda, `+` à direita, **sempre visível** (Q3) — não é hover, porque com zero
+- [x] `Projetos` à esquerda, `+` à direita, **sempre visível** (Q3) — não é hover, porque com zero
       projetos não há linha onde passar o ponteiro
-- [ ] O cabeçalho existe com zero projetos, carregando e com erro. Com zero, o `EmptyState` fica só
+- [x] O cabeçalho existe com zero projetos, carregando e com erro. Com zero, o `EmptyState` fica só
       com o texto e **sem ação própria**
-- [ ] Com zero projetos existe **exatamente um** caminho visível para acrescentar o primeiro —
+- [x] Com zero projetos existe **exatamente um** caminho visível para acrescentar o primeiro —
       afirmado por teste, contando os botões
-- [ ] O botão tem nome próprio (`adicionar projeto`): `＋` sozinho não é nome de nada
-- [ ] Gate: `pnpm gate:quick`
+- [x] O botão tem nome próprio (`adicionar projeto`): `＋` sozinho não é nome de nada
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): o + de projeto no cabeçalho da lista`
 
@@ -188,8 +188,8 @@ lista está vazia.
 `components/sidebar.css` + `clone-ui.test.tsx`
 
 **Done when**:
-- [ ] O rodapé fica só com o `AgentLogin`. Nenhum segundo caminho para adicionar projeto sobra em
-      lugar nenhum da tela
+- [x] **Entregue na T5**: o rodapé fica só com o `AgentLogin`, e nenhum segundo caminho para
+      adicionar projeto sobra em lugar nenhum da tela
 - [ ] O clone em andamento aparece **dentro da árvore**, logo abaixo do cabeçalho, com a geometria de
       uma linha de projeto: mesmo glifo, mesma indentação, mesmo slot — carregando `✕` (A5)
 - [ ] A barra de progresso fica embaixo, na largura da linha; sem percentual conhecido, o estado
@@ -270,3 +270,13 @@ inteira acumula o suficiente. O conserto foi apagar o efeito, porque todo caminh
 pelo `close()` — é o `Modal` que o chama no `Esc`, no véu e no `✕`.
 
 **Fica valendo:** dependência de efeito tem de ser valor estável. Objeto de resultado de hook não é.
+
+**T5 — a remoção do botão do rodapé veio para cá, e não podia esperar pela T7.** Uma das afirmações
+da própria T5 é que existe **exatamente um** caminho visível para acrescentar o primeiro projeto; com
+o `+` no cabeçalho e o botão ainda no rodapé, cinco testes falharam com *"Found multiple elements
+with the role button and name adicionar projeto"* — o que é a suíte cobrando a regra "uma ação, um
+lugar" antes de a task que a prometia chegar. A T7 fica com o clone na árvore.
+
+**De graça:** os testes que clicavam no botão do rodapé passaram **sem edição nenhuma**, porque o
+`+` do cabeçalho tem o mesmo nome acessível (`adicionar projeto`). Nome próprio de botão é o que faz
+mudança de lugar não virar mudança de teste.
