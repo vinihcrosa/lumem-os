@@ -1,0 +1,159 @@
+/* ============================================================================
+   Lumem-OS — o rodapé nasce aberto (run-dock-open)
+
+   Camada fina sobre `lumem-run-dock.css`: o rodapé, as abas, a saída, o vazio
+   que ensina e a tira recolhida JÁ EXISTEM lá. O que nasce aqui é só o que a
+   feature acrescenta — uma altura, uma faixa que caiba em 360px, e os quadros
+   de comparação que fazem a conta de espaço aparecer em vez de ser argumentada.
+
+   Nenhum valor novo: tudo é composição de token.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+   0. a altura de leitura
+   -------------------------------------------------------------------------- */
+:root {
+  /*
+   * A altura com que o rodapé NASCE — três quartos da altura de repouso de quem
+   * o abriu de propósito (`--size-dock-height`, 4×64).
+   *
+   * Ela é o menor número que responde as três perguntas da chegada: a faixa de
+   * abas (32) + a linha de estado (32) + o que sobra para a saída (~128, ou
+   * seis linhas de mono). Menos que isto e a saída vira uma fresta; mais e a
+   * árvore de arquivos deixa de ser a coisa principal da coluna.
+   *
+   * Fixa, e não fração da janela: fração é o padrão de quem PEDIU o rodapé — no
+   * monitor grande ela dá 500px de terminal a quem só queria saber a porta.
+   */
+  --size-dock-reading: calc(var(--space-64) * 3);
+}
+
+.dock--reading { height: var(--size-dock-reading); }
+
+/* Só para o quadro de comparação: o padrão de hoje, metade da coluna. */
+.dock--half { height: 50%; }
+
+/* ---------------------------------------------------------------------------
+   1. a faixa que cabe em 360px
+   -------------------------------------------------------------------------- */
+/*
+ * Em 640px a faixa acomoda chevron + quatro abas + `＋` + os botões de ação. Em
+ * 360 não acomoda — e a resposta não é encolher fonte até caber, é tirar da
+ * faixa o que não é leitura: o `＋` (gesto raro) vira item do `⋯`, e a ação
+ * primária desce para a linha de estado, que é onde ela é lida junto com o
+ * estado que a justifica.
+ */
+.dock__bar--tight { gap: 0; padding: 0 var(--space-4); }
+.dock__bar--tight .dtab { padding: 0 var(--space-6); font: var(--text-label-xs); }
+.dock__bar--tight .dock__new { display: none; }
+
+.dock__more {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-xs);
+}
+.dock__more:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+/*
+ * A linha de estado com a ação dentro. Ela cresce de 28 para 32px — a altura de
+ * um botão pequeno mais respiro — porque é ela que passa a carregar o único
+ * gesto do rodapé na chegada.
+ */
+.dock__state--acts { height: var(--size-control-lg); gap: var(--space-6); }
+.dock__state--acts .spacer { flex: 1; }
+
+/*
+ * Nunca rodou nesta worktree: o comando existe, o processo não. Ele aparece em
+ * terciário — é o que VAI rodar, não o que rodou.
+ */
+.dock__state .chip--idle { color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------------------------------
+   2. a saída em 360px
+   -------------------------------------------------------------------------- */
+/*
+ * `white-space: pre` em 360px corta a linha do Vite no meio da URL — some
+ * justamente a porta, que é a resposta. Enquanto a coluna está estreita, a
+ * saída DOBRA: deixa de ser um terminal fiel e passa a ser o resumo legível de
+ * um. O gesto que a promove a terminal de verdade (clicar `Terminal`, abrir o
+ * rodapé, mandar rodar) é o mesmo que alarga a coluna para 640.
+ */
+.dockout--soft .l { white-space: pre-wrap; overflow-wrap: anywhere; }
+.dockout--soft .l + .l { margin-top: var(--space-2); }
+
+/* A dobra é uma perda, e ela se anuncia: a última linha diz quantas ficaram
+   para trás em vez de deixar a rolagem ser a única pista. */
+.dockout__more { display: block; padding-top: var(--space-6); font: var(--text-caption); color: var(--color-text-disabled); }
+
+/* ---------------------------------------------------------------------------
+   3. o vazio que ensina, na altura de leitura
+   -------------------------------------------------------------------------- */
+/*
+ * O bloco de `[scripts]` do desenho original tem oito linhas de TOML e três
+ * botões: ele foi feito para um rodapé de metade da janela. Em 192px, ou o
+ * exemplo entra e a frase que explica sai, ou o contrário — e o que faz alguém
+ * agir é a frase, não o exemplo.
+ *
+ * Então na chegada o exemplo fica atrás de um `ver o exemplo`, que é o mesmo
+ * clique que teria aberto o rodapé — só que agora ele é opcional e não é
+ * pré-requisito de entender o que está errado.
+ */
+.noscripts--tight { gap: var(--space-8); padding: var(--space-12) var(--space-12); }
+.noscripts--tight .toml { display: none; }
+.noscripts--tight .noscripts__d { font: var(--text-body-sm); max-width: 56ch; }
+
+/* ---------------------------------------------------------------------------
+   4. andaimes: os quadros que fazem a conta de espaço aparecer
+   -------------------------------------------------------------------------- */
+/*
+ * Uma coluna da direita isolada, na largura real. Comparar alturas dentro de um
+ * app inteiro esconde o que se quer comparar; comparar em caixa sem largura
+ * fixa é comparar nada — a conta desta feature É a largura.
+ */
+.mini {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: var(--size-panel-right);
+  height: calc(var(--space-64) * 9);
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+.mini--wide { width: var(--size-panel-right-max); }
+
+/* Mais alta, para os quadros onde o que se compara é o CONTEÚDO do rodapé e não
+   a altura dele: em 576px a metade da coluna corta o bloco de `[scripts]` no
+   meio, e um bloco cortado leria como defeito do bloco. */
+.mini--tall { height: calc(var(--space-64) * 11); }
+
+.cmp { display: flex; gap: var(--space-16); justify-content: center; align-items: start; flex-wrap: wrap; }
+.cmp__col { display: grid; gap: var(--space-8); }
+.cmp__n { font: var(--text-caption); color: var(--color-text-tertiary); text-align: center; }
+.cmp__n b { color: var(--color-text-primary); font-weight: 500; }
+.cmp__n--now { color: var(--color-text-warning); }
+.cmp__n--pick { color: var(--color-text-brand); }
+
+/* Quantos arquivos sobram acima do rodapé — o número que a Q1 decide. */
+.mini__count {
+  flex: none;
+  padding: var(--space-4) var(--space-8);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-disabled);
+}
+
+/* A regra escrita ao lado do desenho: quando o piso de 640 entra em vigor. */
+.rule { display: grid; gap: var(--space-8); }
+.rule__row { display: flex; align-items: baseline; gap: var(--space-10); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.rule__k { flex: none; min-width: 14ch; font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.rule__row--no .rule__k { color: var(--color-text-warning); }

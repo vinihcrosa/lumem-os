@@ -294,8 +294,9 @@ resposta chega recolhida. Mudar o padrão não é uma linha: o rodapé aberto so
 
 | Arquivo | O quê |
 |---|---|
-| [prd.md](prd/run-dock-open/prd.md) | As três parcelas da conta — largura, altura e processo — e por que só a terceira é barata |
-| [open-questions.md](prd/run-dock-open/open-questions.md) | 3 perguntas, e as duas primeiras são a mesma conta de espaço |
+| [prd.md](prd/run-dock-open/prd.md) | As três parcelas da conta — largura, altura e processo — e por que só a terceira é barata. Mais o §4, escrito depois do desenho: a faixa que cabe em 360px, a saída que dobra, a saída vazia que diz o que o daemon já sabe, e o vazio que ensina em versão de chegada |
+| [open-questions.md](prd/run-dock-open/open-questions.md) | 5 perguntas, e as duas primeiras são a mesma conta de espaço. As três primeiras estão desenhadas; a Q4 e a Q5 nasceram do desenho |
+| `packages/web/prototype/lumem-run-dock-open.html` | O protótipo, vindo do Open Design em 2026-09-01 e renderizado: **seis quadros** — a chegada sem nada de pé, a chegada com run vivo contra a tira de hoje, as três alturas lado a lado com o número de arquivos que sobra, as duas larguras com o que cabe em cada uma, o checkout sem `[scripts]` na altura de leitura, e o que a preferência de quem fechou continua mandando. **Zero token novo** |
 
 ### [session-mode/](prd/session-mode/) — o modo sempre na tela
 

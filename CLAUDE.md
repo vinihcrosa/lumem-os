@@ -26,7 +26,7 @@ Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs nov
 [sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto e worktree de onde se olha),
 [worktree-first-tab](docs/prd/worktree-first-tab/prd.md) (o cabeçalho vira a primeira aba, e o
 `▤ arquivos` sai da topbar — extraída da Fase 1 da barra da PR),
-[run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de execução nasce aberto) e
+[run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de execução nasce aberto — **desenhada** em 2026-09-01, `lumem-run-dock-open.html`, com a Q1 e a Q2 ainda abertas) e
 [session-mode](docs/prd/session-mode/prd.md) (o modo sempre na tela, com política do Lumem quando o
 agente não tem). A nona anotação era sobre uma PR aberta que não aparece: a
 [pull-request-status](docs/prd/pull-request-status/prd.md) está desenhada e **não implementada**,

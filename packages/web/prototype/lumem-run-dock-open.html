@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — o rodapé de execução nasce aberto</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<link rel="stylesheet" href="lumem-run-dock.css">
+<link rel="stylesheet" href="lumem-run-dock-open.css">
+</head>
+<body>
+
+<div class="doc">
+
+  <header>
+    <h1 class="doc__h1">O rodapé nasce aberto</h1>
+    <p class="doc__lede">
+      A <b>project-scripts</b> construiu o rodapé e o fez nascer <b>recolhido</b>. Então a
+      primeira coisa que se faz ao entrar num checkout é abri-lo — e a pergunta que ele
+      responde, <em>“minha aplicação está de pé, e em que porta?”</em>, é a primeira que se faz ao
+      chegar numa worktree, não a décima.
+    </p>
+    <p class="doc__lede">
+      Esta folha não desenha um rodapé novo: ele está inteiro no
+      <code>lumem-run-dock.html</code>. Ela desenha <b>a chegada</b> — e a chegada é uma conta de
+      espaço, não uma preferência. Seis quadros: dois de chegada, um por pergunta aberta
+      (<b>Q1</b> altura, <b>Q2</b> largura, <b>Q3</b> o projeto sem <code>[scripts]</code>) e o
+      estado de quem fechou.
+    </p>
+  </header>
+
+  <!-- =================================================================== 1 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">1 · a chegada, sem nada de pé</h2>
+      <p class="sec__d">
+        Coluna nos <b>360px de sempre</b>, rodapé na <b>altura de leitura</b> (192px). É o estado
+        mais comum da feature e o mais fácil de errar: não há saída para mostrar, então o que o
+        rodapé faz aqui é <b>dizer o que vai acontecer se você mandar rodar</b> — o comando, de
+        onde ele veio, e um botão.
+      </p>
+      <p class="sec__d">
+        Três coisas mudaram de lugar para caber em 360px, e nenhuma é cosmética: o
+        <code>＋</code> saiu da faixa para o <code>⋯</code>, a ação primária desceu para a
+        <b>linha de estado</b> — onde ela é lida junto com o estado que a justifica — e a saída
+        passou a <b>dobrar</b> em vez de cortar.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">primeiro contato · coluna em <b>360px</b> · rodapé em <b>192px</b></div>
+      <div class="shot bleed">
+        <div class="app">
+          <header class="topbar">
+            <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+            <span class="spacer"></span>
+            <button class="rp-toggle rp-toggle--on">▤ arquivos</button>
+            <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+          </header>
+
+          <div class="body body--right">
+            <aside class="sidebar">
+              <div class="ws-wrap">
+                <div class="ws"><span class="ws__icon">◈</span>pessoal<span class="spacer"></span><span class="ws__caret">▾</span></div>
+              </div>
+              <div class="tree">
+                <div class="tree__label">Projetos</div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span></div>
+                <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--local">▭</span><span class="row__label">local</span></div>
+                <div class="row row is-selected" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">bandung</span></div>
+                <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">fix-loader</span></div>
+              </div>
+              <div class="sidebar__foot"><button class="add"><span class="glyph">＋</span>adicionar projeto</button></div>
+            </aside>
+
+            <main class="main">
+              <div class="wt-head">
+                <nav class="crumb"><button class="crumb__up">pessoal</button><span class="crumb__sep">/</span><button class="crumb__up">lumem-os</button><span class="crumb__sep">/</span><span class="crumb__here">bandung</span></nav>
+                <div class="wt-title">
+                  <h2><span class="glyph glyph--worktree">◇</span>bandung</h2>
+                </div>
+                <div class="chips">
+                  <span class="chip chip--branch"><span class="chip__dot"></span>bandung</span>
+                  <span class="chip chip--clean"><span class="chip__dot"></span>limpa</span>
+                </div>
+              </div>
+              <div class="tabs-bar">
+                <div class="tabs">
+                  <button class="stab stab--overview">contexto</button>
+                  <span class="tabs__sep"></span>
+                  <button class="stab stab--active"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__dot"></span></button>
+                </div>
+                <span class="menu-wrap"><button class="tabs__new">＋ nova sessão</button></span>
+              </div>
+              <div class="pane">
+                <div class="turn turn--agent">
+                  <span class="turn__g">⏺</span>
+                  <div class="turn__b">Worktree criada e o setup passou. Quando quiser conferir a mudança de pé, o run está no rodapé da coluna.</div>
+                </div>
+              </div>
+            </main>
+
+            <aside class="rp">
+              <span class="rp__grip"></span>
+              <div class="rp__bar">
+                <button class="rtab rtab--active">Arquivos</button>
+                <button class="rtab">Mudanças</button>
+                <button class="rtab">Memória</button>
+                <span class="spacer"></span>
+                <button class="rp__icon" title="recarregar">⟳</button>
+                <button class="rp__icon" title="fechar a coluna">›</button>
+              </div>
+
+              <div class="rp__body">
+                <div class="rp__scroll">
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">.lumem</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:1"></span><span class="frow__name">project.toml</span><span class="frow__gap"></span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">docs</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">packages</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">scripts</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">package.json</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">pnpm-workspace.yaml</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">README.md</span></button>
+                </div>
+
+                <div class="dock dock--reading">
+                  <span class="dock__grip"></span>
+                  <div class="dock__bar dock__bar--tight">
+                    <button class="dock__fold" title="recolher">⌄</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Setup</button>
+                    <button class="dtab dtab--active"><span class="dtab__dot"></span>Run</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Testes</button>
+                    <button class="dtab">Terminal</button>
+                    <span class="spacer"></span>
+                    <button class="dock__more" title="mais">⋯</button>
+                  </div>
+
+                  <div class="dock__state dock__state--acts">
+                    <span class="chip chip--idle"><span class="chip__dot"></span>parado</span>
+                    <span class="dock__cmd dock__cmd--dim">pnpm dev</span>
+                    <span class="spacer"></span>
+                    <button class="btn btn--sm btn--brand">▶ rodar <span class="kbd">⌘R</span></button>
+                  </div>
+
+                  <div class="dockout dockout--soft"><span class="l"><span class="dim">nunca rodou nesta worktree.</span></span><span class="l"><span class="dim">portas reservadas: <span class="you">55060–55069</span></span></span><span class="l"><span class="dim">setup passou há 6 min · <span class="path">[scripts]</span> desta branch</span></span></div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>A saída não fica preta e vazia.</b> Um retângulo escuro sem uma linha dentro é o desenho
+        de “algo quebrou”, não de “ainda não começou”. O que ele mostra é o que o daemon já sabe
+        antes de qualquer processo: qual comando é, de onde ele veio, que portas estão reservadas
+        para este checkout, e quando o setup passou. É <b>a mesma área</b> — quando o run começa,
+        estas três linhas são substituídas pela saída de verdade.
+      </p>
+      <p class="case__note">
+        <span class="q">Q1</span> A árvore acima do rodapé mostra <b>oito linhas</b>. Com o padrão
+        de hoje — metade da coluna — ela mostraria duas. O quadro 3 põe as duas ao lado.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 2 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">2 · a chegada quando já tem coisa de pé</h2>
+      <p class="sec__d">
+        É por este quadro que a feature existe. A worktree ficou com um <code>pnpm dev</code>
+        rodando — porque você saiu para outra worktree, ou fechou o Lumem e o daemon reconciliou
+        no boot. <b>Sem clique nenhum</b>, a chegada já responde: está de pé, nesta porta, desde
+        quando, e o botão que abre.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">run vivo · <b>nada foi clicado para ver isto</b></div>
+      <div class="case__frame case__frame--flat">
+        <div class="cmp">
+          <div class="cmp__col">
+            <div class="mini">
+              <div class="rp__bar">
+                <button class="rtab rtab--active">Arquivos</button>
+                <button class="rtab">Mudanças<span class="rtab__count">4</span></button>
+                <button class="rtab">Memória</button>
+                <span class="spacer"></span>
+                <button class="rp__icon">⟳</button>
+              </div>
+              <div class="rp__body">
+                <div class="rp__scroll">
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">.lumem</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:1"></span><span class="frow__name">project.toml</span><span class="mark mark--m">M</span><span class="frow__gap"></span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">docs</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">packages</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">server</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">web</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">package.json</span><span class="mark mark--m">M</span><span class="frow__gap"></span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">README.md</span></button>
+                </div>
+                <div class="dock dock--reading">
+                  <span class="dock__grip"></span>
+                  <div class="dock__bar dock__bar--tight">
+                    <button class="dock__fold">⌄</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Setup</button>
+                    <button class="dtab dtab--active"><span class="dtab__dot dtab__dot--run"></span>Run</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Testes</button>
+                    <button class="dtab">Terminal</button>
+                    <span class="spacer"></span>
+                    <button class="dock__more">⋯</button>
+                  </div>
+                  <div class="dock__state dock__state--acts">
+                    <span class="chip chip--clean"><span class="chip__dot"></span>rodando · 4 min</span>
+                    <span class="spacer"></span>
+                    <button class="openbtn"><span>Abrir</span><span class="openbtn__port">:55061</span></button>
+                    <button class="btn btn--sm"><span class="btn__glyph stopglyph">⏹</span>parar</button>
+                  </div>
+                  <div class="dockout dockout--soft"><span class="l"><span class="px">@lumem/web:dev:</span> <span class="brand">VITE</span> v6.4.3 <span class="dim">ready in</span> <span class="ok">688 ms</span></span><span class="l"><span class="px">@lumem/web:dev:</span> ➜ <span class="you">Local:</span> <span class="link">http://127.0.0.1:55061/</span></span><span class="l"><span class="cursor"></span></span><span class="dockout__more">+ 34 linhas · a coluna dobra a saída até você alargá-la</span></div>
+                </div>
+              </div>
+            </div>
+            <p class="cmp__n"><b>o que se vê ao entrar</b> · 360 × 192</p>
+          </div>
+
+          <div class="cmp__col">
+            <div class="mini">
+              <div class="rp__bar">
+                <button class="rtab rtab--active">Arquivos</button>
+                <button class="rtab">Mudanças<span class="rtab__count">4</span></button>
+                <button class="rtab">Memória</button>
+                <span class="spacer"></span>
+                <button class="rp__icon">⟳</button>
+              </div>
+              <div class="rp__body">
+                <div class="rp__scroll">
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">.lumem</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:1"></span><span class="frow__name">project.toml</span><span class="mark mark--m">M</span><span class="frow__gap"></span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">docs</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">packages</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">server</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">web</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">package.json</span><span class="mark mark--m">M</span><span class="frow__gap"></span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">README.md</span></button>
+                </div>
+                <div class="dock dock--collapsed">
+                  <div class="dock__folded">
+                    <button class="dock__fold">⌃</button>
+                    <span class="runmark"><span class="runmark__glyph">▶</span>run · :55061</span>
+                    <span class="spacer"></span>
+                    <button class="openbtn"><span>Abrir</span><span class="openbtn__port">:55061</span></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="cmp__n cmp__n--now"><b>o padrão de hoje</b> · a mesma informação, atrás de um clique</p>
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        A tira recolhida <b>não é ruim</b> — ela diz “tem coisa de pé” e a porta, e é por isso que
+        continua existindo (F1.5). O que ela não diz é <em>o que</em> está de pé, se subiu limpo, e
+        o que ele imprimiu — que é o resto da pergunta com que se chega.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 3 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">3 · <span class="q">Q1</span> a conta da altura</h2>
+      <p class="sec__d">
+        Três alturas, a mesma árvore, a mesma coluna. O número embaixo de cada uma é o que a
+        pergunta decide: <b>quantos arquivos sobram</b> para quem nunca pediu o rodapé.
+      </p>
+      <p class="sec__d">
+        <b>A proposta é a do meio</b>, e ela é fixa em vez de fração. Fração é o padrão de quem
+        <em>abriu</em> o rodapé para ler a saída de um <code>pnpm dev</code>: no monitor grande ela
+        dá 500px de terminal a quem só queria saber a porta. Fixa, ela fica proporcionalmente
+        <b>menor</b> quanto maior a janela — que é a direção certa, porque o que ela precisa mostrar
+        não cresce com a tela.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">a mesma coluna, três alturas de rodapé</div>
+      <div class="case__frame case__frame--flat bleed">
+        <div class="cmp">
+
+          <div class="cmp__col">
+            <div class="mini">
+              <div class="mini__count">12 arquivos visíveis</div>
+              <div class="rp__body">
+                <div class="rp__scroll">
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">.lumem</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:1"></span><span class="frow__name">project.toml</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">docs</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:1"></span><span class="frow__name">README.md</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">prd</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">packages</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">server</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">shared</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">web</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">package.json</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">pnpm-workspace.yaml</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">turbo.json</span></button>
+                </div>
+                <div class="dock dock--collapsed">
+                  <div class="dock__folded">
+                    <button class="dock__fold">⌃</button>
+                    <span class="runmark"><span class="runmark__glyph">▶</span>run · :55061</span>
+                    <span class="spacer"></span>
+                    <button class="openbtn"><span>Abrir</span><span class="openbtn__port">:55061</span></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="cmp__n">recolhido · <b>32px</b><br>o de hoje, e o de quem fechou</p>
+          </div>
+
+          <div class="cmp__col">
+            <div class="mini">
+              <div class="mini__count">10 arquivos visíveis</div>
+              <div class="rp__body">
+                <div class="rp__scroll">
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">.lumem</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:1"></span><span class="frow__name">project.toml</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">docs</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:1"></span><span class="frow__name">README.md</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">prd</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">packages</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">server</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">shared</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">web</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">package.json</span></button>
+                </div>
+                <div class="dock dock--reading">
+                  <span class="dock__grip"></span>
+                  <div class="dock__bar dock__bar--tight">
+                    <button class="dock__fold">⌄</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Setup</button>
+                    <button class="dtab dtab--active"><span class="dtab__dot dtab__dot--run"></span>Run</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Testes</button>
+                    <button class="dtab">Terminal</button>
+                    <span class="spacer"></span>
+                    <button class="dock__more">⋯</button>
+                  </div>
+                  <div class="dock__state dock__state--acts">
+                    <span class="chip chip--clean"><span class="chip__dot"></span>rodando · 4 min</span>
+                    <span class="spacer"></span>
+                    <button class="openbtn"><span>Abrir</span><span class="openbtn__port">:55061</span></button>
+                  </div>
+                  <div class="dockout dockout--soft"><span class="l"><span class="px">@lumem/web:dev:</span> <span class="brand">VITE</span> v6.4.3 <span class="dim">ready in</span> <span class="ok">688 ms</span></span><span class="l"><span class="px">@lumem/web:dev:</span> ➜ <span class="you">Local:</span> <span class="link">http://127.0.0.1:55061/</span></span><span class="l"><span class="cursor"></span></span></div>
+                </div>
+              </div>
+            </div>
+            <p class="cmp__n cmp__n--pick">altura de leitura · <b>192px</b><br>a proposta: estado, porta, últimas linhas</p>
+          </div>
+
+          <div class="cmp__col">
+            <div class="mini">
+              <div class="mini__count">2 arquivos visíveis</div>
+              <div class="rp__body">
+                <div class="rp__scroll">
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">.lumem</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:1"></span><span class="frow__name">project.toml</span></button>
+                </div>
+                <div class="dock dock--half">
+                  <span class="dock__grip"></span>
+                  <div class="dock__bar dock__bar--tight">
+                    <button class="dock__fold">⌄</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Setup</button>
+                    <button class="dtab dtab--active"><span class="dtab__dot dtab__dot--run"></span>Run</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Testes</button>
+                    <button class="dtab">Terminal</button>
+                    <span class="spacer"></span>
+                    <button class="dock__more">⋯</button>
+                  </div>
+                  <div class="dock__state dock__state--acts">
+                    <span class="chip chip--clean"><span class="chip__dot"></span>rodando · 4 min</span>
+                    <span class="spacer"></span>
+                    <button class="openbtn"><span>Abrir</span><span class="openbtn__port">:55061</span></button>
+                  </div>
+                  <div class="dockout dockout--soft"><span class="l"><span class="px">@lumem/web:dev:</span> <span class="brand">VITE</span> v6.4.3 <span class="dim">ready in</span> <span class="ok">688 ms</span></span><span class="l"><span class="px">@lumem/web:dev:</span></span><span class="l"><span class="px">@lumem/web:dev:</span> ➜ <span class="you">Local:</span> <span class="link">http://127.0.0.1:55061/</span></span><span class="l"><span class="px">@lumem/web:dev:</span> ➜ <span class="dim">press h + enter to show help</span></span><span class="l"><span class="px">@lumem/server:dev:</span> <span class="dim">{"level":30,"msg":"reconciliação de boot"}</span></span><span class="l"><span class="px">@lumem/server:dev:</span> <span class="dim">{"level":30,"port":55060,"msg":"listening"}</span></span><span class="l"><span class="cursor"></span></span></div>
+                </div>
+              </div>
+            </div>
+            <p class="cmp__n cmp__n--now">metade da coluna · <b>50%</b><br>o padrão de hoje, nascendo aberto</p>
+          </div>
+
+        </div>
+      </div>
+      <p class="case__note">
+        <b>A terceira leitura da Q1 — “nasce baixo e sobe quando algo roda” — não está desenhada
+        de propósito.</b> Ela é um rodapé que se mexe sozinho: a árvore que você estava lendo
+        encolhe porque um processo terminou de subir em outro canto. Coisa que se move sem gesto é
+        o que se aprende a não olhar, e o custo cai justamente sobre a árvore, que é a metade que
+        ninguém pediu para perder.
+      </p>
+      <p class="case__note">
+        O que <b>arrastar</b> continua fazendo: a alça <span class="kbd">⌃⌄</span> é a mesma, o
+        mínimo é 96px, o teto é a janela menos o que a árvore precisa para existir, e a altura
+        escolhida é lembrada. A altura de leitura é <b>onde ele nasce</b>, não onde ele fica.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 4 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">4 · <span class="q">Q2</span> a conta da largura</h2>
+      <p class="sec__d">
+        O piso de <b>640px</b> existe porque um terminal de 80 colunas não cabe em 360 — e é
+        verdade. Mas ele foi calibrado para o rodapé de quem <em>abriu</em>: nascer com 640
+        significa que <b>todo mundo</b> perde 280px do painel central na chegada, inclusive quem
+        nunca vai rodar nada.
+      </p>
+      <p class="sec__d">
+        A proposta separa as duas coisas: <b>a coluna larga é consequência de um gesto</b>, e a
+        chegada não é um gesto. Em 360 o rodapé mostra estado, porta e saída dobrada; o primeiro
+        gesto que precisa de 80 colunas é o mesmo que alarga.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o que cabe em cada largura</div>
+      <div class="case__frame case__frame--flat bleed">
+        <div class="cmp">
+          <div class="cmp__col">
+            <div class="mini">
+              <div class="mini__count">chegada · nenhum gesto</div>
+              <div class="rp__body">
+                <div class="rp__scroll">
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">packages</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">server</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">web</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">package.json</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">turbo.json</span></button>
+                </div>
+                <div class="dock dock--reading">
+                  <span class="dock__grip"></span>
+                  <div class="dock__bar dock__bar--tight">
+                    <button class="dock__fold">⌄</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Setup</button>
+                    <button class="dtab dtab--active"><span class="dtab__dot dtab__dot--run"></span>Run</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Testes</button>
+                    <button class="dtab">Terminal</button>
+                    <span class="spacer"></span>
+                    <button class="dock__more">⋯</button>
+                  </div>
+                  <div class="dock__state dock__state--acts">
+                    <span class="chip chip--clean"><span class="chip__dot"></span>rodando · 4 min</span>
+                    <span class="spacer"></span>
+                    <button class="openbtn"><span>Abrir</span><span class="openbtn__port">:55061</span></button>
+                  </div>
+                  <div class="dockout dockout--soft"><span class="l"><span class="px">@lumem/web:dev:</span> ➜ <span class="you">Local:</span> <span class="link">http://127.0.0.1:55061/</span></span><span class="l"><span class="px">@lumem/server:dev:</span> <span class="dim">{"level":30,"port":55060,"msg":"lumem daemon listening"}</span></span><span class="l"><span class="cursor"></span></span></div>
+                </div>
+              </div>
+            </div>
+            <p class="cmp__n cmp__n--pick"><b>360px</b> · a saída dobra e a URL sobrevive<br>o painel central fica inteiro</p>
+          </div>
+
+          <div class="cmp__col">
+            <div class="mini mini--wide">
+              <div class="mini__count">depois do gesto · <code>Terminal</code> clicado</div>
+              <div class="rp__body">
+                <div class="rp__scroll">
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">packages</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">server</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:1">▸</span><span class="frow__name">web</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">package.json</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">turbo.json</span></button>
+                </div>
+                <div class="dock dock--reading">
+                  <span class="dock__grip"></span>
+                  <div class="dock__bar">
+                    <button class="dock__fold">⌄</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Setup</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--run"></span>Run</button>
+                    <button class="dtab"><span class="dtab__dot dtab__dot--ok"></span>Testes</button>
+                    <button class="dtab dtab--active">Terminal</button>
+                    <button class="dock__new" title="nova aba de terminal">＋</button>
+                    <span class="spacer"></span>
+                    <div class="dock__acts">
+                      <button class="openbtn"><span>Abrir</span><span class="openbtn__port">:55061</span></button>
+                      <button class="btn btn--sm"><span class="btn__glyph stopglyph">⏹</span>parar <span class="kbd">⌘R</span></button>
+                    </div>
+                  </div>
+                  <div class="dockout"><span class="l"><span class="you">bandung</span> <span class="path">~/.lumem/workspaces/pessoal/lumem-os/worktrees/bandung</span></span><span class="l">$ pnpm vitest run packages/web/src/hooks/run-dock.test.ts</span><span class="l"> <span class="ok">✓</span> src/hooks/run-dock.test.ts (7 tests) <span class="dim">412ms</span></span><span class="l"> Test Files  <span class="ok">1 passed</span> (1)</span><span class="l">$ <span class="cursor"></span></span></div>
+                </div>
+              </div>
+            </div>
+            <p class="cmp__n"><b>640px</b> · 80 colunas inteiras, e a faixa volta a caber<br>o piso sobe porque você pediu</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="case__frame">
+        <div class="rule">
+          <div class="rule__row"><span class="rule__k">sobe para 640</span><span>clicar <code>Terminal</code> · abrir o rodapé pelo chevron ou pelo atalho · mandar rodar <code>setup</code>, <code>run</code> ou <code>test</code> · arrastar a alça vertical</span></div>
+          <div class="rule__row rule__row--no"><span class="rule__k">não sobe</span><span>entrar na worktree · o daemon reconciliar um <code>run</code> que já estava de pé · trocar de worktree com o rodapé aberto</span></div>
+          <div class="rule__row"><span class="rule__k">nunca desce</span><span>a coluna alargada é preferência lembrada, como já é hoje — fechar o rodapé não a estreita de volta</span></div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>O que isto custa, dito por inteiro:</b> quem chega numa worktree com um
+        <code>webpack</code> falando em tabelas de 100 colunas vê texto dobrado até dar o primeiro
+        clique. A troca é essa — <em>saída dobrada para todos na chegada</em> contra <em>280px do
+        painel central para todos na chegada</em>. E dobrar é reversível com um clique; o painel
+        central comido não avisa que foi comido.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 5 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">5 · <span class="q">Q3</span> o checkout que não declara <code>[scripts]</code></h2>
+      <p class="sec__d">
+        <b>Vale, e é onde a feature mais aparece.</b> Este é o único lugar do produto que diz que
+        este repositório não sabe se levantar — escondê-lo atrás de um clique é quase não tê-lo. O
+        que muda é o <em>bloco</em>: o vazio que ensina foi desenhado para meia coluna, e tem oito
+        linhas de TOML.
+      </p>
+      <p class="sec__d">
+        Em 192px, ou entra o exemplo ou entra a frase que explica. <b>Entra a frase</b> — é ela que
+        faz alguém agir. O exemplo fica atrás de <code>ver o exemplo</code>, que abre o rodapé na
+        altura inteira e mostra o bloco original, intacto.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o vazio que ensina, na altura de leitura</div>
+      <div class="case__frame case__frame--flat">
+        <div class="cmp">
+          <div class="cmp__col">
+            <div class="mini mini--tall">
+              <div class="rp__body">
+                <div class="rp__scroll">
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">.lumem</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:1"></span><span class="frow__name">project.toml</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">app</span></button>
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▸</span><span class="frow__name">lib</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">Makefile</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">docker-compose.yml</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:0"></span><span class="frow__name">README.md</span></button>
+                </div>
+                <div class="dock dock--reading">
+                  <span class="dock__grip"></span>
+                  <div class="dock__bar dock__bar--tight">
+                    <button class="dock__fold">⌄</button>
+                    <button class="dtab dtab--active"><span class="dtab__dot"></span>Setup</button>
+                    <button class="dtab"><span class="dtab__dot"></span>Run</button>
+                    <button class="dtab"><span class="dtab__dot"></span>Testes</button>
+                    <button class="dtab">Terminal</button>
+                    <span class="spacer"></span>
+                    <button class="dock__more">⋯</button>
+                  </div>
+                  <div class="noscripts noscripts--tight">
+                    <span class="noscripts__t">Este projeto não diz como rodar.</span>
+                    <p class="noscripts__d">
+                      Os comandos moram num arquivo <b>do repositório</b>, versionado junto com o
+                      código — quem clonar depois herda o mesmo setup.
+                    </p>
+                    <span class="noscripts__where">.lumem/project.toml</span>
+                    <div class="noscripts__acts">
+                      <button class="btn btn--sm btn--brand">pedir ao agente</button>
+                      <button class="btn btn--sm btn--ghost">ver o exemplo</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="cmp__n cmp__n--pick"><b>na chegada</b> · a frase, o caminho e o gesto</p>
+          </div>
+
+          <div class="cmp__col">
+            <div class="mini mini--tall">
+              <div class="rp__body">
+                <div class="rp__scroll">
+                  <button class="frow frow--dir"><span class="frow__twist" style="--depth:0">▾</span><span class="frow__name">.lumem</span></button>
+                  <button class="frow"><span class="frow__twist" style="--depth:1"></span><span class="frow__name">project.toml</span></button>
+                </div>
+                <div class="dock dock--half">
+                  <span class="dock__grip"></span>
+                  <div class="dock__bar dock__bar--tight">
+                    <button class="dock__fold">⌄</button>
+                    <button class="dtab dtab--active"><span class="dtab__dot"></span>Setup</button>
+                    <button class="dtab"><span class="dtab__dot"></span>Run</button>
+                    <button class="dtab"><span class="dtab__dot"></span>Testes</button>
+                    <button class="dtab">Terminal</button>
+                    <span class="spacer"></span>
+                    <button class="dock__more">⋯</button>
+                  </div>
+                  <div class="noscripts">
+                    <span class="noscripts__t">Este projeto não diz como rodar.</span>
+                    <span class="noscripts__where">.lumem/project.toml</span>
+                    <div class="toml"><span class="c"># o id já está aqui; o que falta é o resto</span>
+<span class="k">id</span> = <span class="s">"prj_7f3a1c…"</span>
+
+<span class="k">[scripts]</span>
+<span class="k">setup</span>    = <span class="s">"./scripts/setup.sh"</span>
+<span class="k">run</span>      = <span class="s">"pnpm dev"</span>
+<span class="k">test</span>     = <span class="s">"pnpm test"</span>
+<span class="k">teardown</span> = <span class="s">"./scripts/teardown.sh"</span></div>
+                    <div class="noscripts__acts">
+                      <button class="btn btn--sm btn--brand">pedir ao agente</button>
+                      <button class="btn btn--sm">copiar</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="cmp__n">depois de <code>ver o exemplo</code> · o bloco original, intacto</p>
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>“ver o exemplo” é o clique que a chegada economizou, devolvido a quem quer.</b> A
+        diferença é qual dos dois é pré-requisito: hoje o clique vem antes de saber que existe um
+        problema; aqui ele vem depois de já ter lido qual é.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 6 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">6 · quem fechou, encontra fechado</h2>
+      <p class="sec__d">
+        <b>O padrão é o primeiro contato, não uma regra que sobrepõe a pessoa</b> (F1.2). Quem
+        recolher o rodapé encontra a tira na próxima vez, na próxima worktree e depois de fechar o
+        Lumem — o <code>localStorage</code> continua mandando, e o que mudou foi só o valor de
+        onde ele cai quando está vazio.
+      </p>
+    </div>
+
+    <div class="case__frame">
+      <div class="rule">
+        <div class="rule__row"><span class="rule__k">nada gravado</span><span><b>aberto</b>, na altura de leitura, coluna em 360 — o que os quadros 1 e 2 desenham</span></div>
+        <div class="rule__row"><span class="rule__k">fechou</span><span>fechado, e a tira recolhida ainda diz o que está vivo — o <code>FoldedDock</code> não muda em nada</span></div>
+        <div class="rule__row"><span class="rule__k">arrastou</span><span>a altura arrastada, lembrada como já é hoje. A altura de leitura não volta a se impor depois</span></div>
+        <div class="rule__row"><span class="rule__k">preferência ilegível</span><span>vale como preferência que nunca foi escrita: cai no padrão novo, e não numa tela que não abre</span></div>
+      </div>
+    </div>
+    <p class="case__note">
+      Vale a pena dizer o que <b>não</b> acontece ao abrir: nada roda. Abrir o rodapé anexa o
+      terminal de uma sessão viva, se houver, e para na aba <code>Run</code>. Rodar
+      <code>setup</code> sozinho na chegada seria executar script de repositório sem gesto — e a
+      <b>project-scripts</b> pôs um portão de confiança exatamente na frente disso.
+    </p>
+  </section>
+
+  <!-- ================================================================ fim -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">o que este desenho propõe, e o que ele devolve para você</h2>
+    </div>
+    <div class="grid grid--2">
+      <div class="case">
+        <div class="case__label">proposto aqui</div>
+        <div class="case__frame">
+          <ul class="legend" style="display:grid; gap: var(--space-8)">
+            <li><b>Q1</b> — altura de leitura <b>fixa</b>, 192px (3×64), e a árvore fica com oito linhas</li>
+            <li><b>Q2</b> — 360px na chegada; o piso de 640 é consequência de gesto, nunca de entrar</li>
+            <li><b>Q3</b> — sim, vale para o projeto sem <code>[scripts]</code>, com o exemplo atrás de um clique</li>
+            <li>a saída <b>dobra</b> enquanto a coluna está estreita, e diz quantas linhas ficaram para trás</li>
+            <li>a ação primária desce para a linha de estado; o <code>＋</code> vira item do <code>⋯</code></li>
+            <li>saída vazia mostra o que o daemon já sabe — comando, portas, último setup</li>
+          </ul>
+        </div>
+      </div>
+      <div class="case">
+        <div class="case__label">devolvido para você</div>
+        <div class="case__frame">
+          <ul class="legend" style="display:grid; gap: var(--space-8)">
+            <li><b>Q1</b> — 192px é o número certo, ou 160 (sem a linha de estado) / 224 (mais duas linhas)?</li>
+            <li><b>Q4</b> — a saída dobrada vale para o <code>Terminal</code> também, ou lá 360px pede um convite a alargar em vez de texto dobrado?</li>
+            <li><b>Q5</b> — “mandar rodar” alarga a coluna no clique, ou só quando a primeira linha de saída chega?</li>
+            <li>as três linhas do estado vazio são úteis, ou são texto que ninguém lê duas vezes?</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

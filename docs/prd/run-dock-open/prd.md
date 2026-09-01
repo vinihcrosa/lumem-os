@@ -7,8 +7,9 @@
 > **Tasks:** ainda não escritas
 > **Sucede:** [project-scripts](../project-scripts/prd.md), que construiu o rodapé e o fez nascer
 > **fechado**
-> **Desenho:** o `lumem-run-dock.html` já desenha os dois estados. Esta feature escolhe qual deles é
-> o primeiro que se vê
+> **Desenho:** `packages/web/prototype/lumem-run-dock-open.html` — **seis quadros**, feitos no Open
+> Design em 2026-09-01 e renderizados. O rodapé em si está inteiro no `lumem-run-dock.html`; esta
+> folha desenha **a chegada**, que é uma conta de espaço e não uma preferência
 
 ---
 
@@ -60,11 +61,49 @@ algo rodando ali sem ocupar altura.
   [project-scripts](../project-scripts/prd.md) já pôs um portão de confiança na frente disso.
 - Mudar as abas do rodapé, ou o que cada uma faz.
 
-## 4. Como se prova
+## 4. O que o desenho resolveu, e o que ele propôs de novo
+
+O [protótipo](../../../packages/web/prototype/lumem-run-dock-open.html) desenha os três estados da
+chegada — sem nada de pé, com run vivo, e sem `[scripts]` — mais um quadro por pergunta aberta. Ele
+não escolhe sozinho: as respostas de [Q1](open-questions.md), [Q2](open-questions.md) e
+[Q3](open-questions.md) continuam sendo do Vinicius. O que ele fez foi tirar as três da prosa e
+**pôr o custo na tela**: as três alturas lado a lado, com o número de arquivos que sobram embaixo de
+cada uma, e as duas larguras lado a lado, com o que cabe em cada uma.
+
+Ao desenhar, apareceram quatro coisas que a PRD não tinha e que o escopo passa a incluir:
+
+**F1.6 — a faixa de abas cabe em 360px.** Em 640 ela acomoda chevron + quatro abas + `＋` + os
+botões de ação; em 360, não. A resposta não é encolher fonte até caber: o `＋` (gesto raro) vira item
+de um `⋯`, e a **ação primária desce para a linha de estado** — onde ela é lida junto com o estado
+que a justifica.
+
+**F1.7 — a saída dobra enquanto a coluna está estreita.** `white-space: pre` em 360px corta a linha
+do Vite no meio da URL, e o que some é justamente a porta. Com a coluna estreita a saída deixa de
+ser um terminal fiel e passa a ser o resumo legível de um — e diz quantas linhas ficaram para trás,
+em vez de deixar a rolagem ser a única pista.
+
+**F1.8 — a saída vazia não fica preta e vazia.** Retângulo escuro sem uma linha dentro é o desenho de
+*"algo quebrou"*, não de *"ainda não começou"*. Antes de qualquer processo ela mostra o que o daemon
+já sabe: que nunca rodou aqui, as portas reservadas para este checkout, e quando o setup passou. É a
+**mesma área** — quando o run começa, essas linhas são substituídas pela saída de verdade.
+
+**F1.9 — o vazio que ensina ganha versão de chegada.** O bloco de `[scripts]` tem oito linhas de TOML
+e foi desenhado para meia coluna. Em 192px, ou entra o exemplo ou entra a frase que explica; entra a
+frase, e o exemplo fica atrás de um `ver o exemplo` que abre o rodapé inteiro. O clique que a chegada
+economizou é devolvido a quem quiser — a diferença é que agora ele vem *depois* de já saber qual é o
+problema, e não antes.
+
+## 5. Como se prova
 
 - `localStorage` vazio → o rodapé está aberto ao entrar num checkout;
 - fechar, recarregar → continua fechado (a preferência ganha do padrão);
 - com o rodapé aberto de saída, a árvore de arquivos ainda mostra pelo menos os primeiros arquivos
   sem rolar;
 - o teste que hoje afirma o padrão fechado é **reescrito**, não apagado: ele passa a afirmar o padrão
-  novo, e o motivo antigo vira comentário do que mudou.
+  novo, e o motivo antigo vira comentário do que mudou;
+- entrar numa worktree **não** alarga a coluna; clicar `Terminal`, abrir o rodapé ou mandar rodar
+  alarga (F1.4, [Q2](open-questions.md));
+- com a coluna em 360px, a linha do `Local: http://127.0.0.1:<porta>/` aparece **inteira** — dobrada
+  se preciso, nunca cortada (F1.7);
+- num checkout sem `[scripts]`, o bloco da chegada cabe na altura de leitura sem rolar, e
+  `ver o exemplo` mostra o bloco original intacto (F1.9).
