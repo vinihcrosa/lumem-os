@@ -181,22 +181,27 @@ export function LocalPanel({
       cwd={path}
       openSessionId={openSessionId}
       initialPrompt={initialPrompt}
-      header={
+      crumb={
+        <nav className="crumb">
+          <button type="button" className="crumb__up focus-ring" onClick={onOpenWorkspace}>
+            {workspaceName}
+          </button>
+          <span className="crumb__sep" aria-hidden="true">
+            /
+          </span>
+          {name}
+          <span className="crumb__sep" aria-hidden="true">
+            /
+          </span>
+          <span className="crumb__here">local</span>
+        </nav>
+      }
+      // Mesma gramática da worktree, e as diferenças são as de verdade. Duas
+      // gramáticas para dois checkouts que se alternam na mesma coluna seria a
+      // inconsistência que esta estrutura existe para tirar (Q5).
+      checkout={{ name: "local", glyph: <Glyph tone={available ? "project" : "off"}>▭</Glyph> }}
+      context={
         <>
-          <nav className="crumb">
-            <button type="button" className="crumb__up focus-ring" onClick={onOpenWorkspace}>
-              {workspaceName}
-            </button>
-            <span className="crumb__sep" aria-hidden="true">
-              /
-            </span>
-            {name}
-            <span className="crumb__sep" aria-hidden="true">
-              /
-            </span>
-            <span className="crumb__here">local</span>
-          </nav>
-
           <div className="detail__title">
             <h2>
               <Glyph tone={available ? "project" : "off"}>▭</Glyph> local
@@ -225,10 +230,7 @@ export function LocalPanel({
               </Chip>
             )}
           </div>
-        </>
-      }
-      context={
-        <>
+
           {available ? (
             <div className="detail__banner">
               <Banner tone="info">

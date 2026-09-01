@@ -8,7 +8,16 @@ import type { Scope } from "../hooks/useSessionsByScope.js";
 import { relativeAge } from "../lib/relative-time.js";
 import { sessionsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
-import { Banner, Button, Glyph, Item, SectionHead, Tab, TabStrip } from "../ui/index.js";
+import {
+  Banner,
+  Button,
+  Glyph,
+  Item,
+  SectionHead,
+  Tab,
+  TabStrip,
+  type TabState,
+} from "../ui/index.js";
 import { FileViewer } from "./FileViewer.js";
 import { NewSessionMenu } from "./NewSessionMenu.js";
 import { PatchViewer } from "./PatchViewer.js";
@@ -19,9 +28,24 @@ import "./detail.css";
 
 export interface ScopePanelProps {
   scope: Scope;
-  /** Breadcrumb, title, chips and the scope's own destructive action. */
-  header: ReactNode;
-  /** What the context tab shows: metadata, actions, lists. */
+  /**
+   * The path, and nothing else.
+   *
+   * Navigation is chrome; the state of the checkout is content, and content
+   * lives in a tab. Everything that used to sit here beside the crumb — title,
+   * branch, dirtiness, the destructive action — is now what `context` renders.
+   */
+  crumb: ReactNode;
+  /** How the checkout's own tab names and reports itself in the strip. */
+  checkout: {
+    name: string;
+    glyph: ReactNode;
+    /** The dot. Absent while nothing is known — a dot that guesses is worse. */
+    state?: TabState;
+    /** What the dot means, spelled out: a colour has no name. */
+    stateLabel?: string;
+  };
+  /** What the checkout's own tab shows: metadata, actions, lists. */
   context: ReactNode;
   /** Where a session launched here will run. */
   cwd: string;
@@ -48,13 +72,25 @@ export interface ScopePanelProps {
 /**
  * A worktree — or the project's own checkout — and everything open inside it.
  *
- * The header sits above the strip because it is the context of every tab: a new
- * session does not change the branch, the path, or whether the tree is dirty.
- * Switching tabs must not make that information move.
+ * The column is path → tabs → content, and the checkout is the FIRST TAB.
+ *
+ * It used to be a fixed header above the strip, with a reason written here: a
+ * new session does not change the branch, the path, or whether the tree is
+ * dirty, so switching tabs must not make that information move. That reason was
+ * true and it was not free — the header spent height in EVERY tab to say
+ * something that interests one, and the thing it squeezed hardest was the disk
+ * path, which is exactly the piece nobody can retype from memory.
+ *
+ * So the trade was taken, and this is what it costs: with a session tab in
+ * front, the branch and the dirtiness are no longer on screen. Two signals pay
+ * for it and they do not depend on which tab is open — the dot on the checkout
+ * tab (the tree is dirty) and the crumb above the strip (where you are). The
+ * rest is one click away, in a tab that cannot be closed.
  */
 export function ScopePanel({
   scope,
-  header,
+  crumb,
+  checkout,
   context,
   cwd,
   openSessionId,
@@ -120,12 +156,22 @@ export function ScopePanel({
 
   return (
     <section className="scope">
-      <div className="scope__head">{header}</div>
+      <div className="scope__crumb">{crumb}</div>
 
       <TabStrip
         label={`sessões de ${cwd}`}
         lead={
-          <Tab label="contexto" active={activeId === null} onSelect={() => select(null)} />
+          // First, fixed, and no `✕`: closing the worktree from inside the
+          // worktree does not mean anything. It is also where the selection
+          // returns to when the last session tab goes away.
+          <Tab
+            label={checkout.name}
+            glyph={checkout.glyph}
+            active={activeId === null}
+            onSelect={() => select(null)}
+            {...(checkout.state !== undefined ? { state: checkout.state } : {})}
+            {...(checkout.stateLabel !== undefined ? { stateLabel: checkout.stateLabel } : {})}
+          />
         }
         action={
           <NewSessionMenu
@@ -178,7 +224,7 @@ export function ScopePanel({
         className="pane"
         role="tabpanel"
         hidden={activeId !== null}
-        aria-label="contexto"
+        aria-label={checkout.name}
       >
         <TabSplit viewer={viewerFor(null)}>
         {end.isError && (

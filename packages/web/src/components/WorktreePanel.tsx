@@ -86,25 +86,27 @@ export function WorktreePanel({
       cwd={path}
       openSessionId={openSessionId}
       initialPrompt={initialPrompt}
-      header={
+      crumb={
+        <nav className="crumb">
+          {/* Todo segmento menos o último navega. O último é onde você está. */}
+          <button type="button" className="crumb__up focus-ring" onClick={onOpenWorkspace}>
+            {workspaceName}
+          </button>
+          <span className="crumb__sep" aria-hidden="true">
+            /
+          </span>
+          <button type="button" className="crumb__up focus-ring" onClick={onOpenProject}>
+            {project.data?.name ?? "…"}
+          </button>
+          <span className="crumb__sep" aria-hidden="true">
+            /
+          </span>
+          <span className="crumb__here">{name}</span>
+        </nav>
+      }
+      checkout={{ name, glyph: <Glyph tone={gone ? "warn" : "worktree"}>{gone ? "⚠" : "◇"}</Glyph> }}
+      context={
         <>
-          <nav className="crumb">
-            {/* Todo segmento menos o último navega. O último é onde você está. */}
-            <button type="button" className="crumb__up focus-ring" onClick={onOpenWorkspace}>
-              {workspaceName}
-            </button>
-            <span className="crumb__sep" aria-hidden="true">
-              /
-            </span>
-            <button type="button" className="crumb__up focus-ring" onClick={onOpenProject}>
-              {project.data?.name ?? "…"}
-            </button>
-            <span className="crumb__sep" aria-hidden="true">
-              /
-            </span>
-            <span className="crumb__here">{name}</span>
-          </nav>
-
           <div className="detail__title">
             <h2>
               <Glyph tone={gone ? "warn" : "worktree"}>{gone ? "⚠" : "◇"}</Glyph> {name}
@@ -198,10 +200,7 @@ export function WorktreePanel({
               </Banner>
             </div>
           )}
-        </>
-      }
-      context={
-        <>
+
           {gone && (
             <div className="detail__banner">
               <Banner tone="warning">

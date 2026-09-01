@@ -105,9 +105,14 @@
 
 /* --------------------------------------------------- painel de um escopo */
 /*
- * Cabeçalho fixo, faixa de abas, e o painel da aba aberta preenchendo o resto.
- * O cabeçalho fica acima da faixa porque é contexto de todas as abas: trocar de
- * aba não pode mover a branch nem o caminho de lugar.
+ * Caminho, faixa de abas, e o painel da aba aberta preenchendo o resto — nesta
+ * ordem, e sem cabeçalho entre eles.
+ *
+ * Acima da faixa fica só o caminho, porque navegação é chrome. Título, branch,
+ * sujeira, caminho em disco e ações eram um cabeçalho fixo aqui: gastavam
+ * altura em TODA aba para dizer o que interessa a uma, e truncavam justamente
+ * o caminho em disco, que é a informação que ninguém redigita de cabeça. Viraram
+ * o conteúdo da primeira aba.
  */
 .scope {
   display: flex;
@@ -117,9 +122,15 @@
   min-height: 0;
 }
 
-.scope__head {
+/* Uma linha, da altura da topbar: é uma faixa de navegação, não um cabeçalho.
+   Quem quiser mais que o caminho abre a aba do checkout. */
+.scope__crumb {
   flex: none;
-  padding: var(--space-16) var(--space-20) var(--space-12);
+  display: flex;
+  align-items: center;
+  min-height: var(--size-topbar-height);
+  padding: 0 var(--space-20);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .pane {
