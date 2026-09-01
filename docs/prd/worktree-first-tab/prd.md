@@ -11,8 +11,11 @@
 > **Nasce de:** duas anotações do agentation: *"essa parte de cima não
 > deveria estar aqui… o que deveria ter é uma barra de abas"* e *"esse botão está no lugar errado,
 > arquivos pertence à worktree"*
-> **Desenho:** o da `pull-request-status` (`lumem-pr-bar.html`, aprovado) cobre a coluna do meio. O
-> lugar do `▤ arquivos` é o que falta desenhar
+> **Desenho:** `packages/web/prototype/lumem-worktree-tab.html` — abra no navegador. Oito telas,
+> vindas do Open Design. **Zero token novo**, e um componente novo só (`.tabs__files`): a barra de
+> abas, a aba, o `✕` e o `＋` já são do design system. Ele sucede o desenho da
+> `pull-request-status` (`lumem-pr-bar.html`), que cobria a coluna do meio mas não o
+> `▤ arquivos` — e aqui a coluna aparece **sem** a barra da PR, que é a feature travada
 
 ---
 
@@ -60,7 +63,13 @@ worktree não quer dizer nada. Ela se chama pelo nome do checkout, com o losango
 padrão ao entrar. Hoje ela se chama `contexto`.
 
 **O `▤ arquivos` vai para a barra de abas**, na ponta direita, ao lado do `+` de nova sessão — o
-único lugar que existe em todas as abas de um checkout e em nenhum lugar fora dele.
+único lugar que existe em todas as abas de um checkout e em nenhum lugar fora dele. Só o glifo, sem
+rótulo: o `+` cria algo que ainda não existe e por isso precisa de um verbo; o `▤` é um interruptor
+cujo estado ligado já está desenhado ao lado dele, na tela. Alvo de 24×24, o mesmo do `✕` da aba.
+
+O protótipo desenha os dois lugares possíveis lado a lado (§7) e a razão de um deles perder: com a
+coluna fechada, o `✕` que a coluna tem por dentro **não existe mais**, e um interruptor que só existe
+quando está ligado não é interruptor, é botão de desligar.
 
 ## 3. Escopo
 

@@ -1,0 +1,252 @@
+/* ============================================================================
+   Lumem-OS — a worktree vira a primeira aba, e leva os arquivos junto
+
+   A FEATURE INTEIRA É UMA FRASE: coisas que pertencem a uma worktree estão
+   desenhadas como se pertencessem ao aplicativo. Duas, e as duas na moldura.
+
+   1. O CABEÇALHO DO CHECKOUT — título, branch, sujeira, caminho em disco,
+      ações — mora hoje numa faixa FIXA acima da barra de abas. Ele não é a
+      moldura das abas: é o CONTEÚDO DE UMA DELAS. Ocupa altura em todas as
+      abas para dizer algo que só interessa a uma. Vira a PRIMEIRA ABA:
+      primeira, fixa, sem `✕`.
+   2. O `▤ ARQUIVOS` mora hoje na `Topbar`, ao lado do estado do daemon. A
+      coluna de arquivos é de um checkout; um interruptor global para uma coisa
+      que só existe dentro de um escopo diz que ele é do produto — e ele nem
+      aparece quando não há checkout selecionado, o que já denuncia o lugar
+      errado. Vai para a PONTA DIREITA DA BARRA DE ABAS: o único lugar que
+      existe em todas as abas de um checkout e em nenhum lugar fora dele.
+
+   A coluna do meio passa a ser, de cima para baixo: CAMINHO → ABAS → CONTEÚDO.
+   Três andares viram dois acima do conteúdo.
+
+   O QUE ISSO COBRA, escrito onde dói: com uma aba de sessão na frente, branch e
+   sujeira SOMEM da vista — o cabeçalho fixo de hoje existe justamente para isso
+   não acontecer. Quem paga a conta são dois sinais que não dependem de qual aba
+   está em foco: o PONTO na aba da worktree (sujeira) e o CAMINHO acima das abas
+   (onde você está). É pouco de propósito: o resto está a um clique, na primeira
+   aba — e lá cabe inteiro, que é o ganho da troca.
+
+   Camadas: tokens.css → lumem-ds.css → este arquivo. Nenhuma cor, medida ou
+   tipografia literal. **Nenhum token novo**, e quase nenhum componente novo: a
+   barra de abas, a aba, o `✕` e o `＋` já são do design system. O que nasce
+   aqui é UMA peça — `.tabs__files` — e um modificador do ponto da aba.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+   0. chrome do protótipo — a página, não o produto
+   -------------------------------------------------------------------------- */
+body { padding: var(--space-32); }
+.page { font: var(--text-display-md); letter-spacing: var(--tracking-display-md); margin: 0 0 var(--space-8); }
+.page-sub { color: var(--color-text-secondary); max-width: var(--size-detail-max); margin: 0 0 var(--space-32); }
+.screen-demo { margin-bottom: var(--space-40); }
+.screen-demo h2 { font: var(--text-heading-md); color: var(--color-text-secondary); margin: 0 0 var(--space-8); }
+.note { color: var(--color-text-tertiary); font: var(--text-body-sm); max-width: var(--size-detail-max); margin: 0 0 var(--space-12); }
+.note code { font: var(--text-mono-sm); }
+.frame {
+  border: var(--border-width-thin) solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-panel);
+  overflow: hidden;
+  max-width: var(--size-detail-max);
+}
+.frame--app { max-width: none; }
+.frame--col { max-width: calc(var(--size-detail-max) / 2); }
+.side-by-side { display: flex; flex-wrap: wrap; gap: var(--space-16); align-items: flex-start; }
+.stack { display: grid; gap: var(--space-16); max-width: var(--size-detail-max); }
+.caption { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); margin: 0 0 var(--space-4); }
+
+/* A etiqueta que diz o que sai e o que entra. Só existe no protótipo: no
+   produto ninguém vê uma seta apontando para o botão que mudou de lugar. */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-6);
+  border-radius: var(--radius-sm);
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+}
+.tag--out { background: var(--color-bg-danger-subtle); color: var(--color-text-danger); }
+.tag--in { background: var(--color-bg-success-subtle); color: var(--color-text-success); }
+.tags { display: flex; flex-wrap: wrap; gap: var(--space-8); margin: var(--space-8) 0 0; }
+
+/* ---------------------------------------------------------------------------
+   1. A TELA — três colunas, porque a mudança é de MOLDURA
+
+   Julgar uma faixa de abas fora da tela é julgar uma régua: a pergunta não é
+   se a aba está bonita, é quanta altura sobra para o conteúdo e onde o olho
+   procura a branch quando ela não está mais escrita.
+   -------------------------------------------------------------------------- */
+/* `.appmock`, e não `.app`: o design system já tem um `.app`, com altura de
+   viewport e duas linhas de grid. Reaproveitar o nome punha os três painéis na
+   primeira linha de 40px. */
+.appmock {
+  display: grid;
+  grid-template-columns: var(--size-sidebar-width) minmax(0, 1fr) var(--size-panel-right);
+  background: var(--color-bg-base);
+  min-height: calc(var(--space-64) * 7);
+}
+.appmock__side { border-right: var(--border-width-thin) solid var(--color-border-subtle); background: var(--color-bg-panel); padding: var(--space-8); }
+.appmock__main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.appmock__right { border-left: var(--border-width-thin) solid var(--color-border-subtle); background: var(--color-bg-panel); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+/* A topbar do protótipo. No produto ela é `.topbar` do design system; aqui ela
+   ganha altura fixa para as duas colunas do §1 alinharem linha a linha. */
+.topmock { height: var(--size-topbar-height); flex: none; }
+/* O `▤ arquivos` NO LUGAR ERRADO — a versão de hoje, desenhada para poder ser
+   comparada. Ele é a única coisa nesta faixa que não vale para a tela toda. */
+.topfiles {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  font: var(--text-label-xs);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-active);
+}
+
+/* O caminho, e só ele, acima da faixa de abas. Navegação é chrome; estado da
+   worktree virou conteúdo, e conteúdo mora em aba. O `.crumb` de dentro é o do
+   design system, inteiro; daqui sai só a faixa que o segura. */
+.crumbbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  min-height: var(--size-topbar-height);
+  padding: 0 var(--space-12);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+}
+
+/* O CABEÇALHO FIXO DE HOJE — o que a feature tira. Existe neste arquivo só no
+   §1, como termo de comparação: é a altura que some de todas as abas. */
+.hdrmock {
+  flex: none;
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-10) var(--space-12) var(--space-12);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+  background: var(--color-bg-panel);
+}
+.hdrmock__title { display: flex; align-items: center; gap: var(--space-8); font: var(--text-heading-sm); }
+.hdrmock__title .glyph { color: var(--color-scope-worktree); }
+.hdrmock__chips { display: flex; align-items: center; gap: var(--space-6); min-width: 0; }
+/* O modo de falha que a mudança conserta: o caminho em disco é a informação
+   mais longa do cabeçalho e a primeira a ser cortada. */
+.hdrmock__path {
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   2. A PEÇA NOVA — `▤` na ponta direita da barra de abas
+
+   POR QUE SÓ O GLIFO, se o `＋ nova sessão` ao lado tem texto: o `＋` cria uma
+   coisa que ainda não existe e por isso precisa de um verbo; o `▤` é um
+   interruptor com estado permanente na tela — o próprio estado ligado diz o
+   que ele faz, e o rótulo repetiria a coluna que está aberta ao lado. A barra
+   de abas é a faixa que mais briga por largura no produto, e o que ela precisa
+   ceder é para as abas.
+
+   24×24 é o piso AA de alvo (WCAG 2.5.8), o mesmo do `✕` da aba: o glifo
+   continua de 16px e o alvo vive em volta dele.
+
+   O estado é `aria-pressed`, não classe: estado de controle é atributo, e
+   assim o leitor de tela sabe sem ninguém escrever `aria-*` de novo.
+   -------------------------------------------------------------------------- */
+.tabs__files {
+  flex: none;
+  align-self: center;
+  display: inline-grid;
+  place-items: center;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-md);
+  line-height: 1;
+}
+.tabs__files:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.tabs__files[aria-pressed="true"] { background: var(--color-bg-active); color: var(--color-text-primary); }
+
+/* O PONTO DA ABA DA WORKTREE não é o ponto da aba de sessão.
+   No design system `.stab__dot` é verde: sessão rodando. Aqui ele diz SUJEIRA,
+   e sujeira é âmbar em todo o produto — o mesmo `--color-worktree-dirty` do
+   `.chip--dirty` que a aba mostra por dentro. Duas cores para o mesmo ponto
+   seria o erro; a mesma cor para dois significados seria pior. */
+.stab__dot--dirty { background: var(--color-worktree-dirty); }
+
+/* ---------------------------------------------------------------------------
+   3. A ABA DA WORKTREE — o que era cabeçalho, agora com espaço para respirar
+
+   Ganho da mudança: no cabeçalho fixo tudo isto tinha de caber em duas linhas e
+   virava fila de chips truncados. Como aba, cada coisa tem lugar — e a que mais
+   sofria, o caminho em disco, cabe INTEIRA e dá para copiar.
+   -------------------------------------------------------------------------- */
+.wtab { padding: var(--space-16); display: grid; gap: var(--space-16); align-content: start; max-width: var(--size-detail-max); }
+.wtab__title { display: flex; align-items: center; gap: var(--space-8); }
+.wtab__title h2 { font: var(--text-heading-lg); letter-spacing: var(--tracking-heading-lg); margin: 0; display: flex; align-items: center; gap: var(--space-6); }
+.wtab__title .glyph { font-size: var(--size-icon-lg); width: auto; }
+.wtab__kind { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+
+.wtab__meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-6) var(--space-16); margin: 0; }
+.wtab__meta dt { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.wtab__meta dd { margin: 0; font: var(--text-body-sm); color: var(--color-text-primary); min-width: 0; display: flex; align-items: center; gap: var(--space-8); }
+/* `anywhere`, e não `ellipsis`: o caminho é a informação que a mudança existe
+   para libertar. Quebrar em duas linhas custa uma linha; cortar custa a
+   resposta. */
+.wtab__path { font: var(--text-mono-sm); color: var(--color-text-code); overflow-wrap: anywhere; }
+.wtab__copy {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: var(--size-target-min);
+  height: var(--size-target-min);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+}
+.wtab__copy:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+.wtab__sec { display: grid; gap: var(--space-8); }
+.wtab__sech { display: flex; align-items: center; gap: var(--space-8); }
+.wtab__sect { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.wtab__list { display: grid; gap: var(--space-2); }
+.wtab__row { display: flex; align-items: center; gap: var(--space-8); min-height: var(--size-row-cozy); padding: 0 var(--space-8); border-radius: var(--radius-sm); font: var(--text-body-sm); }
+.wtab__row:hover { background: var(--color-bg-hover); }
+.wtab__when { font: var(--text-caption); color: var(--color-text-tertiary); }
+/* As ações do escopo, e a destrutiva junto. Ela sobe para o título — longe da
+   fila, porque numa fila de quatro botões iguais o que remove worktree é o que
+   não pode ser clicado por engano. */
+.wtab__acts { display: flex; gap: var(--space-8); flex-wrap: wrap; padding-top: var(--space-4); border-top: var(--border-width-thin) solid var(--color-border-subtle); }
+
+/* Conteúdo genérico de uma aba de SESSÃO, para o §1 mostrar o que ganha altura. */
+.pane-mock { flex: 1; padding: var(--space-24) var(--space-16); color: var(--color-text-tertiary); font: var(--text-mono-sm); background: var(--color-bg-inset); }
+/* A coluna de arquivos, reduzida ao que basta para o botão ser julgado. */
+.filesmock { display: grid; gap: var(--space-2); padding: var(--space-8); }
+.filesmock__row { display: flex; align-items: center; gap: var(--space-6); min-height: var(--size-row-compact); padding: 0 var(--space-6); border-radius: var(--radius-sm); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.filesmock__row .glyph { color: var(--color-text-tertiary); }
+.filesmock__head { display: flex; align-items: center; gap: var(--space-8); min-height: var(--size-topbar-height); padding: 0 var(--space-12); border-bottom: var(--border-width-thin) solid var(--color-border-subtle); font: var(--text-label-sm); color: var(--color-text-secondary); }
+
+/* ---------------------------------------------------------------------------
+   4. ANATOMIA — os números que apontam para as partes da barra
+   -------------------------------------------------------------------------- */
+.anat { display: grid; gap: var(--space-12); max-width: var(--size-detail-max); }
+.anat__list { display: grid; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
+.anat__item { display: flex; align-items: baseline; gap: var(--space-8); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.cnum {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: var(--size-icon-md);
+  height: var(--size-icon-md);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-brand-muted);
+  color: var(--color-text-primary);
+  font: var(--text-label-xs);
+}

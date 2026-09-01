@@ -5,6 +5,10 @@
 Registro de por que cada decisão foi tomada. Pergunta respondida não vira suposição silenciosa: fica
 aqui, com o motivo.
 
+**Protótipo:** `packages/web/prototype/lumem-worktree-tab.html`. Ele **desenha** a proposta de cada
+pergunta em vez de descrevê-la — a Q1 no §6, a Q2 no §7, a Q3 no §3, a Q5 no §5. Desenhar não é
+responder: a resposta continua sendo do Vinicius, e o campo `R:` continua vazio.
+
 **Estado:** 5 perguntas · **0 respondidas**. A Q1 é herdada da
 [pull-request-status](../pull-request-status/open-questions.md) (lá é a **Q11**) e passa a ser desta
 feature, porque é esta que causa o problema.
@@ -28,6 +32,11 @@ e a razão de mover era ganhar a altura de volta.
 **Custo de esperar:** trava a implementação — é a diferença entre a coluna ter dois andares acima do
 conteúdo ou três.
 
+**O que o desenho acrescentou (§6):** A e B saem **idênticas** na tela, e é esse o argumento — nesta
+versão do produto o nome do checkout e o nome da branch são a mesma string, e o caminho já a escreve.
+B não pede um pixel a mais que A; pede que a branch continue sendo o último segmento do caminho. O dia
+em que worktree e branch puderem divergir, B deixa de valer de graça.
+
 **R:**
 
 ---
@@ -42,6 +51,10 @@ que falta é onde **reabrir**, e isso tem que existir quando ela não está na t
 
 **Custo de esperar:** trava um desenho pequeno, mas é o desenho da peça nova.
 
+**O que o desenho acrescentou (§7):** os dois lugares desenhados **com a coluna fechada**, que é o
+único estado em que eles diferem. No cabeçalho da coluna, não sobra controle nenhum na tela — beco sem
+saída. O `✕` da coluna continua existindo nos dois casos; o que ele não pode ser é o único.
+
 **R:**
 
 ---
@@ -54,6 +67,10 @@ Nome (`pr-bar`) repete o que o caminho logo acima já diz. `worktree` é genéri
 uma aba, e a única aba sem `✕` merece ser identificável sem subir os olhos.
 
 **Custo de esperar:** baixo.
+
+**O que o desenho acrescentou (§3):** a aba é a única da faixa sem `✕`, e a faixa é lida sozinha
+quando se procura uma aba. O glifo do escopo carrega o "que tipo", o nome carrega o "qual" — e o
+ponto âmbar ao lado carrega a sujeira, que é a informação que some quando outra aba está na frente.
 
 **R:**
 
@@ -84,5 +101,9 @@ gramáticas para dois checkouts que se alternam na mesma coluna seria a inconsis
 existe para tirar.
 
 **Custo de esperar:** trava metade dos testes de `LocalPanel`.
+
+**O que o desenho acrescentou (§5):** as diferenças que sobram são as de verdade — glifo `▭`, sem base
+nem distância (ele **é** a base), e nenhuma ação destrutiva, porque remover o local seria remover o
+projeto, e isso é outra tela.
 
 **R:**
