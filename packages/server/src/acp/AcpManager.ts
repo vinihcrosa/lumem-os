@@ -132,8 +132,21 @@ export interface AcpSessionInfo {
  * copy of the rule, free to drift from this one.
  */
 export function modeOwnerOf(info: {
+  mode: string;
   configOptions: readonly AcpConfigOption[];
 }): AcpModeOwner {
+  /*
+   * Two signals, and the second one is not redundant.
+   *
+   * The obvious one is a `mode` option in the set. The other is `mode` itself
+   * being non-empty, which happens when an adapter reports its current mode
+   * through `current_mode_update` **without** ever offering the option — the
+   * merge in `absorbConfigUpdate` adds nothing to the set for that variant. With
+   * only the first check, such an agent would leave both authorities alive: the
+   * agent choosing what to attempt and Lumem deciding what gets through, under a
+   * mode neither of them agreed to.
+   */
+  if (info.mode !== "") return "agent";
   return info.configOptions.some((option) => option.id === MODE_OPTION) ? "agent" : "lumem";
 }
 

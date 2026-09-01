@@ -2015,3 +2015,105 @@ describe("a política respondendo ao pedido", () => {
     await running.catch(() => undefined);
   });
 });
+
+/**
+ * A autoridade trocando com a sessão viva (`session-mode`, T12).
+ *
+ * O caso que a A1 promete impedir e que ninguém tinha decidido: um adaptador que
+ * **passa a** relatar modos depois do handshake. Ele existe — `config_option_update`
+ * e `current_mode_update` são notificações, e nada no protocolo diz que o conjunto
+ * de opções é fixo.
+ */
+describe("a autoridade do modo trocando no meio", () => {
+  const noModes: FakeAgentScript = {
+    newSession: () => ({ modes: null, configOptions: [] }),
+  };
+
+  it("passa a autoridade para o agente quando ele anuncia uma opção de modo", async () => {
+    const { manager, sessionId, events } = await start({
+      ...noModes,
+      prompt: async (_text, turn) => {
+        await turn.update({
+          sessionUpdate: "config_option_update",
+          configOptions: [
+            {
+              id: "mode",
+              name: "Mode",
+              currentValue: "plan",
+              type: "select",
+              options: [{ value: "plan", name: "Plan Mode" }],
+            },
+          ],
+        } as never);
+        return "end_turn";
+      },
+    });
+    manager.setLumemMode(sessionId, "auto");
+
+    await manager.prompt(sessionId, "vai");
+
+    expect(modeOwnerOf(manager.get(sessionId)!)).toBe("agent");
+    expect(events.filter((event) => event.type === "config").at(-1)).toMatchObject({
+      modeOwner: "agent",
+      // O valor NÃO é apagado: se o agente sumir com os modos de novo, ele volta.
+      lumemMode: "auto",
+    });
+  });
+
+  it("passa a autoridade também quando o agente só anuncia o modo corrente", async () => {
+    /*
+     * `current_mode_update` não põe opção nenhuma no conjunto — então a derivação
+     * por lista de opções sozinha deixaria as duas autoridades vivas ao mesmo
+     * tempo: o agente escolhendo o que tentar e o Lumem decidindo o que passa,
+     * sob um modo que nenhum dos dois combinou.
+     */
+    const { manager, sessionId } = await start({
+      ...noModes,
+      prompt: async (_text, turn) => {
+        await turn.update({
+          sessionUpdate: "current_mode_update",
+          currentModeId: "plan",
+        } as never);
+        return "end_turn";
+      },
+    });
+
+    await manager.prompt(sessionId, "vai");
+
+    expect(modeOwnerOf(manager.get(sessionId)!)).toBe("agent");
+  });
+
+  it("a política para de valer na mesma hora", async () => {
+    // O que aconteceria sem isto: o agente em modo plano, a política em
+    // `liberado`, e escritas passando sem ninguém ter pedido.
+    const { manager, sessionId, events } = await start({
+      ...noModes,
+      prompt: async (_text, turn) => {
+        await turn.update({
+          sessionUpdate: "current_mode_update",
+          currentModeId: "plan",
+        } as never);
+        void turn.requestPermission({
+          toolCall: {
+            toolCallId: "tc-1",
+            title: "Read",
+            kind: "read",
+            locations: [{ path: "/repos/lorebase/a.ts" }],
+          } as never,
+          options: [{ optionId: "allow", name: "uma vez", kind: "allow_once" }] as never,
+        });
+        await turn.cancelled;
+        return "cancelled";
+      },
+    });
+    manager.setLumemMode(sessionId, "free");
+
+    const running = manager.prompt(sessionId, "vai");
+    await vi.waitFor(() => expect(typesOf(events)).toContain("permission_request"));
+
+    expect(typesOf(events)).not.toContain("permission_resolved");
+
+    manager.cancel(sessionId);
+    await running.catch(() => undefined);
+  });
+});

@@ -186,6 +186,15 @@ export interface ConversationState {
   commands: readonly AcpCommand[];
   /** Terminals the agent opened, newest last, keyed by the id it used. */
   terminals: readonly TerminalView[];
+  /**
+   * Quantos pedidos deste turno a política respondeu, e quantos subiram (F1.6).
+   *
+   * Contado no turno, e virando uma linha só no fim dele. Sete cartões numa
+   * transcrição longa se perdem; a linha de fecho não — ela é a resposta curta
+   * para *o que rodou sem eu ver*, e é o que torna o modo auditável sem rolar a
+   * conversa inteira.
+   */
+  turnTally: { auto: number; asked: number };
 }
 
 export function emptyConversation(): ConversationState {
@@ -204,6 +213,7 @@ export function emptyConversation(): ConversationState {
     lumemModeDefault: "ask",
     commands: [],
     terminals: [],
+    turnTally: { auto: 0, asked: 0 },
   };
 }
 
@@ -224,11 +234,18 @@ export function reduceConversation(
 ): ConversationState {
   switch (event.type) {
     case "message":
-      return appendText(state, event.role, {
-        kind: "message",
-        messageId: event.messageId,
-        text: event.text,
-      });
+      return appendText(
+        /*
+         * A linha de fecho do turno anterior sai quando o próximo começa.
+         *
+         * Ela é fecho de turno, e não histórico: acumular uma por turno enche a
+         * conversa de contadores velhos, e o número que importa é o do turno que
+         * acabou de rodar.
+         */
+        event.role === "user" ? withoutTally(state) : state,
+        event.role,
+        { kind: "message", messageId: event.messageId, text: event.text },
+      );
 
     case "thought":
       return appendText(state, "agent", {
@@ -287,7 +304,12 @@ export function reduceConversation(
         block.kind === "permission" ? null : block,
       );
       return appendBlock(
-        { ...state, turns: withoutPrevious, pendingPermission: request },
+        {
+          ...state,
+          turns: withoutPrevious,
+          pendingPermission: request,
+          turnTally: { ...state.turnTally, asked: state.turnTally.asked + 1 },
+        },
         "agent",
         { kind: "permission", request },
       );
@@ -317,6 +339,21 @@ export function reduceConversation(
         turns,
         pendingPermission:
           state.pendingPermission?.requestId === event.requestId ? null : state.pendingPermission,
+        /*
+         * Respondido pela política sai da conta do que subiu.
+         *
+         * O pedido é contado quando chega, porque quando chega ninguém sabe ainda
+         * quem vai responder — o daemon manda o pedido antes do veredito, de
+         * propósito (T7). Então a correção acontece aqui, e `asked` acaba o turno
+         * com o que de fato parou na frente de alguém.
+         */
+        turnTally:
+          event.by === "lumem"
+            ? {
+                auto: state.turnTally.auto + 1,
+                asked: Math.max(0, state.turnTally.asked - 1),
+              }
+            : state.turnTally,
       };
       return chosen
         ? updateCall(next, pending.toolCallId, (call) => ({
@@ -387,8 +424,20 @@ export function reduceConversation(
       };
     }
 
-    case "turn_end":
-      return { ...state, streaming: false, lastStopReason: event.stopReason };
+    case "turn_end": {
+      const ended: ConversationState = {
+        ...state,
+        streaming: false,
+        lastStopReason: event.stopReason,
+        turnTally: { auto: 0, asked: 0 },
+      };
+
+      // Nenhuma aprovação automática, nenhuma linha. Contador zerado é ruído, e
+      // uma linha que aparece em todo turno deixa de ser lida no terceiro.
+      if (state.turnTally.auto === 0) return ended;
+
+      return appendBlock(ended, "agent", { kind: "meta", text: tallyOf(state.turnTally) });
+    }
 
     case "resumed":
       /*
@@ -478,6 +527,38 @@ function appendText(
 
   turns.push({ role, blocks: [incoming] });
   return { ...state, turns, streaming };
+}
+
+/**
+ * A linha de fecho do turno (F1.6).
+ *
+ * Diz as duas coisas, e diz a segunda mesmo quando é zero: "0 subiram para você"
+ * é informação — quer dizer que o turno inteiro passou sozinho, que é exatamente
+ * o turno sobre o qual alguém vai querer saber.
+ */
+/** Tira do registro as linhas de fecho que já não são do turno corrente. */
+function withoutTally(state: ConversationState): ConversationState {
+  return {
+    ...state,
+    turns: mapTurns(state.turns, (block) =>
+      block.kind === "meta" && block.text.startsWith(TALLY_MARK) ? null : block,
+    ),
+  };
+}
+
+/**
+ * O glifo que marca a linha como sendo da política.
+ *
+ * Existe como constante porque `withoutTally` a reconhece por ele: as duas
+ * únicas linhas `.meta` da conversa são esta e a do núcleo da memória, e apagar
+ * a errada tiraria da tela a marca d'água que o PRD da memória exige.
+ */
+const TALLY_MARK = "◈ ";
+
+function tallyOf({ auto, asked }: { auto: number; asked: number }): string {
+  const reads = auto === 1 ? "1 pedido aprovado" : `${auto} pedidos aprovados`;
+  const up = asked === 1 ? "1 subiu para você" : `${asked} subiram para você`;
+  return `${TALLY_MARK}${reads} pelo Lumem, ${up} neste turno`;
 }
 
 function appendBlock(
