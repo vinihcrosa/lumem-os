@@ -112,8 +112,6 @@ export function App() {
           <Topbar
             version={health.data?.version ?? null}
             unreachable={health.isError}
-            // Nothing to show the files of until a checkout is selected.
-            filesPanel={selection === null ? undefined : rightPanel}
           />
           {/* The topbar dot says it quietly; this says what it means. Every action
           below is a call to a daemon that is not answering, and a sidebar that
@@ -323,6 +321,7 @@ export function App() {
           openSessionId={openSessionId}
           initialPrompt={ask ?? undefined}
           workspaceName={workspaceName}
+          filesPanel={rightPanel}
           onRemoved={() =>
             setSelection({
               projectId,
@@ -350,6 +349,7 @@ export function App() {
         workspaceName={workspaceName}
         openSessionId={openSessionId}
         initialPrompt={ask ?? undefined}
+        filesPanel={rightPanel}
         onRemoved={() => setSelection(null)}
         onOpenWorkspace={() => setSelection(null)}
         onSelectWorktree={(worktreeId) =>

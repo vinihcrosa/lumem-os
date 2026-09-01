@@ -16,6 +16,7 @@ import {
   SectionHead,
   Tab,
   TabStrip,
+  TabToggle,
   type TabState,
 } from "../ui/index.js";
 import { FileViewer } from "./FileViewer.js";
@@ -47,6 +48,16 @@ export interface ScopePanelProps {
   };
   /** What the checkout's own tab shows: metadata, actions, lists. */
   context: ReactNode;
+  /**
+   * O interruptor da coluna de arquivos.
+   *
+   * Vem de fora porque o estado é do app — um `useRightPanel` só, com o valor
+   * em `localStorage`. O botão mudou de lugar, não de dono (Q4): uma coluna que
+   * abre e fecha sozinha ao trocar de worktree seria pior que uma que fica onde
+   * você deixou.
+   */
+  filesPanel: { open: boolean; toggle(): void };
+
   /** Where a session launched here will run. */
   cwd: string;
   /**
@@ -92,6 +103,7 @@ export function ScopePanel({
   crumb,
   checkout,
   context,
+  filesPanel,
   cwd,
   openSessionId,
   initialPrompt,
@@ -179,6 +191,20 @@ export function ScopePanel({
             scopeId={scope.scopeId}
             onCreated={(sessionId) => select(sessionId)}
           />
+        }
+        end={
+          // The files column belongs to a checkout, so its switch lives in the
+          // one row that exists in every tab of a checkout and nowhere outside
+          // one. It has to be here rather than in the column's own header for a
+          // blunter reason: with the column closed, that header does not exist,
+          // and a switch that only exists while it is on is not a switch.
+          <TabToggle
+            label="a coluna de arquivos"
+            pressed={filesPanel.open}
+            onToggle={filesPanel.toggle}
+          >
+            ▤
+          </TabToggle>
         }
       >
         {tabs.map((tab) => (

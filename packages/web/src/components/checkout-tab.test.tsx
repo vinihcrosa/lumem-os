@@ -11,7 +11,9 @@ vi.mock("../lib/trpc.js", async () => ({
 }));
 
 vi.mock("./Terminal.js", () => ({
-  Terminal: ({ sessionId }: { sessionId: string }) => <div>{sessionId}</div>,
+  Terminal: ({ sessionId }: { sessionId: string }) => (
+    <div data-testid="terminal-mock">{sessionId}</div>
+  ),
 }));
 
 /**
@@ -94,6 +96,59 @@ async function selectWorktree(user: ReturnType<typeof userEvent.setup>): Promise
   await user.click(await within(tree).findByRole("button", { name: /^lorebase/ }));
   await user.click(await within(tree).findByRole("button", { name: /^teste/ }));
 }
+
+describe("o interruptor da coluna de arquivos", () => {
+  it("mora na faixa de abas do checkout, e não na topbar", async () => {
+    // A coluna é de um checkout. Um interruptor global para algo que só existe
+    // dentro de um escopo diz, por estar lá, que ele é do produto.
+    const user = userEvent.setup();
+    await selectWorktree(user);
+
+    const strip = await screen.findByRole("tablist");
+    expect(
+      within(strip).getByRole("button", { name: "abrir a coluna de arquivos" }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("banner")).queryByRole("button", { name: /arquivos/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("continua alcançável com a coluna fechada, que é o único jeito de reabrir", async () => {
+    const user = userEvent.setup();
+    await selectWorktree(user);
+
+    await user.click(await screen.findByRole("button", { name: "abrir a coluna de arquivos" }));
+    expect(await screen.findByLabelText("arquivos do checkout")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "fechar a coluna de arquivos" }));
+    expect(screen.queryByLabelText("arquivos do checkout")).not.toBeInTheDocument();
+    // Com a coluna fora da tela, o `✕` dela também saiu. Se este botão tivesse
+    // ido para lá, não haveria como voltar.
+    expect(
+      await screen.findByRole("button", { name: "abrir a coluna de arquivos" }),
+    ).toBeInTheDocument();
+  });
+
+  it("muda a caixa do terminal sem desmontá-lo", async () => {
+    // O refit em si é do `ResizeObserver`, e o `terminal-refit.test.tsx` prova
+    // que ele observa a caixa do terminal. O que se prova aqui é a outra metade:
+    // que o botão novo mexe nessa caixa com a sessão viva, em vez de trocar a
+    // sessão por outra montagem.
+    const user = userEvent.setup();
+    trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
+      scopeType === "worktree" ? [session()] : [],
+    );
+
+    await selectWorktree(user);
+    await user.click(await screen.findByRole("tab", { name: /shell/ }));
+    const terminal = await screen.findByTestId("terminal-mock");
+
+    await user.click(screen.getByRole("button", { name: "abrir a coluna de arquivos" }));
+
+    expect(await screen.findByLabelText("arquivos do checkout")).toBeInTheDocument();
+    expect(screen.getByTestId("terminal-mock")).toBe(terminal);
+  });
+});
 
 describe("a worktree como primeira aba", () => {
   it("põe acima da faixa o caminho, e nada mais", async () => {

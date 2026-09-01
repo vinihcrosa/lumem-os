@@ -57,23 +57,10 @@
   border-radius: var(--radius-full);
   background: var(--color-daemon-online);
 }
-/* Mostrar e esconder a coluna de arquivos. O estado é da janela, não do
-   checkout — por isso o botão fica aqui, e não dentro do painel. */
-.rp-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-6);
-  height: var(--size-control-sm);
-  padding: 0 var(--space-8);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--color-text-tertiary);
-  font: var(--text-label-xs);
-  cursor: pointer;
-}
-.rp-toggle:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
-.rp-toggle--on { background: var(--color-bg-active); color: var(--color-text-primary); }
+/* O botão de mostrar e esconder a coluna de arquivos morava aqui. O estado
+   continua sendo da janela; o que estava errado era o LUGAR — a coluna é de um
+   checkout, e um interruptor nesta faixa diz que ele é do produto. Ele desceu
+   para a faixa de abas do checkout (`.tab-toggle`, em `ui.css`). */
 
 .daemon--off { color: var(--color-daemon-offline); }
 .daemon--off .daemon__dot { background: var(--color-daemon-offline); }

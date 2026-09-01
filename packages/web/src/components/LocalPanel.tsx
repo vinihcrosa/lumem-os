@@ -21,6 +21,15 @@ export interface LocalPanelProps {
   /** O caminho de volta (W7): daqui, o único lugar acima é o workspace. */
   onOpenWorkspace: () => void;
   onSelectWorktree: (worktreeId: string) => void;
+  /**
+   * O interruptor da coluna de arquivos.
+   *
+   * Vem de fora porque o estado é do app — um `useRightPanel` só, com o valor
+   * em `localStorage`. O botão mudou de lugar, não de dono (Q4): uma coluna que
+   * abre e fecha sozinha ao trocar de worktree seria pior que uma que fica onde
+   * você deixou.
+   */
+  filesPanel: { open: boolean; toggle(): void };
   /** Uma sessão para trazer à frente, uma vez — ver `ScopePanel`. */
   openSessionId?: string | undefined;
   /** O pedido que abriu uma conversa (ver `ScopePanel`). */
@@ -117,6 +126,7 @@ export function LocalPanel({
   onSelectWorktree,
   openSessionId,
   initialPrompt,
+  filesPanel,
 }: LocalPanelProps) {
   const queryClient = useQueryClient();
   const scope: Scope = { scopeType: "project", scopeId: projectId };
@@ -181,6 +191,7 @@ export function LocalPanel({
       cwd={path}
       openSessionId={openSessionId}
       initialPrompt={initialPrompt}
+      filesPanel={filesPanel}
       crumb={
         <nav className="crumb">
           <button type="button" className="crumb__up focus-ring" onClick={onOpenWorkspace}>
