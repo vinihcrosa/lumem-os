@@ -28,6 +28,11 @@ alvo dos testes da [worktree-tabs](../worktree-tabs/tasks.md) muda no caminho.
 
 ## Fase 1 — a estrutura: a worktree vira a primeira aba
 
+> **Movida em 2026-09-01.** As E1, E2 e E3 saíram desta feature e viraram a
+> [worktree-first-tab](../worktree-first-tab/prd.md): elas não dependem de saber ler PR, e esta
+> feature está travada na Q1. Ficam aqui como registro do que a barra da PR **pressupõe** — quando
+> ela voltar a andar, a estrutura já vai estar de pé, ou é ela que entra primeiro.
+
 #### E1: O cabeçalho vira aba
 
 **What**: `ScopePanel` deixa de ter cabeçalho com título e chips; a coluna do meio passa a ser

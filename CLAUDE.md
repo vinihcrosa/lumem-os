@@ -20,7 +20,19 @@ checkout: o daemon virou **um bundle ESM** com só o par nativo por fora, ele **
 porta**, o binário `lumem` sobe tudo, e `npm i -g @vinihcrosa/lumem-os` instala — com uma pipeline de release cujo
 passo central é **instalar o tarball num runner limpo**, porque é o único que pega `require`
 dinâmico, prebuild ausente e arquivo fora do pacote. A raiz ganhou `README.md` (em inglês, com
-tradução ao lado) e `LICENSE` (MIT). Comece pelo [índice da documentação](docs/README.md).
+tradução ao lado) e `LICENSE` (MIT).
+
+Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**, sem tasks ainda:
+[sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto e worktree de onde se olha),
+[worktree-first-tab](docs/prd/worktree-first-tab/prd.md) (o cabeçalho vira a primeira aba, e o
+`▤ arquivos` sai da topbar — extraída da Fase 1 da barra da PR),
+[run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de execução nasce aberto) e
+[session-mode](docs/prd/session-mode/prd.md) (o modo sempre na tela, com política do Lumem quando o
+agente não tem). A nona anotação era sobre uma PR aberta que não aparece: a
+[pull-request-status](docs/prd/pull-request-status/prd.md) está desenhada e **não implementada**,
+travada na Q1.
+
+Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
 |---|---|

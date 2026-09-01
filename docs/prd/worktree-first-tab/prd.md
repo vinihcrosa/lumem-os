@@ -1,0 +1,131 @@
+# PRD — A worktree vira a primeira aba, e leva os arquivos junto
+
+> **Status:** v0.1 — a estrutura vem do desenho já aprovado da
+> [pull-request-status](../pull-request-status/prd.md) §2.1; o que este PRD acrescenta é o botão
+> `▤ arquivos`. Nada implementado
+> **Perguntas:** [open-questions.md](open-questions.md)
+> **Tasks:** ainda não escritas
+> **Extraída de:** a **Fase 1** da [pull-request-status](../pull-request-status/tasks.md) (E1, E2,
+> E3). Ela deixa de ser pré-requisito enterrado numa feature de PR e passa a ser feature própria —
+> ver [§6](#6-a-relação-com-a-barra-da-pr)
+> **Nasce de:** duas anotações do agentation: *"essa parte de cima não
+> deveria estar aqui… o que deveria ter é uma barra de abas"* e *"esse botão está no lugar errado,
+> arquivos pertence à worktree"*
+> **Desenho:** o da `pull-request-status` (`lumem-pr-bar.html`, aprovado) cobre a coluna do meio. O
+> lugar do `▤ arquivos` é o que falta desenhar
+
+---
+
+## 1. O problema, em uma frase
+
+**Coisas que pertencem a uma worktree estão desenhadas como se pertencessem ao aplicativo.**
+
+Duas, e as duas na moldura:
+
+| O quê | Onde está | Por que está errado |
+|---|---|---|
+| o cabeçalho do checkout — título, branch, sujeira, caminho em disco, ações | faixa **fixa acima** da barra de abas, no `ScopePanel` | ele não é a moldura das abas: é **o conteúdo de uma delas**. Ocupa altura em todas as abas para dizer algo que só interessa a uma |
+| o botão `▤ arquivos` | **`Topbar`**, ao lado do estado do daemon | a coluna de arquivos é de um checkout. Um interruptor global para uma coisa que só existe dentro de um escopo diz que ele é do produto — e ele nem aparece quando não há checkout selecionado, o que já denuncia o lugar errado |
+
+O `ScopePanel` de hoje carrega uma justificativa escrita para o cabeçalho fixo: *"uma sessão nova não
+muda a branch, o caminho, nem se a árvore está suja; trocar de aba não pode fazer essa informação se
+mexer"*. É verdade, e é o preço da mudança — [§4](#4-o-que-a-mudança-cobra) diz quem paga.
+
+**Critério de sucesso em uma frase:** a coluna do meio é **caminho → abas → conteúdo**, a primeira
+aba é a worktree, e o interruptor da coluna de arquivos mora dentro do escopo a que a coluna
+pertence — sem que branch e sujeira virem informação que só se encontra clicando.
+
+## 2. Forma
+
+```
+┌──────────────┬─────────────────────────────────────┬──────────────┐
+│ sidebar      │ pessoal / lumem-os / pr-bar         │ painel de    │
+│              ├─────────────────────────────────────┤ arquivos     │
+│              │ [◇ pr-bar ●][◆ claude][● sh]  [+][▤]│              │
+│              ├─────────────────────────────────────┤              │
+│              │  ◇ pr-bar              worktree     │              │
+│              │  branch  ● pr-bar                   │              │
+│              │  base    main ↑7 ↓0                 │              │
+│              │  estado  ● suja · 3 arquivos        │              │
+│              │  caminho ~/.lumem/…/worktrees/pr-bar│              │
+└──────────────┴─────────────────────────────────────┴──────────────┘
+     de longe        a worktree é a 1ª aba, fixa, sem ✕
+```
+
+**Acima das abas fica só o caminho** (`workspace / projeto / worktree`), com os dois primeiros
+segmentos navegando como já navegam.
+
+**A primeira aba é a da worktree**: primeira, fixa, **sem `✕`** — fechar a worktree dentro da
+worktree não quer dizer nada. Ela se chama pelo nome do checkout, com o losango do escopo, e é a aba
+padrão ao entrar. Hoje ela se chama `contexto`.
+
+**O `▤ arquivos` vai para a barra de abas**, na ponta direita, ao lado do `+` de nova sessão — o
+único lugar que existe em todas as abas de um checkout e em nenhum lugar fora dele.
+
+## 3. Escopo
+
+**F1.1** O `ScopePanel` deixa de receber um `header` com título e chips; recebe **só o caminho**.
+**F1.2** A primeira aba é a do checkout: fixa, primeira, sem fechar. Rotulada com o nome e o glifo do
+escopo (`◇` worktree, `▭` local).
+**F1.3** Ela é a aba padrão ao entrar num checkout, e é para onde a seleção volta quando a última
+aba de sessão fecha.
+**F1.4** O conteúdo dela é o que estava no cabeçalho **mais o que não cabia nele**: branch, base e
+distância (`↑7 ↓0`), estado da árvore, caminho em disco **inteiro e copiável**, e as ações do escopo
+— inclusive a destrutiva.
+**F1.5** A aba mostra um **ponto** quando a árvore está suja. É o sinal que sobrevive a qualquer aba
+em foco.
+**F1.6** O `▤ arquivos` **sai da `Topbar`** e entra na barra de abas do checkout.
+**F1.7** O estado aberto/fechado da coluna de arquivos continua sendo o mesmo `useRightPanel` — o
+botão muda de lugar, não de dono. Ver [Q4](open-questions.md).
+**F1.8** A mudança de altura da coluna **remede o terminal**: o `FitAddon` mede uma caixa que mudou de
+tamanho, e uma sessão de PTY aberta durante a transição precisa refitar.
+
+### Fora de escopo
+
+- A barra da PR e o marcador na sidebar — são da
+  [pull-request-status](../pull-request-status/prd.md).
+- O rodapé de execução e sua altura padrão — é da [run-dock-open](../run-dock-open/prd.md).
+
+## 4. O que a mudança cobra
+
+Com uma aba de sessão na frente, **branch e sujeira somem da vista.** Hoje elas estão sempre lá.
+
+Quem paga a conta:
+
+| Sinal | Onde | O que carrega |
+|---|---|---|
+| **o ponto na aba do checkout** | barra de abas do meio | a árvore está suja |
+| **o caminho acima das abas** | topo da coluna | onde você está |
+| **o marcador na linha da sidebar** | árvore | o que está rodando ali |
+
+O que se ganha em troca: no cabeçalho fixo tudo aquilo tinha de caber em duas linhas e virava fila de
+chips truncados. A informação que mais sofria — **o caminho em disco** — passa a caber inteira e a
+dar para copiar.
+
+Esta é a [Q11 da pull-request-status](../pull-request-status/open-questions.md), ainda aberta, e ela
+passa a ser desta feature: **com uma aba de sessão na frente, o que a worktree ainda diz?**
+
+## 5. Como se prova
+
+- os testes que provavam branch, caminho e sujeira **no cabeçalho** continuam existindo e passam a
+  apontar para a aba — não se apagam;
+- entrar num checkout cai na aba dele; fechar a última sessão volta para ela;
+- a aba do checkout **não** tem `✕`, e nenhum atalho a fecha;
+- abrir e fechar a coluna de arquivos pelo botão novo, com uma sessão de PTY viva, e o terminal
+  refita — o `terminal-refit.test.tsx` já é o molde;
+- com a coluna fechada, o botão continua alcançável (é o único jeito de reabri-la);
+- o comentário do `ScopePanel` que justifica o cabeçalho acima da faixa é **reescrito**, não apagado:
+  passa a dizer o que mudou e o que a mudança cobra.
+
+## 6. A relação com a barra da PR
+
+A [pull-request-status](../pull-request-status/prd.md) escreveu esta estrutura como **F0** e como
+Fase 1 das tasks, com um motivo declarado: *"ela move informação de uma tela que já é testada; fazer
+isso junto com a feature nova produziria um diff em que ninguém consegue dizer o que quebrou o quê"*.
+
+O motivo continua valendo — e leva um passo adiante. A barra da PR está **travada** na
+[Q1](../pull-request-status/open-questions.md) (`gh` instalado × API com token nosso), e a estrutura
+não está travada em nada. Separar libera a que pode andar.
+
+**Contrato entre as duas:** esta feature entrega a coluna `caminho → abas → conteúdo`. A barra da PR
+passa a **depender** dela, e a Fase 1 de lá some — nada nesta feature depende de saber ler PR.
