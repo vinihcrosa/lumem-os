@@ -23,7 +23,7 @@ import { Topbar } from "./layout/Topbar.js";
 import { SetupFlow } from "./setup/SetupFlow.js";
 import { WORKSPACES_KEY } from "./lib/queryKeys.js";
 import { trpc } from "./lib/trpc.js";
-import { Banner, Skeleton } from "./ui/index.js";
+import { Banner, Glyph, Skeleton } from "./ui/index.js";
 
 import "./components/sidebar.css";
 import "./components/clone.css";
@@ -70,6 +70,7 @@ export function App() {
    * failure is shown by one component and answered by another.
    */
   const [prefill, setPrefill] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const expansion = useTreeExpansion();
   const rightPanel = useRightPanel();
   const dock = useRunDock();
@@ -235,18 +236,27 @@ export function App() {
               {/* The clone sits right above the button that starts one, which
                   is also where the project it produces will appear. */}
               <CloneStatus workspaceId={activeId} onRetry={setPrefill} />
-              {/* Adding a project is an action of the workspace, not an item of
-                  the list it appends to. */}
+              {/* Provisório: o botão sai daqui na T7, quando o `+` do cabeçalho
+                  da lista já for o único caminho (F1.6). */}
+              <button type="button" className="sidebar__add" onClick={() => setAdding(true)}>
+                <Glyph>＋</Glyph>
+                adicionar projeto
+              </button>
               <AddProjectDialog
                 workspaceId={activeId}
+                workspaceName={activeName}
+                open={adding}
+                onClose={() => setAdding(false)}
+                onPrefillOpen={() => setAdding(true)}
                 prefill={prefill}
                 onPrefillConsumed={() => setPrefill(null)}
-                onAdded={(projectId) =>
+                onAdded={(projectId) => {
+                  setAdding(false);
                   setSelection({
                     projectId,
                     scope: { scopeType: "project", scopeId: projectId },
-                  })
-                }
+                  });
+                }}
               />
             </div>
           </>

@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Desenho:** `packages/web/prototype/lumem-sidebar-actions.html` — oito quadros, feitos no Open Design
 e sincronizados ([regra](../../project/design-source-of-truth.md))
-**Status:** **3 de 10.** Escopo fechado — as seis perguntas foram respondidas pelo desenho de
+**Status:** **4 de 10.** Escopo fechado — as seis perguntas foram respondidas pelo desenho de
 2026-09-01.
 
 ---
@@ -126,13 +126,13 @@ no foco.
 `clone-ui.test.tsx`
 
 **Done when**:
-- [ ] `open`/`onClose` de fora (A2); o `<button>adicionar projeto</button>` sai do componente
-- [ ] O `prefill` continua funcionando — ele **abre** o diálogo hoje, e passa a pedir a abertura a
+- [x] `open`/`onClose` de fora (A2); o `<button>adicionar projeto</button>` sai do componente
+- [x] O `prefill` continua funcionando — ele **abre** o diálogo hoje, e passa a pedir a abertura a
       quem controla, em vez de se abrir sozinho
-- [ ] Caminho local, URL, e recusado: os três planos ecoam como hoje, dentro do modal
-- [ ] Clone disparado → o modal fecha na hora (A5), e o clone segue sozinho
-- [ ] O campo de origem continua recebendo o foco ao abrir — agora por conta do `Modal` (T1)
-- [ ] Gate: `pnpm gate:quick`
+- [x] Caminho local, URL, e recusado: os três planos ecoam como hoje, dentro do modal
+- [x] Clone disparado → o modal fecha na hora (A5), e o clone segue sozinho
+- [x] O campo de origem continua recebendo o foco ao abrir — agora por conta do `Modal` (T1)
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `refactor(web): o diálogo de projeto controlado, dentro do modal`
 

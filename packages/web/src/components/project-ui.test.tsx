@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App.js";
+import { AddProjectDialog } from "./AddProjectDialog.js";
 import { renderWithProviders } from "../test/render.js";
 import { installTrpcDefaults, trpcMock as trpc } from "../test/trpc-mock.js";
 
@@ -296,5 +297,59 @@ describe("consumo por worktree, na visão do projeto (W4)", () => {
       projectId: "p1",
       period: "6m",
     });
+  });
+});
+
+/**
+ * O diálogo por si, agora que quem manda em `open` é a tela.
+ */
+describe("AddProjectDialog", () => {
+  it("renders nothing when closed, and owns no button of its own", () => {
+    renderWithProviders(
+      <AddProjectDialog
+        workspaceId="w1"
+        workspaceName="pessoal"
+        open={false}
+        onClose={vi.fn()}
+        onAdded={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "adicionar projeto" })).not.toBeInTheDocument();
+  });
+
+  it("asks to be opened when a failed clone hands it an address back", async () => {
+    const onPrefillOpen = vi.fn();
+    renderWithProviders(
+      <AddProjectDialog
+        workspaceId="w1"
+        workspaceName="pessoal"
+        open={false}
+        onClose={vi.fn()}
+        onPrefillOpen={onPrefillOpen}
+        prefill="git@gitlab.interno:time/api.git"
+        onAdded={vi.fn()}
+      />,
+    );
+
+    // Ele não se abre sozinho: pede, e quem hospeda decide.
+    await waitFor(() => expect(onPrefillOpen).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("says which workspace the project lands in", async () => {
+    renderWithProviders(
+      <AddProjectDialog
+        workspaceId="w1"
+        workspaceName="pessoal"
+        open
+        onClose={vi.fn()}
+        onAdded={vi.fn()}
+      />,
+    );
+
+    const dialog = await screen.findByRole("dialog", { name: "Adicionar projeto" });
+    expect(within(dialog).getByText("pessoal")).toBeInTheDocument();
   });
 });
