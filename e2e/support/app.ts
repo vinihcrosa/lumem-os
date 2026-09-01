@@ -108,6 +108,8 @@ export async function createAgentConfig(
     /** Omitted means `pty`, which is what every existing caller meant. */
     transport?: "pty" | "acp";
     adapterVersion?: string;
+    /** O ambiente do adaptador. O fake usa isto para mudar o que ele relata. */
+    env?: Record<string, string>;
   },
 ): Promise<void> {
   const response = await request.post(`${daemonUrl}/trpc/agentConfig.create`, {
@@ -117,6 +119,7 @@ export async function createAgentConfig(
       args: input.args ?? [],
       ...(input.transport ? { transport: input.transport } : {}),
       ...(input.adapterVersion ? { adapterVersion: input.adapterVersion } : {}),
+      ...(input.env ? { env: input.env } : {}),
     },
   });
   // A duplicate is fine: specs share one daemon and the first one to run wins.

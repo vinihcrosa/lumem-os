@@ -236,6 +236,56 @@ async function runTurn(text) {
     ],
   });
 
+  /*
+   * Uma LEITURA que pede permissão, com caminho dentro do checkout de verdade
+   * (`session-mode`, T7).
+   *
+   * Só no adaptador sem modos, porque é o único em que a política do Lumem vale
+   * (A1). O caminho sai de `process.cwd()` e não de um literal: a regra do
+   * `automático` é "dentro do checkout", e um `/repos/lorebase` fixo estaria fora
+   * de qualquer checkout que o e2e cria — o pedido subiria, e o teste passaria a
+   * provar o contrário do que quer.
+   */
+  if (process.env["LUMEM_FAKE_NO_MODES"] === "1") {
+    update({
+      sessionUpdate: "tool_call",
+      toolCallId: "tc-ask-read",
+      title: "Read README.md",
+      name: "Read",
+      kind: "read",
+      status: "pending",
+      locations: [{ path: `${process.cwd()}/README.md` }],
+    });
+
+    const readOutcome = await new Promise((resolve) => {
+      resolvePermission = resolve;
+      write({
+        jsonrpc: "2.0",
+        id: "perm-read",
+        method: "session/request_permission",
+        params: {
+          sessionId: SESSION_ID,
+          toolCall: {
+            toolCallId: "tc-ask-read",
+            title: "Read README.md",
+            kind: "read",
+            locations: [{ path: `${process.cwd()}/README.md` }],
+          },
+          options: [
+            { optionId: "allow", name: "permitir uma vez", kind: "allow_once" },
+            { optionId: "no", name: "não", kind: "reject_once" },
+          ],
+        },
+      });
+    });
+
+    update({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "tc-ask-read",
+      status: readOutcome?.outcome === "selected" ? "completed" : "failed",
+    });
+  }
+
   // The one that blocks. Nothing after this line happens until the client
   // answers, which is exactly the property the e2e is checking.
   update({
@@ -393,6 +443,19 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       return;
 
     case "session/new":
+      /*
+       * Um adaptador que **não relata modos** (`session-mode`).
+       *
+       * Ligado por variável de ambiente porque é um adaptador diferente, não um
+       * estado deste: `configOptions` vazio e `modes` nulo é o que faz o composer
+       * ficar mudo, e é o caso inteiro da feature. Sem este atalho, provar a
+       * pílula do Lumem de ponta a ponta exigiria um segundo arquivo de fake com
+       * as outras 400 linhas copiadas.
+       */
+      if (process.env["LUMEM_FAKE_NO_MODES"] === "1") {
+        reply(message.id, { sessionId: SESSION_ID, modes: null, configOptions: [] });
+        return;
+      }
       reply(message.id, {
         sessionId: SESSION_ID,
         modes: {
