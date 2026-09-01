@@ -143,7 +143,7 @@ describe("create worktree", () => {
     });
 
     await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: "nova worktree" }));
+    await user.click(await screen.findByRole("button", { name: "nova worktree em lorebase" }));
     await user.type(screen.getByLabelText("Nome da worktree"), "teste-prd");
     await user.click(screen.getByRole("button", { name: "criar" }));
 
@@ -163,7 +163,7 @@ describe("create worktree", () => {
     trpc.worktree.create.mutate.mockReturnValue(new Promise(() => {}));
 
     await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: "nova worktree" }));
+    await user.click(await screen.findByRole("button", { name: "nova worktree em lorebase" }));
     await user.type(screen.getByLabelText("Nome da worktree"), "teste");
     await user.click(screen.getByRole("button", { name: "criar" }));
 
@@ -178,7 +178,7 @@ describe("create worktree", () => {
     );
 
     await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: "nova worktree" }));
+    await user.click(await screen.findByRole("button", { name: "nova worktree em lorebase" }));
     await user.type(screen.getByLabelText("Nome da worktree"), "main");
     await user.click(screen.getByRole("button", { name: "criar" }));
 
@@ -357,6 +357,92 @@ describe("o run visto de fora do rodapé", () => {
     await within(tree).findByRole("button", { name: /^teste/ });
     expect(within(tree).queryByText(/^:\d+$/)).not.toBeInTheDocument();
     expect(within(tree).queryByText("setup falhou")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * O `+` da linha do projeto — a ação onde a coisa que ela cria mora.
+ */
+describe("o + da linha do projeto", () => {
+  it("cuts a worktree from a folded project, and lands inside it", async () => {
+    // O caminho que o PRD §5 pede: com o projeto FECHADO, um clique no `+`, e
+    // cair dentro da worktree nova.
+    window.localStorage.setItem("lumem.collapsedNodes", JSON.stringify(["p1"]));
+    trpc.worktree.listByProject.query.mockResolvedValue([]);
+    trpc.worktree.create.mutate.mockImplementation(async () => {
+      trpc.worktree.listByProject.query.mockResolvedValue([worktree("wt9", "session-mode")]);
+      trpc.worktree.getDetail.query.mockResolvedValue(detail({ id: "wt9", name: "session-mode" }));
+      return worktree("wt9", "session-mode");
+    });
+
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
+
+    const tree = await screen.findByLabelText("árvore de projetos");
+    // A árvore tem cabeçalho desde a T5, então esperar por ela não é esperar
+    // pelas linhas: quem diz que a lista chegou é a linha do projeto.
+    await within(tree).findByRole("button", { name: /^lorebase/ });
+    // Fechado: nenhuma linha filha na tela.
+    expect(within(tree).queryByRole("button", { name: /^local/ })).not.toBeInTheDocument();
+
+    await user.click(within(tree).getByRole("button", { name: "nova worktree em lorebase" }));
+    await user.type(screen.getByLabelText("Nome da worktree"), "session-mode");
+    await user.click(screen.getByRole("button", { name: "criar" }));
+
+    // Expandiu o projeto e selecionou a worktree nova (F1.5).
+    expect(await within(tree).findByRole("button", { name: /^session-mode/ })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "session-mode" })).toBeInTheDocument();
+  });
+
+  it("is an action and not a navigation: it neither expands nor selects", async () => {
+    window.localStorage.setItem("lumem.collapsedNodes", JSON.stringify(["p1"]));
+    trpc.worktree.listByProject.query.mockResolvedValue([worktree("wt1", "teste")]);
+
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
+
+    const tree = await screen.findByLabelText("árvore de projetos");
+    await within(tree).findByRole("button", { name: /^lorebase/ });
+    await user.click(within(tree).getByRole("button", { name: "nova worktree em lorebase" }));
+
+    await screen.findByRole("dialog", { name: "Nova worktree" });
+    // O projeto continua fechado, e nada foi selecionado (F1.4).
+    expect(within(tree).queryByRole("button", { name: /^teste/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "teste" })).not.toBeInTheDocument();
+
+    // E cancelar não muda a seleção.
+    await user.click(screen.getByRole("button", { name: "cancelar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(within(tree).queryByRole("button", { name: /^teste/ })).not.toBeInTheDocument();
+  });
+
+  it("offers no + for a project that left the disk", async () => {
+    // F1.8: não há de onde cortar worktree.
+    trpc.project.listByWorkspace.query.mockResolvedValue([project(false)]);
+
+    renderWithProviders(<App />);
+
+    const tree = await screen.findByLabelText("árvore de projetos");
+    await within(tree).findByRole("button", { name: /^lorebase/ });
+    expect(
+      within(tree).queryByRole("button", { name: "nova worktree em lorebase" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("gives the focus back to the + it came from", async () => {
+    // O contrato do §8 do desenho: quem navega por teclado não recomeça do topo.
+    const user = userEvent.setup();
+    renderWithProviders(<App />);
+
+    const tree = await screen.findByLabelText("árvore de projetos");
+    await within(tree).findByRole("button", { name: /^lorebase/ });
+    const plus = within(tree).getByRole("button", { name: "nova worktree em lorebase" });
+    await user.click(plus);
+    await screen.findByRole("dialog", { name: "Nova worktree" });
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(plus).toHaveFocus();
   });
 });
 

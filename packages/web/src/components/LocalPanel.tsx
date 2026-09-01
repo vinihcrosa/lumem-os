@@ -6,7 +6,6 @@ import { useUsageByWorktree, USAGE_WINDOWS, type UsageWindow } from "../hooks/us
 import { projectsKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, Chip, Glyph, Item, MetaGrid, SectionHead, Skeleton } from "../ui/index.js";
-import { CreateWorktreeDialog } from "./CreateWorktreeDialog.js";
 import { ScopePanel } from "./ScopePanel.js";
 import { SpendList, type SpendRow } from "./SpendList.js";
 
@@ -133,7 +132,6 @@ export function LocalPanel({
   });
 
   const [confirming, setConfirming] = useState(false);
-  const [creating, setCreating] = useState(false);
 
   const remove = useMutation({
     mutationFn: () => trpc.project.remove.mutate({ id: projectId }),
@@ -268,22 +266,6 @@ export function LocalPanel({
 
           {available && (
             <>
-              <div className="actions">
-                {/* Provisório: o diálogo virou controlado (T3) e a ação vai
-                    embora daqui na T8 — a aba de contexto do `local` é para ler
-                    o checkout, não para criar irmãos dele (Q4). */}
-                <Button variant="primary" glyph={<Glyph>◇</Glyph>} onClick={() => setCreating(true)}>
-                  nova worktree
-                </Button>
-                <CreateWorktreeDialog
-                  projectId={projectId}
-                  projectName={project.data.name}
-                  open={creating}
-                  onClose={() => setCreating(false)}
-                  onCreated={onSelectWorktree}
-                />
-              </div>
-
               {/*
                 O consumo por worktree (`workspace-screen`, W4): a mesma linguagem
                 da tela do workspace, um nível abaixo — quem aprendeu a ler lá lê

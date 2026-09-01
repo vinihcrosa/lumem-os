@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Desenho:** `packages/web/prototype/lumem-sidebar-actions.html` — oito quadros, feitos no Open Design
 e sincronizados ([regra](../../project/design-source-of-truth.md))
-**Status:** **5 de 10.** Escopo fechado — as seis perguntas foram respondidas pelo desenho de
+**Status:** **7 de 10.** A T8 veio junto com a T6 — a razão está no fim. Escopo fechado — as seis perguntas foram respondidas pelo desenho de
 2026-09-01.
 
 ---
@@ -167,14 +167,14 @@ lista está vazia.
 **Where**: `packages/web/src/components/SidebarTree.tsx` + `worktree-ui.test.tsx`
 
 **Done when**:
-- [ ] O `+` abre o diálogo **já sabendo o projeto** (F1.3), com o projeto **fechado** ou aberto
-- [ ] Clicar nele **não** expande e **não** muda a seleção (F1.4/A4) — teste com o projeto fechado e
+- [x] O `+` abre o diálogo **já sabendo o projeto** (F1.3), com o projeto **fechado** ou aberto
+- [x] Clicar nele **não** expande e **não** muda a seleção (F1.4/A4) — teste com o projeto fechado e
       outra worktree selecionada, afirmando que a seleção continua onde estava
-- [ ] Cancelar não muda nada. Criar **expande o projeto** e **seleciona a worktree nova** (F1.5) — o
+- [x] Cancelar não muda nada. Criar **expande o projeto** e **seleciona a worktree nova** (F1.5) — o
       mesmo destino que o caminho de hoje entrega
-- [ ] Projeto `available: false` **não** oferece o `+`, e o espaço fica (F1.8/A3)
-- [ ] Nome próprio por linha: `nova worktree em <projeto>`
-- [ ] Gate: `pnpm gate:quick`
+- [x] Projeto `available: false` **não** oferece o `+`, e o espaço fica (F1.8/A3)
+- [x] Nome próprio por linha: `nova worktree em <projeto>`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): a worktree nasce do + da linha do projeto`
 
@@ -211,11 +211,11 @@ lista está vazia.
 **Where**: `packages/web/src/components/LocalPanel.tsx` + `worktree-ui.test.tsx`
 
 **Done when**:
-- [ ] O painel não monta mais o diálogo, e a `div.actions` some se não sobrar ação nenhuma nela
-- [ ] Nenhum teste passa a alcançar o formulário por dois caminhos — se um teste ainda o encontra
+- [x] O painel não monta mais o diálogo, e a `div.actions` some se não sobrar ação nenhuma nela
+- [x] Nenhum teste passa a alcançar o formulário por dois caminhos — se um teste ainda o encontra
       daqui, a task não está pronta
-- [ ] O resto do painel — caminho, branch base, consumo, lista — não muda
-- [ ] Gate: `pnpm gate:quick`
+- [x] O resto do painel — caminho, branch base, consumo, lista — não muda
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `refactor(web): a aba do local lê o checkout, e não cria irmãos dele`
 
@@ -280,3 +280,14 @@ lugar" antes de a task que a prometia chegar. A T7 fica com o clone na árvore.
 **De graça:** os testes que clicavam no botão do rodapé passaram **sem edição nenhuma**, porque o
 `+` do cabeçalho tem o mesmo nome acessível (`adicionar projeto`). Nome próprio de botão é o que faz
 mudança de lugar não virar mudança de teste.
+
+**T6 — a T8 veio junto, pelo mesmo motivo que a T5 puxou a remoção do rodapé.** Com o `+` na linha e
+o botão ainda no `LocalPanel`, dois testes do clone quebraram em
+*"Found multiple elements with the role button and name /nova worktree/"*: o `+` se chama
+`nova worktree em lorebase` e o botão do painel se chamava `nova worktree`, e a regex pegava os dois.
+Duas ações para o mesmo trabalho não sobrevivem nem a uma suíte, que dirá a um dia de uso — então a
+ação saiu do painel do `local` na mesma entrega em que nasceu na árvore.
+
+**Padrão que apareceu duas vezes:** a ponte provisória entre "o diálogo virou controlado" e "a árvore
+manda" **não** dura um commit. Nas duas vezes o que a cobrou foi a suíte, e nas duas o conserto foi
+apagar a ponte, não adiar.

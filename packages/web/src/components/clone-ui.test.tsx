@@ -456,7 +456,7 @@ describe("projeto sem commit", () => {
     const user = userEvent.setup();
     await openLocal(user, project({ hasCommits: false }));
 
-    await user.click(screen.getByRole("button", { name: /nova worktree/ }));
+    await user.click(screen.getByRole("button", { name: `nova worktree em ${project().name}` }));
 
     expect(await screen.findByText(/ainda não tem nenhum commit/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "criar" })).toBeDisabled();
@@ -466,7 +466,7 @@ describe("projeto sem commit", () => {
     const user = userEvent.setup();
     await openLocal(user, project({ hasCommits: true }));
 
-    await user.click(screen.getByRole("button", { name: /nova worktree/ }));
+    await user.click(screen.getByRole("button", { name: `nova worktree em ${project().name}` }));
 
     await screen.findByRole("dialog", { name: "Nova worktree" });
     expect(screen.queryByText(/ainda não tem nenhum commit/)).not.toBeInTheDocument();

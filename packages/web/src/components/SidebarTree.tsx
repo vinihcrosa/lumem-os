@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { useAwaitingPermission } from "../hooks/useAwaitingPermission.js";
 import { useScripts } from "../hooks/useScripts.js";
@@ -7,6 +8,7 @@ import type { TreeExpansion } from "../hooks/useTreeExpansion.js";
 import { projectsKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { EmptyState, Glyph, Row, Skeleton } from "../ui/index.js";
+import { CreateWorktreeDialog } from "./CreateWorktreeDialog.js";
 
 import "./run-dock.css";
 
@@ -45,6 +47,14 @@ export function SidebarTree(props: SidebarTreeProps) {
   });
 
   const list = projects.data ?? [];
+
+  /**
+   * De qual projeto a worktree está sendo cortada.
+   *
+   * Um diálogo para a árvore toda, e não um por linha: o que muda entre eles é
+   * só o projeto, e um `Modal` por projeto seriam N véus esperando a vez.
+   */
+  const [creatingIn, setCreatingIn] = useState<ProjectSummary | null>(null);
 
   return (
     <div className="tree" aria-label="árvore de projetos">
@@ -89,8 +99,29 @@ export function SidebarTree(props: SidebarTreeProps) {
       )}
 
       {list.map((project) => (
-        <ProjectNode key={project.id} project={project} {...props} />
+        <ProjectNode
+          key={project.id}
+          project={project}
+          onCreateWorktree={() => setCreatingIn(project)}
+          {...props}
+        />
       ))}
+
+      {creatingIn !== null && (
+        <CreateWorktreeDialog
+          projectId={creatingIn.id}
+          projectName={creatingIn.name}
+          open
+          onClose={() => setCreatingIn(null)}
+          onCreated={(worktreeId) => {
+            // F1.5: o mesmo destino que o caminho de hoje entrega. O projeto pode
+            // estar fechado — foi de uma linha fechada que o `+` foi clicado —,
+            // então abrir vem antes de selecionar.
+            props.expansion.expand(creatingIn.id);
+            props.onSelect(creatingIn.id, { scopeType: "worktree", scopeId: worktreeId });
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -106,7 +137,8 @@ function ProjectNode({
   expansion,
   selection,
   onSelect,
-}: SidebarTreeProps & { project: ProjectSummary }) {
+  onCreateWorktree,
+}: SidebarTreeProps & { project: ProjectSummary; onCreateWorktree: () => void }) {
   const expanded = expansion.isExpanded(project.id);
   const localScope: Scope = { scopeType: "project", scopeId: project.id };
 
@@ -152,6 +184,17 @@ function ProjectNode({
           // from being a target that goes nowhere.
           selected={false}
           onSelect={() => onSelect(project.id, localScope)}
+          // F1.8: um projeto sem disco não oferece o `+` — não há de onde cortar
+          // worktree —, e o espaço fica, para a coluna continuar alinhada.
+          action={
+            project.available
+              ? {
+                  label: `nova worktree em ${project.name}`,
+                  glyph: "＋",
+                  onClick: onCreateWorktree,
+                }
+              : null
+          }
         />
       </div>
 
