@@ -22,11 +22,11 @@ passo central é **instalar o tarball num runner limpo**, porque é o único que
 dinâmico, prebuild ausente e arquivo fora do pacote. A raiz ganhou `README.md` (em inglês, com
 tradução ao lado) e `LICENSE` (MIT).
 
-Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**, sem tasks ainda:
+Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas** — três sem tasks ainda:
 [sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto e worktree de onde se olha),
 [worktree-first-tab](docs/prd/worktree-first-tab/prd.md) (o cabeçalho vira a primeira aba, e o
 `▤ arquivos` sai da topbar — extraída da Fase 1 da barra da PR),
-[run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de execução nasce aberto — **desenhada** em 2026-09-01, `lumem-run-dock-open.html`, com a Q1 e a Q2 ainda abertas) e
+[run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de execução nasce aberto — **desenhada, decidida e com 4 tasks** em 2026-09-01: a altura fica em metade da janela e a coluna em 360px, o que faz a feature caber em quase uma linha) e
 [session-mode](docs/prd/session-mode/prd.md) (o modo sempre na tela, com política do Lumem quando o
 agente não tem). A nona anotação era sobre uma PR aberta que não aparece: a
 [pull-request-status](docs/prd/pull-request-status/prd.md) está desenhada e **não implementada**,

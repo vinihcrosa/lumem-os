@@ -10,28 +10,21 @@
    ========================================================================= */
 
 /* ---------------------------------------------------------------------------
-   0. a altura de leitura
+   0. a altura
    -------------------------------------------------------------------------- */
-:root {
-  /*
-   * A altura com que o rodapé NASCE — três quartos da altura de repouso de quem
-   * o abriu de propósito (`--size-dock-height`, 4×64).
-   *
-   * Ela é o menor número que responde as três perguntas da chegada: a faixa de
-   * abas (32) + a linha de estado (32) + o que sobra para a saída (~128, ou
-   * seis linhas de mono). Menos que isto e a saída vira uma fresta; mais e a
-   * árvore de arquivos deixa de ser a coisa principal da coluna.
-   *
-   * Fixa, e não fração da janela: fração é o padrão de quem PEDIU o rodapé — no
-   * monitor grande ela dá 500px de terminal a quem só queria saber a porta.
-   */
-  --size-dock-reading: calc(var(--space-64) * 3);
-}
-
-.dock--reading { height: var(--size-dock-reading); }
-
-/* Só para o quadro de comparação: o padrão de hoje, metade da coluna. */
+/*
+ * DECIDIDO em 2026-09-01: ele nasce com **metade da coluna**, que é a altura
+ * que ele já tem hoje quando alguém o abre. A altura de leitura fixa (192px)
+ * foi desenhada, comparada no quadro 3 e **recusada** — o que se ganharia em
+ * árvore não pagava um segundo número de altura no produto.
+ *
+ * Então não nasce token novo aqui: `50%` é o que o `defaultHeight()` já calcula.
+ */
 .dock--half { height: 50%; }
+
+/* Mantida só para o quadro 3, que registra a alternativa recusada ao lado da
+   decisão: comparação sem o desenho do que se comparou é afirmação. */
+.dock--reading { height: calc(var(--space-64) * 3); }
 
 /* ---------------------------------------------------------------------------
    1. a faixa que cabe em 360px
@@ -79,11 +72,14 @@
    2. a saída em 360px
    -------------------------------------------------------------------------- */
 /*
- * `white-space: pre` em 360px corta a linha do Vite no meio da URL — some
- * justamente a porta, que é a resposta. Enquanto a coluna está estreita, a
- * saída DOBRA: deixa de ser um terminal fiel e passa a ser o resumo legível de
- * um. O gesto que a promove a terminal de verdade (clicar `Terminal`, abrir o
- * rodapé, mandar rodar) é o mesmo que alarga a coluna para 640.
+ * No PRODUTO isto não é CSS: a saída do rodapé é `xterm` com `FitAddon`, e ele
+ * reflui sozinho para as colunas que tem — o daemon redimensiona o PTY junto.
+ * Numa coluna de 360px sobram ~45 colunas, e é assim que os processos são
+ * informados.
+ *
+ * Aqui a dobra é imitada em CSS só para o protótipo mostrar o que se vê. O que
+ * é decisão de verdade é o número: **45 colunas na chegada**, aceito em
+ * 2026-09-01, contra 280px do painel central que o piso de 640 custaria.
  */
 .dockout--soft .l { white-space: pre-wrap; overflow-wrap: anywhere; }
 .dockout--soft .l + .l { margin-top: var(--space-2); }
@@ -91,23 +87,6 @@
 /* A dobra é uma perda, e ela se anuncia: a última linha diz quantas ficaram
    para trás em vez de deixar a rolagem ser a única pista. */
 .dockout__more { display: block; padding-top: var(--space-6); font: var(--text-caption); color: var(--color-text-disabled); }
-
-/* ---------------------------------------------------------------------------
-   3. o vazio que ensina, na altura de leitura
-   -------------------------------------------------------------------------- */
-/*
- * O bloco de `[scripts]` do desenho original tem oito linhas de TOML e três
- * botões: ele foi feito para um rodapé de metade da janela. Em 192px, ou o
- * exemplo entra e a frase que explica sai, ou o contrário — e o que faz alguém
- * agir é a frase, não o exemplo.
- *
- * Então na chegada o exemplo fica atrás de um `ver o exemplo`, que é o mesmo
- * clique que teria aberto o rodapé — só que agora ele é opcional e não é
- * pré-requisito de entender o que está errado.
- */
-.noscripts--tight { gap: var(--space-8); padding: var(--space-12) var(--space-12); }
-.noscripts--tight .toml { display: none; }
-.noscripts--tight .noscripts__d { font: var(--text-body-sm); max-width: 56ch; }
 
 /* ---------------------------------------------------------------------------
    4. andaimes: os quadros que fazem a conta de espaço aparecer
