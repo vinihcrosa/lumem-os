@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import type { LumemMode, LumemModeDefault } from "@lumem/shared";
 
 /**
@@ -66,12 +64,19 @@ const choiceOf = (mode: LumemMode): ModeChoice =>
 
 export interface LumemModePillProps {
   mode: LumemMode;
-  /** What a new session in this workspace would start at — the menu's footer (Q5). */
-  workspaceDefault: LumemModeDefault;
   /** True while a turn runs: the daemon refuses the switch then (F1.7). */
   disabled?: boolean;
   /** A finished conversation shows the mode it was in, and offers nothing (F1.8). */
   readOnly?: boolean;
+  /** Whether the menu — rendered by the composer, not here — is open. */
+  open?: boolean;
+  onToggle(): void;
+}
+
+export interface LumemModeMenuProps {
+  mode: LumemMode;
+  /** What a new session in this workspace would start at — the menu's footer (Q5). */
+  workspaceDefault: LumemModeDefault;
   onSwitch(mode: LumemMode): void;
   /**
    * `free` was chosen and has **not** been applied.
@@ -83,15 +88,26 @@ export interface LumemModePillProps {
   onFreeRequested(): void;
 }
 
+/**
+ * A pílula, e só ela.
+ *
+ * O menu **não** mora aqui, e a razão é layout: `.composer__box` tem
+ * `overflow: hidden` — ele recorta os cantos arredondados da caixa —, então todo
+ * popover que abre para cima e é mais alto que a própria caixa é cortado. Os
+ * menus de hoje (`.slash`) sobrevivem por acidente: eles são curtos e caem dentro
+ * da altura da caixa. Este tem 326px e não cabe.
+ *
+ * Foi o e2e que cobrou, e só ele podia: jsdom não faz layout, então o teste de
+ * componente clica alegremente num elemento que no navegador está coberto pela
+ * conversa.
+ */
 export function LumemModePill({
   mode,
-  workspaceDefault,
   disabled = false,
   readOnly = false,
-  onSwitch,
-  onFreeRequested,
+  open = false,
+  onToggle,
 }: LumemModePillProps) {
-  const [open, setOpen] = useState(false);
   const current = choiceOf(mode);
 
   /*
@@ -113,91 +129,96 @@ export function LumemModePill({
   }
 
   return (
-    <span className="config">
-      <button
-        type="button"
-        className={`pill ${current.tone} focus-ring`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        // The glyph is `aria-hidden`, so the ownership has to live in a word: a
-        // screen reader hearing "lozenge" learns nothing about whose rule this is.
-        aria-label={`regra do Lumem: ${current.label}`}
-        disabled={disabled}
-        title={
-          disabled
-            ? "não dá para trocar no meio de um turno"
-            : "regra do Lumem — este agente não oferece modos"
-        }
-        onClick={() => setOpen(!open)}
-      >
-        <span className="pill__own" aria-hidden="true">
-          ◈
-        </span>
-        {current.label}
-        <span className="pill__caret" aria-hidden="true">
-          ▾
-        </span>
-      </button>
+    <button
+      type="button"
+      className={`pill ${current.tone} focus-ring`}
+      aria-haspopup="menu"
+      aria-expanded={open}
+      // The glyph is `aria-hidden`, so the ownership has to live in a word: a
+      // screen reader hearing "lozenge" learns nothing about whose rule this is.
+      aria-label={`regra do Lumem: ${current.label}`}
+      disabled={disabled}
+      title={
+        disabled
+          ? "não dá para trocar no meio de um turno"
+          : "regra do Lumem — este agente não oferece modos"
+      }
+      onClick={onToggle}
+    >
+      <span className="pill__own" aria-hidden="true">
+        ◈
+      </span>
+      {current.label}
+      <span className="pill__caret" aria-hidden="true">
+        ▾
+      </span>
+    </button>
+  );
+}
 
-      {open && (
-        <div className="mmenu" role="menu" aria-label="regra do Lumem">
-          {/*
-            The header is where ownership becomes a sentence instead of a riddle.
-            Without it the glyph explains nothing, and someone switching this
-            believes they put the agent in plan mode when all they changed was who
-            answers the permission request.
-          */}
-          <div className="mmenu__head">
-            <div className="mmenu__who">
-              <span aria-hidden="true">◈</span>Regra do Lumem
-            </div>
-            <div className="mmenu__why">
-              este agente não relatou modos. O que muda aqui é <b>o que o daemon responde</b> a um
-              pedido de permissão — o agente não fica sabendo.
-            </div>
-          </div>
-
-          {CHOICES.map((choice) => (
-            <button
-              type="button"
-              role="menuitemradio"
-              aria-checked={choice.value === mode}
-              className={`mopt focus-ring${choice.value === mode ? " mopt--on" : ""}${
-                choice.value === "auto" ? " mopt--auto" : ""
-              }${choice.value === "free" ? " mopt--free" : ""}`}
-              key={choice.value}
-              onClick={() => {
-                setOpen(false);
-                if (choice.value === "free") {
-                  onFreeRequested();
-                  return;
-                }
-                onSwitch(choice.value);
-              }}
-            >
-              <span className="mopt__t">
-                {choice.label}
-                {choice.value === mode && (
-                  <span className="mopt__mark" aria-hidden="true">
-                    ✓
-                  </span>
-                )}
-              </span>
-              <span className="mopt__d">{choice.description}</span>
-            </button>
-          ))}
-
-          {/*
-            Where the current value came from (Q5). The mode is the session's, and
-            its default is the workspace's — inheriting without being able to
-            diverge would be global policy, and diverging without inheriting would
-            mean choosing again in every new conversation.
-          */}
-          <div className="mmenu__foot">
-            padrão do workspace: <b>{choiceOf(workspaceDefault).label.toLowerCase()}</b>
-          </div>
+/**
+ * O menu dos três valores, ancorado no `.composer` e não na pílula.
+ *
+ * Ele é onde a autoria vira **frase** em vez de charada: sem o cabeçalho, o glifo
+ * `◈` não explica nada, e alguém que troque isto acredita ter posto o agente em
+ * modo plano quando só mudou quem responde ao pedido de permissão.
+ */
+export function LumemModeMenu({
+  mode,
+  workspaceDefault,
+  onSwitch,
+  onFreeRequested,
+}: LumemModeMenuProps) {
+  return (
+    <div className="mmenu" role="menu" aria-label="regra do Lumem">
+      <div className="mmenu__head">
+        <div className="mmenu__who">
+          <span aria-hidden="true">◈</span>Regra do Lumem
         </div>
-      )}
-    </span>
+        <div className="mmenu__why">
+          este agente não relatou modos. O que muda aqui é <b>o que o daemon responde</b> a um
+          pedido de permissão — o agente não fica sabendo.
+        </div>
+      </div>
+
+      {CHOICES.map((choice) => (
+        <button
+          type="button"
+          role="menuitemradio"
+          aria-checked={choice.value === mode}
+          className={`mopt focus-ring${choice.value === mode ? " mopt--on" : ""}${
+            choice.value === "auto" ? " mopt--auto" : ""
+          }${choice.value === "free" ? " mopt--free" : ""}`}
+          key={choice.value}
+          onClick={() => {
+            if (choice.value === "free") {
+              onFreeRequested();
+              return;
+            }
+            onSwitch(choice.value);
+          }}
+        >
+          <span className="mopt__t">
+            {choice.label}
+            {choice.value === mode && (
+              <span className="mopt__mark" aria-hidden="true">
+                ✓
+              </span>
+            )}
+          </span>
+          <span className="mopt__d">{choice.description}</span>
+        </button>
+      ))}
+
+      {/*
+        Where the current value came from (Q5). The mode is the session's, and
+        its default is the workspace's — inheriting without being able to diverge
+        would be global policy, and diverging without inheriting would mean
+        choosing again in every new conversation.
+      */}
+      <div className="mmenu__foot">
+        padrão do workspace: <b>{choiceOf(workspaceDefault).label.toLowerCase()}</b>
+      </div>
+    </div>
   );
 }

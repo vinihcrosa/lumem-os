@@ -409,7 +409,11 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   }
 
   // The answer to one of our own requests, rather than a call to us.
-  if (message.id === "perm-1" && message.result) {
+  // Prefixo, e não igualdade: o turno pede permissão mais de uma vez desde a
+  // `session-mode` (`perm-read` antes de `perm-1`), e casar o id exato deixava o
+  // fake pendurado no primeiro pedido — o turno parava e o e2e via um cartão
+  // eternamente "na fila".
+  if (typeof message.id === "string" && message.id.startsWith("perm-") && message.result) {
     resolvePermission?.(message.result.outcome);
     resolvePermission = null;
     return;

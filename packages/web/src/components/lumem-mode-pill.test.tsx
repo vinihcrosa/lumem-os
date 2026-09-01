@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { LumemModePill } from "./LumemModePill.js";
+import { LumemModeMenu, LumemModePill } from "./LumemModePill.js";
 
 /**
  * A pílula que nunca falta (`session-mode`, T2 e T3).
@@ -15,10 +15,23 @@ import { LumemModePill } from "./LumemModePill.js";
  */
 
 function pill(props: Partial<Parameters<typeof LumemModePill>[0]> = {}) {
+  const onToggle = vi.fn();
+  render(<LumemModePill mode="ask" onToggle={onToggle} {...props} />);
+  return { onToggle };
+}
+
+/**
+ * O menu, montado sozinho.
+ *
+ * Separado da pílula porque no app ele é separado: `.composer__box` recorta
+ * popover mais alto que ele, então o menu nasce como filho do `.composer`. O
+ * teste monta o que o app monta.
+ */
+function menu(props: Partial<Parameters<typeof LumemModeMenu>[0]> = {}) {
   const onSwitch = vi.fn();
   const onFreeRequested = vi.fn();
   render(
-    <LumemModePill
+    <LumemModeMenu
       mode="ask"
       workspaceDefault="ask"
       onSwitch={onSwitch}
@@ -78,48 +91,53 @@ describe("a pílula do modo do Lumem", () => {
     expect(screen.getByText(/Liberado/)).toBeInTheDocument();
   });
 
-  describe("o menu", () => {
-    it("diz de quem é a regra, e por quê", async () => {
-      // Sem o cabeçalho o glifo é charada (§2 do desenho).
-      pill();
-      await userEvent.click(screen.getByRole("button", { name: /regra do Lumem/i }));
+  it("abre o menu pela pílula, e o menu é do composer", async () => {
+    const { onToggle } = pill();
+    await userEvent.click(screen.getByRole("button", { name: /regra do Lumem/i }));
 
-      expect(screen.getByText(/Regra do Lumem/)).toBeInTheDocument();
-      expect(screen.getByText(/não relatou modos/i)).toBeInTheDocument();
-    });
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    // O menu **não** nasce aqui: ele é filho do `.composer`, fora da caixa que
+    // recorta. A pílula só avisa que foi clicada.
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+});
 
-    it("descreve o que cada valor faz, e o automático diz que deixa rastro", async () => {
-      pill();
-      await userEvent.click(screen.getByRole("button", { name: /regra do Lumem/i }));
+describe("o menu do modo do Lumem", () => {
+  it("diz de quem é a regra, e por quê", () => {
+    // Sem o cabeçalho o glifo é charada (§2 do desenho).
+    menu();
 
-      expect(screen.getByRole("menuitemradio", { name: /Perguntar tudo/ })).toBeChecked();
-      expect(screen.getByText(/aparece na conversa/i)).toBeInTheDocument();
-    });
+    expect(screen.getByText(/Regra do Lumem/)).toBeInTheDocument();
+    expect(screen.getByText(/não relatou modos/i)).toBeInTheDocument();
+  });
 
-    it("troca o modo ao escolher", async () => {
-      const { onSwitch } = pill();
-      await userEvent.click(screen.getByRole("button", { name: /regra do Lumem/i }));
-      await userEvent.click(screen.getByRole("menuitemradio", { name: /Automático/ }));
+  it("descreve o que cada valor faz, e o automático diz que deixa rastro", () => {
+    menu();
 
-      expect(onSwitch).toHaveBeenCalledWith("auto");
-    });
+    expect(screen.getByRole("menuitemradio", { name: /Perguntar tudo/ })).toBeChecked();
+    expect(screen.getByText(/aparece na conversa/i)).toBeInTheDocument();
+  });
 
-    it("não troca para liberado direto: pede o portão", async () => {
-      // O modo perigoso não muda no clique. Ele pede a confirmação da T10, e é o
-      // portão que troca — senão o portão seria decoração depois do fato (Q4).
-      const { onSwitch, onFreeRequested } = pill();
-      await userEvent.click(screen.getByRole("button", { name: /regra do Lumem/i }));
-      await userEvent.click(screen.getByRole("menuitemradio", { name: /Liberado/ }));
+  it("troca o modo ao escolher", async () => {
+    const { onSwitch } = menu();
+    await userEvent.click(screen.getByRole("menuitemradio", { name: /Automático/ }));
 
-      expect(onSwitch).not.toHaveBeenCalled();
-      expect(onFreeRequested).toHaveBeenCalled();
-    });
+    expect(onSwitch).toHaveBeenCalledWith("auto");
+  });
 
-    it("mostra o padrão do workspace, que é de onde o valor veio", async () => {
-      pill({ workspaceDefault: "auto" });
-      await userEvent.click(screen.getByRole("button", { name: /regra do Lumem/i }));
+  it("não troca para liberado direto: pede o portão", async () => {
+    // O modo perigoso não muda no clique. Ele pede a confirmação da T10, e é o
+    // portão que troca — senão o portão seria decoração depois do fato (Q4).
+    const { onSwitch, onFreeRequested } = menu();
+    await userEvent.click(screen.getByRole("menuitemradio", { name: /Liberado/ }));
 
-      expect(screen.getByText(/padrão do workspace/i)).toHaveTextContent(/automático/i);
-    });
+    expect(onSwitch).not.toHaveBeenCalled();
+    expect(onFreeRequested).toHaveBeenCalled();
+  });
+
+  it("mostra o padrão do workspace, que é de onde o valor veio", () => {
+    menu({ workspaceDefault: "auto" });
+
+    expect(screen.getByText(/padrão do workspace/i)).toHaveTextContent(/automático/i);
   });
 });

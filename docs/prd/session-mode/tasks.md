@@ -280,6 +280,21 @@ o que passa, sob um modo que nenhum dos dois combinou. A `modeOwnerOf` passou a 
 a tabela velha para a nova listava `lumem_mode` e `default_lumem_mode` no `SELECT`, e as duas só
 passam a existir naquela migração. Os dois viraram o literal `'ask'`.
 
+**`.composer__box { overflow: hidden }` recortava os dois popovers novos.** O menu do modo tem 326px
+e o portão tem uns 300; a caixa do composer tem ~100. Os menus curtos de hoje (`.slash`) sobrevivem
+**por acidente** — eles caem dentro da altura da caixa. Os dois desta feature apareciam na tela e o
+clique ia para a conversa.
+
+> Foi o **e2e** que cobrou, e só ele podia: jsdom não faz layout, então o teste de componente clicava
+> alegremente num elemento que no navegador estava coberto. A correção separou `LumemModePill` de
+> `LumemModeMenu` e pôs o menu e o portão como filhos do `.composer`, fora da caixa que recorta.
+> **O `.slash` continua vulnerável** ao mesmo problema — um menu de modo com seis opções longas
+> passaria da altura da caixa. Fora de escopo aqui, e anotado.
+
+**O fake do e2e casava o id da permissão por igualdade.** Ele só reconhecia `perm-1`, então o segundo
+pedido do turno (`perm-read`) deixava o adaptador pendurado — turno parado, cartão eternamente "na
+fila". Virou prefixo.
+
 **O audit de CSS pegou `.vh`.** O protótipo chama a classe de texto-só-para-leitor-de-tela de
 `.vh`; o app chama de `.sr-only`, e é o `.sr-only` que existe no `base.css`. Portar copiando o
 nome do protótipo teria deixado *"regra do Lumem:"* **visível** na barra do composer. O audit

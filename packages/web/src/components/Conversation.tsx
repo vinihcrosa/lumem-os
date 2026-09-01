@@ -16,7 +16,7 @@ import { trpc } from "../lib/trpc.js";
 import { Banner, Button, Coach, Glyph } from "../ui/index.js";
 import { ConfigPills } from "./ConfigPills.js";
 import { FreeModeGate } from "./FreeModeGate.js";
-import { LumemModePill } from "./LumemModePill.js";
+import { LumemModeMenu, LumemModePill } from "./LumemModePill.js";
 import { Message, Thought, TurnFrame } from "./Message.js";
 import { PermissionRequest } from "./PermissionRequest.js";
 import { useFirstPermissionCoach, type FirstPermissionCoach } from "../hooks/useFirstPermissionCoach.js";
@@ -179,6 +179,13 @@ export function Conversation({
    * alguém já viu o portão é o primeiro passo para ele deixar de ser portão.
    */
   const [gateOpen, setGateOpen] = useState(false);
+  /*
+   * O menu do modo do Lumem, aberto.
+   *
+   * Mora aqui, e não na pílula, porque o MENU mora aqui: `.composer__box` tem
+   * `overflow: hidden` e recorta qualquer popover mais alto que ele.
+   */
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [openThoughts, setOpenThoughts] = useState<ReadonlySet<string>>(new Set());
   const socketRef = useRef<ReturnType<AcpConnect> | null>(null);
   const awaiting = useAwaitingPermission();
@@ -473,6 +480,39 @@ export function Conversation({
       {conversation.usage && <UsageFooter usage={conversation.usage} />}
 
       <div className="composer">
+        {/*
+          O menu e o portão nascem aqui, FORA do `.composer__box`.
+
+          A caixa tem `overflow: hidden` para recortar os cantos arredondados, e
+          isso corta todo popover mais alto que ela — o que os menus curtos de hoje
+          não notam e os dois desta feature notaram na primeira abertura num
+          navegador de verdade. Ancorá-los no `.composer` é o que faz o clique
+          chegar neles.
+        */}
+        {conversation.modeOwner === "lumem" && modeMenuOpen && !readOnly && (
+          <LumemModeMenu
+            mode={conversation.lumemMode}
+            workspaceDefault={conversation.lumemModeDefault}
+            onSwitch={(mode) => {
+              setModeMenuOpen(false);
+              socketRef.current?.send({ type: "set_lumem_mode", mode });
+            }}
+            onFreeRequested={() => {
+              setModeMenuOpen(false);
+              setGateOpen(true);
+            }}
+          />
+        )}
+        {gateOpen && (
+          <FreeModeGate
+            cwd={session?.cwd ?? ""}
+            onCancel={() => setGateOpen(false)}
+            onConfirm={() => {
+              setGateOpen(false);
+              socketRef.current?.send({ type: "set_lumem_mode", mode: "free" });
+            }}
+          />
+        )}
         <div className="composer__box">
           {/*
             Above the box, anchored to it. The list is the agent's own (F2.8), and
@@ -540,20 +580,9 @@ export function Conversation({
               `mode`, então a pílula é do Lumem" seria uma segunda cópia da regra,
               livre para discordar da primeira.
             */}
-            {gateOpen && (
-              <FreeModeGate
-                cwd={session?.cwd ?? ""}
-                onCancel={() => setGateOpen(false)}
-                onConfirm={() => {
-                  setGateOpen(false);
-                  socketRef.current?.send({ type: "set_lumem_mode", mode: "free" });
-                }}
-              />
-            )}
             {conversation.modeOwner === "lumem" && (
               <LumemModePill
                 mode={conversation.lumemMode}
-                workspaceDefault={conversation.lumemModeDefault}
                 /*
                  * Desligada no meio do turno (F1.7) e sem daemon.
                  *
@@ -564,8 +593,8 @@ export function Conversation({
                  */
                 disabled={conversation.streaming || !attached}
                 readOnly={readOnly}
-                onSwitch={(mode) => socketRef.current?.send({ type: "set_lumem_mode", mode })}
-                onFreeRequested={() => setGateOpen(true)}
+                open={modeMenuOpen}
+                onToggle={() => setModeMenuOpen(!modeMenuOpen)}
               />
             )}
             <ConfigPills

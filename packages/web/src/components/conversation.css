@@ -468,7 +468,24 @@
 }
 
 /* ------------------------------------------------------------ o composer */
-.composer { flex: none; padding: var(--space-12) var(--space-20) var(--space-16); }
+/*
+ * O composer estabelece contexto de empilhamento, e fica ACIMA da conversa.
+ *
+ * Sem isto, todo popover que abre para cima — o menu do modo do Lumem e o portão
+ * do `liberado` — renderiza atrás do `.conv__scroll`: ele aparece na tela, e o
+ * clique vai para a conversa. Foi o e2e que cobrou, e só ele podia: jsdom não faz
+ * layout, então o teste de componente clica num elemento que no navegador está
+ * coberto.
+ *
+ * `z-index` no `.composer` e não em cada popover: um índice por popover é uma
+ * corrida que o próximo popover perde.
+ */
+.composer {
+  flex: none;
+  position: relative;
+  z-index: 1;
+  padding: var(--space-12) var(--space-20) var(--space-16);
+}
 .composer__box { background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); overflow: hidden; }
 .composer__box--focus { border-color: var(--color-border-focus); }
 /*
@@ -578,9 +595,17 @@
  * exatamente onde ela diz o que passa sozinho.
  */
 .mmenu {
+  /*
+   * Ancorado no `.composer`, e não na pílula.
+   *
+   * A pílula vive dentro do `.composer__box`, que tem `overflow: hidden` para
+   * recortar os cantos arredondados — e isso corta este menu inteiro, que tem
+   * 326px e não cabe na altura da caixa. Os menus curtos de hoje (`.slash`)
+   * sobrevivem por acidente: eles caem dentro dela.
+   */
   position: absolute;
-  bottom: calc(100% + var(--space-6));
-  left: 0;
+  bottom: 100%;
+  left: var(--space-20);
   z-index: 1;
   width: var(--size-menu-width);
   background: var(--color-bg-raised);
@@ -631,9 +656,10 @@
  * o botão que confirma é `btn--danger` e não o primário.
  */
 .gate {
+  /* Mesmo motivo do `.mmenu`: fora da caixa que recorta. */
   position: absolute;
-  bottom: calc(100% + var(--space-6));
-  left: 0;
+  bottom: 100%;
+  left: var(--space-20);
   z-index: 2;
   width: var(--size-dialog-width);
   display: grid;
