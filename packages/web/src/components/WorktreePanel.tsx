@@ -66,6 +66,14 @@ export function WorktreePanel({
     queryFn: () => trpc.worktree.getDetail.query({ id: worktreeId }),
   });
 
+  // A mesma chave da sidebar, então o nome do checkout durante o carregamento
+  // custa uma leitura de cache e nenhuma chamada a mais.
+  const listed = useQuery({
+    queryKey: worktreesKey(projectId),
+    queryFn: () => trpc.worktree.listByProject.query({ projectId }),
+  });
+  const known = listed.data?.find((worktree) => worktree.id === worktreeId);
+
   // Same key the local panel uses, so the crumb costs a cache read.
   const project = useQuery({
     queryKey: ["project", "get", projectId],
@@ -80,11 +88,73 @@ export function WorktreePanel({
     },
   });
 
-  if (detail.isPending) {
+  const scope: Scope = { scopeType: "worktree", scopeId: worktreeId };
+
+  /**
+   * O caminho, com a branch quando ela não é o nome do checkout (Q1, B′).
+   *
+   * Função porque os dois estados degradados também precisam dele, e um deles
+   * — o `getDetail` em voo — não tem `detail` nenhum para ler.
+   */
+  function crumb(here: string, branchName: string) {
     return (
-      <div className="pane">
-        <Skeleton label="carregando a worktree" />
-      </div>
+      <nav className="crumb">
+        {/* Todo segmento menos o último navega. O último é onde você está. */}
+        <button type="button" className="crumb__up focus-ring" onClick={onOpenWorkspace}>
+          {workspaceName}
+        </button>
+        <span className="crumb__sep" aria-hidden="true">
+          /
+        </span>
+        <button type="button" className="crumb__up focus-ring" onClick={onOpenProject}>
+          {project.data?.name ?? "…"}
+        </button>
+        <span className="crumb__sep" aria-hidden="true">
+          /
+        </span>
+        <span className="crumb__here">{here}</span>
+        {branchName !== here && <span className="crumb__branch">{branchName}</span>}
+      </nav>
+    );
+  }
+
+  if (detail.isPending) {
+    // A aba continua existindo enquanto o daemon responde: ela é a única que
+    // não fecha, e uma aba fixa que aparece meio segundo depois é uma faixa que
+    // muda de forma sozinha. O nome e o glifo vêm da lista que a sidebar já
+    // carregou — são conhecidos antes do `getDetail`, então o título nasce
+    // escrito e só o que depende dele espera.
+    //
+    // E **sem ponto**: ponto ausente já quer dizer "limpa", e chutar limpo por
+    // meio segundo é dizer a coisa errada com confiança.
+    if (known === undefined) {
+      return (
+        <div className="pane">
+          <Skeleton label="carregando a worktree" />
+        </div>
+      );
+    }
+    return (
+      <ScopePanel
+        scope={scope}
+        cwd={known.path}
+        openSessionId={openSessionId}
+        initialPrompt={initialPrompt}
+        filesPanel={filesPanel}
+        crumb={crumb(known.name, known.branch)}
+        checkout={{ name: known.name, glyph: <Glyph tone="worktree">◇</Glyph> }}
+        context={
+          <>
+            <div className="detail__title">
+              <h2>
+                <Glyph tone="worktree">◇</Glyph> {known.name}
+              </h2>
+              <span className="detail__kind">worktree</span>
+            </div>
+            <Skeleton label="carregando a worktree" />
+          </>
+        }
+      />
     );
   }
   if (detail.isError) {
@@ -100,7 +170,6 @@ export function WorktreePanel({
   const gone = !present || state === "missing";
   /** Quantos arquivos sujos, ou `null` quando não há sujeira a reportar. */
   const dirty = gone || status === null || status.clean ? null : status.changedFiles;
-  const scope: Scope = { scopeType: "worktree", scopeId: worktreeId };
 
   return (
     <ScopePanel
@@ -109,36 +178,7 @@ export function WorktreePanel({
       openSessionId={openSessionId}
       initialPrompt={initialPrompt}
       filesPanel={filesPanel}
-      crumb={
-        <nav className="crumb">
-          {/* Todo segmento menos o último navega. O último é onde você está. */}
-          <button type="button" className="crumb__up focus-ring" onClick={onOpenWorkspace}>
-            {workspaceName}
-          </button>
-          <span className="crumb__sep" aria-hidden="true">
-            /
-          </span>
-          <button type="button" className="crumb__up focus-ring" onClick={onOpenProject}>
-            {project.data?.name ?? "…"}
-          </button>
-          <span className="crumb__sep" aria-hidden="true">
-            /
-          </span>
-          {/*
-            Q1, leitura B′. Com uma aba de sessão na frente, a branch sai da
-            tela — e o caminho é o que sobra dizendo onde você está. Ele escreve
-            o NOME do checkout, que no caminho comum é a mesma string da branch:
-            imprimir as duas seria imprimir uma duas vezes.
-
-            Quando elas divergem — worktree importada, ou clonada de fora — o
-            nome deixa de responder "qual branch", e aí a branch entra. É a
-            mesma regra que a sidebar já aplica na linha da worktree, e mantê-la
-            aqui é o que impede a promessa de valer só no caso fácil.
-          */}
-          <span className="crumb__here">{name}</span>
-          {branch !== name && <span className="crumb__branch">{branch}</span>}
-        </nav>
-      }
+      crumb={crumb(name, branch)}
       checkout={{
         name,
         glyph: <Glyph tone={gone ? "warn" : "worktree"}>{gone ? "⚠" : "◇"}</Glyph>,
@@ -239,7 +279,12 @@ export function WorktreePanel({
                   </>
                 ),
               },
-              {
+              // Sem diretório não há o que comparar nem o que contar: some o
+              // que deixou de ser verdade, fica o que ainda é — a branch, o
+              // caminho, e o caminho é justamente como se confere.
+              ...(gone
+                ? []
+                : [{
                 label: `em relação a ${baseBranch}`,
                 value:
                   aheadBehind === null ? (
@@ -253,7 +298,7 @@ export function WorktreePanel({
                       </span>
                     </>
                   ),
-              },
+              }]),
               {
                 label: "estado",
                 value: gone ? (
@@ -275,10 +320,12 @@ export function WorktreePanel({
               },
               // Inteiro e copiável, que é a razão de a aba existir.
               { label: "caminho", value: <CopyablePath path={path} /> },
-              {
-                label: "criada",
-                value: <span className="dim">{relativeAge(createdAt)}</span>,
-              },
+              ...(gone
+                ? []
+                : [{
+                    label: "criada",
+                    value: <span className="dim">{relativeAge(createdAt)}</span>,
+                  }]),
             ]}
           />
           <p className="detail__hint">a branch não é apagada</p>

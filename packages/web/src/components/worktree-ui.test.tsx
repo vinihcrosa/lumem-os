@@ -273,10 +273,20 @@ describe("worktree detail", () => {
     // A warning, not an alert: nothing the user just did caused this, and it
     // is already true when the panel opens.
     expect(await screen.findByRole("status")).toHaveTextContent("O diretório não está em");
-    expect(screen.getByText("ausente do disco")).toBeInTheDocument();
-    // The registration still says which branch it was, so removing it is a
-    // decision the user can make with the facts in front of them.
-    expect(screen.getByText("desconhecido")).toBeInTheDocument();
+    const panel = screen.getByRole("tabpanel", { name: "teste" });
+    expect(within(panel).getByText("ausente do disco")).toBeInTheDocument();
+    // The registration still says which branch it was, and where it was, so
+    // removing it is a decision the user can make with the facts in front of
+    // them. What stopped being true goes away instead of saying "desconhecido"
+    // in three rows: with no directory there is nothing to compare or count.
+    expect(within(panel).getByText("branch")).toBeInTheDocument();
+    // Duas vezes na tela de propósito: o aviso diz onde ele NÃO está, a grade
+    // diz onde o registro aponta. Esta asserção é a da grade.
+    expect(panel.querySelector(".path__value")).toHaveTextContent(
+      "/home/.lumem/worktrees/lorebase/teste",
+    );
+    expect(within(panel).queryByText(/em relação a/)).not.toBeInTheDocument();
+    expect(within(panel).queryByText("criada")).not.toBeInTheDocument();
   });
 });
 

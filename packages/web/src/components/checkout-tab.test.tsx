@@ -97,6 +97,51 @@ async function selectWorktree(user: ReturnType<typeof userEvent.setup>): Promise
   await user.click(await within(tree).findByRole("button", { name: /^teste/ }));
 }
 
+describe("os dois estados que a aba herda", () => {
+  it("mantém a aba enquanto o daemon não respondeu, e não chuta o ponto", async () => {
+    // A única aba que não fecha não pode aparecer meio segundo depois: seria
+    // uma faixa que muda de forma sozinha. Nome e glifo vêm da lista que a
+    // sidebar já carregou, então o título nasce escrito.
+    const user = userEvent.setup();
+    let answer: (value: unknown) => void = () => {};
+    trpc.worktree.getDetail.query.mockImplementation(
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+
+    await selectWorktree(user);
+
+    const tab = await screen.findByRole("tab", { name: "teste" });
+    expect(tab).toHaveTextContent("◇");
+    // Ponto ausente já quer dizer "limpa"; chutar limpo por meio segundo é
+    // dizer a coisa errada com confiança.
+    expect(tab.querySelector(".tab-item__dot")).toBeNull();
+    expect(await screen.findByLabelText("carregando a worktree")).toBeInTheDocument();
+
+    answer(detail({ status: { clean: false, changedFiles: 2 } }));
+    expect(
+      await screen.findByRole("tab", { name: "teste árvore suja · 2 arquivos" }),
+    ).toBeInTheDocument();
+  });
+
+  it("troca o glifo da aba quando a worktree sumiu do disco, e não põe ponto", async () => {
+    // Não há árvore para estar suja.
+    const user = userEvent.setup();
+    const missing = { ...WORKTREE, state: "missing" as const };
+    trpc.worktree.listByProject.query.mockResolvedValue([missing]);
+    trpc.worktree.getDetail.query.mockResolvedValue(
+      detail({ ...missing, status: null, aheadBehind: null }),
+    );
+
+    await selectWorktree(user);
+
+    const tab = await screen.findByRole("tab", { name: "teste" });
+    expect(tab).toHaveTextContent("⚠");
+    expect(tab.querySelector(".tab-item__dot")).toBeNull();
+    // E ela continua sem `✕`: o estado degradado não muda de quem ela é.
+    expect(screen.queryByRole("button", { name: "fechar teste" })).not.toBeInTheDocument();
+  });
+});
+
 describe("o interruptor da coluna de arquivos", () => {
   it("mora na faixa de abas do checkout, e não na topbar", async () => {
     // A coluna é de um checkout. Um interruptor global para algo que só existe
