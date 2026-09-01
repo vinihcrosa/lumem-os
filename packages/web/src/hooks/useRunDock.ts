@@ -48,8 +48,26 @@ export function clampHeight(height: number, viewport = window.innerHeight): numb
   return Math.min(maxHeight(viewport), Math.max(RUN_DOCK_MIN_HEIGHT, Math.round(height)));
 }
 
+/**
+ * De onde o `open` cai quando ninguém escolheu ainda.
+ *
+ * **Aberto.** Nascia fechado, e a primeira coisa que se fazia ao entrar num
+ * checkout era abri-lo — para responder *"minha aplicação está de pé, e em que
+ * porta?"*, que é a primeira pergunta de quem chega numa worktree, não a décima.
+ *
+ * O motivo antigo era o custo, e ele foi medido antes de a decisão mudar: metade
+ * da coluna deixa a árvore de arquivos com 11 das 16 linhas, e a coluna da direita
+ * fica nos 360px — o piso de 640 se aplica só no `toggle` (`App.tsx`), e chegar
+ * não é `toggle`. Ninguém perde um terço da tela por isso.
+ *
+ * A **altura** não mudou junto: continua metade da janela. Uma altura de leitura
+ * fixa (192px) foi desenhada e recusada — comprava três linhas de árvore, e
+ * custava um segundo número de altura no produto.
+ */
+const DEFAULT_OPEN = true;
+
 function read(): Stored {
-  const fallback: Stored = { open: false, height: defaultHeight() };
+  const fallback: Stored = { open: DEFAULT_OPEN, height: defaultHeight() };
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw === null) return fallback;
@@ -87,8 +105,9 @@ export interface RunDockState {
 /**
  * Se o rodapé está aberto e quão alto — lembrado entre recargas.
  *
- * Fechado na primeira vez, como a coluna de arquivos: quem nunca pediu não perde
- * um terço da tela para ele.
+ * **Aberto** na primeira vez, com metade da coluna: ver `DEFAULT_OPEN`. A
+ * preferência gravada sempre ganha do padrão — o padrão é o primeiro contato, e
+ * não uma regra que sobrepõe a pessoa.
  */
 export function useRunDock(): RunDockState {
   const [state, setState] = useState<Stored>(read);
