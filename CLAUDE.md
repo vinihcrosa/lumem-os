@@ -22,15 +22,21 @@ passo central é **instalar o tarball num runner limpo**, porque é o único que
 dinâmico, prebuild ausente e arquivo fora do pacote. A raiz ganhou `README.md` (em inglês, com
 tradução ao lado) e `LICENSE` (MIT).
 
-Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**, sem tasks ainda:
+Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas** —
 [sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto e worktree de onde se olha),
-[worktree-first-tab](docs/prd/worktree-first-tab/prd.md) (o cabeçalho vira a primeira aba, e o
-`▤ arquivos` sai da topbar — extraída da Fase 1 da barra da PR),
+[worktree-first-tab](docs/prd/worktree-first-tab/prd.md),
 [run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de execução nasce aberto) e
 [session-mode](docs/prd/session-mode/prd.md) (o modo sempre na tela, com política do Lumem quando o
-agente não tem). A nona anotação era sobre uma PR aberta que não aparece: a
+agente não tem). A nona era sobre uma PR aberta que não aparece: a
 [pull-request-status](docs/prd/pull-request-status/prd.md) está desenhada e **não implementada**,
 travada na Q1.
+
+A [worktree-first-tab](docs/prd/worktree-first-tab/prd.md) está **completa** — 9 tasks, 5 perguntas
+respondidas. A coluna do meio é **caminho → abas → conteúdo**: o cabeçalho fixo do checkout virou a
+**primeira aba** (fixa, sem `✕`, com o ponto de sujeira que sobrevive a outra aba estar na frente), e o
+`▤ arquivos` saiu da topbar para a faixa de abas do checkout. Ela reverte, com o motivo escrito, a W4
+da [worktree-tabs](docs/prd/worktree-tabs/tasks.md) — e o e2e provou de graça o que a mudança cobra:
+com a conversa na frente, o nome da worktree só existe na aba.
 
 Comece pelo [índice da documentação](docs/README.md).
 

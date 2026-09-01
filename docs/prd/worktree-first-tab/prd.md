@@ -1,10 +1,9 @@
 # PRD — A worktree vira a primeira aba, e leva os arquivos junto
 
-> **Status:** v0.1 — a estrutura vem do desenho já aprovado da
-> [pull-request-status](../pull-request-status/prd.md) §2.1; o que este PRD acrescenta é o botão
-> `▤ arquivos`. Nada implementado
-> **Perguntas:** [open-questions.md](open-questions.md)
-> **Tasks:** [tasks.md](tasks.md) — 9 tasks em 4 fases, nenhuma iniciada
+> **Status:** **completa** (2026-09-01) — 9 tasks em 4 fases, as cinco perguntas respondidas, e a
+> suíte de e2e passando de 53 para 56
+> **Perguntas:** [open-questions.md](open-questions.md) — 5 de 5 respondidas
+> **Tasks:** [tasks.md](tasks.md) — 9 tasks em 4 fases, todas entregues
 > **Extraída de:** a **Fase 1** da [pull-request-status](../pull-request-status/tasks.md) (E1, E2,
 > E3). Ela deixa de ser pré-requisito enterrado numa feature de PR e passa a ser feature própria —
 > ver [§7](#7-a-relação-com-a-barra-da-pr)
