@@ -2,9 +2,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import type { Scope } from "../hooks/useSessionsByScope.js";
+import { relativeAge } from "../lib/relative-time.js";
 import { worktreeDetailKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
-import { Banner, Button, Chip, Glyph, MetaGrid, Skeleton } from "../ui/index.js";
+import {
+  Banner,
+  Button,
+  Chip,
+  CopyablePath,
+  Glyph,
+  MetaGrid,
+  Skeleton,
+} from "../ui/index.js";
 import { ScopePanel } from "./ScopePanel.js";
 
 import "./detail.css";
@@ -76,7 +85,8 @@ export function WorktreePanel({
     );
   }
 
-  const { name, branch, path, state, present, status, aheadBehind, baseBranch } = detail.data;
+  const { name, branch, path, state, present, status, aheadBehind, baseBranch, createdAt } =
+    detail.data;
   const gone = !present || state === "missing";
   const scope: Scope = { scopeType: "worktree", scopeId: worktreeId };
 
@@ -111,6 +121,7 @@ export function WorktreePanel({
             <h2>
               <Glyph tone={gone ? "warn" : "worktree"}>{gone ? "⚠" : "◇"}</Glyph> {name}
             </h2>
+            <span className="detail__kind">{gone ? "worktree ausente" : "worktree"}</span>
             <span className="actions__spacer" />
             {/* Stays put while the refusal is on screen. A blocked removal is
                 usually fixed and retried — closing the sessions the daemon
@@ -130,44 +141,6 @@ export function WorktreePanel({
             >
               {remove.isPending ? "removendo…" : "remover worktree"}
             </Button>
-          </div>
-
-          <div className="chips">
-            <Chip tone="branch" dot>
-              {branch}
-            </Chip>
-            {gone ? (
-              <Chip tone="missing" dot>
-                ausente do disco
-              </Chip>
-            ) : (
-              <>
-                {status === null ? (
-                  <Chip>estado desconhecido</Chip>
-                ) : status.clean ? (
-                  <Chip tone="clean" dot>
-                    limpa
-                  </Chip>
-                ) : (
-                  <Chip tone="dirty" dot>
-                    suja · {status.changedFiles}{" "}
-                    {status.changedFiles === 1 ? "arquivo" : "arquivos"}
-                  </Chip>
-                )}
-                {/* Zero behind is not information; zero ahead is not either. A
-                    chip that always says "↓0" teaches the eye to skip the row. */}
-                {aheadBehind !== null && (aheadBehind.ahead > 0 || aheadBehind.behind > 0) && (
-                  <Chip>
-                    {aheadBehind.ahead > 0 && <span className="ahead">↑{aheadBehind.ahead}</span>}
-                    {aheadBehind.ahead > 0 && aheadBehind.behind > 0 && " "}
-                    {aheadBehind.behind > 0 && (
-                      <span className="behind">↓{aheadBehind.behind}</span>
-                    )}
-                    <span className="dim"> de {baseBranch}</span>
-                  </Chip>
-                )}
-              </>
-            )}
           </div>
 
           {confirmingForce && (
@@ -210,23 +183,64 @@ export function WorktreePanel({
             </div>
           )}
 
+          {/*
+            O que a fila de chips não cabia. No cabeçalho fixo tudo isto tinha de
+            entrar em duas linhas e virava chip truncado; como aba, cada coisa
+            tem uma linha e um rótulo — e a distância da base e a idade, que
+            simplesmente não cabiam, passam a existir na tela.
+          */}
           <MetaGrid
             entries={[
-              { label: "caminho", value: path, title: path },
               {
                 label: "branch",
                 value: (
                   <>
-                    {branch} <span className="dim">nasceu de {baseBranch}</span>
+                    <Chip tone="branch" dot>
+                      {branch}
+                    </Chip>{" "}
+                    <span className="dim">nasceu de {baseBranch}</span>
                   </>
                 ),
               },
               {
                 label: `em relação a ${baseBranch}`,
                 value:
-                  aheadBehind === null
-                    ? "desconhecido"
-                    : `${aheadBehind.ahead} à frente, ${aheadBehind.behind} atrás`,
+                  aheadBehind === null ? (
+                    "desconhecido"
+                  ) : (
+                    <>
+                      <span className="ahead">↑{aheadBehind.ahead}</span>{" "}
+                      <span className="behind">↓{aheadBehind.behind}</span>{" "}
+                      <span className="dim">
+                        {aheadBehind.ahead} à frente, {aheadBehind.behind} atrás
+                      </span>
+                    </>
+                  ),
+              },
+              {
+                label: "estado",
+                value: gone ? (
+                  <Chip tone="missing" dot>
+                    ausente do disco
+                  </Chip>
+                ) : status === null ? (
+                  <Chip>estado desconhecido</Chip>
+                ) : status.clean ? (
+                  <Chip tone="clean" dot>
+                    limpa
+                  </Chip>
+                ) : (
+                  <Chip tone="dirty" dot>
+                    suja · {status.changedFiles}{" "}
+                    {status.changedFiles === 1 ? "arquivo" : "arquivos"}
+                  </Chip>
+                ),
+              },
+              // Inteiro e copiável, que é a razão de a aba existir.
+              { label: "caminho", value: <CopyablePath path={path} /> },
+              {
+                label: "criada",
+                value: <span className="dim">{relativeAge(createdAt)}</span>,
               },
             ]}
           />

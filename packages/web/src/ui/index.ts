@@ -13,6 +13,7 @@ export { Chip, type ChipProps, type ChipTone } from "./Chip.js";
 export { Choice, ChoiceGroup, type ChoiceGroupProps, type ChoiceProps } from "./Choice.js";
 export { Coach, type CoachProps } from "./Coach.js";
 export { CopyCommand, type CopyCommandProps } from "./CopyCommand.js";
+export { CopyablePath, type CopyablePathProps } from "./CopyablePath.js";
 export { EmptyState, Skeleton, type EmptyStateProps, type SkeletonProps } from "./EmptyState.js";
 export { Field, Input, type FieldProps, type InputProps } from "./Field.js";
 export { Glyph, type GlyphProps, type GlyphTone } from "./Glyph.js";

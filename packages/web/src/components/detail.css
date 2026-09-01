@@ -61,6 +61,14 @@
    do tipo da coisa, não uma marca ao lado dela. */
 .detail__title .glyph { font-size: var(--size-icon-lg); width: auto; }
 .detail__title .actions__spacer { flex: 1; }
+/* A natureza do escopo ao lado do nome: `worktree`, `checkout do projeto`. O
+   glifo já diz, e quem não vê glifo não fica sem a resposta. */
+.detail__kind {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
 
 .chips {
   display: flex;

@@ -166,6 +166,49 @@ describe("a worktree como primeira aba", () => {
     );
   });
 
+  it("mostra o caminho em disco inteiro, e deixa copiar", async () => {
+    // O que a mudança existe para consertar: no cabeçalho fixo este era o
+    // primeiro valor a ser cortado, e é o único da tela que ninguém redigita
+    // de cabeça.
+    const user = userEvent.setup();
+    const long = "/home/vinicius/.lumem/workspaces/pessoal/lorebase/worktrees/teste-de-nome-longo";
+    trpc.worktree.getDetail.query.mockResolvedValue(detail({ path: long }));
+
+    await selectWorktree(user);
+
+    expect(await screen.findByText(long)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "copiar caminho" }));
+
+    // A área de transferência aqui é a do `user-event`, que é uma de verdade:
+    // o que se lê de volta é o que o botão escreveu.
+    expect(await navigator.clipboard.readText()).toBe(long);
+    expect(
+      await screen.findByRole("button", { name: "caminho copiado" }),
+    ).toBeInTheDocument();
+  });
+
+  it("mostra a distância da base e a idade, que no cabeçalho não cabiam", async () => {
+    const user = userEvent.setup();
+    trpc.worktree.getDetail.query.mockResolvedValue(
+      detail({ aheadBehind: { ahead: 7, behind: 0 } }),
+    );
+
+    await selectWorktree(user);
+
+    const panel = await screen.findByRole("tabpanel", { name: "teste" });
+    expect(within(panel).getByText("↑7")).toBeInTheDocument();
+    expect(within(panel).getByText(/em relação a main/)).toBeInTheDocument();
+    expect(within(panel).getByText("criada")).toBeInTheDocument();
+  });
+
+  it("diz a natureza do escopo ao lado do nome", async () => {
+    const user = userEvent.setup();
+    await selectWorktree(user);
+
+    const panel = await screen.findByRole("tabpanel", { name: "teste" });
+    expect(within(panel).getByText("worktree")).toBeInTheDocument();
+  });
+
   it("dá ao checkout do projeto a mesma primeira aba, com o glifo dele", async () => {
     // Q5: duas gramáticas para dois checkouts que se alternam na mesma coluna
     // seria a inconsistência que esta estrutura existe para tirar.

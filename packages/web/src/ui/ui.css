@@ -302,6 +302,27 @@
   white-space: nowrap;
 }
 .meta .dim { color: var(--color-text-tertiary); }
+/* A exceção declarada ao `ellipsis` do `dd`: um caminho cortado é o mesmo que
+   um caminho ausente, porque ninguém redigita esse de cabeça. Ele quebra em
+   duas linhas, que custa uma linha, em vez de esconder o fim, que custa a
+   resposta. */
+.meta dd:has(.path) { overflow: visible; text-overflow: clip; white-space: normal; }
+.path { display: inline-flex; align-items: flex-start; gap: var(--space-6); min-width: 0; }
+.path__value { overflow-wrap: anywhere; }
+.path__copy {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: var(--size-target-min);
+  height: var(--size-target-min);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+  cursor: pointer;
+}
+.path__copy:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
 
 /* -------------------------------------------------- cabeçalho de seção */
 .section-head {
