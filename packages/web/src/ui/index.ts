@@ -22,7 +22,15 @@ export { MetaGrid, type MetaEntry, type MetaGridProps, type MetaVariant } from "
 export { Row, type RowProps } from "./Row.js";
 export { SectionHead, type SectionHeadProps } from "./SectionHead.js";
 export { Steps, type StepsProps } from "./Steps.js";
-export { Tab, TabStrip, type TabProps, type TabState, type TabStripProps } from "./Tab.js";
+export {
+  Tab,
+  TabStrip,
+  TabToggle,
+  type TabProps,
+  type TabState,
+  type TabStripProps,
+  type TabToggleProps,
+} from "./Tab.js";
 export {
   WizardCard,
   WizardSection,
