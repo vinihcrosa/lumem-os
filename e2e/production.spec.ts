@@ -60,16 +60,20 @@ test("a ferramenta de anotação não viaja para produção", async ({ page }) =
   // alguém trocar o guarda por um teste em runtime, o rollup deixa de derrubar
   // o pacote e a barra passa a ser servida ao usuário — e o build cresce sem
   // que nada mais reclame.
-  const assets: string[] = [];
-  page.on("response", async (response) => {
+  // O corpo se lê de forma assíncrona, e o Playwright não espera pelo listener:
+  // guardar a promessa e resolver todas depois é o que garante que a asserção
+  // olhe para o conteúdo inteiro, e não para o que por acaso já tinha chegado.
+  const bodies: Promise<string>[] = [];
+  page.on("response", (response) => {
     if (/\/assets\/.+\.js$/.test(new URL(response.url()).pathname)) {
-      assets.push(await response.text());
+      bodies.push(response.text());
     }
   });
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Lumem-OS" })).toBeVisible();
 
+  const assets = await Promise.all(bodies);
   expect(assets.length).toBeGreaterThan(0);
   expect(assets.some((source) => /agentation/i.test(source))).toBe(false);
   await expect(page.locator("#agentation-root")).toHaveCount(0);
