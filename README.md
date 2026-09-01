@@ -87,6 +87,11 @@ pnpm install
 pnpm dev            # daemon on :4317, vite on :4318
 ```
 
+`pnpm dev` writes to `~/.lumem-dev/shared`, not to the `~/.lumem` your installed
+Lumem uses: same shape, separate database, so a bug under development cannot
+touch the projects you actually work with. Details, and how to run two
+worktrees at once, in [docs/project/workspaces.md](docs/project/workspaces.md).
+
 | Command | What it runs |
 |---|---|
 | `pnpm gate:quick` | the tests affected by the current work |
