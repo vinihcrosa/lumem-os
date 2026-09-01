@@ -964,3 +964,94 @@
   color: var(--color-text-primary);
 }
 .seg__btn:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
+
+/* ------------------------------------------------ diálogo centrado */
+/*
+ * Portado de `packages/web/prototype/lumem-sidebar-actions.html`.
+ *
+ * O véu é composição de token, não cor nova: o fundo mais fundo do produto com
+ * transparência. O que ele entrega é a árvore atrás legível como **contexto** e
+ * ilegível como texto — quem abriu já sabe de qual linha o diálogo saiu, e não
+ * deve conseguir ler outra.
+ */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: var(--space-24);
+}
+.modal__scrim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-bg-inset) 68%, transparent);
+}
+.modal__card {
+  position: relative;
+  width: var(--size-dialog-width);
+  max-width: 100%;
+  display: grid;
+  background: var(--color-bg-surface);
+  border: var(--border-width-thin) solid var(--color-border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-xl);
+}
+.modal__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  padding: var(--space-16) var(--space-12) var(--space-8) var(--space-20);
+}
+.modal__head-b { flex: 1; min-width: 0; }
+.modal__title {
+  margin: 0;
+  font: var(--text-heading-md);
+  letter-spacing: var(--tracking-heading-md);
+  color: var(--color-text-primary);
+}
+/* Onde a ação vai cair, dito no cabeçalho e não num campo: o diálogo abriu de
+   uma linha da árvore, e ele repete de qual. */
+.modal__where {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  margin: var(--space-4) 0 0;
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+.modal__where .glyph { font-size: var(--size-icon-xs); }
+.modal__where strong { color: var(--color-text-secondary); font-weight: 500; }
+.modal__close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+  cursor: pointer;
+}
+.modal__close:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+.modal__body {
+  display: grid;
+  gap: var(--space-16);
+  padding: var(--space-8) var(--space-20) var(--space-16);
+}
+.modal__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 0 var(--space-20) var(--space-20);
+}
+.modal__esc {
+  margin-left: auto;
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.modal__hint { margin: 0; font: var(--text-body-sm); color: var(--color-text-tertiary); }

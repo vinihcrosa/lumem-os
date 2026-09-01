@@ -19,6 +19,7 @@ export { Glyph, type GlyphProps, type GlyphTone } from "./Glyph.js";
 export { Item, type ItemProps, type ItemState } from "./Item.js";
 export { Menu, MenuItem, type MenuItemProps, type MenuProps } from "./Menu.js";
 export { MetaGrid, type MetaEntry, type MetaGridProps, type MetaVariant } from "./MetaGrid.js";
+export { Modal, ModalEsc, type ModalProps } from "./Modal.js";
 export { Row, type RowProps } from "./Row.js";
 export { SectionHead, type SectionHeadProps } from "./SectionHead.js";
 export { Steps, type StepsProps } from "./Steps.js";

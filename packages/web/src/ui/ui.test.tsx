@@ -21,6 +21,7 @@ import {
   Menu,
   MenuItem,
   MetaGrid,
+  Modal,
   RawOutput,
   Row,
   SectionHead,
@@ -415,5 +416,106 @@ describe("TabStrip", () => {
     );
 
     expect(within(screen.getByRole("tablist", { name: "sessões de teste-prd" })).getAllByRole("tab")).toHaveLength(2);
+  });
+});
+
+describe("Modal", () => {
+  function Harness({ onClose = vi.fn() }: { onClose?: () => void }) {
+    return (
+      <>
+        <button type="button">o + que abriu</button>
+        <Modal open onClose={onClose} title="Nova worktree" where="em lumem-os">
+          <div className="modal__body">
+            <input aria-label="Nome da worktree" />
+          </div>
+          <div className="modal__foot">
+            <Button type="submit">criar</Button>
+            <Button variant="ghost">cancelar</Button>
+          </div>
+        </Modal>
+      </>
+    );
+  }
+
+  it("renders nothing at all when closed — not a hidden card", () => {
+    render(
+      <Modal open={false} onClose={vi.fn()} title="Nova worktree">
+        <p>corpo</p>
+      </Modal>,
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText("corpo")).not.toBeInTheDocument();
+  });
+
+  it("names itself by its title, so a screen reader says what opened", () => {
+    render(<Harness />);
+    expect(screen.getByRole("dialog", { name: "Nova worktree" })).toHaveAttribute(
+      "aria-modal",
+      "true",
+    );
+  });
+
+  it("puts the focus in the first field, and not on the close button that precedes it", () => {
+    render(<Harness />);
+    expect(screen.getByLabelText("Nome da worktree")).toHaveFocus();
+  });
+
+  it("gives the focus back to whoever opened it", async () => {
+    const opener = document.createElement("button");
+    opener.textContent = "＋";
+    document.body.append(opener);
+    opener.focus();
+
+    const { rerender } = render(
+      <Modal open onClose={vi.fn()} title="Nova worktree">
+        <input aria-label="Nome da worktree" />
+      </Modal>,
+    );
+    expect(screen.getByLabelText("Nome da worktree")).toHaveFocus();
+
+    rerender(
+      <Modal open={false} onClose={vi.fn()} title="Nova worktree">
+        <input aria-label="Nome da worktree" />
+      </Modal>,
+    );
+    expect(opener).toHaveFocus();
+    opener.remove();
+  });
+
+  it("closes on Esc, on the veil and on the ✕ — the same way out three times", async () => {
+    const onClose = vi.fn();
+    const { container } = render(<Harness onClose={onClose} />);
+
+    await userEvent.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "fechar" }));
+    expect(onClose).toHaveBeenCalledTimes(2);
+
+    const scrim = document.querySelector(".modal__scrim");
+    await userEvent.click(scrim as Element);
+    expect(onClose).toHaveBeenCalledTimes(3);
+
+    // Um clique dentro do cartão não fecha o formulário que está sendo preenchido.
+    await userEvent.click(screen.getByLabelText("Nome da worktree"));
+    expect(onClose).toHaveBeenCalledTimes(3);
+    expect(container).toBeTruthy();
+  });
+
+  it("keeps Tab inside: the last focusable wraps to the first", async () => {
+    render(<Harness />);
+    const field = screen.getByLabelText("Nome da worktree");
+    const cancel = screen.getByRole("button", { name: "cancelar" });
+    const close = screen.getByRole("button", { name: "fechar" });
+
+    cancel.focus();
+    await userEvent.tab();
+    expect(close).toHaveFocus();
+
+    // E de volta, na direção contrária — o `+` que abriu fica fora do alcance.
+    await userEvent.tab({ shift: true });
+    expect(cancel).toHaveFocus();
+    expect(field).not.toHaveFocus();
+    expect(screen.getByRole("button", { name: "o + que abriu" })).not.toHaveFocus();
   });
 });

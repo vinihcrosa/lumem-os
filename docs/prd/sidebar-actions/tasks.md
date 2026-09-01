@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Desenho:** `packages/web/prototype/lumem-sidebar-actions.html` — oito quadros, feitos no Open Design
 e sincronizados ([regra](../../project/design-source-of-truth.md))
-**Status:** **0 de 10.** Escopo fechado — as seis perguntas foram respondidas pelo desenho de
+**Status:** **1 de 10.** Escopo fechado — as seis perguntas foram respondidas pelo desenho de
 2026-09-01.
 
 ---
@@ -57,17 +57,17 @@ foco, `Esc`, clique no véu, e devolução do foco a quem abriu.
 **Where**: `packages/web/src/ui/Modal.tsx`, `ui/index.ts`, `ui/ui.css` + `ui/ui.test.tsx`
 
 **Done when**:
-- [ ] Renderiza por `createPortal` no `document.body` (A1), com `role="dialog"`, `aria-modal="true"`
+- [x] Renderiza por `createPortal` no `document.body` (A1), com `role="dialog"`, `aria-modal="true"`
       e `aria-labelledby` apontando para o título
-- [ ] Ao abrir, o foco entra no **primeiro campo focável** de dentro; ao fechar, volta ao elemento que
+- [x] Ao abrir, o foco entra no **primeiro campo focável** de dentro; ao fechar, volta ao elemento que
       tinha o foco antes de abrir — os dois cobertos por teste, porque é o contrato do §8 do desenho
-- [ ] `Tab` circula dentro e não escapa: do último focável volta ao primeiro, e `Shift+Tab` faz o
+- [x] `Tab` circula dentro e não escapa: do último focável volta ao primeiro, e `Shift+Tab` faz o
       caminho inverso
-- [ ] `Esc`, clique no véu e clique no `✕` chamam o mesmo `onClose`. Clique **dentro** do cartão não
-- [ ] Fechado não renderiza nada — nem o véu, nem o cartão, nem um `hidden`
-- [ ] Só `var(--token)`: nenhum literal de cor, espaço ou tipografia (o véu é o `color-mix` do
+- [x] `Esc`, clique no véu e clique no `✕` chamam o mesmo `onClose`. Clique **dentro** do cartão não
+- [x] Fechado não renderiza nada — nem o véu, nem o cartão, nem um `hidden`
+- [x] Só `var(--token)`: nenhum literal de cor, espaço ou tipografia (o véu é o `color-mix` do
       protótipo, A6)
-- [ ] Gate: `pnpm gate:quick`
+- [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(web): o Modal centrado, com o foco preso dentro`
 
