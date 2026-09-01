@@ -271,7 +271,8 @@ cabeçalho `Projetos` e um `+` na linha de cada projeto, com os diálogos virand
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/sidebar-actions/prd.md) | As três regras (o botão fica no cabeçalho da coisa que ele acrescenta; uma ação, um lugar; o diálogo abre no centro), e o que a mudança cobra — o estado vazio perde o botão que o cobria |
-| [open-questions.md](prd/sidebar-actions/open-questions.md) | 6 perguntas. A Q5 é a que dói: um clone leva minutos, e um modal que se fecha some com o progresso |
+| [open-questions.md](prd/sidebar-actions/open-questions.md) | 6 perguntas, **as 6 respondidas pelo desenho de 2026-09-01**. A Q5 era a que doía: um clone leva minutos, e um modal que se fecha some com o progresso — ele fecha, e o progresso passa a ser uma linha da árvore |
+| `packages/web/prototype/lumem-sidebar-actions.html` | O protótipo, vindo do Open Design: oito quadros — a árvore com as duas ações, a linha de perto em 264px com os sete estados do slot, os dois diálogos e seus estados, o clone depois que o modal fecha, o vazio, o rodapé que encolhe, e o contrato de teclado. **Duas peças novas de design system** (`.row__act`, `.modal`) e **zero token novo** |
 
 ### [worktree-first-tab/](prd/worktree-first-tab/) — o que é da worktree mora na worktree
 

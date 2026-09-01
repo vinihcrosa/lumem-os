@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — as ações da árvore: criar projeto e criar worktree de onde se olha</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<link rel="stylesheet" href="lumem-sidebar-actions.css">
+</head>
+<body>
+
+<div class="doc">
+
+  <header>
+    <h1 class="doc__h1">As ações da árvore</h1>
+    <p class="doc__lede">
+      As duas coisas que o Lumem cria não se criam de onde elas moram. O projeto nasce
+      num botão colado no pé da janela, longe do título <code>Projetos</code> e mais longe
+      a cada projeto que a lista ganha. A worktree — a unidade de trabalho do produto,
+      a ação que se repete o dia inteiro — nasce a <b>três cliques e uma troca de tela</b>,
+      dentro da aba de contexto do checkout <code>local</code>.
+    </p>
+    <p class="doc__lede">
+      Esta tela põe as duas onde se olha: <b>o botão fica no cabeçalho da coisa que ele
+      acrescenta</b>, e nenhum dos dois se move quando a lista abaixo cresce.
+    </p>
+    <p class="doc__lede">
+      Oito quadros. O primeiro é a árvore inteira; o segundo é a linha vista de perto, em
+      264px, que é onde a decisão realmente se toma. Do terceiro ao quinto, os dois
+      diálogos e o que sobra na tela depois deles. Os três últimos são o estado vazio, o
+      rodapé que encolhe e o contrato de teclado.
+    </p>
+  </header>
+
+  <!-- =================================================================== 1 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">1 · a árvore com as duas ações</h2>
+      <p class="sec__d">
+        Dois <code>+</code>, duas alturas, uma regra: cada um está preso ao cabeçalho do
+        que ele acrescenta. O de projeto na linha <code>Projetos</code>; o de worktree na
+        linha do projeto. A lista cresce <b>entre</b> eles e por baixo deles, e nenhum dos
+        dois anda.
+      </p>
+      <p class="sec__d">
+        <span class="q">Q1 · decidido</span> O <code>+</code> da linha aparece no
+        <b>hover e no foco</b>, e o contador de sessões <b>não cede o lugar</b> — o slot de
+        24px está reservado desde sempre, invisível. Reservar é o que impede a linha de se
+        reorganizar debaixo de uma mão que já está a caminho do clique: sem isso, o label
+        encolhe e o contador anda 24px para a esquerda no instante exato da mira. Custa
+        24px de label na linha menos indentada da árvore, que é a que mais tem sobra.
+      </p>
+      <p class="sec__d">
+        O rodapé perdeu o <code>＋ adicionar projeto</code>. Ficou o login do agente, que é
+        do workspace e não da lista.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o ponteiro em <b>lumem-os</b> · a worktree nasce de onde se olha</div>
+      <div class="shot bleed">
+        <div class="app">
+          <header class="topbar">
+            <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+            <span class="spacer"></span>
+            <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+          </header>
+
+          <div class="body">
+            <aside class="sidebar">
+              <div class="ws-wrap">
+                <div class="ws"><span class="ws__icon">◈</span>pessoal<span class="spacer"></span><span class="ws__caret">▾</span></div>
+              </div>
+
+              <div class="tree">
+                <!-- O cabeçalho da lista. O `+` daqui é o único sempre visível dos
+                     dois: ele é o caminho para o PRIMEIRO projeto, e com zero
+                     projetos não há linha onde passar o ponteiro. -->
+                <div class="tree__head">
+                  <div class="tree__label">Projetos</div>
+                  <button class="act" title="adicionar projeto" aria-label="adicionar projeto">＋</button>
+                </div>
+
+                <div class="row row--project is-hover" style="--depth:0">
+                  <span class="row__twist">▾</span><span class="glyph glyph--project">■</span>
+                  <span class="row__label">lumem-os</span>
+                  <span class="count count--running"><span class="count__dot"></span>2</span>
+                  <button class="row__act" title="nova worktree em lumem-os" aria-label="nova worktree em lumem-os">＋</button>
+                </div>
+                <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--local">▭</span><span class="row__label">local</span></div>
+                <div class="row is-selected" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">pr-bar</span><span class="count count--running"><span class="count__dot"></span>2</span></div>
+                <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">acp-fs</span></div>
+                <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">session-mode</span></div>
+
+                <div class="row row--project" style="--depth:0">
+                  <span class="row__twist">▸</span><span class="glyph glyph--project">■</span>
+                  <span class="row__label">lorebase</span>
+                  <button class="row__act" title="nova worktree em lorebase" aria-label="nova worktree em lorebase">＋</button>
+                </div>
+
+                <!-- Sem disco: sem `+`, e o espaço fica. Não há de onde cortar
+                     worktree, e alinhamento de coluna não é decoração. -->
+                <div class="row row--project is-muted" style="--depth:0">
+                  <span class="row__twist">▸</span><span class="glyph">■</span>
+                  <span class="row__label">graphify-out</span>
+                  <span class="row__meta">sem disco</span>
+                  <span class="row__slot"></span>
+                </div>
+              </div>
+
+              <div class="sidebar__foot">
+                <div class="add"><span class="glyph glyph--agent">◆</span>claude-code<span class="spacer"></span><span class="chip chip--clean"><span class="chip__dot"></span>conectado</span></div>
+              </div>
+            </aside>
+
+            <main class="main">
+              <div class="wt-head">
+                <nav class="crumb"><button class="crumb__up">pessoal</button><span class="crumb__sep">/</span><button class="crumb__up">lumem-os</button><span class="crumb__sep">/</span><span class="crumb__here">pr-bar</span></nav>
+                <div class="wt-title"><h2><span class="glyph glyph--worktree">◇</span>pr-bar</h2></div>
+                <div class="chips">
+                  <span class="chip chip--branch"><span class="chip__dot"></span>pr-bar</span>
+                  <span class="chip chip--dirty"><span class="chip__dot"></span>suja · 6 arquivos</span>
+                </div>
+              </div>
+              <div class="tabs-bar">
+                <div class="tabs">
+                  <button class="stab stab--overview">contexto</button>
+                  <span class="tabs__sep"></span>
+                  <button class="stab stab--active"><span class="glyph glyph--agent">◆</span>claude-code<span class="stab__dot"></span></button>
+                </div>
+                <span class="menu-wrap"><button class="tabs__new">＋ nova sessão</button></span>
+              </div>
+              <div class="pane">
+                <div class="conv__scroll conv__scroll--flow">
+                  <div class="turn turn--user"><span class="turn__g">&gt;</span><div class="turn__b"><div class="msg">separa a barra da PR do cabeçalho da worktree</div></div></div>
+                  <div class="turn turn--agent"><span class="turn__g">⏺</span><div class="turn__b"><div class="msg">O cabeçalho já sabe da branch; o que falta é quem sabe da PR. Vou pôr os dois no mesmo componente e deixar a barra ler o estado remoto.</div></div></div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        O <code>+</code> da linha <b>não</b> seleciona e <b>não</b> expande: clicar nele é uma
+        ação, não uma navegação. A seleção continua em <code>pr-bar</code> enquanto o
+        ponteiro está em <code>lumem-os</code>, e continua lá se o diálogo for cancelado.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 2 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">2 · a linha, de perto</h2>
+      <p class="sec__d">
+        264px é a restrição que manda no desenho, então a linha se decide no tamanho em
+        que ela vive. Sete estados, o mesmo esqueleto: seta, glifo, label, contador, slot
+        de ação. O slot está em todos — inclusive nos que não oferecem ação.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">os estados do slot</div>
+      <div class="strip">
+
+        <div class="strip__i">
+          <div class="strip__l">repouso</div>
+          <div class="zoom">
+            <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>hover</b> — o slot pinta, nada anda</div>
+          <div class="zoom">
+            <div class="row row--project is-hover" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>foco de teclado</b> no <code>+</code></div>
+          <div class="zoom">
+            <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act is-focus">＋</button></div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l">com <b>2 sessões rodando</b> — repouso</div>
+          <div class="zoom">
+            <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><span class="count count--running"><span class="count__dot"></span>2</span><button class="row__act">＋</button></div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l">com 2 sessões — <b>hover</b>: o contador fica</div>
+          <div class="zoom">
+            <div class="row row--project is-hover" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><span class="count count--running"><span class="count__dot"></span>2</span><button class="row__act">＋</button></div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>sem disco</b> — slot vazio, sem ação</div>
+          <div class="zoom">
+            <div class="row row--project is-muted is-hover" style="--depth:0"><span class="row__twist">▸</span><span class="glyph">■</span><span class="row__label">graphify-out</span><span class="row__meta">sem disco</span><span class="row__slot"></span></div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l">nome comprido — o label cede, o slot não</div>
+          <div class="zoom">
+            <div class="row row--project is-hover" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">infra-reconciliacao-de-boot</span><span class="count count--running"><span class="count__dot"></span>3</span><button class="row__act">＋</button></div>
+          </div>
+        </div>
+
+      </div>
+      <p class="case__note">
+        A worktree <b>não</b> ganha slot: ela não acrescenta nada abaixo de si. Um
+        <code>+</code> em toda linha da árvore seria ruído em três níveis para uma ação que
+        só existe em um.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 3 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">3 · nova worktree, no centro</h2>
+      <p class="sec__d">
+        <span class="q">Q2 · decidido</span> <b>Os dois diálogos no centro, com véu.</b> Um
+        modal e o outro popover é duas gramáticas para a mesma ação. E vindo de um botão de
+        24px numa linha de árvore, expandir no lugar espremeria o formulário dentro de uma
+        coluna de 264px.
+      </p>
+      <p class="sec__d">
+        O diálogo <b>já sabe o projeto</b> — ele saiu da linha dele. Nada de seletor lá
+        dentro: o cabeçalho repete de onde a ação veio, e o formulário volta a ser o que
+        sempre foi, um campo.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">aberto do <code>+</code> de <b>lumem-os</b> · a árvore atrás continua sendo contexto</div>
+      <div class="shot bleed">
+        <div class="app app--modal">
+          <header class="topbar">
+            <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+            <span class="spacer"></span>
+            <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+          </header>
+
+          <div class="body">
+            <aside class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="spacer"></span><span class="ws__caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><span class="count count--running"><span class="count__dot"></span>2</span><button class="row__act">＋</button></div>
+                <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--local">▭</span><span class="row__label">local</span></div>
+                <div class="row is-selected" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">pr-bar</span></div>
+                <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">acp-fs</span></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span><button class="row__act">＋</button></div>
+              </div>
+              <div class="sidebar__foot"><div class="add"><span class="glyph glyph--agent">◆</span>claude-code<span class="spacer"></span><span class="chip chip--clean"><span class="chip__dot"></span>conectado</span></div></div>
+            </aside>
+
+            <main class="main">
+              <div class="wt-head">
+                <nav class="crumb"><button class="crumb__up">pessoal</button><span class="crumb__sep">/</span><button class="crumb__up">lumem-os</button><span class="crumb__sep">/</span><span class="crumb__here">pr-bar</span></nav>
+                <div class="wt-title"><h2><span class="glyph glyph--worktree">◇</span>pr-bar</h2></div>
+              </div>
+            </main>
+          </div>
+
+          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="wt-t">
+            <div class="modal__scrim"></div>
+            <div class="modal__card">
+              <div class="modal__head">
+                <div class="modal__head-b">
+                  <h3 class="modal__t" id="wt-t">Nova worktree</h3>
+                  <p class="modal__where">em<span class="glyph glyph--project">■</span><b>lumem-os</b></p>
+                </div>
+                <button class="modal__close" aria-label="fechar">✕</button>
+              </div>
+              <div class="modal__body">
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input input--focus"><span class="input__val">session-mode</span></div>
+                  <div class="field__help">A branch tem o mesmo nome. Barra vira diretório aninhado.</div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">criar</button>
+                <button class="btn btn--ghost">cancelar</button>
+                <span class="modal__esc"><span class="kbd">Esc</span> fecha</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="case">
+      <div class="case__label">os três outros estados do mesmo diálogo</div>
+      <div class="strip">
+
+        <div class="strip__i">
+          <div class="strip__l"><b>criando</b> — o botão diz o que está acontecendo</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__head">
+                <div class="modal__head-b"><h3 class="modal__t">Nova worktree</h3><p class="modal__where">em<span class="glyph glyph--project">■</span><b>lumem-os</b></p></div>
+                <button class="modal__close">✕</button>
+              </div>
+              <div class="modal__body">
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input"><span class="input__val">session-mode</span></div>
+                </div>
+                <div class="banner banner--info"><span class="banner__glyph">◇</span><div>copiando o checkout — em repositório grande isto leva alguns segundos</div></div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand" disabled>criando…</button>
+                <button class="btn btn--ghost">cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>a branch já existe</b> — as palavras do daemon</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__head">
+                <div class="modal__head-b"><h3 class="modal__t">Nova worktree</h3><p class="modal__where">em<span class="glyph glyph--project">■</span><b>lumem-os</b></p></div>
+                <button class="modal__close">✕</button>
+              </div>
+              <div class="modal__body">
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input input--error"><span class="input__val">pr-bar</span></div>
+                  <div class="field__error">a branch <code>pr-bar</code> já existe; escolha outro nome</div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">criar</button>
+                <button class="btn btn--ghost">cancelar</button>
+                <span class="modal__esc"><span class="kbd">Esc</span> fecha</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>repositório sem commit</b> — o `+` abre, e o diálogo explica</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__head">
+                <div class="modal__head-b"><h3 class="modal__t">Nova worktree</h3><p class="modal__where">em<span class="glyph glyph--project">■</span><b>api-nova</b></p></div>
+                <button class="modal__close">✕</button>
+              </div>
+              <div class="modal__body">
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input input--empty"><span class="input__val">teste-prd</span></div>
+                </div>
+                <div class="banner banner--warning"><span class="banner__glyph">⚠</span><div>este repositório ainda não tem nenhum commit — faça o primeiro para poder cortar worktrees</div></div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand" disabled>criar</button>
+                <button class="btn btn--ghost">fechar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <p class="case__note">
+        O <code>+</code> continua clicável num repositório sem commit, e o <b>diálogo</b> é
+        quem explica. O botão desabilitado da versão de hoje mora num painel onde o texto
+        cabe ao lado; um <code>+</code> de 24px desabilitado numa linha de árvore é um botão
+        cinza sem motivo à vista.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 4 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">4 · adicionar projeto, no centro</h2>
+      <p class="sec__d">
+        Um campo só, porque não há ambiguidade a desfazer: caminho de projeto é absoluto,
+        então o que não começa em <code>/</code> ou <code>~</code> é URL. O que a detecção
+        automática arrisca é você não perceber o que vai acontecer — e é isso que a linha
+        <code>↳</code> responde, antes de qualquer ação.
+      </p>
+      <p class="sec__d">
+        Sem seletor de pasta: o daemon pode estar em outra máquina, e o seletor do
+        navegador entrega um arquivo, não um caminho do servidor.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">aberto do <code>+</code> do cabeçalho · uma URL, o plano ecoado</div>
+      <div class="shot bleed">
+        <div class="app app--modal">
+          <header class="topbar">
+            <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+            <span class="spacer"></span>
+            <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+          </header>
+          <div class="body">
+            <aside class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="spacer"></span><span class="ws__caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act is-focus">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span><button class="row__act">＋</button></div>
+              </div>
+              <div class="sidebar__foot"><div class="add"><span class="glyph glyph--agent">◆</span>claude-code<span class="spacer"></span><span class="chip chip--clean"><span class="chip__dot"></span>conectado</span></div></div>
+            </aside>
+            <main class="main"><div class="wt-head"><nav class="crumb"><button class="crumb__up">pessoal</button><span class="crumb__sep">/</span><span class="crumb__here">lumem-os</span></nav></div></main>
+          </div>
+
+          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ap-t">
+            <div class="modal__scrim"></div>
+            <div class="modal__card">
+              <div class="modal__head">
+                <div class="modal__head-b">
+                  <h3 class="modal__t" id="ap-t">Adicionar projeto</h3>
+                  <p class="modal__where">no workspace<span class="glyph glyph--workspace">◈</span><b>pessoal</b></p>
+                </div>
+                <button class="modal__close" aria-label="fechar">✕</button>
+              </div>
+              <div class="modal__body">
+                <div class="field">
+                  <label>Caminho ou URL</label>
+                  <div class="input input--focus"><span class="input__val">git@gitlab.interno:time/api.git</span></div>
+                  <div class="field__help"><span class="dim">↳</span> vou <b>clonar</b> por SSH — <code>gitlab.interno</code></div>
+                </div>
+                <div class="field">
+                  <label>Nome</label>
+                  <div class="input input--empty"><span class="input__val">api</span></div>
+                </div>
+                <p class="modal__hint">Vai em <code>~/.lumem/workspaces/pessoal/api/repo</code></p>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">clonar</button>
+                <button class="btn btn--ghost">cancelar</button>
+                <span class="modal__esc"><span class="kbd">Esc</span> fecha</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="case">
+      <div class="case__label">os outros dois planos que o mesmo campo produz</div>
+      <div class="strip">
+
+        <div class="strip__i">
+          <div class="strip__l"><b>caminho local</b> — nada é clonado</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__head">
+                <div class="modal__head-b"><h3 class="modal__t">Adicionar projeto</h3><p class="modal__where">no workspace<span class="glyph glyph--workspace">◈</span><b>pessoal</b></p></div>
+                <button class="modal__close">✕</button>
+              </div>
+              <div class="modal__body">
+                <div class="field">
+                  <label>Caminho ou URL</label>
+                  <div class="input"><span class="input__val">~/Documents/GitHub/lorebase</span></div>
+                  <div class="field__help"><span class="dim">↳</span> vou <b>registrar</b> a pasta como está — nada é copiado</div>
+                </div>
+                <div class="field"><label>Nome</label><div class="input input--empty"><span class="input__val">lorebase</span></div></div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">adicionar</button>
+                <button class="btn btn--ghost">cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>recusado</b> — e o botão não fica clicável</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__head">
+                <div class="modal__head-b"><h3 class="modal__t">Adicionar projeto</h3><p class="modal__where">no workspace<span class="glyph glyph--workspace">◈</span><b>pessoal</b></p></div>
+                <button class="modal__close">✕</button>
+              </div>
+              <div class="modal__body">
+                <div class="field">
+                  <label>Caminho ou URL</label>
+                  <div class="input input--error"><span class="input__val">documentos/repo</span></div>
+                  <div class="field__error">caminho precisa ser absoluto, e isto não parece uma URL git</div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand" disabled>adicionar</button>
+                <button class="btn btn--ghost">cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================== 5 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">5 · o clone, depois que o diálogo fecha</h2>
+      <p class="sec__d">
+        <span class="q">Q5 · decidido</span> O modal <b>fecha quando o clone começa</b>, e o
+        progresso aparece <b>na árvore</b>, como a linha do projeto que está chegando. Um
+        clone leva minutos: um modal que segura a tela por minutos é um modal que se
+        aprende a fechar antes de ler, e fechar não pode ser a mesma coisa que perder o
+        progresso de vista.
+      </p>
+      <p class="sec__d">
+        A linha tem a geometria de um projeto porque é um projeto — mesmo glifo, mesma
+        indentação, mesmo slot. O que muda é que o slot carrega <code>✕</code>: enquanto
+        clona, a ação que a linha oferece é <b>cancelar</b>, não acrescentar.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">a árvore durante o clone · e as duas maneiras de ele terminar</div>
+      <div class="strip">
+
+        <div class="strip__i">
+          <div class="strip__l"><b>clonando</b> — 47%, recebendo objetos</div>
+          <div class="zoom">
+            <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+            <div class="crow">
+              <div class="row row--project is-hover" style="--depth:0">
+                <span class="row__twist"></span><span class="glyph glyph--project">■</span>
+                <span class="row__label">api</span>
+                <span class="crow__pct">47%</span>
+                <button class="row__act" title="cancelar o clone de api" aria-label="cancelar o clone de api">✕</button>
+              </div>
+              <div class="crow__bar"><div class="crow__fill" style="width:47%"></div></div>
+            </div>
+            <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+            <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span><button class="row__act">＋</button></div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>chegou</b> — vira linha de projeto, com o <code>+</code> dela</div>
+          <div class="zoom">
+            <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+            <div class="row row--project is-hover" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">api</span><button class="row__act">＋</button></div>
+            <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+            <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span><button class="row__act">＋</button></div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>falhou por credencial</b> — o caminho de volta é reabrir o diálogo</div>
+          <div class="zoom">
+            <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+            <div class="cfail">
+              <div class="cfail__t"><span class="cfail__g">⚠</span>não consegui autenticar</div>
+              <div class="cfail__url">git@gitlab.interno:time/api.git</div>
+              <div class="cfail__a"><button class="btn btn--ghost btn--sm">tentar de novo</button><button class="btn btn--ghost btn--sm">dispensar</button></div>
+            </div>
+            <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+          </div>
+        </div>
+
+      </div>
+      <p class="case__note">
+        A falha fica até ser dispensada. Sumir sozinha é a mesma coisa que não ter
+        acontecido — e os dois finais que mais precisam ser lidos são os dois que ninguém
+        está olhando na hora.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 6 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">6 · zero projetos</h2>
+      <p class="sec__d">
+        <span class="q">Q3 · decidido</span> O cabeçalho <code>Projetos</code> <b>existe em
+        todos os estados</b>, com o <code>+</code>, e o vazio fica só com o texto. Hoje o
+        vazio não tem ação própria porque o rodapé tinha uma; tirando o rodapé, dar uma
+        ação ao vazio traria de volta exatamente o que esta feature veio remover — dois
+        botões para um trabalho, a uma mão de distância um do outro.
+      </p>
+      <p class="sec__d">
+        Um lugar, em todos os estados. É também o que mantém o e2e de primeiro acesso
+        chegando ao mesmo lugar: ele atravessa o caminho de adicionar projeto, e este PRD
+        move esse caminho.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">primeiro acesso · <b>exatamente um</b> caminho visível</div>
+      <div class="shot shot--tall bleed">
+        <div class="app">
+          <header class="topbar">
+            <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+            <span class="spacer"></span>
+            <span class="daemon"><span class="daemon__dot"></span>daemon v0.1.0 · :4317</span>
+          </header>
+          <div class="body">
+            <aside class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="spacer"></span><span class="ws__caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act is-focus" title="adicionar projeto">＋</button></div>
+                <div class="empty">
+                  <div class="empty__glyph">■</div>
+                  <div class="empty__title">Nenhum projeto aqui</div>
+                  <div class="empty__sub">Aponte para a raiz de um repositório git no disco, ou cole uma URL para clonar.</div>
+                </div>
+              </div>
+              <div class="sidebar__foot"><div class="add"><span class="glyph glyph--agent">◆</span>conectar um agente<span class="spacer"></span><span class="caret">›</span></div></div>
+            </aside>
+            <main class="main">
+              <div class="empty">
+                <div class="empty__glyph">◈</div>
+                <div class="empty__title">pessoal</div>
+                <div class="empty__sub">Um workspace sem projeto ainda. O <b>＋</b> ao lado de <b>Projetos</b> acrescenta o primeiro.</div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================== 7 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">7 · o que sai</h2>
+      <p class="sec__d">
+        Uma ação, um lugar. O <code>＋ adicionar projeto</code> do rodapé sai, e o
+        <code>CreateWorktreeDialog</code> sai do <code>LocalPanel</code>
+        (<span class="q">Q4 · decidido</span>) — a aba de contexto do <code>local</code> é
+        para ler o checkout, não para criar irmãos dele.
+      </p>
+      <p class="sec__d">
+        O rodapé fica com o login do agente, que é do workspace e não da lista de projetos.
+        E o <code>CloneStatus</code> não morre: ele muda de hospedeiro, do rodapé para a
+        árvore.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o pé da sidebar</div>
+      <div class="ba">
+        <div class="strip__i">
+          <div class="strip__l">antes — três coisas empilhadas no rodapé</div>
+          <div class="zoom">
+            <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span></div>
+            <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span></div>
+            <div class="sidebar__foot">
+              <div class="add"><span class="glyph glyph--agent">◆</span>claude-code<span class="spacer"></span><span class="chip chip--clean"><span class="chip__dot"></span>conectado</span></div>
+              <div class="crow">
+                <div class="row" style="--depth:0"><span class="row__twist"></span><span class="glyph glyph--project">■</span><span class="row__label">api</span><span class="crow__pct">47%</span></div>
+                <div class="crow__bar"><div class="crow__fill" style="width:47%"></div></div>
+              </div>
+              <div class="add"><span class="glyph">＋</span>adicionar projeto</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l">depois — o rodapé só tem o que é do workspace</div>
+          <div class="zoom">
+            <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span><button class="row__act">＋</button></div>
+            <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+            <div class="sidebar__foot">
+              <div class="add"><span class="glyph glyph--agent">◆</span>claude-code<span class="spacer"></span><span class="chip chip--clean"><span class="chip__dot"></span>conectado</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================== 8 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">8 · foco e teclado</h2>
+      <p class="sec__d">
+        O <code>+</code> que só aparece no hover esconderia a ação de quem navega por
+        teclado. Ele aparece <b>também no foco</b>, e o foco entra e sai do modal por um
+        caminho só — o que abriu é o que recebe de volta.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o contrato</div>
+      <dl class="spec">
+        <dt>Tab</dt>
+        <dd>ordem da linha: <b>seta de expandir → linha → <code>+</code></b>. O <code>+</code> é o último, porque é ação e não navegação.</dd>
+
+        <dt>foco no <code>+</code></dt>
+        <dd>o slot pinta e ganha o anel de foco, com a linha em repouso — <b>sem</b> depender do ponteiro.</dd>
+
+        <dt>Enter · Space</dt>
+        <dd>no <code>+</code> abre o diálogo. <b>Não</b> seleciona a linha e <b>não</b> expande o projeto.</dd>
+
+        <dt>abrir</dt>
+        <dd>o foco entra no <b>primeiro campo</b>, já pronto para digitar.</dd>
+
+        <dt>Tab dentro</dt>
+        <dd>circula dentro do modal e não escapa: campo → campo → confirmar → cancelar → <code>✕</code> → volta ao primeiro campo.</dd>
+
+        <dt>Esc</dt>
+        <dd>fecha e <b>devolve o foco ao <code>+</code> que o abriu</b>. Igual para clique no véu e no <code>✕</code>.</dd>
+
+        <dt>confirmar</dt>
+        <dd>worktree: fecha, <b>expande o projeto</b> e <b>seleciona a worktree nova</b> — o mesmo destino do caminho de hoje. Projeto por URL: fecha assim que o clone começa, e o progresso segue na árvore.</dd>
+
+        <dt>cancelar</dt>
+        <dd>fecha e <b>não muda a seleção atual</b>. Você continua exatamente onde estava.</dd>
+
+        <dt>leitor de tela</dt>
+        <dd>o <code>+</code> tem nome próprio — <code>nova worktree em lumem-os</code>, <code>adicionar projeto</code> —, porque <code>＋</code> sozinho não é nome de nada. O modal é <code>role="dialog"</code> com <code>aria-modal</code> e rótulo no título.</dd>
+      </dl>
+      <p class="case__note">
+        <span class="q">Q6 · decidido</span> Atalho global para criar worktree fica
+        <b>fora do v1</b>, e vai para o backlog: a mesma tecla dentro de um terminal ou de
+        um editor pertence a eles, e o atalho precisaria saber o que está em foco antes de
+        decidir de quem ela é.
+      </p>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>
