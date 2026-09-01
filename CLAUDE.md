@@ -24,7 +24,8 @@ tradução ao lado) e `LICENSE` (MIT).
 
 Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**, sem tasks ainda:
 [sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto e worktree de onde se olha —
-**desenhada em 2026-09-01**, com as seis perguntas respondidas e duas peças novas no design system),
+**desenhada em 2026-09-01**, com as seis perguntas respondidas, duas peças novas no design system e
+[10 tasks](docs/prd/sidebar-actions/tasks.md) escritas, nenhuma entregue),
 [worktree-first-tab](docs/prd/worktree-first-tab/prd.md) (o cabeçalho vira a primeira aba, e o
 `▤ arquivos` sai da topbar — extraída da Fase 1 da barra da PR),
 [run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de execução nasce aberto) e
