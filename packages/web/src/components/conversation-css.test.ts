@@ -62,6 +62,7 @@ const INTERPOLATED = [
   "turn--agent",
   "verdict--allowed",
   "verdict--denied",
+  "verdict--lumem",
   "plan__row--pending",
   "plan__row--active",
   "plan__row--done",

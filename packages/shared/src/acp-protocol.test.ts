@@ -200,6 +200,7 @@ describe("decodeAcpServerMessage — events", () => {
       "a permission request",
       {
         type: "permission_request",
+        policyReason: null,
         requestId: "rq-1",
         toolCallId: "tc-2",
         title: "Bash rm -rf node_modules/.vite",

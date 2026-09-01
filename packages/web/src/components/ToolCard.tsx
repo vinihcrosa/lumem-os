@@ -99,11 +99,33 @@ export function ToolCard({ call, terminals = [], defaultOpen = false }: ToolCard
           </span>
         )}
 
+        {/*
+          Quem assinou, e não só o quê (F1.6).
+
+          Mesma forma, mesma posição, assinatura diferente: `✓ você permitiu` de
+          um lado e `◈ o Lumem aprovou` do outro. Ler a transcrição depois e não
+          conseguir separar as duas seria o pior resultado desta feature — o
+          registro diria que alguém decidiu quando ninguém decidiu.
+        */}
         {call.verdict && (
           <span
-            className={`verdict verdict--${call.verdict.kind.startsWith("allow") ? "allowed" : "denied"}`}
+            className={`verdict verdict--${
+              call.verdictBy === "lumem"
+                ? "lumem"
+                : call.verdict.kind.startsWith("allow")
+                  ? "allowed"
+                  : "denied"
+            }`}
           >
-            {call.verdict.kind.startsWith("allow") ? "✓" : "✕"} {call.verdict.name}
+            {call.verdictBy === "lumem" ? (
+              <>
+                <span aria-hidden="true">◈</span> o Lumem aprovou
+              </>
+            ) : (
+              <>
+                {call.verdict.kind.startsWith("allow") ? "✓" : "✕"} {call.verdict.name}
+              </>
+            )}
           </span>
         )}
 
@@ -134,6 +156,16 @@ export function ToolCard({ call, terminals = [], defaultOpen = false }: ToolCard
           </button>
         )}
       </div>
+
+      {/*
+        O porquê, visível, e não só num `title`.
+
+        Um motivo escondido atrás de hover não é auditável: quem lê a transcrição
+        depois — ou num teclado, ou num leitor de tela — nunca passa o mouse.
+      */}
+      {call.verdictBy === "lumem" && call.verdictReason !== null && (
+        <div className="tc__why">{call.verdictReason}</div>
+      )}
 
       {open && terminal && (
         <div className="tc__body">

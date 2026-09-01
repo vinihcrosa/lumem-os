@@ -89,6 +89,7 @@ function attached(
 
 const permissionRequest: AcpTranscriptEntry["event"] = {
   type: "permission_request",
+  policyReason: null,
   requestId: "rq-1",
   toolCallId: "tc-1",
   title: "Bash rm -rf .vite",

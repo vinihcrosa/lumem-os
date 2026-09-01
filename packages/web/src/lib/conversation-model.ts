@@ -53,6 +53,16 @@ export interface ToolCallView {
    * would put words in the user's mouth.
    */
   verdict: AcpPermissionOption | null;
+  /**
+   * Quem assinou o veredito (`session-mode`, F1.6).
+   *
+   * Do evento, e não deduzido: ler uma transcrição seis meses depois e não
+   * conseguir separar "você permitiu" de "o Lumem aprovou" é o pior resultado
+   * possível desta feature.
+   */
+  verdictBy: "user" | "lumem";
+  /** Por que a política aprovou. Null quando foi uma pessoa que respondeu. */
+  verdictReason: string | null;
   /** Kept so a later update can measure against it. */
   readonly startedAt: number;
 }
@@ -64,6 +74,14 @@ export interface PendingPermission {
   command: string | null;
   cwd: string;
   options: readonly AcpPermissionOption[];
+  /**
+   * Por que a política do Lumem **não** respondeu esta (T7).
+   *
+   * Null sob `perguntar tudo`, onde não há nada a explicar. Sem ele, "por que
+   * estou sendo perguntado no modo automático?" é uma pergunta que a tela não
+   * sabe responder.
+   */
+  policyReason: string | null;
 }
 
 export type Block =
@@ -234,6 +252,8 @@ export function reduceConversation(
           added: null,
           removed: null,
           verdict: null,
+          verdictBy: "user",
+          verdictReason: null,
           startedAt: at,
         },
       });
@@ -258,6 +278,7 @@ export function reduceConversation(
         command: event.command ?? null,
         cwd: event.cwd,
         options: event.options,
+        policyReason: event.policyReason,
       };
       // Only the newest ask is shown: the agent blocks on one at a time, so a
       // second one means the first is gone. Offering both would be a choice
@@ -297,7 +318,14 @@ export function reduceConversation(
         pendingPermission:
           state.pendingPermission?.requestId === event.requestId ? null : state.pendingPermission,
       };
-      return chosen ? updateCall(next, pending.toolCallId, (call) => ({ ...call, verdict: chosen })) : next;
+      return chosen
+        ? updateCall(next, pending.toolCallId, (call) => ({
+            ...call,
+            verdict: chosen,
+            verdictBy: event.by,
+            verdictReason: event.reason,
+          }))
+        : next;
     }
 
     case "plan":

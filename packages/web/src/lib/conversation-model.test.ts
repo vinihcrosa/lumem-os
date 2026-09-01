@@ -251,6 +251,7 @@ describe("permission", () => {
   };
   const request: AcpEvent = {
     type: "permission_request",
+    policyReason: null,
     requestId: "rq-1",
     toolCallId: "tc-1",
     title: "Bash rm -rf .vite",
@@ -382,6 +383,7 @@ describe("replay and live stream agree", () => {
       at(
         {
           type: "permission_request",
+          policyReason: null,
           requestId: "rq-1",
           toolCallId: "tc-1",
           title: "Bash",

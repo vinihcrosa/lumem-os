@@ -302,6 +302,24 @@
 .verdict { flex: none; display: inline-flex; align-items: center; gap: var(--space-4); font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; }
 .verdict--allowed { color: var(--color-permission-allowed); }
 .verdict--denied  { color: var(--color-permission-denied); }
+/*
+ * O veredito do Lumem (session-mode, F1.6).
+ *
+ * Tom do modo `auto`, e não o verde de "permitido": permitido é o que uma pessoa
+ * respondeu, e este é o que a política respondeu. Mesma forma, mesma posição,
+ * cor que diz de quem foi a assinatura.
+ */
+.verdict--lumem   { color: var(--color-mode-auto); }
+/*
+ * O porquê, visível. Indentado até a coluna do verbo — alinhar com a borda do
+ * cartão faria a frase parecer legenda do cartão inteiro, e ela é do veredito.
+ */
+.tc__why {
+  padding: var(--space-6) var(--space-10) var(--space-8)
+    calc(var(--space-10) + var(--size-icon-md) + var(--space-8));
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
 
 /* --------------------------------------------- o poço da saída */
 /*

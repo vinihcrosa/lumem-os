@@ -89,6 +89,16 @@ export function PermissionRequest({ request, onRespond }: PermissionRequestProps
           <div className="perm__where">cwd {request.cwd}</div>
         </div>
 
+        {/*
+          Por que a política do Lumem não respondeu esta (`session-mode`, T7).
+          Sem esta linha, "por que estou sendo perguntado no modo automático?" é
+          uma pergunta que a tela não sabe responder — e o modo passa a parecer
+          quebrado exatamente quando está funcionando como prometido.
+        */}
+        {request.policyReason !== null && (
+          <div className="perm__why">{request.policyReason}</div>
+        )}
+
         <div className="perm__opts">
           <Button
             ref={primaryRef}

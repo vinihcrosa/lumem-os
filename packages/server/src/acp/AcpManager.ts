@@ -10,10 +10,13 @@ import {
 } from "@agentclientprotocol/sdk";
 import {
   ACP_AUTH_REQUIRED_CODE,
+  acpToolKindSchema,
   newId,
   type AcpConfigOption,
   type AcpEvent,
   type AcpModeOwner,
+  type AcpToolKind,
+  type AcpToolLocation,
   type AcpTranscriptEntry,
   type LumemMode,
   type LumemModeDefault,
@@ -29,6 +32,7 @@ import { createTerminalBridge, type TerminalBridge } from "./terminal-bridge.js"
 import type { PtyManager } from "../pty/PtyManager.js";
 import { spawnAcpProcess, type AcpProcess, type AcpProcessSpawner } from "./process.js";
 import { createMemoryTranscriptStore, type TranscriptStore } from "./TranscriptStore.js";
+import { decidePermission } from "./permission-policy.js";
 import { translateSessionUpdate } from "./translate.js";
 import { sniffUnknownUpdates } from "./unknown-updates.js";
 
@@ -1042,7 +1046,47 @@ export class AcpManager {
       })
       .onRequest("session/request_permission", ({ params }) => {
         const requestId = newId();
+        const options = params.options.map((option) => ({
+          optionId: option.optionId,
+          name: option.name,
+          kind: option.kind,
+        }));
 
+        /*
+         * The request is emitted **before** the policy is consulted, always.
+         *
+         * That order is F1.6: something answered on the user's behalf has to
+         * appear in the conversation, and the cheapest way to guarantee it is for
+         * the automatic path to travel the same two events the manual one does —
+         * the ask, then the verdict. Deciding first and emitting only a resolved
+         * event would give the client a verdict on a request it never saw, and
+         * the client would have nothing to attach it to.
+         */
+        /*
+         * Only when the policy is ours (A1). An agent that reports its own modes
+         * already decided what to ask about, and a second authority on top of it
+         * would answer under a mode nobody chose — the pill would say `plan` and
+         * writes would be going through.
+         */
+        const decision =
+          modeOwnerOf(session.info) === "lumem"
+            ? decidePermission(session.info.lumemMode, session.info.cwd, {
+                kind: kindOf(params.toolCall),
+                locations: locationsOf(params.toolCall),
+                options,
+              })
+            : ({ approve: false, reason: null } as const);
+
+        /*
+         * The request is emitted **before** the verdict, always — including when
+         * the verdict is ours and instant.
+         *
+         * That order is F1.6: something answered on the user's behalf has to
+         * appear in the conversation, and the cheapest way to guarantee it is for
+         * the automatic path to travel the same two events the manual one does.
+         * Emitting only the resolution would hand the client a verdict about a
+         * request it never saw, with nothing to attach it to.
+         */
         this.emit(session, {
           type: "permission_request",
           requestId,
@@ -1050,12 +1094,22 @@ export class AcpManager {
           title: params.toolCall.title ?? params.toolCall.toolCallId,
           command: commandOf(params.toolCall),
           cwd: session.info.cwd,
-          options: params.options.map((option) => ({
-            optionId: option.optionId,
-            name: option.name,
-            kind: option.kind,
-          })),
+          options,
+          policyReason: decision.approve ? null : decision.reason,
         });
+
+        if (decision.approve) {
+          this.emit(session, {
+            type: "permission_resolved",
+            requestId,
+            outcome: { optionId: decision.optionId },
+            by: "lumem",
+            reason: decision.reason,
+          });
+          return Promise.resolve<RequestPermissionResponse>({
+            outcome: { outcome: "selected", optionId: decision.optionId },
+          });
+        }
 
         return new Promise<RequestPermissionResponse>((resolve) => {
           session.pendingPermissions.set(requestId, {
@@ -1625,6 +1679,29 @@ function flattenChoices(options: unknown): AcpConfigOption["choices"] {
 }
 
 /** The command a permission request is about, when the tool call names one. */
+/**
+ * The tool's category, for the policy to judge (Q3).
+ *
+ * Defaults to `"other"` rather than to `"read"`: an adapter that omits the kind
+ * must not have its calls auto-approved by the omission. Unknown means ask.
+ */
+function kindOf(toolCall: ToolCallUpdate): AcpToolKind {
+  // O parse do próprio contrato, e não uma segunda lista de nomes aqui: duas
+  // listas de categorias de ferramenta são duas listas que vão divergir.
+  const parsed = acpToolKindSchema.safeParse(toolCall.kind);
+  return parsed.success ? parsed.data : "other";
+}
+
+/** The paths the call touches. Empty when the adapter named none. */
+function locationsOf(toolCall: ToolCallUpdate): readonly AcpToolLocation[] {
+  const locations = toolCall.locations;
+  if (!Array.isArray(locations)) return [];
+  return locations.flatMap((location) => {
+    const path = (location as { path?: unknown }).path;
+    return typeof path === "string" ? [{ path, line: null }] : [];
+  });
+}
+
 function commandOf(toolCall: ToolCallUpdate): string | null {
   const raw = toolCall.rawInput;
   if (typeof raw === "object" && raw !== null) {

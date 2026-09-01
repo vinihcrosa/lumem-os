@@ -305,6 +305,16 @@ export const acpEventSchema = z.discriminatedUnion("type", [
     command: z.string().nullish(),
     cwd: z.string(),
     options: z.array(acpPermissionOptionSchema).min(1),
+    /**
+     * Why the Lumem policy did not answer this one (`session-mode`, T7).
+     *
+     * Null under `ask`, and under an agent that owns its own modes: there is
+     * nothing to explain when asking *is* the rule. Set when a policy that would
+     * normally answer did not — `auto` facing a write, or an agent that offered
+     * no way to allow (Q6) — because "why am I being asked in auto mode?" is
+     * otherwise a question the screen cannot answer.
+     */
+    policyReason: z.string().nullable().default(null),
   }),
   z.object({
     type: z.literal("permission_resolved"),
