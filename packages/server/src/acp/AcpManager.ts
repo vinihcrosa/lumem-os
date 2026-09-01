@@ -55,6 +55,18 @@ export interface AcpSpawnOptions {
    * sentence with the command that fixes it (F1.6).
    */
   adapterVersion?: string;
+  /**
+   * The policy this conversation starts under (`session-mode`, Q5 and F1.4).
+   *
+   * Passed in rather than read here, because the manager has no database: on a
+   * new session it is the workspace's default, and on a resume it is what the
+   * dead row was carrying. `LumemMode` and not `LumemModeDefault` for exactly
+   * that second case — a session resumed from one that went through the gate
+   * comes back `free`, and narrowing the type here would silently downgrade it.
+   */
+  lumemMode?: LumemMode;
+  /** What a new session in this workspace would start at — the menu's footer. */
+  lumemModeDefault?: LumemModeDefault;
 }
 
 
@@ -629,8 +641,8 @@ export class AcpManager {
          * session start free: the gate for `free` is per session, and a default
          * that walked through it would annul it (Q5).
          */
-        lumemMode: "ask",
-        lumemModeDefault: "ask",
+        lumemMode: options.lumemMode ?? "ask",
+        lumemModeDefault: options.lumemModeDefault ?? "ask",
       },
       process: child,
       connection: undefined as unknown as ClientConnection,

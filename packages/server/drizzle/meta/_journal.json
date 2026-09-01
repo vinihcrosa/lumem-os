@@ -85,6 +85,13 @@
       "when": 1788069509856,
       "tag": "0011_fase_de_teste",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1788243058131,
+      "tag": "0012_modo_do_lumem",
+      "breakpoints": true
     }
   ]
 }
