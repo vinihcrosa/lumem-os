@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Desenho:** `packages/web/prototype/lumem-sidebar-actions.html` — oito quadros, feitos no Open Design
 e sincronizados ([regra](../../project/design-source-of-truth.md))
-**Status:** **8 de 10.** A T8 veio junto com a T6 — a razão está no fim. Escopo fechado — as seis perguntas foram respondidas pelo desenho de
+**Status:** **9 de 10.** A T8 veio junto com a T6 — a razão está no fim. Escopo fechado — as seis perguntas foram respondidas pelo desenho de
 2026-09-01.
 
 ---
@@ -230,13 +230,13 @@ linha.
 `e2e/sidebar-actions.spec.ts` (novo)
 
 **Done when**:
-- [ ] O helper `ensureProject` (`app.ts:70`) passa pelo `+` do cabeçalho — ele é o caminho de
+- [x] O helper `ensureProject` (`app.ts:70`) passa pelo `+` do cabeçalho — ele é o caminho de
       **todo** spec que precisa de um projeto, então isto é o que decide se a suíte inteira anda
-- [ ] `clone-project.spec.ts` e `error-cases.spec.ts` deixam de procurar o botão do rodapé
-- [ ] O e2e de primeiro acesso ([onboarding](../onboarding/prd.md)) continua chegando ao mesmo lugar
-- [ ] Spec novo: criar worktree pelo `+` de um projeto **fechado**, e cair dentro dela
-- [ ] Spec novo: `Esc` no modal fecha e devolve o foco ao `+` que o abriu
-- [ ] Gate: `pnpm gate:full`
+- [x] `clone-project.spec.ts` e `error-cases.spec.ts` deixam de procurar o botão do rodapé
+- [x] O e2e de primeiro acesso ([onboarding](../onboarding/prd.md)) continua chegando ao mesmo lugar
+- [x] Spec novo: criar worktree pelo `+` de um projeto **fechado**, e cair dentro dela
+- [x] Spec novo: `Esc` no modal fecha e devolve o foco ao `+` que o abriu
+- [x] Gate: `pnpm gate:full`
 
 **Commit**: `test(e2e): a árvore é o caminho de criar projeto e worktree`
 
@@ -294,6 +294,19 @@ coluna porque, no protótipo, o que estava à mão era o `.fail` do design syste
 central, e que quebra a URL no meio de um token dentro de 264px. O app já tinha o cartão certo desde
 a `project-from-url`: o `clone-outcome--failed`, com as duas saídas escritas e a URL numa linha. Foi
 o protótipo que estava atrás do código, e não o contrário.
+
+**T9 — o `name` do playwright casa substring, e foi isso que quebrou 22 specs.** Nenhuma das quebras
+foi de comportamento: `getByRole("button", { name: "adicionar" })` passou a encontrar **dois**
+elementos, porque o `+` do cabeçalho se chama `adicionar projeto`; e
+`{ name: "nova worktree" }` encontrou **um por projeto**, porque agora a ação mora em cada linha e o
+workspace do e2e acumula projetos. Duas correções: `exact: true` onde o nome curto era ambíguo, e um
+helper `createWorktree(page, name, project)` no `support/app.ts` — "como se cria uma worktree" volta a
+ser decisão de um lugar só, e o nome do projeto passa a ser obrigatório na prática.
+
+**E uma armadilha do próprio spec novo:** afirmar que o `local` está escondido para provar que o
+projeto está fechado só funciona com **um** projeto na árvore. A árvore é markup plano, e no run
+completo cada projeto tem o seu `local`. A afirmação certa é a seta dizendo `expandir` — que é o que
+um leitor de tela ouviria.
 
 **Padrão que apareceu duas vezes:** a ponte provisória entre "o diálogo virou controlado" e "a árvore
 manda" **não** dura um commit. Nas duas vezes o que a cobrou foi a suíte, e nas duas o conserto foi

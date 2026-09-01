@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_STATE_DIR } from "../ports.js";
-import { ensureWorkspace } from "./support/app.js";
+import { createWorktree, ensureWorkspace } from "./support/app.js";
 import { E2E_FIXTURE_REPO_EMPTY, E2E_FIXTURE_REPO_ORIGIN } from "./support/fixtures.js";
 
 /**
@@ -45,9 +45,7 @@ test("clona por file://, e o projeto corta worktree como qualquer outro", async 
 
   // Critério 10: um projeto clonado não é de segunda classe.
   await entrada.click();
-  await page.getByRole("button", { name: /nova worktree/ }).click();
-  await page.getByLabel("Nome da worktree").fill("do-clone");
-  await page.getByRole("button", { name: "criar" }).click();
+  await createWorktree(page, "do-clone", "clonado");
 
   await expect(page.getByRole("button", { name: "do-clone", exact: true })).toBeVisible({
     timeout: 30_000,
@@ -63,11 +61,11 @@ test("recusa ext:: e git:// na tela, antes de qualquer processo", async ({ page 
   // e não em resposta a um clique.
   await page.getByLabel("Caminho ou URL").fill("ext::sh -c id");
   await expect(page.getByText(/o transporte "ext" não está na lista/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "adicionar" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "adicionar", exact: true })).toBeDisabled();
 
   await page.getByLabel("Caminho ou URL").fill("git://host/repo.git");
   await expect(page.getByText(/não autentica nem verifica integridade/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "adicionar" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "adicionar", exact: true })).toBeDisabled();
 });
 
 test("clona um repositório vazio, e a tela explica por que ele ainda não corta worktree", async ({
@@ -81,9 +79,13 @@ test("clona um repositório vazio, e a tela explica por que ele ainda não corta
   await expect(entrada).toBeVisible({ timeout: 30_000 });
   await entrada.click();
 
-  const botao = page.getByRole("button", { name: /nova worktree/ });
-  await expect(botao).toBeDisabled();
-  await expect(botao).toHaveAttribute("title", /nenhum commit/);
+  // O `+` continua clicável, e quem explica é o diálogo: um `+` de 24px cinza
+  // numa linha de árvore é um botão sem motivo à vista (sidebar-actions §3).
+  await page.getByLabel("árvore de projetos")
+    .getByRole("button", { name: "nova worktree em dia-zero", exact: true })
+    .click();
+  await expect(page.getByText(/ainda não tem nenhum commit/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "criar", exact: true })).toBeDisabled();
 });
 
 test("remover o projeto clonado apaga o diretório", async ({ page }) => {
@@ -111,7 +113,7 @@ test("remover um projeto registrado por caminho não apaga o repositório dele",
   await openDialog(page);
   await page.getByLabel("Caminho ou URL").fill(E2E_FIXTURE_REPO_ORIGIN);
   await page.getByLabel("Nome").fill("apontado");
-  await page.getByRole("button", { name: "adicionar" }).click();
+  await page.getByRole("button", { name: "adicionar", exact: true }).click();
 
   const entrada = page.getByRole("button", { name: "apontado", exact: true });
   await expect(entrada).toBeVisible({ timeout: 15_000 });
