@@ -225,3 +225,27 @@ Mas a pergunta original era outra: **quando você registra um monorepo como proj
 Nesta versão a resposta é forçada — projeto = raiz de repo git, então é uma entrada. A pergunta é se isso te incomoda a ponto de precisar resolver já.
 
 **R:** pode ser assim mesmo, o projeto é a raiz do repo git.
+
+### 🟢 [x] WS-Q22 — Remover projeto com worktrees: bloqueia ou cascateia?
+O PRD original (F2.5) e o schema (`worktree.project_id` com `ON DELETE RESTRICT`) diziam **bloqueia**: remover projeto exigia remover cada worktree à mão antes. O mesmo padrão sem-cascata do workspace (F1.5).
+
+Na prática isso deixou o botão inútil: o onboarding **sempre** cria uma worktree na primeira tarefa (*"Toda tarefa vira uma worktree"*), então todo projeto real nasce com pelo menos uma. Clicar em "remover projeto" só devolvia `o projeto ainda tem worktrees registradas; remova-as antes`, e o projeto ficava preso na barra — o bug relatado.
+
+**Decisão: cascateia, mas só o registro — e só no projeto registrado por caminho.** Remover projeto tira o registro dele **e o das worktrees**, numa transação só (é o que satisfaz a FK sem afrouxá-la para `CASCADE` no schema). **Nenhum diretório é tocado** — nem o repositório no caminho da máquina, nem os checkouts em `<workspace>/<projeto>/worktrees/`, com trabalho não commitado e tudo.
+
+**No projeto clonado a cascata não vale, e a worktree volta a bloquear.** A [F6.9](../distribution/prd.md) trouxe o projeto **gerenciado**: o Lumem clona o repositório para dentro de `<workspace>/<projeto>/repo/`, e removê-lo **apaga esse diretório**. Isso derruba a premissa desta decisão — "como nada some do disco, a cascata é não-destrutiva" —, porque as worktrees moram ao lado do `repo/`, em `<workspace>/<projeto>/worktrees/`. Cascatear o registro delas apagaria o repositório e deixaria N checkouts cujo gitdir não existe mais, com trabalho não commitado dentro e nada nomeando eles. Então o escopo que a remoção faz sumir depende de qual das duas remoções ela é:
+
+| Projeto | Disco | Worktrees registradas |
+|---|---|---|
+| por caminho (`managed = false`) | intocado | saem junto — só o registro |
+| clonado (`managed = true`) | o `repo/` é apagado | **bloqueiam**, antes de qualquer `rm` (F6.9-A4) |
+
+**A cascata pede confirmação — e a razão não é o disco.** A primeira versão desta decisão dispensava a confirmação porque nada some do disco. O argumento não se sustenta nem no projeto por caminho: **não há caminho de volta.** Adotar uma worktree que já existe está no [backlog](../../project/backlog.md) como não construído, então o registro é a única alça que o Lumem tem naqueles checkouts — e ela some com um clique. Remover **uma** worktree suja pergunta; remover o projeto, que leva N worktrees junto, perguntava nada. A confirmação nomeia o número (`remover lorebase da lista, e o registro de 3 worktrees?`) e diz que os diretórios ficam no disco. Ela é do cliente, não do daemon: o daemon não tem o que recusar aqui, e um `force` na rota seria um portão sem nada atrás.
+
+**O que a decisão custa, dito por extenso: a worktree do projeto removido não pode ser recriada pelo app.** Vale para o projeto por caminho, que é onde a cascata acontece. O caminho é determinístico (`<workspace>/<projeto>/worktrees/<nome>`), então depois de remover o projeto ficam o diretório, a branch e a entrada em `.git/worktrees` do repo. Re-adicionar o mesmo repositório e criar a worktree `feat-x` de novo falha em `a branch já existe` — e o onboarding sempre cria worktree na primeira tarefa, então repetir a mesma tarefa falha. Sai só com `git worktree remove` na mão. **Não é resolvido aqui**: limpar o disco na cascata contradiz o "nenhum diretório é tocado" que é o coração desta decisão, e adotar o que já está lá é a feature que está no backlog. Foi para o [backlog §D](../../project/backlog.md).
+
+**A cascata não grava sinal de ação, e isso é deliberado.** `worktree.remove` grava `worktree_discarded` (Q17: *"jogar o trabalho fora é o que mais diz sobre ele"*). Aqui nada foi jogado fora — os checkouts continuam no disco, inteiros —, então emitir N `worktree_discarded` seria registrar como descarte o que foi desregistro. E `project_removed` não existe como sinal: os sinais de ação são sobre **trabalho**, e tirar um projeto da barra é administração da própria ferramenta. No projeto clonado a remoção **apaga** diretório, mas não cascateia worktree nenhuma — então também não há descarte de trabalho a registrar aqui.
+
+**Sessão rodando** (§6) bloqueia os dois casos: remover deixaria um processo apontando para um escopo que sumiu. O escopo varrido acompanha a decisão acima — no projeto por caminho a conta soma o do projeto e o de cada worktree que vai junto; no clonado, só o do projeto, porque worktree nenhuma vai a lugar nenhum.
+
+Isto **reverte** o "sem cascata" da F2.5 para projeto. A F1.5 (workspace) continua bloqueando: workspace não tem artefato no disco a preservar, e o precedente de "zero projetos antes" segue de pé.

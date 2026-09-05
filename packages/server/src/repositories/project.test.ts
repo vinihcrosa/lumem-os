@@ -1,4 +1,5 @@
 import { newId } from "@lumem/shared";
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import type { Db } from "../db/index.js";
@@ -173,7 +174,11 @@ describe("remove", () => {
     });
   });
 
-  it("refuses while worktrees still point at it", async () => {
+  it("drops the worktree registrations with it (F2.5)", async () => {
+    // The worktree rows go in the same transaction as the project, so the
+    // ON DELETE RESTRICT that used to forbid this is satisfied without a single
+    // directory being touched — the checkouts stay on disk, only the registry
+    // forgets them.
     await withTestDb(async (db) => {
       const { repository, workspaceId } = await setup(db);
       const created = await repository.create(projectInput(workspaceId));
@@ -181,11 +186,12 @@ describe("remove", () => {
         .insert(worktree)
         .values({ id: newId(), projectId: created.id, name: "t", branch: "t", path: "/w/t" });
 
-      const failure = repository.remove(created.id);
+      await repository.remove(created.id);
 
-      await expect(failure).rejects.toMatchObject({ code: "IN_USE" });
-      await expect(failure).rejects.toThrow(/ainda tem worktrees/);
-      expect(await repository.findById(created.id)).toBeDefined();
+      expect(await repository.findById(created.id)).toBeUndefined();
+      expect(
+        await db.query.worktree.findFirst({ where: eq(worktree.projectId, created.id) }),
+      ).toBeUndefined();
     });
   });
 

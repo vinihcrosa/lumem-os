@@ -434,13 +434,15 @@ describe("removal blocked by live sessions", () => {
     );
   });
 
-  it("blocks removing a project that still has worktrees", async () => {
-    // F2.5, enforced by the database rather than by a check that can be
-    // forgotten.
-    const { ctx, projectId } = await setup();
+  it("blocks removing a project when one of its worktrees has a running session", async () => {
+    // §6 extended to the cascade (F2.5, WS-Q22): removing a project takes its
+    // worktrees with it, so a live session in any of them is a scope about to
+    // vanish, and blocks the removal exactly as the project's own would.
+    const { ctx, projectId, worktreeId } = await setup();
+    await ctx.api.session.createShell({ scopeType: "worktree", scopeId: worktreeId });
 
     await expect(ctx.api.project.remove({ id: projectId })).rejects.toThrow(
-      /ainda tem worktrees/,
+      /1 sessão\(ões\) rodando/,
     );
   });
 });

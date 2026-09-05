@@ -7,8 +7,10 @@
 setup = "./scripts/workspace/setup.sh"
 archive = "./scripts/workspace/teardown.sh"
 
-# Cada workspace escuta num par de portas próprio e escreve num state dir
-# próprio — nada compartilhado que impeça dois rodando ao mesmo tempo.
+# O `run` sobe o ambiente de dev, que é um só e escuta nas portas default: dois
+# ao mesmo tempo disputam a porta, e o segundo para com a mensagem dizendo para
+# subir com `LUMEM_ISOLATED=1`. Continua "concurrent" porque é o isolamento que
+# vira opt-in, não a possibilidade — ver docs/project/workspaces.md.
 run_mode = "concurrent"
 
 [scripts.run.dev]
