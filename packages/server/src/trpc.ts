@@ -7,6 +7,8 @@ import { isDomainError, type DomainErrorCode } from "./errors.js";
 import type { AcpManager } from "./acp/AcpManager.js";
 import type { CloneJobStore } from "./git/CloneJobStore.js";
 import type { GitService } from "./git/GitService.js";
+import type { PrCache } from "./pr/PrCache.js";
+import type { PrHost } from "./pr/PrHost.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import type { ScriptRunner } from "./scripts/ScriptRunner.js";
 import type { SessionStore } from "./sessions/SessionStore.js";
@@ -41,6 +43,21 @@ export interface Context {
    * The clone that is running, if any. In memory, and one at a time — Q4, Q17.
    */
   clones: CloneJobStore;
+  /**
+   * O estado das pull requests, por **projeto** (pull-request-status F4.3).
+   *
+   * No contexto e não construído por procedure porque ele guarda o que faz oito
+   * worktrees custarem um processo: o último instantâneo do host e a execução em
+   * voo. Uma instância por procedure seria uma consulta por componente.
+   */
+  pr: PrCache;
+  /**
+   * Quem fala com o host de git — e quem **escreve** nele (F7).
+   *
+   * Separado do cache porque o cache só lê: mesclar e criar não podem passar por
+   * um objeto cuja razão de existir é devolver valor velho.
+   */
+  prHost: PrHost;
   events: EventBus;
 }
 

@@ -290,10 +290,14 @@ describe("a pureza, que é o que faz esta tabela testável", () => {
   it("não importa rede, processo nem banco", () => {
     // A P1 pede isto por escrito. Um `import` de `child_process` aqui não
     // quebraria teste nenhum — quebraria a razão de a tabela existir separada.
+    //
+    // O único import que sobrevive é `type`, e ele some na compilação: o
+    // contrato mora no `@lumem/shared` porque um tipo declarado dos dois lados
+    // diverge no dia em que alguém acrescenta um estado num só.
     const source = readFileSync(join(import.meta.dirname, "verdict.ts"), "utf8");
-    const imports = [...source.matchAll(/^import .*?from "(.+?)";$/gm)].map((m) => m[1]!);
+    const runtime = [...source.matchAll(/^(?:import|export) (?!type)[^\n]*? from "(.+?)";$/gm)];
 
-    expect(imports).toEqual([]);
+    expect(runtime.map((match) => match[1]!)).toEqual([]);
   });
 });
 

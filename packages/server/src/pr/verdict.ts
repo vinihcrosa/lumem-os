@@ -55,40 +55,21 @@ export interface GhPullRequest {
 }
 
 /**
- * A resposta, em sete estados.
+ * A resposta e o motivo vêm do **contrato**, e não daqui.
  *
- * `pending` é o estado que carrega a decisão de produto do §2.3 do PRD: metade
- * da vida de uma PR é verificação em andamento, e pintar isso de vermelho é
- * gritar lobo — lobo que grita sozinho para de ser lido.
+ * Eles são o que atravessa a rede, então a definição mora em `@lumem/shared` —
+ * um tipo declarado dos dois lados é um tipo que diverge no dia em que alguém
+ * acrescenta um estado num só. O `import` é **só de tipo**: ele some na
+ * compilação, e a pureza deste arquivo continua sendo verificável (o teste
+ * conta os imports que sobrevivem).
+ *
+ * `pending` carrega a decisão de produto do §2.3 do PRD: metade da vida de uma
+ * PR é verificação em andamento, e pintar isso de vermelho é gritar lobo — lobo
+ * que grita sozinho para de ser lido.
  */
-export type PrVerdict =
-  | "ready"
-  | "blocked"
-  | "pending"
-  | "draft"
-  | "merged"
-  | "closed";
+export type { PrReason, PrVerdict } from "@lumem/shared";
 
-/**
- * Por quê, **estruturado**.
- *
- * Tipo mais nomes, e não frase pronta: a tradução para português é da tela, que
- * é quem sabe quanto espaço tem. Um daemon que devolvesse texto obrigaria a
- * barra de 260px e a de 720px a mostrar a mesma frase.
- */
-export type PrReason =
-  | { kind: "conflict"; base: string }
-  | { kind: "checks-failed"; names: string[] }
-  | { kind: "changes-requested"; by: string[] }
-  | { kind: "review-required" }
-  | { kind: "behind"; base: string }
-  | { kind: "blocked-by-host" }
-  | { kind: "checks-running"; names: string[]; running: number; queued: number }
-  | { kind: "mergeability-unknown" }
-  | { kind: "ready"; passed: number; approvedBy: string[] }
-  | { kind: "draft"; passed: number }
-  | { kind: "merged"; base: string }
-  | { kind: "closed" };
+import type { PrCheckCounts, PrCheckGroup, PrReason, PrVerdict } from "@lumem/shared";
 
 export interface PrDecision {
   verdict: PrVerdict;
@@ -96,7 +77,7 @@ export interface PrDecision {
 }
 
 /** Em que grupo da aba `PR` uma verificação cai — e em que ordem ela é lida. */
-export type CheckGroup = "failed" | "running" | "passed" | "skipped";
+export type CheckGroup = PrCheckGroup;
 
 /**
  * `SKIPPED` não é sucesso e não é falha: é "não se aplicava".
@@ -138,12 +119,7 @@ export function groupOf(check: GhCheck): CheckGroup {
   return conclusion === "" ? "passed" : "running";
 }
 
-export interface CheckCounts {
-  failed: number;
-  running: number;
-  passed: number;
-  skipped: number;
-}
+export type CheckCounts = PrCheckCounts;
 
 export function countChecks(checks: readonly GhCheck[]): CheckCounts {
   const counts: CheckCounts = { failed: 0, running: 0, passed: 0, skipped: 0 };

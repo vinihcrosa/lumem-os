@@ -151,6 +151,15 @@ export interface GitService {
   getStatus(path: string): Promise<WorktreeStatus>;
   getAheadBehind(path: string, baseBranch: string): Promise<AheadBehind>;
   /**
+   * Se algum remoto conhece esta branch — sem ir à rede.
+   *
+   * A pergunta que separa "sem pull request" de "branch não publicada" na barra
+   * da PR: as duas são neutras, e dizer a errada manda a pessoa procurar uma PR
+   * que não podia existir. Lê a referência de rastreamento que já está no
+   * disco, e por isso responde offline.
+   */
+  hasRemoteBranch(path: string, branch: string): Promise<boolean>;
+  /**
    * What changed in a checkout, in one of the two views of D1.
    *
    * `worktree` is the working tree against `HEAD`, plus what is not tracked
@@ -367,6 +376,17 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       // left...right counts the base side first: commits the worktree does not
       // have are what it is *behind* by.
       return { ahead: ahead ?? 0, behind: behind ?? 0 };
+    },
+
+    async hasRemoteBranch(path, branch) {
+      // `for-each-ref` em vez de `rev-parse`: ele responde vazio em vez de
+      // falhar quando não há nada, e um nome de branch que também é um caminho
+      // válido não muda de significado no meio do comando.
+      const { stdout } = await exec(
+        ["for-each-ref", "--format=%(refname)", `refs/remotes/*/${branch}`],
+        { cwd: path },
+      ).catch(() => ({ stdout: "", stderr: "" }));
+      return stdout.trim() !== "";
     },
 
     async listChanges(path, input) {
