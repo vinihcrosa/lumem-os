@@ -71,7 +71,7 @@ async function newSession(page: Page, name: string): Promise<void> {
 }
 
 async function openColumn(page: Page): Promise<void> {
-  const toggle = page.getByRole("button", { name: "arquivos", exact: true });
+  const toggle = page.getByRole("button", { name: "abrir a coluna de arquivos" });
   if ((await page.getByLabel("arquivos do checkout").count()) === 0) await toggle.click();
   await expect(page.getByLabel("arquivos do checkout")).toBeVisible();
 }

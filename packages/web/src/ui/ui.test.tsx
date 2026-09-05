@@ -29,6 +29,7 @@ import {
   Steps,
   Tab,
   TabStrip,
+  TabToggle,
   WizardCard,
 } from "./index.js";
 
@@ -377,6 +378,61 @@ describe("Menu", () => {
   });
 });
 
+describe("TabStrip", () => {
+  it("keeps the two right-hand actions apart", () => {
+    // Uma cria o que ainda não existe, a outra liga o que já existe. Um
+    // separador é mais barato que um rótulo para dizer isso.
+    const { container } = render(
+      <TabStrip
+        label="sessões"
+        action={<button type="button">＋ nova sessão</button>}
+        end={
+          <TabToggle label="a coluna de arquivos" pressed={false} onToggle={vi.fn()}>
+            ▤
+          </TabToggle>
+        }
+      />,
+    );
+
+    expect(container.querySelector(".tabs-bar__action")).toBeInTheDocument();
+    expect(container.querySelector(".tabs-bar__end")).toBeInTheDocument();
+  });
+
+  it("carries only the action when nothing was pinned at the far right", () => {
+    const { container } = render(
+      <TabStrip label="sessões" action={<button type="button">＋ nova sessão</button>} />,
+    );
+
+    expect(container.querySelector(".tabs-bar__end")).not.toBeInTheDocument();
+  });
+});
+
+describe("TabToggle", () => {
+  it("says the verb, because a toggle whose name never changes reads as a button", async () => {
+    const onToggle = vi.fn();
+    const { rerender } = render(
+      <TabToggle label="a coluna de arquivos" pressed={false} onToggle={onToggle}>
+        ▤
+      </TabToggle>,
+    );
+
+    const opening = screen.getByRole("button", { name: "abrir a coluna de arquivos" });
+    expect(opening).toHaveAttribute("aria-pressed", "false");
+
+    await userEvent.click(opening);
+    expect(onToggle).toHaveBeenCalledOnce();
+
+    rerender(
+      <TabToggle label="a coluna de arquivos" pressed onToggle={onToggle}>
+        ▤
+      </TabToggle>,
+    );
+    expect(
+      screen.getByRole("button", { name: "fechar a coluna de arquivos" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
 describe("Tab", () => {
   it("keeps closing separate from selecting", async () => {
     const onSelect = vi.fn();
@@ -420,6 +476,38 @@ describe("Tab", () => {
     );
 
     expect(screen.getByRole("tab", { name: "claude-code 2" })).toBeInTheDocument();
+  });
+
+  it("names what the dot means, because a colour has no name", () => {
+    // A aba do checkout é a única que sobrevive a outra aba estar na frente, e
+    // sem isto ela se anuncia como um rótulo pelado — que é o mesmo que não
+    // reportar nada.
+    render(
+      <Tab
+        label="teste-prd"
+        state="dirty"
+        stateLabel="árvore suja · 3 arquivos"
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("tab", { name: "teste-prd árvore suja · 3 arquivos" }),
+    ).toBeInTheDocument();
+  });
+
+  it("paints sujeira and rodando differently", () => {
+    // Duas coisas com a mesma cor é o modo de falha: uma delas é sessão viva, a
+    // outra é árvore suja, e elas aparecem na mesma faixa.
+    const { container } = render(
+      <>
+        <Tab label="teste-prd" state="dirty" onSelect={vi.fn()} />
+        <Tab label="claude-code" state="running" onSelect={vi.fn()} />
+      </>,
+    );
+
+    expect(container.querySelector(".tab-item__dot--dirty")).toBeInTheDocument();
+    expect(container.querySelector(".tab-item__dot--running")).toBeInTheDocument();
   });
 
   it("says when a tab is a record rather than live work", () => {

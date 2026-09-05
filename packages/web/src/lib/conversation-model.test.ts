@@ -251,6 +251,7 @@ describe("permission", () => {
   };
   const request: AcpEvent = {
     type: "permission_request",
+    policyReason: null,
     requestId: "rq-1",
     toolCallId: "tc-1",
     title: "Bash rm -rf .vite",
@@ -280,7 +281,13 @@ describe("permission", () => {
       userSaid("limpa"),
       at(call),
       at(request),
-      at({ type: "permission_resolved", requestId: "rq-1", outcome: { optionId: "allow" } }),
+      at({
+        type: "permission_resolved",
+        requestId: "rq-1",
+        outcome: { optionId: "allow" },
+        by: "user",
+        reason: null,
+      }),
     );
 
     expect(state.pendingPermission).toBeNull();
@@ -298,7 +305,13 @@ describe("permission", () => {
     const state = from(
       at(call),
       at(request),
-      at({ type: "permission_resolved", requestId: "rq-1", outcome: "cancelled" }),
+      at({
+        type: "permission_resolved",
+        requestId: "rq-1",
+        outcome: "cancelled",
+        by: "user",
+        reason: null,
+      }),
     );
 
     expect(state.pendingPermission).toBeNull();
@@ -307,7 +320,13 @@ describe("permission", () => {
 
   it("keeps a resolution for a request it never saw from getting lost", () => {
     const state = from(
-      at({ type: "permission_resolved", requestId: "rq-nada", outcome: { optionId: "allow" } }),
+      at({
+        type: "permission_resolved",
+        requestId: "rq-nada",
+        outcome: { optionId: "allow" },
+        by: "user",
+        reason: null,
+      }),
     );
 
     expect(state.pendingPermission).toBeNull();
@@ -364,6 +383,7 @@ describe("replay and live stream agree", () => {
       at(
         {
           type: "permission_request",
+          policyReason: null,
           requestId: "rq-1",
           toolCallId: "tc-1",
           title: "Bash",
@@ -373,7 +393,13 @@ describe("replay and live stream agree", () => {
         },
         20,
       ),
-      at({ type: "permission_resolved", requestId: "rq-1", outcome: { optionId: "allow" } }, 900),
+      at({
+        type: "permission_resolved",
+        requestId: "rq-1",
+        outcome: { optionId: "allow" },
+        by: "user",
+        reason: null,
+      }, 900),
       at({ type: "tool_call_update", toolCallId: "tc-1", status: "ok" }, 300),
       at({ type: "unknown", sessionUpdate: "goal_update" }, 5),
       agentSaid("Pronto.", "a-2"),
@@ -503,6 +529,9 @@ describe("what phase 4 carries", () => {
     const state = from(
       at({
         type: "config",
+        modeOwner: "agent",
+        lumemMode: "ask",
+        lumemModeDefault: "ask",
         mode: "plan",
         options: [
           {
@@ -558,7 +587,14 @@ describe("what phase 4 carries", () => {
     // an accumulated total is exactly the kind of thing that drifts.
     clock = 1_700_000_000_000;
     const entries = [
-      at({ type: "config", mode: "auto", options: [] }),
+      at({
+        type: "config",
+        mode: "auto",
+        options: [],
+        modeOwner: "agent",
+        lumemMode: "ask",
+        lumemModeDefault: "ask",
+      }),
       at({ type: "plan", entries: [{ content: "um", status: "in_progress" }] }, 10),
       at({ type: "usage", used: 10, size: 1_000, cost: { amount: 0.5, currency: "USD" } }, 10),
       at({ type: "terminal", terminalId: "t-1", ptySessionId: "se_a", command: "ls" }, 5),
@@ -643,3 +679,96 @@ describe("núcleo da memória", () => {
   });
 });
 
+
+/**
+ * A linha de fecho do turno (`session-mode`, T9).
+ *
+ * Sete cartões numa transcrição longa se perdem; a linha de fecho não. Ela é a
+ * resposta curta para *o que rodou sem eu ver*, e é o que torna o `automático`
+ * auditável sem rolar a conversa inteira.
+ */
+describe("o fecho de turno da política", () => {
+  const asked = (requestId: string): AcpEvent => ({
+    type: "permission_request",
+    requestId,
+    policyReason: null,
+    toolCallId: `tc-${requestId}`,
+    title: "Read",
+    command: null,
+    cwd: "/repos/lorebase",
+    options: [{ optionId: "allow", name: "uma vez", kind: "allow_once" }],
+  });
+
+  const answered = (requestId: string, by: "user" | "lumem"): AcpEvent => ({
+    type: "permission_resolved",
+    requestId,
+    outcome: { optionId: "allow" },
+    by,
+    reason: by === "lumem" ? "Modo Automático" : null,
+  });
+
+  const metaTexts = (state: ReturnType<typeof replayConversation>): string[] =>
+    state.turns.flatMap((turn) =>
+      turn.blocks.flatMap((block) => (block.kind === "meta" ? [block.text] : [])),
+    );
+
+  it("conta o que passou sozinho e o que subiu", () => {
+    const state = replayConversation([
+      at({ type: "message", messageId: "m-1", role: "user", text: "vai" }),
+      at(asked("a")),
+      at(answered("a", "lumem")),
+      at(asked("b")),
+      at(answered("b", "lumem")),
+      at(asked("c")),
+      at(answered("c", "user")),
+      at({ type: "turn_end", stopReason: "end_turn" }),
+    ]);
+
+    expect(metaTexts(state)).toEqual(["◈ 2 pedidos aprovados pelo Lumem, 1 subiu para você neste turno"]);
+  });
+
+  it("não escreve linha nenhuma quando nada passou sozinho", () => {
+    // Contador zerado é ruído, e uma linha que aparece em todo turno deixa de ser
+    // lida no terceiro.
+    const state = replayConversation([
+      at({ type: "message", messageId: "m-1", role: "user", text: "vai" }),
+      at(asked("a")),
+      at(answered("a", "user")),
+      at({ type: "turn_end", stopReason: "end_turn" }),
+    ]);
+
+    expect(metaTexts(state)).toEqual([]);
+  });
+
+  it("some no turno seguinte, porque é fecho de turno e não histórico", () => {
+    const state = replayConversation([
+      at({ type: "message", messageId: "m-1", role: "user", text: "vai" }),
+      at(asked("a")),
+      at(answered("a", "lumem")),
+      at({ type: "turn_end", stopReason: "end_turn" }),
+      at({ type: "message", messageId: "m-2", role: "user", text: "de novo" }),
+    ]);
+
+    expect(metaTexts(state)).toEqual([]);
+  });
+
+  it("não apaga a marca d'água da memória junto", () => {
+    /*
+     * As duas únicas linhas `.meta` da conversa são esta e a do núcleo da
+     * memória, e o PRD da memória exige que a segunda fique. Limpar por tipo de
+     * bloco tiraria as duas.
+     */
+    const state = replayConversation([
+      at({ type: "memory_core", entries: 3, chars: 1_200 }),
+      at({ type: "message", messageId: "m-1", role: "user", text: "vai" }),
+      at(asked("a")),
+      at(answered("a", "lumem")),
+      at({ type: "turn_end", stopReason: "end_turn" }),
+      at({ type: "message", messageId: "m-2", role: "user", text: "de novo" }),
+    ]);
+
+    expect(metaTexts(state)).toEqual([
+      "memória do workspace: 3 diretrizes fixadas · 1.200 caracteres neste turno",
+    ]);
+  });
+});

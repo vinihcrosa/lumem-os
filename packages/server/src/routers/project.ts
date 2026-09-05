@@ -225,35 +225,55 @@ export const projectRouter = router({
 
   remove: publicProcedure.input(z.object({ id: z.string().min(1) })).mutation(({ ctx, input }) =>
     domainSafeAsync(async () => {
-      // Same rule as a worktree, for the same reason: §6 forbids a session
-      // whose scope no longer exists, and the user would have no way to reach
-      // one pointing at a project that is gone from the sidebar.
-      const running = await ctx.sessionStore.listRunningInScope("project", input.id);
-      if (running.length > 0) {
+      const projects = createProjectRepository(ctx.db);
+      const worktrees = createWorktreeRepository(ctx.db);
+
+      const row = await projects.findById(input.id);
+      const owned = await worktrees.listByProject(input.id);
+
+      /*
+       * A cascata vale para o projeto registrado por caminho, e só para ele.
+       *
+       * A WS-Q22 decidiu cascatear o registro das worktrees porque "nada some do
+       * disco". Num projeto **gerenciado** isso deixou de ser verdade depois da
+       * F6.9: o `repo/` é apagado logo abaixo, e as worktrees vivem em
+       * `<home>/worktrees/`, ao lado dele. Cascatear o registro delas apagaria o
+       * repositório e deixaria N checkouts cujo gitdir não existe mais, com
+       * trabalho não commitado dentro e nada nomeando eles.
+       *
+       * Então o escopo que a remoção faz sumir depende de qual das duas remoções
+       * esta é: por caminho, as worktrees vão junto; gerenciado, elas bloqueiam.
+       */
+      const vanishing = row?.managed === true ? [] : owned;
+
+      // §6 forbids a session whose scope no longer exists, and the user would
+      // have no way to reach one pointing at a project that is gone from the
+      // sidebar. `vanishing` folds in because the cascade takes those scopes
+      // too, and the count names the real total the user has to close.
+      const runningLists = await Promise.all([
+        ctx.sessionStore.listRunningInScope("project", input.id),
+        ...vanishing.map((wt) => ctx.sessionStore.listRunningInScope("worktree", wt.id)),
+      ]);
+      const running = runningLists.reduce((total, list) => total + list.length, 0);
+      if (running > 0) {
         throw new DomainError(
           "BLOCKED",
-          `o projeto tem ${running.length} sessão(ões) rodando; encerre-as antes de remover`,
+          `o projeto tem ${running} sessão(ões) rodando; encerre-as antes de remover`,
         );
       }
-
-      const projects = createProjectRepository(ctx.db);
-      const row = await projects.findById(input.id);
 
       // Before anything is deleted, and not left to the foreign key: the FK
       // fires on `projects.remove`, which runs *after* the directory would be
       // gone. A4 is explicit that worktrees block before any `rm`, and the
       // ordering is the whole difference between a refusal and a data loss.
-      if (row) {
-        const worktrees = await createWorktreeRepository(ctx.db).listByProject(row.id);
-        if (worktrees.length > 0) {
-          // Same words the foreign key's mapping already uses, with the count
-          // added: this check only moves *when* the refusal happens, and a
-          // reader who knew the old message must not have to learn a new one.
-          throw new DomainError(
-            "IN_USE",
-            `o projeto ainda tem worktrees registradas (${worktrees.length}); remova-as antes`,
-          );
-        }
+      if (row?.managed && owned.length > 0) {
+        // Same words the foreign key's mapping already used, with the count
+        // added: a reader who knew the old message must not have to learn a
+        // new one.
+        throw new DomainError(
+          "IN_USE",
+          `o projeto ainda tem worktrees registradas (${owned.length}); remova-as antes`,
+        );
       }
 
       if (row) {
@@ -269,7 +289,9 @@ export const projectRouter = router({
           await deleteManagedRepo({ path: row.path, workspacesDir: ctx.config.workspacesDir });
         }
         // Runs for a project registered by path too, and deletes nothing of
-        // theirs: what it collects is the daemon's own scaffolding (A2.1).
+        // theirs: what it collects is the daemon's own scaffolding (A2.1). A
+        // by-path project that still has checkouts keeps its home — the pass
+        // collects an empty tree and never a full one.
         await collectEmptyProjectHome(
           await homeOfProject(ctx, row),
           ctx.config.workspacesDir,
@@ -277,7 +299,13 @@ export const projectRouter = router({
       }
 
       await projects.remove(input.id);
-      if (row) ctx.events.emit({ type: "project.changed", workspaceId: row.workspaceId });
+      if (row) {
+        ctx.events.emit({ type: "project.changed", workspaceId: row.workspaceId });
+        // `vanishing` e não `owned`: só a cascata muda a lista de worktrees. No
+        // projeto gerenciado a remoção nem chega aqui com worktrees registradas.
+        if (vanishing.length > 0)
+          ctx.events.emit({ type: "worktree.changed", projectId: input.id });
+      }
       return { ok: true as const };
     }),
   ),

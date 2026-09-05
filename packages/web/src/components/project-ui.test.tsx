@@ -28,6 +28,19 @@ function project(id: string, name: string, available = true) {
   };
 }
 
+function worktree(id: string, name: string) {
+  return {
+    id,
+    projectId: "p1",
+    name,
+    branch: name,
+    path: `/repos/lorebase-wt/${name}`,
+    state: "active",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   // `resetAllMocks` apaga implementação: sem isto, as queries que a tela do
@@ -246,13 +259,56 @@ describe("project detail", () => {
     expect(await screen.findByText("Nenhum projeto ainda")).toBeInTheDocument();
   });
 
+  it("asks before removing, naming how many worktrees go along", async () => {
+    // WS-Q22. No projeto registrado por caminho o disco nunca corre risco; o que
+    // não tem volta é o registro — e ele leva N worktrees de uma vez. O número
+    // fica no título porque é ele que muda a resposta.
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+    trpc.worktree.listByProject.query.mockResolvedValue([
+      worktree("wt1", "feat-x"),
+      worktree("wt2", "feat-y"),
+      worktree("wt3", "feat-z"),
+    ]);
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+
+    const confirmacao = await screen.findByRole("alertdialog");
+    expect(confirmacao).toHaveTextContent("remover lorebase da lista, e o registro de 3 worktrees?");
+    expect(trpc.project.remove.mutate).not.toHaveBeenCalled();
+  });
+
+  it("removes nothing when the confirmation is refused", async () => {
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+    const confirmacao = await screen.findByRole("alertdialog");
+    await user.click(within(confirmacao).getByRole("button", { name: "cancelar" }));
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(trpc.project.remove.mutate).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "remover projeto" })).toBeEnabled();
+  });
+
   it("shows the daemon's reason when removal is refused", async () => {
+    // No projeto por caminho as worktrees não recusam mais: elas saem junto
+    // (WS-Q22). A recusa que sobra é sessão rodando — a do projeto ou a de
+    // qualquer worktree dele —, que a §6 proíbe deixar órfã.
     const user = userEvent.setup();
     const selected = project("p1", "lorebase");
     trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
     trpc.project.get.query.mockResolvedValue(selected);
     trpc.project.remove.mutate.mockRejectedValue(
-      new Error("o projeto ainda tem worktrees registradas; remova-as antes"),
+      new Error("o projeto tem 2 sessão(ões) rodando; encerre-as antes de remover"),
     );
 
     renderWithProviders(<App />);
@@ -263,6 +319,37 @@ describe("project detail", () => {
 
     // A recusa aparece na própria confirmação: ninguém deveria confirmar algo
     // que vai ser recusado, e a razão tem que chegar onde o clique foi dado.
+    expect(await screen.findByRole("alert")).toHaveTextContent("sessão(ões) rodando");
+  });
+
+  it("no projeto clonado, a worktree recusa em vez de sair junto", async () => {
+    /*
+     * O outro lado da WS-Q22, e a razão de ela não valer para os dois.
+     *
+     * O projeto clonado tem o `repo/` apagado na remoção, e as worktrees vivem
+     * ao lado dele em `<home>/worktrees/`. Cascatear o registro delas deixaria N
+     * checkouts apontando para um gitdir que não existe mais. Então aqui o
+     * daemon recusa (F6.9-A4) — e a confirmação, que é a mesma tela, tem que
+     * mostrar a recusa em vez de prometer a cascata.
+     */
+    const user = userEvent.setup();
+    const clonado = { ...project("p1", "lorebase"), managed: true };
+    trpc.project.listByWorkspace.query.mockResolvedValue([clonado]);
+    trpc.project.get.query.mockResolvedValue(clonado);
+    trpc.project.remove.mutate.mockRejectedValue(
+      new Error("o projeto ainda tem worktrees registradas (3); remova-as antes"),
+    );
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+
+    const confirmacao = await screen.findByRole("alertdialog");
+    // A pergunta do projeto clonado não promete cascata nenhuma.
+    expect(confirmacao).toHaveTextContent("apagar lorebase do disco?");
+    expect(confirmacao).not.toHaveTextContent("o registro de");
+
+    await user.click(within(confirmacao).getByRole("button", { name: "apagar" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("ainda tem worktrees");
   });
 });

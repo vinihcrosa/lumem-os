@@ -68,9 +68,15 @@ function entry(event: AcpTranscriptEntry["event"], deltaMs = 0): AcpTranscriptEn
 function attached(
   transcript: AcpTranscriptEntry[] = [],
   configOptions: AcpConfigOption[] = [],
+  /** Quem é o dono do seletor de modo (`session-mode`, A1). */
+  modeOwner: "agent" | "lumem" = "agent",
 ): AcpServerMessage {
   return {
     type: "attached",
+    modeOwner,
+    cwd: "/repos/lorebase",
+    lumemMode: "ask",
+    lumemModeDefault: "ask",
     sessionId: "s-1",
     state: "running",
     acpSessionId: "d81b05ee-d361",
@@ -83,6 +89,7 @@ function attached(
 
 const permissionRequest: AcpTranscriptEntry["event"] = {
   type: "permission_request",
+  policyReason: null,
   requestId: "rq-1",
   toolCallId: "tc-1",
   title: "Bash rm -rf .vite",
@@ -608,7 +615,13 @@ describe("a permission blocks the composer", () => {
     socket.deliver({
       type: "event",
       at: clock,
-      event: { type: "permission_resolved", requestId: "rq-1", outcome: { optionId: "allow" } },
+      event: {
+        type: "permission_resolved",
+        requestId: "rq-1",
+        outcome: { optionId: "allow" },
+        by: "user",
+        reason: null,
+      },
     });
 
     await waitFor(() => {
@@ -755,6 +768,9 @@ describe("the selectors", () => {
       at: clock,
       event: {
         type: "config",
+        modeOwner: "agent",
+        lumemMode: "ask",
+        lumemModeDefault: "ask",
         mode: "auto",
         options: [{ ...modelOption, currentValue: "sonnet[1m]" }],
       },
@@ -791,6 +807,9 @@ describe("the selectors", () => {
       at: clock,
       event: {
         type: "config",
+        modeOwner: "agent",
+        lumemMode: "ask",
+        lumemModeDefault: "ask",
         mode: "plan",
         options: [
           {
@@ -1054,5 +1073,179 @@ describe("the mark between two conversations", () => {
     await waitFor(() => expect(screen.getByText(/retomada/)).toBeInTheDocument());
     // Two agent frames, not one: the separator broke the run.
     expect(document.querySelectorAll(".turn--agent")).toHaveLength(2);
+  });
+});
+
+/**
+ * A pílula de modo, no composer (`session-mode`, T2).
+ *
+ * O componente isolado é testado em `lumem-mode-pill.test.tsx`. O que só se pode
+ * provar aqui é a regra que vale entre os dois: **uma pílula de modo, sempre, e
+ * nunca duas.** É a A1 na tela, e ela é a única coisa que impede alguém de trocar
+ * a política do Lumem achando que pôs o agente em modo plano.
+ */
+/** O seletor de modo do agente, como o adaptador o relata. */
+const modeOption: AcpConfigOption = {
+  id: "mode",
+  name: "Mode",
+  currentValue: "auto",
+  choices: [
+    { value: "auto", name: "Auto", description: null },
+    { value: "plan", name: "Plan Mode", description: null },
+  ],
+};
+
+describe("a pílula de modo no composer", () => {
+  it("mostra a pílula do Lumem quando o agente não relata modos", async () => {
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+
+    expect(await screen.findByRole("button", { name: /regra do Lumem/i })).toBeInTheDocument();
+  });
+
+  it("não mostra a do Lumem quando o agente é o dono do seletor", async () => {
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [modeOption], "agent")));
+
+    expect(await screen.findByRole("button", { name: /Mode: Auto/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /regra do Lumem/i })).not.toBeInTheDocument();
+  });
+
+  it("troca a política sem falar com o agente", async () => {
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+
+    await userEvent.click(await screen.findByRole("button", { name: /regra do Lumem/i }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: /Automático/ }));
+
+    expect(socket.sent).toContainEqual({ type: "set_lumem_mode", mode: "auto" });
+  });
+
+  it("só manda liberado depois do portão, e o portão nomeia o checkout", async () => {
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+
+    await userEvent.click(await screen.findByRole("button", { name: /regra do Lumem/i }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: /Liberado/ }));
+
+    // Nada foi mandado ainda: o clique abriu o portão, não trocou o modo (Q4).
+    expect(socket.sent).not.toContainEqual({ type: "set_lumem_mode", mode: "free" });
+    expect(screen.getByText("/repos/lorebase")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /liberar esta sessão/ }));
+    expect(socket.sent).toContainEqual({ type: "set_lumem_mode", mode: "free" });
+  });
+});
+
+/**
+ * As bordas da pílula (`session-mode`, T11).
+ *
+ * Nenhuma delas é comportamento novo: são a checagem de que a feature não abriu
+ * buraco nos estados que já estavam resolvidos.
+ */
+describe("as bordas da pílula de modo", () => {
+  it("não oferece troca no meio de um turno", async () => {
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+    await screen.findByRole("button", { name: /regra do Lumem/i });
+
+    act(() =>
+      socket.deliver({
+        type: "event",
+        at: 1_700_000_000_000,
+        event: { type: "message", messageId: "m-1", role: "user", text: "vai" },
+      }),
+    );
+
+    expect(screen.getByRole("button", { name: /regra do Lumem/i })).toBeDisabled();
+  });
+
+  it("fecha o menu quando o turno começa, em vez de deixá-lo clicável", async () => {
+    /*
+     * O caminho que uma revisão achou e nenhum teste cobria.
+     *
+     * A pílula desligava no meio do turno, mas o MENU só olhava se estava aberto.
+     * Abrir parado, o turno começar, e clicar numa opção mandava
+     * `set_lumem_mode` — o daemon responde `BLOCKED`, e a pessoa lê um erro que
+     * não causou.
+     */
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+    await userEvent.click(await screen.findByRole("button", { name: /regra do Lumem/i }));
+    expect(screen.getByRole("menu", { name: /regra do Lumem/i })).toBeInTheDocument();
+
+    act(() =>
+      socket.deliver({
+        type: "event",
+        at: 1_700_000_000_000,
+        event: { type: "message", messageId: "m-1", role: "user", text: "vai" },
+      }),
+    );
+
+    expect(screen.queryByRole("menu", { name: /regra do Lumem/i })).not.toBeInTheDocument();
+  });
+
+  it("não reabre o menu sozinho quando o turno acaba", async () => {
+    // Esconder no render sem limpar o estado devolveria um popover que a pessoa
+    // não abriu.
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+    await userEvent.click(await screen.findByRole("button", { name: /regra do Lumem/i }));
+
+    act(() =>
+      socket.deliver({
+        type: "event",
+        at: 1,
+        event: { type: "message", messageId: "m-1", role: "user", text: "vai" },
+      }),
+    );
+    act(() =>
+      socket.deliver({
+        type: "event",
+        at: 2,
+        event: { type: "turn_end", stopReason: "end_turn" },
+      }),
+    );
+
+    expect(screen.queryByRole("menu", { name: /regra do Lumem/i })).not.toBeInTheDocument();
+  });
+
+  it("fecha o portão do liberado quando o turno começa", async () => {
+    // Mesmo caminho, e mais caro: confirmar um portão que já não vale manda
+    // `set_lumem_mode: free` para um daemon que vai recusar.
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+    await userEvent.click(await screen.findByRole("button", { name: /regra do Lumem/i }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: /Liberado/ }));
+    expect(screen.getByRole("dialog", { name: /liberar esta sessão/ })).toBeInTheDocument();
+
+    act(() =>
+      socket.deliver({
+        type: "event",
+        at: 1,
+        event: { type: "message", messageId: "m-1", role: "user", text: "vai" },
+      }),
+    );
+
+    expect(screen.queryByRole("dialog", { name: /liberar esta sessão/ })).not.toBeInTheDocument();
+    expect(socket.sent).not.toContainEqual({ type: "set_lumem_mode", mode: "free" });
+  });
+
+  it("continua na barra quando o daemon reclama", async () => {
+    /*
+     * Some da barra quem some do protocolo. O modo do Lumem é estado local da
+     * sessão — ele não depende de handshake para ser exibido —, então uma falha
+     * do daemon não pode fazer a barra voltar a ser muda, que é exatamente o
+     * pixel que esta feature existe para tirar do ar.
+     */
+    const { socket } = mount();
+    act(() => socket.deliver(attached([], [], "lumem")));
+    await screen.findByRole("button", { name: /regra do Lumem/i });
+
+    act(() =>
+      socket.deliver({ type: "error", code: "SESSION_EXITED", message: "a sessão morreu" }),
+    );
+
+    expect(screen.getByRole("button", { name: /regra do Lumem/i })).toBeInTheDocument();
   });
 });

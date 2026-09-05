@@ -76,7 +76,7 @@ Na primeira execução, sem nenhum workspace, o cliente pede pra criar um antes 
 **F2.2** Validar na adição: caminho existe, é diretório, é raiz de repo git. Falhou, recusa dizendo qual.
 **F2.3** Nome do projeto default é o nome do diretório, editável.
 **F2.4** Listar projetos do workspace ativo.
-**F2.5** Remover projeto **não toca no disco** — só tira o registro. Bloqueado se houver worktrees registradas.
+**F2.5** Remover projeto **registrado por caminho não toca no disco** — só tira o registro. As worktrees registradas saem **junto** (só o registro delas; os checkouts ficam no disco). A tela **pergunta antes**, nomeando quantas worktrees vão junto e dizendo que os diretórios ficam — não porque o disco corra risco, mas porque não há como readotar um checkout depois. Bloqueado por sessão rodando — a do projeto ou a de qualquer worktree dele (§6). No projeto **clonado** (F6.9) a remoção apaga o `repo/`, e por isso worktree registrada **bloqueia** em vez de sair junto. Ver [WS-Q22](open-questions.md).
 
 > **Revertido em parte pela [project-from-url](../project-from-url/prd.md#21-isto-reverte-um-requisito-do-walking-skeleton).** Continua valendo inteiro para projeto registrado por caminho, que é o único que existia quando isto foi escrito. Para um projeto **clonado pelo Lumem**, remover apaga o diretório: os bytes são de um clone que o daemon escreveu, num diretório que o daemon escolheu, e deixá-los para trás é acúmulo que ninguém vai limpar. O que autoriza é a coluna `managed`, e não uma dedução.
 

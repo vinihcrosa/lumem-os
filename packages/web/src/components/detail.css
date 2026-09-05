@@ -61,6 +61,22 @@
    do tipo da coisa, não uma marca ao lado dela. */
 .detail__title .glyph { font-size: var(--size-icon-lg); width: auto; }
 .detail__title .actions__spacer { flex: 1; }
+/* A natureza do escopo ao lado do nome: `worktree`, `checkout do projeto`. O
+   glifo já diz, e quem não vê glifo não fica sem a resposta. */
+/* A branch no caminho, e só quando ela não é o nome do checkout. Mono porque é
+   um identificador de git, e apagada porque é a resposta de reserva: quem lê o
+   caminho está procurando onde está, não em que branch. */
+.crumb__branch {
+  font: var(--text-mono-sm);
+  color: var(--color-git-branch);
+}
+
+.detail__kind {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
 
 .chips {
   display: flex;
@@ -105,9 +121,14 @@
 
 /* --------------------------------------------------- painel de um escopo */
 /*
- * Cabeçalho fixo, faixa de abas, e o painel da aba aberta preenchendo o resto.
- * O cabeçalho fica acima da faixa porque é contexto de todas as abas: trocar de
- * aba não pode mover a branch nem o caminho de lugar.
+ * Caminho, faixa de abas, e o painel da aba aberta preenchendo o resto — nesta
+ * ordem, e sem cabeçalho entre eles.
+ *
+ * Acima da faixa fica só o caminho, porque navegação é chrome. Título, branch,
+ * sujeira, caminho em disco e ações eram um cabeçalho fixo aqui: gastavam
+ * altura em TODA aba para dizer o que interessa a uma, e truncavam justamente
+ * o caminho em disco, que é a informação que ninguém redigita de cabeça. Viraram
+ * o conteúdo da primeira aba.
  */
 .scope {
   display: flex;
@@ -117,9 +138,15 @@
   min-height: 0;
 }
 
-.scope__head {
+/* Uma linha, da altura da topbar: é uma faixa de navegação, não um cabeçalho.
+   Quem quiser mais que o caminho abre a aba do checkout. */
+.scope__crumb {
   flex: none;
-  padding: var(--space-16) var(--space-20) var(--space-12);
+  display: flex;
+  align-items: center;
+  min-height: var(--size-topbar-height);
+  padding: 0 var(--space-20);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .pane {

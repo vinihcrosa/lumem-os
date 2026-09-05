@@ -90,7 +90,12 @@ test("a session that exited comes back as a record, and says it is one", async (
   await page.getByRole("button", { name: /ver registro/ }).click();
 
   // The tab says what it is, and so does the panel.
-  await expect(page.getByRole("tab", { name: /registro/ })).toBeVisible();
+  //
+  // Named in full, because this spec's worktree is *called* `registro` and its
+  // name is now a tab of its own — the checkout's, the first one. A substring
+  // match here finds both, which is the collision saying the label is doing
+  // real work in two places.
+  await expect(page.getByRole("tab", { name: "shell registro" })).toBeVisible();
   const record = page.getByRole("tabpanel", { name: /registro de shell/ });
   await expect(record.getByText(/somente leitura/)).toBeVisible();
   // F5.9: what the session printed is still there — that is the whole point of

@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — o modo da conversa</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<link rel="stylesheet" href="lumem-session-mode.css">
+</head>
+<body>
+
+<h1 class="page">O modo da conversa — protótipo</h1>
+<p class="page-sub">
+  As pílulas do composer são inteiramente derivadas do que o adaptador manda no <code>session/new</code>.
+  <strong><code>configOptions</code> vazio produz zero pílula</strong> — e um agente que não relata modos
+  fica idêntico a um bug de transporte: uma barra muda. Esta tela dá ao composer uma
+  <strong>pílula de modo que existe sempre</strong>, e quando o agente não tem modos ela passa a ser a
+  <strong>política do Lumem</strong>: o que ele responde a <code>session/request_permission</code>.
+  Zero token novo — os três valores caem sobre as rampas de modo que já existem.
+</p>
+
+<div class="wrap">
+
+<!-- ==================================================================== -->
+<!-- 1 — o buraco, e o que entra no lugar                                  -->
+<!-- ==================================================================== -->
+<section class="sec">
+  <div class="sec__h">
+    <h2 class="sec__t"><span class="no">1</span>a barra, e o buraco nela</h2>
+    <p class="sec__d">
+      Três composers, na mesma conversa. O primeiro é o de hoje quando dá certo. O segundo é o de hoje
+      quando o agente não relata <code>modes</code> — e não é um protótipo mal feito, é o pixel que o
+      produto emite. O terceiro é o que esta feature entrega.
+    </p>
+  </div>
+
+  <div class="grid">
+
+    <div class="case">
+      <div class="case__label">o agente relata <code>modes</code> — <b>nada muda</b></div>
+      <div class="frame">
+        <div class="convmock">
+          <div class="convmock__scroll">
+            <div class="turn turn--agent">
+              <span class="vh">claude:</span>
+              <span class="turn__g" aria-hidden="true">◆</span>
+              <div class="turn__b"><div class="msg"><p>Rodei a suíte. Dois testes de <code>tokens.test.ts</code> falharam.</p></div></div>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="composer__box">
+              <div class="composer__in composer__in--empty">escreva, ou / para comandos</div>
+              <div class="composer__bar">
+                <button class="pill pill--model">opus[1m] <span class="pill__caret" aria-hidden="true">▾</span></button>
+                <button class="pill pill--auto">Auto <span class="pill__caret" aria-hidden="true">▾</span></button>
+                <button class="pill">esforço médio <span class="pill__caret" aria-hidden="true">▾</span></button>
+                <span class="spacer"></span>
+                <button class="btn btn--brand btn--sm">enviar <span class="kbd">⏎</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="case__note">As três pílulas vêm do protocolo. O Lumem não interpreta nenhum valor.</div>
+    </div>
+
+    <div class="case">
+      <div class="case__label">hoje, com <code>configOptions</code> vazio — <b>a barra muda</b></div>
+      <div class="frame">
+        <div class="convmock">
+          <div class="convmock__scroll">
+            <div class="turn turn--agent">
+              <span class="vh">gemini:</span>
+              <span class="turn__g" aria-hidden="true">◆</span>
+              <div class="turn__b"><div class="msg"><p>Rodei a suíte. Dois testes de <code>tokens.test.ts</code> falharam.</p></div></div>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="composer__box">
+              <div class="composer__in composer__in--empty">escreva, ou / para comandos</div>
+              <div class="composer__bar">
+                <span class="spacer"></span>
+                <button class="btn btn--brand btn--sm">enviar <span class="kbd">⏎</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="case__note">
+        Se isto parece erro de protótipo, é porque é erro de produto: nada na tela distingue
+        <em>este agente não oferece modos</em> de <em>o handshake não chegou</em>.
+      </div>
+    </div>
+
+    <div class="case">
+      <div class="case__label">a proposta — <b>a pílula do Lumem</b>, e ela nunca falta</div>
+      <div class="frame">
+        <div class="convmock">
+          <div class="convmock__scroll">
+            <div class="turn turn--agent">
+              <span class="vh">gemini:</span>
+              <span class="turn__g" aria-hidden="true">◆</span>
+              <div class="turn__b"><div class="msg"><p>Rodei a suíte. Dois testes de <code>tokens.test.ts</code> falharam.</p></div></div>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="composer__box">
+              <div class="composer__in composer__in--empty">escreva, ou / para comandos</div>
+              <div class="composer__bar">
+                <button class="pill pill--ask" title="Regra do Lumem — este agente não oferece modos">
+                  <span class="pill__own" aria-hidden="true">◈</span><span class="vh">regra do Lumem: </span>Perguntar tudo <span class="pill__caret" aria-hidden="true">▾</span>
+                </button>
+                <span class="spacer"></span>
+                <button class="btn btn--brand btn--sm">enviar <span class="kbd">⏎</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="case__note">
+        Modelo e esforço continuam ausentes — <strong>eles são do agente</strong>, e inventar um seletor de
+        modelo para quem não relata modelos seria mentir. Só a permissão é do Lumem, porque só ela ele
+        de fato controla.
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 2 — de quem é o modo                                                  -->
+<!-- ==================================================================== -->
+<section class="sec">
+  <div class="sec__h">
+    <h2 class="sec__t"><span class="no">2</span>de quem é o modo</h2>
+    <p class="sec__d">
+      As consequências são diferentes e por isso as pílulas têm que ser distinguíveis: o modo do agente
+      muda <strong>o que ele tenta fazer</strong>; o do Lumem muda <strong>o que passa</strong>. Quem
+      trocar um achando que trocou o outro aprova no escuro.
+      <strong>A autoria não é cor.</strong> Cor já carrega a consequência (§3), e um objeto de 24px com
+      dois eixos de cor não se lê. A autoria vai em <strong>glifo</strong> — <code>◈</code> é do Lumem —
+      e ganha de graça um segundo sinal que já está no dado.
+    </p>
+  </div>
+
+  <div class="case">
+    <div class="case__label">o eixo de autoria, isolado</div>
+    <div class="frame frame--pad">
+      <div class="legend">
+        <span class="legend__i"><span class="pill pill--auto">Auto <span class="pill__caret" aria-hidden="true">▾</span></span> <b>do agente</b> — sem glifo, e o rótulo é a string crua do protocolo</span>
+        <span class="legend__i"><span class="pill pill--ask"><span class="pill__own" aria-hidden="true">◈</span>Perguntar tudo <span class="pill__caret" aria-hidden="true">▾</span></span> <b>do Lumem</b> — glifo <code>◈</code> e rótulo em português, caixa de frase</span>
+      </div>
+    </div>
+    <div class="case__note">
+      O segundo sinal não custou nada: o agente entrega <code>bypassPermissions</code>, <code>Plan Mode</code>,
+      <code>acceptEdits</code> — inglês, camelCase, títulos. O Lumem escreve <em>Perguntar tudo</em>. Duas
+      pílulas lado a lado nunca vão parecer da mesma origem.
+    </div>
+  </div>
+
+  <div class="case">
+    <div class="case__label">o menu é onde a autoria vira <b>frase</b>, e não charada</div>
+    <div class="grid grid--2">
+      <div>
+        <p class="caption">do Lumem</p>
+        <div class="mmenu">
+          <div class="mmenu__head">
+            <div class="mmenu__who"><span aria-hidden="true">◈</span>Regra do Lumem</div>
+            <div class="mmenu__why">este agente não relatou modos. O que muda aqui é <b>o que o daemon responde</b> a um pedido de permissão — o agente não fica sabendo.</div>
+          </div>
+          <button class="mopt mopt--on">
+            <span class="mopt__t">Perguntar tudo <span class="mopt__mark" aria-hidden="true">✓</span></span>
+            <span class="mopt__d">Todo pedido para e espera por você. É o padrão, e nenhuma sessão nasce em outro.</span>
+          </button>
+          <button class="mopt mopt--auto">
+            <span class="mopt__t">Automático</span>
+            <span class="mopt__d">Leitura de arquivo com caminho dentro do checkout passa sozinha, e aparece na conversa. Escrita e comando ainda perguntam.</span>
+          </button>
+          <button class="mopt mopt--free">
+            <span class="mopt__t">Liberado</span>
+            <span class="mopt__d">Nada é perguntado dentro da worktree. Pede confirmação antes de valer.</span>
+          </button>
+          <div class="mmenu__foot">padrão do workspace: <b>perguntar tudo</b><a class="lnk" href="#">mudar</a></div>
+        </div>
+        <p class="case__note">O rodapé é a <code>Q5</code> desenhada: o valor é <strong>da sessão</strong>, e o padrão dela vem do workspace. Herdar sem poder divergir seria política global; divergir sem herdar seria escolher de novo em toda conversa.</p>
+      </div>
+
+      <div>
+        <p class="caption">do agente — para comparar</p>
+        <div class="slash">
+          <div class="slash__row"><span class="slash__cmd">default</span><span class="slash__desc">Standard behavior, prompts for dangerous operations</span></div>
+          <div class="slash__row slash__row--on"><span class="slash__cmd">auto</span><span class="slash__desc">Use a model classifier to approve/deny permission prompts</span></div>
+          <div class="slash__row"><span class="slash__cmd">acceptEdits</span><span class="slash__desc">Auto-accept file edit operations</span></div>
+          <div class="slash__row"><span class="slash__cmd">plan</span><span class="slash__desc">Planning mode, no actual tool execution</span></div>
+          <div class="slash__row slash__row--danger"><span class="slash__cmd">bypassPermissions</span><span class="slash__desc">Bypass all permission checks</span></div>
+        </div>
+        <p class="case__note">Sem cabeçalho, sem tradução, sem descrição escrita por nós: <strong>é dado do protocolo, colado como veio</strong>. É essa diferença de forma que faz o menu do Lumem não passar por menu do agente.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="case">
+    <div class="case__label">a alternativa que <b>não</b> foi escolhida</div>
+    <div class="frame frame--pad">
+      <div class="legend">
+        <span class="legend__i"><span class="pill pill--auto"><span class="pill__own" aria-hidden="true">◆</span>Auto <span class="pill__caret" aria-hidden="true">▾</span></span> <b>simétrica</b> — <code>◆</code> no agente, <code>◈</code> no Lumem</span>
+      </div>
+    </div>
+    <div class="case__note">
+      Mais legível em isolamento, e mais cara do que parece: <code>◆</code> já significa <em>sessão de agente</em>
+      na sidebar e na aba, e repeti-lo na pílula o transforma em <em>autoria</em> — dois sentidos para o mesmo
+      glifo na mesma tela. Além disso obrigaria a decidir o que fazer com as pílulas de modelo e esforço, que
+      também são do agente. <strong>Assimetria é o preço, e ele é menor.</strong> Fica registrada aqui porque a
+      <code>Q2</code> está aberta e esta é a opção a reagir.
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 3 — os três valores                                                   -->
+<!-- ==================================================================== -->
+<section class="sec">
+  <div class="sec__h">
+    <h2 class="sec__t"><span class="no">3</span>os três valores, e a cor de cada um</h2>
+    <p class="sec__d">
+      A cor carrega a <strong>consequência</strong>, não a autoria. <code>Automático</code> usa o mesmo tom do
+      <code>auto</code> do agente e <code>Liberado</code> o mesmo do <code>bypassPermissions</code> —
+      <strong>de propósito</strong>: para quem olha, as consequências são as mesmas, e fazer o mesmo perigo ter
+      duas cores seria pior do que a assimetria do §2. <code>Perguntar tudo</code> fica no neutro porque o piso
+      não pede atenção.
+    </p>
+  </div>
+
+  <div class="grid grid--3">
+    <div class="case">
+      <div class="case__label">neutro — <b>o padrão</b></div>
+      <div class="frame frame--pad">
+        <div class="composer__bar">
+          <button class="pill pill--ask"><span class="pill__own" aria-hidden="true">◈</span>Perguntar tudo <span class="pill__caret" aria-hidden="true">▾</span></button>
+        </div>
+      </div>
+      <div class="case__note">Hoje, sem nome. Todo pedido para e espera.</div>
+    </div>
+    <div class="case">
+      <div class="case__label">brand — <b>leitura passa sozinha</b></div>
+      <div class="frame frame--pad">
+        <div class="composer__bar">
+          <button class="pill pill--auto"><span class="pill__own" aria-hidden="true">◈</span>Automático <span class="pill__caret" aria-hidden="true">▾</span></button>
+        </div>
+      </div>
+      <div class="case__note">O que passa deixa rastro na conversa — §4.</div>
+    </div>
+    <div class="case">
+      <div class="case__label">danger — <b>nada é perguntado</b></div>
+      <div class="frame frame--pad">
+        <div class="composer__bar">
+          <button class="pill pill--bypass"><span class="pill__own" aria-hidden="true">◈</span>Liberado <span class="pill__caret" aria-hidden="true">▾</span></button>
+        </div>
+      </div>
+      <div class="case__note">Fundo, e não só texto: não perguntar nada é estado, não preferência. Passa pelo portão do §5.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 4 — o rastro                                                          -->
+<!-- ==================================================================== -->
+<section class="sec">
+  <div class="sec__h">
+    <h2 class="sec__t"><span class="no">4</span>em <code>automático</code>, o que passa sozinho aparece</h2>
+    <p class="sec__d">
+      Aprovar em silêncio é um agente trabalhando fora da vista, e o custo aparece uma hora depois quando
+      alguém pergunta <em>quem autorizou isso</em>. Então o pedido respondido pelo Lumem vira
+      <strong>o mesmo cartão de ferramenta</strong> que o pedido respondido por você — muda quem assinou, e
+      entra a linha do porquê. A regra é a da <code>Q3</code>: leitura de arquivo com caminho dentro do
+      checkout, e nada mais.
+    </p>
+  </div>
+
+  <div class="case">
+    <div class="case__label">leitura dentro do checkout — <b>o Lumem assina</b>, e diz com base em quê</div>
+    <div class="frame frame--pad">
+      <div class="conv__scroll conv__scroll--flow">
+        <div class="tc tc--ok">
+          <div class="tc__head">
+            <span class="tc__glyph" aria-hidden="true">▤</span><span class="tc__verb">Read</span>
+            <span class="tc__target"><span class="tc__dir">packages/web/src/styles/</span><span class="tc__name">tokens.css</span></span>
+            <span class="verdict verdict--lumem">◈ o Lumem aprovou</span>
+            <span class="tc__time">0,1 s</span>
+          </div>
+          <div class="tc__why">Modo <b>Automático</b>: leitura de arquivo, caminho dentro do checkout.</div>
+        </div>
+      </div>
+    </div>
+    <div class="case__note">
+      O veredito de hoje é <code>✓ você permitiu</code>. Este é <code>◈ o Lumem aprovou</code> — mesma forma,
+      mesma posição, assinatura diferente. Ler a transcrição depois e não conseguir separar as duas seria o
+      pior resultado possível desta feature.
+    </div>
+  </div>
+
+  <div class="grid grid--2">
+    <div class="case">
+      <div class="case__label">escrita — <b>ainda para e pergunta</b></div>
+      <div class="frame frame--pad">
+        <div class="conv__scroll conv__scroll--flow">
+          <div class="perm">
+            <div class="perm__head"><span class="perm__glyph" aria-hidden="true">⚠</span>Permissão<span class="spacer"></span><span class="kbd">o turno está parado aqui</span></div>
+            <div class="perm__body">
+              <div class="perm__what">
+                <div class="perm__cmd">Write packages/web/src/styles/tokens.css</div>
+                <div class="perm__where">cwd ~/.lumem/workspaces/pessoal/lumem-os/worktrees/session-mode</div>
+              </div>
+              <div class="perm__why">O modo <b>Automático</b> do Lumem aprova sozinho <b>só leitura de arquivo</b>. Escrita não entra na regra.</div>
+              <div class="perm__opts">
+                <button class="btn btn--brand btn--sm">permitir uma vez <span class="kbd">⏎</span></button>
+                <button class="btn btn--ghost btn--sm">não <span class="kbd">esc</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="case__note">
+        As opções são <strong>duas</strong>, e não as quatro de hoje: <em>sempre para Bash</em> e <em>nunca para
+        Bash</em> são memória por ferramenta, que é a feature de regras por caminho — fora de escopo, e no
+        backlog.
+      </div>
+    </div>
+
+    <div class="case">
+      <div class="case__label">e o turno fecha dizendo <b>quanto passou sozinho</b></div>
+      <div class="frame frame--pad">
+        <div class="conv__scroll conv__scroll--flow">
+          <div class="meta">◈ modo <b>Automático</b> · 7 leituras aprovadas pelo Lumem, 1 subiu para você neste turno</div>
+        </div>
+      </div>
+      <div class="case__note">
+        Sete cartões numa transcrição longa se perdem; a linha de fecho não. Ela é a resposta curta para
+        <em>o que rodou sem eu ver</em>, e é o que torna o modo auditável sem rolar a conversa inteira.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 5 — o portão                                                          -->
+<!-- ==================================================================== -->
+<section class="sec">
+  <div class="sec__h">
+    <h2 class="sec__t"><span class="no">5</span>o portão do <code>liberado</code></h2>
+    <p class="sec__d">
+      É a decisão perigosa da feature, e a única que precisa de portão. O molde é o da
+      <code>project-scripts</code>: confirmação explícita, escopo dito por extenso, e
+      <strong>nenhum “não perguntar de novo”</strong>. O portão é <strong>por sessão</strong> — o dia em que
+      ele virar preferência salva, ele deixa de ser portão.
+    </p>
+  </div>
+
+  <div class="case">
+    <div class="case__label">antes de valer — e o botão perigoso <b>não</b> é o padrão</div>
+    <div class="frame frame--pad">
+      <div class="gate">
+        <div class="gate__t"><span class="gate__g" aria-hidden="true">⚠</span>Liberar esta sessão?</div>
+        <div class="gate__b">O Lumem vai <b>parar de perguntar</b> e responder <b>sim</b> a tudo que este agente pedir, até o fim desta conversa.</div>
+        <ul class="gate__list">
+          <li>escrever e apagar arquivos</li>
+          <li>rodar qualquer comando de shell</li>
+          <li><span>tudo isso dentro de <span class="gate__scope">~/.lumem/workspaces/pessoal/lumem-os/worktrees/session-mode</span></span></li>
+        </ul>
+        <div class="gate__acts">
+          <button class="btn btn--ghost btn--sm focus-ring">cancelar <span class="kbd">esc</span></button>
+          <span class="spacer"></span>
+          <button class="btn btn--danger btn--sm">liberar esta sessão</button>
+        </div>
+        <div class="gate__note">Vale só para esta conversa. Uma sessão nova volta a perguntar tudo.</div>
+      </div>
+    </div>
+    <div class="case__note">
+      Três coisas de propósito: o escopo aparece como <strong>caminho em disco</strong> e não como “a worktree”,
+      porque é o caminho que diz o tamanho do estrago; o foco nasce em <em>cancelar</em>; e não existe caixinha
+      de lembrar. Comparar com a <code>project-scripts</code> importa — lá o portão é <strong>por origem</strong>,
+      aqui é <strong>por sessão</strong>, e a diferença é que confiar num repositório é durável e liberar um
+      agente não é.
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 6 — as bordas                                                         -->
+<!-- ==================================================================== -->
+<section class="sec">
+  <div class="sec__h">
+    <h2 class="sec__t"><span class="no">6</span>as bordas</h2>
+    <p class="sec__d">
+      A pílula do Lumem herda as regras de estado que a do agente já tem, porque é a mesma pílula com outro
+      dono. Nada aqui é comportamento novo — é a checagem de que a feature não abre buraco nos estados que já
+      estavam resolvidos.
+    </p>
+  </div>
+
+  <div class="grid grid--3">
+    <div class="case">
+      <div class="case__label">no meio do turno — <b>recusada</b></div>
+      <div class="frame frame--pad">
+        <div class="composer__bar">
+          <button class="pill pill--auto" disabled title="O daemon recusa a troca no meio do turno"><span class="pill__own" aria-hidden="true">◈</span>Automático <span class="pill__caret" aria-hidden="true">▾</span></button>
+        </div>
+      </div>
+      <div class="case__note">Mesma mensagem de hoje. Botão cujo único resultado é erro não é botão.</div>
+    </div>
+
+    <div class="case">
+      <div class="case__label">encerrada — <b>o modo em que esteve</b></div>
+      <div class="frame frame--pad">
+        <div class="composer__bar">
+          <span class="pill pill--bypass" title="Conversa encerrada — o modo em que ela esteve"><span class="pill__own" aria-hidden="true">◈</span>Liberado</span>
+        </div>
+      </div>
+      <div class="case__note">
+        Sem <code>▾</code> e sem <code>disabled</code>: não é um controle desligado, é <strong>um fato
+        registrado</strong>. Ler uma transcrição sem saber sob que política ela rodou é ler metade dela.
+      </div>
+    </div>
+
+    <div class="case">
+      <div class="case__label">daemon fora do ar — <b>ela fica</b></div>
+      <div class="frame frame--pad">
+        <div class="composer__bar">
+          <button class="pill pill--ask" disabled title="Sem conexão com o daemon"><span class="pill__own" aria-hidden="true">◈</span>Perguntar tudo <span class="pill__caret" aria-hidden="true">▾</span></button>
+        </div>
+      </div>
+      <div class="case__note">Some da barra quem some do protocolo. O modo do Lumem é estado local da sessão — ele não depende de handshake para ser exibido.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 7 — o que isto cobra                                                  -->
+<!-- ==================================================================== -->
+<section class="sec">
+  <div class="sec__h">
+    <h2 class="sec__t"><span class="no">7</span>o que isto cobra</h2>
+    <p class="sec__d">Escrito onde dói, porque nenhuma destas quatro some com desenho melhor.</p>
+  </div>
+
+  <div class="grid grid--2">
+    <div class="rule rule--no">
+      <div class="rule__t">Passam a existir duas autoridades de permissão</div>
+      <div class="rule__d">
+        O modo do agente e o do Lumem podem dizer sim. O que mantém isso legível é uma
+        <strong>exclusão por construção</strong> — a do Lumem só existe quando o agente não relatou modos —, e
+        isso é regra que o <strong>daemon precisa impor</strong>, não convenção de tela. Um adaptador que passe
+        a relatar <code>modes</code> no meio da vida da sessão é o caso a decidir.
+      </div>
+    </div>
+    <div class="rule rule--no">
+      <div class="rule__t"><code>automático</code> lê <code>.env</code> sem perguntar</div>
+      <div class="rule__d">
+        A regra da <code>Q3</code> não tem lista de exceção, e é isso que a torna previsível. Um
+        <code>.env</code> dentro do checkout <strong>entra</strong>. A alternativa — nomes de arquivo especiais
+        dentro do daemon — envelhece mal e dá falsa segurança. Está dito na descrição do menu, e não numa nota
+        de rodapé.
+      </div>
+    </div>
+    <div class="rule rule--no">
+      <div class="rule__t"><code>liberado</code> dentro de uma worktree ainda é <code>rm -rf</code></div>
+      <div class="rule__d">
+        O escopo limita o raio, não a gravidade. O portão é por sessão e não guarda decisão — o que significa
+        que quem trabalha assim vai confirmar de novo amanhã, <strong>de propósito</strong>.
+      </div>
+    </div>
+    <div class="rule rule--no">
+      <div class="rule__t">Português de um lado, inglês do outro</div>
+      <div class="rule__d">
+        Aqui a assimetria de idioma <strong>ajuda</strong> — ela separa os donos de graça. Em toda outra tela ela
+        é uma verruga, e a pergunta de traduzir a string do agente (<code>A13</code>) continua aberta. Fechar a
+        <code>A13</code> em favor de traduzir <strong>apaga metade deste sinal</strong>, e aí o glifo passa a
+        carregar a autoria sozinho.
+      </div>
+    </div>
+  </div>
+
+  <div class="case">
+    <div class="case__label">rastreio — requisito → onde ele está desenhado</div>
+    <div class="frame frame--pad">
+      <table class="tbl">
+        <thead><tr><th>requisito</th><th>o quê</th><th>onde</th></tr></thead>
+        <tbody>
+          <tr><td>F1.1</td><td>pílula de modo em toda conversa viva</td><td>§1, terceiro composer</td></tr>
+          <tr><td>F1.2</td><td>com modos do agente, nada muda</td><td>§1, primeiro composer</td></tr>
+          <tr><td>F1.3</td><td>sem modos, a do Lumem, distinguível</td><td>§2, glifo <code>◈</code> + rótulo em português</td></tr>
+          <tr><td>F1.4</td><td>valor da sessão, sobrevive a fechar</td><td>não tem pixel — §2, rodapé do menu, diz de onde vem o padrão</td></tr>
+          <tr><td>F1.5</td><td>nasce em <em>perguntar tudo</em></td><td>§2, opção marcada; §3, neutro</td></tr>
+          <tr><td>F1.6</td><td>o que passa sozinho aparece</td><td>§4, cartão assinado + linha de fecho</td></tr>
+          <tr><td>F1.7</td><td>troca recusada no meio do turno</td><td>§6</td></tr>
+          <tr><td>F1.8</td><td>conversa encerrada mostra o modo</td><td>§6</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="case__note">
+      A <code>F1.4</code> é a única sem desenho, e isso é correto: persistência não tem pixel. O que ela pede da
+      tela é que o menu diga <strong>de onde veio o valor atual</strong> — e é o rodapé que faz isso.
+    </div>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

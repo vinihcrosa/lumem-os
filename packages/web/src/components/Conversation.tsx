@@ -15,6 +15,8 @@ import { connectAcpSocket, type AcpConnect } from "../lib/acp-socket.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, Coach, Glyph } from "../ui/index.js";
 import { ConfigPills } from "./ConfigPills.js";
+import { FreeModeGate } from "./FreeModeGate.js";
+import { LumemModeMenu, LumemModePill } from "./LumemModePill.js";
 import { Message, Thought, TurnFrame } from "./Message.js";
 import { PermissionRequest } from "./PermissionRequest.js";
 import { useFirstPermissionCoach, type FirstPermissionCoach } from "../hooks/useFirstPermissionCoach.js";
@@ -42,7 +44,14 @@ type Action =
 interface ViewState {
   conversation: ConversationState;
   /** Set once the daemon answers the attach. Null while connecting. */
-  session: { acpSessionId: string; model: string; mode: string; state: string } | null;
+  session: {
+    acpSessionId: string;
+    model: string;
+    mode: string;
+    state: string;
+    /** O checkout, porque é ele que o portão do `liberado` nomeia (Q4). */
+    cwd: string;
+  } | null;
   /** A launch failure or a refusal — something with a remedy, or a dead end. */
   failure: { message: string; remedy: string | null; fatal: boolean } | null;
 }
@@ -65,12 +74,16 @@ function reduce(state: ViewState, action: Action): ViewState {
           ...replayConversation(message.transcript),
           mode: message.mode,
           configOptions: message.configOptions,
+          modeOwner: message.modeOwner,
+          lumemMode: message.lumemMode,
+          lumemModeDefault: message.lumemModeDefault,
         },
         session: {
           acpSessionId: message.acpSessionId,
           model: message.model,
           mode: message.mode,
           state: message.state,
+          cwd: message.cwd,
         },
         failure: null,
       };
@@ -159,6 +172,20 @@ export function Conversation({
 }: ConversationProps) {
   const [state, dispatch] = useReducer(reduce, initial);
   const [draft, setDraft] = useState("");
+  /*
+   * O portão do `liberado`, aberto e ainda não atravessado (Q4).
+   *
+   * Estado do componente, e não da sessão: ele não sobrevive a nada. Guardar que
+   * alguém já viu o portão é o primeiro passo para ele deixar de ser portão.
+   */
+  const [gateOpen, setGateOpen] = useState(false);
+  /*
+   * O menu do modo do Lumem, aberto.
+   *
+   * Mora aqui, e não na pílula, porque o MENU mora aqui: `.composer__box` tem
+   * `overflow: hidden` e recorta qualquer popover mais alto que ele.
+   */
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [openThoughts, setOpenThoughts] = useState<ReadonlySet<string>>(new Set());
   const socketRef = useRef<ReturnType<AcpConnect> | null>(null);
   const awaiting = useAwaitingPermission();
@@ -266,6 +293,31 @@ export function Conversation({
    * acontecia. Na minha máquina passava sempre.
    */
   const attached = session !== null;
+
+  /*
+   * Uma condição, e os três a usam: a pílula, o menu e o portão.
+   *
+   * O daemon recusa a troca no meio de um turno e o socket não leva nada quando
+   * não está atado. Enquanto isto morava só no `disabled` da pílula, havia um
+   * caminho: abrir o menu parado, o turno começar, e o menu continuar clicável —
+   * o clique mandava `set_lumem_mode`, o daemon respondia `BLOCKED`, e a pessoa
+   * lia um erro que não causou. Uma condição derivada uma vez é o que impede a
+   * pílula e o menu de discordarem.
+   */
+  const canSwitchMode = !conversation.streaming && attached;
+
+  /*
+   * E os dois FECHAM quando ela cai.
+   *
+   * Só esconder no render deixaria o estado para trás: o turno acaba, o menu
+   * reaparece aberto, e o que a pessoa vê é um popover que ela não abriu.
+   */
+  useEffect(() => {
+    if (canSwitchMode) return;
+    setModeMenuOpen(false);
+    setGateOpen(false);
+  }, [canSwitchMode]);
+
   const send = useCallback(() => {
     const text = draft.trim();
     if (text === "" || pending !== null || readOnly || !attached) return;
@@ -453,6 +505,39 @@ export function Conversation({
       {conversation.usage && <UsageFooter usage={conversation.usage} />}
 
       <div className="composer">
+        {/*
+          O menu e o portão nascem aqui, FORA do `.composer__box`.
+
+          A caixa tem `overflow: hidden` para recortar os cantos arredondados, e
+          isso corta todo popover mais alto que ela — o que os menus curtos de hoje
+          não notam e os dois desta feature notaram na primeira abertura num
+          navegador de verdade. Ancorá-los no `.composer` é o que faz o clique
+          chegar neles.
+        */}
+        {conversation.modeOwner === "lumem" && modeMenuOpen && canSwitchMode && (
+          <LumemModeMenu
+            mode={conversation.lumemMode}
+            workspaceDefault={conversation.lumemModeDefault}
+            onSwitch={(mode) => {
+              setModeMenuOpen(false);
+              socketRef.current?.send({ type: "set_lumem_mode", mode });
+            }}
+            onFreeRequested={() => {
+              setModeMenuOpen(false);
+              setGateOpen(true);
+            }}
+          />
+        )}
+        {gateOpen && canSwitchMode && (
+          <FreeModeGate
+            cwd={session?.cwd ?? ""}
+            onCancel={() => setGateOpen(false)}
+            onConfirm={() => {
+              setGateOpen(false);
+              socketRef.current?.send({ type: "set_lumem_mode", mode: "free" });
+            }}
+          />
+        )}
         <div className="composer__box">
           {/*
             Above the box, anchored to it. The list is the agent's own (F2.8), and
@@ -514,6 +599,29 @@ export function Conversation({
               then (A15). Offering it anyway would be a button whose only outcome
               is an error the user did nothing to cause.
             */}
+            {/*
+              Uma pílula de modo, sempre, e nunca duas (A1).
+              O `modeOwner` vem do daemon: derivar aqui "o agente não mandou
+              `mode`, então a pílula é do Lumem" seria uma segunda cópia da regra,
+              livre para discordar da primeira.
+            */}
+            {conversation.modeOwner === "lumem" && (
+              <LumemModePill
+                mode={conversation.lumemMode}
+                /*
+                 * Desligada no meio do turno (F1.7) e sem daemon.
+                 *
+                 * A pílula **fica** nos dois casos — ela é estado local da
+                 * sessão, e não depende de handshake para ser exibida —, mas a
+                 * troca viaja pelo socket, e um botão cujo único resultado é
+                 * erro não é um botão.
+                 */
+                disabled={!canSwitchMode}
+                readOnly={readOnly}
+                open={modeMenuOpen}
+                onToggle={() => setModeMenuOpen(!modeMenuOpen)}
+              />
+            )}
             <ConfigPills
               mode={conversation.mode}
               options={conversation.configOptions}

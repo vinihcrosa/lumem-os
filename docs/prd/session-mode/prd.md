@@ -1,14 +1,21 @@
 # PRD — O modo da conversa: sempre na tela, e com resposta do Lumem quando o agente não tem
 
-> **Status:** v0.1 — nada implementado. Uma anotação do agentation na
+> **Status:** **completa — 12 de 12 tasks.** Nasceu de uma anotação na
 > barra do composer: *"falta um seletor de modo, para poder selecionar o modo automático, se tá
 > liberado, se tem que perguntar tudo"*
-> **Perguntas:** [open-questions.md](open-questions.md)
-> **Tasks:** ainda não escritas
+> **Perguntas:** [open-questions.md](open-questions.md) — 6 de 6 fechadas
+> **Tasks:** [tasks.md](tasks.md) — 12 entregues, em seis commits
 > **Sucede:** [acp-sessions](../acp-sessions/prd.md), que trouxe os seletores (F2.6) e o pedido de
 > permissão
-> **Desenho:** a fazer no Open Design — o estado "modo que o Lumem impõe" não existe no
-> `lumem-acp-conversation.html`
+> **Desenho:** feito no Open Design — `packages/web/prototype/lumem-session-mode.html`. Sete seções:
+> a barra muda ao lado do que entra no lugar dela, o eixo de autoria, os três valores, o rastro do
+> `automático`, o portão do `liberado`, as bordas, e o que isto cobra. Ele **desenha as propostas** da
+> [Q2](open-questions.md) (glifo `◈` + rótulo em português), da [Q3](open-questions.md) (a regra na
+> descrição do menu, sem lista de exceção), da [Q4](open-questions.md) (portão por sessão, sem "não
+> perguntar de novo") e da [Q5](open-questions.md) (rodapé do menu com o padrão do workspace), e as
+> quatro foram **fechadas nessas propostas**. A [Q6](open-questions.md) nasceu depois, lendo o
+> `AcpManager`: o daemon não responde "sim" no abstrato, e um agente que não oferece opção de permitir
+> faria o `automático` **negar em silêncio**.
 
 ---
 
@@ -97,7 +104,11 @@ como o resto da conversa em disco já sobrevive.
 
 - Regras por ferramenta ou por caminho ("pode escrever em `src/`, não em `.env`"). É outra feature, e
   vai para o [backlog](../../project/backlog.md).
-- Política de workspace que se imponha a todas as sessões. Ver [Q5](open-questions.md).
+- Política de workspace que se imponha a todas as sessões. A [Q5](open-questions.md) fechou em
+  **padrão herdado**, que uma sessão pode contrariar — herdar sem poder divergir seria política
+  global.
+- Symlink dentro do checkout apontando para fora dele. O `inside()` compara caminho resolvido sem
+  tocar no disco, e o lugar de uma política de symlink é a feature de regras por caminho.
 
 ## 4. Como se prova
 

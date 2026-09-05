@@ -1,0 +1,214 @@
+/* ============================================================================
+   Lumem-OS — o modo da conversa, e de quem ele é
+
+   A anotação que gerou a PRD viu uma barra de composer SEM SELETOR NENHUM. Ela
+   não estava quebrada: as pílulas são inteiramente derivadas do que o adaptador
+   manda no `session/new`, e `configOptions` vazio produz zero pílula. Um agente
+   que não relata modos e um bug de transporte produzem o MESMO PIXEL.
+
+   Esta tela resolve três coisas, nesta ordem de importância:
+
+   1. A PÍLULA DE MODO EXISTE SEMPRE. Não há estado com barra muda. Quando o
+      agente não oferece modos, quem oferece é o Lumem.
+   2. QUEM É O DONO ESTÁ ESCRITO. O modo do agente muda o que ele TENTA fazer;
+      o do Lumem muda o que PASSA. Confundir os dois é aprovar no escuro.
+   3. O QUE PASSA SOZINHO DEIXA RASTRO. `automático` que aprova em silêncio é um
+      agente trabalhando fora da vista.
+
+   ZERO TOKEN NOVO. Os três valores do Lumem caem sobre as rampas de modo que já
+   existem — `--color-mode-auto`, `--color-mode-bypass` — e o valor padrão fica
+   no neutro, porque "perguntar tudo" não é um estado a ser notado, é o piso.
+
+   A REGRA DE COR, e por que ela não carrega a autoria:
+     neutro   perguntar tudo — o padrão, e não há nada a decidir
+     brand    automático     — mesmo tom do `auto` do agente, DE PROPÓSITO
+     danger   liberado       — mesmo tom do `bypassPermissions`, DE PROPÓSITO
+
+   Os dois últimos são deliberados: para quem olha a tela, `liberado` do Lumem e
+   `bypassPermissions` do agente têm a mesma consequência — nada é perguntado.
+   Cor é para consequência. AUTORIA vai num segundo eixo (§2), porque um objeto
+   com dois eixos de cor não se lê.
+
+   Camadas: tokens.css → lumem-ds.css → este arquivo.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+   0. chrome do protótipo — a página, não o produto
+   -------------------------------------------------------------------------- */
+body { padding: var(--space-32); }
+.page { font: var(--text-display-md); letter-spacing: var(--tracking-display-md); margin: 0 0 var(--space-8); }
+.page-sub { color: var(--color-text-secondary); max-width: var(--size-detail-max); margin: 0 0 var(--space-32); }
+.page-sub code { font: var(--text-mono-sm); }
+.wrap { max-width: var(--size-detail-max); display: grid; gap: var(--space-40); }
+.sec__t .no { font: var(--text-mono-md); color: var(--color-text-tertiary); margin-right: var(--space-8); }
+.sec__d code { font: var(--text-mono-sm); }
+.case__label code { font: var(--text-mono-sm); color: var(--color-text-code); text-transform: none; letter-spacing: normal; }
+.caption { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); margin: 0 0 var(--space-4); }
+.frame {
+  border: var(--border-width-thin) solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-panel);
+  overflow: hidden;
+}
+.frame--pad { padding: var(--space-16); }
+
+/* ---------------------------------------------------------------------------
+   1. o pedaço de conversa que segura o composer
+   O composer não se julga sozinho: a distância dele até a última coisa que o
+   agente disse é metade da leitura.
+   -------------------------------------------------------------------------- */
+.convmock { display: flex; flex-direction: column; background: var(--color-bg-base); }
+.convmock__scroll {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-12);
+  align-content: end;
+  padding: var(--space-16) var(--space-20) var(--space-4);
+  min-height: calc(var(--space-64) + var(--space-32));
+}
+
+/*
+ * A BARRA VAZIA — o bug, desenhado. Não há classe nova aqui de propósito: é
+ * exatamente o que o `composer__bar` do design system produz hoje quando
+ * `configOptions` vem vazio. Se parecer erro de protótipo, é porque é erro de
+ * produto.
+ */
+
+/* ---------------------------------------------------------------------------
+   2. AUTORIA — o segundo eixo, e ele não é cor
+   `◈` é o glifo do Lumem; o agente não ganha glifo nenhum, porque a pílula dele
+   já está no ar e mexer nela para resolver um problema que não é dela sai caro
+   (F1.2 diz "nada muda", e o custo disso está nomeado no §7).
+   O reforço vem de graça, e já está no dado: o Lumem rotula em PORTUGUÊS e em
+   caixa de frase; o agente entrega a string crua do protocolo, em inglês.
+   -------------------------------------------------------------------------- */
+.pill__own { flex: none; font-size: var(--size-icon-xs); line-height: 1; color: currentColor; }
+/* Neutro deliberado: o padrão não pede atenção. Borda `default` e não `subtle`
+   para não ser confundida com a pílula desabilitada, que é a única do sistema
+   autorizada a baixar contraste. */
+.pill--ask { color: var(--color-text-secondary); border-color: var(--color-border-default); }
+.pill[disabled] .pill__own { color: var(--color-text-disabled); }
+
+.legend { display: flex; flex-wrap: wrap; gap: var(--space-20); align-items: center; }
+.legend__i { display: flex; align-items: center; gap: var(--space-8); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.legend__i b { color: var(--color-text-primary); font-weight: 500; }
+
+/* ---------------------------------------------------------------------------
+   3. o menu — é aqui que a autoria vira frase, não símbolo
+   O cabeçalho diz de quem é a regra e por quê. Sem ele o glifo é charada.
+   -------------------------------------------------------------------------- */
+.mmenu {
+  width: var(--size-menu-width);
+  background: var(--color-bg-raised);
+  border: var(--border-width-thin) solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-lg);
+  overflow: hidden;
+}
+.mmenu__head {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-10);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+}
+.mmenu__who { display: flex; align-items: center; gap: var(--space-6); font: var(--text-label-sm); color: var(--color-text-primary); }
+.mmenu__why { font: var(--text-caption); color: var(--color-text-tertiary); }
+.mmenu__why code { font: var(--text-mono-sm); }
+
+.mopt { display: grid; gap: var(--space-2); padding: var(--space-8) var(--space-10); text-align: left; width: 100%; }
+.mopt + .mopt { border-top: var(--border-width-thin) solid var(--color-border-subtle); }
+.mopt:hover { background: var(--color-bg-hover); }
+.mopt--on { background: var(--color-bg-active); }
+.mopt--on:hover { background: var(--color-bg-active); }
+.mopt__t { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-sm); color: var(--color-text-primary); }
+.mopt__mark { margin-left: auto; flex: none; font-size: var(--size-icon-sm); color: var(--color-text-brand); }
+/* Secundário, e não terciário: esta descrição é o texto que decide uma política
+   de permissão. Terciário é para metadado — hora, contagem, caminho —, não para
+   a frase que a pessoa lê antes de liberar escrita numa worktree. */
+.mopt__d { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.mopt__d code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.mopt--auto .mopt__t { color: var(--color-mode-auto); }
+.mopt--free .mopt__t { color: var(--color-mode-bypass); }
+/*
+ * O `liberado` NÃO ganhou glifo de cadeado. `⚿` não existe na fonte da interface
+ * e virou tofu na primeira renderização — e um glifo que só metade das máquinas
+ * desenha é pior que glifo nenhum. Quem diz que ele abre um portão é a última
+ * frase da descrição, que é texto e sempre desenha.
+ */
+.mmenu__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-8) var(--space-10);
+  border-top: var(--border-width-thin) solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.mmenu__foot b { color: var(--color-text-secondary); font-weight: 400; }
+.mmenu__foot .lnk { margin-left: auto; color: var(--color-text-link); }
+
+/* O menu do agente, para comparar lado a lado: string crua, em inglês. */
+.slash { display: grid; gap: var(--space-2); width: var(--size-menu-width); padding: var(--space-6); background: var(--color-bg-raised); border: var(--border-width-thin) solid var(--color-border-default); border-radius: var(--radius-md); box-shadow: var(--elevation-lg); }
+.slash__row { display: flex; align-items: center; gap: var(--space-8); min-height: var(--size-row-compact); padding: 0 var(--space-8); border-radius: var(--radius-sm); }
+.slash__row--on { background: var(--color-bg-active); }
+.slash__row--danger .slash__cmd { color: var(--color-mode-bypass); }
+.slash__cmd { flex: none; font: var(--text-mono-md); color: var(--color-text-primary); }
+.slash__desc { flex: 1; min-width: 0; font: var(--text-body-sm); color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------------------------------------------------------------------------
+   4. o rastro — F1.6
+   Aprovado sozinho vira cartão de ferramenta com veredito, igual ao aprovado por
+   você. O que muda é QUEM assinou, e a linha do porquê.
+   -------------------------------------------------------------------------- */
+.verdict--lumem { color: var(--color-mode-auto); }
+.tc__why {
+  padding: var(--space-6) var(--space-10) var(--space-8) calc(var(--space-10) + var(--size-icon-md) + var(--space-8));
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+.tc__why code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.meta { border-left: var(--border-width-thick) solid var(--color-border-subtle); padding-left: var(--space-10); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.meta b { color: var(--color-text-secondary); font-weight: 400; }
+
+/* ---------------------------------------------------------------------------
+   5. o portão do `liberado` — a decisão perigosa da feature
+   Molde da `project-scripts`: confirmação explícita, escopo dito por extenso, e
+   NENHUM "não perguntar de novo". O que ele libera é escrita e comando dentro de
+   uma worktree, e isso não vira preferência salvável.
+   -------------------------------------------------------------------------- */
+.gate {
+  width: var(--size-dialog-width);
+  display: grid;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  background: var(--color-bg-raised);
+  border: var(--border-width-thin) solid var(--color-border-danger);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-xl);
+}
+.gate__t { display: flex; align-items: center; gap: var(--space-8); font: var(--text-heading-md); color: var(--color-text-primary); }
+.gate__g { flex: none; font-size: var(--size-icon-lg); color: var(--color-text-danger); }
+.gate__b { font: var(--text-body-md); color: var(--color-text-secondary); }
+.gate__b b { color: var(--color-text-primary); font-weight: 500; }
+.gate__list {
+  display: grid;
+  gap: var(--space-6);
+  margin: 0;
+  padding: var(--space-10) var(--space-12);
+  list-style: none;
+  background: var(--color-bg-danger-subtle);
+  border-radius: var(--radius-md);
+}
+.gate__list li { display: flex; gap: var(--space-8); font: var(--text-body-sm); color: var(--color-text-primary); }
+.gate__list li > span { min-width: 0; }
+.gate__list li::before { content: "›"; flex: none; color: var(--color-text-danger); }
+.gate__scope { font: var(--text-mono-sm); color: var(--color-text-code); overflow-wrap: anywhere; }
+.gate__acts { display: flex; align-items: center; gap: var(--space-8); }
+.gate__note { font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------------------------------
+   6. tabela de rastreio — requisito → onde ele está desenhado
+   -------------------------------------------------------------------------- */
+.tbl td:first-child { white-space: nowrap; font: var(--text-mono-sm); color: var(--color-text-code); }

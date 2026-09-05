@@ -28,6 +28,7 @@ Lendo nesta ordem você entende o projeto inteiro em três documentos:
 | [task-cycle-evidence.md](project/task-cycle-evidence.md) | Linha de base medida do repositório e registro de custo do ciclo dev → review → rework, ao longo de onze lotes. A skill que orquestrava o ciclo foi removida; as medições ficaram, porque são deste repositório |
 | [design-source-of-truth.md](project/design-source-of-truth.md) | **Decisão (2026-08-19): o design é feito inteiramente no Open Design.** O gerador Python saiu, o `tokens.css` passou a ser sincronizado, e a verificação de contraste ficou — com o custo de cada uma dessas três coisas nomeado |
 | [pty-vs-acp.md](project/pty-vs-acp.md) | **Decisão de arquitetura (2026-08-17): o Lumem migra para ACP.** O custo medido, os prós e contras de cada transporte, a recomendação contrária que perdeu, e o §9.2 — billing e janela de contexto investigados na fonte, com duas das minhas próprias afirmações corrigidas |
+| [agentation.md](project/agentation.md) | A barra de anotação visual do dev: clicar num elemento da tela vira contexto estruturado para o agente. Como está montada, por que não viaja para produção, e as duas variáveis que a ligam e desligam |
 | [backlog.md](project/backlog.md) | **Tudo que ficou para depois**, com uma frase de contexto, de onde veio, e o gatilho que traz de volta. Toda ideia adiada entra aqui na hora |
 
 ---
@@ -278,16 +279,22 @@ cabeçalho `Projetos` e um `+` na linha de cada projeto, com os diálogos virand
 
 ### [worktree-first-tab/](prd/worktree-first-tab/) — o que é da worktree mora na worktree
 
-O cabeçalho do checkout ocupa altura em **todas** as abas para dizer o que só interessa a uma, e o
-`▤ arquivos` mora na `Topbar` — interruptor global para uma coluna que pertence a um checkout.
-A coluna do meio passa a ser **caminho → abas → conteúdo**, com a worktree como primeira aba, fixa e
-sem `✕`. Extraída da Fase 1 da [pull-request-status](prd/pull-request-status/): ela não depende de
-saber ler PR, e a outra está travada.
+**Completa.** A coluna do meio é **caminho → abas → conteúdo**, e a worktree é a primeira aba: fixa,
+sem `✕`, com o ponto de sujeira que é o único sinal a sobreviver a outra aba estar na frente. O
+`▤ arquivos` saiu da `Topbar` — era o único controle daquela faixa que não valia para a tela toda — e
+foi para a ponta direita da faixa de abas do checkout, o único lugar que existe em todas as abas de um
+checkout e em nenhum lugar fora dele. Extraída da Fase 1 da
+[pull-request-status](prd/pull-request-status/), que continuava travada, e entregue sem ela.
+
+O que a mudança cobra está escrito onde dói, e o e2e do onboarding provou de graça: com a conversa na
+frente, o nome da worktree só existe na aba.
 
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/worktree-first-tab/prd.md) | O §4 — com uma aba de sessão na frente, branch e sujeira somem da vista, e quem paga são o ponto na aba e o caminho acima dela |
-| [open-questions.md](prd/worktree-first-tab/open-questions.md) | 5 perguntas. A Q1 é a Q11 herdada da barra da PR: o que a worktree ainda diz quando não está em foco |
+| [open-questions.md](prd/worktree-first-tab/open-questions.md) | 5 perguntas, **5 respondidas** — e o registro de **como**: cada uma pela proposta já desenhada. A Q1, herdada da barra da PR, mudou de forma antes de virar linha, porque o código desmentiu o argumento dela |
+| [tasks.md](prd/worktree-first-tab/tasks.md) | 9 tasks em 4 fases, **todas entregues**. Sem daemon: o risco era de **regressão**. Termina com o que a execução achou — inclusive o bug que 826 testes de componente não pegam e o e2e pega |
+| `packages/web/prototype/lumem-worktree-tab.html` | O protótipo, vindo do Open Design: dez telas — antes × depois da moldura, a tela inteira, a barra de abas de perto com os estados do `▤`, a aba da worktree sozinha, o `▭ local`, as quatro leituras da Q1, os dois lugares do `▤` na Q2, os dois estados degradados que a aba herda, e o que o desenho não faz. **Zero token novo**; um componente novo só, o `.tabs__files` |
 
 ### [run-dock-open/](prd/run-dock-open/) — o rodapé nasce aberto
 
@@ -300,17 +307,19 @@ resposta chega recolhida. Mudar o padrão não é uma linha: o rodapé aberto so
 | [prd.md](prd/run-dock-open/prd.md) | As três parcelas da conta — largura, altura e processo — e por que só a terceira é barata |
 | [open-questions.md](prd/run-dock-open/open-questions.md) | 3 perguntas, e as duas primeiras são a mesma conta de espaço |
 
-### [session-mode/](prd/session-mode/) — o modo sempre na tela
+### [session-mode/](prd/session-mode/) — o modo sempre na tela · **completa**
 
-O seletor de modo existe, mas é inteiramente derivado do que o agente relata: `configOptions` vazio
-produz **um composer mudo**, igualzinho a um bug de transporte. E o que o modo controla — *"se tá
-liberado, se tem que perguntar tudo"* — é hoje inteiramente do agente: sem modos relatados, o Lumem
-não tem política própria para oferecer.
+O seletor de modo existia, mas era inteiramente derivado do que o agente relata: `configOptions` vazio
+produzia **um composer mudo**, igualzinho a um bug de transporte. Agora a pílula existe sempre, e
+quando o agente não oferece modos ela é a **política do Lumem** — o que o daemon responde a
+`session/request_permission`. A autoria vai em glifo e idioma, não em cor; o que passa sozinho aparece
+na conversa assinado; e nenhum caminho da feature nega sozinho.
 
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/session-mode/prd.md) | Os dois donos de um modo (o do agente muda o que ele *tenta*; o do Lumem muda o que *passa*), e os três valores da política, com `liberado` atrás de portão |
-| [open-questions.md](prd/session-mode/open-questions.md) | 5 perguntas. A Q1 decide o tamanho da feature: só tela, ou tela + política no daemon |
+| [open-questions.md](prd/session-mode/open-questions.md) | 6 perguntas, 6 fechadas. A Q1 decidiu o tamanho — tela **e** política — e a Q6 nasceu no código: sem opção de permitir, o `automático` negaria em silêncio |
+| [tasks.md](prd/session-mode/tasks.md) | 12 tasks em 4 fases, as duas fusões que a execução cobrou, e os cinco achados — inclusive o `overflow: hidden` que só o e2e podia ver e o menu que ficava clicável, achado em revisão |
 
 ---
 

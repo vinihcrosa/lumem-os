@@ -139,6 +139,58 @@ describe("events.onChange", () => {
     stream.stop();
   });
 
+  it("tells the worktree list it is stale when the project that owned it is removed", async () => {
+    /*
+     * A cascata (F2.5, WS-Q22) tira o registro de N worktrees, e quem removeu
+     * não é o único cliente ligado. Numa segunda janela a lista daquele projeto
+     * continua na tela: sem este evento ela mostra worktrees que não existem
+     * mais até alguém recarregar.
+     *
+     * O `projectId` é o do projeto que acabou de sumir de propósito — é a chave
+     * da lista que ficou velha, não uma promessa de que o projeto existe.
+     */
+    context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") });
+    const workspace = await context.api.workspace.create({ name: "pessoal" });
+    const project = await context.api.project.add({
+      workspaceId: workspace.id,
+      path: await createRepo({ branch: "main" }),
+      name: "lorebase",
+    });
+    await context.api.worktree.create({ projectId: project.id, name: "teste" });
+    const stream = listen(context);
+    await vi.waitFor(() => expect(context.events.listenerCount).toBe(1));
+
+    await context.api.project.remove({ id: project.id });
+
+    await stream.waitFor((events) =>
+      events.some((e) => e.type === "worktree.changed" && e.projectId === project.id),
+    );
+    await stream.waitFor((events) =>
+      events.some((e) => e.type === "project.changed" && e.workspaceId === workspace.id),
+    );
+    stream.stop();
+  });
+
+  it("stays quiet about worktrees when the removed project had none", async () => {
+    // O evento existe para uma lista que ficou velha. Projeto sem worktree não
+    // tem lista, e um evento a mais faz toda janela aberta refazer a busca.
+    context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") });
+    const workspace = await context.api.workspace.create({ name: "pessoal" });
+    const project = await context.api.project.add({
+      workspaceId: workspace.id,
+      path: await createRepo({ branch: "main" }),
+      name: "lorebase",
+    });
+    const stream = listen(context);
+    await vi.waitFor(() => expect(context.events.listenerCount).toBe(1));
+
+    await context.api.project.remove({ id: project.id });
+
+    await stream.waitFor((events) => events.some((e) => e.type === "project.changed"));
+    expect(stream.events.some((e) => e.type === "worktree.changed")).toBe(false);
+    stream.stop();
+  });
+
   it("fires when a session is opened and again when it is closed", async () => {
     context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-"), SHELL: "/bin/sh" });
     const workspace = await context.api.workspace.create({ name: "pessoal" });

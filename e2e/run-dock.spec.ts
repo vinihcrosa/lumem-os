@@ -21,7 +21,7 @@ import { E2E_FIXTURE_REPO_SCRIPTS } from "./support/fixtures.js";
 const PROJECT = "repo-scripts";
 
 async function openColumn(page: Page): Promise<void> {
-  const toggle = page.getByRole("button", { name: "arquivos", exact: true });
+  const toggle = page.getByRole("button", { name: "abrir a coluna de arquivos" });
   if ((await page.getByLabel("arquivos do checkout").count()) === 0) await toggle.click();
   await expect(page.getByLabel("arquivos do checkout")).toBeVisible();
 }

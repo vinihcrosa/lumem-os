@@ -54,3 +54,27 @@ test("o asset com hash no nome vem cacheável", async ({ page }) => {
   expect(assets.length).toBeGreaterThan(0);
   expect(assets.every((value) => value.includes("immutable"))).toBe(true);
 });
+
+test("a ferramenta de anotação não viaja para produção", async ({ page }) => {
+  // O `agentation` é dev-only por um guarda estático em `mountAgentation`. Se
+  // alguém trocar o guarda por um teste em runtime, o rollup deixa de derrubar
+  // o pacote e a barra passa a ser servida ao usuário — e o build cresce sem
+  // que nada mais reclame.
+  // O corpo se lê de forma assíncrona, e o Playwright não espera pelo listener:
+  // guardar a promessa e resolver todas depois é o que garante que a asserção
+  // olhe para o conteúdo inteiro, e não para o que por acaso já tinha chegado.
+  const bodies: Promise<string>[] = [];
+  page.on("response", (response) => {
+    if (/\/assets\/.+\.js$/.test(new URL(response.url()).pathname)) {
+      bodies.push(response.text());
+    }
+  });
+
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Lumem-OS" })).toBeVisible();
+
+  const assets = await Promise.all(bodies);
+  expect(assets.length).toBeGreaterThan(0);
+  expect(assets.some((source) => /agentation/i.test(source))).toBe(false);
+  await expect(page.locator("#agentation-root")).toHaveCount(0);
+});

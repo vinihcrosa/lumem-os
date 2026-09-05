@@ -22,19 +22,33 @@ passo central é **instalar o tarball num runner limpo**, porque é o único que
 dinâmico, prebuild ausente e arquivo fora do pacote. A raiz ganhou `README.md` (em inglês, com
 tradução ao lado) e `LICENSE` (MIT).
 
-Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**, sem tasks ainda:
-[sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto e worktree de onde se olha —
-**completa em 2026-09-01**: as seis perguntas respondidas pelo desenho, duas peças novas no design
-system (`Modal` centrado e o slot de ação da linha) e as
+Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**. Três já estão
+fechadas; uma segue **sem tasks** — [run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de
+execução nasce aberto). A [sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto e worktree
+de onde se olha) está **completa em 2026-09-01**: as seis perguntas respondidas pelo desenho, duas
+peças novas no design system (`Modal` centrado e o slot de ação da linha) e as
 [10 tasks](docs/prd/sidebar-actions/tasks.md) entregues — o `＋adicionar projeto` do rodapé saiu, o
-diálogo de worktree saiu do `LocalPanel`, e o clone em andamento virou linha da árvore),
-[worktree-first-tab](docs/prd/worktree-first-tab/prd.md) (o cabeçalho vira a primeira aba, e o
-`▤ arquivos` sai da topbar — extraída da Fase 1 da barra da PR),
-[run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de execução nasce aberto) e
-[session-mode](docs/prd/session-mode/prd.md) (o modo sempre na tela, com política do Lumem quando o
-agente não tem). A nona anotação era sobre uma PR aberta que não aparece: a
+diálogo de worktree saiu do `LocalPanel`, e o clone em andamento virou linha da árvore. A nona anotação
+era sobre uma PR aberta que não aparece: a
 [pull-request-status](docs/prd/pull-request-status/prd.md) está desenhada e **não implementada**,
 travada na Q1.
+
+A [worktree-first-tab](docs/prd/worktree-first-tab/prd.md) está **completa** — 9 tasks, 5 perguntas
+respondidas. A coluna do meio é **caminho → abas → conteúdo**: o cabeçalho fixo do checkout virou a
+**primeira aba** (fixa, sem `✕`, com o ponto de sujeira que sobrevive a outra aba estar na frente), e o
+`▤ arquivos` saiu da topbar para a faixa de abas do checkout. Ela reverte, com o motivo escrito, a W4
+da [worktree-tabs](docs/prd/worktree-tabs/tasks.md) — e o e2e provou de graça o que a mudança cobra:
+com a conversa na frente, o nome da worktree só existe na aba.
+
+A [session-mode](docs/prd/session-mode/prd.md) está **completa** — 12 tasks, 6 perguntas fechadas. Ela
+conserta um composer que ficava **mudo**: as pílulas eram derivadas inteiramente do `configOptions`, e
+um vazio produzia zero pílula — então um agente que não relata `modes` desenhava o mesmo pixel que um
+bug de transporte. Agora a pílula de modo existe sempre, e quando o agente não tem modos ela é a
+**política do Lumem**: `perguntar tudo`, `automático` (leitura de arquivo dentro do checkout passa
+sozinha) e `liberado`, atrás de um portão por sessão sem "não perguntar de novo". A autoria não é cor —
+é o glifo `◈` mais o idioma do rótulo —, o que passa sozinho **aparece na conversa** assinado (`◈ o
+Lumem aprovou`) com a linha de fecho contando o turno, e **nenhum caminho da feature nega sozinho**:
+sem opção de permitir, o pedido sobe dizendo por quê.
 
 Comece pelo [índice da documentação](docs/README.md).
 
@@ -43,8 +57,9 @@ Comece pelo [índice da documentação](docs/README.md).
 | [docs/project/vision.md](docs/project/vision.md) | visão do projeto, escrita pelo Vinicius |
 | [docs/project/questions.md](docs/project/questions.md) | perguntas de design do projeto, respondidas aos poucos |
 | [docs/project/testing.md](docs/project/testing.md) | matriz de cobertura, gates, e as armadilhas já corrigidas |
+| [docs/project/agentation.md](docs/project/agentation.md) | a barra de anotação visual do dev — clicar na tela vira contexto estruturado para o agente, pelo MCP `agentation` |
 | [docs/project/backlog.md](docs/project/backlog.md) | tudo que ficou para depois. **Ideia adiada entra aqui na mesma hora**, com contexto curto e gatilho de volta |
-| [docs/project/workspaces.md](docs/project/workspaces.md) | scripts de setup/run/teardown, isolamento de portas e state dir por worktree |
+| [docs/project/workspaces.md](docs/project/workspaces.md) | scripts de setup/run/teardown, e os dois ambientes: `~/.lumem` de produção e `~/.lumem-dev/shared` de desenvolvimento |
 | [docs/references/](docs/references/) | estudo das quatro referências + comparativo |
 | [docs/project/pty-vs-acp.md](docs/project/pty-vs-acp.md) | a decisão de transporte: por que ACP, o que ela custa, e o que faria o PTY voltar |
 | [docs/prd/](docs/prd/) | PRD, decisões e tasks por feature |
@@ -57,7 +72,7 @@ Monorepo pnpm + Turborepo. `packages/shared` (contratos), `packages/server` (dae
 
 | Comando | O quê |
 |---|---|
-| `pnpm dev` | sobe daemon e web juntos |
+| `pnpm dev` | sobe daemon e web juntos, no ambiente de dev (`~/.lumem-dev/shared`, nunca o `~/.lumem` de produção) — ver [workspaces.md](docs/project/workspaces.md) |
 | `pnpm gate:quick` | testes afetados pelo trabalho atual |
 | `pnpm gate:full` | suíte inteira + e2e |
 | `pnpm gate:build` | typecheck de tudo + build |

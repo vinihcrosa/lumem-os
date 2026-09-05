@@ -222,6 +222,23 @@ O que **ficou** de fora dela, e portanto continua aqui:
 | Notificação quando a PR fica verde ou quebra | `P` | tentador e barato de errar: exige política de ruído | você se pegar olhando a sidebar de minuto em minuto |
 | "O check quebrou, peça ao agente para consertar" | `M` | a ponte entre a barra e a sessão ACP — e a mais perigosa, porque põe texto da internet dentro de um prompt | o §4.7 do PRD ganhar um portão de verdade |
 
+### Worktree de projeto removido não pode ser recriada — `P`
+
+Remover projeto **registrado por caminho** tira o registro das worktrees e **não toca no disco**
+([WS-Q22](../prd/walking-skeleton/open-questions.md)). O projeto clonado não entra: lá a worktree
+bloqueia a remoção, então nada fica para trás.
+O que fica para trás é git, não Lumem: o diretório, a branch e a entrada em `.git/worktrees` do repo.
+Como o caminho é determinístico (`<workspace>/<projeto>/worktrees/<nome>`), re-adicionar o mesmo repositório e
+criar a worktree `feat-x` de novo falha em `a branch "feat-x" já existe`. Pelo app, é permanente — sai
+só com `git worktree remove` na mão. Bate no onboarding, que sempre cria worktree na primeira tarefa.
+
+Os dois caminhos que resolvem são features: **adotar worktree que já existe** (o mesmo mecanismo das
+"worktrees externas na sidebar", §G) ou **limpar o disco na cascata**, que contradiz a WS-Q22 e pede a
+confirmação de "sujo" para N worktrees de uma vez.
+
+**De onde veio:** a review da PR de remover projeto · **Volta quando:** alguém re-adicionar um projeto
+e não conseguir recriar a worktree que tinha antes.
+
 ### Stage, commit e revert pela UI — a aba `Review` — `M`
 
 Diff é ler; git é agir. Ficou fora da `right-panel` de propósito.
@@ -340,6 +357,22 @@ cruas. A janela de `1y` é a única que precisa de granularidade fina e ninguém
 **De onde veio:** a PR do consumo · **Volta quando:** a tabela passar de alguns milhões de linhas, ou
 a query de `1y` começar a aparecer no tempo de carregamento da tela.
 
+### Linhas órfãs, e a transcrição que sobrevive ao dono — `P`
+
+Remover projeto apaga `project` e `worktree`. Continuam apontando para ids que não existem mais
+`session`, `session_usage`, `memory_entry`, `action_signal`, `playbook` e `memory_proposal` — todas
+com a coluna `text` e sem FK, então nada reclama. Os números da tela não erram: `usageByProject` e
+`usageByWorktree` fazem `LEFT JOIN` **a partir** de `project`/`worktree`, e órfão não entra na conta.
+
+O que vaza é disco. `sweepTranscripts` só apaga o arquivo cujo dono sumiu do registro
+(`acp/transcript-maintenance.ts`), e a linha de `session` sobrevive à remoção — então a conversa de um
+projeto que não existe mais fica em `~/.lumem` para sempre, comprimida aos 30 dias e nunca apagada.
+**É pré-existente**, não veio da cascata: `worktree.remove` também deixa `session` para trás. A cascata
+só multiplica por N.
+
+**De onde veio:** a review da PR de remover projeto · **Volta quando:** o diretório de transcrições
+crescer sem explicação, ou a primeira consulta precisar varrer órfão.
+
 ### O que o Lumem gasta sozinho — `P`
 
 A destilação de fim de sessão e o agente de pesquisa do auto-learn sobem sessões ACP **sem linha no
@@ -455,3 +488,34 @@ gate próprio, e feito pela metade fica pior que não feito.
 **De onde veio:** [D11](../prd/distribution/open-questions.md) — *"concordo com você, mas deixando
 claro que eu quero passar tudo para inglês em breve"* · **Volta quando:** a primeira pessoa que não
 fala português chegar ao repositório — ou você decidir a data.
+
+### A lista de sessões de uma worktree ausente — `P`
+
+A aba do checkout, quando a worktree sumiu do disco, some com o que deixou de ser verdade — base,
+distância, idade — e mantém a lista de sessões, que é do `ScopePanel` e compartilhada com o `local` e
+com a worktree viva. O §8 do protótipo não a desenha. A lista não mente: sessão de uma worktree que
+sumiu continua existindo como registro, com buffer legível. Mas ela ocupa a metade de baixo de uma aba
+cuja única ação útil é limpar o registro.
+
+Tirar exige um prop novo no `ScopePanel` — o que é um custo real por um ganho de arrumação.
+
+**De onde veio:** [worktree-first-tab T7](../prd/worktree-first-tab/tasks.md), onde o desenho e o
+código discordaram e o código ganhou · **Volta quando:** alguém abrir uma worktree ausente e a lista
+de sessões atrapalhar em vez de informar.
+
+### A sessão nova não vem sempre para a frente — `P`
+
+Criar uma sessão seleciona a aba dela: o `NewSessionMenu` espera a lista de sessões chegar e só então
+chama `onCreated`. Mas o daemon também **empurra** estado, e um payload que chega em seguida sem a
+sessão nova muda a identidade de `tabs` — o efeito do `useWorktreeTabs` que devolve a seleção para a aba
+do checkout quando a aba escolhida não está na lista dispara e desfaz a seleção. O resultado é uma
+sessão criada que fica atrás, de vez em quando.
+
+Anterior à [worktree-first-tab](../prd/worktree-first-tab/prd.md), e nada nela mudou isso — só ficou
+mais visível, porque a aba para onde a seleção volta agora tem nome. O conserto provável é o efeito
+distinguir "a aba sumiu" de "a aba ainda não chegou", e isso quer dizer guardar uma seleção pendente:
+lógica de estado nova numa parte que hoje é uma linha.
+
+**De onde veio:** o e2e da worktree-first-tab, que precisou clicar na aba da sessão em vez de confiar
+na seleção · **Volta quando:** aparecer em uso, ou quando a próxima feature de aba precisar confiar
+que a sessão criada está na frente.
