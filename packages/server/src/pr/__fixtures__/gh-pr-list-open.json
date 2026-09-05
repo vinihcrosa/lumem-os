@@ -1,0 +1,473 @@
+[
+  {
+    "number": 14285,
+    "url": "https://github.com/cli/cli/pull/14285",
+    "title": "Detect cross-author issue reposts as spam",
+    "state": "OPEN",
+    "isDraft": true,
+    "mergeable": "CONFLICTING",
+    "mergeStateStatus": "DIRTY",
+    "reviewDecision": "REVIEW_REQUIRED",
+    "headRefName": "williammartin-audit-spam-labeling",
+    "baseRefName": "trunk",
+    "updatedAt": "2026-08-28T15:26:28Z",
+    "mergedAt": null,
+    "closedAt": null,
+    "author": "pessoa-1",
+    "reviews": [
+      {
+        "author": "pessoa-2",
+        "state": "COMMENTED"
+      }
+    ],
+    "checks": [
+      {
+        "name": "CodeQL-Build (go, manual, ./.github/codeql/codeql-config.yml)",
+        "app": "Code Scanning",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33184890395/job/98895212991",
+        "startedAt": "2026-08-28T15:23:24Z",
+        "completedAt": "2026-08-28T15:25:50Z"
+      },
+      {
+        "name": "label-external / label_issues",
+        "app": "PR Triaging",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33184891015/job/98895215245",
+        "startedAt": "2026-08-28T15:23:24Z",
+        "completedAt": "2026-08-28T15:23:28Z"
+      },
+      {
+        "name": "build (ubuntu-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33184890370/job/98895212979",
+        "startedAt": "2026-08-28T15:23:24Z",
+        "completedAt": "2026-08-28T15:28:27Z"
+      },
+      {
+        "name": "CodeQL-Build (actions, none, security-and-quality)",
+        "app": "Code Scanning",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33184890395/job/98895213194",
+        "startedAt": "2026-08-28T15:23:23Z",
+        "completedAt": "2026-08-28T15:24:09Z"
+      },
+      {
+        "name": "build (windows-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33184890370/job/98895212900",
+        "startedAt": "2026-08-28T15:23:23Z",
+        "completedAt": "2026-08-28T15:38:42Z"
+      },
+      {
+        "name": "build (macos-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33184890370/job/98895212610",
+        "startedAt": "2026-08-28T15:23:25Z",
+        "completedAt": "2026-08-28T15:30:32Z"
+      }
+    ]
+  },
+  {
+    "number": 14057,
+    "url": "https://github.com/cli/cli/pull/14057",
+    "title": "docs: recommend nix-shell over nix-env for Nix/NixOS",
+    "state": "OPEN",
+    "isDraft": false,
+    "mergeable": "MERGEABLE",
+    "mergeStateStatus": "BLOCKED",
+    "reviewDecision": "CHANGES_REQUESTED",
+    "headRefName": "docs/nix-shell-over-nix-env",
+    "baseRefName": "trunk",
+    "updatedAt": "2026-08-20T16:35:00Z",
+    "mergedAt": null,
+    "closedAt": null,
+    "author": "pessoa-3",
+    "reviews": [
+      {
+        "author": "pessoa-4",
+        "state": "CHANGES_REQUESTED"
+      }
+    ],
+    "checks": [
+      {
+        "name": "build (ubuntu-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/30873194126/job/92038958387",
+        "startedAt": "2026-08-04T15:15:58Z",
+        "completedAt": "2026-08-04T15:20:42Z"
+      },
+      {
+        "name": "build (windows-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/30873194126/job/92038958297",
+        "startedAt": "2026-08-04T15:16:01Z",
+        "completedAt": "2026-08-04T15:25:37Z"
+      },
+      {
+        "name": "build (macos-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/30873194126/job/92038958270",
+        "startedAt": "2026-08-04T15:16:00Z",
+        "completedAt": "2026-08-04T15:22:12Z"
+      },
+      {
+        "name": "integration-tests (ubuntu-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/30873194126/job/92038958292",
+        "startedAt": "2026-08-04T15:16:05Z",
+        "completedAt": "2026-08-04T15:17:42Z"
+      },
+      {
+        "name": "integration-tests (windows-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/30873194126/job/92038958609",
+        "startedAt": "2026-08-04T15:15:59Z",
+        "completedAt": "2026-08-04T15:19:43Z"
+      },
+      {
+        "name": "integration-tests (macos-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/30873194126/job/92038958242",
+        "startedAt": "2026-08-04T15:15:58Z",
+        "completedAt": "2026-08-04T15:16:55Z"
+      }
+    ]
+  },
+  {
+    "number": 14313,
+    "url": "https://github.com/cli/cli/pull/14313",
+    "title": "Validate repository names during interactive creation",
+    "state": "OPEN",
+    "isDraft": false,
+    "mergeable": "MERGEABLE",
+    "mergeStateStatus": "CLEAN",
+    "reviewDecision": "APPROVED",
+    "headRefName": "14297-no-empty-repo-name",
+    "baseRefName": "trunk",
+    "updatedAt": "2026-09-05T19:20:32Z",
+    "mergedAt": null,
+    "closedAt": null,
+    "author": "pessoa-5",
+    "reviews": [
+      {
+        "author": "pessoa-4",
+        "state": "COMMENTED"
+      },
+      {
+        "author": "pessoa-2",
+        "state": "COMMENTED"
+      },
+      {
+        "author": "pessoa-6",
+        "state": "APPROVED"
+      }
+    ],
+    "checks": [
+      {
+        "name": "label-external",
+        "app": "PR Triaging",
+        "status": "COMPLETED",
+        "conclusion": "SKIPPED",
+        "url": "https://github.com/cli/cli/actions/runs/33522901117/job/99906408924",
+        "startedAt": "2026-09-01T14:59:11Z",
+        "completedAt": "2026-09-01T14:59:05Z"
+      },
+      {
+        "name": "label-external",
+        "app": "PR Triaging",
+        "status": "COMPLETED",
+        "conclusion": "SKIPPED",
+        "url": "https://github.com/cli/cli/actions/runs/33522920567/job/99906416204",
+        "startedAt": "2026-09-01T14:59:13Z",
+        "completedAt": "2026-09-01T14:59:12Z"
+      },
+      {
+        "name": "CodeQL-Build (go, manual, ./.github/codeql/codeql-config.yml)",
+        "app": "Code Scanning",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33522317850/job/99904383051",
+        "startedAt": "2026-09-01T14:53:41Z",
+        "completedAt": "2026-09-01T14:56:07Z"
+      },
+      {
+        "name": "lint",
+        "app": "Lint",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33522317856/job/99904382897",
+        "startedAt": "2026-09-01T14:53:41Z",
+        "completedAt": "2026-09-01T14:55:38Z"
+      },
+      {
+        "name": "label-external / label_issues",
+        "app": "PR Triaging",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33522319043/job/99904386826",
+        "startedAt": "2026-09-01T14:53:43Z",
+        "completedAt": "2026-09-01T14:53:46Z"
+      },
+      {
+        "name": "build (ubuntu-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33522317907/job/99904383286",
+        "startedAt": "2026-09-01T14:53:42Z",
+        "completedAt": "2026-09-01T14:58:03Z"
+      }
+    ]
+  },
+  {
+    "number": 14360,
+    "url": "https://github.com/cli/cli/pull/14360",
+    "title": "Record attachment operation counts in telemetry",
+    "state": "OPEN",
+    "isDraft": false,
+    "mergeable": "MERGEABLE",
+    "mergeStateStatus": "BLOCKED",
+    "reviewDecision": "REVIEW_REQUIRED",
+    "headRefName": "bagtoad/attachment-operation-telemetry",
+    "baseRefName": "trunk",
+    "updatedAt": "2026-09-04T21:56:43Z",
+    "mergedAt": null,
+    "closedAt": null,
+    "author": "pessoa-4",
+    "reviews": [
+      {
+        "author": "pessoa-2",
+        "state": "COMMENTED"
+      }
+    ],
+    "checks": [
+      {
+        "name": "CodeQL-Build (go, manual, ./.github/codeql/codeql-config.yml)",
+        "app": "Code Scanning",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33923021327/job/101185326764",
+        "startedAt": "2026-09-04T21:52:00Z",
+        "completedAt": "2026-09-04T21:54:48Z"
+      },
+      {
+        "name": "lint",
+        "app": "Lint",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33923021283/job/101185326329",
+        "startedAt": "2026-09-04T21:52:01Z",
+        "completedAt": "2026-09-04T21:54:31Z"
+      },
+      {
+        "name": "label-external / label_issues",
+        "app": "PR Triaging",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33923022116/job/101185329906",
+        "startedAt": "2026-09-04T21:52:01Z",
+        "completedAt": "2026-09-04T21:52:04Z"
+      },
+      {
+        "name": "build (ubuntu-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33923021245/job/101185326006",
+        "startedAt": "2026-09-04T21:52:00Z",
+        "completedAt": "2026-09-04T21:57:04Z"
+      },
+      {
+        "name": "CodeQL-Build (actions, none, security-and-quality)",
+        "app": "Code Scanning",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33923021327/job/101185326463",
+        "startedAt": "2026-09-04T21:52:01Z",
+        "completedAt": "2026-09-04T21:52:48Z"
+      },
+      {
+        "name": "build (windows-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33923021245/job/101185326140",
+        "startedAt": "2026-09-04T21:52:00Z",
+        "completedAt": "2026-09-04T22:01:52Z"
+      }
+    ]
+  },
+  {
+    "number": 14356,
+    "url": "https://github.com/cli/cli/pull/14356",
+    "title": "Run acceptance tests with a GitHub App token",
+    "state": "OPEN",
+    "isDraft": true,
+    "mergeable": "MERGEABLE",
+    "mergeStateStatus": "BLOCKED",
+    "reviewDecision": "REVIEW_REQUIRED",
+    "headRefName": "williammartin-acceptance-app-workflow",
+    "baseRefName": "williammartin-acceptance-token-capabilities",
+    "updatedAt": "2026-09-04T15:52:05Z",
+    "mergedAt": null,
+    "closedAt": null,
+    "author": "pessoa-1",
+    "reviews": [],
+    "checks": [
+      {
+        "name": "label-external / label_issues",
+        "app": "PR Triaging",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33891937393/job/101085443234",
+        "startedAt": "2026-09-04T15:52:15Z",
+        "completedAt": "2026-09-04T15:52:19Z"
+      },
+      {
+        "name": "build (ubuntu-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33891936587/job/101085439883",
+        "startedAt": "2026-09-04T15:52:13Z",
+        "completedAt": "2026-09-04T15:57:48Z"
+      },
+      {
+        "name": "build (windows-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33891936587/job/101085440016",
+        "startedAt": "2026-09-04T15:52:13Z",
+        "completedAt": "2026-09-04T16:01:36Z"
+      },
+      {
+        "name": "build (macos-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33891936587/job/101085439861",
+        "startedAt": "2026-09-04T15:52:14Z",
+        "completedAt": "2026-09-04T15:59:26Z"
+      },
+      {
+        "name": "close-from-default-branch / close-from-default-branch",
+        "app": "PR Triaging",
+        "status": "COMPLETED",
+        "conclusion": "SKIPPED",
+        "url": "https://github.com/cli/cli/actions/runs/33891937393/job/101085444768",
+        "startedAt": "2026-09-04T15:52:11Z",
+        "completedAt": "2026-09-04T15:52:10Z"
+      },
+      {
+        "name": "integration-tests (ubuntu-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/33891936587/job/101085439797",
+        "startedAt": "2026-09-04T15:52:13Z",
+        "completedAt": "2026-09-04T15:53:51Z"
+      }
+    ]
+  },
+  {
+    "number": 14148,
+    "url": "https://github.com/cli/cli/pull/14148",
+    "title": "Update glamour to v2",
+    "state": "OPEN",
+    "isDraft": true,
+    "mergeable": "CONFLICTING",
+    "mergeStateStatus": "DIRTY",
+    "reviewDecision": "REVIEW_REQUIRED",
+    "headRefName": "issue3718",
+    "baseRefName": "trunk",
+    "updatedAt": "2026-08-15T05:12:26Z",
+    "mergedAt": null,
+    "closedAt": null,
+    "author": "pessoa-7",
+    "reviews": [
+      {
+        "author": "pessoa-2",
+        "state": "COMMENTED"
+      }
+    ],
+    "checks": [
+      {
+        "name": "lint",
+        "app": "Lint",
+        "status": "COMPLETED",
+        "conclusion": "FAILURE",
+        "url": "https://github.com/cli/cli/actions/runs/31865758954/job/94966442733",
+        "startedAt": "2026-08-15T04:58:16Z",
+        "completedAt": "2026-08-15T04:59:49Z"
+      },
+      {
+        "name": "label-external",
+        "app": "PR Triaging",
+        "status": "COMPLETED",
+        "conclusion": "SKIPPED",
+        "url": "https://github.com/cli/cli/actions/runs/31865960889/job/94966953394",
+        "startedAt": "2026-08-15T05:02:42Z",
+        "completedAt": "2026-08-15T05:02:42Z"
+      },
+      {
+        "name": "label-external",
+        "app": "PR Triaging",
+        "status": "COMPLETED",
+        "conclusion": "SKIPPED",
+        "url": "https://github.com/cli/cli/actions/runs/31866377438/job/94968026172",
+        "startedAt": "2026-08-15T05:12:30Z",
+        "completedAt": "2026-08-15T05:12:30Z"
+      },
+      {
+        "name": "CodeQL-Build (go, manual, ./.github/codeql/codeql-config.yml)",
+        "app": "Code Scanning",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/31865759043/job/94966442885",
+        "startedAt": "2026-08-15T04:58:16Z",
+        "completedAt": "2026-08-15T05:01:01Z"
+      },
+      {
+        "name": "build (ubuntu-latest)",
+        "app": "Unit and Integration Tests",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/31865758949/job/94966442609",
+        "startedAt": "2026-08-15T04:58:16Z",
+        "completedAt": "2026-08-15T05:03:13Z"
+      },
+      {
+        "name": "CodeQL-Build (actions, none, security-and-quality)",
+        "app": "Code Scanning",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/cli/cli/actions/runs/31865759043/job/94966442889",
+        "startedAt": "2026-08-15T04:58:16Z",
+        "completedAt": "2026-08-15T04:59:07Z"
+      }
+    ]
+  }
+]

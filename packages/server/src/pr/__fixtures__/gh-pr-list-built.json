@@ -1,0 +1,95 @@
+[
+  {
+    "number": 101,
+    "url": "https://github.com/exemplo/repo/pull/101",
+    "title": "a verificacao ainda esta rodando",
+    "state": "OPEN",
+    "isDraft": false,
+    "mergeable": "MERGEABLE",
+    "mergeStateStatus": "BLOCKED",
+    "reviewDecision": "APPROVED",
+    "headRefName": "pr-bar",
+    "baseRefName": "main",
+    "updatedAt": "2026-09-05T12:00:00Z",
+    "mergedAt": null,
+    "closedAt": null,
+    "author": "pessoa-1",
+    "reviews": [
+      {
+        "author": "pessoa-2",
+        "state": "APPROVED"
+      }
+    ],
+    "checks": [
+      {
+        "name": "lint",
+        "app": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/exemplo/repo/actions/runs/1/job/1",
+        "startedAt": "2026-09-05T11:58:00Z",
+        "completedAt": "2026-09-05T11:58:38Z"
+      },
+      {
+        "name": "e2e (macOS)",
+        "app": "CI",
+        "status": "IN_PROGRESS",
+        "conclusion": "",
+        "url": "https://github.com/exemplo/repo/actions/runs/1/job/2",
+        "startedAt": "2026-09-05T11:58:00Z",
+        "completedAt": null
+      },
+      {
+        "name": "deploy preview",
+        "app": "Vercel",
+        "status": "QUEUED",
+        "conclusion": "",
+        "url": "https://vercel.com/exemplo/repo/deployments/1",
+        "startedAt": null,
+        "completedAt": null
+      }
+    ]
+  },
+  {
+    "number": 102,
+    "url": "https://github.com/exemplo/repo/pull/102",
+    "title": "duas causas ao mesmo tempo: conflito e check reprovado",
+    "state": "OPEN",
+    "isDraft": false,
+    "mergeable": "CONFLICTING",
+    "mergeStateStatus": "DIRTY",
+    "reviewDecision": "CHANGES_REQUESTED",
+    "headRefName": "acp-fs",
+    "baseRefName": "main",
+    "updatedAt": "2026-09-05T12:00:00Z",
+    "mergedAt": null,
+    "closedAt": null,
+    "author": "pessoa-1",
+    "reviews": [
+      {
+        "author": "pessoa-3",
+        "state": "CHANGES_REQUESTED"
+      }
+    ],
+    "checks": [
+      {
+        "name": "lint",
+        "app": "CI",
+        "status": "COMPLETED",
+        "conclusion": "FAILURE",
+        "url": "https://github.com/exemplo/repo/actions/runs/2/job/1",
+        "startedAt": "2026-09-05T11:50:00Z",
+        "completedAt": "2026-09-05T11:50:38Z"
+      },
+      {
+        "name": "ci/legado",
+        "app": "ci/legado",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://exemplo.com/build/2",
+        "startedAt": null,
+        "completedAt": null
+      }
+    ]
+  }
+]
