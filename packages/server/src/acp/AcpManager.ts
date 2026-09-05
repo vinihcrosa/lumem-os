@@ -10,10 +10,16 @@ import {
 } from "@agentclientprotocol/sdk";
 import {
   ACP_AUTH_REQUIRED_CODE,
+  acpToolKindSchema,
   newId,
   type AcpConfigOption,
   type AcpEvent,
+  type AcpModeOwner,
+  type AcpToolKind,
+  type AcpToolLocation,
   type AcpTranscriptEntry,
+  type LumemMode,
+  type LumemModeDefault,
 } from "@lumem/shared";
 
 import type { FastifyBaseLogger } from "fastify";
@@ -26,6 +32,7 @@ import { createTerminalBridge, type TerminalBridge } from "./terminal-bridge.js"
 import type { PtyManager } from "../pty/PtyManager.js";
 import { spawnAcpProcess, type AcpProcess, type AcpProcessSpawner } from "./process.js";
 import { createMemoryTranscriptStore, type TranscriptStore } from "./TranscriptStore.js";
+import { decidePermission } from "./permission-policy.js";
 import { translateSessionUpdate } from "./translate.js";
 import { sniffUnknownUpdates } from "./unknown-updates.js";
 
@@ -52,6 +59,18 @@ export interface AcpSpawnOptions {
    * sentence with the command that fixes it (F1.6).
    */
   adapterVersion?: string;
+  /**
+   * The policy this conversation starts under (`session-mode`, Q5 and F1.4).
+   *
+   * Passed in rather than read here, because the manager has no database: on a
+   * new session it is the workspace's default, and on a resume it is what the
+   * dead row was carrying. `LumemMode` and not `LumemModeDefault` for exactly
+   * that second case — a session resumed from one that went through the gate
+   * comes back `free`, and narrowing the type here would silently downgrade it.
+   */
+  lumemMode?: LumemMode;
+  /** What a new session in this workspace would start at — the menu's footer. */
+  lumemModeDefault?: LumemModeDefault;
 }
 
 
@@ -93,6 +112,42 @@ export interface AcpSessionInfo {
    * browser's (D8).
    */
   configOptions: readonly AcpConfigOption[];
+  /**
+   * The policy Lumem applies when the agent offers no modes of its own (Q1).
+   *
+   * Kept even while the agent owns the selector, and that is deliberate: an
+   * adapter that stops reporting modes hands the conversation back to the policy
+   * it already had, instead of to a default nobody chose (T12).
+   */
+  lumemMode: LumemMode;
+  /** What a new session in this workspace starts at — the menu's footer (Q5). */
+  lumemModeDefault: LumemModeDefault;
+}
+
+/**
+ * Which of the two authorities owns the mode selector of a session (A1).
+ *
+ * Derived, and derived *here*, because the rule is the daemon's: the agent's
+ * mode and Lumem's never coexist. Deriving it in the browser would be a second
+ * copy of the rule, free to drift from this one.
+ */
+export function modeOwnerOf(info: {
+  mode: string;
+  configOptions: readonly AcpConfigOption[];
+}): AcpModeOwner {
+  /*
+   * Two signals, and the second one is not redundant.
+   *
+   * The obvious one is a `mode` option in the set. The other is `mode` itself
+   * being non-empty, which happens when an adapter reports its current mode
+   * through `current_mode_update` **without** ever offering the option — the
+   * merge in `absorbConfigUpdate` adds nothing to the set for that variant. With
+   * only the first check, such an agent would leave both authorities alive: the
+   * agent choosing what to attempt and Lumem deciding what gets through, under a
+   * mode neither of them agreed to.
+   */
+  if (info.mode !== "") return "agent";
+  return info.configOptions.some((option) => option.id === MODE_OPTION) ? "agent" : "lumem";
 }
 
 /**
@@ -595,6 +650,16 @@ export class AcpManager {
         mode: "",
         model: "",
         configOptions: [],
+        /*
+         * A session is born asking, always (F1.5).
+         *
+         * The workspace default is applied by the caller that knows which
+         * workspace this is — the store — and even that one cannot make a
+         * session start free: the gate for `free` is per session, and a default
+         * that walked through it would annul it (Q5).
+         */
+        lumemMode: options.lumemMode ?? "ask",
+        lumemModeDefault: options.lumemModeDefault ?? "ask",
       },
       process: child,
       connection: undefined as unknown as ClientConnection,
@@ -763,7 +828,54 @@ export class AcpManager {
 
     session.pendingPermissions.delete(requestId);
     pending.resolve({ outcome: "selected", optionId });
-    this.emit(session, { type: "permission_resolved", requestId, outcome: { optionId } });
+    this.emit(session, {
+      type: "permission_resolved",
+      requestId,
+      outcome: { optionId },
+      by: "user",
+      reason: null,
+    });
+  }
+
+  /**
+   * Switch the policy Lumem applies to permission requests (F1.1).
+   *
+   * Synchronous, and that is the whole difference from `setConfig`: nothing
+   * leaves the daemon. `setConfig` forwards a value to the agent and waits for it
+   * to answer; this changes what *we* answer, and the agent never learns a policy
+   * exists.
+   *
+   * Two refusals, and both are named rather than silent:
+   *
+   * - **the agent owns the selector** (A1). Accepting the switch and doing
+   *   nothing with it would leave a stored value that never applies — the tell
+   *   would be a pill that changes and a behaviour that does not.
+   * - **a turn is running** (F1.7). Same reason `setConfig` refuses, and
+   *   deliberately the same message: from where the user stands it is the same
+   *   act, and two wordings for one rule teach that there are two rules.
+   */
+  setLumemMode(id: string, mode: LumemMode): void {
+    const session = this.require(id);
+    if (session.info.state === "exited") {
+      throw new DomainError("SESSION_EXITED", `session ${id} has exited`);
+    }
+
+    if (modeOwnerOf(session.info) === "agent") {
+      throw new DomainError(
+        "BLOCKED",
+        "este agente oferece modos próprios: troque o modo dele, não a política do Lumem",
+      );
+    }
+
+    if (session.promptInFlight) {
+      throw new DomainError(
+        "BLOCKED",
+        "não dá para trocar de modo ou modelo no meio de um turno: interrompa ou espere ele acabar",
+      );
+    }
+
+    session.info.lumemMode = mode;
+    this.emitConfig(session);
   }
 
   /**
@@ -947,7 +1059,47 @@ export class AcpManager {
       })
       .onRequest("session/request_permission", ({ params }) => {
         const requestId = newId();
+        const options = params.options.map((option) => ({
+          optionId: option.optionId,
+          name: option.name,
+          kind: option.kind,
+        }));
 
+        /*
+         * The request is emitted **before** the policy is consulted, always.
+         *
+         * That order is F1.6: something answered on the user's behalf has to
+         * appear in the conversation, and the cheapest way to guarantee it is for
+         * the automatic path to travel the same two events the manual one does —
+         * the ask, then the verdict. Deciding first and emitting only a resolved
+         * event would give the client a verdict on a request it never saw, and
+         * the client would have nothing to attach it to.
+         */
+        /*
+         * Only when the policy is ours (A1). An agent that reports its own modes
+         * already decided what to ask about, and a second authority on top of it
+         * would answer under a mode nobody chose — the pill would say `plan` and
+         * writes would be going through.
+         */
+        const decision =
+          modeOwnerOf(session.info) === "lumem"
+            ? decidePermission(session.info.lumemMode, session.info.cwd, {
+                kind: kindOf(params.toolCall),
+                locations: locationsOf(params.toolCall),
+                options,
+              })
+            : ({ approve: false, reason: null } as const);
+
+        /*
+         * The request is emitted **before** the verdict, always — including when
+         * the verdict is ours and instant.
+         *
+         * That order is F1.6: something answered on the user's behalf has to
+         * appear in the conversation, and the cheapest way to guarantee it is for
+         * the automatic path to travel the same two events the manual one does.
+         * Emitting only the resolution would hand the client a verdict about a
+         * request it never saw, with nothing to attach it to.
+         */
         this.emit(session, {
           type: "permission_request",
           requestId,
@@ -955,12 +1107,22 @@ export class AcpManager {
           title: params.toolCall.title ?? params.toolCall.toolCallId,
           command: commandOf(params.toolCall),
           cwd: session.info.cwd,
-          options: params.options.map((option) => ({
-            optionId: option.optionId,
-            name: option.name,
-            kind: option.kind,
-          })),
+          options,
+          policyReason: decision.approve ? null : decision.reason,
         });
+
+        if (decision.approve) {
+          this.emit(session, {
+            type: "permission_resolved",
+            requestId,
+            outcome: { optionId: decision.optionId },
+            by: "lumem",
+            reason: decision.reason,
+          });
+          return Promise.resolve<RequestPermissionResponse>({
+            outcome: { outcome: "selected", optionId: decision.optionId },
+          });
+        }
 
         return new Promise<RequestPermissionResponse>((resolve) => {
           session.pendingPermissions.set(requestId, {
@@ -1289,6 +1451,9 @@ export class AcpManager {
       type: "config",
       mode: session.info.mode,
       options: [...session.info.configOptions],
+      modeOwner: modeOwnerOf(session.info),
+      lumemMode: session.info.lumemMode,
+      lumemModeDefault: session.info.lumemModeDefault,
     });
 
     for (const watcher of [...this.configWatchers]) {
@@ -1527,6 +1692,29 @@ function flattenChoices(options: unknown): AcpConfigOption["choices"] {
 }
 
 /** The command a permission request is about, when the tool call names one. */
+/**
+ * The tool's category, for the policy to judge (Q3).
+ *
+ * Defaults to `"other"` rather than to `"read"`: an adapter that omits the kind
+ * must not have its calls auto-approved by the omission. Unknown means ask.
+ */
+function kindOf(toolCall: ToolCallUpdate): AcpToolKind {
+  // O parse do próprio contrato, e não uma segunda lista de nomes aqui: duas
+  // listas de categorias de ferramenta são duas listas que vão divergir.
+  const parsed = acpToolKindSchema.safeParse(toolCall.kind);
+  return parsed.success ? parsed.data : "other";
+}
+
+/** The paths the call touches. Empty when the adapter named none. */
+function locationsOf(toolCall: ToolCallUpdate): readonly AcpToolLocation[] {
+  const locations = toolCall.locations;
+  if (!Array.isArray(locations)) return [];
+  return locations.flatMap((location) => {
+    const path = (location as { path?: unknown }).path;
+    return typeof path === "string" ? [{ path, line: null }] : [];
+  });
+}
+
 function commandOf(toolCall: ToolCallUpdate): string | null {
   const raw = toolCall.rawInput;
   if (typeof raw === "object" && raw !== null) {

@@ -13,6 +13,7 @@ import {
 } from "../hooks/useRightPanel.js";
 import { AppShell } from "../layout/AppShell.js";
 import { Topbar } from "../layout/Topbar.js";
+import { TabStrip, TabToggle } from "../ui/index.js";
 
 function Harness() {
   const panel = useRightPanel();
@@ -20,7 +21,18 @@ function Harness() {
 
   return (
     <>
-      <Topbar version="0.1.0" unreachable={false} filesPanel={panel} />
+      <Topbar version="0.1.0" unreachable={false} />
+      {/* O interruptor mora na faixa de abas do checkout, e não na topbar: a
+          coluna é de um checkout, e um interruptor global para algo que só
+          existe dentro de um escopo diz que ele é do produto. */}
+      <TabStrip
+        label="sessões"
+        end={
+          <TabToggle label="a coluna de arquivos" pressed={panel.open} onToggle={panel.toggle}>
+            ▤
+          </TabToggle>
+        }
+      />
       <AppShell
         sidebar={<nav>projetos</nav>}
         rightWidth={panel.width}
@@ -58,11 +70,11 @@ describe("a coluna de arquivos", () => {
     expect(screen.queryByLabelText("arquivos do checkout")).not.toBeInTheDocument();
   });
 
-  it("opens and closes from the topbar, and remembers the choice", async () => {
+  it("opens and closes from the checkout's tab strip, and remembers the choice", async () => {
     const user = userEvent.setup();
     const { unmount } = render(<Harness />);
 
-    await user.click(screen.getByRole("button", { name: /arquivos/ }));
+    await user.click(screen.getByRole("button", { name: /coluna de arquivos/ }));
     expect(screen.getByLabelText("arquivos do checkout")).toBeInTheDocument();
 
     unmount();
@@ -71,11 +83,15 @@ describe("a coluna de arquivos", () => {
   });
 
   it("closes from its own ✕ too", async () => {
+    // Dois caminhos para a mesma ação, e os dois continuam existindo: fechar
+    // por dentro é o gesto de quem está olhando para a coluna. O que ele não
+    // pode ser é o único — com a coluna fechada ele não existe mais, e por isso
+    // o nome exato importa aqui.
     const user = userEvent.setup();
     render(<Harness />);
-    await user.click(screen.getByRole("button", { name: /arquivos/ }));
+    await user.click(screen.getByRole("button", { name: "abrir a coluna de arquivos" }));
 
-    await user.click(screen.getByRole("button", { name: /fechar a coluna/ }));
+    await user.click(screen.getByTitle("fechar a coluna"));
 
     expect(screen.queryByLabelText("arquivos do checkout")).not.toBeInTheDocument();
   });
@@ -83,7 +99,7 @@ describe("a coluna de arquivos", () => {
   it("switches between the two tabs and shows the change count on one of them", async () => {
     const user = userEvent.setup();
     render(<Harness />);
-    await user.click(screen.getByRole("button", { name: /arquivos/ }));
+    await user.click(screen.getByRole("button", { name: /coluna de arquivos/ }));
 
     expect(screen.getByTestId("conteudo")).toHaveTextContent("files");
     expect(screen.getByRole("tab", { name: /Mudanças/ })).toHaveTextContent("6");
@@ -96,7 +112,7 @@ describe("a coluna de arquivos", () => {
   it("hands the shell a width, and the drag changes it", async () => {
     const user = userEvent.setup();
     const { container } = render(<Harness />);
-    await user.click(screen.getByRole("button", { name: /arquivos/ }));
+    await user.click(screen.getByRole("button", { name: /coluna de arquivos/ }));
 
     const shell = container.querySelector(".app-shell") as HTMLElement;
     expect(shell.style.getPropertyValue("--right-width")).toBe(`${RIGHT_PANEL_DEFAULT_WIDTH}px`);
@@ -149,7 +165,7 @@ describe("a contagem na faixa", () => {
     // A coluna nasce fechada, para a tela nascer com um terminal grande.
     const user = userEvent.setup();
     render(<Harness />);
-    await user.click(screen.getByRole("button", { name: /arquivos/ }));
+    await user.click(screen.getByRole("button", { name: /coluna de arquivos/ }));
 
     const tab = await screen.findByRole("tab", { name: /Memória/ });
     expect(tab).toHaveTextContent("3");

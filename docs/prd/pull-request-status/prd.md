@@ -9,6 +9,17 @@
 > **Tasks:** [tasks.md](tasks.md)
 > **Protótipo:** `packages/web/prototype/lumem-pr-bar.html` — abra no navegador
 > **Sucede:** [workspace-screen](../workspace-screen/prd.md)
+>
+> **Nota de 2026-09-01:** a barra **não está implementada** — nenhuma das 16 tasks foi iniciada, e
+> não há uma linha de código de PR no daemon nem no web. Uma PR aberta hoje (foi a
+> [#29](https://github.com/vinihcrosa/lumem-os/pull/29)) não aparece em lugar nenhum porque não há o
+> que a leia: o que existe é este desenho. A feature segue **travada na [Q1](open-questions.md)**
+> (`gh` instalado × API do host com token nosso).
+>
+> **A Fase 1 saiu daqui.** A estrutura da coluna do meio (§2.1, F0) virou feature própria —
+> [worktree-first-tab](../worktree-first-tab/prd.md) —, porque ela não depende de saber ler PR e esta
+> depende de uma pergunta que não fechou. A **Q11** foi junto. Esta feature passa a **depender**
+> daquela, e as tasks E1–E3 daqui saem de escopo.
 
 ---
 

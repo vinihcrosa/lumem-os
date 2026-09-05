@@ -217,14 +217,16 @@ item **F** do [backlog](project/backlog.md).
 | `lumem-run-dock.html` (Open Design) | **Sete quadros, aprovados em 2026-08-30** e já no repositório. As duas leituras da S1 lado a lado, mais Setup (passou e falhou), Terminal, o vazio que ensina o arquivo, o rodapé recolhido com o run visto de fora, e a primeira execução de um projeto clonado |
 ### [pull-request-status/](prd/pull-request-status/) — a worktree diz se dá pra mesclar
 
-**Desenhada, nada implementado.** Quando a worktree tem PR aberta, o topo do painel direito responde
+**Desenhada, nada implementado — e travada na Q1.** Uma PR aberta hoje não aparece na tela porque
+não existe uma linha de código que a leia: o que está pronto é o desenho. Quando a worktree tem PR aberta, o topo do painel direito responde
 uma pergunta só — **dá pra mesclar?** — em verde, vermelho ou âmbar, com o motivo escrito ao lado e um
 `↗` que abre a PR no navegador. O que ela resolve não é "ver PR dentro do editor": é que descobrir qual
 das oito worktrees está pronta e qual quebrou custa hoje uma ida ao navegador **por worktree** — um
 custo que cresce com a única coisa que o produto promete deixar crescer. Sai do backlog o item
 *"abstração de git host"*, com o corte que ele mesmo pedia: **ler, não agir**.
 
-Ela trouxe junto uma **mudança de estrutura** (v0.2): a coluna do meio passa a começar nas abas, e a
+Ela trouxe junto uma **mudança de estrutura** (v0.2) que **saiu daqui em 2026-09-01** e virou a
+[worktree-first-tab](prd/worktree-first-tab/): a coluna do meio passa a começar nas abas, e a
 **primeira aba é a da worktree** — título, branch, sujeira, caminho em disco e ações saem do cabeçalho
 fixo e viram conteúdo. O que isso cobra está escrito onde dói: com uma aba de sessão na frente, branch
 e sujeira somem da vista, e quem paga são o ponto na aba e o marcador na sidebar.
@@ -251,6 +253,70 @@ o par nativo por fora, ele **serve o web na própria porta**, o binário `lumem`
 | [open-questions.md](prd/distribution/open-questions.md) | 11 perguntas, **todas fechadas** numa resposta só — e a D1 **corrigida pelo registry no mesmo dia**: `npm view lumem` respondendo 404 provava que o nome estava livre, não que era publicável, e o `PUT` recusou por similaridade com `mem`. Oito foram proposta aceita; a D2 foi aceita **com prazo** (foreground agora, background depois) e a D11 veio com uma correção de rumo maior que a pergunta — o projeto todo vai para inglês. As duas viraram backlog na hora |
 | [tasks.md](prd/distribution/tasks.md) | 16 tasks em 6 fases, **todas entregues**, na ordem do risco: a prova de que o artefato sobe veio na T2, antes de existir CLI, e o smoke de instalação vem antes de qualquer publicação |
 | [../README.md](../README.md) | a porta do repositório, em inglês, com [tradução](../README.pt-BR.md) ao lado — o primeiro arquivo do outro lado da D11 |
+
+---
+
+## As quatro que a tela pediu — desenhadas a partir dela, em 2026-09-01
+
+Nove anotações feitas clicando na tela `/` viraram quatro features independentes. Nenhuma tem tasks
+ainda; todas têm PRD e perguntas abertas. A nona anotação — *"abri a PR e não aparece"* — não virou
+feature: é a [pull-request-status](prd/pull-request-status/) acima, que nunca saiu do desenho.
+
+### [sidebar-actions/](prd/sidebar-actions/) — criar de onde se olha
+
+As duas coisas que o Lumem cria não se criam de onde elas moram: o `＋adicionar projeto` está no
+rodapé da sidebar (e se afasta do título `Projetos` conforme a lista cresce), e criar worktree custa
+**três cliques e uma troca de tela** — para a ação mais repetida do produto. Passa a ser um `+` no
+cabeçalho `Projetos` e um `+` na linha de cada projeto, com os diálogos virando modal centrado.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/sidebar-actions/prd.md) | As três regras (o botão fica no cabeçalho da coisa que ele acrescenta; uma ação, um lugar; o diálogo abre no centro), e o que a mudança cobra — o estado vazio perde o botão que o cobria |
+| [open-questions.md](prd/sidebar-actions/open-questions.md) | 6 perguntas. A Q5 é a que dói: um clone leva minutos, e um modal que se fecha some com o progresso |
+
+### [worktree-first-tab/](prd/worktree-first-tab/) — o que é da worktree mora na worktree
+
+**Completa.** A coluna do meio é **caminho → abas → conteúdo**, e a worktree é a primeira aba: fixa,
+sem `✕`, com o ponto de sujeira que é o único sinal a sobreviver a outra aba estar na frente. O
+`▤ arquivos` saiu da `Topbar` — era o único controle daquela faixa que não valia para a tela toda — e
+foi para a ponta direita da faixa de abas do checkout, o único lugar que existe em todas as abas de um
+checkout e em nenhum lugar fora dele. Extraída da Fase 1 da
+[pull-request-status](prd/pull-request-status/), que continuava travada, e entregue sem ela.
+
+O que a mudança cobra está escrito onde dói, e o e2e do onboarding provou de graça: com a conversa na
+frente, o nome da worktree só existe na aba.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/worktree-first-tab/prd.md) | O §4 — com uma aba de sessão na frente, branch e sujeira somem da vista, e quem paga são o ponto na aba e o caminho acima dela |
+| [open-questions.md](prd/worktree-first-tab/open-questions.md) | 5 perguntas, **5 respondidas** — e o registro de **como**: cada uma pela proposta já desenhada. A Q1, herdada da barra da PR, mudou de forma antes de virar linha, porque o código desmentiu o argumento dela |
+| [tasks.md](prd/worktree-first-tab/tasks.md) | 9 tasks em 4 fases, **todas entregues**. Sem daemon: o risco era de **regressão**. Termina com o que a execução achou — inclusive o bug que 826 testes de componente não pegam e o e2e pega |
+| `packages/web/prototype/lumem-worktree-tab.html` | O protótipo, vindo do Open Design: dez telas — antes × depois da moldura, a tela inteira, a barra de abas de perto com os estados do `▤`, a aba da worktree sozinha, o `▭ local`, as quatro leituras da Q1, os dois lugares do `▤` na Q2, os dois estados degradados que a aba herda, e o que o desenho não faz. **Zero token novo**; um componente novo só, o `.tabs__files` |
+
+### [run-dock-open/](prd/run-dock-open/) — o rodapé nasce aberto
+
+*"Minha aplicação está de pé, e em que porta?"* é a primeira pergunta ao chegar numa worktree, e a
+resposta chega recolhida. Mudar o padrão não é uma linha: o rodapé aberto sobe a coluna direita para
+**640px** e nasce com **metade da janela** de altura.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/run-dock-open/prd.md) | As três parcelas da conta — largura, altura e processo — e por que só a terceira é barata |
+| [open-questions.md](prd/run-dock-open/open-questions.md) | 3 perguntas, e as duas primeiras são a mesma conta de espaço |
+
+### [session-mode/](prd/session-mode/) — o modo sempre na tela · **completa**
+
+O seletor de modo existia, mas era inteiramente derivado do que o agente relata: `configOptions` vazio
+produzia **um composer mudo**, igualzinho a um bug de transporte. Agora a pílula existe sempre, e
+quando o agente não oferece modos ela é a **política do Lumem** — o que o daemon responde a
+`session/request_permission`. A autoria vai em glifo e idioma, não em cor; o que passa sozinho aparece
+na conversa assinado; e nenhum caminho da feature nega sozinho.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/session-mode/prd.md) | Os dois donos de um modo (o do agente muda o que ele *tenta*; o do Lumem muda o que *passa*), e os três valores da política, com `liberado` atrás de portão |
+| [open-questions.md](prd/session-mode/open-questions.md) | 6 perguntas, 6 fechadas. A Q1 decidiu o tamanho — tela **e** política — e a Q6 nasceu no código: sem opção de permitir, o `automático` negaria em silêncio |
+| [tasks.md](prd/session-mode/tasks.md) | 12 tasks em 4 fases, as duas fusões que a execução cobrou, e os cinco achados — inclusive o `overflow: hidden` que só o e2e podia ver e o menu que ficava clicável, achado em revisão |
 
 ---
 

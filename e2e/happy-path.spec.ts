@@ -93,10 +93,11 @@ test("the whole flow, from an empty install to a removed worktree", async ({ pag
   await ensureProject(page, E2E_FIXTURE_REPO);
   await expect(page.getByRole("button", { name: "fixture", exact: true })).toBeVisible();
   await openProject(page);
-  // Scoped to the context tab: the path also appears in a session tab's own
-  // header, as the cwd it was launched in.
+  // Scoped to the checkout's own tab: the path also appears in a session tab's
+  // own header, as the cwd it was launched in. The tab is named after the
+  // checkout now — `local` for the project's own one.
   await expect(
-    page.getByRole("tabpanel", { name: "contexto" }).getByText(E2E_FIXTURE_REPO),
+    page.getByRole("tabpanel", { name: "local" }).getByText(E2E_FIXTURE_REPO),
   ).toBeVisible();
 
   // --- worktree ------------------------------------------------------------
@@ -107,7 +108,7 @@ test("the whole flow, from an empty install to a removed worktree", async ({ pag
 
   const worktreePath = (
     await page
-      .getByRole("tabpanel", { name: "contexto" })
+      .getByRole("tabpanel", { name: WORKTREE })
       .getByText(/\.lumem.*worktrees/)
       .first()
       .innerText()
