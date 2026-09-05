@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { PrMergeStrategy, PrStatus } from "@lumem/shared";
 
 import { trpc } from "../lib/trpc.js";
-import { Button, Card, Field, Input } from "../ui/index.js";
+import { Button, Field, Input } from "../ui/index.js";
 
 /**
  * Os dois verbos que escrevem no remoto (F7).
@@ -30,8 +30,14 @@ import { Button, Card, Field, Input } from "../ui/index.js";
  *
  * **Sem tela desenhada**: a Q3 e a Q4 chegaram depois de o protótipo fechar, e
  * a tela 9 dele ainda diz que a barra não faz isto. Registrado como dívida no
- * §10 do PRD. O que existe aqui é feito das primitivas que já existem, sem
- * token novo e sem inventar desenho.
+ * §10 do PRD. O que existe aqui é feito dos tokens que já existem — nenhum
+ * token novo, nenhuma cor à mão.
+ *
+ * O portão **não** reusa o `.gate` do modo liberado, e a tentativa de reusar
+ * custou um defeito: aquele é `position: absolute; bottom: 100%` com 420px de
+ * largura, ancorado ao compositor da conversa. Dentro de uma coluna de 360px
+ * ele ia parar **acima do painel inteiro** — e nenhum teste via, porque o jsdom
+ * não faz layout e o `toBeVisible` do Playwright aprova elemento fora da tela.
  */
 
 export interface PrWriteDialogProps {
@@ -55,7 +61,7 @@ export function PrWriteDialog(props: PrWriteDialogProps) {
 
   return (
     <div
-      className="gate"
+      className="prgate"
       role="dialog"
       aria-modal="true"
       aria-label={props.verb === "merge" ? "mesclar a pull request" : "abrir uma pull request"}
@@ -114,8 +120,8 @@ function MergeForm({ status, worktreeId, onClose, cancelRef }: FormProps) {
         merge.mutate();
       }}
     >
-      <div className="gate__t">
-        <span className="gate__g" aria-hidden="true">
+      <div className="prgate__t">
+        <span className="prgate__g" aria-hidden="true">
           ⚠
         </span>
         Mesclar a #{pull.number}?
@@ -208,7 +214,7 @@ function CreateForm({ status, worktreeId, onClose, cancelRef }: FormProps) {
         create.mutate();
       }}
     >
-      <div className="gate__t">Abrir pull request</div>
+      <div className="prgate__t">Abrir pull request</div>
 
       <div className="prform__what">
         <span>
@@ -237,7 +243,7 @@ function CreateForm({ status, worktreeId, onClose, cancelRef }: FormProps) {
         </label>
         <textarea
           id={`${id}-body`}
-          className="input"
+          className="prform__body"
           rows={5}
           value={body}
           onChange={(event) => setBody(event.target.value)}

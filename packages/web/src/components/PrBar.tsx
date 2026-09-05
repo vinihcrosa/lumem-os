@@ -50,12 +50,13 @@ export interface PrBarProps {
 function Why({ words }: { words: PrWords["why"] }): ReactNode {
   return (
     <span className="prbar__why">
+      {/* A chave é o índice, e aqui isso é correto: são pedaços de uma frase,
+          sem identidade própria e sem reordenação possível. A frase inteira é
+          substituída quando o motivo muda. */}
       {words.map((part, index) =>
         part.strong === true ? (
-          // eslint-disable-next-line react/no-array-index-key -- pedaços de uma frase, sem identidade própria
           <b key={index}>{part.text}</b>
         ) : (
-          // eslint-disable-next-line react/no-array-index-key -- idem
           <span key={index}>{part.text}</span>
         ),
       )}

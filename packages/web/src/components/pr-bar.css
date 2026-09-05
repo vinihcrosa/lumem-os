@@ -243,6 +243,41 @@
    `.prbar__acts`, que já estava desenhada, mais um formulário feito das
    primitivas que o design system já tem.
    -------------------------------------------------------------------------- */
+/*
+ * O portão tem CSS próprio, e a razão é medida.
+ *
+ * A primeira versão reusava o `.gate` do modo liberado inteiro — e o `.gate` é
+ * `position: absolute; bottom: 100%; width: var(--size-dialog-width)`, ancorado
+ * ao compositor da conversa. Dentro do painel direito isso o punha **acima da
+ * coluna inteira**, com 420px de largura numa coluna de 360. Nenhum teste via:
+ * o jsdom não faz layout, e o `toBeVisible` do Playwright aprova um elemento
+ * posicionado fora da tela.
+ *
+ * Aqui ele cobre a coluna, de cima a baixo. Uma pergunta irreversível merece a
+ * coluna inteira enquanto está sendo respondida — e é o que impede a pessoa de
+ * clicar em outra coisa achando que decidiu.
+ */
+.prgate {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  align-content: start;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  overflow-y: auto;
+  background: var(--color-bg-raised);
+  border-left: var(--border-width-thin) solid var(--color-border-danger);
+}
+.prgate__t {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font: var(--text-heading-md);
+  color: var(--color-text-primary);
+}
+.prgate__g { flex: none; font-size: var(--size-icon-lg); color: var(--color-text-danger); }
+
 .prform { display: grid; gap: var(--space-12); min-width: 0; }
 .prform__field { display: grid; gap: var(--space-4); }
 .prform__label {
@@ -263,3 +298,14 @@
 .prform__acts { display: flex; align-items: center; gap: var(--space-8); }
 .prform__strategies { display: flex; gap: var(--space-6); flex-wrap: wrap; }
 .prform__error { font: var(--text-body-sm); color: var(--color-text-danger); }
+.prform__body {
+  width: 100%;
+  min-height: calc(var(--size-control-lg) * 3);
+  padding: var(--space-6) var(--space-8);
+  border: var(--border-width-thin) solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inset);
+  color: var(--color-text-primary);
+  font: var(--text-body-sm);
+  resize: vertical;
+}

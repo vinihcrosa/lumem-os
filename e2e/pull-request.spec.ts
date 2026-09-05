@@ -292,4 +292,21 @@ test("o ↗ leva à pull request, e mesclar só é oferecido com o veredito pron
   await expect(dialog.getByRole("radio", { name: "squash" })).toBeVisible();
   await expect(dialog.getByRole("radio", { name: "merge commit" })).toBeVisible();
   await expect(dialog.getByRole("radio", { name: "rebase" })).toHaveCount(0);
+
+  /*
+   * E ele cabe **dentro da coluna**.
+   *
+   * Não é zelo: a primeira versão reusava o `.gate` do modo liberado, que é
+   * `position: absolute; bottom: 100%` com 420px de largura, ancorado ao
+   * compositor da conversa. Numa coluna de 360px ele ia parar acima do painel
+   * inteiro — e nada acusava: o jsdom não faz layout, e o `toBeVisible` daqui
+   * aprova elemento posicionado fora da tela. Medir é o único jeito.
+   */
+  const caixa = await dialog.boundingBox();
+  const coluna = await page.getByLabel("arquivos do checkout").boundingBox();
+  expect(caixa).not.toBeNull();
+  expect(coluna).not.toBeNull();
+  expect(caixa!.x).toBeGreaterThanOrEqual(coluna!.x - 1);
+  expect(caixa!.y).toBeGreaterThanOrEqual(coluna!.y - 1);
+  expect(caixa!.x + caixa!.width).toBeLessThanOrEqual(coluna!.x + coluna!.width + 1);
 });

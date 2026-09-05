@@ -93,17 +93,10 @@ const BORROWED = new Set([
   "btn--ghost",
   "focus-ring",
   "sr-only",
-  "input",
   // A faixa de abas e a coluna são do `right-panel.css`; daqui sai só o que a
   // quarta aba acrescenta.
   "rtab",
   "rtab__count",
-  // O diálogo reusa o portão do modo liberado, inteiro: a Q3 e a Q4 chegaram
-  // depois de o protótipo fechar, e inventar desenho novo aqui seria pior que
-  // reusar um que já foi desenhado para a mesma pergunta (§10 do PRD).
-  "gate",
-  "gate__t",
-  "gate__g",
 ]);
 
 describe("toda classe que a barra da PR pede existe", () => {
