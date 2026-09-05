@@ -135,7 +135,15 @@
  */
 .stopglyph { color: var(--color-text-danger); }
 
-/* A linha de estado: "isto está vivo?" e "desde quando?". Nada além disso. */
+/*
+ * A linha de estado: "isto está vivo?", "desde quando?" — e, desde a
+ * `run-dock-open`, **o gesto**.
+ *
+ * Os botões desceram da faixa para cá porque a faixa completa quer 494px e a
+ * coluna tem 360. O ganho não foi só caber: `parar` ao lado de `rodando · 4 min`
+ * explica o que ele para, e em 640px o espaço que sobra vai para o comando e a
+ * proveniência da porta — as duas coisas que em 360 são as primeiras a sair.
+ */
 .dock__state {
   flex: none;
   display: flex;
@@ -158,6 +166,10 @@
   min-width: 0;
 }
 .dock__cmd--dim { color: var(--color-text-tertiary); }
+
+/* Com botão dentro, a linha cresce para a altura de um botão pequeno mais
+   respiro. Sem isto o `parar` encostaria nas duas bordas. */
+.dock__state--acts { height: var(--size-control-lg); gap: var(--space-6); }
 /* A nota da direita é a primeira coisa que pode sair: numa coluna estreita ela
    competiria com o comando, que é o que identifica a execução. */
 .dock__note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -171,6 +183,32 @@
   background: var(--color-bg-inset);
 }
 .dock__out .xterm { padding: var(--space-8) var(--space-10); }
+
+/*
+ * Nunca rodou neste checkout — e, desde a `run-dock-open`, esta é a primeira
+ * coisa que se vê ao chegar numa worktree.
+ *
+ * Fundo `inset` porque ela ocupa **a mesma área** que o terminal vai ocupar: é a
+ * mesma caixa, com o que se sabe antes de existir saída. Mono na faixa de portas
+ * porque é número que se copia. E nenhuma cor de perigo: "ainda não começou" não
+ * é "quebrou".
+ */
+.dock__never {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-10);
+  background: var(--color-bg-inset);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+.dock__never-t { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.dock__never-l { font: var(--text-caption); color: var(--color-text-tertiary); }
+.dock__never-l b { font: var(--text-mono-sm); color: var(--color-text-code); font-weight: 400; }
+.dock__never-l code { font: var(--text-mono-sm); color: var(--color-text-code); }
 
 /* Nada rodou ainda: a aba existe, e o que ela tem para dizer é isso. */
 .dock__idle {

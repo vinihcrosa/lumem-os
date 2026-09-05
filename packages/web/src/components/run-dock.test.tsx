@@ -215,8 +215,10 @@ describe("o botão que abre a porta", () => {
 });
 
 describe("rodar e parar", () => {
-  it("o gesto de rodar existe uma vez só, na barra", async () => {
-    // Achado pelo e2e: o corpo repetia o botão da barra, a uma mão de distância.
+  it("o gesto de rodar existe uma vez só, na linha de estado", async () => {
+    // Achado pelo e2e: o corpo repetia o botão, a uma mão de distância. E o lugar
+    // dele mudou na `run-dock-open` — ele saiu da faixa de abas, que não cabia em
+    // 360px, e desceu para a linha de estado.
     trpcMock.scripts.status.query.mockResolvedValue(
       status({
         scripts: { setup: null, run: "pnpm dev", teardown: null },
@@ -226,7 +228,63 @@ describe("rodar e parar", () => {
 
     renderWithProviders(<RunDock scope={scope} dock={dock} />);
 
-    expect(await screen.findAllByRole("button", { name: /rodar/ })).toHaveLength(1);
+    const run = await screen.findAllByRole("button", { name: /rodar/ });
+    expect(run).toHaveLength(1);
+    expect(await screen.findByTestId("dock-state")).toContainElement(run[0]!);
+  });
+
+  /**
+   * A faixa de abas completa mede 494px, e a coluna da direita tem 360.
+   *
+   * O que estourava eram `Abrir :porta` e `parar`; o chevron e as quatro abas
+   * cabem. Então os dois desceram para a linha de estado — em **qualquer**
+   * largura, porque dois lugares onde `parar` pode estar é o defeito que a Q6
+   * recusou.
+   */
+  it("`Abrir` e `parar` moram na linha de estado, e não na faixa de abas", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        run: { command: "pnpm dev", last: execution() },
+        port: { port: 5173, source: "output" },
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    const state = await screen.findByTestId("dock-state");
+    expect(state).toContainElement(await screen.findByRole("link", { name: /Abrir/ }));
+    expect(state).toContainElement(screen.getByRole("button", { name: /parar/ }));
+
+    const strip = screen.getByRole("tablist", { name: "execução do checkout" });
+    expect(strip).not.toContainElement(screen.getByRole("link", { name: /Abrir/ }));
+    expect(strip).not.toContainElement(screen.getByRole("button", { name: /parar/ }));
+  });
+
+  it("com o run vivo, a porta reservada sai da linha — quem fala de porta é a proveniência", async () => {
+    // Duas notas de porta na mesma linha, numa coluna de 360px, é uma competindo
+    // com o comando — que é o que identifica a execução.
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        run: { command: "pnpm dev", last: execution() },
+        port: { port: 5173, source: "output" },
+        reservedPort: 55060,
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    expect(await screen.findByText("porta lida da saída")).toBeInTheDocument();
+    expect(screen.queryByText(/porta reservada/)).not.toBeInTheDocument();
+  });
+
+  it("sem run vivo, a porta reservada continua sendo dita", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({ run: { command: "pnpm dev", last: null }, port: null, reservedPort: 55060 }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    expect(await screen.findByText("porta reservada :55060")).toBeInTheDocument();
   });
 
   it("roda o que o repositório declara", async () => {
@@ -325,6 +383,108 @@ describe("o projeto sem [scripts]", () => {
     renderWithProviders(<RunDock scope={scope} dock={dock} />);
 
     expect(await screen.findByRole("button", { name: "copiar o exemplo" })).toBeEnabled();
+  });
+});
+
+/**
+ * Nascendo aberto, esta área é a primeira coisa que se vê ao chegar numa worktree.
+ *
+ * Antes era uma frase que só dizia "não". Agora diz o que o daemon já sabe antes
+ * de existir processo — e nada além do que ele sabe.
+ */
+describe("a fase que nunca rodou", () => {
+  it("diz a faixa de portas do checkout, em vez de um terminal vazio", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: null, run: "pnpm dev", teardown: null },
+        run: { command: "pnpm dev", last: null },
+        reservedPort: 55060,
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    // Dez portas, e o número vem do contrato — não de um `10` escrito aqui.
+    expect(await screen.findByText(":55060–55069")).toBeInTheDocument();
+    expect(screen.getByText(/LUMEM_RUN_PORT/)).toBeInTheDocument();
+    expect(screen.queryByTestId("terminal")).not.toBeInTheDocument();
+  });
+
+  it("sem reserva, não inventa faixa: a linha simplesmente não existe", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: null, run: "pnpm dev", teardown: null },
+        run: { command: "pnpm dev", last: null },
+        reservedPort: null,
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    await screen.findByText(/ainda não rodou o run/);
+    expect(screen.queryByText(/portas reservadas/)).not.toBeInTheDocument();
+  });
+
+  it("conta como foi o último setup, que é a outra metade da pergunta", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: "./setup.sh", run: "pnpm dev", teardown: null },
+        setup: { command: "./setup.sh", last: execution({ running: false, exitCode: 0 }) },
+        run: { command: "pnpm dev", last: null },
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    expect(await screen.findByText(/o setup passou/)).toBeInTheDocument();
+  });
+
+  it("setup que falhou aparece com o código, e ainda não é um alerta", async () => {
+    // "ainda não começou" não é "quebrou": nenhuma cor de perigo, nenhum role de
+    // alerta nesta área — o banner de setup falhado é outra coisa, e é dele o papel.
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: "./setup.sh", run: "pnpm dev", teardown: null },
+        setup: { command: "./setup.sh", last: execution({ running: false, exitCode: 1 }) },
+        run: { command: "pnpm dev", last: null },
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    expect(await screen.findByText(/o setup falhou \(saiu 1\)/)).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("na aba do próprio setup, não fala do setup — falaria de si mesma", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: "./setup.sh", run: null, teardown: null },
+        setup: { command: "./setup.sh", last: null },
+        reservedPort: 55060,
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+    await userEvent.click(await screen.findByRole("tab", { name: /Setup/ }));
+
+    await screen.findByText(/ainda não rodou o setup/);
+    expect(screen.queryByText(/o setup nunca rodou/)).not.toBeInTheDocument();
+  });
+
+  it("com execução, o terminal toma a área de volta", async () => {
+    trpcMock.scripts.status.query.mockResolvedValue(
+      status({
+        scripts: { setup: null, run: "pnpm dev", teardown: null },
+        run: { command: "pnpm dev", last: execution() },
+        reservedPort: 55060,
+      }),
+    );
+
+    renderWithProviders(<RunDock scope={scope} dock={dock} />);
+
+    expect(await screen.findByTestId("terminal")).toBeInTheDocument();
+    expect(screen.queryByText(/portas reservadas/)).not.toBeInTheDocument();
   });
 });
 

@@ -1,6 +1,6 @@
 import { createServer } from "node:net";
 
-import { newId } from "@lumem/shared";
+import { newId, PORT_BLOCK_SIZE } from "@lumem/shared";
 import { and, eq } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
@@ -30,8 +30,14 @@ import type { ScopeType } from "../scope.js";
  *   transformaria "sua porta é a 45010" numa promessa que muda sozinha.
  */
 
-/** Quantas portas cada checkout leva. O mesmo número que o Conductor reserva. */
-export const PORT_BLOCK_SIZE = 10;
+/**
+ * Quantas portas cada checkout leva.
+ *
+ * Mora no `@lumem/shared` desde a `run-dock-open`: a tela nomeia a faixa em voz
+ * alta antes de qualquer coisa ter rodado, e um segundo `10` do lado do web seria
+ * um número para divergir.
+ */
+export { PORT_BLOCK_SIZE };
 
 /**
  * A faixa padrão.

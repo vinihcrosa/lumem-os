@@ -15,6 +15,19 @@ export const DEFAULT_SERVER_PORT = 4317;
 export const DEFAULT_WEB_PORT = 4318;
 
 /**
+ * How many ports a checkout reserves at once.
+ *
+ * A run needs more than one port more often than not — a dev server plus an API,
+ * plus whatever the compose file wants — so the reservation is a block, and the
+ * daemon hands it over as `LUMEM_RUN_PORT` (the base) plus `LUMEM_RUN_PORT_1..N`.
+ *
+ * Shared because the screen names the range out loud before anything has run:
+ * without this the web package would either hardcode a second 10, or say "and
+ * the ones after it", which is the kind of vagueness that stops being true.
+ */
+export const PORT_BLOCK_SIZE = 10;
+
+/**
  * The ACP adapter the onboarding flow looks for, and the package that installs it.
  *
  * Two strings because they are not the same string, and that is exactly the trap:

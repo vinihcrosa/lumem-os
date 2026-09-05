@@ -299,13 +299,18 @@ frente, o nome da worktree só existe na aba.
 ### [run-dock-open/](prd/run-dock-open/) — o rodapé nasce aberto
 
 *"Minha aplicação está de pé, e em que porta?"* é a primeira pergunta ao chegar numa worktree, e a
-resposta chega recolhida. Mudar o padrão não é uma linha: o rodapé aberto sobe a coluna direita para
-**640px** e nasce com **metade da janela** de altura.
+resposta chega recolhida. A PRD achava que mudar o padrão não era uma linha — a coluna subiria para
+640px, a árvore nasceria pela metade. **Desenhada e decidida em 2026-09-01, é quase uma linha:** a
+altura fica em metade da janela (medido: a alternativa comprava três linhas de árvore), e a coluna
+fica em 360px, porque o piso de 640 já se aplica só no `toggle` — e chegar não é `toggle`. O preço,
+com o nome certo, é **~45 colunas de terminal** na chegada.
 
 | Arquivo | O quê |
 |---|---|
-| [prd.md](prd/run-dock-open/prd.md) | As três parcelas da conta — largura, altura e processo — e por que só a terceira é barata |
-| [open-questions.md](prd/run-dock-open/open-questions.md) | 3 perguntas, e as duas primeiras são a mesma conta de espaço |
+| [prd.md](prd/run-dock-open/prd.md) | As três parcelas da conta — largura, altura e processo. Mais o §4, escrito **depois** das decisões: o que o desenho propôs e sobreviveu (os dois botões descendo para a linha de estado, a saída vazia que informa) e o que ele propôs e morreu (a altura de leitura, o vazio compacto, a dobra que não é nossa) |
+| [open-questions.md](prd/run-dock-open/open-questions.md) | 6 perguntas, **6 respondidas em 2026-09-01**. Três respostas mataram o que o desenho propunha, e a Q4 se dissolveu quando o código mostrou que a dobra é do `xterm`. A Q6 nasceu ao escrever as tasks e fechou no mesmo dia: um layout só |
+| [tasks.md](prd/run-dock-open/tasks.md) | **4 de 4 entregues.** A T1 é a feature inteira e tem poucas linhas; a T2 e a T3 são as duas consequências visíveis de a coluna ficar em 360px; a T4 é o e2e da chegada. O que a execução achou está no fim do arquivo — inclusive o `▶ rodar` desabilitado que desapareceu de graça |
+| `packages/web/prototype/lumem-run-dock-open.html` | O protótipo, vindo do Open Design em 2026-09-01 e renderizado: **seis quadros** — a chegada sem nada de pé, a chegada com run vivo contra a tira de hoje, as três alturas com o número de arquivos **medido** em cada uma (16 / 14 / 11 de 16), as duas larguras em colunas de terminal (~45 contra 80), o checkout sem `[scripts]`, e o que a preferência de quem fechou continua mandando. Guarda as duas colunas: o decidido e o recusado. **Zero token novo** |
 
 ### [session-mode/](prd/session-mode/) — o modo sempre na tela · **completa**
 

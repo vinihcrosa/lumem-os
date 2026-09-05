@@ -37,6 +37,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `web/` tokens e paleta | unit — roda os 99 pares de contraste declarados, a escada de cinzas, e confere que o `tokens.ts` commitado é o que a derivação produz do `tokens.css` | Sim |
 | `server/` **scripts do projeto** | integration pelo caller, com repositório git de verdade e processo de verdade: o comando declarado no `project.toml` roda, escreve no disco do checkout e recebe as variáveis do §4. Nada de dublê — a coisa sob teste é justamente "isto vira processo" | Sim — cada teste faz seu repositório e seu state dir |
 | **rodapé de execução** de ponta a ponta | e2e `run-dock.spec.ts`, com um repositório de fixture que traz `[scripts]` **commitado** — a única forma de ele existir numa worktree recém-criada. Prova as duas coisas que só o navegador responde: o `run` sobe pela tela e o botão abre **a mesma porta** que a saída anunciou, e a worktree nova nasce preparada sem ninguém pedir | **Não** |
+| **a chegada** numa worktree, com o rodapé aberto por padrão | e2e `run-dock.spec.ts`, dois testes sobre o que **não** acontece: nenhum controle da faixa sobra fora da tela, e a largura da coluna não muda — nem ao entrar, nem ao mandar rodar. A largura é **guardada e comparada com ela mesma**, nunca com 360 ou 640: número no spec seria uma terceira cópia do piso | **Não** |
 | **artefato publicado** — o bundle do daemon | integration que **roda o bundle**: sobe `dist/server/main.mjs` num state dir temporário, chama tRPC e depois **abre o SQLite para ler o esquema**. Ler o esquema é o ponto: um bundle na profundidade errada sobe feliz, com um banco sem tabela nenhuma, e só quebra na primeira query. Mais um teste que lê os `import` do bundle e falha se aparecer uma terceira dependência bare | Sim — cada teste faz seu state dir |
 | **artefato publicado** — o tarball | integration que roda `pnpm build` e depois `npm pack --dry-run`: `bin/`, `dist/server`, `dist/web` e o `drizzle/` **inteiro** (migração faltando para o banco do usuário na versão que o tarball levou). Constrói antes de olhar, senão mede o que sobrou de um build anterior | Sim |
 | **produto instalado** | `pnpm smoke:install` — **não é vitest**. Empacota, instala num prefixo global descartável, sobe o binário e pede a página e o `/trpc/health`. É o único lugar onde `require` dinâmico de dependência nova, prebuild nativo ausente e arquivo fora do `files` aparecem antes da máquina de outra pessoa | Sim |
@@ -103,6 +104,22 @@ O `tsc` puro na raiz não enxergava `e2e/`, `playwright.config.ts` nem os `vites
 ## Armadilhas já corrigidas
 
 Registro do que já mordeu, pra não voltar:
+
+**`page.reload()` num e2e perde a seleção de checkout.** A `run-dock-open` precisa provar que uma
+preferência sobrevive à recarga, e depois do `reload` o `▤ arquivos` da topbar simplesmente não
+existe: a tela volta para o workspace, porque qual worktree estava aberta não é lembrado. O teste
+falhou por 30s esperando um botão que não estava lá — e a mensagem (*waiting for
+getByRole('button', { name: 'arquivos' })*) aponta para o botão, não para a causa. A regra: **depois
+de um `reload`, refaça a navegação**, e não só o passo que interessa. Quem escrever o próximo teste com
+recarga vai passar por isto de novo.
+
+**Dois worktrees do Conductor não podem rodar `playwright` ao mesmo tempo.** O `E2E_STATE_DIR` é
+relativo ao módulo, então cada worktree tem o seu — mas `e2eServer` e `e2eWeb` vêm do `ports.json`, e
+esse é o mesmo arquivo em todas. A segunda sessão morre com *"http://127.0.0.1:4420/trpc/health is
+already used"*, e não há saída boa: `reuseExistingServer` testaria o build da outra branch, e matar o
+processo estraga o run de quem chegou primeiro. Enquanto não estiver consertado
+([backlog](backlog.md)), **espere a outra suíte terminar** — `lsof -ti :4420` responde se dá para
+começar.
 
 **Suíte verde sobre um tipo errado, porque vitest não faz typecheck.** A `project-scripts`
 acrescentou a fase `test` ao `[scripts]`, e um helper do teste de router continuou listando as três

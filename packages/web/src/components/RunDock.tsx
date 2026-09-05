@@ -1,3 +1,4 @@
+import { PORT_BLOCK_SIZE } from "@lumem/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
@@ -49,6 +50,16 @@ export function RunDock({ scope, dock, onAskAgent }: RunDockProps) {
   }
 
   return (
+    /*
+     * Os botões de ação NÃO moram nesta faixa, e a medida é o motivo: com
+     * chevron, quatro abas e `Abrir :porta` mais `parar`, ela quer 494px — e a
+     * coluna da direita tem 360. São esses dois que estouram; o resto cabe.
+     *
+     * Eles moram na **linha de estado**, uma linha abaixo, onde são lidos junto do
+     * estado que os justifica: `parar` ao lado de `rodando · 4 min` explica o que
+     * ele para. Em qualquer largura, sem `@container` — dois lugares onde `parar`
+     * pode estar é o mesmo defeito que duas alturas de rodapé seriam (Q6).
+     */
     <div className="dock" style={{ height: `${String(dock.height)}px` }} data-testid="run-dock">
       <span
         className="dock__grip"
@@ -92,14 +103,7 @@ export function RunDock({ scope, dock, onAskAgent }: RunDockProps) {
           onClick={() => setTab("test")}
         />
         <DockTabButton label="Terminal" active={tab === "terminal"} onClick={() => setTab("terminal")} />
-
         <span className="dock__spacer" />
-        <div className="dock__acts">
-          {tab === "run" && <RunActions status={status.data} actions={actions} />}
-          {(tab === "setup" || tab === "test") && (
-            <PhaseActions phase={tab} status={status.data} actions={actions} />
-          )}
-        </div>
       </div>
 
       {tab === "terminal" ? (
@@ -296,7 +300,7 @@ function PhasePanel({
         </div>
       )}
 
-      <div className="dock__state">
+      <div className="dock__state dock__state--acts" data-testid="dock-state">
         {last === null ? (
           <Chip>nunca rodou</Chip>
         ) : last.running ? (
@@ -310,9 +314,22 @@ function PhasePanel({
         )}
         <span className="dock__cmd">{declared}</span>
         <span className="dock__spacer" />
-        <span className="dock__note">
-          {status.reservedPort === null ? "" : `porta reservada :${String(status.reservedPort)}`}
-        </span>
+        {/*
+          A porta reservada sai de cena quando o run está vivo: aí quem fala de
+          porta é a proveniência ao lado do `Abrir`, que diz de onde o número veio
+          — e duas notas de porta na mesma linha, numa coluna de 360px, é uma
+          competindo com o comando.
+        */}
+        {!(phase === "run" && last?.running === true) && status.reservedPort !== null && (
+          <span className="dock__note">porta reservada :{status.reservedPort}</span>
+        )}
+        <div className="dock__acts">
+          {phase === "run" ? (
+            <RunActions status={status} actions={actions} />
+          ) : (
+            <PhaseActions phase={phase} status={status} actions={actions} />
+          )}
+        </div>
       </div>
 
       {last !== null && !last.outputAvailable ? (
@@ -325,15 +342,7 @@ function PhasePanel({
           </span>
         </div>
       ) : last === null ? (
-        // Sem botão aqui: `▶ rodar` já está na barra, dois passos acima. Duas
-        // cópias do mesmo gesto a uma mão de distância é o defeito que a sidebar
-        // já tinha evitado com o `adicionar projeto`.
-        <div className="dock__idle">
-          <span>
-            Este checkout ainda não rodou {phase === "test" ? "os testes" : `o ${phase}`}. O botão
-            está ali em cima.
-          </span>
-        </div>
+        <NeverRan phase={phase} status={status} />
       ) : (
         <div className="dock__out">
           <Terminal
@@ -346,6 +355,54 @@ function PhasePanel({
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * O corpo de uma fase que nunca rodou neste checkout.
+ *
+ * O que estava aqui era uma frase — *"ainda não rodou; o botão está ali em cima"* —
+ * e ela bastava enquanto o rodapé nascia fechado: quem o abria já sabia o que ia
+ * fazer. Nascendo aberto, esta área é **a primeira coisa que se vê ao chegar numa
+ * worktree**, e uma frase que só diz "não" desperdiça a chegada.
+ *
+ * Então ela diz o que o daemon **já sabe** antes de existir processo: a faixa de
+ * portas que é desta worktree e de nenhuma outra, e como foi o último setup. Nada
+ * aqui é chute — linha sem fonte não aparece, e é por isso que cada uma tem
+ * guarda. Sem botão: `▶ rodar` está na linha de estado, uma linha acima. Duas
+ * cópias do mesmo gesto a uma mão de distância é o defeito que a sidebar já tinha
+ * evitado com o `adicionar projeto`.
+ */
+function NeverRan({ phase, status }: { phase: "setup" | "run" | "test"; status: ScriptStatus }) {
+  const setup = status.setup.last;
+
+  return (
+    <div className="dock__never">
+      <span className="dock__never-t">
+        Este checkout ainda não rodou {phase === "test" ? "os testes" : `o ${phase}`}. O botão está na
+        linha acima.
+      </span>
+
+      {status.reservedPort !== null && (
+        <span className="dock__never-l">
+          portas reservadas <b>:{status.reservedPort}–{status.reservedPort + PORT_BLOCK_SIZE - 1}</b>{" "}
+          — desta worktree e de nenhuma outra. O run recebe a primeira em{" "}
+          <code>LUMEM_RUN_PORT</code>.
+        </span>
+      )}
+
+      {phase !== "setup" && status.setup.command !== null && (
+        <span className="dock__never-l">
+          {setup === null
+            ? "o setup deste checkout nunca rodou"
+            : setup.running
+              ? `o setup está rodando agora · ${relativeAge(setup.startedAt)}`
+              : setup.exitCode === 0
+                ? `o setup passou · ${relativeAge(setup.finishedAt ?? setup.startedAt)}`
+                : `o setup falhou (saiu ${String(setup.exitCode ?? "?")}) · ${relativeAge(setup.finishedAt ?? setup.startedAt)}`}
+        </span>
+      )}
+    </div>
   );
 }
 

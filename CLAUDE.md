@@ -22,11 +22,10 @@ passo central é **instalar o tarball num runner limpo**, porque é o único que
 dinâmico, prebuild ausente e arquivo fora do pacote. A raiz ganhou `README.md` (em inglês, com
 tradução ao lado) e `LICENSE` (MIT).
 
-Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**. Três já estão
-fechadas; uma segue **sem tasks** — [run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de
-execução nasce aberto). A [sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto e worktree
-de onde se olha) está **completa em 2026-09-01**: as seis perguntas respondidas pelo desenho, duas
-peças novas no design system (`Modal` centrado e o slot de ação da linha) e as
+Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**, e as **quatro
+estão fechadas**. A [sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto e worktree de
+onde se olha) está **completa**: as seis perguntas respondidas pelo desenho, duas peças novas no
+design system (`Modal` centrado e o slot de ação da linha) e as
 [10 tasks](docs/prd/sidebar-actions/tasks.md) entregues — o `＋adicionar projeto` do rodapé saiu, o
 diálogo de worktree saiu do `LocalPanel`, e o clone em andamento virou linha da árvore. A nona anotação
 era sobre uma PR aberta que não aparece: a
@@ -49,6 +48,18 @@ sozinha) e `liberado`, atrás de um portão por sessão sem "não perguntar de n
 é o glifo `◈` mais o idioma do rótulo —, o que passa sozinho **aparece na conversa** assinado (`◈ o
 Lumem aprovou`) com a linha de fecho contando o turno, e **nenhum caminho da feature nega sozinho**:
 sem opção de permitir, o pedido sobe dizendo por quê.
+
+A [run-dock-open](docs/prd/run-dock-open/prd.md) está **completa** — 4 tasks, 6 perguntas fechadas — e
+ela encolheu ao ser desenhada. A PRD supunha que "nascer aberto" custava a coluna direita em 640px e a
+árvore pela metade; **medir** mudou as duas contas: com a mesma lista de 16 arquivos, a árvore mostra
+11 linhas com metade da coluna contra 14 com uma altura de leitura de 192px — três linhas não pagam um
+segundo número de altura —, e o piso de 640 já se aplicava **só no `toggle`**, então chegar não alarga
+nada e a decisão custou zero linha. Sobrou o que a coluna estreita cobra de verdade: a faixa de abas
+completa mede **494px**, então `Abrir :porta` e `parar` desceram para a **linha de estado** (em
+qualquer largura — dois lugares para o `parar` seria o mesmo defeito que duas alturas), e o corpo do
+`Run` que nunca rodou passou a dizer o que o daemon já sabe — a faixa de portas do checkout e o último
+setup — em vez de um terminal preto. O preço aceito, com o nome certo: a saída nasce com **~45
+colunas**, porque ela é `xterm` com `FitAddon` e o daemon redimensiona o PTY junto.
 
 Comece pelo [índice da documentação](docs/README.md).
 
