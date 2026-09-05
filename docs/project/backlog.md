@@ -155,13 +155,14 @@ propriedade de **(agente, conta)**.
 **De onde veio:** [pty-vs-acp A2](pty-vs-acp.md) · **Volta quando:** você precisar rodar trabalho e
 pessoal na mesma máquina sem trocar login na mão.
 
-### Segundo e terceiro CLI de agente (Codex, opencode) — `M`
+### Terceiro CLI de agente — `M`
 
-A v1 roda **só Claude**. Cada CLI novo é um adaptador ACP de terceiro a mais na conta de risco — por
-isso entram um por vez, cada um pagando o próprio spike.
+O **segundo** virou PRD em 2026-09-05: [second-agent](../prd/second-agent/prd.md), Codex proposto. Um
+por vez, cada um pagando o próprio spike — este item é o que sobra: o terceiro (Gemini, `gemini --acp`,
+é o candidato natural por ser de outra família de adaptador, e por isso provar mais).
 
-**De onde veio:** [pty-vs-acp A2](pty-vs-acp.md) · **Volta quando:** o primeiro estiver estável e você
-sentir falta do segundo.
+**De onde veio:** [pty-vs-acp A2](pty-vs-acp.md) · **Volta quando:** o segundo estiver de pé e a
+C1 do second-agent tiver dito qual é o próximo.
 
 ### Índice de regras com carregamento sob demanda — `M`
 
@@ -184,15 +185,11 @@ PTY que você queira que alimente memória — e só nesse caso.
 
 ## C. Tarefas e orquestração
 
-### Tarefas de workspace atravessando projetos — `G`
+### ~~Tarefas de workspace atravessando projetos~~ — virou PRD em 2026-09-05
 
-O fluxo da [vision.md](vision.md): o agente do `api` percebe que o `web` precisa mudar e **cria a
-tarefa lá**. É o irmão da memória — a proposta vira trabalho. A inbox de propostas da memória e a
-fila de tarefas são quase a mesma tela.
-
-**De onde veio:** [vision.md](vision.md) e [workspace-memory Q34](../prd/workspace-memory/open-questions.md) ·
-**Volta quando:** a memória de workspace estiver de pé (ela é o insumo que faz a tarefa fazer
-sentido).
+Saiu do backlog: [workspace-tasks](../prd/workspace-tasks/prd.md). O gatilho — a memória de workspace
+de pé — foi atingido. O PRD é atribuição manual e `done` humano; a **fila com lease**, abaixo,
+continua aqui.
 
 ### Fila com lease e múltiplos agentes puxando trabalho — `G`
 
@@ -393,13 +390,12 @@ O lugar certo é uma tela de preferências, que não existe.
 **De onde veio:** A16 da `agent-login`, e o §4 do PRD da tela do workspace · **Volta quando:** existir
 uma segunda coisa global para configurar — política de permissão é a candidata óbvia.
 
-### Autenticação do daemon — `M`
+### ~~Autenticação do daemon~~ — virou PRD em 2026-09-05
 
-O daemon escreve no disco com as suas permissões e não pede nada a ninguém. A `file-editor` tornou
-essa dívida visível.
-
-**De onde veio:** [file-editor Q7](../prd/file-editor/open-questions.md) · **Volta quando:** o daemon
-escutar em algo que não seja loopback.
+Saiu do backlog: [daemon-auth](../prd/daemon-auth/prd.md). O gatilho era "quando o daemon escutar
+fora do loopback"; a avaliação de arquitetura de 2026-09-05 mostrou que DNS rebinding e sequestro de
+WebSocket não esperam por isso — não há checagem de `Host` nem de `Origin` em rota nenhuma, e a CLI
+já expõe `--host`.
 
 ### Multi-host — `G`
 
@@ -452,6 +448,10 @@ e os dois foram adiados **na mesma frase que os prometeu**.
 `lumem start` volta ao prompt, e aí precisam existir `stop`, `status` e `logs`, um pidfile no state
 dir, e uma resposta para "o processo morreu e o pidfile ficou". A v1 é foreground, como `vite`, e o
 CLI já nasce com forma de subcomando para que isto seja acréscimo e não reescrita.
+
+Junto com ele, **subir com a máquina**: launchd no macOS, com o `PATH` capturado na hora do install —
+o do launchd é mínimo e não acha `git` nem o adaptador. É o que faz três semanas de uso contínuo
+([memory-dogfooding](../prd/memory-dogfooding/prd.md)) não dependerem de lembrar de abrir um terminal.
 
 **De onde veio:** [D2](../prd/distribution/open-questions.md) — *"pode ser foreground, mas no futuro
 deve ser background"* · **Volta quando:** você deixar o Lumem ligado o dia inteiro e o terminal
