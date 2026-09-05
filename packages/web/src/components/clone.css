@@ -40,8 +40,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--font-family-mono);
-  font-size: 12px;
+  font: var(--text-mono-md);
   color: var(--color-text-secondary);
 }
 
@@ -51,27 +50,47 @@
   color: var(--color-text-warning);
 }
 
-/* ------------------------------------------------- o clone na sidebar */
-.clone-row {
-  padding: var(--space-8);
-  margin-bottom: var(--space-8);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-surface);
-}
+/* ------------------------------------------------- o clone na árvore
+ *
+ * Ele mora **dentro** da árvore, no lugar onde o projeto vai aparecer, e por
+ * isso tem a métrica de uma linha dela: nada de cartão com fundo próprio, que
+ * leria como "outra coisa" logo acima da lista em que ele está entrando.
+ */
+.clone-row { padding-bottom: var(--space-6); }
 .clone-row__top {
   display: flex;
   align-items: center;
-  gap: var(--space-8);
+  gap: var(--space-6);
+  height: var(--size-row-compact);
+  padding: 0 var(--space-6);
+  color: var(--color-text-primary);
+  font: var(--text-label-md);
 }
-.clone-row__name { font: var(--text-body-sm); }
+/* O mesmo vão da seta de expandir de uma linha de projeto — é ele que faz o
+   glifo e o nome caírem na mesma coluna do resto da árvore. */
+.clone-row__twist { flex: none; width: var(--size-icon-md); margin-left: var(--space-4); }
+.clone-row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .clone-row__pct {
-  margin-left: auto;
+  flex: none;
   font: var(--text-label-xs);
-  color: var(--color-text-secondary);
+  color: var(--color-text-tertiary);
 }
+/* Sempre visível, ao contrário do `+` da linha: é a única maneira de parar o
+   que já começou, e ação de parar não se esconde atrás do ponteiro. */
 .clone-row__cancel {
-  width: var(--size-control-sm);
-  height: var(--size-control-sm);
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-target-min);
+  height: var(--size-target-min);
+  margin-right: var(--space-4);
   border: 0;
   border-radius: var(--radius-sm);
   background: none;
@@ -83,14 +102,15 @@
   color: var(--color-text-danger);
 }
 .clone-row__phase {
-  margin-top: var(--space-6);
+  margin: var(--space-4) var(--space-6) 0 calc(var(--space-4) + var(--size-icon-md) + var(--space-6));
   font: var(--text-label-xs);
   color: var(--color-text-secondary);
 }
 
+/* Larga como a linha: o que ela mede é a linha inteira chegando. */
 .bar {
-  height: var(--space-4);
-  margin-top: var(--space-8);
+  height: var(--space-2);
+  margin: 0 var(--space-6);
   background: var(--color-bg-inset);
   border-radius: var(--radius-full);
   overflow: hidden;
@@ -147,8 +167,7 @@
   padding: var(--space-8);
   border-radius: var(--radius-sm);
   background: var(--color-bg-inset);
-  font-family: var(--font-family-mono);
-  font-size: 12px;
+  font: var(--text-mono-md);
   color: var(--color-text-code);
   white-space: pre-wrap;
   word-break: break-word;
@@ -156,8 +175,7 @@
 .clone-outcome__actions { display: flex; gap: var(--space-8); margin-top: var(--space-12); }
 .clone-outcome__path {
   margin-top: var(--space-8);
-  font-family: var(--font-family-mono);
-  font-size: 12px;
+  font: var(--text-mono-md);
   color: var(--color-text-secondary);
   word-break: break-all;
 }
@@ -181,8 +199,7 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border-danger);
   background: var(--color-bg-inset);
-  font-family: var(--font-family-mono);
-  font-size: 12px;
+  font: var(--text-mono-md);
   color: var(--color-text-code);
   word-break: break-all;
 }

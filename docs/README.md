@@ -28,6 +28,7 @@ Lendo nesta ordem você entende o projeto inteiro em três documentos:
 | [task-cycle-evidence.md](project/task-cycle-evidence.md) | Linha de base medida do repositório e registro de custo do ciclo dev → review → rework, ao longo de onze lotes. A skill que orquestrava o ciclo foi removida; as medições ficaram, porque são deste repositório |
 | [design-source-of-truth.md](project/design-source-of-truth.md) | **Decisão (2026-08-19): o design é feito inteiramente no Open Design.** O gerador Python saiu, o `tokens.css` passou a ser sincronizado, e a verificação de contraste ficou — com o custo de cada uma dessas três coisas nomeado |
 | [pty-vs-acp.md](project/pty-vs-acp.md) | **Decisão de arquitetura (2026-08-17): o Lumem migra para ACP.** O custo medido, os prós e contras de cada transporte, a recomendação contrária que perdeu, e o §9.2 — billing e janela de contexto investigados na fonte, com duas das minhas próprias afirmações corrigidas |
+| [agentation.md](project/agentation.md) | A barra de anotação visual do dev: clicar num elemento da tela vira contexto estruturado para o agente. Como está montada, por que não viaja para produção, e as duas variáveis que a ligam e desligam |
 | [backlog.md](project/backlog.md) | **Tudo que ficou para depois**, com uma frase de contexto, de onde veio, e o gatilho que traz de volta. Toda ideia adiada entra aqui na hora |
 
 ---
@@ -257,11 +258,12 @@ o par nativo por fora, ele **serve o web na própria porta**, o binário `lumem`
 
 ## As quatro que a tela pediu — desenhadas a partir dela, em 2026-09-01
 
-Nove anotações feitas clicando na tela `/` viraram quatro features independentes. Nenhuma tem tasks
-ainda; todas têm PRD e perguntas abertas. A nona anotação — *"abri a PR e não aparece"* — não virou
+Nove anotações feitas clicando na tela `/` viraram quatro features independentes. Todas têm PRD e
+perguntas; a **sidebar-actions** está **completa** — desenho, tasks e implementação —, e as outras
+três ainda não foram desenhadas. A nona anotação — *"abri a PR e não aparece"* — não virou
 feature: é a [pull-request-status](prd/pull-request-status/) acima, que nunca saiu do desenho.
 
-### [sidebar-actions/](prd/sidebar-actions/) — criar de onde se olha
+### [sidebar-actions/](prd/sidebar-actions/) — criar de onde se olha · **completa**
 
 As duas coisas que o Lumem cria não se criam de onde elas moram: o `＋adicionar projeto` está no
 rodapé da sidebar (e se afasta do título `Projetos` conforme a lista cresce), e criar worktree custa
@@ -271,7 +273,9 @@ cabeçalho `Projetos` e um `+` na linha de cada projeto, com os diálogos virand
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/sidebar-actions/prd.md) | As três regras (o botão fica no cabeçalho da coisa que ele acrescenta; uma ação, um lugar; o diálogo abre no centro), e o que a mudança cobra — o estado vazio perde o botão que o cobria |
-| [open-questions.md](prd/sidebar-actions/open-questions.md) | 6 perguntas. A Q5 é a que dói: um clone leva minutos, e um modal que se fecha some com o progresso |
+| [open-questions.md](prd/sidebar-actions/open-questions.md) | 6 perguntas, **as 6 respondidas pelo desenho de 2026-09-01**. A Q5 era a que doía: um clone leva minutos, e um modal que se fecha some com o progresso — ele fecha, e o progresso passa a ser uma linha da árvore |
+| [tasks.md](prd/sidebar-actions/tasks.md) | **10 de 10 entregues**, em 8 commits. A ordem é o inverso da `project-scripts`: primitivas primeiro, tela por último — aqui tudo está desenhado, e o incerto são as duas peças que o design system não tem. Os testes vêm no fim numa fase só, porque é neles que está o custo |
+| `packages/web/prototype/lumem-sidebar-actions.html` | O protótipo, vindo do Open Design: oito quadros — a árvore com as duas ações, a linha de perto em 264px com os sete estados do slot, os dois diálogos e seus estados, o clone depois que o modal fecha, o vazio, o rodapé que encolhe, e o contrato de teclado. **Duas peças novas de design system** (`.row__act`, `.modal`) e **zero token novo** |
 
 ### [worktree-first-tab/](prd/worktree-first-tab/) — o que é da worktree mora na worktree
 

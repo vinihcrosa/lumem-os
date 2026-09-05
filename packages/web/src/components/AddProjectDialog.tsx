@@ -4,10 +4,22 @@ import { useEffect, useState, type FormEvent } from "react";
 import { isTerminal, useCloneJob } from "../hooks/useCloneJob.js";
 import { cloneJobsKey, projectsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
-import { Button, Card, Chip, Field, Glyph, Input } from "../ui/index.js";
+import { Button, Chip, Field, Glyph, Input, Modal, ModalEsc } from "../ui/index.js";
 
 export interface AddProjectDialogProps {
   workspaceId: string;
+  /** O nome que o cabeçalho repete — onde o projeto vai entrar. */
+  workspaceName: string;
+  open: boolean;
+  onClose: () => void;
+  /**
+   * Pede a abertura, em vez de se abrir sozinho.
+   *
+   * O `prefill` chega quando um clone falhou por credencial e a pessoa clicou em
+   * `tentar de novo` — e quem decide o que está aberto na tela é quem hospeda o
+   * diálogo, não ele.
+   */
+  onPrefillOpen?: () => void;
   onAdded: (projectId: string) => void;
   /** An address to open with, F6.10 — the ssh spelling of one that failed. */
   prefill?: string | null;
@@ -42,12 +54,15 @@ const ECHO_DEBOUNCE_MS = 250;
  */
 export function AddProjectDialog({
   workspaceId,
+  workspaceName,
+  open,
+  onClose,
+  onPrefillOpen,
   onAdded,
   prefill = null,
   onPrefillConsumed,
 }: AddProjectDialogProps) {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
   const [source, setSource] = useState("");
   const [name, setName] = useState("");
   // Reads the same cache the sidebar writes; it does not open a stream of its
@@ -61,9 +76,9 @@ export function AddProjectDialog({
     if (prefill === null) return;
     setSource(prefill);
     setName("");
-    setOpen(true);
+    onPrefillOpen?.();
     onPrefillConsumed?.();
-  }, [prefill, onPrefillConsumed]);
+  }, [prefill, onPrefillOpen, onPrefillConsumed]);
 
   const add = useMutation({
     mutationFn: () =>
@@ -94,12 +109,16 @@ export function AddProjectDialog({
     },
   });
 
+  /**
+   * Todo caminho de saída passa por aqui, porque é o `Modal` que o chama no
+   * `Esc`, no véu e no `✕`.
+   */
   function close(): void {
-    setOpen(false);
     setSource("");
     setName("");
     add.reset();
     clone.reset();
+    onClose();
   }
 
   const isUrl = plan?.kind === "url";
@@ -126,61 +145,72 @@ export function AddProjectDialog({
     else add.mutate();
   };
 
-  if (!open) {
-    return (
-      <button type="button" className="sidebar__add" onClick={() => setOpen(true)}>
-        <Glyph>＋</Glyph>
-        adicionar projeto
-      </button>
-    );
-  }
-
   return (
-    <form className="add-project" onSubmit={submit}>
-      <Card>
-        <Field
-          id="project-source"
-          label="Caminho ou URL"
-          // The daemon's own words: it is the only thing that knows *which*
-          // rule refused, and F6.2 requires the user to be told.
-          error={failure}
-        >
-          <Input
+    <Modal
+      open={open}
+      onClose={close}
+      title="Adicionar projeto"
+      where={
+        <>
+          no workspace <Glyph tone="workspace">◈</Glyph> <strong>{workspaceName}</strong>
+        </>
+      }
+    >
+      <form className="add-project" onSubmit={submit}>
+        <div className="modal__body">
+          <Field
             id="project-source"
-            value={source}
-            onChange={(event) => setSource(event.target.value)}
-            placeholder="git@gitlab.interno:time/api.git"
-            invalid={refused || add.isError || clone.isError}
-            autoFocus
-          />
-        </Field>
+            label="Caminho ou URL"
+            // The daemon's own words: it is the only thing that knows *which*
+            // rule refused, and F6.2 requires the user to be told.
+            error={failure}
+          >
+            {/* Sem `autoFocus`: é o `Modal` que põe o foco no primeiro campo, e
+                dois donos do mesmo foco é um deles perdendo. */}
+            <Input
+              id="project-source"
+              value={source}
+              onChange={(event) => setSource(event.target.value)}
+              placeholder="git@gitlab.interno:time/api.git"
+              invalid={refused || add.isError || clone.isError}
+            />
+          </Field>
 
-        {plan !== null && <Echo plan={plan} />}
+          {plan !== null && <Echo plan={plan} />}
 
-        {/* Shown for both kinds. The prototype hid it for a local path, and
-            implementing that would have quietly deleted F2.3 — naming a project
-            something other than its directory has been possible since the
-            walking-skeleton and has nothing to do with cloning. */}
-        <Field id="project-name" label="Nome">
-          <Input
-            id="project-name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder={isUrl ? (plan.name ?? "o nome do repositório") : "o nome da pasta"}
-          />
-        </Field>
+          {/* Shown for both kinds. The prototype hid it for a local path, and
+              implementing that would have quietly deleted F2.3 — naming a project
+              something other than its directory has been possible since the
+              walking-skeleton and has nothing to do with cloning. */}
+          <Field id="project-name" label="Nome">
+            <Input
+              id="project-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder={isUrl ? (plan.name ?? "o nome do repositório") : "o nome da pasta"}
+            />
+          </Field>
 
-        {isUrl && (
-          // Not a field: since Q14 the destination is computed, and the
-          // prototype's first draft drew it like the inputs above, where it
-          // read as something you could type into.
-          <p className="add-project__answer">
-            <span className="add-project__answer-label">Vai em</span>
-            <span className="add-project__answer-path">{plan.targetPath}</span>
-          </p>
-        )}
+          {isUrl && (
+            // Not a field: since Q14 the destination is computed, and the
+            // prototype's first draft drew it like the inputs above, where it
+            // read as something you could type into.
+            <p className="add-project__answer">
+              <span className="add-project__answer-label">Vai em</span>
+              <span className="add-project__answer-path">{plan.targetPath}</span>
+            </p>
+          )}
 
-        <div className="add-project__actions">
+          {isUrl && running !== null && (
+            // A11: one clone at a time, and the button says which one rather than
+            // queueing in silence.
+            <p className="add-project__blocked" role="status">
+              {running.name} ainda está sendo clonado
+            </p>
+          )}
+        </div>
+
+        <div className="modal__foot">
           <Button
             type="submit"
             variant="primary"
@@ -199,17 +229,10 @@ export function AddProjectDialog({
           <Button variant="ghost" onClick={close}>
             cancelar
           </Button>
+          <ModalEsc />
         </div>
-
-        {isUrl && running !== null && (
-          // A11: one clone at a time, and the button says which one rather than
-          // queueing in silence.
-          <p className="add-project__blocked" role="status">
-            {running.name} ainda está sendo clonado
-          </p>
-        )}
-      </Card>
-    </form>
+      </form>
+    </Modal>
   );
 }
 

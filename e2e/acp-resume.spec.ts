@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { createAgentConfig, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import { createAgentConfig, createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
 import { call, query, startDaemon } from "./support/daemon.js";
 import {
   E2E_FAKE_ACP_AGENT,
@@ -210,9 +210,7 @@ test("reopening a finished conversation reads it, and the button continues it", 
   await ensureWorkspace(page);
   await ensureProject(page, E2E_FIXTURE_REPO_ACP, "repo-acp");
   await openProject(page, "repo-acp");
-  await page.getByRole("button", { name: "nova worktree" }).click();
-  await page.getByLabel("Nome da worktree").fill(WORKTREE);
-  await page.getByRole("button", { name: "criar" }).click();
+  await createWorktree(page, WORKTREE, "repo-acp");
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
 
   await page.getByRole("button", { name: /nova sessão/ }).click();

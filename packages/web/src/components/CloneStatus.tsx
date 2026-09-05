@@ -18,11 +18,16 @@ export interface CloneStatusProps {
 }
 
 /**
- * The clone, where the project is going to appear.
+ * O clone, onde o projeto vai nascer.
  *
- * In the sidebar and not in a modal: a clone runs for minutes, and a modal
- * would hold the whole screen hostage for it. Closing the dialog cancels
- * nothing, and reloading the page loses nothing.
+ * Dentro da **árvore** e não num modal: um clone leva minutos, e um modal
+ * seguraria a tela inteira por eles. O diálogo fecha assim que o clone começa;
+ * fechar não cancela nada, e recarregar a página não perde nada.
+ *
+ * A linha em andamento tem a geometria de uma linha de projeto — mesmo glifo,
+ * mesma indentação, mesmo slot de 24px à direita — porque é um projeto
+ * chegando. O que muda é que o slot carrega `✕`: enquanto clona, a ação que a
+ * linha oferece é cancelar, não acrescentar.
  */
 export function CloneStatus({ workspaceId, onRetry }: CloneStatusProps) {
   const queryClient = useQueryClient();
@@ -57,21 +62,26 @@ export function CloneStatus({ workspaceId, onRetry }: CloneStatusProps) {
   return (
     <div className="clone-row" data-state={job.state} aria-label={`clonando ${job.name}`}>
       <div className="clone-row__top">
+        {/* O lugar da seta de expandir, vazio: é o que alinha esta linha com as
+            linhas de projeto que ela vai virar. */}
+        <span className="clone-row__twist" aria-hidden="true" />
         <Glyph tone="project">■</Glyph>
         <span className="clone-row__name">{job.name}</span>
         {percent !== null && <span className="clone-row__pct">{percent}%</span>}
-        {/* F6.6: only while it is still downloading. Past that the repository
-            is on disk and what is left is a row in SQLite, so the button goes
-            away instead of lying. */}
-        {job.state === "cloning" && (
+        {/* F6.6: só enquanto ainda está baixando. Depois disso o repositório
+            está no disco e o que falta é uma linha no SQLite, então o botão sai
+            em vez de mentir — e o espaço dele fica, como em qualquer linha. */}
+        {job.state === "cloning" ? (
           <button
             type="button"
             className="clone-row__cancel"
             aria-label={`cancelar o clone de ${job.name}`}
             onClick={() => cancel.mutate(job.id)}
           >
-            ✕
+            <span aria-hidden="true">✕</span>
           </button>
+        ) : (
+          <span className="row__slot" aria-hidden="true" />
         )}
       </div>
 

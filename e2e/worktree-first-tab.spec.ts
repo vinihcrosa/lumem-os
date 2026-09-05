@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_FIXTURE_REPO_FILES } from "./support/fixtures.js";
-import { ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
 
 /**
  * A coluna do meio, de ponta a ponta: caminho → abas → conteúdo.
@@ -68,12 +68,10 @@ async function openOwnWorktree(page: Page): Promise<void> {
     .then(() => true)
     .catch(() => false);
 
+  // Desde a `sidebar-actions`, cortar worktree é o `+` da linha do projeto —
+  // não há mais um botão único `nova worktree`.
   if (present) await row.first().click();
-  else {
-    await page.getByRole("button", { name: "nova worktree" }).click();
-    await page.getByLabel("Nome da worktree").fill(WORKTREE);
-    await page.getByRole("button", { name: "criar" }).click();
-  }
+  else await createWorktree(page, WORKTREE, PROJECT);
 
   await expect(page.getByRole("tab", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
 }

@@ -1,0 +1,319 @@
+# As ações da árvore — Tasks
+
+**PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
+**Desenho:** `packages/web/prototype/lumem-sidebar-actions.html` — oito quadros, feitos no Open Design
+e sincronizados ([regra](../../project/design-source-of-truth.md))
+**Status:** **10 de 10 entregues.** A T8 veio junto com a T6 — a razão está no fim. Escopo fechado — as seis perguntas foram respondidas pelo desenho de
+2026-09-01.
+
+---
+
+## Antes de começar
+
+**O que não trava:** as mutations. `project.add`, `project.clone`, `project.parseSource` e
+`worktree.create` não mudam **nada** — esta feature é de **onde se clica**, não do que acontece
+depois. Também não mudam: o `useCloneJob`/`useCloneStream`, o `useTreeExpansion`, e as primitivas
+`Field`, `Input`, `Banner`, `Button`, `Glyph`.
+
+**O que a execução precisa decidir e o desenho não decide:** nada de escopo. As seis perguntas estão
+fechadas em [open-questions.md](open-questions.md) — todas pelo desenho. Divergir de qualquer uma
+delas é mudar a resposta lá, não aqui.
+
+**Premissas travadas:**
+
+- **A1** — o `Modal` é `div` + `createPortal`, com o trap de foco escrito à mão. **Não** é
+  `<dialog>` nativo: o `jsdom` 25 deste repositório não implementa `showModal` (verificado —
+  `el.showModal is not a function`), então o caminho nativo obrigaria um polyfill no setup dos
+  testes, e um trap que só existe no navegador é um trap que a suíte não confere.
+- **A2** — os dois diálogos passam a ser **controlados**: `open` e `onClose` vêm de fora, e nenhum
+  dos dois renderiza mais o próprio botão de abrir. Hoje os dois guardam `open` num `useState` e
+  devolvem um `<button>` quando fechados; enquanto for assim, o gatilho não pode morar na árvore.
+- **A3** — o slot da linha é **reservado sempre** nas linhas de projeto, inclusive nas que não
+  oferecem ação (Q1). Reservar é o requisito, não o `+`.
+- **A4** — o `+` da linha **não** navega: não seleciona e não expande (F1.4). Isso é `stopPropagation`
+  no `onClick` **e** o botão fora do `row__main`, que já é um `button` — `button` dentro de `button`
+  é HTML inválido, e a `Row` já resolve isso para o twist.
+- **A5** — o `CloneStatus` **muda de hospedeiro**, não de comportamento. Ele já mora fora do diálogo
+  (no `sidebar__foot`) e o `AddProjectDialog` já fecha ao disparar o clone; o que a Q5 pede é que ele
+  suba para dentro da árvore.
+- **A6** — nenhum token novo. O véu é `--color-bg-inset` composto com transparência, do mesmo jeito
+  que o `lumem-run-dock.css` compõe altura a partir de `--space-64`. Mexer em `tokens.css` daqui é
+  mexer numa cópia, e o próximo `design:sync` desfaz.
+
+**A ordem, e por quê:** primitivas primeiro, tela por último — o inverso da `project-scripts`. Lá a
+tela era a única parte já desenhada; aqui **tudo** está desenhado, e o que é incerto são as duas
+peças que o design system não tem. E as tasks de teste vêm no fim de propósito: o custo desta feature
+está nos testes que quebram, não na tela que muda, e concentrá-los numa fase é o que impede a suíte
+de ficar vermelha entre uma task e outra.
+
+---
+
+## Fase 1 — as duas peças que faltam no design system
+
+#### T1: O `Modal`, com o foco preso dentro
+
+**What**: A primitiva de diálogo centrado com véu: portal, cartão de `--size-dialog-width`, trap de
+foco, `Esc`, clique no véu, e devolução do foco a quem abriu.
+**Where**: `packages/web/src/ui/Modal.tsx`, `ui/index.ts`, `ui/ui.css` + `ui/ui.test.tsx`
+
+**Done when**:
+- [x] Renderiza por `createPortal` no `document.body` (A1), com `role="dialog"`, `aria-modal="true"`
+      e `aria-labelledby` apontando para o título
+- [x] Ao abrir, o foco entra no **primeiro campo focável** de dentro; ao fechar, volta ao elemento que
+      tinha o foco antes de abrir — os dois cobertos por teste, porque é o contrato do §8 do desenho
+- [x] `Tab` circula dentro e não escapa: do último focável volta ao primeiro, e `Shift+Tab` faz o
+      caminho inverso
+- [x] `Esc`, clique no véu e clique no `✕` chamam o mesmo `onClose`. Clique **dentro** do cartão não
+- [x] Fechado não renderiza nada — nem o véu, nem o cartão, nem um `hidden`
+- [x] Só `var(--token)`: nenhum literal de cor, espaço ou tipografia (o véu é o `color-mix` do
+      protótipo, A6)
+- [x] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(web): o Modal centrado, com o foco preso dentro`
+
+---
+
+#### T2: A linha da árvore ganha um slot de ação
+
+**What**: `Row` aceita uma ação à direita, num slot de 24px **reservado sempre**, visível no hover e
+no foco.
+**Where**: `packages/web/src/ui/Row.tsx`, `ui/ui.css` + `ui/ui.test.tsx`
+
+**Done when**:
+- [x] `action?: ReactNode` — quando ausente **numa linha que declara ter slot**, o espaço continua
+      reservado (A3), e é isso que o teste mede: a largura do label não muda entre ter e não ter `+`
+- [x] O slot fica **fora** do `row__main` (A4): clicar nele não dispara `onSelect` nem `onToggle`
+- [x] Invisível em repouso (`opacity: 0`), visível em `:hover` da linha e em `:focus-visible` do
+      próprio botão — nunca `display: none`, que tiraria o botão da ordem de `Tab`
+- [x] O `count` **continua no lugar** com o slot pintado: a linha não se reorganiza no hover (Q1)
+- [x] O glifo de linha `muted` passa a ser o desligado, e não o de perigo — `sem disco` não é falha
+- [x] Nenhuma outra linha da árvore muda de altura, de indentação ou de ordem de foco
+- [x] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(web): o slot de ação da linha da árvore`
+
+---
+
+## Fase 2 — os diálogos deixam de ser donos do próprio botão
+
+#### T3: `CreateWorktreeDialog` controlado, e sabendo o projeto
+
+**What**: O diálogo vira controlado, passa a viver dentro do `Modal`, e descobre sozinho o
+`hasCommits` do projeto que recebeu.
+**Where**: `packages/web/src/components/CreateWorktreeDialog.tsx` + `worktree-ui.test.tsx`
+
+**Done when**:
+- [x] `open` e `onClose` vêm de fora (A2); o componente **não** renderiza mais o botão
+      `nova worktree` quando fechado
+- [x] Busca `project.get` **enquanto aberto** para saber `hasCommits` — quem abre é a árvore, e a
+      árvore não tem esse dado; fechado, não pergunta nada
+- [x] Repositório sem commit: o diálogo **abre** e explica no `Banner`, com `criar` desabilitado. O
+      `+` da linha não fica cinza (o desenho diz por quê: um `+` de 24px desabilitado é um botão sem
+      motivo à vista)
+- [x] O cabeçalho diz de onde a ação veio — `em ■ <projeto>` —, e não existe seletor de projeto
+- [x] Criar com sucesso: fecha, e chama `onCreated` com a worktree nova
+- [x] Erro do daemon continua sendo mostrado com as palavras dele, no `Field`
+- [x] Gate: `pnpm gate:quick`
+
+**Commit**: `refactor(web): o diálogo de worktree controlado, dentro do modal`
+
+---
+
+#### T4: `AddProjectDialog` controlado
+
+**What**: O mesmo para o de projeto, que é o que tem campo de URL, eco do plano e destino computado.
+**Where**: `packages/web/src/components/AddProjectDialog.tsx` + `project-ui.test.tsx`,
+`clone-ui.test.tsx`
+
+**Done when**:
+- [x] `open`/`onClose` de fora (A2); o `<button>adicionar projeto</button>` sai do componente
+- [x] O `prefill` continua funcionando — ele **abre** o diálogo hoje, e passa a pedir a abertura a
+      quem controla, em vez de se abrir sozinho
+- [x] Caminho local, URL, e recusado: os três planos ecoam como hoje, dentro do modal
+- [x] Clone disparado → o modal fecha na hora (A5), e o clone segue sozinho
+- [x] O campo de origem continua recebendo o foco ao abrir — agora por conta do `Modal` (T1)
+- [x] Gate: `pnpm gate:quick`
+
+**Commit**: `refactor(web): o diálogo de projeto controlado, dentro do modal`
+
+---
+
+## Fase 3 — a árvore passa a mandar
+
+#### T5: O cabeçalho `Projetos`, com ação, em todos os estados
+
+**What**: A lista ganha cabeçalho com o `+` que acrescenta projeto — e ele existe também quando a
+lista está vazia.
+**Where**: `packages/web/src/components/SidebarTree.tsx`, `components/sidebar.css` +
+`project-ui.test.tsx`
+
+**Done when**:
+- [x] `Projetos` à esquerda, `+` à direita, **sempre visível** (Q3) — não é hover, porque com zero
+      projetos não há linha onde passar o ponteiro
+- [x] O cabeçalho existe com zero projetos, carregando e com erro. Com zero, o `EmptyState` fica só
+      com o texto e **sem ação própria**
+- [x] Com zero projetos existe **exatamente um** caminho visível para acrescentar o primeiro —
+      afirmado por teste, contando os botões
+- [x] O botão tem nome próprio (`adicionar projeto`): `＋` sozinho não é nome de nada
+- [x] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(web): o + de projeto no cabeçalho da lista`
+
+---
+
+#### T6: O `+` na linha do projeto
+
+**What**: Cada projeto no disco oferece o `+` que corta uma worktree dele.
+**Where**: `packages/web/src/components/SidebarTree.tsx` + `worktree-ui.test.tsx`
+
+**Done when**:
+- [x] O `+` abre o diálogo **já sabendo o projeto** (F1.3), com o projeto **fechado** ou aberto
+- [x] Clicar nele **não** expande e **não** muda a seleção (F1.4/A4) — teste com o projeto fechado e
+      outra worktree selecionada, afirmando que a seleção continua onde estava
+- [x] Cancelar não muda nada. Criar **expande o projeto** e **seleciona a worktree nova** (F1.5) — o
+      mesmo destino que o caminho de hoje entrega
+- [x] Projeto `available: false` **não** oferece o `+`, e o espaço fica (F1.8/A3)
+- [x] Nome próprio por linha: `nova worktree em <projeto>`
+- [x] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(web): a worktree nasce do + da linha do projeto`
+
+---
+
+#### T7: O rodapé perde o botão, e o clone sobe para a árvore
+
+**What**: `＋adicionar projeto` sai do rodapé (F1.6), e o `CloneStatus` passa a ser uma linha da
+árvore.
+**Where**: `packages/web/src/App.tsx`, `components/CloneStatus.tsx`, `components/clone.css`,
+`components/sidebar.css` + `clone-ui.test.tsx`
+
+**Done when**:
+- [x] **Entregue na T5**: o rodapé fica só com o `AgentLogin`, e nenhum segundo caminho para
+      adicionar projeto sobra em lugar nenhum da tela
+- [x] O clone em andamento aparece **dentro da árvore**, logo abaixo do cabeçalho, com a geometria de
+      uma linha de projeto: mesmo glifo, mesma indentação, mesmo slot — carregando `✕` (A5)
+- [x] A barra de progresso fica embaixo, na largura da linha; sem percentual conhecido, o estado
+      indeterminado continua sendo o de hoje
+- [x] O clone que falhou **já** usava cartão de coluna (`clone-outcome--failed`), desenhado para os
+      264px e com as duas saídas escritas. O `.cfail` do protótipo era a simplificação de um `.fail`
+      que só existia lá — não foi portado, e o cartão que existe ficou
+- [x] `tentar de novo` continua reabrindo o diálogo com a origem preenchida (o `prefill` da T4)
+- [x] Gate: `pnpm gate:quick`
+
+**Commit**: `feat(web): o clone acontece onde o projeto vai nascer`
+
+---
+
+## Fase 4 — o que sai, e o que se prova
+
+#### T8: O `LocalPanel` devolve a ação
+
+**What**: O `CreateWorktreeDialog` sai da aba de contexto do `local` (Q4).
+**Where**: `packages/web/src/components/LocalPanel.tsx` + `worktree-ui.test.tsx`
+
+**Done when**:
+- [x] O painel não monta mais o diálogo, e a `div.actions` some se não sobrar ação nenhuma nela
+- [x] Nenhum teste passa a alcançar o formulário por dois caminhos — se um teste ainda o encontra
+      daqui, a task não está pronta
+- [x] O resto do painel — caminho, branch base, consumo, lista — não muda
+- [x] Gate: `pnpm gate:quick`
+
+**Commit**: `refactor(web): a aba do local lê o checkout, e não cria irmãos dele`
+
+---
+
+#### T9: Os caminhos de ponta a ponta que a mudança move
+
+**What**: Os três lugares do e2e que clicam no botão do rodapé, mais um caminho novo pelo `+` da
+linha.
+**Where**: `e2e/support/app.ts`, `e2e/clone-project.spec.ts`, `e2e/error-cases.spec.ts`,
+`e2e/sidebar-actions.spec.ts` (novo)
+
+**Done when**:
+- [x] O helper `ensureProject` (`app.ts:70`) passa pelo `+` do cabeçalho — ele é o caminho de
+      **todo** spec que precisa de um projeto, então isto é o que decide se a suíte inteira anda
+- [x] `clone-project.spec.ts` e `error-cases.spec.ts` deixam de procurar o botão do rodapé
+- [x] O e2e de primeiro acesso ([onboarding](../onboarding/prd.md)) continua chegando ao mesmo lugar
+- [x] Spec novo: criar worktree pelo `+` de um projeto **fechado**, e cair dentro dela
+- [x] Spec novo: `Esc` no modal fecha e devolve o foco ao `+` que o abriu
+- [x] Gate: `pnpm gate:full`
+
+**Commit**: `test(e2e): a árvore é o caminho de criar projeto e worktree`
+
+---
+
+#### T10: O protótipo e o app dizendo a mesma coisa
+
+**What**: A conferência de que as classes portadas são as do protótipo, como os outros `*-css.test.ts`
+já fazem.
+**Where**: `packages/web/src/components/sidebar-css.test.ts` (novo)
+
+**Done when**:
+- [x] As classes que a tela usa existem no protótipo com o mesmo nome — `row__act`, `row__slot`,
+      `tree__head`, `modal`, `modal__scrim`, `modal__card`, `cfail`
+- [x] Nenhum literal de cor, espaço, raio ou tipografia nas folhas novas — só `var(--token)` (A6)
+- [x] `pnpm --filter @lumem/web design:sync --check` roda limpo na máquina de quem entregar (é para a
+      pessoa, não para o gate)
+- [x] Gate: `pnpm gate:quick`
+
+**Commit**: `test(web): as classes da sidebar são as do protótipo`
+
+---
+
+## O que a execução achou
+
+**T3 — um `useEffect` com o resultado da mutação nas dependências estourou a memória da suíte.**
+A primeira versão do diálogo limpava o campo num efeito com `[open, create]`, e o objeto que o
+`useMutation` do react-query devolve é **novo a cada render**: o efeito rodava sempre, chamava
+`create.reset()` sempre, e o processo **principal** do vitest morria de `heap out of memory` depois
+de uns 47 arquivos — com **zero** testes falhando antes disso. Um teste isolado não pega: só a suíte
+inteira acumula o suficiente. O conserto foi apagar o efeito, porque todo caminho de saída já passa
+pelo `close()` — é o `Modal` que o chama no `Esc`, no véu e no `✕`.
+
+**Fica valendo:** dependência de efeito tem de ser valor estável. Objeto de resultado de hook não é.
+
+**T5 — a remoção do botão do rodapé veio para cá, e não podia esperar pela T7.** Uma das afirmações
+da própria T5 é que existe **exatamente um** caminho visível para acrescentar o primeiro projeto; com
+o `+` no cabeçalho e o botão ainda no rodapé, cinco testes falharam com *"Found multiple elements
+with the role button and name adicionar projeto"* — o que é a suíte cobrando a regra "uma ação, um
+lugar" antes de a task que a prometia chegar. A T7 fica com o clone na árvore.
+
+**De graça:** os testes que clicavam no botão do rodapé passaram **sem edição nenhuma**, porque o
+`+` do cabeçalho tem o mesmo nome acessível (`adicionar projeto`). Nome próprio de botão é o que faz
+mudança de lugar não virar mudança de teste.
+
+**T6 — a T8 veio junto, pelo mesmo motivo que a T5 puxou a remoção do rodapé.** Com o `+` na linha e
+o botão ainda no `LocalPanel`, dois testes do clone quebraram em
+*"Found multiple elements with the role button and name /nova worktree/"*: o `+` se chama
+`nova worktree em lorebase` e o botão do painel se chamava `nova worktree`, e a regex pegava os dois.
+Duas ações para o mesmo trabalho não sobrevivem nem a uma suíte, que dirá a um dia de uso — então a
+ação saiu do painel do `local` na mesma entrega em que nasceu na árvore.
+
+**T7 — o `.cfail` do protótipo não precisava existir.** O desenho inventou um cartão de falha para a
+coluna porque, no protótipo, o que estava à mão era o `.fail` do design system — feito para o painel
+central, e que quebra a URL no meio de um token dentro de 264px. O app já tinha o cartão certo desde
+a `project-from-url`: o `clone-outcome--failed`, com as duas saídas escritas e a URL numa linha. Foi
+o protótipo que estava atrás do código, e não o contrário.
+
+**T9 — o `name` do playwright casa substring, e foi isso que quebrou 22 specs.** Nenhuma das quebras
+foi de comportamento: `getByRole("button", { name: "adicionar" })` passou a encontrar **dois**
+elementos, porque o `+` do cabeçalho se chama `adicionar projeto`; e
+`{ name: "nova worktree" }` encontrou **um por projeto**, porque agora a ação mora em cada linha e o
+workspace do e2e acumula projetos. Duas correções: `exact: true` onde o nome curto era ambíguo, e um
+helper `createWorktree(page, name, project)` no `support/app.ts` — "como se cria uma worktree" volta a
+ser decisão de um lugar só, e o nome do projeto passa a ser obrigatório na prática.
+
+**E uma armadilha do próprio spec novo:** afirmar que o `local` está escondido para provar que o
+projeto está fechado só funciona com **um** projeto na árvore. A árvore é markup plano, e no run
+completo cada projeto tem o seu `local`. A afirmação certa é a seta dizendo `expandir` — que é o que
+um leitor de tela ouviria.
+
+**T10 — o teste de porte achou quatro violações da regra de design que ninguém tinha escrito nesta
+feature.** `clone.css` tinha `font-family: var(--font-family-mono); font-size: 12px;` em quatro
+lugares, desde a `project-from-url` — que é exatamente o `--text-mono-md` escrito à mão. Trocados
+pelo token. O teste também confirmou o `.cfail`: classe desenhada no protótipo e ausente do app, que
+é o defeito silencioso que a direção contrária existe para pegar.
+
+**Padrão que apareceu duas vezes:** a ponte provisória entre "o diálogo virou controlado" e "a árvore
+manda" **não** dura um commit. Nas duas vezes o que a cobrou foi a suíte, e nas duas o conserto foi
+apagar a ponte, não adiar.

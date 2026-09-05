@@ -49,9 +49,9 @@ cat <<INFO
 
 ==> pronto
     workspace   $WORKSPACE_SLUG ($WORKSPACE_HARNESS)
-    state dir   $LUMEM_STATE_DIR   (próprio deste workspace; ~/.lumem fica intocado)
+    state dir   $LUMEM_STATE_DIR   (modo $LUMEM_DEV_MODE; ~/.lumem, o de produção, fica intocado)
 
-    pnpm dev          via 'run' do harness, com portas próprias
+    pnpm dev          via 'run' do harness, nas portas default
     pnpm gate:quick   testes afetados pelo trabalho atual
     pnpm gate:full    suíte inteira + e2e
     pnpm gate:build   typecheck de tudo + build

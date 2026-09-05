@@ -67,10 +67,15 @@ export async function ensureProject(page: Page, path: string, name = "fixture"):
     .catch(() => false);
   if (present) return;
 
+  // O `+` do cabeçalho da lista, desde a `sidebar-actions`: o botão do rodapé
+  // saiu, e o nome acessível continua o mesmo.
   await page.getByRole("button", { name: "adicionar projeto" }).click();
   await page.getByLabel("Caminho ou URL").fill(path);
   await page.getByLabel("Nome").fill(name);
-  await page.getByRole("button", { name: "adicionar" }).click();
+  // `exact`, porque o `name` do playwright casa **substring**: sem isto,
+  // "adicionar" também encontra o `+` do cabeçalho, que se chama "adicionar
+  // projeto" e continua na tela atrás do véu.
+  await page.getByRole("button", { name: "adicionar", exact: true }).click();
   await expect(entry).toBeVisible({ timeout: 15_000 });
 }
 
@@ -89,6 +94,21 @@ export async function openProject(page: Page, name = "fixture"): Promise<void> {
   // linhas, e árvore sem itens é pior que div rotulada.
   const tree = page.getByLabel("árvore de projetos");
   await tree.getByRole("button", { name, exact: true }).click();
+}
+
+/**
+ * Corta uma worktree pelo `+` da linha do projeto.
+ *
+ * O projeto é obrigatório na prática, mesmo com default: desde a
+ * `sidebar-actions` a ação mora em **cada** linha, e num workspace com dois
+ * projetos um locator sem nome de projeto casa dois botões. Este helper existe
+ * para que "como se cria uma worktree" seja uma decisão de um lugar só.
+ */
+export async function createWorktree(page: Page, name: string, project = "fixture"): Promise<void> {
+  const tree = page.getByLabel("árvore de projetos");
+  await tree.getByRole("button", { name: `nova worktree em ${project}`, exact: true }).click();
+  await page.getByLabel("Nome da worktree").fill(name);
+  await page.getByRole("button", { name: "criar", exact: true }).click();
 }
 
 /**

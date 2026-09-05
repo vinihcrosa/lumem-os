@@ -16,7 +16,6 @@ import {
   SectionHead,
   Skeleton,
 } from "../ui/index.js";
-import { CreateWorktreeDialog } from "./CreateWorktreeDialog.js";
 import { ScopePanel } from "./ScopePanel.js";
 import { SpendList, type SpendRow } from "./SpendList.js";
 
@@ -127,6 +126,23 @@ function ProjectSpend({ projectId }: { projectId: string }) {
   );
 }
 
+/**
+ * A pergunta da confirmação por caminho, com o número que a torna útil.
+ *
+ * "da lista" carrega o contraste com o projeto clonado, cuja pergunta é "apagar
+ * do disco?" — as duas remoções têm que se distinguir na primeira linha.
+ *
+ * `worktrees` é `null` quando o repositório sumiu do disco: a lista nem é
+ * buscada nesse caso, e dizer "e o registro de 0 worktrees" seria afirmar algo
+ * que a tela não sabe.
+ */
+function removalQuestion(name: string, worktrees: number | null): string {
+  if (worktrees === null) return `remover ${name} da lista, e o registro das worktrees dele?`;
+  if (worktrees === 0) return `remover ${name} da lista?`;
+  const plural = worktrees === 1 ? "1 worktree" : `${worktrees} worktrees`;
+  return `remover ${name} da lista, e o registro de ${plural}?`;
+}
+
 export function LocalPanel({
   projectId,
   workspaceId,
@@ -152,6 +168,17 @@ export function LocalPanel({
     enabled: project.data?.available === true,
   });
 
+  /*
+   * Removing the project asks first (F2.5, F6.9).
+   *
+   * Two reasons, and which one applies depends on the project. For a **cloned**
+   * one the directory is about to stop existing, which is reason enough on its
+   * own. For one registered **by path** the disk is never at risk — what has no
+   * way back is the registration, and it takes N worktrees with it: adopting a
+   * checkout the Lumem no longer knows about is in the backlog, unbuilt. The
+   * asymmetry is what settles it: removing *one* dirty worktree asks, and this
+   * took the whole set without a word.
+   */
   const [confirming, setConfirming] = useState(false);
 
   const remove = useMutation({
@@ -166,6 +193,7 @@ export function LocalPanel({
     return (
       <RemoveProjectConfirm
         project={project.data}
+        worktrees={worktrees.data?.length ?? null}
         pending={remove.isPending}
         error={remove.isError ? remove.error.message : null}
         onCancel={() => {
@@ -298,14 +326,6 @@ export function LocalPanel({
 
           {available && (
             <>
-              <div className="actions">
-                <CreateWorktreeDialog
-                  projectId={projectId}
-                  onCreated={onSelectWorktree}
-                  hasCommits={project.data.hasCommits}
-                />
-              </div>
-
               {/*
                 O consumo por worktree (`workspace-screen`, W4): a mesma linguagem
                 da tela do workspace, um nível abaixo — quem aprendeu a ler lá lê
@@ -360,12 +380,21 @@ export function LocalPanel({
  */
 function RemoveProjectConfirm({
   project,
+  worktrees,
   pending,
   error,
   onCancel,
   onConfirm,
 }: {
   project: { name: string; path: string; managed: boolean };
+  /**
+   * Quantas worktrees vão junto — só a remoção por caminho as leva (WS-Q22).
+   *
+   * `null` quando o repositório sumiu do disco e a lista nem foi buscada. No
+   * projeto clonado o número não entra na pergunta: lá a worktree **recusa** a
+   * remoção em vez de acompanhá-la, e a recusa chega pelo banner.
+   */
+  worktrees: number | null;
   pending: boolean;
   error: string | null;
   onCancel: () => void;
@@ -385,10 +414,14 @@ function RemoveProjectConfirm({
           </>
         ) : (
           <>
-            <h2 className="remove-confirm__title">remover {project.name} da lista?</h2>
+            {/* O número está no título e não no corpo porque é ele que muda a
+                resposta: "remover um projeto" e "remover um projeto e o
+                registro de 3 worktrees" são duas decisões diferentes. */}
+            <h2 className="remove-confirm__title">{removalQuestion(project.name, worktrees)}</h2>
             <p className="remove-confirm__body">
               Este projeto aponta para um repositório <strong>seu</strong>. Sai da lista; o
-              diretório fica exatamente onde está.
+              diretório fica exatamente onde está — o dele e o de cada worktree, com trabalho
+              não commitado e tudo.
             </p>
           </>
         )}

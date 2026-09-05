@@ -222,6 +222,23 @@ O que **ficou** de fora dela, e portanto continua aqui:
 | Notificação quando a PR fica verde ou quebra | `P` | tentador e barato de errar: exige política de ruído | você se pegar olhando a sidebar de minuto em minuto |
 | "O check quebrou, peça ao agente para consertar" | `M` | a ponte entre a barra e a sessão ACP — e a mais perigosa, porque põe texto da internet dentro de um prompt | o §4.7 do PRD ganhar um portão de verdade |
 
+### Worktree de projeto removido não pode ser recriada — `P`
+
+Remover projeto **registrado por caminho** tira o registro das worktrees e **não toca no disco**
+([WS-Q22](../prd/walking-skeleton/open-questions.md)). O projeto clonado não entra: lá a worktree
+bloqueia a remoção, então nada fica para trás.
+O que fica para trás é git, não Lumem: o diretório, a branch e a entrada em `.git/worktrees` do repo.
+Como o caminho é determinístico (`<workspace>/<projeto>/worktrees/<nome>`), re-adicionar o mesmo repositório e
+criar a worktree `feat-x` de novo falha em `a branch "feat-x" já existe`. Pelo app, é permanente — sai
+só com `git worktree remove` na mão. Bate no onboarding, que sempre cria worktree na primeira tarefa.
+
+Os dois caminhos que resolvem são features: **adotar worktree que já existe** (o mesmo mecanismo das
+"worktrees externas na sidebar", §G) ou **limpar o disco na cascata**, que contradiz a WS-Q22 e pede a
+confirmação de "sujo" para N worktrees de uma vez.
+
+**De onde veio:** a review da PR de remover projeto · **Volta quando:** alguém re-adicionar um projeto
+e não conseguir recriar a worktree que tinha antes.
+
 ### Stage, commit e revert pela UI — a aba `Review` — `M`
 
 Diff é ler; git é agir. Ficou fora da `right-panel` de propósito.
@@ -310,6 +327,23 @@ porque o que entra em todo turno passa a ser uma linha por regra em vez do corpo
 **De onde veio:** [context-delivery D5](../prd/workspace-memory/context-delivery.md) · **Volta
 quando:** a marca d'água do núcleo passar do alarme e consolidar não resolver.
 
+### Duas chaves de cache para a mesma leitura do projeto — `P`
+
+O `queryKeys.ts` abre dizendo que "dois componentes invalidando o mesmo dado com chaves que diferem
+por um caractere é um bug que parece UI velha, e é invisível em review" — e o repositório tem
+exatamente isso: `["project", "get", id]` no `LocalPanel`, no `WorktreePanel`, no `setup/Done` e no
+`useLiveState`, contra `projectDetailKey` (`["project", "detail", id]`) no `useScopeIds`. As duas
+chamam `project.get`. Quem usa a segunda **não** é invalidado pelo push do daemon.
+
+Unificar é mecânico — quatro literais e uma função —, mas não é dentro do escopo de nenhuma feature
+de tela, e mexer em chave compartilhada pede rodar a suíte inteira por um motivo que não é o da
+entrega em curso.
+
+**De onde veio:** a [sidebar-actions](../prd/sidebar-actions/tasks.md) T3 — o diálogo de worktree
+precisava do `hasCommits` e teve de escolher a chave literal, com um comentário explicando por quê ·
+**Volta quando:** alguém ver dado de projeto velho numa tela depois de o daemon avisar que mudou, ou
+na próxima feature que leia projeto.
+
 ### `session_usage` cresce para sempre — `P`
 
 A tabela do consumo (`workspace-screen`, W4) ganha uma linha por `usage_update`, ou seja, algumas por
@@ -322,6 +356,22 @@ cruas. A janela de `1y` é a única que precisa de granularidade fina e ninguém
 
 **De onde veio:** a PR do consumo · **Volta quando:** a tabela passar de alguns milhões de linhas, ou
 a query de `1y` começar a aparecer no tempo de carregamento da tela.
+
+### Linhas órfãs, e a transcrição que sobrevive ao dono — `P`
+
+Remover projeto apaga `project` e `worktree`. Continuam apontando para ids que não existem mais
+`session`, `session_usage`, `memory_entry`, `action_signal`, `playbook` e `memory_proposal` — todas
+com a coluna `text` e sem FK, então nada reclama. Os números da tela não erram: `usageByProject` e
+`usageByWorktree` fazem `LEFT JOIN` **a partir** de `project`/`worktree`, e órfão não entra na conta.
+
+O que vaza é disco. `sweepTranscripts` só apaga o arquivo cujo dono sumiu do registro
+(`acp/transcript-maintenance.ts`), e a linha de `session` sobrevive à remoção — então a conversa de um
+projeto que não existe mais fica em `~/.lumem` para sempre, comprimida aos 30 dias e nunca apagada.
+**É pré-existente**, não veio da cascata: `worktree.remove` também deixa `session` para trás. A cascata
+só multiplica por N.
+
+**De onde veio:** a review da PR de remover projeto · **Volta quando:** o diretório de transcrições
+crescer sem explicação, ou a primeira consulta precisar varrer órfão.
 
 ### O que o Lumem gasta sozinho — `P`
 
@@ -417,6 +467,7 @@ deles, e a v1 do fluxo não implementa nenhum.
 | Clonar projeto de uma URL | `M` | a tela 6 oferece; rede, credencial, progresso e cancelamento são feature, não um campo | você querer adicionar repo que ainda não está na máquina |
 | Worktrees `externas` na sidebar | `M` | o passo 6 **detecta** as que existem fora do Lumem; listá-las pede reconciliação e ciclo de vida próprios | alguém perder tempo procurando onde foi uma worktree criada fora do Lumem |
 | Paleta de comandos `⌘K` | `M` | a tela 9 promete; hoje o único atalho que existe é `⌘⏎` | a sidebar deixar de dar conta de achar as coisas |
+| `⌘N` (nova worktree no projeto selecionado) | `P` | [Q6](../prd/sidebar-actions/open-questions.md) da sidebar-actions: é a ação mais repetida do produto e a única com candidato óbvio, mas atalho global precisa saber o que está em foco — a mesma tecla dentro de um terminal ou de um editor pertence a eles | o `+` da linha virar caminho longo demais, ou a paleta `⌘K` chegar e trazer o roteamento de foco junto |
 | `⌘⇧N` (nova tarefa) e `⌥⇧P` (trocar o modo) | `P` | prometidos pela mesma tela, e são dois atalhos para ações que já existem em botão | os dois botões virarem caminho longo demais |
 | Caminho das worktrees editável | `P` | hoje é `LUMEM_STATE_DIR`, global; editar pede coluna, migração e "e as que já estão no caminho antigo?" | o `~/.lumem` ficar no disco errado para alguém |
 | Padrão de modelo e modo por workspace | `P` | a tela 4 oferece o seletor e não há coluna onde guardar; a conversa já escolhe por sessão | repetir a mesma troca em toda sessão nova incomodar |

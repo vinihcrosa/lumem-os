@@ -389,6 +389,22 @@ async function openLocal(user: ReturnType<typeof userEvent.setup>, row: ReturnTy
   await screen.findByRole("heading", { name: "local" });
 }
 
+describe("o clone dentro da árvore", () => {
+  it("mostra o clone onde o projeto vai nascer, e não no rodapé", async () => {
+    // Q5: o modal fecha quando o clone começa, e o progresso passa a morar na
+    // árvore — que é onde já se olha para saber se o projeto chegou.
+    trpc.project.cloneJobs.query.mockResolvedValue([
+      job({ state: "cloning", percent: 47, phase: "receiving" }),
+    ]);
+
+    renderWithProviders(<App />);
+
+    const tree = await screen.findByLabelText("árvore de projetos");
+    expect(await within(tree).findByLabelText(/^clonando /)).toBeInTheDocument();
+    expect(within(tree).getByRole("button", { name: /^cancelar o clone/ })).toBeInTheDocument();
+  });
+});
+
 describe("a confirmação de apagar", () => {
   it("diz o caminho que vai sumir, para projeto gerenciado", async () => {
     // A tela mais perigosa das nove.
@@ -449,18 +465,26 @@ describe("projeto sem commit", () => {
   it("explica por que ainda não corta worktree, em vez de deixar o git responder", async () => {
     // F6.13. Clonar um repositório vazio é caso legítimo (Q19), e "invalid
     // reference" não explica isso a ninguém.
+    //
+    // Quem explica é o **diálogo**, e não mais o botão desabilitado: desde a
+    // sidebar-actions a ação nasce de um `+` de 24px na árvore, e um `+` cinza
+    // é um botão sem motivo à vista.
     const user = userEvent.setup();
     await openLocal(user, project({ hasCommits: false }));
 
-    const botao = screen.getByRole("button", { name: /nova worktree/ });
-    expect(botao).toBeDisabled();
-    expect(botao).toHaveAttribute("title", expect.stringContaining("nenhum commit"));
+    await user.click(screen.getByRole("button", { name: `nova worktree em ${project().name}` }));
+
+    expect(await screen.findByText(/ainda não tem nenhum commit/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "criar" })).toBeDisabled();
   });
 
   it("deixa cortar assim que houver commit", async () => {
     const user = userEvent.setup();
     await openLocal(user, project({ hasCommits: true }));
 
-    expect(screen.getByRole("button", { name: /nova worktree/ })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: `nova worktree em ${project().name}` }));
+
+    await screen.findByRole("dialog", { name: "Nova worktree" });
+    expect(screen.queryByText(/ainda não tem nenhum commit/)).not.toBeInTheDocument();
   });
 });

@@ -1,16 +1,17 @@
 # PRD — As ações da árvore: criar projeto e criar worktree de onde se olha
 
-> **Status:** v0.1 — desenho **não** feito, nada implementado. Nasceu de três anotações do
+> **Status:** v1 — **completa em 2026-09-01**: desenho, 10 tasks e implementação. `gate:quick`
+> (156 arquivos), `gate:full` (55 specs e2e) e `gate:build` verdes. Nasceu de três anotações do
 > agentation na tela `/`, todas dizendo a mesma coisa por ângulos
 > diferentes: *"deveria ter um botão na direita para poder adicionar um projeto direto por aqui"*,
 > *"no canto direito deveria ter um botão + para criar uma worktree direto por ali"*, *"esse botão
 > não deveria estar aqui"*
-> **Perguntas:** [open-questions.md](open-questions.md)
-> **Tasks:** ainda não escritas
+> **Perguntas:** [open-questions.md](open-questions.md) — **as 6 respondidas pelo desenho**
+> **Tasks:** [tasks.md](tasks.md) — **10 de 10 entregues**, em 8 commits
 > **Depende de:** `project.create`/`project.parseSource` e `worktree.create` — as duas mutations já
 > existem e não mudam. Esta feature é de **onde se clica**, não de o que acontece depois
-> **Desenho:** a fazer no Open Design, projeto `lumem-os`
-> ([regra](../../project/design-source-of-truth.md))
+> **Desenho:** `lumem-sidebar-actions.html` — feito no Open Design, projeto `lumem-os`, e sincronizado
+> para `packages/web/prototype/` ([regra](../../project/design-source-of-truth.md))
 
 ---
 
@@ -115,6 +116,31 @@ worktree.
 O que **falta** no sistema de design: uma linha da árvore não tem hoje um slot de **ação à direita**,
 e não existe um invólucro de **modal centrado com véu** — os diálogos de hoje são `Card` no fluxo.
 Duas peças novas, e as duas nascem no Open Design.
+
+## 4.1 O desenho
+
+Oito quadros em `packages/web/prototype/lumem-sidebar-actions.html` — a árvore inteira, a linha vista
+de perto em 264px (que é onde a decisão se toma), os dois diálogos com seus estados, o clone depois
+que o modal fecha, o vazio, o rodapé que encolhe, e o contrato de teclado.
+
+**As duas peças novas do design system**, as duas nascidas aqui:
+
+| Peça | O que é | Por que não dava para reusar |
+|---|---|---|
+| `.row__act` | slot de ação da linha, 24px, **reservado sempre** e pintado no hover e no foco | a linha da árvore não tinha slot à direita: tinha `meta` e `count`, os dois de leitura |
+| `.modal` | invólucro centrado com véu, cartão de `--size-dialog-width` e elevação `xl` | os dois diálogos de hoje são `Card` no fluxo, e um `Card` numa coluna de 264px não hospeda campo de URL, eco de plano e barra de progresso |
+
+Mais duas de tela, que ficam nesta feature: `.tree__head` (o cabeçalho com ação) e `.cfail` (o clone
+que falhou, na largura da coluna — o `.fail` do design system quebra a URL no meio de um token dentro
+de 264px).
+
+**Zero token novo.** O véu é `--color-bg-inset` composto com transparência, do mesmo jeito que o
+`lumem-run-dock.css` compõe altura a partir de `--space-64`: valor derivado, não cor escolhida.
+
+E uma decisão que o desenho tomou e o PRD não tinha: o glifo de um projeto **sem disco** passa a ser
+o glifo **desligado**, e não o de perigo. `sem disco` não é falha — é um repositório que saiu de onde
+estava, e a linha continua na lista justamente porque as worktrees registradas nela continuam
+existindo. Vermelho ali competiria com o vermelho que quer dizer *quebrou*.
 
 ## 5. Como se prova
 

@@ -35,6 +35,14 @@ function write(collapsed: ReadonlySet<string>): void {
 export interface TreeExpansion {
   isExpanded(key: string): boolean;
   toggle(key: string): void;
+  /**
+   * Abre, e abrir já aberto não faz nada.
+   *
+   * Existe porque criar uma worktree pelo `+` da linha tem de **mostrar** a
+   * worktree nova (F1.5), e o projeto pode estar fechado — `toggle` ali
+   * fecharia justamente o que estava aberto.
+   */
+  expand(key: string): void;
 }
 
 /** Which nodes of the sidebar tree are folded, remembered across reloads. */
@@ -52,5 +60,15 @@ export function useTreeExpansion(): TreeExpansion {
     });
   }, []);
 
-  return { isExpanded, toggle };
+  const expand = useCallback((key: string) => {
+    setCollapsed((current) => {
+      if (!current.has(key)) return current;
+      const next = new Set(current);
+      next.delete(key);
+      write(next);
+      return next;
+    });
+  }, []);
+
+  return { isExpanded, toggle, expand };
 }

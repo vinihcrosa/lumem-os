@@ -1,4 +1,4 @@
-import { realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -214,6 +214,26 @@ describe("project.remove", () => {
     expect(await ctx.api.project.get({ id: added.id })).toBeNull();
     const check = await ctx.git.isGitRepo(repo);
     expect(check.ok).toBe(true);
+  });
+
+  it("takes its worktrees' registrations with it, leaving the checkouts on disk", async () => {
+    // F2.5 after the delete-project fix: a project that has worktrees is no
+    // longer a dead end. The registrations go together so the project leaves the
+    // sidebar, and nothing on disk is touched — the repository and every
+    // worktree checkout, uncommitted work and all, stay where they are.
+    const { context: ctx, workspaceId } = await setup();
+    const repo = await createRepo();
+    const added = await ctx.api.project.add({ workspaceId, path: repo });
+    const worktree = await ctx.api.worktree.create({ projectId: added.id, name: "feat-x" });
+
+    await ctx.api.project.remove({ id: added.id });
+
+    expect(await ctx.api.project.listByWorkspace({ workspaceId })).toEqual([]);
+    expect(await ctx.api.project.get({ id: added.id })).toBeNull();
+    // The disk is untouched: the repository is still a repository, and the
+    // worktree's directory is still on disk with its checkout.
+    expect((await ctx.git.isGitRepo(repo)).ok).toBe(true);
+    expect(existsSync(worktree.path)).toBe(true);
   });
 
   it("reports an unknown project as not found", async () => {
