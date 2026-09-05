@@ -254,62 +254,7 @@ o par nativo por fora, ele **serve o web na própria porta**, o binário `lumem`
 | [tasks.md](prd/distribution/tasks.md) | 16 tasks em 6 fases, **todas entregues**, na ordem do risco: a prova de que o artefato sobe veio na T2, antes de existir CLI, e o smoke de instalação vem antes de qualquer publicação |
 | [../README.md](../README.md) | a porta do repositório, em inglês, com [tradução](../README.pt-BR.md) ao lado — o primeiro arquivo do outro lado da D11 |
 
-### Propostos em 2026-09-05 — quatro PRDs, nenhum começado
-
-Saíram da avaliação de arquitetura do dia: fundação sólida, teste raro, e o núcleo da visão —
-tarefas, mais de um agente — inteiro no backlog enquanto a memória, o subsistema mais elaborado, é o
-menos usado. A avaliação também pedia "empacotar"; a [distribution](prd/distribution/prd.md) já tinha
-feito isso, e o que sobrou dela (daemon em background, subir com a máquina) está no backlog H. Cada
-um tem `prd.md` e `open-questions.md`; **as tasks nascem depois das perguntas respondidas.** A ordem
-abaixo é a recomendada.
-
-#### [daemon-auth/](prd/daemon-auth/) — o daemon confere quem fala com ele
-
-Sai do backlog e da Q46 da memória. Zero autenticação, zero checagem de `Host` e `Origin`: DNS
-rebinding e sequestro de WebSocket não esperam o daemon sair do loopback — e `lumem --host 0.0.0.0`
-é um flag. Fase 1 é um dia; fase 2 é token em cookie, com a origem única que a distribution já deu;
-fase 3 é identidade por sessão, que fecha o ator "declarado, e ainda não provado".
-
-| Arquivo | O quê |
-|---|---|
-| [prd.md](prd/daemon-auth/prd.md) | as três ameaças reais em ordem, o que fica de fora, F1–F4 e o que cada fase fecha |
-| [open-questions.md](prd/daemon-auth/open-questions.md) | 6 perguntas: fase 1 sozinha, cookie ou não, `Strict` ou `Lax`, token por sessão, `LUMEM_HOST` fora do loopback, onde o segredo vive |
-
-#### [memory-dogfooding/](prd/memory-dogfooding/) — três semanas com a memória ligada
-
-Não é feature: é uso medido, no `lumem` instalado. Os seis números do `context-delivery.md` §6 nunca
-tiveram leitura, e o custo do auto-learn e da destilação **não é gravado**. Instrumenta o que falta,
-liga um interruptor por semana, e escreve a decisão antes do primeiro número: a memória ganha mais
-código, ou congela.
-
-| Arquivo | O quê |
-|---|---|
-| [prd.md](prd/memory-dogfooding/prd.md) | o que existe para medir e o que falta, o protocolo semana a semana, os critérios, o §7 vazio à espera do resultado |
-| [open-questions.md](prd/memory-dogfooding/open-questions.md) | 6 perguntas — as **U2–U4 são os critérios**, e têm que estar respondidas antes da semana 1 |
-| [journal.md](prd/memory-dogfooding/journal.md) | uma entrada por sexta: a saída do `report` e três linhas |
-
-#### [second-agent/](prd/second-agent/) — o segundo agente
-
-O ACP foi escolhido por ser agnóstico e nada prova isso. Codex primeiro, pela mesma família de
-adaptador. Fase 0 é medição contra o adaptador real, como a `agent-login` fez; as cinco constantes de
-Claude viram um catálogo.
-
-| Arquivo | O quê |
-|---|---|
-| [prd.md](prd/second-agent/prd.md) | o que no código sabe que é Claude e o que já é genérico; as oito medições da fase 0; F1–F5 |
-| [open-questions.md](prd/second-agent/open-questions.md) | 6 perguntas: qual agente, instalado ou no PATH, onboarding pergunta ou não, consumo sem número, comparação, a semente PTY |
-
-#### [workspace-tasks/](prd/workspace-tasks/) — tarefa como entidade
-
-O produto chama de tarefa uma coisa que não existe. Tarefa por workspace com projeto obrigatório,
-"trabalhar nesta tarefa" abre worktree e sessão com o composer pré-preenchido, o agente cria tarefa
-por `POST /tasks` e escrever para cima é proposta, `done` é humano, custo por tarefa de graça. Fila
-com lease fica no backlog.
-
-| Arquivo | O quê |
-|---|---|
-| [prd.md](prd/workspace-tasks/prd.md) | o modelo, as regras, F1–F6, e a tabela de **propostas** para as Q011–Q015 do projeto |
-| [open-questions.md](prd/workspace-tasks/open-questions.md) | 9 perguntas; a **T2** (tarefa sem projeto) e a **T4** (triagem junto com a inbox de memória) mudam o desenho |
+---
 
 ## As quatro que a tela pediu — desenhadas a partir dela, em 2026-09-01
 
@@ -374,6 +319,66 @@ na conversa assinado; e nenhum caminho da feature nega sozinho.
 | [tasks.md](prd/session-mode/tasks.md) | 12 tasks em 4 fases, as duas fusões que a execução cobrou, e os cinco achados — inclusive o `overflow: hidden` que só o e2e podia ver e o menu que ficava clicável, achado em revisão |
 
 ---
+
+## Propostos em 2026-09-05 — quatro PRDs, nenhum começado
+
+Saíram da avaliação de arquitetura do dia: fundação sólida, teste raro, e o núcleo da visão —
+tarefas, mais de um agente — inteiro no backlog enquanto a memória, o subsistema mais elaborado, é o
+menos usado. A avaliação também pedia "empacotar"; a [distribution](prd/distribution/prd.md) já tinha
+feito isso, e o que sobrou dela (daemon em background, subir com a máquina) está no backlog H. Depois
+de escritos, a `main` andou — a [worktree-first-tab](prd/worktree-first-tab/) e a
+[session-mode](prd/session-mode/) foram entregues, e remover projeto passou a cascatear (WS-Q22) — e
+os quatro foram ajustados a isso. Cada um tem `prd.md` e `open-questions.md`; **as tasks nascem depois
+das perguntas respondidas.** A ordem abaixo é a recomendada.
+
+### [daemon-auth/](prd/daemon-auth/) — o daemon confere quem fala com ele
+
+Sai do backlog e da Q46 da memória. Zero autenticação, zero checagem de `Host` e `Origin`: DNS
+rebinding e sequestro de WebSocket não esperam o daemon sair do loopback — e `lumem --host 0.0.0.0`
+é um flag. Fase 1 é um dia; fase 2 é token em cookie, com a origem única que a distribution já deu;
+fase 3 é identidade por sessão, que fecha o ator "declarado, e ainda não provado".
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/daemon-auth/prd.md) | as três ameaças reais em ordem, o que fica de fora, F1–F4 e o que cada fase fecha |
+| [open-questions.md](prd/daemon-auth/open-questions.md) | 6 perguntas: fase 1 sozinha, cookie ou não, `Strict` ou `Lax`, token por sessão, `LUMEM_HOST` fora do loopback, onde o segredo vive |
+
+### [memory-dogfooding/](prd/memory-dogfooding/) — três semanas com a memória ligada
+
+Não é feature: é uso medido, no `lumem` instalado. Os seis números do `context-delivery.md` §6 nunca
+tiveram leitura, e o custo do auto-learn e da destilação não é gravado — o item *"O que o Lumem gasta
+sozinho"* do backlog, que sai de lá para a F1 daqui. Instrumenta o que falta,
+liga um interruptor por semana, e escreve a decisão antes do primeiro número: a memória ganha mais
+código, ou congela.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/memory-dogfooding/prd.md) | o que existe para medir e o que falta, o protocolo semana a semana, os critérios, o §7 vazio à espera do resultado |
+| [open-questions.md](prd/memory-dogfooding/open-questions.md) | 6 perguntas — as **U2–U4 são os critérios**, e têm que estar respondidas antes da semana 1 |
+| [journal.md](prd/memory-dogfooding/journal.md) | uma entrada por sexta: a saída do `report` e três linhas |
+
+### [second-agent/](prd/second-agent/) — o segundo agente
+
+O ACP foi escolhido por ser agnóstico e nada prova isso. Codex primeiro, pela mesma família de
+adaptador. Fase 0 é medição contra o adaptador real, como a `agent-login` fez; as cinco constantes de
+Claude viram um catálogo.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/second-agent/prd.md) | o que no código sabe que é Claude e o que já é genérico; as oito medições da fase 0; F1–F5 |
+| [open-questions.md](prd/second-agent/open-questions.md) | 6 perguntas: qual agente, instalado ou no PATH, onboarding pergunta ou não, consumo sem número, comparação, a semente PTY |
+
+### [workspace-tasks/](prd/workspace-tasks/) — tarefa como entidade
+
+O produto chama de tarefa uma coisa que não existe. Tarefa por workspace com projeto obrigatório,
+"trabalhar nesta tarefa" abre worktree e sessão com o composer pré-preenchido, o agente cria tarefa
+por `POST /tasks` e escrever para cima é proposta, `done` é humano, custo por tarefa de graça. Fila
+com lease fica no backlog.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/workspace-tasks/prd.md) | o modelo, as regras, F1–F6, e a tabela de **propostas** para as Q011–Q015 do projeto |
+| [open-questions.md](prd/workspace-tasks/open-questions.md) | 9 perguntas; a **T2** (tarefa sem projeto) e a **T4** (triagem junto com a inbox de memória) mudam o desenho |
 
 ---
 

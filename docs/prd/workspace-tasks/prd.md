@@ -10,9 +10,9 @@
 > **Depende de:** [workspace-screen](../workspace-screen/prd.md), entregue — é onde a lista mora.
 > **Fica melhor com:** a F4 do [daemon-auth](../daemon-auth/prd.md) (ator provado, para a F3) e o
 > [second-agent](../second-agent/prd.md) (com um agente, "quem pega" não é pergunta)
-> **Desenho:** cinco telas no Open Design (§8). A [pull-request-status](../pull-request-status/prd.md)
-> v0.2 muda a coluna do meio — **a primeira aba passa a ser a da worktree** —, e essa aba é o segundo
-> lugar natural da tarefa
+> **Desenho:** seis telas no Open Design (§8). A [worktree-first-tab](../worktree-first-tab/prd.md),
+> entregue em 2026-09-01, fez a coluna do meio ser caminho → abas → conteúdo, com **a worktree como
+> primeira aba** — e essa aba é o segundo lugar natural da tarefa
 
 ---
 
@@ -48,15 +48,15 @@ se chama "Nome da tarefa". Depois disso, o **nome da worktree** é o único rast
 |---|---|
 | `task.id` | UUID do daemon |
 | `task.workspace_id` | FK `RESTRICT` |
-| `task.project_id` | FK `RESTRICT`, **obrigatório** ([T2](open-questions.md)). Regra de repositório: o projeto pertence ao workspace |
+| `task.project_id` | FK, **obrigatório** ([T2](open-questions.md)). Regra de repositório: o projeto pertence ao workspace. Remover projeto por caminho **leva as tarefas junto** — só o registro, na mesma transação das worktrees, como a WS-Q22 decidiu ([T10](open-questions.md)) |
 | `task.title`, `task.body` | título; corpo em Markdown |
 | `task.status` | `CHECK`: `proposed`, `open`, `in_progress`, `review`, `done`, `dropped` |
 | `task.created_by` | `CHECK`: `human`, `agent` |
 | `task.created_by_session` | FK `session`, nula para `human` |
-| `task.worktree_id` | FK, nula até alguém trabalhar nela |
+| `task.worktree_id` | FK `ON DELETE SET NULL`, nula até alguém trabalhar nela. Remover a worktree não remove a tarefa: ela perde o checkout e fica no estado em que estava |
 | `task.links` | JSON: URLs — ClickUp, Jira, PR. **Referência por link**, e só (Q013) |
 | `task.reason` | por que foi `dropped`, quando foi |
-| `session.task_id` | FK nula. **Uma sessão pertence a no máximo uma tarefa**; uma tarefa tem N sessões. Vale para os três `kind` de hoje — `shell`, `agent` e o `script` da project-scripts |
+| `session.task_id` | FK nula, `ON DELETE SET NULL` — a sessão sobrevive à tarefa como já sobrevive à worktree. **Uma sessão pertence a no máximo uma tarefa**; uma tarefa tem N sessões. Vale para os três `kind` de hoje — `shell`, `agent` e o `script` da project-scripts |
 | carimbos | `created_at`, `updated_at`, `closed_at` |
 
 ### 3.2 As regras
@@ -172,7 +172,7 @@ você as confirmar em [open-questions.md](open-questions.md):
    pré-preenchido;
 4. a **triagem** de tarefa proposta — com a T4 respondida;
 5. a **proveniência**: quem criou, de qual sessão, e o selo de "proposta por agente" na lista;
-6. a **linha da tarefa na aba da worktree** que a pull-request-status desenhou: a worktree diz para
+6. a **linha da tarefa na aba da worktree** que a worktree-first-tab entregou: a worktree diz para
    qual tarefa existe, ao lado de branch e sujeira.
 
 ## 9. Fases
@@ -188,7 +188,7 @@ você as confirmar em [open-questions.md](open-questions.md):
 
 | Camada | Teste |
 |---|---|
-| repositório e router | integration: projeto de outro workspace → `INVALID_ARGUMENT`; `RESTRICT` ao remover projeto com tarefa; `remove` de tarefa com sessão → `BLOCKED`; transições permitidas por ator |
+| repositório e router | integration: projeto de outro workspace → `INVALID_ARGUMENT`; remover projeto por caminho leva as tarefas **na mesma transação** e a sessão ligada fica com `task_id` nulo; projeto clonado com worktree continua bloqueando antes de chegar às tarefas; `remove` de tarefa com sessão → `BLOCKED`; transições permitidas por ator |
 | observador | integration com agente falso: primeiro prompt de sessão ligada → `in_progress`; sessão sem tarefa → nada muda. **Mutação:** desligar o observador tem que derrubar um teste |
 | F3 | `app.inject`: mesmo projeto → `open`; outro projeto → `proposed`; orçamento esgotado → recusa com frase; projeto que não é do workspace → recusa. A skill contém o parágrafo, e o custo dele é asserido em caracteres |
 | e2e | (a) criar tarefa, trabalhar, composer pré-preenchido, enviar contra o agente falso, marcar `done`, custo aparece; (b) agente falso faz `POST /tasks` para outro projeto → aparece na triagem → aprovar → `open` no outro projeto. **Zero token** |

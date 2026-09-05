@@ -38,6 +38,7 @@ E o que **já é** genérico, e prova que a fronteira estava no lugar certo:
 | `session.createAgent(agentConfigId)`, `NewSessionMenu` | qualquer configuração vira sessão, e o menu lista todas |
 | `shared/acp-protocol.ts` | o fio para o browser não tem Claude nele — só o `rateLimit` opcional, "porque outro agente não vai mandar" |
 | `conversation-model.ts` | um fold sobre eventos do **nosso** vocabulário |
+| [session-mode](../session-mode/prd.md) | agente que **não relata modos** ganha a pílula do Lumem e a política dele — `perguntar tudo` por padrão. Um adaptador sem `configOptions` deixou de produzir um composer mudo, que era o primeiro defeito que um segundo agente ia mostrar |
 
 Hoje já dá para rodar Codex como `agent_config` de transporte `pty` — é o caminho alternativo que a
 decisão do ACP preservou. O que falta é a **conversa**.

@@ -40,7 +40,7 @@ Os seis números do §6, contra o código de hoje:
 |---|---|---|
 | tokens fixos por sessão (núcleo + skill) | evento `memory_core` na transcrição (`entries`, `chars`); `memory.core` dá a marca d'água **de agora** | somar por sessão ao longo do tempo: é evento, não linha |
 | chamadas ao `/memory/ask` por sessão — **o mais importante** | `memory_usage`, gravado só pelo caminho do agente (`record: true` com `session`) | uma query por sessão, com mediana |
-| custo e latência por pergunta, com e sem agente | latência: **nada**. Custo do agente do auto-learn e da destilação: **não é gravado** — `trackSessionUsage` resolve o escopo pela linha da sessão (`usage/record.ts`, `scopeOf` devolve `null` sem linha), e `capture.ts` e `auto-learn.ts` sobem agente **sem linha** | gravar o consumo dessas sessões, com o **propósito** marcado |
+| custo e latência por pergunta, com e sem agente | latência: **nada**. Custo do agente do auto-learn e da destilação: **não é gravado** — `trackSessionUsage` resolve o escopo pela linha da sessão (`usage/record.ts`, `scopeOf` devolve `null` sem linha), e `capture.ts` e `auto-learn.ts` sobem agente **sem linha**. O backlog já nomeia isto — *"O que o Lumem gasta sozinho"* — e dá a razão: atribuir a um projeto seria contar como trabalho seu o que o sistema fez sozinho | gravar o consumo dessas sessões, com o **propósito** marcado — o que preserva a razão |
 | "não sei" ÷ perguntas | o `http.ts` sabe em qual ramo caiu; **a verificar** se o `memory_usage` distingue acerto de vazio | provavelmente uma coluna |
 | memórias criadas por auto-learn ÷ total | `provenance.source_actor` e `proposed_by` em cada entrada; o WAL `memory_decision` | uma query |
 | sessões que escreveram ÷ sessões | `memory_decision` × `session` | uma query |
@@ -55,8 +55,10 @@ crescimento do núcleo (`recentChars` já existe).
 
 `session_usage` ganha `purpose` (`user` | `distill` | `auto_learn`), e as sessões que o próprio daemon
 sobe passam a ser gravadas — projeto e worktree herdados da sessão que as originou, nulos quando não
-há. Sem isto, *"quanto custa a memória?"* não tem resposta — e custo é a primeira pergunta de quem
-liga um interruptor.
+há. É o item *"O que o Lumem gasta sozinho"* do backlog, que sai de lá para cá; e `purpose` é o que
+preserva a razão dele: o consumo interno **não se mistura** ao do projeto, então a tela do workspace
+continua dizendo só o que **você** gastou. Sem isto, *"quanto custa a memória?"* não tem resposta — e
+custo é a primeira pergunta de quem liga um interruptor.
 
 ### F2 — `memory report`
 

@@ -353,17 +353,13 @@ só multiplica por N.
 **De onde veio:** a review da PR de remover projeto · **Volta quando:** o diretório de transcrições
 crescer sem explicação, ou a primeira consulta precisar varrer órfão.
 
-### O que o Lumem gasta sozinho — `P`
+### ~~O que o Lumem gasta sozinho~~ — virou a F1 da memory-dogfooding, em 2026-09-05
 
-A destilação de fim de sessão e o agente de pesquisa do auto-learn sobem sessões ACP **sem linha no
-banco**, de propósito. Como consequência, o consumo delas não é cobrado de projeto nenhum: atribuir a
-um projeto seria contar como trabalho seu algo que o sistema fez por conta própria.
-
-Isso deixa uma pergunta sem resposta: **quanto o Lumem gasta sozinho.** Hoje os dois interruptores
-vêm desligados, então a resposta é zero — quando alguém ligar, ela deixa de ser.
-
-**De onde veio:** `usage/record.ts`, a decisão U4 da [tela do workspace](../prd/workspace-screen/tasks.md) ·
-**Volta quando:** o primeiro interruptor de token for ligado por mais de um dia.
+O gatilho — *"o primeiro interruptor de token ligado por mais de um dia"* — é exatamente o protocolo
+da [memory-dogfooding](../prd/memory-dogfooding/prd.md). A F1 dela grava o consumo dessas sessões com
+um `purpose` (`distill`, `auto_learn`) **separado** do consumo do usuário, o que preserva a razão de
+não gravar: nada disso é contado como trabalho seu. **De onde veio:** `usage/record.ts`, a decisão U4
+da [tela do workspace](../prd/workspace-screen/tasks.md).
 
 ### A árvore da sidebar não é uma árvore para quem usa leitor de tela — `P`
 

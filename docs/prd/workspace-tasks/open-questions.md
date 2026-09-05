@@ -10,8 +10,8 @@ aqui, com o motivo. As respostas daqui **alimentam** as Q011–Q015 do
 **Decisão:**. Cada pergunta traz uma **proposta pra reagir** — discordar dela é mais rápido que
 escrever do zero.
 
-**Estado:** 9 perguntas · **0 respondidas**. A **T2** e a **T4** mudam o desenho; as outras mudam
-detalhe.
+**Estado:** 10 perguntas · **0 respondidas**. A **T2** e a **T4** mudam o desenho; a **T10** herda
+uma decisão já tomada; as outras mudam detalhe.
 
 ---
 
@@ -120,5 +120,21 @@ agente vai dizer que tentou.
 **Proposta pra reagir:** só humano. `done` fecha custo, fecha worktree como candidata a remoção, e
 alimenta "o que este workspace fez". Um agente que se declara pronto está em `review`, que é a palavra
 certa para o que ele sabe.
+
+**R:**
+
+---
+
+### [ ] T10 — Remover projeto leva as tarefas junto?
+
+A [WS-Q22](../walking-skeleton/open-questions.md) decidiu, em 2026-09-01, que remover projeto **por
+caminho** cascateia o registro das worktrees numa transação, sem tocar no disco, e com uma confirmação
+que nomeia o número. Tarefa é registro puro — não tem diretório para preservar.
+
+**Proposta pra reagir:** vai junto, na mesma transação, e a confirmação passa a nomear as duas contas
+(*"e o registro de 3 worktrees e 5 tarefas?"*). `RESTRICT` aqui repetiria o bug que a WS-Q22
+consertou: todo projeto real teria tarefa, e o botão voltaria a não funcionar. `session.task_id` fica
+nulo, como a sessão já sobrevive à worktree. No projeto clonado a worktree bloqueia antes, então a
+pergunta nem chega às tarefas.
 
 **R:**

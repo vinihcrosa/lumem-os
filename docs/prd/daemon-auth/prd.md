@@ -53,7 +53,9 @@ O daemon recebe `Host: evil.example:4317`. **Conferir `Host` é a única defesa*
 WebSocket não obedece CORS. Qualquer página pode abrir `ws://127.0.0.1:4317/acp?session=<id>` e, se
 souber o id, ler a transcrição inteira no `attached` e mandar `prompt`. Hoje o id é um UUID que não
 aparece em URL nenhuma — mitigação real, mas por acidente de o cliente não ter roteador. Conferir
-`Origin` fecha isto independentemente do id.
+`Origin` fecha isto independentemente do id. E a conta subiu com a
+[session-mode](../session-mode/prd.md): uma sessão em `liberado` executa sem perguntar, então um socket
+sequestrado nela é um agente fazendo o que o atacante mandar no `prompt`.
 
 ### 2.3 Efeito colateral por `GET`
 
