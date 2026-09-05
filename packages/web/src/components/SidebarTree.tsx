@@ -336,7 +336,12 @@ function WorktreeNode({
           // O marcador da PR ganha do resto: ele é o que responde "qual está
           // pronta", e é o único sinal de PR que sobrevive ao painel fechado.
           // O nome da worktree trunca antes de ele sair (F3.1).
-          mark !== undefined ? (
+          //
+          // Menos quando a worktree **sumiu do disco**. Aí a palavra `ausente`
+          // ganha: a F7.4 da `walking-skeleton` diz que ela fica visível e diz
+          // que sumiu, e trocar isso por `● #19` seria o marcador apagando o
+          // motivo pelo qual a linha ainda existe.
+          mark !== undefined && !missing ? (
             <PrMarkView mark={mark} />
           ) : (
             (worktreeMeta(worktree) ??

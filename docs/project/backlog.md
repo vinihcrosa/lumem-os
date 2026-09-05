@@ -224,8 +224,6 @@ O que **ficou** de fora, e portanto continua aqui:
 | Notificação quando a PR fica verde ou quebra | `M` | tentador e barato de errar: exige política de ruído, senão vira o alerta que se aprende a ignorar | as oito worktrees em paralelo existirem de verdade no dia a dia |
 | "O check quebrou, peça ao agente para consertar" | `M` | a ponte entre a barra e a sessão ACP. É a ideia mais valiosa da lista e a mais perigosa: põe texto da internet dentro de um prompt (§4.7 do PRD) | ter um portão desenhado para texto de fora virar instrução |
 | A aba `Review` — threads, comentários inline, sugestões | `L` | é outra feature inteira, e sempre foi | depois do segundo host |
-| Notificação quando a PR fica verde ou quebra | `P` | tentador e barato de errar: exige política de ruído | você se pegar olhando a sidebar de minuto em minuto |
-| "O check quebrou, peça ao agente para consertar" | `M` | a ponte entre a barra e a sessão ACP — e a mais perigosa, porque põe texto da internet dentro de um prompt | o §4.7 do PRD ganhar um portão de verdade |
 
 ### Worktree de projeto removido não pode ser recriada — `P`
 

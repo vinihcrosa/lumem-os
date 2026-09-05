@@ -92,6 +92,15 @@ export interface PrCacheOptions {
   host: PrHost;
   /** Injetado para o teste poder envelhecer o cache sem esperar um minuto. */
   now?: () => number;
+  /**
+   * Chamado quando uma leitura renova com **dado diferente** (F6.3).
+   *
+   * "Diferente", e não "renovou": o poll acontece de minuto em minuto e quase
+   * sempre traz o mesmo instantâneo. Um aviso por leitura faria a tela
+   * redesenhar por nada — e um aviso por mudança é o que faz um merge feito em
+   * outra aba aparecer nesta sem esperar o relógio.
+   */
+  onChange?: (projectId: string) => void;
 }
 
 export interface PrCache {
@@ -111,7 +120,11 @@ export interface PrCache {
   readonly reads: number;
 }
 
-export function createPrCache({ host, now = () => Date.now() }: PrCacheOptions): PrCache {
+export function createPrCache({
+  host,
+  now = () => Date.now(),
+  onChange,
+}: PrCacheOptions): PrCache {
   const slots = new Map<string, Slot>();
   let reads = 0;
 
@@ -161,10 +174,17 @@ export function createPrCache({ host, now = () => Date.now() }: PrCacheOptions):
       const read = await host.read({ repoPath: project.path, remoteUrl: project.remoteUrl });
 
       if (read.ok) {
+        // Comparado **antes** de guardar, e sem o carimbo de leitura: o
+        // `readAt` muda em toda leitura, e compará-lo transformaria "mudou" em
+        // "aconteceu", que é o oposto do que a F6.3 pede.
+        const changed = digestOf(slot.snapshot) !== digestOf(read.snapshot);
+
         slot.snapshot = read.snapshot;
         slot.failure = null;
         slot.readAt = read.snapshot.readAt;
         slot.failures = 0;
+
+        if (changed) onChange?.(project.id);
       } else {
         // O último valor **fica**. A tela mostra a cor que ele tinha e a idade
         // dizendo a verdade sobre quando ela foi lida.
@@ -244,4 +264,16 @@ export function createPrCache({ host, now = () => Date.now() }: PrCacheOptions):
       return reads;
     },
   };
+}
+
+/**
+ * O que, mudando, a tela precisa saber.
+ *
+ * Tudo menos o `readAt`: ele muda em **toda** leitura, e incluí-lo faria
+ * "mudou" querer dizer "aconteceu" — que é o oposto do que a F6.3 pede.
+ */
+function digestOf(snapshot: PrSnapshot | null): string {
+  if (snapshot === null) return "";
+  const { readAt: _ignored, ...rest } = snapshot;
+  return JSON.stringify(rest);
 }

@@ -1,4 +1,10 @@
+import { rmSync } from "node:fs";
+
+import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
+
+import { worktree as worktreeTable } from "../db/schema.js";
+import { createProjectRepository } from "../repositories/project.js";
 
 import type { PrHost, PrRead, PrSnapshot, PrWrite } from "../pr/PrHost.js";
 import type { GhCheck, GhPullRequest } from "../pr/verdict.js";
@@ -269,6 +275,40 @@ describe("pr.getByWorktree", () => {
 
     await expect(ctx.api.pr.getByWorktree({ worktreeId: "wt_nada" })).rejects.toThrow(/não existe/);
   });
+
+  it("worktree sem diretório é recusada aqui, e não lá embaixo", async () => {
+    // O mesmo motivo do `resolveScope`: um checkout que saiu do disco tem de
+    // ser recusado com uma frase, e não virar um erro do `gh` que ninguém
+    // traduziu.
+    const { ctx, projectId } = await setup();
+    const sumida = await ctx.api.worktree.create({ projectId, name: "sumida" });
+
+    // O disco some, e o estado é escrito como a reconciliação do boot escreve.
+    rmSync(sumida.path, { recursive: true, force: true });
+    await ctx.ctx.db
+      .update(worktreeTable)
+      .set({ state: "missing" })
+      .where(eq(worktreeTable.id, sumida.id));
+
+    await expect(ctx.api.pr.getByWorktree({ worktreeId: sumida.id })).rejects.toThrow(
+      /não está no disco/,
+    );
+  });
+
+  it("o host é descoberto do git quando o banco não sabe", async () => {
+    /*
+     * `remote_url` só é gravado para projeto que o Lumem **clonou**. Projeto
+     * adicionado por caminho — a maioria — nasce com ele nulo, e confiar no
+     * banco fazia a barra dizer "sem integração" para um repositório do GitHub
+     * inteiramente comum. Foi o e2e que achou; este teste é para não voltar sem
+     * o e2e.
+     */
+    const { ctx, projectId, worktreeId } = await setup();
+    const project = await createProjectRepository(ctx.ctx.db).findById(projectId);
+
+    expect(project?.remoteUrl).toBeNull();
+    expect((await ctx.api.pr.getByWorktree({ worktreeId })).host).toBe(HOST);
+  });
 });
 
 describe("pr.listByProject", () => {
@@ -413,7 +453,51 @@ describe("pr.merge — o portão é o veredito, e ele é relido aqui", () => {
   });
 });
 
+describe("pr.draft — o formulário propõe, e não decide (Q4, F7.6)", () => {
+  it("o título proposto é o assunto do último commit da branch", async () => {
+    const { ctx, worktreeId, repo } = await setup([]);
+    await runGit(repo, "commit", "--allow-empty", "-m", "feat: o que esta branch faz");
+
+    const draft = await ctx.api.pr.draft({ worktreeId });
+
+    // A worktree é um checkout do commit em que foi criada — o commit novo é do
+    // repositório, não dela. O que o teste prova é que a procedure lê o `git
+    // log` do **checkout** e não uma constante.
+    expect(draft.base).toBe("main");
+    expect(draft.head).toBe("teste");
+    expect(draft.title).not.toBe("");
+  });
+
+  it("checkout sem commit nenhum devolve título vazio, e não um erro", async () => {
+    const { ctx, worktreeId } = await setup([]);
+
+    expect(typeof (await ctx.api.pr.draft({ worktreeId })).title).toBe("string");
+  });
+
+  it("a base e a head vêm do daemon, como no `create`", async () => {
+    const { ctx, worktreeId } = await setup([]);
+    const draft = await ctx.api.pr.draft({ worktreeId });
+
+    expect(draft).toMatchObject({ base: "main", head: "teste" });
+  });
+});
+
 describe("pr.create", () => {
+  it("depois de criar, a próxima leitura vai ao host (F7.8)", async () => {
+    // Sem isto, a barra continuaria dizendo "sem pull request" por até um
+    // minuto depois de a PR existir — e a pessoa clicaria de novo.
+    const { ctx, worktreeId, repo, host } = await setup([]);
+    await publish(repo, "teste");
+
+    await ctx.api.pr.getByWorktree({ worktreeId });
+    const before = host.reads;
+
+    await ctx.api.pr.create({ worktreeId, title: "t", body: "", draft: false });
+    await ctx.api.pr.getByWorktree({ worktreeId });
+
+    expect(host.reads).toBeGreaterThan(before);
+  });
+
   it("cria com base e head vindas do daemon, e título vindo da tela", async () => {
     const { ctx, worktreeId, repo, host } = await setup([]);
     await publish(repo, "teste");

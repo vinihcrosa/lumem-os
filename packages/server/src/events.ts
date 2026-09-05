@@ -11,6 +11,16 @@ export type LumemEvent =
   | { type: "workspace.changed" }
   | { type: "project.changed"; workspaceId: string }
   | { type: "worktree.changed"; projectId: string }
+  /**
+   * O estado das pull requests deste projeto mudou (pull-request-status F6.3).
+   *
+   * Emitido quando a leitura do host **renova com dado diferente** — e não a
+   * cada renovação: o poll acontece de minuto em minuto e quase sempre traz o
+   * mesmo instantâneo, e um evento por leitura seria a tela redesenhando por
+   * nada. Ele existe para a barra não depender só do relógio dela, que é o que
+   * faz um merge feito em outra aba aparecer nesta.
+   */
+  | { type: "pr.changed"; projectId: string }
   | { type: "session.changed"; scopeType: "project" | "worktree"; scopeId: string };
 
 const CHANNEL = "lumem";

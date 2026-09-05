@@ -1,4 +1,5 @@
 import type {
+  PrDraft,
   PrFailureView,
   PrMark,
   PrMergeStrategy,
@@ -188,9 +189,33 @@ export const prRouter = router({
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
         const checkout = await checkoutOf(ctx, input.worktreeId);
+
+        /*
+         * Reler de verdade, e não olhar o que estava guardado.
+         *
+         * O `PrCache` faz duas coisas certas para a barra e erradas para um
+         * merge: dentro do TTL ele **não vai ao host**, e uma leitura que falha
+         * **preserva o instantâneo anterior** — é o que faz "verde velho
+         * continua verde" ser honesto numa tela. Num portão, os dois viram a
+         * mesma frase da tabela de riscos do §6 do PRD: *cache velho pintado de
+         * verde manda mesclar*.
+         *
+         * O CI reprova às 12:00:20 e a rede cai junto; a revalidação falha e o
+         * verde de 12:00:00 fica no cache por até dez minutos de backoff. Sem
+         * este `invalidate`, o clique das 12:03 escreveria a partir dele.
+         */
+        ctx.pr.invalidate(checkout.project.id);
         const entry = await ctx.pr.get(checkout.project);
         const snapshot = entry.snapshot;
 
+        if (entry.failure !== null) {
+          // Não saber é motivo para recusar. Um merge é irreversível para o
+          // time inteiro, e "provavelmente ainda está verde" não é um estado.
+          throw new DomainError(
+            "BLOCKED",
+            `não deu para confirmar o estado da pull request: ${entry.failure.message}`,
+          );
+        }
         if (snapshot === null) {
           throw new DomainError("BLOCKED", "não deu para ler o estado da pull request");
         }
@@ -234,6 +259,25 @@ export const prRouter = router({
         return { number: view.number };
       }),
     ),
+
+  /**
+   * O que o formulário propõe, e por que ele não é um campo do `PrStatus`.
+   *
+   * A [Q4](../../../../docs/prd/pull-request-status/open-questions.md) e a F7.6
+   * pedem título vindo do assunto do último commit. Isso custa um `git log`, e
+   * só interessa quando o formulário abre — dentro do `PrStatus` seria um
+   * processo git a cada ciclo de poll, por worktree aberta.
+   */
+  draft: publicProcedure.input(worktreeInput).query(({ ctx, input }) =>
+    domainSafeAsync(async (): Promise<PrDraft> => {
+      const checkout = await checkoutOf(ctx, input.worktreeId);
+      return {
+        title: (await ctx.git.getSubject(checkout.cwd)) ?? "",
+        base: checkout.base,
+        head: checkout.branch,
+      };
+    }),
+  ),
 
   /**
    * F7 — criar.

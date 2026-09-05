@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { parseGitUrl } from "../git/git-url.js";
 import { classify, execGh, type GhExec, type PrFailure } from "./exec.js";
+import { safeUrl } from "./url.js";
 import type {
   MergeOptions,
   PrCreateInput,
@@ -269,8 +270,13 @@ export function createGhHost({ exec = execGh, limit = DEFAULT_LIMIT }: GhHostOpt
         const result = await run(args, input.repoPath);
         if (!result.ok) return { ok: false, failure: createFailure(result.failure) };
 
-        // O `gh pr create` imprime a URL da PR criada na última linha.
-        return { ok: true, url: result.stdout.trim().split("\n").at(-1)?.trim() ?? "" };
+        // O `gh pr create` imprime a URL da PR criada na última linha — e ela
+        // passa pela **mesma porta** que todas as outras (§4.6). Ninguém a usa
+        // hoje, o que é justamente o motivo de ela poder sair errada em
+        // silêncio: campo de URL não validado é campo que uma tela futura vai
+        // tratar como validado.
+        const printed = result.stdout.trim().split("\n").at(-1)?.trim() ?? "";
+        return { ok: true, url: safeUrl(printed, host) ?? "" };
       } finally {
         await rm(dir, { recursive: true, force: true });
       }

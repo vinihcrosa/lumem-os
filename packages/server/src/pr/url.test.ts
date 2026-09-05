@@ -86,6 +86,16 @@ describe("compareUrl", () => {
     expect(compareUrl({ host: HOST, repo: "exemplo/repo", base: "", head: "x" })).toBeNull();
   });
 
+  it("host que não é do remote não vira URL de comparação", () => {
+    // A segunda porta existe de propósito: a URL que o daemon **monta** obedece
+    // a mesma regra que a URL que ele recebeu. Sem ela, um host malformado
+    // atravessaria só porque fomos nós que concatenamos — e a bateria de
+    // mutação mostrou que nada exercitava isso.
+    expect(
+      compareUrl({ host: "exemplo.com/@github.com", repo: "a/b", base: "main", head: "x" }),
+    ).toBeNull();
+  });
+
   it("passa pela mesma porta que o resto", () => {
     // A URL que o daemon monta obedece a mesma regra que a URL que ele recebeu.
     // Um `repo` estranho vindo do `gh` não sai daqui como link só porque fomos

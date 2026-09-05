@@ -119,7 +119,10 @@ export function createTestCaller(
    * dublê que ninguém pediu.
    */
   const prHost = overrides.prHost ?? createGhHost();
-  const prCache: PrCache = createPrCache({ host: prHost });
+  const prCache: PrCache = createPrCache({
+    host: prHost,
+    onChange: (projectId) => events.emit({ type: "pr.changed", projectId }),
+  });
 
   const ctx: Context = {
     config,

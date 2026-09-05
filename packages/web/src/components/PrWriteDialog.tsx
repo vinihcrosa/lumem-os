@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { PrMergeStrategy, PrStatus } from "@lumem/shared";
 
+import { usePrDraft } from "../hooks/usePullRequest.js";
 import { trpc } from "../lib/trpc.js";
 import { Button, Field, Input } from "../ui/index.js";
 
@@ -189,9 +190,22 @@ function MergeForm({ status, worktreeId, onClose, cancelRef }: FormProps) {
 
 function CreateForm({ status, worktreeId, onClose, cancelRef }: FormProps) {
   const invalidate = useInvalidate(worktreeId);
-  // F7.6: o formulário **propõe** e não decide. Reviewers, labels e template
-  // ficam no host, atrás do `↗` — aquela tela é boa, e o Lumem não a refaz.
-  const [title, setTitle] = useState("");
+  /*
+   * F7.6 e a [Q4]: o formulário **propõe** e não decide.
+   *
+   * O título nasce do assunto do último commit da branch — que o git já sabe, e
+   * que é melhor ponto de partida que um campo vazio —, e o corpo nasce vazio.
+   * Reviewers, labels e template ficam no host, atrás do `↗`: aquela tela é boa,
+   * e o Lumem não a refaz.
+   *
+   * `null` enquanto o daemon não respondeu, e não `""`: os dois desenham um
+   * campo vazio, mas só o `null` sabe que ainda vai chegar proposta. Sem essa
+   * diferença, a sugestão sobrescreveria o que a pessoa já começou a digitar.
+   */
+  const proposed = usePrDraft(worktreeId);
+  const [typed, setTyped] = useState<string | null>(null);
+  const title = typed ?? proposed.data?.title ?? "";
+  const setTitle = setTyped;
   const [body, setBody] = useState("");
   const [draft, setDraft] = useState(false);
 

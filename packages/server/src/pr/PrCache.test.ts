@@ -390,6 +390,69 @@ describe("um pedido explícito espera pela resposta", () => {
     expect((await cache.get(PROJECT)).readAt).toBe("2026-09-05T12:00:30Z");
   });
 
+  it("o pedido é servido UMA vez — o forçado não fica ligado para sempre", async () => {
+    /*
+     * A mutação que sobrevivia: apagar a marcação de "servido".
+     *
+     * Sem ela, `want > served` nunca mais fecha, e a partir de **um** clique no
+     * `⟳` todo `get` de toda worktree do projeto vira execução do `gh` — para
+     * sempre. É a F4.5 inteira desligada, e é o "tempestade de processos" do §6
+     * do PRD acontecendo em silêncio: nada quebra, só custa.
+     */
+    const { host, calls } = scriptedHost(() => ({
+      ok: true,
+      snapshot: snapshot([pull()], "2026-09-05T12:00:00Z"),
+    }));
+    const time = clock();
+    const cache = createPrCache({ host, now: time.now });
+
+    await cache.get(PROJECT);
+    cache.invalidate(PROJECT.id);
+    await cache.get(PROJECT);
+    expect(calls()).toBe(2);
+
+    // A terceira está dentro do TTL de novo, e não pode executar.
+    await cache.get(PROJECT);
+    await cache.get(PROJECT);
+    expect(calls()).toBe(2);
+  });
+
+  it("invalidar devolve o ritmo normal, e não o backoff dobrado", async () => {
+    /*
+     * Existe um teste chamado "invalidar … e limpa o backoff", e ele **não**
+     * provava a segunda metade: o caminho forçado ignora `freshUntil`, então
+     * ele nunca observava o intervalo. Este observa — pela leitura **seguinte**
+     * à forçada, que é onde o backoff apareceria.
+     */
+    let fail = true;
+    const { host, calls } = scriptedHost(() =>
+      fail
+        ? { ok: false as const, failure: { kind: "offline" as const, message: "sem rede" } }
+        : { ok: true as const, snapshot: snapshot([pull()], "2026-09-05T12:00:00Z") },
+    );
+    const time = clock();
+    const cache = createPrCache({ host, now: time.now });
+
+    // Duas falhas seguidas: o intervalo já é o dobro do normal.
+    await cache.get(PROJECT);
+    time.advance(BACKOFF_START_MS + 1);
+    await cache.get(PROJECT);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(calls()).toBe(2);
+
+    fail = false;
+    cache.invalidate(PROJECT.id);
+    await cache.get(PROJECT);
+    expect(calls()).toBe(3);
+
+    // Depois de voltar a responder, o TTL é o normal — e não o dobrado que a
+    // segunda falha havia deixado.
+    time.advance(TTL_IDLE_MS + 1);
+    await cache.get(PROJECT);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(calls()).toBe(4);
+  });
+
   it("um pedido forçado continua sendo uma execução só, por mais gente que peça", async () => {
     const { host, calls } = scriptedHost(() => ({
       ok: true,
@@ -445,5 +508,73 @@ describe("a corrida que o e2e achou", () => {
     // O pedido espera a execução velha terminar e faz outra. Sem isso ele
     // receberia `12:00:00` com cara de recém-lido.
     expect((await pedido).readAt).toBe("2026-09-05T12:05:00Z");
+  });
+});
+
+describe("o aviso de que o dado mudou (F6.3)", () => {
+  function watching(script: () => PrRead) {
+    const changed: string[] = [];
+    const { host, calls } = scriptedHost(script);
+    const time = clock();
+    const cache = createPrCache({ host, now: time.now, onChange: (id) => changed.push(id) });
+    return { cache, changed, calls, time };
+  }
+
+  it("avisa quando a leitura traz dado diferente", async () => {
+    let numero = 19;
+    const { cache, changed, time } = watching(() => ({
+      ok: true,
+      snapshot: snapshot([pull({ number: numero })], "2026-09-05T12:00:00Z"),
+    }));
+
+    await cache.get(PROJECT);
+    expect(changed).toEqual([PROJECT.id]);
+
+    numero = 21;
+    cache.invalidate(PROJECT.id);
+    await cache.get(PROJECT);
+
+    expect(changed).toEqual([PROJECT.id, PROJECT.id]);
+  });
+
+  it("**não** avisa quando a leitura traz o mesmo — nem quando só o carimbo muda", async () => {
+    /*
+     * É a metade que importa. O poll acontece de minuto em minuto e quase
+     * sempre traz o mesmo instantâneo; um aviso por leitura faria a tela
+     * redesenhar por nada, e o `readAt` muda em **toda** leitura — compará-lo
+     * transformaria "mudou" em "aconteceu".
+     */
+    let readAt = "2026-09-05T12:00:00Z";
+    const { cache, changed, time } = watching(() => ({
+      ok: true,
+      snapshot: snapshot([pull()], readAt),
+    }));
+
+    await cache.get(PROJECT);
+    expect(changed).toHaveLength(1);
+
+    readAt = "2026-09-05T12:01:00Z";
+    time.advance(TTL_IDLE_MS + 1);
+    await cache.get(PROJECT);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(changed).toHaveLength(1);
+  });
+
+  it("falha não avisa: nada mudou do que se sabia", async () => {
+    let fail = false;
+    const { cache, changed, time } = watching(() =>
+      fail
+        ? { ok: false as const, failure: { kind: "offline" as const, message: "sem rede" } }
+        : { ok: true as const, snapshot: snapshot([pull()], "2026-09-05T12:00:00Z") },
+    );
+
+    await cache.get(PROJECT);
+    fail = true;
+    time.advance(TTL_IDLE_MS + 1);
+    await cache.get(PROJECT);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(changed).toHaveLength(1);
   });
 });

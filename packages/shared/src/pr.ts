@@ -149,6 +149,26 @@ export interface PrStatus {
   merge: PrMergeOptions;
 }
 
+/**
+ * O que o formulário de criar pull request **propõe**.
+ *
+ * A [Q4](../../../docs/prd/pull-request-status/open-questions.md) decidiu que
+ * ele propõe e não decide: o título nasce do assunto do último commit da
+ * branch, e o corpo nasce vazio. PR sem título pensado é PR que alguém vai ter
+ * de editar, e o título que o git já sabe é melhor ponto de partida que um
+ * campo vazio.
+ *
+ * Uma consulta própria, e não um campo do `PrStatus`: ela custa um `git log` e
+ * só interessa quando o formulário abre. No `PrStatus` seria um processo git a
+ * cada ciclo de poll, por worktree.
+ */
+export interface PrDraft {
+  /** `""` quando o checkout não tem commit — e aí o campo abre vazio mesmo. */
+  title: string;
+  base: string;
+  head: string;
+}
+
 /** O marcador da sidebar, por worktree. Sai do **mesmo** cache da barra (F3.3). */
 export interface PrMark {
   worktreeId: string;

@@ -128,7 +128,12 @@ export async function createServer({
   git = createGitService(),
   clones = createCloneJobStore(),
   prHost = createGhHost(),
-  pr = createPrCache({ host: prHost }),
+  pr = createPrCache({
+    host: prHost,
+    // F6.3: a barra não depende só do relógio dela. É o que faz um merge feito
+    // noutra aba aparecer nesta sem esperar o próximo ciclo.
+    onChange: (projectId) => events.emit({ type: "pr.changed", projectId }),
+  }),
   logger = false,
 }: CreateServerOptions): Promise<FastifyInstance> {
   const app = Fastify({

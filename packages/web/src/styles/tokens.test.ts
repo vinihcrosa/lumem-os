@@ -43,11 +43,15 @@ describe("contraste", () => {
     ).toEqual([]);
   });
 
-  it("mede pelo menos 71 pares", () => {
+  it("mede pelo menos 119 pares", () => {
     // Piso, não número exato: acrescentar par não pode falhar isto, e **apagar** par
-    // para calar uma reprovação tem de falhar. Subiu de 59 para 71 com a barra da
-    // pull request, que não trouxe token novo e trouxe doze combinações novas.
-    expect(CONTRAST_PAIRS.length).toBeGreaterThanOrEqual(71);
+    // para calar uma reprovação tem de falhar.
+    //
+    // O piso tem de acompanhar a lista. Ele ficou em `59` enquanto o array
+    // crescia para `107`, e a barra da PR o levou para `71` (59+12) — o que
+    // deixava **quarenta e oito** pares apagáveis em silêncio. Quem acrescentar
+    // par sobe este número junto; é uma linha, e é o que faz a guarda existir.
+    expect(CONTRAST_PAIRS.length).toBeGreaterThanOrEqual(119);
   });
 
   it("aponta só para token que existe", () => {

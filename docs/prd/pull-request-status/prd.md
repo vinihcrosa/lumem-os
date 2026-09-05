@@ -150,7 +150,11 @@ arquivo (§8).
 
 **Zero token novo.** Os estados caem em cima das rampas semânticas que já existem (`success`,
 `danger`, `warning`, `brand`, `neutral`). O que a feature acrescenta à verificação de contraste são
-**pares** — combinações que ninguém tinha usado ainda, e que já foram medidas:
+**pares** — combinações que ninguém tinha usado ainda.
+
+O desenho previu cinco; a implementação acrescentou **doze**, e a diferença tem motivo: o motivo e a
+idade são texto **secundário e terciário sobre a faixa colorida**, e os pares antigos só mediam esses
+tons sobre a superfície. Os cinco previstos:
 
 | Par | Razão | Mínimo |
 |---|---|---|

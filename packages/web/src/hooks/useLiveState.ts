@@ -15,6 +15,7 @@ export type LumemEvent =
   | { type: "workspace.changed" }
   | { type: "project.changed"; workspaceId: string }
   | { type: "worktree.changed"; projectId: string }
+  | { type: "pr.changed"; projectId: string }
   | { type: "session.changed"; scopeType: "project" | "worktree"; scopeId: string };
 
 export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void {
@@ -33,6 +34,12 @@ export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void
       // watcher of its own (Q6), so every signal the daemon does send counts.
       void queryClient.invalidateQueries({ queryKey: ["files"] });
       void queryClient.invalidateQueries({ queryKey: ["changes"] });
+      return;
+    case "pr.changed":
+      // A barra e o marcador da sidebar saem do mesmo cache do daemon, e o
+      // evento é por projeto: invalidar `["pr"]` inteiro é o que impede os dois
+      // de discordarem por um ciclo.
+      void queryClient.invalidateQueries({ queryKey: ["pr"] });
       return;
     case "session.changed":
       void queryClient.invalidateQueries({

@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import type { PrMark, PrStatus } from "@lumem/shared";
+import type { PrDraft, PrMark, PrStatus } from "@lumem/shared";
 
-import { prMarksKey, prStatusKey } from "../lib/queryKeys.js";
+import { prDraftKey, prMarksKey, prStatusKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 
 /**
@@ -117,6 +117,23 @@ export function usePrMarks(projectId: string | null): UseQueryResult<PrMark[]> {
     enabled: projectId !== null,
     refetchInterval: () => (visible ? POLL_IDLE_MS : false),
     placeholderData: (previous) => previous,
+  });
+}
+
+/**
+ * O que o formulário de criar **propõe** (Q4, F7.6).
+ *
+ * Consultado quando o formulário abre, e não junto com a barra: ele custa um
+ * `git log`, e dentro do `PrStatus` seria um processo git por ciclo de poll,
+ * por worktree aberta. `staleTime` infinito porque o assunto do último commit
+ * não muda enquanto o diálogo está na tela.
+ */
+export function usePrDraft(worktreeId: string | null): UseQueryResult<PrDraft> {
+  return useQuery<PrDraft>({
+    queryKey: prDraftKey(worktreeId ?? "-"),
+    queryFn: () => trpc.pr.draft.query({ worktreeId: worktreeId! }),
+    enabled: worktreeId !== null,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 }
 

@@ -28,6 +28,15 @@ export const GH_MAX_BUFFER = 8 * 1024 * 1024;
 export interface GhExecOptions {
   cwd: string;
   timeoutMs?: number;
+  /**
+   * Qual binário executar. `gh`, sempre — menos no teste do próprio contorno.
+   *
+   * Existe porque timeout e `maxBuffer` são `Done when` da P2 e não tinham
+   * guarda: apagar as duas opções deixava a suíte verde. Exercitá-las precisa
+   * de um processo que trave e de um que fale demais, e nenhum dos dois pode
+   * ser o `gh` de verdade.
+   */
+  bin?: string;
 }
 
 /** O que aconteceu, sem julgamento: quem julga é o `classify`. */
@@ -52,10 +61,10 @@ export type GhExec = (args: readonly string[], options: GhExecOptions) => Promis
  * chamador a repetir a mesma tradução, e é assim que duas telas passam a dizer
  * coisas diferentes sobre a mesma falha.
  */
-export const execGh: GhExec = (args, { cwd, timeoutMs = DEFAULT_GH_TIMEOUT_MS }) =>
+export const execGh: GhExec = (args, { cwd, timeoutMs = DEFAULT_GH_TIMEOUT_MS, bin = "gh" }) =>
   new Promise((resolve) => {
     execFile(
-      "gh",
+      bin,
       [...args],
       {
         cwd,

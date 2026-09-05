@@ -205,7 +205,9 @@ none | draft | merged | closed` mais a `reason`.
       teste de uma URL de outro host sendo recusada
 - [x] Worktree cuja branch não tem PR responde `none` — resposta, não erro
 - [x] Worktree sem diretório responde o mesmo erro de domínio que o resto do app pinta
-- [x] Evento de invalidação publicado no barramento quando o cache renova com dado diferente
+- [x] Evento de invalidação publicado no barramento quando o cache renova com dado diferente — e
+      **só** quando muda: o `readAt` fica fora da comparação, senão "mudou" viraria "aconteceu" e a
+      tela redesenharia a cada minuto
 - [x] Gate: `pnpm gate:quick`
 
 **Commit**: `feat(server): expor o estado da pull request por worktree e por projeto`
@@ -248,8 +250,11 @@ none | draft | merged | closed` mais a `reason`.
       (§2.2 do PRD), com teste
 - [x] Ritmo da [Q5](open-questions.md), **pausado com a janela oculta** e **pausado com o painel
       colapsado**, com teste dos dois casos: painel fechado que continua consultando é processo gasto
-      para ninguém ver
-- [x] Invalidação pelo evento do daemon, além do relógio
+      para ninguém ver. A decisão saiu de dentro do hook e virou função pura — o painel colapsado
+      desmonta a coluna, e um requisito satisfeito por acidente de montagem é um requisito que a
+      próxima refatoração apaga sem ninguém ver
+- [x] Invalidação pelo evento do daemon, além do relógio — `pr.changed` no `invalidateFor`, que é o
+      que faz um merge feito em outra aba aparecer nesta
 - [x] Enquanto não se sabe, a barra **não existe** — nada de esqueleto piscando no topo do painel a cada
       troca de worktree
 - [x] Gate: `pnpm gate:quick`
@@ -442,3 +447,10 @@ Sete coisas, e nenhuma delas estava no plano:
 | **`nameWithOwner` vem da rede e era concatenado numa URL** — um valor com `@` no meio movia o host da URL montada | P4, pelo teste | a forma `org/repo` é verificada antes de concatenar |
 | **`remote_url` só é gravado para projeto que o Lumem clonou** | e2e (P12) | projeto adicionado por caminho — a maioria — nascia com ele nulo, e a barra dizia "sem integração" para um repositório do GitHub comum. Hoje o git responde quando o banco não sabe |
 | **Um pedido explícito podia ser servido por uma leitura que começou antes dele** — nos **dois** lados | e2e (P12) | no daemon, um booleano `forced` limpo pela execução que já estava no ar; no cliente, `invalidateQueries` marcando uma busca como velha sem reiniciá-la. O sintoma era o pior possível: o estado de antes carimbado **"há 0 s"**. Hoje são gerações do lado do daemon e `cancelQueries` antes do refetch do lado do cliente |
+| **O portão do merge reusava um diálogo ancorado noutra tela** | ao renderizar | o `.gate` do modo liberado é `bottom: 100%` com 420px numa coluna de 360: o portão ficava **em `y = -198`**, fora da tela. Nenhum teste via — o jsdom não faz layout, e o `toBeVisible` do Playwright aprova elemento fora da tela. A prova virou geométrica |
+| **O portão do merge lia o cache** | revisão | e o cache faz duas coisas certas para a barra e erradas para um portão: dentro do TTL não vai ao host, e uma leitura que falha **preserva o instantâneo anterior**. Um CI que reprova junto com a rede caindo deixava o verde por até dez minutos de backoff — que é literalmente a linha "verde mentiroso manda mesclar" do §6. Hoje o `merge` invalida antes de ler e **recusa em cima de falha** |
+| **Verificação terminada sem conclusão contava como passou** | revisão, por mutação | o código dizia `passed` e o comentário ao lado dizia o contrário. Um check `COMPLETED` com `conclusion` vazia entrava na contagem de passou e ajudava a produzir `ready` |
+| **A F7.6 estava decidida e não implementada** | revisão | a Q4 diz por escrito que o título nasce do assunto do último commit; o campo abria vazio, e o teste afirmava *"nasce sem título"* — congelando a ausência como comportamento correto. Hoje existe `pr.draft`, e o teste diz o que a Q4 diz |
+| **Treze mutações sobreviviam à suíte** | revisão, bateria de mutação | as de maior consequência: apagar a marcação de "servido" no cache (um `⟳` e todo `get` vira processo, para sempre), apagar a guarda final de `mergeStateStatus` (qualquer estado novo do GitHub vira `ready`), e `--delete-branch` incondicional (o caso negativo de uma ação destrutiva não era assertado). O piso do contraste estava em `71` com 119 pares reais, deixando **48 apagáveis em silêncio** |
+| **O marcador da PR comia o `ausente`** | revisão | `meta` é um slot só, e o marcador ganhava dele incondicionalmente: uma worktree fora do disco com PR aberta deixava de dizer que sumiu |
+| **`refs/remotes/*/main` casava `refs/remotes/origin/topic/main`** | revisão | o `wildmatch` do `for-each-ref` não usa `WM_PATHNAME`, então `*` casa `/`. Uma branch `topic/main` publicada fazia a barra dizer que `main` estava publicada |

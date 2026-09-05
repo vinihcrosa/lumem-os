@@ -241,6 +241,33 @@ describe("âmbar, que é metade da vida de uma PR", () => {
     expect(decision).toEqual({ verdict: "pending", reason: { kind: "mergeability-unknown" } });
   });
 
+  it("estado de merge que ninguém previu **não** vira verde", () => {
+    /*
+     * A guarda final da tabela, e a mutação que sobrevivia era apagá-la.
+     *
+     * Sem ela, qualquer `mergeStateStatus` que o GitHub inventar amanhã produz
+     * `ready` — botão de merge na tela e portão do daemon abertos por um valor
+     * que ninguém leu. É o último degrau antes do verde, e o único que separa
+     * "não conheço isto" de "pode mesclar".
+     */
+    const decision = decide(pr({ mergeable: "MERGEABLE", mergeStateStatus: "ALGO_QUE_NAO_EXISTE" }));
+
+    expect(decision).toEqual({ verdict: "pending", reason: { kind: "mergeability-unknown" } });
+  });
+
+  it("verificação terminada sem conclusão não conta como passou", () => {
+    /*
+     * O código dizia `passed` e o comentário ao lado dizia o contrário. Um
+     * check `COMPLETED` com `conclusion` vazia — que a projeção produz quando o
+     * host não manda nem `conclusion` nem `state` — entrava na contagem de
+     * passou e ajudava a produzir `ready`.
+     */
+    expect(groupOf(check({ status: "COMPLETED", conclusion: "" }))).toBe("running");
+    expect(decide(pr({ checks: [check({ status: "COMPLETED", conclusion: "" })] })).verdict).toBe(
+      "pending",
+    );
+  });
+
   it("`UNSTABLE` com tudo verde ainda é `ready`", () => {
     // `UNSTABLE` quer dizer "tem check não obrigatório vermelho" — mas se
     // nenhum check está vermelho, o que sobra não impede.

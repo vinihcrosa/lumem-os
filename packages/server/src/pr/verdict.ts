@@ -113,10 +113,18 @@ export function groupOf(check: GhCheck): CheckGroup {
   if (PASSED.has(conclusion)) return "passed";
   if (SKIPPED.has(conclusion)) return "skipped";
   if (FAILED.has(conclusion)) return "failed";
-  // Terminou sem conclusão que a gente conheça. Não é verde: o §"campo
-  // desconhecido" da P1 manda cair para "não sei dizer", e o lugar onde isso
-  // aparece é a contagem de rodando.
-  return conclusion === "" ? "passed" : "running";
+  /*
+   * Terminou sem conclusão que a gente conheça — **não é verde**.
+   *
+   * O §"campo desconhecido" da P1 manda cair para "não sei dizer", e o lugar
+   * onde isso aparece é a contagem de rodando, que produz `pending`. A primeira
+   * versão devolvia `passed` para conclusão **vazia**, e o comentário aqui já
+   * dizia o contrário do código: um check `COMPLETED` sem conclusão entrava na
+   * contagem de passou e ajudava a produzir `ready`. Foi a bateria de mutação
+   * que cobrou — trocar o ramo por `running` não quebrava teste nenhum, o que
+   * quer dizer que o ramo verde não era exigido por ninguém.
+   */
+  return "running";
 }
 
 export type CheckCounts = PrCheckCounts;

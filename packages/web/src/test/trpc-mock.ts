@@ -182,6 +182,9 @@ function createTrpcMock() {
     },
     pr: {
       getByWorktree: { query: vi.fn().mockResolvedValue(NO_PULL_REQUEST) },
+      draft: {
+        query: vi.fn().mockResolvedValue({ title: "", base: "main", head: "teste" }),
+      },
       listByProject: { query: vi.fn().mockResolvedValue([]) },
       merge: { mutate: vi.fn() },
       create: { mutate: vi.fn() },
@@ -242,4 +245,5 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   mock.scripts.status.query.mockResolvedValue(NO_SCRIPTS_STATUS);
   mock.pr.getByWorktree.query.mockResolvedValue(NO_PULL_REQUEST);
   mock.pr.listByProject.query.mockResolvedValue([]);
+  mock.pr.draft.query.mockResolvedValue({ title: "", base: "main", head: "teste" });
 }

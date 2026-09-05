@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -392,15 +392,52 @@ describe("as ações que saem do Lumem, e as duas que escrevem", () => {
     expect(screen.getByRole("button", { name: "abrir pull request" })).toBeInTheDocument();
   });
 
-  it("criar propõe e não decide: nasce sem título e sem corpo", async () => {
+  it("criar PROPÕE: o título nasce do assunto do último commit (Q4, F7.6)", async () => {
+    /*
+     * A primeira versão deste teste afirmava o contrário — "nasce sem título" —
+     * e com isso congelava a ausência da decisão como comportamento correto:
+     * implementar a F7.6 quebraria o teste. A Q4 está respondida e travada, e o
+     * teste tem de dizer o que ela diz.
+     */
+    trpcMock.pr.draft.query.mockResolvedValue({
+      title: "feat: a barra da PR",
+      base: "main",
+      head: "pr-bar",
+    });
     draw({ pull: null });
     await userEvent.click(screen.getByRole("button", { name: "abrir pull request" }));
 
     const dialog = screen.getByRole("dialog", { name: "abrir uma pull request" });
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText("Título")).toHaveValue("feat: a barra da PR"),
+    );
+    // Propõe, e não decide: dá para apagar e escrever outro.
+    await userEvent.clear(within(dialog).getByLabelText("Título"));
     expect(within(dialog).getByLabelText("Título")).toHaveValue("");
-    // Sem título, o botão não é clicável: PR sem título é PR que alguém vai ter
-    // de editar.
+    // E sem título o botão não é clicável: PR sem título é PR que alguém vai
+    // ter de editar depois.
     expect(within(dialog).getByRole("button", { name: "abrir" })).toBeDisabled();
+  });
+
+  it("a proposta não sobrescreve o que já foi digitado", async () => {
+    // A diferença entre `null` e `""` no estado do campo. Sem ela, uma resposta
+    // do daemon que chega tarde apagaria o que a pessoa começou a escrever.
+    let responder: ((value: unknown) => void) | null = null;
+    trpcMock.pr.draft.query.mockReturnValue(
+      new Promise((resolve) => {
+        responder = resolve;
+      }),
+    );
+    draw({ pull: null });
+    await userEvent.click(screen.getByRole("button", { name: "abrir pull request" }));
+
+    const dialog = screen.getByRole("dialog", { name: "abrir uma pull request" });
+    await userEvent.type(within(dialog).getByLabelText("Título"), "meu título");
+
+    responder!({ title: "feat: do commit", base: "main", head: "pr-bar" });
+    await waitFor(() => expect(trpcMock.pr.draft.query).toHaveBeenCalled());
+
+    expect(within(dialog).getByLabelText("Título")).toHaveValue("meu título");
   });
 });
 

@@ -109,7 +109,7 @@ escrever nada.
 
 Componente em React só usa `var(--token)`: nenhum literal de cor, de espaço ou de tipografia. É isso
 que faz tela desenhada lá ser implementável aqui sem tradução. Token novo nasce no Open Design — e o
-`gate:quick` confere os 99 pares de contraste, então cor escolhida à mão que reprova falha a suíte com
+`gate:quick` confere os 119 pares de contraste, então cor escolhida à mão que reprova falha a suíte com
 o nome da combinação de tela que quebrou.
 
 ## Regra de documentação

@@ -147,3 +147,14 @@ export function prStatusKey(worktreeId: string) {
 export function prMarksKey(projectId: string) {
   return ["pr", "listByProject", projectId] as const;
 }
+
+/**
+ * O que o formulário de criar pull request propõe.
+ *
+ * Sob o mesmo prefixo `pr`, para o `⟳` e o evento do daemon alcançarem — o
+ * assunto do último commit muda quando alguém commita, e a barra é quem primeiro
+ * percebe que a worktree se mexeu.
+ */
+export function prDraftKey(worktreeId: string) {
+  return ["pr", "draft", worktreeId] as const;
+}

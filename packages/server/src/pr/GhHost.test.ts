@@ -129,6 +129,26 @@ describe("a leitura", () => {
     });
   });
 
+  it("repositório que não respondeu estratégia nenhuma não fica sem nenhuma", async () => {
+    // As três falsas querem dizer que o campo não veio, e não que o
+    // repositório proíbe tudo — repositório assim não existe. Oferecer zero
+    // botão seria pior que oferecer o padrão do host.
+    const gh = fakeGh((args) => (args[1] === "list" ? { stdout: "[]" } : { stdout: "{}" }));
+    const read = await createGhHost({ exec: gh.exec }).read({
+      repoPath: "/tmp/repo",
+      remoteUrl: GITHUB,
+    });
+
+    expect(read.ok).toBe(true);
+    if (!read.ok) return;
+    expect(read.snapshot.merge).toEqual({
+      merge: true,
+      squash: false,
+      rebase: false,
+      deleteBranchOnMerge: false,
+    });
+  });
+
   it("repositório sem PR nenhuma é resposta, e não erro", async () => {
     const gh = fakeGh((args) => (args[1] === "list" ? { stdout: "[]" } : { stdout: REPO_VIEW }));
     const read = await createGhHost({ exec: gh.exec }).read({
@@ -357,6 +377,34 @@ describe("a escrita, e a fronteira que ela move (F7)", () => {
 
     expect(write.ok).toBe(true);
     expect(gh.calls[0]).toEqual(["pr", "merge", "19", "--squash", "--delete-branch"]);
+  });
+
+  it("sem `--delete-branch` quando a caixa foi desmarcada", async () => {
+    // O caso negativo de uma ação **destrutiva**, e ele não estava assertado:
+    // tornar a flag incondicional passava na suíte inteira. A branch de outra
+    // pessoa some, e o Lumem some sem ninguém ter pedido.
+    const gh = fakeGh(() => ({}));
+    await createGhHost({ exec: gh.exec }).merge({
+      repoPath: "/tmp/repo",
+      remoteUrl: GITHUB,
+      number: 19,
+      strategy: "merge",
+      deleteBranch: false,
+    });
+
+    expect(gh.calls[0]).toEqual(["pr", "merge", "19", "--merge"]);
+  });
+
+  it("caractere de controle na base e na head também é recusado", async () => {
+    // §4.2.11 cobre os três. Só o título tinha teste, e remover a recusa dos
+    // outros dois passava na suíte.
+    const gh = fakeGh(() => ({}));
+    const host = createGhHost({ exec: gh.exec });
+    const base = { repoPath: "/tmp/repo", remoteUrl: GITHUB, title: "t", body: "", draft: false };
+
+    expect((await host.create({ ...base, base: "ma\nin", head: "pr-bar" })).ok).toBe(false);
+    expect((await host.create({ ...base, base: "main", head: "pr\u0000bar" })).ok).toBe(false);
+    expect(gh.calls).toEqual([]);
   });
 
   it("número que não é inteiro positivo não vira processo", async () => {
