@@ -22,10 +22,14 @@ passo central é **instalar o tarball num runner limpo**, porque é o único que
 dinâmico, prebuild ausente e arquivo fora do pacote. A raiz ganhou `README.md` (em inglês, com
 tradução ao lado) e `LICENSE` (MIT).
 
-Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**. Duas já estão
-fechadas; duas seguem **sem tasks** — [sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto
-e worktree de onde se olha) e [run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de execução
-nasce aberto). A nona anotação era sobre uma PR aberta que não aparece: a
+Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**. Três já estão
+fechadas; uma segue **sem tasks** — [run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de
+execução nasce aberto). A [sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto e worktree
+de onde se olha) está **completa em 2026-09-01**: as seis perguntas respondidas pelo desenho, duas
+peças novas no design system (`Modal` centrado e o slot de ação da linha) e as
+[10 tasks](docs/prd/sidebar-actions/tasks.md) entregues — o `＋adicionar projeto` do rodapé saiu, o
+diálogo de worktree saiu do `LocalPanel`, e o clone em andamento virou linha da árvore. A nona anotação
+era sobre uma PR aberta que não aparece: a
 [pull-request-status](docs/prd/pull-request-status/prd.md) está desenhada e **não implementada**,
 travada na Q1.
 

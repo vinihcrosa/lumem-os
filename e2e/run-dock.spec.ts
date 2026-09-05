@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_STATE_DIR } from "../ports.js";
-import { ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
 import { E2E_FIXTURE_REPO_SCRIPTS } from "./support/fixtures.js";
 
 /**
@@ -94,9 +94,7 @@ test("worktree nova nasce preparada: o setup roda sozinho e a aba conta como foi
 }) => {
   const name = `preparada-${String(Date.now())}`;
 
-  await page.getByRole("button", { name: /nova worktree/ }).click();
-  await page.getByLabel("Nome da worktree").fill(name);
-  await page.getByRole("button", { name: "criar" }).click();
+  await createWorktree(page, name, PROJECT);
 
   await page.getByLabel("árvore de projetos").getByRole("button", { name, exact: true }).click();
   await openDock(page);

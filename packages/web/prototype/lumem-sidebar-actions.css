@@ -1,0 +1,309 @@
+/* ============================================================================
+   Lumem-OS — as ações da árvore (sidebar-actions)
+
+   Camada de tela: só o que é desta tela e de mais nenhuma. Tudo que já existe
+   vem do lumem-ds.css; todo valor vem do tokens.css. Nenhum literal de cor,
+   espaço, raio ou tipografia — a regra do projeto.
+
+   O que nasce aqui, e por quê:
+
+     .tree__head   o cabeçalho da lista de projetos com ação à direita. O `+`
+                   fica preso ao TÍTULO, não ao fim da lista: assim ele não se
+                   afasta da coisa que acrescenta quando a lista cresce.
+     .row__act     o slot de ação da linha da árvore. 24px RESERVADOS sempre,
+                   pintados só no hover e no foco — reservar é o que impede o
+                   label de reflowar debaixo do ponteiro no instante do clique.
+     .modal        o invólucro centrado com véu. Não existia no design system:
+                   os dois diálogos de hoje são `Card` no fluxo, e um Card
+                   dentro de uma coluna de 264px não cabe um formulário com
+                   campo de URL, eco de plano e barra de progresso.
+     .crow         o clone em andamento, desenhado como linha da árvore. É onde
+                   o projeto vai nascer, e é onde já se olha para ver se chegou.
+
+     .shot/.zoom   moldura de documentação. CÓPIA do lumem-run-dock.css.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+   0. derivados — composição de token, nenhum valor novo
+   -------------------------------------------------------------------------- */
+:root {
+  /*
+   * O véu. Não é token novo de cor: é o fundo mais fundo do produto, com
+   * transparência. O que ele precisa entregar é que a árvore atrás continue
+   * legível como CONTEXTO e ilegível como TEXTO — quem abriu o diálogo já sabe
+   * de qual linha ele saiu, e não deve conseguir ler outra.
+   */
+  --color-scrim: color-mix(in srgb, var(--color-bg-inset) 68%, transparent);
+  /* O alvo mínimo de toque, que é também a largura do slot reservado. */
+  --size-row-act: var(--size-target-min);
+}
+
+/* ---------------------------------------------------------------------------
+   1. o cabeçalho da lista de projetos
+   -------------------------------------------------------------------------- */
+/*
+ * Uma linha da mesma altura das outras, para a lista começar no ritmo em que
+ * segue. O título é o `.tree__label` que já existe; o que é novo é ele dividir
+ * a linha com um botão.
+ */
+.tree__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-row-compact);
+  padding: 0 var(--space-2) 0 var(--space-8);
+}
+.tree__head .tree__label { flex: 1; min-width: 0; padding: 0; margin: 0; }
+
+/*
+ * O `+` do cabeçalho é o único SEMPRE visível dos dois.
+ *
+ * Ele é o caminho para o primeiro projeto, e com zero projetos não há linha
+ * onde passar o ponteiro. Um botão que só aparece no hover, num estado em que
+ * não existe nada para apontar, é uma saída que não existe.
+ */
+.act {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-row-act);
+  height: var(--size-row-act);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+  line-height: 1;
+}
+.act:hover { background: var(--color-bg-active); color: var(--color-text-primary); }
+.act.is-focus { box-shadow: var(--focus-ring); color: var(--color-text-primary); }
+
+/* ---------------------------------------------------------------------------
+   2. o slot de ação da linha
+   -------------------------------------------------------------------------- */
+/*
+ * Reservado sempre, pintado quase nunca.
+ *
+ * Se o slot só existisse no hover, a linha inteira se reorganizaria no instante
+ * em que o ponteiro chegasse — o label encolhendo e o contador andando 24px
+ * para a esquerda, embaixo de uma mão que já está a caminho do clique. Reservar
+ * custa 24px de label em linha de projeto, que é a linha menos indentada da
+ * árvore e a que mais tem sobra.
+ *
+ * E é por isso que o contador NÃO cede o lugar: com o espaço já reservado, não
+ * há o que disputar. Uma linha com três sessões rodando continua dizendo três
+ * enquanto você mira o `+`.
+ */
+.row__act {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-row-act);
+  height: var(--size-row-act);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+  line-height: 1;
+  /* Invisível, não ausente: continua ocupando o lugar dele. */
+  opacity: 0;
+}
+.row:hover .row__act,
+.row.is-hover .row__act,
+.row:focus-within .row__act,
+.row.is-focus .row__act { opacity: 1; }
+.row__act:hover { background: var(--color-bg-active); color: var(--color-text-primary); }
+.row__act.is-focus { opacity: 1; box-shadow: var(--focus-ring); color: var(--color-text-primary); }
+
+/* Um projeto sem disco não oferece o `+` — não há de onde cortar worktree —,
+   mas o espaço fica: alinhamento de coluna não é decoração, é o que faz a
+   árvore ser lida de cima a baixo. */
+.row__slot { flex: none; width: var(--size-row-act); }
+
+/*
+ * O glifo de um projeto fora do disco é DESLIGADO, não perigoso.
+ *
+ * `sem disco` não é falha: é um repositório que saiu de onde estava, e a linha
+ * continua na lista justamente porque as worktrees registradas nela continuam
+ * existindo. Vermelho aqui competiria com o vermelho que quer dizer "quebrou".
+ */
+.row.is-muted .glyph { color: var(--color-text-disabled); }
+
+/* Estados forçados, só para o protótipo mostrar hover e foco parados. O hover
+   pinta o fundo e NÃO mexe na cor: uma linha apagada continua apagada debaixo
+   do ponteiro. */
+.row.is-hover { background: var(--color-bg-hover); }
+.row.is-focus { box-shadow: inset 0 0 0 1px var(--color-border-focus); }
+
+/* ---------------------------------------------------------------------------
+   3. o clone em andamento, na árvore
+   -------------------------------------------------------------------------- */
+/*
+ * O diálogo fecha quando o clone começa, e o progresso passa a morar aqui: um
+ * clone leva minutos, e um modal que segura a tela por minutos é um modal que
+ * se aprende a fechar antes de ler.
+ *
+ * Ele tem a geometria de uma linha de projeto porque é um projeto chegando —
+ * mesmo glifo, mesma indentação, mesmo slot à direita. O que muda é que o slot
+ * carrega `✕` em vez de `+`: enquanto ele está clonando, a ação que a linha
+ * oferece é cancelar, não acrescentar.
+ */
+.crow { display: grid; gap: var(--space-2); padding-bottom: var(--space-4); }
+.crow__bar {
+  height: var(--space-2);
+  /* Larga como a linha: o que ela mede é a linha inteira chegando, e não uma
+     palavra dentro dela. */
+  margin: 0 var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-active);
+  overflow: hidden;
+}
+.crow__fill { height: 100%; background: var(--color-bg-brand); border-radius: var(--radius-full); }
+.crow__pct { flex: none; font: var(--text-label-xs); color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------------------------------
+   4. o modal centrado
+   -------------------------------------------------------------------------- */
+.app--modal { position: relative; }
+
+.modal {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-24);
+}
+/* O véu é irmão do cartão, não pai: clicar nele fecha, e um cartão dentro dele
+   herdaria o alvo de clique de fechar. */
+.modal__scrim { position: absolute; inset: 0; background: var(--color-scrim); }
+
+.modal__card {
+  position: relative;
+  width: var(--size-dialog-width);
+  max-width: 100%;
+  display: grid;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-xl);
+}
+
+.modal__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  padding: var(--space-16) var(--space-12) var(--space-8) var(--space-20);
+}
+.modal__t { margin: 0; font: var(--text-heading-md); letter-spacing: var(--tracking-heading-md); color: var(--color-text-primary); }
+/* Onde a ação vai cair, dito no cabeçalho e não num campo: o diálogo abriu de
+   uma linha da árvore, e ele repete de qual — sem seletor de projeto dentro. */
+.modal__where {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  margin: var(--space-4) 0 0;
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+.modal__where .glyph { font-size: var(--size-icon-xs); }
+.modal__head-b { flex: 1; min-width: 0; }
+.modal__close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+}
+.modal__close:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+.modal__body { display: grid; gap: var(--space-16); padding: var(--space-8) var(--space-20) var(--space-16); }
+.modal__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 0 var(--space-20) var(--space-20);
+}
+/* A dica de teclado no rodapé do diálogo, à direita: ela é a prova visível de
+   que `Esc` fecha, e uma promessa escrita é mais barata que uma descoberta. */
+.modal__esc { margin-left: auto; font: var(--text-caption); color: var(--color-text-tertiary); }
+.modal__esc .kbd { color: var(--color-text-secondary); }
+
+.modal__hint { margin: 0; font: var(--text-body-sm); color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------------------------------
+   5. moldura de documentação — cópia do lumem-run-dock.css
+   -------------------------------------------------------------------------- */
+.bleed { width: calc(100vw - var(--space-48)); margin-left: calc(50% - 50vw + var(--space-24)); }
+.shot { border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); overflow: hidden; }
+.shot .app { height: calc(var(--space-64) * 8); }
+.shot--tall .app { height: calc(var(--space-64) * 9); }
+.q { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-brand); }
+
+/* A sidebar sozinha, na largura real, para a linha ser vista do tamanho em que
+   ela é decidida: 264px é a restrição que manda no desenho. */
+.strip { display: flex; flex-wrap: wrap; gap: var(--space-16); }
+.strip__i { display: grid; gap: var(--space-6); align-content: start; }
+.strip__l { font: var(--text-caption); color: var(--color-text-tertiary); }
+.strip__l b { color: var(--color-text-brand); font-weight: 500; }
+.zoom {
+  width: var(--size-sidebar-width);
+  padding: var(--space-6);
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+/* O diálogo visto de perto, sem a janela em volta. */
+.zoom--dialog { width: auto; background: none; border: 0; padding: 0; }
+
+/* A tabela de foco e teclado. Duas colunas: o gesto e o que ele faz. */
+.spec {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-6) var(--space-16);
+  margin: 0;
+  padding: var(--space-12) var(--space-16);
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+.spec dt { font: var(--text-mono-sm); color: var(--color-text-secondary); }
+.spec dd { margin: 0; font: var(--text-body-sm); color: var(--color-text-secondary); }
+.spec dd b { color: var(--color-text-primary); font-weight: 500; }
+
+/* Antes e depois, lado a lado. */
+.ba { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-16); }
+@media (max-width: 720px) {
+  .ba { grid-template-columns: minmax(0, 1fr); }
+}
+
+/*
+ * O clone que falhou, dentro de 264px.
+ *
+ * O `.fail` do design system foi desenhado para o painel central, onde título,
+ * comando e dois botões cabem numa linha. Aqui nada disso cabe: a URL vira três
+ * linhas quebradas no meio de um token e os botões encostam um no outro. Então
+ * a coluna tem a sua própria versão — a URL numa linha só, cortada, porque o
+ * que ela responde é "qual repositório", e o começo já responde.
+ */
+.cfail {
+  display: grid;
+  gap: var(--space-6);
+  margin-bottom: var(--space-6);
+  padding: var(--space-8);
+  background: var(--color-bg-danger-subtle);
+  border: 1px solid var(--color-border-danger);
+  border-radius: var(--radius-sm);
+}
+.cfail__t { display: flex; align-items: center; gap: var(--space-6); font: var(--text-label-sm); color: var(--color-text-danger); }
+.cfail__g { flex: none; font-size: var(--size-icon-sm); }
+.cfail__url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+}
+.cfail__a { display: flex; gap: var(--space-6); }

@@ -16,7 +16,6 @@ import {
   SectionHead,
   Skeleton,
 } from "../ui/index.js";
-import { CreateWorktreeDialog } from "./CreateWorktreeDialog.js";
 import { ScopePanel } from "./ScopePanel.js";
 import { SpendList, type SpendRow } from "./SpendList.js";
 
@@ -327,14 +326,6 @@ export function LocalPanel({
 
           {available && (
             <>
-              <div className="actions">
-                <CreateWorktreeDialog
-                  projectId={projectId}
-                  onCreated={onSelectWorktree}
-                  hasCommits={project.data.hasCommits}
-                />
-              </div>
-
               {/*
                 O consumo por worktree (`workspace-screen`, W4): a mesma linguagem
                 da tela do workspace, um nível abaixo — quem aprendeu a ler lá lê

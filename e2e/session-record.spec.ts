@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_FIXTURE_REPO } from "./support/fixtures.js";
-import { ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
 
 /**
  * What a session leaves behind when it ends — issue #14.
@@ -67,9 +67,7 @@ test("a session that exited comes back as a record, and says it is one", async (
   await ensureProject(page, E2E_FIXTURE_REPO);
   await openProject(page);
 
-  await page.getByRole("button", { name: "nova worktree" }).click();
-  await page.getByLabel("Nome da worktree").fill(WORKTREE);
-  await page.getByRole("button", { name: "criar" }).click();
+  await createWorktree(page, WORKTREE);
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
 
   await newShell(page);

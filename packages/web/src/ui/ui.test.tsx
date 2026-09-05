@@ -21,6 +21,7 @@ import {
   Menu,
   MenuItem,
   MetaGrid,
+  Modal,
   RawOutput,
   Row,
   SectionHead,
@@ -120,6 +121,57 @@ describe("Row", () => {
   it("offers no twist when there is nothing to reveal", () => {
     render(<Row depth={2} label="shell" onSelect={vi.fn()} />);
     expect(screen.getAllByRole("button")).toHaveLength(1);
+  });
+
+  it("keeps the action out of the row's own button, so clicking it is not navigating", async () => {
+    const onSelect = vi.fn();
+    const onToggle = vi.fn();
+    const onClick = vi.fn();
+    render(
+      <Row
+        depth={0}
+        label="lumem-os"
+        expanded={false}
+        onToggle={onToggle}
+        onSelect={onSelect}
+        action={{ label: "nova worktree em lumem-os", glyph: "＋", onClick }}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "nova worktree em lumem-os" }));
+    expect(onClick).toHaveBeenCalledOnce();
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it("reserves the slot with no action in it, so the row does not shift under the pointer", () => {
+    const { container, rerender } = render(
+      <Row depth={0} label="graphify-out" muted action={null} onSelect={vi.fn()} />,
+    );
+    expect(container.querySelector(".row__slot")).toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(1); // só a linha
+
+    // Sem `action` nenhuma — a worktree, que não acrescenta nada abaixo de si.
+    rerender(<Row depth={1} label="pr-bar" onSelect={vi.fn()} />);
+    expect(container.querySelector(".row__slot")).not.toBeInTheDocument();
+    expect(container.querySelector(".row__act")).not.toBeInTheDocument();
+  });
+
+  it("keeps the action reachable by keyboard, because hover is not a way in", () => {
+    render(
+      <Row
+        depth={0}
+        label="lumem-os"
+        count={2}
+        onSelect={vi.fn()}
+        action={{ label: "nova worktree em lumem-os", glyph: "＋", onClick: vi.fn() }}
+      />,
+    );
+
+    // No DOM mesmo em repouso: é `opacity` que a esconde, e não `display`, que a
+    // tiraria da ordem de `Tab`. E o contador continua lá, ao lado dela.
+    expect(screen.getByRole("button", { name: "nova worktree em lumem-os" })).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
   });
 
   it("carries the depth as a custom property rather than hard-coded padding", () => {
@@ -503,5 +555,106 @@ describe("TabStrip", () => {
     );
 
     expect(within(screen.getByRole("tablist", { name: "sessões de teste-prd" })).getAllByRole("tab")).toHaveLength(2);
+  });
+});
+
+describe("Modal", () => {
+  function Harness({ onClose = vi.fn() }: { onClose?: () => void }) {
+    return (
+      <>
+        <button type="button">o + que abriu</button>
+        <Modal open onClose={onClose} title="Nova worktree" where="em lumem-os">
+          <div className="modal__body">
+            <input aria-label="Nome da worktree" />
+          </div>
+          <div className="modal__foot">
+            <Button type="submit">criar</Button>
+            <Button variant="ghost">cancelar</Button>
+          </div>
+        </Modal>
+      </>
+    );
+  }
+
+  it("renders nothing at all when closed — not a hidden card", () => {
+    render(
+      <Modal open={false} onClose={vi.fn()} title="Nova worktree">
+        <p>corpo</p>
+      </Modal>,
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText("corpo")).not.toBeInTheDocument();
+  });
+
+  it("names itself by its title, so a screen reader says what opened", () => {
+    render(<Harness />);
+    expect(screen.getByRole("dialog", { name: "Nova worktree" })).toHaveAttribute(
+      "aria-modal",
+      "true",
+    );
+  });
+
+  it("puts the focus in the first field, and not on the close button that precedes it", () => {
+    render(<Harness />);
+    expect(screen.getByLabelText("Nome da worktree")).toHaveFocus();
+  });
+
+  it("gives the focus back to whoever opened it", async () => {
+    const opener = document.createElement("button");
+    opener.textContent = "＋";
+    document.body.append(opener);
+    opener.focus();
+
+    const { rerender } = render(
+      <Modal open onClose={vi.fn()} title="Nova worktree">
+        <input aria-label="Nome da worktree" />
+      </Modal>,
+    );
+    expect(screen.getByLabelText("Nome da worktree")).toHaveFocus();
+
+    rerender(
+      <Modal open={false} onClose={vi.fn()} title="Nova worktree">
+        <input aria-label="Nome da worktree" />
+      </Modal>,
+    );
+    expect(opener).toHaveFocus();
+    opener.remove();
+  });
+
+  it("closes on Esc, on the veil and on the ✕ — the same way out three times", async () => {
+    const onClose = vi.fn();
+    const { container } = render(<Harness onClose={onClose} />);
+
+    await userEvent.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "fechar" }));
+    expect(onClose).toHaveBeenCalledTimes(2);
+
+    const scrim = document.querySelector(".modal__scrim");
+    await userEvent.click(scrim as Element);
+    expect(onClose).toHaveBeenCalledTimes(3);
+
+    // Um clique dentro do cartão não fecha o formulário que está sendo preenchido.
+    await userEvent.click(screen.getByLabelText("Nome da worktree"));
+    expect(onClose).toHaveBeenCalledTimes(3);
+    expect(container).toBeTruthy();
+  });
+
+  it("keeps Tab inside: the last focusable wraps to the first", async () => {
+    render(<Harness />);
+    const field = screen.getByLabelText("Nome da worktree");
+    const cancel = screen.getByRole("button", { name: "cancelar" });
+    const close = screen.getByRole("button", { name: "fechar" });
+
+    cancel.focus();
+    await userEvent.tab();
+    expect(close).toHaveFocus();
+
+    // E de volta, na direção contrária — o `+` que abriu fica fora do alcance.
+    await userEvent.tab({ shift: true });
+    expect(cancel).toHaveFocus();
+    expect(field).not.toHaveFocus();
+    expect(screen.getByRole("button", { name: "o + que abriu" })).not.toHaveFocus();
   });
 });

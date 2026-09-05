@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   createAgentConfig,
+  createWorktree,
   ensureProject,
   ensureWorkspace,
   openProject,
@@ -59,10 +60,9 @@ async function openConversation(page: Page): Promise<void> {
   });
 }
 
-async function createWorktree(page: Page, name: string): Promise<void> {
-  await page.getByRole("button", { name: "nova worktree" }).click();
-  await page.getByLabel("Nome da worktree").fill(name);
-  await page.getByRole("button", { name: "criar" }).click();
+/** A worktree deste spec, e a espera de que a tela dela abriu. */
+async function cutWorktree(page: Page, name: string): Promise<void> {
+  await createWorktree(page, name, "repo-acp");
   await expect(page.getByRole("heading", { name })).toBeVisible({ timeout: 30_000 });
 }
 
@@ -72,7 +72,7 @@ async function arrive(page: Page, worktree: string): Promise<void> {
   await ensureWorkspace(page);
   await ensureProject(page, E2E_FIXTURE_REPO_ACP, "repo-acp");
   await openProject(page, "repo-acp");
-  await createWorktree(page, worktree);
+  await cutWorktree(page, worktree);
 }
 
 test.beforeEach(async ({ request }) => {

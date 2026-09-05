@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   createAgentConfig,
+  createWorktree,
   ensureProject,
   ensureWorkspace,
   openProject,
@@ -51,9 +52,8 @@ async function arrive(page: Page, worktree: string): Promise<void> {
   await ensureWorkspace(page);
   await ensureProject(page, E2E_FIXTURE_REPO_ACP, "repo-acp");
   await openProject(page, "repo-acp");
-  await page.getByRole("button", { name: "nova worktree" }).click();
-  await page.getByLabel("Nome da worktree").fill(worktree);
-  await page.getByRole("button", { name: "criar" }).click();
+  // Desde a `sidebar-actions`, a worktree nasce do `+` da linha do projeto.
+  await createWorktree(page, worktree, "repo-acp");
   await expect(page.getByRole("heading", { name: worktree })).toBeVisible({ timeout: 30_000 });
 }
 

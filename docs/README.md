@@ -258,11 +258,12 @@ o par nativo por fora, ele **serve o web na própria porta**, o binário `lumem`
 
 ## As quatro que a tela pediu — desenhadas a partir dela, em 2026-09-01
 
-Nove anotações feitas clicando na tela `/` viraram quatro features independentes. Nenhuma tem tasks
-ainda; todas têm PRD e perguntas abertas. A nona anotação — *"abri a PR e não aparece"* — não virou
+Nove anotações feitas clicando na tela `/` viraram quatro features independentes. Todas têm PRD e
+perguntas; a **sidebar-actions** está **completa** — desenho, tasks e implementação —, e as outras
+três ainda não foram desenhadas. A nona anotação — *"abri a PR e não aparece"* — não virou
 feature: é a [pull-request-status](prd/pull-request-status/) acima, que nunca saiu do desenho.
 
-### [sidebar-actions/](prd/sidebar-actions/) — criar de onde se olha
+### [sidebar-actions/](prd/sidebar-actions/) — criar de onde se olha · **completa**
 
 As duas coisas que o Lumem cria não se criam de onde elas moram: o `＋adicionar projeto` está no
 rodapé da sidebar (e se afasta do título `Projetos` conforme a lista cresce), e criar worktree custa
@@ -272,7 +273,9 @@ cabeçalho `Projetos` e um `+` na linha de cada projeto, com os diálogos virand
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/sidebar-actions/prd.md) | As três regras (o botão fica no cabeçalho da coisa que ele acrescenta; uma ação, um lugar; o diálogo abre no centro), e o que a mudança cobra — o estado vazio perde o botão que o cobria |
-| [open-questions.md](prd/sidebar-actions/open-questions.md) | 6 perguntas. A Q5 é a que dói: um clone leva minutos, e um modal que se fecha some com o progresso |
+| [open-questions.md](prd/sidebar-actions/open-questions.md) | 6 perguntas, **as 6 respondidas pelo desenho de 2026-09-01**. A Q5 era a que doía: um clone leva minutos, e um modal que se fecha some com o progresso — ele fecha, e o progresso passa a ser uma linha da árvore |
+| [tasks.md](prd/sidebar-actions/tasks.md) | **10 de 10 entregues**, em 8 commits. A ordem é o inverso da `project-scripts`: primitivas primeiro, tela por último — aqui tudo está desenhado, e o incerto são as duas peças que o design system não tem. Os testes vêm no fim numa fase só, porque é neles que está o custo |
+| `packages/web/prototype/lumem-sidebar-actions.html` | O protótipo, vindo do Open Design: oito quadros — a árvore com as duas ações, a linha de perto em 264px com os sete estados do slot, os dois diálogos e seus estados, o clone depois que o modal fecha, o vazio, o rodapé que encolhe, e o contrato de teclado. **Duas peças novas de design system** (`.row__act`, `.modal`) e **zero token novo** |
 
 ### [worktree-first-tab/](prd/worktree-first-tab/) — o que é da worktree mora na worktree
 

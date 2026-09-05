@@ -327,6 +327,23 @@ porque o que entra em todo turno passa a ser uma linha por regra em vez do corpo
 **De onde veio:** [context-delivery D5](../prd/workspace-memory/context-delivery.md) · **Volta
 quando:** a marca d'água do núcleo passar do alarme e consolidar não resolver.
 
+### Duas chaves de cache para a mesma leitura do projeto — `P`
+
+O `queryKeys.ts` abre dizendo que "dois componentes invalidando o mesmo dado com chaves que diferem
+por um caractere é um bug que parece UI velha, e é invisível em review" — e o repositório tem
+exatamente isso: `["project", "get", id]` no `LocalPanel`, no `WorktreePanel`, no `setup/Done` e no
+`useLiveState`, contra `projectDetailKey` (`["project", "detail", id]`) no `useScopeIds`. As duas
+chamam `project.get`. Quem usa a segunda **não** é invalidado pelo push do daemon.
+
+Unificar é mecânico — quatro literais e uma função —, mas não é dentro do escopo de nenhuma feature
+de tela, e mexer em chave compartilhada pede rodar a suíte inteira por um motivo que não é o da
+entrega em curso.
+
+**De onde veio:** a [sidebar-actions](../prd/sidebar-actions/tasks.md) T3 — o diálogo de worktree
+precisava do `hasCommits` e teve de escolher a chave literal, com um comentário explicando por quê ·
+**Volta quando:** alguém ver dado de projeto velho numa tela depois de o daemon avisar que mudou, ou
+na próxima feature que leia projeto.
+
 ### `session_usage` cresce para sempre — `P`
 
 A tabela do consumo (`workspace-screen`, W4) ganha uma linha por `usage_update`, ou seja, algumas por
@@ -433,6 +450,7 @@ deles, e a v1 do fluxo não implementa nenhum.
 | Clonar projeto de uma URL | `M` | a tela 6 oferece; rede, credencial, progresso e cancelamento são feature, não um campo | você querer adicionar repo que ainda não está na máquina |
 | Worktrees `externas` na sidebar | `M` | o passo 6 **detecta** as que existem fora do Lumem; listá-las pede reconciliação e ciclo de vida próprios | alguém perder tempo procurando onde foi uma worktree criada fora do Lumem |
 | Paleta de comandos `⌘K` | `M` | a tela 9 promete; hoje o único atalho que existe é `⌘⏎` | a sidebar deixar de dar conta de achar as coisas |
+| `⌘N` (nova worktree no projeto selecionado) | `P` | [Q6](../prd/sidebar-actions/open-questions.md) da sidebar-actions: é a ação mais repetida do produto e a única com candidato óbvio, mas atalho global precisa saber o que está em foco — a mesma tecla dentro de um terminal ou de um editor pertence a eles | o `+` da linha virar caminho longo demais, ou a paleta `⌘K` chegar e trazer o roteamento de foco junto |
 | `⌘⇧N` (nova tarefa) e `⌥⇧P` (trocar o modo) | `P` | prometidos pela mesma tela, e são dois atalhos para ações que já existem em botão | os dois botões virarem caminho longo demais |
 | Caminho das worktrees editável | `P` | hoje é `LUMEM_STATE_DIR`, global; editar pede coluna, migração e "e as que já estão no caminho antigo?" | o `~/.lumem` ficar no disco errado para alguém |
 | Padrão de modelo e modo por workspace | `P` | a tela 4 oferece o seletor e não há coluna onde guardar; a conversa já escolhe por sessão | repetir a mesma troca em toda sessão nova incomodar |
