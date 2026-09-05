@@ -1,14 +1,29 @@
 # PRD — A barra da pull request
 
-> **Status:** desenho fechado, nada implementado
-> **Versão:** v0.2 — a v0.1 punha a barra acima do cabeçalho da worktree; o Vinicius mudou a
-> estrutura ([§2.1](#21-a-mudança-de-estrutura)), e a barra foi para o painel direito. O rebase em
-> cima da `main` trouxe a [project-scripts](../project-scripts/prd.md), que ancorou um **rodapé de
-> execução** no mesmo painel — absorvido no §2.2
+> **Status:** em implementação — as 11 perguntas fecharam em 2026-09-05
+> **Versão:** v0.3 — a **Q3** e a **Q4** trocaram o corte da feature: ela lê **e escreve**. A v0.2
+> tinha mudado a estrutura (a v0.1 punha a barra acima do cabeçalho da worktree; o Vinicius mudou
+> ([§2.1](#21-a-mudança-de-estrutura)), e a barra foi para o painel direito), e o rebase em cima da
+> `main` trouxe a [project-scripts](../project-scripts/prd.md), que ancorou um **rodapé de execução**
+> no mesmo painel — absorvido no §2.2
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
 > **Protótipo:** `packages/web/prototype/lumem-pr-bar.html` — abra no navegador
 > **Sucede:** [workspace-screen](../workspace-screen/prd.md)
+>
+> **Nota de 2026-09-05 — a feature passou a escrever.** As onze perguntas foram respondidas de uma
+> vez, e **duas delas contra a proposta escrita aqui**: a [Q3](open-questions.md) põe o `Merge` no v1
+> e a [Q4](open-questions.md) faz o Lumem **criar** a PR. O corte *"ler, não agir"* — que era a
+> decisão mais cara do desenho, e a que fazia o §5 curto e o §4 barato — **caiu**. O que muda:
+>
+> - a frase *"nenhum caminho desta feature escreve no remoto"* some do PRD. Ela era metade da
+>   resposta de segurança; o [§4.2](#42-e-agora-ela-escreve) é o que entra no lugar;
+> - `mesclar` e `criar PR` saem do §5 e viram a **F7**, com portão, confirmação e um teste que prova
+>   que o portão não é decorativo;
+> - o desenho da barra **não cobre** os dois gestos novos — a tela 9 do protótipo é literalmente *"o
+>   que esta barra não faz"*, e ela está desatualizada. Os botões entram no `prbar__acts`, que já
+>   existe e já é `.btn`, sem token novo e sem CSS novo; a tela 9 fica como dívida de desenho,
+>   registrada no §10.
 >
 > **Nota de 2026-09-01:** a barra **não está implementada** — nenhuma das 16 tasks foi iniciada, e
 > não há uma linha de código de PR no daemon nem no web. Uma PR aberta hoje (foi a
@@ -41,8 +56,10 @@ qual quebrou sem abrir o navegador nenhuma vez — e quando quiser agir, um cliq
 A [vision](../../project/vision.md) pede isso em uma linha: *"ter um sistema de controle de git, se
 abrir uma PR poder ver, mas não apenas no github, poder ver no gitlab, e em outros lugares"*. O
 backlog guardava como **[Abstração de git host](../../project/backlog.md)**, com o gatilho
-"quando a aba de review existir" — este PRD tira o item de lá e faz o corte que o próprio item avisava
-que era preciso: **ler, não agir**.
+"quando a aba de review existir" — este PRD tira o item de lá. O corte que o item pedia era *"ler, não
+agir"*; a [Q3](open-questions.md) e a [Q4](open-questions.md) o moveram uma casa: **ler tudo, e
+escrever dois verbos** — mesclar e criar —, cada um atrás de um portão. Reexecutar, aprovar e comentar
+continuam fora.
 
 ---
 
@@ -241,13 +258,39 @@ host não suportado são **respostas**, com o que fazer escrito.
 
 ### F5 — O que sai do Lumem
 
-**F5.1** Abrir a PR, abrir uma execução de verificação e abrir a tela de comparação — três links, e nada
-mais.
+**F5.1** Abrir a PR, abrir uma execução de verificação e abrir a tela de comparação — três links. Eles
+continuam existindo depois da F7: o host tem tela para tudo que o Lumem não tem.
 **F5.2** Quem abre é o **cliente** (`window.open`), não o daemon: o Lumem roda no navegador servido
 pelo daemon, então não existe motivo para o processo do daemon aprender a chamar `open`.
 **F5.3** **Toda URL é validada antes de virar link** (§4). Ela veio da internet.
 **F5.4** A tela de comparação é **montada pelo daemon** a partir do host, da base e da head — não vem
-do payload. Criar PR de verdade fica fora (§5).
+do payload. Ela é a saída para quem quer o formulário completo do host (template, reviewers, labels),
+e não some por causa da F7.
+
+### F7 — Os dois verbos que escrevem ([Q3](open-questions.md), [Q4](open-questions.md))
+
+**F7.1** `pr.merge` e `pr.create`, e **nada mais**. A lista de verbos é a fronteira de segurança
+inteira (§4.2), e ela é curta o suficiente para caber numa revisão de código.
+**F7.2** **O portão do merge é o veredito, e ele é relido no daemon.** Uma PR cujo veredito não é
+`ready` é recusada — mesmo que o cliente peça, mesmo que o cliente diga que está verde. Um botão
+escondido na tela é conforto; a recusa no daemon é a garantia, e o teste que a prova chama a
+procedure direto, sem passar pela tela.
+**F7.3** Mesclar **pergunta antes**, e a pergunta diz o que vai acontecer: o número, a base, a
+estratégia e o destino da branch. As estratégias oferecidas são as que **o repositório permite** — o
+Lumem lê `mergeCommitAllowed`, `squashMergeAllowed` e `rebaseMergeAllowed` do host e não inventa
+nenhuma.
+**F7.4** Depois de mesclar, a barra vira `mesclada` e diz o que a v0.2 já dizia: *esta worktree pode
+ser removida*. Remover continua sendo gesto seu, na aba do checkout — mesclar não apaga worktree.
+**F7.5** Criar PR exige **branch publicada**. Quando ela não está, o mesmo gesto oferece publicar, e
+a confirmação diz que vai fazer um `git push -u` antes — porque isso também é escrita no remoto.
+**F7.6** O formulário de criação **propõe e não decide**: título vindo do assunto do último commit
+da branch, corpo vazio, e `rascunho` como caixa. Reviewers, labels e template ficam no host, atrás
+do `↗`.
+**F7.7** Falha de escrita é **resposta**, não erro genérico: PR já existe, branch protegida, sem
+permissão, conflito que apareceu entre a leitura e o clique. Cada uma com o que fazer escrito, e
+nenhuma com `stderr` cru (§4.1.4).
+**F7.8** Escrita **invalida o cache na hora** (F4.5) e publica o evento — a barra não pode continuar
+verde depois de o merge acontecer.
 
 ### F6 — Contrato
 
@@ -262,8 +305,11 @@ relógio dela.
 
 ## 4. Confiança: o dado vem da internet, e o comando é de terceiro
 
-Esta é a primeira feature em que o Lumem **executa um binário que não é o `git`** e **renderiza texto
-que veio de fora da sua máquina**. As duas coisas merecem regra escrita.
+Esta é a primeira feature em que o Lumem **executa um binário que não é o `git`**, **renderiza texto
+que veio de fora da sua máquina** e — desde a [Q3](open-questions.md) e a
+[Q4](open-questions.md) — **escreve no repositório de outra gente**. As três merecem regra escrita.
+
+### 4.1 Ler
 
 **Executar o `gh`:**
 
@@ -291,6 +337,34 @@ que veio de fora da sua máquina**. As duas coisas merecem regra escrita.
    agente para corrigir o check que falhou" —, o texto passa a ser instrução vinda de fora, e isso é
    uma decisão própria, com portão próprio. Fica registrado aqui porque é a tentação óbvia da v2.
 
+### 4.2 E agora, ela escreve
+
+Mesclar e criar PR são **irreversíveis para o time inteiro**, e a regra do §4.1 — *"nenhuma string de
+UI entra na linha de comando"* — não sobrevive intacta a um título de PR que a pessoa digitou. Ela
+não some: ganha a forma que aguenta o caso.
+
+8. **Um verbo por procedure, e cada verbo é uma `mutation`.** `pr.merge` e `pr.create`, e nada de um
+   `pr.run({ command })` genérico. A lista de verbos é a fronteira, e ela é curta o suficiente para
+   caber numa revisão de código.
+9. **Valor de UI viaja como `--flag=valor`, num único token de `argv`.** Um valor solto pode ser lido
+   como flag quando começa com `-`; colado à flag, não pode. Não há shell em lugar nenhum do caminho
+   (`execFile` com vetor), então o que sobra a defender é **injeção de flag**, e é isso que a forma
+   colada fecha.
+10. **O corpo da PR vai por arquivo**, `--body-file`, e não por argumento. Um corpo de PR tem
+    quebras de linha, tem markdown e tem tamanho — e argumento longo esbarra em `ARG_MAX` numa
+    máquina e não na outra, que é o defeito que só aparece na de outra pessoa.
+11. **Caractere de controle é recusado antes de virar `argv`.** Mesma lista do `git-url.ts`, mesmo
+    motivo: um `\n` num título parte um argumento em dois para qualquer coisa que um dia escreva
+    isto em arquivo ou log.
+12. **Nome de branch e número de PR nunca vêm do cliente.** Eles vêm do **git local** e do cache do
+    daemon. O cliente diz *qual worktree*; quem traduz worktree em branch é o daemon, como já
+    traduz em diretório.
+13. **O portão é o veredito, e ele é do daemon.** `pr.merge` recusa uma PR cujo veredito não é
+    `ready` — e recusa **relendo**, não confiando no que o cliente mandou. Um botão escondido na tela
+    é conforto; a recusa no daemon é a garantia.
+14. **Criar PR exige branch publicada, e publicar é dito em voz alta.** O `git push` que precede o
+    `gh pr create` é escrita no remoto também, e aparece na confirmação como o que é.
+
 ---
 
 ## 5. Não-objetivos
@@ -300,14 +374,15 @@ do desenho.
 
 | Fora | Por quê |
 |---|---|
-| **Mesclar pela barra** (o botão `Merge` da referência) | Merge é escrita no remoto, irreversível para o time inteiro, com regra de host, estratégia (`squash`/`rebase`/`merge`) e confirmação próprias. O `↗` te põe no lugar onde isso já existe, com um clique. Ver [Q3](open-questions.md) |
-| **Criar PR** (título, corpo, reviewers) | Idem: escrita. E criar PR bem feita é uma tela com corpo, template e reviewers — feature própria. O v1 leva você à tela de comparação do host. Ver [Q4](open-questions.md) |
-| Reexecutar verificação, aprovar, comentar | Escrita. Cada uma com o seu modo de falha |
+| ~~**Mesclar pela barra**~~ | **Entrou**, pela [Q3](open-questions.md). Virou a F7, com portão pelo veredito e confirmação que diz a estratégia e o destino da branch |
+| ~~**Criar PR**~~ | **Entrou**, pela [Q4](open-questions.md). Virou a F7 também — propondo título e deixando reviewers, labels e template no host |
+| Reexecutar verificação, aprovar, comentar | Escrita, e nenhuma delas é o **fim do trabalho** — que é o argumento que fez o merge entrar. Cada uma com o seu modo de falha, e cada uma uma superfície própria |
+| Escolher reviewers, labels e template ao criar | É a tela do host, e ela é boa. O Lumem cria o esqueleto e o `↗` leva ao resto |
 | Ler log de CI dentro do Lumem | O `↗` da linha abre a execução. Trazer log para dentro é outra tela, com streaming e retenção |
 | Review inline, threads, sugestões | É a aba `Review` inteira, que já estava no backlog e continua lá |
 | GitLab, Bitbucket, Gitea | O **adaptador** existe desde o v1 e é a porta. A segunda implementação entra quando houver um repositório de verdade para exercitá-la — senão é abstração desenhada contra imaginação |
 | PR de outras pessoas, lista de PRs do repositório | A barra é da **sua** worktree. Uma lista de PRs é outra tela e outro modelo mental |
-| Token do Lumem para a API do host | O `gh` já resolveu autenticação. Guardar segredo é uma superfície inteira por zero ganho — ver §4.3 |
+| Token do Lumem para a API do host | O `gh` já resolveu autenticação. Guardar segredo é uma superfície inteira por zero ganho — ver §4.1.3. Vale para a leitura **e** para a escrita: quem assina o merge é o seu `gh`, com a sua conta |
 | Notificação de sistema quando a PR fica verde | Tentador e barato de errar: exige política de ruído. Vai para o backlog |
 | **Mexer no que a aba da worktree mostra além do que já existia** | A F0 **move** informação e acrescenta o que já estava no daemon (caminho, criação, sessões). Consumo de tokens, memória e diff continuam onde estão |
 
@@ -324,6 +399,8 @@ do desenho.
 | **Limite de API do host** | Poll agressivo com várias worktrees queima cota, e a cota é a mesma do seu `gh` no terminal | Intervalo mínimo, backoff progressivo, e o limite **dito na tela** com o horário de volta |
 | **Verde mentiroso** | Cache velho pintado de verde é pior que nenhuma cor: manda mesclar | A idade aparece sempre (F1.5), fica âmbar quando passa do limite, e "sem rede desde HH:MM" entra no motivo |
 | **A regra de "pronta" divergir do host** | `mergeable` do GitHub tem estados que não são sim/não, e branch protection muda a resposta | O veredito é uma função pura testada por tabela (F4.4), e a frase **cita a regra do host** em vez de reimplementá-la |
+| **Mesclar a PR errada, ou mesclar de um estado que não estava verde** | Desde a [Q3](open-questions.md) o Lumem escreve, e a escrita é irreversível para o time | Três coisas, e nenhuma é comentário: o **número da PR nunca vem do cliente** (§4.2.12), o **portão relê o veredito no daemon** (F7.2) e a confirmação **diz o número, a base e a estratégia** antes de qualquer coisa |
+| **Injeção de flag num título de PR** | Título e corpo vêm da tela, e um título que começa com `-` é lido como flag por qualquer CLI | `--flag=valor` colado num token só, corpo por `--body-file`, e recusa de caractere de controle antes de virar `argv` (§4.2.9–11). Não há shell no caminho, então isto é o que sobra |
 | **Texto de fora na tela** | Título e nome de check vêm da internet | §4.5 e §4.6 |
 | **A barra roubar altura do painel** | Ela nasce no topo do painel direito, e o `FitAddon` do terminal mede a coluna do meio | Menor que na v0.1 — a barra não fica mais sobre o terminal —, mas a F0 muda a altura do meio: **aparecer e sumir remede o terminal** continua sendo *Done when*, agora da F0 |
 | **Quatro andares num painel de 260px de largura** | A barra da PR chegou depois do rodapé de execução, e os dois comem altura do conteúdo (§2.2) | A barra tem duas linhas e some quando não há PR; a contagem foi para a aba em vez de virar terceira linha; e o **terminal do rodapé remede** quando a barra aparece ou some — mesmo *Done when* da P6 |
@@ -374,8 +451,31 @@ O desenho de teste que sai disso:
 ## 9. Depois desta versão
 
 - **O segundo host** (GitLab por `glab`), que é o teste real do adaptador;
-- **Ações de escrita** — mesclar e criar PR —, se a ida ao navegador doer com frequência medida;
+- **As ações de escrita que ficaram de fora** — reexecutar verificação, aprovar, comentar —, cada uma
+  com o seu portão. Mesclar e criar já entraram, pela Q3 e pela Q4;
 - **Notificação** quando a PR fica verde ou quebra, com política de ruído;
 - **A aba `Review`**, que continua no [backlog](../../project/backlog.md) e é outra feature inteira;
 - **"O check quebrou, peça ao agente para consertar"** — a ponte entre esta barra e a sessão ACP. É a
   ideia mais valiosa da lista e a mais perigosa: põe texto da internet dentro de um prompt (§4.7).
+
+---
+
+## 10. Dívida de desenho
+
+Uma, e ela é consequência direta da [Q3](open-questions.md) e da [Q4](open-questions.md).
+
+**A tela 9 do protótipo está errada.** Ela se chama *"o que esta barra não faz"* e o texto dela é a
+ausência do `Merge`, argumentada. Os dois gestos entraram, então a tela descreve uma decisão que foi
+revertida — e o protótipo é **cópia do Open Design** ([regra](../../project/design-source-of-truth.md)),
+que não se edita à mão deste lado.
+
+O que a implementação faz enquanto isso, e por que é seguro:
+
+- os dois botões entram no `.prbar__acts`, que **já existe** no desenho e já é `.btn` — é o mesmo
+  lugar de onde saem `abrir PR no GitHub`, `tentar de novo` e `não mostrar mais`;
+- **zero token novo e zero classe nova**: o gesto novo não pede pixel novo, pede um botão a mais numa
+  fila de botões que já estava desenhada;
+- o diálogo de confirmação usa o mesmo componente dos outros diálogos do produto.
+
+O que fica devendo: as telas de **confirmação de merge** e de **criação de PR**, desenhadas no Open
+Design, e a tela 9 reescrita para dizer o que a barra passou a fazer e o que ela continua não fazendo.
