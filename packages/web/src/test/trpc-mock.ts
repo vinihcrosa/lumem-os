@@ -26,6 +26,25 @@ import { vi } from "vitest";
 const EMPTY_MEMORY = { entries: [], shadowed: [] };
 const EMPTY_CORE = { chars: 0, recentChars: 0, entries: [] };
 const DEFAULT_SETTINGS = { distill: false, autoLearn: false, autoLearnBudget: 3 };
+
+/**
+ * O checkout que não declara script nenhum — o estado normal de todo projeto.
+ *
+ * Default do mock pelo mesmo motivo dos outros: o rodapé consulta no `mount`, e um
+ * teste que fala de outra coisa não pode quebrar por causa disso.
+ */
+export const NO_SCRIPTS_STATUS = {
+  scripts: { setup: null, run: null, test: null, teardown: null },
+  file: "/repo/.lumem/project.toml",
+  trusted: true,
+  reservedPort: null,
+  port: null,
+  setup: { command: null, last: null },
+  run: { command: null, last: null },
+  test: { command: null, last: null },
+  teardown: { command: null, last: null },
+};
+
 function createTrpcMock() {
   return {
     health: { query: vi.fn() },
@@ -47,6 +66,21 @@ function createTrpcMock() {
       add: { mutate: vi.fn() },
       rename: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
+      // What the `↳` line reads. A query, and it stays one: it runs while the
+      // person is still typing and before anything has been agreed to.
+      parseSource: { query: vi.fn() },
+      clone: { mutate: vi.fn() },
+      cloneJobs: { query: vi.fn() },
+      cloneCancel: { mutate: vi.fn() },
+      // Typed as the real client's shape — input first, handlers second — so a
+      // test can drive `onData` without the mock's signature disagreeing.
+      cloneProgress: {
+        subscribe: vi.fn(
+          (_input: { jobId: string }, _handlers: { onData: (job: unknown) => void }) => ({
+            unsubscribe: () => {},
+          }),
+        ),
+      },
     },
     worktree: {
       listByProject: { query: vi.fn() },
@@ -126,8 +160,16 @@ function createTrpcMock() {
       resume: { mutate: vi.fn() },
       close: { mutate: vi.fn() },
     },
+    scripts: {
+      status: { query: vi.fn().mockResolvedValue(NO_SCRIPTS_STATUS) },
+      start: { mutate: vi.fn() },
+      stop: { mutate: vi.fn() },
+      trust: { mutate: vi.fn() },
+      writeFile: { mutate: vi.fn() },
+    },
   };
 }
+
 
 export type TrpcMock = ReturnType<typeof createTrpcMock>;
 
@@ -170,4 +212,5 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   mock.memory.decisions.query.mockResolvedValue([]);
   mock.memory.usage.query.mockResolvedValue([]);
   mock.memory.playbooks.query.mockResolvedValue([]);
+  mock.scripts.status.query.mockResolvedValue(NO_SCRIPTS_STATUS);
 }

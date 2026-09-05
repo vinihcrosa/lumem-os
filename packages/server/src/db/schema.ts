@@ -45,6 +45,36 @@ export const project = sqliteTable(
     path: text("path").notNull().unique(),
     /** Resolved once, when the project is added. */
     defaultBranch: text("default_branch").notNull(),
+    /**
+     * Where it was cloned from, sanitized — never with a credential, F6.8.
+     *
+     * Null means "registered by path, with no known origin". It is the first
+     * piece of data Q291 (stable project identity) needs in order to be
+     * discussed at all, and what any future `fetch` will read.
+     */
+    remoteUrl: text("remote_url"),
+    /**
+     * The Lumem wrote these bytes, into a directory the Lumem chose.
+     *
+     * A column and not a deduction from `remote_url != null` or from the path's
+     * prefix: `project.remove` deletes the directory when this is true (F6.9),
+     * and a deduction fails silently the first time somebody moves something —
+     * where the failure is deleting somebody else's repository.
+     */
+    managed: integer("managed", { mode: "boolean" }).notNull().default(false),
+    /**
+     * A assinatura do `[scripts]` que você já leu e aceitou rodar (S11).
+     *
+     * Um projeto clonado de uma URL traz comandos de alguém, e depois da
+     * `project-from-url` "colei uma URL para dar uma olhada" não pode significar
+     * execução arbitrária. Então o `[scripts]` de um projeto **gerenciado** nasce
+     * não confiado, e a primeira execução mostra o comando antes de rodar.
+     *
+     * Um hash e não um booleano: confiança é sobre **este** comando. Um `[scripts]`
+     * que muda depois de aprovado — porque você deu `git pull` — volta a perguntar,
+     * que é o único jeito de a aprovação querer dizer alguma coisa.
+     */
+    scriptsTrustedHash: text("scripts_trusted_hash"),
     ...timestamps,
   },
   (table) => [uniqueIndex("project_name_per_workspace").on(table.workspaceId, table.name)],
@@ -117,6 +147,15 @@ export const session = sqliteTable(
   {
     id: text("id").primaryKey(),
     kind: text("kind").notNull(),
+    /**
+     * Qual script esta sessão é — `setup`, `run` ou `teardown`.
+     *
+     * Coluna, e não dedução do `command`, porque a pergunta do rodapé é *"tem run
+     * vivo neste checkout?"* e procurar por string de comando responderia errado no
+     * dia em que dois projetos rodam o mesmo `pnpm dev`. Nula para tudo que não é
+     * script, e obrigatória para o que é — o CHECK cobra os dois sentidos.
+     */
+    scriptName: text("script_name"),
     agentConfigId: text("agent_config_id").references(() => agentConfig.id, {
       onDelete: "restrict",
     }),
@@ -165,7 +204,7 @@ export const session = sqliteTable(
     ...timestamps,
   },
   (table) => [
-    check("session_kind", sql`${table.kind} IN ('shell', 'agent')`),
+    check("session_kind", sql`${table.kind} IN ('shell', 'agent', 'script')`),
     check("session_scope_type", sql`${table.scopeType} IN ('project', 'worktree')`),
     check("session_state", sql`${table.state} IN ('running', 'exited')`),
     // Both directions: an agent session without a config cannot be relaunched
@@ -173,7 +212,21 @@ export const session = sqliteTable(
     check(
       "session_agent_config",
       sql`(${table.kind} = 'agent' AND ${table.agentConfigId} IS NOT NULL)
-        OR (${table.kind} = 'shell' AND ${table.agentConfigId} IS NULL)`,
+        OR (${table.kind} <> 'agent' AND ${table.agentConfigId} IS NULL)`,
+    ),
+    // Os dois sentidos, como o `session_agent_config`: script sem nome de fase é
+    // sessão que o rodapé não sabe em qual aba mostrar, e nome de fase numa shell
+    // é uma sessão mentindo sobre quem escolheu o comando dela.
+    //
+    // O `IS NOT NULL` explícito não é redundante, e o teste que o exigiu está no
+    // `db.test.ts`: `NULL IN ('setup', …)` avalia para NULL, e um CHECK só recusa
+    // quando avalia para FALSE. Sem ele, `kind='script'` com fase nula passava —
+    // exatamente a linha que este CHECK existe para impedir.
+    check(
+      "session_script_name",
+      sql`(${table.kind} = 'script' AND ${table.scriptName} IS NOT NULL
+          AND ${table.scriptName} IN ('setup', 'run', 'teardown', 'test'))
+        OR (${table.kind} <> 'script' AND ${table.scriptName} IS NULL)`,
     ),
     // A running process cannot have an exit code, and an exited one must.
     check(
@@ -194,6 +247,41 @@ export const session = sqliteTable(
       sql`(${table.transport} = 'acp' AND ${table.acpSessionId} IS NOT NULL)
         OR (${table.transport} = 'pty' AND ${table.acpSessionId} IS NULL)`,
     ),
+  ],
+);
+
+/**
+ * A porta que cada checkout ganha para rodar (project-scripts S5).
+ *
+ * Sem isto, duas worktrees do mesmo projeto sobem na mesma porta e a segunda morre
+ * com um erro que ninguém lê — que é exatamente o cenário que o Lumem existe para
+ * não ter. O precedente é o `CONDUCTOR_PORT`, que o `scripts/workspace/env.sh` deste
+ * repositório já lê.
+ *
+ * **Gravada, e não sorteada a cada run**: o valor entra em `.env`, em configuração
+ * de proxy e na barra do navegador de quem está trabalhando. Porta que muda a cada
+ * start é porta que não serve para nada disso.
+ *
+ * Sem foreign key, pelo mesmo motivo de `session.scope_id`: a coluna é polimórfica
+ * — projeto ou worktree. Quem apaga o checkout apaga a reserva.
+ */
+export const checkoutPort = sqliteTable(
+  "checkout_port",
+  {
+    id: text("id").primaryKey(),
+    scopeType: text("scope_type").notNull(),
+    scopeId: text("scope_id").notNull(),
+    /** A primeira porta do bloco. O bloco inteiro é dela até `base + tamanho - 1`. */
+    port: integer("port").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("checkout_port_scope").on(table.scopeType, table.scopeId),
+    // Duas reservas na mesma porta seriam duas aplicações brigando por ela — o
+    // problema que a tabela existe para resolver, reintroduzido pela tabela.
+    uniqueIndex("checkout_port_port").on(table.port),
+    check("checkout_port_scope_type", sql`${table.scopeType} IN ('project', 'worktree')`),
+    check("checkout_port_range", sql`${table.port} > 0 AND ${table.port} < 65536`),
   ],
 );
 
@@ -635,6 +723,7 @@ export const schema = {
   memoryProposal,
   playbook,
   sessionUsage,
+  checkoutPort,
 };
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
@@ -645,6 +734,7 @@ export type SessionRow = typeof session.$inferSelect;
 export type MemoryEntryRow = typeof memoryEntry.$inferSelect;
 export type PlaybookRow = typeof playbook.$inferSelect;
 export type SessionUsageRow = typeof sessionUsage.$inferSelect;
+export type CheckoutPortRow = typeof checkoutPort.$inferSelect;
 export type MemoryDecisionRow = typeof memoryDecision.$inferSelect;
 export type ActionSignalRow = typeof actionSignal.$inferSelect;
 export type MemoryAccessRow = typeof memoryAccess.$inferSelect;

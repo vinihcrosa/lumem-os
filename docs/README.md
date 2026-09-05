@@ -1,6 +1,6 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). Fechando o caminho de entrada, o [onboarding](prd/onboarding/prd.md) e o [agent-login](prd/agent-login/prd.md). E o harness passou a lembrar: a [workspace-memory](prd/workspace-memory/tasks.md) está **completa** — nove PRs, a primeira feature que não é de tela, e a única em que o sistema escreve sozinho (atrás de portão, inbox e interruptor desligado). Fechando o círculo, a [workspace-screen](prd/workspace-screen/prd.md) deu tela ao workspace: a memória dele deixou de depender de um projeto aberto, e o consumo de tokens passou a ser somável por projeto e por worktree.
+Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). A [project-from-url](prd/project-from-url/prd.md) traz o projeto de fora: cola-se uma URL git e o daemon clona, num diretório de estado que passou a ser uma árvore só. Fechando o caminho de entrada, o [onboarding](prd/onboarding/prd.md) e o [agent-login](prd/agent-login/prd.md). E o harness passou a lembrar: a [workspace-memory](prd/workspace-memory/tasks.md) está **completa** — nove PRs, a primeira feature que não é de tela, e a única em que o sistema escreve sozinho (atrás de portão, inbox e interruptor desligado). Fechando o círculo, a [workspace-screen](prd/workspace-screen/prd.md) deu tela ao workspace: a memória dele deixou de depender de um projeto aberto, e o consumo de tokens passou a ser somável por projeto e por worktree.
 
 > **Decisão de arquitetura, 2026-08-17:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por [ACP](project/pty-vs-acp.md)**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A feature [acp-sessions](prd/acp-sessions/prd.md) — transporte mais a tela da conversa — está **completa**: PRD escrito, spike rodado (autenticação e consumo medidos, janela de contexto parcial), protótipo renderizado em `packages/web/prototype/lumem-acp-conversation.html`, e as fases 1, 3, 4, 5 e 6 entregues — uma tarefa roda do começo ao fim sem terminal, fechar o daemon não perde a conversa, e o agente ACP se cria pela tela.
 
@@ -23,9 +23,12 @@ Lendo nesta ordem você entende o projeto inteiro em três documentos:
 | [vision.md](project/vision.md) | Visão, hierarquia pretendida, o que o Vinicius quer do sistema |
 | [questions.md](project/questions.md) | 96 perguntas de design em duas rodadas. Fonte de verdade das decisões de longo prazo, respondida aos poucos |
 | [testing.md](project/testing.md) | Matriz de cobertura, o que cada gate garante, e as armadilhas de teste já corrigidas |
+| [workspaces.md](project/workspaces.md) | Os scripts de setup, run e teardown em `scripts/workspace/`, e como Superset e Conductor só apontam para eles |
+| [task-cycle-evidence.md](project/task-cycle-evidence.md) | Linha de base medida do repositório e registro de custo do ciclo dev → review → rework. Lastro dos números que a skill `lumem-task-cycle` cita |
 | [task-cycle-evidence.md](project/task-cycle-evidence.md) | Linha de base medida do repositório e registro de custo do ciclo dev → review → rework, ao longo de onze lotes. A skill que orquestrava o ciclo foi removida; as medições ficaram, porque são deste repositório |
 | [design-source-of-truth.md](project/design-source-of-truth.md) | **Decisão (2026-08-19): o design é feito inteiramente no Open Design.** O gerador Python saiu, o `tokens.css` passou a ser sincronizado, e a verificação de contraste ficou — com o custo de cada uma dessas três coisas nomeado |
 | [pty-vs-acp.md](project/pty-vs-acp.md) | **Decisão de arquitetura (2026-08-17): o Lumem migra para ACP.** O custo medido, os prós e contras de cada transporte, a recomendação contrária que perdeu, e o §9.2 — billing e janela de contexto investigados na fonte, com duas das minhas próprias afirmações corrigidas |
+| [agentation.md](project/agentation.md) | A barra de anotação visual do dev: clicar num elemento da tela vira contexto estruturado para o agente. Como está montada, por que não viaja para produção, e as duas variáveis que a ligam e desligam |
 | [backlog.md](project/backlog.md) | **Tudo que ficou para depois**, com uma frase de contexto, de onde veio, e o gatilho que traz de volta. Toda ideia adiada entra aqui na hora |
 
 ---
@@ -98,6 +101,16 @@ Sucede a `right-panel`. O split da aba **escreve**: editar o arquivo aberto com 
 | [prd.md](prd/file-editor/prd.md) | Por que o não-objetivo foi revertido, a segurança da escrita, a concorrência com o agente, riscos |
 | [open-questions.md](prd/file-editor/open-questions.md) | 24 perguntas, 21 respondidas |
 | [tasks.md](prd/file-editor/tasks.md) | 6 decisões e 13 tasks em 5 fases, mais as premissas travadas e as 20 pendências numeradas — **todas entregues**, mais o que o portão não prova |
+
+### [project-from-url/](prd/project-from-url/) — o projeto vem de uma URL
+
+Sucede a `file-editor`. Antes dela só se registrava repositório que já estava no disco; esta feature clona de qualquer URL git — GitHub, GitLab, Gitea, servidor da empresa. É a primeira em que o daemon **executa rede a partir de uma string colada** e a primeira em que ele **apaga** um diretório, o que faz da segurança a maior seção do PRD. Reverte o F2.5 do walking-skeleton para projeto gerenciado, e reorganiza o diretório de estado numa árvore só — `~/.lumem/workspaces/<workspace>/<projeto>/{repo,worktrees}`.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/project-from-url/prd.md) | Escopo, a lista de permissão de transporte, o segredo que morre na fronteira, o clone como job, e por que remover um projeto clonado agora **apaga** o clone |
+| [open-questions.md](prd/project-from-url/open-questions.md) | 22 perguntas, **todas respondidas**. Quatro respostas derrubaram desenho |
+| [tasks.md](prd/project-from-url/tasks.md) | 11 decisões e 17 tasks em 5 fases — **todas entregues** — mais as 10 pendências numeradas e a regra que a suíte e2e matou |
 
 ### [workspace-screen/](prd/workspace-screen/) — o workspace ganha uma tela
 
@@ -186,6 +199,60 @@ O achado que vale fora da feature: **o `claude-agent-acp` não oferece login a q
 `authMethods` vinha vazio porque o Lumem nunca declarou `clientCapabilities.auth.terminal` — não porque
 o adaptador não tivesse o que oferecer. Com a capacidade declarada, ele oferece dois métodos, os dois
 `type: "terminal"`: o login é um comando dele rodando num terminal, e não uma chamada de `authenticate`.
+
+### [project-scripts/](prd/project-scripts/) — os scripts do projeto, e o rodapé que os mostra
+
+**Completa — 14 tasks, gate cheio verde.** O Lumem criava worktrees que não rodavam: nasciam sem
+dependência, sem build e sem nenhum lugar no produto onde subir a aplicação. Agora `setup`, `run` e
+`teardown` moram no `<repo>/.lumem/project.toml` — o arquivo que já existia, com o `id` dentro — e
+ganharam uma faixa abaixo da árvore de arquivos, com `Setup`, `Run` e `Terminal`. Worktree nova nasce
+preparada, o `run` sobe com um clique e o botão `Abrir :PORTA` diz de onde tirou o número. Fecha o
+item **F** do [backlog](project/backlog.md).
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/project-scripts/prd.md) | A ironia medida neste repositório (o `scripts/workspace/` que o Superset e o Conductor leem e o Lumem não), o formato do `[scripts]`, o contrato de variáveis de ambiente, e o §8 — executar string vinda de repositório de terceiro |
+| [open-questions.md](prd/project-scripts/open-questions.md) | 11 perguntas, **todas fechadas** — quatro pelo desenho aprovado, sete como proposta seguida, e a diferença entre as duas coisas está escrita. A S1 (onde o rodapé cabe) e a S5 (o Lumem virar alocador de portas) são as que mudaram o tamanho da feature |
+| [tasks.md](prd/project-scripts/tasks.md) | 14 tasks em 4 fases, **todas entregues**, mais as sete coisas que a execução achou — inclusive um CHECK que não recusava nada porque `NULL IN (…)` avalia para NULL |
+| `lumem-run-dock.html` (Open Design) | **Sete quadros, aprovados em 2026-08-30** e já no repositório. As duas leituras da S1 lado a lado, mais Setup (passou e falhou), Terminal, o vazio que ensina o arquivo, o rodapé recolhido com o run visto de fora, e a primeira execução de um projeto clonado |
+### [pull-request-status/](prd/pull-request-status/) — a worktree diz se dá pra mesclar
+
+**Desenhada, nada implementado.** Quando a worktree tem PR aberta, o topo do painel direito responde
+uma pergunta só — **dá pra mesclar?** — em verde, vermelho ou âmbar, com o motivo escrito ao lado e um
+`↗` que abre a PR no navegador. O que ela resolve não é "ver PR dentro do editor": é que descobrir qual
+das oito worktrees está pronta e qual quebrou custa hoje uma ida ao navegador **por worktree** — um
+custo que cresce com a única coisa que o produto promete deixar crescer. Sai do backlog o item
+*"abstração de git host"*, com o corte que ele mesmo pedia: **ler, não agir**.
+
+Ela trouxe junto uma **mudança de estrutura** (v0.2): a coluna do meio passa a começar nas abas, e a
+**primeira aba é a da worktree** — título, branch, sujeira, caminho em disco e ações saem do cabeçalho
+fixo e viram conteúdo. O que isso cobra está escrito onde dói: com uma aba de sessão na frente, branch
+e sujeira somem da vista, e quem paga são o ponto na aba e o marcador na sidebar.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/pull-request-status/prd.md) | O §2.1 (a mudança de estrutura, com a conta dela), a regra de cor como decisão de produto, o adaptador de host, a consulta **por projeto** (oito worktrees = um processo), e o §4 — executar binário de terceiro e renderizar texto que veio da internet |
+| [open-questions.md](prd/pull-request-status/open-questions.md) | 11 perguntas, **1 respondida** (a Q2, que moveu a barra para o painel). A Q1 (`gh` ou token nosso) trava o daemon; a Q3 e a Q4 decidem se a feature termina lendo ou passa a escrever no remoto |
+| [tasks.md](prd/pull-request-status/tasks.md) | 16 tasks em 6 fases. A primeira é a **estrutura** — ela mexe em tela que já funciona —, e a segunda é um **spike**: a saída `--json` do `gh` é contrato de outro projeto, e ninguém mediu ainda |
+| `packages/web/prototype/lumem-pr-bar.html` | O protótipo, vindo do Open Design: nove telas — a tela inteira, a aba da worktree, os cinco estados na largura do painel, as causas de bloqueio, a aba `PR`, os seis estados degradados, o painel fechado, as duas larguras extremas, e o que a barra não faz. **Zero token novo**; cinco pares de contraste novos, já medidos |
+
+### [distribution/](prd/distribution/) — o Lumem sai do checkout
+
+**Completa: 16 tasks, seis fases, tudo entregue em 2026-08-30.** Onze features de pé e nenhuma forma
+de *ter* o produto que não fosse clonar o monorepo: `@lumem/server` não tinha build, o daemon rodava
+por `tsx`, o web só existia no vite, e o repositório público não tinha `README.md` — nunca teve — nem
+`LICENSE`, o que significava todos os direitos reservados. Agora o daemon é **um bundle ESM** com só
+o par nativo por fora, ele **serve o web na própria porta**, o binário `lumem` sobe tudo, e `npm i -g
+@vinihcrosa/lumem-os` instala — medido: 55 arquivos, 1,3 MB empacotados, e sobe num prefixo limpo.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/distribution/prd.md) | O que falta hoje, item por item e medido; o bundle que **subiu de verdade** (3,0 MB, 123 ms) e a armadilha do `MIGRATIONS_DIR` que ele achou; a pipeline de release, cujo passo central é **instalar o tarball num runner limpo** — o único que pega dependência com `require` dinâmico, prebuild ausente e arquivo fora do pacote |
+| [open-questions.md](prd/distribution/open-questions.md) | 11 perguntas, **todas fechadas** numa resposta só — e a D1 **corrigida pelo registry no mesmo dia**: `npm view lumem` respondendo 404 provava que o nome estava livre, não que era publicável, e o `PUT` recusou por similaridade com `mem`. Oito foram proposta aceita; a D2 foi aceita **com prazo** (foreground agora, background depois) e a D11 veio com uma correção de rumo maior que a pergunta — o projeto todo vai para inglês. As duas viraram backlog na hora |
+| [tasks.md](prd/distribution/tasks.md) | 16 tasks em 6 fases, **todas entregues**, na ordem do risco: a prova de que o artefato sobe veio na T2, antes de existir CLI, e o smoke de instalação vem antes de qualquer publicação |
+| [../README.md](../README.md) | a porta do repositório, em inglês, com [tradução](../README.pt-BR.md) ao lado — o primeiro arquivo do outro lado da D11 |
+
+---
 
 ---
 

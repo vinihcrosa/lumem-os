@@ -3,6 +3,14 @@ dist/
 build/
 .turbo/
 
+# Saída da montagem do pacote publicado (`packages/cli/build.ts`). O `dist/`
+# acima já cobre metade; estes dois são cópias que o build faz para dentro do
+# pacote, e commitá-las seria versionar o mesmo byte duas vezes.
+packages/cli/bin/
+packages/cli/drizzle/
+packages/cli/README.md
+packages/cli/LICENSE
+
 *.db
 *.db-journal
 *.db-shm
@@ -18,6 +26,7 @@ packages/web/prototype/preview/
 # saída do verificador de protótipo (scripts/verify_prototype.mjs)
 .preview/
 .lumem-e2e/
+.lumem-e2e-production/
 .lumem-e2e-fixtures/
 
 .DS_Store
@@ -31,3 +40,4 @@ packages/web/prototype/preview/
 
 .agents/.skill-lock.json.backup
 .superset/config.local.json
+.conductor/settings.local.toml

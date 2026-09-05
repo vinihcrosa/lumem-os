@@ -5,6 +5,7 @@ import { AddProjectDialog } from "./components/AddProjectDialog.js";
 import { AgentLogin } from "./components/AgentLogin.js";
 import { WorkspacePanel } from "./components/WorkspacePanel.js";
 import { CheckoutFiles } from "./components/CheckoutFiles.js";
+import { CloneStatus } from "./components/CloneStatus.js";
 import { LocalPanel } from "./components/LocalPanel.js";
 import { SidebarTree } from "./components/SidebarTree.js";
 import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
@@ -14,6 +15,7 @@ import { useLiveState } from "./hooks/useLiveState.js";
 import { AwaitingPermissionProvider } from "./hooks/useAwaitingPermission.js";
 import { OpenFilesProvider } from "./hooks/useOpenFiles.js";
 import { useRightPanel } from "./hooks/useRightPanel.js";
+import { RUN_DOCK_PANEL_WIDTH, useRunDock } from "./hooks/useRunDock.js";
 import type { Scope } from "./hooks/useSessionsByScope.js";
 import { useTreeExpansion } from "./hooks/useTreeExpansion.js";
 import { AppShell } from "./layout/AppShell.js";
@@ -24,6 +26,7 @@ import { trpc } from "./lib/trpc.js";
 import { Banner, Skeleton } from "./ui/index.js";
 
 import "./components/sidebar.css";
+import "./components/clone.css";
 import "./layout/layout.css";
 
 /**
@@ -51,8 +54,25 @@ export function App() {
   const [setupOpen, setSetupOpen] = useState<boolean | null>(null);
   /** A session the setup flow opened, for the tabs to bring to the front once. */
   const [openSessionId, setOpenSessionId] = useState<string | undefined>(undefined);
+  /**
+   * Uma conversa aberta **para** uma pergunta, e a pergunta.
+   *
+   * Hoje vem de um lugar só: o rodapé de execução, quando o projeto não declara
+   * `[scripts]` e a pessoa pede para o agente escrever. Mora aqui porque as abas
+   * são do painel central, e o rodapé é da coluna da direita.
+   */
+  const [ask, setAsk] = useState<{ sessionId: string; text: string } | null>(null);
+  /**
+   * A URL handed back to the dialog, F6.10 of project-from-url.
+   *
+   * The way out of an authentication failure is the same address spelled for
+   * ssh, and the person should not have to retype it. It lives here because the
+   * failure is shown by one component and answered by another.
+   */
+  const [prefill, setPrefill] = useState<string | null>(null);
   const expansion = useTreeExpansion();
   const rightPanel = useRightPanel();
+  const dock = useRunDock();
 
   const health = useQuery({
     queryKey: ["health"],
@@ -212,10 +232,15 @@ export function App() {
                 global and this footer is the workspace's.
               */}
               <AgentLogin />
+              {/* The clone sits right above the button that starts one, which
+                  is also where the project it produces will appear. */}
+              <CloneStatus workspaceId={activeId} onRetry={setPrefill} />
               {/* Adding a project is an action of the workspace, not an item of
                   the list it appends to. */}
               <AddProjectDialog
                 workspaceId={activeId}
+                prefill={prefill}
+                onPrefillConsumed={() => setPrefill(null)}
                 onAdded={(projectId) =>
                   setSelection({
                     projectId,
@@ -244,6 +269,23 @@ export function App() {
         scope={selection.scope}
         onClose={rightPanel.toggle}
         onResize={rightPanel.setWidth}
+        onAskAgent={(sessionId, text) => {
+          setAsk({ sessionId, text });
+          setOpenSessionId(sessionId);
+        }}
+        dock={{
+          ...dock,
+          // Abrir o rodapé alarga a coluna quando ela é estreita demais para um
+          // terminal (S1). Só para cima, e só uma vez: quem já escolheu uma
+          // largura maior não é corrigido, e fechar não desfaz o que a pessoa
+          // arrastou depois.
+          toggle: () => {
+            if (!dock.open && rightPanel.width < RUN_DOCK_PANEL_WIDTH) {
+              rightPanel.setWidth(RUN_DOCK_PANEL_WIDTH);
+            }
+            dock.toggle();
+          },
+        }}
       />
     );
   }
@@ -279,6 +321,7 @@ export function App() {
           worktreeId={scope.scopeId}
           projectId={projectId}
           openSessionId={openSessionId}
+          initialPrompt={ask ?? undefined}
           workspaceName={workspaceName}
           onRemoved={() =>
             setSelection({
@@ -305,6 +348,8 @@ export function App() {
         projectId={projectId}
         workspaceId={workspaceId}
         workspaceName={workspaceName}
+        openSessionId={openSessionId}
+        initialPrompt={ask ?? undefined}
         onRemoved={() => setSelection(null)}
         onOpenWorkspace={() => setSelection(null)}
         onSelectWorktree={(worktreeId) =>

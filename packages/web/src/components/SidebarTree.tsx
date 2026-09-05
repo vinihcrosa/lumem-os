@@ -1,11 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { useAwaitingPermission } from "../hooks/useAwaitingPermission.js";
+import { useScripts } from "../hooks/useScripts.js";
 import { useRunningAcross, useSessionsByScope, type Scope } from "../hooks/useSessionsByScope.js";
 import type { TreeExpansion } from "../hooks/useTreeExpansion.js";
 import { projectsKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { EmptyState, Glyph, Row, Skeleton } from "../ui/index.js";
+
+import "./run-dock.css";
 
 /**
  * What the sidebar is pointing at.
@@ -181,7 +184,8 @@ function LocalNode({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const running = useRunningAcross([{ scopeType: "project", scopeId: projectId }]);
+  const scope: Scope = { scopeType: "project", scopeId: projectId };
+  const running = useRunningAcross([scope]);
 
   return (
     <div data-kind="local" data-state="active">
@@ -189,6 +193,7 @@ function LocalNode({
         depth={1}
         label="local"
         glyph={<Glyph tone="project">▭</Glyph>}
+        meta={<ScriptMark scope={scope} />}
         count={running > 0 ? running : undefined}
         selected={selected}
         onSelect={onSelect}
@@ -209,6 +214,37 @@ interface WorktreeSummary {
  * the same string, so printing both would be printing one twice — the branch
  * appears only when it is something the name does not already say.
  */
+/**
+ * O que este checkout tem de pé, visto de fora do rodapé.
+ *
+ * O rodapé pode estar fechado, ou você em outra worktree — e sem um sinal aqui
+ * "tem um dev server nesta worktree" vira coisa que só o `lsof` sabe, até a
+ * próxima vez que você rodar e a porta já estiver ocupada por você mesmo.
+ *
+ * Sem requisição nova por linha: é a **mesma chave de cache** que o rodapé usa, e
+ * ela só volta a perguntar enquanto houver algo vivo.
+ */
+function ScriptMark({ scope }: { scope: Scope }) {
+  const status = useScripts(scope);
+  const run = status.data?.run.last;
+  const setup = status.data?.setup.last;
+
+  if (run?.running === true) {
+    const port = status.data?.port ?? null;
+    return (
+      <span className="runmark">
+        <span className="runmark__glyph">▶</span>
+        {port === null ? "run" : `:${String(port.port)}`}
+      </span>
+    );
+  }
+
+  // O mesmo lugar onde `ausente` já aparece hoje: um estado do checkout, escrito
+  // onde os estados do checkout são escritos.
+  if (setup && !setup.running && setup.exitCode !== 0) return <>setup falhou</>;
+  return null;
+}
+
 function worktreeMeta(worktree: WorktreeSummary): string | undefined {
   const parts = [
     worktree.branch === worktree.name ? null : worktree.branch,
@@ -247,7 +283,9 @@ function WorktreeNode({
         glyph={<Glyph tone={missing ? "warn" : "worktree"}>{missing ? "⚠" : "◇"}</Glyph>}
         // F7.4: it stays visible and says so, instead of disappearing.
         muted={missing}
-        meta={worktreeMeta(worktree)}
+        meta={
+          worktreeMeta(worktree) ?? (missing ? undefined : <ScriptMark scope={scope} />) ?? undefined
+        }
         count={asking > 0 ? asking : running > 0 ? running : undefined}
         countTone={asking > 0 ? "asking" : "running"}
         selected={selected}

@@ -1,0 +1,47 @@
+{
+  "name": "@vinihcrosa/lumem-os",
+  "version": "0.1.0",
+  "description": "Local harness for orchestrating AI coding agents across git worktrees",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "lumem": "bin/lumem.mjs",
+    "lumem-os": "bin/lumem.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "drizzle",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vinihcrosa/lumem-os.git"
+  },
+  "homepage": "https://github.com/vinihcrosa/lumem-os",
+  "scripts": {
+    "build": "tsx build.ts",
+    "postinstall": "node bin/postinstall.mjs 2>/dev/null || exit 0",
+    "prepack": "tsx build.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "node-pty": "^1.1.0"
+  },
+  "devDependencies": {
+    "@lumem/server": "workspace:*",
+    "@lumem/shared": "workspace:*",
+    "@lumem/web": "workspace:*",
+    "@types/node": "^22.10.2",
+    "esbuild": "^0.25.12",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^3.0.5"
+  }
+}

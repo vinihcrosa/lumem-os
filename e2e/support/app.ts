@@ -68,8 +68,8 @@ export async function ensureProject(page: Page, path: string, name = "fixture"):
   if (present) return;
 
   await page.getByRole("button", { name: "adicionar projeto" }).click();
-  await page.getByLabel("Caminho do repositório").fill(path);
-  await page.getByLabel("Nome (opcional)").fill(name);
+  await page.getByLabel("Caminho ou URL").fill(path);
+  await page.getByLabel("Nome").fill(name);
   await page.getByRole("button", { name: "adicionar" }).click();
   await expect(entry).toBeVisible({ timeout: 15_000 });
 }

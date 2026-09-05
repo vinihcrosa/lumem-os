@@ -1,0 +1,431 @@
+/* ============================================================================
+   Lumem-OS — o rodapé de execução (project-scripts)
+
+   Camada de tela: só o que é desta tela e de mais nenhuma. Tudo que já existe
+   vem do lumem-ds.css; tudo que é valor vem do tokens.css. Nenhum literal de
+   cor, espaço, raio ou tipografia — a regra do projeto.
+
+   O que nasce aqui, e por quê:
+
+     .dock      a faixa abaixo da árvore de arquivos. Três abas — Setup, Run,
+                Terminal — que são a MESMA primitiva (sessão PTY): o que muda é
+                quem escolheu o comando.
+     .dockout   a saída. Mono, fundo inset, uma linha por `.l` — a mesma
+                convenção de `.out` e `.raw` do design system, porque quem
+                aprendeu a ler saída de ferramenta lê esta também.
+     .rp/.frow  CÓPIA do lumem-right-panel.css. A coluna da direita ainda não
+                está no lumem-ds.css, e esta tela precisa dela inteira para
+                mostrar que o rodapé mora embaixo da árvore.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+   0. derivados — composição de token, nenhum valor novo
+   -------------------------------------------------------------------------- */
+:root {
+  /* A altura de repouso do rodapé: alto o bastante para o Vite caber inteiro,
+     baixo o bastante para a árvore continuar sendo a coisa principal. */
+  --size-dock-height: calc(var(--space-64) * 4);
+  --size-dock-min: calc(var(--space-64) + var(--space-32));
+}
+
+/* ---------------------------------------------------------------------------
+   1. a coluna da direita — cópia do lumem-right-panel.css
+   -------------------------------------------------------------------------- */
+.rp {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--color-bg-panel);
+  border-left: 1px solid var(--color-border-subtle);
+}
+.rp__grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * var(--space-2));
+  width: var(--space-4);
+  cursor: col-resize;
+}
+.rp__grip:hover { background: var(--color-border-brand); }
+
+.rp__bar {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  height: var(--size-topbar-height);
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.rp__icon {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+}
+.rp__icon:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.rp__body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.rp__scroll { flex: 1; min-height: 0; overflow: auto; padding: var(--space-4) var(--space-4) var(--space-12); }
+.rp-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-xs);
+}
+.rp-toggle--on { background: var(--color-bg-active); color: var(--color-text-primary); }
+
+.frow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-sm);
+  padding-right: var(--space-6);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font: var(--text-mono-md);
+  text-align: left;
+}
+.frow:hover { background: var(--color-bg-hover); }
+.frow--dir { color: var(--color-text-primary); }
+.frow__twist {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-icon-md);
+  height: 100%;
+  margin-left: calc(var(--space-2) + var(--depth, 0) * var(--space-12));
+  font-size: var(--size-icon-xs);
+  color: var(--color-text-tertiary);
+}
+.frow__name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frow__gap { flex: 1; }
+.mark { flex: none; width: var(--size-icon-sm); text-align: center; font: var(--text-mono-sm); }
+.mark--m { color: var(--color-git-modified); }
+.mark--a { color: var(--color-git-added); }
+
+/* ---------------------------------------------------------------------------
+   2. o rodapé
+   -------------------------------------------------------------------------- */
+/*
+ * Ele é irmão do `.rp__scroll`, não filho: a árvore rola por cima, o rodapé
+ * fica ancorado embaixo, e a alça entre os dois divide a coluna. Se fosse
+ * filho, rolar a árvore levaria o terminal junto para fora da tela.
+ */
+.dock {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: var(--size-dock-height);
+  border-top: 1px solid var(--color-border-default);
+  background: var(--color-bg-panel);
+}
+.dock--collapsed { height: auto; }
+.dock--tall { height: calc(var(--size-dock-height) + var(--space-64)); }
+
+/* A alça horizontal, do mesmo jeito que a `.rp__grip` é a vertical: mais larga
+   que a borda que ela move, porque 1px é alvo que se erra. */
+.dock__grip {
+  flex: none;
+  height: var(--space-4);
+  margin-top: calc(-1 * var(--space-2));
+  cursor: row-resize;
+}
+.dock__grip:hover { background: var(--color-border-brand); }
+
+.dock__bar {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-6);
+}
+
+/* O chevron que recolhe. Primeiro elemento da faixa, antes das abas: quem quer
+   a árvore inteira de volta não precisa procurar. */
+.dock__fold {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-xs);
+}
+.dock__fold:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+.dtab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 0 var(--space-8);
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+  white-space: nowrap;
+}
+.dtab:hover { color: var(--color-text-secondary); }
+.dtab--active { color: var(--color-text-primary); border-bottom-color: var(--color-border-brand); }
+
+/*
+ * O ponto de estado na PRÓPRIA aba, e não só dentro dela.
+ *
+ * É a mesma decisão do `.rtab__count`: o número que decide se vale abrir a aba
+ * não pode morar dentro dela. Aqui é ainda mais forte — "tem coisa rodando" e
+ * "o setup falhou" são as duas perguntas que trazem alguém ao rodapé.
+ */
+.dtab__dot { flex: none; width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: var(--color-text-disabled); }
+.dtab__dot--run  { background: var(--color-session-running); }
+.dtab__dot--fail { background: var(--color-session-failed); }
+.dtab__dot--ok   { background: var(--color-git-added); }
+
+.dock__new {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+}
+.dock__new:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+.dock__acts { display: flex; align-items: center; gap: var(--space-6); align-self: center; }
+
+/*
+ * `Abrir :55061` é o botão que carrega metade do valor do `run` — e é também o
+ * único do rodapé que pode MENTIR (S6). Por isso ele não é um botão qualquer:
+ * a porta aparece em mono, e a proveniência vem escrita ao lado, fora dele.
+ */
+.openbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: var(--text-label-sm);
+}
+.openbtn:hover { background: var(--color-bg-hover); border-color: var(--color-border-strong); }
+.openbtn__port { font: var(--text-mono-sm); color: var(--color-text-link); }
+.openbtn__from { font: var(--text-caption); color: var(--color-text-disabled); align-self: center; }
+
+/* Parar um `run` é rotina e reversível: o processo volta com um clique. Botão
+   vermelho cheio é o vocabulário de "isto não volta" — gastar ele aqui tira
+   força de onde ele importa (remover worktree, remover projeto). */
+.stopglyph { color: var(--color-text-danger); }
+
+/* A linha de estado, entre a faixa e a saída. Curta de propósito: o que ela
+   responde é "isto está vivo?" e "desde quando?" — nada mais. */
+.dock__state {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  height: var(--size-control-md);
+  padding: 0 var(--space-10);
+  border-top: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.dock__cmd { font: var(--text-mono-sm); color: var(--color-text-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* A nota da direita é a primeira coisa que pode sair: numa coluna de 360px ela
+   competiria com o comando, que é o que identifica a execução. */
+.dock__note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dock__cmd--dim { color: var(--color-text-tertiary); }
+
+.dockout {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-8) var(--space-10);
+  background: var(--color-bg-inset);
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+  white-space: normal;
+  font-variant-ligatures: none;
+  /* A barra de rolagem clara sobre o fundo inset lê como elemento de UI. Fina
+     e na cor da borda, ela volta a ser o que é. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+.dockout .l { display: block; white-space: pre; min-height: var(--space-8); }
+.dockout .dim { color: var(--color-text-tertiary); }
+.dockout .ok { color: var(--color-tool-ok); }
+.dockout .err { color: var(--color-tool-failed); }
+.dockout .warn { color: var(--color-worktree-dirty); }
+.dockout .path { color: var(--color-git-branch); }
+.dockout .you { color: var(--color-text-primary); font-weight: 500; }
+.dockout .brand { color: var(--color-text-brand); }
+.dockout .link { color: var(--color-text-link); }
+
+/* A saída de cada pacote do turbo vem com prefixo. Ele é ruído de leitura e
+   estrutura de verdade ao mesmo tempo — então continua, em terciário. */
+.dockout .px { color: var(--color-text-tertiary); }
+
+.cursor { display: inline-block; width: var(--space-8); height: var(--space-12); background: var(--color-text-primary); vertical-align: text-bottom; }
+
+/* ---------------------------------------------------------------------------
+   3. estados do rodapé
+   -------------------------------------------------------------------------- */
+/*
+ * Projeto sem `[scripts]` é o estado NORMAL, não o excepcional: é assim que
+ * todo projeto entra no Lumem. Então o vazio não pede desculpa — ele ensina o
+ * arquivo, que é a única superfície onde alguém descobre que ele existe.
+ */
+.noscripts {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+  display: grid;
+  align-content: start;
+  gap: var(--space-10);
+  padding: var(--space-16);
+}
+.noscripts__t { font: var(--text-label-md); color: var(--color-text-secondary); }
+.noscripts__d { margin: 0; font: var(--text-body-sm); color: var(--color-text-tertiary); max-width: 68ch; }
+.noscripts__where { font: var(--text-mono-sm); color: var(--color-text-code); }
+.toml {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+  padding: var(--space-10) var(--space-12);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-sm);
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+  white-space: pre;
+  overflow: auto;
+}
+.toml .k { color: var(--color-syntax-keyword); }
+.toml .s { color: var(--color-syntax-string); }
+.toml .c { color: var(--color-syntax-comment); }
+.noscripts__acts { display: flex; gap: var(--space-8); }
+
+/*
+ * A primeira execução de um projeto que veio de uma URL (S11). O comando é
+ * string de um repositório que talvez não seja seu, então ele aparece ANTES de
+ * virar processo — o mesmo padrão do `worktree.plan`, que já mostra o comando
+ * de git antes de rodar.
+ */
+.trust {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+  display: grid;
+  align-content: start;
+  gap: var(--space-10);
+  padding: var(--space-16);
+}
+.trust__head { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-md); color: var(--color-text-primary); }
+.trust__glyph { color: var(--color-text-warning); }
+.trust__why { margin: 0; font: var(--text-body-sm); color: var(--color-text-tertiary); max-width: 68ch; }
+.trust__cmd {
+  padding: var(--space-10) var(--space-12);
+  background: var(--color-bg-inset);
+  border-left: 2px solid var(--color-border-danger);
+  border-radius: var(--radius-sm);
+  font: var(--text-mono-md);
+  color: var(--color-text-code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.trust__acts { display: flex; align-items: center; gap: var(--space-8); }
+
+/* O setup que falhou na criação da worktree: a worktree FICA (S4), e o que
+   muda é esta tira — não um diálogo, que sumiria e levaria o motivo junto. */
+.dock__banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-10);
+  background: var(--color-bg-danger-subtle);
+  border-bottom: 1px solid var(--color-border-danger);
+  font: var(--text-body-sm);
+  color: var(--color-text-primary);
+}
+.dock__banner .spacer { flex: 1; }
+.dock__banner--ok { background: var(--color-bg-success-subtle); border-bottom-color: var(--color-border-subtle); }
+
+/* ---------------------------------------------------------------------------
+   4. o run visto de fora do rodapé
+   -------------------------------------------------------------------------- */
+/*
+ * O rodapé pode estar fechado, ou você em outra worktree. Sem um sinal fora
+ * dele, "tem um dev server de pé nesta worktree" vira coisa que só o `lsof`
+ * sabe. O sinal é o mesmo ponto do `.count--running` que a sidebar já usa para
+ * sessão viva — com o glifo do run, que é o que o distingue de uma conversa.
+ */
+.runmark {
+  display: inline-flex;
+  white-space: nowrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-success-subtle);
+  color: var(--color-git-added);
+  font: var(--text-caption);
+}
+.runmark__glyph { font-size: var(--size-icon-xs); }
+
+/* A tira do rodapé recolhido: uma linha, e ela ainda diz o que está vivo. */
+.dock__folded {
+  display: flex;
+  white-space: nowrap;
+  align-items: center;
+  gap: var(--space-8);
+  height: var(--size-control-lg);
+  padding: 0 var(--space-10);
+  border-top: 1px solid var(--color-border-default);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+
+/* ---------------------------------------------------------------------------
+   5. a alternativa da S1 — o rodapé no painel central
+   -------------------------------------------------------------------------- */
+.dock--main { border-left: 0; border-right: 0; }
+
+/* ---------------------------------------------------------------------------
+   6. andaimes da página de protótipo
+   -------------------------------------------------------------------------- */
+/*
+ * O quadro de tela inteira SANGRA para fora da coluna de texto: a `.doc` é
+ * larga o bastante para ler prosa e estreita demais para uma janela de app com
+ * três colunas — e desenhar a coluna da direita em 720px dentro de 900px de
+ * documento mostraria justamente o contrário do que a S1 pergunta.
+ */
+.bleed { width: calc(100vw - var(--space-48)); margin-left: calc(50% - 50vw + var(--space-24)); }
+.shot { border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); overflow: hidden; }
+.shot .app { height: calc(var(--space-64) * 9); }
+.shot--short .app { height: calc(var(--space-64) * 7); }
+.legend { display: flex; flex-wrap: wrap; gap: var(--space-12); font: var(--text-caption); color: var(--color-text-tertiary); }
+.q { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-brand); }

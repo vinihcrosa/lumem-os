@@ -8,6 +8,7 @@ import type { ServerConfig } from "./config.js";
 import type { Db } from "./db/index.js";
 import { createEventBus, type EventBus } from "./events.js";
 import { MAX_FILE_BYTES } from "./files/FileService.js";
+import { createCloneJobStore, type CloneJobStore } from "./git/CloneJobStore.js";
 import { createGitService, type GitService } from "./git/GitService.js";
 import { AcpManager } from "./acp/AcpManager.js";
 import { registerAcpWebSocket } from "./acp/websocket.js";
@@ -15,7 +16,9 @@ import type { PtyManager } from "./pty/PtyManager.js";
 import { createAutoLearn } from "./memory/auto-learn.js";
 import { registerMemoryHttp } from "./memory/http.js";
 import { registerPtyWebSocket } from "./pty/websocket.js";
+import { createScriptRunner, type ScriptRunner } from "./scripts/ScriptRunner.js";
 import { createSessionStore, type SessionStore } from "./sessions/SessionStore.js";
+import { registerWeb, resolveWebRoot } from "./web/static.js";
 import { appRouter, type AppRouter } from "./routers/index.js";
 import type { Context } from "./trpc.js";
 
@@ -83,10 +86,14 @@ export interface CreateServerOptions {
    * daemon passes its own so shutdown can unhook the exit watcher.
    */
   sessionStore?: SessionStore;
+  /** Quem roda os scripts do projeto. Construído aqui quando o daemon não passa. */
+  scripts?: ScriptRunner;
   /** Fan-out of state changes to connected clients. */
   events?: EventBus;
   /** Overridable only so a test can watch the commands; nothing mocks git. */
   git?: GitService;
+  /** Lives as long as the daemon: a clone outlives the request that began it. */
+  clones?: CloneJobStore;
   /** Fastify's own request logging. Off in tests, on for the daemon. */
   logger?: boolean;
 }
@@ -98,7 +105,16 @@ export async function createServer({
   acpManager = new AcpManager(),
   sessionStore = createSessionStore({ db, ptyManager, acpManager }),
   events = createEventBus(),
+  scripts = createScriptRunner({
+    db,
+    sessionStore,
+    ptyManager,
+    shell: config.shell,
+    portRange: config.runPortRange,
+    events,
+  }),
   git = createGitService(),
+  clones = createCloneJobStore(),
   logger = false,
 }: CreateServerOptions): Promise<FastifyInstance> {
   const app = Fastify({
@@ -115,7 +131,9 @@ export async function createServer({
     ptyManager,
     acpManager,
     sessionStore,
+    scripts,
     git,
+    clones,
     events,
   });
 
@@ -157,6 +175,24 @@ export async function createServer({
 
   registerPtyWebSocket({ app, ptyManager });
   registerAcpWebSocket({ app, acpManager });
+
+  // Por último, de propósito: o web é quem responde por tudo o que sobrou, e o
+  // que sobrou só é conhecido depois que todas as rotas do daemon existem.
+  const webRoot = resolveWebRoot(config.webRoot);
+  if (webRoot === null) {
+    // Rodando do código-fonte: quem serve a interface é o vite, na outra porta.
+    // Um 404 mudo aqui manda a pessoa procurar o erro no daemon, que não tem
+    // nenhum.
+    app.get("/", (_request, reply) =>
+      reply.code(404).send({
+        error: "o web não foi construído",
+        hint: "em desenvolvimento a interface é servida pelo vite (`pnpm dev`); num Lumem instalado ela vem de dist/web",
+      }),
+    );
+  } else {
+    await registerWeb({ app, root: webRoot });
+    app.log.info({ root: webRoot }, "servindo o web da própria porta");
+  }
 
   return app;
 }

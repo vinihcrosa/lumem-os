@@ -57,7 +57,7 @@ export interface PreflightOptions {
 export interface StatePaths {
   stateDir: string;
   databasePath: string;
-  worktreesDir: string;
+  workspacesDir: string;
   transcriptsDir: string;
 }
 
@@ -107,7 +107,7 @@ export async function preflight({
     paths: {
       stateDir: config.stateDir,
       databasePath: config.databasePath,
-      worktreesDir: config.worktreesDir,
+      workspacesDir: config.workspacesDir,
       transcriptsDir: config.transcriptsDir,
     },
   };

@@ -34,6 +34,15 @@ export interface ScopePanelProps {
    * user's business.
    */
   openSessionId?: string | undefined;
+  /**
+   * O pedido que abriu uma conversa, e para qual sessão ele é.
+   *
+   * Vem de fora porque quem cria a sessão é outra parte da tela — hoje o rodapé de
+   * execução, quando o projeto não declara `[scripts]`. Amarrado ao `sessionId` de
+   * propósito: uma pergunta destinada a uma conversa não pode cair na conversa que
+   * estiver aberta.
+   */
+  initialPrompt?: { sessionId: string; text: string } | undefined;
 }
 
 /**
@@ -43,7 +52,14 @@ export interface ScopePanelProps {
  * session does not change the branch, the path, or whether the tree is dirty.
  * Switching tabs must not make that information move.
  */
-export function ScopePanel({ scope, header, context, cwd, openSessionId }: ScopePanelProps) {
+export function ScopePanel({
+  scope,
+  header,
+  context,
+  cwd,
+  openSessionId,
+  initialPrompt,
+}: ScopePanelProps) {
   const queryClient = useQueryClient();
   const { tabs, activeId, select, close, reopen, resume, resuming, sessions } =
     useWorktreeTabs(scope);
@@ -140,6 +156,9 @@ export function ScopePanel({ scope, header, context, cwd, openSessionId }: Scope
                     ? "exited"
                     : "failed"
             }
+            // The dot alone said "exited", which a session that has just died
+            // also says. This says what the tab *is*: something to read (D5).
+            note={tab.state === "running" ? undefined : "registro"}
             active={activeId === tab.sessionId}
             onSelect={() => select(tab.sessionId)}
             onClose={() => {
@@ -189,10 +208,13 @@ export function ScopePanel({ scope, header, context, cwd, openSessionId }: Scope
               return (
                 <Item
                   key={session.id}
-                  name={session.agentName ?? "shell"}
+                  // Uma sessão de script não é uma shell, e chamá-la assim é a
+                  // mesma mentira que o `command` guardava até a project-scripts:
+                  // ela descreve o mecanismo em vez do que está acontecendo.
+                  name={session.agentName ?? session.scriptName ?? "shell"}
                   glyph={
                     <Glyph tone={session.kind === "agent" ? "agent" : "shell"}>
-                      {session.kind === "agent" ? "◆" : "●"}
+                      {session.kind === "agent" ? "◆" : session.kind === "script" ? "▶" : "●"}
                     </Glyph>
                   }
                   detail={session.command}
@@ -211,8 +233,14 @@ export function ScopePanel({ scope, header, context, cwd, openSessionId }: Scope
                       // The record outlives the tab, and so does the daemon's
                       // ring buffer — this is how the output of something that
                       // crashed gets read after its tab went away.
+                      //
+                      // Only an exited session ever lands here — a running one
+                      // cannot lose its tab. The verb has to be honest about
+                      // what comes back: a PTY tab is a frozen buffer, so "ver
+                      // registro" (issue #14); an ACP conversation reopens
+                      // readable and can still be continued, so "reabrir" (D13).
                       <Button size="sm" variant="ghost" onClick={() => reopen(session.id)}>
-                        reabrir
+                        {session.transport === "acp" ? "reabrir" : "ver registro"}
                       </Button>
                     )
                   }
@@ -228,13 +256,18 @@ export function ScopePanel({ scope, header, context, cwd, openSessionId }: Scope
         <SessionTabPanel
           key={tab.sessionId}
           tab={tab}
+          scope={scope}
           cwd={cwd}
+          onStarted={select}
           active={activeId === tab.sessionId}
           viewer={viewerFor(tab.sessionId)}
           // Only a conversation can be resumed; a PTY tab gets no button, because
           // `session/load` is something only an ACP adapter has (D1).
           {...(tab.transport === "acp" ? { onResume: () => resume(tab.sessionId) } : {})}
           resuming={resuming === tab.sessionId}
+          initialPrompt={
+            initialPrompt?.sessionId === tab.sessionId ? initialPrompt.text : undefined
+          }
         />
       ))}
     </section>

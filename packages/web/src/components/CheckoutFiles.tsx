@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { useCheckoutChanges, type ChangeRef, type ChangeStatus } from "../hooks/useCheckoutChanges.js";
+import type { RunDockState } from "../hooks/useRunDock.js";
 import { useFileTree } from "../hooks/useFileTree.js";
 import { useProposals } from "../hooks/useMemory.js";
 import { useOpenFiles } from "../hooks/useOpenFiles.js";
@@ -11,11 +12,22 @@ import { ChangesTab } from "./ChangesTab.js";
 import { FileTree, NewInRoot } from "./FileTree.js";
 import { MemoryPanel } from "./MemoryPanel.js";
 import { RightPanel, type RightPanelTab } from "./RightPanel.js";
+import { RunDock } from "./RunDock.js";
 
 export interface CheckoutFilesProps {
   scope: Scope;
   onClose(): void;
   onResize(width: number): void;
+  /**
+   * O rodapé de execução, que mora abaixo do que esta coluna mostra.
+   *
+   * O estado dele vem de fora porque abrir o rodapé mexe na **largura da coluna**
+   * (S1), e a largura é do `App`. Aberto e altura são preferência de tela, como a
+   * largura já era: valem para qualquer checkout, não para este.
+   */
+  dock: RunDockState;
+  /** Abre uma conversa nova com o pedido dentro — ver `RunDock`. */
+  onAskAgent?: (sessionId: string, prompt: string) => void;
 }
 
 /**
@@ -26,7 +38,13 @@ export interface CheckoutFilesProps {
  * tab — which is why the opening goes through `useOpenFiles` instead of state
  * held here.
  */
-export function CheckoutFiles({ scope, onClose, onResize }: CheckoutFilesProps) {
+export function CheckoutFiles({
+  scope,
+  onClose,
+  onResize,
+  dock,
+  onAskAgent,
+}: CheckoutFilesProps) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<RightPanelTab>("files");
   const [shownRef, setShownRef] = useState<ChangeRef>("worktree");
@@ -63,6 +81,7 @@ export function CheckoutFiles({ scope, onClose, onResize }: CheckoutFilesProps) 
       }}
       onClose={onClose}
       onResize={onResize}
+      dock={<RunDock scope={scope} dock={dock} onAskAgent={onAskAgent} />}
       footLeft={changes.isError ? "não deu para ler o checkout" : undefined}
       footRight={
         tab === "changes"

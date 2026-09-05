@@ -2,12 +2,14 @@
 #
 # Deixa um workspace novo pronto para `pnpm dev` e para os gates.
 #
+# Ponto de entrada do `setup` de qualquer harness — Superset, Conductor ou a mão.
+#
 # Idempotente: roda de novo sem estragar nada. Não há `.env` para copiar — toda
 # a configuração do daemon tem default e sai de variável de ambiente, e o run.sh
 # é quem as define.
 set -euo pipefail
 
-source "$(dirname "${BASH_SOURCE[0]}")/workspace.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 cd "$REPO_ROOT"
 
 echo "==> node"
@@ -46,10 +48,10 @@ mkdir -p "$LUMEM_STATE_DIR"
 cat <<INFO
 
 ==> pronto
-    workspace   $WORKSPACE_SLUG
-    state dir   $LUMEM_STATE_DIR   (próprio deste workspace; ~/.lumem fica intocado)
+    workspace   $WORKSPACE_SLUG ($WORKSPACE_HARNESS)
+    state dir   $LUMEM_STATE_DIR   (modo $LUMEM_DEV_MODE; ~/.lumem, o de produção, fica intocado)
 
-    pnpm dev          via 'run' do Superset, com portas próprias
+    pnpm dev          via 'run' do harness, nas portas default
     pnpm gate:quick   testes afetados pelo trabalho atual
     pnpm gate:full    suíte inteira + e2e
     pnpm gate:build   typecheck de tudo + build

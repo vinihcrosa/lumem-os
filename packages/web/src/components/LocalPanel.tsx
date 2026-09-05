@@ -21,6 +21,10 @@ export interface LocalPanelProps {
   /** O caminho de volta (W7): daqui, o único lugar acima é o workspace. */
   onOpenWorkspace: () => void;
   onSelectWorktree: (worktreeId: string) => void;
+  /** Uma sessão para trazer à frente, uma vez — ver `ScopePanel`. */
+  openSessionId?: string | undefined;
+  /** O pedido que abriu uma conversa (ver `ScopePanel`). */
+  initialPrompt?: { sessionId: string; text: string } | undefined;
 }
 
 /**
@@ -105,17 +109,20 @@ function ProjectSpend({ projectId }: { projectId: string }) {
 }
 
 /**
- * A pergunta da confirmação, com o número que a torna útil.
+ * A pergunta da confirmação por caminho, com o número que a torna útil.
+ *
+ * "da lista" carrega o contraste com o projeto clonado, cuja pergunta é "apagar
+ * do disco?" — as duas remoções têm que se distinguir na primeira linha.
  *
  * `worktrees` é `null` quando o repositório sumiu do disco: a lista nem é
  * buscada nesse caso, e dizer "e o registro de 0 worktrees" seria afirmar algo
  * que a tela não sabe.
  */
 function removalQuestion(name: string, worktrees: number | null): string {
-  if (worktrees === null) return `remover "${name}" e o registro das worktrees dele?`;
-  if (worktrees === 0) return `remover "${name}"?`;
+  if (worktrees === null) return `remover ${name} da lista, e o registro das worktrees dele?`;
+  if (worktrees === 0) return `remover ${name} da lista?`;
   const plural = worktrees === 1 ? "1 worktree" : `${worktrees} worktrees`;
-  return `remover "${name}" e o registro de ${plural}?`;
+  return `remover ${name} da lista, e o registro de ${plural}?`;
 }
 
 export function LocalPanel({
@@ -125,6 +132,8 @@ export function LocalPanel({
   onRemoved,
   onOpenWorkspace,
   onSelectWorktree,
+  openSessionId,
+  initialPrompt,
 }: LocalPanelProps) {
   const queryClient = useQueryClient();
   const scope: Scope = { scopeType: "project", scopeId: projectId };
@@ -140,6 +149,19 @@ export function LocalPanel({
     enabled: project.data?.available === true,
   });
 
+  /*
+   * Removing the project asks first (F2.5, F6.9).
+   *
+   * Two reasons, and which one applies depends on the project. For a **cloned**
+   * one the directory is about to stop existing, which is reason enough on its
+   * own. For one registered **by path** the disk is never at risk — what has no
+   * way back is the registration, and it takes N worktrees with it: adopting a
+   * checkout the Lumem no longer knows about is in the backlog, unbuilt. The
+   * asymmetry is what settles it: removing *one* dirty worktree asks, and this
+   * took the whole set without a word.
+   */
+  const [confirming, setConfirming] = useState(false);
+
   const remove = useMutation({
     mutationFn: () => trpc.project.remove.mutate({ id: projectId }),
     onSuccess: async () => {
@@ -148,20 +170,21 @@ export function LocalPanel({
     },
   });
 
-  /*
-   * Removing the project asks first (F2.5).
-   *
-   * Not because the disk is at risk — it never is — but because there is no way
-   * back: adopting a checkout the Lumem no longer knows about is in the backlog,
-   * unbuilt, so the registration is the only handle on those worktrees and one
-   * click drops N of them. The asymmetry is what settles it: removing *one*
-   * dirty worktree asks, and this takes the whole set without a word.
-   *
-   * Client-side, unlike the worktree's: there the daemon refuses first and the
-   * banner answers the refusal. Here the daemon has nothing to refuse, and a
-   * `force` on the route would be a gate with nothing behind it.
-   */
-  const [confirming, setConfirming] = useState(false);
+  if (confirming && project.data) {
+    return (
+      <RemoveProjectConfirm
+        project={project.data}
+        worktrees={worktrees.data?.length ?? null}
+        pending={remove.isPending}
+        error={remove.isError ? remove.error.message : null}
+        onCancel={() => {
+          setConfirming(false);
+          remove.reset();
+        }}
+        onConfirm={() => remove.mutate()}
+      />
+    );
+  }
 
   if (project.isPending) {
     return (
@@ -185,6 +208,8 @@ export function LocalPanel({
     <ScopePanel
       scope={scope}
       cwd={path}
+      openSessionId={openSessionId}
+      initialPrompt={initialPrompt}
       header={
         <>
           <nav className="crumb">
@@ -302,7 +327,11 @@ export function LocalPanel({
           {available && (
             <>
               <div className="actions">
-                <CreateWorktreeDialog projectId={projectId} onCreated={onSelectWorktree} />
+                <CreateWorktreeDialog
+                  projectId={projectId}
+                  onCreated={onSelectWorktree}
+                  hasCommits={project.data.hasCommits}
+                />
               </div>
 
               {/*
@@ -342,5 +371,83 @@ export function LocalPanel({
         </>
       }
     />
+  );
+}
+
+/**
+ * The most dangerous screen of the nine, F6.9.
+ *
+ * Two removals wearing one word. For a **cloned** project it deletes the
+ * directory, because the daemon wrote those bytes into a directory the daemon
+ * chose. For a project registered by path it takes it off the list and the disk
+ * is untouched, exactly as F2.5 has always promised.
+ *
+ * The two texts have to be told apart at first reading — which is why they are
+ * two texts and not one text with a conditional clause, and why the destructive
+ * one prints the absolute path that is about to stop existing.
+ */
+function RemoveProjectConfirm({
+  project,
+  worktrees,
+  pending,
+  error,
+  onCancel,
+  onConfirm,
+}: {
+  project: { name: string; path: string; managed: boolean };
+  /**
+   * Quantas worktrees vão junto — só a remoção por caminho as leva (WS-Q22).
+   *
+   * `null` quando o repositório sumiu do disco e a lista nem foi buscada. No
+   * projeto clonado o número não entra na pergunta: lá a worktree **recusa** a
+   * remoção em vez de acompanhá-la, e a recusa chega pelo banner.
+   */
+  worktrees: number | null;
+  pending: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="pane">
+      <div className="remove-confirm" role="alertdialog" aria-label="confirmar remoção">
+        {project.managed ? (
+          <>
+            <h2 className="remove-confirm__title">apagar {project.name} do disco?</h2>
+            <p className="remove-confirm__body">
+              Este projeto foi clonado pelo Lumem. Remover tira do registro <strong>e apaga o
+              diretório</strong>. Não dá para desfazer.
+            </p>
+            <p className="remove-confirm__path">{project.path}</p>
+          </>
+        ) : (
+          <>
+            {/* O número está no título e não no corpo porque é ele que muda a
+                resposta: "remover um projeto" e "remover um projeto e o
+                registro de 3 worktrees" são duas decisões diferentes. */}
+            <h2 className="remove-confirm__title">{removalQuestion(project.name, worktrees)}</h2>
+            <p className="remove-confirm__body">
+              Este projeto aponta para um repositório <strong>seu</strong>. Sai da lista; o
+              diretório fica exatamente onde está — o dele e o de cada worktree, com trabalho
+              não commitado e tudo.
+            </p>
+          </>
+        )}
+
+        {/* Worktrees and running sessions refuse before anything is deleted, and
+            the refusal shows here rather than after the confirmation — nobody
+            should be asked to confirm something that is going to be refused. */}
+        {error !== null && <Banner tone="danger">{error}</Banner>}
+
+        <div className="remove-confirm__actions">
+          <Button variant={project.managed ? "danger" : "primary"} onClick={onConfirm} disabled={pending}>
+            {pending ? "removendo…" : project.managed ? "apagar" : "remover"}
+          </Button>
+          <Button variant="ghost" onClick={onCancel}>
+            cancelar
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }

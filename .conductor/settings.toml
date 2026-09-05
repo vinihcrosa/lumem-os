@@ -1,0 +1,19 @@
+# Conductor só aponta para os scripts de ciclo de vida em `scripts/workspace/`,
+# os mesmos que `.superset/config.json` usa. A lógica de portas, state dir e
+# identidade do workspace vive lá, uma vez só.
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+setup = "./scripts/workspace/setup.sh"
+archive = "./scripts/workspace/teardown.sh"
+
+# O `run` sobe o ambiente de dev, que é um só e escuta nas portas default: dois
+# ao mesmo tempo disputam a porta, e o segundo para com a mensagem dizendo para
+# subir com `LUMEM_ISOLATED=1`. Continua "concurrent" porque é o isolamento que
+# vira opt-in, não a possibilidade — ver docs/project/workspaces.md.
+run_mode = "concurrent"
+
+[scripts.run.dev]
+command = "./scripts/workspace/run.sh"
+default = true
+icon = "play"

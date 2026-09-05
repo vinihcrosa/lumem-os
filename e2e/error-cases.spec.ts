@@ -37,7 +37,7 @@ test("adding a directory that is not a git repository is refused", async ({ page
   const notARepo = mkdtempSync(join(tmpdir(), "lumem-nao-repo-"));
 
   await page.getByRole("button", { name: "adicionar projeto" }).click();
-  await page.getByLabel("Caminho do repositório").fill(notARepo);
+  await page.getByLabel("Caminho ou URL").fill(notARepo);
   await page.getByRole("button", { name: "adicionar" }).click();
 
   // F2.2: which check failed, not "invalid path".

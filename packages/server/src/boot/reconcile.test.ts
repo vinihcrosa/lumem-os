@@ -1,19 +1,36 @@
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 import { newId } from "@lumem/shared";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { Db } from "../db/index.js";
 import { withTestDb } from "../db/testing.js";
+import { createGitService } from "../git/GitService.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createWorkspaceRepository } from "../repositories/workspace.js";
 import { createWorktreeRepository } from "../repositories/worktree.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createSessionRepository } from "../repositories/session.js";
-import { tempDir } from "../testing/git-fixtures.js";
+import { cleanupGitFixtures, createRepo, runGit, tempDir } from "../testing/git-fixtures.js";
+import { loadConfig } from "../config.js";
 import { createTranscriptStore } from "../acp/TranscriptStore.js";
-import { reconcileOnBoot, reconcileOrphanSessions, reconcileWorktrees } from "./reconcile.js";
+import {
+  migrateWorktreeLayout,
+  reconcileClones,
+  reconcileOnBoot,
+  reconcileOrphanSessions,
+  reconcileWorktrees,
+} from "./reconcile.js";
+
+/** A config whose state directory is a throwaway. */
+function testConfig() {
+  return loadConfig({ LUMEM_STATE_DIR: tempDir("lumem-state-") });
+}
+
+afterEach(() => {
+  cleanupGitFixtures();
+});
 
 /** A throwaway transcript directory, since boot now sweeps one. */
 function transcriptsDir(): string {
@@ -238,11 +255,197 @@ describe("reconcileOrphanSessions", () => {
   });
 });
 
+describe("migrateWorktreeLayout", () => {
+  /** Um projeto de verdade, com uma worktree de verdade na árvore antiga. */
+  async function inOldTree(db: Db): Promise<{
+    config: ReturnType<typeof loadConfig>;
+    repo: string;
+    worktreeId: string;
+    oldPath: string;
+  }> {
+    const config = testConfig();
+    const repo = await createRepo({ branch: "main" });
+    const workspace = await createWorkspaceRepository(db).create({ name: "pessoal" });
+    const project = await createProjectRepository(db).create({
+      workspaceId: workspace.id,
+      name: "lorebase",
+      path: repo,
+      defaultBranch: "main",
+    });
+
+    // Onde o `worktreesDir` de antes da Q20 as colocava.
+    const oldPath = join(config.stateDir, "worktrees", "lorebase", "teste");
+    await runGit(repo, "worktree", "add", "-b", "teste", oldPath, "main");
+    const row = await createWorktreeRepository(db).create({
+      projectId: project.id,
+      name: "teste",
+      branch: "teste",
+      path: oldPath,
+    });
+    return { config, repo, worktreeId: row.id, oldPath };
+  }
+
+  it("move a worktree e ela continua funcionando dos dois lados", async () => {
+    // O critério não é o diretório existir no lugar novo. São os dois lados do
+    // vínculo: a worktree responde, **e** o repositório sabe onde ela está.
+    await withTestDb(async (db) => {
+      const { config, repo, worktreeId } = await inOldTree(db);
+
+      const report = await migrateWorktreeLayout({ db, config });
+
+      const row = await createWorktreeRepository(db).findById(worktreeId);
+      expect(report.moved).toBe(1);
+      expect(row!.path).toBe(
+        join(config.workspacesDir, "pessoal", "lorebase", "worktrees", "teste"),
+      );
+      expect(existsSync(join(row!.path, "README.md"))).toBe(true);
+      await expect(runGit(row!.path, "status", "--porcelain")).resolves.toBe("");
+      // Este é o que só passa por causa do `repair`.
+      expect(await runGit(repo, "worktree", "list")).toContain(row!.path);
+    });
+  });
+
+  it("um mv sem repair deixa o repositório apontando para o lugar antigo", async () => {
+    // Medido, não suposto: mover a worktree **não** quebra o `git status` dela,
+    // porque o `.git` dentro dela aponta para um repositório que não se moveu.
+    // O que quebra é o vínculo de volta — `<repo>/.git/worktrees/<nome>/gitdir`
+    // continua nomeando o caminho antigo. O repositório passa a listar uma
+    // worktree que não está mais lá, e um `git worktree prune` — que o git roda
+    // sozinho em várias operações — apaga a administração dela. Aí sim ela
+    // quebra de vez, e longe do movimento que a quebrou.
+    await withTestDb(async (db) => {
+      const { config, repo, oldPath } = await inOldTree(db);
+      const destino = join(config.stateDir, "movida-na-mao");
+
+      renameSync(oldPath, destino);
+
+      await expect(runGit(destino, "status", "--porcelain")).resolves.toBe("");
+      expect(await runGit(repo, "worktree", "list")).toContain(oldPath);
+      expect(await runGit(repo, "worktree", "list")).not.toContain(destino);
+    });
+  });
+
+  it("não mexe numa worktree que já está no lugar certo", async () => {
+    await withTestDb(async (db) => {
+      const { config } = await inOldTree(db);
+      await migrateWorktreeLayout({ db, config });
+
+      const segunda = await migrateWorktreeLayout({ db, config });
+
+      expect(segunda.moved).toBe(0);
+      expect(segunda.failed).toBe(0);
+    });
+  });
+
+  it("deixa para a reconciliação a worktree que sumiu do disco", async () => {
+    await withTestDb(async (db) => {
+      const { config, oldPath, worktreeId } = await inOldTree(db);
+      rmSync(oldPath, { recursive: true, force: true });
+
+      const report = await migrateWorktreeLayout({ db, config });
+
+      expect(report).toMatchObject({ moved: 0, failed: 0 });
+      expect((await createWorktreeRepository(db).findById(worktreeId))!.path).toBe(oldPath);
+    });
+  });
+
+  it("desfaz o movimento quando o repair falha, em vez de deixar meia migração", async () => {
+    // Uma worktree movida e não reparada é pior que uma que não se moveu: ela
+    // parece íntegra, e a linha do registro ainda nomeia o lugar antigo.
+    await withTestDb(async (db) => {
+      const { config, oldPath, worktreeId } = await inOldTree(db);
+      const git = createGitService();
+
+      const report = await migrateWorktreeLayout({
+        db,
+        config,
+        git: { ...git, repairWorktree: () => Promise.reject(new Error("sem repair")) },
+      });
+
+      expect(report.failed).toBe(1);
+      expect(existsSync(oldPath)).toBe(true);
+      expect((await createWorktreeRepository(db).findById(worktreeId))!.path).toBe(oldPath);
+    });
+  });
+
+  it("uma falha não impede as outras worktrees de migrarem", async () => {
+    await withTestDb(async (db) => {
+      const { config, worktreeId } = await inOldTree(db);
+      // Um projeto cujo repositório não existe: o repair não tem de onde rodar.
+      const quebrado = await projectIn(db, "fantasma");
+      const orfa = join(tempDir("lumem-orfa-"), "orfa");
+      mkdirSync(orfa, { recursive: true });
+      await createWorktreeRepository(db).create({
+        projectId: quebrado,
+        name: "orfa",
+        branch: "orfa",
+        path: orfa,
+      });
+
+      const report = await migrateWorktreeLayout({ db, config });
+
+      expect(report).toMatchObject({ moved: 1, failed: 1 });
+      expect((await createWorktreeRepository(db).findById(worktreeId))!.path).toContain(
+        "workspaces",
+      );
+    });
+  });
+});
+
+describe("reconcileClones", () => {
+  /** A árvore que um clone interrompido deixa: `<ws>/<projeto>/.lumem-clone-x`. */
+  function withLeftovers(config: ReturnType<typeof loadConfig>): {
+    lixo: string;
+    repo: string;
+  } {
+    const home = join(config.workspacesDir, "pessoal", "api");
+    const lixo = join(home, ".lumem-clone-j1");
+    const repo = join(home, "repo");
+    for (const dir of [lixo, repo]) mkdirSync(dir, { recursive: true });
+    return { lixo, repo };
+  }
+
+  it("remove o temporário e conta quantos removeu", async () => {
+    await withTestDb(async (db) => {
+      const config = testConfig();
+      const { lixo, repo } = withLeftovers(config);
+
+      const removed = await reconcileClones({ db, config });
+
+      expect(removed).toBe(1);
+      expect(existsSync(lixo)).toBe(false);
+      expect(existsSync(repo)).toBe(true);
+    });
+  });
+
+  it("não toca em nada que não case com o prefixo", async () => {
+    // Esta função apaga. Uma função que apaga tem que ser chata com o que casa.
+    await withTestDb(async (db) => {
+      const config = testConfig();
+      const home = join(config.workspacesDir, "pessoal", "api");
+      mkdirSync(join(home, "nao-e-clone"), { recursive: true });
+      mkdirSync(join(home, "lumem-clone-sem-ponto"), { recursive: true });
+
+      await reconcileClones({ db, config });
+
+      expect(existsSync(join(home, "nao-e-clone"))).toBe(true);
+      expect(existsSync(join(home, "lumem-clone-sem-ponto"))).toBe(true);
+    });
+  });
+
+  it("não reclama quando a árvore ainda não existe", async () => {
+    // Primeiro boot de uma instalação nova.
+    await withTestDb(async (db) => {
+      await expect(reconcileClones({ db, config: testConfig() })).resolves.toBe(0);
+    });
+  });
+});
+
 describe("reconcileOnBoot", () => {
   it("seeds the default agent configuration", async () => {
     // F6.4: a first boot that finished without it would show an empty menu.
     await withTestDb(async (db) => {
-      await reconcileOnBoot({ db, transcriptsDir: transcriptsDir() });
+      await reconcileOnBoot({ db, config: testConfig(), transcriptsDir: transcriptsDir() });
 
       expect((await createAgentConfigRepository(db).list()).map((row) => row.name)).toEqual([
         "claude-code",
@@ -267,7 +470,11 @@ describe("reconcileOnBoot", () => {
         command: "/bin/sh",
       });
 
-      const report = await reconcileOnBoot({ db, transcriptsDir: transcriptsDir() });
+      const report = await reconcileOnBoot({
+        db,
+        config: testConfig(),
+        transcriptsDir: transcriptsDir(),
+      });
 
       expect(report.worktrees.markedMissing).toBe(1);
       expect(report.orphanSessions).toBe(1);
@@ -306,7 +513,7 @@ describe("reconcileOnBoot", () => {
       });
       store.close();
 
-      const report = await reconcileOnBoot({ db, transcriptsDir: dir });
+      const report = await reconcileOnBoot({ db, config: testConfig(), transcriptsDir: dir });
 
       expect(report.transcripts.dropped).toBe(1);
       expect(report.transcripts.compressed).toBe(0);
@@ -318,8 +525,9 @@ describe("reconcileOnBoot", () => {
   it("is idempotent across restarts", async () => {
     await withTestDb(async (db) => {
       const dir = transcriptsDir();
-      await reconcileOnBoot({ db, transcriptsDir: dir });
-      await reconcileOnBoot({ db, transcriptsDir: dir });
+      const config = testConfig();
+      await reconcileOnBoot({ db, config, transcriptsDir: dir });
+      await reconcileOnBoot({ db, config, transcriptsDir: dir });
 
       expect(await createAgentConfigRepository(db).list()).toHaveLength(1);
     });

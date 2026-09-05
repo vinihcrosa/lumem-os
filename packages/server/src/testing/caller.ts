@@ -7,20 +7,25 @@ import { loadConfig, type ConfigEnv, type ServerConfig } from "../config.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import type { Db } from "../db/index.js";
 import { createEventBus, type EventBus } from "../events.js";
+import { createCloneJobStore } from "../git/CloneJobStore.js";
 import { createGitService, type GitService } from "../git/GitService.js";
 import { PtyManager } from "../pty/PtyManager.js";
+import { createScriptRunner, type ScriptRunner } from "../scripts/ScriptRunner.js";
 import { createSessionStore, type SessionStore } from "../sessions/SessionStore.js";
 import { appRouter } from "../routers/index.js";
-import { createCallerFactory } from "../trpc.js";
+import { createCallerFactory, type Context } from "../trpc.js";
 
 const createCaller = createCallerFactory(appRouter);
 
 export interface TestCaller {
   api: ReturnType<typeof createCaller>;
+  /** The same context the procedures get, for the routines they share. */
+  ctx: Context;
   db: Db;
   ptyManager: PtyManager;
   acpManager: AcpManager;
   sessionStore: SessionStore;
+  scripts: ScriptRunner;
   git: GitService;
   events: EventBus;
   config: ServerConfig;
@@ -85,21 +90,35 @@ export function createTestCaller(
   // Same wiring the daemon uses: without it a session that ends on its own
   // stays `running` and the removal rules read stale state.
   const stopTracking = sessionStore.trackExits();
+  const scripts = createScriptRunner({
+    db: database.db,
+    sessionStore,
+    ptyManager,
+    shell: config.shell,
+    portRange: config.runPortRange,
+    events,
+  });
 
-  return {
-    api: createCaller({
-      config,
-      db: database.db,
-      ptyManager,
-      acpManager,
-      sessionStore,
-      git,
-      events,
-    }),
+  const ctx: Context = {
+    config,
     db: database.db,
     ptyManager,
     acpManager,
     sessionStore,
+    scripts,
+    git,
+    clones: createCloneJobStore(),
+    events,
+  };
+
+  return {
+    api: createCaller(ctx),
+    ctx,
+    db: database.db,
+    ptyManager,
+    acpManager,
+    sessionStore,
+    scripts,
     git,
     events,
     config,

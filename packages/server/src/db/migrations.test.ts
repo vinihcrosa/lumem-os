@@ -235,3 +235,104 @@ describe("0001 — transport", () => {
     expect(await second.db.select().from(schema.session)).toHaveLength(2);
   });
 });
+
+describe("0007 — a origem e a gerência do projeto", () => {
+  /**
+   * Um banco parado na 0001, com as linhas que um usuário teria.
+   *
+   * O mesmo `migrationsUpTo` do bloco acima: o ponto de parada é o que muda, e
+   * o que se prova é que as colunas novas chegam com default em cima de linha
+   * que já existia — não que elas existem num banco vazio.
+   */
+  function databaseBeforeOrigin(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-legacy-origin-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite, { schema }), { migrationsFolder: migrationsUpTo(1) });
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'pessoal')`).run();
+    sqlite
+      .prepare(
+        `INSERT INTO project (id, workspace_id, name, path, default_branch)
+         VALUES ('p1', 'w1', 'lorebase', '/repos/lorebase', 'main')`,
+      )
+      .run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("dá as colunas novas a uma linha que já existia, com os defaults", async () => {
+    const handle = openDatabase({ path: databaseBeforeOrigin() });
+    open.push(handle);
+
+    const [row] = await handle.db.select().from(schema.project);
+
+    expect(row).toMatchObject({ id: "p1", name: "lorebase", path: "/repos/lorebase" });
+    // A12: nada que veio do disco do usuário nasce gerenciado.
+    expect(row?.remoteUrl).toBeNull();
+    expect(row?.managed).toBe(false);
+  });
+
+  it("é idempotente — reabrir não migra de novo", async () => {
+    const path = databaseBeforeOrigin();
+    openDatabase({ path }).close();
+
+    const second = openDatabase({ path });
+    open.push(second);
+
+    expect(await second.db.select().from(schema.project)).toHaveLength(1);
+  });
+});
+
+describe("0008 — a sessão de script", () => {
+  /**
+   * A 0008 reconstrói a tabela `session` inteira — é o que o SQLite exige para
+   * mexer num CHECK. Reconstrução com linha dentro é exatamente o caso que este
+   * arquivo existe para vigiar: a primeira versão gerada copiava `script_name` da
+   * tabela **de origem**, onde ela não existe.
+   */
+  it("mantém as sessões que já existiam, agora sem fase nenhuma", async () => {
+    const handle = openDatabase({ path: databaseAtInitialRevision() });
+    open.push(handle);
+
+    const rows = await handle.db.select().from(schema.session);
+
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.scriptName)).toEqual([null, null]);
+    // E o que elas eram continua sendo o que elas são.
+    expect(rows.find((row) => row.id === "se-1")).toMatchObject({
+      kind: "agent",
+      agentConfigId: "cfg-1",
+      state: "running",
+    });
+    expect(rows.find((row) => row.id === "se-2")).toMatchObject({
+      kind: "shell",
+      state: "exited",
+      exitCode: 0,
+    });
+  });
+
+  it("aceita a sessão de script depois de migrado", async () => {
+    const handle = openDatabase({ path: databaseAtInitialRevision() });
+    open.push(handle);
+
+    await handle.db.insert(schema.session).values({
+      id: "se-3",
+      kind: "script",
+      scriptName: "run",
+      scopeType: "project",
+      scopeId: "pr-1",
+      cwd: "/repos/lorebase",
+      command: "pnpm dev",
+    });
+
+    const [row] = await handle.db
+      .select()
+      .from(schema.session)
+      .where(eq(schema.session.id, "se-3"));
+    expect(row).toMatchObject({ kind: "script", scriptName: "run", transport: "pty" });
+  });
+});

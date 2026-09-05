@@ -480,6 +480,16 @@ export function Styleguide() {
             onSelect={() => undefined}
             onClose={() => undefined}
           />
+          {/* Sessão encerrada trazida de volta pra leitura: o ponto diz como
+              terminou, a nota diz que não é trabalho vivo. */}
+          <Tab
+            label="shell"
+            glyph={<Glyph tone="shell">●</Glyph>}
+            state="failed"
+            note="registro"
+            onSelect={() => undefined}
+            onClose={() => undefined}
+          />
         </TabStrip>
 
         <TabStrip

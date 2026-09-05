@@ -206,19 +206,29 @@ e mais de um agente rodando sem você olhando.
 
 ## D. Git e integrações
 
-### Abstração de git host (GitLab, e não só GitHub) — `M`
+### ~~Abstração de git host (GitLab, e não só GitHub)~~ — **virou PRD**
 
-Ver PR, status de CI e review dentro do Lumem, com adapter por host. A vision pede; o escopo mata
-quem tenta fazer completo de primeira.
+Ganhou pasta: [pull-request-status](../prd/pull-request-status/prd.md). O corte foi o que o próprio
+item avisava que era preciso — **ler, não agir**: a barra mostra estado de PR e de verificações e
+abre no navegador, e o adaptador de host nasce com uma implementação só (GitHub pelo `gh`).
 
-**De onde veio:** [vision.md](vision.md), [questions.md Q022](questions.md) · **Volta quando:** a aba
-de review existir.
+O que **ficou** de fora dela, e portanto continua aqui:
+
+| Item | Peso | Contexto de uma frase | Volta quando |
+|---|---|---|---|
+| Mesclar e criar PR pela barra | `M` | escrita no remoto, irreversível para o time, com estratégia e confirmação próprias | a ida ao navegador para mesclar doer com frequência que você consiga nomear |
+| Reexecutar verificação, aprovar, comentar | `M` | idem, cada uma com o seu modo de falha | junto com a de cima |
+| O segundo host (GitLab por `glab`) | `M` | é o teste real do adaptador — o primeiro sempre cabe na abstração que ele mesmo gerou | existir um repositório GitLab de verdade em uso |
+| Notificação quando a PR fica verde ou quebra | `P` | tentador e barato de errar: exige política de ruído | você se pegar olhando a sidebar de minuto em minuto |
+| "O check quebrou, peça ao agente para consertar" | `M` | a ponte entre a barra e a sessão ACP — e a mais perigosa, porque põe texto da internet dentro de um prompt | o §4.7 do PRD ganhar um portão de verdade |
 
 ### Worktree de projeto removido não pode ser recriada — `P`
 
-Remover projeto tira o registro das worktrees e **não toca no disco** ([WS-Q22](../prd/walking-skeleton/open-questions.md)).
+Remover projeto **registrado por caminho** tira o registro das worktrees e **não toca no disco**
+([WS-Q22](../prd/walking-skeleton/open-questions.md)). O projeto clonado não entra: lá a worktree
+bloqueia a remoção, então nada fica para trás.
 O que fica para trás é git, não Lumem: o diretório, a branch e a entrada em `.git/worktrees` do repo.
-Como o caminho é determinístico (`worktreesDir/<projeto>/<nome>`), re-adicionar o mesmo repositório e
+Como o caminho é determinístico (`<workspace>/<projeto>/worktrees/<nome>`), re-adicionar o mesmo repositório e
 criar a worktree `feat-x` de novo falha em `a branch "feat-x" já existe`. Pelo app, é permanente — sai
 só com `git worktree remove` na mão. Bate no onboarding, que sempre cria worktree na primeira tarefa.
 
@@ -256,16 +266,20 @@ Todos vindos de [right-panel §8](../prd/right-panel/prd.md) e [file-editor §9]
 
 ## F. Plataforma
 
-### Configuração de projeto versionada no repo — `M`
+### ~~Configuração de projeto versionada no repo~~ — **virou feature**, em [project-scripts](../prd/project-scripts/prd.md)
 
 O arquivo `<repo>/.lumem/project.toml` **já vai existir** — a [Q3.1](../prd/workspace-memory/open-questions.md)
 decidiu que o `id` do projeto mora nele. O que ficou para depois é o **resto** do conteúdo: script de
 setup, script de run, comandos do projeto. A regra que delimita o arquivo: **o que é do repositório é
 do time; o que é da instância é do Lumem.**
 
-**De onde veio:** [workspace-memory Q3.1](../prd/workspace-memory/open-questions.md) · **Volta
-quando:** você quiser que abrir um projeto novo já venha configurado, ou que um colega com Lumem herde
-o setup.
+**De onde veio:** [workspace-memory Q3.1](../prd/workspace-memory/open-questions.md) · **Voltou em:**
+2026-08-30, como a feature [project-scripts](../prd/project-scripts/prd.md) — o gatilho foi a
+worktree que nasce sem rodar.
+
+**Ficou aqui, e é filho desta:** **copiar arquivos para a worktree nova** (`.env`, credenciais). É
+sobre segredo, não sobre script, e merece decisão própria — `M`. **Volta quando:** alguém copiar `.env`
+na mão pela terceira vez.
 
 ### Memória compartilhada entre instâncias do Lumem — `G`
 
@@ -425,3 +439,34 @@ deles, e a v1 do fluxo não implementa nenhum.
 | Tela de preferências | `M` | é onde `agent_config` deveria morar (buraco nº 1 do `FEATURES.md` do Open Design, e a [A16](../prd/acp-sessions/open-questions.md)); as primitivas do fluxo são o que ela vai reusar | existir a segunda coisa global para configurar |
 | Renomear e remover workspace pela tela | `P` | buraco nº 2 do `FEATURES.md`: o fluxo **cria** workspace, e nada administra | você ter mais de dois workspaces |
 | Pré-voo em Linux e Windows | `P` | as cinco checagens são as de macOS; Linux provavelmente passa e ninguém verificou | o Lumem rodar em outra máquina que não a sua |
+
+---
+
+## H. Distribuição e projeto
+
+Os dois vieram das respostas da [distribution](../prd/distribution/open-questions.md), em 2026-08-30,
+e os dois foram adiados **na mesma frase que os prometeu**.
+
+### O daemon em background — `M`
+
+`lumem start` volta ao prompt, e aí precisam existir `stop`, `status` e `logs`, um pidfile no state
+dir, e uma resposta para "o processo morreu e o pidfile ficou". A v1 é foreground, como `vite`, e o
+CLI já nasce com forma de subcomando para que isto seja acréscimo e não reescrita.
+
+**De onde veio:** [D2](../prd/distribution/open-questions.md) — *"pode ser foreground, mas no futuro
+deve ser background"* · **Volta quando:** você deixar o Lumem ligado o dia inteiro e o terminal
+ocupado incomodar.
+
+### O projeto todo em inglês — `M`
+
+Documentação e comunicação são em português por convenção do `CLAUDE.md`; código, commit e nome de
+arquivo já são em inglês. O `README.md` da raiz é o primeiro arquivo do outro lado — em inglês por
+decisão, porque é a porta do repositório público e da página do npm.
+
+Migrar o resto não é traduzir: são ~40 arquivos em `/docs`, o `CLAUDE.md`, as mensagens de erro que
+aparecem em tela, e a regra de convenção que hoje diz o contrário. É trabalho de uma feature, com
+gate próprio, e feito pela metade fica pior que não feito.
+
+**De onde veio:** [D11](../prd/distribution/open-questions.md) — *"concordo com você, mas deixando
+claro que eu quero passar tudo para inglês em breve"* · **Volta quando:** a primeira pessoa que não
+fala português chegar ao repositório — ou você decidir a data.

@@ -22,6 +22,13 @@ export interface TabProps {
   ordinal?: number;
   active?: boolean;
   state?: TabState;
+  /**
+   * A word about what the tab is, not about how it is doing.
+   *
+   * The dot already reports state; this is for a tab that is a different kind
+   * of thing — the record of a session that ended, which is read, not used.
+   */
+  note?: string;
   /** Absent on a tab that cannot be dismissed, like the context tab. */
   onClose?: () => void;
 }
@@ -39,6 +46,7 @@ export function Tab({
   ordinal,
   active = false,
   state,
+  note,
   onClose,
 }: TabProps) {
   return (
@@ -53,6 +61,7 @@ export function Tab({
         {glyph}
         <span className="tab-item__label">{label}</span>
         {ordinal !== undefined && <span className="tab-item__ord">{ordinal}</span>}
+        {note !== undefined && <span className="tab-item__note">{note}</span>}
         {state !== undefined && <span className={`tab-item__dot tab-item__dot--${state}`} />}
       </button>
       {onClose !== undefined && (

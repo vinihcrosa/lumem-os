@@ -24,6 +24,8 @@ export interface WorktreePanelProps {
   onOpenProject: () => void;
   /** Passed through to the tabs: a session to open on arrival, once. */
   openSessionId?: string | undefined;
+  /** O pedido que abriu uma conversa (ver `ScopePanel`). */
+  initialPrompt?: { sessionId: string; text: string } | undefined;
 }
 
 /** Branch, path, cleanliness and distance from the base — F4.10 — plus its tabs. */
@@ -35,6 +37,7 @@ export function WorktreePanel({
   onOpenWorkspace,
   onOpenProject,
   openSessionId,
+  initialPrompt,
 }: WorktreePanelProps) {
   const queryClient = useQueryClient();
   const [confirmingForce, setConfirmingForce] = useState(false);
@@ -82,6 +85,7 @@ export function WorktreePanel({
       scope={scope}
       cwd={path}
       openSessionId={openSessionId}
+      initialPrompt={initialPrompt}
       header={
         <>
           <nav className="crumb">

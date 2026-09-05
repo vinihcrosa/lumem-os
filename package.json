@@ -9,15 +9,18 @@
   },
   "scripts": {
     "postinstall": "tsx scripts/run-ensure-pty-helper.ts",
-    "dev": "turbo dev",
+    "dev": "./scripts/workspace/run.sh",
+    "dev:turbo": "turbo dev",
     "build": "turbo build",
+    "version:set": "tsx scripts/run-set-version.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && turbo typecheck --concurrency=${TURBO_CONCURRENCY:-3}",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "gate:quick": "tsx scripts/run-gate-quick.ts",
     "gate:full": "vitest run && playwright test",
-    "gate:build": "pnpm typecheck && turbo build --concurrency=${TURBO_CONCURRENCY:-3}"
+    "gate:build": "pnpm typecheck && turbo build --concurrency=${TURBO_CONCURRENCY:-3}",
+    "smoke:install": "tsx scripts/smoke-install.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

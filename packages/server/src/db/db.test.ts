@@ -389,6 +389,94 @@ describe("state constraints", () => {
     ).rejects.toThrow(/CHECK/i);
   });
 
+  /**
+   * A sessão de script (project-scripts T4). Ela é `pty` e sem configuração de
+   * agente como a shell, e o que a distingue é a fase — que o CHECK cobra nos dois
+   * sentidos, porque script sem fase é sessão que o rodapé não sabe onde mostrar.
+   */
+  it("accepts a script session carrying its phase", async () => {
+    const { db } = freshDatabase();
+    await db.insert(session).values({
+      id: newId(),
+      kind: "script",
+      scriptName: "run",
+      scopeType: "worktree",
+      scopeId: "w1",
+      cwd: "/w/t",
+      command: "pnpm dev",
+    });
+
+    const [row] = await db.select().from(session);
+
+    expect(row).toMatchObject({ kind: "script", scriptName: "run", transport: "pty" });
+  });
+
+  it("rejects a script session with no phase", async () => {
+    const { db } = freshDatabase();
+
+    await expect(
+      db.insert(session).values({
+        id: newId(),
+        kind: "script",
+        scopeType: "worktree",
+        scopeId: "w1",
+        cwd: "/w/t",
+        command: "pnpm dev",
+      }),
+    ).rejects.toThrow(/CHECK/i);
+  });
+
+  it("rejects a phase the daemon has no tab for", async () => {
+    const { db } = freshDatabase();
+
+    await expect(
+      db.insert(session).values({
+        id: newId(),
+        kind: "script",
+        scriptName: "deploy",
+        scopeType: "worktree",
+        scopeId: "w1",
+        cwd: "/w/t",
+        command: "./deploy.sh",
+      }),
+    ).rejects.toThrow(/CHECK/i);
+  });
+
+  it("rejects a shell claiming to be a script phase", async () => {
+    const { db } = freshDatabase();
+
+    await expect(
+      db.insert(session).values({
+        id: newId(),
+        kind: "shell",
+        scriptName: "run",
+        scopeType: "worktree",
+        scopeId: "w1",
+        cwd: "/w/t",
+        command: "/bin/zsh",
+      }),
+    ).rejects.toThrow(/CHECK/i);
+  });
+
+  it("rejects a script session pointing at an agent configuration", async () => {
+    const { db } = freshDatabase();
+    const configId = newId();
+    await db.insert(agentConfig).values({ id: configId, name: "claude", command: "claude" });
+
+    await expect(
+      db.insert(session).values({
+        id: newId(),
+        kind: "script",
+        scriptName: "setup",
+        agentConfigId: configId,
+        scopeType: "worktree",
+        scopeId: "w1",
+        cwd: "/w/t",
+        command: "./setup.sh",
+      }),
+    ).rejects.toThrow(/CHECK/i);
+  });
+
   it("rejects an agent session with no configuration", async () => {
     const { db } = freshDatabase();
 

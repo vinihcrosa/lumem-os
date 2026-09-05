@@ -19,6 +19,9 @@ function project(id: string, name: string, available = true) {
     path: `/repos/${name}`,
     defaultBranch: "main",
     available,
+    hasCommits: true,
+    remoteUrl: null,
+    managed: false,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -56,6 +59,10 @@ beforeEach(() => {
   // The sidebar renders a worktree tree per project; an unstubbed query there
   // fails and puts a second role="alert" on screen.
   trpc.worktree.listByProject.query.mockResolvedValue([]);
+  // The `↳` line asks the daemon what it understood; with nothing stubbed the
+  // query errors and puts a second role="alert" on screen.
+  trpc.project.parseSource.query.mockResolvedValue({ kind: "path", path: "/repos/lorebase" });
+  trpc.project.cloneJobs.query.mockResolvedValue([]);
 });
 
 describe("project list", () => {
@@ -106,7 +113,7 @@ describe("add project", () => {
 
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
-    await user.type(screen.getByLabelText("Caminho do repositório"), "/repos/lorebase");
+    await user.type(screen.getByLabelText("Caminho ou URL"), "/repos/lorebase");
     await user.click(screen.getByRole("button", { name: "adicionar" }));
 
     await waitFor(() =>
@@ -127,8 +134,8 @@ describe("add project", () => {
 
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
-    await user.type(screen.getByLabelText("Caminho do repositório"), "/repos/lorebase");
-    await user.type(screen.getByLabelText("Nome (opcional)"), "lore");
+    await user.type(screen.getByLabelText("Caminho ou URL"), "/repos/lorebase");
+    await user.type(screen.getByLabelText("Nome"), "lore");
     await user.click(screen.getByRole("button", { name: "adicionar" }));
 
     await waitFor(() =>
@@ -149,7 +156,7 @@ describe("add project", () => {
 
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
-    await user.type(screen.getByLabelText("Caminho do repositório"), "/repos/x");
+    await user.type(screen.getByLabelText("Caminho ou URL"), "/repos/x");
     await user.click(screen.getByRole("button", { name: "adicionar" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("não é a raiz dele");
@@ -161,11 +168,11 @@ describe("add project", () => {
 
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
-    await user.type(screen.getByLabelText("Caminho do repositório"), "/tmp");
+    await user.type(screen.getByLabelText("Caminho ou URL"), "/tmp");
     await user.click(screen.getByRole("button", { name: "adicionar" }));
     await screen.findByRole("alert");
 
-    expect(screen.getByLabelText("Caminho do repositório")).toHaveValue("/tmp");
+    expect(screen.getByLabelText("Caminho ou URL")).toHaveValue("/tmp");
   });
 });
 
@@ -216,7 +223,13 @@ describe("project detail", () => {
     expect(await screen.findByText(/o diretório e o que está dentro dele ficam no disco/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "remover projeto" }));
-    await user.click(await screen.findByRole("button", { name: "remover" }));
+    // F6.9 put a confirmation in front of this: for a project registered by
+    // path it promises the disk is untouched, and it has to say which of the
+    // two removals this is before anything happens.
+    const confirmacao = await screen.findByRole("alertdialog");
+    expect(confirmacao).toHaveTextContent("aponta para um repositório");
+    expect(confirmacao).toHaveTextContent("fica exatamente onde está");
+    await user.click(within(confirmacao).getByRole("button", { name: "remover" }));
 
     // O que sobra depois de remover o projeto é a **tela do workspace**, e não
     // mais a frase "selecione uma worktree": o painel central passou a responder
@@ -225,9 +238,9 @@ describe("project detail", () => {
   });
 
   it("asks before removing, naming how many worktrees go along", async () => {
-    // F2.5. O disco nunca corre risco; o que não tem volta é o registro — e ele
-    // leva N worktrees de uma vez. A pergunta diz o número porque é ele que
-    // muda a resposta.
+    // WS-Q22. No projeto registrado por caminho o disco nunca corre risco; o que
+    // não tem volta é o registro — e ele leva N worktrees de uma vez. O número
+    // fica no título porque é ele que muda a resposta.
     const user = userEvent.setup();
     const selected = project("p1", "lorebase");
     trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
@@ -242,9 +255,8 @@ describe("project detail", () => {
     await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
     await user.click(await screen.findByRole("button", { name: "remover projeto" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      'remover "lorebase" e o registro de 3 worktrees?',
-    );
+    const confirmacao = await screen.findByRole("alertdialog");
+    expect(confirmacao).toHaveTextContent("remover lorebase da lista, e o registro de 3 worktrees?");
     expect(trpc.project.remove.mutate).not.toHaveBeenCalled();
   });
 
@@ -257,17 +269,18 @@ describe("project detail", () => {
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
     await user.click(await screen.findByRole("button", { name: "remover projeto" }));
-    await user.click(await screen.findByRole("button", { name: "cancelar" }));
+    const confirmacao = await screen.findByRole("alertdialog");
+    await user.click(within(confirmacao).getByRole("button", { name: "cancelar" }));
 
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     expect(trpc.project.remove.mutate).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "remover projeto" })).toBeEnabled();
   });
 
   it("shows the daemon's reason when removal is refused", async () => {
-    // Worktrees no longer block: they are removed with the project (F2.5). The
-    // one refusal left is a running session — the project's, or one of its
-    // worktrees' — which §6 forbids orphaning.
+    // No projeto por caminho as worktrees não recusam mais: elas saem junto
+    // (WS-Q22). A recusa que sobra é sessão rodando — a do projeto ou a de
+    // qualquer worktree dele —, que a §6 proíbe deixar órfã.
     const user = userEvent.setup();
     const selected = project("p1", "lorebase");
     trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
@@ -279,11 +292,43 @@ describe("project detail", () => {
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
     await user.click(await screen.findByRole("button", { name: "remover projeto" }));
-    await user.click(await screen.findByRole("button", { name: "remover" }));
+    const confirmacao = await screen.findByRole("alertdialog");
+    await user.click(within(confirmacao).getByRole("button", { name: "remover" }));
 
-    // A recusa responde dentro da própria confirmação: é onde o clique
-    // aconteceu, e é o que ainda está na tela.
+    // A recusa aparece na própria confirmação: ninguém deveria confirmar algo
+    // que vai ser recusado, e a razão tem que chegar onde o clique foi dado.
     expect(await screen.findByRole("alert")).toHaveTextContent("sessão(ões) rodando");
+  });
+
+  it("no projeto clonado, a worktree recusa em vez de sair junto", async () => {
+    /*
+     * O outro lado da WS-Q22, e a razão de ela não valer para os dois.
+     *
+     * O projeto clonado tem o `repo/` apagado na remoção, e as worktrees vivem
+     * ao lado dele em `<home>/worktrees/`. Cascatear o registro delas deixaria N
+     * checkouts apontando para um gitdir que não existe mais. Então aqui o
+     * daemon recusa (F6.9-A4) — e a confirmação, que é a mesma tela, tem que
+     * mostrar a recusa em vez de prometer a cascata.
+     */
+    const user = userEvent.setup();
+    const clonado = { ...project("p1", "lorebase"), managed: true };
+    trpc.project.listByWorkspace.query.mockResolvedValue([clonado]);
+    trpc.project.get.query.mockResolvedValue(clonado);
+    trpc.project.remove.mutate.mockRejectedValue(
+      new Error("o projeto ainda tem worktrees registradas (3); remova-as antes"),
+    );
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+
+    const confirmacao = await screen.findByRole("alertdialog");
+    // A pergunta do projeto clonado não promete cascata nenhuma.
+    expect(confirmacao).toHaveTextContent("apagar lorebase do disco?");
+    expect(confirmacao).not.toHaveTextContent("o registro de");
+
+    await user.click(within(confirmacao).getByRole("button", { name: "apagar" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("ainda tem worktrees");
   });
 });
 

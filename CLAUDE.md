@@ -6,18 +6,30 @@ Projeto pessoal. Inspirado em compozy, superset e conductor — **não copia nad
 
 ## Estado atual
 
-Nove features de pé — [walking-skeleton](docs/prd/walking-skeleton/tasks.md), [ui-shell](docs/prd/ui-shell/tasks.md), [worktree-tabs](docs/prd/worktree-tabs/tasks.md), [right-panel](docs/prd/right-panel/tasks.md) e [file-editor](docs/prd/file-editor/tasks.md) — esta última faz o daemon **escrever** no repositório, com autosave e CRUD pela árvore. **Decidido em 2026-08-17:** a sessão de agente migra de PTY para [ACP](docs/project/pty-vs-acp.md) — a feature [acp-sessions](docs/prd/acp-sessions/prd.md) (transporte + tela da conversa) está **completa**: plano, uso e custo, seletores, comandos de barra, terminal embutido, `fs/*`, e a conversa **em disco** — fechar o Lumem e voltar não perde conversa, e retomar continua de onde parou. [35 tasks](docs/prd/acp-sessions/tasks.md) fechadas nas fases 1, 3, 4, 5 e 6. O PTY fica para shell e como caminho alternativo. O [onboarding](docs/prd/onboarding/prd.md) são as **nove telas do primeiro acesso**, **21 tasks fechadas**: um e2e sai de `~/.lumem` vazio e chega a um turno respondido sem tocar a API. O [agent-login](docs/prd/agent-login/prd.md) troca os cinco campos do rodapé por **login**, com os botões vindos do `authMethods` do handshake e o adaptador instalado pelo daemon numa versão fixa. E a [workspace-memory](docs/prd/workspace-memory/tasks.md) — a primeira que não é de tela — está **completa**: nove PRs mais o S1, o S2 e as duas telas que faltavam. O `~/.lumem` versionado pelo daemon, os sinais de ação, o portão de escrita, as superfícies, o recall explicável e a inbox de propostas vieram nas 01–05. As 06–09 são o que faz a memória **mudar comportamento**: o núcleo comportamental injetado no primeiro turno com marca d'água e sem teto, a `GET /memory/ask` que o agente consulta por `curl`, a destilação de fim de sessão que virou proposta na inbox, o **auto-learn** — pergunta sem resposta sobe agente, e evidência verificável decide entre memória e proposta — e os **playbooks**, com ciclo de vida derivado do uso e nada arquivado sozinho. Os três interruptores que gastam token vêm **desligados** e aparecem na tela. E a
+Onze features de pé — [walking-skeleton](docs/prd/walking-skeleton/tasks.md), [ui-shell](docs/prd/ui-shell/tasks.md), [worktree-tabs](docs/prd/worktree-tabs/tasks.md), [right-panel](docs/prd/right-panel/tasks.md), [file-editor](docs/prd/file-editor/tasks.md) e [project-from-url](docs/prd/project-from-url/tasks.md) — a quinta faz o daemon **escrever** no repositório, com autosave e CRUD pela árvore, e a sexta o faz **clonar** de uma URL git qualquer, reorganizando o diretório de estado numa árvore só (`~/.lumem/workspaces/<workspace>/<projeto>/{repo,worktrees}`) e tornando a remoção de um projeto gerenciado uma remoção **do disco**. **Decidido em 2026-08-17:** a sessão de agente migra de PTY para [ACP](docs/project/pty-vs-acp.md) — a feature [acp-sessions](docs/prd/acp-sessions/prd.md) (transporte + tela da conversa) está **completa**: plano, uso e custo, seletores, comandos de barra, terminal embutido, `fs/*`, e a conversa **em disco** — fechar o Lumem e voltar não perde conversa, e retomar continua de onde parou. [35 tasks](docs/prd/acp-sessions/tasks.md) fechadas nas fases 1, 3, 4, 5 e 6. O PTY fica para shell e como caminho alternativo. O [onboarding](docs/prd/onboarding/prd.md) são as **nove telas do primeiro acesso**, **21 tasks fechadas**: um e2e sai de `~/.lumem` vazio e chega a um turno respondido sem tocar a API. O [agent-login](docs/prd/agent-login/prd.md) troca os cinco campos do rodapé por **login**, com os botões vindos do `authMethods` do handshake e o adaptador instalado pelo daemon numa versão fixa. E a [workspace-memory](docs/prd/workspace-memory/tasks.md) — a primeira que não é de tela — está **completa**: nove PRs mais o S1, o S2 e as duas telas que faltavam. O `~/.lumem` versionado pelo daemon, os sinais de ação, o portão de escrita, as superfícies, o recall explicável e a inbox de propostas vieram nas 01–05. As 06–09 são o que faz a memória **mudar comportamento**: o núcleo comportamental injetado no primeiro turno com marca d'água e sem teto, a `GET /memory/ask` que o agente consulta por `curl`, a destilação de fim de sessão que virou proposta na inbox, o **auto-learn** — pergunta sem resposta sobe agente, e evidência verificável decide entre memória e proposta — e os **playbooks**, com ciclo de vida derivado do uso e nada arquivado sozinho. Os três interruptores que gastam token vêm **desligados** e aparecem na tela. E a
 [workspace-screen](docs/prd/workspace-screen/prd.md) fecha o círculo: o workspace ganhou **tela** — no
 lugar de "selecione uma worktree" —, a memória dele deixou de depender de um projeto aberto, e o
 consumo de tokens virou dado somável (`session_usage`), por projeto e por worktree, com janela de
-tempo resolvida no daemon. Comece pelo [índice da documentação](docs/README.md).
+tempo resolvida no daemon. A [project-scripts](docs/prd/project-scripts/prd.md) — **completa, 14
+tasks** — conserta o que faltava depois de tudo isso: o Lumem criava worktrees que **não rodavam**.
+Agora `setup`, `run`, `test` e `teardown` moram no `<repo>/.lumem/project.toml` (o arquivo que já tinha o
+`id`), a worktree nova nasce preparada, e o rodapé abaixo da árvore de arquivos sobe a aplicação com
+um clique — com um bloco de portas reservado por checkout, e um portão de confiança para o
+`[scripts]` que veio de um repositório clonado. E a [distribution](docs/prd/distribution/prd.md) — **completa, 16 tasks** — tira o produto do
+checkout: o daemon virou **um bundle ESM** com só o par nativo por fora, ele **serve o web na própria
+porta**, o binário `lumem` sobe tudo, e `npm i -g @vinihcrosa/lumem-os` instala — com uma pipeline de release cujo
+passo central é **instalar o tarball num runner limpo**, porque é o único que pega `require`
+dinâmico, prebuild ausente e arquivo fora do pacote. A raiz ganhou `README.md` (em inglês, com
+tradução ao lado) e `LICENSE` (MIT). Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
 |---|---|
 | [docs/project/vision.md](docs/project/vision.md) | visão do projeto, escrita pelo Vinicius |
 | [docs/project/questions.md](docs/project/questions.md) | perguntas de design do projeto, respondidas aos poucos |
 | [docs/project/testing.md](docs/project/testing.md) | matriz de cobertura, gates, e as armadilhas já corrigidas |
+| [docs/project/agentation.md](docs/project/agentation.md) | a barra de anotação visual do dev — clicar na tela vira contexto estruturado para o agente, pelo MCP `agentation` |
 | [docs/project/backlog.md](docs/project/backlog.md) | tudo que ficou para depois. **Ideia adiada entra aqui na mesma hora**, com contexto curto e gatilho de volta |
+| [docs/project/workspaces.md](docs/project/workspaces.md) | scripts de setup/run/teardown, e os dois ambientes: `~/.lumem` de produção e `~/.lumem-dev/shared` de desenvolvimento |
 | [docs/references/](docs/references/) | estudo das quatro referências + comparativo |
 | [docs/project/pty-vs-acp.md](docs/project/pty-vs-acp.md) | a decisão de transporte: por que ACP, o que ela custa, e o que faria o PTY voltar |
 | [docs/prd/](docs/prd/) | PRD, decisões e tasks por feature |
@@ -30,10 +42,12 @@ Monorepo pnpm + Turborepo. `packages/shared` (contratos), `packages/server` (dae
 
 | Comando | O quê |
 |---|---|
-| `pnpm dev` | sobe daemon e web juntos |
+| `pnpm dev` | sobe daemon e web juntos, no ambiente de dev (`~/.lumem-dev/shared`, nunca o `~/.lumem` de produção) — ver [workspaces.md](docs/project/workspaces.md) |
 | `pnpm gate:quick` | testes afetados pelo trabalho atual |
 | `pnpm gate:full` | suíte inteira + e2e |
 | `pnpm gate:build` | typecheck de tudo + build |
+| `pnpm smoke:install` | empacota o `lumem`, instala num prefixo descartável e sobe — a prova de que o pacote publicado presta |
+| `pnpm version:set <x.y.z>` | escreve a versão nos três lugares que têm que concordar |
 
 Antes de dizer que uma task está pronta, rode o gate que ela declara. Detalhes em [docs/project/testing.md](docs/project/testing.md).
 

@@ -1,7 +1,9 @@
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 
 import { DEFAULT_SERVER_PORT } from "@lumem/shared";
+
+import { parsePortRange, type PortRange } from "./scripts/ports.js";
 
 export interface ServerConfig {
   /** TCP port the HTTP server binds to. */
@@ -12,8 +14,16 @@ export interface ServerConfig {
   stateDir: string;
   /** SQLite database file. */
   databasePath: string;
-  /** Where managed git worktrees are created. */
-  worktreesDir: string;
+  /**
+   * Root of the tree that mirrors the product's hierarchy on disk, Q20.
+   *
+   * `<workspacesDir>/<workspace>/<projeto>/{repo,worktrees}` — the clone under
+   * `repo/`, every worktree under `worktrees/`, for a project that was cloned
+   * and for one that was registered by path alike. There is no second tree:
+   * `worktreesDir` used to be one, and two trees describing one hierarchy is
+   * how they drift.
+   */
+  workspacesDir: string;
   /**
    * One SQLite file per session, holding its whole conversation (F5.4, D10).
    *
@@ -54,8 +64,25 @@ export interface ServerConfig {
    * e mesmo assim o default é não.
    */
   autoLearn: boolean;
+  /**
+   * Onde está o web construído, quando não é o lugar de sempre.
+   *
+   * Quase sempre `null`: o daemon empacotado acha o `dist/web` ao lado de si
+   * mesmo, e rodando do código-fonte não existe nenhum — é o vite que serve.
+   * A variável existe para quem serve um build de outro lugar (um bisect entre
+   * duas versões do web, um bundle servido de fora do pacote).
+   */
+  webRoot: string | null;
   /** Quantas perguntas de uma sessão podem subir agente. O orçamento do §5.4. */
   autoLearnBudget: number;
+  /**
+   * De onde saem as portas que cada checkout reserva para rodar (S5).
+   *
+   * Configurável porque a faixa boa depende da máquina — quem tem um serviço
+   * corporativo morando nos 45000 precisa de outra —, e um default que não dá para
+   * mudar vira um bug que só aparece na máquina de alguém.
+   */
+  runPortRange: PortRange;
 }
 
 /** Only the variables this module reads. Keeps tests from touching process.env. */
@@ -66,9 +93,11 @@ export type ConfigEnv = Partial<
     | "LUMEM_STATE_DIR"
     | "LUMEM_DB_PATH"
     | "LUMEM_DEFAULT_CWD"
+    | "LUMEM_WEB_ROOT"
     | "LUMEM_MEMORY_DISTILL"
     | "LUMEM_MEMORY_AUTO_LEARN"
     | "LUMEM_MEMORY_AUTO_LEARN_BUDGET"
+    | "LUMEM_RUN_PORT_RANGE"
     | "SHELL",
     string
   >
@@ -92,6 +121,20 @@ function readPort(raw: string | undefined): number {
 }
 
 /**
+ * `~` and relative paths, resolved against the daemon's own home and cwd.
+ *
+ * `LUMEM_STATE_DIR` is external input, and every path the daemon computes hangs
+ * off it — including the ones it later deletes. A relative state dir would move
+ * with the working directory the daemon happened to start from, and `~` written
+ * literally is a directory named `~`, which is nobody's intent.
+ */
+function absoluteDir(raw: string): string {
+  const expanded =
+    raw === "~" || raw.startsWith("~/") ? join(homedir(), raw.slice(1)) : raw;
+  return isAbsolute(expanded) ? join(expanded) : resolve(expanded);
+}
+
+/**
  * Reads configuration from an environment map.
  *
  * The map is a parameter rather than a direct `process.env` read so tests can
@@ -110,22 +153,27 @@ function readBudget(raw: string | undefined): number {
 }
 
 export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
-  const stateDir = env.LUMEM_STATE_DIR ?? join(homedir(), ".lumem");
+  const stateDir = absoluteDir(env.LUMEM_STATE_DIR ?? join(homedir(), ".lumem"));
   return {
     port: readPort(env.LUMEM_PORT),
     host: env.LUMEM_HOST ?? "127.0.0.1",
     stateDir,
     databasePath: env.LUMEM_DB_PATH ?? join(stateDir, "lumem.db"),
-    worktreesDir: join(stateDir, "worktrees"),
+    workspacesDir: join(stateDir, "workspaces"),
     transcriptsDir: join(stateDir, "transcripts"),
     // /bin/sh exists on every POSIX system this daemon can run on; SHELL is
     // unset under launchd and in some containers.
     shell: env.SHELL === undefined || env.SHELL === "" ? "/bin/sh" : env.SHELL,
     defaultCwd: env.LUMEM_DEFAULT_CWD ?? homedir(),
+    webRoot:
+      env.LUMEM_WEB_ROOT === undefined || env.LUMEM_WEB_ROOT === ""
+        ? null
+        : absoluteDir(env.LUMEM_WEB_ROOT),
     // Só `1` e `true` ligam. Um valor que ninguém reconhece é um valor que
     // alguém digitou errado, e o lado seguro de "não entendi" é desligado.
     distill: env.LUMEM_MEMORY_DISTILL === "1" || env.LUMEM_MEMORY_DISTILL === "true",
     autoLearn: env.LUMEM_MEMORY_AUTO_LEARN === "1" || env.LUMEM_MEMORY_AUTO_LEARN === "true",
     autoLearnBudget: readBudget(env.LUMEM_MEMORY_AUTO_LEARN_BUDGET),
+    runPortRange: parsePortRange(env.LUMEM_RUN_PORT_RANGE),
   };
 }

@@ -4,6 +4,7 @@ import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
+import { registerProject, resolveAvailableName } from "./project.js";
 import {
   cleanupGitFixtures,
   createPlainDir,
@@ -341,5 +342,88 @@ describe("project.inspect", () => {
     const { context: ctx } = await setup();
 
     await expect(ctx.api.project.inspect({ path: "./relativo" })).rejects.toThrow(/absoluto/);
+  });
+});
+
+describe("registerProject", () => {
+  it("é o mesmo caminho que o project.add percorre", async () => {
+    // A5. Duas rotinas de registro seriam duas definições de "projeto válido",
+    // e a segunda ficaria para trás na primeira vez que a primeira mudasse. A
+    // prova de que continua sendo uma só são os testes acima, que passam sem
+    // edição depois da extração.
+    const { context: ctx, workspaceId } = await setup();
+    const repo = await createRepo({ branch: "main" });
+
+    const registrado = await registerProject(ctx.ctx, {
+      workspaceId,
+      path: repo,
+      name: "clonado",
+      remoteUrl: "https://github.com/org/clonado.git",
+      managed: true,
+    });
+
+    expect(registrado).toMatchObject({
+      name: "clonado",
+      defaultBranch: "main",
+      remoteUrl: "https://github.com/org/clonado.git",
+      managed: true,
+      available: true,
+    });
+  });
+
+  it("recusa um diretório que não é raiz de repositório, venha de onde vier", async () => {
+    // O clone não ganha desconto por ter dado trabalho.
+    const { context: ctx, workspaceId } = await setup();
+
+    await expect(
+      registerProject(ctx.ctx, {
+        workspaceId,
+        path: createPlainDir(),
+        name: "clonado",
+        managed: true,
+      }),
+    ).rejects.toThrow(/não é um repositório git/);
+  });
+
+  it("nunca marca como gerenciado o que foi registrado por caminho", async () => {
+    // A12: não há caminho pelo qual um projeto vindo do disco do usuário vire
+    // um que o daemon pode apagar.
+    const { context: ctx, workspaceId } = await setup();
+
+    const added = await ctx.api.project.add({ workspaceId, path: await createRepo() });
+
+    expect(added).toMatchObject({ managed: false, remoteUrl: null });
+  });
+});
+
+describe("resolveAvailableName", () => {
+  it("devolve o nome pedido quando ele está livre", async () => {
+    const { context: ctx, workspaceId } = await setup();
+
+    expect(await resolveAvailableName(ctx.ctx, workspaceId, "api")).toBe("api");
+  });
+
+  it("sufixa quando o nome já existe, em vez de jogar o clone fora", async () => {
+    // F6.4. Renomear se desfaz com um clique; o download de 4 GiB, não.
+    const { context: ctx, workspaceId } = await setup();
+    await ctx.api.project.add({ workspaceId, path: await createRepo(), name: "api" });
+
+    expect(await resolveAvailableName(ctx.ctx, workspaceId, "api")).toBe("api-2");
+  });
+
+  it("continua procurando enquanto os sufixos estiverem tomados", async () => {
+    const { context: ctx, workspaceId } = await setup();
+    await ctx.api.project.add({ workspaceId, path: await createRepo(), name: "api" });
+    await ctx.api.project.add({ workspaceId, path: await createRepo(), name: "api-2" });
+
+    expect(await resolveAvailableName(ctx.ctx, workspaceId, "api")).toBe("api-3");
+  });
+
+  it("não confunde workspaces diferentes", async () => {
+    const { context: ctx, workspaceId } = await setup();
+    await ctx.api.project.add({ workspaceId, path: await createRepo(), name: "api" });
+    const outro = await ctx.api.workspace.create({ name: "trabalho" });
+
+    expect(await resolveAvailableName(ctx.ctx, outro.id, "api")).toBe("api");
   });
 });

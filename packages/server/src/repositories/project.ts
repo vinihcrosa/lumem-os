@@ -19,6 +19,10 @@ export interface CreateProjectInput {
   /** Absolute path to the repository root. */
   path: string;
   defaultBranch: string;
+  /** Sanitized, or null for a project registered by path, F6.8. */
+  remoteUrl?: string | null;
+  /** The Lumem cloned it, into a directory the Lumem chose. Default false. */
+  managed?: boolean;
 }
 
 export interface ProjectRepository {
@@ -26,7 +30,17 @@ export interface ProjectRepository {
   listByWorkspace(workspaceId: string): Promise<ProjectRow[]>;
   findById(id: string): Promise<ProjectRow | undefined>;
   findByPath(path: string): Promise<ProjectRow | undefined>;
+  /** Names already taken in a workspace, for F6.4 to pick the next free one. */
+  namesIn(workspaceId: string): Promise<string[]>;
   rename(id: string, name: string): Promise<ProjectRow>;
+  /**
+   * Marca o `[scripts]` que a pessoa aceitou rodar (project-scripts S11).
+   *
+   * Um hash, e não um booleano: confiança é sobre **este** comando, e um
+   * `[scripts]` que muda depois de aprovado — porque veio um `git pull` — volta a
+   * perguntar.
+   */
+  setScriptsTrustedHash(id: string, hash: string | null): Promise<void>;
   remove(id: string): Promise<void>;
 }
 
@@ -85,6 +99,14 @@ export function createProjectRepository(db: Db): ProjectRepository {
       return db.query.project.findFirst({ where: eq(project.path, path) });
     },
 
+    async namesIn(workspaceId) {
+      const rows = await db
+        .select({ name: project.name })
+        .from(project)
+        .where(eq(project.workspaceId, workspaceId));
+      return rows.map((row) => row.name);
+    },
+
     async rename(id, name) {
       await require_(id);
       const [row] = await withConstraints(
@@ -99,13 +121,26 @@ export function createProjectRepository(db: Db): ProjectRepository {
       return row!;
     },
 
+    async setScriptsTrustedHash(id, hash) {
+      await require_(id);
+      await db
+        .update(project)
+        .set({ scriptsTrustedHash: hash, updatedAt: new Date() })
+        .where(eq(project.id, id));
+    },
+
     async remove(id) {
       await require_(id);
-      // F2.5: the registration goes, the disk never does — not the repository at
-      // its path, and not the worktrees the daemon cut under ~/.lumem. Their rows
-      // go with the project in one transaction, so the FK that forbids orphaning
-      // a worktree is satisfied without a single directory being touched. The
-      // checkouts, uncommitted work and all, stay exactly where they are.
+      // F2.5: the worktree rows go with the project, in one transaction, which
+      // is what satisfies the FK that forbids orphaning a worktree without
+      // loosening it to `CASCADE` in the schema.
+      //
+      // Storage only, as everything else here. **Whether the cascade is allowed
+      // at all is the router's question**, and it answers it differently for the
+      // two kinds of project: by path, nothing on disk is touched and the
+      // checkouts stay where they are; managed, the router refuses before any of
+      // this runs, because deleting the repository out from under a live
+      // checkout is the one thing F6.9-A4 exists to prevent.
       db.transaction((tx) => {
         tx.delete(worktree).where(eq(worktree.projectId, id)).run();
         tx.delete(project).where(eq(project.id, id)).run();
