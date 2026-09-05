@@ -2,7 +2,7 @@ import { newId } from "@lumem/shared";
 import { asc, eq } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
-import { project, type ProjectRow } from "../db/schema.js";
+import { project, worktree, type ProjectRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import { withConstraints, type ConstraintMap } from "./base.js";
 
@@ -131,13 +131,19 @@ export function createProjectRepository(db: Db): ProjectRepository {
 
     async remove(id) {
       await require_(id);
-      // F2.5: the registration goes, the disk does not. Blocked while worktrees
-      // still point here — the database is what enforces it.
-      await withConstraints(() => db.delete(project).where(eq(project.id, id)).returning(), {
-        foreignKey: {
-          code: "IN_USE",
-          message: "o projeto ainda tem worktrees registradas; remova-as antes",
-        },
+      // F2.5: the worktree rows go with the project, in one transaction, which
+      // is what satisfies the FK that forbids orphaning a worktree without
+      // loosening it to `CASCADE` in the schema.
+      //
+      // Storage only, as everything else here. **Whether the cascade is allowed
+      // at all is the router's question**, and it answers it differently for the
+      // two kinds of project: by path, nothing on disk is touched and the
+      // checkouts stay where they are; managed, the router refuses before any of
+      // this runs, because deleting the repository out from under a live
+      // checkout is the one thing F6.9-A4 exists to prevent.
+      db.transaction((tx) => {
+        tx.delete(worktree).where(eq(worktree.projectId, id)).run();
+        tx.delete(project).where(eq(project.id, id)).run();
       });
     },
   };

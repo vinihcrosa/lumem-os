@@ -194,16 +194,17 @@ describe("remove", () => {
     });
   });
 
-  it("frees the project to be removed", async () => {
+  it("removes only its own registration, leaving the project", async () => {
+    // Removing a project cascades to its worktrees now (F2.5, WS-Q22), but the
+    // reverse is not true: dropping one worktree touches nothing else.
     await withTestDb(async (db) => {
       const { repository, projectId } = await setup(db);
       const created = await repository.create(input(projectId));
-      const projects = createProjectRepository(db);
-      await expect(projects.remove(projectId)).rejects.toMatchObject({ code: "IN_USE" });
 
       await repository.remove(created.id);
 
-      await expect(projects.remove(projectId)).resolves.toBeUndefined();
+      expect(await repository.findById(created.id)).toBeUndefined();
+      expect(await createProjectRepository(db).findById(projectId)).toBeDefined();
     });
   });
 });

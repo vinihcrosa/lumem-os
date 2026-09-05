@@ -6,9 +6,12 @@ import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "dri
  *
  * Two rules are enforced here rather than in application code, on purpose:
  *
- * - Every foreign key is ON DELETE RESTRICT. The PRD forbids cascading deletes
- *   ("remover projeto exige zero worktrees"), and a rule that lives only in a
- *   procedure is a rule the next procedure forgets.
+ * - Every foreign key is ON DELETE RESTRICT. No delete here reaches a row the
+ *   caller did not name, and a rule that lives only in a procedure is a rule the
+ *   next procedure forgets. Where a cascade *is* the decision — removing a
+ *   project takes its worktrees' registrations (F2.5, WS-Q22) — it is written as
+ *   the order of two deletes inside one transaction, which satisfies the
+ *   constraint instead of loosening it.
  * - `state` and `kind` are CHECK constraints, not conventions. A typo in an
  *   UPDATE would otherwise produce a row no reader knows how to interpret.
  *
