@@ -25,9 +25,22 @@ tradução ao lado) e `LICENSE` (MIT).
 Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**. Duas já estão
 fechadas; duas seguem **sem tasks** — [sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto
 e worktree de onde se olha) e [run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de execução
-nasce aberto). A nona anotação era sobre uma PR aberta que não aparece: a
-[pull-request-status](docs/prd/pull-request-status/prd.md) está desenhada e **não implementada**,
-travada na Q1.
+nasce aberto).
+
+A nona anotação era sobre uma PR aberta que não aparece, e a
+[pull-request-status](docs/prd/pull-request-status/prd.md) está **completa**. O topo do painel direito
+responde uma pergunta — **dá pra mesclar?** — em verde, vermelho ou âmbar, com o motivo ao lado; a
+linha da worktree na sidebar ganha `● #19` da mesma cor, e é o único sinal que sobrevive ao painel
+fechado, que é como ele nasce. O dado vem do **`gh` da sua máquina**: o Lumem não vê, não pede e não
+grava token, e essa ausência é a maior parte da resposta de segurança da feature. A consulta é **por
+projeto** — oito worktrees custam um processo, não oito.
+
+Duas das onze perguntas foram respondidas **contra a proposta do PRD**, e isso mudou o corte: o Lumem
+passa a **mesclar** e a **criar PR** — dois verbos, e só eles, cada um atrás de um portão que o daemon
+relê antes de escrever. O e2e com um `gh` falso pagou por si mesmo três vezes, e nenhuma delas era
+teste: `remoteUrl` nulo para projeto adicionado por caminho, o `⟳` que não relia, e um pedido servido
+por uma leitura que **começou antes dele** — dos dois lados da rede, com o mesmo sintoma: o estado de
+antes carimbado *"há 0 s"*.
 
 A [worktree-first-tab](docs/prd/worktree-first-tab/prd.md) está **completa** — 9 tasks, 5 perguntas
 respondidas. A coluna do meio é **caminho → abas → conteúdo**: o cabeçalho fixo do checkout virou a

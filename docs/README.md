@@ -1,6 +1,6 @@
 # Documentação — Lumem-OS
 
-Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). A [project-from-url](prd/project-from-url/prd.md) traz o projeto de fora: cola-se uma URL git e o daemon clona, num diretório de estado que passou a ser uma árvore só. Fechando o caminho de entrada, o [onboarding](prd/onboarding/prd.md) e o [agent-login](prd/agent-login/prd.md). E o harness passou a lembrar: a [workspace-memory](prd/workspace-memory/tasks.md) está **completa** — nove PRs, a primeira feature que não é de tela, e a única em que o sistema escreve sozinho (atrás de portão, inbox e interruptor desligado). Fechando o círculo, a [workspace-screen](prd/workspace-screen/prd.md) deu tela ao workspace: a memória dele deixou de depender de um projeto aberto, e o consumo de tokens passou a ser somável por projeto e por worktree.
+Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). A [project-from-url](prd/project-from-url/prd.md) traz o projeto de fora: cola-se uma URL git e o daemon clona, num diretório de estado que passou a ser uma árvore só. Fechando o caminho de entrada, o [onboarding](prd/onboarding/prd.md) e o [agent-login](prd/agent-login/prd.md). E o harness passou a lembrar: a [workspace-memory](prd/workspace-memory/tasks.md) está **completa** — nove PRs, a primeira feature que não é de tela, e a única em que o sistema escreve sozinho (atrás de portão, inbox e interruptor desligado). Fechando o círculo, a [workspace-screen](prd/workspace-screen/prd.md) deu tela ao workspace: a memória dele deixou de depender de um projeto aberto, e o consumo de tokens passou a ser somável por projeto e por worktree. E a [pull-request-status](prd/pull-request-status/prd.md) responde, no topo do painel direito e na linha da sidebar, a pergunta que o paralelismo cobra: **dá pra mesclar?** — lendo o host pelo `gh`, sem guardar segredo nenhum, e escrevendo exatamente dois verbos.
 
 > **Decisão de arquitetura, 2026-08-17:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por [ACP](project/pty-vs-acp.md)**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A feature [acp-sessions](prd/acp-sessions/prd.md) — transporte mais a tela da conversa — está **completa**: PRD escrito, spike rodado (autenticação e consumo medidos, janela de contexto parcial), protótipo renderizado em `packages/web/prototype/lumem-acp-conversation.html`, e as fases 1, 3, 4, 5 e 6 entregues — uma tarefa roda do começo ao fim sem terminal, fechar o daemon não perde a conversa, e o agente ACP se cria pela tela.
 
@@ -217,13 +217,21 @@ item **F** do [backlog](project/backlog.md).
 | `lumem-run-dock.html` (Open Design) | **Sete quadros, aprovados em 2026-08-30** e já no repositório. As duas leituras da S1 lado a lado, mais Setup (passou e falhou), Terminal, o vazio que ensina o arquivo, o rodapé recolhido com o run visto de fora, e a primeira execução de um projeto clonado |
 ### [pull-request-status/](prd/pull-request-status/) — a worktree diz se dá pra mesclar
 
-**Desenhada, nada implementado — e travada na Q1.** Uma PR aberta hoje não aparece na tela porque
-não existe uma linha de código que a leia: o que está pronto é o desenho. Quando a worktree tem PR aberta, o topo do painel direito responde
-uma pergunta só — **dá pra mesclar?** — em verde, vermelho ou âmbar, com o motivo escrito ao lado e um
-`↗` que abre a PR no navegador. O que ela resolve não é "ver PR dentro do editor": é que descobrir qual
-das oito worktrees está pronta e qual quebrou custa hoje uma ida ao navegador **por worktree** — um
-custo que cresce com a única coisa que o produto promete deixar crescer. Sai do backlog o item
-*"abstração de git host"*, com o corte que ele mesmo pedia: **ler, não agir**.
+**Completa.** Quando a worktree tem pull request, o topo do painel direito responde uma pergunta só —
+**dá pra mesclar?** — em verde, vermelho ou âmbar, com o motivo escrito ao lado e um `↗` que abre a PR
+no navegador. A linha da worktree na sidebar ganha `● #19` com a mesma cor, e ele é o único sinal que
+sobrevive ao painel fechado — que é como o painel nasce. O que ela resolve não é "ver PR dentro do
+editor": é que descobrir qual das oito worktrees está pronta e qual quebrou custava uma ida ao
+navegador **por worktree** — um custo que crescia com a única coisa que o produto promete deixar
+crescer.
+
+O corte mudou durante a implementação. O item de backlog pedia *"ler, não agir"*, e o PRD concordava;
+a **Q3** e a **Q4** foram respondidas **contra** essa proposta, e o Lumem passa a **mesclar** e a
+**criar PR** — dois verbos, e só eles, cada um atrás de um portão que o daemon relê antes de escrever.
+Reexecutar, aprovar e comentar continuam fora.
+
+Nada disso guarda segredo: quem autentica é o `gh` da sua máquina, e o Lumem não vê, não pede e não
+grava token. A consulta é **por projeto** — oito worktrees custam um processo, não oito.
 
 Ela trouxe junto uma **mudança de estrutura** (v0.2) que **saiu daqui em 2026-09-01** e virou a
 [worktree-first-tab](prd/worktree-first-tab/): a coluna do meio passa a começar nas abas, e a
@@ -233,10 +241,11 @@ e sujeira somem da vista, e quem paga são o ponto na aba e o marcador na sideba
 
 | Arquivo | O quê |
 |---|---|
-| [prd.md](prd/pull-request-status/prd.md) | O §2.1 (a mudança de estrutura, com a conta dela), a regra de cor como decisão de produto, o adaptador de host, a consulta **por projeto** (oito worktrees = um processo), e o §4 — executar binário de terceiro e renderizar texto que veio da internet |
-| [open-questions.md](prd/pull-request-status/open-questions.md) | 11 perguntas, **1 respondida** (a Q2, que moveu a barra para o painel). A Q1 (`gh` ou token nosso) trava o daemon; a Q3 e a Q4 decidem se a feature termina lendo ou passa a escrever no remoto |
-| [tasks.md](prd/pull-request-status/tasks.md) | 16 tasks em 6 fases. A primeira é a **estrutura** — ela mexe em tela que já funciona —, e a segunda é um **spike**: a saída `--json` do `gh` é contrato de outro projeto, e ninguém mediu ainda |
-| `packages/web/prototype/lumem-pr-bar.html` | O protótipo, vindo do Open Design: nove telas — a tela inteira, a aba da worktree, os cinco estados na largura do painel, as causas de bloqueio, a aba `PR`, os seis estados degradados, o painel fechado, as duas larguras extremas, e o que a barra não faz. **Zero token novo**; cinco pares de contraste novos, já medidos |
+| [prd.md](prd/pull-request-status/prd.md) | A regra de cor como decisão de produto, o adaptador de host, a consulta **por projeto**, o §4 inteiro — executar binário de terceiro, renderizar texto que veio da internet e, desde a Q3, **escrever no repositório de outra gente** —, e o §10, que é a dívida de desenho que a mudança de corte criou |
+| [open-questions.md](prd/pull-request-status/open-questions.md) | 11 perguntas, **11 respondidas**. Duas delas contra a proposta escrita: a Q3 põe o `Merge` no v1 e a Q4 faz o Lumem criar a PR |
+| [spike.md](prd/pull-request-status/spike.md) | A saída real do `gh`, medida antes de o adaptador existir. O achado que mudou código: `mergeable` volta `UNKNOWN` para PR mesclada ou fechada, então a tabela lê `state` primeiro — senão toda PR mesclada ficaria âmbar |
+| [tasks.md](prd/pull-request-status/tasks.md) | 16 tasks em 6 fases, mais a fase da escrita que a Q3 e a Q4 abriram. A fase 1 saiu para a `worktree-first-tab`; a 2 é o spike |
+| `packages/web/prototype/lumem-pr-bar.html` | O protótipo, vindo do Open Design: nove telas — a tela inteira, a aba da worktree, os cinco estados na largura do painel, as causas de bloqueio, a aba `PR`, os seis estados degradados, o painel fechado, as duas larguras extremas, e o que a barra não faz. **Zero token novo**; doze pares de contraste novos entraram no `contrast.ts`. A tela 9 ficou desatualizada quando a Q3 e a Q4 mudaram o corte — está no §10 do PRD como dívida |
 
 ### [distribution/](prd/distribution/) — o Lumem sai do checkout
 
@@ -258,9 +267,10 @@ o par nativo por fora, ele **serve o web na própria porta**, o binário `lumem`
 
 ## As quatro que a tela pediu — desenhadas a partir dela, em 2026-09-01
 
-Nove anotações feitas clicando na tela `/` viraram quatro features independentes. Nenhuma tem tasks
-ainda; todas têm PRD e perguntas abertas. A nona anotação — *"abri a PR e não aparece"* — não virou
-feature: é a [pull-request-status](prd/pull-request-status/) acima, que nunca saiu do desenho.
+Nove anotações feitas clicando na tela `/` viraram quatro features independentes. Duas já fecharam;
+as outras duas têm PRD e perguntas abertas. A nona anotação — *"abri a PR e não aparece"* — não virou
+feature: é a [pull-request-status](prd/pull-request-status/) acima, que saiu do desenho e **está
+implementada**.
 
 ### [sidebar-actions/](prd/sidebar-actions/) — criar de onde se olha
 
@@ -281,7 +291,7 @@ sem `✕`, com o ponto de sujeira que é o único sinal a sobreviver a outra aba
 `▤ arquivos` saiu da `Topbar` — era o único controle daquela faixa que não valia para a tela toda — e
 foi para a ponta direita da faixa de abas do checkout, o único lugar que existe em todas as abas de um
 checkout e em nenhum lugar fora dele. Extraída da Fase 1 da
-[pull-request-status](prd/pull-request-status/), que continuava travada, e entregue sem ela.
+[pull-request-status](prd/pull-request-status/), que na época continuava travada, e entregue sem ela.
 
 O que a mudança cobra está escrito onde dói, e o e2e do onboarding provou de graça: com a conversa na
 frente, o nome da worktree só existe na aba.

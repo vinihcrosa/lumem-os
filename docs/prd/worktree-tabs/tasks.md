@@ -131,6 +131,12 @@ A troca de somente leitura acontece **no lugar**, sem remontar: sessão que morr
 > redigita de cabeça. A aba de contexto passou a se chamar pelo nome do checkout, e a sujeira, que era
 > chip, virou o ponto da aba.
 >
+> **Nota de 2026-09-05:** o segundo sinal que paga essa conta chegou. A
+> [pull-request-status](../pull-request-status/prd.md) pôs `● #19` na linha da worktree, na sidebar —
+> e ele é o único sinal de estado que sobrevive **ao painel direito fechado**, que é como o painel
+> nasce. O par ficou completo: o ponto na aba diz que a árvore está suja, o marcador na sidebar diz
+> se dá pra mesclar, e o resto está a um clique na primeira aba.
+>
 > Decisão revertida sem registro é decisão que volta sozinha; por isso esta nota, e não uma edição.
 
 **What**: Cabeçalho fixo, faixa de abas, aba de contexto.

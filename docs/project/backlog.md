@@ -205,17 +205,25 @@ e mais de um agente rodando sem você olhando.
 
 ### ~~Abstração de git host (GitLab, e não só GitHub)~~ — **virou PRD**
 
-Ganhou pasta: [pull-request-status](../prd/pull-request-status/prd.md). O corte foi o que o próprio
-item avisava que era preciso — **ler, não agir**: a barra mostra estado de PR e de verificações e
-abre no navegador, e o adaptador de host nasce com uma implementação só (GitHub pelo `gh`).
+Ganhou pasta: [pull-request-status](../prd/pull-request-status/prd.md), e **está implementada**. O
+corte que o item pedia era *"ler, não agir"* — e ele **mudou de lugar** durante a implementação: a
+[Q3](../prd/pull-request-status/open-questions.md) e a
+[Q4](../prd/pull-request-status/open-questions.md) foram respondidas contra a proposta do PRD, e o
+Lumem passou a **mesclar e a criar PR**. Os dois verbos, e só eles, cada um atrás de um portão que o
+daemon relê.
 
-O que **ficou** de fora dela, e portanto continua aqui:
+O adaptador de host nasceu com uma implementação: GitHub pelo `gh`, sem token nosso em lugar nenhum.
+
+O que **ficou** de fora, e portanto continua aqui:
 
 | Item | Peso | Contexto de uma frase | Volta quando |
 |---|---|---|---|
-| Mesclar e criar PR pela barra | `M` | escrita no remoto, irreversível para o time, com estratégia e confirmação próprias | a ida ao navegador para mesclar doer com frequência que você consiga nomear |
-| Reexecutar verificação, aprovar, comentar | `M` | idem, cada uma com o seu modo de falha | junto com a de cima |
+| Reexecutar verificação, aprovar, comentar | `M` | escrita no remoto, cada uma com o seu modo de falha — e nenhuma delas é o *fim do trabalho*, que foi o argumento que fez o merge entrar | a ida ao navegador para uma delas doer com frequência que você consiga nomear |
+| Escolher reviewers, labels e template ao criar | `S` | é a tela do host, e ela é boa; o Lumem cria o esqueleto e o `↗` leva ao resto | alguém reclamar de editar toda PR depois de criada |
 | O segundo host (GitLab por `glab`) | `M` | é o teste real do adaptador — o primeiro sempre cabe na abstração que ele mesmo gerou | existir um repositório GitLab de verdade em uso |
+| Notificação quando a PR fica verde ou quebra | `M` | tentador e barato de errar: exige política de ruído, senão vira o alerta que se aprende a ignorar | as oito worktrees em paralelo existirem de verdade no dia a dia |
+| "O check quebrou, peça ao agente para consertar" | `M` | a ponte entre a barra e a sessão ACP. É a ideia mais valiosa da lista e a mais perigosa: põe texto da internet dentro de um prompt (§4.7 do PRD) | ter um portão desenhado para texto de fora virar instrução |
+| A aba `Review` — threads, comentários inline, sugestões | `L` | é outra feature inteira, e sempre foi | depois do segundo host |
 | Notificação quando a PR fica verde ou quebra | `P` | tentador e barato de errar: exige política de ruído | você se pegar olhando a sidebar de minuto em minuto |
 | "O check quebrou, peça ao agente para consertar" | `M` | a ponte entre a barra e a sessão ACP — e a mais perigosa, porque põe texto da internet dentro de um prompt | o §4.7 do PRD ganhar um portão de verdade |
 
