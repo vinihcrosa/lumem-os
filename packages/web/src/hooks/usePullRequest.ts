@@ -24,8 +24,33 @@ import { trpc } from "../lib/trpc.js";
  *   pausa que vale mais.
  */
 
-const POLL_BUSY_MS = 15_000;
-const POLL_IDLE_MS = 60_000;
+export const POLL_BUSY_MS = 15_000;
+export const POLL_IDLE_MS = 60_000;
+
+/**
+ * De quanto em quanto tempo perguntar — ou `false` para não perguntar.
+ *
+ * Função pura, e fora do hook de propósito. As duas pausas são **requisito**
+ * (P6), e o painel fechado hoje já desmonta a coluna inteira: o requisito
+ * estaria satisfeito por acidente de montagem, e requisito que só existe por
+ * acidente é requisito que a próxima refatoração apaga sem ninguém ver. Aqui
+ * ele tem nome e tem teste.
+ */
+export function pollIntervalFor(input: {
+  visible: boolean;
+  panelOpen: boolean;
+  status: PrStatus | undefined;
+}): number | false {
+  // Janela oculta: a aba está em outro lugar da sua vida.
+  if (!input.visible) return false;
+  // Painel colapsado — e ele **nasce** colapsado, então esta é a pausa que vale
+  // mais: consultar para ninguém ver é processo gasto.
+  if (!input.panelOpen) return false;
+  if (!input.status) return POLL_IDLE_MS;
+  // Com verificação rodando o estado muda em segundos; sem nada rodando o que
+  // muda é gente, e gente é mais lenta que CI.
+  return (input.status.pull?.counts.running ?? 0) > 0 ? POLL_BUSY_MS : POLL_IDLE_MS;
+}
 
 /** `document.hidden`, como estado de React em vez de leitura solta. */
 function useWindowVisible(): boolean {
@@ -65,14 +90,8 @@ export function usePullRequest(
     queryKey: prStatusKey(worktreeId ?? "-"),
     queryFn: () => trpc.pr.getByWorktree.query({ worktreeId: worktreeId! }),
     enabled: worktreeId !== null,
-    refetchInterval: (query) => {
-      if (!visible || !panelOpen) return false;
-      const data = query.state.data;
-      if (!data) return POLL_IDLE_MS;
-      // Com verificação rodando o estado muda em segundos; sem nada rodando o
-      // que muda é gente, e gente é mais lenta que CI.
-      return (data.pull?.counts.running ?? 0) > 0 ? POLL_BUSY_MS : POLL_IDLE_MS;
-    },
+    refetchInterval: (query) =>
+      pollIntervalFor({ visible, panelOpen, status: query.state.data }),
     // Enquanto não se sabe, a barra **não existe** — nada de esqueleto piscando
     // no topo do painel a cada troca de worktree (P6). Guardar o valor anterior
     // é o que faz trocar de aba não apagar a barra e redesenhá-la.
