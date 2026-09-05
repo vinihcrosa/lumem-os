@@ -10,13 +10,29 @@ import "./right-panel.css";
  * Ela pertence ao **checkout** como as outras duas — o que o workspace sabe não
  * muda ao trocar de aba de sessão —, e por isso mora aqui e não na aba.
  */
-export type RightPanelTab = "files" | "changes" | "memory";
+export type RightPanelTab = "files" | "changes" | "memory" | "pr";
 
 export interface RightPanelProps {
   tab: RightPanelTab;
   onSelectTab(tab: RightPanelTab): void;
   /** Propostas pendentes; null enquanto ainda não se sabe. */
   proposalCount?: number | null;
+  /**
+   * A barra da pull request, **acima** da faixa de abas.
+   *
+   * Mais um slot do quadro que já existe: os outros três andares — abas,
+   * conteúdo e rodapé de execução — não mudam de dono nem de altura (F1.1).
+   * `undefined` quando não há o que dizer, e aí a faixa de abas volta a ser o
+   * topo da coluna. Nada de esqueleto piscando enquanto não se sabe.
+   */
+  prBar?: ReactNode;
+  /**
+   * O distintivo da quarta aba, ou `null` quando ela não deve existir.
+   *
+   * A aba `PR` **só existe quando existe PR** (F2.1): aba permanente que passa
+   * a vida vazia ensina o olho a pular a faixa inteira.
+   */
+  prBadge?: { text: string; tone: string } | null;
   /** Shown on the `Mudanças` tab; null while it is still unknown. */
   changeCount: number | null;
   /**
@@ -51,6 +67,8 @@ export interface RightPanelProps {
  */
 export function RightPanel({
   proposalCount = null,
+  prBar,
+  prBadge = null,
   tab,
   onSelectTab,
   changeCount,
@@ -115,6 +133,8 @@ export function RightPanel({
         }}
       />
 
+      {prBar}
+
       <div className="rp__bar" role="tablist" aria-label="conteúdo da coluna">
         <button
           type="button"
@@ -154,6 +174,22 @@ export function RightPanel({
             <span className="rtab__count">{proposalCount}</span>
           )}
         </button>
+        {prBadge !== null && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "pr"}
+            className={`rtab${tab === "pr" ? " rtab--active" : ""}`}
+            onClick={() => onSelectTab("pr")}
+          >
+            PR
+            {/* O nome saiu da régua, e não do gosto: com `Verificações` as
+                quatro abas não cabiam em 360px e a quarta ficava atrás de uma
+                barra de rolagem — o pior lugar possível para o único aviso de
+                que algo quebrou. Ver Q10. */}
+            <span className={`rtab__count rtab__count--${prBadge.tone}`}>{prBadge.text}</span>
+          </button>
+        )}
         <span className="rp__spacer" />
         {actions}
         <button type="button" className="rp__icon" onClick={onReload} title="recarregar">

@@ -43,10 +43,11 @@ describe("contraste", () => {
     ).toEqual([]);
   });
 
-  it("mede pelo menos 59 pares", () => {
+  it("mede pelo menos 71 pares", () => {
     // Piso, não número exato: acrescentar par não pode falhar isto, e **apagar** par
-    // para calar uma reprovação tem de falhar.
-    expect(CONTRAST_PAIRS.length).toBeGreaterThanOrEqual(59);
+    // para calar uma reprovação tem de falhar. Subiu de 59 para 71 com a barra da
+    // pull request, que não trouxe token novo e trouxe doze combinações novas.
+    expect(CONTRAST_PAIRS.length).toBeGreaterThanOrEqual(71);
   });
 
   it("aponta só para token que existe", () => {

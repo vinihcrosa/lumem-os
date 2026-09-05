@@ -132,3 +132,18 @@ export function playbooksKey(workspaceId: string | null, archived: boolean) {
 export function cloneJobsKey(workspaceId: string) {
   return ["project", "cloneJobs", workspaceId] as const;
 }
+
+/**
+ * O estado da pull request de um checkout, e os marcadores de um projeto.
+ *
+ * Prefixadas por `pr` para que mesclar possa invalidar `["pr"]` inteiro de uma
+ * vez: um merge muda a barra **e** o marcador da sidebar, e invalidar um dos
+ * dois é como uma tela passa a discordar de si mesma.
+ */
+export function prStatusKey(worktreeId: string) {
+  return ["pr", "getByWorktree", worktreeId] as const;
+}
+
+export function prMarksKey(projectId: string) {
+  return ["pr", "listByProject", projectId] as const;
+}
