@@ -57,11 +57,35 @@ export interface PrEntry {
   readAt: string | null;
 }
 
+/** Uma execução no ar, e qual pedido ela está servindo. */
+interface InFlight {
+  want: number;
+  promise: Promise<PrEntry>;
+}
+
 interface Slot extends PrEntry {
   /** Monotônico, do relógio injetado. Não é `readAt`: ele é para a tela. */
   freshUntil: number;
   failures: number;
-  inFlight: Promise<PrEntry> | null;
+  inFlight: InFlight | null;
+  /**
+   * Quantas vezes alguém **pediu** uma leitura nova, e quantas foram servidas.
+   *
+   * Dois contadores, e não um booleano — e a diferença entre os dois foi um
+   * defeito de verdade, achado pelo e2e:
+   *
+   * 1. a revalidação por trás é o comportamento certo para o relógio (a tela
+   *    não pode piscar a cada minuto) e **errado** para um pedido explícito.
+   *    `tentar de novo` que devolve o valor velho e conserta um ciclo depois é
+   *    um botão que parece não fazer nada, e a pessoa clica de novo;
+   * 2. e um pedido não pode ser satisfeito por uma leitura que **começou antes
+   *    dele**. Com um booleano, era: o `⟳` marcava, a execução que já estava no
+   *    ar terminava com o estado velho, e limpava a marca. O sintoma era um
+   *    dado carimbado "há 0 s" e mesmo assim errado — o pior tipo, porque a
+   *    idade dizia que ele era novo.
+   */
+  want: number;
+  served: number;
 }
 
 export interface PrCacheOptions {
@@ -101,6 +125,8 @@ export function createPrCache({ host, now = () => Date.now() }: PrCacheOptions):
       freshUntil: 0,
       failures: 0,
       inFlight: null,
+      want: 0,
+      served: 0,
     };
     slots.set(projectId, fresh);
     return fresh;
@@ -129,7 +155,7 @@ export function createPrCache({ host, now = () => Date.now() }: PrCacheOptions):
     return busy ? TTL_BUSY_MS : TTL_IDLE_MS;
   }
 
-  async function fetch(project: PrProject, slot: Slot): Promise<PrEntry> {
+  async function fetch(project: PrProject, slot: Slot, want: number): Promise<PrEntry> {
     reads += 1;
     try {
       const read = await host.read({ repoPath: project.path, remoteUrl: project.remoteUrl });
@@ -152,16 +178,35 @@ export function createPrCache({ host, now = () => Date.now() }: PrCacheOptions):
       slot.failures += 1;
     } finally {
       slot.freshUntil = now() + ttlOf(slot);
-      slot.inFlight = null;
+      // O pedido que esta execução estava servindo, e nenhum posterior a ele.
+      slot.served = Math.max(slot.served, want);
     }
 
     return viewOf(slot);
   }
 
-  /** Uma execução por projeto, por mais gente que peça ao mesmo tempo. */
+  /**
+   * Uma execução por projeto, por mais gente que peça ao mesmo tempo.
+   *
+   * Com uma ressalva que custou uma investigação: quem pediu depois de um
+   * `invalidate` **não** pode ser servido pela execução que já estava no ar,
+   * porque ela começou olhando para o mundo de antes. Nesse caso a espera é
+   * pela que está no ar e, aí sim, por uma nova.
+   */
   function start(project: PrProject, slot: Slot): Promise<PrEntry> {
-    slot.inFlight ??= fetch(project, slot);
-    return slot.inFlight;
+    const current = slot.inFlight;
+    if (current !== null) {
+      if (current.want >= slot.want) return current.promise;
+      return current.promise.then(() => start(project, slot));
+    }
+
+    const holder: InFlight = { want: slot.want, promise: Promise.resolve(viewOf(slot)) };
+    holder.promise = fetch(project, slot, holder.want).finally(() => {
+      // Só a nossa: uma execução mais nova pode já ter tomado o lugar.
+      if (slot.inFlight === holder) slot.inFlight = null;
+    });
+    slot.inFlight = holder;
+    return holder.promise;
   }
 
   return {
@@ -169,7 +214,9 @@ export function createPrCache({ host, now = () => Date.now() }: PrCacheOptions):
       const slot = slotOf(project.id);
       const known = slot.snapshot !== null || slot.failure !== null;
 
-      if (!known) return start(project, slot);
+      // A primeira leitura espera, e a pedida também: nos dois casos quem
+      // perguntou não tem resposta melhor para receber enquanto isso.
+      if (!known || slot.want > slot.served) return start(project, slot);
       if (now() < slot.freshUntil) return Promise.resolve(viewOf(slot));
 
       // Envelheceu: devolve o conhecido **agora** e revalida por trás. O `catch`
@@ -183,6 +230,7 @@ export function createPrCache({ host, now = () => Date.now() }: PrCacheOptions):
       const slot = slots.get(projectId);
       if (!slot) return;
       slot.freshUntil = 0;
+      slot.want += 1;
       // Escrita conserta o mundo: insistir no backoff depois de um merge que deu
       // certo seria deixar a barra verde por dez minutos depois de ela acabar.
       slot.failures = 0;

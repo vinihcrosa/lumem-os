@@ -83,7 +83,7 @@ export function CheckoutFiles({
    * montagem é requisito que a próxima refatoração apaga sem ninguém ver.
    */
   const pr = usePullRequest(worktreeId, { panelOpen: true });
-  const refresh = usePrRefresh(ids.projectId);
+  const refresh = usePrRefresh(scope);
   const dismissal = usePrDismissal(ids.projectId);
 
   const status = pr.data ?? null;
@@ -135,6 +135,12 @@ export function CheckoutFiles({
         // "read the disk again", not "read this one directory again".
         void queryClient.invalidateQueries({ queryKey: ["files"] });
         void queryClient.invalidateQueries({ queryKey: ["changes"] });
+        // E o host junto: "recarregar" quer dizer *tudo o que esta coluna
+        // mostra*, e a barra da PR é a primeira coisa dela. Sem isto, o botão
+        // deixaria o único andar cujo dado não é local exatamente como estava —
+        // e o `refresh` é quem faz o daemon esquecer o TTL, porque invalidar só
+        // no cliente devolveria o mesmo valor em cache.
+        refresh.mutate();
       }}
       onClose={onClose}
       onResize={onResize}

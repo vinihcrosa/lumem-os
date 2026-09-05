@@ -56,6 +56,26 @@ export const E2E_FIXTURE_AGENT = join(E2E_FIXTURE_DIR, "bin", "fake-agent");
  */
 export const E2E_FIXTURE_REPO_SCRIPTS = join(E2E_FIXTURE_DIR, "repo-scripts");
 
+/**
+ * Um oitavo, e este tem `origin` apontando para o GitHub — sem nunca ir lá.
+ *
+ * O remote existe porque é dele que o adaptador descobre o host (F4.2). Nada
+ * nesta suíte faz fetch, push ou clone a partir dele: o `gh` é falso e o git
+ * nunca é chamado com rede.
+ */
+export const E2E_FIXTURE_REPO_PR = join(E2E_FIXTURE_DIR, "repo-pr");
+
+/**
+ * O estado que o `gh` de mentira responde, reescrito entre um passo e outro.
+ *
+ * É o que faz o e2e andar de âmbar a vermelho a verde sem um CI existir.
+ */
+export const E2E_GH_STATE = join(E2E_FIXTURE_DIR, "gh-state.json");
+
+/** O `gh` de mentira, no mesmo diretório de bin que o adaptador. */
+export const E2E_FIXTURE_GH = join(E2E_FIXTURE_DIR, "bin", "gh");
+export const E2E_FAKE_GH = fileURLToPath(new URL("./fake-gh.mjs", import.meta.url));
+
 /** Where the first-access spec makes its project. */
 export const E2E_FIXTURE_REPO_ONBOARDING = join(E2E_FIXTURE_DIR, "repo-onboarding");
 
@@ -113,6 +133,7 @@ export function createFixtures(): void {
     E2E_FIXTURE_REPO_ONBOARDING,
     E2E_FIXTURE_REPO_ORIGIN,
     E2E_FIXTURE_REPO_SCRIPTS,
+    E2E_FIXTURE_REPO_PR,
   ]) {
     mkdirSync(repo, { recursive: true });
     git(repo, "init", "--initial-branch", "main", ".");
@@ -175,6 +196,18 @@ export function createFixtures(): void {
   mkdirSync(E2E_FIXTURE_REPO_EMPTY, { recursive: true });
   git(E2E_FIXTURE_REPO_EMPTY, "init", "--initial-branch", "main", ".");
 
+  /*
+   * O remote de onde o host é descoberto.
+   *
+   * `https://github.com/...` e não um `file://`: o que o `git-url.ts` responde
+   * decide se o adaptador do GitHub aceita o repositório, e um `file://` faria
+   * a barra dizer "sem integração" — que é o outro teste, não este.
+   *
+   * Nada aqui vai à rede: o `gh` é falso, e o git só é chamado para ler
+   * referências que já estão no disco.
+   */
+  git(E2E_FIXTURE_REPO_PR, "remote", "add", "origin", "https://github.com/exemplo/repo.git");
+
   const binDir = join(E2E_FIXTURE_DIR, "bin");
   mkdirSync(binDir, { recursive: true });
   writeFileSync(
@@ -195,4 +228,19 @@ export function createFixtures(): void {
     ].join("\n"),
     { mode: 0o755 },
   );
+
+  // O `gh`, com o mesmo shim de sempre: processo de verdade, `argv` de verdade,
+  // saída de verdade — e zero rede.
+  writeFileSync(
+    E2E_FIXTURE_GH,
+    [
+      "#!/bin/sh",
+      `exec ${JSON.stringify(process.execPath)} ${JSON.stringify(E2E_FAKE_GH)} "$@"`,
+      "",
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+
+  // Começa sem PR nenhuma. O spec escreve o resto.
+  writeFileSync(E2E_GH_STATE, JSON.stringify({ pulls: [] }), "utf8");
 }

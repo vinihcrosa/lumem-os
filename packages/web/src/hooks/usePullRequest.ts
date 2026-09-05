@@ -101,19 +101,36 @@ export function usePrMarks(projectId: string | null): UseQueryResult<PrMark[]> {
   });
 }
 
-/** "Tentar de novo": manda o daemon esquecer o TTL e reler. */
-export function usePrRefresh(projectId: string | null) {
+/**
+ * "Tentar de novo": manda o daemon esquecer o TTL e reler.
+ *
+ * Recebe o **escopo**, e não o id do projeto: o escopo é o que a tela sabe no
+ * instante do clique, e o projeto de uma worktree só chega uma consulta depois.
+ * Com o projeto, o botão não fazia nada quando o clique vinha cedo — que é
+ * exatamente quando alguém clica em recarregar. Foi o e2e que achou.
+ */
+export function usePrRefresh(scope: { scopeType: "project" | "worktree"; scopeId: string }) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async () => {
-      if (projectId === null) return;
-      await trpc.pr.refresh.mutate({ projectId });
+      await trpc.pr.refresh.mutate(scope);
     },
-    onSettled: () => {
-      // `["pr"]` inteiro: a barra e o marcador saem do mesmo cache do daemon, e
-      // invalidar um só seria deixá-los discordarem na tela.
-      void queryClient.invalidateQueries({ queryKey: ["pr"] });
+    onSettled: async () => {
+      /*
+       * Cancelar **antes** de reler, e não só invalidar.
+       *
+       * `invalidateQueries` marca a consulta como velha, mas não reinicia uma
+       * busca que já está no ar: ela resolve com o que o daemon respondeu
+       * **antes** do clique, e o `⟳` parece não ter feito nada. É o mesmo
+       * defeito que o `PrCache` tinha do lado do daemon, com o mesmo formato —
+       * um pedido servido por uma leitura que começou antes dele.
+       *
+       * `["pr"]` inteiro nos dois: a barra e o marcador saem do mesmo cache, e
+       * mexer num só seria deixá-los discordarem na tela.
+       */
+      await queryClient.cancelQueries({ queryKey: ["pr"] });
+      await queryClient.refetchQueries({ queryKey: ["pr"] });
     },
   });
 }

@@ -374,6 +374,20 @@ describe("pr.merge — o portão é o veredito, e ele é relido aqui", () => {
     expect(host.writes).toEqual([]);
   });
 
+  it("`refresh` aceita o escopo, que é o que a tela sabe no instante do clique", async () => {
+    // Com o id do projeto, o botão não fazia nada quando o clique vinha cedo —
+    // que é exatamente quando alguém clica em recarregar. O e2e achou.
+    const { ctx, worktreeId, host } = await setup();
+
+    await ctx.api.pr.getByWorktree({ worktreeId });
+    const before = host.reads;
+
+    await ctx.api.pr.refresh({ scopeType: "worktree", scopeId: worktreeId });
+    await ctx.api.pr.getByWorktree({ worktreeId });
+
+    expect(host.reads).toBe(before + 1);
+  });
+
   it("depois de mesclar, a próxima leitura vai ao host (F7.8)", async () => {
     const { ctx, worktreeId, host } = await setup();
 

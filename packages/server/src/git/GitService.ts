@@ -160,6 +160,16 @@ export interface GitService {
    */
   hasRemoteBranch(path: string, branch: string): Promise<boolean>;
   /**
+   * O endereço de `origin`, lido do disco. `null` quando não há remoto.
+   *
+   * Existe porque o banco **não** é fonte confiável para isto: `remote_url` só é
+   * preenchido para projeto que o Lumem clonou, e projeto adicionado por caminho
+   * — que é a maioria — nasce com ele nulo mesmo tendo `origin` configurado.
+   * Confiar no banco fazia a barra da PR dizer "sem integração" para um
+   * repositório do GitHub, e foi o e2e que achou.
+   */
+  getRemoteUrl(path: string): Promise<string | null>;
+  /**
    * What changed in a checkout, in one of the two views of D1.
    *
    * `worktree` is the working tree against `HEAD`, plus what is not tracked
@@ -376,6 +386,15 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       // left...right counts the base side first: commits the worktree does not
       // have are what it is *behind* by.
       return { ahead: ahead ?? 0, behind: behind ?? 0 };
+    },
+
+    async getRemoteUrl(path) {
+      const { stdout } = await exec(["remote", "get-url", "origin"], { cwd: path }).catch(() => ({
+        stdout: "",
+        stderr: "",
+      }));
+      const url = stdout.trim();
+      return url === "" ? null : url;
     },
 
     async hasRemoteBranch(path, branch) {

@@ -44,6 +44,22 @@ interface Checkout {
   cwd: string;
 }
 
+/**
+ * De onde o host é descoberto (F4.2).
+ *
+ * O banco vem primeiro porque é o que o clone gravou, e ele é o único caso em
+ * que o endereço que interessa pode não ser o `origin` do disco. Quando ele é
+ * nulo — que é o caso de todo projeto **adicionado por caminho** — a pergunta
+ * vai ao git. Sem esta segunda metade, a barra dizia "sem integração" para um
+ * repositório do GitHub inteiramente comum, e foi o e2e que achou.
+ */
+async function remoteOf(
+  ctx: Context,
+  project: { path: string; remoteUrl: string | null },
+): Promise<string | null> {
+  return project.remoteUrl ?? (await ctx.git.getRemoteUrl(project.path));
+}
+
 async function checkoutOf(ctx: Context, worktreeId: string): Promise<Checkout> {
   const worktree = await createWorktreeRepository(ctx.db).findById(worktreeId);
   if (!worktree) throw new DomainError("NOT_FOUND", `worktree ${worktreeId} não existe`);
@@ -57,7 +73,7 @@ async function checkoutOf(ctx: Context, worktreeId: string): Promise<Checkout> {
   }
 
   return {
-    project: { id: project.id, path: project.path, remoteUrl: project.remoteUrl },
+    project: { id: project.id, path: project.path, remoteUrl: await remoteOf(ctx, project) },
     branch: worktree.branch,
     base: project.defaultBranch,
     cwd: worktree.path,
@@ -144,7 +160,7 @@ export const prRouter = router({
       const entry = await ctx.pr.get({
         id: project.id,
         path: project.path,
-        remoteUrl: project.remoteUrl,
+        remoteUrl: await remoteOf(ctx, project),
       });
       const snapshot = entry.snapshot;
       if (snapshot === null) return [];
@@ -265,13 +281,30 @@ export const prRouter = router({
       }),
     ),
 
-  /** "Tentar de novo", da barra. Não escreve nada; só invalida. */
-  refresh: publicProcedure.input(projectInput).mutation(({ ctx, input }) =>
-    domainSafeAsync(async () => {
-      ctx.pr.invalidate(input.projectId);
-      return { ok: true as const };
-    }),
-  ),
+  /**
+   * "Tentar de novo", e o `⟳` da coluna. Não escreve nada; só invalida.
+   *
+   * A entrada é o **escopo**, e não o id do projeto, porque o escopo é o que o
+   * cliente sabe **na hora do clique** — o projeto de uma worktree chega uma
+   * consulta depois. Pedir o projeto fazia o botão não fazer nada quando o
+   * clique vinha cedo, que é exatamente quando alguém clica em recarregar.
+   */
+  refresh: publicProcedure
+    .input(z.object({ scopeType: z.enum(["project", "worktree"]), scopeId: z.string().min(1) }))
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () => {
+        const projectId =
+          input.scopeType === "project"
+            ? input.scopeId
+            : ((await createWorktreeRepository(ctx.db).findById(input.scopeId))?.projectId ?? null);
+
+        if (projectId === null) {
+          throw new DomainError("NOT_FOUND", `worktree ${input.scopeId} não existe`);
+        }
+        ctx.pr.invalidate(projectId);
+        return { ok: true as const };
+      }),
+    ),
 });
 
 function allows(

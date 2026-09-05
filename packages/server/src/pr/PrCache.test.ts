@@ -364,3 +364,86 @@ describe("invalidar e esquecer", () => {
     expect(calls()).toBe(2);
   });
 });
+
+describe("um pedido explícito espera pela resposta", () => {
+  it("depois de invalidar, a leitura seguinte traz o valor novo — e não o velho", async () => {
+    /*
+     * A revalidação por trás é certa para o relógio e **errada** para um
+     * pedido: `tentar de novo` que devolve o valor velho e conserta um ciclo
+     * depois é um botão que parece não fazer nada, e a pessoa clica de novo.
+     *
+     * Foi o e2e que achou: o `⟳` da coluna não mudava a barra, e o que a
+     * consertava era o TTL expirando sozinho um minuto depois.
+     */
+    let readAt = "2026-09-05T12:00:00Z";
+    const { host } = scriptedHost(() => ({ ok: true, snapshot: snapshot([pull()], readAt) }));
+    const time = clock();
+    const cache = createPrCache({ host, now: time.now });
+
+    await cache.get(PROJECT);
+    readAt = "2026-09-05T12:00:30Z";
+
+    // Sem invalidar, o cache está fresco e nem pergunta.
+    expect((await cache.get(PROJECT)).readAt).toBe("2026-09-05T12:00:00Z");
+
+    cache.invalidate(PROJECT.id);
+    expect((await cache.get(PROJECT)).readAt).toBe("2026-09-05T12:00:30Z");
+  });
+
+  it("um pedido forçado continua sendo uma execução só, por mais gente que peça", async () => {
+    const { host, calls } = scriptedHost(() => ({
+      ok: true,
+      snapshot: snapshot([pull()], "2026-09-05T12:00:30Z"),
+    }));
+    const time = clock();
+    const cache = createPrCache({ host, now: time.now });
+
+    await cache.get(PROJECT);
+    cache.invalidate(PROJECT.id);
+    await Promise.all(Array.from({ length: 5 }, () => cache.get(PROJECT)));
+
+    expect(calls()).toBe(2);
+  });
+});
+
+describe("a corrida que o e2e achou", () => {
+  it("um pedido não é servido por uma leitura que começou antes dele", async () => {
+    /*
+     * O sintoma era o pior tipo possível: a barra mostrava o estado velho
+     * carimbado **"há 0 s"** — a idade jurando que o dado era novo.
+     *
+     * O caminho: uma revalidação já estava no ar, olhando para o mundo de
+     * antes; o `⟳` marcava "quero de novo"; a execução no ar terminava, gravava
+     * o estado velho e limpava a marca. Um booleano não consegue distinguir
+     * "esta execução serve o meu pedido" de "esta execução existe".
+     */
+    let release: (() => void) | null = null;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let readAt = "2026-09-05T12:00:00Z";
+
+    const { host, calls } = scriptedHost(async () => {
+      // Só a primeira leitura fica presa; o resto responde na hora.
+      if (calls() === 2) await gate;
+      return { ok: true, snapshot: snapshot([pull()], readAt) };
+    });
+    const time = clock();
+    const cache = createPrCache({ host, now: time.now });
+
+    await cache.get(PROJECT);
+
+    // Uma revalidação por trás começa, e fica pendurada.
+    time.advance(TTL_IDLE_MS + 1);
+    await cache.get(PROJECT);
+
+    // O mundo muda **enquanto** ela está no ar, e alguém pede de novo.
+    readAt = "2026-09-05T12:05:00Z";
+    cache.invalidate(PROJECT.id);
+    const pedido = cache.get(PROJECT);
+
+    release!();
+
+    // O pedido espera a execução velha terminar e faz outra. Sem isso ele
+    // receberia `12:00:00` com cara de recém-lido.
+    expect((await pedido).readAt).toBe("2026-09-05T12:05:00Z");
+  });
+});
