@@ -191,8 +191,10 @@ function Skipped({
 }) {
   const where: Record<string, string> = {
     agent: "no rodapé da sidebar, em agentes",
-    project: "no rodapé da sidebar, em adicionar projeto",
-    task: "no painel do projeto, em nova worktree",
+    // As duas mudaram de lugar na `sidebar-actions`: cada botão foi para o
+    // cabeçalho da coisa que ele acrescenta.
+    project: "na sidebar, no ＋ ao lado de Projetos",
+    task: "na sidebar, no ＋ da linha do projeto",
   };
 
   if (!skipped.includes(step)) return <span className="dim">nada foi criado</span>;

@@ -16,7 +16,6 @@ import {
   SectionHead,
   Skeleton,
 } from "../ui/index.js";
-import { CreateWorktreeDialog } from "./CreateWorktreeDialog.js";
 import { ScopePanel } from "./ScopePanel.js";
 import { SpendList, type SpendRow } from "./SpendList.js";
 
@@ -327,14 +326,15 @@ export function LocalPanel({
 
           {available && (
             <>
-              <div className="actions">
-                <CreateWorktreeDialog
-                  projectId={projectId}
-                  onCreated={onSelectWorktree}
-                  hasCommits={project.data.hasCommits}
-                />
-              </div>
+              {/*
+                Q4: creating a worktree left this panel.
 
+                It was the only action the `local` context tab offered, and that
+                is exactly the argument for moving it: the tab is for *reading*
+                the checkout, not for cutting siblings of it. The action now
+                lives on the project's own row in the tree — one place, and the
+                place you are looking at when you notice one is missing.
+              */}
               {/*
                 O consumo por worktree (`workspace-screen`, W4): a mesma linguagem
                 da tela do workspace, um nível abaixo — quem aprendeu a ler lá lê

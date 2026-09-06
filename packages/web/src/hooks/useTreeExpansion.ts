@@ -35,6 +35,14 @@ function write(collapsed: ReadonlySet<string>): void {
 export interface TreeExpansion {
   isExpanded(key: string): boolean;
   toggle(key: string): void;
+  /**
+   * Opens it, whatever it was — `sidebar-actions` F1.5.
+   *
+   * Not `toggle`: creating a worktree in a project that happened to be open
+   * would then fold it, and the worktree just selected would have nothing on
+   * screen to show for the selection.
+   */
+  expand(key: string): void;
 }
 
 /** Which nodes of the sidebar tree are folded, remembered across reloads. */
@@ -52,5 +60,15 @@ export function useTreeExpansion(): TreeExpansion {
     });
   }, []);
 
-  return { isExpanded, toggle };
+  const expand = useCallback((key: string) => {
+    setCollapsed((current) => {
+      if (!current.has(key)) return current;
+      const next = new Set(current);
+      next.delete(key);
+      write(next);
+      return next;
+    });
+  }, []);
+
+  return { isExpanded, toggle, expand };
 }

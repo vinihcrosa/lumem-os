@@ -177,7 +177,7 @@ export function TaskStep({ projectId, agentConfigId, onNext, onBack, onSkip }: T
       {projectId === undefined && (
         <Banner tone="warning">
           O passo do projeto foi pulado, então não há de onde cortar uma worktree. Pule este também —
-          o painel do projeto tem <b>nova worktree</b> quando você adicionar um.
+          a linha do projeto na sidebar ganha um <b>＋</b> quando você adicionar um.
         </Banner>
       )}
     </StepShell>

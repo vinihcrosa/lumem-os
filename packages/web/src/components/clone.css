@@ -45,48 +45,14 @@
   color: var(--color-text-secondary);
 }
 
-.add-project__blocked {
-  margin-top: var(--space-8);
-  font: var(--text-label-xs);
-  color: var(--color-text-warning);
-}
+/* O clone em andamento — desde a Q5 da `sidebar-actions` ele mora DENTRO do
+   diálogo que o começou, e a geometria da linha foi junto: `.modal__work*`, em
+   `ui/modal.css`. O que ficou aqui é a barra, que não mudou.
 
-/* ------------------------------------------------- o clone na sidebar */
-.clone-row {
-  padding: var(--space-8);
-  margin-bottom: var(--space-8);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-surface);
-}
-.clone-row__top {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-}
-.clone-row__name { font: var(--text-body-sm); }
-.clone-row__pct {
-  margin-left: auto;
-  font: var(--text-label-xs);
-  color: var(--color-text-secondary);
-}
-.clone-row__cancel {
-  width: var(--size-control-sm);
-  height: var(--size-control-sm);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--color-text-tertiary);
-  cursor: pointer;
-}
-.clone-row__cancel:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-danger);
-}
-.clone-row__phase {
-  margin-top: var(--space-6);
-  font: var(--text-label-xs);
-  color: var(--color-text-secondary);
-}
+   Saiu também o `.add-project__blocked`, que dizia qual clone estava na frente
+   quando o botão vinha desabilitado: com o formulário substituído pelo
+   progresso, não há segundo `clonar` para apertar. A A11 passou a ser
+   estrutural. */
 
 .bar {
   height: var(--space-4);

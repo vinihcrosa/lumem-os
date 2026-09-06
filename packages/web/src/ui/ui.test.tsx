@@ -139,6 +139,75 @@ describe("Row", () => {
     expect(screen.getByRole("button", { name: "teste-prd" })).toBeInTheDocument();
   });
 
+  it("takes an action at the far end that is neither selecting nor expanding", async () => {
+    const onSelect = vi.fn();
+    const onToggle = vi.fn();
+    const onAct = vi.fn();
+    render(
+      <Row
+        depth={0}
+        label="lumem-os"
+        expanded={false}
+        onToggle={onToggle}
+        onSelect={onSelect}
+        action={
+          <button type="button" className="row__act" aria-label="nova worktree em lumem-os" onClick={onAct}>
+            ＋
+          </button>
+        }
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "nova worktree em lumem-os" }));
+
+    // F1.4: clicking it is an action, not a navigation. Free rather than
+    // arranged — the three buttons are siblings, so nothing propagates.
+    expect(onAct).toHaveBeenCalledOnce();
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it("puts the action last, because it is an action and not a way through", () => {
+    render(
+      <Row
+        depth={0}
+        label="lumem-os"
+        expanded
+        onToggle={vi.fn()}
+        onSelect={vi.fn()}
+        action={
+          <button type="button" aria-label="nova worktree em lumem-os">
+            ＋
+          </button>
+        }
+      />,
+    );
+
+    expect(screen.getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual([
+      "recolher lumem-os",
+      null,
+      "nova worktree em lumem-os",
+    ]);
+  });
+
+  it("keeps the slot even with nothing to put in it (Q1)", () => {
+    const { container } = render(
+      <Row depth={0} label="graphify-out" muted meta="sem disco" reserveAction onSelect={vi.fn()} />,
+    );
+
+    // Reserved, not offered: there is nowhere to cut a worktree from, and a
+    // column that only lines up when every project is on disk does not line up.
+    expect(container.querySelector(".row__slot")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /nova worktree/ })).toBeNull();
+  });
+
+  it("does not reserve the slot on rows that have no action to reserve for", () => {
+    const { container } = render(<Row depth={1} label="acp-fs" onSelect={vi.fn()} />);
+    // A worktree adds nothing below itself. A `+` on every line of the tree
+    // would be noise at three levels for an action that exists at one.
+    expect(container.querySelector(".row__slot")).toBeNull();
+  });
+
   it("keeps the twist out of the row's own name, so the two are tellable apart", () => {
     render(<Row depth={0} label="lorebase" expanded onToggle={vi.fn()} onSelect={vi.fn()} />);
 

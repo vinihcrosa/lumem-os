@@ -99,10 +99,35 @@
   pointer-events: none;
 }
 
-/* O formulário toma a sidebar inteira enquanto está aberto: com 264px não
-   cabe formulário ao lado de árvore. */
-.add-project { padding-top: var(--space-4); }
-.add-project__actions { display: flex; gap: var(--space-6); }
+/* ------------------------------------------------- cabeçalho da lista
+ *
+ * O `+` fica preso ao TÍTULO, e não ao fim da lista: assim ele não se afasta da
+ * coisa que acrescenta quando a lista cresce. E ele existe em todos os estados
+ * (Q3) — é o único caminho para o PRIMEIRO projeto, e árvore vazia não tem linha
+ * onde passar o ponteiro.
+ */
+.tree__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-row-compact);
+  padding: 0 var(--space-2) 0 var(--space-8);
+}
+.tree__head .tree__label { flex: 1; min-width: 0; padding: 0; margin: 0; }
+
+.act {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-target-min);
+  height: var(--size-target-min);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+  line-height: 1;
+}
+.act:hover { background: var(--color-bg-active); color: var(--color-text-primary); }
 
 /* ------------------------------------------------- agentes do daemon
  *
