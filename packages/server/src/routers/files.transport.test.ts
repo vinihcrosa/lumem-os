@@ -9,6 +9,7 @@ import { openTestDb, type TestDb } from "../db/testing.js";
 import { MAX_FILE_BYTES } from "../files/FileService.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { createServer, MAX_BODY_BYTES } from "../server.js";
+import { loopbackAuthority } from "../testing/authority.js";
 import { cleanupGitFixtures, createRepo, tempDir } from "../testing/git-fixtures.js";
 
 /**
@@ -30,15 +31,14 @@ import { cleanupGitFixtures, createRepo, tempDir } from "../testing/git-fixtures
 let app: FastifyInstance;
 let ptyManager: PtyManager;
 let database: TestDb;
+let authority: string;
 
 beforeEach(async () => {
   ptyManager = new PtyManager();
   database = openTestDb();
-  app = await createServer({
-    config: loadConfig({ LUMEM_STATE_DIR: tempDir("lumem-state-") }),
-    db: database.db,
-    ptyManager,
-  });
+  const config = loadConfig({ LUMEM_STATE_DIR: tempDir("lumem-state-") });
+  app = await createServer({ config, db: database.db, ptyManager });
+  authority = loopbackAuthority(app, config.port);
 });
 
 afterEach(async () => {
@@ -50,7 +50,7 @@ afterEach(async () => {
 
 /** The shape `httpBatchLink` really sends: one call, wrapped in its index. */
 async function postBatched(path: string, input: unknown): Promise<LightMyRequestResponse> {
-  return app.inject({ method: "POST", url: `/trpc/${path}?batch=1`, payload: { "0": input } });
+  return app.inject({ authority,  method: "POST", url: `/trpc/${path}?batch=1`, payload: { "0": input } });
 }
 
 function queryUrl(path: string, input: unknown): string {
@@ -60,12 +60,12 @@ function queryUrl(path: string, input: unknown): string {
 /** A project on a real repository, registered the way the client registers it. */
 async function setupProject(): Promise<{ projectId: string; repo: string }> {
   const repo = await createRepo({ branch: "main" });
-  const workspace = await app.inject({
+  const workspace = await app.inject({ authority, 
     method: "POST",
     url: "/trpc/workspace.create",
     payload: { name: "pessoal" },
   });
-  const project = await app.inject({
+  const project = await app.inject({ authority, 
     method: "POST",
     url: "/trpc/project.add",
     payload: {
@@ -81,7 +81,7 @@ describe("files over http", () => {
   it("carries a write at the byte ceiling instead of answering 413", async () => {
     const { projectId, repo } = await setupProject();
     writeFileSync(join(repo, "grande.txt"), "x\n");
-    const read = await app.inject({
+    const read = await app.inject({ authority, 
       method: "GET",
       url: queryUrl("files.read", { scopeType: "project", scopeId: projectId, path: "grande.txt" }),
     });
@@ -109,7 +109,7 @@ describe("files over http", () => {
   it("carries the body JSON multiplies by six, which is the factor the limit is derived with", async () => {
     const { projectId, repo } = await setupProject();
     writeFileSync(join(repo, "controle.txt"), "x\n");
-    const read = await app.inject({
+    const read = await app.inject({ authority, 
       method: "GET",
       url: queryUrl("files.read", {
         scopeType: "project",
@@ -198,7 +198,7 @@ describe("files over http", () => {
     const { projectId } = await setupProject();
     const input = { scopeType: "project", scopeId: projectId, path: "README.md" };
 
-    const preview = await app.inject({
+    const preview = await app.inject({ authority, 
       method: "GET",
       url: queryUrl("files.deletePreview", input),
     });
@@ -212,7 +212,7 @@ describe("files over http", () => {
     // 405, because a GET that changes the disk is one a browser, a proxy or a
     // link preview can fire on its own.
     for (const path of ["files.write", "files.create", "files.rename", "files.remove"]) {
-      const response = await app.inject({ method: "GET", url: queryUrl(path, input) });
+      const response = await app.inject({ authority,  method: "GET", url: queryUrl(path, input) });
       expect(response.statusCode, path).toBe(405);
     }
   });

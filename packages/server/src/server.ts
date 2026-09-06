@@ -14,6 +14,7 @@ import { createGhHost } from "./pr/GhHost.js";
 import { createPrCache, type PrCache } from "./pr/PrCache.js";
 import type { PrHost } from "./pr/PrHost.js";
 import { AcpManager } from "./acp/AcpManager.js";
+import { registerRequestGuard } from "./auth/request-guard.js";
 import { registerAcpWebSocket } from "./acp/websocket.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import { createAutoLearn } from "./memory/auto-learn.js";
@@ -143,6 +144,12 @@ export async function createServer({
     // Without this, close() waits forever on an attached websocket.
     forceCloseConnections: true,
   });
+
+  // Antes de qualquer rota, porque é sobre todas elas: quem fala com o daemon
+  // (daemon-auth, fase 1). Um `Host` que não é este daemon é 421; um `Origin`
+  // que não é o web que ele serve é 403 — e o upgrade de WebSocket passa pelo
+  // mesmo juiz antes do handshake.
+  registerRequestGuard({ app, config });
 
   const createContext = (): Context => ({
     config,
