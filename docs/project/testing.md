@@ -387,6 +387,21 @@ chave*, e quem invalida uma chave costuma ser outra tela. E o corolário de test
 layout e tempo reais.** Em jsdom a janela não existe, os 826 testes de componente passaram, e o que
 achou foi o e2e — que por isso não é redundante com eles.
 
+### Um repositório de fixture só pode ser adicionado uma vez na suíte inteira
+
+**Sintoma:** o spec passa quando roda sozinho e falha no `gate:full`, com um projeto que nunca aparece
+na sidebar.
+
+**Causa:** os specs de e2e dividem **um daemon e um diretório de estado**, e o daemon recusa adicionar
+o mesmo caminho de repositório duas vezes — corretamente, porque um projeto é um repositório. Um spec
+que reaproveita a fixture genérica (`repo`) com um nome novo está pedindo a recusa, e o `ensureProject`
+não distingue "ainda não chegou" de "foi recusado": ele espera o botão aparecer e estoura no timeout.
+
+A regra: **fixture usada por mais de um spec é fixture com nome fixo em um spec só.** Quem precisa de um
+repositório com um formato próprio — sem `[scripts]`, sem commit, com `origin` — cria a sua em
+`createFixtures()`, e a nomeia pelo que ela **não** tem. Achado na
+[run-dock-open T3](../prd/run-dock-open/tasks.md), onde `repo-noscripts` nasceu por isso.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

@@ -136,3 +136,21 @@
 .rule__row { display: flex; align-items: baseline; gap: var(--space-10); font: var(--text-body-sm); color: var(--color-text-secondary); }
 .rule__k { flex: none; min-width: 14ch; font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
 .rule__row--no .rule__k { color: var(--color-text-warning); }
+
+/* ---------------------------------------------------------------------------
+   5. o que esta folha propôs e não passou (revisão de 2026-09-06)
+   -------------------------------------------------------------------------- */
+/*
+ * A Q6 foi respondida **contra** esta folha, e os quadros continuam desenhados
+ * com a proposta dentro — apagá-los deixaria a pergunta "por que a faixa não
+ * mudou?" sem o desenho que ela recusa.
+ *
+ * Então a marca é da PROSA, e não do quadro: a barra à esquerda diz "isto aqui
+ * embaixo é proposta recusada", e o desenho fica intacto para ser comparado.
+ */
+.doc__lede--rev,
+.sec__d--rev,
+.case__note--rev {
+  border-left: 2px solid var(--color-text-warning);
+  padding-left: var(--space-12);
+}

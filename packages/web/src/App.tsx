@@ -15,7 +15,7 @@ import { useLiveState } from "./hooks/useLiveState.js";
 import { AwaitingPermissionProvider } from "./hooks/useAwaitingPermission.js";
 import { OpenFilesProvider } from "./hooks/useOpenFiles.js";
 import { useRightPanel } from "./hooks/useRightPanel.js";
-import { RUN_DOCK_PANEL_WIDTH, useRunDock } from "./hooks/useRunDock.js";
+import { useRunDock, widenColumnOnOpen } from "./hooks/useRunDock.js";
 import type { Scope } from "./hooks/useSessionsByScope.js";
 import { useTreeExpansion } from "./hooks/useTreeExpansion.js";
 import { AppShell } from "./layout/AppShell.js";
@@ -311,19 +311,10 @@ export function App() {
           setAsk({ sessionId, text });
           setOpenSessionId(sessionId);
         }}
-        dock={{
-          ...dock,
-          // Abrir o rodapé alarga a coluna quando ela é estreita demais para um
-          // terminal (S1). Só para cima, e só uma vez: quem já escolheu uma
-          // largura maior não é corrigido, e fechar não desfaz o que a pessoa
-          // arrastou depois.
-          toggle: () => {
-            if (!dock.open && rightPanel.width < RUN_DOCK_PANEL_WIDTH) {
-              rightPanel.setWidth(RUN_DOCK_PANEL_WIDTH);
-            }
-            dock.toggle();
-          },
-        }}
+        // Abrir o rodapé pelo chevron alarga a coluna quando ela é estreita demais
+        // para um terminal (S1) — e é o único gesto que faz isso. Chegar não faz:
+        // o rodapé já nasce aberto, então nunca passa por aqui.
+        dock={widenColumnOnOpen(dock, rightPanel)}
       />
     );
   }

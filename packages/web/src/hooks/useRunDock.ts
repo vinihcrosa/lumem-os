@@ -48,8 +48,23 @@ export function clampHeight(height: number, viewport = window.innerHeight): numb
   return Math.min(maxHeight(viewport), Math.max(RUN_DOCK_MIN_HEIGHT, Math.round(height)));
 }
 
+/**
+ * De onde ele cai quando ninguém escolheu nada — **aberto**, desde 2026-09-06.
+ *
+ * Era `false`, pelo mesmo argumento da coluna de arquivos: quem nunca pediu não
+ * perde um terço da tela. O que virou o argumento foi medir o que ele custa em vez
+ * de supor — numa coluna de 576px a árvore mostra 11 das 16 linhas com o rodapé na
+ * metade, e não a metade inútil que a prosa supunha. Contra três linhas de árvore,
+ * "minha aplicação está de pé, e em que porta?" é a primeira pergunta de quem chega
+ * numa worktree, não a décima.
+ *
+ * Só o `open` mudou: a altura é a mesma de quem abria de propósito, porque um
+ * segundo número de altura no produto é a pergunta "por que ele mudou de tamanho?"
+ * para sempre. E isto é o **primeiro contato**, não uma regra: quem fechar encontra
+ * a tira recolhida na próxima vez.
+ */
 function read(): Stored {
-  const fallback: Stored = { open: false, height: defaultHeight() };
+  const fallback: Stored = { open: true, height: defaultHeight() };
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw === null) return fallback;
@@ -75,6 +90,35 @@ function write(state: Stored): void {
   }
 }
 
+/** O mínimo que a coluna precisa ter para o rodapé ser legível — ver `widenColumnOnOpen`. */
+export interface ColumnWidth {
+  width: number;
+  setWidth(width: number): void;
+}
+
+/**
+ * O **único** gatilho do piso de 640px: abrir o rodapé pelo chevron.
+ *
+ * Só para cima, e só quando a coluna está estreita demais para um terminal — quem
+ * já arrastou para mais que isso não é corrigido, e fechar não desfaz o que a
+ * pessoa escolheu depois.
+ *
+ * Isto é uma função, e não três linhas dentro do `App`, porque a lista do que
+ * **não** alarga é o resultado da [Q2] e da [Q5] e precisa de prova: chegar numa
+ * worktree não alarga (o rodapé já nasce aberto, então nunca passa por aqui), o
+ * daemon reconciliar um `run` de pé não alarga, trocar de worktree não alarga, e
+ * **mandar rodar não alarga** — rodar roda, e não mexe na tela.
+ */
+export function widenColumnOnOpen(dock: RunDockState, column: ColumnWidth): RunDockState {
+  return {
+    ...dock,
+    toggle: () => {
+      if (!dock.open && column.width < RUN_DOCK_PANEL_WIDTH) column.setWidth(RUN_DOCK_PANEL_WIDTH);
+      dock.toggle();
+    },
+  };
+}
+
 export interface RunDockState {
   open: boolean;
   height: number;
@@ -87,8 +131,8 @@ export interface RunDockState {
 /**
  * Se o rodapé está aberto e quão alto — lembrado entre recargas.
  *
- * Fechado na primeira vez, como a coluna de arquivos: quem nunca pediu não perde
- * um terço da tela para ele.
+ * **Aberto** na primeira vez, e fechado a partir da primeira vez que alguém o
+ * fechar — ver o `read()` para o porquê de cada metade dessa frase.
  */
 export function useRunDock(): RunDockState {
   const [state, setState] = useState<Stored>(read);
