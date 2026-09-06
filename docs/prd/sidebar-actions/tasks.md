@@ -110,6 +110,8 @@ rodapé para dentro do modal, e o modal deixa de fechar.
 **Done when**:
 - [x] `clone.mutate()` **não** fecha o diálogo; o corpo vira progresso, fase e porcentagem
 - [x] Enquanto clona, `Esc`, véu e `✕` **não fecham**, e o rodapé diz `Esc não fecha enquanto clona`
+- [x] Quando o clone acaba, as três voltam a valer **de verdade** — fechar por elas dispensa o
+      desfecho, senão o pedido de reabrir traz o diálogo de volta no mesmo ciclo (P8)
 - [x] A saída é `cancelar o clone` — a mesma `project.cloneCancel` de antes. **Nenhum caminho fica
       sem saída**
 - [x] **Sucesso fecha**; falha **não** fecha — devolve o formulário com a URL onde estava, e o
@@ -215,17 +217,20 @@ só para hospedá-lo.
 
 ## O que a execução achou, e não estava no plano
 
-Seis coisas. Três vieram do e2e, e a primeira delas é a única que teria chegado ao usuário.
+Oito coisas. Três vieram do e2e, uma veio da **revisão da PR**, e as **duas primeiras** são as
+que teriam chegado ao usuário — as duas do mesmo jeito: um diálogo que se recusa a ficar aberto, e um
+diálogo que se recusa a fechar, os dois **sem erro nenhum no console**.
 
 | # | O quê |
 |---|---|
 | **P1** | **Um clone já terminado fechava o diálogo no instante em que ele abria.** O `job store` guarda os jobs terminados **de propósito** — é o que faz uma falha sobreviver ao F5 —, então *"existe um clone e ele acabou"* é o estado normal de qualquer workspace onde alguém já clonou alguma coisa. O efeito que fecha no sucesso lia isso e fechava. Quem clonasse uma vez **nunca mais abria a tela de adicionar projeto**, sem erro nenhum no console. O e2e pegou: **55 specs de uma vez**. A correção é lembrar *qual* job este diálogo está segurando, e só fechar naquele |
+| **P8** | **`✕`, `Esc` e véu ficavam habilitados e não fechavam** — achado na **revisão da PR**, não pelos testes. Com o clone terminado, `cloning` é falso e as três saídas voltam a valer; mas o `close()` não dispensava o desfecho, então o efeito da F1.9 via um `outcome` ainda não lido e pedia para abrir de novo **no mesmo ciclo**. O único caminho de saída era o `dispensar`/`entendi` de dentro do `CloneOutcome` — que é exatamente o que os testes exercitavam, e é por isso que a suíte inteira ficou verde em cima disso. `close()` passou a marcar o desfecho como lido: **fechar à mão é ler** |
 | **P2** | **O `✕` no cabeçalho era o primeiro no `Tab`, e o modal abria com o foco em "fechar".** A ordem do `Tab` é a ordem do DOM, e o contrato da seção 8 do protótipo põe o `✕` no fim do anel. Ele passou a ser escrito **por último** e posicionado por CSS. Achado pelo próprio teste do `Modal`, antes de qualquer tela existir |
 | **P3** | **O gatilho não some mais quando o formulário abre**, e `getByRole("button", { name: "adicionar" })` passou a casar com dois elementos — o `+` (`adicionar projeto`) atrás do véu e o submit. Na versão antiga o botão do rodapé **virava** o formulário, então só existia um por vez. Todos os locators do fluxo de projeto foram escopados no `role="dialog"` |
 | **P4** | **A F6.6 tinha um teste que passava sem olhar.** Ele provava que o botão de cancelar some ao fim do download com `within(row)`; o botão mudou para o rodapé do modal, o `row` continuou existindo e continuou sem botão, e o teste continuou verde — provando a ausência num lugar onde nunca mais haveria um. Está registrado como armadilha em [testing.md](../../project/testing.md) |
 | **P5** | **A F1.9 precisava valer para o clone que *falhou*, não só para o que roda.** O primeiro corte reabria o diálogo só com um clone em andamento — e isso teria apagado, sem apagar código nenhum, a razão de o job store guardar os terminados: uma falha recém-acontecida sumia num F5, que é exatamente quando ela mais precisa ser lida. Vale também para o `registrado como` da F6.4 |
-| **P7** | **O workspace do e2e é compartilhado, e tem um `local` por projeto.** Um `/^local/` escrito para provar "a seleção não mudou" passava sozinho e falhava com dez projetos na árvore. A âncora certa é o **caminho do repositório** dentro do painel — a mesma que o `happy-path` já usava |
 | **P6** | **`close()` também limpava o campo**, e com a Q5a a falha de clone **não** fecha. Reusá-lo teria apagado a URL que o `tentar por ssh` reescreve. Separar "fechar" de "esquecer o que foi digitado" foi o que fez a F1.9 funcionar |
+| **P7** | **O workspace do e2e é compartilhado, e tem um `local` por projeto.** Um `/^local/` escrito para provar "a seleção não mudou" passava sozinho e falhava com dez projetos na árvore. A âncora certa é o **caminho do repositório** dentro do painel — a mesma que o `happy-path` já usava |
 
 E uma que **não** foi achado, e sim consequência aceita: a **A11** — um clone por vez — deixou de ser
 uma frase (`pesado ainda está sendo clonado`, com o botão desabilitado) e passou a ser **estrutural**.

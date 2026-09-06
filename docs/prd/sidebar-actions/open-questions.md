@@ -171,7 +171,14 @@ muda em silêncio é pior que contrato ruim — quem aperta `Esc` e não vê nad
 mais forte.
 
 **E ao recarregar a página com um clone vivo:** o diálogo **reabre sozinho**. O rodapé não hospeda
-mais nada, então sem isso o progresso não teria onde aparecer.
+mais nada, então sem isso o progresso não teria onde aparecer. Vale também para um clone que **já
+acabou** e ainda tem recado — uma falha, ou o sufixo de nome da F6.4 —, porque é justamente o F5 que
+faria a mensagem sumir sem ninguém ler.
+
+**Quando o clone acaba, as três saídas voltam a valer** — e fechar por elas **dispensa o desfecho**.
+Sem isso o `✕` fica habilitado e não fecha: ele zera o `open`, o pedido de reabrir vê um desfecho não
+lido e traz o diálogo de volta no mesmo ciclo. **Fechar à mão é ler**, e quem apertou `✕` em cima da
+mensagem viu a mensagem. Achado na revisão da PR, e registrado como P8 no [tasks.md](tasks.md).
 
 **Decisão:** a F1.7 passa a valer *"fecham, exceto enquanto um clone que este diálogo começou está em
 andamento"*. Registrado no §3 do PRD.

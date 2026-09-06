@@ -226,6 +226,53 @@ describe("o campo que aceita as duas coisas", () => {
     expect(await screen.findByLabelText("Caminho ou URL")).toBeInTheDocument();
   });
 
+  it("fecha de verdade pelo ✕ e pelo Esc quando o clone já acabou", async () => {
+    /*
+     * O `✕`, o `Esc` e o véu só ficam desabilitados **enquanto** clona (Q5a).
+     * Com o clone terminado eles voltam a valer — e voltavam habilitados sem
+     * fazer nada: zeravam `open`, o efeito da F1.9 via um desfecho ainda não
+     * dispensado e pedia para abrir de novo, no mesmo ciclo. O único caminho
+     * de saída era o `dispensar` de dentro do aviso, que é exatamente o que os
+     * outros testes exercitam — por isso ninguém viu.
+     */
+    const user = userEvent.setup();
+    trpc.project.cloneJobs.query.mockResolvedValue([
+      job({
+        state: "failed",
+        failure: "refused",
+        message: "ssh: connect to host git.interno port 22: Connection refused",
+      }),
+    ]);
+
+    renderWithProviders(<App />);
+    await screen.findByRole("alert");
+
+    await user.click(screen.getByRole("button", { name: "fechar" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("o mesmo vale para o desfecho que só tinha um recado a dar", async () => {
+    // F6.4: o sufixo de nome. Fechar à mão é ler — quem apertou `Esc` em cima
+    // da mensagem viu a mensagem.
+    const user = userEvent.setup();
+    trpc.project.cloneJobs.query.mockResolvedValue([
+      job({
+        state: "done",
+        percent: 100,
+        projectId: "p1",
+        message: "o nome api já existia; registrado como api-2",
+      }),
+    ]);
+
+    renderWithProviders(<App />);
+    await screen.findByText(/registrado como api-2/);
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
   it("volta sozinho para um clone que já estava rodando (F1.9)", async () => {
     // O rodapé não hospeda mais nada: sem isto, recarregar a página no meio de
     // um clone de quatro minutos é o mesmo que perdê-lo de vista.

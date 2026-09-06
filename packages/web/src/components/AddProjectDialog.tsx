@@ -182,8 +182,18 @@ export function AddProjectDialog({
    * Separate from `reset` on purpose: a failed clone has to put the form back
    * *with the URL still in it*, and reusing this would have wiped the one thing
    * `tentar por ssh` rewrites.
+   *
+   * And it marks the ending as read, which is what makes closing *close*.
+   * Without it the `✕`, the `Esc` and the veil stayed enabled and did nothing:
+   * they zero `open`, the F1.9 effect saw an outcome nobody had dismissed and
+   * asked to be opened again — in the same cycle. The only way out was the
+   * `dispensar`/`entendi` inside `CloneOutcome`, which is exactly the path the
+   * tests were exercising, which is why nobody saw it.
+   *
+   * Closing by hand is reading: whoever pressed `✕` over the message saw it.
    */
   function close(): void {
+    if (outcome !== null) setDismissed(outcome.id);
     setSource("");
     setName("");
     add.reset();
