@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_FIXTURE_REPO } from "./support/fixtures.js";
-import { ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
 
 /**
  * The criterion the whole architecture exists for: close the browser with an
@@ -46,9 +46,7 @@ test("a session outlives the client that started it", async ({ browser }) => {
   await ensureProject(page, E2E_FIXTURE_REPO);
   await openProject(page);
 
-  await page.getByRole("button", { name: "nova worktree" }).click();
-  await page.getByLabel("Nome da worktree").fill(WORKTREE);
-  await page.getByRole("button", { name: "criar" }).click();
+  await createWorktree(page, WORKTREE);
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
 
   await page.getByRole("button", { name: /nova sessão/ }).click();
