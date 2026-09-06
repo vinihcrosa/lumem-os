@@ -343,7 +343,7 @@ na conversa assinado; e nenhum caminho da feature nega sozinho.
 
 ---
 
-## Propostos em 2026-09-05 — quatro PRDs, nenhum começado
+## Propostos em 2026-09-05 — quatro PRDs, a primeira com a fase 1 entregue
 
 Saíram da avaliação de arquitetura do dia: fundação sólida, teste raro, e o núcleo da visão —
 tarefas, mais de um agente — inteiro no backlog enquanto a memória, o subsistema mais elaborado, é o
@@ -354,17 +354,20 @@ de escritos, a `main` andou — a [worktree-first-tab](prd/worktree-first-tab/) 
 os quatro foram ajustados a isso. Cada um tem `prd.md` e `open-questions.md`; **as tasks nascem depois
 das perguntas respondidas.** A ordem abaixo é a recomendada.
 
-### [daemon-auth/](prd/daemon-auth/) — o daemon confere quem fala com ele
+### [daemon-auth/](prd/daemon-auth/) — o daemon confere quem fala com ele · **fase 1 completa**
 
 Sai do backlog e da Q46 da memória. Zero autenticação, zero checagem de `Host` e `Origin`: DNS
 rebinding e sequestro de WebSocket não esperam o daemon sair do loopback — e `lumem --host 0.0.0.0`
-é um flag. Fase 1 é um dia; fase 2 é token em cookie, com a origem única que a distribution já deu;
-fase 3 é identidade por sessão, que fecha o ator "declarado, e ainda não provado".
+é um flag. A **fase 1** saiu em 2026-09-06 e fecha as três ameaças reais: `Host` fora de loopback é
+`421`, `Origin` que não é o web servido é `403` antes do handshake, e `LUMEM_HOST` fora do loopback
+não sobe. A fase 2 (token em cookie) está parada na **S7**, achada lendo a proposta contra o código;
+a fase 3 é identidade por sessão, que fecha o ator "declarado, e ainda não provado".
 
 | Arquivo | O quê |
 |---|---|
 | [prd.md](prd/daemon-auth/prd.md) | as três ameaças reais em ordem, o que fica de fora, F1–F4 e o que cada fase fecha |
-| [open-questions.md](prd/daemon-auth/open-questions.md) | 6 perguntas: fase 1 sozinha, cookie ou não, `Strict` ou `Lax`, token por sessão, `LUMEM_HOST` fora do loopback, onde o segredo vive |
+| [open-questions.md](prd/daemon-auth/open-questions.md) | 7 perguntas, 6 fechadas como proposta seguida. A **S7** é a que sobrou: quem pede `GET /` ganha o cookie — então o que o token fecha? |
+| [tasks.md](prd/daemon-auth/tasks.md) | 7 tasks da fase 1, entregues; fases 2 e 3 esboçadas. O que a fase 1 cobrou não estava no produto: 19 `inject` da suíte que nunca disseram a quem falavam |
 
 ### [memory-dogfooding/](prd/memory-dogfooding/) — três semanas com a memória ligada
 

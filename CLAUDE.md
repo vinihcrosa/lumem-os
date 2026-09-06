@@ -82,6 +82,16 @@ sozinha) e `liberado`, atrás de um portão por sessão sem "não perguntar de n
 Lumem aprovou`) com a linha de fecho contando o turno, e **nenhum caminho da feature nega sozinho**:
 sem opção de permitir, o pedido sobe dizendo por quê.
 
+A [daemon-auth](docs/prd/daemon-auth/prd.md) é a primeira das quatro PRDs da avaliação de arquitetura
+a sair, e saiu pela **fase 1** — 7 tasks em 2026-09-06. O daemon executava comandos com as suas
+permissões e não conferia quem pedia: DNS rebinding e sequestro de WebSocket funcionavam a partir de
+uma aba, sem o daemon sair do loopback. Agora `Host` fora de `{127.0.0.1, localhost, [::1]}:<porta>` é
+**421**, `Origin` que não é o web servido (ou o vite, por `LUMEM_WEB_ORIGINS`) é **403 antes do
+handshake**, `GET /memory/ask` recusa `Sec-Fetch-Site: cross-site`, e `lumem --host 0.0.0.0` **não
+sobe** até a fase 2. Pedido sem sinal de browser passa — é o `curl` do agente, e é o produto. As seis
+perguntas fecharam como proposta seguida; a **S7** ficou aberta e trava a fase 2: o cookie entregue em
+`GET /` é lido por qualquer `curl -i` local, que é quem a fase 2 existe para barrar.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
