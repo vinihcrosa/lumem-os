@@ -67,6 +67,13 @@ Ele fica **fora** do checkout — o PRD exige que `worktree.path` fique fora de
 `LUMEM_DEV_HOME` move a árvore de dev inteira; `LUMEM_STATE_DIR` aponta um state
 dir específico e vence tudo.
 
+**`LUMEM_WEB_ORIGINS`.** Desde a [daemon-auth](../prd/daemon-auth/prd.md) o daemon só aceita
+WebSocket e mutação vindos de uma origem que ele serve — em produção, a dele mesmo. Em
+desenvolvimento o web é o vite, noutra porta, então o `run.sh` exporta
+`http://127.0.0.1:<web>,http://localhost:<web>` a partir da porta que **ele** resolveu; o default do
+daemon é a `4318`, o que cobre o modo compartilhado mesmo sem o script. Sintoma de faltar a variável:
+a conversa fica em "conectando…" e o daemon loga `403` no upgrade.
+
 > Do layout antigo sobram diretórios em `~/.lumem-dev/<nome>-<hash>`, um por
 > workspace já descartado. Nada os lê mais e nada os apaga sozinho: são estado
 > de dev, e apagar disco de alguém sem pedir não é trabalho de script de

@@ -8,6 +8,7 @@ import { loadConfig } from "../config.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { createServer } from "../server.js";
+import { loopbackAuthority } from "../testing/authority.js";
 import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
 
 import { MemoryService } from "./MemoryService.js";
@@ -16,6 +17,7 @@ import { ensureMemoryHome } from "./home.js";
 const databases: TestDb[] = [];
 const apps: FastifyInstance[] = [];
 const ptys: PtyManager[] = [];
+let authority: string;
 
 afterEach(async () => {
   for (const app of apps.splice(0)) await app.close();
@@ -33,12 +35,10 @@ async function daemon(
   databases.push(database);
   const ptyManager = new PtyManager();
   ptys.push(ptyManager);
-  const app = await createServer({
-    config: loadConfig({ LUMEM_STATE_DIR: stateDir, ...env }),
-    db: database.db,
-    ptyManager,
-  });
+  const config = loadConfig({ LUMEM_STATE_DIR: stateDir, ...env });
+  const app = await createServer({ config, db: database.db, ptyManager });
   apps.push(app);
+  authority = loopbackAuthority(app, config.port);
   return { app, memory: new MemoryService({ db: database.db, stateDir }), stateDir };
 }
 
@@ -54,7 +54,7 @@ describe("GET /memory/ask", () => {
       actor: "human",
     });
 
-    const response = await app.inject({
+    const response = await app.inject({ authority, 
       method: "GET",
       url: "/memory/ask?q=" + encodeURIComponent("como fazer commit neste workspace"),
     });
@@ -69,7 +69,7 @@ describe("GET /memory/ask", () => {
   it("não sei é resposta, e diz que o acervo tem buraco ali", async () => {
     const { app } = await daemon();
 
-    const response = await app.inject({
+    const response = await app.inject({ authority, 
       method: "GET",
       url: "/memory/ask?q=" + encodeURIComponent("qual é a política de retry do checkout"),
     });
@@ -81,7 +81,7 @@ describe("GET /memory/ask", () => {
   it("pergunta trivial diz que não buscou, e não que não achou", async () => {
     const { app } = await daemon();
 
-    const response = await app.inject({ method: "GET", url: "/memory/ask?q=a" });
+    const response = await app.inject({ authority,  method: "GET", url: "/memory/ask?q=a" });
 
     expect(response.body).toContain("muito curta");
   });
@@ -89,7 +89,7 @@ describe("GET /memory/ask", () => {
   it("sem pergunta, recusa dizendo o que faltou", async () => {
     const { app } = await daemon();
 
-    const response = await app.inject({ method: "GET", url: "/memory/ask" });
+    const response = await app.inject({ authority,  method: "GET", url: "/memory/ask" });
 
     expect(response.statusCode).toBe(400);
     expect(response.body).toContain("?q=");
@@ -105,7 +105,7 @@ describe("GET /memory/ask", () => {
       actor: "human",
     });
 
-    const response = await app.inject({
+    const response = await app.inject({ authority, 
       method: "GET",
       url: "/memory/ask?session=ses_fantasma&q=" + encodeURIComponent("estilo de revisão de código"),
     });
@@ -134,7 +134,7 @@ describe("frescor", () => {
     writeFileSync(file, readFileSync(file, "utf8").replace(/updated_at: .*/, "updated_at: '2026-01-01T00:00:00.000Z'"));
     await memory.reindex();
 
-    const response = await app.inject({
+    const response = await app.inject({ authority, 
       method: "GET",
       url: "/memory/ask?q=" + encodeURIComponent("contrato do endpoint de checkout"),
     });
@@ -149,7 +149,7 @@ describe("auto-learn no /memory/ask", () => {
   it("sem auto-learn, \"não sei\" é a resposta final", async () => {
     const { app } = await daemon();
 
-    const response = await app.inject({
+    const response = await app.inject({ authority, 
       method: "GET",
       url: "/memory/ask?q=" + encodeURIComponent("qual é a política de retry do checkout"),
     });
@@ -163,7 +163,7 @@ describe("auto-learn no /memory/ask", () => {
     // subir não pode travar a pergunta nem mentir que pesquisou.
     const { app } = await daemon({ LUMEM_MEMORY_AUTO_LEARN: "1" });
 
-    const response = await app.inject({
+    const response = await app.inject({ authority, 
       method: "GET",
       url: "/memory/ask?q=" + encodeURIComponent("qual é a política de retry do checkout"),
     });

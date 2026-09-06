@@ -1,15 +1,33 @@
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 
-import { DEFAULT_SERVER_PORT } from "@lumem/shared";
+import { DEFAULT_SERVER_PORT, DEFAULT_WEB_PORT, isLoopbackHost } from "@lumem/shared";
+
+import { parseWebOrigins } from "./auth/origin-policy.js";
 
 import { parsePortRange, type PortRange } from "./scripts/ports.js";
 
 export interface ServerConfig {
   /** TCP port the HTTP server binds to. */
   port: number;
-  /** Interface the HTTP server binds to. Loopback by default — this is a local daemon. */
+  /**
+   * Interface the HTTP server binds to. Loopback, and only loopback (S5).
+   *
+   * Until the daemon authenticates who talks to it (daemon-auth, phase 2), a
+   * non-loopback host is refused at load time rather than accepted with a
+   * warning: `lumem --host 0.0.0.0` was a shell published on the network, one
+   * argument away, with no credential in front of it.
+   */
   host: string;
+  /**
+   * Browser origins, besides the daemon's own, allowed to drive it (F2).
+   *
+   * The daemon serves the web on its own port, so in production the only origin
+   * is its own and this list adds nothing. It exists for development, where vite
+   * is a second origin — the default is the dev server's default port, and
+   * `scripts/workspace/run.sh` exports the port it actually chose.
+   */
+  webOrigins: readonly string[];
   /** Root of all Lumem state on disk. */
   stateDir: string;
   /** SQLite database file. */
@@ -90,6 +108,7 @@ export type ConfigEnv = Partial<
   Record<
     | "LUMEM_PORT"
     | "LUMEM_HOST"
+    | "LUMEM_WEB_ORIGINS"
     | "LUMEM_STATE_DIR"
     | "LUMEM_DB_PATH"
     | "LUMEM_DEFAULT_CWD"
@@ -119,6 +138,30 @@ function readPort(raw: string | undefined): number {
   }
   return parsed;
 }
+
+/**
+ * S5: a bind address that is not this machine does not start the daemon.
+ *
+ * The sentence names the phase that will lift this, because the refusal takes a
+ * capability away — the one of exposing yourself by mistake — and the person
+ * reading it deserves to know it is temporary.
+ */
+function readHost(raw: string | undefined): string {
+  if (raw === undefined || raw === "") return "127.0.0.1";
+  const host = raw.trim();
+  if (!isLoopbackHost(host)) {
+    throw new Error(
+      `LUMEM_HOST=${host} não é loopback. Até o daemon autenticar quem fala com ele ` +
+        "(daemon-auth, fase 2), ele só escuta em 127.0.0.1, localhost ou ::1.",
+    );
+  }
+  return host;
+}
+
+const DEFAULT_WEB_ORIGINS: readonly string[] = [
+  `http://127.0.0.1:${String(DEFAULT_WEB_PORT)}`,
+  `http://localhost:${String(DEFAULT_WEB_PORT)}`,
+];
 
 /**
  * `~` and relative paths, resolved against the daemon's own home and cwd.
@@ -156,7 +199,8 @@ export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
   const stateDir = absoluteDir(env.LUMEM_STATE_DIR ?? join(homedir(), ".lumem"));
   return {
     port: readPort(env.LUMEM_PORT),
-    host: env.LUMEM_HOST ?? "127.0.0.1",
+    host: readHost(env.LUMEM_HOST),
+    webOrigins: parseWebOrigins(env.LUMEM_WEB_ORIGINS, DEFAULT_WEB_ORIGINS),
     stateDir,
     databasePath: env.LUMEM_DB_PATH ?? join(stateDir, "lumem.db"),
     workspacesDir: join(stateDir, "workspaces"),

@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { bootstrap } from "./bootstrap.js";
 import { loadConfig } from "./config.js";
+import { loopbackAuthority } from "./testing/authority.js";
 import { openTestDb, type TestDb } from "./db/testing.js";
 import { MemoryService } from "./memory/MemoryService.js";
 import { ensureMemoryHome } from "./memory/home.js";
@@ -133,7 +134,7 @@ describe("bootstrap", () => {
   it("serves the trpc router once listening", async () => {
     const { app } = await boot();
 
-    const response = await app.inject({ method: "GET", url: "/trpc/health" });
+    const response = await app.inject({ authority: loopbackAuthority(app, 0), method: "GET", url: "/trpc/health" });
 
     expect(response.statusCode).toBe(200);
   });
@@ -223,7 +224,7 @@ describe("bootstrap", () => {
     const { app } = await boot({ database });
 
     // The very first request the daemon can answer already sees the new state.
-    expect((await app.inject({ method: "GET", url: "/trpc/health" })).statusCode).toBe(200);
+    expect((await app.inject({ authority: loopbackAuthority(app, 0), method: "GET", url: "/trpc/health" })).statusCode).toBe(200);
     expect((await worktrees.findById(registered.id))?.state).toBe("missing");
   });
 

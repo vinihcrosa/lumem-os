@@ -1,11 +1,13 @@
 # PRD — O daemon confere quem fala com ele
 
-> **Status:** v0.1 — proposto em 2026-09-05, **perguntas abertas**. Sai do backlog ("Autenticação do
-> daemon", seção F) e da **Q46** da [workspace-memory](../workspace-memory/open-questions.md), que é a
-> identidade de ator. O gatilho do backlog era "quando o daemon escutar fora do loopback"; a avaliação
-> de arquitetura do mesmo dia mostrou que duas das ameaças não esperam por isso.
+> **Status:** v0.2 — proposto em 2026-09-05; **fase 1 entregue em 2026-09-06**, S1–S6 fechadas como
+> proposta seguida, e a **S7** aberta — ela trava a fase 2 (a entrega do cookie em `GET /` dá o token
+> a quem a fase 2 quer barrar). Sai do backlog ("Autenticação do daemon", seção F) e da **Q46** da
+> [workspace-memory](../workspace-memory/open-questions.md), que é a identidade de ator. O gatilho do
+> backlog era "quando o daemon escutar fora do loopback"; a avaliação de arquitetura do mesmo dia
+> mostrou que duas das ameaças não esperam por isso.
 > **Perguntas:** [open-questions.md](open-questions.md)
-> **Tasks:** ainda não — nascem depois das perguntas respondidas
+> **Tasks:** [tasks.md](tasks.md) — 7 da fase 1 entregues; fases 2 e 3 esboçadas
 > **Depende de:** nada. A origem única que a fase 2 precisa **já existe**: desde a
 > [distribution](../distribution/prd.md) o daemon serve o web na própria porta (`web/static.ts`). O
 > vite continua sendo uma segunda origem **só em desenvolvimento**
@@ -84,11 +86,12 @@ ele pedir**: variável de ambiente injetada pelo daemon no processo que o própr
 ### F1 — `Host` permitido (fase 1)
 
 Um `onRequest` do Fastify **e** o roteador de upgrade recusam qualquer requisição cujo `Host` não
-esteja em `{127.0.0.1, localhost, [::1]}` com a porta em que o daemon escuta. Quando `LUMEM_HOST` não
-é loopback, o valor configurado entra na lista. Recusa: `421 Misdirected Request`, `text/plain`, uma
-frase. Aplica-se **antes** do handshake de WebSocket.
+esteja em `{127.0.0.1, localhost, [::1]}` com a porta em que o daemon escuta. Recusa:
+`421 Misdirected Request`, `text/plain`, uma frase. Aplica-se **antes** do handshake de WebSocket.
 
-Não é configurável para desligar. A única forma de alargar é `LUMEM_HOST`.
+Não é configurável para desligar. A frase original dizia "quando `LUMEM_HOST` não é loopback, o valor
+configurado entra na lista" — a [S5](open-questions.md) decidiu que, até a fase 2, `LUMEM_HOST` fora
+do loopback **não sobe**, então a lista é fixa. Alargar volta com o token (T-F3.5).
 
 ### F2 — `Origin` e `Sec-Fetch-Site` (fase 1)
 
@@ -96,14 +99,15 @@ Para todo upgrade de WebSocket, toda requisição que não é `GET`, e para `GET
 
 - se veio `Origin`, ele tem que estar na lista: a origem do próprio daemon (que já serve o web,
   `web/static.ts`) mais as origens de desenvolvimento de `LUMEM_WEB_ORIGINS` — default
-  `http://127.0.0.1:4318,http://localhost:4318`. O `.superset/run.sh` passa a exportar a variável com a
-  porta que ele escolheu;
+  `http://127.0.0.1:4318,http://localhost:4318`. O `scripts/workspace/run.sh` (o `run` de todo
+  harness, inclusive do Superset) exporta a variável com a porta que ele escolheu;
 - se não veio `Origin` mas veio `Sec-Fetch-Site: cross-site`, recusa;
 - sem nenhum dos dois — `curl`, o e2e pela API, o agente — **passa**. É a porta do produto.
 
 Recusa: `403`, `text/plain`, uma frase. O socket é fechado antes do handshake.
 
-**A fase 1 inteira cabe num dia**, e fecha 2.1, 2.2 e 2.3.
+**A fase 1 inteira cabe num dia**, e fecha 2.1, 2.2 e 2.3. *(Coube: entregue em 2026-09-06, 7
+tasks.)*
 
 ### F3 — Token (fase 2)
 
@@ -163,13 +167,15 @@ contra engano.
 | `localhost` resolvendo para `::1` | `[::1]` está na lista; o vite já escuta em `127.0.0.1` explicitamente |
 | o cookie e o `lumem --open`: navegação de fora com `SameSite=Strict` | o primeiro `GET /` **define** o cookie na resposta, então a página seguinte já o tem. Mesmo assim a **S3** propõe `Lax` |
 | `LUMEM_SESSION_TOKEN` no `env` do shell vaza para qualquer processo daquela sessão | é o desenho: o token é **daquela** sessão. O vazamento máximo é a própria sessão falar por si |
-| testes com `app.inject` usam `Host: localhost:80` por default | a porta vem da configuração; o caller (`createTestCaller`) não passa por HTTP e não sente. `files.transport.test.ts` e os testes de WebSocket passam `Host` |
+| testes com `app.inject` usam `Host: localhost:80` por default | **mordeu, como previsto.** O caller (`createTestCaller`) não passa por HTTP e não sente; os 19 `inject` dos quatro arquivos de transporte passaram a mandar `authority` por um helper (`testing/authority.ts`). Os testes de WebSocket já mandavam `Host` certo — o `ws` o deriva da URL — mas com `listen({ port: 0 })` a porta real difere da configurada, e o guarda por isso lê a do socket |
 | um `Host` com porta diferente da escutada (proxy na frente) | não há proxy na frente em loopback. Quando houver, é `LUMEM_HOST` |
 
 ## 7. Fases
 
-1. **F1 + F2** — um dia. Fecha as três ameaças reais;
-2. **F3** — logo depois: a origem única já existe;
+1. **F1 + F2** — um dia. Fecha as três ameaças reais. **Entregue em 2026-09-06**;
+2. **F3** — logo depois: a origem única já existe. **Parada na [S7](open-questions.md):** o cookie
+   entregue em `GET /` é lido por qualquer processo local com `curl -i`, que é quem a fase existe para
+   barrar; e em desenvolvimento `GET /` é do vite, não do daemon;
 3. **F4** — junto com a F3 da workspace-tasks, ou antes: é o que faz "quem escreveu isto" deixar de
    ser uma declaração.
 

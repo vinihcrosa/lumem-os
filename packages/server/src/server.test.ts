@@ -6,15 +6,19 @@ import { loadConfig } from "./config.js";
 import { openTestDb, type TestDb } from "./db/testing.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createServer } from "./server.js";
+import { loopbackAuthority } from "./testing/authority.js";
 
 let app: FastifyInstance;
 let ptyManager: PtyManager;
 let database: TestDb;
+let authority: string;
 
 beforeEach(async () => {
   ptyManager = new PtyManager();
   database = openTestDb();
-  app = await createServer({ config: loadConfig(), db: database.db, ptyManager });
+  const config = loadConfig();
+  app = await createServer({ config, db: database.db, ptyManager });
+  authority = loopbackAuthority(app, config.port);
 });
 
 afterEach(async () => {
@@ -25,7 +29,7 @@ afterEach(async () => {
 
 describe("health", () => {
   it("answers over the trpc http endpoint", async () => {
-    const response = await app.inject({ method: "GET", url: "/trpc/health" });
+    const response = await app.inject({ authority,  method: "GET", url: "/trpc/health" });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
@@ -34,7 +38,7 @@ describe("health", () => {
   });
 
   it("404s an unknown procedure instead of crashing", async () => {
-    const response = await app.inject({ method: "GET", url: "/trpc/nope" });
+    const response = await app.inject({ authority,  method: "GET", url: "/trpc/nope" });
 
     expect(response.statusCode).toBe(404);
   });

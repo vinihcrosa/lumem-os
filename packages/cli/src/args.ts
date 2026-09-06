@@ -24,14 +24,15 @@ Uso:
 
 Opções:
   -p, --port <porta>         porta do daemon (padrão: 4317)
-      --host <endereço>      interface de escuta (padrão: 127.0.0.1)
+      --host <endereço>      interface de escuta: 127.0.0.1, localhost ou ::1 (padrão: 127.0.0.1)
       --state-dir <caminho>  onde o Lumem guarda tudo (padrão: ~/.lumem)
       --open                 abre o navegador quando subir
   -v, --version              o mesmo que \`lumem version\`
   -h, --help                 o mesmo que \`lumem help\`
 
-O daemon escuta em 127.0.0.1 por padrão, e nada nele autentica: apontá-lo para
-outra interface é publicar um shell na rede.`;
+O daemon só escuta em loopback, e confere o Host e a Origin de quem fala com
+ele. Outra interface é recusada: sem credencial, apontá-lo para a rede seria
+publicar um shell.`;
 
 function toPort(raw: string): number | null {
   if (!/^\d+$/.test(raw.trim())) return null;
