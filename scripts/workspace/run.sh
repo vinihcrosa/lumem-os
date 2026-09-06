@@ -18,6 +18,12 @@ resolve_ports
 # LUMEM_STATE_DIR vem do env.sh.
 export LUMEM_STATE_DIR
 
+# O daemon só aceita WebSocket e mutação vindos de uma origem que ele conhece
+# (daemon-auth, F2). Em produção a origem é a dele mesmo; aqui o web é o vite,
+# noutra porta — e no modo isolado essa porta muda por worktree, então a lista
+# tem que sair da mesma resolução que escolheu a porta.
+export LUMEM_WEB_ORIGINS="http://127.0.0.1:$LUMEM_WEB_PORT,http://localhost:$LUMEM_WEB_PORT"
+
 mkdir -p "$LUMEM_STATE_DIR"
 
 # O ambiente de dev é um só e as portas dele são fixas, então dois workspaces

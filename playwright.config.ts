@@ -128,6 +128,11 @@ export default defineConfig({
         LUMEM_PORT: String(E2E_SERVER_PORT),
         LUMEM_STATE_DIR: E2E_STATE_DIR,
         LUMEM_DEFAULT_CWD: E2E_SESSION_CWD,
+        // The browser is on vite's port, so every WebSocket and mutation arrives
+        // with that origin; without this line the daemon answers 403 and the
+        // whole chromium project fails to attach (daemon-auth, F2). The
+        // production project needs nothing: there the daemon is the origin.
+        LUMEM_WEB_ORIGINS: `http://127.0.0.1:${E2E_WEB_PORT}`,
         // Not the developer's shell: a login zsh sources their whole profile,
         // and the suite would then depend on whatever their prompt prints.
         SHELL: "/bin/sh",
