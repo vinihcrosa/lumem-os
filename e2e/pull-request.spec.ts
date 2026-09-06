@@ -3,7 +3,7 @@ import { writeFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_FIXTURE_REPO_PR, E2E_GH_STATE } from "./support/fixtures.js";
-import { ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
 
 /**
  * A barra da pull request, do âmbar ao verde, com um `gh` de mentira.
@@ -115,9 +115,7 @@ async function openWorktree(page: Page, name: string): Promise<void> {
 
   if (present) await row.first().click();
   else {
-    await page.getByRole("button", { name: "nova worktree" }).click();
-    await page.getByLabel("Nome da worktree").fill(name);
-    await page.getByRole("button", { name: "criar" }).click();
+    await createWorktree(page, name, PROJECT);
   }
 
   await expect(page.getByRole("tab", { name })).toBeVisible({ timeout: 30_000 });

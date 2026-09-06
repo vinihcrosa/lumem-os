@@ -31,6 +31,10 @@ export interface SidebarTreeProps {
   expansion: TreeExpansion;
   selection: TreeSelection;
   onSelect: (projectId: string, scope: Scope) => void;
+  /** F1.2 — the `+` beside `Projetos`. */
+  onAddProject: () => void;
+  /** F1.3 — the `+` on a project row, which already knows which project. */
+  onCreateWorktree: (project: ProjectSummary) => void;
 }
 
 /** Projects and their worktrees — F3.1 through F3.3. */
@@ -40,51 +44,68 @@ export function SidebarTree(props: SidebarTreeProps) {
     queryFn: () => trpc.project.listByWorkspace.query({ workspaceId: props.workspaceId }),
   });
 
-  if (projects.isError) {
-    return (
-      <p className="tree__message" role="alert">
-        {projects.error.message}
-      </p>
-    );
-  }
-
-  if (projects.isPending) {
-    return (
-      <div className="tree">
-        <Skeleton label="carregando os projetos" widths={["80%", "60%", "70%"]} />
-      </div>
-    );
-  }
-
-  const list = projects.data ?? [];
-
-  if (list.length === 0) {
-    return (
-      <div className="tree">
-        {/* No action of its own: `adicionar projeto` sits in the footer right
-            below this, always visible. A second copy would be two buttons for
-            one job, a hand's width apart. */}
-        <EmptyState title="Nenhum projeto aqui">
-          Aponte para a raiz de um repositório git que já está no disco. O Lumem não clona nada.
-        </EmptyState>
-      </div>
-    );
-  }
-
   return (
     <div className="tree" aria-label="árvore de projetos">
-      <p className="tree__label">Projetos</p>
-      {list.map((project) => (
-        <ProjectNode key={project.id} project={project} {...props} />
-      ))}
+      {/*
+        Q3: the heading exists in every state — loading, error, empty and full.
+
+        The button belongs to the heading and not to the end of the list, so it
+        does not drift away from the thing it appends as the list grows. And it
+        is the *only* way in when there are no projects: an empty tree has no row
+        to point at, which is why the empty state below has no action of its own.
+        Two buttons a hand's width apart for one job is what this feature came to
+        remove, not to move.
+      */}
+      <div className="tree__head">
+        <p className="tree__label">Projetos</p>
+        <button
+          type="button"
+          className="act"
+          aria-label="adicionar projeto"
+          onClick={props.onAddProject}
+        >
+          ＋
+        </button>
+      </div>
+      {renderList()}
     </div>
   );
+
+  function renderList() {
+    if (projects.isError) {
+      return (
+        <p className="tree__message" role="alert">
+          {projects.error.message}
+        </p>
+      );
+    }
+
+    if (projects.isPending) {
+      return <Skeleton label="carregando os projetos" widths={["80%", "60%", "70%"]} />;
+    }
+
+    const list = projects.data ?? [];
+
+    if (list.length === 0) {
+      return (
+        <EmptyState title="Nenhum projeto aqui">
+          Aponte para a raiz de um repositório git no disco, ou cole uma URL para clonar.
+        </EmptyState>
+      );
+    }
+
+    return list.map((project) => (
+      <ProjectNode key={project.id} project={project} {...props} />
+    ));
+  }
 }
 
-interface ProjectSummary {
+export interface ProjectSummary {
   id: string;
   name: string;
   available: boolean;
+  /** F6.13 — a repository cloned empty has no commit to cut a worktree from. */
+  hasCommits: boolean | null;
 }
 
 function ProjectNode({
@@ -92,6 +113,7 @@ function ProjectNode({
   expansion,
   selection,
   onSelect,
+  onCreateWorktree,
 }: SidebarTreeProps & { project: ProjectSummary }) {
   const expanded = expansion.isExpanded(project.id);
   const localScope: Scope = { scopeType: "project", scopeId: project.id };
@@ -148,6 +170,31 @@ function ProjectNode({
           count={!expanded && running > 0 ? running : undefined}
           expanded={expanded}
           onToggle={() => expansion.toggle(project.id)}
+          /*
+           * F1.8: a project off disk offers no `+` — there is nowhere to cut a
+           * worktree from — but the space stays. A column that only lines up
+           * when every project is on disk does not line up.
+           *
+           * It stays clickable on a repository with no commit, though: the
+           * dialog is what explains that, and a greyed 24px `+` on a tree row
+           * is a grey button with its reason nowhere in sight.
+           */
+          reserveAction
+          {...(project.available
+            ? {
+                action: (
+                  <button
+                    type="button"
+                    className="row__act"
+                    // `＋` on its own is the name of nothing.
+                    aria-label={`nova worktree em ${project.name}`}
+                    onClick={() => onCreateWorktree(project)}
+                  >
+                    ＋
+                  </button>
+                ),
+              }
+            : {})}
           // The project row has no panel of its own any more — everything it
           // used to show moved into `local`. Pointing it there keeps the row
           // from being a target that goes nowhere.

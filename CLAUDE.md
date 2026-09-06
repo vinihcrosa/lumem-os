@@ -22,10 +22,20 @@ passo central é **instalar o tarball num runner limpo**, porque é o único que
 dinâmico, prebuild ausente e arquivo fora do pacote. A raiz ganhou `README.md` (em inglês, com
 tradução ao lado) e `LICENSE` (MIT).
 
-Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**. Duas já estão
-fechadas; duas seguem **sem tasks** — [sidebar-actions](docs/prd/sidebar-actions/prd.md) (criar projeto
-e worktree de onde se olha) e [run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de execução
-nasce aberto).
+Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**. Três estão
+fechadas; a última segue **sem tasks** — [run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de
+execução nasce aberto).
+
+A [sidebar-actions](docs/prd/sidebar-actions/prd.md) está **completa** — 11 tasks, 6 perguntas mais
+duas derivadas. As duas coisas que o Lumem cria passaram a se criar de onde elas moram: um `+` no
+cabeçalho `Projetos` e um `+` na linha de cada projeto, e os dois diálogos viraram **modal centrado**
+com véu, foco preso e devolvido ao `+` que o abriu. O `＋ adicionar projeto` saiu do rodapé e o
+`CreateWorktreeDialog` saiu do `LocalPanel` — uma ação, um lugar. Ela é a primeira feature que chegou
+com o **desenho pronto** e mesmo assim mudou o desenho: a **Q1** e a **Q5** foram respondidas contra
+ele, e o Open Design foi **reescrito antes do código**, porque a regra não permite o contrário. A Q5 é
+a que cobra: o modal do clone fica aberto até o fim, e **a tela fica presa por minutos** — em troca de
+um hospedeiro só para o progresso. A Q5a é o que ela abriu: enquanto clona, `Esc`, `✕` e véu não
+fecham, e a saída é `cancelar o clone`.
 
 A nona anotação era sobre uma PR aberta que não aparece, e a
 [pull-request-status](docs/prd/pull-request-status/prd.md) está **completa**. O topo do painel direito

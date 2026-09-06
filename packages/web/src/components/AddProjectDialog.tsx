@@ -1,13 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 
-import { isTerminal, useCloneJob } from "../hooks/useCloneJob.js";
+import { isTerminal, useCloneStream } from "../hooks/useCloneJob.js";
 import { cloneJobsKey, projectsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
-import { Button, Card, Chip, Field, Glyph, Input } from "../ui/index.js";
+import { Button, Chip, Field, Glyph, Input, Modal } from "../ui/index.js";
+import { CloneOutcome, CloneProgress, outcomeSpeaks } from "./CloneStatus.js";
 
 export interface AddProjectDialogProps {
   workspaceId: string;
+  /** Said in the header — where the project is going to land. */
+  workspaceName: string;
+  open: boolean;
+  onClose: () => void;
+  /**
+   * Asks to be opened, F1.9.
+   *
+   * A clone runs on the daemon and outlives the page. With the footer host gone
+   * (Q5) this dialog is the only thing that can draw one, so finding one alive
+   * has to be enough to bring it back — otherwise reloading during a four minute
+   * clone is the same as losing it from sight.
+   */
+  onRequestOpen: () => void;
   onAdded: (projectId: string) => void;
   /** An address to open with, F6.10 — the ssh spelling of one that failed. */
   prefill?: string | null;
@@ -42,18 +56,43 @@ const ECHO_DEBOUNCE_MS = 250;
  */
 export function AddProjectDialog({
   workspaceId,
+  workspaceName,
+  open,
+  onClose,
+  onRequestOpen,
   onAdded,
   prefill = null,
   onPrefillConsumed,
 }: AddProjectDialogProps) {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
   const [source, setSource] = useState("");
   const [name, setName] = useState("");
-  // Reads the same cache the sidebar writes; it does not open a stream of its
-  // own. All it needs to know is whether one is running (A11).
-  const live = useCloneJob(workspaceId);
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  /**
+   * The clone this dialog is holding open, if any.
+   *
+   * Not derivable from `live`: the job store keeps finished jobs on purpose, so
+   * "there is a clone and it is done" is the normal state of a workspace where
+   * anybody ever cloned anything. Closing on that would have made the dialog
+   * shut itself the instant it opened, for good, on every workspace with a
+   * clone in its history — which is what the e2e caught, 55 specs at once.
+   */
+  const [held, setHeld] = useState<string | null>(null);
+  /*
+   * The one caller of the stream, since Q5.
+   *
+   * It used to be `CloneStatus`, in the sidebar footer. The footer is gone and
+   * this component is always mounted — closed it renders nothing but still
+   * holds the subscription, which is what lets it notice a clone it did not
+   * start and ask to come back.
+   */
+  const live = useCloneStream(workspaceId);
   const running = live !== null && !isTerminal(live.state) ? live : null;
+  /** The ending, while it still has something to say and nobody has read it. */
+  const outcome =
+    live !== null && live.id !== dismissed && isTerminal(live.state) && outcomeSpeaks(live)
+      ? live
+      : null;
 
   const plan = useEchoedPlan(workspaceId, source, name);
 
@@ -61,9 +100,29 @@ export function AddProjectDialog({
     if (prefill === null) return;
     setSource(prefill);
     setName("");
-    setOpen(true);
     onPrefillConsumed?.();
   }, [prefill, onPrefillConsumed]);
+
+  /*
+   * F1.9. Not "reopen what I closed": there is no closing while a clone runs.
+   * This is the page that came back to something it has to draw.
+   *
+   * An *ended* one counts too, and that is not symmetry for its own sake: the
+   * job store keeps finished jobs precisely so that an ending which has just
+   * happened survives a reload, which is exactly when somebody most needs to
+   * read it. That covers both — a failure, and the F6.4 suffix that renamed a
+   * project on the user's behalf. With the footer gone, forgetting this here
+   * would have deleted the behaviour without deleting the code providing it.
+   */
+  useEffect(() => {
+    if (open) return;
+    if (running !== null || outcome !== null) onRequestOpen();
+  }, [running, outcome, open, onRequestOpen]);
+
+  // What is running is what this dialog is responsible for closing on.
+  useEffect(() => {
+    if (running !== null) setHeld(running.id);
+  }, [running?.id]);
 
   const add = useMutation({
     mutationFn: () =>
@@ -87,19 +146,59 @@ export function AddProjectDialog({
         ...(name.trim() === "" ? {} : { name: name.trim() }),
       }),
     onSuccess: async () => {
-      // The dialog closes and the clone keeps going: it lives in the sidebar
-      // from here, which is where the project will appear.
+      // Q5: the dialog stays. From here it *is* the clone — progress, phase,
+      // cancelling and both endings, in the place the button was pressed.
+      setDismissed(null);
       await queryClient.invalidateQueries({ queryKey: cloneJobsKey(workspaceId) });
-      close();
     },
   });
 
+  const cancel = useMutation({
+    mutationFn: (jobId: string) => trpc.project.cloneCancel.mutate({ jobId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: cloneJobsKey(workspaceId) }),
+  });
+
+  /*
+   * Only success closes.
+   *
+   * A failure that closed would take the URL with it, and the way out of an
+   * authentication failure is that same address spelled for ssh — one click, on
+   * a field the person should not have to retype (F6.10).
+   */
+  useEffect(() => {
+    if (!open || live === null || live.id !== held || live.state !== "done") return;
+    // Unless the ending has something to say — F6.4 suffixes a name when one
+    // was already taken, and closing over that would decide on the user's
+    // behalf and then not mention it.
+    if (outcomeSpeaks(live) && live.id !== dismissed) return;
+    void queryClient.invalidateQueries({ queryKey: projectsKey(workspaceId) });
+    setHeld(null);
+    close();
+  }, [open, held, live?.id, live?.state, dismissed]);
+
+  /**
+   * Shuts the dialog and forgets what was typed.
+   *
+   * Separate from `reset` on purpose: a failed clone has to put the form back
+   * *with the URL still in it*, and reusing this would have wiped the one thing
+   * `tentar por ssh` rewrites.
+   *
+   * And it marks the ending as read, which is what makes closing *close*.
+   * Without it the `✕`, the `Esc` and the veil stayed enabled and did nothing:
+   * they zero `open`, the F1.9 effect saw an outcome nobody had dismissed and
+   * asked to be opened again — in the same cycle. The only way out was the
+   * `dispensar`/`entendi` inside `CloneOutcome`, which is exactly the path the
+   * tests were exercising, which is why nobody saw it.
+   *
+   * Closing by hand is reading: whoever pressed `✕` over the message saw it.
+   */
   function close(): void {
-    setOpen(false);
+    if (outcome !== null) setDismissed(outcome.id);
     setSource("");
     setName("");
     add.reset();
     clone.reset();
+    onClose();
   }
 
   const isUrl = plan?.kind === "url";
@@ -118,6 +217,15 @@ export function AddProjectDialog({
   const waiting = plan === null && !looksLocal && source.trim() !== "";
   const busy = add.isPending || clone.isPending;
   const failure = add.isError ? add.error.message : clone.isError ? clone.error.message : undefined;
+  /**
+   * Q5a: while this is true the dialog has no way out but cancelling.
+   *
+   * It also settles A11 — one clone at a time — by construction rather than by
+   * a message: with the form replaced by the progress, there is no second
+   * `clonar` to press. The old build had to disable the button and explain
+   * which job was in the way.
+   */
+  const cloning = running !== null;
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
@@ -126,92 +234,118 @@ export function AddProjectDialog({
     else add.mutate();
   };
 
-  if (!open) {
-    return (
-      <button type="button" className="sidebar__add" onClick={() => setOpen(true)}>
-        <Glyph>＋</Glyph>
-        adicionar projeto
-      </button>
-    );
-  }
-
   return (
-    <form className="add-project" onSubmit={submit}>
-      <Card>
-        <Field
-          id="project-source"
-          label="Caminho ou URL"
-          // The daemon's own words: it is the only thing that knows *which*
-          // rule refused, and F6.2 requires the user to be told.
-          error={failure}
-        >
-          <Input
+    <Modal
+      open={open}
+      title="Adicionar projeto"
+      where={
+        <>
+          no workspace
+          <Glyph tone="workspace">◈</Glyph>
+          <b>{workspaceName}</b>
+        </>
+      }
+      onClose={close}
+      // Q5a. The only state in the product where a modal refuses to close, and
+      // it refuses because it is the only thing holding the clone.
+      dismissible={!cloning}
+      reason="não fecha enquanto clona"
+      footer={
+        cloning ? (
+          // F6.6: only while it is still downloading. Past that the repository
+          // is on disk and what is left is a row in SQLite, so the button goes
+          // away instead of lying about what it would undo. The gap is the
+          // blink between the last object and the insert, and the body says
+          // `registrando` through it.
+          running.state === "cloning" ? (
+            <Button variant="ghost" onClick={() => cancel.mutate(running.id)}>
+              cancelar o clone
+            </Button>
+          ) : null
+        ) : (
+          <>
+            <Button
+              type="submit"
+              // `form`, because the buttons live in the modal's footer and the
+              // fields in its body: they are siblings, not ancestor and child.
+              form={FORM_ID}
+              variant="primary"
+              disabled={busy || source.trim() === "" || refused || waiting}
+            >
+              {add.isPending ? "validando…" : isUrl ? "clonar" : "adicionar"}
+            </Button>
+            <Button variant="ghost" onClick={close}>
+              cancelar
+            </Button>
+          </>
+        )
+      }
+    >
+      {outcome !== null && (
+        <CloneOutcome
+          job={outcome}
+          onDismiss={() => setDismissed(outcome.id)}
+          // The way back, without a round trip through the app: the field is
+          // right here, and the ssh spelling goes straight into it.
+          onRetry={(ssh) => {
+            setDismissed(outcome.id);
+            setSource(ssh);
+          }}
+        />
+      )}
+
+      {cloning ? (
+        <CloneProgress job={running} />
+      ) : (
+        <form id={FORM_ID} className="add-project" onSubmit={submit}>
+          <Field
             id="project-source"
-            value={source}
-            onChange={(event) => setSource(event.target.value)}
-            placeholder="git@gitlab.interno:time/api.git"
-            invalid={refused || add.isError || clone.isError}
-            autoFocus
-          />
-        </Field>
-
-        {plan !== null && <Echo plan={plan} />}
-
-        {/* Shown for both kinds. The prototype hid it for a local path, and
-            implementing that would have quietly deleted F2.3 — naming a project
-            something other than its directory has been possible since the
-            walking-skeleton and has nothing to do with cloning. */}
-        <Field id="project-name" label="Nome">
-          <Input
-            id="project-name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder={isUrl ? (plan.name ?? "o nome do repositório") : "o nome da pasta"}
-          />
-        </Field>
-
-        {isUrl && (
-          // Not a field: since Q14 the destination is computed, and the
-          // prototype's first draft drew it like the inputs above, where it
-          // read as something you could type into.
-          <p className="add-project__answer">
-            <span className="add-project__answer-label">Vai em</span>
-            <span className="add-project__answer-path">{plan.targetPath}</span>
-          </p>
-        )}
-
-        <div className="add-project__actions">
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={
-              busy || source.trim() === "" || refused || waiting || (isUrl && running !== null)
-            }
+            label="Caminho ou URL"
+            // The daemon's own words: it is the only thing that knows *which*
+            // rule refused, and F6.2 requires the user to be told.
+            error={failure}
           >
-            {clone.isPending
-              ? "clonando…"
-              : add.isPending
-                ? "validando…"
-                : isUrl
-                  ? "clonar"
-                  : "adicionar"}
-          </Button>
-          <Button variant="ghost" onClick={close}>
-            cancelar
-          </Button>
-        </div>
+            <Input
+              id="project-source"
+              value={source}
+              onChange={(event) => setSource(event.target.value)}
+              placeholder="git@gitlab.interno:time/api.git"
+              invalid={refused || add.isError || clone.isError}
+            />
+          </Field>
 
-        {isUrl && running !== null && (
-          // A11: one clone at a time, and the button says which one rather than
-          // queueing in silence.
-          <p className="add-project__blocked" role="status">
-            {running.name} ainda está sendo clonado
-          </p>
-        )}
-      </Card>
-    </form>
+          {plan !== null && <Echo plan={plan} />}
+
+          {/* Shown for both kinds. The prototype hid it for a local path, and
+              implementing that would have quietly deleted F2.3 — naming a project
+              something other than its directory has been possible since the
+              walking-skeleton and has nothing to do with cloning. */}
+          <Field id="project-name" label="Nome">
+            <Input
+              id="project-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder={isUrl ? (plan.name ?? "o nome do repositório") : "o nome da pasta"}
+            />
+          </Field>
+
+          {isUrl && (
+            // Not a field: since Q14 the destination is computed, and the
+            // prototype's first draft drew it like the inputs above, where it
+            // read as something you could type into.
+            <p className="add-project__answer">
+              <span className="add-project__answer-label">Vai em</span>
+              <span className="add-project__answer-path">{plan.targetPath}</span>
+            </p>
+          )}
+        </form>
+      )}
+    </Modal>
   );
 }
+
+/** Ties the footer's submit button to the body's form across the modal. */
+const FORM_ID = "add-project";
 
 /** The `↳` line, in the daemon's words rather than the client's guess. */
 function Echo({ plan }: { plan: Plan }) {

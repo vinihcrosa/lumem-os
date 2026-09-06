@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
 import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js";
 
 /**
@@ -31,7 +31,7 @@ function conversation(page: Page) {
  * The agents panel in the sidebar footer.
  *
  * Everything about the panel is scoped through it: its submit button says
- * "adicionar", the footer action next to it says "adicionar projeto", and an unscoped
+ * "adicionar", the tree heading's action says "adicionar projeto", and an unscoped
  * name match takes both. Same rule `testing.md` already records — a locator by
  * accessible name is anchored or scoped, never bare.
  */
@@ -65,9 +65,7 @@ test("creates the ACP agent from the screen, then talks to it", async ({ page })
 
   await agents(page).getByRole("button", { name: "fechar" }).click();
 
-  await page.getByRole("button", { name: "nova worktree" }).click();
-  await page.getByLabel("Nome da worktree").fill(WORKTREE);
-  await page.getByRole("button", { name: "criar" }).click();
+  await createWorktree(page, WORKTREE, "repo-acp");
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
 
   // And it launches. Without the two fields the form wrote, this session would be a

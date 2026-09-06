@@ -19,9 +19,11 @@ type Transport = "pty" | "acp";
  * adapter version (F5.5), and no screen could write either, so the only way to use
  * the conversation at all was an HTTP call by hand.
  *
- * In the sidebar footer beside "adicionar projeto", reusing that form's shape. The
- * lie in the placement is named in A16: `agent_config` has no workspace, and the
- * footer does — a preferences screen would be the honest home, and it does not exist.
+ * In the sidebar footer, reusing the shape of a form that used to sit beside it —
+ * `sidebar-actions` moved `adicionar projeto` up into the tree, and this is what
+ * the footer was left with. The lie in the placement is named in A16:
+ * `agent_config` has no workspace, and the footer does; a preferences screen would
+ * be the honest home, and it does not exist.
  */
 export interface AgentConfigDialogProps {
   /**

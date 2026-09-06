@@ -131,6 +131,17 @@ describe("worktree tree", () => {
   });
 });
 
+/**
+ * O `+` da linha do projeto — `sidebar-actions` F1.3.
+ *
+ * Antes ficava no `LocalPanel`, atrás de três cliques e uma troca de tela; a Q4
+ * o tirou de lá. Os testes continuam entrando pelo mesmo caminho de leitura, e
+ * só o clique mudou.
+ */
+async function openCreateWorktree(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  await user.click(await screen.findByRole("button", { name: "nova worktree em lorebase" }));
+}
+
 describe("create worktree", () => {
   it("creates one and selects it", async () => {
     const user = userEvent.setup();
@@ -142,7 +153,7 @@ describe("create worktree", () => {
     });
 
     await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: "nova worktree" }));
+    await openCreateWorktree(user);
     await user.type(screen.getByLabelText("Nome da worktree"), "teste-prd");
     await user.click(screen.getByRole("button", { name: "criar" }));
 
@@ -162,11 +173,11 @@ describe("create worktree", () => {
     trpc.worktree.create.mutate.mockReturnValue(new Promise(() => {}));
 
     await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: "nova worktree" }));
+    await openCreateWorktree(user);
     await user.type(screen.getByLabelText("Nome da worktree"), "teste");
     await user.click(screen.getByRole("button", { name: "criar" }));
 
-    expect(await screen.findByText("criando a worktree…")).toBeInTheDocument();
+    expect(await screen.findByText(/copiando o checkout/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "criando…" })).toBeDisabled();
   });
 
@@ -177,11 +188,75 @@ describe("create worktree", () => {
     );
 
     await selectProject(user);
-    await user.click(await screen.findByRole("button", { name: "nova worktree" }));
+    await openCreateWorktree(user);
     await user.type(screen.getByLabelText("Nome da worktree"), "main");
     await user.click(screen.getByRole("button", { name: "criar" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("escolha outro nome");
+  });
+
+  it("does not select or expand the project it was opened from (F1.4)", async () => {
+    const user = userEvent.setup();
+    trpc.worktree.create.mutate.mockReturnValue(new Promise(() => {}));
+
+    renderWithProviders(<App />);
+    // Nothing selected: the workspace screen is what is on.
+    expect(await screen.findByRole("heading", { name: "pessoal" })).toBeInTheDocument();
+    // Folded, so "did not expand" is a claim with something to fail on.
+    await user.click(await screen.findByRole("button", { name: "recolher lorebase" }));
+
+    await openCreateWorktree(user);
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+
+    // Neither the panel behind it nor the fold of the tree moved. Free rather
+    // than arranged: the three buttons of a row are siblings.
+    expect(screen.getByRole("heading", { name: "pessoal" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "expandir lorebase" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+  });
+
+  it("leaves the selection where it was when cancelled", async () => {
+    const user = userEvent.setup();
+
+    await selectProject(user);
+    const tree = screen.getByLabelText("árvore de projetos");
+    const local = await within(tree).findByRole("button", { name: /^local/ });
+    expect(local).toHaveAttribute("aria-current", "true");
+
+    await openCreateWorktree(user);
+    await user.click(screen.getByRole("button", { name: "cancelar" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(within(tree).getByRole("button", { name: /^local/ })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+  });
+
+  it("offers no + on a project that is off disk (F1.8)", async () => {
+    trpc.project.listByWorkspace.query.mockResolvedValue([project(false)]);
+
+    renderWithProviders(<App />);
+    await screen.findByRole("button", { name: /^lorebase/ });
+
+    // There is nowhere to cut a worktree from. The slot stays, so the column
+    // still reads top to bottom.
+    expect(screen.queryByRole("button", { name: /nova worktree/ })).toBeNull();
+    expect(document.querySelector(".row__slot")).toBeInTheDocument();
+  });
+
+  it("says which project it is about, instead of asking again", async () => {
+    const user = userEvent.setup();
+    await selectProject(user);
+    await openCreateWorktree(user);
+
+    // The `+` came off the project's row, so the dialog has no project
+    // selector: the gesture already answered that, and the header repeats it.
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("lorebase")).toBeInTheDocument();
+    expect(within(dialog).getAllByRole("textbox")).toHaveLength(1);
   });
 });
 

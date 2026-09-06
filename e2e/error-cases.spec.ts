@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_FIXTURE_AGENT, E2E_FIXTURE_REPO, E2E_FIXTURE_REPO_ALT } from "./support/fixtures.js";
-import { createAgentConfig, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import { createAgentConfig, createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
 import { call, query, startDaemon } from "./support/daemon.js";
 import { E2E_RESTART_PORT, E2E_SERVER_PORT } from "../ports.js";
 
@@ -37,21 +37,23 @@ test("adding a directory that is not a git repository is refused", async ({ page
   const notARepo = mkdtempSync(join(tmpdir(), "lumem-nao-repo-"));
 
   await page.getByRole("button", { name: "adicionar projeto" }).click();
-  await page.getByLabel("Caminho ou URL").fill(notARepo);
-  await page.getByRole("button", { name: "adicionar" }).click();
+
+  // Escopado: o `+` que abriu o diálogo continua na tela atrás do véu, e o
+  // nome dele contém `adicionar`.
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Caminho ou URL").fill(notARepo);
+  await dialog.getByRole("button", { name: "adicionar" }).click();
 
   // F2.2: which check failed, not "invalid path".
   await expect(page.getByRole("alert")).toContainText("não é um repositório git");
-  await expect(page.getByRole("button", { name: "adicionar" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "adicionar" })).toBeVisible();
   rmSync(notARepo, { recursive: true, force: true });
 });
 
 test("creating a worktree on an existing branch is refused", async ({ page }) => {
   await openFixtureProject(page);
 
-  await page.getByRole("button", { name: "nova worktree" }).click();
-  await page.getByLabel("Nome da worktree").fill("main");
-  await page.getByRole("button", { name: "criar" }).click();
+  await createWorktree(page, "main");
 
   await expect(page.getByRole("alert")).toContainText("escolha outro nome");
 });
@@ -60,9 +62,7 @@ test("a worktree with a live session cannot be removed", async ({ page }) => {
   await openFixtureProject(page);
   const name = "erro-sessao-viva";
 
-  await page.getByRole("button", { name: "nova worktree" }).click();
-  await page.getByLabel("Nome da worktree").fill(name);
-  await page.getByRole("button", { name: "criar" }).click();
+  await createWorktree(page, name);
   await expect(page.getByRole("heading", { name })).toBeVisible({ timeout: 30_000 });
 
   await page.getByRole("button", { name: /nova sessão/ }).click();
@@ -95,9 +95,7 @@ test("a dirty worktree is refused, and forcing it works", async ({ page }) => {
   await openFixtureProject(page);
   const name = "erro-suja";
 
-  await page.getByRole("button", { name: "nova worktree" }).click();
-  await page.getByLabel("Nome da worktree").fill(name);
-  await page.getByRole("button", { name: "criar" }).click();
+  await createWorktree(page, name);
   await expect(page.getByRole("heading", { name })).toBeVisible({ timeout: 30_000 });
 
   const path = (

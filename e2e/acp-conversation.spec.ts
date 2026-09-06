@@ -1,11 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import {
-  createAgentConfig,
-  ensureProject,
-  ensureWorkspace,
-  openProject,
-} from "./support/app.js";
+import { createAgentConfig, createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
 import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js";
 import { E2E_SERVER_PORT } from "../ports.js";
 
@@ -59,20 +54,14 @@ async function openConversation(page: Page): Promise<void> {
   });
 }
 
-async function createWorktree(page: Page, name: string): Promise<void> {
-  await page.getByRole("button", { name: "nova worktree" }).click();
-  await page.getByLabel("Nome da worktree").fill(name);
-  await page.getByRole("button", { name: "criar" }).click();
-  await expect(page.getByRole("heading", { name })).toBeVisible({ timeout: 30_000 });
-}
-
 /** Everything up to an open, empty worktree of this test's own. */
 async function arrive(page: Page, worktree: string): Promise<void> {
   await page.goto("/");
   await ensureWorkspace(page);
   await ensureProject(page, E2E_FIXTURE_REPO_ACP, "repo-acp");
   await openProject(page, "repo-acp");
-  await createWorktree(page, worktree);
+  await createWorktree(page, worktree, "repo-acp");
+  await expect(page.getByRole("heading", { name: worktree })).toBeVisible({ timeout: 30_000 });
 }
 
 test.beforeEach(async ({ request }) => {

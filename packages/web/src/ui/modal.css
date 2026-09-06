@@ -1,0 +1,149 @@
+/* ============================================================================
+   O modal centrado — cópia de comportamento do
+   `prototype/lumem-sidebar-actions.html`, seções 3, 4 e 5.
+
+   O invólucro não existia no design system: os dois diálogos de então eram
+   `Card` no fluxo, e um `Card` dentro de uma coluna de 264px não cabe um
+   formulário com campo de URL, eco de plano e barra de progresso.
+   ========================================================================= */
+
+:root {
+  /*
+   * O véu. Não é cor nova: é o fundo mais fundo do produto, com transparência.
+   * O que ele entrega é a árvore atrás legível como CONTEXTO e ilegível como
+   * TEXTO — quem abriu o diálogo já sabe de qual linha ele saiu, e não deve
+   * conseguir ler outra.
+   */
+  --color-scrim: color-mix(in srgb, var(--color-bg-inset) 68%, transparent);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-24);
+  /* Um índice para o modal inteiro, e nenhum para as peças dentro dele: um
+     índice por peça é uma disputa esperando o próximo componente. */
+  z-index: 100;
+}
+
+/* Irmão do cartão, não pai: clicar nele fecha, e um cartão dentro dele herdaria
+   o alvo de clique de fechar. */
+.modal__scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--color-scrim);
+}
+
+.modal__card {
+  position: relative;
+  width: var(--size-dialog-width);
+  max-width: 100%;
+  max-height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-xl);
+}
+
+.modal__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  /* À direita, o lugar do `✕`, que é desenhado aqui e escrito por último — ver
+     o comentário no `Modal.tsx`. */
+  padding: var(--space-16) calc(var(--space-12) + var(--size-control-sm) + var(--space-8))
+    var(--space-8) var(--space-20);
+}
+.modal__head-b { flex: 1; min-width: 0; }
+.modal__t {
+  margin: 0;
+  font: var(--text-heading-md);
+  letter-spacing: var(--tracking-heading-md);
+  color: var(--color-text-primary);
+}
+/* Onde a ação vai cair, dito no cabeçalho e não num campo: o diálogo abriu de
+   uma linha da árvore, e ele repete de qual — sem seletor de projeto dentro. */
+.modal__where {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  margin: var(--space-4) 0 0;
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+.modal__where .glyph { font-size: var(--size-icon-xs); }
+
+.modal__close {
+  position: absolute;
+  top: var(--space-16);
+  right: var(--space-12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+}
+.modal__close:hover:not(:disabled) { background: var(--color-bg-hover); color: var(--color-text-primary); }
+/* Desabilitado, não ausente (Q5a): botão que some é botão que se procura. */
+.modal__close:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
+
+.modal__body {
+  display: grid;
+  gap: var(--space-16);
+  align-content: start;
+  overflow-y: auto;
+  padding: var(--space-8) var(--space-20) var(--space-16);
+}
+
+/* Um `form` no corpo é um filho só do grid acima, então o espaçamento entre os
+   campos dele tem que ser dito aqui. O formulário mora no corpo e os botões no
+   rodapé — irmãos, e não ancestral e filho —, e é o atributo `form` dos botões
+   que liga os dois. */
+.modal__body > form {
+  display: grid;
+  gap: var(--space-16);
+  align-content: start;
+}
+
+/* ---------------------------------------------------------------------------
+   O clone em andamento, no corpo do diálogo — Q5.
+
+   Geometria de linha: glifo, nome, porcentagem, barra e a fase que o git
+   relata. A fase é o que diz que a coisa ainda está viva quando a porcentagem
+   não se move — repositório grande passa minutos em `resolvendo deltas` com a
+   barra parada.
+   -------------------------------------------------------------------------- */
+.modal__work { display: grid; gap: var(--space-8); }
+.modal__work-top { display: flex; align-items: center; gap: var(--space-8); }
+.modal__work-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--text-label-sm);
+  color: var(--color-text-primary);
+}
+.modal__work-pct { flex: none; font: var(--text-label-xs); color: var(--color-text-tertiary); }
+.modal__work-phase { margin: 0; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+.modal__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 0 var(--space-20) var(--space-20);
+}
+/* A dica de teclado à direita: ela é a prova visível de que `Esc` fecha, e uma
+   promessa escrita é mais barata que uma descoberta. */
+.modal__esc { margin-left: auto; font: var(--text-caption); color: var(--color-text-tertiary); }
+.modal__esc .kbd { color: var(--color-text-secondary); }
+/* E a promessa desmentida em voz alta, enquanto o clone segura o diálogo. */
+.modal__esc--held { color: var(--color-text-warning); }
+.modal__esc--held .kbd { color: var(--color-text-warning); }

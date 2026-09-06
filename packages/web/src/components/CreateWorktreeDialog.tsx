@@ -3,10 +3,14 @@ import { useState, type FormEvent } from "react";
 
 import { worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
-import { Banner, Button, Card, Field, Glyph, Input } from "../ui/index.js";
+import { Banner, Button, Field, Glyph, Input, Modal } from "../ui/index.js";
 
 export interface CreateWorktreeDialogProps {
   projectId: string;
+  /** Said in the header — the row the `+` was pressed on (F1.3). */
+  projectName: string;
+  open: boolean;
+  onClose: () => void;
   onCreated: (worktreeId: string) => void;
   /**
    * Whether the repository has any commit at all, F6.13.
@@ -18,14 +22,22 @@ export interface CreateWorktreeDialogProps {
   hasCommits?: boolean | null;
 }
 
-/** Creating a worktree, F4.1. The name is also the branch, F4.2. */
+/**
+ * Creating a worktree, F4.1. The name is also the branch, F4.2.
+ *
+ * Since `sidebar-actions` it opens from the `+` on the project's own row, which
+ * is why it has no project selector: the gesture already answered that, and the
+ * header repeats it rather than asking again.
+ */
 export function CreateWorktreeDialog({
   projectId,
+  projectName,
+  open,
+  onClose,
   onCreated,
   hasCommits = null,
 }: CreateWorktreeDialogProps) {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
 
   const create = useMutation({
@@ -33,10 +45,15 @@ export function CreateWorktreeDialog({
     onSuccess: async (worktree) => {
       await queryClient.invalidateQueries({ queryKey: worktreesKey(projectId) });
       onCreated(worktree.id);
-      setOpen(false);
-      setName("");
+      close();
     },
   });
+
+  function close(): void {
+    setName("");
+    create.reset();
+    onClose();
+  }
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
@@ -45,30 +62,40 @@ export function CreateWorktreeDialog({
   };
 
   const unborn = hasCommits === false;
-
-  if (!open) {
-    return (
-      <Button
-        variant="primary"
-        glyph={<Glyph>◇</Glyph>}
-        onClick={() => setOpen(true)}
-        // Disabled and explained, rather than clickable and then refused: the
-        // explanation belongs where the gesture is, not after it.
-        disabled={unborn}
-        title={unborn ? "este repositório ainda não tem nenhum commit" : undefined}
-      >
-        nova worktree
-      </Button>
-    );
-  }
-
   const fieldId = `worktree-name-${projectId}`;
 
   return (
-    // Takes over the action bar rather than floating above it: the form is the
-    // next step of the same task, not an interruption of it.
-    <form className="create-worktree" onSubmit={submit}>
-      <Card>
+    <Modal
+      open={open}
+      title="Nova worktree"
+      where={
+        <>
+          em
+          <Glyph tone="project">■</Glyph>
+          <b>{projectName}</b>
+        </>
+      }
+      onClose={close}
+      footer={
+        <>
+          <Button
+            type="submit"
+            form={FORM_ID}
+            variant="primary"
+            disabled={create.isPending || name.trim() === "" || unborn}
+          >
+            {/* `git worktree add` copies a whole checkout. On a large repository
+                this is seconds, and a button that looks idle invites a second
+                click that would fail on the branch the first one just made. */}
+            {create.isPending ? "criando…" : "criar"}
+          </Button>
+          <Button variant="ghost" onClick={close}>
+            {unborn ? "fechar" : "cancelar"}
+          </Button>
+        </>
+      }
+    >
+      <form id={FORM_ID} onSubmit={submit}>
         <Field
           id={fieldId}
           label="Nome da worktree"
@@ -82,46 +109,35 @@ export function CreateWorktreeDialog({
             onChange={(event) => setName(event.target.value)}
             placeholder="teste-prd"
             invalid={create.isError}
-            autoFocus
           />
         </Field>
         {unborn ? (
-          // F6.13. The server refuses this too — the screen avoids the error,
-          // the daemon forbids it. Letting git answer would print "invalid
-          // reference", which explains nothing to anybody.
-          <div className="create-worktree__status">
-            <Banner tone="warning">
-              este repositório ainda não tem nenhum commit — faça o primeiro para poder cortar
-              worktrees
-            </Banner>
-          </div>
+          /*
+           * F6.13. The server refuses this too — the screen avoids the error,
+           * the daemon forbids it. Letting git answer would print "invalid
+           * reference", which explains nothing to anybody.
+           *
+           * It is said *here* now, and not on a disabled trigger: since the
+           * trigger is a 24px `+` on a tree row, disabling it would have been a
+           * grey button with its reason nowhere on screen.
+           */
+          <Banner tone="warning">
+            este repositório ainda não tem nenhum commit — faça o primeiro para poder cortar
+            worktrees
+          </Banner>
         ) : (
           <p className="create-worktree__hint">
             A branch tem o mesmo nome. Barra vira diretório aninhado.
           </p>
         )}
-        <div className="create-worktree__actions">
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={create.isPending || name.trim() === "" || unborn}
-          >
-            {/* `git worktree add` copies a whole checkout. On a large repository
-                this is seconds, and a button that looks idle invites a second
-                click that would fail on the branch the first one just made. */}
-            {create.isPending ? "criando…" : "criar"}
-          </Button>
-          <Button variant="ghost" onClick={() => setOpen(false)}>
-            cancelar
-          </Button>
-        </div>
 
         {create.isPending && (
-          <div className="create-worktree__status">
-            <Banner tone="info">criando a worktree…</Banner>
-          </div>
+          <Banner tone="info">copiando o checkout — em repositório grande isto leva alguns segundos</Banner>
         )}
-      </Card>
-    </form>
+      </form>
+    </Modal>
   );
 }
+
+/** Ties the footer's submit button to the body's form across the modal. */
+const FORM_ID = "create-worktree";

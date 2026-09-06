@@ -193,29 +193,115 @@ describe("o campo que aceita as duas coisas", () => {
     expect(screen.getByRole("button", { name: "adicionar" })).toBeEnabled();
   });
 
-  it("diz qual clone está rodando em vez de enfileirar em silêncio", async () => {
-    // A11: um por vez.
-    const user = userEvent.setup();
+  it("não tem um segundo clonar para apertar enquanto um clone roda", async () => {
+    // A11, um por vez — que desde a Q5 é estrutural em vez de escrito: o
+    // formulário deu lugar ao progresso, e o diálogo não fecha. A versão antiga
+    // desabilitava o botão e dizia qual job estava na frente.
     trpc.project.cloneJobs.query.mockResolvedValue([job({ name: "pesado" })]);
-    trpc.project.parseSource.query.mockResolvedValue({
-      kind: "url",
-      scheme: "https",
-      url: "https://github.com/org/outro.git",
-      insecure: false,
-      name: "outro",
-      targetPath: "/estado/workspaces/pessoal/outro/repo",
-    });
+
+    renderWithProviders(<App />);
+
+    expect(await screen.findByLabelText("clonando pesado")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "clonar" })).toBeNull();
+    expect(screen.queryByLabelText("Caminho ou URL")).toBeNull();
+  });
+
+  it("não se fecha por causa de um clone que já tinha acabado", async () => {
+    /*
+     * O estado normal de qualquer workspace onde alguém já clonou alguma coisa:
+     * o job store guarda os terminados de propósito, então "existe um clone e
+     * ele terminou" não é notícia. Fechar em cima disso fazia o diálogo se
+     * fechar no instante em que abria — para sempre, e sem erro nenhum.
+     *
+     * Achado pelo e2e, 55 specs de uma vez.
+     */
+    const user = userEvent.setup();
+    trpc.project.cloneJobs.query.mockResolvedValue([
+      job({ state: "done", percent: 100, projectId: "p1", message: "done." }),
+    ]);
 
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
-    await user.type(screen.getByLabelText("Caminho ou URL"), "https://github.com/org/outro.git");
 
-    expect(await screen.findByText(/pesado ainda está sendo clonado/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "clonar" })).toBeDisabled();
+    expect(await screen.findByLabelText("Caminho ou URL")).toBeInTheDocument();
+  });
+
+  it("fecha de verdade pelo ✕ e pelo Esc quando o clone já acabou", async () => {
+    /*
+     * O `✕`, o `Esc` e o véu só ficam desabilitados **enquanto** clona (Q5a).
+     * Com o clone terminado eles voltam a valer — e voltavam habilitados sem
+     * fazer nada: zeravam `open`, o efeito da F1.9 via um desfecho ainda não
+     * dispensado e pedia para abrir de novo, no mesmo ciclo. O único caminho
+     * de saída era o `dispensar` de dentro do aviso, que é exatamente o que os
+     * outros testes exercitam — por isso ninguém viu.
+     */
+    const user = userEvent.setup();
+    trpc.project.cloneJobs.query.mockResolvedValue([
+      job({
+        state: "failed",
+        failure: "refused",
+        message: "ssh: connect to host git.interno port 22: Connection refused",
+      }),
+    ]);
+
+    renderWithProviders(<App />);
+    await screen.findByRole("alert");
+
+    await user.click(screen.getByRole("button", { name: "fechar" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("o mesmo vale para o desfecho que só tinha um recado a dar", async () => {
+    // F6.4: o sufixo de nome. Fechar à mão é ler — quem apertou `Esc` em cima
+    // da mensagem viu a mensagem.
+    const user = userEvent.setup();
+    trpc.project.cloneJobs.query.mockResolvedValue([
+      job({
+        state: "done",
+        percent: 100,
+        projectId: "p1",
+        message: "o nome api já existia; registrado como api-2",
+      }),
+    ]);
+
+    renderWithProviders(<App />);
+    await screen.findByText(/registrado como api-2/);
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("volta sozinho para um clone que já estava rodando (F1.9)", async () => {
+    // O rodapé não hospeda mais nada: sem isto, recarregar a página no meio de
+    // um clone de quatro minutos é o mesmo que perdê-lo de vista.
+    trpc.project.cloneJobs.query.mockResolvedValue([job()]);
+
+    renderWithProviders(<App />);
+
+    // Ninguém abriu o diálogo — ele se abriu porque tinha o que mostrar.
+    expect(await screen.findByRole("dialog")).toHaveAccessibleName("Adicionar projeto");
+  });
+
+  it("não fecha enquanto clona, e diz isso em vez de ignorar o Esc (Q5a)", async () => {
+    const user = userEvent.setup();
+    trpc.project.cloneJobs.query.mockResolvedValue([job()]);
+
+    renderWithProviders(<App />);
+    await screen.findByLabelText("clonando api");
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "fechar" })).toBeDisabled();
+    expect(screen.getByText(/não fecha enquanto clona/)).toBeInTheDocument();
+    // E a saída existe: nenhum caminho da feature fica sem uma.
+    expect(screen.getByRole("button", { name: "cancelar o clone" })).toBeEnabled();
   });
 });
 
-describe("o progresso na sidebar", () => {
+describe("o progresso dentro do diálogo", () => {
   it("mostra a fase em português e a porcentagem", async () => {
     trpc.project.cloneJobs.query.mockResolvedValue([job()]);
 
@@ -246,8 +332,12 @@ describe("o progresso na sidebar", () => {
     renderWithProviders(<App />);
 
     const row = await screen.findByLabelText("clonando api");
-    expect(within(row).queryByRole("button", { name: /cancelar/ })).not.toBeInTheDocument();
     expect(within(row).getByText("registrando")).toBeInTheDocument();
+    // Escopado no diálogo inteiro, e não só na linha: desde a Q5 o botão mora
+    // no rodapé do modal, e um `within(row)` aqui passaria sem olhar para ele.
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("button", { name: /cancelar o clone/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("cancela pelo botão", async () => {
@@ -256,7 +346,7 @@ describe("o progresso na sidebar", () => {
     trpc.project.cloneCancel.mutate.mockResolvedValue({ ok: true });
 
     renderWithProviders(<App />);
-    await user.click(await screen.findByRole("button", { name: "cancelar o clone de api" }));
+    await user.click(await screen.findByRole("button", { name: "cancelar o clone" }));
 
     expect(trpc.project.cloneCancel.mutate).toHaveBeenCalledWith({ jobId: "j1" });
   });
@@ -347,6 +437,9 @@ describe("as falhas", () => {
 
     renderWithProviders(<App />);
 
+    // O diálogo volta para dizer isto, e só fecha quando for dispensado: uma
+    // decisão tomada em nome de alguém que fecha sozinha é uma decisão que
+    // ninguém leu.
     expect(await screen.findByText(/registrado como api-2/)).toBeInTheDocument();
   });
 
@@ -452,15 +545,21 @@ describe("projeto sem commit", () => {
     const user = userEvent.setup();
     await openLocal(user, project({ hasCommits: false }));
 
-    const botao = screen.getByRole("button", { name: /nova worktree/ });
-    expect(botao).toBeDisabled();
-    expect(botao).toHaveAttribute("title", expect.stringContaining("nenhum commit"));
+    // O `+` continua clicável: quem explica é o diálogo. Um `+` de 24px cinza
+    // numa linha de árvore seria um botão desabilitado com o motivo fora da
+    // tela — que é o que a versão antiga, num painel largo, podia evitar.
+    await user.click(screen.getByRole("button", { name: /nova worktree/ }));
+
+    expect(await screen.findByText(/nenhum commit/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "criar" })).toBeDisabled();
   });
 
   it("deixa cortar assim que houver commit", async () => {
     const user = userEvent.setup();
     await openLocal(user, project({ hasCommits: true }));
+    await user.click(screen.getByRole("button", { name: /nova worktree/ }));
 
-    expect(screen.getByRole("button", { name: /nova worktree/ })).toBeEnabled();
+    expect(screen.queryByText(/nenhum commit/)).toBeNull();
+    expect(await screen.findByText(/A branch tem o mesmo nome/)).toBeInTheDocument();
   });
 });

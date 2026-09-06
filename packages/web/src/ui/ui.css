@@ -217,6 +217,44 @@
   color: var(--color-permission-pending);
 }
 
+/*
+ * O slot de ação da linha — `sidebar-actions`, Q1.
+ *
+ * Reservado sempre e pintado sempre. Reservar resolve o reflow: se ele só
+ * existisse no hover, a linha se reorganizaria no instante em que o ponteiro
+ * chegasse, com o label crescendo e o contador andando 24px para a esquerda
+ * embaixo de uma mão já a caminho do clique.
+ *
+ * Pintar sempre é a Q1 revista, contra a primeira versão do desenho: criar
+ * worktree é a ação mais repetida do produto, e ação que só existe debaixo do
+ * ponteiro é ação que só se acha por acidente. O preço é um botão por projeto o
+ * tempo todo, e é por isso que ele é terciário e não `brand` — ele espera, não
+ * chama. O hover não revela; ele confirma que você está mirando.
+ */
+.row__act {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-target-min);
+  height: var(--size-target-min);
+  margin-right: var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+  line-height: 1;
+}
+.row:hover .row__act { color: var(--color-text-secondary); }
+.row__act:hover { background: var(--color-bg-active); color: var(--color-text-primary); }
+
+/* Sem ação, mas com lugar: alinhamento de coluna não é decoração, é o que faz a
+   árvore ser lida de cima a baixo (F1.8). */
+.row__slot {
+  flex: none;
+  width: var(--size-target-min);
+  margin-right: var(--space-2);
+}
+
 /* ---------------------------------------------------- linha de detalhe */
 .item {
   display: flex;

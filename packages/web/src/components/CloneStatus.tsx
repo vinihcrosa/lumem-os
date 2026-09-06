@@ -1,85 +1,43 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-
-import {
-  PHASE_LABEL,
-  isTerminal,
-  useCloneStream,
-  type CloneJobView,
-} from "../hooks/useCloneJob.js";
-import { cloneJobsKey, projectsKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { PHASE_LABEL, type CloneJobView } from "../hooks/useCloneJob.js";
 import { Button, Glyph } from "../ui/index.js";
 
-export interface CloneStatusProps {
-  workspaceId: string;
-  /** Prefills the dialog again — the way out of an authentication failure. */
-  onRetry?: (source: string) => void;
+export interface CloneProgressProps {
+  job: CloneJobView;
 }
 
 /**
- * The clone, where the project is going to appear.
+ * A clone in flight, drawn where the dialog that started it can hold it.
  *
- * In the sidebar and not in a modal: a clone runs for minutes, and a modal
- * would hold the whole screen hostage for it. Closing the dialog cancels
- * nothing, and reloading the page loses nothing.
+ * It used to live in the sidebar footer, and it used to fetch: it opened the
+ * stream, owned the cancel mutation and decided when to disappear. Q5 moved the
+ * host into `AddProjectDialog` — the modal no longer closes when the clone
+ * starts — and this became what it should have been all along: two pieces that
+ * draw a job somebody else is holding.
+ *
+ * What Q5 costs is written where it was decided, and it is real: the screen is
+ * held for minutes. What it buys is one host. The progress, the cancelling and
+ * both ways of ending are in the same place the person pressed `clonar`.
  */
-export function CloneStatus({ workspaceId, onRetry }: CloneStatusProps) {
-  const queryClient = useQueryClient();
-  const job = useCloneStream(workspaceId);
-  const [dismissed, setDismissed] = useState<string | null>(null);
-
-  const cancel = useMutation({
-    mutationFn: (jobId: string) => trpc.project.cloneCancel.mutate({ jobId }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: cloneJobsKey(workspaceId) }),
-  });
-
-  if (job === null || job.id === dismissed) return null;
-
-  if (job.state === "cancelled") return null;
-
-  if (isTerminal(job.state)) {
-    return (
-      <Outcome
-        job={job}
-        onDismiss={async () => {
-          setDismissed(job.id);
-          await queryClient.invalidateQueries({ queryKey: projectsKey(workspaceId) });
-        }}
-        {...(onRetry === undefined ? {} : { onRetry })}
-      />
-    );
-  }
-
+export function CloneProgress({ job }: CloneProgressProps) {
   const percent = job.percent;
   const phase = job.phase === null ? null : (PHASE_LABEL[job.phase] ?? job.phase);
 
   return (
-    <div className="clone-row" data-state={job.state} aria-label={`clonando ${job.name}`}>
-      <div className="clone-row__top">
+    <div className="modal__work" data-state={job.state} aria-label={`clonando ${job.name}`}>
+      <div className="modal__work-top">
         <Glyph tone="project">■</Glyph>
-        <span className="clone-row__name">{job.name}</span>
-        {percent !== null && <span className="clone-row__pct">{percent}%</span>}
-        {/* F6.6: only while it is still downloading. Past that the repository
-            is on disk and what is left is a row in SQLite, so the button goes
-            away instead of lying. */}
-        {job.state === "cloning" && (
-          <button
-            type="button"
-            className="clone-row__cancel"
-            aria-label={`cancelar o clone de ${job.name}`}
-            onClick={() => cancel.mutate(job.id)}
-          >
-            ✕
-          </button>
-        )}
+        <span className="modal__work-name">{job.name}</span>
+        {percent !== null && <span className="modal__work-pct">{percent}%</span>}
       </div>
 
       <div className={percent === null ? "bar bar--unknown" : "bar"}>
         <div className="bar__fill" style={percent === null ? undefined : { width: `${percent}%` }} />
       </div>
 
-      <p className="clone-row__phase">
+      {/* The phase in git's own words. It is what says the thing is still alive
+          when the percentage does not move — a large repository spends minutes
+          in `resolvendo deltas` with the bar standing still. */}
+      <p className="modal__work-phase">
         {job.state === "registering" ? "registrando" : (phase ?? "conectando")}
       </p>
     </div>
@@ -92,8 +50,28 @@ export function CloneStatus({ workspaceId, onRetry }: CloneStatusProps) {
  * It stays until it is dismissed. Disappearing on its own is the same thing as
  * not having happened, and the two endings a person most needs to read are the
  * two they are least likely to be watching for.
+ *
+ * Since Q5 it is drawn in the body of the dialog rather than in the sidebar,
+ * which is why the failure does not close it: the way back — `tentar por ssh` —
+ * is one click from where the person is already looking, with the URL still in
+ * the field behind it.
  */
-function Outcome({
+/**
+ * Whether the ending is worth stopping for.
+ *
+ * A clone that simply worked says so by the project appearing; only a decision
+ * taken on the user's behalf — F6.4 suffixing a name that was already taken —
+ * needs a word. Exported because `AddProjectDialog` has to know the same thing
+ * *before* rendering: since Q5 it closes on success, and closing over an
+ * unread sentence is the same as never having written it.
+ */
+export function outcomeSpeaks(job: CloneJobView): boolean {
+  if (job.state === "cancelled") return false;
+  if (job.state !== "done") return true;
+  return job.message !== null && job.message.includes("registrado como");
+}
+
+export function CloneOutcome({
   job,
   onDismiss,
   onRetry,

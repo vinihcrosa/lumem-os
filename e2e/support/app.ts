@@ -67,11 +67,43 @@ export async function ensureProject(page: Page, path: string, name = "fixture"):
     .catch(() => false);
   if (present) return;
 
+  // O `+` do cabeçalho `Projetos`, desde a `sidebar-actions`. Ele mantém o
+  // nome acessível que tinha no rodapé, e é por isso que este clique não mudou:
+  // o que mudou foi de onde ele sai.
   await page.getByRole("button", { name: "adicionar projeto" }).click();
-  await page.getByLabel("Caminho ou URL").fill(path);
-  await page.getByLabel("Nome").fill(name);
-  await page.getByRole("button", { name: "adicionar" }).click();
+
+  /*
+   * Escopado no diálogo, e isso é obrigatório desde a `sidebar-actions`.
+   *
+   * O gatilho **não some mais** quando o formulário abre: ele é o `+` do
+   * cabeçalho da árvore, e continua na tela por trás do véu. `adicionar` sem
+   * escopo casa com ele (`adicionar projeto`) e com o submit — dois elementos,
+   * e o Playwright recusa. Na versão antiga o botão do rodapé virava o
+   * formulário, então só existia um por vez.
+   */
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Caminho ou URL").fill(path);
+  await dialog.getByLabel("Nome").fill(name);
+  await dialog.getByRole("button", { name: "adicionar" }).click();
   await expect(entry).toBeVisible({ timeout: 15_000 });
+}
+
+/**
+ * Cria uma worktree pelo `+` da linha do projeto — `sidebar-actions` F1.3.
+ *
+ * Aqui, e não espalhado por quinze specs: a ação já mudou de lugar uma vez
+ * (saiu do `LocalPanel`, Q4), e o próximo movimento dela tem que mexer num
+ * arquivo só. O diálogo é modal e **já sabe o projeto**, então não há seletor
+ * dentro dele — o nome no clique é o que escolhe.
+ */
+export async function createWorktree(
+  page: Page,
+  name: string,
+  project = "fixture",
+): Promise<void> {
+  await page.getByRole("button", { name: `nova worktree em ${project}` }).click();
+  await page.getByLabel("Nome da worktree").fill(name);
+  await page.getByRole("button", { name: "criar" }).click();
 }
 
 /**

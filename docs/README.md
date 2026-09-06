@@ -267,22 +267,31 @@ o par nativo por fora, ele **serve o web na própria porta**, o binário `lumem`
 
 ## As quatro que a tela pediu — desenhadas a partir dela, em 2026-09-01
 
-Nove anotações feitas clicando na tela `/` viraram quatro features independentes. Duas já fecharam;
-as outras duas têm PRD e perguntas abertas. A nona anotação — *"abri a PR e não aparece"* — não virou
-feature: é a [pull-request-status](prd/pull-request-status/) acima, que saiu do desenho e **está
-implementada**.
+Nove anotações feitas clicando na tela `/` viraram quatro features independentes. Três já fecharam; a
+última — [run-dock-open](prd/run-dock-open/) — tem PRD e perguntas abertas. A nona anotação — *"abri a
+PR e não aparece"* — não virou feature: é a [pull-request-status](prd/pull-request-status/) acima, que
+saiu do desenho e **está implementada**.
 
 ### [sidebar-actions/](prd/sidebar-actions/) — criar de onde se olha
 
-As duas coisas que o Lumem cria não se criam de onde elas moram: o `＋adicionar projeto` está no
-rodapé da sidebar (e se afasta do título `Projetos` conforme a lista cresce), e criar worktree custa
-**três cliques e uma troca de tela** — para a ação mais repetida do produto. Passa a ser um `+` no
-cabeçalho `Projetos` e um `+` na linha de cada projeto, com os diálogos virando modal centrado.
+**Completa.** As duas coisas que o Lumem cria não se criavam de onde elas moram: o
+`＋adicionar projeto` estava no rodapé da sidebar (e se afastava do título `Projetos` conforme a lista
+crescia), e criar worktree custava **três cliques e uma troca de tela** — para a ação mais repetida do
+produto. Agora é um `+` no cabeçalho `Projetos` e um `+` na linha de cada projeto, e os dois diálogos
+viraram **modal centrado**, sobre um véu, com o foco preso dentro e devolvido ao `+` que o abriu.
+
+Nasceu com o desenho já pronto no Open Design — e **duas perguntas foram respondidas contra ele**. A
+[Q1](prd/sidebar-actions/open-questions.md) pinta o `+` em repouso em vez de só no hover; a **Q5** faz
+o modal do clone **ficar aberto até o fim**, em vez de fechar e mandar o progresso para a árvore. O
+desenho foi **reescrito lá** antes de virar código, porque a regra não permite o contrário — e as duas
+reversões estão argumentadas nos quadros que elas substituíram, com o custo escrito: a tela fica presa
+por minutos enquanto um clone grande roda.
 
 | Arquivo | O quê |
 |---|---|
-| [prd.md](prd/sidebar-actions/prd.md) | As três regras (o botão fica no cabeçalho da coisa que ele acrescenta; uma ação, um lugar; o diálogo abre no centro), e o que a mudança cobra — o estado vazio perde o botão que o cobria |
-| [open-questions.md](prd/sidebar-actions/open-questions.md) | 6 perguntas. A Q5 é a que dói: um clone leva minutos, e um modal que se fecha some com o progresso |
+| [prd.md](prd/sidebar-actions/prd.md) | As três regras (o botão fica no cabeçalho da coisa que ele acrescenta; uma ação, um lugar; o diálogo abre no centro), o que a mudança cobra, e as F1.9/F1.10 que as duas reversões acrescentaram |
+| [open-questions.md](prd/sidebar-actions/open-questions.md) | 6 perguntas, **6 respondidas**, mais duas derivadas. A Q1 e a Q5 vieram contra a proposta **e contra o desenho**; a Q5a é a que a Q5 abriu: `Esc`, `✕` e véu não fecham enquanto clona, e a saída é cancelar |
+| [tasks.md](prd/sidebar-actions/tasks.md) | 11 tasks em 5 fases, na ordem do risco: o `Modal` primeiro (é a peça que os dois diálogos herdam), o `+` da linha por último |
 
 ### [worktree-first-tab/](prd/worktree-first-tab/) — o que é da worktree mora na worktree
 

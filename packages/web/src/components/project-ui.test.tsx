@@ -82,10 +82,47 @@ describe("project list", () => {
   it("says so when the workspace has no projects", async () => {
     renderWithProviders(<App />);
 
-    // An empty state, not a shrug: it says what a project is here and the
-    // footer action sits right below it.
+    // An empty state, not a shrug: it says what a project is here, and the
+    // heading right above it carries the one way in.
     expect(await screen.findByText("Nenhum projeto aqui")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /adicionar projeto/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "adicionar projeto" })).toBeInTheDocument();
+  });
+
+  it("offers exactly one way to add the first project (Q3)", async () => {
+    // Two buttons a hand's width apart for one job is what this feature came to
+    // remove. The empty state has no action of its own *because* the heading
+    // above it always does — including when there is nothing below it.
+    renderWithProviders(<App />);
+    await screen.findByText("Nenhum projeto aqui");
+
+    expect(screen.getAllByRole("button", { name: /adicionar projeto/ })).toHaveLength(1);
+  });
+
+  it("keeps the heading through every state the tree can be in (Q3)", async () => {
+    // Loading, error and full — the empty case is covered above. A heading that
+    // came and went with the list would take the way in with it.
+    trpc.project.listByWorkspace.query.mockReturnValue(new Promise(() => {}));
+    const { unmount } = renderWithProviders(<App />);
+    expect(await screen.findByRole("button", { name: "adicionar projeto" })).toBeInTheDocument();
+    expect(screen.getByText("Projetos")).toBeInTheDocument();
+    unmount();
+
+    trpc.project.listByWorkspace.query.mockRejectedValue(new Error("daemon caiu"));
+    renderWithProviders(<App />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("daemon caiu");
+    expect(screen.getByRole("button", { name: "adicionar projeto" })).toBeInTheDocument();
+  });
+
+  it("no longer keeps a second copy in the footer (F1.6)", async () => {
+    trpc.project.listByWorkspace.query.mockResolvedValue([project("p1", "lorebase")]);
+    renderWithProviders(<App />);
+
+    const tree = await screen.findByLabelText("árvore de projetos");
+    // The only one, and it is inside the tree — attached to the heading of the
+    // thing it appends to, so it does not drift as the list grows.
+    const buttons = screen.getAllByRole("button", { name: "adicionar projeto" });
+    expect(buttons).toHaveLength(1);
+    expect(tree).toContainElement(buttons[0]!);
   });
 
   it("marks a project whose repository is gone", async () => {

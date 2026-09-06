@@ -5,9 +5,9 @@ import { AddProjectDialog } from "./components/AddProjectDialog.js";
 import { AgentLogin } from "./components/AgentLogin.js";
 import { WorkspacePanel } from "./components/WorkspacePanel.js";
 import { CheckoutFiles } from "./components/CheckoutFiles.js";
-import { CloneStatus } from "./components/CloneStatus.js";
+import { CreateWorktreeDialog } from "./components/CreateWorktreeDialog.js";
 import { LocalPanel } from "./components/LocalPanel.js";
-import { SidebarTree } from "./components/SidebarTree.js";
+import { SidebarTree, type ProjectSummary } from "./components/SidebarTree.js";
 import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
 import { WorktreePanel } from "./components/WorktreePanel.js";
 import { useActiveWorkspace } from "./hooks/useActiveWorkspace.js";
@@ -63,13 +63,15 @@ export function App() {
    */
   const [ask, setAsk] = useState<{ sessionId: string; text: string } | null>(null);
   /**
-   * A URL handed back to the dialog, F6.10 of project-from-url.
+   * The two dialogs of the tree, `sidebar-actions` F1.2 and F1.3.
    *
-   * The way out of an authentication failure is the same address spelled for
-   * ssh, and the person should not have to retype it. It lives here because the
-   * failure is shown by one component and answered by another.
+   * Held here rather than by the rows that open them: they are modals over the
+   * whole window, and the worktree one has to land the selection on what it
+   * created — which is this component's state. The project the `+` was pressed
+   * on rides along, because the dialog says so in its header instead of asking.
    */
-  const [prefill, setPrefill] = useState<string | null>(null);
+  const [addProjectOpen, setAddProjectOpen] = useState(false);
+  const [worktreeFor, setWorktreeFor] = useState<ProjectSummary | null>(null);
   const expansion = useTreeExpansion();
   const rightPanel = useRightPanel();
   const dock = useRunDock();
@@ -191,6 +193,7 @@ export function App() {
       list.find((workspace) => workspace.id === activeId)?.name ?? "";
 
     return (
+      <>
       <AppShell
         // The panel owns its own scrolling: the terminal inside it has to be
         // able to measure a box with a height.
@@ -218,6 +221,8 @@ export function App() {
               onSelect={(projectId, scope) =>
                 setSelection({ projectId, scope })
               }
+              onAddProject={() => setAddProjectOpen(true)}
+              onCreateWorktree={setWorktreeFor}
             />
             <div className="sidebar__foot">
               {/*
@@ -228,30 +233,65 @@ export function App() {
                 agent is missing — they open "nova sessão" and it is not in the list.
                 The placement still tells the small lie A16 named: `agent_config` is
                 global and this footer is the workspace's.
+
+                And it is all that is left down here (F1.6): the agent belongs to
+                the workspace, not to the list of projects, so it is the one thing
+                that did not move up into the tree.
               */}
               <AgentLogin />
-              {/* The clone sits right above the button that starts one, which
-                  is also where the project it produces will appear. */}
-              <CloneStatus workspaceId={activeId} onRetry={setPrefill} />
-              {/* Adding a project is an action of the workspace, not an item of
-                  the list it appends to. */}
-              <AddProjectDialog
-                workspaceId={activeId}
-                prefill={prefill}
-                onPrefillConsumed={() => setPrefill(null)}
-                onAdded={(projectId) =>
-                  setSelection({
-                    projectId,
-                    scope: { scopeType: "project", scopeId: projectId },
-                  })
-                }
-              />
             </div>
           </>
         }
       >
         {renderPanel(activeId, activeName)}
       </AppShell>
+
+      {/*
+        The two modals, outside the shell.
+
+        They cover the window, so nesting them in a column would only give them
+        a stacking context to fight with. `AddProjectDialog` stays mounted while
+        closed on purpose: it holds the clone subscription, and that is what lets
+        a page reloaded onto a clone in flight bring the dialog back (F1.9).
+      */}
+      <AddProjectDialog
+        workspaceId={activeId}
+        workspaceName={activeName}
+        open={addProjectOpen}
+        onClose={() => setAddProjectOpen(false)}
+        onRequestOpen={() => setAddProjectOpen(true)}
+        onAdded={(projectId) =>
+          setSelection({
+            projectId,
+            scope: { scopeType: "project", scopeId: projectId },
+          })
+        }
+      />
+
+      {worktreeFor !== null && (
+        <CreateWorktreeDialog
+          // Keyed by project: the field is per dialog, and reopening on another
+          // row must not inherit what was typed for the last one.
+          key={worktreeFor.id}
+          projectId={worktreeFor.id}
+          projectName={worktreeFor.name}
+          hasCommits={worktreeFor.hasCommits}
+          open
+          onClose={() => setWorktreeFor(null)}
+          onCreated={(worktreeId) => {
+            // F1.5: the same destination the old path delivered. Expanding is
+            // part of it — a worktree selected inside a folded project is a
+            // selection with nothing on screen to show for it.
+            expansion.expand(worktreeFor.id);
+            setSelection({
+              projectId: worktreeFor.id,
+              scope: { scopeType: "worktree", scopeId: worktreeId },
+            });
+            setWorktreeFor(null);
+          }}
+        />
+      )}
+      </>
     );
   }
 

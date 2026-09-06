@@ -35,6 +35,26 @@ export interface RowProps {
    * only place that can say how much.
    */
   count?: number;
+  /**
+   * The row's own action, at the far end — `sidebar-actions` F1.3.
+   *
+   * A sibling of `row__main` and not a child of it, for the same reason the
+   * twist is one: `row__main` is a `<button>`, and a button inside a button is
+   * invalid HTML. Being siblings is also what makes F1.4 free — a click here
+   * never reaches `onSelect` or `onToggle`, with nothing to stop from
+   * propagating.
+   */
+  action?: ReactNode;
+  /**
+   * Keep the 24px even with no action to put in them, Q1.
+   *
+   * Reserving is what stops the line from rearranging itself under a hand
+   * already on its way to the click: without it the label grows, the count
+   * slides 24px right, and the target moves at the exact moment of the aim. It
+   * is also what keeps the column readable top to bottom when one project is
+   * off disk and offers nothing.
+   */
+  reserveAction?: boolean;
 }
 
 /**
@@ -58,6 +78,8 @@ export function Row({
   meta,
   count,
   countTone = "running",
+  action,
+  reserveAction = false,
 }: RowProps) {
   const classes = [
     "row",
@@ -109,6 +131,8 @@ export function Row({
           </span>
         )}
       </button>
+
+      {action ?? (reserveAction ? <span className="row__slot" aria-hidden="true" /> : null)}
     </div>
   );
 }
