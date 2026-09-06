@@ -192,7 +192,7 @@ Nomeado, para não virar escopo por acidente:
 | Fora | Por quê |
 |---|---|
 | Windows | o produto é worktree, PTY e shell de login. Vale uma feature, não um bullet |
-| Auto-update | `npm i -g @vinihcrosa/lumem-os@latest` é a atualização da v1 |
+| Auto-update | `npm i -g @vinihcrosa/lumem-os@latest` é a atualização da v1. **Desde 2026-09-06** existe o `lumem upgrade`, que é essa mesma reinstalação com três coisas que a linha crua não faz: pergunta ao registry antes (não reinstalar quando já está na última), instala com o gerenciador que **é dono da cópia instalada** (um `npm i -g` por cima de um global do pnpm deixa dois `lumem` no PATH), e diz que o daemon de pé continua no código velho até reiniciar. Continua sendo manual: nada se atualiza sozinho |
 | Homebrew, Docker, AppImage, `.dmg` | canais adicionais só fazem sentido depois de o primeiro ter usuários |
 | Assinatura e notarização | não há binário nativo próprio para assinar |
 | Daemon remoto, multiusuário, autenticação | o Lumem escuta em `127.0.0.1` por decisão de projeto. Mudar isso é outra feature, e é uma feature de segurança |

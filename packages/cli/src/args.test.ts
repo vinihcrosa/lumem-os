@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseCommand } from "./args.js";
+import { HELP, parseCommand } from "./args.js";
 
 describe("parseCommand", () => {
   it("sem argumento nenhum, sobe", () => {
@@ -56,5 +56,15 @@ describe("parseCommand", () => {
     expect(parseCommand(["version"])).toEqual({ kind: "version" });
     expect(parseCommand(["--version"])).toEqual({ kind: "version" });
     expect(parseCommand(["-v"])).toEqual({ kind: "version" });
+  });
+
+  it("lê upgrade, com e sem --check", () => {
+    expect(parseCommand(["upgrade"])).toEqual({ kind: "upgrade", check: false });
+    expect(parseCommand(["upgrade", "--check"])).toEqual({ kind: "upgrade", check: true });
+  });
+
+  it("o help cita o upgrade", () => {
+    // Comando que não está no help é comando que ninguém descobre.
+    expect(HELP).toContain("lumem upgrade");
   });
 });

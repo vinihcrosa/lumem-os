@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { HELP, parseCommand } from "./args.js";
 import { openInBrowser } from "./open.js";
 import { probePort } from "./port.js";
+import { upgrade as runUpgrade } from "./upgrade.js";
 
 /** Mirrors `DEFAULT_SERVER_PORT` in @lumem/shared, which the bundle also carries. */
 const DEFAULT_PORT = 4317;
@@ -25,6 +26,7 @@ export interface RunDeps {
   startDaemon?: () => Promise<void>;
   probe?: typeof probePort;
   open?: typeof openInBrowser;
+  upgrade?: typeof runUpgrade;
 }
 
 /** Where the bundled daemon sits, relative to `bin/lumem.mjs`. */
@@ -41,6 +43,7 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<numbe
     },
     probe = probePort,
     open = openInBrowser,
+    upgrade = runUpgrade,
   } = deps;
 
   const command = parseCommand(argv);
@@ -59,9 +62,25 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<numbe
     return 2;
   }
 
+  const originOf = (port: number, host: string) =>
+    `http://${host === "0.0.0.0" ? "127.0.0.1" : host}:${String(port)}`;
+
+  if (command.kind === "upgrade") {
+    // No daemon is started, and none is stopped: the upgrade rewrites files on
+    // disk, and a daemon already running is told so at the end.
+    return await upgrade({
+      out,
+      err,
+      current: version,
+      check: command.check,
+      origin: originOf(Number(env["LUMEM_PORT"] ?? DEFAULT_PORT), env["LUMEM_HOST"] ?? DEFAULT_HOST),
+      probe,
+    });
+  }
+
   const port = command.port ?? Number(env["LUMEM_PORT"] ?? DEFAULT_PORT);
   const host = command.host ?? env["LUMEM_HOST"] ?? DEFAULT_HOST;
-  const origin = `http://${host === "0.0.0.0" ? "127.0.0.1" : host}:${String(port)}`;
+  const origin = originOf(port, host);
 
   const occupant = await probe({ origin });
   if (occupant.kind === "lumem") {
