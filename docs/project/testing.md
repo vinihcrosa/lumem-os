@@ -106,6 +106,15 @@ O `tsc` puro na raiz não enxergava `e2e/`, `playwright.config.ts` nem os `vites
 
 Registro do que já mordeu, pra não voltar:
 
+**Locator escopado numa caixa que a feature acabou de esvaziar — o teste passa sem olhar.** A F6.6 do
+clone diz que o botão de cancelar some quando o download acaba, e o teste provava isso com
+`within(row).queryByRole("button", { name: /cancelar/ })`. A `sidebar-actions` moveu o botão da linha
+para o **rodapé do modal**; o `row` continuou existindo, continuou sem botão nenhum, e o teste
+continuou **verde** — provando que não há botão num lugar onde nunca mais haveria. A regra: quando uma
+feature muda **onde** um controle mora, todo `within(...)` que o cercava vira suspeito, e a correção é
+subir o escopo até o menor container que ainda contém as duas versões (aqui, o `role="dialog"`). O
+sintoma é sempre o mesmo — um teste que nunca falhou nem quando devia.
+
 **Suíte verde sobre um tipo errado, porque vitest não faz typecheck.** A `project-scripts`
 acrescentou a fase `test` ao `[scripts]`, e um helper do teste de router continuou listando as três
 fases originais numa união escrita à mão. Todos os testes passaram — `gate:quick` e `gate:full` — e o
