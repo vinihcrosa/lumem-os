@@ -57,6 +57,17 @@ export const E2E_FIXTURE_AGENT = join(E2E_FIXTURE_DIR, "bin", "fake-agent");
 export const E2E_FIXTURE_REPO_SCRIPTS = join(E2E_FIXTURE_DIR, "repo-scripts");
 
 /**
+ * O contrário do de cima: um repositório que **não** diz como rodar.
+ *
+ * Ele existe em vez de reaproveitar o `repo` genérico porque os specs dividem um
+ * daemon só, e o daemon recusa o mesmo caminho duas vezes — um repositório já
+ * adicionado por outro spec não pode ser adicionado de novo com outro nome. É o
+ * estado **normal** de todo projeto que entra no Lumem, e o único lugar do produto
+ * que diz que este repositório não sabe se levantar.
+ */
+export const E2E_FIXTURE_REPO_NOSCRIPTS = join(E2E_FIXTURE_DIR, "repo-noscripts");
+
+/**
  * Um oitavo, e este tem `origin` apontando para o GitHub — sem nunca ir lá.
  *
  * O remote existe porque é dele que o adaptador descobre o host (F4.2). Nada
@@ -133,6 +144,7 @@ export function createFixtures(): void {
     E2E_FIXTURE_REPO_ONBOARDING,
     E2E_FIXTURE_REPO_ORIGIN,
     E2E_FIXTURE_REPO_SCRIPTS,
+    E2E_FIXTURE_REPO_NOSCRIPTS,
     E2E_FIXTURE_REPO_PR,
   ]) {
     mkdirSync(repo, { recursive: true });

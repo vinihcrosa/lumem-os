@@ -5,7 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_STATE_DIR } from "../ports.js";
 import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
-import { E2E_FIXTURE_REPO_SCRIPTS } from "./support/fixtures.js";
+import { E2E_FIXTURE_REPO_NOSCRIPTS, E2E_FIXTURE_REPO_SCRIPTS } from "./support/fixtures.js";
 
 /**
  * O rodapé de execução, de ponta a ponta.
@@ -26,6 +26,13 @@ async function openColumn(page: Page): Promise<void> {
   await expect(page.getByLabel("arquivos do checkout")).toBeVisible();
 }
 
+/**
+ * Garante que o rodapé está aberto — e **não** que alguém clicou nele.
+ *
+ * Desde a `run-dock-open` ele nasce aberto, então o clique quase nunca acontece.
+ * A tolerância fica porque o que os outros testes precisam é do estado, não do
+ * gesto; quem prova a chegada é o teste logo abaixo, que proíbe o clique.
+ */
 async function openDock(page: Page): Promise<void> {
   await openColumn(page);
   const folded = page.getByRole("button", { name: "abrir o rodapé" });
@@ -120,4 +127,47 @@ test("worktree nova nasce preparada: o setup roda sozinho e a aba conta como foi
       { timeout: 30_000 },
     )
     .toBe(true);
+});
+
+/**
+ * A feature `run-dock-open`, de ponta a ponta.
+ *
+ * Cada teste do Playwright começa com um contexto novo, então o `localStorage`
+ * está vazio aqui — que é exatamente o primeiro contato que a feature decide.
+ */
+test("a chegada já mostra o rodapé, e quem fecha encontra fechado", async ({ page }) => {
+  await openColumn(page);
+
+  // Sem clique nenhum no rodapé: nem chevron, nem aba. O que abriu foi a coluna,
+  // que é decisão de outra feature.
+  await expect(page.getByRole("tablist", { name: "execução do checkout" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "abrir o rodapé" })).toHaveCount(0);
+
+  // F1.2: o padrão é o primeiro contato, não uma regra que sobrepõe a pessoa.
+  await page.getByRole("button", { name: "recolher o rodapé" }).click();
+  await expect(page.getByRole("button", { name: "abrir o rodapé" })).toBeVisible();
+
+  // A seleção do checkout não sobrevive à recarga — o `localStorage` do rodapé,
+  // sim, que é o que este teste afirma.
+  await page.reload();
+  await openProject(page, PROJECT);
+  await openColumn(page);
+  await expect(page.getByRole("button", { name: "abrir o rodapé" })).toBeVisible();
+  await expect(page.getByRole("tablist", { name: "execução do checkout" })).toHaveCount(0);
+});
+
+test("vale para o checkout que não declara [scripts], com o bloco inteiro", async ({ page }) => {
+  // Q3: é o único lugar do produto que diz que este repositório não sabe se
+  // levantar, e escondê-lo atrás de um clique é quase não tê-lo.
+  // Fixture própria, e não o `repo` genérico: os specs dividem um daemon, e ele
+  // recusa o mesmo caminho duas vezes. Rodando este arquivo sozinho a diferença
+  // não aparece — foi o `gate:full` que a achou.
+  await ensureProject(page, E2E_FIXTURE_REPO_NOSCRIPTS, "sem-scripts");
+  await openProject(page, "sem-scripts");
+  await openColumn(page);
+
+  const dock = page.getByTestId("run-dock");
+  await expect(dock.getByText("Este projeto não diz como rodar.")).toBeVisible();
+  await expect(dock.getByText(".lumem/project.toml")).toBeVisible();
+  await expect(dock.getByRole("button", { name: "pedir para o agente criar" })).toBeVisible();
 });

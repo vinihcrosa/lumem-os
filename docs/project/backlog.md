@@ -265,6 +265,36 @@ Todos vindos de [right-panel §8](../prd/right-panel/prd.md) e [file-editor §9]
 | Busca e substituição no arquivo | `P` | o CodeMirror já traz metade pronta | — |
 | Histórico, blame, log | `M` | outra coluna, outro modelo mental | — |
 
+### A faixa do rodapé de execução, e o `＋ nova aba de terminal` — `P`
+
+O desenho da [run-dock-open](../prd/run-dock-open/prd.md) mediu a faixa do rodapé em **494px** contra
+uma coluna de 360, e propôs três coisas juntas: descer `Abrir :porta` e `parar` para a linha de
+estado, apertar a faixa (`.dock__bar--tight`) e criar um `⋯` para onde o `＋` iria. Foi recusado
+inteiro, porque o `＋ nova aba de terminal` **não existe no produto** — o `.dock__new` está no CSS
+portado e o `RunDock.tsx` nunca o renderiza. O `⋯` nasceria com zero item, e a faixa apertaria para
+caber nele.
+
+A ordem certa é a inversa: primeiro o `＋` existir, depois o menu que o guarda.
+
+**De onde veio:** [run-dock-open Q6 e Q6a](../prd/run-dock-open/open-questions.md), revertida em
+2026-09-06 · **Volta quando:** alguém quiser uma segunda aba de terminal no rodapé, ou quando a faixa
+com um `run` vivo em 360px incomodar de verdade.
+
+### A saída que nunca rodou diz o que o daemon já sabe — `P`
+
+Hoje a aba de um script que nunca rodou mostra o `dock__idle`: *"este checkout ainda não rodou o run.
+O botão está ali em cima."* O desenho da run-dock-open propõe, no lugar, as três coisas que o daemon
+já sabe antes de qualquer processo — qual é o comando e de onde veio, que portas estão **reservadas**
+para este checkout, e quando o `setup` passou. É a mesma área: quando o run começa, as três linhas
+viram a saída de verdade.
+
+Todo o dado já chega no `ScriptStatus`. O que falta é decidir se isto é uma superfície de informação
+ou a saída de um terminal — e essa é a pergunta que faz disso uma feature e não um parágrafo.
+
+**De onde veio:** o quadro 1 do `lumem-run-dock-open.html`, adiado em 2026-09-06 para o escopo da
+feature continuar sendo uma linha · **Volta quando:** o rodapé nascer aberto e o retângulo vazio for a
+primeira coisa que se vê na maioria das chegadas.
+
 ---
 
 ## F. Plataforma

@@ -267,10 +267,9 @@ o par nativo por fora, ele **serve o web na própria porta**, o binário `lumem`
 
 ## As quatro que a tela pediu — desenhadas a partir dela, em 2026-09-01
 
-Nove anotações feitas clicando na tela `/` viraram quatro features independentes. Três já fecharam; a
-última — [run-dock-open](prd/run-dock-open/) — tem PRD e perguntas abertas. A nona anotação — *"abri a
-PR e não aparece"* — não virou feature: é a [pull-request-status](prd/pull-request-status/) acima, que
-saiu do desenho e **está implementada**.
+Nove anotações feitas clicando na tela `/` viraram quatro features independentes, e **as quatro
+fecharam**. A nona anotação — *"abri a PR e não aparece"* — não virou feature: é a
+[pull-request-status](prd/pull-request-status/) acima, que saiu do desenho e **está implementada**.
 
 ### [sidebar-actions/](prd/sidebar-actions/) — criar de onde se olha
 
@@ -312,16 +311,21 @@ frente, o nome da worktree só existe na aba.
 | [tasks.md](prd/worktree-first-tab/tasks.md) | 9 tasks em 4 fases, **todas entregues**. Sem daemon: o risco era de **regressão**. Termina com o que a execução achou — inclusive o bug que 826 testes de componente não pegam e o e2e pega |
 | `packages/web/prototype/lumem-worktree-tab.html` | O protótipo, vindo do Open Design: dez telas — antes × depois da moldura, a tela inteira, a barra de abas de perto com os estados do `▤`, a aba da worktree sozinha, o `▭ local`, as quatro leituras da Q1, os dois lugares do `▤` na Q2, os dois estados degradados que a aba herda, e o que o desenho não faz. **Zero token novo**; um componente novo só, o `.tabs__files` |
 
-### [run-dock-open/](prd/run-dock-open/) — o rodapé nasce aberto
+### [run-dock-open/](prd/run-dock-open/) — o rodapé nasce aberto · **completa**
 
 *"Minha aplicação está de pé, e em que porta?"* é a primeira pergunta ao chegar numa worktree, e a
-resposta chega recolhida. Mudar o padrão não é uma linha: o rodapé aberto sobe a coluna direita para
-**640px** e nasce com **metade da janela** de altura.
+resposta chegava recolhida. A PRD dizia que mudar o padrão **não** era uma linha — a conta de espaço
+travava: coluna em 640px, altura de metade da janela. O desenho **mediu** as duas parcelas e as duas
+já estavam pagas: chegar não é um `toggle`, então a coluna não sobe; e metade da coluna deixa 11 das
+16 linhas de árvore, contra 14 da alternativa — três linhas que não pagam um segundo número de altura
+no produto. **Era uma linha.**
 
 | Arquivo | O quê |
 |---|---|
-| [prd.md](prd/run-dock-open/prd.md) | As três parcelas da conta — largura, altura e processo — e por que só a terceira é barata |
-| [open-questions.md](prd/run-dock-open/open-questions.md) | 3 perguntas, e as duas primeiras são a mesma conta de espaço |
+| [prd.md](prd/run-dock-open/prd.md) | As três parcelas da conta — largura, altura e processo — e por que as três saíram de graça |
+| [open-questions.md](prd/run-dock-open/open-questions.md) | 7 perguntas, todas respondidas. Seis no Open Design em 2026-09-01; a **Q6 revertida em 2026-09-06**, antes do código, com a folha reescrita para registrar |
+| [tasks.md](prd/run-dock-open/tasks.md) | 3 tasks numa fase, todas entregues. A armadilha era a prova, não o código: o padrão fechado nunca teve teste, então não havia o que reescrever — havia o que escrever |
+| `packages/web/prototype/lumem-run-dock-open.html` | O protótipo: seis quadros que fazem a conta de espaço **aparecer** em vez de ser argumentada, cada decisão ao lado da alternativa recusada — e, desde 2026-09-06, a proposta de faixa que a Q6 derrubou, marcada e mantida |
 
 ### [session-mode/](prd/session-mode/) — o modo sempre na tela · **completa**
 

@@ -22,9 +22,22 @@ passo central é **instalar o tarball num runner limpo**, porque é o único que
 dinâmico, prebuild ausente e arquivo fora do pacote. A raiz ganhou `README.md` (em inglês, com
 tradução ao lado) e `LICENSE` (MIT).
 
-Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**. Três estão
-fechadas; a última segue **sem tasks** — [run-dock-open](docs/prd/run-dock-open/prd.md) (o rodapé de
-execução nasce aberto).
+Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**, e **as quatro
+estão fechadas**.
+
+A [run-dock-open](docs/prd/run-dock-open/prd.md) é a menor feature do repositório, e isso é o
+**resultado** das perguntas e não a premissa delas. A PRD chegou dizendo que a conta de espaço
+travava: o rodapé aberto subiria a coluna direita para 640px e nasceria com metade da janela. O
+desenho mediu as duas parcelas e as duas já estavam pagas — chegar não é um `toggle`, então a coluna
+fica nos 360px (com ~45 colunas de terminal, preço aceito); e metade da coluna deixa **11 das 16**
+linhas de árvore contra 14 da alternativa, três linhas que não pagam um segundo número de altura no
+produto. Sobrou **uma linha**: o `fallback` do `useRunDock`, de `open: false` para `open: true`. A
+**Q6** — descer os botões de ação para a linha de estado — foi respondida em 2026-09-01 e
+**revertida em 2026-09-06**, antes de qualquer código, porque a faixa nova paga por um `＋ nova aba
+de terminal` que não existe no produto; a folha do Open Design foi reescrita para registrar a
+reversão, porque a regra de design não permite o contrário. E a armadilha não era o código: o padrão
+fechado **nunca teve teste** em três features, então não havia o que reescrever — havia o que
+escrever.
 
 A [sidebar-actions](docs/prd/sidebar-actions/prd.md) está **completa** — 11 tasks, 6 perguntas mais
 duas derivadas. As duas coisas que o Lumem cria passaram a se criar de onde elas moram: um `+` no
