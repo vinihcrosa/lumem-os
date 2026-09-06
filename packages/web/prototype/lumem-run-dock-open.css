@@ -1,0 +1,138 @@
+/* ============================================================================
+   Lumem-OS — o rodapé nasce aberto (run-dock-open)
+
+   Camada fina sobre `lumem-run-dock.css`: o rodapé, as abas, a saída, o vazio
+   que ensina e a tira recolhida JÁ EXISTEM lá. O que nasce aqui é só o que a
+   feature acrescenta — uma altura, uma faixa que caiba em 360px, e os quadros
+   de comparação que fazem a conta de espaço aparecer em vez de ser argumentada.
+
+   Nenhum valor novo: tudo é composição de token.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+   0. a altura
+   -------------------------------------------------------------------------- */
+/*
+ * DECIDIDO em 2026-09-01: ele nasce com **metade da coluna**, que é a altura
+ * que ele já tem hoje quando alguém o abre. A altura de leitura fixa (192px)
+ * foi desenhada, comparada no quadro 3 e **recusada** — o que se ganharia em
+ * árvore não pagava um segundo número de altura no produto.
+ *
+ * Então não nasce token novo aqui: `50%` é o que o `defaultHeight()` já calcula.
+ */
+.dock--half { height: 50%; }
+
+/* Mantida só para o quadro 3, que registra a alternativa recusada ao lado da
+   decisão: comparação sem o desenho do que se comparou é afirmação. */
+.dock--reading { height: calc(var(--space-64) * 3); }
+
+/* ---------------------------------------------------------------------------
+   1. a faixa que cabe em 360px
+   -------------------------------------------------------------------------- */
+/*
+ * Em 640px a faixa acomoda chevron + quatro abas + `＋` + os botões de ação. Em
+ * 360 não acomoda — e a resposta não é encolher fonte até caber, é tirar da
+ * faixa o que não é leitura: o `＋` (gesto raro) vira item do `⋯`, e a ação
+ * primária desce para a linha de estado, que é onde ela é lida junto com o
+ * estado que a justifica.
+ */
+.dock__bar--tight { gap: 0; padding: 0 var(--space-4); }
+.dock__bar--tight .dtab { padding: 0 var(--space-6); font: var(--text-label-xs); }
+.dock__bar--tight .dock__new { display: none; }
+
+.dock__more {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-xs);
+}
+.dock__more:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+/*
+ * A linha de estado com a ação dentro. Ela cresce de 28 para 32px — a altura de
+ * um botão pequeno mais respiro — porque é ela que passa a carregar o único
+ * gesto do rodapé na chegada.
+ */
+.dock__state--acts { height: var(--size-control-lg); gap: var(--space-6); }
+.dock__state--acts .spacer { flex: 1; }
+
+/*
+ * Nunca rodou nesta worktree: o comando existe, o processo não. Ele aparece em
+ * terciário — é o que VAI rodar, não o que rodou.
+ */
+.dock__state .chip--idle { color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------------------------------
+   2. a saída em 360px
+   -------------------------------------------------------------------------- */
+/*
+ * No PRODUTO isto não é CSS: a saída do rodapé é `xterm` com `FitAddon`, e ele
+ * reflui sozinho para as colunas que tem — o daemon redimensiona o PTY junto.
+ * Numa coluna de 360px sobram ~45 colunas, e é assim que os processos são
+ * informados.
+ *
+ * Aqui a dobra é imitada em CSS só para o protótipo mostrar o que se vê. O que
+ * é decisão de verdade é o número: **45 colunas na chegada**, aceito em
+ * 2026-09-01, contra 280px do painel central que o piso de 640 custaria.
+ */
+.dockout--soft .l { white-space: pre-wrap; overflow-wrap: anywhere; }
+.dockout--soft .l + .l { margin-top: var(--space-2); }
+
+/* A dobra é uma perda, e ela se anuncia: a última linha diz quantas ficaram
+   para trás em vez de deixar a rolagem ser a única pista. */
+.dockout__more { display: block; padding-top: var(--space-6); font: var(--text-caption); color: var(--color-text-disabled); }
+
+/* ---------------------------------------------------------------------------
+   4. andaimes: os quadros que fazem a conta de espaço aparecer
+   -------------------------------------------------------------------------- */
+/*
+ * Uma coluna da direita isolada, na largura real. Comparar alturas dentro de um
+ * app inteiro esconde o que se quer comparar; comparar em caixa sem largura
+ * fixa é comparar nada — a conta desta feature É a largura.
+ */
+.mini {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: var(--size-panel-right);
+  height: calc(var(--space-64) * 9);
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+.mini--wide { width: var(--size-panel-right-max); }
+
+/* Mais alta, para os quadros onde o que se compara é o CONTEÚDO do rodapé e não
+   a altura dele: em 576px a metade da coluna corta o bloco de `[scripts]` no
+   meio, e um bloco cortado leria como defeito do bloco. */
+.mini--tall { height: calc(var(--space-64) * 11); }
+
+.cmp { display: flex; gap: var(--space-16); justify-content: center; align-items: start; flex-wrap: wrap; }
+.cmp__col { display: grid; gap: var(--space-8); }
+.cmp__n { font: var(--text-caption); color: var(--color-text-tertiary); text-align: center; }
+.cmp__n b { color: var(--color-text-primary); font-weight: 500; }
+.cmp__n--now { color: var(--color-text-warning); }
+.cmp__n--pick { color: var(--color-text-brand); }
+
+/* Quantos arquivos sobram acima do rodapé — o número que a Q1 decide. */
+.mini__count {
+  flex: none;
+  padding: var(--space-4) var(--space-8);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font: var(--text-caption);
+  color: var(--color-text-disabled);
+}
+
+/* A regra escrita ao lado do desenho: quando o piso de 640 entra em vigor. */
+.rule { display: grid; gap: var(--space-8); }
+.rule__row { display: flex; align-items: baseline; gap: var(--space-10); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.rule__k { flex: none; min-width: 14ch; font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.rule__row--no .rule__k { color: var(--color-text-warning); }

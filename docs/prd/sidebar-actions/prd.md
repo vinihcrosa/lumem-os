@@ -1,16 +1,20 @@
 # PRD — As ações da árvore: criar projeto e criar worktree de onde se olha
 
-> **Status:** v0.1 — desenho **não** feito, nada implementado. Nasceu de três anotações do
+> **Status:** v1.0 — **desenho feito e sincronizado**, seis perguntas respondidas, implementada.
+> Nasceu de três anotações do
 > agentation na tela `/`, todas dizendo a mesma coisa por ângulos
 > diferentes: *"deveria ter um botão na direita para poder adicionar um projeto direto por aqui"*,
 > *"no canto direito deveria ter um botão + para criar uma worktree direto por ali"*, *"esse botão
 > não deveria estar aqui"*
-> **Perguntas:** [open-questions.md](open-questions.md)
-> **Tasks:** ainda não escritas
+> **Perguntas:** [open-questions.md](open-questions.md) — **6 respondidas**, duas
+> ([Q1](open-questions.md), [Q5](open-questions.md)) **contra a proposta e contra o desenho**
+> **Tasks:** [tasks.md](tasks.md)
 > **Depende de:** `project.create`/`project.parseSource` e `worktree.create` — as duas mutations já
 > existem e não mudam. Esta feature é de **onde se clica**, não de o que acontece depois
-> **Desenho:** a fazer no Open Design, projeto `lumem-os`
-> ([regra](../../project/design-source-of-truth.md))
+> **Desenho:** `packages/web/prototype/lumem-sidebar-actions.html` — oito quadros, feito no Open
+> Design e sincronizado ([regra](../../project/design-source-of-truth.md)). A Q1 e a Q5 foram
+> revistas **depois** dele, e o desenho foi **reescrito lá** antes de virar código: a tela desenhada
+> e a tela implementada não divergem
 
 ---
 
@@ -78,7 +82,9 @@ ação de volta. Ver [Q3](open-questions.md).
 
 **O clone em andamento hoje mora dentro do diálogo do rodapé.** Um clone leva minutos, e um modal
 central que se fecha ao terminar não é o mesmo que um cartão que fica na sidebar dizendo `clonando…`.
-O `CloneStatus` continua existindo; o que muda é quem o hospeda. Ver [Q5](open-questions.md).
+O `CloneStatus` continua existindo; o que muda é quem o hospeda. Ver [Q5](open-questions.md) — que foi
+respondida **contra a proposta**: o hospedeiro passou a ser o próprio diálogo, que **fica aberto**. O
+preço está escrito lá e é real: a tela fica presa por minutos.
 
 ## 3. Escopo
 
@@ -92,7 +98,17 @@ uma ação, não uma navegação.
 destino que o caminho de hoje entrega.
 **F1.6** O botão `＋adicionar projeto` do rodapé da sidebar é **removido**.
 **F1.7** Os dois diálogos fecham com `Esc`, com clique no véu e no `✕`; o foco entra no primeiro
-campo e não escapa do modal enquanto ele está aberto.
+campo e não escapa do modal enquanto ele está aberto — **exceto** enquanto um clone que o próprio
+diálogo começou está em andamento, quando os três ficam desabilitados e a saída é `cancelar o clone`
+([Q5a](open-questions.md)).
+**F1.9** O clone **não** fecha o diálogo: o `AddProjectDialog` hospeda o progresso, o cancelamento e
+as duas maneiras de acabar. Só o sucesso fecha; a falha devolve o formulário com a URL onde estava. E
+um clone vivo encontrado ao carregar a página **reabre** o diálogo, porque não existe segundo
+hospedeiro ([Q5](open-questions.md)).
+**F1.10** O slot de ação de 24px é **reservado em toda linha de projeto**, inclusive nas que não
+oferecem ação, e o `+` é **pintado em repouso** — o hover confirma a mira, não revela a ação
+([Q1](open-questions.md)). O `count` de sessões não cede o lugar: os dois convivem
+([Q1b](open-questions.md)).
 **F1.8** Um projeto **sem disco** (`available: false`) não oferece o `+`: não há de onde cortar
 worktree.
 

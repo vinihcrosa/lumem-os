@@ -367,6 +367,19 @@ um `purpose` (`distill`, `auto_learn`) **separado** do consumo do usuário, o qu
 não gravar: nada disso é contado como trabalho seu. **De onde veio:** `usage/record.ts`, a decisão U4
 da [tela do workspace](../prd/workspace-screen/tasks.md).
 
+### Atalho de teclado para criar worktree — `P`
+
+`⌘N` no projeto selecionado. É a ação mais repetida do produto, e a única com candidato óbvio.
+
+Ficou fora do v1 da [sidebar-actions](../prd/sidebar-actions/prd.md) porque um atalho global precisa
+saber **o que está em foco** antes de decidir de quem a tecla é: a mesma combinação dentro de um
+terminal embutido ou de um editor CodeMirror pertence a eles, e um atalho que rouba `⌘N` do `xterm` é
+pior que não ter atalho. Precisa de uma noção de "escopo de foco" que o app não tem.
+
+**De onde veio:** [Q6](../prd/sidebar-actions/open-questions.md) da `sidebar-actions` · **Volta
+quando:** existir um segundo atalho global querendo a mesma decisão — ou quando alguém contar quantas
+vezes por dia clica no `+`.
+
 ### A árvore da sidebar não é uma árvore para quem usa leitor de tela — `P`
 
 A árvore de **arquivos** do painel direito é `role="tree"`. A árvore de **projetos** da sidebar é um
