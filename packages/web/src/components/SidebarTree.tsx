@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 
+import type { PrMark } from "@lumem/shared";
+
 import { useAwaitingPermission } from "../hooks/useAwaitingPermission.js";
+import { usePrMarks } from "../hooks/usePullRequest.js";
 import { useScripts } from "../hooks/useScripts.js";
 import { useRunningAcross, useSessionsByScope, type Scope } from "../hooks/useSessionsByScope.js";
 import type { TreeExpansion } from "../hooks/useTreeExpansion.js";
@@ -8,6 +11,7 @@ import { projectsKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { EmptyState, Glyph, Row, Skeleton } from "../ui/index.js";
 
+import "./pr-bar.css";
 import "./run-dock.css";
 
 /**
@@ -114,6 +118,21 @@ function ProjectNode({
   ];
   const running = useRunningAcross(scopes);
 
+  /*
+   * O estado da PR de **todas** as worktrees, numa consulta só.
+   *
+   * Pedido neste nível e não na linha: uma consulta por linha seria N processos
+   * `gh` por ciclo, que é exatamente o que a F4.3 existe para não acontecer. As
+   * linhas leem o resultado; nenhuma pergunta.
+   *
+   * E este é o sinal que **sobrevive ao painel direito colapsado** — que nasce
+   * colapsado. Sem ele, a pergunta que a feature existe para responder (qual
+   * das oito worktrees está pronta) não teria onde ser respondida.
+   */
+  const marks = usePrMarks(project.available && expanded ? project.id : null);
+  const markOf = (worktreeId: string): PrMark | undefined =>
+    (marks.data ?? []).find((mark) => mark.worktreeId === worktreeId);
+
   return (
     <>
       <div data-kind="project" data-state={project.available ? "available" : "missing"}>
@@ -156,6 +175,7 @@ function ProjectNode({
               key={worktree.id}
               projectId={project.id}
               worktree={worktree}
+              mark={markOf(worktree.id)}
               selected={
                 selection.scopeType === "worktree" && selection.scopeId === worktree.id
               }
@@ -254,14 +274,43 @@ function worktreeMeta(worktree: WorktreeSummary): string | undefined {
   return parts.length === 0 ? undefined : parts.join(" · ");
 }
 
+/**
+ * `● #19` na linha, com a cor do mesmo veredito da barra.
+ *
+ * Worktree sem PR não ganha nada (Q9): marcador cinza em cinco linhas ensina o
+ * olho a ignorar a coluna inteira, e aí o vermelho da sexta chega tarde.
+ *
+ * A cor sai do **mesmo** veredito que a barra usa — não há segunda regra aqui,
+ * só uma tradução de veredito para classe.
+ */
+function PrMarkView({ mark }: { mark: PrMark }) {
+  return (
+    <span className={`prmark prmark--${mark.verdict}`}>
+      <span className="prmark__dot" aria-hidden="true" />#{mark.number}
+      <span className="sr-only"> pull request {WORD[mark.verdict]}</span>
+    </span>
+  );
+}
+
+const WORD: Record<PrMark["verdict"], string> = {
+  ready: "pronta para merge",
+  blocked: "bloqueada",
+  pending: "verificando",
+  draft: "em rascunho",
+  merged: "mesclada",
+  closed: "fechada sem merge",
+};
+
 function WorktreeNode({
   projectId,
   worktree,
+  mark,
   selected,
   onSelect,
 }: {
   projectId: string;
   worktree: WorktreeSummary;
+  mark: PrMark | undefined;
   selected: boolean;
   onSelect: SidebarTreeProps["onSelect"];
 }) {
@@ -284,7 +333,21 @@ function WorktreeNode({
         // F7.4: it stays visible and says so, instead of disappearing.
         muted={missing}
         meta={
-          worktreeMeta(worktree) ?? (missing ? undefined : <ScriptMark scope={scope} />) ?? undefined
+          // O marcador da PR ganha do resto: ele é o que responde "qual está
+          // pronta", e é o único sinal de PR que sobrevive ao painel fechado.
+          // O nome da worktree trunca antes de ele sair (F3.1).
+          //
+          // Menos quando a worktree **sumiu do disco**. Aí a palavra `ausente`
+          // ganha: a F7.4 da `walking-skeleton` diz que ela fica visível e diz
+          // que sumiu, e trocar isso por `● #19` seria o marcador apagando o
+          // motivo pelo qual a linha ainda existe.
+          mark !== undefined && !missing ? (
+            <PrMarkView mark={mark} />
+          ) : (
+            (worktreeMeta(worktree) ??
+              (missing ? undefined : <ScriptMark scope={scope} />) ??
+              undefined)
+          )
         }
         count={asking > 0 ? asking : running > 0 ? running : undefined}
         countTone={asking > 0 ? "asking" : "running"}

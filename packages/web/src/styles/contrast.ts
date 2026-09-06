@@ -167,6 +167,23 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   // destrutivo — texto normal sobre bg/danger-subtle, que so tinha o par do
   // texto em vermelho.
   { label: "o que passa a acontecer / portao", fg: "text/primary", bg: "bg/danger-subtle", min: 4.5 },
+  // a barra da pull request: cada veredito pinta texto sobre a rampa `subtle`
+  // da propria cor. Zero token novo — o que a feature acrescenta sao PARES, que
+  // e o que faz esta lista crescer em vez de envelhecer.
+  { label: "pronta / barra da PR", fg: "text/success", bg: "bg/success-subtle", min: 4.5 },
+  { label: "bloqueada / barra da PR", fg: "text/danger", bg: "bg/danger-subtle", min: 4.5 },
+  { label: "verificando / barra da PR", fg: "text/warning", bg: "bg/warning-subtle", min: 4.5 },
+  { label: "mesclada / barra da PR", fg: "text/brand", bg: "bg/brand-subtle", min: 4.5 },
+  { label: "sem PR / barra da PR", fg: "text/secondary", bg: "bg/neutral-subtle", min: 4.5 },
+  // o motivo e a idade ficam em texto secundario e terciario SOBRE a faixa
+  // colorida — e nao sobre a superficie, que e onde os pares antigos mediram.
+  { label: "motivo / barra da PR pronta", fg: "text/secondary", bg: "bg/success-subtle", min: 4.5 },
+  { label: "motivo / barra da PR bloqueada", fg: "text/secondary", bg: "bg/danger-subtle", min: 4.5 },
+  { label: "motivo / barra da PR verificando", fg: "text/secondary", bg: "bg/warning-subtle", min: 4.5 },
+  { label: "motivo / barra da PR mesclada", fg: "text/secondary", bg: "bg/brand-subtle", min: 4.5 },
+  { label: "idade / barra da PR", fg: "text/tertiary", bg: "bg/neutral-subtle", min: 3.0 },
+  { label: "idade velha / barra da PR", fg: "text/warning", bg: "bg/neutral-subtle", min: 4.5 },
+  { label: "nome de check / barra da PR", fg: "text/primary", bg: "bg/danger-subtle", min: 4.5 },
 ];
 
 /** Luminância relativa, WCAG 2.1. */

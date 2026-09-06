@@ -1,0 +1,150 @@
+[
+  {
+    "number": 35,
+    "url": "https://github.com/vinihcrosa/lumem-os/pull/35",
+    "title": "docs(prd): quatro PRDs da avaliação de arquitetura",
+    "state": "MERGED",
+    "isDraft": false,
+    "mergeable": "UNKNOWN",
+    "mergeStateStatus": "UNKNOWN",
+    "reviewDecision": "",
+    "headRefName": "docs/prds-from-architecture-review",
+    "baseRefName": "main",
+    "updatedAt": "2026-09-05T22:12:09Z",
+    "mergedAt": "2026-09-05T22:12:09Z",
+    "closedAt": "2026-09-05T22:12:09Z",
+    "author": "pessoa-8",
+    "reviews": [],
+    "checks": [
+      {
+        "name": "typecheck, build e testes",
+        "app": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/vinihcrosa/lumem-os/actions/runs/33987021997/job/101362390201",
+        "startedAt": "2026-09-05T19:24:38Z",
+        "completedAt": "2026-09-05T19:26:38Z"
+      },
+      {
+        "name": "e2e",
+        "app": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/vinihcrosa/lumem-os/actions/runs/33987021997/job/101362390072",
+        "startedAt": "2026-09-05T19:24:38Z",
+        "completedAt": "2026-09-05T19:28:13Z"
+      }
+    ]
+  },
+  {
+    "number": 34,
+    "url": "https://github.com/vinihcrosa/lumem-os/pull/34",
+    "title": "worktree-first-tab: a worktree vira a primeira aba, e leva os arquivos junto",
+    "state": "MERGED",
+    "isDraft": false,
+    "mergeable": "UNKNOWN",
+    "mergeStateStatus": "UNKNOWN",
+    "reviewDecision": "",
+    "headRefName": "docs/screen-feedback-prds-v3",
+    "baseRefName": "docs/screen-feedback-prds",
+    "updatedAt": "2026-09-01T07:19:03Z",
+    "mergedAt": "2026-09-01T07:19:03Z",
+    "closedAt": "2026-09-01T07:19:03Z",
+    "author": "pessoa-8",
+    "reviews": [],
+    "checks": [
+      {
+        "name": "typecheck, build e testes",
+        "app": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/vinihcrosa/lumem-os/actions/runs/33479953701/job/99767132574",
+        "startedAt": "2026-09-01T06:58:40Z",
+        "completedAt": "2026-09-01T07:00:47Z"
+      },
+      {
+        "name": "e2e",
+        "app": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/vinihcrosa/lumem-os/actions/runs/33479953701/job/99767132755",
+        "startedAt": "2026-09-01T06:58:40Z",
+        "completedAt": "2026-09-01T07:02:10Z"
+      }
+    ]
+  },
+  {
+    "number": 33,
+    "url": "https://github.com/vinihcrosa/lumem-os/pull/33",
+    "title": "design(run-dock-open): a chegada desenhada, e a conta dos 360px",
+    "state": "MERGED",
+    "isDraft": false,
+    "mergeable": "UNKNOWN",
+    "mergeStateStatus": "UNKNOWN",
+    "reviewDecision": "",
+    "headRefName": "docs/screen-feedback-prds-v4",
+    "baseRefName": "docs/screen-feedback-prds",
+    "updatedAt": "2026-09-05T18:44:57Z",
+    "mergedAt": "2026-09-05T18:44:57Z",
+    "closedAt": "2026-09-05T18:44:57Z",
+    "author": "pessoa-8",
+    "reviews": [],
+    "checks": [
+      {
+        "name": "typecheck, build e testes",
+        "app": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/vinihcrosa/lumem-os/actions/runs/33984056170/job/101354262287",
+        "startedAt": "2026-09-05T18:26:18Z",
+        "completedAt": "2026-09-05T18:28:35Z"
+      },
+      {
+        "name": "e2e",
+        "app": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/vinihcrosa/lumem-os/actions/runs/33984056170/job/101354262184",
+        "startedAt": "2026-09-05T18:26:18Z",
+        "completedAt": "2026-09-05T18:29:48Z"
+      }
+    ]
+  },
+  {
+    "number": 32,
+    "url": "https://github.com/vinihcrosa/lumem-os/pull/32",
+    "title": "feat(session-mode): a pílula de modo que nunca falta, e a política do Lumem atrás dela",
+    "state": "MERGED",
+    "isDraft": false,
+    "mergeable": "UNKNOWN",
+    "mergeStateStatus": "UNKNOWN",
+    "reviewDecision": "",
+    "headRefName": "docs/screen-feedback-prds-v5",
+    "baseRefName": "docs/screen-feedback-prds",
+    "updatedAt": "2026-09-01T07:30:02Z",
+    "mergedAt": "2026-09-01T07:30:01Z",
+    "closedAt": "2026-09-01T07:30:01Z",
+    "author": "pessoa-8",
+    "reviews": [],
+    "checks": [
+      {
+        "name": "typecheck, build e testes",
+        "app": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/vinihcrosa/lumem-os/actions/runs/33482111697/job/99773832688",
+        "startedAt": "2026-09-01T07:26:09Z",
+        "completedAt": "2026-09-01T07:28:20Z"
+      },
+      {
+        "name": "e2e",
+        "app": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/vinihcrosa/lumem-os/actions/runs/33482111697/job/99773832335",
+        "startedAt": "2026-09-01T07:26:08Z",
+        "completedAt": "2026-09-01T07:29:36Z"
+      }
+    ]
+  }
+]

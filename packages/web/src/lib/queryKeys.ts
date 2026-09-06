@@ -132,3 +132,29 @@ export function playbooksKey(workspaceId: string | null, archived: boolean) {
 export function cloneJobsKey(workspaceId: string) {
   return ["project", "cloneJobs", workspaceId] as const;
 }
+
+/**
+ * O estado da pull request de um checkout, e os marcadores de um projeto.
+ *
+ * Prefixadas por `pr` para que mesclar possa invalidar `["pr"]` inteiro de uma
+ * vez: um merge muda a barra **e** o marcador da sidebar, e invalidar um dos
+ * dois é como uma tela passa a discordar de si mesma.
+ */
+export function prStatusKey(worktreeId: string) {
+  return ["pr", "getByWorktree", worktreeId] as const;
+}
+
+export function prMarksKey(projectId: string) {
+  return ["pr", "listByProject", projectId] as const;
+}
+
+/**
+ * O que o formulário de criar pull request propõe.
+ *
+ * Sob o mesmo prefixo `pr`, para o `⟳` e o evento do daemon alcançarem — o
+ * assunto do último commit muda quando alguém commita, e a barra é quem primeiro
+ * percebe que a worktree se mexeu.
+ */
+export function prDraftKey(worktreeId: string) {
+  return ["pr", "draft", worktreeId] as const;
+}

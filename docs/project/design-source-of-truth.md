@@ -53,7 +53,7 @@ de hexadecimal em JavaScript, e `var(--token)` não é valor que eles saibam ler
 mecânica e sem perda: os semânticos do CSS apontam para primitiva por `var(--familia-degrau)`, que é
 exatamente a indireção que o TypeScript reproduz. Nada em `tokens-from-css.ts` escolhe cor.
 
-**A verificação de contraste ficou, e passou a valer mais.** Os 99 pares foram portados para
+**A verificação de contraste ficou, e passou a valer mais.** Os 99 pares de então foram portados para
 `packages/web/src/styles/contrast.ts` e são conferidos no `gate:quick`. Antes a conta rodava na
 geração, onde as cores nasciam de uma fórmula; agora roda no gate, e o que ela vigia é cor escolhida à
 mão numa ferramenta de design — que é justamente o caso que mais precisa de alguém conferindo.
@@ -62,7 +62,7 @@ mão numa ferramenta de design — que é justamente o caso que mais precisa de 
 
 | Garante | Como |
 |---|---|
-| Todo par de contraste declarado passa | `tokens.test.ts` lê `tokens.ts` e roda os 99 pares |
+| Todo par de contraste declarado passa | `tokens.test.ts` lê `tokens.ts` e roda **todos os pares declarados** — eram 99 na migração, são 119 desde a barra da PR. Feature que acrescenta par sobe o piso do teste junto, senão a guarda deixa de guardar o que foi acrescentado |
 | A escada de cinzas é monótona | número maior é sempre mais escuro; quebrar envenena toda superfície |
 | O `tokens.ts` commitado é o que a derivação produz | pega edição à mão do derivado **e** sync sem derivar |
 | Nenhum par aponta para token que não existe | lista envelhecendo em silêncio é o modo de falha a evitar |

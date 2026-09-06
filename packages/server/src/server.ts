@@ -10,6 +10,9 @@ import { createEventBus, type EventBus } from "./events.js";
 import { MAX_FILE_BYTES } from "./files/FileService.js";
 import { createCloneJobStore, type CloneJobStore } from "./git/CloneJobStore.js";
 import { createGitService, type GitService } from "./git/GitService.js";
+import { createGhHost } from "./pr/GhHost.js";
+import { createPrCache, type PrCache } from "./pr/PrCache.js";
+import type { PrHost } from "./pr/PrHost.js";
 import { AcpManager } from "./acp/AcpManager.js";
 import { registerAcpWebSocket } from "./acp/websocket.js";
 import type { PtyManager } from "./pty/PtyManager.js";
@@ -94,6 +97,15 @@ export interface CreateServerOptions {
   git?: GitService;
   /** Lives as long as the daemon: a clone outlives the request that began it. */
   clones?: CloneJobStore;
+  /**
+   * Quem fala com o host de git, e o cache por projeto na frente dele.
+   *
+   * Vivem tanto quanto o daemon pelo mesmo motivo do `clones`: o que eles
+   * guardam — o último instantâneo e a execução em voo — é o que faz oito
+   * worktrees custarem um processo, e um cache por requisição não guarda nada.
+   */
+  prHost?: PrHost;
+  pr?: PrCache;
   /** Fastify's own request logging. Off in tests, on for the daemon. */
   logger?: boolean;
 }
@@ -115,6 +127,13 @@ export async function createServer({
   }),
   git = createGitService(),
   clones = createCloneJobStore(),
+  prHost = createGhHost(),
+  pr = createPrCache({
+    host: prHost,
+    // F6.3: a barra não depende só do relógio dela. É o que faz um merge feito
+    // noutra aba aparecer nesta sem esperar o próximo ciclo.
+    onChange: (projectId) => events.emit({ type: "pr.changed", projectId }),
+  }),
   logger = false,
 }: CreateServerOptions): Promise<FastifyInstance> {
   const app = Fastify({
@@ -134,6 +153,8 @@ export async function createServer({
     scripts,
     git,
     clones,
+    pr,
+    prHost,
     events,
   });
 

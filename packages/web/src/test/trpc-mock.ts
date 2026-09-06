@@ -33,6 +33,26 @@ const DEFAULT_SETTINGS = { distill: false, autoLearn: false, autoLearnBudget: 3 
  * Default do mock pelo mesmo motivo dos outros: o rodapé consulta no `mount`, e um
  * teste que fala de outra coisa não pode quebrar por causa disso.
  */
+/**
+ * A worktree sem pull request — o estado de toda branch recém-criada.
+ *
+ * Default do mock pelo mesmo motivo dos outros: a barra consulta no `mount` da
+ * coluna, e um teste que fala de arquivo não pode quebrar por causa disso. E o
+ * default é a **resposta vazia**, e não uma PR inventada: quem quer asserir
+ * sobre a barra continua obrigado a dizer qual é o estado dela.
+ */
+export const NO_PULL_REQUEST = {
+  pull: null,
+  failure: null,
+  readAt: null,
+  host: null,
+  branch: "teste",
+  base: "main",
+  published: false,
+  compareUrl: null,
+  merge: { merge: false, squash: false, rebase: false, deleteBranchOnMerge: false },
+};
+
 export const NO_SCRIPTS_STATUS = {
   scripts: { setup: null, run: null, test: null, teardown: null },
   file: "/repo/.lumem/project.toml",
@@ -160,6 +180,16 @@ function createTrpcMock() {
       resume: { mutate: vi.fn() },
       close: { mutate: vi.fn() },
     },
+    pr: {
+      getByWorktree: { query: vi.fn().mockResolvedValue(NO_PULL_REQUEST) },
+      draft: {
+        query: vi.fn().mockResolvedValue({ title: "", base: "main", head: "teste" }),
+      },
+      listByProject: { query: vi.fn().mockResolvedValue([]) },
+      merge: { mutate: vi.fn() },
+      create: { mutate: vi.fn() },
+      refresh: { mutate: vi.fn() },
+    },
     scripts: {
       status: { query: vi.fn().mockResolvedValue(NO_SCRIPTS_STATUS) },
       start: { mutate: vi.fn() },
@@ -213,4 +243,7 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   mock.memory.usage.query.mockResolvedValue([]);
   mock.memory.playbooks.query.mockResolvedValue([]);
   mock.scripts.status.query.mockResolvedValue(NO_SCRIPTS_STATUS);
+  mock.pr.getByWorktree.query.mockResolvedValue(NO_PULL_REQUEST);
+  mock.pr.listByProject.query.mockResolvedValue([]);
+  mock.pr.draft.query.mockResolvedValue({ title: "", base: "main", head: "teste" });
 }

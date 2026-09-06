@@ -150,16 +150,41 @@ Isso é potencialmente invasivo (grava tudo que você faz). Qual o limite confor
 
 ## E. Git e integrações
 
-### [ ] Q022 — Abstração de git host: qual o nível?
+### [x] Q022 — Abstração de git host: qual o nível?
 (a) interface comum mínima (listar PRs, criar PR, status de CI) com adapters GitHub/GitLab; (b) recurso completo por host (reviews, comentários inline, threads); (c) só GitHub no v1 e a abstração fica pra depois.
 O (b) é onde a maioria dos projetos morre de escopo.
 
-**R:**
+**R:** o (a), com uma implementação só.
 
-### [ ] Q023 — O Lumem mexe no git sozinho?
+**Decisão: a interface existe desde o v1, e tem uma implementação — GitHub pelo `gh`.**
+A [pull-request-status](../prd/pull-request-status/prd.md) escreveu o `PrHost`: *"dado um repositório
+e as branches dele, o que o host sabe"*, mais os dois verbos que escrevem. O (b) ficou fora inteiro, e
+o §5 do PRD diz por quê.
+
+A parte da resposta que só a implementação podia dar: **a segunda implementação não entra até haver um
+repositório de verdade para exercitá-la**. O primeiro host sempre cabe na abstração que ele mesmo
+gerou, então uma segunda desenhada contra imaginação é abstração errada com custo de manutenção
+verdadeiro. O GitLab por `glab` está no [backlog](backlog.md), com esse gatilho escrito.
+
+### [x] Q023 — O Lumem mexe no git sozinho?
 Ele commita? Faz push? Abre PR sem perguntar? Faz merge? Ou toda ação que escreve no remoto é confirmação sua?
 
-**R:**
+**R:** ele escreve **dois verbos**, e nenhum sem você mandar.
+
+**Decisão: nada acontece no remoto sem um gesto seu, e a lista de gestos é curta o bastante para caber
+numa revisão de código.** A [pull-request-status](../prd/pull-request-status/prd.md) trouxe
+`pr.merge` e `pr.create` — e a resposta é tão interessante pelo que ela **não** inclui:
+
+- **não commita sozinho**, não faz push sozinho, não abre PR sozinho;
+- **mesclar tem portão duplo**: o botão só aparece com o veredito `ready`, e o daemon **relê o
+  veredito** antes de escrever. Um botão escondido é conforto; a recusa no daemon é a garantia;
+- **criar exige branch publicada**, e quando ela não está, publicar é dito em voz alta antes — porque
+  `git push` também é escrita no remoto;
+- **reexecutar verificação, aprovar e comentar continuam fora**, e continuam no [backlog](backlog.md).
+
+O que essa feature **não** responde: se um agente pode acionar esses verbos por conta própria. Hoje
+não pode — eles são procedures do cliente, e a conversa não os alcança. O dia em que alguém quiser
+"peça ao agente para abrir a PR" é uma decisão nova, com portão próprio.
 
 ### [ ] Q024 — Quais integrações são realmente necessárias no v1?
 GitHub, GitLab, ClickUp, Teams, CI... ou nada disso e o v1 é só git local + agentes?

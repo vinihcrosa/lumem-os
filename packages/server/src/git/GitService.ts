@@ -151,6 +151,35 @@ export interface GitService {
   getStatus(path: string): Promise<WorktreeStatus>;
   getAheadBehind(path: string, baseBranch: string): Promise<AheadBehind>;
   /**
+   * Se algum remoto conhece esta branch — sem ir à rede.
+   *
+   * A pergunta que separa "sem pull request" de "branch não publicada" na barra
+   * da PR: as duas são neutras, e dizer a errada manda a pessoa procurar uma PR
+   * que não podia existir. Lê a referência de rastreamento que já está no
+   * disco, e por isso responde offline.
+   */
+  hasRemoteBranch(path: string, branch: string): Promise<boolean>;
+  /**
+   * O endereço de `origin`, lido do disco. `null` quando não há remoto.
+   *
+   * Existe porque o banco **não** é fonte confiável para isto: `remote_url` só é
+   * preenchido para projeto que o Lumem clonou, e projeto adicionado por caminho
+   * — que é a maioria — nasce com ele nulo mesmo tendo `origin` configurado.
+   * Confiar no banco fazia a barra da PR dizer "sem integração" para um
+   * repositório do GitHub, e foi o e2e que achou.
+   */
+  getRemoteUrl(path: string): Promise<string | null>;
+  /**
+   * O assunto do último commit deste checkout. `null` quando não há commit.
+   *
+   * Existe para o formulário de criar pull request **propor** um título
+   * ([Q4](../../../../docs/prd/pull-request-status/open-questions.md), F7.6):
+   * PR sem título pensado é PR que alguém vai ter de editar, e o título que o
+   * git já sabe é melhor ponto de partida que um campo vazio. Só o assunto — o
+   * corpo do commit não é corpo de PR.
+   */
+  getSubject(path: string): Promise<string | null>;
+  /**
    * What changed in a checkout, in one of the two views of D1.
    *
    * `worktree` is the working tree against `HEAD`, plus what is not tracked
@@ -367,6 +396,49 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       // left...right counts the base side first: commits the worktree does not
       // have are what it is *behind* by.
       return { ahead: ahead ?? 0, behind: behind ?? 0 };
+    },
+
+    async getRemoteUrl(path) {
+      const { stdout } = await exec(["remote", "get-url", "origin"], { cwd: path }).catch(() => ({
+        stdout: "",
+        stderr: "",
+      }));
+      const url = stdout.trim();
+      return url === "" ? null : url;
+    },
+
+    async getSubject(path) {
+      const { stdout } = await exec(["log", "-1", "--format=%s"], { cwd: path }).catch(() => ({
+        stdout: "",
+        stderr: "",
+      }));
+      const subject = stdout.trim();
+      return subject === "" ? null : subject;
+    },
+
+    async hasRemoteBranch(path, branch) {
+      // `for-each-ref` em vez de `rev-parse`: ele responde vazio em vez de
+      // falhar quando não há nada, e um nome de branch que também é um caminho
+      // válido não muda de significado no meio do comando.
+      //
+      // Sem padrão, e filtrando aqui. O `wildmatch` do git não usa
+      // `WM_PATHNAME` neste comando, então `refs/remotes/*/main` casa também
+      // `refs/remotes/origin/topic/main` — e uma branch `topic/main` publicada
+      // faria a barra dizer que `main` está publicada. Comparar o sufixo em
+      // JavaScript é exato e custa a mesma execução.
+      const { stdout } = await exec(["for-each-ref", "--format=%(refname)", "refs/remotes/"], {
+        cwd: path,
+      }).catch(() => ({ stdout: "", stderr: "" }));
+
+      return stdout
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line !== "")
+        .some((ref) => {
+          const rest = ref.slice("refs/remotes/".length);
+          const slash = rest.indexOf("/");
+          return slash !== -1 && rest.slice(slash + 1) === branch;
+        });
     },
 
     async listChanges(path, input) {

@@ -6,6 +6,7 @@ import { changesRouter } from "./changes.js";
 import { eventsRouter } from "./events.js";
 import { filesRouter } from "./files.js";
 import { memoryRouter } from "./memory.js";
+import { prRouter } from "./pr.js";
 import { projectRouter } from "./project.js";
 import { scriptsRouter } from "./scripts.js";
 import { sessionRouter } from "./session.js";
@@ -24,6 +25,7 @@ export const appRouter = router({
   events: eventsRouter,
   files: filesRouter,
   memory: memoryRouter,
+  pr: prRouter,
   project: projectRouter,
   scripts: scriptsRouter,
   session: sessionRouter,

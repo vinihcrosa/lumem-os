@@ -9,6 +9,9 @@ import type { Db } from "../db/index.js";
 import { createEventBus, type EventBus } from "../events.js";
 import { createCloneJobStore } from "../git/CloneJobStore.js";
 import { createGitService, type GitService } from "../git/GitService.js";
+import { createGhHost } from "../pr/GhHost.js";
+import { createPrCache, type PrCache } from "../pr/PrCache.js";
+import type { PrHost } from "../pr/PrHost.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { createScriptRunner, type ScriptRunner } from "../scripts/ScriptRunner.js";
 import { createSessionStore, type SessionStore } from "../sessions/SessionStore.js";
@@ -27,6 +30,7 @@ export interface TestCaller {
   sessionStore: SessionStore;
   scripts: ScriptRunner;
   git: GitService;
+  pr: PrCache;
   events: EventBus;
   config: ServerConfig;
   /** Kills every session and deletes the database. Always call it. */
@@ -50,6 +54,14 @@ export interface TestCallerOverrides {
    * on the laptop.
    */
   acpManager?: AcpManager;
+  /**
+   * Um host de git de mentira.
+   *
+   * Sem ele, um teste do router de PR executaria o `gh` que estiver na máquina
+   * de quem roda a suíte — e o resultado dependeria da conta de alguém. Ver
+   * `docs/project/testing.md`.
+   */
+  prHost?: PrHost;
 }
 
 export function createTestCaller(
@@ -99,6 +111,19 @@ export function createTestCaller(
     events,
   });
 
+  /*
+   * O adaptador padrão é o de verdade, e ele **não** é exercitado por acidente:
+   * o cache só executa quando alguém chama `pr.*`, e os testes que chamam
+   * passam o seu próprio. Deixar o real como padrão é o que faz o teste que
+   * esquecer de dublar falhar de forma visível, em vez de passar contra um
+   * dublê que ninguém pediu.
+   */
+  const prHost = overrides.prHost ?? createGhHost();
+  const prCache: PrCache = createPrCache({
+    host: prHost,
+    onChange: (projectId) => events.emit({ type: "pr.changed", projectId }),
+  });
+
   const ctx: Context = {
     config,
     db: database.db,
@@ -108,6 +133,8 @@ export function createTestCaller(
     scripts,
     git,
     clones: createCloneJobStore(),
+    pr: prCache,
+    prHost,
     events,
   };
 
@@ -120,6 +147,7 @@ export function createTestCaller(
     sessionStore,
     scripts,
     git,
+    pr: prCache,
     events,
     config,
     cleanup: async () => {
