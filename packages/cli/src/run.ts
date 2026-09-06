@@ -1,5 +1,7 @@
 import { fileURLToPath } from "node:url";
 
+import { isLoopbackHost } from "@lumem/shared";
+
 import { HELP, parseCommand } from "./args.js";
 import { openInBrowser } from "./open.js";
 import { probePort } from "./port.js";
@@ -61,7 +63,17 @@ export async function run(argv: readonly string[], deps: RunDeps): Promise<numbe
 
   const port = command.port ?? Number(env["LUMEM_PORT"] ?? DEFAULT_PORT);
   const host = command.host ?? env["LUMEM_HOST"] ?? DEFAULT_HOST;
-  const origin = `http://${host === "0.0.0.0" ? "127.0.0.1" : host}:${String(port)}`;
+  if (!isLoopbackHost(host)) {
+    // Refused here, before the probe, and not left for the daemon: the daemon
+    // reads its configuration at module load, and a throw there surfaces as a
+    // stack trace instead of a sentence (daemon-auth, S5).
+    err(
+      `--host ${host} não é loopback. Até o daemon autenticar quem fala com ele, ` +
+        "ele só escuta em 127.0.0.1, localhost ou ::1.",
+    );
+    return 2;
+  }
+  const origin = `http://${host}:${String(port)}`;
 
   const occupant = await probe({ origin });
   if (occupant.kind === "lumem") {

@@ -114,4 +114,26 @@ describe("loadConfig", () => {
     expect(loadConfig({ LUMEM_WEB_ROOT: "/srv/web" }).webRoot).toBe("/srv/web");
     expect(loadConfig({ LUMEM_WEB_ROOT: "web" }).webRoot).toBe(resolve("web"));
   });
+
+  it("recusa um host que não é loopback (daemon-auth, S5)", () => {
+    // `lumem --host 0.0.0.0` era um shell publicado na rede, a um argumento de
+    // distância e sem credencial. Até a fase 2, isso não sobe.
+    for (const host of ["0.0.0.0", "::", "192.168.0.10"]) {
+      expect(() => loadConfig({ LUMEM_HOST: host }), host).toThrow(/não é loopback/);
+    }
+  });
+
+  it("aceita as três grafias de loopback", () => {
+    for (const host of ["127.0.0.1", "localhost", "::1"]) {
+      expect(loadConfig({ LUMEM_HOST: host }).host).toBe(host);
+    }
+  });
+
+  it("tem as origens do vite como padrão, e troca pela lista de LUMEM_WEB_ORIGINS", () => {
+    expect(loadConfig({}).webOrigins).toEqual(["http://127.0.0.1:4318", "http://localhost:4318"]);
+    expect(loadConfig({ LUMEM_WEB_ORIGINS: "http://127.0.0.1:5001, http://localhost:5001/" }).webOrigins).toEqual([
+      "http://127.0.0.1:5001",
+      "http://localhost:5001",
+    ]);
+  });
 });

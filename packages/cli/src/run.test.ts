@@ -48,6 +48,34 @@ describe("lumem", () => {
     expect(startDaemon).toHaveBeenCalledOnce();
   });
 
+  it("recusa um host fora do loopback antes de sondar a porta (daemon-auth, S5)", async () => {
+    const startDaemon = vi.fn(async () => {});
+    const probe = vi.fn(async () => ({ kind: "free" as const }));
+
+    expect(await run(["--host", "0.0.0.0"], deps({ startDaemon, probe }))).toBe(2);
+
+    expect(probe).not.toHaveBeenCalled();
+    expect(startDaemon).not.toHaveBeenCalled();
+    expect(err.join("\n")).toContain("0.0.0.0");
+    expect(err.join("\n")).toContain("loopback");
+  });
+
+  it("recusa LUMEM_HOST fora do loopback vindo do ambiente também", async () => {
+    const startDaemon = vi.fn(async () => {});
+
+    expect(await run([], deps({ env: { LUMEM_HOST: "192.168.0.10" }, startDaemon }))).toBe(2);
+
+    expect(startDaemon).not.toHaveBeenCalled();
+  });
+
+  it("aceita localhost e ::1, e fala com o daemon por esse nome", async () => {
+    const probe = vi.fn(async () => ({ kind: "free" as const }));
+
+    expect(await run(["--host", "localhost"], deps({ probe }))).toBe(0);
+
+    expect(probe).toHaveBeenCalledWith({ origin: "http://localhost:4317" });
+  });
+
   it("com um Lumem já na porta, aponta para ele e não sobe um segundo", async () => {
     // Dois daemons no mesmo ~/.lumem são dois escritores no mesmo SQLite.
     const startDaemon = vi.fn(async () => {});
