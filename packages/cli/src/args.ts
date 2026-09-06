@@ -10,6 +10,8 @@ import { parseArgs } from "node:util";
  */
 export type Command =
   | { kind: "start"; port: number | null; host: string | null; stateDir: string | null; open: boolean }
+  /** Reinstalls the package the daemon ships in. `check` only reports. */
+  | { kind: "upgrade"; check: boolean }
   | { kind: "version" }
   | { kind: "help" }
   /** Refused before anything started. `message` is already user-facing. */
@@ -19,6 +21,7 @@ export const HELP = `lumem — harness local de agentes de código
 
 Uso:
   lumem [start] [opções]     sobe o daemon e serve a interface
+  lumem upgrade [--check]    atualiza o daemon para a última versão do npm
   lumem version              imprime a versão
   lumem help                 imprime esta ajuda
 
@@ -27,6 +30,7 @@ Opções:
       --host <endereço>      interface de escuta (padrão: 127.0.0.1)
       --state-dir <caminho>  onde o Lumem guarda tudo (padrão: ~/.lumem)
       --open                 abre o navegador quando subir
+      --check                em \`upgrade\`, só diz se tem versão nova
   -v, --version              o mesmo que \`lumem version\`
   -h, --help                 o mesmo que \`lumem help\`
 
@@ -51,6 +55,7 @@ export function parseCommand(argv: readonly string[]): Command {
         host: { type: "string" },
         "state-dir": { type: "string" },
         open: { type: "boolean", default: false },
+        check: { type: "boolean", default: false },
         version: { type: "boolean", short: "v", default: false },
         help: { type: "boolean", short: "h", default: false },
       },
@@ -71,6 +76,7 @@ export function parseCommand(argv: readonly string[]): Command {
   }
   if (verb === "help") return { kind: "help" };
   if (verb === "version") return { kind: "version" };
+  if (verb === "upgrade") return { kind: "upgrade", check: values.check === true };
   if (verb !== "start") return { kind: "invalid", message: `comando desconhecido: ${verb}` };
 
   const port = values.port === undefined ? null : toPort(values.port);

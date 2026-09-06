@@ -14,6 +14,7 @@ function deps(overrides: Partial<RunDeps> = {}): RunDeps {
     startDaemon: vi.fn(async () => {}),
     probe: async () => ({ kind: "free" }),
     open: vi.fn(() => true),
+    upgrade: vi.fn(async () => 0),
     ...overrides,
   };
 }
@@ -114,5 +115,36 @@ describe("lumem", () => {
 
     expect(startDaemon).not.toHaveBeenCalled();
     expect(out[1]).toBe("0.1.0");
+  });
+});
+
+describe("lumem upgrade", () => {
+  it("não sobe daemon, e usa a versão que está rodando como ponto de partida", async () => {
+    const startDaemon = vi.fn(async () => {});
+    const upgrade = vi.fn(async () => 0);
+
+    expect(await run(["upgrade"], deps({ startDaemon, upgrade }))).toBe(0);
+
+    expect(startDaemon).not.toHaveBeenCalled();
+    expect(upgrade).toHaveBeenCalledWith(
+      expect.objectContaining({ current: "0.1.0", check: false, origin: "http://127.0.0.1:4317" }),
+    );
+  });
+
+  it("--check chega no upgrade, e o código dele é o código do comando", async () => {
+    const upgrade = vi.fn(async () => 1);
+
+    expect(await run(["upgrade", "--check"], deps({ upgrade }))).toBe(1);
+
+    expect(upgrade).toHaveBeenCalledWith(expect.objectContaining({ check: true }));
+  });
+
+  it("olha o daemon na porta configurada, e não na de sempre", async () => {
+    // Quem roda em outra porta é quem mais precisa da linha de "reinicie".
+    const upgrade = vi.fn(async () => 0);
+
+    await run(["upgrade"], deps({ upgrade, env: { LUMEM_PORT: "5000" } }));
+
+    expect(upgrade).toHaveBeenCalledWith(expect.objectContaining({ origin: "http://127.0.0.1:5000" }));
   });
 });

@@ -21,8 +21,12 @@ lumem
 ```
 
 O daemon sobe em `http://127.0.0.1:4317` e serve a interface na mesma porta.
-`lumem --open` abre o navegador junto. Atualizar é o mesmo comando de novo, com
-`@latest`.
+`lumem --open` abre o navegador junto.
+
+Atualizar é `lumem upgrade`: ele pergunta ao npm qual é a última versão,
+reinstala com o gerenciador que instalou a cópia que está rodando e — se tiver um
+daemon de pé — avisa que ele continua no código antigo até ser reiniciado.
+`lumem upgrade --check` só relata.
 
 O nome não é curto nem bonito por um motivo: o npm recusa `lumem` puro por
 parecer demais com o `mem`, e o `@vinihcrosa/lumem` já é outro projeto. O comando
