@@ -24,8 +24,8 @@ Lendo nesta ordem você entende o projeto inteiro em três documentos:
 | [questions.md](project/questions.md) | 96 perguntas de design em duas rodadas. Fonte de verdade das decisões de longo prazo, respondida aos poucos |
 | [testing.md](project/testing.md) | Matriz de cobertura, o que cada gate garante, e as armadilhas de teste já corrigidas |
 | [workspaces.md](project/workspaces.md) | Os scripts de setup, run e teardown em `scripts/workspace/`, e como Superset e Conductor só apontam para eles |
-| [task-cycle-evidence.md](project/task-cycle-evidence.md) | Linha de base medida do repositório e registro de custo do ciclo dev → review → rework. Lastro dos números que a skill `lumem-task-cycle` cita |
 | [task-cycle-evidence.md](project/task-cycle-evidence.md) | Linha de base medida do repositório e registro de custo do ciclo dev → review → rework, ao longo de onze lotes. A skill que orquestrava o ciclo foi removida; as medições ficaram, porque são deste repositório |
+| [harness-audit.md](project/harness-audit.md) | **Auditoria de harness, 2026-09-07.** A linha de base medida deste repositório para desenvolvimento agêntico: tempo real de cada sensor, o que não existe, a superfície de risco de um agente sem aprovação, e as três perguntas respondidas que definiram a [dev-harness](prd/dev-harness/prd.md) |
 | [design-source-of-truth.md](project/design-source-of-truth.md) | **Decisão (2026-08-19): o design é feito inteiramente no Open Design.** O gerador Python saiu, o `tokens.css` passou a ser sincronizado, e a verificação de contraste ficou — com o custo de cada uma dessas três coisas nomeado |
 | [pty-vs-acp.md](project/pty-vs-acp.md) | **Decisão de arquitetura (2026-08-17): o Lumem migra para ACP.** O custo medido, os prós e contras de cada transporte, a recomendação contrária que perdeu, e o §9.2 — billing e janela de contexto investigados na fonte, com duas das minhas próprias afirmações corrigidas |
 | [agentation.md](project/agentation.md) | A barra de anotação visual do dev: clicar num elemento da tela vira contexto estruturado para o agente. Como está montada, por que não viaja para produção, e as duas variáveis que a ligam e desligam |
@@ -409,6 +409,21 @@ encolher para teste, e tirou a escolha de agente do primeiro acesso.
 | [prd.md](prd/second-agent/prd.md) | o que no código sabe que é Claude e o que já é genérico; o §4 com os números da fase 0; F1–F5 |
 | [open-questions.md](prd/second-agent/open-questions.md) | 8 perguntas, **8 respondidas**: qual agente, instalado ou no PATH, onboarding pergunta ou não, consumo sem número, comparação, a semente PTY — mais as duas que o desenho abriu: qual login é o preenchido, e onde mora o verbo |
 | [tasks.md](prd/second-agent/tasks.md) | 16 tasks em 4 fases, **todas fechadas**: medição, catálogo, login (com desenho feito no Open Design) e consumo |
+
+### [dev-harness/](prd/dev-harness/) — o harness deste repositório
+
+A primeira feature que não é sobre o produto: é sobre o repositório que o constrói. Sai da
+[auditoria de harness](project/harness-audit.md) e do diagnóstico dela em uma frase — **o repositório
+verifica muito e não bloqueia nada**. Os sensores são bons e rápidos (3151 testes em 1min05, 78 e2e em
+2min29, CI em 4min, `any = 2` em 105.757 linhas) e nenhum deles participa da decisão de mesclar:
+`main` sem proteção, sem check obrigatório, sem hook, e a política de permissão do agente fora do git.
+No mesmo ambiente, uma credencial de publicação permanente para um pacote público.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/dev-harness/prd.md) | o problema, as três fases, as três classes de N3, os não-objetivos com motivo, e o que muda arquivo por arquivo |
+| [open-questions.md](prd/dev-harness/open-questions.md) | 3 respondidas antes da PRD existir (o token era só do CD; `main` desprotegida por inércia; as classes de N3 confirmadas) e 8 abertas |
+| [tasks.md](prd/dev-harness/tasks.md) | 16 tasks em 3 fases, nenhuma iniciada — e o aceite de cada uma é comportamento observado, não configuração lida |
 
 ### [workspace-tasks/](prd/workspace-tasks/) — tarefa como entidade
 
