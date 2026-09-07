@@ -1,7 +1,13 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { useUsageByProject, USAGE_WINDOWS, type UsageWindow } from "../hooks/useUsage.js";
+import {
+  useUsageByProject,
+  useUsageByProjectAndAgent,
+  USAGE_WINDOWS,
+  type ProjectAgentUsage,
+  type UsageWindow,
+} from "../hooks/useUsage.js";
 import { projectsKey, WORKSPACES_KEY } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import {
@@ -15,7 +21,7 @@ import {
 } from "../ui/index.js";
 
 import { MemoryPanel } from "./MemoryPanel.js";
-import { SpendList, type SpendRow } from "./SpendList.js";
+import { SpendList, type SpendAgent, type SpendRow } from "./SpendList.js";
 
 import "./detail.css";
 import "./workspace.css";
@@ -51,6 +57,20 @@ export function WorkspacePanel({ workspaceId, workspaceName, onRemoved }: Worksp
   });
   const usage = useUsageByProject(workspaceId, period);
 
+  /*
+   * A divisão por agente só é perguntada quando há mais de um (`second-agent`, C5).
+   *
+   * `agentConfig.list` é a consulta que o rodapé da coluna já mantém em cache, e é
+   * ela que decide: com um agente a comparação não existe, e a segunda consulta
+   * também não acontece. É a pergunta respondida em código e não em comentário.
+   */
+  const configs = useQuery({
+    queryKey: AGENT_CONFIGS_KEY,
+    queryFn: () => trpc.agentConfig.list.query(),
+  });
+  const manyAgents = (configs.data ?? []).filter((row) => row.transport === "acp").length > 1;
+  const byAgent = useUsageByProjectAndAgent(workspaceId, period, manyAgents);
+
   const list = projects.data ?? [];
   const rows: SpendRow[] = (usage.data ?? []).map((row) => ({
     id: row.projectId,
@@ -60,6 +80,7 @@ export function WorkspacePanel({ workspaceId, workspaceName, onRemoved }: Worksp
     currency: row.currency,
     turns: row.turns,
     kind: "project",
+    ...agentsOf(byAgent.data, row.projectId),
   }));
 
   return (
@@ -276,4 +297,36 @@ function RemoveWorkspace({
       {remove.isError && <Banner tone="danger">{remove.error.message}</Banner>}
     </>
   );
+}
+
+/** A chave que o rodapé da coluna já mantém: reusada, não duplicada. */
+const AGENT_CONFIGS_KEY = ["agentConfig", "list"];
+
+/**
+ * As sub-linhas de um projeto, quando a consulta agrupada respondeu.
+ *
+ * Devolve `{}` — e não `{ agents: [] }` — quando não há divisão: a `SpendList`
+ * decide abrir pela **presença** do campo, e um array vazio faria a lista ganhar a
+ * coluna do `▸` para não mostrar nada dentro dela.
+ */
+function agentsOf(
+  rows: readonly ProjectAgentUsage[] | undefined,
+  projectId: string,
+): { agents?: readonly SpendAgent[] } {
+  const mine = (rows ?? [])
+    .filter((row) => row.projectId === projectId)
+    .map(
+      (row): SpendAgent => ({
+        // O id da linha é o do agente, e `sem-agente` para o turno que não tem um:
+        // duas linhas sem chave estável reordenariam a cada resposta.
+        id: row.agentConfigId ?? "sem-agente",
+        name: row.name,
+        tokens: row.tokens,
+        cost: row.cost,
+        currency: row.currency,
+        turns: row.turns,
+      }),
+    );
+
+  return mine.length > 0 ? { agents: mine } : {};
 }

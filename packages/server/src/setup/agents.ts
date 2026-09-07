@@ -1,15 +1,15 @@
 import {
-  ACP_ADAPTER_COMMAND,
-  ACP_ADAPTER_INSTALL,
-  ANTHROPIC_API_KEY_ENV,
-  CLAUDE_CLI_COMMAND,
+  ADAPTERS,
+  adapterInstallCommand,
+  DEFAULT_ADAPTER_ID,
+  type AdapterSpec,
 } from "@lumem/shared";
 
 import { resolveCommandPath } from "../agents/availability.js";
 import { runCommand, type CommandRunner } from "./run-command.js";
 
 /**
- * What the machine has of the two binaries a conversation needs, onboarding F3.1.
+ * What the machine has of the binaries a conversation needs, onboarding F3.1.
  *
  * The version is *informative*. What decides whether the step can continue is the
  * probe, not this — a `--version` that a third-party binary answers in a format
@@ -27,31 +27,55 @@ export interface BinaryReport {
   managed: boolean;
 }
 
-export interface AgentsReport {
-  claude: BinaryReport;
+/**
+ * One adapter of the catalogue, as this machine has it.
+ *
+ * `cli` is nullable because the second agent measured that the question has two
+ * honest answers (`second-agent` §4.8): `claude-agent-acp` drives a `claude` that
+ * has to exist, and `codex-acp` brings its own `@openai/codex` — it answers the
+ * handshake with `PATH=/nonexistent`. A report that always named two binaries
+ * would tell someone to install a CLI nobody needs.
+ */
+export interface AdapterReport {
+  id: string;
+  label: string;
+  /** The adapter binary — what the daemon launches to speak ACP. */
   adapter: BinaryReport;
+  /** The CLI it drives, when the spec declares one. */
+  cli: BinaryReport | null;
   /**
-   * Presence only, never the value.
+   * The name of the key variable found in the daemon's environment, or null.
    *
-   * The screen reports which credential the adapter is going to find (F3.6), and
-   * a key echoed back into a browser would be a secret leaving the daemon for no
-   * reason at all.
+   * The **name**, never the value: the screen reports which credential the
+   * adapter is going to find (F3.6), and a key echoed back into a browser would
+   * be a secret leaving the daemon for no reason at all. A name is enough to say
+   * "billing by token" and useless to anyone who intercepts it.
    */
-  apiKeyInEnv: boolean;
+  apiKeyEnv: string | null;
+}
+
+export interface AgentsReport {
+  /** One entry per spec of `ADAPTERS`, in catalogue order. */
+  adapters: readonly AdapterReport[];
 }
 
 export interface AgentsOptions {
   path?: string | undefined;
   env?: Record<string, string | undefined>;
   run?: CommandRunner;
+  /** Which specs to report on. The whole catalogue, unless a test narrows it. */
+  specs?: readonly AdapterSpec[];
   /**
-   * Where the daemon installs the adapter, checked before the PATH.
+   * Where the daemon installed each adapter, checked before the PATH.
    *
    * Before, deliberately: a machine where the daemon installed it has no reason to
    * also have it globally, and finding a stale global copy first would report a
    * version the daemon is not the one running.
+   *
+   * A function of the spec, not a single path, because each adapter lives in its
+   * own directory since the catalogue.
    */
-  installedAt?: string | undefined;
+  installedAt?: ((spec: AdapterSpec) => string) | undefined;
 }
 
 /** `2.0.14 (Claude Code)` → `2.0.14`; anything shapeless comes back whole. */
@@ -95,14 +119,51 @@ export async function detectAgents({
   path = process.env["PATH"],
   env = process.env,
   run = runCommand,
+  specs = ADAPTERS,
   installedAt,
 }: AgentsOptions = {}): Promise<AgentsReport> {
-  const [claude, adapter] = await Promise.all([
-    inspect(CLAUDE_CLI_COMMAND, null, { path, run }),
-    inspect(ACP_ADAPTER_COMMAND, ACP_ADAPTER_INSTALL, { path, run, preferred: installedAt }),
+  const adapters = await Promise.all(
+    specs.map(async (spec) => reportFor(spec, { path, env, run, installedAt })),
+  );
+
+  return { adapters };
+}
+
+async function reportFor(
+  spec: AdapterSpec,
+  {
+    path,
+    env,
+    run,
+    installedAt,
+  }: {
+    path: string | undefined;
+    env: Record<string, string | undefined>;
+    run: CommandRunner;
+    installedAt: ((spec: AdapterSpec) => string) | undefined;
+  },
+): Promise<AdapterReport> {
+  const [adapter, cli] = await Promise.all([
+    inspect(spec.command, adapterInstallCommand(spec), {
+      path,
+      run,
+      ...(installedAt === undefined ? {} : { preferred: installedAt(spec) }),
+    }),
+    spec.cli === null
+      ? Promise.resolve(null)
+      : inspect(spec.cli.command, spec.cli.install, { path, run }),
   ]);
 
-  const key = env[ANTHROPIC_API_KEY_ENV];
+  return {
+    id: spec.id,
+    label: spec.label,
+    adapter,
+    cli,
+    apiKeyEnv: spec.apiKeyEnv.find((name) => (env[name] ?? "").trim() !== "") ?? null,
+  };
+}
 
-  return { claude, adapter, apiKeyInEnv: key !== undefined && key.trim() !== "" };
+/** The entry of one id, for the callers that still ask about one adapter. */
+export function adapterReport(report: AgentsReport, id = DEFAULT_ADAPTER_ID): AdapterReport | null {
+  return report.adapters.find((entry) => entry.id === id) ?? null;
 }

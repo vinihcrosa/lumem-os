@@ -43,7 +43,15 @@ function requested(source: string): Set<string> {
 }
 
 /** Montadas por interpolação, então o nome nunca aparece literal. */
-const INTERPOLATED = ["spend__row--idle", "spend__row--outside"];
+const INTERPOLATED = [
+  "spend__row--idle",
+  "spend__row--outside",
+  // A divisão por agente (`second-agent`, F5): as três saem de interpolação ou de
+  // um `Fragment` condicional, então nenhuma aparece literal num `className=`.
+  "spend--split",
+  "spend__group",
+  "spend__row--agent",
+];
 
 /** Pintadas em outro lugar, e reusadas aqui de propósito. */
 const BORROWED = new Set([

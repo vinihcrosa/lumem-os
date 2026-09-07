@@ -608,6 +608,20 @@ export const sessionUsage = sqliteTable(
     projectId: text("project_id").notNull(),
     /** A worktree, quando a sessão rodou numa. `''` quando ela é do projeto. */
     worktreeId: text("worktree_id").notNull().default(""),
+    /**
+     * Qual agente gastou (`second-agent`, F5).
+     *
+     * Resolvido na escrita, como o projeto e a worktree, e pela mesma razão: a
+     * pergunta "quanto cada agente custou" não pode depender de um join com a
+     * `session`, que é uma tabela que muda e de onde a linha pode sumir.
+     *
+     * Anulável, e sem chave estrangeira. Anulável porque a sessão de shell e a de
+     * script não têm agente, e porque a linha gravada **antes** desta coluna não
+     * ganha um agente inventado — ela fica de fora do agrupamento, o que é a
+     * verdade. Sem estrangeira porque consumo é histórico: apagar a configuração
+     * de ontem não pode apagar o que ela gastou.
+     */
+    agentConfigId: text("agent_config_id"),
     /** A variação da janela de contexto neste turno. Nunca negativa. */
     tokens: integer("tokens").notNull().default(0),
     /**

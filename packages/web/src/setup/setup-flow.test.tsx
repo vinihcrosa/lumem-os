@@ -39,8 +39,25 @@ const PREFLIGHT = {
   },
 };
 
-const AGENTS = {
-  claude: {
+interface BinaryFixture {
+  command: string;
+  path: string | null;
+  version: string | null;
+  versionNote: string | null;
+  install: string | null;
+  managed: boolean;
+}
+
+const CLAUDE_ENTRY: {
+  id: string;
+  label: string;
+  cli: BinaryFixture | null;
+  adapter: BinaryFixture;
+  apiKeyEnv: string | null;
+} = {
+  id: "claude",
+  label: "Claude Code",
+  cli: {
     command: "claude",
     path: "/opt/homebrew/bin/claude",
     version: "2.0.14",
@@ -53,11 +70,19 @@ const AGENTS = {
     path: "/opt/homebrew/bin/claude-agent-acp",
     version: "0.69.0",
     versionNote: null,
-    install: "npm i -g @agentclientprotocol/claude-agent-acp",
+    install: "npm i -g @agentclientprotocol/claude-agent-acp@0.40.0",
     managed: false,
   },
-  apiKeyInEnv: false,
+  apiKeyEnv: null,
 };
+
+/** O relatório por adaptador (`second-agent`, F1): uma entrada por spec. */
+const AGENTS = { adapters: [CLAUDE_ENTRY] };
+
+/** O mesmo relatório com a entrada do Claude trocada por uma variação. */
+function agentsWith(overrides: Partial<typeof CLAUDE_ENTRY>) {
+  return { adapters: [{ ...CLAUDE_ENTRY, ...overrides }] };
+}
 
 const PROBE = {
   command: "claude-agent-acp",
@@ -205,10 +230,9 @@ describe("agent step", () => {
      * pinned version, needs no privilege, and can only break itself.
      */
     const user = userEvent.setup();
-    trpc.setup.agents.query.mockResolvedValue({
-      ...AGENTS,
-      adapter: { ...AGENTS.adapter, path: null, version: null },
-    });
+    trpc.setup.agents.query.mockResolvedValue(
+      agentsWith({ adapter: { ...CLAUDE_ENTRY.adapter, path: null, version: null } }),
+    );
     trpc.setup.installAdapter.mutate.mockResolvedValue({
       path: "/tmp/lumem/adapters/node_modules/.bin/claude-agent-acp",
       version: "0.40.0",
@@ -230,10 +254,9 @@ describe("agent step", () => {
     // machine the person still needs a way through, and it is the same command
     // the daemon would have run.
     const user = userEvent.setup();
-    trpc.setup.agents.query.mockResolvedValue({
-      ...AGENTS,
-      adapter: { ...AGENTS.adapter, path: null, version: null },
-    });
+    trpc.setup.agents.query.mockResolvedValue(
+      agentsWith({ adapter: { ...CLAUDE_ENTRY.adapter, path: null, version: null } }),
+    );
     trpc.setup.installAdapter.mutate.mockRejectedValue(new Error("spawn npm ENOENT"));
 
     render();
@@ -242,16 +265,15 @@ describe("agent step", () => {
 
     expect(await screen.findByText(/ENOENT/)).toBeInTheDocument();
     expect(
-      screen.getByText("npm i -g @agentclientprotocol/claude-agent-acp"),
+      screen.getByText("npm i -g @agentclientprotocol/claude-agent-acp@0.40.0"),
     ).toBeInTheDocument();
   });
 
   it("re-reads when told the adapter was installed", async () => {
     const user = userEvent.setup();
-    trpc.setup.agents.query.mockResolvedValue({
-      ...AGENTS,
-      adapter: { ...AGENTS.adapter, path: null, version: null },
-    });
+    trpc.setup.agents.query.mockResolvedValue(
+      agentsWith({ adapter: { ...CLAUDE_ENTRY.adapter, path: null, version: null } }),
+    );
 
     render();
     await reachAgent(user);
@@ -273,7 +295,7 @@ describe("agent step", () => {
 
   it("says when the API key is what will be used", async () => {
     const user = userEvent.setup();
-    trpc.setup.agents.query.mockResolvedValue({ ...AGENTS, apiKeyInEnv: true });
+    trpc.setup.agents.query.mockResolvedValue(agentsWith({ apiKeyEnv: "ANTHROPIC_API_KEY" }));
 
     render();
     await reachAgent(user);

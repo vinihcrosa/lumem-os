@@ -1,3 +1,4 @@
+import { CLAUDE_ADAPTER, DEFAULT_ADAPTER_ID } from "@lumem/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { trpc } from "../lib/trpc.js";
@@ -50,8 +51,19 @@ export function AgentStep({ onNext, onBack, onSkip }: AgentStepProps) {
     },
   });
 
-  const adapter = agents.data?.adapter;
-  const claude = agents.data?.claude;
+  /*
+   * A entrada do catálogo, e não "o adaptador".
+   *
+   * O daemon passou a relatar um por spec (`second-agent`, F1). Esta tela
+   * continua sendo a do Claude — a escolha de agente **não** entra no primeiro
+   * acesso, por C3 —, então ela pede a entrada dele por id em vez de assumir que
+   * a lista tem um elemento só.
+   */
+  const entry = agents.data?.adapters.find((candidate) => candidate.id === DEFAULT_ADAPTER_ID);
+  const adapter = entry?.adapter;
+  const claude = entry?.cli ?? undefined;
+  /** Presença, pelo nome da variável que o daemon encontrou — nunca o valor. */
+  const keyInEnv = entry?.apiKeyEnv !== null && entry?.apiKeyEnv !== undefined;
   const ready = adapter?.path != null;
 
   return (
@@ -160,14 +172,14 @@ export function AgentStep({ onNext, onBack, onSkip }: AgentStepProps) {
           <WizardSection title="como o Claude vai se autenticar — o que foi encontrado">
             <CheckList label="credencial">
               <CheckRow
-                state={agents.data.apiKeyInEnv ? "ok" : "warn"}
-                what="ANTHROPIC_API_KEY"
+                state={keyInEnv ? "ok" : "warn"}
+                what={entry?.apiKeyEnv ?? CLAUDE_ADAPTER.apiKeyEnv[0] ?? ""}
                 value={
-                  agents.data.apiKeyInEnv
+                  keyInEnv
                     ? "presente no ambiente do daemon — cobrança por token"
                     : "ausente — o adaptador vai usar a credencial local do Claude"
                 }
-                status={agents.data.apiKeyInEnv ? "chave" : "assinatura"}
+                status={keyInEnv ? "chave" : "assinatura"}
               />
             </CheckList>
             <span className="field__help">

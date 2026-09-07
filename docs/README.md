@@ -382,14 +382,18 @@ código, ou congela.
 
 ### [second-agent/](prd/second-agent/) — o segundo agente
 
-O ACP foi escolhido por ser agnóstico e nada prova isso. Codex primeiro, pela mesma família de
-adaptador. Fase 0 é medição contra o adaptador real, como a `agent-login` fez; as cinco constantes de
-Claude viram um catálogo.
+O ACP foi escolhido por ser agnóstico e nada provava isso. **Completa** em 2026-09-07: o Codex
+conversa, entra e é somado à parte. A ordem foi medir primeiro — a fase 0 subiu o `codex-acp@1.10.0`
+de verdade (2026-09-06) e mudou duas decisões antes de existir código: o CLI não precisa estar no
+PATH, o adaptador não pede `fs` nem `terminal` ao cliente, o login é uma **chamada** e não um
+comando, e a tradução atravessou um turno inteiro com zero `warn`. Isso fez a F2 crescer, a F3
+encolher para teste, e tirou a escolha de agente do primeiro acesso.
 
 | Arquivo | O quê |
 |---|---|
-| [prd.md](prd/second-agent/prd.md) | o que no código sabe que é Claude e o que já é genérico; as oito medições da fase 0; F1–F5 |
-| [open-questions.md](prd/second-agent/open-questions.md) | 6 perguntas: qual agente, instalado ou no PATH, onboarding pergunta ou não, consumo sem número, comparação, a semente PTY |
+| [prd.md](prd/second-agent/prd.md) | o que no código sabe que é Claude e o que já é genérico; o §4 com os números da fase 0; F1–F5 |
+| [open-questions.md](prd/second-agent/open-questions.md) | 8 perguntas, **8 respondidas**: qual agente, instalado ou no PATH, onboarding pergunta ou não, consumo sem número, comparação, a semente PTY — mais as duas que o desenho abriu: qual login é o preenchido, e onde mora o verbo |
+| [tasks.md](prd/second-agent/tasks.md) | 16 tasks em 4 fases, **todas fechadas**: medição, catálogo, login (com desenho feito no Open Design) e consumo |
 
 ### [workspace-tasks/](prd/workspace-tasks/) — tarefa como entidade
 

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { withTestDb } from "../db/testing.js";
 import { session } from "../db/schema.js";
 import { isCommandAvailable } from "../agents/availability.js";
-import { createAgentConfigRepository, DEFAULT_AGENT_CONFIG } from "./agentConfig.js";
+import { createAgentConfigRepository } from "./agentConfig.js";
 import { tempDir } from "../testing/git-fixtures.js";
 
 /** A directory holding one executable, as a PATH entry. */
@@ -19,45 +19,31 @@ function binDir(name: string, executable = true): string {
   return dir;
 }
 
-describe("seedDefaults", () => {
-  it("ships exactly one configuration: Claude Code, bare", async () => {
-    // F6.4: no permission flags. The CLI behaves as it would if opened by hand.
+describe("a fresh database", () => {
+  it("ships no agent configuration at all", async () => {
+    /*
+     * C6 da `second-agent`: a semente `pty` + `claude` deixou de existir.
+     *
+     * Ela vinha de um tempo em que nada criava configuração; hoje o primeiro
+     * acesso e o rodapé de login criam a **ACP**, com a versão que o handshake
+     * detectou. Semear agora significaria escolher uma spec do catálogo — e
+     * `pty` + `claude` não é uma delas.
+     */
     await withTestDb(async (db) => {
       const repository = createAgentConfigRepository(db);
 
-      await repository.seedDefaults();
-
-      const listed = await repository.list();
-      expect(listed).toHaveLength(1);
-      expect(listed[0]).toMatchObject({ name: "claude-code", command: "claude", args: [], env: {} });
-      expect(DEFAULT_AGENT_CONFIG.args).toEqual([]);
+      expect(await repository.list()).toEqual([]);
     });
   });
 
-  it("is idempotent across restarts", async () => {
+  it("keeps a configuration someone already had", async () => {
+    // Não há migração que apague configuração de ninguém: quem já tinha a linha
+    // continua com ela, e é isso que faz a mudança ser segura de embarcar.
     await withTestDb(async (db) => {
       const repository = createAgentConfigRepository(db);
+      const mine = await repository.create({ name: "claude-code", command: "claude" });
 
-      await repository.seedDefaults();
-      await repository.seedDefaults();
-      await repository.seedDefaults();
-
-      expect(await repository.list()).toHaveLength(1);
-    });
-  });
-
-  it("does not stop a user who added their own", async () => {
-    // Keyed on the name rather than on "is the table empty".
-    await withTestDb(async (db) => {
-      const repository = createAgentConfigRepository(db);
-      await repository.create({ name: "meu-agente", command: "outro" });
-
-      await repository.seedDefaults();
-
-      expect((await repository.list()).map((row) => row.name)).toEqual([
-        "claude-code",
-        "meu-agente",
-      ]);
+      expect((await repository.list()).map((row) => row.id)).toEqual([mine.id]);
     });
   });
 });
@@ -146,7 +132,7 @@ describe("crud", () => {
   it("finds by name", async () => {
     await withTestDb(async (db) => {
       const repository = createAgentConfigRepository(db);
-      await repository.seedDefaults();
+      await repository.create({ name: "claude-code", command: "claude" });
 
       expect(await repository.findByName("claude-code")).toBeDefined();
       expect(await repository.findByName("ausente")).toBeUndefined();
@@ -259,17 +245,15 @@ describe("transport", () => {
     });
   });
 
-  it("still seeds the default agent on PTY", async () => {
-    // The default moves to ACP when the conversation renders a task end to end,
-    // not when the column exists. Seeding it as `acp` now would point the one
-    // configuration everybody has at a screen that is not written yet.
+  it("creates a PTY configuration with no adapter version", async () => {
+    // O caminho alternativo que a decisão do ACP preservou: `pty` continua
+    // criável, e uma configuração de PTY não tem adaptador para versionar.
     await withTestDb(async (db) => {
       const repo = createAgentConfigRepository(db);
-      await repo.seedDefaults();
 
-      const seeded = await repo.findByName(DEFAULT_AGENT_CONFIG.name);
+      const created = await repo.create({ name: "claude-code", command: "claude" });
 
-      expect(seeded).toMatchObject({ transport: "pty", adapterVersion: null });
+      expect(created).toMatchObject({ transport: "pty", adapterVersion: null });
     });
   });
 });

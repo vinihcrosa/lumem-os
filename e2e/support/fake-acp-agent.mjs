@@ -27,6 +27,19 @@ import { createInterface } from "node:readline";
 
 const SESSION_ID = "e2e-acp-session";
 
+/**
+ * O perfil deste fake: `claude` (o padrão) ou `codex`.
+ *
+ * Por variável de ambiente, como o `LUMEM_FAKE_NO_MODES` já era: é **outro
+ * adaptador**, não outro estado deste. O que o perfil `codex` muda é o que a
+ * fase 0 da `second-agent` mediu contra o `codex-acp@1.10.0` — o nome que ele
+ * declara, os dois métodos de login sem `type`, e um `usage_update` com
+ * `used`/`size` e nada mais. Sem o atalho, provar duas conversas de dois agentes
+ * de ponta a ponta exigiria um segundo arquivo com as outras 500 linhas
+ * copiadas.
+ */
+const PROFILE = process.env["LUMEM_FAKE_PROFILE"] === "codex" ? "codex" : "claude";
+
 /** Resolves when the client answers the permission request. */
 let resolvePermission = null;
 /** Resolves when the client answers `terminal/create`. */
@@ -373,20 +386,26 @@ async function runTurn(text) {
 
   // What the turn cost, with the subscription's own limit attached — the block the
   // spike found and the reason `/usage` is unnecessary.
-  update({
-    sessionUpdate: "usage_update",
-    used: 39_200,
-    size: 1_000_000,
-    cost: { amount: 0.235433, currency: "USD" },
-    _meta: {
-      "_claude/rateLimit": {
-        rateLimitType: "seven_day",
-        utilization: 0.31,
-        isUsingOverage: false,
-        surpassedThreshold: 0.75,
-      },
-    },
-  });
+  update(
+    PROFILE === "codex"
+      ? // Medido (§4.4): `used` e `size`, sem `_meta`, sem `rateLimit` e sem
+        // `cost`. O rodapé não desenha o bloco de limite, e não inventa zero.
+        { sessionUpdate: "usage_update", used: 21_971, size: 258_400 }
+      : {
+          sessionUpdate: "usage_update",
+          used: 39_200,
+          size: 1_000_000,
+          cost: { amount: 0.235433, currency: "USD" },
+          _meta: {
+            "_claude/rateLimit": {
+              rateLimitType: "seven_day",
+              utilization: 0.31,
+              isUsingOverage: false,
+              surpassedThreshold: 0.75,
+            },
+          },
+        },
+  );
 
   await sleep(20);
   update({
@@ -440,9 +459,22 @@ createInterface({ input: process.stdin }).on("line", (line) => {
           promptCapabilities: { image: false, embeddedContext: false },
           loadSession: true,
         },
-        agentInfo: { name: "e2e-fake-agent", title: "Fake Agent", version: "0.0.0" },
-        // Like the real adapter: it asks for nothing.
-        authMethods: [],
+        agentInfo:
+          PROFILE === "codex"
+            ? // O nome do **pacote**, que é o que o codex-acp manda de verdade
+              // (§4.1) — e o motivo de o rótulo morar no catálogo.
+              { name: "@agentclientprotocol/codex-acp", title: "Codex", version: "1.10.0" }
+            : { name: "e2e-fake-agent", title: "Fake Agent", version: "0.0.0" },
+        authMethods:
+          PROFILE === "codex"
+            ? // Nenhum é `type: "terminal"`: é a medição que tirou a escolha de
+              // agente do primeiro acesso (§4.2, C3).
+              [
+                { id: "api-key", name: "API Key", description: "Use an API key to authenticate" },
+                { id: "chat-gpt", name: "ChatGPT", description: "Use ChatGPT to authenticate" },
+              ]
+            : // Like the real adapter: it asks for nothing.
+              [],
       });
       return;
 

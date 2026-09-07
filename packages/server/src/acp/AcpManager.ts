@@ -8,9 +8,12 @@ import {
   type StopReason,
   type ToolCallUpdate,
 } from "@agentclientprotocol/sdk";
+import { basename } from "node:path";
+
 import {
   ACP_AUTH_REQUIRED_CODE,
   acpToolKindSchema,
+  adapterByCommand,
   newId,
   type AcpConfigOption,
   type AcpEvent,
@@ -73,6 +76,48 @@ export interface AcpSpawnOptions {
   lumemModeDefault?: LumemModeDefault;
 }
 
+
+/**
+ * Um pedido de "abra esta URL", vindo do agente durante o login.
+ *
+ * O `code` **não** é um campo do protocolo: o `elicitation/create` traz `url` e
+ * `message`, e o adaptador do Codex põe o código dentro da frase — *"Sign in to
+ * ChatGPT and enter this code: FKPT-QJ29"*. O Lumem destaca o que parece um
+ * código para poder desenhá-lo grande (`0`/`O` a 11px é o defeito desta tela) e
+ * mostra a frase inteira do lado. Quando nada parece um código, `code` é null e a
+ * frase é tudo — nenhuma informação é inventada, e nenhuma é escondida.
+ */
+export interface AcpElicitation {
+  elicitationId: string;
+  url: string;
+  message: string;
+  code: string | null;
+}
+
+export interface AcpAuthenticateOptions extends AcpSpawnOptions {
+  /** Um dos `authMethods` que o handshake trouxe. Nunca um id do cliente. */
+  methodId: string;
+  /**
+   * A chave, quando o método pede uma.
+   *
+   * Ela **atravessa** o daemon: vai no `_meta["api-key"]` da chamada e não é
+   * guardada em lugar nenhum — nem em disco, nem em log, nem no retorno.
+   */
+  apiKey?: string;
+  /** Chamado quando o agente pede para mostrar uma URL. */
+  onElicitation?: (elicitation: AcpElicitation) => void;
+  /** Chamado quando o agente diz que aquela URL já foi usada. */
+  onElicitationDone?: (elicitationId: string) => void;
+  /**
+   * Cancelar é matar o adaptador, e é de propósito.
+   *
+   * O `authenticate` de um método de navegador fica pendurado esperando uma
+   * pessoa autorizar noutro lugar; não há mensagem de "desiste" no protocolo. O
+   * processo é do daemon e morre com ele — a credencial parcial que o adaptador
+   * tenha escrito é problema dele, e ele já sabe lidar com login incompleto.
+   */
+  signal?: AbortSignal;
+}
 
 export interface AcpResumeOptions extends AcpSpawnOptions {
   /**
@@ -229,6 +274,15 @@ interface Session {
   info: AcpSessionInfo;
   process: AcpProcess;
   connection: ClientConnection;
+  /**
+   * Para onde vai um `elicitation/create`, quando há para onde ir.
+   *
+   * Só o caminho de login põe algo aqui. Uma conversa comum não tem onde mostrar
+   * "abra esta URL", e por isso ela **recusa** o pedido em vez de engoli-lo — um
+   * agente que pede e não recebe resposta fica pendurado para sempre.
+   */
+  elicit: ((elicitation: AcpElicitation) => void) | undefined;
+  elicitDone: ((elicitationId: string) => void) | undefined;
   listeners: Set<AcpEventListener>;
   /** Calls still open, so a cancelled turn can close them (A14). */
   openToolCalls: Set<string>;
@@ -511,6 +565,114 @@ export class AcpManager {
    * the spike measured both at zero: nothing is generated until `session/prompt`,
    * which never happens here.
    */
+  /**
+   * Entrar no agente, pelo método que o próprio agente ofereceu (F2, T10).
+   *
+   * O caminho que a `agent-login` construiu roda um **comando** num PTY, e ele
+   * continua valendo — é o que o `claude-agent-acp` oferece. Medido na fase 0
+   * (§4.2): o `codex-acp` não oferece comando nenhum. Os métodos dele são
+   * `api-key`, `chat-gpt` e `chat-gpt-device-code`, e os três se atravessam por
+   * **uma chamada**.
+   *
+   * Um processo por tentativa, e ele morre no fim. A credencial não fica aqui: é
+   * o adaptador que a escreve na casa dele — `~/.codex`, no caso — e é por isso
+   * que um processo curto basta. O que o Lumem guarda de tudo isto é nada.
+   *
+   * **Sem `withTimeout` no `authenticate`.** Todos os outros passos do protocolo
+   * são conversa entre dois programas e um limite de 15 s é generoso; este espera
+   * uma pessoa autorizar em outro lugar, e um limite aqui seria o daemon
+   * desistindo de alguém que está digitando um código. Quem desiste é quem
+   * clicou: o `signal` mata o processo.
+   */
+  async authenticate(options: AcpAuthenticateOptions): Promise<void> {
+    if (options.methodId.trim() === "") {
+      throw new DomainError("INVALID_ARGUMENT", "sem o método não há como entrar");
+    }
+
+    const { session, child } = this.launch(options, { probe: true });
+    session.elicit = options.onElicitation;
+    session.elicitDone = options.onElicitationDone;
+
+    const abort = () => child.kill();
+    options.signal?.addEventListener("abort", abort, { once: true });
+
+    try {
+      const initialize = await this.initialize(session);
+
+      if (initialize.protocolVersion !== ACP_PROTOCOL_VERSION) {
+        throw new DomainError(
+          "SPAWN_FAILED",
+          `o adaptador fala a versão ${initialize.protocolVersion} do protocolo, e este daemon fala a ${ACP_PROTOCOL_VERSION}`,
+        );
+      }
+
+      /*
+       * Conferido contra o handshake, e não contra o que o cliente mandou.
+       *
+       * É a mesma guarda do login por comando: o cliente manda um `methodId`, e o
+       * que vale é o adaptador ter dito que aceita aquele id. Sem isto, um cliente
+       * escolheria um método que o agente não ofereceu — e o erro que voltaria
+       * seria do adaptador, com o vocabulário dele, no meio de uma tela nossa.
+       */
+      const offered = (initialize.authMethods ?? []).some(
+        (method) => method.id === options.methodId,
+      );
+      if (!offered) {
+        throw new DomainError(
+          "NOT_FOUND",
+          `o adaptador não oferece o método de login "${options.methodId}"`,
+        );
+      }
+
+      await session.connection.agent.request("authenticate", {
+        methodId: options.methodId,
+        /*
+         * A chave viaja no `_meta` e não fica em lugar nenhum.
+         *
+         * Medido no pacote: `authenticateWithApiKey` lê
+         * `_meta["api-key"].apiKey` e, na falta dele, o ambiente
+         * (`CODEX_API_KEY`, `OPENAI_API_KEY`). O daemon é o carteiro — ele não
+         * grava, não loga e não devolve.
+         */
+        ...(options.apiKey === undefined
+          ? {}
+          : { _meta: { "api-key": { apiKey: options.apiKey } } }),
+      });
+
+      /*
+       * Conferido, e não acreditado.
+       *
+       * Um `authenticate` que responde sem erro não é a mesma coisa que uma
+       * credencial que serve: o adaptador pode ter registrado uma conta sem
+       * acesso, ou ter respondido `false` num lugar que o protocolo não carrega.
+       * O `session/new` é a pergunta que decide, e ela é a mais barata que
+       * existe — a fase 0 mediu handshake e sessão em **zero token**.
+       *
+       * É a mesma frase que a `agent-login` já usava: quem confirma o login é o
+       * adaptador respondendo, nunca a pessoa afirmando.
+       */
+      try {
+        await this.withTimeout(
+          session.connection.agent.request("session/new", { cwd: options.cwd, mcpServers: [] }),
+          "session/new",
+        );
+      } catch (error) {
+        if (isAuthRequired(error)) {
+          throw new DomainError(
+            "BLOCKED",
+            "o adaptador aceitou o login e continua pedindo credencial — a conta não serve para esta sessão",
+          );
+        }
+        throw error;
+      }
+    } finally {
+      options.signal?.removeEventListener("abort", abort);
+      // Sempre, inclusive no caminho de sucesso: a sessão de verdade nasce depois,
+      // com `spawn`, e este processo já fez o que tinha para fazer.
+      child.kill();
+    }
+  }
+
   async probe(options: AcpSpawnOptions): Promise<AcpProbeReport> {
     const startedAt = this.now();
     const { session, child } = this.launch(options, { probe: true });
@@ -663,6 +825,8 @@ export class AcpManager {
       },
       process: child,
       connection: undefined as unknown as ClientConnection,
+      elicit: undefined,
+      elicitDone: undefined,
       listeners: new Set(),
       openToolCalls: new Set(),
       pendingPermissions: new Map(),
@@ -1057,6 +1221,46 @@ export class AcpManager {
         this.requireTerminals(session).release(params.terminalId);
         return {};
       })
+      /*
+       * "Abra esta URL" — o login que não abre navegador na máquina errada.
+       *
+       * O adaptador do Codex só oferece `chat-gpt-device-code` a um cliente que
+       * declara `elicitation.url`, e é este par de métodos que sustenta a
+       * declaração (`second-agent`, T11 e C7).
+       *
+       * **Aceita na hora, e não fica pendurado.** O `accept` aqui significa "a
+       * pessoa está vendo a URL e o código", não "a pessoa terminou": quem
+       * confirma o login é o `authenticate` respondendo. Ficar pendurado até o
+       * fim pareceria mais fiel e não é — o adaptador corre o `elicitUrl` contra
+       * o fim do login, e uma resposta que nunca chega deixa uma requisição
+       * aberta para sempre do nosso lado.
+       *
+       * Sem sink, **recusa**. Uma conversa comum não tem onde desenhar isto, e
+       * engolir o pedido deixaria o agente esperando por uma resposta que nunca
+       * viria.
+       */
+      .onRequest("elicitation/create", ({ params }) => {
+        // A união do schema tem quatro braços e o `mode: "url"` é um deles; ler
+        // por índice é o que evita um `narrow` que o TypeScript não faz sobre
+        // uma união com braço aberto (`mode: string`).
+        const record = params as unknown as Record<string, unknown>;
+        const url = record["url"];
+        if (session.elicit === undefined || params.mode !== "url" || typeof url !== "string") {
+          return { action: "decline" as const };
+        }
+
+        session.elicit({
+          elicitationId: String(record["elicitationId"] ?? ""),
+          url,
+          message: params.message,
+          code: codeIn(params.message),
+        });
+
+        return { action: "accept" as const };
+      })
+      .onNotification("elicitation/complete", ({ params }) => {
+        session.elicitDone?.(params.elicitationId);
+      })
       .onRequest("session/request_permission", ({ params }) => {
         const requestId = newId();
         const options = params.options.map((option) => ({
@@ -1275,6 +1479,19 @@ export class AcpManager {
            * a client that cannot run one has no business being offered it.
            */
           ...(this.ptyManager ? { auth: { terminal: true } } : {}),
+          /*
+           * "Eu sei mostrar uma URL", declarado porque os dois métodos existem.
+           *
+           * Medido na fase 0 da `second-agent` (§4.2): sem isto, o `codex-acp`
+           * não oferece `chat-gpt-device-code` — o único método dele que **não**
+           * abre um navegador na máquina do daemon. Declarar é o que faz o
+           * método aparecer, e é por isso que ele não é opcional aqui.
+           *
+           * Não é gatilhado no `ptyManager` como o `auth.terminal`: mostrar uma
+           * URL não precisa de terminal nenhum, e o que responde ao pedido é o
+           * `elicitation/create` acima, que existe sempre.
+           */
+          elicitation: { url: {} },
         },
         ...(this.ptyManager ? { _meta: { "terminal-auth": true } } : {}),
         clientInfo: { name: "lumem", version: LUMEM_CLIENT_VERSION },
@@ -1417,6 +1634,21 @@ export class AcpManager {
         modeId: value,
       });
       session.info.mode = value;
+      /*
+       * A opção de modo acompanha o modo, quando o agente tem as duas.
+       *
+       * Medido na fase 0 da `second-agent` (§4.9): o Codex reporta `mode` em
+       * `modes` **e** em `configOptions`, e sem esta linha o evento `config` saía
+       * com `mode: "read-only"` e a opção ainda em `"agent"`. Ninguém via porque
+       * o `ConfigPills` prefere o campo `mode` — mas quem lê a lista de opções
+       * (um teste, um cliente novo, um relatório) leria o valor de antes.
+       *
+       * O agente que não lista `mode` como opção — o Claude — não ganha uma
+       * opção inventada aqui: o `map` só troca o que já existe.
+       */
+      session.info.configOptions = session.info.configOptions.map((option) =>
+        option.id === MODE_OPTION ? { ...option, currentValue: value } : option,
+      );
       this.emitConfig(session);
       return;
     }
@@ -1734,9 +1966,19 @@ function commandOf(toolCall: ToolCallUpdate): string | null {
  */
 function notInstalled(command: string, adapterVersion: string | undefined): DomainError {
   const pinned = adapterVersion ?? "";
-  const remedy = pinned
-    ? `npm i -g @agentclientprotocol/claude-agent-acp@${pinned}`
-    : `instale o adaptador e deixe "${command}" no PATH`;
+  /*
+   * O pacote sai do catálogo, e só quando o comando **é** de um adaptador dele.
+   *
+   * Antes disto a frase citava o pacote do Claude para qualquer comando que não
+   * subisse — inclusive para o `codex-acp` e para um binário que ninguém
+   * catalogou. Mandar alguém instalar o pacote errado é pior que não sugerir
+   * nada, então um comando de fora do catálogo não ganha `npm` nenhum.
+   */
+  const spec = adapterByCommand(basename(command));
+  const remedy =
+    spec !== null && spec.package !== null
+      ? `npm i -g ${spec.package}@${pinned || spec.pinnedVersion}`
+      : `instale o adaptador e deixe "${command}" no PATH`;
   const version = pinned ? ` Esta sessão fixa a versão ${pinned}.` : "";
 
   return new DomainError(
@@ -1760,6 +2002,24 @@ function launchFailure(command: string, adapterVersion: string | undefined, caus
     `não foi possível iniciar o adaptador "${command}".${pinned} (${detail})`,
     { cause },
   );
+}
+
+/**
+ * O que numa frase parece um código de dispositivo.
+ *
+ * O protocolo não tem campo para ele: o `elicitation/create` traz `url` e
+ * `message`, e o Codex escreve *"Sign in to ChatGPT and enter this code:
+ * FKPT-QJ29"*. Isto acha o pedaço que dá para destacar, e devolve `null` quando
+ * não acha — a tela mostra a frase do agente de qualquer jeito, e o destaque é
+ * um extra, nunca a única forma de ler o código.
+ *
+ * Quatro-e-quatro com hífen, ou seis a doze maiúsculas/dígitos numa palavra só.
+ * Deliberadamente estreito: o preço de não achar é uma frase sem destaque; o de
+ * achar errado é um código grande e falso na tela.
+ */
+export function codeIn(message: string): string | null {
+  const match = /\b([A-Z0-9]{4}-[A-Z0-9]{4}|[A-Z0-9]{6,12})\b/.exec(message);
+  return match?.[1] ?? null;
 }
 
 /**

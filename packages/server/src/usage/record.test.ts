@@ -34,7 +34,15 @@ interface World {
   /** Uma sessão ACP viva **sem** linha no banco — como as do próprio daemon. */
   spawnLoose(): Promise<string>;
   turn(sessionId: string, windows: Windows): Promise<void>;
-  rows(): { projectId: string; worktreeId: string; tokens: number; cost: number | null }[];
+  rows(): {
+    projectId: string;
+    worktreeId: string;
+    agentConfigId: string | null;
+    tokens: number;
+    cost: number | null;
+  }[];
+  /** O id da configuração que as sessões deste mundo usam. */
+  agentConfigId: string;
 }
 
 async function world(): Promise<World> {
@@ -133,10 +141,12 @@ async function world(): Promise<World> {
         .map((row) => ({
           projectId: row.projectId,
           worktreeId: row.worktreeId,
+          agentConfigId: row.agentConfigId,
           tokens: row.tokens,
           cost: row.cost,
         }));
     },
+    agentConfigId: config.id,
   };
 }
 
@@ -216,4 +226,18 @@ describe("trackSessionUsage", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(app.rows()).toEqual([]);
   });
+
+  it("grava de qual agente foi o turno, resolvido na escrita", async () => {
+    // F5: agrupar por agente não pode depender de um join com a `session` — ela
+    // muda, e a linha pode ter sido apagada. O agente entra junto com o projeto
+    // e a worktree, na mesma leitura.
+    const app = await world();
+    const session = await app.spawn();
+
+    await app.turn(session.id, [{ used: 12_000 }]);
+
+    await vi.waitFor(() => expect(app.rows()).toHaveLength(1));
+    expect(app.rows()[0]?.agentConfigId).toBe(app.agentConfigId);
+  });
+
 });

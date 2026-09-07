@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-import { ACP_ADAPTER_COMMAND, ADAPTERS_DIR_NAME } from "@lumem/shared";
+import { ADAPTERS_DIR_NAME, DEFAULT_ADAPTER_ID, adapterById, type AdapterSpec } from "@lumem/shared";
 import { z } from "zod";
 
 import { DomainError } from "../errors.js";
@@ -9,7 +9,7 @@ import { detectAgents } from "../setup/agents.js";
 import { adapterBinaryPath, installAdapter } from "../setup/install-adapter.js";
 import { startLogin } from "../setup/login.js";
 import { preflight } from "../setup/preflight.js";
-import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
+import { domainSafe, domainSafeAsync, publicProcedure, router } from "../trpc.js";
 
 /**
  * What the first-access and login flows read, and the two things they run.
@@ -20,6 +20,29 @@ import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
  * and `login` runs a command the *adapter* named, in a terminal. Each one carries
  * its own note about why that is acceptable and what bounds it.
  */
+/** `<stateDir>/adapters` — the directory that holds one per spec. */
+function adaptersDir(stateDir: string): string {
+  return join(stateDir, ADAPTERS_DIR_NAME);
+}
+
+/**
+ * The spec of an id, refusing an id nobody catalogued.
+ *
+ * Refused **here**, before any `npm` runs: an unknown id that fell through to a
+ * default would install Claude for someone who asked for something else, and the
+ * screen would report success for the wrong agent.
+ */
+function specOf(id: string | undefined): AdapterSpec {
+  const spec = adapterById(id ?? DEFAULT_ADAPTER_ID);
+  if (spec === null) {
+    throw new DomainError("INVALID_ARGUMENT", `não existe adaptador "${id}" no catálogo`);
+  }
+  return spec;
+}
+
+/** Which adapter, for the procedures that act on one. Absent means the default. */
+const adapterInput = z.object({ adapterId: z.string().trim().min(1).optional() }).optional();
+
 export const setupRouter = router({
   /** The five checks, each one able to fail without the others. */
   preflight: publicProcedure.query(({ ctx }) => preflight({ config: ctx.config })),
@@ -32,7 +55,9 @@ export const setupRouter = router({
    * have it globally, and the flow must not ask twice for the same thing.
    */
   agents: publicProcedure.query(({ ctx }) =>
-    detectAgents({ installedAt: adapterBinaryPath(join(ctx.config.stateDir, ADAPTERS_DIR_NAME)) }),
+    detectAgents({
+      installedAt: (spec) => adapterBinaryPath(adaptersDir(ctx.config.stateDir), spec),
+    }),
   ),
 
   /**
@@ -42,11 +67,13 @@ export const setupRouter = router({
    * costs is named in `install-adapter.ts` — the daemon runs a package manager and
    * then executes what it downloaded.
    */
-  installAdapter: publicProcedure.mutation(({ ctx }) =>
-    domainSafeAsync(() =>
-      installAdapter({ dir: join(ctx.config.stateDir, ADAPTERS_DIR_NAME) }),
+  installAdapter: publicProcedure
+    .input(adapterInput)
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(() =>
+        installAdapter({ spec: specOf(input?.adapterId), dir: adaptersDir(ctx.config.stateDir) }),
+      ),
     ),
-  ),
 
   /**
    * Runs one of the adapter's own login commands in a terminal the daemon owns.
@@ -62,6 +89,8 @@ export const setupRouter = router({
         methodId: z.string().trim().min(1),
         /** Which adapter to ask. Defaults to what the flow installed or found. */
         command: z.string().trim().min(1).optional(),
+        /** Which catalogued adapter, when no explicit command is given. */
+        adapterId: z.string().trim().min(1).optional(),
         /**
          * And its arguments, because a command without them is a different program.
          *
@@ -75,7 +104,7 @@ export const setupRouter = router({
     )
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
-        const command = input.command ?? ACP_ADAPTER_COMMAND;
+        const command = input.command ?? specOf(input.adapterId).command;
         const cwd = join(ctx.config.stateDir, "probe");
 
         /*
@@ -122,6 +151,70 @@ export const setupRouter = router({
     ),
 
   /**
+   * Entrar no agente, pela chamada que o próprio agente ofereceu (T10, T11).
+   *
+   * Três procedimentos e nenhum bloqueante, porque um deles espera **uma
+   * pessoa**: o `authenticate` de um método de navegador fica pendurado até
+   * alguém autorizar noutro lugar, e o pedido de mostrar uma URL chega no meio
+   * dessa espera. Começar e perguntar é o mesmo desenho do login por comando, que
+   * devolvia um `ptySessionId` para o cliente acompanhar.
+   *
+   * O `command` continua sendo conferido contra o handshake — o cliente manda um
+   * `methodId`, e o que roda é o que o adaptador declarou para aquele id.
+   */
+  authenticate: publicProcedure
+    .input(
+      z.object({
+        methodId: z.string().trim().min(1),
+        /** Qual adaptador, quando não vem um comando explícito. */
+        adapterId: z.string().trim().min(1).optional(),
+        command: z.string().trim().min(1).optional(),
+        args: z.array(z.string()).optional(),
+        /**
+         * A chave, quando o método pede uma.
+         *
+         * Ela entra por aqui, atravessa o daemon e vai para o adaptador. Não é
+         * gravada, não é logada e **não volta** em nenhuma resposta — o que volta
+         * é o estado da tentativa.
+         */
+        apiKey: z.string().min(1).optional(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(() => {
+        const spec = specOf(input.adapterId);
+        const cwd = join(ctx.config.stateDir, "probe");
+        mkdirSync(cwd, { recursive: true });
+
+        return Promise.resolve(
+          ctx.agentAuth.start({
+            command: input.command ?? spec.command,
+            ...(input.args === undefined ? {} : { args: input.args }),
+            cwd,
+            methodId: input.methodId,
+            ...(input.apiKey === undefined ? {} : { apiKey: input.apiKey }),
+            adapterVersion: spec.pinnedVersion,
+          }),
+        );
+      }),
+    ),
+
+  /** O estado de uma tentativa de login. É o que a tela pergunta enquanto espera. */
+  authState: publicProcedure
+    .input(z.object({ loginId: z.string().trim().min(1) }))
+    .query(({ ctx, input }) => domainSafe(() => ctx.agentAuth.status(input.loginId))),
+
+  /**
+   * Desistir: mata o adaptador.
+   *
+   * Não há "cancelar" no protocolo — o `authenticate` está esperando uma pessoa,
+   * e a única forma de parar de esperar é o processo acabar. Ele é do daemon.
+   */
+  cancelAuth: publicProcedure
+    .input(z.object({ loginId: z.string().trim().min(1) }))
+    .mutation(({ ctx, input }) => domainSafe(() => ctx.agentAuth.cancel(input.loginId))),
+
+  /**
    * One handshake, then the process dies.
    *
    * A query and not a mutation, deliberately: it changes nothing that outlives
@@ -134,13 +227,15 @@ export const setupRouter = router({
         .object({
           /** Defaults to the adapter the flow installs. */
           command: z.string().trim().min(1).optional(),
+          /** Which catalogued adapter, when no explicit command is given. */
+          adapterId: z.string().trim().min(1).optional(),
           args: z.array(z.string()).optional(),
         })
         .optional(),
     )
     .query(({ ctx, input }) =>
       domainSafeAsync(async () => {
-        const command = input?.command ?? ACP_ADAPTER_COMMAND;
+        const command = input?.command ?? specOf(input?.adapterId).command;
 
         /*
          * A directory of its own, and an empty one.

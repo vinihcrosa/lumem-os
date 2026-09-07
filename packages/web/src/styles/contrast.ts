@@ -38,6 +38,17 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   { label: "sucesso / superficie", fg: "text/success", bg: "bg/surface", min: 4.5 },
   { label: "alerta / superficie", fg: "text/warning", bg: "bg/surface", min: 4.5 },
   { label: "info / superficie", fg: "text/info", bg: "bg/surface", min: 4.5 },
+  /*
+   * O rodapé de agentes pinta os tres estados sobre bg/panel (`second-agent`, T12).
+   *
+   * Nenhum dos tres estava declarado — nem o verde, que ja era pintado ali desde a
+   * `agent-login`. O desenho do segundo agente deu cor de estado ao ponto da linha,
+   * e ai a combinacao passou a existir duas vezes na mesma linha: no texto e no
+   * ponto. Medidos em 9,85, 9,10 e 8,76:1.
+   */
+  { label: "agente conectado / painel", fg: "daemon/online", bg: "bg/panel", min: 4.5 },
+  { label: "agente sem credencial / painel", fg: "text/warning", bg: "bg/panel", min: 4.5 },
+  { label: "agente falhou / painel", fg: "text/danger", bg: "bg/panel", min: 4.5 },
   // dominio: a sidebar pinta sobre bg/panel, o detalhe sobre bg/surface.
   { label: "sessao rodando / painel", fg: "session/running", bg: "bg/panel", min: 4.5 },
   { label: "sessao encerrada / painel", fg: "session/exited", bg: "bg/panel", min: 3.0 },

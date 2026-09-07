@@ -118,6 +118,15 @@ const loadStored = (sessionId: string): Promise<AcpServerMessage> =>
 export interface ConversationProps {
   sessionId: string;
   /**
+   * Quem está falando, pelo nome da configuração de agente.
+   *
+   * Era a string `claude`, escrita à mão no cabeçalho. Com um agente ninguém
+   * notava; com dois, as duas conversas diziam a mesma coisa — foi o que a F4 da
+   * `second-agent` foi conferir. O nome vem da `agent_config`, que é o mesmo que
+   * a aba usa, para a aba e o cabeçalho nunca discordarem.
+   */
+  agentName?: string;
+  /**
    * False for a conversation that has ended (D13).
    *
    * Then nothing is attached and nothing is launched: the transcript comes off the
@@ -162,6 +171,9 @@ export interface ConversationProps {
 
 export function Conversation({
   sessionId,
+  // "agente" e não "claude": um default que nomeia um agente específico é o
+  // defeito que a F4 achou, com outro valor.
+  agentName = "agente",
   live = true,
   connect = connectAcpSocket,
   load = loadStored,
@@ -390,7 +402,7 @@ export function Conversation({
       <div className="conv__head">
         <span className="conv__who">
           <Glyph tone="agent">◆</Glyph>
-          claude
+          {agentName}
         </span>
         {session && (
           <span className="conv__adapter">

@@ -112,6 +112,8 @@ export function SessionTabPanel({
           <Conversation
             key={tab.sessionId}
             sessionId={tab.sessionId}
+            // O mesmo nome que a aba mostra, da mesma fonte: a `agent_config`.
+            agentName={tab.label}
             // A finished conversation opens in read mode: the transcript comes off the
             // daemon's disk and no adapter is launched (D13).
             live={tab.state === "running"}

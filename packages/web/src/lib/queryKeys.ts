@@ -117,6 +117,17 @@ export function usageByWorktreeKey(projectId: string, period: string) {
   return ["usage", "byWorktree", projectId, period] as const;
 }
 
+/**
+ * O mesmo consumo, quebrado por agente (`second-agent`, F5).
+ *
+ * Chave própria, e não um parâmetro da de cima: a resposta agrupada tem uma linha
+ * por par escopo × agente, e compartilhar cache entre as duas formas mostraria uma
+ * sob o rótulo da outra — o mesmo erro que a janela no cache evita.
+ */
+export function usageByProjectAndAgentKey(workspaceId: string, period: string) {
+  return ["usage", "byProjectAndAgent", workspaceId, period] as const;
+}
+
 /** Os playbooks de um escopo. `archived` é filtro, e por isso entra na chave. */
 export function playbooksKey(workspaceId: string | null, archived: boolean) {
   return ["memory", "playbooks", workspaceId ?? "-", archived ? "arquivados" : "ativos"] as const;

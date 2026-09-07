@@ -1,0 +1,1 @@
+ALTER TABLE `session_usage` ADD `agent_config_id` text;

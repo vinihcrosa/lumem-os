@@ -1,0 +1,936 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumem-OS — o segundo agente (rodapé por agente, login por chamada)</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<link rel="stylesheet" href="lumem-workspace.css">
+<link rel="stylesheet" href="lumem-agent-login.css">
+<link rel="stylesheet" href="lumem-sidebar-actions.css">
+<link rel="stylesheet" href="lumem-second-agent.css">
+</head>
+<body data-od-id="second-agent">
+
+<nav class="tabbar" data-od-id="second-agent-tabbar">
+  <button class="tab is-active" data-screen="rodape">Rodapé</button>
+  <button class="tab" data-screen="login">Login</button>
+  <button class="tab" data-screen="no-app">No app</button>
+  <button class="tab" data-screen="consumo">Consumo</button>
+  <button class="tab" data-screen="protocolo">Protocolo</button>
+</nav>
+
+<!-- ==================================================================== -->
+<!-- RODAPÉ — a lista que passou de um para N                             -->
+<!-- ==================================================================== -->
+<section class="screen is-active" id="screen-rodape">
+  <div class="doc">
+    <header data-od-id="rodape-header">
+      <h1 class="doc__h1">Dois agentes, e o rodapé que diz o estado de cada um</h1>
+      <p class="doc__lede">
+        O rodapé da sidebar tinha <b>uma linha</b>, e ela era ao mesmo tempo o estado e o verbo:
+        <em>conectar um agente</em> virava <em>claude · conectado</em>. Com dois agentes isso deixa de
+        fechar — a linha só pode ser <b>estado</b>, e o verbo precisa de lugar próprio. É a mesma
+        pergunta que a <b>sidebar-actions</b> respondeu para projetos, e a resposta é a mesma:
+        <b>a ação mora no cabeçalho da lista que ela alimenta.</b>
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="rodape-antes-depois">
+      <div class="sec__h">
+        <h2 class="sec__t">O que muda, e o que ele custa</h2>
+        <p class="sec__d">
+          Medido no navegador, nesta folha: o rodapé sai de <b>45px</b> para <b>105px</b> — 28 do
+          cabeçalho <code>Agentes</code>, 32 da linha do segundo agente. Dos 60px, <b>28 são o
+          preço da regra</b>, e eles são cobrados mesmo de quem tem um agente só. O que se compra é
+          que o segundo agente não precisa de lugar novo: ele é a segunda linha de uma lista que
+          agora tem cabeçalho, como todo o resto da coluna. A coluna tem 264px de largura e nada
+          disso a alarga.
+        </p>
+      </div>
+
+      <div class="pairgrid">
+        <div class="stepcap" data-od-id="rodape-antes">
+          <span class="stepcap__n">antes · um agente, um verbo</span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+                <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--local">▭</span><span class="row__label">local</span><span class="row__meta">main</span></div>
+              </div>
+            </div>
+            <div class="sidebar__foot">
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+            </div>
+          </div>
+          <p class="stepcap__d">Uma linha. Para conectar o primeiro, clicava-se nela mesma — o estado <em>nenhum</em> era o botão.</p>
+        </div>
+
+        <div class="stepcap" data-od-id="rodape-depois">
+          <span class="stepcap__n"><b>depois</b> · uma linha por agente</span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+                <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--local">▭</span><span class="row__label">local</span><span class="row__meta">main</span></div>
+              </div>
+            </div>
+            <div class="sidebar__foot">
+              <div class="foot-head"><span class="foot-head__label">Agentes</span><button class="act" title="conectar um agente" aria-label="conectar um agente">＋</button></div>
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">codex</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+            </div>
+          </div>
+          <p class="stepcap__d">O <code>＋</code> é o único caminho para o <b>próximo</b> agente, e ele não se afasta do título quando a lista cresce.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="rodape-estados">
+      <div class="sec__h">
+        <h2 class="sec__t">Os estados de uma linha</h2>
+        <p class="sec__d">
+          Três cores e cinco palavras. O <b>âmbar</b> é o estado que não existia: adaptador instalado
+          e sem credencial — nem <em>não existe</em>, nem <em>quebrou</em>. É uma pendência com saída,
+          e a saída é clicar na linha.
+        </p>
+      </div>
+
+      <div class="flowgrid">
+        <div class="stepcap" data-od-id="estado-dois-ok">
+          <span class="stepcap__n"><b>01</b> · os dois de pé</span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+                <div class="row is-selected" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">segundo-agente</span><span class="count count--running"><span class="count__dot"></span>2</span></div>
+              </div>
+            </div>
+            <div class="sidebar__foot">
+              <div class="foot-head"><span class="foot-head__label">Agentes</span><button class="act">＋</button></div>
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">codex</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+            </div>
+          </div>
+          <p class="stepcap__d">Nenhuma das duas é "a padrão": o menu de <em>nova sessão</em> lista as duas, e o rodapé é relatório, não escolha.</p>
+        </div>
+
+        <div class="stepcap" data-od-id="estado-sem-login">
+          <span class="stepcap__n"><b>02</b> · instalado, sem login</span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+              </div>
+            </div>
+            <div class="sidebar__foot">
+              <div class="foot-head"><span class="foot-head__label">Agentes</span><button class="act">＋</button></div>
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+              <button class="foot-row foot-row--warn"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">codex</span><span class="pip"></span><span class="foot-row__st">entrar</span></button>
+            </div>
+          </div>
+          <p class="stepcap__d">Âmbar, e o rótulo é um <b>verbo</b>: o que falta é uma ação sua, não um erro do daemon.</p>
+        </div>
+
+        <div class="stepcap" data-od-id="estado-expirado">
+          <span class="stepcap__n"><b>03</b> · um expirado</span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+              </div>
+            </div>
+            <div class="sidebar__foot">
+              <div class="foot-head"><span class="foot-head__label">Agentes</span><button class="act">＋</button></div>
+              <button class="foot-row foot-row--warn"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">expirado</span></button>
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">codex</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+            </div>
+          </div>
+          <p class="stepcap__d">O expirado não desce para o fim da lista: a ordem é a do catálogo, e uma lista que se reordena por estado esconde onde a coisa estava.</p>
+        </div>
+
+        <div class="stepcap" data-od-id="estado-falhou">
+          <span class="stepcap__n"><b>04</b> · um falhou</span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+              </div>
+            </div>
+            <div class="sidebar__foot">
+              <div class="foot-head"><span class="foot-head__label">Agentes</span><button class="act">＋</button></div>
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+              <button class="foot-row foot-row--err"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">codex</span><span class="pip"></span><span class="foot-row__st">falhou</span></button>
+            </div>
+          </div>
+          <p class="stepcap__d">Vermelho é do processo, não da conta. O que quebrou aparece literal no painel, como já aparecia.</p>
+        </div>
+
+        <div class="stepcap" data-od-id="estado-painel-de-quem">
+          <span class="stepcap__n"><b>05</b> · o painel tem dono</span>
+          <div class="sbframe sbframe--tall">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Codex</span><button class="setup__x">✕</button></div>
+              <div class="acct">
+                <div class="acct__r"><span class="acct__k">conta</span><span class="acct__v">vinicius@…</span></div>
+                <div class="acct__r"><span class="acct__k">plano</span><span class="acct__v"><b>ChatGPT Plus</b></span></div>
+                <div class="acct__r"><span class="acct__k">padrão</span><span class="acct__v">gpt-5.5 · Approve for me</span></div>
+              </div>
+            </div>
+            <div class="sidebar__foot">
+              <div class="foot-head"><span class="foot-head__label">Agentes</span><button class="act">＋</button></div>
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+              <button class="foot-row foot-row--on is-open"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">codex</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+            </div>
+          </div>
+          <p class="stepcap__d">A linha aberta fica marcada. Sem isso, um painel de duas linhas obriga a ler o título para saber de quem ele é.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="rodape-regras">
+      <div class="sec__h"><h2 class="sec__t">Regras do rodapé</h2></div>
+      <div class="grid grid--2">
+        <div class="rule rule--yes"><span class="rule__t">A linha é estado; o <code>＋</code> é verbo</span><span class="rule__d">Uma coisa, um lugar. Clicar na linha abre o painel <em>daquele</em> agente; conectar outro é o cabeçalho.</span></div>
+        <div class="rule rule--yes"><span class="rule__t">Ordem do catálogo, sempre</span><span class="rule__d">Nem alfabética, nem por estado: a ordem é a de <code>ADAPTERS</code>, para a linha estar onde estava ontem.</span></div>
+        <div class="rule rule--no"><span class="rule__t">Sem "agente padrão"</span><span class="rule__d">Nenhuma linha ganha estrela. Quem escolhe o agente da conversa é o menu de nova sessão, na hora.</span></div>
+        <div class="rule rule--no"><span class="rule__t">Sem contador de sessões na linha</span><span class="rule__d">Quantas conversas cada agente tem é da árvore, que já conta por worktree. Aqui é conexão, não uso.</span></div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- LOGIN — o que muda quando entrar é uma chamada, não um comando       -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-login">
+  <div class="doc">
+    <header data-od-id="login-header">
+      <h1 class="doc__h1">Entrar sem terminal: <code>authenticate</code></h1>
+      <p class="doc__lede">
+        O painel de login de hoje roda o <b>comando</b> que o adaptador entregou, num terminal que o
+        daemon abre. O Codex não entrega comando nenhum — <b>nenhum</b> dos métodos dele é
+        <code>type: "terminal"</code>. Medido em 2026-09-06 contra o <code>codex-acp@1.10.0</code>: são
+        <code>api-key</code>, <code>chat-gpt</code> (que abre o navegador na máquina do <em>daemon</em>)
+        e <code>chat-gpt-device-code</code>, que só aparece se o cliente disser que sabe mostrar uma
+        URL. Então a tela não ganha um caminho novo por gosto: ela ganha <b>o único</b> que o agente
+        oferece.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="login-fluxo">
+      <div class="sec__h">
+        <h2 class="sec__t">Do <code>＋</code> ao conectado</h2>
+        <p class="sec__d">
+          Cinco estados, todos dentro dos 264px, nenhum com modal e nenhum pedindo comando. O primeiro
+          preenchido de cada painel é um só — os outros caminhos são contorno e link.
+        </p>
+      </div>
+
+      <div class="flowgrid">
+        <!-- 1 — escolher qual agente conectar -->
+        <div class="stepcap" data-od-id="login-escolher">
+          <span class="stepcap__n"><b>01</b> · qual agente</span>
+          <div class="sbframe sbframe--tall">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Conectar agente</span><button class="setup__x">✕</button></div>
+              <button class="opt opt--primary">
+                <span class="opt__t"><span class="opt__g">◆</span>Codex</span>
+                <span class="opt__d">o adaptador traz o Codex dentro · ≈300 MB</span>
+              </button>
+              <button class="opt" disabled>
+                <span class="opt__t"><span class="opt__g">◆</span>Claude Code</span>
+                <span class="opt__d">já conectado</span>
+              </button>
+              <button class="linkbtn">outro agente ACP…</button>
+              <span class="setup__note">A lista é o <b>catálogo do daemon</b>. O que já está conectado continua listado, desabilitado — sumir com ele faz a pessoa procurar.</span>
+            </div>
+            <div class="sidebar__foot">
+              <div class="foot-head"><span class="foot-head__label">Agentes</span><button class="act is-focus">＋</button></div>
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+            </div>
+          </div>
+          <p class="stepcap__d">O tamanho aparece <b>antes</b> do clique: 300 MB não é detalhe de implementação para quem está numa rede ruim.</p>
+        </div>
+
+        <!-- 2 — preparo -->
+        <div class="stepcap" data-od-id="login-preparo">
+          <span class="stepcap__n"><b>02</b> · preparo automático</span>
+          <div class="sbframe sbframe--tall">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Preparando o Codex</span></div>
+              <div class="prep">
+                <div class="prep__r prep__r--now"><span class="prep__m">◐</span>instalando o adaptador</div>
+                <div class="prep__r prep__r--wait"><span class="prep__m">○</span>handshake</div>
+                <span class="meter" style="color:var(--color-tool-running)"><span class="meter__f" style="--w:41%"></span></span>
+              </div>
+              <span class="setup__note">Duas linhas, e não três: este adaptador <b>não precisa de CLI no PATH</b> — ele traz o próprio. Não há o que procurar na sua máquina.</span>
+            </div>
+            <div class="sidebar__foot">
+              <div class="foot-head"><span class="foot-head__label">Agentes</span><button class="act">＋</button></div>
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+              <button class="foot-row foot-row--off"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">codex</span><span class="foot-row__st">instalando</span></button>
+            </div>
+          </div>
+          <p class="stepcap__d">O do Claude tem <b>três</b> linhas porque ele dirige um <code>claude</code> que tem que existir. Aqui a linha desaparece porque a etapa desaparece.</p>
+        </div>
+
+        <!-- 3 — jeitos de entrar -->
+        <div class="stepcap" data-od-id="login-metodos">
+          <span class="stepcap__n"><b>03</b> · jeitos de entrar</span>
+          <div class="sbframe sbframe--xtall">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Entrar no Codex</span><button class="setup__x">✕</button></div>
+              <button class="opt opt--primary">
+                <span class="opt__t"><span class="opt__g">◆</span>Entrar com o ChatGPT</span>
+                <span class="opt__d">abre o navegador <b>nesta máquina</b></span>
+              </button>
+              <button class="opt">
+                <span class="opt__t"><span class="opt__g">◇</span>Entrar por URL e código</span>
+                <span class="opt__d">quando o daemon não é esta máquina</span>
+              </button>
+              <button class="linkbtn">colar uma chave de API</button>
+              <span class="setup__note">Os três vieram do <b>handshake</b>. O terceiro só existe porque o Lumem declarou saber mostrar uma URL — sem isso, o agente nem o oferece.</span>
+            </div>
+            <div class="sidebar__foot">
+              <div class="foot-head"><span class="foot-head__label">Agentes</span><button class="act">＋</button></div>
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+              <button class="foot-row foot-row--warn is-open"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">codex</span><span class="pip"></span><span class="foot-row__st">entrar</span></button>
+            </div>
+          </div>
+          <p class="stepcap__d">O preenchido é o de menos passos, e a descrição dele diz <b>onde</b> o navegador abre — é a frase que o custo do §7 obriga.</p>
+        </div>
+
+        <!-- 4 — URL e código -->
+        <div class="stepcap" data-od-id="login-device-code">
+          <span class="stepcap__n"><b>04</b> · URL e código</span>
+          <div class="sbframe sbframe--xtall">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>cliente<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">api-gateway</span><button class="row__act">＋</button></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Entrar no Codex</span><button class="setup__x">✕</button></div>
+              <div class="dcode">
+                <span class="dcode__k">abra em qualquer aparelho</span>
+                <span class="copy"><span class="copy__cmd">chatgpt.com/device</span><button class="btn btn--sm btn--ghost">copiar</button></span>
+                <span class="dcode__k">e digite este código</span>
+                <span class="dcode__v">FKPT-QJ29</span>
+              </div>
+              <div class="prep">
+                <div class="prep__r prep__r--now"><span class="prep__m">◐</span>esperando você autorizar</div>
+              </div>
+              <div class="setup__acts">
+                <button class="btn btn--sm btn--ghost">cancelar</button>
+              </div>
+              <span class="setup__note">Nada abre aqui, e é de propósito: o daemon pode estar noutra máquina. Terminou lá? Esta tela muda sozinha.</span>
+            </div>
+            <div class="sidebar__foot">
+              <div class="foot-head"><span class="foot-head__label">Agentes</span><button class="act">＋</button></div>
+              <button class="foot-row foot-row--warn is-open"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">codex</span><span class="pip"></span><span class="foot-row__st">entrando</span></button>
+            </div>
+          </div>
+          <p class="stepcap__d">O código é o único texto grande da tela. <code>0</code>/<code>O</code> e <code>1</code>/<code>l</code> a 11px é o defeito desta tela — mono grande e espaçado é a defesa.</p>
+        </div>
+
+        <!-- 5 — chave de API -->
+        <div class="stepcap" data-od-id="login-chave">
+          <span class="stepcap__n"><b>05</b> · chave de API <span class="dim">(contorno)</span></span>
+          <div class="sbframe sbframe--xtall">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Chave da OpenAI</span><button class="setup__x">✕</button></div>
+              <div class="key-in">
+                <span class="input input--focus"><span class="input__val">sk-proj-••••••••••••••••</span></span>
+                <button class="btn btn--sm btn--brand">usar</button>
+              </div>
+              <span class="setup__note">Ela <b>atravessa</b> o daemon e vai para o adaptador. O Lumem não grava chave: não vai para o <code>~/.lumem</code>, não vai para log, e não volta para esta tela.</span>
+              <div class="banner banner--info"><span class="banner__glyph">◇</span><span>Se <code>OPENAI_API_KEY</code> já estiver no ambiente do daemon, o adaptador acha sozinho — o pré-voo diz qual variável ele encontrou.</span></div>
+              <button class="linkbtn">voltar aos jeitos de entrar</button>
+            </div>
+            <div class="sidebar__foot">
+              <div class="foot-head"><span class="foot-head__label">Agentes</span><button class="act">＋</button></div>
+              <button class="foot-row foot-row--warn is-open"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">codex</span><span class="pip"></span><span class="foot-row__st">entrar</span></button>
+            </div>
+          </div>
+          <p class="stepcap__d">Colar, não digitar. E o aviso diz o que o daemon <b>não</b> faz — é a parte da resposta de segurança que a tela consegue dar.</p>
+        </div>
+
+        <!-- 6 — conectado -->
+        <div class="stepcap" data-od-id="login-conectado">
+          <span class="stepcap__n"><b>06</b> · conectado</span>
+          <div class="sbframe sbframe--tall">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+                <div class="row" style="--depth:1"><span class="row__twist">▾</span><span class="glyph glyph--worktree">◇</span><span class="row__label">segundo-agente</span><span class="count count--running"><span class="count__dot"></span>2</span></div>
+                <div class="row" style="--depth:2"><span class="row__twist"></span><span class="glyph glyph--agent">◆</span><span class="row__label">claude</span></div>
+                <div class="row" style="--depth:2"><span class="row__twist"></span><span class="glyph glyph--agent">◆</span><span class="row__label">codex</span></div>
+              </div>
+            </div>
+            <div class="setup">
+              <div class="setup__head"><span class="setup__t">Codex</span><button class="setup__x">✕</button></div>
+              <div class="acct">
+                <div class="acct__r"><span class="acct__k">conta</span><span class="acct__v">vinicius@…</span></div>
+                <div class="acct__r"><span class="acct__k">plano</span><span class="acct__v"><b>ChatGPT Plus</b></span></div>
+                <div class="acct__r"><span class="acct__k">versão</span><span class="acct__v">1.10.0 · fixada</span></div>
+              </div>
+              <span class="setup__note">Sem botão <b>sair</b>: o adaptador declara saber deslogar, e o Lumem ainda não chama — a linha mentiria.</span>
+            </div>
+            <div class="sidebar__foot">
+              <div class="foot-head"><span class="foot-head__label">Agentes</span><button class="act">＋</button></div>
+              <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+              <button class="foot-row foot-row--on is-open"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">codex</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+            </div>
+          </div>
+          <p class="stepcap__d">A versão é <b>fato</b>, não campo: ela veio do handshake. Igual à do Claude, e por isso o painel é o mesmo.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="login-custo">
+      <div class="sec__h">
+        <h2 class="sec__t">O custo que este desenho aceita</h2>
+        <p class="sec__d">Nomeado, porque a alternativa era escondê-lo.</p>
+      </div>
+      <div class="grid grid--2">
+        <div class="rule rule--no">
+          <span class="rule__t">O primeiro botão abre o navegador na máquina do daemon</span>
+          <span class="rule__d">
+            Quem estiver com o daemon noutra máquina clica no preenchido e um navegador abre onde ele
+            não vê. A defesa é a descrição — <em>abre o navegador nesta máquina</em> —, e a saída está
+            uma opção abaixo. O contrário (código por padrão) cobraria dois passos de <b>todo mundo</b>
+            para proteger o caso que ainda não existe no produto.
+          </span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">O cabeçalho custa 28px com um agente só</span>
+          <span class="rule__d">
+            Antes, a linha única era a porta de entrada. Agora ela é estado, e o verbo mora no
+            cabeçalho — que aparece mesmo com um agente. Foi comprado para o segundo não precisar de
+            lugar novo.
+          </span>
+        </div>
+        <div class="rule rule--yes">
+          <span class="rule__t">Nenhuma tela nova no primeiro acesso</span>
+          <span class="rule__d">
+            A PRD propunha escolher agente na tela 3 do onboarding. A medição mostrou que o login do
+            Codex é o caminho mais novo do produto — então ele <b>não</b> vai na frente de quem está
+            chegando. O <code>AgentStep</code> fica como está.
+          </span>
+        </div>
+        <div class="rule rule--yes">
+          <span class="rule__t">Zero componente novo</span>
+          <span class="rule__d">
+            O painel, a opção, o preparo, a conta e o comando copiável já existiam. O que nasceu foi um
+            cabeçalho, um estado de cor e um bloco de código — e nenhum token novo.
+          </span>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- NO APP — a prova de que dois agentes cabem em 264px                  -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-no-app">
+  <div class="app">
+    <header class="topbar">
+      <span class="wordmark"><span class="wordmark__dot"></span>LUMEM</span>
+      <span class="spacer"></span>
+      <span class="daemon"><span class="daemon__dot"></span>daemon v0.2.0 · :4317</span>
+    </header>
+    <div class="body">
+      <aside class="sidebar" data-od-id="sidebar-dois-agentes">
+        <div class="ws-wrap"><button class="ws"><span class="ws__icon">◈</span>pessoal<span class="caret">▾</span></button></div>
+        <div class="tree">
+          <div class="tree__head"><div class="tree__label">Projetos</div><button class="act" aria-label="adicionar projeto">＋</button></div>
+          <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><span class="count count--running"><span class="count__dot"></span>2</span><button class="row__act">＋</button></div>
+          <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--local">▭</span><span class="row__label">local</span><span class="row__meta">main</span></div>
+          <div class="row is-selected" style="--depth:1"><span class="row__twist">▾</span><span class="glyph glyph--worktree">◇</span><span class="row__label">segundo-agente</span><span class="count count--running"><span class="count__dot"></span>2</span></div>
+          <div class="row" style="--depth:2"><span class="row__twist"></span><span class="glyph glyph--agent">◆</span><span class="row__label">claude</span></div>
+          <div class="row" style="--depth:2"><span class="row__twist"></span><span class="glyph glyph--agent">◆</span><span class="row__label">codex</span></div>
+          <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span><button class="row__act">＋</button></div>
+        </div>
+        <div class="sidebar__foot">
+          <div class="foot-head"><span class="foot-head__label">Agentes</span><button class="act" aria-label="conectar um agente">＋</button></div>
+          <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+          <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">codex</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+        </div>
+      </aside>
+
+      <main class="main" data-od-id="main-conversa-codex">
+        <div class="wt-head">
+          <nav class="crumb">pessoal<span class="crumb__sep">/</span>lumem-os<span class="crumb__sep">/</span><span class="crumb__here">segundo-agente</span></nav>
+        </div>
+
+        <!--
+          A faixa de abas da worktree-first-tab: o checkout é a primeira aba, e
+          cada sessão de agente traz o NOME do agente dela. É o que a F4 foi
+          conferir — e o que ela achou: com dois agentes, a aba era a única
+          pista, porque o cabeçalho da conversa dizia "claude" para os dois.
+        -->
+        <div class="tabs-bar" data-od-id="abas-dois-agentes">
+          <div class="tabs">
+            <span class="stab stab--overview"><button class="stab__label" type="button"><span class="glyph glyph--worktree" aria-hidden="true">◇</span>segundo-agente</button></span>
+            <span class="stab"><button class="stab__label" type="button"><span class="glyph glyph--agent" aria-hidden="true">◆</span>claude</button><button class="stab__close" type="button" aria-label="fechar">✕</button></span>
+            <span class="stab stab--active"><button class="stab__label" type="button"><span class="glyph glyph--agent" aria-hidden="true">◆</span>codex</button><button class="stab__close" type="button" aria-label="fechar">✕</button></span>
+          </div>
+          <button class="tabs__new" type="button">＋ nova sessão</button>
+        </div>
+
+        <div class="pane">
+          <div class="conv" data-od-id="conversa-codex">
+            <div class="conv__head">
+              <!-- O nome vem da configuração de agente, a mesma fonte da aba. -->
+              <span class="conv__who"><span class="glyph glyph--agent" aria-hidden="true">◆</span>codex</span>
+              <span class="conv__adapter">codex-acp 1.10.0 · sessão 01a07962</span>
+              <span class="spacer"></span>
+            </div>
+
+            <div class="conv__scroll conv__scroll--flow">
+              <div class="turn turn--user">
+                <span class="turn__g" aria-hidden="true">❯</span>
+                <div class="turn__b"><div class="msg">leia o <code>hello.txt</code> e rode <code>echo oi</code>. responde em uma linha.</div></div>
+              </div>
+
+              <div class="turn turn--agent">
+                <span class="turn__g" aria-hidden="true">◆</span>
+                <div class="turn__b">
+                  <div class="thought"><span class="thought__twist" aria-hidden="true">▸</span>pensou 2 s<span class="thought__peek">· planejando ler o arquivo e rodar o comando</span></div>
+
+                  <!--
+                    Os dois cartões que o Codex produz. Medido: ele NÃO pede
+                    `fs/*` nem `terminal/*` ao cliente — faz por conta própria e
+                    relata `kind: read` e `kind: execute`. O cartão é o mesmo do
+                    Claude porque o `kind` é passthrough, e é isso que "genérico
+                    por desenho" queria dizer.
+                  -->
+                  <div class="tc tc--ok">
+                    <div class="tc__head">
+                      <span class="tc__glyph" aria-hidden="true">▤</span><span class="tc__verb">Read</span>
+                      <span class="tc__target"><span class="tc__name">hello.txt</span></span>
+                      <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span>
+                    </div>
+                  </div>
+                  <div class="tc tc--ok">
+                    <div class="tc__head">
+                      <span class="tc__glyph" aria-hidden="true">▸</span><span class="tc__verb">Bash</span>
+                      <span class="tc__target"><span class="tc__name">echo oi</span></span>
+                      <span class="tc__st"><span class="tc__dot" aria-hidden="true"></span>ok</span>
+                    </div>
+                  </div>
+
+                  <div class="msg"><p>Primeira linha: <code>linha um do arquivo</code>. Saída: <code>oi</code>.</p></div>
+                </div>
+              </div>
+            </div>
+
+            <!--
+              O rodapé de consumo deste agente: janela sim, limite NÃO.
+              Medido: `usage_update` traz `used` e `size` e mais nada. O bloco
+              `assinatura` não existe, e o turno é um travessão — nunca zero.
+            -->
+            <div class="usage" data-od-id="consumo-sem-limite">
+              <span class="u"><span class="u__k">janela</span>22,0k / 258k<span class="meter"><span class="meter__f" style="--w:9%" aria-hidden="true"></span></span></span>
+              <span class="u"><span class="u__k">turno</span>—</span>
+              <span class="usage__spacer"></span>
+            </div>
+
+            <div class="composer">
+              <div class="composer__box">
+                <div class="composer__in composer__in--empty">escreva, ou / para comandos</div>
+                <div class="composer__bar">
+                  <!-- As pílulas são as do Codex: os rótulos são dele, e as
+                       categorias `collaboration_mode`, `thought_level` e
+                       `model_config` são três que nenhuma tela tinha visto. -->
+                  <button class="pill pill--auto">Approve for me <span class="pill__caret" aria-hidden="true">▾</span></button>
+                  <button class="pill pill--model">gpt-5.5 <span class="pill__caret" aria-hidden="true">▾</span></button>
+                  <button class="pill">Medium <span class="pill__caret" aria-hidden="true">▾</span></button>
+                  <button class="pill">Default <span class="pill__caret" aria-hidden="true">▾</span></button>
+                  <span class="spacer"></span>
+                  <button class="btn btn--brand btn--sm">enviar <span class="kbd">⏎</span></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- CONSUMO — a comparação que só existe quando há o que comparar        -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-consumo">
+  <div class="doc">
+    <header data-od-id="consumo-header">
+      <h1 class="doc__h1">Quanto cada agente custou</h1>
+      <p class="doc__lede">
+        Ter dois agentes e não poder comparar o que cada um cobrou seria não ter dois agentes. Mas a
+        comparação **não** é uma tela nova: é a lista de consumo que já existe, abrindo. Com
+        <b>um</b> agente nada disso aparece — sem <code>▸</code>, sem sub-linha, e sem a consulta que
+        as alimenta.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="consumo-fechado-aberto">
+      <div class="sec__h">
+        <h2 class="sec__t">Fechado, e aberto</h2>
+        <p class="sec__d">
+          A linha do projeto é a de hoje, com um <code>▸</code> à esquerda. Aberta, ela vira um grupo:
+          uma sub-linha por agente, recuada, com a barra medindo a fração <b>dentro daquele
+          projeto</b> — que é o que a pergunta pede.
+        </p>
+      </div>
+
+      <div class="case">
+        <span class="case__label"><b>01</b> · com um agente, é a lista de hoje</span>
+        <div class="case__frame">
+          <div class="spend" data-od-id="consumo-um-agente">
+            <div class="spend__row">
+              <span class="glyph" style="color: var(--color-scope-project)">▣</span>
+              <span class="spend__name">lumem-os</span>
+              <span class="spend__bar"><span class="spend__fill" style="--w: 78%"></span></span>
+              <span class="spend__tok">1,4M</span>
+              <span class="spend__cost">US$ 12,4071</span>
+              <span class="spend__turns">86 turnos</span>
+            </div>
+            <div class="spend__row">
+              <span class="glyph" style="color: var(--color-scope-project)">▣</span>
+              <span class="spend__name">lorebase</span>
+              <span class="spend__bar"><span class="spend__fill" style="--w: 22%"></span></span>
+              <span class="spend__tok">402k</span>
+              <span class="spend__cost">US$ 3,2210</span>
+              <span class="spend__turns">31 turnos</span>
+            </div>
+          </div>
+        </div>
+        <p class="case__note">
+          Nenhum pixel novo. É a C5 escrita em desenho: a comparação só aparece quando há o que
+          comparar, e o produto não cobra por uma coluna vazia.
+        </p>
+      </div>
+
+      <div class="case">
+        <span class="case__label"><b>02</b> · com dois, a linha abre</span>
+        <div class="case__frame">
+          <div class="spend spend--split" data-od-id="consumo-dois-agentes">
+            <div class="spend__group">
+              <div class="spend__row">
+                <span class="spend__twist">▾</span>
+                <span class="glyph" style="color: var(--color-scope-project)">▣</span>
+                <span class="spend__name">lumem-os</span>
+                <span class="spend__bar"><span class="spend__fill" style="--w: 78%"></span></span>
+                <span class="spend__tok">1,4M</span>
+                <span class="spend__cost">US$ 12,4071</span>
+                <span class="spend__turns">86 turnos</span>
+              </div>
+              <div class="spend__row spend__row--agent">
+                <span class="spend__twist"></span>
+                <span class="glyph glyph--agent">◆</span>
+                <span class="spend__name">claude</span>
+                <span class="spend__bar"><span class="spend__fill" style="--w: 71%"></span></span>
+                <span class="spend__tok">994k</span>
+                <span class="spend__cost">US$ 12,4071</span>
+                <span class="spend__turns">61 turnos</span>
+              </div>
+              <div class="spend__row spend__row--agent">
+                <span class="spend__twist"></span>
+                <span class="glyph glyph--agent">◆</span>
+                <span class="spend__name">codex</span>
+                <span class="spend__bar"><span class="spend__fill" style="--w: 29%"></span></span>
+                <span class="spend__tok">406k</span>
+                <!-- O Codex não informa dinheiro (§4.4). Zero seria a mentira. -->
+                <span class="spend__cost spend__cost--none">sem custo reportado</span>
+                <span class="spend__turns">25 turnos</span>
+              </div>
+            </div>
+            <div class="spend__group">
+              <div class="spend__row">
+                <span class="spend__twist">▸</span>
+                <span class="glyph" style="color: var(--color-scope-project)">▣</span>
+                <span class="spend__name">lorebase</span>
+                <span class="spend__bar"><span class="spend__fill" style="--w: 22%"></span></span>
+                <span class="spend__tok">402k</span>
+                <span class="spend__cost">US$ 3,2210</span>
+                <span class="spend__turns">31 turnos</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="case__note">
+          A soma das sub-linhas fecha com a linha de cima — o daemon responde as duas com a mesma
+          janela, e um teste compara os dois totais. Se não fechasse, uma das duas estaria mentindo.
+        </p>
+      </div>
+
+      <div class="case">
+        <span class="case__label"><b>03</b> · o turno sem agente também é turno</span>
+        <div class="case__frame">
+          <div class="spend spend--split" data-od-id="consumo-sem-agente">
+            <div class="spend__group">
+              <div class="spend__row">
+                <span class="spend__twist">▾</span>
+                <span class="glyph" style="color: var(--color-scope-project)">▣</span>
+                <span class="spend__name">lumem-os</span>
+                <span class="spend__bar"><span class="spend__fill" style="--w: 100%"></span></span>
+                <span class="spend__tok">1,4M</span>
+                <span class="spend__cost">US$ 12,4071</span>
+                <span class="spend__turns">86 turnos</span>
+              </div>
+              <div class="spend__row spend__row--agent">
+                <span class="spend__twist"></span>
+                <span class="glyph glyph--agent">◆</span>
+                <span class="spend__name">claude</span>
+                <span class="spend__bar"><span class="spend__fill" style="--w: 96%"></span></span>
+                <span class="spend__tok">1,35M</span>
+                <span class="spend__cost">US$ 12,4071</span>
+                <span class="spend__turns">84 turnos</span>
+              </div>
+              <div class="spend__row spend__row--agent spend__row--idle">
+                <span class="spend__twist"></span>
+                <span class="glyph">◆</span>
+                <span class="spend__name">antes desta versão</span>
+                <span class="spend__bar"><span class="spend__fill" style="--w: 4%"></span></span>
+                <span class="spend__tok">50k</span>
+                <span class="spend__cost spend__cost--none">sem custo reportado</span>
+                <span class="spend__turns">2 turnos</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="case__note">
+          A linha gravada antes da coluna existir não tem agente, e não ganha um inventado. Ela
+          aparece com o nome do que ela é — <em>antes desta versão</em> —, porque somar 50k a um dos
+          dois seria escolher um culpado no lugar de dizer "não sei".
+        </p>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="consumo-recusas">
+      <div class="sec__h"><h2 class="sec__t">O que foi recusado, e por quê</h2></div>
+      <div class="grid grid--2">
+        <div class="rule rule--no">
+          <span class="rule__t">Uma coluna por agente</span>
+          <span class="rule__d">
+            Era o desenho óbvio, e ele quebra no terceiro: a grade da linha tem seis colunas fixas, e
+            "uma por agente" é um número que o produto não controla.
+          </span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">Uma barra segmentada por cor</span>
+          <span class="rule__d">
+            Mais bonita, e mais caro: ela pede uma escala <b>categórica</b> de cor que o
+            <code>tokens.css</code> não tem, com contraste a provar por par — um token novo nasceria
+            só para isto, e ele viveria no produto inteiro.
+          </span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">Uma tela de comparação</span>
+          <span class="rule__d">
+            Fora, por <a href="#">C5</a>. A pergunta "quanto cada um custou" é a mesma lista com um nível a mais;
+            uma tela própria seria uma segunda semântica de janela de tempo.
+          </span>
+        </div>
+        <div class="rule rule--yes">
+          <span class="rule__t">Sub-linha, com a grade preservada</span>
+          <span class="rule__d">
+            As colunas de número continuam batendo com as de cima — elas existem para ser comparadas
+            verticalmente, e um recuo que empurrasse os dígitos quebraria justamente isso.
+          </span>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- PROTOCOLO — o que a medição disse, e o que ela mudou no desenho      -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-protocolo">
+  <div class="doc">
+    <header>
+      <h1 class="doc__h1">O que a fase 0 mediu, e o que virou tela</h1>
+      <p class="doc__lede">
+        Nada aqui é suposição: a fase 0 subiu o <code>@agentclientprotocol/codex-acp@1.10.0</code> de
+        verdade, com o cliente ACP do próprio Lumem, em 2026-09-06. Duas linhas desta tela existem só
+        porque a medição contrariou o que a PRD propunha.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="proto-authmethods">
+      <div class="sec__h">
+        <h2 class="sec__t">Os métodos mudam com o que o cliente declara</h2>
+        <p class="sec__d">
+          E não com o que ele pede. O adaptador decide a lista a partir das capacidades do cliente e do
+          ambiente dele — a mesma lição do Claude, com outro resultado.
+        </p>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>O cliente declara</th><th><code>authMethods</code> que voltam</th><th>Leitura</th></tr></thead>
+        <tbody>
+          <tr><td><code>fs</code> + <code>terminal</code></td><td><code>api-key</code>, <code>chat-gpt</code></td><td>o estado de hoje do Lumem</td></tr>
+          <tr><td>+ <code>auth.terminal</code></td><td><b>os mesmos dois</b></td><td>declarar terminal não compra nada aqui — no Claude, comprava tudo</td></tr>
+          <tr><td>+ <code>elicitation.url</code></td><td>+ <code>chat-gpt-device-code</code></td><td><b>é o que a tela precisa</b>: URL e código em vez de navegador</td></tr>
+          <tr><td>+ <code>auth._meta.gateway</code></td><td>+ <code>gateway</code></td><td>fora de escopo; o Lumem não declara</td></tr>
+          <tr><td>ambiente com <code>NO_BROWSER=1</code></td><td>só <code>api-key</code></td><td>a saída de um daemon headless, sem tela nova</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="sec" data-od-id="proto-mapa">
+      <div class="sec__h"><h2 class="sec__t">Tela ↔ protocolo</h2></div>
+      <table class="tbl">
+        <thead><tr><th>Na tela</th><th>No ACP</th><th>Quem decide</th></tr></thead>
+        <tbody>
+          <tr><td><b>Uma linha por agente no rodapé</b></td><td>uma <code>agent_config</code> por linha; o estado vem do último <code>probe</code></td><td>o daemon</td></tr>
+          <tr><td><b><code>＋</code> no cabeçalho <code>Agentes</code></b></td><td><code>ADAPTERS</code>, o catálogo do <code>shared</code> — não é ACP</td><td>o produto</td></tr>
+          <tr><td><b>"Entrar com o ChatGPT"</b></td><td><code>authenticate({ methodId: "chat-gpt" })</code>; o adaptador chama <code>open(authUrl)</code></td><td>a pessoa</td></tr>
+          <tr><td><b>URL e código</b></td><td><code>authenticate({ methodId: "chat-gpt-device-code" })</code> → o agente pede <code>elicitation/create</code>, e o Lumem responde <code>elicitation/complete</code> no fim</td><td>o agente</td></tr>
+          <tr><td><b>Campo de chave</b></td><td><code>authenticate({ methodId: "api-key", _meta: { "api-key": { apiKey } } })</code></td><td>a pessoa</td></tr>
+          <tr><td><b>Painel abre sozinho</b></td><td><code>session/new</code> respondeu <code>auth_required</code></td><td>o agente</td></tr>
+          <tr><td><b>Duas linhas no preparo, não três</b></td><td>a spec do catálogo tem <code>cli: null</code> — o adaptador traz o próprio agente</td><td>o catálogo</td></tr>
+          <tr><td><b>Sem botão "sair"</b></td><td><code>auth.logout</code> <b>veio</b> no handshake, e o Lumem não chama — está no backlog</td><td>o produto</td></tr>
+          <tr><td><b>Rodapé de consumo sem limite</b></td><td><code>usage_update</code> traz <code>used</code>/<code>size</code> e nada mais — nem <code>rateLimit</code>, nem <code>cost</code></td><td>o agente</td></tr>
+        </tbody>
+      </table>
+      <p class="case__note">
+        Ordem real: <code>initialize</code> → <code>authenticate</code> (com <code>elicitation/*</code>
+        se for por código) → <code>session/new</code>. O painel de login é a etapa do meio, e some
+        quando ela passa.
+      </p>
+    </section>
+
+    <section class="sec" data-od-id="proto-reversoes">
+      <div class="sec__h">
+        <h2 class="sec__t">O que a medição mudou no desenho</h2>
+        <p class="sec__d">Registrado aqui porque a regra do projeto não permite o contrário: desenho que muda, muda com o motivo escrito.</p>
+      </div>
+      <div class="grid grid--2">
+        <div class="rule rule--no">
+          <span class="rule__t">Saiu: escolher agente no primeiro acesso</span>
+          <span class="rule__d">
+            A PRD propunha dois cartões na tela 3 do onboarding, com Claude no default. O login do
+            Codex é uma <b>chamada</b> que pode precisar de navegador em outra máquina — o caminho mais
+            novo do produto. Ele entra pelo rodapé, depois. <em>(C3)</em>
+          </span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">Saiu: três linhas no preparo</span>
+          <span class="rule__d">
+            O preparo do Claude conta <em>CLI encontrado</em> primeiro. O <code>codex-acp</code> traz o
+            <code>@openai/codex</code> dentro — medido: o handshake responde com
+            <code>PATH=/nonexistent</code>. A linha desaparece porque a etapa desaparece. <em>(C2)</em>
+          </span>
+        </div>
+        <div class="rule rule--yes">
+          <span class="rule__t">Entrou: URL e código</span>
+          <span class="rule__d">
+            Não por gosto: é o <b>único</b> método que não abre navegador na máquina do daemon, e ele só
+            aparece se o cliente declarar <code>elicitation.url</code>.
+          </span>
+        </div>
+        <div class="rule rule--yes">
+          <span class="rule__t">Entrou: o ponto com a cor do estado</span>
+          <span class="rule__d">
+            Achado renderizando esta folha: o <code>.pip</code> nascia <b>cinza nos três estados</b> —
+            ele herda a cor da linha, e a cor do estado vive na palavra ao lado. Com uma linha isso
+            passava, porque a palavra dizia tudo. Com duas, o ponto é o que o olho varre primeiro, e um
+            enfeite na posição de um sinal é pior que sinal nenhum. Verde 9,85:1, âmbar 9,10:1,
+            vermelho 8,76:1 sobre o painel — e <b>nenhum dos três estava na lista de contraste</b>,
+            nem o verde, que já era pintado ali.
+          </span>
+        </div>
+        <div class="rule rule--yes">
+          <span class="rule__t">Entrou: âmbar no rodapé</span>
+          <span class="rule__d">
+            Instalado e sem credencial não é <em>nenhum</em> nem <em>falhou</em>. Com um agente esse
+            estado durava um instante; com dois, ele fica na tela enquanto o outro trabalha.
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="proto-regras">
+      <div class="sec__h"><h2 class="sec__t">Regras que esta tela assume</h2></div>
+      <div class="grid grid--2">
+        <div class="rule rule--yes"><span class="rule__t">A tela não inventa método de login</span><span class="rule__d">Cada botão é uma entrada de <code>authMethods</code>. Agente que oferece um, mostra um.</span></div>
+        <div class="rule rule--yes"><span class="rule__t">Nunca zero no consumo</span><span class="rule__d">Agente que não informa custo mostra <b>—</b>, e o bloco de limite não existe. Zero seria dizer que um turno pago foi grátis.</span></div>
+        <div class="rule rule--yes"><span class="rule__t">Quem confirma é o agente</span><span class="rule__d">Não há botão "já entrei" em nenhum dos caminhos, inclusive no de código.</span></div>
+        <div class="rule rule--yes"><span class="rule__t">Segredo atravessa e não fica</span><span class="rule__d">A chave vai para o adaptador. Não vai para o <code>~/.lumem</code>, não vai para log, e não volta para a tela.</span></div>
+        <div class="rule rule--no"><span class="rule__t">Sem modal</span><span class="rule__d">O painel mora na coluna e empurra a árvore, como já morava. A conversa do outro agente continua visível ao lado.</span></div>
+        <div class="rule rule--no"><span class="rule__t">Sem agente padrão</span><span class="rule__d">O rodapé relata conexão. Quem escolhe agente é o menu de nova sessão, na hora de conversar.</span></div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<script>
+var tabs = document.querySelectorAll('.tabbar .tab');
+function show(id) {
+  tabs.forEach(function (t) { t.classList.toggle('is-active', t.dataset.screen === id); });
+  document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('is-active', s.id === 'screen-' + id); });
+  localStorage.setItem('lumem-second-agent-screen', id);
+  window.scrollTo(0, 0);
+}
+tabs.forEach(function (tab) { tab.addEventListener('click', function () { show(tab.dataset.screen); }); });
+var saved = localStorage.getItem('lumem-second-agent-screen');
+if (saved && document.getElementById('screen-' + saved)) { show(saved); }
+</script>
+</body>
+</html>

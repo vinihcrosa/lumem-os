@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 import { E2E_SERVER_PORT } from "../ports.js";
-import { ensureWorkspace } from "./support/app.js";
-import { query } from "./support/daemon.js";
+import { createAgentConfig, ensureWorkspace } from "./support/app.js";
+import { E2E_FAKE_ACP_AGENT } from "./support/fixtures.js";
 
 /**
  * The login panel against a real handshake.
@@ -23,34 +23,58 @@ import { query } from "./support/daemon.js";
  */
 
 const DAEMON = `http://127.0.0.1:${E2E_SERVER_PORT}`;
+const AGENT = "acp-login";
 
-interface Config {
-  id: string;
-  name: string;
-  transport: string;
-  adapterVersion: string | null;
-}
+/*
+ * Este spec cria o agente **dele**, e por dois motivos.
+ *
+ * O primeiro é ordem: com uma linha por agente (`second-agent`, C8), um locator
+ * pelo estado acha uma linha por spec que rodou antes — o que é a feature
+ * funcionando, e um teste que depende de quem passou antes por ali.
+ *
+ * O segundo é o que ele afirma: a linha nasce com uma versão **diferente** da que
+ * o adaptador reporta. Um `agent_config` de ACP é obrigado pelo banco a ter versão
+ * fixada, então "sem versão" não existe — mas com uma versão *errada* de propósito
+ * a asserção passa a distinguir o que antes ela não distinguia: se o painel lê do
+ * adaptador ou do banco.
+ */
+test.beforeEach(async ({ request }) => {
+  await createAgentConfig(request, DAEMON, {
+    name: AGENT,
+    command: process.execPath,
+    args: [E2E_FAKE_ACP_AGENT],
+    transport: "acp",
+    adapterVersion: "9.9.9-gravada",
+  });
+});
 
 test("the panel reads the connection back from the adapter", async ({ page }) => {
   await page.goto("/");
   await ensureWorkspace(page);
 
-  // The footer says the state of the connection — a line that did not exist
-  // before this feature, when the footer only had a button that opened a form.
-  const footer = page.getByRole("button", { name: /conectado|expirado|falhou|nenhum/ });
-  await expect(footer).toBeVisible({ timeout: 20_000 });
-  await expect(footer).toContainText("conectado", { timeout: 30_000 });
-  await footer.click();
+  /*
+   * **Uma linha por agente**, e por isso o locator é o nome de um deles.
+   *
+   * Antes da `second-agent` este rodapé tinha uma linha só, e um matcher pelo
+   * estado bastava. Os specs dividem um daemon e cada um deixa a configuração
+   * dele para trás — então hoje há três linhas aqui, o que é a feature
+   * funcionando, e um matcher solto acha as três. É a regra de locator que a
+   * `testing.md` já registra: por nome acessível, ancorado ou escopado.
+   */
+  const row = page.getByRole("button", { name: new RegExp(`^${AGENT}: `) });
+  await expect(row).toBeVisible({ timeout: 20_000 });
+  await expect(row).toContainText("conectado", { timeout: 30_000 });
+  await row.click();
 
-  const panel = page.getByRole("group", { name: "conectar um agente" });
+  const panel = page.getByRole("group", { name: new RegExp(`agente ${AGENT}`) });
 
   // The version came from `initialize`, over a real handshake with the fixture
   // adapter — nobody typed it, which is the promise the whole feature turns on.
-  await expect(panel.getByText(/Fake Agent|e2e-fake-agent/)).toBeVisible({ timeout: 20_000 });
-  const configs = (await query(DAEMON, "agentConfig.list", {})) as Config[];
-  expect(configs.some((row) => row.transport === "acp" && row.adapterVersion === "0.0.0")).toBe(
-    true,
-  );
+  await expect(panel).toContainText(/Fake Agent|e2e-fake-agent/, { timeout: 20_000 });
+  // A do handshake, e não a da linha: o adaptador diz `0.0.0` e o banco guarda
+  // `9.9.9-gravada`.
+  await expect(panel).toContainText("0.0.0", { timeout: 20_000 });
+  await expect(panel).not.toContainText("9.9.9-gravada");
 
   // No logout, and that is the protocol's answer rather than an omission: `logout`
   // exists in ACP but is gated on `agentCapabilities.auth.logout`, and this
@@ -58,13 +82,28 @@ test("the panel reads the connection back from the adapter", async ({ page }) =>
   await expect(panel.getByRole("button", { name: /^sair$/ })).toHaveCount(0);
   await expect(panel.getByText(/auth\.logout/)).toBeVisible();
 
-  // The five old fields survive as facts in a drawer, not as a form to fill.
+  /*
+   * The five old fields survive as facts in a drawer, not as a form to fill.
+   *
+   * E a gaveta mostra a versão **fixada na linha** — a outra —, porque é isso que
+   * ela é: o que o daemon vai lançar, e não o que o adaptador respondeu. As duas
+   * aparecem em lugares diferentes porque são duas coisas diferentes.
+   */
   await panel.getByRole("button", { name: "avançado" }).click();
-  await expect(panel.getByText("0.0.0")).toBeVisible();
+  await expect(panel).toContainText("9.9.9-gravada");
   await expect(panel.getByLabel("Comando")).toHaveCount(0);
 
-  // And there is still a way to add a second agent — a gap in the drawn screen,
-  // where state 07 offered only "trocar conta" and "sair".
+  /*
+   * E o caminho para o **próximo** agente é o `＋` do cabeçalho, não um link
+   * dentro deste painel (C8).
+   *
+   * Era um `outro agente ACP…` no rodapé do painel de quem já estava conectado —
+   * uma saída escondida atrás de estar conectado. Agora a lista tem cabeçalho, e a
+   * ação mora nele.
+   */
   await panel.getByRole("button", { name: "voltar" }).click();
-  await expect(panel.getByRole("button", { name: /outro agente ACP/ })).toBeVisible();
+  await page.getByRole("button", { name: "conectar um agente" }).click();
+  const connect = page.getByRole("group", { name: "conectar agente" });
+  await expect(connect.getByRole("button", { name: /Codex/ })).toBeVisible();
+  await expect(connect.getByRole("button", { name: /outro agente ACP/ })).toBeVisible();
 });

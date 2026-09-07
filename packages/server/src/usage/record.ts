@@ -66,6 +66,7 @@ export function trackSessionUsage({ db, acpManager, log }: RecordUsageOptions): 
           sessionId,
           projectId: scope.projectId,
           worktreeId: scope.worktreeId,
+          agentConfigId: scope.agentConfigId,
           tokens,
           ...(cost === null ? {} : { cost: cost.amount, currency: cost.currency }),
         })
@@ -96,13 +97,20 @@ export function trackSessionUsage({ db, acpManager, log }: RecordUsageOptions): 
 async function scopeOf(
   db: Db,
   sessionId: string,
-): Promise<{ projectId: string; worktreeId: string } | null> {
+): Promise<{ projectId: string; worktreeId: string; agentConfigId: string | null } | null> {
   const row = await createSessionRepository(db).findById(sessionId);
   if (row === undefined) return null;
 
-  if (row.scopeType === "project") return { projectId: row.scopeId, worktreeId: "" };
+  // Qual agente, junto com quem paga (F5). Vem da mesma leitura que já era
+  // feita: uma segunda consulta para descobrir isso seria um join com outro
+  // nome.
+  const agentConfigId = row.agentConfigId ?? null;
+
+  if (row.scopeType === "project") {
+    return { projectId: row.scopeId, worktreeId: "", agentConfigId };
+  }
 
   const worktree = await createWorktreeRepository(db).findById(row.scopeId);
   if (worktree === undefined) return null;
-  return { projectId: worktree.projectId, worktreeId: worktree.id };
+  return { projectId: worktree.projectId, worktreeId: worktree.id, agentConfigId };
 }

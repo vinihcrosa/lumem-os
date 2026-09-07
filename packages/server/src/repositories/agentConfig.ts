@@ -45,18 +45,26 @@ export interface AgentConfigRepository {
   findByName(name: string): Promise<AgentConfigRow | undefined>;
   update(id: string, input: Partial<AgentConfigInput>): Promise<AgentConfigRow>;
   remove(id: string): Promise<void>;
-  /** F6.4. Idempotent, so it can run on every boot. */
-  seedDefaults(): Promise<void>;
 }
 
-/** F6.4: Claude Code, bare `claude`, no permission flags of any kind. */
-export const DEFAULT_AGENT_CONFIG: AgentConfigInput = {
-  name: "claude-code",
-  command: "claude",
-  args: [],
-  env: {},
-  transport: "pty",
-};
+/*
+ * A semente saiu daqui, e não voltou como outra constante.
+ *
+ * O `DEFAULT_AGENT_CONFIG` (`pty` + `claude`) era anterior ao ACP: ele existia
+ * para que o primeiro boot não mostrasse um menu de agentes vazio, num tempo em
+ * que ninguém criava configuração nenhuma. Hoje o primeiro acesso e o rodapé de
+ * login criam a configuração **ACP** com a versão que o handshake detectou, e a
+ * semente ficava na lista como uma segunda opção que ninguém pediu.
+ *
+ * A `C6` da `second-agent` é o registro: com o catálogo de adaptadores no
+ * `shared`, semear passou a significar **escolher uma spec** — e `pty` + `claude`
+ * não é uma delas. Uma semente que não sai do catálogo seria a sexta constante de
+ * Claude escondida num lugar novo, no mesmo PR que tira as outras cinco.
+ *
+ * Quem já tem a linha no banco continua com ela: não há migração que apague
+ * configuração de ninguém. E o `AgentConfigDialog` continua criando `pty` para
+ * quem quiser — o caminho alternativo existe, só não é oferecido por default.
+ */
 
 function conflicts(name: string): ConstraintMap {
   return {
@@ -136,28 +144,6 @@ export function createAgentConfigRepository(db: Db): AgentConfigRepository {
         () => db.delete(agentConfig).where(eq(agentConfig.id, id)).returning(),
         conflicts(""),
       );
-    },
-
-    async seedDefaults() {
-      // Keyed on the name, not on "is the table empty": someone who added
-      // configurations of their own must not stop the default from existing.
-      // The trade-off is deliberate — deleting the default brings it back on
-      // the next boot, which is recoverable; never shipping it is not.
-      const existing = await db.query.agentConfig.findFirst({
-        where: eq(agentConfig.name, DEFAULT_AGENT_CONFIG.name),
-      });
-      if (existing) return;
-
-      await db.insert(agentConfig).values({
-        id: newId(),
-        name: DEFAULT_AGENT_CONFIG.name,
-        command: DEFAULT_AGENT_CONFIG.command,
-        args: DEFAULT_AGENT_CONFIG.args ?? [],
-        env: DEFAULT_AGENT_CONFIG.env ?? {},
-        // Still PTY. The default configuration changes transport when the
-        // conversation can render one end to end, not when the column exists.
-        transport: DEFAULT_AGENT_CONFIG.transport ?? "pty",
-      });
     },
   };
 }

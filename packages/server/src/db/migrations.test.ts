@@ -413,3 +413,70 @@ describe("0012 — o modo do Lumem", () => {
     ).rejects.toThrow(/CHECK/i);
   });
 });
+
+describe("0013 — o consumo por agente", () => {
+  /**
+   * Um banco parado na 0006, com um turno de consumo já gravado.
+   *
+   * A 0006 é a que criou a `session_usage`; a 0013 acrescenta a coluna do
+   * agente. O que se prova é o que acontece com o gasto de **antes** dela.
+   */
+  function databaseWithUsageBeforeAgent(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-legacy-usage-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite, { schema }), { migrationsFolder: migrationsUpTo(7) });
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'pessoal')`).run();
+    sqlite
+      .prepare(
+        `INSERT INTO project (id, workspace_id, name, path, default_branch)
+         VALUES ('p1', 'w1', 'lorebase', '/repos/lorebase', 'main')`,
+      )
+      .run();
+    sqlite
+      .prepare(
+        `INSERT INTO session_usage (id, session_id, project_id, worktree_id, tokens)
+         VALUES ('u1', 'se-antiga', 'p1', '', 12000)`,
+      )
+      .run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("não inventa agente para o consumo que já estava gravado", async () => {
+    /*
+     * Anulável de propósito. Carimbar o agente "provável" numa linha antiga
+     * faria a comparação entre agentes começar com um número inventado — e o
+     * dono dela nunca saberia qual parte era chute.
+     */
+    const handle = openDatabase({ path: databaseWithUsageBeforeAgent() });
+    open.push(handle);
+
+    const [row] = await handle.db.select().from(schema.sessionUsage);
+
+    expect(row).toMatchObject({ id: "u1", tokens: 12_000, agentConfigId: null });
+  });
+
+  it("aceita consumo com agente depois de migrar, e sem estrangeira", async () => {
+    // Sem estrangeira porque consumo é histórico: um id de configuração que já
+    // foi apagada continua sendo a resposta verdadeira para "quem gastou".
+    const handle = openDatabase({ path: databaseWithUsageBeforeAgent() });
+    open.push(handle);
+
+    await handle.db.insert(schema.sessionUsage).values({
+      id: "u2",
+      sessionId: "se-nova",
+      projectId: "p1",
+      worktreeId: "",
+      agentConfigId: "cfg-que-nao-existe-mais",
+      tokens: 500,
+    });
+
+    const rows = await handle.db.select().from(schema.sessionUsage);
+    expect(rows.map((row) => row.agentConfigId)).toEqual([null, "cfg-que-nao-existe-mais"]);
+  });
+});

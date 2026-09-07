@@ -1,0 +1,254 @@
+/* ============================================================================
+   Lumem-OS — o segundo agente: o rodapé por agente e o login por chamada
+
+   Camada de tela: só o que é desta tela e de mais nenhuma. O que já existe vem
+   do `lumem-ds.css`, do `lumem-agent-login.css` (o painel `.setup`, a `.opt`, o
+   `.prep`, a `.foot-row`) e do `lumem-sidebar-actions.css` (o `.act` do
+   cabeçalho). Todo valor vem do `tokens.css` — nenhum literal de cor, espaço,
+   raio ou tipografia, e **nenhum token novo**: esta tela não precisou de um.
+
+   O que nasce aqui, e por quê:
+
+     .foot-head   o cabeçalho `Agentes` do rodapé, com o `＋` à direita. Existe
+                  porque a lista do rodapé passou de UMA coisa para N: com um
+                  agente, "conectar um agente" era o próprio verbo da linha;
+                  com dois, a linha é ESTADO e o verbo precisa de lugar
+                  próprio. É a regra da `sidebar-actions` aplicada de novo — a
+                  ação mora no cabeçalho da lista que ela alimenta —, e custa
+                  uma linha de 28px mesmo quando há um agente só. Medido: o
+                  rodapé sai de 45px para 105px com dois agentes.
+
+     .dcode       o código de dispositivo. É o único número desta tela que a
+                  pessoa vai LER e DIGITAR em outro lugar, e por isso é o único
+                  em mono grande e espaçado: `A1B2-C3D4` a 11px é um erro de
+                  digitação esperando acontecer.
+
+     .foot-row--warn  o terceiro estado da linha do rodapé. `--on` é verde e
+                  `--err` é vermelho; faltava o âmbar de "existe, mas não dá
+                  para usar agora" — expirado, ou instalado e sem login. É a
+                  mesma escala de três da barra da PR.
+
+     .foot-row.is-open  qual linha abriu o painel. Com uma linha isto não era
+                  necessário; com duas, um painel sem dono obriga a ler o
+                  título para saber de quem ele é.
+
+     .foot-row--*.pip  o ponto passa a ter a cor do estado. Ele nascia cinza nos
+                  três — `currentColor` é a cor da linha, não a do estado —, e
+                  com duas linhas o ponto é o que se varre primeiro.
+
+     .spend__row--agent  a divisão do consumo por agente, como SUB-LINHA e não
+                  como coluna: "uma coluna por agente" é um número que o produto
+                  não controla, e uma barra segmentada pediria uma escala
+                  categórica de cor que o `tokens.css` não tem.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+   1. o cabeçalho do rodapé de agentes
+   -------------------------------------------------------------------------- */
+/*
+ * A mesma linha do `.tree__head`, no rodapé.
+ *
+ * Mesma altura e mesmo ritmo de propósito: a coluna passa a ter duas listas com
+ * cabeçalho — `Projetos` em cima e `Agentes` embaixo —, e duas alturas
+ * diferentes para a mesma coisa seriam duas regras onde há uma.
+ */
+.foot-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-row-compact);
+  padding: 0 var(--space-2) 0 var(--space-8);
+}
+.foot-head__label {
+  flex: 1;
+  min-width: 0;
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+/* ---------------------------------------------------------------------------
+   2. a linha de agente — o terceiro estado que faltava
+   -------------------------------------------------------------------------- */
+/*
+ * Âmbar: instalado, e ainda não utilizável.
+ *
+ * O `--off` cinza é "não existe"; o `--err` vermelho é "quebrou". Um adaptador
+ * instalado sem credencial não é nenhum dos dois — é uma pendência com saída, e
+ * a saída é clicar na linha. Mesma leitura de três estados da barra da PR:
+ * verde passa, âmbar espera, vermelho não vai.
+ */
+.foot-row--warn .foot-row__st { color: var(--color-text-warning); }
+
+/*
+ * O pip passa a dizer o estado — ele nascia cinza nos três.
+ *
+ * Medido no navegador, nesta tela: `.pip { background: currentColor }` pega a
+ * cor da LINHA (`text/secondary`), e não a do estado, que vive no
+ * `.foot-row__st`. Com uma linha isso passava — a palavra ao lado dizia tudo, e
+ * o ponto era enfeite. Com duas linhas o ponto é o que o olho varre primeiro, e
+ * um enfeite na posição de um sinal é pior que sinal nenhum.
+ *
+ * Os três pares passam com folga sobre o painel: verde 9,85:1, âmbar 9,10:1,
+ * vermelho 8,76:1. Nenhum deles estava declarado na lista de contraste — nem o
+ * verde, que já era pintado ali —, e a implementação acrescenta os três.
+ */
+.foot-row--on .pip { background: var(--color-daemon-online); }
+.foot-row--warn .pip { background: var(--color-text-warning); }
+.foot-row--err .pip { background: var(--color-text-danger); }
+
+/* A linha que abriu o painel fica marcada enquanto ele está aberto. */
+.foot-row.is-open {
+  background: var(--color-bg-active);
+  color: var(--color-text-primary);
+}
+
+/* ---------------------------------------------------------------------------
+   3. o código de dispositivo
+   -------------------------------------------------------------------------- */
+/*
+ * URL em cima, código embaixo, e o código é o que salta.
+ *
+ * A URL é para copiar — e o `.copy` do design system já faz isso. O código é
+ * para LER e digitar noutro aparelho, e é aí que o desenho paga: mono grande
+ * com tracking de caps, porque `0`/`O` e `1`/`l` a 11px são o defeito desta
+ * tela.
+ */
+.dcode {
+  display: grid;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-10);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+.dcode__k {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.dcode__v {
+  justify-self: center;
+  font: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  color: var(--color-text-code);
+  font-variant-ligatures: none;
+}
+.dcode .copy { width: 100%; }
+
+/* ---------------------------------------------------------------------------
+   4. galeria — moldura de documentação, cópia do lumem-agent-login.css
+   -------------------------------------------------------------------------- */
+/* Um estado de painel de login chega a nove linhas; a moldura acompanha. */
+.sbframe--xtall { min-height: calc(var(--space-64) * 9); }
+
+/* Duas capturas lado a lado, alinhadas pelo rodapé — é o rodapé que muda. */
+.pairgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, var(--size-sidebar-width));
+  gap: var(--space-24);
+  justify-content: start;
+  align-items: end;
+}
+
+/* ---------------------------------------------------------------------------
+   5. o consumo aberto por agente
+   -------------------------------------------------------------------------- */
+/*
+ * A divisão por agente é uma **sub-linha**, não uma coluna.
+ *
+ * A tentação era uma coluna por agente. Ela quebra no terceiro: a grade do
+ * `.spend__row` tem seis colunas fixas, e "uma por agente" é um número que o
+ * produto não controla. Uma barra segmentada por cor quebra antes disso — ela
+ * pediria uma escala **categórica** de cor, que o `tokens.css` não tem e que
+ * nasceria só para isto.
+ *
+ * Então a linha do projeto abre. Cada sub-linha é a mesma linha com o glifo do
+ * agente e um recuo, e a barra dela é a fração **dentro do projeto** — o que a
+ * pergunta pede: quanto deste projeto foi de cada um.
+ *
+ * E com **um** agente nada disso existe: sem o `▸`, sem sub-linha, sem consulta.
+ * É a C5 escrita em pixel — a comparação só aparece quando há o que comparar.
+ */
+
+/*
+ * `subgrid`, e ele conserta uma afirmação que já era falsa.
+ *
+ * A folha do `workspace-screen` diz que as colunas de número "existem para ser
+ * comparadas verticalmente". Medido no navegador nesta folha: elas **não**
+ * batiam. Cada `.spend__row` era uma grade independente com colunas
+ * `max-content`, então a coluna de token de uma linha ficava 37px à esquerda da
+ * de outra sempre que o texto de custo tinha largura diferente — "sem custo
+ * reportado" contra "US$ 12,4071". Ninguém tinha notado porque, com um agente e
+ * projetos parecidos, o desalinhamento era pequeno.
+ *
+ * Com sub-linha isso deixa de ser pequeno: comparar dois agentes é exatamente
+ * ler dois números um debaixo do outro. Então a `.spend` passa a ser a grade, e
+ * cada linha herda as colunas dela.
+ */
+.spend {
+  display: grid;
+  /*
+   * O `gap` sobe para a grade de fora, e isso não é detalhe.
+   *
+   * Com `grid-template-columns: subgrid`, quem define a distância entre as
+   * trilhas é o **pai** — o `gap` da linha passa a não ter efeito nas colunas
+   * compartilhadas. Sem esta linha o glifo cola no nome, que foi o que o segundo
+   * render mostrou.
+   */
+  column-gap: var(--space-10);
+  grid-template-columns:
+    var(--size-icon-sm) minmax(var(--size-menu-width), 1fr) minmax(0, 1fr)
+    max-content max-content max-content;
+}
+/*
+ * A variante que abre: uma coluna a mais, na frente, só para o `▸`.
+ *
+ * Ela existe porque a primeira tentativa punha o `▸` **no lugar** do glifo do
+ * projeto — e aí a linha perdia o `▣`, que é o que diz de que tipo de escopo ela
+ * fala e, pela cor, se ele gastou. Trocar informação por controle no mesmo
+ * espaço é o erro que o desenho pega renderizando e a intenção não pega.
+ */
+.spend--split {
+  grid-template-columns:
+    var(--size-icon-sm) var(--size-icon-sm) minmax(var(--size-menu-width), 1fr)
+    minmax(0, 1fr) max-content max-content max-content;
+}
+.spend__row,
+.spend__group {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+}
+
+.spend__twist {
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-xs);
+  text-align: center;
+}
+
+/*
+ * O recuo vai no **nome**, e não na linha nem no glifo.
+ *
+ * Na linha, `padding-left` empurraria as sete colunas juntas e anularia o
+ * `subgrid` — desalinhando justamente os números que a sub-linha existe para
+ * comparar. No glifo, ele transborda: a célula tem 14px e a margem jogava o `◆`
+ * por cima do nome, que é o que o primeiro render mostrou.
+ */
+.spend__row--agent .spend__name {
+  padding-left: var(--space-16);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+/* A barra da sub-linha é mais fina: ela mede dentro de outra medida. */
+.spend__row--agent .spend__bar { height: var(--space-2); }
+.spend__row--agent .spend__fill { background: var(--color-bg-brand-muted); }
+.spend__row--agent .spend__tok { color: var(--color-text-secondary); }
+.spend__row--agent { border-bottom: 0; }
+
+/* O grupo aberto fica junto: a borda de baixo é do grupo, não das linhas dentro. */
+.spend__group { border-bottom: var(--border-width-thin) solid var(--color-border-subtle); }
+.spend__group .spend__row { border-bottom: 0; }
+.spend__group:last-child { border-bottom: 0; }

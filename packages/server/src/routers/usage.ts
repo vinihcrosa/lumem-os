@@ -3,7 +3,9 @@ import { z } from "zod";
 import { publicProcedure, router } from "../trpc.js";
 import {
   usageByProject,
+  usageByProjectAndAgent,
   usageByWorktree,
+  usageByWorktreeAndAgent,
   usageOutsideWorktrees,
   USAGE_WINDOWS,
 } from "../usage/query.js";
@@ -47,4 +49,24 @@ export const usageRouter = router({
         period: input.period,
       }),
     })),
+
+  /*
+   * O mesmo consumo por agente (`second-agent`, F5).
+   *
+   * Procedimentos separados, e não um `groupBy` nos dois de cima: a resposta
+   * agrupada tem uma linha por par, e enfiá-la na mesma chamada mudaria a forma
+   * do que a tela do workspace já lê. A tela só pede isto quando há **mais de um
+   * agente** — com um, a coluna não existe e a chamada não acontece (C5).
+   */
+  byProjectAndAgent: publicProcedure
+    .input(z.object({ workspaceId: z.string().min(1), period }))
+    .query(({ ctx, input }) =>
+      usageByProjectAndAgent(ctx.db, { workspaceId: input.workspaceId, period: input.period }),
+    ),
+
+  byWorktreeAndAgent: publicProcedure
+    .input(z.object({ projectId: z.string().min(1), period }))
+    .query(({ ctx, input }) =>
+      usageByWorktreeAndAgent(ctx.db, { projectId: input.projectId, period: input.period }),
+    ),
 });

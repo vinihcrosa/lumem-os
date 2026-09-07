@@ -44,10 +44,23 @@ function requested(source: string): Set<string> {
 const INTERPOLATED = [
   "foot-row--on",
   "foot-row--off",
+  "foot-row--warn",
   "foot-row--err",
+  // A marca da linha que abriu o painel entra por interpolação, no mesmo
+  // `className` do estado (`second-agent`, T12).
+  "is-open",
   "prep__r--done",
   "prep__r--now",
   "prep__r--wait",
+  /*
+   * O par da opção de login sai de um ternário, não de um template.
+   *
+   * `index === 0 ? "opt opt--primary" : "opt"` é a regra de "um preenchido por
+   * painel", e ela é escolha e não interpolação — o leitor de `className=` deste
+   * teste não vê string dentro de expressão.
+   */
+  "opt",
+  "opt--primary",
 ];
 
 /** Painted elsewhere, and reused here on purpose. */
@@ -67,6 +80,9 @@ const BORROWED = new Set([
   "btn",
   // The custom-adapter drawer is the old dialog, with its own rules in sidebar.css.
   "agents",
+  // O campo de texto é o `Input` do design system, e ele pinta o `.input`. O que
+  // esta folha acrescenta é o `.key-in` em volta dele — a linha campo + botão.
+  "input",
 ]);
 
 describe("every class the login panel asks for exists", () => {
@@ -85,14 +101,24 @@ describe("every class the login panel asks for exists", () => {
   });
 
   it("defines nothing the panel does not use", () => {
-    // The other direction, and what it caught: `.key-in` is drawn in the
-    // prototype for the API-key path, which is out of this delivery — porting its
-    // paint would leave CSS with no markup.
+    /*
+     * The other direction, and what it caught twice.
+     *
+     * A primeira vez: `.key-in` estava no protótipo para o caminho da chave de
+     * API, que ficou fora da entrega da `agent-login` — pintar sem markup deixa
+     * CSS morto. A segunda: o `.input` de dentro dele é do design system, e
+     * declará-lo aqui como bloco próprio seria uma segunda opinião sobre a
+     * aparência de um campo de texto.
+     */
     const asked = requested(component);
 
     const orphans = [...available]
       .filter((name) => !asked.has(name))
       .filter((name) => !INTERPOLATED.includes(name))
+      // Emprestado nas duas direções: uma classe que outro arquivo pede pode
+      // aparecer aqui como seletor de contexto (`.key-in .input`) sem que este
+      // componente a escreva.
+      .filter((name) => !BORROWED.has(name))
       .filter((name) => {
         const block = name.split(/__|--/)[0]!;
         return block === name && !asked.has(block);

@@ -11,6 +11,7 @@ import { MAX_FILE_BYTES } from "./files/FileService.js";
 import { createCloneJobStore, type CloneJobStore } from "./git/CloneJobStore.js";
 import { createGitService, type GitService } from "./git/GitService.js";
 import { createGhHost } from "./pr/GhHost.js";
+import { createAgentAuthService, type AgentAuthService } from "./setup/agent-auth.js";
 import { createPrCache, type PrCache } from "./pr/PrCache.js";
 import type { PrHost } from "./pr/PrHost.js";
 import { AcpManager } from "./acp/AcpManager.js";
@@ -106,6 +107,8 @@ export interface CreateServerOptions {
    */
   prHost?: PrHost;
   pr?: PrCache;
+  /** As tentativas de login vivas — em memória, e mortas com o daemon. */
+  agentAuth?: AgentAuthService;
   /** Fastify's own request logging. Off in tests, on for the daemon. */
   logger?: boolean;
 }
@@ -134,6 +137,7 @@ export async function createServer({
     // noutra aba aparecer nesta sem esperar o próximo ciclo.
     onChange: (projectId) => events.emit({ type: "pr.changed", projectId }),
   }),
+  agentAuth = createAgentAuthService({ acpManager }),
   logger = false,
 }: CreateServerOptions): Promise<FastifyInstance> {
   const app = Fastify({
@@ -155,6 +159,7 @@ export async function createServer({
     clones,
     pr,
     prHost,
+    agentAuth,
     events,
   });
 
