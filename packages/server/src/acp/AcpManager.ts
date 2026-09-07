@@ -8,9 +8,12 @@ import {
   type StopReason,
   type ToolCallUpdate,
 } from "@agentclientprotocol/sdk";
+import { basename } from "node:path";
+
 import {
   ACP_AUTH_REQUIRED_CODE,
   acpToolKindSchema,
+  adapterByCommand,
   newId,
   type AcpConfigOption,
   type AcpEvent,
@@ -1417,6 +1420,21 @@ export class AcpManager {
         modeId: value,
       });
       session.info.mode = value;
+      /*
+       * A opção de modo acompanha o modo, quando o agente tem as duas.
+       *
+       * Medido na fase 0 da `second-agent` (§4.9): o Codex reporta `mode` em
+       * `modes` **e** em `configOptions`, e sem esta linha o evento `config` saía
+       * com `mode: "read-only"` e a opção ainda em `"agent"`. Ninguém via porque
+       * o `ConfigPills` prefere o campo `mode` — mas quem lê a lista de opções
+       * (um teste, um cliente novo, um relatório) leria o valor de antes.
+       *
+       * O agente que não lista `mode` como opção — o Claude — não ganha uma
+       * opção inventada aqui: o `map` só troca o que já existe.
+       */
+      session.info.configOptions = session.info.configOptions.map((option) =>
+        option.id === MODE_OPTION ? { ...option, currentValue: value } : option,
+      );
       this.emitConfig(session);
       return;
     }
@@ -1734,9 +1752,19 @@ function commandOf(toolCall: ToolCallUpdate): string | null {
  */
 function notInstalled(command: string, adapterVersion: string | undefined): DomainError {
   const pinned = adapterVersion ?? "";
-  const remedy = pinned
-    ? `npm i -g @agentclientprotocol/claude-agent-acp@${pinned}`
-    : `instale o adaptador e deixe "${command}" no PATH`;
+  /*
+   * O pacote sai do catálogo, e só quando o comando **é** de um adaptador dele.
+   *
+   * Antes disto a frase citava o pacote do Claude para qualquer comando que não
+   * subisse — inclusive para o `codex-acp` e para um binário que ninguém
+   * catalogou. Mandar alguém instalar o pacote errado é pior que não sugerir
+   * nada, então um comando de fora do catálogo não ganha `npm` nenhum.
+   */
+  const spec = adapterByCommand(basename(command));
+  const remedy =
+    spec !== null && spec.package !== null
+      ? `npm i -g ${spec.package}@${pinned || spec.pinnedVersion}`
+      : `instale o adaptador e deixe "${command}" no PATH`;
   const version = pinned ? ` Esta sessão fixa a versão ${pinned}.` : "";
 
   return new DomainError(

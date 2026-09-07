@@ -1,8 +1,9 @@
 # O segundo agente — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **16 tasks em 3 fases.** A **fase 0 está fechada** — medida em 2026-09-06, com o §4 do PRD
-reescrito com os números e as seis perguntas respondidas.
+**Status:** **16 tasks em 3 fases.** A **fase 0** e a **fase 1** estão fechadas (2026-09-06): a
+medição virou o §4 do PRD e as seis perguntas, e as nove tasks do catálogo estão entregues — nenhuma
+delas tocou tela. A fase 2 é a próxima, e **depende do Open Design**.
 
 As tasks nasceram **depois** da medição, e ela mudou duas: a F2 cresceu (o login do Codex é uma
 chamada, não um comando) e a F3 encolheu (a tradução já passa — o que falta é teste).
@@ -42,16 +43,16 @@ hoje ou saem, ou passam a ser derivadas da spec do Claude num lugar só.
 `packages/shared/src/index.ts`, `packages/shared/src/adapters.test.ts`
 
 **Done when**:
-- [ ] `ADAPTERS` tem `claude` e `codex`, com `pinnedVersion` **literal** — `0.40.0` e `1.10.0`, as
+- [x] `ADAPTERS` tem `claude` e `codex`, com `pinnedVersion` **literal** — `0.40.0` e `1.10.0`, as
       versões que a fase 0 mediu, e nunca `latest`
-- [ ] A spec do Codex tem `cli: null` e a do Claude tem `cli: { command: "claude", … }` — a diferença
+- [x] A spec do Codex tem `cli: null` e a do Claude tem `cli: { command: "claude", … }` — a diferença
       medida em §4.8, e um teste que falha se alguém der um CLI ao Codex "por simetria"
-- [ ] `apiKeyEnv` do Claude é `["ANTHROPIC_API_KEY"]` e do Codex é `["CODEX_API_KEY","OPENAI_API_KEY"]`
-- [ ] `adapterById(id)` recusa id desconhecido com frase, e não devolve `undefined` para o chamador
+- [x] `apiKeyEnv` do Claude é `["ANTHROPIC_API_KEY"]` e do Codex é `["CODEX_API_KEY","OPENAI_API_KEY"]`
+- [x] `adapterById(id)` recusa id desconhecido com frase, e não devolve `undefined` para o chamador
       conferir
-- [ ] Um teste afirma que **nenhuma** das duas specs tem o rótulo saindo de `package` — o rótulo do
+- [x] Um teste afirma que **nenhuma** das duas specs tem o rótulo saindo de `package` — o rótulo do
       Codex é `Codex`, não `@agentclientprotocol/codex-acp` (§4.1)
-- [ ] `pnpm gate:quick` verde
+- [x] `pnpm gate:quick` verde
 
 ---
 
@@ -64,17 +65,17 @@ continua sendo aceito para o Claude, porque ele existe em toda máquina que já 
 **Where**: `packages/server/src/setup/install-adapter.ts`, `install-adapter.test.ts`
 
 **Done when**:
-- [ ] RED primeiro: um teste instala a spec do Codex e espera o binário em
+- [x] RED primeiro: um teste instala a spec do Codex e espera o binário em
       `<dir>/codex/node_modules/.bin/codex-acp`
-- [ ] `npm install --prefix <dir>/<id> … <package>@<pinnedVersion>` — o comando dublado, como hoje
-- [ ] Instalação **já existente no caminho novo** → `alreadyInstalled: true`, nada baixado
-- [ ] Instalação existente no **caminho legado** do Claude → `alreadyInstalled: true` e o `path` é o
+- [x] `npm install --prefix <dir>/<id> … <package>@<pinnedVersion>` — o comando dublado, como hoje
+- [x] Instalação **já existente no caminho novo** → `alreadyInstalled: true`, nada baixado
+- [x] Instalação existente no **caminho legado** do Claude → `alreadyInstalled: true` e o `path` é o
       legado. É a task da armadilha: sem isto, todo mundo reinstala no primeiro boot
-- [ ] Spec sem `package` → não chama `npm`, e devolve o que achou no PATH ou um erro que diz o nome do
+- [x] Spec sem `package` → não chama `npm`, e devolve o que achou no PATH ou um erro que diz o nome do
       binário que falta
-- [ ] O `npm` que termina sem erro e sem binário continua falhando com a frase de hoje, agora citando
+- [x] O `npm` que termina sem erro e sem binário continua falhando com a frase de hoje, agora citando
       o pacote da spec
-- [ ] `pnpm gate:quick` verde
+- [x] `pnpm gate:quick` verde
 
 ---
 
@@ -86,16 +87,16 @@ cada `apiKeyEnv`.
 **Where**: `packages/server/src/setup/agents.ts`, `agents.test.ts`
 
 **Done when**:
-- [ ] RED primeiro: um teste pede o relatório da spec do Codex e espera **um** binário e nenhum CLI
-- [ ] A spec do Claude relata os dois, com os mesmos campos de hoje — `path`, `version`,
+- [x] RED primeiro: um teste pede o relatório da spec do Codex e espera **um** binário e nenhum CLI
+- [x] A spec do Claude relata os dois, com os mesmos campos de hoje — `path`, `version`,
       `versionNote`, `install`, `managed`
-- [ ] `apiKeyInEnv` vira por spec: `true` se **qualquer** um dos `apiKeyEnv` está no ambiente, e o
+- [x] `apiKeyInEnv` vira por spec: `true` se **qualquer** um dos `apiKeyEnv` está no ambiente, e o
       nome da variável encontrada aparece; o valor, nunca
-- [ ] O binário que o daemon instalou continua ganhando do PATH, com `managed: true`, para as duas
+- [x] O binário que o daemon instalou continua ganhando do PATH, com `managed: true`, para as duas
       specs
-- [ ] Um teste afirma que o relatório do Codex **não** diz "instale o codex" — porque o adaptador traz
+- [x] Um teste afirma que o relatório do Codex **não** diz "instale o codex" — porque o adaptador traz
       o CLI (§4.8)
-- [ ] `pnpm gate:quick` verde
+- [x] `pnpm gate:quick` verde
 
 ---
 
@@ -107,11 +108,11 @@ Id fora do catálogo é `INVALID_ARGUMENT`.
 **Where**: `packages/server/src/routers/setup.ts`, `packages/server/src/routers/setup.test.ts`
 
 **Done when**:
-- [ ] `setup.install({ adapterId: "codex" })` instala a spec do Codex, no diretório dela
-- [ ] Sem `adapterId` → Claude, e os testes de hoje passam sem mudança de chamada
-- [ ] `adapterId` desconhecido → erro de argumento com o id citado, antes de qualquer `npm`
-- [ ] `setup.probe` usa o `command` da spec quando não recebe um explícito
-- [ ] `pnpm gate:quick` verde
+- [x] `setup.install({ adapterId: "codex" })` instala a spec do Codex, no diretório dela
+- [x] Sem `adapterId` → Claude, e os testes de hoje passam sem mudança de chamada
+- [x] `adapterId` desconhecido → erro de argumento com o id citado, antes de qualquer `npm`
+- [x] `setup.probe` usa o `command` da spec quando não recebe um explícito
+- [x] `pnpm gate:quick` verde
 
 ---
 
@@ -121,11 +122,11 @@ Id fora do catálogo é `INVALID_ARGUMENT`.
 **Where**: `packages/server/src/acp/AcpManager.ts`, `AcpManager.test.ts`
 
 **Done when**:
-- [ ] Uma falha de spawn de uma sessão de Codex sugere `@agentclientprotocol/codex-acp@1.10.0`
-- [ ] Uma falha de spawn de comando **fora** do catálogo não inventa pacote: ela diz o comando que
+- [x] Uma falha de spawn de uma sessão de Codex sugere `@agentclientprotocol/codex-acp@1.10.0`
+- [x] Uma falha de spawn de comando **fora** do catálogo não inventa pacote: ela diz o comando que
       não subiu, e nada mais
-- [ ] O texto do Claude não muda — é o mesmo teste de hoje, com a string vindo de outro lugar
-- [ ] `pnpm gate:quick` verde
+- [x] O texto do Claude não muda — é o mesmo teste de hoje, com a string vindo de outro lugar
+- [x] `pnpm gate:quick` verde
 
 ---
 
@@ -137,18 +138,20 @@ resposta do `session/new`; `mode` presente **as duas vezes** (em `modes` e em `c
 categorias `collaboration_mode`, `thought_level` e `model_config`; e um interruptor de
 `loadSession: false`, que é o que o Codex **não** é e o próximo adaptador pode ser.
 **Where**: `packages/server/src/testing/acp-fake-agent.ts`,
-`packages/server/src/acp/AcpManager.integration.test.ts`, `e2e/support/fake-acp-agent.mjs`
+`packages/server/src/acp/codex-like.test.ts` (novo — os testes do perfil ficaram num arquivo próprio
+em vez de dentro do `AcpManager.integration.test.ts`, que é o do adaptador **real**),
+`e2e/support/fake-acp-agent.mjs` (perfil por `LUMEM_FAKE_PROFILE=codex`)
 
 **Done when**:
-- [ ] RED primeiro onde couber: hoje **não existe** teste de `usage` sem `rateLimit`, e é o que a C4
+- [x] RED primeiro onde couber: hoje **não existe** teste de `usage` sem `rateLimit`, e é o que a C4
       cobra
-- [ ] `usage` sem `rateLimit` → `{ cost: null, rateLimit: null }` no fio, e **nenhum** `warn`
-- [ ] Perfil que não manda `usage_update` nenhum → nenhum número na conversa, e nunca zero
-- [ ] `available_commands_update` chegando **depois** do primeiro prompt → o menu de `/` tem os
+- [x] `usage` sem `rateLimit` → `{ cost: null, rateLimit: null }` no fio, e **nenhum** `warn`
+- [x] Perfil que não manda `usage_update` nenhum → nenhum número na conversa, e nunca zero
+- [x] `available_commands_update` chegando **depois** do primeiro prompt → o menu de `/` tem os
       comandos; um teste falha se alguém passar a exigi-los na resposta do `session/new`
-- [ ] `session_info_update` → nenhum evento e nenhum `warn` (a lista `IGNORED`, agora com teste)
-- [ ] Perfil sem `loadSession` → `resume` recusa com frase, e não tenta
-- [ ] `pnpm gate:quick` verde
+- [x] `session_info_update` → nenhum evento e nenhum `warn` (a lista `IGNORED`, agora com teste)
+- [x] Perfil sem `loadSession` → `resume` recusa com frase, e não tenta
+- [x] `pnpm gate:quick` verde
 
 ---
 
@@ -161,13 +164,13 @@ coisas.
 **Where**: `packages/server/src/acp/AcpManager.ts`, `AcpManager.test.ts`
 
 **Done when**:
-- [ ] RED primeiro: depois de `setConfig(id, "mode", …)`, o evento `config` sai com a opção `mode` em
+- [x] RED primeiro: depois de `setConfig(id, "mode", …)`, o evento `config` sai com a opção `mode` em
       `currentValue` **novo**
-- [ ] O agente que devolve um valor **ajustado** continua ganhando: o que vale é a resposta dele, não
+- [x] O agente que devolve um valor **ajustado** continua ganhando: o que vale é a resposta dele, não
       o pedido
-- [ ] O agente que não tem `mode` em `configOptions` (o Claude) continua igual — nenhuma opção
+- [x] O agente que não tem `mode` em `configOptions` (o Claude) continua igual — nenhuma opção
       inventada
-- [ ] `pnpm gate:quick` verde
+- [x] `pnpm gate:quick` verde
 
 ---
 
@@ -179,14 +182,14 @@ coisas.
 **Where**: `packages/server/src/acp/AcpManager.codex.integration.test.ts` (novo)
 
 **Done when**:
-- [ ] Pulado, com motivo legível, quando o binário não existe — e a suíte fica verde numa máquina sem
+- [x] Pulado, com motivo legível, quando o binário não existe — e a suíte fica verde numa máquina sem
       Codex
-- [ ] Presente: afirma `protocolVersion: 1`, `loadSession`, `mode` entre as `configOptions`, três
+- [x] Presente: afirma `protocolVersion: 1`, `loadSession`, `mode` entre as `configOptions`, três
       modos, e **zero** `warn` no handshake
-- [ ] Afirma que `authMethods` **não** tem nenhum `type: "terminal"` — é a medição que decidiu a C3, e
+- [x] Afirma que `authMethods` **não** tem nenhum `type: "terminal"` — é a medição que decidiu a C3, e
       é a que quebra quando o adaptador mudar de opinião
-- [ ] Não gasta turno: nenhum `session/prompt`
-- [ ] `pnpm gate:full` verde
+- [x] Não gasta turno: nenhum `session/prompt`
+- [x] `pnpm gate:full` verde
 
 ---
 
@@ -198,12 +201,12 @@ linha continua com ela.
 `packages/server/src/boot/reconcile.ts`
 
 **Done when**:
-- [ ] Instalação nova → `agent_config` **vazia** depois do boot
-- [ ] Instalação que já tinha a linha → a linha continua lá, intacta, depois do boot
-- [ ] O `AgentConfigDialog` continua criando configuração `pty` — o caminho alternativo não morre
-- [ ] Nenhum teste passa a depender de uma semente que não existe mais (o `agentConfig.test.ts` de
+- [x] Instalação nova → `agent_config` **vazia** depois do boot
+- [x] Instalação que já tinha a linha → a linha continua lá, intacta, depois do boot
+- [x] O `AgentConfigDialog` continua criando configuração `pty` — o caminho alternativo não morre
+- [x] Nenhum teste passa a depender de uma semente que não existe mais (o `agentConfig.test.ts` de
       hoje semeia em seis lugares)
-- [ ] `pnpm gate:full` verde
+- [x] `pnpm gate:full` verde
 
 ---
 

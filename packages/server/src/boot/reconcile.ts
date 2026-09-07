@@ -8,7 +8,6 @@ import { sweepTranscripts, type TranscriptSweepReport } from "../acp/transcript-
 import type { ServerConfig } from "../config.js";
 import type { Db } from "../db/index.js";
 import { createGitService, type GitService } from "../git/GitService.js";
-import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createProjectRepository } from "../repositories/project.js";
 import { createSessionRepository } from "../repositories/session.js";
 import { createWorkspaceRepository } from "../repositories/workspace.js";
@@ -276,8 +275,12 @@ async function subdirectories(path: string): Promise<string[]> {
 /**
  * Everything the daemon aligns before it accepts a connection.
  *
- * Seeding is part of it: F6.4 promises the Claude Code configuration exists,
- * and a first boot that finished without it would show an empty agent menu.
+ * Seeding **is not** part of it any more. It was: F6.4 promised a Claude Code
+ * configuration on PTY, from a time when nothing else created one. Today the
+ * first-access flow and the login footer create the ACP configuration with the
+ * version the handshake detected, so a boot that seeded would add a second
+ * option nobody asked for — `second-agent`, C6. A fresh install now boots with
+ * an empty agent list on purpose, and the menu fills at login.
  */
 export async function reconcileOnBoot(options: BootOptions & ReconcileOnBootOptions): Promise<{
   layout: LayoutMigrationReport;
@@ -286,7 +289,6 @@ export async function reconcileOnBoot(options: BootOptions & ReconcileOnBootOpti
   orphanSessions: number;
   transcripts: TranscriptSweepReport;
 }> {
-  await createAgentConfigRepository(options.db).seedDefaults();
   // Before the reconciliation, not after: it is the one that decides which
   // worktrees are missing, and it has to judge the paths the migration wrote.
   const layout = await migrateWorktreeLayout(options);

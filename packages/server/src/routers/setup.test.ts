@@ -42,14 +42,19 @@ describe("setup.agents", () => {
    * fabricated PATH, and what is left here is the wiring — that the procedure is
    * registered and hands back the three fields the screen destructures.
    */
-  it("answers for both binaries and for the key, without the key", async () => {
+  it("answers one entry per catalogued adapter, without the key", async () => {
     context = createTestCaller();
 
     const report = await context.api.setup.agents();
 
-    expect(report.claude.command).toBe("claude");
-    expect(report.adapter.command).toBe("claude-agent-acp");
-    expect(typeof report.apiKeyInEnv).toBe("boolean");
+    expect(report.adapters.map((adapter) => adapter.id)).toEqual(["claude", "codex"]);
+    const [claude, codex] = report.adapters;
+    expect(claude?.adapter.command).toBe("claude-agent-acp");
+    expect(claude?.cli?.command).toBe("claude");
+    // The spec that brings its own agent reports one binary, not two (§4.8).
+    expect(codex?.cli).toBeNull();
+    // The name of the variable at most, and never a value.
+    expect(claude?.apiKeyEnv === null || claude?.apiKeyEnv === "ANTHROPIC_API_KEY").toBe(true);
   });
 });
 
@@ -181,5 +186,15 @@ describe("setup.installAdapter", () => {
     context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") });
 
     expect(typeof context.api.setup.installAdapter).toBe("function");
+  });
+
+  it("refuses an adapter id nobody catalogued, before running npm", async () => {
+    // Falling through to the default would install Claude for someone who asked
+    // for something else, and report success for the wrong agent.
+    context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") });
+
+    await expect(context.api.setup.installAdapter({ adapterId: "gemini" })).rejects.toThrow(
+      /gemini/,
+    );
   });
 });

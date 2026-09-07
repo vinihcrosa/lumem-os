@@ -2,10 +2,15 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { ACP_ADAPTER_PACKAGE, ACP_ADAPTER_PINNED_VERSION } from "@lumem/shared";
+import { CLAUDE_ADAPTER, CODEX_ADAPTER, type AdapterSpec } from "@lumem/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { adapterBinaryPath, installAdapter } from "./install-adapter.js";
+import {
+  adapterBinaryPath,
+  adapterDir,
+  installAdapter,
+  legacyAdapterBinaryPath,
+} from "./install-adapter.js";
 import type { CommandRunner } from "./run-command.js";
 
 /**
@@ -30,13 +35,17 @@ afterEach(() => {
 });
 
 /** An npm that "installs" by creating the binary the real one would. */
-function fakeNpm(dir: string): CommandRunner {
+function fakeNpm(dir: string, spec: AdapterSpec = CLAUDE_ADAPTER): CommandRunner {
   return vi.fn(async () => {
-    const bin = join(dir, "node_modules", ".bin");
+    const bin = join(adapterDir(dir, spec), "node_modules", ".bin");
     mkdirSync(bin, { recursive: true });
-    writeFileSync(join(bin, "claude-agent-acp"), "");
+    writeFileSync(join(bin, spec.command), "");
     return { ok: true, output: "added 1 package", failure: null };
   });
+}
+
+function argsOf(run: CommandRunner): [string, string[]] {
+  return (run as unknown as { mock: { calls: [string, string[]][] } }).mock.calls[0]!;
 }
 
 describe("installAdapter", () => {
@@ -48,21 +57,47 @@ describe("installAdapter", () => {
 
     expect(result).toEqual({
       path: adapterBinaryPath(dir),
-      version: ACP_ADAPTER_PINNED_VERSION,
+      version: CLAUDE_ADAPTER.pinnedVersion,
       alreadyInstalled: false,
     });
 
     // The arguments are the point of this assertion: `--prefix`, never `-g`, and
     // an exact version rather than a range. An overnight release of a
     // third-party adapter must not change how the agent behaves.
-    const [command, args] = (run as unknown as { mock: { calls: [string, string[]][] } }).mock
-      .calls[0]!;
+    const [command, args] = argsOf(run);
     expect(command).toBe("npm");
     expect(args).toContain("--prefix");
-    expect(args).toContain(dir);
-    expect(args).toContain(`${ACP_ADAPTER_PACKAGE}@${ACP_ADAPTER_PINNED_VERSION}`);
+    expect(args).toContain(adapterDir(dir, CLAUDE_ADAPTER));
+    expect(args).toContain(`${CLAUDE_ADAPTER.package}@${CLAUDE_ADAPTER.pinnedVersion}`);
     expect(args).not.toContain("-g");
     expect(args.join(" ")).not.toContain("@latest");
+  });
+
+  it("gives each spec a directory of its own", async () => {
+    // Two adapters in one `node_modules` would have the second install resolve
+    // the first one's dependency tree — and the second agent's whole point is
+    // that neither of them is special.
+    const dir = tempDir();
+    const run = fakeNpm(dir, CODEX_ADAPTER);
+
+    const result = await installAdapter({ spec: CODEX_ADAPTER, dir, run });
+
+    expect(result.path).toBe(join(dir, "codex", "node_modules", ".bin", "codex-acp"));
+    expect(result.version).toBe(CODEX_ADAPTER.pinnedVersion);
+    expect(argsOf(run)[1]).toContain(
+      `${CODEX_ADAPTER.package}@${CODEX_ADAPTER.pinnedVersion}`,
+    );
+  });
+
+  it("does not install one spec when the other is already there", async () => {
+    const dir = tempDir();
+    await installAdapter({ dir, run: fakeNpm(dir) });
+
+    const run = fakeNpm(dir, CODEX_ADAPTER);
+    const codex = await installAdapter({ spec: CODEX_ADAPTER, dir, run });
+
+    expect(codex.alreadyInstalled).toBe(false);
+    expect(run).toHaveBeenCalledOnce();
   });
 
   it("does nothing when it is already there", async () => {
@@ -76,6 +111,75 @@ describe("installAdapter", () => {
 
     expect(again.alreadyInstalled).toBe(true);
     expect(run).not.toHaveBeenCalled();
+  });
+
+  it("still finds the adapter installed before the catalogue existed", async () => {
+    // The flat `<adaptersDir>/node_modules/.bin/claude-agent-acp` of every
+    // machine that ran the product before the second agent. Without this, an
+    // upgrade redownloads 255 MB on the first boot to reach the same binary.
+    const dir = tempDir();
+    const legacy = legacyAdapterBinaryPath(dir, CLAUDE_ADAPTER);
+    mkdirSync(join(dir, "node_modules", ".bin"), { recursive: true });
+    writeFileSync(legacy, "");
+
+    const run = vi.fn();
+    const result = await installAdapter({ dir, run: run as unknown as CommandRunner });
+
+    expect(result).toEqual({
+      path: legacy,
+      version: CLAUDE_ADAPTER.pinnedVersion,
+      alreadyInstalled: true,
+    });
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("prefers the directory of the spec over the legacy one", async () => {
+    // Both present: the per-spec install is the one this version wrote, and the
+    // legacy copy is whatever an older daemon left behind.
+    const dir = tempDir();
+    mkdirSync(join(dir, "node_modules", ".bin"), { recursive: true });
+    writeFileSync(legacyAdapterBinaryPath(dir, CLAUDE_ADAPTER), "");
+    mkdirSync(join(adapterDir(dir, CLAUDE_ADAPTER), "node_modules", ".bin"), { recursive: true });
+    writeFileSync(adapterBinaryPath(dir, CLAUDE_ADAPTER), "");
+
+    const result = await installAdapter({ dir, run: vi.fn() as unknown as CommandRunner });
+
+    expect(result.path).toBe(adapterBinaryPath(dir));
+  });
+
+  it("looks a package-less spec up on the PATH instead of installing it", async () => {
+    // A native agent has no adapter to download. Running npm for it would answer
+    // a registry error to a machine whose only problem is a missing binary.
+    const dir = tempDir();
+    const run = vi.fn();
+    const native: AdapterSpec = { ...CODEX_ADAPTER, package: null, command: "gemini" };
+
+    const result = await installAdapter({
+      spec: native,
+      dir,
+      run: run as unknown as CommandRunner,
+      resolve: () => "/usr/local/bin/gemini",
+    });
+
+    expect(result).toEqual({
+      path: "/usr/local/bin/gemini",
+      version: native.pinnedVersion,
+      alreadyInstalled: true,
+    });
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("says which binary is missing when a package-less spec is not on the PATH", async () => {
+    const dir = tempDir();
+
+    await expect(
+      installAdapter({
+        spec: { ...CODEX_ADAPTER, package: null, command: "gemini" },
+        dir,
+        run: vi.fn() as unknown as CommandRunner,
+        resolve: () => null,
+      }),
+    ).rejects.toThrow(/gemini/);
   });
 
   it("passes npm's own words on, because they are better than a translation", async () => {
@@ -117,5 +221,17 @@ describe("installAdapter", () => {
         run: () => Promise.resolve({ ok: true, output: "up to date", failure: null }),
       }),
     ).rejects.toThrow(/não existe/);
+  });
+
+  it("names the package of the spec it was asked for when the layout changed", async () => {
+    const dir = tempDir();
+
+    await expect(
+      installAdapter({
+        spec: CODEX_ADAPTER,
+        dir,
+        run: () => Promise.resolve({ ok: true, output: "up to date", failure: null }),
+      }),
+    ).rejects.toThrow(/codex-acp/);
   });
 });

@@ -232,6 +232,54 @@ describe("handshake", () => {
     ).rejects.toMatchObject({ message: /@0\.40\.0/ });
   });
 
+  it("names the package of the adapter that failed, not always Claude's", async () => {
+    // Before the catalogue this sentence hard-coded `claude-agent-acp` for every
+    // command that did not start — including for a Codex session, where it sent
+    // the user to install the wrong package.
+    const manager = new AcpManager({
+      spawner: () => fakeAgentProcess().process,
+      isAvailable: () => false,
+    });
+
+    await expect(
+      manager.spawn({ command: "codex-acp", cwd: "/r", adapterVersion: "1.10.0" }),
+    ).rejects.toMatchObject({
+      message: /npm i -g @agentclientprotocol\/codex-acp@1\.10\.0/,
+    });
+  });
+
+  it("recognises the adapter through the absolute path the daemon installed", async () => {
+    // The daemon launches `<stateDir>/adapters/codex/node_modules/.bin/codex-acp`,
+    // never the bare name, so a catalogue lookup on the whole string would never
+    // match and every managed session would lose its remedy.
+    const manager = new AcpManager({
+      spawner: () => fakeAgentProcess().process,
+      isAvailable: () => false,
+    });
+
+    await expect(
+      manager.spawn({
+        command: "/home/eu/.lumem/adapters/codex/node_modules/.bin/codex-acp",
+        cwd: "/r",
+        adapterVersion: "1.10.0",
+      }),
+    ).rejects.toMatchObject({ message: /@agentclientprotocol\/codex-acp@1\.10\.0/ });
+  });
+
+  it("suggests no package at all for a command nobody catalogued", async () => {
+    // Even with a version pinned: `agent_config` can pin a version for an agent
+    // the product never shipped, and an npm coordinate invented from that is a
+    // wrong instruction stated confidently.
+    const manager = new AcpManager({
+      spawner: () => fakeAgentProcess().process,
+      isAvailable: () => false,
+    });
+
+    await expect(
+      manager.spawn({ command: "meu-agente", cwd: "/r", adapterVersion: "9.9.9" }),
+    ).rejects.toMatchObject({ message: /deixe "meu-agente" no PATH/ });
+  });
+
   it("still says something useful when no version is pinned", async () => {
     const manager = new AcpManager({
       spawner: () => fakeAgentProcess().process,
@@ -906,6 +954,58 @@ describe("switching mode and model", () => {
 
     expect(asked).toEqual(["plan"]);
     expect(manager.get(sessionId)?.mode).toBe("plan");
+  });
+
+  it("keeps the mode option in step with the mode it just set", async () => {
+    /*
+     * Measured in the second agent's phase 0 (§4.9): Codex reports `mode` in
+     * `modes` **and** in `configOptions`, and this daemon updated only the first
+     * one — so the `config` event went out with `mode: "read-only"` and the
+     * option still reading `agent`. The screen hid it by preferring the field.
+     */
+    const { manager, events, sessionId } = await start({
+      newSession: () => ({
+        modes: {
+          currentModeId: "agent",
+          availableModes: [{ id: "agent", name: "Approve for me" }, { id: "read-only", name: "Ask for approval" }],
+        },
+        configOptions: [
+          {
+            id: "mode",
+            name: "Mode",
+            category: "mode",
+            type: "select",
+            currentValue: "agent",
+            options: [
+              { value: "agent", name: "Approve for me" },
+              { value: "read-only", name: "Ask for approval" },
+            ],
+          },
+        ],
+      }) as never,
+    });
+
+    await manager.setConfig(sessionId, "mode", "read-only");
+
+    const option = manager.get(sessionId)?.configOptions.find((entry) => entry.id === "mode");
+    expect(option?.currentValue).toBe("read-only");
+    expect(events.at(-1)).toMatchObject({
+      type: "config",
+      mode: "read-only",
+      options: [expect.objectContaining({ id: "mode", currentValue: "read-only" })],
+    });
+  });
+
+  it("invents no mode option for an agent that does not list one", async () => {
+    // The agent that reports `modes` only gets the folded-in option, and one
+    // that reports neither must not grow a selector out of a mode switch.
+    const { manager, sessionId } = await start({
+      newSession: () => ({ modes: null, configOptions: [] }) as never,
+    });
+
+    await manager.setConfig(sessionId, "mode", "plan");
+
+    expect(manager.get(sessionId)?.configOptions).toEqual([]);
   });
 
   it("uses the generic call for everything else", async () => {

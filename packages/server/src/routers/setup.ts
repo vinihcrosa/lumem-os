@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-import { ACP_ADAPTER_COMMAND, ADAPTERS_DIR_NAME } from "@lumem/shared";
+import { ADAPTERS_DIR_NAME, DEFAULT_ADAPTER_ID, adapterById, type AdapterSpec } from "@lumem/shared";
 import { z } from "zod";
 
 import { DomainError } from "../errors.js";
@@ -20,6 +20,29 @@ import { domainSafeAsync, publicProcedure, router } from "../trpc.js";
  * and `login` runs a command the *adapter* named, in a terminal. Each one carries
  * its own note about why that is acceptable and what bounds it.
  */
+/** `<stateDir>/adapters` — the directory that holds one per spec. */
+function adaptersDir(stateDir: string): string {
+  return join(stateDir, ADAPTERS_DIR_NAME);
+}
+
+/**
+ * The spec of an id, refusing an id nobody catalogued.
+ *
+ * Refused **here**, before any `npm` runs: an unknown id that fell through to a
+ * default would install Claude for someone who asked for something else, and the
+ * screen would report success for the wrong agent.
+ */
+function specOf(id: string | undefined): AdapterSpec {
+  const spec = adapterById(id ?? DEFAULT_ADAPTER_ID);
+  if (spec === null) {
+    throw new DomainError("INVALID_ARGUMENT", `não existe adaptador "${id}" no catálogo`);
+  }
+  return spec;
+}
+
+/** Which adapter, for the procedures that act on one. Absent means the default. */
+const adapterInput = z.object({ adapterId: z.string().trim().min(1).optional() }).optional();
+
 export const setupRouter = router({
   /** The five checks, each one able to fail without the others. */
   preflight: publicProcedure.query(({ ctx }) => preflight({ config: ctx.config })),
@@ -32,7 +55,9 @@ export const setupRouter = router({
    * have it globally, and the flow must not ask twice for the same thing.
    */
   agents: publicProcedure.query(({ ctx }) =>
-    detectAgents({ installedAt: adapterBinaryPath(join(ctx.config.stateDir, ADAPTERS_DIR_NAME)) }),
+    detectAgents({
+      installedAt: (spec) => adapterBinaryPath(adaptersDir(ctx.config.stateDir), spec),
+    }),
   ),
 
   /**
@@ -42,11 +67,13 @@ export const setupRouter = router({
    * costs is named in `install-adapter.ts` — the daemon runs a package manager and
    * then executes what it downloaded.
    */
-  installAdapter: publicProcedure.mutation(({ ctx }) =>
-    domainSafeAsync(() =>
-      installAdapter({ dir: join(ctx.config.stateDir, ADAPTERS_DIR_NAME) }),
+  installAdapter: publicProcedure
+    .input(adapterInput)
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(() =>
+        installAdapter({ spec: specOf(input?.adapterId), dir: adaptersDir(ctx.config.stateDir) }),
+      ),
     ),
-  ),
 
   /**
    * Runs one of the adapter's own login commands in a terminal the daemon owns.
@@ -62,6 +89,8 @@ export const setupRouter = router({
         methodId: z.string().trim().min(1),
         /** Which adapter to ask. Defaults to what the flow installed or found. */
         command: z.string().trim().min(1).optional(),
+        /** Which catalogued adapter, when no explicit command is given. */
+        adapterId: z.string().trim().min(1).optional(),
         /**
          * And its arguments, because a command without them is a different program.
          *
@@ -75,7 +104,7 @@ export const setupRouter = router({
     )
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
-        const command = input.command ?? ACP_ADAPTER_COMMAND;
+        const command = input.command ?? specOf(input.adapterId).command;
         const cwd = join(ctx.config.stateDir, "probe");
 
         /*
@@ -134,13 +163,15 @@ export const setupRouter = router({
         .object({
           /** Defaults to the adapter the flow installs. */
           command: z.string().trim().min(1).optional(),
+          /** Which catalogued adapter, when no explicit command is given. */
+          adapterId: z.string().trim().min(1).optional(),
           args: z.array(z.string()).optional(),
         })
         .optional(),
     )
     .query(({ ctx, input }) =>
       domainSafeAsync(async () => {
-        const command = input?.command ?? ACP_ADAPTER_COMMAND;
+        const command = input?.command ?? specOf(input?.adapterId).command;
 
         /*
          * A directory of its own, and an empty one.

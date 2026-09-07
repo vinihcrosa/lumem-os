@@ -442,13 +442,25 @@ describe("reconcileClones", () => {
 });
 
 describe("reconcileOnBoot", () => {
-  it("seeds the default agent configuration", async () => {
-    // F6.4: a first boot that finished without it would show an empty menu.
+  it("seeds no agent configuration, and leaves an existing one alone", async () => {
+    /*
+     * A semente saiu (`second-agent`, C6). Duas afirmações, porque o risco é
+     * de dois lados: um boot que **cria** volta a oferecer `pty` + `claude` a
+     * quem nunca pediu, e um boot que **apaga** tira a configuração de quem já
+     * conversava por ela.
+     */
     await withTestDb(async (db) => {
       await reconcileOnBoot({ db, config: testConfig(), transcriptsDir: transcriptsDir() });
+      expect(await createAgentConfigRepository(db).list()).toEqual([]);
 
-      expect((await createAgentConfigRepository(db).list()).map((row) => row.name)).toEqual([
-        "claude-code",
+      const mine = await createAgentConfigRepository(db).create({
+        name: "meu-agente",
+        command: "outro",
+      });
+      await reconcileOnBoot({ db, config: testConfig(), transcriptsDir: transcriptsDir() });
+
+      expect((await createAgentConfigRepository(db).list()).map((row) => row.id)).toEqual([
+        mine.id,
       ]);
     });
   });
@@ -529,7 +541,9 @@ describe("reconcileOnBoot", () => {
       await reconcileOnBoot({ db, config, transcriptsDir: dir });
       await reconcileOnBoot({ db, config, transcriptsDir: dir });
 
-      expect(await createAgentConfigRepository(db).list()).toHaveLength(1);
+      // Idempotente e sem criar nada: dois boots seguidos deixam a lista como a
+      // encontraram, que agora é vazia numa instalação nova.
+      expect(await createAgentConfigRepository(db).list()).toEqual([]);
     });
   });
 });

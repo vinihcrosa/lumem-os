@@ -1,3 +1,4 @@
+import { DEFAULT_ADAPTER_ID } from "@lumem/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
@@ -108,7 +109,7 @@ export function AgentLogin() {
    */
   const connect = useMutation({
     mutationFn: async () => {
-      let command = agents.data?.adapter.path ?? null;
+      let command = claudeEntry(agents.data)?.adapter.path ?? null;
 
       if (command === null) {
         setStage("installing");
@@ -229,7 +230,7 @@ export function AgentLogin() {
 
   /** State 02: which agent. What is unavailable stays listed, with the reason. */
   function chooseAgent() {
-    const claude = agents.data?.claude;
+    const claude = claudeEntry(agents.data)?.cli;
 
     return (
       <>
@@ -268,7 +269,7 @@ export function AgentLogin() {
             </span>
             Codex
           </span>
-          <span className="opt__d">sem adaptador ACP publicado ainda</span>
+          <span className="opt__d">o adaptador existe; o login dele ainda não (second-agent, F2)</span>
         </button>
         <button type="button" className="linkbtn" onClick={() => setCustom(true)}>
           outro agente ACP…
@@ -280,7 +281,7 @@ export function AgentLogin() {
   /** State 03: what the daemon is doing for you, in three lines. */
   function preparing() {
     const rows: [string, "done" | "now" | "wait"][] = [
-      ["CLI encontrado", agents.data?.claude.path == null ? "wait" : "done"],
+      ["CLI encontrado", claudeEntry(agents.data)?.cli?.path == null ? "wait" : "done"],
       [
         "instalando o adaptador ACP",
         stage === "installing" ? "now" : stage === "handshaking" ? "done" : "wait",
@@ -514,4 +515,27 @@ export function AgentLogin() {
       </>
     );
   }
+}
+
+/**
+ * A entrada do Claude no relatório por adaptador.
+ *
+ * O daemon relata **uma por spec** desde o catálogo (`second-agent`, F1). Este
+ * painel ainda é o de um agente só — a linha por agente é a F2, e ela depende do
+ * Open Design —, então ele pede a entrada por id em vez de supor que a lista tem
+ * um elemento.
+ */
+function claudeEntry(
+  report: { adapters: readonly { id: string; adapter: BinaryView; cli: BinaryView | null }[] } | undefined,
+) {
+  return report?.adapters.find((entry) => entry.id === DEFAULT_ADAPTER_ID);
+}
+
+interface BinaryView {
+  command: string;
+  path: string | null;
+  version: string | null;
+  versionNote: string | null;
+  install: string | null;
+  managed: boolean;
 }

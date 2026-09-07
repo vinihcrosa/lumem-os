@@ -30,8 +30,25 @@ const ADAPTER = {
   install: "npm i -g @agentclientprotocol/claude-agent-acp",
 };
 
-const AGENTS = {
-  claude: {
+interface BinaryFixture {
+  command: string;
+  path: string | null;
+  version: string | null;
+  versionNote: string | null;
+  install: string | null;
+  managed: boolean;
+}
+
+const CLAUDE_ENTRY: {
+  id: string;
+  label: string;
+  cli: BinaryFixture | null;
+  adapter: BinaryFixture;
+  apiKeyEnv: string | null;
+} = {
+  id: "claude",
+  label: "Claude Code",
+  cli: {
     command: "claude",
     path: "/opt/homebrew/bin/claude",
     managed: false,
@@ -40,8 +57,16 @@ const AGENTS = {
     install: null,
   },
   adapter: ADAPTER,
-  apiKeyInEnv: false,
+  apiKeyEnv: null,
 };
+
+/** O relatório por adaptador (`second-agent`, F1): uma entrada por spec. */
+const AGENTS = { adapters: [CLAUDE_ENTRY] };
+
+/** O mesmo relatório com a entrada do Claude trocada por uma variação. */
+function agentsWith(overrides: Partial<typeof CLAUDE_ENTRY>) {
+  return { adapters: [{ ...CLAUDE_ENTRY, ...overrides }] };
+}
 
 function method(overrides: Record<string, unknown> = {}) {
   return {
@@ -150,7 +175,7 @@ describe("choosing an agent", () => {
     await openPanel();
 
     expect(await screen.findByRole("button", { name: /Codex/ })).toBeDisabled();
-    expect(screen.getByText(/sem adaptador ACP publicado ainda/)).toBeInTheDocument();
+    expect(screen.getByText(/o login dele ainda não/)).toBeInTheDocument();
   });
 
   it("reports the CLI it found, because that is what the adapter drives", async () => {
@@ -163,10 +188,9 @@ describe("choosing an agent", () => {
     // Mocked before the panel opens: the detection is a query, and one that
     // already resolved does not go back to the daemon because a test changed its
     // mind afterwards.
-    trpc.setup.agents.query.mockResolvedValue({
-      ...AGENTS,
-      adapter: { ...ADAPTER, path: null, managed: false, version: null },
-    });
+    trpc.setup.agents.query.mockResolvedValue(
+      agentsWith({ adapter: { ...ADAPTER, path: null, managed: false, version: null } }),
+    );
     const user = await openPanel();
     trpc.setup.installAdapter.mutate.mockResolvedValue({
       path: ADAPTER.path,
@@ -198,10 +222,9 @@ describe("choosing an agent", () => {
   });
 
   it("shows the daemon's own words when the install fails", async () => {
-    trpc.setup.agents.query.mockResolvedValue({
-      ...AGENTS,
-      adapter: { ...ADAPTER, path: null, managed: false },
-    });
+    trpc.setup.agents.query.mockResolvedValue(
+      agentsWith({ adapter: { ...ADAPTER, path: null, managed: false } }),
+    );
     trpc.setup.installAdapter.mutate.mockRejectedValue(
       new Error("npm error code ENOTFOUND\nnpm error network request to registry failed"),
     );
