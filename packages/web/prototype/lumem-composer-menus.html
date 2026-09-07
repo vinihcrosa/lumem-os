@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — os menus do composer</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<link rel="stylesheet" href="lumem-composer-menus.css">
+</head>
+<body>
+
+<h1 class="page">Os menus do composer — protótipo</h1>
+<p class="page-sub">
+  O menu do seletor aparecia <strong>cortado</strong>: as opções acima da borda da caixa de texto
+  não existiam nem para o olho nem para o mouse. A causa é uma linha —
+  <code>.composer__box { overflow: hidden }</code> —, e ela produz <strong>três</strong> defeitos, não um.
+  Esta tela tira o recorte (os cantos continuam iguais, e isso foi medido) e dá ao menu um
+  <strong>teto com rolagem própria</strong>, porque sem recorte uma lista de vinte modelos sai pela
+  parte de cima da janela.
+</p>
+
+<div class="wrap">
+
+<!-- ==================================================================== -->
+<!-- 1 — o recorte, e os três defeitos                                     -->
+<!-- ==================================================================== -->
+<section class="sec">
+  <div class="sec__h">
+    <h2 class="sec__t"><span class="no">1</span>o recorte, e os três defeitos que ele produz</h2>
+    <p class="sec__d">
+      Os três quadros abaixo são o produto de hoje, desenhados com a classe <code>.clip</code>, que
+      devolve à caixa o <code>overflow: hidden</code> que esta tela remove. Nenhum deles é erro de
+      protótipo: é o pixel que o Lumem emite.
+    </p>
+  </div>
+
+  <div class="grid grid--2">
+
+    <div class="case clip">
+      <div class="case__label">1 — o seletor de <code>modelo</code>, <b>cortado</b></div>
+      <div class="frame">
+        <div class="convmock">
+          <div class="convmock__scroll">
+            <div class="turn turn--agent">
+              <span class="vh">claude:</span>
+              <span class="turn__g" aria-hidden="true">◆</span>
+              <div class="turn__b"><div class="msg"><p>Troquei o modelo como você pediu. Quer que eu rode a suíte antes?</p></div></div>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="composer__box">
+              <div class="composer__in composer__in--empty">escreva, ou / para comandos</div>
+              <div class="composer__bar">
+                <span class="config">
+                  <button class="pill pill--model" aria-expanded="true">opus[1m] <span class="pill__caret" aria-hidden="true">▾</span></button>
+                  <div class="slash" role="menu" aria-label="Model">
+                    <button class="slash__row slash__row--on" role="menuitemradio" aria-checked="true"><span class="slash__cmd">opus[1m]</span><span class="slash__desc">Opus 5 · janela de 1M</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">opus</span><span class="slash__desc">Opus 5</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">sonnet[1m]</span><span class="slash__desc">Sonnet 5 · janela de 1M</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">sonnet</span><span class="slash__desc">Sonnet 5</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">haiku</span><span class="slash__desc">Haiku 4.5</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">fable-5.1</span><span class="slash__desc">Fable 5.1</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">opus-4.8</span><span class="slash__desc">Opus 4.8 · anterior</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">sonnet-4.5</span><span class="slash__desc">Sonnet 4.5 · anterior</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">haiku-4</span><span class="slash__desc">Haiku 4 · anterior</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">opus-4.1</span><span class="slash__desc">Opus 4.1 · anterior</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">sonnet-4</span><span class="slash__desc">Sonnet 4 · anterior</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">opus-4</span><span class="slash__desc">Opus 4 · anterior</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">haiku-3.5</span><span class="slash__desc">Haiku 3.5 · anterior</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">gpt-5.2</span><span class="slash__desc">via adaptador Codex</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">gpt-5.2-mini</span><span class="slash__desc">via adaptador Codex</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">gpt-5.1</span><span class="slash__desc">via adaptador Codex</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">o5-preview</span><span class="slash__desc">via adaptador Codex</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">gemini-3-pro</span><span class="slash__desc">via adaptador Gemini</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">gemini-3-flash</span><span class="slash__desc">via adaptador Gemini</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">local/qwen3</span><span class="slash__desc">servidor local</span></button>
+                  </div>
+                </span>
+                <span class="spacer"></span>
+                <button class="btn btn--brand btn--sm">enviar <span class="kbd">⏎</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="case__note">
+        Vinte modelos, três visíveis. As dezessete de cima estão desenhadas, posicionadas e
+        <em>recortadas</em> — o clique nelas cai na conversa.
+      </div>
+    </div>
+
+    <div class="case clip">
+      <div class="case__label">2 — o menu de <code>/comandos</code>, <b>invisível inteiro</b></div>
+      <div class="frame">
+        <div class="convmock">
+          <div class="convmock__scroll">
+            <div class="turn turn--agent">
+              <span class="vh">claude:</span>
+              <span class="turn__g" aria-hidden="true">◆</span>
+              <div class="turn__b"><div class="msg"><p>Troquei o modelo como você pediu. Quer que eu rode a suíte antes?</p></div></div>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="composer__box">
+              <div class="slash" role="listbox" aria-label="comandos do agente">
+                <button class="slash__row slash__row--on" role="option"><span class="slash__cmd">/compact</span><span class="slash__desc">Compacta a conversa e continua</span></button>
+                <button class="slash__row" role="option"><span class="slash__cmd">/cost</span><span class="slash__desc">Quanto esta sessão custou até agora</span></button>
+                <button class="slash__row" role="option"><span class="slash__cmd">/init</span><span class="slash__desc">Cria o CLAUDE.md a partir do repositório</span></button>
+                <button class="slash__row" role="option"><span class="slash__cmd">/review</span><span class="slash__desc">Revisa o diff da worktree</span></button>
+              </div>
+              <div class="composer__in">/co</div>
+              <div class="composer__bar">
+                <button class="pill pill--model">opus[1m] <span class="pill__caret" aria-hidden="true">▾</span></button>
+                <span class="spacer"></span>
+                <button class="btn btn--brand btn--sm">enviar <span class="kbd">⏎</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="case__note">
+        Este ancora na <em>própria</em> caixa que recorta, em <code>bottom: calc(100% + 6px)</code> —
+        cem por cento fora dela. Some por completo, e ninguém tinha notado: o único teste que o abre
+        é jsdom, que não faz layout.
+      </div>
+    </div>
+
+    <div class="case clip">
+      <div class="case__label">3 — o menu de <code>modo</code> do Lumem, <b>inteiro — e por acidente</b></div>
+      <div class="frame">
+        <div class="convmock">
+          <div class="convmock__scroll">
+            <div class="turn turn--agent">
+              <span class="vh">claude:</span>
+              <span class="turn__g" aria-hidden="true">◆</span>
+              <div class="turn__b"><div class="msg"><p>Troquei o modelo como você pediu. Quer que eu rode a suíte antes?</p></div></div>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="mmenu" role="menu" aria-label="regra do Lumem" style="position: absolute; bottom: 100%; left: var(--space-20); z-index: 1;">
+              <div class="mmenu__head">
+                <div class="mmenu__who"><span aria-hidden="true">◈</span>Regra do Lumem</div>
+                <div class="mmenu__why">este agente não relatou modos. O que muda aqui é <b>o que o daemon responde</b> a um pedido de permissão.</div>
+              </div>
+              <button class="mopt mopt--on"><span class="mopt__t">Perguntar tudo <span class="mopt__mark" aria-hidden="true">✓</span></span><span class="mopt__d">Todo pedido do agente para na tela.</span></button>
+              <button class="mopt mopt--auto"><span class="mopt__t">Automático</span><span class="mopt__d">Leitura de arquivo dentro do checkout passa sozinha.</span></button>
+              <button class="mopt mopt--free"><span class="mopt__t">Liberado</span><span class="mopt__d">Nada é perguntado. Abre um portão antes de valer.</span></button>
+            </div>
+            <div class="composer__box">
+              <div class="composer__in composer__in--empty">escreva, ou / para comandos</div>
+              <div class="composer__bar">
+                <button class="pill pill--ask" aria-expanded="true"><span class="pill__own" aria-hidden="true">◈</span>Perguntar tudo <span class="pill__caret" aria-hidden="true">▾</span></button>
+                <span class="spacer"></span>
+                <button class="btn btn--brand btn--sm">enviar <span class="kbd">⏎</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="case__note">
+        Ele aparece porque <em>fugiu</em>: ancora no <code>.composer</code>, fora da caixa. Funciona, e
+        é a segunda maneira de resolver o mesmo problema — a discordância seguinte esperando acontecer.
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 2 — o conserto: a caixa deixa de recortar                             -->
+<!-- ==================================================================== -->
+<section class="sec">
+  <div class="sec__h">
+    <h2 class="sec__t"><span class="no">2</span>o conserto é um só: a caixa deixa de recortar</h2>
+    <p class="sec__d">
+      Nenhum dos três menus muda de âncora para escapar. Quem sai é o recorte. Ele arredondava cantos
+      que <strong>nada pinta</strong>: o campo é transparente, a barra só tem <code>border-top</code>, e o
+      único fundo é o da própria caixa — que o <code>border-radius</code> já arredonda sozinho.
+    </p>
+  </div>
+
+  <div class="grid grid--2">
+    <div class="case">
+      <div class="case__label">o seletor, <b>inteiro e com rolagem</b></div>
+      <div class="frame">
+        <div class="convmock">
+          <div class="convmock__scroll">
+            <div class="turn turn--agent">
+              <span class="vh">claude:</span>
+              <span class="turn__g" aria-hidden="true">◆</span>
+              <div class="turn__b"><div class="msg"><p>Troquei o modelo como você pediu. Quer que eu rode a suíte antes?</p></div></div>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="composer__box">
+              <div class="composer__in composer__in--empty">escreva, ou / para comandos</div>
+              <div class="composer__bar">
+                <span class="config">
+                  <button class="pill pill--model" aria-expanded="true">opus[1m] <span class="pill__caret" aria-hidden="true">▾</span></button>
+                  <div class="slash" role="menu" aria-label="Model">
+                    <button class="slash__row slash__row--on" role="menuitemradio" aria-checked="true"><span class="slash__cmd">opus[1m]</span><span class="slash__desc">Opus 5 · janela de 1M</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">opus</span><span class="slash__desc">Opus 5</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">sonnet[1m]</span><span class="slash__desc">Sonnet 5 · janela de 1M</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">sonnet</span><span class="slash__desc">Sonnet 5</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">haiku</span><span class="slash__desc">Haiku 4.5</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">fable-5.1</span><span class="slash__desc">Fable 5.1</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">opus-4.8</span><span class="slash__desc">Opus 4.8 · anterior</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">sonnet-4.5</span><span class="slash__desc">Sonnet 4.5 · anterior</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">haiku-4</span><span class="slash__desc">Haiku 4 · anterior</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">opus-4.1</span><span class="slash__desc">Opus 4.1 · anterior</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">sonnet-4</span><span class="slash__desc">Sonnet 4 · anterior</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">opus-4</span><span class="slash__desc">Opus 4 · anterior</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">haiku-3.5</span><span class="slash__desc">Haiku 3.5 · anterior</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">gpt-5.2</span><span class="slash__desc">via adaptador Codex</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">gpt-5.2-mini</span><span class="slash__desc">via adaptador Codex</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">gpt-5.1</span><span class="slash__desc">via adaptador Codex</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">o5-preview</span><span class="slash__desc">via adaptador Codex</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">gemini-3-pro</span><span class="slash__desc">via adaptador Gemini</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">gemini-3-flash</span><span class="slash__desc">via adaptador Gemini</span></button>
+                    <button class="slash__row" role="menuitemradio" aria-checked="false"><span class="slash__cmd">local/qwen3</span><span class="slash__desc">servidor local</span></button>
+                  </div>
+                </span>
+                <span class="spacer"></span>
+                <button class="btn btn--brand btn--sm">enviar <span class="kbd">⏎</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="case__note">
+        280px de teto: nove linhas inteiras e a décima pela metade. A meia-linha é o que diz que a
+        lista continua — um corte exatamente entre duas linhas desenha uma lista que parece completa.
+      </div>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o menu de <code>/comandos</code>, <b>visível pela primeira vez</b></div>
+      <div class="frame">
+        <div class="convmock">
+          <div class="convmock__scroll">
+            <div class="turn turn--agent">
+              <span class="vh">claude:</span>
+              <span class="turn__g" aria-hidden="true">◆</span>
+              <div class="turn__b"><div class="msg"><p>Troquei o modelo como você pediu. Quer que eu rode a suíte antes?</p></div></div>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="composer__box">
+              <div class="slash" role="listbox" aria-label="comandos do agente">
+                <button class="slash__row slash__row--on" role="option"><span class="slash__cmd">/compact</span><span class="slash__desc">Compacta a conversa e continua</span></button>
+                <button class="slash__row" role="option"><span class="slash__cmd">/cost</span><span class="slash__desc">Quanto esta sessão custou até agora</span></button>
+                <button class="slash__row" role="option"><span class="slash__cmd">/init</span><span class="slash__desc">Cria o CLAUDE.md a partir do repositório</span></button>
+                <button class="slash__row" role="option"><span class="slash__cmd">/review</span><span class="slash__desc">Revisa o diff da worktree</span></button>
+              </div>
+              <div class="composer__in">/co</div>
+              <div class="composer__bar">
+                <button class="pill pill--model">opus[1m] <span class="pill__caret" aria-hidden="true">▾</span></button>
+                <span class="spacer"></span>
+                <button class="btn btn--brand btn--sm">enviar <span class="kbd">⏎</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="case__note">
+        A âncora dele não muda: continua na caixa, que é o que o abre — quem digita <code>/</code> é o
+        campo. O que muda é a caixa não o apagar mais.
+      </div>
+    </div>
+  </div>
+
+  <div class="corners">
+    <div class="case">
+      <div class="case__label">canto <b>com</b> recorte — o de hoje</div>
+      <div class="frame clip">
+        <div class="convmock">
+          <div class="composer">
+            <div class="composer__box">
+              <div class="composer__in">texto de exemplo no campo</div>
+              <div class="composer__bar">
+                <button class="pill pill--model">opus[1m] <span class="pill__caret" aria-hidden="true">▾</span></button>
+                <span class="spacer"></span>
+                <button class="btn btn--brand btn--sm">enviar <span class="kbd">⏎</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="case">
+      <div class="case__label">canto <b>sem</b> recorte — a proposta</div>
+      <div class="frame">
+        <div class="convmock">
+          <div class="composer">
+            <div class="composer__box">
+              <div class="composer__in">texto de exemplo no campo</div>
+              <div class="composer__bar">
+                <button class="pill pill--model">opus[1m] <span class="pill__caret" aria-hidden="true">▾</span></button>
+                <span class="spacer"></span>
+                <button class="btn btn--brand btn--sm">enviar <span class="kbd">⏎</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="sec__d">
+    Os dois cantos acima são o mesmo canto. É essa igualdade que autoriza remover o recorte: se
+    houvesse diferença, a resposta teria sido outra — cada menu fugindo por conta própria, que é o
+    que o produto vinha fazendo.
+  </p>
+</section>
+
+<!-- ==================================================================== -->
+<!-- 3 — a âncora, agora que não há de que fugir                           -->
+<!-- ==================================================================== -->
+<section class="sec">
+  <div class="sec__h">
+    <h2 class="sec__t"><span class="no">3</span>a âncora: um popover ancora no que o abre</h2>
+    <p class="sec__d">
+      Sem recorte, a âncora deixa de ser uma fuga e volta a ser uma decisão de leitura: o popover
+      aparece grudado no que o abriu. Isso é o que responde à pergunta que o defeito abriu — se o
+      menu do seletor e o menu de modo continuam sendo <em>dois jeitos</em> de resolver o mesmo
+      problema. Não continuam: não há mais problema a resolver, e cada um volta para a sua âncora
+      natural.
+    </p>
+  </div>
+
+  <div class="rules">
+    <div class="rule">
+      <span class="rule__w">.slash</span>
+      <span class="rule__a">na pílula</span>
+      <span class="rule__d">seletor de <code>modelo</code>, <code>modo</code>, <code>esforço</code>. Quem abre é a pílula, e o menu tem a largura dela ou mais — alinhado à esquerda dela.</span>
+    </div>
+    <div class="rule">
+      <span class="rule__w">.slash</span>
+      <span class="rule__a">na caixa</span>
+      <span class="rule__d">comandos de barra. Quem abre é o campo de texto, e o campo <em>é</em> a caixa: alinhado à esquerda da caixa.</span>
+    </div>
+    <div class="rule">
+      <span class="rule__w">.mmenu</span>
+      <span class="rule__a">na pílula</span>
+      <span class="rule__d">modo do Lumem. Volta para a pílula: o <code>.composer</code> era fuga do recorte, e o recorte acabou.</span>
+    </div>
+    <div class="rule">
+      <span class="rule__w">.gate</span>
+      <span class="rule__a">no composer</span>
+      <span class="rule__d">a exceção, e ela não é sobre recorte: o portão do <code>liberado</code> não é menu, é um cartão de 420px — e a pílula que o originou já saiu de jogo, porque o menu fechou. Cartão desse tamanho alinha com a caixa.</span>
+    </div>
+    <div class="rule">
+      <span class="rule__w">teto</span>
+      <span class="rule__a">todo menu</span>
+      <span class="rule__d"><code>--size-menu-max-h: 280px</code> com <code>overflow: hidden auto</code>, no <code>.slash</code> e no <code>.mmenu</code>. O do modo tem três opções e nunca vai rolar; o teto está lá porque a regra é do menu, não da lista de hoje.</span>
+    </div>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

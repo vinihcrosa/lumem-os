@@ -23,9 +23,9 @@ function pill(props: Partial<Parameters<typeof LumemModePill>[0]> = {}) {
 /**
  * O menu, montado sozinho.
  *
- * Separado da pílula porque no app ele é separado: `.composer__box` recorta
- * popover mais alto que ele, então o menu nasce como filho do `.composer`. O
- * teste monta o que o app monta.
+ * Separado da pílula porque no app ele é separado: os dois são irmãos dentro do
+ * mesmo `.config`, e quem os junta é o composer — que também é quem sabe abrir o
+ * portão do `liberado`. O teste monta o que o app monta.
  */
 function menu(props: Partial<Parameters<typeof LumemModeMenu>[0]> = {}) {
   const onSwitch = vi.fn();

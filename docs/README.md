@@ -341,6 +341,21 @@ na conversa assinado; e nenhum caminho da feature nega sozinho.
 | [open-questions.md](prd/session-mode/open-questions.md) | 6 perguntas, 6 fechadas. A Q1 decidiu o tamanho — tela **e** política — e a Q6 nasceu no código: sem opção de permitir, o `automático` negaria em silêncio |
 | [tasks.md](prd/session-mode/tasks.md) | 12 tasks em 4 fases, as duas fusões que a execução cobrou, e os cinco achados — inclusive o `overflow: hidden` que só o e2e podia ver e o menu que ficava clicável, achado em revisão |
 
+### [composer-menus/](prd/composer-menus/) — o menu do composer aparece inteiro · **completa**
+
+O menu do seletor aparecia cortado, e a parte cortada não existia nem para o olho nem para o mouse:
+`.composer__box` tinha `overflow: hidden`. O recorte saiu — os cantos são idênticos sem ele, e isso
+foi **medido** no navegador —, todo menu ganhou teto de 280px com rolagem própria, e a âncora virou
+uma frase: um popover ancora no que o abre. Desenhar o estado de hoje achou dois defeitos que ninguém
+tinha visto, um deles grave: o menu de `/comandos` era **invisível por inteiro**, há três features.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](prd/composer-menus/prd.md) | os três defeitos que uma declaração produzia, e por que o conserto é remover o recorte em vez de fugir dele |
+| [open-questions.md](prd/composer-menus/open-questions.md) | 5 perguntas, **5 respondidas** — as três primeiras no Open Design, e a Q1 respondida por medição, não por argumento |
+| [tasks.md](prd/composer-menus/tasks.md) | 4 tasks em 2 fases, todas entregues. A armadilha é a prova: jsdom não faz layout, então o e2e pergunta `elementFromPoint` e não `toBeVisible` |
+| `packages/web/prototype/lumem-composer-menus.html` | o protótipo: o §1 desenha o produto de hoje com `.clip`, o §2 põe os dois cantos lado a lado, o §3 é a tabela de âncoras |
+
 ---
 
 ## Propostos em 2026-09-05 — quatro PRDs, nenhum começado

@@ -486,7 +486,21 @@
   z-index: 1;
   padding: var(--space-12) var(--space-20) var(--space-16);
 }
-.composer__box { background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); overflow: hidden; }
+/*
+ * SEM `overflow: hidden`, e isso é o conserto inteiro dos menus (composer-menus).
+ *
+ * O recorte estava aqui para arredondar os cantos — e não arredondava nada: o
+ * campo é transparente, a barra só tem `border-top`, e o único fundo é o da
+ * própria caixa, que o `border-radius` já arredonda. Medido lado a lado no
+ * navegador, os dois cantos são o mesmo canto.
+ *
+ * O que ele fazia era cortar todo popover que abre para cima: o seletor de
+ * modelo perdia toda opção acima da borda da caixa, e o menu de comandos —
+ * ancorado na própria caixa, em `bottom: calc(100% + 6px)` — sumia INTEIRO.
+ * Nenhum e2e o abria, e jsdom não faz layout: o defeito atravessou três
+ * features sem aparecer.
+ */
+.composer__box { background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); }
 .composer__box--focus { border-color: var(--color-border-focus); }
 /*
  * A caixa é um `textarea`, e o protótipo desenhou um `div`.
@@ -571,6 +585,26 @@
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-md);
   box-shadow: var(--elevation-lg);
+  /*
+   * O teto, e ele é do MENU e não da lista que ele mostra hoje.
+   *
+   * Tirar o recorte da caixa faz o menu aparecer inteiro; não faz ele caber na
+   * janela. A lista de modelos é do agente, não nossa — ela cresce quando o
+   * adaptador quiser —, e sem teto vinte modelos saem pela parte de cima da
+   * tela, que é o mesmo defeito com outro dono.
+   *
+   * 280px = nove linhas de 28px inteiras e a décima pela metade. A meia-linha é
+   * o que diz que a lista continua: cortar exatamente entre duas linhas desenha
+   * uma lista que parece completa.
+   *
+   * `hidden` no eixo horizontal porque a linha já resolve a largura sozinha,
+   * truncando a descrição — deixar os dois eixos em `auto` produz uma barra
+   * lateral por um pixel de arredondamento.
+   */
+  max-height: var(--size-menu-max-h);
+  overflow: hidden auto;
+  /* A roda do mouse não vaza para a conversa atrás do menu. */
+  overscroll-behavior: contain;
 }
 .slash__row { display: flex; align-items: center; gap: var(--space-8); min-height: var(--size-row-compact); padding: 0 var(--space-8); border-radius: var(--radius-sm); }
 .slash__row--on { background: var(--color-bg-active); }
@@ -580,9 +614,10 @@
 /* Não perguntar nada é estado, não preferência: ele grita na lista também. */
 .slash__row--danger .slash__cmd { color: var(--color-mode-bypass); }
 
-/* A pílula e o menu dela, ancorados juntos. */
+/* A pílula e o menu dela, ancorados juntos — o do agente e o do Lumem. */
 .config { position: relative; display: inline-flex; }
-.config .slash { position: absolute; bottom: calc(100% + var(--space-6)); left: 0; z-index: 1; }
+.config .slash,
+.config .mmenu { position: absolute; bottom: calc(100% + var(--space-6)); left: 0; z-index: 1; }
 
 /* ------------------------------- o menu do modo do Lumem (session-mode) */
 /*
@@ -596,23 +631,26 @@
  */
 .mmenu {
   /*
-   * Ancorado no `.composer`, e não na pílula.
+   * Ancorado na PÍLULA, como todo menu de pílula (composer-menus).
    *
-   * A pílula vive dentro do `.composer__box`, que tem `overflow: hidden` para
-   * recortar os cantos arredondados — e isso corta este menu inteiro, que tem
-   * 326px e não cabe na altura da caixa. Os menus curtos de hoje (`.slash`)
-   * sobrevivem por acidente: eles caem dentro dela.
+   * Ele já esteve ancorado no `.composer`, e a razão era o recorte da caixa: um
+   * popover de 326px não cabia na altura dela e era cortado. O recorte acabou,
+   * e a fuga foi junto — um popover ancora no que o abre, e quem abre este é a
+   * pílula do modo.
    */
-  position: absolute;
-  bottom: 100%;
-  left: var(--space-20);
-  z-index: 1;
   width: var(--size-menu-width);
+  /* O mesmo teto do `.slash`. Três opções nunca vão rolar; a regra é do menu. */
+  max-height: var(--size-menu-max-h);
+  /*
+   * `hidden` no horizontal também recorta os cantos: o cabeçalho e o rodapé têm
+   * fundo próprio e encostam na borda arredondada.
+   */
+  overflow: hidden auto;
+  overscroll-behavior: contain;
   background: var(--color-bg-raised);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-md);
   box-shadow: var(--elevation-lg);
-  overflow: hidden;
 }
 .mmenu__head {
   display: grid;
@@ -656,7 +694,14 @@
  * o botão que confirma é `btn--danger` e não o primário.
  */
 .gate {
-  /* Mesmo motivo do `.mmenu`: fora da caixa que recorta. */
+  /*
+   * A exceção nomeada, e ela não é sobre recorte (composer-menus).
+   *
+   * O portão não é menu: é um cartão de 420px, mais largo que a pílula que o
+   * originou — e a pílula já saiu de jogo quando ele aparece, porque o menu que
+   * o abriu fechou. Cartão desse tamanho alinha com a CAIXA, não com um objeto
+   * de 100px que não está mais em cena.
+   */
   position: absolute;
   bottom: 100%;
   left: var(--space-20);

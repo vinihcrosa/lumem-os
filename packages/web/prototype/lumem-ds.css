@@ -1011,7 +1011,20 @@ code { font: var(--text-mono-md); color: var(--color-text-code); }
 .meter__f { display: block; height: 100%; width: var(--w); background: currentColor; }
 
 .composer { flex: none; padding: var(--space-12) var(--space-20) var(--space-16); }
-.composer__box { background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); overflow: hidden; }
+/*
+ * SEM `overflow: hidden`, e isso é o conserto inteiro dos menus do composer.
+ *
+ * O recorte estava aqui para arredondar os cantos — só que nada dentro da caixa
+ * pinta até a borda: o campo é transparente, a barra só tem `border-top`, e o
+ * único fundo é o da própria caixa, que o `border-radius` já arredonda. Medido
+ * lado a lado no navegador: os cantos são idênticos com e sem o recorte.
+ *
+ * O que o recorte fazia era cortar todo popover que abre para cima. O menu de
+ * modo do Lumem fugiu ancorando no `.composer`; o menu de COMANDOS não fugiu, e
+ * era invisível por inteiro; e o seletor de modelo perdia toda opção acima da
+ * borda da caixa. Tirar o recorte é um conserto só para os três.
+ */
+.composer__box { background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); }
 .composer__box--focus { border-color: var(--color-border-focus); }
 /*
  * Composer bloqueado. Duas coisas bloqueiam: pedido de permissão pendente e

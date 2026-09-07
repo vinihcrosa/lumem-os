@@ -586,3 +586,32 @@ lógica de estado nova numa parte que hoje é uma linha.
 **De onde veio:** o e2e da worktree-first-tab, que precisou clicar na aba da sessão em vez de confiar
 na seleção · **Volta quando:** aparecer em uso, ou quando a próxima feature de aba precisar confiar
 que a sessão criada está na frente.
+
+### Teclado no menu do seletor de configuração — `P`
+
+O `.slash` dos comandos de barra navega com setas e escolhe com `⏎`; o `.slash` do seletor
+(`modelo`, `modo`, `esforço`) não — ele é uma lista de botões que só o mouse percorre. Com o teto de
+280px isso passou a ter consequência: a partir da décima opção, a única maneira de chegar num modelo
+é rolar com o mouse.
+
+Dar teclado a ele é `aria-activedescendant` ou foco por índice, `Home`/`End`, `Esc` para fechar e o
+foco de volta na pílula — a mesma matéria do foco preso dos modais da
+[sidebar-actions](../prd/sidebar-actions/prd.md). É uma feature de acessibilidade com escopo próprio,
+não efeito colateral de remover um `overflow`.
+
+**De onde veio:** [composer-menus](../prd/composer-menus/prd.md), fora de escopo declarado ·
+**Volta quando:** alguém precisar trocar de modelo sem mouse, ou na primeira feature de
+acessibilidade de teclado.
+
+### O menu que abre para baixo quando não cabe para cima — `P`
+
+Todo popover do composer abre para cima, com `bottom: 100%`. O teto de 280px faz isso caber nas
+janelas que o produto suporta — a conta está na [Q4](../prd/composer-menus/open-questions.md) —, mas
+é um número contra outro número, e não uma garantia: uma janela baixa o bastante volta a empurrar o
+menu para fora da tela por cima.
+
+O conserto é medir o espaço disponível e virar a abertura, com re-medição no `resize`. É
+posicionamento com estado, e não uma declaração de CSS.
+
+**De onde veio:** [composer-menus Q4](../prd/composer-menus/open-questions.md) · **Volta quando:** a
+primeira janela real em que o menu não couber.

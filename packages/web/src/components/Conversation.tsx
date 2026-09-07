@@ -194,8 +194,10 @@ export function Conversation({
   /*
    * O menu do modo do Lumem, aberto.
    *
-   * Mora aqui, e não na pílula, porque o MENU mora aqui: `.composer__box` tem
-   * `overflow: hidden` e recorta qualquer popover mais alto que ele.
+   * O ESTADO mora aqui, e o menu não: ele voltou para dentro da pílula quando o
+   * `.composer__box` deixou de recortar (composer-menus). Quem continua aqui é o
+   * booleano, porque escolher `liberado` abre o portão — e o portão é do
+   * composer.
    */
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [openThoughts, setOpenThoughts] = useState<ReadonlySet<string>>(new Set());
@@ -518,28 +520,13 @@ export function Conversation({
 
       <div className="composer">
         {/*
-          O menu e o portão nascem aqui, FORA do `.composer__box`.
+          O portão nasce aqui, e é o único que nasce (composer-menus).
 
-          A caixa tem `overflow: hidden` para recortar os cantos arredondados, e
-          isso corta todo popover mais alto que ela — o que os menus curtos de hoje
-          não notam e os dois desta feature notaram na primeira abertura num
-          navegador de verdade. Ancorá-los no `.composer` é o que faz o clique
-          chegar neles.
+          Ele não é menu: é um cartão de 420px, mais largo que a pílula que o
+          originou — e a pílula já saiu de jogo quando ele aparece, porque o menu
+          que o abriu fechou. Cartão desse tamanho alinha com a caixa. Os menus
+          voltaram para as suas pílulas, na barra abaixo.
         */}
-        {conversation.modeOwner === "lumem" && modeMenuOpen && canSwitchMode && (
-          <LumemModeMenu
-            mode={conversation.lumemMode}
-            workspaceDefault={conversation.lumemModeDefault}
-            onSwitch={(mode) => {
-              setModeMenuOpen(false);
-              socketRef.current?.send({ type: "set_lumem_mode", mode });
-            }}
-            onFreeRequested={() => {
-              setModeMenuOpen(false);
-              setGateOpen(true);
-            }}
-          />
-        )}
         {gateOpen && canSwitchMode && (
           <FreeModeGate
             cwd={session?.cwd ?? ""}
@@ -618,21 +605,42 @@ export function Conversation({
               livre para discordar da primeira.
             */}
             {conversation.modeOwner === "lumem" && (
-              <LumemModePill
-                mode={conversation.lumemMode}
-                /*
-                 * Desligada no meio do turno (F1.7) e sem daemon.
-                 *
-                 * A pílula **fica** nos dois casos — ela é estado local da
-                 * sessão, e não depende de handshake para ser exibida —, mas a
-                 * troca viaja pelo socket, e um botão cujo único resultado é
-                 * erro não é um botão.
-                 */
-                disabled={!canSwitchMode}
-                readOnly={readOnly}
-                open={modeMenuOpen}
-                onToggle={() => setModeMenuOpen(!modeMenuOpen)}
-              />
+              /*
+                A pílula e o menu dela, no mesmo `.config` que as pílulas do
+                agente usam (composer-menus). Um popover ancora no que o abre —
+                e o `.composer__box` não recorta mais nada.
+              */
+              <span className="config">
+                <LumemModePill
+                  mode={conversation.lumemMode}
+                  /*
+                   * Desligada no meio do turno (F1.7) e sem daemon.
+                   *
+                   * A pílula **fica** nos dois casos — ela é estado local da
+                   * sessão, e não depende de handshake para ser exibida —, mas a
+                   * troca viaja pelo socket, e um botão cujo único resultado é
+                   * erro não é um botão.
+                   */
+                  disabled={!canSwitchMode}
+                  readOnly={readOnly}
+                  open={modeMenuOpen}
+                  onToggle={() => setModeMenuOpen(!modeMenuOpen)}
+                />
+                {modeMenuOpen && canSwitchMode && (
+                  <LumemModeMenu
+                    mode={conversation.lumemMode}
+                    workspaceDefault={conversation.lumemModeDefault}
+                    onSwitch={(mode) => {
+                      setModeMenuOpen(false);
+                      socketRef.current?.send({ type: "set_lumem_mode", mode });
+                    }}
+                    onFreeRequested={() => {
+                      setModeMenuOpen(false);
+                      setGateOpen(true);
+                    }}
+                  />
+                )}
+              </span>
             )}
             <ConfigPills
               mode={conversation.mode}

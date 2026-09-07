@@ -105,6 +105,20 @@ era cinza nos três estados, e as colunas do consumo, que a folha do `workspace-
 comparáveis verticalmente e **não eram**: 37px de diferença sempre que o texto de custo mudava de
 largura.
 
+A [composer-menus](docs/prd/composer-menus/prd.md) está **completa** — 4 tasks, 5 perguntas — e é a
+primeira que **achou mais defeito desenhando do que a issue relatava**. O menu do seletor aparecia
+cortado porque `.composer__box` tinha `overflow: hidden`, e o recorte produzia **três** defeitos, não
+um: o seletor perdia toda opção acima da borda; o menu de `/comandos` sumia **inteiro** — ele ancora
+na própria caixa que recorta, em `bottom: calc(100% + 6px)`, e estava assim há três features com
+teste de componente verde o tempo todo; e o menu de modo do Lumem só aparecia porque **fugiu**,
+ancorando no `.composer`. O conserto é um só e não é uma fuga: a caixa deixa de recortar — os dois
+cantos foram desenhados lado a lado no navegador e **são o mesmo canto**, porque nada dentro dela
+pinta até a borda. Todo menu ganhou `--size-menu-max-h: 280px` com rolagem própria (nove linhas
+inteiras e a décima pela metade, que é o que diz que a lista continua), e a âncora virou uma frase —
+**um popover ancora no que o abre** —, com o portão do `liberado` como a exceção nomeada. A prova é
+um e2e com um fake de vinte modelos que pergunta `document.elementFromPoint`, e não `toBeVisible`:
+contra um elemento recortado por ancestral, o segundo fica verde.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |

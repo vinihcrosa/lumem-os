@@ -68,7 +68,7 @@ export interface LumemModePillProps {
   disabled?: boolean;
   /** A finished conversation shows the mode it was in, and offers nothing (F1.8). */
   readOnly?: boolean;
-  /** Whether the menu — rendered by the composer, not here — is open. */
+  /** Whether the menu — a sibling in the same `.config`, not a child — is open. */
   open?: boolean;
   onToggle(): void;
 }
@@ -91,15 +91,14 @@ export interface LumemModeMenuProps {
 /**
  * A pílula, e só ela.
  *
- * O menu **não** mora aqui, e a razão é layout: `.composer__box` tem
- * `overflow: hidden` — ele recorta os cantos arredondados da caixa —, então todo
- * popover que abre para cima e é mais alto que a própria caixa é cortado. Os
- * menus de hoje (`.slash`) sobrevivem por acidente: eles são curtos e caem dentro
- * da altura da caixa. Este tem 326px e não cabe.
+ * O menu é irmão dela dentro do mesmo `.config`, e quem os junta é o composer.
+ * Já foi diferente: o menu nascia como filho do `.composer` para escapar do
+ * `overflow: hidden` da caixa, que cortava todo popover mais alto que ela. O
+ * recorte saiu (composer-menus), e a fuga saiu junto.
  *
- * Foi o e2e que cobrou, e só ele podia: jsdom não faz layout, então o teste de
- * componente clica alegremente num elemento que no navegador está coberto pela
- * conversa.
+ * Foi o e2e que cobrou as duas vezes, e só ele podia: jsdom não faz layout,
+ * então o teste de componente clica alegremente num elemento que no navegador
+ * está cortado.
  */
 export function LumemModePill({
   mode,
@@ -157,7 +156,7 @@ export function LumemModePill({
 }
 
 /**
- * O menu dos três valores, ancorado no `.composer` e não na pílula.
+ * O menu dos três valores, ancorado na pílula que o abre.
  *
  * Ele é onde a autoria vira **frase** em vez de charada: sem o cabeçalho, o glifo
  * `◈` não explica nada, e alguém que troque isto acredita ter posto o agente em
