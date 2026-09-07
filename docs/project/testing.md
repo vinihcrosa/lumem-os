@@ -18,7 +18,9 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `server/` regra de **transporte** — limite de corpo, GET vs POST, status | integration sobre HTTP (`app.inject`) | Sim — o caller é cego a estas três |
 | `server/` endpoint WebSocket | integration | Sim |
 | `server/` transporte **ACP** | integration com **agente falso** no outro lado do pipe — o SDK nos dois lados, wire ndjson de verdade, **zero token** | Sim |
+| **dois agentes na mesma worktree** | e2e `second-agent.spec.ts`: os dois agentes são o **mesmo** fake, o segundo com `LUMEM_FAKE_PROFILE=codex`, então continua zero token. Prova o que só o navegador responde — cada aba nomeia o **seu** agente (as abas escondidas ficam montadas, então o locator é escopado na que está na frente) e o agente que não informa limite não desenha limite nem custo zero | **Não** |
 | **conversa ACP** de ponta a ponta | e2e contra `e2e/support/fake-acp-agent.mjs` — agente ACP de verdade sobre stdio de verdade, **zero token**. Exercita o turno inteiro: mensagem, ferramenta, permissão, plano, uso, comandos e o terminal que o agente pede. É onde vivem as medidas que jsdom não faz, porque jsdom não tem layout | **Não** |
+| `server/` **segundo adaptador**, perfil medido | integration com o perfil `codexLikeScript()` do agente falso (`codex-like.test.ts`), **zero token**: `usage` sem `rateLimit` nem `cost`, comandos só por notificação, `mode` nas duas listas, e os dois casos que o Codex **não** é — sem `usage` nenhum e sem `loadSession`. Ele existe porque a fase 0 mediu que o daemon **já** aguentava, e o que passa sem teste é o que volta a quebrar | Sim |
 | `server/` handshake do **adaptador real** | integration **marcado**: pulado quando `claude-agent-acp` não está no PATH. Para em `initialize` + `session/new`, que o spike mediu em zero token. Desde o `onboarding`, ele também confere o **`agentInfo`** — é onde a versão pinada vem, e uma release do adaptador que parasse de mandá-la viraria um `null` silencioso | Sim |
 | `server/` **pré-voo da máquina** e detecção de binário | unit com `PATH` e executor de processo **fabricados**: os casos que interessam — git 2.29, git ausente, `--version` que trava, `statfs` que estoura — não existem numa máquina que funciona | Sim |
 | `server/` **instalação do adaptador** | unit com `npm` dublado: os casos que interessam — npm ausente, registry inalcançável, npm saindo 0 sem escrever o binário — são os que uma rede que funciona não produz. **Nenhum `npm install` de verdade roda na suíte** | Sim |
@@ -386,6 +388,36 @@ que se quer é o valor e não as atualizações dele. Uma inscrição é um acop
 chave*, e quem invalida uma chave costuma ser outra tela. E o corolário de teste: **isto só aparece com
 layout e tempo reais.** Em jsdom a janela não existe, os 826 testes de componente passaram, e o que
 achou foi o e2e — que por isso não é redundante com eles.
+
+### O adaptador de verdade também pinado, e o CLI por baixo dele **não**
+
+**Sintoma:** nenhum. É o que faz esta armadilha valer a pena escrever.
+
+**Causa:** a A12 diz "nunca `@latest`", e o catálogo cumpre: `codex-acp` está fixo em `1.10.0`. Só que
+ele depende de `@openai/codex: ^0.153.3` — um **caret**. Duas máquinas que instalam a mesma versão
+pinada do adaptador podem estar rodando CLIs diferentes por baixo dele, e o produto reporta a versão
+que ele conhece: a do adaptador.
+
+A regra: **pinar o adaptador não pina o agente**, e o teste marcado contra o adaptador real
+(`AcpManager.codex.integration.test.ts`) é o único lugar onde essa diferença aparece antes de um
+usuário. Ele para em `initialize` + `session/new` — zero token — e afirma o que decidiu perguntas: que
+`loadSession` existe, que `mode` está entre as `configOptions`, e que **nenhum** `authMethod` é
+`type: "terminal"`. Essa última fica vermelha no dia em que a C3 puder ser reaberta. Da
+[second-agent](../prd/second-agent/prd.md), fase 0.
+
+### Um comportamento que nunca teve teste não tem teste para reescrever
+
+**Sintoma:** a fase 0 da second-agent atravessou um turno inteiro de um adaptador **diferente** pelo
+`translate.ts` sem uma linha de mudança e sem um `warn` — e a suíte não tinha uma única afirmação
+sobre `usage` sem `rateLimit`, que é o caso desse adaptador.
+
+**Causa:** o Claude sempre mandou `_meta._claude/rateLimit`, então o caminho do nulo existia por
+desenho, era exercitado por ninguém, e estava correto por sorte declarada. O mesmo padrão da
+[run-dock-open](../prd/run-dock-open/prd.md), onde o rodapé fechado nunca teve teste em três features.
+
+A regra: **quando uma medição diz "já funciona", o resultado é uma task de teste, não uma task
+fechada.** A F3 da second-agent era código no PRD e virou teste depois da medição, e é ela que impede
+o `cost: 0` — a mentira que faz um turno pago parecer grátis — de voltar.
 
 ### Um repositório de fixture só pode ser adicionado uma vez na suíte inteira
 

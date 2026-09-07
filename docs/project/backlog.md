@@ -157,12 +157,52 @@ pessoal na mesma máquina sem trocar login na mão.
 
 ### Terceiro CLI de agente — `M`
 
-O **segundo** virou PRD em 2026-09-05: [second-agent](../prd/second-agent/prd.md), Codex proposto. Um
-por vez, cada um pagando o próprio spike — este item é o que sobra: o terceiro (Gemini, `gemini --acp`,
-é o candidato natural por ser de outra família de adaptador, e por isso provar mais).
+O **segundo** virou PRD em 2026-09-05 e a **C1 respondeu Codex**:
+[second-agent](../prd/second-agent/prd.md). Sobra o terceiro, e ele já tem nome: **Gemini**
+(`gemini --acp`), por ser de outra família — nativo, sem adaptador para instalar. O catálogo de
+adaptadores já prevê o caso (`package: null` → procura no PATH), então o que ele custa é o próprio
+spike, não a refatoração.
 
-**De onde veio:** [pty-vs-acp A2](pty-vs-acp.md) · **Volta quando:** o segundo estiver de pé e a
-C1 do second-agent tiver dito qual é o próximo.
+**De onde veio:** [pty-vs-acp A2](pty-vs-acp.md) · **Volta quando:** a fase 2 da second-agent
+estiver de pé — o Codex conversando **e** logando pela tela.
+
+### Desenhar a saída de comando do Codex — `P`
+
+Medido na fase 0 (§4.5 da [second-agent](../prd/second-agent/prd.md)): o Codex **não pede**
+`terminal/*` ao cliente. Ele roda por conta própria e manda `tool_call` com
+`content: [{ type: "terminal", terminalId }]` apontando para um terminal **dele** — o id da própria
+`tool_call` —, com a saída em `_meta.terminal_output_delta` e o fim em `_meta.terminal_exit`. O cartão
+de terminal da conversa não tem terminal para anexar, então a saída de comando dele não aparece.
+
+**De onde veio:** fase 0 da second-agent, 2026-09-06 · **Volta quando:** você rodar um comando pelo
+Codex e sentir falta de ver a saída.
+
+### O estado de login que o agente já conta — `P`
+
+O `codex-acp` manda uma notificação fora do protocolo, `_auth/status_update`, com
+`{ kind: "account", label: "ChatGPT Plus", account: { email, plan } }` — duas vezes por processo. O
+daemon ignora sem cair, e é exatamente o que o rodapé de login gostaria de mostrar: quem está logado,
+e em qual plano.
+
+**De onde veio:** fase 0 da second-agent, §4.4 · **Volta quando:** o rodapé por agente (fase 2)
+existir, e a linha dele parecer vazia.
+
+### Deslogar um agente pela tela — `P`
+
+O Codex declara `agentCapabilities.auth.logout` e oferece um comando `/logout`. Nada no Lumem chama
+nenhum dos dois: dá para entrar e não dá para sair.
+
+**De onde veio:** fase 0 da second-agent, §4.9 · **Volta quando:** você precisar trocar de conta num
+agente — e aí ele encontra o item "múltiplas contas para o mesmo agente", acima.
+
+### Custo por modelo, e não só por agente — `P`
+
+A `usage.byProjectAndAgent` soma por `agent_config`. A resposta do `session/prompt` do Codex traz
+`_meta.quota.model_usage[]` — token por **modelo** dentro do mesmo turno —, e o daemon lê só a
+notificação. Somar por modelo é mudar a fonte do número, e isso não era da second-agent (C5).
+
+**De onde veio:** [second-agent C5](../prd/second-agent/open-questions.md) · **Volta quando:** você
+trocar de modelo no meio do trabalho e quiser saber qual deles custou o quê.
 
 ### Índice de regras com carregamento sob demanda — `M`
 

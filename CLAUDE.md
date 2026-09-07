@@ -82,6 +82,24 @@ sozinha) e `liberado`, atrás de um portão por sessão sem "não perguntar de n
 Lumem aprovou`) com a linha de fecho contando o turno, e **nenhum caminho da feature nega sozinho**:
 sem opção de permitir, o pedido sobe dizendo por quê.
 
+A [second-agent](docs/prd/second-agent/prd.md) é a primeira que **mediu antes de escrever**: a fase 0
+subiu o `@agentclientprotocol/codex-acp@1.10.0` de verdade, com o `AcpManager` deste repositório como
+cliente, e o §4 do PRD foi reescrito com os números — o que mudou **duas** decisões antes de existir
+código. O login do Codex não é um comando de terminal (`api-key`, `chat-gpt` que abre navegador na
+máquina do daemon, e `chat-gpt-device-code` só se o cliente declarar `elicitation.url`), então a
+escolha de agente **saiu** do primeiro acesso e o login virou a fase 2. A tradução, ao contrário,
+atravessou um turno inteiro com **zero `warn`** — `rateLimit: null`, `cost: null`, o
+`session_info_update` ignorado por nome —, então a F3 encolheu de código para teste. O adaptador
+também **traz o próprio CLI** (285 dos 301 MB) e roda com `PATH=/nonexistent`, o que fez `cli` ser
+opcional na spec. **As fases 0, 1 e 3 estão fechadas** — 13 das 16 tasks: as cinco constantes de
+Claude viraram o catálogo `ADAPTERS`, o instalador escreve em `<stateDir>/adapters/<id>` (e continua
+achando o caminho antigo, senão toda máquina rebaixa 255 MB), o `DEFAULT_AGENT_CONFIG` de `pty` parou
+de ser semeado, e o consumo passou a saber de qual agente foi o turno. A **fase 2 é a única aberta**,
+e ela depende do Open Design. Três defeitos apareceram de graça: a `configOption` de modo que ficava
+velha depois de trocar de modo, o `install` que a tela oferecia copiar **sem versão** contra a própria
+regra da A12, e o cabeçalho da conversa com a string `claude` escrita à mão — com dois agentes, as
+duas conversas diziam a mesma coisa.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |

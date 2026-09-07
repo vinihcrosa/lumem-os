@@ -392,7 +392,7 @@ encolher para teste, e tirou a escolha de agente do primeiro acesso.
 |---|---|
 | [prd.md](prd/second-agent/prd.md) | o que no código sabe que é Claude e o que já é genérico; o §4 com os números da fase 0; F1–F5 |
 | [open-questions.md](prd/second-agent/open-questions.md) | 6 perguntas, **6 respondidas**: qual agente, instalado ou no PATH, onboarding pergunta ou não, consumo sem número, comparação, a semente PTY |
-| [tasks.md](prd/second-agent/tasks.md) | 16 tasks em 3 fases — catálogo, login (depende do Open Design), consumo |
+| [tasks.md](prd/second-agent/tasks.md) | 16 tasks em 3 fases — **13 fechadas**: catálogo e consumo entregues, login (fase 2) aberto e dependendo do Open Design |
 
 ### [workspace-tasks/](prd/workspace-tasks/) — tarefa como entidade
 
