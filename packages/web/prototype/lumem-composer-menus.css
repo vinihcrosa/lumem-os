@@ -1,0 +1,197 @@
+/* ============================================================================
+   Lumem-OS — os menus do composer, e a caixa que os cortava
+
+   A anotação que gerou esta tela viu um seletor de modelo com as opções de
+   cima FALTANDO. Não estavam escondidas: estavam recortadas. `.composer__box`
+   tinha `overflow: hidden`, e todo popover que abre para cima e passa da borda
+   da caixa deixava de existir — para o olho e para o mouse.
+
+   O recorte produzia TRÊS defeitos, e só um deles tinha sido notado:
+
+   1. O SELETOR (`modelo`, `modo`, `esforço`) perde as opções acima da borda.
+      Com dois modelos passa despercebido; com vinte, não dá para escolher.
+   2. O MENU DE COMANDOS de barra some INTEIRO. Ele ancora na própria caixa que
+      recorta, com `bottom: calc(100% + 6px)` — ou seja, cem por cento fora
+      dela. Nenhum e2e o abria, e o teste de componente é jsdom, que não faz
+      layout: o defeito atravessou três features sem aparecer.
+   3. O MENU DE MODO DO LUMEM não é cortado, e isso também é um defeito: ele
+      escapou ancorando no `.composer` em vez da pílula. Duas âncoras para o
+      mesmo menu é a próxima discordância esperando acontecer.
+
+   O CONSERTO É UM SÓ, e não é uma fuga: a caixa DEIXA DE RECORTAR. O recorte
+   arredondava cantos que nada pinta — o campo é transparente, a barra só tem
+   `border-top`, e o fundo é o da própria caixa, que o `border-radius` já
+   arredonda. Medido lado a lado no navegador: cantos idênticos.
+
+   O SEGUNDO PEDAÇO é o teto. Sem recorte, uma lista de vinte modelos sai pela
+   parte de cima da JANELA — que é o mesmo defeito com outro dono. Então o menu
+   ganha altura máxima e barra de rolagem própria: `--size-menu-max-h`.
+
+   Camadas: tokens.css → lumem-ds.css → este arquivo.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+   0. chrome do protótipo — a página, não o produto
+   -------------------------------------------------------------------------- */
+body { padding: var(--space-32); }
+.page { font: var(--text-display-md); letter-spacing: var(--tracking-display-md); margin: 0 0 var(--space-8); }
+.page-sub { color: var(--color-text-secondary); max-width: var(--size-detail-max); margin: 0 0 var(--space-32); }
+.page-sub code, .sec__d code, .case__note code, .rule__d code { font: var(--text-mono-sm); }
+/*
+ * Mais larga que as outras telas, e por um motivo que é o assunto: um menu que
+ * não cabe é um problema de GEOMETRIA. Um composer desenhado em 290px mentiria
+ * sobre o defeito e sobre o conserto — a coluna de conversa real tem entre 600 e
+ * 800px numa janela de trabalho, e é essa a largura dos quadros aqui.
+ */
+.wrap { max-width: 1180px; display: grid; gap: var(--space-40); }
+.sec__t .no { font: var(--text-mono-md); color: var(--color-text-tertiary); margin-right: var(--space-8); }
+.case__label code { font: var(--text-mono-sm); color: var(--color-text-code); text-transform: none; letter-spacing: normal; }
+.frame {
+  border: var(--border-width-thin) solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-panel);
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------------------
+   1. o pedaço de conversa que segura o composer
+   Um menu de composer não se julga sozinho: metade da leitura é onde ele cai
+   sobre a conversa, e a outra metade é se ele cabe na coluna.
+   -------------------------------------------------------------------------- */
+.convmock { display: flex; flex-direction: column; background: var(--color-bg-base); }
+.convmock__scroll {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-12);
+  align-content: end;
+  padding: var(--space-16) var(--space-20) var(--space-4);
+  /* Alto o bastante para o menu longo ter para onde subir. É a altura de uma
+     coluna de conversa real numa janela de trabalho, não uma folga de desenho. */
+  min-height: calc(var(--space-64) * 5);
+}
+
+/*
+ * O DEFEITO, DESENHADO.
+ *
+ * `.clip` devolve à caixa o `overflow: hidden` que o design system acabou de
+ * perder. Ele existe para uma coisa só: desenhar o estado de hoje ao lado do
+ * conserto. Nenhuma tela do produto usa esta classe.
+ */
+.clip .composer__box { overflow: hidden; }
+/* E sem teto, porque hoje não há teto: o `.clip` desenha o estado inteiro de
+   hoje, não uma metade dele. */
+.clip .slash, .clip .mmenu { max-height: none; overflow: visible; }
+
+/* ---------------------------------------------------------------------------
+   2. a âncora, depois que não há mais recorte
+   A regra passa a ser uma frase: UM POPOVER ANCORA NO QUE O ABRE.
+   -------------------------------------------------------------------------- */
+.composer { position: relative; z-index: 1; }
+/* Quem abre é a pílula. */
+.config { position: relative; display: inline-flex; }
+.config .slash, .config .mmenu { position: absolute; bottom: calc(100% + var(--space-6)); left: 0; z-index: 1; }
+/* Quem abre é o campo de texto, e o campo é a caixa. */
+.composer__box { position: relative; }
+.composer__box > .slash { position: absolute; bottom: calc(100% + var(--space-6)); left: var(--space-8); z-index: 1; }
+/*
+ * O portão do `liberado` é a exceção NOMEADA, e ela não é sobre recorte.
+ * Ele não é menu: é um cartão de 420px, mais largo que a pílula que o originou
+ * — e a pílula já não está mais em jogo quando ele aparece, porque o menu que
+ * o abriu fechou. Cartão desse tamanho alinha com a CAIXA.
+ */
+.gate-anchor { position: absolute; bottom: 100%; left: var(--space-20); z-index: 2; }
+
+/* ---------------------------------------------------------------------------
+   3. o menu — a mesma folha para o seletor e para os comandos
+   -------------------------------------------------------------------------- */
+.slash {
+  width: var(--size-menu-width);
+  padding: var(--space-4);
+  background: var(--color-bg-raised);
+  border: var(--border-width-thin) solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-lg);
+  /*
+   * O TETO, e ele vale para todo menu — não só para o que hoje é longo.
+   *
+   * A lista de modelos é do agente, não nossa: ela cresce quando o adaptador
+   * quiser. Um teto que só o menu de modelo tivesse seria um teto que o
+   * próximo menu longo não tem.
+   *
+   * 280px = 9 linhas de 28px inteiras + a décima pela metade. A meia-linha é o
+   * que diz que a lista continua; cortar exatamente entre duas linhas desenha
+   * uma lista que parece completa.
+   */
+  max-height: var(--size-menu-max-h);
+  /* Vertical e só ela: a linha já resolve a largura sozinha, truncando a
+     descrição com reticências. Deixar o eixo horizontal em `auto` produz uma
+     barra de rolagem lateral por causa de um pixel de arredondamento — e uma
+     barra que rola um pixel é uma barra que não rola nada. */
+  overflow: hidden auto;
+  /* Rolagem dentro de um popover que abre por cima da conversa: a roda do mouse
+     não vaza para a conversa atrás dele. */
+  overscroll-behavior: contain;
+}
+.slash__row { display: flex; align-items: center; gap: var(--space-8); min-height: var(--size-row-compact); padding: 0 var(--space-8); border-radius: var(--radius-sm); }
+.slash__row--on { background: var(--color-bg-active); }
+.slash__row--danger .slash__cmd { color: var(--color-mode-bypass); }
+.slash__cmd { flex: none; font: var(--text-mono-md); color: var(--color-text-primary); }
+.slash__desc { flex: 1; min-width: 0; font: var(--text-body-sm); color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------------------------------------------------------------------------
+   4. o menu do modo do Lumem — folha própria, mesmo teto
+   Ele tem três opções e nunca vai rolar. O teto está aqui mesmo assim, porque
+   a regra é do MENU e não da lista que ele mostra hoje.
+   -------------------------------------------------------------------------- */
+.mmenu {
+  width: var(--size-menu-width);
+  max-height: var(--size-menu-max-h);
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  background: var(--color-bg-raised);
+  border: var(--border-width-thin) solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-lg);
+}
+.mmenu__head {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-10);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+}
+.mmenu__who { display: flex; align-items: center; gap: var(--space-6); font: var(--text-label-sm); color: var(--color-text-primary); }
+.mmenu__why { font: var(--text-caption); color: var(--color-text-tertiary); }
+.mmenu__why code { font: var(--text-mono-sm); }
+.mopt { display: grid; gap: var(--space-2); padding: var(--space-8) var(--space-10); text-align: left; width: 100%; }
+.mopt + .mopt { border-top: var(--border-width-thin) solid var(--color-border-subtle); }
+.mopt:hover { background: var(--color-bg-hover); }
+.mopt--on, .mopt--on:hover { background: var(--color-bg-active); }
+.mopt__t { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-sm); color: var(--color-text-primary); }
+.mopt__mark { margin-left: auto; flex: none; font-size: var(--size-icon-sm); color: var(--color-text-brand); }
+.mopt__d { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.mopt--auto .mopt__t { color: var(--color-mode-auto); }
+.mopt--free .mopt__t { color: var(--color-mode-bypass); }
+.pill__own { flex: none; font-size: var(--size-icon-xs); line-height: 1; color: currentColor; }
+.pill--ask { color: var(--color-text-secondary); border-color: var(--color-border-default); }
+
+/* ---------------------------------------------------------------------------
+   5. a tabela de âncoras — o que esta tela decide, em uma lista
+   -------------------------------------------------------------------------- */
+.rules { display: grid; gap: var(--space-2); }
+.rule {
+  display: grid;
+  grid-template-columns: minmax(0, 13ch) minmax(0, 16ch) minmax(0, 1fr);
+  gap: var(--space-12);
+  align-items: baseline;
+  padding: var(--space-10) var(--space-12);
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-sm);
+}
+.rule__w { font: var(--text-mono-sm); color: var(--color-text-code); }
+.rule__a { font: var(--text-label-sm); color: var(--color-text-primary); }
+.rule__d { font: var(--text-body-sm); color: var(--color-text-secondary); }
+
+/* A prova do canto: as duas caixas lado a lado, sem nada dentro que as
+   distinga além do recorte que uma tem e a outra não. */
+.corners { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-16); }

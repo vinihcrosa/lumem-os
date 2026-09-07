@@ -257,6 +257,9 @@
   --size-terminal-min: 420px;
   --size-dialog-width: 420px;
   --size-menu-width: 300px;
+  /* Teto do menu suspenso: 9 linhas de 28px inteiras, e a decima pela
+     metade. A meia-linha e o que diz que a lista continua. */
+  --size-menu-max-h: 280px;
   --size-panel-right: 360px;
   --size-panel-right-min: 260px;
   --size-panel-right-max: 720px;
