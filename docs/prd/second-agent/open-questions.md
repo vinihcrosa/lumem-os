@@ -9,9 +9,10 @@ aqui, com o motivo.
 **Decisão:**. Cada pergunta traz uma **proposta pra reagir** — discordar dela é mais rápido que
 escrever do zero.
 
-**Estado:** 6 perguntas · **6 respondidas** (2026-09-06). A C1 foi respondida na
-[issue #41](https://github.com/vinihcrosa/lumem-os/issues/41), e as cinco seguintes pela **fase 0** —
-o §4 do PRD tem os números que cada uma cita.
+**Estado:** 8 perguntas · **8 respondidas** (2026-09-06). A C1 foi respondida na
+[issue #41](https://github.com/vinihcrosa/lumem-os/issues/41), as cinco seguintes pela **fase 0** — o
+§4 do PRD tem os números que cada uma cita —, e a **C7** e a **C8** nasceram no desenho da fase 2, no
+Open Design, e foram respondidas lá, renderizando.
 
 ---
 
@@ -146,3 +147,54 @@ lugar novo, no exato PR que tira as outras cinco.
 ela — não há migração que apague configuração de ninguém —, e o `AgentConfigDialog` continua criando
 `pty` para quem quiser. A task carrega o teste de que uma instalação nova nasce **sem** ela e o
 `NewSessionMenu` não fica vazio por causa disso.
+
+---
+
+### [x] C7 — Qual método de login do Codex é o preenchido?
+
+Nasceu no desenho, e é uma escolha entre dois erros. `chat-gpt` é **um clique**, e o adaptador abre o
+navegador na máquina do **daemon**. `chat-gpt-device-code` mostra URL e código — funciona de qualquer
+lugar, e cobra dois passos (ler, digitar) de todo mundo.
+
+**Proposta pra reagir:** o navegador é o preenchido, e o código é a segunda opção com o caso escrito
+na descrição (*"quando o daemon não é esta máquina"*).
+
+**R:** a proposta, e o custo fica nomeado na folha em vez de escondido. Hoje o produto **não tem**
+daemon remoto: o `lumem` sobe na máquina de quem clica, e nessa máquina o navegador abre onde a
+pessoa está vendo. Fazer o código ser o padrão cobraria dois passos de todo mundo, sempre, para
+proteger um caso que o produto ainda não oferece. O que a decisão compra é que, quando esse caso
+existir, a saída já está **uma opção abaixo** e a descrição do preenchido já diz por que ele não
+serve — não é uma tela nova, é uma linha que já está lá.
+
+O que ela **não** aceita: esconder o método de código, ou oferecer só ele. A medição mostrou que
+`chat-gpt-device-code` só existe se o cliente declarar `elicitation.url` — então declarar essa
+capacidade não é opcional neste desenho, e é a [T11](tasks.md).
+
+**Decisão:** `chat-gpt` preenchido, com *"abre o navegador nesta máquina"* na descrição;
+`chat-gpt-device-code` como segunda opção, com *"quando o daemon não é esta máquina"*; `api-key` como
+link. Um preenchido por painel, como o resto do fluxo de login.
+
+---
+
+### [x] C8 — Onde mora o verbo, depois que a linha do rodapé virou estado?
+
+Com um agente, a linha era as duas coisas: `conectar um agente` virava `claude · conectado`. Com dois,
+ela só pode ser estado — e "conectar o próximo" precisa de lugar. As opções: um cabeçalho `Agentes`
+com `＋` (como `Projetos` tem), uma terceira linha `＋ conectar agente`, ou um `＋` no fim da faixa.
+
+**Proposta pra reagir:** cabeçalho com `＋`, pela regra que a
+[sidebar-actions](../sidebar-actions/prd.md) já estabeleceu — a ação mora no cabeçalho da lista que
+ela alimenta, presa ao **título** e não ao fim da lista, para não se afastar da coisa quando a lista
+cresce.
+
+**R:** a proposta, com o custo medido no navegador: o rodapé sai de **45px** para **105px** com dois
+agentes — 28px são o cabeçalho, e eles são cobrados **mesmo de quem tem um agente só**. A alternativa
+da terceira linha custaria os mesmos 32px de uma linha e criaria uma segunda gramática na mesma
+coluna (`Projetos` com ação no cabeçalho, `Agentes` com ação no fim); a do `＋` solto no fim seria a
+única ação do produto sem título ao lado.
+
+**Decisão:** cabeçalho `Agentes` com `＋`, mesma altura do `.tree__head` (`--size-row-compact`). E, de
+brinde, o desenho achou que o `.pip` da linha era **cinza nos três estados** — com uma linha ninguém
+via, porque a palavra ao lado dizia tudo; com duas, o ponto é o que o olho varre primeiro. A correção
+está na folha, e os três pares de contraste que ela usa entram na lista do `gate:quick` — nenhum
+deles estava lá, nem o verde que já era pintado ali.

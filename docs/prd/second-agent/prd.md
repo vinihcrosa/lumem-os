@@ -382,14 +382,32 @@ prompt** (§4.4), que o daemon hoje não lê. O agrupamento soma o que já é so
 | segunda assinatura para pagar | é seu, e é o motivo de a F5 existir: comparar |
 | a cabeça da conversa não deixa claro **qual** agente | F4 confere; se não deixar, é task de tela |
 
-## 8. O que muda no Open Design
+## 8. O desenho, feito no Open Design
 
-Uma tela menos do que o PRD propunha, porque a [C3](open-questions.md) tirou o onboarding do escopo:
+**Folha:** `lumem-second-agent.html` + `.css` no projeto `lumem-os` do Open Design, desenhada e
+**verificada renderizando** em 2026-09-06. Quatro telas: `Rodapé`, `Login`, `No app` e `Protocolo`.
+No repositório ela é cópia, em `packages/web/prototype/` — o `design:sync` traz, e o `--check` diz se
+divergiu.
 
-1. rodapé `AgentLogin` com **uma linha por agente**, dentro dos mesmos 264px;
-2. o painel de login no caminho `authenticate`: o campo de chave (`api-key`) e o par URL + código
-   (`chat-gpt-device-code`), que é o `CopyCommand` já desenhado num lugar novo;
-3. ~~`AgentStep` com escolha de agente~~ — fora, por C3.
+O que ela decidiu, com o número medido no navegador:
+
+| Decisão | Medida |
+|---|---|
+| O rodapé ganha um cabeçalho `Agentes` com `＋`, como `Projetos` tem. A linha vira **estado**, e o verbo sai dela | o rodapé sai de **45px** para **105px** com dois agentes: 28 do cabeçalho, 32 da segunda linha. Largura intacta, 264px |
+| Um **terceiro estado** de linha, âmbar: *instalado e sem credencial* — nem `nenhum`, nem `falhou` | âmbar 9,10:1 sobre o painel |
+| O `.pip` passa a ter a cor do estado. Ele nascia **cinza nos três** — herda a cor da linha, e a cor do estado vive na palavra ao lado | verde 9,85:1, âmbar 9,10:1, vermelho 8,76:1 — e **nenhum dos três** estava na lista de contraste |
+| O painel de login ganha o par **URL + código** (`.dcode`), em mono grande | 13px com tracking de caps, contra 11px do resto |
+| O preparo do Codex tem **duas** linhas, não três — não há CLI para procurar | §4.8 |
+| A linha que abriu o painel fica marcada (`is-open`) | com uma linha o painel não tinha de quem ser |
+| ~~`AgentStep` com escolha de agente~~ | **fora**, por [C3](open-questions.md) |
+
+**Zero componente novo e zero token novo.** O painel, a opção, o preparo, a conta e o comando
+copiável já existiam; o que nasceu foram três classes de tela (`.foot-head`, `.dcode`,
+`.foot-row--warn`) e uma correção (`.pip`).
+
+Duas perguntas de desenho nasceram aqui e estão respondidas: a
+[C7](open-questions.md) — qual método de login é o preenchido — e a
+[C8](open-questions.md) — onde mora o verbo depois que a linha virou estado.
 
 ## 9. Fases
 

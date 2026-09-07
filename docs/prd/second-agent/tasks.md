@@ -3,8 +3,9 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Status:** **16 tasks em 3 fases.** A **fase 0**, a **fase 1** e a **fase 3** estão fechadas
 (2026-09-06): a medição virou o §4 do PRD e as seis perguntas, as nove tasks do catálogo estão
-entregues, e o consumo passou a saber de qual agente foi o turno. A **fase 2 é a única aberta**, e
-ela **depende do Open Design** — o §8 do PRD diz o que muda no rodapé de login.
+entregues, e o consumo passou a saber de qual agente foi o turno. A **fase 2 é a única aberta** — e o
+**desenho dela está pronto**, no Open Design, com duas perguntas novas respondidas
+([C7](open-questions.md) e [C8](open-questions.md)) e três defeitos do desenho antigo corrigidos.
 
 A fase 3 saiu de ordem de propósito: ela não toca tela nenhuma (a coluna do workspace é a única parte
 que toca, e ficou de fora com o motivo escrito na T15), então ela não esperava desenho. A **T16
@@ -19,9 +20,9 @@ chamada, não um comando) e a F3 encolheu (a tradução já passa — o que falt
 ## Antes de começar
 
 **A fase 1 não toca tela.** Ela é o catálogo, o instalador, o pré-voo e os testes que fixam o que a
-fase 0 mediu. A **fase 2 depende do Open Design** (§8 do PRD: o rodapé `AgentLogin`), e nenhuma task
-dela começa antes de a folha estar lá — é a regra de design do repositório, e ela não admite o
-contrário.
+fase 0 mediu. A **fase 2 tem desenho** — `lumem-second-agent.html` no Open Design, feito e verificado
+renderizando em 2026-09-06 — e é por isso que ela pode começar: a regra de design do repositório não
+admite o contrário.
 
 **As três armadilhas conhecidas**, cada uma com a task que paga:
 
@@ -216,10 +217,13 @@ linha continua com ela.
 
 ---
 
-## Fase 2 — o login (depende do Open Design)
+## Fase 2 — o login
 
-> **Nenhuma task desta fase começa antes da folha do Open Design.** O §8 do PRD lista o que muda: o
-> rodapé com uma linha por agente e o painel no caminho `authenticate`.
+> **O desenho está feito.** `lumem-second-agent.html` + `.css` no Open Design, desenhado e verificado
+> renderizando em 2026-09-06, e sincronizado para `packages/web/prototype/`. O §8 do PRD tem a tabela
+> de decisões com os números; a [C7](open-questions.md) e a [C8](open-questions.md) são as duas
+> perguntas que ele abriu e respondeu. **O que a folha decidiu não se re-decide no React** — se algo
+> nela estiver errado, o conserto é lá, e a task espera.
 
 #### T10: `authenticate`, a chamada que falta no daemon
 
@@ -231,46 +235,62 @@ atravessa o daemon e **não fica**: nem em `~/.lumem`, nem em log, nem de volta 
 - [ ] `authenticate(methodId)` contra o agente falso resolve, e um `session/new` depois dele passa
 - [ ] Método `api-key` leva a chave em `_meta["api-key"].apiKey`
 - [ ] Um teste **varre o `stateDir`** depois do login e falha se a chave aparecer em qualquer arquivo
+- [ ] A chave não aparece em nenhuma linha de log — o `log.warn` dublado recebe a falha e não o valor
 - [ ] Método que o agente recusa → a frase dele, e o painel continua aberto
+- [ ] O perfil codex-like ganha os dois métodos sem `type` e um `authenticate` que aceita/recusa
 - [ ] `pnpm gate:quick` verde
 
 #### T11: `elicitation/create` e `elicitation/complete` — URL e código, em vez de um browser na máquina errada
 
 **What**: as duas requisições do cliente, e `elicitation: { url: {} }` no `clientCapabilities` — é o
-que faz o `chat-gpt-device-code` aparecer (§4.2), e é o único método que não abre navegador na máquina
-do daemon.
+que faz o `chat-gpt-device-code` aparecer (§4.2, [C7](open-questions.md)).
 **Where**: `packages/server/src/acp/AcpManager.ts`, `packages/shared/src/acp-protocol.ts`,
 `packages/web/src/components/AgentLogin.tsx`
 
 **Done when**:
-- [ ] O agente falso pedindo `elicitation/create` produz um evento com URL e código para a tela
+- [ ] O agente falso pedindo `elicitation/create` produz um evento com **URL e código** para a tela
 - [ ] `elicitation/complete` fecha o pedido, e a tela deixa de mostrar o código
 - [ ] A capacidade só é declarada porque as duas existem — a regra do `terminal` e do `fs`, aplicada
-      de novo
+      de novo. Um teste afirma que `elicitation` **não** é declarada quando o handler não existe
+- [ ] O teste marcado do adaptador real (T8) passa a afirmar que, **com** a capacidade declarada,
+      `chat-gpt-device-code` aparece no `authMethods` — é a medição virando regressão
 - [ ] `pnpm gate:quick` verde
 
 #### T12: O rodapé com uma linha por agente
 
 **What**: `AgentLogin` deixa de ser "o agente" e passa a ser uma linha por `agent_config`, com o
-estado de cada uma, nos mesmos 264px.
-**Where**: `packages/web/src/components/AgentLogin.tsx`, `packages/web/prototype/…`
+cabeçalho `Agentes` e o `＋` que a [C8](open-questions.md) decidiu. Três classes novas da folha:
+`.foot-head`, `.foot-row--warn`, `.dcode` — mais a correção do `.pip`.
+**Where**: `packages/web/src/components/AgentLogin.tsx`, `packages/web/src/components/agent-login.css`,
+`packages/web/src/styles/contrast.ts`
 
 **Done when**:
-- [ ] Um agente → a tela de hoje, pixel por pixel
-- [ ] Dois → duas linhas, cada uma com o próprio estado e o próprio botão
-- [ ] A folha do Open Design está sincronizada (`design:sync --check` limpo)
+- [ ] Um agente → o cabeçalho aparece, e a linha dele é a de hoje. O rodapé mede **73px** (28 + 32 +
+      padding); com dois, **105px** — os números que a folha mediu
+- [ ] Dois → duas linhas, cada uma com o próprio estado, e clicar numa abre o painel **dela**
+      (`is-open` na linha que abriu)
+- [ ] O `.pip` tem a cor do estado nos três — verde, âmbar, vermelho. Era cinza nos três
+- [ ] Os **três pares de contraste** entram no `CONTRAST_PAIRS`: `daemon/online`, `text/warning` e
+      `text/danger` sobre `bg/panel`. Nenhum estava lá, nem o verde que já era pintado. Medidos em
+      9,85, 9,10 e 8,76:1 — o `gate:quick` confere
+- [ ] O teste de porte de CSS continua verde nas duas direções: nenhuma classe pedida sem regra, e
+      nenhuma regra que ninguém pede
+- [ ] `design:sync --check` limpo — a folha e a cópia do repositório concordam
 - [ ] `pnpm gate:quick` verde
 
-#### T13: Instalar o Codex de dentro do produto
+#### T13: Instalar e entrar no Codex de dentro do produto
 
-**What**: o rodapé instala a spec do Codex (T2, T4) e cria a `agent_config` ACP dele, com a versão que
-o `probe` **detectou**.
+**What**: o `＋` instala a spec do Codex (T2, T4), faz o handshake, cria a `agent_config` ACP com a
+versão que o `probe` **detectou**, e abre os jeitos de entrar que o handshake trouxe.
 **Where**: `packages/web/src/components/AgentLogin.tsx`, `packages/server/src/routers/setup.ts`
 
 **Done when**:
 - [ ] Instalar → `agent_config` nova, transporte `acp`, `adapter_version` vindo do `probe`
+- [ ] O preparo tem **duas** linhas para uma spec com `cli: null`, e três para uma com `cli`
 - [ ] Instalar de novo → nada baixado, nenhuma linha duplicada
 - [ ] Falha de `npm` chega na tela com a frase do `npm`
+- [ ] O e2e do `second-agent.spec.ts` ganha o caminho de tela: `＋` → instalar (com um shim) → entrar
+      → duas linhas no rodapé
 - [ ] `pnpm gate:full` verde
 
 ---
