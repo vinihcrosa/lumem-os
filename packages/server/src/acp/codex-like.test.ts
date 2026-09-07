@@ -70,8 +70,21 @@ describe("a codex-like handshake", () => {
     expect(report.agentInfo).toMatchObject({ title: "Codex", version: "1.10.0" });
     // Nenhum método de login é `type: "terminal"` — a medição que tirou a
     // escolha de agente do primeiro acesso (§4.2, C3).
-    expect(report.authMethods.map((method) => method.type)).toEqual(["unknown", "unknown"]);
+    expect(report.authMethods.every((method) => method.type === "unknown")).toBe(true);
     expect(report.authMethods.every((method) => method.command === null)).toBe(true);
+    /*
+     * Três métodos, e o terceiro é o que a declaração compra.
+     *
+     * O perfil modela a regra medida: `chat-gpt-device-code` só existe para um
+     * cliente que declara `elicitation.url` (T11). Este daemon declara, então ele
+     * aparece — e no dia em que alguém tirar a capacidade do `initialize`, esta
+     * linha é a que fica vermelha, sem precisar do adaptador instalado.
+     */
+    expect(report.authMethods.map((method) => method.id)).toEqual([
+      "api-key",
+      "chat-gpt",
+      "chat-gpt-device-code",
+    ]);
   });
 
   it("carries the three categories no Lumem screen had ever seen", async () => {

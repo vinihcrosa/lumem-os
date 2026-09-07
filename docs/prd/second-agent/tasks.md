@@ -1,11 +1,10 @@
 # O segundo agente — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **16 tasks em 3 fases.** A **fase 0**, a **fase 1** e a **fase 3** estão fechadas
-(2026-09-06): a medição virou o §4 do PRD e as seis perguntas, as nove tasks do catálogo estão
-entregues, e o consumo passou a saber de qual agente foi o turno. A **fase 2 é a única aberta** — e o
-**desenho dela está pronto**, no Open Design, com duas perguntas novas respondidas
-([C7](open-questions.md) e [C8](open-questions.md)) e três defeitos do desenho antigo corrigidos.
+**Status:** **16 tasks em 3 fases, 15 entregues.** As fases 0, 1 e 3 fecharam em 2026-09-06, e a
+fase 2 está com o **desenho pronto** (Open Design, duas perguntas novas — [C7](open-questions.md) e
+[C8](open-questions.md) — e três defeitos do desenho antigo corrigidos) e o **daemon pronto**: a
+T10 e a T11 entregaram o `authenticate` e o `elicitation/*`. Falta a **T12** e a **T13**: a tela.
 
 A fase 3 saiu de ordem de propósito: ela não toca tela nenhuma (a coluna do workspace é a única parte
 que toca, e ficou de fora com o motivo escrito na T15), então ela não esperava desenho. A **T16
@@ -232,13 +231,13 @@ atravessa o daemon e **não fica**: nem em `~/.lumem`, nem em log, nem de volta 
 **Where**: `packages/server/src/acp/AcpManager.ts`, `packages/server/src/routers/setup.ts`
 
 **Done when**:
-- [ ] `authenticate(methodId)` contra o agente falso resolve, e um `session/new` depois dele passa
-- [ ] Método `api-key` leva a chave em `_meta["api-key"].apiKey`
-- [ ] Um teste **varre o `stateDir`** depois do login e falha se a chave aparecer em qualquer arquivo
-- [ ] A chave não aparece em nenhuma linha de log — o `log.warn` dublado recebe a falha e não o valor
-- [ ] Método que o agente recusa → a frase dele, e o painel continua aberto
-- [ ] O perfil codex-like ganha os dois métodos sem `type` e um `authenticate` que aceita/recusa
-- [ ] `pnpm gate:quick` verde
+- [x] `authenticate(methodId)` contra o agente falso resolve, e um `session/new` depois dele passa
+- [x] Método `api-key` leva a chave em `_meta["api-key"].apiKey`
+- [x] Um teste **varre o `stateDir`** depois do login e falha se a chave aparecer em qualquer arquivo
+- [x] A chave não aparece em nenhuma linha de log — o `log.warn` dublado recebe a falha e não o valor
+- [x] Método que o agente recusa → a frase dele, e o painel continua aberto
+- [x] O perfil codex-like ganha os dois métodos sem `type` e um `authenticate` que aceita/recusa
+- [x] `pnpm gate:quick` verde
 
 #### T11: `elicitation/create` e `elicitation/complete` — URL e código, em vez de um browser na máquina errada
 
@@ -248,13 +247,13 @@ que faz o `chat-gpt-device-code` aparecer (§4.2, [C7](open-questions.md)).
 `packages/web/src/components/AgentLogin.tsx`
 
 **Done when**:
-- [ ] O agente falso pedindo `elicitation/create` produz um evento com **URL e código** para a tela
-- [ ] `elicitation/complete` fecha o pedido, e a tela deixa de mostrar o código
-- [ ] A capacidade só é declarada porque as duas existem — a regra do `terminal` e do `fs`, aplicada
+- [x] O agente falso pedindo `elicitation/create` produz um evento com **URL e código** para a tela
+- [x] `elicitation/complete` fecha o pedido, e a tela deixa de mostrar o código
+- [x] A capacidade só é declarada porque as duas existem — a regra do `terminal` e do `fs`, aplicada
       de novo. Um teste afirma que `elicitation` **não** é declarada quando o handler não existe
-- [ ] O teste marcado do adaptador real (T8) passa a afirmar que, **com** a capacidade declarada,
+- [x] O teste marcado do adaptador real (T8) passa a afirmar que, **com** a capacidade declarada,
       `chat-gpt-device-code` aparece no `authMethods` — é a medição virando regressão
-- [ ] `pnpm gate:quick` verde
+- [x] `pnpm gate:quick` verde
 
 #### T12: O rodapé com uma linha por agente
 

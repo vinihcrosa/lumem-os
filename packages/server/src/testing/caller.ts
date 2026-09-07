@@ -10,6 +10,7 @@ import { createEventBus, type EventBus } from "../events.js";
 import { createCloneJobStore } from "../git/CloneJobStore.js";
 import { createGitService, type GitService } from "../git/GitService.js";
 import { createGhHost } from "../pr/GhHost.js";
+import { createAgentAuthService } from "../setup/agent-auth.js";
 import { createPrCache, type PrCache } from "../pr/PrCache.js";
 import type { PrHost } from "../pr/PrHost.js";
 import { PtyManager } from "../pty/PtyManager.js";
@@ -135,6 +136,7 @@ export function createTestCaller(
     clones: createCloneJobStore(),
     pr: prCache,
     prHost,
+    agentAuth: createAgentAuthService({ acpManager }),
     events,
   };
 

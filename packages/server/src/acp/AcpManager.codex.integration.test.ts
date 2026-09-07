@@ -105,6 +105,18 @@ describe.skipIf(!installed)(`${ADAPTER} probe`, () => {
     expect(report.authMethods.length).toBeGreaterThan(0);
     expect(report.authMethods.some((method) => method.type === "terminal")).toBe(false);
 
+    /*
+     * E o método de código **existe**, porque o cliente declarou
+     * `elicitation.url` (T11).
+     *
+     * É a única coisa desta feature que só a declaração compra: sem ela, o
+     * adaptador oferece dois métodos, e o único que não abre navegador na máquina
+     * do daemon é justamente o que falta. Um dia em que alguém tirar a
+     * capacidade do `initialize`, todo teste de unidade continua verde — e este
+     * fica vermelho.
+     */
+    expect(report.authMethods.map((method) => method.id)).toContain("chat-gpt-device-code");
+
     // D4: o probe não é sessão, e o processo já morreu.
     expect(manager.list()).toHaveLength(0);
   });

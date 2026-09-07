@@ -11,6 +11,7 @@ import { createSessionCapture } from "./memory/capture.js";
 import { createPlaybookService } from "./memory/playbook.js";
 import { trackPlaybookLoads } from "./memory/playbook-tracking.js";
 import { trackSessionUsage } from "./usage/record.js";
+import { createAgentAuthService } from "./setup/agent-auth.js";
 import { createMemoryPreamble } from "./memory/preamble.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createTranscriptStore, type TranscriptStore } from "./acp/TranscriptStore.js";
@@ -125,6 +126,14 @@ export async function bootstrap({
         askUrl: `http://${config.host}:${String(config.port)}/memory/ask`,
       }),
     });
+  /*
+   * As tentativas de login vivas, criadas aqui para o desligamento alcançá-las.
+   *
+   * O `createServer` monta uma se ninguém der — e aí o `close` do daemon não
+   * teria a mesma instância para cancelar. Um serviço por lugar seria um serviço
+   * que ninguém desliga.
+   */
+  const agentAuth = createAgentAuthService({ acpManager: acp });
   const sessionStore = createSessionStore({
     db: openedDatabase.db,
     ptyManager,
@@ -194,6 +203,7 @@ export async function bootstrap({
       },
     }),
     events,
+    agentAuth,
     logger,
   });
   bootedApp = app;
@@ -213,6 +223,15 @@ export async function bootstrap({
       // Conversations too: an adapter left running is a subprocess with nothing
       // pointing at it, exactly like an orphaned shell.
       await acp.killAll();
+      /*
+       * E as tentativas de login, que o `killAll` não alcança.
+       *
+       * O processo de um login não é sessão — não tem linha e não está no mapa —,
+       * e um `authenticate` de método de navegador fica pendurado esperando uma
+       * pessoa. Sem isto, desligar o daemon no meio de um login deixa exatamente
+       * o órfão que o `killAll` existe para evitar.
+       */
+      agentAuth.cancelAll();
       if (beforeClose) await beforeClose();
       await app.close();
       // Last: a handler still finishing a request would otherwise write to a

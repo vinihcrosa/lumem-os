@@ -15,7 +15,7 @@ import {
   type FakeAgentScript,
   type FakeAgentTurn,
 } from "../testing/acp-fake-agent.js";
-import { AcpManager, modeOwnerOf, type AcpManagerOptions } from "./AcpManager.js";
+import { AcpManager, codeIn, modeOwnerOf, type AcpManagerOptions } from "./AcpManager.js";
 import type { AcpProcess } from "./process.js";
 import {
   createMemoryTranscriptStore,
@@ -2215,5 +2215,28 @@ describe("a autoridade do modo trocando no meio", () => {
 
     manager.cancel(sessionId);
     await running.catch(() => undefined);
+  });
+});
+
+describe("codeIn", () => {
+  it("acha o código dentro da frase do agente", () => {
+    // O protocolo não tem campo para ele: o `elicitation/create` traz `url` e
+    // `message`, e o adaptador escreve o código na mensagem.
+    expect(codeIn("Sign in to ChatGPT and enter this code: FKPT-QJ29")).toBe("FKPT-QJ29");
+    expect(codeIn("code: ABCDEF")).toBe("ABCDEF");
+  });
+
+  it("devolve null quando nada na frase parece um código", () => {
+    // O destaque é um extra. Sem ele a tela mostra a frase, que é o que o agente
+    // mandou — e nunca um código inventado.
+    expect(codeIn("autorize no navegador e volte")).toBeNull();
+    expect(codeIn("abra https://exemplo.test e confirme")).toBeNull();
+  });
+
+  it("não confunde palavra maiúscula curta com código", () => {
+    // Estreito de propósito: o preço de não achar é uma frase sem destaque; o de
+    // achar errado é um código grande e falso na tela.
+    expect(codeIn("OK, agora autorize")).toBeNull();
+    expect(codeIn("ABRA A URL")).toBeNull();
   });
 });

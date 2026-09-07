@@ -55,9 +55,32 @@ export interface FakeAgentTurn {
   readonly cancelled: Promise<void>;
 }
 
+/** O que o `authenticate` do script pode fazer enquanto ninguém respondeu. */
+export interface FakeAgentLogin {
+  /** A chave que o cliente mandou em `_meta["api-key"]`, se mandou. */
+  readonly apiKey: string | undefined;
+  /**
+   * Pede ao cliente que mostre uma URL, e espera a resposta.
+   *
+   * É o `elicitation/create` do protocolo, no modo `url`. O código vai **dentro
+   * da mensagem**, porque é onde o adaptador de verdade o põe.
+   */
+  elicitUrl(input: { url: string; message: string; elicitationId?: string }): Promise<string>;
+  /** Avisa que aquela URL já foi usada — `elicitation/complete`. */
+  completeElicitation(elicitationId: string): Promise<void>;
+}
+
 export interface FakeAgentScript {
   /** Answers `session/set_mode`. Throw to refuse, as a real agent may. */
   setMode?(modeId: string): void;
+  /**
+   * Answers `authenticate` (`second-agent`, T10).
+   *
+   * `login` é o que faz este agente parecer com um de verdade nos dois casos que
+   * importam: o que **pede uma URL** antes de responder, e o que recusa. Lançar
+   * é recusar, com a frase do agente; resolver é ter entrado.
+   */
+  authenticate?(methodId: string, login: FakeAgentLogin): Promise<void> | void;
   /**
    * Answers `session/set_config_option` with the whole set, as the protocol says.
    *
@@ -237,7 +260,7 @@ export const FAKE_CODEX_CONFIG_OPTIONS = [
   },
 ] as unknown as SessionConfigOption[];
 
-/** Os dois métodos de login do Codex: nenhum deles é `type: "terminal"`. */
+/** Os métodos de login do Codex: nenhum deles é `type: "terminal"`. */
 export const FAKE_CODEX_AUTH_METHODS = [
   {
     id: "api-key",
@@ -247,6 +270,21 @@ export const FAKE_CODEX_AUTH_METHODS = [
   },
   { id: "chat-gpt", name: "ChatGPT", description: "Use ChatGPT to authenticate" },
 ] as unknown as InitializeResponse["authMethods"];
+
+/**
+ * O método que só existe para quem sabe mostrar uma URL.
+ *
+ * Medido (§4.2 da `second-agent`): o `getCodexAuthMethods` do adaptador só
+ * acrescenta `chat-gpt-device-code` quando `clientCapabilities.elicitation.url`
+ * está declarado. O perfil modela essa regra em vez de oferecer os três sempre —
+ * é ela que faz um daemon que **para** de declarar a capacidade perder o método,
+ * e é o único método que não abre navegador na máquina do daemon.
+ */
+export const FAKE_CODEX_DEVICE_CODE_METHOD = {
+  id: "chat-gpt-device-code",
+  name: "ChatGPT (device code)",
+  description: "Sign in by opening a verification page and entering a one-time code",
+} as unknown as NonNullable<InitializeResponse["authMethods"]>[number];
 
 export interface CodexLikeOptions {
   /** `false` derruba `loadSession` — o caso que o Codex **não** é (§4.6). */
@@ -277,12 +315,20 @@ export interface CodexLikeOptions {
  * `terminal/*` e não pede permissão. Um teste que queira esses caminhos usa o
  * perfil do Claude, que é o agente que os usa.
  */
+/** O cliente declarou `elicitation.url`? É o que decide o método de código. */
+function hasUrlElicitation(params: InitializeRequest): boolean {
+  const capabilities = params.clientCapabilities as unknown as
+    | { elicitation?: { url?: unknown } | null }
+    | undefined;
+  return capabilities?.elicitation?.url != null;
+}
+
 export function codexLikeScript({
   loadSession = true,
   usage = true,
 }: CodexLikeOptions = {}): FakeAgentScript {
   return {
-    initialize: () => ({
+    initialize: (params) => ({
       agentInfo: {
         // O nome do **pacote**, que é o que ele manda de verdade — e o motivo de
         // o rótulo morar no catálogo e não no protocolo (§4.1).
@@ -294,7 +340,12 @@ export function codexLikeScript({
         promptCapabilities: { image: true, embeddedContext: true },
         loadSession,
       },
-      authMethods: FAKE_CODEX_AUTH_METHODS,
+      authMethods: [
+        ...(FAKE_CODEX_AUTH_METHODS ?? []),
+        // A regra medida: o método de código aparece porque o cliente disse que
+        // sabe mostrar uma URL.
+        ...(hasUrlElicitation(params) ? [FAKE_CODEX_DEVICE_CODE_METHOD] : []),
+      ],
     }),
 
     newSession: () => ({
@@ -489,7 +540,40 @@ export function fakeAgentProcess(script: FakeAgentScript = {}): FakeAgentHandle 
       cancelTurn();
     },
 
-    authenticate() {
+    async authenticate(params) {
+      if (script.authenticate === undefined) return {};
+
+      const meta = params._meta as
+        | { "api-key"?: { apiKey?: unknown } | undefined }
+        | null
+        | undefined;
+      const apiKey = meta?.["api-key"]?.apiKey;
+
+      await script.authenticate(params.methodId, {
+        apiKey: typeof apiKey === "string" ? apiKey : undefined,
+        elicitUrl: async ({ url, message, elicitationId = "elicit-1" }) => {
+          /*
+           * `sessionId` vai junto, e é a armadilha desta parte do protocolo.
+           *
+           * O `CreateElicitationRequest` exige um **escopo** — `sessionId` ou
+           * `requestId` — e o SDK valida a requisição na saída. Sem ele o pedido
+           * é recusado antes de chegar ao cliente, e o sintoma é uma tela que
+           * nunca mostra a URL, sem erro nenhum em lugar nenhum. É o que o
+           * adaptador de verdade manda (`sessionId: params.threadId`).
+           */
+          const response = await conn.unstable_createElicitation({
+            mode: "url",
+            sessionId: DEFAULT_SESSION_ID,
+            elicitationId,
+            url,
+            message,
+          } as never);
+          return response.action;
+        },
+        completeElicitation: (elicitationId) =>
+          conn.unstable_completeElicitation({ elicitationId } as never),
+      });
+
       return {};
     },
   });

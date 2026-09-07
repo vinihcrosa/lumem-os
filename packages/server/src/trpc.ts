@@ -8,6 +8,7 @@ import type { AcpManager } from "./acp/AcpManager.js";
 import type { CloneJobStore } from "./git/CloneJobStore.js";
 import type { GitService } from "./git/GitService.js";
 import type { PrCache } from "./pr/PrCache.js";
+import type { AgentAuthService } from "./setup/agent-auth.js";
 import type { PrHost } from "./pr/PrHost.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import type { ScriptRunner } from "./scripts/ScriptRunner.js";
@@ -58,6 +59,14 @@ export interface Context {
    * um objeto cuja razão de existir é devolver valor velho.
    */
   prHost: PrHost;
+  /**
+   * As tentativas de login vivas (`second-agent`, T10).
+   *
+   * No contexto e não construído por procedure pelo mesmo motivo do `clones`: o
+   * `authenticate` de um método de navegador dura minutos, e quem pergunta o
+   * estado dele é uma requisição diferente da que o começou.
+   */
+  agentAuth: AgentAuthService;
   events: EventBus;
 }
 
