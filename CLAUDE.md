@@ -96,11 +96,14 @@ código para teste. O adaptador também **traz o próprio CLI** (285 dos 301 MB)
 `PATH=/nonexistent`, o que fez `cli` ser opcional na spec. As cinco constantes de Claude viraram o
 catálogo `ADAPTERS`, o `DEFAULT_AGENT_CONFIG` de `pty` parou de ser semeado, o rodapé da sidebar
 passou a ter **uma linha por agente** com um `＋` no cabeçalho — 263×105px medidos no navegador —, e o
-consumo passou a saber de qual agente foi o turno. Quatro defeitos apareceram de graça: a
+consumo do workspace passou a **abrir por agente** — uma sub-linha, não uma coluna, porque "uma
+coluna por agente" é um número que o produto não controla. Cinco defeitos apareceram de graça: a
 `configOption` de modo que ficava velha depois de trocar de modo, o `install` que a tela oferecia
 copiar **sem versão** contra a própria regra da A12, o cabeçalho da conversa com a string `claude`
-escrita à mão — com dois agentes, as duas conversas diziam a mesma coisa — e o `pip` do rodapé, que
-era cinza nos três estados.
+escrita à mão — com dois agentes, as duas conversas diziam a mesma coisa —, o `pip` do rodapé, que
+era cinza nos três estados, e as colunas do consumo, que a folha do `workspace-screen` dizia serem
+comparáveis verticalmente e **não eram**: 37px de diferença sempre que o texto de custo mudava de
+largura.
 
 Comece pelo [índice da documentação](docs/README.md).
 

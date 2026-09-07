@@ -19,6 +19,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `server/` endpoint WebSocket | integration | Sim |
 | `server/` transporte **ACP** | integration com **agente falso** no outro lado do pipe — o SDK nos dois lados, wire ndjson de verdade, **zero token** | Sim |
 | **conectar o segundo agente pela tela** | e2e `second-agent.spec.ts`, no caminho do `＋`: catálogo → handshake → configuração criada, **sem rede**. O painel só instala quando o pré-voo não acha o binário, e o shim `codex-acp` está no `PATH` do daemon — sem isso o teste seriam 300 MB de `npm install` por execução | **Não** |
+| **a conta por agente**, da gravação à tela | e2e `second-agent.spec.ts`: dois turnos de dois agentes → `session_usage` com `agent_config_id` → `usage.byProjectAndAgent` → a sub-linha no consumo do workspace. Cada peça tem teste de unidade; **a corrente não tinha**, e ela atravessa gravação, migração, consulta e tela | **Não** |
 | **dois agentes na mesma worktree** | e2e `second-agent.spec.ts`: os dois agentes são o **mesmo** fake, o segundo com `LUMEM_FAKE_PROFILE=codex`, então continua zero token. Prova o que só o navegador responde — cada aba nomeia o **seu** agente (as abas escondidas ficam montadas, então o locator é escopado na que está na frente) e o agente que não informa limite não desenha limite nem custo zero | **Não** |
 | **conversa ACP** de ponta a ponta | e2e contra `e2e/support/fake-acp-agent.mjs` — agente ACP de verdade sobre stdio de verdade, **zero token**. Exercita o turno inteiro: mensagem, ferramenta, permissão, plano, uso, comandos e o terminal que o agente pede. É onde vivem as medidas que jsdom não faz, porque jsdom não tem layout | **Não** |
 | `server/` **segundo adaptador**, perfil medido | integration com o perfil `codexLikeScript()` do agente falso (`codex-like.test.ts`), **zero token**: `usage` sem `rateLimit` nem `cost`, comandos só por notificação, `mode` nas duas listas, e os dois casos que o Codex **não** é — sem `usage` nenhum e sem `loadSession`. Ele existe porque a fase 0 mediu que o daemon **já** aguentava, e o que passa sem teste é o que volta a quebrar | Sim |
@@ -390,6 +391,22 @@ que se quer é o valor e não as atualizações dele. Uma inscrição é um acop
 chave*, e quem invalida uma chave costuma ser outra tela. E o corolário de teste: **isto só aparece com
 layout e tempo reais.** Em jsdom a janela não existe, os 826 testes de componente passaram, e o que
 achou foi o e2e — que por isso não é redundante com eles.
+
+### Coluna que "existe para ser comparada verticalmente" e não é
+
+**Sintoma:** nenhum, por meses. A tela do workspace desenha o consumo em colunas de número em mono,
+alinhadas à direita, e a folha diz por escrito que elas existem para ser lidas uma debaixo da outra.
+
+**Causa:** cada linha era uma **grade própria** com colunas `max-content`. Duas linhas só se alinham
+por coincidência de largura de conteúdo — e a coluna de token de uma ficava 37px à esquerda da de
+outra sempre que o texto de custo mudava (`sem custo reportado` contra `US$ 12,4071`). Com projetos
+parecidos o erro era pequeno o suficiente para ninguém notar.
+
+A regra: **alinhamento entre linhas é `subgrid` na lista, nunca colunas repetidas por linha** — e o
+`gap` sobe com ele, porque com `subgrid` quem define a distância entre as trilhas é o pai. Achado
+desenhando a divisão por agente da [second-agent](../prd/second-agent/prd.md), onde o erro deixa de
+ser pequeno: comparar dois agentes é exatamente ler dois números um debaixo do outro. E o que achou
+foi **renderizar e medir**, não ler o CSS.
 
 ### O adaptador de verdade também pinado, e o CLI por baixo dele **não**
 
