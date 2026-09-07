@@ -1249,3 +1249,49 @@ describe("as bordas da pílula de modo", () => {
     expect(screen.getByRole("button", { name: /regra do Lumem/i })).toBeInTheDocument();
   });
 });
+
+describe("quem está falando", () => {
+  /** Um `Conversation` com o nome do agente, sem tocar no `mount` dos outros. */
+  function named(agentName?: string) {
+    const socket = new FakeSocket();
+    const connect = (
+      _sessionId: string,
+      handlers: { onMessage(message: AcpServerMessage): void },
+    ) => {
+      socket.deliver = handlers.onMessage;
+      return socket;
+    };
+
+    render(
+      <AwaitingPermissionProvider>
+        <Conversation
+          sessionId="s-1"
+          connect={connect}
+          {...(agentName === undefined ? {} : { agentName })}
+        />
+      </AwaitingPermissionProvider>,
+    );
+    return socket;
+  }
+
+  it("nomeia o agente da aba, e não um agente escolhido no código", () => {
+    /*
+     * F4 da `second-agent`, e o defeito que ela achou: o cabeçalho dizia
+     * `claude` literalmente. Com um agente ninguém notava; com dois, as duas
+     * conversas diziam a mesma coisa, e a única pista de quem estava falando era
+     * a aba.
+     */
+    named("codex");
+
+    expect(screen.getByText("codex")).toBeInTheDocument();
+    expect(screen.queryByText("claude")).not.toBeInTheDocument();
+  });
+
+  it("cai num nome genérico quando ninguém disse qual agente é", () => {
+    // Um default que nomeia um agente específico é o mesmo defeito com outro
+    // valor: quem não recebeu nome não pode virar "claude".
+    named();
+
+    expect(screen.getByText("agente")).toBeInTheDocument();
+  });
+});

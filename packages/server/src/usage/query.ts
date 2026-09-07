@@ -1,7 +1,7 @@
 import { and, eq, gte, sql } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
-import { project, sessionUsage, worktree } from "../db/schema.js";
+import { agentConfig, project, sessionUsage, worktree } from "../db/schema.js";
 
 /**
  * O que cada escopo consumiu numa janela de tempo (`workspace-screen`, W4).
@@ -52,6 +52,33 @@ export interface ProjectUsage extends UsageTotals {
 export interface WorktreeUsage extends UsageTotals {
   worktreeId: string;
   name: string;
+}
+
+/**
+ * O mesmo consumo, quebrado por agente (`second-agent`, F5 e C5).
+ *
+ * Uma linha por par escopo × agente, e **só onde houve consumo** — ao contrário
+ * das duas consultas de cima, que trazem o escopo com zero de propósito. A regra
+ * é diferente porque a pergunta é: "projeto que não gastou" é uma resposta útil,
+ * e "projeto que não gastou com um agente que ele nunca usou" é um produto
+ * cartesiano de zeros.
+ *
+ * `agentConfigId` é anulável nos dois sentidos: a linha gravada antes da coluna
+ * existir não tem agente, e a sessão de shell ou de script nunca teve. Nenhuma
+ * das duas ganha um agente inventado, e o `name` acompanha — nulo é "não sei",
+ * que é diferente de qualquer nome.
+ */
+export interface AgentUsage extends UsageTotals {
+  agentConfigId: string | null;
+  name: string | null;
+}
+
+export interface ProjectAgentUsage extends AgentUsage {
+  projectId: string;
+}
+
+export interface WorktreeAgentUsage extends AgentUsage {
+  worktreeId: string;
 }
 
 const SUM = {
@@ -128,6 +155,68 @@ export function usageByWorktree(
     .where(eq(worktree.projectId, projectId))
     .groupBy(worktree.id)
     .orderBy(sql`${SUM.tokens} desc`, worktree.name)
+    .all();
+}
+
+/**
+ * Quanto cada agente custou, por projeto do workspace.
+ *
+ * Existe porque ter dois agentes e não poder comparar o que cada um cobrou seria
+ * não ter dois agentes (C5). Sai de `session_usage` e não de um join com a
+ * `session`: o agente é resolvido na escrita, como o projeto e a worktree, e por
+ * isso a soma não depende de uma linha de sessão que pode ter sido apagada.
+ */
+export function usageByProjectAndAgent(
+  db: Db,
+  { workspaceId, period, now }: { workspaceId: string; period: UsageWindow; now?: Date },
+): ProjectAgentUsage[] {
+  const since = windowStart(period, now);
+
+  return db
+    .select({
+      projectId: sessionUsage.projectId,
+      agentConfigId: sessionUsage.agentConfigId,
+      // `max` e não `min`: dá no mesmo dentro de um grupo — o join é por id — e
+      // é o mesmo truque que a moeda já usa para atravessar um `GROUP BY`.
+      name: sql<string | null>`max(${agentConfig.name})`,
+      tokens: SUM.tokens,
+      cost: SUM.cost,
+      currency: SUM.currency,
+      turns: SUM.turns,
+    })
+    .from(sessionUsage)
+    .innerJoin(project, eq(project.id, sessionUsage.projectId))
+    // `left`, porque a configuração pode ter sido apagada e o consumo dela
+    // continua sendo consumo — a tabela não tem estrangeira justamente para isso.
+    .leftJoin(agentConfig, eq(agentConfig.id, sessionUsage.agentConfigId))
+    .where(and(eq(project.workspaceId, workspaceId), gte(sessionUsage.createdAt, since)))
+    .groupBy(sessionUsage.projectId, sessionUsage.agentConfigId)
+    .orderBy(sql`${SUM.tokens} desc`)
+    .all();
+}
+
+/** O mesmo por agente, um nível abaixo: cada worktree de um projeto. */
+export function usageByWorktreeAndAgent(
+  db: Db,
+  { projectId, period, now }: { projectId: string; period: UsageWindow; now?: Date },
+): WorktreeAgentUsage[] {
+  const since = windowStart(period, now);
+
+  return db
+    .select({
+      worktreeId: sessionUsage.worktreeId,
+      agentConfigId: sessionUsage.agentConfigId,
+      name: sql<string | null>`max(${agentConfig.name})`,
+      tokens: SUM.tokens,
+      cost: SUM.cost,
+      currency: SUM.currency,
+      turns: SUM.turns,
+    })
+    .from(sessionUsage)
+    .leftJoin(agentConfig, eq(agentConfig.id, sessionUsage.agentConfigId))
+    .where(and(eq(sessionUsage.projectId, projectId), gte(sessionUsage.createdAt, since)))
+    .groupBy(sessionUsage.worktreeId, sessionUsage.agentConfigId)
+    .orderBy(sql`${SUM.tokens} desc`)
     .all();
 }
 

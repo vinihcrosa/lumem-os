@@ -1,9 +1,15 @@
 # O segundo agente — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **16 tasks em 3 fases.** A **fase 0** e a **fase 1** estão fechadas (2026-09-06): a
-medição virou o §4 do PRD e as seis perguntas, e as nove tasks do catálogo estão entregues — nenhuma
-delas tocou tela. A fase 2 é a próxima, e **depende do Open Design**.
+**Status:** **16 tasks em 3 fases.** A **fase 0**, a **fase 1** e a **fase 3** estão fechadas
+(2026-09-06): a medição virou o §4 do PRD e as seis perguntas, as nove tasks do catálogo estão
+entregues, e o consumo passou a saber de qual agente foi o turno. A **fase 2 é a única aberta**, e
+ela **depende do Open Design** — o §8 do PRD diz o que muda no rodapé de login.
+
+A fase 3 saiu de ordem de propósito: ela não toca tela nenhuma (a coluna do workspace é a única parte
+que toca, e ficou de fora com o motivo escrito na T15), então ela não esperava desenho. A **T16
+reprovou**, que é o que uma conferência serve para fazer: o cabeçalho da conversa dizia `claude`,
+escrito à mão, e com dois agentes as duas conversas diziam a mesma coisa.
 
 As tasks nasceram **depois** da medição, e ela mudou duas: a F2 cresceu (o login do Codex é uma
 chamada, não um comando) e a F3 encolheu (a tradução já passa — o que falta é teste).
@@ -279,10 +285,10 @@ são. É a armadilha do PRD: a coluna não existia.
 `record.test.ts`
 
 **Done when**:
-- [ ] Migração acrescenta a coluna, anulável — linha antiga não ganha agente inventado
-- [ ] O turno gravado depois da migração tem o `agent_config_id` da sessão
-- [ ] Sessão sem `agent_config_id` (as de shell) continua gravando, com `null`
-- [ ] `pnpm gate:quick` verde
+- [x] Migração acrescenta a coluna, anulável — linha antiga não ganha agente inventado
+- [x] O turno gravado depois da migração tem o `agent_config_id` da sessão
+- [x] Sessão sem `agent_config_id` (as de shell) continua gravando, com `null`
+- [x] `pnpm gate:quick` verde
 
 #### T15: Consumo agrupado por agente
 
@@ -293,19 +299,23 @@ e ela é desenho, então vem do Open Design.
 `packages/web/src/components/WorkspacePanel.tsx`
 
 **Done when**:
-- [ ] Agrupado: dois agentes na mesma worktree → duas linhas, com os tokens de cada um
-- [ ] Sem agrupar: o número de hoje, idêntico — um teste compara as duas somas
-- [ ] `cost` continua `null` quando ninguém reportou dinheiro, agrupado ou não
-- [ ] Um agente no workspace → **nenhuma** coluna nova na tela
-- [ ] `pnpm gate:quick` verde
+- [x] Agrupado: dois agentes na mesma worktree → duas linhas, com os tokens de cada um
+- [x] Sem agrupar: o número de hoje, idêntico — um teste compara as duas somas
+- [x] `cost` continua `null` quando ninguém reportou dinheiro, agrupado ou não
+- [ ] Um agente no workspace → **nenhuma** coluna nova na tela — **fora**, é desenho: a coluna
+      vem do Open Design, e o daemon já responde `usage.byProjectAndAgent` para quando ela existir
+- [x] `pnpm gate:quick` verde
 
 #### T16: A aba diz qual agente está falando
 
 **What**: a F4 é conferência. Duas sessões na mesma worktree, uma por agente: cada aba diz a sua.
-**Where**: `e2e/tests/…` (novo), `packages/web/src/components/…` se a conferência reprovar
+**Reprovou** — o cabeçalho da conversa tinha a string `claude` escrita à mão. A correção entrou aqui.
+**Where**: `e2e/second-agent.spec.ts` (novo), `packages/web/src/components/Conversation.tsx`,
+`packages/web/src/components/SessionTab.tsx`
 
 **Done when**:
-- [ ] e2e com dois shims no PATH do daemon — o mecanismo do `00-onboarding.spec.ts`, com outro nome
-- [ ] Duas abas, dois agentes, e o nome de cada um visível sem abrir menu
-- [ ] Se reprovar, a correção é de tela e entra aqui; se passar, a task fecha com o e2e como prova
-- [ ] `pnpm gate:full` verde
+- [x] e2e com os dois agentes vindos do mesmo fake, o segundo com `LUMEM_FAKE_PROFILE=codex` — a
+      token zero, e sem shim no PATH porque a `agent_config` já aponta para o arquivo
+- [x] Duas abas, dois agentes, e o nome de cada um visível sem abrir menu
+- [x] Se reprovar, a correção é de tela e entra aqui; se passar, a task fecha com o e2e como prova
+- [x] `pnpm gate:full` verde
