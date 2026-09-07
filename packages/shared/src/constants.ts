@@ -1,5 +1,5 @@
 /** Version of the Lumem contract. Kept in sync with packages/shared/package.json. */
-export const LUMEM_VERSION = "0.3.0";
+export const LUMEM_VERSION = "0.3.1";
 
 /**
  * Default TCP port of the daemon.
