@@ -615,3 +615,60 @@ posicionamento com estado, e não uma declaração de CSS.
 
 **De onde veio:** [composer-menus Q4](../prd/composer-menus/open-questions.md) · **Volta quando:** a
 primeira janela real em que o menu não couber.
+
+---
+
+## I. Harness do repositório
+
+Tudo aqui saiu da [auditoria de harness](harness-audit.md) de 2026-09-07 e foi **tirado de escopo com
+motivo** na [dev-harness](../prd/dev-harness/prd.md). Não é o que falta descobrir: é o que já foi
+decidido não fazer agora.
+
+### Formatador no repositório inteiro — `M`
+
+Não existe `prettier`, `biome` nem `oxlint` — nem lint, nem formatação. A [T9](../prd/dev-harness/tasks.md)
+traz **lint de correção** e deixa formatação de fora, porque reformatar 105.757 linhas num commit apaga
+o `git blame` de um repositório de 24 dias, onde o histórico ainda é a melhor documentação de por que
+cada linha existe.
+
+**De onde veio:** [dev-harness §4](../prd/dev-harness/prd.md) · **Volta quando:** entrar a segunda
+pessoa no repositório — a partir daí a discussão de estilo passa a custar tempo de duas pessoas, que é
+exatamente o que um formatador compra.
+
+### Sandbox de filesystem para o agente — `M`
+
+A [T4](../prd/dev-harness/tasks.md) versiona um `deny` com alvos **nomeados** (`~/.npmrc`, `~/.aws`,
+`~/.ssh`, `~/.lumem`, `~/.claude`). Isso é lista, e lista tem borda: cobre o que a auditoria mediu, não
+o que ninguém pensou. Sandbox de verdade — o agente só vê o checkout — é a versão sem borda, e é
+decisão de ferramenta, não de repositório.
+
+**De onde veio:** [harness-audit §6](harness-audit.md), itens 6 e 7 · **Volta quando:** o `deny` da T4
+for atravessado por um caminho que ele não previu, ou quando o agente rodar sem supervisão de tela.
+
+### `CODEOWNERS` e aprovação obrigatória em PR — `P`
+
+A [T2](../prd/dev-harness/tasks.md) protege a `main` com PR e checks obrigatórios, mas com
+`required_approving_review_count: 0` — o GitHub não permite aprovar a própria PR, e exigir uma
+aprovação num repositório de uma pessoa travaria o merge para sempre. `CODEOWNERS` teria a regra
+`* @vinihcrosa`, que não regula nada.
+
+**De onde veio:** [dev-harness Q8](../prd/dev-harness/open-questions.md) · **Volta quando:** o primeiro
+colaborador — no mesmo dia, `required_approving_review_count` vai a 1 e o `CODEOWNERS` nasce.
+
+### Grading de qualidade por domínio, com histórico — `M`
+
+A auditoria pontuou 13 dimensões uma vez, à mão. A versão contínua é nota por domínio ou camada, com
+série temporal, que responde "o `memory/` está piorando?" com curva em vez de impressão.
+
+**De onde veio:** [harness-audit §7](harness-audit.md) · **Volta quando:** a [T9](../prd/dev-harness/tasks.md)
+(lint), a [T10](../prd/dev-harness/tasks.md) (arquitetura) e a [T14](../prd/dev-harness/tasks.md)
+(mutação) existirem — antes disso não há métrica de onde tirar nota.
+
+### Regras de lint com informação de tipo — `M`
+
+Depende da resposta da [Q2](../prd/dev-harness/open-questions.md): se o `typescript-eslint` não couber
+no orçamento de 60s do `gate:build`, a T9 adota `oxlint` e a classe de defeito que **só** análise de
+tipo pega — `no-floating-promises` à frente, num daemon cheio de `async` disparado — fica sem sensor.
+
+**De onde veio:** [dev-harness T9](../prd/dev-harness/tasks.md) · **Volta quando:** a medição da Q2
+apontar `oxlint`, ou quando aparecer o primeiro bug de promessa não-aguardada em produção.
