@@ -122,22 +122,41 @@ beforeEach(() => {
   trpc.setup.probe.query.mockResolvedValue(report());
 });
 
-async function openPanel() {
+/**
+ * Abrir o painel do `＋`: **conectar** um agente.
+ *
+ * Duas portas desde a `second-agent` (C8): o `＋` do cabeçalho conecta o próximo
+ * agente, e a linha abre o painel do agente dela. Antes as duas eram a mesma
+ * coisa, porque a linha era ao mesmo tempo estado e verbo.
+ */
+async function openConnect() {
   const user = userEvent.setup();
   renderWithProviders(<AgentLogin />);
   await user.click(await screen.findByRole("button", { name: /conectar um agente/ }));
   return user;
 }
 
-describe("the footer line", () => {
-  it("says there is no agent, before anything is configured", async () => {
+/** Abrir o painel de **um** agente, clicando na linha dele. */
+async function openAgent(name = "claude") {
+  const user = userEvent.setup();
+  renderWithProviders(<AgentLogin />);
+  await user.click(await screen.findByRole("button", { name: new RegExp(`^${name}:`) }));
+  return user;
+}
+
+describe("o rodapé de agentes", () => {
+  it("com zero agentes, tem o `＋` e uma linha que relata — não dois botões", async () => {
+    /*
+     * A C8: a linha é estado, o `＋` é verbo. Com zero agentes não há estado para
+     * relatar numa linha clicável, e um segundo botão para a mesma ação é
+     * exatamente o que a pergunta recusou.
+     */
     renderWithProviders(<AgentLogin />);
 
-    // One line, one verb. Before this there was nowhere to read the state of the
-    // connection at all — the footer only had the button that opened a form.
-    expect(await screen.findByRole("button", { name: /conectar um agente/ })).toHaveTextContent(
-      "nenhum",
-    );
+    expect(await screen.findByText("nenhum agente conectado")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /conectar um agente/ })).toBeInTheDocument();
+    // O cabeçalho existe mesmo vazio: é onde a ação mora.
+    expect(screen.getByText("Agentes")).toBeInTheDocument();
   });
 
   it("says connected once the adapter answered session/new", async () => {
@@ -145,18 +164,26 @@ describe("the footer line", () => {
 
     renderWithProviders(<AgentLogin />);
 
-    expect(await screen.findByRole("button", { name: /conectado/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /claude: conectado/ })).toBeInTheDocument();
   });
 
-  it("says expired when the adapter asked for a credential", async () => {
-    // `auth_required` from `session/new`, which is the protocol's way of saying
-    // "log in" — not a guess about the credential's state.
+  it("diz `entrar` quando o adaptador pediu credencial", async () => {
+    /*
+     * `auth_required` do `session/new`, que é como o protocolo diz "faça login" —
+     * e não um palpite sobre o estado da credencial.
+     *
+     * O rótulo é **âmbar e é um verbo**, o terceiro estado que o desenho do segundo
+     * agente acrescentou: instalado e sem credencial não é `nenhum` (cinza, "não
+     * existe") nem `falhou` (vermelho, "quebrou"). É uma pendência com saída, e a
+     * saída é clicar na linha.
+     */
     trpc.agentConfig.list.query.mockResolvedValue([acpConfig()]);
     trpc.setup.probe.query.mockResolvedValue(report({ authRequired: true, authMethods: [method()] }));
 
     renderWithProviders(<AgentLogin />);
 
-    expect(await screen.findByRole("button", { name: /expirado/ })).toBeInTheDocument();
+    const row = await screen.findByRole("button", { name: /claude: entrar/ });
+    expect(row.className).toContain("foot-row--warn");
   });
 
   it("says it failed when the handshake did", async () => {
@@ -165,23 +192,74 @@ describe("the footer line", () => {
 
     renderWithProviders(<AgentLogin />);
 
-    expect(await screen.findByRole("button", { name: /falhou/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /claude: falhou/ })).toBeInTheDocument();
+  });
+
+  it("dá uma linha por agente, com o estado de cada um", async () => {
+    // A feature inteira em um teste: dois agentes, dois estados, duas linhas.
+    trpc.agentConfig.list.query.mockResolvedValue([
+      acpConfig(),
+      acpConfig({ id: "a2", name: "codex", command: "/adapters/codex/bin/codex-acp" }),
+    ]);
+    trpc.setup.probe.query.mockImplementation(({ command }: { command: string }) =>
+      Promise.resolve(
+        command.includes("codex")
+          ? report({ authRequired: true, authMethods: [method()] })
+          : report(),
+      ),
+    );
+
+    renderWithProviders(<AgentLogin />);
+
+    expect(await screen.findByRole("button", { name: /claude: conectado/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /codex: entrar/ })).toBeInTheDocument();
+  });
+
+  it("marca a linha que abriu o painel", async () => {
+    // Com duas linhas, um painel sem dono obriga a ler o título para saber de
+    // quem ele é.
+    trpc.agentConfig.list.query.mockResolvedValue([
+      acpConfig(),
+      acpConfig({ id: "a2", name: "codex", command: "/adapters/codex/bin/codex-acp" }),
+    ]);
+    const user = userEvent.setup();
+    renderWithProviders(<AgentLogin />);
+
+    await user.click(await screen.findByRole("button", { name: /^codex:/ }));
+
+    expect(screen.getByRole("button", { name: /^codex:/ }).className).toContain("is-open");
+    expect(screen.getByRole("button", { name: /^claude:/ }).className).not.toContain("is-open");
   });
 });
 
 describe("choosing an agent", () => {
-  it("lists what is unavailable, with the reason", async () => {
-    // Making it disappear leaves the person looking for where the agent went.
-    await openPanel();
+  it("lista o catálogo do daemon, e não uma lista desta tela", async () => {
+    // As duas specs de `ADAPTERS`. Sumir com uma delas deixaria a pessoa
+    // procurando onde foi o agente.
+    await openConnect();
 
-    expect(await screen.findByRole("button", { name: /Codex/ })).toBeDisabled();
-    expect(screen.getByText(/o login dele ainda não/)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Claude Code/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Codex/ })).toBeInTheDocument();
+  });
+
+  it("diz que o adaptador do Codex traz o próprio agente dentro", async () => {
+    /*
+     * A diferença medida entre os dois (§4.8): um dirige um `claude` que tem que
+     * existir, o outro traz o `@openai/codex` dentro e responde o handshake com
+     * `PATH=/nonexistent`. A linha do catálogo diz qual é qual **antes** do
+     * clique.
+     */
+    await openConnect();
+
+    expect(
+      await screen.findByText(/o adaptador traz o próprio agente dentro/),
+    ).toBeInTheDocument();
   });
 
   it("reports the CLI it found, because that is what the adapter drives", async () => {
-    await openPanel();
+    await openConnect();
 
-    expect(await screen.findByText(/encontrado na sua máquina · 2\.1\.237/)).toBeInTheDocument();
+    expect(await screen.findByText(/claude encontrado · 2\.1\.237/)).toBeInTheDocument();
   });
 
   it("installs the adapter itself when it is not there, and pins what it wrote", async () => {
@@ -191,7 +269,7 @@ describe("choosing an agent", () => {
     trpc.setup.agents.query.mockResolvedValue(
       agentsWith({ adapter: { ...ADAPTER, path: null, managed: false, version: null } }),
     );
-    const user = await openPanel();
+    const user = await openConnect();
     trpc.setup.installAdapter.mutate.mockResolvedValue({
       path: ADAPTER.path,
       version: "0.40.0",
@@ -212,7 +290,7 @@ describe("choosing an agent", () => {
   });
 
   it("does not install what is already installed", async () => {
-    const user = await openPanel();
+    const user = await openConnect();
     trpc.agentConfig.create.mutate.mockResolvedValue(acpConfig());
 
     await user.click(await screen.findByRole("button", { name: /Claude Code/ }));
@@ -228,13 +306,16 @@ describe("choosing an agent", () => {
     trpc.setup.installAdapter.mutate.mockRejectedValue(
       new Error("npm error code ENOTFOUND\nnpm error network request to registry failed"),
     );
-    const user = await openPanel();
+    const user = await openConnect();
 
     await waitFor(() => expect(screen.getByRole("button", { name: /Claude Code/ })).toBeEnabled());
     await user.click(screen.getByRole("button", { name: /Claude Code/ }));
 
+    // A frase do `npm`, literal, e a lista de novo atrás dela: o painel de
+    // conectar não vira um painel de erro — ele mostra o erro e continua sendo a
+    // lista, porque tentar outro agente é uma saída legítima.
     expect(await screen.findByText(/ENOTFOUND/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "tentar de novo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Claude Code/ })).toBeInTheDocument();
   });
 });
 
@@ -253,7 +334,7 @@ describe("logging in", () => {
   });
 
   it("draws the ways in that the adapter listed, and only those", async () => {
-    await openPanel();
+    await openAgent();
 
     expect(await screen.findByRole("button", { name: /Claude Subscription/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Anthropic Console/ })).toBeInTheDocument();
@@ -261,7 +342,7 @@ describe("logging in", () => {
   });
 
   it("fills exactly one of them, because one path serves almost everyone", async () => {
-    await openPanel();
+    await openAgent();
 
     const first = await screen.findByRole("button", { name: /Claude Subscription/ });
     const second = screen.getByRole("button", { name: /Anthropic Console/ });
@@ -272,7 +353,7 @@ describe("logging in", () => {
   it("asks the daemon for a method by id, never for a command", async () => {
     // A client that could name the binary would be a client that can run
     // anything on the machine the daemon is on.
-    const user = await openPanel();
+    const user = await openAgent();
     trpc.setup.login.mutate.mockResolvedValue({
       ptySessionId: "pty1",
       command: "/usr/bin/node",
@@ -300,7 +381,7 @@ describe("logging in", () => {
   });
 
   it("offers no 'já entrei' — the adapter is what confirms", async () => {
-    const user = await openPanel();
+    const user = await openAgent();
     trpc.setup.login.mutate.mockResolvedValue({
       ptySessionId: "pty1",
       command: "/usr/bin/node",
@@ -315,16 +396,20 @@ describe("logging in", () => {
   });
 
   it("says so when the adapter offers nothing it can run", async () => {
-    // An `agent` method goes through `authenticate`, which this adapter answers
-    // with "Method not implemented" — so a button for it would be a lie.
+    /*
+     * Um método `terminal` **sem comando** é o adaptador dizendo "eu mesmo", e
+     * adivinhar qual dos nomes dele está nesta máquina é o palpite que já produziu
+     * um comando de instalação errado. Um botão para ele seria um botão que abre
+     * um terminal vazio.
+     */
     trpc.setup.probe.query.mockResolvedValue(
       report({
         authRequired: true,
-        authMethods: [method({ type: "agent", command: null })],
+        authMethods: [method({ type: "terminal", command: null })],
       }),
     );
 
-    await openPanel();
+    await openAgent();
 
     expect(await screen.findByText(/nenhuma forma de entrar/)).toBeInTheDocument();
   });
@@ -336,25 +421,28 @@ describe("connected", () => {
   });
 
   it("shows what the handshake reported", async () => {
-    await openPanel();
+    await openAgent();
 
-    expect(await screen.findByText(/Claude Agent/)).toBeInTheDocument();
-    expect(screen.getByText(/0\.40\.0/)).toBeInTheDocument();
+    // Escopado no painel: a linha do rodapé também carrega o nome, e um matcher
+    // solto acha os dois — é a mesma regra de locator do resto da suíte.
+    const panel = await screen.findByRole("group", { name: /agente claude/ });
+    expect(panel).toHaveTextContent("Claude Agent");
+    expect(panel).toHaveTextContent("0.40.0");
   });
 
   it("has no 'sair', because the adapter does not declare it", async () => {
     // `logout` exists in ACP but is gated on `agentCapabilities.auth.logout`, and
     // this adapter sends `auth: null`. A button here would mean nothing.
-    await openPanel();
+    await openAgent();
 
-    await screen.findByText(/Claude Agent/);
+    const panel = await screen.findByRole("group", { name: /agente claude/ });
     expect(screen.queryByRole("button", { name: /^sair$/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/auth\.logout/)).toBeInTheDocument();
+    expect(panel).toHaveTextContent("auth.logout");
   });
 
   it("keeps the five old fields as facts, in a drawer nobody has to open", async () => {
-    const user = await openPanel();
-    await screen.findByText(/Claude Agent/);
+    const user = await openAgent();
+    await screen.findByRole("group", { name: /agente claude/ });
 
     await user.click(screen.getByRole("button", { name: "avançado" }));
 
@@ -364,3 +452,223 @@ describe("connected", () => {
     expect(screen.queryByLabelText("Comando")).not.toBeInTheDocument();
   });
 });
+
+describe("entrar por chamada, e não por comando", () => {
+  /** Os métodos do Codex: nenhum deles é `type: "terminal"` (§4.2). */
+  const CODEX_METHODS = [
+    {
+      id: "chat-gpt",
+      name: "ChatGPT",
+      description: "Use ChatGPT to authenticate",
+      type: "unknown",
+      command: null,
+      args: [],
+      label: null,
+    },
+    {
+      id: "chat-gpt-device-code",
+      name: "ChatGPT (device code)",
+      description: "Sign in by opening a verification page",
+      type: "unknown",
+      command: null,
+      args: [],
+      label: null,
+    },
+    {
+      id: "api-key",
+      name: "API Key",
+      description: "Use an API key to authenticate",
+      type: "unknown",
+      command: null,
+      args: [],
+      label: null,
+    },
+  ];
+
+  beforeEach(() => {
+    trpc.agentConfig.list.query.mockResolvedValue([
+      acpConfig({ id: "c1", name: "codex", command: "/adapters/codex/bin/codex-acp" }),
+    ]);
+    trpc.setup.probe.query.mockResolvedValue(
+      report({ authRequired: true, authMethods: CODEX_METHODS }),
+    );
+  });
+
+  it("desenha os três métodos que o adaptador ofereceu, e nenhum é comando", async () => {
+    await openAgent("codex");
+
+    expect(await screen.findByRole("button", { name: /^ChatGPT Use/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /device code/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /API Key/ })).toBeInTheDocument();
+    // Nenhum PTY: este agente não entrega comando nenhum para rodar.
+    expect(trpc.setup.login.mutate).not.toHaveBeenCalled();
+  });
+
+  it("chama `authenticate` por id, sem passar por terminal", async () => {
+    const user = await openAgent("codex");
+    trpc.setup.authenticate.mutate.mockResolvedValue({
+      id: "l1",
+      state: "running",
+      elicitation: null,
+      message: null,
+    });
+    trpc.setup.authState.query.mockResolvedValue({
+      id: "l1",
+      state: "running",
+      elicitation: null,
+      message: null,
+    });
+
+    await user.click(await screen.findByRole("button", { name: /^ChatGPT Use/ }));
+
+    await waitFor(() =>
+      expect(trpc.setup.authenticate.mutate).toHaveBeenCalledWith(
+        expect.objectContaining({ methodId: "chat-gpt" }),
+      ),
+    );
+    expect(trpc.setup.login.mutate).not.toHaveBeenCalled();
+  });
+
+  it("mostra a URL e o código, e diz que nada abre aqui", async () => {
+    /*
+     * O caminho que existe por causa de uma medição: `chat-gpt` abre o navegador
+     * na máquina do **daemon**, e este é o único método que não. A frase "nada
+     * abre aqui" é o que a C7 obriga a dizer.
+     */
+    const user = await openAgent("codex");
+    trpc.setup.authenticate.mutate.mockResolvedValue({
+      id: "l1",
+      state: "running",
+      elicitation: null,
+      message: null,
+    });
+    trpc.setup.authState.query.mockResolvedValue({
+      id: "l1",
+      state: "running",
+      elicitation: {
+        elicitationId: "e1",
+        url: "https://chatgpt.com/device",
+        message: "Sign in to ChatGPT and enter this code: FKPT-QJ29",
+        code: "FKPT-QJ29",
+      },
+      message: null,
+    });
+
+    await user.click(await screen.findByRole("button", { name: /device code/ }));
+
+    expect(await screen.findByText("FKPT-QJ29")).toBeInTheDocument();
+    expect(screen.getByText("https://chatgpt.com/device")).toBeInTheDocument();
+    // A frase do agente continua inteira embaixo do destaque.
+    expect(screen.getByText(/enter this code/)).toBeInTheDocument();
+    expect(screen.getByText(/Nada abre aqui/)).toBeInTheDocument();
+  });
+
+  it("mostra a frase do agente quando nada nela parece um código", async () => {
+    const user = await openAgent("codex");
+    trpc.setup.authenticate.mutate.mockResolvedValue({
+      id: "l1",
+      state: "running",
+      elicitation: null,
+      message: null,
+    });
+    trpc.setup.authState.query.mockResolvedValue({
+      id: "l1",
+      state: "running",
+      elicitation: {
+        elicitationId: "e1",
+        url: "https://exemplo.test/autorize",
+        message: "autorize no navegador e volte",
+        code: null,
+      },
+      message: null,
+    });
+
+    await user.click(await screen.findByRole("button", { name: /device code/ }));
+
+    expect(await screen.findByText("autorize no navegador e volte")).toBeInTheDocument();
+    expect(screen.queryByText("e digite este código")).not.toBeInTheDocument();
+  });
+
+  it("cancelar é o que existe no lugar de um `já entrei`", async () => {
+    const user = await openAgent("codex");
+    trpc.setup.authenticate.mutate.mockResolvedValue({
+      id: "l1",
+      state: "running",
+      elicitation: null,
+      message: null,
+    });
+    trpc.setup.authState.query.mockResolvedValue({
+      id: "l1",
+      state: "running",
+      elicitation: null,
+      message: null,
+    });
+    trpc.setup.cancelAuth.mutate.mockResolvedValue({
+      id: "l1",
+      state: "cancelled",
+      elicitation: null,
+      message: null,
+    });
+
+    await user.click(await screen.findByRole("button", { name: /^ChatGPT Use/ }));
+    await user.click(await screen.findByRole("button", { name: "cancelar" }));
+
+    await waitFor(() =>
+      expect(trpc.setup.cancelAuth.mutate).toHaveBeenCalledWith({ loginId: "l1" }),
+    );
+    expect(screen.queryByRole("button", { name: /já entrei/ })).not.toBeInTheDocument();
+  });
+
+  it("pede a chave num campo, manda uma vez, e não a mostra de volta", async () => {
+    const user = await openAgent("codex");
+    trpc.setup.authenticate.mutate.mockResolvedValue({
+      id: "l1",
+      state: "running",
+      elicitation: null,
+      message: null,
+    });
+    trpc.setup.authState.query.mockResolvedValue({
+      id: "l1",
+      state: "ok",
+      elicitation: null,
+      message: null,
+    });
+
+    await user.click(await screen.findByRole("button", { name: /API Key/ }));
+    const field = await screen.findByLabelText("chave de API");
+    await user.type(field, "sk-proj-nao-volta");
+    await user.click(screen.getByRole("button", { name: "usar" }));
+
+    await waitFor(() =>
+      expect(trpc.setup.authenticate.mutate).toHaveBeenCalledWith(
+        expect.objectContaining({ methodId: "api-key", apiKey: "sk-proj-nao-volta" }),
+      ),
+    );
+    // Apagada da tela no mesmo gesto que a envia: ela atravessa o daemon e não
+    // tem por que continuar existindo aqui.
+    expect(document.body.textContent).not.toContain("sk-proj-nao-volta");
+  });
+
+  it("conta a recusa do agente com a frase dele", async () => {
+    const user = await openAgent("codex");
+    trpc.setup.authenticate.mutate.mockResolvedValue({
+      id: "l1",
+      state: "running",
+      elicitation: null,
+      message: null,
+    });
+    trpc.setup.authState.query.mockResolvedValue({
+      id: "l1",
+      state: "failed",
+      elicitation: null,
+      message: "conta sem acesso ao Codex",
+    });
+
+    await user.click(await screen.findByRole("button", { name: /^ChatGPT Use/ }));
+
+    expect(await screen.findByText("conta sem acesso ao Codex")).toBeInTheDocument();
+    // E os botões voltam: recusar não fecha o caminho, oferece outro.
+    expect(screen.getByRole("button", { name: /API Key/ })).toBeInTheDocument();
+  });
+});
+

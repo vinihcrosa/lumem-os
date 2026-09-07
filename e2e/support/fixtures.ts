@@ -101,6 +101,18 @@ export const E2E_FIXTURE_REPO_ONBOARDING = join(E2E_FIXTURE_DIR, "repo-onboardin
  */
 export const E2E_FIXTURE_BIN = join(E2E_FIXTURE_DIR, "bin");
 export const E2E_FIXTURE_ADAPTER = join(E2E_FIXTURE_BIN, "claude-agent-acp");
+/**
+ * O adaptador do **segundo** agente, com o nome que o catálogo procura.
+ *
+ * Ele existe para o caminho do `＋` (`second-agent`, T13): o painel só instala
+ * quando o pré-voo **não** acha o binário, então um shim com o nome catalogado é o
+ * que faz a tela conectar um segundo agente sem o daemon rodar `npm install` — que
+ * numa suíte de e2e seriam 300 MB de rede por execução.
+ *
+ * O perfil do fake vai por ambiente na configuração, e não aqui: este arquivo é o
+ * binário, e o perfil é de quem o lança.
+ */
+export const E2E_FIXTURE_CODEX_ADAPTER = join(E2E_FIXTURE_BIN, "codex-acp");
 
 /**
  * An ACP agent that speaks the protocol over stdio and never calls a model.
@@ -235,6 +247,21 @@ export function createFixtures(): void {
     [
       "#!/bin/sh",
       'if [ "$1" = "--version" ]; then echo "0.0.0"; exit 0; fi',
+      `exec ${JSON.stringify(process.execPath)} ${JSON.stringify(E2E_FAKE_ACP_AGENT)} "$@"`,
+      "",
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+
+  // O mesmo shim, com o nome do segundo adaptador do catálogo. Ele responde o
+  // perfil codex por causa do `LUMEM_FAKE_PROFILE` que o `exec` propaga.
+  writeFileSync(
+    E2E_FIXTURE_CODEX_ADAPTER,
+    [
+      "#!/bin/sh",
+      'if [ "$1" = "--version" ]; then echo "1.10.0"; exit 0; fi',
+      "LUMEM_FAKE_PROFILE=codex",
+      "export LUMEM_FAKE_PROFILE",
       `exec ${JSON.stringify(process.execPath)} ${JSON.stringify(E2E_FAKE_ACP_AGENT)} "$@"`,
       "",
     ].join("\n"),

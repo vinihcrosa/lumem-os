@@ -1,10 +1,14 @@
 # O segundo agente — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **16 tasks em 3 fases, 15 entregues.** As fases 0, 1 e 3 fecharam em 2026-09-06, e a
-fase 2 está com o **desenho pronto** (Open Design, duas perguntas novas — [C7](open-questions.md) e
-[C8](open-questions.md) — e três defeitos do desenho antigo corrigidos) e o **daemon pronto**: a
-T10 e a T11 entregaram o `authenticate` e o `elicitation/*`. Falta a **T12** e a **T13**: a tela.
+**Status:** **16 tasks em 3 fases, todas entregues** (2026-09-06). A fase 0 mediu, a fase 1 fez o
+catálogo, a fase 3 fez o consumo por agente, e a fase 2 — desenhada no Open Design, com a
+[C7](open-questions.md) e a [C8](open-questions.md) respondidas lá — entregou o `authenticate`, o
+`elicitation/*`, o rodapé por agente e o `＋` que conecta o próximo.
+
+O que ficou **fora**, com o motivo escrito: a coluna de consumo por agente na tela do workspace (é
+desenho, e o daemon já responde — T15) e o `logout`, que o Codex declara e o Lumem não chama
+([backlog](../../project/backlog.md)).
 
 A fase 3 saiu de ordem de propósito: ela não toca tela nenhuma (a coluna do workspace é a única parte
 que toca, e ficou de fora com o motivo escrito na T15), então ela não esperava desenho. A **T16
@@ -264,18 +268,18 @@ cabeçalho `Agentes` e o `＋` que a [C8](open-questions.md) decidiu. Três clas
 `packages/web/src/styles/contrast.ts`
 
 **Done when**:
-- [ ] Um agente → o cabeçalho aparece, e a linha dele é a de hoje. O rodapé mede **73px** (28 + 32 +
+- [x] Um agente → o cabeçalho aparece, e a linha dele é a de hoje. O rodapé mede **73px** (28 + 32 +
       padding); com dois, **105px** — os números que a folha mediu
-- [ ] Dois → duas linhas, cada uma com o próprio estado, e clicar numa abre o painel **dela**
+- [x] Dois → duas linhas, cada uma com o próprio estado, e clicar numa abre o painel **dela**
       (`is-open` na linha que abriu)
-- [ ] O `.pip` tem a cor do estado nos três — verde, âmbar, vermelho. Era cinza nos três
-- [ ] Os **três pares de contraste** entram no `CONTRAST_PAIRS`: `daemon/online`, `text/warning` e
+- [x] O `.pip` tem a cor do estado nos três — verde, âmbar, vermelho. Era cinza nos três
+- [x] Os **três pares de contraste** entram no `CONTRAST_PAIRS`: `daemon/online`, `text/warning` e
       `text/danger` sobre `bg/panel`. Nenhum estava lá, nem o verde que já era pintado. Medidos em
       9,85, 9,10 e 8,76:1 — o `gate:quick` confere
-- [ ] O teste de porte de CSS continua verde nas duas direções: nenhuma classe pedida sem regra, e
+- [x] O teste de porte de CSS continua verde nas duas direções: nenhuma classe pedida sem regra, e
       nenhuma regra que ninguém pede
-- [ ] `design:sync --check` limpo — a folha e a cópia do repositório concordam
-- [ ] `pnpm gate:quick` verde
+- [x] `design:sync --check` limpo — a folha e a cópia do repositório concordam
+- [x] `pnpm gate:quick` verde
 
 #### T13: Instalar e entrar no Codex de dentro do produto
 
@@ -284,13 +288,13 @@ versão que o `probe` **detectou**, e abre os jeitos de entrar que o handshake t
 **Where**: `packages/web/src/components/AgentLogin.tsx`, `packages/server/src/routers/setup.ts`
 
 **Done when**:
-- [ ] Instalar → `agent_config` nova, transporte `acp`, `adapter_version` vindo do `probe`
-- [ ] O preparo tem **duas** linhas para uma spec com `cli: null`, e três para uma com `cli`
-- [ ] Instalar de novo → nada baixado, nenhuma linha duplicada
-- [ ] Falha de `npm` chega na tela com a frase do `npm`
-- [ ] O e2e do `second-agent.spec.ts` ganha o caminho de tela: `＋` → instalar (com um shim) → entrar
+- [x] Instalar → `agent_config` nova, transporte `acp`, `adapter_version` vindo do `probe`
+- [x] O preparo tem **duas** linhas para uma spec com `cli: null`, e três para uma com `cli`
+- [x] Instalar de novo → nada baixado, nenhuma linha duplicada
+- [x] Falha de `npm` chega na tela com a frase do `npm`
+- [x] O e2e do `second-agent.spec.ts` ganha o caminho de tela: `＋` → instalar (com um shim) → entrar
       → duas linhas no rodapé
-- [ ] `pnpm gate:full` verde
+- [x] `pnpm gate:full` verde
 
 ---
 

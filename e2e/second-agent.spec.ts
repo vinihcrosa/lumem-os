@@ -127,3 +127,37 @@ test("o agente que não informa limite não desenha número de limite", async ({
   // dinheiro não pode parecer grátis.
   await expect(conv.locator(".usage")).toContainText("—");
 });
+
+test("conecta o segundo agente pelo `＋`, e o rodapé passa a ter duas linhas", async ({ page }) => {
+  /*
+   * O caminho da T13, de ponta a ponta e **sem rede**.
+   *
+   * O painel só instala quando o pré-voo não acha o binário, e o `codex-acp` do
+   * `E2E_FIXTURE_BIN` está no PATH do daemon — então este teste percorre
+   * catálogo → handshake → configuração criada sem que um `npm install` de 300 MB
+   * aconteça. O que ele prova é o que só o navegador responde: que o `＋` é o
+   * caminho, que a versão gravada é a que o **handshake** reportou, e que a
+   * segunda linha aparece ao lado da primeira em vez de substituí-la.
+   */
+  await page.goto("/");
+  await ensureWorkspace(page);
+
+  await page.getByRole("button", { name: "conectar um agente" }).click();
+  const connect = page.getByRole("group", { name: "conectar agente" });
+  const codex = connect.getByRole("button", { name: /^Codex/ });
+  await expect(codex).toBeEnabled({ timeout: 20_000 });
+  // A linha do catálogo diz o que a pessoa não resolve clicando: este adaptador
+  // traz o próprio agente dentro (§4.8).
+  await expect(codex).toContainText(/traz o próprio agente dentro|instalado/);
+  await codex.click();
+
+  // O painel do agente recém-conectado abre, com o que o handshake respondeu.
+  const panel = page.getByRole("group", { name: /agente codex/ });
+  await expect(panel).toBeVisible({ timeout: 30_000 });
+  await expect(panel).toContainText("1.10.0", { timeout: 20_000 });
+
+  // E o rodapé tem as duas linhas: a nova **ao lado** da que já estava lá.
+  await expect(page.getByRole("button", { name: /^codex: / })).toBeVisible();
+  await expect(page.getByRole("button", { name: new RegExp(`^${CLAUDE}: `) })).toBeVisible();
+});
+

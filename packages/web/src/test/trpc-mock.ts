@@ -135,10 +135,14 @@ function createTrpcMock() {
       preflight: { query: vi.fn() },
       agents: { query: vi.fn() },
       probe: { query: vi.fn() },
-      // The two that write: the daemon installs the adapter, and runs the login
-      // command the adapter named.
+      // The ones that write: the daemon installs the adapter, runs the login
+      // command the adapter named, and — desde a `second-agent` — faz a **chamada**
+      // de login para o adaptador que não entrega comando nenhum.
       installAdapter: { mutate: vi.fn() },
       login: { mutate: vi.fn() },
+      authenticate: { mutate: vi.fn() },
+      authState: { query: vi.fn() },
+      cancelAuth: { mutate: vi.fn() },
     },
     memory: {
       list: { query: vi.fn().mockResolvedValue(EMPTY_MEMORY) },
