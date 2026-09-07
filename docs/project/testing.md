@@ -48,6 +48,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | **produto servido pelo daemon** | e2e, projeto `production` do playwright: um processo, sem vite, contra `dist`. Quatro specs sobre o que só a produção muda — fallback de SPA com reload, `/trpc` sob `Accept: text/html`, e o `cache-control` do asset com hash | **Não** |
 | `server/` **adaptador de host de git** | unit com o executor **dublado** e fixtures capturadas de uma execução real. É a inversão declarada da regra do git: git nunca é dublado porque `git worktree` tem comportamento que nenhum dublê reproduz; o `gh` **tem** que ser, porque fala com a rede e com a conta de quem roda a suíte. **Nenhum teste da suíte executa o `gh`** | Sim |
 | **barra da pull request** de ponta a ponta | e2e `pull-request.spec.ts`, com um `gh` **falso** num diretório na frente do `PATH` do daemon: processo de verdade, `argv` de verdade, saída de verdade, zero rede. Cada teste tem a **própria branch** — o daemon guarda um instantâneo por projeto, e os specs compartilham um daemon | **Não** |
+| **menus do composer** — geometria | e2e `composer-menus.spec.ts`, com o fake em `LUMEM_FAKE_MANY_MODELS=1`: vinte modelos, zero token. A pergunta **não** é `toBeVisible` — um elemento recortado por um ancestral continua no DOM, com caixa, e o matcher continua satisfeito. É `document.elementFromPoint` no meio do elemento, que é o que o mouse responde. Foi assim que se descobriu que o menu de `/comandos` era **invisível por inteiro** há três features, tendo teste de componente o tempo todo | **Não** |
 | `web/` fluxo de usuário | e2e (Playwright) | **Não** — daemon único, porta única, estado compartilhado |
 
 **Consequência dura:** task cujo `Tests` é `e2e` **não pode** receber `[P]`. O gargalo é a execução do teste, não o código.
@@ -452,6 +453,22 @@ A regra: **fixture usada por mais de um spec é fixture com nome fixo em um spec
 repositório com um formato próprio — sem `[scripts]`, sem commit, com `origin` — cria a sua em
 `createFixtures()`, e a nomeia pelo que ela **não** tem. Achado na
 [run-dock-open T3](../prd/run-dock-open/tasks.md), onde `repo-noscripts` nasceu por isso.
+
+### `toBeVisible` não vê recorte, e `getByRole` clica em coisa que não existe
+
+**Sintoma:** o menu de `/comandos` do composer estava **100% invisível** no navegador — havia três
+features com ele em produção assim —, e o teste de componente que o abre passava verde.
+
+**Causa:** o popover ancora na própria caixa que o recortava (`.composer__box`, `overflow: hidden`),
+em `bottom: calc(100% + 6px)` — cem por cento fora dela. Um elemento recortado por ancestral continua
+no DOM, continua com `getBoundingClientRect`, e o `toBeVisible` do playwright continua satisfeito. Em
+jsdom é pior: não há layout, então nada é recortado por nada e o `getByRole().click()` sempre acha
+quem clicar.
+
+A regra: **quando a afirmação é "dá para clicar", a pergunta é `document.elementFromPoint` no centro
+do elemento — quem responde tem que ser ele mesmo.** É o que o
+[composer-menus.spec.ts](../prd/composer-menus/tasks.md) faz, e é o único matcher que fica vermelho
+contra o código de antes. `toBeVisible` fica verde nos dois.
 
 ## Convenções
 
