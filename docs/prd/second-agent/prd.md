@@ -1,14 +1,14 @@
 # PRD — O segundo agente
 
-> **Status:** v0.2 — proposto em 2026-09-05, **fase 0 medida em 2026-09-06** e o §4 reescrito com os
-> números. As seis perguntas estão **respondidas**. Sai do backlog ("Segundo e terceiro CLI de
-> agente", seção B). **Um de cada vez:** este PRD é sobre **um** agente a mais, e o terceiro volta
-> para o backlog até este estar de pé.
+> **Status:** **completa** — proposta em 2026-09-05, medida em 2026-09-06 e fechada em 2026-09-07.
+> **16 tasks em 4 fases**, e as oito perguntas respondidas. Sai do backlog ("Segundo e terceiro CLI
+> de agente", seção B). **Um de cada vez:** este PRD é sobre **um** agente a mais, e o terceiro
+> (Gemini) volta para o backlog agora que este está de pé.
 > **Perguntas:** [open-questions.md](open-questions.md) · **Tasks:** [tasks.md](tasks.md)
-> **Depende de:** nada de código. A fase 0 foi um spike contra o adaptador real, como o §2 da
-> [agent-login](../agent-login/prd.md) foi
-> **Desenho:** uma tela muda no Open Design (§8) — o rodapé de login. A escolha de agente no primeiro
-> acesso **saiu**, por [C3](open-questions.md)
+> **Como ela foi feita:** medir primeiro. A fase 0 foi um spike contra o adaptador **real**, como o §2
+> da [agent-login](../agent-login/prd.md) foi, e ela mudou duas decisões antes de existir código
+> **Desenho:** `lumem-second-agent.html` no Open Design (§8), desenhado e verificado renderizando. A
+> escolha de agente no primeiro acesso **saiu**, por [C3](open-questions.md)
 
 ---
 
@@ -409,13 +409,19 @@ Duas perguntas de desenho nasceram aqui e estão respondidas: a
 [C7](open-questions.md) — qual método de login é o preenchido — e a
 [C8](open-questions.md) — onde mora o verbo depois que a linha virou estado.
 
-## 9. Fases
+## 9. Fases — todas fechadas
 
-0. **Medir** — **feito** em 2026-09-06, §4;
-1. **Catálogo** — F1 e os testes da F3, incluindo o perfil codex-like do agente falso. É o grosso do
-   daemon, e não toca tela;
-2. **Login** — F2: `authenticate`, `elicitation/*`, e o rodapé por agente. Depende do Open Design;
-3. **Consumo** — F5 e a conferência da F4.
+0. **Medir** — 2026-09-06, §4. Mudou a C3 e encolheu a F3 antes de existir código;
+1. **Catálogo** — F1 e os testes da F3, incluindo o perfil codex-like do agente falso. O grosso do
+   daemon, e nenhuma linha de tela;
+2. **Login** — F2: `authenticate`, `elicitation/*`, o rodapé por agente e o `＋`. Desenhada no Open
+   Design primeiro, e o desenho achou três defeitos do desenho anterior;
+3. **Consumo** — F5 e a conferência da F4, que **reprovou**: o cabeçalho da conversa dizia `claude`
+   escrito à mão, e com dois agentes as duas conversas diziam a mesma coisa.
+
+O que ficou de fora, com o motivo escrito: a coluna de consumo por agente na tela do workspace (é
+desenho; o daemon já responde) e o `logout`, que o Codex declara e o Lumem não chama — os dois no
+[backlog](../../project/backlog.md).
 
 ## 10. Custo nos testes
 
