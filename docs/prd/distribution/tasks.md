@@ -345,6 +345,19 @@ published versions: 0.1.0`: aquele nome já era de outro projeto do mesmo escopo
 um `lumem`. Duas tentativas, duas recusas, e a mesma causa: **só o `PUT` decide**, e nenhuma leitura o
 antecipa. O custo real foi baixo — nada foi publicado nas duas vezes, e a versão continuou livre.
 
+**8. O guarda do token estava cego, e o token acabou não existindo mais.** A v0.2.0 passou pelos
+gates, pelo tarball e pela instalação em ubuntu e macos, e morreu no `npm publish` com
+`404 Not Found - PUT` — que é o `403` do registry disfarçado quando a credencial não pode escrever.
+O job que existia para antecipar isso (`o token, conferido`) reportou **success** com o registry
+respondendo `401 Unauthorized` no `whoami`: `echo "npm whoami: $(npm whoami)"` devolve o status do
+`echo`, e nunca o do `npm`. Guarda que não pode falhar não é guarda. O conserto não foi consertar o
+`$( )`: a autenticação virou **OIDC (trusted publisher)** em 2026-09-07 — o npm confia no par
+repositório + `release.yml`, o `id-token: write` deixa de ser só a provenance e passa a ser *a*
+credencial, e o job do token saiu porque não há mais token. Duas coisas que isso cobra no workflow:
+`npm publish` por OIDC pede **npm >= 11.5.1** (o Node 22 traz o 10), e `NODE_AUTH_TOKEN` no ambiente
+tem que **sair** — o npm tenta o token antes do OIDC, e um token velho ali reproduz exatamente o
+mesmo `404`.
+
 **7. A imagem do README é o produto rodando, e não um protótipo.** Ela foi tirada de um daemon de
 verdade, com um projeto registrado e uma worktree cortada — e num `--state-dir` temporário em `/tmp`,
 para não publicar o caminho de casa de ninguém numa imagem num repositório público.

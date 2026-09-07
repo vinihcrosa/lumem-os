@@ -107,38 +107,18 @@ jobs:
       # existe justamente para provar que o pacote não precisa delas.
       - run: npx --yes tsx@4 scripts/smoke-install.ts "${{ needs.package.outputs.tarball }}"
 
-  # O segredo existir não é o mesmo que o segredo publicar: um token de leitura,
-  # expirado, ou de outra conta passa por toda a configuração e só falha no
-  # `npm publish` — que é o passo que não desfaz. Este job pergunta ao registry
-  # quem é o token, e roda **também no ensaio**, que é onde a resposta é barata.
-  credential:
-    name: o token, conferido
-    needs: package
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    environment: npm
-    steps:
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
-
-      - name: quem é este token
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::error::NPM_TOKEN não chegou neste job"
-            exit 1
-          fi
-          echo "npm whoami: $(npm whoami)"
-          # `lumem` ainda não existe no registry na primeira publicação, e 404
-          # aqui é a resposta certa — o que interessa é não ser 403.
-          npm access list packages 2>/dev/null | head -20 || true
-
+  # Não existe mais um job que confere o token, porque não existe mais token.
+  #
+  # A autenticação é **OIDC (trusted publisher)** desde 2026-09-07: o npm confia
+  # neste repositório e neste workflow, e o `publish` troca o token efêmero do
+  # Actions por credencial de publicação na hora. O job que existia aqui
+  # perguntava `npm whoami` a um segredo — e, pior, perguntava errado:
+  # `echo "npm whoami: $(npm whoami)"` devolve o status do `echo`, então um 401
+  # passava pelo guarda e morria no `npm publish`. Foi exatamente o que
+  # aconteceu na v0.2.0.
   publish:
     name: npm
-    needs: [package, smoke, credential]
+    needs: [package, smoke]
     if: github.ref_type == 'tag' || inputs.dry_run == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -147,8 +127,8 @@ jobs:
     environment: npm
     permissions:
       contents: write
-      # Provenance: o npm assina de qual commit e de qual workflow o tarball
-      # saiu, e isso custa esta linha.
+      # A credencial. Com trusted publisher, este token é *como* o job se
+      # autentica no npm — e é também o que assina a provenance.
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -157,14 +137,19 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
+      # OIDC no `npm publish` pede npm >= 11.5.1, e o Node 22 traz o 10.
+      - run: npm install -g npm@latest
+
       - uses: actions/download-artifact@v4
         with:
           name: tarball
 
+      # Sem `NODE_AUTH_TOKEN`: com trusted publisher, um token no ambiente é o
+      # que o npm tenta *primeiro*, e um token velho aí faz o registry responder
+      # `404` no `PUT` — que é o 403 dele disfarçado. Também sem `--provenance`:
+      # publicando por OIDC ela sai assinada de graça.
       - name: publicar
-        run: npm publish "${{ needs.package.outputs.tarball }}" --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish "${{ needs.package.outputs.tarball }}" --access public
 
       - name: a Release, com o tarball anexado
         if: github.ref_type == 'tag'
