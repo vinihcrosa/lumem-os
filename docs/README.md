@@ -383,13 +383,16 @@ código, ou congela.
 ### [second-agent/](prd/second-agent/) — o segundo agente
 
 O ACP foi escolhido por ser agnóstico e nada prova isso. Codex primeiro, pela mesma família de
-adaptador. Fase 0 é medição contra o adaptador real, como a `agent-login` fez; as cinco constantes de
-Claude viram um catálogo.
+adaptador — e a **fase 0 está medida** (2026-09-06, contra `codex-acp@1.10.0`): o CLI não precisa
+estar no PATH, o adaptador não pede `fs` nem `terminal` ao cliente, o login é uma **chamada** e não um
+comando, e a tradução atravessou um turno inteiro com zero `warn`. Isso fez a F2 crescer, a F3
+encolher para teste, e tirou a escolha de agente do primeiro acesso.
 
 | Arquivo | O quê |
 |---|---|
-| [prd.md](prd/second-agent/prd.md) | o que no código sabe que é Claude e o que já é genérico; as oito medições da fase 0; F1–F5 |
-| [open-questions.md](prd/second-agent/open-questions.md) | 6 perguntas: qual agente, instalado ou no PATH, onboarding pergunta ou não, consumo sem número, comparação, a semente PTY |
+| [prd.md](prd/second-agent/prd.md) | o que no código sabe que é Claude e o que já é genérico; o §4 com os números da fase 0; F1–F5 |
+| [open-questions.md](prd/second-agent/open-questions.md) | 6 perguntas, **6 respondidas**: qual agente, instalado ou no PATH, onboarding pergunta ou não, consumo sem número, comparação, a semente PTY |
+| [tasks.md](prd/second-agent/tasks.md) | 16 tasks em 3 fases — catálogo, login (depende do Open Design), consumo |
 
 ### [workspace-tasks/](prd/workspace-tasks/) — tarefa como entidade
 
