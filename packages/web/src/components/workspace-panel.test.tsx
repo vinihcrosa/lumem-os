@@ -42,9 +42,38 @@ const spend = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+/** Uma configuração de agente ACP, que é o que decide se a divisão existe. */
+const agent = (id: string, name: string) => ({
+  id,
+  name,
+  command: `/adapters/${name}/bin/${name}`,
+  args: [],
+  env: {},
+  transport: "acp",
+  adapterVersion: "1.0.0",
+  available: true,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+
+/** Uma linha da consulta agrupada por agente. */
+const byAgent = (overrides: Record<string, unknown> = {}) => ({
+  projectId: "p1",
+  agentConfigId: "a1",
+  name: "claude",
+  tokens: 994_000,
+  cost: 12.4071,
+  currency: "USD",
+  turns: 61,
+  ...overrides,
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
   trpc.project.listByWorkspace.query.mockResolvedValue([project()]);
+  // Um agente por default: é o estado normal, e nele a divisão não existe.
+  trpc.agentConfig.list.query.mockResolvedValue([agent("a1", "claude")]);
+  trpc.usage.byProjectAndAgent.query.mockResolvedValue([]);
   trpc.usage.byProject.query.mockResolvedValue([spend()]);
   // A memória do painel: vazia por default, para cada teste dizer o que importa.
   trpc.memory.list.query.mockResolvedValue({ entries: [], shadowed: [] });
@@ -304,5 +333,109 @@ describe("a inbox de propostas, sem projeto aberto (T3)", () => {
       id: "prop1",
       note: "isso é regra do api, não do produto",
     });
+  });
+});
+
+describe("a divisão por agente", () => {
+  it("com um agente, não existe: sem `▸` e sem a consulta", async () => {
+    /*
+     * A C5 escrita em teste: a comparação só aparece quando há o que comparar.
+     * Não é só um pixel a menos — é uma consulta que **não acontece**.
+     */
+    render();
+    await screen.findByText("1,4M");
+
+    expect(screen.queryByRole("button", { name: /divisão por agente/ })).not.toBeInTheDocument();
+    expect(trpc.usage.byProjectAndAgent.query).not.toHaveBeenCalled();
+  });
+
+  it("com dois, a linha abre e mostra o que cada um gastou", async () => {
+    trpc.agentConfig.list.query.mockResolvedValue([agent("a1", "claude"), agent("a2", "codex")]);
+    trpc.usage.byProjectAndAgent.query.mockResolvedValue([
+      byAgent(),
+      byAgent({ agentConfigId: "a2", name: "codex", tokens: 406_000, cost: null, currency: null, turns: 25 }),
+    ]);
+
+    render();
+    const twist = await screen.findByRole("button", { name: /abrir a divisão por agente/ });
+    await userEvent.click(twist);
+
+    expect(await screen.findByText("claude")).toBeInTheDocument();
+    expect(screen.getByText("codex")).toBeInTheDocument();
+    expect(screen.getByText("994k")).toBeInTheDocument();
+    expect(screen.getByText("406k")).toBeInTheDocument();
+    // O agente que não informa dinheiro continua sem parecer grátis, um nível
+    // abaixo como um nível acima.
+    expect(screen.getByText("sem custo reportado")).toBeInTheDocument();
+  });
+
+  it("nasce fechada: a divisão é uma pergunta, não um relatório", async () => {
+    trpc.agentConfig.list.query.mockResolvedValue([agent("a1", "claude"), agent("a2", "codex")]);
+    trpc.usage.byProjectAndAgent.query.mockResolvedValue([byAgent()]);
+
+    render();
+    await screen.findByRole("button", { name: /abrir a divisão por agente/ });
+
+    // A linha do projeto está lá; a do agente, não — até alguém pedir.
+    expect(screen.getByText("lorebase")).toBeInTheDocument();
+    expect(screen.queryByText("claude")).not.toBeInTheDocument();
+  });
+
+  it("o turno sem agente aparece pelo que ele é, e não somado a alguém", async () => {
+    // A linha gravada antes da coluna existir. Escolher um culpado seria pior que
+    // dizer "não sei".
+    trpc.agentConfig.list.query.mockResolvedValue([agent("a1", "claude"), agent("a2", "codex")]);
+    trpc.usage.byProjectAndAgent.query.mockResolvedValue([
+      byAgent(),
+      byAgent({ agentConfigId: null, name: null, tokens: 50_000, cost: null, currency: null, turns: 2 }),
+    ]);
+
+    render();
+    await userEvent.click(await screen.findByRole("button", { name: /abrir a divisão/ }));
+
+    expect(await screen.findByText("antes desta versão")).toBeInTheDocument();
+    expect(screen.getByText("50,0k")).toBeInTheDocument();
+  });
+
+  it("a janela vale para as duas consultas, e não para uma só", async () => {
+    // Duas respostas com janelas diferentes na mesma tela seriam a soma de baixo
+    // não fechando com a de cima, sem nada na tela explicando por quê.
+    trpc.agentConfig.list.query.mockResolvedValue([agent("a1", "claude"), agent("a2", "codex")]);
+    trpc.usage.byProjectAndAgent.query.mockResolvedValue([byAgent()]);
+
+    render();
+    await screen.findByText("1,4M");
+    await userEvent.click(screen.getByRole("button", { name: "1m" }));
+
+    expect(trpc.usage.byProjectAndAgent.query).toHaveBeenLastCalledWith({
+      workspaceId: "ws1",
+      period: "1m",
+    });
+  });
+
+  it("o projeto sem divisão não perde nenhuma coluna", async () => {
+    /*
+     * A grade é da lista, e ela é a mesma para todas as linhas. Um projeto que só
+     * um agente usou fica sem sub-linha e **com** a célula do `▸` vazia — sem
+     * isso os números dele andariam para a esquerda e deixariam de bater com os
+     * de cima, que é a única razão de a lista ter colunas.
+     */
+    trpc.agentConfig.list.query.mockResolvedValue([agent("a1", "claude"), agent("a2", "codex")]);
+    trpc.project.listByWorkspace.query.mockResolvedValue([project(), project({ id: "p2", name: "web" })]);
+    trpc.usage.byProject.query.mockResolvedValue([spend(), spend({ projectId: "p2", name: "web" })]);
+    trpc.usage.byProjectAndAgent.query.mockResolvedValue([byAgent()]);
+
+    render();
+    // Espera o `▸`, e não o nome: a segunda consulta responde depois da primeira,
+    // e esperar pelo nome do projeto olha a tela antes de ela ter a divisão.
+    await screen.findByRole("button", { name: /divisão por agente/ });
+
+    // Um `▸` só: o outro projeto não tem divisão para abrir.
+    expect(screen.getAllByRole("button", { name: /divisão por agente/ })).toHaveLength(1);
+    // E as duas linhas continuam com o mesmo número de células.
+    const cells = screen
+      .getAllByText(/^(lorebase|web)$/)
+      .map((name) => name.parentElement?.childElementCount);
+    expect(new Set(cells).size).toBe(1);
   });
 });

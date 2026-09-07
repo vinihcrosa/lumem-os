@@ -6,8 +6,7 @@ catálogo, a fase 3 fez o consumo por agente, e a fase 2 — desenhada no Open D
 [C7](open-questions.md) e a [C8](open-questions.md) respondidas lá — entregou o `authenticate`, o
 `elicitation/*`, o rodapé por agente e o `＋` que conecta o próximo.
 
-O que ficou **fora**, com o motivo escrito: a coluna de consumo por agente na tela do workspace (é
-desenho, e o daemon já responde — T15) e o `logout`, que o Codex declara e o Lumem não chama
+O que ficou **fora**, com o motivo escrito: o `logout`, que o Codex declara e o Lumem não chama
 ([backlog](../../project/backlog.md)).
 
 A fase 3 saiu de ordem de propósito: ela não toca tela nenhuma (a coluna do workspace é a única parte
@@ -316,8 +315,9 @@ são. É a armadilha do PRD: a coluna não existia.
 #### T15: Consumo agrupado por agente
 
 **What**: `usage.byProject` e `usage.byWorktree` ganham agrupamento opcional por agente
-([C5](open-questions.md)). A coluna na tela do workspace aparece **só** quando há mais de um agente —
-e ela é desenho, então vem do Open Design.
+([C5](open-questions.md)). Na tela, a divisão é uma **sub-linha** e não uma coluna — desenhada na aba
+`Consumo` da folha, com as duas alternativas recusadas por escrito. Ela aparece **só** quando há mais
+de um agente configurado.
 **Where**: `packages/server/src/usage/query.ts`, `query.test.ts`,
 `packages/web/src/components/WorkspacePanel.tsx`
 
@@ -325,8 +325,15 @@ e ela é desenho, então vem do Open Design.
 - [x] Agrupado: dois agentes na mesma worktree → duas linhas, com os tokens de cada um
 - [x] Sem agrupar: o número de hoje, idêntico — um teste compara as duas somas
 - [x] `cost` continua `null` quando ninguém reportou dinheiro, agrupado ou não
-- [ ] Um agente no workspace → **nenhuma** coluna nova na tela — **fora**, é desenho: a coluna
-      vem do Open Design, e o daemon já responde `usage.byProjectAndAgent` para quando ela existir
+- [x] Um agente no workspace → **nenhuma** coluna nova na tela, e **nenhuma consulta**: a segunda
+      pergunta só acontece quando há mais de um agente configurado
+- [x] Dois → a linha do projeto abre em uma sub-linha por agente, e ela **nasce fechada**: a divisão
+      é uma pergunta, não um relatório
+- [x] O turno sem agente aparece como `antes desta versão`, e não somado a alguém
+- [x] O projeto sem divisão não perde nenhuma coluna — a grade é da lista, e ela é a mesma para
+      todas as linhas
+- [x] A folha do Open Design está sincronizada (`design:sync --check` limpo), com a aba **Consumo** e
+      as duas recusas escritas: coluna por agente e barra segmentada por cor
 - [x] `pnpm gate:quick` verde
 
 #### T16: A aba diz qual agente está falando

@@ -35,6 +35,11 @@
      .foot-row--*.pip  o ponto passa a ter a cor do estado. Ele nascia cinza nos
                   três — `currentColor` é a cor da linha, não a do estado —, e
                   com duas linhas o ponto é o que se varre primeiro.
+
+     .spend__row--agent  a divisão do consumo por agente, como SUB-LINHA e não
+                  como coluna: "uma coluna por agente" é um número que o produto
+                  não controla, e uma barra segmentada pediria uma escala
+                  categórica de cor que o `tokens.css` não tem.
    ========================================================================= */
 
 /* ---------------------------------------------------------------------------
@@ -147,3 +152,103 @@
   justify-content: start;
   align-items: end;
 }
+
+/* ---------------------------------------------------------------------------
+   5. o consumo aberto por agente
+   -------------------------------------------------------------------------- */
+/*
+ * A divisão por agente é uma **sub-linha**, não uma coluna.
+ *
+ * A tentação era uma coluna por agente. Ela quebra no terceiro: a grade do
+ * `.spend__row` tem seis colunas fixas, e "uma por agente" é um número que o
+ * produto não controla. Uma barra segmentada por cor quebra antes disso — ela
+ * pediria uma escala **categórica** de cor, que o `tokens.css` não tem e que
+ * nasceria só para isto.
+ *
+ * Então a linha do projeto abre. Cada sub-linha é a mesma linha com o glifo do
+ * agente e um recuo, e a barra dela é a fração **dentro do projeto** — o que a
+ * pergunta pede: quanto deste projeto foi de cada um.
+ *
+ * E com **um** agente nada disso existe: sem o `▸`, sem sub-linha, sem consulta.
+ * É a C5 escrita em pixel — a comparação só aparece quando há o que comparar.
+ */
+
+/*
+ * `subgrid`, e ele conserta uma afirmação que já era falsa.
+ *
+ * A folha do `workspace-screen` diz que as colunas de número "existem para ser
+ * comparadas verticalmente". Medido no navegador nesta folha: elas **não**
+ * batiam. Cada `.spend__row` era uma grade independente com colunas
+ * `max-content`, então a coluna de token de uma linha ficava 37px à esquerda da
+ * de outra sempre que o texto de custo tinha largura diferente — "sem custo
+ * reportado" contra "US$ 12,4071". Ninguém tinha notado porque, com um agente e
+ * projetos parecidos, o desalinhamento era pequeno.
+ *
+ * Com sub-linha isso deixa de ser pequeno: comparar dois agentes é exatamente
+ * ler dois números um debaixo do outro. Então a `.spend` passa a ser a grade, e
+ * cada linha herda as colunas dela.
+ */
+.spend {
+  display: grid;
+  /*
+   * O `gap` sobe para a grade de fora, e isso não é detalhe.
+   *
+   * Com `grid-template-columns: subgrid`, quem define a distância entre as
+   * trilhas é o **pai** — o `gap` da linha passa a não ter efeito nas colunas
+   * compartilhadas. Sem esta linha o glifo cola no nome, que foi o que o segundo
+   * render mostrou.
+   */
+  column-gap: var(--space-10);
+  grid-template-columns:
+    var(--size-icon-sm) minmax(var(--size-menu-width), 1fr) minmax(0, 1fr)
+    max-content max-content max-content;
+}
+/*
+ * A variante que abre: uma coluna a mais, na frente, só para o `▸`.
+ *
+ * Ela existe porque a primeira tentativa punha o `▸` **no lugar** do glifo do
+ * projeto — e aí a linha perdia o `▣`, que é o que diz de que tipo de escopo ela
+ * fala e, pela cor, se ele gastou. Trocar informação por controle no mesmo
+ * espaço é o erro que o desenho pega renderizando e a intenção não pega.
+ */
+.spend--split {
+  grid-template-columns:
+    var(--size-icon-sm) var(--size-icon-sm) minmax(var(--size-menu-width), 1fr)
+    minmax(0, 1fr) max-content max-content max-content;
+}
+.spend__row,
+.spend__group {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+}
+
+.spend__twist {
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-xs);
+  text-align: center;
+}
+
+/*
+ * O recuo vai no **nome**, e não na linha nem no glifo.
+ *
+ * Na linha, `padding-left` empurraria as sete colunas juntas e anularia o
+ * `subgrid` — desalinhando justamente os números que a sub-linha existe para
+ * comparar. No glifo, ele transborda: a célula tem 14px e a margem jogava o `◆`
+ * por cima do nome, que é o que o primeiro render mostrou.
+ */
+.spend__row--agent .spend__name {
+  padding-left: var(--space-16);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+/* A barra da sub-linha é mais fina: ela mede dentro de outra medida. */
+.spend__row--agent .spend__bar { height: var(--space-2); }
+.spend__row--agent .spend__fill { background: var(--color-bg-brand-muted); }
+.spend__row--agent .spend__tok { color: var(--color-text-secondary); }
+.spend__row--agent { border-bottom: 0; }
+
+/* O grupo aberto fica junto: a borda de baixo é do grupo, não das linhas dentro. */
+.spend__group { border-bottom: var(--border-width-thin) solid var(--color-border-subtle); }
+.spend__group .spend__row { border-bottom: 0; }
+.spend__group:last-child { border-bottom: 0; }

@@ -1,6 +1,10 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
-import { usageByProjectKey, usageByWorktreeKey } from "../lib/queryKeys.js";
+import {
+  usageByProjectAndAgentKey,
+  usageByProjectKey,
+  usageByWorktreeKey,
+} from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 
 /**
@@ -19,6 +23,9 @@ import { trpc } from "../lib/trpc.js";
 export type UsageWindow = Parameters<typeof trpc.usage.byProject.query>[0]["period"];
 export type ProjectUsage = Awaited<ReturnType<typeof trpc.usage.byProject.query>>[number];
 export type WorktreeUsage = Awaited<ReturnType<typeof trpc.usage.byWorktree.query>>;
+export type ProjectAgentUsage = Awaited<
+  ReturnType<typeof trpc.usage.byProjectAndAgent.query>
+>[number];
 
 /** As janelas, na ordem em que a tela as mostra. `1a` é como se escreve em pt-BR. */
 export const USAGE_WINDOWS: readonly { id: NonNullable<UsageWindow>; label: string }[] = [
@@ -46,5 +53,24 @@ export function useUsageByWorktree(
   return useQuery({
     queryKey: usageByWorktreeKey(projectId, period),
     queryFn: () => trpc.usage.byWorktree.query({ projectId, period }),
+  });
+}
+
+/**
+ * O consumo de cada projeto **por agente** (`second-agent`, F5 e C5).
+ *
+ * `enabled` de propósito, e é a C5 escrita em código: com um agente a comparação
+ * não existe, então a consulta também não acontece. Quem decide é quem sabe
+ * quantos agentes há — a tela —, e não este hook.
+ */
+export function useUsageByProjectAndAgent(
+  workspaceId: string,
+  period: NonNullable<UsageWindow>,
+  enabled: boolean,
+): UseQueryResult<ProjectAgentUsage[]> {
+  return useQuery({
+    queryKey: usageByProjectAndAgentKey(workspaceId, period),
+    queryFn: () => trpc.usage.byProjectAndAgent.query({ workspaceId, period }),
+    enabled,
   });
 }

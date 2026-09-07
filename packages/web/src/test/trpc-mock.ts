@@ -165,6 +165,10 @@ function createTrpcMock() {
     },
     usage: {
       byProject: { query: vi.fn().mockResolvedValue([]) },
+      // A quebra por agente (`second-agent`, F5). Default vazio, como os outros:
+      // quem quer asserir sobre a divisão diz qual é a divisão.
+      byProjectAndAgent: { query: vi.fn().mockResolvedValue([]) },
+      byWorktreeAndAgent: { query: vi.fn().mockResolvedValue([]) },
       byWorktree: {
         query: vi.fn().mockResolvedValue({
           worktrees: [],

@@ -30,14 +30,53 @@
    A barra é comparação, não medida — sem eixo, sem número em cima. Ela existe
    para a diferença entre 1,4M e 402k ser vista antes de ser lida; quem quer o
    número lê a coluna ao lado. */
-.spend { display: grid; }
-.spend__row {
+/*
+ * A grade é da LISTA, e cada linha herda as colunas dela.
+ *
+ * Era o contrário: cada `.spend__row` tinha a própria grade com colunas
+ * `max-content`, e o comentário acima — "estas colunas existem para ser
+ * comparadas verticalmente" — **não era verdade**. Medido no navegador ao
+ * desenhar a divisão por agente (`second-agent`, F5): a coluna de token de uma
+ * linha ficava 37px à esquerda da de outra sempre que o texto de custo tinha
+ * largura diferente ("sem custo reportado" contra "US$ 12,4071"). Ninguém tinha
+ * notado porque, com projetos parecidos, o desalinhamento era pequeno.
+ *
+ * Com sub-linha por agente ele deixa de ser pequeno: comparar dois agentes é
+ * exatamente ler dois números um debaixo do outro. `subgrid` é o que faz a
+ * afirmação passar a ser verdadeira.
+ *
+ * E o `column-gap` sobe para cá junto: com `grid-template-columns: subgrid`, quem
+ * define a distância entre as trilhas é o pai, e o `gap` da linha deixa de ter
+ * efeito nas colunas compartilhadas.
+ */
+.spend {
   display: grid;
+  column-gap: var(--space-10);
   grid-template-columns:
     var(--size-icon-sm) minmax(var(--size-menu-width), 1fr) minmax(0, 1fr)
     max-content max-content max-content;
+}
+/*
+ * A variante que abre: uma coluna a mais, na frente, só para o `▸`.
+ *
+ * Ela existe porque a primeira tentativa punha o `▸` **no lugar** do glifo do
+ * escopo — e aí a linha perdia o `▣`, que é o que diz de que tipo de escopo ela
+ * fala e, pela cor, se ele gastou. Trocar informação por controle no mesmo espaço
+ * é o erro que renderizar pega e a intenção não.
+ */
+.spend--split {
+  grid-template-columns:
+    var(--size-icon-sm) var(--size-icon-sm) minmax(var(--size-menu-width), 1fr)
+    minmax(0, 1fr) max-content max-content max-content;
+}
+.spend__row,
+.spend__group {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+}
+.spend__row {
   align-items: center;
-  gap: var(--space-10);
   padding: var(--space-8) var(--space-4);
   border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
 }
@@ -72,3 +111,40 @@
 /* O que rodou fora de worktree fecha a conta do projeto: última linha, separada. */
 .spend__row--outside { border-top: var(--border-width-thin) solid var(--color-border-default); }
 .spend__row--outside .spend__name { color: var(--color-text-secondary); }
+
+/* -------------------- a divisão por agente --------------------
+
+   Sub-linha, e não coluna: "uma coluna por agente" é um número que o produto não
+   controla, e uma barra segmentada pediria uma escala categórica de cor que o
+   `tokens.css` não tem. A folha `lumem-second-agent.html` tem as duas recusas
+   escritas, com o motivo de cada uma. */
+.spend__twist {
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-xs);
+  text-align: center;
+}
+.spend__twist:hover { color: var(--color-text-primary); }
+
+/*
+ * O recuo vai no NOME, e não na linha nem no glifo.
+ *
+ * Na linha, `padding-left` empurraria as sete colunas juntas e anularia o
+ * `subgrid` — desalinhando justamente os números que a sub-linha existe para
+ * comparar. No glifo, ele transborda: a célula tem 14px, e a margem jogava o `◆`
+ * por cima do nome.
+ */
+.spend__row--agent .spend__name {
+  padding-left: var(--space-16);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+/* A barra da sub-linha é mais fina: ela mede dentro de outra medida. */
+.spend__row--agent .spend__bar { height: var(--space-2); }
+.spend__row--agent .spend__fill { background: var(--color-bg-brand-muted); }
+.spend__row--agent .spend__tok { color: var(--color-text-secondary); }
+.spend__row--agent { border-bottom: 0; }
+
+/* O grupo aberto fica junto: a borda de baixo é dele, não das linhas dentro. */
+.spend__group { border-bottom: var(--border-width-thin) solid var(--color-border-subtle); }
+.spend__group .spend__row { border-bottom: 0; }
+.spend__group:last-child { border-bottom: 0; }

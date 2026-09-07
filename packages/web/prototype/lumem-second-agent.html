@@ -6,6 +6,7 @@
 <title>Lumem-OS — o segundo agente (rodapé por agente, login por chamada)</title>
 <link rel="stylesheet" href="../src/styles/tokens.css">
 <link rel="stylesheet" href="lumem-ds.css">
+<link rel="stylesheet" href="lumem-workspace.css">
 <link rel="stylesheet" href="lumem-agent-login.css">
 <link rel="stylesheet" href="lumem-sidebar-actions.css">
 <link rel="stylesheet" href="lumem-second-agent.css">
@@ -16,6 +17,7 @@
   <button class="tab is-active" data-screen="rodape">Rodapé</button>
   <button class="tab" data-screen="login">Login</button>
   <button class="tab" data-screen="no-app">No app</button>
+  <button class="tab" data-screen="consumo">Consumo</button>
   <button class="tab" data-screen="protocolo">Protocolo</button>
 </nav>
 
@@ -608,6 +610,192 @@
         </div>
       </main>
     </div>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- CONSUMO — a comparação que só existe quando há o que comparar        -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-consumo">
+  <div class="doc">
+    <header data-od-id="consumo-header">
+      <h1 class="doc__h1">Quanto cada agente custou</h1>
+      <p class="doc__lede">
+        Ter dois agentes e não poder comparar o que cada um cobrou seria não ter dois agentes. Mas a
+        comparação **não** é uma tela nova: é a lista de consumo que já existe, abrindo. Com
+        <b>um</b> agente nada disso aparece — sem <code>▸</code>, sem sub-linha, e sem a consulta que
+        as alimenta.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="consumo-fechado-aberto">
+      <div class="sec__h">
+        <h2 class="sec__t">Fechado, e aberto</h2>
+        <p class="sec__d">
+          A linha do projeto é a de hoje, com um <code>▸</code> à esquerda. Aberta, ela vira um grupo:
+          uma sub-linha por agente, recuada, com a barra medindo a fração <b>dentro daquele
+          projeto</b> — que é o que a pergunta pede.
+        </p>
+      </div>
+
+      <div class="case">
+        <span class="case__label"><b>01</b> · com um agente, é a lista de hoje</span>
+        <div class="case__frame">
+          <div class="spend" data-od-id="consumo-um-agente">
+            <div class="spend__row">
+              <span class="glyph" style="color: var(--color-scope-project)">▣</span>
+              <span class="spend__name">lumem-os</span>
+              <span class="spend__bar"><span class="spend__fill" style="--w: 78%"></span></span>
+              <span class="spend__tok">1,4M</span>
+              <span class="spend__cost">US$ 12,4071</span>
+              <span class="spend__turns">86 turnos</span>
+            </div>
+            <div class="spend__row">
+              <span class="glyph" style="color: var(--color-scope-project)">▣</span>
+              <span class="spend__name">lorebase</span>
+              <span class="spend__bar"><span class="spend__fill" style="--w: 22%"></span></span>
+              <span class="spend__tok">402k</span>
+              <span class="spend__cost">US$ 3,2210</span>
+              <span class="spend__turns">31 turnos</span>
+            </div>
+          </div>
+        </div>
+        <p class="case__note">
+          Nenhum pixel novo. É a C5 escrita em desenho: a comparação só aparece quando há o que
+          comparar, e o produto não cobra por uma coluna vazia.
+        </p>
+      </div>
+
+      <div class="case">
+        <span class="case__label"><b>02</b> · com dois, a linha abre</span>
+        <div class="case__frame">
+          <div class="spend spend--split" data-od-id="consumo-dois-agentes">
+            <div class="spend__group">
+              <div class="spend__row">
+                <span class="spend__twist">▾</span>
+                <span class="glyph" style="color: var(--color-scope-project)">▣</span>
+                <span class="spend__name">lumem-os</span>
+                <span class="spend__bar"><span class="spend__fill" style="--w: 78%"></span></span>
+                <span class="spend__tok">1,4M</span>
+                <span class="spend__cost">US$ 12,4071</span>
+                <span class="spend__turns">86 turnos</span>
+              </div>
+              <div class="spend__row spend__row--agent">
+                <span class="spend__twist"></span>
+                <span class="glyph glyph--agent">◆</span>
+                <span class="spend__name">claude</span>
+                <span class="spend__bar"><span class="spend__fill" style="--w: 71%"></span></span>
+                <span class="spend__tok">994k</span>
+                <span class="spend__cost">US$ 12,4071</span>
+                <span class="spend__turns">61 turnos</span>
+              </div>
+              <div class="spend__row spend__row--agent">
+                <span class="spend__twist"></span>
+                <span class="glyph glyph--agent">◆</span>
+                <span class="spend__name">codex</span>
+                <span class="spend__bar"><span class="spend__fill" style="--w: 29%"></span></span>
+                <span class="spend__tok">406k</span>
+                <!-- O Codex não informa dinheiro (§4.4). Zero seria a mentira. -->
+                <span class="spend__cost spend__cost--none">sem custo reportado</span>
+                <span class="spend__turns">25 turnos</span>
+              </div>
+            </div>
+            <div class="spend__group">
+              <div class="spend__row">
+                <span class="spend__twist">▸</span>
+                <span class="glyph" style="color: var(--color-scope-project)">▣</span>
+                <span class="spend__name">lorebase</span>
+                <span class="spend__bar"><span class="spend__fill" style="--w: 22%"></span></span>
+                <span class="spend__tok">402k</span>
+                <span class="spend__cost">US$ 3,2210</span>
+                <span class="spend__turns">31 turnos</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="case__note">
+          A soma das sub-linhas fecha com a linha de cima — o daemon responde as duas com a mesma
+          janela, e um teste compara os dois totais. Se não fechasse, uma das duas estaria mentindo.
+        </p>
+      </div>
+
+      <div class="case">
+        <span class="case__label"><b>03</b> · o turno sem agente também é turno</span>
+        <div class="case__frame">
+          <div class="spend spend--split" data-od-id="consumo-sem-agente">
+            <div class="spend__group">
+              <div class="spend__row">
+                <span class="spend__twist">▾</span>
+                <span class="glyph" style="color: var(--color-scope-project)">▣</span>
+                <span class="spend__name">lumem-os</span>
+                <span class="spend__bar"><span class="spend__fill" style="--w: 100%"></span></span>
+                <span class="spend__tok">1,4M</span>
+                <span class="spend__cost">US$ 12,4071</span>
+                <span class="spend__turns">86 turnos</span>
+              </div>
+              <div class="spend__row spend__row--agent">
+                <span class="spend__twist"></span>
+                <span class="glyph glyph--agent">◆</span>
+                <span class="spend__name">claude</span>
+                <span class="spend__bar"><span class="spend__fill" style="--w: 96%"></span></span>
+                <span class="spend__tok">1,35M</span>
+                <span class="spend__cost">US$ 12,4071</span>
+                <span class="spend__turns">84 turnos</span>
+              </div>
+              <div class="spend__row spend__row--agent spend__row--idle">
+                <span class="spend__twist"></span>
+                <span class="glyph">◆</span>
+                <span class="spend__name">antes desta versão</span>
+                <span class="spend__bar"><span class="spend__fill" style="--w: 4%"></span></span>
+                <span class="spend__tok">50k</span>
+                <span class="spend__cost spend__cost--none">sem custo reportado</span>
+                <span class="spend__turns">2 turnos</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="case__note">
+          A linha gravada antes da coluna existir não tem agente, e não ganha um inventado. Ela
+          aparece com o nome do que ela é — <em>antes desta versão</em> —, porque somar 50k a um dos
+          dois seria escolher um culpado no lugar de dizer "não sei".
+        </p>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="consumo-recusas">
+      <div class="sec__h"><h2 class="sec__t">O que foi recusado, e por quê</h2></div>
+      <div class="grid grid--2">
+        <div class="rule rule--no">
+          <span class="rule__t">Uma coluna por agente</span>
+          <span class="rule__d">
+            Era o desenho óbvio, e ele quebra no terceiro: a grade da linha tem seis colunas fixas, e
+            "uma por agente" é um número que o produto não controla.
+          </span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">Uma barra segmentada por cor</span>
+          <span class="rule__d">
+            Mais bonita, e mais caro: ela pede uma escala <b>categórica</b> de cor que o
+            <code>tokens.css</code> não tem, com contraste a provar por par — um token novo nasceria
+            só para isto, e ele viveria no produto inteiro.
+          </span>
+        </div>
+        <div class="rule rule--no">
+          <span class="rule__t">Uma tela de comparação</span>
+          <span class="rule__d">
+            Fora, por <a href="#">C5</a>. A pergunta "quanto cada um custou" é a mesma lista com um nível a mais;
+            uma tela própria seria uma segunda semântica de janela de tempo.
+          </span>
+        </div>
+        <div class="rule rule--yes">
+          <span class="rule__t">Sub-linha, com a grade preservada</span>
+          <span class="rule__d">
+            As colunas de número continuam batendo com as de cima — elas existem para ser comparadas
+            verticalmente, e um recuo que empurrasse os dígitos quebraria justamente isso.
+          </span>
+        </div>
+      </div>
+    </section>
   </div>
 </section>
 

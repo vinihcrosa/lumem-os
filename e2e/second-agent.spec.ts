@@ -161,3 +161,50 @@ test("conecta o segundo agente pelo `＋`, e o rodapé passa a ter duas linhas",
   await expect(page.getByRole("button", { name: new RegExp(`^${CLAUDE}: `) })).toBeVisible();
 });
 
+test("o consumo do workspace abre por agente quando há dois", async ({ page }) => {
+  /*
+   * A F5 de ponta a ponta, e é o único lugar onde a corrente inteira aparece:
+   * dois turnos de dois agentes → `session_usage` com `agent_config_id` →
+   * `usage.byProjectAndAgent` → a sub-linha na tela. Cada peça tem teste de
+   * unidade; a corrente não tinha.
+   *
+   * Os dois turnos são do mesmo fake, então continua a token zero.
+   */
+  await page.goto("/");
+  await ensureWorkspace(page);
+  await ensureProject(page, E2E_FIXTURE_REPO_ACP, "repo-acp");
+  await openProject(page, "repo-acp");
+  await createWorktree(page, `${WORKTREE}-conta`, "repo-acp");
+  await expect(page.getByRole("tab", { name: new RegExp(`^${WORKTREE}-conta`) })).toBeVisible({
+    timeout: 30_000,
+  });
+
+  // Um turno de cada agente: é o que faz `session_usage` ter duas linhas com
+  // agentes diferentes no mesmo projeto.
+  for (const agent of [CLAUDE, CODEX]) {
+    await openConversation(page, agent);
+    const conv = conversation(page);
+    await conv.getByLabel("mensagem para o agente").click();
+    await page.keyboard.type(`gasto do ${agent}`);
+    await page.keyboard.press("ControlOrMeta+Enter");
+    const permission = conv.getByRole("group", { name: "pedido de permissão" });
+    await expect(permission).toBeVisible({ timeout: 30_000 });
+    await permission.getByRole("button", { name: /permitir uma vez/ }).click();
+    await expect(conv.locator(".usage")).toBeVisible({ timeout: 30_000 });
+  }
+
+  // A tela do workspace: sem worktree selecionada, que é onde ela mora.
+  await page.reload();
+  const panel = page.locator(".wsp");
+  await expect(panel).toBeVisible({ timeout: 20_000 });
+
+  // Com dois agentes a linha do projeto abre — e é ela que responde "quanto cada
+  // um custou".
+  const twist = panel.getByRole("button", { name: /divisão por agente de repo-acp/ });
+  await expect(twist).toBeVisible({ timeout: 20_000 });
+  await twist.click();
+
+  await expect(panel.getByText(CLAUDE, { exact: true })).toBeVisible();
+  await expect(panel.getByText(CODEX, { exact: true })).toBeVisible();
+});
+

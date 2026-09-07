@@ -333,6 +333,9 @@ aqui é **verificar** que a aba diz qual agente está falando quando há dois, e
 agentes e não poder comparar o que cada um custou seria não ter dois agentes
 ([C5](open-questions.md)).
 
+Na tela, a divisão é a lista de consumo **abrindo**: uma sub-linha por agente, com a barra medindo a
+fração dentro do escopo. Com um agente ela não existe — e a segunda consulta também não acontece.
+
 **Correção de uma premissa deste PRD:** a v0.1 dizia que "a linha da sessão já tem
 `agent_config_id`". A linha da **sessão** tem; a de `session_usage` **não** — e o consumo se resolve
 na escrita, nunca por join depois, que é a regra da tabela. Então o agrupamento custa uma coluna e
@@ -385,9 +388,9 @@ prompt** (§4.4), que o daemon hoje não lê. O agrupamento soma o que já é so
 ## 8. O desenho, feito no Open Design
 
 **Folha:** `lumem-second-agent.html` + `.css` no projeto `lumem-os` do Open Design, desenhada e
-**verificada renderizando** em 2026-09-06. Quatro telas: `Rodapé`, `Login`, `No app` e `Protocolo`.
-No repositório ela é cópia, em `packages/web/prototype/` — o `design:sync` traz, e o `--check` diz se
-divergiu.
+**verificada renderizando** em 2026-09-06/07. Cinco telas: `Rodapé`, `Login`, `No app`, `Consumo` e
+`Protocolo`. No repositório ela é cópia, em `packages/web/prototype/` — o `design:sync` traz, e o
+`--check` diz se divergiu.
 
 O que ela decidiu, com o número medido no navegador:
 
@@ -399,11 +402,13 @@ O que ela decidiu, com o número medido no navegador:
 | O painel de login ganha o par **URL + código** (`.dcode`), em mono grande | 13px com tracking de caps, contra 11px do resto |
 | O preparo do Codex tem **duas** linhas, não três — não há CLI para procurar | §4.8 |
 | A linha que abriu o painel fica marcada (`is-open`) | com uma linha o painel não tinha de quem ser |
+| A divisão do consumo por agente é uma **sub-linha**, não uma coluna. Duas alternativas recusadas por escrito: coluna por agente (quebra no terceiro) e barra segmentada (pediria uma escala **categórica** de cor que o `tokens.css` não tem) | a lista ganha `subgrid`, e isso **conserta** uma afirmação que já era falsa: as colunas de número não batiam entre linhas — 37px de diferença quando o texto de custo mudava de largura |
 | ~~`AgentStep` com escolha de agente~~ | **fora**, por [C3](open-questions.md) |
 
-**Zero componente novo e zero token novo.** O painel, a opção, o preparo, a conta e o comando
-copiável já existiam; o que nasceu foram três classes de tela (`.foot-head`, `.dcode`,
-`.foot-row--warn`) e uma correção (`.pip`).
+**Zero componente novo e zero token novo.** O painel, a opção, o preparo, a conta, o comando copiável
+e a lista de consumo já existiam; o que nasceu foram quatro classes de tela (`.foot-head`, `.dcode`,
+`.foot-row--warn`, `.spend__row--agent`) e duas correções (`.pip` cinza, e as colunas do consumo que
+não se alinhavam).
 
 Duas perguntas de desenho nasceram aqui e estão respondidas: a
 [C7](open-questions.md) — qual método de login é o preenchido — e a
