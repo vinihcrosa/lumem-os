@@ -46,7 +46,7 @@ let resolvePermission = null;
 let resolveTerminal = null;
 /** Answers to `session/set_mode` and `session/set_config_option`. */
 let currentMode = "auto";
-let currentModel = "opus[1m]";
+let currentModel = process.env["LUMEM_FAKE_MANY_MODELS"] === "1" ? "modelo-01" : "opus[1m]";
 
 function write(message) {
   process.stdout.write(`${JSON.stringify(message)}\n`);
@@ -66,6 +66,27 @@ function update(update_) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * A lista longa de modelos (`composer-menus`).
+ *
+ * Ligada por variável de ambiente, como o `LUMEM_FAKE_NO_MODES` já era: um
+ * adaptador que oferece vinte modelos não é outro estado deste, é outro
+ * adaptador. Dois modelos cabem em qualquer menu — e é por caberem que o
+ * recorte da caixa do composer atravessou três features sem aparecer.
+ */
+const MANY_MODELS = process.env["LUMEM_FAKE_MANY_MODELS"] === "1";
+
+/** Vinte modelos, com o último nomeado para o e2e poder pedi-lo pelo nome. */
+const LONG_MODEL_LIST = Array.from({ length: 20 }, (_, index) =>
+  index === 19
+    ? { value: "modelo-do-fundo", name: "modelo-do-fundo", description: "o último da lista" }
+    : {
+        value: `modelo-${String(index + 1).padStart(2, "0")}`,
+        name: `modelo-${String(index + 1).padStart(2, "0")}`,
+        description: `descrição do modelo ${index + 1}`,
+      },
+);
+
 /** The selectors, in the shape the real adapter sends them. */
 function configOptions() {
   return [
@@ -75,10 +96,12 @@ function configOptions() {
       category: "model",
       type: "select",
       currentValue: currentModel,
-      options: [
-        { value: "opus[1m]", name: "opus[1m]", description: "Opus 5 · 1M" },
-        { value: "sonnet", name: "sonnet", description: "Sonnet 5" },
-      ],
+      options: MANY_MODELS
+        ? LONG_MODEL_LIST
+        : [
+            { value: "opus[1m]", name: "opus[1m]", description: "Opus 5 · 1M" },
+            { value: "sonnet", name: "sonnet", description: "Sonnet 5" },
+          ],
     },
   ];
 }
