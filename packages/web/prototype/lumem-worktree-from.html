@@ -31,7 +31,8 @@
     <p class="doc__lede">
       Oito quadros. O primeiro é o antes e o depois lado a lado; o segundo é o diálogo
       inteiro na janela. Do terceiro ao sexto, os quatro corpos, o esqueleto que prova que
-      nada espera, e as duas recusas que <b>não são erro</b>. Os dois últimos são a
+      nada espera, e as recusas que <b>não são erro</b> — três, e cada uma com a sua frase:
+      fora do disco, de um fork, e a leitura que não aconteceu. Os dois últimos são a
       degradação sem host e a primeira worktree do produto cujo nome não é a branch.
     </p>
     <p class="doc__lede">
@@ -398,6 +399,42 @@
         </div>
 
         <div class="strip__i">
+          <div class="strip__l"><b>a leitura não aconteceu</b> — e isto não é "nada aqui"</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__body">
+                <div class="origin">
+                  <div class="seg" role="group">
+                    <button class="seg__btn" aria-pressed="false">default</button>
+                    <button class="seg__btn" aria-pressed="false">branch</button>
+                    <button class="seg__btn" aria-pressed="true">issue</button>
+                    <button class="seg__btn" aria-pressed="false">PR</button>
+                  </div>
+                  <div class="origin__list">
+                    <div class="origin__empty"><p>não deu para ler as origens deste projeto</p></div>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input"><span class="input__val">teste-prd</span></div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">criar</button>
+                <button class="btn btn--ghost">cancelar</button>
+              </div>
+            </div>
+          </div>
+          <p class="case__note">
+            <b>Duas falhas diferentes, e a distinção é o quadro.</b> A do host vem
+            <i>dentro</i> da resposta; esta é a leitura não ter acontecido — daemon reiniciando,
+            projeto removido com o diálogo aberto. Desenhar as duas como "nenhuma issue aberta"
+            afirmaria um fato sobre o repositório a partir de uma pergunta que não foi feita, e é o
+            tipo de resposta errada que ninguém desconfia porque ela é plausível.
+          </p>
+        </div>
+
+        <div class="strip__i">
           <div class="strip__l"><b>lista vazia</b> — resposta legítima, não falha</div>
           <div class="zoom zoom--dialog">
             <div class="modal__card">
@@ -465,6 +502,22 @@
             </div>
           </div>
           <p class="case__note">Nunca num <i>tooltip</i>: linha cinza sem motivo à vista é a mesma armadilha do <code>+</code> desabilitado que a <code>sidebar-actions</code> recusou.</p>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>de um fork</b> — outro motivo, outra palavra</div>
+          <div class="zoom zoom--dialog">
+            <div class="origin__list origin__list--fit">
+              <button class="orow" disabled><span class="orow__n">#42</span><span class="orow__t">patch-1: conserta o cabeçalho</span><span class="orow__note">vem de um fork</span></button>
+            </div>
+          </div>
+          <p class="case__note">
+            <b>Não é o mesmo estado que o de cima, e por isso não usa a mesma frase.</b>
+            <code>não está no disco</code> convida a rodar um fetch — e num fork o fetch de
+            <code>origin</code> não traz nada. O <code>headRefName</code> de uma PR cruzada é o nome
+            da branch <b>no fork</b>, e a homônima local, quando existe, é outra coisa: dizer "fora do
+            disco" mandaria a pessoa buscar o que já está lá e não serve.
+          </p>
         </div>
 
         <div class="strip__i">

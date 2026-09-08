@@ -270,10 +270,15 @@ O que **ficou** de fora, e portanto continua aqui:
 ### `⟳` na lista de origens do diálogo de criar worktree — `P`
 
 O `IssueCache` guarda por projeto com TTL de **60 s**, e a lista de origens não tem como pedir uma
-leitura nova — o `force` existe no cache desde a
-[T8](../features/026-worktree-from/tasks.md) e ninguém o chama. Consequência: quem abre uma issue no
-navegador e volta ao Lumem espera até um minuto para vê-la. A barra de PR resolveu o mesmo problema
-com um `⟳`, e é de lá que o desenho sairia.
+leitura nova. Consequência: quem abre uma issue no navegador e volta ao Lumem espera até um minuto
+para vê-la. A barra de PR resolveu o mesmo problema com um `⟳`, e é de lá que o desenho sairia.
+
+**Quem implementar não vai achar um `force` esperando, e isso é de propósito.** Ele existiu por um
+commit, servido pela leitura que já estava no ar — o defeito que o `PrCache` documenta em `start`:
+*"quem pediu depois de um `invalidate` não pode ser servido pela execução que já estava no ar, porque
+ela começou olhando para o mundo de antes"*. O sintoma é um `⟳` que não relê, com dado velho
+carimbado como novo. O pedido explícito volta **com os contadores `want`/`served` do irmão**, que já
+pagaram por si mesmos, e com um teste que exercite o `⟳` de verdade.
 
 **De onde veio:** o e2e da [026-worktree-from](../features/026-worktree-from/tasks.md) — o primeiro
 diálogo que abre congela a resposta do host para o resto do arquivo, e o spec teve que escrever o

@@ -278,9 +278,17 @@ export function CreateWorktreeDialog({
                           ? branch.worktreeName === null
                             ? "no checkout principal"
                             : `em ${branch.worktreeName}`
-                          : branch.local
-                            ? "local"
-                            : branch.remotes.join(" · ")}
+                          : /*
+                             * `local · origin`, e não um ou outro.
+                             *
+                             * A folha escreve as duas metades na mesma linha, e
+                             * o ternário que havia aqui descartava a segunda —
+                             * a branch que é local **e** publicada aparecia só
+                             * como `local`. Não é cosmético: `local` decide o
+                             * glifo do eco (`⑂` × `◈`) e o caminho do daemon
+                             * (`existing-branch` × `remote-branch`).
+                             */
+                            whereOf(branch)}
                       </span>
                       {held && branch.worktreeId !== null && <span className="orow__go">→</span>}
                     </button>
@@ -445,6 +453,13 @@ function OriginList({
       )}
     </div>
   );
+}
+
+/** Onde a branch existe: local, publicada, ou as duas — na ordem da folha. */
+function whereOf(branch: { local: boolean; remotes: string[] }): string {
+  return [branch.local ? "local" : null, ...branch.remotes]
+    .filter((part): part is string => part !== null)
+    .join(" · ");
 }
 
 /** O que a origem escolhida diz sobre o nome, abaixo do campo. */

@@ -408,6 +408,23 @@ um lugar que responde.**
 
 Quatorze testes novos, e cada conserto foi mutado para provar que o teste dele fica vermelho.
 
+### A segunda rodada — quatro achados sobre os consertos da primeira
+
+Nenhum era código novo quebrado: **três eram o conserto certo sem a prova certa**, e o quarto era uma
+promessa sem chamador.
+
+| Onde | O achado | O que mudou |
+|---|---|---|
+| `CreateWorktreeDialog` | **o conserto do `active` estava certo e não estava testado.** Duas mutações — `fromOf(kind, pick)` e `chosen = pick` — sobreviviam à suíte web **inteira**. Extrair a regra para poder testá-la tirou o teste de cima do caminho que tinha o bug: o furo nunca esteve no `fromOf`, esteve na **ligação** | um teste que **renderiza o estado**: escolhe a PR, faz o `hostOrigins` reler com `no-auth`, e confere as duas coisas — `create.mutate` sem `from` e o eco sumido. O `renderWithProviders` passou a devolver o `queryClient`, porque sem uma alça para invalidar só sobrava remontar, e remontar apaga a escolha que o defeito precisa |
+| `CreateWorktreeDialog` | **a folha diz `local · origin`, o código dizia `local`** — o ternário descartava a segunda metade para a branch que é local **e** publicada. E não é cosmético depois desta feature: `local` decide o glifo do eco e o caminho no daemon | nasceu `whereOf`, que junta as partes na ordem da folha |
+| Open Design | **dois estados de tela nasceram no JSX** — `"vem de um fork"` e o texto de falha da consulta —, e o `design:sync --check` ficou limpo porque ele compara CSS e HTML copiados, **não string em JSX** | os dois foram desenhados na folha primeiro (§4 e §5, agora com três recusas cada um com a sua frase), sincronizados e conferidos no navegador com `elementFromPoint`. A ordem que o CLAUDE.md fixa é a folha antes do código, e ela foi violada |
+| `IssueCache` | **o `force` era servido pela leitura que já estava no ar** — literalmente o defeito que o `PrCache` documenta em `start`: *"ela começou olhando para o mundo de antes"*. Inalcançável hoje (nenhum chamador), e o `⟳` que ele prometia está no backlog | **o `force` saiu do contrato.** Campo sem chamador é promessa sem prova; ele volta com o `⟳` e com os contadores `want`/`served` do irmão, e o [backlog](../../project/backlog.md) avisa o próximo |
+
+**O que a rodada ensina:** a primeira leu *"a mutação sobreviveu"* como **falta teste da função** e
+extraiu a regra. Era **falta teste do caminho** — e a extração, sozinha, escondeu isso atrás de três
+testes verdes de função pura. O `design:sync --check` tem a mesma forma de cegueira: ele responde
+sobre os arquivos que copia, e uma string de tela em JSX não é um deles.
+
 ## O que ficou de fora, e onde está
 
 | Item | Onde |

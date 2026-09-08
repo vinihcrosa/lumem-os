@@ -85,15 +85,13 @@ describe("IssueCache", () => {
     expect(second.issues?.[0]?.number).toBe(2);
   });
 
-  it("vai ao host quando alguém pede de propósito, mesmo fresco", async () => {
-    const { host, calls } = countingHost();
-    const cache = createIssueCache({ host, now: clock().now });
-
-    await cache.get(PROJECT);
-    await cache.get(PROJECT, { force: true });
-
-    expect(calls()).toBe(2);
-  });
+  /*
+   * Não há teste de `force`, porque não há `force`.
+   *
+   * Ele existiu por um commit e era servido pela leitura que já estava no ar —
+   * o defeito que o `PrCache` documenta em `start`. O pedido explícito volta com
+   * o `⟳` do diálogo (backlog), e com a semântica do irmão.
+   */
 
   it("mantém a última lista conhecida quando a leitura falha", async () => {
     // O mesmo princípio do PrCache: trocar uma informação verdadeira e velha

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,7 +20,7 @@ vi.mock("../lib/trpc.js", async () => ({
 function open(props: Partial<Parameters<typeof CreateWorktreeDialog>[0]> = {}) {
   const onCreated = vi.fn();
   const onOpenExisting = vi.fn();
-  renderWithProviders(
+  const { queryClient } = renderWithProviders(
     <CreateWorktreeDialog
       projectId="p1"
       projectName="lumem-os"
@@ -32,7 +32,7 @@ function open(props: Partial<Parameters<typeof CreateWorktreeDialog>[0]> = {}) {
       {...props}
     />,
   );
-  return { onCreated, onOpenExisting };
+  return { onCreated, onOpenExisting, queryClient };
 }
 
 function branch(overrides: Record<string, unknown> = {}) {
@@ -420,5 +420,105 @@ describe("o pedido é derivado da aba aberta", () => {
 
   it("`default` nunca viaja: ausente já quer dizer isso", () => {
     expect(fromOf("default", null)).toBeUndefined();
+  });
+});
+
+describe("quando a aba escolhida desaparece debaixo da escolha", () => {
+  /**
+   * O caminho que faltava, e é ele que tem o defeito.
+   *
+   * Testar o `fromOf` sozinho não pegava nada: o furo nunca esteve nele, esteve
+   * na **ligação** — qual argumento o componente passa, e qual objeto o eco lê.
+   * Aqui o host responde a PR na primeira leitura e `no-auth` na segunda, que é
+   * token expirado ou `gh auth logout` no meio do gesto.
+   */
+  async function pickPrThenLoseTheHost(user: ReturnType<typeof userEvent.setup>) {
+    trpc.worktree.hostOrigins.query.mockResolvedValueOnce(
+      hostOrigins({
+        pulls: {
+          items: [
+            {
+              number: 19,
+              title: "a pílula de modo",
+              url: "u",
+              headRefName: "session-mode",
+              isDraft: false,
+              updatedAt: "2026-09-07T00:00:00Z",
+              crossRepository: false,
+              onDisk: true,
+            },
+          ],
+          failure: null,
+          readAt: null,
+        },
+      }),
+    );
+    trpc.worktree.hostOrigins.query.mockResolvedValue(
+      hostOrigins({
+        issues: {
+          items: [],
+          failure: { kind: "no-auth", message: "o gh não está autenticado" },
+          readAt: null,
+        },
+      }),
+    );
+    trpc.worktree.create.mutate.mockResolvedValue({ id: "wt1" });
+
+    const handles = open();
+    await user.click(screen.getByRole("button", { name: "PR" }));
+    await user.click(await screen.findByRole("option", { name: /#19/ }));
+    expect(screen.getByLabelText("Nome da worktree")).toHaveValue("session-mode");
+
+    // A releitura. É o que acontece sozinho a cada remount da query.
+    await act(async () => {
+      await handles.queryClient.invalidateQueries();
+    });
+    await waitFor(() => expect(screen.queryByRole("button", { name: "PR" })).toBeNull());
+    return handles;
+  }
+
+  it("o `criar` não manda a origem que a tela deixou de mostrar", async () => {
+    const user = userEvent.setup();
+    await pickPrThenLoseTheHost(user);
+
+    await user.click(screen.getByRole("button", { name: "criar" }));
+
+    // O nome fica — ele é da pessoa. A origem não, porque a tela agora desenha
+    // `default` pressionado, e cortar da head da PR seria fazer outra coisa.
+    await waitFor(() =>
+      expect(trpc.worktree.create.mutate).toHaveBeenCalledWith({
+        projectId: "p1",
+        name: "session-mode",
+        from: undefined,
+      }),
+    );
+  });
+
+  it("o eco para de descrever uma origem que não está mais na tela", async () => {
+    const user = userEvent.setup();
+    await pickPrThenLoseTheHost(user);
+
+    expect(screen.queryByText(/da head da PR/)).toBeNull();
+    expect(screen.getByText(/A branch tem o mesmo nome/)).toBeInTheDocument();
+  });
+});
+
+describe("onde a branch existe", () => {
+  it("diz `local · origin` quando ela é as duas coisas", async () => {
+    // A folha escreve as duas metades na mesma linha; o ternário descartava a
+    // segunda. E `local` não é enfeite: ele decide o caminho no daemon.
+    const user = userEvent.setup();
+    trpc.worktree.branches.query.mockResolvedValue([
+      branch({ name: "main", local: true, remotes: ["origin"] }),
+      branch({ name: "so-remota", local: false, remotes: ["origin", "fork"] }),
+    ]);
+    open();
+
+    await user.click(screen.getByRole("button", { name: "branch" }));
+
+    const main = await screen.findByRole("option", { name: /main/ });
+    expect(within(main).getByText("local · origin")).toBeInTheDocument();
+    const remota = screen.getByRole("option", { name: /so-remota/ });
+    expect(within(remota).getByText("origin · fork")).toBeInTheDocument();
   });
 });

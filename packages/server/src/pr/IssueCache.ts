@@ -59,13 +59,24 @@ export interface IssueCacheOptions {
   now?: () => number;
 }
 
-export interface GetOptions {
-  /** Vai ao host mesmo com valor fresco. É o `⟳` do diálogo. */
-  force?: boolean;
-}
+/**
+ * **Não existe `force` aqui, e a ausência é a decisão.**
+ *
+ * Ele existiu por um commit, servido pela leitura que já estava no ar — e é
+ * exatamente o defeito que o `PrCache` pagou uma investigação para consertar:
+ * *"quem pediu depois de um `invalidate` não pode ser servido pela execução que
+ * já estava no ar, porque ela começou olhando para o mundo de antes"*. O sintoma
+ * é um `⟳` que não relê, com o dado velho carimbado como novo.
+ *
+ * O `⟳` do diálogo está no [backlog](../../../../docs/project/backlog.md) e não
+ * existe ainda. Quem o implementar traz de volta o pedido explícito **com a
+ * semântica do irmão** — os contadores `want`/`served` do `PrCache`, que já
+ * pagaram por si mesmos —, e não com um parâmetro que promete uma coisa e faz
+ * outra. Campo sem chamador é promessa sem prova.
+ */
 
 export interface IssueCache {
-  get(project: IssueProject, options?: GetOptions): Promise<IssueEntry>;
+  get(project: IssueProject): Promise<IssueEntry>;
   /** O projeto saiu. Cache que sobrevive ao dono é vazamento. */
   forget(projectId: string): void;
   /** Quantas execuções houve. Existe para o teste contar. */
@@ -119,7 +130,7 @@ export function createIssueCache({ host, now = () => Date.now() }: IssueCacheOpt
       return reads;
     },
 
-    get(project, { force = false } = {}) {
+    get(project) {
       // Sem remoto não há host. Respondido aqui, sem processo: o diálogo já não
       // oferece a aba, e perguntar seria um `gh` por abertura para receber
       // sempre a mesma recusa.
@@ -129,10 +140,10 @@ export function createIssueCache({ host, now = () => Date.now() }: IssueCacheOpt
 
       const slot = slotOf(project.id);
 
-      // Single-flight, inclusive para `force`: dois pedidos concorrentes são um
-      // diálogo aberto duas vezes, não duas perguntas diferentes.
+      // Single-flight: dois pedidos concorrentes são um diálogo aberto duas
+      // vezes, não duas perguntas diferentes.
       if (slot.inFlight !== null) return slot.inFlight;
-      if (!force && slot.readAt !== null && now() < slot.freshUntil) {
+      if (slot.readAt !== null && now() < slot.freshUntil) {
         return Promise.resolve(viewOf(slot));
       }
 
