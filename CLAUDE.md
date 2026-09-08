@@ -6,7 +6,7 @@ Projeto pessoal. Inspirado em compozy, superset e conductor — **não copia nad
 
 ## Estado atual
 
-Onze features de pé — [walking-skeleton](docs/prd/walking-skeleton/tasks.md), [ui-shell](docs/prd/ui-shell/tasks.md), [worktree-tabs](docs/prd/worktree-tabs/tasks.md), [right-panel](docs/prd/right-panel/tasks.md), [file-editor](docs/prd/file-editor/tasks.md) e [project-from-url](docs/prd/project-from-url/tasks.md) — a quinta faz o daemon **escrever** no repositório, com autosave e CRUD pela árvore, e a sexta o faz **clonar** de uma URL git qualquer, reorganizando o diretório de estado numa árvore só (`~/.lumem/workspaces/<workspace>/<projeto>/{repo,worktrees}`) e tornando a remoção de um projeto gerenciado uma remoção **do disco**. **Decidido em 2026-08-17:** a sessão de agente migra de PTY para [ACP](docs/project/pty-vs-acp.md) — a feature [acp-sessions](docs/prd/acp-sessions/prd.md) (transporte + tela da conversa) está **completa**: plano, uso e custo, seletores, comandos de barra, terminal embutido, `fs/*`, e a conversa **em disco** — fechar o Lumem e voltar não perde conversa, e retomar continua de onde parou. [35 tasks](docs/prd/acp-sessions/tasks.md) fechadas nas fases 1, 3, 4, 5 e 6. O PTY fica para shell e como caminho alternativo. O [onboarding](docs/prd/onboarding/prd.md) são as **nove telas do primeiro acesso**, **21 tasks fechadas**: um e2e sai de `~/.lumem` vazio e chega a um turno respondido sem tocar a API. O [agent-login](docs/prd/agent-login/prd.md) troca os cinco campos do rodapé por **login**, com os botões vindos do `authMethods` do handshake e o adaptador instalado pelo daemon numa versão fixa. E a [workspace-memory](docs/prd/workspace-memory/tasks.md) — a primeira que não é de tela — está **completa**: nove PRs mais o S1, o S2 e as duas telas que faltavam. O `~/.lumem` versionado pelo daemon, os sinais de ação, o portão de escrita, as superfícies, o recall explicável e a inbox de propostas vieram nas 01–05. As 06–09 são o que faz a memória **mudar comportamento**: o núcleo comportamental injetado no primeiro turno com marca d'água e sem teto, a `GET /memory/ask` que o agente consulta por `curl`, a destilação de fim de sessão que virou proposta na inbox, o **auto-learn** — pergunta sem resposta sobe agente, e evidência verificável decide entre memória e proposta — e os **playbooks**, com ciclo de vida derivado do uso e nada arquivado sozinho. Os três interruptores que gastam token vêm **desligados** e aparecem na tela. E a
+Onze features de pé — [walking-skeleton](docs/prd/walking-skeleton/tasks.md), [ui-shell](docs/prd/ui-shell/tasks.md), [worktree-tabs](docs/prd/worktree-tabs/tasks.md), [right-panel](docs/prd/right-panel/tasks.md), [file-editor](docs/prd/file-editor/tasks.md) e [project-from-url](docs/prd/project-from-url/tasks.md) — a quinta faz o daemon **escrever** no repositório, com autosave e CRUD pela árvore, e a sexta o faz **clonar** de uma URL git qualquer, reorganizando o diretório de estado numa árvore só (`~/.lumem/workspaces/<workspace>/<projeto>/{repo,worktrees}`) e tornando a remoção de um projeto gerenciado uma remoção **do disco**. **Decidido em 2026-08-17** ([ADR](docs/adr/2026-08-17-1812-agent-session-is-acp-not-pty.md), com o [estudo](docs/project/pty-vs-acp.md) que o sustenta)**:** a sessão de agente migra de PTY para ACP — a feature [acp-sessions](docs/prd/acp-sessions/prd.md) (transporte + tela da conversa) está **completa**: plano, uso e custo, seletores, comandos de barra, terminal embutido, `fs/*`, e a conversa **em disco** — fechar o Lumem e voltar não perde conversa, e retomar continua de onde parou. [35 tasks](docs/prd/acp-sessions/tasks.md) fechadas nas fases 1, 3, 4, 5 e 6. O PTY fica para shell e como caminho alternativo. O [onboarding](docs/prd/onboarding/prd.md) são as **nove telas do primeiro acesso**, **21 tasks fechadas**: um e2e sai de `~/.lumem` vazio e chega a um turno respondido sem tocar a API. O [agent-login](docs/prd/agent-login/prd.md) troca os cinco campos do rodapé por **login**, com os botões vindos do `authMethods` do handshake e o adaptador instalado pelo daemon numa versão fixa. E a [workspace-memory](docs/prd/workspace-memory/tasks.md) — a primeira que não é de tela — está **completa**: nove PRs mais o S1, o S2 e as duas telas que faltavam. O `~/.lumem` versionado pelo daemon, os sinais de ação, o portão de escrita, as superfícies, o recall explicável e a inbox de propostas vieram nas 01–05. As 06–09 são o que faz a memória **mudar comportamento**: o núcleo comportamental injetado no primeiro turno com marca d'água e sem teto, a `GET /memory/ask` que o agente consulta por `curl`, a destilação de fim de sessão que virou proposta na inbox, o **auto-learn** — pergunta sem resposta sobe agente, e evidência verificável decide entre memória e proposta — e os **playbooks**, com ciclo de vida derivado do uso e nada arquivado sozinho. Os três interruptores que gastam token vêm **desligados** e aparecem na tela. E a
 [workspace-screen](docs/prd/workspace-screen/prd.md) fecha o círculo: o workspace ganhou **tela** — no
 lugar de "selecione uma worktree" —, a memória dele deixou de depender de um projeto aberto, e o
 consumo de tokens virou dado somável (`session_usage`), por projeto e por worktree, com janela de
@@ -130,8 +130,9 @@ Comece pelo [índice da documentação](docs/README.md).
 | [docs/project/backlog.md](docs/project/backlog.md) | tudo que ficou para depois. **Ideia adiada entra aqui na mesma hora**, com contexto curto e gatilho de volta |
 | [docs/project/workspaces.md](docs/project/workspaces.md) | scripts de setup/run/teardown, e os dois ambientes: `~/.lumem` de produção e `~/.lumem-dev/shared` de desenvolvimento |
 | [docs/references/](docs/references/) | estudo das quatro referências + comparativo |
-| [docs/project/pty-vs-acp.md](docs/project/pty-vs-acp.md) | a decisão de transporte: por que ACP, o que ela custa, e o que faria o PTY voltar |
-| [docs/prd/](docs/prd/) | PRD, decisões e tasks por feature |
+| [docs/adr/](docs/adr/) | **as decisões em vigor.** Liste a pasta e leia o frontmatter antes de propor arquitetura |
+| [docs/project/pty-vs-acp.md](docs/project/pty-vs-acp.md) | o estudo que sustentou a decisão de transporte: por que ACP, o que ela custa, e a recomendação contrária que perdeu |
+| [docs/features/](docs/features/) | PRD, perguntas e tasks por feature, em `NNN-nome/` |
 
 Construção é incremental: uma parte por vez, bem feita, antes de ir pra próxima.
 
@@ -152,7 +153,9 @@ Antes de dizer que uma task está pronta, rode o gate que ela declara. Detalhes 
 
 ## Regra de design
 
-> **O design é feito no Open Design, não aqui.** Decisão de 2026-08-19, com o custo nomeado em
+> **O design é feito no Open Design, não aqui.** A decisão está em
+> [`docs/adr/2026-08-19-2247-design-is-made-in-open-design.md`](docs/adr/2026-08-19-2247-design-is-made-in-open-design.md),
+> e o estudo que a sustenta — com o custo nomeado — em
 > [design-source-of-truth.md](docs/project/design-source-of-truth.md).
 
 O projeto `lumem-os` do Open Design é a fonte. Deste lado, três arquivos são **cópia ou derivado** e
@@ -186,13 +189,48 @@ Quando a categoria agrupa itens, cada item ganha sua pasta. Quando não agrupa, 
 
 | Categoria | Conteúdo | Formato |
 |---|---|---|
-| `docs/project/` | visão, perguntas de design — coisas do projeto todo | arquivo direto |
+| `docs/adr/` | **decisão** — o que foi escolhido, quando, e o que perdeu | `YYYY-MM-DD-HHMM-slug.md`, arquivo direto |
+| `docs/project/` | **estudo** — medição e discussão que sustentam uma decisão; mais visão, perguntas e convenções do projeto | arquivo direto |
 | `docs/references/` | estudo de produtos que inspiram o projeto | um arquivo por referência |
-| `docs/prd/` | uma pasta por feature, com `prd.md`, `open-questions.md`, `tasks.md` | pasta por feature |
+| `docs/features/` | **execução** — uma pasta por feature, com `prd.md`, `open-questions.md`, `tasks.md` | `NNN-nome/`, três dígitos |
 
 Categorias novas seguem o mesmo padrão. Sempre atualize o [índice](docs/README.md) ao criar arquivo novo.
 
 Nada de documentação solta na raiz, nem espalhada perto do código. As únicas exceções na raiz são `README.md` e este `CLAUDE.md`.
+
+### O que cada camada pode afirmar
+
+> **`docs/adr/` decide · `docs/project/` sustenta · `docs/features/` executa · o código está em vigor.**
+
+**ADR não descreve o sistema, descreve escolhas.** A posição atual sobre uma *decisão* é a cadeia de
+ADR lida até o fim; a posição atual sobre *comportamento* é o código. É por isso que o §Estado atual
+deste arquivo existe: **ele é a projeção**, e nada mais é.
+
+As sete regras — o desenho está na [`docs/features/025-docs-contract/`](docs/features/025-docs-contract/prd.md):
+
+1. **O número da feature é ordem de leitura, não prioridade.** Três dígitos, ordem de merge do git,
+   atribuído na criação e **nunca renumerado** depois de ter referência de fora. Lacuna é permitida;
+   colisão entre worktrees se resolve renumerando a que mergeou depois.
+2. **Precedência mora em `docs/adr/`.** PRD não é fonte de verdade.
+3. **ADR existe se passa nos três testes, todos:** difícil de reverter · surpreendente sem contexto ·
+   produto de um trade-off real. Falha um e é uma nota na PRD. *Se você não sabe nomear uma
+   alternativa real, provavelmente não é ADR.*
+4. **ADR não se reverte em parte.** Se só parte mudou, o ADR novo **reafirma o que fica**. Nota de
+   PRD nunca derruba ADR sozinha — se ela precisa disso, o que falta é um ADR.
+5. **Estado se deriva, não se escreve.** ADR superado ⇔ outro o nomeia em `supersedes`; **não existe
+   campo `status:`** e nenhum ADR é editado depois de escrito. PRD proposta ⇔ não tem `tasks.md`, e
+   `tasks.md` **não nasce vazio**.
+6. **A nota no requisito contradito fica** — no requisito, com âncora para quem contradiz, e
+   **delimitando o que sobrou de pé**. *Decisão revertida sem registro é decisão que volta sozinha.*
+7. **Sem índice gerado.** A pasta é o índice e o frontmatter é o resumo. Antes de propor ou mudar
+   arquitetura, liste `docs/adr/` e leia o frontmatter do que parecer relevante — **uma decisão lá
+   vale mais que o seu instinto**, e contradizê-la em silêncio é o defeito, não a discordância.
+
+O `**Status:**` de uma PRD tem gramática fechada, e o `gate:full` compara com o disco:
+
+```
+**Status:** proposta | em execução | completa | superada por <link do ADR>
+```
 
 ## Convenções
 
@@ -200,4 +238,4 @@ Nada de documentação solta na raiz, nem espalhada perto do código. As únicas
 - Nome de arquivo em kebab-case.
 - Pergunta de design não vira suposição silenciosa: vai pro arquivo de perguntas da feature, ou pro [questions.md](docs/project/questions.md) se for do projeto todo.
 - Ideia que ficou pra depois não vira memória de conversa: vai pro [backlog](docs/project/backlog.md), com uma frase de contexto, de onde veio, e o gatilho que traz de volta.
-- Discussão grande demais pra caber numa pergunta vira arquivo próprio em `docs/project/`, e a pergunta linka pra ele — como a [PTY × ACP](docs/project/pty-vs-acp.md) fez.
+- Discussão grande demais pra caber numa pergunta vira arquivo próprio em `docs/project/`, e a pergunta linka pra ele — como a [PTY × ACP](docs/project/pty-vs-acp.md) fez. Quando ela **decide** algo difícil de reverter, o arquivo é o estudo e a decisão vira um [ADR](docs/adr/).
