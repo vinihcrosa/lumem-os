@@ -127,7 +127,7 @@ certa para o que ele sabe.
 
 ### [ ] T10 — Remover projeto leva as tarefas junto?
 
-A [WS-Q22](../walking-skeleton/open-questions.md) decidiu, em 2026-09-01, que remover projeto **por
+A [WS-Q22](../001-walking-skeleton/open-questions.md) decidiu, em 2026-09-01, que remover projeto **por
 caminho** cascateia o registro das worktrees numa transação, sem tocar no disco, e com uma confirmação
 que nomeia o número. Tarefa é registro puro — não tem diretório para preservar.
 

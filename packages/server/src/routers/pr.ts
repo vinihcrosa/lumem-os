@@ -263,7 +263,7 @@ export const prRouter = router({
   /**
    * O que o formulário propõe, e por que ele não é um campo do `PrStatus`.
    *
-   * A [Q4](../../../../docs/prd/pull-request-status/open-questions.md) e a F7.6
+   * A [Q4](../../../../docs/features/013-pull-request-status/open-questions.md) e a F7.6
    * pedem título vindo do assunto do último commit. Isso custa um `git log`, e
    * só interessa quando o formulário abre — dentro do `PrStatus` seria um
    * processo git a cada ciclo de poll, por worktree aberta.

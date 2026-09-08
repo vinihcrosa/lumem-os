@@ -192,7 +192,7 @@ só para hospedá-lo.
 - [x] `ensureProject` clica no `+` do cabeçalho
 - [x] Nasce `createWorktree(page, projeto)` no helper, e as specs que clicavam em `nova worktree`
       passam por ele — o próximo movimento desta ação mexe em **um** arquivo
-- [x] O e2e de primeiro acesso ([onboarding](../onboarding/prd.md)) continua chegando ao mesmo lugar
+- [x] O e2e de primeiro acesso ([onboarding](../008-onboarding/prd.md)) continua chegando ao mesmo lugar
 - [x] `pnpm gate:full` verde
 
 ---

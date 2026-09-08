@@ -5,7 +5,7 @@
 > liberado, se tem que perguntar tudo"*
 > **Perguntas:** [open-questions.md](open-questions.md) — 6 de 6 fechadas
 > **Tasks:** [tasks.md](tasks.md) — 12 entregues, em seis commits
-> **Sucede:** [acp-sessions](../acp-sessions/prd.md), que trouxe os seletores (F2.6) e o pedido de
+> **Sucede:** [acp-sessions](../006-acp-sessions/prd.md), que trouxe os seletores (F2.6) e o pedido de
 > permissão
 > **Desenho:** feito no Open Design — `packages/web/prototype/lumem-session-mode.html`. Sete seções:
 > a barra muda ao lado do que entra no lugar dela, o eixo de autoria, os três valores, o rastro do

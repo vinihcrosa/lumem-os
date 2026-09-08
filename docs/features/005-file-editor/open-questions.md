@@ -14,7 +14,7 @@ Registro de por que cada decisão foi tomada. Pergunta respondida não vira supo
 
 As três saídas eram `<textarea>` com o realce do Shiki por baixo, CodeMirror 6, e Monaco.
 
-O `<textarea>` custa zero de bundle e é onde a tentação mora — mas o preço aparece todo na hora de fazer funcionar: sincronizar a rolagem e a métrica da fonte entre duas camadas, e conviver sem multi-cursor, sem indentação automática, sem seleção de coluna. Pior: a quebra de linha, que a [D3.1 da right-panel](../right-panel/tasks.md) deixou **ligada por padrão**, faz a numeração de linha desalinhar entre as camadas, porque cada uma quebra por conta própria.
+O `<textarea>` custa zero de bundle e é onde a tentação mora — mas o preço aparece todo na hora de fazer funcionar: sincronizar a rolagem e a métrica da fonte entre duas camadas, e conviver sem multi-cursor, sem indentação automática, sem seleção de coluna. Pior: a quebra de linha, que a [D3.1 da right-panel](../004-right-panel/tasks.md) deixou **ligada por padrão**, faz a numeração de linha desalinhar entre as camadas, porque cada uma quebra por conta própria.
 
 Monaco resolve tudo e custa vários MB num `dist` que o daemon serve sem CDN — o oposto exato do cuidado que a right-panel teve ao medir o Shiki e cair de 9,1 MB para 1,9 MB.
 
@@ -117,7 +117,7 @@ UTF-8 é o único que se lê, e continua sendo o único que se escreve — a det
 
 **Não, e a distinção é a resposta.** Mostrar não é permitir.
 
-A [Q2 da right-panel](../right-panel/open-questions.md) decidiu que a árvore mostra tudo — ignorado, `node_modules`, `.git` — porque esconder é mentir sobre o que existe no disco. Aquela decisão era sobre **leitura**, e continua valendo inteira.
+A [Q2 da right-panel](../004-right-panel/open-questions.md) decidiu que a árvore mostra tudo — ignorado, `node_modules`, `.git` — porque esconder é mentir sobre o que existe no disco. Aquela decisão era sobre **leitura**, e continua valendo inteira.
 
 Escrita dentro de `.git` é outra conversa: apagar aquele diretório destrói a worktree e leva o trabalho não commitado junto, sem desfazer. Nada nesta feature vale esse risco, e quem realmente precisa mexer no `.git` tem um terminal na aba do lado.
 
@@ -128,7 +128,7 @@ Na tela, isso aparece como um arquivo que abre em modo somente leitura **com o m
 ### Q8 — Qual é o debounce?
 
 **800 ms**, proposto pela E1 e válido até alguém reclamar — mesma política da
-[Q8 da right-panel](../right-panel/open-questions.md) para os tetos.
+[Q8 da right-panel](../004-right-panel/open-questions.md) para os tetos.
 
 O intervalo entre teclas de quem está escrevendo uma linha fica na casa de 100 a 300 ms; uma pausa
 perto de 600 ms já não é digitação, é parar para ler o que se escreveu. Um debounce **abaixo** disso
@@ -354,4 +354,4 @@ Fica registrado aqui porque foi esta feature que tornou a dívida visível — e
 
 Com autosave, a pergunta é menor do que parece: ao sair da tela o pendente já foi para o disco, então nada se perde.
 
-O que não sobrevive é o **histórico de undo** — voltar para a worktree reabre o arquivo do disco, sem os passos anteriores. É o comportamento de um visualizador que passou a editar, e não o de um editor de verdade. A [Q9 da right-panel](../right-panel/open-questions.md) deixou a pergunta irmã aberta pelo mesmo motivo, e a resposta provavelmente é a mesma para as duas.
+O que não sobrevive é o **histórico de undo** — voltar para a worktree reabre o arquivo do disco, sem os passos anteriores. É o comportamento de um visualizador que passou a editar, e não o de um editor de verdade. A [Q9 da right-panel](../004-right-panel/open-questions.md) deixou a pergunta irmã aberta pelo mesmo motivo, e a resposta provavelmente é a mesma para as duas.

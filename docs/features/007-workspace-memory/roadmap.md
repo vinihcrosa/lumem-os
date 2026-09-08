@@ -260,7 +260,7 @@ convivem. Dentro da frente A não há paralelismo: a espinha é corrente, cada p
 **S1** entra em qualquer buraco depois do passo 3.
 
 > **O passo 1 não era construir o ACP.** Era escrever o PRD e rodar o spike — **os dois já foram
-> feitos** ([PRD](../acp-sessions/prd.md), [§9.5 do estudo](../../project/pty-vs-acp.md)). A construção
+> feitos** ([PRD](../006-acp-sessions/prd.md), [§9.5 do estudo](../../project/pty-vs-acp.md)). A construção
 > continua sendo o passo 10 e continua podendo esperar; o que não podia esperar era a **resposta**, e ela
 > chegou. O que a `acp-sessions` ainda **não** tem é `tasks.md` — e é só isso que o passo 2 resolve.
 
@@ -273,7 +273,7 @@ convivem. Dentro da frente A não há paralelismo: a espinha é corrente, cada p
 | Documentação (PRD, perguntas, entrega de contexto, roadmap) | na guarda-chuva |
 | **01 → 05, S1, S2** | **entregues**, cada uma na própria branch, com portão verde |
 | **06 → 09** | **entregues** — direto na `main`, porque a pilha acabou e a `acp-sessions` fechou. Injeção, captura, auto-learn e playbooks, mais as duas telas do S2 que faltavam. Cada uma com as decisões que tomou registradas no [tasks.md](tasks.md) |
-| **`acp-sessions`** | [PRD escrito](../acp-sessions/prd.md), **spike rodado** — autenticação por assinatura e consumo pelo `usage_update` com `rateLimitType: "seven_day"` **medidos**; janela **parcial** (nasce em 1M, contexto cheio não exercitado) ([§2.3](../acp-sessions/prd.md), [§9.5 do estudo](../../project/pty-vs-acp.md)). **Sem `tasks.md` ainda** |
+| **`acp-sessions`** | [PRD escrito](../006-acp-sessions/prd.md), **spike rodado** — autenticação por assinatura e consumo pelo `usage_update` com `rateLimitType: "seven_day"` **medidos**; janela **parcial** (nasce em 1M, contexto cheio não exercitado) ([§2.3](../006-acp-sessions/prd.md), [§9.5 do estudo](../../project/pty-vs-acp.md)). **Sem `tasks.md` ainda** |
 
 ### A pilha, como ela ficou
 

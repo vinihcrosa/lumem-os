@@ -8,7 +8,7 @@
 > **Tasks:** [tasks.md](tasks.md) — 16 tasks em 6 fases
 > **Depende de:** nada de produto. Depende do que já existe: o daemon Fastify, o build do web que já
 > funciona, e o `preflight` do onboarding, que já diz o que falta na máquina
-> **Não é feature de tela.** A segunda, depois da [workspace-memory](../workspace-memory/prd.md)
+> **Não é feature de tela.** A segunda, depois da [workspace-memory](../007-workspace-memory/prd.md)
 > **Deixou dívida escrita:** o daemon em background e a migração do projeto para inglês foram para o
 > [backlog](../../project/backlog.md) na hora — as duas saíram das respostas D2 e D11
 

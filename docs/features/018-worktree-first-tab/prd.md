@@ -4,7 +4,7 @@
 > suíte de e2e passando de 53 para 56
 > **Perguntas:** [open-questions.md](open-questions.md) — 5 de 5 respondidas
 > **Tasks:** [tasks.md](tasks.md) — 9 tasks em 4 fases, todas entregues
-> **Extraída de:** a **Fase 1** da [pull-request-status](../pull-request-status/tasks.md) (E1, E2,
+> **Extraída de:** a **Fase 1** da [pull-request-status](../013-pull-request-status/tasks.md) (E1, E2,
 > E3). Ela deixa de ser pré-requisito enterrado numa feature de PR e passa a ser feature própria —
 > ver [§7](#7-a-relação-com-a-barra-da-pr)
 > **Nasce de:** duas anotações do agentation: *"essa parte de cima não
@@ -97,8 +97,8 @@ estão.
 ### Fora de escopo
 
 - A barra da PR e o marcador na sidebar — são da
-  [pull-request-status](../pull-request-status/prd.md).
-- O rodapé de execução e sua altura padrão — é da [run-dock-open](../run-dock-open/prd.md).
+  [pull-request-status](../013-pull-request-status/prd.md).
+- O rodapé de execução e sua altura padrão — é da [run-dock-open](../015-run-dock-open/prd.md).
 
 ## 4. O que a mudança cobra
 
@@ -116,7 +116,7 @@ O que se ganha em troca: no cabeçalho fixo tudo aquilo tinha de caber em duas l
 chips truncados. A informação que mais sofria — **o caminho em disco** — passa a caber inteira e a
 dar para copiar.
 
-Esta é a [Q11 da pull-request-status](../pull-request-status/open-questions.md), ainda aberta, e ela
+Esta é a [Q11 da pull-request-status](../013-pull-request-status/open-questions.md), ainda aberta, e ela
 passa a ser desta feature: **com uma aba de sessão na frente, o que a worktree ainda diz?**
 
 ## 5. Como se prova
@@ -151,12 +151,12 @@ hoje (`ScopePanel.tsx:128`). A peça nova do desenho é uma só.
 
 ## 7. A relação com a barra da PR
 
-A [pull-request-status](../pull-request-status/prd.md) escreveu esta estrutura como **F0** e como
+A [pull-request-status](../013-pull-request-status/prd.md) escreveu esta estrutura como **F0** e como
 Fase 1 das tasks, com um motivo declarado: *"ela move informação de uma tela que já é testada; fazer
 isso junto com a feature nova produziria um diff em que ninguém consegue dizer o que quebrou o quê"*.
 
 O motivo continua valendo — e leva um passo adiante. A barra da PR está **travada** na
-[Q1](../pull-request-status/open-questions.md) (`gh` instalado × API com token nosso), e a estrutura
+[Q1](../013-pull-request-status/open-questions.md) (`gh` instalado × API com token nosso), e a estrutura
 não está travada em nada. Separar libera a que pode andar.
 
 **Contrato entre as duas:** esta feature entrega a coluna `caminho → abas → conteúdo`. A barra da PR

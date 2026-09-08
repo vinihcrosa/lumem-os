@@ -52,7 +52,7 @@ o caminho que o `pnpm smoke:install` exercita, um prefixo descartável por vez.
 | Node | 22 ou mais novo |
 | git | 2.30 ou mais novo — o produto inteiro é worktree |
 | Um agente ACP | o CLI `claude`, para a conversa. A tela de primeiro acesso instala o adaptador |
-| Sistema | macOS e Linux. Windows não é suportado ([por quê](docs/prd/distribution/prd.md)) |
+| Sistema | macOS e Linux. Windows não é suportado ([por quê](docs/features/014-distribution/prd.md)) |
 
 Nada além disso: as duas dependências nativas (`better-sqlite3`, `node-pty`)
 publicam binários prontos, então a instalação global não compila nada nas
@@ -66,12 +66,12 @@ conversas, memória. `--state-dir` muda o lugar.
 
 | | |
 |---|---|
-| [Projetos e worktrees](docs/prd/walking-skeleton/prd.md) | registre um repo por caminho ou [clone de uma URL](docs/prd/project-from-url/prd.md); corte worktrees pelo produto, e não pelo terminal |
-| [Conversa por ACP](docs/prd/acp-sessions/prd.md) | plano, uso e custo, comandos de barra, terminal embutido, e a conversa **em disco** — fechar o Lumem não perde nada |
-| [Arquivos, diff e editor](docs/prd/file-editor/prd.md) | navegue o checkout, leia o diff contra a branch base, edite com autosave |
-| [Scripts do projeto](docs/prd/project-scripts/prd.md) | `setup`, `run`, `test` e `teardown` moram no `<repo>/.lumem/project.toml`; a worktree nova nasce preparada, e um clique sobe a aplicação numa porta reservada para aquele checkout |
-| [Memória do workspace](docs/prd/workspace-memory/prd.md) | o que o harness aprendeu, versionado em git, atrás de um portão de escrita e de uma inbox de propostas. Os três interruptores que gastam token vêm **desligados** |
-| [Status de PR](docs/prd/pull-request-status/prd.md) | desenhado, não implementado: qual das suas worktrees dá pra mesclar |
+| [Projetos e worktrees](docs/features/001-walking-skeleton/prd.md) | registre um repo por caminho ou [clone de uma URL](docs/features/011-project-from-url/prd.md); corte worktrees pelo produto, e não pelo terminal |
+| [Conversa por ACP](docs/features/006-acp-sessions/prd.md) | plano, uso e custo, comandos de barra, terminal embutido, e a conversa **em disco** — fechar o Lumem não perde nada |
+| [Arquivos, diff e editor](docs/features/005-file-editor/prd.md) | navegue o checkout, leia o diff contra a branch base, edite com autosave |
+| [Scripts do projeto](docs/features/012-project-scripts/prd.md) | `setup`, `run`, `test` e `teardown` moram no `<repo>/.lumem/project.toml`; a worktree nova nasce preparada, e um clique sobe a aplicação numa porta reservada para aquele checkout |
+| [Memória do workspace](docs/features/007-workspace-memory/prd.md) | o que o harness aprendeu, versionado em git, atrás de um portão de escrita e de uma inbox de propostas. Os três interruptores que gastam token vêm **desligados** |
+| [Status de PR](docs/features/013-pull-request-status/prd.md) | desenhado, não implementado: qual das suas worktrees dá pra mesclar |
 
 ## Como funciona
 

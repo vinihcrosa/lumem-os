@@ -276,7 +276,7 @@ falha. Um agente que rodar o gate pela aba `Testes` recebe vermelho por ambiente
 
 **Classe:** sensor computacional · **Previne:** exatamente o que foi medido — **4 links relativos
 quebrados** em 1199 e **20 caminhos de código citados em backtick que não existem** em 242. Um agente
-lê `docs/prd/onboarding/tasks.md`, vai abrir `packages/server/src/setup/probe.ts`, não encontra, e
+lê `docs/features/008-onboarding/tasks.md`, vai abrir `packages/server/src/setup/probe.ts`, não encontra, e
 gasta contexto decidindo se o arquivo foi renomeado ou se ele entendeu errado.
 
 **A armadilha desta task é o gate, não o teste.** `FULL_SUITE_GLOBS` do `gate-quick.ts` exclui `*.md`
@@ -331,8 +331,8 @@ o gate é criar um sensor que dorme.
 incômodo, que é como gate morre.
 
 **What**:
-1. Os 4 links: dois `../worktree-tabs/prd.md` (em `docs/prd/worktree-first-tab/tasks.md` e
-   `docs/prd/pull-request-status/tasks.md`) apontam para arquivo que **nunca existiu** — a pasta
+1. Os 4 links: dois `../003-worktree-tabs/prd.md` (em `docs/features/018-worktree-first-tab/tasks.md` e
+   `docs/features/013-pull-request-status/tasks.md`) apontam para arquivo que **nunca existiu** — a pasta
    `worktree-tabs/` só tem `tasks.md`. Apontar para `tasks.md`. Os dois de `docs/references/compozy.md`
    citam arquivos de outro repositório: viram texto sem link.
 2. Os 20 caminhos: para cada um, decidir entre **atualizar** para o nome atual (quando o arquivo só
@@ -344,7 +344,7 @@ incômodo, que é como gate morre.
    a descrição mais completa. Sobrou para a task apenas conferir que o teste da T6 acusa a classe
    (linha repetida apontando para o mesmo arquivo) e não só este caso.
 4. Indexar no `docs/README.md` os arquivos que esta feature criou — `project/harness-audit.md` e a
-   pasta `prd/dev-harness/`. **Já feito** em 2026-09-07, junto da criação deles, porque a regra do
+   pasta `features/024-dev-harness/`. **Já feito** em 2026-09-07, junto da criação deles, porque a regra do
    repositório é "arquivo novo entra no índice na mesma hora".
 
 **Where**: os arquivos que o T6 listar, `docs/README.md`.
@@ -360,7 +360,7 @@ técnica de task entregue — só caminho e link. Registro histórico não se re
 ### T8: `AGENTS.md` na raiz, e o `CLAUDE.md` encolhe · [#63](https://github.com/vinihcrosa/lumem-os/issues/63)
 
 **Classe:** guide inferencial · **Previne:** duas coisas. Primeira: o repositório de um produto que
-**suporta Codex** (`ADAPTERS`, `codex-acp`, a [second-agent](../second-agent/prd.md) inteira) é legível
+**suporta Codex** (`ADAPTERS`, `codex-acp`, a [second-agent](../021-second-agent/prd.md) inteira) é legível
 só para Claude — qualquer outro agente entra sem mapa. Segunda: das 203 linhas do `CLAUDE.md`, ~120 são
 narrativa de feature entregue — registro histórico competindo com contexto ativo em todo turno de todo
 agente, e apodrecendo a cada feature nova.
@@ -404,7 +404,7 @@ o agente **copia do que encontra**: inconsistência existente é dívida compost
 **Trava:** [Q2](open-questions.md).
 
 **What**:
-1. **Medir antes de escolher**, no molde da fase 0 da [second-agent](../second-agent/prd.md). Rodar
+1. **Medir antes de escolher**, no molde da fase 0 da [second-agent](../021-second-agent/prd.md). Rodar
    `oxlint` e `typescript-eslint` (perfil só-correção) sobre `packages/*/src`, `e2e` e `scripts`, e
    registrar: tempo de execução e número de achados por regra. Critério declarado **antes** da
    medição: se o `typescript-eslint` couber em **60s**, ele ganha — as regras com informação de tipo
@@ -691,4 +691,4 @@ Registrado aqui para não voltar como memória de conversa — os quatro primeir
 | Sandbox de filesystem para o agente | quando o `deny` da T4 for atravessado por algum caminho que ele não previu |
 | `CODEOWNERS` e aprovação obrigatória | o primeiro colaborador ([Q8](open-questions.md)) |
 | Grading de qualidade por domínio com histórico | depois da T9 e da T10 — sem sensor não há o que graduar |
-| Autenticação do daemon | é a [daemon-auth](../daemon-auth/prd.md); o que trava lá são as perguntas, não o código |
+| Autenticação do daemon | é a [daemon-auth](../019-daemon-auth/prd.md); o que trava lá são as perguntas, não o código |

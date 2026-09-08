@@ -246,7 +246,7 @@ em vez de oferecer um campo editável que grava no commit de alguém.
 
 ### [x] S11 — Projeto clonado de URL: o setup roda automático na primeira vez?
 
-A [project-from-url](../project-from-url/prd.md) fez o Lumem clonar de uma string colada. Somando com a
+A [project-from-url](../011-project-from-url/prd.md) fez o Lumem clonar de uma string colada. Somando com a
 **S3**, colar uma URL passaria a significar executar
 um script de um estranho — o pior caminho possível para esta feature.
 

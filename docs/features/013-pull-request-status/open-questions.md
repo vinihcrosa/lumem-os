@@ -275,7 +275,7 @@ desfaz isso.
 pouco. Depois custa mexer duas vezes na mesma tela.
 
 **R:** respondida **pela entrega**, e não por escolha: a
-[worktree-first-tab](../worktree-first-tab/prd.md) foi implementada em 2026-09-01 com a proposta —
+[worktree-first-tab](../018-worktree-first-tab/prd.md) foi implementada em 2026-09-01 com a proposta —
 só o ponto de sujeira na aba do checkout.
 
 **Decisão: só o ponto na aba (sujeira) e o marcador na sidebar (PR).** Nenhuma linha fina de estado

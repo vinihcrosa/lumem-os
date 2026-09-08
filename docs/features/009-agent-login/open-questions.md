@@ -1,7 +1,7 @@
 # Conectar agente — perguntas
 
 Registro de por que cada decisão foi tomada. Prefixo `L` de login, para não colidir com as `A` da
-[acp-sessions](../acp-sessions/open-questions.md) nem com as `O` do [onboarding](../onboarding/open-questions.md).
+[acp-sessions](../006-acp-sessions/open-questions.md) nem com as `O` do [onboarding](../008-onboarding/open-questions.md).
 
 **Estado:** 8 perguntas · **2 respondidas pelo Vinicius · 6 fechadas pela medição**
 
@@ -33,7 +33,7 @@ não descobrir que ele existe.
 
 **R:** sim, núcleo mais instalação automática. A chave de API fica fora.
 
-Reverte a [D5/O6 do onboarding](../onboarding/open-questions.md), e a diferença entre o que foi
+Reverte a [D5/O6 do onboarding](../008-onboarding/open-questions.md), e a diferença entre o que foi
 recusado e o que foi feito está no [§5 do PRD](prd.md): `--prefix` numa pasta do daemon em vez de `-g`,
 versão fixa em vez de `@latest`, progresso em três linhas em vez de saída sem lugar.
 
@@ -57,7 +57,7 @@ dois discordam, vale o que o handshake respondeu.
 
 ### [x] L4 — O terminal de login é uma sessão?
 
-**Decidido:** não, pela mesma razão que a sonda não é ([O8 do onboarding](../onboarding/open-questions.md)).
+**Decidido:** não, pela mesma razão que a sonda não é ([O8 do onboarding](../008-onboarding/open-questions.md)).
 Não tem escopo — nem projeto, nem worktree — e uma linha em `session` seria uma conversa que nunca
 existiu. O cliente anexa pelo socket de PTY que já fala.
 

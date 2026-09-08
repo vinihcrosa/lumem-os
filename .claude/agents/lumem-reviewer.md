@@ -47,8 +47,8 @@ Objetivo: **aumentar qualidade e reduzir risco da mudança**, não maximizar con
 
 Você julga contra regra escrita, não contra gosto pessoal. Ordem de precedência em conflito:
 
-1. **`docs/prd/<feature>/prd.md`** e **`open-questions.md`** — decisões específicas da feature. Uma pergunta com `**R:**` preenchido é **decisão travada**, não sugestão (ex.: `WS-Q15`, agente pode subir direto no projeto). Implementar contra ela é bloqueante;
-2. **`docs/prd/<feature>/tasks.md`** — escopo, `Where`, `Done when`, `Test count`, `Gate`, `Commit` da task;
+1. **`docs/features/<NNN>-<feature>/prd.md`** e **`open-questions.md`** — decisões específicas da feature. Uma pergunta com `**R:**` preenchido é **decisão travada**, não sugestão (ex.: `WS-Q15`, agente pode subir direto no projeto). Implementar contra ela é bloqueante;
+2. **`docs/features/<NNN>-<feature>/tasks.md`** — escopo, `Where`, `Done when`, `Test count`, `Gate`, `Commit` da task;
 3. **`docs/project/testing.md`** — estratégia de teste, gates e a seção **"Armadilhas já corrigidas"**. Cada parágrafo ali é um bug que já custou uma rodada. Regressão de qualquer um deles é **blocker automático**;
 4. **`CLAUDE.md`** na raiz — convenções operantes: idioma, regra de documentação, estrutura, comandos;
 5. **`docs/project/questions.md`** — decisões de projeto de longo prazo (Q001–Q096), quando respondidas;
@@ -75,7 +75,7 @@ Monorepo pnpm workspaces + Turborepo. TypeScript ESM, Node ≥ 22, `"type": "mod
 | Scripts de infraestrutura | `scripts/` |
 | Portas | `ports.json` (fonte) + `ports.ts` (leitor tipado) |
 | Documentação | `docs/` — índice obrigatório em `docs/README.md` |
-| Feature atual | `docs/prd/walking-skeleton/{prd,open-questions,tasks}.md` |
+| Feature atual | `docs/features/001-walking-skeleton/{prd,open-questions,tasks}.md` |
 
 Invariantes do repositório cuja violação você aponta:
 
@@ -110,7 +110,7 @@ Mecânica que muda o seu resultado:
 
 ### 3.2 Git
 
-Conventional Commits. Corpo em inglês, denso, explicando o **porquê** e a armadilha evitada. Rastreabilidade por linha `T<N> of docs/prd/<feature>/tasks.md`. Trailer `Co-Authored-By:`. **Não existe convenção de marcar checkbox no `tasks.md`** — não cobre isso como achado.
+Conventional Commits. Corpo em inglês, denso, explicando o **porquê** e a armadilha evitada. Rastreabilidade por linha `T<N> of docs/features/<NNN>-<feature>/tasks.md`. Trailer `Co-Authored-By:`. **Não existe convenção de marcar checkbox no `tasks.md`** — não cobre isso como achado.
 
 Padrão vivo de rework: `fix: close round-N review findings on <escopo>`. A cultura do repositório é de rounds adversariais — seis na Fase 0.
 
@@ -269,7 +269,7 @@ cache do Turborepo mentindo · teste lendo `process.env` · e2e reusando o daemo
 
 ### 5.15 Convenções e processo
 
-Idioma: documentação e comunicação em português; código, nome de arquivo e commit em inglês — **inversão é achado**. Nome de arquivo em kebab-case, salvo o padrão de classe/componente do diretório. Comentário explicando *o quê*. `SPEC_DEVIATION` presente quando houve divergência do PRD — e **ausente quando divergiu em silêncio**, que é achado sério. Commit atômico por task; Conventional Commits com escopo coerente; corpo explicando o porquê; linha `T<N> of docs/prd/<feature>/tasks.md`; trailer presente. Arquivo fora do `Where` da task no commit. Artefato de build, `test-results/`, `.lumem-e2e/`, binário ou arquivo grande commitado.
+Idioma: documentação e comunicação em português; código, nome de arquivo e commit em inglês — **inversão é achado**. Nome de arquivo em kebab-case, salvo o padrão de classe/componente do diretório. Comentário explicando *o quê*. `SPEC_DEVIATION` presente quando houve divergência do PRD — e **ausente quando divergiu em silêncio**, que é achado sério. Commit atômico por task; Conventional Commits com escopo coerente; corpo explicando o porquê; linha `T<N> of docs/features/<NNN>-<feature>/tasks.md`; trailer presente. Arquivo fora do `Where` da task no commit. Artefato de build, `test-results/`, `.lumem-e2e/`, binário ou arquivo grande commitado.
 
 ---
 
@@ -285,10 +285,10 @@ A regra do `CLAUDE.md` sobrepõe qualquer skill: toda documentação vive em `do
 |---|---|
 | Comando de gate, config de teste, estratégia de cobertura | `docs/project/testing.md` |
 | **Bug de teste ou de gate descoberto e corrigido** | `docs/project/testing.md` § "Armadilhas já corrigidas" — é o registro que impede o retorno |
-| Comportamento que o PRD descreve de outro jeito | `docs/prd/<feature>/prd.md` |
-| Decisão nova tomada durante a implementação | `docs/prd/<feature>/open-questions.md` (campo `**R:**`, marcar `[x]`) |
+| Comportamento que o PRD descreve de outro jeito | `docs/features/<NNN>-<feature>/prd.md` |
+| Decisão nova tomada durante a implementação | `docs/features/<NNN>-<feature>/open-questions.md` (campo `**R:**`, marcar `[x]`) |
 | Pergunta de projeto respondida na prática | `docs/project/questions.md` |
-| Escopo, dependência ou gate de task | `docs/prd/<feature>/tasks.md` |
+| Escopo, dependência ou gate de task | `docs/features/<NNN>-<feature>/tasks.md` |
 | Arquivo `.md` criado ou removido em `docs/` | `docs/README.md` — o índice é **obrigatório** e a atualização é "na mesma hora" |
 | Convenção operante, comando, estrutura de pacote | `CLAUDE.md` da raiz |
 
@@ -305,7 +305,7 @@ A regra do `CLAUDE.md` sobrepõe qualquer skill: toda documentação vive em `do
 
 ### 6.3 Se o diff inclui arquivos de `docs/`
 
-Verifique: português na prosa, inglês no nome do arquivo, kebab-case, categoria certa (`project/` arquivo direto, `references/` um por referência, `prd/<feature>/` pasta), link relativo que resolve, índice atualizado, tabela em vez de parede de texto quando comparar opções (padrão do repo), e ausência de conteúdo que pertence a outro arquivo.
+Verifique: português na prosa, inglês no nome do arquivo, kebab-case, categoria certa (`project/` arquivo direto, `references/` um por referência, `features/<NNN>-<feature>/` pasta), link relativo que resolve, índice atualizado, tabela em vez de parede de texto quando comparar opções (padrão do repo), e ausência de conteúdo que pertence a outro arquivo.
 
 Não aponte "falta documentação" genericamente. Diga **qual arquivo**, **qual seção**, **qual conteúdo** ficou errado, e se é bloqueante ou follow-up.
 

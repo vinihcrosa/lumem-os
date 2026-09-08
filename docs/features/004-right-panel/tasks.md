@@ -2,7 +2,7 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Protótipo:** `packages/web/prototype/lumem-right-panel.html` — o desenho está fechado e verificado; as tasks de cliente portam o que está lá
-**Sucede:** [worktree-tabs](../worktree-tabs/tasks.md)
+**Sucede:** [worktree-tabs](../003-worktree-tabs/tasks.md)
 **Status:** concluída — 10 de 10, gate cheio verde (685 unit/integration + 12 e2e)
 **Total:** 10 tasks em 4 fases
 

@@ -115,7 +115,7 @@ tela de comparação, custo por turno, custo por tarefa.
 
 **Proposta pra reagir:** só o agrupamento, e só nas duas queries que existem. A tela do workspace ganha
 uma coluna quando há mais de um agente, e nada quando há um. Custo por tarefa é da
-[workspace-tasks](../workspace-tasks/prd.md).
+[workspace-tasks](../022-workspace-tasks/prd.md).
 
 **R:** a proposta, sem mudança. A fase 0 encontrou um `usage` mais rico na **resposta** do
 `session/prompt` — `_meta.quota.model_usage[]`, com token por modelo (§4.4) — e a tentação de somar
@@ -183,7 +183,7 @@ ela só pode ser estado — e "conectar o próximo" precisa de lugar. As opçõe
 com `＋` (como `Projetos` tem), uma terceira linha `＋ conectar agente`, ou um `＋` no fim da faixa.
 
 **Proposta pra reagir:** cabeçalho com `＋`, pela regra que a
-[sidebar-actions](../sidebar-actions/prd.md) já estabeleceu — a ação mora no cabeçalho da lista que
+[sidebar-actions](../017-sidebar-actions/prd.md) já estabeleceu — a ação mora no cabeçalho da lista que
 ela alimenta, presa ao **título** e não ao fim da lista, para não se afastar da coisa quando a lista
 cresce.
 

@@ -43,7 +43,7 @@ que não tem porta nenhuma: workspace sem projeto.
 
 ### [x] W2 — Remover workspace exige zero projetos, ou remove em cascata?
 
-O PRD do [walking-skeleton](../walking-skeleton/prd.md) proíbe deleção em cascata, e o schema impõe
+O PRD do [walking-skeleton](../001-walking-skeleton/prd.md) proíbe deleção em cascata, e o schema impõe
 `ON DELETE RESTRICT` em toda chave estrangeira. Então tecnicamente a resposta já existe: remover
 workspace com projeto dentro **falha no banco**.
 

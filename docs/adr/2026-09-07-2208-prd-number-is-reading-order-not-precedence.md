@@ -8,7 +8,8 @@ feature: 025-docs-contract
 
 ## Contexto
 
-O `docs/prd/` tinha 24 pastas e nenhuma ordem legível, e o pedido foi um índice temporal —
+O `docs/prd/` — como a categoria se chamava — tinha 24 pastas e nenhuma ordem legível, e o pedido
+foi um índice temporal —
 `NNN-nome`, três dígitos — com a regra de que **PRD é estado temporal: a mais recente manda**.
 
 Duas medições feitas antes de escrever mudaram o que a regra podia ser.
@@ -16,8 +17,9 @@ Duas medições feitas antes de escrever mudaram o que a regra podia ser.
 **A primeira: o repositório já registra precedência em 44 lugares, em prosa.** A frase-regra aparece
 6 vezes — *"decisão revertida sem registro é decisão que volta sozinha"* — e a mecânica é boa: a nota
 vai no **requisito contradito**, com âncora para quem contradiz, delimitando o que sobrou de pé. E
-**falha 1 em 5**: quatro links apontam para `docs/prd/worktree-tabs/prd.md`, arquivo que nunca
-existiu, dois deles criados por tasks marcadas `[x]` cujo trabalho era propagar exatamente essa nota.
+**falha 1 em 5**: quatro links apontam para o `prd.md` da `worktree-tabs`, arquivo que nunca existiu
+sob nome nenhum — a pasta só tem `tasks.md` —, e dois deles foram criados por tasks marcadas `[x]`
+cujo trabalho era propagar exatamente essa nota.
 
 **A segunda, e é a restrição que bifurca a decisão: campo de prosa que carrega estado apodrece.** O
 `**Status:**` é universal (23 de 23) e **mente em 5** — `pull-request-status` se declara *"em

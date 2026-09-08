@@ -32,7 +32,7 @@ discordar dela é mais rápido que escrever do zero.
 
 ### [x] A1 — A conversa substitui o terminal na aba, ou divide espaço com ele?
 
-Hoje a aba é um terminal, e a [right-panel](../right-panel/prd.md) já abre um split para o arquivo. A
+Hoje a aba é um terminal, e a [right-panel](../004-right-panel/prd.md) já abre um split para o arquivo. A
 conversa pode **ocupar o lugar** do terminal, ou nascer como um terceiro tipo de painel.
 
 **Proposta pra reagir:** ocupa o lugar. Sessão de agente com `transport: acp` desenha conversa; com
@@ -157,7 +157,7 @@ resultado) economiza **5%**. O grosso não está num campo isolado, está no con
 
 **Proposta pra reagir:** guardar **tudo**, num banco por sessão (purge e arquivamento ficam triviais),
 comprimindo o que passou de 30 dias. 1 GB/ano é barato demais para justificar jogar fora o insumo que
-a [parte 07 da memória](../workspace-memory/roadmap.md) vai consumir — e o que for jogado fora não
+a [parte 07 da memória](../007-workspace-memory/roadmap.md) vai consumir — e o que for jogado fora não
 volta.
 
 Ressalva honesta: o fluxo ACP deve ser **menor** que este, porque o `.jsonl` do Claude Code carrega

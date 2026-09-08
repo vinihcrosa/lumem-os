@@ -4,13 +4,13 @@
 > **Versão:** v0.3 — a v0.1 tinha destino editável e remoção que não tocava no disco ([Q14](open-questions.md), [Q15](open-questions.md)); a v0.2 ainda deixava as worktrees na árvore antiga ([Q20](open-questions.md))
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
-> **Sucede:** [file-editor](../file-editor/prd.md)
+> **Sucede:** [file-editor](../005-file-editor/prd.md)
 
 ---
 
 ## 1. Objetivo
 
-Hoje só se registra um projeto que **já está no disco**. O [PRD do walking-skeleton](../walking-skeleton/prd.md) diz isso em uma linha: *"Não há clone. O repo já tem que estar no disco."*
+Hoje só se registra um projeto que **já está no disco**. O [PRD do walking-skeleton](../001-walking-skeleton/prd.md) diz isso em uma linha: *"Não há clone. O repo já tem que estar no disco."*
 
 Esta feature clona. Você cola uma URL git — GitHub, GitLab, Bitbucket, Gitea, Forgejo, um bare repo num NFS, o servidor da empresa — o daemon clona, registra o projeto e ele aparece na sidebar pronto para cortar worktree.
 
@@ -153,9 +153,9 @@ Um erro do próprio gerador do protótipo também só apareceu na renderização
 
 ## 4. Segurança
 
-Esta é a maior seção do documento pelo mesmo motivo que ela era grande na [file-editor](../file-editor/prd.md): a superfície nova é a perigosa. Ali o daemon passou a **escrever** no disco. Aqui ele passa a **executar rede a partir de uma string que o usuário cola** — e, desde a [Q15](open-questions.md), a **apagar diretório**.
+Esta é a maior seção do documento pelo mesmo motivo que ela era grande na [file-editor](../005-file-editor/prd.md): a superfície nova é a perigosa. Ali o daemon passou a **escrever** no disco. Aqui ele passa a **executar rede a partir de uma string que o usuário cola** — e, desde a [Q15](open-questions.md), a **apagar diretório**.
 
-E o agravante conhecido continua valendo: o daemon **não tem autenticação** (P2 da file-editor, [Q7](../file-editor/open-questions.md)). Tudo abaixo é escrito supondo que quem alcança a porta pode chamar a procedure.
+E o agravante conhecido continua valendo: o daemon **não tem autenticação** (P2 da file-editor, [Q7](../005-file-editor/open-questions.md)). Tudo abaixo é escrito supondo que quem alcança a porta pode chamar a procedure.
 
 ### 4.1 A URL
 

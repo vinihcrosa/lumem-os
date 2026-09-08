@@ -95,7 +95,7 @@ Com um agente escrevendo, isso vai parecer lento. A alternativa é um watcher no
 
 Worktree tem base declarada: a `default_branch` do projeto de onde ela nasceu. O checkout principal muitas vezes **está** nessa branch, e aí `vs base` é sempre vazio.
 
-Dizer "você está na base" é honesto e inútil. Esconder o alternador no `local` é assimetria não explicada. A D2 da [worktree-tabs](../worktree-tabs/tasks.md) já declarou uma assimetria parecida e escolheu dizê-la na tela; provavelmente a resposta é a mesma, mas ainda não foi decidida.
+Dizer "você está na base" é honesto e inútil. Esconder o alternador no `local` é assimetria não explicada. A D2 da [worktree-tabs](../003-worktree-tabs/tasks.md) já declarou uma assimetria parecida e escolheu dizê-la na tela; provavelmente a resposta é a mesma, mas ainda não foi decidida.
 
 ---
 

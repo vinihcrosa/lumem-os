@@ -2,7 +2,7 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) — 8 fechadas
 **Protótipo:** `packages/web/prototype/lumem-agent-login.html`
-**Sucede:** [onboarding](../onboarding/tasks.md)
+**Sucede:** [onboarding](../008-onboarding/tasks.md)
 **Status:** **8 de 8 entregues.** Gate cheio verde — 1.705 unit/integration + 27 e2e.
 
 ---

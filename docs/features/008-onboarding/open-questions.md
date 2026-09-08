@@ -25,8 +25,8 @@ o desenho no Open Design, e isso é task.
 
 **Como usar:** responda embaixo, no `**R:**`. Cada pergunta traz uma **proposta pra reagir** —
 discordar dela é mais rápido que escrever do zero. Prefixo `O` de onboarding, para não colidir com as
-`A1–A16` da [acp-sessions](../acp-sessions/open-questions.md) nem com as `Q` da
-[workspace-memory](../workspace-memory/open-questions.md).
+`A1–A16` da [acp-sessions](../006-acp-sessions/open-questions.md) nem com as `Q` da
+[workspace-memory](../007-workspace-memory/open-questions.md).
 
 ---
 
@@ -118,7 +118,7 @@ quem manda na autenticação.
 
 **Implementado como proposto (2026-08-20).** A tela 3 relata `ANTHROPIC_API_KEY` presente ou ausente, e a tela 4 relata `authMethods`. Nenhum rádio.
 
-**Revisto no mesmo dia, e a proposta perde metade da razão.** A [agent-login §2.1](../agent-login/prd.md)
+**Revisto no mesmo dia, e a proposta perde metade da razão.** A [agent-login §2.1](../009-agent-login/prd.md)
 mediu que `authMethods` vinha vazio porque o Lumem não declarava `clientCapabilities.auth.terminal` —
 não porque o adaptador não tivesse o que oferecer. Com a capacidade declarada ele oferece **dois**
 métodos, e aí existe escolha de verdade: com qual conta entrar. O relato continua certo para o passo 3

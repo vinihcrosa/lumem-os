@@ -1,7 +1,7 @@
 # A barra da pull request — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **completa.** A fase 1 saiu para a [worktree-first-tab](../worktree-first-tab/prd.md) e
+**Status:** **completa.** A fase 1 saiu para a [worktree-first-tab](../018-worktree-first-tab/prd.md) e
 foi entregue lá; as fases 2 a 6 foram entregues aqui em **2026-09-05**, mais uma **fase 7** que não
 existia no plano — a [Q3](open-questions.md) e a [Q4](open-questions.md) foram respondidas contra a
 proposta do PRD, e a feature passou a escrever no remoto.
@@ -18,7 +18,7 @@ P12.
 **O que travava, e como fechou.** A **[Q1](open-questions.md)** decidiu o `gh` em vez de um token
 nosso — e o que ela comprou não foi performance: foi **não ter superfície de segredo**. A **Q3** e a
 **Q4** foram respondidas **contra a proposta**, e a feature deixou de só ler; elas viraram a fase 7.
-A **Q11** foi respondida pela entrega da [worktree-first-tab](../worktree-first-tab/prd.md): só o
+A **Q11** foi respondida pela entrega da [worktree-first-tab](../018-worktree-first-tab/prd.md): só o
 ponto na aba, nenhuma linha fina de estado.
 
 **O que nunca travou:** o desenho (feito e sincronizado), o `git-url.ts` (já parseia remote e host, com
@@ -27,14 +27,14 @@ com timeout e erro classificado") e o barramento de eventos.
 
 **Por que a fase 1 é a estrutura:** ela **move** informação de uma tela que já é testada. Fazer isso
 junto com a feature nova produziria um diff em que ninguém consegue dizer o que quebrou o quê — e o
-alvo dos testes da [worktree-tabs](../worktree-tabs/tasks.md) muda no caminho.
+alvo dos testes da [worktree-tabs](../003-worktree-tabs/tasks.md) muda no caminho.
 
 ---
 
 ## Fase 1 — a estrutura: a worktree vira a primeira aba
 
 > **Movida em 2026-09-01, e entregue no mesmo dia.** As E1, E2 e E3 saíram desta feature e viraram a
-> [worktree-first-tab](../worktree-first-tab/prd.md), que está **completa**. Ficam aqui como registro
+> [worktree-first-tab](../018-worktree-first-tab/prd.md), que está **completa**. Ficam aqui como registro
 > do que a barra da PR pressupõe — e ela já pode pressupor: a coluna do meio é `caminho → abas →
 > conteúdo`, a primeira aba é a do checkout, e o ponto de sujeira dela é o `dirty` do `TabState`.
 >
@@ -105,7 +105,7 @@ caminho → abas → conteúdo.
 #### [x] P0: O que o `gh` responde, medido
 
 **What**: Rodar o `gh` de verdade contra um repositório real e registrar a saída, os campos e o custo.
-**Where**: `docs/prd/pull-request-status/spike.md` + fixtures em
+**Where**: `docs/features/013-pull-request-status/spike.md` + fixtures em
 `packages/server/src/pr/__fixtures__/`
 
 **Done when**:
@@ -382,11 +382,11 @@ none | draft | merged | closed` mais a `reason`.
 
 **What**: Índice, backlog e perguntas do projeto batendo com o que foi construído.
 **Where**: `docs/README.md`, `docs/project/backlog.md`, `docs/project/questions.md`, `CLAUDE.md`,
-`docs/prd/worktree-tabs/prd.md`
+`docs/features/003-worktree-tabs/prd.md`
 
 **Done when**:
 - [x] O índice descreve a feature pelo que ela **faz**, não pelo que ela pretendia
-- [x] O PRD da [worktree-tabs](../worktree-tabs/prd.md) ganha uma nota dizendo que o cabeçalho fixo
+- [x] O PRD da [worktree-tabs](../003-worktree-tabs/prd.md) ganha uma nota dizendo que o cabeçalho fixo
       dela virou aba, e por quê — decisão revertida sem registro é decisão que volta sozinha
 - [x] O item *"Abstração de git host"* sai do backlog (ganhou PRD) e entra, no lugar, o que **ficou de
       fora**: mesclar, criar PR, reexecutar, notificar, o segundo host

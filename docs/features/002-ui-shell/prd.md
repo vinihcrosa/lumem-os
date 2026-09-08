@@ -9,7 +9,7 @@
 
 ## 1. Objetivo
 
-Vestir a interface que o [walking-skeleton](../walking-skeleton/prd.md) deixou de pé.
+Vestir a interface que o [walking-skeleton](../001-walking-skeleton/prd.md) deixou de pé.
 
 Aquela feature entregou 34 tasks e provou que a espinha aguenta peso: o daemon é dono do estado, o PTY roda no servidor, a sessão sobrevive a fechar o navegador. O que ela **não** entregou foi uma folha de estilo — nenhum CSS é importado pelo cliente hoje. As `className` existem nos componentes e não têm nada do outro lado.
 

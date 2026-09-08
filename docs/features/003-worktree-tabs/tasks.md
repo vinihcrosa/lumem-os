@@ -1,7 +1,7 @@
 # Worktree com abas — Tasks
 
 **Protótipo:** `packages/web/prototype/lumem-tabs.html`
-**Sucede:** [ui-shell](../ui-shell/tasks.md), que vestiu a árvore de três níveis
+**Sucede:** [ui-shell](../002-ui-shell/tasks.md), que vestiu a árvore de três níveis
 **Status:** concluída — 8 de 8 entregues, gate cheio verde
 **Total:** 8 tasks (a oitava veio depois, da [issue #14](https://github.com/vinihcrosa/lumem-os/issues/14))
 
@@ -122,7 +122,7 @@ A troca de somente leitura acontece **no lugar**, sem remontar: sessão que morr
 #### W4: Painel da worktree
 
 > **Revertida em 2026-09-01, com o motivo escrito.** O cabeçalho fixo desta task virou a **primeira
-> aba** — ver [worktree-first-tab](../worktree-first-tab/prd.md), que está completa. A razão de ele
+> aba** — ver [worktree-first-tab](../018-worktree-first-tab/prd.md), que está completa. A razão de ele
 > ficar acima da faixa era verdadeira e continua escrita no `ScopePanel`: uma sessão nova não muda a
 > branch, o caminho, nem se a árvore está suja, e trocar de aba não podia mexer nisso.
 >
@@ -132,7 +132,7 @@ A troca de somente leitura acontece **no lugar**, sem remontar: sessão que morr
 > chip, virou o ponto da aba.
 >
 > **Nota de 2026-09-05:** o segundo sinal que paga essa conta chegou. A
-> [pull-request-status](../pull-request-status/prd.md) pôs `● #19` na linha da worktree, na sidebar —
+> [pull-request-status](../013-pull-request-status/prd.md) pôs `● #19` na linha da worktree, na sidebar —
 > e ele é o único sinal de estado que sobrevive **ao painel direito fechado**, que é como o painel
 > nasce. O par ficou completo: o ponto na aba diz que a árvore está suja, o marcador na sidebar diz
 > se dá pra mesclar, e o resto está a um clique na primeira aba.

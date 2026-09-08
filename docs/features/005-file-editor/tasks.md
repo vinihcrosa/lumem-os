@@ -2,7 +2,7 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Protótipo:** `packages/web/prototype/lumem-file-editor.html` — entregue pela E1, cinco telas, verificado por renderização
-**Sucede:** [right-panel](../right-panel/tasks.md)
+**Sucede:** [right-panel](../004-right-panel/tasks.md)
 **Status:** **fechada** — 13 de 13, portão verde (`gate:full`: 961 unit/integration + 16 e2e)
 **Total:** 13 tasks em 5 fases
 

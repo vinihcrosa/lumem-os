@@ -185,7 +185,7 @@ Esta substitui a [Q9](#q9--onde-o-clone-cai-por-padrão--substituída-pela-q14) 
 
 > *"Se é um repos advindo do git, sim ele deve apagar o repositório, o que é gerenciado pelo Lumem deve ter ciclo de vida bem definido."*
 
-**Isto reverte o F2.5 do [walking-skeleton](../walking-skeleton/prd.md)**, que diz que remover um projeto nunca toca no disco. A reversão é deliberada e limitada, e o §2.1 do [PRD](prd.md) a documenta — não-objetivo revertido sem registro é dívida de documentação, e a file-editor já estabeleceu o precedente de como fazer isso.
+**Isto reverte o F2.5 do [walking-skeleton](../001-walking-skeleton/prd.md)**, que diz que remover um projeto nunca toca no disco. A reversão é deliberada e limitada, e o §2.1 do [PRD](prd.md) a documenta — não-objetivo revertido sem registro é dívida de documentação, e a file-editor já estabeleceu o precedente de como fazer isso.
 
 O limite é a palavra **gerenciado**, e ela precisa ser um dado, não uma dedução:
 
@@ -308,8 +308,8 @@ Três perguntas que ela vai ter que responder quando vier: onde mora, qual o pad
 
 | Para onde | O quê |
 |---|---|
-| [F2.5 do walking-skeleton](../walking-skeleton/prd.md) — "remover projeto nunca toca no disco" | **revertido para projeto gerenciado**, pela [Q15](#q15--remover-um-projeto-clonado-deveria-apagar-o-clone). Documentado no §2.1 do [PRD](prd.md), e o PRD do walking-skeleton é corrigido apontando para cá quando a feature fechar |
-| [P2 da file-editor](../file-editor/tasks.md) — daemon sem autenticação | **amplificada duas vezes**: uma procedure que faz rede a partir de uma string, e um `remove` que agora apaga diretório. A dívida não é paga aqui, e é ela que segura a [Q22](#q22--a-lista-de-transportes-permitidos-vira-configuração-quando) |
+| [F2.5 do walking-skeleton](../001-walking-skeleton/prd.md) — "remover projeto nunca toca no disco" | **revertido para projeto gerenciado**, pela [Q15](#q15--remover-um-projeto-clonado-deveria-apagar-o-clone). Documentado no §2.1 do [PRD](prd.md), e o PRD do walking-skeleton é corrigido apontando para cá quando a feature fechar |
+| [P2 da file-editor](../005-file-editor/tasks.md) — daemon sem autenticação | **amplificada duas vezes**: uma procedure que faz rede a partir de uma string, e um `remove` que agora apaga diretório. A dívida não é paga aqui, e é ela que segura a [Q22](#q22--a-lista-de-transportes-permitidos-vira-configuração-quando) |
 | [Q291 do questions.md](../../project/questions.md) — identidade estável de projeto | **destravada em parte**: `remote_url` passa a existir, que é um dos três candidatos que a pergunta lista |
 | [Q580 do questions.md](../../project/questions.md) — daemon remoto | **pressionada**: `~` de quem, disco de quem, e um clone que baixa gigabytes na máquina errada |
 | Layout do diretório de estado | **reorganizado** pela [Q20](#q20--as-worktrees-também-se-mudam-para-a-nova-árvore): `~/.lumem/worktrees` deixa de existir, e a árvore passa a descrever `workspace > projeto > worktree`. Esta feature sai maior do que entrou |

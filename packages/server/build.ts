@@ -25,7 +25,7 @@ export const NATIVE_DEPENDENCIES = ["better-sqlite3", "node-pty"] as const;
  *
  * Not a precaution: without it the daemon dies on the first import with
  * `Error: Dynamic require of "process" is not supported`, thrown from inside
- * `yaml@2.9.0`. Measured on this tree — see docs/prd/distribution/prd.md §3.1.
+ * `yaml@2.9.0`. Measured on this tree — see docs/features/014-distribution/prd.md §3.1.
  */
 const REQUIRE_SHIM =
   "import{createRequire as __lumemCreateRequire}from'node:module';" +

@@ -116,7 +116,7 @@ export const writeMemorySchema = z.object({
    *
    * O default é `human` nas duas superfícies, de propósito — elas contam a mesma
    * história. Quem **impõe** o ator (transporte, ambiente ou token de sessão) é a
-   * [Q46](../../../../docs/prd/workspace-memory/open-questions.md), aberta: até
+   * [Q46](../../../../docs/features/007-workspace-memory/open-questions.md), aberta: até
    * ela fechar, o desvio da Q27 protege contra engano, não contra quem quer
    * burlá-lo — e o WAL registra o ator declarado de toda escrita.
    */

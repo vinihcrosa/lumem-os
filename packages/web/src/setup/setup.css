@@ -4,7 +4,7 @@
  * Só o que é desta tela. Os componentes compartilhados — `wizard`, `steps`,
  * `ck`, `choice`, `copy`, `coach`, `recap` — vivem em `ui/ui.css`, porque é o
  * mesmo corte que o Open Design fez entre `lumem-ds.css` e este arquivo
- * (decisão D1 de `docs/prd/onboarding/tasks.md`).
+ * (decisão D1 de `docs/features/008-onboarding/tasks.md`).
  *
  * As classes vêm do protótipo com o mesmo nome: divergência aqui é bug de
  * porte, e `setup-css.test.ts` reprova nas duas direções — classe pedida que

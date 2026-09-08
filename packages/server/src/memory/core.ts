@@ -6,7 +6,7 @@ import { resolveVisible } from "./shadow.js";
 /**
  * O **núcleo**: as memórias fixadas que entram no prompt de toda sessão.
  *
- * É a camada 1 do [context-delivery](../../../../docs/prd/workspace-memory/context-delivery.md#4-o-desenho--núcleo-skill-e-lumem-memory),
+ * É a camada 1 do [context-delivery](../../../../docs/features/007-workspace-memory/context-delivery.md#4-o-desenho--núcleo-skill-e-lumem-memory),
  * e a única parte da memória cujo custo é **recorrente**. Duas escolhas fecham
  * o desenho aqui:
  *

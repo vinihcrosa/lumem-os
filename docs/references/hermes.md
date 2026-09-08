@@ -5,7 +5,7 @@
 > (`hermes-agent.nousresearch.com/docs`).
 >
 > **Recorte deliberado:** este estudo cobre **memória, aprendizado e curadoria** — os subsistemas que
-> interessam à feature [workspace-memory](../prd/workspace-memory/prd.md). O produto tem muito mais
+> interessam à feature [workspace-memory](../features/007-workspace-memory/prd.md). O produto tem muito mais
 > (40+ toolsets, gateway para Telegram/Discord/Slack, voz, browser, kanban, cron, desktop Tauri, ACP,
 > delegação) e nada disso foi auditado a fundo. Onde eu digo "não existe", leia **"não existe nos
 > caminhos que li"**. O que não confirmei está marcado `⚠️ não confirmado:`.
@@ -487,7 +487,7 @@ com ciclo de vida por uso do Hermes.
 
 ## 12. Perguntas que este estudo levanta
 
-Vão numeradas na feature ([workspace-memory/open-questions.md](../prd/workspace-memory/open-questions.md)),
+Vão numeradas na feature ([workspace-memory/open-questions.md](../features/007-workspace-memory/open-questions.md)),
 mas o resumo é este. **Escritas antes da decisão por [ACP](../project/pty-vs-acp.md)** — as que
 supunham daemon cego estão marcadas.
 

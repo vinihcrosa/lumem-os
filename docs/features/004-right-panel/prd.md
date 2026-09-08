@@ -5,7 +5,7 @@
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
 > **Protótipo:** `packages/web/prototype/lumem-right-panel.html` — abra no navegador
-> **Sucede:** [worktree-tabs](../worktree-tabs/tasks.md)
+> **Sucede:** [worktree-tabs](../003-worktree-tabs/tasks.md)
 
 ---
 
@@ -17,7 +17,7 @@ Isto é a primeira vez que o Lumem lê **conteúdo** do repositório. Até aqui 
 
 **Critério de sucesso em uma frase:** com um agente rodando na aba do meio, você acompanha pela direita o que ele está mexendo, abre o arquivo e lê o diff — sem sair do Lumem e sem digitar um comando.
 
-O item *"diff e status da worktree como UI, não só terminal"* do §8 do PRD da [ui-shell](../ui-shell/prd.md) é exatamente esta feature.
+O item *"diff e status da worktree como UI, não só terminal"* do §8 do PRD da [ui-shell](../002-ui-shell/prd.md) é exatamente esta feature.
 
 ---
 
@@ -49,7 +49,7 @@ Coluna colapsável, com largura arrastável e persistida; colapsada por padrão 
 
 ### Como o desenho foi feito
 
-Protótipo em HTML+CSS antes de qualquer React, seguindo a skill `ui-design-prototype` — o mesmo processo da [ui-shell](../ui-shell/prd.md) e da [worktree-tabs](../worktree-tabs/tasks.md). Cinco telas em um arquivo: a árvore, um arquivo aberto no split da aba, a lista de mudanças, um patch no mesmo split, e uma galeria dos estados degradados.
+Protótipo em HTML+CSS antes de qualquer React, seguindo a skill `ui-design-prototype` — o mesmo processo da [ui-shell](../002-ui-shell/prd.md) e da [worktree-tabs](../003-worktree-tabs/tasks.md). Cinco telas em um arquivo: a árvore, um arquivo aberto no split da aba, a lista de mudanças, um patch no mesmo split, e uma galeria dos estados degradados.
 
 O protótipo lê o **mesmo** `tokens.css` que o app lê. Quando o desenho fecha, o CSS vai junto inteiro; não existe passo de tradução.
 
@@ -89,7 +89,7 @@ Cada um destes saiu de olhar o PNG, não de ler o código — e é o argumento p
 **F1.1** `AppShell` ganha um terceiro slot. Grid de três colunas: sidebar fixa, meio flexível, direita com largura própria.
 **F1.2** Colapsar e expandir por um botão na topbar, com o estado persistido como o `useTreeExpansion` já faz.
 **F1.3** Largura arrastável entre um mínimo e um máximo, também persistida.
-**F1.4** Faixa de abas própria: `Arquivos` e `Mudanças`. Reusa `TabStrip`/`Tab` da [worktree-tabs](../worktree-tabs/tasks.md).
+**F1.4** Faixa de abas própria: `Arquivos` e `Mudanças`. Reusa `TabStrip`/`Tab` da [worktree-tabs](../003-worktree-tabs/tasks.md).
 **F1.5** Redimensionar ou colapsar a coluna **remede o terminal**. O `FitAddon` calcula colunas a partir da caixa; sem um refit a sessão fica reportando uma largura que não existe mais. Vale igual para abrir, fechar e arrastar o split da F3.
 
 ### F2 — Árvore de arquivos
@@ -156,7 +156,7 @@ Mais dois tetos, que não são segurança e sim sobrevivência: máximo de entra
 
 Cada linha é uma tentação que vai aparecer durante a implementação.
 
-> **Revertido depois:** as duas primeiras linhas desta tabela — editar, criar, renomear e apagar — foram reabertas pela [file-editor](../file-editor/prd.md), com o argumento de cada lado registrado no §2 daquele PRD. A decisão **D5** ("nenhum endpoint desta feature escreve") continua verdadeira sobre *esta* feature: a escrita entrou por procedures novas, e a guarda de caminho ganhou uma irmã em vez de ser afrouxada.
+> **Revertido depois:** as duas primeiras linhas desta tabela — editar, criar, renomear e apagar — foram reabertas pela [file-editor](../005-file-editor/prd.md), com o argumento de cada lado registrado no §2 daquele PRD. A decisão **D5** ("nenhum endpoint desta feature escreve") continua verdadeira sobre *esta* feature: a escrita entrou por procedures novas, e a guarda de caminho ganhou uma irmã em vez de ser afrouxada.
 
 | Fora | Por quê |
 |---|---|

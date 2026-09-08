@@ -4,7 +4,7 @@
 > **Versão:** v0.1
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
-> **Sucede:** [right-panel](../right-panel/prd.md)
+> **Sucede:** [right-panel](../004-right-panel/prd.md)
 
 ---
 
@@ -20,7 +20,7 @@ Hoje, quando você lê o que o agente escreveu e vê que uma linha está errada,
 
 ## 2. Isto reverte um não-objetivo declarado
 
-O §5 do [PRD da right-panel](../right-panel/prd.md) lista, em primeiro lugar:
+O §5 do [PRD da right-panel](../004-right-panel/prd.md) lista, em primeiro lugar:
 
 > | Editar e salvar arquivo | O editor é o agente. Escrita no daemon é uma superfície inteira de risco por um ganho que outra ferramenta já dá. |
 
@@ -222,7 +222,7 @@ Um último ponto que **não** é resolvido aqui e está declarado: o daemon não
 | Editar arquivo fora do checkout | O escopo do painel é o checkout. Regra 3 do §5 |
 | Renomear um arquivo trocando **só a caixa** do nome (`readme.md` → `README.md`) | Em filesystem insensível a caixa — o padrão do macOS — o destino "já existe", porque é o próprio arquivo. Consertar exige renomear em dois passos por um nome temporário, o que reabre a janela do `rename` e deixa lixo se o processo morrer no meio. A recusa é segura e a tela diz o motivo ([Q17](open-questions.md)) |
 | Resolver conflito com merge de três vias | O conflito é dito e resolvido escolhendo um lado. Merge é feature própria |
-| Watcher de filesystem | Continua a [Q6 da right-panel](../right-panel/open-questions.md). O conflito é detectado na escrita, que é onde ele importa |
+| Watcher de filesystem | Continua a [Q6 da right-panel](../004-right-panel/open-questions.md). O conflito é detectado na escrita, que é onde ele importa |
 
 ---
 

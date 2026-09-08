@@ -52,7 +52,7 @@ This is the path `pnpm smoke:install` exercises, one throwaway prefix at a time.
 | Node | 22 or newer |
 | git | 2.30 or newer — the whole product is worktrees |
 | An ACP agent | the `claude` CLI, for the agent conversation. The first-run screen installs the adapter for you |
-| OS | macOS and Linux. Windows is not supported ([why](docs/prd/distribution/prd.md)) |
+| OS | macOS and Linux. Windows is not supported ([why](docs/features/014-distribution/prd.md)) |
 
 Nothing else: the two native dependencies (`better-sqlite3`, `node-pty`) ship
 prebuilt binaries, so a global install compiles nothing on the common platforms.
@@ -65,12 +65,12 @@ conversations, memory. `--state-dir` moves it.
 
 | | |
 |---|---|
-| [Projects and worktrees](docs/prd/walking-skeleton/prd.md) | register a repo by path or [clone it from a URL](docs/prd/project-from-url/prd.md); cut worktrees from the product instead of the terminal |
-| [Agent conversations over ACP](docs/prd/acp-sessions/prd.md) | plan, usage and cost, slash commands, an embedded terminal, and the conversation **on disk** — closing Lumem does not lose it |
-| [Files, diff and an editor](docs/prd/file-editor/prd.md) | browse the checkout, read the diff against the base branch, and edit with autosave |
-| [Project scripts](docs/prd/project-scripts/prd.md) | `setup`, `run`, `test` and `teardown` live in `<repo>/.lumem/project.toml`; a new worktree is born prepared, and one click brings the app up on a port reserved for that checkout |
-| [Workspace memory](docs/prd/workspace-memory/prd.md) | what the harness learned, versioned in git, behind a write gate and an inbox of proposals. The three switches that spend tokens ship **off** |
-| [Pull request status](docs/prd/pull-request-status/prd.md) | designed, not built: which of your worktrees is actually mergeable |
+| [Projects and worktrees](docs/features/001-walking-skeleton/prd.md) | register a repo by path or [clone it from a URL](docs/features/011-project-from-url/prd.md); cut worktrees from the product instead of the terminal |
+| [Agent conversations over ACP](docs/features/006-acp-sessions/prd.md) | plan, usage and cost, slash commands, an embedded terminal, and the conversation **on disk** — closing Lumem does not lose it |
+| [Files, diff and an editor](docs/features/005-file-editor/prd.md) | browse the checkout, read the diff against the base branch, and edit with autosave |
+| [Project scripts](docs/features/012-project-scripts/prd.md) | `setup`, `run`, `test` and `teardown` live in `<repo>/.lumem/project.toml`; a new worktree is born prepared, and one click brings the app up on a port reserved for that checkout |
+| [Workspace memory](docs/features/007-workspace-memory/prd.md) | what the harness learned, versioned in git, behind a write gate and an inbox of proposals. The three switches that spend tokens ship **off** |
+| [Pull request status](docs/features/013-pull-request-status/prd.md) | designed, not built: which of your worktrees is actually mergeable |
 
 ## How it works
 

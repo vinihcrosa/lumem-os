@@ -4,12 +4,12 @@
 > **Versão:** v0.3 — a **Q3** e a **Q4** trocaram o corte da feature: ela lê **e escreve**. A v0.2
 > tinha mudado a estrutura (a v0.1 punha a barra acima do cabeçalho da worktree; o Vinicius mudou
 > ([§2.1](#21-a-mudança-de-estrutura)), e a barra foi para o painel direito), e o rebase em cima da
-> `main` trouxe a [project-scripts](../project-scripts/prd.md), que ancorou um **rodapé de execução**
+> `main` trouxe a [project-scripts](../012-project-scripts/prd.md), que ancorou um **rodapé de execução**
 > no mesmo painel — absorvido no §2.2
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
 > **Protótipo:** `packages/web/prototype/lumem-pr-bar.html` — abra no navegador
-> **Sucede:** [workspace-screen](../workspace-screen/prd.md)
+> **Sucede:** [workspace-screen](../010-workspace-screen/prd.md)
 >
 > **Nota de 2026-09-05 — a feature passou a escrever.** As onze perguntas foram respondidas de uma
 > vez, e **duas delas contra a proposta escrita aqui**: a [Q3](open-questions.md) põe o `Merge` no v1
@@ -32,7 +32,7 @@
 > (`gh` instalado × API do host com token nosso).
 >
 > **A Fase 1 saiu daqui.** A estrutura da coluna do meio (§2.1, F0) virou feature própria —
-> [worktree-first-tab](../worktree-first-tab/prd.md) —, porque ela não depende de saber ler PR e esta
+> [worktree-first-tab](../018-worktree-first-tab/prd.md) —, porque ela não depende de saber ler PR e esta
 > depende de uma pergunta que não fechou. A **Q11** foi junto. Esta feature passa a **depender**
 > daquela, e as tasks E1–E3 daqui saem de escopo.
 
@@ -109,7 +109,7 @@ copiar.
 
 ### 2.2 O painel direito agora tem quatro andares
 
-A [project-scripts](../project-scripts/prd.md) entrou na `main` enquanto esta feature era desenhada, e
+A [project-scripts](../012-project-scripts/prd.md) entrou na `main` enquanto esta feature era desenhada, e
 a decisão **S1** dela ancorou o rodapé de execução (`Setup`, `Run`, `Terminal`) **no painel direito** —
 *"o repositório em cima, o que ele faz embaixo"*. Somando com esta feature, a coluna passa a ter, de
 cima para baixo:
@@ -244,7 +244,7 @@ colapsado no primeiro uso. Isso o move de enfeite para requisito.
 **F4.1** Uma interface `PrHost` com um método que interessa: *dadas as branches deste repositório, o
 que o host sabe?* Uma implementação no v1 — **GitHub via `gh`** (Q1).
 **F4.2** O host é descoberto do `remote` do repositório, pelo `git-url.ts` que a
-[project-from-url](../project-from-url/prd.md) já escreveu e já testou. Host desconhecido → sem
+[project-from-url](../011-project-from-url/prd.md) já escreveu e já testou. Host desconhecido → sem
 integração, dito na tela.
 **F4.3** **A consulta é por projeto, não por worktree.** Um `gh pr list` traz todas as PRs abertas do
 repositório de uma vez; oito worktrees do mesmo projeto custam **um** processo, não oito. É a diferença
@@ -396,7 +396,7 @@ do desenho.
 
 | O quê | Por quê | Mitigação |
 |---|---|---|
-| **A mudança de estrutura quebrar tela que já funciona** | A F0 mexe no `ScopePanel`, que é o esqueleto de **todas** as telas de checkout, e nos testes da [worktree-tabs](../worktree-tabs/tasks.md) | A F0 é a **primeira fase**, entregue e verde antes de qualquer coisa de PR entrar. Nenhuma informação some no caminho: o que sai do cabeçalho reaparece na aba, e o teste que provava o cabeçalho passa a provar a aba |
+| **A mudança de estrutura quebrar tela que já funciona** | A F0 mexe no `ScopePanel`, que é o esqueleto de **todas** as telas de checkout, e nos testes da [worktree-tabs](../003-worktree-tabs/tasks.md) | A F0 é a **primeira fase**, entregue e verde antes de qualquer coisa de PR entrar. Nenhuma informação some no caminho: o que sai do cabeçalho reaparece na aba, e o teste que provava o cabeçalho passa a provar a aba |
 | **Estado da worktree ficar invisível** com uma sessão na frente | É o custo nomeado no §2.1, e ele é real | Dois sinais persistentes (ponto na aba, marcador na sidebar) e um clique para o resto. Ver [Q11](open-questions.md) |
 | **O `gh` não existir, não estar autenticado, ou mudar de saída** | É dependência de máquina, e a saída `--json` é contrato de outro projeto | A fase 1 é um **spike** que mede a saída real e vira fixture. Ausência e falta de auth são estados de tela desenhados, não erros |
 | **Tempestade de processos** | Oito worktrees × poll = oito processos por ciclo, e o `gh` custa centenas de ms | F4.3 (consulta por projeto), F4.5 (single-flight + TTL) e F4.6 (ritmo adaptativo e pausa com janela oculta) são *Done when* de task, não intenção |

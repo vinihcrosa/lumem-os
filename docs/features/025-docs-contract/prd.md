@@ -15,7 +15,8 @@
 **O repositório não tem onde registrar uma decisão, então ele registra decisão em 44 lugares e 5
 deles mentem.**
 
-O `docs/prd/` tem 24 pastas e nenhuma ordem legível. A ordem existe só no git, e o git mente: três
+O `docs/prd/` — como a categoria se chamava quando isto foi escrito — tinha 24 pastas e nenhuma ordem
+legível. A ordem existe só no git, e o git mente: três
 commits criaram 2, 4 e 4 pastas de uma vez, então 10 das 24 não têm "antes" nenhum. Um agente que
 lista a árvore não sabe o que veio primeiro.
 
@@ -25,7 +26,7 @@ vezes — nada diz qual vale. O que existe é uma convenção informal, boa, esc
 > *"decisão revertida sem registro é decisão que volta sozinha"*
 > *"não-objetivo revertido sem registro é dívida de documentação"*
 
-Ela aparece 6 vezes e **falha 1 em 5**: quatro links apontam para `docs/prd/worktree-tabs/prd.md`,
+Ela aparece 6 vezes e **falha 1 em 5**: quatro links apontam para o `prd.md` da `worktree-tabs`,
 arquivo que nunca existiu, e dois deles foram criados por tasks marcadas `[x]` cujo trabalho era
 justamente propagar uma nota de reversão. O repositório já auditou isso em
 [harness-audit.md](../../project/harness-audit.md) e o defeito continua lá.
@@ -34,16 +35,16 @@ E o campo que deveria dizer o estado é o que apodreceu mais:
 
 | PRD | `**Status:**` declarado | Verdade |
 |---|---|---|
-| [pull-request-status](../pull-request-status/prd.md) | *"em implementação"*, e uma nota de 2026-09-01 dizendo *"nenhuma das 16 tasks foi iniciada"* | `tasks.md` diz **completa**; `packages/server/src/pr/` tem 14 arquivos e ~115 KB |
-| [right-panel](../right-panel/prd.md) | *"desenho fechado, tasks prontas para execução"* | entregue |
-| [ui-shell](../ui-shell/prd.md) | *"desenho aprovado, tasks prontas para execução"* | entregue |
-| [walking-skeleton](../walking-skeleton/prd.md) | *"decisões fechadas, pronto pra revisão final"* | 34 tasks entregues |
-| [acp-sessions](../acp-sessions/prd.md) | *"fases 0 a 4 entregues"*, e no `:10` *"18 tasks, nenhuma iniciada"* | 35 tasks nas fases 1, 3, 4, 5 e 6 |
+| [pull-request-status](../013-pull-request-status/prd.md) | *"em implementação"*, e uma nota de 2026-09-01 dizendo *"nenhuma das 16 tasks foi iniciada"* | `tasks.md` diz **completa**; `packages/server/src/pr/` tem 14 arquivos e ~115 KB |
+| [right-panel](../004-right-panel/prd.md) | *"desenho fechado, tasks prontas para execução"* | entregue |
+| [ui-shell](../002-ui-shell/prd.md) | *"desenho aprovado, tasks prontas para execução"* | entregue |
+| [walking-skeleton](../001-walking-skeleton/prd.md) | *"decisões fechadas, pronto pra revisão final"* | 34 tasks entregues |
+| [acp-sessions](../006-acp-sessions/prd.md) | *"fases 0 a 4 entregues"*, e no `:10` *"18 tasks, nenhuma iniciada"* | 35 tasks nas fases 1, 3, 4, 5 e 6 |
 
 **Cinco de 23, e vaza para fora do `docs/`:** os dois READMEs da raiz publicam *"designed, not
 built"* / *"desenhado, não implementado"* sobre uma feature que está implementada. O heading do
 índice — *"Propostos em 2026-09-05 — quatro PRDs, nenhum começado"* — também já é falso, porque o
-quarto é a [second-agent](../second-agent/prd.md), completa.
+quarto é a [second-agent](../021-second-agent/prd.md), completa.
 
 Esse é o achado que decide o desenho todo: **campo de prosa que carrega estado apodrece.** Qualquer
 esquema que ponha precedência num campo assim vai apodrecer igual, e mais rápido, porque passa a ser
@@ -53,7 +54,7 @@ carregado.
 
 O pedido chegou com duas partes:
 
-1. um índice — `docs/prd/<NNN>-nome/`, três dígitos;
+1. um índice — `docs/features/<NNN>-nome/`, três dígitos;
 2. a regra de que **PRD é estado temporal**: a mais recente manda sobre a mais antiga.
 
 A segunda foi corrigida pelo autor no mesmo dia, antes de existir código: **PRD não é fonte de
@@ -65,7 +66,7 @@ nova:
 
 | Problema da prioridade no número | Por que desaparece |
 |---|---|
-| **Emenda × criação.** A [Q6 da run-dock-open](../run-dock-open/open-questions.md) foi respondida em 2026-09-01 e **revertida em 2026-09-06**. O número dela é o de 09-05 | o número não afirma nada, então não pode estar errado |
+| **Emenda × criação.** A [Q6 da run-dock-open](../015-run-dock-open/open-questions.md) foi respondida em 2026-09-01 e **revertida em 2026-09-06**. O número dela é o de 09-05 | o número não afirma nada, então não pode estar errado |
 | **Colisão em paralelo.** Duas worktrees pegam `025` e o git não reclama | o número é ordem, e ordem empatada é inofensiva |
 | **Nenhum arquivo descreve o presente.** "O mais novo manda" obriga a reproduzir 24 PRDs em ordem na cabeça | a posição atual sobre decisão é a cadeia de ADR; sobre comportamento, é o código |
 
@@ -159,14 +160,14 @@ ad-hoc continuam livres de propósito — o gate olha **um** campo, não o cabe�
 | `docs/adr/drafts/`, ou ADR dentro da pasta da feature | [Q4](open-questions.md). Rascunho promovido é *"two locations and a drift window"*, e decisão sobrevive à feature que a produziu |
 | ADR para as 44 supersessões informais | [Q10](open-questions.md). São supersessão de **requisito de feature**, não de arquitetura, e pela regra 4 elas ficam onde estão |
 | os gates `broken-supersedes` e `supersedes-cycle` | [Q11](open-questions.md). Para 6 ADRs sem nenhum `supersedes`, é código para um problema que não existe. **Gatilho de voltar: o primeiro `supersedes:` escrito** |
-| mover `docs/prd/` para `docs/proposals/` na fase de proposta | [Q7](open-questions.md). Quebraria 27 referências e o número não existiria enquanto é proposta |
+| mover `docs/features/` para `docs/proposals/` na fase de proposta | [Q7](open-questions.md). Quebraria 27 referências e o número não existiria enquanto é proposta |
 | renomear `prd.md` | só a **categoria** muda. `docs/features/005-file-editor/prd.md` |
 | reescrever os 45 trailers de commit do histórico | git history não se reescreve. §6 |
 
 ## 5. O que "proposta" é, e por que ela fica
 
-Três PRDs nunca foram implementadas — [daemon-auth](../daemon-auth/prd.md),
-[memory-dogfooding](../memory-dogfooding/prd.md), [workspace-tasks](../workspace-tasks/prd.md). E o
+Três PRDs nunca foram implementadas — [daemon-auth](../019-daemon-auth/prd.md),
+[memory-dogfooding](../020-memory-dogfooding/prd.md), [workspace-tasks](../022-workspace-tasks/prd.md). E o
 repositório **já resolve isso sem saber**: nenhuma tem `tasks.md`, e o campo `Tasks:` de cada uma diz
 literalmente *"ainda não — nascem depois das perguntas respondidas"*.
 
@@ -211,7 +212,7 @@ com razão escrita — o que vale mais que a estrutura. **Duas foram derrubadas 
 | Da referência | Aqui | Por quê |
 |---|---|---|
 | ADR por data pura (`YYYY-MM-DD-slug`) | **data + minuto** (`YYYY-MM-DD-HHMM-slug`) | o desempate por sufixo `-2..-99` que ela implementou vira desnecessário: o minuto ordena, e o único jeito de colidir de verdade é data + minuto + slug idênticos — que é o **mesmo caminho**, então o git levanta `add/add` e a colisão fica **visível** |
-| Supersessão parcial **proibida** (a D11) | **proibida no ADR, permitida na PRD** | a D11 está certa sobre decisão arquitetural. Mas a nota do [walking-skeleton](../walking-skeleton/prd.md) — *"Continua valendo inteiro para projeto registrado por caminho… o que autoriza é a coluna `managed`"* — não é arquitetura, é requisito de feature, e a **delimitação** é o que a torna útil |
+| Supersessão parcial **proibida** (a D11) | **proibida no ADR, permitida na PRD** | a D11 está certa sobre decisão arquitetural. Mas a nota do [walking-skeleton](../001-walking-skeleton/prd.md) — *"Continua valendo inteiro para projeto registrado por caminho… o que autoriza é a coluna `managed`"* — não é arquitetura, é requisito de feature, e a **delimitação** é o que a torna útil |
 | `lumem adr lint` com dois gates | **não implementado** | lá os dois gates existem e **não rodam em CI nenhum**, e nenhum dos três ADRs usa `supersedes` — a cadeia nunca foi exercitada fora de fixture. Sinal de que custou mais que o valor |
 
 E o que veio inteiro, porque a razão é boa e a evidência local confirma:

@@ -173,7 +173,7 @@ export interface GitService {
    * O assunto do último commit deste checkout. `null` quando não há commit.
    *
    * Existe para o formulário de criar pull request **propor** um título
-   * ([Q4](../../../../docs/prd/pull-request-status/open-questions.md), F7.6):
+   * ([Q4](../../../../docs/features/013-pull-request-status/open-questions.md), F7.6):
    * PR sem título pensado é PR que alguém vai ter de editar, e o título que o
    * git já sabe é melhor ponto de partida que um campo vazio. Só o assunto — o
    * corpo do commit não é corpo de PR.

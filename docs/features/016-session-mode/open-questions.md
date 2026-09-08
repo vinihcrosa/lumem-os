@@ -68,7 +68,7 @@ A alternativa simétrica — `◆` no agente também — foi desenhada e **recus
 tela. Além disso obrigaria a decidir o que fazer com as pílulas de modelo e esforço, que também são do
 agente. A assimetria é o preço, e ele é menor.
 
-> **A dependência que isso cria:** fechar a [A13](../acp-sessions/open-questions.md) em favor de
+> **A dependência que isso cria:** fechar a [A13](../006-acp-sessions/open-questions.md) em favor de
 > **traduzir** a string do agente apaga metade deste sinal, e aí o glifo passa a carregar a autoria
 > sozinho. Está escrito no §7 do desenho.
 
@@ -113,7 +113,7 @@ rodapé. A alternativa envelhece mal e dá falsa segurança.
 Ele deixa o agente escrever e executar sem perguntar, dentro de uma worktree.
 
 **Proposta pra reagir:** confirmação explícita **por sessão**, com o texto dizendo o que passa a
-poder acontecer — e sem "não perguntar de novo". A [project-scripts](../project-scripts/prd.md) já
+poder acontecer — e sem "não perguntar de novo". A [project-scripts](../012-project-scripts/prd.md) já
 tem um portão de confiança para `[scripts]` vindo de repositório clonado; o molde é o mesmo, e a
 decisão dela foi que o portão é por origem e não uma vez na vida.
 

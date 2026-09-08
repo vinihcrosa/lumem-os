@@ -7,7 +7,7 @@
 > **inclusive a recomendação contrária do §7, que perdeu**.
 > O §9 é o registro do dia em que foi decidido, e continua valendo como registro.
 > **Não há gatilho formal de reabertura** (TA6) — a garantia é o `transport` continuar sendo coluna.
-> **Origem:** [Q1 da workspace-memory](../prd/workspace-memory/open-questions.md). **Responde** as
+> **Origem:** [Q1 da workspace-memory](../features/007-workspace-memory/open-questions.md). **Responde** as
 > [Q002, Q029, Q030 e Q031 do projeto](questions.md).
 > **Por que existe:** a memória do workspace depende de o daemon **entender** a sessão, e hoje ele só
 > vê bytes de terminal. Antes de decidir como aprender, é preciso decidir o que dá para ver.
@@ -230,8 +230,8 @@ ensina nada, e o Lumem tem que **mostrar isso** em vez de fingir que aprendeu (�
 
 > **Convenção de rótulo:** as perguntas **de transporte** deste arquivo são **TA1–TA6**. A faixa `A…`
 > já é usada por outros dois conjuntos — as **A1–A12** de
-> [acp-sessions](../prd/acp-sessions/open-questions.md), que são sobre a **tela**, e as premissas
-> travadas **A1–A10** de [workspace-memory/tasks.md](../prd/workspace-memory/tasks.md), que não são
+> [acp-sessions](../features/006-acp-sessions/open-questions.md), que são sobre a **tela**, e as premissas
+> travadas **A1–A10** de [workspace-memory/tasks.md](../features/007-workspace-memory/tasks.md), que não são
 > perguntas. O prefixo `T` existe para o conjunto de transporte não colidir com nenhum dos dois.
 
 
@@ -492,7 +492,7 @@ Migrar quer dizer: **ACP é o default e é onde o produto investe**. Não quer d
 
 1. **Spike medido** dos três eixos do §9.2 — **rodado** em 2026-08-17: autenticação e consumo
    medidos, janela **parcial**. Resultado no §9.5.
-2. **PRD próprio** ([docs/prd/acp-sessions/](../prd/acp-sessions/prd.md)) para transporte + tela da
+2. **PRD próprio** ([docs/features/006-acp-sessions/](../features/006-acp-sessions/prd.md)) para transporte + tela da
    conversa — **escrito**, com as 12 perguntas respondidas. É a maior feature do projeto até aqui, e o
    desenho passa pelo protótipo HTML como todas as outras.
 3. **Reescrever o §4 do PRD da memória**, que foi escrito assumindo cegueira — feito.
@@ -503,14 +503,14 @@ Migrar quer dizer: **ACP é o default e é onde o produto investe**. Não quer d
 
 Rodado em 2026-08-17 nesta máquina, contra `@agentclientprotocol/claude-agent-acp@0.69.0` — número que
 **não bate** com o que o binário instalado reporta: em 2026-08-20 o `agentInfo.version` dele diz
-`0.40.0`, e é esse que a [agent-login](../prd/agent-login/open-questions.md) fixou. Onde os dois
+`0.40.0`, e é esse que a [agent-login](../features/009-agent-login/open-questions.md) fixou. Onde os dois
 discordam, vale o que o handshake respondeu. Com o
 `claude` 2.1.234. O detalhe, com os payloads, está no
-[§2 do PRD de acp-sessions](../prd/acp-sessions/prd.md). Os três eixos:
+[§2 do PRD de acp-sessions](../features/006-acp-sessions/prd.md). Os três eixos:
 
 | Eixo | Resultado | Evidência |
 |---|---|---|
-| **Autenticação** | ✅ a assinatura vale — sem chave de API | `session/new` sem erro. O medo da issue #517 é da distribuição pela JetBrains, e não se aplica a adaptador instalado por você. **Corrigido em 2026-08-20:** este quadro dizia também `initialize → authMethods: []`, e tirava disso que o adaptador "não pediu nada" — ele não foi perguntado. Só oferece login a quem declara `clientCapabilities.auth.terminal`, o que o spike não fazia ([agent-login §2.1](../prd/agent-login/prd.md)) |
+| **Autenticação** | ✅ a assinatura vale — sem chave de API | `session/new` sem erro. O medo da issue #517 é da distribuição pela JetBrains, e não se aplica a adaptador instalado por você. **Corrigido em 2026-08-20:** este quadro dizia também `initialize → authMethods: []`, e tirava disso que o adaptador "não pediu nada" — ele não foi perguntado. Só oferece login a quem declara `clientCapabilities.auth.terminal`, o que o spike não fazia ([agent-login §2.1](../features/009-agent-login/prd.md)) |
 | **Janela de contexto** | ⚠️ **parcial** — a sessão **nasce** em 1M | `currentValue: "opus[1m]"`, `default → "Opus (1M context)"`, e o turno reportou `size: 1000000` (campo confiável desde que a [#596](https://github.com/agentclientprotocol/claude-agent-acp/issues/596) fechou). **O que falta:** o §9.2 definiu que o único jeito de resolver a #786 era *encher contexto e ver onde a compactação dispara* — e o spike mediu um turno de 39.200 tokens, volume em que 200K e 1M se comportam igual. A #786 continua **aberta** upstream |
 | **Consumo** | ✅ sai da assinatura, e o protocolo entrega o estado do limite | `usage_update` com `rateLimitType: "seven_day"` — janela dos planos Max, não crédito de API — sem `ANTHROPIC_API_KEY` no ambiente. E vem `utilization`, `resetsAt` e `isUsingOverage` **por turno**, o que o `/usage` manual não dava |
 

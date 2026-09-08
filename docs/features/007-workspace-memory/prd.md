@@ -17,7 +17,7 @@
 > **Estudo derivado:** [PTY × ACP](../../project/pty-vs-acp.md), onde a decisão está registrada
 > **Referências:** [compozy](../../references/compozy.md) §5 · [hermes](../../references/hermes.md) §3–5
 > **Perguntas do projeto que esta feature responde:** [Q016–Q021](../../project/questions.md) e [Q050–Q066](../../project/questions.md)
-> **Sucede:** [file-editor](../file-editor/prd.md) · **Depende de:** [acp-sessions](../acp-sessions/prd.md) — **completa**, e é o que destravou as fases 4–6
+> **Sucede:** [file-editor](../005-file-editor/prd.md) · **Depende de:** [acp-sessions](../006-acp-sessions/prd.md) — **completa**, e é o que destravou as fases 4–6
 
 ---
 
@@ -542,7 +542,7 @@ autenticação, billing e janela de contexto — mas ele pertence à feature de 
 
 - **Sessão de agente por ACP** — §4.1. Bloqueia as **fases 4, 5 e 6**; as três primeiras andam sem
   ela. É a maior dependência que esta feature já teve, e ela virou feature própria, já desenhada
-  ([acp-sessions/prd.md](../acp-sessions/prd.md) — PRD escrito, spike rodado).
+  ([acp-sessions/prd.md](../006-acp-sessions/prd.md) — PRD escrito, spike rodado).
 - **Workspace como entidade real.** Existe na tabela (`packages/server/src/db/schema.ts`) e não tem
   identidade estável em disco. Memória amarrada a `id` de linha não sobrevive a nada; precisa de
   identificador durável que **não** more no repositório — a proposta é o hash do primeiro commit

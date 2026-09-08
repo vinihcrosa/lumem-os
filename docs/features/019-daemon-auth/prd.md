@@ -1,13 +1,13 @@
 # PRD — O daemon confere quem fala com ele
 
 > **Status:** v0.1 — proposto em 2026-09-05, **perguntas abertas**. Sai do backlog ("Autenticação do
-> daemon", seção F) e da **Q46** da [workspace-memory](../workspace-memory/open-questions.md), que é a
+> daemon", seção F) e da **Q46** da [workspace-memory](../007-workspace-memory/open-questions.md), que é a
 > identidade de ator. O gatilho do backlog era "quando o daemon escutar fora do loopback"; a avaliação
 > de arquitetura do mesmo dia mostrou que duas das ameaças não esperam por isso.
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** ainda não — nascem depois das perguntas respondidas
 > **Depende de:** nada. A origem única que a fase 2 precisa **já existe**: desde a
-> [distribution](../distribution/prd.md) o daemon serve o web na própria porta (`web/static.ts`). O
+> [distribution](../014-distribution/prd.md) o daemon serve o web na própria porta (`web/static.ts`). O
 > vite continua sendo uma segunda origem **só em desenvolvimento**
 > **Desenho:** nenhuma tela. Recusa é texto, como toda recusa do daemon
 
@@ -54,7 +54,7 @@ WebSocket não obedece CORS. Qualquer página pode abrir `ws://127.0.0.1:4317/ac
 souber o id, ler a transcrição inteira no `attached` e mandar `prompt`. Hoje o id é um UUID que não
 aparece em URL nenhuma — mitigação real, mas por acidente de o cliente não ter roteador. Conferir
 `Origin` fecha isto independentemente do id. E a conta subiu com a
-[session-mode](../session-mode/prd.md): uma sessão em `liberado` executa sem perguntar, então um socket
+[session-mode](../016-session-mode/prd.md): uma sessão em `liberado` executa sem perguntar, então um socket
 sequestrado nela é um agente fazendo o que o atacante mandar no `prompt`.
 
 ### 2.3 Efeito colateral por `GET`
@@ -127,7 +127,7 @@ achou como forjar `Host` — fala com o daemon. O token fecha:
 
 O daemon gera um token **por sessão** e o injeta como `LUMEM_SESSION_TOKEN` no `env` do adaptador e
 do shell daquela sessão. `/memory/ask` — e o futuro `POST /tasks` da
-[workspace-tasks](../workspace-tasks/prd.md) — aceitam esse token como `Bearer` e **derivam** a sessão
+[workspace-tasks](../022-workspace-tasks/prd.md) — aceitam esse token como `Bearer` e **derivam** a sessão
 dele; o `?session=` deixa de existir. A skill que ensina o `curl` é gerada pelo daemon (`skill.ts`),
 então as duas coisas mudam no mesmo commit.
 

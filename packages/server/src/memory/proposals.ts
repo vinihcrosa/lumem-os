@@ -22,7 +22,7 @@ import { PROPOSAL_TYPES, type MemoryActor, type MemoryScope, type MemoryType } f
  * O que este módulo **não** garante: que `actor` seja verdade. Ele é declarado
  * por quem chama, e a superfície ainda não prova quem está do outro lado — a
  * pergunta, com o ponto de imposição nomeado, é a
- * [Q46](../../../../docs/prd/workspace-memory/open-questions.md). Enquanto ela
+ * [Q46](../../../../docs/features/007-workspace-memory/open-questions.md). Enquanto ela
  * estiver aberta, o desvio protege contra engano, não contra quem quer burlá-lo.
  */
 

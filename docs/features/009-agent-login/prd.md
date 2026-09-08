@@ -2,7 +2,7 @@
 
 **Protótipo:** `packages/web/prototype/lumem-agent-login.html` — sete estados, mais os casos e o mapa
 tela ↔ protocolo
-**Sucede:** [onboarding](../onboarding/prd.md) · **Depende de:** [acp-sessions](../acp-sessions/prd.md)
+**Sucede:** [onboarding](../008-onboarding/prd.md) · **Depende de:** [acp-sessions](../006-acp-sessions/prd.md)
 **Perguntas:** [open-questions.md](open-questions.md) · **Tasks:** [tasks.md](tasks.md)
 **Status:** **implementado** — núcleo mais instalação automática. O caminho da chave de API ficou fora,
 com a decisão registrada.
@@ -59,7 +59,7 @@ async authenticate(_params) {
 Então o clique **não** vai por `authenticate`. O que roda é `claude-agent-acp --cli auth login
 --claudeai` num terminal — e é esse comando que abre o navegador. O desenho descrevia o mecanismo
 errado; o resultado na tela é o mesmo, e o Lumem já tinha terminal desde a
-[acp-sessions](../acp-sessions/prd.md).
+[acp-sessions](../006-acp-sessions/prd.md).
 
 Com `_meta["terminal-auth"]` declarado, o adaptador entrega o **comando exato**:
 
@@ -150,7 +150,7 @@ seria mecanismo do Lumem. Ficou fora ([L6](open-questions.md)).
 
 ## 5. A reversão nomeada
 
-A [D5/O6 do onboarding](../onboarding/open-questions.md) decidiu, ontem, que **a tela nunca instala
+A [D5/O6 do onboarding](../008-onboarding/open-questions.md) decidiu, ontem, que **a tela nunca instala
 nada**. Esta feature reverte isso, e a diferença importa:
 
 | O que foi recusado | O que foi feito |

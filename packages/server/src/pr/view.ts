@@ -77,7 +77,7 @@ export function viewOf({ pull, host, alsoOpen }: ViewInput): PullRequestView {
 /**
  * Quantos dias uma PR fechada ainda conta como "a PR desta worktree".
  *
- * O teto da [Q7](../../../../docs/prd/pull-request-status/open-questions.md).
+ * O teto da [Q7](../../../../docs/features/013-pull-request-status/open-questions.md).
  * Sem ele, uma worktree cuja branch foi reaproveitada mostraria para sempre uma
  * PR que ninguém lembra — e o produto pareceria estar mentindo.
  */
@@ -86,7 +86,7 @@ export const CLOSED_PR_MAX_AGE_DAYS = 30;
 /**
  * Qual PR é **a** PR desta branch.
  *
- * A regra da [Q8](../../../../docs/prd/pull-request-status/open-questions.md):
+ * A regra da [Q8](../../../../docs/features/013-pull-request-status/open-questions.md):
  * a mais recentemente atualizada, e nunca duas somadas num veredito só — isso
  * produziria uma frase que não é verdade sobre nenhuma delas.
  *

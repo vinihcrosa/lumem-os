@@ -5,7 +5,7 @@
 > que ela entrega é uma **decisão**: a memória ganha mais código, ou congela.
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** ainda não — a fase 0 (instrumentação) vira tasks depois das perguntas
-> **Depende de:** nada. A [distribution](../distribution/prd.md) já entregou o `lumem` instalável, e é
+> **Depende de:** nada. A [distribution](../014-distribution/prd.md) já entregou o `lumem` instalável, e é
 > **nele** que as três semanas rodam — no `~/.lumem` de produção, nunca no `~/.lumem-dev/shared` de
 > desenvolvimento ([workspaces.md](../../project/workspaces.md)). O daemon ainda é foreground (D2 da
 > distribution): um terminal ocupado por três semanas é o que traz "o daemon em background" do backlog

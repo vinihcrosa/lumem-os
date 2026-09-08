@@ -18,7 +18,7 @@ do `git mv`.
 |---|---|
 | `docs/adr/` (nasce) | 6 ADRs: 5 retrospectivos mais o desta decisão |
 | `docs/project/pty-vs-acp.md`, `design-source-of-truth.md` | perdem o campo que **afirma** a decisão; ganham ponteiro para o ADR |
-| `docs/prd/` → `docs/features/` | 25 pastas, `NNN-nome`, três dígitos |
+| `docs/features/` → `docs/features/` | 25 pastas, `NNN-nome`, três dígitos |
 | `CLAUDE.md`, `docs/README.md`, `docs/project/backlog.md` | a regra escrita, e a categoria nova |
 | `.claude/agents/lumem-{dev,reviewer}.md` | 4 quebras e 12 placeholders |
 | `README.md`, `README.pt-BR.md` | sai *"designed, not built"* |
@@ -29,7 +29,7 @@ do `git mv`.
 | Não muda | Por quê |
 |---|---|
 | o nome `prd.md` | só a categoria muda ([Q12](open-questions.md)) |
-| as 164 linhas de `../../project/` e `../../references/` | a profundidade de `docs/features/<NNN>-<x>/` é a mesma de `docs/prd/<x>/` |
+| as 164 linhas de `../../project/` e `../../references/` | a profundidade de `docs/features/<NNN>-<x>/` é a mesma de `docs/features/<x>/` |
 | as 3 strings executáveis com `docs/prd` em teste | caminhos sintéticos escritos em tmpdir — trocá-las não conserta nada e arrisca o assert |
 | os 45 trailers de commit do histórico | git history não se reescreve ([Q9](open-questions.md)) |
 | `broken-supersedes` / `supersedes-cycle` | [Q11](open-questions.md) — gatilho de voltar é o primeiro `supersedes:` escrito |
@@ -59,7 +59,7 @@ do `git mv`.
 - **Fora de escopo, com o motivo:** *"o adaptador é catálogo, não constante de Claude"* — a
   reversibilidade é discutível, e reverter falha o primeiro dos três testes. *"Um popover ancora no
   que o abre"* — é regra de design, e pela regra 4 isso fica na PRD da
-  [composer-menus](../composer-menus/prd.md).
+  [composer-menus](../023-composer-menus/prd.md).
 - **Gate:** nenhum (só documentação) · **Commit:** `docs(adr): the five decisions that already crossed the system`
 
 ### T2 — os dois arquivos de `docs/project/` param de afirmar decisão
@@ -108,8 +108,8 @@ do `git mv`.
 
 ### T6 — `git mv`, e **nada mais**
 
-- **Where:** as 25 pastas de `docs/prd/`
-- **O quê:** `docs/prd/<x>/` → `docs/features/<NNN>-<x>/`, `NNN` pela ordem do primeiro commit que
+- **Where:** as 25 pastas de `docs/features/`
+- **O quê:** `docs/features/<x>/` → `docs/features/<NNN>-<x>/`, `NNN` pela ordem do primeiro commit que
   criou cada pasta:
 
   | | | | | |
@@ -137,10 +137,10 @@ do `git mv`.
 ### T7 — as quatro formas de caminho
 
 - **Where:** `docs/**`, `CLAUDE.md`, `README.md`, `README.pt-BR.md`
-- [ ] `docs/prd/<x>/` → `docs/features/<NNN>-<x>/` (86 linhas em 38 arquivos)
+- [ ] `docs/features/<x>/` → `docs/features/<NNN>-<x>/` (86 linhas em 38 arquivos)
 - [ ] `prd/<x>/` no índice → `features/<NNN>-<x>/` (117 ocorrências)
 - [ ] `../<x>/` entre features → `../<NNN>-<x>/` (129 linhas)
-- [ ] `docs/prd/` genérico → `docs/features/`
+- [ ] `docs/features/` genérico → `docs/features/`
 - **Não tocar:** `../../project/` e `../../references/` — 164 linhas, e a profundidade não muda.
 - **Done when:** `grep -rn 'docs/prd' .` volta só as 3 strings de teste; e o link-checker da T12
   volta zero.
@@ -161,9 +161,9 @@ do `git mv`.
 
 - **Where:** `.claude/agents/lumem-dev.md`, `.claude/agents/lumem-reviewer.md`
 - [ ] `lumem-dev.md:71` — o link para `walking-skeleton/tasks.md`, **2 ocorrências na mesma linha**
-- [ ] `lumem-dev.md:210` — `T5 of docs/prd/walking-skeleton/tasks.md`, no template de commit
-- [ ] `lumem-reviewer.md:78` — `docs/prd/walking-skeleton/{prd,open-questions,tasks}.md`
-- [ ] os 12 placeholders `docs/prd/<feature>/` → `docs/features/<NNN>-<feature>/`, incluindo
+- [ ] `lumem-dev.md:210` — `T5 of docs/features/001-walking-skeleton/tasks.md`, no template de commit
+- [ ] `lumem-reviewer.md:78` — `docs/features/001-walking-skeleton/{prd,open-questions,tasks}.md`
+- [ ] os 12 placeholders `docs/features/<NNN>-<feature>/` → `docs/features/<NNN>-<feature>/`, incluindo
       `lumem-reviewer.md:113` e `:272`, que **definem** o trailer de commit
 - **Achado de graça:** as três quebras apontam `walking-skeleton` como *"feature atual"*, e ela é a
   **primeira** do repositório — já era falso antes desta mudança.
@@ -190,7 +190,7 @@ do `git mv`.
 - [ ] sai *"designed, not built"* / *"desenhado, não implementado"* sobre a `pull-request-status`
 - [ ] o heading *"Propostos em 2026-09-05 — quatro PRDs, nenhum começado"* — são três, e o quarto
       está completo
-- [ ] os **4 links mortos** para `docs/prd/worktree-tabs/prd.md`, arquivo que nunca existiu. O
+- [ ] os **4 links mortos** para `docs/features/003-worktree-tabs/prd.md`, arquivo que nunca existiu. O
       destino certo é o `tasks.md`, que é o único arquivo daquela pasta
 - **Gate:** nenhum · **Commit:** `docs: fix the claims that outlived their feature`
 

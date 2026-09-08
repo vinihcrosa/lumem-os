@@ -4,7 +4,7 @@
 ao primeiro turno com o Claude por ACP
 **Sistema de design:** `packages/web/prototype/lumem-design-system.html` + `lumem-ds.css` — a camada
 compartilhada que o fluxo consome
-**Sucede:** [acp-sessions](../acp-sessions/prd.md) — é ela que faz o passo 3 ter para onde ir
+**Sucede:** [acp-sessions](../006-acp-sessions/prd.md) — é ela que faz o passo 3 ter para onde ir
 **Perguntas:** [open-questions.md](open-questions.md) · **Tasks:** [tasks.md](tasks.md)
 **Status:** **implementado.** 21 tasks entregues, gate cheio verde — 1.671 unit/integration + 26 e2e.
 O que a execução achou está no fim das [tasks](tasks.md), inclusive as duas premissas deste PRD que ela
@@ -51,7 +51,7 @@ Medido no código, não estimado. É o que impede a implementação de recriar o
 | 5 | **Workspace** | `workspace.create` | a tela do passo, e dizer **o que foi escrito no disco** |
 | 6 | **Projeto** | `project.add` valida repo e resolve a branch default antes de gravar | um `inspect` que lê **antes** de gravar: commits, remoto, árvore limpa, worktrees pré-existentes |
 | 7 | **Primeira tarefa** | `worktree.create` + `session.createAgent` | a **prévia**: caminho, branch, sha de origem e o comando `git` que vai rodar |
-| 8 | **A conversa** | **está inteira de pé** — [acp-sessions](../acp-sessions/prd.md) fases 1–6 | o balão de ensino da primeira permissão |
+| 8 | **A conversa** | **está inteira de pé** — [acp-sessions](../006-acp-sessions/prd.md) fases 1–6 | o balão de ensino da primeira permissão |
 | 9 | **Pronto** | nada | a tela inteira, com o recibo do que passou a existir |
 
 Duas leituras importantes desta tabela:
@@ -165,7 +165,7 @@ que manda a pessoa instalar um pacote que não é o que o daemon vai executar.
 
 > **Corrigida em 2026-08-20, no mesmo dia.** Esta divergência estava meio errada, e o que a
 > desmentiu foi medir o adaptador declarando `clientCapabilities.auth.terminal` — ver
-> [agent-login §2.1](../agent-login/prd.md). Existe escolha, ela vem do `authMethods`, e ela mora no
+> [agent-login §2.1](../009-agent-login/prd.md). Existe escolha, ela vem do `authMethods`, e ela mora no
 > painel de login. O que continua valendo é o passo 3 deste fluxo: ali ainda não houve handshake, então
 > o que ele pode fazer é relatar qual credencial está no ambiente.
 
@@ -230,7 +230,7 @@ Cada um com a razão, porque não-objetivo sem razão volta como suposição.
   uma feature, não um campo. [Backlog](../../project/backlog.md).
 - **Seletor de diretório.** §4, divergência 3.
 - **Tela de preferências.** O fluxo cria a `agent_config`; editar depois continua no rodapé da sidebar,
-  com a mentira que a [A16](../acp-sessions/open-questions.md) já nomeou.
+  com a mentira que a [A16](../006-acp-sessions/open-questions.md) já nomeou.
 - **Worktrees `externas` na sidebar.** A tela 8 desenha o grupo; ele é feature de sidebar, e esta
   feature não redesenha a tela 8. [Backlog](../../project/backlog.md).
 - **Paleta de comandos (`⌘K`), `⌘⇧N` e `⌥⇧P`.** §4, divergência 4. [Backlog](../../project/backlog.md).

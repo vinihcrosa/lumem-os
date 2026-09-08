@@ -72,7 +72,7 @@ da tela"*. Mas o de worktree é um formulário de um campo, e um véu de tela ch
 
 **Proposta pra reagir:** **os dois no centro, com véu.** Um é modal e o outro popover é duas
 gramáticas para a mesma gramática de ação, e o de worktree cresce (aviso de repo sem commit, erro de
-branch existente, e a [project-scripts](../project-scripts/prd.md) já quer rodar `setup` ao criar).
+branch existente, e a [project-scripts](../012-project-scripts/prd.md) já quer rodar `setup` ao criar).
 
 **Custo de esperar:** trava o desenho dos dois diálogos.
 
@@ -94,7 +94,7 @@ ser dois.
 só com o texto. Um lugar, em todos os estados.
 
 **Custo de esperar:** o primeiro acesso é a tela que menos pode ficar sem saída; ela é coberta pelo
-e2e da [onboarding](../onboarding/prd.md).
+e2e da [onboarding](../008-onboarding/prd.md).
 
 **R:** **A proposta.** O cabeçalho existe em todos os estados — carregando, vazio, com erro e com
 lista.

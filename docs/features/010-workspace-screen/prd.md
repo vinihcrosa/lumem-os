@@ -39,7 +39,7 @@ direito — só aparece quando existe um checkout selecionado (`App.tsx`, `files
 
 ## 2. Por que agora
 
-Porque a [workspace-memory](../workspace-memory/prd.md) ficou pronta. Enquanto a memória era uma
+Porque a [workspace-memory](../007-workspace-memory/prd.md) ficou pronta. Enquanto a memória era uma
 biblioteca, "só dá para ver por dentro de um projeto" era um detalhe de navegação. Agora ela **muda o
 comportamento do agente** — o núcleo entra em toda sessão, o auto-learn escreve, a inbox pede revisão
 —, e o escopo de workspace é justamente o que *"erra caro: contamina N projetos de uma vez"* (§1 do
@@ -81,7 +81,7 @@ Três coisas, na ordem em que uma pessoa precisa delas:
 | Fora | Por quê |
 |---|---|
 | Tela de **preferências** (configuração de agente) | `agent_config` é **global**, não do workspace — a A16 da `agent-login` já nomeia a mentira do rodapé. Misturar as duas aqui é repetir o erro em outra tela |
-| Criar workspace | já existe, no [onboarding](../onboarding/prd.md) e no seletor |
+| Criar workspace | já existe, no [onboarding](../008-onboarding/prd.md) e no seletor |
 | Mover projeto entre workspaces | ninguém pediu, e é a operação mais destrutiva que o modelo permite |
 | Gráfico, série temporal, comparação entre janelas | o §6 é uma soma por escopo, não um dashboard. Ver [não-objetivos](#6-não-objetivos) |
 

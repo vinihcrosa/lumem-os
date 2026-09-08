@@ -17,7 +17,7 @@ pergunta em vez de descrevê-la — a Q1 nos §6 A–D, a Q2 no §7, a Q3 no §3
 > aqui, e não só no commit, porque decisão tomada por default é a que volta como pergunta.
 
 A Q1 é herdada da
-[pull-request-status](../pull-request-status/open-questions.md) (lá é a **Q11**) e passa a ser desta
+[pull-request-status](../013-pull-request-status/open-questions.md) (lá é a **Q11**) e passa a ser desta
 feature, porque é esta que causa o problema.
 
 ---
@@ -48,7 +48,7 @@ então B não pede um pixel a mais que A.
 `components/worktree-ui.test.tsx:97` já prova o contrário — uma worktree chamada `outra` com a branch
 `feature/outra`, e a sidebar imprime as duas quando divergem. O `crumb__here` imprime o **nome**.
 Então B perde a branch exatamente no caso em que ela importa: worktree importada, ou clonada de fora
-pela [project-from-url](../project-from-url/prd.md). O caso está desenhado no **§6 D** do protótipo, e
+pela [project-from-url](../011-project-from-url/prd.md). O caso está desenhado no **§6 D** do protótipo, e
 com ele a pergunta ganha uma quarta leitura:
 
 - **B′ — ponto + caminho, e o caminho escreve a branch quando ela diverge.** Custa uma linha de

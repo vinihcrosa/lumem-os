@@ -9,8 +9,8 @@
 > **Perguntas:** [open-questions.md](open-questions.md) — **14 de 14**
 > **Tasks:** [tasks.md](tasks.md) — 18 tasks nas fases 1 e 3, nenhuma iniciada
 > **Decisão que originou:** [pty-vs-acp.md](../../project/pty-vs-acp.md) — migrar para ACP, 2026-08-17
-> **Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
-> **Sucede:** [file-editor](../file-editor/prd.md)
+> **Destrava:** [workspace-memory](../007-workspace-memory/roadmap.md) partes 06–09
+> **Sucede:** [file-editor](../005-file-editor/prd.md)
 
 ---
 
@@ -50,7 +50,7 @@ pediu chave de API, não pediu login novo. O medo levantado pela issue #517
 ([§9.2b do estudo](../../project/pty-vs-acp.md)) é real para a **distribuição** pela JetBrains, e
 **não se aplica** a este caso: aqui o adaptador é instalado e rodado por você.
 
-> **Correção de 2026-08-20, medida na [agent-login](../agent-login/prd.md) §2.1.** A leitura original
+> **Correção de 2026-08-20, medida na [agent-login](../009-agent-login/prd.md) §2.1.** A leitura original
 > dizia que `authMethods: []` *mais* o `session/new` provavam que o adaptador "não pediu nada". A
 > segunda metade estava errada: **ele nunca foi perguntado.** O `claude-agent-acp` só oferece método de
 > login a um cliente que declara `clientCapabilities.auth.terminal`, e o spike não declarava. Com a
@@ -114,7 +114,7 @@ e o limiar de aviso **por turno**. Isso é melhor do que o que existe hoje no Lu
 | Achado | Consequência |
 |---|---|
 | **`size: 1000000`** confirmado em uso real | a janela de 1M não é só o rótulo do seletor: é o que o turno reporta |
-| **39.200 tokens para responder "ok"** — 22.708 de escrita de cache + 16.486 de leitura | **o custo fixo de abrir uma sessão é dominado pelo system prompt do agente**, não por nada nosso. O bloco de memória do [context-delivery](../workspace-memory/context-delivery.md) entra num orçamento onde ~39k já são do próprio Claude Code |
+| **39.200 tokens para responder "ok"** — 22.708 de escrita de cache + 16.486 de leitura | **o custo fixo de abrir uma sessão é dominado pelo system prompt do agente**, não por nada nosso. O bloco de memória do [context-delivery](../007-workspace-memory/context-delivery.md) entra num orçamento onde ~39k já são do próprio Claude Code |
 
 ### 2.4 O que mais o spike revelou, e muda o desenho
 
@@ -189,7 +189,7 @@ demais para justificar descartar o insumo da destilação de memória.
 
 | Consumidor | O que passa a existir |
 |---|---|
-| [workspace-memory 06–09](../workspace-memory/roadmap.md) | injeção no `session/prompt`, captura estrutural por turno, auto-learn, telemetria de playbook |
+| [workspace-memory 06–09](../007-workspace-memory/roadmap.md) | injeção no `session/prompt`, captura estrutural por turno, auto-learn, telemetria de playbook |
 | Custo por projeto e por worktree | `usage_update` agregado — [backlog](../../project/backlog.md) |
 | Política de permissão do Lumem | o diálogo da F2.4 é o primeiro passo; a política vem depois — [backlog](../../project/backlog.md) |
 

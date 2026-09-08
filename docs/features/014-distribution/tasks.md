@@ -298,7 +298,7 @@ pacote publicado. Decidido na [D7](open-questions.md).
 **Where**: `docs/README.md`, `CLAUDE.md`
 
 **Done when**:
-- [x] `docs/README.md` lista `prd/distribution/`
+- [x] `docs/README.md` lista `features/014-distribution/`
 - [x] O `CLAUDE.md` diz como o produto se instala, em uma linha — quem lê ele é um agente que precisa
       saber que existe artefato publicado
 - [x] `docs/project/testing.md` ganha o que os gates novos garantem: o boot do bundle e o smoke de

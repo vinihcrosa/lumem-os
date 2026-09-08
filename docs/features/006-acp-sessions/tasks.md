@@ -3,8 +3,8 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) — 14 de 14 respondidas
 **Decisão de transporte:** [pty-vs-acp.md](../../project/pty-vs-acp.md) — **TA1–TA6** fechadas lá
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
-**Sucede:** [file-editor](../file-editor/tasks.md)
-**Destrava:** [workspace-memory](../workspace-memory/roadmap.md) partes 06–09
+**Sucede:** [file-editor](../005-file-editor/tasks.md)
+**Destrava:** [workspace-memory](../007-workspace-memory/roadmap.md) partes 06–09
 **Status:** fases 1, 3, 4, 5 e 6 **concluídas — 35 de 35.** Gate cheio verde (1.568 unit/integration + 25 e2e).
 **Total:** 35 tasks nas fases 1, 3, 4, 5 e 6 do PRD
 
@@ -895,7 +895,7 @@ comprimido, e um purge da linha antiga apaga a cópia antiga sem estragar a nova
 
 ### Por que isso é desta feature, e não da `walking-skeleton`
 
-A CRUD de `agent_config` é da [walking-skeleton](../walking-skeleton/tasks.md), e ela nunca precisou
+A CRUD de `agent_config` é da [walking-skeleton](../001-walking-skeleton/tasks.md), e ela nunca precisou
 de tela: a configuração semeada — `claude-code`, PTY — já vinha pronta no boot (F6.4), e criar outra
 era conveniência.
 

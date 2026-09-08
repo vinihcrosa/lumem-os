@@ -6,7 +6,7 @@
 > (Gemini) volta para o backlog agora que este está de pé.
 > **Perguntas:** [open-questions.md](open-questions.md) · **Tasks:** [tasks.md](tasks.md)
 > **Como ela foi feita:** medir primeiro. A fase 0 foi um spike contra o adaptador **real**, como o §2
-> da [agent-login](../agent-login/prd.md) foi, e ela mudou duas decisões antes de existir código
+> da [agent-login](../009-agent-login/prd.md) foi, e ela mudou duas decisões antes de existir código
 > **Desenho:** `lumem-second-agent.html` no Open Design (§8), desenhado e verificado renderizando. A
 > escolha de agente no primeiro acesso **saiu**, por [C3](open-questions.md)
 
@@ -38,7 +38,7 @@ E o que **já é** genérico, e prova que a fronteira estava no lugar certo:
 | `session.createAgent(agentConfigId)`, `NewSessionMenu` | qualquer configuração vira sessão, e o menu lista todas |
 | `shared/acp-protocol.ts` | o fio para o browser não tem Claude nele — só o `rateLimit` opcional, "porque outro agente não vai mandar" |
 | `conversation-model.ts` | um fold sobre eventos do **nosso** vocabulário |
-| [session-mode](../session-mode/prd.md) | agente que **não relata modos** ganha a pílula do Lumem e a política dele — `perguntar tudo` por padrão. Um adaptador sem `configOptions` deixou de produzir um composer mudo, que era o primeiro defeito que um segundo agente ia mostrar |
+| [session-mode](../016-session-mode/prd.md) | agente que **não relata modos** ganha a pílula do Lumem e a política dele — `perguntar tudo` por padrão. Um adaptador sem `configOptions` deixou de produzir um composer mudo, que era o primeiro defeito que um segundo agente ia mostrar |
 
 Hoje já dá para rodar Codex como `agent_config` de transporte `pty` — é o caminho alternativo que a
 decisão do ACP preservou. O que falta é a **conversa**.
@@ -46,7 +46,7 @@ decisão do ACP preservou. O que falta é a **conversa**.
 ## 2. Por que agora
 
 1. **Provar a arquitetura antes de construir mais sobre ela.** Se a tradução não segura um segundo
-   adaptador, é melhor saber agora do que depois da [workspace-tasks](../workspace-tasks/prd.md);
+   adaptador, é melhor saber agora do que depois da [workspace-tasks](../022-workspace-tasks/prd.md);
 2. **Dois agentes é o que dá sentido a duas perguntas do projeto:** roteamento de tarefa (Q015) e
    comparação de custo por agente — com um só, as duas são vazias;
 3. **O backlog nomeou o gatilho:** "quando o primeiro estiver estável e você sentir falta do segundo".
@@ -125,7 +125,7 @@ A regra está no pacote (`getCodexAuthMethods(clientCapabilities, env)`), e o `a
 | `chat-gpt-device-code` | pede `elicitation/create` ao cliente com URL + código, e `elicitation/complete` no fim |
 | `gateway` | configuração, sem navegador |
 
-⇒ **o caminho de login da [agent-login](../agent-login/prd.md) não serve.** Ele roda o comando que o
+⇒ **o caminho de login da [agent-login](../009-agent-login/prd.md) não serve.** Ele roda o comando que o
 adaptador entregou, num PTY; o Codex não entrega comando nenhum — entrega uma **chamada**. O
 `startLogin` recusaria com a frase que já tem ("o adaptador não disse o que rodar"), e estaria certo.
 O que falta no daemon é `authenticate`, e — para um daemon que pode não estar na mesma máquina que o
@@ -149,7 +149,7 @@ Token zero, e é onde o Codex é mais rico que o Claude:
 com rótulo do agente, que é o desenho. Nada a fazer, e é a primeira vez que isso é **verificado** em
 vez de afirmado.
 
-⇒ **o modo é do agente.** A pílula de política do Lumem que a [session-mode](../session-mode/prd.md)
+⇒ **o modo é do agente.** A pílula de política do Lumem que a [session-mode](../016-session-mode/prd.md)
 criou não aparece para o Codex — o `modeOwner` é `agent`. Confirmado no `spawn` real: `mode: "agent"`,
 `lumemMode: "ask"` guardado e não usado.
 
@@ -298,7 +298,7 @@ entra:
 1. **`authenticate` no daemon** — a chamada que falta, com o `_meta["api-key"]` quando o método é
    `api-key`. Uma chave que o usuário digita **atravessa** o daemon e vai para o adaptador; ela não é
    gravada em `~/.lumem`, e essa ausência é a resposta de segurança da feature, do mesmo jeito que o
-   `gh` foi na [pull-request-status](../pull-request-status/prd.md);
+   `gh` foi na [pull-request-status](../013-pull-request-status/prd.md);
 2. **`elicitation/create` + `elicitation/complete` no cliente**, e `elicitation: { url: {} }` no
    `clientCapabilities` — é o que faz aparecer o `chat-gpt-device-code`, o único método que não abre
    um navegador na máquina do daemon (§4.7). A tela mostra URL e código com o `CopyCommand` que já
@@ -343,7 +343,7 @@ uma migração, e não uma cláusula. Está na [T14](tasks.md).
 
 Medido: o Codex reporta `used`/`size` por notificação e um `usage` mais rico **na resposta do
 prompt** (§4.4), que o daemon hoje não lê. O agrupamento soma o que já é somado — o
-`session_usage` da [workspace-screen](../workspace-screen/prd.md) — e não muda a fonte.
+`session_usage` da [workspace-screen](../010-workspace-screen/prd.md) — e não muda a fonte.
 
 ### Não entra, e por quê
 

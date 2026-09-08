@@ -5,7 +5,7 @@
 > tela `/` (pontos 1, 4 e 5 — os três seletores, o mesmo defeito)
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
-> **Sucede:** [session-mode](../session-mode/prd.md), que foi quem descobriu o recorte — e escapou
+> **Sucede:** [session-mode](../016-session-mode/prd.md), que foi quem descobriu o recorte — e escapou
 > dele em vez de removê-lo
 > **Desenho:** `lumem-composer-menus.html` no Open Design, e o `lumem-ds.css` que perde uma
 > declaração

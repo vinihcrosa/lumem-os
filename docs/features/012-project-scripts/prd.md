@@ -44,7 +44,7 @@ Porque as duas metades já estão de pé e nunca se encontraram:
   scrollback em `RingBuffer`, e desanexar o browser não mata o processo — a decisão de projeto está
   no comentário dele: *"closing the browser must not kill the shell"*. Um `run` não é primitiva nova;
 - **o arquivo de configuração já existe, commitado, e já tem dono.** A [Q3.1 da
-  workspace-memory](../workspace-memory/open-questions.md) pôs o `id` do projeto em
+  workspace-memory](../007-workspace-memory/open-questions.md) pôs o `id` do projeto em
   `<repo>/.lumem/project.toml` e escreveu a regra que delimita o arquivo:
 
   > **O que é do repositório é do time; o que é da instância é do Lumem.**
@@ -177,7 +177,7 @@ estado ("rodando desde 14h05, porta 55061").
    que a falha de um script deixe o registro e o disco em desacordo ([S4](open-questions.md));
 6. **Executar string do repositório.** Este é o item que exige cuidado: o comando vem de um arquivo
    commitado, e clonar um repositório de terceiro passa a significar ter um comando dele disponível
-   para execução. A [project-from-url](../project-from-url/prd.md) já pagou essa conversa uma vez, por
+   para execução. A [project-from-url](../011-project-from-url/prd.md) já pagou essa conversa uma vez, por
    outro motivo — ver §8.
 
 ## 8. Segurança

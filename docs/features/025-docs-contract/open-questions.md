@@ -118,7 +118,7 @@ window"*).
 | Opção | Ganho | Custo |
 |---|---|---|
 | **A. `docs/adr/` global, com `feature:` no frontmatter** | um lugar só; a decisão sobrevive à feature; o `feature:` mantém a rastreabilidade | `docs/adr/` cresce plano — a referência assume isso e diz que só dói a partir de ~60 |
-| **B. `docs/prd/NNN-x/adr/`** | a decisão nasce perto de onde foi tomada | "como se decide autenticação" obriga a adivinhar a pasta; e decisão que atravessa duas features não tem casa |
+| **B. `docs/features/NNN-x/adr/`** | a decisão nasce perto de onde foi tomada | "como se decide autenticação" obriga a adivinhar a pasta; e decisão que atravessa duas features não tem casa |
 
 **Minha inclinação: A.** É o que a regra de documentação do `CLAUDE.md` já sustenta —
 `docs/<categoria>/`, e `adr` é uma categoria.
@@ -190,7 +190,7 @@ execução tem que ser: `docs/adr/` com lastro **antes** de a regra nova valer, 
 
 **R:** A
 
-### Q7 — Proposta não implementada: fica em `docs/prd/NNN-`, ou em lugar separado?
+### Q7 — Proposta não implementada: fica em `docs/features/NNN-`, ou em lugar separado?
 
 Hoje são três — `daemon-auth`, `memory-dogfooding`, `workspace-tasks` — e o repo **já resolve isso
 sem saber**: nenhuma tem `tasks.md`, e o campo `Tasks:` de cada uma diz literalmente *"ainda não —
@@ -202,8 +202,8 @@ O que elas custam se mudarem de lugar: **11 referências de fora** apontam para 
 
 | Opção | Ganho | Custo |
 |---|---|---|
-| **A. Ficam. "Proposta" = não tem `tasks.md`** | o número existe desde o começo, então dá para linkar; zero movimentação; é o que já se faz | `docs/prd/` mistura entregue e sonhado, e o `ls` não distingue |
-| **B. `docs/proposals/` → move ao implementar** | `docs/prd/` só contém coisa real | **é o "two locations and a drift window" que a referência recusou**; o número não existe enquanto é proposta, então nada pode linkar; e a promoção quebra as 27 refs |
+| **A. Ficam. "Proposta" = não tem `tasks.md`** | o número existe desde o começo, então dá para linkar; zero movimentação; é o que já se faz | `docs/features/` mistura entregue e sonhado, e o `ls` não distingue |
+| **B. `docs/proposals/` → move ao implementar** | `docs/features/` só contém coisa real | **é o "two locations and a drift window" que a referência recusou**; o número não existe enquanto é proposta, então nada pode linkar; e a promoção quebra as 27 refs |
 | **C. Ficam, com prefixo de estado** (`NNN-p-nome`) | o `ls` distingue | o rename na promoção quebra tudo de novo, e agora duas vezes por feature |
 | **D. Ficam; o `docs/README.md` é que separa** (uma seção "propostas") | o `ls` não distingue mas o índice sim; zero rename | o índice é escrito à mão — e o heading `docs/README.md:361` **já está falso** |
 
@@ -260,7 +260,7 @@ agora e manter os próximos.
 
 ### Q9 — Numeração: atribuída quando, e o que acontece na colisão?
 
-Os **45 trailers de commit** no histórico (`T<N> of docs/prd/walking-skeleton/tasks.md`) já vão
+Os **45 trailers de commit** no histórico (`T<N> of docs/features/001-walking-skeleton/tasks.md`) já vão
 passar a citar caminho inexistente com esta migração — isso é irreversível e aceito uma vez. O que
 não se pode é pagar de novo.
 
@@ -311,11 +311,11 @@ antes de escrever**, porque "passa nos três testes" é julgamento e é onde a f
 |---|---|---|---|
 | A sessão de agente é ACP, não PTY | 2026-08-17 | `docs/project/pty-vs-acp.md` §§1–7, **inclusive o §7, que recomendou não migrar** | difícil de reverter ✓ · surpreendente ✓ · trade-off real ✓ — o caso mais forte dos dois repos |
 | O design é feito no Open Design, não no repo | 2026-08-19 | `docs/project/design-source-of-truth.md` §§1–3 | ✓ · ✓ · ✓ |
-| A memória escreve atrás de portão, inbox e interruptor **desligado** | ~2026-08-22 | `docs/prd/workspace-memory/open-questions.md` | ✓ · ✓ · ✓ |
-| O status de PR vem do `gh` da sua máquina; o Lumem não vê, não pede e não grava token | 2026-09-05 | `docs/prd/pull-request-status/{prd,spike}.md` | ✓ · ✓ · ✓ — é a maior parte da resposta de segurança da feature |
-| O daemon é um bundle ESM e serve o web na própria porta | ~2026-08-30 | `docs/prd/distribution/prd.md` | ✓ · ✓ · ✓ |
-| O adaptador de agente é catálogo (`ADAPTERS`), não constante de Claude | 2026-09-07 | `docs/prd/second-agent/prd.md` §4 (a fase 0 mediu antes) | talvez — a reversibilidade é discutível |
-| Um popover ancora no que o abre | 2026-09-07 | `docs/prd/composer-menus/prd.md` | provavelmente **não** — é regra de design, e a Q3/C manda isso ficar na PRD |
+| A memória escreve atrás de portão, inbox e interruptor **desligado** | ~2026-08-22 | `docs/features/007-workspace-memory/open-questions.md` | ✓ · ✓ · ✓ |
+| O status de PR vem do `gh` da sua máquina; o Lumem não vê, não pede e não grava token | 2026-09-05 | `docs/features/013-pull-request-status/{prd,spike}.md` | ✓ · ✓ · ✓ — é a maior parte da resposta de segurança da feature |
+| O daemon é um bundle ESM e serve o web na própria porta | ~2026-08-30 | `docs/features/014-distribution/prd.md` | ✓ · ✓ · ✓ |
+| O adaptador de agente é catálogo (`ADAPTERS`), não constante de Claude | 2026-09-07 | `docs/features/021-second-agent/prd.md` §4 (a fase 0 mediu antes) | talvez — a reversibilidade é discutível |
+| Um popover ancora no que o abre | 2026-09-07 | `docs/features/023-composer-menus/prd.md` | provavelmente **não** — é regra de design, e a Q3/C manda isso ficar na PRD |
 
 **A armadilha, dita:** escrever 5–7 ADRs é uma feature por si, e o §6 põe isso **antes** do `git mv`.
 Se a lista crescer para 15, é escopo vazando — o corte é "difícil de reverter", e a maioria das 96
@@ -365,21 +365,21 @@ A referência usa `docs/features/NNN-slug/` porque a pasta guarda mais que um PR
 `context-delivery.md`. Chamar a pasta de `prd` e ter um `prd.md` dentro é uma repetição que já
 confunde.
 
-Renomear `docs/prd/` → `docs/features/` **junto com** a numeração custa quase nada a mais (o `sed` é
+Renomear `docs/features/` → `docs/features/` **junto com** a numeração custa quase nada a mais (o `sed` é
 o mesmo, e já vai passar em 86 + 117 + 129 linhas). Feito depois, custa tudo de novo.
 
-**R (2026-09-07): sim, no mesmo passo.** `docs/prd/<x>/` → `docs/features/<NNN>-<x>/`. O que isso
+**R (2026-09-07): sim, no mesmo passo.** `docs/features/<x>/` → `docs/features/<NNN>-<x>/`. O que isso
 adiciona ao corte, além do que já estava contado:
 
 - a tabela de categorias do `CLAUDE.md:182-191` e a réplica dela em `docs/README.md:442-447` — é a
   **definição** da convenção, não uma citação dela;
-- as duas regras do `docs/project/backlog.md:8` e `:12` (*"Tarefa vive em `docs/prd/<feature>/tasks.md`;
-  ideia sem PRD vive aqui"* / *"Item que ganhar PRD sai daqui e vira uma pasta em `docs/prd/`"*);
-- os 12 placeholders `docs/prd/<feature>/` nos dois agentes, incluindo `lumem-reviewer.md:113` e
-  `:272`, que **definem o trailer de commit** `T<N> of docs/prd/<feature>/tasks.md`. A convenção
+- as duas regras do `docs/project/backlog.md:8` e `:12` (*"Tarefa vive em `docs/features/<NNN>-<feature>/tasks.md`;
+  ideia sem PRD vive aqui"* / *"Item que ganhar PRD sai daqui e vira uma pasta em `docs/features/`"*);
+- os 12 placeholders `docs/features/<NNN>-<feature>/` nos dois agentes, incluindo `lumem-reviewer.md:113` e
+  `:272`, que **definem o trailer de commit** `T<N> of docs/features/<NNN>-<feature>/tasks.md`. A convenção
   passa a ser `T<N> of docs/features/<NNN>-<feature>/tasks.md`, e os 45 trailers já no histórico
   ficam citando as duas coisas erradas de uma vez. Aceito uma vez;
-- `docs/prd/` genérico (sem feature) em `CLAUDE.md:134`, `lumem-dev.md:12`, `lumem-reviewer.md:308`.
+- `docs/features/` genérico (sem feature) em `CLAUDE.md:134`, `lumem-dev.md:12`, `lumem-reviewer.md:308`.
 
 O nome do arquivo `prd.md` **fica** — só a categoria muda. `docs/features/017-file-editor/prd.md`.
 

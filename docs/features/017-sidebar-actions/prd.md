@@ -139,5 +139,5 @@ Duas peças novas, e as duas nascem no Open Design.
   muda a seleção atual se o diálogo for cancelado;
 - `Esc` no modal devolve o foco ao `+` que o abriu;
 - com zero projetos, existe **exatamente um** caminho visível para acrescentar o primeiro;
-- o e2e de primeiro acesso ([onboarding](../onboarding/prd.md)) continua chegando ao mesmo lugar — ele
+- o e2e de primeiro acesso ([onboarding](../008-onboarding/prd.md)) continua chegando ao mesmo lugar — ele
   atravessa o caminho de adicionar projeto, e este PRD move esse caminho.

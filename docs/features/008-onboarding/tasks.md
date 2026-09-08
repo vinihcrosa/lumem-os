@@ -5,7 +5,7 @@
 renderizado. As tasks de cliente **portam** o que está lá; onde o desenho e o produto discordam, vale o
 [§4 do PRD](prd.md) e a **T0** corrige o desenho antes de qualquer porte
 **Sistema de design:** `packages/web/prototype/lumem-ds.css` — camada compartilhada, nova neste sync
-**Sucede:** [acp-sessions](../acp-sessions/tasks.md) — é ela que faz o passo 3 ter para onde ir
+**Sucede:** [acp-sessions](../006-acp-sessions/tasks.md) — é ela que faz o passo 3 ter para onde ir
 **Status:** **21 de 21 entregues.** Gate cheio verde — 1.671 unit/integration (1 pulado) + 26 e2e.
 **Total:** 21 tasks em 4 fases
 
@@ -700,7 +700,7 @@ de entrar.
 | Paleta de comandos (`⌘K`), `⌘⇧N`, `⌥⇧P` | [backlog](../../project/backlog.md) — a tela 9 promete e o produto não tem |
 | Caminho das worktrees editável | [backlog](../../project/backlog.md) — [O11](open-questions.md); pede coluna, migração e mudança de estado |
 | Padrão de modelo e modo das próximas sessões | [backlog](../../project/backlog.md) — [O14](open-questions.md); não há onde guardar, e criar coluna para um seletor é a ordem invertida |
-| Tela de preferências (onde `agent_config` deveria morar) | buraco nº 1 do `FEATURES.md` do Open Design, e a [A16](../acp-sessions/open-questions.md). As primitivas da **T1** são o que ela vai reusar |
+| Tela de preferências (onde `agent_config` deveria morar) | buraco nº 1 do `FEATURES.md` do Open Design, e a [A16](../006-acp-sessions/open-questions.md). As primitivas da **T1** são o que ela vai reusar |
 | Renomear e remover workspace pela tela | buraco nº 2 do `FEATURES.md`; o fluxo cria, não administra |
 | Pré-voo em Linux e Windows | fora — o PRD §6 diz que ninguém verificou, em vez de fingir que sim |
 

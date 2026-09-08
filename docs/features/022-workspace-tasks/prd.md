@@ -7,10 +7,10 @@
 > **Q011–Q015** do [questions.md](../../project/questions.md); a Q068 e a Q069 ficam abertas de
 > propósito (§5)
 > **Tasks:** ainda não — nascem depois das perguntas respondidas
-> **Depende de:** [workspace-screen](../workspace-screen/prd.md), entregue — é onde a lista mora.
-> **Fica melhor com:** a F4 do [daemon-auth](../daemon-auth/prd.md) (ator provado, para a F3) e o
-> [second-agent](../second-agent/prd.md) (com um agente, "quem pega" não é pergunta)
-> **Desenho:** seis telas no Open Design (§8). A [worktree-first-tab](../worktree-first-tab/prd.md),
+> **Depende de:** [workspace-screen](../010-workspace-screen/prd.md), entregue — é onde a lista mora.
+> **Fica melhor com:** a F4 do [daemon-auth](../019-daemon-auth/prd.md) (ator provado, para a F3) e o
+> [second-agent](../021-second-agent/prd.md) (com um agente, "quem pega" não é pergunta)
+> **Desenho:** seis telas no Open Design (§8). A [worktree-first-tab](../018-worktree-first-tab/prd.md),
 > entregue em 2026-09-01, fez a coluna do meio ser caminho → abas → conteúdo, com **a worktree como
 > primeira aba** — e essa aba é o segundo lugar natural da tarefa
 

@@ -5,7 +5,7 @@
 > **Perguntas:** [open-questions.md](open-questions.md) — as seis primeiras no Open Design em
 > 2026-09-01; a **Q6 revertida em 2026-09-06**, antes do código
 > **Tasks:** [tasks.md](tasks.md)
-> **Sucede:** [project-scripts](../project-scripts/prd.md), que construiu o rodapé e o fez nascer
+> **Sucede:** [project-scripts](../012-project-scripts/prd.md), que construiu o rodapé e o fez nascer
 > **fechado**
 > **Desenho:** o `lumem-run-dock.html` já desenha os dois estados. Esta feature escolhe qual deles é
 > o primeiro que se vê
@@ -16,7 +16,7 @@
 
 **A coisa que o rodapé responde é a que se pergunta ao chegar — e ela chega escondida.**
 
-A [project-scripts](../project-scripts/prd.md) resolveu "o Lumem cria worktrees que não rodam": há
+A [project-scripts](../012-project-scripts/prd.md) resolveu "o Lumem cria worktrees que não rodam": há
 `setup`, `run`, `test` e um terminal, abaixo da árvore de arquivos. Mas o rodapé nasce **recolhido**
 numa tira (`FoldedDock`), então a primeira coisa que se faz ao abrir um checkout é abri-lo — e a
 pergunta que ele responde, *"minha aplicação está de pé, e em que porta?"*, é a primeira que se faz
@@ -60,7 +60,7 @@ algo rodando ali sem ocupar altura.
 ### Fora de escopo
 
 - Rodar `setup` ou `run` sozinho ao abrir. O rodapé mostra; quem manda rodar é a pessoa — e a
-  [project-scripts](../project-scripts/prd.md) já pôs um portão de confiança na frente disso.
+  [project-scripts](../012-project-scripts/prd.md) já pôs um portão de confiança na frente disso.
 - Mudar as abas do rodapé, ou o que cada uma faz.
 - **A faixa.** O desenho propôs descer os botões de ação para a linha de estado, apertar a faixa e
   criar um `⋯`; foi **recusado** ([Q6](open-questions.md)). Uma feature chamada "o rodapé nasce

@@ -45,7 +45,7 @@ As três que a [auditoria](../../project/harness-audit.md) fez ao time humano, r
   `async` disparado), e ela **precisa de informação de tipo** — o que hoje só o `typescript-eslint`
   entrega, e ele custa segundos de CI. O `oxlint` é quase instantâneo e não faz análise de tipo.
   **Recomendação:** medir os dois no repositório inteiro **antes** de escolher — é o passo 1 da T9, no
-  molde da fase 0 da [second-agent](../second-agent/prd.md), que mediu antes de escrever e mudou duas
+  molde da fase 0 da [second-agent](../021-second-agent/prd.md), que mediu antes de escrever e mudou duas
   decisões. Critério de escolha declarado antes da medição: se o `typescript-eslint` couber em **60s**,
   ele ganha, porque as regras com tipo são as que pegam defeito de verdade; acima disso, `oxlint`
   agora e o type-aware fica no backlog.

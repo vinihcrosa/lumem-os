@@ -2,7 +2,7 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) — 22, todas respondidas
 **Protótipo:** `packages/web/prototype/lumem-clone.html` — entregue pela C1, nove telas
-**Sucede:** [file-editor](../file-editor/tasks.md)
+**Sucede:** [file-editor](../005-file-editor/tasks.md)
 **Status:** **fechada** — 17 de 17, portão verde (`gate:full`: 1142 unit/integration + 22 e2e)
 **Total:** 17 tasks em 5 fases
 
@@ -273,7 +273,7 @@ Fixture é bare local por `file://`; conexão recusada é `ssh://127.0.0.1:1/x`,
 - [x] Gate: `pnpm gate:quick`
 - [x] Test count: ao menos 7
 
-**Tests**: unit, com relógio falso — e sem `userEvent` por perto ([P18 da file-editor](../file-editor/tasks.md)) · **Gate**: quick
+**Tests**: unit, com relógio falso — e sem `userEvent` por perto ([P18 da file-editor](../005-file-editor/tasks.md)) · **Gate**: quick
 **Commit**: `feat(server): track one clone job at a time, with throttled updates`
 
 ---

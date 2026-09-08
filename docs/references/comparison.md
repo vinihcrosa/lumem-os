@@ -6,7 +6,7 @@
 >
 > **Quarta referência, fora desta matriz:** [hermes.md](hermes.md) — estudo de recorte estreito (só
 > memória, aprendizado e curadoria), feito depois, para a feature
-> [workspace-memory](../prd/workspace-memory/prd.md). Ele não entra nas tabelas abaixo porque não foi
+> [workspace-memory](../features/007-workspace-memory/prd.md). Ele não entra nas tabelas abaixo porque não foi
 > auditado nos mesmos eixos; o que ele tem de próprio está no §11 dele, que é a divergência
 > Compozy × Hermes lado a lado.
 >

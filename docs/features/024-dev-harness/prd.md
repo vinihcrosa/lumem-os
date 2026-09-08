@@ -5,10 +5,10 @@
 > **Perguntas:** [open-questions.md](open-questions.md) — 8 abertas, 3 já respondidas
 > **Tasks:** [tasks.md](tasks.md) — 16 tasks em 3 fases, uma issue cada
 > **Issue de rastreio:** [#72](https://github.com/vinihcrosa/lumem-os/issues/72), com marco por fase
-> **Depende de:** nada. A [daemon-auth](../daemon-auth/prd.md) é vizinha e **não** é pré-requisito:
+> **Depende de:** nada. A [daemon-auth](../019-daemon-auth/prd.md) é vizinha e **não** é pré-requisito:
 > ela protege o produto de quem fala com ele, esta protege o repositório de quem escreve nele
 > **Desenho:** nenhuma tela. Esta é a segunda feature que não é de tela — a primeira foi a
-> [workspace-memory](../workspace-memory/prd.md)
+> [workspace-memory](../007-workspace-memory/prd.md)
 
 ---
 
@@ -67,7 +67,7 @@ Nada além dessas três, e cada uma só depois de o portão da F1 existir.
 | Sandbox de filesystem para o agente | o `deny` da [T4](tasks.md) cobre os alvos nomeados; sandbox de verdade é decisão de ferramenta, não de repositório. Backlog |
 | `CODEOWNERS` | um autor humano. A regra seria `* @vinihcrosa`, que não regula nada. Volta com a segunda pessoa |
 | Aprovação humana obrigatória em PR | o GitHub não permite aprovar a própria PR: exigir 1 aprovação num repositório de uma pessoa trava o merge para sempre. A T2 exige **PR e checks**, com zero aprovações |
-| Autenticação do daemon | é a [daemon-auth](../daemon-auth/prd.md), com PRD próprio e perguntas abertas |
+| Autenticação do daemon | é a [daemon-auth](../019-daemon-auth/prd.md), com PRD próprio e perguntas abertas |
 | Grading de qualidade por domínio com histórico | precisa dos sensores da F2 existindo primeiro para ter o que graduar. Backlog |
 | Script de seed | o ambiente de dev compartilhado (`~/.lumem-dev/shared`) **é** o seed, por desenho — ver [workspaces.md](../../project/workspaces.md) |
 | Feature flags | o produto é local, de um usuário, e a unidade de release é a versão do npm. Flag aqui compraria complexidade sem comprar reversão. O que compra reversão é a T12 |
