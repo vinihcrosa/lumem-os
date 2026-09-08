@@ -137,6 +137,20 @@ silêncio: checkbox não indica progresso aqui (a `walking-skeleton` está entre
 abertas), e tasks escritas não são tasks começadas. O gate nasceu **verde**, que é o sinal de um gate
 que não checa nada — cada checagem foi provada ficando vermelha de propósito.
 
+E a [worktree-from](docs/features/026-worktree-from/prd.md) — **completa, 14 tasks em 6 fases** —
+conserta o gesto mais repetido do produto: a worktree nascia **sempre da branch default**, com um
+campo só, enquanto o mesmo produto já punha `● #19` na linha da sidebar. Agora o diálogo tem **quatro
+origens** — default, branch existente, issue e PR —, e ela é a segunda feature a **medir antes de
+escrever**: nove casos de `git worktree add` rodados de verdade mudaram três decisões antes de existir
+código. O achado que decidiu o desenho é que `worktree add <path> origin/<branch>` devolve **exit 0 e
+HEAD destacado** — o caminho ingênuo não erra, entrega uma worktree quebrada dizendo que deu certo —,
+então nada aqui usa a forma esperta do comando, que ainda por cima **mente** quando dois remotos têm a
+mesma branch. `gh issue develop` ficou de fora porque **escreve no host**, e o nome da branch é
+montado localmente. As issues moram num cache **irmão** do `PrCache`, não dentro dele: aquele alimenta
+uma barra que se pergunta sozinha de 15 em 15 segundos, e um `gh issue list` nesse ciclo seria ~730 ms
+por projeto para um diálogo que ninguém abriu. É também a primeira worktree do produto cujo **nome não
+é a branch** — com zero migração, porque as duas colunas sempre foram separadas.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |

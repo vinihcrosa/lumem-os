@@ -487,9 +487,9 @@ declarações informais de supersessão, 4 links mortos para um arquivo que nunc
 
 ---
 
-## Proposta em 2026-09-07 — a partir de uma anotação na tela
+## Entregue em 2026-09-08 — a partir de uma anotação na tela
 
-### [worktree-from/](features/026-worktree-from/) — de onde cortar
+### [worktree-from/](features/026-worktree-from/) — de onde cortar · **completa**
 
 A worktree nova nasce **sempre** da branch default, com um campo só. O produto já lê o host — põe
 `● #19` na linha da sidebar — e mesmo assim o gesto mais comum ignora tudo isso: para trabalhar na PR
@@ -507,7 +507,7 @@ listagens por abertura"* nunca foi verdade — branch é disco (10 ms), PR já e
 |---|---|
 | [prd.md](features/026-worktree-from/prd.md) | o §3 é a bancada: nove casos de `git worktree add` com saída e código real, o custo medido de cada leitura, e o que `gh issue develop` faz de fato — **ele escreve no host** |
 | [open-questions.md](features/026-worktree-from/open-questions.md) | 9 perguntas, **9 respondidas**: as 5 do pedido mais 4 que a medição abriu. Três contrariam o que o pedido propunha, inclusive a regra de quando apagar a branch órfã |
-| [tasks.md](features/026-worktree-from/tasks.md) | 14 tasks em 6 fases, as fases 0 e 1 entregues. Zero migração: `name` e `branch` já são colunas separadas, e esta é a primeira feature em que elas divergem |
+| [tasks.md](features/026-worktree-from/tasks.md) | **14 tasks em 6 fases, todas entregues.** Zero migração: `name` e `branch` já são colunas separadas, e esta é a primeira feature em que elas divergem — a regra que a `walking-skeleton` escreveu para isso disparou pela primeira vez |
 | `packages/web/prototype/lumem-worktree-from.html` | a folha, oito quadros — e cinco medidas do desenho corrigidas **no navegador**, da meia linha que era um sliver de 8px ao cartão que a moldura espremia em 12px. Ela também achou que a `docs-contract` editou **quatro cópias** de protótipo, que o primeiro `design:sync` desfez |
 
 ---
