@@ -5,11 +5,13 @@
 > à mesa. Nada aqui está prometido nem estimado.
 >
 > **O que este arquivo não é:** roadmap, nem lista de tarefa. Tarefa vive em
-> `docs/prd/<feature>/tasks.md`; ideia sem PRD vive aqui.
+> `docs/features/<NNN>-<feature>/tasks.md`; ideia sem PRD vive aqui.
 >
 > **Regra:** toda vez que uma discussão terminar em *"isso fica para depois"*, o item entra aqui na
 > mesma hora, com o link de onde a conversa aconteceu. Item que ganhar PRD sai daqui e vira uma pasta
-> em `docs/prd/`.
+> em `docs/features/`, com o próximo número livre. **Ideia adiada não é decisão adiada:** se o que
+> ficou para depois foi *decidir* algo difícil de reverter, o lugar é um [ADR](../adr/), não este
+> arquivo.
 
 ---
 

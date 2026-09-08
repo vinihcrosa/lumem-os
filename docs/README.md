@@ -2,7 +2,7 @@
 
 Índice de tudo. O [walking-skeleton](prd/walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](prd/ui-shell/tasks.md), reorganizado pela [worktree-tabs](prd/worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](prd/right-panel/tasks.md) e mãos no [file-editor](prd/file-editor/tasks.md). A [project-from-url](prd/project-from-url/prd.md) traz o projeto de fora: cola-se uma URL git e o daemon clona, num diretório de estado que passou a ser uma árvore só. Fechando o caminho de entrada, o [onboarding](prd/onboarding/prd.md) e o [agent-login](prd/agent-login/prd.md). E o harness passou a lembrar: a [workspace-memory](prd/workspace-memory/tasks.md) está **completa** — nove PRs, a primeira feature que não é de tela, e a única em que o sistema escreve sozinho (atrás de portão, inbox e interruptor desligado). Fechando o círculo, a [workspace-screen](prd/workspace-screen/prd.md) deu tela ao workspace: a memória dele deixou de depender de um projeto aberto, e o consumo de tokens passou a ser somável por projeto e por worktree. E a [pull-request-status](prd/pull-request-status/prd.md) responde, no topo do painel direito e na linha da sidebar, a pergunta que o paralelismo cobra: **dá pra mesclar?** — lendo o host pelo `gh`, sem guardar segredo nenhum, e escrevendo exatamente dois verbos.
 
-> **Decisão de arquitetura, 2026-08-17:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por [ACP](project/pty-vs-acp.md)**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A feature [acp-sessions](prd/acp-sessions/prd.md) — transporte mais a tela da conversa — está **completa**: PRD escrito, spike rodado (autenticação e consumo medidos, janela de contexto parcial), protótipo renderizado em `packages/web/prototype/lumem-acp-conversation.html`, e as fases 1, 3, 4, 5 e 6 entregues — uma tarefa roda do começo ao fim sem terminal, fechar o daemon não perde a conversa, e o agente ACP se cria pela tela.
+> **Decisão de arquitetura, 2026-08-17** — [o ADR](adr/2026-08-17-1812-agent-session-is-acp-not-pty.md), com o [estudo](project/pty-vs-acp.md) que o sustenta**:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por ACP**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A feature [acp-sessions](prd/acp-sessions/prd.md) — transporte mais a tela da conversa — está **completa**: PRD escrito, spike rodado (autenticação e consumo medidos, janela de contexto parcial), protótipo renderizado em `packages/web/prototype/lumem-acp-conversation.html`, e as fases 1, 3, 4, 5 e 6 entregues — uma tarefa roda do começo ao fim sem terminal, fechar o daemon não perde a conversa, e o agente ACP se cria pela tela.
 
 ---
 
@@ -16,6 +16,30 @@ Lendo nesta ordem você entende o projeto inteiro em três documentos:
 
 ---
 
+## `adr/` — as decisões em vigor
+
+**A pasta é o índice, e o frontmatter é o resumo.** Antes de propor ou mudar arquitetura, liste
+`docs/adr/` e leia o frontmatter do que parecer relevante — **uma decisão lá vale mais que o seu
+instinto**, e contradizê-la em silêncio é o defeito, não a discordância.
+
+Não existe campo `status:`: um ADR está **superado** exatamente quando outro o nomeia em
+`supersedes`, e nenhum é editado depois de escrito. Ordem cronológica sai do nome do arquivo.
+O contrato está na [025-docs-contract](prd/docs-contract/prd.md).
+
+| Decisão | Data | Área |
+|---|---|---|
+| [A sessão de agente é ACP, não PTY](adr/2026-08-17-1812-agent-session-is-acp-not-pty.md) | 2026-08-17 | `transport` |
+| [A memória escreve atrás de um portão, uma inbox e um interruptor desligado](adr/2026-08-17-1812-memory-writes-behind-a-gate.md) | 2026-08-17 | `memory` |
+| [O design é feito no Open Design, não neste repositório](adr/2026-08-19-2247-design-is-made-in-open-design.md) | 2026-08-19 | `design` |
+| [O status de PR vem do `gh` da sua máquina, e o Lumem não guarda segredo](adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md) | 2026-08-30 | `security` |
+| [O daemon é um bundle ESM que serve o web na própria porta](adr/2026-08-30-0532-daemon-is-an-esm-bundle-that-serves-the-web.md) | 2026-08-30 | `distribution` |
+| [O número da PRD é ordem de leitura, não precedência](adr/2026-09-07-2208-prd-number-is-reading-order-not-precedence.md) | 2026-09-07 | `docs` |
+
+Nenhum dos seis tem `supersedes` — a cadeia ainda não foi exercitada. É o gatilho para os gates
+`broken-supersedes` e `supersedes-cycle`, que hoje não existem de propósito.
+
+---
+
 ## `project/` — o projeto todo
 
 | Arquivo | O quê |
@@ -26,8 +50,8 @@ Lendo nesta ordem você entende o projeto inteiro em três documentos:
 | [workspaces.md](project/workspaces.md) | Os scripts de setup, run e teardown em `scripts/workspace/`, e como Superset e Conductor só apontam para eles |
 | [task-cycle-evidence.md](project/task-cycle-evidence.md) | Linha de base medida do repositório e registro de custo do ciclo dev → review → rework, ao longo de onze lotes. A skill que orquestrava o ciclo foi removida; as medições ficaram, porque são deste repositório |
 | [harness-audit.md](project/harness-audit.md) | **Auditoria de harness, 2026-09-07.** A linha de base medida deste repositório para desenvolvimento agêntico: tempo real de cada sensor, o que não existe, a superfície de risco de um agente sem aprovação, e as três perguntas respondidas que definiram a [dev-harness](prd/dev-harness/prd.md) |
-| [design-source-of-truth.md](project/design-source-of-truth.md) | **Decisão (2026-08-19): o design é feito inteiramente no Open Design.** O gerador Python saiu, o `tokens.css` passou a ser sincronizado, e a verificação de contraste ficou — com o custo de cada uma dessas três coisas nomeado |
-| [pty-vs-acp.md](project/pty-vs-acp.md) | **Decisão de arquitetura (2026-08-17): o Lumem migra para ACP.** O custo medido, os prós e contras de cada transporte, a recomendação contrária que perdeu, e o §9.2 — billing e janela de contexto investigados na fonte, com duas das minhas próprias afirmações corrigidas |
+| [design-source-of-truth.md](project/design-source-of-truth.md) | O **estudo** que sustenta [o ADR do Open Design](adr/2026-08-19-2247-design-is-made-in-open-design.md). O gerador Python saiu, o `tokens.css` passou a ser sincronizado, e a verificação de contraste ficou — com o custo de cada uma dessas três coisas nomeado |
+| [pty-vs-acp.md](project/pty-vs-acp.md) | O **estudo** que sustenta [o ADR do transporte](adr/2026-08-17-1812-agent-session-is-acp-not-pty.md). O custo medido, os prós e contras de cada transporte, a recomendação contrária que perdeu, e o §9.2 — billing e janela de contexto investigados na fonte, com duas das minhas próprias afirmações corrigidas |
 | [agentation.md](project/agentation.md) | A barra de anotação visual do dev: clicar num elemento da tela vira contexto estruturado para o agente. Como está montada, por que não viaja para produção, e as duas variáveis que a ligam e desligam |
 | [backlog.md](project/backlog.md) | **Tudo que ficou para depois**, com uma frase de contexto, de onde veio, e o gatilho que traz de volta. Toda ideia adiada entra aqui na hora |
 
@@ -441,7 +465,14 @@ com lease fica no backlog.
 
 ## Convenções
 
+> **`adr/` decide · `project/` sustenta · `features/` executa · o código está em vigor.**
+
 - Documentação em português, nome de arquivo em inglês e kebab-case
 - Documentação **só** vive aqui — a regra está no [CLAUDE.md](../CLAUDE.md) e sobrepõe qualquer skill
 - Arquivo novo entra neste índice na mesma hora
 - Pergunta de design não vira suposição silenciosa: vai pro arquivo de perguntas da feature, ou pro [questions.md](project/questions.md) se for do projeto todo
+- **Precedência mora em `adr/`.** PRD é registro do que uma feature quis fazer na época dela, não fonte de verdade — o número da pasta é **ordem de leitura**, e não afirma prioridade
+- **ADR só existe se passa nos três testes, todos:** difícil de reverter, surpreendente sem contexto, e produto de um trade-off real. Falha um e é uma nota na PRD
+- **ADR não se reverte em parte** e não se edita depois de escrito: se só parte mudou, o ADR novo reafirma o que fica
+- **Requisito contradito ganha nota no próprio requisito**, com âncora para quem contradiz e o escopo do que sobrou — *decisão revertida sem registro é decisão que volta sozinha*
+- **`Status:` de PRD tem gramática fechada** — `proposta | em execução | completa | superada por <ADR>` — e o `gate:full` compara com o disco
