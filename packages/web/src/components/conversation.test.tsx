@@ -935,7 +935,7 @@ describe("a conversation that has ended", () => {
 
   function readOnly(
     transcript: AcpTranscriptEntry[] = [],
-    options: { onResume?: () => void; resuming?: boolean } = {},
+    options: { onResume?: () => void; resuming?: boolean; resumeError?: string } = {},
   ): { connects: number; loads: string[] } {
     const connects: number[] = [];
     const loads: string[] = [];
@@ -958,6 +958,7 @@ describe("a conversation that has ended", () => {
           load={load}
           {...(options.onResume ? { onResume: options.onResume } : {})}
           resuming={options.resuming ?? false}
+          {...(options.resumeError ? { resumeError: options.resumeError } : {})}
         />
       </AwaitingPermissionProvider>,
     );
@@ -1018,6 +1019,19 @@ describe("a conversation that has ended", () => {
     readOnly([], { onResume: vi.fn(), resuming: true });
 
     expect(await screen.findByRole("button", { name: /retomando/ })).toBeDisabled();
+  });
+
+  it("shows the daemon's reason when the resume was refused, so the click is not silent", async () => {
+    // A resume launches a fresh adapter and that can be refused. Without this the
+    // refusal only flipped the button back, and the click read as doing nothing.
+    readOnly([], {
+      onResume: vi.fn(),
+      resumeError: "o adaptador não sabe retomar conversa: não declara loadSession",
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("não sabe retomar conversa");
+    // Still offered: the reason is not the end of the road.
+    expect(screen.getByRole("button", { name: /retomar/ })).toBeInTheDocument();
   });
 
   it("reports a read that failed instead of showing an empty conversation", async () => {
