@@ -1,8 +1,11 @@
 # PTY ou ACP — como o Lumem-OS fala com o agente
 
-> **Status:** **DECIDIDO em 2026-08-17 — migrar para ACP. Discussão encerrada, TA1–TA6 respondidas.**
-> O registro da decisão, o que ela obriga e o que ela derrubou estão no §9. Os §§1–7 ficam como
-> estavam: é o material que sustentou a escolha, inclusive a recomendação contrária, que perdeu.
+> **Este arquivo é o estudo, não a decisão.** A decisão mora em
+> [`docs/adr/2026-08-17-1812-agent-session-is-acp-not-pty.md`](../adr/2026-08-17-1812-agent-session-is-acp-not-pty.md)
+> — é lá que se lê o que está em vigor, e é lá que uma reversão apareceria. Aqui fica o material que
+> sustentou a escolha: o custo medido (§4), os prós e contras desconsiderando a migração (§5), e
+> **inclusive a recomendação contrária do §7, que perdeu**.
+> O §9 é o registro do dia em que foi decidido, e continua valendo como registro.
 > **Não há gatilho formal de reabertura** (TA6) — a garantia é o `transport` continuar sendo coluna.
 > **Origem:** [Q1 da workspace-memory](../prd/workspace-memory/open-questions.md). **Responde** as
 > [Q002, Q029, Q030 e Q031 do projeto](questions.md).

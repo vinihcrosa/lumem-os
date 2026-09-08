@@ -1,7 +1,12 @@
 # O design é feito no Open Design
 
-> **Decisão, 2026-08-19.** O desenho de tela do Lumem-OS passa a ser feito **inteiramente no Open
-> Design**. O `packages/web/scripts/generate-tokens.py` saiu. O `tokens.css` não é mais gerado: ele é
+> **Este arquivo é o estudo, não a decisão.** A decisão mora em
+> [`docs/adr/2026-08-19-2247-design-is-made-in-open-design.md`](../adr/2026-08-19-2247-design-is-made-in-open-design.md)
+> — é lá que se lê o que está em vigor. Aqui fica o que sustentou a escolha: **como era** (§1), com o
+> pipeline que funcionou e o que ele achou; **por que mudou** (§2); e **como é** (§3).
+>
+> O desenho de tela passou a ser feito inteiramente no Open Design. O
+> `packages/web/scripts/generate-tokens.py` saiu, e o `tokens.css` não é mais gerado: ele é
 > **sincronizado** de lá para cá.
 
 ---
