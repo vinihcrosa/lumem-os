@@ -1,3 +1,4 @@
+import { CLAUDE_ADAPTER } from "@lumem/shared";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -25,7 +26,10 @@ const ADAPTER = {
   command: "claude-agent-acp",
   path: "/Users/eu/.lumem/adapters/node_modules/.bin/claude-agent-acp",
   managed: true,
-  version: "0.40.0",
+  // The pin, because this fixture is "already installed and current". A stale
+  // one is its own case below, and the difference decides whether the panel
+  // reinstalls (LUM-54).
+  version: CLAUDE_ADAPTER.pinnedVersion,
   versionNote: null,
   install: "npm i -g @agentclientprotocol/claude-agent-acp",
 };
@@ -294,6 +298,48 @@ describe("choosing an agent", () => {
     trpc.agentConfig.create.mutate.mockResolvedValue(acpConfig());
 
     await user.click(await screen.findByRole("button", { name: /Claude Code/ }));
+
+    await waitFor(() => expect(trpc.agentConfig.create.mutate).toHaveBeenCalled());
+    expect(trpc.setup.installAdapter.mutate).not.toHaveBeenCalled();
+  });
+
+  it("reinstalls what is there in a version the product no longer pins", async () => {
+    /*
+     * LUM-54. `0.40.0` embeds Claude Code `2.1.160`, and the API refuses the
+     * model this account defaults to — so connecting to what was already there
+     * produced a session where every turn died. Only the absence of the binary
+     * used to trigger an install, which made bumping the pin a fix for new
+     * machines only.
+     */
+    trpc.setup.agents.query.mockResolvedValue(
+      agentsWith({ adapter: { ...ADAPTER, version: "0.40.0" } }),
+    );
+    const user = await openConnect();
+    trpc.setup.installAdapter.mutate.mockResolvedValue({
+      path: ADAPTER.path,
+      version: CLAUDE_ADAPTER.pinnedVersion,
+      alreadyInstalled: false,
+    });
+    trpc.agentConfig.create.mutate.mockResolvedValue(acpConfig());
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /Claude Code/ })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: /Claude Code/ }));
+
+    await waitFor(() => expect(trpc.setup.installAdapter.mutate).toHaveBeenCalledOnce());
+  });
+
+  it("connects a version it could not read rather than downloading 255 MB on a guess", async () => {
+    // `null` is "nobody said", not "it is old": the adapter that answers
+    // `--version` with nothing is exactly the one this case protects, and the
+    // probe is what decides whether it works.
+    trpc.setup.agents.query.mockResolvedValue(
+      agentsWith({ adapter: { ...ADAPTER, version: null, versionNote: "não disse a versão" } }),
+    );
+    const user = await openConnect();
+    trpc.agentConfig.create.mutate.mockResolvedValue(acpConfig());
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /Claude Code/ })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: /Claude Code/ }));
 
     await waitFor(() => expect(trpc.agentConfig.create.mutate).toHaveBeenCalled());
     expect(trpc.setup.installAdapter.mutate).not.toHaveBeenCalled();

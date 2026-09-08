@@ -1,3 +1,4 @@
+import { CLAUDE_ADAPTER } from "@lumem/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
@@ -240,7 +241,10 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
                 id="agent-version"
                 value={adapterVersion}
                 onChange={(event) => setAdapterVersion(event.target.value)}
-                placeholder="0.40.0"
+                // From the catalogue, not typed here: a hint that outlives the
+                // pin teaches the version the product no longer installs, which
+                // is how LUM-54 read as normal for weeks.
+                placeholder={CLAUDE_ADAPTER.pinnedVersion}
               />
             </Field>
           )}

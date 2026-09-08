@@ -118,7 +118,7 @@ e o limiar de aviso **por turno**. Isso é melhor do que o que existe hoje no Lu
 | Achado | Por que importa |
 |---|---|
 | `sessionCapabilities`: `resume`, `fork`, `list`, `delete`, `close` + `loadSession: true` | A sessão é **retomável e forkável pelo protocolo**. O modelo de abas do Lumem ganha isso de graça — inclusive "continuar a conversa de ontem" |
-| `modes`: `auto`, `default` (Manual), `acceptEdits`, `plan`, `dontAsk` | O seletor de modo é dado do protocolo, não invenção nossa |
+| `modes`: `auto`, `default` (Manual), `acceptEdits`, `plan`, `dontAsk` — **`dontAsk` saiu** do adaptador em algum ponto entre `0.40.0` e `0.75.1`, e `bypassPermissions` está lá desde então ([medido](../../project/claude-agent-acp-0.75.md)) | O seletor de modo é dado do protocolo, não invenção nossa — e é por isso que a lista mudar não custou código |
 | `configOptions`: `mode`, `model`, `effort`, `fast`, `agent` | `effort` (`low`…`max`) e `fast` viram controle de UI, e são exatamente o que o roteamento por tipo de trabalho precisaria |
 | `mcpCapabilities: { http, sse }` | Os servidores MCP do Lumem entram por aqui — é o canal da camada 3 da memória |
 | `promptCapabilities`: `image`, `embeddedContext` | Colar imagem e anexar contexto são suportados |

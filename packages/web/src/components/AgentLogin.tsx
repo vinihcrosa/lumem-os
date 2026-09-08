@@ -255,8 +255,19 @@ function ConnectPanel({
       setChosen(spec);
       const found = entryOf(report.data, spec.id);
       let command = found?.adapter.path ?? null;
+      /*
+       * Estar instalado não é estar na versão que o produto mediu (LUM-54).
+       *
+       * Antes daqui, só a **ausência** do binário levava a instalar — então uma
+       * cópia velha era conectada com a versão nova escrita no `agent_config`, e
+       * todo turno morria num 400 sobre o runtime embutido. Só decide quando a
+       * versão é conhecida: `null` é "não deu para ler", e reinstalar por
+       * desconhecimento baixaria 255 MB a cada conexão.
+       */
+      const stale =
+        found?.adapter.version != null && found.adapter.version !== spec.pinnedVersion;
 
-      if (command === null) {
+      if (command === null || stale) {
         setStage("installing");
         const installed = await trpc.setup.installAdapter.mutate({ adapterId: spec.id });
         command = installed.path;

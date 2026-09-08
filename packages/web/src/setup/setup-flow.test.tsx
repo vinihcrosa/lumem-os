@@ -1,3 +1,4 @@
+import { CLAUDE_ADAPTER } from "@lumem/shared";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -68,9 +69,12 @@ const CLAUDE_ENTRY: {
   adapter: {
     command: "claude-agent-acp",
     path: "/opt/homebrew/bin/claude-agent-acp",
+    // Deliberately not the pin: this field is what the binary on the machine
+    // said, and a fixture that always agrees with the catalogue cannot show a
+    // stale adapter.
     version: "0.69.0",
     versionNote: null,
-    install: "npm i -g @agentclientprotocol/claude-agent-acp@0.40.0",
+    install: `npm i -g ${CLAUDE_ADAPTER.package}@${CLAUDE_ADAPTER.pinnedVersion}`,
     managed: false,
   },
   apiKeyEnv: null,
@@ -235,7 +239,7 @@ describe("agent step", () => {
     );
     trpc.setup.installAdapter.mutate.mockResolvedValue({
       path: "/tmp/lumem/adapters/node_modules/.bin/claude-agent-acp",
-      version: "0.40.0",
+      version: CLAUDE_ADAPTER.pinnedVersion,
       alreadyInstalled: false,
     });
 
@@ -265,7 +269,7 @@ describe("agent step", () => {
 
     expect(await screen.findByText(/ENOENT/)).toBeInTheDocument();
     expect(
-      screen.getByText("npm i -g @agentclientprotocol/claude-agent-acp@0.40.0"),
+      screen.getByText(`npm i -g ${CLAUDE_ADAPTER.package}@${CLAUDE_ADAPTER.pinnedVersion}`),
     ).toBeInTheDocument();
   });
 

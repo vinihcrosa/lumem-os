@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -175,6 +175,62 @@ describe("detectAgents", () => {
     expect(claude.adapter.path).toBe(join(path, CLAUDE_ADAPTER.command));
     expect(claude.adapter.version).toBeNull();
     expect(claude.adapter.versionNote).toContain("não respondeu");
+  });
+
+  it("reads the version off the package when the binary says nothing", async () => {
+    /*
+     * LUM-54: `claude-agent-acp@0.40.0` answers `--version` with an **empty
+     * string** and exit 0. The version that most needed reporting was the one
+     * version this screen could not report, and the row read "não disse a
+     * versão" instead of "0.40.0" — a number that would have named the defect.
+     */
+    const dir = mkdtempSync(join(tmpdir(), "lumem-pkg-"));
+    dirs.push(dir);
+    const pkg = join(dir, "node_modules", ...CLAUDE_ADAPTER.package!.split("/"));
+    mkdirSync(pkg, { recursive: true });
+    writeFileSync(
+      join(pkg, "package.json"),
+      JSON.stringify({ name: CLAUDE_ADAPTER.package, version: "0.40.0" }),
+    );
+    const entryFile = join(pkg, "dist", "index.js");
+    mkdirSync(join(pkg, "dist"), { recursive: true });
+    writeFileSync(entryFile, "");
+    chmodSync(entryFile, 0o755);
+    // The link npm writes, and the reason the lookup follows it: a global install
+    // puts the launcher in `<prefix>/bin` and the package under
+    // `<prefix>/lib/node_modules`, so no relative walk from the launcher works.
+    const bin = join(dir, "node_modules", ".bin");
+    mkdirSync(bin, { recursive: true });
+    const binary = join(bin, CLAUDE_ADAPTER.command);
+    symlinkSync(entryFile, binary);
+
+    const claude = entry(
+      await detectAgents({
+        path: bin,
+        env: {},
+        run: () => Promise.resolve({ ok: true, output: "", failure: null }),
+      }),
+    );
+
+    expect(claude.adapter.version).toBe("0.40.0");
+    expect(claude.adapter.versionNote).toBeNull();
+  });
+
+  it("still says nothing for a binary that is not a package", async () => {
+    // The fallback is a manifest lookup, not a guess: a hand-built binary has no
+    // package to read, and inventing a version for it would be worse than
+    // reporting that nobody said one.
+    const path = pathWith(CLAUDE_ADAPTER.command);
+    const claude = entry(
+      await detectAgents({
+        path,
+        env: {},
+        run: () => Promise.resolve({ ok: true, output: "", failure: null }),
+      }),
+    );
+
+    expect(claude.adapter.version).toBeNull();
+    expect(claude.adapter.versionNote).toBe("não disse a versão");
   });
 
   it("reads the version off stderr too", async () => {

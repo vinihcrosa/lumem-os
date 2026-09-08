@@ -25,6 +25,15 @@ produto, e o jeito de entrar quem dita é o **próprio agente**, no handshake. S
 Contra `@agentclientprotocol/claude-agent-acp` **0.40.0**, instalado nesta máquina, em 2026-08-20.
 Quatro achados, e dois deles derrubam premissas que este repositório já tinha publicado.
 
+> **Nota de 2026-09-08 — o produto não fixa mais essa versão.** `0.40.0` embute o Claude Code
+> `2.1.160`, e a API passou a recusar o modelo default da conta: todo turno morria no
+> `session/prompt` ([LUM-54](https://github.com/vinihcrosa/lumem-os/issues/76)). O pino é **`0.75.1`**,
+> e as duas versões foram medidas lado a lado em
+> [claude-agent-acp-0.75.md](../../project/claude-agent-acp-0.75.md). **O que esta seção afirma
+> continua de pé**: o `authMethods` responde o mesmo em `0.75.1`, com o mesmo `type: "terminal"`, os
+> mesmos dois métodos e a mesma ausência de `_meta["terminal-auth"]` — inclusive o `command: null`
+> que faz o Lumem recusar os dois botões.
+
 ### 2.1 O adaptador não oferece login para quem não pede
 
 `authMethods` volta **vazio** a menos que o cliente declare `clientCapabilities.auth.terminal`. Está no
@@ -105,7 +114,8 @@ seria mecanismo do Lumem. Ficou fora ([L6](open-questions.md)).
 
 ### F3 — O daemon prepara o adaptador
 
-- **F3.1** `setup.installAdapter` instala `@agentclientprotocol/claude-agent-acp@0.40.0` em
+- **F3.1** `setup.installAdapter` instala `@agentclientprotocol/claude-agent-acp@0.40.0` — **`0.75.1`
+  desde 2026-09-08**, ver a nota do §2 — em
   `~/.lumem/adapters`, com `npm install --prefix` — nunca `-g`, nunca `@latest`.
 - **F3.2** Idempotente: se já está lá, não baixa nada.
 - **F3.3** O progresso aparece em **três linhas** (`CLI encontrado` → `instalando` → `handshake`).
@@ -186,7 +196,7 @@ o comando copiável continua ali para a máquina onde nada disso funciona.
 
 | Risco | Por que é real | O que segura |
 |---|---|---|
-| **A versão fixada envelhece** | 0.40.0 é o que esta máquina tem; o adaptador solta versão quase toda semana | é constante, então subir é mudança de código revisada. O integration marcado roda contra a instalada e falha se o handshake mudar de forma |
+| **A versão fixada envelhece** | 0.40.0 é o que esta máquina tem; o adaptador solta versão quase toda semana | é constante, então subir é mudança de código revisada. O integration marcado roda contra a instalada e falha se o handshake mudar de forma — **e não foi suficiente**: o risco se realizou em 2026-09-08 e o teste ficou verde, porque **o handshake não mudou de forma**. O que quebrou foi o `session/prompt`, onde ele para de propósito. Ver [claude-agent-acp-0.75.md §6](../../project/claude-agent-acp-0.75.md#6-o-que-a-suíte-continua-não-vendo) |
 | **`npm` na máquina do usuário** | proxy, mirror corporativo, npm ausente | cada falha é frase com as palavras do npm, e o comando copiável volta |
 | **O daemon executa o que baixou** | é o alargamento do §5 | `--prefix`, versão fixa, pasta própria, e nada de `sudo` |
 | **`authMethods` muda de forma** | é lista de terceiro | o que o Lumem não sabe executar aparece como recusa explicada, não como botão |

@@ -79,7 +79,19 @@ export const CLAUDE_ADAPTER: AdapterSpec = {
   // Duas strings porque não são a mesma string, e é exatamente essa a armadilha:
   // o pacote é escopado e o binário não.
   command: "claude-agent-acp",
-  pinnedVersion: "0.40.0",
+  /*
+   * Medido em 2026-09-08, e a medição é o motivo de não ser `0.40.0`.
+   *
+   * O adaptador **embute** o runtime: `0.40.0` depende de
+   * `@anthropic-ai/claude-agent-sdk@0.3.160`, que é o Claude Code `2.1.160`, e a
+   * API recusa o modelo default desta conta com *"version 2.1.251 or newer is
+   * required"*. Quem responde `session/prompt` é o SDK de dentro, então o
+   * `claude` do PATH — `2.1.263` na máquina que mediu — não salva.
+   *
+   * `0.75.1` traz o SDK `0.3.257`. O estudo, com as duas versões lado a lado,
+   * está em `docs/project/claude-agent-acp-0.75.md`.
+   */
+  pinnedVersion: "0.75.1",
   cli: { command: "claude", install: null },
   apiKeyEnv: ["ANTHROPIC_API_KEY"],
 };
