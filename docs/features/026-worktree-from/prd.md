@@ -179,9 +179,11 @@ formato** — não é o `gh` que decide a forma da resposta. Mesma regra da
 sugere, não decide. Issue ⇒ `<numero>-<slug-do-titulo>` ([Q1](open-questions.md)). PR ⇒ o
 `headRefName`.
 
-**F3.3** PR cuja head **não** está no disco aparece **desabilitada**, dizendo por quê — *"a branch
-`x` não está no disco; rode um fetch neste projeto"*. O Lumem não vai à rede por conta própria
-([Q2](open-questions.md)).
+**F3.3** ~~PR cuja head **não** está no disco aparece **desabilitada**, dizendo por quê.~~
+**Revertido em 2026-09-08** — [ADR](../../adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md). A
+linha fica **clicável**, com uma nota cinza `busca ao criar`, e o `criar` faz duas coisas em ordem:
+busca a ref, depois corta. O que sobrou de pé é a ordem — a ref existe antes do `worktree add` —, e o
+que caiu é quem a traz. Falha de busca é falha do gesto: nada é criado, e a mensagem é a do git.
 
 **F3.4** Branch **já usada por outra worktree** não é oferecida como origem: ela aparece marcada com
 o nome do checkout que a tem, e escolhê-la **leva para lá** — o produto já sabe selecionar worktree.
@@ -205,7 +207,7 @@ não é o que vai rodar. Não estava no pedido; apareceu na leitura do código.
 | Não faz | Por quê |
 |---|---|
 | **`glab`** | `PrHost` está pronto para a segunda implementação, mas ela tem escopo próprio — autenticação, formato, fixtures — e **não é pré-requisito** de nada aqui ([Q3](open-questions.md)). Feature própria |
-| **`fetch` sob demanda** | contraria o *"sem fetch, use o que está no disco"* da 001. A F3.3 diz o que falta em vez de ir buscar. [Backlog](../../project/backlog.md) |
+| ~~**`fetch` sob demanda**~~ | **Deixou de ser não-objetivo em 2026-09-08** ([ADR](../../adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md)): o daemon busca a head da PR que falta, no gesto, e só ela. O resto do produto continua sem fetch |
 | **`gh issue develop`** | escreve no host. O Lumem escreve **dois** verbos, cada um atrás de portão ([ADR](../../adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md)) — e um terceiro como efeito colateral de digitar um nome é a coisa errada ([Q1](open-questions.md)) |
 | **`gh issue develop --list`** | é leitura, e é útil, mas custa uma chamada por issue. [Backlog](../../project/backlog.md) |
 | **busca / paginação nas listas** | 50 itens por leitura, com teto. Lista longa é problema quando alguém reclamar dela |

@@ -34,8 +34,9 @@ O contrato está na [025-docs-contract](features/025-docs-contract/prd.md).
 | [O status de PR vem do `gh` da sua máquina, e o Lumem não guarda segredo](adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md) | 2026-08-30 | `security` |
 | [O daemon é um bundle ESM que serve o web na própria porta](adr/2026-08-30-0532-daemon-is-an-esm-bundle-that-serves-the-web.md) | 2026-08-30 | `distribution` |
 | [O número da PRD é ordem de leitura, não precedência](adr/2026-09-07-2208-prd-number-is-reading-order-not-precedence.md) | 2026-09-07 | `docs` |
+| [A head da PR é buscada sob demanda, e não exigida do usuário](adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md) | 2026-09-08 | `git` |
 
-Nenhum dos seis tem `supersedes` — a cadeia ainda não foi exercitada. É o gatilho para os gates
+Nenhum dos sete tem `supersedes` — a cadeia ainda não foi exercitada. É o gatilho para os gates
 `broken-supersedes` e `supersedes-cycle`, que hoje não existem de propósito.
 
 ---

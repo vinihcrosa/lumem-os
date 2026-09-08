@@ -41,8 +41,14 @@ Fora do v1, no [backlog](../../project/backlog.md).
 
 ## Q2 — cortar da head de uma PR exige rede?
 
-**Resposta: sem fetch. Só se oferece PR cuja head já esteja no disco.** A que não estiver aparece
-desabilitada, dizendo *"a branch `x` não está no disco; rode um fetch neste projeto"*.
+> **⚠ Revertida em 2026-09-08, com o produto na mão** — [ADR: a head da PR é buscada sob
+> demanda](../../adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md). O que sobrou de pé desta
+> resposta é a **ordem**: a ref existe antes do `worktree add`, pelo motivo medido abaixo. O que caiu
+> é **quem a traz** — o daemon busca em vez de proibir. A F4.3 da `walking-skeleton` continua valendo
+> em todo o resto: nada mais no produto faz fetch.
+
+**Resposta (revertida): sem fetch. Só se oferece PR cuja head já esteja no disco.** A que não estiver
+aparece desabilitada, dizendo *"a branch `x` não está no disco; rode um fetch neste projeto"*.
 
 A pergunta chegou como *"fetch sob demanda, ou só o que está em disco?"*, tratando as duas como
 igualmente disponíveis. A medição mostrou que a escolha real é outra: `git worktree add <path>
@@ -54,6 +60,14 @@ Com isso, manter o *"sem fetch, use o que está no disco"* da
 [001-walking-skeleton](../001-walking-skeleton/prd.md) fica **barato**: a checagem é
 `refs/remotes/*/<headRefName>`, que é a leitura de 10 ms que o `hasRemoteBranch` já faz. A F4.3 fica
 de pé sem revisão, e o fetch vai para o [backlog](../../project/backlog.md) com gatilho.
+
+**O que o uso mostrou, no mesmo dia:** esta resposta protege o invariante técnico e **produz o gesto
+que a feature existia para eliminar**. A lista mostra a PR, a pessoa clica, e a tela responde com uma
+proibição em vermelho e uma tarefa de casa num terminal — que é de onde o Lumem estava tirando as
+pessoas. O argumento medido continua verdadeiro (`worktree add <path> origin/<ref>` entrega HEAD
+destacado com sucesso, e por isso a ref tem que existir antes); o erro foi concluir dele que **quem
+busca é a pessoa**. Está no [ADR](../../adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md), com as
+quatro alternativas e o alcance da mudança.
 
 ## Q3 — `glab` é esta feature ou outra?
 

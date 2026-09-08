@@ -425,12 +425,52 @@ extraiu a regra. Era **falta teste do caminho** — e a extração, sozinha, esc
 testes verdes de função pura. O `design:sync --check` tem a mesma forma de cegueira: ele responde
 sobre os arquivos que copia, e uma string de tela em JSX não é um deles.
 
+---
+
+## A reversão da Q2 — 2026-09-08, testando o produto
+
+**O dono do produto usou a feature e a Q2 caiu no mesmo dia.** A resposta dela — *só oferecer PR cuja
+head já esteja no disco* — protegia um invariante técnico verdadeiro e **produzia o gesto que a
+feature existia para eliminar**: a lista mostra a PR, a pessoa clica, e a tela responde com um
+vermelho e uma tarefa de casa num terminal.
+
+A decisão está no [ADR](../../adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md), com as quatro
+alternativas e o alcance. O que mudou no código:
+
+| Onde | O quê |
+|---|---|
+| `GitService.fetchRef` | o **único** lugar do serviço que vai à rede. Uma ref, `--no-tags`, timeout de 120 s, e o `cloneEnv` da `011` — sem `GIT_ASKPASS`, com `BatchMode=yes`, porque um daemon não tem quem perguntar |
+| `GitService.listRemotes` | de onde buscar quando a ref não está no disco, e aí o `listBranches` não tem o que dizer |
+| `AddWorktreeSource.branch-at` | `--no-track` **dito por extenso**. Medido: com `branch.autoSetupMerge` no default, criar a partir de uma ref de `refs/remotes/` configura upstream sozinho — a branch da PR de fork saía rastreando `origin/pr/42`, e `git pull` ali tentaria `refs/heads/pr/42`, que não existe |
+| `prSource` no router | busca só quando falta; fork vem por `refs/pull/<n>/head` (servido pelo próprio `origin`) e nasce **sem upstream** |
+| a tela | nenhuma linha proibida. Nota **cinza** `busca ao criar`, e o banner do `criar` diz `buscando a branch da PR #N — isto vai à rede` |
+| o vermelho | continua existindo, e **depois** de tentar: falha de busca é falha do gesto, com as palavras do git, e nada é criado |
+
+**A folha veio antes do código**, como a regra manda: o §5 foi reescrito de *"as duas recusas que não
+são erro"* para *"o que falta no disco é espera, não recusa"*, com o quadro da busca em andamento e o
+da falha. Conferido no navegador.
+
+### O defeito de produto que a fixture do e2e achou
+
+Para o e2e buscar sem rede, o `origin` do fixture aponta para o GitHub e um
+`url.<caminho>.insteadOf` reescreve na hora de falar — mecanismo do próprio git, e o mesmo que meia
+internet usa em `url."git@github.com:".insteadOf "https://github.com/"`.
+
+O teste ficou vermelho dizendo *"este projeto não tem remoto"*. Motivo: `getRemoteUrl` usava
+`git remote get-url`, que devolve a URL **já reescrita** — a de **transporte**. Quem chama ali quer
+**identidade**: de qual host é este repositório, qual `org/repo`, qual URL de comparação. Ele passou a
+ler `git config --get remote.origin.url`.
+
+**Isto não é sobre a fixture.** Quem busca um repositório do GitHub por espelho interno — configuração
+comum em empresa — via o Lumem dizer *"sem integração"* sobre uma PR que existe. A fixture só foi o
+primeiro lugar onde a diferença entre as duas URLs apareceu.
+
 ## O que ficou de fora, e onde está
 
 | Item | Onde |
 |---|---|
 | `glab` como segundo `PrHost` | [backlog](../../project/backlog.md) — [Q3](open-questions.md) |
-| `fetch` sob demanda para head de PR | [backlog](../../project/backlog.md) — [Q2](open-questions.md) |
+| ~~`fetch` sob demanda para head de PR~~ | **entregue em 2026-09-08**, contra a [Q2](open-questions.md) — [ADR](../../adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md) |
 | `gh issue develop --list` (branch já ligada à issue) | [backlog](../../project/backlog.md) — [Q1](open-questions.md) |
 | busca e paginação nas listas | §5 do PRD |
 | issue de outro repositório | §5 do PRD |

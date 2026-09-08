@@ -172,8 +172,9 @@ describe("as quatro origens", () => {
     );
   });
 
-  it("desabilita a PR cuja head não está no disco, com o motivo na linha", async () => {
-    // Q2: sem fetch. E a linha não some — sumir esconderia que a PR existe.
+  it("a PR cuja head não está no clone é clicável, e a nota anuncia a busca", async () => {
+    // Q2 revertida (ADR de 2026-09-08): o daemon busca. A nota é cinza porque
+    // não é recusa — ela existe para a espera não ser surpresa.
     const user = userEvent.setup();
     trpc.worktree.hostOrigins.query.mockResolvedValue(
       hostOrigins({
@@ -199,8 +200,48 @@ describe("as quatro origens", () => {
     await user.click(screen.getByRole("button", { name: "PR" }));
     const row = await screen.findByRole("option", { name: /#20/ });
 
-    expect(row).toBeDisabled();
-    expect(within(row).getByText("não está no disco")).toBeInTheDocument();
+    expect(row).toBeEnabled();
+    expect(within(row).getByText("busca ao criar")).toBeInTheDocument();
+    // Cinza, não vermelho: a classe é a que a folha desenhou para espera.
+    expect(within(row).getByText("busca ao criar")).toHaveClass("orow__note--wait");
+  });
+
+  it("escolher essa PR e criar dispara o mesmo pedido, e o banner diz que vai à rede", async () => {
+    const user = userEvent.setup();
+    trpc.worktree.hostOrigins.query.mockResolvedValue(
+      hostOrigins({
+        pulls: {
+          items: [
+            {
+              number: 20,
+              title: "a PR sem fetch",
+              url: "u",
+              headRefName: "nunca-buscada",
+              isDraft: false,
+              updatedAt: "2026-09-07T00:00:00Z",
+              crossRepository: false,
+              onDisk: false,
+            },
+          ],
+          failure: null,
+          readAt: null,
+        },
+      }),
+    );
+    // Uma criação que não termina: é o único jeito de ver o estado de espera.
+    trpc.worktree.create.mutate.mockReturnValue(new Promise(() => {}));
+    open();
+
+    await user.click(screen.getByRole("button", { name: "PR" }));
+    await user.click(await screen.findByRole("option", { name: /#20/ }));
+    await user.click(screen.getByRole("button", { name: "criar" }));
+
+    expect(trpc.worktree.create.mutate).toHaveBeenCalledWith({
+      projectId: "p1",
+      name: "nunca-buscada",
+      from: { kind: "pr", number: 20 },
+    });
+    expect(await screen.findByText(/buscando a branch da PR #20/)).toBeInTheDocument();
   });
 });
 
@@ -370,7 +411,7 @@ describe("o que a review da PR 75 achou", () => {
     );
   });
 
-  it("a PR de fork diz que vem de um fork, e não que falta fetch", async () => {
+  it("a PR de fork diz de onde ela vem, e continua clicável", async () => {
     const user = userEvent.setup();
     trpc.worktree.hostOrigins.query.mockResolvedValue(
       hostOrigins({
@@ -397,8 +438,8 @@ describe("o que a review da PR 75 achou", () => {
     await user.click(screen.getByRole("button", { name: "PR" }));
     const row = await screen.findByRole("option", { name: /#42/ });
 
-    expect(row).toBeDisabled();
-    expect(within(row).getByText("vem de um fork")).toBeInTheDocument();
+    expect(row).toBeEnabled();
+    expect(within(row).getByText("de um fork · busca ao criar")).toBeInTheDocument();
   });
 });
 

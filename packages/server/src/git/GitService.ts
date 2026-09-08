@@ -1,6 +1,7 @@
 import { realpath, stat } from "node:fs/promises";
 
 import { DomainError } from "../errors.js";
+import { cloneEnv } from "./clone.js";
 import { execGit, type GitExec } from "./exec.js";
 
 /**
@@ -9,6 +10,15 @@ import { execGit, type GitExec } from "./exec.js";
  * Five commands in this version. A library would buy abstraction over an API
  * that is already stable and already installed.
  */
+
+/**
+ * O orçamento da busca de uma ref.
+ *
+ * Quatro vezes o default do `execGit`, que é dimensionado para disco. Uma ref de
+ * um repositório grande e uma rede ruim passam dos 30 s sem que nada esteja
+ * errado — e o teto existe porque o outro extremo é o daemon pendurado.
+ */
+export const FETCH_TIMEOUT_MS = 120_000;
 
 export type RepoProblem = "missing" | "not-a-directory" | "not-a-repo" | "not-root";
 
@@ -49,7 +59,20 @@ export type AddWorktreeSource =
   /** Uma branch local que já existe. O git não cria nada, e nada é limpo depois. */
   | { kind: "existing-branch" }
   /** Uma branch publicada: `--track -b <branch> <path> <remote>/<ref>`. */
-  | { kind: "remote-branch"; remoteRef: string };
+  | { kind: "remote-branch"; remoteRef: string }
+  /**
+   * Uma branch nova num commit, **sem rastrear nada** — `--no-track`.
+   *
+   * O `--no-track` é explícito porque o git faz o contrário sozinho: com
+   * `branch.autoSetupMerge` no default, criar a partir de uma ref de
+   * `refs/remotes/` configura upstream. Medido aqui: a branch de uma PR de fork
+   * saía rastreando `origin/pr/42`, e `git pull` ali tentaria
+   * `refs/heads/pr/42` no upstream — uma ref que não existe.
+   *
+   * É o caso da head de fork ([ADR](../../../../docs/adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md)):
+   * o repositório de onde o código veio não é onde ele vai voltar.
+   */
+  | { kind: "branch-at"; ref: string };
 
 export interface AddWorktreeInput {
   repoPath: string;
@@ -63,6 +86,15 @@ export interface AddWorktreeInput {
   branch: string;
   targetPath: string;
   source: AddWorktreeSource;
+}
+
+export interface FetchRefInput {
+  repoPath: string;
+  remote: string;
+  /** `+refs/heads/x:refs/remotes/origin/x`. Com `+`: sobrescreve o que havia. */
+  refspec: string;
+  /** Rede é mais lenta que disco, e o default do `execGit` é para disco. */
+  timeoutMs?: number;
 }
 
 /** Uma branch que se pode escolher como origem, F2.1 da `026-worktree-from`. */
@@ -178,6 +210,29 @@ export interface GitService {
   hasCommits(path: string): Promise<boolean>;
   /** `git worktree add`, F4.1–F4.5 — e as três origens da `026-worktree-from`. */
   addWorktree(input: AddWorktreeInput): Promise<void>;
+  /**
+   * Os remotos configurados, na ordem em que o git os lista.
+   *
+   * Existe para escolher de onde buscar quando a ref **não** está no disco — aí
+   * `listBranches` não tem o que dizer. `origin` primeiro é regra de quem
+   * chama, e não daqui: este método só lê.
+   */
+  listRemotes(repoPath: string): Promise<string[]>;
+  /**
+   * Busca **uma** ref, e a grava onde o chamador disse.
+   *
+   * O único lugar do serviço que vai à rede, e o
+   * [ADR de 2026-09-08](../../../../docs/adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md) diz
+   * por que ele existe: cortar de uma PR cuja head não está no clone passou a
+   * buscar em vez de proibir. Uma ref, e não `--all` — a busca é de um clique
+   * numa PR nomeada, e o resto do repositório não foi pedido.
+   *
+   * O `refspec` é do chamador porque ele muda com o caso: a branch de uma PR do
+   * próprio repositório vem de `refs/heads/*`, e a de um fork vem de
+   * `refs/pull/<n>/head`, que é o que o `origin` serve sem precisar do remoto de
+   * quem abriu a PR.
+   */
+  fetchRef(input: FetchRefInput): Promise<void>;
   /**
    * O sha curto de uma ref, ou `null` quando ela não resolve.
    *
@@ -333,6 +388,10 @@ export function worktreeAddArgs(
     // HEAD destacado com sucesso.
     case "remote-branch":
       return ["worktree", "add", "--track", "-b", branch, targetPath, source.remoteRef];
+    // `--no-track` dito por extenso: sem ele o git configura upstream sozinho
+    // quando o ponto de partida é uma ref de `refs/remotes/`.
+    case "branch-at":
+      return ["worktree", "add", "--no-track", "-b", branch, targetPath, source.ref];
   }
 }
 
@@ -510,6 +569,36 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       }
     },
 
+    async listRemotes(repoPath) {
+      const { stdout } = await exec(["remote"], { cwd: repoPath }).catch(() => ({
+        stdout: "",
+        stderr: "",
+      }));
+      return stdout
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line !== "");
+    },
+
+    async fetchRef({ repoPath, remote, refspec, timeoutMs = FETCH_TIMEOUT_MS }) {
+      /*
+       * O ambiente é o do clone, e não o do resto do serviço.
+       *
+       * `cloneEnv` esvazia `GIT_ASKPASS` e `SSH_ASKPASS` e compõe
+       * `BatchMode=yes` sobre o `GIT_SSH_COMMAND` de quem usa. Um daemon não tem
+       * quem perguntar: sem isto, um remoto que pede credencial deixa o processo
+       * pendurado até o timeout, e timeout é uma mensagem pior que a verdade.
+       *
+       * `--no-tags`: a busca é de uma ref pedida por um clique. Arrastar as tags
+       * do repositório junto é trazer o que ninguém pediu.
+       */
+      await exec(["fetch", "--no-tags", "--", remote, refspec], {
+        cwd: repoPath,
+        timeoutMs,
+        env: cloneEnv(),
+      });
+    },
+
     async resolveShortSha(repoPath, ref) {
       // `--verify --quiet` mais o `^{commit}`: sem eles, uma ref que não existe
       // faz o git escrever a própria string de volta e sair com sucesso, e o
@@ -602,10 +691,26 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
     },
 
     async getRemoteUrl(path) {
-      const { stdout } = await exec(["remote", "get-url", "origin"], { cwd: path }).catch(() => ({
-        stdout: "",
-        stderr: "",
-      }));
+      /*
+       * `config --get remote.origin.url`, e **não** `remote get-url`.
+       *
+       * Os dois respondem coisas diferentes quando existe um
+       * `url.<outra>.insteadOf` configurado — e ele é comum: a linha
+       * `git config --global url."git@github.com:".insteadOf "https://github.com/"`
+       * está em meia internet, e empresa com espelho interno usa a mesma
+       * mecânica. O `remote get-url` devolve a URL **já reescrita**, que é a de
+       * transporte; o `config` devolve a que está gravada, que é a de
+       * **identidade**.
+       *
+       * Quem chama aqui quer identidade: de qual host é este repositório, qual é
+       * o `org/repo`, qual URL de comparação montar. Ler a de transporte faz o
+       * Lumem dizer "sem integração" para um repositório do GitHub que se busca
+       * por um espelho — e foi assim que o defeito apareceu, numa fixture de e2e
+       * que usa `insteadOf` justamente para falar com um "GitHub" em disco.
+       */
+      const { stdout } = await exec(["config", "--get", "remote.origin.url"], {
+        cwd: path,
+      }).catch(() => ({ stdout: "", stderr: "" }));
       const url = stdout.trim();
       return url === "" ? null : url;
     },

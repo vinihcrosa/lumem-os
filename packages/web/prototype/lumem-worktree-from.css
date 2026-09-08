@@ -135,6 +135,19 @@
 .orow__note { flex: none; font: var(--text-caption); color: var(--color-text-tertiary); }
 
 /*
+ * A linha que vai custar uma ida à rede.
+ *
+ * **Cinza, e não vermelho**, porque não é recusa: desde a reversão da Q2
+ * (2026-09-08) o Lumem busca a ref que falta antes de cortar. O que a nota faz é
+ * impedir que a espera seja surpresa — duas linhas idênticas se comportando
+ * diferente, uma instantânea e outra com rede no meio, é pior que uma nota.
+ *
+ * O tom é o `tertiary` das outras notas, e não o `warning`: aviso amarelo diria
+ * que algo está errado, e nada está.
+ */
+.orow__note--wait { color: var(--color-text-tertiary); font-style: italic; }
+
+/*
  * A que não serve, e diz por quê.
  *
  * `[disabled]` com o motivo À DIREITA, na própria linha, e não num tooltip: uma

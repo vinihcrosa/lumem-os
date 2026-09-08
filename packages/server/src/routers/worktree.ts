@@ -150,39 +150,14 @@ async function resolveSource(
       }
 
       /*
-       * PR de fork não vira worktree, e o motivo não é política: é que o dado
-       * não existe em disco.
+       * A ref da head, buscada se preciso — o
+       * [ADR de 2026-09-08](../../../../docs/adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md).
        *
-       * `headRefName` de uma PR cruzada é o nome da branch **no fork**, e o
-       * repositório local pode ter uma homônima sem relação nenhuma — `patch-1`
-       * é o caso comum. Sem esta recusa, casar pelo nome pelado cortaria de
-       * `origin/patch-1` e o eco da tela afirmaria que aquilo é a head da PR.
+       * A ordem não mudou e não pode mudar: a ref existe **antes** do `worktree
+       * add`, porque passar uma ref remota solta para ele devolve HEAD destacado
+       * com código de saída zero. O que mudou é quem a traz.
        */
-      if (pull.crossRepository === true) {
-        throw new DomainError(
-          "BLOCKED",
-          `a PR #${origin.number} vem de um fork, e a head dela não está no disco; ` +
-            "rode um fetch da branch e corte dela",
-        );
-      }
-
-      // F3.3 e [Q2](../../../../docs/features/026-worktree-from/open-questions.md):
-      // sem fetch. A head que não está no disco é recusada **aqui**, porque o
-      // git não recusaria: medido, `worktree add <path> origin/<ref>` de uma
-      // ref ausente entra em HEAD destacado com código de saída zero.
-      const remote = await remoteHolding(ctx, project.path, pull.headRefName);
-      if (remote === null) {
-        throw new DomainError(
-          "BLOCKED",
-          `a branch "${pull.headRefName}" da PR #${origin.number} não está no disco; ` +
-            "rode um fetch neste projeto e tente de novo",
-        );
-      }
-
-      return {
-        source: { kind: "remote-branch", remoteRef: `${remote}/${pull.headRefName}` },
-        branch: name,
-      };
+      return prSource(ctx, project, name, origin.number, pull);
     }
   }
 }
@@ -194,6 +169,91 @@ async function resolveSource(
  * host usa. Com um `fork` configurado, escolher pela ordem alfabética faria a
  * worktree rastrear o repositório errado sem dizer nada.
  */
+/**
+ * De onde cortar uma PR, buscando a head quando ela não está no clone.
+ *
+ * Duas formas, e a diferença é de onde a head vive:
+ *
+ * - **do próprio repositório**: `refs/heads/<head>` do remoto, gravada no
+ *   `refs/remotes/<remote>/<head>` de sempre. A worktree rastreia a branch, que
+ *   é o que se espera de uma PR que veio de dentro.
+ * - **de um fork**: `refs/pull/<n>/head`, que o próprio `origin` serve — não é
+ *   preciso o remoto de quem abriu a PR. A branch nasce **sem upstream**: o
+ *   repositório de onde o código veio não é onde ele vai voltar, e um upstream
+ *   apontando para lá faria o primeiro `push` tentar escrever no fork de outra
+ *   pessoa.
+ */
+async function prSource(
+  ctx: Context,
+  project: { path: string },
+  name: string,
+  number: number,
+  pull: { headRefName: string; crossRepository?: boolean },
+): Promise<{ source: AddWorktreeSource; branch: string }> {
+  const fork = pull.crossRepository === true;
+
+  // Já em disco, e do próprio repositório: nada a buscar.
+  if (!fork) {
+    const holding = await remoteHolding(ctx, project.path, pull.headRefName);
+    if (holding !== null) {
+      return {
+        source: { kind: "remote-branch", remoteRef: `${holding}/${pull.headRefName}` },
+        branch: name,
+      };
+    }
+  }
+
+  const remote = await remoteToFetchFrom(ctx, project.path);
+  if (remote === null) {
+    throw new DomainError(
+      "BLOCKED",
+      `este projeto não tem remoto configurado, então não há de onde buscar a PR #${number}`,
+    );
+  }
+
+  // `pr/<n>` e não o nome da branch do fork: dois forks podem ter `patch-1`, e o
+  // número da PR é o que não colide. Fora de `refs/remotes/<remote>/heads`, a
+  // ref não é confundida com uma branch publicada do upstream.
+  const target = fork
+    ? `refs/remotes/${remote}/pr/${String(number)}`
+    : `refs/remotes/${remote}/${pull.headRefName}`;
+  const source = fork
+    ? `refs/pull/${String(number)}/head`
+    : `refs/heads/${pull.headRefName}`;
+
+  try {
+    await ctx.git.fetchRef({ repoPath: project.path, remote, refspec: `+${source}:${target}` });
+  } catch (error) {
+    // As palavras do git, com o número da PR na frente: `could not read
+    // Username` sozinho não diz sobre o que era.
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new DomainError(
+      "BLOCKED",
+      `não deu para buscar a branch da PR #${String(number)}: ${detail}`,
+    );
+  }
+
+  // Fork: a branch nasce no commit buscado, sem rastrear nada.
+  return fork
+    ? { source: { kind: "branch-at", ref: target }, branch: name }
+    : {
+        source: { kind: "remote-branch", remoteRef: `${remote}/${pull.headRefName}` },
+        branch: name,
+      };
+}
+
+/**
+ * De qual remoto buscar — `origin` quando existe.
+ *
+ * `listBranches` não serve aqui: a pergunta é feita justamente quando a ref
+ * **não** está no disco, e aí não há entrada nenhuma para consultar.
+ */
+async function remoteToFetchFrom(ctx: Context, repoPath: string): Promise<string | null> {
+  const remotes = await ctx.git.listRemotes(repoPath);
+  if (remotes.length === 0) return null;
+  return remotes.includes("origin") ? "origin" : (remotes[0] ?? null);
+}
+
 async function remoteHolding(
   ctx: Context,
   repoPath: string,
@@ -393,12 +453,19 @@ export const worktreeRouter = router({
                 headRefName: pull.headRefName,
                 isDraft: pull.isDraft,
                 updatedAt: pull.updatedAt,
-                // F3.3: sem fetch. A tela desabilita a linha e diz por quê, em
-                // vez de deixar o `create` recusar depois do clique.
-                //
-                // Fork nunca está "no disco", mesmo que exista uma branch com o
-                // mesmo nome: numa PR cruzada o `headRefName` é o nome no fork,
-                // e a homônima local é outra coisa.
+                /*
+                 * `onDisk` deixou de ser permissão e passou a ser **previsão de
+                 * espera** ([ADR](../../../../docs/adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md)).
+                 *
+                 * A tela não desabilita mais nada com isto: ela escreve uma nota
+                 * cinza dizendo que aquela linha vai à rede antes de cortar. Duas
+                 * linhas idênticas se comportando diferente — uma instantânea e
+                 * outra com um fetch no meio — é o que a nota evita.
+                 *
+                 * Fork nunca está "no disco", mesmo com uma branch homônima
+                 * local: numa PR cruzada o `headRefName` é o nome no fork, e a
+                 * homônima é outra coisa.
+                 */
                 crossRepository: pull.crossRepository === true,
                 onDisk: pull.crossRepository !== true && published.has(pull.headRefName),
               })),

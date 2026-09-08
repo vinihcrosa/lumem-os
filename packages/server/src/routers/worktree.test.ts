@@ -533,21 +533,44 @@ describe("worktree.create com origem", () => {
     );
   });
 
-  it("recusa uma PR cuja head não está no disco, dizendo o que fazer", async () => {
-    // Q2: o Lumem não vai à rede sozinho. E sem esta recusa o caminho ingênuo
-    // entregaria uma worktree com HEAD destacado dizendo que deu certo.
-    const { context: ctx, projectId } = await setupWithRemote(
-      ["feature-a"],
-      hostWith({ pulls: [{ number: 20, headRefName: "nunca-buscada" }] }),
+  it("busca a head que não está no clone, e então corta dela", async () => {
+    /*
+     * A Q2 revertida (ADR de 2026-09-08). O remoto é outro repositório em disco,
+     * e a branch existe **lá** e não aqui: o `setupWithRemote` só busca o que
+     * existia na hora do clone.
+     */
+    const { context: ctx, projectId, remote } = await setupWithRemote(
+      [],
+      hostWith({ pulls: [{ number: 20, headRefName: "publicada-depois" }] }),
     );
+    // Publicada depois do fetch inicial — o caso que produzia o vermelho.
+    await runGit(remote, "branch", "publicada-depois");
 
-    const failure = ctx.api.worktree.create({
+    const created = await ctx.api.worktree.create({
       projectId,
       name: "pr-20",
       from: { kind: "pr", number: 20 },
     });
 
-    await expect(failure).rejects.toThrow(/não está no disco/);
+    expect((await runGit(created.path, "branch", "--show-current")).trim()).toBe("pr-20");
+    expect((await runGit(created.path, "rev-parse", "--abbrev-ref", "@{u}")).trim()).toBe(
+      "origin/publicada-depois",
+    );
+  });
+
+  it("quando a busca falha, nada é criado e a mensagem é a do git", async () => {
+    const { context: ctx, projectId } = await setupWithRemote(
+      [],
+      hostWith({ pulls: [{ number: 21, headRefName: "nao-existe-em-lugar-nenhum" }] }),
+    );
+
+    const failure = ctx.api.worktree.create({
+      projectId,
+      name: "pr-21",
+      from: { kind: "pr", number: 21 },
+    });
+
+    await expect(failure).rejects.toThrow(/não deu para buscar a branch da PR #21/);
     expect(await ctx.api.worktree.listByProject({ projectId })).toEqual([]);
   });
 
@@ -693,27 +716,40 @@ describe("o que a review da PR 75 achou", () => {
     );
   });
 
-  it("recusa uma PR de fork, mesmo com uma branch homônima no disco", async () => {
-    // `headRefName` de uma PR cruzada é o nome no fork. `patch-1` do fork de
-    // alguém e `origin/patch-1` do upstream são coisas diferentes, e cortar da
-    // segunda entregaria código que não tem nada a ver com a PR.
-    const { context: ctx, projectId, repo } = await setupWithRemote(
+  it("uma PR de fork ignora a branch homônima e busca `refs/pull/<n>/head`", async () => {
+    /*
+     * `headRefName` de uma PR cruzada é o nome no fork. `patch-1` do fork de
+     * alguém e `origin/patch-1` do upstream são coisas diferentes — este teste
+     * põe as duas em disco com **conteúdos diferentes** e confere que a worktree
+     * saiu da PR, e não da homônima.
+     */
+    const { context: ctx, projectId, repo, remote } = await setupWithRemote(
       [],
       hostWith({ pulls: [{ number: 42, headRefName: "patch-1", crossRepository: true }] }),
     );
+
+    // O que o host serve como head da PR 42.
+    await runGit(remote, "checkout", "-b", "do-fork");
+    writeFileSync(join(remote, "so-na-pr.txt"), "x");
+    await runGit(remote, "add", "so-na-pr.txt");
+    await runGit(remote, "commit", "-m", "a head da PR");
+    await runGit(remote, "update-ref", "refs/pull/42/head", "do-fork");
+    await runGit(remote, "checkout", "main");
+    // E a homônima do upstream, que não tem nada a ver com ela.
     await runGit(repo, "update-ref", "refs/remotes/origin/patch-1", "main");
 
-    const failure = ctx.api.worktree.create({
+    const created = await ctx.api.worktree.create({
       projectId,
       name: "da-42",
       from: { kind: "pr", number: 42 },
     });
 
-    await expect(failure).rejects.toThrow(/fork/);
-    expect(await ctx.api.worktree.listByProject({ projectId })).toEqual([]);
+    expect(existsSync(join(created.path, "so-na-pr.txt"))).toBe(true);
+    // Sem upstream, de propósito: o fork não é o destino do trabalho.
+    await expect(runGit(created.path, "rev-parse", "--abbrev-ref", "@{u}")).rejects.toThrow();
   });
 
-  it("a PR de fork chega à tela marcada, e não como disponível", async () => {
+  it("a PR de fork chega à tela marcada — agora como espera, não como recusa", async () => {
     const { context: ctx, projectId, repo } = await setupWithRemote(
       [],
       hostWith({ pulls: [{ number: 42, headRefName: "patch-1", crossRepository: true }] }),

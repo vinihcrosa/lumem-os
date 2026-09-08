@@ -115,7 +115,8 @@ test.beforeAll(() => {
     issues: [issue(52, "cortar de uma issue")],
     pulls: [
       pull(19, "feature-publicada", "a PR publicada"),
-      pull(20, "nunca-buscada", "a PR sem fetch"),
+      // Existe no upstream e não no clone: é a que exercita a busca.
+      pull(21, "publicada-depois", "a PR publicada depois do último fetch"),
     ],
   });
 });
@@ -172,14 +173,27 @@ test("corta da head de uma PR publicada, e o HEAD não fica destacado", async ({
   expect(upstreamOnDisk("da-pr")).toBe("origin/feature-publicada");
 });
 
-test("a PR cuja head não está no disco não pode ser escolhida", async ({ page }) => {
+test("a PR cuja head não está no clone é buscada, e então cortada", async ({ page }) => {
+  /*
+   * A Q2 revertida (ADR de 2026-09-08), atravessando tudo: o daemon busca de um
+   * "GitHub" que é um repositório em disco — `insteadOf` reescreve a URL na hora
+   * de falar com a rede, e o caminho de código é o de verdade.
+   *
+   * `publicada-depois` existe no upstream e **não** no clone: a fixture apaga a
+   * ref de propósito, que é o estado de quem não roda `fetch` há uma semana.
+   */
   await openDialog(page);
 
   await page.getByRole("button", { name: "PR", exact: true }).click();
-  const row = page.getByRole("option", { name: /#20/ });
+  const row = page.getByRole("option", { name: /#21/ });
+  await expect(row).toBeEnabled();
+  await expect(row.getByText("busca ao criar")).toBeVisible();
 
-  await expect(row).toBeDisabled();
-  await expect(row.getByText("não está no disco")).toBeVisible();
+  await row.click();
+  await create(page, "da-busca");
+
+  expect(branchOnDisk("da-busca")).toBe("da-busca");
+  expect(upstreamOnDisk("da-busca")).toBe("origin/publicada-depois");
 });
 
 test("um projeto sem host abre o diálogo de sempre", async ({ page }) => {

@@ -31,9 +31,9 @@
     <p class="doc__lede">
       Oito quadros. O primeiro é o antes e o depois lado a lado; o segundo é o diálogo
       inteiro na janela. Do terceiro ao sexto, os quatro corpos, o esqueleto que prova que
-      nada espera, e as recusas que <b>não são erro</b> — três, e cada uma com a sua frase:
-      fora do disco, de um fork, e a leitura que não aconteceu. Os dois últimos são a
-      degradação sem host e a primeira worktree do produto cujo nome não é a branch.
+      nada espera, e o §5 — <b>o que falta no disco é espera, não recusa</b>, que é a Q2
+      revertida em 2026-09-08 com o produto na mão. Os dois últimos são a degradação sem host
+      e a primeira worktree do produto cujo nome não é a branch.
     </p>
     <p class="doc__lede">
       <b>Três decisões vieram de medição, não de argumento</b> — a bancada está no §3 da
@@ -204,7 +204,7 @@
                   <div class="origin__list" role="listbox" aria-label="pull requests abertas">
                     <button class="orow is-selected" role="option" aria-selected="true"><span class="orow__n">#19</span><span class="orow__t">session-mode: a pílula de modo existe sempre</span><span class="orow__note">◆ verde</span></button>
                     <button class="orow" role="option"><span class="orow__n">#18</span><span class="orow__t">worktree-first-tab: o caminho vira aba</span><span class="orow__note">◆ âmbar</span></button>
-                    <button class="orow" role="option" disabled><span class="orow__n">#17</span><span class="orow__t">second-agent: o Codex conversa</span><span class="orow__note">não está no disco</span></button>
+                    <button class="orow" role="option"><span class="orow__n">#17</span><span class="orow__t">second-agent: o Codex conversa</span><span class="orow__note orow__note--wait">busca ao criar</span></button>
                     <button class="orow" role="option"><span class="orow__n">#12</span><span class="orow__t">distribution: o daemon vira bundle</span><span class="orow__note">◆ vermelho</span></button>
                     <button class="orow" role="option"><span class="orow__n">#9</span><span class="orow__t">project-scripts: a worktree nasce preparada</span><span class="orow__note">◆ verde</span></button>
                   </div>
@@ -470,53 +470,119 @@
   <!-- =================================================================== 5 -->
   <section class="sec">
     <div class="sec__h">
-      <h2 class="sec__t">5 · as duas recusas que não são erro</h2>
+      <h2 class="sec__t">5 · o que falta no disco é espera, não recusa</h2>
       <p class="sec__d">
-        <span class="q">Q2 · medida</span> <b>PR cuja head não está no disco</b> aparece
-        desabilitada, com o motivo na própria linha. O Lumem não vai à rede por conta
-        própria: a checagem é <code>refs/remotes/*/&lt;headRefName&gt;</code>, e ela custa os
-        mesmos <span class="mm">10 ms</span> da lista de branches. A alternativa medida é
-        pior do que parecia — sem essa checagem, <code>worktree add &lt;path&gt;
-        origin/&lt;branch&gt;</code> não falha: ele entrega uma worktree com
-        <b>HEAD destacado e código de saída zero</b>.
+        <span class="q">Q2 · revertida em 2026-09-08</span> A primeira versão desta tela
+        <b>desabilitava</b> a PR cuja head não estava no clone e escrevia <code>não está no
+        disco</code> em vermelho. O motivo era a F4.3 da <code>walking-skeleton</code> — <i>sem
+        fetch, use o que está no disco</i> — e a decisão foi revertida com o produto na mão: a
+        pessoa vê a PR na lista, clica, e a tela responde com uma proibição e uma tarefa de casa
+        num terminal.
       </p>
       <p class="sec__d">
-        <span class="q">Q5 · medida</span> <b>Branch que outra worktree já tem</b> não é
-        oferecida como origem — e também não some. Ela diz onde está e o clique
-        <b>leva para lá</b>. Deixar o git responder daria
-        <code>fatal: 'x' is already used by worktree at …</code> <b>depois</b> do gesto; a
-        lista responde antes, e a resposta é uma navegação.
+        <b>Agora o Lumem busca.</b> A linha é clicável, a nota é cinza e diz o que vai acontecer —
+        <code>busca ao criar</code> —, e o <code>criar</code> faz duas coisas em ordem: busca a
+        ref, depois corta a worktree. O que era um beco virou uma espera anunciada.
+      </p>
+      <p class="sec__d">
+        O que <b>não</b> mudou é o motivo pelo qual a proibição existia: passar
+        <code>origin/&lt;ref&gt;</code> solto para o <code>git worktree add</code> devolve
+        <b>HEAD destacado com sucesso</b>. A ref continua tendo que existir antes do
+        <code>add</code> — a diferença é que agora <b>o daemon a traz</b> em vez de mandar a pessoa
+        trazer.
       </p>
     </div>
 
     <div class="case">
-      <div class="case__label">as duas linhas, de perto</div>
+      <div class="case__label">a mesma lista, sem nenhuma linha proibida</div>
       <div class="strip strip--wide bleed">
 
         <div class="strip__i">
-          <div class="strip__l"><b>fora do disco</b> — cinza, e o motivo à vista</div>
+          <div class="strip__l"><b>vai buscar</b> — cinza, e anuncia a espera</div>
           <div class="zoom zoom--dialog">
             <div class="origin__list origin__list--fit">
-              <button class="orow" disabled><span class="orow__n">#17</span><span class="orow__t">second-agent: o Codex conversa</span><span class="orow__note">não está no disco</span></button>
-              <button class="orow" disabled><span class="orow__n">#14</span><span class="orow__t">memory: a inbox de propostas</span><span class="orow__note">não está no disco</span></button>
-            </div>
-          </div>
-          <p class="case__note">Nunca num <i>tooltip</i>: linha cinza sem motivo à vista é a mesma armadilha do <code>+</code> desabilitado que a <code>sidebar-actions</code> recusou.</p>
-        </div>
-
-        <div class="strip__i">
-          <div class="strip__l"><b>de um fork</b> — outro motivo, outra palavra</div>
-          <div class="zoom zoom--dialog">
-            <div class="origin__list origin__list--fit">
-              <button class="orow" disabled><span class="orow__n">#42</span><span class="orow__t">patch-1: conserta o cabeçalho</span><span class="orow__note">vem de um fork</span></button>
+              <button class="orow"><span class="orow__n">#19</span><span class="orow__t">session-mode: a pílula de modo</span><span class="orow__note">◆ verde</span></button>
+              <button class="orow"><span class="orow__n">#17</span><span class="orow__t">second-agent: o Codex conversa</span><span class="orow__note orow__note--wait">busca ao criar</span></button>
             </div>
           </div>
           <p class="case__note">
-            <b>Não é o mesmo estado que o de cima, e por isso não usa a mesma frase.</b>
-            <code>não está no disco</code> convida a rodar um fetch — e num fork o fetch de
-            <code>origin</code> não traz nada. O <code>headRefName</code> de uma PR cruzada é o nome
-            da branch <b>no fork</b>, e a homônima local, quando existe, é outra coisa: dizer "fora do
-            disco" mandaria a pessoa buscar o que já está lá e não serve.
+            <b>Cinza e não vermelho, porque não é uma recusa.</b> A nota existe para a espera não
+            ser surpresa: cortar da #19 é instantâneo, cortar da #17 vai à rede primeiro. Sem ela,
+            duas linhas idênticas se comportariam diferente sem aviso.
+          </p>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>de um fork</b> — busca também, e a nota diz de onde</div>
+          <div class="zoom zoom--dialog">
+            <div class="origin__list origin__list--fit">
+              <button class="orow"><span class="orow__n">#42</span><span class="orow__t">patch-1: conserta o cabeçalho</span><span class="orow__note orow__note--wait">de um fork · busca ao criar</span></button>
+            </div>
+          </div>
+          <p class="case__note">
+            A head de uma PR cruzada vem por <code>refs/pull/42/head</code>, que o próprio
+            <code>origin</code> serve — não é preciso o remoto do fork. A branch nasce
+            <b>sem upstream</b>: o repositório de onde o código veio não é onde ele vai voltar, e
+            um upstream apontando para lá faria o primeiro <code>push</code> tentar escrever no
+            fork de outra pessoa.
+          </p>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>buscando</b> — a espera, dentro do diálogo que a começou</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__body">
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input"><span class="input__val">session-mode</span></div>
+                </div>
+                <div class="banner banner--info"><span class="banner__glyph">◇</span><div>buscando a branch da PR <b>#17</b> — isto vai à rede</div></div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand" disabled>criando…</button>
+                <button class="btn btn--ghost">cancelar</button>
+              </div>
+            </div>
+          </div>
+          <p class="case__note">
+            Um passo a mais no mesmo botão, e não um segundo botão: <code>criar</code> continua
+            sendo a única coisa a apertar. O texto diz <b>rede</b> porque é a única parte do gesto
+            que pode demorar por um motivo que não é o disco.
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="case">
+      <div class="case__label">e quando a busca não dá — aí sim, vermelho</div>
+      <div class="strip strip--wide bleed">
+
+        <div class="strip__i">
+          <div class="strip__l"><b>a busca falhou</b> — nas palavras do git, e nada foi criado</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__body">
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input input--error"><span class="input__val">session-mode</span></div>
+                  <div class="field__error">não deu para buscar a branch da PR #17: could not read Username for 'https://github.com' — terminal prompts disabled</div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">criar</button>
+                <button class="btn btn--ghost">cancelar</button>
+                <span class="modal__esc"><span class="kbd">Esc</span> fecha</span>
+              </div>
+            </div>
+          </div>
+          <p class="case__note">
+            <b>Vermelho aqui é correto, e é a diferença que a reversão faz.</b> Antes, o vermelho
+            aparecia antes de qualquer tentativa, sobre uma coisa que o Lumem podia resolver. Agora
+            ele aparece depois de tentar, sobre uma coisa que ele não pode: rede, credencial,
+            branch apagada no host. O botão volta a habilitar — tentar de novo é o gesto certo
+            quando o motivo pode ter passado.
           </p>
         </div>
 
@@ -528,7 +594,12 @@
               <button class="orow orow--held"><span class="orow__ref">main</span><span class="orow__t"></span><span class="orow__note">em <b>local</b></span><span class="orow__go">→</span></button>
             </div>
           </div>
-          <p class="case__note">O checkout principal entra na conta: <code>main</code> está ocupada por <code>local</code>, e o git recusaria essa também.</p>
+          <p class="case__note">
+            <span class="q">Q5 · medida</span> O git recusaria com
+            <code>fatal: 'x' is already used by worktree at …</code> <b>depois</b> do gesto; a lista
+            responde antes, e a resposta é uma navegação. O checkout principal entra na conta:
+            <code>main</code> está ocupada por <code>local</code>.
+          </p>
         </div>
 
       </div>

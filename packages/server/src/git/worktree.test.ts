@@ -598,3 +598,94 @@ describe("getAheadBehind", () => {
     expect(await git.getAheadBehind(target, "main")).toEqual({ ahead: 1, behind: 1 });
   });
 });
+
+describe("addWorktree numa ref, sem rastrear", () => {
+  it("não configura upstream, mesmo partindo de uma ref remota", async () => {
+    /*
+     * O git faz o contrário sozinho: com `branch.autoSetupMerge` no default,
+     * criar a partir de `refs/remotes/...` configura upstream. Foi medido aqui —
+     * a branch da PR de fork saía rastreando `origin/pr/42`, e `git pull` ali
+     * tentaria `refs/heads/pr/42` no upstream, que não existe.
+     */
+    const { repo, root } = await repoWithRemote(["feature-a"]);
+    const target = join(root, "solta");
+
+    await git.addWorktree({
+      repoPath: repo,
+      branch: "solta",
+      targetPath: target,
+      source: { kind: "branch-at", ref: "refs/remotes/origin/feature-a" },
+    });
+
+    expect((await runGit(target, "branch", "--show-current")).trim()).toBe("solta");
+    await expect(runGit(target, "rev-parse", "--abbrev-ref", "@{u}")).rejects.toThrow();
+  });
+});
+
+describe("fetchRef", () => {
+  it("traz uma ref que não estava no clone", async () => {
+    const { repo, remote } = await repoWithRemote([]);
+    await runGit(remote, "branch", "publicada-depois");
+
+    await git.fetchRef({
+      repoPath: repo,
+      remote: "origin",
+      refspec: "+refs/heads/publicada-depois:refs/remotes/origin/publicada-depois",
+    });
+
+    expect(await git.resolveShortSha(repo, "refs/remotes/origin/publicada-depois")).not.toBeNull();
+  });
+
+  it("falha com as palavras do git quando a ref não existe no remoto", async () => {
+    const { repo } = await repoWithRemote([]);
+
+    await expect(
+      git.fetchRef({
+        repoPath: repo,
+        remote: "origin",
+        refspec: "+refs/heads/fantasma:refs/remotes/origin/fantasma",
+      }),
+    ).rejects.toThrow(DomainError);
+  });
+
+  it("não arrasta tag nenhuma junto", async () => {
+    // `--no-tags`: a busca é de uma ref pedida num clique, e as tags do
+    // repositório não foram pedidas.
+    const { repo, remote } = await repoWithRemote([]);
+    await runGit(remote, "branch", "com-tag");
+    await runGit(remote, "tag", "v9.9.9");
+
+    await git.fetchRef({
+      repoPath: repo,
+      remote: "origin",
+      refspec: "+refs/heads/com-tag:refs/remotes/origin/com-tag",
+    });
+
+    expect((await runGit(repo, "tag", "--list")).trim()).toBe("");
+  });
+});
+
+describe("listRemotes", () => {
+  it("lista o que está configurado, e vazio quando não há nada", async () => {
+    const { repo } = await repoWithRemote([]);
+    expect(await git.listRemotes(repo)).toEqual(["origin"]);
+    expect(await git.listRemotes(await createRepo())).toEqual([]);
+  });
+});
+
+describe("getRemoteUrl", () => {
+  it("devolve a URL gravada, e não a que o `insteadOf` reescreve", async () => {
+    /*
+     * `url.<x>.insteadOf` é transporte, não identidade — e é comum: a linha
+     * `url."git@github.com:".insteadOf "https://github.com/"` está em meia
+     * internet, e empresa com espelho interno usa a mesma mecânica. Com
+     * `remote get-url`, o Lumem dizia "sem integração" para um repositório do
+     * GitHub buscado por espelho.
+     */
+    const repo = await createRepo({ branch: "main" });
+    await runGit(repo, "remote", "add", "origin", "https://github.com/exemplo/repo.git");
+    await runGit(repo, "config", "url./espelho/local.insteadOf", "https://github.com/");
+
+    expect(await git.getRemoteUrl(repo)).toBe("https://github.com/exemplo/repo.git");
+  });
+});

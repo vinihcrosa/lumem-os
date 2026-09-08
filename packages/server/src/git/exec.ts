@@ -11,6 +11,15 @@ export const DEFAULT_GIT_TIMEOUT_MS = 30_000;
 export interface GitExecOptions {
   cwd: string;
   timeoutMs?: number;
+  /**
+   * O ambiente do processo, quando o padrão não serve.
+   *
+   * Existe para **um** caso: a busca da head de uma PR
+   * ([ADR](../../../../docs/adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md)) vai à rede, e
+   * rede pede o `cloneEnv` da `011` — `GIT_ASKPASS` vazio e `BatchMode=yes`, além do que já está
+   * aqui. Todo o resto do serviço lê o disco e não tem o que perguntar a ninguém.
+   */
+  env?: NodeJS.ProcessEnv;
 }
 
 export interface GitResult {
@@ -28,7 +37,7 @@ export interface GitResult {
  */
 export type GitExec = (args: readonly string[], options: GitExecOptions) => Promise<GitResult>;
 
-export const execGit: GitExec = async (args, { cwd, timeoutMs = DEFAULT_GIT_TIMEOUT_MS }) => {
+export const execGit: GitExec = async (args, { cwd, timeoutMs = DEFAULT_GIT_TIMEOUT_MS, env }) => {
   try {
     const { stdout, stderr } = await run("git", [...args], {
       cwd,
@@ -37,7 +46,7 @@ export const execGit: GitExec = async (args, { cwd, timeoutMs = DEFAULT_GIT_TIME
       // Nothing reads them as paths yet; the day something does, this is the
       // bug nobody would think to look for.
       env: {
-        ...process.env,
+        ...(env ?? process.env),
         // Without this a repository needing credentials hangs the daemon until
         // the timeout instead of failing with something readable.
         GIT_TERMINAL_PROMPT: "0",

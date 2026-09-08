@@ -285,17 +285,16 @@ diálogo que abre congela a resposta do host para o resto do arquivo, e o spec t
 estado uma vez só · **Volta quando:** alguém reclamar de issue nova que não aparece, ou quando a
 lista de origens ganhar qualquer outro controle (aí o `⟳` entra na mesma faixa, de graça).
 
-### `fetch` sob demanda ao cortar de uma PR — `P`
+### ~~`fetch` sob demanda ao cortar de uma PR~~ — **aconteceu**
 
-A [026-worktree-from](../features/026-worktree-from/prd.md) só oferece PR cuja head **já esteja no
-disco**: a checagem é `refs/remotes/*/<headRefName>`, 10 ms, e mantém de pé o *"sem fetch, use o que
-está no disco"* da [001-walking-skeleton](../features/001-walking-skeleton/prd.md). A versão cara vai
-à rede quando a head falta — o que é um `git fetch` disparado por abrir um modal, num repositório que
-pode ser grande e num remoto que pode pedir credencial.
+Saiu daqui em 2026-09-08, um dia depois de entrar: o uso mostrou que a recusa produzia exatamente a
+ida ao terminal que a feature existia para eliminar. O daemon busca a head que falta, no gesto, e só
+ela — [ADR](../adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md).
 
-**De onde veio:** [026 Q2](../features/026-worktree-from/open-questions.md) · **Volta quando:** a
-recusa *"a branch não está no disco"* aparecer com frequência que você consiga nomear — ou quando
-existir um lugar no produto onde `fetch` já seja um gesto explícito.
+O que **ficou** de fora, e portanto continua aqui: a branch de uma PR de **fork** nasce sem upstream,
+porque o repositório de onde o código veio não é onde ele vai voltar. `git pull` naquela worktree não
+sabe de onde puxar. **Volta quando:** alguém trabalhar sobre uma PR de fork por tempo suficiente para
+querer atualizá-la sem sair do Lumem.
 
 ### `gh issue develop --list` — a issue já tem branch no host? — `P`
 

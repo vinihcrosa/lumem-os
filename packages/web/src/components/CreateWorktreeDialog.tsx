@@ -144,6 +144,7 @@ export function CreateWorktreeDialog({
   const unborn = hasCommits === false;
   const fieldId = `worktree-name-${projectId}`;
 
+
   /*
    * Se este projeto tem host, e a resposta enquanto ninguém sabe ainda.
    *
@@ -171,6 +172,19 @@ export function CreateWorktreeDialog({
    * pergunta do outro lado, e as duas respostas têm que ser a mesma.
    */
   const chosen = pick !== null && pick.kind === active ? pick : null;
+
+/**
+   * O número da PR quando o `criar` vai passar pela rede, e `null` quando não.
+   *
+   * Sai da mesma lista que desenha a nota cinza, e não de um estado novo: se a
+   * linha diz `busca ao criar`, o banner diz o que está buscando. Duas leituras
+   * do mesmo dado, uma antes e uma durante.
+   */
+  const fetching =
+    chosen?.kind === "pr" &&
+    host.data?.pulls.items.some((pull) => pull.number === chosen.number && !pull.onDisk) === true
+      ? chosen.number
+      : null;
 
   function choose(next: Pick, suggested: string): void {
     setPick(next);
@@ -334,19 +348,24 @@ export function CreateWorktreeDialog({
                     type="button"
                     role="option"
                     className="orow"
-                    // F3.3: sem fetch. A linha diz por que não serve, e não some
-                    // — sumir esconderia que a PR existe.
-                    disabled={!pull.onDisk}
                     aria-selected={pick?.kind === "pr" && pick.number === pull.number}
                     onClick={() => choose({ kind: "pr", number: pull.number }, pull.headRefName)}
                   >
                     <span className="orow__n">#{pull.number}</span>
                     <span className="orow__t">{pull.title}</span>
                     {!pull.onDisk && (
-                      <span className="orow__note">
-                        {/* Fork é outro motivo, e a palavra importa: a branch
-                            homônima local existe, e é outra coisa. */}
-                        {pull.crossRepository ? "vem de um fork" : "não está no disco"}
+                      /*
+                       * Nenhuma linha proibida, e nenhuma nota vermelha.
+                       *
+                       * A head que não está no clone é **buscada** no `criar` —
+                       * o [ADR de 2026-09-08](../../../../docs/adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md).
+                       * A nota é cinza e anuncia a espera: cortar da que está em
+                       * disco é instantâneo, cortar desta vai à rede primeiro, e
+                       * duas linhas idênticas com comportamentos diferentes é o
+                       * que ela evita.
+                       */
+                      <span className="orow__note orow__note--wait">
+                        {pull.crossRepository ? "de um fork · busca ao criar" : "busca ao criar"}
                       </span>
                     )}
                   </button>
@@ -411,7 +430,13 @@ export function CreateWorktreeDialog({
         )}
 
         {create.isPending && (
-          <Banner tone="info">copiando o checkout — em repositório grande isto leva alguns segundos</Banner>
+          <Banner tone="info">
+            {/* A rede é a única parte do gesto que pode demorar por um motivo
+                que não é o disco, então ela é dita quando existe. */}
+            {fetching === null
+              ? "copiando o checkout — em repositório grande isto leva alguns segundos"
+              : `buscando a branch da PR #${String(fetching)} — isto vai à rede`}
+          </Banner>
         )}
       </form>
     </Modal>
