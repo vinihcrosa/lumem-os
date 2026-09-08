@@ -8,6 +8,7 @@ import type { AcpManager } from "./acp/AcpManager.js";
 import type { CloneJobStore } from "./git/CloneJobStore.js";
 import type { GitService } from "./git/GitService.js";
 import type { PrCache } from "./pr/PrCache.js";
+import type { IssueCache } from "./pr/IssueCache.js";
 import type { AgentAuthService } from "./setup/agent-auth.js";
 import type { PrHost } from "./pr/PrHost.js";
 import type { PtyManager } from "./pty/PtyManager.js";
@@ -40,6 +41,14 @@ export interface Context {
    */
   scripts: ScriptRunner;
   git: GitService;
+  /**
+   * As issues do host, guardadas por projeto (`026-worktree-from`).
+   *
+   * Irmão do `pr`, e não parte dele: aquele alimenta uma barra que se pergunta
+   * sozinha, este responde a um diálogo que alguém abriu. O `IssueCache`
+   * explica a diferença por inteiro.
+   */
+  issues: IssueCache;
   /**
    * The clone that is running, if any. In memory, and one at a time — Q4, Q17.
    */

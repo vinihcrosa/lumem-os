@@ -1,0 +1,298 @@
+/* ============================================================================
+   Lumem-OS — de onde cortar (worktree-from)
+
+   Camada de tela: só o que é desta tela e de mais nenhuma. O modal, a moldura
+   de documentação e o véu vêm do `lumem-sidebar-actions.css`, que é onde eles
+   nasceram — esta tela ESTENDE aquele diálogo, e copiar 120 linhas de `.modal`
+   para cá seria criar uma segunda verdade sobre o mesmo cartão. Todo o resto
+   vem do `lumem-ds.css`, e todo valor vem do `tokens.css`.
+
+   O que nasce aqui, e por quê:
+
+     .origin        o bloco de origem, entre o cabeçalho e o campo de nome. É a
+                    resposta à pergunta que o produto nunca fez — "de onde?".
+     .origin__list  a lista rolável das origens. Altura DERIVADA de
+                    `--size-control-lg`: quatro linhas inteiras e meia, e a
+                    meia é o que diz que a lista continua.
+     .orow          uma origem. Geometria igual à do `.menu__item`, e classe
+                    própria porque isto é uma LISTA DE ESCOLHA dentro de um
+                    formulário, não um menu que abre e fecha — o estado
+                    escolhido persiste, e `.menu__item` não tem esse estado.
+     .orow--held    a branch que outra worktree já tem. Ela não é oferecida
+                    como origem e também não some: escolher leva PARA LÁ.
+     .origin__skel  o esqueleto enquanto a leitura de rede não voltou. Existe
+                    porque o campo de nome tem que estar utilizável no primeiro
+                    quadro (F3.5) — o esqueleto é a prova de que nada segura.
+     .fname         o eco do nome derivado, sob o campo. A origem SUGERE.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+   0. derivados — composição de token, nenhum valor novo
+   -------------------------------------------------------------------------- */
+:root {
+  /*
+   * Quatro linhas e meia.
+   *
+   * A meia linha é intencional e é o mesmo argumento da `composer-menus`: uma
+   * lista que termina exatamente no fim de uma linha parece uma lista que
+   * acabou. Cortada no meio da quinta, ela diz que continua sem precisar de
+   * sombra, gradiente ou seta.
+   *
+   * O `+ var(--space-8)` foi MEDIDO, não somado por gosto: sem ele o padding do
+   * trilho come a meia linha e sobra um sliver de 8px da quinta — que lê como
+   * um erro de arredondamento, e não como uma lista que continua.
+   *
+   * Quatro e não nove (o teto de menu do produto) porque isto vive DENTRO de um
+   * cartão de 420px que ainda carrega cabeçalho, campo de nome e rodapé — e o
+   * diálogo inteiro precisa caber na janela sem rolar por fora.
+   */
+  --size-origin-list-h: calc(var(--size-control-lg) * 4.5 + var(--space-8));
+}
+
+/* ---------------------------------------------------------------------------
+   1. o bloco de origem
+   -------------------------------------------------------------------------- */
+/*
+ * Ele fica ACIMA do campo de nome, e a ordem é a frase: primeiro de onde, depois
+ * como se chama. Invertida, o nome viraria a pergunta principal — que é
+ * exatamente o que o produto de hoje faz, e o motivo desta tela existir.
+ */
+.origin { display: grid; gap: var(--space-8); }
+
+/* O trilho das quatro origens. `.seg` do design system, sem uma linha nova: ele
+   já é "um conjunto pequeno e fechado de opções, uma escolhida". */
+.origin .seg { align-self: start; }
+
+/*
+ * A lista.
+ *
+ * `overflow-y: auto` com altura fixa, e não `max-height`: com `max-height` a
+ * altura do diálogo mudaria a cada troca de aba — três issues e trinta branches
+ * dariam dois cartões de tamanhos diferentes, e o rodapé andaria debaixo do
+ * ponteiro. Altura fixa é um cartão que não pula.
+ */
+.origin__list {
+  height: var(--size-origin-list-h);
+  overflow-y: auto;
+  padding: var(--space-4);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+/*
+ * Só na documentação: a lista com a altura do conteúdo, para duas linhas serem
+ * vistas de perto sem a janela em volta.
+ *
+ * A largura é DERIVADA do cartão menos o padding do corpo — 420 − 20 − 20 —,
+ * porque é essa a largura em que a linha existe no produto. Solto num quadro
+ * largo, o mesmo `.orow` mediu 701px, e uma linha vista numa largura que ela
+ * nunca tem é uma linha desenhada errada: é a largura que decide onde o título
+ * da issue corta.
+ */
+.origin__list--fit {
+  height: auto;
+  width: calc(var(--size-dialog-width) - var(--space-20) * 2);
+  max-width: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+   2. uma origem
+   -------------------------------------------------------------------------- */
+.orow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  height: var(--size-control-lg);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  font: var(--text-label-sm);
+  color: var(--color-text-secondary);
+  text-align: left;
+}
+.orow:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+/* Escolhida, e não só sob o ponteiro: este estado sobrevive ao mouse sair, que é
+   a diferença entre uma lista de escolha e um menu. */
+.orow.is-selected {
+  background: var(--color-bg-active);
+  color: var(--color-text-primary);
+  box-shadow: inset 0 0 0 1px var(--color-border-brand);
+}
+.orow.is-focus { box-shadow: var(--focus-ring); }
+
+/* O número da issue ou da PR. Mono porque é identificador: ele se compara com o
+   que está no navegador ao lado, e mono é o que faz `#1408` e `#148` não se
+   confundirem numa lista rolando. */
+.orow__n { flex: none; font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.orow.is-selected .orow__n { color: var(--color-text-secondary); }
+/* O nome da branch é mono pelo mesmo motivo, e porque é o que vai para o `argv`. */
+.orow__ref { flex: none; font: var(--text-mono-sm); color: var(--color-git-branch); }
+.orow__t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* À direita: o que a linha tem de diferente das outras — idade, dono, ou o
+   motivo de ela não servir. Nunca é decoração; quando não há nada a dizer, o
+   elemento não existe. */
+.orow__note { flex: none; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/*
+ * A linha que vai custar uma ida à rede.
+ *
+ * **Cinza, e não vermelho**, porque não é recusa: desde a reversão da Q2
+ * (2026-09-08) o Lumem busca a ref que falta antes de cortar. O que a nota faz é
+ * impedir que a espera seja surpresa — duas linhas idênticas se comportando
+ * diferente, uma instantânea e outra com rede no meio, é pior que uma nota.
+ *
+ * O tom é o `tertiary` das outras notas, e não o `warning`: aviso amarelo diria
+ * que algo está errado, e nada está.
+ */
+.orow__note--wait { color: var(--color-text-tertiary); font-style: italic; }
+
+/*
+ * A que não serve, e diz por quê.
+ *
+ * `[disabled]` com o motivo À DIREITA, na própria linha, e não num tooltip: uma
+ * linha cinza sem motivo à vista é a mesma armadilha do `+` desabilitado que a
+ * `sidebar-actions` recusou. O motivo em vermelho é o único vermelho desta tela.
+ */
+.orow[disabled] { color: var(--color-text-disabled); cursor: not-allowed; }
+.orow[disabled]:hover { background: none; color: var(--color-text-disabled); }
+.orow[disabled] .orow__n,
+.orow[disabled] .orow__ref { color: var(--color-text-disabled); }
+.orow[disabled] .orow__note { color: var(--color-text-danger); }
+
+/*
+ * A branch que outra worktree já tem.
+ *
+ * Não é `[disabled]`: ela é clicável e leva PARA a worktree que a ocupa. O git
+ * recusaria — `fatal: 'x' is already used by worktree at '<path>'` — e a recusa
+ * chegaria DEPOIS do gesto; aqui a linha responde antes, e a resposta é uma
+ * navegação e não um erro.
+ */
+.orow--held .orow__note { color: var(--color-text-tertiary); }
+.orow--held .orow__go { flex: none; color: var(--color-text-brand); font-size: var(--size-icon-xs); }
+
+/* ---------------------------------------------------------------------------
+   3. enquanto a leitura não voltou
+   -------------------------------------------------------------------------- */
+/*
+ * O esqueleto, e o que ele existe para provar.
+ *
+ * A [Q5a da sidebar-actions] pagou uma vez o preço de uma tela presa esperando
+ * rede. Aqui a leitura de issues custa ~730ms medidos, e ela começa DEPOIS de o
+ * modal existir: o esqueleto ocupa o mesmo espaço que a lista vai ocupar, para
+ * o cartão não crescer quando ela chegar, e o campo de nome abaixo já aceita
+ * digitação. Um `spinner` centrado diria a mesma coisa e ainda deixaria o
+ * cartão pular.
+ */
+.origin__skel { display: grid; gap: var(--space-8); padding: var(--space-6) var(--space-8); }
+.origin__skel span {
+  height: var(--space-10);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-active);
+}
+.origin__skel span:nth-child(1) { width: 78%; }
+.origin__skel span:nth-child(2) { width: 92%; }
+.origin__skel span:nth-child(3) { width: 64%; }
+
+/* Lista vazia é resposta, não falha: um repositório sem issue aberta é um estado
+   legítimo, e a frase diz isso em vez de deixar um retângulo mudo. */
+/*
+ * `flex` com UM filho, e não `grid`: com `display: grid` cada nó inline da
+ * frase virou item de grade e o texto saiu em quatro linhas empilhadas — visto
+ * no navegador, no quadro do `default`. A frase é uma frase; ela precisa de um
+ * hospedeiro só.
+ */
+.origin__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 var(--space-16);
+  text-align: center;
+}
+.origin__empty p { margin: 0; font: var(--text-body-sm); color: var(--color-text-tertiary); }
+.origin__empty code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/* ---------------------------------------------------------------------------
+   4. o campo de nome, agora com eco
+   -------------------------------------------------------------------------- */
+/*
+ * O nome derivado, dito onde ele foi parar.
+ *
+ * A origem SUGERE e não decide: escolher a issue #52 escreve `52-worktree-from`
+ * no campo, e o campo continua editável. O eco abaixo diz de onde veio aquele
+ * texto — sem ele, o campo se preenche sozinho e ninguém sabe por quê.
+ */
+.fname { display: flex; align-items: center; gap: var(--space-6); }
+.fname__g { flex: none; color: var(--color-text-brand); font-size: var(--size-icon-xs); }
+.fname code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/*
+ * A branch, quando ela não é o nome.
+ *
+ * Primeira vez no produto: cortar de uma branch que já existe faz `name` e
+ * `branch` divergirem. O campo continua sendo o NOME da worktree; a branch vira
+ * um fato dito ao lado, com o glifo de branch, porque quem escolheu a origem
+ * não deve precisar deduzir em qual branch vai cair.
+ */
+.fname--branch .fname__g { color: var(--color-git-branch); }
+
+/* ---------------------------------------------------------------------------
+   5. o que fica quando não há host
+   -------------------------------------------------------------------------- */
+/*
+ * Sem `gh`, sem autenticação ou sem remoto, as abas `issue` e `PR` não aparecem
+ * — não ficam cinzas. Uma aba desabilitada é uma promessa de que existe algo ali
+ * para quem se autenticar; a maior parte das aberturas deste diálogo é em
+ * repositório que nunca vai ter host, e nesses a promessa é ruído permanente.
+ *
+ * O que fica é uma frase, uma vez, abaixo do trilho — e `branch` continua lá,
+ * porque ela é disco e não depende de host nenhum.
+ */
+.origin__off { display: flex; align-items: center; gap: var(--space-6); font: var(--text-caption); color: var(--color-text-tertiary); }
+.origin__off .kbd { color: var(--color-text-secondary); }
+
+/* ---------------------------------------------------------------------------
+   6. moldura de documentação — o que não vem do sidebar-actions
+   -------------------------------------------------------------------------- */
+/*
+ * Duas colunas de quadro, para o antes e o depois do mesmo diálogo.
+ *
+ * As colunas têm a largura do cartão, e a linha é centrada. Duas medições
+ * pagaram por esta declaração:
+ *
+ *   - com `1fr`, a coluna do documento (880px menos padding) dá 408px por lado
+ *     e o cartão de 420px aparece ESPREMIDO em 12px. Quadro que mente sobre a
+ *     largura do cartão é pior que quadro nenhum: é a largura que decide se o
+ *     trilho de origem cabe numa linha.
+ *   - com `1fr` mais `bleed` e `justify-items`, cada cartão fica centrado na
+ *     SUA metade — a 3440px isso são 2,5 mil pixels entre os dois, e um antes e
+ *     depois que não cabe num olhar não é um antes e depois.
+ *
+ * Então: largura do cartão nas colunas, `justify-content: center` na linha, e o
+ * `bleed` no HTML só para escapar dos 832px do documento.
+ */
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, var(--size-dialog-width));
+  gap: var(--space-16);
+  align-items: start;
+  justify-content: center;
+}
+@media (max-width: 904px) {
+  .pair { grid-template-columns: minmax(0, var(--size-dialog-width)); }
+}
+/*
+ * Os quadros de diálogo lado a lado.
+ *
+ * O `.strip` do `sidebar-actions` foi desenhado para zooms de 264px — a largura
+ * da sidebar —, e nele três cartões de 420px empilham dentro da coluna de 832px
+ * do documento. Empilhado, um quadro comparativo compara nada: o olho não
+ * alcança dois estados ao mesmo tempo. Com `bleed` no HTML e a linha centrada,
+ * cabem três a 3440px e dois a 1440px, e o resto quebra sozinho.
+ */
+.strip--wide { justify-content: center; }
+
+/* A medida escrita ao lado do quadro: número que o navegador deu, não número
+   que alguém achou. */
+.mm { font: var(--text-mono-sm); color: var(--color-text-brand); }

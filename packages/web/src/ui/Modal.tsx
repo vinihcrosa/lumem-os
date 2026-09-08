@@ -72,10 +72,21 @@ export function Modal({
     if (!open) return;
 
     opener.current = document.activeElement as HTMLElement | null;
-    // The first field, ready to type into. `autoFocus` on the input would race
-    // with this one and win or lose depending on render order.
-    const first = cardRef.current?.querySelector<HTMLElement>(FOCUSABLE);
-    first?.focus();
+    /*
+     * O campo, pronto para digitar. `autoFocus` no input competiria com isto e
+     * ganharia ou perderia conforme a ordem de render.
+     *
+     * `[data-modal-focus]` primeiro, e o primeiro focável depois. O corpo de um
+     * diálogo não é mais só um formulário: desde a
+     * [`026-worktree-from`](../../../../docs/features/026-worktree-from/prd.md) o
+     * de criar worktree começa por um trilho de origem, e "o primeiro focável"
+     * passou a ser um botão de aba. O foco tem que cair onde a pessoa vai
+     * digitar — a origem é opcional, o nome não —, e foi o e2e da
+     * `sidebar-actions` que cobrou isso, não uma revisão.
+     */
+    const card = cardRef.current;
+    const preferred = card?.querySelector<HTMLElement>("[data-modal-focus]");
+    (preferred ?? card?.querySelector<HTMLElement>(FOCUSABLE))?.focus();
 
     return () => {
       opener.current?.focus();

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { listSignals } from "../memory/signals.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 import { cleanupGitFixtures, createRepo, runGit, tempDir } from "../testing/git-fixtures.js";
+import type { PrHost } from "../pr/PrHost.js";
 
 let context: TestCaller;
 
@@ -379,5 +380,415 @@ describe("worktree.remove e o sinal de ação (Q17)", () => {
     });
 
     expect(listSignals(ctx.db)).toHaveLength(0);
+  });
+});
+
+/**
+ * Um host de git de mentira, com as PRs e as issues que o teste quiser.
+ *
+ * O `gh` de verdade fala com a rede e com a conta de alguém — a mesma razão de
+ * `testing.md` que já vale para a barra de PR. O que muda aqui é o que se
+ * exercita: **de onde o daemon tira o `headRefName`**. Ele nunca vem do cliente
+ * (§4.2.12 da `pull-request-status`), e este dublê é o que prova isso.
+ */
+function hostWith(options: {
+  pulls?: { number: number; headRefName: string; title?: string; crossRepository?: boolean }[];
+  issues?: { number: number; title: string }[];
+}): PrHost {
+  const pulls = (options.pulls ?? []).map((pull) => ({
+    number: pull.number,
+    url: `https://github.com/exemplo/repo/pull/${pull.number}`,
+    title: pull.title ?? `pr ${pull.number}`,
+    state: "OPEN",
+    isDraft: false,
+    mergeable: "MERGEABLE",
+    mergeStateStatus: "CLEAN",
+    reviewDecision: "APPROVED",
+    headRefName: pull.headRefName,
+    baseRefName: "main",
+    crossRepository: pull.crossRepository ?? false,
+    updatedAt: "2026-09-07T00:00:00Z",
+    mergedAt: null,
+    closedAt: null,
+    author: "alguem",
+    reviews: [],
+    checks: [],
+  }));
+
+  return {
+    name: "GitHub",
+    supports: () => true,
+    read: () =>
+      Promise.resolve({
+        ok: true,
+        snapshot: {
+          host: "github.com",
+          repo: "exemplo/repo",
+          pulls,
+          merge: { merge: true, squash: true, rebase: false, deleteBranchOnMerge: false },
+          readAt: new Date().toISOString(),
+        },
+      }),
+    issues: () =>
+      Promise.resolve({
+        ok: true,
+        issues: (options.issues ?? []).map((issue) => ({
+          ...issue,
+          state: "OPEN",
+          url: `https://github.com/exemplo/repo/issues/${issue.number}`,
+          updatedAt: "2026-09-07T00:00:00Z",
+          author: "alguem",
+          labels: [],
+        })),
+      }),
+    create: () => Promise.resolve({ ok: false, failure: { kind: "failed", message: "n/a" } }),
+    merge: () => Promise.resolve({ ok: false, failure: { kind: "failed", message: "n/a" } }),
+  } as unknown as PrHost;
+}
+
+/** Um projeto cujo repositório tem um remoto de verdade — outro repositório em disco. */
+async function setupWithRemote(
+  branches: string[],
+  host?: PrHost,
+): Promise<{ context: TestCaller; projectId: string; repo: string; remote: string }> {
+  const remote = await createRepo({ branch: "main" });
+  for (const branch of branches) await runGit(remote, "branch", branch);
+
+  const worktreesRoot = tempDir("lumem-state-");
+  context = createTestCaller(
+    { LUMEM_STATE_DIR: worktreesRoot },
+    host === undefined ? {} : { prHost: host },
+  );
+  const workspace = await context.api.workspace.create({ name: "pessoal" });
+  const repo = await createRepo({ branch: "main" });
+  await runGit(repo, "remote", "add", "origin", remote);
+  await runGit(repo, "fetch", "origin");
+  const project = await context.api.project.add({
+    workspaceId: workspace.id,
+    path: repo,
+    name: "lorebase",
+  });
+  return { context, projectId: project.id, repo, remote };
+}
+
+describe("worktree.create com origem", () => {
+  it("sem `from`, faz exatamente o que sempre fez", async () => {
+    // A regressão vive junto da mudança de propósito: este é o gesto mais usado
+    // do produto, e ele não pode virar dano colateral de uma feature nova.
+    const { context: ctx, projectId } = await setup();
+
+    const created = await ctx.api.worktree.create({ projectId, name: "teste" });
+
+    expect(created).toMatchObject({ name: "teste", branch: "teste" });
+    expect(existsSync(join(created.path, "README.md"))).toBe(true);
+  });
+
+  it("de uma branch local que já existe, o nome e a branch divergem", async () => {
+    // Q9: primeira vez no produto. O nome é da worktree, a branch é a que existe.
+    const { context: ctx, projectId, repo } = await setup();
+    await runGit(repo, "branch", "feature-a");
+
+    const created = await ctx.api.worktree.create({
+      projectId,
+      name: "trabalho",
+      from: { kind: "branch", ref: "feature-a" },
+    });
+
+    expect(created).toMatchObject({ name: "trabalho", branch: "feature-a" });
+    expect((await runGit(created.path, "branch", "--show-current")).trim()).toBe("feature-a");
+  });
+
+  it("de uma branch remota, cria a local rastreando — e sem HEAD destacado", async () => {
+    const { context: ctx, projectId } = await setupWithRemote(["feature-a"]);
+
+    const created = await ctx.api.worktree.create({
+      projectId,
+      name: "feature-a",
+      // Sem `remote` no pedido: quem decide entre local e publicada, e qual
+      // remoto, é o daemon — o cliente manda só o nome da ref.
+      from: { kind: "branch", ref: "feature-a" },
+    });
+
+    expect((await runGit(created.path, "branch", "--show-current")).trim()).toBe("feature-a");
+    expect((await runGit(created.path, "rev-parse", "--abbrev-ref", "@{u}")).trim()).toBe(
+      "origin/feature-a",
+    );
+  });
+
+  it("de uma PR, tira o headRefName do daemon e não do cliente", async () => {
+    const { context: ctx, projectId } = await setupWithRemote(
+      ["feature-a"],
+      hostWith({ pulls: [{ number: 19, headRefName: "feature-a" }] }),
+    );
+
+    const created = await ctx.api.worktree.create({
+      projectId,
+      name: "pr-19",
+      from: { kind: "pr", number: 19 },
+    });
+
+    expect(created.branch).toBe("pr-19");
+    expect((await runGit(created.path, "rev-parse", "--abbrev-ref", "@{u}")).trim()).toBe(
+      "origin/feature-a",
+    );
+  });
+
+  it("busca a head que não está no clone, e então corta dela", async () => {
+    /*
+     * A Q2 revertida (ADR de 2026-09-08). O remoto é outro repositório em disco,
+     * e a branch existe **lá** e não aqui: o `setupWithRemote` só busca o que
+     * existia na hora do clone.
+     */
+    const { context: ctx, projectId, remote } = await setupWithRemote(
+      [],
+      hostWith({ pulls: [{ number: 20, headRefName: "publicada-depois" }] }),
+    );
+    // Publicada depois do fetch inicial — o caso que produzia o vermelho.
+    await runGit(remote, "branch", "publicada-depois");
+
+    const created = await ctx.api.worktree.create({
+      projectId,
+      name: "pr-20",
+      from: { kind: "pr", number: 20 },
+    });
+
+    expect((await runGit(created.path, "branch", "--show-current")).trim()).toBe("pr-20");
+    expect((await runGit(created.path, "rev-parse", "--abbrev-ref", "@{u}")).trim()).toBe(
+      "origin/publicada-depois",
+    );
+  });
+
+  it("quando a busca falha, nada é criado e a mensagem é a do git", async () => {
+    const { context: ctx, projectId } = await setupWithRemote(
+      [],
+      hostWith({ pulls: [{ number: 21, headRefName: "nao-existe-em-lugar-nenhum" }] }),
+    );
+
+    const failure = ctx.api.worktree.create({
+      projectId,
+      name: "pr-21",
+      from: { kind: "pr", number: 21 },
+    });
+
+    await expect(failure).rejects.toThrow(/não deu para buscar a branch da PR #21/);
+    expect(await ctx.api.worktree.listByProject({ projectId })).toEqual([]);
+  });
+
+  it("recusa uma PR que o daemon não conhece", async () => {
+    const { context: ctx, projectId } = await setupWithRemote(["feature-a"], hostWith({}));
+
+    await expect(
+      ctx.api.worktree.create({ projectId, name: "pr-99", from: { kind: "pr", number: 99 } }),
+    ).rejects.toThrow(/99/);
+  });
+
+  it("de uma issue, corta da default com o nome que veio no pedido", async () => {
+    const { context: ctx, projectId, repo } = await setup();
+    await runGit(repo, "checkout", "-b", "outra");
+    writeFileSync(join(repo, "so-na-outra.txt"), "x");
+    await runGit(repo, "add", "so-na-outra.txt");
+    await runGit(repo, "commit", "-m", "outra");
+
+    const created = await ctx.api.worktree.create({
+      projectId,
+      name: "52-worktree-from",
+      from: { kind: "issue", number: 52 },
+    });
+
+    expect(created.branch).toBe("52-worktree-from");
+    expect(existsSync(join(created.path, "so-na-outra.txt"))).toBe(false);
+  });
+});
+
+describe("worktree.branches", () => {
+  it("responde local e remota sem tocar no host", async () => {
+    const { context: ctx, projectId } = await setupWithRemote(["feature-a"]);
+
+    const branches = await ctx.api.worktree.branches({ projectId });
+    const byName = new Map(branches.map((branch) => [branch.name, branch]));
+
+    expect(byName.get("feature-a")).toMatchObject({ local: false, remotes: ["origin"] });
+    expect(byName.get("main")).toMatchObject({ local: true });
+  });
+
+  it("diz qual worktree ocupa a branch, pelo nome que o produto usa", async () => {
+    const { context: ctx, projectId } = await setup();
+    await ctx.api.worktree.create({ projectId, name: "ocupada" });
+
+    const entry = (await ctx.api.worktree.branches({ projectId })).find(
+      (branch) => branch.name === "ocupada",
+    );
+
+    expect(entry?.worktreeName).toBe("ocupada");
+  });
+});
+
+describe("worktree.hostOrigins", () => {
+  it("junta issues e PRs, e marca a head que não está no disco", async () => {
+    const { context: ctx, projectId } = await setupWithRemote(
+      ["feature-a"],
+      hostWith({
+        pulls: [
+          { number: 19, headRefName: "feature-a" },
+          { number: 20, headRefName: "nunca-buscada" },
+        ],
+        issues: [{ number: 52, title: "de onde cortar" }],
+      }),
+    );
+
+    const origins = await ctx.api.worktree.hostOrigins({ projectId });
+
+    expect(origins.issues?.items).toHaveLength(1);
+    expect(origins.pulls?.items).toEqual([
+      expect.objectContaining({ number: 19, headRefName: "feature-a", onDisk: true }),
+      expect.objectContaining({ number: 20, onDisk: false }),
+    ]);
+  });
+
+  it("num projeto sem remoto, responde sem host e sem executar nada", async () => {
+    const { context: ctx, projectId } = await setup();
+
+    const origins = await ctx.api.worktree.hostOrigins({ projectId });
+
+    expect(origins.host).toBeNull();
+    expect(origins.issues?.failure).toMatchObject({ kind: "unsupported-host" });
+  });
+});
+
+describe("worktree.plan com origem", () => {
+  it("mostra o comando que vai rodar, e não um parecido", async () => {
+    // T10: o preview montava a string à mão. Com origem, isso é um preview de
+    // um comando que não existe.
+    const { context: ctx, projectId, repo } = await setup();
+    await runGit(repo, "branch", "feature-a");
+
+    const plan = await ctx.api.worktree.plan({
+      projectId,
+      name: "trabalho",
+      from: { kind: "branch", ref: "feature-a" },
+    });
+
+    expect(plan.branch).toBe("feature-a");
+    expect(plan.baseBranch).toBe("feature-a");
+    expect(plan.command).toBe(`git worktree add ${plan.path} feature-a`);
+  });
+
+  it("da branch remota, mostra o --track que evita o HEAD destacado", async () => {
+    const { context: ctx, projectId } = await setupWithRemote(["feature-a"]);
+
+    const plan = await ctx.api.worktree.plan({
+      projectId,
+      name: "trabalho",
+      from: { kind: "branch", ref: "feature-a" },
+    });
+
+    expect(plan.command).toBe(
+      `git worktree add --track -b trabalho ${plan.path} origin/feature-a`,
+    );
+  });
+
+  it("sem origem, continua dizendo o mesmo de sempre", async () => {
+    const { context: ctx, projectId } = await setup();
+
+    const plan = await ctx.api.worktree.plan({ projectId, name: "teste" });
+
+    expect(plan.command).toBe(`git worktree add -b teste ${plan.path} main`);
+  });
+});
+
+describe("o que a review da PR 75 achou", () => {
+  it("prefere `origin` mesmo quando outro remoto vem antes por refname", async () => {
+    // `for-each-ref` ordena por refname, então `fork` vem antes de `origin`. A
+    // tela mandava `remotes[0]` e o router preferia `origin`: a mesma branch
+    // rastreava repositórios diferentes conforme a aba por onde se chegava nela.
+    const { context: ctx, projectId, repo, remote } = await setupWithRemote(["feature-a"]);
+    await runGit(repo, "remote", "add", "fork", remote);
+    await runGit(repo, "fetch", "fork");
+
+    const created = await ctx.api.worktree.create({
+      projectId,
+      name: "de-origin",
+      from: { kind: "branch", ref: "feature-a" },
+    });
+
+    expect((await runGit(created.path, "rev-parse", "--abbrev-ref", "@{u}")).trim()).toBe(
+      "origin/feature-a",
+    );
+  });
+
+  it("uma PR de fork ignora a branch homônima e busca `refs/pull/<n>/head`", async () => {
+    /*
+     * `headRefName` de uma PR cruzada é o nome no fork. `patch-1` do fork de
+     * alguém e `origin/patch-1` do upstream são coisas diferentes — este teste
+     * põe as duas em disco com **conteúdos diferentes** e confere que a worktree
+     * saiu da PR, e não da homônima.
+     */
+    const { context: ctx, projectId, repo, remote } = await setupWithRemote(
+      [],
+      hostWith({ pulls: [{ number: 42, headRefName: "patch-1", crossRepository: true }] }),
+    );
+
+    // O que o host serve como head da PR 42.
+    await runGit(remote, "checkout", "-b", "do-fork");
+    writeFileSync(join(remote, "so-na-pr.txt"), "x");
+    await runGit(remote, "add", "so-na-pr.txt");
+    await runGit(remote, "commit", "-m", "a head da PR");
+    await runGit(remote, "update-ref", "refs/pull/42/head", "do-fork");
+    await runGit(remote, "checkout", "main");
+    // E a homônima do upstream, que não tem nada a ver com ela.
+    await runGit(repo, "update-ref", "refs/remotes/origin/patch-1", "main");
+
+    const created = await ctx.api.worktree.create({
+      projectId,
+      name: "da-42",
+      from: { kind: "pr", number: 42 },
+    });
+
+    expect(existsSync(join(created.path, "so-na-pr.txt"))).toBe(true);
+    // Sem upstream, de propósito: o fork não é o destino do trabalho.
+    await expect(runGit(created.path, "rev-parse", "--abbrev-ref", "@{u}")).rejects.toThrow();
+  });
+
+  it("a PR de fork chega à tela marcada — agora como espera, não como recusa", async () => {
+    const { context: ctx, projectId, repo } = await setupWithRemote(
+      [],
+      hostWith({ pulls: [{ number: 42, headRefName: "patch-1", crossRepository: true }] }),
+    );
+    await runGit(repo, "update-ref", "refs/remotes/origin/patch-1", "main");
+
+    const origins = await ctx.api.worktree.hostOrigins({ projectId });
+
+    expect(origins.pulls?.items[0]).toMatchObject({ crossRepository: true, onDisk: false });
+  });
+
+  it("recusa uma branch que não está no disco em vez de deixar o git aceitar", async () => {
+    const { context: ctx, projectId } = await setupWithRemote([]);
+
+    await expect(
+      ctx.api.worktree.create({
+        projectId,
+        name: "fantasma",
+        from: { kind: "branch", ref: "nunca-existiu" },
+      }),
+    ).rejects.toThrow(/não está no disco/);
+  });
+
+  it("o preview emparelha o sha com a origem escolhida, e não com o HEAD do principal", async () => {
+    // O `baseBranch` já saía da origem; o `baseSha` continuava sendo o do
+    // checkout principal. O par ficava consistente por acidente e só na default.
+    const { context: ctx, projectId, repo } = await setup();
+    await runGit(repo, "checkout", "-b", "feature-a");
+    writeFileSync(join(repo, "so-na-feature.txt"), "x");
+    await runGit(repo, "add", "so-na-feature.txt");
+    await runGit(repo, "commit", "-m", "feature");
+    await runGit(repo, "checkout", "main");
+
+    const [plan, esperado] = await Promise.all([
+      ctx.api.worktree.plan({ projectId, name: "x", from: { kind: "branch", ref: "feature-a" } }),
+      runGit(repo, "rev-parse", "--short", "feature-a"),
+    ]);
+
+    expect(plan.baseBranch).toBe("feature-a");
+    expect(plan.baseSha).toBe(esperado.trim());
   });
 });

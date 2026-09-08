@@ -27,9 +27,9 @@ function state() {
   try {
     return JSON.parse(readFileSync(STATE, "utf8"));
   } catch {
-    // Nenhum estado escrito ainda: repositório sem PR nenhuma, que é uma
-    // resposta legítima e não um erro.
-    return { pulls: [] };
+    // Nenhum estado escrito ainda: repositório sem PR e sem issue nenhuma, que
+    // é uma resposta legítima e não um erro.
+    return { pulls: [], issues: [] };
   }
 }
 
@@ -60,6 +60,16 @@ if (argv[0] === "pr" && argv[1] === "list") {
   // projetada, então a projeção é a identidade — o que o spec exercita é o
   // transporte e o parse, não o gojq.
   process.stdout.write(JSON.stringify(state().pulls));
+  process.exit(0);
+}
+
+if (argv[0] === "issue" && argv[1] === "list") {
+  // Mesmo contrato do `pr list`: o estado já está na forma projetada, então a
+  // projeção é a identidade. O que o spec exercita é o transporte e o parse.
+  //
+  // Sem `issues` no arquivo, responde lista vazia — que é o que um repositório
+  // sem issue aberta responde, e não um erro.
+  process.stdout.write(JSON.stringify(state().issues ?? []));
   process.exit(0);
 }
 

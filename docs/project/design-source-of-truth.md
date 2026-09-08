@@ -86,6 +86,16 @@ depende de ferramenta de desktop é gate que falha na máquina errada.
   catálogo do Open Design tem uma skill de ciência de cor exatamente para esse caso.
 - **A cópia é uma cópia.** O `git status` não sabe que o Open Design mudou. Quem esquecer o sync
   trabalha em cima de design velho, e nada avisa até o `--check`.
+- **E a cópia pode ser editada à mão, que é o mesmo custo pelo outro lado.** Aconteceu em
+  2026-09-07, medido: a [025-docs-contract](../features/025-docs-contract/prd.md) renomeou
+  `docs/prd/…` para `docs/features/NNN-…` e trocou os caminhos **dentro de quatro protótipos** —
+  `lumem-acp-conversation.html`, `lumem-run-dock.html`, `lumem-memory.css` e `lumem-workspace.css`.
+  São cópias. O primeiro `design:sync` da feature seguinte **desfez as quatro**, porque o Open
+  Design ainda tinha os caminhos velhos, e o sync tem uma direção só. O conserto foi trocar as cinco
+  ocorrências **na fonte** e sincronizar de novo. A regra não falhou: ela foi contornada, e o gate
+  que existe (`--check`) só acusa depois, porque **ele exige o Open Design instalado** e por isso não
+  roda no `gate:full`. O sinal barato é o próprio `git status` depois do sync — arquivo de protótipo
+  que aparece modificado sem ninguém ter desenhado nada é uma cópia sendo devolvida ao original.
 
 ## 6. O que faria voltar
 

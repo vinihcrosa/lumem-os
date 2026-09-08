@@ -12,6 +12,7 @@ import { createGitService, type GitService } from "../git/GitService.js";
 import { createGhHost } from "../pr/GhHost.js";
 import { createAgentAuthService } from "../setup/agent-auth.js";
 import { createPrCache, type PrCache } from "../pr/PrCache.js";
+import { createIssueCache } from "../pr/IssueCache.js";
 import type { PrHost } from "../pr/PrHost.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { createScriptRunner, type ScriptRunner } from "../scripts/ScriptRunner.js";
@@ -135,6 +136,7 @@ export function createTestCaller(
     git,
     clones: createCloneJobStore(),
     pr: prCache,
+    issues: createIssueCache({ host: prHost }),
     prHost,
     agentAuth: createAgentAuthService({ acpManager }),
     events,

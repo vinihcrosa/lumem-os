@@ -278,6 +278,16 @@ export function App() {
           hasCommits={worktreeFor.hasCommits}
           open
           onClose={() => setWorktreeFor(null)}
+          // Q5: escolher uma branch que outro checkout já tem leva PARA ele.
+          // O destino é o mesmo de criar; o que não acontece é a criação.
+          onOpenExisting={(worktreeId) => {
+            expansion.expand(worktreeFor.id);
+            setSelection({
+              projectId: worktreeFor.id,
+              scope: { scopeType: "worktree", scopeId: worktreeId },
+            });
+            setWorktreeFor(null);
+          }}
           onCreated={(worktreeId) => {
             // F1.5: the same destination the old path delivered. Expanding is
             // part of it — a worktree selected inside a folded project is a

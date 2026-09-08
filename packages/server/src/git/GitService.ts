@@ -1,6 +1,7 @@
 import { realpath, stat } from "node:fs/promises";
 
 import { DomainError } from "../errors.js";
+import { cloneEnv } from "./clone.js";
 import { execGit, type GitExec } from "./exec.js";
 
 /**
@@ -9,6 +10,15 @@ import { execGit, type GitExec } from "./exec.js";
  * Five commands in this version. A library would buy abstraction over an API
  * that is already stable and already installed.
  */
+
+/**
+ * O orçamento da busca de uma ref.
+ *
+ * Quatro vezes o default do `execGit`, que é dimensionado para disco. Uma ref de
+ * um repositório grande e uma rede ruim passam dos 30 s sem que nada esteja
+ * errado — e o teto existe porque o outro extremo é o daemon pendurado.
+ */
+export const FETCH_TIMEOUT_MS = 120_000;
 
 export type RepoProblem = "missing" | "not-a-directory" | "not-a-repo" | "not-root";
 
@@ -26,13 +36,83 @@ export interface WorktreeEntry {
   prunable: boolean;
 }
 
+/**
+ * De onde a worktree é cortada — a união da `026-worktree-from`.
+ *
+ * Ela existe porque as três formas do `git worktree add` **não são a mesma
+ * chamada com um argumento diferente**: elas divergem no `argv`, no que o git
+ * cria, e no que sobra quando falha. Medido em 2026-09-07, e cada linha aqui é
+ * uma resposta a uma dessas medições:
+ *
+ * - `worktree add <path> origin/<branch>` devolve **exit 0 e HEAD destacado**.
+ *   Por isso `remote-branch` carrega o ref remoto E o nome local: nunca se passa
+ *   um ref remoto sozinho.
+ * - a forma esperta — `worktree add <path> <nome>`, com o nome só no remoto —
+ *   funciona com um remoto e **mente** com dois (`invalid reference` sobre uma
+ *   ref que existe duas vezes). Por isso nenhuma variante daqui a usa.
+ * - a limpeza da branch órfã depende de a branch **ter existido antes**, e não
+ *   de quem a criou ([Q7](../../../../docs/features/026-worktree-from/open-questions.md)).
+ */
+export type AddWorktreeSource =
+  /** O caminho de sempre: `-b <branch> <path> <base>`. O default do produto. */
+  | { kind: "new-branch"; base: string }
+  /** Uma branch local que já existe. O git não cria nada, e nada é limpo depois. */
+  | { kind: "existing-branch" }
+  /** Uma branch publicada: `--track -b <branch> <path> <remote>/<ref>`. */
+  | { kind: "remote-branch"; remoteRef: string }
+  /**
+   * Uma branch nova num commit, **sem rastrear nada** — `--no-track`.
+   *
+   * O `--no-track` é explícito porque o git faz o contrário sozinho: com
+   * `branch.autoSetupMerge` no default, criar a partir de uma ref de
+   * `refs/remotes/` configura upstream. Medido aqui: a branch de uma PR de fork
+   * saía rastreando `origin/pr/42`, e `git pull` ali tentaria
+   * `refs/heads/pr/42` no upstream — uma ref que não existe.
+   *
+   * É o caso da head de fork ([ADR](../../../../docs/adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md)):
+   * o repositório de onde o código veio não é onde ele vai voltar.
+   */
+  | { kind: "branch-at"; ref: string };
+
 export interface AddWorktreeInput {
   repoPath: string;
-  /** Branch to create. Same as the worktree's name, F4.2. */
+  /**
+   * A branch em que o checkout termina.
+   *
+   * Em `new-branch` e `remote-branch` ela é criada; em `existing-branch` ela já
+   * existe e este campo a nomeia. Deixou de ser sempre igual ao nome da
+   * worktree — ver a [Q9](../../../../docs/features/026-worktree-from/open-questions.md).
+   */
   branch: string;
   targetPath: string;
-  /** Where the new branch starts, F4.3. */
-  baseBranch: string;
+  source: AddWorktreeSource;
+}
+
+export interface FetchRefInput {
+  repoPath: string;
+  remote: string;
+  /** `+refs/heads/x:refs/remotes/origin/x`. Com `+`: sobrescreve o que havia. */
+  refspec: string;
+  /** Rede é mais lenta que disco, e o default do `execGit` é para disco. */
+  timeoutMs?: number;
+}
+
+/** Uma branch que se pode escolher como origem, F2.1 da `026-worktree-from`. */
+export interface BranchEntry {
+  /** Nome curto: `feat/login`, e não `refs/heads/feat/login`. */
+  name: string;
+  /** Existe em `refs/heads`. */
+  local: boolean;
+  /** Os remotos que a conhecem, em ordem. Vazio quando é só local. */
+  remotes: string[];
+  /**
+   * O checkout que já está nela, quando há — o principal incluído.
+   *
+   * `git worktree add` recusa uma branch já usada, e a recusa chega depois do
+   * gesto. Com isto a tela responde antes, e a resposta não é um erro: é ir
+   * para a worktree que já existe.
+   */
+  worktreePath: string | null;
 }
 
 export interface RemoveWorktreeInput {
@@ -128,8 +208,47 @@ export interface GitService {
    * screen can explain instead of letting git answer.
    */
   hasCommits(path: string): Promise<boolean>;
-  /** `git worktree add -b`, F4.1–F4.5. */
+  /** `git worktree add`, F4.1–F4.5 — e as três origens da `026-worktree-from`. */
   addWorktree(input: AddWorktreeInput): Promise<void>;
+  /**
+   * Os remotos configurados, na ordem em que o git os lista.
+   *
+   * Existe para escolher de onde buscar quando a ref **não** está no disco — aí
+   * `listBranches` não tem o que dizer. `origin` primeiro é regra de quem
+   * chama, e não daqui: este método só lê.
+   */
+  listRemotes(repoPath: string): Promise<string[]>;
+  /**
+   * Busca **uma** ref, e a grava onde o chamador disse.
+   *
+   * O único lugar do serviço que vai à rede, e o
+   * [ADR de 2026-09-08](../../../../docs/adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md) diz
+   * por que ele existe: cortar de uma PR cuja head não está no clone passou a
+   * buscar em vez de proibir. Uma ref, e não `--all` — a busca é de um clique
+   * numa PR nomeada, e o resto do repositório não foi pedido.
+   *
+   * O `refspec` é do chamador porque ele muda com o caso: a branch de uma PR do
+   * próprio repositório vem de `refs/heads/*`, e a de um fork vem de
+   * `refs/pull/<n>/head`, que é o que o `origin` serve sem precisar do remoto de
+   * quem abriu a PR.
+   */
+  fetchRef(input: FetchRefInput): Promise<void>;
+  /**
+   * O sha curto de uma ref, ou `null` quando ela não resolve.
+   *
+   * Existe para o preview: desde a `026-worktree-from` a base dele sai da origem
+   * escolhida, e um sha do HEAD do checkout principal ao lado do nome de outra
+   * branch é o preview mentindo com mais precisão do que antes.
+   */
+  resolveShortSha(repoPath: string, ref: string): Promise<string | null>;
+  /**
+   * As branches que servem de origem: locais e remotas, **sem ir à rede**.
+   *
+   * Uma execução de `for-each-ref` mais uma de `worktree list` — 10 ms medidos
+   * para 85 refs, que é o que permite esta lista ser síncrona com abrir o
+   * diálogo enquanto a leitura do host ainda está a caminho.
+   */
+  listBranches(repoPath: string): Promise<BranchEntry[]>;
   listWorktrees(repoPath: string): Promise<WorktreeEntry[]>;
   /** `git worktree remove`. Never deletes the branch, F4.7. */
   removeWorktree(input: RemoveWorktreeInput): Promise<void>;
@@ -244,6 +363,38 @@ export interface GitServiceOptions {
   exec?: GitExec;
 }
 
+/**
+ * O `argv` de cada origem, em um lugar só — e **exportado**.
+ *
+ * Exportado porque o preview do router mostra o comando antes de ele rodar, e a
+ * única forma de o preview não mentir é ele imprimir o mesmo vetor que a
+ * execução usa. Uma segunda montagem, em outro arquivo, é uma frase que fica
+ * errada na primeira vez que uma flag muda — e foi o que aconteceu aqui: o
+ * preview de hoje escreve `-b` à mão, e com origem isso vira um comando que não
+ * existe.
+ */
+export function worktreeAddArgs(
+  branch: string,
+  targetPath: string,
+  source: AddWorktreeSource,
+): string[] {
+  switch (source.kind) {
+    case "new-branch":
+      return ["worktree", "add", "-b", branch, targetPath, source.base];
+    // Sem `-b`: a branch existe, e o git só a coloca no checkout novo.
+    case "existing-branch":
+      return ["worktree", "add", targetPath, branch];
+    // `--track -b`, e nunca o ref remoto sozinho — medido: sozinho ele entrega
+    // HEAD destacado com sucesso.
+    case "remote-branch":
+      return ["worktree", "add", "--track", "-b", branch, targetPath, source.remoteRef];
+    // `--no-track` dito por extenso: sem ele o git configura upstream sozinho
+    // quando o ponto de partida é uma ref de `refs/remotes/`.
+    case "branch-at":
+      return ["worktree", "add", "--no-track", "-b", branch, targetPath, source.ref];
+  }
+}
+
 export function createGitService({ exec = execGit }: GitServiceOptions = {}): GitService {
   async function branchExists(repoPath: string, branch: string): Promise<boolean> {
     try {
@@ -254,6 +405,39 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       // absent, which is the answer rather than a failure.
       return false;
     }
+  }
+
+  /**
+   * Os checkouts, lidos uma vez e usados por dois.
+   *
+   * `-z` em vez do porcelain simples: sem ele o git aplica aspas C a qualquer
+   * caminho com espaço ou acento, e cada consumidor teria que desfazê-las.
+   */
+  async function readWorktrees(repoPath: string): Promise<WorktreeEntry[]> {
+    const { stdout } = await exec(["worktree", "list", "--porcelain", "-z"], { cwd: repoPath });
+    return parseWorktreeList(stdout);
+  }
+
+  /**
+   * Toda ref local e remota, em uma execução e sem rede.
+   *
+   * Sem padrão de filtro, de propósito: o `wildmatch` do git não usa
+   * `WM_PATHNAME` aqui, então `refs/remotes/*\/main` casaria também
+   * `refs/remotes/origin/topic/main`. Filtrar em JavaScript é exato e custa a
+   * mesma execução — o achado é da `pull-request-status`, e continua valendo.
+   *
+   * Não falha: um repositório sem ref nenhuma responde vazio, que é a resposta.
+   */
+  async function readRefs(repoPath: string): Promise<string[]> {
+    const { stdout } = await exec(
+      ["for-each-ref", "--format=%(refname)", "refs/heads/", "refs/remotes/"],
+      { cwd: repoPath },
+    ).catch(() => ({ stdout: "", stderr: "" }));
+
+    return stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line !== "");
   }
 
   const service: GitService = {
@@ -338,32 +522,140 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
 
     branchExists,
 
-    async addWorktree({ repoPath, branch, targetPath, baseBranch }) {
-      // Checked here, not left to git, because F4.2 wants the user told to pick
-      // another name — and git's own message for this talks about refs.
-      if (await branchExists(repoPath, branch)) {
+    async addWorktree({ repoPath, branch, targetPath, source }) {
+      // Uma leitura, três usos: ela decide a recusa, escolhe o `argv` e — o que
+      // importa mais — diz se a limpeza pode apagar a branch depois. Perguntar
+      // isto DEPOIS da falha responderia sempre `true`, porque a falha é
+      // justamente o momento em que o git já criou a branch.
+      const existedBefore = await branchExists(repoPath, branch);
+
+      if (source.kind === "existing-branch") {
+        // As duas recusas ditas aqui, e não pelo git, pelo mesmo motivo de
+        // sempre: a mensagem dele fala de refs, e a nossa fala do que fazer.
+        if (!existedBefore) {
+          throw new DomainError("BLOCKED", `a branch "${branch}" não existe neste repositório`);
+        }
+        // Medido: o git responde `fatal: 'x' is already used by worktree at
+        // <path>` com código 128. A informação é a mesma; o que muda é a hora.
+        // `listWorktrees` sabe antes de o gesto acontecer — e a resposta certa
+        // para esta situação nem é um erro, é ir para o checkout que já existe.
+        const holder = (await readWorktrees(repoPath)).find((entry) => entry.branch === branch);
+        if (holder !== undefined) {
+          throw new DomainError(
+            "BLOCKED",
+            `a branch "${branch}" já está no checkout em ${holder.path}`,
+          );
+        }
+      } else if (existedBefore) {
+        // F4.2: a branch é criada, então o nome tem que estar livre.
         throw new DomainError("BLOCKED", `a branch "${branch}" já existe; escolha outro nome`);
       }
 
       try {
-        await exec(["worktree", "add", "-b", branch, targetPath, baseBranch], { cwd: repoPath });
+        await exec(worktreeAddArgs(branch, targetPath, source), { cwd: repoPath });
       } catch (error) {
         // Measured, not assumed: `worktree add` creates the branch *before* it
         // discovers the target directory is unusable, and leaves it behind. The
         // PRD says a failed creation registers nothing, and a stray branch is
         // worse than nothing — it makes the next attempt with the same name
         // fail on "branch already exists".
-        await exec(["branch", "-D", branch], { cwd: repoPath }).catch(() => {});
+        //
+        // A condição é a Q7, e ela corrige o que o pedido dizia: não é "quem
+        // criou a branch", é "ela existia antes deste comando". Sem isso, uma
+        // origem `existing-branch` com o alvo ocupado apagaria a branch de
+        // outra pessoa por causa de um diretório.
+        if (!existedBefore) await exec(["branch", "-D", branch], { cwd: repoPath }).catch(() => {});
         throw error;
       }
     },
 
-    async listWorktrees(repoPath) {
-      // `-z` rather than plain porcelain: without it git C-quotes any path with
-      // a space or an accent, and every consumer would have to unquote it.
-      const { stdout } = await exec(["worktree", "list", "--porcelain", "-z"], { cwd: repoPath });
-      return parseWorktreeList(stdout);
+    async listRemotes(repoPath) {
+      const { stdout } = await exec(["remote"], { cwd: repoPath }).catch(() => ({
+        stdout: "",
+        stderr: "",
+      }));
+      return stdout
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line !== "");
     },
+
+    async fetchRef({ repoPath, remote, refspec, timeoutMs = FETCH_TIMEOUT_MS }) {
+      /*
+       * O ambiente é o do clone, e não o do resto do serviço.
+       *
+       * `cloneEnv` esvazia `GIT_ASKPASS` e `SSH_ASKPASS` e compõe
+       * `BatchMode=yes` sobre o `GIT_SSH_COMMAND` de quem usa. Um daemon não tem
+       * quem perguntar: sem isto, um remoto que pede credencial deixa o processo
+       * pendurado até o timeout, e timeout é uma mensagem pior que a verdade.
+       *
+       * `--no-tags`: a busca é de uma ref pedida por um clique. Arrastar as tags
+       * do repositório junto é trazer o que ninguém pediu.
+       */
+      await exec(["fetch", "--no-tags", "--", remote, refspec], {
+        cwd: repoPath,
+        timeoutMs,
+        env: cloneEnv(),
+      });
+    },
+
+    async resolveShortSha(repoPath, ref) {
+      // `--verify --quiet` mais o `^{commit}`: sem eles, uma ref que não existe
+      // faz o git escrever a própria string de volta e sair com sucesso, e o
+      // preview mostraria `origin/fantasma` como se fosse um sha.
+      const { stdout } = await exec(["rev-parse", "--short", "--verify", "--quiet", `${ref}^{commit}`], {
+        cwd: repoPath,
+      }).catch(() => ({ stdout: "", stderr: "" }));
+      const sha = stdout.trim();
+      return sha === "" ? null : sha;
+    },
+
+    async listBranches(repoPath) {
+      // Duas execuções, e nenhuma delas vai à rede: as refs que estão no disco,
+      // e quem está em cima de quê.
+      const [refs, worktrees] = await Promise.all([readRefs(repoPath), readWorktrees(repoPath)]);
+
+      const holderOf = new Map(
+        worktrees
+          .filter((entry): entry is typeof entry & { branch: string } => entry.branch !== null)
+          .map((entry) => [entry.branch, entry.path]),
+      );
+
+      const byName = new Map<string, BranchEntry>();
+      const entryFor = (name: string): BranchEntry => {
+        const existing = byName.get(name);
+        if (existing !== undefined) return existing;
+        const created: BranchEntry = {
+          name,
+          local: false,
+          remotes: [],
+          worktreePath: holderOf.get(name) ?? null,
+        };
+        byName.set(name, created);
+        return created;
+      };
+
+      for (const ref of refs) {
+        if (ref.startsWith("refs/heads/")) {
+          entryFor(ref.slice("refs/heads/".length)).local = true;
+          continue;
+        }
+        const rest = ref.slice("refs/remotes/".length);
+        const slash = rest.indexOf("/");
+        if (slash === -1) continue;
+        const remote = rest.slice(0, slash);
+        const name = rest.slice(slash + 1);
+        // `refs/remotes/origin/HEAD` é um ponteiro simbólico para outra branch,
+        // e não uma branch. Oferecê-lo daria uma origem chamada `HEAD` que já
+        // está na lista com o próprio nome.
+        if (name === "HEAD") continue;
+        entryFor(name).remotes.push(remote);
+      }
+
+      return [...byName.values()];
+    },
+
+    listWorktrees: readWorktrees,
 
     async removeWorktree({ repoPath, path, force = false }) {
       // No branch deletion anywhere in here: F4.7 keeps the work reachable
@@ -399,10 +691,26 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
     },
 
     async getRemoteUrl(path) {
-      const { stdout } = await exec(["remote", "get-url", "origin"], { cwd: path }).catch(() => ({
-        stdout: "",
-        stderr: "",
-      }));
+      /*
+       * `config --get remote.origin.url`, e **não** `remote get-url`.
+       *
+       * Os dois respondem coisas diferentes quando existe um
+       * `url.<outra>.insteadOf` configurado — e ele é comum: a linha
+       * `git config --global url."git@github.com:".insteadOf "https://github.com/"`
+       * está em meia internet, e empresa com espelho interno usa a mesma
+       * mecânica. O `remote get-url` devolve a URL **já reescrita**, que é a de
+       * transporte; o `config` devolve a que está gravada, que é a de
+       * **identidade**.
+       *
+       * Quem chama aqui quer identidade: de qual host é este repositório, qual é
+       * o `org/repo`, qual URL de comparação montar. Ler a de transporte faz o
+       * Lumem dizer "sem integração" para um repositório do GitHub que se busca
+       * por um espelho — e foi assim que o defeito apareceu, numa fixture de e2e
+       * que usa `insteadOf` justamente para falar com um "GitHub" em disco.
+       */
+      const { stdout } = await exec(["config", "--get", "remote.origin.url"], {
+        cwd: path,
+      }).catch(() => ({ stdout: "", stderr: "" }));
       const url = stdout.trim();
       return url === "" ? null : url;
     },
@@ -417,28 +725,16 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
     },
 
     async hasRemoteBranch(path, branch) {
-      // `for-each-ref` em vez de `rev-parse`: ele responde vazio em vez de
-      // falhar quando não há nada, e um nome de branch que também é um caminho
-      // válido não muda de significado no meio do comando.
-      //
-      // Sem padrão, e filtrando aqui. O `wildmatch` do git não usa
-      // `WM_PATHNAME` neste comando, então `refs/remotes/*/main` casa também
-      // `refs/remotes/origin/topic/main` — e uma branch `topic/main` publicada
-      // faria a barra dizer que `main` está publicada. Comparar o sufixo em
-      // JavaScript é exato e custa a mesma execução.
-      const { stdout } = await exec(["for-each-ref", "--format=%(refname)", "refs/remotes/"], {
-        cwd: path,
-      }).catch(() => ({ stdout: "", stderr: "" }));
-
-      return stdout
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line !== "")
-        .some((ref) => {
-          const rest = ref.slice("refs/remotes/".length);
-          const slash = rest.indexOf("/");
-          return slash !== -1 && rest.slice(slash + 1) === branch;
-        });
+      // A mesma leitura do `listBranches`, e a mesma comparação por sufixo — o
+      // motivo dela está no `readRefs`. Continua uma execução só: esta pergunta
+      // é feita por worktree na barra de PR, e um `worktree list` a mais aqui
+      // seria um processo a mais por linha da sidebar.
+      return (await readRefs(path)).some((ref) => {
+        if (!ref.startsWith("refs/remotes/")) return false;
+        const rest = ref.slice("refs/remotes/".length);
+        const slash = rest.indexOf("/");
+        return slash !== -1 && rest.slice(slash + 1) === branch;
+      });
     },
 
     async listChanges(path, input) {

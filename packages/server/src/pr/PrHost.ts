@@ -69,12 +69,45 @@ export type PrWrite =
   | { ok: true; url: string }
   | { ok: false; failure: PrFailure };
 
+/**
+ * Uma issue aberta, do jeito que a nossa projeção a entrega.
+ *
+ * Sete campos de 23 que o `gh issue list` oferece, e a lista é curta de
+ * propósito: quem escolhe uma origem precisa reconhecer a issue e nada mais. O
+ * `body` sozinho multiplicaria a resposta por dez e não desenha um pixel.
+ */
+export interface GhIssue {
+  number: number;
+  title: string;
+  /** `OPEN`. A leitura pede só as abertas — issue fechada não vira worktree. */
+  state: string;
+  url: string;
+  updatedAt: string;
+  /** Já achatado de `.author.login`. Vazio quando o autor sumiu da conta. */
+  author: string;
+  /** Já achatado de `.labels[].name`. */
+  labels: string[];
+}
+
+export type IssueRead =
+  | { ok: true; issues: GhIssue[] }
+  | { ok: false; failure: PrFailure };
+
 export interface PrHost {
   /** Como este host se chama na tela, quando ele precisa ser nomeado. */
   readonly name: string;
   /** Se este adaptador fala com o host deste remote. */
   supports(remoteUrl: string | null): boolean;
   read(input: PrHostInput): Promise<PrRead>;
+  /**
+   * As issues abertas do repositório, F2.3 da `026-worktree-from`.
+   *
+   * Fora do `read` de propósito: aquele alimenta uma barra que **pesquisa
+   * sozinha** de 15 em 15 segundos, e esta responde a um diálogo que alguém
+   * abriu. Somadas, uma viraria custo de rede permanente da outra — `gh issue
+   * list` custou ~730 ms medidos, e ninguém abre o diálogo o dia inteiro.
+   */
+  issues(input: PrHostInput): Promise<IssueRead>;
   /** F7 — escrita, e as duas únicas que existem. */
   create(input: PrCreateInput): Promise<PrWrite>;
   merge(input: PrMergeInput): Promise<PrWrite>;

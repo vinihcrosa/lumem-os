@@ -87,8 +87,7 @@ test("Esc devolve o foco ao + que abriu o modal", async ({ page }) => {
   await expect(campo).toBeFocused();
 
   // Com nome, porque `criar` fica desabilitado sem um — e botão desabilitado
-  // sai do anel do `Tab`. O anel que a seção 8 do protótipo escreve é o anel
-  // completo: campo → criar → cancelar → ✕ → campo.
+  // sai do anel do `Tab`.
   await campo.fill("anel-de-foco");
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "criar" })).toBeFocused();
@@ -97,9 +96,21 @@ test("Esc devolve o foco ao + que abriu o modal", async ({ page }) => {
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "fechar" })).toBeFocused();
 
-  // E ele fecha o círculo, em vez de sair para a sidebar atrás do véu.
+  /*
+   * E ele fecha o círculo, em vez de sair para a sidebar atrás do véu.
+   *
+   * **O anel cresceu**, e a volta não é mais o campo: desde a
+   * `026-worktree-from` o corpo deste diálogo começa por um trilho de origem, e
+   * o primeiro focável passou a ser a aba `default`. O contrato que a seção 8 do
+   * protótipo escreve continua de pé — o `Tab` circula **dentro** do diálogo, e
+   * o `✕` é o último —, e o que mudou é quantas paradas ele tem.
+   *
+   * O foco de **abertura** não mudou por causa disso, e não foi de graça: ele
+   * cai no campo porque o `Modal` passou a preferir `[data-modal-focus]` ao
+   * primeiro focável. Sem isso, abrir o diálogo poria o cursor numa aba.
+   */
   await page.keyboard.press("Tab");
-  await expect(campo).toBeFocused();
+  await expect(page.getByRole("button", { name: "default", exact: true })).toBeFocused();
 
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toBeHidden();

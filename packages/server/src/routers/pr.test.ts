@@ -95,6 +95,7 @@ function fakeHost(read: () => PrRead, write: PrWrite = { ok: true, url: "" }): F
         state.writes.push({ verb: "merge", input });
         return Promise.resolve(write);
       },
+      issues: () => Promise.resolve({ ok: true, issues: [] }),
     },
   };
   return state;

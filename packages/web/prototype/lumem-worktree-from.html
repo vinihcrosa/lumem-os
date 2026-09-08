@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — de onde cortar: worktree a partir de uma issue, de uma branch ou de uma PR</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<!-- O modal, o véu e a moldura de documentação vivem aqui: esta tela ESTENDE o
+     diálogo que a `sidebar-actions` desenhou, e não faz uma cópia dele. -->
+<link rel="stylesheet" href="lumem-sidebar-actions.css">
+<link rel="stylesheet" href="lumem-worktree-from.css">
+</head>
+<body>
+
+<div class="doc">
+
+  <header>
+    <h1 class="doc__h1">De onde cortar</h1>
+    <p class="doc__lede">
+      O Lumem sabe que a PR <code>#19</code> existe — ele põe <code>● #19</code> na linha
+      da sidebar e responde <b>dá pra mesclar?</b> no topo do painel direito. E mesmo assim
+      o gesto mais repetido do produto ignora tudo isso: a worktree nova nasce
+      <b>sempre da branch default</b>, com um campo só, e trabalhar naquela PR exige
+      digitar um nome à mão e ir fazer <code>checkout</code> no terminal.
+    </p>
+    <p class="doc__lede">
+      Esta tela dá ao diálogo <b>quatro origens</b> — a default, uma branch que já existe,
+      uma issue e uma PR — sem tirar dele o que ele já era: <b>um campo de nome utilizável
+      no primeiro quadro</b>.
+    </p>
+    <p class="doc__lede">
+      Oito quadros. O primeiro é o antes e o depois lado a lado; o segundo é o diálogo
+      inteiro na janela. Do terceiro ao sexto, os quatro corpos, o esqueleto que prova que
+      nada espera, e o §5 — <b>o que falta no disco é espera, não recusa</b>, que é a Q2
+      revertida em 2026-09-08 com o produto na mão. Os dois últimos são a degradação sem host
+      e a primeira worktree do produto cujo nome não é a branch.
+    </p>
+    <p class="doc__lede">
+      <b>Três decisões vieram de medição, não de argumento</b> — a bancada está no §3 da
+      <code>026-worktree-from</code>, e cada uma aparece marcada onde manda no pixel.
+    </p>
+  </header>
+
+  <!-- =================================================================== 1 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">1 · o que o diálogo deixa de perguntar</h2>
+      <p class="sec__d">
+        O corpo de hoje é uma linha: <b>nome</b>. Ele é curto porque a resposta de "de onde"
+        estava decidida — sempre a default —, e o preço disso não aparece no diálogo,
+        aparece depois, no terminal.
+      </p>
+      <p class="sec__d">
+        O corpo novo tem <b>duas perguntas na ordem em que se pensa</b>: de onde, e só então
+        como se chama. Invertida, o nome voltaria a ser a pergunta principal — que é
+        exatamente o desenho de hoje.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o mesmo cartão de <span class="mm">420px</span> · <b>hoje</b> e <b>com origem</b></div>
+      <div class="pair bleed">
+
+        <div class="strip__i">
+          <div class="strip__l"><b>hoje</b> — um campo, e uma resposta que ninguém deu</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__head">
+                <div class="modal__head-b"><h3 class="modal__t">Nova worktree</h3><p class="modal__where">em<span class="glyph glyph--project">■</span><b>lumem-os</b></p></div>
+                <button class="modal__close">✕</button>
+              </div>
+              <div class="modal__body">
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input input--focus"><span class="input__val">session-mode</span></div>
+                  <div class="field__help">A branch tem o mesmo nome. Barra vira diretório aninhado.</div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">criar</button>
+                <button class="btn btn--ghost">cancelar</button>
+                <span class="modal__esc"><span class="kbd">Esc</span> fecha</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>com origem</b> — de onde, e só então como se chama</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__head">
+                <div class="modal__head-b"><h3 class="modal__t">Nova worktree</h3><p class="modal__where">em<span class="glyph glyph--project">■</span><b>lumem-os</b></p></div>
+                <button class="modal__close">✕</button>
+              </div>
+              <div class="modal__body">
+                <div class="origin">
+                  <div class="seg" role="group" aria-label="de onde cortar">
+                    <button class="seg__btn" aria-pressed="false">default</button>
+                    <button class="seg__btn" aria-pressed="false">branch</button>
+                    <button class="seg__btn" aria-pressed="true">issue</button>
+                    <button class="seg__btn" aria-pressed="false">PR</button>
+                  </div>
+                  <div class="origin__list" role="listbox" aria-label="issues abertas">
+                    <button class="orow is-selected" role="option" aria-selected="true"><span class="orow__n">#52</span><span class="orow__t">worktree-from: cortar worktree de uma issue, branch ou PR/MR</span></button>
+                    <button class="orow" role="option"><span class="orow__n">#48</span><span class="orow__t">o menu do seletor aparece cortado</span><span class="orow__note">há 2 d</span></button>
+                    <button class="orow" role="option"><span class="orow__n">#41</span><span class="orow__t">tarefa como entidade do workspace</span><span class="orow__note">há 6 d</span></button>
+                    <button class="orow" role="option"><span class="orow__n">#39</span><span class="orow__t">rodapé aberto por padrão no dock de run</span><span class="orow__note">há 9 d</span></button>
+                    <button class="orow" role="option"><span class="orow__n">#33</span><span class="orow__t">login do agente sai dos cinco campos</span><span class="orow__note">há 14 d</span></button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input input--focus"><span class="input__val">52-worktree-from</span></div>
+                  <div class="field__help fname"><span class="fname__g">◈</span><div>da issue <code>#52</code> — a origem sugere, e o nome continua seu</div></div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">criar</button>
+                <button class="btn btn--ghost">cancelar</button>
+                <span class="modal__esc"><span class="kbd">Esc</span> fecha</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <p class="case__note">
+        A lista tem <b>altura fixa</b> de quatro linhas e meia, e não <code>max-height</code>:
+        com teto, três issues e trinta branches dariam dois cartões de tamanhos diferentes, e
+        o rodapé andaria debaixo do ponteiro na troca de aba. A meia linha é o que diz que a
+        lista continua — sem sombra, gradiente ou seta.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 2 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">2 · o diálogo na janela</h2>
+      <p class="sec__d">
+        Mesmo modal centrado com véu que a <code>sidebar-actions</code> fixou, aberto do
+        mesmo <code>+</code> da linha do projeto. A árvore atrás continua sendo contexto: o
+        diálogo <b>já sabe o projeto</b>, e o cabeçalho repete de qual linha ele saiu.
+      </p>
+      <p class="sec__d">
+        <span class="q">Q4 · medida</span> Abrir isto custa <b>uma</b> leitura de rede.
+        Branch é disco (<span class="mm">10 ms</span> para 85 refs), PR já está no
+        <code>PrCache</code> por projeto, e issue é <span class="mm">~730 ms</span> que
+        começam <b>depois</b> de o cartão existir. Nenhuma delas está no caminho de abrir.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">aberto do <code>+</code> de <b>lumem-os</b> · aba <b>PR</b>, com a head no disco</div>
+      <div class="shot bleed">
+        <div class="app app--modal">
+          <header class="topbar">
+            <h2 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h2>
+            <span class="spacer"></span>
+            <span class="daemon"><span class="daemon__dot"></span>daemon v0.3.1 · :4317</span>
+          </header>
+
+          <div class="body">
+            <aside class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>pessoal<span class="spacer"></span><span class="ws__caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><span class="count count--running"><span class="count__dot"></span>2</span><button class="row__act">＋</button></div>
+                <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--local">▭</span><span class="row__label">local</span></div>
+                <div class="row is-selected" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">pr-bar</span></div>
+                <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">acp-fs</span></div>
+                <div class="row row--project" style="--depth:0"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">lorebase</span><button class="row__act">＋</button></div>
+              </div>
+              <div class="sidebar__foot"><div class="add"><span class="glyph glyph--agent">◆</span>claude-code<span class="spacer"></span><span class="chip chip--clean"><span class="chip__dot"></span>conectado</span></div></div>
+            </aside>
+
+            <main class="main">
+              <div class="wt-head">
+                <nav class="crumb"><button class="crumb__up">pessoal</button><span class="crumb__sep">/</span><button class="crumb__up">lumem-os</button><span class="crumb__sep">/</span><span class="crumb__here">pr-bar</span></nav>
+                <div class="wt-title"><h2><span class="glyph glyph--worktree">◇</span>pr-bar</h2></div>
+              </div>
+            </main>
+          </div>
+
+          <div class="modal" role="dialog" aria-modal="true" aria-labelledby="wf-t">
+            <div class="modal__scrim"></div>
+            <div class="modal__card">
+              <div class="modal__head">
+                <div class="modal__head-b">
+                  <h3 class="modal__t" id="wf-t">Nova worktree</h3>
+                  <p class="modal__where">em<span class="glyph glyph--project">■</span><b>lumem-os</b></p>
+                </div>
+                <button class="modal__close" aria-label="fechar">✕</button>
+              </div>
+              <div class="modal__body">
+                <div class="origin">
+                  <div class="seg" role="group" aria-label="de onde cortar">
+                    <button class="seg__btn" aria-pressed="false">default</button>
+                    <button class="seg__btn" aria-pressed="false">branch</button>
+                    <button class="seg__btn" aria-pressed="false">issue</button>
+                    <button class="seg__btn" aria-pressed="true">PR</button>
+                  </div>
+                  <div class="origin__list" role="listbox" aria-label="pull requests abertas">
+                    <button class="orow is-selected" role="option" aria-selected="true"><span class="orow__n">#19</span><span class="orow__t">session-mode: a pílula de modo existe sempre</span><span class="orow__note">◆ verde</span></button>
+                    <button class="orow" role="option"><span class="orow__n">#18</span><span class="orow__t">worktree-first-tab: o caminho vira aba</span><span class="orow__note">◆ âmbar</span></button>
+                    <button class="orow" role="option"><span class="orow__n">#17</span><span class="orow__t">second-agent: o Codex conversa</span><span class="orow__note orow__note--wait">busca ao criar</span></button>
+                    <button class="orow" role="option"><span class="orow__n">#12</span><span class="orow__t">distribution: o daemon vira bundle</span><span class="orow__note">◆ vermelho</span></button>
+                    <button class="orow" role="option"><span class="orow__n">#9</span><span class="orow__t">project-scripts: a worktree nasce preparada</span><span class="orow__note">◆ verde</span></button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input input--focus"><span class="input__val">session-mode</span></div>
+                  <div class="field__help fname"><span class="fname__g">◈</span><div>da head da PR <code>#19</code>, que já está no disco</div></div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">criar</button>
+                <button class="btn btn--ghost">cancelar</button>
+                <span class="modal__esc"><span class="kbd">Esc</span> fecha</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================== 3 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">3 · os quatro corpos</h2>
+      <p class="sec__d">
+        <code>default</code> não tem lista — ele é uma frase, porque a resposta é uma só e
+        já está no projeto. As outras três têm a mesma lista com conteúdos diferentes, e é de
+        propósito: quem aprendeu a escolher uma issue já sabe escolher uma PR.
+      </p>
+      <p class="sec__d">
+        <span class="q">Q6 · medida</span> A linha de <code>branch</code> guarda
+        <b>de qual remoto</b> ela veio. Com o mesmo nome em dois remotos, a forma esperta do
+        <code>git worktree add</code> falha dizendo <code>invalid reference</code> sobre uma
+        referência que existe <b>duas vezes</b> — então o Lumem nunca usa essa forma, e a ref
+        vai qualificada. É a mesma decisão que impede a outra armadilha: passar
+        <code>origin/x</code> solto entrega <b>HEAD destacado com sucesso</b>.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o mesmo corpo, quatro conteúdos</div>
+      <div class="strip strip--wide bleed">
+
+        <div class="strip__i">
+          <div class="strip__l"><b>default</b> — o que existe hoje, e continua sendo o padrão</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__body">
+                <div class="origin">
+                  <div class="seg" role="group">
+                    <button class="seg__btn" aria-pressed="true">default</button>
+                    <button class="seg__btn" aria-pressed="false">branch</button>
+                    <button class="seg__btn" aria-pressed="false">issue</button>
+                    <button class="seg__btn" aria-pressed="false">PR</button>
+                  </div>
+                  <div class="origin__list">
+                    <div class="origin__empty"><p>corta de <code>main</code>, a branch default deste projeto — <b>sem ir à rede</b></p></div>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input input--focus"><span class="input__val">teste-prd</span></div>
+                  <div class="field__help">A branch tem o mesmo nome. Barra vira diretório aninhado.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>branch</b> — local e remota na mesma lista, com o remoto dito</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__body">
+                <div class="origin">
+                  <div class="seg" role="group">
+                    <button class="seg__btn" aria-pressed="false">default</button>
+                    <button class="seg__btn" aria-pressed="true">branch</button>
+                    <button class="seg__btn" aria-pressed="false">issue</button>
+                    <button class="seg__btn" aria-pressed="false">PR</button>
+                  </div>
+                  <div class="origin__list" role="listbox">
+                    <button class="orow is-selected" role="option" aria-selected="true"><span class="orow__ref">feat/acp-fs</span><span class="orow__t"></span><span class="orow__note">local</span></button>
+                    <button class="orow" role="option"><span class="orow__ref">right-sidebar-files-diff</span><span class="orow__t"></span><span class="orow__note">origin</span></button>
+                    <button class="orow orow--held" role="option"><span class="orow__ref">pr-bar</span><span class="orow__t"></span><span class="orow__note">em <b>pr-bar</b></span><span class="orow__go">→</span></button>
+                    <button class="orow" role="option"><span class="orow__ref">docs/contract</span><span class="orow__t"></span><span class="orow__note">fork</span></button>
+                    <button class="orow" role="option"><span class="orow__ref">main</span><span class="orow__t"></span><span class="orow__note">local · origin</span></button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input input--focus"><span class="input__val">acp-fs</span></div>
+                  <div class="field__help fname fname--branch"><span class="fname__g">⑂</span><div>na branch <code>feat/acp-fs</code>, que já existe — o nome é só desta worktree</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>issue</b> — o nome montado aqui, sem escrever no host</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__body">
+                <div class="origin">
+                  <div class="seg" role="group">
+                    <button class="seg__btn" aria-pressed="false">default</button>
+                    <button class="seg__btn" aria-pressed="false">branch</button>
+                    <button class="seg__btn" aria-pressed="true">issue</button>
+                    <button class="seg__btn" aria-pressed="false">PR</button>
+                  </div>
+                  <div class="origin__list" role="listbox">
+                    <button class="orow is-selected" role="option" aria-selected="true"><span class="orow__n">#52</span><span class="orow__t">worktree-from: cortar de uma issue, branch ou PR</span></button>
+                    <button class="orow" role="option"><span class="orow__n">#48</span><span class="orow__t">o menu do seletor aparece cortado</span><span class="orow__note">há 2 d</span></button>
+                    <button class="orow" role="option"><span class="orow__n">#41</span><span class="orow__t">tarefa como entidade do workspace</span><span class="orow__note">há 6 d</span></button>
+                    <button class="orow" role="option"><span class="orow__n">#39</span><span class="orow__t">rodapé aberto por padrão</span><span class="orow__note">há 9 d</span></button>
+                    <button class="orow" role="option"><span class="orow__n">#33</span><span class="orow__t">login do agente sai dos cinco campos</span><span class="orow__note">há 14 d</span></button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input input--focus"><span class="input__val">52-worktree-from</span></div>
+                  <div class="field__help fname"><span class="fname__g">◈</span><div>da issue <code>#52</code> — corta da default, como sempre</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <p class="case__note">
+        <span class="q">Q1 · medida</span> O nome da issue é montado <b>aqui</b>,
+        <code>&lt;número&gt;-&lt;slug&gt;</code>. O <code>gh issue develop</code> geraria a mesma
+        string e <b>criaria uma branch no repositório remoto</b> — um terceiro verbo de
+        escrita no host, sem portão, disparado por digitar num modal. O Lumem escreve dois
+        verbos, e cada um tem portão.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 4 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">4 · enquanto a rede não voltou</h2>
+      <p class="sec__d">
+        <span class="q">F3.5</span> O quadro que a feature inteira tem que passar: o campo de
+        nome <b>aceita digitação antes de qualquer listagem chegar</b>. A
+        <code>sidebar-actions</code> já pagou uma vez o preço de uma tela presa esperando
+        rede, e o preço lá era um clone de minutos — aqui é <span class="mm">~730 ms</span>,
+        que é curto o bastante para tentar segurar a tela e frequente o bastante para doer.
+      </p>
+      <p class="sec__d">
+        O esqueleto ocupa <b>o mesmo espaço que a lista vai ocupar</b>. Um <i>spinner</i>
+        centrado diria a mesma coisa e deixaria o cartão pular quando a resposta chegasse.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">a aba <b>issue</b> recém-escolhida · o cursor já está no nome</div>
+      <div class="strip strip--wide bleed">
+
+        <div class="strip__i">
+          <div class="strip__l"><b>carregando</b> — nada segura o campo</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__body">
+                <div class="origin">
+                  <div class="seg" role="group">
+                    <button class="seg__btn" aria-pressed="false">default</button>
+                    <button class="seg__btn" aria-pressed="false">branch</button>
+                    <button class="seg__btn" aria-pressed="true">issue</button>
+                    <button class="seg__btn" aria-pressed="false">PR</button>
+                  </div>
+                  <div class="origin__list" aria-busy="true">
+                    <div class="origin__skel"><span></span><span></span><span></span></div>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input input--focus"><span class="input__val">teste-prd</span></div>
+                  <div class="field__help">A branch tem o mesmo nome. Barra vira diretório aninhado.</div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">criar</button>
+                <button class="btn btn--ghost">cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>a leitura não aconteceu</b> — e isto não é "nada aqui"</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__body">
+                <div class="origin">
+                  <div class="seg" role="group">
+                    <button class="seg__btn" aria-pressed="false">default</button>
+                    <button class="seg__btn" aria-pressed="false">branch</button>
+                    <button class="seg__btn" aria-pressed="true">issue</button>
+                    <button class="seg__btn" aria-pressed="false">PR</button>
+                  </div>
+                  <div class="origin__list">
+                    <div class="origin__empty"><p>não deu para ler as origens deste projeto</p></div>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input"><span class="input__val">teste-prd</span></div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">criar</button>
+                <button class="btn btn--ghost">cancelar</button>
+              </div>
+            </div>
+          </div>
+          <p class="case__note">
+            <b>Duas falhas diferentes, e a distinção é o quadro.</b> A do host vem
+            <i>dentro</i> da resposta; esta é a leitura não ter acontecido — daemon reiniciando,
+            projeto removido com o diálogo aberto. Desenhar as duas como "nenhuma issue aberta"
+            afirmaria um fato sobre o repositório a partir de uma pergunta que não foi feita, e é o
+            tipo de resposta errada que ninguém desconfia porque ela é plausível.
+          </p>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>lista vazia</b> — resposta legítima, não falha</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__body">
+                <div class="origin">
+                  <div class="seg" role="group">
+                    <button class="seg__btn" aria-pressed="false">default</button>
+                    <button class="seg__btn" aria-pressed="false">branch</button>
+                    <button class="seg__btn" aria-pressed="true">issue</button>
+                    <button class="seg__btn" aria-pressed="false">PR</button>
+                  </div>
+                  <div class="origin__list">
+                    <div class="origin__empty"><p>nenhuma issue aberta neste repositório</p></div>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input"><span class="input__val">teste-prd</span></div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">criar</button>
+                <button class="btn btn--ghost">cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================== 5 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">5 · o que falta no disco é espera, não recusa</h2>
+      <p class="sec__d">
+        <span class="q">Q2 · revertida em 2026-09-08</span> A primeira versão desta tela
+        <b>desabilitava</b> a PR cuja head não estava no clone e escrevia <code>não está no
+        disco</code> em vermelho. O motivo era a F4.3 da <code>walking-skeleton</code> — <i>sem
+        fetch, use o que está no disco</i> — e a decisão foi revertida com o produto na mão: a
+        pessoa vê a PR na lista, clica, e a tela responde com uma proibição e uma tarefa de casa
+        num terminal.
+      </p>
+      <p class="sec__d">
+        <b>Agora o Lumem busca.</b> A linha é clicável, a nota é cinza e diz o que vai acontecer —
+        <code>busca ao criar</code> —, e o <code>criar</code> faz duas coisas em ordem: busca a
+        ref, depois corta a worktree. O que era um beco virou uma espera anunciada.
+      </p>
+      <p class="sec__d">
+        O que <b>não</b> mudou é o motivo pelo qual a proibição existia: passar
+        <code>origin/&lt;ref&gt;</code> solto para o <code>git worktree add</code> devolve
+        <b>HEAD destacado com sucesso</b>. A ref continua tendo que existir antes do
+        <code>add</code> — a diferença é que agora <b>o daemon a traz</b> em vez de mandar a pessoa
+        trazer.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">a mesma lista, sem nenhuma linha proibida</div>
+      <div class="strip strip--wide bleed">
+
+        <div class="strip__i">
+          <div class="strip__l"><b>vai buscar</b> — cinza, e anuncia a espera</div>
+          <div class="zoom zoom--dialog">
+            <div class="origin__list origin__list--fit">
+              <button class="orow"><span class="orow__n">#19</span><span class="orow__t">session-mode: a pílula de modo</span><span class="orow__note">◆ verde</span></button>
+              <button class="orow"><span class="orow__n">#17</span><span class="orow__t">second-agent: o Codex conversa</span><span class="orow__note orow__note--wait">busca ao criar</span></button>
+            </div>
+          </div>
+          <p class="case__note">
+            <b>Cinza e não vermelho, porque não é uma recusa.</b> A nota existe para a espera não
+            ser surpresa: cortar da #19 é instantâneo, cortar da #17 vai à rede primeiro. Sem ela,
+            duas linhas idênticas se comportariam diferente sem aviso.
+          </p>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>de um fork</b> — busca também, e a nota diz de onde</div>
+          <div class="zoom zoom--dialog">
+            <div class="origin__list origin__list--fit">
+              <button class="orow"><span class="orow__n">#42</span><span class="orow__t">patch-1: conserta o cabeçalho</span><span class="orow__note orow__note--wait">de um fork · busca ao criar</span></button>
+            </div>
+          </div>
+          <p class="case__note">
+            A head de uma PR cruzada vem por <code>refs/pull/42/head</code>, que o próprio
+            <code>origin</code> serve — não é preciso o remoto do fork. A branch nasce
+            <b>sem upstream</b>: o repositório de onde o código veio não é onde ele vai voltar, e
+            um upstream apontando para lá faria o primeiro <code>push</code> tentar escrever no
+            fork de outra pessoa.
+          </p>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>buscando</b> — a espera, dentro do diálogo que a começou</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__body">
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input"><span class="input__val">session-mode</span></div>
+                </div>
+                <div class="banner banner--info"><span class="banner__glyph">◇</span><div>buscando a branch da PR <b>#17</b> — isto vai à rede</div></div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand" disabled>criando…</button>
+                <button class="btn btn--ghost">cancelar</button>
+              </div>
+            </div>
+          </div>
+          <p class="case__note">
+            Um passo a mais no mesmo botão, e não um segundo botão: <code>criar</code> continua
+            sendo a única coisa a apertar. O texto diz <b>rede</b> porque é a única parte do gesto
+            que pode demorar por um motivo que não é o disco.
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="case">
+      <div class="case__label">e quando a busca não dá — aí sim, vermelho</div>
+      <div class="strip strip--wide bleed">
+
+        <div class="strip__i">
+          <div class="strip__l"><b>a busca falhou</b> — nas palavras do git, e nada foi criado</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__body">
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input input--error"><span class="input__val">session-mode</span></div>
+                  <div class="field__error">não deu para buscar a branch da PR #17: could not read Username for 'https://github.com' — terminal prompts disabled</div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">criar</button>
+                <button class="btn btn--ghost">cancelar</button>
+                <span class="modal__esc"><span class="kbd">Esc</span> fecha</span>
+              </div>
+            </div>
+          </div>
+          <p class="case__note">
+            <b>Vermelho aqui é correto, e é a diferença que a reversão faz.</b> Antes, o vermelho
+            aparecia antes de qualquer tentativa, sobre uma coisa que o Lumem podia resolver. Agora
+            ele aparece depois de tentar, sobre uma coisa que ele não pode: rede, credencial,
+            branch apagada no host. O botão volta a habilitar — tentar de novo é o gesto certo
+            quando o motivo pode ter passado.
+          </p>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>já ocupada</b> — clicável, e o clique navega</div>
+          <div class="zoom zoom--dialog">
+            <div class="origin__list origin__list--fit">
+              <button class="orow orow--held"><span class="orow__ref">pr-bar</span><span class="orow__t"></span><span class="orow__note">em <b>pr-bar</b></span><span class="orow__go">→</span></button>
+              <button class="orow orow--held"><span class="orow__ref">main</span><span class="orow__t"></span><span class="orow__note">em <b>local</b></span><span class="orow__go">→</span></button>
+            </div>
+          </div>
+          <p class="case__note">
+            <span class="q">Q5 · medida</span> O git recusaria com
+            <code>fatal: 'x' is already used by worktree at …</code> <b>depois</b> do gesto; a lista
+            responde antes, e a resposta é uma navegação. O checkout principal entra na conta:
+            <code>main</code> está ocupada por <code>local</code>.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================== 6 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">6 · sem host, o diálogo é o de hoje mais uma aba</h2>
+      <p class="sec__d">
+        Repositório sem remoto, <code>gh</code> ausente, ou <code>gh</code> não autenticado:
+        as abas <code>issue</code> e <code>PR</code> <b>não aparecem</b> — não ficam cinzas.
+        Aba desabilitada é uma promessa de que existe algo ali para quem se autenticar, e a
+        maior parte das aberturas deste diálogo é em repositório que nunca vai ter host.
+      </p>
+      <p class="sec__d">
+        <code>branch</code> continua, porque ela é disco. E a degradação custou <b>zero</b>
+        código de erro novo: o <code>classify</code> que a <code>pull-request-status</code>
+        escreveu já traduz o <code>exit 4</code> do <code>gh</code> sem autenticação.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">os três estados sem host</div>
+      <div class="strip strip--wide bleed">
+
+        <div class="strip__i">
+          <div class="strip__l"><b>sem remoto</b> — projeto adicionado por caminho</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__body">
+                <div class="origin">
+                  <div class="seg" role="group">
+                    <button class="seg__btn" aria-pressed="true">default</button>
+                    <button class="seg__btn" aria-pressed="false">branch</button>
+                  </div>
+                  <div class="origin__off"><span class="glyph">◌</span>este projeto não tem remoto — issues e PRs vêm de um host</div>
+                </div>
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input input--focus"><span class="input__val">teste-prd</span></div>
+                  <div class="field__help">A branch tem o mesmo nome. Barra vira diretório aninhado.</div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">criar</button>
+                <button class="btn btn--ghost">cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>sem <code>gh</code></b> — o binário não está no PATH</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__body">
+                <div class="origin">
+                  <div class="seg" role="group">
+                    <button class="seg__btn" aria-pressed="true">default</button>
+                    <button class="seg__btn" aria-pressed="false">branch</button>
+                  </div>
+                  <div class="origin__off"><span class="glyph">◌</span>o <span class="kbd">gh</span> não está instalado — sem ele não há issue nem PR</div>
+                </div>
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input"><span class="input__val">teste-prd</span></div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">criar</button>
+                <button class="btn btn--ghost">cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>sem autenticação</b> — e o que fazer a respeito</div>
+          <div class="zoom zoom--dialog">
+            <div class="modal__card">
+              <div class="modal__body">
+                <div class="origin">
+                  <div class="seg" role="group">
+                    <button class="seg__btn" aria-pressed="true">default</button>
+                    <button class="seg__btn" aria-pressed="false">branch</button>
+                  </div>
+                  <div class="origin__off"><span class="glyph">◌</span>o <span class="kbd">gh</span> não está autenticado — rode <span class="kbd">gh auth login</span></div>
+                </div>
+                <div class="field">
+                  <label>Nome da worktree</label>
+                  <div class="input"><span class="input__val">teste-prd</span></div>
+                </div>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--brand">criar</button>
+                <button class="btn btn--ghost">cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <p class="case__note">
+        O Lumem <b>não guarda, não pede e não lê token</b>: a frase manda rodar
+        <code>gh auth login</code> no terminal de quem usa, e é o mesmo desenho do ADR de
+        2026-08-30.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 7 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">7 · a primeira worktree cujo nome não é a branch</h2>
+      <p class="sec__d">
+        <span class="q">Q9 · nova</span> Desde a <code>walking-skeleton</code> o nome
+        <b>é</b> a branch, e o produto inteiro foi lido assim. Cortar de uma branch que já
+        existe quebra isso pela primeira vez: a branch é a que existe, e o nome é o que a
+        pessoa escrever. Custo verificado antes de decidir: <b>zero migração</b> — as duas
+        já são colunas separadas.
+      </p>
+      <p class="sec__d">
+        O que ela cobra é aqui: onde um nome só servia para as duas coisas, passa a haver uma
+        worktree cuja branch <b>não se lê do nome</b>. A linha da árvore ganha a branch como
+        <code>chip</code>, e só quando elas diferem — repetir <code>◇ acp-fs ⑂ acp-fs</code>
+        em todas as outras seria pagar ruído permanente por um caso raro.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">a árvore, e o cabeçalho do checkout</div>
+      <div class="strip strip--wide bleed">
+
+        <div class="strip__i">
+          <div class="strip__l"><b>na árvore</b> — a branch aparece só quando diverge</div>
+          <div class="zoom">
+            <div class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">lumem-os</span><button class="row__act">＋</button></div>
+            <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--local">▭</span><span class="row__label">local</span></div>
+            <div class="row" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">pr-bar</span></div>
+            <div class="row is-selected" style="--depth:1"><span class="row__twist"></span><span class="glyph glyph--worktree">◇</span><span class="row__label">acp-fs</span><span class="chip chip--branch">⑂ feat/acp-fs</span></div>
+          </div>
+        </div>
+
+        <div class="strip__i">
+          <div class="strip__l"><b>no cabeçalho</b> — onde ela já era dita</div>
+          <div class="zoom zoom--dialog">
+            <div class="wt-head">
+              <nav class="crumb"><button class="crumb__up">pessoal</button><span class="crumb__sep">/</span><button class="crumb__up">lumem-os</button><span class="crumb__sep">/</span><span class="crumb__here">acp-fs</span></nav>
+              <div class="wt-title">
+                <h2><span class="glyph glyph--worktree">◇</span>acp-fs</h2>
+                <span class="chip chip--branch">⑂ feat/acp-fs</span>
+                <span class="chip chip--clean"><span class="chip__dot"></span>limpo</span>
+              </div>
+            </div>
+          </div>
+          <p class="case__note">O cabeçalho já mostrava a branch — ele não muda. Quem muda é a árvore, que só dizia o nome.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================== 8 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t">8 · foco e teclado</h2>
+      <p class="sec__d">
+        O contrato do diálogo não muda: foco preso, <code>Esc</code> fecha, e o foco volta
+        para o <code>+</code> que o abriu. O que nasce é a navegação <b>dentro</b> da lista —
+        e ela não rouba as setas do campo de nome, porque a lista só recebe setas quando o
+        foco está nela.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o que cada gesto faz</div>
+      <dl class="spec">
+        <dt>ao abrir</dt><dd>foco no <b>campo de nome</b> — a origem é opcional, o nome não</dd>
+        <dt>Tab</dt><dd>trilho de origem → lista → nome → <b>criar</b> → cancelar, e volta</dd>
+        <dt>← →</dt><dd>com o foco no trilho, troca de origem. A lista abaixo recarrega, o nome <b>não se apaga</b></dd>
+        <dt>↑ ↓</dt><dd>com o foco na lista, anda entre as origens. Com o foco no campo, é o cursor do texto</dd>
+        <dt>Enter</dt><dd>na lista, escolhe e <b>preenche o nome</b>. No campo, submete</dd>
+        <dt>Esc</dt><dd>fecha o diálogo. Não há estado intermediário a perder — nada foi escrito ainda</dd>
+        <dt>clique no véu</dt><dd>fecha, igual ao <code>Esc</code>. É o diálogo de criar, não o de clonar</dd>
+      </dl>
+      <p class="case__note">
+        <b>Uma diferença deliberada da <code>sidebar-actions</code>:</b> lá o modal do clone
+        prende <code>Esc</code>, o <code>✕</code> e o véu enquanto trabalha, porque ele
+        hospeda um progresso de minutos. Aqui não há nada a hospedar — criar worktree é
+        segundos, e as três saídas continuam valendo o tempo todo.
+      </p>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

@@ -267,6 +267,45 @@ O que **ficou** de fora, e portanto continua aqui:
 | "O check quebrou, peça ao agente para consertar" | `M` | a ponte entre a barra e a sessão ACP. É a ideia mais valiosa da lista e a mais perigosa: põe texto da internet dentro de um prompt (§4.7 do PRD) | ter um portão desenhado para texto de fora virar instrução |
 | A aba `Review` — threads, comentários inline, sugestões | `L` | é outra feature inteira, e sempre foi | depois do segundo host |
 
+### `⟳` na lista de origens do diálogo de criar worktree — `P`
+
+O `IssueCache` guarda por projeto com TTL de **60 s**, e a lista de origens não tem como pedir uma
+leitura nova. Consequência: quem abre uma issue no navegador e volta ao Lumem espera até um minuto
+para vê-la. A barra de PR resolveu o mesmo problema com um `⟳`, e é de lá que o desenho sairia.
+
+**Quem implementar não vai achar um `force` esperando, e isso é de propósito.** Ele existiu por um
+commit, servido pela leitura que já estava no ar — o defeito que o `PrCache` documenta em `start`:
+*"quem pediu depois de um `invalidate` não pode ser servido pela execução que já estava no ar, porque
+ela começou olhando para o mundo de antes"*. O sintoma é um `⟳` que não relê, com dado velho
+carimbado como novo. O pedido explícito volta **com os contadores `want`/`served` do irmão**, que já
+pagaram por si mesmos, e com um teste que exercite o `⟳` de verdade.
+
+**De onde veio:** o e2e da [026-worktree-from](../features/026-worktree-from/tasks.md) — o primeiro
+diálogo que abre congela a resposta do host para o resto do arquivo, e o spec teve que escrever o
+estado uma vez só · **Volta quando:** alguém reclamar de issue nova que não aparece, ou quando a
+lista de origens ganhar qualquer outro controle (aí o `⟳` entra na mesma faixa, de graça).
+
+### ~~`fetch` sob demanda ao cortar de uma PR~~ — **aconteceu**
+
+Saiu daqui em 2026-09-08, um dia depois de entrar: o uso mostrou que a recusa produzia exatamente a
+ida ao terminal que a feature existia para eliminar. O daemon busca a head que falta, no gesto, e só
+ela — [ADR](../adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md).
+
+O que **ficou** de fora, e portanto continua aqui: a branch de uma PR de **fork** nasce sem upstream,
+porque o repositório de onde o código veio não é onde ele vai voltar. `git pull` naquela worktree não
+sabe de onde puxar. **Volta quando:** alguém trabalhar sobre uma PR de fork por tempo suficiente para
+querer atualizá-la sem sair do Lumem.
+
+### `gh issue develop --list` — a issue já tem branch no host? — `P`
+
+Leitura pura (medido: `exit=0`, nada escrito), e responde uma coisa que a lista de issues não sabe: se
+alguém já criou a *linked branch* daquela issue no remoto. Ficou fora do v1 por custo — é **uma
+chamada por issue**, contra uma chamada para a lista inteira.
+
+**De onde veio:** [026 Q1](../features/026-worktree-from/open-questions.md) · **Volta quando:** duas
+pessoas cortarem branches diferentes da mesma issue, ou quando a lista de issues virar uma tela com
+detalhe por item.
+
 ### Worktree de projeto removido não pode ser recriada — `P`
 
 Remover projeto **registrado por caminho** tira o registro das worktrees e **não toca no disco**

@@ -22,6 +22,7 @@ import { classify, type GhExec, type GhResult } from "./exec.js";
 
 const FIXTURES = join(import.meta.dirname, "__fixtures__");
 const OPEN = readFileSync(join(FIXTURES, "gh-pr-list-open.json"), "utf8");
+const ISSUES = readFileSync(join(FIXTURES, "gh-issue-list-open.json"), "utf8");
 
 const REPO_VIEW = JSON.stringify({
   nameWithOwner: "exemplo/repo",
@@ -432,5 +433,97 @@ describe("a escrita, e a fronteira que ela move (F7)", () => {
 
     expect(merged.ok).toBe(false);
     expect(gh.calls).toEqual([]);
+  });
+});
+
+describe("as issues do repositório", () => {
+  /** O mesmo dublê, respondendo a lista de issues. */
+  function issuesGh(reply?: (args: readonly string[]) => Partial<GhResult>) {
+    return fakeGh(reply ?? (() => ({ stdout: ISSUES })));
+  }
+
+  it("pede uma projeção escrita aqui, e não a forma que o gh escolher", async () => {
+    // A fixture congela o formato porque a projeção é nossa: sem ela, uma
+    // reorganização do JSON do `gh` viraria um defeito de tela.
+    const gh = issuesGh();
+
+    await createGhHost({ exec: gh.exec }).issues({ repoPath: "/repo", remoteUrl: GITHUB });
+
+    const argv = gh.calls[0] ?? [];
+    expect(argv.slice(0, 2)).toEqual(["issue", "list"]);
+    expect(argv).toContain("--jq");
+    expect(argv.join(" ")).toContain("labels: [.labels[]?.name]");
+    expect(argv[argv.indexOf("--limit") + 1]).toBe("50");
+    expect(argv[argv.indexOf("--state") + 1]).toBe("open");
+  });
+
+  it("entrega a issue com autor e labels já achatados", async () => {
+    const gh = issuesGh();
+
+    const read = await createGhHost({ exec: gh.exec }).issues({
+      repoPath: "/repo",
+      remoteUrl: GITHUB,
+    });
+
+    expect(read.ok).toBe(true);
+    if (!read.ok) return;
+    expect(read.issues).toHaveLength(5);
+    expect(read.issues[0]).toMatchObject({
+      number: 14374,
+      state: "OPEN",
+      author: "Abhirup0",
+      labels: ["needs-triage"],
+    });
+    expect(read.issues[0]?.url).toContain("/issues/");
+  });
+
+  it("aceita repositório sem issue nenhuma como resposta, e não como falha", async () => {
+    const gh = issuesGh(() => ({ stdout: "[]" }));
+
+    const read = await createGhHost({ exec: gh.exec }).issues({
+      repoPath: "/repo",
+      remoteUrl: GITHUB,
+    });
+
+    expect(read).toEqual({ ok: true, issues: [] });
+  });
+
+  it("devolve no-auth em vez de lançar quando o gh não está autenticado", async () => {
+    // Medido: `exit 4` mais `gh auth login` no stderr. O `classify` da
+    // pull-request-status já traduz os dois — a degradação custa zero.
+    const gh = issuesGh(() => ({
+      code: 4,
+      stderr: "To get started with GitHub CLI, please run:  gh auth login",
+    }));
+
+    const read = await createGhHost({ exec: gh.exec }).issues({
+      repoPath: "/repo",
+      remoteUrl: GITHUB,
+    });
+
+    expect(read).toMatchObject({ ok: false, failure: { kind: "no-auth" } });
+  });
+
+  it("não pergunta issue a um host com que não fala", async () => {
+    const gh = issuesGh();
+
+    const read = await createGhHost({ exec: gh.exec }).issues({
+      repoPath: "/repo",
+      remoteUrl: "https://bitbucket.org/exemplo/repo.git",
+    });
+
+    expect(read).toMatchObject({ ok: false, failure: { kind: "unsupported-host" } });
+    expect(gh.calls).toHaveLength(0);
+  });
+
+  it("chama de falha uma resposta que não é JSON", async () => {
+    const gh = issuesGh(() => ({ stdout: "isto não é json" }));
+
+    const read = await createGhHost({ exec: gh.exec }).issues({
+      repoPath: "/repo",
+      remoteUrl: GITHUB,
+    });
+
+    expect(read).toMatchObject({ ok: false, failure: { kind: "failed" } });
   });
 });

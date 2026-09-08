@@ -91,6 +91,23 @@ export const E2E_FAKE_GH = fileURLToPath(new URL("./fake-gh.mjs", import.meta.ur
 export const E2E_FIXTURE_REPO_ONBOARDING = join(E2E_FIXTURE_DIR, "repo-onboarding");
 
 /**
+ * O repositório de onde se corta worktree por origem (`026-worktree-from`).
+ *
+ * Ele tem as três coisas que a feature precisa e que nenhum outro fixture tem:
+ * uma branch **local** que já existe, uma branch **publicada** — um
+ * `refs/remotes/origin/*` escrito com `update-ref`, que é exatamente o que um
+ * fetch deixaria em disco — e um `origin` do GitHub para o adaptador reconhecer
+ * o host.
+ *
+ * `update-ref` e não `fetch`: nada nesta suíte vai à rede, e a ref publicada é o
+ * dado que separa "PR que dá para cortar" de "PR que precisa de fetch" (F3.3).
+ */
+export const E2E_FIXTURE_REPO_ORIGINS = join(E2E_FIXTURE_DIR, "repo-origins");
+
+/** O outro lado do `fetch`: um repositório em disco no papel do host. */
+export const E2E_FIXTURE_REPO_ORIGINS_UPSTREAM = join(E2E_FIXTURE_DIR, "repo-origins-upstream");
+
+/**
  * The adapter, under the name the onboarding looks for.
  *
  * The flow detects `claude-agent-acp` on the daemon's PATH and then spawns it —
@@ -231,6 +248,54 @@ export function createFixtures(): void {
    * referências que já estão no disco.
    */
   git(E2E_FIXTURE_REPO_PR, "remote", "add", "origin", "https://github.com/exemplo/repo.git");
+
+  /*
+   * As quatro origens, com o disco preparado para as três que dependem dele.
+   *
+   * A branch publicada é escrita com `update-ref`: a suíte não vai à rede, e o
+   * que interessa é o que sobra em disco depois de um fetch — que é uma ref em
+   * `refs/remotes/origin/`. A que **não** existe é a prova da outra metade: uma
+   * PR cuja head nunca foi buscada não pode virar worktree sem fetch.
+   */
+  /*
+   * Primeiro o "servidor": um repositório em disco que faz o papel do GitHub.
+   *
+   * Ele existe porque a reversão da Q2 fez o daemon **buscar** a head de uma PR
+   * que não está no clone ([ADR](../../docs/adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md)),
+   * e um `fetch` precisa de alguém do outro lado.
+   */
+  mkdirSync(E2E_FIXTURE_REPO_ORIGINS_UPSTREAM, { recursive: true });
+  git(E2E_FIXTURE_REPO_ORIGINS_UPSTREAM, "init", "--initial-branch", "main", ".");
+  writeFileSync(join(E2E_FIXTURE_REPO_ORIGINS_UPSTREAM, "README.md"), "# origens\n");
+  git(E2E_FIXTURE_REPO_ORIGINS_UPSTREAM, "add", "README.md");
+  git(E2E_FIXTURE_REPO_ORIGINS_UPSTREAM, "commit", "-m", "initial");
+  git(E2E_FIXTURE_REPO_ORIGINS_UPSTREAM, "branch", "feature-publicada");
+  // A que o clone **não** vai ter: é dela que o teste da busca corta.
+  git(E2E_FIXTURE_REPO_ORIGINS_UPSTREAM, "branch", "publicada-depois");
+
+  git(E2E_FIXTURE_DIR, "clone", "--", E2E_FIXTURE_REPO_ORIGINS_UPSTREAM, "repo-origins");
+  git(E2E_FIXTURE_REPO_ORIGINS, "branch", "feature-local");
+  // O clone trouxe as duas branches publicadas; esta sai para o teste da busca
+  // ter o que buscar. É o estado real de quem não roda `fetch` há uma semana.
+  git(E2E_FIXTURE_REPO_ORIGINS, "update-ref", "-d", "refs/remotes/origin/publicada-depois");
+
+  /*
+   * E o `origin` passa a **parecer** GitHub sem deixar de ser local.
+   *
+   * `GhHost.supports` decide pelo host da URL do remote, então um `file://` não
+   * teria aba de PR nenhuma. `insteadOf` é o mecanismo do próprio git para isto:
+   * a URL configurada continua sendo a do GitHub — é o que o daemon lê e o que o
+   * adaptador reconhece —, e **na hora de falar com a rede** o git a reescreve
+   * para o caminho em disco. Zero rede, e o caminho de código é o de verdade,
+   * incluindo o `fetch`.
+   */
+  git(E2E_FIXTURE_REPO_ORIGINS, "remote", "set-url", "origin", "https://github.com/exemplo/repo.git");
+  git(
+    E2E_FIXTURE_REPO_ORIGINS,
+    "config",
+    `url.${E2E_FIXTURE_REPO_ORIGINS_UPSTREAM}.insteadOf`,
+    "https://github.com/exemplo/repo.git",
+  );
 
   const binDir = join(E2E_FIXTURE_DIR, "bin");
   mkdirSync(binDir, { recursive: true });

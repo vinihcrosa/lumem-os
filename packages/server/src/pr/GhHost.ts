@@ -6,6 +6,8 @@ import { parseGitUrl } from "../git/git-url.js";
 import { classify, execGh, type GhExec, type PrFailure } from "./exec.js";
 import { safeUrl } from "./url.js";
 import type {
+  GhIssue,
+  IssueRead,
   MergeOptions,
   PrCreateInput,
   PrHost,
@@ -49,6 +51,10 @@ const FIELDS = [
   "latestReviews",
   "headRefName",
   "baseRefName",
+  // Se a head vive em outro repositório. Sem isto, `headRefName` é um nome
+  // pelado e `patch-1` de um fork casa com o `origin/patch-1` do upstream —
+  // outra branch, sem relação nenhuma com a PR.
+  "isCrossRepository",
   "updatedAt",
   "mergedAt",
   "closedAt",
@@ -74,6 +80,7 @@ const FIELDS = [
 const PROJECTION = [
   "map({number, url, title, state, isDraft, mergeable, mergeStateStatus, reviewDecision,",
   "headRefName, baseRefName, updatedAt, mergedAt, closedAt,",
+  "crossRepository: (.isCrossRepository // false),",
   'author: (.author.login // ""),',
   'reviews: [.latestReviews[]? | {author: (.author.login // ""), state: .state}],',
   "checks: [.statusCheckRollup[]? | {",
@@ -81,6 +88,24 @@ const PROJECTION = [
   'status: (.status // "COMPLETED"), conclusion: (.conclusion // .state // ""),',
   'url: (.detailsUrl // .targetUrl // ""),',
   "startedAt: (.startedAt // null), completedAt: (.completedAt // null)}]})",
+].join(" ");
+
+/**
+ * A leitura de issue, e por que ela é tão mais curta que a de PR.
+ *
+ * Uma PR precisa de veredito — revisão, verificação, estado de merge —, e por
+ * isso a projeção dela desmonta duas árvores. Uma issue aqui responde uma
+ * pergunta só: **qual é esta, e como ela se chamaria como branch**. Sete campos.
+ *
+ * `--state open` está no `argv` e não na projeção: filtrar depois de baixar
+ * seria pagar a rede por issue fechada que nunca vai virar worktree.
+ */
+const ISSUE_FIELDS = ["number", "title", "state", "url", "updatedAt", "author", "labels"].join(",");
+
+const ISSUE_PROJECTION = [
+  "map({number, title, state, url, updatedAt,",
+  'author: (.author.login // ""),',
+  "labels: [.labels[]?.name]})",
 ].join(" ");
 
 const REPO_FIELDS = [
@@ -230,6 +255,40 @@ export function createGhHost({ exec = execGh, limit = DEFAULT_LIMIT }: GhHostOpt
           readAt: new Date().toISOString(),
         },
       };
+    },
+
+    async issues({ repoPath, remoteUrl }: PrHostInput): Promise<IssueRead> {
+      const host = hostOf(remoteUrl);
+      if (!isGitHub(host)) return { ok: false, failure: unsupported(host) };
+
+      const result = await run(
+        [
+          "issue",
+          "list",
+          "--state",
+          "open",
+          "--limit",
+          String(limit),
+          "--json",
+          ISSUE_FIELDS,
+          "--jq",
+          ISSUE_PROJECTION,
+        ],
+        repoPath,
+      );
+      if (!result.ok) return result;
+
+      // Repositório com as issues desligadas responde erro, e o `classify` já o
+      // pegou acima; o que chega aqui e não é lista é resposta corrompida.
+      const parsed = parseJson<GhIssue[]>(result.stdout, []);
+      if (parsed === null) {
+        return {
+          ok: false,
+          failure: { kind: "failed", message: "o gh respondeu algo que não é JSON" },
+        };
+      }
+
+      return { ok: true, issues: parsed };
     },
 
     async create(input: PrCreateInput): Promise<PrWrite> {
