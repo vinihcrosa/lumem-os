@@ -504,7 +504,9 @@ Migrar quer dizer: **ACP é o default e é onde o produto investe**. Não quer d
 Rodado em 2026-08-17 nesta máquina, contra `@agentclientprotocol/claude-agent-acp@0.69.0` — número que
 **não bate** com o que o binário instalado reporta: em 2026-08-20 o `agentInfo.version` dele diz
 `0.40.0`, e é esse que a [agent-login](../features/009-agent-login/open-questions.md) fixou. Onde os dois
-discordam, vale o que o handshake respondeu. Com o
+discordam, vale o que o handshake respondeu. **Desde 2026-09-08 o pino é `0.75.1`**, e a discordância
+deixou de ser curiosidade: `0.40.0` embute um Claude Code que a API recusa
+([medição](claude-agent-acp-0.75.md)). Com o
 `claude` 2.1.234. O detalhe, com os payloads, está no
 [§2 do PRD de acp-sessions](../features/006-acp-sessions/prd.md). Os três eixos:
 

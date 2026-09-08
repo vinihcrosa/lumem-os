@@ -1,3 +1,7 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { ADAPTERS_DIR_NAME, CLAUDE_ADAPTER } from "@lumem/shared";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { AcpManager } from "../acp/AcpManager.js";
@@ -95,6 +99,41 @@ describe("setup.probe", () => {
     context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") }, { acpManager });
 
     await expect(context.api.setup.probe()).rejects.toThrow(/claude-agent-acp/);
+  });
+
+  it("probes the copy the daemon installed, not one from the PATH", async () => {
+    /*
+     * LUM-54, and the half of it that outlived the version bump.
+     *
+     * `setup.agents` already preferred the managed copy for *reporting*; this
+     * procedure defaulted to the bare command, so the OS answered from the PATH.
+     * On a machine with a stale global adapter, the flow installed a pinned copy,
+     * showed it on screen, and then saved the old one into `agent_config` — where
+     * every turn then died on the embedded runtime.
+     */
+    const stateDir = tempDir("lumem-state-");
+    const managed = join(stateDir, ADAPTERS_DIR_NAME, CLAUDE_ADAPTER.id, "node_modules", ".bin");
+    mkdirSync(managed, { recursive: true });
+    writeFileSync(join(managed, CLAUDE_ADAPTER.command), "");
+    const fake = fakeAgentProcess();
+    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+    context = createTestCaller({ LUMEM_STATE_DIR: stateDir }, { acpManager });
+
+    const report = await context.api.setup.probe();
+
+    expect(report.command).toBe(join(managed, CLAUDE_ADAPTER.command));
+  });
+
+  it("falls back to the bare command when the daemon installed nothing", async () => {
+    // The PATH is the only answer on a machine where the person installed the
+    // adapter themselves, and refusing there would be refusing a setup that works.
+    const fake = fakeAgentProcess();
+    const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+    context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") }, { acpManager });
+
+    const report = await context.api.setup.probe();
+
+    expect(report.command).toBe(CLAUDE_ADAPTER.command);
   });
 
   it("accepts another command, for the agent that is not Claude", async () => {

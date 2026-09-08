@@ -6,6 +6,7 @@ import {
 } from "@lumem/shared";
 
 import { resolveCommandPath } from "../agents/availability.js";
+import { packageVersionOf } from "./install-adapter.js";
 import { runCommand, type CommandRunner } from "./run-command.js";
 
 /**
@@ -89,7 +90,18 @@ export function parseVersion(output: string): string | null {
 async function inspect(
   command: string,
   install: string | null,
-  { path, run, preferred }: { path: string | undefined; run: CommandRunner; preferred?: string | undefined },
+  {
+    path,
+    run,
+    preferred,
+    packageName,
+  }: {
+    path: string | undefined;
+    run: CommandRunner;
+    preferred?: string | undefined;
+    /** The npm package behind the binary, when there is one to read a version from. */
+    packageName?: string | null;
+  },
 ): Promise<BinaryReport> {
   const resolved =
     preferred !== undefined && resolveCommandPath(preferred, { path }) !== null
@@ -101,7 +113,16 @@ async function inspect(
   }
 
   const outcome = await run(resolved, ["--version"]);
-  const version = parseVersion(outcome.output);
+  /*
+   * `--version`, and then the manifest — because measured (LUM-54), the version
+   * that most needed reporting is the one that will not answer:
+   * `claude-agent-acp@0.40.0` prints an **empty string** and exits 0, so the
+   * screen said "não disse a versão" for the adapter whose version was the whole
+   * defect. The `package.json` npm wrote next to the binary knows.
+   */
+  const version =
+    parseVersion(outcome.output) ??
+    (packageName == null ? null : packageVersionOf(resolved, packageName));
 
   return {
     command,
@@ -147,6 +168,7 @@ async function reportFor(
     inspect(spec.command, adapterInstallCommand(spec), {
       path,
       run,
+      packageName: spec.package,
       ...(installedAt === undefined ? {} : { preferred: installedAt(spec) }),
     }),
     spec.cli === null

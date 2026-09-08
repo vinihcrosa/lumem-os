@@ -495,6 +495,51 @@ do elemento — quem responde tem que ser ele mesmo.** É o que o
 [composer-menus.spec.ts](../features/023-composer-menus/tasks.md) faz, e é o único matcher que fica vermelho
 contra o código de antes. `toBeVisible` fica verde nos dois.
 
+### Um teste de handshake não vê um defeito de turno
+
+**Sintoma:** todo turno de conversa morria com `400 … Claude Code 2.1.160 does not support this
+model`, numa instalação limpa do produto, e o `gate:full` estava verde — inclusive o teste que fala
+com o adaptador **real**.
+
+**Causa:** o `AcpManager.integration.test.ts` para no `session/new`, de propósito, porque um
+`session/prompt` cobraria da pessoa que roda a suíte. O defeito vivia **depois** desse ponto: o
+`initialize` do `claude-agent-acp@0.40.0` responde exatamente como sempre respondeu, e o que estava
+velho era o runtime que ele **embute** (`@anthropic-ai/claude-agent-sdk@0.3.160`). A linha de risco da
+[agent-login](../features/009-agent-login/prd.md) dizia que o integration "falha se o handshake mudar de
+forma", e estava certa: o handshake não mudou de forma. E o e2e de primeiro acesso, que chega a um
+turno respondido, fala com o `fake-acp-agent.mjs` — que responde o que nós escrevemos.
+
+A regra: **subir uma versão de adaptador é uma medição manual, não um bump de constante** — instalar
+a candidata num prefixo descartável, rodar um turno de leitura e um de escrita contra o `AcpManager`
+deste repositório, e contar `warn` e `unknown`. É o procedimento da fase 0 da
+[second-agent](../features/021-second-agent/prd.md), e o registro de quando ele não foi seguido está em
+[claude-agent-acp-0.75.md](claude-agent-acp-0.75.md).
+
+**O que passou a avisar antes**, porque medição manual só acontece se alguém souber que está na hora:
+`scripts/check-adapters.ts`, no `vitest` (e por `pnpm adapters:check`). Ele pergunta ao registro npm
+duas coisas diferentes e trata cada uma como o que ela é:
+
+| Pergunta | Sinal | O que faz |
+|---|---|---|
+| o pino está atrás do `latest`? | fraco — o pino `0.40.0` **era** o latest do dia | avisa, nunca reprova: exigir o latest é a A12 ao contrário |
+| o runtime embutido está atrás do `latest` dele? | forte — é a mecânica do defeito | **reprova** acima de 30 releases |
+| o runtime vem por faixa (`^0.153.3`)? | é o risco da fase 0 | avisa: pinar o adaptador não pina o agente |
+
+O limite de 30 é **alarme de fumaça, não especificação**, e os dois pontos que existem estão escritos
+no arquivo: `0.40.0` embutia um runtime **87 releases** atrás e a API recusava; `0.75.1` embute um
+**6 releases** atrás e roda. Conferido ficando vermelho contra o pino velho, que é a única prova que
+vale para um gate.
+
+E ele **passa sem rede**, de propósito: gate que reprova no avião é gate que se aprende a contornar,
+e o defeito que este previne leva meses para aparecer. O `describe` invertido diz que se pulou —
+mesmo padrão do teste contra o adaptador real.
+
+E a armadilha de segunda ordem, que é a pior: **"já está instalado" não é "está na versão que o
+produto fixa"**. O `installAdapter` aceitava qualquer binário existente e reportava
+`spec.pinnedVersion` — então trocar a constante não trocava nada em nenhuma máquina que já tinha
+rodado o Lumem, e a tela dizia o número novo. Um campo de versão que repete a constante em vez de ler
+o disco é um campo que **não pode ficar vermelho**.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

@@ -65,6 +65,19 @@ export function AgentStep({ onNext, onBack, onSkip }: AgentStepProps) {
   /** Presença, pelo nome da variável que o daemon encontrou — nunca o valor. */
   const keyInEnv = entry?.apiKeyEnv !== null && entry?.apiKeyEnv !== undefined;
   const ready = adapter?.path != null;
+  /*
+   * O adaptador que está na máquina não é o que o produto fixa (LUM-54).
+   *
+   * Comparação local, sem rede e sem heurística nenhuma: são duas strings, uma
+   * do disco e uma do catálogo. É o sinal que faltava no primeiro acesso — o
+   * `0.40.0` embutia um Claude Code que a API recusava, e esta tela dizia `ok`.
+   *
+   * Só quando a versão é **conhecida**: `null` é "o binário não disse", não "está
+   * velho", e acusar o desconhecido de velho manda a pessoa consertar o que pode
+   * estar certo.
+   */
+  const stale =
+    adapter?.version != null && adapter.version !== CLAUDE_ADAPTER.pinnedVersion;
 
   return (
     <StepShell
@@ -159,6 +172,16 @@ export function AgentStep({ onNext, onBack, onSkip }: AgentStepProps) {
                   </>
                 )}
               </>
+            )}
+
+            {stale && (
+              <span className="field__help">
+                A cópia encontrada é a <b>{adapter.version}</b>, e o Lumem fixa a{" "}
+                <b>{CLAUDE_ADAPTER.pinnedVersion}</b> — a versão que foi medida contra este daemon.
+                O adaptador <b>embute o próprio runtime</b>, então uma cópia velha responde a
+                conversa mesmo com o <code>claude</code> da sua máquina atualizado. Conectar o agente
+                instala a versão fixa na pasta do Lumem.
+              </span>
             )}
 
             {adapter.managed && (

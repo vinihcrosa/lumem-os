@@ -1,3 +1,4 @@
+import { CLAUDE_ADAPTER } from "@lumem/shared";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -68,9 +69,12 @@ const CLAUDE_ENTRY: {
   adapter: {
     command: "claude-agent-acp",
     path: "/opt/homebrew/bin/claude-agent-acp",
-    version: "0.69.0",
+    // The pin, so the healthy path is the default: the two cases that differ
+    // from it — a stale copy and a version nobody could read — set it themselves,
+    // and the screen says something different in each.
+    version: CLAUDE_ADAPTER.pinnedVersion,
     versionNote: null,
-    install: "npm i -g @agentclientprotocol/claude-agent-acp@0.40.0",
+    install: `npm i -g ${CLAUDE_ADAPTER.package}@${CLAUDE_ADAPTER.pinnedVersion}`,
     managed: false,
   },
   apiKeyEnv: null,
@@ -218,7 +222,56 @@ describe("agent step", () => {
     await reachAgent(user);
 
     expect(await screen.findByText(/2\.0\.14 · \/opt\/homebrew\/bin\/claude/)).toBeInTheDocument();
-    expect(screen.getByText(/0\.69\.0 · \/opt\/homebrew\/bin\/claude-agent-acp/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        new RegExp(`${CLAUDE_ADAPTER.pinnedVersion} · /opt/homebrew/bin/claude-agent-acp`),
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("says so when the adapter on the machine is not the version the product pins", async () => {
+    /*
+     * LUM-54, no lugar onde a pessoa afetada olha.
+     *
+     * O `0.40.0` embutia o Claude Code `2.1.160`, a API o recusava, e esta tela
+     * dizia `ok` com o caminho do binário — o número estava na linha e não
+     * significava nada para quem lia. A comparação é local: duas strings, uma do
+     * disco e uma do catálogo.
+     */
+    const user = userEvent.setup();
+    trpc.setup.agents.query.mockResolvedValue(
+      agentsWith({ adapter: { ...CLAUDE_ENTRY.adapter, version: "0.40.0" } }),
+    );
+
+    render();
+    await reachAgent(user);
+
+    const help = await screen.findByText(/o Lumem fixa a/);
+    expect(help).toHaveTextContent("0.40.0");
+    expect(help).toHaveTextContent(CLAUDE_ADAPTER.pinnedVersion);
+    // A frase tem que dizer por que o `claude` novo da máquina não resolve,
+    // senão ela manda a pessoa rodar `claude update` — que é o que a mensagem de
+    // erro do adaptador já manda, e não funciona.
+    expect(help).toHaveTextContent(/embute o próprio runtime/);
+  });
+
+  it("does not accuse an unread version of being old", async () => {
+    // `null` é "o binário não disse" — e `claude-agent-acp@0.40.0` responde
+    // `--version` com string vazia, então este caso é o do adaptador que mais
+    // precisaria da frase. Dizer "está velho" sem saber manda consertar o que
+    // pode estar certo; quem decide é o probe.
+    const user = userEvent.setup();
+    trpc.setup.agents.query.mockResolvedValue(
+      agentsWith({
+        adapter: { ...CLAUDE_ENTRY.adapter, version: null, versionNote: "não disse a versão" },
+      }),
+    );
+
+    render();
+    await reachAgent(user);
+
+    expect(await screen.findByText(/não disse a versão/)).toBeInTheDocument();
+    expect(screen.queryByText(/o Lumem fixa a/)).not.toBeInTheDocument();
   });
 
   it("installs the adapter itself, into the daemon's own directory", async () => {
@@ -235,7 +288,7 @@ describe("agent step", () => {
     );
     trpc.setup.installAdapter.mutate.mockResolvedValue({
       path: "/tmp/lumem/adapters/node_modules/.bin/claude-agent-acp",
-      version: "0.40.0",
+      version: CLAUDE_ADAPTER.pinnedVersion,
       alreadyInstalled: false,
     });
 
@@ -265,7 +318,7 @@ describe("agent step", () => {
 
     expect(await screen.findByText(/ENOENT/)).toBeInTheDocument();
     expect(
-      screen.getByText("npm i -g @agentclientprotocol/claude-agent-acp@0.40.0"),
+      screen.getByText(`npm i -g ${CLAUDE_ADAPTER.package}@${CLAUDE_ADAPTER.pinnedVersion}`),
     ).toBeInTheDocument();
   });
 

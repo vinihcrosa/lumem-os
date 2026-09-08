@@ -21,6 +21,7 @@
     "gate:full": "vitest run && playwright test",
     "gate:build": "pnpm typecheck && turbo build --concurrency=${TURBO_CONCURRENCY:-3}",
     "docs:check": "tsx scripts/run-check-docs.ts",
+    "adapters:check": "tsx scripts/run-check-adapters.ts",
     "smoke:install": "tsx scripts/smoke-install.ts"
   },
   "devDependencies": {

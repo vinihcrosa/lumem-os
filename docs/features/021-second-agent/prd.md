@@ -208,6 +208,13 @@ coisas por conta própria e relata:
 ⇒ **o `fs-bridge` e o `terminal-bridge` são código morto para o Codex.** Eles continuam declarados
 (honestamente: nós fazemos as duas coisas), e continuam sendo o que o Claude usa.
 
+> **Corrigido em 2026-09-08:** a segunda metade da frase estava errada, e ninguém tinha medido. Quatro
+> turnos contra `claude-agent-acp` — dois em `0.40.0` e dois em `0.75.1` —, um lendo e um escrevendo
+> um arquivo dentro do cwd, fizeram **zero** pedidos `fs/*` ao cliente: o adaptador do Claude também
+> lê e escreve por conta própria, e relata por `tool_call`. Os bridges continuam declarados pelo mesmo
+> motivo honesto, e o que muda é o que se pode afirmar sobre eles: **nenhum turno medido os
+> exercitou**. Os números estão em [claude-agent-acp-0.75.md §4](../../project/claude-agent-acp-0.75.md).
+
 ⇒ **o cartão de terminal da conversa não tem terminal.** O `content` aponta para um `terminalId` que
 o **agente** criou — o id da própria `tool_call` —, não para um que o cliente abriu. Quem for
 desenhar a saída de comando do Codex lê `_meta.terminal_output_delta` e `_meta.terminal_exit`, ou não

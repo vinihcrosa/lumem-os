@@ -56,7 +56,7 @@ describe("the claude spec", () => {
     expect(CLAUDE_ADAPTER).toMatchObject({
       command: "claude-agent-acp",
       package: "@agentclientprotocol/claude-agent-acp",
-      pinnedVersion: "0.40.0",
+      pinnedVersion: "0.75.1",
       cli: { command: "claude" },
       apiKeyEnv: ["ANTHROPIC_API_KEY"],
     });
@@ -64,6 +64,23 @@ describe("the claude spec", () => {
 
   it("drives a CLI that has to exist", () => {
     expect(CLAUDE_ADAPTER.cli?.command).toBe("claude");
+  });
+
+  it("is not pinned at the version whose embedded runtime the API refuses", () => {
+    /*
+     * LUM-54, and the reason this assertion names a number instead of a shape:
+     * `0.40.0` embeds `@anthropic-ai/claude-agent-sdk@0.3.160` — Claude Code
+     * `2.1.160` — and the API answers `session/prompt` with *"version 2.1.251 or
+     * newer is required"*. Every turn died on a clean install, and the `claude`
+     * of the PATH cannot help: the runtime that answers is the one inside the
+     * adapter.
+     *
+     * A `not.toBe` rather than a comparison because there is no ordering to
+     * check here — this is a known-bad version, and going back to it should cost
+     * whoever does it a red test with the reason written down. What the version
+     * *is* was measured, and is asserted above.
+     */
+    expect(CLAUDE_ADAPTER.pinnedVersion).not.toBe("0.40.0");
   });
 });
 

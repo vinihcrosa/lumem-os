@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { ADAPTERS_DIR_NAME, DEFAULT_ADAPTER_ID, adapterById, type AdapterSpec } from "@lumem/shared";
@@ -42,6 +42,22 @@ function specOf(id: string | undefined): AdapterSpec {
 
 /** Which adapter, for the procedures that act on one. Absent means the default. */
 const adapterInput = z.object({ adapterId: z.string().trim().min(1).optional() }).optional();
+
+/**
+ * Which copy of an adapter to launch when the client named none.
+ *
+ * The one the daemon installed, before the PATH — the rule `setup.agents` already
+ * followed for *reporting*, applied to the procedures that actually **run** the
+ * adapter. They did not follow it, and LUM-54 is what that costs: a machine with
+ * a stale global `claude-agent-acp` had the flow install a pinned copy into
+ * `~/.lumem`, report that copy on screen, and then probe — and save into
+ * `agent_config` — the old one from the PATH. Two versions on one machine, and the
+ * one that answered was the one nobody chose.
+ */
+function commandFor(spec: AdapterSpec, stateDir: string): string {
+  const managed = adapterBinaryPath(adaptersDir(stateDir), spec);
+  return existsSync(managed) ? managed : spec.command;
+}
 
 export const setupRouter = router({
   /** The five checks, each one able to fail without the others. */
@@ -104,7 +120,7 @@ export const setupRouter = router({
     )
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
-        const command = input.command ?? specOf(input.adapterId).command;
+        const command = input.command ?? commandFor(specOf(input.adapterId), ctx.config.stateDir);
         const cwd = join(ctx.config.stateDir, "probe");
 
         /*
@@ -188,7 +204,7 @@ export const setupRouter = router({
 
         return Promise.resolve(
           ctx.agentAuth.start({
-            command: input.command ?? spec.command,
+            command: input.command ?? commandFor(spec, ctx.config.stateDir),
             ...(input.args === undefined ? {} : { args: input.args }),
             cwd,
             methodId: input.methodId,
@@ -235,7 +251,7 @@ export const setupRouter = router({
     )
     .query(({ ctx, input }) =>
       domainSafeAsync(async () => {
-        const command = input?.command ?? specOf(input?.adapterId).command;
+        const command = input?.command ?? commandFor(specOf(input?.adapterId), ctx.config.stateDir);
 
         /*
          * A directory of its own, and an empty one.

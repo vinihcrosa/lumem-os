@@ -34,14 +34,34 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-/** An npm that "installs" by creating the binary the real one would. */
-function fakeNpm(dir: string, spec: AdapterSpec = CLAUDE_ADAPTER): CommandRunner {
+/**
+ * An npm that "installs" by writing what the real one writes: the binary, and
+ * the package manifest that says which version it is.
+ *
+ * The manifest is not decoration — it is what `installAdapter` reads to tell an
+ * install at the pinned version from a stale one (LUM-54). A fake that skipped it
+ * would only ever exercise the "version unknown" branch.
+ */
+function fakeNpm(
+  dir: string,
+  spec: AdapterSpec = CLAUDE_ADAPTER,
+  version: string = spec.pinnedVersion,
+): CommandRunner {
   return vi.fn(async () => {
-    const bin = join(adapterDir(dir, spec), "node_modules", ".bin");
-    mkdirSync(bin, { recursive: true });
-    writeFileSync(join(bin, spec.command), "");
+    writeInstall(adapterDir(dir, spec), spec, version);
     return { ok: true, output: "added 1 package", failure: null };
   });
+}
+
+/** The two files an install leaves behind, at a version of the test's choosing. */
+function writeInstall(root: string, spec: AdapterSpec, version: string | null): void {
+  const bin = join(root, "node_modules", ".bin");
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(join(bin, spec.command), "");
+  if (version === null) return;
+  const pkg = join(root, "node_modules", ...(spec.package ?? "").split("/"));
+  mkdirSync(pkg, { recursive: true });
+  writeFileSync(join(pkg, "package.json"), JSON.stringify({ name: spec.package, version }));
 }
 
 function argsOf(run: CommandRunner): [string, string[]] {
@@ -131,6 +151,77 @@ describe("installAdapter", () => {
       alreadyInstalled: true,
     });
     expect(run).not.toHaveBeenCalled();
+  });
+
+  it("reinstalls when what is there is not the version that is pinned", async () => {
+    /*
+     * LUM-54, in the place that hid it.
+     *
+     * Any existing binary used to be accepted, and reported as the pinned
+     * version. So the day the pin moved, every machine that had already run the
+     * product kept launching the old adapter — and the screen said the new
+     * number. The version on disk is what decides, and 0.40.0 is exactly the
+     * case: an embedded runtime the API refuses.
+     */
+    const dir = tempDir();
+    writeInstall(adapterDir(dir, CLAUDE_ADAPTER), CLAUDE_ADAPTER, "0.40.0");
+
+    const run = fakeNpm(dir);
+    const result = await installAdapter({ dir, run });
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(argsOf(run)[1]).toContain(
+      `${CLAUDE_ADAPTER.package}@${CLAUDE_ADAPTER.pinnedVersion}`,
+    );
+    expect(result).toEqual({
+      path: adapterBinaryPath(dir),
+      version: CLAUDE_ADAPTER.pinnedVersion,
+      alreadyInstalled: false,
+    });
+  });
+
+  it("reports the version it found, not the version it wanted", async () => {
+    // The field is a report, not a restatement of the constant. When they differ
+    // and nothing can be done about it — an unreadable layout aside — saying the
+    // pin is how a stale adapter goes unnoticed.
+    const dir = tempDir();
+    const run = fakeNpm(dir, CLAUDE_ADAPTER, "0.76.0");
+
+    const result = await installAdapter({ dir, run });
+
+    expect(result.version).toBe("0.76.0");
+  });
+
+  it("leaves an install it cannot read the version of alone", async () => {
+    // No manifest: a layout this daemon did not write. Redownloading 255 MB on a
+    // guess is worse than reporting the pin and letting the probe answer.
+    const dir = tempDir();
+    writeInstall(adapterDir(dir, CLAUDE_ADAPTER), CLAUDE_ADAPTER, null);
+
+    const run = vi.fn();
+    const result = await installAdapter({ dir, run: run as unknown as CommandRunner });
+
+    expect(run).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      path: adapterBinaryPath(dir),
+      version: CLAUDE_ADAPTER.pinnedVersion,
+      alreadyInstalled: true,
+    });
+  });
+
+  it("installs into its own directory when the legacy copy is stale", async () => {
+    // The pre-catalogue flat directory is not upgraded in place: the install
+    // writes to the spec's directory, which is also the one the daemon looks in
+    // first.
+    const dir = tempDir();
+    writeInstall(dir, CLAUDE_ADAPTER, "0.40.0");
+
+    const run = fakeNpm(dir);
+    const result = await installAdapter({ dir, run });
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(result.path).toBe(adapterBinaryPath(dir));
+    expect(result.alreadyInstalled).toBe(false);
   });
 
   it("prefers the directory of the spec over the legacy one", async () => {
