@@ -2,7 +2,7 @@
  * O que o daemon diz sobre uma pull request, e a tela desenha.
  *
  * O veredito é **derivado no daemon** (F4.4 da
- * [pull-request-status](../../../docs/prd/pull-request-status/prd.md)), e por
+ * [pull-request-status](../../../docs/features/013-pull-request-status/prd.md)), e por
  * isso ele mora aqui em vez de nascer no cliente: se a regra morasse na tela, a
  * barra e o marcador da sidebar poderiam discordar — e a resposta para "dá pra
  * mesclar?" teria duas versões.
@@ -152,7 +152,7 @@ export interface PrStatus {
 /**
  * O que o formulário de criar pull request **propõe**.
  *
- * A [Q4](../../../docs/prd/pull-request-status/open-questions.md) decidiu que
+ * A [Q4](../../../docs/features/013-pull-request-status/open-questions.md) decidiu que
  * ele propõe e não decide: o título nasce do assunto do último commit da
  * branch, e o corpo nasce vazio. PR sem título pensado é PR que alguém vai ter
  * de editar, e o título que o git já sabe é melhor ponto de partida que um

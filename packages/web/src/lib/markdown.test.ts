@@ -136,12 +136,12 @@ describe("parseInline", () => {
   });
 
   it("link guarda o destino e o texto", () => {
-    const [node] = parseInline("veja [o PRD](docs/prd/x.md) aqui");
+    const [node] = parseInline("veja [o PRD](docs/features/x.md) aqui");
 
     expect(node).toEqual({ kind: "text", text: "veja " });
-    expect(parseInline("[o PRD](docs/prd/x.md)")[0]).toMatchObject({
+    expect(parseInline("[o PRD](docs/features/x.md)")[0]).toMatchObject({
       kind: "link",
-      href: "docs/prd/x.md",
+      href: "docs/features/x.md",
     });
   });
 

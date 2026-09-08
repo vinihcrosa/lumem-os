@@ -107,7 +107,7 @@ describe("workspace.rename", () => {
 
   it("não mexe em disco: a memória do workspace continua sendo achada", async () => {
     /*
-     * A W6 da [tela do workspace](../../../../docs/prd/workspace-screen/open-questions.md):
+     * A W6 da [tela do workspace](../../../../docs/features/010-workspace-screen/open-questions.md):
      * renomear é uma coluna, e nada mais.
      *
      * O caminho da memória é `workspaces/<id>/`, por **id** — então o nome pode

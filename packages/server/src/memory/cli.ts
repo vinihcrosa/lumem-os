@@ -182,7 +182,7 @@ export async function runMemoryCli(
           //
           // Declarado por quem chama, e o mesmo default do router. Onde o ator
           // passa a ser **imposto** é a Q46 (aberta) em
-          // docs/prd/workspace-memory/open-questions.md.
+          // docs/features/007-workspace-memory/open-questions.md.
           actor: asActor(flags.actor ?? "human"),
           ...(flags.scope ? { scope: asScope(flags.scope) } : {}),
           ...(flags.workspace ? { workspaceId: flags.workspace } : {}),

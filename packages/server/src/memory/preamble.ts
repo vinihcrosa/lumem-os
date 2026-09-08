@@ -13,7 +13,7 @@ import { MEMORY_DIRECTIVE, memorySkill } from "./skill.js";
  * O que a memória do workspace diz antes da primeira mensagem da sessão.
  *
  * Aqui é onde as três camadas do
- * [context-delivery](../../../../docs/prd/workspace-memory/context-delivery.md)
+ * [context-delivery](../../../../docs/features/007-workspace-memory/context-delivery.md)
  * viram um texto: a **diretiva** (comportamento, sempre), o **núcleo** (as
  * memórias fixadas) e a **skill** (como perguntar o resto).
  *

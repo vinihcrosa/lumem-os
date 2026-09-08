@@ -6,7 +6,7 @@ import { execGit, type GitExec } from "../git/exec.js";
 /**
  * O `~/.lumem` como repositório git, criado e mantido pelo daemon.
  *
- * A decisão está na Q36 de `docs/prd/workspace-memory/open-questions.md`: o
+ * A decisão está na Q36 de `docs/features/007-workspace-memory/open-questions.md`: o
  * Lumem versiona a própria memória. Isso dá `git log` por arquivo, `git revert`
  * como desfazer, e backup resolvido por `git remote` — sem que nada disso viva
  * dentro do repositório do usuário, que é a decisão da Q3.

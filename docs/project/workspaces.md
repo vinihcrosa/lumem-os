@@ -30,7 +30,7 @@ Nenhum desses arquivos de configuração tem lógica. Se um passo mudar, ele mud
 em `scripts/workspace/` e vale para todos na mesma hora.
 
 > **O Lumem entrou nesta tabela em 2026-08-30**, com a
-> [project-scripts](../prd/project-scripts/prd.md). Até então este repositório
+> [project-scripts](../features/012-project-scripts/prd.md). Até então este repositório
 > tinha três scripts de ciclo de vida que o Superset e o Conductor liam e o
 > **produto não** — a ironia que abre o PRD dela. O `env.sh` continua sendo quem
 > resolve portas, e agora ele tem uma terceira fonte para ler: o `LUMEM_RUN_PORT`

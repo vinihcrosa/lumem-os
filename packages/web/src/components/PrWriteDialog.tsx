@@ -10,8 +10,8 @@ import { Button, Field, Input } from "../ui/index.js";
 /**
  * Os dois verbos que escrevem no remoto (F7).
  *
- * A [Q3](../../../../docs/prd/pull-request-status/open-questions.md) e a
- * [Q4](../../../../docs/prd/pull-request-status/open-questions.md) foram
+ * A [Q3](../../../../docs/features/013-pull-request-status/open-questions.md) e a
+ * [Q4](../../../../docs/features/013-pull-request-status/open-questions.md) foram
  * respondidas **contra** a proposta do PRD: o `Merge` entra no v1 e o Lumem
  * cria a PR. Isso trouxe a única parte da feature que é irreversível para o
  * time inteiro, e é por isso que ela não é um clique.

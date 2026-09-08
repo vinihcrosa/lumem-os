@@ -215,7 +215,7 @@ describe("FULL_SUITE_GLOBS", () => {
     // Not .md: these are what prove `:(exclude)docs/**` earns its place rather
     // than being shadowed by `:(exclude)*.md`.
     "docs/diagrams/architecture.svg",
-    "docs/prd/walking-skeleton/schema.sql",
+    "docs/features/001-walking-skeleton/schema.sql",
   ])("does not match the documentation %s", (relative) => {
     // Documentation-only commits must not drag the whole suite in.
     const repo = makeRepo();

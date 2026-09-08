@@ -22,7 +22,7 @@ import { countChecks } from "./verdict.js";
  *   ser mentira.
  */
 
-/** Com verificação rodando, o estado muda em segundos ([Q5](../../../../docs/prd/pull-request-status/open-questions.md)). */
+/** Com verificação rodando, o estado muda em segundos ([Q5](../../../../docs/features/013-pull-request-status/open-questions.md)). */
 export const TTL_BUSY_MS = 15_000;
 /** Sem nada rodando, o que muda é gente — e gente é mais lenta que CI. */
 export const TTL_IDLE_MS = 60_000;

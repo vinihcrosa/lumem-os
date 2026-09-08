@@ -5,11 +5,13 @@
 > à mesa. Nada aqui está prometido nem estimado.
 >
 > **O que este arquivo não é:** roadmap, nem lista de tarefa. Tarefa vive em
-> `docs/prd/<feature>/tasks.md`; ideia sem PRD vive aqui.
+> `docs/features/<NNN>-<feature>/tasks.md`; ideia sem PRD vive aqui.
 >
 > **Regra:** toda vez que uma discussão terminar em *"isso fica para depois"*, o item entra aqui na
 > mesma hora, com o link de onde a conversa aconteceu. Item que ganhar PRD sai daqui e vira uma pasta
-> em `docs/prd/`.
+> em `docs/features/`, com o próximo número livre. **Ideia adiada não é decisão adiada:** se o que
+> ficou para depois foi *decidir* algo difícil de reverter, o lugar é um [ADR](../adr/), não este
+> arquivo.
 
 ---
 
@@ -31,7 +33,7 @@ workspace** com dois campos (`owner_project`, `consumer_projects`). A versão ca
 verdade: dono, consumidores, versão, e **verificação contra o código** — que responderia "o que
 quebra se eu mudar isto?" com dado, não com memória.
 
-**De onde veio:** [workspace-memory Q2](../prd/workspace-memory/open-questions.md) · **Volta quando:**
+**De onde veio:** [workspace-memory Q2](../features/007-workspace-memory/open-questions.md) · **Volta quando:**
 a memória `contract` estiver em uso e você notar que ela mente com frequência, ou quando quiser
 bloquear merge por quebra de contrato.
 
@@ -42,7 +44,7 @@ e *o quê* — mas não tem **qual operação**. O PRD é explícito que o `lume
 escreve" (§11), e hoje isso é garantido pela ausência de chamador de escrita, não pelo tipo. Nomear o
 eixo (`operation: "read"`, recusando o resto) custa uma coluna em `memory_access` e uma migração.
 
-**De onde veio:** review do rework da [PR 03 de workspace-memory](../prd/workspace-memory/tasks.md) ·
+**De onde veio:** review do rework da [PR 03 de workspace-memory](../features/007-workspace-memory/tasks.md) ·
 **Volta quando:** a capacidade `readNeighbourRepository` for ligada para valer, ou quando aparecer o
 primeiro chamador que não seja leitura.
 
@@ -53,8 +55,8 @@ O v1 é lexical (FTS5/BM25): determinístico, explicável, de graça. Não acha 
 virou um serviço com uma pergunta como interface, então mudar o motor por dentro não toca no que o
 agente vê.
 
-**De onde veio:** [workspace-memory Q22](../prd/workspace-memory/open-questions.md) e
-[context-delivery §4.2](../prd/workspace-memory/context-delivery.md) · **Volta quando:** a busca
+**De onde veio:** [workspace-memory Q22](../features/007-workspace-memory/open-questions.md) e
+[context-delivery §4.2](../features/007-workspace-memory/context-delivery.md) · **Volta quando:** a busca
 lexical falhar em caso real que você consiga nomear.
 
 ### Consolidação automática ("dreaming") — `M`
@@ -63,7 +65,7 @@ Promoção e mesclagem de memória sem você pedir. O Compozy usa portões (24h,
 que, em uso pessoal, podem nunca disparar; o Hermes roda por inatividade e deixa a passada cara
 desligada por padrão. O v1 do Lumem tem gatilho explícito.
 
-**De onde veio:** [workspace-memory Q30](../prd/workspace-memory/open-questions.md) · **Volta quando:**
+**De onde veio:** [workspace-memory Q30](../features/007-workspace-memory/open-questions.md) · **Volta quando:**
 existir sinal medido de uso (`recall_count`) suficiente para promover por critério objetivo em vez de
 palpite de LLM.
 
@@ -73,7 +75,7 @@ Você editou por cima do agente, reverteu o commit dele, matou a sessão em 30 s
 worktree. É o sinal mais barato que existe e **nenhuma das quatro referências usa**. Pode entrar cedo
 (é só registrar evento) e a interpretação vem depois.
 
-**De onde veio:** [workspace-memory Q17/Q18](../prd/workspace-memory/open-questions.md) ·
+**De onde veio:** [workspace-memory Q17/Q18](../features/007-workspace-memory/open-questions.md) ·
 **Volta quando:** o registro cru estiver de pé e houver volume para olhar.
 
 ---
@@ -81,7 +83,7 @@ worktree. É o sinal mais barato que existe e **nenhuma das quatro referências 
 ## B. Como o daemon fala com o agente
 
 > **Saiu daqui em 2026-08-17:** *transporte ACP*. Deixou de ser ideia adiada e virou **decisão**
-> ([pty-vs-acp.md §9](pty-vs-acp.md)) — e virou feature própria, [acp-sessions](../prd/acp-sessions/prd.md):
+> ([pty-vs-acp.md §9](pty-vs-acp.md)) — e virou feature própria, [acp-sessions](../features/006-acp-sessions/prd.md):
 > transporte mais a tela da conversa, com PRD escrito e spike rodado. O que ficou no backlog é o que a
 > decisão empurrou para depois **dela**.
 
@@ -108,7 +110,7 @@ Um agente em aba não visível pode estar parado esperando você. O v1 marca a a
 notificação de sistema fica para depois — e ficou **mais** relevante com o default `auto`, em que o
 que sobe para o humano é justamente o caso raro.
 
-**De onde veio:** [acp-sessions A10](../prd/acp-sessions/open-questions.md) · **Volta quando:** você
+**De onde veio:** [acp-sessions A10](../features/006-acp-sessions/open-questions.md) · **Volta quando:** você
 perder tempo com agente parado sem perceber.
 
 ### Variáveis de ambiente na configuração de agente pela UI — `P`
@@ -117,7 +119,7 @@ O `agent_config` guarda `env` (objeto JSON) e o router aceita, mas o formulário
 controle de chave/valor é outro componente, e nenhum agente hoje precisa de variável para subir. Quem
 precisar continua tendo a API.
 
-**De onde veio:** [acp-sessions R1](../prd/acp-sessions/tasks.md) · **Volta quando:** algum agente
+**De onde veio:** [acp-sessions R1](../features/006-acp-sessions/tasks.md) · **Volta quando:** algum agente
 exigir variável de ambiente para autenticar ou para achar o binário.
 
 ### Regra de CSS sem markup no `conversation.css` — `P`
@@ -130,7 +132,7 @@ de regras sem ninguém: estados que o protótipo desenhou e nenhum componente pr
 junto com limpar essas regras — separar as duas coisas deixaria a suíte vermelha sem ninguém para
 consertar.
 
-**De onde veio:** [acp-sessions Q5](../prd/acp-sessions/tasks.md) — a lista "o que ele
+**De onde veio:** [acp-sessions Q5](../features/006-acp-sessions/tasks.md) — a lista "o que ele
 deliberadamente não carrega" esvaziou quando o `.daysep` chegou · **Volta quando:** alguém for
 editar o `conversation.css` e não souber qual metade está viva.
 
@@ -140,7 +142,7 @@ O protocolo expõe `fork` junto de `resume` e `list`. Duplicar uma conversa a pa
 feature de produto que nenhuma das quatro referências tem — "tenta de novo daqui, com outra
 abordagem", sem perder o que veio antes.
 
-**De onde veio:** [acp-sessions A7](../prd/acp-sessions/open-questions.md) · **Volta quando:** o
+**De onde veio:** [acp-sessions A7](../features/006-acp-sessions/open-questions.md) · **Volta quando:** o
 `resume` estiver de pé e você se pegar querendo bifurcar em vez de recomeçar.
 
 ### Múltiplas contas para o mesmo agente — `M`
@@ -158,7 +160,7 @@ pessoal na mesma máquina sem trocar login na mão.
 ### Terceiro CLI de agente — `M`
 
 O **segundo** virou PRD em 2026-09-05 e a **C1 respondeu Codex**:
-[second-agent](../prd/second-agent/prd.md). Sobra o terceiro, e ele já tem nome: **Gemini**
+[second-agent](../features/021-second-agent/prd.md). Sobra o terceiro, e ele já tem nome: **Gemini**
 (`gemini --acp`), por ser de outra família — nativo, sem adaptador para instalar. O catálogo de
 adaptadores já prevê o caso (`package: null` → procura no PATH), então o que ele custa é o próprio
 spike, não a refatoração.
@@ -168,7 +170,7 @@ estiver de pé — o Codex conversando **e** logando pela tela.
 
 ### Desenhar a saída de comando do Codex — `P`
 
-Medido na fase 0 (§4.5 da [second-agent](../prd/second-agent/prd.md)): o Codex **não pede**
+Medido na fase 0 (§4.5 da [second-agent](../features/021-second-agent/prd.md)): o Codex **não pede**
 `terminal/*` ao cliente. Ele roda por conta própria e manda `tool_call` com
 `content: [{ type: "terminal", terminalId }]` apontando para um terminal **dele** — o id da própria
 `tool_call` —, com a saída em `_meta.terminal_output_delta` e o fim em `_meta.terminal_exit`. O cartão
@@ -201,7 +203,7 @@ A `usage.byProjectAndAgent` soma por `agent_config`. A resposta do `session/prom
 `_meta.quota.model_usage[]` — token por **modelo** dentro do mesmo turno —, e o daemon lê só a
 notificação. Somar por modelo é mudar a fonte do número, e isso não era da second-agent (C5).
 
-**De onde veio:** [second-agent C5](../prd/second-agent/open-questions.md) · **Volta quando:** você
+**De onde veio:** [second-agent C5](../features/021-second-agent/open-questions.md) · **Volta quando:** você
 trocar de modelo no meio do trabalho e quiser saber qual deles custou o quê.
 
 ### Índice de regras com carregamento sob demanda — `M`
@@ -210,7 +212,7 @@ O núcleo não tem teto (D5), e cresce por acréscimo. A saída elegante, quando
 começar a tocar: em vez de injetar as regras, injetar um **índice** delas — *"vou commitar → busco a
 regra de commit"*. Lazy loading de diretriz, o mesmo princípio da camada 3 aplicado à camada 1.
 
-**De onde veio:** [context-delivery D5](../prd/workspace-memory/context-delivery.md) · **Volta
+**De onde veio:** [context-delivery D5](../features/007-workspace-memory/context-delivery.md) · **Volta
 quando:** a marca d'água do núcleo passar do valor que você definir.
 
 ### Hooks por CLI — `P`, provavelmente morto
@@ -227,7 +229,7 @@ PTY que você queira que alimente memória — e só nesse caso.
 
 ### ~~Tarefas de workspace atravessando projetos~~ — virou PRD em 2026-09-05
 
-Saiu do backlog: [workspace-tasks](../prd/workspace-tasks/prd.md). O gatilho — a memória de workspace
+Saiu do backlog: [workspace-tasks](../features/022-workspace-tasks/prd.md). O gatilho — a memória de workspace
 de pé — foi atingido. O PRD é atribuição manual e `done` humano; a **fila com lease**, abaixo,
 continua aqui.
 
@@ -245,10 +247,10 @@ e mais de um agente rodando sem você olhando.
 
 ### ~~Abstração de git host (GitLab, e não só GitHub)~~ — **virou PRD**
 
-Ganhou pasta: [pull-request-status](../prd/pull-request-status/prd.md), e **está implementada**. O
+Ganhou pasta: [pull-request-status](../features/013-pull-request-status/prd.md), e **está implementada**. O
 corte que o item pedia era *"ler, não agir"* — e ele **mudou de lugar** durante a implementação: a
-[Q3](../prd/pull-request-status/open-questions.md) e a
-[Q4](../prd/pull-request-status/open-questions.md) foram respondidas contra a proposta do PRD, e o
+[Q3](../features/013-pull-request-status/open-questions.md) e a
+[Q4](../features/013-pull-request-status/open-questions.md) foram respondidas contra a proposta do PRD, e o
 Lumem passou a **mesclar e a criar PR**. Os dois verbos, e só eles, cada um atrás de um portão que o
 daemon relê.
 
@@ -268,7 +270,7 @@ O que **ficou** de fora, e portanto continua aqui:
 ### Worktree de projeto removido não pode ser recriada — `P`
 
 Remover projeto **registrado por caminho** tira o registro das worktrees e **não toca no disco**
-([WS-Q22](../prd/walking-skeleton/open-questions.md)). O projeto clonado não entra: lá a worktree
+([WS-Q22](../features/001-walking-skeleton/open-questions.md)). O projeto clonado não entra: lá a worktree
 bloqueia a remoção, então nada fica para trás.
 O que fica para trás é git, não Lumem: o diretório, a branch e a entrada em `.git/worktrees` do repo.
 Como o caminho é determinístico (`<workspace>/<projeto>/worktrees/<nome>`), re-adicionar o mesmo repositório e
@@ -286,14 +288,14 @@ e não conseguir recriar a worktree que tinha antes.
 
 Diff é ler; git é agir. Ficou fora da `right-panel` de propósito.
 
-**De onde veio:** [right-panel §5](../prd/right-panel/prd.md) · **Volta quando:** você se pegar
+**De onde veio:** [right-panel §5](../features/004-right-panel/prd.md) · **Volta quando:** você se pegar
 saindo do Lumem para commitar.
 
 ---
 
 ## E. Editor e painel de arquivos
 
-Todos vindos de [right-panel §8](../prd/right-panel/prd.md) e [file-editor §9](../prd/file-editor/prd.md).
+Todos vindos de [right-panel §8](../features/004-right-panel/prd.md) e [file-editor §9](../features/005-file-editor/prd.md).
 
 | Item | Peso | Contexto de uma frase | Volta quando |
 |---|---|---|---|
@@ -307,7 +309,7 @@ Todos vindos de [right-panel §8](../prd/right-panel/prd.md) e [file-editor §9]
 
 ### A faixa do rodapé de execução, e o `＋ nova aba de terminal` — `P`
 
-O desenho da [run-dock-open](../prd/run-dock-open/prd.md) mediu a faixa do rodapé em **494px** contra
+O desenho da [run-dock-open](../features/015-run-dock-open/prd.md) mediu a faixa do rodapé em **494px** contra
 uma coluna de 360, e propôs três coisas juntas: descer `Abrir :porta` e `parar` para a linha de
 estado, apertar a faixa (`.dock__bar--tight`) e criar um `⋯` para onde o `＋` iria. Foi recusado
 inteiro, porque o `＋ nova aba de terminal` **não existe no produto** — o `.dock__new` está no CSS
@@ -316,7 +318,7 @@ caber nele.
 
 A ordem certa é a inversa: primeiro o `＋` existir, depois o menu que o guarda.
 
-**De onde veio:** [run-dock-open Q6 e Q6a](../prd/run-dock-open/open-questions.md), revertida em
+**De onde veio:** [run-dock-open Q6 e Q6a](../features/015-run-dock-open/open-questions.md), revertida em
 2026-09-06 · **Volta quando:** alguém quiser uma segunda aba de terminal no rodapé, ou quando a faixa
 com um `run` vivo em 360px incomodar de verdade.
 
@@ -339,15 +341,15 @@ primeira coisa que se vê na maioria das chegadas.
 
 ## F. Plataforma
 
-### ~~Configuração de projeto versionada no repo~~ — **virou feature**, em [project-scripts](../prd/project-scripts/prd.md)
+### ~~Configuração de projeto versionada no repo~~ — **virou feature**, em [project-scripts](../features/012-project-scripts/prd.md)
 
-O arquivo `<repo>/.lumem/project.toml` **já vai existir** — a [Q3.1](../prd/workspace-memory/open-questions.md)
+O arquivo `<repo>/.lumem/project.toml` **já vai existir** — a [Q3.1](../features/007-workspace-memory/open-questions.md)
 decidiu que o `id` do projeto mora nele. O que ficou para depois é o **resto** do conteúdo: script de
 setup, script de run, comandos do projeto. A regra que delimita o arquivo: **o que é do repositório é
 do time; o que é da instância é do Lumem.**
 
-**De onde veio:** [workspace-memory Q3.1](../prd/workspace-memory/open-questions.md) · **Voltou em:**
-2026-08-30, como a feature [project-scripts](../prd/project-scripts/prd.md) — o gatilho foi a
+**De onde veio:** [workspace-memory Q3.1](../features/007-workspace-memory/open-questions.md) · **Voltou em:**
+2026-08-30, como a feature [project-scripts](../features/012-project-scripts/prd.md) — o gatilho foi a
 worktree que nasce sem rodar.
 
 **Ficou aqui, e é filho desta:** **copiar arquivos para a worktree nova** (`.env`, credenciais). É
@@ -360,20 +362,20 @@ Efeito colateral da Q3.1: com o `id` do projeto commitado, duas instâncias do L
 **mesma chave** para o mesmo projeto. Isso não faz nada hoje, e é exatamente a peça que faltaria para
 um dia compartilhar memória de projeto, ou de contrato, entre pessoas do time — sem migração de dados.
 
-**De onde veio:** [workspace-memory Q3.1](../prd/workspace-memory/open-questions.md) · **Volta
+**De onde veio:** [workspace-memory Q3.1](../features/007-workspace-memory/open-questions.md) · **Volta
 quando:** existir uma segunda pessoa usando Lumem no mesmo repositório.
 
 ### `lumem-memory` lendo os repositórios — só a **capacidade ligada** ficou para depois — `M`
 
 A D8 decidiu que ler os repositórios do workspace é **objetivo declarado, não "talvez"**. Por isso o
 **funil de acesso cross-projeto e o registro de acesso nascem na PR 03**
-([roadmap](../prd/workspace-memory/roadmap.md)) — com a capacidade **desligada**, porque adaptar
+([roadmap](../features/007-workspace-memory/roadmap.md)) — com a capacidade **desligada**, porque adaptar
 depois seria retrabalho no lugar mais sensível do sistema.
 
 O que ficou aqui é só **ligar a capacidade**: declarar por projeto quais repositórios o serviço pode
 ler, e o serviço passar a responder a partir do código além do acervo.
 
-**De onde veio:** [context-delivery D8](../prd/workspace-memory/context-delivery.md) · **Volta
+**De onde veio:** [context-delivery D8](../features/007-workspace-memory/context-delivery.md) · **Volta
 quando:** a taxa de "não sei" do serviço for alta e o acervo, sozinho, não der conta.
 
 ### `references/` do playbook — o material de apoio carregado sob demanda — `P`
@@ -385,7 +387,7 @@ códigos de erro, trecho de log — fica ao lado, lido só quando o passo precis
 A PR 09 entregou o corpo e deixou o lugar pronto: o playbook mora num **diretório próprio** desde o
 primeiro dia, justamente para o `references/` poder nascer ali sem migrar o disco de ninguém.
 
-**De onde veio:** [§9 do PRD](../prd/workspace-memory/prd.md) e a PR 09 · **Volta quando:** o primeiro
+**De onde veio:** [§9 do PRD](../features/007-workspace-memory/prd.md) e a PR 09 · **Volta quando:** o primeiro
 playbook precisar de anexo — sinal de que o corpo está virando documento em vez de procedimento.
 
 ### Índice de regras com carregamento sob demanda — `M`
@@ -397,7 +399,7 @@ busca a regra específica quando esbarra nela — "vou commitar, deixa eu ver a 
 É mais elegante que teto, porque nunca corta diretriz no meio; e é mais barato que o núcleo inteiro,
 porque o que entra em todo turno passa a ser uma linha por regra em vez do corpo dela.
 
-**De onde veio:** [context-delivery D5](../prd/workspace-memory/context-delivery.md) · **Volta
+**De onde veio:** [context-delivery D5](../features/007-workspace-memory/context-delivery.md) · **Volta
 quando:** a marca d'água do núcleo passar do alarme e consolidar não resolver.
 
 ### `session_usage` cresce para sempre — `P`
@@ -432,21 +434,21 @@ crescer sem explicação, ou a primeira consulta precisar varrer órfão.
 ### ~~O que o Lumem gasta sozinho~~ — virou a F1 da memory-dogfooding, em 2026-09-05
 
 O gatilho — *"o primeiro interruptor de token ligado por mais de um dia"* — é exatamente o protocolo
-da [memory-dogfooding](../prd/memory-dogfooding/prd.md). A F1 dela grava o consumo dessas sessões com
+da [memory-dogfooding](../features/020-memory-dogfooding/prd.md). A F1 dela grava o consumo dessas sessões com
 um `purpose` (`distill`, `auto_learn`) **separado** do consumo do usuário, o que preserva a razão de
 não gravar: nada disso é contado como trabalho seu. **De onde veio:** `usage/record.ts`, a decisão U4
-da [tela do workspace](../prd/workspace-screen/tasks.md).
+da [tela do workspace](../features/010-workspace-screen/tasks.md).
 
 ### Atalho de teclado para criar worktree — `P`
 
 `⌘N` no projeto selecionado. É a ação mais repetida do produto, e a única com candidato óbvio.
 
-Ficou fora do v1 da [sidebar-actions](../prd/sidebar-actions/prd.md) porque um atalho global precisa
+Ficou fora do v1 da [sidebar-actions](../features/017-sidebar-actions/prd.md) porque um atalho global precisa
 saber **o que está em foco** antes de decidir de quem a tecla é: a mesma combinação dentro de um
 terminal embutido ou de um editor CodeMirror pertence a eles, e um atalho que rouba `⌘N` do `xterm` é
 pior que não ter atalho. Precisa de uma noção de "escopo de foco" que o app não tem.
 
-**De onde veio:** [Q6](../prd/sidebar-actions/open-questions.md) da `sidebar-actions` · **Volta
+**De onde veio:** [Q6](../features/017-sidebar-actions/open-questions.md) da `sidebar-actions` · **Volta
 quando:** existir um segundo atalho global querendo a mesma decisão — ou quando alguém contar quantas
 vezes por dia clica no `+`.
 
@@ -467,7 +469,7 @@ acessibilidade.
 ### Tela de preferências — a configuração de agente não é do workspace — `M`
 
 `agent_config` é **global** e mora no rodapé da sidebar, que é do workspace. A `agent-login` já nomeia
-a mentira (A16); a [tela do workspace](../prd/workspace-screen/prd.md) recusou herdá-la, porque
+a mentira (A16); a [tela do workspace](../features/010-workspace-screen/prd.md) recusou herdá-la, porque
 misturar global com workspace numa tela nova é repetir o erro em outro lugar.
 
 O lugar certo é uma tela de preferências, que não existe.
@@ -477,7 +479,7 @@ uma segunda coisa global para configurar — política de permissão é a candid
 
 ### ~~Autenticação do daemon~~ — virou PRD em 2026-09-05
 
-Saiu do backlog: [daemon-auth](../prd/daemon-auth/prd.md). O gatilho era "quando o daemon escutar
+Saiu do backlog: [daemon-auth](../features/019-daemon-auth/prd.md). O gatilho era "quando o daemon escutar
 fora do loopback"; a avaliação de arquitetura de 2026-09-05 mostrou que DNS rebinding e sequestro de
 WebSocket não esperam por isso — não há checagem de `Host` nem de `Origin` em rota nenhuma, e a CLI
 já expõe `--host`.
@@ -502,12 +504,12 @@ der conta.
 
 ## G. Primeiro acesso e casca do app
 
-Todos vindos do [onboarding §6](../prd/onboarding/prd.md) — o desenho das nove telas propõe cada um
+Todos vindos do [onboarding §6](../features/008-onboarding/prd.md) — o desenho das nove telas propõe cada um
 deles, e a v1 do fluxo não implementa nenhum.
 
 | Item | Peso | Contexto de uma frase | Volta quando |
 |---|---|---|---|
-| ~~Instalar o adaptador pela tela~~ — **feito em 2026-08-20** | — | saiu do backlog na [agent-login](../prd/agent-login/prd.md): o que estava recusado era `npm i -g`, e o que foi feito é `--prefix` numa pasta do daemon, com versão fixa | — |
+| ~~Instalar o adaptador pela tela~~ — **feito em 2026-08-20** | — | saiu do backlog na [agent-login](../features/009-agent-login/prd.md): o que estava recusado era `npm i -g`, e o que foi feito é `--prefix` numa pasta do daemon, com versão fixa | — |
 | Chave de API colada na tela | `P` | o desenho tem o caminho; o adaptador não oferece método `env_var` nenhum, então seria mecanismo do Lumem. **Onde ela mora já está decidido:** `agent_config.env`, no SQLite — e a tela terá de dizer que fica no registro do Lumem, não no chaveiro | você precisar de cobrança por token, ou de uma conta que não seja a do login local |
 | Editar o adaptador pela gaveta `avançado` | `P` | hoje é leitura; trocar é remover e criar em "outro agente ACP…". Falta um `agentConfig.update` | alguém querer trocar só os argumentos sem perder a configuração |
 | Login em daemon sem navegador | `P` | o adaptador troca os métodos e oferece `claude-login`, que é o mesmo mecanismo de terminal — funciona por construção e nunca foi exercitado | o daemon rodar em SSH ou container |
@@ -517,7 +519,7 @@ deles, e a v1 do fluxo não implementa nenhum.
 | `⌘⇧N` (nova tarefa) e `⌥⇧P` (trocar o modo) | `P` | prometidos pela mesma tela, e são dois atalhos para ações que já existem em botão | os dois botões virarem caminho longo demais |
 | Caminho das worktrees editável | `P` | hoje é `LUMEM_STATE_DIR`, global; editar pede coluna, migração e "e as que já estão no caminho antigo?" | o `~/.lumem` ficar no disco errado para alguém |
 | Padrão de modelo e modo por workspace | `P` | a tela 4 oferece o seletor e não há coluna onde guardar; a conversa já escolhe por sessão | repetir a mesma troca em toda sessão nova incomodar |
-| Tela de preferências | `M` | é onde `agent_config` deveria morar (buraco nº 1 do `FEATURES.md` do Open Design, e a [A16](../prd/acp-sessions/open-questions.md)); as primitivas do fluxo são o que ela vai reusar | existir a segunda coisa global para configurar |
+| Tela de preferências | `M` | é onde `agent_config` deveria morar (buraco nº 1 do `FEATURES.md` do Open Design, e a [A16](../features/006-acp-sessions/open-questions.md)); as primitivas do fluxo são o que ela vai reusar | existir a segunda coisa global para configurar |
 | Renomear e remover workspace pela tela | `P` | buraco nº 2 do `FEATURES.md`: o fluxo **cria** workspace, e nada administra | você ter mais de dois workspaces |
 | Pré-voo em Linux e Windows | `P` | as cinco checagens são as de macOS; Linux provavelmente passa e ninguém verificou | o Lumem rodar em outra máquina que não a sua |
 
@@ -525,7 +527,7 @@ deles, e a v1 do fluxo não implementa nenhum.
 
 ## H. Distribuição e projeto
 
-Os dois vieram das respostas da [distribution](../prd/distribution/open-questions.md), em 2026-08-30,
+Os dois vieram das respostas da [distribution](../features/014-distribution/open-questions.md), em 2026-08-30,
 e os dois foram adiados **na mesma frase que os prometeu**.
 
 ### O daemon em background — `M`
@@ -536,9 +538,9 @@ CLI já nasce com forma de subcomando para que isto seja acréscimo e não reesc
 
 Junto com ele, **subir com a máquina**: launchd no macOS, com o `PATH` capturado na hora do install —
 o do launchd é mínimo e não acha `git` nem o adaptador. É o que faz três semanas de uso contínuo
-([memory-dogfooding](../prd/memory-dogfooding/prd.md)) não dependerem de lembrar de abrir um terminal.
+([memory-dogfooding](../features/020-memory-dogfooding/prd.md)) não dependerem de lembrar de abrir um terminal.
 
-**De onde veio:** [D2](../prd/distribution/open-questions.md) — *"pode ser foreground, mas no futuro
+**De onde veio:** [D2](../features/014-distribution/open-questions.md) — *"pode ser foreground, mas no futuro
 deve ser background"* · **Volta quando:** você deixar o Lumem ligado o dia inteiro e o terminal
 ocupado incomodar.
 
@@ -552,7 +554,7 @@ Migrar o resto não é traduzir: são ~40 arquivos em `/docs`, o `CLAUDE.md`, as
 aparecem em tela, e a regra de convenção que hoje diz o contrário. É trabalho de uma feature, com
 gate próprio, e feito pela metade fica pior que não feito.
 
-**De onde veio:** [D11](../prd/distribution/open-questions.md) — *"concordo com você, mas deixando
+**De onde veio:** [D11](../features/014-distribution/open-questions.md) — *"concordo com você, mas deixando
 claro que eu quero passar tudo para inglês em breve"* · **Volta quando:** a primeira pessoa que não
 fala português chegar ao repositório — ou você decidir a data.
 
@@ -566,7 +568,7 @@ cuja única ação útil é limpar o registro.
 
 Tirar exige um prop novo no `ScopePanel` — o que é um custo real por um ganho de arrumação.
 
-**De onde veio:** [worktree-first-tab T7](../prd/worktree-first-tab/tasks.md), onde o desenho e o
+**De onde veio:** [worktree-first-tab T7](../features/018-worktree-first-tab/tasks.md), onde o desenho e o
 código discordaram e o código ganhou · **Volta quando:** alguém abrir uma worktree ausente e a lista
 de sessões atrapalhar em vez de informar.
 
@@ -578,7 +580,7 @@ sessão nova muda a identidade de `tabs` — o efeito do `useWorktreeTabs` que d
 do checkout quando a aba escolhida não está na lista dispara e desfaz a seleção. O resultado é uma
 sessão criada que fica atrás, de vez em quando.
 
-Anterior à [worktree-first-tab](../prd/worktree-first-tab/prd.md), e nada nela mudou isso — só ficou
+Anterior à [worktree-first-tab](../features/018-worktree-first-tab/prd.md), e nada nela mudou isso — só ficou
 mais visível, porque a aba para onde a seleção volta agora tem nome. O conserto provável é o efeito
 distinguir "a aba sumiu" de "a aba ainda não chegou", e isso quer dizer guardar uma seleção pendente:
 lógica de estado nova numa parte que hoje é uma linha.
@@ -596,24 +598,24 @@ O `.slash` dos comandos de barra navega com setas e escolhe com `⏎`; o `.slash
 
 Dar teclado a ele é `aria-activedescendant` ou foco por índice, `Home`/`End`, `Esc` para fechar e o
 foco de volta na pílula — a mesma matéria do foco preso dos modais da
-[sidebar-actions](../prd/sidebar-actions/prd.md). É uma feature de acessibilidade com escopo próprio,
+[sidebar-actions](../features/017-sidebar-actions/prd.md). É uma feature de acessibilidade com escopo próprio,
 não efeito colateral de remover um `overflow`.
 
-**De onde veio:** [composer-menus](../prd/composer-menus/prd.md), fora de escopo declarado ·
+**De onde veio:** [composer-menus](../features/023-composer-menus/prd.md), fora de escopo declarado ·
 **Volta quando:** alguém precisar trocar de modelo sem mouse, ou na primeira feature de
 acessibilidade de teclado.
 
 ### O menu que abre para baixo quando não cabe para cima — `P`
 
 Todo popover do composer abre para cima, com `bottom: 100%`. O teto de 280px faz isso caber nas
-janelas que o produto suporta — a conta está na [Q4](../prd/composer-menus/open-questions.md) —, mas
+janelas que o produto suporta — a conta está na [Q4](../features/023-composer-menus/open-questions.md) —, mas
 é um número contra outro número, e não uma garantia: uma janela baixa o bastante volta a empurrar o
 menu para fora da tela por cima.
 
 O conserto é medir o espaço disponível e virar a abertura, com re-medição no `resize`. É
 posicionamento com estado, e não uma declaração de CSS.
 
-**De onde veio:** [composer-menus Q4](../prd/composer-menus/open-questions.md) · **Volta quando:** a
+**De onde veio:** [composer-menus Q4](../features/023-composer-menus/open-questions.md) · **Volta quando:** a
 primeira janela real em que o menu não couber.
 
 ---
@@ -621,23 +623,23 @@ primeira janela real em que o menu não couber.
 ## I. Harness do repositório
 
 Tudo aqui saiu da [auditoria de harness](harness-audit.md) de 2026-09-07 e foi **tirado de escopo com
-motivo** na [dev-harness](../prd/dev-harness/prd.md). Não é o que falta descobrir: é o que já foi
+motivo** na [dev-harness](../features/024-dev-harness/prd.md). Não é o que falta descobrir: é o que já foi
 decidido não fazer agora.
 
 ### Formatador no repositório inteiro — `M`
 
-Não existe `prettier`, `biome` nem `oxlint` — nem lint, nem formatação. A [T9](../prd/dev-harness/tasks.md)
+Não existe `prettier`, `biome` nem `oxlint` — nem lint, nem formatação. A [T9](../features/024-dev-harness/tasks.md)
 traz **lint de correção** e deixa formatação de fora, porque reformatar 105.757 linhas num commit apaga
 o `git blame` de um repositório de 24 dias, onde o histórico ainda é a melhor documentação de por que
 cada linha existe.
 
-**De onde veio:** [dev-harness §4](../prd/dev-harness/prd.md) · **Volta quando:** entrar a segunda
+**De onde veio:** [dev-harness §4](../features/024-dev-harness/prd.md) · **Volta quando:** entrar a segunda
 pessoa no repositório — a partir daí a discussão de estilo passa a custar tempo de duas pessoas, que é
 exatamente o que um formatador compra.
 
 ### Sandbox de filesystem para o agente — `M`
 
-A [T4](../prd/dev-harness/tasks.md) versiona um `deny` com alvos **nomeados** (`~/.npmrc`, `~/.aws`,
+A [T4](../features/024-dev-harness/tasks.md) versiona um `deny` com alvos **nomeados** (`~/.npmrc`, `~/.aws`,
 `~/.ssh`, `~/.lumem`, `~/.claude`). Isso é lista, e lista tem borda: cobre o que a auditoria mediu, não
 o que ninguém pensou. Sandbox de verdade — o agente só vê o checkout — é a versão sem borda, e é
 decisão de ferramenta, não de repositório.
@@ -647,12 +649,12 @@ for atravessado por um caminho que ele não previu, ou quando o agente rodar sem
 
 ### `CODEOWNERS` e aprovação obrigatória em PR — `P`
 
-A [T2](../prd/dev-harness/tasks.md) protege a `main` com PR e checks obrigatórios, mas com
+A [T2](../features/024-dev-harness/tasks.md) protege a `main` com PR e checks obrigatórios, mas com
 `required_approving_review_count: 0` — o GitHub não permite aprovar a própria PR, e exigir uma
 aprovação num repositório de uma pessoa travaria o merge para sempre. `CODEOWNERS` teria a regra
 `* @vinihcrosa`, que não regula nada.
 
-**De onde veio:** [dev-harness Q8](../prd/dev-harness/open-questions.md) · **Volta quando:** o primeiro
+**De onde veio:** [dev-harness Q8](../features/024-dev-harness/open-questions.md) · **Volta quando:** o primeiro
 colaborador — no mesmo dia, `required_approving_review_count` vai a 1 e o `CODEOWNERS` nasce.
 
 ### Grading de qualidade por domínio, com histórico — `M`
@@ -660,15 +662,15 @@ colaborador — no mesmo dia, `required_approving_review_count` vai a 1 e o `COD
 A auditoria pontuou 13 dimensões uma vez, à mão. A versão contínua é nota por domínio ou camada, com
 série temporal, que responde "o `memory/` está piorando?" com curva em vez de impressão.
 
-**De onde veio:** [harness-audit §7](harness-audit.md) · **Volta quando:** a [T9](../prd/dev-harness/tasks.md)
-(lint), a [T10](../prd/dev-harness/tasks.md) (arquitetura) e a [T14](../prd/dev-harness/tasks.md)
+**De onde veio:** [harness-audit §7](harness-audit.md) · **Volta quando:** a [T9](../features/024-dev-harness/tasks.md)
+(lint), a [T10](../features/024-dev-harness/tasks.md) (arquitetura) e a [T14](../features/024-dev-harness/tasks.md)
 (mutação) existirem — antes disso não há métrica de onde tirar nota.
 
 ### Regras de lint com informação de tipo — `M`
 
-Depende da resposta da [Q2](../prd/dev-harness/open-questions.md): se o `typescript-eslint` não couber
+Depende da resposta da [Q2](../features/024-dev-harness/open-questions.md): se o `typescript-eslint` não couber
 no orçamento de 60s do `gate:build`, a T9 adota `oxlint` e a classe de defeito que **só** análise de
 tipo pega — `no-floating-promises` à frente, num daemon cheio de `async` disparado — fica sem sensor.
 
-**De onde veio:** [dev-harness T9](../prd/dev-harness/tasks.md) · **Volta quando:** a medição da Q2
+**De onde veio:** [dev-harness T9](../features/024-dev-harness/tasks.md) · **Volta quando:** a medição da Q2
 apontar `oxlint`, ou quando aparecer o primeiro bug de promessa não-aguardada em produção.

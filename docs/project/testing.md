@@ -50,6 +50,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | **barra da pull request** de ponta a ponta | e2e `pull-request.spec.ts`, com um `gh` **falso** num diretório na frente do `PATH` do daemon: processo de verdade, `argv` de verdade, saída de verdade, zero rede. Cada teste tem a **própria branch** — o daemon guarda um instantâneo por projeto, e os specs compartilham um daemon | **Não** |
 | **menus do composer** — geometria | e2e `composer-menus.spec.ts`, com o fake em `LUMEM_FAKE_MANY_MODELS=1`: vinte modelos, zero token. A pergunta **não** é `toBeVisible` — um elemento recortado por um ancestral continua no DOM, com caixa, e o matcher continua satisfeito. É `document.elementFromPoint` no meio do elemento, que é o que o mouse responde. Foi assim que se descobriu que o menu de `/comandos` era **invisível por inteiro** há três features, tendo teste de componente o tempo todo | **Não** |
 | `web/` fluxo de usuário | e2e (Playwright) | **Não** — daemon único, porta única, estado compartilhado |
+| **a própria documentação** | `scripts/check-docs.test.ts` — 21 testes sobre fixtures mais **um que roda o checador contra a árvore de verdade**, e é esse que é o gate. Link relativo resolve, âncora de heading resolve, e o `**Status:**` de cada feature está na gramática fechada e concorda com o `tasks.md` da mesma pasta | Sim |
 
 **Consequência dura:** task cujo `Tests` é `e2e` **não pode** receber `[P]`. O gargalo é a execução do teste, não o código.
 
@@ -62,6 +63,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `quick` | `pnpm gate:quick` | Testes afetados pelo trabalho atual |
 | `full` | `pnpm gate:full` | Suíte inteira + e2e |
 | `build` | `pnpm gate:build` | Typecheck de todo TS do repositório + build do web **e do bundle do daemon** |
+| `docs` | `pnpm docs:check` | Link, âncora e `**Status:**` da documentação. Já roda dentro do `gate:full` pelo `check-docs.test.ts`; o comando existe para rodar em 200 ms sem a suíte |
 | `smoke` | `pnpm smoke:install` | O pacote publicado instala num prefixo limpo e sobe. Não faz parte dos três gates de todo dia: roda no release, e à mão antes de publicar |
 
 ### Na PR, os mesmos gates
@@ -109,6 +111,29 @@ O `tsc` puro na raiz não enxergava `e2e/`, `playwright.config.ts` nem os `vites
 ---
 
 ## Armadilhas já corrigidas
+
+### Documentação não tinha gate nenhum, e a convenção falhava 1 em 5
+
+**Sintoma:** quatro links apontavam para `docs/features/003-worktree-tabs/prd.md`, arquivo que nunca
+existiu sob nome nenhum — a pasta só tem `tasks.md`. **Dois deles foram criados por tasks marcadas
+`[x]`** cujo trabalho era propagar uma nota de reversão, e ficaram lá por dias. Em paralelo, cinco
+`prd.md` declaravam um `**Status:**` que discordava do próprio `tasks.md` da mesma pasta, e os dois
+`README` da raiz publicavam *"designed, not built"* sobre uma feature com 14 arquivos em
+`packages/server/src/pr/`.
+
+**Causa:** não existia link-checker, markdown-lint, nem um único assert de que um caminho de
+documentação resolve. `grep` não serve: ele não vê **âncora de heading**, e a âncora é justamente o
+mecanismo da nota de reversão (`.../prd.md#21-isto-reverte-um-requisito-do-walking-skeleton`).
+
+**Conserto:** `scripts/check-docs.ts`, no `gate:full`. E a armadilha *dele*: ele nasceu **verde na
+primeira execução** contra o repositório, o que é o sinal de um gate que não checa nada. Cada
+checagem foi provada ficando vermelha de propósito — 45 achados de `status-value` contra a árvore de
+antes da normalização, e link e âncora por mutação na árvore de verdade.
+
+**O que ele deliberadamente não checa:** estado de checkbox. A `001-walking-skeleton` está entregue
+com **244 caixas abertas** e a `005-file-editor` com **126** — nenhuma das duas marcou uma só —,
+enquanto a `023-composer-menus` não tem caixa nenhuma. Caixa é **critério de aceite**, não barra de
+progresso, e derivar fase dela marcaria duas features entregues como em execução para sempre.
 
 Registro do que já mordeu, pra não voltar:
 
@@ -194,11 +219,11 @@ Falhava em ~2 de 5 execuções isoladas, e mais sob carga da suíte inteira — 
 
 É prima da armadilha do eco no e2e, logo abaixo: nas duas, o que parecia sinal de "o processo rodou" era sinal de "a tecla chegou".
 
-**Um `git commit` que falha depois do `git add` deixa a mudança no índice — e o commit seguinte a varre junto.** O `commitChange` é deliberadamente não-fatal: com o repositório impedido de commitar, a escrita ainda acontece e a falha vira aviso ([T3](../prd/workspace-memory/tasks.md)). O que não estava previsto é que o `add` já rodou: o arquivo fica **staged**, e o próximo `commit` — de qualquer outra memória — leva junto o que ninguém pediu naquele commit.
+**Um `git commit` que falha depois do `git add` deixa a mudança no índice — e o commit seguinte a varre junto.** O `commitChange` é deliberadamente não-fatal: com o repositório impedido de commitar, a escrita ainda acontece e a falha vira aviso ([T3](../features/007-workspace-memory/tasks.md)). O que não estava previsto é que o `add` já rodou: o arquivo fica **staged**, e o próximo `commit` — de qualquer outra memória — leva junto o que ninguém pediu naquele commit.
 
 Apareceu escrevendo o teste da chave de idempotência do `revert`, que precisava de um `commit: null` **sem** mover o histórico do arquivo. Injetar a falha no `commit` não servia: o commit seguinte movia o histórico assim mesmo, e o teste media outra coisa. A falha passou a ser injetada no **staging**, e o comentário no teste diz por quê.
 
-Fica anotado como **P6** no [tasks.md da memória](../prd/workspace-memory/tasks.md): agrupar commit por transação resolve esta e a P4 de uma vez.
+Fica anotado como **P6** no [tasks.md da memória](../features/007-workspace-memory/tasks.md): agrupar commit por transação resolve esta e a P4 de uma vez.
 
 **No e2e, esperar por texto no terminal é esperar pelo eco do que você digitou.** O `typeLine` escreve o comando e o xterm **ecoa cada caractere** — então `expect(.xterm-rows).toContainText("X")` é satisfeito no instante da digitação, antes de o comando começar a rodar.
 
@@ -268,7 +293,7 @@ Hoje `resolveBase` passa a base por `git rev-parse --verify <base>^{commit}` ant
 
 É o **espelho** dos três defeitos acima: aqueles só apareciam no Linux e o macOS os escondia; este só existe no macOS e o `ubuntu-latest` do CI não consegue reproduzi-lo — lá `.GIT` é outro nome, e um teste ingênuo passa pelo motivo errado. A consequência para quem escreve teste de caminho: **o caso é condicional ao filesystem** (`existsSync(join(root, ".GIT"))` depois de criar `.git`), e a condição precisa do comentário dizendo por quê, senão ela parece supérflua e alguém a remove.
 
-A API importa e a troca é silenciosa: `fs/promises.realpath` canoniza a caixa da última componente no macOS, e `fs.realpathSync` **não** — trocar uma pela outra devolveria `.GIT` como alvo de escrita, com a suíte verde no Linux do CI. A regra de produto que ficou disso está no §5 do [PRD do file-editor](../prd/file-editor/prd.md): toda checagem vale sobre o caminho **resolvido**, inclusive a última componente. Tudo era canonizado por `realpath` menos ela, e a assimetria era o buraco.
+A API importa e a troca é silenciosa: `fs/promises.realpath` canoniza a caixa da última componente no macOS, e `fs.realpathSync` **não** — trocar uma pela outra devolveria `.GIT` como alvo de escrita, com a suíte verde no Linux do CI. A regra de produto que ficou disso está no §5 do [PRD do file-editor](../features/005-file-editor/prd.md): toda checagem vale sobre o caminho **resolvido**, inclusive a última componente. Tudo era canonizado por `realpath` menos ela, e a assimetria era o buraco.
 
 **Cache do Turborepo mentindo.** Sem `dependsOn: ["^typecheck"]` e sem `globalDependencies: ["tsconfig.base.json"]`, o turbo hasheava só os arquivos do próprio pacote. Renomear um export em `shared` deixava `server:typecheck` em cache hit reportando verde, com o código sem compilar. Dava até pra desligar `strict` no `tsconfig.base.json` sem invalidar nada.
 
@@ -377,7 +402,7 @@ E o sinal de alerta barato: um teste que usa um helper de espera diferente do qu
 usam para a mesma classe de asserção.
 
 **`useQuery` numa chave que outra tela invalida é um re-render que você não pediu.** A
-[worktree-first-tab](../prd/worktree-first-tab/prd.md) precisava do nome do checkout **antes** do
+[worktree-first-tab](../features/018-worktree-first-tab/prd.md) precisava do nome do checkout **antes** do
 `getDetail` responder, para a primeira aba não aparecer meio segundo depois. O nome está no cache que
 a sidebar já carregou, então o painel abriu um `useQuery` na mesma chave — e o e2e passou a falhar
 numa spec que nada tinha a ver: a sessão recém-criada não vinha para a frente.
@@ -405,7 +430,7 @@ parecidos o erro era pequeno o suficiente para ninguém notar.
 
 A regra: **alinhamento entre linhas é `subgrid` na lista, nunca colunas repetidas por linha** — e o
 `gap` sobe com ele, porque com `subgrid` quem define a distância entre as trilhas é o pai. Achado
-desenhando a divisão por agente da [second-agent](../prd/second-agent/prd.md), onde o erro deixa de
+desenhando a divisão por agente da [second-agent](../features/021-second-agent/prd.md), onde o erro deixa de
 ser pequeno: comparar dois agentes é exatamente ler dois números um debaixo do outro. E o que achou
 foi **renderizar e medir**, não ler o CSS.
 
@@ -423,7 +448,7 @@ A regra: **pinar o adaptador não pina o agente**, e o teste marcado contra o ad
 usuário. Ele para em `initialize` + `session/new` — zero token — e afirma o que decidiu perguntas: que
 `loadSession` existe, que `mode` está entre as `configOptions`, e que **nenhum** `authMethod` é
 `type: "terminal"`. Essa última fica vermelha no dia em que a C3 puder ser reaberta. Da
-[second-agent](../prd/second-agent/prd.md), fase 0.
+[second-agent](../features/021-second-agent/prd.md), fase 0.
 
 ### Um comportamento que nunca teve teste não tem teste para reescrever
 
@@ -433,7 +458,7 @@ sobre `usage` sem `rateLimit`, que é o caso desse adaptador.
 
 **Causa:** o Claude sempre mandou `_meta._claude/rateLimit`, então o caminho do nulo existia por
 desenho, era exercitado por ninguém, e estava correto por sorte declarada. O mesmo padrão da
-[run-dock-open](../prd/run-dock-open/prd.md), onde o rodapé fechado nunca teve teste em três features.
+[run-dock-open](../features/015-run-dock-open/prd.md), onde o rodapé fechado nunca teve teste em três features.
 
 A regra: **quando uma medição diz "já funciona", o resultado é uma task de teste, não uma task
 fechada.** A F3 da second-agent era código no PRD e virou teste depois da medição, e é ela que impede
@@ -452,7 +477,7 @@ não distingue "ainda não chegou" de "foi recusado": ele espera o botão aparec
 A regra: **fixture usada por mais de um spec é fixture com nome fixo em um spec só.** Quem precisa de um
 repositório com um formato próprio — sem `[scripts]`, sem commit, com `origin` — cria a sua em
 `createFixtures()`, e a nomeia pelo que ela **não** tem. Achado na
-[run-dock-open T3](../prd/run-dock-open/tasks.md), onde `repo-noscripts` nasceu por isso.
+[run-dock-open T3](../features/015-run-dock-open/tasks.md), onde `repo-noscripts` nasceu por isso.
 
 ### `toBeVisible` não vê recorte, e `getByRole` clica em coisa que não existe
 
@@ -467,7 +492,7 @@ quem clicar.
 
 A regra: **quando a afirmação é "dá para clicar", a pergunta é `document.elementFromPoint` no centro
 do elemento — quem responde tem que ser ele mesmo.** É o que o
-[composer-menus.spec.ts](../prd/composer-menus/tasks.md) faz, e é o único matcher que fica vermelho
+[composer-menus.spec.ts](../features/023-composer-menus/tasks.md) faz, e é o único matcher que fica vermelho
 contra o código de antes. `toBeVisible` fica verde nos dois.
 
 ## Convenções

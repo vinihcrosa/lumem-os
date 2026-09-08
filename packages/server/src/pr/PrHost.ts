@@ -9,7 +9,7 @@ import type { GhPullRequest } from "./verdict.js";
  * por `glab`) ser uma implementação e não uma reescrita: o que muda é como se
  * pergunta, não o que se pergunta.
  *
- * Uma implementação no v1 ([Q1](../../../../docs/prd/pull-request-status/open-questions.md)):
+ * Uma implementação no v1 ([Q1](../../../../docs/features/013-pull-request-status/open-questions.md)):
  * GitHub pelo `gh`. O §5 do PRD diz por que não há duas — abstração desenhada
  * contra imaginação é abstração errada, e a segunda entra quando houver um
  * repositório de verdade para exercitá-la.

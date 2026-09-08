@@ -11,7 +11,7 @@ import { trpc } from "../lib/trpc.js";
  *
  * Poll é a única opção real: nem GitHub nem GitLab entregam webhook para uma
  * máquina sem endereço, e `gh` não tem *watch*. Os números são a
- * [Q5](../../../../docs/prd/pull-request-status/open-questions.md) — `15s` com
+ * [Q5](../../../../docs/features/013-pull-request-status/open-questions.md) — `15s` com
  * verificação rodando, `60s` sem —, e o daemon tem os mesmos do lado dele: o
  * cliente pedindo mais rápido que o TTL só recebe o valor em cache, e não vira
  * processo.

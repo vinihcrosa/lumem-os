@@ -166,7 +166,7 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   // modo do Lumem: quando o agente nao relata `modes`, quem oferece modo e o
   // daemon, e o menu dele pinta sobre bg/raised — um degrau MAIS CLARO que a
   // superficie, entao os pares acima nao cobrem. A opcao escolhida ainda ganha
-  // bg/active por cima. Ver `docs/prd/session-mode/prd.md`.
+  // bg/active por cima. Ver `docs/features/016-session-mode/prd.md`.
   { label: "titulo de opcao / menu de modo", fg: "text/primary", bg: "bg/raised", min: 4.5 },
   { label: "descricao de opcao / menu de modo", fg: "text/secondary", bg: "bg/raised", min: 4.5 },
   { label: "de quem e a regra / menu de modo", fg: "text/tertiary", bg: "bg/raised", min: 3.0 },

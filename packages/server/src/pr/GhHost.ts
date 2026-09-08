@@ -19,13 +19,13 @@ import type { GhPullRequest } from "./verdict.js";
 /**
  * GitHub, pelo `gh`.
  *
- * A [Q1](../../../../docs/prd/pull-request-status/open-questions.md) escolheu o
+ * A [Q1](../../../../docs/features/013-pull-request-status/open-questions.md) escolheu o
  * CLI em vez da API com token nosso, e o motivo não é performance: **o Lumem
  * não guarda token, não pede token e não lê token**, e essa ausência é a maior
  * parte da resposta de segurança da feature. O `gh` já resolveu autenticação,
  * na keychain da sua máquina.
  *
- * O que ele custa está medido em `docs/prd/pull-request-status/spike.md`.
+ * O que ele custa está medido em `docs/features/013-pull-request-status/spike.md`.
  */
 
 /** Quantas PRs pedir. O spike mediu que o custo cresce com este número. */

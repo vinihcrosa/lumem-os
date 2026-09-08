@@ -1,6 +1,6 @@
 # Auditoria de harness — a linha de base medida
 
-> **O que este arquivo é:** o lastro da [dev-harness](../prd/dev-harness/prd.md). Toda afirmação da
+> **O que este arquivo é:** o lastro da [dev-harness](../features/024-dev-harness/prd.md). Toda afirmação da
 > PRD e de cada task sai de um número aqui, medido nesta máquina em **2026-09-07**, no commit
 > `40a0883` (v0.3.1). Quem contestar uma task contesta um número, não uma opinião.
 >
@@ -80,8 +80,15 @@ Verificado nos manifestos e na raiz, não suposto:
 | Caminhos de código citados em backtick (fora de `docs/references/`) | **242**, **20 inexistentes** |
 | Linha duplicada no índice | 1 — `task-cycle-evidence.md` aparece duas vezes em `docs/README.md` |
 
-Os 4 links: dois apontam para `docs/prd/worktree-tabs/prd.md`, que nunca existiu (a pasta só tem
+Os 4 links: dois apontam para `docs/features/003-worktree-tabs/prd.md`, que nunca existiu (a pasta só tem
 `tasks.md`), e dois em `compozy.md` apontam para arquivos de **outro** repositório.
+
+> **Metade consertada em 2026-09-07, pela [025-docs-contract](../features/025-docs-contract/prd.md).**
+> Os dois de `003-worktree-tabs` passaram a apontar para o `tasks.md`, e o link-checker do
+> `gate:full` nasceu nessa feature — então esta linha da tabela deixa de ser medição e passa a ser
+> gate. **Os dois de `compozy.md` continuam quebrados**, e continuam sendo trabalho da
+> [T7 da dev-harness](../features/024-dev-harness/tasks.md), junto com os 20 caminhos em backtick e
+> a linha duplicada do índice — nada disso foi tocado aqui.
 
 Os 20 caminhos são de `tasks.md` de features entregues, citando arquivo que a própria feature
 seguinte renomeou: `packages/server/src/setup/probe.ts`, `packages/web/src/components/WorktreeDetail.tsx`,
@@ -104,14 +111,14 @@ política alguma. A ordem é por severidade.
 
 | # | Ação | Evidência | Controle | Task |
 |---|---|---|---|---|
-| 1 | `npm publish` de versão arbitrária no pacote público | `~/.npmrc` tem uma linha `_authToken`; `@vinihcrosa/lumem-os@0.3.1` no ar | apagar o token — o OIDC não o usa | [T1](../prd/dev-harness/tasks.md) |
+| 1 | `npm publish` de versão arbitrária no pacote público | `~/.npmrc` tem uma linha `_authToken`; `@vinihcrosa/lumem-os@0.3.1` no ar | apagar o token — o OIDC não o usa | [T1](../features/024-dev-harness/tasks.md) |
 | 2 | `git push --force origin main` | sem proteção, sem ruleset | ruleset com `non_fast_forward` | T2 |
 | 3 | `git push --tags` → `release.yml` publica | `on: push: tags: ["v*"]`; environment `npm` com `protection_rules: []` | reviewer no environment | T3 |
 | 4 | `gh api -X DELETE repos/...` | token do `gh` com scope **`delete_repo`** | revogar o scope | T3 |
 | 5 | mesclar PR vermelha | nenhum check obrigatório | `required_status_checks` | T2 |
 | 6 | ler `~/.aws/credentials` | arquivo existe (116 bytes) | `deny` de leitura fora do checkout | T4 |
 | 7 | `rm -rf ~/.lumem` — estado de produção do produto na máquina | fora do checkout, sem guarda; `testing.md` registra que a suíte já escreveu ali | `deny` de escrita fora do checkout | T4 |
-| 8 | falar com o daemon sem credencial: abrir shell, escrever em qualquer checkout, gastar token | [`daemon-auth`](../prd/daemon-auth/prd.md): "nenhuma autenticação em rota nenhuma" | fase 1 da `daemon-auth` | — |
+| 8 | falar com o daemon sem credencial: abrir shell, escrever em qualquer checkout, gastar token | [`daemon-auth`](../features/019-daemon-auth/prd.md): "nenhuma autenticação em rota nenhuma" | fase 1 da `daemon-auth` | — |
 
 Os itens 1 a 4 são irreversíveis ou quase, custam um comando, e nenhum passa por confirmação. É o que
 trava a autonomia — mais do que qualquer lacuna de teste.
@@ -161,7 +168,7 @@ merge, como conselho, e nenhum está *no* merge, como portão.
 | O quê | Por quê | O que seria necessário |
 |---|---|---|
 | Bootstrap **frio** | o store do pnpm e o cache do Playwright estão quentes; 2,1s é o número quente | clone limpo com `PNPM_STORE_PATH` descartável |
-| Cobertura e mutation score | **não existe** configuração de nenhum dos dois — nada a medir | [T14](../prd/dev-harness/tasks.md) |
+| Cobertura e mutation score | **não existe** configuração de nenhum dos dois — nada a medir | [T14](../features/024-dev-harness/tasks.md) |
 | Flakiness histórica | o CI não retém histórico legível de re-run; minha execução deu 78/78 sem retry, amostra de um | 10 execuções seguidas, ou retry registrado por spec |
 | Se o `tokens.css` está em dia com o Open Design **de hoje** | `design:sync --check` lê o Open Design *local*; não roda em CI | fonte remota do projeto no Open Design |
 | Se as PRs tiveram review humano registrado | com um autor só, review formal não existiria | respondido em §10 |
@@ -173,7 +180,7 @@ Respondidas pelo Vinicius em **2026-09-07**, e é delas que sai o corte da PRD:
 
 1. **O `_authToken` do `~/.npmrc` serve para quê?** *"Era só para CD, para publicar a release, mas já
    foi atualizado para o novo método, pode retirar ele."* → o item de maior redução de risco por
-   unidade de esforço virou **deletar uma linha** ([T1](../prd/dev-harness/tasks.md)).
+   unidade de esforço virou **deletar uma linha** ([T1](../features/024-dev-harness/tasks.md)).
 2. **`main` sem proteção é escolha ou inércia?** *"É inércia. No momento é só um humano, mas faz
    sentido adicionar PR checks."* → T2 exige PR e os dois checks, com **zero aprovações**, porque
    ninguém aprova a própria PR no GitHub e um repositório de uma pessoa não pode depender disso.
