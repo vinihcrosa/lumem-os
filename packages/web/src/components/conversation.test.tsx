@@ -1295,3 +1295,100 @@ describe("quem está falando", () => {
     expect(screen.getByText("agente")).toBeInTheDocument();
   });
 });
+
+describe("acompanhar a conversa", () => {
+  /**
+   * Dá ao rolador uma geometria, que o jsdom não tem.
+   *
+   * Sem isto `scrollHeight` e `clientHeight` valem 0 e o teste passa pelo motivo
+   * errado: tudo cabe, nada rola, e a asserção não distingue "seguiu" de "não
+   * tinha para onde ir".
+   */
+  function measure(node: HTMLElement, content: () => number): void {
+    Object.defineProperty(node, "scrollHeight", { configurable: true, get: content });
+    Object.defineProperty(node, "clientHeight", { configurable: true, value: 300 });
+  }
+
+  function scroller(): HTMLElement {
+    const node = document.querySelector<HTMLElement>(".conv__scroll");
+    if (!node) throw new Error("a conversa não montou");
+    return node;
+  }
+
+  it("segue o texto que chega dentro do mesmo turno", async () => {
+    /*
+     * O defeito relatado, e o motivo dele: o gatilho era
+     * `[turns.length, streaming]`, e um pedaço acrescentado à última mensagem
+     * não move nenhum dos dois. O agente escrevia e o texto saía por baixo.
+     */
+    const { socket } = mount();
+    socket.deliver(attached());
+
+    await waitFor(() => expect(document.querySelector(".conv__scroll")).not.toBeNull());
+
+    const node = scroller();
+    let height = 400;
+    measure(node, () => height);
+
+    act(() => {
+      socket.deliver({
+        type: "event",
+        at: clock,
+        event: { type: "message", messageId: "a-1", role: "agent", text: "primeiro pedaço " },
+      });
+    });
+
+    // O turno já existe; daqui em diante só o texto cresce.
+    height = 900;
+    act(() => {
+      socket.deliver({
+        type: "event",
+        at: clock,
+        event: { type: "message", messageId: "a-1", role: "agent", text: "segundo pedaço" },
+      });
+    });
+
+    await waitFor(() => expect(node.scrollTop).toBe(900));
+  });
+
+  it("para de seguir quando quem lê subiu, e volta a seguir quando desce", async () => {
+    const { socket } = mount();
+    socket.deliver(attached());
+
+    await waitFor(() => expect(document.querySelector(".conv__scroll")).not.toBeNull());
+
+    const node = scroller();
+    let height = 1_000;
+    measure(node, () => height);
+
+    // Subiu para reler: 1000 - 200 - 300 = 500px do fim, bem além da tolerância.
+    node.scrollTop = 200;
+    fireEvent.scroll(node);
+
+    height = 1_600;
+    act(() => {
+      socket.deliver({
+        type: "event",
+        at: clock,
+        event: { type: "message", messageId: "a-2", role: "agent", text: "mais texto" },
+      });
+    });
+
+    await waitFor(() => expect(node.scrollTop).toBe(200));
+
+    // Desceu de volta ao fim: volta a acompanhar sozinho.
+    node.scrollTop = 1_300;
+    fireEvent.scroll(node);
+
+    height = 2_000;
+    act(() => {
+      socket.deliver({
+        type: "event",
+        at: clock,
+        event: { type: "message", messageId: "a-2", role: "agent", text: " e mais" },
+      });
+    });
+
+    await waitFor(() => expect(node.scrollTop).toBe(2_000));
+  });
+});

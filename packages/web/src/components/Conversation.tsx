@@ -397,7 +397,7 @@ export function Conversation({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [active, readOnly, streaming, pending, menuOpen, interrupt]);
 
-  const scroll = useAutoScroll([conversation.turns.length, conversation.streaming]);
+  const scroll = useAutoScroll();
 
   return (
     <div className="conv">
@@ -798,27 +798,43 @@ function EmptyConversation({ ready }: { ready: boolean }) {
  * Scrolling to the bottom on every event is right until someone scrolls up to
  * read something, at which point it is the most hostile thing an interface can
  * do. So it only follows when it was already at the bottom.
+ *
+ * What decides *when* to follow is the DOM, not a dependency array. The array
+ * was `[turns.length, streaming]`, and neither moves while the agent writes: a
+ * chunk appended to the last message is the same number of turns and the same
+ * boolean, so the text that just arrived scrolled out of view and nothing put
+ * it back. A `MutationObserver` on the scroller sees every one of them —
+ * appended chunk, tool card, plan, terminal row — without the caller having to
+ * enumerate what can grow.
  */
-function useAutoScroll(deps: readonly unknown[]): React.RefCallback<HTMLDivElement> {
-  const nodeRef = useRef<HTMLDivElement | null>(null);
+function useAutoScroll(): React.RefCallback<HTMLDivElement> {
   const pinnedRef = useRef(true);
+  const detachRef = useRef<(() => void) | null>(null);
 
-  const ref = useCallback((node: HTMLDivElement | null) => {
-    nodeRef.current = node;
+  return useCallback((node: HTMLDivElement | null) => {
+    detachRef.current?.();
+    detachRef.current = null;
     if (!node) return;
+
+    const follow = (): void => {
+      if (pinnedRef.current) node.scrollTop = node.scrollHeight;
+    };
     const onScroll = (): void => {
       // A small tolerance: a fractional scrollTop from a zoomed page would
       // otherwise read as "the user scrolled up by half a pixel".
       pinnedRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 24;
     };
-    node.addEventListener("scroll", onScroll);
+
+    node.addEventListener("scroll", onScroll, { passive: true });
+    // `characterData` is the streaming case: the chunk that grows a text node
+    // already on screen adds no element, so `childList` alone would miss it.
+    const observer = new MutationObserver(follow);
+    observer.observe(node, { childList: true, subtree: true, characterData: true });
+    follow();
+
+    detachRef.current = () => {
+      node.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
   }, []);
-
-  useEffect(() => {
-    const node = nodeRef.current;
-    if (node && pinnedRef.current) node.scrollTop = node.scrollHeight;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the caller names what moved
-  }, deps);
-
-  return ref;
 }
