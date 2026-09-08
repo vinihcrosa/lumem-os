@@ -138,7 +138,9 @@ export const worktreeRouter = router({
           repoPath: project.path,
           branch: input.name,
           targetPath: path,
-          baseBranch: project.defaultBranch,
+          // A origem de sempre, agora dita por extenso. Sem `from` no pedido, é
+          // esta — byte por byte o mesmo `argv` de antes da `026-worktree-from`.
+          source: { kind: "new-branch", base: project.defaultBranch },
         });
 
         try {

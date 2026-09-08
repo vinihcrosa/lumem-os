@@ -21,6 +21,28 @@ async function repoWithWorktreeRoot(): Promise<{ repo: string; root: string }> {
   return { repo, root };
 }
 
+/**
+ * Um repositório com um remoto de verdade — outro repositório em disco.
+ *
+ * Sem rede e sem dublê: `git remote add` mais `git fetch` de um caminho local
+ * produzem `refs/remotes/origin/*` iguais aos de um clone. É o único jeito de
+ * exercitar o caminho de branch remota, que é onde mora a armadilha do HEAD
+ * destacado.
+ */
+async function repoWithRemote(branches: string[] = ["feature-a"]): Promise<{
+  repo: string;
+  root: string;
+  remote: string;
+}> {
+  const remote = await createRepo({ branch: "main" });
+  for (const branch of branches) await runGit(remote, "branch", branch);
+
+  const { repo, root } = await repoWithWorktreeRoot();
+  await runGit(repo, "remote", "add", "origin", remote);
+  await runGit(repo, "fetch", "origin");
+  return { repo, root, remote };
+}
+
 describe("branchExists", () => {
   it("finds a branch that is there", async () => {
     const repo = await createRepo({ branch: "main" });
@@ -40,7 +62,7 @@ describe("addWorktree", () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
 
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
 
     expect(existsSync(join(target, "README.md"))).toBe(true);
     expect((await runGit(target, "branch", "--show-current")).trim()).toBe("teste");
@@ -52,7 +74,7 @@ describe("addWorktree", () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
 
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
 
     expect(await runGit(repo, "worktree", "list")).toContain("teste");
   });
@@ -67,7 +89,7 @@ describe("addWorktree", () => {
       repoPath: repo,
       branch: "main",
       targetPath: target,
-      baseBranch: "main",
+      source: { kind: "new-branch", base: "main" },
     });
 
     await expect(failure).rejects.toThrow(DomainError);
@@ -85,7 +107,7 @@ describe("addWorktree", () => {
       repoPath: repo,
       branch: "feat/login",
       targetPath: target,
-      baseBranch: "main",
+      source: { kind: "new-branch", base: "main" },
     });
 
     expect(existsSync(join(target, "README.md"))).toBe(true);
@@ -104,7 +126,7 @@ describe("addWorktree", () => {
       repoPath: repo,
       branch: "from-main",
       targetPath: target,
-      baseBranch: "main",
+      source: { kind: "new-branch", base: "main" },
     });
 
     expect(existsSync(join(target, "only-here.txt"))).toBe(false);
@@ -122,7 +144,7 @@ describe("addWorktree", () => {
         repoPath: repo,
         branch: "teste",
         targetPath: occupied,
-        baseBranch: "main",
+        source: { kind: "new-branch", base: "main" },
       }),
     ).rejects.toThrow(DomainError);
 
@@ -137,14 +159,14 @@ describe("addWorktree", () => {
     mkdirSync(occupied, { recursive: true });
     writeFileSync(join(occupied, "in-the-way.txt"), "x");
     await expect(
-      git.addWorktree({ repoPath: repo, branch: "teste", targetPath: occupied, baseBranch: "main" }),
+      git.addWorktree({ repoPath: repo, branch: "teste", targetPath: occupied, source: { kind: "new-branch", base: "main" } }),
     ).rejects.toThrow();
 
     await git.addWorktree({
       repoPath: repo,
       branch: "teste",
       targetPath: join(root, "teste"),
-      baseBranch: "main",
+      source: { kind: "new-branch", base: "main" },
     });
 
     expect(existsSync(join(root, "teste", "README.md"))).toBe(true);
@@ -158,9 +180,200 @@ describe("addWorktree", () => {
         repoPath: repo,
         branch: "teste",
         targetPath: join(root, "teste"),
-        baseBranch: "no-such-base",
+        source: { kind: "new-branch", base: "no-such-base" },
       }),
     ).rejects.toThrow(/no-such-base/);
+  });
+});
+
+describe("addWorktree, de uma branch que já existe", () => {
+  it("entra na branch local sem criar nada, e sem mexer no upstream dela", async () => {
+    // O upstream é parte do estado da branch, e uma worktree nova não é motivo
+    // para reconfigurá-lo: quem já tinha `origin/feature-a` continua tendo.
+    const { repo, root } = await repoWithRemote(["feature-a"]);
+    await runGit(repo, "branch", "feature-a", "origin/feature-a");
+    const target = join(root, "a");
+
+    await git.addWorktree({
+      repoPath: repo,
+      branch: "feature-a",
+      targetPath: target,
+      source: { kind: "existing-branch" },
+    });
+
+    expect((await runGit(target, "branch", "--show-current")).trim()).toBe("feature-a");
+    expect((await runGit(target, "rev-parse", "--abbrev-ref", "@{u}")).trim()).toBe(
+      "origin/feature-a",
+    );
+  });
+
+  it("recusa antes de executar quando a branch não existe", async () => {
+    // Sem isto o git responde `invalid reference`, que fala de refs e não de
+    // worktree — a mesma razão pela qual a F4.2 já não deixava ele responder.
+    const { repo, root } = await repoWithWorktreeRoot();
+
+    const failure = git.addWorktree({
+      repoPath: repo,
+      branch: "fantasma",
+      targetPath: join(root, "f"),
+      source: { kind: "existing-branch" },
+    });
+
+    await expect(failure).rejects.toThrow(DomainError);
+    await expect(failure).rejects.toThrow(/não existe/);
+  });
+
+  it("diz qual checkout já tem a branch, em vez de deixar o git recusar", async () => {
+    // Medido: o git responde `fatal: 'x' is already used by worktree at <path>`
+    // com código 128 — e só DEPOIS do gesto. `listWorktrees` sabe o mesmo antes.
+    const { repo, root } = await repoWithWorktreeRoot();
+    await git.addWorktree({
+      repoPath: repo,
+      branch: "ocupada",
+      targetPath: join(root, "primeira"),
+      source: { kind: "new-branch", base: "main" },
+    });
+
+    const failure = git.addWorktree({
+      repoPath: repo,
+      branch: "ocupada",
+      targetPath: join(root, "segunda"),
+      source: { kind: "existing-branch" },
+    });
+
+    await expect(failure).rejects.toThrow(DomainError);
+    await expect(failure).rejects.toThrow(/primeira/);
+    expect(existsSync(join(root, "segunda"))).toBe(false);
+  });
+
+  it("não apaga a branch quando o alvo está ocupado", async () => {
+    // Q7: a limpeza só vale para branch que NÓS criamos. Apagar uma que já
+    // existia seria apagar trabalho por causa de um diretório ocupado.
+    const { repo, root } = await repoWithWorktreeRoot();
+    await runGit(repo, "branch", "preciosa");
+    const occupied = join(root, "occupied");
+    mkdirSync(occupied, { recursive: true });
+    writeFileSync(join(occupied, "in-the-way.txt"), "x");
+
+    await expect(
+      git.addWorktree({
+        repoPath: repo,
+        branch: "preciosa",
+        targetPath: occupied,
+        source: { kind: "existing-branch" },
+      }),
+    ).rejects.toThrow();
+
+    expect(await git.branchExists(repo, "preciosa")).toBe(true);
+  });
+});
+
+describe("addWorktree, de uma branch remota", () => {
+  it("cria a branch local rastreando a remota — e o HEAD não fica destacado", async () => {
+    // A armadilha medida: `git worktree add <path> origin/<branch>` devolve
+    // exit 0 e HEAD DESTACADO. A worktree existe, funciona e não tem branch —
+    // e a linha da sidebar, o ahead/behind e o status de PR assumem que tem.
+    const { repo, root } = await repoWithRemote(["feature-a"]);
+    const target = join(root, "a");
+
+    await git.addWorktree({
+      repoPath: repo,
+      branch: "feature-a",
+      targetPath: target,
+      source: { kind: "remote-branch", remoteRef: "origin/feature-a" },
+    });
+
+    expect((await runGit(target, "branch", "--show-current")).trim()).toBe("feature-a");
+    expect((await runGit(target, "rev-parse", "--abbrev-ref", "@{u}")).trim()).toBe(
+      "origin/feature-a",
+    );
+  });
+
+  it("aceita um nome local diferente do nome remoto", async () => {
+    const { repo, root } = await repoWithRemote(["feature-a"]);
+    const target = join(root, "outro-nome");
+
+    await git.addWorktree({
+      repoPath: repo,
+      branch: "outro-nome",
+      targetPath: target,
+      source: { kind: "remote-branch", remoteRef: "origin/feature-a" },
+    });
+
+    expect((await runGit(target, "branch", "--show-current")).trim()).toBe("outro-nome");
+    expect((await runGit(target, "rev-parse", "--abbrev-ref", "@{u}")).trim()).toBe(
+      "origin/feature-a",
+    );
+  });
+
+  it("não deixa branch para trás quando o alvo está ocupado", async () => {
+    const { repo, root } = await repoWithRemote(["feature-a"]);
+    const occupied = join(root, "occupied");
+    mkdirSync(occupied, { recursive: true });
+    writeFileSync(join(occupied, "in-the-way.txt"), "x");
+
+    await expect(
+      git.addWorktree({
+        repoPath: repo,
+        branch: "feature-a",
+        targetPath: occupied,
+        source: { kind: "remote-branch", remoteRef: "origin/feature-a" },
+      }),
+    ).rejects.toThrow();
+
+    expect(await git.branchExists(repo, "feature-a")).toBe(false);
+  });
+});
+
+describe("listBranches", () => {
+  it("lista local e remota sem duplicar o mesmo nome", async () => {
+    const { repo } = await repoWithRemote(["feature-a", "feature-b"]);
+    await runGit(repo, "branch", "so-local");
+
+    const branches = await git.listBranches(repo);
+    const byName = new Map(branches.map((branch) => [branch.name, branch]));
+
+    expect(byName.get("main")).toMatchObject({ local: true, remotes: ["origin"] });
+    expect(byName.get("feature-a")).toMatchObject({ local: false, remotes: ["origin"] });
+    expect(byName.get("so-local")).toMatchObject({ local: true, remotes: [] });
+    expect(branches.filter((branch) => branch.name === "main")).toHaveLength(1);
+  });
+
+  it("não devolve o HEAD simbólico do remoto como se fosse branch", async () => {
+    const { repo } = await repoWithRemote();
+    await runGit(repo, "remote", "set-head", "origin", "main");
+
+    expect((await git.listBranches(repo)).map((branch) => branch.name)).not.toContain("HEAD");
+  });
+
+  it("diz qual checkout ocupa cada branch, inclusive o principal", async () => {
+    const { repo, root } = await repoWithWorktreeRoot();
+    await git.addWorktree({
+      repoPath: repo,
+      branch: "ocupada",
+      targetPath: join(root, "ocupada"),
+      source: { kind: "new-branch", base: "main" },
+    });
+    await runGit(repo, "branch", "livre");
+
+    const byName = new Map((await git.listBranches(repo)).map((b) => [b.name, b]));
+
+    expect(byName.get("ocupada")?.worktreePath).toMatch(/ocupada$/);
+    expect(byName.get("main")?.worktreePath).not.toBeNull();
+    expect(byName.get("livre")?.worktreePath).toBeNull();
+  });
+
+  it("junta dois remotos com o mesmo nome numa entrada só", async () => {
+    // É o caso que faz a forma esperta do `worktree add` mentir: com o nome em
+    // dois remotos ela responde `invalid reference` sobre uma ref que existe
+    // duas vezes. Quem escolhe precisa ver os dois remotos para qualificar.
+    const { repo, remote } = await repoWithRemote(["feature-a"]);
+    await runGit(repo, "remote", "add", "outro", remote);
+    await runGit(repo, "fetch", "outro");
+
+    const entry = (await git.listBranches(repo)).find((b) => b.name === "feature-a");
+
+    expect(entry?.remotes).toEqual(["origin", "outro"]);
   });
 });
 
@@ -171,7 +384,7 @@ describe("listWorktrees", () => {
       repoPath: repo,
       branch: "teste",
       targetPath: join(root, "teste"),
-      baseBranch: "main",
+      source: { kind: "new-branch", base: "main" },
     });
 
     const entries = await git.listWorktrees(repo);
@@ -185,7 +398,7 @@ describe("listWorktrees", () => {
   it("marks a worktree whose directory was deleted by hand as prunable", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
 
     rmSync(target, { recursive: true, force: true });
 
@@ -228,7 +441,7 @@ describe("removeWorktree", () => {
     // would throw away commits nobody asked to lose.
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
 
     await git.removeWorktree({ repoPath: repo, path: target });
 
@@ -239,7 +452,7 @@ describe("removeWorktree", () => {
   it("refuses a dirty worktree unless forced", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
     writeFileSync(join(target, "README.md"), "changed");
 
     await expect(git.removeWorktree({ repoPath: repo, path: target })).rejects.toThrow(DomainError);
@@ -249,7 +462,7 @@ describe("removeWorktree", () => {
   it("removes a dirty worktree when forced", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
     writeFileSync(join(target, "README.md"), "changed");
 
     await git.removeWorktree({ repoPath: repo, path: target, force: true });
@@ -260,7 +473,7 @@ describe("removeWorktree", () => {
   it("runs from the repository, so a directory deleted by hand can still be dropped", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
     rmSync(target, { recursive: true, force: true });
 
     await git.removeWorktree({ repoPath: repo, path: target, force: true });
@@ -273,7 +486,7 @@ describe("getStatus", () => {
   it("reports a fresh worktree as clean", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
 
     expect(await git.getStatus(target)).toEqual({ clean: true, changedFiles: 0 });
   });
@@ -281,7 +494,7 @@ describe("getStatus", () => {
   it("counts a modified file", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
     writeFileSync(join(target, "README.md"), "changed");
 
     expect(await git.getStatus(target)).toEqual({ clean: false, changedFiles: 1 });
@@ -292,7 +505,7 @@ describe("getStatus", () => {
     // removal is the worst outcome this whole check exists to prevent.
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
     writeFileSync(join(target, "novo.txt"), "x");
 
     expect(await git.getStatus(target)).toEqual({ clean: false, changedFiles: 1 });
@@ -303,7 +516,7 @@ describe("getStatus", () => {
     // how many files are in it.
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
     mkdirSync(join(target, "novo"));
     writeFileSync(join(target, "novo", "a.txt"), "x");
     writeFileSync(join(target, "novo", "b.txt"), "x");
@@ -314,7 +527,7 @@ describe("getStatus", () => {
   it("adds up several kinds of change", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
     writeFileSync(join(target, "README.md"), "changed");
     writeFileSync(join(target, "novo.txt"), "x");
 
@@ -342,7 +555,7 @@ describe("getAheadBehind", () => {
   it("is zero and zero right after creation", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
 
     expect(await git.getAheadBehind(target, "main")).toEqual({ ahead: 0, behind: 0 });
   });
@@ -350,7 +563,7 @@ describe("getAheadBehind", () => {
   it("counts commits made in the worktree as ahead", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
     writeFileSync(join(target, "a.txt"), "x");
     await runGit(target, "add", "a.txt");
     await runGit(target, "commit", "-m", "work");
@@ -361,7 +574,7 @@ describe("getAheadBehind", () => {
   it("counts commits made on the base as behind", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
     writeFileSync(join(repo, "b.txt"), "x");
     await runGit(repo, "add", "b.txt");
     await runGit(repo, "commit", "-m", "moved on");
@@ -372,7 +585,7 @@ describe("getAheadBehind", () => {
   it("counts both sides when they diverged", async () => {
     const { repo, root } = await repoWithWorktreeRoot();
     const target = join(root, "teste");
-    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, baseBranch: "main" });
+    await git.addWorktree({ repoPath: repo, branch: "teste", targetPath: target, source: { kind: "new-branch", base: "main" } });
     writeFileSync(join(target, "a.txt"), "x");
     await runGit(target, "add", "a.txt");
     await runGit(target, "commit", "-m", "work");

@@ -23,7 +23,7 @@ A ordem tem uma regra: **o que decide vem antes do que escreve; git puro antes d
 | `packages/server/src/git/GitService.ts` | `AddWorktreeInput` vira união; dois casos novos; a limpeza fica condicional; nasce `listBranches` |
 | `packages/server/src/pr/GhHost.ts`, `PrHost.ts` | `issue list`, com projeção e fixture |
 | `packages/server/src/pr/PrCache.ts` | onde as issues moram |
-| `packages/server/src/routers/worktree.ts` | `from` no `create`, e a `preview` contando a verdade |
+| `packages/server/src/routers/worktree.ts` | `from` no `create`, e a `preview` contando a verdade. Na fase 2 ele só passou a **nomear** a origem de sempre — `{ kind: "new-branch" }`, o mesmo `argv` |
 | `packages/web/src/components/CreateWorktreeDialog.tsx` | o seletor de origem |
 | `e2e/support/fake-gh.mjs` | `issue list` — hoje ele só responde `repo view` e `pr list` |
 
@@ -127,7 +127,21 @@ preservado; branch remota entra com `branch --show-current` **não-vazio** (é o
 que o pega); alvo ocupado com branch que **não existia** não deixa branch para trás; alvo ocupado com
 branch que **já existia** não a apaga.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ aberta
+**Status**: ✅ entregue — `AddWorktreeSource` é a união, e o `argv` de cada origem mora numa função
+só (`argvForWorktreeAdd`), que é o que a [T10](#t10-a-preview-para-de-mentir) precisa para mostrar o
+comando **que vai rodar** em vez de uma string parecida montada em outro arquivo. Sete testes novos,
+todos com repositório e remoto de verdade — o remoto é outro repositório em disco, porque
+`refs/remotes/*` de um `fetch` local são iguais aos de um clone e não custam rede.
+
+Três decisões ficaram escritas no código, e nenhuma é estilo:
+
+- **`existedBefore` é lido uma vez, antes de tudo**, e serve a três coisas: a recusa, o `argv` e a
+  limpeza. Perguntar depois da falha responderia sempre `true` — a falha é exatamente o instante em
+  que o git já criou a branch.
+- **a limpeza virou condicional** ([Q7](open-questions.md)): sem ela, uma origem `existing-branch`
+  com o alvo ocupado apagaria a branch de outra pessoa por causa de um diretório.
+- **`listWorktrees` responde antes do git** ([Q5](open-questions.md)): a mensagem do git tem a mesma
+  informação e chega depois do gesto.
 
 #### T6: `listBranches`, com a worktree que ocupa cada uma
 
@@ -138,7 +152,15 @@ de `:419` já faz metade disso e passa a compartilhar a leitura.
 **Done when**: num repositório com duas worktrees, a lista marca as duas branches ocupadas com o
 caminho certo, e uma branch remota sem par local aparece uma vez só.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ aberta
+**Status**: ✅ entregue — `BranchEntry` traz `local`, `remotes[]` e `worktreePath`. Quatro testes,
+inclusive os dois casos que a bancada da fase 0 achou: `refs/remotes/origin/HEAD` **não** vira uma
+branch chamada `HEAD`, e o mesmo nome em dois remotos vira **uma** entrada com `["origin", "outro"]`
+— que é o dado sem o qual a tela não consegue qualificar a ref, e é por isso que a forma esperta do
+git mente ali.
+
+O `hasRemoteBranch` passou a compartilhar o `readRefs`, mas **não** o `worktree list`: ele é
+perguntado por worktree na barra de PR, e um processo a mais por linha da sidebar seria pagar a
+leitura de todo mundo para responder sobre uma.
 
 ---
 
