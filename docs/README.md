@@ -487,6 +487,30 @@ declarações informais de supersessão, 4 links mortos para um arquivo que nunc
 
 ---
 
+## Proposta em 2026-09-07 — a partir de uma anotação na tela
+
+### [worktree-from/](features/026-worktree-from/) — de onde cortar
+
+A worktree nova nasce **sempre** da branch default, com um campo só. O produto já lê o host — põe
+`● #19` na linha da sidebar — e mesmo assim o gesto mais comum ignora tudo isso: para trabalhar na PR
+#19 você digita um nome à mão e vai fazer `checkout` no terminal. A feature dá ao modal **quatro
+origens**: default, branch existente, issue e PR.
+
+É a segunda do repositório a **medir antes de escrever**, e a medição mudou três decisões: `git
+worktree add <path> origin/<branch>` entrega **HEAD destacado com `exit=0`** — o caminho ingênuo não
+erra, entrega uma worktree quebrada dizendo que deu certo; a forma esperta do comando **mente** quando
+dois remotos têm a mesma branch (`invalid reference` sobre uma ref que existe duas vezes); e *"três
+listagens por abertura"* nunca foi verdade — branch é disco (10 ms), PR já está no `PrCache`, e issue
+é **uma** leitura de ~0,7 s que começa depois de o modal existir.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](features/026-worktree-from/prd.md) | o §3 é a bancada: nove casos de `git worktree add` com saída e código real, o custo medido de cada leitura, e o que `gh issue develop` faz de fato — **ele escreve no host** |
+| [open-questions.md](features/026-worktree-from/open-questions.md) | 9 perguntas, **9 respondidas**: as 5 do pedido mais 4 que a medição abriu. Três contrariam o que o pedido propunha, inclusive a regra de quando apagar a branch órfã |
+| [tasks.md](features/026-worktree-from/tasks.md) | 14 tasks em 6 fases, a fase 0 entregue. Zero migração: `name` e `branch` já são colunas separadas, e esta é a primeira feature em que elas divergem |
+
+---
+
 ## Convenções
 
 > **`adr/` decide · `project/` sustenta · `features/` executa · o código está em vigor.**

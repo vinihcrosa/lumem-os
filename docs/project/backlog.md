@@ -267,6 +267,28 @@ O que **ficou** de fora, e portanto continua aqui:
 | "O check quebrou, peça ao agente para consertar" | `M` | a ponte entre a barra e a sessão ACP. É a ideia mais valiosa da lista e a mais perigosa: põe texto da internet dentro de um prompt (§4.7 do PRD) | ter um portão desenhado para texto de fora virar instrução |
 | A aba `Review` — threads, comentários inline, sugestões | `L` | é outra feature inteira, e sempre foi | depois do segundo host |
 
+### `fetch` sob demanda ao cortar de uma PR — `P`
+
+A [026-worktree-from](../features/026-worktree-from/prd.md) só oferece PR cuja head **já esteja no
+disco**: a checagem é `refs/remotes/*/<headRefName>`, 10 ms, e mantém de pé o *"sem fetch, use o que
+está no disco"* da [001-walking-skeleton](../features/001-walking-skeleton/prd.md). A versão cara vai
+à rede quando a head falta — o que é um `git fetch` disparado por abrir um modal, num repositório que
+pode ser grande e num remoto que pode pedir credencial.
+
+**De onde veio:** [026 Q2](../features/026-worktree-from/open-questions.md) · **Volta quando:** a
+recusa *"a branch não está no disco"* aparecer com frequência que você consiga nomear — ou quando
+existir um lugar no produto onde `fetch` já seja um gesto explícito.
+
+### `gh issue develop --list` — a issue já tem branch no host? — `P`
+
+Leitura pura (medido: `exit=0`, nada escrito), e responde uma coisa que a lista de issues não sabe: se
+alguém já criou a *linked branch* daquela issue no remoto. Ficou fora do v1 por custo — é **uma
+chamada por issue**, contra uma chamada para a lista inteira.
+
+**De onde veio:** [026 Q1](../features/026-worktree-from/open-questions.md) · **Volta quando:** duas
+pessoas cortarem branches diferentes da mesma issue, ou quando a lista de issues virar uma tela com
+detalhe por item.
+
 ### Worktree de projeto removido não pode ser recriada — `P`
 
 Remover projeto **registrado por caminho** tira o registro das worktrees e **não toca no disco**
