@@ -1,8 +1,7 @@
 # PRD — O modo da conversa: sempre na tela, e com resposta do Lumem quando o agente não tem
 
-> **Status:** **completa — 12 de 12 tasks.** Nasceu de uma anotação na
-> barra do composer: *"falta um seletor de modo, para poder selecionar o modo automático, se tá
-> liberado, se tem que perguntar tudo"*
+> **Status:** completa
+> **Histórico:** **completa — 12 de 12 tasks.** Nasceu de uma anotação na barra do composer: *"falta um seletor de modo, para poder selecionar o modo automático, se tá liberado, se tem que perguntar tudo"*
 > **Perguntas:** [open-questions.md](open-questions.md) — 6 de 6 fechadas
 > **Tasks:** [tasks.md](tasks.md) — 12 entregues, em seis commits
 > **Sucede:** [acp-sessions](../006-acp-sessions/prd.md), que trouxe os seletores (F2.6) e o pedido de

@@ -70,7 +70,7 @@ conversations, memory. `--state-dir` moves it.
 | [Files, diff and an editor](docs/features/005-file-editor/prd.md) | browse the checkout, read the diff against the base branch, and edit with autosave |
 | [Project scripts](docs/features/012-project-scripts/prd.md) | `setup`, `run`, `test` and `teardown` live in `<repo>/.lumem/project.toml`; a new worktree is born prepared, and one click brings the app up on a port reserved for that checkout |
 | [Workspace memory](docs/features/007-workspace-memory/prd.md) | what the harness learned, versioned in git, behind a write gate and an inbox of proposals. The three switches that spend tokens ship **off** |
-| [Pull request status](docs/features/013-pull-request-status/prd.md) | designed, not built: which of your worktrees is actually mergeable |
+| [Pull request status](docs/features/013-pull-request-status/prd.md) | which of your worktrees is actually mergeable, read from the `gh` on your machine — Lumem never sees, asks for or stores a token |
 
 ## How it works
 

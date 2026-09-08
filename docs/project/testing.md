@@ -50,6 +50,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | **barra da pull request** de ponta a ponta | e2e `pull-request.spec.ts`, com um `gh` **falso** num diretório na frente do `PATH` do daemon: processo de verdade, `argv` de verdade, saída de verdade, zero rede. Cada teste tem a **própria branch** — o daemon guarda um instantâneo por projeto, e os specs compartilham um daemon | **Não** |
 | **menus do composer** — geometria | e2e `composer-menus.spec.ts`, com o fake em `LUMEM_FAKE_MANY_MODELS=1`: vinte modelos, zero token. A pergunta **não** é `toBeVisible` — um elemento recortado por um ancestral continua no DOM, com caixa, e o matcher continua satisfeito. É `document.elementFromPoint` no meio do elemento, que é o que o mouse responde. Foi assim que se descobriu que o menu de `/comandos` era **invisível por inteiro** há três features, tendo teste de componente o tempo todo | **Não** |
 | `web/` fluxo de usuário | e2e (Playwright) | **Não** — daemon único, porta única, estado compartilhado |
+| **a própria documentação** | `scripts/check-docs.test.ts` — 21 testes sobre fixtures mais **um que roda o checador contra a árvore de verdade**, e é esse que é o gate. Link relativo resolve, âncora de heading resolve, e o `**Status:**` de cada feature está na gramática fechada e concorda com o `tasks.md` da mesma pasta | Sim |
 
 **Consequência dura:** task cujo `Tests` é `e2e` **não pode** receber `[P]`. O gargalo é a execução do teste, não o código.
 
@@ -62,6 +63,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `quick` | `pnpm gate:quick` | Testes afetados pelo trabalho atual |
 | `full` | `pnpm gate:full` | Suíte inteira + e2e |
 | `build` | `pnpm gate:build` | Typecheck de todo TS do repositório + build do web **e do bundle do daemon** |
+| `docs` | `pnpm docs:check` | Link, âncora e `**Status:**` da documentação. Já roda dentro do `gate:full` pelo `check-docs.test.ts`; o comando existe para rodar em 200 ms sem a suíte |
 | `smoke` | `pnpm smoke:install` | O pacote publicado instala num prefixo limpo e sobe. Não faz parte dos três gates de todo dia: roda no release, e à mão antes de publicar |
 
 ### Na PR, os mesmos gates
@@ -109,6 +111,29 @@ O `tsc` puro na raiz não enxergava `e2e/`, `playwright.config.ts` nem os `vites
 ---
 
 ## Armadilhas já corrigidas
+
+### Documentação não tinha gate nenhum, e a convenção falhava 1 em 5
+
+**Sintoma:** quatro links apontavam para `docs/features/003-worktree-tabs/prd.md`, arquivo que nunca
+existiu sob nome nenhum — a pasta só tem `tasks.md`. **Dois deles foram criados por tasks marcadas
+`[x]`** cujo trabalho era propagar uma nota de reversão, e ficaram lá por dias. Em paralelo, cinco
+`prd.md` declaravam um `**Status:**` que discordava do próprio `tasks.md` da mesma pasta, e os dois
+`README` da raiz publicavam *"designed, not built"* sobre uma feature com 14 arquivos em
+`packages/server/src/pr/`.
+
+**Causa:** não existia link-checker, markdown-lint, nem um único assert de que um caminho de
+documentação resolve. `grep` não serve: ele não vê **âncora de heading**, e a âncora é justamente o
+mecanismo da nota de reversão (`.../prd.md#21-isto-reverte-um-requisito-do-walking-skeleton`).
+
+**Conserto:** `scripts/check-docs.ts`, no `gate:full`. E a armadilha *dele*: ele nasceu **verde na
+primeira execução** contra o repositório, o que é o sinal de um gate que não checa nada. Cada
+checagem foi provada ficando vermelha de propósito — 45 achados de `status-value` contra a árvore de
+antes da normalização, e link e âncora por mutação na árvore de verdade.
+
+**O que ele deliberadamente não checa:** estado de checkbox. A `001-walking-skeleton` está entregue
+com **244 caixas abertas** e a `005-file-editor` com **126** — nenhuma das duas marcou uma só —,
+enquanto a `023-composer-menus` não tem caixa nenhuma. Caixa é **critério de aceite**, não barra de
+progresso, e derivar fase dela marcaria duas features entregues como em execução para sempre.
 
 Registro do que já mordeu, pra não voltar:
 

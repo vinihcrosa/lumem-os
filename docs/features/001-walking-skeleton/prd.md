@@ -1,6 +1,7 @@
 # PRD — Walking Skeleton
 
-> **Status:** decisões fechadas, pronto pra revisão final
+> **Status:** completa
+> **Histórico:** decisões fechadas, pronto pra revisão final
 > **Versão:** v0.3 — primeiro passo, não é o MVP
 > **Perguntas:** [open-questions.md](open-questions.md) — todas respondidas
 >

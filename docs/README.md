@@ -382,7 +382,7 @@ tinha visto, um deles grave: o menu de `/comandos` era **invisível por inteiro*
 
 ---
 
-## Propostos em 2026-09-05 — quatro PRDs, nenhum começado
+## Propostas de 2026-09-05 — três ainda de pé, uma fechada
 
 Saíram da avaliação de arquitetura do dia: fundação sólida, teste raro, e o núcleo da visão —
 tarefas, mais de um agente — inteiro no backlog enquanto a memória, o subsistema mais elaborado, é o

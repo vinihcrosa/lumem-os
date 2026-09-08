@@ -1,8 +1,7 @@
 # PRD — Três semanas com a memória ligada
 
-> **Status:** v0.1 — proposto em 2026-09-05, **perguntas abertas**. Não é uma feature de código: é
-> um **período de uso medido**, com o pouco de instrumentação que falta para os números existirem. O
-> que ela entrega é uma **decisão**: a memória ganha mais código, ou congela.
+> **Status:** proposta
+> **Histórico:** v0.1 — proposto em 2026-09-05, **perguntas abertas**. Não é uma feature de código: é um **período de uso medido**, com o pouco de instrumentação que falta para os números existirem. O que ela entrega é uma **decisão**: a memória ganha mais código, ou congela.
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** ainda não — a fase 0 (instrumentação) vira tasks depois das perguntas
 > **Depende de:** nada. A [distribution](../014-distribution/prd.md) já entregou o `lumem` instalável, e é

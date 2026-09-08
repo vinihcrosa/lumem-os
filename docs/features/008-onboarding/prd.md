@@ -6,9 +6,8 @@ ao primeiro turno com o Claude por ACP
 compartilhada que o fluxo consome
 **Sucede:** [acp-sessions](../006-acp-sessions/prd.md) — é ela que faz o passo 3 ter para onde ir
 **Perguntas:** [open-questions.md](open-questions.md) · **Tasks:** [tasks.md](tasks.md)
-**Status:** **implementado.** 21 tasks entregues, gate cheio verde — 1.671 unit/integration + 26 e2e.
-O que a execução achou está no fim das [tasks](tasks.md), inclusive as duas premissas deste PRD que ela
-derrubou.
+**Status:** completa
+**Histórico:** **implementado.** 21 tasks entregues, gate cheio verde — 1.671 unit/integration + 26 e2e. O que a execução achou está no fim das [tasks](tasks.md), inclusive as duas premissas deste PRD que ela derrubou.
 
 ---
 

@@ -1,8 +1,7 @@
 # PRD — A tela do workspace
 
-> **Status:** v0.2 — **as seis perguntas respondidas**, escopo fechado. A [W4](open-questions.md)
-> mudou o tamanho da feature: consumo por projeto entrou, e trouxe uma tabela nova com ele. Nasceu de uma pergunta de uso: *"eu tô vendo a
-> memória no projeto, na aba da direita, mas tem uma memória do workspace? como eu acesso?"*
+> **Status:** completa
+> **Histórico:** v0.2 — **as seis perguntas respondidas**, escopo fechado. A [W4](open-questions.md) mudou o tamanho da feature: consumo por projeto entrou, e trouxe uma tabela nova com ele. Nasceu de uma pergunta de uso: *"eu tô vendo a memória no projeto, na aba da direita, mas tem uma memória do workspace? como eu acesso?"*
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
 > **Depende de:** o `workspace.rename`, o `workspace.remove` e o `memory.list` por workspace já

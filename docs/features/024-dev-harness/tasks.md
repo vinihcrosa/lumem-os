@@ -3,8 +3,8 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) · **Linha de base:**
 [harness-audit.md](../../project/harness-audit.md)
 
-**Status:** **16 tasks em 3 fases, nenhuma iniciada** (2026-09-07). Três perguntas já respondidas
-(A1–A3); oito abertas, e as que travam task estão marcadas na coluna `Trava`.
+**Status:** proposta
+**Histórico:** **16 tasks em 3 fases, nenhuma iniciada** (2026-09-07). Três perguntas já respondidas (A1–A3); oito abertas, e as que travam task estão marcadas na coluna `Trava`.
 **Issues:** [#72](https://github.com/vinihcrosa/lumem-os/issues/72) rastreia a feature; cada task tem a
 sua, na coluna `Issue`. Marco por fase no GitHub.
 
@@ -331,10 +331,10 @@ o gate é criar um sensor que dorme.
 incômodo, que é como gate morre.
 
 **What**:
-1. Os 4 links: dois `../003-worktree-tabs/prd.md` (em `docs/features/018-worktree-first-tab/tasks.md` e
-   `docs/features/013-pull-request-status/tasks.md`) apontam para arquivo que **nunca existiu** — a pasta
-   `worktree-tabs/` só tem `tasks.md`. Apontar para `tasks.md`. Os dois de `docs/references/compozy.md`
-   citam arquivos de outro repositório: viram texto sem link.
+1. Os 4 links: ~~dois `../003-worktree-tabs/prd.md`~~ — **feitos em 2026-09-07 pela
+   [025-docs-contract](../025-docs-contract/prd.md)**, que também trouxe o link-checker do `gate:full`,
+   então esta metade não volta. **Sobram os dois de `docs/references/compozy.md`**, que citam arquivos
+   de outro repositório: viram texto sem link.
 2. Os 20 caminhos: para cada um, decidir entre **atualizar** para o nome atual (quando o arquivo só
    mudou de nome, como `probe.ts` e `fake-agent.ts`) ou **remover o backtick** pela convenção da T6
    (quando o arquivo deixou de existir, como `TerminalSpike.tsx` e `ProjectList.tsx`, que eram

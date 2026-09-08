@@ -1,13 +1,8 @@
 # A tela do workspace — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **dez tasks, todas entregues com prova.** A T8 nasceu do uso — entrar num projeto era um
-beco sem saída, porque o painel do workspace só aparece com nada selecionado e nada desfazia a
-seleção. Portão verde: `gate:full` com **2.274 unit/integration + 39 e2e**. Três caixas ficaram marcadas sem prova
-por um dia — auditoria própria as devolveu para aberto, e depois elas foram fechadas com teste. As
-telas foram desenhadas no Open Design (`lumem-workspace.html`), o consumo existe e é somável nos dois
-escopos. Portão verde: `gate:full` com **2.270 unit/integration + 38 e2e**. A ordem é a do
-risco: o consumo primeiro, porque ele é a única parte que pode não caber.
+**Status:** completa
+**Histórico:** **dez tasks, todas entregues com prova.** A T8 nasceu do uso — entrar num projeto era um beco sem saída, porque o painel do workspace só aparece com nada selecionado e nada desfazia a seleção. Portão verde: `gate:full` com **2.274 unit/integration + 39 e2e**. Três caixas ficaram marcadas sem prova por um dia — auditoria própria as devolveu para aberto, e depois elas foram fechadas com teste. As telas foram desenhadas no Open Design (`lumem-workspace.html`), o consumo existe e é somável nos dois escopos. Portão verde: `gate:full` com **2.270 unit/integration + 38 e2e**. A ordem é a do risco: o consumo primeiro, porque ele é a única parte que pode não caber.
 
 ---
 

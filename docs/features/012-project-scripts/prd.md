@@ -1,8 +1,7 @@
 # PRD — Os scripts do projeto: setup, run e o rodapé que os mostra
 
-> **Status:** v1.0 — escopo fechado, **11 perguntas respondidas**, desenho aprovado em 2026-08-30. Nasceu de uma imagem do Conductor e de
-> uma frase: *"uma parte abaixo da árvore de arquivos com terminal, script de run e script de setup —
-> e o script de setup na config do Lumem do projeto"*.
+> **Status:** completa
+> **Histórico:** v1.0 — escopo fechado, **11 perguntas respondidas**, desenho aprovado em 2026-08-30. Nasceu de uma imagem do Conductor e de uma frase: *"uma parte abaixo da árvore de arquivos com terminal, script de run e script de setup — e o script de setup na config do Lumem do projeto"*.
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md) — 14 tasks em 4 fases
 > **Depende de:** o `PtyManager` (spawn, attach/detach, scrollback, sobrevive ao browser), a

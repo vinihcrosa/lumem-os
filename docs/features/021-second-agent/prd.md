@@ -1,9 +1,7 @@
 # PRD — O segundo agente
 
-> **Status:** **completa** — proposta em 2026-09-05, medida em 2026-09-06 e fechada em 2026-09-07.
-> **16 tasks em 4 fases**, e as oito perguntas respondidas. Sai do backlog ("Segundo e terceiro CLI
-> de agente", seção B). **Um de cada vez:** este PRD é sobre **um** agente a mais, e o terceiro
-> (Gemini) volta para o backlog agora que este está de pé.
+> **Status:** completa
+> **Histórico:** **completa** — proposta em 2026-09-05, medida em 2026-09-06 e fechada em 2026-09-07. **16 tasks em 4 fases**, e as oito perguntas respondidas. Sai do backlog ("Segundo e terceiro CLI de agente", seção B). **Um de cada vez:** este PRD é sobre **um** agente a mais, e o terceiro (Gemini) volta para o backlog agora que este está de pé.
 > **Perguntas:** [open-questions.md](open-questions.md) · **Tasks:** [tasks.md](tasks.md)
 > **Como ela foi feita:** medir primeiro. A fase 0 foi um spike contra o adaptador **real**, como o §2
 > da [agent-login](../009-agent-login/prd.md) foi, e ela mudou duas decisões antes de existir código

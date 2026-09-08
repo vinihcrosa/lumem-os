@@ -83,6 +83,13 @@ Verificado nos manifestos e na raiz, não suposto:
 Os 4 links: dois apontam para `docs/features/003-worktree-tabs/prd.md`, que nunca existiu (a pasta só tem
 `tasks.md`), e dois em `compozy.md` apontam para arquivos de **outro** repositório.
 
+> **Metade consertada em 2026-09-07, pela [025-docs-contract](../features/025-docs-contract/prd.md).**
+> Os dois de `003-worktree-tabs` passaram a apontar para o `tasks.md`, e o link-checker do
+> `gate:full` nasceu nessa feature — então esta linha da tabela deixa de ser medição e passa a ser
+> gate. **Os dois de `compozy.md` continuam quebrados**, e continuam sendo trabalho da
+> [T7 da dev-harness](../features/024-dev-harness/tasks.md), junto com os 20 caminhos em backtick e
+> a linha duplicada do índice — nada disso foi tocado aqui.
+
 Os 20 caminhos são de `tasks.md` de features entregues, citando arquivo que a própria feature
 seguinte renomeou: `packages/server/src/setup/probe.ts`, `packages/web/src/components/WorktreeDetail.tsx`,
 `scripts/ScriptRunner.ts`, `e2e/onboarding.spec.ts`, entre outros.

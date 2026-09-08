@@ -1,6 +1,7 @@
 # PRD — A barra da pull request
 
-> **Status:** em implementação — as 11 perguntas fecharam em 2026-09-05
+> **Status:** completa
+> **Histórico:** em implementação — as 11 perguntas fecharam em 2026-09-05
 > **Versão:** v0.3 — a **Q3** e a **Q4** trocaram o corte da feature: ela lê **e escreve**. A v0.2
 > tinha mudado a estrutura (a v0.1 punha a barra acima do cabeçalho da worktree; o Vinicius mudou
 > ([§2.1](#21-a-mudança-de-estrutura)), e a barra foi para o painel direito), e o rebase em cima da

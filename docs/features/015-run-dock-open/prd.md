@@ -1,7 +1,7 @@
 # PRD — O rodapé de execução nasce aberto
 
-> **Status:** v0.2 — **7 perguntas respondidas**, escopo fechado. Nasceu de uma anotação do
-> agentation sobre o `FoldedDock`: *"isso deveria ser por default aberto"*
+> **Status:** completa
+> **Histórico:** v0.2 — **7 perguntas respondidas**, escopo fechado. Nasceu de uma anotação do agentation sobre o `FoldedDock`: *"isso deveria ser por default aberto"*
 > **Perguntas:** [open-questions.md](open-questions.md) — as seis primeiras no Open Design em
 > 2026-09-01; a **Q6 revertida em 2026-09-06**, antes do código
 > **Tasks:** [tasks.md](tasks.md)

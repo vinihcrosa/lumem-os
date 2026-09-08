@@ -1,6 +1,7 @@
 # PRD — Barra direita: arquivos e diff
 
-> **Status:** desenho fechado, tasks prontas para execução
+> **Status:** completa
+> **Histórico:** desenho fechado, tasks prontas para execução
 > **Versão:** v0.1
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)

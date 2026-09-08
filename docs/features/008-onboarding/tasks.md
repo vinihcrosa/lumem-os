@@ -6,7 +6,8 @@ renderizado. As tasks de cliente **portam** o que está lá; onde o desenho e o 
 [§4 do PRD](prd.md) e a **T0** corrige o desenho antes de qualquer porte
 **Sistema de design:** `packages/web/prototype/lumem-ds.css` — camada compartilhada, nova neste sync
 **Sucede:** [acp-sessions](../006-acp-sessions/tasks.md) — é ela que faz o passo 3 ter para onde ir
-**Status:** **21 de 21 entregues.** Gate cheio verde — 1.671 unit/integration (1 pulado) + 26 e2e.
+**Status:** completa
+**Histórico:** **21 de 21 entregues.** Gate cheio verde — 1.671 unit/integration (1 pulado) + 26 e2e.
 **Total:** 21 tasks em 4 fases
 
 > **Nenhuma task escreve `tokens.css` à mão.** O `design:sync` de 2026-08-20 trouxe as duas telas e o

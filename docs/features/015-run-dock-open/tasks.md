@@ -1,9 +1,8 @@
 # O rodapé de execução nasce aberto — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **3 tasks em 1 fase, todas entregues** (2026-09-06). As sete perguntas estão respondidas — seis no Open Design em
-2026-09-01, e a **Q6 revertida em 2026-09-06**, antes do código, com a folha
-`lumem-run-dock-open.html` reescrita para registrar a reversão.
+**Status:** completa
+**Histórico:** **3 tasks em 1 fase, todas entregues** (2026-09-06). As sete perguntas estão respondidas — seis no Open Design em 2026-09-01, e a **Q6 revertida em 2026-09-06**, antes do código, com a folha `lumem-run-dock-open.html` reescrita para registrar a reversão.
 
 Esta é a menor feature do repositório, e isso é o **resultado** das perguntas, não a premissa delas.
 A PRD chegou dizendo que a conta de espaço travava tudo; o desenho mediu as duas parcelas e

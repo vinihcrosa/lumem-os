@@ -1,7 +1,8 @@
 # Walking Skeleton — Tasks
 
 **PRD:** [prd.md](prd.md) · **Decisões:** [open-questions.md](open-questions.md)
-**Status:** Draft — aguardando aprovação
+**Status:** completa
+**Histórico:** Draft — aguardando aprovação
 **Total:** 34 tasks em 8 fases
 
 ---

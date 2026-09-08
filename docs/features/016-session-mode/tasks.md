@@ -5,7 +5,8 @@
 renderizando; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [acp-sessions](../006-acp-sessions/tasks.md), que trouxe os seletores (F2.6) e o pedido de
 permissão
-**Status:** **12 de 12 entregues**, em seis commits. A ordem foi a das fases, com duas fusões que a execução cobrou e estão explicadas no fim.
+**Status:** completa
+**Histórico:** **12 de 12 entregues**, em seis commits. A ordem foi a das fases, com duas fusões que a execução cobrou e estão explicadas no fim.
 
 ---
 

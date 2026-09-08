@@ -1,10 +1,8 @@
 # O segundo agente — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **16 tasks em 3 fases, todas entregues** (2026-09-06). A fase 0 mediu, a fase 1 fez o
-catálogo, a fase 3 fez o consumo por agente, e a fase 2 — desenhada no Open Design, com a
-[C7](open-questions.md) e a [C8](open-questions.md) respondidas lá — entregou o `authenticate`, o
-`elicitation/*`, o rodapé por agente e o `＋` que conecta o próximo.
+**Status:** completa
+**Histórico:** **16 tasks em 3 fases, todas entregues** (2026-09-06). A fase 0 mediu, a fase 1 fez o catálogo, a fase 3 fez o consumo por agente, e a fase 2 — desenhada no Open Design, com a [C7](open-questions.md) e a [C8](open-questions.md) respondidas lá — entregou o `authenticate`, o `elicitation/*`, o rodapé por agente e o `＋` que conecta o próximo.
 
 O que ficou **fora**, com o motivo escrito: o `logout`, que o Codex declara e o Lumem não chama
 ([backlog](../../project/backlog.md)).

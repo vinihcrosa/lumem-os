@@ -1,10 +1,8 @@
 # A worktree como primeira aba — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **9 tasks em 4 fases, todas entregues** (2026-09-01). O desenho está fechado no Open Design
-(`lumem-worktree-tab.html`), renderizado e verificado: dez telas, zero token novo, um componente
-novo. Extraídas da Fase 1 da [pull-request-status](../013-pull-request-status/tasks.md) — as E1, E2 e E3
-de lá viram as T2, T3 e T4 daqui, e ganham as tasks que faltavam em volta.
+**Status:** completa
+**Histórico:** **9 tasks em 4 fases, todas entregues** (2026-09-01). O desenho está fechado no Open Design (`lumem-worktree-tab.html`), renderizado e verificado: dez telas, zero token novo, um componente novo. Extraídas da Fase 1 da [pull-request-status](../013-pull-request-status/tasks.md) — as E1, E2 e E3 de lá viram as T2, T3 e T4 daqui, e ganham as tasks que faltavam em volta.
 
 Esta feature **não tem daemon**. Nada aqui muda contrato, tRPC ou disco: o daemon já responde tudo
 que a aba mostra. É uma feature de tela inteira, e o risco dela é de **regressão**, não de novidade.
@@ -207,13 +205,13 @@ caminho → abas → conteúdo.
 
 **What**: Índice, PRDs vizinhas e perguntas batendo com o que foi construído.
 **Where**: `docs/README.md`, `CLAUDE.md`, `docs/features/013-pull-request-status/tasks.md`,
-`docs/features/003-worktree-tabs/prd.md`, `docs/project/backlog.md`
+`docs/features/003-worktree-tabs/tasks.md`, `docs/project/backlog.md`
 
 **Done when**:
 - [x] O índice descreve a feature pelo que ela **faz**, não pelo que ela pretendia
 - [x] A Fase 1 da [pull-request-status](../013-pull-request-status/tasks.md) diz que a estrutura foi
       entregue aqui, e o que ela pode passar a pressupor
-- [x] O PRD da [worktree-tabs](../003-worktree-tabs/prd.md) ganha a nota de que o cabeçalho fixo dela
+- [x] As tasks da [worktree-tabs](../003-worktree-tabs/tasks.md) ganham a nota de que o cabeçalho fixo dela
       virou aba, e por quê — decisão revertida sem registro é decisão que volta sozinha
 - [x] As perguntas respondidas têm `R:` preenchido, com o motivo
 - [x] O que ficou de fora entra no backlog com o gatilho de volta

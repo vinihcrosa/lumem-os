@@ -1,7 +1,7 @@
 # PRD — A worktree vira a primeira aba, e leva os arquivos junto
 
-> **Status:** **completa** (2026-09-01) — 9 tasks em 4 fases, as cinco perguntas respondidas, e a
-> suíte de e2e passando de 53 para 56
+> **Status:** completa
+> **Histórico:** **completa** (2026-09-01) — 9 tasks em 4 fases, as cinco perguntas respondidas, e a suíte de e2e passando de 53 para 56
 > **Perguntas:** [open-questions.md](open-questions.md) — 5 de 5 respondidas
 > **Tasks:** [tasks.md](tasks.md) — 9 tasks em 4 fases, todas entregues
 > **Extraída de:** a **Fase 1** da [pull-request-status](../013-pull-request-status/tasks.md) (E1, E2,

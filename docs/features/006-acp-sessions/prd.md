@@ -1,10 +1,7 @@
 # PRD — A sessão de agente vira conversa (ACP)
 
-> **Status:** v2.0 — **fases 0 a 4 entregues.** Paridade funcional com o uso diário: mensagem,
-> ferramenta, permissão, plano, uso e custo, seletores de modo e modelo, comandos de barra, o terminal
-> que o agente pede, e `fs/*` pelo `FileService`. Tudo contra agente falso, sem consumir token. Gate
-> cheio verde. Autenticação e consumo **medidos**; janela de contexto **parcial** — a sessão nasce em
-> 1M, mas contexto cheio não foi exercitado ([§9.5 do estudo](../../project/pty-vs-acp.md)).
+> **Status:** completa
+> **Histórico:** v2.0 — **fases 0 a 4 entregues.** Paridade funcional com o uso diário: mensagem, ferramenta, permissão, plano, uso e custo, seletores de modo e modelo, comandos de barra, o terminal que o agente pede, e `fs/*` pelo `FileService`. Tudo contra agente falso, sem consumir token. Gate cheio verde. Autenticação e consumo **medidos**; janela de contexto **parcial** — a sessão nasce em 1M, mas contexto cheio não foi exercitado ([§9.5 do estudo](../../project/pty-vs-acp.md)).
 > **Falta:** fase 5 — `session/load`, reconciliação de conversa no boot, transcrição no banco
 > **Perguntas:** [open-questions.md](open-questions.md) — **14 de 14**
 > **Tasks:** [tasks.md](tasks.md) — 18 tasks nas fases 1 e 3, nenhuma iniciada

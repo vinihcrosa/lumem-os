@@ -2,7 +2,8 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Desenho:** `packages/web/prototype/lumem-sidebar-actions.html` (oito quadros)
-**Status:** **completa** — 11 tasks, entregues em **2026-09-05**.
+**Status:** completa
+**Histórico:** **completa** — 11 tasks, entregues em **2026-09-05**.
 
 ---
 

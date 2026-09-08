@@ -1,6 +1,7 @@
 # PRD — O contrato de documentação: índice temporal e ADR
 
-> **Status:** em execução
+> **Status:** completa
+> **Histórico:** em execução
 > **Histórico:** proposta em 2026-09-07, com as 12 perguntas respondidas no mesmo dia
 > **Perguntas:** [open-questions.md](open-questions.md) · **Tasks:** [tasks.md](tasks.md)
 > **Referência estudada:** [`vinihcrosa/lumem`](https://github.com/vinihcrosa/lumem) — outro

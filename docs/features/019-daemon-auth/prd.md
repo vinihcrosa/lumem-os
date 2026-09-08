@@ -1,9 +1,7 @@
 # PRD — O daemon confere quem fala com ele
 
-> **Status:** v0.1 — proposto em 2026-09-05, **perguntas abertas**. Sai do backlog ("Autenticação do
-> daemon", seção F) e da **Q46** da [workspace-memory](../007-workspace-memory/open-questions.md), que é a
-> identidade de ator. O gatilho do backlog era "quando o daemon escutar fora do loopback"; a avaliação
-> de arquitetura do mesmo dia mostrou que duas das ameaças não esperam por isso.
+> **Status:** proposta
+> **Histórico:** v0.1 — proposto em 2026-09-05, **perguntas abertas**. Sai do backlog ("Autenticação do daemon", seção F) e da **Q46** da [workspace-memory](../007-workspace-memory/open-questions.md), que é a identidade de ator. O gatilho do backlog era "quando o daemon escutar fora do loopback"; a avaliação de arquitetura do mesmo dia mostrou que duas das ameaças não esperam por isso.
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** ainda não — nascem depois das perguntas respondidas
 > **Depende de:** nada. A origem única que a fase 2 precisa **já existe**: desde a

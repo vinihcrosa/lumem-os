@@ -1,9 +1,8 @@
 # Os menus do composer — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **4 tasks em 2 fases, todas entregues** (2026-09-07). As cinco perguntas estão
-respondidas; as três primeiras no Open Design, antes do código, porque a geometria de menu nasce lá
-— é a regra de [design-source-of-truth](../../project/design-source-of-truth.md).
+**Status:** completa
+**Histórico:** **4 tasks em 2 fases, todas entregues** (2026-09-07). As cinco perguntas estão respondidas; as três primeiras no Open Design, antes do código, porque a geometria de menu nasce lá — é a regra de [design-source-of-truth](../../project/design-source-of-truth.md).
 
 O conserto é uma declaração a menos e duas a mais. **A armadilha é a prova**: o defeito é geometria,
 e todo teste de componente do repositório é jsdom, onde nada é recortado por nada. Foi assim que o

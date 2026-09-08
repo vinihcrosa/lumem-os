@@ -1,10 +1,8 @@
 # Distribuição — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **16 de 16 entregues**, em 2026-08-30, num dia. As 11 perguntas estavam
-[fechadas](open-questions.md) antes da primeira linha de código — o pacote se chama `lumem`, o CLI é
-foreground (com o background já no backlog), porta ocupada falha, o e2e ganhou um projeto
-`production`, o smoke roda em ubuntu e macos, a licença é MIT, e o README da raiz é em inglês.
+**Status:** completa
+**Histórico:** **16 de 16 entregues**, em 2026-08-30, num dia. As 11 perguntas estavam [fechadas](open-questions.md) antes da primeira linha de código — o pacote se chama `lumem`, o CLI é foreground (com o background já no backlog), porta ocupada falha, o e2e ganhou um projeto `production`, o smoke roda em ubuntu e macos, a licença é MIT, e o README da raiz é em inglês.
 
 Foram **sete commits**, e não dezesseis: a T1 e a T2 são o mesmo bundle com as suas duas provas, a
 T5–T7 são um CLI só, e a T8–T11 são a mesma pergunta ("o que garante que o pacote publicado presta?")

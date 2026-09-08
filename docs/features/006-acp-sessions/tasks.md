@@ -5,7 +5,8 @@
 **Protótipo:** `packages/web/prototype/lumem-acp-conversation.html` — desenho fechado e verificado; as tasks de cliente **portam** o que está lá, não redesenham
 **Sucede:** [file-editor](../005-file-editor/tasks.md)
 **Destrava:** [workspace-memory](../007-workspace-memory/roadmap.md) partes 06–09
-**Status:** fases 1, 3, 4, 5 e 6 **concluídas — 35 de 35.** Gate cheio verde (1.568 unit/integration + 25 e2e).
+**Status:** completa
+**Histórico:** fases 1, 3, 4, 5 e 6 **concluídas — 35 de 35.** Gate cheio verde (1.568 unit/integration + 25 e2e).
 **Total:** 35 tasks nas fases 1, 3, 4, 5 e 6 do PRD
 
 > **Já entregue com o desenho, e nenhuma task recria:** o bloco `dominio — conversa` dos tokens

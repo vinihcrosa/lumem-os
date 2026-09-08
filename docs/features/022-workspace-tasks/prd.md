@@ -1,8 +1,7 @@
 # PRD — Tarefa como entidade
 
-> **Status:** v0.1 — proposto em 2026-09-05, **perguntas abertas**. Sai do backlog ("Tarefas de
-> workspace atravessando projetos", seção C). **"Fila com lease" fica no backlog:** este PRD é
-> atribuição manual, de propósito.
+> **Status:** proposta
+> **Histórico:** v0.1 — proposto em 2026-09-05, **perguntas abertas**. Sai do backlog ("Tarefas de workspace atravessando projetos", seção C). **"Fila com lease" fica no backlog:** este PRD é atribuição manual, de propósito.
 > **Perguntas:** [open-questions.md](open-questions.md). Elas **propõem** resposta para as
 > **Q011–Q015** do [questions.md](../../project/questions.md); a Q068 e a Q069 ficam abertas de
 > propósito (§5)

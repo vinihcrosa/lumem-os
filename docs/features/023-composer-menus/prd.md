@@ -1,8 +1,7 @@
 # PRD — Os menus do composer aparecem inteiros
 
-> **Status:** v1.0 — **5 perguntas respondidas**, escopo fechado e **entregue**. Nasceu da
-> [issue #50](https://github.com/vinihcrosa/lumem-os/issues/50), que veio de uma anotação visual na
-> tela `/` (pontos 1, 4 e 5 — os três seletores, o mesmo defeito)
+> **Status:** completa
+> **Histórico:** v1.0 — **5 perguntas respondidas**, escopo fechado e **entregue**. Nasceu da [issue #50](https://github.com/vinihcrosa/lumem-os/issues/50), que veio de uma anotação visual na tela `/` (pontos 1, 4 e 5 — os três seletores, o mesmo defeito)
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)
 > **Sucede:** [session-mode](../016-session-mode/prd.md), que foi quem descobriu o recorte — e escapou

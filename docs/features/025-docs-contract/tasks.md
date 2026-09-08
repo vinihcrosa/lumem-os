@@ -1,7 +1,8 @@
 # O contrato de documentação — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** em execução — **12 tasks em 6 fases**, as 12 perguntas respondidas antes da primeira
+**Status:** completa
+**Histórico:** em execução — **12 tasks em 6 fases**, as 12 perguntas respondidas antes da primeira
 
 A ordem das fases é **forçada pela [Q6](open-questions.md)**: com o número significando só ordem, um
 `docs/adr/` vazio deixaria o repositório sem fonte de precedência nenhuma — pior que hoje, onde a
@@ -45,13 +46,13 @@ do `git mv`.
   tirado do `git log` do commit que a fechou — não a data de hoje. `Alternativas` **cita a fonte**
   em vez de reescrever, porque reconstruir de memória o que perdeu produz um documento que *soa*
   autoritativo e erra a única parte que importava.
-- [ ] `2026-08-17-…-a-sessao-de-agente-e-acp-nao-pty.md` — fonte: `pty-vs-acp.md` §§1–7, **inclusive
+- [x] `2026-08-17-…-a-sessao-de-agente-e-acp-nao-pty.md` — fonte: `pty-vs-acp.md` §§1–7, **inclusive
       o §7, que recomendou não migrar e perdeu**
-- [ ] `2026-08-19-…-o-design-e-feito-no-open-design.md` — fonte: `design-source-of-truth.md` §§1–3
-- [ ] `2026-08-22-…-a-memoria-escreve-atras-de-portao-e-interruptor-desligado.md` — fonte:
+- [x] `2026-08-19-…-o-design-e-feito-no-open-design.md` — fonte: `design-source-of-truth.md` §§1–3
+- [x] `2026-08-22-…-a-memoria-escreve-atras-de-portao-e-interruptor-desligado.md` — fonte:
       `workspace-memory/open-questions.md`
-- [ ] `2026-08-30-…-o-daemon-e-um-bundle-esm-que-serve-o-web.md` — fonte: `distribution/prd.md`
-- [ ] `2026-09-05-…-o-status-de-pr-vem-do-gh-da-sua-maquina.md` — fonte:
+- [x] `2026-08-30-…-o-daemon-e-um-bundle-esm-que-serve-o-web.md` — fonte: `distribution/prd.md`
+- [x] `2026-09-05-…-o-status-de-pr-vem-do-gh-da-sua-maquina.md` — fonte:
       `pull-request-status/{prd,spike}.md`
 - **Done when:** os 5 existem, cada um com os 6 campos de frontmatter e as 5 seções; `date:` bate
   com o prefixo do nome; nenhum tem `supersedes:`; e dá para decidir a relevância de qualquer um
@@ -65,9 +66,9 @@ do `git mv`.
 ### T2 — os dois arquivos de `docs/project/` param de afirmar decisão
 
 - **Where:** `docs/project/pty-vs-acp.md`, `docs/project/design-source-of-truth.md`
-- [ ] `pty-vs-acp.md:3` perde o `**Status:** DECIDIDO em 2026-08-17 — migrar para ACP`
-- [ ] `design-source-of-truth.md:3` perde o `> **Decisão, 2026-08-19.**`
-- [ ] os dois ganham uma linha apontando para o ADR que a decisão virou, e o papel novo dito:
+- [x] `pty-vs-acp.md:3` perde o `**Status:** DECIDIDO em 2026-08-17 — migrar para ACP`
+- [x] `design-source-of-truth.md:3` perde o `> **Decisão, 2026-08-19.**`
+- [x] os dois ganham uma linha apontando para o ADR que a decisão virou, e o papel novo dito:
       **estudo que sustenta a decisão, não a decisão**
 - **Done when:** nenhum arquivo de `docs/project/` afirma uma decisão que um ADR também afirma —
   sem isso, dois arquivos dizem a mesma coisa e um deles vai apodrecer, que é o defeito do §1 do PRD.
@@ -89,9 +90,9 @@ do `git mv`.
 ### T4 — `CLAUDE.md`
 
 - **Where:** `CLAUDE.md`
-- [ ] a tabela de categorias ganha `docs/adr/`, e a linha de `docs/project/` ganha o papel novo
-- [ ] a regra de documentação ganha as sete linhas do §3.2 do PRD
-- [ ] a tabela de mapa (`| Onde | O quê |`) ganha `docs/adr/`
+- [x] a tabela de categorias ganha `docs/adr/`, e a linha de `docs/project/` ganha o papel novo
+- [x] a regra de documentação ganha as sete linhas do §3.2 do PRD
+- [x] a tabela de mapa (`| Onde | O quê |`) ganha `docs/adr/`
 - **Done when:** a frase **`docs/adr/` decide · `docs/project/` sustenta · `docs/features/` executa
   · o código está em vigor** está escrita, e curta o suficiente para caber na cabeça de quem lê.
 - **Gate:** nenhum · **Commit:** `docs: the documentation contract, written where it is enforced`
@@ -99,9 +100,9 @@ do `git mv`.
 ### T5 — o índice e o backlog
 
 - **Where:** `docs/README.md`, `docs/project/backlog.md`
-- [ ] o índice ganha a seção `docs/adr/`, com uma linha por ADR
-- [ ] a seção Convenções espelha a regra nova
-- [ ] as duas regras de fronteira do backlog passam a citar `docs/features/<NNN>-<feature>/tasks.md`
+- [x] o índice ganha a seção `docs/adr/`, com uma linha por ADR
+- [x] a seção Convenções espelha a regra nova
+- [x] as duas regras de fronteira do backlog passam a citar `docs/features/<NNN>-<feature>/tasks.md`
 - **Gate:** nenhum · **Commit:** `docs(readme): index the ADRs and mirror the contract`
 
 ## Fase 3 — o rename
@@ -137,10 +138,10 @@ do `git mv`.
 ### T7 — as quatro formas de caminho
 
 - **Where:** `docs/**`, `CLAUDE.md`, `README.md`, `README.pt-BR.md`
-- [ ] `docs/features/<x>/` → `docs/features/<NNN>-<x>/` (86 linhas em 38 arquivos)
-- [ ] `prd/<x>/` no índice → `features/<NNN>-<x>/` (117 ocorrências)
-- [ ] `../<x>/` entre features → `../<NNN>-<x>/` (129 linhas)
-- [ ] `docs/features/` genérico → `docs/features/`
+- [x] `docs/features/<x>/` → `docs/features/<NNN>-<x>/` (86 linhas em 38 arquivos)
+- [x] `prd/<x>/` no índice → `features/<NNN>-<x>/` (117 ocorrências)
+- [x] `../<x>/` entre features → `../<NNN>-<x>/` (129 linhas)
+- [x] `docs/features/` genérico → `docs/features/`
 - **Não tocar:** `../../project/` e `../../references/` — 164 linhas, e a profundidade não muda.
 - **Done when:** `grep -rn 'docs/prd' .` volta só as 3 strings de teste; e o link-checker da T12
   volta zero.
@@ -160,10 +161,10 @@ do `git mv`.
 ### T9 — as 4 quebras e os 12 placeholders
 
 - **Where:** `.claude/agents/lumem-dev.md`, `.claude/agents/lumem-reviewer.md`
-- [ ] `lumem-dev.md:71` — o link para `walking-skeleton/tasks.md`, **2 ocorrências na mesma linha**
-- [ ] `lumem-dev.md:210` — `T5 of docs/features/001-walking-skeleton/tasks.md`, no template de commit
-- [ ] `lumem-reviewer.md:78` — `docs/features/001-walking-skeleton/{prd,open-questions,tasks}.md`
-- [ ] os 12 placeholders `docs/features/<NNN>-<feature>/` → `docs/features/<NNN>-<feature>/`, incluindo
+- [x] `lumem-dev.md:71` — o link para `walking-skeleton/tasks.md`, **2 ocorrências na mesma linha**
+- [x] `lumem-dev.md:210` — `T5 of docs/features/001-walking-skeleton/tasks.md`, no template de commit
+- [x] `lumem-reviewer.md:78` — `docs/features/001-walking-skeleton/{prd,open-questions,tasks}.md`
+- [x] os 12 placeholders `docs/features/<NNN>-<feature>/` → `docs/features/<NNN>-<feature>/`, incluindo
       `lumem-reviewer.md:113` e `:272`, que **definem** o trailer de commit
 - **Achado de graça:** as três quebras apontam `walking-skeleton` como *"feature atual"*, e ela é a
   **primeira** do repositório — já era falso antes desta mudança.
@@ -176,21 +177,21 @@ do `git mv`.
 ### T10 — os cinco `Status:` que mentem
 
 - **Where:** os 5 `prd.md` do §1 do PRD
-- [ ] `pull-request-status` — o `Status:`, **e a nota de 2026-09-01** que afirma o contrário do
+- [x] `pull-request-status` — o `Status:`, **e a nota de 2026-09-01** que afirma o contrário do
       próprio `tasks.md`
-- [ ] `right-panel`, `ui-shell`, `walking-skeleton`
-- [ ] `acp-sessions` — o `Status:` e a linha `:10`
-- [ ] a prosa rica desce para `**Histórico:**`, em todos que a tiverem
+- [x] `right-panel`, `ui-shell`, `walking-skeleton`
+- [x] `acp-sessions` — o `Status:` e a linha `:10`
+- [x] a prosa rica desce para `**Histórico:**`, em todos que a tiverem
 - **Done when:** os 24 `Status:` usam a gramática de quatro valores e concordam com o disco.
 - **Gate:** nenhum · **Commit:** `docs: the Status field stops lying`
 
 ### T11 — o que vazou para fora do `docs/`
 
 - **Where:** `README.md`, `README.pt-BR.md`, `docs/README.md`
-- [ ] sai *"designed, not built"* / *"desenhado, não implementado"* sobre a `pull-request-status`
-- [ ] o heading *"Propostos em 2026-09-05 — quatro PRDs, nenhum começado"* — são três, e o quarto
+- [x] sai *"designed, not built"* / *"desenhado, não implementado"* sobre a `pull-request-status`
+- [x] o heading *"Propostos em 2026-09-05 — quatro PRDs, nenhum começado"* — são três, e o quarto
       está completo
-- [ ] os **4 links mortos** para `docs/features/003-worktree-tabs/prd.md`, arquivo que nunca existiu. O
+- [x] os **4 links mortos** para `docs/features/003-worktree-tabs/prd.md`, arquivo que nunca existiu. O
       destino certo é o `tasks.md`, que é o único arquivo daquela pasta
 - **Gate:** nenhum · **Commit:** `docs: fix the claims that outlived their feature`
 

@@ -1,10 +1,8 @@
 # A barra da pull request — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **completa.** A fase 1 saiu para a [worktree-first-tab](../018-worktree-first-tab/prd.md) e
-foi entregue lá; as fases 2 a 6 foram entregues aqui em **2026-09-05**, mais uma **fase 7** que não
-existia no plano — a [Q3](open-questions.md) e a [Q4](open-questions.md) foram respondidas contra a
-proposta do PRD, e a feature passou a escrever no remoto.
+**Status:** completa
+**Histórico:** **completa.** A fase 1 saiu para a [worktree-first-tab](../018-worktree-first-tab/prd.md) e foi entregue lá; as fases 2 a 6 foram entregues aqui em **2026-09-05**, mais uma **fase 7** que não existia no plano — a [Q3](open-questions.md) e a [Q4](open-questions.md) foram respondidas contra a proposta do PRD, e a feature passou a escrever no remoto.
 
 A ordem foi a do risco, e ela se pagou: o **spike** achou que `mergeable` volta `UNKNOWN` para PR
 que já acabou (uma tabela que o lesse antes de `state` pintaria toda PR mesclada de âmbar), e o
@@ -382,11 +380,11 @@ none | draft | merged | closed` mais a `reason`.
 
 **What**: Índice, backlog e perguntas do projeto batendo com o que foi construído.
 **Where**: `docs/README.md`, `docs/project/backlog.md`, `docs/project/questions.md`, `CLAUDE.md`,
-`docs/features/003-worktree-tabs/prd.md`
+`docs/features/003-worktree-tabs/tasks.md`
 
 **Done when**:
 - [x] O índice descreve a feature pelo que ela **faz**, não pelo que ela pretendia
-- [x] O PRD da [worktree-tabs](../003-worktree-tabs/prd.md) ganha uma nota dizendo que o cabeçalho fixo
+- [x] As tasks da [worktree-tabs](../003-worktree-tabs/tasks.md) ganham uma nota dizendo que o cabeçalho fixo
       dela virou aba, e por quê — decisão revertida sem registro é decisão que volta sozinha
 - [x] O item *"Abstração de git host"* sai do backlog (ganhou PRD) e entra, no lugar, o que **ficou de
       fora**: mesclar, criar PR, reexecutar, notificar, o segundo host

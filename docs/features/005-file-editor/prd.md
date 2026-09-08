@@ -1,6 +1,7 @@
 # PRD — O visualizador vira editor
 
-> **Status:** **entregue** — 13 tasks, 9 lotes, portão verde
+> **Status:** completa
+> **Histórico:** **entregue** — 13 tasks, 9 lotes, portão verde
 > **Versão:** v0.1
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Tasks:** [tasks.md](tasks.md)

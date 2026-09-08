@@ -2,7 +2,8 @@
 
 **PRD:** [prd.md](prd.md) · **Decisões:** [open-questions.md](open-questions.md)
 **Protótipo:** `packages/web/prototype/lumem-shell.html`
-**Status:** concluída — 11 de 11 entregues, gate cheio verde
+**Status:** completa
+**Histórico:** concluída — 11 de 11 entregues, gate cheio verde
 **Total:** 11 tasks em 4 fases
 
 ---

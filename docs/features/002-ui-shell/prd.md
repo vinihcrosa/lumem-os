@@ -1,6 +1,7 @@
 # PRD — Interface
 
-> **Status:** desenho aprovado, tasks prontas para execução
+> **Status:** completa
+> **Histórico:** desenho aprovado, tasks prontas para execução
 > **Versão:** v0.1
 > **Perguntas:** [open-questions.md](open-questions.md)
 > **Protótipo:** `packages/web/prototype/lumem-shell.html` — abra no navegador

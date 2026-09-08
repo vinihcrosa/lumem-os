@@ -1,11 +1,7 @@
 # PRD — As ações da árvore: criar projeto e criar worktree de onde se olha
 
-> **Status:** v1.0 — **desenho feito e sincronizado**, seis perguntas respondidas, implementada.
-> Nasceu de três anotações do
-> agentation na tela `/`, todas dizendo a mesma coisa por ângulos
-> diferentes: *"deveria ter um botão na direita para poder adicionar um projeto direto por aqui"*,
-> *"no canto direito deveria ter um botão + para criar uma worktree direto por ali"*, *"esse botão
-> não deveria estar aqui"*
+> **Status:** completa
+> **Histórico:** v1.0 — **desenho feito e sincronizado**, seis perguntas respondidas, implementada. Nasceu de três anotações do agentation na tela `/`, todas dizendo a mesma coisa por ângulos diferentes: *"deveria ter um botão na direita para poder adicionar um projeto direto por aqui"*, *"no canto direito deveria ter um botão + para criar uma worktree direto por ali"*, *"esse botão não deveria estar aqui"*
 > **Perguntas:** [open-questions.md](open-questions.md) — **6 respondidas**, duas
 > ([Q1](open-questions.md), [Q5](open-questions.md)) **contra a proposta e contra o desenho**
 > **Tasks:** [tasks.md](tasks.md)

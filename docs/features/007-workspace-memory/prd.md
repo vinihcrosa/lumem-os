@@ -1,10 +1,7 @@
 # PRD — Memória de workspace e aprendizado contínuo
 
-> **Status:** v0.5 — **feature completa e entregue.** As nove PRs mais o S1 e o S2 estão na `main`,
-> com as tasks e as decisões de execução em [tasks.md](tasks.md). O que ficou de fora está no
-> [backlog](../../project/backlog.md) com gatilho: o `references/` do playbook, o índice de regras com
-> carregamento sob demanda, e a capacidade de o serviço **ler os repositórios** (D8), cujo funil já
-> existe desligado
+> **Status:** completa
+> **Histórico:** v0.5 — **feature completa e entregue.** As nove PRs mais o S1 e o S2 estão na `main`, com as tasks e as decisões de execução em [tasks.md](tasks.md). O que ficou de fora está no [backlog](../../project/backlog.md) com gatilho: o `references/` do playbook, o índice de regras com carregamento sob demanda, e a capacidade de o serviço **ler os repositórios** (D8), cujo funil já existe desligado
 > **Perguntas:** [open-questions.md](open-questions.md) — 38, **todas respondidas**. Mais as **8
 > decisões de entrega de contexto (D1–D8), todas respondidas**
 > **Execução:** [roadmap.md](roadmap.md) — a feature decomposta em pilha de PRs

@@ -2,7 +2,8 @@
 
 **Protótipo:** `packages/web/prototype/lumem-tabs.html`
 **Sucede:** [ui-shell](../002-ui-shell/tasks.md), que vestiu a árvore de três níveis
-**Status:** concluída — 8 de 8 entregues, gate cheio verde
+**Status:** completa
+**Histórico:** concluída — 8 de 8 entregues, gate cheio verde
 **Total:** 8 tasks (a oitava veio depois, da [issue #14](https://github.com/vinihcrosa/lumem-os/issues/14))
 
 ---

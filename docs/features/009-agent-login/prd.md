@@ -4,8 +4,8 @@
 tela ↔ protocolo
 **Sucede:** [onboarding](../008-onboarding/prd.md) · **Depende de:** [acp-sessions](../006-acp-sessions/prd.md)
 **Perguntas:** [open-questions.md](open-questions.md) · **Tasks:** [tasks.md](tasks.md)
-**Status:** **implementado** — núcleo mais instalação automática. O caminho da chave de API ficou fora,
-com a decisão registrada.
+**Status:** completa
+**Histórico:** **implementado** — núcleo mais instalação automática. O caminho da chave de API ficou fora, com a decisão registrada.
 
 ---
 

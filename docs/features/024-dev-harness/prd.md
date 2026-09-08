@@ -1,7 +1,7 @@
 # PRD — O harness deste repositório
 
-> **Status:** v0.1 — proposto em **2026-09-07**, a partir da
-> [auditoria de harness](../../project/harness-audit.md) medida no commit `40a0883` (v0.3.1).
+> **Status:** proposta
+> **Histórico:** v0.1 — proposto em **2026-09-07**, a partir da [auditoria de harness](../../project/harness-audit.md) medida no commit `40a0883` (v0.3.1).
 > **Perguntas:** [open-questions.md](open-questions.md) — 8 abertas, 3 já respondidas
 > **Tasks:** [tasks.md](tasks.md) — 16 tasks em 3 fases, uma issue cada
 > **Issue de rastreio:** [#72](https://github.com/vinihcrosa/lumem-os/issues/72), com marco por fase

@@ -3,7 +3,8 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) — 22, todas respondidas
 **Protótipo:** `packages/web/prototype/lumem-clone.html` — entregue pela C1, nove telas
 **Sucede:** [file-editor](../005-file-editor/tasks.md)
-**Status:** **fechada** — 17 de 17, portão verde (`gate:full`: 1142 unit/integration + 22 e2e)
+**Status:** completa
+**Histórico:** **fechada** — 17 de 17, portão verde (`gate:full`: 1142 unit/integration + 22 e2e)
 **Total:** 17 tasks em 5 fases
 
 ---

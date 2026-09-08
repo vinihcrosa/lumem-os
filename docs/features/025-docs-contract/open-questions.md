@@ -245,9 +245,9 @@ agora e manter os próximos.
 **Status:** proposta | em execução | completa | superada por <link do ADR>
 ```
 
-- **`proposta`** ⇔ não existe `tasks.md` (Q7). Os dois têm que concordar, e é isso que o gate checa.
-- **`em execução`** ⇔ existe `tasks.md` com checkbox aberto.
-- **`completa`** ⇔ existe `tasks.md` sem checkbox aberto.
+- **`proposta`** — nada foi entregue. Pode ou não ter `tasks.md` escrito.
+- **`em execução`** — começou e não acabou.
+- **`completa`** — acabou.
 - **`superada por <ADR>`** é o único valor que **não** se deriva do filesystem, e é o único que a
   Q3/C permite: uma PRD inteira cair é decisão arquitetural, então tem ADR.
 - **A prosa rica não se perde** — ela desce uma linha. O `second-agent` mantém *"proposta em
@@ -256,7 +256,38 @@ agora e manter os próximos.
   gate olha um campo, não o cabeçalho.
 - **Os 5 que mentem são consertados no passo 6**, e os 2 do README, e o heading do índice.
 
-**R:** B
+> **Emenda de 2026-09-07, achada implementando a T10 — a derivação por checkbox estava errada, e
+> `proposta ⇔ sem tasks.md` também.** O que **continua valendo** desta resposta é a gramática
+> fechada de quatro valores e o `**Histórico:**`; o que caiu é *como* o estado se deriva.
+>
+> Os dois erros, medidos nas 25 pastas:
+>
+> 1. **Checkbox não indica progresso neste repositório.** A `001-walking-skeleton` está entregue com
+>    **244 caixas abertas** e a `005-file-editor` com **126** — as duas nunca marcaram nenhuma. A
+>    `023-composer-menus` e a `024-dev-harness` não têm caixa alguma. E o próprio
+>    `.claude/agents/lumem-reviewer.md` já dizia: *"não existe convenção de marcar checkbox no
+>    `tasks.md`"*. A caixa é **critério de aceite**, não barra de progresso, e derivar fase dela
+>    marcaria duas features entregues como em execução para sempre.
+> 2. **`proposta ⇔ sem `tasks.md`` não cobre um caso que já existe.** A `024-dev-harness` tem
+>    `tasks.md` escrito e declara *"16 tasks em 3 fases, **nenhuma iniciada**"*. Tasks escritas não
+>    são tasks começadas.
+>
+> **O que o gate checa, então** — e é a parte que sobreviveu, porque é o que pega o defeito real:
+> **os dois `**Status:**` têm que concordar.** 22 de 22 `tasks.md` já têm o campo, o que faz disso
+> um invariante e não uma convenção nova. E é exatamente essa discordância que a
+> `013-pull-request-status` exibia: o `prd.md` dizia *"em implementação"* enquanto o `tasks.md` da
+> mesma pasta dizia *"completa"*.
+>
+> Mais duas checagens de uma direção só, que são verdade e são baratas: valor fora da gramática é
+> erro, e **pasta sem `tasks.md` obriga `proposta`**. Checkbox fica **informativo, nunca gate** —
+> pela mesma razão que a referência não gateia pergunta sem nota: *o processo pede o número, ele não
+> reprova o build por causa dele.*
+>
+> **Achado de graça:** um sexto `Status:` velho, que a contagem de 5 não pegou porque só olhava
+> `prd.md` — `001-walking-skeleton/tasks.md` dizia **`Draft — aguardando aprovação`** para as 34
+> tasks que são a fundação do produto.
+
+**R:** B, emendada em 2026-09-07 — gramática mantida, derivação corrigida
 
 ### Q9 — Numeração: atribuída quando, e o que acontece na colisão?
 
@@ -348,8 +379,9 @@ O que ele tem que checar, em ordem de valor:
    incompleto.
 2. **Âncora de heading** (`#21-isto-reverte-um-requisito-do-walking-skeleton`) resolve. É o que grep
    **não** pega, e é justamente o mecanismo da nota de reversão — o padrão que sustenta a Q3/C.
-3. **`Status:` contra o filesystem** (Q8): `proposta` ⇔ sem `tasks.md`; `completa` ⇔ sem checkbox
-   aberto. Pega os 5 que mentem e impede o próximo.
+3. **`Status:` de `prd.md` e de `tasks.md` concordando** (Q8, emendada): mais valor dentro da
+   gramática, e pasta sem `tasks.md` obrigando `proposta`. Pega os 6 que mentiam e impede o próximo.
+   **Checkbox não entra** — ver a emenda da Q8.
 
 Os dois gates de cadeia de ADR (`broken-supersedes`, `supersedes-cycle`) **ficam de fora** — para
 5–7 ADRs sem nenhum `supersedes`, é código para um problema que não existe, e a evidência é que na

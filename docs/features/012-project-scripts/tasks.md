@@ -1,10 +1,8 @@
 # Os scripts do projeto — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** **14 de 14 entregues.** Desenho aprovado em 2026-08-30 (`lumem-run-dock.html`, sete
-quadros) e portado. A ordem foi a do risco: a configuração e a execução primeiro, os ganchos depois, a
-tela por último — porque a tela era a única parte já desenhada e, portanto, a única que não podia
-surpreender.
+**Status:** completa
+**Histórico:** **14 de 14 entregues.** Desenho aprovado em 2026-08-30 (`lumem-run-dock.html`, sete quadros) e portado. A ordem foi a do risco: a configuração e a execução primeiro, os ganchos depois, a tela por último — porque a tela era a única parte já desenhada e, portanto, a única que não podia surpreender.
 
 As tasks foram entregues em **seis commits**, e não em quatorze: a T2, a T3, a T6, a T7 e a T8 são um
 router só e nasceram juntas, porque separar `status` de `start` teria produzido uma leitura sem nada

@@ -71,7 +71,7 @@ conversas, memória. `--state-dir` muda o lugar.
 | [Arquivos, diff e editor](docs/features/005-file-editor/prd.md) | navegue o checkout, leia o diff contra a branch base, edite com autosave |
 | [Scripts do projeto](docs/features/012-project-scripts/prd.md) | `setup`, `run`, `test` e `teardown` moram no `<repo>/.lumem/project.toml`; a worktree nova nasce preparada, e um clique sobe a aplicação numa porta reservada para aquele checkout |
 | [Memória do workspace](docs/features/007-workspace-memory/prd.md) | o que o harness aprendeu, versionado em git, atrás de um portão de escrita e de uma inbox de propostas. Os três interruptores que gastam token vêm **desligados** |
-| [Status de PR](docs/features/013-pull-request-status/prd.md) | desenhado, não implementado: qual das suas worktrees dá pra mesclar |
+| [Status de PR](docs/features/013-pull-request-status/prd.md) | qual das suas worktrees dá pra mesclar, lido do `gh` da sua máquina — o Lumem não vê, não pede e não grava token |
 
 ## Como funciona
 
