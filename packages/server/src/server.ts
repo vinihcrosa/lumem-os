@@ -13,6 +13,7 @@ import { createGitService, type GitService } from "./git/GitService.js";
 import { createGhHost } from "./pr/GhHost.js";
 import { createAgentAuthService, type AgentAuthService } from "./setup/agent-auth.js";
 import { createPrCache, type PrCache } from "./pr/PrCache.js";
+import { createIssueCache, type IssueCache } from "./pr/IssueCache.js";
 import type { PrHost } from "./pr/PrHost.js";
 import { AcpManager } from "./acp/AcpManager.js";
 import { registerAcpWebSocket } from "./acp/websocket.js";
@@ -107,6 +108,8 @@ export interface CreateServerOptions {
    */
   prHost?: PrHost;
   pr?: PrCache;
+  /** As issues do host, por projeto. Sem poll: quem pergunta é um diálogo. */
+  issues?: IssueCache;
   /** As tentativas de login vivas — em memória, e mortas com o daemon. */
   agentAuth?: AgentAuthService;
   /** Fastify's own request logging. Off in tests, on for the daemon. */
@@ -137,6 +140,7 @@ export async function createServer({
     // noutra aba aparecer nesta sem esperar o próximo ciclo.
     onChange: (projectId) => events.emit({ type: "pr.changed", projectId }),
   }),
+  issues = createIssueCache({ host: prHost }),
   agentAuth = createAgentAuthService({ acpManager }),
   logger = false,
 }: CreateServerOptions): Promise<FastifyInstance> {
@@ -158,6 +162,7 @@ export async function createServer({
     git,
     clones,
     pr,
+    issues,
     prHost,
     agentAuth,
     events,

@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 
 **Status:** proposta
-**Histórico:** **14 tasks em 6 fases** (2026-09-07). As **fases 0 a 3 estão entregues** — 8 de 14
+**Histórico:** **14 tasks em 6 fases** (2026-09-07). As **fases 0 a 4 estão entregues** — 10 de 14
 tasks. A fase 0 mudou três decisões antes de existir código; a fase 1 mudou cinco medidas do desenho
 e achou um defeito de outra feature; a fase 3 achou que as três leituras não tinham por onde sair do
 daemon, e a [T9](#t9-from-no-worktreecreate-a-leitura-das-origens-e-a-regressão-junto) cresceu.
@@ -234,7 +234,25 @@ porque é o mesmo arquivo e a mesma camada: o contrato.
 **Done when**: `create({projectId, name})` sem `from` executa o mesmo `argv` de hoje; `from` com
 `kind: "pr"` cuja head não está no disco é **recusado pelo daemon** com o motivo, e não pelo git.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ aberta
+**Status**: ✅ entregue — `fromSchema` é a união no zod, e `resolveSource` a traduz para
+`AddWorktreeSource` num lugar só, usado pelo `create` **e** pelo `plan`.
+
+**Duas procedures de leitura, e não uma** — a decisão apareceu escrevendo: `worktree.branches` é
+disco (10 ms) e `worktree.hostOrigins` é rede (~730 ms). Numa procedure só, a lista local esperaria
+a rede toda vez, e a aba `branch` — a única que existe em projeto sem remoto — ficaria refém de um
+`gh` que talvez nem esteja instalado.
+
+O que o daemon **não** aceita do cliente: `pr` e `issue` carregam só o número. O `headRefName` sai do
+`PrCache`, que é a mesma regra do merge da [013](../013-pull-request-status/prd.md). PR desconhecida
+é recusada; head fora do disco é recusada **aqui**, com o que fazer, porque o git não recusaria —
+medido, ele entraria em HEAD destacado com código zero.
+
+`remoteHolding` prefere `origin` quando há mais de um remoto: com um `fork` configurado, escolher
+pela ordem alfabética faria a worktree rastrear o repositório errado **sem dizer nada**.
+
+Um defeito de verdade caiu no teste: `worktreeName` vinha `null` para branch ocupada, porque o git
+responde caminho **real** e o banco guarda o construído — no macOS `/var` é link para `/private/var`,
+e as duas strings descrevem o mesmo diretório sem se comparar.
 
 #### T10: A `preview` para de mentir
 
@@ -245,7 +263,13 @@ Não estava no pedido — apareceu na leitura do código (§4 do PRD).
 **Done when**: para cada `kind`, o comando do preview é, string por string, o `argv` que o
 `GitService` executa.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ aberta
+**Status**: ✅ entregue — `worktreeAddArgs` saiu da closure do `GitService` e virou função
+exportada; o preview imprime `git ${worktreeAddArgs(...).join(" ")}`. É **o mesmo vetor**, e não uma
+string parecida montada noutro arquivo — que é exatamente o que ele era, com `-b` escrito à mão.
+
+O `plan` também parou de mentir nas outras três respostas: `branch` é a branch em que a worktree
+termina (que desde a [Q9](open-questions.md) pode não ser o nome), `baseBranch` diz de onde ela sai
+em cada caso, e a recusa por branch ocupada aparece **antes**, nomeando o checkout.
 
 ---
 

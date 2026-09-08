@@ -300,6 +300,34 @@ export interface GitServiceOptions {
   exec?: GitExec;
 }
 
+/**
+ * O `argv` de cada origem, em um lugar só — e **exportado**.
+ *
+ * Exportado porque o preview do router mostra o comando antes de ele rodar, e a
+ * única forma de o preview não mentir é ele imprimir o mesmo vetor que a
+ * execução usa. Uma segunda montagem, em outro arquivo, é uma frase que fica
+ * errada na primeira vez que uma flag muda — e foi o que aconteceu aqui: o
+ * preview de hoje escreve `-b` à mão, e com origem isso vira um comando que não
+ * existe.
+ */
+export function worktreeAddArgs(
+  branch: string,
+  targetPath: string,
+  source: AddWorktreeSource,
+): string[] {
+  switch (source.kind) {
+    case "new-branch":
+      return ["worktree", "add", "-b", branch, targetPath, source.base];
+    // Sem `-b`: a branch existe, e o git só a coloca no checkout novo.
+    case "existing-branch":
+      return ["worktree", "add", targetPath, branch];
+    // `--track -b`, e nunca o ref remoto sozinho — medido: sozinho ele entrega
+    // HEAD destacado com sucesso.
+    case "remote-branch":
+      return ["worktree", "add", "--track", "-b", branch, targetPath, source.remoteRef];
+  }
+}
+
 export function createGitService({ exec = execGit }: GitServiceOptions = {}): GitService {
   async function branchExists(repoPath: string, branch: string): Promise<boolean> {
     try {
@@ -343,31 +371,6 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       .split("\n")
       .map((line) => line.trim())
       .filter((line) => line !== "");
-  }
-
-  /**
-   * O `argv` de cada origem, em um lugar só.
-   *
-   * Escrito como função e não como `if` no meio do método porque é isto que o
-   * preview do router precisa mostrar: o comando que **vai** rodar, e não uma
-   * string parecida montada à mão em outro arquivo.
-   */
-  function argvForWorktreeAdd(
-    branch: string,
-    targetPath: string,
-    source: AddWorktreeSource,
-  ): string[] {
-    switch (source.kind) {
-      case "new-branch":
-        return ["worktree", "add", "-b", branch, targetPath, source.base];
-      // Sem `-b`: a branch existe, e o git só a coloca no checkout novo.
-      case "existing-branch":
-        return ["worktree", "add", targetPath, branch];
-      // `--track -b`, e nunca o ref remoto sozinho — medido: sozinho ele entrega
-      // HEAD destacado com sucesso.
-      case "remote-branch":
-        return ["worktree", "add", "--track", "-b", branch, targetPath, source.remoteRef];
-    }
   }
 
   const service: GitService = {
@@ -482,7 +485,7 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       }
 
       try {
-        await exec(argvForWorktreeAdd(branch, targetPath, source), { cwd: repoPath });
+        await exec(worktreeAddArgs(branch, targetPath, source), { cwd: repoPath });
       } catch (error) {
         // Measured, not assumed: `worktree add` creates the branch *before* it
         // discovers the target directory is unusable, and leaves it behind. The
