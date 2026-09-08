@@ -68,7 +68,8 @@ Monorepo pnpm workspaces + Turborepo. TypeScript ESM, Node ≥ 22, `"type": "mod
 | Scripts de infraestrutura | `scripts/` (gate rápido, postinstall do node-pty) |
 | Portas | `ports.json` (fonte) + `ports.ts` (leitor tipado) |
 | Documentação | `docs/` — índice em [docs/README.md](../../docs/README.md) |
-| Tasks da feature atual | [docs/features/001-walking-skeleton/tasks.md](../../docs/features/001-walking-skeleton/tasks.md) |
+| **Decisões em vigor** | [docs/adr/](../../docs/adr/) — **liste a pasta e leia o frontmatter antes de propor arquitetura.** Uma decisão lá vale mais que o seu instinto, e contradizê-la em silêncio é o defeito |
+| Features | [docs/features/](../../docs/features/) em `NNN-nome/`. O número é **ordem de leitura**, não prioridade — a feature em que você trabalha é a que a task nomeia, e nenhuma pasta é "a atual" |
 | Estratégia de teste | [docs/project/testing.md](../../docs/project/testing.md) |
 
 Stack decidida (não reabra): Fastify, tRPC v11, `node-pty` + `ws` cru, SQLite (`better-sqlite3`) + Drizzle, React + Vite, `xterm.js`, Vitest + Playwright.
@@ -207,7 +208,7 @@ Uma task = um commit, logo após o gate verde.
 * penúltima linha, quando a task vem de um `tasks.md`, é a rastreabilidade — esta é a convenção viva do repositório, **não** existe convenção de marcar checkbox:
 
 ```
-T5 of docs/features/001-walking-skeleton/tasks.md
+T7 of docs/features/025-docs-contract/tasks.md
 ```
 
 * trailer final:

@@ -47,12 +47,13 @@ Objetivo: **aumentar qualidade e reduzir risco da mudança**, não maximizar con
 
 Você julga contra regra escrita, não contra gosto pessoal. Ordem de precedência em conflito:
 
-1. **`docs/features/<NNN>-<feature>/prd.md`** e **`open-questions.md`** — decisões específicas da feature. Uma pergunta com `**R:**` preenchido é **decisão travada**, não sugestão (ex.: `WS-Q15`, agente pode subir direto no projeto). Implementar contra ela é bloqueante;
-2. **`docs/features/<NNN>-<feature>/tasks.md`** — escopo, `Where`, `Done when`, `Test count`, `Gate`, `Commit` da task;
-3. **`docs/project/testing.md`** — estratégia de teste, gates e a seção **"Armadilhas já corrigidas"**. Cada parágrafo ali é um bug que já custou uma rodada. Regressão de qualquer um deles é **blocker automático**;
-4. **`CLAUDE.md`** na raiz — convenções operantes: idioma, regra de documentação, estrutura, comandos;
-5. **`docs/project/questions.md`** — decisões de projeto de longo prazo (Q001–Q096), quando respondidas;
-6. **Padrão dominante no código vizinho** — quando nada acima decide.
+1. **`docs/adr/`** — as decisões arquiteturais em vigor. **Liste a pasta e leia o frontmatter** antes de julgar qualquer coisa de arquitetura. Um ADR está superado exatamente quando outro o nomeia em `supersedes` — **não existe campo `status:`**, então a posição atual é a cadeia lida até o fim. Contradizer um ADR **em silêncio** é achado sério; discordar dele por escrito não é;
+2. **`docs/features/<NNN>-<feature>/prd.md`** e **`open-questions.md`** — decisões específicas da feature. Uma pergunta com `**R:**` preenchido é **decisão travada**, não sugestão (ex.: `WS-Q15`, agente pode subir direto no projeto). Implementar contra ela é bloqueante;
+3. **`docs/features/<NNN>-<feature>/tasks.md`** — escopo, `Where`, `Done when`, `Test count`, `Gate`, `Commit` da task;
+4. **`docs/project/testing.md`** — estratégia de teste, gates e a seção **"Armadilhas já corrigidas"**. Cada parágrafo ali é um bug que já custou uma rodada. Regressão de qualquer um deles é **blocker automático**;
+5. **`CLAUDE.md`** na raiz — convenções operantes: idioma, regra de documentação, estrutura, comandos;
+6. **`docs/project/questions.md`** — decisões de projeto de longo prazo (Q001–Q096), quando respondidas. `docs/project/` é **estudo que sustenta uma decisão**, não a decisão: quando ele e um ADR discordarem, o ADR ganha;
+7. **Padrão dominante no código vizinho** — quando nada acima decide.
 
 Se a mudança introduz padrão novo que contradiz o `CLAUDE.md`, o PRD ou uma resposta travada em `open-questions.md`, isso é bloqueante: ou o código muda, ou a decisão é atualizada explicitamente no documento.
 
@@ -75,7 +76,8 @@ Monorepo pnpm workspaces + Turborepo. TypeScript ESM, Node ≥ 22, `"type": "mod
 | Scripts de infraestrutura | `scripts/` |
 | Portas | `ports.json` (fonte) + `ports.ts` (leitor tipado) |
 | Documentação | `docs/` — índice obrigatório em `docs/README.md` |
-| Feature atual | `docs/features/001-walking-skeleton/{prd,open-questions,tasks}.md` |
+| Decisões em vigor | `docs/adr/` — a pasta é o índice, o frontmatter é o resumo |
+| Feature em revisão | `docs/features/<NNN>-<feature>/{prd,open-questions,tasks}.md` — a que o diff toca, não uma fixa |
 
 Invariantes do repositório cuja violação você aponta:
 
@@ -305,7 +307,7 @@ A regra do `CLAUDE.md` sobrepõe qualquer skill: toda documentação vive em `do
 
 ### 6.3 Se o diff inclui arquivos de `docs/`
 
-Verifique: português na prosa, inglês no nome do arquivo, kebab-case, categoria certa (`project/` arquivo direto, `references/` um por referência, `features/<NNN>-<feature>/` pasta), link relativo que resolve, índice atualizado, tabela em vez de parede de texto quando comparar opções (padrão do repo), e ausência de conteúdo que pertence a outro arquivo.
+Verifique: português na prosa, inglês no nome do arquivo, kebab-case, categoria certa (`adr/` arquivo direto em `YYYY-MM-DD-HHMM-slug.md`, `project/` arquivo direto, `references/` um por referência, `features/<NNN>-<feature>/` pasta), link relativo que resolve, índice atualizado, `**Status:**` de PRD dentro da gramática fechada (`proposta | em execução | completa | superada por <ADR>`) **e concordando com o disco**, tabela em vez de parede de texto quando comparar opções (padrão do repo), e ausência de conteúdo que pertence a outro arquivo.
 
 Não aponte "falta documentação" genericamente. Diga **qual arquivo**, **qual seção**, **qual conteúdo** ficou errado, e se é bloqueante ou follow-up.
 
