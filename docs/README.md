@@ -35,6 +35,7 @@ O contrato está na [025-docs-contract](features/025-docs-contract/prd.md).
 | [O daemon é um bundle ESM que serve o web na própria porta](adr/2026-08-30-0532-daemon-is-an-esm-bundle-that-serves-the-web.md) | 2026-08-30 | `distribution` |
 | [O número da PRD é ordem de leitura, não precedência](adr/2026-09-07-2208-prd-number-is-reading-order-not-precedence.md) | 2026-09-07 | `docs` |
 | [A head da PR é buscada sob demanda, e não exigida do usuário](adr/2026-09-08-0210-pr-head-is-fetched-on-demand.md) | 2026-09-08 | `git` |
+| [O adaptador é a cópia que o daemon instalou, e o PATH nunca decide qual](adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md) | 2026-09-08 | `transport` |
 
 Nenhum dos sete tem `supersedes` — a cadeia ainda não foi exercitada. É o gatilho para os gates
 `broken-supersedes` e `supersedes-cycle`, que hoje não existem de propósito.
@@ -511,6 +512,31 @@ listagens por abertura"* nunca foi verdade — branch é disco (10 ms), PR já e
 | [open-questions.md](features/026-worktree-from/open-questions.md) | 9 perguntas, **9 respondidas**: as 5 do pedido mais 4 que a medição abriu. Três contrariam o que o pedido propunha, inclusive a regra de quando apagar a branch órfã |
 | [tasks.md](features/026-worktree-from/tasks.md) | **14 tasks em 6 fases, todas entregues.** Zero migração: `name` e `branch` já são colunas separadas, e esta é a primeira feature em que elas divergem — a regra que a `walking-skeleton` escreveu para isso disparou pela primeira vez |
 | `packages/web/prototype/lumem-worktree-from.html` | a folha, oito quadros — e cinco medidas do desenho corrigidas **no navegador**, da meia linha que era um sliver de 8px ao cartão que a moldura espremia em 12px. Ela também achou que a `docs-contract` editou **quatro cópias** de protótipo, que o primeiro `design:sync` desfez |
+
+### [adapter-provenance/](features/027-adapter-provenance/) — de quem é o adaptador · **em execução**
+
+Começou como um problema de janela de contexto — *"o Lumem mostra 200K num modelo de 1M, e não pega
+Opus 5 nem Fable 5.1"* — e acabou num invariante de transporte. A causa não era a tela: o daemon
+rodava `claude-agent-acp@0.40.0`, do PATH, havia **nove dias**, enquanto o `pinnedVersion` do catálogo
+dizia `0.75.1`. O `0.40.0` embute o Claude Code `2.1.160`, que não conhece Opus 5 nem Fable 5.1 — a
+lista que ele entregava tinha `Custom model` onde o Fable devia estar, e um `usage_update` de 200 000
+sob um rótulo que dizia *"1M context"*.
+
+**O pino existia e não decidia nada.** A resolução do binário terminava num `else` para o PATH; a
+coluna `agent_config.command` guardava um caminho absoluto do dia em que a linha nasceu; o router não
+tem `update`; e o `resume` relançava o caminho congelado da sessão morta. Quatro superfícies, e uma
+instalação gerenciada correta não desalojaria nenhuma.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](features/027-adapter-provenance/prd.md) | o §2 é a bancada: as duas listas de modelos lado a lado, lidas do `type:"config"` dos transcripts, e o turno real que separou *"precisa de um PATH utilizável"* de *"precisa que o PATH diga quem ele é"* |
+| [open-questions.md](features/027-adapter-provenance/open-questions.md) | 5 perguntas, **5 respondidas**. A **Q1** foi respondida **contra o pedido**, com 243 MB + 301 MB na mão: "embutido" virou "o daemon é dono da cópia", e a leitura forte foi para o backlog com o número que a recusou |
+| [tasks.md](features/027-adapter-provenance/tasks.md) | 10 tasks em 5 fases. A ordem tem uma regra: **fecha o buraco antes de ensinar o boot a consertar** — uma máquina reconciliada nunca exercita o `else`, e o teste que devia ficar vermelho fica verde |
+
+O achado de brinde é do mesmo tipo que a feature existe para pegar: `rateLimitOf` exigia
+`utilization` na raiz de `_claude/rateLimit`, e o `0.75.1` a aninhou em
+`unifiedWindows.<janela>.utilization`. O rodapé de limite está **apagado** desde então, em todo
+transcript do repositório, sem nada falhar.
 
 ---
 

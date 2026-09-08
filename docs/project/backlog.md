@@ -713,3 +713,33 @@ tipo pega — `no-floating-promises` à frente, num daemon cheio de `async` disp
 
 **De onde veio:** [dev-harness T9](../features/024-dev-harness/tasks.md) · **Volta quando:** a medição da Q2
 apontar `oxlint`, ou quando aparecer o primeiro bug de promessa não-aguardada em produção.
+
+### O adaptador como dependência do pacote publicado — `G`
+
+O [ADR de 2026-09-08](../adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md) fez o daemon ser
+**dono** da cópia do adaptador. A leitura forte do pedido era outra — *"embutido nele"*: o adaptador
+como `dependencies` do `lumem`, resolvido por `createRequire(import.meta.url).resolve(...)`, sem npm
+em tempo de execução, sem rede no primeiro boot e sem 243 MB no diretório de estado.
+
+Recusada **por tamanho medido**: `claude-agent-acp@0.75.1` instala 243 MB e `codex-acp@1.10.0`, 301
+MB — um `npm i -g @vinihcrosa/lumem-os` passaria de ~550 MB e cobraria os dois de quem usa um. E o
+[daemon é um bundle ESM com só o par nativo por fora](../adr/2026-08-30-0532-daemon-is-an-esm-bundle-that-serves-the-web.md):
+os dois entrariam como *externals*, e o `smoke:install` passaria a baixar meio giga por execução.
+
+**De onde veio:** [027 Q1](../features/027-adapter-provenance/open-questions.md) · **Volta quando:** o
+primeiro boot sem rede virar reclamação real, ou um adaptador encolher para dezenas de MB.
+
+### As duas `configOptions` novas do `claude-agent-acp` — `M`
+
+Medido em 2026-09-08: o `0.75.1` expõe `effort` (`category: thought_level`, com
+`default/low/medium/high/xhigh/max`) e `agent` (persona de thread principal, populada com as personas
+da máquina). Nenhuma das duas existe no composer — e a
+[023-composer-menus](../features/023-composer-menus/prd.md) acabou de arrumar a casa onde elas
+morariam.
+
+São feature e não conserto: pedem pílula, persistência e uma decisão sobre herança por workspace — o
+mesmo tamanho que a [016-session-mode](../features/016-session-mode/prd.md) teve.
+
+**De onde veio:** [027 Q5](../features/027-adapter-provenance/open-questions.md) · **Volta quando:** alguém
+quiser trocar esforço sem sair do Lumem, ou quando uma persona do repositório for o motivo de abrir a
+conversa.
