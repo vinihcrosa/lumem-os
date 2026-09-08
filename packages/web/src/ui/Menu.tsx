@@ -44,7 +44,12 @@ export function MenuItem({ children, onSelect, glyph, hint, disabled = false }: 
     >
       {glyph}
       {children}
-      {hint !== undefined && <span className="menu__hint">{hint}</span>}
+      {/* `title` porque a dica é truncada no CSS: o caminho inteiro fica alcançável. */}
+      {hint !== undefined && (
+        <span className="menu__hint" title={typeof hint === "string" ? hint : undefined}>
+          {hint}
+        </span>
+      )}
     </button>
   );
 }

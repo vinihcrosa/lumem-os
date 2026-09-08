@@ -544,11 +544,30 @@
   cursor: not-allowed;
 }
 .menu__item:disabled .glyph { color: var(--color-text-disabled); }
+/*
+ * A dica é truncada, e isto não é estética: ela carrega um caminho.
+ *
+ * Sem `min-width: 0` e `overflow`, um caminho absoluto — que não tem espaço para
+ * quebrar — vira uma palavra única que estoura a linha de altura fixa do item e
+ * passa a receber o clique destinado ao item vizinho. Medido em 2026-09-08, quando
+ * o adaptador passou a ser lançado da pasta do daemon: o caminho gerenciado é
+ * bem mais longo que o do PATH, e o e2e que escolhe um agente no menu de `nova
+ * sessão` começou a falhar em `intercepts pointer events` — passando quando rodado
+ * sozinho, porque aí o menu tinha um item só.
+ *
+ * O `title` no elemento é o que devolve o caminho inteiro a quem precisa dele.
+ */
 .menu__hint {
   margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font: var(--text-mono-sm);
   color: var(--color-text-tertiary);
 }
+/* O rótulo cede antes da dica, porque é ele que tem palavras para quebrar. */
+.menu__item > :not(.menu__hint) { flex: 0 1 auto; min-width: 0; }
 /* O motivo de um item estar travado é um erro, e lê como erro. */
 .menu__item:disabled .menu__hint { color: var(--color-text-danger); }
 
