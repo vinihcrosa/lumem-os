@@ -3,9 +3,10 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 
 **Status:** proposta
-**Histórico:** **14 tasks em 6 fases** (2026-09-07). A **fase 0 está entregue** — ela é medição e
-documento, e mudou três decisões antes de existir código. As nove perguntas estão respondidas; nenhuma
-task está travada.
+**Histórico:** **14 tasks em 6 fases** (2026-09-07). As **fases 0 e 1 estão entregues** — medição,
+documento e desenho, nenhuma linha de produto ainda. A fase 0 mudou três decisões antes de existir
+código; a fase 1 mudou cinco medidas do desenho e achou um defeito de outra feature. As nove
+perguntas estão respondidas; nenhuma task está travada.
 
 A ordem tem uma regra: **o que decide vem antes do que escreve; git puro antes do `gh`; a tela por
 último**, porque é a mais barata de refazer e a única represada pelo Open Design.
@@ -84,7 +85,27 @@ o campo já utilizável), sem remoto, sem `gh`, sem autenticação, lista vazia,
 **Done when**: aberto no navegador, o quadro "carregando" mostra o campo de nome ativo e o seletor
 ainda vazio; o quadro degradado mostra o modal de hoje mais a aba `branch`.
 **Gate**: renderizado e conferido no navegador
-**Status**: ⬜ aberta
+**Status**: ✅ entregue — `lumem-worktree-from.html/.css`, oito quadros. O sync trouxe a folha e o
+`--check` fica limpo. **Cinco medições mudaram o desenho**, e nenhuma delas era visível no código:
+
+| Medido no navegador | O que mudou |
+|---|---|
+| a lista com `4.5 × 32px` deixava um **sliver de 8px** da quinta linha, não meia linha — o padding do trilho come a diferença | `--size-origin-list-h` ganhou `+ var(--space-8)`: quatro linhas inteiras e **19px** da quinta |
+| o cartão no quadro do antes/depois media **408px**, e não os 420 do produto — a coluna do documento tem 832px | `.pair` passou a ter colunas do tamanho do cartão, com `bleed` e linha centrada |
+| com `bleed` e `1fr`, cada cartão centrava na **sua metade**: 2,5 mil pixels entre os dois a 3440px | `justify-content: center` em vez de `justify-items` |
+| `.origin__empty` com `display: grid` quebrou a frase em **quatro linhas empilhadas** — cada nó inline virou item de grade | virou `flex` com um `<p>` só dentro |
+| a linha `.orow` solta num quadro largo media **701px**; no produto ela tem 380 | `.origin__list--fit` ganhou largura derivada do cartão menos o padding do corpo |
+
+A prova de recorte é a da [`023-composer-menus`](../023-composer-menus/prd.md), e não `toBeVisible`:
+`document.elementFromPoint` no centro de cada linha, de cada botão do trilho **e no sliver da quinta
+linha** devolve o próprio elemento — nada é interceptado por ancestral.
+
+**E a task achou um defeito que não é dela:** o primeiro `design:sync` **desfez** quatro protótipos.
+A `025-docs-contract` trocou `docs/prd/…` por `docs/features/NNN-…` dentro de
+`lumem-acp-conversation.html`, `lumem-run-dock.html`, `lumem-memory.css` e `lumem-workspace.css` —
+que são **cópias**, e o sync tem uma direção só. As cinco ocorrências foram corrigidas **na fonte**,
+no Open Design, e o registro está em
+[design-source-of-truth §5](../../project/design-source-of-truth.md).
 
 ---
 
