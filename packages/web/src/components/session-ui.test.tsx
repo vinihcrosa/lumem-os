@@ -513,21 +513,25 @@ describe("aba de sessão", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("não sabe retomar conversa");
   });
 
-  it("keeps a failed action in the topbar's error log, not only in a banner", async () => {
+  it("keeps a real failure in the topbar's error log, not only in a banner", async () => {
     // The banner is gone the moment you look away. The log is what survives, so a
     // real bug can be copied out later — and it is fed by the same failed call.
+    // A server defect (INTERNAL_SERVER_ERROR), not a domain refusal: the log is
+    // for bugs, and the daemon's ordinary "no" stays out of it.
     const user = userEvent.setup();
     trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
       scopeType === "worktree" ? [session()] : [],
     );
-    trpc.session.close.mutate.mockRejectedValue(new Error("o daemon recusou"));
+    trpc.session.close.mutate.mockRejectedValue(
+      Object.assign(new Error("o daemon caiu ao fechar"), { data: { code: "INTERNAL_SERVER_ERROR" } }),
+    );
 
     await selectWorktree(user);
     await user.click(await screen.findByRole("button", { name: "fechar shell" }));
 
     const trigger = await screen.findByRole("button", { name: /registro de erros/ });
     await user.click(trigger);
-    expect(within(screen.getByRole("dialog")).getByText("o daemon recusou")).toBeInTheDocument();
+    expect(within(screen.getByRole("dialog")).getByText("o daemon caiu ao fechar")).toBeInTheDocument();
   });
 
   it("keeps every tab's terminal mounted while another one is open", async () => {

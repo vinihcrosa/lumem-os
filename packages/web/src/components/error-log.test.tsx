@@ -24,7 +24,7 @@ describe("the error log surface", () => {
   });
 
   it("appears with a count once something failed", () => {
-    recordError({ kind: "ação", label: "session.resume", message: "recusado" });
+    recordError({ kind: "mutation", label: "session.resume", message: "recusado" });
     render(<ErrorLog />);
 
     expect(screen.getByRole("button", { name: /registro de erros \(1\)/ })).toBeInTheDocument();
@@ -32,7 +32,7 @@ describe("the error log surface", () => {
 
   it("opens a panel that lists the errors", async () => {
     const user = userEvent.setup();
-    recordError({ kind: "ação", label: "session.resume", message: "não sabe retomar" });
+    recordError({ kind: "mutation", label: "session.resume", message: "não sabe retomar" });
     render(<ErrorLog />);
 
     await user.click(screen.getByRole("button", { name: /registro de erros/ }));
@@ -45,7 +45,7 @@ describe("the error log surface", () => {
 
   it("copies one error to the clipboard", async () => {
     const user = userEvent.setup();
-    recordError({ kind: "ação", label: "session.resume", message: "recusado", detail: "at foo" });
+    recordError({ kind: "mutation", label: "session.resume", message: "recusado", detail: "at foo" });
     render(<ErrorLog />);
 
     await user.click(screen.getByRole("button", { name: /registro de erros/ }));
@@ -58,8 +58,8 @@ describe("the error log surface", () => {
 
   it("copies the whole log at once", async () => {
     const user = userEvent.setup();
-    recordError({ kind: "consulta", label: "a", message: "um" });
-    recordError({ kind: "ação", label: "b", message: "dois" });
+    recordError({ kind: "query", label: "a", message: "um" });
+    recordError({ kind: "mutation", label: "b", message: "dois" });
     render(<ErrorLog />);
 
     await user.click(screen.getByRole("button", { name: /registro de erros/ }));

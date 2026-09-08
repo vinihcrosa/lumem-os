@@ -12,7 +12,12 @@
  * `useSyncExternalStore`.
  */
 
-export type ErrorKind = "consulta" | "ação" | "app";
+/**
+ * The source of an error, in code. English because it is an identifier that also
+ * gets written to `localStorage`; the Portuguese the user reads is derived at
+ * render, so renaming the label never touches what is on disk.
+ */
+export type ErrorKind = "query" | "mutation" | "app";
 
 export interface ErrorEntry {
   id: string;
@@ -29,25 +34,55 @@ export interface ErrorEntry {
   detail: string | null;
 }
 
-const STORAGE_KEY = "lumem.errorLog";
+/**
+ * Versioned on purpose. The shape of an entry is now a contract with what is on
+ * disk, and a reader that trusted an old or hand-edited shape would print
+ * `undefined` or `Invalid Date`. Bumping the suffix discards anything that does
+ * not match — which is also how the `ErrorKind` rename costs no migration.
+ */
+const STORAGE_KEY = "lumem.errorLog.v1";
 /** Old bugs matter less than fresh ones, and localStorage is not infinite. */
 const CAP = 200;
 
-let entries: ErrorEntry[] = load();
+const KINDS = new Set<ErrorKind>(["query", "mutation", "app"]);
+
+// Declared and initialised before `load()` runs below: `load` validates through
+// `isEntry`, which reads `KINDS`, and a `const` in its temporal dead zone would
+// throw — a throw `load` catches, silently turning a full disk into an empty log.
 let seq = 0;
 const listeners = new Set<() => void>();
+
+/** Only a shape this version wrote survives a reload; the rest is discarded. */
+function isEntry(value: unknown): value is ErrorEntry {
+  if (value === null || typeof value !== "object") return false;
+  const entry = value as Record<string, unknown>;
+  return (
+    typeof entry["id"] === "string" &&
+    typeof entry["at"] === "number" &&
+    typeof entry["firstAt"] === "number" &&
+    typeof entry["count"] === "number" &&
+    typeof entry["label"] === "string" &&
+    typeof entry["message"] === "string" &&
+    (entry["detail"] === null || typeof entry["detail"] === "string") &&
+    KINDS.has(entry["kind"] as ErrorKind)
+  );
+}
 
 function load(): ErrorEntry[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw === null) return [];
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as ErrorEntry[]) : [];
+    return Array.isArray(parsed) ? parsed.filter(isEntry) : [];
   } catch {
     // A corrupt or unavailable store is an empty log, never a crash on boot.
     return [];
   }
 }
+
+// After `load`, `isEntry` and `KINDS` all exist, so the boot read is validated
+// rather than throwing into the catch above.
+let entries: ErrorEntry[] = load();
 
 function persist(): void {
   try {
@@ -135,6 +170,17 @@ export function clearErrors(): void {
   emit();
 }
 
+/** The Portuguese the user reads, kept out of what is written to disk. */
+const KIND_LABEL: Record<ErrorKind, string> = {
+  query: "consulta",
+  mutation: "ação",
+  app: "app",
+};
+
+export function kindLabel(kind: ErrorKind): string {
+  return KIND_LABEL[kind];
+}
+
 function stamp(ms: number): string {
   return new Date(ms).toISOString();
 }
@@ -142,7 +188,7 @@ function stamp(ms: number): string {
 /** One error as plain text, the shape a bug report wants. */
 export function formatError(entry: ErrorEntry): string {
   const times = entry.count > 1 ? ` ×${entry.count}` : "";
-  const head = `[${stamp(entry.at)}] ${entry.kind} · ${entry.label}${times}`;
+  const head = `[${stamp(entry.at)}] ${kindLabel(entry.kind)} · ${entry.label}${times}`;
   const body = entry.detail === null ? entry.message : `${entry.message}\n${entry.detail}`;
   return `${head}\n${body}`;
 }
@@ -166,4 +212,21 @@ export function describeError(error: unknown): { label: string | null; message: 
     return { label, message: error.message, detail: error.stack ?? null };
   }
   return { label, message: String(error), detail: null };
+}
+
+/**
+ * Whether a failed call is a defect worth logging, or a normal answer.
+ *
+ * Most failed queries are the daemon saying "no" on purpose: a path that is not
+ * a repo (`NOT_FOUND`/`BAD_REQUEST`), a worktree off disk in a poll (`CONFLICT`
+ * from `BLOCKED`), an adapter not installed. Those already have their own inline
+ * sentence on screen; putting them in the bug log would make the badge noise on
+ * the first onboarding with a typo. Only a defect on the server
+ * (`INTERNAL_SERVER_ERROR`) or a call that never reached it — no `data`, i.e. a
+ * network or parse failure, the daemon unreachable — is a bug.
+ */
+export function isReportableError(error: unknown): boolean {
+  const data = (error as { data?: { code?: unknown } } | null)?.data;
+  if (data === undefined || data === null) return true;
+  return data.code === "INTERNAL_SERVER_ERROR";
 }

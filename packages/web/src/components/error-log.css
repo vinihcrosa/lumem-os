@@ -91,9 +91,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Terciário sobre a superfície do item, o mesmo par que a hora ao lado usa —
+   o contador não precisa de cor de estado própria, que seria par novo. */
 .errlog__times {
   font: var(--text-mono-sm);
-  color: var(--color-daemon-offline);
+  color: var(--color-text-tertiary);
 }
 .errlog__at {
   font: var(--text-mono-sm);
@@ -107,14 +109,17 @@
   overflow-wrap: anywhere;
 }
 
+/* O detalhe é rastro de pilha: código sobre o mesmo poço do terminal
+   (`text/code` sobre `bg/inset`), que é par já declarado e semanticamente
+   o vizinho certo. */
 .errlog__detail {
   margin: var(--space-6) 0 0;
-  max-height: var(--size-menu-width);
+  max-height: var(--size-menu-max-h);
   padding: var(--space-6);
   overflow: auto;
   border-radius: var(--radius-sm);
-  background: var(--color-bg-panel);
-  color: var(--color-text-tertiary);
+  background: var(--color-bg-inset);
+  color: var(--color-text-code);
   font: var(--text-mono-sm);
   white-space: pre-wrap;
   overflow-wrap: anywhere;

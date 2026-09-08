@@ -7,6 +7,7 @@ import {
   dismissError,
   formatError,
   formatErrorLog,
+  kindLabel,
   type ErrorEntry,
 } from "../lib/errorLog.js";
 import { Button, Chip } from "../ui/index.js";
@@ -75,7 +76,7 @@ function ErrorRow({ entry }: { entry: ErrorEntry }) {
   return (
     <li className="errlog__item">
       <div className="errlog__meta">
-        <Chip tone="failed">{entry.kind}</Chip>
+        <Chip tone="failed">{kindLabel(entry.kind)}</Chip>
         <code className="errlog__label">{entry.label}</code>
         {entry.count > 1 && <span className="errlog__times">×{entry.count}</span>}
         <span className="errlog__spacer" />
