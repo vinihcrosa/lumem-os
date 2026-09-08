@@ -1,6 +1,6 @@
 {
   "name": "@vinihcrosa/lumem-os",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Local harness for orchestrating AI coding agents across git worktrees",
   "license": "MIT",
   "type": "module",
