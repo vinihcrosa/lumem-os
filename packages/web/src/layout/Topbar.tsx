@@ -1,3 +1,5 @@
+import { ErrorLog } from "../components/ErrorLog.js";
+
 export interface TopbarProps {
   /** Null while the first health check is still in flight. */
   version: string | null;
@@ -25,6 +27,10 @@ export function Topbar({ version, unreachable }: TopbarProps) {
         Lumem-OS
       </h1>
       <span className="topbar__spacer" />
+      {/* Nothing fails in silence: whatever went wrong is kept here, in the one
+          strip that survives every failure, and shows only when there is
+          something to show. */}
+      <ErrorLog />
       {/* The files toggle used to live here, and it was the one control in this
           strip that did not apply to the whole screen: the column belongs to a
           checkout, and the button vanished when no checkout was selected, which

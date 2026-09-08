@@ -1,0 +1,127 @@
+/* O registro de erros: gatilho na topbar e painel ancorado nele. */
+
+.errlog {
+  position: relative;
+  display: inline-flex;
+}
+
+.errlog__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-daemon-offline);
+  font: var(--text-label-xs);
+  cursor: pointer;
+}
+.errlog__trigger:hover {
+  background: var(--color-bg-hover);
+}
+.errlog__count {
+  min-width: var(--space-16);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-daemon-offline);
+  color: var(--color-text-on-brand);
+  font: var(--text-mono-sm);
+  text-align: center;
+}
+
+/* Fora do fluxo e ancorado pela direita: o gatilho vive no fim da barra, e
+   abrir pra esquerda mantém o painel dentro da tela. */
+.errlog__panel {
+  position: absolute;
+  top: calc(100% + var(--space-4));
+  right: 0;
+  z-index: 20;
+  width: var(--size-dialog-width);
+  max-width: 90vw;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-lg);
+}
+
+.errlog__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.errlog__title {
+  font: var(--text-label-md);
+}
+.errlog__spacer {
+  flex: 1;
+}
+
+.errlog__list {
+  margin: 0;
+  padding: var(--space-4);
+  list-style: none;
+  overflow: auto;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.errlog__item {
+  padding: var(--space-8);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+}
+
+.errlog__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+.errlog__label {
+  font: var(--text-mono-sm);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.errlog__times {
+  font: var(--text-mono-sm);
+  color: var(--color-daemon-offline);
+}
+.errlog__at {
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+}
+
+.errlog__msg {
+  margin: var(--space-6) 0 0;
+  font: var(--text-body-sm);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.errlog__detail {
+  margin: var(--space-6) 0 0;
+  max-height: var(--size-menu-width);
+  padding: var(--space-6);
+  overflow: auto;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-panel);
+  color: var(--color-text-tertiary);
+  font: var(--text-mono-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.errlog__actions {
+  margin-top: var(--space-6);
+  display: flex;
+  gap: var(--space-4);
+}
