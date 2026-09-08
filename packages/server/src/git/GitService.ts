@@ -179,6 +179,14 @@ export interface GitService {
   /** `git worktree add`, F4.1–F4.5 — e as três origens da `026-worktree-from`. */
   addWorktree(input: AddWorktreeInput): Promise<void>;
   /**
+   * O sha curto de uma ref, ou `null` quando ela não resolve.
+   *
+   * Existe para o preview: desde a `026-worktree-from` a base dele sai da origem
+   * escolhida, e um sha do HEAD do checkout principal ao lado do nome de outra
+   * branch é o preview mentindo com mais precisão do que antes.
+   */
+  resolveShortSha(repoPath: string, ref: string): Promise<string | null>;
+  /**
    * As branches que servem de origem: locais e remotas, **sem ir à rede**.
    *
    * Uma execução de `for-each-ref` mais uma de `worktree list` — 10 ms medidos
@@ -500,6 +508,17 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
         if (!existedBefore) await exec(["branch", "-D", branch], { cwd: repoPath }).catch(() => {});
         throw error;
       }
+    },
+
+    async resolveShortSha(repoPath, ref) {
+      // `--verify --quiet` mais o `^{commit}`: sem eles, uma ref que não existe
+      // faz o git escrever a própria string de volta e sair com sucesso, e o
+      // preview mostraria `origin/fantasma` como se fosse um sha.
+      const { stdout } = await exec(["rev-parse", "--short", "--verify", "--quiet", `${ref}^{commit}`], {
+        cwd: repoPath,
+      }).catch(() => ({ stdout: "", stderr: "" }));
+      const sha = stdout.trim();
+      return sha === "" ? null : sha;
     },
 
     async listBranches(repoPath) {

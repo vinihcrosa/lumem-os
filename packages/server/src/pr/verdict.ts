@@ -46,6 +46,15 @@ export interface GhPullRequest {
   reviewDecision: string;
   headRefName: string;
   baseRefName: string;
+  /**
+   * A head vive em outro repositório.
+   *
+   * Muda o que `headRefName` significa: numa PR de fork ele é o nome da branch
+   * **no fork**, e o repositório local pode ter uma branch homônima que não tem
+   * nada a ver com ela. É por isso que este campo existe — ver a F3.3 da
+   * [`026-worktree-from`](../../../../docs/features/026-worktree-from/prd.md).
+   */
+  crossRepository?: boolean;
   updatedAt: string;
   mergedAt: string | null;
   closedAt: string | null;

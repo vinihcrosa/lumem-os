@@ -139,3 +139,39 @@ describe("IssueCache", () => {
     expect(entry.issues).toBeNull();
   });
 });
+
+describe("quando o host rejeita em vez de responder", () => {
+  /**
+   * `PrHost` é injetável, e nada obriga uma implementação a responder
+   * `{ok:false}` em vez de lançar. O que este teste protege é o slot: uma
+   * rejeição guardada é um projeto que rejeita para sempre.
+   */
+  function throwingHost(fail: (n: number) => boolean) {
+    let calls = 0;
+    const host = {
+      name: "fake",
+      supports: () => true,
+      read: () => Promise.resolve({ ok: false, failure: { kind: "failed", message: "n/a" } }),
+      create: () => Promise.resolve({ ok: false, failure: { kind: "failed", message: "n/a" } }),
+      merge: () => Promise.resolve({ ok: false, failure: { kind: "failed", message: "n/a" } }),
+      issues: () => {
+        calls += 1;
+        return fail(calls)
+          ? Promise.reject(new Error("o gh explodiu"))
+          : Promise.resolve({ ok: true as const, issues: [issue(calls)] });
+      },
+    } as unknown as PrHost;
+    return { host, calls: () => calls };
+  }
+
+  it("não guarda a rejeição: o pedido seguinte tenta de novo", async () => {
+    const { host, calls } = throwingHost((n) => n === 1);
+    const cache = createIssueCache({ host, now: clock().now });
+
+    await expect(cache.get(PROJECT)).rejects.toThrow("o gh explodiu");
+    const second = await cache.get(PROJECT);
+
+    expect(calls()).toBe(2);
+    expect(second.issues?.[0]?.number).toBe(2);
+  });
+});

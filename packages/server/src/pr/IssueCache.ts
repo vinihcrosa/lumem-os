@@ -111,7 +111,6 @@ export function createIssueCache({ host, now = () => Date.now() }: IssueCacheOpt
     }
 
     slot.freshUntil = now() + ISSUE_TTL_MS;
-    slot.inFlight = null;
     return viewOf(slot);
   }
 
@@ -137,7 +136,22 @@ export function createIssueCache({ host, now = () => Date.now() }: IssueCacheOpt
         return Promise.resolve(viewOf(slot));
       }
 
-      const promise = fetch(project, slot);
+      /*
+       * A limpeza vai num `finally`, e não no fim do `fetch`.
+       *
+       * `PrHost` é injetável, e uma implementação que **rejeite** em vez de
+       * responder `{ok:false}` faria o `fetch` lançar antes de limpar — e o slot
+       * ficaria guardando a promise rejeitada para sempre: todo `get` seguinte
+       * devolveria a mesma rejeição, sem retry e sem nunca atualizar a lista
+       * guardada, até o daemon reiniciar. O `PrCache` se protege exatamente
+       * disso, e a proteção é esta linha.
+       *
+       * `if (slot.inFlight === promise)` porque uma leitura mais nova pode já ter
+       * tomado o lugar.
+       */
+      const promise = fetch(project, slot).finally(() => {
+        if (slot.inFlight === promise) slot.inFlight = null;
+      });
       slot.inFlight = promise;
       return promise;
     },

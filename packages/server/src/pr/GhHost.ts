@@ -51,6 +51,10 @@ const FIELDS = [
   "latestReviews",
   "headRefName",
   "baseRefName",
+  // Se a head vive em outro repositório. Sem isto, `headRefName` é um nome
+  // pelado e `patch-1` de um fork casa com o `origin/patch-1` do upstream —
+  // outra branch, sem relação nenhuma com a PR.
+  "isCrossRepository",
   "updatedAt",
   "mergedAt",
   "closedAt",
@@ -76,6 +80,7 @@ const FIELDS = [
 const PROJECTION = [
   "map({number, url, title, state, isDraft, mergeable, mergeStateStatus, reviewDecision,",
   "headRefName, baseRefName, updatedAt, mergedAt, closedAt,",
+  "crossRepository: (.isCrossRepository // false),",
   'author: (.author.login // ""),',
   'reviews: [.latestReviews[]? | {author: (.author.login // ""), state: .state}],',
   "checks: [.statusCheckRollup[]? | {",

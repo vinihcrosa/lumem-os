@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { branchNameForIssue, CreateWorktreeDialog } from "./CreateWorktreeDialog.js";
+import { branchNameForIssue, CreateWorktreeDialog, fromOf } from "./CreateWorktreeDialog.js";
 import { renderWithProviders } from "../test/render.js";
 import { installTrpcDefaults, NO_HOST_ORIGINS, trpcMock as trpc } from "../test/trpc-mock.js";
 
@@ -251,7 +251,7 @@ describe("a branch que outra worktree já tem", () => {
       expect(trpc.worktree.create.mutate).toHaveBeenCalledWith({
         projectId: "p1",
         name: "trabalho",
-        from: { kind: "branch", ref: "feature-a" },
+        from: { kind: "branch", ref: "feature-a", local: true },
       }),
     );
   });
@@ -330,5 +330,95 @@ describe("o nome derivado de uma issue", () => {
     [9, "   ", "9"],
   ])("issue #%s vira %s", (number, title, expected) => {
     expect(branchNameForIssue(number, title)).toBe(expected);
+  });
+});
+
+describe("o que a review da PR 75 achou", () => {
+  it("uma falha da consulta não é desenhada como lista vazia", async () => {
+    // Antes: `host.data` ficava `undefined`, a lista caía no `empty`, e a tela
+    // afirmava "nenhuma issue aberta" sobre uma leitura que não aconteceu.
+    const user = userEvent.setup();
+    trpc.worktree.hostOrigins.query.mockRejectedValue(new Error("projeto p1 não existe"));
+    open();
+
+    await user.click(await screen.findByRole("button", { name: "issue" }));
+
+    expect(await screen.findByText("projeto p1 não existe")).toBeInTheDocument();
+    expect(screen.queryByText(/nenhuma issue aberta/)).not.toBeInTheDocument();
+  });
+
+  it("a branch publicada viaja sem remoto: quem escolhe origin é o daemon", async () => {
+    // `remotes[0]` é o primeiro por refname — `fork` antes de `origin` —, e o
+    // daemon prefere `origin`. Mandar o remoto daqui era mandar a resposta errada.
+    const user = userEvent.setup();
+    trpc.worktree.branches.query.mockResolvedValue([
+      branch({ name: "feature-a", local: false, remotes: ["fork", "origin"] }),
+    ]);
+    trpc.worktree.create.mutate.mockResolvedValue({ id: "wt1" });
+    open();
+
+    await user.click(screen.getByRole("button", { name: "branch" }));
+    await user.click(await screen.findByRole("option", { name: /feature-a/ }));
+    await user.click(screen.getByRole("button", { name: "criar" }));
+
+    await waitFor(() =>
+      expect(trpc.worktree.create.mutate).toHaveBeenCalledWith({
+        projectId: "p1",
+        name: "feature-a",
+        from: { kind: "branch", ref: "feature-a", local: false },
+      }),
+    );
+  });
+
+  it("a PR de fork diz que vem de um fork, e não que falta fetch", async () => {
+    const user = userEvent.setup();
+    trpc.worktree.hostOrigins.query.mockResolvedValue(
+      hostOrigins({
+        pulls: {
+          items: [
+            {
+              number: 42,
+              title: "de um fork",
+              url: "u",
+              headRefName: "patch-1",
+              isDraft: false,
+              updatedAt: "2026-09-07T00:00:00Z",
+              crossRepository: true,
+              onDisk: false,
+            },
+          ],
+          failure: null,
+          readAt: null,
+        },
+      }),
+    );
+    open();
+
+    await user.click(screen.getByRole("button", { name: "PR" }));
+    const row = await screen.findByRole("option", { name: /#42/ });
+
+    expect(row).toBeDisabled();
+    expect(within(row).getByText("vem de um fork")).toBeInTheDocument();
+  });
+});
+
+describe("o pedido é derivado da aba aberta", () => {
+  /**
+   * A aba pode **sumir debaixo da escolha**: o host responde `no-auth` numa
+   * releitura, as abas de host somem, o trilho passa a desenhar `default`
+   * pressionado — e a escolha anterior continua na memória. Derivar do `kind`
+   * cru mandava a origem da PR enquanto a tela dizia default.
+   */
+  it("não manda origem nenhuma quando a aba aberta não é a da escolha", () => {
+    expect(fromOf("default", { kind: "pr", number: 19 })).toBeUndefined();
+    expect(fromOf("branch", { kind: "issue", number: 52 })).toBeUndefined();
+  });
+
+  it("manda a escolha quando ela é da aba aberta", () => {
+    expect(fromOf("pr", { kind: "pr", number: 19 })).toEqual({ kind: "pr", number: 19 });
+  });
+
+  it("`default` nunca viaja: ausente já quer dizer isso", () => {
+    expect(fromOf("default", null)).toBeUndefined();
   });
 });

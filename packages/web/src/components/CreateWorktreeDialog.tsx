@@ -32,11 +32,11 @@ export interface CreateWorktreeDialogProps {
 }
 
 /** As quatro origens da `026-worktree-from`, na ordem em que aparecem. */
-type OriginKind = "default" | "branch" | "issue" | "pr";
+export type OriginKind = "default" | "branch" | "issue" | "pr";
 
 /** O que foi escolhido na lista, se algo foi. */
-type Pick =
-  | { kind: "branch"; ref: string; remote?: string }
+export type Pick =
+  | { kind: "branch"; ref: string; local: boolean }
   | { kind: "issue"; number: number }
   | { kind: "pr"; number: number };
 
@@ -118,7 +118,7 @@ export function CreateWorktreeDialog({
       trpc.worktree.create.mutate({
         projectId,
         name: name.trim(),
-        from: fromOf(kind, pick),
+        from: fromOf(active, pick),
       }),
     onSuccess: async (worktree) => {
       await queryClient.invalidateQueries({ queryKey: worktreesKey(projectId) });
@@ -161,6 +161,16 @@ export function CreateWorktreeDialog({
   // A aba escolhida sumiu debaixo da escolha: volta para a que sempre existe, em
   // vez de deixar um corpo sem trilho correspondente.
   const active = kinds.includes(kind) ? kind : "default";
+
+  /*
+   * A escolha que ainda descreve a aba aberta.
+   *
+   * `pick` sozinho descreveria uma origem que a tela não está mostrando: com as
+   * abas de host sumindo debaixo da escolha, o eco diria "da head da PR #19"
+   * embaixo de um trilho com `default` pressionado. O `fromOf` faz a mesma
+   * pergunta do outro lado, e as duas respostas têm que ser a mesma.
+   */
+  const chosen = pick !== null && pick.kind === active ? pick : null;
 
   function choose(next: Pick, suggested: string): void {
     setPick(next);
@@ -233,11 +243,10 @@ export function CreateWorktreeDialog({
                 failure={branches.isError ? branches.error.message : null}
               >
                 {(branches.data ?? []).map((branch) => {
-                  const remote = branch.local ? undefined : (branch.remotes[0] ?? undefined);
                   const held = branch.worktreePath !== null;
                   return (
                     <button
-                      key={`${branch.name}-${remote ?? "local"}`}
+                      key={branch.name}
                       type="button"
                       role="option"
                       className={`orow${held ? " orow--held" : ""}`}
@@ -253,12 +262,13 @@ export function CreateWorktreeDialog({
                           }
                           return;
                         }
-                        choose(
-                          remote === undefined
-                            ? { kind: "branch", ref: branch.name }
-                            : { kind: "branch", ref: branch.name, remote },
-                          branch.name,
-                        );
+                        // Só o nome da ref. Local ou publicada, e de qual
+                        // remoto, é decisão do daemon: a tela chegou a mandar
+                        // `remotes[0]` e isso discordava do `remoteHolding`,
+                        // que prefere `origin` — a mesma branch rastreava
+                        // repositórios diferentes conforme a aba de entrada.
+                        // `local` viaja só para o eco abaixo do campo.
+                        choose({ kind: "branch", ref: branch.name, local: branch.local }, branch.name);
                       }}
                     >
                       <span className="orow__ref">{branch.name}</span>
@@ -270,7 +280,7 @@ export function CreateWorktreeDialog({
                             : `em ${branch.worktreeName}`
                           : branch.local
                             ? "local"
-                            : (remote ?? "")}
+                            : branch.remotes.join(" · ")}
                       </span>
                       {held && branch.worktreeId !== null && <span className="orow__go">→</span>}
                     </button>
@@ -282,7 +292,7 @@ export function CreateWorktreeDialog({
                 busy={host.isPending}
                 label="issues abertas"
                 empty="nenhuma issue aberta neste repositório"
-                failure={failureText(host.data?.issues.failure ?? null)}
+                failure={hostListFailure(host, host.data?.issues.failure ?? null)}
               >
                 {(host.data?.issues.items ?? []).map((issue) => (
                   <button
@@ -308,7 +318,7 @@ export function CreateWorktreeDialog({
                 busy={host.isPending}
                 label="pull requests abertas"
                 empty="nenhuma PR aberta neste repositório"
-                failure={failureText(host.data?.pulls.failure ?? null)}
+                failure={hostListFailure(host, host.data?.pulls.failure ?? null)}
               >
                 {(host.data?.pulls.items ?? []).map((pull) => (
                   <button
@@ -324,7 +334,13 @@ export function CreateWorktreeDialog({
                   >
                     <span className="orow__n">#{pull.number}</span>
                     <span className="orow__t">{pull.title}</span>
-                    {!pull.onDisk && <span className="orow__note">não está no disco</span>}
+                    {!pull.onDisk && (
+                      <span className="orow__note">
+                        {/* Fork é outro motivo, e a palavra importa: a branch
+                            homônima local existe, e é outra coisa. */}
+                        {pull.crossRepository ? "vem de um fork" : "não está no disco"}
+                      </span>
+                    )}
                   </button>
                 ))}
               </OriginList>
@@ -375,14 +391,14 @@ export function CreateWorktreeDialog({
             este repositório ainda não tem nenhum commit — faça o primeiro para poder cortar
             worktrees
           </Banner>
-        ) : pick === null ? (
+        ) : chosen === null ? (
           <p className="create-worktree__hint">
             A branch tem o mesmo nome. Barra vira diretório aninhado.
           </p>
         ) : (
-          <p className={`create-worktree__hint fname${pick.kind === "branch" && pick.remote === undefined ? " fname--branch" : ""}`}>
-            <span className="fname__g">{pick.kind === "branch" && pick.remote === undefined ? "⑂" : "◈"}</span>
-            <span>{echoOf(pick)}</span>
+          <p className={`create-worktree__hint fname${chosen.kind === "branch" && chosen.local ? " fname--branch" : ""}`}>
+            <span className="fname__g">{chosen.kind === "branch" && chosen.local ? "⑂" : "◈"}</span>
+            <span>{echoOf(chosen)}</span>
           </p>
         )}
 
@@ -435,9 +451,9 @@ function OriginList({
 function echoOf(pick: Pick): string {
   switch (pick.kind) {
     case "branch":
-      return pick.remote === undefined
+      return pick.local
         ? `na branch ${pick.ref}, que já existe — o nome é só desta worktree`
-        : `da branch ${pick.remote}/${pick.ref}, rastreando ela`;
+        : `da branch publicada ${pick.ref}, rastreando ela`;
     case "issue":
       return `da issue #${pick.number} — corta da default, como sempre`;
     case "pr":
@@ -445,13 +461,38 @@ function echoOf(pick: Pick): string {
   }
 }
 
-/** O pedido que vai ao daemon. `default` não viaja: ausente quer dizer isso. */
-function fromOf(kind: OriginKind, pick: Pick | null) {
+/**
+ * O pedido que vai ao daemon. `default` não viaja: ausente quer dizer isso.
+ *
+ * Recebe o `active`, e não o `kind` cru — a diferença entre os dois aparece
+ * quando a aba escolhida **desaparece debaixo da escolha**: o host responde
+ * `no-auth` numa releitura, as abas de host somem, o trilho passa a desenhar
+ * `default` pressionado, e o `kind` continua `"pr"`. Com o `kind`, o `criar`
+ * mandaria a origem da PR enquanto a tela dizia que estava cortando da default.
+ */
+export function fromOf(kind: OriginKind, pick: Pick | null) {
   if (kind === "default" || pick === null) return undefined;
+  // A aba mudou e a escolha é de outra: ela não vale mais.
+  if (kind !== pick.kind) return undefined;
   return pick;
 }
 
-function failureText(failure: { message: string } | null): string | null {
+/**
+ * O que a lista diz quando não deu.
+ *
+ * Duas falhas diferentes, e é por isso que esta função existe: a do **host** vem
+ * dentro da resposta (`failure`), e a da **consulta** é a query ter dado erro —
+ * daemon reiniciando, projeto removido com o diálogo aberto, qualquer
+ * `DomainError`. Sem olhar a segunda, `host.data` fica `undefined`, a lista fica
+ * vazia, e a tela afirma *"nenhuma issue aberta neste repositório"* sobre uma
+ * leitura que **não aconteceu** — o pior tipo de resposta errada, porque é
+ * plausível. A aba `branch` já passava o `isError` dela.
+ */
+function hostListFailure(
+  query: { isError: boolean; error: Error | null },
+  failure: { message: string } | null,
+): string | null {
+  if (query.isError) return query.error?.message ?? "não deu para ler as origens deste projeto";
   return failure === null ? null : failure.message;
 }
 

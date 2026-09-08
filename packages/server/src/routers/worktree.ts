@@ -64,7 +64,7 @@ const refSchema = z
  */
 const fromSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("default") }),
-  z.object({ kind: z.literal("branch"), ref: refSchema, remote: refSchema.optional() }),
+  z.object({ kind: z.literal("branch"), ref: refSchema }),
   z.object({ kind: z.literal("issue"), number: z.number().int().positive() }),
   z.object({ kind: z.literal("pr"), number: z.number().int().positive() }),
 ]);
@@ -105,14 +105,34 @@ async function resolveSource(
         branch: name,
       };
 
-    case "branch":
-      return origin.remote === undefined
-        ? // Local: a branch é a que existe, e o nome é só da worktree (Q9).
-          { source: { kind: "existing-branch" }, branch: origin.ref }
-        : {
-            source: { kind: "remote-branch", remoteRef: `${origin.remote}/${origin.ref}` },
-            branch: name,
-          };
+    case "branch": {
+      /*
+       * Local ou publicada, decidido **aqui** e não pelo cliente.
+       *
+       * O pedido carrega só o nome da ref. A tela chegou a mandar o remoto
+       * também, e isso produziu duas respostas para a mesma pergunta: ela
+       * escolhia `remotes[0]` — que é o primeiro em ordem de refname, `fork`
+       * antes de `origin` — enquanto o caminho da PR preferia `origin`. A mesma
+       * branch rastreava repositórios diferentes conforme a aba por onde se
+       * chegou nela. Uma regra, um lugar.
+       */
+      if (await ctx.git.branchExists(project.path, origin.ref)) {
+        // Local: a branch é a que existe, e o nome é só da worktree (Q9).
+        return { source: { kind: "existing-branch" }, branch: origin.ref };
+      }
+
+      const remote = await remoteHolding(ctx, project.path, origin.ref);
+      if (remote === null) {
+        throw new DomainError(
+          "BLOCKED",
+          `a branch "${origin.ref}" não está no disco; rode um fetch neste projeto e tente de novo`,
+        );
+      }
+      return {
+        source: { kind: "remote-branch", remoteRef: `${remote}/${origin.ref}` },
+        branch: name,
+      };
+    }
 
     case "pr": {
       const entry = await ctx.pr.get({
@@ -126,6 +146,23 @@ async function resolveSource(
           "BLOCKED",
           `o Lumem não conhece a PR #${origin.number} deste projeto` +
             (entry.failure === null ? "" : ` — ${entry.failure.message}`),
+        );
+      }
+
+      /*
+       * PR de fork não vira worktree, e o motivo não é política: é que o dado
+       * não existe em disco.
+       *
+       * `headRefName` de uma PR cruzada é o nome da branch **no fork**, e o
+       * repositório local pode ter uma homônima sem relação nenhuma — `patch-1`
+       * é o caso comum. Sem esta recusa, casar pelo nome pelado cortaria de
+       * `origin/patch-1` e o eco da tela afirmaria que aquilo é a head da PR.
+       */
+      if (pull.crossRepository === true) {
+        throw new DomainError(
+          "BLOCKED",
+          `a PR #${origin.number} vem de um fork, e a head dela não está no disco; ` +
+            "rode um fetch da branch e corte dela",
         );
       }
 
@@ -211,6 +248,14 @@ export const worktreeRouter = router({
 
         const { source, branch } = await resolveSource(ctx, project, input.name, input.from);
 
+        // De onde o checkout sai, dito com a mesma palavra em todos os casos.
+        const baseRef =
+          source.kind === "new-branch"
+            ? source.base
+            : source.kind === "remote-branch"
+              ? source.remoteRef
+              : branch;
+
         const [branchTaken, occupied, base] = await Promise.all([
           // Numa origem que **usa** a branch existente, "já existe" é a
           // pré-condição e não a recusa: quem recusa é o checkout que já a tem.
@@ -218,13 +263,15 @@ export const worktreeRouter = router({
             ? Promise.resolve(false)
             : ctx.git.branchExists(project.path, branch),
           Promise.resolve(existsSync(path)),
-          // The sha the branch would start from. Null in a repository with no
-          // commit yet, which is a repository someone can still cut a worktree
-          // from — so it reports null instead of refusing.
-          ctx.git
-            .describe(project.path)
-            .then((described) => described.head.shortSha)
-            .catch(() => null),
+          /*
+           * O sha **da origem escolhida**, e não o HEAD do checkout principal.
+           *
+           * Null num repositório sem commit — que é um repositório de onde
+           * ainda se pode pedir um preview —, então ele responde null em vez de
+           * recusar. O que ele não pode é emparelhar o nome de uma origem com o
+           * sha de outra: a tela desenha os dois lado a lado.
+           */
+          ctx.git.resolveShortSha(project.path, baseRef),
         ]);
 
         // O checkout que já tem a branch, quando a origem é uma que já existe.
@@ -239,13 +286,7 @@ export const worktreeRouter = router({
           name: input.name,
           branch,
           path,
-          // De onde o checkout sai, dito com a mesma palavra em todos os casos.
-          baseBranch:
-            source.kind === "new-branch"
-              ? source.base
-              : source.kind === "remote-branch"
-                ? source.remoteRef
-                : branch,
+          baseBranch: baseRef,
           baseSha: base,
           // O mesmo vetor que a execução usa — `worktreeAddArgs`, e não uma
           // string montada aqui. Ver o comentário dela.
@@ -354,7 +395,12 @@ export const worktreeRouter = router({
                 updatedAt: pull.updatedAt,
                 // F3.3: sem fetch. A tela desabilita a linha e diz por quê, em
                 // vez de deixar o `create` recusar depois do clique.
-                onDisk: published.has(pull.headRefName),
+                //
+                // Fork nunca está "no disco", mesmo que exista uma branch com o
+                // mesmo nome: numa PR cruzada o `headRefName` é o nome no fork,
+                // e a homônima local é outra coisa.
+                crossRepository: pull.crossRepository === true,
+                onDisk: pull.crossRepository !== true && published.has(pull.headRefName),
               })),
             failure: pr.failure,
             readAt: pr.readAt,

@@ -392,7 +392,7 @@ describe("worktree.remove e o sinal de ação (Q17)", () => {
  * (§4.2.12 da `pull-request-status`), e este dublê é o que prova isso.
  */
 function hostWith(options: {
-  pulls?: { number: number; headRefName: string; title?: string }[];
+  pulls?: { number: number; headRefName: string; title?: string; crossRepository?: boolean }[];
   issues?: { number: number; title: string }[];
 }): PrHost {
   const pulls = (options.pulls ?? []).map((pull) => ({
@@ -406,6 +406,7 @@ function hostWith(options: {
     reviewDecision: "APPROVED",
     headRefName: pull.headRefName,
     baseRefName: "main",
+    crossRepository: pull.crossRepository ?? false,
     updatedAt: "2026-09-07T00:00:00Z",
     mergedAt: null,
     closedAt: null,
@@ -503,7 +504,9 @@ describe("worktree.create com origem", () => {
     const created = await ctx.api.worktree.create({
       projectId,
       name: "feature-a",
-      from: { kind: "branch", ref: "feature-a", remote: "origin" },
+      // Sem `remote` no pedido: quem decide entre local e publicada, e qual
+      // remoto, é o daemon — o cliente manda só o nome da ref.
+      from: { kind: "branch", ref: "feature-a" },
     });
 
     expect((await runGit(created.path, "branch", "--show-current")).trim()).toBe("feature-a");
@@ -653,7 +656,7 @@ describe("worktree.plan com origem", () => {
     const plan = await ctx.api.worktree.plan({
       projectId,
       name: "trabalho",
-      from: { kind: "branch", ref: "feature-a", remote: "origin" },
+      from: { kind: "branch", ref: "feature-a" },
     });
 
     expect(plan.command).toBe(
@@ -667,5 +670,89 @@ describe("worktree.plan com origem", () => {
     const plan = await ctx.api.worktree.plan({ projectId, name: "teste" });
 
     expect(plan.command).toBe(`git worktree add -b teste ${plan.path} main`);
+  });
+});
+
+describe("o que a review da PR 75 achou", () => {
+  it("prefere `origin` mesmo quando outro remoto vem antes por refname", async () => {
+    // `for-each-ref` ordena por refname, então `fork` vem antes de `origin`. A
+    // tela mandava `remotes[0]` e o router preferia `origin`: a mesma branch
+    // rastreava repositórios diferentes conforme a aba por onde se chegava nela.
+    const { context: ctx, projectId, repo, remote } = await setupWithRemote(["feature-a"]);
+    await runGit(repo, "remote", "add", "fork", remote);
+    await runGit(repo, "fetch", "fork");
+
+    const created = await ctx.api.worktree.create({
+      projectId,
+      name: "de-origin",
+      from: { kind: "branch", ref: "feature-a" },
+    });
+
+    expect((await runGit(created.path, "rev-parse", "--abbrev-ref", "@{u}")).trim()).toBe(
+      "origin/feature-a",
+    );
+  });
+
+  it("recusa uma PR de fork, mesmo com uma branch homônima no disco", async () => {
+    // `headRefName` de uma PR cruzada é o nome no fork. `patch-1` do fork de
+    // alguém e `origin/patch-1` do upstream são coisas diferentes, e cortar da
+    // segunda entregaria código que não tem nada a ver com a PR.
+    const { context: ctx, projectId, repo } = await setupWithRemote(
+      [],
+      hostWith({ pulls: [{ number: 42, headRefName: "patch-1", crossRepository: true }] }),
+    );
+    await runGit(repo, "update-ref", "refs/remotes/origin/patch-1", "main");
+
+    const failure = ctx.api.worktree.create({
+      projectId,
+      name: "da-42",
+      from: { kind: "pr", number: 42 },
+    });
+
+    await expect(failure).rejects.toThrow(/fork/);
+    expect(await ctx.api.worktree.listByProject({ projectId })).toEqual([]);
+  });
+
+  it("a PR de fork chega à tela marcada, e não como disponível", async () => {
+    const { context: ctx, projectId, repo } = await setupWithRemote(
+      [],
+      hostWith({ pulls: [{ number: 42, headRefName: "patch-1", crossRepository: true }] }),
+    );
+    await runGit(repo, "update-ref", "refs/remotes/origin/patch-1", "main");
+
+    const origins = await ctx.api.worktree.hostOrigins({ projectId });
+
+    expect(origins.pulls?.items[0]).toMatchObject({ crossRepository: true, onDisk: false });
+  });
+
+  it("recusa uma branch que não está no disco em vez de deixar o git aceitar", async () => {
+    const { context: ctx, projectId } = await setupWithRemote([]);
+
+    await expect(
+      ctx.api.worktree.create({
+        projectId,
+        name: "fantasma",
+        from: { kind: "branch", ref: "nunca-existiu" },
+      }),
+    ).rejects.toThrow(/não está no disco/);
+  });
+
+  it("o preview emparelha o sha com a origem escolhida, e não com o HEAD do principal", async () => {
+    // O `baseBranch` já saía da origem; o `baseSha` continuava sendo o do
+    // checkout principal. O par ficava consistente por acidente e só na default.
+    const { context: ctx, projectId, repo } = await setup();
+    await runGit(repo, "checkout", "-b", "feature-a");
+    writeFileSync(join(repo, "so-na-feature.txt"), "x");
+    await runGit(repo, "add", "so-na-feature.txt");
+    await runGit(repo, "commit", "-m", "feature");
+    await runGit(repo, "checkout", "main");
+
+    const [plan, esperado] = await Promise.all([
+      ctx.api.worktree.plan({ projectId, name: "x", from: { kind: "branch", ref: "feature-a" } }),
+      runGit(repo, "rev-parse", "--short", "feature-a"),
+    ]);
+
+    expect(plan.baseBranch).toBe("feature-a");
+    expect(plan.baseSha).toBe(esperado.trim());
   });
 });

@@ -384,6 +384,30 @@ ao **primeiro focável**, e o primeiro focável deixou de ser o campo de nome �
 
 ---
 
+---
+
+## O que a review da PR 75 achou
+
+**Seis defeitos, todos de correção, e nenhum deles pegável por um teste que já existia.** Cinco eram
+código; o sexto era uma pergunta que a feature não tinha feito.
+
+| # | Onde | O defeito | O conserto |
+|---|---|---|---|
+| 1 | `CreateWorktreeDialog` | as abas de host nunca olhavam `host.isError`, então **falha da consulta** era desenhada como *"nenhuma issue aberta neste repositório"* — resposta errada e plausível, sobre uma leitura que não aconteceu | `hostListFailure` separa a falha **do host** (dentro da resposta) da falha **da consulta**. A aba `branch` já fazia isso |
+| 2 | `IssueCache` | o `inFlight` era limpo só no caminho felizes: `PrHost` é injetável, e uma implementação que **rejeitasse** deixaria o slot guardando a promise rejeitada **para sempre** | a limpeza foi para um `finally`, como o `PrCache` já fazia. O teste que prova isso mata quatro asserções quando revertido |
+| 3 | tela × router | a tela mandava `remotes[0]` — **primeiro por refname**, `fork` antes de `origin` — e o router preferia `origin`. A mesma branch rastreava repositórios diferentes conforme a aba de entrada | o `remote` **saiu do contrato**: o pedido carrega só o nome da ref, e quem decide local × publicada e qual remoto é o daemon. Uma regra, um lugar |
+| 4 | `GhHost` + router | `headRefName` de uma PR de **fork** é o nome da branch no fork, e a projeção não trazia `isCrossRepository`. Com `origin/patch-1` no disco, a worktree seria cortada de código **sem relação com a PR** — e o eco afirmaria que era a head dela | `isCrossRepository` entrou na projeção; PR de fork é recusada com a frase da F3.3 e chega à tela dizendo **"vem de um fork"**, que é outro motivo e outra palavra |
+| 5 | `CreateWorktreeDialog` | o `fromOf` lia o `kind` cru e a tela desenhava o `active`: com as abas de host **sumindo debaixo da escolha**, o trilho mostrava `default` e o `criar` mandava a origem da PR | o pedido **e** o eco passaram a derivar do `active`. A regra virou função exportada e testada direto — a mutação dela sobreviveu na primeira bateria |
+| 6 | `worktree.plan` | o `baseBranch` já saía da origem escolhida e o `baseSha` continuava sendo o HEAD do **checkout principal**: o preview emparelhava o nome de uma origem com o sha de outra | nasceu `resolveShortSha`, e o par ficou consistente. Latente só porque nenhum cliente passava `from` para o `plan` — e era justo o que o commit da fase 4 dizia consertar |
+
+**O que isso ensina sobre a feature, e não sobre os defeitos:** cinco dos seis são **duas respostas
+para a mesma pergunta** em lugares diferentes — cliente e servidor escolhendo remoto, `kind` e
+`active` decidindo a origem, `baseBranch` e `baseSha` descrevendo bases distintas, `onDisk` e
+`remoteHolding` casando refs por nome pelado. O padrão do conserto é sempre o mesmo: **uma pergunta,
+um lugar que responde.**
+
+Quatorze testes novos, e cada conserto foi mutado para provar que o teste dele fica vermelho.
+
 ## O que ficou de fora, e onde está
 
 | Item | Onde |
