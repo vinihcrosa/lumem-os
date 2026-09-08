@@ -52,14 +52,10 @@ const CLAUDE_ENTRY: {
 } = {
   id: "claude",
   label: "Claude Code",
-  cli: {
-    command: "claude",
-    path: "/opt/homebrew/bin/claude",
-    managed: false,
-    version: "2.1.237",
-    versionNote: null,
-    install: null,
-  },
+  // `null` desde 2026-09-08: o relatório do daemon não nomeia mais um CLI para o
+  // Claude, porque a spec não declara um. Uma fixture com `cli` preenchido aqui
+  // seria o teste desenhando uma tela que o daemon não produz.
+  cli: null,
   adapter: ADAPTER,
   apiKeyEnv: null,
 };
@@ -246,24 +242,34 @@ describe("choosing an agent", () => {
     expect(screen.getByRole("button", { name: /Codex/ })).toBeInTheDocument();
   });
 
-  it("diz que o adaptador do Codex traz o próprio agente dentro", async () => {
+  it("diz que o adaptador traz o próprio agente dentro", async () => {
     /*
-     * A diferença medida entre os dois (§4.8): um dirige um `claude` que tem que
-     * existir, o outro traz o `@openai/codex` dentro e responde o handshake com
-     * `PATH=/nonexistent`. A linha do catálogo diz qual é qual **antes** do
-     * clique.
+     * A assimetria medida na §4.8 valia para o `0.40.0`: um dirigia um `claude` que
+     * tinha que existir, o outro trazia o `@openai/codex` dentro. Em 2026-09-08 o
+     * `0.75.1` foi medido e o `CLAUDE_ADAPTER.cli` caiu para `null` — as três
+     * medições estão no comentário do campo, e o [ADR de
+     * 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md)
+     * é quem decide. A linha do catálogo continua dizendo o que a pessoa **não**
+     * resolve clicando; hoje ela diz o mesmo dos dois.
      */
     await openConnect();
 
+    // Uma linha, porque o `AGENTS` deste arquivo tem uma spec. O que mudou não é
+    // a contagem: é que a linha do **Claude** passou a dizer isto.
     expect(
       await screen.findByText(/o adaptador traz o próprio agente dentro/),
     ).toBeInTheDocument();
   });
 
-  it("reports the CLI it found, because that is what the adapter drives", async () => {
+  it("para de mandar instalar um CLI que ninguém usa", async () => {
+    // Isto **reverte** `"reports the CLI it found, because that is what the adapter
+    // drives"`, que exigia `claude encontrado · <versão>` na linha do Claude. O que
+    // ele afirmava deixou de ser verdade, então a asserção é a negação dele.
     await openConnect();
 
-    expect(await screen.findByText(/claude encontrado · 2\.1\.237/)).toBeInTheDocument();
+    await screen.findByRole("button", { name: /Claude Code/ });
+    expect(screen.queryByText(/claude encontrado/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/não está no PATH — o adaptador precisa dele/)).not.toBeInTheDocument();
   });
 
   it("installs the adapter itself when it is not there, and pins what it wrote", async () => {

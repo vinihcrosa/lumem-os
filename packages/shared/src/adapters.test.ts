@@ -57,13 +57,29 @@ describe("the claude spec", () => {
       command: "claude-agent-acp",
       package: "@agentclientprotocol/claude-agent-acp",
       pinnedVersion: "0.75.1",
-      cli: { command: "claude" },
+      cli: null,
       apiKeyEnv: ["ANTHROPIC_API_KEY"],
     });
   });
 
-  it("drives a CLI that has to exist", () => {
-    expect(CLAUDE_ADAPTER.cli?.command).toBe("claude");
+  it("does not drive a CLI from the PATH any more", () => {
+    /*
+     * Isto **reverte** `"drives a CLI that has to exist"`, que afirmava
+     * `cli.command === "claude"`. A afirmação era verdade no `0.40.0`; três
+     * medições em 2026-09-08 a derrubaram para o `0.75.1`, e estão escritas no
+     * comentário do campo:
+     *
+     * - `initialize` + `session/new` fecham com o `claude` fora do PATH;
+     * - o daemon spawna `@anthropic-ai/claude-agent-sdk-darwin-arm64/claude`,
+     *   de dentro do pacote;
+     * - os `authMethods` pedem `--cli auth login`, do próprio adaptador.
+     *
+     * O [ADR de
+     * 2026-09-08](../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md)
+     * é quem decide. O campo continua existindo — ver `agents.test.ts`, que o
+     * exercita com uma spec sintética.
+     */
+    expect(CLAUDE_ADAPTER.cli).toBeNull();
   });
 
   it("is not pinned at the version whose embedded runtime the API refuses", () => {

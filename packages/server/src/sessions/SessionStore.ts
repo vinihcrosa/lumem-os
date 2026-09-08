@@ -16,6 +16,7 @@ import {
   tryRecordSignal,
 } from "../memory/signals.js";
 import type { PtyManager } from "../pty/PtyManager.js";
+import type { AdapterConfigRef } from "../setup/adapter-command.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createProjectRepository } from "../repositories/project.js";
 import {
@@ -148,6 +149,22 @@ export interface SessionStoreOptions {
    * um store de teste que não é sobre isso não recebe nada.
    */
   onEnded?: (row: SessionRow, endedAt: Date) => Promise<void>;
+  /**
+   * O que lançar para retomar uma conversa ACP, resolvido agora.
+   *
+   * Injetado e não calculado aqui porque este arquivo não conhece o `stateDir` — e
+   * não deveria: ele cuida de ciclo de vida de processo, e onde o daemon guarda os
+   * adaptadores é assunto de `setup/`. O `bootstrap` passa
+   * `adapterCommandForConfig`.
+   *
+   * Ausente, o `resume` cai para `row.command` — o caminho da sessão morta, que é
+   * o comportamento anterior. Isto é uma costura de teste e **não** um default
+   * aceitável no daemon real: sem ela ligada, retomar uma conversa nascida no
+   * `0.40.0` relança o `0.40.0`, com toda unidade passando. Por isso a prova de que
+   * ela está ligada mora no teste de `bootstrap`, e não aqui — o mesmo desenho que
+   * o `ptyManager` e o `transcripts` do `AcpManager` já usam, pelo mesmo motivo.
+   */
+  resolveAcpCommand?: (config: AdapterConfigRef) => string;
 }
 
 export function createSessionStore({
@@ -157,6 +174,7 @@ export function createSessionStore({
   events,
   git = createGitService(),
   onEnded,
+  resolveAcpCommand,
 }: SessionStoreOptions): SessionStore {
   const sessions = createSessionRepository(db);
 
@@ -378,8 +396,29 @@ export function createSessionStore({
         ? await createAgentConfigRepository(db).findById(row.agentConfigId)
         : undefined;
 
+      /*
+       * O adaptador de hoje, e não o caminho de ontem.
+       *
+       * O comentário acima diz que *"como o adaptador é invocado hoje é
+       * configuração"* — e mesmo assim isto relançava `row.command`, o caminho
+       * absoluto congelado na linha da sessão morta. Retomar uma conversa nascida
+       * antes de uma subida de pino relançava a versão antiga, que é o mesmo
+       * defeito que o [ADR de
+       * 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md)
+       * fecha no `start`. Sem o resolvedor ligado, o comportamento anterior fica —
+       * ver a nota em `resolveAcpCommand`.
+       */
+      const command =
+        config && resolveAcpCommand
+          ? resolveAcpCommand({
+              name: config.name,
+              command: row.command,
+              transport: "acp",
+            })
+          : row.command;
+
       const agent = await acpManager.resume({
-        command: row.command,
+        command,
         ...(config?.args?.length ? { args: config.args } : {}),
         cwd: row.cwd,
         ...(config?.env && Object.keys(config.env).length > 0 ? { env: config.env } : {}),
@@ -408,7 +447,7 @@ export function createSessionStore({
           scopeType: row.scopeType as ScopeType,
           scopeId: row.scopeId,
           cwd: row.cwd,
-          command: row.command,
+          command,
           transport: "acp",
           acpSessionId: agent.acpSessionId,
           mode: agent.mode,

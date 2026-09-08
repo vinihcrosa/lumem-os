@@ -2,7 +2,7 @@ import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync }
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { CLAUDE_ADAPTER, CODEX_ADAPTER } from "@lumem/shared";
+import { CLAUDE_ADAPTER, CODEX_ADAPTER, type AdapterSpec } from "@lumem/shared";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { adapterReport, detectAgents, parseVersion, type AdapterReport } from "./agents.js";
@@ -18,7 +18,20 @@ import type { CommandRunner } from "./run-command.js";
 
 const dirs: string[] = [];
 
-const CLAUDE_CLI = CLAUDE_ADAPTER.cli!.command;
+/*
+ * Uma spec sintética, porque o catálogo deixou de ter uma com `cli`.
+ *
+ * O `CLAUDE_ADAPTER.cli` caiu para `null` em 2026-09-08 — medido, o `0.75.1`
+ * fecha o handshake com o `claude` fora do PATH e spawna o binário de dentro do
+ * pacote. O relatório de **dois** binários continua tendo que funcionar: ele
+ * descreve a assimetria que o campo existe para dizer, e o terceiro adaptador
+ * pode voltar a precisar dela.
+ */
+const DRIVES_A_CLI: AdapterSpec = {
+  ...CLAUDE_ADAPTER,
+  cli: { command: "some-agent-cli", install: null },
+};
+const CLAUDE_CLI = DRIVES_A_CLI.cli!.command;
 
 function pathWith(...commands: string[]): string {
   const dir = mkdtempSync(join(tmpdir(), "lumem-bin-"));
@@ -80,7 +93,9 @@ describe("detectAgents", () => {
   it("finds both binaries of a spec that drives a CLI, with path and version", async () => {
     const path = pathWith(CLAUDE_CLI, CLAUDE_ADAPTER.command);
 
-    const claude = entry(await detectAgents({ path, env: {}, run: versions }));
+    const claude = entry(
+      await detectAgents({ path, env: {}, run: versions, specs: [DRIVES_A_CLI] }),
+    );
 
     expect(claude.cli?.path).toBe(join(path, CLAUDE_CLI));
     expect(claude.cli?.version).toBe("2.0.14");
@@ -120,8 +135,13 @@ describe("detectAgents", () => {
   });
 
   it("never offers to install the CLI it does not ship", async () => {
-    const claude = entry(await detectAgents({ path: pathWith(), env: {}, run: versions }));
+    // Lido pela spec sintética desde 2026-09-08: o Claude deixou de ter `cli`, e um
+    // `?.` num campo que é sempre `null` seria um teste que passa por ausência.
+    const claude = entry(
+      await detectAgents({ path: pathWith(), env: {}, run: versions, specs: [DRIVES_A_CLI] }),
+    );
 
+    expect(claude.cli).not.toBeNull();
     expect(claude.cli?.install).toBeNull();
   });
 
@@ -236,7 +256,7 @@ describe("detectAgents", () => {
   it("reads the version off stderr too", async () => {
     const claude = entry(
       await detectAgents({
-        path: pathWith(CLAUDE_CLI),
+        path: pathWith(CLAUDE_ADAPTER.command),
         env: {},
         // `runCommand` already folds stderr into `output`; this asserts the
         // detection does not care which stream it came from.
@@ -244,7 +264,18 @@ describe("detectAgents", () => {
       }),
     );
 
-    expect(claude.cli?.version).toBe("2.0.14");
+    expect(claude.adapter.version).toBe("2.0.14");
+  });
+
+  it("reports one binary for Claude too, since the adapter stopped driving one", async () => {
+    // As três medições estão no comentário do `CLAUDE_ADAPTER.cli`. Aqui interessa
+    // a consequência de tela: o primeiro acesso parava de pedir a instalação de um
+    // CLI que ninguém usa.
+    const claude = entry(
+      await detectAgents({ path: pathWith(CLAUDE_ADAPTER.command), env: {}, run: versions }),
+    );
+
+    expect(claude.cli).toBeNull();
   });
 
   it("reports the name of the key variable it found, and never its value", async () => {
