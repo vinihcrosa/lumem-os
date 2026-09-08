@@ -463,6 +463,30 @@ com lease fica no backlog.
 
 ---
 
+## O contrato de documentação — 2026-09-07
+
+### [docs-contract/](features/025-docs-contract/) — o número ordena, o ADR decide · **completa**
+
+O `docs/prd/` tinha 24 pastas sem ordem legível, e a ordem só existia no git — que mente: três
+commits criaram 2, 4 e 4 pastas de uma vez, então **10 das 24 não têm "antes"**. O pedido era um
+índice temporal com a regra *"a PRD mais recente manda"*. A regra mudou antes do código: **PRD não é
+fonte de verdade, ADR é** — e ADR não existia aqui.
+
+Com a precedência num ADR, o número para de precisar afirmar prioridade, e três problemas
+desaparecem sem regra nova: emenda posterior à criação, colisão de `NNN` entre worktrees, e
+"nenhum arquivo descreve o presente". A feature é a primeira que **mede a própria documentação**: 44
+declarações informais de supersessão, 4 links mortos para um arquivo que nunca existiu, e **6 campos
+`**Status:**` que discordavam do disco** — dois deles publicados nos `README` da raiz.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](features/025-docs-contract/prd.md) | as quatro camadas, as sete regras, e o que a referência estudada ofereceu — com as duas respostas dela que foram recusadas aqui |
+| [open-questions.md](features/025-docs-contract/open-questions.md) | 12 perguntas, **12 respondidas**, três contra a proposta original. A Q8 carrega a **emenda** do dia: a derivação por checkbox estava errada, e o registro dela está na própria resposta contradita |
+| [tasks.md](features/025-docs-contract/tasks.md) | 12 tasks em 6 fases. A ordem é forçada pela Q6 — o `docs/adr/` tem lastro **antes** de a regra valer, senão o repositório fica sem fonte de precedência nenhuma |
+| `scripts/check-docs.ts` | o gate. Nasceu **verde**, que é o sinal de um gate que não checa nada — cada checagem foi provada ficando vermelha de propósito |
+
+---
+
 ## Convenções
 
 > **`adr/` decide · `project/` sustenta · `features/` executa · o código está em vigor.**

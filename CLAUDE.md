@@ -119,6 +119,24 @@ inteiras e a décima pela metade, que é o que diz que a lista continua), e a â
 um e2e com um fake de vinte modelos que pergunta `document.elementFromPoint`, e não `toBeVisible`:
 contra um elemento recortado por ancestral, o segundo fica verde.
 
+E a [docs-contract](docs/features/025-docs-contract/prd.md) — **completa, 12 tasks** — é a primeira
+feature que **mede a própria documentação**, e o que ela mediu mudou o pedido antes do código. O
+pedido era um índice temporal com a regra *"a PRD mais recente manda"*; a regra virou **PRD não é
+fonte de verdade, ADR é** — e `docs/adr/` não existia. Com a precedência num ADR, o número para de
+afirmar prioridade e três problemas desaparecem sem regra nova: emenda posterior à criação (a Q6 da
+`run-dock-open` foi revertida cinco dias depois do próprio número), colisão de `NNN` entre worktrees,
+e *"nenhum arquivo descreve o presente"*. O `docs/prd/` virou `docs/features/NNN-nome/`, nasceram
+**seis ADRs** — cinco retrospectivos, com a data real da decisão e o `Alternativas` **citando a
+fonte** em vez de reconstruí-la de memória —, e os dois arquivos de `docs/project/` que eram ADR sem
+o nome passaram a apontar para o sucessor, o que nunca havia acontecido. O que a medição achou é o
+que decidiu o desenho: **44** declarações informais de supersessão, **4 links mortos** para um
+arquivo que nunca existiu — dois criados por tasks marcadas `[x]` cujo trabalho era propagar a nota
+—, e **6 campos `Status:`** que discordavam do disco, dois deles publicados nos `README` da raiz. Duas
+respostas da própria PRD estavam erradas e foram **emendadas na resposta contradita**, não em
+silêncio: checkbox não indica progresso aqui (a `walking-skeleton` está entregue com 244 caixas
+abertas), e tasks escritas não são tasks começadas. O gate nasceu **verde**, que é o sinal de um gate
+que não checa nada — cada checagem foi provada ficando vermelha de propósito.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
