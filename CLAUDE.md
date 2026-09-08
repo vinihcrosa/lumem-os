@@ -178,6 +178,7 @@ Monorepo pnpm + Turborepo. `packages/shared` (contratos), `packages/server` (dae
 | `pnpm gate:quick` | testes afetados pelo trabalho atual |
 | `pnpm gate:full` | suíte inteira + e2e |
 | `pnpm gate:build` | typecheck de tudo + build |
+| `pnpm adapters:check` | pergunta ao npm se o pino de cada adaptador ACP envelheceu — e se o **runtime que ele embute** envelheceu, que é o que quebra turno. Sem rede, passa |
 | `pnpm smoke:install` | empacota o `lumem`, instala num prefixo descartável e sobe — a prova de que o pacote publicado presta |
 | `pnpm version:set <x.y.z>` | escreve a versão nos três lugares que têm que concordar |
 

@@ -179,6 +179,41 @@ medidos:
 Layout sem `package.json` legível fica como está: é diretório que este daemon não escreveu, e
 rebaixar 255 MB por um palpite é pior do que reportar o pino.
 
+## 5.1 O que passou a avisar antes do próximo
+
+Medição manual só acontece se alguém souber que está na hora, e nada neste repositório sabia dizer
+que o pino tinha parado no tempo. `scripts/check-adapters.ts` — no `vitest`, e por
+`pnpm adapters:check` — pergunta ao registro npm duas coisas, e a diferença entre elas é o desenho:
+
+| Pergunta | Por que ela é o que é | O que faz |
+|---|---|---|
+| o pino está atrás do `latest`? | **sinal fraco.** `0.40.0` era o latest do dia em que foi escrito | avisa. Exigir o latest de um pacote de terceiro é a A12 ao contrário |
+| o runtime embutido está atrás do `latest` dele? | **sinal forte** — é a mecânica do §1 | **reprova** acima de 30 releases |
+| o runtime vem por faixa? | é o risco nomeado no §7 da `second-agent` (`@openai/codex: ^0.153.3`) | avisa: não há o que consertar deste lado |
+
+O campo `runtime` entrou no catálogo (`AdapterSpec`) para isso: quem quebra um turno é o pacote de
+**dentro**, e sem o nome dele numa spec "conferir se envelheceu" seria um `if` por adaptador em quem
+confere.
+
+O limite de 30 tem os dois únicos pontos de medição que existem escritos ao lado dele: `0.40.0`
+embutia um runtime **87 releases** atrás do publicado e a API recusava; `0.75.1` embute um **6
+releases** atrás e roda um turno inteiro. Ele foi conferido **ficando vermelho** contra o pino velho —
+com o registro de verdade, a linha é `FALHA claude: … embute @anthropic-ai/claude-agent-sdk@0.3.160,
+87 release(s) atrás do 0.3.263`.
+
+Duas coisas que ele **não** é:
+
+- **não é rede obrigatória.** Sem registro ele passa, e o `describe` invertido diz que se pulou. Gate
+  que reprova no avião é gate que se aprende a contornar, e este previne um defeito de meses;
+- **não substitui o turno.** Ele diz "está na hora de medir", não "funciona". A prova continua sendo
+  o §4 deste arquivo, feito à mão.
+
+E o aviso **local**, sem rede e sem heurística nenhuma: a tela do primeiro acesso compara a versão do
+adaptador que achou no disco com o pino do catálogo — duas strings — e, quando diferem, diz as duas
+mais a frase que a mensagem de erro do adaptador não diz: **ele embute o próprio runtime**, então
+`claude update` não resolve. Versão nula não acusa nada: `0.40.0` responde `--version` com string
+vazia, e "não deu para ler" não é "está velho".
+
 ## 6. O que a suíte continua não vendo
 
 O `gate:full` passa verde com o adaptador em qualquer versão, e isso não é conserto pendente — é o

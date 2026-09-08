@@ -515,6 +515,25 @@ deste repositório, e contar `warn` e `unknown`. É o procedimento da fase 0 da
 [second-agent](../features/021-second-agent/prd.md), e o registro de quando ele não foi seguido está em
 [claude-agent-acp-0.75.md](claude-agent-acp-0.75.md).
 
+**O que passou a avisar antes**, porque medição manual só acontece se alguém souber que está na hora:
+`scripts/check-adapters.ts`, no `vitest` (e por `pnpm adapters:check`). Ele pergunta ao registro npm
+duas coisas diferentes e trata cada uma como o que ela é:
+
+| Pergunta | Sinal | O que faz |
+|---|---|---|
+| o pino está atrás do `latest`? | fraco — o pino `0.40.0` **era** o latest do dia | avisa, nunca reprova: exigir o latest é a A12 ao contrário |
+| o runtime embutido está atrás do `latest` dele? | forte — é a mecânica do defeito | **reprova** acima de 30 releases |
+| o runtime vem por faixa (`^0.153.3`)? | é o risco da fase 0 | avisa: pinar o adaptador não pina o agente |
+
+O limite de 30 é **alarme de fumaça, não especificação**, e os dois pontos que existem estão escritos
+no arquivo: `0.40.0` embutia um runtime **87 releases** atrás e a API recusava; `0.75.1` embute um
+**6 releases** atrás e roda. Conferido ficando vermelho contra o pino velho, que é a única prova que
+vale para um gate.
+
+E ele **passa sem rede**, de propósito: gate que reprova no avião é gate que se aprende a contornar,
+e o defeito que este previne leva meses para aparecer. O `describe` invertido diz que se pulou —
+mesmo padrão do teste contra o adaptador real.
+
 E a armadilha de segunda ordem, que é a pior: **"já está instalado" não é "está na versão que o
 produto fixa"**. O `installAdapter` aceitava qualquer binário existente e reportava
 `spec.pinnedVersion` — então trocar a constante não trocava nada em nenhuma máquina que já tinha

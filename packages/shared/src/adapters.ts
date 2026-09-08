@@ -58,6 +58,19 @@ export interface AdapterSpec {
   /** O CLI que ele dirige. Null quando o adaptador traz o próprio. */
   cli: AdapterCli | null;
   /**
+   * O pacote npm que **é** o agente por baixo do adaptador.
+   *
+   * Existe porque a LUM-54 não foi um adaptador velho: foi um adaptador cujo
+   * `pinnedVersion` estava no `latest` do dia e que embutia um runtime que a API
+   * passou a recusar. Quem quebra um turno é este pacote, não o de cima — e sem
+   * o nome dele escrito aqui, "conferir se envelheceu" seria um `if` por
+   * adaptador em quem confere.
+   *
+   * `null` para um adaptador que não traz agente nenhum dentro (um nativo do
+   * PATH), porque aí não há o que conferir.
+   */
+  runtime: string | null;
+  /**
    * As variáveis de ambiente que significam "cobrança por token".
    *
    * Lista porque o Codex aceita duas. O pré-voo reporta **presença**, nunca
@@ -93,6 +106,9 @@ export const CLAUDE_ADAPTER: AdapterSpec = {
    */
   pinnedVersion: "0.75.1",
   cli: { command: "claude", install: null },
+  // Medido: `0.40.0` embutia o `0.3.160` e `0.75.1` embute o `0.3.257`, e o
+  // número depois do `0.3.` é o do Claude Code que a API cobra na recusa.
+  runtime: "@anthropic-ai/claude-agent-sdk",
   apiKeyEnv: ["ANTHROPIC_API_KEY"],
 };
 
@@ -106,6 +122,10 @@ export const CODEX_ADAPTER: AdapterSpec = {
   pinnedVersion: "1.10.0",
   // Null, e não `{ command: "codex" }` por simetria: ele traz o próprio.
   cli: null,
+  // Ele **é** o CLI que o `cli: null` acima diz que vem de dentro — e vem por um
+  // caret (`^0.153.3`), que é o risco da fase 0 e o motivo de a conferência
+  // tratar runtime não-pinado como aviso em vez de reprovação.
+  runtime: "@openai/codex",
   apiKeyEnv: ["CODEX_API_KEY", "OPENAI_API_KEY"],
 };
 
