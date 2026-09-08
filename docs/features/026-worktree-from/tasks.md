@@ -3,10 +3,11 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 
 **Status:** proposta
-**Histórico:** **14 tasks em 6 fases** (2026-09-07). As **fases 0 e 1 estão entregues** — medição,
-documento e desenho, nenhuma linha de produto ainda. A fase 0 mudou três decisões antes de existir
-código; a fase 1 mudou cinco medidas do desenho e achou um defeito de outra feature. As nove
-perguntas estão respondidas; nenhuma task está travada.
+**Histórico:** **14 tasks em 6 fases** (2026-09-07). As **fases 0 a 3 estão entregues** — 8 de 14
+tasks. A fase 0 mudou três decisões antes de existir código; a fase 1 mudou cinco medidas do desenho
+e achou um defeito de outra feature; a fase 3 achou que as três leituras não tinham por onde sair do
+daemon, e a [T9](#t9-from-no-worktreecreate-a-leitura-das-origens-e-a-regressão-junto) cresceu.
+As nove perguntas estão respondidas; nenhuma task está travada.
 
 A ordem tem uma regra: **o que decide vem antes do que escreve; git puro antes do `gh`; a tela por
 último**, porque é a mais barata de refazer e a única represada pelo Open Design.
@@ -176,7 +177,18 @@ cai no `classify` que já existe.
 **Done when**: a fixture atravessa até o tipo do `shared`; um `gh` que devolve `exit=4` produz
 `no-auth` e **não** uma exceção; e apagar um campo da projeção quebra um teste.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ aberta
+**Status**: ✅ entregue — `issues()` no `PrHost`, `ISSUE_PROJECTION` de sete campos, e a fixture
+`gh-issue-list-open.json` com cinco issues **reais** do `cli/cli`. Seis testes, nenhum deles
+executando processo.
+
+`issues()` ficou **fora** do `read()`, e a razão é a mesma que decidiu a T8: aquele alimenta uma
+barra que se pergunta sozinha, este responde a um diálogo que alguém abriu. Somados, um viraria custo
+de rede permanente do outro.
+
+O `--state open` está no `argv` e não na projeção: filtrar depois de baixar seria pagar rede por
+issue fechada que nunca vira worktree. E a degradação custou **zero**: o `classify` da
+[013](../013-pull-request-status/prd.md) já traduz o `exit 4` do `gh` sem autenticação, e o teste
+prova que ele chega como `no-auth` em vez de exceção.
 
 #### T8: Onde as issues moram no cache
 
@@ -187,17 +199,37 @@ entram: 10 ms de disco não se guarda.
 **Done when**: duas aberturas de modal dentro do TTL produzem **uma** execução de `gh`, provado por
 contagem no dublê.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ aberta
+**Status**: ✅ entregue — **irmão**, não parte. `IssueCache` com TTL de 60 s, single-flight e falha
+que não apaga a última lista. Sete testes, e a contagem de execuções é o teste: um cache que não
+guarda nada passa em todas as asserções de conteúdo e falha só ali.
+
+A [Q4](open-questions.md) deixou a escolha para o código, e o código respondeu. Os dois guardam
+leitura do mesmo `gh`, do mesmo projeto — e as três coisas que fazem o `PrCache` bom viram defeito
+aqui:
+
+| Do `PrCache` | Por que não serve à issue |
+|---|---|
+| poll de 15/60 s | seria um `gh issue list` por projeto a cada 15 s — **~730 ms medidos** — para um diálogo que ninguém abriu |
+| revalidação por trás | mostraria a lista velha, e a nova chegaria **depois** de o diálogo fechar |
+| backoff ao falhar | não há o que segurar: sem poll, o próximo pedido é uma pessoa reabrindo o diálogo |
+
+Branch **não** entra em cache nenhum: 10 ms de disco não se guarda.
 
 ---
 
 ## Fase 4 — o contrato
 
-#### T9: `from` no `worktree.create`, e a regressão junto
+#### T9: `from` no `worktree.create`, a leitura das origens, e a regressão junto
 
 **What**: a união discriminada no zod e no `shared`; o roteamento para os quatro casos; e o teste que
 prova que **sem** `from` nada mudou — mesma base, mesmo comando, mesma recusa. A regressão vem na
 mesma task de propósito: é o gesto mais usado do produto.
+
+**E a leitura**: `worktree.origins`, que junta o `listBranches` da [T6](#t6-listbranches-com-a-worktree-que-ocupa-cada-uma)
+com o `IssueCache` da [T8](#t8-onde-as-issues-moram-no-cache) e com o `PrCache` que já existe,
+filtrando PR cuja head não está no disco. **Isto não estava na lista** — a fase 3 acabou com as três
+leituras escritas e nenhuma alcançável de fora, e foi assim que a lacuna apareceu. Ela cabe aqui
+porque é o mesmo arquivo e a mesma camada: o contrato.
 **Where**: `packages/server/src/routers/worktree.ts`, `packages/shared/src/*`, `routers/*.test.ts`
 **Done when**: `create({projectId, name})` sem `from` executa o mesmo `argv` de hoje; `from` com
 `kind: "pr"` cuja head não está no disco é **recusado pelo daemon** com o motivo, e não pelo git.

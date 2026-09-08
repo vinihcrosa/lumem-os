@@ -1,0 +1,57 @@
+[
+  {
+    "author": "Abhirup0",
+    "labels": [
+      "needs-triage"
+    ],
+    "number": 14374,
+    "state": "OPEN",
+    "title": "gh pr close --comment silently discards the comment when PR is already closed or merged",
+    "updatedAt": "2026-09-07T15:59:07Z",
+    "url": "https://github.com/cli/cli/issues/14374"
+  },
+  {
+    "author": "lenamonj",
+    "labels": [
+      "needs-triage"
+    ],
+    "number": 14372,
+    "state": "OPEN",
+    "title": "gh repo garden panics on a short repository name",
+    "updatedAt": "2026-09-07T03:16:04Z",
+    "url": "https://github.com/cli/cli/issues/14372"
+  },
+  {
+    "author": "lenamonj",
+    "labels": [
+      "needs-triage"
+    ],
+    "number": 14371,
+    "state": "OPEN",
+    "title": "gh pr checks reports a re-queued check run with the previous run's conclusion and exits 0",
+    "updatedAt": "2026-09-07T03:15:54Z",
+    "url": "https://github.com/cli/cli/issues/14371"
+  },
+  {
+    "author": "idrismmc",
+    "labels": [
+      "needs-triage"
+    ],
+    "number": 14370,
+    "state": "OPEN",
+    "title": "`gh auth token --secure-storage` ignores the config's active account and returns the globally-active keyring token",
+    "updatedAt": "2026-09-06T18:31:42Z",
+    "url": "https://github.com/cli/cli/issues/14370"
+  },
+  {
+    "author": "isramontoro",
+    "labels": [
+      "needs-triage"
+    ],
+    "number": 14367,
+    "state": "OPEN",
+    "title": "Bug: gh issue create with --assignee fails but issue is created",
+    "updatedAt": "2026-09-06T11:17:00Z",
+    "url": "https://github.com/cli/cli/issues/14367"
+  }
+]
