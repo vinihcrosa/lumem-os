@@ -562,6 +562,17 @@ deles, e a v1 do fluxo não implementa nenhum.
 | Renomear e remover workspace pela tela | `P` | buraco nº 2 do `FEATURES.md`: o fluxo **cria** workspace, e nada administra | você ter mais de dois workspaces |
 | Pré-voo em Linux e Windows | `P` | as cinco checagens são as de macOS; Linux provavelmente passa e ninguém verificou | o Lumem rodar em outra máquina que não a sua |
 
+### Promover o painel de erros ao Open Design — `P`
+
+O registro de erros (o gatilho na topbar e a gaveta) nasceu **aqui**, montado a partir de primitivas do
+design system e só com `var(--token)` — não foi desenhado no Open Design, que o [ADR de
+2026-08-19](../adr/) diz ser onde o visual se decide. A dívida é pequena de propósito: nenhum componente
+visual novo, nada de cor ou espaço à mão. O que falta é o desenho da gaveta virar tela lá, para deixar
+de ser derivado de decisões tomadas no código.
+
+**De onde veio:** [PR #79](https://github.com/vinihcrosa/lumem-os/pull/79), revisão · **Volta quando:** o
+painel ganhar um segundo consumidor, ou aparecer a primeira reclamação de leitura.
+
 ---
 
 ## H. Distribuição e projeto

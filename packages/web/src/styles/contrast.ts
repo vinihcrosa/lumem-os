@@ -195,6 +195,11 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   { label: "idade / barra da PR", fg: "text/tertiary", bg: "bg/neutral-subtle", min: 3.0 },
   { label: "idade velha / barra da PR", fg: "text/warning", bg: "bg/neutral-subtle", min: 4.5 },
   { label: "nome de check / barra da PR", fg: "text/primary", bg: "bg/danger-subtle", min: 4.5 },
+  // o registro de erros: o gatilho vive na topbar em daemon/offline, e ganha
+  // bg/hover embaixo do ponteiro; o contador é o on-brand escuro sobre o
+  // vermelho de estado. As duas combinações nascem aqui e mediram 7,88 e 8,97.
+  { label: "gatilho de erros / hover", fg: "daemon/offline", bg: "bg/hover", min: 4.5 },
+  { label: "contador de erros / vermelho de estado", fg: "text/on-brand", bg: "daemon/offline", min: 4.5 },
 ];
 
 /** Luminância relativa, WCAG 2.1. */

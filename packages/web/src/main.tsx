@@ -9,9 +9,13 @@ import "./styles/base.css";
 
 import { App } from "./App.js";
 import { mountAgentation } from "./lib/agentation.js";
+import { installGlobalErrorHandlers } from "./lib/globalErrors.js";
 import { createQueryClient } from "./lib/queryClient.js";
 import "./ui/ui.css";
 import "./ui/modal.css";
+
+// Whatever escapes React and the query caches still lands in the error log.
+installGlobalErrorHandlers();
 
 const container = document.getElementById("root");
 if (!container) throw new Error("#root not found in index.html");

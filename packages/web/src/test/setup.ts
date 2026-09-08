@@ -3,6 +3,8 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 
+import { clearErrors } from "../lib/errorLog.js";
+
 /**
  * What jsdom does not implement and xterm.js insists on.
  *
@@ -54,4 +56,9 @@ if (typeof Range.prototype.getClientRects !== "function") {
 
 afterEach(() => {
   cleanup();
+  // The error log is a module-level store shared across a file's tests, and the
+  // query cache feeds it every intentional failure. Reset it so one test's
+  // errors never show up in the next one's topbar.
+  window.localStorage.clear();
+  clearErrors();
 });

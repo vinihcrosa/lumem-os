@@ -52,6 +52,15 @@ export interface WorktreeTabs {
   resume(sessionId: string): void;
   /** The session a resume is in flight for, or null. */
   resuming: string | null;
+  /**
+   * The session whose resume was refused, and the daemon's reason.
+   *
+   * Resuming a finished conversation launches a fresh adapter, and that can be
+   * refused — the adapter may not declare `loadSession`, or `session/load` may
+   * fail against a real subprocess. Without this the refusal was silent: the
+   * button flipped back and the click read as doing nothing.
+   */
+  resumeError: { sessionId: string; message: string } | null;
   sessions: ReturnType<typeof useSessionsByScope>;
 }
 
@@ -174,6 +183,10 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
     reopen,
     resume,
     resuming: resumption.isPending ? (resumption.variables ?? null) : null,
+    resumeError:
+      resumption.isError && resumption.variables !== undefined
+        ? { sessionId: resumption.variables, message: resumption.error.message }
+        : null,
     sessions,
   };
 }

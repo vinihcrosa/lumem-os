@@ -109,7 +109,7 @@ export function ScopePanel({
   initialPrompt,
 }: ScopePanelProps) {
   const queryClient = useQueryClient();
-  const { tabs, activeId, select, close, reopen, resume, resuming, sessions } =
+  const { tabs, activeId, select, close, reopen, resume, resuming, resumeError, sessions } =
     useWorktreeTabs(scope);
   const awaiting = useAwaitingPermission();
   const openFiles = useOpenFiles();
@@ -340,6 +340,11 @@ export function ScopePanel({
           initialPrompt={
             initialPrompt?.sessionId === tab.sessionId ? initialPrompt.text : undefined
           }
+          // The daemon's reason for refusing this session's resume, so the click
+          // is never silent — the same promise `close` already keeps.
+          {...(resumeError?.sessionId === tab.sessionId
+            ? { resumeError: resumeError.message }
+            : {})}
         />
       ))}
     </section>
