@@ -1,7 +1,14 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+// Por caminho relativo, como o `scripts/check-adapters.ts` já faz: o tsconfig da
+// raiz — que cobre `e2e/` — não resolve `@lumem/shared`.
+import { CLAUDE_ADAPTER, CODEX_ADAPTER } from "../../packages/shared/src/adapters.js";
+import { ADAPTERS_DIR_NAME } from "../../packages/shared/src/constants.js";
+
+import { E2E_PRODUCTION_STATE_DIR, E2E_STATE_DIR } from "../../ports.js";
 
 /**
  * A throwaway git repository for the e2e suite.
@@ -110,11 +117,22 @@ export const E2E_FIXTURE_REPO_ORIGINS_UPSTREAM = join(E2E_FIXTURE_DIR, "repo-ori
 /**
  * The adapter, under the name the onboarding looks for.
  *
- * The flow detects `claude-agent-acp` on the daemon's PATH and then spawns it —
- * that detection *is* what the first-access spec is about, so it cannot be
- * side-stepped by configuring a command by hand the way the other specs do. This
- * is a shim with the right name in a directory the config puts on the daemon's
- * PATH; what it execs is the same fake agent everything else here uses.
+ * The flow detects `claude-agent-acp` and then spawns it — that detection *is*
+ * what the first-access spec is about, so it cannot be side-stepped by configuring
+ * a command by hand the way the other specs do. This is a shim with the right
+ * name; what it execs is the same fake agent everything else here uses.
+ *
+ * **It is written into the daemon's own adapters directory since 2026-09-08**, and
+ * no longer only onto its PATH. A shim on the PATH stopped being launchable at all
+ * — [ADR de
+ * 2026-09-08](../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md)
+ * —, which is the decision working: the copy the daemon launches is the copy the
+ * daemon owns. It stays on the PATH too, because `setup.agents` still *reports*
+ * what is there (Q2) and the flow reads that report.
+ *
+ * Deliberately with **no `package.json` beside it**: that is the "layout this
+ * daemon did not write" case, so both `installAdapter` and the boot reconcile leave
+ * it alone instead of downloading 243 MB per e2e run.
  */
 export const E2E_FIXTURE_BIN = join(E2E_FIXTURE_DIR, "bin");
 export const E2E_FIXTURE_ADAPTER = join(E2E_FIXTURE_BIN, "claude-agent-acp");
@@ -332,6 +350,32 @@ export function createFixtures(): void {
     ].join("\n"),
     { mode: 0o755 },
   );
+
+  /*
+   * E as mesmas duas cópias no diretório que o daemon **possui**, que é de onde ele
+   * lança desde 2026-09-08 — [ADR de
+   * 2026-09-08](../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md).
+   *
+   * Sem isto, `setup.probe` recusa e o primeiro acesso não passa do passo do agente:
+   * um shim no PATH deixou de ser lançável, o que é a decisão funcionando. Elas
+   * continuam no PATH também, porque `setup.agents` ainda **relata** o que está lá
+   * (Q2) e a tela lê esse relatório.
+   *
+   * Sem `package.json` ao lado, de propósito: é o caso "layout que este daemon não
+   * escreveu", então tanto o `installAdapter` quanto a conferência de boot deixam
+   * quieto em vez de baixar 243 MB por execução da suíte.
+   */
+  for (const stateDir of [E2E_STATE_DIR, E2E_PRODUCTION_STATE_DIR]) {
+    for (const [spec, shim] of [
+      [CLAUDE_ADAPTER, E2E_FIXTURE_ADAPTER],
+      [CODEX_ADAPTER, E2E_FIXTURE_CODEX_ADAPTER],
+    ] as const) {
+      const managed = join(stateDir, ADAPTERS_DIR_NAME, spec.id, "node_modules", ".bin");
+      mkdirSync(managed, { recursive: true });
+      copyFileSync(shim, join(managed, spec.command));
+      chmodSync(join(managed, spec.command), 0o755);
+    }
+  }
 
   // O `gh`, com o mesmo shim de sempre: processo de verdade, `argv` de verdade,
   // saída de verdade — e zero rede.
