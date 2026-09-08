@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 
 **Status:** proposta
-**Histórico:** **14 tasks em 6 fases** (2026-09-07). As **fases 0 a 4 estão entregues** — 10 de 14
+**Histórico:** **14 tasks em 6 fases** (2026-09-07). As **fases 0 a 5 estão entregues** — 12 de 14
 tasks. A fase 0 mudou três decisões antes de existir código; a fase 1 mudou cinco medidas do desenho
 e achou um defeito de outra feature; a fase 3 achou que as três leituras não tinham por onde sair do
 daemon, e a [T9](#t9-from-no-worktreecreate-a-leitura-das-origens-e-a-regressão-junto) cresceu.
@@ -284,7 +284,20 @@ branch ocupada leva para a worktree que a tem.
 **Done when**: o React usa só `var(--token)`, e o campo de nome aceita digitação antes de qualquer
 listagem chegar.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ aberta
+**Status**: ✅ entregue — o trilho é o `.seg` que a aba de mudanças e a tela do workspace já usam, e
+não um controle novo: é o que faz "de onde cortar" parecer o resto do produto. `create-worktree.css`
+é cópia da folha do Open Design, token por token.
+
+O teste da F3.5 é o que vale: as **duas queries nunca resolvem** e mesmo assim se digita no campo e o
+`criar` fica habilitado. Os 16 testes passaram de primeira, então foram submetidos a **quatro
+mutações** — a PR fora do disco deixando de ser `disabled`, o `hostOff` virando `false`, o
+pré-preenchimento não escrevendo, e a navegação da branch ocupada sumindo. **As quatro ficaram
+vermelhas**, cada uma no teste que fala dela.
+
+E o `gate:quick` achou o que jsdom não acha: a auditoria do `modal-css` só lia `modal.css`, então
+toda classe do bloco de origem contava como faltando. Ela passou a **saber onde procurar** — as
+folhas de tela que um diálogo traz consigo — em vez de listar catorze classes como emprestadas, que
+é o mesmo que parar de conferi-las.
 
 #### T12: A degradação
 
@@ -294,7 +307,17 @@ de hoje mais a aba `branch`. Nenhuma espera, nenhum erro na tela.
 **Done when**: com a leitura do host falhando em `no-binary`, o modal renderiza completo e o `criar`
 funciona.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ aberta
+**Status**: ✅ entregue — e a execução separou o que o desenho tratava como uma coisa só. **Nem toda
+falha de host apaga as abas:**
+
+| Falha | O que a tela faz | Por quê |
+|---|---|---|
+| `no-binary`, `no-auth`, `unsupported-host` (e sem remoto) | as abas `issue` e `PR` **somem**, e o motivo aparece uma vez | aqui não há host — e aba desabilitada é a promessa de que existe algo ali para quem se autenticar |
+| `offline`, `rate-limit`, `timeout` | a aba **fica**, e a lista explica | sumir faria a tela mudar de forma por causa de um wi-fi ruim, e mudar de volta quando ele melhorasse |
+
+Sem autenticação a frase manda rodar `gh auth login` **no terminal de quem usa**: o Lumem não guarda,
+não pede e não lê token, e é o mesmo desenho do
+[ADR de 2026-08-30](../../adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md).
 
 ---
 

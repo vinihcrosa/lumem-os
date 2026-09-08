@@ -53,6 +53,13 @@ export const NO_PULL_REQUEST = {
   merge: { merge: false, squash: false, rebase: false, deleteBranchOnMerge: false },
 };
 
+/** Um projeto sem host: nenhuma issue, nenhuma PR, e nenhuma aba além de `branch`. */
+export const NO_HOST_ORIGINS = {
+  host: null,
+  issues: { items: [], failure: null, readAt: null },
+  pulls: { items: [], failure: null, readAt: null },
+};
+
 export const NO_SCRIPTS_STATUS = {
   scripts: { setup: null, run: null, test: null, teardown: null },
   file: "/repo/.lumem/project.toml",
@@ -106,6 +113,8 @@ function createTrpcMock() {
       listByProject: { query: vi.fn() },
       getDetail: { query: vi.fn() },
       plan: { query: vi.fn() },
+      branches: { query: vi.fn() },
+      hostOrigins: { query: vi.fn() },
       create: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
     },
@@ -254,4 +263,9 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   mock.pr.getByWorktree.query.mockResolvedValue(NO_PULL_REQUEST);
   mock.pr.listByProject.query.mockResolvedValue([]);
   mock.pr.draft.query.mockResolvedValue({ title: "", base: "main", head: "teste" });
+  // As origens do diálogo de criar worktree. Default vazio pela mesma razão dos
+  // outros: o diálogo consulta no `mount`, e um teste que fala de outra coisa
+  // não pode quebrar por causa disso.
+  mock.worktree.branches.query.mockResolvedValue([]);
+  mock.worktree.hostOrigins.query.mockResolvedValue(NO_HOST_ORIGINS);
 }

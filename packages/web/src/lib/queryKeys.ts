@@ -16,6 +16,21 @@ export function worktreesKey(projectId: string) {
   return ["worktree", "listByProject", projectId] as const;
 }
 
+/**
+ * As origens de uma worktree nova, em duas chaves.
+ *
+ * Duas porque são duas leituras de custo diferente: as branches são disco (10 ms
+ * medidos) e o host é rede (~730 ms). Uma chave só faria a lista local esperar a
+ * rede em toda abertura do diálogo.
+ */
+export function worktreeBranchesKey(projectId: string) {
+  return ["worktree", "branches", projectId] as const;
+}
+
+export function worktreeHostOriginsKey(projectId: string) {
+  return ["worktree", "hostOrigins", projectId] as const;
+}
+
 export function projectDetailKey(projectId: string) {
   return ["project", "detail", projectId] as const;
 }

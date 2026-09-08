@@ -297,15 +297,19 @@ export const worktreeRouter = router({
             return path;
           }
         };
-        const nameOfPath = new Map(worktrees.map((row) => [realOf(row.path), row.name]));
-        return branches.map((branch) => ({
-          ...branch,
-          // O nome que o produto usa, e não o caminho: a tela diz "está em
-          // pr-bar", e o caminho é do daemon. Null quando quem ocupa é o
-          // checkout principal, que não é uma worktree registrada.
-          worktreeName:
-            branch.worktreePath === null ? null : (nameOfPath.get(realOf(branch.worktreePath)) ?? null),
-        }));
+        const rowOfPath = new Map(worktrees.map((row) => [realOf(row.path), row]));
+        return branches.map((branch) => {
+          // O nome e o id que o produto usa, e não o caminho: a tela diz "está
+          // em pr-bar" e navega para lá. Os dois são nulos quando quem ocupa é
+          // o checkout principal, que não é uma worktree registrada — ele
+          // aparece como ocupada e sem para onde ir.
+          const holder = branch.worktreePath === null ? undefined : rowOfPath.get(realOf(branch.worktreePath));
+          return {
+            ...branch,
+            worktreeId: holder?.id ?? null,
+            worktreeName: holder?.name ?? null,
+          };
+        });
       }),
     ),
 

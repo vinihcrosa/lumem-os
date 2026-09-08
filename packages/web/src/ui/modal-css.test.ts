@@ -21,6 +21,20 @@ const COMPONENTS = join(UI, "..", "components");
 
 const stylesheet = readFileSync(join(UI, "modal.css"), "utf8");
 
+/**
+ * As folhas de tela que os diálogos trazem consigo.
+ *
+ * Um diálogo pode ter corpo próprio — o bloco de origem da
+ * [`026-worktree-from`](../../../../docs/features/026-worktree-from/prd.md) é o
+ * primeiro —, e esse corpo não é do `Modal`: ele é da tela que o `Modal`
+ * hospeda. A auditoria continua exigindo que **toda** classe exista, e passa a
+ * saber onde procurar. A alternativa era listar cada uma como emprestada, que é
+ * o mesmo que parar de conferi-las.
+ */
+const screenSheets = ["create-worktree.css"]
+  .map((name) => readFileSync(join(COMPONENTS, name), "utf8"))
+  .join("\n");
+
 /** Quem desenha as classes deste arquivo. */
 const consumers = ["Modal.tsx"]
   .map((name) => readFileSync(join(UI, name), "utf8"))
@@ -74,6 +88,10 @@ const BORROWED = new Set([
   // Primitivas compartilhadas, de `ui/ui.css`.
   "kbd",
   "glyph",
+  // O segmentado, que já existia na aba de mudanças e na tela do workspace. O
+  // trilho de origem usa o mesmo, e é isso que faz "de onde cortar" parecer o
+  // resto do produto em vez de um controle novo.
+  "seg__btn",
   // O clone: a barra e os desfechos continuam em `components/clone.css`, que é
   // de onde eles vieram. Só a geometria da linha subiu para cá.
   "bar",
@@ -100,7 +118,7 @@ const BORROWED = new Set([
 
 describe("toda classe que o modal pede existe", () => {
   it("define toda classe literal que os componentes usam", () => {
-    const available = defined(stylesheet);
+    const available = new Set([...defined(stylesheet), ...defined(screenSheets)]);
     const missing = [...requested(consumers)]
       .filter((name) => !available.has(name))
       .filter((name) => !BORROWED.has(name));

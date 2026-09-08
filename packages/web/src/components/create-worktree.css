@@ -1,0 +1,137 @@
+/*
+ * De onde cortar — o bloco de origem do diálogo de criar worktree.
+ *
+ * Cópia do que a folha `lumem-worktree-from` desenhou no Open Design, e nada
+ * além dela: os valores são todos token, e o que existe aqui e não lá é defeito
+ * de um dos dois lados. O modal, o campo e o botão vêm do design system.
+ */
+
+:root {
+  /*
+   * Quatro linhas e meia.
+   *
+   * Medido no navegador: com `4.5 × 32px` sobra um sliver de 8px da quinta
+   * linha, porque o padding do trilho come a diferença — e um sliver lê como
+   * erro de arredondamento, não como uma lista que continua. Com o `+ space-8`
+   * ficam quatro linhas inteiras e 19px da quinta.
+   */
+  --size-origin-list-h: calc(var(--size-control-lg) * 4.5 + var(--space-8));
+}
+
+/* A ordem é a frase: primeiro de onde, depois como se chama. */
+.origin { display: grid; gap: var(--space-8); }
+.origin .seg { align-self: start; }
+
+/*
+ * Altura fixa, e não `max-height`.
+ *
+ * Com teto, três issues e trinta branches dariam dois cartões de tamanhos
+ * diferentes, e o rodapé andaria debaixo do ponteiro na troca de aba.
+ */
+.origin__list {
+  height: var(--size-origin-list-h);
+  overflow-y: auto;
+  padding: var(--space-4);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.orow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  height: var(--size-control-lg);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  font: var(--text-label-sm);
+  color: var(--color-text-secondary);
+  text-align: left;
+}
+.orow:hover:enabled { background: var(--color-bg-hover); color: var(--color-text-primary); }
+/* Escolhida, e não só sob o ponteiro: este estado sobrevive ao mouse sair, que é
+   a diferença entre uma lista de escolha e um menu. */
+.orow[aria-selected="true"] {
+  background: var(--color-bg-active);
+  color: var(--color-text-primary);
+  box-shadow: inset 0 0 0 1px var(--color-border-brand);
+}
+.orow:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+
+/* Identificador é mono: é o que faz `#1408` e `#148` não se confundirem numa
+   lista rolando, e é o que se compara com o navegador ao lado. */
+.orow__n { flex: none; font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.orow[aria-selected="true"] .orow__n { color: var(--color-text-secondary); }
+.orow__ref { flex: none; font: var(--text-mono-sm); color: var(--color-git-branch); }
+.orow__t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* À direita, o que esta linha tem de diferente das outras. Quando não há nada a
+   dizer, o elemento não existe. */
+.orow__note { flex: none; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/*
+ * A que não serve, e diz por quê — na própria linha, nunca num tooltip.
+ *
+ * Linha cinza sem motivo à vista é a mesma armadilha do `+` desabilitado que a
+ * `sidebar-actions` recusou.
+ */
+.orow:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
+.orow:disabled .orow__n,
+.orow:disabled .orow__ref { color: var(--color-text-disabled); }
+.orow:disabled .orow__note { color: var(--color-text-danger); }
+
+/* A branch que outra worktree já tem. Não é `disabled`: o clique navega. */
+.orow--held .orow__go { flex: none; color: var(--color-text-brand); font-size: var(--size-icon-xs); }
+
+/*
+ * O esqueleto, e o que ele existe para provar.
+ *
+ * Ele ocupa o mesmo espaço que a lista vai ocupar, para o cartão não crescer
+ * quando ela chegar — e o campo de nome abaixo já aceita digitação. Um spinner
+ * centrado diria o mesmo e ainda deixaria o cartão pular.
+ */
+.origin__skel { display: grid; gap: var(--space-8); padding: var(--space-6) var(--space-8); }
+.origin__skel span {
+  height: var(--space-10);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-active);
+}
+.origin__skel span:nth-child(1) { width: 78%; }
+.origin__skel span:nth-child(2) { width: 92%; }
+.origin__skel span:nth-child(3) { width: 64%; }
+
+/* Lista vazia é resposta, não falha. `flex` com um filho só: com `grid`, cada nó
+   inline da frase vira item de grade e o texto sai em linhas empilhadas — visto
+   no navegador, no protótipo. */
+.origin__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 var(--space-16);
+  text-align: center;
+}
+.origin__empty p { margin: 0; font: var(--text-body-sm); color: var(--color-text-tertiary); }
+
+/*
+ * Sem host: uma frase, uma vez, e as abas `issue` e `PR` **não aparecem**.
+ *
+ * Aba desabilitada é uma promessa de que existe algo ali para quem se
+ * autenticar; a maior parte das aberturas deste diálogo é em repositório que
+ * nunca vai ter host, e nesses a promessa é ruído permanente.
+ */
+.origin__off {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.origin__off code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/* O eco do nome derivado: a origem sugere, e sem isto o campo se preenche
+   sozinho sem ninguém saber por quê. */
+.fname { display: flex; align-items: center; gap: var(--space-6); }
+.fname__g { flex: none; color: var(--color-text-brand); font-size: var(--size-icon-xs); }
+.fname code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.fname--branch .fname__g { color: var(--color-git-branch); }
