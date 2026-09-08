@@ -91,6 +91,20 @@ export const E2E_FAKE_GH = fileURLToPath(new URL("./fake-gh.mjs", import.meta.ur
 export const E2E_FIXTURE_REPO_ONBOARDING = join(E2E_FIXTURE_DIR, "repo-onboarding");
 
 /**
+ * O repositório de onde se corta worktree por origem (`026-worktree-from`).
+ *
+ * Ele tem as três coisas que a feature precisa e que nenhum outro fixture tem:
+ * uma branch **local** que já existe, uma branch **publicada** — um
+ * `refs/remotes/origin/*` escrito com `update-ref`, que é exatamente o que um
+ * fetch deixaria em disco — e um `origin` do GitHub para o adaptador reconhecer
+ * o host.
+ *
+ * `update-ref` e não `fetch`: nada nesta suíte vai à rede, e a ref publicada é o
+ * dado que separa "PR que dá para cortar" de "PR que precisa de fetch" (F3.3).
+ */
+export const E2E_FIXTURE_REPO_ORIGINS = join(E2E_FIXTURE_DIR, "repo-origins");
+
+/**
  * The adapter, under the name the onboarding looks for.
  *
  * The flow detects `claude-agent-acp` on the daemon's PATH and then spawns it —
@@ -231,6 +245,23 @@ export function createFixtures(): void {
    * referências que já estão no disco.
    */
   git(E2E_FIXTURE_REPO_PR, "remote", "add", "origin", "https://github.com/exemplo/repo.git");
+
+  /*
+   * As quatro origens, com o disco preparado para as três que dependem dele.
+   *
+   * A branch publicada é escrita com `update-ref`: a suíte não vai à rede, e o
+   * que interessa é o que sobra em disco depois de um fetch — que é uma ref em
+   * `refs/remotes/origin/`. A que **não** existe é a prova da outra metade: uma
+   * PR cuja head nunca foi buscada não pode virar worktree sem fetch.
+   */
+  mkdirSync(E2E_FIXTURE_REPO_ORIGINS, { recursive: true });
+  git(E2E_FIXTURE_REPO_ORIGINS, "init", "--initial-branch", "main", ".");
+  writeFileSync(join(E2E_FIXTURE_REPO_ORIGINS, "README.md"), "# origens\n");
+  git(E2E_FIXTURE_REPO_ORIGINS, "add", "README.md");
+  git(E2E_FIXTURE_REPO_ORIGINS, "commit", "-m", "initial");
+  git(E2E_FIXTURE_REPO_ORIGINS, "branch", "feature-local");
+  git(E2E_FIXTURE_REPO_ORIGINS, "remote", "add", "origin", "https://github.com/exemplo/repo.git");
+  git(E2E_FIXTURE_REPO_ORIGINS, "update-ref", "refs/remotes/origin/feature-publicada", "main");
 
   const binDir = join(E2E_FIXTURE_DIR, "bin");
   mkdirSync(binDir, { recursive: true });

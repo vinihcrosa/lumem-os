@@ -2,12 +2,13 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 
-**Status:** proposta
-**Histórico:** **14 tasks em 6 fases** (2026-09-07). As **fases 0 a 5 estão entregues** — 12 de 14
-tasks. A fase 0 mudou três decisões antes de existir código; a fase 1 mudou cinco medidas do desenho
-e achou um defeito de outra feature; a fase 3 achou que as três leituras não tinham por onde sair do
-daemon, e a [T9](#t9-from-no-worktreecreate-a-leitura-das-origens-e-a-regressão-junto) cresceu.
-As nove perguntas estão respondidas; nenhuma task está travada.
+**Status:** completa
+**Histórico:** **as 14 tasks das 6 fases estão entregues** (2026-09-07). A fase 0 mudou três decisões
+antes de existir código; a fase 1 mudou cinco medidas do desenho e achou um defeito de outra feature;
+a fase 3 achou que as três leituras não tinham por onde sair do daemon, e a
+[T9](#t9-from-no-worktreecreate-a-leitura-das-origens-e-a-regressão-junto) cresceu; a fase 6 achou que
+o `Done when` da [T13](#t13-o-fake-gh-aprende-issue-list) não era alcançável como escrito — e o
+motivo virou item de backlog em vez de contorno no teste. As nove perguntas estão respondidas.
 
 A ordem tem uma regra: **o que decide vem antes do que escreve; git puro antes do `gh`; a tela por
 último**, porque é a mais barata de refazer e a única represada pelo Open Design.
@@ -330,7 +331,15 @@ mesmo padrão do `pr list` — processo de verdade, `argv` de verdade, código d
 **Where**: `e2e/support/fake-gh.mjs`, `e2e/support/fixtures.ts`
 **Done when**: o spec reescreve o estado entre dois passos e a lista de issues muda na tela.
 **Gate**: `pnpm gate:full`
-**Status**: ⬜ aberta
+**Status**: ✅ entregue — `issue list` responde do mesmo `gh-state.json`, no mesmo contrato do `pr
+list`: o estado já está na forma projetada, então a projeção é a identidade e o que o spec exercita é
+o transporte e o parse.
+
+**O `Done when` foi cumprido pela metade, e a outra metade virou achado.** Reescrever o estado *entre
+dois passos* **não** muda a lista: o `IssueCache` guarda por projeto com TTL de 60 s, e o diálogo não
+tem `⟳` — o primeiro que abrir congela a resposta para o resto do arquivo. É limitação do produto, não
+do dublê, e está no [backlog](../../project/backlog.md) com o gatilho de volta. O spec passou a
+escrever o estado **uma vez**, antes de tudo.
 
 #### T14: O e2e dos três caminhos
 
@@ -341,7 +350,37 @@ conferindo, no disco, **a branch que a worktree ficou** e não só que ela exist
 **Done when**: os quatro passam, e o caminho da PR falha se alguém trocar `--track -b` por
 `origin/<x>` (é o caso B: a worktree existiria, com HEAD destacado).
 **Gate**: `pnpm gate:full`
-**Status**: ⬜ aberta
+**Status**: ✅ entregue — **seis testes, todos verdes**, e a mutação foi feita: trocado o
+`--track -b` pelo ref remoto solto, o teste da PR fica **vermelho** e os outros continuam verdes. É a
+armadilha da fase 0 pega no navegador, com o daemon de verdade no meio.
+
+O fixture `repo-origins` tem as três coisas que nenhum outro tinha: branch local, branch **publicada**
+— escrita com `update-ref`, que é o que um fetch deixaria em disco — e um `origin` do GitHub. Nada vai
+à rede.
+
+As asserções são de **disco**, e não de tela: `git branch --show-current` e `rev-parse @{u}` dentro da
+worktree criada. Uma worktree com HEAD destacado desenha uma linha perfeitamente normal.
+
+Dois achados de graça:
+
+- **`getByRole("button", { name: "PR" })` casava três botões** — `adicionar projeto` e `remover
+  projeto` contêm "pr". O nome da aba é curto o bastante para colidir por substring, e é `exact` que
+  resolve;
+- **a linha da árvore já sabia mostrar a branch** quando ela difere do nome (`worktreeMeta`, escrito
+  na `walking-skeleton` para um caso que até agora não podia acontecer). A [Q9](open-questions.md)
+  fez a regra disparar pela primeira vez, e o §7 da folha do Open Design pediu exatamente o que o
+  código já fazia.
+
+E o `gate:full` cobrou uma coisa que nenhum teste desta feature veria: o
+[e2e da `sidebar-actions`](../017-sidebar-actions/tasks.md) ficou **vermelho**. O `Modal` dava o foco
+ao **primeiro focável**, e o primeiro focável deixou de ser o campo de nome — passou a ser a aba
+`default`. Duas mudanças saíram disso, e as duas estão registradas onde a afirmação antiga mora:
+
+1. o `Modal` prefere `[data-modal-focus]` e cai no primeiro focável só quando ninguém pediu. Abrir o
+   diálogo continua pondo o cursor onde se digita — a origem é opcional, o nome não;
+2. o **anel do `Tab` cresceu**, e a volta depois do `✕` é o trilho e não o campo. O contrato da seção
+   8 do protótipo continua de pé (o `Tab` circula dentro do diálogo, o `✕` é o último); o que mudou é
+   quantas paradas ele tem, e a P2 da `sidebar-actions` recebeu a emenda.
 
 ---
 

@@ -352,6 +352,9 @@ export function CreateWorktreeDialog({
         >
           <Input
             id={fieldId}
+            // Onde o foco cai ao abrir, e não no trilho de origem acima: a
+            // origem é opcional, o nome não.
+            data-modal-focus=""
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="teste-prd"

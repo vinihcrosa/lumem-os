@@ -267,6 +267,19 @@ O que **ficou** de fora, e portanto continua aqui:
 | "O check quebrou, peça ao agente para consertar" | `M` | a ponte entre a barra e a sessão ACP. É a ideia mais valiosa da lista e a mais perigosa: põe texto da internet dentro de um prompt (§4.7 do PRD) | ter um portão desenhado para texto de fora virar instrução |
 | A aba `Review` — threads, comentários inline, sugestões | `L` | é outra feature inteira, e sempre foi | depois do segundo host |
 
+### `⟳` na lista de origens do diálogo de criar worktree — `P`
+
+O `IssueCache` guarda por projeto com TTL de **60 s**, e a lista de origens não tem como pedir uma
+leitura nova — o `force` existe no cache desde a
+[T8](../features/026-worktree-from/tasks.md) e ninguém o chama. Consequência: quem abre uma issue no
+navegador e volta ao Lumem espera até um minuto para vê-la. A barra de PR resolveu o mesmo problema
+com um `⟳`, e é de lá que o desenho sairia.
+
+**De onde veio:** o e2e da [026-worktree-from](../features/026-worktree-from/tasks.md) — o primeiro
+diálogo que abre congela a resposta do host para o resto do arquivo, e o spec teve que escrever o
+estado uma vez só · **Volta quando:** alguém reclamar de issue nova que não aparece, ou quando a
+lista de origens ganhar qualquer outro controle (aí o `⟳` entra na mesma faixa, de graça).
+
 ### `fetch` sob demanda ao cortar de uma PR — `P`
 
 A [026-worktree-from](../features/026-worktree-from/prd.md) só oferece PR cuja head **já esteja no

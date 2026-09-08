@@ -1,12 +1,12 @@
 # PRD — De onde cortar: worktree a partir de uma issue, de uma branch ou de uma PR
 
-> **Status:** proposta
+> **Status:** completa
 > **Histórico:** v0.1 — proposta em **2026-09-07**, a partir da anotação visual na tela `/`
 > (viewport 3440×1321, `<App> <CreateWorktreeDialog> <Modal>`). O §3 foi escrito **depois** de medir,
 > e a medição mudou três decisões antes de existir código
 > **Perguntas:** [open-questions.md](open-questions.md) — 5 do pedido, **todas respondidas**, mais 4
 > que a medição abriu
-> **Tasks:** [tasks.md](tasks.md) — 14 tasks em 6 fases, 3 entregues (a fase 0 é este documento)
+> **Tasks:** [tasks.md](tasks.md) — **14 tasks em 6 fases, todas entregues**
 > **Issue de rastreio:** [LUM-52](https://linear.app/lumem-os/issue/LUM-52/worktree-from-cortar-worktree-de-uma-issue-branch-ou-prmr)
 > **Depende de:** a [013-pull-request-status](../013-pull-request-status/prd.md), que deixou o `gh`,
 > o `PrHost` e o `PrCache` de pé — e o [ADR do `gh`](../../adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md),
