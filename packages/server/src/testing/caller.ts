@@ -17,6 +17,7 @@ import type { PrHost } from "../pr/PrHost.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { createScriptRunner, type ScriptRunner } from "../scripts/ScriptRunner.js";
 import { createSessionStore, type SessionStore } from "../sessions/SessionStore.js";
+import { adapterCommandForConfig } from "../setup/adapter-command.js";
 import { appRouter } from "../routers/index.js";
 import { createCallerFactory, type Context } from "../trpc.js";
 
@@ -100,7 +101,26 @@ export function createTestCaller(
   const config = loadConfig(scoped);
   const git = createGitService();
   const events = createEventBus();
-  const sessionStore = createSessionStore({ db: database.db, ptyManager, events, git });
+  /*
+   * O store recebe o `acpManager` e o resolvedor de adaptador — o mesmo par que o
+   * `bootstrap` liga.
+   *
+   * Antes ele recebia nem um nem outro, e o comentário acima explicava por quê:
+   * *"as sessões destes testes vão pelo store, que constrói o seu"*. A consequência
+   * é que **nenhum** teste de router conseguia criar sessão ACP — `session.createAgent`
+   * com `transport: "acp"` morria em `"nenhum AcpManager foi ligado"` —, então a
+   * resolução de adaptador no caminho de sessão não tinha onde ser provada. Ligar os
+   * dois aqui é o que faz um teste de router poder afirmar **o que o spawner
+   * recebeu**, que é a única asserção que pega a versão errada.
+   */
+  const sessionStore = createSessionStore({
+    db: database.db,
+    ptyManager,
+    acpManager,
+    events,
+    git,
+    resolveAcpCommand: (agent) => adapterCommandForConfig(agent, config.stateDir),
+  });
   // Same wiring the daemon uses: without it a session that ends on its own
   // stays `running` and the removal rules read stale state.
   const stopTracking = sessionStore.trackExits();

@@ -19,6 +19,13 @@
  *   `optionalDependencies` — 285 dos 301 MB da instalação. Medido: com
  *   `PATH=/nonexistent` o handshake dele ainda responde. O `claude-agent-acp`,
  *   ao contrário, é um adaptador que dirige um binário que tem que existir.
+ *
+ *   > **A segunda frase caiu em 2026-09-08.** Ela era verdade no `0.40.0` e não é
+ *   > no `0.75.1`: o `CLAUDE_ADAPTER.cli` é `null`, e as três medições estão no
+ *   > comentário dele, mais abaixo. O que fica de pé é a **assimetria** que
+ *   > motivou o campo — um adaptador pode ou não trazer o agente por dentro, e a
+ *   > spec tem que saber dizer as duas coisas. Hoje os dois trazem, e o campo
+ *   > continua existindo porque o terceiro pode não trazer.
  */
 
 /** O CLI que um adaptador dirige, quando ele não traz o próprio. */
@@ -105,7 +112,26 @@ export const CLAUDE_ADAPTER: AdapterSpec = {
    * está em `docs/project/claude-agent-acp-0.75.md`.
    */
   pinnedVersion: "0.75.1",
-  cli: { command: "claude", install: null },
+  /*
+   * `null` desde 2026-09-08, e isto **reverte** o que estava escrito no §
+   * `cli` opcional acima: *"o `claude-agent-acp`, ao contrário, é um adaptador que
+   * dirige um binário que tem que existir"*. Era verdade no `0.40.0`. Deixou de
+   * ser, e a medição é o motivo — três vezes, no `0.75.1`:
+   *
+   * - com o `claude` fora do PATH (só `node` nele), `initialize` e `session/new`
+   *   fecham e ele lista os cinco modelos, Opus 5 incluído;
+   * - o daemon em execução spawna
+   *   `@anthropic-ai/claude-agent-sdk-darwin-arm64/claude` — o binário de **dentro**
+   *   do pacote, nunca o do PATH;
+   * - os `authMethods` que ele oferece têm `args: ["--cli", "auth", "login",
+   *   "--claudeai"]`. O `--cli` é do próprio adaptador; não há um `claude` a chamar.
+   *
+   * O que o processo filho ainda precisa do PATH é o keychain: com só `node`,
+   * `session/prompt` responde `Authentication required`; com `/usr/bin/security` ao
+   * lado, o mesmo turno fecha em `end_turn`. Isso é ambiente, não proveniência — a
+   * distinção está na [Q3](../../../docs/features/027-adapter-provenance/open-questions.md).
+   */
+  cli: null,
   // Medido: `0.40.0` embutia o `0.3.160` e `0.75.1` embute o `0.3.257`, e o
   // número depois do `0.3.` é o do Claude Code que a API cobra na recusa.
   runtime: "@anthropic-ai/claude-agent-sdk",

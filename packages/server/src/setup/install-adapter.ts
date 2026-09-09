@@ -4,7 +4,6 @@ import { dirname, join, parse } from "node:path";
 
 import { CLAUDE_ADAPTER, type AdapterSpec } from "@lumem/shared";
 
-import { resolveCommandPath } from "../agents/availability.js";
 import { DomainError } from "../errors.js";
 import { runCommand, type CommandRunner } from "./run-command.js";
 
@@ -27,9 +26,12 @@ import { runCommand, type CommandRunner } from "./run-command.js";
  *
  * **Per spec since the second agent.** Each adapter installs into
  * `<adaptersDir>/<id>`, because two adapters sharing one `node_modules` would
- * have the second install decide the first one's dependency tree. A spec with no
- * `package` installs nothing: it is expected on the PATH, and this reports what
- * it found there or says which binary is missing.
+ * have the second install decide the first one's dependency tree.
+ *
+ * A spec with no `package` used to be *found on the PATH* instead of installed.
+ * Since the [ADR de
+ * 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md)
+ * it is refused: the PATH does not get to decide which adapter answers.
  */
 
 export interface AdapterInstall {
@@ -58,8 +60,6 @@ export interface InstallAdapterOptions {
   run?: CommandRunner;
   /** npm can take a while on a cold cache; a minute is generous and finite. */
   timeoutMs?: number;
-  /** Seam for the PATH lookup a spec without a package falls back to. */
-  resolve?: (command: string) => string | null;
 }
 
 /** Where a spec's own `node_modules` lives: `<adaptersDir>/<id>`. */
@@ -163,24 +163,30 @@ export async function installAdapter({
   dir,
   run = runCommand,
   timeoutMs = 120_000,
-  resolve = resolveCommandPath,
 }: InstallAdapterOptions): Promise<AdapterInstall> {
   /*
-   * A spec with no package is not installed — it is found.
+   * A spec with no package cannot be installed — and, since 2026-09-08, cannot be
+   * launched either.
    *
-   * A native agent (`gemini --acp`) has no adapter to download, and running npm
-   * against a package that does not exist would fail with a registry error for a
-   * machine whose only actual problem is a missing binary.
+   * This used to resolve `spec.command` on the PATH and hand it back as an
+   * install, on the theory that a native agent (`gemini --acp`) is found rather
+   * than downloaded. The theory stands; what does not is the conclusion, because
+   * *found on the PATH* is precisely the provenance the [ADR de
+   * 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md)
+   * forbids: nothing decides which copy answered, and nothing notices when the pin
+   * moves. `package` keeps its meaning — "there is nothing to download" — and
+   * loses its escape hatch.
+   *
+   * Both specs in the catalogue have a package, so this refuses nothing that
+   * exists today. It refuses adding one later without deciding where its binary
+   * comes from.
    */
   if (spec.package === null) {
-    const found = resolve(spec.command);
-    if (found === null) {
-      throw new DomainError(
-        "NOT_FOUND",
-        `${spec.label} não tem adaptador para instalar: o binário ${spec.command} tem que estar no PATH, e não está`,
-      );
-    }
-    return { path: found, version: spec.pinnedVersion, alreadyInstalled: true };
+    throw new DomainError(
+      "NOT_FOUND",
+      `o catálogo não sabe instalar o adaptador de ${spec.label}: a spec não declara um pacote npm, ` +
+        `e o Lumem não lança adaptador vindo do PATH`,
+    );
   }
 
   const target = adapterDir(dir, spec);

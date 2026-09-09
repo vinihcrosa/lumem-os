@@ -1,13 +1,28 @@
 import { chmodSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { ADAPTERS_DIR_NAME, CLAUDE_ADAPTER } from "@lumem/shared";
+import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { AcpManager } from "../acp/AcpManager.js";
+import { session } from "../db/schema.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
+import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 import { cleanupGitFixtures, createRepo, tempDir } from "../testing/git-fixtures.js";
 
 let context: TestCaller;
+
+/** A cópia gerenciada do adaptador, que desde 2026-09-08 é a única que o daemon lança. */
+function stageManagedAdapter(state: string): string {
+  const bin = join(state, ADAPTERS_DIR_NAME, CLAUDE_ADAPTER.id, "node_modules", ".bin");
+  mkdirSync(bin, { recursive: true });
+  const managed = join(bin, CLAUDE_ADAPTER.command);
+  writeFileSync(managed, "#!/bin/sh\ncat\n");
+  chmodSync(managed, 0o755);
+  return managed;
+}
 
 /** A directory holding one executable, to stand in for an installed agent CLI. */
 function fakeAgentBin(name = "fake-agent"): { dir: string; command: string } {
@@ -230,6 +245,46 @@ describe("session.createAgent", () => {
       }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
+  it("lança a cópia gerenciada, e não o caminho absoluto gravado na linha", async () => {
+    /*
+     * O caso desta máquina, em 2026-09-08: a linha de `agent_config` guardava
+     * `/…/nvm/…/bin/claude-agent-acp` — o `0.40.0` global, resolvido em 2026-08-30
+     * — enquanto o pino dizia `0.75.1`. O router de `agentConfig` não tem `update`,
+     * então nenhuma instalação gerenciada correta a desalojaria.
+     *
+     * A asserção é sobre **o que o spawner recebeu**, e não sobre o arquivo existir:
+     * "o binário está no lugar" era exatamente o que ficava verde enquanto o
+     * processo que respondia era outro. [ADR de
+     * 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md).
+     */
+    const state = tempDir("lumem-state-");
+    const managed = stageManagedAdapter(state);
+    const fake = fakeAgentProcess();
+    const spawner = vi.fn(() => fake.process);
+    const acpManager = new AcpManager({ spawner, isAvailable: () => true });
+    context = createTestCaller({ LUMEM_STATE_DIR: state, SHELL: "/bin/sh" }, { acpManager });
+    const workspace = await context.api.workspace.create({ name: "pessoal" });
+    const repo = await createRepo({ branch: "main" });
+    const project = await context.api.project.add({
+      workspaceId: workspace.id,
+      path: repo,
+      name: "lorebase",
+    });
+    const config = await createAgentConfigRepository(context.db).create({
+      name: CLAUDE_ADAPTER.id,
+      command: "/Users/eu/.nvm/versions/node/v22.17.1/bin/claude-agent-acp",
+      transport: "acp",
+      adapterVersion: "0.40.0",
+    });
+
+    await context.api.session.createAgent({
+      scopeType: "project",
+      scopeId: project.id,
+      agentConfigId: config.id,
+    });
+
+    expect(spawner).toHaveBeenCalledWith(expect.objectContaining({ command: managed }));
+  });
 });
 
 describe("session.listByScope and getDetail", () => {
@@ -277,11 +332,67 @@ describe("session.listByScope and getDetail", () => {
 
 describe("session.resume", () => {
   /**
-   * The happy path needs an adapter, so it lives in the e2e (`acp-resume.spec.ts`):
-   * this caller has no `AcpManager` at all, which is the daemon's own wiring only in
-   * the tests that never talk to one. What belongs here is the endpoint existing, and
-   * the two refusals that never reach a process.
+   * The happy path needs an adapter, so it lives in the e2e (`acp-resume.spec.ts`).
+   * What belongs here is the endpoint existing, the two refusals that never reach a
+   * process, and — since 2026-09-08 — **which** adapter a resume launches.
+   *
+   * The sentence that used to be here said *"this caller has no `AcpManager` at
+   * all"*. It was true and it was the reason no test could reach the ACP branch of
+   * `createAgent` or `resume`; the harness now wires one, the same way `bootstrap`
+   * does.
    */
+
+  it("relança o adaptador de hoje, não o caminho congelado na sessão morta", async () => {
+    /*
+     * O comentário do próprio `resume` já dizia que *"como o adaptador é invocado
+     * hoje é configuração"* — e ele relançava `row.command`, o caminho absoluto
+     * gravado quando a sessão nasceu. Retomar uma conversa de antes de uma subida
+     * de pino relançava a versão velha. [ADR de
+     * 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md).
+     */
+    const state = tempDir("lumem-state-");
+    const managed = stageManagedAdapter(state);
+    // Um processo falso **por spawn**: um só tem o stdout travado no segundo
+    // `launch`, e retomar é sempre um segundo launch.
+    const spawner = vi.fn(() => fakeAgentProcess().process);
+    const acpManager = new AcpManager({ spawner, isAvailable: () => true });
+    context = createTestCaller({ LUMEM_STATE_DIR: state, SHELL: "/bin/sh" }, { acpManager });
+    const workspace = await context.api.workspace.create({ name: "pessoal" });
+    const repo = await createRepo({ branch: "main" });
+    const project = await context.api.project.add({
+      workspaceId: workspace.id,
+      path: repo,
+      name: "lorebase",
+    });
+    const config = await createAgentConfigRepository(context.db).create({
+      name: CLAUDE_ADAPTER.id,
+      command: managed,
+      transport: "acp",
+      adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
+    });
+    const created = await context.api.session.createAgent({
+      scopeType: "project",
+      scopeId: project.id,
+      agentConfigId: config.id,
+    });
+    await context.api.session.close({ id: created.id });
+    await vi.waitFor(async () =>
+      expect((await context.api.session.getDetail({ id: created.id })).state).toBe("exited"),
+    );
+    // Uma sessão nascida antes desta feature: o caminho de uma cópia global que a
+    // instalação gerenciada não desaloja.
+    const stale = "/Users/eu/.nvm/versions/node/v22.17.1/bin/claude-agent-acp";
+    await context.db
+      .update(session)
+      .set({ command: stale })
+      .where(eq(session.id, created.id));
+    spawner.mockClear();
+
+    await context.api.session.resume({ id: created.id });
+
+    expect(spawner).toHaveBeenCalledWith(expect.objectContaining({ command: managed }));
+    expect(spawner).not.toHaveBeenCalledWith(expect.objectContaining({ command: stale }));
+  });
 
   it("refuses a session that does not exist", async () => {
     const { ctx } = await setup();

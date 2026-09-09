@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isCommandAvailable } from "../agents/availability.js";
+import { adapterCommandForConfig } from "../setup/adapter-command.js";
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
@@ -87,13 +88,32 @@ export const sessionRouter = router({
           throw new DomainError("NOT_FOUND", `configuração ${input.agentConfigId} não existe`);
         }
 
+        /*
+         * O que lançar, resolvido **agora** e não lido da coluna.
+         *
+         * A `agent_config.command` guarda o caminho absoluto que alguém resolveu no
+         * dia em que a linha nasceu, e o router não tem `update`: nesta máquina, uma
+         * linha de 2026-08-30 apontava para o `claude-agent-acp` global — `0.40.0` —
+         * enquanto o pino dizia `0.75.1`, e nenhuma instalação gerenciada correta
+         * teria desalojado ela. Para transporte ACP, quem decide é a spec; para PTY,
+         * o comando continua sendo o que a configuração diz, porque um shell não é
+         * adaptador. [ADR de
+         * 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md).
+         */
+        const command = adapterCommandForConfig(config, ctx.config.stateDir);
+
         // F6.5: refused before the spawn. node-pty does not fail for a missing
         // binary — it produces a terminal that exits 1 in silence, which the
         // user reads as the agent crashing rather than as not being installed.
-        if (!isCommandAvailable(config.command)) {
+        if (!isCommandAvailable(command)) {
           throw new DomainError(
             "BLOCKED",
-            `"${config.command}" não está no PATH do servidor; a configuração "${config.name}" está indisponível`,
+            // Duas frases porque são dois casos: um caminho absoluto que não é
+            // executável é um arquivo, e dizer "não está no PATH" sobre ele
+            // mandaria a pessoa procurar no lugar errado.
+            command.includes("/")
+              ? `"${command}" não é executável; a configuração "${config.name}" está indisponível`
+              : `"${command}" não está no PATH do servidor; a configuração "${config.name}" está indisponível`,
           );
         }
 
@@ -107,7 +127,7 @@ export const sessionRouter = router({
           scopeType: input.scopeType,
           scopeId: input.scopeId,
           cwd,
-          command: config.command,
+          command,
           args: config.args,
           // F5.5: the daemon's environment plus what the configuration declares.
           env: config.env,

@@ -14,6 +14,8 @@ import { MemoryService } from "./memory/MemoryService.js";
 import { ensureMemoryHome } from "./memory/home.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createProjectRepository } from "./repositories/project.js";
+import * as sessionStoreModule from "./sessions/SessionStore.js";
+import * as reconcileModule from "./setup/reconcile-adapters.js";
 import { createWorkspaceRepository } from "./repositories/workspace.js";
 import { createWorktreeRepository } from "./repositories/worktree.js";
 import { SHUTDOWN_SIGNALS } from "./signals.js";
@@ -225,6 +227,49 @@ describe("bootstrap", () => {
     // The very first request the daemon can answer already sees the new state.
     expect((await app.inject({ method: "GET", url: "/trpc/health" })).statusCode).toBe(200);
     expect((await worktrees.findById(registered.id))?.state).toBe("missing");
+  });
+
+  it("liga o resolvedor de adaptador no store, e não só no router", async () => {
+    /*
+     * A costura é opcional no `SessionStore` — um store de teste que não é sobre isso
+     * não recebe nada —, e é **obrigatória** aqui. Sem esta linha, toda unidade passa
+     * e o daemon real retoma conversa na versão velha do adaptador: o `resume` cai
+     * para `row.command`, o caminho absoluto congelado quando a sessão nasceu.
+     *
+     * É a mesma forma de erro que o `ptyManager` e o `transcripts` do `AcpManager` já
+     * carregam comentário sobre, e a razão de a prova morar no boot: apagar a linha
+     * não deixa nenhum outro teste vermelho. [ADR de
+     * 2026-09-08](../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md).
+     */
+    const spy = vi.spyOn(sessionStoreModule, "createSessionStore");
+
+    await boot();
+
+    /*
+     * Lido do argumento, e **não** por `toHaveBeenCalledWith(objectContaining(...))`:
+     * as opções do store carregam o banco, os dois managers e o bus, e um diff dessa
+     * árvore estoura a heap do vitest — medido, `JavaScript heap out of memory` na
+     * serialização da falha. Uma asserção que não consegue *relatar* a falha é uma
+     * asserção pela metade.
+     */
+    expect(spy.mock.calls[0]?.[0].resolveAcpCommand).toBeTypeOf("function");
+    spy.mockRestore();
+  });
+
+  it("confere o adaptador antes de a primeira sessão poder existir", async () => {
+    /*
+     * A ordem é o ponto: a conferência acontece antes de o socket abrir, então a
+     * primeira requisição que o daemon responde já é de um processo que sabe qual
+     * adaptador ele possui. Foi a ausência disso que deixou nove dias passarem — o
+     * pino subiu num commit e nada na máquina releu.
+     */
+    const spy = vi.spyOn(reconcileModule, "reconcileAdapters");
+
+    const { app } = await boot();
+
+    expect(spy.mock.calls[0]?.[0].dir).toContain("adapters");
+    expect((await app.inject({ method: "GET", url: "/trpc/health" })).statusCode).toBe(200);
+    spy.mockRestore();
   });
 
   it("exits non-zero when the port is already taken", async () => {

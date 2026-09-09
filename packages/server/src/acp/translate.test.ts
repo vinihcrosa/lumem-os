@@ -347,6 +347,90 @@ describe("usage and the subscription's limit", () => {
     });
   });
 
+  it("reads utilization out of the nested windows the 0.75.1 sends", () => {
+    /*
+     * O payload é **verbatim** de um turno real medido em 2026-09-08 contra
+     * `claude-agent-acp@0.75.1`. Ele não é uma variação de forma: é a forma atual, e
+     * o motivo de `rateLimit` ser `null` em **todo** transcript deste repositório.
+     * `utilization` saiu da raiz e virou `unifiedWindows.<janela>.utilization`, e
+     * uma leitura defensiva que só olhava a raiz apagou o rodapé sem nada falhar.
+     *
+     * `rateLimitType` escolhe a janela, porque é o agente nomeando o limite que
+     * está valendo — aqui, `five_hour` em 0.34, não `seven_day` em 0.11.
+     */
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "usage_update",
+          used: 38_142,
+          size: 1_000_000,
+          _meta: {
+            "_claude/rateLimit": {
+              status: "allowed",
+              resetsAt: 1_788_861_000,
+              rateLimitType: "five_hour",
+              overageStatus: "rejected",
+              overageDisabledReason: "org_level_disabled",
+              isUsingOverage: false,
+              unifiedWindows: {
+                five_hour: { utilization: 0.34, resetsAt: 1_788_861_000 },
+                seven_day: { utilization: 0.11, resetsAt: 1_789_423_200 },
+                seven_day_overage_included: { utilization: 0.01, resetsAt: 1_789_423_200 },
+              },
+            },
+          },
+        },
+        context,
+      ),
+    ).toMatchObject({
+      size: 1_000_000,
+      rateLimit: {
+        utilization: 0.34,
+        isUsingOverage: false,
+        resetsAt: 1_788_861_000,
+        kind: "five_hour",
+      },
+    });
+  });
+
+  it("falls to the shortest window when the block does not name one", () => {
+    // `five_hour` é o palpite honesto para "qual limite está a ponto de morder".
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "usage_update",
+          used: 10,
+          size: 1_000_000,
+          _meta: {
+            "_claude/rateLimit": {
+              isUsingOverage: false,
+              unifiedWindows: { five_hour: { utilization: 0.5 } },
+            },
+          },
+        },
+        context,
+      ),
+    ).toMatchObject({ rateLimit: { utilization: 0.5, kind: null, resetsAt: null } });
+  });
+
+  it("drops a block that has neither a flat utilization nor a window with one", () => {
+    // Nem raiz nem `unifiedWindows` utilizável: "nenhuma informação sobre o
+    // limite" continua sendo um estado que o rodapé sabe desenhar.
+    expect(
+      translateSessionUpdate(
+        {
+          sessionUpdate: "usage_update",
+          used: 10,
+          size: 1_000_000,
+          _meta: {
+            "_claude/rateLimit": { isUsingOverage: false, unifiedWindows: { five_hour: {} } },
+          },
+        },
+        context,
+      ),
+    ).toMatchObject({ rateLimit: null });
+  });
+
   it("reports no cost rather than a cost of nothing", () => {
     // An agent that does not report money must not look like one that charged
     // nothing. The footer shows a dash, and a dash is the honest answer.
