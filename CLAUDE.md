@@ -151,6 +151,26 @@ uma barra que se pergunta sozinha de 15 em 15 segundos, e um `gh issue list` nes
 por projeto para um diálogo que ninguém abriu. É também a primeira worktree do produto cujo **nome não
 é a branch** — com zero migração, porque as duas colunas sempre foram separadas.
 
+E a [adapter-provenance](docs/features/027-adapter-provenance/prd.md) — **em execução** — começou como
+um problema de janela de contexto e acabou num invariante de transporte. O relato era *"o Lumem mostra
+200K num modelo de 1M, e não pega Opus 5 nem Fable 5.1"*; a causa é que **o pino não decidia nada.** O
+daemon rodava `claude-agent-acp@0.40.0`, do PATH, havia nove dias, enquanto o `pinnedVersion` do
+catálogo dizia `0.75.1` — e o `0.40.0` embute o Claude Code `2.1.160`, que não conhece nenhum dos
+dois modelos. A lista que ele entregava tinha `Custom model` onde o Fable devia estar, e um
+`usage_update` de 200 000 sob um rótulo que dizia *"1M context"*. O
+[ADR](docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md) fecha as quatro superfícies em
+que o PATH ou um caminho congelado decidiam: a resolução perde o `else`, o boot confere a versão **no
+disco** contra o pino, e a invocação é resolvida da spec a cada `spawn` e a cada `resume` em vez de
+lida da coluna `agent_config.command`. O `CLAUDE_ADAPTER.cli` caiu para `null` — medido três vezes: o
+`0.75.1` fecha o handshake com o `claude` fora do PATH, o daemon spawna o binário de dentro do pacote,
+e os `authMethods` dele pedem `--cli auth login` do próprio adaptador. A **Q1** foi respondida
+**contra o pedido**: "embutido" no sentido de `dependencies` do pacote publicado custa 243 MB (Claude)
++ 301 MB (Codex) num `npm i -g`, então o que entrega a propriedade pedida — *"não deve ficar na mão do
+PATH"* — é o daemon ser **dono** da cópia, e a leitura forte foi para o [backlog](docs/project/backlog.md)
+com o número que a recusou. O defeito de brinde é do mesmo tipo: `rateLimitOf` exigia `utilization` na
+raiz de `_claude/rateLimit` e o `0.75.1` a aninhou em `unifiedWindows.<janela>` — o rodapé de limite
+está apagado em **todo** transcript do repositório, sem nada falhar.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |

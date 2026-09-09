@@ -1,12 +1,18 @@
-import { existsSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-import { ADAPTERS_DIR_NAME, DEFAULT_ADAPTER_ID, adapterById, type AdapterSpec } from "@lumem/shared";
+import { DEFAULT_ADAPTER_ID, adapterById, type AdapterSpec } from "@lumem/shared";
 import { z } from "zod";
 
 import { DomainError } from "../errors.js";
 import { detectAgents } from "../setup/agents.js";
-import { adapterBinaryPath, installAdapter } from "../setup/install-adapter.js";
+import { adapterCommandFor, adaptersDir } from "../setup/adapter-command.js";
+import {
+  adapterBinaryPath,
+  adapterDir,
+  installAdapter,
+  installedAdapterVersion,
+} from "../setup/install-adapter.js";
 import { startLogin } from "../setup/login.js";
 import { preflight } from "../setup/preflight.js";
 import { domainSafe, domainSafeAsync, publicProcedure, router } from "../trpc.js";
@@ -20,11 +26,6 @@ import { domainSafe, domainSafeAsync, publicProcedure, router } from "../trpc.js
  * and `login` runs a command the *adapter* named, in a terminal. Each one carries
  * its own note about why that is acceptable and what bounds it.
  */
-/** `<stateDir>/adapters` — the directory that holds one per spec. */
-function adaptersDir(stateDir: string): string {
-  return join(stateDir, ADAPTERS_DIR_NAME);
-}
-
 /**
  * The spec of an id, refusing an id nobody catalogued.
  *
@@ -42,22 +43,6 @@ function specOf(id: string | undefined): AdapterSpec {
 
 /** Which adapter, for the procedures that act on one. Absent means the default. */
 const adapterInput = z.object({ adapterId: z.string().trim().min(1).optional() }).optional();
-
-/**
- * Which copy of an adapter to launch when the client named none.
- *
- * The one the daemon installed, before the PATH — the rule `setup.agents` already
- * followed for *reporting*, applied to the procedures that actually **run** the
- * adapter. They did not follow it, and LUM-54 is what that costs: a machine with
- * a stale global `claude-agent-acp` had the flow install a pinned copy into
- * `~/.lumem`, report that copy on screen, and then probe — and save into
- * `agent_config` — the old one from the PATH. Two versions on one machine, and the
- * one that answered was the one nobody chose.
- */
-function commandFor(spec: AdapterSpec, stateDir: string): string {
-  const managed = adapterBinaryPath(adaptersDir(stateDir), spec);
-  return existsSync(managed) ? managed : spec.command;
-}
 
 export const setupRouter = router({
   /** The five checks, each one able to fail without the others. */
@@ -120,7 +105,7 @@ export const setupRouter = router({
     )
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
-        const command = input.command ?? commandFor(specOf(input.adapterId), ctx.config.stateDir);
+        const command = input.command ?? adapterCommandFor(specOf(input.adapterId), ctx.config.stateDir);
         const cwd = join(ctx.config.stateDir, "probe");
 
         /*
@@ -204,12 +189,30 @@ export const setupRouter = router({
 
         return Promise.resolve(
           ctx.agentAuth.start({
-            command: input.command ?? commandFor(spec, ctx.config.stateDir),
+            command: input.command ?? adapterCommandFor(spec, ctx.config.stateDir),
             ...(input.args === undefined ? {} : { args: input.args }),
             cwd,
             methodId: input.methodId,
             ...(input.apiKey === undefined ? {} : { apiKey: input.apiKey }),
-            adapterVersion: spec.pinnedVersion,
+            /*
+             * A versão **no disco**, e não `spec.pinnedVersion`.
+             *
+             * Era o pino, literalmente — o que faz do campo uma repetição da
+             * constante em vez de um relato, que é exatamente o que o
+             * `install-adapter.ts` chama de *"a mentira que esconde a LUM-54"*. Lá
+             * foi consertado; aqui, no caminho do login, ficou. Nesta máquina isso
+             * estava vivo em 2026-09-08: o daemon rodava o `0.40.0` e um login
+             * teria carimbado `0.75.1` na linha.
+             *
+             * Cai para o pino só quando não há `package.json` a ler — um layout
+             * que este daemon não escreveu, onde a resposta honesta é a única que
+             * ele tem.
+             */
+            adapterVersion:
+              installedAdapterVersion(
+                adapterDir(adaptersDir(ctx.config.stateDir), spec),
+                spec,
+              ) ?? spec.pinnedVersion,
           }),
         );
       }),
@@ -251,7 +254,7 @@ export const setupRouter = router({
     )
     .query(({ ctx, input }) =>
       domainSafeAsync(async () => {
-        const command = input?.command ?? commandFor(specOf(input?.adapterId), ctx.config.stateDir);
+        const command = input?.command ?? adapterCommandFor(specOf(input?.adapterId), ctx.config.stateDir);
 
         /*
          * A directory of its own, and an empty one.

@@ -238,39 +238,24 @@ describe("installAdapter", () => {
     expect(result.path).toBe(adapterBinaryPath(dir));
   });
 
-  it("looks a package-less spec up on the PATH instead of installing it", async () => {
-    // A native agent has no adapter to download. Running npm for it would answer
-    // a registry error to a machine whose only problem is a missing binary.
+  /*
+   * As duas asserções que estavam aqui — "acha no PATH" e "diz qual binário falta"
+   * — descreviam o comportamento que o [ADR de
+   * 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md)
+   * reverteu. Elas não foram consertadas: o que elas provavam deixou de ser
+   * verdade, e a costura `resolve` que ambas usavam existia só para esse ramo.
+   */
+  it("refuses a package-less spec instead of resolving it on the PATH", async () => {
     const dir = tempDir();
     const run = vi.fn();
     const native: AdapterSpec = { ...CODEX_ADAPTER, package: null, command: "gemini" };
 
-    const result = await installAdapter({
-      spec: native,
-      dir,
-      run: run as unknown as CommandRunner,
-      resolve: () => "/usr/local/bin/gemini",
-    });
-
-    expect(result).toEqual({
-      path: "/usr/local/bin/gemini",
-      version: native.pinnedVersion,
-      alreadyInstalled: true,
-    });
-    expect(run).not.toHaveBeenCalled();
-  });
-
-  it("says which binary is missing when a package-less spec is not on the PATH", async () => {
-    const dir = tempDir();
-
     await expect(
-      installAdapter({
-        spec: { ...CODEX_ADAPTER, package: null, command: "gemini" },
-        dir,
-        run: vi.fn() as unknown as CommandRunner,
-        resolve: () => null,
-      }),
-    ).rejects.toThrow(/gemini/);
+      installAdapter({ spec: native, dir, run: run as unknown as CommandRunner }),
+    ).rejects.toThrow(/não lança adaptador vindo do PATH/);
+    // E nem tenta o npm: uma spec sem pacote não tem o que baixar, e a recusa é
+    // sobre proveniência, não sobre rede.
+    expect(run).not.toHaveBeenCalled();
   });
 
   it("passes npm's own words on, because they are better than a translation", async () => {

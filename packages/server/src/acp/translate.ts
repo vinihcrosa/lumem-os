@@ -362,17 +362,62 @@ function rateLimitOf(meta: unknown): AcpRateLimit | null {
   const raw = meta["_claude/rateLimit"];
   if (!isRecord(raw)) return null;
 
-  const utilization = raw["utilization"];
   const isUsingOverage = raw["isUsingOverage"];
-  if (typeof utilization !== "number" || typeof isUsingOverage !== "boolean") return null;
+  if (typeof isUsingOverage !== "boolean") return null;
+
+  const kind = typeof raw["rateLimitType"] === "string" ? raw["rateLimitType"] : null;
+  const window = windowOf(raw, kind);
+  if (window === null) return null;
 
   return {
-    utilization,
+    utilization: window.utilization,
     isUsingOverage,
     surpassedThreshold:
       typeof raw["surpassedThreshold"] === "number" ? raw["surpassedThreshold"] : null,
-    resetsAt: typeof raw["resetsAt"] === "number" ? Math.round(raw["resetsAt"]) : null,
-    kind: typeof raw["rateLimitType"] === "string" ? raw["rateLimitType"] : null,
+    resetsAt: window.resetsAt,
+    kind,
+  };
+}
+
+/** The default window, for a block that nests but does not say which one is live. */
+const DEFAULT_RATE_LIMIT_WINDOW = "five_hour";
+
+/**
+ * Where `utilization` actually is — the flat root, or the window it moved into.
+ *
+ * Measured on 2026-09-08 against `claude-agent-acp@0.75.1`: the block carries
+ * `isUsingOverage`, `rateLimitType` and `resetsAt` at the root, and moves
+ * `utilization` into `unifiedWindows.<window>` — `five_hour`, `seven_day` and
+ * `seven_day_overage_included`, each with its own `utilization` and `resetsAt`.
+ *
+ * Reading only the root is why `rateLimit` is `null` in **every** transcript this
+ * repository has: the footer that exists to show the limit has been dark since the
+ * adapter changed shape, and nothing failed — which is exactly the failure mode a
+ * defensive read has to be tested against, rather than trusted for.
+ *
+ * The root wins when it is there, so a payload from before the move keeps working;
+ * `rateLimitType` picks the window, because it is the agent naming the limit that
+ * is actually binding. Absent or unrecognised falls to `five_hour`, the shortest
+ * one — the honest guess for "which limit is about to bite".
+ */
+function windowOf(
+  raw: Record<string, unknown>,
+  kind: string | null,
+): { utilization: number; resetsAt: number | null } | null {
+  const rootResetsAt = typeof raw["resetsAt"] === "number" ? Math.round(raw["resetsAt"]) : null;
+  if (typeof raw["utilization"] === "number") {
+    return { utilization: raw["utilization"], resetsAt: rootResetsAt };
+  }
+
+  const windows = raw["unifiedWindows"];
+  if (!isRecord(windows)) return null;
+
+  const chosen = windows[kind ?? DEFAULT_RATE_LIMIT_WINDOW] ?? windows[DEFAULT_RATE_LIMIT_WINDOW];
+  if (!isRecord(chosen) || typeof chosen["utilization"] !== "number") return null;
+
+  return {
+    utilization: chosen["utilization"],
+    resetsAt: typeof chosen["resetsAt"] === "number" ? Math.round(chosen["resetsAt"]) : rootResetsAt,
   };
 }
 

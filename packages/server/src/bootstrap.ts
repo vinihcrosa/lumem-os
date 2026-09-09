@@ -1,3 +1,6 @@
+import { join } from "node:path";
+
+import { ADAPTERS_DIR_NAME } from "@lumem/shared";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 
 import { reconcileOnBoot } from "./boot/reconcile.js";
@@ -12,6 +15,8 @@ import { createPlaybookService } from "./memory/playbook.js";
 import { trackPlaybookLoads } from "./memory/playbook-tracking.js";
 import { trackSessionUsage } from "./usage/record.js";
 import { createAgentAuthService } from "./setup/agent-auth.js";
+import { adapterCommandForConfig } from "./setup/adapter-command.js";
+import { reconcileAdapters } from "./setup/reconcile-adapters.js";
 import { createMemoryPreamble } from "./memory/preamble.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createTranscriptStore, type TranscriptStore } from "./acp/TranscriptStore.js";
@@ -79,6 +84,19 @@ export async function bootstrap({
   // o SQLite primeiro criaria o arquivo antes de existir a regra que o ignora.
   const home = await ensureMemoryHome({ stateDir: config.stateDir });
 
+  /*
+   * O adaptador que este daemon possui é o do pino, e isto é conferido **antes**
+   * de a primeira sessão poder existir — [ADR de
+   * 2026-09-08](../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md).
+   *
+   * Aqui e não dentro do `createServer` porque o resultado é log de boot e não
+   * estado de request. O log sai depois, quando `app.log` existir; guardar a lista
+   * é mais barato que reordenar a construção do servidor por uma linha de aviso.
+   */
+  const adapters = await reconcileAdapters({
+    dir: join(config.stateDir, ADAPTERS_DIR_NAME),
+  });
+
   const owned = database === undefined;
   const openedDatabase = database ?? openDatabase({ path: config.databasePath });
   const ownedTranscripts = transcripts === undefined;
@@ -139,6 +157,10 @@ export async function bootstrap({
     ptyManager,
     acpManager: acp,
     events,
+    // Retomar relança o adaptador **de hoje**, não o caminho gravado na sessão
+    // morta. A costura é opcional no store e obrigatória aqui: sem esta linha,
+    // toda unidade passa e o daemon real retoma na versão velha.
+    resolveAcpCommand: (agent) => adapterCommandForConfig(agent, config.stateDir),
     // A captura de fim de sessão (§10). Desligada por padrão, e a configuração é
     // quem diz: `LUMEM_MEMORY_DISTILL=1`.
     onEnded: createSessionCapture({
@@ -207,6 +229,22 @@ export async function bootstrap({
     logger,
   });
   bootedApp = app;
+
+  /*
+   * O resultado da conferência de adaptador, agora que há onde escrever.
+   *
+   * `warn` para o que pede ação de alguém — uma versão fora do pino que não subiu,
+   * ou nenhuma cópia gerenciada, que é o estado em que `commandFor` recusa sessão.
+   * `info` para o resto, incluindo `already-pinned`: um boot silencioso é o que
+   * fez nove dias passarem sem ninguém notar que o pino não decidia nada.
+   */
+  for (const adapter of adapters) {
+    const level = adapter.outcome === "failed" || adapter.outcome === "absent" ? "warn" : "info";
+    app.log[level](
+      { adapter: adapter.id, ...adapter },
+      `adaptador ${adapter.id}: ${adapter.outcome}`,
+    );
+  }
 
   const target = {
     log: app.log,

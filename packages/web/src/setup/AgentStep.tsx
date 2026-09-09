@@ -108,20 +108,32 @@ export function AgentStep({ onNext, onBack, onSkip }: AgentStepProps) {
         </Banner>
       )}
 
-      {agents.data !== undefined && claude !== undefined && adapter !== undefined && (
+      {/*
+        Gatilhado **só** no adaptador, e não mais no CLI.
+        A condição era `claude !== undefined && adapter !== undefined`, e em
+        2026-09-08 o `CLAUDE_ADAPTER.cli` caiu para `null` — o que apagava este
+        passo **inteiro**: nem os binários, nem o botão de testar conexão, nem a
+        linha de comando. O e2e do primeiro acesso é quem pegou, procurando um
+        `claude-agent-acp` que a tela tinha parado de desenhar. A linha do CLI passou
+        a ser condicional, que é o que ela sempre deveria ter sido: um adaptador que
+        não dirige CLI nenhum não tem CLI para relatar.
+      */}
+      {agents.data !== undefined && adapter !== undefined && (
         <>
           <WizardSection title="o que foi encontrado na sua máquina">
             <CheckList label="binários">
-              <CheckRow
-                state={claude.path === null ? "warn" : "ok"}
-                what={claude.command}
-                value={
-                  claude.path === null
-                    ? "não está no PATH — o adaptador precisa dele para trabalhar"
-                    : `${claude.version ?? claude.versionNote ?? "versão não lida"} · ${claude.path}`
-                }
-                status={claude.path === null ? "falta" : "ok"}
-              />
+              {claude !== undefined && (
+                <CheckRow
+                  state={claude.path === null ? "warn" : "ok"}
+                  what={claude.command}
+                  value={
+                    claude.path === null
+                      ? "não está no PATH — o adaptador precisa dele para trabalhar"
+                      : `${claude.version ?? claude.versionNote ?? "versão não lida"} · ${claude.path}`
+                  }
+                  status={claude.path === null ? "falta" : "ok"}
+                />
+              )}
               <CheckRow
                 state={adapter.path === null ? "fail" : "ok"}
                 what={adapter.command}
