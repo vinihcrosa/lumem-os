@@ -468,7 +468,7 @@ tarefa como entidade não existe o que o quadro desenha nem onde o webhook aterr
 |---|---|
 | [prd.md](features/022-workspace-tasks/prd.md) | o modelo, as regras, F1–F6, e a tabela de **propostas** para as Q011–Q015 do projeto |
 | [open-questions.md](features/022-workspace-tasks/open-questions.md) | **10 perguntas, todas respondidas** em 2026-09-12. Oito saíram como propostas; a **T4** e a **T8** mudaram, e as duas pelo mesmo motivo — a `028` não existia quando foram escritas. A T4 foi para uma **terceira** forma que a pergunta não previa (uma fila só de propostas, no topo da tela do workspace, com memória e tarefa juntas) e a T8 **trocou de unidade**, de sessão para tarefa, porque a esteira dá três sessões a cada tarefa |
-| [tasks.md](features/022-workspace-tasks/tasks.md) | **17 tasks em 5 fases**, nenhuma iniciada. A fase 0 é o **desenho**, e vem primeiro porque a fila de Propostas mexe numa feature entregue — desenho que decide isso depois do código decide tarde |
+| [tasks.md](features/022-workspace-tasks/tasks.md) | **17 tasks em 5 fases**, com a **fase 0 entregue**. Ela é o desenho, e vem primeiro porque a fila de Propostas mexe numa feature entregue — desenho que decide isso depois do código decide tarde. A T3 terminou **apagando** uma peça: a cópia da triagem que o quadro da `028` tinha, e que já havia divergido |
 
 ---
 

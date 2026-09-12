@@ -185,17 +185,60 @@ você as confirmar em [open-questions.md](open-questions.md):
 | o corpo pré-preenchido vira prompt ruim | é editável, e é **visível** — o oposto da injeção invisível que o §12 da memória proíbe |
 | `project_id` obrigatório e uma tarefa "decidir qual projeto" | [T2](open-questions.md): tornar nula depois é uma migração de uma linha; o contrário não é |
 
-## 8. O que precisa ser desenhado no Open Design
+## 8. O desenho, e o que ele decidiu
 
-1. a **lista** na tela do workspace: filtros por status e projeto, custo na janela, a seção e a tela
-   cheia;
-2. o **detalhe**: corpo, sessões (com estado), worktree, custo, memória aprendida enquanto;
-3. **trabalhar nesta tarefa**: a escolha de agente e de worktree, e a conversa abrindo com o composer
-   pré-preenchido;
-4. a **fila de Propostas** no topo da tela do workspace, com **os dois tipos** — memória e tarefa — e a ação de cada um ([T4](open-questions.md)). O quadro 7 do `lumem-board.html` da `028` já desenhou o lugar e a linguagem; falta o tipo de memória entrar na mesma lista;
-5. a **proveniência**: quem criou, de qual sessão, e o selo de "proposta por agente" na lista;
-6. a **linha da tarefa na aba da worktree** que a worktree-first-tab entregou: a worktree diz para
-   qual tarefa existe, ao lado de branch e sujeira.
+> **Feito em 2026-09-12**, no projeto `lumem-os` do Open Design
+> ([ADR](../../adr/2026-08-19-2247-design-is-made-in-open-design.md)). Os seis itens que esta seção
+> pedia estão cobertos.
+
+| Arquivo | O quê |
+|---|---|
+| `lumem-tasks.html` + `lumem-tasks.css` | **novo**, 8 quadros: a lista, a anatomia da linha com os cinco estados, o detalhe, *trabalhar nesta tarefa* com o composer pré-preenchido, a tarefa na primeira aba do checkout, a **fila de Propostas canônica**, os três vazios e as duas degradações |
+| `lumem-board.html` / `.css` (da `028`) | **editado.** A cópia da triagem (`.tri`) foi **apagada**: o quadro passa a linkar `lumem-tasks.css` e usar a `.pq` |
+
+### 8.1 O que o desenho decidiu
+
+1. **A língua de estado é a mesma do quadro da [`028`](../028-autonomous-orchestration/prd.md), e
+   nasce aqui.** Anel é ninguém, disco cheio é alguém, o texto mais claro da paleta é a sua vez. A
+   `028` empilha em cima desta — duas telas dizendo a mesma coisa com pixels diferentes fariam a
+   pessoa aprender duas vezes. Na lista: `open` é anel cinza, `in_progress` é disco roxo, `review` é
+   anel **branco**;
+2. **Não existe cabeçalho de grupo na lista.** O estado é o **primeiro item da linha**, e quando o
+   primeiro item é o critério de ordenação a ordem se explica sozinha. Cabeçalhos custariam a altura
+   de duas tarefas numa seção que divide a coluna com consumo e memória;
+3. **Só o título é elástico.** As quatro células de meta — projeto, proveniência, checkout, PR — têm
+   largura própria, medida. Elásticas, cada linha começava a metadata num x diferente, e a coluna
+   dançava exatamente onde se compara projeto com projeto;
+4. **A proveniência é glifo, e só o que não é default tem marca.** Tarefa criada por você não ganha
+   nada — "você" é o normal, e marcar o normal gasta a marca. `◆` é agente, `↗` é tracker;
+5. **`proposed` e `dropped` não aparecem na lista por default.** O primeiro mora na fila — repeti-lo
+   faria a mesma coisa existir em dois lugares com dois gestos —, e o segundo é arquivo, alcançável
+   pelo filtro, **com o motivo junto**: sem motivo, `dropped` é indistinguível de esquecimento. E
+   `dropped` **guarda o custo**, senão a soma do workspace deixa de fechar;
+6. **A tarefa aparece na linha de contexto do checkout, não no rótulo da aba.** O rótulo já carrega
+   nome e ponto de sujeira; enfiar um título lá faria a aba crescer com o texto que alguém digitou.
+
+### 8.2 A fila de Propostas — o que a mudança de endereço quase perdeu
+
+A [T4](open-questions.md) tirou a lista de dentro do `MemoryPanel`. O que corria risco não era o
+layout: era **a distinção entre fato e conclusão**. Resposta apoiada em artefato verificável vira
+memória direta; **conclusão vira proposta** — a regra que sustenta a memória inteira. Uma fila que
+mostrasse só o texto faria a pessoa aprovar conclusão com a mesma facilidade com que aprova fato.
+
+Então a linha da evidência tem **duas leituras opostas no mesmo lugar**: com artefato, os caminhos em
+mono e o glifo verde; sem, a frase que diz que foi conclusão, em **âmbar e não vermelho** — não é
+erro, é o motivo de você estar sendo perguntado. E vem junto o segmentado **pendentes · resolvidas**,
+que a aba já tinha: sem ele, rejeitar apagaria a proposta da tela inteira.
+
+**Evidência só existe onde um agente concluiu alguma coisa.** A proposta vinda do tracker não tem e
+**não deve ter**: ali a proveniência é o link, e uma pessoa já autorizou do outro lado.
+
+### 8.3 O que a `028` tinha e devolveu
+
+O quadro 7 do `lumem-board.html` desenhou a fila **antes** desta resposta existir, e tinha uma cópia
+chamada `.tri`. Cópia é como duas telas divergem sem ninguém decidir nada — e aquela **já tinha
+divergido**: as "duas cores de origem" dela eram `session-agent` e `text-link`, que são o mesmo
+`brand-400`. A peça agora é uma só, mora em `lumem-tasks.css`, e o quadro linka esta folha.
 
 ## 9. Fases
 

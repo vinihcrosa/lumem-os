@@ -674,6 +674,11 @@ Consequência para esta PRD: **a superfície é da `022`, não desta.** O que a 
 volume — com a esteira ligada, três agentes por tarefa propõem muito mais —, e o volume é o argumento
 que fez a T4 sair da aba para o topo da tela.
 
+**E em 2026-09-12 isso virou código de folha:** a fila canônica nasceu em `lumem-tasks.css` como
+`.pq`, a cópia `.tri` do `lumem-board.css` foi **apagada**, e o `lumem-board.html` passou a linkar a
+folha da `022`. A cópia já havia divergido — o defeito das "duas cores de origem" registrado no §10.2
+morava só nela.
+
 
 ### 10.3 O que o desenho **não** decidiu
 

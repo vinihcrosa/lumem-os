@@ -7,8 +7,8 @@
 a [T4](open-questions.md) e a [T8](open-questions.md) — mudaram de forma depois de uma rodada de
 explicação, e as duas mudaram pelo mesmo motivo: a
 [`028`](../028-autonomous-orchestration/prd.md) não existia quando foram escritas. **17 tasks em 5
-fases**, e a [T1](#t1-a-prd-sai-de-proposta-e-a-nota-cai-na-007) já está entregue — ela é o próprio
-gesto de sair de proposta.
+fases**. A **fase 0 está entregue** (2026-09-12): a T1 é o próprio gesto de sair de proposta, e a T2
+e a T3 são o desenho — que terminou **apagando** uma peça em vez de escrever duas.
 
 A ordem tem duas regras, e as duas são do repositório:
 
@@ -92,7 +92,11 @@ enquanto você não olhava*.
 **Done when**: as cinco telas existem, medidas no navegador, sem literal de cor, espaço ou
 tipografia; e o §8 do PRD vira o resumo do que foi desenhado, como o §10 da `028` fez.
 **Gate**: nenhum — não toca código deste lado
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12 — **8 quadros**, e o §8 do PRD virou o resumo. Dois achados que
+só apareceram renderizando: as quatro células de meta **precisavam de largura própria** (elásticas,
+a metadata começava num x diferente a cada linha, e a coluna dançava justo onde se compara projeto
+com projeto), e **examinar a linha na coluna de 880px do documento truncava um título que o produto
+não trunca** — a bancada passou a ser os 1120px reais
 
 #### T3: A fila de Propostas, reconciliada
 
@@ -106,7 +110,11 @@ que fica para trás, e desenha o resultado.
 escolhe **se o texto está certo**), o filtro de estado, e uma resposta escrita para *"onde vejo as
 que já decidi"* — porque hoje isso é uma aba e amanhã não pode sumir.
 **Gate**: nenhum
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12, e **o resultado foi apagar código em vez de escrever**: a `.tri`
+do `lumem-board.css` deixou de existir, o quadro passou a linkar `lumem-tasks.css`, e a peça é a
+`.pq`. O que a mudança de endereço quase perdeu está no §8.2 do PRD — **a distinção entre fato e
+conclusão** —, e ela atravessou. O segmentado `pendentes · resolvidas` veio junto; sem ele, rejeitar
+apagaria a proposta da tela inteira
 
 ---
 
