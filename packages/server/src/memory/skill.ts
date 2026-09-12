@@ -23,6 +23,13 @@ export interface MemorySkillContext {
   sessionId: string;
   /** Os projetos deste workspace, por nome. Mapa, não lista de memórias. */
   projects: readonly string[];
+  /**
+   * A porta de tarefas, e o teto dela (`022-workspace-tasks` F3, T14).
+   *
+   * Ausente enquanto a feature não está de pé — e é assim que o parágrafo custa
+   * **zero** caractere para quem não a tem.
+   */
+  tasks?: { url: string; budget: number };
 }
 
 /**
@@ -39,7 +46,7 @@ arquitetura que já pode ter sido tomada; e antes de afirmar "aqui se faz assim"
 Não sabe se existe memória sobre algo? Pergunte — custa uma chamada.`;
 
 /** O texto fixo que ensina a estrutura da memória e como chamar o serviço. */
-export function memorySkill({ askUrl, sessionId, projects }: MemorySkillContext): string {
+export function memorySkill({ askUrl, sessionId, projects, tasks }: MemorySkillContext): string {
   const lines = [
     "## Como consultar a memória",
     "",
@@ -63,6 +70,40 @@ export function memorySkill({ askUrl, sessionId, projects }: MemorySkillContext)
   // que não muda por sessão —, nunca com o acervo.
   if (projects.length > 0) {
     lines.push("", `Projetos deste workspace: ${projects.join(", ")}.`);
+  }
+
+  /*
+   * A porta de tarefas — **um** parágrafo, como o §F3 pede.
+   *
+   * Ele diz o teto junto, e isso não é enfeite: um agente que não sabe do
+   * orçamento gasta um turno descobrindo que ele existe, e a recusa chega como
+   * surpresa no meio de um trabalho.
+   *
+   * E diz a regra do §3.2 em uma frase — **escrever para cima é proposta** —,
+   * porque um agente que acha que criou trabalho no outro projeto vai agir como
+   * se tivesse criado.
+   */
+  if (tasks !== undefined) {
+    lines.push(
+      "",
+      "## Como registrar uma tarefa",
+      "",
+      "Achou trabalho que não é o seu — outro projeto precisa mudar, ou algo que",
+      "não cabe neste turno:",
+      "",
+      "```sh",
+      `curl -sX POST '${tasks.url}?session=${sessionId}' \\`,
+      `  -H 'content-type: application/json' \\`,
+      `  -d '{"title":"<uma frase>","project":"<nome do projeto>","body":"<contexto>"}'`,
+      "```",
+      "",
+      "No projeto em que você está, ela entra aberta; em **outro**, entra como",
+      "proposta e espera uma pessoa — escrever para cima é proposta.",
+      `Teto: ${String(tasks.budget)} por tarefa. Estourou, diga na conversa o que falta.`,
+      "",
+      `Terminou? \`POST ${tasks.url}/<id>/review\` — \`review\` é o que você sabe`,
+      "dizer; `done` é de uma pessoa.",
+    );
   }
 
   lines.push(

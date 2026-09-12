@@ -20,6 +20,7 @@ import { registerAcpWebSocket } from "./acp/websocket.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import { createAutoLearn } from "./memory/auto-learn.js";
 import { registerMemoryHttp } from "./memory/http.js";
+import { registerTaskHttp } from "./tasks/http.js";
 import { registerPtyWebSocket } from "./pty/websocket.js";
 import { createScriptRunner, type ScriptRunner } from "./scripts/ScriptRunner.js";
 import { createSessionStore, type SessionStore } from "./sessions/SessionStore.js";
@@ -183,6 +184,11 @@ export async function createServer({
 
   // Fora do `/trpc`: é a porta que o prompt do agente ensina, e o que entra no
   // prompt tem que ser copiável sem raciocínio.
+  // A porta do agente para criar tarefa e dizer "acho que terminei" (`022` F3).
+  // Fora do `/trpc` pelo mesmo motivo da memória, e por isso o `DAEMON_PREFIXES`
+  // conhece `/tasks`: sem o prefixo, o web servido na mesma porta engole a rota.
+  registerTaskHttp({ app, db, events, budget: config.taskBudget });
+
   registerMemoryHttp({
     app,
     db,

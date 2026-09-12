@@ -227,11 +227,12 @@ PTY que você queira que alimente memória — e só nesse caso.
 
 ## C. Tarefas e orquestração
 
-### ~~Tarefas de workspace atravessando projetos~~ — virou PRD em 2026-09-05
+### ~~Tarefas de workspace atravessando projetos~~ — entregue em 2026-09-12
 
-Saiu do backlog: [workspace-tasks](../features/022-workspace-tasks/prd.md). O gatilho — a memória de workspace
-de pé — foi atingido. O PRD é atribuição manual e `done` humano; a **fila com lease**, abaixo,
-continua aqui.
+Saiu do backlog: [workspace-tasks](../features/022-workspace-tasks/prd.md), **completa**. O gatilho —
+a memória de workspace de pé — foi atingido em 2026-09-05, e a feature em 2026-09-12: atribuição
+manual, `done` humano, `in_progress` derivado do primeiro prompt, e o agente criando tarefa por
+`POST /tasks`. A **fila com lease**, abaixo, continua aqui.
 
 ### Fila com lease e múltiplos agentes puxando trabalho — `G`
 
@@ -239,7 +240,10 @@ Lease com deadline, heartbeat, fencing por sessão e recuperação por expiraç�
 Compozy tem e que só se paga com múltiplos agentes autônomos.
 
 **De onde veio:** [questions.md Q068](questions.md) · **Volta quando:** existir tarefa como entidade
-e mais de um agente rodando sem você olhando.
+e mais de um agente rodando sem você olhando. **A primeira metade caiu** em 2026-09-12 — a tarefa
+existe. A segunda é a [`028`](../features/028-autonomous-orchestration/prd.md), que empilha em cima
+desta e cujo §11 já lista lease, heartbeat e recuperação como a peça técnica que sustenta o selo do
+§4.1.
 
 ---
 

@@ -32,6 +32,10 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `server/` **transcrição em disco** | integration com SQLite em arquivo temporário — um banco por sessão, e o teste que reabre o arquivo com um store novo é o que prova que a conversa sobrevive ao processo | Sim — cada teste cria seu próprio tmpdir |
 | `server/` **passe de manutenção** de transcrição | integration com filesystem de verdade: comprime a fria, poupa a viva, apaga a órfã. Um dos testes exige que o arquivo **encolha de fato** — sem isso a decisão de comprimir é cerimônia | Sim |
 | **configuração de agente pela tela** | e2e que não toca na API para nada: workspace, projeto, agente e sessão, tudo pelo formulário. É a única prova que interessa, porque o resto da suíte cria a configuração pela API — que é justamente o caminho que a fase 6 existe para tornar dispensável | **Não** |
+| `server/` **tarefa como entidade** | integration em três camadas, e as três provam coisas diferentes: o **banco** recusa os estados que nenhum leitor sabe interpretar (`db.test.ts`); o **router** prova a ordem da lista com os quatro estados misturados, porque ordem é decisão de produto e decisão de produto sem teste volta a ser opinião; e a **migração** prova que apagar tarefa anula o ponteiro da sessão em vez de ser recusado — o `drizzle-kit` perde a ação do estrangeiro no `ALTER TABLE`, e sem esse caso a coluna nasceria `NO ACTION` | Sim |
+| `server/` **`in_progress` derivado** | integration com agente falso, **zero token**: o primeiro prompt de uma sessão ligada à tarefa move a seta, o segundo não reescreve, e `review`/`proposed` não são desfeitos. O último caso do arquivo é a **mutação**: sem o observador, a tarefa não anda | Sim |
+| `server/` **porta de tarefa do agente** | integration sobre HTTP (`app.inject`): a regra do §3.2 nos dois sentidos, o orçamento **por tarefa** (duas sessões da mesma tarefa dividem o bolso), e um caso que não é de comportamento — `/tasks` está no `DAEMON_PREFIXES`. Sem ele, a rota cai no fallback da SPA e o agente recebe `<!doctype html>` onde esperava texto, **só no pacote instalado** | Sim |
+| **tarefa na tela**, de ponta a ponta | e2e `tasks.spec.ts`, **zero token e zero rede**: a lista com o estado como primeiro item, o `done` que só uma pessoa dá, e a porta HTTP do agente com a proveniência aparecendo na linha | **Não** |
 | **primeiro acesso** de ponta a ponta | e2e `00-onboarding.spec.ts`, e o prefixo `00-` é estrutural: é o único spec que precisa de daemon **sem workspace**, e qualquer outro spec rodando antes cria um. Ele sai de `~/.lumem` vazio e chega a um turno respondido **sem tocar a API** em nenhum passo — que é o caminho que a feature existe para tornar dispensável, e a razão pela qual o resto da suíte pode continuar usando. O adaptador é um shim com o nome `claude-agent-acp` no PATH do daemon, porque **detectar** é parte do que está sendo provado | **Não** |
 | **memória do workspace** de ponta a ponta | e2e `memory.spec.ts`. O buraco que a integração das duas pilhas revelou: a feature tinha ~357 testes de unidade e integração e **nenhum** e2e, e a tela dela é a terceira aba do painel direito. A API entra como **setup** e é a única forma honesta — uma proposta nasce de ator não-humano escrevendo para cima (Q27), e não existe gesto de tela que produza uma. O que está sob teste é a revisão, e o que prova a aprovação é o **daemon**: a proposta sai de pendente e a memória passa a existir no acervo | **Não** |
 | **painel de login** de ponta a ponta | e2e contra o adaptador de fixture: a versão vem do handshake, não existe botão `sair` porque o adaptador não declara `auth.logout`, e a gaveta `avançado` mostra o comando como fato. O clique `nenhum → conectado` **não** está aqui, e o spec diz por quê — chegar nesse estado no meio da suíte exige remover configuração que pode estar em uso | **Não** |
@@ -94,6 +98,152 @@ Falha guarda `playwright-report/` e `test-results/` como artefato por 7 dias: o 
 | `startDaemon` sinalizava só o `pnpm`, não o daemon | No Linux o daemon sobrevivia ao `stop`, a porta seguia ocupada e o teste de reinício lia o estado de um processo que nunca reiniciou. Hoje o filho tem grupo próprio e o SIGTERM vai para o grupo |
 
 Mais um de produto-adjacente: o vite escutava no default `localhost`, que num runner com IPv6 resolve para `::1` — e o Playwright pede `127.0.0.1`. Hoje o dev server declara o endereço.
+
+### O SonarQube fica ao lado do CI, e não dentro dele
+
+`.github/workflows/sonarqube.yml` roda nos mesmos gatilhos — **toda PR, sem filtro de branch**, pelo
+mesmo motivo do `ci.yml` — e num workflow **separado**. Os dois respondem perguntas diferentes e
+falham por motivos diferentes: o `ci.yml` diz *"isto funciona"* e é o portão de merge; o Sonar diz
+*"isto é sustentável"*, e depende de um serviço de terceiro e de um segredo. Juntos, uma
+indisponibilidade do SonarQube apareceria como a suíte quebrada.
+
+Ele precisa de **`fetch-depth: 0`**, e isso não é detalhe de checkout: sem histórico o Sonar não tem
+blame, e *"código novo"* — que é onde o quality gate morde — passa a ser o arquivo inteiro.
+
+**O `sonar-project.properties` exclui quatro coisas, e cada exclusão é sobre achado inacionável:**
+
+| Fora | Por quê |
+|---|---|
+| `packages/web/prototype/**`, `tokens.css`, `tokens.ts` | **cópia e derivado do Open Design.** A regra de design deste repositório diz que nenhum dos três se edita à mão — analisar cópia é pedir para alguém consertar um arquivo que o próximo `design:sync` sobrescreve |
+| `packages/server/drizzle/**` | migração é **imutável por definição**: uma já aplicada não se edita, se sucede. Aviso de estilo numa migração de três meses atrás não tem conserto possível |
+| `dist/`, `.turbo/`, `packages/cli/bin|drizzle` | saída de build. Estão no `.gitignore`, então o CI nem as vê; a linha existe para o run **local** dar o mesmo resultado que o do runner |
+| — | e o que **não** é exclusão: `sonar.tests` marca a suíte como suíte. Ela é colocada (`foo.ts` ao lado de `foo.test.ts`), e sem isso o Sonar cobraria dela as regras erradas — duplicação, que todo arranjo de teste repete, e complexidade cognitiva, que uma tabela de casos tem por desenho |
+
+**O Sonar analisa cobertura, e o `include` é a decisão inteira.** `pnpm test:coverage` escreve
+`coverage/lcov.info`, e o workflow o gera **ele mesmo** antes do scan — não o recebe do `ci.yml`. O
+caminho do artefato entre workflows foi descartado por dois motivos medidos, não por preferência:
+`actions/download-artifact` não cruza *workflow run*, e os dois disparam em paralelo no mesmo commit;
+fazer esperar pede `workflow_run`, que roda no contexto da branch default e **quebra a decoração de
+PR**, que é o ponto do workflow. O preço é uma execução extra da suíte por PR; o que ela compra é a
+independência que a seção acima justifica.
+
+O que decide o número é `coverage.include` no `vitest.config.ts`, e o default do provider é uma
+armadilha. O `v8` instrumenta **tudo que o processo carrega**, e a suíte carrega `packages/web/dist/assets`
+e `packages/cli/dist/web/assets` — 186 376 linhas de bundle minificado, 0% cobertas por definição.
+Rodado sem `include`, o relatório sai assim:
+
+```
+Statements : 12.05% ( 26664/221198 )
+Branches   : 88.06% (   7743/8792 )
+```
+
+Ramo em 88% e linha em 12% no mesmo cabeçalho não descrevem um projeto mal testado — descrevem um
+denominador errado, e é exatamente o tipo de número com cara de medida que ensina a ignorar a
+ferramenta. Com o `include`, a **mesma** execução dos 3374 testes dá:
+
+| | linhas | ramos |
+|---|---|---|
+| `packages/shared/src` | 100,0% (356/356) | 93,9% |
+| `packages/server/src` | 95,1% (12712/13365) | 89,2% |
+| `packages/web/src` | 94,2% (11907/12639) | 88,0% |
+| `packages/cli/src` | 90,1% (283/314) | 89,6% |
+| `scripts` | 69,3% (488/704) | 84,8% |
+| **total** | **94,0%** (25746/27378) | **88,6%** (7634/8617) |
+
+**E esse 94,0% é honesto, o que não era garantido:** sem `include`, o `v8` só reporta arquivo
+*carregado*, então um arquivo que nenhum teste importa **some** do relatório em vez de puxar a média
+para baixo. Com o `include`, ele entra com 0% — e a diferença foi conferida por comparação de listas:
+os 264 arquivos do `lcov` são um **superconjunto** da fonte elegível no disco, com zero ausente. Não é
+média de amostra conveniente.
+
+Três exclusões, e nenhuma é higiene: os ajudantes de teste (`src/testing/`, `web/src/test/`), porque
+contá-los é medir a régua; `Styleguide.tsx`, que é `import.meta.env.DEV` em `main.tsx` e seria a
+maior linha não coberta do repositório (444) medindo algo que não é entregue; e `tokens.ts`, derivado
+do Open Design pelo `design:sync`, que ninguém escreve e ninguém conserta. Essa lista e a
+`sonar.exclusions` concordam de propósito — número local diferente do número do Sonar é como se
+aprende a não olhar nenhum dos dois.
+
+**O número do Sonar é 92,7%, e não os 94,0% da tabela — os dois estão certos.** O `coverage` do Sonar
+é linha **e** ramo numa métrica só, e a tabela acima separa as duas:
+
+```
+(25746 + 7631) / (27378 + 8615) = 33377 / 35993 = 92,7%
+```
+
+Quem comparar a tela do Sonar com o `text-summary` do vitest vai ver números diferentes para a mesma
+execução. Não é divergência de escopo — as exclusões concordam, e `lines_to_cover` do Sonar (27 385)
+bate com as 27 378 do `lcov` mais as sete do arquivo que só ele indexa. É a fórmula.
+
+**Sem limiar global.** O quality gate do Sonar mede *código novo*, e é essa a métrica que vale: 94,0%
+virando piso transformaria a próxima PR honesta — um arquivo novo ainda mal coberto — em vermelho por
+aritmética. A matriz deste arquivo continua sendo por **camada e propriedade**; a porcentagem é o
+complemento dela, e não a substituta.
+
+O custo cronometrado surpreendeu na direção boa: **65,8s → 73,5s** de suíte, +12%. A primeira medição
+deu +32% (86,8s) porque instrumentar 186 mil linhas de bundle também custa tempo — o `include` que
+conserta o número conserta o relógio junto.
+
+#### A cobertura mata a thread principal de fome, e o timeout do RPC é fixo
+
+**Sintoma:** a primeira execução do passo no runner morreu com **os 3371 testes verdes e o
+`lcov.info` já escrito**:
+
+```
+Error: [vitest-worker]: Timeout calling "onTaskUpdate"
+```
+
+Teste nenhum falhou. O que falhou foi um worker conversando com quem o coordena.
+
+**Por que não dá para afrouxar:** o timeout do RPC é **60 s fixos** no bundle do vitest 3.2.7 —
+`const DEFAULT_TIMEOUT = 6e4`, e `createForksRpcOptions` não repassa `timeout`. Não existe opção de
+config que chegue lá. Um worker esperou a thread principal por um minuto inteiro e desistiu.
+
+**Onde:** no meio da corrida, não no fim — o log começa 06:50:30, o erro sai 06:53:03, então a chamada
+pendurada é de ~06:52:03, com outros workers ainda imprimindo. Isso é thread principal **faminta**, e
+não travada num passo final de cobertura.
+
+O runner tem 4 vCPU. Sem `LUMEM_TEST_WORKERS`, o `vitest.config.ts` usa 4 workers e eles ocupam os
+quatro núcleos; a instrumentação de cobertura é trabalho a mais **na thread principal**, que passa a
+não ter onde rodar. O `ci.yml` roda a mesma suíte no mesmo runner sem falhar porque não paga essa
+parcela — o que explica por que a armadilha só apareceu ao ligar cobertura, e não antes.
+
+**O conserto tem dois lados, os dois só no job do Sonar:** `LUMEM_TEST_WORKERS=2` devolve dois
+núcleos a quem estava sendo esperado — o knob existia no config exatamente para o CI ajustar sem
+editá-lo —, e `--reporter=dot` corta a outra ponta, porque o relatório padrão re-renderiza uma árvore
+viva a cada `onTaskUpdate`, e é essa renderização que ocupa a thread que o worker aguarda.
+
+A lição que sobra é sobre ler a falha: *suíte verde e job vermelho* não é flake por definição. Aqui
+era o custo da própria medição competindo com o que ela mede.
+
+#### Sem `sonar.sources`, a árvore inteira vira teste — e a cobertura some em silêncio
+
+**Sintoma:** o job verde, o `lcov.info` correto no disco, e **zero cobertura** no SonarCloud. A API da
+PR respondia `new_lines_to_cover=0` e `new_uncovered_lines=0` com `new_lines=1791`, e a métrica
+`coverage` simplesmente não existia. `bugs` e `code_smells` voltavam normalmente, então não era acesso:
+a análise chegou, com o commit certo e o gate OK. Ela só não trouxe cobertura.
+
+**O que atrapalhou o diagnóstico** merece nota própria, porque vai acontecer de novo: o SonarJS registra
+a importação de LCOV em **DEBUG**. Um relatório lido e casado com zero arquivo e um relatório nunca
+aberto imprimem exatamente o mesmo nada. Foi preciso `-Dsonar.verbose=true` num run para o log falar:
+
+```
+229 indexed as test with language 'ts'
+  0 indexed as main
+DEBUG 'JavaScript/TypeScript Coverage' skipped because there is no related file in current project
+```
+
+**Nenhum arquivo de produção foi indexado.** Os 231 arquivos eram os de teste. Cobertura só existe
+sobre arquivo *main*; sem nenhum, o sensor é pulado — e pular sensor não é erro, então o job fica verde.
+
+**A causa é uma linha comentada no template do SonarCloud:** `#sonar.sources=.`. Ela parece redundante,
+porque `.` é o default — mas o default só vale enquanto `sonar.tests` não existe. Ao acrescentar
+`sonar.tests=.` (para o Sonar parar de cobrar de teste as regras de produção), a ausência de
+`sonar.sources` passa a significar *"tudo é teste"*. O conserto é descomentar a linha.
+
+**O que isso ensina sobre a guarda certa.** A primeira guarda que escrevi conferia o `lcov.info` — que
+existe, que não está vazio, que tem caminho relativo, que tem 264 registros. Ela teria passado em todos
+os runs quebrados, porque o arquivo **sempre esteve certo**. Guarda que confere o sintoma mais próximo
+da sua mão não protege de nada; a que ficou confere `sonar.sources` no `.properties`, que é a causa.
 
 ### Por que `gate:quick` é um script e não `vitest --changed`
 
@@ -494,6 +644,53 @@ A regra: **quando a afirmação é "dá para clicar", a pergunta é `document.el
 do elemento — quem responde tem que ser ele mesmo.** É o que o
 [composer-menus.spec.ts](../features/023-composer-menus/tasks.md) faz, e é o único matcher que fica vermelho
 contra o código de antes. `toBeVisible` fica verde nos dois.
+
+### O `drizzle-kit` perde a ação do estrangeiro no `ALTER TABLE`
+
+A migração `0014` nasceu com `ALTER TABLE session ADD task_id text REFERENCES task(id);` — **sem
+`ON DELETE`**. O schema declara `set null`; o disco ficaria com `NO ACTION`, que em SQLite significa
+*recusar o delete do pai*. O sintoma seria apagar uma tarefa falhar com `FOREIGN KEY constraint
+failed`, meses depois, em quem tentasse limpar — e nenhum teste que começa de um banco vazio pega
+isso, porque nenhum deles apaga tarefa com sessão pendurada.
+
+A linha foi reescrita à mão, e o teste que a sustenta está em `migrations.test.ts`, num banco parado
+na revisão anterior. **Ele foi validado ficando vermelho de propósito**: com a linha gerada, falha
+com `FOREIGN KEY constraint failed`.
+
+A regra que sai daí: **toda migração que muda ação de estrangeiro por `ALTER TABLE` precisa de um
+caso que exerça a ação**, e não só a presença da coluna.
+
+### O mesmo nome em duas peças clicáveis quebra 22 e2e de uma vez
+
+O filtro de projeto da lista de tarefas nasceu como segmentado, com um botão por projeto. Na tela do
+workspace isso pôs o nome do projeto numa **segunda** peça clicável — a primeira é a árvore da
+sidebar —, e `getByRole("button", { name: "fixture", exact: true })` passou a achar dois elementos em
+**22 specs**.
+
+O conserto não foi nos testes: eles estavam certos, e escapar deles com locators mais específicos
+empurraria a ambiguidade para sempre. Dois botões idênticos querendo dizer coisas diferentes é
+ambiguidade para quem lê, não só para quem automatiza. O filtro virou **um controle que se nomeia**
+(`projeto: todos ▾`), e ele ainda escala melhor: três projetos cabiam num segmentado, oito não.
+
+A regra: **quando um locator de e2e fica ambíguo, a primeira pergunta é se a tela ficou ambígua.**
+
+E o corolário, que custou mais um round: o `<select>` que substituiu o segmentado nasceu com um
+rótulo visível — `projeto` —, e isso derrubou **outro** teste. Ele asseria que a palavra `projeto`
+**não** aparece no painel do workspace, como prova de que o grupo de memória `projeto` não existe
+naquele escopo. Ali a tela não ficou ambígua: o *proxy do teste* é que era largo demais. O conserto
+foi tirar o rótulo — a primeira opção do select (`todos os projetos`) já o nomeia, e um `<span>` ao
+lado de um controle é um segundo elemento para uma ideia só.
+
+### Uma tela nova derruba testes cujo mock não a conhece
+
+O cabeçalho do `trpc-mock.ts` já avisava, e aconteceu de novo: a seção de tarefas consulta o daemon
+no `mount`, e dois testes antigos quebraram. Um com *"Found multiple elements with the role alert"* —
+o banner de erro de uma query que devolveu `undefined` —, e outro porque o nome do projeto passou a
+aparecer **em dois lugares** na mesma tela, e a busca por texto ficou ambígua.
+
+Nenhum dos dois é um teste errado: os dois são testes que não sabiam da tela nova. O conserto é
+`installTrpcDefaults()` no primeiro e um seletor escopado no segundo — e a lição é que **um default
+vazio no mock é infraestrutura, não conveniência**.
 
 ### Um teste de handshake não vê um defeito de turno
 

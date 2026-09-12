@@ -297,6 +297,45 @@ describe("project detail", () => {
     expect(trpc.project.remove.mutate).not.toHaveBeenCalled();
   });
 
+  it("conta as tarefas junto — elas somem na mesma transação", async () => {
+    // `022` T10: tarefa é registro puro e vai junto. Uma pergunta que nomeia só
+    // as worktrees estaria escondendo metade do que some.
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+    trpc.worktree.listByProject.query.mockResolvedValue([worktree("wt1", "feat-x")]);
+    trpc.task.listByWorkspace.query.mockResolvedValue([
+      { id: "t1", title: "uma" },
+      { id: "t2", title: "outra" },
+    ]);
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+
+    const confirmacao = await screen.findByRole("alertdialog");
+    expect(confirmacao).toHaveTextContent(
+      "remover lorebase da lista, e o registro de 1 worktree e 2 tarefas?",
+    );
+  });
+
+  it("não diz zero tarefa — o número existe para comprar atenção", async () => {
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+    trpc.worktree.listByProject.query.mockResolvedValue([worktree("wt1", "feat-x")]);
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+
+    const confirmacao = await screen.findByRole("alertdialog");
+    expect(confirmacao).toHaveTextContent("remover lorebase da lista, e o registro de 1 worktree?");
+    expect(confirmacao).not.toHaveTextContent("tarefa");
+  });
+
   it("removes nothing when the confirmation is refused", async () => {
     const user = userEvent.setup();
     const selected = project("p1", "lorebase");

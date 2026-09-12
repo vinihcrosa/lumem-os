@@ -167,6 +167,19 @@ export interface ConversationProps {
    * mandar de novo a cada re-render seria um turno por repintura.
    */
   initialPrompt?: string | undefined;
+  /**
+   * Um rascunho que a conversa **põe no composer e não envia** (`022` T6).
+   *
+   * Irmão do `initialPrompt`, e o contrário dele: aquele manda sozinho, este
+   * espera você ler. Existe por causa de *"trabalhar nesta tarefa"* — o corpo da
+   * tarefa vira o primeiro prompt, e a regra do núcleo da memória vale igual
+   * aqui: **injeção invisível é proibida**, e um prompt disparado sem você ler é
+   * uma injeção que custa dinheiro.
+   *
+   * Uma vez, e só sobre um composer vazio: reescrever o que alguém digitou é
+   * pior do que não preencher nada.
+   */
+  initialDraft?: string | undefined;
 }
 
 export function Conversation({
@@ -181,9 +194,13 @@ export function Conversation({
   resuming = false,
   active = true,
   initialPrompt,
+  initialDraft,
 }: ConversationProps) {
   const [state, dispatch] = useReducer(reduce, initial);
-  const [draft, setDraft] = useState("");
+  // O rascunho começa com o que a tarefa trouxe, se trouxe. No inicializador e
+  // não num efeito: um efeito atropelaria o primeiro caractere de quem começasse
+  // a digitar antes de ele rodar.
+  const [draft, setDraft] = useState(initialDraft ?? "");
   /*
    * O portão do `liberado`, aberto e ainda não atravessado (Q4).
    *

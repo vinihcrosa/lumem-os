@@ -17,6 +17,22 @@ export function worktreesKey(projectId: string) {
 }
 
 /**
+ * As tarefas de um workspace (`022-workspace-tasks`).
+ *
+ * Prefixo por workspace, e os filtros depois: o evento `task.changed` é por
+ * workspace — a lista atravessa projetos —, e invalidar o prefixo alcança as N
+ * chaves filtradas de uma vez.
+ */
+export function tasksKey(workspaceId: string, filter?: { status?: string; projectId?: string }) {
+  const key = ["task", "listByWorkspace", workspaceId] as const;
+  return filter === undefined ? key : ([...key, filter] as const);
+}
+
+export function taskDetailKey(taskId: string) {
+  return ["task", "get", taskId] as const;
+}
+
+/**
  * As origens de uma worktree nova, em duas chaves.
  *
  * Duas porque são duas leituras de custo diferente: as branches são disco (10 ms

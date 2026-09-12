@@ -1,4 +1,7 @@
+import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
+
+import { session, task } from "../db/schema.js";
 
 import { MemoryService, writeMemorySchema } from "../memory/MemoryService.js";
 import { createPlaybookService, lifecycleOf } from "../memory/playbook.js";
@@ -391,12 +394,49 @@ export const memoryRouter = router({
   /** As decisões — inclusive as que não viraram arquivo. */
   decisions: publicProcedure
     .input(z.object({ path: z.string().optional(), limit: z.number().int().min(1).max(500).optional() }).optional())
-    .query(({ ctx, input }) => {
+    .query(async ({ ctx, input }) => {
       const memory = new MemoryService({ db: ctx.db, stateDir: ctx.config.stateDir });
-      return memory.decisions({
+      const rows = memory.decisions({
         ...(input?.path ? { path: input.path } : {}),
         ...(input?.limit ? { limit: input.limit } : {}),
       });
+
+      /*
+       * O título da tarefa daquela sessão, quando há (`022` F6).
+       *
+       * **Nenhuma coluna nova em memória**: a ligação já existe pela sessão, e
+       * inventar a segunda ponta criaria duas verdades para a mesma aresta. É
+       * só leitura, e some quando a sessão não serve tarefa nenhuma — que é o
+       * caso mais comum.
+       *
+       * Uma consulta para a página inteira, e não uma por linha: o histórico
+       * chega com até 500 itens.
+       */
+      const sessionIds = [...new Set(rows.flatMap((row) => row.sourceSessions))];
+      if (sessionIds.length === 0) return rows.map((row) => ({ ...row, taskTitles: [] }));
+
+      const titles = new Map<string, string>();
+      for (const found of await ctx.db
+        .select({ sessionId: session.id, title: task.title })
+        .from(session)
+        .innerJoin(task, eq(task.id, session.taskId))
+        .where(inArray(session.id, sessionIds))) {
+        titles.set(found.sessionId, found.title);
+      }
+
+      // Uma decisão pode ter várias sessões de origem, e elas podem servir
+      // tarefas diferentes. Devolver todas é mais honesto que escolher uma — a
+      // tela decide se mostra uma ou N.
+      return rows.map((row) => ({
+        ...row,
+        taskTitles: [
+          ...new Set(
+            row.sourceSessions
+              .map((id) => titles.get(id))
+              .filter((title): title is string => title !== undefined),
+          ),
+        ],
+      }));
     }),
 
   reindex: publicProcedure.mutation(({ ctx }) =>

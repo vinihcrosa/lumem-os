@@ -27,6 +27,13 @@ export interface MemoryPreambleOptions {
   stateDir: string;
   /** De onde o agente pergunta — o daemon é quem sabe a porta dele. */
   askUrl: string;
+  /**
+   * A porta de tarefas, e o teto dela (`022` T14).
+   *
+   * Opcional: sem ela o parágrafo não entra, e o preâmbulo custa exatamente o
+   * que custava antes desta feature.
+   */
+  tasks?: { url: string; budget: number };
   log?: Pick<FastifyBaseLogger, "warn">;
 }
 
@@ -34,6 +41,7 @@ export function createMemoryPreamble({
   db,
   stateDir,
   askUrl,
+  tasks,
   log,
 }: MemoryPreambleOptions): AcpPreambleSource {
   return async (session): Promise<AcpPreamble | null> => {
@@ -70,7 +78,14 @@ export function createMemoryPreamble({
 
     const parts = [MEMORY_DIRECTIVE];
     if (core.text !== "") parts.push(core.text.trimEnd());
-    parts.push(memorySkill({ askUrl, sessionId: session.id, projects }).trimEnd());
+    parts.push(
+      memorySkill({
+        askUrl,
+        sessionId: session.id,
+        projects,
+        ...(tasks === undefined ? {} : { tasks }),
+      }).trimEnd(),
+    );
 
     return { text: `${parts.join("\n\n")}\n`, entries: core.entries.length };
   };

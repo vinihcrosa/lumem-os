@@ -459,10 +459,17 @@ O produto chama de tarefa uma coisa que não existe. Tarefa por workspace com pr
 por `POST /tasks` e escrever para cima é proposta, `done` é humano, custo por tarefa de graça. Fila
 com lease fica no backlog.
 
+**Entregue em 2026-09-12**, e ela vem antes da
+[`028`](features/028-autonomous-orchestration/prd.md), que empilha em cima: sem tarefa como entidade
+não existe o que o quadro desenha nem onde o webhook aterrissa. A resposta da **T4** contradisse a
+[`007`](features/007-workspace-memory/prd.md) — a inbox de propostas da memória **saiu de dentro do
+`MemoryPanel`** —, com a nota no requisito de lá.
+
 | Arquivo | O quê |
 |---|---|
 | [prd.md](features/022-workspace-tasks/prd.md) | o modelo, as regras, F1–F6, e a tabela de **propostas** para as Q011–Q015 do projeto |
-| [open-questions.md](features/022-workspace-tasks/open-questions.md) | 9 perguntas; a **T2** (tarefa sem projeto) e a **T4** (triagem junto com a inbox de memória) mudam o desenho |
+| [open-questions.md](features/022-workspace-tasks/open-questions.md) | **10 perguntas, todas respondidas** em 2026-09-12. Oito saíram como propostas; a **T4** e a **T8** mudaram, e as duas pelo mesmo motivo — a `028` não existia quando foram escritas. A T4 foi para uma **terceira** forma que a pergunta não previa (uma fila só de propostas, no topo da tela do workspace, com memória e tarefa juntas) e a T8 **trocou de unidade**, de sessão para tarefa, porque a esteira dá três sessões a cada tarefa |
+| [tasks.md](features/022-workspace-tasks/tasks.md) | **17 tasks em 5 fases, todas entregues**. A fase 0 é o desenho, e veio primeiro porque a fila de Propostas mexe numa feature entregue. Dois achados pagaram por si: a migração que o `drizzle-kit` gerou **sem a ação do estrangeiro** — apagar tarefa seria recusado em vez de anular o ponteiro da sessão —, e o `DAEMON_PREFIXES`, que sem `/tasks` faria a porta do agente ser engolida pelo servidor de arquivos **só no pacote instalado** |
 
 ---
 
@@ -539,6 +546,32 @@ O achado de brinde é do mesmo tipo que a feature existe para pegar: `rateLimitO
 transcript do repositório, sem nada falhar.
 
 ---
+
+## Proposta de 2026-09-11 — o produto vira orquestrador
+
+### [autonomous-orchestration/](features/028-autonomous-orchestration/) — o quadro, a esteira e os três agentes
+
+**O Lumem só trabalha enquanto você olha.** Todo gesto do produto parte de uma pessoa clicando, e a
+[vision.md](project/vision.md) pede o contrário desde o primeiro dia: *"um agente pegar essa tarefa e
+fazer"*. A PRD é a passagem de **harness** (você dirige) para **orquestrador** (você supervisiona) —
+um quadro com todas as tarefas do workspace, uma esteira de onde o daemon **puxa** trabalho sozinho, e
+o tracker externo (Linear primeiro) como uma das quatro entradas dessa fila.
+
+Ela nasceu rascunho e foi **reescrita três vezes no mesmo dia**, em cima das respostas. Cinco respostas
+vieram contra a proposta, e uma mudou o que a feature é: **`Testing` não é você com o app na mão, é um
+agente usando o produto como usuário** — clicando a UI, exercitando o endpoint — e podendo subir
+**outros projetos do workspace** para isso. Daí saiu a esteira de **três papéis**: quem implementa não
+é quem revisa, e nenhum dos dois é quem testa.
+
+É produto, de propósito: transporte, autenticação, webhook e topologia de servidor estão todos no §11,
+guardados. E ela não entra em silêncio por cima do que já existe — o §7 lista o que contradiz, e a
+[workspace-tasks](features/022-workspace-tasks/prd.md) **vem antes**, não é superada.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](features/028-autonomous-orchestration/prd.md) | o §3 são **oito casos de uso** com contexto, hora e o que cada um prova — é por onde se lê. O UC4 é o argumento mais forte que o conceito de workspace já teve: um defeito que não mora em nenhum dos dois repositórios, mora entre eles. O §4.1 é a resposta ao buraco que a segunda rodada achou: **quem move a seta é o daemon, a coluna é a etapa, e quem está trabalhando é um selo derivado** — a fila deixa de ser a coluna To-Do e passa a ser *todo cartão sem trabalhador*, puxado da direita para a esquerda |
+| [open-questions.md](features/028-autonomous-orchestration/open-questions.md) | **37, todas respondidas**, em cinco rodadas. Cinco respostas vieram contra a proposta. A melhor pergunta é do Vinicius, dentro da Q21 — *"quando o cartão está em In Review, eu tenho garantia que um agente já pegou para revisar?"* — e ela mostrou que **três das seis colunas não sabiam dizer se alguém estava trabalhando nelas**. As quatro últimas (Q34–Q37) não vieram de discussão: vieram de **medir a tela**, e três contradiziam a PRD |
+| [design-brief.md](features/028-autonomous-orchestration/design-brief.md) | o que entrou na sessão de desenho — oito quadros e três medidas. Fica como está de propósito: comparar o pedido com o resultado é metade do valor dele, e os três lugares em que o desenho contrariou o briefing estão marcados |
 
 ## Convenções
 

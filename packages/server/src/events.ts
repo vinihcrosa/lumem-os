@@ -21,7 +21,15 @@ export type LumemEvent =
    * faz um merge feito em outra aba aparecer nesta.
    */
   | { type: "pr.changed"; projectId: string }
-  | { type: "session.changed"; scopeType: "project" | "worktree"; scopeId: string };
+  | { type: "session.changed"; scopeType: "project" | "worktree"; scopeId: string }
+  /**
+   * As tarefas deste workspace mudaram (`022-workspace-tasks` F1).
+   *
+   * Por workspace e não por projeto, ao contrário do `worktree.changed`: a lista
+   * é do workspace e atravessa projetos, e um evento por projeto faria a tela
+   * que mostra todos recarregar por um que ela não está mostrando.
+   */
+  | { type: "task.changed"; workspaceId: string };
 
 const CHANNEL = "lumem";
 

@@ -21,6 +21,10 @@ packages/cli/LICENSE
 
 playwright-report/
 test-results/
+
+# Saída do `pnpm test:coverage`. O relatório é derivado da suíte e do commit
+# que a rodou: versioná-lo seria guardar uma medida que envelhece sozinha.
+coverage/
 blob-report/
 packages/web/prototype/preview/
 # saída do verificador de protótipo (scripts/verify_prototype.mjs)

@@ -22,6 +22,21 @@ passo central é **instalar o tarball num runner limpo**, porque é o único que
 dinâmico, prebuild ausente e arquivo fora do pacote. A raiz ganhou `README.md` (em inglês, com
 tradução ao lado) e `LICENSE` (MIT).
 
+E a [workspace-tasks](docs/features/022-workspace-tasks/prd.md) — **completa, 17 tasks em 5 fases**
+— conserta o que o produto chamava de tarefa e não existia: o nome da worktree era o único rastro da
+intenção, e sumia com o checkout. Agora ela tem tabela, corpo, estado, proveniência e **custo de
+graça** — `session_usage` já tinha sessão, e a sessão passou a ter tarefa. `in_progress` é
+**derivado** do primeiro prompt de uma sessão ligada a ela, nunca declarado; `done` é seu; e o agente
+cria tarefa por `POST /tasks`, com a mesma regra da memória — **escrever para cima é proposta**. Ela
+é a primeira feature cuja fase 0 é o **desenho**, e a T3 dele terminou *apagando* uma peça: a
+triagem do quadro da `028` era cópia, e já tinha divergido. A resposta da **T4** tirou a inbox de
+propostas de dentro do `MemoryPanel` — uma fila só, no topo da tela do workspace, com memória e
+tarefa juntas —, e o que quase se perdeu na mudança de endereço não era layout: era a distinção entre
+**fato e conclusão**. Dois achados pagaram pela fase 1 sozinhos: a migração que o `drizzle-kit` gerou
+**sem a ação do estrangeiro** (apagar tarefa seria recusado em vez de anular o ponteiro da sessão), e
+o `DAEMON_PREFIXES`, que sem `/tasks` faria a porta do agente ser engolida pelo servidor de arquivos
+— **só no pacote instalado**.
+
 Em **2026-09-01**, nove anotações feitas na tela `/` viraram **quatro PRDs novas**, e **as quatro
 estão fechadas**.
 

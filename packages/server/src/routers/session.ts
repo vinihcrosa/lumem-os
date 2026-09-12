@@ -4,7 +4,11 @@ import { isCommandAvailable } from "../agents/availability.js";
 import { adapterCommandForConfig } from "../setup/adapter-command.js";
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
+import { asc, eq } from "drizzle-orm";
+
+import { session } from "../db/schema.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
+import { createTaskRepository } from "../repositories/task.js";
 import { resolveScope } from "../scope.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 
@@ -79,8 +83,38 @@ export const sessionRouter = router({
     }),
   ),
 
+  /**
+   * As sessões de uma tarefa (`022` F1).
+   *
+   * Uma tarefa tem N sessões e uma sessão tem no máximo uma tarefa, então a
+   * ligação já existe na coluna: isto é a leitura dela, não um índice novo. E
+   * conta os três `kind` — a `shell` que subiu a aplicação para conferir o que o
+   * agente fez foi trabalho desta tarefa.
+   */
+  listByTask: publicProcedure
+    .input(z.object({ taskId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const rows = await ctx.db
+        .select()
+        .from(session)
+        .where(eq(session.taskId, input.taskId))
+        .orderBy(asc(session.createdAt));
+      return Promise.all(rows.map((row) => toView(ctx, row)));
+    }),
+
   createAgent: publicProcedure
-    .input(scopeSchema.merge(sizeSchema).extend({ agentConfigId: z.string().min(1) }))
+    .input(
+      scopeSchema.merge(sizeSchema).extend({
+        agentConfigId: z.string().min(1),
+        /**
+         * Para qual tarefa esta conversa existe (`022` F2).
+         *
+         * Opcional: tarefa não é obrigatória para abrir uma sessão (T1), e o
+         * caminho `＋ nova sessão` continua sem nenhuma.
+         */
+        taskId: z.string().min(1).optional(),
+      }),
+    )
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
         const config = await createAgentConfigRepository(ctx.db).findById(input.agentConfigId);
@@ -140,6 +174,20 @@ export const sessionRouter = router({
           ...(input.cols === undefined ? {} : { cols: input.cols }),
           ...(input.rows === undefined ? {} : { rows: input.rows }),
         });
+        /*
+         * A ligação com a tarefa é escrita **depois** do spawn, e é de propósito.
+         *
+         * Uma linha com `task_id` de uma sessão que não chegou a existir seria a
+         * tarefa dizendo que alguém trabalhou nela quando ninguém trabalhou — e
+         * `in_progress` é derivado justamente daqui. O `start` é quem pode
+         * falhar; a coluna não.
+         */
+        if (input.taskId !== undefined) {
+          await ctx.db.update(session).set({ taskId: input.taskId }).where(eq(session.id, row.id));
+          const linked = await createTaskRepository(ctx.db).get(input.taskId);
+          if (linked) ctx.events.emit({ type: "task.changed", workspaceId: linked.workspaceId });
+        }
+
         ctx.events.emit({
           type: "session.changed",
           scopeType: input.scopeType,

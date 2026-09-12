@@ -109,6 +109,17 @@ function createTrpcMock() {
         ),
       },
     },
+    task: {
+      settings: { query: vi.fn() },
+      listByWorkspace: { query: vi.fn() },
+      get: { query: vi.fn() },
+      getByWorktree: { query: vi.fn() },
+      create: { mutate: vi.fn() },
+      update: { mutate: vi.fn() },
+      setStatus: { mutate: vi.fn() },
+      attachWorktree: { mutate: vi.fn() },
+      remove: { mutate: vi.fn() },
+    },
     worktree: {
       listByProject: { query: vi.fn() },
       getDetail: { query: vi.fn() },
@@ -178,6 +189,8 @@ function createTrpcMock() {
       // quem quer asserir sobre a divisão diz qual é a divisão.
       byProjectAndAgent: { query: vi.fn().mockResolvedValue([]) },
       byWorktreeAndAgent: { query: vi.fn().mockResolvedValue([]) },
+      // O custo por tarefa (`022` F5). Vazio por default, como os outros.
+      byTask: { query: vi.fn().mockResolvedValue([]) },
       byWorktree: {
         query: vi.fn().mockResolvedValue({
           worktrees: [],
@@ -186,6 +199,7 @@ function createTrpcMock() {
       },
     },
     session: {
+      listByTask: { query: vi.fn() },
       listByScope: { query: vi.fn() },
       getDetail: { query: vi.fn() },
       createShell: { mutate: vi.fn() },
@@ -266,6 +280,20 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   // As origens do diálogo de criar worktree. Default vazio pela mesma razão dos
   // outros: o diálogo consulta no `mount`, e um teste que fala de outra coisa
   // não pode quebrar por causa disso.
+  // A lista de tarefas. Default vazio pela mesma razão dos outros: a tela do
+  // workspace consulta no `mount`, e a confirmação de remover projeto também —
+  // um teste que fala de arquivo não pode quebrar por causa disso.
+  mock.task.listByWorkspace.query.mockResolvedValue([]);
+  mock.task.settings.query.mockResolvedValue({
+    budget: 5,
+    budgetEnv: "LUMEM_TASKS_BUDGET",
+    sessions: 0,
+    sessionsWithTask: 0,
+  });
+  mock.usage.byTask.query.mockResolvedValue([]);
+  mock.session.listByTask.query.mockResolvedValue([]);
+  // O caso mais comum: worktree sem tarefa. Tarefa não é obrigatória (T1).
+  mock.task.getByWorktree.query.mockResolvedValue(null);
   mock.worktree.branches.query.mockResolvedValue([]);
   mock.worktree.hostOrigins.query.mockResolvedValue(NO_HOST_ORIGINS);
 }

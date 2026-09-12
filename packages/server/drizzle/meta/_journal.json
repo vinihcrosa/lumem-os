@@ -99,6 +99,13 @@
       "when": 1788744928956,
       "tag": "0013_consumo_por_agente",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1789187632351,
+      "tag": "0014_tarefa_como_entidade",
+      "breakpoints": true
     }
   ]
 }

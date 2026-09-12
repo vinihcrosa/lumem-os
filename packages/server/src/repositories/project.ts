@@ -2,7 +2,7 @@ import { newId } from "@lumem/shared";
 import { asc, eq } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
-import { project, worktree, type ProjectRow } from "../db/schema.js";
+import { project, task, type ProjectRow, worktree } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import { withConstraints, type ConstraintMap } from "./base.js";
 
@@ -141,7 +141,17 @@ export function createProjectRepository(db: Db): ProjectRepository {
       // checkouts stay where they are; managed, the router refuses before any of
       // this runs, because deleting the repository out from under a live
       // checkout is the one thing F6.9-A4 exists to prevent.
+      //
+      // As tarefas entram na mesma transação (`022` T10). Tarefa é registro puro
+      // — não tem diretório para preservar —, e `RESTRICT` aqui repetiria o bug
+      // que a WS-Q22 consertou: todo projeto real teria tarefa, e o botão
+      // voltaria a não funcionar. O `session.task_id` fica nulo sozinho, pelo
+      // `ON DELETE SET NULL` da coluna.
+      //
+      // Antes das worktrees porque uma tarefa aponta para uma delas: a ordem é o
+      // que satisfaz os dois estrangeiros sem afrouxar nenhum.
       db.transaction((tx) => {
+        tx.delete(task).where(eq(task.projectId, id)).run();
         tx.delete(worktree).where(eq(worktree.projectId, id)).run();
         tx.delete(project).where(eq(project.id, id)).run();
       });

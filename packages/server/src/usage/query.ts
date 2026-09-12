@@ -1,7 +1,7 @@
 import { and, eq, gte, sql } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
-import { agentConfig, project, sessionUsage, worktree } from "../db/schema.js";
+import { agentConfig, project, session, sessionUsage, task, worktree } from "../db/schema.js";
 
 /**
  * O que cada escopo consumiu numa janela de tempo (`workspace-screen`, W4).
@@ -247,4 +247,55 @@ export function usageOutsideWorktrees(
     .all();
 
   return row ?? { tokens: 0, cost: null, currency: null, turns: 0 };
+}
+
+export interface TaskUsage {
+  taskId: string;
+  tokens: number;
+  cost: number | null;
+  currency: string | null;
+  turns: number;
+}
+
+/**
+ * O consumo por tarefa (`022-workspace-tasks` F5).
+ *
+ * **É a resposta mais barata que o modelo dá de graça**: `session_usage` já
+ * tinha sessão, e a sessão passou a ter tarefa. Nenhuma coluna nova, nenhum
+ * contador — uma junção.
+ *
+ * `LEFT JOIN` a partir da tarefa, pelo mesmo motivo do consumo por projeto: a
+ * pergunta é "o que cada tarefa gastou", e uma tarefa que ninguém começou
+ * continua sendo uma tarefa. Sumir dali faria a lista esconder exatamente o que
+ * está esperando alguém.
+ *
+ * E conta os três `kind` de sessão: se você subiu a aplicação numa `shell` para
+ * conferir o que o agente fez, aquilo foi trabalho desta tarefa — mesmo que não
+ * tenha custado token nenhum.
+ */
+export function usageByTask(
+  db: Db,
+  { workspaceId, period, now }: { workspaceId: string; period: UsageWindow; now?: Date },
+): TaskUsage[] {
+  const since = windowStart(period, now);
+
+  return db
+    .select({
+      taskId: task.id,
+      tokens: SUM.tokens,
+      cost: SUM.cost,
+      currency: SUM.currency,
+      turns: SUM.turns,
+    })
+    .from(task)
+    .leftJoin(session, eq(session.taskId, task.id))
+    .leftJoin(
+      sessionUsage,
+      // O corte de tempo no join, e não no `where`: no `where` ele eliminaria a
+      // linha da tarefa que não gastou nada na janela.
+      and(eq(sessionUsage.sessionId, session.id), gte(sessionUsage.createdAt, since)),
+    )
+    .where(eq(task.workspaceId, workspaceId))
+    .groupBy(task.id)
+    .all();
 }

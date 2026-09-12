@@ -2,7 +2,13 @@ import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { trpc } from "../lib/trpc.js";
-import { WORKSPACES_KEY, projectsKey, sessionsKey, worktreesKey } from "../lib/queryKeys.js";
+import {
+  WORKSPACES_KEY,
+  projectsKey,
+  sessionsKey,
+  tasksKey,
+  worktreesKey,
+} from "../lib/queryKeys.js";
 
 /**
  * What the daemon said changed, translated into what to refetch.
@@ -16,7 +22,8 @@ export type LumemEvent =
   | { type: "project.changed"; workspaceId: string }
   | { type: "worktree.changed"; projectId: string }
   | { type: "pr.changed"; projectId: string }
-  | { type: "session.changed"; scopeType: "project" | "worktree"; scopeId: string };
+  | { type: "session.changed"; scopeType: "project" | "worktree"; scopeId: string }
+  | { type: "task.changed"; workspaceId: string };
 
 export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void {
   switch (event.type) {
@@ -46,6 +53,14 @@ export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void
         queryKey: sessionsKey(event.scopeType, event.scopeId),
       });
       void queryClient.invalidateQueries({ queryKey: ["session"] });
+      return;
+    case "task.changed":
+      // Prefixo, e não a chave exata: a lista é filtrada por status e por
+      // projeto, então existem N chaves vivas para o mesmo workspace — e o
+      // detalhe lê por id. `in_progress` é derivado do primeiro prompt, então
+      // este evento chega **enquanto** alguém olha a lista.
+      void queryClient.invalidateQueries({ queryKey: tasksKey(event.workspaceId) });
+      void queryClient.invalidateQueries({ queryKey: ["task", "get"] });
       return;
   }
 }

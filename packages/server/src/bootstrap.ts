@@ -14,6 +14,7 @@ import { createSessionCapture } from "./memory/capture.js";
 import { createPlaybookService } from "./memory/playbook.js";
 import { trackPlaybookLoads } from "./memory/playbook-tracking.js";
 import { trackSessionUsage } from "./usage/record.js";
+import { trackTaskProgress } from "./tasks/progress.js";
 import { createAgentAuthService } from "./setup/agent-auth.js";
 import { adapterCommandForConfig } from "./setup/adapter-command.js";
 import { reconcileAdapters } from "./setup/reconcile-adapters.js";
@@ -142,6 +143,13 @@ export async function bootstrap({
         db: openedDatabase.db,
         stateDir: config.stateDir,
         askUrl: `http://${config.host}:${String(config.port)}/memory/ask`,
+        // A porta de tarefas entra no mesmo preâmbulo (`022` T14): um parágrafo,
+        // com o teto junto — um agente que não sabe do orçamento gasta um turno
+        // descobrindo que ele existe.
+        tasks: {
+          url: `http://${config.host}:${String(config.port)}/tasks`,
+          budget: config.taskBudget,
+        },
       }),
     });
   /*
@@ -183,6 +191,21 @@ export async function bootstrap({
   const stopUsageTracking = trackSessionUsage({
     db: openedDatabase.db,
     acpManager: acp,
+    log: {
+      warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+        bootedApp?.log.warn(...args);
+      },
+    },
+  });
+
+  // `in_progress` é derivado do primeiro prompt de uma sessão ligada à tarefa
+  // (`022` §3.2). Observador irmão do de consumo, na mesma costura e desligado
+  // junto: ninguém aperta um botão "comecei", e a máquina só move a seta quando
+  // o fato é verificável de fora do agente.
+  const stopTaskProgress = trackTaskProgress({
+    db: openedDatabase.db,
+    acpManager: acp,
+    events,
     log: {
       warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
         bootedApp?.log.warn(...args);
@@ -257,6 +280,7 @@ export async function bootstrap({
       stopTracking();
       stopPlaybookTracking();
       stopUsageTracking();
+      stopTaskProgress();
       await ptyManager.killAll();
       // Conversations too: an adapter left running is a subprocess with nothing
       // pointing at it, exactly like an orphaned shell.

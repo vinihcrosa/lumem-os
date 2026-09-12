@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  check,
+  index,
+  integer,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+  type AnySQLiteColumn,
+} from "drizzle-orm/sqlite-core";
 
 /**
  * The daemon's state, as PRD §6 describes it.
@@ -228,6 +237,22 @@ export const session = sqliteTable(
      * lives in the session store, which is also the only thing that can write this.
      */
     resumedFromId: text("resumed_from_id"),
+    /**
+     * A tarefa que esta sessão serve (workspace-tasks §3.1).
+     *
+     * Nula, e `ON DELETE SET NULL`: **uma sessão pertence a no máximo uma
+     * tarefa**, e uma tarefa tem N sessões. Vale para os três `kind` — se você
+     * subiu a aplicação numa `shell` para conferir o que o agente fez, aquilo
+     * foi trabalho desta tarefa, e o custo dela tem que contar.
+     *
+     * É a única coluna deste schema com `SET NULL`, e a exceção se paga: a
+     * sessão sobrevive à tarefa como já sobrevive à worktree, e sem ela um
+     * `task.remove` ficaria preso a um histórico que ninguém quer preservar por
+     * causa do ponteiro.
+     */
+    // A referência é preguiçosa porque `task` é declarada depois — `session`
+    // veio antes dela por três features.
+    taskId: text("task_id").references((): AnySQLiteColumn => task.id, { onDelete: "set null" }),
     ...timestamps,
   },
   (table) => [
@@ -752,6 +777,107 @@ export const memoryProposal = sqliteTable(
   ],
 );
 
+/**
+ * Tarefa como entidade do workspace (`022-workspace-tasks` §3.1).
+ *
+ * O produto chamava de tarefa uma coisa que não existia: o nome da worktree era
+ * o único rastro da intenção, e ele sumia com o checkout. Aqui ela tem corpo,
+ * estado, proveniência e custo — e é o que a `028` precisa para ter o que
+ * orquestrar.
+ *
+ * Três regras moram no banco porque em código elas seriam esquecidas:
+ *
+ * - **`project_id` é obrigatório** (T2). Tarefa sem projeto não tem onde virar
+ *   worktree, e "escolha o projeto depois" é um estado a mais em toda tela.
+ *   Tornar nulo depois é uma migração de uma linha; preencher o que nasceu nulo
+ *   não volta.
+ * - **`status` e `created_by` são CHECK**, como todo enum deste schema.
+ * - **`worktree_id` é `ON DELETE SET NULL`**, e é uma das duas exceções à regra
+ *   do RESTRICT neste arquivo. Remover a worktree **não** remove a tarefa: ela
+ *   perde o checkout e **fica no estado em que estava**. Voltar para `open`
+ *   apagaria o fato de que alguém trabalhou nela — e o custo, que continua
+ *   somado, diria o contrário da coluna de estado.
+ */
+export const task = sqliteTable(
+  "task",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "restrict" }),
+    /**
+     * Obrigatório (T2). O projeto pertence ao workspace — regra do repositório,
+     * porque nenhum FK expressa "a coluna A e a coluna B concordam".
+     *
+     * RESTRICT, e a cascata é o que a WS-Q22 fez para as worktrees: a ordem de
+     * dois deletes dentro de uma transação, que satisfaz a restrição em vez de
+     * afrouxá-la.
+     */
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "restrict" }),
+    title: text("title").notNull(),
+    /** Markdown. Vazio é um corpo legítimo — nem toda tarefa precisa de um. */
+    body: text("body").notNull().default(""),
+    status: text("status").notNull().default("open"),
+    createdBy: text("created_by").notNull().default("human"),
+    /**
+     * De qual sessão ela nasceu — e **sem foreign key**, de propósito.
+     *
+     * Isto é proveniência, não dependência, e o precedente é o
+     * `session.resumed_from_id` logo acima: apagar a sessão de ontem não pode
+     * ficar preso ao fato de que ela propôs uma tarefa. Com RESTRICT, todo
+     * `session.remove` de uma sessão que já propôs alguma coisa falharia; com
+     * SET NULL, a pergunta *"quem propôs isto?"* perderia a resposta no dia da
+     * limpeza. Um id que ficou órfão ainda diz mais que uma coluna nula.
+     *
+     * A PRD §3.1 escreveu `FK session`; a nota de por que não está lá.
+     */
+    createdBySession: text("created_by_session"),
+    worktreeId: text("worktree_id").references(() => worktree.id, { onDelete: "set null" }),
+    /** JSON de URLs — ClickUp, Jira, PR. **Referência por link, e só** (Q013). */
+    links: text("links").notNull().default("[]"),
+    /**
+     * Por que foi `dropped`.
+     *
+     * Sem motivo, `dropped` é indistinguível de esquecimento — e o arquivo
+     * existe justamente para quem foi procurar de propósito.
+     */
+    reason: text("reason"),
+    /** Quando saiu do fluxo: `done` ou `dropped`. */
+    closedAt: integer("closed_at", { mode: "timestamp_ms" }),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "task_status",
+      sql`${table.status} IN ('proposed', 'open', 'in_progress', 'review', 'done', 'dropped')`,
+    ),
+    check("task_created_by", sql`${table.createdBy} IN ('human', 'agent')`),
+    // Os dois sentidos, como o `session_agent_config`: tarefa de agente sem
+    // sessão é proposta sem proveniência — e proveniência é o que separa
+    // proposta de lixo —, e uma tarefa "criada por você" carregando sessão
+    // estaria mentindo sobre quem decidiu.
+    check(
+      "task_agent_provenance",
+      sql`(${table.createdBy} = 'agent' AND ${table.createdBySession} IS NOT NULL)
+        OR (${table.createdBy} = 'human' AND ${table.createdBySession} IS NULL)`,
+    ),
+    // `closed_at` é derivado do estado, e um dos dois sozinho é um registro que
+    // nenhum leitor sabe interpretar: tarefa `done` sem data não entra em "o que
+    // este workspace fez", e data com estado aberto contradiz a própria coluna.
+    check(
+      "task_closed_at",
+      sql`(${table.status} IN ('done', 'dropped') AND ${table.closedAt} IS NOT NULL)
+        OR (${table.status} NOT IN ('done', 'dropped') AND ${table.closedAt} IS NULL)`,
+    ),
+    // A lista é lida por workspace e filtrada por status e projeto (F1) — os
+    // três filtros da mesma consulta.
+    index("task_by_workspace").on(table.workspaceId, table.status),
+    index("task_by_project").on(table.projectId),
+  ],
+);
+
 export const schema = {
   workspace,
   project,
@@ -768,6 +894,7 @@ export const schema = {
   playbook,
   sessionUsage,
   checkoutPort,
+  task,
 };
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
@@ -785,3 +912,4 @@ export type MemoryAccessRow = typeof memoryAccess.$inferSelect;
 export type MemorySignalRow = typeof memorySignal.$inferSelect;
 export type MemoryUsageRow = typeof memoryUsage.$inferSelect;
 export type MemoryProposalRow = typeof memoryProposal.$inferSelect;
+export type TaskRow = typeof task.$inferSelect;
