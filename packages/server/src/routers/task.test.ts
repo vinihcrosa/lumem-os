@@ -2,7 +2,8 @@ import { newId } from "@lumem/shared";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { project, session, task } from "../db/schema.js";
+import { project, session, task, worktree } from "../db/schema.js";
+import { createTaskRepository } from "../repositories/task.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 
 /**
@@ -167,6 +168,134 @@ describe("task.setStatus", () => {
       // @ts-expect-error — o enum do zod é justamente o que está em teste
       api.task.setStatus({ id: created.id, status: "quase" }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+});
+
+describe("o agente e o que está fechado", () => {
+  it("não reabre uma tarefa done, e nem uma dropped", async () => {
+    /*
+     * O guard de destino sozinho deixava passar: `review` é o único estado que
+     * um agente escreve, e uma tarefa **já fechada** movida para `review` sai de
+     * `done` e perde o `closedAt`. Um `POST /tasks/:id/review` reabriria, pelo
+     * agente, o estado que a T9 reserva para você. Fechar é seu, e reabrir
+     * também é.
+     */
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const repository = createTaskRepository(db);
+
+    for (const [status, reason] of [
+      ["done", undefined],
+      ["dropped", "sem alvo"],
+    ] as const) {
+      const created = await api.task.create({ workspaceId, projectId, title: `t-${status}` });
+      await api.task.setStatus({
+        id: created.id,
+        status,
+        ...(reason === undefined ? {} : { reason }),
+      });
+
+      await expect(
+        repository.setStatus(created.id, "review", { actor: "agent" }),
+      ).rejects.toThrow(/reabrir é seu/);
+
+      const [row] = await db.select().from(task).where(eq(task.id, created.id));
+      expect(row?.status).toBe(status);
+      // E a data de fechamento continua lá: era ela que o caminho antigo zerava.
+      expect(row?.closedAt).not.toBeNull();
+    }
+  });
+
+  it("continua podendo dizer review numa tarefa aberta", async () => {
+    // A guarda nova é sobre o estado **atual**, e não pode fechar a porta certa.
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "em andamento" });
+
+    const moved = await createTaskRepository(db).setStatus(created.id, "review", {
+      actor: "agent",
+    });
+
+    expect(moved.status).toBe("review");
+  });
+});
+
+describe("a medida de cerimônia", () => {
+  it("conta só as sessões deste workspace", async () => {
+    /*
+     * A linha é renderizada dentro da lista de **um** workspace. Contar o banco
+     * inteiro misturaria as sessões de todos eles, e um número que não é do
+     * lugar onde está escrito é pior que nenhum: ele parece dado.
+     */
+    const { api, db } = caller();
+    const mine = await workspaceWithProject(context, "acme");
+    const other = await workspaceWithProject(context, "pessoal");
+    const task1 = await api.task.create({
+      workspaceId: mine.workspaceId,
+      projectId: mine.projectId,
+      title: "com tarefa",
+    });
+
+    await db.insert(session).values([
+      {
+        id: "se-minha-com",
+        kind: "shell",
+        scopeType: "project",
+        scopeId: mine.projectId,
+        cwd: "/repos",
+        command: "bash",
+        taskId: task1.id,
+      },
+      {
+        id: "se-minha-sem",
+        kind: "shell",
+        scopeType: "project",
+        scopeId: mine.projectId,
+        cwd: "/repos",
+        command: "bash",
+      },
+      // Três do outro workspace: nenhuma pode entrar na conta.
+      ...["a", "b", "c"].map((suffix) => ({
+        id: `se-alheia-${suffix}`,
+        kind: "shell" as const,
+        scopeType: "project" as const,
+        scopeId: other.projectId,
+        cwd: "/repos",
+        command: "bash",
+      })),
+    ]);
+
+    expect(await api.task.settings({ workspaceId: mine.workspaceId })).toMatchObject({
+      sessions: 2,
+      sessionsWithTask: 1,
+    });
+    expect(await api.task.settings({ workspaceId: other.workspaceId })).toMatchObject({
+      sessions: 3,
+      sessionsWithTask: 0,
+    });
+  });
+
+  it("alcança a sessão que mora numa worktree, e não só a do projeto", async () => {
+    // O escopo de uma sessão é polimórfico: `scope_id` aponta para projeto ou
+    // para worktree, e nenhum estrangeiro expressa isso. São duas junções.
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    await db
+      .insert(worktree)
+      .values({ id: "wt1", projectId, name: "feat", branch: "feat", path: "/wt/1" });
+    await db.insert(session).values({
+      id: "se-na-worktree",
+      kind: "shell",
+      scopeType: "worktree",
+      scopeId: "wt1",
+      cwd: "/wt/1",
+      command: "bash",
+    });
+
+    expect(await api.task.settings({ workspaceId })).toMatchObject({
+      sessions: 1,
+      sessionsWithTask: 0,
+    });
   });
 });
 

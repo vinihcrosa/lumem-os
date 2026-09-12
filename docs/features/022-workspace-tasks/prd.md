@@ -71,7 +71,10 @@ se chama "Nome da tarefa". Depois disso, o **nome da worktree** é o único rast
   manda o primeiro prompt — pelo mesmo observador de eventos que grava consumo;
 - **`review` é o agente dizendo "acho que terminei"** — pela porta HTTP da F3 ([T7](open-questions.md)).
   Nunca por `turn_end`: fim de turno não é fim de trabalho (a armadilha nomeada na Q069);
-- **`done` é humano** ([T9](open-questions.md)). Na v1, o sinal canônico de conclusão é você;
+- **`done` é humano** ([T9](open-questions.md)). Na v1, o sinal canônico de conclusão é você — **e
+  reabrir também é seu**: um agente não move uma tarefa que já está `done` ou `dropped`, nem para
+  `review`. Fechar e reabrir são a mesma decisão vista dos dois lados, e o guard que olhasse só o
+  estado de **destino** deixaria `POST /tasks/:id/review` reabrir o que você fechou;
 - tarefa **não é obrigatória** (Q011, [T1](open-questions.md)). "Abrir um agente e conversar" continua
   existindo como está.
 

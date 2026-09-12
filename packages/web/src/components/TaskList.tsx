@@ -83,8 +83,8 @@ export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListP
    * recusar, você vai achar que é bug. A linha diz o número **e** onde mudar.
    */
   const settings = useQuery({
-    queryKey: ["task", "settings"],
-    queryFn: () => trpc.task.settings.query(),
+    queryKey: ["task", "settings", workspaceId],
+    queryFn: () => trpc.task.settings.query({ workspaceId }),
   });
 
   /*

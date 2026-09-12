@@ -214,6 +214,21 @@ export function createTaskRepository(db: Db): TaskRepository {
             : `um agente não pode mover a tarefa para ${status}`,
         );
       }
+      /*
+       * O guard acima olha só o destino, e isso não basta.
+       *
+       * `review` é o único estado que um agente escreve — mas uma tarefa **já
+       * fechada** movida para `review` sai de `done`/`dropped` e perde o
+       * `closedAt` logo abaixo. Um `POST /tasks/:id/review` numa tarefa que
+       * você marcou `done` reabriria, pelo agente, um estado que a T9 reserva
+       * para você. Fechar é seu, e **reabrir também é**.
+       */
+      if (actor === "agent" && CLOSED.has(current.status)) {
+        throw new DomainError(
+          "BLOCKED",
+          `a tarefa está ${current.status} — reabrir é seu, como fechar`,
+        );
+      }
       if (status === "dropped" && !options.reason?.trim()) {
         // Sem motivo, `dropped` é indistinguível de esquecimento — e o arquivo
         // existe justamente para quem foi procurar de propósito.

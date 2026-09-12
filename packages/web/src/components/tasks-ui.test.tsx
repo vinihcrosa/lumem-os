@@ -157,6 +157,8 @@ describe("a lista de tarefas", () => {
     renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
 
     expect(await screen.findByText("4 de 12")).toBeInTheDocument();
+    // Escopado ao workspace: o número descreve o lugar onde ele aparece.
+    expect(trpc.task.settings.query).toHaveBeenCalledWith({ workspaceId: "w1" });
   });
 
   it("some a proporção quando não houve sessão nenhuma", async () => {
