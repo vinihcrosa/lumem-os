@@ -433,6 +433,17 @@ Nada disso é útil se for invisível — a lição do `journey` do Hermes.
 
 - **Inbox de propostas**: o que os agentes querem ensinar ao workspace, com origem, evidência e
   diff. Aprovar, editar antes de aprovar, ou rejeitar com motivo.
+  > **Nota — a lista mudou de lugar, e só isso.** A
+  > [T4 da `022`](../022-workspace-tasks/open-questions.md), respondida em 2026-09-12, decidiu que
+  > existe **uma fila só de propostas** no topo da tela do workspace, com dois tipos: proposta de
+  > memória e tarefa proposta. A lista **sai da aba `Propostas` do `MemoryPanel`** e sobe para lá,
+  > porque um lugar para *"o que o sistema quer que eu decida"* vale mais que dois — e porque, com a
+  > [`028`](../028-autonomous-orchestration/prd.md), a fila passa a encher sozinha.
+  >
+  > **O que continua valendo inteiro:** a origem, a evidência, o diff, os três verbos (aprovar ·
+  > editar antes de aprovar · rejeitar com motivo), o portão de escrita do §7 e a proveniência. A
+  > linguagem desta inbox é reaproveitada **palavra por palavra** — é justamente por isso que os dois
+  > tipos cabem na mesma lista. O que muda é **onde ela mora**, e nada mais.
 - **Vista de memória por escopo**, com o que está sombreando o quê.
 - **Linha do tempo**: o que foi aprendido, quando, por qual sessão, e o botão de desfazer — que agora
   tem dois caminhos, o WAL e o `git revert` do `~/.lumem`.

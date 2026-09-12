@@ -1,11 +1,15 @@
 # PRD — Tarefa como entidade
 
-> **Status:** proposta
+> **Status:** em execução
 > **Histórico:** v0.1 — proposto em 2026-09-05, **perguntas abertas**. Sai do backlog ("Tarefas de workspace atravessando projetos", seção C). **"Fila com lease" fica no backlog:** este PRD é atribuição manual, de propósito.
-> **Perguntas:** [open-questions.md](open-questions.md). Elas **propõem** resposta para as
-> **Q011–Q015** do [questions.md](../../project/questions.md); a Q068 e a Q069 ficam abertas de
-> propósito (§5)
-> **Tasks:** ainda não — nascem depois das perguntas respondidas
+> **Perguntas:** [open-questions.md](open-questions.md) — **10, todas respondidas em 2026-09-12.**
+> Oito saíram como propostas; a **T4** e a **T8** mudaram, e as duas mudaram pelo mesmo motivo: a
+> [`028`](../028-autonomous-orchestration/prd.md) não existia quando elas foram escritas. A T4 foi
+> para uma **terceira** forma — uma fila só, no topo da tela do workspace — e a T8 **trocou de
+> unidade**, de sessão para tarefa, porque a esteira dá três sessões a cada tarefa. Elas **propõem**
+> resposta para as **Q011–Q015** do [questions.md](../../project/questions.md); a Q068 e a Q069 ficam
+> abertas de propósito (§5)
+> **Tasks:** [tasks.md](tasks.md) — **17, em 5 fases**, escritas em 2026-09-12
 > **Depende de:** [workspace-screen](../010-workspace-screen/prd.md), entregue — é onde a lista mora.
 > **Fica melhor com:** a F4 do [daemon-auth](../019-daemon-auth/prd.md) (ator provado, para a F3) e o
 > [second-agent](../021-second-agent/prd.md) (com um agente, "quem pega" não é pergunta)
@@ -95,15 +99,33 @@ A porta é a mesma da memória: HTTP, texto, `curl` de qualquer `cwd`. `POST /ta
 `body`, `project` (nome, resolvido dentro do workspace da sessão), autenticado pelo token de sessão da
 F4 do daemon-auth — até ela existir, o `?session=` da memória, com a mesma dívida. A regra do §3.2
 decide `open` ou `proposed`. A skill (`skill.ts`) ganha **um parágrafo** ensinando isto, com o custo
-em caracteres medido como o resto do preâmbulo. Orçamento por sessão ([T8](open-questions.md)), como
-o auto-learn tem.
+em caracteres medido como o resto do preâmbulo.
+
+**Orçamento de criação: cinco por _tarefa_** ([T8](open-questions.md)) — as três sessões da esteira
+dividem o mesmo bolso, como já acontece com o teto de custo. Não é variável de ambiente: é um **ajuste
+visível**, no mesmo painel dos outros tetos, porque um teto que você não vê é um teto que você não
+ajusta e que parece bug quando recusa. Ao estourar, o `POST` recusa com a frase que diz que o
+orçamento acabou, e **a recusa fica na transcrição** — o agente vai dizer que tentou. O que ele
+protege não é o banco: é a sua atenção, e sobretudo o caminho que **não** passa por você — tarefa
+para o próprio projeto entra direto como `open`.
 
 ### F4 — Triagem
 
 Tarefa `proposed` aparece para você aprovar (vira `open`, com edição), ou rejeitar (`dropped`, com
-motivo). Onde: [T4](open-questions.md) — na mesma superfície da inbox de memória, ou numa própria. Em
-qualquer caso, com **quem propôs e de qual sessão**, porque a proveniência é o que separa proposta de
-lixo.
+motivo), sempre com **quem propôs e de qual sessão** — a proveniência é o que separa proposta de lixo.
+
+**Onde: uma fila só, chamada _Propostas_, no topo da tela do workspace** ([T4](open-questions.md)).
+Ela lista **os dois tipos** — proposta de memória e tarefa proposta — com o tipo visível e a ação de
+cada um. Não é a aba do `MemoryPanel` e não é uma seção separada: é *o* lugar de "o que o sistema quer
+que eu decida", e ele fica onde você já olha de manhã. Uma fila que enche sozinha atrás de uma aba é
+uma fila que apodrece.
+
+> **Isto contradiz a [`007`](../007-workspace-memory/prd.md):** a inbox de propostas da memória
+> **sai de dentro do `MemoryPanel`** e sobe para esta fila. É a única parte cara desta resposta, e é
+> mexer numa feature entregue. **A nota entra no requisito da `007` quando esta PRD sair de
+> proposta**, com âncora para cá — mesma regra que a `028` aplica à `022` e à `021`. O que fica de pé
+> na `007`: a linguagem da proposta (quem propôs, de onde, por quê, dois verbos) é reaproveitada
+> palavra por palavra, e é justamente por isso que as duas cabem na mesma lista.
 
 ### F5 — Custo por tarefa
 
@@ -148,17 +170,18 @@ você as confirmar em [open-questions.md](open-questions.md):
 
 - **Não** virar gerenciador de projeto. Sem quadro, sem sprint, sem estimativa;
 - **Não** obrigar. O caminho "nova sessão" da worktree continua a um clique;
-- **Não** duplicar a inbox. Se a T4 escolher superfície própria, ela tem que caber ao lado da de
-  memória sem inventar uma terceira linguagem visual.
+- **Não** duplicar a inbox — e com a [T4](open-questions.md) respondida isso deixou de ser um cuidado
+  e virou um fato: **não existe segunda inbox para duplicar.** As duas viraram uma, e a linguagem
+  visual é a que a memória já tinha.
 
 ## 7. Riscos
 
 | Risco | Defesa |
 |---|---|
 | a tela do workspace vira "a tela de tudo" (risco §9 da workspace-screen) | a lista é **uma seção**, com "ver todas" para a tela cheia. E tarefa é, de todas as candidatas, a que mais é **do** workspace |
-| agente criando tarefa em série | orçamento por sessão; cross-projeto é sempre `proposed`; a proveniência aparece |
+| agente criando tarefa em série | orçamento de **cinco por tarefa**, ajustável e visível ([T8](open-questions.md)); cross-projeto é sempre `proposed`; a proveniência aparece |
 | cerimônia: você cria tarefa para agradar o daemon | medir **sessões com tarefa ÷ sessões** e **esperar** que seja menor que 100%. Se chegar a 100%, o modelo errou o lugar da tarefa |
-| duas inboxes que parecem uma | [T4](open-questions.md) decide antes de desenhar |
+| duas inboxes que parecem uma | **não existem duas.** A [T4](open-questions.md) fundiu numa fila só, no topo da tela do workspace. O risco que sobra é o oposto — uma fila com dois tipos que se leem igual —, e a defesa é o tipo visível na linha, com a ação de cada um |
 | o corpo pré-preenchido vira prompt ruim | é editável, e é **visível** — o oposto da injeção invisível que o §12 da memória proíbe |
 | `project_id` obrigatório e uma tarefa "decidir qual projeto" | [T2](open-questions.md): tornar nula depois é uma migração de uma linha; o contrário não é |
 
@@ -169,19 +192,23 @@ você as confirmar em [open-questions.md](open-questions.md):
 2. o **detalhe**: corpo, sessões (com estado), worktree, custo, memória aprendida enquanto;
 3. **trabalhar nesta tarefa**: a escolha de agente e de worktree, e a conversa abrindo com o composer
    pré-preenchido;
-4. a **triagem** de tarefa proposta — com a T4 respondida;
+4. a **fila de Propostas** no topo da tela do workspace, com **os dois tipos** — memória e tarefa — e a ação de cada um ([T4](open-questions.md)). O quadro 7 do `lumem-board.html` da `028` já desenhou o lugar e a linguagem; falta o tipo de memória entrar na mesma lista;
 5. a **proveniência**: quem criou, de qual sessão, e o selo de "proposta por agente" na lista;
 6. a **linha da tarefa na aba da worktree** que a worktree-first-tab entregou: a worktree diz para
    qual tarefa existe, ao lado de branch e sujeira.
 
 ## 9. Fases
 
-1. **Modelo e router** — `task`, `session.task_id`, `task.*`, o observador de `in_progress`. Daemon,
-   sem tela, com prova;
-2. **Lista, detalhe e trabalhar** — F1 e F2 na tela;
+0. **O desenho** — as seis telas do §8, no Open Design. **Vem primeiro**, e não por capricho: a fila
+   de Propostas mexe numa feature entregue, e desenho que decide isso depois do código decide tarde;
+1. **Modelo e router** — `task`, `session.task_id`, `task.*`, o observador de `in_progress`, e a
+   cascata do remover projeto. Daemon, sem tela, com prova;
+2. **Lista, detalhe e trabalhar** — F1 e F2 na tela, mais a linha na primeira aba da worktree;
 3. **A porta do agente e a triagem** — F3 e F4. Depois da F4 do daemon-auth, ou com a dívida do
    `?session=` nomeada;
-4. **Custo e memória** — F5 e F6, as duas de leitura.
+4. **Custo e memória** — F5 e F6, as duas de leitura, mais o e2e e a medida de cerimônia.
+
+O detalhamento, com `Done when` por task, está no [tasks.md](tasks.md).
 
 ## 10. Custo nos testes
 
