@@ -115,7 +115,7 @@ porque o `lumem-board.html` linka a folha da `022` desde que a cópia `.tri` foi
 
 ---
 
-## Fase 1 — o modelo comporta o quadro
+## Fase 1 — o modelo comporta o quadro · **entregue**
 
 #### T3: O modelo ganha as colunas que faltam
 
@@ -126,6 +126,9 @@ conferida à mão.
 **Done when**: as sete colunas do §4 têm um estado cada; nenhuma tarefa existente muda de coluna (toda
 `open` de hoje continua na To-Do, **não** vai para o Backlog); e o CHECK recusa um oitavo valor.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-12) — e a armadilha **não** mordeu: os três estrangeiros, os dois
+índices e os quatro CHECKs sobreviveram à recriação. Quatro casos de migração cobrem isso, incluindo
+apagar tarefa **anular** o ponteiro da sessão em vez de recusar, que é o defeito exato da `022`.
 
 > **A migração é a armadilha desta fase, e ela já mordeu uma vez.** A fase 1 da
 > [`022`](../022-workspace-tasks/prd.md) achou uma migração que o `drizzle-kit` gerou **sem a ação do
@@ -145,6 +148,8 @@ faz o arrasto do §4 funcionar — só o agente tem allowlist; você não tem.
 dizer `review`; **você move para qualquer uma das sete, `in_progress` incluído**; e a derivação não
 atropela o que você pôs à mão.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-12) — cinco casos, todos verdes ao nascer, e por isso conferidos por
+mutação em vez de acreditados.
 
 > **Nenhum dos cinco casos nasceu vermelho, e é isso que a task é.** O comportamento já estava certo
 > — `AGENT_MAY_SET` é a **única** lista, então tudo que não é do agente passa pelo seu caminho — e
@@ -167,6 +172,18 @@ para as sete colunas.
 escreve o estado **e** a posição na mesma transação; **arrastar para `In Progress` funciona** e o
 cartão fica com o selo `manual — ninguém pega`; e nenhum caminho de agente move coluna.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-12) — e ela custou uma decisão que não estava escrita: **`move` é
+procedure própria, não um `setStatus` com um campo a mais.** As duas respondem perguntas diferentes —
+*"em que etapa isto está"* contra *"onde eu soltei"* —, e uma só teria que fingir que `index` é
+opcional em metade das chamadas. O portão que as duas compartilham foi extraído, porque a regra em
+dois lugares é duas regras, e a segunda a divergir seria a do arrasto.
+>
+> Duas coisas mecânicas que o código cobrou: transação em `better-sqlite3` é **síncrona** (ela recusa
+> callback que devolve promessa), e o backfill da migração é **escrito à mão** — o `drizzle-kit` só
+> sabe o `DEFAULT`, e com todas as linhas em zero a coluna nasceria na ordem que o SQLite escolhesse.
+>
+> Ordinal contíguo, e não aritmética de ponto médio: a coluna tem dezenas de cartões, e o preço do
+> ponto médio é um rebalanceamento que vence depois e em silêncio.
 
 > **A restrição é só de mão única** (§4): você move para qualquer uma das sete, a máquina nunca move
 > para as suas. Não há coluna com exceção — a [Q38](open-questions.md#q38--arrastar-para-in-progress-se-ele-é-derivado)
