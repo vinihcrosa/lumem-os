@@ -99,6 +99,32 @@ Falha guarda `playwright-report/` e `test-results/` como artefato por 7 dias: o 
 
 Mais um de produto-adjacente: o vite escutava no default `localhost`, que num runner com IPv6 resolve para `::1` — e o Playwright pede `127.0.0.1`. Hoje o dev server declara o endereço.
 
+### O SonarQube fica ao lado do CI, e não dentro dele
+
+`.github/workflows/sonarqube.yml` roda nos mesmos gatilhos — **toda PR, sem filtro de branch**, pelo
+mesmo motivo do `ci.yml` — e num workflow **separado**. Os dois respondem perguntas diferentes e
+falham por motivos diferentes: o `ci.yml` diz *"isto funciona"* e é o portão de merge; o Sonar diz
+*"isto é sustentável"*, e depende de um serviço de terceiro e de um segredo. Juntos, uma
+indisponibilidade do SonarQube apareceria como a suíte quebrada.
+
+Ele precisa de **`fetch-depth: 0`**, e isso não é detalhe de checkout: sem histórico o Sonar não tem
+blame, e *"código novo"* — que é onde o quality gate morde — passa a ser o arquivo inteiro.
+
+**O `sonar-project.properties` exclui quatro coisas, e cada exclusão é sobre achado inacionável:**
+
+| Fora | Por quê |
+|---|---|
+| `packages/web/prototype/**`, `tokens.css`, `tokens.ts` | **cópia e derivado do Open Design.** A regra de design deste repositório diz que nenhum dos três se edita à mão — analisar cópia é pedir para alguém consertar um arquivo que o próximo `design:sync` sobrescreve |
+| `packages/server/drizzle/**` | migração é **imutável por definição**: uma já aplicada não se edita, se sucede. Aviso de estilo numa migração de três meses atrás não tem conserto possível |
+| `dist/`, `.turbo/`, `packages/cli/bin|drizzle` | saída de build. Estão no `.gitignore`, então o CI nem as vê; a linha existe para o run **local** dar o mesmo resultado que o do runner |
+| — | e o que **não** é exclusão: `sonar.tests` marca a suíte como suíte. Ela é colocada (`foo.ts` ao lado de `foo.test.ts`), e sem isso o Sonar cobraria dela as regras erradas — duplicação, que todo arranjo de teste repete, e complexidade cognitiva, que uma tabela de casos tem por desenho |
+
+**Cobertura está deliberadamente ausente.** Nenhum pacote gera `lcov`, e apontar
+`sonar.javascript.lcov.reportPaths` para um arquivo que não existe produz **0% no relatório** — um
+número errado com cara de medida, que é pior que nenhum. A matriz deste arquivo é por **camada e
+propriedade**, não por porcentagem de linha; ligar cobertura pede primeiro decidir o que a
+porcentagem significa aqui.
+
 ### Por que `gate:quick` é um script e não `vitest --changed`
 
 Duas falhas em direções opostas, e evitar uma de cada vez criou a outra:

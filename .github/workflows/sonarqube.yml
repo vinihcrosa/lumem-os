@@ -1,0 +1,44 @@
+name: SonarQube
+
+# Análise estática hospedada, ao lado do `ci.yml` e **não dentro dele**.
+#
+# Dois jobs separados porque eles respondem a perguntas diferentes e falham por
+# motivos diferentes: o `ci.yml` diz *"isto funciona"* e é o portão de merge; este
+# diz *"isto é sustentável"*, e depende de um serviço de terceiro e de um segredo.
+# Juntos, uma indisponibilidade do SonarQube apareceria como a suíte quebrada.
+#
+# O gatilho segue o do `ci.yml` no que importa: **PR sem filtro de branch**, porque
+# PR encadeada — feature que sai de outra feature ainda não mergeada — passaria sem
+# análise nenhuma, e ausência de check não é vermelho, é silêncio.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Um push novo na mesma PR cancela o run anterior, como no `ci.yml`: a análise do
+# commit que deixou de ser o topo não interessa a ninguém.
+concurrency:
+  group: sonarqube-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sonarqube:
+    name: SonarQube
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # Shallow clones should be disabled for a better relevancy of analysis.
+          #
+          # É o que dá ao Sonar o *blame*: sem histórico ele não sabe quais linhas
+          # são novas, e "código novo" — que é onde o quality gate morde — vira o
+          # arquivo inteiro.
+          fetch-depth: 0
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
