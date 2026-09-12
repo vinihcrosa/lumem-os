@@ -876,6 +876,29 @@ export const task = sqliteTable(
      * existe justamente para quem foi procurar de propósito.
      */
     reason: text("reason"),
+    /**
+     * Quando ela entrou **nesta** coluna (`028` §4.2 e §6/F4).
+     *
+     * O cartão diz *há quanto tempo está nesta coluna*, e esse é o sinal de
+     * encalhe do produto — 30 min/2 h nas etapas da máquina, 4 h/1 dia no fim
+     * da esteira.
+     *
+     * **Coluna própria, e não `updated_at`.** Aquele muda com qualquer escrita:
+     * corrigir o título de uma tarefa parada há duas horas a faria parecer
+     * recém-chegada, e o relógio de encalhe existe justamente para as que
+     * ninguém tocou. Um sinal que se apaga quando alguém passa perto é pior que
+     * nenhum sinal.
+     */
+    statusChangedAt: integer("status_changed_at", { mode: "timestamp_ms" })
+      .notNull()
+      // `DEFAULT 0` no banco e o relógio na aplicação, e **não** o `NOW` que o
+      // resto da tabela usa: o SQLite recusa `ALTER TABLE ADD COLUMN` com
+      // default não-constante, e este é o primeiro carimbo de tempo do produto
+      // a chegar numa tabela que já existia. O zero nunca é lido — as três
+      // escritas de coluna passam um valor —, ele só existe para o `ALTER`
+      // ser aceito.
+      .default(sql`0`)
+      .$defaultFn(() => new Date()),
     /** Quando saiu do fluxo: `done` ou `dropped`. */
     closedAt: integer("closed_at", { mode: "timestamp_ms" }),
     ...timestamps,

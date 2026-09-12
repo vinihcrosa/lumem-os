@@ -192,7 +192,7 @@ dois lugares é duas regras, e a segunda a divergir seria a do arrasto.
 
 ---
 
-## Fase 2 — a leitura
+## Fase 2 — a leitura · **entregue**
 
 #### T6: A consulta do quadro
 
@@ -216,6 +216,22 @@ tarefa com sessão viva e turno em voo diz o verbo com os minutos; **matar a ses
 na próxima leitura, sem nenhuma escrita**; e o selo guarda o **verbo** (`implementando`, `revisando`,
 `testando`) e devolve o substantivo só quando está esperando.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-12) — `sealOf` é **função pura**, e é isso que torna os cinco estados
+testáveis sem subir agente.
+
+> **A medição da fase 0 decidiu o critério.** O selo é derivado de **turno em voo**, não de processo
+> vivo: 7 dos 15 transcripts deste repositório nunca receberam um prompt, e cada um deles pintaria
+> `implementando há 3 h` se o critério fosse *"existe sessão"*. O `AcpManager` ganhou
+> `turnStartedAt` e `liveTurns()` por causa disso.
+>
+> **O par que o §12 pede está provado**, e é o teste de que ele é derivado: o turno some da lista e o
+> selo volta para `manual` na leitura seguinte, **sem nenhuma escrita**. Conferido por mutação —
+> tirar o curto-circuito do `manual` derruba dois casos.
+>
+> Duas decisões pequenas com motivo escrito: com dois turnos na mesma tarefa o relógio conta do
+> **mais antigo** (contar do mais recente faria ele andar para trás), e numa coluna **sem papel** —
+> você assumiu o volante em `ready_to_merge` — o selo é `working` com `role: null`, porque inventar
+> um quarto papel seria inventar um quarto encaixe, que o §6 tirou de escopo.
 
 > **O teste de que ele é derivado é o teste de que ninguém o escreveu.** É o mesmo par de casos que o
 > §12 da PRD pede, e o único dos dois que a F1 alcança.

@@ -455,6 +455,42 @@ describe("a ordem dentro da coluna", () => {
   });
 });
 
+describe("task.board", () => {
+  it("serve o quadro inteiro numa chamada, com o selo derivado", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    await api.task.create({ workspaceId, projectId, title: "na fila" });
+
+    const board = await api.task.board({ workspaceId });
+
+    expect(board.map((column) => column.status)).toEqual([
+      "backlog",
+      "open",
+      "in_progress",
+      "review",
+      "testing",
+      "ready_to_merge",
+      "done",
+    ]);
+    // Com a autonomia desligada — o default do produto — todo cartão diz que
+    // ninguém pegou. Sem este estado, o quadro desenharia o mesmo pixel de uma
+    // esteira travada.
+    expect(board.find((column) => column.status === "open")!.cards[0]!.seal).toEqual({
+      kind: "manual",
+    });
+  });
+
+  it("um workspace sem tarefa devolve sete colunas vazias, e não erro", async () => {
+    const { api } = caller();
+    const workspace = await api.workspace.create({ name: "vazio" });
+
+    const board = await api.task.board({ workspaceId: workspace.id });
+
+    expect(board).toHaveLength(7);
+    expect(board.flatMap((column) => column.cards)).toHaveLength(0);
+  });
+});
+
 describe("a medida de cerimônia", () => {
   it("conta só as sessões deste workspace", async () => {
     /*

@@ -275,9 +275,25 @@ export interface TaskUsage {
  */
 export function usageByTask(
   db: Db,
-  { workspaceId, period, now }: { workspaceId: string; period: UsageWindow; now?: Date },
+  {
+    workspaceId,
+    period,
+    now,
+  }: { workspaceId: string; period: UsageWindow | "all"; now?: Date },
 ): TaskUsage[] {
-  const since = windowStart(period, now);
+  /*
+   * `"all"` existe porque o cartão do quadro pergunta outra coisa (`028` §4.2).
+   *
+   * A tela do workspace pergunta *"quanto isto gastou nos últimos 7 dias"*, e a
+   * janela é o ponto. O cartão pergunta **"custo até aqui"** — o total de uma
+   * tarefa, que é um número que não tem janela: uma tarefa aberta há dez dias
+   * não ficou mais barata por isso.
+   *
+   * Aqui, e não uma segunda consulta: ter dois lugares somando custo por tarefa
+   * é ter dois números que podem discordar, e o dia em que discordarem ninguém
+   * saberá qual acreditar.
+   */
+  const since = period === "all" ? new Date(0) : windowStart(period, now);
 
   return db
     .select({

@@ -753,3 +753,38 @@ describe("0016 — a ordem na coluna", () => {
     expect(row?.position).toBe(0);
   });
 });
+
+describe("0017 — o relógio do encalhe", () => {
+  it("a tarefa que já estava parada não acorda dizendo 'há 0 s'", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-stall-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(17) });
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'acme')`).run();
+    sqlite
+      .prepare(
+        `INSERT INTO project (id, workspace_id, name, path, default_branch)
+         VALUES ('p1', 'w1', 'api', '/repos/api', 'main')`,
+      )
+      .run();
+    const twoHoursAgo = Date.now() - 2 * 3_600_000;
+    sqlite
+      .prepare(
+        `INSERT INTO task (id, workspace_id, project_id, title, status, created_at, updated_at)
+         VALUES ('t1', 'w1', 'p1', 'parada há duas horas', 'in_progress', ?, ?)`,
+      )
+      .run(twoHoursAgo, twoHoursAgo);
+    sqlite.close();
+
+    const handle = openDatabase({ path });
+    open.push(handle);
+    const [row] = await handle.db.select().from(schema.task).where(eq(schema.task.id, "t1"));
+
+    // Sem o backfill escrito à mão, o DEFAULT é *agora* — e a migração apagaria
+    // exatamente o encalhe que a coluna existe para mostrar.
+    expect(row?.statusChangedAt.getTime()).toBe(twoHoursAgo);
+  });
+});

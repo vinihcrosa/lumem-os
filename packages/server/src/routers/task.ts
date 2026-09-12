@@ -4,6 +4,8 @@ import { and, eq } from "drizzle-orm";
 
 import { project, session, worktree } from "../db/schema.js";
 import { createTaskRepository, TASK_STATUSES } from "../repositories/task.js";
+import { boardOf } from "../tasks/board.js";
+import { liveTurnsByTask, sealOf } from "../tasks/seal.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 
 /**
@@ -76,6 +78,34 @@ export const taskRouter = router({
         projectId: input.projectId,
       }),
     ),
+
+  /**
+   * O quadro inteiro, numa leitura (`028` F1, T6 e T7).
+   *
+   * Sete colunas sempre, mesmo vazias, com o selo de cada cartão **derivado** na
+   * resposta — nunca guardado. Uma chamada, e não uma por coluna: nenhuma das
+   * sete veria as outras, e um cartão que trocasse de coluna no meio apareceria
+   * duas vezes ou nenhuma.
+   */
+  board: publicProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().min(1),
+        projectId: z.string().min(1).optional(),
+      }),
+    )
+    .query(({ ctx, input }) => {
+      const columns = boardOf(ctx.db, input);
+      const byTask = liveTurnsByTask(ctx.db, ctx.acpManager.liveTurns());
+
+      return columns.map((column) => ({
+        status: column.status,
+        cards: column.cards.map((card) => ({
+          ...card,
+          seal: sealOf({ status: column.status, liveTurns: byTask.get(card.id) ?? [] }),
+        })),
+      }));
+    }),
 
   get: publicProcedure
     .input(idSchema)

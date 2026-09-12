@@ -304,6 +304,16 @@ interface Session {
    */
   promptInFlight: boolean;
   /**
+   * Desde quando o turno em voo está em voo, ou `null`.
+   *
+   * Existe para o selo do quadro (`028` §4.1, T7), que diz *"implementando há 12
+   * min"* — e a medição da fase 0 é o motivo de ele ser o **turno** e não o
+   * processo: **7 dos 15 transcripts deste repositório não têm um único
+   * turno**. Uma sessão aberta e nunca usada desenharia `implementando há 3 h`
+   * se o critério fosse *"existe processo"*.
+   */
+  turnStartedAt: Date | null;
+  /**
    * This is a probe, not a session (onboarding D4).
    *
    * The only thing it changes is who gets told when the process dies: a probe has
@@ -832,6 +842,7 @@ export class AcpManager {
       pendingPermissions: new Map(),
       optionTypes: new Map(),
       promptInFlight: false,
+      turnStartedAt: null,
       probe,
       // One bridge per session, rooted at its own cwd. A shared one would need
       // the root passed on every call, and the call that forgot would read
@@ -888,6 +899,7 @@ export class AcpManager {
 
     session.turnId = newId();
     session.promptInFlight = true;
+    session.turnStartedAt = new Date();
     // Whatever the agent said before this moment was it retelling a conversation the
     // daemon already had on disk (D14). From here on it is answering.
     session.replaying = false;
@@ -942,6 +954,7 @@ export class AcpManager {
     session.openToolCalls.clear();
 
     session.promptInFlight = false;
+    session.turnStartedAt = null;
     this.emit(session, { type: "turn_end", stopReason });
     return stopReason;
   }
@@ -1104,6 +1117,20 @@ export class AcpManager {
 
   list(): AcpSessionInfo[] {
     return [...this.sessions.values()].map((session) => ({ ...session.info }));
+  }
+
+  /**
+   * Quais sessões têm turno **em voo**, e desde quando (`028` T7).
+   *
+   * Não é `list()` filtrado por estado: uma sessão viva e ociosa não é alguém
+   * trabalhando. A fase 0 mediu que **7 dos 15 transcripts deste repositório
+   * nunca receberam um prompt** — com o critério de processo, cada uma delas
+   * pintaria um selo dizendo que há alguém lá.
+   */
+  liveTurns(): { sessionId: string; startedAt: Date }[] {
+    return [...this.sessions.values()]
+      .filter((session) => session.promptInFlight && session.turnStartedAt !== null)
+      .map((session) => ({ sessionId: session.info.id, startedAt: session.turnStartedAt! }));
   }
 
   kill(id: string): void {

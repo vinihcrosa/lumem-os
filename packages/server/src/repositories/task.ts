@@ -321,6 +321,9 @@ export function createTaskRepository(db: Db): TaskRepository {
               position,
               reason: status === "dropped" ? (options.reason ?? null) : current.reason,
               closedAt: CLOSED.has(status) ? (current.closedAt ?? new Date()) : null,
+              // O relógio do encalhe zera **aqui**, e só aqui: é a troca de
+              // coluna que ele mede, não a última vez que alguém mexeu.
+              statusChangedAt: new Date(),
               updatedAt: new Date(),
             })
             .where(eq(task.id, id))
@@ -374,6 +377,10 @@ export function createTaskRepository(db: Db): TaskRepository {
                     status: target.status,
                     reason: target.status === "dropped" ? (target.reason ?? null) : current.reason,
                     closedAt: CLOSED.has(target.status) ? (current.closedAt ?? new Date()) : null,
+                    // Reordenar **dentro** da mesma coluna não é entrar nela: o
+                    // cartão que você subiu para o topo continua parado há duas
+                    // horas, e o relógio tem que continuar dizendo isso.
+                    ...(current.status === target.status ? {} : { statusChangedAt: new Date() }),
                     updatedAt: new Date(),
                   }
                 : { position },
