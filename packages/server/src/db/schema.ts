@@ -819,6 +819,21 @@ export const task = sqliteTable(
     title: text("title").notNull(),
     /** Markdown. Vazio é um corpo legítimo — nem toda tarefa precisa de um. */
     body: text("body").notNull().default(""),
+    /**
+     * As sete colunas do quadro (`028-autonomous-orchestration` §4), mais os
+     * dois que não são coluna: `proposed` mora na fila de Propostas e `dropped`
+     * sai do quadro e vira arquivo.
+     *
+     * **`backlog` e `open` são estados separados, e isso é a decisão desta
+     * coluna.** As duas parecem "não começou", e colapsá-las apagaria a única
+     * fronteira que o quadro tem: To-Do (`open`) é *onde mora a autorização* —
+     * entrar na fila é consentimento —, e Backlog é *existe, ainda não é para
+     * fazer*. Com um estado só, uma tarefa que o tracker despejou viraria
+     * trabalho autorizado sem ninguém ter consentido.
+     *
+     * O default continua `open`: quem cria pela tela está dizendo que é para
+     * fazer, e nenhuma tarefa escrita antes desta migração muda de coluna.
+     */
     status: text("status").notNull().default("open"),
     createdBy: text("created_by").notNull().default("human"),
     /**
@@ -851,7 +866,7 @@ export const task = sqliteTable(
   (table) => [
     check(
       "task_status",
-      sql`${table.status} IN ('proposed', 'open', 'in_progress', 'review', 'done', 'dropped')`,
+      sql`${table.status} IN ('proposed', 'backlog', 'open', 'in_progress', 'review', 'testing', 'ready_to_merge', 'done', 'dropped')`,
     ),
     check("task_created_by", sql`${table.createdBy} IN ('human', 'agent')`),
     // Os dois sentidos, como o `session_agent_config`: tarefa de agente sem

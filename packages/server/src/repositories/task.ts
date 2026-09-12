@@ -23,11 +23,18 @@ import { withConstraints } from "./base.js";
 export type TaskStatus = TaskRow["status"];
 export type TaskActor = "human" | "agent";
 
+/**
+ * Em ordem de quadro (`028` §4), com os dois que não são coluna nas pontas:
+ * `proposed` é a fila de Propostas da `022`, e `dropped` sai do quadro.
+ */
 export const TASK_STATUSES = [
   "proposed",
+  "backlog",
   "open",
   "in_progress",
   "review",
+  "testing",
+  "ready_to_merge",
   "done",
   "dropped",
 ] as const;
@@ -44,14 +51,24 @@ const CLOSED: ReadonlySet<string> = new Set(["done", "dropped"]);
  *
  * Um `CASE` e não uma coluna de ordenação: a ordem é derivada do estado, e uma
  * coluna guardada poderia discordar dele.
+ *
+ * **Os três estados da `028` entraram nomeados, e não pelo `ELSE`** (T3). O
+ * `ELSE` existe para `dropped`, que saiu do fluxo; cair nele poria
+ * `ready_to_merge` — *a esteira acabou, falta você* — atrás de uma tarefa
+ * descartada. `ready_to_merge` passa até na frente de `review` pelo critério que
+ * a lista já usava: o que espera **você** vem antes do que espera a máquina.
+ * A ordem relativa dos quatro estados originais não mudou.
  */
 const STATUS_RANK = sql`CASE ${task.status}
-  WHEN 'review' THEN 0
-  WHEN 'in_progress' THEN 1
-  WHEN 'proposed' THEN 2
-  WHEN 'open' THEN 3
-  WHEN 'done' THEN 4
-  ELSE 5 END`;
+  WHEN 'ready_to_merge' THEN 0
+  WHEN 'review' THEN 1
+  WHEN 'testing' THEN 2
+  WHEN 'in_progress' THEN 3
+  WHEN 'proposed' THEN 4
+  WHEN 'open' THEN 5
+  WHEN 'backlog' THEN 6
+  WHEN 'done' THEN 7
+  ELSE 8 END`;
 
 /**
  * O que cada ator pode escrever.

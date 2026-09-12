@@ -550,3 +550,136 @@ describe("a tarefa entra num banco que já existia", () => {
     expect(row?.taskId).toBeNull();
   });
 });
+
+describe("0015 — o quadro de sete colunas", () => {
+  /**
+   * Um banco parado em 0014, com a tarefa e a sessão que apontam uma para a
+   * outra.
+   *
+   * A tarefa aqui não é enfeite: `0015` é um CHECK novo, e um CHECK novo em
+   * SQLite é **tabela recriada** — `DROP TABLE task` com uma estrangeira de
+   * `session` apontando para ela. É o mesmo caminho em que a migração da `022`
+   * perdeu a ação do estrangeiro, e é por isso que este arquivo existe.
+   */
+  function databaseBeforeBoard(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-board-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(15) });
+
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'acme')`).run();
+    sqlite
+      .prepare(
+        `INSERT INTO project (id, workspace_id, name, path, default_branch)
+         VALUES ('p1', 'w1', 'api', '/repos/api', 'main')`,
+      )
+      .run();
+    // Uma em cada estado que a revisão anterior conhecia, para provar que
+    // nenhuma muda de coluna.
+    for (const [id, status] of [
+      ["t-proposed", "proposed"],
+      ["t-open", "open"],
+      ["t-progress", "in_progress"],
+      ["t-review", "review"],
+    ] as const) {
+      sqlite
+        .prepare(
+          `INSERT INTO task (id, workspace_id, project_id, title, status)
+           VALUES (?, 'w1', 'p1', ?, ?)`,
+        )
+        .run(id, `tarefa ${status}`, status);
+    }
+    sqlite
+      .prepare(
+        `INSERT INTO session (id, kind, scope_type, scope_id, cwd, command, task_id)
+         VALUES ('se-1', 'shell', 'project', 'p1', '/repos/api', 'bash', 't-open')`,
+      )
+      .run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("nenhuma tarefa existente muda de coluna", async () => {
+    const handle = openDatabase({ path: databaseBeforeBoard() });
+    open.push(handle);
+
+    const rows = await handle.db.select().from(schema.task);
+
+    expect(Object.fromEntries(rows.map((row) => [row.id, row.status]))).toEqual({
+      "t-proposed": "proposed",
+      "t-open": "open",
+      "t-progress": "in_progress",
+      "t-review": "review",
+    });
+  });
+
+  it("a sessão continua apontando para a tarefa depois da tabela ser recriada", async () => {
+    const handle = openDatabase({ path: databaseBeforeBoard() });
+    open.push(handle);
+
+    const [row] = await handle.db
+      .select()
+      .from(schema.session)
+      .where(eq(schema.session.id, "se-1"));
+
+    expect(row?.taskId).toBe("t-open");
+  });
+
+  it("a ação do estrangeiro sobrevive à recriação — apagar anula, não recusa", async () => {
+    const handle = openDatabase({ path: databaseBeforeBoard() });
+    open.push(handle);
+    const db = handle.db;
+
+    // Sem isto a migração passa e o defeito só aparece no dia em que alguém
+    // apaga uma tarefa: com `NO ACTION` o delete seria **recusado** pela sessão
+    // que a serviu, que é o oposto do que o schema declara.
+    await db.delete(schema.task).where(eq(schema.task.id, "t-open"));
+
+    const [row] = await db
+      .select()
+      .from(schema.session)
+      .where(eq(schema.session.id, "se-1"));
+    expect(row?.taskId).toBeNull();
+  });
+
+  it("os dois índices continuam de pé", async () => {
+    const handle = openDatabase({ path: databaseBeforeBoard() });
+    open.push(handle);
+
+    const rows = await handle.db.all<{ name: string }>(
+      sql`SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'task'`,
+    );
+
+    expect(rows.map((row) => row.name)).toEqual(
+      expect.arrayContaining(["task_by_workspace", "task_by_project"]),
+    );
+  });
+
+  it("aceita os três estados novos, e continua recusando um oitavo", async () => {
+    const handle = openDatabase({ path: databaseBeforeBoard() });
+    open.push(handle);
+    const db = handle.db;
+
+    for (const status of ["backlog", "testing", "ready_to_merge"] as const) {
+      await db
+        .insert(schema.task)
+        .values({ id: `t-${status}`, workspaceId: "w1", projectId: "p1", title: status, status });
+    }
+
+    await expect(
+      db.insert(schema.task).values({
+        id: "t-merged",
+        workspaceId: "w1",
+        projectId: "p1",
+        title: "merged",
+        // A coluna é `text` no drizzle, então o compilador deixa passar: quem
+        // recusa é o CHECK, e é ele que está em teste.
+        status: "merged",
+      }),
+    ).rejects.toThrow();
+  });
+});

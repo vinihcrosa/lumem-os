@@ -171,6 +171,81 @@ describe("task.setStatus", () => {
   });
 });
 
+/**
+ * As sete colunas do quadro (`028-autonomous-orchestration` F1, T3).
+ *
+ * O quadro tem sete etapas e o modelo da `022` tinha quatro estados úteis. O
+ * que decidiu esta task não foram os dois estados que faltavam — esses são
+ * mecânicos — e sim a **fronteira**: `Backlog` e `To-Do` mapeariam para o mesmo
+ * `open`, e o §4 da PRD diz que a To-Do é *onde mora a autorização*. Colapsar as
+ * duas apagaria exatamente o que a coluna existe para marcar.
+ */
+describe("as sete colunas do quadro", () => {
+  it("aceita os três estados novos", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+
+    for (const status of ["backlog", "testing", "ready_to_merge"] as const) {
+      const created = await api.task.create({ workspaceId, projectId, title: status });
+      const moved = await api.task.setStatus({ id: created.id, status });
+      expect(moved).toMatchObject({ status, closedAt: null });
+    }
+  });
+
+  it("backlog não é open — a fronteira da autorização é um estado, não um rótulo", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "ainda não é pra fazer" });
+
+    await api.task.setStatus({ id: created.id, status: "backlog" });
+
+    // A leitura filtrada é o que a fila da esteira vai usar. Se `backlog`
+    // respondesse a um filtro `open`, uma tarefa que o tracker despejou viraria
+    // trabalho autorizado sem ninguém ter consentido.
+    const naFila = await api.task.listByWorkspace({ workspaceId, status: "open" });
+    const noBacklog = await api.task.listByWorkspace({ workspaceId, status: "backlog" });
+
+    expect(naFila).toHaveLength(0);
+    expect(noBacklog).toHaveLength(1);
+  });
+
+  it("uma tarefa criada por você continua nascendo na To-Do", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+
+    const created = await api.task.create({ workspaceId, projectId, title: "é pra fazer" });
+
+    // Este é o caso que a migração não pode mexer: `open` continua sendo a
+    // To-Do, e nenhuma tarefa existente muda de coluna por causa da T3.
+    expect(created.status).toBe("open");
+  });
+
+  it("nenhum dos três novos carimba data de fechamento", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "x" });
+
+    await api.task.setStatus({ id: created.id, status: "ready_to_merge" });
+    const row = await context.db.query.task.findFirst({ where: eq(task.id, created.id) });
+
+    // `ready_to_merge` é a esteira acabando, não a tarefa: o custo continua
+    // aberto e a worktree não é candidata a remoção. O CHECK `task_closed_at`
+    // cobra os dois sentidos.
+    expect(row?.closedAt).toBeNull();
+  });
+
+  it("recusa um oitavo valor", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "x" });
+
+    await expect(
+      // @ts-expect-error — o enum do zod é justamente o que está em teste
+      api.task.setStatus({ id: created.id, status: "merged" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+});
+
 describe("o agente e o que está fechado", () => {
   it("não reabre uma tarefa done, e nem uma dropped", async () => {
     /*
