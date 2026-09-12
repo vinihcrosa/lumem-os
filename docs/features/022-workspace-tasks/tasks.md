@@ -7,7 +7,8 @@
 a [T4](open-questions.md) e a [T8](open-questions.md) — mudaram de forma depois de uma rodada de
 explicação, e as duas mudaram pelo mesmo motivo: a
 [`028`](../028-autonomous-orchestration/prd.md) não existia quando foram escritas. **17 tasks em 5
-fases.**
+fases**, e a [T1](#t1-a-prd-sai-de-proposta-e-a-nota-cai-na-007) já está entregue — ela é o próprio
+gesto de sair de proposta.
 
 A ordem tem duas regras, e as duas são do repositório:
 
@@ -74,7 +75,9 @@ certas.
 `docs/features/007-workspace-memory/prd.md`, `docs/README.md`
 **Done when**: `pnpm docs:check` verde, e a `007` diz, no requisito, que a lista se mudou e para onde.
 **Gate**: `pnpm docs:check`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12, no mesmo commit que criou este arquivo — é o que *fez* a PRD
+sair de proposta. A nota na `007` delimita o que sobrou de pé: origem, evidência, diff, os três verbos
+e o portão de escrita continuam inteiros; só o endereço mudou
 
 #### T2: `lumem-tasks.html` — as cinco telas que faltam
 
