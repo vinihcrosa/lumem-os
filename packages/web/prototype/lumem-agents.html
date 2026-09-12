@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — agentes nomeados, os três encaixes e a autonomia</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<!-- O rodapé da sidebar é o da `second-agent`, sem cópia: esta tela precisa
+     mostrar a colisão de vocabulário que ela criou, então usa a peça real. -->
+<link rel="stylesheet" href="lumem-agent-login.css">
+<link rel="stylesheet" href="lumem-sidebar-actions.css">
+<link rel="stylesheet" href="lumem-second-agent.css">
+<link rel="stylesheet" href="lumem-agents.css">
+</head>
+<body>
+
+<div class="doc">
+
+  <header>
+    <h1 class="doc__h1">Os agentes, e o que eles podem fazer com o seu disco</h1>
+    <p class="doc__lede">
+      A esteira tem <b>três encaixes</b> — implementador, revisor, testador —, e a resposta da
+      <code>Q23</code> foi que eles não são constantes do código: cada um aponta para um
+      <b>agente nomeado</b>, com granularidade de projeto. Um <code>revisor-severo</code> no
+      <code>acme-api</code> e um <code>revisor-rapido</code> no <code>acme-web</code> são
+      configuração, não código.
+    </p>
+    <p class="doc__lede">
+      E a frase que decide esta tela inteira está no §5.2 da PRD: <b>permissão e orçamento moram
+      no agente, não no encaixe.</b> É o que faz um <code>revisor-so-leitura</code> existir de
+      verdade — ele <b>não consegue</b> escrever, em vez de ter sido instruído a não escrever.
+      <b>Instrução não é limite.</b> O trabalho do desenho é fazer isso ser visível: se a
+      garantia só existe no banco, ela não muda o que a pessoa acredita.
+    </p>
+    <p class="doc__lede">
+      Sete quadros. O primeiro é uma colisão de vocabulário que esta feature herdou da
+      <code>021</code> e não pode ignorar. Do segundo ao quarto, o catálogo e as três faixas de
+      permissão — a <code>Q25</code>, que a PRD mandou escrever <b>antes da primeira task</b>. O
+      quinto é a cascata; o sexto, a autonomia junto do orçamento, porque a tela onde se liga tem
+      que ser a tela onde se entende. O sétimo é o que acontece quando o adaptador não está lá.
+    </p>
+  </header>
+
+  <!-- =================================================================== 1 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">1</span>duas coisas se chamam "agente", e uma delas tem que mudar de nome</h2>
+      <p class="sec__d">
+        A <a class="lnk" href="#">second-agent</a> pôs no rodapé da sidebar um cabeçalho
+        <b>Agentes</b> com uma linha por <code>claude</code> e <code>codex</code>. Aquilo são
+        <b>adaptadores</b>: transporte, versão fixada, login. Esta feature traz
+        <code>revisor-severo</code>, <code>testador</code>, <code>revisor-so-leitura</code> — que
+        <b>também</b> se chamam agentes, e que <em>apontam</em> para um adaptador.
+      </p>
+      <p class="sec__d">
+        <b>Não dá para ter as duas com o mesmo nome.</b> A cascata da
+        <code>Q33</code> se escreve <em>"o encaixe revisor usa o agente
+        <code>revisor-severo</code>, que fala pelo adaptador <code>codex</code>"</em> — e essa
+        frase é impossível se as duas pontas são "agente".
+      </p>
+      <p class="sec__d">
+        <b>Decidido — e custou uma palavra.</b> O rodapé passa a dizer <b>Adaptadores</b>
+        (<a class="lnk" href="#">Q35</a>, respondida em <b>2026-09-12</b>). É o que ele sempre
+        listou: a linha diz <code>conectado</code>, que é estado de login, não de trabalho. Nada mais
+        muda na <code>021</code> — uma linha por adaptador, o <code>＋</code> no cabeçalho, os três
+        estados —, e o custo de não fazer seria uma tela onde <em>agente</em> quer dizer duas coisas
+        dependendo de onde você está olhando.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o rodapé de hoje, e o de depois · <b>uma palavra</b></div>
+      <div class="pairing">
+        <div class="pairing__i">
+          <div class="pairing__l"><b>hoje</b> — e o catálogo novo colide com ele</div>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="tree"><div class="tree__label">Projetos</div>
+                <button class="row row--project"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">acme-api</span></button>
+              </div>
+              <div class="sidebar__foot">
+                <div class="foot-head"><span class="foot-head__label">Agentes</span><button class="act">＋</button></div>
+                <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+                <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">codex</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pairing__i">
+          <div class="pairing__l"><b>depois</b> — o rodapé diz o que ele sempre listou</div>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="tree"><div class="tree__label">Projetos</div>
+                <button class="row row--project"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">acme-api</span></button>
+              </div>
+              <div class="sidebar__foot">
+                <div class="foot-head"><span class="foot-head__label">Adaptadores</span><button class="act">＋</button></div>
+                <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+                <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">codex</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>A palavra <em>agente</em> não fica órfã:</b> ela passa a ser o que você nomeia,
+        instrui e dá orçamento. <code>claude</code> nunca foi isso — é por onde ele fala.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 2 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">2</span>o catálogo — e a coluna que responde "o que ele pode fazer com o meu disco"</h2>
+      <p class="sec__d">
+        Ele mora na <b>tela do workspace</b>, abaixo do consumo, e não numa tela de
+        configuração própria — pelo mesmo motivo do quadro: a autonomia e o que a autonomia
+        gasta têm que ser lidos no mesmo lugar.
+      </p>
+      <p class="sec__d">
+        A linha tem quatro coisas, e a <b>faixa de permissão vem antes do orçamento</b>. Dinheiro
+        é o risco nº 1 da PRD; permissão é o risco que não tem número, e por isso ela não pode
+        estar depois.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o painel, na tela do workspace <b>Acme</b></div>
+      <div class="pane">
+        <div class="pane__sec">
+          <div class="pane__h">
+            <span class="pane__t">Agentes</span>
+            <span class="count">5</span>
+            <span class="spacer"></span>
+            <span class="dim">nome · de onde fala · o que pode · quanto pode gastar</span>
+            <button class="btn btn--sm focus-ring"><span class="btn__glyph">＋</span>agente</button>
+          </div>
+
+          <div class="stack" style="gap: var(--space-6)">
+            <button class="agrow focus-ring">
+              <span class="agrow__n"><span class="glyph glyph--agent">◆</span>implementador</span>
+              <span class="agrow__src">claude · sonnet-5</span>
+              <span class="band-chip band-chip--wide"><span class="band-chip__g">◇</span>larga na worktree</span>
+              <span class="agrow__use">implementador em <b>acme-api</b> e <b>acme-web</b></span>
+              <span class="agrow__cost">US$ 2,00 · 15 turnos</span>
+              <span class="agrow__caret">▸</span>
+            </button>
+
+            <button class="agrow focus-ring">
+              <span class="agrow__n"><span class="glyph glyph--agent">◆</span>revisor-severo</span>
+              <span class="agrow__src">codex · gpt-5-codex</span>
+              <span class="band-chip band-chip--read"><span class="band-chip__g">▤</span>só leitura</span>
+              <span class="agrow__use">revisor em <b>acme-api</b></span>
+              <span class="agrow__cost">US$ 0,50 · 6 turnos</span>
+              <span class="agrow__caret">▸</span>
+            </button>
+
+            <button class="agrow focus-ring">
+              <span class="agrow__n"><span class="glyph glyph--agent">◆</span>revisor-rapido</span>
+              <span class="agrow__src">claude · haiku-4.5</span>
+              <span class="band-chip band-chip--read"><span class="band-chip__g">▤</span>só leitura</span>
+              <span class="agrow__use">revisor em <b>acme-web</b></span>
+              <span class="agrow__cost">US$ 0,20 · 4 turnos</span>
+              <span class="agrow__caret">▸</span>
+            </button>
+
+            <button class="agrow focus-ring">
+              <span class="agrow__n"><span class="glyph glyph--agent">◆</span>testador</span>
+              <span class="agrow__src">claude · opus-5</span>
+              <span class="band-chip band-chip--out"><span class="band-chip__g">▲</span>sobe os projetos</span>
+              <span class="agrow__use">testador no workspace inteiro</span>
+              <span class="agrow__cost">US$ 1,00 · 20 turnos</span>
+              <span class="agrow__caret">▸</span>
+            </button>
+
+            <button class="agrow focus-ring">
+              <span class="agrow__n"><span class="glyph glyph--agent">◆</span>integrador</span>
+              <span class="agrow__src">claude · sonnet-5</span>
+              <span class="band-chip band-chip--remote"><span class="band-chip__g">⚠</span>escreve no host</span>
+              <span class="agrow__use">nenhum encaixe usa — <b>criado e não ligado</b></span>
+              <span class="agrow__cost">US$ 1,00 · 10 turnos</span>
+              <span class="agrow__caret">▸</span>
+            </button>
+          </div>
+
+          <p class="pane__d">
+            A última linha é a que o catálogo precisa saber dizer: <b>um agente existe sem estar
+            em uso.</b> A coluna do meio conta em quais encaixes ele está — e
+            <code>nenhum encaixe usa</code> é informação, não erro. Apagar por desuso é o tipo
+            de limpeza que apaga o que você ia usar amanhã.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================== 3 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">3</span>um agente aberto — e as três faixas da Q25</h2>
+      <p class="sec__d">
+        <b>Permissivo sem borda escrita é ausência, não decisão.</b> Você disse "bem
+        permissivas" e está certo — o princípio 4 é que um agente que pergunta tudo não é
+        autônomo, é uma criança. Mas a borda tem que estar escrita em algum lugar, e o melhor
+        lugar é onde ela é escolhida.
+      </p>
+      <p class="sec__d">
+        Então a faixa não é um <code>select</code> de três palavras: cada opção carrega
+        <b>a frase do que ela permite</b>, porque é essa frase que você vai ter que defender
+        depois. Três opções, e a terceira não é uma opção — é um portão.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o <b>implementador</b>, aberto · a faixa larga é o default e é onde a produtividade mora</div>
+      <div class="stack" style="gap: 0">
+        <div class="agrow is-open">
+          <span class="agrow__n"><span class="glyph glyph--agent">◆</span>implementador</span>
+          <span class="agrow__src">claude · sonnet-5</span>
+          <span class="band-chip band-chip--wide"><span class="band-chip__g">◇</span>larga na worktree</span>
+          <span class="agrow__use">implementador em <b>acme-api</b> e <b>acme-web</b></span>
+          <span class="agrow__cost">US$ 2,00 · 15 turnos</span>
+          <span class="agrow__caret">▾</span>
+        </div>
+
+        <div class="agbody">
+          <div class="agbody__g2">
+            <div class="fld">
+              <span class="fld__l">nome</span>
+              <div class="inp inp--mono">implementador</div>
+              <span class="fld__h">é este nome que a cascata aponta. Renomear renomeia em todo encaixe que o usa.</span>
+            </div>
+            <div class="fld">
+              <span class="fld__l">de onde ele fala</span>
+              <div class="agbody__g2" style="gap: var(--space-8)">
+                <div class="inp"><span class="glyph glyph--agent">◆</span>claude<span class="inp__caret">▾</span></div>
+                <div class="inp inp--mono">sonnet-5<span class="inp__caret">▾</span></div>
+              </div>
+              <span class="fld__h">adaptador e modelo. O adaptador precisa estar conectado — o rodapé da sidebar é quem diz.</span>
+            </div>
+          </div>
+
+          <div class="fld">
+            <span class="fld__l">instrução</span>
+            <div class="inp inp--area">
+              Você implementa a tarefa até a PR estar aberta e o CI verde. Commits pequenos, mensagem
+              no padrão do repositório. Se a tarefa depender de uma decisão de produto que não está
+              no código nem na memória do workspace, <b>pare e pergunte</b> — não escolha por conta.
+            </div>
+            <span class="fld__h">
+              Isto é comportamento, não permissão. O que ele <b>pode</b> está logo abaixo, e nenhuma
+              frase escrita aqui amplia aquilo.
+            </span>
+          </div>
+
+          <div class="fld">
+            <span class="fld__l">o que ele pode fazer</span>
+            <div class="bands">
+              <button class="band band--wide focus-ring" aria-pressed="true">
+                <div class="band__h"><span class="band__dot"></span><span class="band__t">larga, dentro da worktree e dos scripts do projeto</span><span class="band__n">o default</span></div>
+                <div class="band__d">
+                  Escreve arquivo, apaga arquivo, roda comando, instala dependência, roda a suíte,
+                  commita e empurra <b>a própria branch</b> — tudo sem perguntar. É aqui que a
+                  produtividade mora: nos 20 minutos do <a class="lnk" href="#">UC3</a> o agente
+                  instalou dependência, rodou a suíte quatro vezes e criou seis arquivos, e
+                  <b>nada disso te perguntou</b>.
+                </div>
+              </button>
+
+              <button class="band band--out focus-ring" aria-pressed="false">
+                <div class="band__h"><span class="band__dot"></span><span class="band__t">fora da worktree — ele <b>para</b></span><span class="band__n">sem opção de ligar</span></div>
+                <div class="band__d">
+                  Escrever em <code>~</code>, em outro checkout, ou em qualquer caminho fora do
+                  diretório desta worktree <b>interrompe a tarefa e pergunta</b>. Não existe
+                  "permitir sempre": a borda da faixa larga é o que faz ela ser aceitável.
+                </div>
+              </button>
+
+              <div class="gate">
+                <div class="gate__h">
+                  <span class="gate__g">⚠</span>
+                  <span class="gate__t">escrita no host remoto — <b>nunca sozinho</b></span>
+                </div>
+                <ul class="gate__l">
+                  <li class="gate__i">
+                    <span class="sw sw--danger" aria-pressed="false" role="switch"><span class="sw__k"></span></span>
+                    <span>pode <b>forçar</b> a própria branch (<code>push --force-with-lease</code>) quando o rebase for dele</span>
+                  </li>
+                  <li class="gate__i">
+                    <span class="sw sw--danger" aria-pressed="false" role="switch"><span class="sw__k"></span></span>
+                    <span>pode <b>apagar branch remota</b> depois que a PR dela foi mesclada</span>
+                  </li>
+                  <li class="gate__i">
+                    <span class="sw sw--danger" aria-pressed="false" role="switch" aria-disabled="true"><span class="sw__k"></span></span>
+                    <span>
+                      pode <b>mesclar a própria PR</b> com os checks verdes e a revisão aprovada
+                      — <b class="dim">indisponível na v1</b>, e a PRD diz por quê: é a única ação
+                      sem desfazer barato
+                    </span>
+                  </li>
+                </ul>
+                <div class="band__d">
+                  Empurrar a própria branch <b>não</b> está nesta lista: isso é a faixa larga,
+                  senão não existe PR. O que mora aqui é o que o <code>git</code> de outra pessoa
+                  vê acontecer sem ninguém ter apertado nada.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="agbody__g2">
+            <div class="fld">
+              <span class="fld__l">orçamento deste agente</span>
+              <div class="caps" style="grid-template-columns: repeat(2, minmax(0,1fr))">
+                <div class="cap"><span class="cap__l">por tarefa</span><span class="cap__v cap__v--cost">US$ 2,00</span><span class="cap__d">para, bloqueia, e a worktree fica</span></div>
+                <div class="cap"><span class="cap__l">turnos</span><span class="cap__v">15</span><span class="cap__d">o que vier primeiro</span></div>
+              </div>
+            </div>
+            <div class="fld">
+              <span class="fld__l">onde ele está em uso</span>
+              <div class="chips">
+                <span class="chip"><span class="glyph glyph--project">■</span>acme-api · implementador</span>
+                <span class="chip"><span class="glyph glyph--project">■</span>acme-web · implementador</span>
+              </div>
+              <span class="fld__h">Mexer no orçamento aqui mexe nos dois. É o preço de o agente ser um só.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>A segunda faixa não tem interruptor, e isso é a decisão.</b> Se "fora da worktree"
+        pudesse ser liberado, a primeira faixa deixaria de ser larga-mas-cercada e viraria
+        larga-e-só. A borda é o que compra a permissividade de dentro.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 4 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">4</span><code>revisor-so-leitura</code> tem que <em>parecer</em> incapaz de escrever</h2>
+      <p class="sec__d">
+        É o teste que o briefing mandou fazer, e ele não é sobre o banco: é sobre o que a pessoa
+        acredita ao olhar. Um cartão que diz <em>"instruído a só ler"</em> e um cartão que diz
+        <em>"não consegue escrever"</em> desenham coisas diferentes, e só o segundo justifica
+        deixar um revisor rodando sozinho de madrugada.
+      </p>
+      <p class="sec__d">
+        A resposta é uma lista de <b>pode</b> e <b>não pode</b>, com o <em>não pode</em> em
+        cinza-desabilitado e a razão ao lado: <b>o daemon recusa</b>. A instrução fica em outro
+        campo, e a tela diz na cara que um não alcança o outro.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o <b>revisor-severo</b>, aberto · faixa <b>só leitura</b></div>
+      <div class="stack" style="gap: 0">
+        <div class="agrow is-open">
+          <span class="agrow__n"><span class="glyph glyph--agent">◆</span>revisor-severo</span>
+          <span class="agrow__src">codex · gpt-5-codex</span>
+          <span class="band-chip band-chip--read"><span class="band-chip__g">▤</span>só leitura</span>
+          <span class="agrow__use">revisor em <b>acme-api</b></span>
+          <span class="agrow__cost">US$ 0,50 · 6 turnos</span>
+          <span class="agrow__caret">▾</span>
+        </div>
+        <div class="agbody">
+          <div class="fld">
+            <span class="fld__l">instrução</span>
+            <div class="inp inp--area">
+              Leia o diff contra o corpo da tarefa, as regras do repositório e a memória do
+              workspace. Aprove ou reprove com parecer específico — cite arquivo e linha.
+              <b>Reprovar é barato; carimbar não é aceitável.</b>
+            </div>
+          </div>
+          <div class="fld">
+            <span class="fld__l">o que ele pode fazer · <span class="dim" style="letter-spacing: normal; text-transform: none">só leitura</span></span>
+            <div class="cando">
+              <div class="cando__i cando__i--yes"><span class="cando__g">✓</span><span>ler qualquer arquivo do checkout, e o diff inteiro</span></div>
+              <div class="cando__i cando__i--yes"><span class="cando__g">✓</span><span>rodar comandos <b>de leitura</b>: <code>git log</code>, <code>git diff</code>, <code>grep</code></span></div>
+              <div class="cando__i cando__i--yes"><span class="cando__g">✓</span><span>registrar o parecer na tarefa — que é a única escrita dele, e ela é no Lumem</span></div>
+              <div class="cando__i cando__i--no"><span class="cando__g">✕</span><span>escrever ou apagar arquivo</span><span class="cando__why">o daemon recusa</span></div>
+              <div class="cando__i cando__i--no"><span class="cando__g">✕</span><span>rodar o <code>setup</code>, o <code>test</code> ou qualquer script do projeto</span><span class="cando__why">o daemon recusa</span></div>
+              <div class="cando__i cando__i--no"><span class="cando__g">✕</span><span>commitar, empurrar, ou tocar no <code>git</code> de escrita</span><span class="cando__why">o daemon recusa</span></div>
+            </div>
+          </div>
+          <div class="banner banner--info">
+            <span class="banner__glyph">◈</span>
+            <div>
+              <b>Instrução não é limite.</b> Se a instrução acima pedisse para escrever um
+              arquivo, o pedido chegaria ao daemon e <b>seria recusado do mesmo jeito</b> — o
+              agente veria o erro e seguiria. Os dois campos não se alcançam, e é por isso que
+              esta lista existe em vez de uma frase de confiança.
+            </div>
+          </div>
+          <div class="agbody__g2">
+            <div class="fld">
+              <span class="fld__l">orçamento deste agente</span>
+              <div class="caps" style="grid-template-columns: repeat(2, minmax(0,1fr))">
+                <div class="cap"><span class="cap__l">por tarefa</span><span class="cap__v cap__v--cost">US$ 0,50</span><span class="cap__d">revisão cara é revisão em loop</span></div>
+                <div class="cap"><span class="cap__l">turnos</span><span class="cap__v">6</span><span class="cap__d">ler um diff não pede vinte</span></div>
+              </div>
+            </div>
+            <div class="fld">
+              <span class="fld__l">a taxa de reprovação dele</span>
+              <div class="caps" style="grid-template-columns: repeat(2, minmax(0,1fr))">
+                <div class="cap"><span class="cap__l">últimos 30 d</span><span class="cap__v">2 de 11</span><span class="cap__d">18%</span></div>
+                <div class="cap"><span class="cap__l">voltas médias</span><span class="cap__v">1,2</span><span class="cap__d">teto é 2</span></div>
+              </div>
+              <span class="fld__h">
+                <b>Um revisor que nunca reprova é um carimbo.</b> O número está aqui porque o §8
+                da PRD pede para <em>esperar</em> que ele não seja zero — e zero é a única
+                leitura que significa "desligue isto".
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>A taxa de reprovação não é enfeite de dashboard.</b> Ela é o único jeito de descobrir
+        que a revisão por agente parou de valer alguma coisa — e ela mora na ficha do revisor,
+        não num relatório, porque é ali que você decide trocar o modelo ou a instrução.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 5 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">5</span>a cascata — encaixe é um buraco, não um agente</h2>
+      <p class="sec__d">
+        <b>tarefa → projeto → workspace → default.</b> A tabela existe para que a herança seja
+        <em>vista</em>: se herdado e escolhido se desenhassem igual, você não saberia o que muda
+        quando mexesse no workspace — e descobriria pelo comportamento, de madrugada.
+      </p>
+      <p class="sec__d">
+        Herdado usa <b>a mesma palavra</b>, em cinza, com o glifo do escopo de onde ela veio.
+        Não é uma palavra diferente porque <em>o valor em vigor é o mesmo</em> — escrever
+        "herdado" no lugar do nome esconderia justamente o que está valendo.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">os três encaixes, nos dois projetos do <b>Acme</b></div>
+      <div class="pane">
+        <table class="slots">
+          <thead>
+            <tr>
+              <th>encaixe</th>
+              <th class="is-ws">◈ workspace <span class="dim">— o default</span></th>
+              <th class="is-scope">■ acme-api</th>
+              <th class="is-scope">■ acme-web</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>implementador</td>
+              <td><span class="slotv">implementador</span></td>
+              <td><span class="slotv slotv--inherit"><span class="slotv__g">◈</span>implementador</span></td>
+              <td><span class="slotv slotv--inherit"><span class="slotv__g">◈</span>implementador</span></td>
+            </tr>
+            <tr>
+              <td>revisor</td>
+              <td><span class="slotv">revisor-rapido</span></td>
+              <td><span class="slotv">revisor-severo</span> <span class="dim">escolhido aqui</span></td>
+              <td><span class="slotv slotv--inherit"><span class="slotv__g">◈</span>revisor-rapido</span></td>
+            </tr>
+            <tr>
+              <td>testador</td>
+              <td><span class="slotv">testador</span></td>
+              <td><span class="slotv slotv--inherit"><span class="slotv__g">◈</span>testador</span></td>
+              <td><span class="slotv slotv--inherit"><span class="slotv__g">◈</span>testador</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="pane__d">
+          <b>São três encaixes, e é fixo na v1.</b> Cada encaixe é uma seta no quadro, então um
+          quarto papel — documentador, arquiteto — é uma coluna nova, e aí o quadro deixa de ter
+          forma. A extensibilidade aqui é de <em>quais agentes</em>, e ela cabe inteira; a de
+          <em>quantas etapas</em> é o grafo declarativo do Compozy, e é outra feature.
+        </p>
+        <p class="pane__d">
+          <b>O testador é do workspace e não tem coluna de projeto por acidente</b> — é ele que
+          sobe o <code>acme-api</code> e o <code>acme-web</code> juntos no
+          <a class="lnk" href="#">UC4</a>. Escolher um testador por projeto seria dizer que o
+          defeito mora dentro de um repositório, e o caso que justifica a coluna
+          <code>Testing</code> é justamente o defeito que mora <em>entre</em> dois.
+        </p>
+      </div>
+      <p class="case__note">
+        <b>Falta uma coluna, e ela é de propósito:</b> a resolução também passa pela
+        <b>tarefa</b>, antes do projeto. Ela não está na tabela porque não é configuração —
+        é uma escolha pontual, e o lugar dela é o detalhe daquele cartão. Uma coluna "tarefa"
+        aqui sugeriria um default por tarefa, que não existe.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 6 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">6</span>a autonomia, com o orçamento ao lado — e não em outra tela</h2>
+      <p class="sec__d">
+        <b>Autonomia sem orçamento é um vazamento.</b> É o princípio 1 da PRD, e aqui ele é uma
+        frase sobre <em>layout</em>: o interruptor e os tetos são vizinhos, porque a tela onde se
+        liga tem que ser a tela onde se entende o que se está ligando.
+      </p>
+      <p class="sec__d">
+        Os três níveis nascem <b>desligados</b>, e o do meio existe para ser o degrau:
+        <code>assistido</code> prepara tudo e para antes de enviar. É o que torna a feature
+        adotável — você vê o que ele <em>ia</em> fazer, dez vezes, antes de deixar ir sozinho.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o painel de autonomia · <b>manual</b> selecionado, que é como o workspace nasce</div>
+      <div class="pane">
+        <div class="pane__sec">
+          <div class="pane__h"><span class="pane__t">Autonomia</span><span class="spacer"></span><span class="dim">do workspace · vale para todos os projetos dele</span></div>
+          <div class="levels">
+            <button class="level level--manual focus-ring" aria-pressed="true">
+              <div class="level__h"><span class="level__dot"></span><span class="level__t">manual</span><span class="level__tag">o default</span></div>
+              <div class="level__d">Nada anda sozinho. É o Lumem de hoje: o quadro organiza, e <b>ninguém pega</b>.</div>
+            </button>
+            <button class="level level--assist focus-ring" aria-pressed="false">
+              <div class="level__h"><span class="level__dot"></span><span class="level__t">assistido</span><span class="level__tag">o degrau</span></div>
+              <div class="level__d">Cria a worktree, roda o <code>setup</code>, escreve o prompt — e <b>para antes de enviar</b>. Você lê e aperta.</div>
+            </button>
+            <button class="level level--auto focus-ring" aria-pressed="false">
+              <div class="level__h"><span class="level__dot"></span><span class="level__t">autônomo</span><span class="level__tag">até Ready to Merge</span></div>
+              <div class="level__d">Pega da fila e vai: implementador, revisor, testador. <b>Não mescla</b> — os dois últimos minutos são seus.</div>
+            </button>
+          </div>
+        </div>
+
+        <div class="pane__sec">
+          <div class="pane__h"><span class="pane__t">Tetos</span><span class="spacer"></span><span class="dim">nascem como experimento, e mudam com uso</span></div>
+          <div class="caps">
+            <div class="cap"><span class="cap__l">em paralelo</span><span class="cap__v">1 tarefa</span><span class="cap__d">conta tarefas, não sessões</span></div>
+            <div class="cap"><span class="cap__l">por tarefa</span><span class="cap__v cap__v--cost">US$ 2,00</span><span class="cap__d">o agente pode ter um menor</span></div>
+            <div class="cap"><span class="cap__l">por dia</span><span class="cap__v cap__v--cost">US$ 10,00</span><span class="cap__d">o workspace inteiro</span></div>
+            <div class="cap"><span class="cap__l">voltas da esteira</span><span class="cap__v">2</span><span class="cap__d">na terceira, bloqueia</span></div>
+          </div>
+          <p class="pane__d">
+            <b>Ao estourar: para, bloqueia, mostra o número.</b> Não reduz o escopo sozinha, não
+            pede mais orçamento, não continua — e <b>a worktree fica</b>, com tudo o que já foi
+            feito, porque às vezes é a maior parte do valor.
+          </p>
+        </div>
+
+        <div class="pane__sec">
+          <div class="pane__h"><span class="pane__t">Cota do agente</span><span class="spacer"></span><span class="dim">estourar cota não é estourar orçamento</span></div>
+          <div class="banner">
+            <span class="banner__glyph">◷</span>
+            <div>
+              Limite de taxa do adaptador produz <b>pausada</b>, não bloqueio: não consome
+              orçamento nem turno, <b>libera a vaga do teto</b>, retoma sozinha e
+              <b>não te notifica</b>. Sem sinal de quando reabre, são <b>3 tentativas</b> com
+              espera crescente; espera maior que <b>4 h</b> deixa de ser pausa e vira bloqueio.
+            </div>
+          </div>
+          <p class="pane__d">
+            <b>E existe uma dependência de verdade escondida aqui:</b> o sinal de limite está
+            <b>apagado hoje</b> — a <a class="lnk" href="#">adapter-provenance</a> descobriu que
+            o <code>rateLimitOf</code> quebrou no adaptador <code>0.75.1</code>. Sem aquele
+            conserto, a <code>pausada</code> não sabe até quando esperar, e os três retries são
+            tudo o que sobra.
+          </p>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>O teto conta tarefas, não sessões</b> — uma tarefa em <code>Testing</code> pode ter o
+        testador subindo dois projetos, e isso é uma vaga, não três. Contar sessões faria o teto
+        significar coisas diferentes em cada coluna.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 7 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">7</span>o que quebra sozinho: o adaptador sai debaixo do agente</h2>
+      <p class="sec__d">
+        O <code>DESIGN.md</code> cobra de toda tela os dois estados. Aqui o segundo tem uma forma
+        própria e é a mais provável de acontecer: <b>o agente continua lá e o adaptador não</b> —
+        o login expirou, a versão fixada mudou, ou o pacote não está instalado.
+      </p>
+      <p class="sec__d">
+        A regra é a de sempre: <b>nada desaparece sozinho.</b> O agente fica na lista, o encaixe
+        continua apontando para ele, e quem diz o que está errado é a linha — com o verbo que
+        conserta, não com um erro.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">três degradações · <b>login expirou</b> · <b>adaptador ausente</b> · <b>daemon fora</b></div>
+      <div class="stack">
+        <div class="agrow" style="border-color: var(--color-border-danger)">
+          <span class="agrow__n"><span class="glyph glyph--agent">◆</span>revisor-severo</span>
+          <span class="agrow__src">codex · gpt-5-codex</span>
+          <span class="band-chip band-chip--read"><span class="band-chip__g">▤</span>só leitura</span>
+          <span class="agrow__use" style="color: var(--color-text-danger)">o login do <b>codex</b> expirou — <b>2 tarefas em In Review esperando revisor</b></span>
+          <button class="btn btn--sm focus-ring">entrar no codex</button>
+        </div>
+
+        <div class="agrow" style="border-color: var(--color-border-default)">
+          <span class="agrow__n"><span class="glyph glyph--agent">◆</span>revisor-rapido</span>
+          <span class="agrow__src">claude · haiku-4.5</span>
+          <span class="band-chip band-chip--read"><span class="band-chip__g">▤</span>só leitura</span>
+          <span class="agrow__use" style="color: var(--color-text-warning)">o <b>claude</b> está no <code>0.40.0</code> e o pino diz <code>0.75.1</code> — este modelo pode não existir lá</span>
+          <button class="btn btn--sm focus-ring">reinstalar o adaptador</button>
+        </div>
+
+        <div class="offline">
+          <span class="offline__glyph">⚠</span>
+          <div class="offline__body">
+            <div class="offline__what">Sem conexão com o daemon</div>
+            <div class="offline__why">
+              O catálogo abaixo é o último estado conhecido, de <code>10:41</code>.
+              <b>Nada aqui pode ser salvo enquanto isso.</b>
+            </div>
+            <div class="offline__next">reconectando · tentativa 3</div>
+          </div>
+          <div class="offline__actions"><button class="btn btn--sm focus-ring">tentar agora</button></div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>A primeira linha diz a consequência, não o sintoma:</b> <em>"2 tarefas em In Review
+        esperando revisor"</em>. "Login expirado" é um fato sobre o adaptador; a fila parada é um
+        fato sobre o seu dia, e é o que faz você clicar.
+      </p>
+      <p class="case__note">
+        <b>E a segunda é a lição da <code>adapter-provenance</code>, aplicada antes de doer:</b>
+        um agente pode apontar para um modelo que o adaptador instalado não conhece. Lá isso
+        apareceu como <em>1M de contexto medindo 200K</em> e <code>Custom model</code> onde o
+        Fable devia estar — ninguém falhou, o produto só mentiu. Aqui a linha avisa.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 8 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">8</span>o que este desenho decidiu, e o que ele cobra</h2>
+    </div>
+    <div class="grid grid--2">
+      <div class="rule rule--yes">
+        <div class="rule__t">o rodapé da sidebar vira <b>Adaptadores</b></div>
+        <div class="rule__d">
+          Uma palavra, e ela é o que separa <em>de onde ele fala</em> de <em>quem ele é</em>. Sem
+          isso, a cascata da Q33 não tem como ser escrita em português. <b>Q35, respondida.</b> A
+          nota entra na <code>021</code> quando esta PRD sair de proposta.
+        </div>
+      </div>
+      <div class="rule rule--yes">
+        <div class="rule__t">o encaixe se chama <code>implementador</code></div>
+        <div class="rule__d">
+          <b>Q34, respondida.</b> Quem cobrou o nome foi o selo do cartão no outro arquivo: de
+          <code>executor</code> sai <code>executando</code>, que em produto de agente quer dizer
+          <em>rodar comando</em>. Uma busca-e-troca hoje; uma migração depois de existir tabela.
+        </div>
+      </div>
+      <div class="rule rule--yes">
+        <div class="rule__t">a faixa de permissão vem antes do orçamento</div>
+        <div class="rule__d">
+          Dinheiro é o risco nº 1 e tem número. Permissão é o risco sem número — e por isso é o
+          que a linha responde primeiro.
+        </div>
+      </div>
+      <div class="rule rule--yes">
+        <div class="rule__t">"não pode" é lista, não é frase de confiança</div>
+        <div class="rule__d">
+          Três linhas em cinza com <code>o daemon recusa</code> ao lado. É a diferença entre
+          <em>instruído a só ler</em> e <em>incapaz de escrever</em>, e só a segunda justifica
+          deixar rodando de madrugada.
+        </div>
+      </div>
+      <div class="rule rule--yes">
+        <div class="rule__t">a segunda faixa não tem interruptor</div>
+        <div class="rule__d">
+          "Fora da worktree ele para" é a borda que compra a permissividade de dentro. Um
+          interruptor ali transformaria a faixa larga em faixa única.
+        </div>
+      </div>
+      <div class="rule rule--yes">
+        <div class="rule__t">o orçamento mora em dois lugares, e o bloqueio diz em qual</div>
+        <div class="rule__d">
+          No agente e no workspace — a resposta da Q33, e está certo. Mas <em>"por que parou em US$
+          0,50?"</em> tinha duas respostas possíveis, e mexer no teto errado não destrava nada.
+          <b>Q36, respondida:</b> o cartão bloqueado nomeia o teto, e o verbo leva ao número — o
+          painel de autonomia, ou esta ficha. Está desenhado no quadro 5 do
+          <code>lumem-board.html</code>.
+        </div>
+      </div>
+      <div class="rule rule--no">
+        <div class="rule__t">a taxa de reprovação não tem de onde sair na v1</div>
+        <div class="rule__d">
+          Ela é o melhor sinal de que a revisão por agente virou carimbo, e desenhei o número na
+          ficha do revisor. Só que ele só existe depois de dezenas de tarefas — então a v1 mostra
+          <code>—</code>, e é honesto que mostre.
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

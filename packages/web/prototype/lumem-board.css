@@ -1,0 +1,533 @@
+/* ---------------------------------------------------------------------------
+   lumem-board.css — o quadro do workspace: colunas, cartão, selo e detalhe.
+
+   PRD: docs/features/028-autonomous-orchestration/prd.md
+   Briefing: docs/features/028-autonomous-orchestration/design-brief.md
+
+   O briefing pedia que o CARTÃO e o SELO nascessem em `lumem-ds.css`. Eles
+   nascem aqui, e a razão é de ordem: promover ao sistema antes de o sistema
+   saber que está certo é como um design system apodrece. A medida 3.1 podia
+   derrubar a forma do cartão inteiro — e quase derrubou. Assim que o desenho
+   fechar, `.tcard`, `.seal` e `.col` sobem para o `lumem-ds.css`, que é onde
+   eles pertencem.
+
+   Nenhum literal de cor, espaço ou tipografia. Só `var(--token)`.
+   -------------------------------------------------------------------------- */
+
+/* Os dois números que decidem a forma moram no `tokens.css`, como todo tamanho
+   do sistema: `--size-board-col` (200px, o piso medido da coluna) e
+   `--size-board-rail` (36px, a coluna recolhida). O comentário de lá explica de
+   onde os números vieram. */
+
+/* ---------------------------------------------------------------------------
+   moldura de documentação — a mesma das telas anteriores
+   -------------------------------------------------------------------------- */
+.bleed { width: calc(100vw - var(--space-48)); margin-left: calc(50% - 50vw + var(--space-24)); }
+.q { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-brand); }
+.mm { font: var(--text-mono-sm); color: var(--color-text-brand); }
+.sec__t .no { font: var(--text-mono-md); color: var(--color-text-tertiary); margin-right: var(--space-8); }
+.stack { display: grid; gap: var(--space-12); }
+.stack--16 { gap: var(--space-16); }
+.row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-12); }
+@media (max-width: 900px) { .row2 { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------------------------------------------------------------------------
+   1. a tela — o quadro ocupa a coluna do meio do workspace
+   -------------------------------------------------------------------------- */
+.bd {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--color-bg-base);
+}
+.bd__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-16) var(--space-8);
+}
+.bd__title { display: grid; gap: var(--space-2); min-width: 0; }
+.bd__t { margin: 0; font: var(--text-heading-md); letter-spacing: var(--tracking-heading-md); color: var(--color-text-primary); }
+.bd__sub { font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/*
+ * A barra de filtros. É onde a olhada de cinco segundos começa, então ela
+ * carrega exatamente três coisas: o que precisa de você, quanto já custou
+ * hoje, e em que nível de autonomia isto está. Nada mais entra aqui.
+ */
+.bd__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 0 var(--space-16) var(--space-10);
+  flex-wrap: wrap;
+}
+
+/*
+ * O filtro "precisa de mim". Ele é um botão de estado, não um chip decorativo:
+ * ligado, o quadro some com tudo que anda sozinho. A contagem em `danger` é a
+ * única coisa vermelha da barra — se ela for zero, ela some, porque um zero
+ * vermelho ensina a ignorar o vermelho.
+ */
+.needme {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  font: var(--text-label-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.needme:hover { background: var(--color-bg-raised); border-color: var(--color-border-strong); color: var(--color-text-primary); }
+.needme[aria-pressed="true"] { background: var(--color-bg-active); border-color: var(--color-border-strong); color: var(--color-text-primary); }
+.needme__n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--size-icon-md);
+  height: var(--size-icon-md);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-danger-subtle);
+  color: var(--color-text-danger);
+  font: var(--text-label-xs);
+}
+
+/* O gasto do dia. Medidor curto, porque o número é a informação e a barra é
+   só a proporção — trocar isso faz um dashboard. */
+.daycost { display: inline-flex; align-items: center; gap: var(--space-8); font: var(--text-mono-sm); color: var(--color-usage-cost); }
+.daycost__k { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.meter { width: var(--space-48); height: var(--space-4); border-radius: var(--radius-full); background: var(--color-bg-inset); overflow: hidden; }
+.meter__f { display: block; height: 100%; width: var(--w); background: var(--color-usage-cost); }
+.meter__f--warn { background: var(--color-usage-warn); }
+.meter__f--over { background: var(--color-usage-over); }
+
+/* ---------------------------------------------------------------------------
+   2. as colunas
+   -------------------------------------------------------------------------- */
+/*
+ * A faixa rola na horizontal quando não cabe — e a medida 3.1 diz que em
+ * 1440px ela NÃO cabe com sete abertas. A resposta não é rolagem: são as duas
+ * pontas recolhidas em trilho (§ `.col--rail`), e a rolagem fica como último
+ * recurso — abaixo de 1418px nem isso salva, e aí entra a `.bd__clip`.
+ */
+.bd__cols {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-8);
+  padding: 0 var(--space-16) var(--space-16);
+  overflow-x: auto;
+}
+
+.col {
+  flex: 1 1 var(--size-board-col);
+  min-width: var(--size-board-col);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+.col__h {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-row-cozy);
+  padding: 0 var(--space-8) 0 var(--space-10);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.col__t { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-secondary); white-space: nowrap; }
+.col__n { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+/*
+ * "sua vez" — a única diferença desenhada entre coluna da máquina e coluna
+ * sua, e ela é LÍNGUA, não cor. As duas pontas do quadro (To-Do e Ready to
+ * Merge) são as que você move; pintá-las gastaria o eixo de cor que o selo
+ * já usa.
+ */
+.col__you { font: var(--text-caption); color: var(--color-text-brand); white-space: nowrap; }
+.col__add {
+  margin-left: auto;
+  flex: none;
+  width: var(--size-control-xs);
+  height: var(--size-control-xs);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+  line-height: 1;
+}
+.col__add:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+/*
+ * O ponto de encalhe do cabeçalho. É o que faz uma coluna travada ser achada
+ * do outro lado da sala — a defesa que o §8 da PRD deve ao selo por ele se ver
+ * menos que uma sub-coluna.
+ */
+.col__stale { margin-left: auto; flex: none; width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); }
+.col__stale--warn { background: var(--color-text-warning); }
+.col__stale--over { background: var(--color-text-danger); }
+.col__h .col__add + .col__stale, .col__h .col__stale + .col__add { margin-left: 0; }
+
+.col__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: var(--space-8);
+  padding: var(--space-8);
+}
+.col__empty { padding: var(--space-12) var(--space-8); font: var(--text-caption); color: var(--color-text-disabled); text-align: center; }
+
+/* ---------------------------------------------------------------------------
+   2b. abaixo de 1418px — o quadro rola, e diz que está rolando (Q37)
+   -------------------------------------------------------------------------- */
+/*
+ * Medido: 5 colunas e 2 trilhos pedem 1418px de janela. Abaixo disso não existe
+ * combinação que caiba — a sidebar são 264 fixos e a coluna tem piso de 200. A
+ * saída é rolagem horizontal, e ela CUSTA a promessa da feature: "uma olhada de
+ * cinco segundos" não sobrevive a uma coluna fora da tela.
+ *
+ * Então a faixa existe para o quadro não mentir por omissão. Ela é
+ * DERIVADA da largura, como o selo é derivado da sessão: aparece ao estreitar,
+ * some ao alargar, e não tem `✕` — fechar um aviso que volta sozinho é ensinar
+ * a ignorá-lo. E ela é FRIA, não âmbar: a janela ser pequena não é um problema
+ * do seu trabalho, é um fato sobre o seu monitor.
+ */
+.bd__clip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0 var(--space-16) var(--space-8);
+  padding: var(--space-4) var(--space-8);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-sm);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.bd__clip-g { flex: none; font-size: var(--size-icon-xs); line-height: 1; }
+.bd__clip b { color: var(--color-text-secondary); font-weight: 500; }
+.bd__clip__which { margin-left: auto; font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+
+/* O trilho: a coluna recolhida. Não é "escondida" — a contagem continua
+   visível, que é a única coisa que Backlog e Done precisam dizer de longe. */
+.col--rail { flex: 0 0 var(--size-board-rail); min-width: var(--size-board-rail); }
+.col--rail .col__h {
+  height: auto;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--space-10);
+  padding: var(--space-10) 0;
+  border-bottom: 0;
+}
+.col--rail .col__t { writing-mode: vertical-rl; }
+.col--rail .col__n { writing-mode: vertical-rl; }
+.col--rail:hover { background: var(--color-bg-surface); }
+
+/* ---------------------------------------------------------------------------
+   3. o cartão
+   -------------------------------------------------------------------------- */
+/*
+ * A barra de 2px à esquerda é a regra nº 2 da casa, e aqui ela carrega UM eixo
+ * só: o selo — quem está com a tarefa, ou que ninguém está. O encalhe NÃO
+ * entra nela; ele mora no relógio do rodapé (§ `.stale`). Duas cores no mesmo
+ * elemento não seriam nenhuma.
+ */
+.tcard {
+  --seal: var(--color-border-subtle);
+  display: grid;
+  gap: var(--space-6);
+  width: 100%;
+  padding: var(--space-8) var(--space-10);
+  text-align: left;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-left: var(--border-width-thick) solid var(--seal);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+.tcard:hover { background: var(--color-bg-raised); border-color: var(--color-border-strong); border-left-color: var(--seal); }
+.tcard--wait    { --seal: var(--color-tool-pending); }
+.tcard--work    { --seal: var(--color-session-agent); }
+.tcard--blocked { --seal: var(--color-text-danger); }
+.tcard--paused  { --seal: var(--color-text-tertiary); }
+/* Nada da máquina encosta nela: em `manual` o cartão não tem dono nem fila. */
+.tcard--manual  { --seal: var(--color-border-subtle); }
+
+.tcard__top { display: flex; align-items: center; gap: var(--space-6); min-width: 0; font: var(--text-caption); color: var(--color-text-tertiary); }
+.tcard__proj { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tcard__cost { margin-left: auto; flex: none; font: var(--text-mono-sm); color: var(--color-usage-cost); }
+.tcard__cost--none { color: var(--color-text-disabled); }
+
+/* Duas linhas e corta. Três linhas de título num cartão de 200px empurram o
+   rodapé para fora do primeiro cartão da coluna, e aí o custo — que é o item
+   que o §8 chama de risco nº 1 — só aparece rolando. */
+.tcard__t {
+  font: var(--text-body-sm);
+  color: var(--color-text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* O selo. Cor = a mesma da barra; glifo = a categoria. Anel é "ninguém está",
+   disco cheio é "alguém está" — a mesma distinção que o cartão de ferramenta
+   já usa, e que sobrevive a captura em escala de cinza. */
+.seal { display: flex; align-items: center; gap: var(--space-6); min-width: 0; font: var(--text-label-xs); color: var(--seal); }
+.seal__dot { flex: none; width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+/*
+ * ANEL = ninguém está trabalhando; DISCO = alguém está. É um eixo só, e ele
+ * vale também para `aguardando você`: ninguém está trabalhando ali, e quem diz
+ * que a vez é sua é a cor, não o glifo.
+ */
+.tcard--wait .seal__dot,
+.tcard--manual .seal__dot,
+.tcard--you .seal__dot { background: none; box-shadow: inset 0 0 0 var(--border-width-thin) currentColor; }
+
+/*
+ * `manual` é a exceção em que a barra e o texto NÃO podem ter a mesma cor. A
+ * barra é `border/subtle` porque não há dono nem fila — mas o texto nessa cor
+ * sobre `bg/surface` some, e o selo mais importante do produto (é o default!)
+ * ficava invisível. Medido olhando: o cartão parecia não ter selo nenhum.
+ */
+.tcard--manual .seal { color: var(--color-text-tertiary); }
+.seal__g { flex: none; font-size: var(--size-icon-xs); line-height: 1; }
+.seal__t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seal--sm { font: var(--text-caption); }
+/* O anel fora do cartão — a mesma regra: ninguém está trabalhando nela. */
+.seal--ring .seal__dot { background: none; box-shadow: inset 0 0 0 var(--border-width-thin) currentColor; }
+
+/*
+ * A linha viva — o que o agente está fazendo NESTE momento. É o item mais
+ * valioso do cartão e é o que substitui ficar olhando a conversa. Ela só
+ * existe quando alguém está trabalhando, e é por isso que um cartão
+ * `trabalhando` é mais alto que um `aguardando`: a altura também é sinal.
+ */
+.tcard__live { display: flex; align-items: center; gap: var(--space-6); min-width: 0; padding: var(--space-4) var(--space-6); background: var(--color-bg-inset); border-radius: var(--radius-sm); }
+.tcard__live-g { flex: none; font-size: var(--size-icon-xs); color: var(--color-tool-running); line-height: 1; }
+/*
+ * Caminho de arquivo usa `.tc__target` do sistema — o diretório cede primeiro,
+ * o nome do arquivo por último, que é a regra nº 4 da casa. O que NÃO é
+ * caminho ("lendo o diff · 6 arquivos") não pode usar aquela peça: ela comeu
+ * "diff" e deixou "lendo o di…6 arquivos", porque a regra de encolhimento
+ * assume que a primeira metade é descartável. Aqui a frase inteira trunca no
+ * fim, como frase.
+ */
+.tcard__live-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/* A pergunta que travou a tarefa, no cartão. Ela é o cartão inteiro quando
+   existe: o bloqueio que não diz do quê é um alarme, não um aviso. */
+/*
+ * O CORTE MORA NUM FILHO, e não na caixa que tem padding — e isso é defeito
+ * medido, não preferência. Com `line-clamp` na própria caixa acolchoada, o
+ * Chrome fecha a terceira linha com reticências E AINDA pinta uma fatia da
+ * quarta dentro do padding de baixo: um cartão que parece quebrado justamente
+ * no estado em que ele mais precisa ser lido. Medido: 62px de altura para 3×16
+ * de conteúdo mais 12 de padding, que seriam 60.
+ */
+.tcard__ask { padding: var(--space-6) var(--space-8); background: var(--color-bg-inset); border-radius: var(--radius-sm); }
+.tcard__ask-t {
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tcard__ask b { color: var(--color-text-primary); font-weight: 500; }
+
+.tcard__foot { display: flex; align-items: center; gap: var(--space-8); min-width: 0; font: var(--text-caption); color: var(--color-text-tertiary); }
+.tcard__from { flex: none; display: inline-flex; align-items: center; gap: var(--space-4); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.tcard__from--agent { color: var(--color-session-agent); }
+.tcard__from--track { color: var(--color-text-link); }
+
+/*
+ * O relógio de encalhe. Aqui, e só aqui, mora a cor de "está parado demais" —
+ * e ele só conta o tempo em que o cartão PODIA ter andado. Esperar vaga não
+ * cobra: cobrar o que é desenho é a forma mais rápida de tornar o aviso
+ * invisível.
+ */
+.stale { flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-4); border-radius: var(--radius-xs); font: var(--text-caption); color: var(--color-text-tertiary); }
+.stale--warn { background: var(--color-bg-warning-subtle); color: var(--color-text-warning); }
+.stale--over { background: var(--color-bg-danger-subtle); color: var(--color-text-danger); }
+
+/* A ação de um cartão bloqueado. Uma só, e é o verbo que destrava. */
+/*
+ * O verbo do cartão bloqueado. `btn--ghost` some aqui: o contorno dele é
+ * `border/subtle`, e o cartão já é `bg/surface` — sobrou um texto solto no
+ * estado em que a pessoa precisa achar o que clicar. Contorno padrão.
+ */
+.tcard__act { display: flex; gap: var(--space-6); }
+
+/* fantasma de arrasto — a posição na coluna É a prioridade (§4.3) */
+.tcard--ghost { background: none; border-style: dashed; border-color: var(--color-border-strong); border-left-style: dashed; color: var(--color-text-tertiary); }
+.tcard--ghost .tcard__t { color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------------------------------
+   4. a faixa de volta — "o que aconteceu enquanto você não estava"
+   -------------------------------------------------------------------------- */
+.away { display: grid; gap: var(--space-8); padding: var(--space-12); background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); }
+.away__h { display: flex; align-items: baseline; gap: var(--space-8); }
+.away__t { font: var(--text-label-md); color: var(--color-text-primary); }
+.away__win { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.away__close { margin-left: auto; }
+.away__l { display: grid; gap: var(--space-6); }
+.away__r { display: flex; align-items: center; gap: var(--space-8); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.away__g { flex: none; font-size: var(--size-icon-sm); line-height: 1; }
+.away__g--ok { color: var(--color-text-success); }
+.away__g--blocked { color: var(--color-text-danger); }
+.away__g--idle { color: var(--color-text-warning); }
+.away__g--paused { color: var(--color-text-tertiary); }
+.away__r b { color: var(--color-text-primary); font-weight: 500; }
+.away__r .stale { margin-left: 0; }
+
+/* ---------------------------------------------------------------------------
+   5. o detalhe da tarefa — ocupa a coluna do meio, com o breadcrumb de volta
+   -------------------------------------------------------------------------- */
+.td { display: grid; gap: var(--space-16); padding: var(--space-16); overflow-y: auto; min-height: 0; }
+.td__head { display: grid; gap: var(--space-8); }
+.td__l1 { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; }
+.td__t { margin: 0; font: var(--text-heading-md); letter-spacing: var(--tracking-heading-md); color: var(--color-text-primary); }
+.td__acts { margin-left: auto; display: flex; gap: var(--space-6); }
+.td__facts { display: flex; flex-wrap: wrap; gap: var(--space-6); }
+
+.td__sec { display: grid; gap: var(--space-8); }
+.td__st { display: flex; align-items: baseline; gap: var(--space-8); font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.td__st .dim { font: var(--text-caption); letter-spacing: normal; text-transform: none; }
+.td__body { font: var(--text-body-md); color: var(--color-text-secondary); padding: var(--space-12); background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); }
+.td__body code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/*
+ * O parecer. Três deles, em ordem, e a ordem É a esteira — ler de cima para
+ * baixo é ler o que aconteceu. Reprovar tem que caber igual a aprovar: se o
+ * "não" for mais feio que o "sim", o revisor vira carimbo.
+ */
+.par { --par: var(--color-border-subtle); display: grid; gap: var(--space-6); padding: var(--space-10) var(--space-12); background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-left: var(--border-width-thick) solid var(--par); border-radius: var(--radius-md); }
+.par--ok    { --par: var(--color-text-success); }
+.par--no    { --par: var(--color-text-danger); }
+.par--work  { --par: var(--color-session-agent); }
+.par--wait  { --par: var(--color-tool-pending); }
+.par__h { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; }
+.par__role { font: var(--text-label-md); color: var(--color-text-primary); }
+.par__who { display: inline-flex; align-items: center; gap: var(--space-4); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.par__v { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-4); font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--par); }
+.par__b { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.par__b code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.par__steps { display: grid; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
+.par__step { display: flex; gap: var(--space-8); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.par__step-g { flex: none; font-size: var(--size-icon-xs); color: var(--color-text-success); line-height: var(--space-16); }
+.par__step--no .par__step-g { color: var(--color-text-danger); }
+.par__m { display: flex; flex-wrap: wrap; gap: var(--space-10); font: var(--text-caption); color: var(--color-text-tertiary); }
+.par__m b { color: var(--color-usage-cost); font-weight: 400; font-family: var(--font-family-mono); }
+
+/* a volta do UC2: o parecer que virou o próximo prompt */
+.par__loop { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-6) var(--space-10); background: var(--color-bg-inset); border-radius: var(--radius-sm); font: var(--text-caption); color: var(--color-text-tertiary); }
+.par__loop b { color: var(--color-text-secondary); font-weight: 500; }
+
+/* as sessões da tarefa — três, uma por encaixe */
+.srow { display: flex; align-items: center; gap: var(--space-8); height: var(--size-row-cozy); padding: 0 var(--space-10); width: 100%; text-align: left; background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.srow:hover { background: var(--color-bg-raised); border-color: var(--color-border-strong); color: var(--color-text-primary); }
+.srow__role { flex: none; width: calc(var(--space-64) * 1.5); font: var(--text-label-sm); color: var(--color-text-primary); }
+.srow__who { flex: none; display: inline-flex; align-items: center; gap: var(--space-6); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.srow__st { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: var(--space-6); font: var(--text-label-xs); }
+.srow__st--run { color: var(--color-session-running); }
+.srow__st--exit { color: var(--color-session-exited); }
+.srow__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+.srow__cost { flex: none; font: var(--text-mono-sm); color: var(--color-usage-cost); }
+
+/* ---------------------------------------------------------------------------
+   6. a triagem — ela NÃO mora aqui
+
+   A T4 da `022` decidiu que existe uma fila só de propostas, com memória e
+   tarefa, e que a superfície é daquela feature. Este arquivo tinha uma cópia
+   chamada `.tri`; cópia é como duas telas divergem sem ninguém decidir nada — e
+   esta já tinha divergido: as "duas cores de origem" dela eram `session-agent`
+   e `text-link`, que são o mesmo `brand-400`.
+
+   A peça é a `.pq` do `lumem-tasks.css`, e o `lumem-board.html` linka aquela
+   folha. O que este quadro acrescenta a ela é VOLUME: com a esteira ligada,
+   três agentes por tarefa propõem muito mais — e foi esse volume o argumento
+   que tirou a fila de dentro de uma aba.
+   -------------------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------------------
+   7. o quadro desligado e o quadro vazio
+   -------------------------------------------------------------------------- */
+/*
+ * `manual` é o DEFAULT, então este é o primeiro quadro que qualquer pessoa vê.
+ * Ele não pode parecer quebrado: a faixa diz o que está desligado, o que
+ * mudaria se ligasse, e oferece o degrau do meio antes do de cima — porque
+ * `assistido` é o que torna a feature adotável.
+ */
+.offband { display: grid; gap: var(--space-8); padding: var(--space-12); background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); }
+.offband__h { display: flex; align-items: center; gap: var(--space-8); }
+.offband__g { flex: none; font-size: var(--size-icon-md); color: var(--color-text-tertiary); line-height: 1; }
+.offband__t { font: var(--text-label-md); color: var(--color-text-primary); }
+.offband__b { font: var(--text-body-sm); color: var(--color-text-secondary); max-width: 68ch; }
+.offband__b b { color: var(--color-text-primary); font-weight: 500; }
+.offband__acts { display: flex; gap: var(--space-6); }
+
+/* ---------------------------------------------------------------------------
+   8. auxiliares do documento — janelas de medida
+   -------------------------------------------------------------------------- */
+/* O quadro numa janela de largura declarada: é assim que a medida 3.1 é feita
+   com número, e não com opinião. */
+.win { border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-bg-base); }
+.win__l { display: flex; align-items: baseline; gap: var(--space-8); padding: var(--space-6) var(--space-10); background: var(--color-bg-inset); font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.win__l .mm { letter-spacing: normal; text-transform: none; }
+.win__v { overflow: hidden; }
+/* 868px = a altura real do `.app` numa janela de 900: o produto usa
+   `calc(100vh - 32px)`. O quadro medido tem que ser o quadro do produto. */
+.win__v .app { height: var(--h, calc(var(--space-64) * 13.5 + var(--space-4))); }
+
+/* a faixa de cartões soltos, para comparar estados lado a lado */
+.deck { display: flex; flex-wrap: wrap; gap: var(--space-12); }
+/* `align-content: start` porque um item mais alto na faixa (a coluna inteira)
+   esticava as linhas automáticas dos outros e empurrava o cartão para baixo —
+   quadros comparativos desalinhados não comparam. */
+.deck__i { width: var(--size-board-col); display: grid; gap: var(--space-6); align-content: start; }
+.deck__l { font: var(--text-caption); color: var(--color-text-tertiary); }
+.deck__l b { color: var(--color-text-brand); font-weight: 500; }
+/* a coluna inteira para a medida 3.2 — quantos cartões cabem sem rolar */
+.deck--col { align-items: flex-start; }
+.deck--col .col { height: calc(var(--space-64) * 11); }
+
+/* ---------------------------------------------------------------------------
+   9. o que o desenho acrescentou aos quatro selos da PRD
+   -------------------------------------------------------------------------- */
+/*
+ * `aguardando você` — Ready to Merge. NÃO é um matiz novo: é o texto mais claro
+ * da paleta num quadro onde todo o resto é secundário ou terciário. Vermelho é
+ * "algo deu errado e a decisão é sua"; branco é "nada deu errado e a vez é
+ * sua". Os dois precisam de você, e você precisa distinguir os dois de longe —
+ * e isso sai de graça em luminância, sem gastar um matiz.
+ */
+.tcard--you { --seal: var(--color-text-primary); }
+
+/* O link do documento, quando ele aponta para uma pergunta respondida. */
+.lnk { color: var(--color-text-link); text-decoration: none; }
+.lnk:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ---------------------------------------------------------------------------
+   10. as janelas de medida
+
+   A largura é derivada de `--space-64` porque medida de bancada também é
+   número do sistema: 1440 = 64 × 22,5. Literal aqui seria a única exceção do
+   arquivo, e ela não se justifica.
+   -------------------------------------------------------------------------- */
+.win--w1280 { width: calc(var(--space-64) * 20); }
+.win--w1440 { width: calc(var(--space-64) * 22.5); }
+.win--w1600 { width: calc(var(--space-64) * 25); }
+.win--w1760 { width: calc(var(--space-64) * 27.5); }
+/* Quando a janela medida não cabe no documento, ela reduz — e o rótulo diz em
+   quanto. As medidas escritas continuam sendo as reais. */
+.win--fit { zoom: var(--z, 0.85); }

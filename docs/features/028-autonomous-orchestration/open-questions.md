@@ -1,10 +1,23 @@
 # O orquestrador autônomo — perguntas
 
-**PRD:** [prd.md](prd.md) · **Tasks:** ainda não
+**PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md) — só a F1 · **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
 
-**Trinta e sete perguntas, em cinco rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
+**Quarenta perguntas, em seis rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
 segunda rodada abriu — todas em 2026-09-11 — mais **4 que a sessão de desenho no Open Design abriu**,
-respondidas em **2026-09-12**. **Todas respondidas.**
+respondidas em **2026-09-12**, e **3 da sexta rodada**, no mesmo dia. **Trinta e oito respondidas; a
+Q39 e a Q40 estão abertas, e as duas represadas até a F2.**
+
+A sexta rodada não veio de discussão nem de medir a tela: veio de **ler o código que já está de pé**.
+E a primeira dela é a única pergunta do documento que **já estava respondida**: a
+[Q38](#q38--arrastar-para-in-progress-se-ele-é-derivado) levantou o arrasto para `In Progress` como
+contradição com a `022` entregue, e a resposta é que a [Q3](#q3--quais-colunas-a-máquina-move-sozinha)
+já decidira — o que faltava era **escritor**, não decisão. A proposta que veio com ela estava errada
+pelo motivo que o §4.1 existe para evitar: **confundia coluna com selo**. Ela fica registrada porque o
+erro produziu a [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), que é o problema de
+verdade — **a fila da esteira pegaria o trabalho que você está fazendo na mão**.
+
+A [Q39](#q39--quem-diz-que-o-agente-está-esperando-você) é um estado do selo que **tem pixel desenhado
+e não tem fonte de dado**.
 
 As quatro últimas não vieram de discussão: vieram de **medir a tela**, e três contradiziam a PRD. As
 quatro foram respondidas **na proposta**, e a primeira delas renomeia um conceito — o encaixe
@@ -924,3 +937,96 @@ apagar **um elemento** — a faixa `.bd__clip` do `lumem-board.css` — e nada m
 O que isso **não** muda: o piso de 200px da coluna continua valendo, e é ele que garante que as
 colunas visíveis continuem legíveis em vez de todas encolherem juntas. E vira o **primeiro requisito
 de largura mínima do produto** (§6/F1).
+
+---
+
+## Sexta rodada — o que a medição abriu (2026-09-12)
+
+A [T1](tasks.md#t1-o-estudo-que-o-11-pedia) mediu três das nove conversas do §11 e abriu **duas**
+perguntas. Nenhuma das duas veio de discussão: vieram de ler o código que já está de pé.
+
+### Q38 — arrastar para `In Progress`, se ele é derivado?
+
+O §4 diz que você pode arrastar para qualquer coluna, **sempre**, *"inclusive para as da máquina, que
+é como se diz 'estou fazendo isto na mão'"*. E o `repositories/task.ts:63`, entregue pela
+[`022`](../022-workspace-tasks/prd.md), deixa `in_progress` **fora das duas listas de quem pode
+escrever**: ele é derivado do primeiro prompt de uma sessão ligada à tarefa (`tasks/progress.ts:56`).
+Não existe caminho de pedido — arrastar para `In Progress` hoje é literalmente impossível.
+
+Eu levantei isto como contradição e **propus que `In Progress` fosse a única coluna sem arrasto**,
+com o argumento de que um estado derivado não pode divergir da realidade.
+
+**Resposta: a [Q3](#q3--quais-colunas-a-máquina-move-sozinha) já tinha respondido, e a proposta
+estava errada.** A Q3 decidiu, com todas as letras, que *"arrastar é sempre permitido para você,
+inclusive para as colunas da máquina"*. O que faltava não era decisão — era **escritor**.
+
+**E o argumento contra não se sustenta**, porque confunde coluna com selo — a distinção que o §4.1
+passou a PRD inteira estabelecendo: *"A coluna é a etapa; o cartão diz quem está nela."* Um cartão
+arrastado à mão desenha coluna `In Progress` e selo `manual — ninguém pega`, que lê exatamente o que
+é: *está em progresso, e nenhum agente está com ela*. É o quinto estado do selo, que o desenho
+acrescentou em 2026-09-11 (§10.2 da PRD). **A honestidade mora no selo, e o selo continua derivado.**
+A coluna nunca precisou carregá-la.
+
+Não há colisão mecânica, tampouco: a derivação é `WHERE status = 'open'`, então um `in_progress`
+posto à mão nunca é tocado por ela, e abrir uma sessão depois é no-op. O comentário do
+`progress.ts:18` já dizia isso — *"só de `open` para `in_progress`, e isso é decisão"*.
+
+**O que muda:** nada na PRD. A [T4](tasks.md#t4-quem-pode-escrever-cada-estado-novo) ganha uma linha —
+`in_progress` entra na lista **humana** e continua fora da lista do agente —, e a
+[T5](tasks.md#t5-arrastar-e-a-ordem-dentro-da-coluna) perde a recusa que eu tinha escrito nela.
+
+**O que a resposta abriu:** a [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão).
+
+### Q39 — quem diz que o agente está esperando você?
+
+O §4.1 lista `aguardando você` entre os estados do selo, e o §10.2 gastou uma decisão de desenho nele
+(*"é luminância, não matiz"*). A [T1](tasks.md#t1-o-estudo-que-o-11-pedia) mediu que **ele não é
+derivável do transporte**: o `StopReason` do ACP tem cinco valores e nenhum é *"esperando"*. Dos 13
+`end_turn` reais deste repositório, 4 significaram terminei, 4 eram pergunta, 2 eram espera sem
+interrogação e 3 eram o turno morrendo no meio.
+
+As saídas, todas com preço:
+
+- **heurística de texto** — mede **44% de recall** contra o corpus real, e erra no caso caro (o turno
+  que parou no meio, sem pergunta);
+- **instrução no preâmbulo** pedindo uma marca quando o agente espera. Custa token em todo turno, e
+  depende de o agente obedecer;
+- **uma ferramenta que o agente chama** para dizer *"estou esperando"*. Confiável quando usada, e
+  invisível quando o agente simplesmente para;
+- **não ter o estado** e deixar o relógio de encalhe fazer o trabalho: um cartão parado há 30 min é
+  um cartão que precisa de você, independente do motivo.
+
+**Sem proposta, e de propósito** — isto é da **F2/F4**, não da F1, e decidir agora seria decidir sem
+a esteira existir para medir contra. Fica registrado porque o §10.2 já gastou desenho nele: **o
+pixel existe e a fonte do dado não.**
+
+> **Aberta, e represada.** Volta quando a F2 tiver um `tasks.md`.
+
+### Q40 — a fila não distingue o que você está fazendo na mão
+
+Achado ao responder a Q38, e é o problema real que estava embaixo do errado.
+
+A regra da fila do §4.1 é *"todo cartão cuja etapa é devida e que não tem trabalhador"*. Um cartão que
+você arrastou para `In Progress` para trabalhar na mão é, por essa definição, **exatamente isso**:
+etapa devida, sem trabalhador. Com a autonomia ligada, **o daemon pegaria o trabalho que você está
+fazendo** — criaria a worktree, abriria a sessão do implementador e começaria a gastar.
+
+E o selo não te protege: `manual — ninguém pega` é o mesmo texto nos dois casos. A tela não distingue
+*"eu estou nesta"* de *"ninguém está nesta"*.
+
+As saídas visíveis:
+
+- **o arrasto para uma coluna da máquina desliga a autonomia daquela tarefa** — é o mesmo gesto que o
+  §6/F4 já define para **assumir** (*"abre a conversa e desliga a autonomia daquela tarefa"*), e
+  arrastar seria um segundo caminho para o mesmo lugar;
+- **um sexto estado de selo** — `você está nesta` —, que custa um estado num selo que acabou de subir
+  para cinco;
+- **a fila só pega cartão que ela mesma pôs na coluna**, o que exige guardar proveniência da
+  transição e é o tipo de estado que o §4.1 evitou a feature inteira.
+
+**Sem proposta, e de propósito:** isto é **F2**. Com a autonomia desligada — o default do produto, e o
+que a F1 entrega — não existe quem pegue, então nada disto é alcançável ainda. Decidir agora seria
+decidir sem a esteira existir para medir contra.
+
+> **Aberta, e represada.** Volta junto com a [Q39](#q39--quem-diz-que-o-agente-está-esperando-você),
+> quando a F2 tiver `tasks.md`.

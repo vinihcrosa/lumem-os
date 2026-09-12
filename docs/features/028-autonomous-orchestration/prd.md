@@ -1,15 +1,26 @@
 # PRD — O orquestrador autônomo: o quadro, a esteira e os três agentes
 
-> **Status:** proposta
+> **Status:** em execução
 > **Histórico:** v0.1 — rascunho em 2026-09-11. **v0.2, no mesmo dia:** as 20 perguntas respondidas e o
 > documento reescrito em cima delas, mais o §3 com **oito casos de uso**, que é por onde se lê.
 > **v0.3 e v0.4, ainda no mesmo dia:** mais duas rodadas de respostas, com duas mudanças estruturais —
 > **a coluna deixou de ser quem move a seta** (§4.1, resposta a uma pergunta sua que achou um buraco em
 > três das seis colunas) e **o papel deixou de ser uma constante para virar um encaixe que aponta para
 > um agente nomeado** (§5, no espírito do Compozy)
-> **Perguntas:** [open-questions.md](open-questions.md) — **33 perguntas, todas respondidas**, em
-> quatro rodadas no mesmo dia. Seis foram respondidas contra a proposta
-> **Tasks:** ainda não — falta o desenho no Open Design (§10) e a conversa técnica (§11)
+> **Perguntas:** [open-questions.md](open-questions.md) — eram **33, todas respondidas** na v0.4, em
+> quatro rodadas no mesmo dia. Seis foram respondidas contra a proposta. O total atual está no fim
+> deste bloco
+> **Tasks:** [tasks.md](tasks.md), aberto em **2026-09-12** e **só com a F1** — o quadro lendo a
+> `022`, com a autonomia desligada. O §0 de lá registra o corte: seis das nove conversas do §11
+> continuam guardadas, e duas delas não têm resposta — uma exige ADR novo. A F1 não depende de
+> nenhuma. A fase 0 está entregue: o desenho sincronizado e o
+> [estudo](../../project/orchestration-measurements.md) escrito
+> **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md),
+> 2026-09-12 — e ele mudou duas coisas antes de existir código. **`end_turn` não distingue
+> *"terminei"* de *"te perguntei"***: dos 13 turnos gravados neste repositório, **4** significaram
+> terminei, e três eram o turno morrendo no meio do trabalho. E **o modelo da `022` não comporta o
+> quadro**: sete colunas contra quatro estados úteis, com `Backlog`/`To-Do` colapsando na fronteira
+> de autorização
 > **Depende de:** [workspace-tasks](../022-workspace-tasks/prd.md), que vinha antes
 > ([Q1](open-questions.md#q1--esta-prd-absorve-a-022-workspace-tasks): empilha, não absorve) e está
 > **entregue desde 2026-09-12**. A entidade existe, com custo por tarefa, `in_progress` derivado do
@@ -25,7 +36,12 @@
 > em 2026-09-12**, todas na proposta: o encaixe se chama **`implementador`**, o rodapé da sidebar vira
 > **`Adaptadores`**, o bloqueio de orçamento **nomeia qual teto segurou**, e abaixo de 1418px o quadro
 > **rola na horizontal e diz que está rolando**
-> **Perguntas:** **37, todas respondidas**
+> **Perguntas:** **40, e 38 respondidas** — as três da sexta rodada vieram de **ler o código
+> entregue**. A [Q38](open-questions.md#q38--arrastar-para-in-progress-se-ele-é-derivado) é a única do
+> documento que já estava respondida (pela Q3), e a proposta que veio com ela estava errada; o que
+> sobrou dela é a [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão).
+> A Q40 e a [Q39](open-questions.md#q39--quem-diz-que-o-agente-está-esperando-você) são as duas
+> abertas, **as duas represadas até a F2 ter `tasks.md`**, e nenhuma bloqueia a F1
 
 ---
 
@@ -293,6 +309,22 @@ Duas regras que explicam a tabela inteira:
 **Você pode arrastar para qualquer coluna, sempre** — inclusive para as da máquina, que é como se diz
 *"estou fazendo isto na mão"*. A restrição é só de mão única: a máquina nunca move para as suas.
 
+> **Nota — o "sempre" fica, e o que falta é escritor.** A [`022`](../022-workspace-tasks/prd.md) fez
+> `in_progress` ser **derivado** do primeiro prompt de uma sessão ligada à tarefa, e
+> `repositories/task.ts:63` o deixa fora das duas listas de quem pode escrever — então arrastar para
+> `In Progress` hoje não é difícil, é **impossível**. Isso parecia contradizer este parágrafo e **não
+> contradiz**: a [Q38](open-questions.md#q38--arrastar-para-in-progress-se-ele-é-derivado) registra
+> por quê. A coluna é a etapa e o selo é quem está nela (§4.1), então um cartão arrastado à mão
+> desenha `In Progress` com o selo `manual — ninguém pega` — que é exatamente o que ele é. O caminho
+> humano simplesmente nunca foi escrito, porque a `022` só precisou do derivado. É uma linha da
+> [T4](tasks.md#t4-quem-pode-escrever-cada-estado-novo).
+>
+> **O que a Q38 abriu é da esteira, não desta seção:** com a autonomia ligada, a regra da fila do
+> §4.1 — *todo cartão cuja etapa é devida e que não tem trabalhador* — descreve **também** o cartão
+> que você arrastou para trabalhar na mão, e o daemon o pegaria. É a
+> [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), **aberta e
+> represada até a F2**, e anotada no §4.1 junto da regra que a produz.
+
 **Bloqueada não é coluna, é selo.** Uma tarefa travada no meio da revisão *está* na revisão — uma
 sétima coluna de bloqueio faria o quadro mentir sobre o progresso. O selo mora no cartão, e existe o
 filtro **"precisa de mim"**, que é provavelmente a visão mais usada do produto.
@@ -317,6 +349,15 @@ Três frases resolvem, e nenhuma delas custa uma coluna nova:
    trabalhador*: o novo na To-Do, o que espera revisor, o que espera testador e o que o revisor
    devolveu. Uma regra, nenhum caso especial — e ela **puxa da direita para a esquerda**, porque
    terminar vale mais que começar.
+
+> **Nota — esta regra descreve também o cartão que você está fazendo na mão.** Um cartão arrastado
+> para uma coluna da máquina (§4, e a Q3 que o permite) tem etapa devida e nenhum trabalhador: pela
+> frase acima, **a fila o pegaria**, e o daemon começaria a gastar em cima do trabalho que é seu. O
+> selo não avisa — `manual — ninguém pega` é o mesmo texto nos dois casos. Isto é a
+> [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), **aberta e
+> represada até a F2**, e ela não é alcançável enquanto a autonomia estiver desligada, que é o
+> default e é o que a F1 entrega. **O resto da regra fica de pé** — inclusive *"uma regra, nenhum
+> caso especial"*, que é exatamente o que a resposta da Q40 vai ter que pagar ou preservar.
 
 **Não existe garantia de que alguém já pegou — existe visibilidade de que ninguém pegou**, que é o
 que você consegue agir sobre. O selo tem quatro estados: `aguardando <papel>` · `<papel> trabalhando

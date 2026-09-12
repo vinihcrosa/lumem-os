@@ -1,0 +1,895 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — tarefa como entidade: a lista, o detalhe e a fila de propostas</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<!-- O `● #87` é o `.prmark` da `pull-request-status`; o modal é o da
+     `sidebar-actions`. Esta tela ESTENDE as duas, e não faz cópia. -->
+<link rel="stylesheet" href="lumem-pr-bar.css">
+<link rel="stylesheet" href="lumem-sidebar-actions.css">
+<!-- A primeira aba do checkout e o ponto de sujeira dela são da `worktree-first-tab`. -->
+<link rel="stylesheet" href="lumem-worktree-tab.css">
+<link rel="stylesheet" href="lumem-tasks.css">
+</head>
+<body>
+
+<div class="doc">
+
+  <header>
+    <h1 class="doc__h1">Tarefa como entidade</h1>
+    <p class="doc__lede">
+      <b>O produto chama de tarefa uma coisa que não existe.</b> Hoje o nome da worktree é o único
+      rastro da intenção: some quando o checkout some, não tem corpo, não tem custo, e nada pode
+      apontar para ele. A <code>022</code> dá à tarefa uma tabela — e é ela que a
+      <code>028</code> precisa para ter o que orquestrar.
+    </p>
+    <p class="doc__lede">
+      Seis telas, e nenhuma delas existia. <b>Duas decisões de produto atravessam todas:</b> a linha
+      da tarefa fala <b>a mesma língua de estado do quadro da <code>028</code></b> — anel é ninguém,
+      disco cheio é alguém, o texto mais claro é a sua vez —, e a <b>fila de Propostas nasce aqui</b>,
+      porque a <a class="lnk" href="#">T4</a> decidiu que ela é uma só e a superfície é desta feature.
+    </p>
+    <p class="doc__lede">
+      A parte cara está no quadro 6: a inbox de propostas da memória <b>sai de dentro do
+      <code>MemoryPanel</code></b>. É mexer numa feature entregue, e o que não pode se perder na
+      mudança de endereço é a distinção entre <b>fato e conclusão</b> — a regra que sustenta a
+      memória inteira.
+    </p>
+  </header>
+
+  <!-- =================================================================== 1 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">1</span>a lista, e por que ela não tem cabeçalho de grupo</h2>
+      <p class="sec__d">
+        A ordem é a do §F1: <code>review</code> e <code>in_progress</code> primeiro,
+        <code>open</code> depois, <code>done</code> recolhido. <b>Sem prioridade, sem prazo, sem
+        estimativa</b> (<a class="lnk" href="#">T3</a>) — o que existe é ordem, e o campo
+        <code>links</code> aponta para o gerenciador que tem esses campos.
+      </p>
+      <p class="sec__d">
+        <b>O estado é o primeiro item da linha, e é por isso que não existe cabeçalho de grupo.</b>
+        Quando o primeiro item é o critério de ordenação, a ordem se explica sozinha: os claros e os
+        roxos sobem, os cinzas descem. Cabeçalhos diriam de novo o que o chip já diz, e custariam a
+        altura de duas tarefas numa seção que divide a tela com consumo e memória.
+      </p>
+      <p class="sec__d">
+        <b>A língua é a do quadro da <code>028</code>, de propósito.</b> <code>open</code> é anel
+        cinza (ninguém está), <code>in_progress</code> é disco roxo (alguém está), <code>review</code>
+        é anel <b>branco</b> — o agente acha que terminou, e a próxima decisão é sua. É a mesma
+        distinção de luminância que o quadro usa para <code>Ready to Merge</code>, e ela existe aqui
+        antes de existir lá.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">a tela do workspace <b>Acme</b> · a fila em cima, as tarefas embaixo</div>
+      <div class="bleed">
+        <div class="win win--w1440">
+          <div class="win__l">janela <span class="mm">1440</span> · a seção divide a coluna com <b>consumo</b> e <b>memória</b></div>
+          <div class="win__v">
+
+            <div class="app">
+              <div class="topbar">
+                <h1 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h1>
+                <span class="spacer"></span>
+                <span class="daemon"><span class="daemon__dot"></span>daemon 4317</span>
+              </div>
+              <div class="body">
+                <aside class="sidebar">
+                  <div class="ws-wrap"><button class="ws focus-ring"><span class="glyph glyph--workspace">◈</span>Acme<span class="caret">▾</span></button></div>
+                  <div class="tree">
+                    <div class="tree__label">Projetos</div>
+                    <button class="row row--project"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">acme-api</span></button>
+                    <button class="row" style="--depth: 1"><span class="glyph glyph--worktree">◇</span><span class="row__label">142-orders-500</span><span class="count count--running"><span class="count__dot"></span>1</span></button>
+                    <button class="row" style="--depth: 1"><span class="glyph glyph--worktree">◇</span><span class="row__label">cpf-cadastro</span><span class="prmark prmark--ready"><span class="prmark__dot"></span>#86</span></button>
+                    <button class="row row--project"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">acme-web</span></button>
+                  </div>
+                </aside>
+
+                <main class="wsp">
+                  <div class="crumb"><span class="crumb__here">Acme</span></div>
+                  <div class="wsp__title"><h3>Acme</h3><span class="wsp__kind">workspace</span></div>
+
+                  <!-- a fila, acima de tudo -->
+                  <div class="pq">
+                    <div class="pq__h">
+                      <span class="pq__t">Propostas</span>
+                      <span class="count">2</span>
+                      <span class="spacer"></span>
+                      <div class="seg" role="group" aria-label="propostas por estado">
+                        <button class="seg__btn" aria-pressed="true">pendentes</button>
+                        <button class="seg__btn" aria-pressed="false">resolvidas</button>
+                      </div>
+                    </div>
+                    <div class="pq__i">
+                      <div class="pq__head">
+                        <span class="pq__g">◆</span><span class="pq__who">implementador</span>
+                        <span>em <b>ACME-142</b> · <code>142-orders-500</code> · há 8 min</span>
+                        <span class="pq__kind">tarefa · acme-web</span>
+                      </div>
+                      <div class="pq__t2">o checkout lê <code>order.total</code>, que esta tarefa está renomeando</div>
+                      <div class="pq__ev"><span class="pq__ev-g">✓</span><div><b>Evidência</b> — <code>web/src/checkout/Summary.tsx:41</code></div></div>
+                      <div class="pq__acts">
+                        <button class="btn btn--sm btn--brand focus-ring">aprovar → To-Do</button>
+                        <button class="btn btn--sm focus-ring">aprovar → Backlog</button>
+                        <button class="btn btn--sm btn--ghost focus-ring">rejeitar</button>
+                      </div>
+                    </div>
+                    <div class="pq__i">
+                      <div class="pq__head">
+                        <span class="pq__g">◈</span><span class="pq__who">revisor-severo</span>
+                        <span>destilação de fim de sessão · há 1 h</span>
+                        <span class="pq__kind">memória · workspace</span>
+                      </div>
+                      <div class="pq__tags"><span class="chip">◈ workspace</span><span class="chip">domain</span><span class="chip chip--mono">contrato-orders</span></div>
+                      <div class="pq__t2"><code>/orders</code> devolve <code>400 empty_cart</code> para carrinho vazio, nunca <code>200</code> com lista vazia</div>
+                      <div class="pq__ev"><span class="pq__ev-g">✓</span><div><b>Evidência</b> — <code>api/src/orders/serializer.ts:88</code>, <code>api/test/orders.spec.ts:12</code></div></div>
+                      <div class="pq__acts">
+                        <button class="btn btn--sm btn--brand focus-ring">aprovar</button>
+                        <button class="btn btn--sm focus-ring">editar e aprovar</button>
+                        <button class="btn btn--sm btn--ghost focus-ring">rejeitar</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- as tarefas -->
+                  <div class="tsec">
+                    <div class="tsec__h">
+                      <span class="tsec__t">Tarefas</span>
+                      <span class="count">7</span>
+                      <span class="spacer"></span>
+                      <div class="seg" role="group" aria-label="projeto">
+                        <button class="seg__btn" aria-pressed="true">todos</button>
+                        <button class="seg__btn" aria-pressed="false">acme-api</button>
+                        <button class="seg__btn" aria-pressed="false">acme-web</button>
+                      </div>
+                      <span class="tsec__k">custo</span>
+                      <div class="seg" role="group" aria-label="janela do custo">
+                        <button class="seg__btn" aria-pressed="false">1d</button>
+                        <button class="seg__btn" aria-pressed="true">7d</button>
+                        <button class="seg__btn" aria-pressed="false">1m</button>
+                      </div>
+                      <button class="btn btn--sm focus-ring"><span class="btn__glyph">＋</span>tarefa</button>
+                      <a class="tsec__all focus-ring" href="#">ver todas ↗</a>
+                    </div>
+
+                    <div class="tlist">
+                      <button class="trow trow--review focus-ring">
+                        <span class="tstat"><span class="tstat__dot"></span>review</span>
+                        <span class="trow__t">o endpoint /orders devolve 500 quando o carrinho está vazio</span>
+                        <span class="trow__proj"><span class="glyph glyph--project">■</span>acme-api</span>
+                        <span class="tprov tprov--link"><span class="tprov__g">↗</span>ACME-142</span>
+                        <span class="trow__wt"><span class="glyph glyph--worktree">◇</span>142-orders-500</span>
+                        <span class="prmark prmark--ready"><span class="prmark__dot"></span>#87</span>
+                        <span class="trow__cost">US$ 0,74</span>
+                      </button>
+
+                      <button class="trow trow--progress focus-ring">
+                        <span class="tstat"><span class="tstat__dot"></span>in progress</span>
+                        <span class="trow__t">validar CPF no cadastro, com o dígito verificador</span>
+                        <span class="trow__proj"><span class="glyph glyph--project">■</span>acme-api</span>
+                        <span class="tprov"></span>
+                        <span class="trow__wt"><span class="glyph glyph--worktree">◇</span>cpf-cadastro</span>
+                        <span class="prmark prmark--ready"><span class="prmark__dot"></span>#86</span>
+                        <span class="trow__cost">US$ 0,52</span>
+                      </button>
+
+                      <button class="trow trow--open focus-ring">
+                        <span class="tstat"><span class="tstat__dot"></span>open</span>
+                        <span class="trow__t">cache de sessão expira cedo demais em produção</span>
+                        <span class="trow__proj"><span class="glyph glyph--project">■</span>acme-api</span>
+                        <span class="tprov tprov--link"><span class="tprov__g">↗</span>ACME-151</span>
+                        <span class="trow__wt"></span>
+                        <span class="prmark"></span>
+                        <span class="trow__cost trow__cost--none">—</span>
+                      </button>
+
+                      <button class="trow trow--open focus-ring">
+                        <span class="tstat"><span class="tstat__dot"></span>open</span>
+                        <span class="trow__t">remover o banner de cookies duplicado</span>
+                        <span class="trow__proj"><span class="glyph glyph--project">■</span>acme-web</span>
+                        <span class="tprov"><span class="tprov__g">◆</span>proposta</span>
+                        <span class="trow__wt"></span>
+                        <span class="prmark"></span>
+                        <span class="trow__cost trow__cost--none">—</span>
+                      </button>
+
+                      <button class="trow trow--open focus-ring">
+                        <span class="tstat"><span class="tstat__dot"></span>open</span>
+                        <span class="trow__t">trocar o seletor de data do checkout por um campo com máscara</span>
+                        <span class="trow__proj"><span class="glyph glyph--project">■</span>acme-web</span>
+                        <span class="tprov"></span>
+                        <span class="trow__wt"></span>
+                        <span class="prmark"></span>
+                        <span class="trow__cost trow__cost--none">—</span>
+                      </button>
+
+                      <button class="tfold focus-ring">
+                        <span class="tfold__caret">▸</span>done<span class="tfold__n">2</span>
+                        <span class="tfold__sum">US$ 1,03 nos 7 d</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="tsec">
+                    <div class="tsec__h"><span class="tsec__t">Consumo</span><span class="spacer"></span><span class="dim">o painel que a workspace-screen entregou, inteiro</span></div>
+                    <div class="tsec__d dim">— a seção de consumo continua aqui, abaixo das tarefas —</div>
+                  </div>
+                  <div class="tsec">
+                    <div class="tsec__h"><span class="tsec__t">Memória</span><span class="spacer"></span><span class="dim">sem a aba de propostas — ela subiu</span></div>
+                    <div class="tsec__d dim">— o painel de memória, agora com quatro abas em vez de cinco —</div>
+                  </div>
+                </main>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>A ordem da tela inteira é uma frase:</b> o que precisa de decisão sua (Propostas), o que
+        está acontecendo (Tarefas), o que já aconteceu (Consumo), o que ficou aprendido (Memória). A
+        memória desceu um lugar, e é a única coisa que a fila nova custou de posição.
+      </p>
+      <p class="case__note">
+        <b>Tarefa sem worktree não inventa um checkout</b> — a célula fica vazia, e não com um traço
+        ou um <em>"nenhuma"</em>. Três tarefas <code>open</code> sem worktree formam uma coluna vazia
+        que se lê de relance como <em>"ninguém começou nenhuma dessas"</em>, que é exatamente o que é.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 2 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">2</span>a linha, a proveniência, e os estados que a lista não mostra</h2>
+      <p class="sec__d">
+        Sete itens, nesta ordem: <b>estado · título · projeto · proveniência · checkout · PR ·
+        custo</b>. O título é a única coisa elástica; todo o resto tem largura própria, senão a
+        coluna de custo dança a cada linha e a lista deixa de se ler na vertical.
+      </p>
+      <p class="sec__d">
+        <b>A proveniência é glifo, e só o que não é default tem marca.</b> Tarefa que você criou não
+        ganha nada — "você" é o normal, e marcar o normal gasta a marca. <code>◆</code> é agente,
+        <code>↗</code> é tracker. <b>Isso é uma lição que a triagem do quadro pagou caro:</b> lá as
+        "duas cores de origem" eram <code>session-agent</code> e <code>text-link</code>, que são o
+        mesmo <code>brand-400</code>.
+      </p>
+      <p class="sec__d">
+        E dois estados <b>não aparecem na lista por default</b>: <code>proposed</code> mora na fila
+        de Propostas — repeti-lo aqui faria a mesma coisa existir em dois lugares com dois gestos —, e
+        <code>dropped</code> sai do fluxo e vira arquivo, alcançável pelo filtro de status, com o
+        motivo junto. <b>Sem motivo, <code>dropped</code> é indistinguível de esquecimento.</b>
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">os cinco estados da lista, e os dois que precisam de filtro · <b>na largura real</b>, <span class="mm">1120px</span></div>
+      <div class="bleed"><div class="rowbench">
+        <button class="trow trow--review focus-ring">
+          <span class="tstat"><span class="tstat__dot"></span>review</span>
+          <span class="trow__t">o endpoint /orders devolve 500 quando o carrinho está vazio</span>
+          <span class="trow__proj"><span class="glyph glyph--project">■</span>acme-api</span>
+          <span class="tprov tprov--link"><span class="tprov__g">↗</span>ACME-142</span>
+          <span class="trow__wt"><span class="glyph glyph--worktree">◇</span>142-orders-500</span>
+          <span class="prmark prmark--ready"><span class="prmark__dot"></span>#87</span>
+          <span class="trow__cost">US$ 0,74</span>
+        </button>
+        <button class="trow trow--progress focus-ring">
+          <span class="tstat"><span class="tstat__dot"></span>in progress</span>
+          <span class="trow__t">validar CPF no cadastro, com o dígito verificador</span>
+          <span class="trow__proj"><span class="glyph glyph--project">■</span>acme-api</span>
+          <span class="tprov"></span>
+          <span class="trow__wt"><span class="glyph glyph--worktree">◇</span>cpf-cadastro</span>
+          <span class="prmark prmark--ready"><span class="prmark__dot"></span>#86</span>
+          <span class="trow__cost">US$ 0,52</span>
+        </button>
+        <button class="trow trow--open focus-ring">
+          <span class="tstat"><span class="tstat__dot"></span>open</span>
+          <span class="trow__t">remover o banner de cookies duplicado</span>
+          <span class="trow__proj"><span class="glyph glyph--project">■</span>acme-web</span>
+          <span class="tprov"><span class="tprov__g">◆</span>proposta</span>
+          <span class="trow__wt"></span>
+          <span class="prmark"></span>
+          <span class="trow__cost trow__cost--none">—</span>
+        </button>
+        <button class="trow trow--done focus-ring">
+          <span class="tstat"><span class="tstat__g">✓</span>done</span>
+          <span class="trow__t">corrigir o foco do modal de login</span>
+          <span class="trow__proj"><span class="glyph glyph--project">■</span>acme-web</span>
+          <span class="tprov"></span>
+          <span class="trow__wt"></span>
+          <span class="prmark prmark--merged"><span class="prmark__dot"></span>#82</span>
+          <span class="trow__cost">US$ 0,29</span>
+        </button>
+        <button class="trow trow--dropped focus-ring">
+          <span class="tstat"><span class="tstat__g">–</span>dropped</span>
+          <span class="trow__t">melhorar a performance do carregamento <span class="dim">— sem critério de aceite</span></span>
+          <span class="trow__proj"><span class="glyph glyph--project">■</span>acme-web</span>
+          <span class="tprov"></span>
+          <span class="trow__wt"></span>
+          <span class="prmark"></span>
+          <span class="trow__cost">US$ 2,04</span>
+        </button>
+      </div></div>
+      <p class="case__note">
+        <b><code>dropped</code> guarda o custo, e isso não é detalhe.</b> Ela gastou US$ 2,04 antes de
+        você desistir dela — some com o número e a soma do workspace deixa de fechar, e você aprende a
+        desconfiar do total. O que ela perde é a barra colorida, não a conta.
+      </p>
+      <p class="case__note">
+        <b>O motivo mora no título, em cinza, na mesma linha</b> — e trunca junto com ele quando é
+        longo, com o texto inteiro no detalhe. Uma segunda linha por tarefa arquivada custaria altura
+        em <em>toda</em> a lista para servir ao estado menos visitado dela; um motivo cortado num
+        arquivo que você foi procurar de propósito custa um clique.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 3 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">3</span>o detalhe — e a única tela do produto que soma sessões</h2>
+      <p class="sec__d">
+        Corpo, sessões com estado, worktree, custo, e o que a memória aprendeu enquanto. <b>O custo
+        por tarefa é de graça</b>: <code>session_usage</code> já tem sessão, e a sessão passa a ter
+        tarefa — a soma é uma consulta, não uma coluna nova.
+      </p>
+      <p class="sec__d">
+        <b>Uma tarefa tem N sessões, e elas não são só de agente.</b> O <code>shell</code> e o
+        <code>script</code> da <code>project-scripts</code> contam igual: se você subiu a aplicação
+        para conferir o que o agente fez, aquilo foi trabalho desta tarefa. É a primeira tela do
+        produto que responde <em>"quanto custou isto"</em> sem você escolher uma sessão.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">a tarefa <b>ACME-142</b>, em <code>review</code> · o breadcrumb é a saída</div>
+      <div class="bleed">
+        <div class="win win--w1440">
+          <div class="win__l">janela <span class="mm">1440</span> · o detalhe ocupa a coluna do meio</div>
+          <div class="win__v" style="--h: calc(var(--space-64) * 12)">
+
+            <div class="app">
+              <div class="topbar">
+                <h1 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h1>
+                <span class="spacer"></span>
+                <span class="daemon"><span class="daemon__dot"></span>daemon 4317</span>
+              </div>
+              <div class="body">
+                <aside class="sidebar">
+                  <div class="ws-wrap"><button class="ws focus-ring"><span class="glyph glyph--workspace">◈</span>Acme<span class="caret">▾</span></button></div>
+                  <div class="tree">
+                    <div class="tree__label">Projetos</div>
+                    <button class="row row--project"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">acme-api</span></button>
+                    <button class="row is-selected" style="--depth: 1"><span class="glyph glyph--worktree">◇</span><span class="row__label">142-orders-500</span><span class="prmark prmark--ready"><span class="prmark__dot"></span>#87</span></button>
+                  </div>
+                </aside>
+
+                <main class="td">
+                  <div class="crumb">
+                    <button class="crumb__up focus-ring">Acme</button>
+                    <span class="crumb__sep">/</span>
+                    <button class="crumb__up focus-ring">Tarefas</button>
+                    <span class="crumb__sep">/</span>
+                    <span class="crumb__here">o endpoint /orders devolve 500…</span>
+                  </div>
+
+                  <div class="td__l1">
+                    <h2 class="td__t">o endpoint /orders devolve 500 quando o carrinho está vazio</h2>
+                    <span class="td__acts">
+                      <button class="btn btn--sm btn--brand focus-ring">marcar done</button>
+                      <button class="btn btn--sm focus-ring">abrir a conversa</button>
+                      <button class="btn btn--sm btn--ghost focus-ring">descartar</button>
+                    </span>
+                  </div>
+
+                  <div class="td__facts">
+                    <span class="chip" style="color: var(--color-text-primary)"><span class="tstat__dot" style="box-shadow: inset 0 0 0 1px currentColor; background: none"></span>review</span>
+                    <span class="chip"><span class="glyph glyph--project">■</span>acme-api</span>
+                    <span class="chip chip--branch">◇ 142-orders-500</span>
+                    <span class="chip chip--clean"><span class="chip__dot"></span>limpa</span>
+                    <a class="chip focus-ring" href="#"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#87</span>5 verificações ✓</a>
+                    <a class="chip focus-ring" href="#">↗ ACME-142 · Linear</a>
+                    <span class="chip chip--mono">criada por você · há 3 h</span>
+                  </div>
+
+                  <div class="td__sec">
+                    <div class="td__st">o corpo <span class="dim">· markdown, editável</span></div>
+                    <div class="td__body">
+                      Ao finalizar um pedido com o carrinho vazio, <code>POST /orders</code> devolve
+                      <code>500</code> com stack trace. O contrato diz <code>400</code> com
+                      <code>{"error": "empty_cart"}</code>. <b>Reproduz em staging.</b>
+                    </div>
+                  </div>
+
+                  <div class="td__sec">
+                    <div class="td__st">as sessões <span class="dim">· 3 · clique abre a conversa no checkout</span><span class="spacer"></span><span class="dim">7 d</span></div>
+                    <div class="stack" style="gap: var(--space-6)">
+                      <button class="srow focus-ring"><span class="srow__kind"><span class="glyph glyph--agent">◆</span>claude</span><span class="srow__when">12:04 → 12:31 · 9 turnos</span><span class="srow__st srow__st--exit"><span class="srow__dot"></span>encerrada</span><span class="srow__cost">US$ 0,52</span></button>
+                      <button class="srow focus-ring"><span class="srow__kind"><span class="glyph glyph--shell">●</span>shell</span><span class="srow__when">12:33 → 12:41 · <code>pnpm test orders</code></span><span class="srow__st srow__st--exit"><span class="srow__dot"></span>saiu 0</span><span class="srow__cost trow__cost--none">—</span></button>
+                      <button class="srow focus-ring"><span class="srow__kind"><span class="glyph glyph--agent">◆</span>claude</span><span class="srow__when">13:02 → agora · 5 turnos</span><span class="srow__st srow__st--run"><span class="srow__dot"></span>viva</span><span class="srow__cost">US$ 0,22</span></button>
+                    </div>
+                    <p class="tsec__d" style="margin: 0">
+                      <b>US$ 0,74 no total</b>, e o <code>shell</code> não custou nada — mas conta como
+                      trabalho desta tarefa, e é por isso que ele está na lista.
+                    </p>
+                  </div>
+
+                  <div class="td__sec">
+                    <div class="td__st">o que a memória aprendeu enquanto <span class="dim">· só leitura · nenhuma coluna nova</span></div>
+                    <div class="learn">
+                      <span class="learn__g">◈</span>
+                      <div><code>/orders</code> devolve <code>400 empty_cart</code> para carrinho vazio — <b>aprovada por você</b></div>
+                      <span class="learn__when">há 40 min</span>
+                    </div>
+                  </div>
+                </main>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>Os três verbos do topo são os únicos que você tem, e um deles é o que a
+        <a class="lnk" href="#">T9</a> protege:</b> <code>marcar done</code> aparece porque você é
+        humano. Nenhum caminho desta tela oferece <code>done</code> a um agente — o que o agente
+        alcança é <code>review</code>, pela porta HTTP, que é a palavra certa para o que ele sabe.
+      </p>
+      <p class="case__note">
+        <b>A memória aparece aqui e não o contrário</b> — a tarefa sabe da memória, a memória não
+        ganha coluna de tarefa. A ligação já existe pela sessão, e inventar a segunda ponta criaria
+        duas verdades para a mesma aresta.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 4 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">4</span>trabalhar nesta tarefa — e o composer que não envia</h2>
+      <p class="sec__d">
+        Um botão, duas escolhas, <b>na ordem em que se pensa</b>: onde, e só então quem. Invertida, o
+        agente viraria a pergunta principal — e ele tem default, enquanto o checkout não
+        necessariamente tem.
+      </p>
+      <p class="sec__d">
+        O primeiro quadro do diálogo já é útil: <b>cria uma worktree nova, com o nome derivado do
+        título</b>. A <a class="lnk" href="#">T5</a> permite escolher um checkout existente,
+        inclusive o <code>local</code> — a frase do primeiro acesso (<em>"toda tarefa vira uma
+        worktree"</em>) é proposta de trabalho, não trava.
+      </p>
+      <p class="sec__d">
+        <b>E o composer chega preenchido, não enviado</b> (<a class="lnk" href="#">T6</a>). É a mesma
+        regra do núcleo da memória: injeção invisível é proibida, e <b>um prompt disparado sem você
+        ler é uma injeção que custa dinheiro</b>. Enviar automaticamente economizaria um clique e
+        gastaria um turno que você não escolheu.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o diálogo · <b>onde</b> e <b>quem</b></div>
+      <div class="pairing">
+        <div class="pairing__i" style="width: var(--size-dialog-width)">
+          <div class="pairing__l"><b>worktree nova</b> — o default, com o nome sugerido</div>
+          <div class="modal__card">
+            <div class="modal__head">
+              <div class="modal__head-b"><h3 class="modal__t">Trabalhar nesta tarefa</h3><p class="modal__where">em<span class="glyph glyph--project">■</span><b>acme-api</b></p></div>
+              <button class="modal__close">✕</button>
+            </div>
+            <div class="modal__body">
+              <div class="work">
+                <div class="work__f">
+                  <span class="work__l">onde</span>
+                  <div class="seg" role="group" aria-label="onde trabalhar">
+                    <button class="seg__btn" aria-pressed="true">worktree nova</button>
+                    <button class="seg__btn" aria-pressed="false">checkout existente</button>
+                  </div>
+                  <div class="input input--focus"><span class="input__val">142-orders-500-empty-cart</span></div>
+                  <div class="fname"><span class="fname__g">◈</span><div>derivado do título — a sugestão é do Lumem, e o nome continua seu</div></div>
+                </div>
+                <div class="work__f">
+                  <span class="work__l">quem</span>
+                  <div class="work__list" role="listbox" aria-label="agentes">
+                    <button class="wopt is-selected" role="option" aria-selected="true"><span class="glyph glyph--agent">◆</span><span class="wopt__name">claude</span><span class="wopt__note">o de sempre</span></button>
+                    <button class="wopt" role="option"><span class="glyph glyph--agent">◆</span><span class="wopt__name">codex</span><span class="wopt__note">conectado</span></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal__foot">
+              <button class="btn btn--brand">abrir</button>
+              <button class="btn btn--ghost">cancelar</button>
+              <span class="modal__esc"><span class="kbd">Esc</span> fecha</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pairing__i" style="width: var(--size-dialog-width)">
+          <div class="pairing__l"><b>checkout existente</b> — inclusive o <code>local</code></div>
+          <div class="modal__card">
+            <div class="modal__head">
+              <div class="modal__head-b"><h3 class="modal__t">Trabalhar nesta tarefa</h3><p class="modal__where">em<span class="glyph glyph--project">■</span><b>acme-api</b></p></div>
+              <button class="modal__close">✕</button>
+            </div>
+            <div class="modal__body">
+              <div class="work">
+                <div class="work__f">
+                  <span class="work__l">onde</span>
+                  <div class="seg" role="group" aria-label="onde trabalhar">
+                    <button class="seg__btn" aria-pressed="false">worktree nova</button>
+                    <button class="seg__btn" aria-pressed="true">checkout existente</button>
+                  </div>
+                  <div class="work__list" role="listbox" aria-label="checkouts">
+                    <button class="wopt is-selected" role="option" aria-selected="true"><span class="glyph glyph--worktree">◇</span><span class="wopt__name">cpf-cadastro</span><span class="wopt__note">limpa</span></button>
+                    <button class="wopt" role="option"><span class="glyph glyph--worktree">◇</span><span class="wopt__name">142-orders-500</span><span class="wopt__note">3 arquivos</span></button>
+                    <button class="wopt" role="option"><span class="glyph glyph--local">▭</span><span class="wopt__name">local</span><span class="wopt__note">o checkout principal</span></button>
+                  </div>
+                  <div class="fname"><span class="fname__g">◈</span><div>a tarefa passa a apontar para este checkout — e não volta a ficar sem</div></div>
+                </div>
+                <div class="work__f">
+                  <span class="work__l">quem</span>
+                  <div class="work__list" role="listbox" aria-label="agentes">
+                    <button class="wopt is-selected" role="option" aria-selected="true"><span class="glyph glyph--agent">◆</span><span class="wopt__name">claude</span><span class="wopt__note">o de sempre</span></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal__foot">
+              <button class="btn btn--brand">abrir</button>
+              <button class="btn btn--ghost">cancelar</button>
+              <span class="modal__esc"><span class="kbd">Esc</span> fecha</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="case__label" style="margin-top: var(--space-16)">e a conversa que abre · <b>preenchida, não enviada</b> · <span class="mm">US$ 0,00</span> até você apertar</div>
+      <div class="composer" style="max-width: var(--size-detail-max); background: var(--color-bg-base); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg)">
+        <div class="composer__box composer__box--focus">
+          <div class="composer__in">
+            Ao finalizar um pedido com o carrinho vazio, <code>POST /orders</code> devolve
+            <code>500</code> com stack trace. O contrato diz <code>400</code> com
+            <code>{"error": "empty_cart"}</code>. Reproduz em staging.
+          </div>
+          <div class="composer__bar">
+            <span class="pill pill--auto">automático<span class="pill__caret">▾</span></span>
+            <span class="pill pill--model">sonnet-5<span class="pill__caret">▾</span></span>
+            <span class="spacer"></span>
+            <span class="dim" style="font: var(--text-caption)">o corpo da tarefa, editável · <span class="kbd">⏎</span> envia</span>
+            <button class="btn btn--sm btn--brand focus-ring">enviar</button>
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>Este é o único lugar do produto onde o texto de outra tela vira prompt</b>, e é por isso
+        que ele chega visível e editável. A alternativa — enviar direto — é um clique a menos e um
+        turno a mais, e o turno é o que custa.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 5 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">5</span>a worktree diz para qual tarefa ela existe</h2>
+      <p class="sec__d">
+        A <a class="lnk" href="#">worktree-first-tab</a> fez a primeira aba do checkout ser fixa e sem
+        <code>✕</code>. É ela que ganha a tarefa — <b>na linha de contexto, ao lado de branch e
+        sujeira, e não no rótulo da aba</b>. O rótulo já carrega nome e ponto de sujeira; enfiar um
+        título lá dentro faria a aba crescer com o texto que alguém digitou.
+      </p>
+      <p class="sec__d">
+        A barra de 2px do chip é a <b>mesma cor de estado da lista</b>, então o checkout diz de
+        relance se a tarefa dele está andando, esperando, ou esperando você.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">a primeira aba, com e sem tarefa</div>
+      <div class="stack">
+        <div class="tabs-bar">
+          <div class="tabs">
+            <span class="stab stab--overview stab--active"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--worktree">◇</span>142-orders-500<span class="stab__dot stab__dot--dirty"></span></button></span>
+            <span class="tabs__sep"></span>
+            <span class="stab"><button class="stab__label focus-ring" type="button"><span class="glyph glyph--agent">◆</span>claude</button><button class="stab__close focus-ring" type="button" aria-label="fechar">✕</button></span>
+          </div>
+          <button class="tabs__new focus-ring" type="button">＋ nova sessão</button>
+        </div>
+        <div class="ctx">
+          <span class="chip chip--branch">◇ 142-orders-500-empty-cart</span>
+          <span class="chip chip--dirty"><span class="chip__dot"></span>3 arquivos</span>
+          <a class="chip focus-ring" href="#"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#87</span></a>
+          <button class="ctx__task focus-ring" style="--st: var(--color-text-primary)"><span class="tstat__dot" style="background: none; box-shadow: inset 0 0 0 1px var(--color-text-primary)"></span><span class="ctx__task-t">o endpoint /orders devolve 500 quando o carrinho está vazio</span></button>
+        </div>
+
+        <div class="ctx">
+          <span class="chip chip--branch">◇ experimento-cache</span>
+          <span class="chip chip--clean"><span class="chip__dot"></span>limpa</span>
+          <span class="ctx__none">sem tarefa</span>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>"Sem tarefa" é escrito, e em cinza-desabilitado.</b> A ausência não pode ser um espaço
+        vazio: worktree sem tarefa é o caso mais comum do produto — a
+        <a class="lnk" href="#">T1</a> decidiu que tarefa <b>não</b> é obrigatória —, e um vazio ali
+        se leria como dado que não carregou.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 6 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">6</span>a fila de Propostas — e o que não pode se perder na mudança</h2>
+      <p class="sec__d">
+        <span class="q">T4 · respondida</span> <b>Uma fila, dois tipos, um lugar.</b> A aba
+        <code>Propostas</code> do <code>MemoryPanel</code> some, e a lista sobe para o topo da tela do
+        workspace, ao lado das tarefas propostas. Um lugar para <em>"o que o sistema quer que eu
+        decida"</em> vale mais que dois — e com a <code>028</code> ligada, três agentes por tarefa
+        propõem muito mais do que quando essa pergunta foi escrita.
+      </p>
+      <p class="sec__d">
+        <b>O que a mudança de endereço não pode perder é a distinção entre fato e conclusão.</b> Ela é
+        a regra que sustenta a memória inteira: resposta apoiada em <b>artefato verificável</b> vira
+        memória direta; <b>conclusão</b> vira proposta. Se a fila nova mostrasse só o texto, a pessoa
+        aprovaria conclusão com a mesma facilidade com que aprova fato — e a memória viraria o palpite
+        do agente com carimbo seu.
+      </p>
+      <p class="sec__d">
+        Então a linha da evidência é obrigatória e tem <b>duas leituras opostas no mesmo lugar</b>:
+        com artefato, os caminhos em mono e o glifo verde; sem, a frase que diz que foi conclusão, em
+        âmbar. <b>Âmbar e não vermelho</b> — não é erro, é o motivo de você estar sendo perguntado.
+      </p>
+      <p class="sec__d">
+        E vem junto o segmentado <b>pendentes · resolvidas</b>, que a aba já tinha. Sem ele, rejeitar
+        uma proposta a apagaria da tela inteira — não está na fila, não está no acervo — e você não
+        teria como lembrar o que já decidiu.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">os dois tipos, e as duas leituras da evidência</div>
+      <div class="pq">
+        <div class="pq__h">
+          <span class="pq__t">Propostas</span>
+          <span class="count">3</span>
+          <span class="spacer"></span>
+          <div class="seg" role="group" aria-label="propostas por estado">
+            <button class="seg__btn" aria-pressed="true">pendentes</button>
+            <button class="seg__btn" aria-pressed="false">resolvidas</button>
+          </div>
+        </div>
+
+        <div class="pq__i">
+          <div class="pq__head">
+            <span class="pq__g">◆</span><span class="pq__who">implementador</span>
+            <span>em <b>ACME-142</b> · <code>142-orders-500</code> · há 8 min</span>
+            <span class="pq__kind">tarefa · acme-web</span>
+          </div>
+          <div class="pq__t2">o checkout lê <code>order.total</code>, que esta tarefa está renomeando</div>
+          <div class="pq__why">
+            Não mexi no <code>acme-web</code> — a tarefa é outra e o checkout é outro. Achei a chamada
+            enquanto procurava o serializer.
+          </div>
+          <div class="pq__ev"><span class="pq__ev-g">✓</span><div><b>Evidência</b> — <code>web/src/checkout/Summary.tsx:41</code></div></div>
+          <div class="pq__acts">
+            <button class="btn btn--sm btn--brand focus-ring">aprovar → To-Do</button>
+            <button class="btn btn--sm focus-ring">aprovar → Backlog</button>
+            <button class="btn btn--sm btn--ghost focus-ring">rejeitar</button>
+            <span class="pq__note">rejeitar pede motivo — é o que ensina o agente a não propor de novo</span>
+          </div>
+        </div>
+
+        <div class="pq__i">
+          <div class="pq__head">
+            <span class="pq__g">◈</span><span class="pq__who">revisor-severo</span>
+            <span>destilação de fim de sessão · <code>142-orders-500</code> · há 1 h</span>
+            <span class="pq__kind">memória · workspace</span>
+          </div>
+          <div class="pq__tags"><span class="chip">◈ workspace</span><span class="chip">domain</span><span class="chip chip--mono">contrato-orders</span></div>
+          <div class="pq__t2"><code>/orders</code> devolve <code>400 empty_cart</code> para carrinho vazio, nunca <code>200</code> com lista vazia</div>
+          <div class="pq__ev"><span class="pq__ev-g">✓</span><div><b>Evidência</b> — <code>api/src/orders/serializer.ts:88</code>, <code>api/test/orders.spec.ts:12</code></div></div>
+          <div class="pq__acts">
+            <button class="btn btn--sm btn--brand focus-ring">aprovar</button>
+            <button class="btn btn--sm focus-ring">editar e aprovar</button>
+            <button class="btn btn--sm btn--ghost focus-ring">rejeitar</button>
+            <span class="pq__note">aprovada, ela entra no índice do workspace — e passa a ser injetada</span>
+          </div>
+        </div>
+
+        <div class="pq__i">
+          <div class="pq__head">
+            <span class="pq__g">◈</span><span class="pq__who">claude</span>
+            <span>auto-learn · <code>cpf-cadastro</code> · há 20 min</span>
+            <span class="pq__kind">memória · workspace</span>
+          </div>
+          <div class="pq__tags"><span class="chip">◈ workspace</span><span class="chip">process</span><span class="chip chip--mono">squash-na-main</span></div>
+          <div class="pq__t2">o time faz <code>squash</code> antes de mesclar na <code>main</code></div>
+          <div class="pq__ev pq__ev--none"><span class="pq__ev-g">⚠</span><div><b>Sem evidência verificável</b> — o agente concluiu a partir do histórico da conversa. <b>Conclusão vira proposta; fato vira memória.</b></div></div>
+          <div class="pq__acts">
+            <button class="btn btn--sm btn--brand focus-ring">aprovar</button>
+            <button class="btn btn--sm focus-ring">editar e aprovar</button>
+            <button class="btn btn--sm btn--ghost focus-ring">rejeitar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="case__label" style="margin-top: var(--space-16)"><b>resolvidas</b> · a mesma peça, sem verbos</div>
+      <div class="pq">
+        <div class="pq__i pq__i--done">
+          <div class="pq__head">
+            <span class="pq__g">◆</span><span class="pq__who">testador</span>
+            <span>em <b>ACME-131</b> · ontem 19:40</span>
+            <span class="pq__kind">tarefa · acme-api</span>
+          </div>
+          <div class="pq__t2">extrair o cliente HTTP para um pacote compartilhado</div>
+          <div class="pq__acts">
+            <span class="pq__verdict pq__verdict--no">✕ rejeitada</span>
+            <span class="dim">"refator grande sem alvo — volta quando o terceiro projeto precisar"</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="case__note">
+        <b>Os verbos são diferentes por tipo, e isso é o que "dois tipos" custa.</b> Tarefa aprovada
+        escolhe <em>onde</em> — Backlog é reconhecer que a coisa existe, To-Do é consentir em gastar.
+        Memória aprovada escolhe <em>se o texto está certo</em>. Achatar os dois para ficarem
+        simétricos seria trocar a utilidade da lista pela beleza dela.
+      </p>
+      <p class="case__note">
+        <b>E a aprovação de memória diz o que ela faz:</b> <em>"entra no índice do workspace — e passa
+        a ser injetada"</em>. A proposta de tarefa cria trabalho; a de memória <b>muda o que todo
+        agente lê no primeiro turno</b>. As duas cabem na mesma lista porque a decisão é do mesmo
+        tipo; a consequência não é, e a frase ao lado do verbo é onde isso aparece.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 7 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">7</span>os vazios, e o que morre enquanto você não olha</h2>
+      <p class="sec__d">
+        Três vazios, e nenhum deles é o mesmo problema: <b>nunca houve tarefa</b> (ensina),
+        <b>o filtro não achou</b> (oferece desfazer), e <b>não há proposta</b> (a faixa nem existe).
+        Um estado vazio genérico responderia mal a dois deles.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">os três vazios · e as duas degradações que a casa cobra</div>
+      <div class="stack">
+        <div class="deck">
+          <div class="deck__i">
+            <div class="deck__l"><b>nunca houve</b> — ensina, e o verbo é o primeiro</div>
+            <div class="empty" style="padding: var(--space-20) var(--space-12)">
+              <span class="empty__glyph">◌</span>
+              <span class="empty__title">Nenhuma tarefa ainda</span>
+              <span class="empty__sub">Tarefa é para o trabalho que você quer acompanhar — ela guarda o corpo, o checkout, as sessões e o custo. Conversa rápida continua a um clique, sem tarefa nenhuma.</span>
+              <button class="btn btn--brand focus-ring">criar a primeira</button>
+            </div>
+          </div>
+          <div class="deck__i">
+            <div class="deck__l"><b>o filtro não achou</b> — e o caminho de volta é o próprio aviso</div>
+            <div class="empty" style="padding: var(--space-20) var(--space-12)">
+              <span class="empty__glyph">◌</span>
+              <span class="empty__title">Nenhuma em <code>review</code> no acme-web</span>
+              <span class="empty__sub">Existem <b>7</b> tarefas neste workspace.</span>
+              <button class="btn focus-ring">limpar os filtros</button>
+            </div>
+          </div>
+          <div class="deck__i">
+            <div class="deck__l"><b>nenhuma proposta</b> — a faixa não existe</div>
+            <div class="rule rule--yes">
+              <div class="rule__t">zero propostas = zero pixels</div>
+              <div class="rule__d">
+                A fila não tem estado vazio. Uma seção que diz <em>"nada aqui"</em> todo dia ensina o
+                olho a pular aquela região da tela — e no dia em que houver algo, ele pula igual.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="offline">
+          <span class="offline__glyph">⚠</span>
+          <div class="offline__body">
+            <div class="offline__what">Sem conexão com o daemon</div>
+            <div class="offline__why">
+              A lista abaixo é o último estado conhecido, de <code>10:41</code>. <b>Nada pode ser
+              criado, movido ou aprovado enquanto isso</b> — e a fila de Propostas some, porque
+              aprovar sem daemon é um botão cujo único resultado é erro.
+            </div>
+            <div class="offline__next">reconectando · tentativa 3</div>
+          </div>
+          <div class="offline__actions"><button class="btn btn--sm focus-ring">tentar agora</button></div>
+        </div>
+
+        <div class="bleed"><div class="rowbench">
+          <div class="deck__l"><b>a worktree sumiu</b> — a tarefa fica, e no estado em que estava</div>
+          <button class="trow trow--progress">
+              <span class="tstat"><span class="tstat__dot"></span>in progress</span>
+              <span class="trow__t">validar CPF no cadastro, com o dígito verificador</span>
+              <span class="trow__proj"><span class="glyph glyph--project">■</span>acme-api</span>
+              <span class="tprov"></span>
+            <span class="trow__wt" style="color: var(--color-worktree-missing)"><span class="glyph glyph--warn">⚠</span>sem checkout</span>
+            <span class="prmark"></span>
+            <span class="trow__cost">US$ 0,52</span>
+          </button>
+          <div class="rule rule--no">
+              <div class="rule__t">perder o checkout não é desfazer o trabalho</div>
+              <div class="rule__d">
+                <code>worktree_id</code> é <code>ON DELETE SET NULL</code>: a tarefa perde o checkout e
+                <b>fica no estado em que estava</b>. Voltar para <code>open</code> apagaria o fato de
+                que alguém trabalhou nela — e o custo, que continua somado, diria o contrário da
+                coluna de estado.
+            </div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================== 8 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">8</span>o que este desenho decidiu, e o que ele cobra</h2>
+    </div>
+    <div class="grid grid--2">
+      <div class="rule rule--yes">
+        <div class="rule__t">a língua de estado é a mesma do quadro da <code>028</code></div>
+        <div class="rule__d">
+          Anel é ninguém, disco cheio é alguém, o texto mais claro é a sua vez. A <code>028</code>
+          empilha em cima desta — duas telas dizendo a mesma coisa com pixels diferentes fariam a
+          pessoa aprender duas vezes.
+        </div>
+      </div>
+      <div class="rule rule--yes">
+        <div class="rule__t">o estado é o primeiro item, então não há cabeçalho de grupo</div>
+        <div class="rule__d">
+          Quando o primeiro item da linha é o critério de ordenação, a ordem se explica sozinha.
+          Cabeçalhos custariam a altura de duas tarefas para repetir o que o chip já diz.
+        </div>
+      </div>
+      <div class="rule rule--yes">
+        <div class="rule__t">a fila de Propostas nasce aqui, e o quadro consome daqui</div>
+        <div class="rule__d">
+          O <code>lumem-board.html</code> tinha uma cópia chamada <code>.tri</code>. Cópia é como duas
+          telas divergem sem ninguém decidir nada — ela virou <code>.pq</code>, e o quadro passou a
+          linkar esta folha.
+        </div>
+      </div>
+      <div class="rule rule--yes">
+        <div class="rule__t">a evidência atravessou a mudança de endereço</div>
+        <div class="rule__d">
+          <em>Fato vira memória; conclusão vira proposta.</em> É a regra que sustenta a memória
+          inteira, e ela é a linha que mais corria risco de se perder ao trocar de tela.
+        </div>
+      </div>
+      <div class="rule rule--no">
+        <div class="rule__t">a memória desceu um lugar na tela do workspace</div>
+        <div class="rule__d">
+          A fila entra no topo, e memória passa a ser a quarta seção. É o custo de posição da
+          <a class="lnk" href="#">T4</a>, e ele é real — a <code>007</code> tinha a memória em
+          segundo lugar.
+        </div>
+      </div>
+      <div class="rule rule--no">
+        <div class="rule__t">a seção de tarefas divide a coluna com mais duas</div>
+        <div class="rule__d">
+          Consumo e memória continuam abaixo, e o risco do §9 da <code>workspace-screen</code> —
+          <em>"a tela do workspace vira a tela de tudo"</em> — piora com esta feature. A defesa é o
+          <code>ver todas</code>, e ela precisa ser medida com sete tarefas, não com três.
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>
