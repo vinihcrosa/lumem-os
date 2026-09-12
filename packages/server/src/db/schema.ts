@@ -850,6 +850,23 @@ export const task = sqliteTable(
      */
     createdBySession: text("created_by_session"),
     worktreeId: text("worktree_id").references(() => worktree.id, { onDelete: "set null" }),
+    /**
+     * A prioridade, e ela é a posição na coluna (`028` §4.3).
+     *
+     * *"Se você quiser outra ordem, arrasta"* — e é por isso que não existe
+     * campo de prioridade: arrastar é um gesto que o quadro já tem, e um campo
+     * seria vocabulário novo para dizer a mesma coisa pior. Uma coluna guardada,
+     * e não derivada, porque **derivada não se arrasta**: o `STATUS_RANK` da
+     * `022` ordena por estado, e ninguém reordena um `CASE`.
+     *
+     * Escopo é `(workspace_id, status)` — a coluna do quadro. Sem estrangeira
+     * que expresse isso, então o índice é a única coisa que o banco sabe.
+     *
+     * Ordinal contíguo dentro da coluna de destino, renumerado na transação do
+     * arrasto. Buraco na coluna de **origem** é permitido e não se conserta:
+     * ninguém lê o número, só a ordem dele.
+     */
+    position: integer("position").notNull().default(0),
     /** JSON de URLs — ClickUp, Jira, PR. **Referência por link, e só** (Q013). */
     links: text("links").notNull().default("[]"),
     /**
@@ -889,6 +906,9 @@ export const task = sqliteTable(
     // A lista é lida por workspace e filtrada por status e projeto (F1) — os
     // três filtros da mesma consulta.
     index("task_by_workspace").on(table.workspaceId, table.status),
+    // A leitura do quadro: uma coluna, em ordem. Sem isto toda pintura de
+    // cartão ordena em memória.
+    index("task_by_position").on(table.workspaceId, table.status, table.position),
     index("task_by_project").on(table.projectId),
   ],
 );

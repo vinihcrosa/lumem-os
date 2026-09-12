@@ -144,6 +144,35 @@ export const taskRouter = router({
       }),
     ),
 
+  /**
+   * O arrasto do quadro: a coluna e o lugar nela (`028` §4.3, T5).
+   *
+   * `index` é para onde o ponteiro apontou, e o daemon renumera a coluna de
+   * destino inteira numa transação — a posição **é** a prioridade, então ela
+   * tem que sobreviver a recarregar.
+   */
+  move: publicProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        status: statusSchema,
+        index: z.number().int().min(0),
+        reason: z.string().trim().min(1).optional(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () => {
+        const moved = await createTaskRepository(ctx.db).move(input.id, {
+          status: input.status,
+          index: input.index,
+          actor: "human",
+          reason: input.reason,
+        });
+        ctx.events.emit({ type: "task.changed", workspaceId: moved.workspaceId });
+        return moved;
+      }),
+    ),
+
   /** A tarefa passa a apontar para um checkout que já existe ([T5]). */
   attachWorktree: publicProcedure
     .input(z.object({ id: z.string().min(1), worktreeId: z.string().min(1) }))

@@ -113,6 +113,13 @@
       "when": 1789252325443,
       "tag": "0015_quadro_de_sete_colunas",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1789254642893,
+      "tag": "0016_ordem_na_coluna",
+      "breakpoints": true
     }
   ]
 }

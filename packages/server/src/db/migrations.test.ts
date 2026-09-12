@@ -683,3 +683,73 @@ describe("0015 — o quadro de sete colunas", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("0016 — a ordem na coluna", () => {
+  /**
+   * Um banco parado em 0015, com três tarefas na mesma coluna e uma em outra.
+   *
+   * `ALTER TABLE ADD COLUMN` com `DEFAULT 0` deixaria as três empatadas em zero,
+   * e aí quem decide a ordem é o SQLite. O backfill escrito à mão na migração é
+   * o que faz a coluna nascer em ordem de chegada — que é o default do §4.3 para
+   * quem nunca arrastou.
+   */
+  function databaseBeforePosition(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-position-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(16) });
+
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'acme')`).run();
+    sqlite
+      .prepare(
+        `INSERT INTO project (id, workspace_id, name, path, default_branch)
+         VALUES ('p1', 'w1', 'api', '/repos/api', 'main')`,
+      )
+      .run();
+    // Inseridas fora de ordem de propósito: quem manda é `created_at`, não a
+    // ordem do INSERT nem o id.
+    for (const [id, status, createdAt] of [
+      ["t-c", "open", 3000],
+      ["t-a", "open", 1000],
+      ["t-b", "open", 2000],
+      ["t-outra", "review", 1500],
+    ] as const) {
+      sqlite
+        .prepare(
+          `INSERT INTO task (id, workspace_id, project_id, title, status, created_at, updated_at)
+           VALUES (?, 'w1', 'p1', ?, ?, ?, ?)`,
+        )
+        .run(id, id, status, createdAt, createdAt);
+    }
+    sqlite.close();
+
+    return path;
+  }
+
+  it("a coluna que já existia nasce em ordem de chegada, e não empatada em zero", async () => {
+    const handle = openDatabase({ path: databaseBeforePosition() });
+    open.push(handle);
+
+    const rows = await handle.db.select().from(schema.task);
+    const byId = Object.fromEntries(rows.map((row) => [row.id, row.position]));
+
+    expect([byId["t-a"], byId["t-b"], byId["t-c"]]).toEqual([0, 1, 2]);
+  });
+
+  it("cada coluna numera a partir do zero, e não o workspace inteiro", async () => {
+    const handle = openDatabase({ path: databaseBeforePosition() });
+    open.push(handle);
+
+    const [row] = await handle.db
+      .select()
+      .from(schema.task)
+      .where(eq(schema.task.id, "t-outra"));
+
+    // `review` tem uma tarefa só. Se o backfill contasse o workspace em vez da
+    // coluna, ela nasceria em 1 — atrás de um cartão que não está lá.
+    expect(row?.position).toBe(0);
+  });
+});

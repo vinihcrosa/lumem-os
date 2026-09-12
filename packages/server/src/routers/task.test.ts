@@ -376,6 +376,85 @@ describe("quem escreve os estados do quadro", () => {
   });
 });
 
+/**
+ * A ordem dentro da coluna (`028` §4.3, T5).
+ *
+ * *"Se você quiser outra ordem, arrasta — a posição na coluna é a prioridade, e
+ * não existe campo de prioridade."* É um gesto que o quadro já tem, e não
+ * inventa vocabulário — mas ele precisa de uma coluna: a ordem da lista da `022`
+ * é **derivada** do estado (`STATUS_RANK`), e derivada não se arrasta.
+ */
+describe("a ordem dentro da coluna", () => {
+  async function threeInTodo() {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const tasks = [];
+    for (const title of ["primeira", "segunda", "terceira"]) {
+      tasks.push(await api.task.create({ workspaceId, projectId, title }));
+    }
+    return { api, workspaceId, tasks };
+  }
+
+  async function titlesIn(api: TestCaller["api"], workspaceId: string, status: "open" | "in_progress") {
+    const rows = await api.task.listByWorkspace({ workspaceId, status });
+    return rows.map((row) => row.title);
+  }
+
+  it("chega no fim da fila", async () => {
+    const { api, workspaceId } = await threeInTodo();
+
+    expect(await titlesIn(api, workspaceId, "open")).toEqual(["primeira", "segunda", "terceira"]);
+  });
+
+  it("arrastar para o topo muda a prioridade, e persiste", async () => {
+    const { api, workspaceId, tasks } = await threeInTodo();
+
+    await api.task.move({ id: tasks[2]!.id, status: "open", index: 0 });
+
+    expect(await titlesIn(api, workspaceId, "open")).toEqual(["terceira", "primeira", "segunda"]);
+  });
+
+  it("arrastar para o meio", async () => {
+    const { api, workspaceId, tasks } = await threeInTodo();
+
+    await api.task.move({ id: tasks[0]!.id, status: "open", index: 1 });
+
+    expect(await titlesIn(api, workspaceId, "open")).toEqual(["segunda", "primeira", "terceira"]);
+  });
+
+  it("mover entre colunas escreve o estado e a posição na mesma transação", async () => {
+    const { api, workspaceId, tasks } = await threeInTodo();
+    await api.task.move({ id: tasks[0]!.id, status: "in_progress", index: 0 });
+
+    const moved = await api.task.move({ id: tasks[1]!.id, status: "in_progress", index: 0 });
+
+    expect(moved.status).toBe("in_progress");
+    expect(await titlesIn(api, workspaceId, "in_progress")).toEqual(["segunda", "primeira"]);
+    // E a To-Do não ficou com buraco de ordenação: quem sobrou continua legível.
+    expect(await titlesIn(api, workspaceId, "open")).toEqual(["terceira"]);
+  });
+
+  it("um índice além do fim encosta no fim, em vez de abrir buraco", async () => {
+    const { api, workspaceId, tasks } = await threeInTodo();
+
+    await api.task.move({ id: tasks[0]!.id, status: "open", index: 99 });
+
+    expect(await titlesIn(api, workspaceId, "open")).toEqual(["segunda", "terceira", "primeira"]);
+  });
+
+  it("o agente não arrasta", async () => {
+    const { workspaceId, tasks } = await threeInTodo();
+    const repository = createTaskRepository(context.db);
+
+    // `move` é o gesto do quadro, e o quadro é seu. Um agente que reordenasse a
+    // fila decidiria o que a esteira pega primeiro.
+    await expect(
+      repository.move(tasks[0]!.id, { status: "open", index: 0, actor: "agent" }),
+    ).rejects.toMatchObject({ code: "BLOCKED" });
+    expect(workspaceId).toBeTruthy();
+  });
+});
+
 describe("a medida de cerimônia", () => {
   it("conta só as sessões deste workspace", async () => {
     /*
