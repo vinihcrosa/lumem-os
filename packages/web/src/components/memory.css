@@ -324,3 +324,7 @@
   margin: var(--space-8) var(--space-12) 0;
   font: var(--text-caption); color: var(--color-text-warning);
 }
+
+/* A tarefa que a sessão daquela decisão servia (`022` F6). Discreta: é contexto,
+   não é o assunto da linha. */
+.mem-tl-task { color: var(--color-text-tertiary); }

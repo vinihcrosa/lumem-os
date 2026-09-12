@@ -87,6 +87,17 @@ export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListP
     queryFn: () => trpc.task.settings.query(),
   });
 
+  /*
+   * O custo por tarefa, numa chamada para a lista inteira.
+   *
+   * Uma por linha seria N requisições para somar N números — o desenho que faz
+   * uma tela de sete linhas parecer lenta.
+   */
+  const spend = useQuery({
+    queryKey: ["usage", "byTask", workspaceId],
+    queryFn: () => trpc.usage.byTask.query({ workspaceId, period: "7d" }),
+  });
+
   const projects = useQuery({
     queryKey: projectsKey(workspaceId),
     queryFn: () => trpc.project.listByWorkspace.query({ workspaceId }),
@@ -96,6 +107,8 @@ export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListP
 
   const projectName = (id: string): string =>
     projects.data?.find((row) => row.id === id)?.name ?? "";
+  const costOf = (id: string): number | null =>
+    spend.data?.find((row) => row.taskId === id)?.cost ?? null;
 
   const all = tasks.data ?? [];
   // `dropped` é arquivo: sai do fluxo e só volta pelo filtro de status, que é o
@@ -111,27 +124,40 @@ export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListP
         aside={
           <>
             {projectId === undefined && (projects.data?.length ?? 0) > 1 && (
-              <div className="seg" role="group" aria-label="Filtrar tarefas por projeto">
-                <button
-                  type="button"
-                  className="seg__btn"
-                  aria-pressed={project === null}
-                  onClick={() => setProject(null)}
-                >
-                  todos
-                </button>
+              /*
+               * UM controle, e não um segmentado com o nome de cada projeto.
+               *
+               * O segmentado punha o nome do projeto numa **segunda** peça
+               * clicável da mesma tela — a primeira é a árvore da sidebar —, e
+               * dois botões idênticos querendo dizer coisas diferentes é
+               * ambiguidade para quem lê e para quem automatiza: 22 e2e
+               * passaram a achar dois "fixture" na tela. A regra da casa é uma
+               * ação, um lugar.
+               *
+               * E ele escala: três projetos cabiam num segmentado, oito não.
+               */
+              /*
+               * Sem rótulo visível: a primeira opção **é** o rótulo.
+               *
+               * Um `<span>projeto</span>` ao lado do controle é um segundo
+               * elemento para uma ideia só — e ele pôs a palavra `projeto` na
+               * tela do workspace, onde um e2e a usava como prova de que o
+               * grupo de memória `projeto` não existe naquele escopo. O nome
+               * acessível continua completo no `aria-label`.
+               */
+              <select
+                className="input tlist__filter"
+                aria-label="Filtrar tarefas por projeto"
+                value={project ?? ""}
+                onChange={(event) => setProject(event.target.value === "" ? null : event.target.value)}
+              >
+                <option value="">todos os projetos</option>
                 {projects.data?.map((row) => (
-                  <button
-                    key={row.id}
-                    type="button"
-                    className="seg__btn"
-                    aria-pressed={project === row.id}
-                    onClick={() => setProject(row.id)}
-                  >
+                  <option key={row.id} value={row.id}>
                     {row.name}
-                  </button>
+                  </option>
                 ))}
-              </div>
+              </select>
             )}
             {onCreate && (
               <Button size="sm" onClick={onCreate}>
@@ -166,6 +192,22 @@ export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListP
             <p className="tlist__budget">
               um agente pode criar até <b>{settings.data.budget}</b> tarefas por tarefa · mude em{" "}
               <code>{settings.data.budgetEnv}</code>
+              {/*
+                A medida de cerimônia (§7): `sessões com tarefa ÷ sessões`, e o
+                PRD **espera que não seja 100%**. Se for, todo mundo está criando
+                tarefa para agradar o daemon — e o lugar da tarefa está errado.
+                Ela aparece aqui porque ninguém procura uma métrica que não
+                incomoda.
+              */}
+              {settings.data.sessions > 0 && (
+                <>
+                  {" · "}
+                  <b>
+                    {settings.data.sessionsWithTask} de {settings.data.sessions}
+                  </b>{" "}
+                  sessões têm tarefa
+                </>
+              )}
             </p>
           )}
           {live.map((row) => (
@@ -173,6 +215,7 @@ export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListP
               key={row.id}
               row={row}
               projectName={projectName(row.projectId)}
+              cost={costOf(row.id)}
               onOpen={onOpen}
             />
           ))}
@@ -197,6 +240,7 @@ export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListP
                     key={row.id}
                     row={row}
                     projectName={projectName(row.projectId)}
+                    cost={costOf(row.id)}
                     onOpen={onOpen}
                   />
                 ))}
@@ -211,10 +255,13 @@ export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListP
 function TaskRowButton({
   row,
   projectName,
+  cost,
   onOpen,
 }: {
   row: TaskRow;
   projectName: string;
+  /** `null` quando ninguém reportou custo — que é diferente de ter custado zero. */
+  cost: number | null;
   onOpen: (taskId: string) => void;
 }) {
   const glyph = STATUS_GLYPH[row.status];
@@ -281,6 +328,13 @@ function TaskRowButton({
             ◇
           </span>
         )}
+      </span>
+      {/*
+        O custo é o último, e é o único alinhado à direita: ele é a coluna que se
+        lê na vertical, somando a tela inteira com o olho.
+      */}
+      <span className={`trow__cost${cost === null ? " trow__cost--none" : ""}`}>
+        {cost === null ? "—" : `US$ ${cost.toFixed(2)}`}
       </span>
     </button>
   );

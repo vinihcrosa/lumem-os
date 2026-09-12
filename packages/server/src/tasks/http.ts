@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
@@ -193,10 +193,23 @@ export function registerTaskHttp({
  * junto — e ninguém faz isso, porque a coluna é escrita quando a sessão nasce.
  */
 async function countForTask(db: Db, taskId: string): Promise<number> {
-  const sessions = await db.select().from(session).where(eq(session.taskId, taskId));
-  const ids = new Set(sessions.map((row) => row.id));
-  if (ids.size === 0) return 0;
-  const created = await db.select().from(task);
-  return created.filter((row) => row.createdBySession !== null && ids.has(row.createdBySession))
-    .length;
+  const sessions = await db
+    .select({ id: session.id })
+    .from(session)
+    .where(eq(session.taskId, taskId));
+  if (sessions.length === 0) return 0;
+
+  // `inArray` e não um `select` da tabela inteira filtrado em memória: a
+  // primeira versão lia todas as tarefas do banco para contar as de uma —
+  // barato com dez, e o tipo de coisa que ninguém percebe crescer.
+  const created = await db
+    .select({ id: task.id })
+    .from(task)
+    .where(
+      inArray(
+        task.createdBySession,
+        sessions.map((row) => row.id),
+      ),
+    );
+  return created.length;
 }

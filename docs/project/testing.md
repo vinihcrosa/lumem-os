@@ -32,6 +32,10 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `server/` **transcrição em disco** | integration com SQLite em arquivo temporário — um banco por sessão, e o teste que reabre o arquivo com um store novo é o que prova que a conversa sobrevive ao processo | Sim — cada teste cria seu próprio tmpdir |
 | `server/` **passe de manutenção** de transcrição | integration com filesystem de verdade: comprime a fria, poupa a viva, apaga a órfã. Um dos testes exige que o arquivo **encolha de fato** — sem isso a decisão de comprimir é cerimônia | Sim |
 | **configuração de agente pela tela** | e2e que não toca na API para nada: workspace, projeto, agente e sessão, tudo pelo formulário. É a única prova que interessa, porque o resto da suíte cria a configuração pela API — que é justamente o caminho que a fase 6 existe para tornar dispensável | **Não** |
+| `server/` **tarefa como entidade** | integration em três camadas, e as três provam coisas diferentes: o **banco** recusa os estados que nenhum leitor sabe interpretar (`db.test.ts`); o **router** prova a ordem da lista com os quatro estados misturados, porque ordem é decisão de produto e decisão de produto sem teste volta a ser opinião; e a **migração** prova que apagar tarefa anula o ponteiro da sessão em vez de ser recusado — o `drizzle-kit` perde a ação do estrangeiro no `ALTER TABLE`, e sem esse caso a coluna nasceria `NO ACTION` | Sim |
+| `server/` **`in_progress` derivado** | integration com agente falso, **zero token**: o primeiro prompt de uma sessão ligada à tarefa move a seta, o segundo não reescreve, e `review`/`proposed` não são desfeitos. O último caso do arquivo é a **mutação**: sem o observador, a tarefa não anda | Sim |
+| `server/` **porta de tarefa do agente** | integration sobre HTTP (`app.inject`): a regra do §3.2 nos dois sentidos, o orçamento **por tarefa** (duas sessões da mesma tarefa dividem o bolso), e um caso que não é de comportamento — `/tasks` está no `DAEMON_PREFIXES`. Sem ele, a rota cai no fallback da SPA e o agente recebe `<!doctype html>` onde esperava texto, **só no pacote instalado** | Sim |
+| **tarefa na tela**, de ponta a ponta | e2e `tasks.spec.ts`, **zero token e zero rede**: a lista com o estado como primeiro item, o `done` que só uma pessoa dá, e a porta HTTP do agente com a proveniência aparecendo na linha | **Não** |
 | **primeiro acesso** de ponta a ponta | e2e `00-onboarding.spec.ts`, e o prefixo `00-` é estrutural: é o único spec que precisa de daemon **sem workspace**, e qualquer outro spec rodando antes cria um. Ele sai de `~/.lumem` vazio e chega a um turno respondido **sem tocar a API** em nenhum passo — que é o caminho que a feature existe para tornar dispensável, e a razão pela qual o resto da suíte pode continuar usando. O adaptador é um shim com o nome `claude-agent-acp` no PATH do daemon, porque **detectar** é parte do que está sendo provado | **Não** |
 | **memória do workspace** de ponta a ponta | e2e `memory.spec.ts`. O buraco que a integração das duas pilhas revelou: a feature tinha ~357 testes de unidade e integração e **nenhum** e2e, e a tela dela é a terceira aba do painel direito. A API entra como **setup** e é a única forma honesta — uma proposta nasce de ator não-humano escrevendo para cima (Q27), e não existe gesto de tela que produza uma. O que está sob teste é a revisão, e o que prova a aprovação é o **daemon**: a proposta sai de pendente e a memória passa a existir no acervo | **Não** |
 | **painel de login** de ponta a ponta | e2e contra o adaptador de fixture: a versão vem do handshake, não existe botão `sair` porque o adaptador não declara `auth.logout`, e a gaveta `avançado` mostra o comando como fato. O clique `nenhum → conectado` **não** está aqui, e o spec diz por quê — chegar nesse estado no meio da suíte exige remover configuração que pode estar em uso | **Não** |
@@ -494,6 +498,53 @@ A regra: **quando a afirmação é "dá para clicar", a pergunta é `document.el
 do elemento — quem responde tem que ser ele mesmo.** É o que o
 [composer-menus.spec.ts](../features/023-composer-menus/tasks.md) faz, e é o único matcher que fica vermelho
 contra o código de antes. `toBeVisible` fica verde nos dois.
+
+### O `drizzle-kit` perde a ação do estrangeiro no `ALTER TABLE`
+
+A migração `0014` nasceu com `ALTER TABLE session ADD task_id text REFERENCES task(id);` — **sem
+`ON DELETE`**. O schema declara `set null`; o disco ficaria com `NO ACTION`, que em SQLite significa
+*recusar o delete do pai*. O sintoma seria apagar uma tarefa falhar com `FOREIGN KEY constraint
+failed`, meses depois, em quem tentasse limpar — e nenhum teste que começa de um banco vazio pega
+isso, porque nenhum deles apaga tarefa com sessão pendurada.
+
+A linha foi reescrita à mão, e o teste que a sustenta está em `migrations.test.ts`, num banco parado
+na revisão anterior. **Ele foi validado ficando vermelho de propósito**: com a linha gerada, falha
+com `FOREIGN KEY constraint failed`.
+
+A regra que sai daí: **toda migração que muda ação de estrangeiro por `ALTER TABLE` precisa de um
+caso que exerça a ação**, e não só a presença da coluna.
+
+### O mesmo nome em duas peças clicáveis quebra 22 e2e de uma vez
+
+O filtro de projeto da lista de tarefas nasceu como segmentado, com um botão por projeto. Na tela do
+workspace isso pôs o nome do projeto numa **segunda** peça clicável — a primeira é a árvore da
+sidebar —, e `getByRole("button", { name: "fixture", exact: true })` passou a achar dois elementos em
+**22 specs**.
+
+O conserto não foi nos testes: eles estavam certos, e escapar deles com locators mais específicos
+empurraria a ambiguidade para sempre. Dois botões idênticos querendo dizer coisas diferentes é
+ambiguidade para quem lê, não só para quem automatiza. O filtro virou **um controle que se nomeia**
+(`projeto: todos ▾`), e ele ainda escala melhor: três projetos cabiam num segmentado, oito não.
+
+A regra: **quando um locator de e2e fica ambíguo, a primeira pergunta é se a tela ficou ambígua.**
+
+E o corolário, que custou mais um round: o `<select>` que substituiu o segmentado nasceu com um
+rótulo visível — `projeto` —, e isso derrubou **outro** teste. Ele asseria que a palavra `projeto`
+**não** aparece no painel do workspace, como prova de que o grupo de memória `projeto` não existe
+naquele escopo. Ali a tela não ficou ambígua: o *proxy do teste* é que era largo demais. O conserto
+foi tirar o rótulo — a primeira opção do select (`todos os projetos`) já o nomeia, e um `<span>` ao
+lado de um controle é um segundo elemento para uma ideia só.
+
+### Uma tela nova derruba testes cujo mock não a conhece
+
+O cabeçalho do `trpc-mock.ts` já avisava, e aconteceu de novo: a seção de tarefas consulta o daemon
+no `mount`, e dois testes antigos quebraram. Um com *"Found multiple elements with the role alert"* —
+o banner de erro de uma query que devolveu `undefined` —, e outro porque o nome do projeto passou a
+aparecer **em dois lugares** na mesma tela, e a busca por texto ficou ambígua.
+
+Nenhum dos dois é um teste errado: os dois são testes que não sabiam da tela nova. O conserto é
+`installTrpcDefaults()` no primeiro e um seletor escopado no segundo — e a lição é que **um default
+vazio no mock é infraestrutura, não conveniência**.
 
 ### Um teste de handshake não vê um defeito de turno
 

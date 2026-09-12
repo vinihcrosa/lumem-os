@@ -37,6 +37,8 @@ import "./memory.css";
  *   existem no WAL, e são a resposta para "por que isso não foi salvo?".
  */
 
+export type { ProposalStatus };
+
 export type MemoryTab = "entries" | "playbooks" | "timeline" | "numbers";
 
 export interface MemoryPanelProps extends MemoryScopeFilter {
@@ -379,27 +381,42 @@ const STATUS_FILTERS: readonly { id: ProposalStatus; label: string }[] = [
  * está no histórico — o WAL registra o que passou pelo portão, e proposta é
  * exatamente o que não passou.
  */
-export function MemoryProposals() {
-  const [status, setStatus] = useState<ProposalStatus>("pending");
+/**
+ * As propostas de memória.
+ *
+ * **O filtro de estado é opcional, e isso não é conveniência.** Quando a fila
+ * única da [`022`](../../../docs/features/022-workspace-tasks/prd.md) hospeda
+ * esta lista, o `pendentes · resolvidas` tem que valer para os **dois** tipos:
+ * um segmentado que filtra metade da lista é pior que nenhum. Então quem
+ * hospeda passa `status`, e o controle mora lá em cima.
+ *
+ * Sem `status`, ela volta a ser autônoma — com o próprio segmentado —, que é
+ * como os testes a montam.
+ */
+export function MemoryProposals({ status: controlled }: { status?: ProposalStatus } = {}) {
+  const [internal, setInternal] = useState<ProposalStatus>("pending");
+  const status = controlled ?? internal;
   const proposals = useProposals(status);
 
   return (
     <>
-      <div className="mem-seg" role="group" aria-label="Propostas por estado">
-        {STATUS_FILTERS.map((filter) => (
-          <button
-            key={filter.id}
-            type="button"
-            className={`mem-seg__item${status === filter.id ? " mem-seg__item--active" : ""}`}
-            aria-pressed={status === filter.id}
-            onClick={() => {
-              setStatus(filter.id);
-            }}
-          >
-            {filter.label}
-          </button>
-        ))}
-      </div>
+      {controlled === undefined && (
+        <div className="mem-seg" role="group" aria-label="Propostas por estado">
+          {STATUS_FILTERS.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              className={`mem-seg__item${status === filter.id ? " mem-seg__item--active" : ""}`}
+              aria-pressed={status === filter.id}
+              onClick={() => {
+                setInternal(filter.id);
+              }}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+      )}
       <ProposalList query={proposals} status={status} />
     </>
   );
@@ -784,6 +801,16 @@ function Timeline() {
                 {" — "}
                 <em>{decision.reason}</em>
               </>
+            )}
+            {/*
+              A tarefa daquela sessão, quando há (`022` F6).
+
+              Só leitura, e **nenhuma coluna nova em memória**: a ligação já
+              existe pela sessão. Some quando a sessão não serve tarefa nenhuma,
+              que é o caso mais comum — tarefa não é obrigatória.
+            */}
+            {(decision.taskTitles ?? []).length > 0 && (
+              <span className="mem-tl-task"> · {(decision.taskTitles ?? []).join(", ")}</span>
             )}
           </span>
         </li>

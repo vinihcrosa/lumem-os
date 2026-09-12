@@ -2,12 +2,12 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 
-**Status:** em execução
+**Status:** completa
 **Histórico:** escrito em 2026-09-12, com as **10 perguntas respondidas** no mesmo dia. Duas delas —
 a [T4](open-questions.md) e a [T8](open-questions.md) — mudaram de forma depois de uma rodada de
 explicação, e as duas mudaram pelo mesmo motivo: a
 [`028`](../028-autonomous-orchestration/prd.md) não existia quando foram escritas. **17 tasks em 5
-fases**. As **fases 0 a 3 estão entregues** (2026-09-12): o desenho terminou **apagando** uma peça em
+fases**. **As 17 tasks das 5 fases estão entregues** (2026-09-12): o desenho terminou **apagando** uma peça em
 vez de escrever duas, e o modelo achou uma migração que o `drizzle-kit` gerou errada — sem a linha
 escrita à mão, apagar uma tarefa seria recusado em vez de anular o ponteiro da sessão.
 
@@ -190,7 +190,7 @@ tela cheia. No painel do projeto, a mesma lista filtrada. Sem prioridade, prazo 
 filtro por projeto não muda a ordem; `done` recolhido abre e fecha; a lista vazia **ensina** em vez de
 parecer quebrada.
 **Gate**: `pnpm gate:quick`
-**Status**: ✅ entregue em 2026-09-12. Sem cabeçalho de grupo, como o desenho decidiu. O caso que importa é o que prova que a tela **não reordena** o que o daemon mandou — a ordem é decisão de produto, e decisão de produto sem teste volta a ser opinião
+**Status**: ✅ entregue em 2026-09-12. Sem cabeçalho de grupo, como o desenho decidiu. **O filtro de projeto mudou de forma depois do e2e:** o segmentado desenhado punha o nome de cada projeto numa **segunda** peça clicável da mesma tela — a primeira é a árvore da sidebar —, e **22 e2e** passaram a achar dois `fixture`. Virou um controle só (`projeto: todos ▾`), que se nomeia e escala: três projetos cabiam num segmentado, oito não. O caso que importa é o que prova que a tela **não reordena** o que o daemon mandou — a ordem é decisão de produto, e decisão de produto sem teste volta a ser opinião
 
 #### T9: O detalhe da tarefa
 
@@ -283,7 +283,7 @@ fila
 projeto certo; rejeitar exige motivo. E **o teste que importa**: aprovar uma proposta de memória pela
 fila grava exatamente o que a aba gravava — se divergir, a mudança perdeu alguma coisa.
 **Gate**: `pnpm gate:quick`
-**Status**: ✅ entregue em 2026-09-12. A aba `Propostas` saiu do `MemoryPanel` e o componente foi **exportado**, não copiado. O teste que importa é o que renderiza a fila e o painel juntos: aprovar de lá continua invalidando a lista daqui — se não invalidasse, uma memória aprovada não apareceria até alguém recarregar. Os dois verbos da tarefa aqui são `aprovar` e `rejeitar`; as **duas portas** do desenho (To-Do e Backlog) são da `028`, que é quem tem Backlog
+**Status**: ✅ entregue em 2026-09-12. A aba `Propostas` saiu do `MemoryPanel` e o componente foi **exportado**, não copiado. O teste que importa é o que renderiza a fila e o painel juntos: aprovar de lá continua invalidando a lista daqui — se não invalidasse, uma memória aprovada não apareceria até alguém recarregar. Os dois verbos da tarefa aqui são `aprovar` e `rejeitar`; as **duas portas** do desenho (To-Do e Backlog) são da `028`, que é quem tem Backlog. **E o segmentado `pendentes · resolvidas` subiu junto com a lista**: ele filtra os *dois* tipos, porque um segmentado que filtra metade da fila é pior que nenhum. O e2e da memória virou a prova da mudança de endereço — ele revisa e aprova a proposta **sem nenhum clique de navegação**
 
 ---
 
@@ -301,7 +301,7 @@ proveniência
 **Done when**: a soma por tarefa bate com a soma das sessões dela; tarefa sem sessão mostra
 *"sem custo reportado"* e **não** some da lista; memória de sessão sem tarefa não ganha rótulo vazio.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12. `usageByTask` é uma junção — nenhuma coluna nova, nenhum contador. `LEFT JOIN` a partir da **tarefa**: quem ninguém começou continua na lista, com `null` (que é diferente de zero). E a F6 usa `source_sessions`, não uma coluna de sessão única: uma decisão pode ter várias origens, e devolver todas é mais honesto que escolher uma
 
 #### T17: O e2e, e a medida de cerimônia
 
@@ -315,7 +315,7 @@ que dê para ler.
 registra o valor da primeira semana — porque **100% significa que o lugar da tarefa está errado**, e
 esse número só serve se alguém olhar.
 **Gate**: `pnpm gate:full`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12 — **3 casos**, zero token e zero rede. O caminho cross-projeto ficou de fora com o motivo escrito no arquivo: ele pede um segundo repositório no `fixture`, e vem com a `028`, que é quem tem a fila de duas portas. A medida de cerimônia existe e está na tela — `4 de 12 sessões têm tarefa` —, e ela **some quando não houve sessão nenhuma**: zero de zero não é proporção
 
 ---
 

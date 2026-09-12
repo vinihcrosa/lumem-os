@@ -97,17 +97,23 @@ test("uma proposta de agente é revisada e aprovada pela tela", async ({ page })
   const pending = (await query(DAEMON, "memory.proposals", { status: "pending" })) as Proposal[];
   expect(pending.some((row) => row.name === "Carrinho expira em 30 minutos")).toBe(true);
 
-  await openMemory(page);
-  await memory(page).getByRole("tab", { name: "Propostas" }).click();
+  /*
+   * A fila mora no **topo da tela do workspace** desde a `022` T4 — a aba
+   * `Propostas` do painel de memória deixou de existir. Um lugar para "o que o
+   * sistema quer que eu decida" vale mais que dois, e este teste passou a
+   * provar isso: **nenhum clique de navegação** entre escrever a proposta e
+   * revisá-la.
+   */
+  await page.getByRole("button", { name: "e2e", exact: true }).first().click();
 
   // O corpo inteiro, na tela: aprovar é gravar e commitar, e gravar o que a
   // revisão não leu não é revisão.
-  await expect(memory(page).getByText("Carrinho expira em 30 minutos")).toBeVisible({
+  await expect(page.getByText("Carrinho expira em 30 minutos").first()).toBeVisible({
     timeout: 15_000,
   });
-  await expect(memory(page).getByText(/devolve estoque/).first()).toBeVisible();
+  await expect(page.getByText(/devolve estoque/).first()).toBeVisible();
 
-  await memory(page).getByRole("button", { name: "Aprovar", exact: true }).click();
+  await page.getByRole("button", { name: "Aprovar", exact: true }).click();
 
   // O que prova a aprovação é o daemon, não a tela: a proposta sai de pendente e
   // a memória passa a existir no acervo.
@@ -121,7 +127,9 @@ test("uma proposta de agente é revisada e aprovada pela tela", async ({ page })
     )
     .toBe(false);
 
-  await memory(page).getByRole("tab", { name: "Memória" }).click();
+  // E ela passa a existir no acervo, que continua sendo a aba de memória.
+  await openProject(page, "fixture");
+  await openMemory(page);
   await expect(memory(page).getByText("Carrinho expira em 30 minutos")).toBeVisible({
     timeout: 15_000,
   });

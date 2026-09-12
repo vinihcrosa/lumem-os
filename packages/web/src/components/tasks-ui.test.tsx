@@ -126,12 +126,47 @@ describe("a lista de tarefas", () => {
 
   it("diz o teto de criação e onde mudar — teto invisível parece bug", async () => {
     trpc.task.listByWorkspace.query.mockResolvedValue([task()]);
-    trpc.task.settings.query.mockResolvedValue({ budget: 5, budgetEnv: "LUMEM_TASKS_BUDGET" });
+    trpc.task.settings.query.mockResolvedValue({
+      budget: 5,
+      budgetEnv: "LUMEM_TASKS_BUDGET",
+      sessions: 0,
+      sessionsWithTask: 0,
+    });
 
     renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
 
     expect(await screen.findByText(/5/)).toBeInTheDocument();
     expect(screen.getByText("LUMEM_TASKS_BUDGET")).toBeInTheDocument();
+  });
+
+  it("mostra a medida de cerimônia, e ela existe para incomodar", async () => {
+    /*
+     * §7 do PRD: `sessões com tarefa ÷ sessões`, e ele **espera que não seja
+     * 100%**. Se for, todo mundo está criando tarefa para agradar o daemon — e
+     * o lugar da tarefa está errado. Ninguém procura uma métrica que não
+     * incomoda, então ela fica na tela.
+     */
+    trpc.task.listByWorkspace.query.mockResolvedValue([task()]);
+    trpc.task.settings.query.mockResolvedValue({
+      budget: 5,
+      budgetEnv: "LUMEM_TASKS_BUDGET",
+      sessions: 12,
+      sessionsWithTask: 4,
+    });
+
+    renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
+
+    expect(await screen.findByText("4 de 12")).toBeInTheDocument();
+  });
+
+  it("some a proporção quando não houve sessão nenhuma", async () => {
+    // Zero de zero não é uma proporção, é uma divisão por zero com cara de dado.
+    trpc.task.listByWorkspace.query.mockResolvedValue([task()]);
+
+    renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
+
+    expect(await screen.findByText("LUMEM_TASKS_BUDGET")).toBeInTheDocument();
+    expect(screen.queryByText(/sessões têm tarefa/)).not.toBeInTheDocument();
   });
 
   it("abre o detalhe da tarefa clicada", async () => {
@@ -237,6 +272,28 @@ describe("a fila de Propostas", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(container.querySelector(".section")).toBeNull();
+  });
+
+  it("o filtro de estado vale para os dois tipos", async () => {
+    /*
+     * Um segmentado que filtra metade da fila é pior que nenhum. E sem ele,
+     * rejeitar apagaria a proposta da tela inteira — não está na fila, não está
+     * no acervo — e você não teria como lembrar o que já decidiu.
+     */
+    const user = userEvent.setup();
+    trpc.task.listByWorkspace.query.mockResolvedValue([
+      task({ id: "t7", status: "proposed", createdBy: "agent", createdBySession: "se-1" }),
+    ]);
+    trpc.memory.proposals.query.mockResolvedValue([]);
+
+    renderUI(<ProposalQueue workspaceId="w1" projectName={noProject} />);
+    await user.click(await screen.findByRole("button", { name: "Resolvidas" }));
+
+    expect(trpc.task.listByWorkspace.query).toHaveBeenCalledWith({
+      workspaceId: "w1",
+      status: "dropped",
+    });
+    expect(trpc.memory.proposals.query).toHaveBeenCalledWith({ status: "rejected" });
   });
 
   it("aprovar uma tarefa proposta a torna aberta", async () => {

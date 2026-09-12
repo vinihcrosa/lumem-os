@@ -10,9 +10,10 @@
 > **Perguntas:** [open-questions.md](open-questions.md) — **33 perguntas, todas respondidas**, em
 > quatro rodadas no mesmo dia. Seis foram respondidas contra a proposta
 > **Tasks:** ainda não — falta o desenho no Open Design (§10) e a conversa técnica (§11)
-> **Depende de:** [workspace-tasks](../022-workspace-tasks/prd.md), que **vem antes**
-> ([Q1](open-questions.md#q1--esta-prd-absorve-a-022-workspace-tasks): empilha, não absorve). Sem
-> tarefa como entidade não há o que orquestrar. Também usa, já entregues: a tela do
+> **Depende de:** [workspace-tasks](../022-workspace-tasks/prd.md), que vinha antes
+> ([Q1](open-questions.md#q1--esta-prd-absorve-a-022-workspace-tasks): empilha, não absorve) e está
+> **entregue desde 2026-09-12**. A entidade existe, com custo por tarefa, `in_progress` derivado do
+> primeiro prompt e a porta `POST /tasks` — **o chão desta PRD está no lugar**. Também usa, já entregues: a tela do
 > [workspace](../010-workspace-screen/prd.md), os [scripts do projeto](../012-project-scripts/prd.md), o
 > [estado da PR](../013-pull-request-status/prd.md), o [modo da sessão](../016-session-mode/prd.md), o
 > [segundo agente](../021-second-agent/prd.md) e a [origem da worktree](../026-worktree-from/prd.md)

@@ -189,6 +189,8 @@ function createTrpcMock() {
       // quem quer asserir sobre a divisão diz qual é a divisão.
       byProjectAndAgent: { query: vi.fn().mockResolvedValue([]) },
       byWorktreeAndAgent: { query: vi.fn().mockResolvedValue([]) },
+      // O custo por tarefa (`022` F5). Vazio por default, como os outros.
+      byTask: { query: vi.fn().mockResolvedValue([]) },
       byWorktree: {
         query: vi.fn().mockResolvedValue({
           worktrees: [],
@@ -282,7 +284,13 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   // workspace consulta no `mount`, e a confirmação de remover projeto também —
   // um teste que fala de arquivo não pode quebrar por causa disso.
   mock.task.listByWorkspace.query.mockResolvedValue([]);
-  mock.task.settings.query.mockResolvedValue({ budget: 5, budgetEnv: "LUMEM_TASKS_BUDGET" });
+  mock.task.settings.query.mockResolvedValue({
+    budget: 5,
+    budgetEnv: "LUMEM_TASKS_BUDGET",
+    sessions: 0,
+    sessionsWithTask: 0,
+  });
+  mock.usage.byTask.query.mockResolvedValue([]);
   mock.session.listByTask.query.mockResolvedValue([]);
   // O caso mais comum: worktree sem tarefa. Tarefa não é obrigatória (T1).
   mock.task.getByWorktree.query.mockResolvedValue(null);

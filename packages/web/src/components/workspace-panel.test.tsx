@@ -441,8 +441,7 @@ describe("a divisão por agente", () => {
     expect(screen.getAllByRole("button", { name: /divisão por agente/ })).toHaveLength(1);
     // E as duas linhas continuam com o mesmo número de células.
     // Restrito à lista de consumo: o nome do projeto também aparece no filtro
-    // de projeto das tarefas desde a `022`, e ali ele é um botão de segmentado
-    // com outra contagem de células.
+    // de projeto das tarefas desde a `022`, e ali ele é uma `<option>`.
     const cells = screen
       .getAllByText(/^(lorebase|web)$/)
       .filter((name) => name.classList.contains("spend__name"))

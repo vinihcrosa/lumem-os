@@ -459,16 +459,17 @@ O produto chama de tarefa uma coisa que não existe. Tarefa por workspace com pr
 por `POST /tasks` e escrever para cima é proposta, `done` é humano, custo por tarefa de graça. Fila
 com lease fica no backlog.
 
-**Ela vem antes da [`028`](features/028-autonomous-orchestration/prd.md)**, que empilha em cima: sem
-tarefa como entidade não existe o que o quadro desenha nem onde o webhook aterrissa. E a resposta da
-**T4** contradiz a [`007`](features/007-workspace-memory/prd.md) — a inbox de propostas da memória
-**sai de dentro do `MemoryPanel`** —, com a nota já no requisito de lá.
+**Entregue em 2026-09-12**, e ela vem antes da
+[`028`](features/028-autonomous-orchestration/prd.md), que empilha em cima: sem tarefa como entidade
+não existe o que o quadro desenha nem onde o webhook aterrissa. A resposta da **T4** contradisse a
+[`007`](features/007-workspace-memory/prd.md) — a inbox de propostas da memória **saiu de dentro do
+`MemoryPanel`** —, com a nota no requisito de lá.
 
 | Arquivo | O quê |
 |---|---|
 | [prd.md](features/022-workspace-tasks/prd.md) | o modelo, as regras, F1–F6, e a tabela de **propostas** para as Q011–Q015 do projeto |
 | [open-questions.md](features/022-workspace-tasks/open-questions.md) | **10 perguntas, todas respondidas** em 2026-09-12. Oito saíram como propostas; a **T4** e a **T8** mudaram, e as duas pelo mesmo motivo — a `028` não existia quando foram escritas. A T4 foi para uma **terceira** forma que a pergunta não previa (uma fila só de propostas, no topo da tela do workspace, com memória e tarefa juntas) e a T8 **trocou de unidade**, de sessão para tarefa, porque a esteira dá três sessões a cada tarefa |
-| [tasks.md](features/022-workspace-tasks/tasks.md) | **17 tasks em 5 fases**, com a **fase 0 entregue**. Ela é o desenho, e vem primeiro porque a fila de Propostas mexe numa feature entregue — desenho que decide isso depois do código decide tarde. A T3 terminou **apagando** uma peça: a cópia da triagem que o quadro da `028` tinha, e que já havia divergido |
+| [tasks.md](features/022-workspace-tasks/tasks.md) | **17 tasks em 5 fases, todas entregues**. A fase 0 é o desenho, e veio primeiro porque a fila de Propostas mexe numa feature entregue. Dois achados pagaram por si: a migração que o `drizzle-kit` gerou **sem a ação do estrangeiro** — apagar tarefa seria recusado em vez de anular o ponteiro da sessão —, e o `DAEMON_PREFIXES`, que sem `/tasks` faria a porta do agente ser engolida pelo servidor de arquivos **só no pacote instalado** |
 
 ---
 

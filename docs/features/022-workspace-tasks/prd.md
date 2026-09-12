@@ -1,6 +1,6 @@
 # PRD — Tarefa como entidade
 
-> **Status:** em execução
+> **Status:** completa
 > **Histórico:** v0.1 — proposto em 2026-09-05, **perguntas abertas**. Sai do backlog ("Tarefas de workspace atravessando projetos", seção C). **"Fila com lease" fica no backlog:** este PRD é atribuição manual, de propósito.
 > **Perguntas:** [open-questions.md](open-questions.md) — **10, todas respondidas em 2026-09-12.**
 > Oito saíram como propostas; a **T4** e a **T8** mudaram, e as duas mudaram pelo mesmo motivo: a
@@ -9,7 +9,7 @@
 > unidade**, de sessão para tarefa, porque a esteira dá três sessões a cada tarefa. Elas **propõem**
 > resposta para as **Q011–Q015** do [questions.md](../../project/questions.md); a Q068 e a Q069 ficam
 > abertas de propósito (§5)
-> **Tasks:** [tasks.md](tasks.md) — **17, em 5 fases**, escritas em 2026-09-12
+> **Tasks:** [tasks.md](tasks.md) — **17, em 5 fases, todas entregues** em 2026-09-12
 > **Depende de:** [workspace-screen](../010-workspace-screen/prd.md), entregue — é onde a lista mora.
 > **Fica melhor com:** a F4 do [daemon-auth](../019-daemon-auth/prd.md) (ator provado, para a F3) e o
 > [second-agent](../021-second-agent/prd.md) (com um agente, "quem pega" não é pergunta)
@@ -55,7 +55,7 @@ se chama "Nome da tarefa". Depois disso, o **nome da worktree** é o único rast
 | `task.title`, `task.body` | título; corpo em Markdown |
 | `task.status` | `CHECK`: `proposed`, `open`, `in_progress`, `review`, `done`, `dropped` |
 | `task.created_by` | `CHECK`: `human`, `agent` |
-| `task.created_by_session` | FK `session`, nula para `human` |
+| `task.created_by_session` | **Sem** foreign key, nula para `human`. > **Nota — isto contradiz o que esta linha dizia.** `FK session` com `RESTRICT` faria todo `session.remove` de uma sessão que já propôs alguma coisa falhar; com `SET NULL`, a pergunta *"quem propôs isto?"* perderia a resposta no dia da limpeza. O precedente é o `session.resumed_from_id`, que resolveu a mesma forma pelo mesmo motivo: **isto é proveniência, não dependência**. O CHECK `task_agent_provenance` continua cobrando os dois sentidos, então a coluna nunca fica vazia numa tarefa de agente |
 | `task.worktree_id` | FK `ON DELETE SET NULL`, nula até alguém trabalhar nela. Remover a worktree não remove a tarefa: ela perde o checkout e fica no estado em que estava |
 | `task.links` | JSON: URLs — ClickUp, Jira, PR. **Referência por link**, e só (Q013) |
 | `task.reason` | por que foi `dropped`, quando foi |

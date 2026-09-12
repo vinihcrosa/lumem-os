@@ -5,7 +5,7 @@ import { tasksKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, SectionHead } from "../ui/index.js";
 
-import { MemoryProposals } from "./MemoryPanel.js";
+import { MemoryProposals, type ProposalStatus } from "./MemoryPanel.js";
 import type { TaskRow } from "./TaskList.js";
 
 import "./tasks.css";
@@ -35,26 +35,62 @@ export interface ProposalQueueProps {
 }
 
 export function ProposalQueue({ workspaceId, projectName }: ProposalQueueProps) {
+  /*
+   * `pendentes · resolvidas`, e ele vale para os **dois** tipos.
+   *
+   * O controle mora aqui e não dentro da lista de memória: um segmentado que
+   * filtra metade da fila é pior que nenhum. Sem ele, rejeitar apagaria a
+   * proposta da tela inteira — não está na fila, não está no acervo — e você não
+   * teria como lembrar o que já decidiu.
+   */
+  const [status, setStatus] = useState<ProposalStatus>("pending");
+  // `dropped` é onde uma tarefa proposta vai parar quando você rejeita.
+  const taskStatus = status === "pending" ? "proposed" : "dropped";
+
   const proposed = useQuery({
-    queryKey: tasksKey(workspaceId, { status: "proposed" }),
+    queryKey: tasksKey(workspaceId, { status: taskStatus }),
     queryFn: () =>
-      trpc.task.listByWorkspace.query({ workspaceId, status: "proposed" }) as Promise<TaskRow[]>,
+      trpc.task.listByWorkspace.query({ workspaceId, status: taskStatus }) as Promise<TaskRow[]>,
   });
   const memory = useQuery({
-    queryKey: ["memory", "proposals", "pending"],
-    queryFn: () => trpc.memory.proposals.query({ status: "pending" }),
+    queryKey: ["memory", "proposals", status],
+    queryFn: () => trpc.memory.proposals.query({ status }),
   });
 
   const tasks = proposed.data ?? [];
   const pendingMemory = memory.data?.length ?? 0;
   const total = tasks.length + pendingMemory;
 
-  // Zero propostas = zero pixel. Ver o comentário do módulo.
-  if (total === 0) return null;
+  // Zero propostas = zero pixel, **e só quando não há nada pendente**: o
+  // segmentado some junto, e com ele o caminho para "o que eu já decidi".
+  if (total === 0 && status === "pending") return null;
 
   return (
     <section className="section">
-      <SectionHead title="Propostas" count={total} />
+      <SectionHead
+        title="Propostas"
+        count={total}
+        aside={
+          <div className="mem-seg" role="group" aria-label="Propostas por estado">
+            <button
+              type="button"
+              className={`mem-seg__item${status === "pending" ? " mem-seg__item--active" : ""}`}
+              aria-pressed={status === "pending"}
+              onClick={() => setStatus("pending")}
+            >
+              Pendentes
+            </button>
+            <button
+              type="button"
+              className={`mem-seg__item${status !== "pending" ? " mem-seg__item--active" : ""}`}
+              aria-pressed={status !== "pending"}
+              onClick={() => setStatus("rejected")}
+            >
+              Resolvidas
+            </button>
+          </div>
+        }
+      />
       <div className="tlist">
         {tasks.map((row) => (
           <TaskProposal
@@ -62,10 +98,11 @@ export function ProposalQueue({ workspaceId, projectName }: ProposalQueueProps) 
             row={row}
             workspaceId={workspaceId}
             projectName={projectName(row.projectId)}
+            decided={status !== "pending"}
           />
         ))}
       </div>
-      {pendingMemory > 0 && <MemoryProposals />}
+      {pendingMemory > 0 && <MemoryProposals status={status} />}
     </section>
   );
 }
@@ -83,10 +120,13 @@ function TaskProposal({
   row,
   workspaceId,
   projectName,
+  decided,
 }: {
   row: TaskRow;
   workspaceId: string;
   projectName: string;
+  /** Já decidida: a mesma peça, sem verbos, com o que você respondeu. */
+  decided: boolean;
 }) {
   const client = useQueryClient();
   const [rejecting, setRejecting] = useState(false);
@@ -114,7 +154,14 @@ function TaskProposal({
 
       {decide.isError && <Banner tone="danger">{decide.error.message}</Banner>}
 
-      {rejecting ? (
+      {decided ? (
+        <div className="pq-item__acts">
+          <span className="pq-item__verdict">✕ rejeitada</span>
+          {row.reason !== null && row.reason !== "" && (
+            <span className="pq-item__note">"{row.reason}"</span>
+          )}
+        </div>
+      ) : rejecting ? (
         <div className="pq-item__acts">
           <input
             className="input"
