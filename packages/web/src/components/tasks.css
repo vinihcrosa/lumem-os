@@ -1,0 +1,309 @@
+/*
+ * A lista de tarefas (`022-workspace-tasks` F1).
+ *
+ * Cópia derivada do `lumem-tasks.css` do Open Design — o desenho está lá, e as
+ * duas decisões que este arquivo carrega estão comentadas onde elas moram: a
+ * língua de estado é a MESMA do quadro da `028`, e só o título é elástico.
+ *
+ * Nenhum literal de cor, espaço ou tipografia.
+ */
+
+.tlist {
+  display: grid;
+  gap: var(--space-6);
+}
+
+/*
+ * ORDEM DOS ITENS, e ela é o argumento: estado · título · projeto ·
+ * proveniência · checkout · custo. O estado vem primeiro porque a lista é
+ * ordenada por ele — e quando o primeiro item da linha é o critério de
+ * ordenação, a ordem se explica sozinha e a seção não precisa de cabeçalho de
+ * grupo. Cabeçalhos custariam a altura de duas tarefas numa coluna que já
+ * divide espaço com consumo e memória.
+ */
+.trow {
+  --st: var(--color-tool-pending);
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  width: 100%;
+  min-height: var(--size-row-cozy);
+  padding: var(--space-6) var(--space-10);
+  text-align: left;
+  background: var(--color-bg-surface);
+  border: var(--border-width-thin) solid var(--color-border-subtle);
+  border-left: var(--border-width-thick) solid var(--st);
+  border-radius: var(--radius-md);
+}
+.trow:hover {
+  background: var(--color-bg-raised);
+  border-color: var(--color-border-strong);
+  border-left-color: var(--st);
+}
+
+/*
+ * Os cinco estados da lista, com a mesma linguagem do selo do quadro da `028`.
+ * `proposed` não está aqui: ele mora na fila de Propostas, e repeti-lo faria a
+ * mesma coisa existir em dois lugares com dois gestos.
+ */
+.trow--open { --st: var(--color-tool-pending); }
+.trow--in_progress { --st: var(--color-session-agent); }
+.trow--review { --st: var(--color-text-primary); }
+.trow--done { --st: var(--color-text-success); }
+.trow--dropped { --st: var(--color-border-strong); }
+.trow--proposed { --st: var(--color-text-brand); }
+
+.tstat {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: calc(var(--space-64) + var(--space-32));
+  font: var(--text-label-xs);
+  color: var(--st);
+}
+.tstat__dot {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+/*
+ * Anel é "ninguém está", disco cheio é "alguém está" — e a distinção sobrevive
+ * a captura em escala de cinza, que é por que a regra existe.
+ */
+.trow--open .tstat__dot,
+.trow--review .tstat__dot,
+.trow--proposed .tstat__dot {
+  background: none;
+  box-shadow: inset 0 0 0 var(--border-width-thin) currentColor;
+}
+.tstat__g {
+  flex: none;
+  font-size: var(--size-icon-xs);
+  line-height: 1;
+}
+.trow--dropped .tstat { color: var(--color-text-tertiary); }
+
+.trow__t {
+  flex: 1;
+  min-width: 0;
+  font: var(--text-body-md);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trow--done .trow__t,
+.trow--dropped .trow__t { color: var(--color-text-secondary); }
+.trow__why { color: var(--color-text-tertiary); }
+
+/*
+ * As células de meta têm LARGURA PRÓPRIA, e isso não é capricho: elásticas,
+ * cada linha começava a metadata num x diferente — e a coluna dançava
+ * exatamente onde se compara projeto com projeto. Só o título é elástico.
+ */
+.trow__proj {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: calc(var(--space-64) + var(--space-24));
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.trow__wt {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: calc(var(--space-64) * 2.5);
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trow__wt--missing { color: var(--color-worktree-missing); }
+.trow__cost {
+  flex: none;
+  min-width: calc(var(--space-64) + var(--space-16));
+  text-align: right;
+  font: var(--text-mono-sm);
+  color: var(--color-usage-cost);
+}
+.trow__cost--none { color: var(--color-text-disabled); }
+
+/*
+ * A PROVENIÊNCIA é glifo, não cor, e só o que NÃO é o default tem marca: tarefa
+ * que você criou não ganha nada, porque "você" é o normal e marcar o normal
+ * gasta a marca.
+ */
+.tprov {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: calc(var(--space-64) + var(--space-32));
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+}
+.tprov__g {
+  font-size: var(--size-icon-xs);
+  line-height: 1;
+  color: var(--color-session-agent);
+}
+
+/*
+ * O grupo recolhido do `done`. É divulgação, não cabeçalho: some quando está
+ * vazio, e fechado só precisa dizer o número.
+ */
+.tfold {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  padding: var(--space-6) var(--space-10);
+  border-radius: var(--radius-md);
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.tfold:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-secondary);
+}
+.tfold__caret {
+  font-size: var(--size-icon-xs);
+}
+.tfold__n {
+  font: var(--text-mono-sm);
+  letter-spacing: normal;
+}
+
+/* ---------------------------------------------------------------------------
+   o detalhe da tarefa
+   -------------------------------------------------------------------------- */
+.tdet {
+  display: grid;
+  gap: var(--space-16);
+  align-content: start;
+}
+.tdet__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-10);
+  flex-wrap: wrap;
+}
+.tdet__title {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font: var(--text-heading-md);
+  letter-spacing: var(--tracking-heading-md);
+  color: var(--color-text-primary);
+}
+.tdet__acts {
+  flex: none;
+  display: flex;
+  gap: var(--space-6);
+}
+.tdet__body {
+  font: var(--text-body-md);
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  padding: var(--space-12);
+  background: var(--color-bg-surface);
+  border: var(--border-width-thin) solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+/* uma sessão da tarefa */
+.tsess {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--size-row-cozy);
+  padding: 0 var(--space-10);
+  width: 100%;
+  text-align: left;
+  background: var(--color-bg-surface);
+  border: var(--border-width-thin) solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+.tsess__kind {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: calc(var(--space-64) * 1.75);
+  font: var(--text-label-sm);
+  color: var(--color-text-primary);
+}
+.tsess__when {
+  flex: 1;
+  min-width: 0;
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.tsess__st {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-label-xs);
+}
+.tsess__st--running { color: var(--color-session-running); }
+.tsess__st--exited { color: var(--color-session-exited); }
+.tsess__dot {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+/* ---------------------------------------------------------------------------
+   a tarefa na linha de contexto do checkout
+   -------------------------------------------------------------------------- */
+/*
+ * `ao lado de branch e sujeira` — a linha de contexto, e **não** o rótulo da
+ * aba. O rótulo já carrega nome e ponto de sujeira, e enfiar um título de tarefa
+ * lá faria a aba crescer com o texto que alguém digitou.
+ */
+.ctx-task {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: 0;
+  padding: 0 var(--space-8);
+  height: var(--size-control-sm);
+  border: var(--border-width-thin) solid var(--color-border-subtle);
+  border-left: var(--border-width-thick) solid var(--st, var(--color-session-agent));
+  border-radius: var(--radius-sm);
+  font: var(--text-label-xs);
+  color: var(--color-text-secondary);
+}
+.ctx-task:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+.ctx-task__t {
+  min-width: 0;
+  max-width: calc(var(--space-64) * 5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/*
+ * "Sem tarefa" é ESCRITO, e em cinza-desabilitado. Worktree sem tarefa é o caso
+ * mais comum do produto — tarefa não é obrigatória (T1) —, e um espaço vazio ali
+ * se leria como dado que não carregou.
+ */
+.ctx-task--none {
+  font: var(--text-caption);
+  color: var(--color-text-disabled);
+}

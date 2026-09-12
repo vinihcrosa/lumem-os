@@ -21,6 +21,8 @@ import {
 } from "../ui/index.js";
 
 import { MemoryPanel } from "./MemoryPanel.js";
+import { TaskDetail } from "./TaskDetail.js";
+import { TaskList } from "./TaskList.js";
 import { SpendList, type SpendAgent, type SpendRow } from "./SpendList.js";
 
 import "./detail.css";
@@ -47,10 +49,35 @@ export interface WorkspacePanelProps {
   workspaceName: string;
   /** Quando o workspace deixa de existir, quem navega é quem nos chamou. */
   onRemoved: () => void;
+  /**
+   * Abrir a conversa que "trabalhar nesta tarefa" acabou de criar.
+   *
+   * Quem navega é o App: esta tela não sabe o que é seleção de checkout, e
+   * ensinar ela seria dar a uma tela a responsabilidade de outra.
+   */
+  onWorkOnTask?: (target: {
+    projectId: string;
+    worktreeId: string | null;
+    sessionId: string;
+    draft: string;
+  }) => void;
 }
 
-export function WorkspacePanel({ workspaceId, workspaceName, onRemoved }: WorkspacePanelProps) {
+export function WorkspacePanel({
+  workspaceId,
+  workspaceName,
+  onRemoved,
+  onWorkOnTask,
+}: WorkspacePanelProps) {
   const [period, setPeriod] = useState<NonNullable<UsageWindow>>("7d");
+  /*
+   * A tarefa aberta ocupa a coluna inteira, no lugar das seções.
+   *
+   * Estado da tela e não da URL: o produto não tem rota, e a volta é o
+   * breadcrumb — o mesmo caminho que a `workspace-screen` abriu para sair de um
+   * checkout.
+   */
+  const [openTask, setOpenTask] = useState<string | null>(null);
   const projects = useQuery({
     queryKey: projectsKey(workspaceId),
     queryFn: () => trpc.project.listByWorkspace.query({ workspaceId }),
@@ -82,6 +109,22 @@ export function WorkspacePanel({ workspaceId, workspaceName, onRemoved }: Worksp
     kind: "project",
     ...agentsOf(byAgent.data, row.projectId),
   }));
+
+  if (openTask !== null) {
+    return (
+      <div className="pane wsp">
+        <TaskDetail
+          taskId={openTask}
+          workspaceId={workspaceId}
+          onBack={() => setOpenTask(null)}
+          onWork={(target) => {
+            setOpenTask(null);
+            onWorkOnTask?.(target);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="pane wsp">
@@ -138,6 +181,13 @@ export function WorkspacePanel({ workspaceId, workspaceName, onRemoved }: Worksp
           ]}
         />
       )}
+
+      {/*
+        A fila de Propostas viria acima desta linha (T15, fase 3). A ordem da
+        tela é uma frase: o que precisa de decisão sua, o que está acontecendo, o
+        que já aconteceu, o que ficou aprendido.
+      */}
+      <TaskList workspaceId={workspaceId} onOpen={(id) => setOpenTask(id)} />
 
       <section className="section">
         <SectionHead

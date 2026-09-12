@@ -87,6 +87,7 @@ export interface TaskRepository {
   create(input: CreateTaskInput): Promise<TaskRow>;
   listByWorkspace(workspaceId: string, filter?: TaskFilter): Promise<TaskRow[]>;
   get(id: string): Promise<TaskRow | undefined>;
+  findByWorktree(worktreeId: string): Promise<TaskRow | undefined>;
   update(id: string, patch: { title?: string; body?: string; links?: string[] }): Promise<TaskRow>;
   setStatus(
     id: string,
@@ -172,6 +173,18 @@ export function createTaskRepository(db: Db): TaskRepository {
 
     get(id) {
       return db.query.task.findFirst({ where: eq(task.id, id) });
+    },
+
+    /**
+     * A tarefa deste checkout, se houver.
+     *
+     * `findFirst` e não `find`: a coluna não é única, e duas tarefas apontando
+     * para a mesma worktree é um estado que o produto não cria mas o banco
+     * permite. A primeira é a resposta honesta — melhor que uma exceção numa
+     * linha de contexto.
+     */
+    findByWorktree(worktreeId) {
+      return db.query.task.findFirst({ where: eq(task.worktreeId, worktreeId) });
     },
 
     async update(id, patch) {

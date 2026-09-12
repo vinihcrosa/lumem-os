@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "../test/render.js";
-import { trpcMock as trpc } from "../test/trpc-mock.js";
+import { installTrpcDefaults, trpcMock as trpc } from "../test/trpc-mock.js";
 
 import { WorkspacePanel } from "./WorkspacePanel.js";
 
@@ -70,6 +70,11 @@ const byAgent = (overrides: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // A tela ganhou a seção de tarefas (`022` T8), e ela consulta no `mount`. Sem
+  // os defaults, a query devolve `undefined`, o `useQuery` estoura, e o banner
+  // de erro dela vira um segundo `role="alert"` na tela — que é exatamente o
+  // sintoma que o cabeçalho do `trpc-mock` descreve.
+  installTrpcDefaults();
   trpc.project.listByWorkspace.query.mockResolvedValue([project()]);
   // Um agente por default: é o estado normal, e nele a divisão não existe.
   trpc.agentConfig.list.query.mockResolvedValue([agent("a1", "claude")]);
@@ -433,8 +438,12 @@ describe("a divisão por agente", () => {
     // Um `▸` só: o outro projeto não tem divisão para abrir.
     expect(screen.getAllByRole("button", { name: /divisão por agente/ })).toHaveLength(1);
     // E as duas linhas continuam com o mesmo número de células.
+    // Restrito à lista de consumo: o nome do projeto também aparece no filtro
+    // de projeto das tarefas desde a `022`, e ali ele é um botão de segmentado
+    // com outra contagem de células.
     const cells = screen
       .getAllByText(/^(lorebase|web)$/)
+      .filter((name) => name.classList.contains("spend__name"))
       .map((name) => name.parentElement?.childElementCount);
     expect(new Set(cells).size).toBe(1);
   });

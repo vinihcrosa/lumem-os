@@ -43,6 +43,7 @@ export interface LocalPanelProps {
   openSessionId?: string | undefined;
   /** O pedido que abriu uma conversa (ver `ScopePanel`). */
   initialPrompt?: { sessionId: string; text: string } | undefined;
+  initialDraft?: { sessionId: string; text: string } | undefined;
 }
 
 /**
@@ -164,6 +165,7 @@ export function LocalPanel({
   onSelectWorktree,
   openSessionId,
   initialPrompt,
+  initialDraft,
   filesPanel,
 }: LocalPanelProps) {
   const queryClient = useQueryClient();
@@ -254,6 +256,7 @@ export function LocalPanel({
       cwd={path}
       openSessionId={openSessionId}
       initialPrompt={initialPrompt}
+      initialDraft={initialDraft}
       filesPanel={filesPanel}
       crumb={
         <nav className="crumb">

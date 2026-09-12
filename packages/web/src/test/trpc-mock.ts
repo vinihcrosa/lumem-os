@@ -112,9 +112,11 @@ function createTrpcMock() {
     task: {
       listByWorkspace: { query: vi.fn() },
       get: { query: vi.fn() },
+      getByWorktree: { query: vi.fn() },
       create: { mutate: vi.fn() },
       update: { mutate: vi.fn() },
       setStatus: { mutate: vi.fn() },
+      attachWorktree: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
     },
     worktree: {
@@ -194,6 +196,7 @@ function createTrpcMock() {
       },
     },
     session: {
+      listByTask: { query: vi.fn() },
       listByScope: { query: vi.fn() },
       getDetail: { query: vi.fn() },
       createShell: { mutate: vi.fn() },
@@ -278,6 +281,9 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   // workspace consulta no `mount`, e a confirmação de remover projeto também —
   // um teste que fala de arquivo não pode quebrar por causa disso.
   mock.task.listByWorkspace.query.mockResolvedValue([]);
+  mock.session.listByTask.query.mockResolvedValue([]);
+  // O caso mais comum: worktree sem tarefa. Tarefa não é obrigatória (T1).
+  mock.task.getByWorktree.query.mockResolvedValue(null);
   mock.worktree.branches.query.mockResolvedValue([]);
   mock.worktree.hostOrigins.query.mockResolvedValue(NO_HOST_ORIGINS);
 }

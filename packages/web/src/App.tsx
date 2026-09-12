@@ -62,6 +62,14 @@ export function App() {
    * são do painel central, e o rodapé é da coluna da direita.
    */
   const [ask, setAsk] = useState<{ sessionId: string; text: string } | null>(null);
+  /*
+   * O rascunho que "trabalhar nesta tarefa" deixa no composer (`022` T6).
+   *
+   * Irmão do `ask`, e o contrário dele: aquele manda sozinho, este espera você
+   * ler. O estado mora aqui pelo mesmo motivo — quem abre a conversa é a
+   * navegação, e ela é do App.
+   */
+  const [draft, setDraft] = useState<{ sessionId: string; text: string } | null>(null);
   /**
    * The two dialogs of the tree, `sidebar-actions` F1.2 and F1.3.
    *
@@ -347,6 +355,17 @@ export function App() {
           onRemoved={async () => {
             await queryClient.invalidateQueries({ queryKey: WORKSPACES_KEY });
           }}
+          onWorkOnTask={(target) => {
+            setDraft({ sessionId: target.sessionId, text: target.draft });
+            setOpenSessionId(target.sessionId);
+            setSelection({
+              projectId: target.projectId,
+              scope:
+                target.worktreeId === null
+                  ? { scopeType: "project", scopeId: target.projectId }
+                  : { scopeType: "worktree", scopeId: target.worktreeId },
+            });
+          }}
         />
       );
     }
@@ -361,6 +380,7 @@ export function App() {
           projectId={projectId}
           openSessionId={openSessionId}
           initialPrompt={ask ?? undefined}
+          initialDraft={draft ?? undefined}
           workspaceName={workspaceName}
           filesPanel={rightPanel}
           onRemoved={() =>
@@ -390,6 +410,7 @@ export function App() {
         workspaceName={workspaceName}
         openSessionId={openSessionId}
         initialPrompt={ask ?? undefined}
+        initialDraft={draft ?? undefined}
         filesPanel={rightPanel}
         onRemoved={() => setSelection(null)}
         onOpenWorkspace={() => setSelection(null)}

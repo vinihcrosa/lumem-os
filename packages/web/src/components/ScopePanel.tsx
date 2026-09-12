@@ -78,6 +78,8 @@ export interface ScopePanelProps {
    * estiver aberta.
    */
   initialPrompt?: { sessionId: string; text: string } | undefined;
+  /** O rascunho que a tarefa trouxe — preenchido e **não** enviado (`022` T6). */
+  initialDraft?: { sessionId: string; text: string } | undefined;
 }
 
 /**
@@ -107,6 +109,7 @@ export function ScopePanel({
   cwd,
   openSessionId,
   initialPrompt,
+  initialDraft,
 }: ScopePanelProps) {
   const queryClient = useQueryClient();
   const { tabs, activeId, select, close, reopen, resume, resuming, sessions } =
@@ -339,6 +342,9 @@ export function ScopePanel({
           resuming={resuming === tab.sessionId}
           initialPrompt={
             initialPrompt?.sessionId === tab.sessionId ? initialPrompt.text : undefined
+          }
+          initialDraft={
+            initialDraft?.sessionId === tab.sessionId ? initialDraft.text : undefined
           }
         />
       ))}

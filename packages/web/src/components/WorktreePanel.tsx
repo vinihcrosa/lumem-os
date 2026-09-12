@@ -17,6 +17,7 @@ import {
 import { ScopePanel } from "./ScopePanel.js";
 
 import "./detail.css";
+import "./tasks.css";
 
 export interface WorktreePanelProps {
   worktreeId: string;
@@ -44,6 +45,7 @@ export interface WorktreePanelProps {
   openSessionId?: string | undefined;
   /** O pedido que abriu uma conversa (ver `ScopePanel`). */
   initialPrompt?: { sessionId: string; text: string } | undefined;
+  initialDraft?: { sessionId: string; text: string } | undefined;
 }
 
 /** Branch, path, cleanliness and distance from the base — F4.10 — plus its tabs. */
@@ -56,6 +58,7 @@ export function WorktreePanel({
   onOpenProject,
   openSessionId,
   initialPrompt,
+  initialDraft,
   filesPanel,
 }: WorktreePanelProps) {
   const queryClient = useQueryClient();
@@ -64,6 +67,18 @@ export function WorktreePanel({
   const detail = useQuery({
     queryKey: worktreeDetailKey(worktreeId),
     queryFn: () => trpc.worktree.getDetail.query({ id: worktreeId }),
+  });
+
+  /*
+   * A tarefa deste checkout (`022` T11).
+   *
+   * Consulta própria e não um campo do `getDetail`: aquele é o retrato do disco
+   * — branch, sujeira, distância —, e tarefa é registro. Juntar os dois faria
+   * uma leitura de git esperar por uma de banco a cada repintura.
+   */
+  const task = useQuery({
+    queryKey: ["task", "getByWorktree", worktreeId],
+    queryFn: () => trpc.task.getByWorktree.query({ worktreeId }),
   });
 
   /**
@@ -152,6 +167,7 @@ export function WorktreePanel({
         cwd={known.path}
         openSessionId={openSessionId}
         initialPrompt={initialPrompt}
+        initialDraft={initialDraft}
         filesPanel={filesPanel}
         crumb={crumb(known.name, known.branch)}
         checkout={{ name: known.name, glyph: <Glyph tone="worktree">◇</Glyph> }}
@@ -290,6 +306,29 @@ export function WorktreePanel({
                     <span className="dim">nasceu de {baseBranch}</span>
                   </>
                 ),
+              },
+              /*
+               * Para qual tarefa este checkout existe (`022` F1, T11).
+               *
+               * Aqui e **não** no rótulo da aba: o rótulo já carrega nome e ponto
+               * de sujeira, e enfiar um título de tarefa lá dentro faria a aba
+               * crescer com o texto que alguém digitou.
+               *
+               * E a ausência é **escrita**: worktree sem tarefa é o caso mais
+               * comum do produto — tarefa não é obrigatória (T1) —, e um espaço
+               * vazio ali se leria como dado que não carregou.
+               */
+              {
+                label: "tarefa",
+                value:
+                  task.data == null ? (
+                    <span className="ctx-task--none">sem tarefa</span>
+                  ) : (
+                    <span className={`ctx-task trow--${task.data.status}`}>
+                      <span className="tstat__dot" aria-hidden="true" />
+                      <span className="ctx-task__t">{task.data.title}</span>
+                    </span>
+                  ),
               },
               // Sem diretório não há o que comparar nem o que contar: some o
               // que deixou de ser verdade, fica o que ainda é — a branch, o

@@ -7,7 +7,7 @@
 a [T4](open-questions.md) e a [T8](open-questions.md) — mudaram de forma depois de uma rodada de
 explicação, e as duas mudaram pelo mesmo motivo: a
 [`028`](../028-autonomous-orchestration/prd.md) não existia quando foram escritas. **17 tasks em 5
-fases**. As **fases 0 e 1 estão entregues** (2026-09-12): o desenho terminou **apagando** uma peça em
+fases**. As **fases 0, 1 e 2 estão entregues** (2026-09-12): o desenho terminou **apagando** uma peça em
 vez de escrever duas, e o modelo achou uma migração que o `drizzle-kit` gerou errada — sem a linha
 escrita à mão, apagar uma tarefa seria recusado em vez de anular o ponteiro da sessão.
 
@@ -190,7 +190,7 @@ tela cheia. No painel do projeto, a mesma lista filtrada. Sem prioridade, prazo 
 filtro por projeto não muda a ordem; `done` recolhido abre e fecha; a lista vazia **ensina** em vez de
 parecer quebrada.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12. Sem cabeçalho de grupo, como o desenho decidiu. O caso que importa é o que prova que a tela **não reordena** o que o daemon mandou — a ordem é decisão de produto, e decisão de produto sem teste volta a ser opinião
 
 #### T9: O detalhe da tarefa
 
@@ -201,7 +201,7 @@ selo de *proposta por agente*), e os verbos de transição permitidos **para voc
 tarefa sem worktree não inventa um checkout; `done` aparece para humano e o teste prova que nenhum
 caminho da tela oferece `done` a um agente.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12. `marcar done` só aparece porque quem olha é humano, e o teste prova que a tela troca os verbos quando a tarefa sai do fluxo. As sessões vêm de `session.listByTask`, que é a leitura da coluna — não um índice novo
 
 #### T10: Trabalhar nesta tarefa
 
@@ -215,7 +215,7 @@ neles é um `taskId` opcional.
 **zero** até apertar; escolher um checkout existente não cria worktree nenhuma; a tarefa fica com
 `worktree_id` depois — nunca sem, se alguém trabalhou nela.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12. O composer chega **preenchido e não enviado**: `initialDraft` é irmão do `initialPrompt` que já existia, e o contrário dele — aquele manda sozinho, este espera você ler. No inicializador do `useState` e não num efeito, senão ele atropelaria o primeiro caractere de quem começasse a digitar antes
 
 #### T11: A tarefa na primeira aba da worktree
 
@@ -225,7 +225,7 @@ dizer **para qual tarefa a worktree existe**, ao lado de branch e sujeira. Um cl
 **Done when**: worktree **sem** tarefa não ganha nenhum pixel novo; com tarefa, o título trunca pela
 regra da casa e o ponto de sujeira continua visível.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12 — na **linha de contexto** do checkout, ao lado de branch e sujeira, e não no rótulo da aba. Consulta própria (`task.getByWorktree`) e não um campo do `getDetail`: aquele é o retrato do disco, e juntar os dois faria uma leitura de git esperar por uma de banco a cada repintura
 
 ---
 

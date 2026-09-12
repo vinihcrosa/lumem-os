@@ -37,6 +37,14 @@ export const taskRouter = router({
     .input(idSchema)
     .query(async ({ ctx, input }) => (await createTaskRepository(ctx.db).get(input.id)) ?? null),
 
+  /** A tarefa para a qual este checkout existe, ou `null` — o caso mais comum. */
+  getByWorktree: publicProcedure
+    .input(z.object({ worktreeId: z.string().min(1) }))
+    .query(
+      async ({ ctx, input }) =>
+        (await createTaskRepository(ctx.db).findByWorktree(input.worktreeId)) ?? null,
+    ),
+
   create: publicProcedure
     .input(
       z.object({
@@ -89,6 +97,20 @@ export const taskRouter = router({
         });
         ctx.events.emit({ type: "task.changed", workspaceId: moved.workspaceId });
         return moved;
+      }),
+    ),
+
+  /** A tarefa passa a apontar para um checkout que já existe ([T5]). */
+  attachWorktree: publicProcedure
+    .input(z.object({ id: z.string().min(1), worktreeId: z.string().min(1) }))
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () => {
+        const linked = await createTaskRepository(ctx.db).attachWorktree(
+          input.id,
+          input.worktreeId,
+        );
+        ctx.events.emit({ type: "task.changed", workspaceId: linked.workspaceId });
+        return linked;
       }),
     ),
 
