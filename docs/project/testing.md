@@ -163,6 +163,17 @@ do Open Design pelo `design:sync`, que ninguém escreve e ninguém conserta. Ess
 `sonar.exclusions` concordam de propósito — número local diferente do número do Sonar é como se
 aprende a não olhar nenhum dos dois.
 
+**O número do Sonar é 92,7%, e não os 94,0% da tabela — os dois estão certos.** O `coverage` do Sonar
+é linha **e** ramo numa métrica só, e a tabela acima separa as duas:
+
+```
+(25746 + 7631) / (27378 + 8615) = 33377 / 35993 = 92,7%
+```
+
+Quem comparar a tela do Sonar com o `text-summary` do vitest vai ver números diferentes para a mesma
+execução. Não é divergência de escopo — as exclusões concordam, e `lines_to_cover` do Sonar (27 385)
+bate com as 27 378 do `lcov` mais as sete do arquivo que só ele indexa. É a fórmula.
+
 **Sem limiar global.** O quality gate do Sonar mede *código novo*, e é essa a métrica que vale: 94,0%
 virando piso transformaria a próxima PR honesta — um arquivo novo ainda mal coberto — em vermelho por
 aritmética. A matriz deste arquivo continua sendo por **camada e propriedade**; a porcentagem é o
