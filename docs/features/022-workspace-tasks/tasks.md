@@ -7,8 +7,9 @@
 a [T4](open-questions.md) e a [T8](open-questions.md) — mudaram de forma depois de uma rodada de
 explicação, e as duas mudaram pelo mesmo motivo: a
 [`028`](../028-autonomous-orchestration/prd.md) não existia quando foram escritas. **17 tasks em 5
-fases**. A **fase 0 está entregue** (2026-09-12): a T1 é o próprio gesto de sair de proposta, e a T2
-e a T3 são o desenho — que terminou **apagando** uma peça em vez de escrever duas.
+fases**. As **fases 0 e 1 estão entregues** (2026-09-12): o desenho terminou **apagando** uma peça em
+vez de escrever duas, e o modelo achou uma migração que o `drizzle-kit` gerou errada — sem a linha
+escrita à mão, apagar uma tarefa seria recusado em vez de anular o ponteiro da sessão.
 
 A ordem tem duas regras, e as duas são do repositório:
 
@@ -130,7 +131,7 @@ apagaria a proposta da tela inteira
 **Done when**: `migrations.test.ts` passa do vazio ao atual e do anterior ao atual; uma sessão
 sobrevive à tarefa removida com `task_id` nulo; `status` fora do enum é recusado **pelo banco**.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12. A migração `0014_tarefa_como_entidade` teve **uma linha escrita à mão**: o `drizzle-kit` perde a ação do FK no caminho de `ALTER TABLE` e escreveu `REFERENCES task(id)` sem `ON DELETE` — com isso, apagar uma tarefa seria **recusado** em vez de anular o ponteiro da sessão. O teste da mutação prova: com a linha gerada, ele falha com `FOREIGN KEY constraint failed`
 
 #### T5: O router `task.*`
 
@@ -144,7 +145,7 @@ barramento, como os outros routers.
 com sessão → `BLOCKED`; cada transição proibida por ator falha com a mensagem dela; a ordem da lista é
 asserida com `review`, `in_progress` e `open` misturados.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12 — 12 casos. `created_by_session` ficou **sem estrangeiro**, contra o que o §3.1 escreveu: com RESTRICT, todo `session.remove` de uma sessão que já propôs alguma coisa falharia; o precedente é o `session.resumed_from_id`, e a nota está no schema
 
 #### T6: `in_progress` é derivado, não declarado
 
@@ -157,7 +158,7 @@ botão.
 **sem** tarefa → nada muda; segundo prompt não re-escreve. **Mutação:** desligar o observador tem que
 derrubar um teste.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12 — 6 casos, agente falso, zero token. A costura é o evento `message` de `role: user`, que o `prompt` põe na transcrição antes de o agente ouvir. **Só de `open`**: `review` o agente pôs de propósito e `proposed` ainda não foi aprovada. O caso da mutação existe e é o último do arquivo
 
 #### T7: Remover projeto leva as tarefas junto
 
@@ -172,7 +173,7 @@ confirmação
 sessão ligada fica com `task_id` nulo; projeto **clonado** com worktree continua bloqueando **antes**
 de chegar às tarefas; a frase da confirmação contém os dois números.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12. As tarefas vão **antes** das worktrees na transação — uma tarefa aponta para uma delas, e a ordem é o que satisfaz os dois estrangeiros sem afrouxar nenhum. A confirmação diz `e o registro de 1 worktree e 2 tarefas?`, e **não diz zero**
 
 ---
 

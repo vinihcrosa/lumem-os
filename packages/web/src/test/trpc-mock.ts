@@ -109,6 +109,14 @@ function createTrpcMock() {
         ),
       },
     },
+    task: {
+      listByWorkspace: { query: vi.fn() },
+      get: { query: vi.fn() },
+      create: { mutate: vi.fn() },
+      update: { mutate: vi.fn() },
+      setStatus: { mutate: vi.fn() },
+      remove: { mutate: vi.fn() },
+    },
     worktree: {
       listByProject: { query: vi.fn() },
       getDetail: { query: vi.fn() },
@@ -266,6 +274,10 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   // As origens do diálogo de criar worktree. Default vazio pela mesma razão dos
   // outros: o diálogo consulta no `mount`, e um teste que fala de outra coisa
   // não pode quebrar por causa disso.
+  // A lista de tarefas. Default vazio pela mesma razão dos outros: a tela do
+  // workspace consulta no `mount`, e a confirmação de remover projeto também —
+  // um teste que fala de arquivo não pode quebrar por causa disso.
+  mock.task.listByWorkspace.query.mockResolvedValue([]);
   mock.worktree.branches.query.mockResolvedValue([]);
   mock.worktree.hostOrigins.query.mockResolvedValue(NO_HOST_ORIGINS);
 }

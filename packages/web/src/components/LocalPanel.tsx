@@ -135,12 +135,24 @@ function ProjectSpend({ projectId }: { projectId: string }) {
  * `worktrees` é `null` quando o repositório sumiu do disco: a lista nem é
  * buscada nesse caso, e dizer "e o registro de 0 worktrees" seria afirmar algo
  * que a tela não sabe.
+ *
+ * **As tarefas entram na mesma frase** (`022` T10). Elas vão junto, na mesma
+ * transação, e uma pergunta que nomeia só as worktrees estaria escondendo
+ * metade do que some. Zero não aparece — dizer "e 0 tarefas" gasta a atenção
+ * que o número existe para comprar.
  */
-function removalQuestion(name: string, worktrees: number | null): string {
-  if (worktrees === null) return `remover ${name} da lista, e o registro das worktrees dele?`;
-  if (worktrees === 0) return `remover ${name} da lista?`;
-  const plural = worktrees === 1 ? "1 worktree" : `${worktrees} worktrees`;
-  return `remover ${name} da lista, e o registro de ${plural}?`;
+function countsPhrase(worktrees: number | null, tasks: number): string {
+  const parts: string[] = [];
+  if (worktrees === null) parts.push("as worktrees dele");
+  else if (worktrees > 0) parts.push(worktrees === 1 ? "1 worktree" : `${worktrees} worktrees`);
+  if (tasks > 0) parts.push(tasks === 1 ? "1 tarefa" : `${tasks} tarefas`);
+  return parts.join(" e ");
+}
+
+function removalQuestion(name: string, worktrees: number | null, tasks: number): string {
+  const counts = countsPhrase(worktrees, tasks);
+  if (counts === "") return `remover ${name} da lista?`;
+  return `remover ${name} da lista, e o registro de ${counts}?`;
 }
 
 export function LocalPanel({
@@ -169,6 +181,18 @@ export function LocalPanel({
   });
 
   /*
+   * Quantas tarefas somem junto (`022` T10).
+   *
+   * Pela lista do workspace filtrada por projeto, e não por um endpoint de
+   * contagem: a lista já existe, ela é a mesma consulta que a tela do workspace
+   * faz, e um `count` próprio seria uma segunda verdade sobre o mesmo número.
+   */
+  const tasks = useQuery({
+    queryKey: ["task", "listByWorkspace", workspaceId, projectId],
+    queryFn: () => trpc.task.listByWorkspace.query({ workspaceId, projectId }),
+  });
+
+  /*
    * Removing the project asks first (F2.5, F6.9).
    *
    * Two reasons, and which one applies depends on the project. For a **cloned**
@@ -194,6 +218,7 @@ export function LocalPanel({
       <RemoveProjectConfirm
         project={project.data}
         worktrees={worktrees.data?.length ?? null}
+        tasks={tasks.data?.length ?? 0}
         pending={remove.isPending}
         error={remove.isError ? remove.error.message : null}
         onCancel={() => {
@@ -390,6 +415,7 @@ export function LocalPanel({
 function RemoveProjectConfirm({
   project,
   worktrees,
+  tasks,
   pending,
   error,
   onCancel,
@@ -404,6 +430,7 @@ function RemoveProjectConfirm({
    * remoção em vez de acompanhá-la, e a recusa chega pelo banner.
    */
   worktrees: number | null;
+  tasks: number;
   pending: boolean;
   error: string | null;
   onCancel: () => void;
@@ -426,7 +453,9 @@ function RemoveProjectConfirm({
             {/* O número está no título e não no corpo porque é ele que muda a
                 resposta: "remover um projeto" e "remover um projeto e o
                 registro de 3 worktrees" são duas decisões diferentes. */}
-            <h2 className="remove-confirm__title">{removalQuestion(project.name, worktrees)}</h2>
+            <h2 className="remove-confirm__title">
+              {removalQuestion(project.name, worktrees, tasks)}
+            </h2>
             <p className="remove-confirm__body">
               Este projeto aponta para um repositório <strong>seu</strong>. Sai da lista; o
               diretório fica exatamente onde está — o dele e o de cada worktree, com trabalho

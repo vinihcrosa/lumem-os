@@ -480,3 +480,73 @@ describe("0013 — o consumo por agente", () => {
     expect(rows.map((row) => row.agentConfigId)).toEqual([null, "cfg-que-nao-existe-mais"]);
   });
 });
+
+/**
+ * A subida para a tarefa como entidade (`022` T4).
+ *
+ * Duas coisas só este arquivo prova: que uma sessão que já existia sobrevive ao
+ * ALTER TABLE — com o ponteiro nulo, e não inventado —, e que a **ação** do
+ * estrangeiro chegou no disco. A segunda é a frágil: o `drizzle-kit` escreve
+ * `REFERENCES task(id)` sem `ON DELETE` no caminho de ALTER, e a coluna
+ * nasceria NO ACTION. Um banco assim recusaria apagar tarefa, em vez de anular
+ * o ponteiro — e o sintoma apareceria meses depois, em quem tentasse limpar.
+ */
+describe("a tarefa entra num banco que já existia", () => {
+  /** Um banco parado em 0013, com uma sessão gravada como aquela revisão faria. */
+  function databaseBeforeTask(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = OFF");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(14) });
+    sqlite
+      .prepare(
+        `INSERT INTO session (id, kind, scope_type, scope_id, cwd, command)
+         VALUES ('se-antiga', 'shell', 'worktree', 'wt1', '/wt', 'bash')`,
+      )
+      .run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("a sessão de antes acorda sem tarefa, e não com uma inventada", async () => {
+    const handle = openDatabase({ path: databaseBeforeTask() });
+    open.push(handle);
+
+    const [row] = await handle.db
+      .select()
+      .from(schema.session)
+      .where(eq(schema.session.id, "se-antiga"));
+
+    expect(row).toMatchObject({ id: "se-antiga", taskId: null });
+  });
+
+  it("apagar a tarefa anula o ponteiro da sessão, em vez de ser recusado", async () => {
+    const handle = openDatabase({ path: databaseBeforeTask() });
+    open.push(handle);
+    const db = handle.db;
+
+    await db.insert(schema.workspace).values({ id: "w1", name: "acme" });
+    await db
+      .insert(schema.project)
+      .values({ id: "p1", workspaceId: "w1", name: "api", path: "/repos/api", defaultBranch: "main" });
+    await db
+      .insert(schema.task)
+      .values({ id: "t1", workspaceId: "w1", projectId: "p1", title: "consertar o /orders" });
+    await db
+      .update(schema.session)
+      .set({ taskId: "t1" })
+      .where(eq(schema.session.id, "se-antiga"));
+
+    await db.delete(schema.task).where(eq(schema.task.id, "t1"));
+
+    const [row] = await db
+      .select()
+      .from(schema.session)
+      .where(eq(schema.session.id, "se-antiga"));
+    expect(row?.taskId).toBeNull();
+  });
+});
