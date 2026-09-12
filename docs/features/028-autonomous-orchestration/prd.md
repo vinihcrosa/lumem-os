@@ -38,8 +38,9 @@
 > **rola na horizontal e diz que está rolando**
 > **Perguntas:** **40, e 38 respondidas** — as três da sexta rodada vieram de **ler o código
 > entregue**. A [Q38](open-questions.md#q38--arrastar-para-in-progress-se-ele-é-derivado) é a única do
-> documento que já estava respondida (pela Q3), e a proposta que veio com ela estava errada; o que
-> sobrou dela é a [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão).
+> documento que nunca precisou existir: a Q3 já a respondia, e a premissa dela estava errada também —
+> o arrasto para `In Progress` **já funcionava**, sem teste nenhum cobrindo. O que sobrou dela é a
+> [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão).
 > A Q40 e a [Q39](open-questions.md#q39--quem-diz-que-o-agente-está-esperando-você) são as duas
 > abertas, **as duas represadas até a F2 ter `tasks.md`**, e nenhuma bloqueia a F1
 
@@ -309,15 +310,14 @@ Duas regras que explicam a tabela inteira:
 **Você pode arrastar para qualquer coluna, sempre** — inclusive para as da máquina, que é como se diz
 *"estou fazendo isto na mão"*. A restrição é só de mão única: a máquina nunca move para as suas.
 
-> **Nota — o "sempre" fica, e o que falta é escritor.** A [`022`](../022-workspace-tasks/prd.md) fez
-> `in_progress` ser **derivado** do primeiro prompt de uma sessão ligada à tarefa, e
-> `repositories/task.ts:63` o deixa fora das duas listas de quem pode escrever — então arrastar para
-> `In Progress` hoje não é difícil, é **impossível**. Isso parecia contradizer este parágrafo e **não
-> contradiz**: a [Q38](open-questions.md#q38--arrastar-para-in-progress-se-ele-é-derivado) registra
-> por quê. A coluna é a etapa e o selo é quem está nela (§4.1), então um cartão arrastado à mão
-> desenha `In Progress` com o selo `manual — ninguém pega` — que é exatamente o que ele é. O caminho
-> humano simplesmente nunca foi escrito, porque a `022` só precisou do derivado. É uma linha da
-> [T4](tasks.md#t4-quem-pode-escrever-cada-estado-novo).
+> **Nota — o "sempre" fica, e já funcionava.** A [`022`](../022-workspace-tasks/prd.md) fez
+> `in_progress` ser **derivado** do primeiro prompt de uma sessão ligada à tarefa, e isso parece
+> proibir o arrasto. Não proíbe: só o **agente** tem allowlist, você não — arrastar para `In
+> Progress` já era possível antes desta feature, e a coluna é a etapa enquanto o selo é quem está
+> nela (§4.1), então um cartão posto à mão desenha `In Progress` com `manual — ninguém pega`. A
+> [Q38](open-questions.md#q38--arrastar-para-in-progress-se-ele-é-derivado) registra o caminho
+> errado que eu percorri até aqui, porque a propriedade era verdadeira **por acidente**: não havia um
+> único teste sobre ela. A [T4](tasks.md#t4-quem-escreve-cada-estado-do-quadro) escreveu cinco.
 >
 > **O que a Q38 abriu é da esteira, não desta seção:** com a autonomia ligada, a regra da fila do
 > §4.1 — *todo cartão cuja etapa é devida e que não tem trabalhador* — descreve **também** o cartão

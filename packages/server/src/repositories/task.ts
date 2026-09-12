@@ -77,9 +77,23 @@ const STATUS_RANK = sql`CASE ${task.status}
  * remoção, e alimenta "o que este workspace fez". Um agente que se declara
  * pronto está em `review`, que é a palavra certa para o que ele sabe.
  *
- * `in_progress` não está em nenhuma das duas listas de propósito: ele é
- * **derivado** do primeiro prompt de uma sessão ligada à tarefa, e quem o
- * escreve é o observador de eventos (T6) — não um pedido.
+ * `in_progress` não está aqui de propósito: ele é **derivado** do primeiro
+ * prompt de uma sessão ligada à tarefa, e quem o escreve nesse caminho é o
+ * observador de eventos (T6) — não um pedido do agente.
+ *
+ * **Esta é a única lista, e é do agente.** Você não tem allowlist: tudo que
+ * está em `TASK_STATUSES` passa, `in_progress` incluído — que é o que faz
+ * *"arrastar para qualquer coluna, sempre"* (`028` §4, Q3) funcionar sem
+ * exceção nenhuma. Um `in_progress` posto por você e a derivação não colidem:
+ * `tasks/progress.ts` é `WHERE status = 'open'`, então ela nunca toca o que já
+ * está lá.
+ *
+ * **Os três estados da `028` ficam de fora** (T4). `Testing` e `Ready to Merge`
+ * são etapas que *a máquina* move — e "a máquina" é o **daemon**, observando
+ * fato verificável, nunca o agente dizendo que chegou lá. Um agente que se
+ * declara pronto continua dizendo `review`, que é a palavra certa para o que
+ * ele sabe. `backlog` é seu pelo mesmo motivo que `open` é: as duas pontas da
+ * fila são consentimento.
  */
 const AGENT_MAY_SET: ReadonlySet<string> = new Set(["review"]);
 

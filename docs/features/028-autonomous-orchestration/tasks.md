@@ -64,7 +64,7 @@ que já é movida hoje — `open` → `in_progress`, derivada do primeiro prompt
 
 | Não muda | Por quê |
 |---|---|
-| a derivação de `in_progress` | `tasks/progress.ts:56` continua sendo `WHERE status = 'open'`. A [T4](#t4-quem-pode-escrever-cada-estado-novo) **acrescenta** um escritor humano ao lado dela; não substitui nem alarga o `where` |
+| a derivação de `in_progress` | `tasks/progress.ts:56` continua sendo `WHERE status = 'open'`. A [T4](#t4-quem-escreve-cada-estado-do-quadro) não mexe nela — só **cobre com teste** que ela não atropela o que você pôs à mão |
 | a fila de **Propostas** | é da [`022`](../022-workspace-tasks/prd.md) (T4), e o §10.4 da PRD registra que a superfície é de lá. `proposed` **não é coluna do quadro** |
 | `dropped` sai do quadro | §6/F1 — vira arquivo, não sétima coluna |
 | o Lumem não guarda segredo | o [ADR de 2026-08-30](../../adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md). Sem F5, nada aqui encosta em tracker |
@@ -136,29 +136,26 @@ conferida à mão.
 > mediu: a To-Do é onde mora a autorização (§4 da PRD), e uma tarefa que chega no Backlog não é
 > trabalho autorizado.
 
-#### T4: Quem pode escrever cada estado novo
+#### T4: Quem escreve cada estado do quadro
 
-**What**: estender as listas de `repositories/task.ts` — `AGENT_MAY_SET` e a humana — para os três
-estados novos, com a regra do §4: **as duas pontas são suas**, o meio é da máquina, e na F1 a máquina
-não move nada além do `in_progress` que ela já move. Mais: **`in_progress` entra na lista humana**, e
-continua fora da do agente.
-**Where**: `packages/server/src/repositories/task.ts`, `routers/task.ts`
-**Done when**: um agente que tenta escrever `ready_to_merge` pelo `POST /tasks` é recusado com o
-motivo; **uma pessoa pode escrever qualquer um dos sete, `in_progress` incluído**; um agente
-continua sem conseguir escrever `in_progress`; e a derivação continua intocada — pôr `in_progress` à
-mão e depois abrir uma sessão é no-op.
+**What**: fechar quem pode escrever os três estados novos, e **cobrir com teste** a propriedade que
+faz o arrasto do §4 funcionar — só o agente tem allowlist; você não tem.
+**Where**: `packages/server/src/repositories/task.ts`, `routers/task.test.ts`
+**Done when**: um agente é recusado em `backlog`, `testing` e `ready_to_merge`, e continua podendo
+dizer `review`; **você move para qualquer uma das sete, `in_progress` incluído**; e a derivação não
+atropela o que você pôs à mão.
 **Gate**: `pnpm gate:quick`
 
-> **O escritor humano é o que faltava, e não é exceção nova.** A [Q38](open-questions.md#q38--arrastar-para-in-progress-se-ele-é-derivado)
-> registra por quê: a [Q3](open-questions.md#q3--quais-colunas-a-máquina-move-sozinha) decidiu que
-> *"arrastar é sempre permitido para você, inclusive para as colunas da máquina"*, e a `022`
-> simplesmente nunca escreveu esse caminho porque não precisou dele. **A honestidade do estado mora
-> no selo, não na coluna** (§4.1): um cartão posto à mão desenha `In Progress` com
-> `manual — ninguém pega`, que é o que ele é.
+> **Nenhum dos cinco casos nasceu vermelho, e é isso que a task é.** O comportamento já estava certo
+> — `AGENT_MAY_SET` é a **única** lista, então tudo que não é do agente passa pelo seu caminho — e
+> **nada o cobria**. Era verdadeiro por acidente, e a primeira pessoa a "arrumar" o guard o quebraria
+> sem nada ficar vermelho. Os cinco foram conferidos por mutação: alargar a allowlist do agente
+> derruba dois, bloquear `in_progress` no caminho humano derruba um.
 >
-> **A derivação não colide**, e isso é `progress.ts:56`: ela é `WHERE status = 'open'`, então nunca
-> toca um `in_progress` que já existe. O teste do no-op é barato e é o que impede alguém de alargar
-> aquele `where` sem perceber.
+> **A [Q38](open-questions.md#q38--arrastar-para-in-progress-se-ele-é-derivado) registra que eu li
+> isso errado duas vezes** — primeiro a proposta, depois a premissa. O que ela produziu de útil não
+> foi código: foi a [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão)
+> e o comentário da `022`, que descrevia intenção e era lido como mecanismo.
 
 #### T5: Arrastar, e a ordem dentro da coluna
 
@@ -174,7 +171,7 @@ cartão fica com o selo `manual — ninguém pega`; e nenhum caminho de agente m
 > **A restrição é só de mão única** (§4): você move para qualquer uma das sete, a máquina nunca move
 > para as suas. Não há coluna com exceção — a [Q38](open-questions.md#q38--arrastar-para-in-progress-se-ele-é-derivado)
 > chegou propondo que `In Progress` fosse uma, e a proposta estava errada; o escritor que faltava é a
-> [T4](#t4-quem-pode-escrever-cada-estado-novo).
+> [T4](#t4-quem-escreve-cada-estado-do-quadro).
 
 ---
 

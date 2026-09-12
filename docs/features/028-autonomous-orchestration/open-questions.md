@@ -947,35 +947,33 @@ perguntas. Nenhuma das duas veio de discussão: vieram de ler o código que já 
 
 ### Q38 — arrastar para `In Progress`, se ele é derivado?
 
-O §4 diz que você pode arrastar para qualquer coluna, **sempre**, *"inclusive para as da máquina, que
-é como se diz 'estou fazendo isto na mão'"*. E o `repositories/task.ts:63`, entregue pela
-[`022`](../022-workspace-tasks/prd.md), deixa `in_progress` **fora das duas listas de quem pode
-escrever**: ele é derivado do primeiro prompt de uma sessão ligada à tarefa (`tasks/progress.ts:56`).
-Não existe caminho de pedido — arrastar para `In Progress` hoje é literalmente impossível.
+**Esta pergunta nunca precisou existir, e o registro de por quê vale mais que ela.**
 
-Eu levantei isto como contradição e **propus que `In Progress` fosse a única coluna sem arrasto**,
-com o argumento de que um estado derivado não pode divergir da realidade.
+Eu li o comentário do `repositories/task.ts` — *"`in_progress` não está em nenhuma das duas listas de
+propósito"* — e concluí que arrastar para `In Progress` era impossível, que isso contradizia o §4 da
+PRD, e propus que `In Progress` fosse a única coluna sem arrasto.
 
-**Resposta: a [Q3](#q3--quais-colunas-a-máquina-move-sozinha) já tinha respondido, e a proposta
-estava errada.** A Q3 decidiu, com todas as letras, que *"arrastar é sempre permitido para você,
-inclusive para as colunas da máquina"*. O que faltava não era decisão — era **escritor**.
+**Errado duas vezes, e as duas medidas na T4:**
 
-**E o argumento contra não se sustenta**, porque confunde coluna com selo — a distinção que o §4.1
-passou a PRD inteira estabelecendo: *"A coluna é a etapa; o cartão diz quem está nela."* Um cartão
-arrastado à mão desenha coluna `In Progress` e selo `manual — ninguém pega`, que lê exatamente o que
-é: *está em progresso, e nenhum agente está com ela*. É o quinto estado do selo, que o desenho
-acrescentou em 2026-09-11 (§10.2 da PRD). **A honestidade mora no selo, e o selo continua derivado.**
-A coluna nunca precisou carregá-la.
+1. **A proposta estava errada.** A [Q3](#q3--quais-colunas-a-máquina-move-sozinha) já decidira que
+   *"arrastar é sempre permitido para você, inclusive para as colunas da máquina"*. E o argumento
+   contra confundia coluna com selo — a distinção que o §4.1 passou a PRD inteira estabelecendo. Um
+   cartão arrastado à mão desenha coluna `In Progress` com selo `manual — ninguém pega`, que é
+   exatamente o que ele é. **A honestidade mora no selo, e o selo continua derivado.**
+2. **A premissa também estava errada.** Não existem "duas listas": existe **uma**, `AGENT_MAY_SET`, e
+   ela é do agente. Você não tem allowlist — tudo que está em `TASK_STATUSES` passa pelo seu caminho.
+   Um humano **já conseguia** pôr `in_progress` antes desta feature; provado rodando, não deduzido.
 
-Não há colisão mecânica, tampouco: a derivação é `WHERE status = 'open'`, então um `in_progress`
-posto à mão nunca é tocado por ela, e abrir uma sessão depois é no-op. O comentário do
-`progress.ts:18` já dizia isso — *"só de `open` para `in_progress`, e isso é decisão"*.
+O comentário da `022` descreve a **intenção** (`in_progress` é derivado, ninguém aperta "comecei") e
+eu li como se descrevesse o **mecanismo**. Ele foi reescrito na T4 para dizer as duas coisas
+separadas, e o que faltava não era escritor nem decisão: **era teste.** A propriedade que faz o
+arrasto funcionar — você não tem allowlist — era verdadeira **por acidente**, sem um único caso a
+cobrindo. Agora tem cinco, e os cinco foram conferidos ficando vermelhos de propósito.
 
-**O que muda:** nada na PRD. A [T4](tasks.md#t4-quem-pode-escrever-cada-estado-novo) ganha uma linha —
-`in_progress` entra na lista **humana** e continua fora da lista do agente —, e a
-[T5](tasks.md#t5-arrastar-e-a-ordem-dentro-da-coluna) perde a recusa que eu tinha escrito nela.
+**O que muda na PRD:** nada. **O que muda no código:** um comentário e cinco testes.
 
-**O que a resposta abriu:** a [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão).
+**O que a pergunta abriu, e é o que sobrou dela:** a
+[Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão).
 
 ### Q39 — quem diz que o agente está esperando você?
 

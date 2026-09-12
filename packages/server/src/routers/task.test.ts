@@ -1,5 +1,5 @@
 import { newId } from "@lumem/shared";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { project, session, task, worktree } from "../db/schema.js";
@@ -290,6 +290,87 @@ describe("o agente e o que está fechado", () => {
     const moved = await createTaskRepository(db).setStatus(created.id, "review", {
       actor: "agent",
     });
+
+    expect(moved.status).toBe("review");
+  });
+});
+
+/**
+ * Quem escreve cada estado novo (`028` T4).
+ *
+ * Há **uma** lista, e ela é do agente: você não tem allowlist, então tudo que
+ * está em `TASK_STATUSES` passa pelo seu caminho. É isso que faz o *"arrastar
+ * para qualquer coluna, sempre"* do §4 funcionar sem exceção — e é uma
+ * propriedade que nenhum teste cobria, então ela era verdadeira por acidente.
+ */
+describe("quem escreve os estados do quadro", () => {
+  it("você move para qualquer uma das sete colunas, in_progress incluído", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "estou fazendo na mão" });
+
+    const moved = await api.task.setStatus({ id: created.id, status: "in_progress" });
+
+    // A coluna é a etapa e o selo é quem está nela (§4.1): um cartão posto aqui
+    // à mão fica `In Progress` com o selo `manual — ninguém pega`, que é o que
+    // ele é. A honestidade mora no selo, não na coluna.
+    expect(moved.status).toBe("in_progress");
+  });
+
+  it("a derivação não atropela o que você pôs à mão", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "x" });
+    await api.task.setStatus({ id: created.id, status: "ready_to_merge" });
+
+    // `tasks/progress.ts` é `WHERE status = 'open'`. Alargar aquele `where`
+    // faria uma conversa aberta numa tarefa que já chegou ao fim da esteira
+    // puxá-la de volta para In Progress.
+    await db
+      .update(task)
+      .set({ status: "in_progress" })
+      .where(and(eq(task.id, created.id), eq(task.status, "open")));
+
+    const row = await db.query.task.findFirst({ where: eq(task.id, created.id) });
+    expect(row?.status).toBe("ready_to_merge");
+  });
+
+  it("o agente não move para testing nem para ready_to_merge", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const repository = createTaskRepository(db);
+    const created = await api.task.create({ workspaceId, projectId, title: "x" });
+
+    // As duas são etapas que **o daemon** move, observando fato verificável — a
+    // PR existe, o CI fechou. Um agente que se declara pronto diz `review`.
+    for (const status of ["testing", "ready_to_merge"] as const) {
+      await expect(repository.setStatus(created.id, status, { actor: "agent" })).rejects.toMatchObject(
+        { code: "BLOCKED" },
+      );
+    }
+  });
+
+  it("o agente não empurra tarefa para o backlog", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const repository = createTaskRepository(db);
+    const created = await api.task.create({ workspaceId, projectId, title: "x" });
+
+    // As duas pontas da fila são suas: `backlog` é "ainda não é para fazer" e
+    // `open` é a autorização. Um agente que pudesse escrever qualquer uma das
+    // duas decidiria sozinho o que vira trabalho.
+    await expect(repository.setStatus(created.id, "backlog", { actor: "agent" })).rejects.toMatchObject(
+      { code: "BLOCKED" },
+    );
+  });
+
+  it("o agente continua podendo dizer review, e só isso", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const repository = createTaskRepository(db);
+    const created = await api.task.create({ workspaceId, projectId, title: "x" });
+
+    const moved = await repository.setStatus(created.id, "review", { actor: "agent" });
 
     expect(moved.status).toBe("review");
   });
