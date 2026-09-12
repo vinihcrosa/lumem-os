@@ -27,7 +27,7 @@ jobs:
   sonarqube:
     name: SonarQube
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -37,6 +37,40 @@ jobs:
           # são novas, e "código novo" — que é onde o quality gate morde — vira o
           # arquivo inteiro.
           fetch-depth: 0
+
+      # -----------------------------------------------------------------------
+      # A cobertura é gerada **aqui**, e não recebida do `ci.yml`.
+      #
+      # O caminho óbvio seria o `ci.yml` subir o `lcov.info` como artefato e este
+      # workflow baixá-lo — uma execução da suíte por PR em vez de duas. Ele não
+      # funciona, e o motivo não é preferência:
+      #
+      # - `actions/download-artifact` não cruza *workflow run*. Precisaria de
+      #   `run-id` mais token, e os dois workflows disparam **em paralelo** no
+      #   mesmo commit: quando este chegasse no passo, o `ci.yml` ainda estaria
+      #   rodando e o artefato não existiria.
+      # - Fazer esperar pede o gatilho `workflow_run`, que roda no contexto da
+      #   **branch default**. Isso quebra a decoração de PR do Sonar — que é o
+      #   ponto do workflow — e faria toda análise ser de `main`.
+      #
+      # O preço é uma execução extra da suíte por PR (~+90 s de suíte medidos na
+      # máquina, sobre um runner que já paga o `install`). O que ela compra é a
+      # propriedade que o `testing.md` nomeia: os dois workflows continuam
+      # **independentes**, e o Sonar fora do ar não se parece com a suíte quebrada.
+      # -----------------------------------------------------------------------
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Escreve `coverage/lcov.info`, que é o arquivo nomeado pelo
+      # `sonar.javascript.lcov.reportPaths`. Os caminhos dentro dele são
+      # relativos à raiz do repositório, que é onde o scanner roda.
+      - run: pnpm test:coverage
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0

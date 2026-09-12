@@ -119,11 +119,58 @@ blame, e *"código novo"* — que é onde o quality gate morde — passa a ser o
 | `dist/`, `.turbo/`, `packages/cli/bin|drizzle` | saída de build. Estão no `.gitignore`, então o CI nem as vê; a linha existe para o run **local** dar o mesmo resultado que o do runner |
 | — | e o que **não** é exclusão: `sonar.tests` marca a suíte como suíte. Ela é colocada (`foo.ts` ao lado de `foo.test.ts`), e sem isso o Sonar cobraria dela as regras erradas — duplicação, que todo arranjo de teste repete, e complexidade cognitiva, que uma tabela de casos tem por desenho |
 
-**Cobertura está deliberadamente ausente.** Nenhum pacote gera `lcov`, e apontar
-`sonar.javascript.lcov.reportPaths` para um arquivo que não existe produz **0% no relatório** — um
-número errado com cara de medida, que é pior que nenhum. A matriz deste arquivo é por **camada e
-propriedade**, não por porcentagem de linha; ligar cobertura pede primeiro decidir o que a
-porcentagem significa aqui.
+**O Sonar analisa cobertura, e o `include` é a decisão inteira.** `pnpm test:coverage` escreve
+`coverage/lcov.info`, e o workflow o gera **ele mesmo** antes do scan — não o recebe do `ci.yml`. O
+caminho do artefato entre workflows foi descartado por dois motivos medidos, não por preferência:
+`actions/download-artifact` não cruza *workflow run*, e os dois disparam em paralelo no mesmo commit;
+fazer esperar pede `workflow_run`, que roda no contexto da branch default e **quebra a decoração de
+PR**, que é o ponto do workflow. O preço é uma execução extra da suíte por PR; o que ela compra é a
+independência que a seção acima justifica.
+
+O que decide o número é `coverage.include` no `vitest.config.ts`, e o default do provider é uma
+armadilha. O `v8` instrumenta **tudo que o processo carrega**, e a suíte carrega `packages/web/dist/assets`
+e `packages/cli/dist/web/assets` — 186 376 linhas de bundle minificado, 0% cobertas por definição.
+Rodado sem `include`, o relatório sai assim:
+
+```
+Statements : 12.05% ( 26664/221198 )
+Branches   : 88.06% (   7743/8792 )
+```
+
+Ramo em 88% e linha em 12% no mesmo cabeçalho não descrevem um projeto mal testado — descrevem um
+denominador errado, e é exatamente o tipo de número com cara de medida que ensina a ignorar a
+ferramenta. Com o `include`, a **mesma** execução dos 3374 testes dá:
+
+| | linhas | ramos |
+|---|---|---|
+| `packages/shared/src` | 100,0% (356/356) | 93,9% |
+| `packages/server/src` | 95,1% (12712/13365) | 89,2% |
+| `packages/web/src` | 94,2% (11907/12639) | 88,0% |
+| `packages/cli/src` | 90,1% (283/314) | 89,6% |
+| `scripts` | 69,3% (488/704) | 84,8% |
+| **total** | **94,0%** (25746/27378) | **88,6%** (7634/8617) |
+
+**E esse 94,0% é honesto, o que não era garantido:** sem `include`, o `v8` só reporta arquivo
+*carregado*, então um arquivo que nenhum teste importa **some** do relatório em vez de puxar a média
+para baixo. Com o `include`, ele entra com 0% — e a diferença foi conferida por comparação de listas:
+os 264 arquivos do `lcov` são um **superconjunto** da fonte elegível no disco, com zero ausente. Não é
+média de amostra conveniente.
+
+Três exclusões, e nenhuma é higiene: os ajudantes de teste (`src/testing/`, `web/src/test/`), porque
+contá-los é medir a régua; `Styleguide.tsx`, que é `import.meta.env.DEV` em `main.tsx` e seria a
+maior linha não coberta do repositório (444) medindo algo que não é entregue; e `tokens.ts`, derivado
+do Open Design pelo `design:sync`, que ninguém escreve e ninguém conserta. Essa lista e a
+`sonar.exclusions` concordam de propósito — número local diferente do número do Sonar é como se
+aprende a não olhar nenhum dos dois.
+
+**Sem limiar global.** O quality gate do Sonar mede *código novo*, e é essa a métrica que vale: 94,0%
+virando piso transformaria a próxima PR honesta — um arquivo novo ainda mal coberto — em vermelho por
+aritmética. A matriz deste arquivo continua sendo por **camada e propriedade**; a porcentagem é o
+complemento dela, e não a substituta.
+
+O custo cronometrado surpreendeu na direção boa: **65,8s → 73,5s** de suíte, +12%. A primeira medição
+deu +32% (86,8s) porque instrumentar 186 mil linhas de bundle também custa tempo — o `include` que
+conserta o número conserta o relógio junto.
 
 ### Por que `gate:quick` é um script e não `vitest --changed`
 
