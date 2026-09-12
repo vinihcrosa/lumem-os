@@ -110,6 +110,7 @@ function createTrpcMock() {
       },
     },
     task: {
+      settings: { query: vi.fn() },
       listByWorkspace: { query: vi.fn() },
       get: { query: vi.fn() },
       getByWorktree: { query: vi.fn() },
@@ -281,6 +282,7 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   // workspace consulta no `mount`, e a confirmação de remover projeto também —
   // um teste que fala de arquivo não pode quebrar por causa disso.
   mock.task.listByWorkspace.query.mockResolvedValue([]);
+  mock.task.settings.query.mockResolvedValue({ budget: 5, budgetEnv: "LUMEM_TASKS_BUDGET" });
   mock.session.listByTask.query.mockResolvedValue([]);
   // O caso mais comum: worktree sem tarefa. Tarefa não é obrigatória (T1).
   mock.task.getByWorktree.query.mockResolvedValue(null);

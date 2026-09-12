@@ -143,6 +143,13 @@ export async function bootstrap({
         db: openedDatabase.db,
         stateDir: config.stateDir,
         askUrl: `http://${config.host}:${String(config.port)}/memory/ask`,
+        // A porta de tarefas entra no mesmo preâmbulo (`022` T14): um parágrafo,
+        // com o teto junto — um agente que não sabe do orçamento gasta um turno
+        // descobrindo que ele existe.
+        tasks: {
+          url: `http://${config.host}:${String(config.port)}/tasks`,
+          budget: config.taskBudget,
+        },
       }),
     });
   /*

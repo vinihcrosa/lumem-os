@@ -10,6 +10,7 @@ vi.mock("../lib/trpc.js", () => ({ trpc: trpcMock }));
 
 const { TaskList } = await import("./TaskList.js");
 const { TaskDetail, suggestName } = await import("./TaskDetail.js");
+const { ProposalQueue } = await import("./ProposalQueue.js");
 const trpc = trpcMock;
 
 /**
@@ -123,6 +124,16 @@ describe("a lista de tarefas", () => {
     expect(screen.getByRole("button", { name: "criar a primeira" })).toBeInTheDocument();
   });
 
+  it("diz o teto de criação e onde mudar — teto invisível parece bug", async () => {
+    trpc.task.listByWorkspace.query.mockResolvedValue([task()]);
+    trpc.task.settings.query.mockResolvedValue({ budget: 5, budgetEnv: "LUMEM_TASKS_BUDGET" });
+
+    renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
+
+    expect(await screen.findByText(/5/)).toBeInTheDocument();
+    expect(screen.getByText("LUMEM_TASKS_BUDGET")).toBeInTheDocument();
+  });
+
   it("abre o detalhe da tarefa clicada", async () => {
     const user = userEvent.setup();
     const onOpen = vi.fn();
@@ -205,5 +216,64 @@ describe("o nome derivado do título", () => {
     // Sugestão, não regra — o campo continua editável. O que ela garante é o
     // alfabeto que uma branch aceita.
     expect(suggestName(title)).toBe(expected);
+  });
+});
+
+describe("a fila de Propostas", () => {
+  const noProject = () => "acme-web";
+
+  it("zero propostas é zero pixel", async () => {
+    /*
+     * Ela não tem estado vazio. Uma seção que diz "nada aqui" todo dia ensina o
+     * olho a pular aquela região da tela — e no dia em que houver algo, ele pula
+     * igual.
+     */
+    trpc.task.listByWorkspace.query.mockResolvedValue([]);
+    trpc.memory.proposals.query.mockResolvedValue([]);
+
+    const { container } = renderUI(
+      <ProposalQueue workspaceId="w1" projectName={noProject} />,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(container.querySelector(".section")).toBeNull();
+  });
+
+  it("aprovar uma tarefa proposta a torna aberta", async () => {
+    const user = userEvent.setup();
+    trpc.task.listByWorkspace.query.mockResolvedValue([
+      task({ id: "t7", title: "o checkout lê order.total", status: "proposed", createdBy: "agent", createdBySession: "se-1" }),
+    ]);
+    trpc.memory.proposals.query.mockResolvedValue([]);
+
+    renderUI(<ProposalQueue workspaceId="w1" projectName={noProject} />);
+    await user.click(await screen.findByRole("button", { name: "aprovar" }));
+
+    expect(trpc.task.setStatus.mutate).toHaveBeenCalledWith({ id: "t7", status: "open" });
+  });
+
+  it("rejeitar pede motivo antes de deixar clicar", async () => {
+    // É o que ensina o agente a não propor de novo — e o daemon cobra de
+    // qualquer jeito, então perguntar aqui evita um erro que ninguém pediu.
+    const user = userEvent.setup();
+    trpc.task.listByWorkspace.query.mockResolvedValue([
+      task({ id: "t7", status: "proposed", createdBy: "agent", createdBySession: "se-1" }),
+    ]);
+    trpc.memory.proposals.query.mockResolvedValue([]);
+
+    renderUI(<ProposalQueue workspaceId="w1" projectName={noProject} />);
+    await user.click(await screen.findByRole("button", { name: "rejeitar" }));
+
+    const confirm = screen.getByRole("button", { name: "rejeitar" });
+    expect(confirm).toBeDisabled();
+    await user.type(screen.getByLabelText("por que rejeitar"), "refator sem alvo");
+    expect(confirm).toBeEnabled();
+
+    await user.click(confirm);
+    expect(trpc.task.setStatus.mutate).toHaveBeenCalledWith({
+      id: "t7",
+      status: "dropped",
+      reason: "refator sem alvo",
+    });
   });
 });

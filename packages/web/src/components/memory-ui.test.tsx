@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/render.js";
 import { trpcMock as trpc } from "../test/trpc-mock.js";
 
-import { MemoryPanel } from "./MemoryPanel.js";
+import { MemoryPanel, MemoryProposals } from "./MemoryPanel.js";
 
 vi.mock("../lib/trpc.js", async () => ({
   trpc: (await import("../test/trpc-mock.js")).trpcMock,
@@ -79,6 +79,18 @@ function render() {
   renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" />);
 }
 
+/**
+ * As propostas, montadas direto.
+ *
+ * A aba `Propostas` do `MemoryPanel` deixou de existir: a `022` T4 levou a lista
+ * para a fila única no topo da tela do workspace. O componente é o mesmo — estes
+ * casos continuam provando exatamente o que provavam, e é essa continuidade que
+ * diz que a mudança de endereço não perdeu nada.
+ */
+function renderProposals() {
+  renderWithProviders(<MemoryProposals />);
+}
+
 describe("MemoryPanel", () => {
   it("mostra escopo e tipo como coisas diferentes", async () => {
     render();
@@ -118,9 +130,7 @@ describe("MemoryPanel", () => {
       proposal(),
       proposal({ id: "prop2", name: "Squash", evidence: null }),
     ]);
-    render();
-
-    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+    renderProposals();
 
     expect(await screen.findByText("api/src/billing/plan.ts:88")).toBeInTheDocument();
     // D7: fato vira memória, conclusão vira proposta — e a tela diz qual é qual.
@@ -129,9 +139,7 @@ describe("MemoryPanel", () => {
 
   it("a proposta mostra o corpo que vai virar arquivo", async () => {
     trpc.memory.proposals.query.mockResolvedValue([proposal({ body: "Preço só com plano ativo." })]);
-    render();
-
-    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+    renderProposals();
 
     // Aprovar grava e commita: aprovar o que não foi lido não é revisão.
     expect(await screen.findByText("Preço só com plano ativo.")).toBeInTheDocument();
@@ -140,8 +148,19 @@ describe("MemoryPanel", () => {
   it("aprovar chama a mutation e recarrega tudo de memória", async () => {
     trpc.memory.proposals.query.mockResolvedValue([proposal()]);
     trpc.memory.approveProposal.mutate.mockResolvedValue({ outcome: "applied" });
-    render();
-    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+    /*
+     * Os dois juntos, e é o teste que a mudança de endereço pede (`022` T15):
+     * a fila mora **fora** do painel de memória agora, e o que este caso prova é
+     * que aprovar de lá continua invalidando a lista daqui. Se não invalidasse,
+     * a tela passaria a discordar de si mesma — e o sintoma seria uma memória
+     * aprovada que não aparece até alguém recarregar.
+     */
+    renderWithProviders(
+      <>
+        <MemoryProposals />
+        <MemoryPanel workspaceId="ws1" projectId="p1" />
+      </>,
+    );
     await waitFor(() => {
       expect(trpc.memory.list.query).toHaveBeenCalledTimes(1);
     });
@@ -162,8 +181,7 @@ describe("MemoryPanel", () => {
   it("editar e aprovar manda o que você corrigiu, e só isso", async () => {
     trpc.memory.proposals.query.mockResolvedValue([proposal({ body: "regra" })]);
     trpc.memory.approveProposal.mutate.mockResolvedValue({ outcome: "applied" });
-    render();
-    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+    renderProposals();
 
     await userEvent.click(await screen.findByRole("button", { name: "Editar e aprovar" }));
     const body = await screen.findByLabelText("Corpo");
@@ -181,8 +199,7 @@ describe("MemoryPanel", () => {
 
   it("não deixa aprovar edição que apagou nome ou descrição", async () => {
     trpc.memory.proposals.query.mockResolvedValue([proposal()]);
-    render();
-    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+    renderProposals();
     await userEvent.click(await screen.findByRole("button", { name: "Editar e aprovar" }));
 
     await userEvent.clear(await screen.findByLabelText("Nome"));
@@ -195,8 +212,7 @@ describe("MemoryPanel", () => {
   it("motivo em branco não vira nota vazia no histórico", async () => {
     trpc.memory.proposals.query.mockResolvedValue([proposal()]);
     trpc.memory.rejectProposal.mutate.mockResolvedValue({ status: "rejected" });
-    render();
-    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+    renderProposals();
     await userEvent.click(await screen.findByRole("button", { name: "Rejeitar" }));
 
     await userEvent.type(screen.getByLabelText(/Por que não/), "   ");
@@ -212,8 +228,7 @@ describe("MemoryPanel", () => {
   it("rejeitar pede confirmação e motivo antes de resolver", async () => {
     trpc.memory.proposals.query.mockResolvedValue([proposal()]);
     trpc.memory.rejectProposal.mutate.mockResolvedValue({ status: "rejected" });
-    render();
-    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+    renderProposals();
 
     await userEvent.click(await screen.findByRole("button", { name: "Rejeitar" }));
 
@@ -247,8 +262,7 @@ describe("MemoryPanel", () => {
           : [],
       ),
     );
-    render();
-    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+    renderProposals();
 
     await userEvent.click(await screen.findByRole("button", { name: "Resolvidas" }));
 
@@ -260,9 +274,7 @@ describe("MemoryPanel", () => {
 
   it("inbox que falha diz o que falhou, e não fica carregando", async () => {
     trpc.memory.proposals.query.mockRejectedValue(new Error("daemon não respondeu"));
-    render();
-
-    await userEvent.click(await screen.findByRole("tab", { name: "Propostas" }));
+    renderProposals();
 
     expect(await screen.findByText("Não deu para ler as propostas")).toBeInTheDocument();
     expect(screen.getByText(/daemon não respondeu/)).toBeInTheDocument();
@@ -497,7 +509,7 @@ describe("conflito no mesmo escopo", () => {
       }),
     ]);
 
-    renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="inbox" />);
+    renderWithProviders(<MemoryProposals />);
 
     expect(await screen.findByText("conflito no mesmo escopo")).toBeInTheDocument();
     // As duas visíveis: o que vai ser perdido aparece antes do clique.
@@ -515,7 +527,7 @@ describe("conflito no mesmo escopo", () => {
   it("proposta sem memória no mesmo lugar não vira aviso de conflito", async () => {
     trpc.memory.proposals.query.mockResolvedValue([proposal()]);
 
-    renderWithProviders(<MemoryPanel workspaceId="ws1" projectId="p1" tab="inbox" />);
+    renderWithProviders(<MemoryProposals />);
 
     expect(await screen.findByRole("button", { name: "Aprovar" })).toBeInTheDocument();
     expect(screen.queryByText("conflito no mesmo escopo")).not.toBeInTheDocument();

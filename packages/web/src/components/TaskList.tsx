@@ -26,6 +26,7 @@ export interface TaskRow {
   workspaceId: string;
   projectId: string;
   title: string;
+  body: string;
   status: string;
   createdBy: string;
   createdBySession: string | null;
@@ -73,6 +74,17 @@ export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListP
         workspaceId,
         ...(project === null ? {} : { projectId: project }),
       }) as Promise<TaskRow[]>,
+  });
+
+  /*
+   * O teto de criação, mostrado (T13).
+   *
+   * Um teto que você não vê é um teto que você não ajusta — e no dia em que ele
+   * recusar, você vai achar que é bug. A linha diz o número **e** onde mudar.
+   */
+  const settings = useQuery({
+    queryKey: ["task", "settings"],
+    queryFn: () => trpc.task.settings.query(),
   });
 
   const projects = useQuery({
@@ -150,6 +162,12 @@ export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListP
         </EmptyState>
       ) : (
         <div className="tlist">
+          {settings.data !== undefined && (
+            <p className="tlist__budget">
+              um agente pode criar até <b>{settings.data.budget}</b> tarefas por tarefa · mude em{" "}
+              <code>{settings.data.budgetEnv}</code>
+            </p>
+          )}
           {live.map((row) => (
             <TaskRowButton
               key={row.id}

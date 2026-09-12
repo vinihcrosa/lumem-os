@@ -48,3 +48,33 @@ describe("memorySkill", () => {
     expect(MEMORY_DIRECTIVE.split("\n")).toHaveLength(4);
   });
 });
+
+describe("o parágrafo das tarefas", () => {
+  const tasks = { url: "http://127.0.0.1:4317/tasks", budget: 5 };
+
+  it("não custa nada quando a porta não existe", () => {
+    // A propriedade que o §F3 cobra: um parágrafo, e zero para quem não tem a
+    // feature de pé.
+    expect(memorySkill(context)).not.toContain("/tasks");
+  });
+
+  it("ensina a porta, o teto e a regra de escrever para cima", () => {
+    const text = memorySkill({ ...context, tasks });
+
+    expect(text).toContain("http://127.0.0.1:4317/tasks?session=ses_1");
+    // O teto junto: sem ele, a recusa chega como surpresa no meio do trabalho.
+    expect(text).toContain("5 por tarefa");
+    // E a regra do §3.2, porque um agente que acha que criou trabalho no outro
+    // projeto vai agir como se tivesse criado.
+    expect(text).toContain("escrever para cima é");
+    expect(text).toContain("`done` é de uma pessoa");
+  });
+
+  it("cabe num parágrafo — o custo é asserido em caracteres", () => {
+    const grew = memorySkill({ ...context, tasks }).length - memorySkill(context).length;
+
+    // O preâmbulo é lido em **todo primeiro turno de toda sessão**. Este número
+    // existe para alguém ter que justificar quando ele mudar.
+    expect(grew).toBeLessThan(700);
+  });
+});

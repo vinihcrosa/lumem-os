@@ -18,6 +18,21 @@ const idSchema = z.object({ id: z.string().min(1) });
 const statusSchema = z.enum(TASK_STATUSES);
 
 export const taskRouter = router({
+  /**
+   * Os tetos desta feature, como leitura (T13).
+   *
+   * **Mostrado, e não só existente.** Um teto que você não vê é um teto que você
+   * não ajusta — e no dia em que ele recusar, você vai achar que é bug. O valor
+   * vem de `LUMEM_TASKS_BUDGET`, o mesmo caminho que o orçamento do auto-learn
+   * já usa, e a tela diz o nome da variável para haver **um lugar** que responde
+   * "onde eu mudo isso?".
+   */
+  settings: publicProcedure.query(({ ctx }) => ({
+    budget: ctx.config.taskBudget,
+    /** O que ajustar, escrito aqui para a tela não ter que saber. */
+    budgetEnv: "LUMEM_TASKS_BUDGET" as const,
+  })),
+
   listByWorkspace: publicProcedure
     .input(
       z.object({

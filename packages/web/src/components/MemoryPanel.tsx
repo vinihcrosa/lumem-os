@@ -37,7 +37,7 @@ import "./memory.css";
  *   existem no WAL, e são a resposta para "por que isso não foi salvo?".
  */
 
-export type MemoryTab = "entries" | "inbox" | "playbooks" | "timeline" | "numbers";
+export type MemoryTab = "entries" | "playbooks" | "timeline" | "numbers";
 
 export interface MemoryPanelProps extends MemoryScopeFilter {
   tab?: MemoryTab;
@@ -46,7 +46,17 @@ export interface MemoryPanelProps extends MemoryScopeFilter {
 
 const TABS: readonly { id: MemoryTab; label: string }[] = [
   { id: "entries", label: "Memória" },
-  { id: "inbox", label: "Propostas" },
+  /*
+   * A aba `Propostas` **saiu** (`022` T4).
+   *
+   * A lista subiu para a fila única no topo da tela do workspace, ao lado das
+   * tarefas propostas: um lugar para "o que o sistema quer que eu decida" vale
+   * mais que dois — e com a `028`, a fila passa a encher sozinha.
+   *
+   * O componente é o mesmo, exportado daqui e consumido de lá. Aprovar pela fila
+   * grava exatamente o que a aba gravava; se divergir, a mudança de endereço
+   * perdeu alguma coisa no caminho.
+   */
   // Aba própria, e não uma seção da primeira: playbook não é memória (§6 do
   // PRD), e o que a lista dele mostra é uso, não escopo.
   { id: "playbooks", label: "Playbooks" },
@@ -103,7 +113,6 @@ export function MemoryPanel({ workspaceId, projectId, tab, onTabChange }: Memory
         {active === "entries" ? (
           <Entries query={list} core={core} scope={{ workspaceId, projectId }} />
         ) : null}
-        {active === "inbox" ? <Inbox /> : null}
         {active === "playbooks" ? <Playbooks workspaceId={workspaceId} projectId={projectId} /> : null}
         {active === "timeline" ? <Timeline /> : null}
         {active === "numbers" ? <Numbers core={core} /> : null}
@@ -370,7 +379,7 @@ const STATUS_FILTERS: readonly { id: ProposalStatus; label: string }[] = [
  * está no histórico — o WAL registra o que passou pelo portão, e proposta é
  * exatamente o que não passou.
  */
-function Inbox() {
+export function MemoryProposals() {
   const [status, setStatus] = useState<ProposalStatus>("pending");
   const proposals = useProposals(status);
 

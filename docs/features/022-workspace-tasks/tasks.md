@@ -7,7 +7,7 @@
 a [T4](open-questions.md) e a [T8](open-questions.md) — mudaram de forma depois de uma rodada de
 explicação, e as duas mudaram pelo mesmo motivo: a
 [`028`](../028-autonomous-orchestration/prd.md) não existia quando foram escritas. **17 tasks em 5
-fases**. As **fases 0, 1 e 2 estão entregues** (2026-09-12): o desenho terminou **apagando** uma peça em
+fases**. As **fases 0 a 3 estão entregues** (2026-09-12): o desenho terminou **apagando** uma peça em
 vez de escrever duas, e o modelo achou uma migração que o `drizzle-kit` gerou errada — sem a linha
 escrita à mão, apagar uma tarefa seria recusado em vez de anular o ponteiro da sessão.
 
@@ -245,7 +245,7 @@ servido na mesma porta engole a rota e o sintoma aparece só no pacote instalado
 workspace → recusa; sem sessão → recusa. E um teste que prova que `/tasks` **não** é servido como
 arquivo estático.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12. O `DAEMON_PREFIXES` aprendeu `/tasks`, e há um teste só para isso: sem o prefixo, a rota cai no fallback da SPA e o agente recebe `<!doctype html>` onde esperava texto — **e o sintoma só aparece no pacote instalado**, nunca em `pnpm dev`, onde o vite serve o web em outra porta
 
 #### T13: O orçamento de criação — cinco por tarefa, e visível
 
@@ -258,7 +258,7 @@ orçamento acabou, e **a recusa fica na transcrição**.
 passa; o número aparece na tela e muda o comportamento quando editado; a recusa é visível na
 transcrição da sessão, não só no log.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12, com **uma emenda à resposta da T8**: o valor vem de `LUMEM_TASKS_BUDGET`, como o orçamento do auto-learn, e a tela **mostra o número e o nome da variável**. Escrever um gravador de ajustes só para este teto seria o primeiro do produto, e a decisão foi seguir o precedente e dizer onde se muda. O bolso é **derivado**, contado por quem serve a tarefa agora — nenhum contador guardado
 
 #### T14: O parágrafo da skill
 
@@ -269,7 +269,7 @@ gasta turno descobrindo.
 **Done when**: o parágrafo está no preâmbulo, o custo em caracteres é **asserido** no teste, e o
 crescimento total do preâmbulo está escrito no PRD.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12. Um parágrafo, e o custo é asserido em caracteres: **menos de 700**, medido, com o teto do orçamento dito junto — um agente que não sabe do teto gasta um turno descobrindo que ele existe. Sem a feature de pé, ele custa **zero**
 
 #### T15: A fila de Propostas — os dois tipos, e a mudança
 
@@ -283,7 +283,7 @@ fila
 projeto certo; rejeitar exige motivo. E **o teste que importa**: aprovar uma proposta de memória pela
 fila grava exatamente o que a aba gravava — se divergir, a mudança perdeu alguma coisa.
 **Gate**: `pnpm gate:quick`
-**Status**: ⬜ a fazer
+**Status**: ✅ entregue em 2026-09-12. A aba `Propostas` saiu do `MemoryPanel` e o componente foi **exportado**, não copiado. O teste que importa é o que renderiza a fila e o painel juntos: aprovar de lá continua invalidando a lista daqui — se não invalidasse, uma memória aprovada não apareceria até alguém recarregar. Os dois verbos da tarefa aqui são `aprovar` e `rejeitar`; as **duas portas** do desenho (To-Do e Backlog) são da `028`, que é quem tem Backlog
 
 ---
 

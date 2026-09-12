@@ -13,6 +13,15 @@
   gap: var(--space-6);
 }
 
+/* O teto de criação, dito uma vez acima da lista — não por linha. */
+.tlist__budget {
+  margin: 0;
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.tlist__budget b { color: var(--color-text-secondary); font-weight: 500; }
+.tlist__budget code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
 /*
  * ORDEM DOS ITENS, e ela é o argumento: estado · título · projeto ·
  * proveniência · checkout · custo. O estado vem primeiro porque a lista é
@@ -306,4 +315,67 @@
 .ctx-task--none {
   font: var(--text-caption);
   color: var(--color-text-disabled);
+}
+
+/* ---------------------------------------------------------------------------
+   a fila de Propostas (F4, T15)
+   -------------------------------------------------------------------------- */
+/*
+ * Uma fila, dois tipos. A origem é **glifo** e não cor — a lição que a triagem
+ * do quadro da `028` pagou caro: as "duas cores de origem" dela eram
+ * `session-agent` e `text-link`, que são o mesmo `brand-400`. A barra é uma só
+ * porque o estado que os dois tipos compartilham é o mesmo: proposta.
+ */
+.pq-item {
+  display: grid;
+  gap: var(--space-8);
+  padding: var(--space-12);
+  background: var(--color-bg-surface);
+  border: var(--border-width-thin) solid var(--color-border-subtle);
+  border-left: var(--border-width-thick) solid var(--color-session-agent);
+  border-radius: var(--radius-md);
+}
+.pq-item__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.pq-item__who {
+  font: var(--text-mono-sm);
+  color: var(--color-text-secondary);
+}
+/* O tipo, em caixa-alta à direita — é o que faz uma lista de dois tipos ser
+   varrível sem ler linha por linha. */
+.pq-item__kind {
+  margin-left: auto;
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.pq-item__title {
+  font: var(--text-body-md);
+  color: var(--color-text-primary);
+}
+.pq-item__why {
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+  padding: var(--space-6) var(--space-10);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+}
+.pq-item__acts {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+.pq-item__note {
+  margin-left: auto;
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
 }

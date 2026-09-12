@@ -303,7 +303,8 @@ describe("a inbox de propostas, sem projeto aberto (T3)", () => {
 
     // Workspace vazio: é o caso em que, antes desta feature, não havia porta.
     await screen.findByText("Nenhum projeto ainda");
-    await userEvent.click(await screen.findByRole("tab", { name: /Propostas/ }));
+    // Sem clique nenhum: a fila mora no **topo** da tela desde a `022` T4.
+    // Um lugar para "o que o sistema quer que eu decida" vale mais que dois.
 
     expect(await screen.findByText("Plano sem preço")).toBeInTheDocument();
     // A evidência aparece: é o que separa fato de conclusão na revisão.
@@ -321,7 +322,8 @@ describe("a inbox de propostas, sem projeto aberto (T3)", () => {
     trpc.memory.rejectProposal.mutate.mockResolvedValue({ ...proposal, status: "rejected" });
 
     render();
-    await userEvent.click(await screen.findByRole("tab", { name: /Propostas/ }));
+    // Sem clique nenhum: a fila mora no **topo** da tela desde a `022` T4.
+    // Um lugar para "o que o sistema quer que eu decida" vale mais que dois.
     await screen.findByText("Plano sem preço");
 
     // O primeiro `Rejeitar` abre o campo da nota; o segundo confirma. Duas

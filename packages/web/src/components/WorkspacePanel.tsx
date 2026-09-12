@@ -21,6 +21,7 @@ import {
 } from "../ui/index.js";
 
 import { MemoryPanel } from "./MemoryPanel.js";
+import { ProposalQueue } from "./ProposalQueue.js";
 import { TaskDetail } from "./TaskDetail.js";
 import { TaskList } from "./TaskList.js";
 import { SpendList, type SpendAgent, type SpendRow } from "./SpendList.js";
@@ -183,10 +184,15 @@ export function WorkspacePanel({
       )}
 
       {/*
-        A fila de Propostas viria acima desta linha (T15, fase 3). A ordem da
-        tela é uma frase: o que precisa de decisão sua, o que está acontecendo, o
-        que já aconteceu, o que ficou aprendido.
+        A ordem da tela é uma frase: o que precisa de **decisão sua**, o que está
+        acontecendo, o que já aconteceu, o que ficou aprendido. A memória desceu
+        um lugar, e é o custo de posição da T4.
       */}
+      <ProposalQueue
+        workspaceId={workspaceId}
+        projectName={(id) => list.find((row) => row.id === id)?.name ?? ""}
+      />
+
       <TaskList workspaceId={workspaceId} onOpen={(id) => setOpenTask(id)} />
 
       <section className="section">
