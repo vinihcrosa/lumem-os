@@ -172,6 +172,38 @@ O custo cronometrado surpreendeu na direção boa: **65,8s → 73,5s** de suíte
 deu +32% (86,8s) porque instrumentar 186 mil linhas de bundle também custa tempo — o `include` que
 conserta o número conserta o relógio junto.
 
+#### A cobertura mata a thread principal de fome, e o timeout do RPC é fixo
+
+**Sintoma:** a primeira execução do passo no runner morreu com **os 3371 testes verdes e o
+`lcov.info` já escrito**:
+
+```
+Error: [vitest-worker]: Timeout calling "onTaskUpdate"
+```
+
+Teste nenhum falhou. O que falhou foi um worker conversando com quem o coordena.
+
+**Por que não dá para afrouxar:** o timeout do RPC é **60 s fixos** no bundle do vitest 3.2.7 —
+`const DEFAULT_TIMEOUT = 6e4`, e `createForksRpcOptions` não repassa `timeout`. Não existe opção de
+config que chegue lá. Um worker esperou a thread principal por um minuto inteiro e desistiu.
+
+**Onde:** no meio da corrida, não no fim — o log começa 06:50:30, o erro sai 06:53:03, então a chamada
+pendurada é de ~06:52:03, com outros workers ainda imprimindo. Isso é thread principal **faminta**, e
+não travada num passo final de cobertura.
+
+O runner tem 4 vCPU. Sem `LUMEM_TEST_WORKERS`, o `vitest.config.ts` usa 4 workers e eles ocupam os
+quatro núcleos; a instrumentação de cobertura é trabalho a mais **na thread principal**, que passa a
+não ter onde rodar. O `ci.yml` roda a mesma suíte no mesmo runner sem falhar porque não paga essa
+parcela — o que explica por que a armadilha só apareceu ao ligar cobertura, e não antes.
+
+**O conserto tem dois lados, os dois só no job do Sonar:** `LUMEM_TEST_WORKERS=2` devolve dois
+núcleos a quem estava sendo esperado — o knob existia no config exatamente para o CI ajustar sem
+editá-lo —, e `--reporter=dot` corta a outra ponta, porque o relatório padrão re-renderiza uma árvore
+viva a cada `onTaskUpdate`, e é essa renderização que ocupa a thread que o worker aguarda.
+
+A lição que sobra é sobre ler a falha: *suíte verde e job vermelho* não é flake por definição. Aqui
+era o custo da própria medição competindo com o que ela mede.
+
 ### Por que `gate:quick` é um script e não `vitest --changed`
 
 Duas falhas em direções opostas, e evitar uma de cada vez criou a outra:

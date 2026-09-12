@@ -70,7 +70,33 @@ jobs:
       # Escreve `coverage/lcov.info`, que é o arquivo nomeado pelo
       # `sonar.javascript.lcov.reportPaths`. Os caminhos dentro dele são
       # relativos à raiz do repositório, que é onde o scanner roda.
-      - run: pnpm test:coverage
+      #
+      # **Os dois ajustes abaixo existem por uma falha medida, não por gosto.**
+      # A primeira execução deste passo morreu com os 3371 testes verdes e a
+      # cobertura já escrita:
+      #
+      #     Error: [vitest-worker]: Timeout calling "onTaskUpdate"
+      #
+      # O timeout do RPC é **60 s fixos** no bundle do vitest 3.2.7
+      # (`DEFAULT_TIMEOUT = 6e4`, e `createForksRpcOptions` não passa `timeout`),
+      # então não há o que afrouxar: um worker esperou a thread principal por um
+      # minuto e desistiu. Pelo relógio do log, foi no meio da corrida e não no
+      # fim — thread principal **faminta**, não travada.
+      #
+      # O runner tem 4 vCPU. Sem `LUMEM_TEST_WORKERS`, o `vitest.config.ts` usa
+      # 4 workers, que ocupam os quatro núcleos — e a instrumentação de cobertura
+      # é trabalho a mais *na thread principal*, que passa a não ter onde rodar.
+      # O `ci.yml` roda a mesma suíte no mesmo runner sem falhar porque não paga
+      # essa parcela.
+      #
+      # - `LUMEM_TEST_WORKERS=2` devolve dois núcleos à thread principal. O
+      #   knob já existia no config exatamente para o CI ajustar sem editá-lo.
+      # - `--reporter=dot` corta o custo do outro lado: o relatório padrão
+      #   re-renderiza uma árvore viva a cada `onTaskUpdate`, e é essa renderização
+      #   que ocupa a thread que o worker está esperando.
+      - run: pnpm test:coverage --reporter=dot
+        env:
+          LUMEM_TEST_WORKERS: 2
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
