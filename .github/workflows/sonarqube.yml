@@ -98,7 +98,30 @@ jobs:
         env:
           LUMEM_TEST_WORKERS: 2
 
+      # O relatório existir é **condição do passo seguinte**, e um passo que
+      # depende de um arquivo sem conferir que ele está lá falha do jeito pior:
+      # verde. Foi exatamente o que aconteceu no primeiro run com cobertura — o
+      # scan passou, o job ficou verde, e o SonarCloud registrou
+      # `new_lines_to_cover=0`. Ausência de dado não é vermelho: é silêncio.
+      - name: o lcov existe, e tem linha dentro
+        run: |
+          test -s coverage/lcov.info || { echo "::error::coverage/lcov.info ausente ou vazio"; exit 1; }
+          records=$(grep -c '^SF:' coverage/lcov.info)
+          lines=$(grep -c '^DA:' coverage/lcov.info)
+          echo "lcov: $records arquivos, $lines linhas instrumentadas, $(wc -c < coverage/lcov.info) bytes"
+          echo "primeiro registro: $(grep -m1 '^SF:' coverage/lcov.info)"
+          # Caminho relativo à raiz é o que o Sonar casa com os arquivos que ele
+          # indexou. Um `SF:` absoluto casaria com nada, em silêncio.
+          grep -q '^SF:packages/' coverage/lcov.info || { echo "::error::caminhos do lcov não são relativos à raiz"; exit 1; }
+          test "$records" -gt 200 || { echo "::error::só $records arquivos no lcov — esperado ~264"; exit 1; }
+
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          # **Temporário, para diagnóstico.** A importação de cobertura do SonarJS
+          # é logada em DEBUG: sem isto, um relatório lido e casado com zero
+          # arquivo e um relatório nunca aberto produzem exatamente o mesmo log.
+          # Sai daqui assim que a causa estiver nomeada.
+          args: -Dsonar.verbose=true
