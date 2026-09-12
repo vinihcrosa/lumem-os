@@ -204,6 +204,36 @@ viva a cada `onTaskUpdate`, e é essa renderização que ocupa a thread que o wo
 A lição que sobra é sobre ler a falha: *suíte verde e job vermelho* não é flake por definição. Aqui
 era o custo da própria medição competindo com o que ela mede.
 
+#### Sem `sonar.sources`, a árvore inteira vira teste — e a cobertura some em silêncio
+
+**Sintoma:** o job verde, o `lcov.info` correto no disco, e **zero cobertura** no SonarCloud. A API da
+PR respondia `new_lines_to_cover=0` e `new_uncovered_lines=0` com `new_lines=1791`, e a métrica
+`coverage` simplesmente não existia. `bugs` e `code_smells` voltavam normalmente, então não era acesso:
+a análise chegou, com o commit certo e o gate OK. Ela só não trouxe cobertura.
+
+**O que atrapalhou o diagnóstico** merece nota própria, porque vai acontecer de novo: o SonarJS registra
+a importação de LCOV em **DEBUG**. Um relatório lido e casado com zero arquivo e um relatório nunca
+aberto imprimem exatamente o mesmo nada. Foi preciso `-Dsonar.verbose=true` num run para o log falar:
+
+```
+229 indexed as test with language 'ts'
+  0 indexed as main
+DEBUG 'JavaScript/TypeScript Coverage' skipped because there is no related file in current project
+```
+
+**Nenhum arquivo de produção foi indexado.** Os 231 arquivos eram os de teste. Cobertura só existe
+sobre arquivo *main*; sem nenhum, o sensor é pulado — e pular sensor não é erro, então o job fica verde.
+
+**A causa é uma linha comentada no template do SonarCloud:** `#sonar.sources=.`. Ela parece redundante,
+porque `.` é o default — mas o default só vale enquanto `sonar.tests` não existe. Ao acrescentar
+`sonar.tests=.` (para o Sonar parar de cobrar de teste as regras de produção), a ausência de
+`sonar.sources` passa a significar *"tudo é teste"*. O conserto é descomentar a linha.
+
+**O que isso ensina sobre a guarda certa.** A primeira guarda que escrevi conferia o `lcov.info` — que
+existe, que não está vazio, que tem caminho relativo, que tem 264 registros. Ela teria passado em todos
+os runs quebrados, porque o arquivo **sempre esteve certo**. Guarda que confere o sintoma mais próximo
+da sua mão não protege de nada; a que ficou confere `sonar.sources` no `.properties`, que é a causa.
+
 ### Por que `gate:quick` é um script e não `vitest --changed`
 
 Duas falhas em direções opostas, e evitar uma de cada vez criou a outra:

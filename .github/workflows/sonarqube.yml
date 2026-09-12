@@ -114,14 +114,14 @@ jobs:
           # indexou. Um `SF:` absoluto casaria com nada, em silêncio.
           grep -q '^SF:packages/' coverage/lcov.info || { echo "::error::caminhos do lcov não são relativos à raiz"; exit 1; }
           test "$records" -gt 200 || { echo "::error::só $records arquivos no lcov — esperado ~264"; exit 1; }
+          # O `lcov` estar certo no disco **não** foi suficiente: a primeira
+          # análise tinha este arquivo exato e mesmo assim publicou
+          # `new_lines_to_cover=0`, porque sem `sonar.sources` a árvore inteira
+          # foi indexada como teste e o sensor de cobertura foi pulado. A linha
+          # abaixo confere a causa, e não o sintoma.
+          grep -q '^sonar.sources=' sonar-project.properties || { echo "::error::sonar.sources ausente — com sonar.tests definido, tudo vira teste e a cobertura é descartada em silêncio"; exit 1; }
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          # **Temporário, para diagnóstico.** A importação de cobertura do SonarJS
-          # é logada em DEBUG: sem isto, um relatório lido e casado com zero
-          # arquivo e um relatório nunca aberto produzem exatamente o mesmo log.
-          # Sai daqui assim que a causa estiver nomeada.
-          args: -Dsonar.verbose=true
