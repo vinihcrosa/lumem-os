@@ -961,10 +961,128 @@ falso, porque a esteira é o assunto e o agente não.
 
 ---
 
+## Parte 4 — Supervisão, bloqueio e o volante
+
+> **Aberta em 2026-09-13**, depois da Parte 2 e por dependência: três das cinco perguntas da fase 0
+> dela **só existem porque a esteira existe**. Antes dela, ninguém ficava esperando nada.
+
+**O que esta fatia entrega:** o que você vê quando **não** está olhando. O relógio que não cobra
+espera por vaga, a notificação que acontece **uma vez**, a frase que conta o que parou enquanto você
+não estava, os dois verbos do volante — **assumir** e **parar** — e a limpeza do `Done`.
+
+**O que a fase 0 dela decidiu:**
+
+| Decisão | Onde |
+|---|---|
+| cartão na fila sem vaga **não encalha** — e sem coluna nova | [Q54](open-questions.md#q54--o-relógio-do-encalhe-conta-a-espera-por-vaga) |
+| a notificação é **da aba**; o registro de *já avisei* é **do daemon** | [Q55](open-questions.md#q55--onde-mora-a-notificação-se-o-daemon-não-tem-tela) |
+| ao voltar, quem conta é o **quadro** — uma frase que some ao ser vista | [Q56](open-questions.md#q56--o-que-você-vê-ao-voltar) |
+| `parar` é **`cancel` e depois** o interruptor, nessa ordem | [Q57](open-questions.md#q57--parar-para-o-quê-exatamente) |
+| quem remove a worktree é o **gesto** de mover para `done` | [Q58](open-questions.md#q58--quem-remove-a-worktree-quando-a-tarefa-termina) · [Q27](open-questions.md#q27--done-remove-a-worktree-e-se-estiver-suja) |
+
+**O que ela não entrega:** as duas pontas do tracker (Parte 5 e Parte 6), que continuam esperando o
+**ADR do segredo**.
+
+---
+
+### Fase 16 — o relógio honesto
+
+#### T34: Espera por vaga não encalha
+
+**What**: o `staleLevel` deixa de contar quando o cartão está **na fila e sem vaga**
+([Q54](open-questions.md#q54--o-relógio-do-encalhe-conta-a-espera-por-vaga)). Mesma família do
+`pausada`, que ele já trata assim.
+**Where**: `packages/server/src/tasks/board.ts`, `packages/web/src/lib/board.ts`
+**Done when**: com teto 2 e oito cartões devidos, os seis na fila **não** ficam âmbar; e
+`ready_to_merge` continua contando desde que chegou, porque ali não há vaga para esperar.
+**Gate**: `pnpm gate:quick`
+
+---
+
+### Fase 17 — o que você vê sem estar olhando
+
+#### T35: Avisar uma vez, e o registro é do daemon
+
+**What**: `task.notifiedAt`, escrita **uma vez** por transição que merece aviso — chegar em
+`ready_to_merge` e ficar `bloqueada`. A leitura do quadro diz o que ainda não foi avisado.
+**Where**: `packages/server/src/db/schema.ts`, `drizzle/`, `packages/server/src/tasks/notify.ts`
+**Done when**: duas abas abertas **não** avisam duas vezes, e recarregar a página não renotifica —
+provado contra o daemon, e não contra o navegador.
+**Gate**: `pnpm gate:quick`
+
+#### T36: A aba notifica, e pede a permissão na hora certa
+
+**What**: a `Notification` do navegador, com a permissão pedida **quando alguém liga a autonomia** —
+o único instante em que o pedido tem uma frase honesta.
+**Where**: `packages/web/src/components/TaskList.tsx`, `packages/web/src/hooks/`
+**Done when**: sem permissão, nada quebra e nada é perdido — o aviso continua sendo do quadro; e
+ligar a autonomia é o que pergunta.
+**Gate**: `pnpm gate:quick`
+
+#### T37: O que parou enquanto você não estava
+
+**What**: uma frase no topo do quadro — *"3 pararam enquanto você não estava"* — que **some quando
+você olha** ([Q56](open-questions.md#q56--o-que-você-vê-ao-voltar)).
+**Where**: `packages/web/src/components/Board.tsx`, `board.css`
+**Done when**: ela não é modal, não tem `✕` e não guarda preferência; e ela conta o mesmo que o
+daemon diz não ter sido avisado.
+**Gate**: `pnpm gate:quick`
+
+---
+
+### Fase 18 — o volante
+
+#### T38: `parar` é interromper e depois desligar
+
+**What**: o verbo que para um turno em voo — `cancel` e **depois** o interruptor
+([Q57](open-questions.md#q57--parar-para-o-quê-exatamente)). A worktree fica.
+**Where**: `packages/server/src/routers/task.ts`, `packages/web/src/components/TaskCard.tsx`
+**Done when**: a ordem é cobrada por teste — desligar antes deixa uma janela em que a fila já não pega
+o cartão e o turno velho continua gastando; e `parar` numa tarefa sem turno em voo **não** é erro.
+**Gate**: `pnpm gate:quick`
+
+#### T39: `assumir` é um clique que já existe
+
+**What**: abrir a conversa do cartão desliga a autonomia daquela tarefa (UC7). Nada de novo na tela:
+*"a sessão autônoma e a sessão que você conduz são a mesma sessão"*.
+**Where**: `packages/web/src/components/Board.tsx`, `packages/server/src/routers/task.ts`
+**Done when**: abrir a conversa de um cartão que a esteira está tocando desliga a autonomia dele e
+**não** interrompe o turno — assumir não é parar, e confundir os dois custaria o turno pago.
+**Gate**: `pnpm gate:quick`
+
+---
+
+### Fase 19 — o `Done` que limpa
+
+#### T40: Remover é do gesto, e o daemon recusa dizendo o que se perde
+
+**What**: mover para `done` remove a worktree **se** o checkout estiver limpo e a branch mesclada; se
+não, o daemon **recusa** e diz o que se perde ([Q27](open-questions.md#q27--done-remove-a-worktree-e-se-estiver-suja),
+[Q58](open-questions.md#q58--quem-remove-a-worktree-quando-a-tarefa-termina)). O interruptor *"PR
+mesclada sempre remove a worktree"* liga o caso sujo.
+**Where**: `packages/server/src/routers/task.ts`, `packages/server/src/db/schema.ts`, `drizzle/`
+**Done when**: sujo sem interruptor **não** remove e a mensagem traz o número de arquivos; com
+interruptor remove; e o texto do interruptor diz o que se está autorizando.
+**Gate**: `pnpm gate:quick`
+
+---
+
+### Fase 20 — o portão
+
+#### T41: O e2e da supervisão
+
+**What**: um cartão que para enquanto ninguém olha, e o que a volta mostra.
+**Where**: `e2e/conveyor.spec.ts`
+**Done when**: o cartão bloqueado é contado **uma vez** e deixa de ser contado depois de visto; e
+`parar` interrompe o turno sem apagar a worktree.
+**Gate**: `pnpm gate:full`
+
+---
+
 ## O que fica para o `tasks.md` seguinte
 
 | O quê | O que destrava |
 |---|---|
 | ~~**Parte 2 — a esteira**~~ | **entregue em 2026-09-13**, acima — 13 tasks em 6 fases |
-| **Parte 4 — supervisão** | a Parte 2, e o corolário desconfortável do §2.4 do estudo: o selo `aguardando você` **não é derivável do transporte** |
+| ~~**Parte 4 — supervisão**~~ | **aberta em 2026-09-13**, acima — a Parte 2 destravou. O corolário do §2.4 fica de pé: o selo `aguardando você` **não é derivável do transporte**, e por isso ele não está no escopo desta fatia |
 | **Parte 5 e Parte 6 — o tracker** | um **ADR**. O precedente do `gh` não é portável — não existe `linear` na máquina —, e as três opções que sobram estão no §3.4 do estudo. Uma delas contradiz o ADR de 2026-08-30 de frente |

@@ -1665,3 +1665,124 @@ garantia e a ausência dela.
 > **O que isso deixa escrito, e é desconfortável de propósito:** num repositório sem teste, a esteira
 > **não tem como saber** que o implementador inventou. A PRD já dizia; agora o produto tem onde
 > mostrar.
+
+---
+
+## Décima primeira rodada — a supervisão (2026-09-13)
+
+Cinco perguntas, abertas ao ler o §6, Parte 4 contra o que a Parte 2 deixou de pé. Três delas só
+existem **porque** a esteira existe: antes dela, ninguém ficava esperando nada.
+
+### Q54 — o relógio do encalhe conta a espera por vaga?
+
+O §6 é explícito: *"o relógio do encalhe **só conta o tempo em que o cartão podia ter andado**:
+esperar vaga não cobra — isso é desenho, não problema —, esperar **você** cobra"*. E o §8 diz por quê:
+*"cobrar o que é desenho é a forma mais rápida de tornar o aviso invisível"*.
+
+**O relógio de hoje não sabe disso.** Ele é `now − statusChangedAt`, e `statusChangedAt` é *quando a
+tarefa entrou na coluna*. Com teto de paralelismo 2 e oito cartões devidos, os seis que estão na fila
+ficam âmbar em 30 minutos **sem nada de errado ter acontecido** — a esteira está trabalhando, e eles
+estão na fila porque a fila tem fim.
+
+As saídas:
+
+- **guardar quanto tempo o cartão passou esperando vaga**, e descontar. É o certo e é uma coluna nova
+  que **muda a cada passada** — 15 em 15 segundos, para cada cartão devido. Um contador que o daemon
+  reescreve o tempo todo é exatamente o tipo de estado que o §4.1 evitou a feature inteira;
+- **não cobrar enquanto houver fila**: se o cartão está devido e não há vaga, o relógio **não anda**.
+  Derivável sem guardar nada — a fila já responde as duas coisas —, e custa que o número deixa de ser
+  *"há quanto tempo está aqui"* e passa a ser *"há quanto tempo está sendo ignorado"*;
+- **não fazer nada**, e aceitar o âmbar falso.
+
+**Resposta: a segunda, e ela não precisa de coluna nenhuma.** O relógio pergunta à fila: **cartão que
+está na fila e não tem vaga não encalha**. É a mesma família do `pausada`, que o `staleLevel` já trata
+assim desde a Parte 1 — *"cota não é encalhe: ela volta sozinha"* —, e por isso não é regra nova: é a
+mesma regra, aplicada à segunda espera que o produto passou a ter.
+
+**O que ela custa, escrito:** o número deixa de responder *"há quanto tempo este cartão está nesta
+coluna"*. Quem quiser essa resposta tem o `statusChangedAt` na leitura, e a tela não a mostra em lugar
+nenhum — porque ela não é a pergunta que o quadro existe para responder.
+
+**E ela não vale para `ready_to_merge`**, que é a coluna sua: ali não existe vaga para esperar, e o
+relógio conta desde que chegou. É o único lugar em que *"há quanto tempo"* e *"há quanto tempo sendo
+ignorado"* são a mesma coisa.
+
+### Q55 — onde mora a notificação, se o daemon não tem tela?
+
+O §6 pede *"notificação no Lumem e no sistema operacional, **uma vez, sem repetir**"*, e o UC1 mostra
+uma: *"ACME-142 está pronta para mesclar"*.
+
+**O daemon não tem como notificar o sistema operacional.** Ele é um processo sem interface — a
+[`014`](../014-distribution/prd.md) o empacotou exatamente assim —, e a `Notification` do navegador só
+existe com uma aba aberta, que é justamente o caso em que você **já está olhando**.
+
+- **o daemon chama `osascript`/`notify-send`**: funciona, e é um binário por sistema operacional
+  dentro de um produto que acabou de decidir não depender do PATH para adaptador. Pior: notificação de
+  processo sem dono é o tipo de coisa que aparece depois de você ter fechado tudo;
+- **a aba notifica**: uma API só, permissão que o navegador já governa, e **some quando a aba some** —
+  que é metade dos casos que a feature quer cobrir;
+- **as duas, com o mesmo registro de "já avisei"**.
+
+**Resposta: a segunda, e o buraco dela vira a Q56.** A notificação é da aba, pela `Notification` do
+navegador, com a permissão pedida **no momento em que alguém liga a autonomia** — que é o único
+instante em que o pedido tem uma frase honesta para mostrar.
+
+**O registro de *"já avisei"* é do daemon, e não da aba**, e é isso que faz *"uma vez, sem repetir"*
+valer: duas abas abertas não notificam duas vezes, e recarregar a página não renotifica o que já foi
+avisado. Uma coluna `notified_at` na tarefa, escrita **uma vez** por transição que merece aviso.
+
+**O que sobra sem aba aberta é a Q56**, e é o §8 aceitando o próprio risco: *"a máquina desligada é
+aceitável, **desde que o quadro diga o que ficou parado e há quanto tempo**"*.
+
+### Q56 — o que você vê ao voltar?
+
+O §6 pede *"ao abrir o Lumem, o que aconteceu enquanto você não estava, com o que ficou parado e há
+quanto tempo"*, e a Q55 acabou de deixar esse caso sem notificação nenhuma.
+
+- **uma tela de resumo** no primeiro acesso do dia. Custa uma tela, e ela é a primeira coisa entre
+  você e o trabalho — o que a torna a primeira coisa que se aprende a fechar;
+- **o quadro já responde**, e o que falta é um lugar que **conte**;
+- **nada**: o cartão bloqueado já está lá, âmbar.
+
+**Resposta: a segunda.** O quadro é a tela, e o que ela ganha é uma frase no topo — *"3 pararam
+enquanto você não estava"* — que **desaparece quando você olha**. Ela não é modal, não tem `✕`, e não
+guarda preferência: some porque você viu, que é a única condição que importa.
+
+**O que decide entre a primeira e a segunda é o §4.4:** *"o quadro existe para **um** propósito: você
+olhar por cinco segundos e saber se precisa entrar"*. Uma tela de resumo é um segundo lugar
+respondendo a mesma pergunta, e dois lugares que respondem a mesma pergunta divergem.
+
+### Q57 — `parar` para o quê, exatamente?
+
+O §6 lista **parar** ao lado de **assumir**, e diz só que *"a worktree fica"*.
+
+**Assumir** já tem tudo: abre a conversa — um clique no cartão, que já existe — e desliga a autonomia
+daquela tarefa, que é a coluna que a [T22](tasks.md#t22-duas-colunas-e-o-adr-diz-que-são-só-duas)
+entregou. **Parar** é diferente: existe um turno **em voo**, e ele está gastando agora.
+
+**Resposta: `parar` é `cancel` mais o interruptor, nesta ordem.** Interromper o turno pelo `cancel`
+do ACP — que a Parte 2 já usa no teto de tempo — e **depois** desligar a autonomia da tarefa. A ordem
+importa: desligar primeiro e cancelar depois deixa uma janela em que a passada seguinte já não pega o
+cartão mas o turno velho continua gastando.
+
+**E a worktree fica, sempre** — é o que o §6 diz e é o mesmo princípio do UC6: *"a worktree fica, com
+tudo o que já foi feito: é o valor que sobra, e às vezes é a maior parte dele"*.
+
+### Q58 — quem remove a worktree quando a tarefa termina?
+
+A [Q27](#q27--done-remove-a-worktree-e-se-estiver-suja) decidiu o comportamento — limpo e mesclado
+remove sem perguntar, sujo pergunta dizendo o que se perde, e há um interruptor — mas não disse
+**quem** dispara.
+
+- **a esteira, ao mover para `done`**: só que a esteira nunca move para `done`. O §4 é explícito em que
+  `Done` é **seu**, e a [`022`](../022-workspace-tasks/prd.md) já entrega `done` como o único estado
+  que ninguém deriva;
+- **o gesto de mover para `done`**, seja arrasto ou botão.
+
+**Resposta: a segunda, e ela cai inteira do lado da tela.** Quem remove é o gesto, porque `Done` é o
+gesto — não existe caminho em que uma tarefa chegue a `done` sem alguém a ter posto lá.
+
+**E o pedido de confirmação é da tela, não do daemon**: o daemon **recusa** e diz o que se perde, e é
+a tela que oferece o que fazer com a recusa. É a mesma forma da
+[`012`](../012-project-scripts/prd.md) com o portão de confiança — e é o que impede o modal de virar
+o que a Q27 recusou: *"um modal que aparece sempre é um modal que se aprende a clicar sem ler"*.
