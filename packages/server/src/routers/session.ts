@@ -113,6 +113,19 @@ export const sessionRouter = router({
          * caminho `＋ nova sessão` continua sem nenhuma.
          */
         taskId: z.string().min(1).optional(),
+        /**
+         * A sessão **nasce** sem ninguém para responder permissão (`028` Parte 2).
+         *
+         * É a esteira, e só ela: uma conversa que você abre tem você do outro
+         * lado, e é por isso que ninguém nasce liberado — a
+         * [`016`](../../../../docs/features/016-session-mode/prd.md) é explícita.
+         * Aqui não há lado de lá, e o daemon parado em `ask` pendura o turno
+         * para sempre.
+         *
+         * **Nascer, e não trocar**: o portão do `016` continua valendo inteiro
+         * para mudar o modo de uma sessão viva, que é o que ele protege.
+         */
+        autonomous: z.boolean().default(false),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -171,6 +184,10 @@ export const sessionRouter = router({
           // thing in the row and another in the manager.
           transport: config.transport === "acp" ? "acp" : "pty",
           adapterVersion: config.adapterVersion,
+          // Nasce liberada só quando quem chamou disse que não há ninguém do
+          // outro lado. O default é `false`, então toda conversa que a tela
+          // abre continua herdando o workspace — e nenhum workspace é `free`.
+          ...(input.autonomous ? { lumemMode: "free" as const } : {}),
           ...(input.cols === undefined ? {} : { cols: input.cols }),
           ...(input.rows === undefined ? {} : { rows: input.rows }),
         });

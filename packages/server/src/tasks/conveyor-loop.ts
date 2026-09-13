@@ -83,7 +83,23 @@ export function runConveyorLoop({
          * tela. O retrato vai para o log com etiqueta procurável, como o
          * `turn-failed`.
          */
-        log?.warn({ tag: "conveyor-tick-failed", error }, "a passada da esteira falhou");
+        /*
+         * A **mensagem**, e não o objeto.
+         *
+         * A primeira versão logava `{ error }` e o pino serializava um
+         * `DomainError` como `{"code":"BLOCKED","name":"DomainError"}` — sem a
+         * frase, que é a única parte que diz o que aconteceu. É o mesmo defeito
+         * que o retrato do turno pagou: uma etiqueta procurável que não carrega
+         * o que se procura.
+         */
+        log?.warn(
+          {
+            tag: "conveyor-tick-failed",
+            message: error instanceof Error ? error.message : String(error),
+            code: (error as { code?: unknown }).code ?? null,
+          },
+          "a passada da esteira falhou",
+        );
       } finally {
         running = false;
       }

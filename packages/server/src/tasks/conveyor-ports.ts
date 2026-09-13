@@ -54,6 +54,8 @@ export interface ConveyorDeps {
     agentMode: string | null;
   }): Promise<{ sessionId: string }>;
   prompt(input: { sessionId: string; text: string }): Promise<void>;
+  /** Interrompe um turno que passou do teto. Falhar aqui não é fatal. */
+  cancel(sessionId: string): Promise<void>;
   /** O turno em voo, como o `AcpManager` os relata. */
   liveTurns(): readonly { sessionId: string; startedAt: Date }[];
   /** O veredito da PR daquela worktree, ou `null`. Do `PrCache` da `013`. */
@@ -169,6 +171,8 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
     },
 
     prompt: (input) => deps.prompt(input),
+
+    cancel: (sessionId) => deps.cancel(sessionId),
 
     async gate(entry) {
       const checkout =

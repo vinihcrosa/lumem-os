@@ -123,6 +123,8 @@ function createTrpcMock() {
       // contrato: esquecer uma procedure aqui quebra telas sem relação nenhuma
       // com o assunto, com um erro que não fala dele.
       board: { query: vi.fn() },
+      comments: { query: vi.fn() },
+      comment: { mutate: vi.fn() },
       move: { mutate: vi.fn() },
       sendPrepared: { mutate: vi.fn() },
       setAutonomy: { mutate: vi.fn() },

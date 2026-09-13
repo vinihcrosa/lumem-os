@@ -313,12 +313,19 @@ export async function bootstrap({
         // worktree — o daemon resolve o diretório dela, como faz para toda
         // conversa aberta pela tela.
         void cwd;
-        const configured = await configForAdapter(openedDatabase.db, adapter);
+        const configured = await configForAdapter(
+          openedDatabase.db,
+          adapter,
+          config.conveyorAgent,
+        );
         const opened = await api.session.createAgent({
           scopeType: "worktree",
           scopeId: worktreeId,
           agentConfigId: configured,
           taskId,
+          // Não há ninguém do outro lado. Ver a nota da procedure: é **nascer**
+          // liberada, e não trocar — o portão do `016` protege a troca.
+          autonomous: true,
         });
         /*
          * O modo do agente é escolhido **depois** do handshake, e não podia ser
@@ -339,6 +346,10 @@ export async function bootstrap({
       },
       prompt: async ({ sessionId, text }) => {
         await acp.prompt(sessionId, text);
+      },
+      cancel: (sessionId) => {
+        acp.cancel(sessionId);
+        return Promise.resolve();
       },
       liveTurns: () => acp.liveTurns(),
       prVerdictOf: (worktreeId) => verdictOfWorktree(openedDatabase.db, pr, worktreeId),

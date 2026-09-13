@@ -61,6 +61,25 @@ export interface StartSessionInput {
   /** Pinned adapter version, for the launch failure message (F1.6). */
   adapterVersion?: string | null;
   /**
+   * A política do Lumem com que a sessão **nasce** (`028` Parte 2).
+   *
+   * Ausente é o default e o caso comum: herdar o workspace, que nunca é `free`
+   * — o `CHECK` da coluna recusa, e a
+   * [`016`](../../../../docs/features/016-session-mode/prd.md) é explícita em
+   * que ninguém nasce liberado.
+   *
+   * A esteira é a exceção, e ela é **nascer**, não **trocar**. O
+   * `AcpManager.setLumemMode` recusa a troca quando o agente é dono do seletor
+   * (A1), e a recusa protege o seletor: aceitar guardaria um valor que nunca se
+   * aplica. Só que quem responde `session/request_permission` é o daemon **em
+   * qualquer caso**, e uma sessão de esteira parada em `ask` pendura para
+   * sempre — não há ninguém para responder. O e2e achou exatamente isso.
+   *
+   * A autorização não é este campo: é o interruptor de autonomia do workspace,
+   * que nasce em `manual` e que alguém ligou.
+   */
+  lumemMode?: LumemMode;
+  /**
    * O que **gravar** como comando, quando ele difere do que é executado.
    *
    * Existe por causa da sessão de script: ela lança `$SHELL -lc "<comando>"`, e a
@@ -284,6 +303,8 @@ export function createSessionStore({
         }
 
         const inherited = await inheritedMode(scopeType, scopeId);
+        // Explícito ganha do herdado, e só a esteira passa um.
+        const born = input.lumemMode ?? inherited;
 
         // The agent first, so its id is the record's id — the same identity rule
         // the PTY path follows, for the same reason.
@@ -293,9 +314,18 @@ export function createSessionStore({
           cwd,
           ...(input.env ? { env: input.env } : {}),
           ...(input.adapterVersion ? { adapterVersion: input.adapterVersion } : {}),
-          // O modo herdado, e ele é o mesmo nos dois campos: uma sessão nova
-          // começa no padrão do workspace, e o menu mostra de onde veio.
-          lumemMode: inherited,
+          /*
+           * O modo em que ela nasce, e o **padrão de onde ela veio** — e agora
+           * os dois podem divergir.
+           *
+           * `lumemModeDefault` continua sendo o do workspace mesmo quando a
+           * esteira nasce em `free`, e isso é o menu da
+           * [`016`](../../../../docs/features/016-session-mode/prd.md)
+           * funcionando: ele mostra de onde o valor veio, e uma sessão de
+           * esteira que dissesse *"padrão do workspace: liberado"* estaria
+           * mentindo sobre um workspace que o `CHECK` não deixa ser liberado.
+           */
+          lumemMode: born,
           lumemModeDefault: inherited,
         });
 

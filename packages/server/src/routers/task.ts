@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 
 import { project, session, worktree } from "../db/schema.js";
 import { createTaskRepository, TASK_STATUSES } from "../repositories/task.js";
+import { createTaskCommentRepository } from "../repositories/task-comment.js";
 import { boardOf } from "../tasks/board.js";
 import { liveTurnsByTask, pausesByTask, sealOf } from "../tasks/seal.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
@@ -338,6 +339,33 @@ export const taskRouter = router({
       domainSafeAsync(async () => {
         const saved = await createTaskRepository(ctx.db).setAutonomy(input.id, input.autonomy);
         ctx.events.emit({ type: "task.changed", workspaceId: saved.workspaceId });
+        return saved;
+      }),
+    ),
+
+  /**
+   * O que foi dito sobre esta tarefa (`028` Parte 2, T21).
+   *
+   * Em ordem de escrita, com a proveniência junto: quem lê sabe se aquilo veio
+   * de você ou de um agente sem perguntar. A [Q50](../../../../docs/features/028-autonomous-orchestration/open-questions.md)
+   * tirou o comentário do portão da inbox, e a proveniência é o que sobrou da
+   * regra.
+   */
+  comments: publicProcedure
+    .input(z.object({ taskId: z.string().min(1) }))
+    .query(({ ctx, input }) => createTaskCommentRepository(ctx.db).listByTask(input.taskId)),
+
+  comment: publicProcedure
+    .input(z.object({ taskId: z.string().min(1), body: z.string().trim().min(1) }))
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () => {
+        // Sem `actor`: pela porta da tela quem escreve é **você**. O agente
+        // escreve pela esteira, que passa a sessão junto — e é a sessão que
+        // torna a proveniência verificável em vez de declarada.
+        const saved = await createTaskCommentRepository(ctx.db).create({
+          taskId: input.taskId,
+          body: input.body,
+        });
         return saved;
       }),
     ),

@@ -37,6 +37,28 @@ import { promptFor } from "./prompts.js";
  */
 export const MAX_ATTEMPTS = 2;
 
+/**
+ * Quanto tempo um turno pode levar antes de a esteira desistir dele.
+ *
+ * **Existe porque um turno pode não acabar nunca**, e o e2e provou: quando o
+ * agente é dono do seletor de modos, o daemon **não consulta** a política do
+ * Lumem — ele manda o pedido de permissão para uma pessoa (a A1 da
+ * [`016`](../../../../docs/features/016-session-mode/prd.md)). Numa sessão de
+ * esteira não há pessoa, e o `session/prompt` fica pendurado até o processo
+ * morrer, com o cartão dizendo `implementando` a manhã inteira.
+ *
+ * O caminho normal não passa por aqui: com `bypassPermissions` o agente não
+ * pede nada. Este teto é o que sobra quando **não deu para escolher o modo** —
+ * um adaptador cujo `autonomousMode` é `null`, uma versão que renomeou a opção,
+ * um `set_mode` que falhou. Sem ele, isso é uma esteira travada sem diagnóstico;
+ * com ele, é uma tentativa gasta com o motivo escrito.
+ *
+ * **30 minutos**, e é o mesmo número do limiar âmbar de encalhe do §6 — um
+ * turno que passou disso já está pintado de âmbar no quadro, então desistir aí
+ * não surpreende ninguém que esteja olhando.
+ */
+export const TURN_TIMEOUT_MS = 30 * 60_000;
+
 export interface PreparedCheckout {
   worktreeId: string;
   path: string;
@@ -82,6 +104,8 @@ export interface ConveyorPorts {
   }): Promise<{ sessionId: string }>;
   /** Manda o prompt e espera o turno. O motivo da parada é ignorado de propósito. */
   prompt(input: { sessionId: string; text: string }): Promise<void>;
+  /** Interrompe um turno que passou do teto de tempo. */
+  cancel(sessionId: string): Promise<void>;
   /** O portão do §4.1: `test` local, e o check da PR quando há PR (T28). */
   gate(entry: QueueEntry): Promise<GateVerdict>;
   /** Mais uma tentativa **nesta etapa**, e devolve o total. */
@@ -126,7 +150,37 @@ export interface Conveyor {
   send(taskId: string): Promise<void>;
 }
 
-export function createConveyor(ports: ConveyorPorts): Conveyor {
+export interface ConveyorOptions {
+  /** Injetável para o teste não esperar meia hora. */
+  turnTimeoutMs?: number;
+  /** Injetável pelo mesmo motivo — e o default é o relógio de verdade. */
+  sleep?: (ms: number) => Promise<void>;
+}
+
+export function createConveyor(
+  ports: ConveyorPorts,
+  { turnTimeoutMs = TURN_TIMEOUT_MS, sleep = defaultSleep }: ConveyorOptions = {},
+): Conveyor {
+  /**
+   * O turno, com teto.
+   *
+   * Devolve `true` quando acabou sozinho e `false` quando o teto chegou antes.
+   * Cancelar **não** é opcional no caminho do teto: um turno abandonado sem
+   * cancelamento continua gastando token do outro lado, e o processo fica de pé
+   * ocupando vaga do teto de paralelismo.
+   */
+  async function promptWithCeiling(sessionId: string, text: string): Promise<boolean> {
+    let finished = false;
+    const turn = ports.prompt({ sessionId, text }).then(() => {
+      finished = true;
+    });
+    await Promise.race([turn, sleep(turnTimeoutMs)]);
+    if (finished) return true;
+
+    await ports.cancel(sessionId).catch(() => undefined);
+    return false;
+  }
+
   async function runOne(entry: QueueEntry, autonomy: Autonomy): Promise<void> {
     const checkout = await ports.prepareCheckout(entry);
 
@@ -193,9 +247,16 @@ export function createConveyor(ports: ConveyorPorts): Conveyor {
      * seria construir a esteira em cima de um sinal com 31% de erro no caso
      * caro. Quem responde *"acabou?"* é o portão, logo abaixo.
      */
-    await ports.prompt({ sessionId, text });
+    const ended = await promptWithCeiling(sessionId, text);
 
-    const verdict = await ports.gate(entry);
+    /*
+     * O teto chegou antes: não há o que julgar, e chamar o portão seria julgar
+     * um trabalho interrompido — o `test` rodaria contra um checkout que o
+     * agente estava no meio de escrever.
+     */
+    const verdict: GateVerdict = ended
+      ? await ports.gate(entry)
+      : { kind: "unfinished", reason: "o turno passou do tempo e foi interrompido" };
     await ports.comment({
       taskId: entry.task.id,
       sessionId,
@@ -281,4 +342,14 @@ export function commentFor(role: Role, attempt: number, verdict: GateVerdict): s
   const head = `${role} · tentativa ${String(attempt)}`;
   if (verdict.kind === "pass") return `${head} — portão verde`;
   return `${head} — ${verdict.reason}`;
+}
+
+/** O relógio de verdade, e o único lugar do arquivo que o toca. */
+function defaultSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    // `unref` para um turno em voo não segurar o desligamento do daemon: o
+    // `shutdown` mata as sessões, e o relógio não pode ser o que sobra de pé.
+    timer.unref?.();
+  });
 }

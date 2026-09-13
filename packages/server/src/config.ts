@@ -93,6 +93,22 @@ export interface ServerConfig {
    * mudar vira um bug que só aparece na máquina de alguém.
    */
   runPortRange: PortRange;
+  /**
+   * A configuração de agente com que a esteira abre sessão (`028` Parte 2).
+   *
+   * `null` é o default, e aí a esteira resolve pelo **id do adaptador** que o
+   * catálogo de agentes nomeados devolveu — `claude`, `codex` —, criando a
+   * linha na primeira vez.
+   *
+   * Existe para o mesmo caso que o
+   * [ADR de 2026-09-08](../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md)
+   * já abre exceção: **um adaptador que não está no catálogo**. Quem aponta o
+   * daemon para um binário específico — um adaptador compilado localmente, um
+   * agente ainda não catalogado — está nomeando exatamente um arquivo, e o que
+   * o ADR proíbe é *o PATH escolher*, não isso. O e2e da esteira é o primeiro
+   * usuário, e não é o único possível.
+   */
+  conveyorAgent: string | null;
 }
 
 /** Only the variables this module reads. Keeps tests from touching process.env. */
@@ -108,6 +124,7 @@ export type ConfigEnv = Partial<
     | "LUMEM_MEMORY_AUTO_LEARN"
     | "LUMEM_MEMORY_AUTO_LEARN_BUDGET"
   | "LUMEM_TASKS_BUDGET"
+  | "LUMEM_CONVEYOR_AGENT"
     | "LUMEM_RUN_PORT_RANGE"
     | "SHELL",
     string
@@ -187,5 +204,6 @@ export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
     autoLearnBudget: readBudget(env.LUMEM_MEMORY_AUTO_LEARN_BUDGET),
     taskBudget: readBudget(env.LUMEM_TASKS_BUDGET, DEFAULT_TASK_BUDGET),
     runPortRange: parsePortRange(env.LUMEM_RUN_PORT_RANGE),
+    conveyorAgent: env.LUMEM_CONVEYOR_AGENT ?? null,
   };
 }

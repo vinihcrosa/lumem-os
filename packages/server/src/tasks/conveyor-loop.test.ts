@@ -97,7 +97,12 @@ describe("uma passada que falha não derruba o laço", () => {
      * tela.
      */
     expect(tick).toHaveBeenCalledTimes(2);
-    expect(warn.mock.calls[0]?.[0]).toMatchObject({ tag: "conveyor-tick-failed" });
+    // A **mensagem** junto: a primeira versão logava o objeto e o pino o
+    // serializava sem a frase, que é a única parte que diz o que aconteceu.
+    expect(warn.mock.calls[0]?.[0]).toMatchObject({
+      tag: "conveyor-tick-failed",
+      message: "o repositório sumiu",
+    });
     stop();
   });
 });

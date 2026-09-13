@@ -334,7 +334,14 @@ async function runTurn(text) {
     locations: [],
   });
 
-  const outcome = await new Promise((resolve) => {
+  /*
+   * Em `bypassPermissions`, **não há pedido** — é o que o modo quer dizer, e é
+   * o que o adaptador de verdade faz. Com pedido, quem espera é o daemon, e numa
+   * sessão de esteira não há ninguém do outro lado para responder.
+   */
+  const outcome = currentMode === "bypassPermissions"
+    ? { outcome: "selected", optionId: "allow" }
+    : await new Promise((resolve) => {
     resolvePermission = resolve;
     write({
       jsonrpc: "2.0",
@@ -523,6 +530,11 @@ createInterface({ input: process.stdin }).on("line", (line) => {
             { id: "auto", name: "Auto", description: "Use a model classifier" },
             { id: "default", name: "Default", description: "Standard behavior" },
             { id: "plan", name: "Plan Mode", description: "No actual tool execution" },
+            // O modo que **não pergunta**, como o adaptador de verdade tem: a
+            // Q43 mediu que dos cinco do Claude só ele fecha o laço, e a esteira
+            // o escolhe pela `spec`. Sem ele aqui, o e2e da esteira só poderia
+            // provar o caminho do teto de tempo — nunca o do cartão que anda.
+            { id: "bypassPermissions", name: "Bypass", description: "Bypass all permission checks" },
           ],
         },
         // `value`, not `id` — the shape the real adapter sends, and the one the
@@ -550,6 +562,11 @@ createInterface({ input: process.stdin }).on("line", (line) => {
             { id: "auto", name: "Auto", description: "Use a model classifier" },
             { id: "default", name: "Default", description: "Standard behavior" },
             { id: "plan", name: "Plan Mode", description: "No actual tool execution" },
+            // O modo que **não pergunta**, como o adaptador de verdade tem: a
+            // Q43 mediu que dos cinco do Claude só ele fecha o laço, e a esteira
+            // o escolhe pela `spec`. Sem ele aqui, o e2e da esteira só poderia
+            // provar o caminho do teto de tempo — nunca o do cartão que anda.
+            { id: "bypassPermissions", name: "Bypass", description: "Bypass all permission checks" },
           ],
         },
         configOptions: configOptions(),

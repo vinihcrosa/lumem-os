@@ -31,7 +31,25 @@ import type { PrLike } from "./conveyor-ports.js";
  * e não tem configuração nenhuma, e recusar ali seria a esteira parando por
  * causa de uma linha que ela mesma sabe escrever.
  */
-export async function configForAdapter(db: Db, adapterId: string): Promise<string> {
+export async function configForAdapter(
+  db: Db,
+  adapterId: string,
+  /** O `conveyorAgent` do `config`, quando alguém apontou um. */
+  preferred: string | null = null,
+): Promise<string> {
+  if (preferred !== null) {
+    const named = await db.query.agentConfig.findFirst({
+      where: eq(agentConfig.name, preferred),
+    });
+    /*
+     * Apontado e **não encontrado** é erro, não silêncio: quem escreveu
+     * `LUMEM_CONVEYOR_AGENT` disse qual agente quer, e cair no default seria a
+     * esteira abrindo o adaptador errado — que gasta — sem nada dizer.
+     */
+    if (!named) throw new Error(`a configuração de agente "${preferred}" não existe`);
+    return named.id;
+  }
+
   const spec = adapterById(adapterId);
   if (spec === null) throw new Error(`adaptador desconhecido: ${adapterId}`);
 

@@ -53,6 +53,7 @@ interface Harness {
   spies: {
     openSession: ReturnType<typeof vi.fn>;
     prompt: ReturnType<typeof vi.fn>;
+    cancel: ReturnType<typeof vi.fn>;
     advance: ReturnType<typeof vi.fn>;
     block: ReturnType<typeof vi.fn>;
     park: ReturnType<typeof vi.fn>;
@@ -88,6 +89,9 @@ function harness({
     prompt: vi.fn(async () => {
       calls.push("prompt");
     }),
+    cancel: vi.fn(async () => {
+      calls.push("cancel");
+    }),
     advance: vi.fn(async () => {
       calls.push("advance");
     }),
@@ -112,6 +116,7 @@ function harness({
     prepareCheckout: spies.prepareCheckout as unknown as ConveyorPorts["prepareCheckout"],
     openSession: spies.openSession as unknown as ConveyorPorts["openSession"],
     prompt: spies.prompt as unknown as ConveyorPorts["prompt"],
+    cancel: spies.cancel as unknown as ConveyorPorts["cancel"],
     gate: async () => verdict,
     countAttempt: async () => {
       calls.push("countAttempt");
@@ -449,5 +454,65 @@ describe("o clique do `assistido`", () => {
     const conveyor = createConveyor({ ...ports, prepared: async () => null });
 
     await expect(conveyor.send("t1")).rejects.toThrow(/nada preparado/);
+  });
+});
+
+describe("o turno tem teto de tempo", () => {
+  it("um turno que não acaba é interrompido, e a tentativa é gasta", async () => {
+    const { ports, spies, calls } = harness({ facts: { entries: [entry()] } });
+    // Um `prompt` que nunca resolve: é o que acontece quando o agente é dono do
+    // seletor de modos e manda um pedido de permissão — o daemon **não**
+    // consulta a política do Lumem (A1 da `016`), e não há ninguém do outro
+    // lado. O e2e achou isso antes deste teste existir.
+    spies.prompt.mockImplementation(() => new Promise(() => undefined));
+
+    await createConveyor(ports, {
+      turnTimeoutMs: 1,
+      sleep: () => Promise.resolve(),
+    }).tick("w1");
+
+    expect(spies.cancel).toHaveBeenCalledWith("ses-t1");
+    expect(calls).toContain("countAttempt");
+  });
+
+  it("cancelar não é opcional — o turno abandonado continuaria gastando", async () => {
+    const { ports, spies } = harness({ facts: { entries: [entry()] } });
+    spies.prompt.mockImplementation(() => new Promise(() => undefined));
+
+    await createConveyor(ports, { turnTimeoutMs: 1, sleep: () => Promise.resolve() }).tick("w1");
+
+    /*
+     * Sem o cancelamento o processo fica de pé ocupando vaga do teto de
+     * paralelismo, e o agente do outro lado continua queimando token contra uma
+     * tarefa que a esteira já deu por perdida.
+     */
+    expect(spies.cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("o portão não é chamado quando o teto chegou antes", async () => {
+    const gate = vi.fn(async () => ({ kind: "pass" }) as const);
+    const { ports, spies } = harness({ facts: { entries: [entry()] } });
+    spies.prompt.mockImplementation(() => new Promise(() => undefined));
+
+    await createConveyor(
+      { ...ports, gate },
+      { turnTimeoutMs: 1, sleep: () => Promise.resolve() },
+    ).tick("w1");
+
+    /*
+     * Julgar um trabalho interrompido seria rodar o `test` contra um checkout
+     * que o agente estava no meio de escrever — e um verde ali moveria a seta
+     * por um estado que ninguém produziu de propósito.
+     */
+    expect(gate).not.toHaveBeenCalled();
+    expect(spies.advance).not.toHaveBeenCalled();
+  });
+
+  it("um turno que acaba a tempo não é cancelado", async () => {
+    const { ports, spies } = harness({ facts: { entries: [entry()] } });
+
+    await createConveyor(ports, { turnTimeoutMs: 60_000 }).tick("w1");
+
+    expect(spies.cancel).not.toHaveBeenCalled();
   });
 });
