@@ -2,7 +2,7 @@ import { newId } from "@lumem/shared";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { project, session, sessionUsage, worktree } from "../db/schema.js";
-import { boardOf, BOARD_COLUMNS } from "./board.js";
+import { beyondSlots, boardOf, BOARD_COLUMNS } from "./board.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 
 /**
@@ -226,5 +226,30 @@ describe("boardOf", () => {
     const board = boardOf(db, { workspaceId: mine.workspaceId });
 
     expect(board.flatMap((column) => column.cards)).toHaveLength(0);
+  });
+});
+
+describe("beyondSlots", () => {
+  const entry = (id: string) => ({ task: { id } });
+
+  it("os primeiros cabem nas vagas e não contam como espera", () => {
+    // Eles não estão esperando **vaga**: estão esperando o relógio de 15
+    // segundos da passada seguinte, que é outra coisa e dura pouco.
+    expect([...beyondSlots([entry("a"), entry("b"), entry("c")], 2)]).toEqual(["c"]);
+  });
+
+  it("sem vaga nenhuma, a fila inteira está esperando", () => {
+    expect([...beyondSlots([entry("a"), entry("b")], 0)]).toEqual(["a", "b"]);
+  });
+
+  it("mais vaga que fila não deixa ninguém esperando", () => {
+    expect([...beyondSlots([entry("a")], 5)]).toEqual([]);
+  });
+
+  it("vaga negativa é tratada como zero", () => {
+    // A `slotsOf` nunca devolve negativo, e esta linha existe para que um
+    // chamador futuro que faça a conta sozinho não produza um `slice` que
+    // corta do fim do array — o que marcaria **menos** cartões, não mais.
+    expect([...beyondSlots([entry("a"), entry("b")], -3)]).toEqual(["a", "b"]);
   });
 });

@@ -5,7 +5,8 @@ import { and, eq } from "drizzle-orm";
 import { project, session, worktree } from "../db/schema.js";
 import { createTaskRepository, TASK_STATUSES } from "../repositories/task.js";
 import { createTaskCommentRepository } from "../repositories/task-comment.js";
-import { boardOf } from "../tasks/board.js";
+import { beyondSlots, boardOf } from "../tasks/board.js";
+import { queueOf } from "../tasks/queue.js";
 import { liveTurnsByTask, pausesByTask, sealOf } from "../tasks/seal.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 import { DomainError } from "../errors.js";
@@ -143,8 +144,20 @@ export const taskRouter = router({
       }),
     )
     .query(({ ctx, input }) => {
-      const columns = boardOf(ctx.db, input);
-      const byTask = liveTurnsByTask(ctx.db, ctx.acpManager.liveTurns());
+      const live = ctx.acpManager.liveTurns();
+      /*
+       * A fila entra na leitura do quadro por causa do relógio (Q54).
+       *
+       * Ela é uma leitura barata sobre o mesmo banco, e ler aqui é o que
+       * permite o encalhe **não** cobrar a espera por vaga sem nenhuma coluna
+       * nova. É a mesma chamada que a esteira faz de 15 em 15 segundos.
+       */
+      const queue = queueOf(ctx.db, { workspaceId: input.workspaceId, liveTurns: live });
+      const columns = boardOf(ctx.db, {
+        ...input,
+        waiting: beyondSlots(queue.entries, queue.slots),
+      });
+      const byTask = liveTurnsByTask(ctx.db, live);
       const paused = pausesByTask(ctx.db, ctx.acpManager.rateLimits());
       /*
        * O interruptor do workspace entra na leitura do quadro porque o selo

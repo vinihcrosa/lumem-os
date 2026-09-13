@@ -36,6 +36,7 @@ function card(overrides: Partial<BoardCard> = {}): BoardCard {
     attempts: 0,
     autonomy: "inherit",
     preparedPrompt: null,
+    queuedBeyondSlots: false,
     seal: { kind: "manual" },
     ...overrides,
   };
@@ -172,3 +173,49 @@ describe("abaixo do piso, o quadro diz que está rolando", () => {
     expect(columnsOutside(2000, 1500)).toBe(3);
   });
 });
+
+describe("esperar vaga não encalha (Q54)", () => {
+  it("um cartão na fila além das vagas não fica âmbar", () => {
+    const waiting = card({
+      seal: { kind: "waiting", role: "revisor" },
+      statusChangedAt: minutesAgo(200),
+      queuedBeyondSlots: true,
+    });
+
+    /*
+     * Com teto 2 e oito cartões devidos, os seis na fila ficariam âmbar em 30
+     * minutos **sem nada de errado ter acontecido** — a esteira está
+     * trabalhando, e eles estão na fila porque a fila tem fim. Cobrar o que é
+     * desenho é a forma mais rápida de tornar o aviso invisível (§8).
+     */
+    expect(staleLevel(waiting, NOW, "review")).toBeNull();
+  });
+
+  it("o mesmo cartão com vaga livre encalha normalmente", () => {
+    const waiting = card({
+      seal: { kind: "waiting", role: "revisor" },
+      statusChangedAt: minutesAgo(200),
+      queuedBeyondSlots: false,
+    });
+
+    // Com vaga livre, a esteira **não** é o motivo de ele estar parado.
+    expect(staleLevel(waiting, NOW, "review")).toBe("over");
+  });
+
+  it("`ready_to_merge` conta sempre — ali não há vaga para esperar", () => {
+    const mine = card({
+      seal: { kind: "manual" },
+      statusChangedAt: minutesAgo(300),
+      queuedBeyondSlots: true,
+    });
+
+    /*
+     * É o único lugar em que *"há quanto tempo está aqui"* e *"há quanto tempo
+     * está sendo ignorado"* são a mesma coisa: a coluna é sua. Um cartão marcado
+     * ali é um cartão que a fila não deveria ter olhado.
+     */
+    expect(staleLevel(mine, NOW, "ready_to_merge")).toBe("warn");
+  });
+});
+
+

@@ -69,6 +69,14 @@ export interface BoardCard {
   preparedPrompt: string | null;
   /** Por que a esteira parou aqui, ou `null`. É o que o selo `bloqueada` lê. */
   blockedReason: string | null;
+  /**
+   * Está na fila **além das vagas** (`028` Parte 4, T34 · Q54).
+   *
+   * Não é dado da tarefa: é a posição dela na fila comparada com as vagas
+   * livres, calculada na mesma leitura. Vem no cartão porque quem precisa dela
+   * é o relógio do encalhe, que é por cartão.
+   */
+  queuedBeyondSlots: boolean;
 }
 
 export interface BoardColumnView {
@@ -76,9 +84,28 @@ export interface BoardColumnView {
   cards: BoardCard[];
 }
 
+/**
+ * Quais cartões estão na fila **além das vagas** (`028` Parte 4, T34).
+ *
+ * Função pura sobre a fila, e por isso testável sem banco: ela recebe a ordem
+ * que a `queueOf` já produziu e as vagas que ela já contou.
+ */
+export function beyondSlots(
+  entries: readonly { task: { id: string } }[],
+  slots: number,
+): Set<string> {
+  // Os primeiros `slots` vão sair na passada seguinte — eles não estão
+  // esperando vaga, estão esperando o relógio de 15 segundos. Os outros estão.
+  return new Set(entries.slice(Math.max(0, slots)).map((entry) => entry.task.id));
+}
+
 export function boardOf(
   db: Db,
-  { workspaceId, projectId }: { workspaceId: string; projectId?: string },
+  {
+    workspaceId,
+    projectId,
+    waiting = new Set<string>(),
+  }: { workspaceId: string; projectId?: string; waiting?: ReadonlySet<string> },
 ): BoardColumnView[] {
   const where = [eq(task.workspaceId, workspaceId), inArray(task.status, [...BOARD_COLUMNS])];
   if (projectId) where.push(eq(task.projectId, projectId));
@@ -150,6 +177,7 @@ export function boardOf(
           autonomy: row.autonomy,
           preparedPrompt: row.preparedPrompt,
           blockedReason: row.blockedReason,
+          queuedBeyondSlots: waiting.has(row.id),
         };
       }),
   }));

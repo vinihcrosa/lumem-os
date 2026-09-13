@@ -30,6 +30,18 @@ export interface BoardCard {
   autonomy: string;
   /** O prompt que o `assistido` montou e não enviou, ou `null` (Q51). */
   preparedPrompt: string | null;
+  /**
+   * O cartão está na fila **além das vagas** (`028` Parte 4, T34 · Q54).
+   *
+   * Quem espera vaga **não encalha**: esperar vaga é desenho, e cobrar o que é
+   * desenho é a forma mais rápida de tornar o aviso invisível (§8). É a mesma
+   * família do `pausada`, que este arquivo já trata assim desde a Parte 1.
+   *
+   * Derivado, e sem coluna nenhuma: é a posição do cartão na fila comparada com
+   * as vagas livres. Guardar *"quanto tempo esperou"* seria um contador que o
+   * daemon reescreve de 15 em 15 segundos para cada cartão devido.
+   */
+  queuedBeyondSlots: boolean;
 }
 
 export type BoardStatus =
@@ -88,7 +100,10 @@ const STALE_MINUTES: Partial<Record<BoardStatus, { warn: number; over: number }>
 export type StaleLevel = "warn" | "over";
 
 export function staleLevel(
-  card: Pick<BoardCard, "statusChangedAt" | "seal"> & { status?: BoardStatus },
+  card: Pick<BoardCard, "statusChangedAt" | "seal"> & {
+    status?: BoardStatus;
+    queuedBeyondSlots?: boolean;
+  },
   now: number,
   status?: BoardStatus,
 ): StaleLevel | null {
@@ -97,6 +112,16 @@ export function staleLevel(
   // Cota não é encalhe: ela volta sozinha, e cobrar por ela seria cobrar por
   // uma espera que não é sua nem do agente.
   if (card.seal.kind === "paused") return null;
+  /*
+   * Nem esperar vaga (Q54).
+   *
+   * **Menos em `ready_to_merge`**, e é o único lugar em que as duas leituras
+   * coincidem: ali não existe vaga para esperar — a coluna é sua —, então *"há
+   * quanto tempo está aqui"* e *"há quanto tempo está sendo ignorado"* são a
+   * mesma coisa. Um cartão marcado ali seria um cartão que a fila não deveria
+   * ter olhado.
+   */
+  if (card.queuedBeyondSlots === true && column !== "ready_to_merge") return null;
 
   const limits = STALE_MINUTES[column];
   if (limits === undefined) return null;
