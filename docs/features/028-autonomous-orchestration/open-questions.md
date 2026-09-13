@@ -2,10 +2,10 @@
 
 **PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md) — só a F1 · **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
 
-**Quarenta e duas perguntas, em sete rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
+**Quarenta e três perguntas, em sete rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
 segunda rodada abriu — todas em 2026-09-11 — mais **4 que a sessão de desenho no Open Design abriu**,
-respondidas em **2026-09-12**, **3 da sexta rodada** e **2 da sétima**. **Quarenta respondidas; a Q41 e a Q42 estão
-abertas, e as duas são da F2.**
+respondidas em **2026-09-12**, **3 da sexta rodada** e **3 da sétima**. **Todas respondidas** — a última, a
+[Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático), fechou medindo no mesmo dia em que nasceu.
 
 A sétima rodada é a primeira que nasceu de **gastar token** — 20 turnos, US$ 4,60, Haiku e Opus. A
 [Q41](#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) apareceu ao montar a bancada, quando o
@@ -14,6 +14,9 @@ turno pendurou no primeiro `Edit` com o `lumemMode` em `ask` **e** em `free`: a 
 [Q42](#q42--o-selo-aguardando-você-é-ortogonal-e-o-desenho-o-fez-exclusivo) veio da resposta da Q39, e
 é o tipo de achado que só a medição dá: **`terminou` e `te perguntou` não são exclusivos** — 31% dos
 turnos que commitaram deixaram pergunta em aberto, e o selo foi desenhado como escolha entre os dois.
+As duas foram respondidas no mesmo dia, e a da Q41 abriu a **Q43**: *"o modo automático do agente"*
+pressupõe saber **qual** dos cinco do Claude é o automático, e a resposta é que **só `bypassPermissions` fecha o
+laço** — `acceptEdits` edita e pendura no comando, e `auto` nem existe para todo modelo.
 
 A sexta rodada não veio de discussão nem de medir a tela: veio de **ler o código que já está de pé**.
 E a primeira dela é a única pergunta do documento que **já estava respondida**: a
@@ -1110,6 +1113,94 @@ Três coisas que isso cobra da F2:
 > **Aberta, e é da F2.** Não bloqueia a F1: com a autonomia desligada, quem escolhe o modo é você,
 > pela pílula que a `016` já desenhou.
 
+**Resposta: a postura é do provider, e o Lumem define a interface — não o contrário.** Suas palavras:
+
+> *"Como os providers são diferentes entre si — claude, codex, open router —, a gente precisa definir
+> a nossa interface e adaptar os providers a ela. E quando tiver um provider, podem ter features
+> habilitadas ou não; isso deve ser uma cultura geral do Lumem, assim não ficamos limitados ao que um
+> provider ou outro podem oferecer.*
+>
+> *Se houver um modo automático como o do Claude, deve ser esse o modo. Se não, para cada provider
+> configurado o usuário deve poder selecionar o que ele quer, e cada um tem um default — mas isso deve
+> ser tratado individualmente."*
+
+Então a regra da esteira é: **modo automático do agente quando ele tem um; escolha do usuário por
+provider quando não tem, com um default por provider.** Quem escolhe é você, uma vez, por agente — e
+não por tarefa nem por workspace.
+
+**Isso não contradiz a [`016`](../016-session-mode/prd.md), estende.** O §2.1 dela já diz que o modo é
+do agente quando ele relata modos, e do Lumem quando não relata. O que a resposta acrescenta é o
+**default por provider** — que a `016` não precisava ter, porque lá quem escolhia era uma pessoa
+olhando a pílula, e aqui é o daemon abrindo a sessão sozinho.
+
+**O que ela cobra, e é o resíduo:** a `016` também diz que, quando o modo é do agente, *"o Lumem
+**não interpreta** o valor"*. E *"se houver um modo automático como o do Claude"* **é** interpretar:
+o Claude oferece cinco — `default`, `acceptEdits`, `plan`, `auto`, `bypassPermissions` — e escolher
+entre eles é decidir qual é "o automático". Isso virou a
+[Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático), e ela é **medível**.
+
+**A primeira metade é maior que esta pergunta.** *"Definir a nossa interface e adaptar os providers a
+ela, com features habilitadas ou não"* é direção de arquitetura, não de feature — e o
+[catálogo `ADAPTERS`](../021-second-agent/prd.md) já é a primeira parcela dela, com a `spec` que cada
+adaptador preenche. Ela tem alternativa real e nomeada (é o que a `016` escolheu para o seletor de
+modo: seguir o vocabulário do agente), então **é candidata a ADR** — ver o
+[backlog](../../project/backlog.md).
+
+### Q43 — qual dos cinco modos do Claude é "o automático"?
+
+Aberta pela resposta da [Q41](#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe), e é a parte
+dela que não dá para escrever sem medir.
+
+O Claude relata **cinco**: `default` · `acceptEdits` · `plan` · `auto` · `bypassPermissions`. Três
+são candidatos plausíveis a *"o automático"*, com raios de explosão muito diferentes:
+
+| Modo | O que passa sozinho | O que isso custa |
+|---|---|---|
+| `acceptEdits` | edição de arquivo | comando **não** passa — e a esteira precisa de `git commit` |
+| `auto` | não medido | — |
+| `bypassPermissions` | tudo | o agente não te pergunta nada, **inclusive quando devia** |
+
+A medição da Q39 usou `bypassPermissions`, e é por isso que os 20 turnos fecharam: o agente rodou
+`git commit`. **Com `acceptEdits`, a mesma bancada penduraria no commit** — a mesma doença que o
+`lumemMode` produziu, um passo adiante.
+
+Isso importa porque é onde o princípio 4 encosta no 2: `bypassPermissions` compra a autonomia pagando
+com **nunca parar**, e a [Q39](#q39--quem-diz-que-o-agente-está-esperando-você) mediu o que isso
+produz — a tarefa impossível virou commit em 3 de 4 execuções.
+
+**Resposta: só `bypassPermissions` fecha o laço — medido em 2026-09-13.** As mesmas cinco tarefas, o
+mesmo braço autônomo, trocando um argumento. Teto de 150 s por turno, porque **pendurar é um
+resultado**:
+
+| Modo | Commitou | O que aconteceu |
+|---|---|---|
+| `bypassPermissions` | **5/5** | o laço fecha (é a corrida da Q39) |
+| `acceptEdits` | **0/5** | **os cinco penduraram.** O arquivo é editado — `M src/orders.ts` no disco — e o turno para no primeiro comando |
+| `auto` | **0/5** | os cinco penduraram, e o agente **diz por quê** |
+
+O `auto` é o achado de brinde, e ele é pior que não funcionar. O próprio agente relatou:
+
+> *"**Auto mode unavailable:** the selected model does not support Auto mode; using Accept edits
+> instead."*
+
+**É um modo cujo significado depende do modelo, e que degrada em silêncio para outro.** Pedir `auto`
+e receber `acceptEdits` sem que nada falhe é exatamente a forma de acoplamento que o
+[ADR de 2026-09-13](../../adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md) existe para
+impedir — e a medição saiu **depois** do ADR, confirmando-o em vez de inspirá-lo.
+
+**A consequência é desconfortável e é a que importa:** o único modo que deixa a esteira andar é o
+único que **nunca pergunta**. E a [Q39](#q39--quem-diz-que-o-agente-está-esperando-você) mediu o que
+isso produz — a tarefa impossível virou commit em 3 de 4 execuções, com o serviço inventado junto.
+
+> **Então a segurança da esteira não pode vir do modo de permissão.** Ela tem que vir dos outros três
+> lugares que a PRD já nomeia: o **CI** do §4.1 (o fato verificável que separa *terminou* de
+> *inventou*), o **orçamento** da F3, e o **teto de turnos**. Isso não muda a resposta da
+> [Q41](#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) — muda o que a F2 tem que ter de
+> pé **antes** de ligar a autonomia, e é uma frase que a PRD não tem.
+
+O custo da medição foi **US$ 0,00**: os dez turnos penduraram antes de qualquer evento de consumo
+chegar.
+
 ### Q42 — o selo `aguardando você` é ortogonal, e o desenho o fez exclusivo
 
 Consequência direta da Q39. O quadro 2 do `lumem-board.html` desenha cinco estados de selo como uma
@@ -1130,3 +1221,17 @@ As saídas, e todas custam:
 > **Aberta, e é da F2 mais desenho.** Ela volta ao Open Design junto com o resíduo da
 > [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), que é da mesma família: os dois
 > são coisas que o selo precisaria dizer e não diz.
+
+**Resposta: a segunda saída — dois eixos no cartão.** Suas palavras: *"põe uma linha a mais, isso não
+vai deixar o cartão super estranho, tá tudo certo."*
+
+O selo continua dizendo a **etapa** (os cinco estados ficam como estão), e uma linha condicional
+acrescenta *"tem pergunta em aberto"*. É condicional como a linha viva já é — e isso **reforça** a
+propriedade que o §10.2 mediu, em vez de brigar com ela: *"a altura também é sinal"*, e um cartão que
+espera você passa a ser mais alto que um que não espera.
+
+**O custo é medível e é do Open Design**, não deste lado: a medida 3.2 do desenho diz **cinco**
+cartões por coluna de 682px sem rolar, e **quatro** quando todos têm linha viva. Uma terceira linha
+condicional pode levar isso a três, e três cartões por coluna é o número que o briefing chamou de
+*"item demais no cartão"*. A folha volta ao Open Design com esse número para conferir — junto do
+resíduo da [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), que é da mesma família.

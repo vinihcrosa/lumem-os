@@ -39,7 +39,7 @@
 > em 2026-09-12**, todas na proposta: o encaixe se chama **`implementador`**, o rodapé da sidebar vira
 > **`Adaptadores`**, o bloqueio de orçamento **nomeia qual teto segurou**, e abaixo de 1418px o quadro
 > **rola na horizontal e diz que está rolando**
-> **Perguntas:** **42, e 40 respondidas** — as três da sexta rodada vieram de **ler o código
+> **Perguntas:** **43, todas respondidas** — as três da sexta rodada vieram de **ler o código
 > entregue**. A [Q38](open-questions.md#q38--arrastar-para-in-progress-se-ele-é-derivado) é a única do
 > documento que nunca precisou existir: a Q3 já a respondia, e a premissa dela estava errada também —
 > o arrasto para `In Progress` **já funcionava**, sem teste nenhum cobrindo. O que sobrou dela é a
@@ -51,7 +51,12 @@
 > são a [Q41](open-questions.md#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) — o
 > `lumemMode` é **inerte** para um agente com modo próprio — e a
 > [Q42](open-questions.md#q42--o-selo-aguardando-você-é-ortogonal-e-o-desenho-o-fez-exclusivo), que é
-> o que a Q39 abriu. Nenhuma das duas bloqueia a F1
+> o que a Q39 abriu — **as duas respondidas em 2026-09-13**. A resposta da Q41 criou a
+> [Q43](open-questions.md#q43--qual-dos-cinco-modos-do-claude-é-o-automático), fechada **medindo** no
+> mesmo dia: dos cinco modos do Claude, **só `bypassPermissions` fecha o laço** — `acceptEdits` edita
+> o arquivo e pendura no primeiro comando, e `auto` nem existe para todo modelo. O único modo que
+> deixa a esteira andar é o único que **nunca pergunta**, então **a segurança dela não pode vir do
+> modo de permissão**
 
 ---
 

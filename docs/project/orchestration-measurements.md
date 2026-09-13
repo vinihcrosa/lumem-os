@@ -348,9 +348,35 @@ Para a `028` a consequência é do §5, que já diz que o encaixe aponta para um
 escolha do modelo do implementador não é economia, é a diferença entre uma esteira que para quando
 devia e uma que não para nunca.
 
+### 4bis.5b Dos cinco modos do Claude, um só fecha o laço
+
+Medido no mesmo dia, por causa da resposta da
+[Q41](../features/028-autonomous-orchestration/open-questions.md#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe):
+*"se houver um modo automático como o do Claude, deve ser esse o modo"* pressupõe saber **qual** dos
+cinco é o automático. As mesmas cinco tarefas, o mesmo braço autônomo, trocando um argumento — com
+teto de 150 s por turno, porque **pendurar é um resultado**:
+
+| Modo | Commitou | O que aconteceu |
+|---|---|---|
+| `bypassPermissions` | **5/5** | o laço fecha |
+| `acceptEdits` | **0/5** | **os cinco penduraram.** O arquivo é editado — `M src/orders.ts` no disco — e o turno para no primeiro comando |
+| `auto` | **0/5** | penduraram, e o agente relata: *"**Auto mode unavailable:** the selected model does not support Auto mode; using Accept edits instead"* |
+
+O `auto` é o achado de brinde: **um modo cujo significado depende do modelo, e que degrada em silêncio
+para outro.** Pedir `auto` e receber `acceptEdits` sem que nada falhe é a forma de acoplamento que o
+[ADR de 2026-09-13](../adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md) existe para impedir —
+e esta medição saiu **depois** dele, confirmando-o em vez de inspirá-lo.
+
+**A consequência é a que importa:** o único modo que deixa a esteira andar é o único que **nunca
+pergunta**, e o §4bis.4 mediu o que isso produz. **A segurança da esteira não pode vir do modo de
+permissão** — tem que vir do CI, do orçamento e do teto de turnos, que é o que a F2 precisa ter de pé
+**antes** de ligar a autonomia.
+
+Custo: **US$ 0,00**. Os dez turnos penduraram antes de qualquer evento de consumo chegar.
+
 ### 4bis.6 Os limites desta medição
 
-**Vinte turnos.** Serve para ver se o efeito é grosso, não para medir taxa. Cinco tarefas escritas por
+**Trinta turnos** — vinte no §4bis.2 e dez no §4bis.5b. Serve para ver se o efeito é grosso, não para medir taxa. Cinco tarefas escritas por
 mim para provocar quatro motivos de parar — outra pessoa escreveria outras cinco. Um turno por tarefa,
 sem repetição, então nada aqui separa comportamento de sorte. E o repositório é de laboratório: sem
 suíte, sem CI, sem convenção — que é justamente o que o §4bis.4 diz que faria diferença.

@@ -767,3 +767,25 @@ As saídas possíveis, nenhuma medida: um `tasks.md` por fatia em subpasta (`f1/
 **De onde veio:** a fase 4 da [`028`](../features/028-autonomous-orchestration/tasks.md), ao tentar
 fechar o arquivo · **Volta quando:** a segunda PRD for fatiada em dois `tasks.md` — aí já são duas, e
 a lacuna deixa de ser anedota.
+
+### O Lumem define a interface, e os providers se adaptam a ela — `G`
+
+Direção dada na [Q41 da `028`](../features/028-autonomous-orchestration/open-questions.md):
+
+> *"Como os providers são diferentes entre si, a gente precisa definir a nossa interface e adaptar os
+> providers a ela. E quando tiver um provider, podem ter features habilitadas ou não; isso deve ser
+> uma cultura geral do Lumem, assim não ficamos limitados ao que um provider ou outro podem oferecer."*
+
+**É candidata a ADR e não está escrita como uma**, porque tem alternativa real e nomeada: é o que a
+[`016-session-mode`](../features/016-session-mode/prd.md) escolheu para o seletor de modo — *"o modo é
+do agente quando ele relata modos, e o Lumem **não interpreta** o valor"*. Seguir o vocabulário do
+agente e definir o nosso são duas direções, e hoje o produto tem uma de cada.
+
+O [catálogo `ADAPTERS`](../features/021-second-agent/prd.md) já é a primeira parcela do lado "nossa
+interface": uma `spec` que cada adaptador preenche. O que falta é a parte que a frase acrescenta —
+**capacidade declarada por provider**, para o produto perguntar *"este agente sabe fazer X?"* em vez
+de descobrir no turno.
+
+**De onde veio:** [028 Q41](../features/028-autonomous-orchestration/open-questions.md) · **Volta
+quando:** um terceiro provider entrar (o OpenRouter é o citado), ou quando a F2 precisar da postura de
+permissão de um agente que não é o Claude — aí a interface deixa de ser cultura e vira código.

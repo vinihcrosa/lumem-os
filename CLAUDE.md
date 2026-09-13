@@ -211,6 +211,22 @@ deles é que o **`ResizeObserver` vê a caixa, e o que muda é o conteúdo**. Du
 abertas e represadas até a F2, e uma terceira **nunca precisou existir**: a Q38 levantou o arrasto
 para `In Progress` como contradição, e ele **já funcionava** — sem um único teste cobrindo.
 
+E em **2026-09-13** a `028` fechou as **43 perguntas** dela, três delas **gastando token** — US$ 4,60
+em 30 turnos de Haiku e Opus, contra o adaptador que o daemon é dono. A Q39 foi **derrubada** em vez
+de respondida: *terminou* e *te perguntou* **não são exclusivos** — 31% dos turnos que commitaram
+deixaram pergunta em aberto —, então o selo `aguardando você` é um eixo **ortogonal** e o desenho o
+fez escolha. Pior: **o commit não separa *terminou* de *desistiu inventando*** — a tarefa impossível
+virou commit em 3 de 4 execuções, com o serviço inventado junto —, e o que separa é o **CI**, o que
+torna a força da esteira a força da suíte do projeto. O Haiku **não perguntou nenhuma vez** em 10
+turnos. E dos cinco modos do Claude, **só `bypassPermissions` fecha o laço**: o único modo que deixa a
+esteira andar é o único que nunca pergunta, então a segurança dela não pode vir do modo de permissão.
+Daí saiu o [ADR de 2026-09-13](docs/adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md) — **o
+modelo é do Lumem, e o que vem de fora se adapta a ele**, regra geral para adaptador, banco, `gh` ou
+tracker. Ele contradiz uma frase da [`016`](docs/features/016-session-mode/prd.md) com a nota no
+requisito, reafirma os três ADRs em vigor, e nomeia **três vazamentos medidos** — o `stopReason`
+repassado do ACP, o `session.mode` cru, e o `TaskRow` derivado do `drizzle`, que é o banco decidindo a
+forma do domínio.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |

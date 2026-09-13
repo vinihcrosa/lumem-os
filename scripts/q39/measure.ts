@@ -20,6 +20,17 @@ import { labRepo, requireAdapter } from "./lab.js";
  */
 
 const MODEL = process.env["Q39_MODEL"] ?? "haiku";
+/** A Q43: qual dos cinco modos do Claude é "o automático". */
+const MODE = process.env["Q39_MODE"] ?? "bypassPermissions";
+
+/**
+ * Teto por turno, e **pendurar é um resultado** (Q43).
+ *
+ * Sem isto, um modo que não deixa o `git commit` passar come o orçamento inteiro
+ * no primeiro turno e a corrida devolve zero linha — que é indistinguível de não
+ * ter rodado. Com o teto, o turno que pendura vira um dado: `TIMEOUT`.
+ */
+const TURN_TIMEOUT_MS = Number(process.env["Q39_TURN_TIMEOUT_MS"] ?? 150_000);
 const ARM_FILTER = process.env["Q39_ARM"];
 
 /**
@@ -48,7 +59,8 @@ const CHAT = [COMMIT, "", "A tarefa:"].join("\n");
 
 interface Turn {
   task: string;
-  arm: "autônomo" | "conversa";
+  arm: string;
+  mode: string;
   stopReason: string;
   /** O fato verificável do §4.1: existe commit novo? */
   committed: boolean;
@@ -118,7 +130,7 @@ async function runTurn(
      * **inerte**, e todo pedido sobe para uma pessoa. Com `ask` ou com `free`,
      * o mesmo — medido: o turno pendura no primeiro `Edit`, para sempre.
      */
-    await manager.setConfig(info.id, "mode", "bypassPermissions");
+    await manager.setConfig(info.id, "mode", MODE);
 
     const model = info.configOptions.find((option) => option.id === "model");
     if (model) {
@@ -142,7 +154,12 @@ async function runTurn(
     });
 
     const startedAt = Date.now();
-    const stopReason = await manager.prompt(info.id, `${preamble}${task.prompt}`);
+    const stopReason = await Promise.race([
+      manager.prompt(info.id, `${preamble}${task.prompt}`),
+      new Promise<string>((resolve) =>
+        setTimeout(() => resolve("TIMEOUT"), TURN_TIMEOUT_MS).unref(),
+      ),
+    ]);
     process.stderr.write(`  (${String(Math.round((Date.now() - startedAt) / 1000))}s)\n`);
     off();
 
@@ -150,6 +167,7 @@ async function runTurn(
     return {
       task: task.id,
       arm,
+      mode: MODE,
       stopReason,
       committed,
       text: text.trim(),
