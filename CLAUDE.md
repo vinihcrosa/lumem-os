@@ -251,6 +251,29 @@ consertá-la que permitiu diagnosticar a primeira. Um terceiro veio de um teste 
 arrasto contava `open` como coluna da máquina, então **pôr uma tarefa na fila desligava a autonomia
 dela** e a esteira ficaria vazia para sempre sem nada falhar.
 
+E as **Partes 5 e 6 — o tracker** fecharam junto, levando a `028` a **48 tasks e as seis partes do §6
+entregues**. Elas estavam paradas por um motivo só, e ele **deixou de existir**: o §11 dizia que falar
+com um tracker exigiria reverter o [ADR de
+2026-08-30](docs/adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md), e **não exige**. O
+[ADR do segredo](docs/adr/2026-09-13-1531-tracker-credentials-come-from-the-environment.md), com
+[estudo](docs/project/tracker-secret.md), achou a quarta saída que nem o §11 nem a medição tinham
+visto — e ela **já estava implementada duas vezes neste produto**: o `apiKeyEnv` da `021` e o `redact`
+da `009`. A credencial vem do **ambiente do daemon**, a tela recebe o **nome** da variável e nunca o
+valor, e sem a variável **a feature não aparece** — ausência não é erro. O ADR antigo é **reafirmado**
+no que ele protege (nenhuma das cinco superfícies que ele nomeia aparece aqui) e **delimitado** no que
+ele dizia por atalho: *"não lê token"* virou *"não guarda, não pede, e não deixa vazar"*. A diferença
+honesta fica escrita como consequência: para adaptador o daemon nunca toca no valor, e para tracker
+ele toca, durante a chamada.
+
+O resto é **polling a 60 s** — webhook exige relé, e relé é a opção que o ADR recusou —, a issue
+virando cartão **direto na To-Do**, e os quatro marcos voltando para a issue **uma vez cada**. Três
+decisões que o código cobrou: o índice da chave externa é **por workspace** (a mesma issue pode
+legitimamente virar tarefa em dois), o instantâneo é atualizado **mesmo com a tarefa já bloqueada** —
+senão uma segunda mudança lá nunca seria vista —, e a reserva do marco acontece **antes** da escrita,
+porque o lado certo de errar é um marco registrado que não saiu, e não um segundo comentário na issue
+de outra pessoa. E **sem mapa de colunas, nada é movido lá**: isso é a decisão, não o default
+preguiçoso.
+
 E a **Parte 4 — Supervisão e o volante** fechou no mesmo dia, levando a `028` a **41 tasks em quatro
 das seis partes**. Ela é sobre o que você vê **sem estar olhando**, e a fase 0 dela achou uma
 contradição que a esteira tinha acabado de criar: o relógio do encalhe cobrava **espera por vaga**.
