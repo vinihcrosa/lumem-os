@@ -37,6 +37,7 @@ import type { PtyManager } from "../pty/PtyManager.js";
 import { spawnAcpProcess, type AcpProcess, type AcpProcessSpawner } from "./process.js";
 import { createMemoryTranscriptStore, type TranscriptStore } from "./TranscriptStore.js";
 import { decidePermission } from "./permission-policy.js";
+import type { TurnFailureSink } from "./turn-failures.js";
 import { translateSessionUpdate } from "./translate.js";
 import { sniffUnknownUpdates } from "./unknown-updates.js";
 
@@ -435,6 +436,19 @@ export interface AcpManagerOptions {
    * injeta nada, e o turno é exatamente o que era antes desta parte.
    */
   budget?: AcpBudgetSource;
+  /**
+   * Onde o retrato de um turno que falhou vai parar (`028` Q46).
+   *
+   * Uma função, e não um caminho, pela mesma direção de dependência do
+   * `preamble` e do `budget`: este arquivo entende ACP, e não tem por que saber
+   * onde fica o `~/.lumem`.
+   *
+   * Ausente é o default, e aí o retrato só sai pelo `log` — que é o que ele
+   * fazia antes, e o motivo de esta opção existir: o logger do daemon **não tem
+   * destino em arquivo**, então a linha ia para `stdout`, e a cota fecha
+   * justamente quando ninguém está olhando o terminal.
+   */
+  turnFailures?: TurnFailureSink;
 }
 
 /**
@@ -496,6 +510,7 @@ export class AcpManager {
   private readonly log: Pick<FastifyBaseLogger, "warn"> | undefined;
   private readonly preamble: AcpPreambleSource | undefined;
   private readonly budget: AcpBudgetSource | undefined;
+  private readonly turnFailures: TurnFailureSink | undefined;
 
   constructor({
     spawner = spawnAcpProcess,
@@ -508,6 +523,7 @@ export class AcpManager {
     log,
     preamble,
     budget,
+    turnFailures,
   }: AcpManagerOptions = {}) {
     this.spawner = spawner;
     this.handshakeTimeoutMs = handshakeTimeoutMs;
@@ -519,6 +535,7 @@ export class AcpManager {
     this.log = log;
     this.preamble = preamble;
     this.budget = budget;
+    this.turnFailures = turnFailures;
   }
 
   /**
@@ -1073,33 +1090,42 @@ export class AcpManager {
    * `warn` e não `error`: a falha já sobe para quem chamou e vira mensagem na
    * tela. Esta linha existe para ser **procurada depois**, e por isso ela tem uma
    * etiqueta estável — `turn-failed` — em vez de prosa.
+   *
+   * **E ela vai para dois lugares, porque um não bastava.** O `log` do daemon
+   * não tem destino em arquivo, então o retrato saía por `stdout` — e a cota
+   * fecha durante trabalho autônomo, que é exatamente quando ninguém está
+   * olhando o terminal. O `turnFailures` é o mesmo retrato em disco, uma linha
+   * de JSON por falha. O log fica: ele é o que se vê **enquanto** acontece.
    */
   private observeTurnFailure(session: Session, error: unknown): void {
     const rateLimit = session.lastRateLimit;
-    this.log?.warn(
-      {
-        tag: "turn-failed",
-        sessionId: session.info.id,
-        adapter: session.info.command,
-        model: session.info.model,
-        code: (error as { code?: unknown }).code ?? null,
-        message: error instanceof Error ? error.message : String(error),
-        // O que o `_meta` do erro carregar. É onde um adaptador poria um motivo
-        // estruturado, se puser — e não custa nada guardar.
-        data: (error as { data?: unknown }).data ?? null,
-        rateLimit: rateLimit
-          ? {
-              utilization: rateLimit.utilization,
-              isUsingOverage: rateLimit.isUsingOverage,
-              resetsAt: rateLimit.resetsAt ?? null,
-              kind: rateLimit.kind ?? null,
-            }
-          : null,
-        /** O atalho da leitura: a janela estava fechada quando isto falhou? */
-        windowSpent: rateLimit !== null && rateLimit.utilization >= 1 && !rateLimit.isUsingOverage,
-      },
-      "turno falhou",
-    );
+    const portrait = {
+      tag: "turn-failed",
+      // O logger carimba a hora; o arquivo não tem quem carimbe, e um retrato
+      // sem quando não responde *"foi na janela que fechou ontem?"*.
+      at: new Date(this.now()).toISOString(),
+      sessionId: session.info.id,
+      adapter: session.info.command,
+      model: session.info.model,
+      code: (error as { code?: unknown }).code ?? null,
+      message: error instanceof Error ? error.message : String(error),
+      // O que o `_meta` do erro carregar. É onde um adaptador poria um motivo
+      // estruturado, se puser — e não custa nada guardar.
+      data: (error as { data?: unknown }).data ?? null,
+      rateLimit: rateLimit
+        ? {
+            utilization: rateLimit.utilization,
+            isUsingOverage: rateLimit.isUsingOverage,
+            resetsAt: rateLimit.resetsAt ?? null,
+            kind: rateLimit.kind ?? null,
+          }
+        : null,
+      /** O atalho da leitura: a janela estava fechada quando isto falhou? */
+      windowSpent: rateLimit !== null && rateLimit.utilization >= 1 && !rateLimit.isUsingOverage,
+    };
+
+    this.log?.warn(portrait, "turno falhou");
+    this.turnFailures?.(portrait);
   }
 
   /**

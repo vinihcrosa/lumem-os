@@ -2370,12 +2370,14 @@ describe("um turno que falha solta a marca, e deixa retrato", () => {
     const fake = fakeAgentProcess({
       prompt: () => Promise.reject(new Error(message)),
     });
+    const turnFailures = vi.fn();
     const manager = new AcpManager({
       spawner: () => fake.process,
       isAvailable: () => true,
       log: { warn },
+      turnFailures,
     });
-    return { manager, warn };
+    return { manager, warn, turnFailures };
   }
 
   it("a sessão não fica dizendo que tem turno em voo para sempre", async () => {
@@ -2427,5 +2429,25 @@ describe("um turno que falha solta a marca, e deixa retrato", () => {
     // é a que a Q46 procura.
     const [payload] = warn.mock.calls[0] as [Record<string, unknown>];
     expect(payload).toMatchObject({ rateLimit: null, windowSpent: false });
+  });
+
+  it("o mesmo retrato vai para o disco, porque o log do daemon não persiste", async () => {
+    const { manager, warn, turnFailures } = failing("qualquer falha");
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: here() });
+
+    await expect(manager.prompt(info.id, "oi")).rejects.toThrow();
+
+    /*
+     * O log é o que se vê **enquanto** acontece; o arquivo é o que sobra. Sem o
+     * segundo, a Q46 não faz o que pediu: a cota fecha durante trabalho
+     * autônomo, que é exatamente quando ninguém está olhando o terminal.
+     *
+     * E é o **mesmo objeto** nos dois, de propósito — dois retratos montados em
+     * lugares diferentes é como os dois divergem sem ninguém decidir nada.
+     */
+    const [logged] = warn.mock.calls[0] as [Record<string, unknown>];
+    expect(turnFailures).toHaveBeenCalledWith(logged);
+    // O logger carimba a hora sozinho; o arquivo não tem quem carimbe.
+    expect(logged).toMatchObject({ tag: "turn-failed", at: expect.any(String) as unknown as string });
   });
 });

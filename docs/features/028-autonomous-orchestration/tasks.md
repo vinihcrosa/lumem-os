@@ -585,6 +585,13 @@ não mexe em nenhum contador; e 4 h de espera vira `bloqueada` com o motivo.
 > falhava deixava `promptInFlight` **ligado para sempre**. Desde que o selo do quadro passou a ser
 > derivado disso, um turno morto no primeiro segundo pintaria `implementando há 3 h`.
 
+> **Emenda (2026-09-13): o retrato agora tem onde ficar.** Como entregue, ele saía pelo logger do
+> Fastify — que não tem destino em arquivo — e ia para `stdout`. Ou seja, o instrumento não
+> instrumentava nada: a cota fecha durante trabalho autônomo, que é quando ninguém está olhando o
+> terminal. O mesmo retrato passa a ser escrito também em `~/.lumem/_system/turn-failures.jsonl`,
+> uma linha por falha, e a Q46 aponta para lá. Log de daemon que não persiste — o problema geral —
+> foi para o [backlog](../../project/backlog.md).
+
 > **O `rateLimit` só voltou a existir na [`027`](../027-adapter-provenance/prd.md)**, que consertou o
 > `rateLimitOf` — ele exigia `utilization` na raiz e o `0.75.1` a aninhou em
 > `unifiedWindows.<janela>`. Antes dela, esta task não teria dado de onde ler, e o defeito estava

@@ -1377,9 +1377,25 @@ nada**, e é por isso que o `data` cru é guardado inteiro.
 **Como procurar**, no dia em que uma cota fechar:
 
 ```sh
-# o daemon loga em JSON; a etiqueta é estável e o filtro é o rótulo
-grep turn-failed ~/.lumem/… | jq 'select(.windowSpent)'
+# uma linha de JSON por falha; o filtro é o rótulo
+jq 'select(.windowSpent)' ~/.lumem/_system/turn-failures.jsonl
 ```
+
+> **Emenda — 2026-09-13, e ela corrige a resposta acima.** Como escrita, a Q46 **não fazia o que
+> pediu**. O retrato saía pelo logger do Fastify, que **não tem destino em arquivo**, e o binário
+> `lumem` não redireciona: ia tudo para `stdout`. A cota fecha durante trabalho autônomo — que é
+> exatamente quando ninguém está olhando o terminal —, então a amostra que esta pergunta existe para
+> preservar se perdia com a janela do terminal.
+>
+> O conserto é o `turn-failures.jsonl` acima: **o mesmo retrato**, montado uma vez e mandado para
+> dois lugares. O log fica, porque ele é o que se vê *enquanto* acontece; o arquivo é o que sobra.
+> Disco recusado **não** derruba o turno — a falha já subiu para quem chamou, e uma linha de
+> observabilidade que mata o turno que ela veio observar é remédio pior que a doença.
+>
+> **Sem rotação, e isso é escolha e não descuido:** uma linha por `session/prompt` recusado é um
+> evento raro por construção. Mandar o **log inteiro** do daemon para disco é outra conversa — pede
+> destino, rotação, tamanho, e uma decisão sobre o que **não** pode ir para lá, porque o log atravessa
+> caminho de arquivo e prompt — e está no [backlog](../../project/backlog.md).
 
 > **Respondida como instrumento, não como comportamento.** A Q32 continua sem poder ser implementada —
 > as 3 tentativas e o corte de 4 h esperam a primeira amostra. O que mudou é que a amostra **não vai

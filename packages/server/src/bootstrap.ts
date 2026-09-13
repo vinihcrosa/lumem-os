@@ -22,6 +22,7 @@ import { createMemoryPreamble } from "./memory/preamble.js";
 import { createBudgetSource } from "./tasks/budget-source.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createTranscriptStore, type TranscriptStore } from "./acp/TranscriptStore.js";
+import { createTurnFailureSink } from "./acp/turn-failures.js";
 import { createScriptRunner } from "./scripts/ScriptRunner.js";
 import { createSessionStore } from "./sessions/SessionStore.js";
 import { createServer } from "./server.js";
@@ -155,6 +156,17 @@ export async function bootstrap({
       // O teto entra pela mesma porta e pela mesma razão: este é o único lugar
       // que conhece o banco e o manager ao mesmo tempo (`028` Parte 3, T16).
       budget: createBudgetSource(openedDatabase.db),
+      // O retrato do turno que falhou, em disco (`028` Q46). Sem isto ele sai
+      // por `stdout` e some com o terminal — e a cota fecha durante trabalho
+      // autônomo, que é quando ninguém está olhando.
+      turnFailures: createTurnFailureSink({
+        stateDir: config.stateDir,
+        // Disco recusado não derruba nada: a falha do turno já subiu. Ela vira
+        // mais uma linha no mesmo log que o retrato também usa.
+        onError: (error: unknown) => {
+          bootedApp?.log.warn({ tag: "turn-failed-sink", error }, "não deu para gravar o retrato");
+        },
+      }),
     });
   /*
    * As tentativas de login vivas, criadas aqui para o desligamento alcançá-las.
