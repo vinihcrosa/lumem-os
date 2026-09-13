@@ -67,6 +67,25 @@ export interface SealFacts {
    * selo mentindo sobre quem está com ela.
    */
   pausedUntil?: Date | null;
+  /**
+   * Por que a esteira parou aqui, ou `null` (`028` Parte 2, T28).
+   *
+   * **É o único fato guardado que este arquivo lê**, e o comentário da coluna
+   * diz por quê: os outros quatro estados saem de coisas que continuam
+   * existindo — turno em voo, cota relatada, coluna —, e o bloqueio é o registro
+   * de uma **decisão** que não está em lugar nenhum depois do processo.
+   */
+  blockedReason?: string | null;
+  /**
+   * A esteira pode pegar esta tarefa (`028` Parte 2, T31).
+   *
+   * É o que separa `aguardando revisor` de `manual — ninguém pega`, e a
+   * diferença é a feature inteira: o primeiro diz *"a máquina vem"*, e o segundo
+   * diz *"não vem"*. Sem este campo, um quadro com a autonomia ligada
+   * desenhava o mesmo pixel de um quadro com ela desligada — que é exatamente o
+   * defeito que o §10.2 nomeou ao inventar o `manual`.
+   */
+  autonomyOn?: boolean;
 }
 
 /**
@@ -75,10 +94,36 @@ export interface SealFacts {
  * A alternativa — o selo lendo o `AcpManager` de dentro — faria todo caso de
  * teste precisar de um processo, e nenhum dos cinco é sobre processo.
  */
-export function sealOf({ status, liveTurns, pausedUntil }: SealFacts): Seal {
+export function sealOf({
+  status,
+  liveTurns,
+  pausedUntil,
+  blockedReason = null,
+  autonomyOn = false,
+}: SealFacts): Seal {
+  /*
+   * O bloqueio vem primeiro, **inclusive antes da cota**.
+   *
+   * Os dois dizem *"parou"*, e a diferença é quem retoma: a cota volta sozinha
+   * e o bloqueio espera você. Um cartão bloqueado que pintasse `pausada até
+   * ~04:20` prometeria uma retomada que não vai acontecer — e o relógio da
+   * pausa existe justamente para dizer que não precisa fazer nada.
+   */
+  if (blockedReason !== null && blockedReason !== "") {
+    return { kind: "blocked", reason: blockedReason };
+  }
   // Antes do turno: cota é espera, e quem espera não está trabalhando.
   if (pausedUntil) return { kind: "paused", until: pausedUntil };
-  if (liveTurns.length === 0) return { kind: "manual" };
+  if (liveTurns.length === 0) {
+    /*
+     * Ninguém está trabalhando. As duas leituras são opostas e a tela precisa
+     * distingui-las: com a esteira ligada e esta etapa tendo papel, **a máquina
+     * vem** — é `aguardando <papel>`; sem, ninguém vem, e é `manual`.
+     */
+    const role = ROLE_OF[status];
+    if (autonomyOn && role !== undefined) return { kind: "waiting", role };
+    return { kind: "manual" };
+  }
 
   // O mais antigo: o cartão pergunta *há quanto tempo alguém está nisto*, e com
   // duas sessões na mesma tarefa a resposta honesta é desde quando a primeira

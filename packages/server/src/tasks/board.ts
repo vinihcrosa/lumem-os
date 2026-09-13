@@ -61,6 +61,14 @@ export interface BoardCard {
   /** De onde veio. Quem escolhe o glifo é a tela; quem sabe a origem é isto. */
   createdBy: string;
   links: string[];
+  /** Quantas vezes a esteira já tentou **nesta etapa**. `0` é o caso comum. */
+  attempts: number;
+  /** `off` quando você assumiu o volante — a tela diz isso, e a fila obedece. */
+  autonomy: string;
+  /** O prompt que o `assistido` montou e não enviou, ou `null`. */
+  preparedPrompt: string | null;
+  /** Por que a esteira parou aqui, ou `null`. É o que o selo `bloqueada` lê. */
+  blockedReason: string | null;
 }
 
 export interface BoardColumnView {
@@ -84,6 +92,13 @@ export function boardOf(
       statusChangedAt: task.statusChangedAt,
       createdBy: task.createdBy,
       links: task.links,
+      // O que a esteira acrescentou (`028` Parte 2). Vêm na mesma leitura
+      // porque o cartão já está sendo montado — uma segunda consulta por cartão
+      // para saber se ele está bloqueado seria sete viagens por pintura.
+      attempts: task.attempts,
+      autonomy: task.autonomy,
+      blockedReason: task.blockedReason,
+      preparedPrompt: task.preparedPrompt,
       projectId: project.id,
       projectName: project.name,
       worktreeId: worktree.id,
@@ -131,6 +146,10 @@ export function boardOf(
           turns: spent?.turns ?? 0,
           createdBy: row.createdBy,
           links: JSON.parse(row.links) as string[],
+          attempts: row.attempts,
+          autonomy: row.autonomy,
+          preparedPrompt: row.preparedPrompt,
+          blockedReason: row.blockedReason,
         };
       }),
   }));

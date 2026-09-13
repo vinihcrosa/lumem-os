@@ -1000,6 +1000,24 @@ export const task = sqliteTable(
     preparedPrompt: text("prepared_prompt"),
     /** Para qual encaixe. Sem isto, enviar não saberia que sessão abrir. */
     preparedRole: text("prepared_role"),
+    /**
+     * Por que a esteira parou nesta tarefa (`028` §4, Parte 2 — T28).
+     *
+     * **É o único estado do selo que não é derivável, e por isso ele é guardado.**
+     * Os outros quatro saem de fatos que continuam existindo — turno em voo,
+     * cota relatada, coluna —, e por isso *"o selo não pode divergir da
+     * realidade"*. O bloqueio é diferente: ele é o registro de uma **decisão que
+     * o daemon tomou** — tentativa esgotada, portão vermelho —, e uma decisão
+     * tomada não está em lugar nenhum depois do processo.
+     *
+     * Bloquear **não** muda a coluna: situação é selo, etapa é coluna (§4), e
+     * mover a tarefa por causa de um bloqueio apagaria onde ela parou, que é a
+     * informação de que alguém precisa para retomá-la.
+     *
+     * Some quando a etapa muda, como a tentativa e o preparo: o bloqueio é
+     * daquela etapa.
+     */
+    blockedReason: text("blocked_reason"),
     statusChangedAt: integer("status_changed_at", { mode: "timestamp_ms" })
       .notNull()
       // `DEFAULT 0` no banco e o relógio na aplicação, e **não** o `NOW` que o

@@ -169,6 +169,13 @@
       "when": 1789285221167,
       "tag": "0023_prompt_preparado",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1789286774775,
+      "tag": "0024_motivo_do_bloqueio",
+      "breakpoints": true
     }
   ]
 }

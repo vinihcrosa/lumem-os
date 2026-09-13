@@ -70,6 +70,70 @@ describe("sealOf", () => {
   });
 });
 
+describe("os dois estados que a esteira acrescenta", () => {
+  it("com a esteira ligada, uma etapa com papel diz que a máquina vem", () => {
+    /*
+     * A diferença é a feature inteira: `aguardando revisor` diz *"a máquina
+     * vem"* e `manual — ninguém pega` diz *"não vem"*. Sem ela, um quadro com a
+     * autonomia ligada desenharia o mesmo pixel de um com ela desligada — que é
+     * o defeito que o §10.2 nomeou ao inventar o `manual`.
+     */
+    expect(sealOf({ status: "review", liveTurns: [], autonomyOn: true })).toEqual({
+      kind: "waiting",
+      role: "revisor",
+    });
+  });
+
+  it("uma coluna sem papel continua `manual`, mesmo com a esteira ligada", () => {
+    // `ready_to_merge` é sua vez, e nenhum encaixe vem buscá-la — dizer
+    // `aguardando` ali seria prometer uma máquina que não existe.
+    expect(sealOf({ status: "ready_to_merge", liveTurns: [], autonomyOn: true })).toEqual({
+      kind: "manual",
+    });
+  });
+
+  it("com a esteira desligada continua `manual`, que é o default do produto", () => {
+    expect(sealOf({ status: "review", liveTurns: [], autonomyOn: false })).toEqual({
+      kind: "manual",
+    });
+  });
+
+  it("o bloqueio ganha de tudo, inclusive da cota", () => {
+    const seal = sealOf({
+      status: "in_progress",
+      liveTurns: [],
+      pausedUntil: new Date("2026-09-13T04:20:00Z"),
+      blockedReason: "o teste do projeto falhou",
+      autonomyOn: true,
+    });
+
+    /*
+     * Os dois dizem *"parou"*, e a diferença é quem retoma: a cota volta sozinha
+     * e o bloqueio espera você. Um cartão bloqueado pintando `pausada até
+     * ~04:20` prometeria uma retomada que não vem — e o relógio da pausa existe
+     * justamente para dizer que não é preciso fazer nada.
+     */
+    expect(seal).toEqual({ kind: "blocked", reason: "o teste do projeto falhou" });
+  });
+
+  it("motivo em branco não é bloqueio", () => {
+    // `''` é o que um `UPDATE` desastrado escreve, e um selo vermelho sem frase
+    // é pior que nenhum: ele para o cartão sem dizer o que fazer.
+    expect(sealOf({ status: "review", liveTurns: [], blockedReason: "", autonomyOn: true })).toEqual(
+      { kind: "waiting", role: "revisor" },
+    );
+  });
+
+  it("um turno em voo ainda vence o `aguardando`", () => {
+    const since = new Date("2026-09-13T04:00:00Z");
+
+    // A ordem importa: quem já está lá é mais informativo que quem viria.
+    expect(
+      sealOf({ status: "review", liveTurns: [{ startedAt: since }], autonomyOn: true }),
+    ).toMatchObject({ kind: "working", role: "revisor" });
+  });
+});
+
 describe("liveTurnsByTask", () => {
   async function taskWithSession(kind = "shell") {
     const { api, db } = caller();

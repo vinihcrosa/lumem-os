@@ -166,6 +166,13 @@ export interface TaskRepository {
     prepared: { prompt: string; role: string } | null,
   ): Promise<TaskRow>;
   /**
+   * Por que a esteira parou aqui, ou `null` para destravar (T28).
+   *
+   * **Não muda a coluna**: situação é selo, etapa é coluna. Mover a tarefa por
+   * causa de um bloqueio apagaria onde ela parou.
+   */
+  setBlocked(id: string, reason: string | null): Promise<TaskRow>;
+  /**
    * O gesto do quadro: a coluna de destino **e** o lugar nela (`028` §4.3, T5).
    *
    * Separado do `setStatus` porque são duas perguntas diferentes. `setStatus`
@@ -374,6 +381,9 @@ export function createTaskRepository(db: Db): TaskRepository {
               // oferecendo enviar a coisa errada.
               preparedPrompt: null,
               preparedRole: null,
+              // O bloqueio é da etapa. Sobreviver à mudança de coluna faria um
+              // cartão promovido continuar dizendo por que ele tinha parado.
+              blockedReason: null,
               updatedAt: new Date(),
             })
             .where(eq(task.id, id))
@@ -439,6 +449,7 @@ export function createTaskRepository(db: Db): TaskRepository {
                           attempts: 0,
                           preparedPrompt: null,
                           preparedRole: null,
+                          blockedReason: null,
                         }),
                     updatedAt: new Date(),
                   }
@@ -497,6 +508,16 @@ export function createTaskRepository(db: Db): TaskRepository {
           },
         },
       );
+      return row!;
+    },
+
+    async setBlocked(id, reason) {
+      await require_(id);
+      const [row] = await db
+        .update(task)
+        .set({ blockedReason: reason, updatedAt: new Date() })
+        .where(eq(task.id, id))
+        .returning();
       return row!;
     },
 

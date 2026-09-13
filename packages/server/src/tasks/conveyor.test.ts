@@ -38,6 +38,7 @@ function fakeTask(patch: Partial<TaskRow> = {}): TaskRow {
     autonomy: "inherit",
     preparedPrompt: null,
     preparedRole: null,
+    blockedReason: null,
     statusChangedAt: new Date(),
     closedAt: null,
     createdAt: new Date(),
@@ -77,8 +78,11 @@ function harness({
   let attempts = attemptsSoFar;
 
   const spies = {
-    openSession: vi.fn(async (input: { taskId: string }) => {
+    openSession: vi.fn(async (input: { taskId: string; worktreeId: string }) => {
       calls.push("openSession");
+      // O escopo vem junto: uma conversa da esteira mora **no checkout**, e
+      // abri-la no projeto poria o agente na raiz do repositório.
+      expect(input.worktreeId).toBe(`wt-${input.taskId}`);
       return { sessionId: `ses-${input.taskId}` };
     }),
     prompt: vi.fn(async () => {

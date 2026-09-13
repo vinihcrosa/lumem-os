@@ -135,18 +135,35 @@ export const taskRouter = router({
       const columns = boardOf(ctx.db, input);
       const byTask = liveTurnsByTask(ctx.db, ctx.acpManager.liveTurns());
       const paused = pausesByTask(ctx.db, ctx.acpManager.rateLimits());
+      /*
+       * O interruptor do workspace entra na leitura do quadro porque o selo
+       * depende dele: `aguardando revisor` e `manual — ninguém pega` são o mesmo
+       * cartão, e o que os separa é a esteira estar ligada. Uma leitura, como a
+       * T6 decidiu — e é uma linha, não sete.
+       */
+      const space = ctx.db.query.workspace.findFirst({
+        where: (table, { eq: is }) => is(table.id, input.workspaceId),
+      });
 
-      return columns.map((column) => ({
-        status: column.status,
-        cards: column.cards.map((card) => ({
-          ...card,
-          seal: sealOf({
-            status: column.status,
-            liveTurns: byTask.get(card.id) ?? [],
-            pausedUntil: paused.get(card.id) ?? null,
-          }),
-        })),
-      }));
+      return Promise.resolve(space).then((row) => {
+        const running = row?.autonomy === "assistido" || row?.autonomy === "autonomo";
+        return columns.map((column) => ({
+          status: column.status,
+          cards: column.cards.map((card) => ({
+            ...card,
+            seal: sealOf({
+              status: column.status,
+              liveTurns: byTask.get(card.id) ?? [],
+              pausedUntil: paused.get(card.id) ?? null,
+              blockedReason: card.blockedReason,
+              // A tarefa que você assumiu não espera máquina nenhuma, e o selo
+              // dela tem que dizer isso — senão o cartão promete uma esteira
+              // que a própria fila já recusou.
+              autonomyOn: running && card.autonomy !== "off",
+            }),
+          })),
+        }));
+      });
     }),
 
   get: publicProcedure

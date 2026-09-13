@@ -76,6 +76,8 @@ export interface ConveyorPorts {
     adapter: string;
     model: string | null;
     cwd: string;
+    /** O escopo da sessão. Uma conversa da esteira mora **no checkout**. */
+    worktreeId: string;
   }): Promise<{ sessionId: string }>;
   /** Manda o prompt e espera o turno. O motivo da parada é ignorado de propósito. */
   prompt(input: { sessionId: string; text: string }): Promise<void>;
@@ -154,6 +156,7 @@ export function createConveyor(ports: ConveyorPorts): Conveyor {
       adapter: agent.adapter,
       model: agent.model,
       cwd: checkout.path,
+      worktreeId: checkout.worktreeId,
     });
 
     /*

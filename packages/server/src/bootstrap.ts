@@ -20,6 +20,17 @@ import { adapterCommandForConfig } from "./setup/adapter-command.js";
 import { reconcileAdapters } from "./setup/reconcile-adapters.js";
 import { createMemoryPreamble } from "./memory/preamble.js";
 import { createBudgetSource } from "./tasks/budget-source.js";
+import { createConveyor } from "./tasks/conveyor.js";
+import { createConveyorPorts } from "./tasks/conveyor-ports.js";
+import { runConveyorLoop } from "./tasks/conveyor-loop.js";
+import { configForAdapter, verdictOfWorktree } from "./tasks/conveyor-wiring.js";
+import { createCallerFactory } from "./trpc.js";
+import { appRouter } from "./routers/index.js";
+import { createGitService } from "./git/GitService.js";
+import { createCloneJobStore } from "./git/CloneJobStore.js";
+import { createGhHost } from "./pr/GhHost.js";
+import { createPrCache } from "./pr/PrCache.js";
+import { createIssueCache } from "./pr/IssueCache.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createTranscriptStore, type TranscriptStore } from "./acp/TranscriptStore.js";
 import { createTurnFailureSink } from "./acp/turn-failures.js";
@@ -239,35 +250,142 @@ export async function bootstrap({
     },
   });
 
+  // Construído uma vez e passado adiante: o servidor e a esteira precisam do
+  // **mesmo** runner, senão a esteira rodaria `setup` num processo que a aba
+  // `Setup` do rodapé não vê.
+  const scripts = createScriptRunner({
+    db: openedDatabase.db,
+    sessionStore,
+    ptyManager,
+    shell: config.shell,
+    portRange: config.runPortRange,
+    events,
+    log: {
+      warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+        bootedApp?.log.warn(...args);
+      },
+      info: (...args: Parameters<FastifyBaseLogger["info"]>) => {
+        bootedApp?.log.info(...args);
+      },
+    },
+  });
+
+  /*
+   * Git, host e caches construídos **aqui**, e não pelos defaults do servidor.
+   *
+   * Pelo mesmo motivo do `scripts` logo acima: a esteira e o servidor precisam
+   * dos **mesmos**. Dois `PrCache` perguntariam ao `gh` duas vezes a mesma
+   * coisa, que é exatamente o que a `013` pagou para não fazer — *"oito
+   * worktrees custam um processo, não oito"*.
+   */
+  const git = createGitService();
+  const clones = createCloneJobStore();
+  const prHost = createGhHost();
+  const pr = createPrCache({
+    host: prHost,
+    onChange: (projectId) => {
+      events.emit({ type: "pr.changed", projectId });
+    },
+  });
+  const issues = createIssueCache({ host: prHost });
+
   const app = await createServer({
     config,
     db: openedDatabase.db,
     ptyManager,
     acpManager: acp,
     sessionStore,
-    // Construído aqui, e não pelo default do servidor, só por causa do log: um
-    // `[scripts]` com valor torto vira aviso, e aviso sem log é silêncio.
-    scripts: createScriptRunner({
-      db: openedDatabase.db,
-      sessionStore,
-      ptyManager,
-      shell: config.shell,
-      portRange: config.runPortRange,
-      events,
-      log: {
-        warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
-          bootedApp?.log.warn(...args);
-        },
-        info: (...args: Parameters<FastifyBaseLogger["info"]>) => {
-          bootedApp?.log.info(...args);
-        },
-      },
-    }),
+    scripts,
+    git,
+    clones,
+    prHost,
+    pr,
+    issues,
     events,
     agentAuth,
     logger,
   });
   bootedApp = app;
+
+  /*
+   * A esteira (`028` Parte 2).
+   *
+   * **Ela chama o mesmo router que a tela chama**, por um chamador do lado do
+   * servidor. A alternativa seria uma segunda implementação de *"cortar worktree
+   * e abrir sessão"* — e duas implementações do mesmo gesto é como elas
+   * divergem: a `026` acabou de pôr quatro origens no corte, e nenhuma delas
+   * valeria para a esteira.
+   */
+  const api = createCallerFactory(appRouter)({
+    config,
+    db: openedDatabase.db,
+    ptyManager,
+    acpManager: acp,
+    sessionStore,
+    scripts,
+    git,
+    clones,
+    prHost,
+    pr,
+    issues,
+    events,
+    agentAuth,
+  });
+
+  const stopConveyor = runConveyorLoop({
+    db: openedDatabase.db,
+    conveyor: createConveyor(
+      createConveyorPorts({
+        db: openedDatabase.db,
+        git,
+        scripts,
+        createWorktree: async ({ projectId, name, taskId }) => {
+          const created = await api.worktree.create({ projectId, name, taskId });
+          return { id: created.id, path: created.path };
+        },
+        openAgentSession: async ({ taskId, adapter, model, cwd, worktreeId, agentMode }) => {
+          // `cwd` não é usado: a sessão da esteira é **de escopo**, e o escopo é
+          // a worktree — o daemon resolve o diretório dela, como faz para toda
+          // conversa aberta pela tela.
+          void cwd;
+          const configured = await configForAdapter(openedDatabase.db, adapter);
+          const opened = await api.session.createAgent({
+            scopeType: "worktree",
+            scopeId: worktreeId,
+            agentConfigId: configured,
+            taskId,
+          });
+          /*
+           * O modo do agente é escolhido **depois** do handshake, e não podia ser
+           * antes: ele é uma `configOption` que o próprio adaptador declara, e o
+           * daemon só conhece a lista dela quando a sessão existe.
+           *
+           * Falhar aqui não derruba o turno — um adaptador que não tem aquele
+           * modo vai perguntar alguma coisa e o turno vai morrer, que é a
+           * tentativa gasta com o motivo, e não um erro de boot.
+           */
+          if (agentMode !== null) {
+            await acp.setConfig(opened.id, "mode", agentMode).catch(() => undefined);
+          }
+          if (model !== null) {
+            await acp.setConfig(opened.id, "model", model).catch(() => undefined);
+          }
+          return { sessionId: opened.id };
+        },
+        prompt: async ({ sessionId, text }) => {
+          await acp.prompt(sessionId, text);
+        },
+        liveTurns: () => acp.liveTurns(),
+        prVerdictOf: (worktreeId) => verdictOfWorktree(openedDatabase.db, pr, worktreeId),
+      }),
+    ),
+    log: {
+      warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+        bootedApp?.log.warn(...args);
+      },
+    },
+  });
+
 
   /*
    * O resultado da conferência de adaptador, agora que há onde escrever.
@@ -297,6 +415,7 @@ export async function bootstrap({
       stopPlaybookTracking();
       stopUsageTracking();
       stopTaskProgress();
+      stopConveyor();
       await ptyManager.killAll();
       // Conversations too: an adapter left running is a subprocess with nothing
       // pointing at it, exactly like an orphaned shell.

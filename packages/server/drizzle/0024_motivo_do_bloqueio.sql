@@ -1,0 +1,1 @@
+ALTER TABLE `task` ADD `blocked_reason` text;
