@@ -747,3 +747,23 @@ mesmo tamanho que a [016-session-mode](../features/016-session-mode/prd.md) teve
 **De onde veio:** [027 Q5](../features/027-adapter-provenance/open-questions.md) · **Volta quando:** alguém
 quiser trocar esforço sem sair do Lumem, ou quando uma persona do repositório for o motivo de abrir a
 conversa.
+
+### A gramática de `Status:` não sabe dizer "esta lista acabou, a PRD não" — `P`
+
+O [`025`](../features/025-docs-contract/prd.md) fechou a gramática em quatro valores — `proposta`,
+`em execução`, `completa`, `superada por` — e o `gate:full` cobra que a PRD e o `tasks.md`
+**concordem**. Isso pressupõe **um** `tasks.md` por PRD, e a [`028`](../features/028-autonomous-orchestration/tasks.md)
+é a primeira a quebrar a suposição: a PRD tem seis partes, o `tasks.md` executa **uma**, e as 12
+tasks dela estão entregues.
+
+Com `completa` no `tasks.md`, a PRD é obrigada a dizer `completa` também — afirmando que a esteira
+existe. A saída de hoje é deixar os dois em `em execução` e pôr o estado da fatia no §Histórico, que
+é honesto e **não é verificável pelo gate**: uma fatia entregue e uma fatia abandonada escrevem a
+mesma linha.
+
+As saídas possíveis, nenhuma medida: um `tasks.md` por fatia em subpasta (`f1/tasks.md`), um campo
+`Cobre:` no cabeçalho, ou um quinto valor que diga *"a lista acabou"* sem falar pela PRD.
+
+**De onde veio:** a fase 4 da [`028`](../features/028-autonomous-orchestration/tasks.md), ao tentar
+fechar o arquivo · **Volta quando:** a segunda PRD for fatiada em dois `tasks.md` — aí já são duas, e
+a lacuna deixa de ser anedota.

@@ -186,6 +186,31 @@ com o número que a recusou. O defeito de brinde é do mesmo tipo: `rateLimitOf`
 raiz de `_claude/rateLimit` e o `0.75.1` a aninhou em `unifiedWindows.<janela>` — o rodapé de limite
 está apagado em **todo** transcript do repositório, sem nada falhar.
 
+E a [autonomous-orchestration](docs/features/028-autonomous-orchestration/prd.md) é a maior PRD do
+repositório e a primeira **fatiada**: das seis partes do escopo, o `tasks.md` executa **uma** — o
+quadro lendo a `022`, com a autonomia desligada —, e as **12 tasks das cinco fases estão entregues**.
+O corte não é cautela: seis das nove conversas técnicas do §11 continuam guardadas, duas não têm
+resposta, e uma delas **exige ADR novo** porque contradiz o [ADR de
+2026-08-30](docs/adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md). A fase 0 é um
+[estudo](docs/project/orchestration-measurements.md), e ele mudou duas coisas antes de existir código.
+A primeira é a que manda: **o `StopReason` do ACP não distingue *"terminei"* de *"te perguntei"***.
+Dos **13 `end_turn`** gravados neste repositório, **4** significaram terminei — quatro eram pergunta,
+dois eram espera sem interrogação, e **três eram o turno morrendo no meio do trabalho**. A heurística
+do ponto de interrogação pega 4 dos 9: **44% de recall**, errando no caso caro. Isso tira o §4.1 do
+terreno da cautela — *a máquina só move quando o fato é verificável de fora do agente* passa a ser a
+**única leitura disponível**, porque o transporte não tem o dado. A segunda é que o modelo da `022`
+não comportava o quadro: sete colunas contra quatro estados úteis, e `Backlog`/`To-Do` colapsariam no
+mesmo `open` — apagando a fronteira de autorização que a coluna existe para marcar. O estudo também
+mediu o que **não** entra: o precedente do `gh` **não é portável** para tracker (não existe `linear`
+na máquina), polling cabe em **2,4% da cota** do Linear, e a camada gerenciada custa **~2 s** por
+chamada contra ~345 ms do caminho direto. O selo é derivado de **turno em voo**, e não de processo
+vivo — 7 dos 15 transcripts nunca receberam um prompt, e cada um deles pintaria *"implementando há
+3 h"* pelo outro critério. A tela reproduziu a conta do Open Design (1152px de faixa + 264 da sidebar
+= 1416 contra 1418 medidos) e achou três defeitos que nenhuma leitura de código pega — o mais caro
+deles é que o **`ResizeObserver` vê a caixa, e o que muda é o conteúdo**. Duas perguntas ficaram
+abertas e represadas até a F2, e uma terceira **nunca precisou existir**: a Q38 levantou o arrasto
+para `In Progress` como contradição, e ele **já funcionava** — sem um único teste cobrindo.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |

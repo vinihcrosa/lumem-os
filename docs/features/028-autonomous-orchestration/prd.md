@@ -13,10 +13,11 @@
 > **Tasks:** [tasks.md](tasks.md), aberto em **2026-09-12** e **só com a F1** — o quadro lendo a
 > `022`, com a autonomia desligada. O §0 de lá registra o corte: seis das nove conversas do §11
 > continuam guardadas, e duas delas não têm resposta — uma exige ADR novo. A F1 não depende de
-> nenhuma. As fases **0 a 3 estão entregues**: o desenho sincronizado, o
+> nenhuma. **As 12 tasks das cinco fases estão entregues**: o desenho sincronizado, o
 > [estudo](../../project/orchestration-measurements.md) escrito, o modelo já comportando as sete
 > colunas com a ordem dentro de cada uma, a leitura — uma chamada, sete colunas, selo derivado — e a
-> tela. Falta a fase 4, o e2e
+> tela, mais o e2e do quadro — quatro casos e **zero token**, com o selo provado **derivado**: o turno
+> some da lista e ele volta na leitura seguinte, sem nenhuma escrita
 > **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md),
 > 2026-09-12 — e ele mudou duas coisas antes de existir código. **`end_turn` não distingue
 > *"terminei"* de *"te perguntei"***: dos 13 turnos gravados neste repositório, **4** significaram

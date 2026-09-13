@@ -5,7 +5,8 @@
 **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
 
 **Status:** em execução
-**Histórico:** aberto em **2026-09-12**, e **só com a F1**. O corte é decisão registrada: das seis
+**Histórico:** **as 12 tasks das 5 fases estão entregues** (2026-09-12) — e este arquivo cobre **só a
+F1**. O corte é decisão registrada: das seis
 partes do §6, este arquivo executa **uma** — o quadro lendo a
 [`022`](../022-workspace-tasks/prd.md), com a autonomia desligada. A esteira (F2), o orçamento (F3), a
 supervisão (F4) e as duas pontas do tracker (F5, F6) ficam para um `tasks.md` seguinte, e o §0 diz
@@ -14,6 +15,16 @@ duas coisas antes de existir código.
 
 A ordem tem uma regra: **o modelo antes da leitura, a leitura antes da tela** — e a tela por último
 porque é a mais barata de refazer e a única represada pelo Open Design, que desta vez já entregou.
+
+> **Por que `em execução` com as 12 entregues.** A gramática do
+> [`025`](../025-docs-contract/prd.md) tem quatro valores — `proposta`, `em execução`, `completa`,
+> `superada por` — e o `gate:full` cobra que a PRD e o `tasks.md` **concordem**. Esta é a primeira
+> feature cuja PRD é fatiada em mais de um `tasks.md`: a F1 fechou, e a F2 a F6 nem começaram.
+> `completa` aqui obrigaria a PRD a dizer `completa` também, o que seria afirmar que a esteira existe.
+>
+> **O estado da fatia mora no §Histórico e nos `Status:` de cada task**, que é onde ele é verificável.
+> Isso é uma lacuna da gramática, não uma folga: ela não sabe dizer *"esta lista acabou, a PRD
+> não"*. Anotada no [backlog](../../project/backlog.md).
 
 ---
 
@@ -351,7 +362,7 @@ usada do produto (§4).
 
 ---
 
-## Fase 4 — o portão
+## Fase 4 — o portão · **entregue**
 
 #### T12: O e2e do quadro
 
@@ -364,6 +375,20 @@ recolhidas; **(b)** arrastar entre colunas persiste a coluna e a ordem, e arrast
 para `In Progress` **e acende o selo**, e matar a sessão apaga o selo sem mover o cartão de volta;
 **(d)** em 1200px a faixa de rolagem aparece dizendo quantas colunas ficaram fora.
 **Gate**: `pnpm gate:full`
+**Status**: ✅ entregue (2026-09-12) — `e2e/board.spec.ts`, **quatro casos, zero token**, e os quatro
+conferidos por mutação em vez de acreditados: guardar o selo em vez de derivá-lo derruba o (c);
+fazer a faixa nunca zerar derruba o (d).
+
+> **A janela do turno em voo é o pedido de permissão.** O agente falso para ali e espera, então o
+> selo fica estável o bastante para ser lido — sem isso, um turno que abre e fecha em milissegundos
+> não é observável, e o caso viraria um `sleep` disfarçado.
+>
+> Três coisas que o e2e cobrou e nenhuma era do quadro: **`e2e` só é botão na migalha** (sem projeto
+> aberto o workspace é um `combobox` na sidebar, e clicar numa opção de `select` não é clicar num
+> botão); a conversa mora na **worktree** e é a **segunda** aba, porque a primeira é o checkout
+> (`018`); e a suíte compartilha daemon, então *"três na To-Do"* vira quatro sem ninguém ter feito
+> nada — daí o `clearBoard` no `beforeEach`, com as duas portas, porque `remove` recusa tarefa que
+> teve sessão e `dropped` sai do quadro.
 
 > **O (c) é o que paga por esta fase.** Ele prova as duas metades da T7 de uma vez: o cartão se move
 > por fato derivado, e o selo **volta sozinho na leitura seguinte** sem ninguém ter escrito nada.

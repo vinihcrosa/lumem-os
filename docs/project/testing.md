@@ -53,6 +53,8 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `server/` **adaptador de host de git** | unit com o executor **dublado** e fixtures capturadas de uma execução real. É a inversão declarada da regra do git: git nunca é dublado porque `git worktree` tem comportamento que nenhum dublê reproduz; o `gh` **tem** que ser, porque fala com a rede e com a conta de quem roda a suíte. **Nenhum teste da suíte executa o `gh`** | Sim |
 | **barra da pull request** de ponta a ponta | e2e `pull-request.spec.ts`, com um `gh` **falso** num diretório na frente do `PATH` do daemon: processo de verdade, `argv` de verdade, saída de verdade, zero rede. Cada teste tem a **própria branch** — o daemon guarda um instantâneo por projeto, e os specs compartilham um daemon | **Não** |
 | **menus do composer** — geometria | e2e `composer-menus.spec.ts`, com o fake em `LUMEM_FAKE_MANY_MODELS=1`: vinte modelos, zero token. A pergunta **não** é `toBeVisible` — um elemento recortado por um ancestral continua no DOM, com caixa, e o matcher continua satisfeito. É `document.elementFromPoint` no meio do elemento, que é o que o mouse responde. Foi assim que se descobriu que o menu de `/comandos` era **invisível por inteiro** há três features, tendo teste de componente o tempo todo | **Não** |
+| **o quadro** — as sete colunas, o arrasto e o selo | e2e `board.spec.ts`, **zero token**: o agente é falso e o selo é lido pelo `task.board`. A janela em que o turno está **em voo** é o pedido de permissão — o fake para ali e espera —, porque um turno que abre e fecha em milissegundos não é observável, e o caso viraria um `sleep` disfarçado. O `beforeEach` limpa o quadro com **duas** portas (`remove` recusa tarefa que teve sessão, `dropped` sai do quadro): num quadro, estado de um caso vira *"quatro na To-Do"* no seguinte | **Não** |
+| **o selo é derivado**, e não guardado | o par do §12 da [`028`](../features/028-autonomous-orchestration/prd.md), no `board.spec.ts`: o turno some da lista do `AcpManager` e o selo volta para `manual` **na leitura seguinte, sem nenhuma escrita** — e o cartão não volta de coluna. Conferido por mutação: guardar o selo derruba o caso | **Não** |
 | `web/` fluxo de usuário | e2e (Playwright) | **Não** — daemon único, porta única, estado compartilhado |
 | **a própria documentação** | `scripts/check-docs.test.ts` — 21 testes sobre fixtures mais **um que roda o checador contra a árvore de verdade**, e é esse que é o gate. Link relativo resolve, âncora de heading resolve, e o `**Status:**` de cada feature está na gramática fechada e concorda com o `tasks.md` da mesma pasta | Sim |
 
@@ -659,6 +661,29 @@ com `FOREIGN KEY constraint failed`.
 
 A regra que sai daí: **toda migração que muda ação de estrangeiro por `ALTER TABLE` precisa de um
 caso que exerça a ação**, e não só a presença da coluna.
+
+### `ResizeObserver` vê a caixa, e o que mudou é o conteúdo
+
+A faixa que avisa *"2 colunas fora da tela"* nasceu observando a própria faixa de colunas com um
+`ResizeObserver`. Parecia certo — deriva da coisa, como o selo e o relógio de encalhe — e **nunca
+aparecia**. Medido no navegador: 836px de espaço para 1152 de colunas, e nenhum aviso.
+
+O motivo é de ordem. Na primeira pintura a consulta ainda não voltou: **não há coluna nenhuma**,
+então não há transbordo, e o observador mede zero corretamente. Quando os cartões chegam, quem muda é
+o **conteúdo** — a caixa fica do mesmo tamanho, o observador não dispara, e a medida de zero
+sobrevive para sempre.
+
+E pior: nesta máquina o `ResizeObserver` não entregou **uma única notificação** em nenhum dos dois
+sentidos — conferido com um observador criado à mão na página, que contou zero disparos ao encolher e
+ao alargar. A faixa ficava **acesa** com `scrollWidth === clientWidth`, dizendo que duas colunas
+estavam fora quando não estava nenhuma. Um aviso que não some é a mesma doença de um que não aparece.
+
+A saída foi medir **a cada pintura** (`useLayoutEffect` sem deps, que converge porque `setState` com
+o mesmo valor não repinta) mais o `resize` da janela, que é o único caminho que não passa pelo React.
+
+A regra que sai daí: **jsdom não faz layout, então nenhum teste de componente responde isto** — quem
+responde é o e2e, e a pergunta tem que ser feita **nos dois sentidos**. Um caso que só confere que o
+aviso aparece fica verde contra um aviso que nunca some.
 
 ### O mesmo nome em duas peças clicáveis quebra 22 e2e de uma vez
 
