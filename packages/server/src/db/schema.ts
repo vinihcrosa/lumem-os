@@ -921,6 +921,41 @@ export const task = sqliteTable(
      * ninguém tocou. Um sinal que se apaga quando alguém passa perto é pior que
      * nenhum sinal.
      */
+    /**
+     * Quantas vezes a esteira abriu sessão para esta tarefa **nesta etapa**
+     * (`028` Parte 2, T22).
+     *
+     * É a **única** peça do lease do Compozy que atravessou inteira, e o
+     * [ADR](../../../../docs/adr/2026-09-13-0412-the-conveyor-has-no-lease.md)
+     * diz por quê: quem está com a tarefa é derivado do turno em voo e não
+     * pode mentir; quantas vezes já se tentou **não está em lugar nenhum**
+     * depois que o processo morreu. Sem este número, uma tarefa que mata a
+     * sessão toda vez volta à fila para sempre, gastando em cada volta — e três
+     * dos treze turnos gravados neste repositório morreram no meio do trabalho.
+     *
+     * **Zera na mudança de etapa**, porque mudar de etapa *é* a conclusão
+     * bem-sucedida daquela etapa. É a regra do *unblock-loop breaker* de lá —
+     * *"só zera em conclusão bem-sucedida, nunca em unblock ou expiry"* — com o
+     * nosso vocabulário. O efeito é deliberado: falhar revisando não é o mesmo
+     * defeito que falhar implementando, e cada etapa tem o seu orçamento.
+     */
+    attempts: integer("attempts").notNull().default(0),
+    /**
+     * Se a esteira pode pegar **esta** tarefa (`028` Parte 2, T22).
+     *
+     * Dois valores, e o default é `inherit`: a tarefa segue o interruptor do
+     * workspace. `off` é o que **assumir** o volante escreve — o §6, Parte 4 já
+     * definia *"abre a conversa e desliga a autonomia daquela tarefa"* —, e a
+     * [Q40](../../../../docs/features/028-autonomous-orchestration/open-questions.md)
+     * decidiu que arrastar um cartão para uma coluna da máquina é um **segundo
+     * caminho para o mesmo interruptor**.
+     *
+     * Ele **não** zera na mudança de etapa, e é a diferença entre ele e o
+     * contador acima: tentativa é sobre a etapa, e autonomia é sobre a tarefa.
+     * Você desligou porque quer fazer aquilo na mão, e mover de coluna não
+     * desfaz essa intenção.
+     */
+    autonomy: text("autonomy").notNull().default("inherit"),
     statusChangedAt: integer("status_changed_at", { mode: "timestamp_ms" })
       .notNull()
       // `DEFAULT 0` no banco e o relógio na aplicação, e **não** o `NOW` que o
@@ -941,6 +976,11 @@ export const task = sqliteTable(
       sql`${table.status} IN ('proposed', 'backlog', 'open', 'in_progress', 'review', 'testing', 'ready_to_merge', 'done', 'dropped')`,
     ),
     check("task_created_by", sql`${table.createdBy} IN ('human', 'agent')`),
+    check("task_autonomy", sql`${table.autonomy} IN ('inherit', 'off')`),
+    // Tentativa negativa não quer dizer nada, e a coluna é escrita por
+    // incremento — um `- 1` em algum lugar viraria um contador que anda para
+    // trás sem ninguém notar.
+    check("task_attempts_not_negative", sql`${table.attempts} >= 0`),
     // Os dois sentidos, como o `session_agent_config`: tarefa de agente sem
     // sessão é proposta sem proveniência — e proveniência é o que separa
     // proposta de lixo —, e uma tarefa "criada por você" carregando sessão

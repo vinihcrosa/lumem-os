@@ -22,6 +22,15 @@ import { withConstraints } from "./base.js";
 
 export type TaskStatus = TaskRow["status"];
 export type TaskActor = "human" | "agent";
+/**
+ * Se a esteira pode pegar **esta** tarefa (`028` Parte 2, T22).
+ *
+ * Dois valores, e não três: `on` não existe porque ligar **é** o default, e
+ * quem decide é o interruptor do workspace. Um terceiro valor seria um segundo
+ * lugar dizendo a mesma coisa, e dois lugares que dizem a mesma coisa é como
+ * eles divergem.
+ */
+export type TaskAutonomy = "inherit" | "off";
 
 /**
  * Em ordem de quadro (`028` §4), com os dois que não são coluna nas pontas:
@@ -126,6 +135,26 @@ export interface TaskRepository {
     options?: { actor?: TaskActor; reason?: string },
   ): Promise<TaskRow>;
   attachWorktree(id: string, worktreeId: string): Promise<TaskRow>;
+  /**
+   * Mais uma tentativa da esteira **nesta etapa** (`028` T22).
+   *
+   * Incremento no banco (`attempts + 1`), e não leitura seguida de escrita: a
+   * segunda forma perde uma tentativa se duas chamadas se cruzarem, e o preço
+   * de perder é abrir uma sessão a mais — que gasta.
+   *
+   * Devolve o valor novo, porque quem chama precisa dele para decidir se ainda
+   * há tentativa. Ler de novo depois seria abrir a mesma janela pela porta dos
+   * fundos.
+   */
+  countAttempt(id: string): Promise<number>;
+  /**
+   * O interruptor da [Q40](../../../../docs/features/028-autonomous-orchestration/open-questions.md).
+   *
+   * `off` é o que **assumir** o volante escreve, e `inherit` é voltar a seguir
+   * o workspace. Ele **não** zera na mudança de etapa: você desligou porque
+   * quer fazer aquilo na mão, e mover de coluna não desfaz a intenção.
+   */
+  setAutonomy(id: string, autonomy: TaskAutonomy): Promise<TaskRow>;
   /**
    * O gesto do quadro: a coluna de destino **e** o lugar nela (`028` §4.3, T5).
    *
@@ -324,6 +353,12 @@ export function createTaskRepository(db: Db): TaskRepository {
               // O relógio do encalhe zera **aqui**, e só aqui: é a troca de
               // coluna que ele mede, não a última vez que alguém mexeu.
               statusChangedAt: new Date(),
+              // E a tentativa zera junto, na **mesma** escrita (`028` T22).
+              // Mudar de etapa *é* a conclusão bem-sucedida daquela etapa, e um
+              // segundo `UPDATE` para zerar deixaria uma janela em que a tarefa
+              // já está na coluna nova carregando o contador da anterior — que é
+              // o suficiente para a fila recusar um cartão recém-promovido.
+              attempts: 0,
               updatedAt: new Date(),
             })
             .where(eq(task.id, id))
@@ -379,8 +414,12 @@ export function createTaskRepository(db: Db): TaskRepository {
                     closedAt: CLOSED.has(target.status) ? (current.closedAt ?? new Date()) : null,
                     // Reordenar **dentro** da mesma coluna não é entrar nela: o
                     // cartão que você subiu para o topo continua parado há duas
-                    // horas, e o relógio tem que continuar dizendo isso.
-                    ...(current.status === target.status ? {} : { statusChangedAt: new Date() }),
+                    // horas, e o relógio tem que continuar dizendo isso. A
+                    // tentativa segue o relógio pelo mesmo motivo, e não o
+                    // `status`: subir um cartão de lugar não é uma etapa nova.
+                    ...(current.status === target.status
+                      ? {}
+                      : { statusChangedAt: new Date(), attempts: 0 }),
                     updatedAt: new Date(),
                   }
                 : { position },
@@ -406,6 +445,38 @@ export function createTaskRepository(db: Db): TaskRepository {
         .set({ worktreeId, updatedAt: new Date() })
         .where(eq(task.id, id))
         .returning();
+      return row!;
+    },
+
+    async countAttempt(id) {
+      const [row] = await db
+        .update(task)
+        .set({ attempts: sql`${task.attempts} + 1`, updatedAt: new Date() })
+        .where(eq(task.id, id))
+        .returning({ attempts: task.attempts });
+      // `update` sem linha não erra no SQLite — ele afeta zero linhas e volta
+      // calado. Sem esta guarda, a esteira contaria tentativa de uma tarefa
+      // apagada e nunca saberia.
+      if (!row) throw new DomainError("NOT_FOUND", `tarefa ${id} não existe`);
+      return row.attempts;
+    },
+
+    async setAutonomy(id, autonomy) {
+      await require_(id);
+      const [row] = await withConstraints(
+        () =>
+          db
+            .update(task)
+            .set({ autonomy, updatedAt: new Date() })
+            .where(eq(task.id, id))
+            .returning(),
+        {
+          "check:task_autonomy": {
+            code: "INVALID_ARGUMENT",
+            message: `autonomia inválida: ${autonomy}`,
+          },
+        },
+      );
       return row!;
     },
 

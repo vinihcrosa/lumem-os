@@ -872,3 +872,97 @@ describe("0018 — os tetos do workspace", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("0020 — a tentativa e a autonomia da esteira", () => {
+  /**
+   * Um banco parado em 0019, com **tarefas dentro**.
+   *
+   * As tarefas são o ponto. Esta migração recria a tabela `task`, e o
+   * `drizzle-kit` gerou — pela **terceira vez** neste repositório — um
+   * `INSERT … SELECT` lendo `attempts` e `autonomy` da tabela **velha**, onde
+   * elas não existem. Com a tabela vazia, o `SELECT` errado nunca executa uma
+   * linha e a migração passa: é exatamente por isso que este arquivo escreve
+   * linhas antes de migrar.
+   */
+  function databaseBeforeConveyor(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-conveyor-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(20) });
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'acme')`).run();
+    sqlite
+      .prepare(
+        `INSERT INTO project (id, workspace_id, name, path, default_branch)
+         VALUES ('p1', 'w1', 'api', '/repos/api', 'main')`,
+      )
+      .run();
+    sqlite
+      .prepare(
+        `INSERT INTO task (id, workspace_id, project_id, title, status, position)
+         VALUES ('t1', 'w1', 'p1', 'o /orders devolve 500', 'in_progress', 0)`,
+      )
+      .run();
+    sqlite
+      .prepare(
+        `INSERT INTO task (id, workspace_id, project_id, title, status, position, closed_at)
+         VALUES ('t2', 'w1', 'p1', 'validar CPF', 'done', 0, 1789000000000)`,
+      )
+      .run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("a tarefa que já existia sobrevive à tabela ser recriada", async () => {
+    const handle = openDatabase({ path: databaseBeforeConveyor() });
+    open.push(handle);
+
+    // A asserção que a armadilha do gerador derruba: com o `SELECT` como ele
+    // veio, esta migração falha com *"no such column: attempts"* — e só quando
+    // existe linha para copiar.
+    const rows = await handle.db.select().from(schema.task);
+    expect(rows.map((row) => row.id).sort()).toEqual(["t1", "t2"]);
+  });
+
+  it("ela acorda sem tentativa nenhuma e sem autonomia ligada", async () => {
+    const handle = openDatabase({ path: databaseBeforeConveyor() });
+    open.push(handle);
+
+    const [row] = await handle.db.select().from(schema.task).where(eq(schema.task.id, "t1"));
+
+    /*
+     * `attempts: 0` é a verdade sobre toda tarefa que existia antes de a
+     * esteira existir — nenhuma delas foi tentada por ninguém. E `inherit` não
+     * liga nada: o interruptor do workspace nasce em `manual`, então um
+     * `~/.lumem` que atravessa esta migração continua não andando sozinho.
+     */
+    expect(row).toMatchObject({ attempts: 0, autonomy: "inherit" });
+  });
+
+  it("tentativa negativa é recusada — o contador só anda para frente", async () => {
+    const handle = openDatabase({ path: databaseBeforeConveyor() });
+    open.push(handle);
+
+    await expect(
+      handle.db.update(schema.task).set({ attempts: -1 }).where(eq(schema.task.id, "t1")),
+    ).rejects.toThrow();
+  });
+
+  it("autonomia fora dos dois valores é recusada", async () => {
+    const handle = openDatabase({ path: databaseBeforeConveyor() });
+    open.push(handle);
+
+    await expect(
+      handle.db
+        .update(schema.task)
+        // `on` não existe: ligar é o default (`inherit`), e quem decide é o
+        // workspace. Um terceiro valor aqui seria um segundo lugar dizendo a
+        // mesma coisa.
+        .set({ autonomy: "on" })
+        .where(eq(schema.task.id, "t1")),
+    ).rejects.toThrow();
+  });
+});
