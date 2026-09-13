@@ -227,6 +227,30 @@ requisito, reafirma os três ADRs em vigor, e nomeia **três vazamentos medidos*
 repassado do ACP, o `session.mode` cru, e o `TaskRow` derivado do `drizzle`, que é o banco decidindo a
 forma do domínio.
 
+A **Parte 2 — A esteira** fechou em **2026-09-13**, e com ela a `028` passa a ter **33 tasks
+entregues** em três fatias. O daemon **puxa da fila sem ninguém pedir**: corta a worktree, roda o
+`setup`, abre a sessão do encaixe no modo que não pergunta, manda o prompt e julga — com a autonomia
+nascendo em `manual` e o degrau `assistido` no meio, que prepara tudo e **para antes de enviar**. A
+fase 0 dela produziu um [ADR](docs/adr/2026-09-13-0412-the-conveyor-has-no-lease.md) com
+[estudo](docs/project/conveyor-durable-state.md): **a esteira não tem lease**. Dos dez invariantes do
+Compozy, **seis não se aplicam** — lá qualquer sessão reivindica um run, aqui quem reivindica é o
+daemon, que é um só —, **um já era grátis** (o selo é derivado, e matar a sessão o devolve na leitura
+seguinte, com teste) e **três ficam**, todos sobre *quantas vezes já se tentou*. Sobraram duas
+colunas: `attempts`, que zera na mudança de etapa porque mudar de etapa **é** a conclusão daquela
+etapa, e `autonomy`, que não zera porque você desligou de propósito.
+
+**O e2e achou dois defeitos que nenhuma leitura de código pega**, e o mais caro é de produto: quando o
+agente é dono do seletor de modos, o daemon **não consulta** a política do Lumem — ele manda o pedido
+de permissão para uma pessoa (a A1 da [`016`](docs/features/016-session-mode/prd.md)) —, e numa sessão
+de esteira **não há pessoa**. O turno pendurava para sempre com o cartão dizendo `implementando` a
+manhã inteira. Daí saíram duas coisas: a sessão da esteira **nasce** na política que precisa em vez de
+trocar para ela — o portão do `016` protege a **troca**, e continua inteiro —, e o turno ganhou um
+**teto de 30 minutos** que não existia. O segundo defeito é o log da passada, que o pino serializava
+como `{"code":"BLOCKED"}` **sem a frase** — a mesma falha que o retrato do turno já tinha pago, e foi
+consertá-la que permitiu diagnosticar a primeira. Um terceiro veio de um teste de fila: a regra do
+arrasto contava `open` como coluna da máquina, então **pôr uma tarefa na fila desligava a autonomia
+dela** e a esteira ficaria vazia para sempre sem nada falhar.
+
 A **Parte 3 — Orçamento e limites** fechou em **2026-09-13**, e ela veio **antes da esteira**: a Q43
 mediu que o único modo do Claude que deixa a esteira andar é o único que **nunca pergunta**, então a
 segurança dela não pode vir do modo de permissão — tem que vir do CI, do orçamento e do teto de
