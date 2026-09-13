@@ -315,3 +315,16 @@
   color: var(--color-text-code);
   font-variant-ligatures: none;
 }
+
+/*
+ * As credenciais dos serviços, no mesmo rodapé (ADR de 2026-09-13).
+ *
+ * Duas regras, e é tudo o que o bloco precisa: ele **reusa** a linha inteira do
+ * de cima — `foot-head`, `foot-row`, `pip`, `foot-row__st`. Uma peça nova aqui
+ * seria uma segunda gramática para a mesma coisa.
+ */
+
+/* `⚿` é chave, e o alfabeto do produto separa cor de glifo: cor é estado, glifo
+   é categoria. A categoria é *credencial*, e ela não tem cor própria — o ponto
+   ao lado já diz se está guardada. */
+.glyph--key { color: var(--color-text-tertiary); }

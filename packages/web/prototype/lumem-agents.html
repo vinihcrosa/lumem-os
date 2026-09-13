@@ -703,6 +703,110 @@
     </div>
   </section>
 
+
+  <!-- =================================================================== 9 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">9</span>as credenciais, e por que elas ficam no rodapé</h2>
+      <p class="sec__d">
+        O <a class="lnk" href="#">ADR de 2026-09-13</a> decidiu que <b>o Lumem guarda as chaves dos
+        serviços de que ele depende</b>, cifradas em <code>~/.lumem/_system/</code>. A pergunta de
+        desenho que sobra é <b>onde</b> se põe a chave — e ela tem uma resposta que não é de gosto.
+      </p>
+      <p class="sec__d">
+        <b>Uma credencial é da máquina, e não do workspace.</b> O cofre mora no
+        <code>~/.lumem</code>, que é um por instalação: guardar a chave do Linear dentro da tela do
+        workspace <b>Acme</b> prometeria que existe outra no <b>Pessoal</b>, e não existe. O rodapé
+        da sidebar já é o lugar do que é da máquina — é lá que os <b>Adaptadores</b> moram, pelo
+        mesmo motivo.
+      </p>
+      <p class="sec__d">
+        Então é um segundo bloco no mesmo rodapé, com a mesma linha: glifo, nome, ponto e estado.
+        <b>Nenhum vocabulário novo</b> — o que muda é o glifo, <code>⚿</code>, e a palavra do estado.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o rodapé com os dois blocos · <span class="mm">264px</span>, a largura da sidebar</div>
+      <div class="sbframe">
+        <div class="sidebar">
+          <div class="tree"><div class="tree__label">Projetos</div>
+            <button class="row row--project"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">acme-api</span></button>
+          </div>
+          <div class="sidebar__foot">
+            <div class="foot-head"><span class="foot-head__label">Adaptadores</span><button class="act">＋</button></div>
+            <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+            <div class="foot-head"><span class="foot-head__label">Credenciais</span></div>
+            <button class="foot-row foot-row--on"><span class="glyph glyph--key">⚿</span><span class="foot-row__label">Linear</span><span class="pip"></span><span class="foot-row__st">guardada</span></button>
+          </div>
+        </div>
+      </div>
+
+      <p class="case__note">
+        <b>Sem <code>＋</code> neste bloco, e é diferente do de cima.</b> O catálogo é <b>fechado</b>:
+        os serviços que o Lumem sabe guardar são os que ele sabe usar, e um <code>＋</code>
+        prometeria acrescentar um — o que produziria uma credencial que nada lê, guardada para
+        sempre, com quem a pôs achando que configurou alguma coisa.
+      </p>
+      <p class="case__note">
+        <span class="q">medida</span> <b>O bloco custa <span class="mm">60px</span></b> — cabeçalho
+        de <span class="mm">28</span> e linha de <span class="mm">32</span>, medidos no navegador — e
+        o rodapé é o único lugar da sidebar que não divide espaço com a árvore: ele é
+        <code>margin-top: auto</code>. Com um adaptador e um serviço, o rodapé mede
+        <span class="mm">133px</span> na sidebar de <span class="mm">264</span>.
+        <b>Eu tinha escrito 44 antes de medir</b>, e o número certo é 60: a linha do rodapé é a mesma
+        do bloco de cima, e ela é maior do que eu lembrava.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o diálogo · <b>modal centrado</b>, como a <code>sidebar-actions</code> decidiu</div>
+      <div class="modal-demo">
+        <div class="mdl">
+          <div class="mdl__h"><span class="glyph glyph--key">⚿</span>Linear</div>
+          <div class="mdl__b">
+            <label class="fld">
+              <span class="fld__l">chave de API</span>
+              <input class="fld__i" type="password" value="••••••••••••••••••••" />
+              <span class="fld__h">Settings → API, no Linear. O Lumem guarda cifrada e <b>nunca a mostra de volta</b>.</span>
+            </label>
+          </div>
+          <div class="mdl__f">
+            <button class="btn btn--sm">remover</button>
+            <span class="spacer"></span>
+            <button class="btn btn--sm">cancelar</button>
+            <button class="btn btn--sm btn--brand">guardar</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="case__note">
+        <b>O campo é <code>type="password"</code> e nasce vazio quando não há chave</b> — mas quando
+        há, ele <b>não</b> vem preenchido com o valor: vem com um marcador. O daemon não tem
+        procedure que devolva credencial, e desenhar um campo preenchido pediria uma.
+      </p>
+      <p class="case__note">
+        <b><code>remover</code> fica à esquerda, separado dos outros dois.</b> É a ação destrutiva, e
+        pô-la ao lado de <code>guardar</code> é como alguém a clica querendo o outro. Ela não pede
+        confirmação: apagar uma chave não perde trabalho — você cola outra.
+      </p>
+      <p class="case__note">
+        <b>As peças do diálogo são desta folha, e não vão para o produto.</b> O
+        <code>packages/web/src/ui/</code> já tem <code>Modal</code>, <code>Field</code> e
+        <code>Input</code> — o que este quadro desenha é a <b>forma</b>, e portá-lo como CSS novo
+        criaria uma segunda gramática de diálogo que diverge da primeira na próxima mudança de token.
+        O que atravessa é o arranjo: o campo, a frase embaixo dele, e o <code>remover</code> separado.
+      </p>
+      <p class="case__note">
+        <span class="q">decidido</span> <b>O texto do campo diz o que o produto faz com a chave</b>, e
+        é a frase mais importante desta tela: <em>guarda cifrada</em> e <em>nunca a mostra de
+        volta</em>. O que ele <b>não</b> diz — e o ADR diz — é que quem lê o seu <code>$HOME</code>
+        decifra. Isso não cabe num campo, e mora no ADR; o que cabe aqui é a promessa que a tela
+        consegue cumprir.
+      </p>
+    </div>
+  </section>
+
 </div>
 
 </body>

@@ -286,3 +286,38 @@
 .pairing__i { display: grid; gap: var(--space-6); }
 .pairing__l { font: var(--text-caption); color: var(--color-text-tertiary); }
 .pairing__l b { color: var(--color-text-brand); font-weight: 500; }
+
+/* ---------------------------------------------------------------------------
+   9. as credenciais, no rodapé da sidebar
+   -------------------------------------------------------------------------- */
+/*
+ * Uma credencial é **da máquina**, e o rodapé já é o lugar do que é da máquina.
+ * O cofre mora no `~/.lumem`, que é um por instalação: pôr a chave do Linear na
+ * tela do workspace prometeria que existe outra no workspace seguinte, e não
+ * existe.
+ *
+ * Então o bloco reusa a linha inteira do de cima — `foot-head`, `foot-row`,
+ * `pip`, `foot-row__st`. O que muda é o glifo e a palavra do estado. Uma peça
+ * nova aqui seria uma segunda gramática para a mesma coisa.
+ */
+/* `⚿` é chave, e o alfabeto do produto já separa cor de glifo: cor é estado,
+   glifo é categoria. Aqui a categoria é *credencial*, e ela não tem cor própria
+   — o ponto ao lado já diz se está guardada. */
+.glyph--key { color: var(--color-text-tertiary); }
+
+/* O diálogo, com a moldura de demonstração da folha. */
+.modal-demo { display: grid; place-items: center; padding: var(--space-24); background: var(--color-bg-base); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); }
+.mdl { width: calc(var(--space-64) * 6); background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); overflow: hidden; }
+.mdl__h { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-12) var(--space-16); font: var(--text-label-md); color: var(--color-text-primary); border-bottom: 1px solid var(--color-border-subtle); }
+.mdl__b { padding: var(--space-16); }
+.mdl__f { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-12) var(--space-16); border-top: 1px solid var(--color-border-subtle); }
+
+.fld { display: grid; gap: var(--space-6); }
+.fld__l { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.fld__i { width: 100%; padding: var(--space-8) var(--space-10); background: var(--color-bg-inset); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); font: var(--text-mono-sm); color: var(--color-text-primary); }
+.fld__i:focus { outline: none; border-color: var(--color-border-strong); }
+/* A frase que diz o que o produto faz com a chave. Ela é o item mais importante
+   do diálogo, e por isso não é `text-disabled`: dica que não se lê não protege
+   ninguém. */
+.fld__h { font: var(--text-caption); color: var(--color-text-secondary); }
+.fld__h b { color: var(--color-text-primary); font-weight: 500; }

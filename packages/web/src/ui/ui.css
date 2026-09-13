@@ -497,6 +497,16 @@
   text-transform: uppercase;
   color: var(--color-text-tertiary);
 }
+/*
+ * O que o campo faz, dito antes de alguém preenchê-lo.
+ *
+ * **Não** é `text-disabled`, e a diferença importa: dica que não se lê não
+ * protege ninguém, e a primeira a existir é a que diz o que o produto faz com
+ * uma credencial (ADR de 2026-09-13).
+ */
+.field__hint { font: var(--text-caption); color: var(--color-text-secondary); }
+.field__hint b { color: var(--color-text-primary); font-weight: 500; }
+
 .field__error {
   font: var(--text-body-sm);
   color: var(--color-text-danger);
