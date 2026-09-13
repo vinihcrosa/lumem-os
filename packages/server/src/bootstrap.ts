@@ -19,6 +19,7 @@ import { createAgentAuthService } from "./setup/agent-auth.js";
 import { adapterCommandForConfig } from "./setup/adapter-command.js";
 import { reconcileAdapters } from "./setup/reconcile-adapters.js";
 import { createMemoryPreamble } from "./memory/preamble.js";
+import { createBudgetSource } from "./tasks/budget-source.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createTranscriptStore, type TranscriptStore } from "./acp/TranscriptStore.js";
 import { createScriptRunner } from "./scripts/ScriptRunner.js";
@@ -151,6 +152,9 @@ export async function bootstrap({
           budget: config.taskBudget,
         },
       }),
+      // O teto entra pela mesma porta e pela mesma razão: este é o único lugar
+      // que conhece o banco e o manager ao mesmo tempo (`028` Parte 3, T16).
+      budget: createBudgetSource(openedDatabase.db),
     });
   /*
    * As tentativas de login vivas, criadas aqui para o desligamento alcançá-las.

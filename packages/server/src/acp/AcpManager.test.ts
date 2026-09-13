@@ -2240,3 +2240,109 @@ describe("codeIn", () => {
     expect(codeIn("ABRA A URL")).toBeNull();
   });
 });
+
+describe("o teto do workspace, antes do turno", () => {
+  /**
+   * O portão da `028` (Parte 3, T16).
+   *
+   * O que estes casos guardam é a ordem — **antes** de o turno custar — e a
+   * diferença entre os dois condutores: quem conduz é avisado e segue, a esteira
+   * para.
+   */
+  /** Um checkout descartável — o manager valida o `cwd` no `spawn`. */
+  function budgetCwd(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-acp-budget-"));
+    dirs.push(dir);
+    return dir;
+  }
+
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  function withBudget(decision: Awaited<ReturnType<NonNullable<AcpManagerOptions["budget"]>>>) {
+    const fake = fakeAgentProcess({});
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      budget: () => Promise.resolve(decision),
+    });
+    return { fake, manager };
+  }
+
+  it("sem fonte de teto, o turno é o que sempre foi", async () => {
+    const fake = fakeAgentProcess({});
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: budgetCwd() });
+
+    await expect(manager.prompt(info.id, "oi")).resolves.toBe("end_turn");
+  });
+
+  it("quem conduz recebe o número e o turno segue", async () => {
+    const { manager } = withBudget({
+      kind: "warn",
+      cap: "cost-per-task",
+      limit: 2,
+      spent: 2.5,
+      message: "passou do teto do workspace — US$ 2.00 por tarefa",
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: budgetCwd() });
+    const seen: string[] = [];
+    manager.onEvent(info.id, ({ event }) => {
+      if (event.type === "budget") seen.push(event.message);
+    });
+
+    // Interromper alguém que está olhando é como um teto vira desligado e nunca
+    // mais ligado (Q45).
+    await expect(manager.prompt(info.id, "oi")).resolves.toBe("end_turn");
+    expect(seen).toEqual(["passou do teto do workspace — US$ 2.00 por tarefa"]);
+  });
+
+  it("a esteira para, e a mensagem nomeia o teto", async () => {
+    const { manager } = withBudget({
+      kind: "block",
+      cap: "turns-per-session",
+      limit: 5,
+      spent: 5,
+      message: "parou no teto do workspace — 5 turnos por sessão",
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: budgetCwd() });
+
+    await expect(manager.prompt(info.id, "oi")).rejects.toMatchObject({
+      code: "BLOCKED",
+      message: "parou no teto do workspace — 5 turnos por sessão",
+    });
+  });
+
+  it("o bloqueio não deixa a sessão com um turno em voo para sempre", async () => {
+    const { manager } = withBudget({
+      kind: "block",
+      cap: "cost-per-day",
+      limit: 1,
+      spent: 9,
+      message: "parou no teto do workspace — US$ 1.00 por dia",
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: budgetCwd() });
+
+    await expect(manager.prompt(info.id, "oi")).rejects.toMatchObject({ code: "BLOCKED" });
+
+    // O selo do quadro é derivado de turno em voo: uma sessão que ficasse
+    // marcada desenharia `implementando há 3 h` num cartão que nunca começou.
+    expect(manager.liveTurns()).toEqual([]);
+  });
+
+  it("um teto que não pôde ser lido não é um teto que estourou", async () => {
+    const fake = fakeAgentProcess({});
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      budget: () => Promise.reject(new Error("banco travado")),
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: budgetCwd() });
+
+    // Mesma postura da memória: falha na leitura não derruba o turno. O produto
+    // funcionava sem teto nenhum até esta parte existir.
+    await expect(manager.prompt(info.id, "oi")).resolves.toBe("end_turn");
+  });
+});

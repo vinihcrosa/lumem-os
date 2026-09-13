@@ -455,7 +455,7 @@ arquivo de perguntas.
 
 ---
 
-### Fase 6 — o modelo do teto
+### Fase 6 — o modelo do teto · **entregue**
 
 #### T14: Onde os tetos moram
 
@@ -466,6 +466,15 @@ arquivo de perguntas.
 inventado; `0` e `null` são distinguíveis e querem dizer coisas diferentes (`0` bloqueia tudo,
 `null` não bloqueia nada).
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13) — e a armadilha da fase **mordeu**, exatamente onde o
+`migrations.test.ts` avisa que ela mora.
+
+> **O `drizzle-kit` gerou o `SELECT` com as colunas da tabela nova, lendo da velha:**
+> `SELECT "budget_cost_per_task" FROM workspace` num banco onde essa coluna, por definição, ainda não
+> existe. É o mesmo defeito que o `0001` pagou, e nenhum teste que começa de um banco vazio o pega —
+> porque num banco vazio não há linha para copiar. A lista foi reescrita à mão, e o caso foi
+> conferido **ficando vermelho de propósito**: com o SQL gerado, os quatro falham com
+> `no such column: "budget_cost_per_task"`.
 
 > **A armadilha é o default.** Um teto que nasce valendo é um produto que passa a recusar trabalho
 > num `pnpm dev` de alguém que nunca pediu teto nenhum — e o §6 da PRD já diz que os três
@@ -481,6 +490,7 @@ sessão teve — sem tabela nova.
 `usageByTask` que a Parte 1 já estendeu com `"all"`, e o de dia reusa a janela `1d` que a
 [`010`](../010-workspace-screen/prd.md) já resolve **no daemon**.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13) — `budgetSpend`, três números, nenhuma tabela nova.
 
 > **Nenhum contador guardado**, e é o mesmo argumento do selo: um número somado na hora não pode
 > divergir do que o aconteceu, e um contador incrementado pode — basta um turno que morreu entre o
@@ -488,19 +498,53 @@ sessão teve — sem tabela nova.
 
 ---
 
-### Fase 7 — o portão
+### Fase 7 — o portão · **T16 entregue**
 
-#### T16: O daemon recusa o próximo turno, e diz qual teto segurou
+#### T16: A decisão do teto, e ela é uma função pura
 
-**What**: antes de `session/prompt`, o daemon confere os três tetos. Estourou: **para, bloqueia,
-mostra o número, não reduz nem continua**, e a worktree fica.
-**Where**: `packages/server/src/acp/AcpManager.ts`, `packages/server/src/tasks/`
-**Done when**: o turno é recusado **antes** de custar, a mensagem nomeia o teto e o valor (*"parou no
-teto do workspace — US$ 2,00 por tarefa"*), e a tarefa fica com o selo `bloqueada: <motivo>`.
+**What**: antes de `session/prompt`, o daemon confere os três tetos e decide entre **três** saídas —
+`passa`, `avisa`, `bloqueia` —, a partir de quem está conduzindo
+([Q45](open-questions.md#q45--o-teto-vale-para-a-sessão-que-você-está-conduzindo)). Quem conduz é
+avisado e decide; a esteira para, com o número, sem reduzir nem continuar, e a worktree fica.
+**Where**: `packages/server/src/tasks/budget.ts` (novo, puro), `packages/server/src/acp/AcpManager.ts`
+**Done when**: a decisão é uma função sem I/O, com os **três** ramos cobertos; a mensagem nomeia o
+teto e o valor (*"parou no teto do workspace — US$ 2,00 por tarefa"*); quem conduz **não** é
+interrompido; e a conta é feita **antes** do prompt.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13) — `tasks/budget.ts` (pura), `tasks/budget-source.ts` (o SQL), e a
+costura injetada no `bootstrap`, como o `preamble` já era.
+
+> **Onde a conferência entra mudou durante a implementação, e o teste existente é quem mandou.** Pô-la
+> *antes* de marcar `promptInFlight` abre uma janela de um microtask em que o turno está em voo para
+> quem chamou e não para a sessão — e `setConfig` deixou de recusar no meio de um turno, que é uma
+> garantia que a [`016`](../016-session-mode/prd.md) cobra. A marca vem primeiro; o caminho de
+> bloqueio a desfaz, senão o selo do quadro desenharia `implementando há 3 h` num turno que nunca
+> começou.
+>
+> **Um teto que não pôde ser lido não é um teto que estourou:** falha na leitura não derruba o turno,
+> mesma postura da memória. Um banco travado viraria conversa inutilizável, e o produto funcionava sem
+> teto nenhum até esta parte existir.
+>
+> **E o contrato cobrou a tela antes da hora**, do jeito certo: acrescentar a variante `budget` ao
+> `AcpEvent` **quebrou o typecheck do web**, porque o `reduceConversation` é exaustivo. O teto passou a
+> ter uma linha na conversa — turno próprio e `meta`, como o núcleo da memória, porque não é o agente
+> dizendo, é o daemon dizendo o que fez por conta própria.
+>
+> **A mutação achou um teste fraco meu**, e ele virou um caso: *"um teto em dólar contra um agente que
+> não relata dólar"* continuava verde tratando `null` como zero, porque `0 >= 1` é falso de qualquer
+> jeito. Com o teto em `0` a diferença aparece — e é o caso que agora existe.
 
 > **Antes do prompt, e não depois do turno**, que é a diferença entre um teto e um relatório: conferir
 > no fim significa que o turno que estourou já foi pago.
+>
+> **Função pura, como o `decidePermission` e o `sealOf`.** O motivo é o que aquele arquivo já escreve:
+> *"a parte interessante é uma decisão, e o manager é uma pilha de I/O — toda ramificação aqui é uma
+> frase com que alguém pode discordar, e nenhuma delas precisa de um processo para ser exercitada"*.
+>
+> **O ramo `bloqueia` nasce sem chamador**, porque a esteira é a Parte 2. Isso é aceitável numa função
+> pura com os dois ramos testados — é um contrato escrito — e **não** seria em CSS, que foi o defeito
+> que a Parte 1 achou com 13 classes órfãs. Quando a Parte 2 chegar, ela passa `esteira` no lugar de
+> `você`, e nada mais muda.
 
 #### T17: Cota não é orçamento — `pausada`
 
@@ -553,15 +597,19 @@ o cartão bloqueado **não pinta uma fatia de quarta linha** — o corte mora no
 
 **What**: a spec que prova que o teto para, com **zero token**.
 **Where**: `e2e/`
-**Done when**: três caminhos passam — **(a)** com teto de turnos em 1, o segundo prompt é recusado
-**antes** de chegar ao agente, e o cartão fica `bloqueada` nomeando o teto; **(b)** subir o teto
-destrava a mesma sessão sem reabrir nada; **(c)** com os três tetos em `null`, nada é recusado — que
-é o comportamento de quem nunca pediu teto.
+**Done when**: três caminhos passam — **(a)** com teto de turnos em 1, o segundo prompt de uma sessão
+que **você conduz** avisa e **não** é recusado, com o número na tela; **(b)** subir o teto apaga o
+aviso sem reabrir nada; **(c)** com os três tetos em `null`, não há aviso nenhum — que é o
+comportamento de quem nunca pediu teto.
 **Gate**: `pnpm gate:full`
 
 > **O (c) é o que impede o pior defeito desta fatia:** um teto que nasce valendo transformaria o
 > produto de todo mundo num produto que recusa trabalho, e um teste que só exercita o caminho de
-> bloquear fica verde contra isso.
+> avisar fica verde contra isso.
+>
+> **O ramo `bloqueia` não aparece aqui de propósito** — ele não tem chamador até a Parte 2, e um e2e
+> que o exercitasse teria que inventar um. Ele é coberto na [T16](#t16-a-decisão-do-teto-e-ela-é-uma-função-pura),
+> onde é uma função pura e o teste é honesto.
 
 ---
 

@@ -50,10 +50,42 @@ export const workspace = sqliteTable(
      * modo de falha que ninguém percebe.
      */
     defaultLumemMode: text("default_lumem_mode").notNull().default("ask"),
+    /**
+     * Os três tetos do workspace (`028` §6, Parte 3 — T14).
+     *
+     * **`NULL` é *sem teto*, e `0` é *bloqueia tudo*.** São coisas diferentes e
+     * as duas são escrevíveis de propósito: um workspace que nunca pediu teto
+     * não pode ganhar um na migração — o §6 da PRD já diz que os interruptores
+     * que gastam token nascem desligados —, e quem quer parar tudo por um
+     * momento tem como dizer isso sem apagar o número que configurou.
+     *
+     * Um único `DEFAULT NULL` é o que faz a migração não mudar o comportamento
+     * de ninguém. Um teto que nasce valendo transformaria o produto de todo
+     * mundo num produto que recusa trabalho.
+     *
+     * **Duas unidades, e não uma** (T13): dinheiro só é cobrável contra um
+     * adaptador que o relata, e a fase 0 da `021` mediu o Codex atravessando um
+     * turno inteiro com `cost: null`. Token e turno chegam sempre — no evento
+     * `usage`, `used` e `size` são obrigatórios e só `cost` é `nullish`. Um
+     * produto que só soubesse cobrar em dólar deixaria um workspace com Codex
+     * rodando **sem teto nenhum**, sem nada na tela dizendo isso.
+     */
+    budgetCostPerTask: real("budget_cost_per_task"),
+    budgetCostPerDay: real("budget_cost_per_day"),
+    /** O chão que todo adaptador informa, e o único que não depende de moeda. */
+    budgetTurnsPerSession: integer("budget_turns_per_session"),
     ...timestamps,
   },
   (table) => [
     check("workspace_default_lumem_mode", sql`${table.defaultLumemMode} IN ('ask', 'auto')`),
+    // Negativo não é "sem teto" — `NULL` é. Um número negativo aqui seria um
+    // teto que nunca passa escrito de um jeito que ninguém lê como isso.
+    check(
+      "workspace_budget_not_negative",
+      sql`(${table.budgetCostPerTask} IS NULL OR ${table.budgetCostPerTask} >= 0)
+        AND (${table.budgetCostPerDay} IS NULL OR ${table.budgetCostPerDay} >= 0)
+        AND (${table.budgetTurnsPerSession} IS NULL OR ${table.budgetTurnsPerSession} >= 0)`,
+    ),
   ],
 );
 

@@ -4,11 +4,13 @@
 
 **Quarenta e cinco perguntas, em oito rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
 segunda rodada abriu — todas em 2026-09-11 — mais **4 que a sessão de desenho no Open Design abriu**,
-respondidas em **2026-09-12**, **3 da sexta rodada** e **3 da sétima**. **Quarenta e três respondidas.** A [Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático) fechou
+respondidas em **2026-09-12**, **3 da sexta rodada** e **3 da sétima**. **Quarenta e quatro respondidas.** A [Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático) fechou
 medindo no mesmo dia em que nasceu, e fechou as sete primeiras rodadas — que são a Parte 1 inteira. A
 oitava é da **Parte 3**, aberta depois: a [Q44](#q44--o-teto-tem-duas-unidades-qual-delas-a-tela-mostra)
 e a [Q45](#q45--o-teto-vale-para-a-sessão-que-você-está-conduzindo) nasceram **escrevendo as tasks**,
-antes de existir código, e nenhuma das duas bloqueia o modelo nem o portão.
+antes de existir código. A Q45 foi respondida na proposta — **avisa quem está conduzindo, para quem
+não está** —, e com ela o portão da T16 virou uma **função pura de três saídas**. A Q44 segue aberta e
+é de tela.
 
 A sétima rodada é a primeira que nasceu de **gastar token** — 20 turnos, US$ 4,60, Haiku e Opus. A
 [Q41](#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) apareceu ao montar a bancada, quando o
@@ -1271,7 +1273,7 @@ duas unidades desde a [T14](tasks.md#t14-onde-os-tetos-moram), porque decidir a 
 e decidir o schema depois não é.
 
 > **Aberta, e não bloqueia as fases 6 e 7** — o portão da
-> [T16](tasks.md#t16-o-daemon-recusa-o-próximo-turno-e-diz-qual-teto-segurou) cobra a unidade que
+> [T16](tasks.md#t16-a-decisão-do-teto-e-ela-é-uma-função-pura) cobra a unidade que
 > existir, e a tela escolhe o que dizer.
 
 ### Q45 — o teto vale para a sessão que você está conduzindo?
@@ -1302,6 +1304,20 @@ verdade — é o teto do workspace se comportando como o
 [`session-mode`](../016-session-mode/prd.md) se comporta, que **nunca nega sozinho**: *"denial stays a
 human act"*.
 
-> **Aberta.** Se a resposta for a primeira, o que muda é o `Done when` da
-> [T16](tasks.md#t16-o-daemon-recusa-o-próximo-turno-e-diz-qual-teto-segurou) — recusar em vez de
-> avisar —, e o e2e da [T20](tasks.md#t20-o-e2e-do-teto) já exercita os dois caminhos.
+**Resposta: a terceira — avisa quem está conduzindo, para quem não está.** *"Concordo com o
+proposto."*
+
+Então o teto tem **dois destinos para a mesma conta**: o número é o mesmo, a leitura é a mesma, e o
+que muda é o verbo. Quem conduz recebe *"passou do teto"* e decide; a esteira **para, bloqueia,
+mostra o número, não reduz nem continua** (§6, Parte 3).
+
+**O que isso obriga, e é o que muda a [T16](tasks.md#t16-a-decisão-do-teto-e-ela-é-uma-função-pura):**
+o portão deixa de ser *"recusa o próximo turno"* e passa a ser uma **decisão** — `passa`, `avisa` ou
+`bloqueia` —, tomada a partir de quem está conduzindo. É a mesma forma do
+[`decidePermission`](../016-session-mode/prd.md) e do `sealOf`: função pura, separada do lugar cheio
+de I/O, porque *"toda ramificação aqui é uma frase com que alguém pode discordar"*.
+
+**E o caminho de bloquear nasce sem chamador**, porque a esteira é a Parte 2. Isso é aceitável aqui e
+não seria em CSS: uma função pura com os dois ramos cobertos por teste é um contrato escrito; uma
+classe de CSS para marcação que não existe é lixo esperando divergir. Quando a Parte 2 chegar, ela
+passa `esteira` no lugar de `você` e nada mais muda.

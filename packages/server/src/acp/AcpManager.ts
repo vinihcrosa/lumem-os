@@ -413,7 +413,36 @@ export interface AcpManagerOptions {
    * injeta nada, e a conversa é exatamente a que era antes desta feature.
    */
   preamble?: AcpPreambleSource;
+  /**
+   * O teto do workspace, conferido antes de o turno custar (`028` Parte 3, T16).
+   *
+   * Injetado, e não um repositório aqui dentro, pela mesma direção de dependência
+   * que o `preamble` segue: este arquivo é o único que entende ACP, e ele não tem
+   * por que aprender o que é um workspace. Quem constrói o manager sabe as duas
+   * coisas.
+   *
+   * Ausente é o default — um manager de teste que não é sobre orçamento não
+   * injeta nada, e o turno é exatamente o que era antes desta parte.
+   */
+  budget?: AcpBudgetSource;
 }
+
+/**
+ * A decisão do teto para esta sessão, agora.
+ *
+ * Devolve a forma que a `tasks/budget.ts` produz, e este arquivo não interpreta
+ * nada além de `kind`: quem sabe a unidade é quem monta a frase.
+ */
+export type AcpBudgetSource = (session: AcpSessionInfo) => Promise<
+  | { kind: "pass" }
+  | {
+      kind: "warn" | "block";
+      cap: "cost-per-task" | "cost-per-day" | "turns-per-session";
+      limit: number;
+      spent: number;
+      message: string;
+    }
+>;
 
 /**
  * O bloco que entra antes da primeira mensagem da pessoa.
@@ -456,6 +485,7 @@ export class AcpManager {
   private readonly transcripts: TranscriptStore;
   private readonly log: Pick<FastifyBaseLogger, "warn"> | undefined;
   private readonly preamble: AcpPreambleSource | undefined;
+  private readonly budget: AcpBudgetSource | undefined;
 
   constructor({
     spawner = spawnAcpProcess,
@@ -467,6 +497,7 @@ export class AcpManager {
     transcripts = createMemoryTranscriptStore(),
     log,
     preamble,
+    budget,
   }: AcpManagerOptions = {}) {
     this.spawner = spawner;
     this.handshakeTimeoutMs = handshakeTimeoutMs;
@@ -477,6 +508,7 @@ export class AcpManager {
     this.transcripts = transcripts;
     this.log = log;
     this.preamble = preamble;
+    this.budget = budget;
   }
 
   /**
@@ -900,6 +932,42 @@ export class AcpManager {
     session.turnId = newId();
     session.promptInFlight = true;
     session.turnStartedAt = new Date();
+
+    /*
+     * O teto, **antes** de o turno custar (Parte 3, T16).
+     *
+     * Antes e não depois, que é a diferença entre um teto e um relatório:
+     * conferir no fim significa que o turno que estourou já foi pago.
+     *
+     * **Depois de marcar `promptInFlight`, e isso é decisão.** A conferência é
+     * `async`, então pô-la antes abriria uma janela — um microtask — em que o
+     * turno está em voo para quem chamou e não para a sessão: `setConfig`
+     * deixaria de recusar no meio de um turno, que é uma garantia que a `016`
+     * cobra. O caminho de bloqueio desfaz a marca abaixo, e é por isso que ele é
+     * a única saída daqui que precisa limpar.
+     */
+    const budget = await this.checkBudget(session);
+    if (budget !== null) {
+      this.emit(session, {
+        type: "budget",
+        outcome: budget.kind,
+        cap: budget.cap,
+        limit: budget.limit,
+        spent: budget.spent,
+        message: budget.message,
+      });
+      // `warn` segue: quem conduz recebe o número e decide (Q45). Interromper
+      // alguém que está olhando é como um teto vira desligado e nunca mais
+      // ligado.
+      if (budget.kind === "block") {
+        // Sem isto a sessão fica dizendo que tem turno em voo para sempre, e o
+        // selo do quadro — que é derivado disso — desenharia `implementando há
+        // 3 h` num turno que nunca começou.
+        session.promptInFlight = false;
+        session.turnStartedAt = null;
+        throw new DomainError("BLOCKED", budget.message);
+      }
+    }
     // Whatever the agent said before this moment was it retelling a conversation the
     // daemon already had on disk (D14). From here on it is answering.
     session.replaying = false;
@@ -957,6 +1025,27 @@ export class AcpManager {
     session.turnStartedAt = null;
     this.emit(session, { type: "turn_end", stopReason });
     return stopReason;
+  }
+
+  /**
+   * O que o teto diz, ou `null` quando não há teto nem fonte.
+   *
+   * Falha aqui **não** derruba o turno, como na memória e pelo mesmo motivo: um
+   * banco travado viraria uma conversa inutilizável, e o produto funcionava sem
+   * teto nenhum até esta parte existir. Um teto que não pôde ser lido não é um
+   * teto que estourou.
+   */
+  private async checkBudget(
+    session: Session,
+  ): Promise<Exclude<Awaited<ReturnType<AcpBudgetSource>>, { kind: "pass" }> | null> {
+    if (this.budget === undefined) return null;
+    try {
+      const decision = await this.budget({ ...session.info });
+      return decision.kind === "pass" ? null : decision;
+    } catch (error) {
+      this.log?.warn({ err: error, sessionId: session.info.id }, "não consegui ler o teto");
+      return null;
+    }
   }
 
   /**

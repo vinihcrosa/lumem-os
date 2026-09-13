@@ -315,3 +315,64 @@ export function usageByTask(
     .groupBy(task.id)
     .all();
 }
+
+/**
+ * O que os três tetos do workspace precisam saber (`028` Parte 3, T15).
+ *
+ * **Nenhum contador guardado**, e é o mesmo argumento do selo do §4.1: um número
+ * somado na hora não pode divergir do que aconteceu, e um contador incrementado
+ * pode — basta um turno que morreu entre o gasto e o incremento.
+ *
+ * Os três saem de `session_usage`, que já tem projeto, worktree, agente, tarefa
+ * (pela sessão) e tempo. Nenhuma tabela nova.
+ */
+export interface BudgetSpend {
+  /** O que esta tarefa já gastou, **sem janela** — uma tarefa velha não ficou mais barata. */
+  taskCost: number | null;
+  taskTokens: number;
+  /** O que este workspace gastou **hoje**, com a janela resolvida aqui. */
+  dayCost: number | null;
+  dayTokens: number;
+  /** Quantos turnos esta sessão teve. O chão que todo adaptador informa. */
+  sessionTurns: number;
+}
+
+export function budgetSpend(
+  db: Db,
+  {
+    workspaceId,
+    taskId,
+    sessionId,
+    now,
+  }: { workspaceId: string; taskId: string | null; sessionId: string; now?: Date },
+): BudgetSpend {
+  const task =
+    taskId === null
+      ? undefined
+      : usageByTask(db, { workspaceId, period: "all" }).find((row) => row.taskId === taskId);
+
+  // A janela do dia é resolvida **no daemon**, como a `010` decidiu: o corte não
+  // pode vir do relógio do cliente, senão duas telas abertas em máquinas
+  // diferentes dão respostas diferentes para a mesma pergunta.
+  const since = windowStart("1d", now);
+  const [day] = db
+    .select({ cost: SUM.cost, tokens: SUM.tokens })
+    .from(sessionUsage)
+    .innerJoin(project, eq(project.id, sessionUsage.projectId))
+    .where(and(eq(project.workspaceId, workspaceId), gte(sessionUsage.createdAt, since)))
+    .all();
+
+  const [session_] = db
+    .select({ turns: SUM.turns })
+    .from(sessionUsage)
+    .where(eq(sessionUsage.sessionId, sessionId))
+    .all();
+
+  return {
+    taskCost: task?.cost ?? null,
+    taskTokens: task?.tokens ?? 0,
+    dayCost: day?.cost ?? null,
+    dayTokens: day?.tokens ?? 0,
+    sessionTurns: session_?.turns ?? 0,
+  };
+}

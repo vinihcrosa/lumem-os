@@ -788,3 +788,87 @@ describe("0017 — o relógio do encalhe", () => {
     expect(row?.statusChangedAt.getTime()).toBe(twoHoursAgo);
   });
 });
+
+describe("0018 — os tetos do workspace", () => {
+  /** Um banco parado em 0017, com um workspace e um projeto pendurado nele. */
+  function databaseBeforeBudget(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-budget-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(18) });
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'acme')`).run();
+    sqlite
+      .prepare(
+        `INSERT INTO project (id, workspace_id, name, path, default_branch)
+         VALUES ('p1', 'w1', 'api', '/repos/api', 'main')`,
+      )
+      .run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("um workspace que já existia acorda **sem teto**, e não com um inventado", async () => {
+    const handle = openDatabase({ path: databaseBeforeBudget() });
+    open.push(handle);
+
+    const [row] = await handle.db.select().from(schema.workspace);
+
+    // O §6 da PRD diz que os interruptores que gastam token nascem desligados.
+    // Um teto que nasce valendo faria o produto recusar trabalho de quem nunca
+    // pediu teto nenhum.
+    expect(row).toMatchObject({
+      name: "acme",
+      budgetCostPerTask: null,
+      budgetCostPerDay: null,
+      budgetTurnsPerSession: null,
+    });
+  });
+
+  it("o projeto continua pendurado no workspace depois da tabela ser recriada", async () => {
+    const handle = openDatabase({ path: databaseBeforeBudget() });
+    open.push(handle);
+
+    const [row] = await handle.db
+      .select()
+      .from(schema.project)
+      .where(eq(schema.project.id, "p1"));
+
+    expect(row?.workspaceId).toBe("w1");
+  });
+
+  it("`0` e `NULL` são escrevíveis, e querem dizer coisas diferentes", async () => {
+    const handle = openDatabase({ path: databaseBeforeBudget() });
+    open.push(handle);
+
+    // `0` é "bloqueia tudo" e `NULL` é "sem teto". Colapsar os dois tiraria de
+    // quem quer parar por um momento a única forma de dizer isso sem apagar o
+    // número que configurou.
+    await handle.db
+      .update(schema.workspace)
+      .set({ budgetCostPerTask: 0, budgetTurnsPerSession: 12 })
+      .where(eq(schema.workspace.id, "w1"));
+
+    const [row] = await handle.db.select().from(schema.workspace);
+    expect(row).toMatchObject({
+      budgetCostPerTask: 0,
+      budgetCostPerDay: null,
+      budgetTurnsPerSession: 12,
+    });
+  });
+
+  it("teto negativo é recusado — `NULL` é como se diz sem teto", async () => {
+    const handle = openDatabase({ path: databaseBeforeBudget() });
+    open.push(handle);
+
+    await expect(
+      handle.db
+        .update(schema.workspace)
+        .set({ budgetCostPerDay: -1 })
+        .where(eq(schema.workspace.id, "w1")),
+    ).rejects.toThrow();
+  });
+});
