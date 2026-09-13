@@ -5,9 +5,10 @@
 **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
 
 **Status:** em execução
-**Histórico:** a **Parte 1** (12 tasks, fases 0–4) e a **Parte 3** (8 tasks, fases 5–9) estão
-entregues; a **Parte 2** foi aberta em 2026-09-13 e é a fatia em execução. Este arquivo **não** cobre
-a feature inteira. O corte é decisão registrada: das seis
+**Histórico:** a **Parte 1** (12 tasks, fases 0–4), a **Parte 3** (8 tasks, fases 5–9) e a
+**Parte 2** (13 tasks, fases 10–15) estão **entregues** — 33 tasks, todas de 2026-09-12 e
+2026-09-13. Ficam a **Parte 4** (supervisão e volante) e as **Partes 5 e 6** (o tracker), que esperam
+o **ADR do segredo**. Este arquivo **não** cobre a feature inteira. O corte é decisão registrada: das seis
 partes do §6, este arquivo executa **uma** — o quadro lendo a
 [`022`](../022-workspace-tasks/prd.md), com a autonomia desligada. A esteira (Parte 2), o orçamento (Parte 3), a
 supervisão (Parte 4) e as duas pontas do tracker (Parte 5, Parte 6) ficam para um `tasks.md` seguinte, e o §0 diz
@@ -499,7 +500,7 @@ sessão teve — sem tabela nova.
 
 ---
 
-### Fase 7 — o portão · **T16 entregue**
+### Fase 7 — o portão · **T16 entregue · T17 parcial**
 
 #### T16: A decisão do teto, e ela é uma função pura
 
@@ -600,7 +601,7 @@ não mexe em nenhum contador; e 4 h de espera vira `bloqueada` com o motivo.
 
 ---
 
-### Fase 8 — a tela · **T18 entregue · T19 represada**
+### Fase 8 — a tela · **entregue** (a T19 destravou na Parte 2)
 
 #### T18: O teto aparece, e diz onde se muda
 
@@ -628,7 +629,7 @@ como a `022` já faz com o `LUMEM_TASKS_BUDGET`.
 o cartão bloqueado **não pinta uma fatia de quarta linha** — o corte mora no filho, não na caixa com
 `padding` (§10.2).
 **Gate**: `pnpm gate:quick`
-**Status**: ⏸️ **represada para a Parte 2** (2026-09-13) — ela não tem o que desenhar.
+**Status**: ✅ entregue (2026-09-13) — **destravada pela Parte 2**, que é o que ela esperava.
 
 > **Nenhum caminho produz um selo `bloqueada` hoje.** O `block` do teto só sai com o condutor
 > `esteira` ([Q45](open-questions.md#q45--o-teto-vale-para-a-sessão-que-você-está-conduzindo)), e a
@@ -708,7 +709,7 @@ tela por último**.
 
 ---
 
-### Fase 10 — o que a esteira guarda
+### Fase 10 — o que a esteira guarda · **entregue**
 
 #### T21: A tarefa ganha comentário
 
@@ -722,6 +723,21 @@ de proveniência da [`022`](../022-workspace-tasks/prd.md).
 uma, cobrado por `CHECK` como o `task_agent_provenance`; apagar a sessão **anula o ponteiro** em vez
 de recusar o apagamento; e a leitura devolve em ordem de escrita.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> **Dois achados, e os dois do teste.** O `created_by_session` **não tem
+> estrangeiro**, e não é descuido: escrito com `references(session, onDelete:
+> "set null")`, a ação do estrangeiro é um `UPDATE`, e `created_by = 'agent'` com
+> sessão nula viola o `CHECK` de proveniência — as duas restrições se contradizem
+> e apagar a sessão vira **impossível** depois que um agente comentou. `RESTRICT`
+> é a mesma prisão dita em voz alta, e a `022` já a recusou.
+>
+> E a leitura **desempata por `rowid`**: `created_at` tem resolução de
+> milissegundo, e resumo e parecer saem no mesmo turno. O teste do empate o
+> **força** em vez de torcer — a primeira versão escrevia três pela porta normal
+> e conferia que os carimbos saíram iguais; passou sozinha e falhou na suíte
+> inteira, onde a máquina está carregada. Ela estava afirmando a velocidade do
+> computador.
 
 > **Leia o `SELECT` da migração gerada.** É a terceira vez que este arquivo escreve isso, e as duas
 > primeiras foram defeito de verdade: o `drizzle-kit` gera `INSERT … SELECT` lendo colunas que não
@@ -736,6 +752,11 @@ conclusão bem-sucedida daquela etapa.
 **Done when**: mudar o `status` zera `attempts` **na mesma escrita** — não numa segunda —, e
 `autonomy` sobrevive à mudança de etapa; um `CHECK` fecha os dois valores.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> **A armadilha do `drizzle-kit` pela terceira vez**, e o teste de migração a
+> pega agora: ele escreve tarefas **antes** de migrar, porque com a tabela vazia
+> o `SELECT` errado nunca executa uma linha.
 
 #### T23: O catálogo de agentes nomeados, e a cascata
 
@@ -748,10 +769,16 @@ podem ter revisores diferentes; e **adaptador** e **agente** não se confundem n
 catálogo aponta para o `ADAPTERS` da [`021`](../021-second-agent/prd.md), não o substitui
 ([Q35](open-questions.md#q35--o-rodapé-da-sidebar-passa-a-dizer-adaptadores)).
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> A consulta casa pelo **par** (tipo, id), e não pelo id sozinho. Uma linha
+> `scope_type = 'task'` com id de projeto cairia no degrau mais alto e abriria a
+> sessão do agente errado — impossível hoje com `randomUUID`, e *"é improvável"*
+> não é propriedade que o schema garanta.
 
 ---
 
-### Fase 11 — a fila
+### Fase 11 — a fila · **entregue**
 
 #### T24: A fila é uma leitura, e puxa da direita para a esquerda
 
@@ -763,6 +790,7 @@ coluna é a `position`, que é a prioridade (§4.3).
 entra; `ready_to_merge` e `done` nunca entram, porque não são etapa da máquina; e revisar vem antes de
 começar tarefa nova, provado por ordem e não por comentário.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
 
 #### T25: O teto de paralelismo, contado do turno em voo
 
@@ -773,10 +801,14 @@ começar tarefa nova, provado por ordem e não por comentário.
 **Done when**: uma sessão de agente **sem** prompt em voo não ocupa vaga — 7 dos 15 transcripts deste
 repositório nunca receberam um prompt —, e `0` devolve zero vaga sem ler a fila.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> Ele conta **só os turnos deste workspace**: sem o recorte, um workspace ocupado
+> fecharia a fila de outro.
 
 ---
 
-### Fase 12 — o laço
+### Fase 12 — o laço · **entregue**
 
 #### T26: O checkout nasce preparado, e a segunda tentativa sabe o que encontrou
 
@@ -789,6 +821,12 @@ prompt. Na **segunda** tentativa a worktree é a mesma, e o prompt diz **o fato*
 de uma tentativa anterior"* **quando e só quando** `git status` não está limpo; e nenhum resumo da
 tentativa anterior atravessa.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> O `setup` **espera**, ao contrário do caminho da tela, que o dispara em segundo
+> plano de propósito: aqui ninguém está olhando, e mandar o prompt antes de o
+> `pnpm install` terminar gasta uma tentativa para descobrir que faltava
+> dependência.
 
 #### T27: O prompt do encaixe, e o laço que sabe que turno acabado não é tarefa acabada
 
@@ -801,6 +839,15 @@ tentativa → `bloqueada`, com o motivo.
 *terminei*; a sessão abre em `bypassPermissions` vindo da `spec` do adaptador, nunca escrito à mão; e
 `attempts` cresce **antes** do prompt, não depois, senão um daemon que morre no meio conta errado.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> **E ele ganhou um teto de tempo que a task não pedia**, porque o e2e provou que
+> faltava: quando o agente é dono do seletor de modos, o daemon **não** consulta
+> a política do Lumem — manda o pedido de permissão para uma pessoa (A1 da
+> [`016`](../016-session-mode/prd.md)) —, e numa sessão de esteira não há pessoa.
+> O turno pendurava para sempre, com o cartão dizendo `implementando` a manhã
+> inteira. O caminho normal não passa por lá; o teto é o que sobra quando **não
+> deu para escolher o modo**.
 
 #### T28: O portão, e quem move a seta
 
@@ -812,10 +859,15 @@ tentativa → `bloqueada`, com o motivo.
 avança com o commit como único fato **e o cartão diz isso**; e nenhum caminho deixa um agente escrever
 `status`.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> O commit é lido do **git**, e não de o checkout estar limpo: um turno que não
+> escreveu nada também deixa o checkout limpo, e as duas situações são opostas. O
+> que separa é a branch estar à frente da base.
 
 ---
 
-### Fase 13 — os interruptores
+### Fase 13 — os interruptores · **entregue**
 
 #### T29: A autonomia do workspace, e a da tarefa
 
@@ -826,6 +878,14 @@ por tarefa da [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-est
 **Done when**: um `~/.lumem` que existia antes desta fatia acorda em `manual` — nenhum acorda andando
 —, e arrastar um cartão para uma coluna da máquina desliga a autonomia daquela tarefa.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> **A primeira versão da regra do arrasto estava errada, e de um jeito silencioso:**
+> ela contava `open` como coluna da máquina, então o gesto mais comum do quadro —
+> pôr uma tarefa na fila — desligava a autonomia da tarefa recém-enfileirada, e a
+> esteira ficaria permanentemente vazia sem nada falhar. Quem derrubou foi um caso
+> da `queue.test.ts` que arrasta dentro da própria coluna para provar a
+> prioridade. Arrastar para a To-Do é **entregar** à máquina, não tirar dela.
 
 #### T30: `assistido` prepara e para
 
@@ -836,10 +896,16 @@ clique.
 **Done when**: em `assistido` **nenhum processo de adaptador sobe** — provado contando `spawn`, não
 lendo o código —, e o prompt preparado sobrevive ao reinício do daemon.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> O prompt preparado é **guardado**, e o e2e conta os `spawn`: em `assistido`
+> nenhuma sessão sobe. E o clique **não remonta** o prompt — remontar abriria a
+> janela em que a tarefa mudou entre preparar e clicar, e o que você aprovou não
+> seria o que seguiu.
 
 ---
 
-### Fase 14 — a tela
+### Fase 14 — a tela · **entregue**
 
 #### T31: O cartão diz o que a esteira fez
 
@@ -850,6 +916,7 @@ folha; e a tentativa aparece quando é maior que um.
 **Done when**: nenhuma classe de CSS nasce sem marcação que a use — a regra que a Parte 1 pagou com 13
 classes órfãs —, e `assistido` mostra o prompt que ia ser enviado.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
 
 #### T32: O cartão bloqueado nomeia o teto — a T19, destravada
 
@@ -860,10 +927,16 @@ tentativa esgotada.
 **Done when**: o motivo cabe nos **151px** medidos da caixa do selo ou trunca dizendo que trunca; e o
 cartão bloqueado **não pinta uma fatia de quarta linha** (§10.2).
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> O motivo aparece **duas vezes** de propósito: o selo tem 151px medidos e
+> trunca, e o bloqueio que não diz do quê é um alarme, não um aviso. A linha de
+> baixo é onde a frase inteira cabe, com o corte num filho — o defeito medido do
+> §10.2.
 
 ---
 
-### Fase 15 — o portão
+### Fase 15 — o portão · **entregue**
 
 #### T33: O e2e da esteira
 
@@ -873,6 +946,18 @@ falso, porque a esteira é o assunto e o agente não.
 **Done when**: o cartão atravessa uma etapa sem ninguém clicar; desligar a autonomia da tarefa
 **para** a esteira nela e não nas outras; e o teto de paralelismo segura a terceira.
 **Gate**: `pnpm gate:full`
+**Status**: ✅ entregue (2026-09-13)
+
+> **Ele achou dois defeitos**, e os dois estão nas tasks acima: o turno que
+> pendura (T27) e o log da passada que o pino serializava sem a mensagem — a
+> mesma falha que o retrato do turno já tinha pago.
+>
+> **O que ele não prova é a seta andando por portão verde**, e a razão é o agente
+> falso: ele não commita, então o portão responde *"o turno acabou sem commit"* —
+> corretamente. Esse caminho é coberto onde o portão é injetado. O que ele prova é
+> a corrente inteira em volta, inclusive o bloqueio depois de duas tentativas, com
+> o motivo do portão, **na mesma coluna**, e com a autonomia da tarefa desligada
+> para a fila não pegá-la de volta.
 
 ---
 
@@ -880,6 +965,6 @@ falso, porque a esteira é o assunto e o agente não.
 
 | O quê | O que destrava |
 |---|---|
-| ~~**Parte 2 — a esteira**~~ | **aberta em 2026-09-13**, acima — as duas coisas que ela esperava foram respondidas: a [Q47](open-questions.md#q47--o-que-passa-de-uma-sessão-para-outra) (*nada passa*) e o [ADR da esteira sem lease](../../adr/2026-09-13-0412-the-conveyor-has-no-lease.md) |
+| ~~**Parte 2 — a esteira**~~ | **entregue em 2026-09-13**, acima — 13 tasks em 6 fases |
 | **Parte 4 — supervisão** | a Parte 2, e o corolário desconfortável do §2.4 do estudo: o selo `aguardando você` **não é derivável do transporte** |
 | **Parte 5 e Parte 6 — o tracker** | um **ADR**. O precedente do `gh` não é portável — não existe `linear` na máquina —, e as três opções que sobram estão no §3.4 do estudo. Uma delas contradiz o ADR de 2026-08-30 de frente |
