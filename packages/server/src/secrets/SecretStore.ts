@@ -109,7 +109,16 @@ export function createSecretStore({ stateDir }: { stateDir: string }): SecretSto
     },
 
     list() {
-      return Object.keys(load()).sort();
+      /*
+       * `localeCompare` e não o `sort()` seco.
+       *
+       * Os ids são slugs ASCII, então os dois dariam a mesma ordem hoje — e o
+       * `sort()` sem comparador ordena por **unidade de código UTF-16**, que é
+       * uma ordem que só coincide com a alfabética enquanto ninguém acrescentar
+       * um id com acento. A lista alimenta a tela; ordem por acaso ali é ordem
+       * que muda quando o catálogo cresce.
+       */
+      return Object.keys(load()).sort((a, b) => a.localeCompare(b));
     },
 
     read(id) {
