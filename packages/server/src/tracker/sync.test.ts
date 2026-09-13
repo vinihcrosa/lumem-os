@@ -35,7 +35,7 @@ const issue = (patch: Partial<TrackerIssue> = {}): TrackerIssue => ({
 function fakeHost(issues: TrackerIssue[], available = true): TrackerHost {
   return {
     id: "linear",
-    keyEnv: "LINEAR_API_KEY",
+    secretId: "linear",
     available: () => available,
     labelled: vi.fn(async () => Promise.resolve(issues)),
     comment: vi.fn(async () => Promise.resolve()),

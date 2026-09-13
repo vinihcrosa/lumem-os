@@ -1138,19 +1138,24 @@ interruptor remove; e o texto do interruptor diz o que se está autorizando.
 > **Abertas em 2026-09-13**, e as duas juntas porque a segunda não tem como ser testada sem a
 > primeira: só há o que escrever de volta numa issue que entrou por aqui.
 >
-> Elas estavam paradas por um motivo só, e ele deixou de existir: o
-> [ADR do segredo](../../adr/2026-09-13-1531-tracker-credentials-come-from-the-environment.md), com
-> [estudo](../../project/tracker-secret.md). **O §11 dizia que falar com um tracker exigiria reverter
-> o ADR de 2026-08-30, e não exige** — a quarta saída já está implementada duas vezes neste produto.
+> Elas estavam paradas por um motivo só — de onde vem a credencial —, e ele foi decidido **duas
+> vezes no mesmo dia**. O
+> [primeiro ADR](../../adr/2026-09-13-1531-tracker-credentials-come-from-the-environment.md) disse
+> *"do ambiente"*, e foi **superado** pelo
+> [ADR do cofre](../../adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md), com
+> [estudo](../../project/secret-store.md): **o Lumem guarda as chaves dos serviços de que depende**.
+> O erro do primeiro foi generalizar duas coisas que não eram regra — o `gh` era solução daquele
+> caso, e ler do ambiente era simplicidade.
 
 **O que esta fatia entrega:** a issue do Linear que vira cartão na To-Do, e o comentário que volta
-para lá nos quatro marcos. Sem `LINEAR_API_KEY` no ambiente do daemon, **nada disto aparece** — e
-ausência não é erro.
+para lá nos quatro marcos. Sem credencial guardada no cofre, **nada disto aparece** — e ausência não
+é erro.
 
 **O que a fase 0 delas decidiu:**
 
 | Decisão | Onde |
 |---|---|
+| a credencial mora no **cofre do Lumem**, cifrada — e o que ela protege está escrito | [ADR](../../adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md) · [estudo](../../project/secret-store.md) |
 | **polling a 60 s**; webhook exige relé, e relé é a opção que o ADR recusou | [Q60](open-questions.md#q60--como-o-evento-externo-chega) |
 | a chave externa mora **na tarefa**, com índice único por workspace | [Q61](open-questions.md#q61--o-que-impede-a-mesma-issue-de-virar-duas-tarefas) |
 | **rótulo `lumem`**, e não identidade — identidade é uma conta paga que o produto não controla | [Q62](open-questions.md#q62--o-que-é-minha-issue-no-tracker) |
@@ -1167,12 +1172,12 @@ ausência não é erro.
 #### T42: O tracker é uma porta, e o Linear é a primeira implementação dela
 
 **What**: `TrackerHost` — listar o que tem o rótulo, comentar numa issue, mover estado. O Linear por
-GraphQL, com a chave vinda do **ambiente**
-([ADR](../../adr/2026-09-13-1531-tracker-credentials-come-from-the-environment.md)).
+GraphQL, com a chave vinda do **cofre do Lumem**
+([ADR](../../adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md)).
 **Where**: `packages/server/src/tracker/`
 **Done when**: a chave **nunca** aparece em retorno, em erro ou em log — provado por teste, e não por
-leitura; sem a variável, o host reporta ausência em vez de falhar; e a mensagem de erro do host passa
-pelo mesmo `redact` da [`009`](../009-agent-login/prd.md).
+leitura; sem credencial guardada, o host reporta ausência em vez de falhar; e a mensagem de erro do
+host passa pelo mesmo `redact` da [`009`](../009-agent-login/prd.md).
 **Gate**: `pnpm gate:quick`
 **Status**: ✅ entregue (2026-09-13)
 
@@ -1269,13 +1274,13 @@ de projeto não confiado não vale.
 **What**: uma issue vira cartão, o cartão anda, e o marco volta — com um `TrackerHost` falso, porque
 o assunto é a costura e não o Linear.
 **Where**: `packages/server/src/tracker/`, `e2e/`
-**Done when**: sem a variável de ambiente nada acontece e nada quebra; e a segunda passada não cria
-nem comenta de novo.
+**Done when**: sem credencial guardada nada acontece e nada quebra; e a segunda passada não cria nem
+comenta de novo.
 **Gate**: `pnpm gate:full`
 **Status**: ⚠️ **parcial** (2026-09-13) — metade entregue, metade **anotada em vez de fingida**.
 
-> **O que entrou:** o caso que só um daemon de verdade prova — sem `LINEAR_API_KEY`, o daemon **sobe,
-> responde e continua funcionando**, com a tarefa sem origem externa e sem marco nenhum. Ausência não
+> **O que entrou:** o caso que só um daemon de verdade prova — sem credencial no cofre, o daemon
+> **sobe, responde e continua funcionando**, com a tarefa sem origem externa e sem marco nenhum. Ausência não
 > é erro, e é o boot que poderia quebrar.
 >
 > **O que não entrou, e não é esquecimento:** o caminho feliz ponta a ponta exigiria apontar o host

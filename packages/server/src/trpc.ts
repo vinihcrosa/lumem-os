@@ -14,6 +14,7 @@ import type { PrHost } from "./pr/PrHost.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import type { ScriptRunner } from "./scripts/ScriptRunner.js";
 import type { Conveyor } from "./tasks/conveyor.js";
+import type { SecretStore } from "./secrets/SecretStore.js";
 import type { SessionStore } from "./sessions/SessionStore.js";
 
 /**
@@ -41,6 +42,14 @@ export interface Context {
    * cabe no banco: a porta de cada run vivo, que morre com o processo.
    */
   scripts: ScriptRunner;
+  /**
+   * O cofre do daemon (ADR de 2026-09-13).
+   *
+   * No contexto porque ele é estado de processo com dono — como o `scripts` —, e
+   * porque a alternativa seria cada procedure abrir o arquivo por conta, que é
+   * como duas leituras passam a discordar.
+   */
+  secrets: SecretStore;
   /**
    * A esteira (`028` Parte 2).
    *

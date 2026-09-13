@@ -1,11 +1,18 @@
+import type { SecretStore } from "../secrets/SecretStore.js";
+
 import { redactKey, type TrackerHost, type TrackerIssue } from "./TrackerHost.js";
 
 /**
  * O Linear, por GraphQL (`028` Parte 5, T42).
  *
- * **A chave é lida do ambiente a cada chamada**, e não guardada num campo: um
- * daemon que a copiasse para dentro de si teria uma cópia a mais para vazar, e
- * `process.env` já é onde ela está.
+ * **A chave vem do cofre do Lumem**, e é lida a cada chamada em vez de copiada
+ * para um campo: um objeto que a segurasse teria uma cópia a mais para vazar, e
+ * o cofre já é onde ela está.
+ *
+ * De onde ela vem é o
+ * [ADR de 2026-09-13](../../../../docs/adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md),
+ * que **superou** o meu de horas antes: o `gh` foi solução daquele caso e ler do
+ * ambiente foi simplicidade — nenhuma das duas era política.
  *
  * A consulta é **por workspace e não por projeto** — o que ela pergunta é *"o
  * que tem o rótulo"*, e uma pergunta responde por todos os projetos. É o que faz
@@ -54,21 +61,22 @@ interface LinearNode {
 }
 
 export interface LinearHostOptions {
+  /** O cofre do daemon. É de onde a chave vem. */
+  secrets: Pick<SecretStore, "has" | "read">;
   /** Injetado para o teste não tocar a rede. O default é o `fetch` global. */
   fetch?: typeof globalThis.fetch;
-  /** Injetado pelo mesmo motivo. O default é o ambiente do daemon. */
-  env?: NodeJS.ProcessEnv;
 }
 
-export const LINEAR_KEY_ENV = "LINEAR_API_KEY";
+/** O id do serviço no cofre. É o que a tela usa para dizer qual campo é qual. */
+export const LINEAR_SECRET = "linear";
 
 export function createLinearHost({
+  secrets,
   fetch: call = globalThis.fetch,
-  env = process.env,
-}: LinearHostOptions = {}): TrackerHost {
+}: LinearHostOptions): TrackerHost {
   function key(): string | undefined {
-    const found = env[LINEAR_KEY_ENV];
-    return found === undefined || found.trim() === "" ? undefined : found;
+    const found = secrets.read(LINEAR_SECRET);
+    return found === null || found.trim() === "" ? undefined : found;
   }
 
   async function graphql(query: string, variables: Record<string, unknown>): Promise<unknown> {
@@ -76,7 +84,7 @@ export function createLinearHost({
     // Nunca deveria chegar aqui sem chave — quem chama confere `available()` —,
     // e mesmo assim a frase existe: um `Authorization: undefined` produziria um
     // 400 do Linear cuja mensagem não fala de configuração nenhuma.
-    if (secret === undefined) throw new Error(`${LINEAR_KEY_ENV} não está no ambiente do daemon`);
+    if (secret === undefined) throw new Error("a credencial do Linear não está no cofre do Lumem");
 
     let response: Response;
     try {
@@ -125,8 +133,8 @@ export function createLinearHost({
 
   return {
     id: "linear",
-    keyEnv: LINEAR_KEY_ENV,
-    available: () => key() !== undefined,
+    secretId: LINEAR_SECRET,
+    available: () => secrets.has(LINEAR_SECRET),
 
     async labelled(label) {
       // Ausência não é erro: sem a chave, a feature simplesmente não existe —

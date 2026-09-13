@@ -24,6 +24,7 @@ import { createConveyor } from "./tasks/conveyor.js";
 import { createConveyorPorts } from "./tasks/conveyor-ports.js";
 import { runConveyorLoop } from "./tasks/conveyor-loop.js";
 import { createLinearHost } from "./tracker/LinearHost.js";
+import { createSecretStore } from "./secrets/SecretStore.js";
 import { runTrackerLoop } from "./tracker/loop.js";
 import { writeMark, type Mark } from "./tracker/marks.js";
 import { configForAdapter, verdictOfWorktree } from "./tasks/conveyor-wiring.js";
@@ -295,11 +296,14 @@ export async function bootstrap({
   /*
    * O tracker (`028` Partes 5 e 6).
    *
-   * Construído sempre, e **não** condicionado à variável de ambiente: o host
-   * reporta ausência em vez de falhar, e é ele que decide. Um `if` aqui faria a
-   * chave posta depois do boot só valer no reinício seguinte.
+   * Construído sempre, e **não** condicionado a haver credencial: o host
+   * reporta ausência em vez de falhar, e é ele que decide a cada chamada. Um
+   * `if` aqui faria uma chave guardada depois do boot só valer no reinício
+   * seguinte — e guardar a chave é um gesto na tela, não uma variável de
+   * ambiente que pede reinício.
    */
-  const tracker = createLinearHost();
+  const secrets = createSecretStore({ stateDir: config.stateDir });
+  const tracker = createLinearHost({ secrets });
 
   /*
    * A esteira, construída **antes** do servidor porque ela entra no contexto
@@ -400,6 +404,7 @@ export async function bootstrap({
     sessionStore,
     scripts,
     conveyor,
+    secrets,
     git,
     clones,
     prHost,
@@ -427,6 +432,7 @@ export async function bootstrap({
     acpManager: acp,
     sessionStore,
     scripts,
+    secrets,
     git,
     clones,
     prHost,

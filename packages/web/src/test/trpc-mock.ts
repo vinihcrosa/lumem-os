@@ -76,6 +76,10 @@ function createTrpcMock() {
   return {
     health: { query: vi.fn() },
     events: { onChange: { subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })) } },
+    secrets: {
+      list: { query: vi.fn() },
+      set: { mutate: vi.fn() },
+    },
     workspace: {
       setAutonomy: { mutate: vi.fn() },
       setCleanup: { mutate: vi.fn() },
@@ -314,6 +318,7 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   mock.session.listByTask.query.mockResolvedValue([]);
   // O caso mais comum: worktree sem tarefa. Tarefa não é obrigatória (T1).
   mock.task.getByWorktree.query.mockResolvedValue(null);
+  mock.secrets.list.query.mockResolvedValue([]);
   /*
    * O quadro chama isto no `mount` para todo cartão que tem aviso (`028` T35).
    *

@@ -438,15 +438,17 @@ test("`parar` interrompe sem apagar a worktree", async () => {
   }
 });
 
-test("sem a chave do tracker, o daemon sobe e nada acontece", async () => {
+test("sem credencial de tracker no cofre, o daemon sobe e nada acontece", async () => {
   const stateDir = mkdtempSync(join(tmpdir(), "lumem-tracker-ausente-"));
   const daemon = await startDaemon({
     port: E2E_CONVEYOR_PORT,
     stateDir,
-    // **Sem** `LINEAR_API_KEY`, que é o estado de toda instalação que não usa
-    // tracker — e é o caso que precisa ser provado contra o daemon de verdade,
-    // porque o que pode quebrar é o **boot**, e não a sincronização.
-    env: { LINEAR_API_KEY: "" },
+    /*
+     * **Cofre vazio**, que é o estado de toda instalação que não usa tracker —
+     * o `stateDir` é novo e ninguém guardou nada nele. É o caso que precisa ser
+     * provado contra o daemon de verdade, porque o que pode quebrar é o **boot**,
+     * e não a sincronização.
+     */
   });
 
   try {

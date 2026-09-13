@@ -2,18 +2,18 @@
  * O tracker é uma porta, e o Linear é a primeira implementação dela
  * (`028` Partes 5 e 6 — T42).
  *
- * **A credencial vem do ambiente do daemon**, e o
- * [ADR de 2026-09-13](../../../../docs/adr/2026-09-13-1531-tracker-credentials-come-from-the-environment.md)
- * é quem diz por quê: o Lumem não guarda segredo, e a quarta saída — a que nem o
- * §11 nem a medição tinham visto — já estava implementada duas vezes neste
- * produto, no `apiKeyEnv` da `021` e no `redact` da `009`.
+ * **A credencial vem do cofre do Lumem**, e o
+ * [ADR de 2026-09-13](../../../../docs/adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md)
+ * é quem diz por quê: *o Lumem guarda as chaves dos serviços de que depende*. O
+ * `gh` foi solução **daquele** caso e ler do ambiente foi **simplicidade** —
+ * nenhuma das duas era política, e o ADR anterior errou ao generalizá-las.
  *
- * As quatro regras que este arquivo sustenta, e **nenhuma delas é nova**:
+ * As quatro regras que este arquivo sustenta:
  *
- * 1. a chave vem do ambiente, e nada aqui a escreve;
- * 2. o que sai daqui carrega o **nome** da variável, nunca o valor;
+ * 1. a chave vem do cofre, e nada aqui a copia para um campo;
+ * 2. o que sai daqui carrega o **id do serviço**, nunca o valor;
  * 3. mensagem de erro do host é **redigida** antes de subir;
- * 4. sem a variável, o host reporta **ausência** — e ausência não é erro.
+ * 4. sem credencial, o host reporta **ausência** — e ausência não é erro.
  */
 
 /** Uma issue como o Lumem a enxerga. O vocabulário é nosso; o host se adapta. */
@@ -35,9 +35,9 @@ export interface TrackerIssue {
 export interface TrackerHost {
   /** `linear`. Vira `external_source`, e é o que escolhe a implementação. */
   readonly id: string;
-  /** O nome da variável de ambiente. **Nome**, nunca valor. */
-  readonly keyEnv: string;
-  /** A chave está presente no ambiente do daemon. */
+  /** O id do serviço no cofre. **Id**, nunca valor. */
+  readonly secretId: string;
+  /** Há credencial guardada para este host. */
   available(): boolean;
   /** As issues com o rótulo, ou `[]`. Nunca lança por ausência de chave. */
   labelled(label: string): Promise<TrackerIssue[]>;

@@ -816,3 +816,21 @@ log atravessa caminho de arquivo e prompt.
 
 **De onde veio:** [028 Q46](../features/028-autonomous-orchestration/open-questions.md) ·
 **Volta quando:** o primeiro defeito relatado por alguém que não conseguiu dizer o que o daemon fez.
+
+### Trazer agentes, GitHub e GitLab para o cofre — `P`
+
+O [ADR de 2026-09-13](../adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md) decidiu que
+**o Lumem guarda as chaves dos serviços de que depende**, e aplicou isso **só ao tracker**. Os outros
+dois caminhos continuam como estavam, e os dois por decisão e não por esquecimento:
+
+- **os adaptadores** leem `ANTHROPIC_API_KEY` e `CODEX_API_KEY`/`OPENAI_API_KEY` do ambiente do daemon
+  (o `apiKeyEnv` da [`021`](../features/021-second-agent/prd.md)). Mudar isso é mexer no login da
+  [`009`](../features/009-agent-login/prd.md) inteiro — e o caminho de login dela **não é chave**: é
+  `authenticate` mais `elicitation/*`, com um passo que espera uma pessoa;
+- **o `gh`** resolve o status da PR com a autenticação que ele já tem no keychain, pelo
+  [ADR de 2026-08-30](../adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md). Trazer GitHub e
+  GitLab para o cofre **contradiz aquele ADR de frente**, e por isso precisa ser escrito lá — não aqui.
+
+**De onde veio:** a decisão do Vinicius em 2026-09-13 — *"em uma feature posterior isso será feito
+para os providers de agentes e para o github e gitlab também"* · **Volta quando:** alguém precisar
+trocar de credencial sem mexer em `.zshrc`, ou quando o produto rodar num lugar onde o `gh` não está.

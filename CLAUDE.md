@@ -252,18 +252,25 @@ arrasto contava `open` como coluna da máquina, então **pôr uma tarefa na fila
 dela** e a esteira ficaria vazia para sempre sem nada falhar.
 
 E as **Partes 5 e 6 — o tracker** fecharam junto, levando a `028` a **48 tasks e as seis partes do §6
-entregues**. Elas estavam paradas por um motivo só, e ele **deixou de existir**: o §11 dizia que falar
-com um tracker exigiria reverter o [ADR de
-2026-08-30](docs/adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md), e **não exige**. O
-[ADR do segredo](docs/adr/2026-09-13-1531-tracker-credentials-come-from-the-environment.md), com
-[estudo](docs/project/tracker-secret.md), achou a quarta saída que nem o §11 nem a medição tinham
-visto — e ela **já estava implementada duas vezes neste produto**: o `apiKeyEnv` da `021` e o `redact`
-da `009`. A credencial vem do **ambiente do daemon**, a tela recebe o **nome** da variável e nunca o
-valor, e sem a variável **a feature não aparece** — ausência não é erro. O ADR antigo é **reafirmado**
-no que ele protege (nenhuma das cinco superfícies que ele nomeia aparece aqui) e **delimitado** no que
-ele dizia por atalho: *"não lê token"* virou *"não guarda, não pede, e não deixa vazar"*. A diferença
-honesta fica escrita como consequência: para adaptador o daemon nunca toca no valor, e para tracker
-ele toca, durante a chamada.
+entregues**. Elas estavam paradas por um motivo só — **de onde vem a credencial** —, e ele foi decidido **duas
+vezes no mesmo dia**. O primeiro ADR disse *"do ambiente"*, apoiado em dois precedentes do produto, e
+**foi superado horas depois**: o Vinicius nomeou o erro — *"a decisão do `gh` e `glab` foi específica
+para eles; a do Claude Code e Codex foi por simplicidade"* —, e nenhuma das duas era regra a ser
+estendida. É a primeira vez que a cadeia de `supersedes` do [`025`](docs/features/025-docs-contract/prd.md)
+é exercitada neste repositório.
+
+O que vale é o [ADR do cofre](docs/adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md),
+com [estudo](docs/project/secret-store.md): **o Lumem guarda as chaves dos serviços de que depende**,
+cifradas em `~/.lumem/_system/`, com `AES-256-GCM` nativo. **Agentes, GitHub e GitLab entram numa
+feature posterior** — até lá, `gh` e `apiKeyEnv` continuam como estão.
+
+O estudo mede o que foi recusado, e os dois achados são concretos: o cofre do macOS põe o valor no
+**`argv`** — `security add-generic-password -w` sem valor **pede no terminal duas vezes** em vez de
+ler `stdin` —, e são **três CLIs** para três sistemas. A saída nativa resolve os dois e quebra o *"só
+o par nativo por fora"* que a [`014`](docs/features/014-distribution/prd.md) comprou. E o que o cofre
+**não** protege está escrito no ADR e num teste: quem já lê o seu `$HOME` como você decifra, porque a
+chave está ao lado — dizer *"guardado com segurança"* sem dizer contra o quê ensina alguém a confiar
+numa proteção que não existe.
 
 O resto é **polling a 60 s** — webhook exige relé, e relé é a opção que o ADR recusou —, a issue
 virando cartão **direto na To-Do**, e os quatro marcos voltando para a issue **uma vez cada**. Três

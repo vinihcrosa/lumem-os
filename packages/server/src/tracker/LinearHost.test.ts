@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createLinearHost, LINEAR_KEY_ENV } from "./LinearHost.js";
+import { createLinearHost, LINEAR_SECRET } from "./LinearHost.js";
 import { redactKey } from "./TrackerHost.js";
 
 /**
@@ -13,7 +13,13 @@ import { redactKey } from "./TrackerHost.js";
  */
 
 const KEY = "lin_api_segredo_que_nao_pode_vazar";
-const withKey = { [LINEAR_KEY_ENV]: KEY } as NodeJS.ProcessEnv;
+
+/** Um cofre em memória. O de verdade tem os testes dele no `secrets/`. */
+function vault(value: string | null) {
+  return { has: () => value !== null, read: () => value };
+}
+const withKey = vault(KEY);
+const empty = vault(null);
 
 /** O envelope do GraphQL, que é o que o host de verdade devolve. */
 function answering(data: unknown, init: { ok?: boolean; status?: number; raw?: unknown } = {}) {
@@ -31,7 +37,7 @@ function answering(data: unknown, init: { ok?: boolean; status?: number; raw?: u
 describe("sem a chave, a feature não existe — e não quebra", () => {
   it("`available` é falso e a listagem devolve vazio", async () => {
     const fetch = answering({});
-    const host = createLinearHost({ fetch, env: {} });
+    const host = createLinearHost({ fetch, secrets: empty });
 
     expect(host.available()).toBe(false);
     // Ausência **não é erro**, e é o mesmo desenho de um projeto sem `test`
@@ -41,20 +47,20 @@ describe("sem a chave, a feature não existe — e não quebra", () => {
   });
 
   it("com a chave, `available` é verdadeiro", () => {
-    expect(createLinearHost({ env: withKey }).available()).toBe(true);
+    expect(createLinearHost({ secrets: withKey }).available()).toBe(true);
   });
 
-  it("o que o host expõe é o **nome** da variável", () => {
-    // Nunca o valor. É a mesma regra do `apiKeyEnv` da `021`: um nome diz "vai
-    // funcionar" e é inútil para quem o intercepta.
-    expect(createLinearHost({ env: withKey }).keyEnv).toBe("LINEAR_API_KEY");
+  it("o que o host expõe é o **id do serviço**", () => {
+    // Nunca o valor: um id diz *"é esta credencial"* e é inútil para quem o
+    // intercepta. É o que a tela usa para saber qual campo é qual.
+    expect(createLinearHost({ secrets: withKey }).secretId).toBe(LINEAR_SECRET);
   });
 });
 
 describe("a chave nunca sai", () => {
   it("um erro de rede que ecoa a requisição sai redigido", async () => {
     const fetch = vi.fn(() => Promise.reject(new Error(`fetch failed: authorization ${KEY}`)));
-    const host = createLinearHost({ fetch, env: withKey });
+    const host = createLinearHost({ fetch, secrets: withKey });
 
     /*
      * Parece exagero — a chave não estaria num erro de DNS —, e não é: alguns
@@ -72,14 +78,14 @@ describe("a chave nunca sai", () => {
       status: 401,
       raw: { message: `invalid key ${KEY}` },
     });
-    const host = createLinearHost({ fetch, env: withKey });
+    const host = createLinearHost({ fetch, secrets: withKey });
 
     await expect(host.labelled("lumem")).rejects.not.toThrow(new RegExp(KEY));
   });
 
   it("um erro do GraphQL que cita a chave sai redigido", async () => {
     const fetch = answering(null, { raw: { errors: [{ message: `bad token ${KEY}` }] } });
-    const host = createLinearHost({ fetch, env: withKey });
+    const host = createLinearHost({ fetch, secrets: withKey });
 
     await expect(host.labelled("lumem")).rejects.toThrow(/bad token •••/);
   });
@@ -114,7 +120,7 @@ describe("a tradução é nossa", () => {
 
     for (const [type, expected] of cases) {
       const fetch = answering({ issues: { nodes: [{ ...node, state: { type } }] } });
-      const host = createLinearHost({ fetch, env: withKey });
+      const host = createLinearHost({ fetch, secrets: withKey });
       const [issue] = await host.labelled("lumem");
 
       /*
@@ -129,7 +135,7 @@ describe("a tradução é nossa", () => {
 
   it("uma issue sem descrição tem corpo vazio, e não `null`", async () => {
     const fetch = answering({ issues: { nodes: [{ ...node, description: null }] } });
-    const [issue] = await createLinearHost({ fetch, env: withKey }).labelled("lumem");
+    const [issue] = await createLinearHost({ fetch, secrets: withKey }).labelled("lumem");
 
     // O corpo da tarefa é `NOT NULL DEFAULT ''` desde a `022`; deixar um `null`
     // atravessar transformaria a tradução em problema de quem escreve.
@@ -138,14 +144,14 @@ describe("a tradução é nossa", () => {
 
   it("sem responsável, `assignee` é `null` — e é o que a Q63 compara", async () => {
     const fetch = answering({ issues: { nodes: [{ ...node, assignee: null }] } });
-    const [issue] = await createLinearHost({ fetch, env: withKey }).labelled("lumem");
+    const [issue] = await createLinearHost({ fetch, secrets: withKey }).labelled("lumem");
 
     expect(issue?.assignee).toBeNull();
   });
 
   it("a chave da issue é o identificador legível, e o id é o opaco", async () => {
     const fetch = answering({ issues: { nodes: [node] } });
-    const [issue] = await createLinearHost({ fetch, env: withKey }).labelled("lumem");
+    const [issue] = await createLinearHost({ fetch, secrets: withKey }).labelled("lumem");
 
     // O `key` é o que o cartão mostra (`↗ ACME-142`); o `id` é o que vira
     // `external_id` e o que a escrita de volta usa.
@@ -156,7 +162,7 @@ describe("a tradução é nossa", () => {
 describe("a chamada", () => {
   it("manda a chave no cabeçalho, e só lá", async () => {
     const fetch = answering({ issues: { nodes: [] } });
-    await createLinearHost({ fetch, env: withKey }).labelled("lumem");
+    await createLinearHost({ fetch, secrets: withKey }).labelled("lumem");
 
     const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect((init.headers as Record<string, string>)["authorization"]).toBe(KEY);
@@ -173,7 +179,7 @@ describe("a resposta malformada tem nome", () => {
     // undefined`, que não fala de rede nenhuma.
     const fetch = answering(null, { raw: {} });
 
-    await expect(createLinearHost({ fetch, env: withKey }).labelled("lumem")).rejects.toThrow(
+    await expect(createLinearHost({ fetch, secrets: withKey }).labelled("lumem")).rejects.toThrow(
       /sem dados/,
     );
   });

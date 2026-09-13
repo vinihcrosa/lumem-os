@@ -24,7 +24,7 @@ afterEach(async () => {
 function fakeHost(overrides: Partial<TrackerHost> = {}): TrackerHost {
   return {
     id: "linear",
-    keyEnv: "LINEAR_API_KEY",
+    secretId: "linear",
     available: () => true,
     labelled: vi.fn(async () => Promise.resolve([])),
     comment: vi.fn(async () => Promise.resolve()),

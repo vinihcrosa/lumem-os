@@ -1823,6 +1823,18 @@ Seis perguntas, e as três primeiras só puderam ser abertas depois do
 [ADR do segredo](../../adr/2026-09-13-1531-tracker-credentials-come-from-the-environment.md): sem
 saber de onde vem a credencial, *"como o evento chega"* não tem como ser respondida.
 
+> **Emenda de 2026-09-13, e ela atravessa esta rodada inteira.** O
+> [ADR das credenciais](../../adr/2026-09-13-1531-tracker-credentials-come-from-the-environment.md)
+> que abriu estas seis perguntas foi **superado no mesmo dia** pelo
+> [ADR do cofre](../../adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md): o Lumem
+> **guarda** as chaves dos serviços de que depende, em vez de lê-las do ambiente. A decisão é do
+> Vinicius, e a razão é que eu tinha generalizado duas coisas que não eram regra — *"a decisão do `gh`
+> e `glab` foi específica para eles; a do Claude Code e Codex foi por simplicidade"*.
+>
+> **O que muda nestas seis:** só de onde a credencial vem. A Q60 (polling), a Q61 (chave externa), a
+> Q62 (rótulo), a Q63 (instantâneo), a Q64 (cortesia) e a Q65 (mapa no `project.toml`) continuam
+> valendo palavra por palavra — nenhuma delas dependia da resposta errada.
+
 ### Q60 — como o evento externo chega?
 
 O §11 guardou três caminhos — **polling × webhook × relé hospedado** — e o

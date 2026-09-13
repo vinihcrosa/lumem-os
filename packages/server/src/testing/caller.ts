@@ -16,6 +16,7 @@ import { createIssueCache } from "../pr/IssueCache.js";
 import type { PrHost } from "../pr/PrHost.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { createScriptRunner, type ScriptRunner } from "../scripts/ScriptRunner.js";
+import { createSecretStore } from "../secrets/SecretStore.js";
 import { createSessionStore, type SessionStore } from "../sessions/SessionStore.js";
 import { adapterCommandForConfig } from "../setup/adapter-command.js";
 import { appRouter } from "../routers/index.js";
@@ -153,6 +154,8 @@ export function createTestCaller(
     acpManager,
     sessionStore,
     scripts,
+    // O cofre do daemon de teste: um diretório descartável, como o resto.
+    secrets: createSecretStore({ stateDir: config.stateDir }),
     git,
     clones: createCloneJobStore(),
     pr: prCache,

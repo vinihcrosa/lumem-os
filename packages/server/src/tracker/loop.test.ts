@@ -23,7 +23,7 @@ function manualClock() {
 function fakeHost(available: boolean, overrides: Partial<TrackerHost> = {}): TrackerHost {
   return {
     id: "linear",
-    keyEnv: "LINEAR_API_KEY",
+    secretId: "linear",
     available: () => available,
     labelled: vi.fn(async () => Promise.resolve([])),
     comment: vi.fn(async () => Promise.resolve()),
