@@ -123,10 +123,44 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
    * adaptador é o daemon, e pintar *"enviado"* antes da resposta seria desenhar
    * um palpite sobre a única coisa desta tela que custa dinheiro.
    */
+  /** **Parar** (Q57). Não é otimista, pelo mesmo motivo do arrasto. */
+  const stop = useMutation({
+    mutationFn: (taskId: string) => trpc.task.stop.mutate({ id: taskId }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  });
+
   const send = useMutation({
     mutationFn: (taskId: string) => trpc.task.sendPrepared.mutate({ id: taskId }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
   });
+
+  /**
+   * **Assumir o volante** (UC7, T39 · [Q59]).
+   *
+   * Abrir um cartão que a esteira está tocando **agora** é assumir; abrir
+   * qualquer outro é ler. O que separa os dois é o selo — derivado do turno em
+   * voo, e já na resposta do quadro —, e a distinção não é zelo: sem ela, olhar
+   * três cartões desligaria a autonomia dos três **em silêncio**, e o produto
+   * ficaria sem esteira com o motivo em lugar nenhum.
+   *
+   * **E não interrompe.** É a diferença para o `parar`: o UC7 diz *"você
+   * interrompe, escreve … e continua na mão"* — você, na conversa, quando
+   * quiser. Matar o turno ao abrir jogaria fora o trabalho pago que você foi
+   * olhar.
+   */
+  const takeOver = useMutation({
+    mutationFn: (taskId: string) =>
+      trpc.task.setAutonomy.mutate({ id: taskId, autonomy: "off" }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  });
+
+  function open(taskId: string) {
+    const card = (board.data ?? [])
+      .flatMap((column) => column.cards)
+      .find((one) => one.id === taskId);
+    if (card?.seal.kind === "working" && card.autonomy !== "off") takeOver.mutate(taskId);
+    onOpen(taskId);
+  }
 
   function drop(status: BoardStatus, index: number) {
     if (dragging === null) return;
@@ -239,11 +273,12 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
                       <TaskCard
                         card={card}
                         now={now}
-                        onOpen={onOpen}
+                        onOpen={open}
                         ghost={dragging === card.id}
                         onDragStart={() => setDragging(card.id)}
                         onDragEnd={() => setDragging(null)}
                         onSend={(taskId) => send.mutate(taskId)}
+                        onStop={(taskId) => stop.mutate(taskId)}
                       />
                     </div>
                   ))

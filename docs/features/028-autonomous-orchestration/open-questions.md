@@ -1786,3 +1786,31 @@ gesto — não existe caminho em que uma tarefa chegue a `done` sem alguém a te
 a tela que oferece o que fazer com a recusa. É a mesma forma da
 [`012`](../012-project-scripts/prd.md) com o portão de confiança — e é o que impede o modal de virar
 o que a Q27 recusou: *"um modal que aparece sempre é um modal que se aprende a clicar sem ler"*.
+
+### Q59 — abrir o cartão desliga a autonomia dele? Sempre?
+
+Aberta ao escrever a [T39](tasks.md#t39-assumir-é-um-clique-que-já-existe). O UC7 diz que **assumir**
+é *"um clique no cartão abre a conversa"* e que *"a autonomia **daquela tarefa** desliga — e não volta
+sozinha"*. Lido ao pé da letra, **todo** clique desliga.
+
+E aí olhar o quadro vira um campo minado: você abre três cartões para ler o que está acontecendo e
+desliga a autonomia dos três, **em silêncio**, sem ter tocado em nada. O produto fica sem esteira e o
+motivo não está em lugar nenhum.
+
+- **todo clique desliga** — literal, e é a leitura que o UC7 dá. Custa o campo minado acima;
+- **só quando há turno em voo** — *"a esteira está tocando este cartão agora"*, que é exatamente o
+  contexto do UC7: *"você vê o implementador indo para o lugar errado"*;
+- **nunca, e desligar é só o `parar`** — um verbo, um efeito. Custa o UC7 inteiro: você interrompe o
+  agente digitando na conversa, e a esteira o retoma quinze segundos depois.
+
+**Resposta: a segunda.** Abrir um cartão que a esteira está tocando **agora** é assumir o volante;
+abrir qualquer outro é ler. O que separa os dois é o selo, que já é derivado do turno em voo e já está
+na resposta do quadro — então não é conceito novo nem leitura nova.
+
+**E ela não interrompe**, que é a diferença para o `parar` da [Q57](#q57--parar-para-o-quê-exatamente):
+o UC7 diz *"você interrompe, escreve … e continua na mão"* — **você** interrompe, na conversa, quando
+quiser. Matar o turno ao abrir jogaria fora o trabalho pago que você foi olhar, e é o oposto do
+princípio 2: *"a conversa tem que estar lá inteira quando assumir"*.
+
+> **O que fica de pé do UC7**, e é o que importa: a autonomia daquela tarefa desliga e **não volta
+> sozinha**. O que a resposta delimita é *quando*, não *se*.

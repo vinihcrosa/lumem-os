@@ -168,3 +168,80 @@ describe("uma vez, sem repetir", () => {
     expect(Notification).not.toHaveBeenCalled();
   });
 });
+
+describe("assumir o volante (Q59)", () => {
+  function boardWith(patch: Partial<BoardCard>) {
+    return [
+      { status: "backlog", cards: [] },
+      { status: "open", cards: [] },
+      { status: "in_progress", cards: [card(patch)] },
+      { status: "review", cards: [] },
+      { status: "testing", cards: [] },
+      { status: "ready_to_merge", cards: [] },
+      { status: "done", cards: [] },
+    ];
+  }
+
+  it("abrir um cartão que a esteira está tocando desliga a autonomia dele", async () => {
+    mock.task.board.query.mockResolvedValue(
+      boardWith({ seal: { kind: "working", role: "implementador", since: new Date().toISOString() } }),
+    );
+    const onOpen = vi.fn();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <Board workspaceId="w1" onOpen={onOpen} />
+      </QueryClientProvider>,
+    );
+
+    (await screen.findByText("o /orders devolve 500")).click();
+
+    await waitFor(() => {
+      expect(mock.task.setAutonomy.mutate).toHaveBeenCalledWith({ id: "t1", autonomy: "off" });
+    });
+    // E abre a conversa do mesmo jeito: assumir é **um** gesto, não dois.
+    expect(onOpen).toHaveBeenCalledWith("t1");
+  });
+
+  it("abrir um cartão parado é ler, e não desliga nada", async () => {
+    mock.task.board.query.mockResolvedValue(boardWith({ seal: { kind: "manual" } }));
+    const onOpen = vi.fn();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <Board workspaceId="w1" onOpen={onOpen} />
+      </QueryClientProvider>,
+    );
+
+    (await screen.findByText("o /orders devolve 500")).click();
+
+    /*
+     * Sem esta distinção, olhar três cartões desligaria a autonomia dos três
+     * **em silêncio**, e o produto ficaria sem esteira com o motivo em lugar
+     * nenhum.
+     */
+    expect(mock.task.setAutonomy.mutate).not.toHaveBeenCalled();
+    expect(onOpen).toHaveBeenCalledWith("t1");
+  });
+
+  it("um cartão já assumido não é desligado de novo", async () => {
+    mock.task.board.query.mockResolvedValue(
+      boardWith({
+        autonomy: "off",
+        seal: { kind: "working", role: "implementador", since: new Date().toISOString() },
+      }),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <Board workspaceId="w1" onOpen={vi.fn()} />
+      </QueryClientProvider>,
+    );
+
+    (await screen.findByText("o /orders devolve 500")).click();
+
+    // Uma escrita que não muda nada é uma invalidação de query que repinta o
+    // quadro inteiro por nada.
+    expect(mock.task.setAutonomy.mutate).not.toHaveBeenCalled();
+  });
+});

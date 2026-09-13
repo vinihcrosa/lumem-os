@@ -136,3 +136,35 @@ describe("o `assistido` mostra o que ia ser enviado", () => {
     expect(document.querySelector(".tcard__act")).toBeNull();
   });
 });
+
+describe("`parar` só aparece quando há o que parar (Q57)", () => {
+  const working = { kind: "working" as const, role: "implementador" as const, since: new Date().toISOString() };
+
+  it("um cartão com turno em voo oferece o verbo", () => {
+    render(<TaskCard card={card({ seal: working })} now={NOW} onOpen={vi.fn()} onStop={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "parar" })).toBeInTheDocument();
+  });
+
+  it("um cartão parado não oferece", () => {
+    render(<TaskCard card={card()} now={NOW} onOpen={vi.fn()} onStop={vi.fn()} />);
+
+    // O verbo custa: ele interrompe um turno pago. Oferecê-lo onde ninguém está
+    // trabalhando seria um botão que não faz nada visível — e um botão assim
+    // ensina que os outros também não fazem.
+    expect(screen.queryByRole("button", { name: "parar" })).toBeNull();
+  });
+
+  it("clicar em parar não abre a tarefa", () => {
+    const onOpen = vi.fn();
+    const onStop = vi.fn();
+    render(<TaskCard card={card({ seal: working })} now={NOW} onOpen={onOpen} onStop={onStop} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "parar" }));
+
+    // Mesma armadilha do `enviar`, e a razão de os dois verbos serem a mesma
+    // peça: sem o `stopPropagation` o clique sobe até o cartão.
+    expect(onStop).toHaveBeenCalledWith("t1");
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+});

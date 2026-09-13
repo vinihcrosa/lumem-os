@@ -351,6 +351,59 @@ export const taskRouter = router({
   ),
 
   /**
+   * **Parar** (`028` §6, Parte 4 — T38 · Q57).
+   *
+   * Dois verbos, e este é o que custa: existe um turno **em voo**, e ele está
+   * gastando agora. `assumir` só desliga o interruptor; `parar` interrompe.
+   *
+   * **A ordem é `cancel` e depois o interruptor**, e ela é cobrada por teste:
+   * desligar primeiro deixa uma janela em que a passada seguinte já não pega o
+   * cartão e o turno velho continua gastando — a esteira não o mataria, porque
+   * ela não olha mais para ele.
+   *
+   * **A worktree fica**, sempre. É o §6 e é o mesmo princípio do UC6: *"com tudo
+   * o que já foi feito: é o valor que sobra, e às vezes é a maior parte dele"*.
+   */
+  stop: publicProcedure.input(idSchema).mutation(({ ctx, input }) =>
+    domainSafeAsync(async () => {
+      const tasks = createTaskRepository(ctx.db);
+      const target = await tasks.get(input.id);
+      if (!target) throw new DomainError("NOT_FOUND", `tarefa ${input.id} não existe`);
+
+      /*
+       * Cancela **todas** as sessões desta tarefa, e não *"a"* sessão.
+       *
+       * A esteira abre uma por tentativa, e uma tentativa anterior pode ter
+       * deixado processo de pé — o teto de tempo cancela, mas um daemon que
+       * reiniciou no meio não cancelou nada. Parar tem que parar tudo.
+       */
+      const live = new Set(ctx.acpManager.liveTurns().map((turn) => turn.sessionId));
+      const rows = await ctx.db
+        .select({ id: session.id })
+        .from(session)
+        .where(eq(session.taskId, input.id));
+      for (const row of rows) {
+        if (!live.has(row.id)) continue;
+        try {
+          ctx.acpManager.cancel(row.id);
+        } catch {
+          /*
+           * A sessão morreu entre a leitura e o cancelamento — corrida real, e
+           * curta. Deixar subir abortaria o `parar` **antes** de desligar o
+           * interruptor, e aí o clique não teria feito nada: a fila pegaria o
+           * cartão de volta na passada seguinte. Um turno que já acabou é o
+           * resultado que o cancelamento queria.
+           */
+        }
+      }
+
+      const stopped = await tasks.setAutonomy(input.id, "off");
+      ctx.events.emit({ type: "task.changed", workspaceId: stopped.workspaceId });
+      return stopped;
+    }),
+  ),
+
+  /**
    * Ligar de volta a autonomia desta tarefa, ou desligá-la sem arrastar
    * (`028` Q40).
    *

@@ -34,6 +34,8 @@ export interface TaskCardProps {
   onDragEnd?: () => void;
   /** O clique do `assistido` (Q51). Ausente é um quadro que não envia nada. */
   onSend?: (taskId: string) => void;
+  /** **Parar** (Q57): interrompe o turno em voo e desliga a autonomia. */
+  onStop?: (taskId: string) => void;
 }
 
 /**
@@ -57,11 +59,20 @@ export function TaskCard({
   onDragStart,
   onDragEnd,
   onSend,
+  onStop,
 }: TaskCardProps) {
   const stale = staleLevel(card, now);
   const tracker = card.links[0];
   const note = noteOf(card);
   const sendable = card.preparedPrompt !== null && onSend !== undefined;
+  /*
+   * `parar` só aparece quando há o que parar.
+   *
+   * O verbo custa: ele interrompe um turno pago. Oferecê-lo num cartão em que
+   * ninguém está trabalhando seria um botão que não faz nada visível — e um
+   * botão assim ensina que os outros também não fazem.
+   */
+  const stoppable = card.seal.kind === "working" && onStop !== undefined;
 
   return (
     <button
@@ -93,32 +104,15 @@ export function TaskCard({
           <span className="tcard__ask-t">{note}</span>
         </div>
       )}
-      {sendable ? (
+      {sendable || stoppable ? (
         <div className="tcard__act">
           {/*
             `span` com `role="button"`, e não `<button>`: o cartão inteiro já é
             um `<button>`, e um botão dentro de outro é marcação inválida — o
             navegador desfaz o aninhamento e o cartão se parte em dois.
           */}
-          <span
-            role="button"
-            tabIndex={0}
-            className="btn btn--sm focus-ring"
-            onClick={(event) => {
-              // Sem isto o clique sobe e abre a tarefa, que é o oposto de
-              // enviar: você aprovaria e cairia na conversa sem ter enviado.
-              event.stopPropagation();
-              onSend(card.id);
-            }}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter" && event.key !== " ") return;
-              event.preventDefault();
-              event.stopPropagation();
-              onSend(card.id);
-            }}
-          >
-            enviar
-          </span>
+          {sendable ? <CardAction label="enviar" onRun={() => onSend(card.id)} /> : null}
+          {stoppable ? <CardAction label="parar" onRun={() => onStop(card.id)} /> : null}
         </div>
       ) : null}
       <div className="tcard__foot">
@@ -138,6 +132,36 @@ export function TaskCard({
         </span>
       </div>
     </button>
+  );
+}
+
+/**
+ * Um verbo do cartão.
+ *
+ * Extraído porque são dois agora — `enviar` e `parar` — e os dois precisam
+ * exatamente do mesmo cuidado: parar a propagação do clique, senão ele sobe até
+ * o cartão (que é um `<button>` inteiro) e abre a conversa. Duas cópias disso é
+ * uma cópia que vai esquecer o `stopPropagation` na próxima.
+ */
+function CardAction({ label, onRun }: { label: string; onRun: () => void }) {
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      className="btn btn--sm focus-ring"
+      onClick={(event) => {
+        event.stopPropagation();
+        onRun();
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        event.stopPropagation();
+        onRun();
+      }}
+    >
+      {label}
+    </span>
   );
 }
 

@@ -1,6 +1,6 @@
 import { newId } from "@lumem/shared";
 import { and, eq } from "drizzle-orm";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { project, session, task, workspace, worktree } from "../db/schema.js";
 import { createTaskRepository } from "../repositories/task.js";
@@ -567,6 +567,125 @@ describe("a medida de cerimônia", () => {
       sessions: 1,
       sessionsWithTask: 0,
     });
+  });
+});
+
+describe("parar é interromper e depois desligar (Q57)", () => {
+  it("desliga a autonomia da tarefa", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "para esta" });
+
+    const stopped = await api.task.stop({ id: created.id });
+
+    expect(stopped.autonomy).toBe("off");
+  });
+
+  it("parar sem turno em voo não é erro", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "nem começou" });
+
+    // O caso comum de um clique: você viu o cartão parado e mandou parar. Errar
+    // aqui obrigaria a tela a saber se há turno antes de oferecer o verbo.
+    await expect(api.task.stop({ id: created.id })).resolves.toMatchObject({ autonomy: "off" });
+  });
+
+  it("a worktree fica", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "para esta" });
+    await db.insert(worktree).values({
+      id: "wt-parar",
+      projectId,
+      name: "para-esta",
+      branch: "fix/para",
+      path: "/wt/para",
+    });
+    await api.task.attachWorktree({ id: created.id, worktreeId: "wt-parar" });
+
+    const stopped = await api.task.stop({ id: created.id });
+
+    /*
+     * É o §6 e é o mesmo princípio do UC6: *"a worktree fica, com tudo o que já
+     * foi feito: é o valor que sobra, e às vezes é a maior parte dele"*.
+     */
+    expect(stopped.worktreeId).toBe("wt-parar");
+    expect(await db.select().from(worktree)).toHaveLength(1);
+  });
+
+  it("interrompe **antes** de desligar, e a ordem é o ponto", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "para esta" });
+    await db.insert(session).values({
+      id: "ses-parar",
+      kind: "shell",
+      scopeType: "project",
+      scopeId: projectId,
+      cwd: "/repos",
+      command: "bash",
+      taskId: created.id,
+    });
+    vi.spyOn(context.acpManager, "liveTurns").mockReturnValue([
+      { sessionId: "ses-parar", startedAt: new Date() },
+    ]);
+
+    /*
+     * A prova da ordem é lida **de dentro** do cancelamento: no instante em que
+     * ele acontece, a autonomia ainda tem que estar ligada.
+     *
+     * Desligar primeiro deixaria uma janela em que a passada seguinte já não
+     * pega o cartão e o turno velho continua gastando — a esteira não o
+     * mataria, porque ela não olha mais para ele.
+     */
+    let autonomyWhenCancelled: string | undefined;
+    vi.spyOn(context.acpManager, "cancel").mockImplementation(() => {
+      autonomyWhenCancelled = db
+        .select({ autonomy: task.autonomy })
+        .from(task)
+        .where(eq(task.id, created.id))
+        .get()?.autonomy;
+    });
+
+    await api.task.stop({ id: created.id });
+
+    expect(autonomyWhenCancelled).toBe("inherit");
+  });
+
+  it("uma sessão que morreu no meio não aborta o `parar`", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "para esta" });
+    await db.insert(session).values({
+      id: "ses-morta",
+      kind: "shell",
+      scopeType: "project",
+      scopeId: projectId,
+      cwd: "/repos",
+      command: "bash",
+      taskId: created.id,
+    });
+    vi.spyOn(context.acpManager, "liveTurns").mockReturnValue([
+      { sessionId: "ses-morta", startedAt: new Date() },
+    ]);
+    vi.spyOn(context.acpManager, "cancel").mockImplementation(() => {
+      throw new Error("session not found");
+    });
+
+    /*
+     * Corrida real e curta: a sessão acabou entre a leitura e o cancelamento.
+     * Deixar subir abortaria o `parar` **antes** do interruptor, e aí o clique
+     * não teria feito nada — a fila pegaria o cartão de volta em 15 segundos.
+     */
+    await expect(api.task.stop({ id: created.id })).resolves.toMatchObject({ autonomy: "off" });
+  });
+
+  it("tarefa que não existe é NOT_FOUND", async () => {
+    const { api } = caller();
+    await workspaceWithProject(context);
+
+    await expect(api.task.stop({ id: "nao-existe" })).rejects.toThrow(/não existe/);
   });
 });
 

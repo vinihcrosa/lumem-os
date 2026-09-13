@@ -128,6 +128,7 @@ function createTrpcMock() {
       move: { mutate: vi.fn() },
       sendPrepared: { mutate: vi.fn() },
       markNotified: { mutate: vi.fn() },
+      stop: { mutate: vi.fn() },
       setAutonomy: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
     },
