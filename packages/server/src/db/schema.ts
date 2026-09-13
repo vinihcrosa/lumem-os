@@ -75,10 +75,38 @@ export const workspace = sqliteTable(
     budgetCostPerDay: real("budget_cost_per_day"),
     /** O chão que todo adaptador informa, e o único que não depende de moeda. */
     budgetTurnsPerSession: integer("budget_turns_per_session"),
+    /**
+     * O interruptor da esteira (`028` §6, Parte 2 — T29).
+     *
+     * **Nasce em `manual`**, que é o Lumem de hoje e o default do produto — um
+     * `~/.lumem` que atravessa a migração continua não andando sozinho. O
+     * `assistido` é o degrau que torna a feature adotável: ele prepara tudo e
+     * **para antes de enviar**, e a
+     * [Q51](../../../../docs/features/028-autonomous-orchestration/open-questions.md)
+     * decidiu que *preparar* não inclui subir o adaptador.
+     */
+    autonomy: text("autonomy").notNull().default("manual"),
+    /**
+     * Quantas de uma vez (`028` Parte 2, T25 · Q52).
+     *
+     * **`NOT NULL`, ao contrário dos três tetos acima**, e a diferença é a
+     * decisão: `NULL` lá quer dizer *sem teto*, e uma fila sem teto de
+     * paralelismo é como se gasta tudo num minuto. `0` continua querendo dizer
+     * *bloqueia tudo* — o mesmo vocabulário da Parte 3 —, o que dá um jeito de
+     * pausar a esteira sem desligar a autonomia de cada tarefa.
+     *
+     * O default é **2**, que é o número que a folha do Open Design já desenha.
+     */
+    autonomyMaxParallel: integer("autonomy_max_parallel").notNull().default(2),
     ...timestamps,
   },
   (table) => [
     check("workspace_default_lumem_mode", sql`${table.defaultLumemMode} IN ('ask', 'auto')`),
+    check("workspace_autonomy", sql`${table.autonomy} IN ('manual', 'assistido', 'autonomo')`),
+    // Sem acento na coluna e sem acento no CHECK: o valor é dado, e dado do
+    // Lumem é inglês-ou-ascii pela convenção do repositório. Quem traduz é a
+    // tela, que já traduz `manual` para a mesma palavra por coincidência.
+    check("workspace_autonomy_max_parallel", sql`${table.autonomyMaxParallel} >= 0`),
     // Negativo não é "sem teto" — `NULL` é. Um número negativo aqui seria um
     // teto que nunca passa escrito de um jeito que ninguém lê como isso.
     check(

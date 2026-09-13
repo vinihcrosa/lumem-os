@@ -966,3 +966,90 @@ describe("0020 — a tentativa e a autonomia da esteira", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("0022 — o interruptor da esteira", () => {
+  /** Um banco parado em 0021, com um workspace dentro. */
+  function databaseBeforeSwitch(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-switch-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(22) });
+    sqlite
+      .prepare(
+        `INSERT INTO workspace (id, name, budget_turns_per_session) VALUES ('w1', 'acme', 40)`,
+      )
+      .run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("um workspace que já existia acorda em `manual` — nenhum acorda andando", async () => {
+    const handle = openDatabase({ path: databaseBeforeSwitch() });
+    open.push(handle);
+
+    const [row] = await handle.db.select().from(schema.workspace);
+
+    /*
+     * É a propriedade mais importante desta migração, e a única que não dá para
+     * consertar depois: um `~/.lumem` que atravessa a atualização **não** começa
+     * a abrir sessões sozinho. O teto de paralelismo já vem no número da folha,
+     * mas ele não liga nada enquanto a autonomia for `manual`.
+     */
+    expect(row).toMatchObject({ autonomy: "manual", autonomyMaxParallel: 2 });
+  });
+
+  it("o teto que já estava configurado sobrevive à tabela ser recriada", async () => {
+    const handle = openDatabase({ path: databaseBeforeSwitch() });
+    open.push(handle);
+
+    const [row] = await handle.db.select().from(schema.workspace);
+
+    // A armadilha do gerador derruba exatamente isto: sem a lista reescrita à
+    // mão, a migração falha com *"no such column: autonomy"* — e só quando
+    // existe linha para copiar.
+    expect(row).toMatchObject({ name: "acme", budgetTurnsPerSession: 40 });
+  });
+
+  it("um valor de autonomia fora dos três é recusado", async () => {
+    const handle = openDatabase({ path: databaseBeforeSwitch() });
+    open.push(handle);
+
+    await expect(
+      handle.db
+        .update(schema.workspace)
+        .set({ autonomy: "auto" })
+        .where(eq(schema.workspace.id, "w1")),
+    ).rejects.toThrow();
+  });
+
+  it("`0` é escrevível — é como se pausa a esteira sem mexer em cada tarefa", async () => {
+    const handle = openDatabase({ path: databaseBeforeSwitch() });
+    open.push(handle);
+
+    await handle.db
+      .update(schema.workspace)
+      .set({ autonomyMaxParallel: 0 })
+      .where(eq(schema.workspace.id, "w1"));
+
+    const [row] = await handle.db.select().from(schema.workspace);
+    expect(row?.autonomyMaxParallel).toBe(0);
+  });
+
+  it("teto de paralelismo negativo é recusado", async () => {
+    const handle = openDatabase({ path: databaseBeforeSwitch() });
+    open.push(handle);
+
+    // Aqui não existe "sem teto": a coluna é `NOT NULL` de propósito, e uma
+    // fila sem teto de paralelismo é como se gasta tudo num minuto.
+    await expect(
+      handle.db
+        .update(schema.workspace)
+        .set({ autonomyMaxParallel: -1 })
+        .where(eq(schema.workspace.id, "w1")),
+    ).rejects.toThrow();
+  });
+});
