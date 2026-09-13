@@ -32,6 +32,21 @@ export interface TaskCardProps {
   ghost?: boolean;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  /** O clique do `assistido` (Q51). Ausente é um quadro que não envia nada. */
+  onSend?: (taskId: string) => void;
+}
+
+/**
+ * A linha que só existe quando há o que dizer (`028` Parte 2, T31 e T32).
+ *
+ * Duas coisas cabem nela, nunca as duas ao mesmo tempo: **por que parou** e **o
+ * que ia ser enviado**. São excludentes por construção — uma tarefa bloqueada
+ * não tem prompt preparado, porque bloquear desliga a autonomia dela e o
+ * `assistido` não a pega mais.
+ */
+function noteOf(card: BoardCard): string | null {
+  if (card.seal.kind === "blocked") return card.seal.reason;
+  return card.preparedPrompt;
 }
 
 export function TaskCard({
@@ -41,9 +56,12 @@ export function TaskCard({
   ghost = false,
   onDragStart,
   onDragEnd,
+  onSend,
 }: TaskCardProps) {
   const stale = staleLevel(card, now);
   const tracker = card.links[0];
+  const note = noteOf(card);
+  const sendable = card.preparedPrompt !== null && onSend !== undefined;
 
   return (
     <button
@@ -70,12 +88,51 @@ export function TaskCard({
       </div>
       <div className="tcard__t">{card.title}</div>
       <TaskSeal seal={card.seal} now={now} />
+      {note === null ? null : (
+        <div className="tcard__ask">
+          <span className="tcard__ask-t">{note}</span>
+        </div>
+      )}
+      {sendable ? (
+        <div className="tcard__act">
+          {/*
+            `span` com `role="button"`, e não `<button>`: o cartão inteiro já é
+            um `<button>`, e um botão dentro de outro é marcação inválida — o
+            navegador desfaz o aninhamento e o cartão se parte em dois.
+          */}
+          <span
+            role="button"
+            tabIndex={0}
+            className="btn btn--sm focus-ring"
+            onClick={(event) => {
+              // Sem isto o clique sobe e abre a tarefa, que é o oposto de
+              // enviar: você aprovaria e cairia na conversa sem ter enviado.
+              event.stopPropagation();
+              onSend(card.id);
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              event.stopPropagation();
+              onSend(card.id);
+            }}
+          >
+            enviar
+          </span>
+        </div>
+      ) : null}
       <div className="tcard__foot">
         {card.createdBy === "agent" ? (
           <span className="tcard__from tcard__from--agent">◆ proposta</span>
         ) : tracker === undefined ? null : (
           <span className="tcard__from tcard__from--track">↗ {trackerLabel(tracker)}</span>
         )}
+        {card.attempts > 1 ? (
+          // Só quando é maior que um: `tentativa 1` é o caso de toda tarefa que
+          // a esteira pegou, e escrevê-lo em todo cartão seria um número que
+          // não distingue nada de nada.
+          <span className="tcard__from">tentativa {card.attempts}</span>
+        ) : null}
         <span className={`stale${stale === null ? "" : ` stale--${stale}`}`}>
           {elapsed(card.statusChangedAt, now)}
         </span>

@@ -65,8 +65,14 @@ const INTERPOLATED = [
   "stale--over",
 ];
 
-/** Pintadas em outro lugar, e reusadas aqui de propósito. */
-const BORROWED = new Set(["focus-ring", "glyph", "glyph--project"]);
+/**
+ * Pintadas em outro lugar, e reusadas aqui de propósito.
+ *
+ * `btn` e `btn--sm` entraram com o `enviar` do `assistido` (`028` Parte 2, T30):
+ * o botão do cartão é **o mesmo** botão do resto do produto, e redefini-lo aqui
+ * seria a segunda definição que diverge da primeira na próxima mudança de token.
+ */
+const BORROWED = new Set(["focus-ring", "glyph", "glyph--project", "btn", "btn--sm"]);
 
 describe("toda classe que o quadro pede existe", () => {
   const available = defined(stylesheet);

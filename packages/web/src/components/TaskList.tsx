@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { projectsKey, tasksKey } from "../lib/queryKeys.js";
@@ -66,6 +66,21 @@ function capLabel(value: number | null, prefix = ""): string {
   return `${prefix}${prefix === "" ? "" : " "}${prefix === "" ? String(value) : value.toFixed(2)}`;
 }
 
+/**
+ * Os três degraus do §6, em ordem de risco.
+ *
+ * Botões e não um menu com seta, ao contrário da folha: o menu do quadro mora no
+ * `lumem-board.html` e a peça dele vive no `conversation.css` deste lado —
+ * portá-la para cá seria trazer um menu inteiro para três opções. Três botões
+ * usam vocabulário que já existe, e **mostram os três ao mesmo tempo**, que é o
+ * que impede `autônomo` de ser alcançado por engano num ciclo de cliques.
+ */
+const AUTONOMY_STEPS = [
+  { value: "manual" as const, label: "manual" },
+  { value: "assistido" as const, label: "assistido" },
+  { value: "autonomo" as const, label: "autônomo" },
+];
+
 export interface TaskListProps {
   workspaceId: string;
   /** Quando presente, a lista é a do projeto — a mesma peça, um nível abaixo. */
@@ -108,6 +123,7 @@ export function TaskList({
    * Um teto que você não vê é um teto que você não ajusta — e no dia em que ele
    * recusar, você vai achar que é bug. A linha diz o número **e** onde mudar.
    */
+  const queryClient = useQueryClient();
   const settings = useQuery({
     queryKey: ["task", "settings", workspaceId],
     queryFn: () => trpc.task.settings.query({ workspaceId }),
@@ -119,6 +135,23 @@ export function TaskList({
    * Uma por linha seria N requisições para somar N números — o desenho que faz
    * uma tela de sete linhas parecer lenta.
    */
+  /*
+   * Ligar a esteira, e ela sobe **com o teto que já está lá**.
+   *
+   * O `setAutonomy` do daemon exige os dois de uma vez — ligar sem dizer
+   * quantas é ligar sem freio —, e o número que esta tela manda é o que ela
+   * acabou de ler. Mudar o teto é outro gesto; este é só o degrau.
+   */
+  const setAutonomy = useMutation({
+    mutationFn: (autonomy: "manual" | "assistido" | "autonomo") =>
+      trpc.workspace.setAutonomy.mutate({
+        id: workspaceId,
+        autonomy,
+        maxParallel: settings.data?.maxParallel ?? 2,
+      }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: tasksKey(workspaceId) }),
+  });
+
   const spend = useQuery({
     queryKey: ["usage", "byTask", workspaceId],
     queryFn: () => trpc.usage.byTask.query({ workspaceId, period: "7d" }),
@@ -234,6 +267,30 @@ export function TaskList({
               <br />
               um agente pode criar até <b>{settings.data.budget}</b> tarefas por tarefa · mude em{" "}
               <code>{settings.data.budgetEnv}</code>
+              <br />
+              {/*
+                O interruptor da esteira (`028` Parte 2, T29).
+                Aqui e não numa tela própria porque é a mesma pergunta que os
+                tetos acima — *o que este workspace deixa gastar sozinho* —, e
+                porque a Parte 3 veio antes justamente para ligar a autonomia e
+                ver o teto serem a mesma olhada.
+              */}
+              esteira:{" "}
+              {AUTONOMY_STEPS.map((step) => (
+                <button
+                  key={step.value}
+                  type="button"
+                  className={`btn btn--sm focus-ring${
+                    settings.data?.autonomy === step.value ? " btn--brand" : ""
+                  }`}
+                  onClick={() => {
+                    setAutonomy.mutate(step.value);
+                  }}
+                >
+                  {step.label}
+                </button>
+              ))}{" "}
+              · <b>{settings.data.maxParallel}</b> em paralelo
               {/*
                 A medida de cerimônia (§7): `sessões com tarefa ÷ sessões`, e o
                 PRD **espera que não seja 100%**. Se for, todo mundo está criando

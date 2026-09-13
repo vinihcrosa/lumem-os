@@ -99,6 +99,15 @@ export const taskRouter = router({
           costPerDay: space?.budgetCostPerDay ?? null,
           turnsPerSession: space?.budgetTurnsPerSession ?? null,
         },
+        /*
+         * O interruptor da esteira, na mesma leitura (`028` Parte 2, T29).
+         *
+         * Junto dos tetos porque é a mesma pergunta — *o que este workspace
+         * deixa gastar sozinho* —, e porque a Parte 3 veio antes justamente
+         * para que ligar a autonomia e ver o teto fossem a mesma olhada.
+         */
+        autonomy: space?.autonomy ?? "manual",
+        maxParallel: space?.autonomyMaxParallel ?? 0,
       };
     }),
 

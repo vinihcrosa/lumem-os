@@ -24,6 +24,12 @@ export interface BoardCard {
   createdBy: string;
   links: string[];
   seal: Seal;
+  /** Quantas vezes a esteira já tentou **nesta etapa** (`028` Parte 2, T31). */
+  attempts: number;
+  /** `off` quando você assumiu o volante. O cartão diz isso, e a fila obedece. */
+  autonomy: string;
+  /** O prompt que o `assistido` montou e não enviou, ou `null` (Q51). */
+  preparedPrompt: string | null;
 }
 
 export type BoardStatus =

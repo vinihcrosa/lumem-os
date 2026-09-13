@@ -104,6 +104,18 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
     onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
   });
 
+  /*
+   * O clique do `assistido` (Q51).
+   *
+   * Também **não** é otimista, e pelo mesmo motivo do arrasto: quem abre o
+   * adaptador é o daemon, e pintar *"enviado"* antes da resposta seria desenhar
+   * um palpite sobre a única coisa desta tela que custa dinheiro.
+   */
+  const send = useMutation({
+    mutationFn: (taskId: string) => trpc.task.sendPrepared.mutate({ id: taskId }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  });
+
   function drop(status: BoardStatus, index: number) {
     if (dragging === null) return;
     move.mutate({ id: dragging, status, index });
@@ -199,6 +211,7 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
                         ghost={dragging === card.id}
                         onDragStart={() => setDragging(card.id)}
                         onDragEnd={() => setDragging(null)}
+                        onSend={(taskId) => send.mutate(taskId)}
                       />
                     </div>
                   ))

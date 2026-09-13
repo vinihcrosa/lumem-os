@@ -317,6 +317,33 @@
 
 .seal__t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* A pergunta que travou a tarefa, no cartão. Ela é o cartão inteiro quando
+   existe: o bloqueio que não diz do quê é um alarme, não um aviso. */
+/*
+ * O CORTE MORA NUM FILHO, e não na caixa que tem padding — e isso é defeito
+ * medido, não preferência. Com `line-clamp` na própria caixa acolchoada, o
+ * Chrome fecha a terceira linha com reticências E AINDA pinta uma fatia da
+ * quarta dentro do padding de baixo: um cartão que parece quebrado justamente
+ * no estado em que ele mais precisa ser lido. Medido: 62px de altura para 3×16
+ * de conteúdo mais 12 de padding, que seriam 60.
+ */
+.tcard__ask { padding: var(--space-6) var(--space-8); background: var(--color-bg-inset); border-radius: var(--radius-sm); }
+.tcard__ask-t {
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/*
+ * O verbo do cartão que espera você. `btn--ghost` some aqui: o contorno dele é
+ * `border/subtle`, e o cartão já é `bg/surface` — sobrava um texto solto no
+ * estado em que a pessoa precisa achar o que clicar. Contorno padrão.
+ */
+.tcard__act { display: flex; gap: var(--space-6); }
+
 .tcard__foot { display: flex; align-items: center; gap: var(--space-8); min-width: 0; font: var(--text-caption); color: var(--color-text-tertiary); }
 
 .tcard__from { flex: none; display: inline-flex; align-items: center; gap: var(--space-4); font: var(--text-mono-sm); color: var(--color-text-tertiary); }

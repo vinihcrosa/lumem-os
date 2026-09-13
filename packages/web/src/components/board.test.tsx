@@ -33,6 +33,9 @@ function card(overrides: Partial<BoardCard> = {}): BoardCard {
     turns: 0,
     createdBy: "human",
     links: [],
+    attempts: 0,
+    autonomy: "inherit",
+    preparedPrompt: null,
     seal: { kind: "manual" },
     ...overrides,
   };

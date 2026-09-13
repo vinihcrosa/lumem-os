@@ -77,6 +77,7 @@ function createTrpcMock() {
     health: { query: vi.fn() },
     events: { onChange: { subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })) } },
     workspace: {
+      setAutonomy: { mutate: vi.fn() },
       list: { query: vi.fn() },
       get: { query: vi.fn() },
       create: { mutate: vi.fn() },
@@ -118,6 +119,13 @@ function createTrpcMock() {
       update: { mutate: vi.fn() },
       setStatus: { mutate: vi.fn() },
       attachWorktree: { mutate: vi.fn() },
+      // O quadro e o clique do `assistido` (`028` Parte 2). O mock é parte do
+      // contrato: esquecer uma procedure aqui quebra telas sem relação nenhuma
+      // com o assunto, com um erro que não fala dele.
+      board: { query: vi.fn() },
+      move: { mutate: vi.fn() },
+      sendPrepared: { mutate: vi.fn() },
+      setAutonomy: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
     },
     worktree: {
@@ -285,6 +293,8 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   // um teste que fala de arquivo não pode quebrar por causa disso.
   mock.task.listByWorkspace.query.mockResolvedValue([]);
   mock.task.settings.query.mockResolvedValue({
+    autonomy: "manual",
+    maxParallel: 2,
     budget: 5,
     budgetEnv: "LUMEM_TASKS_BUDGET",
     sessions: 0,
