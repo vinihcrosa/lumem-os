@@ -1,5 +1,5 @@
 import { newId } from "@lumem/shared";
-import { and, desc, eq, ne, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, ne, sql } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
 import { project, session, task, worktree, type TaskRow } from "../db/schema.js";
@@ -172,6 +172,14 @@ export interface TaskRepository {
    * causa de um bloqueio apagaria onde ela parou.
    */
   setBlocked(id: string, reason: string | null): Promise<TaskRow>;
+  /**
+   * Marca que você já foi avisado sobre o estado atual (T35).
+   *
+   * **Só escreve quando ainda não havia aviso**, e devolve se escreveu. É isso
+   * que faz *"uma vez, sem repetir"* valer com duas abas: a segunda chamada não
+   * escreve e sabe que não escreveu.
+   */
+  markNotified(id: string, at?: Date): Promise<boolean>;
   /**
    * O gesto do quadro: a coluna de destino **e** o lugar nela (`028` §4.3, T5).
    *
@@ -384,6 +392,9 @@ export function createTaskRepository(db: Db): TaskRepository {
               // O bloqueio é da etapa. Sobreviver à mudança de coluna faria um
               // cartão promovido continuar dizendo por que ele tinha parado.
               blockedReason: null,
+              // O aviso é sobre o estado, e o estado mudou: o que foi avisado
+              // não é mais o que está lá.
+              notifiedAt: null,
               updatedAt: new Date(),
             })
             .where(eq(task.id, id))
@@ -450,6 +461,7 @@ export function createTaskRepository(db: Db): TaskRepository {
                           preparedPrompt: null,
                           preparedRole: null,
                           blockedReason: null,
+                          notifiedAt: null,
                         }),
                     updatedAt: new Date(),
                   }
@@ -509,6 +521,23 @@ export function createTaskRepository(db: Db): TaskRepository {
         },
       );
       return row!;
+    },
+
+    async markNotified(id, at = new Date()) {
+      /*
+       * A condição está no `WHERE`, e não num `if` antes.
+       *
+       * Ler e depois escrever abriria a janela em que duas abas leem `null` ao
+       * mesmo tempo e as duas escrevem — que é exatamente o caso que esta coluna
+       * existe para fechar. Com a condição no `UPDATE`, quem perde a corrida
+       * afeta zero linhas e fica sabendo.
+       */
+      const written = await db
+        .update(task)
+        .set({ notifiedAt: at, updatedAt: new Date() })
+        .where(and(eq(task.id, id), isNull(task.notifiedAt)))
+        .returning({ id: task.id });
+      return written.length > 0;
     },
 
     async setBlocked(id, reason) {

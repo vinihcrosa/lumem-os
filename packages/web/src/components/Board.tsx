@@ -11,6 +11,7 @@ import {
   type BoardStatus,
 } from "../lib/board.js";
 import { trpc } from "../lib/trpc.js";
+import { useBoardNotices } from "../hooks/notice.js";
 import { TaskCard } from "./TaskCard.js";
 
 /**
@@ -78,12 +79,23 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
       }) as Promise<BoardColumn[]>,
   });
 
+  useBoardNotices(board.data);
+
   const columns = (board.data ?? []).map((column) => ({
     ...column,
     cards: onlyMine
       ? column.cards.filter((card) => needsYou(card, column.status, now))
       : column.cards,
   }));
+
+  /*
+   * Quantos ainda não foram avisados. O `notice` vem `null` assim que o daemon
+   * registra, então este número **se apaga sozinho** conforme a aba avisa.
+   */
+  const unseen = (board.data ?? []).reduce(
+    (total, column) => total + column.cards.filter((card) => card.notice !== null).length,
+    0,
+  );
 
   const mine = (board.data ?? []).reduce(
     (total, column) =>
@@ -147,6 +159,26 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
           */}
           {mine === 0 ? null : <span className="needme__n">{mine}</span>}
         </button>
+        {/*
+          O que parou enquanto você não estava (`028` Parte 4, T37 · Q56).
+
+          **Some quando você olha**, e é a única condição que importa: ela não é
+          modal, não tem `✕` e não guarda preferência. A frase existe porque a
+          notificação é da aba, e uma aba fechada é metade dos casos que a Parte
+          4 quer cobrir — o §8 aceita a máquina desligada *"desde que o quadro
+          diga o que ficou parado"*, e este é o quadro dizendo.
+
+          O contador é o **mesmo** dado da notificação: cartões que o daemon
+          ainda não registrou como avisados. Dois lugares contando coisas
+          diferentes seriam dois lugares divergindo.
+        */}
+        {unseen === 0 ? null : (
+          <span className="bd__unseen">
+            {unseen === 1
+              ? "1 parou enquanto você não estava"
+              : `${String(unseen)} pararam enquanto você não estava`}
+          </span>
+        )}
       </div>
 
       {clipped === 0 ? null : (

@@ -176,6 +176,13 @@
       "when": 1789286774775,
       "tag": "0024_motivo_do_bloqueio",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1789322008397,
+      "tag": "0025_aviso_uma_vez",
+      "breakpoints": true
     }
   ]
 }

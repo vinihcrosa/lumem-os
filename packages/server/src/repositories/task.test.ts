@@ -199,3 +199,43 @@ describe("a autonomia da tarefa", () => {
     ).rejects.toThrow(/autonomia inválida: on/);
   });
 });
+
+describe("avisar uma vez", () => {
+  it("a primeira chamada escreve e a segunda não", async () => {
+    const { tasks, taskId } = await scene();
+
+    expect(await tasks.markNotified(taskId)).toBe(true);
+    expect(await tasks.markNotified(taskId)).toBe(false);
+  });
+
+  it("duas ao mesmo tempo: uma só escreve", async () => {
+    const { tasks, taskId } = await scene();
+
+    /*
+     * É o caso de duas abas abertas, e a razão de a condição estar no `WHERE` e
+     * não num `if` antes: ler e depois escrever deixa as duas lerem `null` e as
+     * duas escreverem — que é exatamente o que esta coluna existe para fechar.
+     */
+    const results = await Promise.all([tasks.markNotified(taskId), tasks.markNotified(taskId)]);
+
+    expect(results.filter(Boolean)).toHaveLength(1);
+  });
+
+  it("mudar de etapa apaga o aviso — o estado novo é outro aviso", async () => {
+    const { tasks, taskId } = await scene();
+    await tasks.markNotified(taskId);
+
+    await tasks.setStatus(taskId, "review");
+
+    expect(await tasks.markNotified(taskId)).toBe(true);
+  });
+
+  it("tarefa que não existe não escreve nem erra", async () => {
+    const { tasks } = await scene();
+
+    // Diferente do `countAttempt`, que **erra**: lá perder a escrita seria a
+    // esteira contando errado para sempre; aqui é uma notificação que não vai
+    // acontecer, e derrubar a tela por isso seria pior que o silêncio.
+    expect(await tasks.markNotified("nao-existe")).toBe(false);
+  });
+});

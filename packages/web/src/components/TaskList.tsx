@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { projectsKey, tasksKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
+import { askNoticePermission } from "../hooks/notice.js";
 import { Banner, Button, EmptyState, SectionHead, Skeleton } from "../ui/index.js";
 
 import "./tasks.css";
@@ -284,6 +285,14 @@ export function TaskList({
                     settings.data?.autonomy === step.value ? " btn--brand" : ""
                   }`}
                   onClick={() => {
+                    /*
+                     * A permissão de notificar é pedida **aqui** (Q55): é o
+                     * único instante em que o pedido tem uma frase honesta, e é
+                     * este clique que passa a produzir coisas que acontecem sem
+                     * você. Pedir no primeiro acesso seria o pedido que se
+                     * aprende a negar por reflexo.
+                     */
+                    if (step.value !== "manual") void askNoticePermission();
                     setAutonomy.mutate(step.value);
                   }}
                 >

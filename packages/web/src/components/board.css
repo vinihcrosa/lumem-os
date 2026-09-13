@@ -80,6 +80,17 @@
 
 .needme[aria-pressed="true"] { background: var(--color-bg-active); border-color: var(--color-border-strong); color: var(--color-text-primary); }
 
+/*
+ * O que parou enquanto você não estava (`028` Parte 4, T37).
+ *
+ * Texto e não caixa: ela **some quando você olha** — literalmente, porque o
+ * contador zera assim que a aba responde `markNotified` —, e uma peça com
+ * fundo, borda e `✕` seria um aviso que se aprende a fechar em vez de um que se
+ * aprende a ler. O tom é o do resto da barra; quem chama atenção é o número no
+ * cabeçalho da coluna, que já existe.
+ */
+.bd__unseen { font: var(--text-caption); color: var(--color-text-secondary); }
+
 .needme__n {
   display: inline-flex;
   align-items: center;

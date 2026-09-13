@@ -39,6 +39,7 @@ function fakeTask(patch: Partial<TaskRow> = {}): TaskRow {
     preparedPrompt: null,
     preparedRole: null,
     blockedReason: null,
+    notifiedAt: null,
     statusChangedAt: new Date(),
     closedAt: null,
     createdAt: new Date(),

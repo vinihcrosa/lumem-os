@@ -42,6 +42,14 @@ export interface BoardCard {
    * daemon reescreve de 15 em 15 segundos para cada cartão devido.
    */
   queuedBeyondSlots: boolean;
+  /**
+   * A frase a avisar, ou `null` — e `null` é o caso comum (`028` Parte 4, T35).
+   *
+   * **Vem pronta do daemon**, e é ele quem sabe se você já foi avisado: a aba só
+   * conhece o que está na tela dela agora, e duas abas abertas avisariam duas
+   * vezes. A aba notifica e responde *"mostrei"*; quem decide é o outro lado.
+   */
+  notice: string | null;
 }
 
 export type BoardStatus =

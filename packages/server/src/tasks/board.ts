@@ -69,6 +69,8 @@ export interface BoardCard {
   preparedPrompt: string | null;
   /** Por que a esteira parou aqui, ou `null`. É o que o selo `bloqueada` lê. */
   blockedReason: string | null;
+  /** `null` quando você ainda não foi avisado sobre o estado atual (T35). */
+  notifiedAt: Date | null;
   /**
    * Está na fila **além das vagas** (`028` Parte 4, T34 · Q54).
    *
@@ -126,6 +128,7 @@ export function boardOf(
       autonomy: task.autonomy,
       blockedReason: task.blockedReason,
       preparedPrompt: task.preparedPrompt,
+      notifiedAt: task.notifiedAt,
       projectId: project.id,
       projectName: project.name,
       worktreeId: worktree.id,
@@ -178,6 +181,7 @@ export function boardOf(
           preparedPrompt: row.preparedPrompt,
           blockedReason: row.blockedReason,
           queuedBeyondSlots: waiting.has(row.id),
+          notifiedAt: row.notifiedAt,
         };
       }),
   }));

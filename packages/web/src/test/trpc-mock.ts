@@ -127,6 +127,7 @@ function createTrpcMock() {
       comment: { mutate: vi.fn() },
       move: { mutate: vi.fn() },
       sendPrepared: { mutate: vi.fn() },
+      markNotified: { mutate: vi.fn() },
       setAutonomy: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
     },
@@ -309,6 +310,15 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   mock.session.listByTask.query.mockResolvedValue([]);
   // O caso mais comum: worktree sem tarefa. Tarefa não é obrigatória (T1).
   mock.task.getByWorktree.query.mockResolvedValue(null);
+  /*
+   * O quadro chama isto no `mount` para todo cartão que tem aviso (`028` T35).
+   *
+   * Sem o default, `mutate` devolve `undefined`, o `.then` estoura **fora** do
+   * React e a tela some inteira — o sintoma é um `<body>` vazio num teste que
+   * fala de notificação. É a mesma armadilha que o cabeçalho deste arquivo
+   * descreve, com outro nome.
+   */
+  mock.task.markNotified.mutate.mockResolvedValue({ first: true });
   mock.worktree.branches.query.mockResolvedValue([]);
   mock.worktree.hostOrigins.query.mockResolvedValue(NO_HOST_ORIGINS);
 }

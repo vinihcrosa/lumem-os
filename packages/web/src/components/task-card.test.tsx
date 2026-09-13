@@ -35,6 +35,7 @@ function card(overrides: Partial<BoardCard> = {}): BoardCard {
     autonomy: "inherit",
     preparedPrompt: null,
     queuedBeyondSlots: false,
+    notice: null,
     seal: { kind: "manual" },
     ...overrides,
   };

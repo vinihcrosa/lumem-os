@@ -1121,3 +1121,46 @@ describe("0023 — o prompt preparado", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("0025 — o aviso que acontece uma vez", () => {
+  function databaseBeforeNotice(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-notice-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(25) });
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'acme')`).run();
+    sqlite
+      .prepare(
+        `INSERT INTO project (id, workspace_id, name, path, default_branch)
+         VALUES ('p1', 'w1', 'api', '/repos/api', 'main')`,
+      )
+      .run();
+    sqlite
+      .prepare(
+        `INSERT INTO task (id, workspace_id, project_id, title, status, position)
+         VALUES ('t1', 'w1', 'p1', 'pronta para mesclar', 'ready_to_merge', 0)`,
+      )
+      .run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("uma tarefa que já estava parada acorda **não avisada**", async () => {
+    const handle = openDatabase({ path: databaseBeforeNotice() });
+    open.push(handle);
+
+    const [row] = await handle.db.select().from(schema.task);
+
+    /*
+     * E é o lado certo de errar: uma tarefa que atravessa a migração em
+     * `ready_to_merge` **vai** avisar uma vez. O contrário — acordar marcada —
+     * engoliria em silêncio o aviso de tudo que estava parado no dia da
+     * atualização, que é exatamente o que a Parte 4 existe para não fazer.
+     */
+    expect(row).toMatchObject({ title: "pronta para mesclar", notifiedAt: null });
+  });
+});

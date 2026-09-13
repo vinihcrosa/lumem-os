@@ -7,6 +7,7 @@ import { createTaskRepository, TASK_STATUSES } from "../repositories/task.js";
 import { createTaskCommentRepository } from "../repositories/task-comment.js";
 import { beyondSlots, boardOf } from "../tasks/board.js";
 import { queueOf } from "../tasks/queue.js";
+import { noticeFor } from "../tasks/notify.js";
 import { liveTurnsByTask, pausesByTask, sealOf } from "../tasks/seal.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 import { DomainError } from "../errors.js";
@@ -173,9 +174,8 @@ export const taskRouter = router({
         const running = row?.autonomy === "assistido" || row?.autonomy === "autonomo";
         return columns.map((column) => ({
           status: column.status,
-          cards: column.cards.map((card) => ({
-            ...card,
-            seal: sealOf({
+          cards: column.cards.map((card) => {
+            const seal = sealOf({
               status: column.status,
               liveTurns: byTask.get(card.id) ?? [],
               pausedUntil: paused.get(card.id) ?? null,
@@ -184,8 +184,19 @@ export const taskRouter = router({
               // dela tem que dizer isso — senão o cartão promete uma esteira
               // que a própria fila já recusou.
               autonomyOn: running && card.autonomy !== "off",
-            }),
-          })),
+            });
+            return {
+              ...card,
+              seal,
+              // A frase vem pronta do daemon, porque quem sabe se você já foi
+              // avisado é ele (T35).
+              notice: noticeFor(card.title, {
+                status: column.status,
+                seal,
+                notifiedAt: card.notifiedAt,
+              }),
+            };
+          }),
         }));
       });
     }),
@@ -382,6 +393,24 @@ export const taskRouter = router({
         return saved;
       }),
     ),
+
+  /**
+   * Marca que você já foi avisado sobre o estado atual (`028` Parte 4, T35).
+   *
+   * Chamada pela aba **depois** de mostrar. Devolve se **esta** chamada foi a
+   * que escreveu: com duas abas abertas, a segunda recebe `false` e não
+   * notifica, que é *"uma vez, sem repetir"* funcionando contra o daemon e não
+   * contra o navegador.
+   */
+  markNotified: publicProcedure.input(idSchema).mutation(({ ctx, input }) =>
+    domainSafeAsync(async () => {
+      const first = await createTaskRepository(ctx.db).markNotified(input.id);
+      // Sem `task.changed`: o aviso não muda nada que a tela pinte, e um evento
+      // aqui faria todo quadro aberto refazer a leitura por causa de uma
+      // notificação que só interessa a quem a mostrou.
+      return { first };
+    }),
+  ),
 
   /** A tarefa passa a apontar para um checkout que já existe ([T5]). */
   attachWorktree: publicProcedure

@@ -1018,6 +1018,21 @@ export const task = sqliteTable(
      * daquela etapa.
      */
     blockedReason: text("blocked_reason"),
+    /**
+     * Quando você já foi avisado sobre o estado atual desta tarefa
+     * (`028` Parte 4, T35 · Q55).
+     *
+     * **O registro é do daemon, e a notificação é da aba** — e essa divisão é a
+     * resposta inteira da Q55. A aba é quem sabe notificar (a `Notification` do
+     * navegador, com permissão que ele governa); o daemon é quem sabe dizer *"já
+     * avisei"*. Sem esta coluna, duas abas abertas avisariam duas vezes e um
+     * `F5` renotificaria tudo — que é o oposto de *"uma vez, sem repetir"*.
+     *
+     * `NULL` é *não avisado*. Ela é **apagada na mudança de etapa**, como a
+     * tentativa e o preparo: o aviso é sobre o estado em que a tarefa está, e
+     * uma tarefa que andou tem um estado novo para avisar.
+     */
+    notifiedAt: integer("notified_at", { mode: "timestamp_ms" }),
     statusChangedAt: integer("status_changed_at", { mode: "timestamp_ms" })
       .notNull()
       // `DEFAULT 0` no banco e o relógio na aplicação, e **não** o `NOW` que o
