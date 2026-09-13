@@ -241,7 +241,7 @@ testáveis sem subir agente.
 
 ---
 
-## Fase 3 — a tela
+## Fase 3 — a tela · **entregue**
 
 #### T8: As colunas, e o piso de largura
 
@@ -252,6 +252,21 @@ default medido em 1440.
 **Done when**: bate com `lumem-board.html`; cinco cartões cabem numa coluna de 682px sem rolar, quatro
 quando todos têm linha viva; e **nenhum literal de cor, espaço ou tipografia** — só `var(--token)`.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-12), com **três defeitos achados no navegador** e nenhum deles visível
+lendo o código.
+
+> **O `board.css` é recorte, e recorte deixa órfão.** O `board-css.test.ts` achou **13 classes**
+> portadas para marcação que não existe deste lado — a linha viva, a pergunta que travou, o
+> `aguardando você`. Cada uma volta com a fase que a pinta. É o defeito mais silencioso que existe em
+> CSS, e a única coisa que o pega é a direção contrária do teste.
+>
+> **A coluna colapsava na altura do conteúdo.** Medido: 356px de coluna dentro de 1282 de painel. O
+> `.pane` do produto é **grade**, não coluna flex — então o `flex: 1` do `.bd` não valia nada, e o
+> `align-content: start` do `.wsp` anulava o `1fr`. Sem isso `.col__body` nunca rola, quem rola é a
+> página, e a medida *"cinco cartões sem rolar"* deixa de querer dizer alguma coisa.
+>
+> E a conta do desenho **reproduziu**: a faixa de colunas pede **1152px**, mais os 264 fixos da
+> sidebar dão **1416** contra os 1418 medidos no Open Design.
 
 #### T9: Abaixo de 1418px, o quadro diz que está rolando
 
@@ -262,6 +277,21 @@ quando todos têm linha viva; e **nenhum literal de cor, espaço ou tipografia**
 o número certo; e **encolher a coluna abaixo de 200 não é a saída** — o título vira três linhas e a
 linha viva perde o nome do arquivo.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-12) — e ela **mudou de critério** durante a implementação.
+
+> **A janela não é o que decide.** A medida do desenho é de janela (1418px), e eu escrevi
+> `window.innerWidth` atrás dela. Errado: a sidebar recolhe e o painel direito abre, e nos dois casos
+> o quadro muda de largura com a janela parada — o aviso ficaria calado justo no caso em que a coluna
+> sumiu por causa de outra coisa que **você** abriu. A faixa passou a derivar do transbordo da própria
+> faixa de colunas, que é o mesmo raciocínio do selo e do relógio de encalhe.
+>
+> **E medir a caixa não basta.** O `ResizeObserver` vê a caixa da faixa, e na primeira pintura ela
+> está vazia — a consulta não voltou. Quando os cartões chegam, quem muda é o **conteúdo**: a caixa
+> fica igual, o observador não dispara, e a faixa nunca aparece. Medido no navegador: 836px de espaço
+> para 1152 de colunas, **sem aviso nenhum**. Pior: nesta máquina o `ResizeObserver` não entregou uma
+> única notificação em nenhum dos dois sentidos, e a faixa ficava **acesa** com
+> `scrollWidth === clientWidth`. A medida repete a cada pintura, mais o `resize` da janela — que é o
+> único caminho que não passa pelo React.
 
 > **Este é o primeiro requisito de largura mínima do produto.** Ele existe porque o quadro é a
 > primeira tela que precisa mostrar sete coisas ao mesmo tempo, e os três números — 1418, 1582, 1746 —
@@ -277,6 +307,15 @@ rodapé, a agregação no ponto do cabeçalho da coluna. Origem é **glifo**, n�
 folga —; o cartão bloqueado não pinta uma fatia de quarta linha; e `aguardando você` é **luminância**
 (branco), não matiz, distinto do vermelho de *"algo deu errado"*.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-12) — **parcial no que a F1 não alcança**, e a nota diz o quê.
+
+> O cartão, o selo e os cinco estados estão de pé, com os limiares de encalhe do §6/F1 e a origem
+> como **glifo** (`◆` agente, `↗` tracker). O que **não** entrou: `aguardando você` e o cartão
+> bloqueado com a pergunta — os dois pedem a supervisão (F4), que não é desta fatia, e as classes
+> deles saíram do `board.css` em vez de ficarem esperando marcação que não existe.
+>
+> **A linha viva também não entrou**, e ela é do §4.2: *"o que ele está fazendo neste momento"* pede a
+> chamada de ferramenta aberta, que só existe com a esteira andando.
 
 > **Os 3px são o teste.** Sem um caso que os cobre, alguém engorda o ponto do selo e quebra a linha
 > sem que nada fique vermelho — que é o que aconteceu com o menu recortado da
@@ -290,6 +329,25 @@ usada do produto (§4).
 **Done when**: *"precisa de mim"* devolve exatamente os cartões cujo selo é `aguardando você` ou
 `bloqueada`; os três filtros compõem; e a escolha sobrevive a recarregar.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-12) — com o `Done when` **emendado**, e a emenda fica aqui.
+
+> O critério escrito era *"selo `aguardando você` ou `bloqueada`"*, e ele é curto demais: com a
+> autonomia desligada **nenhum** cartão tem esses dois selos, então o filtro mais usado do produto
+> devolveria zero em todo quadro que a F1 desenha. O que ele filtra é a frase do desenho — *"o que só
+> existe porque você existe"*: o bloqueio, **o encalhe**, e **a sua vez** (as colunas que você move).
+>
+> O filtro por projeto e por agente ficou de fora: projeto já tem o seu na lista da `022`, e agente
+> **não existe no cartão** enquanto a esteira não atribuir um.
+
+---
+
+> **Lacuna desta fase, achada executando-a: nenhuma T8–T11 entrega o arrasto.** A F1 promete *"o
+> quadro, com o cartão, o selo, **o arrasto**, os filtros e o piso de largura"*, a T5 entregou o
+> `move` do lado do daemon, e a T12 testa arrastar — mas a fase da tela não tinha task para ele. Foi
+> entregue junto da T10, com `draggable` do HTML5 e não uma biblioteca: o gesto é soltar um cartão
+> numa lista, e a parte difícil — onde soltou vira índice — é do daemon, que renumera a coluna numa
+> transação. **E não é otimista:** pintar a ordem antes da resposta seria desenhar um palpite sobre a
+> única coisa desta tela que tem dono.
 
 ---
 
@@ -302,7 +360,7 @@ usada do produto (§4).
 **Done when**: quatro caminhos passam —
 **(a)** um workspace com tarefas nos sete estados desenha sete colunas, com as duas pontas
 recolhidas; **(b)** arrastar entre colunas persiste a coluna e a ordem, e arrastar para `In Progress`
-é recusado com o motivo visível; **(c)** abrir uma sessão ligada a uma tarefa `open` move o cartão
+**funciona** — o cartão fica com o selo `manual — ninguém pega`; **(c)** abrir uma sessão ligada a uma tarefa `open` move o cartão
 para `In Progress` **e acende o selo**, e matar a sessão apaga o selo sem mover o cartão de volta;
 **(d)** em 1200px a faixa de rolagem aparece dizendo quantas colunas ficaram fora.
 **Gate**: `pnpm gate:full`

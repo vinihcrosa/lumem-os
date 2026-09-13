@@ -60,9 +60,23 @@ export interface TaskListProps {
   projectId?: string;
   onOpen: (taskId: string) => void;
   onCreate?: () => void;
+  /**
+   * A porta do quadro (`028` T8).
+   *
+   * Mora aqui e não na topbar porque **uma ação, um lugar**: a lista é o lugar
+   * onde tarefa é o assunto, e o quadro é a outra forma de olhar a mesma coisa.
+   * Ausente na lista do projeto — o quadro é do workspace.
+   */
+  onOpenBoard?: () => void;
 }
 
-export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListProps) {
+export function TaskList({
+  workspaceId,
+  projectId,
+  onOpen,
+  onCreate,
+  onOpenBoard,
+}: TaskListProps) {
   const [project, setProject] = useState<string | null>(projectId ?? null);
   const [showDone, setShowDone] = useState(false);
 
@@ -158,6 +172,11 @@ export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListP
                   </option>
                 ))}
               </select>
+            )}
+            {onOpenBoard && projectId === undefined && (
+              <Button size="sm" variant="ghost" onClick={onOpenBoard}>
+                quadro
+              </Button>
             )}
             {onCreate && (
               <Button size="sm" onClick={onCreate}>

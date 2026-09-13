@@ -22,6 +22,7 @@ import {
 
 import { MemoryPanel } from "./MemoryPanel.js";
 import { ProposalQueue } from "./ProposalQueue.js";
+import { Board } from "./Board.js";
 import { TaskDetail } from "./TaskDetail.js";
 import { TaskList } from "./TaskList.js";
 import { SpendList, type SpendAgent, type SpendRow } from "./SpendList.js";
@@ -79,6 +80,17 @@ export function WorkspacePanel({
    * checkout.
    */
   const [openTask, setOpenTask] = useState<string | null>(null);
+  /*
+   * O quadro é **tela**, não seção (`028` §4).
+   *
+   * Ele responde outra pergunta que a lista: a lista é *"o que existe"*, o
+   * quadro é *"preciso entrar?"* — e o §2 da PRD diz que as duas pedem
+   * superfícies diferentes. Empilhar as duas na mesma rolagem faria o quadro
+   * ser a segunda coisa que você vê depois de já ter lido a primeira.
+   *
+   * Mesmo caminho do `TaskDetail`, que já era uma sub-tela daqui.
+   */
+  const [board, setBoard] = useState(false);
   const projects = useQuery({
     queryKey: projectsKey(workspaceId),
     queryFn: () => trpc.project.listByWorkspace.query({ workspaceId }),
@@ -110,6 +122,27 @@ export function WorkspacePanel({
     kind: "project",
     ...agentsOf(byAgent.data, row.projectId),
   }));
+
+  if (board) {
+    return (
+      <div className="pane wsp wsp--board">
+        <div className="crumb">
+          <button type="button" className="crumb__up focus-ring" onClick={() => setBoard(false)}>
+            {workspaceName}
+          </button>
+          <span className="crumb__sep">/</span>
+          <span className="crumb__here">Quadro</span>
+        </div>
+        <Board
+          workspaceId={workspaceId}
+          onOpen={(id) => {
+            setBoard(false);
+            setOpenTask(id);
+          }}
+        />
+      </div>
+    );
+  }
 
   if (openTask !== null) {
     return (
@@ -193,7 +226,11 @@ export function WorkspacePanel({
         projectName={(id) => list.find((row) => row.id === id)?.name ?? ""}
       />
 
-      <TaskList workspaceId={workspaceId} onOpen={(id) => setOpenTask(id)} />
+      <TaskList
+        workspaceId={workspaceId}
+        onOpen={(id) => setOpenTask(id)}
+        onOpenBoard={() => setBoard(true)}
+      />
 
       <section className="section">
         <SectionHead
