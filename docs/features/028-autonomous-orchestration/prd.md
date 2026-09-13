@@ -603,6 +603,24 @@ O daemon é também **quem move a seta**, sempre por fato verificável, e nunca 
 O `assistido` é o degrau que torna a feature adotável: você vê o que ele *ia* fazer, dez vezes, antes
 de deixar ir sozinho.
 
+> **Nota — `sessão` nesta lista quer dizer *pronta para abrir*, e não *aberta*.** A
+> [Q51](open-questions.md#q51--o-assistido-abre-a-sessão-ou-não) leu a frase das duas maneiras e
+> escolheu pela conta: um adaptador ACP de pé custa **243 MB** (Claude) ou **301** (Codex), medidos na
+> fase 0 da [`021`](../021-second-agent/prd.md), e o teto de paralelismo **não segura** um processo que
+> não está gastando turno — oito cartões preparados seriam oito adaptadores parados esperando você. O
+> `assistido` cria a worktree, roda o `setup` e **monta o prompt**, que fica visível no cartão; abrir o
+> adaptador e enviar é o clique. **O resto do parágrafo fica de pé**, inclusive a promessa que ele faz:
+> o que ele *ia* fazer é o prompt, e o prompt está lá.
+
+> **Nota — o portão do CI tem uma metade local, e é a que funciona em quase todo repositório.** O
+> §4.1 nomeia o CI como o fato que separa *terminou* de *desistiu inventando*, e o §6, Parte 6 o liga a
+> checks de PR. A [Q53](open-questions.md#q53--e-num-projeto-sem-ci) fechou a lacuna que sobrava — um
+> projeto sem CI no GitHub não avançaria nunca: **o portão é o `test` do
+> `<repo>/.lumem/project.toml`** que a [`012`](../012-project-scripts/prd.md) já definiu, e o check da
+> PR entra **também**, quando há PR. Um projeto sem `test` declarado avança com o commit como único
+> fato, **e o cartão diz isso** — porque a diferença entre uma garantia e a ausência dela é o que esta
+> feature inteira está tentando não apagar.
+
 ### Parte 3 — Orçamento e limites
 
 Teto de custo **por tarefa**, teto de custo **por dia** no workspace, e teto de **turnos** por

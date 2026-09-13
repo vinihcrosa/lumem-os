@@ -1550,3 +1550,118 @@ que só sabe reprovar em loop — que é justamente o que a Q22 põe teto.
 
 > **Respondida.** O resíduo fica anotado como leitura, e não como suposição silenciosa: se ele estiver
 > errado, o que muda é o UC2, e a consequência é que a reprovação precisa de outra forma de voltar.
+
+---
+
+## Décima rodada — a esteira (2026-09-13)
+
+Seis perguntas, todas escritas **antes de existir código**, ao abrir a Fase 0 da Parte 2. As três
+primeiras vieram de ler o [estudo do Compozy](../../references/compozy.md), que o §11 mandou ler; as
+três últimas, de ler o §6 e o §4.1 da própria PRD procurando onde eles não fecham.
+
+### Q48 — a esteira precisa de lease?
+
+**Respondida por [ADR](../../adr/2026-09-13-0412-the-conveyor-has-no-lease.md), com
+[estudo](../../project/conveyor-durable-state.md).** Resumo de uma linha, porque a decisão mora lá:
+**não** — seis dos dez invariantes do Compozy não se aplicam (lá qualquer sessão reivindica um run,
+aqui quem reivindica é o daemon, que é um só), um já é grátis (o selo é derivado), e os três que
+sobram são todos sobre *quantas vezes já se tentou*. Ficam `task.attempts` e `task.autonomy`.
+
+### Q49 — o que a segunda tentativa vê?
+
+A [Q47](#q47--o-que-passa-de-uma-sessão-para-outra) decidiu que **nada passa de uma sessão para
+outra**. A primeira tentativa morreu no meio do trabalho — 3 dos 13 turnos medidos —, e a worktree
+ficou com mudança pela metade. A segunda sessão abre ali.
+
+- **worktree limpa por tentativa**: descarta o trabalho parcial e paga um `git worktree add` por
+  tentativa. Custa o que a primeira tentativa produziu, que às vezes é quase tudo;
+- **a mesma worktree, e a sessão não sabe de nada**: ela roda `git status`, vê mudança que não fez, e
+  gasta um turno decidindo se aquilo é lixo ou trabalho. Ou pior: assume que é dela;
+- **a mesma worktree, e o prompt diz o fato**.
+
+**Resposta: a terceira, e ela não fura a Q47.** O que a Q47 proíbe é o **canal** — a sessão A não
+briefa a sessão B. *"Este checkout já tem mudanças de uma tentativa anterior que terminou sem
+completar"* não é conversa da sessão anterior: é **fato sobre o disco**, do mesmo tipo que o corpo da
+tarefa e a lista fechada da Q47, e o agente o descobriria sozinho com um `git status` — gastando um
+turno para chegar onde a frase chega de graça.
+
+**E não vai resumo junto**, que é onde a linha fica: o prompt diz *que existe* mudança anterior, não
+*o que a tentativa anterior achou*. O enviesamento que a Q47 evita continua evitado.
+
+### Q50 — comentário de tarefa passa pelo portão?
+
+A [Q47](#q47--o-que-passa-de-uma-sessão-para-outra) decidiu que o resumo do implementador é
+**comentário normal de tarefa**, e a `022` estabeleceu a regra do portão: *"escrever para cima é
+proposta"*. Comentário do agente é escrita. Então ele vira proposta na inbox?
+
+**Resposta: não, e a regra não está sendo furada — ela está sendo lida.** O portão da
+[`022`](../022-workspace-tasks/prd.md) é sobre **criar tarefa**, que é o agente escrevendo no plano de
+quem conduz. Um comentário na tarefa que o daemon deu a ele é **lateral**: é o relatório do trabalho
+que ele foi mandado fazer, e ele não decide nada que você não tenha já decidido ao pôr a tarefa na
+fila.
+
+E o custo de tratá-lo como proposta é o que decide: a esteira produz **um resumo por tentativa e um
+parecer por revisão**. Numa manhã de oito cartões, a inbox teria dezenas de propostas que ninguém
+quer aprovar uma a uma — e uma inbox que se aprende a esvaziar sem ler é pior que não ter inbox,
+que é a única coisa que a [`007`](../007-workspace-memory/prd.md) não pode deixar acontecer.
+
+**O que fica da regra é a proveniência**: o comentário nasce com `createdBy` e a sessão que o
+escreveu, exatamente como a tarefa do agente na `022`. Você lê *quem* disse aquilo sem perguntar.
+
+### Q51 — o `assistido` abre a sessão ou não?
+
+O §6 diz que o `assistido` *"prepara tudo — worktree, sessão, prompt pronto — e **para antes de
+enviar**"*. `sessão` está nessa lista, e a frase tem duas leituras: *a sessão está aberta e o prompt
+não foi enviado*, ou *a sessão está pronta para abrir*.
+
+A diferença é cara. Um adaptador ACP de pé custa **243 MB** (Claude) ou **301 MB** (Codex), medidos
+na fase 0 da [`021`](../021-second-agent/prd.md). Com o teto de paralelismo em 2 e oito cartões
+preparados esperando você, a primeira leitura mantém **oito processos parados** — e o teto de
+paralelismo não os segura, porque nenhum deles está gastando turno.
+
+**Resposta: `assistido` não abre sessão.** Ele cria a worktree, roda o `setup` e **monta o prompt**,
+que fica visível no cartão; abrir o adaptador e enviar é o clique. O que se ganha com a outra leitura
+— alguns segundos de handshake — não paga um processo de 243 MB por cartão que talvez você nem
+aprove.
+
+> **Nota no requisito contradito:** o §6, Parte 2 lista `sessão` entre o que o `assistido` prepara.
+> Fica valendo a leitura *"pronta para abrir"*, e o motivo é a conta acima. O que o degrau promete —
+> *"você vê o que ele **ia** fazer, dez vezes, antes de deixar ir sozinho"* — continua inteiro: o que
+> ele ia fazer é o **prompt**, e o prompt está lá.
+
+### Q52 — quantas de uma vez, e onde mora o número?
+
+O §6 e a folha do Open Design falam em teto de paralelismo (`autônomo · teto 2 · 2 em uso`), e a PRD
+não diz onde ele mora nem quanto vale quando ninguém escolheu.
+
+**Resposta: no workspace, junto dos três tetos da Parte 3, e o default é 2** — que é o número que a
+folha já desenha. Ele é **`NOT NULL`**, ao contrário dos tetos de dinheiro: `NULL` lá quer dizer *sem
+teto*, e uma fila sem teto de paralelismo é como se gasta tudo num minuto. Zero continua querendo
+dizer *bloqueia tudo*, e é o mesmo vocabulário da Parte 3 — o que dá ao produto um jeito de pausar a
+esteira sem desligar a autonomia de cada tarefa.
+
+**Ele conta turno em voo, não processo vivo** — a mesma derivação do selo, pelo mesmo motivo: 7 dos
+15 transcripts deste repositório nunca receberam um prompt, e contá-los como vaga ocupada travaria a
+fila com sessões que não estão fazendo nada.
+
+### Q53 — e num projeto sem CI?
+
+O §4.1 nomeia o CI como o fato que separa *terminou* de *desistiu inventando* — a tarefa impossível
+virou commit em 3 de 4 execuções —, e tira daí a frase *"a força da esteira é a força da suíte do
+projeto"*. Mas o portão como escrito depende de **checks de PR**, que vêm do `gh`. Um projeto sem CI
+no GitHub não teria como avançar, e a esteira seria inútil na maioria dos repositórios.
+
+**Resposta: o portão é o `test` do `<repo>/.lumem/project.toml`, e o check da PR entra quando existe.**
+Nada aqui é novo: a [`012`](../012-project-scripts/prd.md) já pôs `setup`, `run`, `test` e `teardown`
+naquele arquivo, com portão de confiança para o que veio de repositório clonado, e a esteira já vai
+rodar o `setup` para preparar a worktree. Usar o mesmo `test` é reusar uma decisão em vez de inventar
+uma segunda ideia de *"o projeto está verde"*.
+
+A ordem é: **`test` local sempre; check de PR também, se houver PR.** Os dois verdes movem a seta; um
+vermelho para, com o motivo. E um projeto **sem `test` declarado** não ganha portão nenhum — a
+esteira avança nele com o commit como único fato, e o cartão diz isso, porque é a diferença entre uma
+garantia e a ausência dela.
+
+> **O que isso deixa escrito, e é desconfortável de propósito:** num repositório sem teste, a esteira
+> **não tem como saber** que o implementador inventou. A PRD já dizia; agora o produto tem onde
+> mostrar.
