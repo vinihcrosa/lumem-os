@@ -58,6 +58,12 @@ export default defineConfig({
         // de propósito: número local diferente do número do Sonar é como se
         // aprende a não olhar nenhum dos dois.
         "packages/web/src/styles/tokens.ts",
+        // A bancada de medição da `028`: não é entregue, ninguém a importa, e
+        // ela roda à mão contra token de verdade. O `sonar-project.properties`
+        // a exclui pelo mesmo motivo, e pela mesma regra das duas listas — 262
+        // linhas que nenhum teste vai cobrir, num denominador, é o número
+        // dizendo que o projeto piorou quando alguém mediu alguma coisa.
+        "scripts/q39/**",
       ],
       reporter: ["text-summary", "lcov"],
     },
