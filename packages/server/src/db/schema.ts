@@ -968,6 +968,79 @@ export const task = sqliteTable(
   ],
 );
 
+/**
+ * O que foi dito sobre uma tarefa (`028` Parte 2, T21).
+ *
+ * **Entidade nova, e ela é pré-requisito da esteira.** A `022` entregou `body`,
+ * `links` e `reason`, e nada mais — não havia onde o implementador deixar o
+ * resumo nem o revisor deixar o parecer, e a
+ * [Q47](../../../../docs/features/028-autonomous-orchestration/open-questions.md)
+ * fechou a lista do que passa de uma sessão para outra **contando com isto**.
+ *
+ * A regra que a Q47 protege é sobre **canal**, não sobre conteúdo: a sessão A
+ * não briefa a sessão B. A tarefa, sim — ela é registro, e você a lê também.
+ * Por isso o resumo do implementador é um comentário como outro qualquer, sem
+ * campo próprio: um `implementerSummary` faria o produto tratar agente como
+ * categoria de autor, e a pergunta seguinte seria *"e o campo do revisor?"*.
+ */
+export const taskComment = sqliteTable(
+  "task_comment",
+  {
+    id: text("id").primaryKey(),
+    /**
+     * `cascade`, e é a única relação desta tabela que o é.
+     *
+     * Um comentário sem tarefa não é nada — ele não tem leitura própria, não
+     * aparece em lugar nenhum sozinho, e mantê-lo vivo depois da tarefa seria
+     * guardar uma frase sem assunto. É o contrário do ponteiro da sessão logo
+     * abaixo, que existe **porque** a sessão pode sumir antes do que ela disse.
+     */
+    taskId: text("task_id")
+      .notNull()
+      .references(() => task.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    createdBy: text("created_by").notNull().default("human"),
+    /**
+     * Qual sessão escreveu, quando foi agente. **Sem estrangeiro**, e a razão é
+     * a mesma que a `022` escreveu para `task.created_by_session` — mas aqui
+     * ela foi **provada por um teste que ficou vermelho**, e vale registrar
+     * como isso aconteceu.
+     *
+     * Escrevi a coluna com `references(session, onDelete: "set null")`, que
+     * parece o certo: apagar uma sessão não pode ser recusado por causa do que
+     * ela disse. Aí o `CHECK` abaixo derrubou o `DELETE`: a ação do estrangeiro
+     * **é um `UPDATE`**, e `created_by = 'agent'` com sessão nula viola a
+     * proveniência. As duas restrições se contradizem, e o efeito é o pior dos
+     * dois mundos — apagar a sessão passa a ser **impossível** depois que um
+     * agente comentou.
+     *
+     * `RESTRICT` seria a mesma prisão dita em voz alta, e é o que a `022`
+     * recusou. Então: **id solto**. Um id que ficou órfão ainda diz mais que
+     * uma coluna nula, e a proveniência continua sendo obrigatória na escrita,
+     * que é onde ela importa.
+     */
+    createdBySession: text("created_by_session"),
+    ...timestamps,
+  },
+  (table) => [
+    check("task_comment_created_by", sql`${table.createdBy} IN ('human', 'agent')`),
+    /*
+     * Os dois sentidos, como o `task_agent_provenance` da `022`: um comentário
+     * de agente **sem** sessão não tem proveniência, e um de pessoa **com** uma
+     * é uma mentira sobre quem escreveu. A Q50 decidiu que comentário não passa
+     * pelo portão da inbox — então a proveniência é tudo o que resta da regra, e
+     * ela não pode ser opcional.
+     */
+    check(
+      "task_comment_provenance",
+      sql`(${table.createdBy} = 'agent' AND ${table.createdBySession} IS NOT NULL)
+        OR (${table.createdBy} = 'human' AND ${table.createdBySession} IS NULL)`,
+    ),
+    // A leitura é sempre "os comentários desta tarefa, em ordem de escrita".
+    index("task_comment_by_task").on(table.taskId, table.createdAt),
+  ],
+);
+
 export const schema = {
   workspace,
   project,
@@ -985,6 +1058,7 @@ export const schema = {
   sessionUsage,
   checkoutPort,
   task,
+  taskComment,
 };
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
@@ -1003,3 +1077,4 @@ export type MemorySignalRow = typeof memorySignal.$inferSelect;
 export type MemoryUsageRow = typeof memoryUsage.$inferSelect;
 export type MemoryProposalRow = typeof memoryProposal.$inferSelect;
 export type TaskRow = typeof task.$inferSelect;
+export type TaskCommentRow = typeof taskComment.$inferSelect;

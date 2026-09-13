@@ -134,6 +134,13 @@
       "when": 1789274334110,
       "tag": "0018_tetos_do_workspace",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1789282747709,
+      "tag": "0019_comentario_de_tarefa",
+      "breakpoints": true
     }
   ]
 }
