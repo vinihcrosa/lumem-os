@@ -1274,7 +1274,37 @@ sempre existe.** A pergunta é o que a tela faz com isso.
 duas unidades desde a [T14](tasks.md#t14-onde-os-tetos-moram), porque decidir a tela depois é barato
 e decidir o schema depois não é.
 
-> **Aberta, e não bloqueia as fases 6 e 7** — o portão da
+**Resposta: a unidade do teto é sempre dinheiro em dólar, e a tela mostra as duas — a segunda como
+informação.** Suas palavras: *"unidade de teto é sempre dinheiro em dólar. Mas deve sempre mostrar os
+dois para informação"*, e depois, quando perguntei o que isso faz com o teto de turnos que já está de
+pé: *"a resposta é só sobre o que a tela diz"*.
+
+São duas frases e é importante que sejam duas, porque elas separam **língua** de **portão**:
+
+- **a língua do produto é dólar.** Quando a tela fala de *teto*, o número que ela diz é em dinheiro.
+  É a terceira saída invertida, e pelo mesmo argumento que a listou: *"parou em US$ 2,00"* é uma frase
+  que uma pessoa entende, e *"parou em 40 turnos"* não — o turno não tem preço fixo, e o mesmo número
+  custa dez vezes mais em Opus que em Haiku;
+- **o portão não muda.** `turnsPerSession` continua cobrando, exatamente como a
+  [T16](tasks.md#t16-a-decisão-do-teto-e-ela-é-uma-função-pura) a escreveu. Esta pergunta era sobre a
+  tela, e responder a tela **não** pode desligar um teto: um workspace no Codex — que atravessa o
+  turno inteiro com `cost: null` — ficaria **sem teto nenhum**, e foi exatamente esse o argumento que
+  pôs as duas unidades no schema da [T14](tasks.md#t14-onde-os-tetos-moram).
+
+**A segunda saída ganhou** — *mostrar sempre as duas* —, e o custo que ela tinha se pagou sozinho: o
+`—` numa linha sobre limite parece defeito. Não parece, porque a [T18](tasks.md#t18-o-teto-aparece-e-diz-onde-se-muda)
+já não escreve vazio nenhum: `null` vira **sem teto**, que é uma resposta e não um campo em branco. A
+linha entregue já mostra as três em ordem — `US$ … por tarefa · US$ … por dia · … turnos por sessão` —,
+então **esta resposta não muda código**. Está escrito aqui porque pergunta respondida sem consequência
+visível é a que volta daqui a um mês como se nunca tivesse sido feita.
+
+> **O que ela deixa aberto, e é pequeno:** um teto em dólar contra um adaptador que relata
+> `cost: null` é um teto **inerte** — ele existe, aparece na tela, e nunca vai cobrar. A
+> [T16](tasks.md#t16-a-decisão-do-teto-e-ela-é-uma-função-pura) trata isso certo (gasto `null`
+> **passa**), e a tela não diz nada. Não é desta pergunta: é do dia em que a tela souber qual
+> adaptador aquele workspace usa, o que só a Parte 2 traz, com o catálogo de agentes nomeados.
+
+> ~~**Aberta, e não bloqueia as fases 6 e 7**~~ — respondida em **2026-09-13**. O portão da
 > [T16](tasks.md#t16-a-decisão-do-teto-e-ela-é-uma-função-pura) cobra a unidade que
 > existir, e a tela escolhe o que dizer.
 
