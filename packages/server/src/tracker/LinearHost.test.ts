@@ -1,0 +1,180 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { createLinearHost, LINEAR_KEY_ENV } from "./LinearHost.js";
+import { redactKey } from "./TrackerHost.js";
+
+/**
+ * O host do Linear (`028` Parte 5, T42).
+ *
+ * O que este arquivo mais cobra é a regra do
+ * [ADR do segredo](../../../../docs/adr/2026-09-13-1531-tracker-credentials-come-from-the-environment.md):
+ * **a chave nunca sai**. E ela é cobrada por teste e não por leitura, porque é
+ * exatamente o tipo de propriedade que um refactor bem-intencionado quebra.
+ */
+
+const KEY = "lin_api_segredo_que_nao_pode_vazar";
+const withKey = { [LINEAR_KEY_ENV]: KEY } as NodeJS.ProcessEnv;
+
+/** O envelope do GraphQL, que é o que o host de verdade devolve. */
+function answering(data: unknown, init: { ok?: boolean; status?: number; raw?: unknown } = {}) {
+  const body = init.raw ?? { data };
+  return vi.fn(async () =>
+    Promise.resolve({
+      ok: init.ok ?? true,
+      status: init.status ?? 200,
+      json: () => Promise.resolve(body),
+      text: () => Promise.resolve(JSON.stringify(body)),
+    } as Response),
+  );
+}
+
+describe("sem a chave, a feature não existe — e não quebra", () => {
+  it("`available` é falso e a listagem devolve vazio", async () => {
+    const fetch = answering({});
+    const host = createLinearHost({ fetch, env: {} });
+
+    expect(host.available()).toBe(false);
+    // Ausência **não é erro**, e é o mesmo desenho de um projeto sem `test`
+    // declarado: a feature não aparece, e nada falha.
+    expect(await host.labelled("lumem")).toEqual([]);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("com a chave, `available` é verdadeiro", () => {
+    expect(createLinearHost({ env: withKey }).available()).toBe(true);
+  });
+
+  it("o que o host expõe é o **nome** da variável", () => {
+    // Nunca o valor. É a mesma regra do `apiKeyEnv` da `021`: um nome diz "vai
+    // funcionar" e é inútil para quem o intercepta.
+    expect(createLinearHost({ env: withKey }).keyEnv).toBe("LINEAR_API_KEY");
+  });
+});
+
+describe("a chave nunca sai", () => {
+  it("um erro de rede que ecoa a requisição sai redigido", async () => {
+    const fetch = vi.fn(() => Promise.reject(new Error(`fetch failed: authorization ${KEY}`)));
+    const host = createLinearHost({ fetch, env: withKey });
+
+    /*
+     * Parece exagero — a chave não estaria num erro de DNS —, e não é: alguns
+     * clientes HTTP ecoam a requisição inteira, cabeçalhos inclusive, no
+     * `TypeError: fetch failed`. Redigir sempre custa uma linha; o contrário
+     * custa uma chave num log.
+     */
+    await expect(host.labelled("lumem")).rejects.toThrow(/•••/);
+    await expect(host.labelled("lumem")).rejects.not.toThrow(new RegExp(KEY));
+  });
+
+  it("uma resposta de erro do host que devolve a chave sai redigida", async () => {
+    const fetch = answering(null, {
+      ok: false,
+      status: 401,
+      raw: { message: `invalid key ${KEY}` },
+    });
+    const host = createLinearHost({ fetch, env: withKey });
+
+    await expect(host.labelled("lumem")).rejects.not.toThrow(new RegExp(KEY));
+  });
+
+  it("um erro do GraphQL que cita a chave sai redigido", async () => {
+    const fetch = answering(null, { raw: { errors: [{ message: `bad token ${KEY}` }] } });
+    const host = createLinearHost({ fetch, env: withKey });
+
+    await expect(host.labelled("lumem")).rejects.toThrow(/bad token •••/);
+  });
+
+  it("`redactKey` não inventa quando não há segredo", () => {
+    // Um `undefined` virando a string `"undefined"` faria o `split` trocar
+    // pedaços de mensagem legítima por pontos.
+    expect(redactKey("mensagem inteira", undefined)).toBe("mensagem inteira");
+    expect(redactKey("mensagem inteira", "")).toBe("mensagem inteira");
+  });
+});
+
+describe("a tradução é nossa", () => {
+  const node = {
+    id: "iss-1",
+    identifier: "ACME-142",
+    title: "o /orders devolve 500",
+    description: "quando o carrinho está vazio",
+    url: "https://linear.app/acme/issue/ACME-142",
+    state: { type: "started" },
+    assignee: { id: "user-1" },
+  };
+
+  it("cinco tipos de estado do Linear viram dois do Lumem", async () => {
+    const cases: [string, string][] = [
+      ["backlog", "open"],
+      ["unstarted", "open"],
+      ["started", "open"],
+      ["completed", "closed"],
+      ["canceled", "closed"],
+    ];
+
+    for (const [type, expected] of cases) {
+      const fetch = answering({ issues: { nodes: [{ ...node, state: { type } }] } });
+      const host = createLinearHost({ fetch, env: withKey });
+      const [issue] = await host.labelled("lumem");
+
+      /*
+       * O que o Lumem precisa saber é uma coisa só: *ela ainda está aberta?*. É
+       * o ADR de 2026-09-13 — o modelo é nosso, e o que vem de fora se adapta —
+       * e é o que impede um sexto tipo de estado do Linear de virar um sexto
+       * estado daqui.
+       */
+      expect(issue?.state).toBe(expected);
+    }
+  });
+
+  it("uma issue sem descrição tem corpo vazio, e não `null`", async () => {
+    const fetch = answering({ issues: { nodes: [{ ...node, description: null }] } });
+    const [issue] = await createLinearHost({ fetch, env: withKey }).labelled("lumem");
+
+    // O corpo da tarefa é `NOT NULL DEFAULT ''` desde a `022`; deixar um `null`
+    // atravessar transformaria a tradução em problema de quem escreve.
+    expect(issue?.body).toBe("");
+  });
+
+  it("sem responsável, `assignee` é `null` — e é o que a Q63 compara", async () => {
+    const fetch = answering({ issues: { nodes: [{ ...node, assignee: null }] } });
+    const [issue] = await createLinearHost({ fetch, env: withKey }).labelled("lumem");
+
+    expect(issue?.assignee).toBeNull();
+  });
+
+  it("a chave da issue é o identificador legível, e o id é o opaco", async () => {
+    const fetch = answering({ issues: { nodes: [node] } });
+    const [issue] = await createLinearHost({ fetch, env: withKey }).labelled("lumem");
+
+    // O `key` é o que o cartão mostra (`↗ ACME-142`); o `id` é o que vira
+    // `external_id` e o que a escrita de volta usa.
+    expect(issue).toMatchObject({ key: "ACME-142", id: "iss-1" });
+  });
+});
+
+describe("a chamada", () => {
+  it("manda a chave no cabeçalho, e só lá", async () => {
+    const fetch = answering({ issues: { nodes: [] } });
+    await createLinearHost({ fetch, env: withKey }).labelled("lumem");
+
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect((init.headers as Record<string, string>)["authorization"]).toBe(KEY);
+    // E **não** no corpo: uma chave em `body` iria para qualquer log de
+    // requisição que alguém ligue depois.
+    expect(String(init.body)).not.toContain(KEY);
+  });
+});
+
+describe("a resposta malformada tem nome", () => {
+  it("`200` sem dados e sem erros não vira um TypeError no meio da tradução", async () => {
+    // Um proxy corporativo que devolve página de login com status 200 produz
+    // exatamente isto. Sem a guarda, o sintoma é um `Cannot read properties of
+    // undefined`, que não fala de rede nenhuma.
+    const fetch = answering(null, { raw: {} });
+
+    await expect(createLinearHost({ fetch, env: withKey }).labelled("lumem")).rejects.toThrow(
+      /sem dados/,
+    );
+  });
+});

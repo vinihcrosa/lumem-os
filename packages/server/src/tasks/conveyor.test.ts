@@ -40,6 +40,12 @@ function fakeTask(patch: Partial<TaskRow> = {}): TaskRow {
     preparedRole: null,
     blockedReason: null,
     notifiedAt: null,
+    externalSource: null,
+    externalId: null,
+    externalState: null,
+    externalAssignee: null,
+    externalBodyHash: null,
+    externalMarks: "[]",
     statusChangedAt: new Date(),
     closedAt: null,
     createdAt: new Date(),
@@ -59,6 +65,7 @@ interface Harness {
     block: ReturnType<typeof vi.fn>;
     park: ReturnType<typeof vi.fn>;
     comment: ReturnType<typeof vi.fn>;
+    mark: ReturnType<typeof vi.fn>;
     prepareCheckout: ReturnType<typeof vi.fn>;
   };
 }
@@ -105,6 +112,9 @@ function harness({
     comment: vi.fn(async () => {
       calls.push("comment");
     }),
+    mark: vi.fn(async () => {
+      calls.push("mark");
+    }),
     prepareCheckout: vi.fn(async (entry: QueueEntry) => {
       calls.push("prepareCheckout");
       return { worktreeId: `wt-${entry.task.id}`, path: `/wt/${entry.task.id}`, dirty };
@@ -128,6 +138,7 @@ function harness({
     block: spies.block as unknown as ConveyorPorts["block"],
     comment: spies.comment as unknown as ConveyorPorts["comment"],
     park: spies.park as unknown as ConveyorPorts["park"],
+    mark: spies.mark as unknown as NonNullable<ConveyorPorts["mark"]>,
     prepared: async (taskId) => ({
       role: "implementador",
       prompt: "o prompt que foi preparado",
@@ -515,5 +526,69 @@ describe("o turno tem teto de tempo", () => {
     await createConveyor(ports, { turnTimeoutMs: 60_000 }).tick("w1");
 
     expect(spies.cancel).not.toHaveBeenCalled();
+  });
+});
+
+describe("os marcos do tracker são cortesia (Q64)", () => {
+  it("*peguei* sai antes de abrir a sessão", async () => {
+    const { ports, calls } = harness({ facts: { entries: [entry()] } });
+
+    await createConveyor(ports).tick("w1");
+
+    /*
+     * Quem está olhando a issue quer saber que alguém pegou **quando pegou**, e
+     * não quando terminou.
+     */
+    expect(calls.indexOf("mark")).toBeLessThan(calls.indexOf("openSession"));
+  });
+
+  it("*pronta para mesclar* só sai quando a última etapa da máquina anda", async () => {
+    const last = harness({ facts: { entries: [{ task: fakeTask({ status: "testing" }), role: "testador" }] } });
+    await createConveyor(last.ports).tick("w1");
+    const middle = harness({ facts: { entries: [{ task: fakeTask({ status: "review" }), role: "revisor" }] } });
+    await createConveyor(middle.ports).tick("w1");
+
+    const marks = (spy: typeof last.spies.mark) =>
+      spy.mock.calls.map((call) => (call[0] as { mark: string }).mark);
+
+    // `testing` é a última em que um encaixe trabalha; o que vem depois é sua
+    // vez, e é o que a frase promete a quem lê a issue.
+    expect(marks(last.spies.mark)).toContain("ready");
+    expect(marks(middle.spies.mark)).not.toContain("ready");
+  });
+
+  it("*travei* sai com o motivo do portão, e só na última tentativa", async () => {
+    const { ports, spies } = harness({
+      facts: { entries: [entry()] },
+      verdict: { kind: "fail", reason: "o teste do projeto falhou" },
+      attemptsSoFar: MAX_ATTEMPTS - 1,
+    });
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.mark.mock.calls.map((call) => call[0])).toContainEqual({
+      taskId: "t1",
+      mark: "blocked",
+      context: "o teste do projeto falhou",
+    });
+  });
+
+  it("uma esteira sem tracker é a esteira de antes", async () => {
+    const { ports, spies } = harness({ facts: { entries: [entry()] } });
+    const { mark: _ignored, ...withoutTracker } = ports;
+
+    // A porta é opcional, e o `?.` é o que faz uma instalação sem
+    // `LINEAR_API_KEY` não pagar nada por uma feature que ela não tem.
+    await expect(createConveyor(withoutTracker).tick("w1")).resolves.toBe(1);
+    expect(spies.advance).toHaveBeenCalled();
+  });
+
+  it("um marco que falha não derruba o turno", async () => {
+    const { ports, spies } = harness({ facts: { entries: [entry()] } });
+    spies.mark.mockRejectedValue(new Error("o Linear respondeu 500"));
+
+    // Cortesia, não portão: o trabalho já aconteceu do lado de cá.
+    await expect(createConveyor(ports).tick("w1")).resolves.toBe(1);
+    expect(spies.advance).toHaveBeenCalled();
   });
 });

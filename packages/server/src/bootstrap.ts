@@ -23,6 +23,9 @@ import { createBudgetSource } from "./tasks/budget-source.js";
 import { createConveyor } from "./tasks/conveyor.js";
 import { createConveyorPorts } from "./tasks/conveyor-ports.js";
 import { runConveyorLoop } from "./tasks/conveyor-loop.js";
+import { createLinearHost } from "./tracker/LinearHost.js";
+import { runTrackerLoop } from "./tracker/loop.js";
+import { writeMark, type Mark } from "./tracker/marks.js";
 import { configForAdapter, verdictOfWorktree } from "./tasks/conveyor-wiring.js";
 import { createCallerFactory } from "./trpc.js";
 import { appRouter } from "./routers/index.js";
@@ -290,6 +293,15 @@ export async function bootstrap({
   const issues = createIssueCache({ host: prHost });
 
   /*
+   * O tracker (`028` Partes 5 e 6).
+   *
+   * Construído sempre, e **não** condicionado à variável de ambiente: o host
+   * reporta ausência em vez de falhar, e é ele que decide. Um `if` aqui faria a
+   * chave posta depois do boot só valer no reinício seguinte.
+   */
+  const tracker = createLinearHost();
+
+  /*
    * A esteira, construída **antes** do servidor porque ela entra no contexto
    * dele: o clique do `assistido` é uma procedure, e ela manda o prompt pela
    * mesma esteira que o teria mandado sozinha. Duas instâncias dariam duas
@@ -353,6 +365,30 @@ export async function bootstrap({
       },
       liveTurns: () => acp.liveTurns(),
       prVerdictOf: (worktreeId) => verdictOfWorktree(openedDatabase.db, pr, worktreeId),
+      /*
+       * O marco que o tracker vê (`028` Parte 6).
+       *
+       * Ligado sempre, e é o `available()` do host que decide se acontece
+       * alguma coisa — não um `if` aqui. A diferença importa: com o `if`, uma
+       * chave posta no ambiente depois do boot não valeria até o próximo
+       * reinício.
+       */
+      mark: async ({ taskId, mark, context }) => {
+        await writeMark(
+          {
+            db: openedDatabase.db,
+            host: tracker,
+            log: {
+              warn: (payload, message) => {
+                bootedApp?.log.warn(payload, message);
+              },
+            },
+          },
+          taskId,
+          mark as Mark,
+          context,
+        );
+      },
     }),
   );
 
@@ -400,6 +436,16 @@ export async function bootstrap({
     agentAuth,
   });
 
+  const stopTracker = runTrackerLoop({
+    db: openedDatabase.db,
+    host: tracker,
+    log: {
+      warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+        bootedApp?.log.warn(...args);
+      },
+    },
+  });
+
   const stopConveyor = runConveyorLoop({
     db: openedDatabase.db,
     conveyor,
@@ -440,6 +486,7 @@ export async function bootstrap({
       stopUsageTracking();
       stopTaskProgress();
       stopConveyor();
+      stopTracker();
       await ptyManager.killAll();
       // Conversations too: an adapter left running is a subprocess with nothing
       // pointing at it, exactly like an orphaned shell.

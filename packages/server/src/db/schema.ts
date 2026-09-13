@@ -1049,6 +1049,53 @@ export const task = sqliteTable(
      * uma tarefa que andou tem um estado novo para avisar.
      */
     notifiedAt: integer("notified_at", { mode: "timestamp_ms" }),
+    /**
+     * De qual tracker esta tarefa veio (`028` Parte 5, T43 · Q61).
+     *
+     * `linear`, e é o `TrackerHost.id`. `NULL` é o caso comum: tarefa criada
+     * por você ou por um agente.
+     */
+    externalSource: text("external_source"),
+    /**
+     * O id **opaco** da issue no host, e não a URL.
+     *
+     * O `links` da [`022`](../../../../docs/features/022-workspace-tasks/prd.md)
+     * já guarda a URL, e é dela que o cartão tira o `↗ ACME-142` — mas ele é uma
+     * lista livre, e nada impede duas tarefas de citarem a mesma. Uma coluna com
+     * índice único é a diferença entre *"aponta para"* e **é**.
+     *
+     * E é a mesma chave que a escrita de volta usa: sem ela, o comentário não
+     * saberia em qual issue escrever sem reparsear a URL.
+     */
+    externalId: text("external_id"),
+    /**
+     * O que a issue era quando o daemon a leu (`028` Parte 5, T45 · Q63).
+     *
+     * Três campos, e o §6 é quem pede os três: *"reatribuída, fechada,
+     * descrição editada — bloqueia, com o motivo dizendo **qual das três** foi"*.
+     * Um hash sozinho responderia *"mudou"*, que é o aviso que não diz o que
+     * fazer.
+     *
+     * **O corpo vai como hash e os outros dois inteiros**, e a assimetria é
+     * deliberada: o corpo é texto livre de tamanho arbitrário, e guardá-lo aqui
+     * duplicaria a descrição da tarefa dentro da própria tarefa.
+     */
+    externalState: text("external_state"),
+    externalAssignee: text("external_assignee"),
+    externalBodyHash: text("external_body_hash"),
+    /**
+     * Quais marcos já foram escritos na issue (`028` Parte 6, T46 · Q64).
+     *
+     * JSON de uma lista de nomes — `["taken","pr","blocked","ready"]` —, e não
+     * quatro colunas, porque a pergunta é sempre *"este já foi?"* e a lista
+     * responde as quatro com a mesma leitura. Quatro colunas seriam quatro
+     * migrações no dia em que o §6 ganhar um quinto marco.
+     *
+     * A regra é a mesma do `notified_at` da Parte 4: a condição mora no `WHERE`,
+     * não num `if` antes — senão duas passadas escrevem o mesmo comentário na
+     * issue de alguém, que é a única parte disto que é irreversível.
+     */
+    externalMarks: text("external_marks").notNull().default("[]"),
     statusChangedAt: integer("status_changed_at", { mode: "timestamp_ms" })
       .notNull()
       // `DEFAULT 0` no banco e o relógio na aplicação, e **não** o `NOW` que o
@@ -1105,6 +1152,23 @@ export const task = sqliteTable(
     // cartão ordena em memória.
     index("task_by_position").on(table.workspaceId, table.status, table.position),
     index("task_by_project").on(table.projectId),
+    /*
+     * Uma issue, uma tarefa — **por workspace**.
+     *
+     * Por workspace e não global porque a mesma issue pode legitimamente virar
+     * tarefa em dois workspaces da mesma máquina: são dois contextos de trabalho
+     * diferentes, e o produto não tem por que decidir que só um deles pode
+     * acompanhá-la.
+     *
+     * O índice é parcial por construção: `NULL` não colide com `NULL` no SQLite,
+     * então toda tarefa que **não** veio de tracker fica de fora sem precisar de
+     * cláusula nenhuma.
+     */
+    unique("task_external_in_workspace").on(
+      table.workspaceId,
+      table.externalSource,
+      table.externalId,
+    ),
   ],
 );
 

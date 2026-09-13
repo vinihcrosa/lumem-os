@@ -117,6 +117,18 @@ export interface ConveyorPorts {
   /** O que este turno deixou registrado na tarefa (T21). */
   comment(input: { taskId: string; body: string; sessionId: string }): Promise<void>;
   /**
+   * O marco que o tracker vê (`028` Parte 6, T46).
+   *
+   * **Cortesia, não portão**: nada aqui espera o resultado nem muda de rumo por
+   * causa dele, e a porta é **opcional** — uma esteira montada sem tracker é a
+   * esteira que existia antes da Parte 5, byte por byte.
+   */
+  mark?(input: {
+    taskId: string;
+    mark: "taken" | "pr" | "blocked" | "ready";
+    context?: string;
+  }): Promise<void>;
+  /**
    * O `assistido`: prepara e **para**, com o prompt visível (Q51).
    *
    * `null` limpa — é o que enviar faz, e o que mudar de etapa já fazia sozinho.
@@ -230,6 +242,16 @@ export function createConveyor(
       return;
     }
 
+    /*
+     * *"Peguei"*, e é o primeiro dos quatro marcos do §6.
+     *
+     * Antes de abrir a sessão, e não depois: quem está olhando a issue no
+     * tracker quer saber que alguém pegou **quando pegou**, e não quando
+     * terminou. O `void` é a Q64 em uma linha — falhar aqui não muda nada do
+     * lado de cá.
+     */
+    void ports.mark?.({ taskId: entry.task.id, mark: "taken" }).catch(() => undefined);
+
     const { sessionId } = await ports.openSession({
       taskId: entry.task.id,
       role: entry.role,
@@ -265,6 +287,14 @@ export function createConveyor(
 
     if (verdict.kind === "pass") {
       await ports.advance({ task: entry.task, role: entry.role });
+      /*
+       * *"Pronta para mesclar"* sai quando a etapa que anda é a **última** da
+       * máquina. O §4.1 é quem define isso: `testing` é a última em que um
+       * encaixe trabalha, e o que vem depois é sua vez.
+       */
+      if (entry.task.status === "testing") {
+        void ports.mark?.({ taskId: entry.task.id, mark: "ready" }).catch(() => undefined);
+      }
       return;
     }
 
@@ -276,6 +306,9 @@ export function createConveyor(
      */
     if (attempt >= MAX_ATTEMPTS) {
       await ports.block({ taskId: entry.task.id, reason: verdict.reason });
+      void ports
+        .mark?.({ taskId: entry.task.id, mark: "blocked", context: verdict.reason })
+        .catch(() => undefined);
     }
   }
 

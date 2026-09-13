@@ -1195,3 +1195,112 @@ describe("0026 — o interruptor que apaga rascunho", () => {
     expect(row?.mergedAlwaysRemoves).toBe(false);
   });
 });
+
+describe("0027 e 0028 — a issue como identidade, e os marcos", () => {
+  function databaseBeforeTracker(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-tracker-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(27) });
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'acme')`).run();
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w2', 'outro')`).run();
+    for (const [id, workspaceId] of [
+      ["p1", "w1"],
+      ["p2", "w2"],
+    ]) {
+      sqlite
+        .prepare(
+          `INSERT INTO project (id, workspace_id, name, path, default_branch)
+           VALUES (?, ?, 'api', '/repos/' || ?, 'main')`,
+        )
+        .run(id, workspaceId, id);
+    }
+    sqlite
+      .prepare(
+        `INSERT INTO task (id, workspace_id, project_id, title, status, position)
+         VALUES ('t1', 'w1', 'p1', 'de antes do tracker', 'open', 0)`,
+      )
+      .run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("uma tarefa que já existia acorda sem origem externa", async () => {
+    const handle = openDatabase({ path: databaseBeforeTracker() });
+    open.push(handle);
+
+    const [row] = await handle.db.select().from(schema.task);
+
+    expect(row).toMatchObject({
+      externalSource: null,
+      externalId: null,
+      // E sem marco nenhum: ela nunca foi comentada em issue nenhuma.
+      externalMarks: "[]",
+    });
+  });
+
+  it("duas tarefas não podem ser a mesma issue no mesmo workspace", async () => {
+    const handle = openDatabase({ path: databaseBeforeTracker() });
+    open.push(handle);
+    const external = { externalSource: "linear", externalId: "iss-1" };
+
+    await handle.db.update(schema.task).set(external).where(eq(schema.task.id, "t1"));
+    await handle.db.insert(schema.task).values({
+      id: "t2",
+      workspaceId: "w1",
+      projectId: "p1",
+      title: "a mesma issue de novo",
+      status: "open",
+      position: 1,
+    });
+
+    await expect(
+      handle.db.update(schema.task).set(external).where(eq(schema.task.id, "t2")),
+    ).rejects.toThrow();
+  });
+
+  it("mas a mesma issue pode virar tarefa em **dois** workspaces", async () => {
+    const handle = openDatabase({ path: databaseBeforeTracker() });
+    open.push(handle);
+    const external = { externalSource: "linear", externalId: "iss-1" };
+
+    await handle.db.update(schema.task).set(external).where(eq(schema.task.id, "t1"));
+    await handle.db.insert(schema.task).values({
+      id: "t3",
+      workspaceId: "w2",
+      projectId: "p2",
+      title: "a mesma issue, outro workspace",
+      status: "open",
+      position: 0,
+      ...external,
+    });
+
+    /*
+     * São dois contextos de trabalho diferentes, e o produto não tem por que
+     * decidir que só um deles pode acompanhar a mesma issue.
+     */
+    expect(await handle.db.select().from(schema.task)).toHaveLength(2);
+  });
+
+  it("o índice não atrapalha quem não veio de tracker", async () => {
+    const handle = openDatabase({ path: databaseBeforeTracker() });
+    open.push(handle);
+
+    // `NULL` não colide com `NULL` no SQLite, então o índice é parcial por
+    // construção — sem precisar de cláusula nenhuma.
+    await handle.db.insert(schema.task).values({
+      id: "t4",
+      workspaceId: "w1",
+      projectId: "p1",
+      title: "sem tracker",
+      status: "open",
+      position: 2,
+    });
+
+    expect(await handle.db.select().from(schema.task)).toHaveLength(2);
+  });
+});

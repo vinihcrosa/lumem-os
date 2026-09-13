@@ -60,6 +60,13 @@ export interface ConveyorDeps {
   liveTurns(): readonly { sessionId: string; startedAt: Date }[];
   /** O veredito da PR daquela worktree, ou `null`. Do `PrCache` da `013`. */
   prVerdictOf(worktreeId: string): Promise<PrLike>;
+  /**
+   * O marco no tracker, quando há tracker (`028` Parte 6, T46).
+   *
+   * Opcional na esteira inteira: uma instalação sem `LINEAR_API_KEY` é a
+   * esteira que existia antes da Parte 5, e nada nela muda.
+   */
+  mark?(input: { taskId: string; mark: string; context?: string }): Promise<void>;
 }
 
 /** O pedaço do `PrCache` que o portão usa, e nada além dele. */
@@ -171,6 +178,14 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
     },
 
     prompt: (input) => deps.prompt(input),
+
+    ...(deps.mark === undefined
+      ? {}
+      : {
+          mark: async (input: { taskId: string; mark: string; context?: string }) => {
+            await deps.mark?.(input);
+          },
+        }),
 
     cancel: (sessionId) => deps.cancel(sessionId),
 

@@ -190,6 +190,20 @@
       "when": 1789322685016,
       "tag": "0026_pr_mesclada_sempre_remove",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1789326110247,
+      "tag": "0027_issue_como_identidade",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1789326225387,
+      "tag": "0028_marcos_no_tracker",
+      "breakpoints": true
     }
   ]
 }

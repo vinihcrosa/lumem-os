@@ -173,6 +173,23 @@ export interface TaskRepository {
    */
   setBlocked(id: string, reason: string | null): Promise<TaskRow>;
   /**
+   * A chave externa e o instantâneo dela (`028` Parte 5, T43 e T45).
+   *
+   * Uma escrita só, e não duas: a chave e o instantâneo mudam juntos por
+   * definição — quem acabou de ler a issue tem os dois —, e separá-los abriria
+   * a janela em que a tarefa aponta para uma issue com o instantâneo de outra.
+   */
+  linkExternal(
+    id: string,
+    external: {
+      source: string;
+      id: string;
+      state: string;
+      assignee: string | null;
+      bodyHash: string;
+    },
+  ): Promise<TaskRow>;
+  /**
    * Marca que você já foi avisado sobre o estado atual (T35).
    *
    * **Só escreve quando ainda não havia aviso**, e devolve se escreveu. É isso
@@ -538,6 +555,32 @@ export function createTaskRepository(db: Db): TaskRepository {
         .where(and(eq(task.id, id), isNull(task.notifiedAt)))
         .returning({ id: task.id });
       return written.length > 0;
+    },
+
+    async linkExternal(id, external) {
+      await require_(id);
+      const [row] = await withConstraints(
+        () =>
+          db
+            .update(task)
+            .set({
+              externalSource: external.source,
+              externalId: external.id,
+              externalState: external.state,
+              externalAssignee: external.assignee,
+              externalBodyHash: external.bodyHash,
+              updatedAt: new Date(),
+            })
+            .where(eq(task.id, id))
+            .returning(),
+        {
+          "unique:task.workspace_id,task.external_source,task.external_id": {
+            code: "DUPLICATE",
+            message: "esta issue já é outra tarefa deste workspace",
+          },
+        },
+      );
+      return row!;
     },
 
     async setBlocked(id, reason) {
