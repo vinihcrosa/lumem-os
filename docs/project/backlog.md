@@ -748,7 +748,15 @@ mesmo tamanho que a [016-session-mode](../features/016-session-mode/prd.md) teve
 quiser trocar esforço sem sair do Lumem, ou quando uma persona do repositório for o motivo de abrir a
 conversa.
 
-### A gramática de `Status:` não sabe dizer "esta lista acabou, a PRD não" — `P`
+### ~~A gramática de `Status:` não sabe dizer "esta lista acabou, a PRD não"~~ — **resolvido em 2026-09-13**
+
+> **Não era da gramática, era de como eu fatiei.** Ao abrir a Parte 3 da `028`, a decisão foi **um
+> `tasks.md` por feature, com uma seção por parte** — porque o gate do `025` só olha `prd.md` e
+> `tasks.md`, e um arquivo irmão ficaria sem verificação nenhuma. Com todas as partes no mesmo
+> arquivo, `completa` volta a querer dizer *"a feature acabou"*, que é o que a PRD também diria, e o
+> contrato funciona como foi desenhado. O registro abaixo fica porque ele descreve o beco.
+
+
 
 O [`025`](../features/025-docs-contract/prd.md) fechou a gramática em quatro valores — `proposta`,
 `em execução`, `completa`, `superada por` — e o `gate:full` cobra que a PRD e o `tasks.md`

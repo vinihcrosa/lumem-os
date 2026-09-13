@@ -2,10 +2,13 @@
 
 **PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md) — só a Parte 1 · **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
 
-**Quarenta e três perguntas, em sete rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
+**Quarenta e cinco perguntas, em oito rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
 segunda rodada abriu — todas em 2026-09-11 — mais **4 que a sessão de desenho no Open Design abriu**,
-respondidas em **2026-09-12**, **3 da sexta rodada** e **3 da sétima**. **Todas respondidas** — a última, a
-[Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático), fechou medindo no mesmo dia em que nasceu.
+respondidas em **2026-09-12**, **3 da sexta rodada** e **3 da sétima**. **Quarenta e três respondidas.** A [Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático) fechou
+medindo no mesmo dia em que nasceu, e fechou as sete primeiras rodadas — que são a Parte 1 inteira. A
+oitava é da **Parte 3**, aberta depois: a [Q44](#q44--o-teto-tem-duas-unidades-qual-delas-a-tela-mostra)
+e a [Q45](#q45--o-teto-vale-para-a-sessão-que-você-está-conduzindo) nasceram **escrevendo as tasks**,
+antes de existir código, e nenhuma das duas bloqueia o modelo nem o portão.
 
 A sétima rodada é a primeira que nasceu de **gastar token** — 20 turnos, US$ 4,60, Haiku e Opus. A
 [Q41](#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) apareceu ao montar a bancada, quando o
@@ -1235,3 +1238,70 @@ cartões por coluna de 682px sem rolar, e **quatro** quando todos têm linha viv
 condicional pode levar isso a três, e três cartões por coluna é o número que o briefing chamou de
 *"item demais no cartão"*. A folha volta ao Open Design com esse número para conferir — junto do
 resíduo da [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), que é da mesma família.
+
+---
+
+## Oitava rodada — o que a Parte 3 abriu (2026-09-13)
+
+Duas perguntas, e as duas nasceram **antes do código**, ao escrever as tasks do orçamento.
+
+### Q44 — o teto tem duas unidades. Qual delas a tela mostra?
+
+A [T13](tasks.md#t13-o-que-cada-adaptador-relata-sobre-dinheiro) achou, sem gastar nada, que **um
+teto em dinheiro não é cobrável contra todo adaptador**: a fase 0 da
+[`021`](../021-second-agent/prd.md) mediu o Codex atravessando um turno inteiro com `cost: null`. O
+que todo adaptador relata é **token e turno** — no evento `usage`, `used` e `size` são obrigatórios e
+só `cost` é `nullish`.
+
+Então o teto tem duas unidades: **dinheiro quando o agente informa, token ou turno como o chão que
+sempre existe.** A pergunta é o que a tela faz com isso.
+
+- **mostrar a unidade que o agente daquele workspace informa** — o workspace com Claude mostra
+  dólares, o com Codex mostra turnos. Custa: dois workspaces mostrando coisas diferentes no mesmo
+  lugar, e nenhuma comparação entre eles;
+- **mostrar sempre as duas**, com o dinheiro vazio quando não há. Custa espaço e põe um `—` numa linha
+  que é sobre limite, que é onde um vazio parece defeito;
+- **o teto é sempre em turnos, e o dinheiro é só relatado.** A unidade universal vira a única que
+  bloqueia. Custa: *"parou em US$ 2,00"* é uma frase que uma pessoa entende e *"parou em 40 turnos"*
+  não — o turno não tem preço fixo, e o mesmo número custa dez vezes mais em Opus que em Haiku.
+
+**Sem proposta.** As três têm um custo que eu não sei pesar sem ver a tela, e ela é da
+[Fase 8](tasks.md#fase-8--a-tela). O que **não** está em aberto é o modelo: os três tetos existem nas
+duas unidades desde a [T14](tasks.md#t14-onde-os-tetos-moram), porque decidir a tela depois é barato
+e decidir o schema depois não é.
+
+> **Aberta, e não bloqueia as fases 6 e 7** — o portão da
+> [T16](tasks.md#t16-o-daemon-recusa-o-próximo-turno-e-diz-qual-teto-segurou) cobra a unidade que
+> existir, e a tela escolhe o que dizer.
+
+### Q45 — o teto vale para a sessão que você está conduzindo?
+
+A Parte 3 vem antes da esteira, então os tetos são cobrados sobre a **única sessão que existe hoje**:
+aquela que você abriu com a mão e está olhando.
+
+E isso é diferente do que a PRD tinha em mente. O §2 diz que a feature é a passagem de *harness* —
+você dirige — para *orquestrador* — você supervisiona; o orçamento existe porque **"autonomia sem
+orçamento é um vazamento"**, e o vazamento é o agente gastando enquanto ninguém olha. Numa conversa
+que você conduz, ninguém está deixando de olhar.
+
+- **vale igual** — é um teto do workspace, e o dinheiro é o mesmo dinheiro. Custa: o produto
+  interrompe **você**, no meio de uma conversa, por um número que você configurou há um mês e não
+  lembra. É o comportamento que faz a pessoa desligar o teto e nunca mais ligar;
+- **só vale para o que a esteira pegou** — o teto é do trabalho autônomo, e a conversa que você
+  conduz é sua. Custa: até a Parte 2 existir, **o teto não bloqueia nada**, e as fases 6 a 9 entregam
+  um portão sem nada passando por ele;
+- **vale, e avisa em vez de bloquear** — a conversa que você conduz recebe o aviso *"passou do teto"*
+  e continua; a da esteira para. Custa uma terceira semântica num produto que já tem `bloqueada` e
+  `pausada`.
+
+**Proposta: a terceira**, e o motivo é a assimetria que a própria PRD nomeia. *"Para, bloqueia, mostra
+o número, não reduz nem continua"* é a resposta certa para quem **não está lá** — o §6, Parte 3
+escreve isso para a esteira. Para quem está lá, a informação é a mesma e a interrupção é hostil: você
+pode decidir parar, e o produto não precisa decidir por você. E isso não é uma terceira semântica de
+verdade — é o teto do workspace se comportando como o
+[`session-mode`](../016-session-mode/prd.md) se comporta, que **nunca nega sozinho**: *"denial stays a
+human act"*.
+
+> **Aberta.** Se a resposta for a primeira, o que muda é o `Done when` da
+> [T16](tasks.md#t16-o-daemon-recusa-o-próximo-turno-e-diz-qual-teto-segurou) — recusar em vez de
+> avisar —, e o e2e da [T20](tasks.md#t20-o-e2e-do-teto) já exercita os dois caminhos.

@@ -399,11 +399,176 @@ fazer a faixa nunca zerar derruba o (d).
 
 ---
 
+## Parte 3 — Orçamento e limites
+
+> **Aberta em 2026-09-13**, e ela vem **antes** da Parte 2 (a esteira), invertendo a ordem que o §6
+> sugere. O motivo é a [Q43](open-questions.md#q43--qual-dos-cinco-modos-do-claude-é-o-automático),
+> medida: dos cinco modos do Claude, **só `bypassPermissions` fecha o laço** — e ele é o único que
+> **nunca pergunta**. Então a segurança da esteira não pode vir do modo de permissão; tem que vir do
+> CI, do orçamento e do teto de turnos. **Ligar a autonomia antes de ter o teto de pé é ligar a
+> autonomia sem freio.**
+
+**O que esta fatia entrega:** os tetos do **workspace** — custo por tarefa, custo por dia, turnos por
+sessão — cobrados sobre a sessão que **existe hoje**, aquela que você abre com a mão. Mais a
+`pausada` por limite de taxa, e o bloqueio que **nomeia qual teto segurou**.
+
+**O que ela não entrega, e por quê:**
+
+| Fora | Por quê |
+|---|---|
+| teto de tarefas **em paralelo** | conta tarefas que a esteira pegou, e nada pega. É da Parte 2 |
+| teto de **duas voltas** da esteira | idem — não existe volta sem esteira |
+| teto **por agente** ([Q33](open-questions.md#q33--agentes-nomeados-e-papel-por-projeto)) | o agente nomeado com papel é o *encaixe* do §5, que é da Parte 2. Sobra o teto do workspace, e o bloqueio já nomeia qual dos dois é |
+
+---
+
+### Fase 5 — o que dá para cobrar · **entregue**
+
+> A numeração de fases **continua** em vez de reiniciar, e isso é decisão: duas fases 1 no mesmo
+> arquivo seriam a mesma armadilha que *parte × fase* acabou de produzir. Fase é única no documento;
+> parte é o agrupamento.
+
+#### T13: O que cada adaptador relata sobre dinheiro
+
+**What**: responder, antes de escrever qualquer teto, em que **unidade** ele pode ser cobrado — e a
+resposta já existe medida, sem gastar nada.
+**Where**: nenhum arquivo de produto; a conclusão vai para a PRD e para as perguntas
+**Done when**: a unidade do teto está escolhida com o motivo, e a pergunta que ela abre está no
+arquivo de perguntas.
+**Gate**: nenhum — não toca código
+**Status**: ✅ entregue (2026-09-13) — e o achado muda o desenho antes de existir código:
+
+> **Um teto em dinheiro não é cobrável contra todo adaptador.** A [fase 0 da
+> `021`](../021-second-agent/prd.md) mediu que o Codex atravessa um turno inteiro com **`cost: null`**
+> — ele não relata dinheiro. O Claude relata: a [medição da
+> Q39](../../project/orchestration-measurements.md) somou **US$ 0,2461** em cinco turnos de Haiku e
+> **US$ 2,2140** em cinco de Opus.
+>
+> **O que todo adaptador relata é token e turno**, e isso está no contrato: no evento `usage`,
+> `used` e `size` são **obrigatórios** (`acp-protocol.ts:361`) e só `cost` é `nullish`. O `turn_end`
+> chega sempre.
+>
+> Então o teto tem **duas unidades, e não uma**: dinheiro quando o agente informa, e token ou turno
+> como o chão que sempre existe. Um produto que só soubesse cobrar em dólar teria um workspace com o
+> Codex rodando **sem teto nenhum** e sem nada na tela dizendo isso —, que é a pior forma de um limite
+> falhar. Daí sai a [Q44](open-questions.md#q44--o-teto-tem-duas-unidades-qual-delas-a-tela-mostra).
+
+---
+
+### Fase 6 — o modelo do teto
+
+#### T14: Onde os tetos moram
+
+**What**: os tetos do workspace no banco — custo por tarefa, custo por dia, turnos por sessão —, com
+`null` querendo dizer **sem teto** e não zero.
+**Where**: `packages/server/src/db/schema.ts`, a migração, `repositories/workspace.ts`
+**Done when**: um workspace criado antes desta migração acorda **sem teto**, e não com um teto
+inventado; `0` e `null` são distinguíveis e querem dizer coisas diferentes (`0` bloqueia tudo,
+`null` não bloqueia nada).
+**Gate**: `pnpm gate:quick`
+
+> **A armadilha é o default.** Um teto que nasce valendo é um produto que passa a recusar trabalho
+> num `pnpm dev` de alguém que nunca pediu teto nenhum — e o §6 da PRD já diz que os três
+> interruptores que gastam token **vêm desligados**. `null` é a única forma de a migração não mudar
+> o comportamento de ninguém.
+
+#### T15: O contador, e ele lê do que já existe
+
+**What**: quanto esta tarefa já gastou, quanto este workspace gastou hoje, e quantos turnos esta
+sessão teve — sem tabela nova.
+**Where**: `packages/server/src/usage/query.ts`
+**Done when**: os três números saem de `session_usage` e de `turn_end`, o de tarefa reusa o
+`usageByTask` que a Parte 1 já estendeu com `"all"`, e o de dia reusa a janela `1d` que a
+[`010`](../010-workspace-screen/prd.md) já resolve **no daemon**.
+**Gate**: `pnpm gate:quick`
+
+> **Nenhum contador guardado**, e é o mesmo argumento do selo: um número somado na hora não pode
+> divergir do que o aconteceu, e um contador incrementado pode — basta um turno que morreu entre o
+> gasto e o incremento.
+
+---
+
+### Fase 7 — o portão
+
+#### T16: O daemon recusa o próximo turno, e diz qual teto segurou
+
+**What**: antes de `session/prompt`, o daemon confere os três tetos. Estourou: **para, bloqueia,
+mostra o número, não reduz nem continua**, e a worktree fica.
+**Where**: `packages/server/src/acp/AcpManager.ts`, `packages/server/src/tasks/`
+**Done when**: o turno é recusado **antes** de custar, a mensagem nomeia o teto e o valor (*"parou no
+teto do workspace — US$ 2,00 por tarefa"*), e a tarefa fica com o selo `bloqueada: <motivo>`.
+**Gate**: `pnpm gate:quick`
+
+> **Antes do prompt, e não depois do turno**, que é a diferença entre um teto e um relatório: conferir
+> no fim significa que o turno que estourou já foi pago.
+
+#### T17: Cota não é orçamento — `pausada`
+
+**What**: limite de taxa do agente produz `pausada`: **não consome orçamento nem turno**, retoma
+sozinha e não notifica. Sem sinal de quando reabre, **3 tentativas** com espera crescente e depois
+bloqueia; espera maior que **4 h** vira bloqueio
+([Q32](open-questions.md#q32--limite-de-taxa-do-agente-pausa-não-é-bloqueio)).
+**Where**: `packages/server/src/acp/`, `packages/server/src/tasks/seal.ts`
+**Done when**: o selo `pausada até ~HH:MM` sai do `rateLimit` que o evento `usage` carrega; uma pausa
+não mexe em nenhum contador; e 4 h de espera vira `bloqueada` com o motivo.
+**Gate**: `pnpm gate:quick`
+
+> **O `rateLimit` só voltou a existir na [`027`](../027-adapter-provenance/prd.md)**, que consertou o
+> `rateLimitOf` — ele exigia `utilization` na raiz e o `0.75.1` a aninhou em
+> `unifiedWindows.<janela>`. Antes dela, esta task não teria dado de onde ler, e o defeito estava
+> apagado em **todo** transcript do repositório sem nada falhar.
+
+---
+
+### Fase 8 — a tela
+
+#### T18: O teto aparece, e diz onde se muda
+
+**What**: os três tetos na tela do workspace, com o valor atual e o lugar de mudar.
+**Where**: `packages/web/src/components/WorkspacePanel.tsx`, `workspace.css`
+**Done when**: um teto `null` aparece como **sem teto** e não como vazio; e a linha diz onde mudar,
+como a `022` já faz com o `LUMEM_TASKS_BUDGET`.
+**Gate**: `pnpm gate:quick`
+
+> *"Teto que você não vê é teto que parece bug quando recusa"* — a frase é da `022` e vale igual aqui.
+
+#### T19: O cartão bloqueado nomeia o teto
+
+**What**: o selo `bloqueada` do quadro carrega **qual** teto segurou e o número, com um verbo que leva
+à tela onde ele mora ([Q36](open-questions.md#q36--qual-dos-dois-tetos-segurou)).
+**Where**: `packages/web/src/components/TaskCard.tsx`, `board.css`
+**Done when**: o motivo cabe nos **151px** medidos da caixa do selo, ou trunca dizendo que trunca; e
+o cartão bloqueado **não pinta uma fatia de quarta linha** — o corte mora no filho, não na caixa com
+`padding` (§10.2).
+**Gate**: `pnpm gate:quick`
+
+> Esta task traz de volta as classes `tcard--blocked`, `tcard__ask` e `tcard__ask-t`, que saíram do
+> `board.css` na Parte 1 por não terem marcação — exatamente como a fase 3 registrou que voltariam.
+
+---
+
+### Fase 9 — o portão
+
+#### T20: O e2e do teto
+
+**What**: a spec que prova que o teto para, com **zero token**.
+**Where**: `e2e/`
+**Done when**: três caminhos passam — **(a)** com teto de turnos em 1, o segundo prompt é recusado
+**antes** de chegar ao agente, e o cartão fica `bloqueada` nomeando o teto; **(b)** subir o teto
+destrava a mesma sessão sem reabrir nada; **(c)** com os três tetos em `null`, nada é recusado — que
+é o comportamento de quem nunca pediu teto.
+**Gate**: `pnpm gate:full`
+
+> **O (c) é o que impede o pior defeito desta fatia:** um teto que nasce valendo transformaria o
+> produto de todo mundo num produto que recusa trabalho, e um teste que só exercita o caminho de
+> bloquear fica verde contra isso.
+
+---
+
 ## O que fica para o `tasks.md` seguinte
 
 | O quê | O que destrava |
 |---|---|
 | **Parte 2 — a esteira** | a resposta de *"três sessões por tarefa: o que passa de uma para outra"*, e o laço do implementador que a T1 provou ser necessário (turno acabado ≠ tarefa acabada) |
-| **Parte 3 — orçamento** | nada. `max_turn_requests` já chega ao daemon, e o `rateLimitOf` foi consertado pela [`027`](../027-adapter-provenance/prd.md). É a que está mais perto |
 | **Parte 4 — supervisão** | a Parte 2, e o corolário desconfortável do §2.4 do estudo: o selo `aguardando você` **não é derivável do transporte** |
 | **Parte 5 e Parte 6 — o tracker** | um **ADR**. O precedente do `gh` não é portável — não existe `linear` na máquina —, e as três opções que sobram estão no §3.4 do estudo. Uma delas contradiz o ADR de 2026-08-30 de frente |
