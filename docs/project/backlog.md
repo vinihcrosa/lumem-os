@@ -797,3 +797,22 @@ de descobrir no turno.
 **De onde veio:** [028 Q41](../features/028-autonomous-orchestration/open-questions.md) · **Volta
 quando:** um terceiro provider entrar (o OpenRouter é o citado), ou quando a F2 precisar da postura de
 permissão de um agente que não é o Claude — aí a interface deixa de ser cultura e vira código.
+
+### O log do daemon não vai para arquivo — `P`
+
+O daemon usa o logger do Fastify sem destino em disco, e o binário `lumem` não redireciona: tudo vai
+para `stdout`. Numa sessão de `pnpm dev` isso é o terminal; num daemon instalado, é o que quer que
+tenha iniciado o processo.
+
+**O caso que tornou isso concreto:** a [Q46 da `028`](../features/028-autonomous-orchestration/open-questions.md)
+respondeu *"guarde o retrato da falha para reconhecer a recusa por cota depois"* — e o retrato só é
+útil se alguém o achar. A cota fecha durante trabalho autônomo, que é exatamente quando ninguém está
+olhando o terminal. O conserto pontual (escrever o retrato em `~/.lumem/_system/turn-failures.jsonl`)
+é da própria `028`; **este item é o geral**: log de daemon que não persiste é diagnóstico que só
+existe para quem estava presente.
+
+Pede decisão sobre destino, rotação e tamanho — e sobre o que **não** pode ir para o disco, porque o
+log atravessa caminho de arquivo e prompt.
+
+**De onde veio:** [028 Q46](../features/028-autonomous-orchestration/open-questions.md) ·
+**Volta quando:** o primeiro defeito relatado por alguém que não conseguiu dizer o que o daemon fez.
