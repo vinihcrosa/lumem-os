@@ -39,7 +39,7 @@
 > em 2026-09-12**, todas na proposta: o encaixe se chama **`implementador`**, o rodapé da sidebar vira
 > **`Adaptadores`**, o bloqueio de orçamento **nomeia qual teto segurou**, e abaixo de 1418px o quadro
 > **rola na horizontal e diz que está rolando**
-> **Perguntas:** **43, todas respondidas** — as três da sexta rodada vieram de **ler o código
+> **Perguntas:** **47, e 45 respondidas** — as três da sexta rodada vieram de **ler o código
 > entregue**. A [Q38](open-questions.md#q38--arrastar-para-in-progress-se-ele-é-derivado) é a única do
 > documento que nunca precisou existir: a Q3 já a respondia, e a premissa dela estava errada também —
 > o arrasto para `In Progress` **já funcionava**, sem teste nenhum cobrindo. O que sobrou dela é a
@@ -51,7 +51,10 @@
 > são a [Q41](open-questions.md#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) — o
 > `lumemMode` é **inerte** para um agente com modo próprio — e a
 > [Q42](open-questions.md#q42--o-selo-aguardando-você-é-ortogonal-e-o-desenho-o-fez-exclusivo), que é
-> o que a Q39 abriu — **as duas respondidas em 2026-09-13**. A resposta da Q41 criou a
+> o que a Q39 abriu — **as duas respondidas em 2026-09-13**. A nona rodada tem uma pergunta só e ela
+> é da Parte 2: a [Q47](open-questions.md#q47--o-que-passa-de-uma-sessão-para-outra) decidiu que
+> **nada passa de uma sessão para outra** — nem resumido —, o que faz o encanamento de contexto da
+> esteira **deixar de existir**. A resposta da Q41 criou a
 > [Q43](open-questions.md#q43--qual-dos-cinco-modos-do-claude-é-o-automático), fechada **medindo** no
 > mesmo dia: dos cinco modos do Claude, **só `bypassPermissions` fecha o laço** — `acceptEdits` edita
 > o arquivo e pendura no primeiro comando, e `auto` nem existe para todo modelo. O único modo que
@@ -150,7 +153,15 @@ vazia — funciona, e contraria o contrato da API que o resto do sistema espera.
 
 **O que acontece.** O revisor reprova, e o parecer é específico: *"o contrato de `/orders` diz 400
 para carrinho vazio; isto devolve 200"*. O cartão **volta para In Progress**, com o parecer como
-próximo prompt do implementador — não um prompt seu, o texto do revisor. O implementador corrige,
+próximo prompt do implementador — não um prompt seu, o texto do revisor.
+
+> **Nota — este é o único lugar em que texto de um agente alcança outro, e a
+> [Q47](open-questions.md#q47--o-que-passa-de-uma-sessão-para-outra) explica por que ele não é
+> exceção.** O parecer é **dado da tarefa**, não conversa do revisor: ele é produzido para ficar
+> registrado, e o §4.1 já conta *"o parecer foi registrado"* entre os fatos que movem a seta. O que a
+> regra do isolamento proíbe é o **canal** — a sessão A não briefa a sessão B; o que ela permite é a
+> **tarefa** como meio, porque tarefa é registro e você a lê também. Sem isso este caso de uso não
+> existe: o segundo implementador refaria o mesmo erro, e a esteira só saberia reprovar em loop. O implementador corrige,
 abre o push de novo, o CI roda, volta para In Review. O revisor aprova. Segue.
 
 Se reprovasse de novo, e de novo, a tarefa **bloqueia na segunda volta** e chama você — porque dois
@@ -459,6 +470,22 @@ A parte mais estruturante das suas respostas, e a que não estava na v0.1:
 | **implementador** | escreve o código, commita, empurra, abre a PR | o corpo da tarefa | commits, PR, e um resumo do que fez |
 | **revisor** | lê o diff contra a intenção, as regras do repositório e a memória do workspace | o diff + o corpo da tarefa | aprova ou reprova, **com parecer** |
 | **testador** | **usa o produto como usuário** — clica a UI, chama o endpoint, procura borda | acesso ao workspace inteiro, e se vira | passa ou reprova, com o passo a passo |
+
+> **Nota — nada passa de uma sessão para outra**
+> ([Q47](open-questions.md#q47--o-que-passa-de-uma-sessão-para-outra), respondida em 2026-09-13). A
+> coluna *"o que recebe"* é uma **lista fechada**, e nenhum item dela vem de um agente: a tarefa
+> (descrição, comentários, links), a PR, o diff, o repositório e a memória do workspace. A conversa
+> do anterior **não** atravessa, nem resumida — *"para impedir que o implementador mande coisa que vá
+> enviesar o review do revisor"*.
+>
+> **Isso é o §4.1 uma camada acima:** lá a máquina só move por fato verificável de fora do agente;
+> aqui o próximo agente só **lê** fato. E a medição da Q39 dá o argumento empírico — o Haiku commitou
+> um serviço inventado escrevendo `Commit: 50bb628 ✓`, e um revisor que recebesse aquele resumo
+> receberia uma mentira bem escrita.
+>
+> **A consequência nesta tabela:** *"um resumo do que fez"*, na linha do implementador, **não tem
+> consumidor na esteira**. Ele é para **você**, na conversa dele. O resto da tabela fica inteiro de
+> pé.
 
 ### 5.1 Encaixe não é agente
 

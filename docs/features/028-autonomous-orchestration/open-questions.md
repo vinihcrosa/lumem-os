@@ -2,9 +2,9 @@
 
 **PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md) — só a Parte 1 · **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
 
-**Quarenta e seis perguntas, em oito rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
+**Quarenta e sete perguntas, em nove rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
 segunda rodada abriu — todas em 2026-09-11 — mais **4 que a sessão de desenho no Open Design abriu**,
-respondidas em **2026-09-12**, **3 da sexta rodada** e **3 da sétima**. **Quarenta e quatro respondidas.** A [Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático) fechou
+respondidas em **2026-09-12**, **3 da sexta rodada** e **3 da sétima**. **Quarenta e cinco respondidas.** A [Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático) fechou
 medindo no mesmo dia em que nasceu, e fechou as sete primeiras rodadas — que são a Parte 1 inteira. A
 oitava é da **Parte 3**, aberta depois: a [Q44](#q44--o-teto-tem-duas-unidades-qual-delas-a-tela-mostra)
 e a [Q45](#q45--o-teto-vale-para-a-sessão-que-você-está-conduzindo) nasceram **escrevendo as tasks**,
@@ -1357,3 +1357,67 @@ As saídas:
 dela é o selo, que já pinta a pausa prevista.
 
 > **Aberta, e não bloqueia a Parte 3** — as fases 8 e 9 não a tocam.
+
+---
+
+## Nona rodada — a esteira (2026-09-13)
+
+### Q47 — o que passa de uma sessão para outra?
+
+Uma tarefa atravessa **três sessões** (§5), com agentes que podem ser modelos diferentes. O §11
+guardou a pergunta inteira: *"três sessões por tarefa: como orquestrar, o que passa de uma para
+outra, e o que **não** passa"*.
+
+**Resposta: nada passa. Isolamento é a regra, e ela é dura.** Suas palavras:
+
+> *"Não recebe nada. Ele pega a tarefa, os dados da tarefa — a tarefa tem que ter descrição, talvez
+> comentários, a PR aberta, se houver algum link externo — e só. **Não deve passar nenhum contexto de
+> um agente para o outro**, isso é importante para manter o isolamento dos agentes e impedir que o
+> implementador mande coisa que vá enviesar o review do revisor.*
+>
+> *O revisor deve pegar o contexto do repositório, memória, do diff, e das informações da tarefa.
+> Apenas isso."*
+
+Então o que o próximo agente recebe é uma lista fechada, e nenhum item dela vem de um agente:
+
+| Recebe | De onde |
+|---|---|
+| a tarefa — descrição, comentários, links | a entidade da [`022`](../022-workspace-tasks/prd.md) |
+| a PR aberta | o host, pelo `gh` |
+| o diff | o repositório |
+| a memória do workspace | a [`007`](../007-workspace-memory/prd.md), que já injeta |
+| o repositório | o checkout |
+
+**Isto é o §4.1 uma camada acima.** Lá a regra é *a máquina só move quando o fato é verificável de
+fora do agente*; aqui ela vira *o próximo agente só lê fato*. Se a conversa do implementador
+atravessasse, o revisor herdaria o enquadramento de quem escreveu o código — e revisar viraria
+**conferir**, que é o defeito que faz revisor humano aprovar PR ruim.
+
+E a [medição da Q39](../../project/orchestration-measurements.md) dá o argumento empírico: o Haiku
+commitou um serviço **inventado** escrevendo `Commit: 50bb628 ✓`. O resumo dele estava, ao mesmo
+tempo, correto e mentindo. Um revisor que recebesse esse resumo receberia uma mentira bem escrita.
+
+**O que isso simplifica:** a Parte 2 perde o encanamento de contexto inteiro — não há o que decidir
+sobre quanto da conversa passa, nem quanto isso custa em token. O spike da
+[`006`](../006-acp-sessions/prd.md) mediu **22.708 tokens** de escrita de cache num turno trivial, e
+essa conta some.
+
+**O que isso contradiz, e é uma frase:** a tabela do §5 diz que o implementador produz *"commits, PR,
+e **um resumo do que fez**"*. Sob esta regra o resumo **não tem consumidor na esteira** — ele é para
+**você**, na conversa dele. A nota está no requisito.
+
+**O resíduo, e ele é do UC2.** O UC2 diz que, quando o revisor reprova, *"o cartão volta para In
+Progress, com o parecer como próximo prompt do implementador — não um prompt seu, o texto do
+revisor"*. Isso é, literalmente, **contexto de um agente indo para outro**.
+
+A leitura que eu adoto, e o motivo: **o parecer é dado da tarefa, não conversa do revisor.** Ele é
+produzido para ficar registrado — o §4.1 conta *"o parecer foi registrado"* entre os fatos
+verificáveis que movem a seta —, e é a mesma coisa que um comentário de tarefa que você escreveria. O
+que a regra proíbe é o **canal**: a sessão A não briefa a sessão B. O que ela permite é a **tarefa**
+como meio, porque a tarefa é registro e você a lê também.
+
+Sem isso o UC2 não funciona: o segundo implementador refaria o mesmo erro, e a `028` teria uma esteira
+que só sabe reprovar em loop — que é justamente o que a Q22 põe teto.
+
+> **Respondida.** O resíduo fica anotado como leitura, e não como suposição silenciosa: se ele estiver
+> errado, o que muda é o UC2, e a consequência é que a reprovação precisa de outra forma de voltar.
