@@ -5,8 +5,9 @@
 **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
 
 **Status:** em execução
-**Histórico:** **as 12 tasks das 5 fases estão entregues** (2026-09-12) — e este arquivo cobre **só a
-Parte 1**. O corte é decisão registrada: das seis
+**Histórico:** a **Parte 1** (12 tasks, fases 0–4) e a **Parte 3** (8 tasks, fases 5–9) estão
+entregues; a **Parte 2** foi aberta em 2026-09-13 e é a fatia em execução. Este arquivo **não** cobre
+a feature inteira. O corte é decisão registrada: das seis
 partes do §6, este arquivo executa **uma** — o quadro lendo a
 [`022`](../022-workspace-tasks/prd.md), com a autonomia desligada. A esteira (Parte 2), o orçamento (Parte 3), a
 supervisão (Parte 4) e as duas pontas do tracker (Parte 5, Parte 6) ficam para um `tasks.md` seguinte, e o §0 diz
@@ -677,10 +678,208 @@ confere: emitir só o bloqueio derruba dois.
 
 ---
 
+## Parte 2 — A esteira
+
+> **Aberta em 2026-09-13**, depois da Parte 3 e pelo motivo que a Parte 3 escreve: *ligar a autonomia
+> antes de ter o teto de pé é ligar a autonomia sem freio*. O teto está de pé.
+
+**O que esta fatia entrega:** o daemon **puxa da fila sem ninguém pedir**, prepara o checkout, abre a
+sessão do encaixe e **move a seta por fato verificável** — com a autonomia nascendo desligada, o
+degrau `assistido` no meio, e um teto de quantas de uma vez.
+
+**O que a Fase 0 dela decidiu, e restringe tudo abaixo:**
+
+| Decisão | Onde |
+|---|---|
+| **a esteira não tem lease** — tem `task.attempts` e `task.autonomy`, e nada mais guardado | [ADR](../../adr/2026-09-13-0412-the-conveyor-has-no-lease.md) · [estudo](../../project/conveyor-durable-state.md) |
+| a segunda tentativa **vê o fato** do checkout sujo, e nenhum resumo | [Q49](open-questions.md#q49--o-que-a-segunda-tentativa-vê) |
+| comentário de tarefa **não** passa pelo portão da inbox — a proveniência fica | [Q50](open-questions.md#q50--comentário-de-tarefa-passa-pelo-portão) |
+| o `assistido` **não abre sessão** — prepara worktree, `setup` e prompt | [Q51](open-questions.md#q51--o-assistido-abre-a-sessão-ou-não) |
+| teto de paralelismo no workspace, `NOT NULL`, default **2**, contando **turno em voo** | [Q52](open-questions.md#q52--quantas-de-uma-vez-e-onde-mora-o-número) |
+| o portão é o **`test` do `project.toml`**, e o check da PR quando há PR | [Q53](open-questions.md#q53--e-num-projeto-sem-ci) |
+| **nada passa de uma sessão para outra** | [Q47](open-questions.md#q47--o-que-passa-de-uma-sessão-para-outra) |
+| a esteira abre em `bypassPermissions`, declarado na `spec` do adaptador | [Q41](open-questions.md#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) · [Q43](open-questions.md#q43--qual-dos-cinco-modos-do-claude-é-o-automático) |
+
+**O que ela não entrega:** a supervisão e o volante (Parte 4), e as duas pontas do tracker (Parte 5 e
+Parte 6), que continuam esperando o ADR do segredo.
+
+A ordem é a mesma das outras duas fatias — **o modelo antes da leitura, a leitura antes do laço, e a
+tela por último**.
+
+---
+
+### Fase 10 — o que a esteira guarda
+
+#### T21: A tarefa ganha comentário
+
+**What**: entidade nova `task_comment` — a tarefa não tem onde registrar nada hoje, e a
+[Q47](open-questions.md#q47--o-que-passa-de-uma-sessão-para-outra) fechou a lista do que passa entre
+sessões contando com ela. Corpo, autor (`human` | `agent`) e a sessão que escreveu, com a mesma regra
+de proveniência da [`022`](../022-workspace-tasks/prd.md).
+**Where**: `packages/server/src/db/schema.ts`, `drizzle/`, `packages/server/src/repositories/task.ts`,
+`packages/shared/src/`
+**Done when**: um comentário de agente **não** pode existir sem sessão e um de pessoa **não** pode ter
+uma, cobrado por `CHECK` como o `task_agent_provenance`; apagar a sessão **anula o ponteiro** em vez
+de recusar o apagamento; e a leitura devolve em ordem de escrita.
+**Gate**: `pnpm gate:quick`
+
+> **Leia o `SELECT` da migração gerada.** É a terceira vez que este arquivo escreve isso, e as duas
+> primeiras foram defeito de verdade: o `drizzle-kit` gera `INSERT … SELECT` lendo colunas que não
+> existem na origem, e nenhum teste que começa de banco vazio pega.
+
+#### T22: Duas colunas, e o ADR diz que são só duas
+
+**What**: `task.attempts` (`NOT NULL DEFAULT 0`) e `task.autonomy` (`NOT NULL DEFAULT 'inherit'`, com
+`off` para o que você assumiu). `attempts` **zera na mudança de etapa**, porque mudar de etapa é a
+conclusão bem-sucedida daquela etapa.
+**Where**: `packages/server/src/db/schema.ts`, `drizzle/`, `packages/server/src/repositories/task.ts`
+**Done when**: mudar o `status` zera `attempts` **na mesma escrita** — não numa segunda —, e
+`autonomy` sobrevive à mudança de etapa; um `CHECK` fecha os dois valores.
+**Gate**: `pnpm gate:quick`
+
+#### T23: O catálogo de agentes nomeados, e a cascata
+
+**What**: um agente nomeado é **nome + adaptador + modelo + instrução**, e o encaixe aponta para ele
+(§5.1). A resolução é em cascata — **tarefa → projeto → workspace → default** —, e é função pura sobre
+as quatro leituras.
+**Where**: `packages/server/src/db/schema.ts`, `packages/server/src/agents/catalog.ts`
+**Done when**: a cascata é testada nos quatro níveis e no vazio; dois projetos do mesmo workspace
+podem ter revisores diferentes; e **adaptador** e **agente** não se confundem no vocabulário — o
+catálogo aponta para o `ADAPTERS` da [`021`](../021-second-agent/prd.md), não o substitui
+([Q35](open-questions.md#q35--o-rodapé-da-sidebar-passa-a-dizer-adaptadores)).
+**Gate**: `pnpm gate:quick`
+
+---
+
+### Fase 11 — a fila
+
+#### T24: A fila é uma leitura, e puxa da direita para a esquerda
+
+**What**: *todo cartão cuja etapa é devida, que não tem trabalhador, e cuja autonomia está ligada* —
+uma regra, nenhum caso especial (§4.1). A ordem é **coluna da direita para a esquerda**, e dentro da
+coluna é a `position`, que é a prioridade (§4.3).
+**Where**: `packages/server/src/tasks/queue.ts`
+**Done when**: um cartão com turno em voo **não** entra na fila; um com `autonomy: 'off'` **não**
+entra; `ready_to_merge` e `done` nunca entram, porque não são etapa da máquina; e revisar vem antes de
+começar tarefa nova, provado por ordem e não por comentário.
+**Gate**: `pnpm gate:quick`
+
+#### T25: O teto de paralelismo, contado do turno em voo
+
+**What**: `workspace.autonomyMaxParallel`, `NOT NULL DEFAULT 2`
+([Q52](open-questions.md#q52--quantas-de-uma-vez-e-onde-mora-o-número)). Quantas vagas há **agora** é
+`teto − turnos em voo`, e `0` bloqueia tudo.
+**Where**: `packages/server/src/db/schema.ts`, `drizzle/`, `packages/server/src/tasks/queue.ts`
+**Done when**: uma sessão de agente **sem** prompt em voo não ocupa vaga — 7 dos 15 transcripts deste
+repositório nunca receberam um prompt —, e `0` devolve zero vaga sem ler a fila.
+**Gate**: `pnpm gate:quick`
+
+---
+
+### Fase 12 — o laço
+
+#### T26: O checkout nasce preparado, e a segunda tentativa sabe o que encontrou
+
+**What**: a tarefa sem worktree ganha uma — a [`026`](../026-worktree-from/prd.md) já sabe cortar de
+branch, issue ou PR — e o `setup` da [`012`](../012-project-scripts/prd.md) roda antes do primeiro
+prompt. Na **segunda** tentativa a worktree é a mesma, e o prompt diz **o fato**
+([Q49](open-questions.md#q49--o-que-a-segunda-tentativa-vê)).
+**Where**: `packages/server/src/tasks/conveyor.ts`, `packages/server/src/git/`, `packages/server/src/scripts/`
+**Done when**: a tentativa 2 reusa a worktree da 1 e o prompt carrega *"este checkout já tem mudanças
+de uma tentativa anterior"* **quando e só quando** `git status` não está limpo; e nenhum resumo da
+tentativa anterior atravessa.
+**Gate**: `pnpm gate:quick`
+
+#### T27: O prompt do encaixe, e o laço que sabe que turno acabado não é tarefa acabada
+
+**What**: cada encaixe tem seu prompt, montado do **fato** — corpo da tarefa, checkout, diff quando é
+revisor. O laço é: turno acabou, o fato verificável não veio, ainda há tentativa → prossegue; acabou a
+tentativa → `bloqueada`, com o motivo.
+**Where**: `packages/server/src/tasks/conveyor.ts`, `packages/server/src/tasks/prompts.ts`
+**Done when**: o `stopReason` **não** decide nada sozinho — é o §2.1 do
+[estudo](../../project/orchestration-measurements.md), e dos 13 `end_turn` gravados só 4 significaram
+*terminei*; a sessão abre em `bypassPermissions` vindo da `spec` do adaptador, nunca escrito à mão; e
+`attempts` cresce **antes** do prompt, não depois, senão um daemon que morre no meio conta errado.
+**Gate**: `pnpm gate:quick`
+
+#### T28: O portão, e quem move a seta
+
+**What**: o `test` do `project.toml` é o portão local, e o check da PR entra quando há PR
+([Q53](open-questions.md#q53--e-num-projeto-sem-ci)). **Quem move a seta é o daemon**, nunca um agente
+(§4.1).
+**Where**: `packages/server/src/tasks/gate.ts`, `packages/server/src/pr/`
+**Done when**: dois verdes movem, um vermelho para com o motivo; um projeto **sem `test` declarado**
+avança com o commit como único fato **e o cartão diz isso**; e nenhum caminho deixa um agente escrever
+`status`.
+**Gate**: `pnpm gate:quick`
+
+---
+
+### Fase 13 — os interruptores
+
+#### T29: A autonomia do workspace, e a da tarefa
+
+**What**: `manual` · `assistido` · `autônomo` no workspace, nascendo em **`manual`**; e o interruptor
+por tarefa da [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), que
+**assumir** desliga.
+**Where**: `packages/server/src/db/schema.ts`, `drizzle/`, `packages/server/src/routers/workspace.ts`
+**Done when**: um `~/.lumem` que existia antes desta fatia acorda em `manual` — nenhum acorda andando
+—, e arrastar um cartão para uma coluna da máquina desliga a autonomia daquela tarefa.
+**Gate**: `pnpm gate:quick`
+
+#### T30: `assistido` prepara e para
+
+**What**: worktree, `setup` e **prompt montado**, sem abrir adaptador
+([Q51](open-questions.md#q51--o-assistido-abre-a-sessão-ou-não)). O prompt fica visível, e enviar é o
+clique.
+**Where**: `packages/server/src/tasks/conveyor.ts`, `packages/web/src/components/TaskCard.tsx`
+**Done when**: em `assistido` **nenhum processo de adaptador sobe** — provado contando `spawn`, não
+lendo o código —, e o prompt preparado sobrevive ao reinício do daemon.
+**Gate**: `pnpm gate:quick`
+
+---
+
+### Fase 14 — a tela
+
+#### T31: O cartão diz o que a esteira fez
+
+**What**: o selo `aguardando <papel>` passa a existir de verdade — hoje nada o produz; a linha da
+[Q42](open-questions.md#q42--o-selo-aguardando-você-é-ortogonal-e-o-desenho-o-fez-exclusivo) já está na
+folha; e a tentativa aparece quando é maior que um.
+**Where**: `packages/web/src/components/TaskCard.tsx`, `board.css`, `packages/web/src/components/WorkspacePanel.tsx`
+**Done when**: nenhuma classe de CSS nasce sem marcação que a use — a regra que a Parte 1 pagou com 13
+classes órfãs —, e `assistido` mostra o prompt que ia ser enviado.
+**Gate**: `pnpm gate:quick`
+
+#### T32: O cartão bloqueado nomeia o teto — a T19, destravada
+
+**What**: a [T19](#t19-o-cartão-bloqueado-nomeia-o-teto) foi represada porque *"nenhum caminho produz
+um selo `bloqueada` hoje"*. A esteira produz dois: teto do workspace com condutor `esteira`, e
+tentativa esgotada.
+**Where**: `packages/web/src/components/TaskCard.tsx`, `board.css`
+**Done when**: o motivo cabe nos **151px** medidos da caixa do selo ou trunca dizendo que trunca; e o
+cartão bloqueado **não pinta uma fatia de quarta linha** (§10.2).
+**Gate**: `pnpm gate:quick`
+
+---
+
+### Fase 15 — o portão
+
+#### T33: O e2e da esteira
+
+**What**: de um cartão em To-Do a um cartão que andou, com a autonomia ligada — e com o adaptador
+falso, porque a esteira é o assunto e o agente não.
+**Where**: `e2e/conveyor.spec.ts`
+**Done when**: o cartão atravessa uma etapa sem ninguém clicar; desligar a autonomia da tarefa
+**para** a esteira nela e não nas outras; e o teto de paralelismo segura a terceira.
+**Gate**: `pnpm gate:full`
+
+---
+
 ## O que fica para o `tasks.md` seguinte
 
 | O quê | O que destrava |
 |---|---|
-| **Parte 2 — a esteira** | a resposta de *"três sessões por tarefa: o que passa de uma para outra"*, e o laço do implementador que a T1 provou ser necessário (turno acabado ≠ tarefa acabada) |
+| ~~**Parte 2 — a esteira**~~ | **aberta em 2026-09-13**, acima — as duas coisas que ela esperava foram respondidas: a [Q47](open-questions.md#q47--o-que-passa-de-uma-sessão-para-outra) (*nada passa*) e o [ADR da esteira sem lease](../../adr/2026-09-13-0412-the-conveyor-has-no-lease.md) |
 | **Parte 4 — supervisão** | a Parte 2, e o corolário desconfortável do §2.4 do estudo: o selo `aguardando você` **não é derivável do transporte** |
 | **Parte 5 e Parte 6 — o tracker** | um **ADR**. O precedente do `gh` não é portável — não existe `linear` na máquina —, e as três opções que sobram estão no §3.4 do estudo. Uma delas contradiz o ADR de 2026-08-30 de frente |
