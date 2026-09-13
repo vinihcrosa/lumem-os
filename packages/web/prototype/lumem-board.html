@@ -486,6 +486,17 @@
             <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#87</span><span class="stale stale--warn">6 h</span></div>
           </div>
         </div>
+        <div class="deck__i">
+          <div class="deck__l"><b>revisando <em>e</em> esperando você</b> · dois eixos, não um sexto estado</div>
+          <div class="tcard tcard--work">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,58</span></div>
+            <div class="tcard__t">o endpoint /orders devolve 500 quando o carrinho está vazio</div>
+            <div class="seal"><span class="seal__dot"></span><span class="seal__t">revisando há 2 min</span></div>
+            <div class="tcard__live"><span class="tcard__live-g">▤</span><span class="tcard__live-t">diff · 6 arquivos</span></div>
+            <div class="tcard__pend">pergunta em aberto</div>
+            <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#88</span><span class="stale">2 min</span></div>
+          </div>
+        </div>
       </div>
 
       <p class="case__note">
@@ -550,6 +561,23 @@
         <em>luminância</em>, não matiz. Bloqueada é vermelho porque algo deu errado; Ready to
         Merge é branco porque nada deu errado e é a sua vez. Duas coisas diferentes que ambas
         precisam de você, e que você precisa distinguir de longe.
+      </p>
+      <p class="case__note">
+        <span class="q">Q42</span> <b>O selo é uma escolha de cinco estados, e a medição achou duas
+        coisas que acontecem juntas.</b> Em <b>31%</b> dos turnos que commitaram, o agente deixou
+        pergunta em aberto — <code>revisando há 2 min</code> <em>e</em> esperando você, ao mesmo
+        tempo. Um sexto estado continuaria sendo escolha e continuaria errado no mesmo terço. Então o
+        cartão ganha um <b>segundo eixo</b>: o selo diz a <b>etapa</b>, e uma linha condicional diz
+        que existe <b>pergunta em aberto</b>.
+      </p>
+      <p class="case__note">
+        <b>Ela não é glifo novo e não é cor nova</b>, e as duas recusas são contra o vocabulário que
+        já existe: <code>⚠</code> é da permissão, e permissão <em>para</em> o turno — esta não para, o
+        agente seguiu; <code>▲</code> é do bloqueio, que é o cartão inteiro quando acontece. O que
+        separa esta linha do selo é a mesma coisa que separa <code>aguardando você</code> de todo o
+        resto do quadro: <b>luminância</b>. E ela é condicional como a linha viva, o que <b>reforça</b>
+        a medida 3.3 em vez de brigar com ela — um cartão que espera você fica mais alto que um que
+        não espera, e a altura é o que o olho pega antes da cor.
       </p>
     </div>
   </section>
@@ -644,6 +672,41 @@
         <span class="mm">682px</span> — a altura real em 1440 × 900 — e <b>quatro</b> quando todos
         têm linha viva. O briefing
         dizia que menos de quatro significaria item demais no cartão. Passou, e sem cortar nada.
+      </p>
+
+      <p class="case__note">
+        <span class="q">medida 3.2 · revisada</span> <b>A terceira linha custa um cartão, e só na
+        coluna em que todo mundo está trabalhando.</b> Medido no frame de 1440 × 900 — coluna de
+        <span class="mm">204px</span>, corpo de <span class="mm">682</span>, cartão de
+        <span class="mm">186</span>, que é a mesma régua que produziu os dois números acima:
+      </p>
+      <table class="tbl">
+        <thead><tr><th>cartão</th><th>altura</th><th>cabem em 682px</th></tr></thead>
+        <tbody>
+          <tr><td>esperando</td><td><span class="mm">114px</span></td><td>5</td></tr>
+          <tr><td>esperando <b>com pergunta</b></td><td><span class="mm">134px</span></td><td>4</td></tr>
+          <tr><td>trabalhando</td><td><span class="mm">144px</span></td><td>4</td></tr>
+          <tr><td>trabalhando <b>com pergunta</b></td><td><span class="mm">164px</span></td><td><b>3</b></td></tr>
+        </tbody>
+      </table>
+      <p class="case__note">
+        <b>Três é o número que o briefing chamou de "item demais no cartão", e ele fica.</b> A
+        <a class="lnk" href="#">Q42</a> previu exatamente este valor e mandou a folha conferir antes
+        de virar código; conferido, ele é o <b>pior caso</b> — cinco cartões trabalhando <em>e</em>
+        cinco com pergunta em aberto ao mesmo tempo. Um cartão parado com pergunta ainda cabe quatro,
+        e a medição da <a class="lnk" href="#">Q39</a> diz que a pergunta aparece em <b>31%</b> dos
+        turnos, não em todos.
+      </p>
+      <p class="case__note">
+        <span class="q">medida</span> <b>As outras duas âncoras foram descartadas por número, não por
+        gosto.</b> No <b>selo</b> não cabe: o texto mais longo (<code>aguardando implementador</code>)
+        mede <span class="mm">147,7px</span> na caixa de <span class="mm">163</span> — 15px livres, e
+        <code>pergunta</code> sozinha pede <span class="mm">48,4</span>. No <b>rodapé</b> caberia a
+        palavra e não a frase: ele usa <span class="mm">73,7</span> de <span class="mm">163</span>, e
+        <code>pergunta em aberto</code> pede <span class="mm">106</span>. A linha própria é a única
+        âncora que comporta a frase inteira — e a frase inteira é o ponto, porque
+        <code>pergunta</code> sozinha, entre a proveniência e o relógio, lê como se a <em>tarefa</em>
+        fosse uma pergunta.
       </p>
     </div>
   </section>

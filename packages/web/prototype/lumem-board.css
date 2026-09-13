@@ -345,6 +345,42 @@
 }
 .tcard__ask b { color: var(--color-text-primary); font-weight: 500; }
 
+/*
+ * O SEGUNDO EIXO DO CARTÃO — a pergunta em aberto (Q42).
+ *
+ * O selo diz a ETAPA. Esta linha diz que existe pergunta em aberto. A medição
+ * da Q39 achou que as duas coisas não são exclusivas: 31% dos turnos que
+ * commitaram deixaram pergunta junto. O selo é uma escolha de cinco estados —
+ * ele não tem como dizer as duas.
+ *
+ * NÃO É GLIFO NOVO E NÃO É COR NOVA, e as duas recusas são medidas contra o
+ * vocabulário que já existe: `⚠` é da permissão, e permissão PARA o turno —
+ * esta não para, o agente seguiu trabalhando; `▲` é do bloqueio, que é o
+ * cartão inteiro quando acontece. Inventar um terceiro alfabeto para uma linha
+ * é cobrar duas vezes pela mesma leitura.
+ *
+ * O que separa esta linha do selo é o mesmo que já separa `aguardando você` de
+ * todo o resto do quadro: LUMINÂNCIA. `text/primary` num cartão onde tudo o
+ * mais é secundário ou terciário — a regra que o §2 já pagou.
+ *
+ * E ela é condicional como a linha viva, o que REFORÇA a medida 3.3 em vez de
+ * brigar com ela: um cartão que espera você fica mais alto que um que não
+ * espera, e a altura é o que o olho pega antes da cor.
+ */
+.tcard__pend {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  /* Alinhada com o TEXTO do selo, não com o ponto dele: o ponto é o eixo
+     "alguém está / ninguém está", e esta linha não participa daquele eixo. */
+  padding-left: calc(var(--space-6) + var(--space-6));
+  font: var(--text-label-xs);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tcard__foot { display: flex; align-items: center; gap: var(--space-8); min-width: 0; font: var(--text-caption); color: var(--color-text-tertiary); }
 .tcard__from { flex: none; display: inline-flex; align-items: center; gap: var(--space-4); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
 .tcard__from--agent { color: var(--color-session-agent); }

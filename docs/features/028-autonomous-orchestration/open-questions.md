@@ -1243,6 +1243,38 @@ condicional pode levar isso a três, e três cartões por coluna é o número qu
 *"item demais no cartão"*. A folha volta ao Open Design com esse número para conferir — junto do
 resíduo da [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), que é da mesma família.
 
+> **Conferido em 2026-09-13, e o número é três.** Medido no frame de 1440 × 900 da própria folha —
+> coluna de **204px**, corpo de **682**, cartão de **186** —, e a régua se valida sozinha: as duas
+> referências que a medida 3.2 já publicava saíram **idênticas**, 114px esperando e 144 trabalhando.
+> A linha custa **+20px**.
+>
+> | cartão | altura | cabem em 682px |
+> |---|---|---|
+> | esperando | 114px | 5 |
+> | esperando **com pergunta** | 134px | 4 |
+> | trabalhando | 144px | 4 |
+> | trabalhando **com pergunta** | 164px | **3** |
+>
+> **A linha fica, e o três é aceito** — decidido depois de ver o número. O que o desloca do piso do
+> briefing é que ele é o **pior caso**: cinco cartões trabalhando *e* cinco com pergunta em aberto ao
+> mesmo tempo. Um cartão parado com pergunta ainda cabe quatro, e a medição da
+> [Q39](#q39--quem-diz-que-o-agente-está-esperando-você) diz que a pergunta aparece em **31%** dos
+> turnos, não em todos.
+>
+> **As outras duas âncoras foram descartadas por medida, não por gosto**, e as duas estão na folha: no
+> **selo** não cabe nada — o texto mais longo (`aguardando implementador`) mede **147,7px** na caixa de
+> **163**, e a palavra `pergunta` sozinha pede 48,4; no **rodapé** caberia a palavra e não a frase — ele
+> usa 73,7 de 163, e `pergunta em aberto` pede **106**. A linha própria é a única âncora que comporta a
+> frase inteira, e a frase inteira é o ponto: `pergunta` sozinha, entre a proveniência e o relógio,
+> lê como se a *tarefa* fosse uma pergunta.
+>
+> E ela **não é glifo novo nem cor nova** — `⚠` é da permissão, que *para* o turno, e este não parou;
+> `▲` é do bloqueio, que é o cartão inteiro quando acontece. O que a separa do selo é **luminância**,
+> a mesma regra que o §2 já pagou com `aguardando você`.
+>
+> **O resíduo da Q40 não foi junto**, e isso é o que a própria Q40 decidiu: ele espera *"uma esteira
+> para olhar"*, que é a Parte 2.
+
 ---
 
 ## Oitava rodada — o que a Parte 3 abriu (2026-09-13)
