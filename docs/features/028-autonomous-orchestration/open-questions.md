@@ -2,15 +2,17 @@
 
 **PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md) — só a Parte 1 · **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
 
-**Quarenta e cinco perguntas, em oito rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
+**Quarenta e seis perguntas, em oito rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
 segunda rodada abriu — todas em 2026-09-11 — mais **4 que a sessão de desenho no Open Design abriu**,
 respondidas em **2026-09-12**, **3 da sexta rodada** e **3 da sétima**. **Quarenta e quatro respondidas.** A [Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático) fechou
 medindo no mesmo dia em que nasceu, e fechou as sete primeiras rodadas — que são a Parte 1 inteira. A
 oitava é da **Parte 3**, aberta depois: a [Q44](#q44--o-teto-tem-duas-unidades-qual-delas-a-tela-mostra)
 e a [Q45](#q45--o-teto-vale-para-a-sessão-que-você-está-conduzindo) nasceram **escrevendo as tasks**,
 antes de existir código. A Q45 foi respondida na proposta — **avisa quem está conduzindo, para quem
-não está** —, e com ela o portão da T16 virou uma **função pura de três saídas**. A Q44 segue aberta e
-é de tela.
+não está** —, e com ela o portão da T16 virou uma **função pura de três saídas**. A Q44 segue aberta e é de tela, e a
+[Q46](#q46--como-o-daemon-reconhece-uma-recusa-por-cota) nasceu da T17 ter entregado metade: a pausa
+**prevista** tem fonte, a recusa **observada** não — o protocolo não tem código para cota, como tem
+para login.
 
 A sétima rodada é a primeira que nasceu de **gastar token** — 20 turnos, US$ 4,60, Haiku e Opus. A
 [Q41](#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) apareceu ao montar a bancada, quando o
@@ -1321,3 +1323,37 @@ de I/O, porque *"toda ramificação aqui é uma frase com que alguém pode disco
 não seria em CSS: uma função pura com os dois ramos cobertos por teste é um contrato escrito; uma
 classe de CSS para marcação que não existe é lixo esperando divergir. Quando a Parte 2 chegar, ela
 passa `esteira` no lugar de `você` e nada mais muda.
+
+### Q46 — como o daemon reconhece uma recusa por cota?
+
+Aberta pela [T17](tasks.md#t17-cota-não-é-orçamento--pausada), que entregou metade e parou na outra.
+
+A [Q32](#q32--limite-de-taxa-do-agente-pausa-não-é-bloqueio) descreve o comportamento inteiro: sem
+sinal de quando reabre, **3 tentativas** com espera crescente e depois bloqueia; espera maior que
+**4 h** vira bloqueio. As três tentativas pressupõem **reconhecer a recusa** — e é aí que para.
+
+**O que existe:** a pausa *prevista*, derivada do que o agente relata num `usage` — janela gasta e sem
+excedente. Isso responde *"ele vai parar"*, e é o que o selo usa hoje.
+
+**O que não existe:** *"ele parou agora"*. Quando o `session/prompt` é recusado por cota, o protocolo
+não tem código para isso. O login tem — `-32000`, e o daemon o reconhece **por código e não por
+mensagem**, com o motivo escrito: *"o texto é do adaptador e pode estar traduzido ou reescrito"*. Para
+cota não há equivalente, e casar a mensagem seria a lista de strings especiais que a
+[Q3](#q3--quais-colunas-a-máquina-move-sozinha) da `016` já recusou uma vez, com outro chapéu.
+
+As saídas:
+
+- **medir a forma do erro** contra uma cota de verdade esgotada, e reconhecer por ela. É o certo e é o
+  que não dá para fazer sob demanda — a bancada de [`scripts/q39/`](../../../scripts/q39/README.md) é
+  onde caberia, no dia em que uma cota fechar;
+- **não reconhecer, e tratar a recusa como qualquer falha de turno** — o cartão fica `bloqueada` com a
+  mensagem do adaptador. Custa: a Q32 diz que cota **não** consome orçamento nem turno, e um bloqueio
+  genérico consome os dois;
+- **perguntar ao agente** por uma capacidade declarada, que é o que o
+  [ADR de 2026-09-13](../../adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md) manda fazer com
+  qualquer coisa de fora. Hoje nenhum adaptador declara isso, mas é o desenho que envelhece melhor.
+
+**Sem proposta**, e é honesto: as três dependem de um dado que eu não tenho. O que **não** depende
+dela é o selo, que já pinta a pausa prevista.
+
+> **Aberta, e não bloqueia a Parte 3** — as fases 8 e 9 não a tocam.

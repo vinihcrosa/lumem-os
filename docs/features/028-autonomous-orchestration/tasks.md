@@ -556,6 +556,26 @@ bloqueia; espera maior que **4 h** vira bloqueio
 **Done when**: o selo `pausada até ~HH:MM` sai do `rateLimit` que o evento `usage` carrega; uma pausa
 não mexe em nenhum contador; e 4 h de espera vira `bloqueada` com o motivo.
 **Gate**: `pnpm gate:quick`
+**Status**: ⚠️ **parcial** (2026-09-13) — a metade que tem fonte de dado está de pé; a outra metade
+**não tem como ser escrita hoje**, e a nota diz por quê.
+
+> **O que entrou:** `pausedUntil` deriva a pausa do que o agente **relata** — a janela gasta
+> (`utilization >= 1`) e ele **não** em excedente. Com excedente ele continua respondendo, e pausar
+> seria inventar uma parada que não existe; é para isso que o `isUsingOverage` está no contrato. A
+> pausa **vence** o turno em voo no selo, que é a Q32 em uma linha: quem espera cota **liberou a
+> vaga**, e dizer `implementando há 12 min` de algo que espera seria o selo mentindo sobre quem está
+> com ela. Sem `resetsAt` não há pausa: *"pausada até ~??:??"* não é uma frase, e o cartão fica
+> `manual` com o relógio de encalhe cobrando — pior aviso, aviso honesto.
+>
+> **O que não entrou, e não é esquecimento: as 3 tentativas com espera crescente e o corte de 4 h.**
+> Elas dependem de reconhecer um `session/prompt` **recusado por cota**, e o protocolo não tem código
+> para isso — não existe o equivalente ao `-32000` que o login usa, e é por código que o daemon
+> reconhece o login justamente porque *"o texto é do adaptador e pode estar traduzido"*. Adivinhar a
+> forma desse erro é o que esta feature vem punindo desde a fase 0.
+>
+> **É medível, e não por mim sob demanda:** precisa de uma cota de verdade esgotada. Fica como
+> [Q46](open-questions.md#q46--como-o-daemon-reconhece-uma-recusa-por-cota), com a bancada de
+> [`scripts/q39/`](../../../scripts/q39/README.md) como o lugar onde a medição caberia.
 
 > **O `rateLimit` só voltou a existir na [`027`](../027-adapter-provenance/prd.md)**, que consertou o
 > `rateLimitOf` — ele exigia `utilization` na raiz e o `0.75.1` a aninhou em

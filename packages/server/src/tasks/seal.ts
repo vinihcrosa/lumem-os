@@ -2,7 +2,10 @@ import { eq, inArray } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
 import { session } from "../db/schema.js";
+import type { AcpRateLimit } from "@lumem/shared";
+
 import type { BoardColumn } from "./board.js";
+import { pausedUntil } from "./pause.js";
 
 /**
  * O selo do cartão (`028-autonomous-orchestration` §4.1, T7).
@@ -55,6 +58,15 @@ export interface SealFacts {
   status: BoardColumn;
   /** Turnos em voo nas sessões desta tarefa. Vazio é o caso comum. */
   liveTurns: readonly { startedAt: Date }[];
+  /**
+   * Até quando a cota do agente está fechada, ou `null` (T17).
+   *
+   * Vem antes do turno em voo na ordem de decisão, e isso é a Q32: uma tarefa
+   * pausada **liberou a vaga** — não há ninguém trabalhando nela, e dizer
+   * `implementando há 12 min` de algo que está esperando a cota reabrir seria o
+   * selo mentindo sobre quem está com ela.
+   */
+  pausedUntil?: Date | null;
 }
 
 /**
@@ -63,7 +75,9 @@ export interface SealFacts {
  * A alternativa — o selo lendo o `AcpManager` de dentro — faria todo caso de
  * teste precisar de um processo, e nenhum dos cinco é sobre processo.
  */
-export function sealOf({ status, liveTurns }: SealFacts): Seal {
+export function sealOf({ status, liveTurns, pausedUntil }: SealFacts): Seal {
+  // Antes do turno: cota é espera, e quem espera não está trabalhando.
+  if (pausedUntil) return { kind: "paused", until: pausedUntil };
   if (liveTurns.length === 0) return { kind: "manual" };
 
   // O mais antigo: o cartão pergunta *há quanto tempo alguém está nisto*, e com
@@ -108,6 +122,44 @@ export function liveTurnsByTask(
     // solta. Ela não pinta selo em cartão nenhum.
     if (!taskId) continue;
     byTask.set(taskId, [...(byTask.get(taskId) ?? []), { startedAt: turn.startedAt }]);
+  }
+  return byTask;
+}
+
+/**
+ * A cota de cada tarefa, pela sessão que a relatou (`028` Parte 3, T17).
+ *
+ * Mesma forma do `liveTurnsByTask`, e uma consulta só para o quadro inteiro.
+ * Quando duas sessões da mesma tarefa relatam cota, vence a que reabre **mais
+ * tarde**: dizer que reabre às 18h quando a outra só reabre às 19h faria o
+ * cartão prometer uma volta que não acontece.
+ */
+export function pausesByTask(
+  db: Db,
+  rateLimits: readonly { sessionId: string; rateLimit: AcpRateLimit }[],
+): Map<string, Date> {
+  const byTask = new Map<string, Date>();
+  if (rateLimits.length === 0) return byTask;
+
+  const rows = db
+    .select({ id: session.id, taskId: session.taskId })
+    .from(session)
+    .where(
+      inArray(
+        session.id,
+        rateLimits.map((one) => one.sessionId),
+      ),
+    )
+    .all();
+
+  const taskOf = new Map(rows.map((row) => [row.id, row.taskId]));
+  for (const one of rateLimits) {
+    const taskId = taskOf.get(one.sessionId);
+    if (!taskId) continue;
+    const until = pausedUntil(one.rateLimit);
+    if (until === null) continue;
+    const known = byTask.get(taskId);
+    if (known === undefined || until > known) byTask.set(taskId, until);
   }
   return byTask;
 }

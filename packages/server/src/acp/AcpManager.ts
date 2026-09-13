@@ -18,6 +18,7 @@ import {
   type AcpConfigOption,
   type AcpEvent,
   type AcpModeOwner,
+  type AcpRateLimit,
   type AcpToolKind,
   type AcpToolLocation,
   type AcpTranscriptEntry,
@@ -313,6 +314,15 @@ interface Session {
    * se o critério fosse *"existe processo"*.
    */
   turnStartedAt: Date | null;
+  /**
+   * O último relato de cota desta sessão, ou `null` (`028` Parte 3, T17).
+   *
+   * Guardado porque ele chega num `usage` e a pergunta é feita em outro momento
+   * — o quadro abre e pergunta *"alguém está com esta tarefa?"*. Não é estado
+   * derivado virando guardado: é o **último fato relatado**, e o selo continua
+   * sendo calculado dele na leitura.
+   */
+  lastRateLimit: AcpRateLimit | null;
   /**
    * This is a probe, not a session (onboarding D4).
    *
@@ -875,6 +885,7 @@ export class AcpManager {
       optionTypes: new Map(),
       promptInFlight: false,
       turnStartedAt: null,
+      lastRateLimit: null,
       probe,
       // One bridge per session, rooted at its own cwd. A shared one would need
       // the root passed on every call, and the call that forgot would read
@@ -1220,6 +1231,19 @@ export class AcpManager {
     return [...this.sessions.values()]
       .filter((session) => session.promptInFlight && session.turnStartedAt !== null)
       .map((session) => ({ sessionId: session.info.id, startedAt: session.turnStartedAt! }));
+  }
+
+  /**
+   * A cota que cada sessão viva relatou por último (`028` Parte 3, T17).
+   *
+   * Separado de `liveTurns` porque a pergunta é outra: aquela é *"quem está
+   * trabalhando"* e esta é *"quem está esperando"*, e a Q32 diz que quem espera
+   * cota **liberou a vaga** — não é um caso do primeiro.
+   */
+  rateLimits(): { sessionId: string; rateLimit: AcpRateLimit }[] {
+    return [...this.sessions.values()]
+      .filter((session) => session.lastRateLimit !== null)
+      .map((session) => ({ sessionId: session.info.id, rateLimit: session.lastRateLimit! }));
   }
 
   kill(id: string): void {
@@ -1855,6 +1879,11 @@ export class AcpManager {
       } else {
         session.openToolCalls.delete(event.toolCallId);
       }
+    } else if (event.type === "usage" && event.rateLimit) {
+      // A cota chega aqui e a pergunta é feita noutro momento — o quadro abre e
+      // pergunta *"quem está esperando?"*. Guardar o último relato é o que liga
+      // os dois (`028` Parte 3, T17).
+      session.lastRateLimit = event.rateLimit;
     }
 
     const entry: AcpTranscriptEntry = { at: this.now(), event };

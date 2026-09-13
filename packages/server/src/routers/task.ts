@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { project, session, worktree } from "../db/schema.js";
 import { createTaskRepository, TASK_STATUSES } from "../repositories/task.js";
 import { boardOf } from "../tasks/board.js";
-import { liveTurnsByTask, sealOf } from "../tasks/seal.js";
+import { liveTurnsByTask, pausesByTask, sealOf } from "../tasks/seal.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 
 /**
@@ -97,12 +97,17 @@ export const taskRouter = router({
     .query(({ ctx, input }) => {
       const columns = boardOf(ctx.db, input);
       const byTask = liveTurnsByTask(ctx.db, ctx.acpManager.liveTurns());
+      const paused = pausesByTask(ctx.db, ctx.acpManager.rateLimits());
 
       return columns.map((column) => ({
         status: column.status,
         cards: column.cards.map((card) => ({
           ...card,
-          seal: sealOf({ status: column.status, liveTurns: byTask.get(card.id) ?? [] }),
+          seal: sealOf({
+            status: column.status,
+            liveTurns: byTask.get(card.id) ?? [],
+            pausedUntil: paused.get(card.id) ?? null,
+          }),
         })),
       }));
     }),
