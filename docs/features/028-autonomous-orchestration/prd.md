@@ -39,13 +39,19 @@
 > em 2026-09-12**, todas na proposta: o encaixe se chama **`implementador`**, o rodapé da sidebar vira
 > **`Adaptadores`**, o bloqueio de orçamento **nomeia qual teto segurou**, e abaixo de 1418px o quadro
 > **rola na horizontal e diz que está rolando**
-> **Perguntas:** **40, e 38 respondidas** — as três da sexta rodada vieram de **ler o código
+> **Perguntas:** **42, e 40 respondidas** — as três da sexta rodada vieram de **ler o código
 > entregue**. A [Q38](open-questions.md#q38--arrastar-para-in-progress-se-ele-é-derivado) é a única do
 > documento que nunca precisou existir: a Q3 já a respondia, e a premissa dela estava errada também —
 > o arrasto para `In Progress` **já funcionava**, sem teste nenhum cobrindo. O que sobrou dela é a
-> [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão).
-> A Q40 e a [Q39](open-questions.md#q39--quem-diz-que-o-agente-está-esperando-você) são as duas
-> abertas, **as duas represadas até a F2 ter `tasks.md`**, e nenhuma bloqueia a F1
+> [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), **respondida em
+> 2026-09-12**: o interruptor que ela pedia já existia no §6/F4. A
+> [Q39](open-questions.md#q39--quem-diz-que-o-agente-está-esperando-você) foi **respondida medindo**
+> — 20 turnos, US$ 4,60 —, e a resposta é que ela estava **mal formada**: `terminou` e `te perguntou`
+> não são exclusivos, e 31% dos turnos que commitaram deixaram pergunta em aberto. As duas abertas
+> são a [Q41](open-questions.md#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) — o
+> `lumemMode` é **inerte** para um agente com modo próprio — e a
+> [Q42](open-questions.md#q42--o-selo-aguardando-você-é-ortogonal-e-o-desenho-o-fez-exclusivo), que é
+> o que a Q39 abriu. Nenhuma das duas bloqueia a F1
 
 ---
 
@@ -344,6 +350,13 @@ Três frases resolvem, e nenhuma delas custa uma coluna nova:
 1. **Quem move é o daemon — nunca um agente.** Ele observa um fato verificável (a PR existe, o CI
    ficou verde, o parecer foi registrado) e move. Nem o implementador "entrega", nem o revisor "pega e
    move". Agente não escreve no quadro;
+
+   > **Nota — e nem todo fato verificável serve.** A tarefa *impossível* da medição pedia um serviço
+   > que não existe, e **3 de 4 execuções inventaram o serviço e commitaram**. O commit é verificável
+   > de fora do agente e mesmo assim separa *"escreveu alguma coisa"* de *"não escreveu nada"* — não
+   > *"terminou"* de *"desistiu inventando"*. Quem separa é **o CI**, que esta lista já nomeia. A
+   > consequência que falta escrever: **a força da esteira é a força da suíte do projeto**, e num
+   > repositório sem teste ela não tem como saber que o implementador inventou.
 2. **A coluna é a etapa; o cartão diz quem está nela.** `aguardando revisor` por 40 segundos, depois
    `revisando há 2 min`. É a mesma decisão que o §4 já tomou para `bloqueada` — situação é selo,
    etapa é coluna — e o selo é **derivado** de existir uma sessão viva com a tarefa reivindicada, o
@@ -353,18 +366,34 @@ Três frases resolvem, e nenhuma delas custa uma coluna nova:
    devolveu. Uma regra, nenhum caso especial — e ela **puxa da direita para a esquerda**, porque
    terminar vale mais que começar.
 
-> **Nota — esta regra descreve também o cartão que você está fazendo na mão.** Um cartão arrastado
-> para uma coluna da máquina (§4, e a Q3 que o permite) tem etapa devida e nenhum trabalhador: pela
-> frase acima, **a fila o pegaria**, e o daemon começaria a gastar em cima do trabalho que é seu. O
-> selo não avisa — `manual — ninguém pega` é o mesmo texto nos dois casos. Isto é a
-> [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), **aberta e
-> represada até a F2**, e ela não é alcançável enquanto a autonomia estiver desligada, que é o
-> default e é o que a F1 entrega. **O resto da regra fica de pé** — inclusive *"uma regra, nenhum
-> caso especial"*, que é exatamente o que a resposta da Q40 vai ter que pagar ou preservar.
+> **Nota — a regra precisa da palavra "e a autonomia dela está ligada".** Um cartão arrastado para
+> uma coluna da máquina (§4, e a Q3 que o permite) tem etapa devida e nenhum trabalhador: pela frase
+> acima, **a fila o pegaria**, e o daemon começaria a gastar em cima do trabalho que é seu. Isto é a
+> [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), **respondida**:
+> o interruptor que resolve **já existe** — o §6/F4 define **assumir** como *"abre a conversa e
+> desliga a autonomia daquela tarefa"* —, e arrastar para uma coluna da máquina é um segundo caminho
+> para ele.
+>
+> **A regra fica de pé, inclusive *"uma regra, nenhum caso especial"***: a autonomia por tarefa não é
+> exceção da fila, é uma condição dela, do mesmo jeito que o teto e o orçamento são. O que sobrou é
+> de tela e é pequeno — o selo diz `manual — ninguém pega` tanto para *"eu estou nesta"* quanto para
+> *"ninguém está"*, e com a esteira ligada isso vira uma pergunta sem resposta na tela. Custa um
+> sexto estado de selo, e a F2 decide.
 
 **Não existe garantia de que alguém já pegou — existe visibilidade de que ninguém pegou**, que é o
 que você consegue agir sobre. O selo tem quatro estados: `aguardando <papel>` · `<papel> trabalhando
 há Xm` · `bloqueada: <motivo>` · `pausada até ~HH:MM`.
+
+> **Nota — os estados são uma escolha, e a medição diz que um deles não é.** Vinte turnos com token de
+> verdade (o [§4bis do estudo](../../project/orchestration-measurements.md)) mostraram que
+> **`terminou` e `te perguntou` não são exclusivos**: 6 dos 19 turnos que commitaram — **31%** —
+> deixaram uma pergunta ou uma oferta em aberto *no mesmo turno*. Então `aguardando você` não é
+> alternativa a ter andado; é **ortogonal**. Um selo que escolhe entre os dois erra em quase um terço
+> dos turnos. Isto é a
+> [Q42](open-questions.md#q42--o-selo-aguardando-você-é-ortogonal-e-o-desenho-o-fez-exclusivo),
+> **aberta**, e ela volta ao Open Design com a F2. **O resto do parágrafo fica de pé**: a frase que
+> abre continua sendo o ponto, e os quatro estados continuam certos — o que falta é um eixo, não uma
+> correção neles.
 
 > **Nota — o desenho contradiz este parágrafo em duas coisas, e as duas estão em
 > `lumem-board.html` (quadro 2).** **(a) São cinco estados, não quatro:** falta

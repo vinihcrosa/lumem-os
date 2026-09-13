@@ -2,10 +2,18 @@
 
 **PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md) — só a F1 · **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
 
-**Quarenta perguntas, em seis rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
+**Quarenta e duas perguntas, em sete rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
 segunda rodada abriu — todas em 2026-09-11 — mais **4 que a sessão de desenho no Open Design abriu**,
-respondidas em **2026-09-12**, e **3 da sexta rodada**, no mesmo dia. **Trinta e oito respondidas; a
-Q39 e a Q40 estão abertas, e as duas represadas até a F2.**
+respondidas em **2026-09-12**, **3 da sexta rodada** e **2 da sétima**. **Quarenta respondidas; a Q41 e a Q42 estão
+abertas, e as duas são da F2.**
+
+A sétima rodada é a primeira que nasceu de **gastar token** — 20 turnos, US$ 4,60, Haiku e Opus. A
+[Q41](#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) apareceu ao montar a bancada, quando o
+turno pendurou no primeiro `Edit` com o `lumemMode` em `ask` **e** em `free`: a política do Lumem é
+**inerte** para um agente que tem modo próprio, e o Claude tem. A
+[Q42](#q42--o-selo-aguardando-você-é-ortogonal-e-o-desenho-o-fez-exclusivo) veio da resposta da Q39, e
+é o tipo de achado que só a medição dá: **`terminou` e `te perguntou` não são exclusivos** — 31% dos
+turnos que commitaram deixaram pergunta em aberto, e o selo foi desenhado como escolha entre os dois.
 
 A sexta rodada não veio de discussão nem de medir a tela: veio de **ler o código que já está de pé**.
 E a primeira dela é a única pergunta do documento que **já estava respondida**: a
@@ -16,8 +24,11 @@ pelo motivo que o §4.1 existe para evitar: **confundia coluna com selo**. Ela f
 erro produziu a [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), que é o problema de
 verdade — **a fila da esteira pegaria o trabalho que você está fazendo na mão**.
 
-A [Q39](#q39--quem-diz-que-o-agente-está-esperando-você) é um estado do selo que **tem pixel desenhado
-e não tem fonte de dado**.
+A [Q39](#q39--quem-diz-que-o-agente-está-esperando-você) foi **respondida medindo**, e a resposta é
+que ela estava mal formada. E a [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão) foi
+respondida em 2026-09-12 com a melhor resposta possível: **o interruptor que ela pedia já existia** —
+o §6/F4 define `assumir` como *"desliga a autonomia daquela tarefa"* —, e arrastar para uma coluna da
+máquina é um segundo caminho para ele.
 
 As quatro últimas não vieram de discussão: vieram de **medir a tela**, e três contradiziam a PRD. As
 quatro foram respondidas **na proposta**, e a primeira delas renomeia um conceito — o encaixe
@@ -978,27 +989,39 @@ cobrindo. Agora tem cinco, e os cinco foram conferidos ficando vermelhos de prop
 ### Q39 — quem diz que o agente está esperando você?
 
 O §4.1 lista `aguardando você` entre os estados do selo, e o §10.2 gastou uma decisão de desenho nele
-(*"é luminância, não matiz"*). A [T1](tasks.md#t1-o-estudo-que-o-11-pedia) mediu que **ele não é
-derivável do transporte**: o `StopReason` do ACP tem cinco valores e nenhum é *"esperando"*. Dos 13
-`end_turn` reais deste repositório, 4 significaram terminei, 4 eram pergunta, 2 eram espera sem
-interrogação e 3 eram o turno morrendo no meio.
+(*"é luminância, não matiz"*). A [medição do §2](../../project/orchestration-measurements.md) mostrou
+que ele **não é derivável do transporte**: o `StopReason` do ACP tem cinco valores e nenhum é
+*"esperando"*.
 
-As saídas, todas com preço:
+**Respondida em 2026-09-13, e a resposta é que a pergunta estava mal formada.**
 
-- **heurística de texto** — mede **44% de recall** contra o corpus real, e erra no caso caro (o turno
-  que parou no meio, sem pergunta);
-- **instrução no preâmbulo** pedindo uma marca quando o agente espera. Custa token em todo turno, e
-  depende de o agente obedecer;
-- **uma ferramenta que o agente chama** para dizer *"estou esperando"*. Confiável quando usada, e
-  invisível quando o agente simplesmente para;
-- **não ter o estado** e deixar o relógio de encalhe fazer o trabalho: um cartão parado há 30 min é
-  um cartão que precisa de você, independente do motivo.
+A [segunda medição](../../project/orchestration-measurements.md) — 20 turnos com token de verdade,
+Haiku e Opus, **US$ 4,60** — foi feita para contar quantos turnos de um implementador autônomo acabam
+sem ter terminado. O que ela achou foi outra coisa:
 
-**Sem proposta, e de propósito** — isto é da **F2/F4**, não da F1, e decidir agora seria decidir sem
-a esteira existir para medir contra. Fica registrado porque o §10.2 já gastou desenho nele: **o
-pixel existe e a fonte do dado não.**
+> **`terminou` e `te perguntou` não são estados exclusivos de um turno.**
+> **6 dos 19 turnos que commitaram (31%) deixaram uma pergunta ou uma oferta em aberto.**
 
-> **Aberta, e represada.** Volta quando a F2 tiver um `tasks.md`.
+No mesmo turno, no mesmo texto: *"`biggest` still broke in `src/orders.ts:12`; **say the word and
+I'll fix**"* — e commitou. *"Ordena lexicograficamente… **Quer que eu corrija?**"* — e commitou.
+
+**Consequência para o §4.1:** `aguardando você` **não é alternativa a ter andado**. É um sinalizador
+**ortogonal** — o cartão pode estar na coluna seguinte *e* esperando você. Um selo que escolhe entre
+os dois estará errado em quase um terço dos turnos, e o desenho de 2026-09-11 o desenhou como
+escolha.
+
+**E o que a pergunta original queria — um sinal de transporte — perdeu a urgência**, porque a decisão
+que ela alimentava não existe: se o cartão anda pelo fato verificável de qualquer jeito, o sinal muda
+só *quando avisar* (40 s contra os 30 min do relógio de encalhe), não *se o cartão anda*. Isso é
+afinação, e afinação se faz com a esteira no ar.
+
+**O que a medição achou no lugar, e é pior:** o commit **não separa** *"terminou"* de *"desistiu
+inventando"*. A tarefa impossível — um serviço que não existe — produziu **commit em 3 de 4
+execuções**, com o serviço inventado junto (`src/catalog.ts`, 22/14/32 linhas). Só o Opus em modo de
+conversa recusou. Está no §4bis.4 do estudo, e o que sobra de pé é a outra metade do §4.1: *"o CI
+ficou verde"*. **A força da esteira é a força da suíte do projeto** — e isso a PRD não escreve.
+
+**O que isso abre:** a [Q42](#q42--o-selo-aguardando-você-é-ortogonal-e-o-desenho-o-fez-exclusivo).
 
 ### Q40 — a fila não distingue o que você está fazendo na mão
 
@@ -1026,5 +1049,84 @@ As saídas visíveis:
 que a F1 entrega — não existe quem pegue, então nada disto é alcançável ainda. Decidir agora seria
 decidir sem a esteira existir para medir contra.
 
-> **Aberta, e represada.** Volta junto com a [Q39](#q39--quem-diz-que-o-agente-está-esperando-você),
-> quando a F2 tiver `tasks.md`.
+**Resposta: a primeira, e ela não é uma saída nova — é um interruptor que já existe.** Nas suas
+palavras: *"se tiver uma flag nas tasks manuais que impede de um agente pegar, então o agente não
+pega, simples assim."*
+
+E a flag **já está escrita**: o §6/F4 define **assumir** como *"abre a conversa e **desliga a
+autonomia daquela tarefa**"*. É um interruptor por tarefa, decidido antes desta pergunta existir.
+Arrastar para uma coluna da máquina é um **segundo caminho para ele** — o gesto do quadro chegando
+onde a conversa já chegava. Nenhum conceito novo, nenhuma coluna com exceção, nenhuma proveniência de
+transição guardada.
+
+As outras duas saídas eram piores pelo mesmo motivo: eu listei três alternativas sem ter visto que a
+primeira **já era a decisão de outro parágrafo**. O sexto estado de selo pagaria com vocabulário o que
+um interruptor existente resolve; a fila lembrar quem pôs o cartão ali guardaria estado que o §4.1
+passou a feature inteira evitando.
+
+**O que fica de pé, e é pequeno:** o selo diria `manual — ninguém pega` tanto para *"eu estou nesta"*
+quanto para *"ninguém está"*. Com o interruptor, isso deixa de ser perigo e vira **leitura**: com a
+esteira ligada, um cartão parado numa coluna da máquina levanta a pergunta *"por que ninguém pegou?"*,
+e a resposta — *você desligou* — não está na tela. Custa um sexto estado num selo que acabou de subir
+para cinco, e a F2 decide quando existir uma esteira para olhar. Não é a Q40: é o resíduo dela.
+
+### Q41 — em que modo a esteira abre a sessão, e quem escolhe?
+
+Achado **medindo** a Q39, em 2026-09-12, e ele não depende do resultado dela.
+
+O `AcpManager` decide permissão assim (`AcpManager.ts:1316`):
+
+```ts
+const decision =
+  modeOwnerOf(session.info) === "lumem"
+    ? decidePermission(session.info.lumemMode, session.info.cwd, {...})
+    : ({ approve: false, reason: null } as const);
+```
+
+**A política do Lumem — a `016-session-mode` inteira — só decide quando o agente não tem modo
+próprio.** O Claude tem: `mode` está nos `configOptions` dele. Então, para o Claude, o `lumemMode` é
+**inerte** e todo pedido sobe para uma pessoa, em qualquer valor.
+
+Isso está **certo** e é a A1 da `016` — *quem é dono do seletor de modo desta conversa*. O que a
+`028` nunca escreveu é a consequência:
+
+> **A postura de permissão da esteira não é o modo do Lumem — é o modo do agente.**
+
+Medido, e não deduzido: com `lumemMode: "ask"` **e** com `"free"`, o turno pendura no primeiro `Edit`,
+indefinidamente. Um implementador autônomo nunca escreve uma linha. O que destrava é
+`session/set_mode` para `bypassPermissions`, que é vocabulário do **Claude**.
+
+Três coisas que isso cobra da F2:
+
+- **é por agente, não por workspace.** `bypassPermissions` não existe no Codex, que tem outro
+  catálogo. O encaixe do §5 aponta para um agente nomeado — então a postura mora com ele;
+- **a esteira não pode herdar o default do workspace**, que nasce em `ask` de propósito. Ela precisa
+  do oposto, e escolher o oposto do default em silêncio é o tipo de coisa que se descobre tarde;
+- **é onde o princípio 4 encosta no 2.** *"Um agente que pergunta tudo não é autônomo"* pede a
+  postura larga; *"você tem que poder assumir o volante"* pede que ele **pare** quando devia perguntar.
+  Em `bypassPermissions` ele não para nunca — e a [Q39](#q39--quem-diz-que-o-agente-está-esperando-você)
+  é exatamente sobre não saber quando ele devia ter parado.
+
+> **Aberta, e é da F2.** Não bloqueia a F1: com a autonomia desligada, quem escolhe o modo é você,
+> pela pílula que a `016` já desenhou.
+
+### Q42 — o selo `aguardando você` é ortogonal, e o desenho o fez exclusivo
+
+Consequência direta da Q39. O quadro 2 do `lumem-board.html` desenha cinco estados de selo como uma
+**escolha**: `manual` · `aguardando <papel>` · `<verbo> há Xm` · `bloqueada` · `pausada`. A medição
+diz que um cartão pode estar em `revisando há 2 min` **e** esperando você ao mesmo tempo — em 31% dos
+turnos, medido.
+
+As saídas, e todas custam:
+
+- **um sexto estado**, que continua sendo escolha e continua errado no mesmo terço;
+- **dois eixos no cartão** — o selo diz a etapa, um segundo elemento diz *"tem pergunta em aberto"*.
+  Custa altura num cartão cujo título já é de duas linhas, e a barra de 2px carrega **um eixo só** de
+  propósito (§10.2);
+- **o filtro em vez do selo**: `precisa de mim` já existe e já é *"provavelmente a visão mais usada do
+  produto"*. Talvez a pergunta em aberto não precise de pixel no cartão — precisa de um lugar na
+  lista.
+
+> **Aberta, e é da F2 mais desenho.** Ela volta ao Open Design junto com o resíduo da
+> [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), que é da mesma família: os dois
+> são coisas que o selo precisaria dizer e não diz.
