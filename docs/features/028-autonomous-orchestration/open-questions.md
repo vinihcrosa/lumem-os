@@ -1814,3 +1814,123 @@ princípio 2: *"a conversa tem que estar lá inteira quando assumir"*.
 
 > **O que fica de pé do UC7**, e é o que importa: a autonomia daquela tarefa desliga e **não volta
 > sozinha**. O que a resposta delimita é *quando*, não *se*.
+
+---
+
+## Décima segunda rodada — o tracker (2026-09-13)
+
+Seis perguntas, e as três primeiras só puderam ser abertas depois do
+[ADR do segredo](../../adr/2026-09-13-1531-tracker-credentials-come-from-the-environment.md): sem
+saber de onde vem a credencial, *"como o evento chega"* não tem como ser respondida.
+
+### Q60 — como o evento externo chega?
+
+O §11 guardou três caminhos — **polling × webhook × relé hospedado** — e o
+[estudo](../../project/orchestration-measurements.md) já mediu dois deles.
+
+**Webhook está fora, e não por preferência:** ele exige um endereço público, e o daemon é um processo
+local — a [`014`](../014-distribution/prd.md) o empacotou exatamente assim, e o
+[ADR de 2026-08-30](../../adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md) já tinha decidido
+que a máquina do usuário é o lugar. Um webhook pede um relé, e relé é a opção (b) do
+[estudo do segredo](../../project/tracker-secret.md), que o ADR recusou.
+
+**Resposta: polling, a 60 segundos.** O §3.2 do estudo mediu que ele **cabe folgado** — 60
+requisições por hora contra um teto de 2 500, **2,4% da cota** —, e a razão é estrutural: a consulta é
+**por workspace** e não por projeto, porque o que ela pergunta é *"o que está atribuído a mim"*.
+
+**O que polling custa é latência, e não cota:** uma issue criada às 14:00:01 entra na To-Do às
+14:01:00 no pior caso. Para uma feature cujo caso de uso se chama *"enquanto você almoça"*, um minuto
+é ruído — e é o mesmo desenho do `PrCache` da [`013`](../013-pull-request-status/prd.md), que se
+pergunta sozinho de 15 em 15 segundos.
+
+**Por que 60 s e não 15 s como o `PrCache`:** o `PrCache` responde a uma barra que **você está
+olhando**; esta consulta alimenta uma fila que anda sozinha. Quatro vezes mais cota por um minuto de
+latência que ninguém percebe é gastar por nada.
+
+### Q61 — o que impede a mesma issue de virar duas tarefas?
+
+Polling relê o mesmo conjunto a cada minuto. Sem nada, `ACME-142` vira sessenta tarefas por hora.
+
+- **guardar o que já foi visto** numa tabela de eventos — e aí o produto tem uma segunda lista de
+  tarefas, paralela à de tarefas;
+- **a chave externa mora na tarefa**, com índice único.
+
+**Resposta: a segunda, e ela não é uma tabela nova.** A [`022`](../022-workspace-tasks/prd.md) já tem
+`links`, e ela já guarda a URL da issue — é dela que o cartão tira o `↗ ACME-142`. O que falta é
+**identidade**, não armazenamento: duas colunas (`external_source`, `external_id`) com índice único
+por workspace.
+
+**Por que não o `links`:** ele é uma lista, é livre, e nada impede duas tarefas de citarem a mesma
+URL — uma coluna com índice único é a diferença entre *"aponta para"* e *"é"*. E o índice é **por
+workspace**, porque a mesma issue pode legitimamente virar tarefa em dois workspaces diferentes da
+mesma máquina.
+
+**E ela vale para a escrita também** (Parte 6): sem a chave, o comentário de volta não saberia em
+qual issue escrever sem reparsear a URL.
+
+### Q62 — o que é *"minha"* issue no tracker?
+
+O §6 diz: *"atribuir a uma **identidade Lumem** onde a ferramenta permitir, **rótulo `lumem`** onde
+não permitir"*.
+
+**Resposta: o rótulo, e só ele na v1.** Uma identidade Lumem no Linear é **uma conta de usuário** —
+alguém precisa criá-la, pagar por ela num plano por assento, e convidá-la para cada equipe. É uma
+instalação que o produto não controla e que falha em silêncio: sem a conta, a consulta volta vazia e a
+feature parece quebrada.
+
+O rótulo não tem nada disso. Ele existe em todo tracker, é criado por quem já usa a ferramenta, e a
+consulta é uma linha.
+
+> **O que fica do §6:** a frase continua verdadeira como direção — *onde a ferramenta permitir* —, e o
+> que esta resposta faz é dizer que **na v1 nenhuma permite sem custo de instalação**, então a v1 usa
+> a metade que funciona em todas. A nota está no requisito.
+
+### Q63 — a tarefa externa que muda no meio: comparada contra o quê?
+
+O §6 é específico: *"tarefa externa que **muda no meio** — reatribuída, fechada, descrição editada —
+**bloqueia**, com o motivo dizendo qual das três foi"*. Para dizer **qual das três**, é preciso ter o
+valor de antes.
+
+- **guardar um instantâneo** do que foi lido — título, corpo, estado, responsável — e comparar;
+- **guardar um resumo** (um hash) e só saber *que* mudou;
+- **não comparar**, e reagir só ao que a API marcar como mudado.
+
+**Resposta: a primeira, e o instantâneo é pequeno.** O motivo é o §6 pedindo **qual das três**: um
+hash responde *"mudou"* e obriga o cartão a dizer *"a issue mudou"*, que é o aviso que não diz o que
+fazer. Três campos guardados — estado, responsável e um hash do corpo — respondem as três perguntas
+com a precisão que o requisito pede.
+
+**O corpo vai como hash e não inteiro**, e essa parte da segunda saída fica: o corpo de uma issue é
+texto livre de tamanho arbitrário, guardá-lo duplicaria a descrição da tarefa dentro da própria
+tarefa, e a pergunta que ele responde é *"mudou?"* — que é exatamente o que um hash responde.
+
+### Q64 — o comentário de volta: quais marcos, e o que acontece se falhar?
+
+O §6 lista quatro: *"peguei"*, *"PR #87 aberta"*, *"travei em X"*, *"pronta para mesclar"*.
+
+**Resposta: os quatro, e falhar não para nada.** A escrita de volta é **cortesia**, não portão: o
+trabalho já aconteceu do lado de cá, e recusar o avanço porque o Linear não respondeu seria o produto
+ficando refém de um terceiro que o ADR do segredo acabou de decidir tratar como opcional.
+
+Uma escrita que falha vira **um aviso no cartão**, e não uma tentativa infinita. O motivo é o §8:
+*"aviso que se aprende a ignorar"* é risco nomeado, e um reenvio que tenta para sempre produz
+exatamente isso do outro lado — comentário duplicado na issue de alguém.
+
+**E é a mesma chave da Q61 que evita o comentário duplicado**: cada marco é escrito uma vez por
+tarefa, com a mesma regra do `notified_at` da Parte 4 — condição no `WHERE`, não num `if` antes.
+
+### Q65 — o mapa de colunas mora onde?
+
+O §6 é explícito em que mover o estado no tracker fica *"atrás de um mapa de colunas explícito por
+projeto"*, e em que **editar lá não edita aqui**.
+
+**Resposta: no `<repo>/.lumem/project.toml`**, junto do `[scripts]` que a
+[`012`](../012-project-scripts/prd.md) já pôs lá — e **atrás do mesmo portão de confiança**.
+
+É a mesma natureza: configuração que vem de um repositório e que faz o daemon agir. E a escolha
+resolve de graça duas coisas que uma tabela não resolveria: o mapa **viaja com o repositório** (quem
+clonar já tem), e **versionar** um mapa de colunas é o jeito de descobrir quem o mudou.
+
+> **Sem mapa, nada é movido lá** — e isso é a decisão, não o default preguiçoso. Mover estado no
+> tracker de alguém sem um mapa que essa pessoa escreveu é a definição de duas fontes de verdade
+> brigando, que o §8 nomeia como risco.

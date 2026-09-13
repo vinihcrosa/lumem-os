@@ -1121,10 +1121,121 @@ interruptor remove; e o texto do interruptor diz o que se está autorizando.
 
 ---
 
+## Partes 5 e 6 — O tracker
+
+> **Abertas em 2026-09-13**, e as duas juntas porque a segunda não tem como ser testada sem a
+> primeira: só há o que escrever de volta numa issue que entrou por aqui.
+>
+> Elas estavam paradas por um motivo só, e ele deixou de existir: o
+> [ADR do segredo](../../adr/2026-09-13-1531-tracker-credentials-come-from-the-environment.md), com
+> [estudo](../../project/tracker-secret.md). **O §11 dizia que falar com um tracker exigiria reverter
+> o ADR de 2026-08-30, e não exige** — a quarta saída já está implementada duas vezes neste produto.
+
+**O que esta fatia entrega:** a issue do Linear que vira cartão na To-Do, e o comentário que volta
+para lá nos quatro marcos. Sem `LINEAR_API_KEY` no ambiente do daemon, **nada disto aparece** — e
+ausência não é erro.
+
+**O que a fase 0 delas decidiu:**
+
+| Decisão | Onde |
+|---|---|
+| **polling a 60 s**; webhook exige relé, e relé é a opção que o ADR recusou | [Q60](open-questions.md#q60--como-o-evento-externo-chega) |
+| a chave externa mora **na tarefa**, com índice único por workspace | [Q61](open-questions.md#q61--o-que-impede-a-mesma-issue-de-virar-duas-tarefas) |
+| **rótulo `lumem`**, e não identidade — identidade é uma conta paga que o produto não controla | [Q62](open-questions.md#q62--o-que-é-minha-issue-no-tracker) |
+| instantâneo de **três campos**, com o corpo em hash | [Q63](open-questions.md#q63--a-tarefa-externa-que-muda-no-meio-comparada-contra-o-quê) |
+| escrever de volta é **cortesia**, não portão: falhar vira aviso | [Q64](open-questions.md#q64--o-comentário-de-volta-quais-marcos-e-o-que-acontece-se-falhar) |
+| o mapa de colunas mora no `project.toml`, atrás do portão de confiança | [Q65](open-questions.md#q65--o-mapa-de-colunas-mora-onde) |
+
+**O que elas não entregam:** entrada **agendada**, que o §6 já tirou da v1 e mandou para o backlog.
+
+---
+
+### Fase 21 — o host, e o que ele responde · **entregue**
+
+#### T42: O tracker é uma porta, e o Linear é a primeira implementação dela
+
+**What**: `TrackerHost` — listar o que tem o rótulo, comentar numa issue, mover estado. O Linear por
+GraphQL, com a chave vinda do **ambiente**
+([ADR](../../adr/2026-09-13-1531-tracker-credentials-come-from-the-environment.md)).
+**Where**: `packages/server/src/tracker/`
+**Done when**: a chave **nunca** aparece em retorno, em erro ou em log — provado por teste, e não por
+leitura; sem a variável, o host reporta ausência em vez de falhar; e a mensagem de erro do host passa
+pelo mesmo `redact` da [`009`](../009-agent-login/prd.md).
+**Gate**: `pnpm gate:quick`
+
+---
+
+### Fase 22 — a issue vira cartão · **entregue**
+
+#### T43: A chave externa é identidade, e ela é única
+
+**What**: `task.externalSource` e `task.externalId`, com índice único **por workspace** — duas tarefas
+não podem ser a mesma issue, e a mesma issue pode virar tarefa em dois workspaces
+([Q61](open-questions.md#q61--o-que-impede-a-mesma-issue-de-virar-duas-tarefas)).
+**Where**: `packages/server/src/db/schema.ts`, `drizzle/`, `packages/server/src/repositories/task.ts`
+**Done when**: importar a mesma issue duas vezes devolve **a mesma tarefa** e não erro — idempotência
+é o requisito, não a ausência de duplicata.
+**Gate**: `pnpm gate:quick`
+
+#### T44: O laço que traz, a 60 segundos
+
+**What**: puxa o que tem o rótulo `lumem`, cria o que ainda não existe **direto na To-Do**, e guarda o
+instantâneo de três campos ([Q63](open-questions.md#q63--a-tarefa-externa-que-muda-no-meio-comparada-contra-o-quê)).
+**Where**: `packages/server/src/tracker/sync.ts`
+**Done when**: rodar duas vezes não cria nada na segunda; o cartão nasce em `open` com o link; e uma
+passada que falha **não** derruba o laço nem as outras contas.
+**Gate**: `pnpm gate:quick`
+
+#### T45: Mudou no meio, e o cartão diz qual das três
+
+**What**: reatribuída, fechada ou descrição editada → **bloqueia**, com o motivo dizendo **qual**
+(§6). Nada é injetado no meio de um turno.
+**Where**: `packages/server/src/tracker/sync.ts`
+**Done when**: as três produzem motivos diferentes; e uma tarefa já bloqueada não é bloqueada de
+novo a cada passada.
+**Gate**: `pnpm gate:quick`
+
+---
+
+### Fase 23 — o que o tracker vê · **entregue**
+
+#### T46: Os quatro marcos, uma vez cada
+
+**What**: *"peguei"*, *"PR aberta"*, *"travei"*, *"pronta para mesclar"* — comentados na issue, **uma
+vez por tarefa** ([Q64](open-questions.md#q64--o-comentário-de-volta-quais-marcos-e-o-que-acontece-se-falhar)).
+**Where**: `packages/server/src/tracker/marks.ts`, `packages/server/src/db/schema.ts`, `drizzle/`
+**Done when**: falhar **não** para nada do lado de cá; e o mesmo marco não é escrito duas vezes, com
+a condição no `WHERE` como o `notified_at` da Parte 4.
+**Gate**: `pnpm gate:quick`
+
+#### T47: Mover estado lá, só com mapa
+
+**What**: o mapa de colunas do `<repo>/.lumem/project.toml`, atrás do portão de confiança da
+[`012`](../012-project-scripts/prd.md) ([Q65](open-questions.md#q65--o-mapa-de-colunas-mora-onde)).
+**Where**: `packages/server/src/scripts/project-scripts.ts`, `packages/server/src/tracker/marks.ts`
+**Done when**: **sem mapa, nada é movido** — e isso é a decisão, não o default preguiçoso; e um mapa
+de projeto não confiado não vale.
+**Gate**: `pnpm gate:quick`
+
+---
+
+### Fase 24 — o portão · **entregue**
+
+#### T48: O e2e do tracker, com um host falso
+
+**What**: uma issue vira cartão, o cartão anda, e o marco volta — com um `TrackerHost` falso, porque
+o assunto é a costura e não o Linear.
+**Where**: `packages/server/src/tracker/`, `e2e/`
+**Done when**: sem a variável de ambiente nada acontece e nada quebra; e a segunda passada não cria
+nem comenta de novo.
+**Gate**: `pnpm gate:full`
+
+---
+
 ## O que fica para o `tasks.md` seguinte
 
 | O quê | O que destrava |
 |---|---|
 | ~~**Parte 2 — a esteira**~~ | **entregue em 2026-09-13**, acima — 13 tasks em 6 fases |
 | ~~**Parte 4 — supervisão**~~ | **entregue em 2026-09-13**, acima — a Parte 2 destravou. O corolário do §2.4 fica de pé: o selo `aguardando você` **não é derivável do transporte**, e por isso ele não está no escopo desta fatia |
-| **Parte 5 e Parte 6 — o tracker** | um **ADR**. O precedente do `gh` não é portável — não existe `linear` na máquina —, e as três opções que sobram estão no §3.4 do estudo. Uma delas contradiz o ADR de 2026-08-30 de frente |
+| ~~**Parte 5 e Parte 6 — o tracker**~~ | **abertas em 2026-09-13**, acima. O ADR que faltava está escrito, e ele **não** contradiz o de 2026-08-30: a quarta saída — a que nem o §11 nem a medição tinham visto — já estava implementada duas vezes no produto |
