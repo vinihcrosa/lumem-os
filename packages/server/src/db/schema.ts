@@ -6,6 +6,7 @@ import {
   real,
   sqliteTable,
   text,
+  unique,
   uniqueIndex,
   type AnySQLiteColumn,
 } from "drizzle-orm/sqlite-core";
@@ -1081,6 +1082,95 @@ export const taskComment = sqliteTable(
   ],
 );
 
+/**
+ * Um agente **nomeado** (`028` §5.1, Parte 2 — T23).
+ *
+ * **Agente não é adaptador**, e a
+ * [Q35](../../../../docs/features/028-autonomous-orchestration/open-questions.md)
+ * comprou essa distinção com uma palavra: o rodapé da sidebar passou a dizer
+ * *Adaptadores*, que é por onde o agente fala (`claude`, `codex`), e **agente**
+ * é o que você nomeia, instrui e dá orçamento (`revisor-severo`). Sem os dois
+ * substantivos, a cascata do §5.1 é impossível de escrever em português.
+ *
+ * Ele aponta para um `id` do catálogo `ADAPTERS` da
+ * [`021`](../../../../docs/features/021-second-agent/prd.md) — que é código, não
+ * tabela —, então a coluna é **texto solto de propósito**: um estrangeiro para
+ * uma constante do bundle não existe, e validar na escrita é trabalho do
+ * repositório.
+ */
+export const namedAgent = sqliteTable(
+  "named_agent",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "restrict" }),
+    /** `revisor-severo`. Único **dentro do workspace**, não no mundo. */
+    name: text("name").notNull(),
+    /** O `id` de um `AdapterSpec`: `claude`, `codex`. */
+    adapter: text("adapter").notNull(),
+    /** `null` é *o que o adaptador escolher* — nem todo agente pede modelo. */
+    model: text("model"),
+    /**
+     * O que este agente é, em texto.
+     *
+     * É o que separa `revisor-severo` de `revisor-rapido` sem que nenhum dos
+     * dois seja código. A forma do Compozy, que o §5.1 cita como a melhor
+     * referência de extensibilidade: lá o agente é um arquivo com prompt.
+     */
+    instructions: text("instructions").notNull().default(""),
+    ...timestamps,
+  },
+  (table) => [
+    // Dois `revisor-severo` no mesmo workspace seriam dois agentes que a
+    // cascata não consegue distinguir por nome — que é como ela é escrita.
+    unique("named_agent_name_in_workspace").on(table.workspaceId, table.name),
+  ],
+);
+
+/**
+ * Qual agente faz qual papel, e **onde** (`028` §5.1, Parte 2 — T23).
+ *
+ * Uma tabela, e não três colunas por nível. A cascata é **tarefa → projeto →
+ * workspace → default**, e escrevê-la como colunas daria três colunas em três
+ * tabelas — nove lugares para a mesma pergunta, e nenhum jeito de acrescentar
+ * um nível sem migração.
+ *
+ * O quarto degrau — o default — **não mora aqui**: ele é o que sobra quando
+ * nenhuma linha responde, e guardá-lo seria guardar a ausência.
+ */
+export const roleBinding = sqliteTable(
+  "role_binding",
+  {
+    id: text("id").primaryKey(),
+    /**
+     * `workspace` | `project` | `task`. Polimórfico, como o escopo da sessão já
+     * é — e pelo mesmo motivo: nenhum estrangeiro expressa *"aponta para uma
+     * destas três tabelas"*, e inventar três colunas nulas seria descrever a
+     * exclusão mútua sem conseguir cobrá-la.
+     */
+    scopeType: text("scope_type").notNull(),
+    scopeId: text("scope_id").notNull(),
+    /** `implementador` | `revisor` | `testador` — os três encaixes do §5.1. */
+    role: text("role").notNull(),
+    agentId: text("agent_id")
+      .notNull()
+      .references(() => namedAgent.id, { onDelete: "cascade" }),
+    ...timestamps,
+  },
+  (table) => [
+    check("role_binding_scope_type", sql`${table.scopeType} IN ('workspace', 'project', 'task')`),
+    check(
+      "role_binding_role",
+      sql`${table.role} IN ('implementador', 'revisor', 'testador')`,
+    ),
+    // Um papel por escopo. Dois `revisor` no mesmo projeto seriam a cascata
+    // tendo que escolher entre dois degraus do mesmo nível, que é uma pergunta
+    // sem resposta certa.
+    unique("role_binding_one_per_scope").on(table.scopeType, table.scopeId, table.role),
+  ],
+);
+
 export const schema = {
   workspace,
   project,
@@ -1099,6 +1189,8 @@ export const schema = {
   checkoutPort,
   task,
   taskComment,
+  namedAgent,
+  roleBinding,
 };
 
 export type WorkspaceRow = typeof workspace.$inferSelect;
@@ -1118,3 +1210,5 @@ export type MemoryUsageRow = typeof memoryUsage.$inferSelect;
 export type MemoryProposalRow = typeof memoryProposal.$inferSelect;
 export type TaskRow = typeof task.$inferSelect;
 export type TaskCommentRow = typeof taskComment.$inferSelect;
+export type NamedAgentRow = typeof namedAgent.$inferSelect;
+export type RoleBindingRow = typeof roleBinding.$inferSelect;
