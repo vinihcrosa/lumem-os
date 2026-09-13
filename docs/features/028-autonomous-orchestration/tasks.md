@@ -5,10 +5,10 @@
 **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
 
 **Status:** em execução
-**Histórico:** **quatro das seis partes estão entregues** — a **Parte 1** (12 tasks, fases 0–4), a
-**Parte 3** (8, fases 5–9), a **Parte 2** (13, fases 10–15) e a **Parte 4** (8, fases 16–20). São
-**41 tasks**, todas de 2026-09-12 e 2026-09-13. Ficam as **Partes 5 e 6** (o tracker), que esperam o
-**ADR do segredo**. Este arquivo **não** cobre a feature inteira. O corte é decisão registrada: das seis
+**Histórico:** **as seis partes estão entregues**  — a **Parte 1** (12 tasks, fases 0–4), a
+**Parte 3** (8, fases 5–9), a **Parte 2** (13, fases 10–15), a **Parte 4** (8, fases 16–20) e as
+**Partes 5 e 6** juntas (7, fases 21–24). São **48 tasks**, todas de 2026-09-12 e 2026-09-13, e
+**uma delas é parcial** — a T48, com o motivo escrito nela. O corte é decisão registrada: das seis
 partes do §6, este arquivo executa **uma** — o quadro lendo a
 [`022`](../022-workspace-tasks/prd.md), com a autonomia desligada. A esteira (Parte 2), o orçamento (Parte 3), a
 supervisão (Parte 4) e as duas pontas do tracker (Parte 5, Parte 6) ficam para um `tasks.md` seguinte, e o §0 diz
@@ -17,6 +17,18 @@ duas coisas antes de existir código.
 
 A ordem tem uma regra: **o modelo antes da leitura, a leitura antes da tela** — e a tela por último
 porque é a mais barata de refazer e a única represada pelo Open Design, que desta vez já entregou.
+
+> **Por que continua `em execução` com as seis partes entregues.** Duas tasks são **parciais**, e as
+> duas por falta de fonte e não de tempo: a **T17** espera uma cota de verdade esgotada para
+> reconhecer a recusa — *"o protocolo não tem código para isso"* —, e a **T48** espera um jeito de
+> testar o caminho feliz do tracker sem inventar uma opção de produto que só o teste usa. Chamar a
+> feature de `completa` com a primeira em aberto seria dizer que a `pausada` da
+> [Q32](open-questions.md#q32--limite-de-taxa-do-agente-pausa-não-é-bloqueio) existe inteira, e ela
+> não existe.
+>
+> **É o Vinicius quem fecha esse número**, não este arquivo: o `Status:` é da PRD, e a gramática do
+> [`025`](../025-docs-contract/prd.md) não tem um valor para *"entregue com duas ressalvas
+> escritas"*.
 
 > **Por que `em execução` com as 12 entregues.** A gramática do
 > [`025`](../025-docs-contract/prd.md) tem quatro valores — `proposta`, `em execução`, `completa`,
@@ -1162,6 +1174,14 @@ GraphQL, com a chave vinda do **ambiente**
 leitura; sem a variável, o host reporta ausência em vez de falhar; e a mensagem de erro do host passa
 pelo mesmo `redact` da [`009`](../009-agent-login/prd.md).
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> **A redação roda até num erro de rede**, e parece exagero até você ver por quê: alguns clientes HTTP
+> ecoam a requisição inteira — cabeçalhos inclusive — na mensagem de `fetch failed`. Redigir sempre
+> custa uma linha; o contrário custa uma chave num log.
+>
+> E a tradução é **nossa**: os cinco tipos de estado do Linear viram os dois que o Lumem precisa, para
+> que um sexto tipo lá não vire um sexto estado aqui.
 
 ---
 
@@ -1176,6 +1196,10 @@ não podem ser a mesma issue, e a mesma issue pode virar tarefa em dois workspac
 **Done when**: importar a mesma issue duas vezes devolve **a mesma tarefa** e não erro — idempotência
 é o requisito, não a ausência de duplicata.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> O índice é **parcial por construção**: `NULL` não colide com `NULL` no SQLite, então toda tarefa que
+> não veio de tracker fica de fora sem precisar de cláusula nenhuma.
 
 #### T44: O laço que traz, a 60 segundos
 
@@ -1185,6 +1209,7 @@ instantâneo de três campos ([Q63](open-questions.md#q63--a-tarefa-externa-que-
 **Done when**: rodar duas vezes não cria nada na segunda; o cartão nasce em `open` com o link; e uma
 passada que falha **não** derruba o laço nem as outras contas.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
 
 #### T45: Mudou no meio, e o cartão diz qual das três
 
@@ -1194,6 +1219,14 @@ passada que falha **não** derruba o laço nem as outras contas.
 **Done when**: as três produzem motivos diferentes; e uma tarefa já bloqueada não é bloqueada de
 novo a cada passada.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> **O instantâneo é atualizado mesmo com a tarefa já bloqueada**, e essa linha é o caso que quase
+> passou: sem ela, uma **segunda** mudança lá nunca seria vista — a comparação continuaria sendo
+> contra o estado de três mudanças atrás.
+>
+> E *desatribuída* ganhou frase própria: *"reatribuída"* para ninguém não é reatribuída, e quem lê
+> precisa saber que a issue ficou **sem dono**.
 
 ---
 
@@ -1207,6 +1240,11 @@ vez por tarefa** ([Q64](open-questions.md#q64--o-comentário-de-volta-quais-marc
 **Done when**: falhar **não** para nada do lado de cá; e o mesmo marco não é escrito duas vezes, com
 a condição no `WHERE` como o `notified_at` da Parte 4.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> **A reserva acontece antes da escrita**, e o custo disso está escrito: um marco fica registrado sem
+> ter saído quando a rede recusa. É o lado certo de errar — o outro é comentar duas vezes na issue de
+> outra pessoa, que é a única parte desta fatia que não tem desfazer.
 
 #### T47: Mover estado lá, só com mapa
 
@@ -1216,10 +1254,15 @@ a condição no `WHERE` como o `notified_at` da Parte 4.
 **Done when**: **sem mapa, nada é movido** — e isso é a decisão, não o default preguiçoso; e um mapa
 de projeto não confiado não vale.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> **TOML inválido aqui não lança**, ao contrário do `[scripts]` — e é a mesma regra lida nos dois
+> sentidos: lá, desistir significa rodar o comando errado sem ninguém saber por quê; aqui, desistir
+> significa **não mexer no tracker de alguém**, que é o que a Q65 escolhe quando há dúvida.
 
 ---
 
-### Fase 24 — o portão · **entregue**
+### Fase 24 — o portão · **T48 parcial**
 
 #### T48: O e2e do tracker, com um host falso
 
@@ -1229,6 +1272,23 @@ o assunto é a costura e não o Linear.
 **Done when**: sem a variável de ambiente nada acontece e nada quebra; e a segunda passada não cria
 nem comenta de novo.
 **Gate**: `pnpm gate:full`
+**Status**: ⚠️ **parcial** (2026-09-13) — metade entregue, metade **anotada em vez de fingida**.
+
+> **O que entrou:** o caso que só um daemon de verdade prova — sem `LINEAR_API_KEY`, o daemon **sobe,
+> responde e continua funcionando**, com a tarefa sem origem externa e sem marco nenhum. Ausência não
+> é erro, e é o boot que poderia quebrar.
+>
+> **O que não entrou, e não é esquecimento:** o caminho feliz ponta a ponta exigiria apontar o host
+> para um servidor falso, e o endereço do Linear é **um só** — um `LUMEM_LINEAR_ENDPOINT` seria uma
+> opção de produto que existe só para o teste, e este repositório acabou de recusar a mesma coisa em
+> outro lugar. O `LUMEM_CONVEYOR_AGENT` da Parte 2 é diferente: ele tem um caso de produto real —
+> adaptador fora do catálogo —, e o [ADR de 2026-09-08](../../adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md)
+> já abre essa exceção por escrito.
+>
+> **E a cobertura existe uma camada abaixo**, com banco de verdade: `sync.test.ts` roda a passada
+> duas vezes contra SQLite e prova que a segunda não cria nada, e `marks.test.ts` prova que dois
+> marcos simultâneos produzem **um** comentário. O que falta é o transporte HTTP até o Linear, e ele
+> tem os testes dele no `LinearHost.test.ts` — com o `fetch` injetado.
 
 ---
 
@@ -1238,4 +1298,4 @@ nem comenta de novo.
 |---|---|
 | ~~**Parte 2 — a esteira**~~ | **entregue em 2026-09-13**, acima — 13 tasks em 6 fases |
 | ~~**Parte 4 — supervisão**~~ | **entregue em 2026-09-13**, acima — a Parte 2 destravou. O corolário do §2.4 fica de pé: o selo `aguardando você` **não é derivável do transporte**, e por isso ele não está no escopo desta fatia |
-| ~~**Parte 5 e Parte 6 — o tracker**~~ | **abertas em 2026-09-13**, acima. O ADR que faltava está escrito, e ele **não** contradiz o de 2026-08-30: a quarta saída — a que nem o §11 nem a medição tinham visto — já estava implementada duas vezes no produto |
+| ~~**Parte 5 e Parte 6 — o tracker**~~ | **entregues em 2026-09-13**, acima. O ADR que faltava está escrito, e ele **não** contradiz o de 2026-08-30: a quarta saída — a que nem o §11 nem a medição tinham visto — já estava implementada duas vezes no produto |

@@ -437,3 +437,55 @@ test("`parar` interrompe sem apagar a worktree", async () => {
     await daemon.stop();
   }
 });
+
+test("sem a chave do tracker, o daemon sobe e nada acontece", async () => {
+  const stateDir = mkdtempSync(join(tmpdir(), "lumem-tracker-ausente-"));
+  const daemon = await startDaemon({
+    port: E2E_CONVEYOR_PORT,
+    stateDir,
+    // **Sem** `LINEAR_API_KEY`, que é o estado de toda instalação que não usa
+    // tracker — e é o caso que precisa ser provado contra o daemon de verdade,
+    // porque o que pode quebrar é o **boot**, e não a sincronização.
+    env: { LINEAR_API_KEY: "" },
+  });
+
+  try {
+    const workspace = (await call(daemon.url, "workspace.create", { name: "sem-tracker" })) as {
+      id: string;
+    };
+    const project = (await call(daemon.url, "project.add", {
+      workspaceId: workspace.id,
+      path: E2E_FIXTURE_REPO_ALT,
+      name: "alt",
+    })) as { id: string };
+    const created = (await call(daemon.url, "task.create", {
+      workspaceId: workspace.id,
+      projectId: project.id,
+      title: "tarefa de sempre",
+    })) as { id: string };
+
+    /*
+     * O laço do tracker roda de 60 em 60 segundos e o primeiro disparo é depois
+     * do primeiro minuto — então o que este caso prova não é *"ele não fez
+     * nada"*, e sim que **o daemon sobe, responde e continua funcionando** com a
+     * feature ausente. Ausência não é erro, e é a metade da T48 que só um
+     * daemon de verdade pode provar.
+     */
+    const task = (await query(daemon.url, "task.get", { id: created.id })) as {
+      externalSource: string | null;
+      externalMarks: string;
+    };
+    expect(task.externalSource).toBeNull();
+    expect(task.externalMarks).toBe("[]");
+
+    // E a esteira continua sendo a esteira: ligar a autonomia funciona igual,
+    // com ou sem tracker.
+    await call(daemon.url, "workspace.setAutonomy", {
+      id: workspace.id,
+      autonomy: "manual",
+      maxParallel: 2,
+    });
+  } finally {
+    await daemon.stop();
+  }
+});
