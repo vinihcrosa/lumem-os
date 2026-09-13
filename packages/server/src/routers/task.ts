@@ -4,6 +4,8 @@ import { and, eq } from "drizzle-orm";
 
 import { project, session, worktree } from "../db/schema.js";
 import { createTaskRepository, TASK_STATUSES } from "../repositories/task.js";
+import { boardOf } from "../tasks/board.js";
+import { liveTurnsByTask, pausesByTask, sealOf } from "../tasks/seal.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 
 /**
@@ -53,12 +55,28 @@ export const taskRouter = router({
        */
       const counted = await sessionsOfWorkspace(ctx.db, input.workspaceId);
 
+      /*
+       * Os três tetos do workspace (`028` Parte 3, T18).
+       *
+       * Na mesma leitura que a cerimônia, e pela mesma razão que ela aparece:
+       * *"teto que você não vê é teto que parece bug quando recusa"*. `null` é
+       * **sem teto**, e a tela diz isso com palavra em vez de campo vazio.
+       */
+      const space = await ctx.db.query.workspace.findFirst({
+        where: (table, { eq: is }) => is(table.id, input.workspaceId),
+      });
+
       return {
         budget: ctx.config.taskBudget,
         /** O que ajustar, escrito aqui para a tela não ter que saber. */
         budgetEnv: "LUMEM_TASKS_BUDGET" as const,
         sessions: counted.total,
         sessionsWithTask: counted.withTask,
+        caps: {
+          costPerTask: space?.budgetCostPerTask ?? null,
+          costPerDay: space?.budgetCostPerDay ?? null,
+          turnsPerSession: space?.budgetTurnsPerSession ?? null,
+        },
       };
     }),
 
@@ -76,6 +94,39 @@ export const taskRouter = router({
         projectId: input.projectId,
       }),
     ),
+
+  /**
+   * O quadro inteiro, numa leitura (`028` F1, T6 e T7).
+   *
+   * Sete colunas sempre, mesmo vazias, com o selo de cada cartão **derivado** na
+   * resposta — nunca guardado. Uma chamada, e não uma por coluna: nenhuma das
+   * sete veria as outras, e um cartão que trocasse de coluna no meio apareceria
+   * duas vezes ou nenhuma.
+   */
+  board: publicProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().min(1),
+        projectId: z.string().min(1).optional(),
+      }),
+    )
+    .query(({ ctx, input }) => {
+      const columns = boardOf(ctx.db, input);
+      const byTask = liveTurnsByTask(ctx.db, ctx.acpManager.liveTurns());
+      const paused = pausesByTask(ctx.db, ctx.acpManager.rateLimits());
+
+      return columns.map((column) => ({
+        status: column.status,
+        cards: column.cards.map((card) => ({
+          ...card,
+          seal: sealOf({
+            status: column.status,
+            liveTurns: byTask.get(card.id) ?? [],
+            pausedUntil: paused.get(card.id) ?? null,
+          }),
+        })),
+      }));
+    }),
 
   get: publicProcedure
     .input(idSchema)
@@ -136,6 +187,35 @@ export const taskRouter = router({
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
         const moved = await createTaskRepository(ctx.db).setStatus(input.id, input.status, {
+          actor: "human",
+          reason: input.reason,
+        });
+        ctx.events.emit({ type: "task.changed", workspaceId: moved.workspaceId });
+        return moved;
+      }),
+    ),
+
+  /**
+   * O arrasto do quadro: a coluna e o lugar nela (`028` §4.3, T5).
+   *
+   * `index` é para onde o ponteiro apontou, e o daemon renumera a coluna de
+   * destino inteira numa transação — a posição **é** a prioridade, então ela
+   * tem que sobreviver a recarregar.
+   */
+  move: publicProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        status: statusSchema,
+        index: z.number().int().min(0),
+        reason: z.string().trim().min(1).optional(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () => {
+        const moved = await createTaskRepository(ctx.db).move(input.id, {
+          status: input.status,
+          index: input.index,
           actor: "human",
           reason: input.reason,
         });

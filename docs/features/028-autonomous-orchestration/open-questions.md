@@ -1,10 +1,44 @@
 # O orquestrador autônomo — perguntas
 
-**PRD:** [prd.md](prd.md) · **Tasks:** ainda não
+**PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md) — só a Parte 1 · **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
 
-**Trinta e sete perguntas, em cinco rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
+**Quarenta e sete perguntas, em nove rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
 segunda rodada abriu — todas em 2026-09-11 — mais **4 que a sessão de desenho no Open Design abriu**,
-respondidas em **2026-09-12**. **Todas respondidas.**
+respondidas em **2026-09-12**, **3 da sexta rodada** e **3 da sétima**. **Quarenta e seis respondidas.** A [Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático) fechou
+medindo no mesmo dia em que nasceu, e fechou as sete primeiras rodadas — que são a Parte 1 inteira. A
+oitava é da **Parte 3**, aberta depois: a [Q44](#q44--o-teto-tem-duas-unidades-qual-delas-a-tela-mostra)
+e a [Q45](#q45--o-teto-vale-para-a-sessão-que-você-está-conduzindo) nasceram **escrevendo as tasks**,
+antes de existir código. A Q45 foi respondida na proposta — **avisa quem está conduzindo, para quem
+não está** —, e com ela o portão da T16 virou uma **função pura de três saídas**. A Q44 segue aberta e é de tela, e a
+[Q46](#q46--como-o-daemon-reconhece-uma-recusa-por-cota) nasceu da T17 ter entregado metade: a pausa
+**prevista** tem fonte, a recusa **observada** não — o protocolo não tem código para cota, como tem
+para login.
+
+A sétima rodada é a primeira que nasceu de **gastar token** — 20 turnos, US$ 4,60, Haiku e Opus. A
+[Q41](#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) apareceu ao montar a bancada, quando o
+turno pendurou no primeiro `Edit` com o `lumemMode` em `ask` **e** em `free`: a política do Lumem é
+**inerte** para um agente que tem modo próprio, e o Claude tem. A
+[Q42](#q42--o-selo-aguardando-você-é-ortogonal-e-o-desenho-o-fez-exclusivo) veio da resposta da Q39, e
+é o tipo de achado que só a medição dá: **`terminou` e `te perguntou` não são exclusivos** — 31% dos
+turnos que commitaram deixaram pergunta em aberto, e o selo foi desenhado como escolha entre os dois.
+As duas foram respondidas no mesmo dia, e a da Q41 abriu a **Q43**: *"o modo automático do agente"*
+pressupõe saber **qual** dos cinco do Claude é o automático, e a resposta é que **só `bypassPermissions` fecha o
+laço** — `acceptEdits` edita e pendura no comando, e `auto` nem existe para todo modelo.
+
+A sexta rodada não veio de discussão nem de medir a tela: veio de **ler o código que já está de pé**.
+E a primeira dela é a única pergunta do documento que **já estava respondida**: a
+[Q38](#q38--arrastar-para-in-progress-se-ele-é-derivado) levantou o arrasto para `In Progress` como
+contradição com a `022` entregue, e a resposta é que a [Q3](#q3--quais-colunas-a-máquina-move-sozinha)
+já decidira — o que faltava era **escritor**, não decisão. A proposta que veio com ela estava errada
+pelo motivo que o §4.1 existe para evitar: **confundia coluna com selo**. Ela fica registrada porque o
+erro produziu a [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), que é o problema de
+verdade — **a fila da esteira pegaria o trabalho que você está fazendo na mão**.
+
+A [Q39](#q39--quem-diz-que-o-agente-está-esperando-você) foi **respondida medindo**, e a resposta é
+que ela estava mal formada. E a [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão) foi
+respondida em 2026-09-12 com a melhor resposta possível: **o interruptor que ela pedia já existia** —
+o §6, Parte 4 define `assumir` como *"desliga a autonomia daquela tarefa"* —, e arrastar para uma coluna da
+máquina é um segundo caminho para ele.
 
 As quatro últimas não vieram de discussão: vieram de **medir a tela**, e três contradiziam a PRD. As
 quatro foram respondidas **na proposta**, e a primeira delas renomeia um conceito — o encaixe
@@ -837,7 +871,7 @@ não é dele. A PRD já usa os dois nomes: o §5 diz `executor`, e metade dos ca
 **Resposta: `implementador`, com o verbo `implementando`.** *"eu gosto de implementador, e usar o
 verbo implementando."*
 
-**O que isso obriga, e é mais do que trocar uma palavra:** o §5 da PRD, o §6/F2 e o §4.1 passam a
+**O que isso obriga, e é mais do que trocar uma palavra:** o §5 da PRD, o §6, Parte 2 e o §4.1 passam a
 dizer `implementador`; o selo do cartão vira `implementando há 12 min` trabalhando e
 `aguardando implementador` esperando. **E esse segundo é o mais longo dos três** — medido em
 **148px** contra **151px** de caixa, com **3px de folga**. O número está registrado no §4.1 da PRD
@@ -875,7 +909,7 @@ inteiro: uma linha por adaptador, o `＋` no cabeçalho, os três estados da lin
 ### Q36 — qual dos dois tetos segurou?
 
 A [Q33](#q33--agentes-nomeados-e-papel-por-projeto) decidiu que **orçamento mora no agente**, e o
-§6/F3 tem teto por tarefa, por dia e de turnos **no workspace**. As duas coisas estão certas e
+§6, Parte 3 tem teto por tarefa, por dia e de turnos **no workspace**. As duas coisas estão certas e
 convivem — mas significam que *"por que esta tarefa parou em US$ 0,50?"* tem **duas respostas
 possíveis**, e o cartão bloqueado do desenho hoje mostra só o número.
 
@@ -890,7 +924,7 @@ workspace — US$ 2,00 por tarefa"*. Um verbo só, e ele leva à tela onde aquel
 > depois de o orçamento existir em dois lugares.
 
 **Resposta: a proposta.** *"concordo."* O bloqueio de orçamento nomeia o teto que segurou, e o verbo
-leva à tela onde aquele número mora. Está no §6/F3 da PRD e no quadro 5 do `lumem-board.html`.
+leva à tela onde aquele número mora. Está no §6, Parte 3 da PRD e no quadro 5 do `lumem-board.html`.
 
 ### Q37 — abaixo de 1418px, o que o quadro faz?
 
@@ -923,4 +957,518 @@ apagar **um elemento** — a faixa `.bd__clip` do `lumem-board.css` — e nada m
 
 O que isso **não** muda: o piso de 200px da coluna continua valendo, e é ele que garante que as
 colunas visíveis continuem legíveis em vez de todas encolherem juntas. E vira o **primeiro requisito
-de largura mínima do produto** (§6/F1).
+de largura mínima do produto** (§6, Parte 1).
+
+---
+
+## Sexta rodada — o que a medição abriu (2026-09-12)
+
+A [T1](tasks.md#t1-o-estudo-que-o-11-pedia) mediu três das nove conversas do §11 e abriu **duas**
+perguntas. Nenhuma das duas veio de discussão: vieram de ler o código que já está de pé.
+
+### Q38 — arrastar para `In Progress`, se ele é derivado?
+
+**Esta pergunta nunca precisou existir, e o registro de por quê vale mais que ela.**
+
+Eu li o comentário do `repositories/task.ts` — *"`in_progress` não está em nenhuma das duas listas de
+propósito"* — e concluí que arrastar para `In Progress` era impossível, que isso contradizia o §4 da
+PRD, e propus que `In Progress` fosse a única coluna sem arrasto.
+
+**Errado duas vezes, e as duas medidas na T4:**
+
+1. **A proposta estava errada.** A [Q3](#q3--quais-colunas-a-máquina-move-sozinha) já decidira que
+   *"arrastar é sempre permitido para você, inclusive para as colunas da máquina"*. E o argumento
+   contra confundia coluna com selo — a distinção que o §4.1 passou a PRD inteira estabelecendo. Um
+   cartão arrastado à mão desenha coluna `In Progress` com selo `manual — ninguém pega`, que é
+   exatamente o que ele é. **A honestidade mora no selo, e o selo continua derivado.**
+2. **A premissa também estava errada.** Não existem "duas listas": existe **uma**, `AGENT_MAY_SET`, e
+   ela é do agente. Você não tem allowlist — tudo que está em `TASK_STATUSES` passa pelo seu caminho.
+   Um humano **já conseguia** pôr `in_progress` antes desta feature; provado rodando, não deduzido.
+
+O comentário da `022` descreve a **intenção** (`in_progress` é derivado, ninguém aperta "comecei") e
+eu li como se descrevesse o **mecanismo**. Ele foi reescrito na T4 para dizer as duas coisas
+separadas, e o que faltava não era escritor nem decisão: **era teste.** A propriedade que faz o
+arrasto funcionar — você não tem allowlist — era verdadeira **por acidente**, sem um único caso a
+cobrindo. Agora tem cinco, e os cinco foram conferidos ficando vermelhos de propósito.
+
+**O que muda na PRD:** nada. **O que muda no código:** um comentário e cinco testes.
+
+**O que a pergunta abriu, e é o que sobrou dela:** a
+[Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão).
+
+### Q39 — quem diz que o agente está esperando você?
+
+O §4.1 lista `aguardando você` entre os estados do selo, e o §10.2 gastou uma decisão de desenho nele
+(*"é luminância, não matiz"*). A [medição do §2](../../project/orchestration-measurements.md) mostrou
+que ele **não é derivável do transporte**: o `StopReason` do ACP tem cinco valores e nenhum é
+*"esperando"*.
+
+**Respondida em 2026-09-13, e a resposta é que a pergunta estava mal formada.**
+
+A [segunda medição](../../project/orchestration-measurements.md) — 20 turnos com token de verdade,
+Haiku e Opus, **US$ 4,60** — foi feita para contar quantos turnos de um implementador autônomo acabam
+sem ter terminado. O que ela achou foi outra coisa:
+
+> **`terminou` e `te perguntou` não são estados exclusivos de um turno.**
+> **6 dos 19 turnos que commitaram (31%) deixaram uma pergunta ou uma oferta em aberto.**
+
+No mesmo turno, no mesmo texto: *"`biggest` still broke in `src/orders.ts:12`; **say the word and
+I'll fix**"* — e commitou. *"Ordena lexicograficamente… **Quer que eu corrija?**"* — e commitou.
+
+**Consequência para o §4.1:** `aguardando você` **não é alternativa a ter andado**. É um sinalizador
+**ortogonal** — o cartão pode estar na coluna seguinte *e* esperando você. Um selo que escolhe entre
+os dois estará errado em quase um terço dos turnos, e o desenho de 2026-09-11 o desenhou como
+escolha.
+
+**E o que a pergunta original queria — um sinal de transporte — perdeu a urgência**, porque a decisão
+que ela alimentava não existe: se o cartão anda pelo fato verificável de qualquer jeito, o sinal muda
+só *quando avisar* (40 s contra os 30 min do relógio de encalhe), não *se o cartão anda*. Isso é
+afinação, e afinação se faz com a esteira no ar.
+
+**O que a medição achou no lugar, e é pior:** o commit **não separa** *"terminou"* de *"desistiu
+inventando"*. A tarefa impossível — um serviço que não existe — produziu **commit em 3 de 4
+execuções**, com o serviço inventado junto (`src/catalog.ts`, 22/14/32 linhas). Só o Opus em modo de
+conversa recusou. Está no §4bis.4 do estudo, e o que sobra de pé é a outra metade do §4.1: *"o CI
+ficou verde"*. **A força da esteira é a força da suíte do projeto** — e isso a PRD não escreve.
+
+**O que isso abre:** a [Q42](#q42--o-selo-aguardando-você-é-ortogonal-e-o-desenho-o-fez-exclusivo).
+
+### Q40 — a fila não distingue o que você está fazendo na mão
+
+Achado ao responder a Q38, e é o problema real que estava embaixo do errado.
+
+A regra da fila do §4.1 é *"todo cartão cuja etapa é devida e que não tem trabalhador"*. Um cartão que
+você arrastou para `In Progress` para trabalhar na mão é, por essa definição, **exatamente isso**:
+etapa devida, sem trabalhador. Com a autonomia ligada, **o daemon pegaria o trabalho que você está
+fazendo** — criaria a worktree, abriria a sessão do implementador e começaria a gastar.
+
+E o selo não te protege: `manual — ninguém pega` é o mesmo texto nos dois casos. A tela não distingue
+*"eu estou nesta"* de *"ninguém está nesta"*.
+
+As saídas visíveis:
+
+- **o arrasto para uma coluna da máquina desliga a autonomia daquela tarefa** — é o mesmo gesto que o
+  §6, Parte 4 já define para **assumir** (*"abre a conversa e desliga a autonomia daquela tarefa"*), e
+  arrastar seria um segundo caminho para o mesmo lugar;
+- **um sexto estado de selo** — `você está nesta` —, que custa um estado num selo que acabou de subir
+  para cinco;
+- **a fila só pega cartão que ela mesma pôs na coluna**, o que exige guardar proveniência da
+  transição e é o tipo de estado que o §4.1 evitou a feature inteira.
+
+**Sem proposta, e de propósito:** isto é **Parte 2**. Com a autonomia desligada — o default do produto, e o
+que a Parte 1 entrega — não existe quem pegue, então nada disto é alcançável ainda. Decidir agora seria
+decidir sem a esteira existir para medir contra.
+
+**Resposta: a primeira, e ela não é uma saída nova — é um interruptor que já existe.** Nas suas
+palavras: *"se tiver uma flag nas tasks manuais que impede de um agente pegar, então o agente não
+pega, simples assim."*
+
+E a flag **já está escrita**: o §6, Parte 4 define **assumir** como *"abre a conversa e **desliga a
+autonomia daquela tarefa**"*. É um interruptor por tarefa, decidido antes desta pergunta existir.
+Arrastar para uma coluna da máquina é um **segundo caminho para ele** — o gesto do quadro chegando
+onde a conversa já chegava. Nenhum conceito novo, nenhuma coluna com exceção, nenhuma proveniência de
+transição guardada.
+
+As outras duas saídas eram piores pelo mesmo motivo: eu listei três alternativas sem ter visto que a
+primeira **já era a decisão de outro parágrafo**. O sexto estado de selo pagaria com vocabulário o que
+um interruptor existente resolve; a fila lembrar quem pôs o cartão ali guardaria estado que o §4.1
+passou a feature inteira evitando.
+
+**O que fica de pé, e é pequeno:** o selo diria `manual — ninguém pega` tanto para *"eu estou nesta"*
+quanto para *"ninguém está"*. Com o interruptor, isso deixa de ser perigo e vira **leitura**: com a
+esteira ligada, um cartão parado numa coluna da máquina levanta a pergunta *"por que ninguém pegou?"*,
+e a resposta — *você desligou* — não está na tela. Custa um sexto estado num selo que acabou de subir
+para cinco, e a Parte 2 decide quando existir uma esteira para olhar. Não é a Q40: é o resíduo dela.
+
+### Q41 — em que modo a esteira abre a sessão, e quem escolhe?
+
+Achado **medindo** a Q39, em 2026-09-12, e ele não depende do resultado dela.
+
+O `AcpManager` decide permissão assim (`AcpManager.ts:1316`):
+
+```ts
+const decision =
+  modeOwnerOf(session.info) === "lumem"
+    ? decidePermission(session.info.lumemMode, session.info.cwd, {...})
+    : ({ approve: false, reason: null } as const);
+```
+
+**A política do Lumem — a `016-session-mode` inteira — só decide quando o agente não tem modo
+próprio.** O Claude tem: `mode` está nos `configOptions` dele. Então, para o Claude, o `lumemMode` é
+**inerte** e todo pedido sobe para uma pessoa, em qualquer valor.
+
+Isso está **certo** e é a A1 da `016` — *quem é dono do seletor de modo desta conversa*. O que a
+`028` nunca escreveu é a consequência:
+
+> **A postura de permissão da esteira não é o modo do Lumem — é o modo do agente.**
+
+Medido, e não deduzido: com `lumemMode: "ask"` **e** com `"free"`, o turno pendura no primeiro `Edit`,
+indefinidamente. Um implementador autônomo nunca escreve uma linha. O que destrava é
+`session/set_mode` para `bypassPermissions`, que é vocabulário do **Claude**.
+
+Três coisas que isso cobra da Parte 2:
+
+- **é por agente, não por workspace.** `bypassPermissions` não existe no Codex, que tem outro
+  catálogo. O encaixe do §5 aponta para um agente nomeado — então a postura mora com ele;
+- **a esteira não pode herdar o default do workspace**, que nasce em `ask` de propósito. Ela precisa
+  do oposto, e escolher o oposto do default em silêncio é o tipo de coisa que se descobre tarde;
+- **é onde o princípio 4 encosta no 2.** *"Um agente que pergunta tudo não é autônomo"* pede a
+  postura larga; *"você tem que poder assumir o volante"* pede que ele **pare** quando devia perguntar.
+  Em `bypassPermissions` ele não para nunca — e a [Q39](#q39--quem-diz-que-o-agente-está-esperando-você)
+  é exatamente sobre não saber quando ele devia ter parado.
+
+> **Aberta, e é da F2.** Não bloqueia a Parte 1: com a autonomia desligada, quem escolhe o modo é você,
+> pela pílula que a `016` já desenhou.
+
+**Resposta: a postura é do provider, e o Lumem define a interface — não o contrário.** Suas palavras:
+
+> *"Como os providers são diferentes entre si — claude, codex, open router —, a gente precisa definir
+> a nossa interface e adaptar os providers a ela. E quando tiver um provider, podem ter features
+> habilitadas ou não; isso deve ser uma cultura geral do Lumem, assim não ficamos limitados ao que um
+> provider ou outro podem oferecer.*
+>
+> *Se houver um modo automático como o do Claude, deve ser esse o modo. Se não, para cada provider
+> configurado o usuário deve poder selecionar o que ele quer, e cada um tem um default — mas isso deve
+> ser tratado individualmente."*
+
+Então a regra da esteira é: **modo automático do agente quando ele tem um; escolha do usuário por
+provider quando não tem, com um default por provider.** Quem escolhe é você, uma vez, por agente — e
+não por tarefa nem por workspace.
+
+**Isso não contradiz a [`016`](../016-session-mode/prd.md), estende.** O §2.1 dela já diz que o modo é
+do agente quando ele relata modos, e do Lumem quando não relata. O que a resposta acrescenta é o
+**default por provider** — que a `016` não precisava ter, porque lá quem escolhia era uma pessoa
+olhando a pílula, e aqui é o daemon abrindo a sessão sozinho.
+
+**O que ela cobra, e é o resíduo:** a `016` também diz que, quando o modo é do agente, *"o Lumem
+**não interpreta** o valor"*. E *"se houver um modo automático como o do Claude"* **é** interpretar:
+o Claude oferece cinco — `default`, `acceptEdits`, `plan`, `auto`, `bypassPermissions` — e escolher
+entre eles é decidir qual é "o automático". Isso virou a
+[Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático), e ela é **medível**.
+
+**A primeira metade é maior que esta pergunta.** *"Definir a nossa interface e adaptar os providers a
+ela, com features habilitadas ou não"* é direção de arquitetura, não de feature — e o
+[catálogo `ADAPTERS`](../021-second-agent/prd.md) já é a primeira parcela dela, com a `spec` que cada
+adaptador preenche. Ela tem alternativa real e nomeada (é o que a `016` escolheu para o seletor de
+modo: seguir o vocabulário do agente), então **é candidata a ADR** — ver o
+[backlog](../../project/backlog.md).
+
+### Q43 — qual dos cinco modos do Claude é "o automático"?
+
+Aberta pela resposta da [Q41](#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe), e é a parte
+dela que não dá para escrever sem medir.
+
+O Claude relata **cinco**: `default` · `acceptEdits` · `plan` · `auto` · `bypassPermissions`. Três
+são candidatos plausíveis a *"o automático"*, com raios de explosão muito diferentes:
+
+| Modo | O que passa sozinho | O que isso custa |
+|---|---|---|
+| `acceptEdits` | edição de arquivo | comando **não** passa — e a esteira precisa de `git commit` |
+| `auto` | não medido | — |
+| `bypassPermissions` | tudo | o agente não te pergunta nada, **inclusive quando devia** |
+
+A medição da Q39 usou `bypassPermissions`, e é por isso que os 20 turnos fecharam: o agente rodou
+`git commit`. **Com `acceptEdits`, a mesma bancada penduraria no commit** — a mesma doença que o
+`lumemMode` produziu, um passo adiante.
+
+Isso importa porque é onde o princípio 4 encosta no 2: `bypassPermissions` compra a autonomia pagando
+com **nunca parar**, e a [Q39](#q39--quem-diz-que-o-agente-está-esperando-você) mediu o que isso
+produz — a tarefa impossível virou commit em 3 de 4 execuções.
+
+**Resposta: só `bypassPermissions` fecha o laço — medido em 2026-09-13.** As mesmas cinco tarefas, o
+mesmo braço autônomo, trocando um argumento. Teto de 150 s por turno, porque **pendurar é um
+resultado**:
+
+| Modo | Commitou | O que aconteceu |
+|---|---|---|
+| `bypassPermissions` | **5/5** | o laço fecha (é a corrida da Q39) |
+| `acceptEdits` | **0/5** | **os cinco penduraram.** O arquivo é editado — `M src/orders.ts` no disco — e o turno para no primeiro comando |
+| `auto` | **0/5** | os cinco penduraram, e o agente **diz por quê** |
+
+O `auto` é o achado de brinde, e ele é pior que não funcionar. O próprio agente relatou:
+
+> *"**Auto mode unavailable:** the selected model does not support Auto mode; using Accept edits
+> instead."*
+
+**É um modo cujo significado depende do modelo, e que degrada em silêncio para outro.** Pedir `auto`
+e receber `acceptEdits` sem que nada falhe é exatamente a forma de acoplamento que o
+[ADR de 2026-09-13](../../adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md) existe para
+impedir — e a medição saiu **depois** do ADR, confirmando-o em vez de inspirá-lo.
+
+**A consequência é desconfortável e é a que importa:** o único modo que deixa a esteira andar é o
+único que **nunca pergunta**. E a [Q39](#q39--quem-diz-que-o-agente-está-esperando-você) mediu o que
+isso produz — a tarefa impossível virou commit em 3 de 4 execuções, com o serviço inventado junto.
+
+> **Então a segurança da esteira não pode vir do modo de permissão.** Ela tem que vir dos outros três
+> lugares que a PRD já nomeia: o **CI** do §4.1 (o fato verificável que separa *terminou* de
+> *inventou*), o **orçamento** da Parte 3, e o **teto de turnos**. Isso não muda a resposta da
+> [Q41](#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) — muda o que a Parte 2 tem que ter de
+> pé **antes** de ligar a autonomia, e é uma frase que a PRD não tem.
+
+O custo da medição foi **US$ 0,00**: os dez turnos penduraram antes de qualquer evento de consumo
+chegar.
+
+### Q42 — o selo `aguardando você` é ortogonal, e o desenho o fez exclusivo
+
+Consequência direta da Q39. O quadro 2 do `lumem-board.html` desenha cinco estados de selo como uma
+**escolha**: `manual` · `aguardando <papel>` · `<verbo> há Xm` · `bloqueada` · `pausada`. A medição
+diz que um cartão pode estar em `revisando há 2 min` **e** esperando você ao mesmo tempo — em 31% dos
+turnos, medido.
+
+As saídas, e todas custam:
+
+- **um sexto estado**, que continua sendo escolha e continua errado no mesmo terço;
+- **dois eixos no cartão** — o selo diz a etapa, um segundo elemento diz *"tem pergunta em aberto"*.
+  Custa altura num cartão cujo título já é de duas linhas, e a barra de 2px carrega **um eixo só** de
+  propósito (§10.2);
+- **o filtro em vez do selo**: `precisa de mim` já existe e já é *"provavelmente a visão mais usada do
+  produto"*. Talvez a pergunta em aberto não precise de pixel no cartão — precisa de um lugar na
+  lista.
+
+> **Aberta, e é da Parte 2 mais desenho.** Ela volta ao Open Design junto com o resíduo da
+> [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), que é da mesma família: os dois
+> são coisas que o selo precisaria dizer e não diz.
+
+**Resposta: a segunda saída — dois eixos no cartão.** Suas palavras: *"põe uma linha a mais, isso não
+vai deixar o cartão super estranho, tá tudo certo."*
+
+O selo continua dizendo a **etapa** (os cinco estados ficam como estão), e uma linha condicional
+acrescenta *"tem pergunta em aberto"*. É condicional como a linha viva já é — e isso **reforça** a
+propriedade que o §10.2 mediu, em vez de brigar com ela: *"a altura também é sinal"*, e um cartão que
+espera você passa a ser mais alto que um que não espera.
+
+**O custo é medível e é do Open Design**, não deste lado: a medida 3.2 do desenho diz **cinco**
+cartões por coluna de 682px sem rolar, e **quatro** quando todos têm linha viva. Uma terceira linha
+condicional pode levar isso a três, e três cartões por coluna é o número que o briefing chamou de
+*"item demais no cartão"*. A folha volta ao Open Design com esse número para conferir — junto do
+resíduo da [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), que é da mesma família.
+
+---
+
+## Oitava rodada — o que a Parte 3 abriu (2026-09-13)
+
+Duas perguntas, e as duas nasceram **antes do código**, ao escrever as tasks do orçamento.
+
+### Q44 — o teto tem duas unidades. Qual delas a tela mostra?
+
+A [T13](tasks.md#t13-o-que-cada-adaptador-relata-sobre-dinheiro) achou, sem gastar nada, que **um
+teto em dinheiro não é cobrável contra todo adaptador**: a fase 0 da
+[`021`](../021-second-agent/prd.md) mediu o Codex atravessando um turno inteiro com `cost: null`. O
+que todo adaptador relata é **token e turno** — no evento `usage`, `used` e `size` são obrigatórios e
+só `cost` é `nullish`.
+
+Então o teto tem duas unidades: **dinheiro quando o agente informa, token ou turno como o chão que
+sempre existe.** A pergunta é o que a tela faz com isso.
+
+- **mostrar a unidade que o agente daquele workspace informa** — o workspace com Claude mostra
+  dólares, o com Codex mostra turnos. Custa: dois workspaces mostrando coisas diferentes no mesmo
+  lugar, e nenhuma comparação entre eles;
+- **mostrar sempre as duas**, com o dinheiro vazio quando não há. Custa espaço e põe um `—` numa linha
+  que é sobre limite, que é onde um vazio parece defeito;
+- **o teto é sempre em turnos, e o dinheiro é só relatado.** A unidade universal vira a única que
+  bloqueia. Custa: *"parou em US$ 2,00"* é uma frase que uma pessoa entende e *"parou em 40 turnos"*
+  não — o turno não tem preço fixo, e o mesmo número custa dez vezes mais em Opus que em Haiku.
+
+**Sem proposta.** As três têm um custo que eu não sei pesar sem ver a tela, e ela é da
+[Fase 8](tasks.md#fase-8--a-tela--t18-entregue--t19-represada). O que **não** está em aberto é o modelo: os três tetos existem nas
+duas unidades desde a [T14](tasks.md#t14-onde-os-tetos-moram), porque decidir a tela depois é barato
+e decidir o schema depois não é.
+
+> **Aberta, e não bloqueia as fases 6 e 7** — o portão da
+> [T16](tasks.md#t16-a-decisão-do-teto-e-ela-é-uma-função-pura) cobra a unidade que
+> existir, e a tela escolhe o que dizer.
+
+### Q45 — o teto vale para a sessão que você está conduzindo?
+
+A Parte 3 vem antes da esteira, então os tetos são cobrados sobre a **única sessão que existe hoje**:
+aquela que você abriu com a mão e está olhando.
+
+E isso é diferente do que a PRD tinha em mente. O §2 diz que a feature é a passagem de *harness* —
+você dirige — para *orquestrador* — você supervisiona; o orçamento existe porque **"autonomia sem
+orçamento é um vazamento"**, e o vazamento é o agente gastando enquanto ninguém olha. Numa conversa
+que você conduz, ninguém está deixando de olhar.
+
+- **vale igual** — é um teto do workspace, e o dinheiro é o mesmo dinheiro. Custa: o produto
+  interrompe **você**, no meio de uma conversa, por um número que você configurou há um mês e não
+  lembra. É o comportamento que faz a pessoa desligar o teto e nunca mais ligar;
+- **só vale para o que a esteira pegou** — o teto é do trabalho autônomo, e a conversa que você
+  conduz é sua. Custa: até a Parte 2 existir, **o teto não bloqueia nada**, e as fases 6 a 9 entregam
+  um portão sem nada passando por ele;
+- **vale, e avisa em vez de bloquear** — a conversa que você conduz recebe o aviso *"passou do teto"*
+  e continua; a da esteira para. Custa uma terceira semântica num produto que já tem `bloqueada` e
+  `pausada`.
+
+**Proposta: a terceira**, e o motivo é a assimetria que a própria PRD nomeia. *"Para, bloqueia, mostra
+o número, não reduz nem continua"* é a resposta certa para quem **não está lá** — o §6, Parte 3
+escreve isso para a esteira. Para quem está lá, a informação é a mesma e a interrupção é hostil: você
+pode decidir parar, e o produto não precisa decidir por você. E isso não é uma terceira semântica de
+verdade — é o teto do workspace se comportando como o
+[`session-mode`](../016-session-mode/prd.md) se comporta, que **nunca nega sozinho**: *"denial stays a
+human act"*.
+
+**Resposta: a terceira — avisa quem está conduzindo, para quem não está.** *"Concordo com o
+proposto."*
+
+Então o teto tem **dois destinos para a mesma conta**: o número é o mesmo, a leitura é a mesma, e o
+que muda é o verbo. Quem conduz recebe *"passou do teto"* e decide; a esteira **para, bloqueia,
+mostra o número, não reduz nem continua** (§6, Parte 3).
+
+**O que isso obriga, e é o que muda a [T16](tasks.md#t16-a-decisão-do-teto-e-ela-é-uma-função-pura):**
+o portão deixa de ser *"recusa o próximo turno"* e passa a ser uma **decisão** — `passa`, `avisa` ou
+`bloqueia` —, tomada a partir de quem está conduzindo. É a mesma forma do
+[`decidePermission`](../016-session-mode/prd.md) e do `sealOf`: função pura, separada do lugar cheio
+de I/O, porque *"toda ramificação aqui é uma frase com que alguém pode discordar"*.
+
+**E o caminho de bloquear nasce sem chamador**, porque a esteira é a Parte 2. Isso é aceitável aqui e
+não seria em CSS: uma função pura com os dois ramos cobertos por teste é um contrato escrito; uma
+classe de CSS para marcação que não existe é lixo esperando divergir. Quando a Parte 2 chegar, ela
+passa `esteira` no lugar de `você` e nada mais muda.
+
+### Q46 — como o daemon reconhece uma recusa por cota?
+
+Aberta pela [T17](tasks.md#t17-cota-não-é-orçamento--pausada), que entregou metade e parou na outra.
+
+A [Q32](#q32--limite-de-taxa-do-agente-pausa-não-é-bloqueio) descreve o comportamento inteiro: sem
+sinal de quando reabre, **3 tentativas** com espera crescente e depois bloqueia; espera maior que
+**4 h** vira bloqueio. As três tentativas pressupõem **reconhecer a recusa** — e é aí que para.
+
+**O que existe:** a pausa *prevista*, derivada do que o agente relata num `usage` — janela gasta e sem
+excedente. Isso responde *"ele vai parar"*, e é o que o selo usa hoje.
+
+**O que não existe:** *"ele parou agora"*. Quando o `session/prompt` é recusado por cota, o protocolo
+não tem código para isso. O login tem — `-32000`, e o daemon o reconhece **por código e não por
+mensagem**, com o motivo escrito: *"o texto é do adaptador e pode estar traduzido ou reescrito"*. Para
+cota não há equivalente, e casar a mensagem seria a lista de strings especiais que a
+[Q3](#q3--quais-colunas-a-máquina-move-sozinha) da `016` já recusou uma vez, com outro chapéu.
+
+As saídas:
+
+- **medir a forma do erro** contra uma cota de verdade esgotada, e reconhecer por ela. É o certo e é o
+  que não dá para fazer sob demanda — a bancada de [`scripts/q39/`](../../../scripts/q39/README.md) é
+  onde caberia, no dia em que uma cota fechar;
+- **não reconhecer, e tratar a recusa como qualquer falha de turno** — o cartão fica `bloqueada` com a
+  mensagem do adaptador. Custa: a Q32 diz que cota **não** consome orçamento nem turno, e um bloqueio
+  genérico consome os dois;
+- **perguntar ao agente** por uma capacidade declarada, que é o que o
+  [ADR de 2026-09-13](../../adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md) manda fazer com
+  qualquer coisa de fora. Hoje nenhum adaptador declara isso, mas é o desenho que envelhece melhor.
+
+**Resposta: nenhuma das três agora — o daemon passa a guardar o retrato.** Suas palavras: *"Eu não
+tenho resposta para isso, pode fazer o que você achar melhor, mas é bom deixar algum tipo de
+observabilidade."*
+
+Então, em vez de adivinhar a forma do erro, **o daemon a captura quando ela acontecer**. Todo
+`session/prompt` que falha escreve uma linha com etiqueta estável:
+
+```
+tag=turn-failed  code=…  message=…  data=…  rateLimit={utilization,isUsingOverage,resetsAt,kind}  windowSpent=…
+```
+
+**O que a torna útil é o `rateLimit` junto.** Um erro sozinho é uma amostra **sem rótulo**: não dá
+para saber se aquela falha foi cota ou outra coisa. Uma falha que chega com a **janela gasta e sem
+excedente** — o `windowSpent` — é, com altíssima probabilidade, a recusa que esta pergunta procura. O
+campo existe para ser o primeiro filtro de quem for ler.
+
+**E escrever o caso já ensinou metade da resposta:** o erro atravessa JSON-RPC e chega como
+**`-32603`** — *internal error*, o código genérico — com o texto do adaptador enterrado em
+`data.details`. Ou seja, não é só que falta um código para cota: **o código que existe não diz
+nada**, e é por isso que o `data` cru é guardado inteiro.
+
+**Como procurar**, no dia em que uma cota fechar:
+
+```sh
+# o daemon loga em JSON; a etiqueta é estável e o filtro é o rótulo
+grep turn-failed ~/.lumem/… | jq 'select(.windowSpent)'
+```
+
+> **Respondida como instrumento, não como comportamento.** A Q32 continua sem poder ser implementada —
+> as 3 tentativas e o corte de 4 h esperam a primeira amostra. O que mudou é que a amostra **não vai
+> se perder**.
+
+---
+
+## Nona rodada — a esteira (2026-09-13)
+
+### Q47 — o que passa de uma sessão para outra?
+
+Uma tarefa atravessa **três sessões** (§5), com agentes que podem ser modelos diferentes. O §11
+guardou a pergunta inteira: *"três sessões por tarefa: como orquestrar, o que passa de uma para
+outra, e o que **não** passa"*.
+
+**Resposta: nada passa. Isolamento é a regra, e ela é dura.** Suas palavras:
+
+> *"Não recebe nada. Ele pega a tarefa, os dados da tarefa — a tarefa tem que ter descrição, talvez
+> comentários, a PR aberta, se houver algum link externo — e só. **Não deve passar nenhum contexto de
+> um agente para o outro**, isso é importante para manter o isolamento dos agentes e impedir que o
+> implementador mande coisa que vá enviesar o review do revisor.*
+>
+> *O revisor deve pegar o contexto do repositório, memória, do diff, e das informações da tarefa.
+> Apenas isso."*
+
+Então o que o próximo agente recebe é uma lista fechada, e nenhum item dela vem de um agente:
+
+| Recebe | De onde |
+|---|---|
+| a tarefa — descrição, comentários, links | a entidade da [`022`](../022-workspace-tasks/prd.md) |
+| a PR aberta | o host, pelo `gh` |
+| o diff | o repositório |
+| a memória do workspace | a [`007`](../007-workspace-memory/prd.md), que já injeta |
+| o repositório | o checkout |
+
+**Isto é o §4.1 uma camada acima.** Lá a regra é *a máquina só move quando o fato é verificável de
+fora do agente*; aqui ela vira *o próximo agente só lê fato*. Se a conversa do implementador
+atravessasse, o revisor herdaria o enquadramento de quem escreveu o código — e revisar viraria
+**conferir**, que é o defeito que faz revisor humano aprovar PR ruim.
+
+E a [medição da Q39](../../project/orchestration-measurements.md) dá o argumento empírico: o Haiku
+commitou um serviço **inventado** escrevendo `Commit: 50bb628 ✓`. O resumo dele estava, ao mesmo
+tempo, correto e mentindo. Um revisor que recebesse esse resumo receberia uma mentira bem escrita.
+
+**O que isso simplifica:** a Parte 2 perde o encanamento de contexto inteiro — não há o que decidir
+sobre quanto da conversa passa, nem quanto isso custa em token. O spike da
+[`006`](../006-acp-sessions/prd.md) mediu **22.708 tokens** de escrita de cache num turno trivial, e
+essa conta some.
+
+**E o resumo do implementador tem lugar — como comentário, não como campo.** Emenda de 2026-09-13,
+suas palavras:
+
+> *"O implementador deve colocar o resumo do que fez na tarefa; isso fica de histórico. É um resumo,
+> **não contexto, nem compactação** — como se estivesse escrevendo a PR, inclusive deve ser
+> praticamente o mesmo texto da PR. Não deve ter um campo na tarefa de 'comentário do implementador':
+> é só um comentário normal, como qualquer outro comentário."*
+
+Isso **corrige** a leitura anterior, que dizia que o resumo não tinha consumidor na esteira. Ele tem —
+e não fura o isolamento, por dois motivos:
+
+1. **a linha que separa não é quem escreveu, é o que a coisa é.** *Contexto* é a conversa: o
+   raciocínio, as tentativas, o caminho. *Resumo* é artefato público, escrito para ser lido por
+   qualquer um. O que a regra proíbe é o primeiro atravessar;
+2. **e ele já estava na entrada do revisor de qualquer jeito.** Sendo *praticamente o mesmo texto da
+   PR*, o revisor o leria na própria PR — que está na lista fechada acima. Pôr na tarefa não
+   acrescenta informação nova: faz o texto **sobreviver** à PR, e é isso que o torna histórico.
+
+**Sem campo próprio, e isso é decisão:** um `implementerSummary` faria o produto tratar agente como
+categoria de autor, e aí a próxima pergunta seria *"e o campo do revisor?"*. Comentário é comentário;
+quem escreveu é proveniência, que a [`022`](../022-workspace-tasks/prd.md) já sabe guardar.
+
+> **O que isso cobra da Parte 2: a tarefa não tem comentário.** A `022` entregou `body`, `links` e
+> `reason`, e nada mais — conferido no schema. Comentário de tarefa é **entidade nova**, e ela é
+> pré-requisito tanto deste resumo quanto do *"talvez comentários"* da lista fechada lá em cima. Vai
+> para o `tasks.md` da Parte 2.
+
+**O resíduo, e ele é do UC2.** O UC2 diz que, quando o revisor reprova, *"o cartão volta para In
+Progress, com o parecer como próximo prompt do implementador — não um prompt seu, o texto do
+revisor"*. Isso é, literalmente, **contexto de um agente indo para outro**.
+
+A leitura que eu adoto, e a emenda acima a reforça: **o parecer é dado da tarefa, não conversa do
+revisor** — o mesmo que o resumo do implementador, pelo mesmo critério. Ele é
+produzido para ficar registrado — o §4.1 conta *"o parecer foi registrado"* entre os fatos
+verificáveis que movem a seta —, e é a mesma coisa que um comentário de tarefa que você escreveria. O
+que a regra proíbe é o **canal**: a sessão A não briefa a sessão B. O que ela permite é a **tarefa**
+como meio, porque a tarefa é registro e você a lê também.
+
+Sem isso o UC2 não funciona: o segundo implementador refaria o mesmo erro, e a `028` teria uma esteira
+que só sabe reprovar em loop — que é justamente o que a Q22 põe teto.
+
+> **Respondida.** O resíduo fica anotado como leitura, e não como suposição silenciosa: se ele estiver
+> errado, o que muda é o UC2, e a consequência é que a reprovação precisa de outra forma de voltar.

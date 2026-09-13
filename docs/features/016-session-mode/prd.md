@@ -71,6 +71,20 @@ de uma barra vazia.
 **A pílula tem que dizer qual dos dois é**, porque as consequências são diferentes: o modo do agente
 muda o que ele *tenta fazer*; o do Lumem muda o que *passa*. Ver [Q2](open-questions.md).
 
+> **Nota — *"o Lumem não interpreta o valor"* foi contradito em 2026-09-13**, pelo
+> [ADR do modelo ser nosso](../../adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md). O motivo
+> é medição, não preferência: a
+> [Q41 da `028`](../028-autonomous-orchestration/open-questions.md#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe)
+> precisou perguntar *"este agente sabe trabalhar sozinho?"* para a esteira abrir a sessão, e sem uma
+> noção própria de postura o produto **não consegue nem formular a pergunta** — `bypassPermissions` é
+> vocabulário do Claude e não existe no Codex. O Lumem passa a ter a noção, e o mapeamento é
+> declarado na `spec` de cada adaptador.
+>
+> **O resto desta seção fica inteiro de pé:** os dois donos continuam existindo, a pílula continua
+> dizendo de quem é a regra, e a distinção que o parágrafo acima faz — o modo do agente muda o que ele
+> *tenta fazer*, o do Lumem muda o que *passa* — é justamente o que torna a tradução possível sem
+> mentir. Interpretar não é substituir: o `session/set_mode` continua levando o valor do agente.
+
 ### 2.2 A política do Lumem, quando é dele
 
 Três valores, que é o que a anotação pede:

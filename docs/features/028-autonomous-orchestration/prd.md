@@ -1,15 +1,29 @@
 # PRD — O orquestrador autônomo: o quadro, a esteira e os três agentes
 
-> **Status:** proposta
+> **Status:** em execução
 > **Histórico:** v0.1 — rascunho em 2026-09-11. **v0.2, no mesmo dia:** as 20 perguntas respondidas e o
 > documento reescrito em cima delas, mais o §3 com **oito casos de uso**, que é por onde se lê.
 > **v0.3 e v0.4, ainda no mesmo dia:** mais duas rodadas de respostas, com duas mudanças estruturais —
 > **a coluna deixou de ser quem move a seta** (§4.1, resposta a uma pergunta sua que achou um buraco em
 > três das seis colunas) e **o papel deixou de ser uma constante para virar um encaixe que aponta para
 > um agente nomeado** (§5, no espírito do Compozy)
-> **Perguntas:** [open-questions.md](open-questions.md) — **33 perguntas, todas respondidas**, em
-> quatro rodadas no mesmo dia. Seis foram respondidas contra a proposta
-> **Tasks:** ainda não — falta o desenho no Open Design (§10) e a conversa técnica (§11)
+> **Perguntas:** [open-questions.md](open-questions.md) — eram **33, todas respondidas** na v0.4, em
+> quatro rodadas no mesmo dia. Seis foram respondidas contra a proposta. O total atual está no fim
+> deste bloco
+> **Tasks:** [tasks.md](tasks.md), aberto em **2026-09-12** e **só com a Parte 1** — o quadro lendo a
+> `022`, com a autonomia desligada. O §0 de lá registra o corte: seis das nove conversas do §11
+> continuam guardadas, e duas delas não têm resposta — uma exige ADR novo. A Parte 1 não depende de
+> nenhuma. **As 12 tasks das cinco fases estão entregues**: o desenho sincronizado, o
+> [estudo](../../project/orchestration-measurements.md) escrito, o modelo já comportando as sete
+> colunas com a ordem dentro de cada uma, a leitura — uma chamada, sete colunas, selo derivado — e a
+> tela, mais o e2e do quadro — quatro casos e **zero token**, com o selo provado **derivado**: o turno
+> some da lista e ele volta na leitura seguinte, sem nenhuma escrita
+> **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md),
+> 2026-09-12 — e ele mudou duas coisas antes de existir código. **`end_turn` não distingue
+> *"terminei"* de *"te perguntei"***: dos 13 turnos gravados neste repositório, **4** significaram
+> terminei, e três eram o turno morrendo no meio do trabalho. E **o modelo da `022` não comporta o
+> quadro**: sete colunas contra quatro estados úteis, com `Backlog`/`To-Do` colapsando na fronteira
+> de autorização
 > **Depende de:** [workspace-tasks](../022-workspace-tasks/prd.md), que vinha antes
 > ([Q1](open-questions.md#q1--esta-prd-absorve-a-022-workspace-tasks): empilha, não absorve) e está
 > **entregue desde 2026-09-12**. A entidade existe, com custo por tarefa, `in_progress` derivado do
@@ -25,7 +39,27 @@
 > em 2026-09-12**, todas na proposta: o encaixe se chama **`implementador`**, o rodapé da sidebar vira
 > **`Adaptadores`**, o bloqueio de orçamento **nomeia qual teto segurou**, e abaixo de 1418px o quadro
 > **rola na horizontal e diz que está rolando**
-> **Perguntas:** **37, todas respondidas**
+> **Perguntas:** **47, e 45 respondidas** — as três da sexta rodada vieram de **ler o código
+> entregue**. A [Q38](open-questions.md#q38--arrastar-para-in-progress-se-ele-é-derivado) é a única do
+> documento que nunca precisou existir: a Q3 já a respondia, e a premissa dela estava errada também —
+> o arrasto para `In Progress` **já funcionava**, sem teste nenhum cobrindo. O que sobrou dela é a
+> [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), **respondida em
+> 2026-09-12**: o interruptor que ela pedia já existia no §6, Parte 4. A
+> [Q39](open-questions.md#q39--quem-diz-que-o-agente-está-esperando-você) foi **respondida medindo**
+> — 20 turnos, US$ 4,60 —, e a resposta é que ela estava **mal formada**: `terminou` e `te perguntou`
+> não são exclusivos, e 31% dos turnos que commitaram deixaram pergunta em aberto. As duas abertas
+> são a [Q41](open-questions.md#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) — o
+> `lumemMode` é **inerte** para um agente com modo próprio — e a
+> [Q42](open-questions.md#q42--o-selo-aguardando-você-é-ortogonal-e-o-desenho-o-fez-exclusivo), que é
+> o que a Q39 abriu — **as duas respondidas em 2026-09-13**. A nona rodada tem uma pergunta só e ela
+> é da Parte 2: a [Q47](open-questions.md#q47--o-que-passa-de-uma-sessão-para-outra) decidiu que
+> **nada passa de uma sessão para outra** — nem resumido —, o que faz o encanamento de contexto da
+> esteira **deixar de existir**. A resposta da Q41 criou a
+> [Q43](open-questions.md#q43--qual-dos-cinco-modos-do-claude-é-o-automático), fechada **medindo** no
+> mesmo dia: dos cinco modos do Claude, **só `bypassPermissions` fecha o laço** — `acceptEdits` edita
+> o arquivo e pendura no primeiro comando, e `auto` nem existe para todo modelo. O único modo que
+> deixa a esteira andar é o único que **nunca pergunta**, então **a segurança dela não pode vir do
+> modo de permissão**
 
 ---
 
@@ -119,7 +153,15 @@ vazia — funciona, e contraria o contrato da API que o resto do sistema espera.
 
 **O que acontece.** O revisor reprova, e o parecer é específico: *"o contrato de `/orders` diz 400
 para carrinho vazio; isto devolve 200"*. O cartão **volta para In Progress**, com o parecer como
-próximo prompt do implementador — não um prompt seu, o texto do revisor. O implementador corrige,
+próximo prompt do implementador — não um prompt seu, o texto do revisor.
+
+> **Nota — este é o único lugar em que texto de um agente alcança outro, e a
+> [Q47](open-questions.md#q47--o-que-passa-de-uma-sessão-para-outra) explica por que ele não é
+> exceção.** O parecer é **dado da tarefa**, não conversa do revisor: ele é produzido para ficar
+> registrado, e o §4.1 já conta *"o parecer foi registrado"* entre os fatos que movem a seta. O que a
+> regra do isolamento proíbe é o **canal** — a sessão A não briefa a sessão B; o que ela permite é a
+> **tarefa** como meio, porque tarefa é registro e você a lê também. Sem isso este caso de uso não
+> existe: o segundo implementador refaria o mesmo erro, e a esteira só saberia reprovar em loop. O implementador corrige,
 abre o push de novo, o CI roda, volta para In Review. O revisor aprova. Segue.
 
 Se reprovasse de novo, e de novo, a tarefa **bloqueia na segunda volta** e chama você — porque dois
@@ -293,6 +335,21 @@ Duas regras que explicam a tabela inteira:
 **Você pode arrastar para qualquer coluna, sempre** — inclusive para as da máquina, que é como se diz
 *"estou fazendo isto na mão"*. A restrição é só de mão única: a máquina nunca move para as suas.
 
+> **Nota — o "sempre" fica, e já funcionava.** A [`022`](../022-workspace-tasks/prd.md) fez
+> `in_progress` ser **derivado** do primeiro prompt de uma sessão ligada à tarefa, e isso parece
+> proibir o arrasto. Não proíbe: só o **agente** tem allowlist, você não — arrastar para `In
+> Progress` já era possível antes desta feature, e a coluna é a etapa enquanto o selo é quem está
+> nela (§4.1), então um cartão posto à mão desenha `In Progress` com `manual — ninguém pega`. A
+> [Q38](open-questions.md#q38--arrastar-para-in-progress-se-ele-é-derivado) registra o caminho
+> errado que eu percorri até aqui, porque a propriedade era verdadeira **por acidente**: não havia um
+> único teste sobre ela. A [T4](tasks.md#t4-quem-escreve-cada-estado-do-quadro) escreveu cinco.
+>
+> **O que a Q38 abriu é da esteira, não desta seção:** com a autonomia ligada, a regra da fila do
+> §4.1 — *todo cartão cuja etapa é devida e que não tem trabalhador* — descreve **também** o cartão
+> que você arrastou para trabalhar na mão, e o daemon o pegaria. É a
+> [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), **aberta e
+> represada até a Parte 2**, e anotada no §4.1 junto da regra que a produz.
+
 **Bloqueada não é coluna, é selo.** Uma tarefa travada no meio da revisão *está* na revisão — uma
 sétima coluna de bloqueio faria o quadro mentir sobre o progresso. O selo mora no cartão, e existe o
 filtro **"precisa de mim"**, que é provavelmente a visão mais usada do produto.
@@ -309,6 +366,13 @@ Três frases resolvem, e nenhuma delas custa uma coluna nova:
 1. **Quem move é o daemon — nunca um agente.** Ele observa um fato verificável (a PR existe, o CI
    ficou verde, o parecer foi registrado) e move. Nem o implementador "entrega", nem o revisor "pega e
    move". Agente não escreve no quadro;
+
+   > **Nota — e nem todo fato verificável serve.** A tarefa *impossível* da medição pedia um serviço
+   > que não existe, e **3 de 4 execuções inventaram o serviço e commitaram**. O commit é verificável
+   > de fora do agente e mesmo assim separa *"escreveu alguma coisa"* de *"não escreveu nada"* — não
+   > *"terminou"* de *"desistiu inventando"*. Quem separa é **o CI**, que esta lista já nomeia. A
+   > consequência que falta escrever: **a força da esteira é a força da suíte do projeto**, e num
+   > repositório sem teste ela não tem como saber que o implementador inventou.
 2. **A coluna é a etapa; o cartão diz quem está nela.** `aguardando revisor` por 40 segundos, depois
    `revisando há 2 min`. É a mesma decisão que o §4 já tomou para `bloqueada` — situação é selo,
    etapa é coluna — e o selo é **derivado** de existir uma sessão viva com a tarefa reivindicada, o
@@ -318,9 +382,34 @@ Três frases resolvem, e nenhuma delas custa uma coluna nova:
    devolveu. Uma regra, nenhum caso especial — e ela **puxa da direita para a esquerda**, porque
    terminar vale mais que começar.
 
+> **Nota — a regra precisa da palavra "e a autonomia dela está ligada".** Um cartão arrastado para
+> uma coluna da máquina (§4, e a Q3 que o permite) tem etapa devida e nenhum trabalhador: pela frase
+> acima, **a fila o pegaria**, e o daemon começaria a gastar em cima do trabalho que é seu. Isto é a
+> [Q40](open-questions.md#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), **respondida**:
+> o interruptor que resolve **já existe** — o §6, Parte 4 define **assumir** como *"abre a conversa e
+> desliga a autonomia daquela tarefa"* —, e arrastar para uma coluna da máquina é um segundo caminho
+> para ele.
+>
+> **A regra fica de pé, inclusive *"uma regra, nenhum caso especial"***: a autonomia por tarefa não é
+> exceção da fila, é uma condição dela, do mesmo jeito que o teto e o orçamento são. O que sobrou é
+> de tela e é pequeno — o selo diz `manual — ninguém pega` tanto para *"eu estou nesta"* quanto para
+> *"ninguém está"*, e com a esteira ligada isso vira uma pergunta sem resposta na tela. Custa um
+> sexto estado de selo, e a Parte 2 decide.
+
 **Não existe garantia de que alguém já pegou — existe visibilidade de que ninguém pegou**, que é o
 que você consegue agir sobre. O selo tem quatro estados: `aguardando <papel>` · `<papel> trabalhando
 há Xm` · `bloqueada: <motivo>` · `pausada até ~HH:MM`.
+
+> **Nota — os estados são uma escolha, e a medição diz que um deles não é.** Vinte turnos com token de
+> verdade (o [§4bis do estudo](../../project/orchestration-measurements.md)) mostraram que
+> **`terminou` e `te perguntou` não são exclusivos**: 6 dos 19 turnos que commitaram — **31%** —
+> deixaram uma pergunta ou uma oferta em aberto *no mesmo turno*. Então `aguardando você` não é
+> alternativa a ter andado; é **ortogonal**. Um selo que escolhe entre os dois erra em quase um terço
+> dos turnos. Isto é a
+> [Q42](open-questions.md#q42--o-selo-aguardando-você-é-ortogonal-e-o-desenho-o-fez-exclusivo),
+> **aberta**, e ela volta ao Open Design com a F2. **O resto do parágrafo fica de pé**: a frase que
+> abre continua sendo o ponto, e os quatro estados continuam certos — o que falta é um eixo, não uma
+> correção neles.
 
 > **Nota — o desenho contradiz este parágrafo em duas coisas, e as duas estão em
 > `lumem-board.html` (quadro 2).** **(a) São cinco estados, não quatro:** falta
@@ -345,7 +434,7 @@ visível.
 
 Isto é a [Q30](open-questions.md#q30--a-coluna-é-a-etapa-e-quem-está-nela-é-um-selo), **respondida**:
 as sub-colunas `ready to review` e `ready to test` não entram. O custo que fica de pé — um selo se vê
-menos que uma coluna — está no §8, e a defesa dele é o relógio de encalhe do §6/F4.
+menos que uma coluna — está no §8, e a defesa dele é o relógio de encalhe do §6, Parte 4.
 
 ### 4.2 O cartão
 
@@ -381,6 +470,27 @@ A parte mais estruturante das suas respostas, e a que não estava na v0.1:
 | **implementador** | escreve o código, commita, empurra, abre a PR | o corpo da tarefa | commits, PR, e um resumo do que fez |
 | **revisor** | lê o diff contra a intenção, as regras do repositório e a memória do workspace | o diff + o corpo da tarefa | aprova ou reprova, **com parecer** |
 | **testador** | **usa o produto como usuário** — clica a UI, chama o endpoint, procura borda | acesso ao workspace inteiro, e se vira | passa ou reprova, com o passo a passo |
+
+> **Nota — nada passa de uma sessão para outra**
+> ([Q47](open-questions.md#q47--o-que-passa-de-uma-sessão-para-outra), respondida em 2026-09-13). A
+> coluna *"o que recebe"* é uma **lista fechada**, e nenhum item dela vem de um agente: a tarefa
+> (descrição, comentários, links), a PR, o diff, o repositório e a memória do workspace. A conversa
+> do anterior **não** atravessa, nem resumida — *"para impedir que o implementador mande coisa que vá
+> enviesar o review do revisor"*.
+>
+> **Isso é o §4.1 uma camada acima:** lá a máquina só move por fato verificável de fora do agente;
+> aqui o próximo agente só **lê** fato. E a medição da Q39 dá o argumento empírico — o Haiku commitou
+> um serviço inventado escrevendo `Commit: 50bb628 ✓`, e um revisor que recebesse aquele resumo
+> receberia uma mentira bem escrita.
+>
+> **A consequência nesta tabela:** *"um resumo do que fez"* vira um **comentário da tarefa**, como
+> qualquer outro — sem campo próprio, e *"praticamente o mesmo texto da PR"*. Ele não fura o
+> isolamento porque **contexto é a conversa** e resumo é artefato público, e porque o revisor o leria
+> na própria PR de qualquer jeito; pôr na tarefa faz o texto **sobreviver** à PR. O resto da tabela
+> fica inteiro de pé.
+>
+> **E isso cobra uma entidade que não existe:** a [`022`](../022-workspace-tasks/prd.md) entregou
+> `body`, `links` e `reason` — **a tarefa não tem comentário**. É pré-requisito da Parte 2.
 
 ### 5.1 Encaixe não é agente
 
@@ -449,7 +559,14 @@ depois, rodam de novo. Ele não opina — só deixa passar ou não.
 
 ## 6. Escopo
 
-### F1 — O quadro
+> **Seis partes, e elas não são as fases do [`tasks.md`](tasks.md).** As partes são pedaços de
+> **produto**; as fases são etapas de **construção** (*modelo → leitura → tela → portão*). Um
+> `tasks.md` executa **uma** parte, nas fases dele — então "Parte 3" e "Fase 3" são coisas diferentes,
+> e este documento passou a escrever as duas por extenso. Até 2026-09-13 as partes se chamavam
+> `F1`..`F6`, e uma citação antiga — `§6/F4`, ou uma sub-referência como `F2.6` — quer dizer a parte
+> de mesmo número.
+
+### Parte 1 — O quadro
 
 As colunas do §4 na tela do workspace, com o cartão do §4.2 e o selo do §4.1, arrastar, filtro por
 projeto, por agente e por "precisa de mim", a ordem como prioridade, e os dois limiares de encalhe — **30 min / 2 h** nas etapas da máquina,
@@ -464,7 +581,7 @@ coluna abaixo de 200 não é saída: o título vira três linhas e a linha viva 
 **Este é o primeiro requisito de largura mínima do produto**, e ele existe porque o quadro é a
 primeira tela que precisa mostrar sete coisas ao mesmo tempo.
 
-### F2 — A esteira
+### Parte 2 — A esteira
 
 O daemon **puxa da fila sem ninguém pedir** — e a fila é *todo cartão cuja etapa é devida e que não
 tem trabalhador* (§4.1), da direita para a esquerda, respeitando o teto e o orçamento. Para um cartão
@@ -486,7 +603,7 @@ O daemon é também **quem move a seta**, sempre por fato verificável, e nunca 
 O `assistido` é o degrau que torna a feature adotável: você vê o que ele *ia* fazer, dez vezes, antes
 de deixar ir sozinho.
 
-### F3 — Orçamento e limites
+### Parte 3 — Orçamento e limites
 
 Teto de custo **por tarefa**, teto de custo **por dia** no workspace, e teto de **turnos** por
 sessão. Ao estourar: para, bloqueia, mostra o número, **não** reduz nem continua, e a worktree fica.
@@ -508,7 +625,7 @@ mora ([Q36](open-questions.md#q36--qual-dos-dois-tetos-segurou)).
 
 > Estes números nascem como experimento, e a sua resposta à Q6 registra isso: eles vão mudar com uso.
 
-### F4 — Supervisão, bloqueio e o volante
+### Parte 4 — Supervisão, bloqueio e o volante
 
 Os quatro estados do selo (§4.1) com o motivo em uma frase · notificação no Lumem e no sistema
 operacional, **uma vez, sem repetir** · **assumir** (abre a conversa e desliga a autonomia daquela
@@ -523,7 +640,7 @@ isso é desenho, não problema —, esperar **você** cobra.
 interruptor *"PR mesclada sempre remove a worktree"* liga o primeiro caso para o segundo também, e o
 texto dele diz o que você está autorizando ([Q27](open-questions.md#q27--done-remove-a-worktree-e-se-estiver-suja)).
 
-### F5 — De onde as tarefas vêm
+### Parte 5 — De onde as tarefas vêm
 
 Quatro entradas, **um** quadro: você · um agente (para outro projeto, como proposta — UC8) · **um
 tracker externo** · agendada (fora da v1, e anotada no backlog: *"é bem importante"*).
@@ -533,7 +650,7 @@ não permitir, e a tarefa cai **direto na To-Do** — o default é executar, e q
 configura. Linear é o primeiro; ClickUp, Jira e o resto entram pela mesma porta, sem um campo, uma
 coluna ou uma tela que a entrada manual não tenha.
 
-### F6 — O que o tracker vê acontecer
+### Parte 6 — O que o tracker vê acontecer
 
 Comentário nos marcos: *"peguei"*, *"PR #87 aberta"*, *"travei em X"*, *"pronta para mesclar"*. E,
 atrás de um mapa de colunas explícito por projeto, **mover o estado lá** conforme a coluna aqui.

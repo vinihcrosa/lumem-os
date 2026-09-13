@@ -50,10 +50,42 @@ export const workspace = sqliteTable(
      * modo de falha que ninguém percebe.
      */
     defaultLumemMode: text("default_lumem_mode").notNull().default("ask"),
+    /**
+     * Os três tetos do workspace (`028` §6, Parte 3 — T14).
+     *
+     * **`NULL` é *sem teto*, e `0` é *bloqueia tudo*.** São coisas diferentes e
+     * as duas são escrevíveis de propósito: um workspace que nunca pediu teto
+     * não pode ganhar um na migração — o §6 da PRD já diz que os interruptores
+     * que gastam token nascem desligados —, e quem quer parar tudo por um
+     * momento tem como dizer isso sem apagar o número que configurou.
+     *
+     * Um único `DEFAULT NULL` é o que faz a migração não mudar o comportamento
+     * de ninguém. Um teto que nasce valendo transformaria o produto de todo
+     * mundo num produto que recusa trabalho.
+     *
+     * **Duas unidades, e não uma** (T13): dinheiro só é cobrável contra um
+     * adaptador que o relata, e a fase 0 da `021` mediu o Codex atravessando um
+     * turno inteiro com `cost: null`. Token e turno chegam sempre — no evento
+     * `usage`, `used` e `size` são obrigatórios e só `cost` é `nullish`. Um
+     * produto que só soubesse cobrar em dólar deixaria um workspace com Codex
+     * rodando **sem teto nenhum**, sem nada na tela dizendo isso.
+     */
+    budgetCostPerTask: real("budget_cost_per_task"),
+    budgetCostPerDay: real("budget_cost_per_day"),
+    /** O chão que todo adaptador informa, e o único que não depende de moeda. */
+    budgetTurnsPerSession: integer("budget_turns_per_session"),
     ...timestamps,
   },
   (table) => [
     check("workspace_default_lumem_mode", sql`${table.defaultLumemMode} IN ('ask', 'auto')`),
+    // Negativo não é "sem teto" — `NULL` é. Um número negativo aqui seria um
+    // teto que nunca passa escrito de um jeito que ninguém lê como isso.
+    check(
+      "workspace_budget_not_negative",
+      sql`(${table.budgetCostPerTask} IS NULL OR ${table.budgetCostPerTask} >= 0)
+        AND (${table.budgetCostPerDay} IS NULL OR ${table.budgetCostPerDay} >= 0)
+        AND (${table.budgetTurnsPerSession} IS NULL OR ${table.budgetTurnsPerSession} >= 0)`,
+    ),
   ],
 );
 
@@ -819,6 +851,21 @@ export const task = sqliteTable(
     title: text("title").notNull(),
     /** Markdown. Vazio é um corpo legítimo — nem toda tarefa precisa de um. */
     body: text("body").notNull().default(""),
+    /**
+     * As sete colunas do quadro (`028-autonomous-orchestration` §4), mais os
+     * dois que não são coluna: `proposed` mora na fila de Propostas e `dropped`
+     * sai do quadro e vira arquivo.
+     *
+     * **`backlog` e `open` são estados separados, e isso é a decisão desta
+     * coluna.** As duas parecem "não começou", e colapsá-las apagaria a única
+     * fronteira que o quadro tem: To-Do (`open`) é *onde mora a autorização* —
+     * entrar na fila é consentimento —, e Backlog é *existe, ainda não é para
+     * fazer*. Com um estado só, uma tarefa que o tracker despejou viraria
+     * trabalho autorizado sem ninguém ter consentido.
+     *
+     * O default continua `open`: quem cria pela tela está dizendo que é para
+     * fazer, e nenhuma tarefa escrita antes desta migração muda de coluna.
+     */
     status: text("status").notNull().default("open"),
     createdBy: text("created_by").notNull().default("human"),
     /**
@@ -835,6 +882,23 @@ export const task = sqliteTable(
      */
     createdBySession: text("created_by_session"),
     worktreeId: text("worktree_id").references(() => worktree.id, { onDelete: "set null" }),
+    /**
+     * A prioridade, e ela é a posição na coluna (`028` §4.3).
+     *
+     * *"Se você quiser outra ordem, arrasta"* — e é por isso que não existe
+     * campo de prioridade: arrastar é um gesto que o quadro já tem, e um campo
+     * seria vocabulário novo para dizer a mesma coisa pior. Uma coluna guardada,
+     * e não derivada, porque **derivada não se arrasta**: o `STATUS_RANK` da
+     * `022` ordena por estado, e ninguém reordena um `CASE`.
+     *
+     * Escopo é `(workspace_id, status)` — a coluna do quadro. Sem estrangeira
+     * que expresse isso, então o índice é a única coisa que o banco sabe.
+     *
+     * Ordinal contíguo dentro da coluna de destino, renumerado na transação do
+     * arrasto. Buraco na coluna de **origem** é permitido e não se conserta:
+     * ninguém lê o número, só a ordem dele.
+     */
+    position: integer("position").notNull().default(0),
     /** JSON de URLs — ClickUp, Jira, PR. **Referência por link, e só** (Q013). */
     links: text("links").notNull().default("[]"),
     /**
@@ -844,6 +908,29 @@ export const task = sqliteTable(
      * existe justamente para quem foi procurar de propósito.
      */
     reason: text("reason"),
+    /**
+     * Quando ela entrou **nesta** coluna (`028` §4.2 e §6/F4).
+     *
+     * O cartão diz *há quanto tempo está nesta coluna*, e esse é o sinal de
+     * encalhe do produto — 30 min/2 h nas etapas da máquina, 4 h/1 dia no fim
+     * da esteira.
+     *
+     * **Coluna própria, e não `updated_at`.** Aquele muda com qualquer escrita:
+     * corrigir o título de uma tarefa parada há duas horas a faria parecer
+     * recém-chegada, e o relógio de encalhe existe justamente para as que
+     * ninguém tocou. Um sinal que se apaga quando alguém passa perto é pior que
+     * nenhum sinal.
+     */
+    statusChangedAt: integer("status_changed_at", { mode: "timestamp_ms" })
+      .notNull()
+      // `DEFAULT 0` no banco e o relógio na aplicação, e **não** o `NOW` que o
+      // resto da tabela usa: o SQLite recusa `ALTER TABLE ADD COLUMN` com
+      // default não-constante, e este é o primeiro carimbo de tempo do produto
+      // a chegar numa tabela que já existia. O zero nunca é lido — as três
+      // escritas de coluna passam um valor —, ele só existe para o `ALTER`
+      // ser aceito.
+      .default(sql`0`)
+      .$defaultFn(() => new Date()),
     /** Quando saiu do fluxo: `done` ou `dropped`. */
     closedAt: integer("closed_at", { mode: "timestamp_ms" }),
     ...timestamps,
@@ -851,7 +938,7 @@ export const task = sqliteTable(
   (table) => [
     check(
       "task_status",
-      sql`${table.status} IN ('proposed', 'open', 'in_progress', 'review', 'done', 'dropped')`,
+      sql`${table.status} IN ('proposed', 'backlog', 'open', 'in_progress', 'review', 'testing', 'ready_to_merge', 'done', 'dropped')`,
     ),
     check("task_created_by", sql`${table.createdBy} IN ('human', 'agent')`),
     // Os dois sentidos, como o `session_agent_config`: tarefa de agente sem
@@ -874,6 +961,9 @@ export const task = sqliteTable(
     // A lista é lida por workspace e filtrada por status e projeto (F1) — os
     // três filtros da mesma consulta.
     index("task_by_workspace").on(table.workspaceId, table.status),
+    // A leitura do quadro: uma coluna, em ordem. Sem isto toda pintura de
+    // cartão ordena em memória.
+    index("task_by_position").on(table.workspaceId, table.status, table.position),
     index("task_by_project").on(table.projectId),
   ],
 );

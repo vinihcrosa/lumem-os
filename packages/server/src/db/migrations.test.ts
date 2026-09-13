@@ -550,3 +550,325 @@ describe("a tarefa entra num banco que já existia", () => {
     expect(row?.taskId).toBeNull();
   });
 });
+
+describe("0015 — o quadro de sete colunas", () => {
+  /**
+   * Um banco parado em 0014, com a tarefa e a sessão que apontam uma para a
+   * outra.
+   *
+   * A tarefa aqui não é enfeite: `0015` é um CHECK novo, e um CHECK novo em
+   * SQLite é **tabela recriada** — `DROP TABLE task` com uma estrangeira de
+   * `session` apontando para ela. É o mesmo caminho em que a migração da `022`
+   * perdeu a ação do estrangeiro, e é por isso que este arquivo existe.
+   */
+  function databaseBeforeBoard(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-board-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(15) });
+
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'acme')`).run();
+    sqlite
+      .prepare(
+        `INSERT INTO project (id, workspace_id, name, path, default_branch)
+         VALUES ('p1', 'w1', 'api', '/repos/api', 'main')`,
+      )
+      .run();
+    // Uma em cada estado que a revisão anterior conhecia, para provar que
+    // nenhuma muda de coluna.
+    for (const [id, status] of [
+      ["t-proposed", "proposed"],
+      ["t-open", "open"],
+      ["t-progress", "in_progress"],
+      ["t-review", "review"],
+    ] as const) {
+      sqlite
+        .prepare(
+          `INSERT INTO task (id, workspace_id, project_id, title, status)
+           VALUES (?, 'w1', 'p1', ?, ?)`,
+        )
+        .run(id, `tarefa ${status}`, status);
+    }
+    sqlite
+      .prepare(
+        `INSERT INTO session (id, kind, scope_type, scope_id, cwd, command, task_id)
+         VALUES ('se-1', 'shell', 'project', 'p1', '/repos/api', 'bash', 't-open')`,
+      )
+      .run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("nenhuma tarefa existente muda de coluna", async () => {
+    const handle = openDatabase({ path: databaseBeforeBoard() });
+    open.push(handle);
+
+    const rows = await handle.db.select().from(schema.task);
+
+    expect(Object.fromEntries(rows.map((row) => [row.id, row.status]))).toEqual({
+      "t-proposed": "proposed",
+      "t-open": "open",
+      "t-progress": "in_progress",
+      "t-review": "review",
+    });
+  });
+
+  it("a sessão continua apontando para a tarefa depois da tabela ser recriada", async () => {
+    const handle = openDatabase({ path: databaseBeforeBoard() });
+    open.push(handle);
+
+    const [row] = await handle.db
+      .select()
+      .from(schema.session)
+      .where(eq(schema.session.id, "se-1"));
+
+    expect(row?.taskId).toBe("t-open");
+  });
+
+  it("a ação do estrangeiro sobrevive à recriação — apagar anula, não recusa", async () => {
+    const handle = openDatabase({ path: databaseBeforeBoard() });
+    open.push(handle);
+    const db = handle.db;
+
+    // Sem isto a migração passa e o defeito só aparece no dia em que alguém
+    // apaga uma tarefa: com `NO ACTION` o delete seria **recusado** pela sessão
+    // que a serviu, que é o oposto do que o schema declara.
+    await db.delete(schema.task).where(eq(schema.task.id, "t-open"));
+
+    const [row] = await db
+      .select()
+      .from(schema.session)
+      .where(eq(schema.session.id, "se-1"));
+    expect(row?.taskId).toBeNull();
+  });
+
+  it("os dois índices continuam de pé", async () => {
+    const handle = openDatabase({ path: databaseBeforeBoard() });
+    open.push(handle);
+
+    const rows = await handle.db.all<{ name: string }>(
+      sql`SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'task'`,
+    );
+
+    expect(rows.map((row) => row.name)).toEqual(
+      expect.arrayContaining(["task_by_workspace", "task_by_project"]),
+    );
+  });
+
+  it("aceita os três estados novos, e continua recusando um oitavo", async () => {
+    const handle = openDatabase({ path: databaseBeforeBoard() });
+    open.push(handle);
+    const db = handle.db;
+
+    for (const status of ["backlog", "testing", "ready_to_merge"] as const) {
+      await db
+        .insert(schema.task)
+        .values({ id: `t-${status}`, workspaceId: "w1", projectId: "p1", title: status, status });
+    }
+
+    await expect(
+      db.insert(schema.task).values({
+        id: "t-merged",
+        workspaceId: "w1",
+        projectId: "p1",
+        title: "merged",
+        // A coluna é `text` no drizzle, então o compilador deixa passar: quem
+        // recusa é o CHECK, e é ele que está em teste.
+        status: "merged",
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe("0016 — a ordem na coluna", () => {
+  /**
+   * Um banco parado em 0015, com três tarefas na mesma coluna e uma em outra.
+   *
+   * `ALTER TABLE ADD COLUMN` com `DEFAULT 0` deixaria as três empatadas em zero,
+   * e aí quem decide a ordem é o SQLite. O backfill escrito à mão na migração é
+   * o que faz a coluna nascer em ordem de chegada — que é o default do §4.3 para
+   * quem nunca arrastou.
+   */
+  function databaseBeforePosition(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-position-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(16) });
+
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'acme')`).run();
+    sqlite
+      .prepare(
+        `INSERT INTO project (id, workspace_id, name, path, default_branch)
+         VALUES ('p1', 'w1', 'api', '/repos/api', 'main')`,
+      )
+      .run();
+    // Inseridas fora de ordem de propósito: quem manda é `created_at`, não a
+    // ordem do INSERT nem o id.
+    for (const [id, status, createdAt] of [
+      ["t-c", "open", 3000],
+      ["t-a", "open", 1000],
+      ["t-b", "open", 2000],
+      ["t-outra", "review", 1500],
+    ] as const) {
+      sqlite
+        .prepare(
+          `INSERT INTO task (id, workspace_id, project_id, title, status, created_at, updated_at)
+           VALUES (?, 'w1', 'p1', ?, ?, ?, ?)`,
+        )
+        .run(id, id, status, createdAt, createdAt);
+    }
+    sqlite.close();
+
+    return path;
+  }
+
+  it("a coluna que já existia nasce em ordem de chegada, e não empatada em zero", async () => {
+    const handle = openDatabase({ path: databaseBeforePosition() });
+    open.push(handle);
+
+    const rows = await handle.db.select().from(schema.task);
+    const byId = Object.fromEntries(rows.map((row) => [row.id, row.position]));
+
+    expect([byId["t-a"], byId["t-b"], byId["t-c"]]).toEqual([0, 1, 2]);
+  });
+
+  it("cada coluna numera a partir do zero, e não o workspace inteiro", async () => {
+    const handle = openDatabase({ path: databaseBeforePosition() });
+    open.push(handle);
+
+    const [row] = await handle.db
+      .select()
+      .from(schema.task)
+      .where(eq(schema.task.id, "t-outra"));
+
+    // `review` tem uma tarefa só. Se o backfill contasse o workspace em vez da
+    // coluna, ela nasceria em 1 — atrás de um cartão que não está lá.
+    expect(row?.position).toBe(0);
+  });
+});
+
+describe("0017 — o relógio do encalhe", () => {
+  it("a tarefa que já estava parada não acorda dizendo 'há 0 s'", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-stall-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(17) });
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'acme')`).run();
+    sqlite
+      .prepare(
+        `INSERT INTO project (id, workspace_id, name, path, default_branch)
+         VALUES ('p1', 'w1', 'api', '/repos/api', 'main')`,
+      )
+      .run();
+    const twoHoursAgo = Date.now() - 2 * 3_600_000;
+    sqlite
+      .prepare(
+        `INSERT INTO task (id, workspace_id, project_id, title, status, created_at, updated_at)
+         VALUES ('t1', 'w1', 'p1', 'parada há duas horas', 'in_progress', ?, ?)`,
+      )
+      .run(twoHoursAgo, twoHoursAgo);
+    sqlite.close();
+
+    const handle = openDatabase({ path });
+    open.push(handle);
+    const [row] = await handle.db.select().from(schema.task).where(eq(schema.task.id, "t1"));
+
+    // Sem o backfill escrito à mão, o DEFAULT é *agora* — e a migração apagaria
+    // exatamente o encalhe que a coluna existe para mostrar.
+    expect(row?.statusChangedAt.getTime()).toBe(twoHoursAgo);
+  });
+});
+
+describe("0018 — os tetos do workspace", () => {
+  /** Um banco parado em 0017, com um workspace e um projeto pendurado nele. */
+  function databaseBeforeBudget(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-budget-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(18) });
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'acme')`).run();
+    sqlite
+      .prepare(
+        `INSERT INTO project (id, workspace_id, name, path, default_branch)
+         VALUES ('p1', 'w1', 'api', '/repos/api', 'main')`,
+      )
+      .run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("um workspace que já existia acorda **sem teto**, e não com um inventado", async () => {
+    const handle = openDatabase({ path: databaseBeforeBudget() });
+    open.push(handle);
+
+    const [row] = await handle.db.select().from(schema.workspace);
+
+    // O §6 da PRD diz que os interruptores que gastam token nascem desligados.
+    // Um teto que nasce valendo faria o produto recusar trabalho de quem nunca
+    // pediu teto nenhum.
+    expect(row).toMatchObject({
+      name: "acme",
+      budgetCostPerTask: null,
+      budgetCostPerDay: null,
+      budgetTurnsPerSession: null,
+    });
+  });
+
+  it("o projeto continua pendurado no workspace depois da tabela ser recriada", async () => {
+    const handle = openDatabase({ path: databaseBeforeBudget() });
+    open.push(handle);
+
+    const [row] = await handle.db
+      .select()
+      .from(schema.project)
+      .where(eq(schema.project.id, "p1"));
+
+    expect(row?.workspaceId).toBe("w1");
+  });
+
+  it("`0` e `NULL` são escrevíveis, e querem dizer coisas diferentes", async () => {
+    const handle = openDatabase({ path: databaseBeforeBudget() });
+    open.push(handle);
+
+    // `0` é "bloqueia tudo" e `NULL` é "sem teto". Colapsar os dois tiraria de
+    // quem quer parar por um momento a única forma de dizer isso sem apagar o
+    // número que configurou.
+    await handle.db
+      .update(schema.workspace)
+      .set({ budgetCostPerTask: 0, budgetTurnsPerSession: 12 })
+      .where(eq(schema.workspace.id, "w1"));
+
+    const [row] = await handle.db.select().from(schema.workspace);
+    expect(row).toMatchObject({
+      budgetCostPerTask: 0,
+      budgetCostPerDay: null,
+      budgetTurnsPerSession: 12,
+    });
+  });
+
+  it("teto negativo é recusado — `NULL` é como se diz sem teto", async () => {
+    const handle = openDatabase({ path: databaseBeforeBudget() });
+    open.push(handle);
+
+    await expect(
+      handle.db
+        .update(schema.workspace)
+        .set({ budgetCostPerDay: -1 })
+        .where(eq(schema.workspace.id, "w1")),
+    ).rejects.toThrow();
+  });
+});

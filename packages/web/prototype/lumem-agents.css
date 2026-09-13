@@ -1,0 +1,288 @@
+/* ---------------------------------------------------------------------------
+   lumem-agents.css — agentes nomeados, os três encaixes, a autonomia e o
+   orçamento.
+
+   PRD: docs/features/028-autonomous-orchestration/prd.md §5 e §6/F2–F3
+   Briefing: docs/features/028-autonomous-orchestration/design-brief.md §4
+
+   A frase que decide esta tela inteira está no §5.2 da PRD: **permissão e
+   orçamento moram no agente, não no encaixe** — assim um `revisor-so-leitura`
+   existe de verdade, em vez de ter sido instruído a não escrever. Instrução
+   não é limite. O desenho tem que fazer isso ser VISÍVEL, senão a garantia
+   fica só no banco.
+
+   Nenhum literal de cor, espaço ou tipografia.
+   -------------------------------------------------------------------------- */
+
+/* moldura de documentação — a mesma das outras telas */
+.bleed { width: calc(100vw - var(--space-48)); margin-left: calc(50% - 50vw + var(--space-24)); }
+.q { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-brand); }
+.mm { font: var(--text-mono-sm); color: var(--color-text-brand); }
+.sec__t .no { font: var(--text-mono-md); color: var(--color-text-tertiary); margin-right: var(--space-8); }
+.stack { display: grid; gap: var(--space-12); }
+.lnk { color: var(--color-text-link); text-decoration: none; }
+.lnk:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ---------------------------------------------------------------------------
+   1. o painel — ele mora na tela do workspace, abaixo do consumo
+   -------------------------------------------------------------------------- */
+.pane { display: grid; gap: var(--space-16); padding: var(--space-16); background: var(--color-bg-base); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); }
+.pane__sec { display: grid; gap: var(--space-8); }
+.pane__h { display: flex; align-items: center; gap: var(--space-8); }
+.pane__t { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.pane__d { font: var(--text-body-sm); color: var(--color-text-secondary); max-width: 68ch; }
+.pane__d b { color: var(--color-text-primary); font-weight: 500; }
+.pane__d code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/* ---------------------------------------------------------------------------
+   2. o catálogo — uma linha por agente nomeado
+   -------------------------------------------------------------------------- */
+/*
+ * A linha carrega, nesta ordem: o NOME (que é o que você digita na cascata), o
+ * adaptador e o modelo (de onde ele fala), a FAIXA DE PERMISSÃO e o orçamento.
+ * A faixa vem antes do orçamento de propósito: ela é a única coluna que
+ * responde "o que este agente pode fazer com o meu disco".
+ */
+.agrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  width: 100%;
+  min-height: var(--size-row-cozy);
+  padding: var(--space-6) var(--space-10);
+  text-align: left;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+.agrow:hover { background: var(--color-bg-raised); border-color: var(--color-border-strong); }
+.agrow.is-open { background: var(--color-bg-raised); border-color: var(--color-border-strong); border-bottom-left-radius: var(--radius-none); border-bottom-right-radius: var(--radius-none); }
+.agrow__n { flex: none; display: inline-flex; align-items: center; gap: var(--space-6); min-width: calc(var(--space-64) * 2.5); font: var(--text-label-md); color: var(--color-text-primary); }
+/*
+ * As três primeiras células têm LARGURA FIXA porque isto é uma lista que se lê
+ * em coluna, não uma linha de chips. Sem elas, o chip da faixa — que é a única
+ * coluna colorida, e a que responde "o que ele pode fazer com o meu disco" —
+ * começava num x diferente em cada linha, e a coluna deixava de existir como
+ * coluna.
+ */
+.agrow__src { flex: none; display: inline-flex; align-items: center; gap: var(--space-6); min-width: calc(var(--space-64) * 2.25); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.agrow .band-chip { min-width: calc(var(--space-64) * 2.4); }
+.agrow__cost { min-width: calc(var(--space-64) * 2.25); text-align: right; }
+.agrow__use { flex: 1; min-width: 0; font: var(--text-caption); color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agrow__cost { flex: none; font: var(--text-mono-sm); color: var(--color-usage-cost); }
+.agrow__caret { flex: none; font-size: var(--size-icon-xs); color: var(--color-text-tertiary); }
+
+/*
+ * O CHIP DA FAIXA é o elemento mais importante da linha, e é o único colorido.
+ * `larga` é neutra porque é o normal; `fora da worktree` é âmbar porque é onde
+ * o agente PARA; `host remoto` é vermelho porque é a única faixa que escreve
+ * onde o `git` de outra pessoa vai ver.
+ */
+.band-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  font: var(--text-label-xs);
+  white-space: nowrap;
+}
+.band-chip__g { font-size: var(--size-icon-xs); line-height: 1; }
+.band-chip--read   { color: var(--color-text-info); }
+.band-chip--wide   { color: var(--color-text-tertiary); }
+.band-chip--out    { color: var(--color-text-warning); }
+.band-chip--remote { color: var(--color-text-danger); background: var(--color-bg-danger-subtle); }
+
+/* o corpo aberto do agente */
+.agbody {
+  display: grid;
+  gap: var(--space-16);
+  padding: var(--space-16);
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-strong);
+  border-top: 0;
+  border-bottom-left-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+}
+.agbody__g2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-16); }
+@media (max-width: 900px) { .agbody__g2 { grid-template-columns: minmax(0, 1fr); } }
+
+.fld { display: grid; gap: var(--space-6); min-width: 0; }
+.fld__l { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.fld__h { font: var(--text-caption); color: var(--color-text-tertiary); }
+.inp { display: flex; align-items: center; gap: var(--space-8); min-height: var(--size-control-lg); padding: var(--space-6) var(--space-10); background: var(--color-bg-inset); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); font: var(--text-body-md); color: var(--color-text-primary); }
+.inp--mono { font: var(--text-mono-md); color: var(--color-text-code); }
+/* BLOCO, não flex: `.inp` é flex para alinhar ícone e caret numa linha, e a
+   caixa de texto herdava isso — cada `<b>` do parágrafo virava um item de flex
+   e a frase se partia em colunas. */
+.inp--area { display: block; min-height: calc(var(--space-64) + var(--space-32)); font: var(--text-body-sm); line-height: var(--space-20); color: var(--color-text-secondary); }
+.inp__caret { margin-left: auto; flex: none; font-size: var(--size-icon-xs); color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------------------------------
+   3. as três faixas de permissão — a Q25, desenhada como texto e não como
+      lista de caixinhas
+   -------------------------------------------------------------------------- */
+/*
+ * "Bem permissivas" é a resposta certa e é insuficiente: permissivo sem borda
+ * escrita é ausência, não decisão. Então a faixa não é um `select` de três
+ * palavras — cada opção carrega a FRASE do que ela permite, porque é a frase
+ * que a pessoa vai ter que defender depois.
+ */
+.bands { display: grid; gap: var(--space-8); }
+.band {
+  --b: var(--color-border-subtle);
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-10) var(--space-12);
+  text-align: left;
+  width: 100%;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-left: var(--border-width-thick) solid var(--b);
+  border-radius: var(--radius-md);
+}
+.band[aria-pressed="true"] { background: var(--color-bg-raised); border-color: var(--color-border-strong); border-left-color: var(--b); }
+.band--wide   { --b: var(--color-text-tertiary); }
+.band--out    { --b: var(--color-text-warning); }
+.band--remote { --b: var(--color-text-danger); }
+.band__h { display: flex; align-items: center; gap: var(--space-8); }
+.band__dot { flex: none; width: var(--size-icon-xs); height: var(--size-icon-xs); border-radius: var(--radius-full); border: 1px solid var(--color-border-strong); }
+.band[aria-pressed="true"] .band__dot { border-color: var(--b); box-shadow: inset 0 0 0 var(--space-2) var(--b); }
+.band__t { font: var(--text-label-md); color: var(--color-text-primary); }
+.band__n { margin-left: auto; font: var(--text-caption); color: var(--color-text-tertiary); }
+.band__d { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.band__d code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.band__d b { color: var(--color-text-primary); font-weight: 500; }
+
+/*
+ * A terceira faixa não é item de lista com caixinha: ela é um interruptor POR
+ * PROJETO cujo rótulo é a frase do que ele permite. Enquanto a v1 disser "não
+ * mescla", quem garante é a regra do sistema — um agente que PODE mesclar já
+ * mescla.
+ */
+.gate { display: grid; gap: var(--space-8); padding: var(--space-12); background: var(--color-bg-danger-subtle); border: 1px solid var(--color-border-danger); border-radius: var(--radius-md); }
+.gate__h { display: flex; align-items: center; gap: var(--space-8); }
+.gate__g { flex: none; font-size: var(--size-icon-md); color: var(--color-text-danger); line-height: 1; }
+.gate__t { font: var(--text-label-md); color: var(--color-text-primary); }
+.gate__l { display: grid; gap: var(--space-6); margin: 0; padding: 0; list-style: none; }
+.gate__i { display: flex; align-items: flex-start; gap: var(--space-8); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.gate__i code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.gate__sw { flex: none; margin-top: var(--space-2); }
+
+/* o interruptor, e o rótulo dele é a frase inteira */
+.sw {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  width: calc(var(--space-24) + var(--space-8));
+  height: var(--size-icon-md);
+  padding: var(--space-2);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+}
+.sw__k { width: var(--space-10); height: var(--space-10); border-radius: var(--radius-full); background: var(--color-text-tertiary); }
+.sw[aria-pressed="true"] { background: var(--color-bg-brand-muted); border-color: var(--color-bg-brand); justify-content: flex-end; }
+.sw[aria-pressed="true"] .sw__k { background: var(--color-bg-brand-hover); }
+.sw--danger[aria-pressed="true"] { background: var(--color-bg-danger-subtle); border-color: var(--color-text-danger); }
+.sw--danger[aria-pressed="true"] .sw__k { background: var(--color-text-danger); }
+
+/* o que ele pode e o que ele NÃO pode — a prova de que o limite é do sistema */
+.cando { display: grid; gap: var(--space-4); }
+.cando__i { display: flex; align-items: flex-start; gap: var(--space-8); font: var(--text-body-sm); }
+.cando__g { flex: none; width: var(--size-icon-sm); text-align: center; font-size: var(--size-icon-xs); line-height: var(--space-16); }
+.cando__i--yes { color: var(--color-text-secondary); }
+.cando__i--yes .cando__g { color: var(--color-text-success); }
+/*
+ * `text/disabled` REPROVA aqui: 2,84:1 sobre `bg/panel`. O sistema permite que
+ * `disabled` baixe contraste — mas isto não é um controle desligado, é o texto
+ * que a pessoa precisa LER para acreditar que o agente não consegue escrever.
+ * `text/tertiary` dá 6,49:1 e mantém a hierarquia contra o `text/secondary`
+ * das linhas de "pode".
+ */
+.cando__i--no { color: var(--color-text-tertiary); }
+.cando__i--no .cando__g { color: var(--color-text-danger); }
+.cando__i code { font: var(--text-mono-sm); }
+.cando__why { margin-left: auto; flex: none; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------------------------------
+   4. os três encaixes, e a cascata
+   -------------------------------------------------------------------------- */
+/*
+ * Encaixe não é agente: é um buraco que aponta para um agente nomeado, e a
+ * resolução é tarefa → projeto → workspace → default. A tabela existe para que
+ * a CASCATA seja visível: herdado se lê diferente de escolhido, senão você não
+ * sabe o que muda quando mexer no workspace.
+ */
+.slots { width: 100%; border-collapse: collapse; }
+.slots th, .slots td { text-align: left; padding: var(--space-8) var(--space-10); border-bottom: 1px solid var(--color-border-subtle); vertical-align: middle; }
+.slots th { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.slots th.is-scope { color: var(--color-scope-project); }
+.slots th.is-ws { color: var(--color-scope-workspace); }
+.slots td:first-child { font: var(--text-label-md); color: var(--color-text-primary); }
+.slots .slotv { display: inline-flex; align-items: center; gap: var(--space-6); font: var(--text-mono-sm); color: var(--color-text-code); }
+/* herdado é a MESMA palavra em cinza, com o glifo de herança na frente — não é
+   uma palavra diferente, porque o valor em vigor é o mesmo. */
+.slots .slotv--inherit { color: var(--color-text-tertiary); }
+.slots .slotv--inherit .slotv__g { color: var(--color-scope-workspace); }
+.slotv__g { flex: none; font-size: var(--size-icon-xs); }
+.slots .dim { font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------------------------------
+   5. a autonomia, e o orçamento ao lado dela
+   -------------------------------------------------------------------------- */
+/*
+ * A tela onde se liga é a tela onde se entende o que se está ligando: o
+ * interruptor de autonomia e o orçamento são VIZINHOS, e não duas telas. O
+ * princípio 1 da PRD — autonomia sem orçamento é um vazamento — é uma frase
+ * sobre layout, não só sobre política.
+ */
+.levels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-8); }
+@media (max-width: 900px) { .levels { grid-template-columns: minmax(0, 1fr); } }
+.level {
+  --l: var(--color-border-subtle);
+  display: grid;
+  gap: var(--space-6);
+  align-content: start;
+  padding: var(--space-12);
+  text-align: left;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-top: var(--border-width-thick) solid var(--l);
+  border-radius: var(--radius-md);
+}
+.level[aria-pressed="true"] { background: var(--color-bg-raised); border-color: var(--color-border-strong); border-top-color: var(--l); }
+.level--manual { --l: var(--color-text-tertiary); }
+.level--assist { --l: var(--color-mode-plan); }
+.level--auto   { --l: var(--color-mode-auto); }
+.level__h { display: flex; align-items: center; gap: var(--space-8); }
+.level__t { font: var(--text-label-md); color: var(--color-text-primary); }
+.level__tag { margin-left: auto; font: var(--text-caption); color: var(--color-text-tertiary); }
+.level__d { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.level__d b { color: var(--color-text-primary); font-weight: 500; }
+.level__dot { flex: none; width: var(--size-icon-xs); height: var(--size-icon-xs); border-radius: var(--radius-full); border: 1px solid var(--color-border-strong); }
+.level[aria-pressed="true"] .level__dot { border-color: var(--l); box-shadow: inset 0 0 0 var(--space-2) var(--l); }
+
+.caps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-8); }
+@media (max-width: 900px) { .caps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cap { display: grid; gap: var(--space-4); padding: var(--space-10) var(--space-12); background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); }
+.cap__l { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.cap__v { font: var(--text-mono-lg); color: var(--color-text-primary); }
+.cap__v--cost { color: var(--color-usage-cost); }
+.cap__d { font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------------------------------
+   6. auxiliares do documento
+   -------------------------------------------------------------------------- */
+.win { border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-bg-base); }
+.win__l { display: flex; align-items: baseline; gap: var(--space-8); padding: var(--space-6) var(--space-10); background: var(--color-bg-inset); font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.win__l .mm { letter-spacing: normal; text-transform: none; }
+.sbframe { width: var(--size-sidebar-width); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); overflow: hidden; }
+.sbframe .sidebar { height: calc(var(--space-64) * 3.5); }
+.pairing { display: flex; flex-wrap: wrap; gap: var(--space-16); align-items: flex-start; }
+.pairing__i { display: grid; gap: var(--space-6); }
+.pairing__l { font: var(--text-caption); color: var(--color-text-tertiary); }
+.pairing__l b { color: var(--color-text-brand); font-weight: 500; }

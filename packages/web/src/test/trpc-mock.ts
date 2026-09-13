@@ -289,6 +289,9 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
     budgetEnv: "LUMEM_TASKS_BUDGET",
     sessions: 0,
     sessionsWithTask: 0,
+    // Os três tetos do workspace (`028` Parte 3). `null` nos três é o default
+    // do produto — quem nunca pediu teto —, e é o que a maioria dos testes quer.
+    caps: { costPerTask: null, costPerDay: null, turnsPerSession: null },
   });
   mock.usage.byTask.query.mockResolvedValue([]);
   mock.session.listByTask.query.mockResolvedValue([]);

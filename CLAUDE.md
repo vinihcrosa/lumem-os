@@ -186,6 +186,64 @@ com o número que a recusou. O defeito de brinde é do mesmo tipo: `rateLimitOf`
 raiz de `_claude/rateLimit` e o `0.75.1` a aninhou em `unifiedWindows.<janela>` — o rodapé de limite
 está apagado em **todo** transcript do repositório, sem nada falhar.
 
+E a [autonomous-orchestration](docs/features/028-autonomous-orchestration/prd.md) é a maior PRD do
+repositório e a primeira **fatiada**: das seis partes do escopo, o `tasks.md` executa **uma** — o
+quadro lendo a `022`, com a autonomia desligada —, e as **12 tasks das cinco fases estão entregues**.
+O corte não é cautela: seis das nove conversas técnicas do §11 continuam guardadas, duas não têm
+resposta, e uma delas **exige ADR novo** porque contradiz o [ADR de
+2026-08-30](docs/adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md). A fase 0 é um
+[estudo](docs/project/orchestration-measurements.md), e ele mudou duas coisas antes de existir código.
+A primeira é a que manda: **o `StopReason` do ACP não distingue *"terminei"* de *"te perguntei"***.
+Dos **13 `end_turn`** gravados neste repositório, **4** significaram terminei — quatro eram pergunta,
+dois eram espera sem interrogação, e **três eram o turno morrendo no meio do trabalho**. A heurística
+do ponto de interrogação pega 4 dos 9: **44% de recall**, errando no caso caro. Isso tira o §4.1 do
+terreno da cautela — *a máquina só move quando o fato é verificável de fora do agente* passa a ser a
+**única leitura disponível**, porque o transporte não tem o dado. A segunda é que o modelo da `022`
+não comportava o quadro: sete colunas contra quatro estados úteis, e `Backlog`/`To-Do` colapsariam no
+mesmo `open` — apagando a fronteira de autorização que a coluna existe para marcar. O estudo também
+mediu o que **não** entra: o precedente do `gh` **não é portável** para tracker (não existe `linear`
+na máquina), polling cabe em **2,4% da cota** do Linear, e a camada gerenciada custa **~2 s** por
+chamada contra ~345 ms do caminho direto. O selo é derivado de **turno em voo**, e não de processo
+vivo — 7 dos 15 transcripts nunca receberam um prompt, e cada um deles pintaria *"implementando há
+3 h"* pelo outro critério. A tela reproduziu a conta do Open Design (1152px de faixa + 264 da sidebar
+= 1416 contra 1418 medidos) e achou três defeitos que nenhuma leitura de código pega — o mais caro
+deles é que o **`ResizeObserver` vê a caixa, e o que muda é o conteúdo**. Duas perguntas ficaram
+abertas e represadas até a Parte 2 (a esteira), e uma terceira **nunca precisou existir**: a Q38 levantou o arrasto
+para `In Progress` como contradição, e ele **já funcionava** — sem um único teste cobrindo.
+
+E em **2026-09-13** a `028` fechou as **43 perguntas** dela, três delas **gastando token** — US$ 4,60
+em 30 turnos de Haiku e Opus, contra o adaptador que o daemon é dono. A Q39 foi **derrubada** em vez
+de respondida: *terminou* e *te perguntou* **não são exclusivos** — 31% dos turnos que commitaram
+deixaram pergunta em aberto —, então o selo `aguardando você` é um eixo **ortogonal** e o desenho o
+fez escolha. Pior: **o commit não separa *terminou* de *desistiu inventando*** — a tarefa impossível
+virou commit em 3 de 4 execuções, com o serviço inventado junto —, e o que separa é o **CI**, o que
+torna a força da esteira a força da suíte do projeto. O Haiku **não perguntou nenhuma vez** em 10
+turnos. E dos cinco modos do Claude, **só `bypassPermissions` fecha o laço**: o único modo que deixa a
+esteira andar é o único que nunca pergunta, então a segurança dela não pode vir do modo de permissão.
+Daí saiu o [ADR de 2026-09-13](docs/adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md) — **o
+modelo é do Lumem, e o que vem de fora se adapta a ele**, regra geral para adaptador, banco, `gh` ou
+tracker. Ele contradiz uma frase da [`016`](docs/features/016-session-mode/prd.md) com a nota no
+requisito, reafirma os três ADRs em vigor, e nomeia **três vazamentos medidos** — o `stopReason`
+repassado do ACP, o `session.mode` cru, e o `TaskRow` derivado do `drizzle`, que é o banco decidindo a
+forma do domínio.
+
+A **Parte 3 — Orçamento e limites** fechou em **2026-09-13**, e ela veio **antes da esteira**: a Q43
+mediu que o único modo do Claude que deixa a esteira andar é o único que **nunca pergunta**, então a
+segurança dela não pode vir do modo de permissão — tem que vir do CI, do orçamento e do teto de
+turnos. Os três tetos moram no workspace, `NULL` é *sem teto* e `0` é *bloqueia tudo*, e a decisão é
+**função pura de três saídas**: quem conduz é **avisado** e decide, a esteira **para** — mesmo número,
+mesma leitura, verbos diferentes (Q45). O teto em dinheiro não é cobrável contra todo adaptador (o
+Codex relata `cost: null`), então ele tem **duas unidades**, e um produto que só soubesse cobrar em
+dólar deixaria um workspace com Codex rodando sem teto nenhum. Duas tasks estão **anotadas em vez de
+fingidas**: a recusa por cota **não tem código no protocolo** — o login tem `-32000` e é por código
+que o daemon o reconhece, *porque o texto é do adaptador* —, e o cartão bloqueado não tem o que
+desenhar até a esteira existir, porque escrever o CSS agora recriaria as 13 classes órfãs que a Parte
+1 pagou. Três achados de processo: o `drizzle-kit` voltou a gerar um `SELECT` lendo colunas que ainda
+não existem na origem — **cinco migrações depois** do `0001`, o que faz a armadilha ser do gerador e
+não daquela migração —, uma variante nova de `AcpEvent` **derruba o typecheck da tela** (e isso é o
+contrato funcionando), e o **mock compartilhado é parte do contrato**: esquecê-lo quebrou cinco testes
+de telas sem relação com orçamento.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
@@ -304,6 +362,16 @@ O `**Status:**` de uma PRD tem gramática fechada, e o `gate:full` compara com o
 
 - Documentação e comunicação em português. Código, commit e nome de arquivo em inglês.
 - Nome de arquivo em kebab-case.
+- **Escreva por extenso, e não abreviado.** Uma abreviação que economiza cinco letras custa uma
+  releitura inteira no dia em que duas coisas diferentes ficam com a mesma cara. A
+  [`028`](docs/features/028-autonomous-orchestration/prd.md) produziu o caso: o §6 numerava as partes
+  do escopo como `F1..F6` e o `tasks.md` numerava as etapas de construção como `Fase 0..4` — nada em
+  lugar nenhum dizia que eram **coisas diferentes**, e `F3` contra `fase 3` é indistinguível em voz
+  alta. Escreva **Parte 3 — Orçamento e limites** e **Fase 3 — a tela**; o documento fica mais
+  comprido e para de exigir que quem lê adivinhe.
+- **Numeração diferente pede nome diferente.** Se um documento numera duas coisas, as duas precisam de
+  substantivos distintos — *parte* e *fase*, não `F` e `Fase`. E quem cita de fora cita pelo nome
+  inteiro.
 - Pergunta de design não vira suposição silenciosa: vai pro arquivo de perguntas da feature, ou pro [questions.md](docs/project/questions.md) se for do projeto todo.
 - Ideia que ficou pra depois não vira memória de conversa: vai pro [backlog](docs/project/backlog.md), com uma frase de contexto, de onde veio, e o gatilho que traz de volta.
 - Discussão grande demais pra caber numa pergunta vira arquivo próprio em `docs/project/`, e a pergunta linka pra ele — como a [PTY × ACP](docs/project/pty-vs-acp.md) fez. Quando ela **decide** algo difícil de reverter, o arquivo é o estudo e a decisão vira um [ADR](docs/adr/).

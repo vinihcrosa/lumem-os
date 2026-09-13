@@ -486,6 +486,31 @@ export function reduceConversation(
         ],
       };
 
+    case "budget":
+      /*
+       * O teto fala **na conversa** (`028` Parte 3, T16).
+       *
+       * Turno próprio e `meta`, como o núcleo da memória — e pela mesma razão:
+       * não é o agente dizendo, é o **daemon** dizendo o que fez por conta
+       * própria. Colar no bloco do agente faria parecer que ele se conteve
+       * sozinho.
+       *
+       * `warn` é o turno de quem conduz, e o texto é um aviso: o número vai
+       * junto e a conversa segue. `block` é o da esteira, e aí o turno nem
+       * aconteceu ([Q45](../../../docs/features/028-autonomous-orchestration/open-questions.md)).
+       */
+      return {
+        ...state,
+        turns: [
+          ...state.turns,
+          {
+            role: "agent",
+            blocks: [{ kind: "meta", text: event.message }],
+            at,
+          },
+        ],
+      };
+
     case "unknown":
       return appendBlock(state, "agent", {
         kind: "note",

@@ -1,0 +1,1506 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lumem-OS — o quadro: as sete etapas, o cartão e o selo</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<!-- O `● #87` do cartão é o MESMO `.prmark` que a `pull-request-status` desenhou
+     para a linha da sidebar. Esta tela estende aquele componente; não faz cópia. -->
+<link rel="stylesheet" href="lumem-pr-bar.css">
+<!-- A FILA DE PROPOSTAS é da `022`, não desta tela. O quadro consome a folha
+     dela; ter uma cópia aqui é como duas telas divergem sem ninguém decidir. -->
+<link rel="stylesheet" href="lumem-tasks.css">
+<link rel="stylesheet" href="lumem-board.css">
+</head>
+<body>
+
+<div class="doc">
+
+  <header>
+    <h1 class="doc__h1">O quadro</h1>
+    <p class="doc__lede">
+      O Lumem só trabalha enquanto você olha. A
+      <code>028-autonomous-orchestration</code> troca isso — o daemon passa a
+      <b>pegar</b> trabalho —, e essa troca muda o que a tela é para: hoje ela é onde você
+      <b>faz</b>; num orquestrador ela é onde você <b>confere</b>. Por isso o quadro não é
+      enfeite da feature. <b>Ele é a feature.</b>
+    </p>
+    <p class="doc__lede">
+      Sete etapas: <b>Backlog · To-Do · In Progress · In Review · Testing · Ready to Merge ·
+      Done</b>. Duas pontas são suas — entrar na fila é consentimento, sair para
+      <code>Done</code> é julgamento —, e as cinco do meio o daemon move sozinho, sempre por
+      fato verificável: a PR existe, o CI ficou verde, o parecer foi registrado.
+      <b>Nunca porque o agente disse que terminou.</b>
+    </p>
+    <p class="doc__lede">
+      Dez quadros. O primeiro é a medida que quase derrubou a forma. Do segundo ao quinto, o
+      cartão e o selo — a aposta do §4.1 da PRD, de que <b>situação é selo e etapa é coluna</b>.
+      O sexto é onde a esteira deixa rastro. Os quatro últimos são os estados que a casa exige
+      de toda tela: a triagem, o quadro desligado (que é o <b>default</b>), a volta, e a conexão
+      caída.
+    </p>
+    <p class="doc__lede">
+      <b>Três números vieram do navegador, não de argumento</b>, e um deles mudou a resposta do
+      briefing. Cada um aparece marcado onde manda no pixel.
+    </p>
+  </header>
+
+  <!-- =================================================================== 1 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">1</span>sete colunas não cabem — e a saída não é rolagem</h2>
+      <p class="sec__d">
+        <span class="q">medida 3.1</span> O briefing chutou <span class="mm">240px</span> de
+        coluna e concluiu <span class="mm">1680px</span> antes da sidebar. Os dois números
+        estavam errados, e o segundo pelo motivo certo: <b>200px é o piso medido</b> — abaixo
+        dele o título de uma tarefa real passa de duas linhas para três e a linha viva perde o
+        nome do arquivo. As três larguras abaixo saíram de <b>busca binária no navegador</b>,
+        estreitando a janela até o primeiro pixel de rolagem — não de aritmética, que erra por
+        bordas e por arredondamento de <code>flex</code>:
+      </p>
+      <table class="tbl">
+        <thead><tr><th>forma</th><th>largura da faixa</th><th>janela mínima</th><th>quando</th></tr></thead>
+        <tbody>
+          <tr><td><b>5 colunas + 2 trilhos</b></td><td><span class="mm">1152px</span></td><td><span class="mm">1418px</span></td><td><b>o default</b> — Backlog e Done recolhidos</td></tr>
+          <tr><td>6 colunas + 1 trilho</td><td><span class="mm">1316px</span></td><td><span class="mm">1582px</span></td><td>você abre uma das duas</td></tr>
+          <tr><td>7 colunas</td><td><span class="mm">1480px</span></td><td><span class="mm">1746px</span></td><td>monitor grande, ou as duas abertas</td></tr>
+        </tbody>
+      </table>
+      <p class="sec__d">
+        A saída <b>não</b> é encolher o cartão: abaixo de 200px o título vira três linhas. A saída é
+        que <b>as duas pontas recolhem</b>, e
+        o motivo não é espaço: é que <code>Backlog</code> e <code>Done</code> são as duas únicas
+        colunas <b>sem linha viva e sem relógio</b>. Elas não são a esteira — uma é o que ainda
+        não é para fazer, a outra é o que acabou. Recolher a esteira seria mutilar o quadro;
+        recolher as pontas é dizer o que elas já são.
+      </p>
+      <p class="sec__d">
+        O trilho continua dizendo a única coisa que essas duas precisam dizer de longe: <b>a
+        contagem</b>. Nada fica escondido — fica dobrado.
+      </p>
+      <p class="sec__d">
+        <b>E abaixo de 1418px não há combinação que caiba.</b> Aí o quadro rola na horizontal
+        <b>e avisa</b> — segundo caso deste quadro, e a resposta da
+        <a class="lnk" href="#">Q37</a>.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o quadro do workspace <b>Acme</b> · janela de <span class="mm">1440px</span> · <b>o default</b></div>
+      <div class="bleed">
+        <div class="win win--w1440">
+          <div class="win__l">janela <span class="mm">1440 × 900</span> · sidebar <span class="mm">264</span> · faixa <span class="mm">1174</span> · coluna <span class="mm">204,8</span></div>
+          <div class="win__v">
+
+            <div class="app">
+              <div class="topbar">
+                <h1 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h1>
+                <span class="spacer"></span>
+                <span class="daemon"><span class="daemon__dot"></span>daemon 4317</span>
+              </div>
+              <div class="body">
+
+                <!-- sidebar ------------------------------------------------ -->
+                <aside class="sidebar">
+                  <div class="ws-wrap">
+                    <button class="ws focus-ring"><span class="glyph glyph--workspace">◈</span>Acme<span class="caret">▾</span></button>
+                  </div>
+                  <div class="tree">
+                    <div class="tree__label">Projetos</div>
+                    <button class="row row--project" style="--depth: 0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">acme-api</span></button>
+                    <button class="row" style="--depth: 1"><span class="glyph glyph--worktree">◇</span><span class="row__label">142-orders-500</span><span class="count count--running"><span class="count__dot"></span>1</span></button>
+                    <button class="row" style="--depth: 1"><span class="glyph glyph--worktree">◇</span><span class="row__label">cpf-cadastro</span><span class="prmark prmark--ready"><span class="prmark__dot"></span>#86</span></button>
+                    <button class="row" style="--depth: 1"><span class="glyph glyph--worktree">◇</span><span class="row__label">login-campo-novo</span><span class="prmark prmark--blocked"><span class="prmark__dot"></span>#84</span></button>
+                    <button class="row row--project" style="--depth: 0"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">acme-web</span></button>
+                    <button class="row" style="--depth: 1"><span class="glyph glyph--worktree">◇</span><span class="row__label">lista-vazia</span><span class="count count--running"><span class="count__dot"></span>1</span></button>
+                    <button class="row" style="--depth: 1"><span class="glyph glyph--worktree">◇</span><span class="row__label">export-csv</span><span class="prmark prmark--pending"><span class="prmark__dot"></span>#83</span></button>
+                  </div>
+                  <div class="sidebar__foot">
+                    <button class="add focus-ring"><span class="glyph">◆</span>claude<span class="spacer"></span><span class="dim">4 sessões</span></button>
+                  </div>
+                </aside>
+
+                <!-- o quadro ----------------------------------------------- -->
+                <main class="bd">
+
+                  <div class="bd__head">
+                    <div class="bd__title">
+                      <div class="crumb"><span class="crumb__here">Acme</span></div>
+                      <h2 class="bd__t">Quadro</h2>
+                    </div>
+                    <span class="spacer"></span>
+                    <button class="btn btn--sm focus-ring"><span class="btn__glyph">＋</span>tarefa</button>
+                  </div>
+
+                  <div class="bd__bar">
+                    <button class="needme focus-ring" aria-pressed="false">precisa de mim<span class="needme__n">3</span></button>
+                    <div class="seg" role="group" aria-label="projeto">
+                      <button class="seg__btn" aria-pressed="true">todos</button>
+                      <button class="seg__btn" aria-pressed="false">acme-api</button>
+                      <button class="seg__btn" aria-pressed="false">acme-web</button>
+                    </div>
+                    <span class="spacer"></span>
+                    <span class="daycost"><span class="daycost__k">hoje</span><span class="meter"><span class="meter__f" style="--w: 41%"></span></span>US$ 4,11 / 10,00</span>
+                    <button class="pill focus-ring pill--auto">autônomo · teto 2 · 2 em uso<span class="pill__caret">▾</span></button>
+                  </div>
+
+                  <div class="bd__cols">
+
+                    <!-- backlog, recolhida -->
+                    <button class="col col--rail focus-ring" aria-expanded="false" title="Backlog — 7 tarefas">
+                      <div class="col__h"><span class="col__t">Backlog</span><span class="col__n">7</span></div>
+                    </button>
+
+                    <!-- to-do -->
+                    <section class="col">
+                      <div class="col__h">
+                        <span class="col__t">To-Do</span><span class="col__n">3</span>
+                        <span class="col__you">sua vez</span>
+                        <button class="col__add focus-ring" title="nova tarefa">＋</button>
+                      </div>
+                      <div class="col__body">
+                        <button class="tcard tcard--wait focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost tcard__cost--none">—</span></div>
+                          <div class="tcard__t">trocar o seletor de data do checkout por um campo de texto com máscara</div>
+                          <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando implementador</span></div>
+                          <div class="tcard__foot"><span class="stale">2 h</span></div>
+                        </button>
+                        <button class="tcard tcard--wait focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost tcard__cost--none">—</span></div>
+                          <div class="tcard__t">cache de sessão expira cedo demais em produção</div>
+                          <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando implementador</span></div>
+                          <div class="tcard__foot"><span class="tcard__from tcard__from--track">↗ ACME-151</span><span class="stale">40 min</span></div>
+                        </button>
+                        <button class="tcard tcard--wait focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost tcard__cost--none">—</span></div>
+                          <div class="tcard__t">remover o banner de cookies duplicado</div>
+                          <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando implementador</span></div>
+                          <div class="tcard__foot"><span class="tcard__from tcard__from--agent">◆ proposta</span><span class="stale">1 d</span></div>
+                        </button>
+                      </div>
+                    </section>
+
+                    <!-- in progress -->
+                    <section class="col">
+                      <div class="col__h"><span class="col__t">In Progress</span><span class="col__n">1</span></div>
+                      <div class="col__body">
+                        <button class="tcard tcard--work focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,31</span></div>
+                          <div class="tcard__t">o endpoint /orders devolve 500 quando o carrinho está vazio</div>
+                          <div class="seal"><span class="seal__dot"></span><span class="seal__t">implementando há 12 min</span></div>
+                          <div class="tcard__live"><span class="tcard__live-g">▣</span><span class="tc__target"><span class="tc__dir">src/orders/</span><span class="tc__name">serializer.ts</span></span></div>
+                          <div class="tcard__foot"><span class="tcard__from tcard__from--track">↗ ACME-142</span><span class="stale">12 min</span></div>
+                        </button>
+                      </div>
+                    </section>
+
+                    <!-- in review -->
+                    <section class="col">
+                      <div class="col__h"><span class="col__t">In Review</span><span class="col__n">2</span><span class="col__stale col__stale--warn" title="1 tarefa encalhada"></span></div>
+                      <div class="col__body">
+                        <button class="tcard tcard--wait focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,52</span></div>
+                          <div class="tcard__t">validar CPF no cadastro, com o dígito verificador</div>
+                          <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando revisor</span></div>
+                          <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#86</span><span class="stale stale--warn">47 min</span></div>
+                        </button>
+                        <button class="tcard tcard--work focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost">US$ 0,44</span></div>
+                          <div class="tcard__t">estado vazio da lista de pedidos</div>
+                          <div class="seal"><span class="seal__dot"></span><span class="seal__t">revisando há 2 min</span></div>
+                          <div class="tcard__live"><span class="tcard__live-g">▤</span><span class="tcard__live-t">diff · 6 arquivos</span></div>
+                          <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#85</span><span class="stale">2 min</span></div>
+                        </button>
+                      </div>
+                    </section>
+
+                    <!-- testing -->
+                    <section class="col">
+                      <div class="col__h"><span class="col__t">Testing</span><span class="col__n">2</span><span class="col__stale col__stale--over" title="1 tarefa bloqueada há 3 h"></span></div>
+                      <div class="col__body">
+                        <button class="tcard tcard--blocked focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 1,12</span></div>
+                          <div class="tcard__t">login devolve o campo do nome completo</div>
+                          <div class="seal"><span class="seal__g">▲</span><span class="seal__t">reprovada no teste</span></div>
+                          <div class="tcard__ask"><span class="tcard__ask-t">o <b>acme-web</b> quebra na tela seguinte: ele lê <code>user.name</code>, que virou <code>user.fullName</code></span></div>
+                          <div class="tcard__act"><span class="btn btn--sm">ver parecer</span></div>
+                          <div class="tcard__foot"><span class="prmark prmark--blocked"><span class="prmark__dot"></span>#84</span><span class="stale stale--over">3 h</span></div>
+                        </button>
+                        <button class="tcard tcard--paused focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost">US$ 0,88</span></div>
+                          <div class="tcard__t">exportar pedidos em CSV</div>
+                          <div class="seal"><span class="seal__g">◷</span><span class="seal__t">pausada até ~04:20</span></div>
+                          <div class="tcard__foot"><span class="prmark prmark--pending"><span class="prmark__dot"></span>#83</span><span class="stale">vaga liberada</span></div>
+                        </button>
+                      </div>
+                    </section>
+
+                    <!-- ready to merge -->
+                    <section class="col">
+                      <div class="col__h"><span class="col__t">Ready to Merge</span><span class="col__n">2</span><span class="col__you">sua vez</span><span class="col__stale col__stale--warn" title="1 esperando você há 6 h"></span></div>
+                      <div class="col__body">
+                        <button class="tcard tcard--you focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,74</span></div>
+                          <div class="tcard__t">o cupom não aplica em pedido com frete grátis</div>
+                          <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando você</span></div>
+                          <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#87</span><span class="stale stale--warn">6 h</span></div>
+                        </button>
+                        <button class="tcard tcard--you focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost">US$ 0,29</span></div>
+                          <div class="tcard__t">corrigir o foco do modal de login</div>
+                          <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando você</span></div>
+                          <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#82</span><span class="stale">40 min</span></div>
+                        </button>
+                      </div>
+                    </section>
+
+                    <!-- done, recolhida -->
+                    <button class="col col--rail focus-ring" aria-expanded="false" title="Done — 12 tarefas">
+                      <div class="col__h"><span class="col__t">Done</span><span class="col__n">12</span></div>
+                    </button>
+
+                  </div>
+                </main>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>Três cartões com trabalhador, cinco sem.</b> A barra de 2px à esquerda é a única
+        coisa que muda de cor, e ela carrega <b>um</b> eixo: quem está com a tarefa. O encalhe
+        não entra nela — ele mora no relógio do rodapé, e no ponto do cabeçalho da coluna.
+        Dois eixos de cor no mesmo elemento não teriam nenhum.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">a mesma janela a <span class="mm">1280px</span> · <b>não cabe</b>, e o quadro diz isso</div>
+      <div class="bleed">
+        <div class="win win--w1280">
+          <div class="win__l">janela <span class="mm">1280</span> · faixa <span class="mm">1014</span> · faltam <span class="mm">138px</span> para as cinco</div>
+          <div class="win__v" style="--h: calc(var(--space-64) * 6.5)">
+
+            <div class="app">
+              <div class="topbar">
+                <h1 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h1>
+                <span class="spacer"></span>
+                <span class="daemon"><span class="daemon__dot"></span>daemon 4317</span>
+              </div>
+              <div class="body">
+                <aside class="sidebar">
+                  <div class="ws-wrap"><button class="ws focus-ring"><span class="glyph glyph--workspace">◈</span>Acme<span class="caret">▾</span></button></div>
+                  <div class="tree">
+                    <div class="tree__label">Projetos</div>
+                    <button class="row row--project"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">acme-api</span></button>
+                    <button class="row row--project"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">acme-web</span></button>
+                  </div>
+                </aside>
+                <main class="bd">
+                  <div class="bd__head">
+                    <div class="bd__title"><div class="crumb"><span class="crumb__here">Acme</span></div><h2 class="bd__t">Quadro</h2></div>
+                    <span class="spacer"></span>
+                    <button class="btn btn--sm focus-ring"><span class="btn__glyph">＋</span>tarefa</button>
+                  </div>
+                  <div class="bd__bar">
+                    <button class="needme focus-ring" aria-pressed="false">precisa de mim<span class="needme__n">3</span></button>
+                    <span class="spacer"></span>
+                    <span class="daycost"><span class="daycost__k">hoje</span><span class="meter"><span class="meter__f" style="--w: 41%"></span></span>US$ 4,11</span>
+                    <button class="pill focus-ring pill--auto">autônomo · teto 2<span class="pill__caret">▾</span></button>
+                  </div>
+                  <div class="bd__clip">
+                    <span class="bd__clip-g">⟷</span>
+                    <span><b>1 coluna fora da tela.</b> A janela tem 1280px e o quadro pede 1418 — role para o lado, ou alargue.</span>
+                    <span class="bd__clip__which">Ready to Merge</span>
+                  </div>
+                  <div class="bd__cols">
+                    <button class="col col--rail focus-ring" aria-expanded="false"><div class="col__h"><span class="col__t">Backlog</span><span class="col__n">7</span></div></button>
+                    <section class="col">
+                      <div class="col__h"><span class="col__t">To-Do</span><span class="col__n">3</span><span class="col__you">sua vez</span><button class="col__add focus-ring">＋</button></div>
+                      <div class="col__body">
+                        <button class="tcard tcard--wait focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost tcard__cost--none">—</span></div>
+                          <div class="tcard__t">trocar o seletor de data do checkout por um campo de texto com máscara</div>
+                          <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando implementador</span></div>
+                          <div class="tcard__foot"><span class="stale">2 h</span></div>
+                        </button>
+                      </div>
+                    </section>
+                    <section class="col">
+                      <div class="col__h"><span class="col__t">In Progress</span><span class="col__n">1</span></div>
+                      <div class="col__body">
+                        <button class="tcard tcard--work focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,31</span></div>
+                          <div class="tcard__t">o endpoint /orders devolve 500 quando o carrinho está vazio</div>
+                          <div class="seal"><span class="seal__dot"></span><span class="seal__t">implementando há 12 min</span></div>
+                          <div class="tcard__live"><span class="tcard__live-g">▣</span><span class="tc__target"><span class="tc__dir">src/orders/</span><span class="tc__name">serializer.ts</span></span></div>
+                          <div class="tcard__foot"><span class="tcard__from tcard__from--track">↗ ACME-142</span><span class="stale">12 min</span></div>
+                        </button>
+                      </div>
+                    </section>
+                    <section class="col">
+                      <div class="col__h"><span class="col__t">In Review</span><span class="col__n">2</span><span class="col__stale col__stale--warn"></span></div>
+                      <div class="col__body">
+                        <button class="tcard tcard--wait focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,52</span></div>
+                          <div class="tcard__t">validar CPF no cadastro, com o dígito verificador</div>
+                          <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando revisor</span></div>
+                          <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#86</span><span class="stale stale--warn">47 min</span></div>
+                        </button>
+                      </div>
+                    </section>
+                    <section class="col">
+                      <div class="col__h"><span class="col__t">Testing</span><span class="col__n">2</span><span class="col__stale col__stale--over"></span></div>
+                      <div class="col__body">
+                        <button class="tcard tcard--paused focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost">US$ 0,88</span></div>
+                          <div class="tcard__t">exportar pedidos em CSV</div>
+                          <div class="seal"><span class="seal__g">◷</span><span class="seal__t">pausada até ~04:20</span></div>
+                          <div class="tcard__foot"><span class="prmark prmark--pending"><span class="prmark__dot"></span>#83</span><span class="stale">vaga liberada</span></div>
+                        </button>
+                      </div>
+                    </section>
+                    <section class="col">
+                      <div class="col__h"><span class="col__t">Ready to Merge</span><span class="col__n">2</span><span class="col__you">sua vez</span></div>
+                      <div class="col__body">
+                        <button class="tcard tcard--you focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,74</span></div>
+                          <div class="tcard__t">o cupom não aplica em pedido com frete grátis</div>
+                          <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando você</span></div>
+                          <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#87</span><span class="stale stale--warn">6 h</span></div>
+                        </button>
+                      </div>
+                    </section>
+                    <button class="col col--rail focus-ring" aria-expanded="false"><div class="col__h"><span class="col__t">Done</span><span class="col__n">12</span></div></button>
+                  </div>
+                </main>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <span class="q">Q37 · respondida</span> <b>Rola, e o quadro diz que está rolando.</b> Um
+        quadro de sete etapas que mostra quatro sem avisar mente por omissão — e a coluna que some
+        primeiro é <code>Ready to Merge</code>, que é justamente <b>a sua</b>. A faixa nomeia qual
+        saiu, porque <em>"algo está fora da tela"</em> não dá para agir e
+        <em>"Ready to Merge está fora da tela"</em> dá.
+      </p>
+      <p class="case__note">
+        <b>Ela é derivada da largura, como o selo é derivado da sessão:</b> aparece ao estreitar, some
+        ao alargar, e <b>não tem <code>✕</code></b> — fechar um aviso que volta sozinho é a forma mais
+        rápida de aprender a ignorá-lo. E é <b>fria, não âmbar</b>: a janela ser pequena não é um
+        problema do seu trabalho, é um fato sobre o seu monitor. Âmbar aqui competiria com o relógio
+        de encalhe, que é o único âmbar que pede ação.
+      </p>
+      <p class="case__note">
+        <b>Encolher a coluna não era saída.</b> Abaixo de 200px o título vira três linhas e a linha
+        viva perde o nome do arquivo — sete colunas ruins são piores que cinco boas e um aviso. Este é
+        o <b>primeiro requisito de largura mínima do produto</b>, e ele existe porque o quadro é a
+        primeira tela que precisa mostrar sete coisas ao mesmo tempo.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 2 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">2</span>o cartão, e os cinco estados do selo</h2>
+      <p class="sec__d">
+        O §4.1 da PRD decidiu que <b>a coluna é a etapa e quem está nela é um selo</b> — contra
+        as sub-colunas <code>ready to review</code> e <code>ready to test</code>. O argumento não
+        foi espaço: <b>selo derivado não pode mentir, coluna guardada pode.</b> O selo é
+        calculado a cada leitura a partir de existir uma sessão viva com a tarefa reivindicada;
+        matar a sessão do revisor faz ele voltar para <code>aguardando</code> sem nenhuma
+        escrita (quadro 10).
+      </p>
+      <p class="sec__d">
+        A PRD lista quatro estados. O desenho achou <b>o quinto</b>, e ele é o mais importante
+        de todos porque é o default do produto: <code>manual</code> — <b>ninguém vai pegar</b>.
+        Sem ele, um quadro com a autonomia desligada desenharia o mesmo pixel de um quadro com
+        a esteira travada.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">anatomia · <span class="mm">204px</span> de largura, que é a coluna do quadro em 1440</div>
+      <div class="deck">
+        <div class="deck__i">
+          <div class="deck__l"><b>aguardando &lt;papel&gt;</b> · anel, sem linha viva</div>
+          <div class="tcard tcard--wait">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,52</span></div>
+            <div class="tcard__t">validar CPF no cadastro, com o dígito verificador</div>
+            <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando revisor</span></div>
+            <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#86</span><span class="stale">4 min</span></div>
+          </div>
+        </div>
+        <div class="deck__i">
+          <div class="deck__l"><b>&lt;verbo do encaixe&gt; há Xm</b> · disco cheio, com linha viva</div>
+          <div class="tcard tcard--work">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,31</span></div>
+            <div class="tcard__t">o endpoint /orders devolve 500 quando o carrinho está vazio</div>
+            <div class="seal"><span class="seal__dot"></span><span class="seal__t">implementando há 12 min</span></div>
+            <div class="tcard__live"><span class="tcard__live-g">▣</span><span class="tc__target"><span class="tc__dir">src/orders/</span><span class="tc__name">serializer.ts</span></span></div>
+            <div class="tcard__foot"><span class="tcard__from tcard__from--track">↗ ACME-142</span><span class="stale">12 min</span></div>
+          </div>
+        </div>
+        <div class="deck__i">
+          <div class="deck__l"><b>bloqueada: &lt;motivo&gt;</b> · o motivo em uma frase, e um verbo</div>
+          <div class="tcard tcard--blocked">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost">US$ 0,63</span></div>
+            <div class="tcard__t">adicionar cupom de desconto no checkout</div>
+            <div class="seal"><span class="seal__g">▲</span><span class="seal__t">aguardando decisão sua</span></div>
+            <div class="tcard__ask"><span class="tcard__ask-t">cupom acumula com frete grátis? Não achei regra no código nem na memória do workspace</span></div>
+            <div class="tcard__act"><span class="btn btn--sm">responder</span></div>
+            <div class="tcard__foot"><span class="stale stale--over">3 h</span></div>
+          </div>
+        </div>
+        <div class="deck__i">
+          <div class="deck__l"><b>pausada até ~HH:MM</b> · não cobra relógio, e libera a vaga</div>
+          <div class="tcard tcard--paused">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost">US$ 0,88</span></div>
+            <div class="tcard__t">exportar pedidos em CSV</div>
+            <div class="seal"><span class="seal__g">◷</span><span class="seal__t">pausada até ~04:20</span></div>
+            <div class="tcard__foot"><span class="prmark prmark--pending"><span class="prmark__dot"></span>#83</span><span class="stale">vaga liberada</span></div>
+          </div>
+        </div>
+        <div class="deck__i">
+          <div class="deck__l"><b>manual</b> · o default do produto, e o estado que o briefing não tinha</div>
+          <div class="tcard tcard--manual">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost tcard__cost--none">—</span></div>
+            <div class="tcard__t">cache de sessão expira cedo demais em produção</div>
+            <div class="seal"><span class="seal__dot"></span><span class="seal__t">manual — ninguém pega</span></div>
+            <div class="tcard__act"><span class="btn btn--sm">começar</span></div>
+            <div class="tcard__foot"><span class="tcard__from tcard__from--track">↗ ACME-151</span><span class="stale">2 d</span></div>
+          </div>
+        </div>
+        <div class="deck__i">
+          <div class="deck__l"><b>aguardando você</b> · a única coisa branca do quadro</div>
+          <div class="tcard tcard--you">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,74</span></div>
+            <div class="tcard__t">o cupom não aplica em pedido com frete grátis</div>
+            <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando você</span></div>
+            <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#87</span><span class="stale stale--warn">6 h</span></div>
+          </div>
+        </div>
+      </div>
+
+      <p class="case__note">
+        <b>A altura também é sinal</b> — <span class="mm">+30px</span> por cartão, medidos —, e
+        isso não foi desenhado: apareceu, porque a linha viva só existe quando alguém está lá. É
+        metade da resposta da medida 3.3. A ressalva honesta é que <b>o título também muda a
+        altura</b>: um título de uma linha encolhe o cartão tanto quanto a ausência de linha
+        viva. A altura é sinal <em>dentro</em> de uma coluna, comparando cartões parecidos —
+        não é um medidor absoluto.
+      </p>
+      <p class="case__note">
+        <span class="q">medida</span> <b>O selo da PRD não cabia no selo.</b>
+        <code>executor trabalhando há 12 min</code> pede <span class="mm">168px</span> e a caixa
+        tem <span class="mm">151</span> — o item mais importante do cartão estava truncando no
+        meio. O conserto não é fonte menor: é que <b>o papel já está escrito na coluna</b>. Em
+        In Review só existe revisor. Então o selo guarda o verbo e devolve o substantivo:
+        <code>revisando há 2 min</code> (<span class="mm">101px</span>),
+        <code>implementando há 12 min</code> (<span class="mm">137</span>),
+        <code>testando há 8 min</code> (<span class="mm">96</span>). Esperando, o substantivo
+        volta, porque aí ele não é redundante — é o que falta:
+        <code>aguardando revisor</code>.
+      </p>
+      <p class="case__note">
+        <b>E o substantivo mais longo é o que sobrou de folga.</b>
+        <code>aguardando implementador</code> mede <span class="mm">148px</span> na caixa de
+        <span class="mm">151</span>: <b>3px</b>. Está escrito aqui e no §4.1 da PRD porque é esse
+        número que impede alguém de engordar o ponto, o espaçamento ou a fonte do selo sem perceber
+        que truncou a linha mais importante do cartão. Os outros dois têm espaço de sobra —
+        <code>aguardando revisor</code> mede 104 e <code>aguardando testador</code> 112. A folga é
+        toda do <code>implementador</code>.
+      </p>
+      <p class="case__note">
+        <b>E esse verbo achou uma costura no vocabulário da PRD — que foi costurada.</b> O encaixe
+        se chamava <code>executor</code>, e metade dos casos de uso escrevia <em>"o implementador
+        commita"</em>. O verbo natural do selo é <code>implementando</code>, não
+        <code>executando</code>, que em produto de agente quer dizer <em>rodar comando</em>. A
+        <a class="lnk" href="#">Q34</a> foi respondida em <b>2026-09-12</b>: <b>o encaixe se chama
+        <code>implementador</code></b>. Custou uma busca-e-troca porque não existe código ainda — e
+        é exatamente por isso que valia perguntar agora.
+      </p>
+      <p class="case__note">
+        <b>A linha viva é um cartão de ferramenta comprimido em uma linha</b> — então o glifo
+        dela é o mesmo vocabulário da conversa: <code>▤</code> leu, <code>▣</code> escreveu,
+        <code>❯</code> rodou. Cor é estado, glifo é categoria, e essa distinção já foi paga na
+        <code>acp-sessions</code>. Inventar um segundo alfabeto aqui seria cobrar duas vezes.
+        <b>E ela cobra o verbo de volta:</b> <code>▤ lendo o diff · 6 arquivos</code> não cabe
+        em <span class="mm">136px</span>, <code>▤ diff · 6 arquivos</code> cabe, e diz a mesma
+        coisa — porque o glifo já disse "leu". Escrever o verbo ao lado do glifo que é o verbo é
+        o jeito mais caro de truncar.
+      </p>
+      <p class="case__note">
+        <b>O que ainda trunca é caminho de arquivo, e isso é o preço da coluna de 200px.</b>
+        <code>src/orders/serializer.ts</code> pede <span class="mm">159px</span> e tem
+        <span class="mm">141</span>. A regra nº 4 da casa resolve sem desenho novo: <b>o
+        diretório cede até sobrar o <code>…</code>, e só depois o nome do arquivo começa</b> —
+        o cartão mostra <code>src/ord…serializer.ts</code>, que responde a única pergunta que
+        essa linha tem para responder.
+      </p>
+      <p class="case__note">
+        <b>E "aguardando você" não é uma cor nova.</b> Ele é o texto mais claro da paleta
+        (<code>text/primary</code>), num quadro onde tudo o mais é secundário ou terciário — é
+        <em>luminância</em>, não matiz. Bloqueada é vermelho porque algo deu errado; Ready to
+        Merge é branco porque nada deu errado e é a sua vez. Duas coisas diferentes que ambas
+        precisam de você, e que você precisa distinguir de longe.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 3 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">3</span>o selo grita o suficiente? a prova de longe</h2>
+      <p class="sec__d">
+        <span class="q">medida 3.3</span> É o custo que a <a href="#" class="lnk">Q30</a> aceitou:
+        <b>um selo se vê menos que uma coluna.</b> A prova é olhar de longe duas colunas
+        idênticas — três cartões <code>aguardando</code> contra três <code>trabalhando</code> — e
+        perguntar qual é qual sem ler.
+      </p>
+      <p class="sec__d">
+        <b>Resultado: dá</b> — e não pela cor da barra, que a 2px é a primeira coisa a sumir.
+        Dá pela <b>altura</b>: as mesmas três tarefas medem <span class="mm">114px</span> sem
+        trabalhador e <span class="mm">144px</span> com, porque a linha viva só existe quando
+        alguém está lá. São <span class="mm">90px</span> de diferença em três cartões, e o olho
+        pega ritmo antes de pegar cor. A cor é o que diz <em>quem</em>; a altura é o que diz
+        <em>se</em>.
+      </p>
+      <p class="sec__d">
+        Consequência para o produto: o limiar âmbar de <b>30 min</b> fica onde estava. Ele não
+        precisa entrar mais cedo para compensar o selo — quem compensa o selo é o ponto no
+        cabeçalho da coluna, que é o que se acha do outro lado da sala.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">a mesma coluna, dois preenchimentos · olhe apertando os olhos</div>
+      <div class="deck deck--col">
+        <div class="deck__i">
+          <div class="deck__l">ninguém pegou — <b>três anéis</b></div>
+          <section class="col">
+            <div class="col__h"><span class="col__t">In Review</span><span class="col__n">3</span></div>
+            <div class="col__body">
+              <div class="tcard tcard--wait">
+                <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,52</span></div>
+                <div class="tcard__t">validar CPF no cadastro, com o dígito verificador</div>
+                <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando revisor</span></div>
+                <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#86</span><span class="stale">4 min</span></div>
+              </div>
+              <div class="tcard tcard--wait">
+                <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost">US$ 0,44</span></div>
+                <div class="tcard__t">estado vazio da lista de pedidos</div>
+                <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando revisor</span></div>
+                <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#85</span><span class="stale">11 min</span></div>
+              </div>
+              <div class="tcard tcard--wait">
+                <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,19</span></div>
+                <div class="tcard__t">remover o header duplicado da resposta de erro</div>
+                <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando revisor</span></div>
+                <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#81</span><span class="stale">26 min</span></div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="deck__i">
+          <div class="deck__l">três revisores dentro — <b>três discos e três linhas vivas</b></div>
+          <section class="col">
+            <div class="col__h"><span class="col__t">In Review</span><span class="col__n">3</span></div>
+            <div class="col__body">
+              <div class="tcard tcard--work">
+                <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,52</span></div>
+                <div class="tcard__t">validar CPF no cadastro, com o dígito verificador</div>
+                <div class="seal"><span class="seal__dot"></span><span class="seal__t">revisando há 1 min</span></div>
+                <div class="tcard__live"><span class="tcard__live-g">▤</span><span class="tcard__live-t">diff · 3 arquivos</span></div>
+                <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#86</span><span class="stale">4 min</span></div>
+              </div>
+              <div class="tcard tcard--work">
+                <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost">US$ 0,44</span></div>
+                <div class="tcard__t">estado vazio da lista de pedidos</div>
+                <div class="seal"><span class="seal__dot"></span><span class="seal__t">revisando há 2 min</span></div>
+                <div class="tcard__live"><span class="tcard__live-g">▣</span><span class="tc__target"><span class="tc__dir">src/orders/</span><span class="tc__name">Empty.tsx</span></span></div>
+                <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#85</span><span class="stale">11 min</span></div>
+              </div>
+              <div class="tcard tcard--work">
+                <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,19</span></div>
+                <div class="tcard__t">remover o header duplicado da resposta de erro</div>
+                <div class="seal"><span class="seal__dot"></span><span class="seal__t">revisando há 4 min</span></div>
+                <div class="tcard__live"><span class="tcard__live-g">▤</span><span class="tcard__live-t">errors.ts</span></div>
+                <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#81</span><span class="stale">26 min</span></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+      <p class="case__note">
+        <span class="q">medida 3.2</span> <b>Cabem cinco cartões sem rolar</b> numa coluna de
+        <span class="mm">682px</span> — a altura real em 1440 × 900 — e <b>quatro</b> quando todos
+        têm linha viva. O briefing
+        dizia que menos de quatro significaria item demais no cartão. Passou, e sem cortar nada.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 4 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">4</span>encalhe, e o filtro que é a visão mais usada do produto</h2>
+      <p class="sec__d">
+        O relógio <b>só conta o tempo em que o cartão podia ter andado</b>. Esperar vaga não
+        cobra — isso é desenho, não problema —, esperar <em>você</em> cobra. Cobrar o que é
+        desenho é a forma mais rápida de tornar o aviso invisível.
+      </p>
+      <table class="tbl">
+        <thead><tr><th>onde</th><th>âmbar</th><th>vermelho</th><th>por quê</th></tr></thead>
+        <tbody>
+          <tr><td>In Progress · In Review · Testing</td><td><span class="mm">30 min</span></td><td><span class="mm">2 h</span></td><td>a máquina devia estar andando</td></tr>
+          <tr><td>Ready to Merge</td><td><span class="mm">4 h</span></td><td><span class="mm">1 dia</span></td><td>é você, e você tem uma vida</td></tr>
+          <tr><td>To-Do</td><td>—</td><td>—</td><td>com teto, estar parado aqui <b>é o desenho</b></td></tr>
+          <tr><td><code>pausada</code></td><td>—</td><td>—</td><td>cota não é encalhe: ela volta sozinha</td></tr>
+        </tbody>
+      </table>
+      <p class="sec__d">
+        Ligado, o filtro <b>precisa de mim</b> tira do quadro tudo que anda sozinho e ordena
+        pelo pior. O que sobra é a lista de coisas que só existem porque você existe: o
+        bloqueio, o encalhe, e a sua vez.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o mesmo quadro com o filtro <b>ligado</b> · três cartões, e nada mais</div>
+      <div class="bleed">
+        <div class="win win--w1440">
+          <div class="win__l">janela <span class="mm">1440 × 620</span> · colunas vazias continuam visíveis — sumir muda a forma do quadro a cada leitura</div>
+          <div class="win__v" style="--h: calc(var(--space-64) * 7)">
+
+            <div class="app">
+              <div class="topbar">
+                <h1 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h1>
+                <span class="spacer"></span>
+                <span class="daemon"><span class="daemon__dot"></span>daemon 4317</span>
+              </div>
+              <div class="body">
+                <aside class="sidebar">
+                  <div class="ws-wrap"><button class="ws focus-ring"><span class="glyph glyph--workspace">◈</span>Acme<span class="caret">▾</span></button></div>
+                  <div class="tree">
+                    <div class="tree__label">Projetos</div>
+                    <button class="row row--project"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">acme-api</span></button>
+                    <button class="row row--project"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">acme-web</span></button>
+                  </div>
+                </aside>
+
+                <main class="bd">
+                  <div class="bd__head">
+                    <div class="bd__title"><div class="crumb"><span class="crumb__here">Acme</span></div><h2 class="bd__t">Quadro</h2></div>
+                    <span class="spacer"></span>
+                    <button class="btn btn--sm focus-ring"><span class="btn__glyph">＋</span>tarefa</button>
+                  </div>
+                  <div class="bd__bar">
+                    <button class="needme focus-ring" aria-pressed="true">precisa de mim<span class="needme__n">3</span></button>
+                    <span class="dim">ordenado pelo pior</span>
+                    <span class="spacer"></span>
+                    <span class="daycost"><span class="daycost__k">hoje</span><span class="meter"><span class="meter__f" style="--w: 41%"></span></span>US$ 4,11 / 10,00</span>
+                    <button class="pill focus-ring pill--auto">autônomo · teto 2 · 2 em uso<span class="pill__caret">▾</span></button>
+                  </div>
+                  <div class="bd__cols">
+                    <button class="col col--rail focus-ring" aria-expanded="false"><div class="col__h"><span class="col__t">Backlog</span><span class="col__n">0</span></div></button>
+                    <section class="col"><div class="col__h"><span class="col__t">To-Do</span><span class="col__n">0</span></div><div class="col__body"><div class="col__empty">nada seu aqui</div></div></section>
+                    <section class="col"><div class="col__h"><span class="col__t">In Progress</span><span class="col__n">0</span></div><div class="col__body"><div class="col__empty">nada seu aqui</div></div></section>
+                    <section class="col">
+                      <div class="col__h"><span class="col__t">In Review</span><span class="col__n">1</span><span class="col__stale col__stale--warn"></span></div>
+                      <div class="col__body">
+                        <button class="tcard tcard--wait focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,52</span></div>
+                          <div class="tcard__t">validar CPF no cadastro, com o dígito verificador</div>
+                          <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando revisor</span></div>
+                          <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#86</span><span class="stale stale--warn">47 min</span></div>
+                        </button>
+                      </div>
+                    </section>
+                    <section class="col">
+                      <div class="col__h"><span class="col__t">Testing</span><span class="col__n">1</span><span class="col__stale col__stale--over"></span></div>
+                      <div class="col__body">
+                        <button class="tcard tcard--blocked focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 1,12</span></div>
+                          <div class="tcard__t">login devolve o campo do nome completo</div>
+                          <div class="seal"><span class="seal__g">▲</span><span class="seal__t">reprovada no teste</span></div>
+                          <div class="tcard__ask"><span class="tcard__ask-t">o <b>acme-web</b> quebra na tela seguinte: ele lê <code>user.name</code>, que virou <code>user.fullName</code></span></div>
+                          <div class="tcard__act"><span class="btn btn--sm">ver parecer</span></div>
+                          <div class="tcard__foot"><span class="prmark prmark--blocked"><span class="prmark__dot"></span>#84</span><span class="stale stale--over">3 h</span></div>
+                        </button>
+                      </div>
+                    </section>
+                    <section class="col">
+                      <div class="col__h"><span class="col__t">Ready to Merge</span><span class="col__n">1</span><span class="col__you">sua vez</span><span class="col__stale col__stale--warn"></span></div>
+                      <div class="col__body">
+                        <button class="tcard tcard--you focus-ring">
+                          <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,74</span></div>
+                          <div class="tcard__t">o cupom não aplica em pedido com frete grátis</div>
+                          <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando você</span></div>
+                          <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#87</span><span class="stale stale--warn">6 h</span></div>
+                        </button>
+                      </div>
+                    </section>
+                    <button class="col col--rail focus-ring" aria-expanded="false"><div class="col__h"><span class="col__t">Done</span><span class="col__n">0</span></div></button>
+                  </div>
+                </main>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>As colunas vazias ficam.</b> Filtrar não pode remodelar o quadro: se as colunas
+        sumissem, a mesma tarefa estaria num lugar diferente da tela a cada vez que você
+        clicasse o filtro, e a memória espacial — que é o que faz a olhada durar cinco segundos
+        — iria junto.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 5 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">5</span>bloqueada, nas quatro razões</h2>
+      <p class="sec__d">
+        Um cartão bloqueado precisa <b>gritar sem o quadro virar alarme</b>. A regra que faz as
+        duas coisas conviverem: <b>o vermelho é sempre de contorno, nunca de preenchimento.</b>
+        Um cartão bloqueado se acha; dez cartões bloqueados continuam sendo dez cartões, e não
+        uma tela vermelha que se aprende a ignorar. Quem agrega é a contagem do filtro e o ponto
+        do cabeçalho.
+      </p>
+      <p class="sec__d">
+        E cada razão termina em <b>um verbo</b>, não em dois. Bloqueio que oferece escolha de
+        caminho é bloqueio que você adia.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">as quatro · <b>decisão de domínio</b> · <b>orçamento</b> · <b>reprovada no teste</b> · <b>o tracker mudou</b></div>
+      <div class="deck">
+        <div class="deck__i">
+          <div class="deck__l">decisão de <b>produto</b>, não permissão — o UC3</div>
+          <div class="tcard tcard--blocked">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost">US$ 0,63</span></div>
+            <div class="tcard__t">adicionar cupom de desconto no checkout</div>
+            <div class="seal"><span class="seal__g">▲</span><span class="seal__t">aguardando decisão sua</span></div>
+            <div class="tcard__ask"><span class="tcard__ask-t">cupom acumula com frete grátis? Não achei regra no código nem na memória do workspace</span></div>
+            <div class="tcard__act"><span class="btn btn--sm">responder</span></div>
+            <div class="tcard__foot"><span class="stale stale--over">3 h</span></div>
+          </div>
+        </div>
+        <div class="deck__i">
+          <div class="deck__l">o número, a worktree que <b>fica</b>, e <b>qual teto</b> — o UC6</div>
+          <div class="tcard tcard--blocked">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost">US$ 2,04</span></div>
+            <div class="tcard__t">melhorar a performance do carregamento</div>
+            <div class="seal"><span class="seal__g">▲</span><span class="seal__t">orçamento estourado</span></div>
+            <div class="tcard__ask"><span class="tcard__ask-t">parou no teto do <b>workspace</b> — US$ 2,00 por tarefa. A worktree <code>perf-loading</code> ficou, com tudo que já foi feito</span></div>
+            <div class="tcard__act"><span class="btn btn--sm">ver o teto do workspace</span></div>
+            <div class="tcard__foot"><span class="stale stale--over">7 h</span></div>
+          </div>
+        </div>
+        <div class="deck__i">
+          <div class="deck__l">o defeito que <b>mora entre dois repositórios</b> — o UC4</div>
+          <div class="tcard tcard--blocked">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 1,12</span></div>
+            <div class="tcard__t">login devolve o campo do nome completo</div>
+            <div class="seal"><span class="seal__g">▲</span><span class="seal__t">reprovada no teste</span></div>
+            <div class="tcard__ask"><span class="tcard__ask-t">o <b>acme-web</b> quebra na tela seguinte: ele lê <code>user.name</code>, que virou <code>user.fullName</code></span></div>
+            <div class="tcard__act"><span class="btn btn--sm">ver parecer</span></div>
+            <div class="tcard__foot"><span class="prmark prmark--blocked"><span class="prmark__dot"></span>#84</span><span class="stale stale--over">3 h</span></div>
+          </div>
+        </div>
+        <div class="deck__i">
+          <div class="deck__l">mudou lá no meio — e <b>qual</b> das três mudou</div>
+          <div class="tcard tcard--blocked">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,41</span></div>
+            <div class="tcard__t">cache de sessão expira cedo demais em produção</div>
+            <div class="seal"><span class="seal__g">▲</span><span class="seal__t">o tracker mudou</span></div>
+            <div class="tcard__ask"><span class="tcard__ask-t"><b>ACME-151</b> foi <b>reatribuída</b> para Marina no Linear, às 14:02. Nada foi injetado no turno</span></div>
+            <div class="tcard__act"><span class="btn btn--sm">decidir</span></div>
+            <div class="tcard__foot"><span class="tcard__from tcard__from--track">↗ ACME-151</span><span class="stale stale--warn">52 min</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="case__label" style="margin-top: var(--space-16)">a razão <b>orçamento</b> tem duas respostas · <span class="q">Q36 · respondida</span></div>
+      <div class="deck">
+        <div class="deck__i">
+          <div class="deck__l">o teto do <b>workspace</b> — vale para toda tarefa</div>
+          <div class="tcard tcard--blocked">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost">US$ 2,04</span></div>
+            <div class="tcard__t">melhorar a performance do carregamento</div>
+            <div class="seal"><span class="seal__g">▲</span><span class="seal__t">orçamento estourado</span></div>
+            <div class="tcard__ask"><span class="tcard__ask-t">parou no teto do <b>workspace</b> — US$ 2,00 por tarefa</span></div>
+            <div class="tcard__act"><span class="btn btn--sm">ver o teto do workspace</span></div>
+            <div class="tcard__foot"><span class="stale stale--over">7 h</span></div>
+          </div>
+        </div>
+        <div class="deck__i">
+          <div class="deck__l">o teto do <b>agente</b> — só do <code>revisor-severo</code></div>
+          <div class="tcard tcard--blocked">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,50</span></div>
+            <div class="tcard__t">validar CPF no cadastro, com o dígito verificador</div>
+            <div class="seal"><span class="seal__g">▲</span><span class="seal__t">orçamento estourado</span></div>
+            <div class="tcard__ask"><span class="tcard__ask-t">parou no teto do agente <b>revisor-severo</b> — US$ 0,50 · 6 turnos</span></div>
+            <div class="tcard__act"><span class="btn btn--sm">ver o agente</span></div>
+            <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#86</span><span class="stale stale--over">2 h</span></div>
+          </div>
+        </div>
+        <div class="deck__i">
+          <div class="deck__l">por que os dois não podem dizer só o número</div>
+          <div class="rule rule--yes">
+            <div class="rule__t">o verbo leva ao número certo</div>
+            <div class="rule__d">
+              Orçamento mora em dois lugares — no agente (Q33) e no workspace (F3) —, então
+              <em>"parou em US$ 0,50"</em> tem duas respostas e <b>mexer no teto errado não
+              destrava nada</b>. O cartão nomeia qual segurou, e o verbo abre a tela onde
+              aquele número mora: o painel de autonomia, ou a ficha do agente.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="case__note">
+        <b>Nenhum dos quatro diz "erro".</b> Três deles são o sistema funcionando: o agente
+        soube parar, o teto segurou, o teste pegou. O quarto é o mundo mudando embaixo. O que
+        eles têm em comum não é falha — é que <b>a próxima decisão é sua</b>, e é isso que o
+        vermelho está dizendo.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 6 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">6</span>o detalhe da tarefa — onde a esteira deixa rastro</h2>
+      <p class="sec__d">
+        Clicar num cartão abre isto, no lugar do quadro, com o breadcrumb de volta. É a única
+        tela nova da feature além do quadro, e ela existe para responder <b>o que os três
+        agentes fizeram</b> — em ordem, com o custo de cada um.
+      </p>
+      <p class="sec__d">
+        <b>Os três pareceres são o corpo da tela, e vêm em ordem cronológica.</b> Reprovar cabe
+        igual a aprovar: se o "não" fosse mais feio que o "sim", o revisor viraria carimbo, e um
+        revisor que nunca reprova é pior que nenhum.
+      </p>
+      <p class="sec__d">
+        <b>Assumir o volante não é uma tela nova.</b> Cada encaixe tem uma sessão, e cada sessão
+        é uma linha clicável que abre <b>a conversa que já existe</b>, no estado em que está. A
+        sessão autônoma e a sessão que você conduz são a mesma sessão — se assumir custasse
+        perder o histórico, você nunca ligaria o modo autônomo.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o caso do UC2 · o revisor reprovou uma vez, e a segunda rodada passou</div>
+      <div class="bleed">
+        <div class="win win--w1440">
+          <div class="win__l">janela <span class="mm">1440</span> · a tela inteira sem rolagem — em 900px de altura ela rola a partir de <b>as sessões</b></div>
+          <div class="win__v" style="--h: calc(var(--space-64) * 16)">
+
+            <div class="app">
+              <div class="topbar">
+                <h1 class="wordmark"><span class="wordmark__dot"></span>LUMEM</h1>
+                <span class="spacer"></span>
+                <span class="daemon"><span class="daemon__dot"></span>daemon 4317</span>
+              </div>
+              <div class="body">
+                <aside class="sidebar">
+                  <div class="ws-wrap"><button class="ws focus-ring"><span class="glyph glyph--workspace">◈</span>Acme<span class="caret">▾</span></button></div>
+                  <div class="tree">
+                    <div class="tree__label">Projetos</div>
+                    <button class="row row--project"><span class="row__twist">▾</span><span class="glyph glyph--project">■</span><span class="row__label">acme-api</span></button>
+                    <button class="row is-selected" style="--depth: 1"><span class="glyph glyph--worktree">◇</span><span class="row__label">142-orders-500</span><span class="prmark prmark--ready"><span class="prmark__dot"></span>#87</span></button>
+                    <button class="row row--project"><span class="row__twist">▸</span><span class="glyph glyph--project">■</span><span class="row__label">acme-web</span></button>
+                  </div>
+                </aside>
+
+                <main class="bd">
+                  <div class="td">
+
+                    <div class="td__head">
+                      <div class="crumb">
+                        <button class="crumb__up focus-ring">Acme</button>
+                        <span class="crumb__sep">/</span>
+                        <button class="crumb__up focus-ring">Quadro</button>
+                        <span class="crumb__sep">/</span>
+                        <span class="crumb__here">ACME-142</span>
+                      </div>
+                      <div class="td__l1">
+                        <h2 class="td__t">o endpoint /orders devolve 500 quando o carrinho está vazio</h2>
+                      </div>
+                      <div class="td__l1">
+                        <span class="seal seal--sm seal--ring" style="--seal: var(--color-text-primary)"><span class="seal__dot"></span><span class="seal__t">Ready to Merge · aguardando você há 6 h</span></span>
+                        <span class="td__acts">
+                          <button class="btn btn--sm btn--brand focus-ring">mesclar</button>
+                          <button class="btn btn--sm focus-ring">assumir o volante</button>
+                          <button class="btn btn--sm btn--ghost focus-ring">parar</button>
+                        </span>
+                      </div>
+                      <div class="td__facts">
+                        <span class="chip"><span class="glyph glyph--project">■</span>acme-api</span>
+                        <span class="chip chip--branch">◇ 142-orders-500-empty-cart</span>
+                        <span class="chip chip--clean"><span class="chip__dot"></span>limpa</span>
+                        <a class="chip focus-ring" href="#"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#87</span>5 verificações ✓</a>
+                        <a class="chip focus-ring" href="#">↗ ACME-142 · Linear</a>
+                        <span class="chip chip--mono">US$ 0,74 · 23 turnos</span>
+                      </div>
+                    </div>
+
+                    <div class="td__sec">
+                      <div class="td__st">o pedido <span class="dim">· como chegou do Linear, sem edição</span></div>
+                      <div class="td__body">
+                        Ao finalizar um pedido com o carrinho vazio, <code>POST /orders</code> devolve
+                        <code>500</code> com stack trace. O contrato diz <code>400</code> com
+                        <code>{"error": "empty_cart"}</code>. Reproduz em staging.
+                      </div>
+                    </div>
+
+                    <div class="td__sec">
+                      <div class="td__st">a esteira <span class="dim">· três encaixes, em ordem · 2 ciclos</span></div>
+
+                      <div class="par par--ok">
+                        <div class="par__h">
+                          <span class="par__role">implementador</span>
+                          <span class="par__who"><span class="glyph glyph--agent">◆</span>claude · sonnet-5</span>
+                          <span class="par__v">entregou</span>
+                        </div>
+                        <div class="par__b">
+                          Devolvi <code>400</code> com o código <code>empty_cart</code> no serializer, e
+                          cobri com dois testes — carrinho vazio e carrinho nulo. Branch empurrada, PR
+                          <code>#87</code> aberta.
+                        </div>
+                        <div class="par__m"><span>12:04 → 12:31</span><span>27 min</span><span>9 turnos</span><span><b>US$ 0,31</b></span></div>
+                      </div>
+
+                      <div class="par par--no">
+                        <div class="par__h">
+                          <span class="par__role">revisor</span>
+                          <span class="par__who"><span class="glyph glyph--agent">◆</span>revisor-severo · codex</span>
+                          <span class="par__v">reprovou</span>
+                        </div>
+                        <div class="par__b">
+                          O contrato de <code>/orders</code> diz <code>400</code> para carrinho vazio;
+                          isto devolve <code>200</code> com lista vazia. Funciona, e contraria o que o
+                          resto do sistema espera.
+                        </div>
+                        <div class="par__m"><span>12:36 → 12:39</span><span>3 min</span><span>2 turnos</span><span><b>US$ 0,08</b></span></div>
+                        <div class="par__loop"><span class="away__g">↩</span><b>voltou para In Progress</b> · este parecer foi o próximo prompt do implementador, e não um seu · <b>volta 1 de 2</b></div>
+                      </div>
+
+                      <div class="par par--ok">
+                        <div class="par__h">
+                          <span class="par__role">revisor</span>
+                          <span class="par__who"><span class="glyph glyph--agent">◆</span>revisor-severo · codex</span>
+                          <span class="par__v">aprovou</span>
+                        </div>
+                        <div class="par__b">Agora bate com o contrato. Os dois testes novos cobrem os dois casos.</div>
+                        <div class="par__m"><span>12:52 → 12:54</span><span>2 min</span><span>2 turnos</span><span><b>US$ 0,07</b></span></div>
+                      </div>
+
+                      <div class="par par--ok">
+                        <div class="par__h">
+                          <span class="par__role">testador</span>
+                          <span class="par__who"><span class="glyph glyph--agent">◆</span>testador · claude · opus-5</span>
+                          <span class="par__v">passou</span>
+                        </div>
+                        <div class="par__b">Subi o <code>acme-api</code> desta worktree e o <code>acme-web</code> do checkout principal, e usei como cliente:</div>
+                        <ul class="par__steps">
+                          <li class="par__step"><span class="par__step-g">✓</span>carrinho vazio → <code>400 empty_cart</code>, como o contrato pede</li>
+                          <li class="par__step"><span class="par__step-g">✓</span>carrinho nulo → <code>400</code>, sem stack trace no corpo</li>
+                          <li class="par__step"><span class="par__step-g">✓</span>item removido no meio do checkout → o front mostra a mensagem, não o erro cru</li>
+                        </ul>
+                        <div class="par__m"><span>12:55 → 13:07</span><span>12 min</span><span>10 turnos</span><span><b>US$ 0,28</b></span><span class="dim">o parecer do testador é informação, não portão</span></div>
+                      </div>
+                    </div>
+
+                    <div class="td__sec">
+                      <div class="td__st">as sessões <span class="dim">· uma por encaixe, contextos separados · clique abre a conversa</span></div>
+                      <div class="stack" style="gap: var(--space-6)">
+                        <button class="srow focus-ring"><span class="srow__role">implementador</span><span class="srow__who"><span class="glyph glyph--agent">◆</span>claude</span><span class="srow__st srow__st--exit"><span class="srow__dot"></span>encerrada</span><span class="srow__cost">US$ 0,31</span></button>
+                        <button class="srow focus-ring"><span class="srow__role">revisor</span><span class="srow__who"><span class="glyph glyph--agent">◆</span>revisor-severo</span><span class="srow__st srow__st--exit"><span class="srow__dot"></span>encerrada</span><span class="srow__cost">US$ 0,15</span></button>
+                        <button class="srow focus-ring"><span class="srow__role">testador</span><span class="srow__who"><span class="glyph glyph--agent">◆</span>testador</span><span class="srow__st srow__st--exit"><span class="srow__dot"></span>encerrada</span><span class="srow__cost">US$ 0,28</span></button>
+                      </div>
+                      <p class="case__note" style="margin: 0">
+                        <b>Um revisor que herdou a conversa do implementador herdou os enganos dele.</b>
+                        Três sessões, três históricos — e, aqui, dois agentes nomeados diferentes em
+                        dois adaptadores diferentes, que é a independência mais forte que existe.
+                      </p>
+                    </div>
+
+                  </div>
+                </main>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        A reprovação no meio é o quadro que importa: ela mostra que <b>o caminho de volta deixa
+        rastro</b> — o parecer que reprovou está na tela ao lado do que aprovou, e a linha
+        <code>volta 1 de 2</code> diz quanto orçamento de discordância ainda existe antes de a
+        tarefa bloquear e chamar você.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 7 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">7</span>a triagem — proposta de agente, e tarefa do tracker</h2>
+      <p class="sec__d">
+        <b>Escrever para cima é proposta.</b> É a mesma regra que a memória do workspace já usa,
+        e o desenho a reaproveita em vez de inventar uma terceira linguagem de aprovação no
+        mesmo produto — uma terceira é como se aprende a clicar sem ler.
+      </p>
+      <p class="sec__d">
+        Ela mora <b>acima do quadro</b>, e não numa tela própria: uma proposta que exige navegar
+        é uma proposta que apodrece. Quando não há nenhuma, a faixa não existe.
+      </p>
+      <p class="sec__d">
+        <span class="q">T4 da 022 · respondida</span> <b>E ela não é só de tarefa.</b> A fila se
+        chama <b>Propostas</b> e carrega <b>os três tipos</b>: o agente que viu algo de lado (o UC8,
+        e é o único caminho cross-projeto do produto), o tracker quando você configurou triagem em
+        vez do default, e <b>a proposta de memória</b> — que sai de dentro do
+        <code>MemoryPanel</code> e sobe para cá. Um lugar para <em>"o que o sistema quer que eu
+        decida"</em> vale mais que dois, e uma fila que enche sozinha atrás de uma aba é uma fila
+        que apodrece.
+      </p>
+      <p class="sec__d">
+        <b>Três origens, um contorno só — a origem é glifo.</b> Isto começou como defeito meu: a
+        primeira versão dizia <em>"duas origens, duas cores de contorno"</em> e usava
+        <code>session-agent</code> e <code>text-link</code>, que <b>são o mesmo
+        <code>brand-400</code></b>. Duas cores idênticas afirmando serem diferentes, e só apareceu
+        quando o terceiro tipo chegou e pediu uma terceira. O conserto é a regra nº 1 da casa —
+        <b>cor é estado, glifo é categoria</b>: <code>◆</code> agente, <code>↗</code> tracker,
+        <code>◈</code> memória, e a barra única diz o estado que as três compartilham, que é
+        <em>proposta</em>.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">duas propostas · e a aprovação oferece <b>onde</b>, porque Backlog e To-Do não são a mesma resposta</div>
+      <div class="pq">
+        <div class="pq__h">
+          <span class="pq__t">Propostas</span>
+          <span class="count">3</span>
+          <span class="spacer"></span>
+          <div class="seg" role="group" aria-label="propostas por estado">
+            <button class="seg__btn" aria-pressed="true">pendentes</button>
+            <button class="seg__btn" aria-pressed="false">resolvidas</button>
+          </div>
+        </div>
+        <div class="pq__i">
+          <div class="pq__head">
+            <span class="pq__g">◆</span>
+            <span class="pq__who">implementador</span>
+            <span>trabalhando em <b>ACME-142</b> · worktree <code>142-orders-500</code> · há 8 min</span>
+            <span class="pq__kind">tarefa · acme-web</span>
+          </div>
+          <div class="pq__t2">acme-web: o checkout lê <code>order.total</code>, que esta tarefa está renomeando</div>
+          <div class="pq__why">
+            Não mexi no <code>acme-web</code> — a tarefa é outra e o checkout é outro. Achei a
+            chamada enquanto procurava o serializer.
+          </div>
+          <div class="pq__ev"><span class="pq__ev-g">✓</span><div><b>Evidência</b> — <code>web/src/checkout/Summary.tsx:41</code></div></div>
+          <div class="pq__acts">
+            <button class="btn btn--sm btn--brand focus-ring">aprovar → To-Do</button>
+            <button class="btn btn--sm focus-ring">aprovar → Backlog</button>
+            <button class="btn btn--sm btn--ghost focus-ring">rejeitar</button>
+            <span class="pq__note">rejeitar pede um motivo — é o que ensina o agente a não propor de novo</span>
+          </div>
+        </div>
+
+        <div class="pq__i">
+          <div class="pq__head">
+            <span class="pq__g">↗</span>
+            <span class="pq__who">Linear</span>
+            <span><b>ACME-156</b> recebeu o rótulo <code>lumem</code> · por Marina · há 3 min</span>
+            <span class="pq__kind">tarefa · acme-api</span>
+          </div>
+          <div class="pq__t2">migrar o job de expiração de sessão para a fila nova</div>
+          <div class="pq__why">
+            Este projeto está configurado para <b>triagem</b>. O default é cair direto na To-Do —
+            atribuir no tracker <em>é</em> a autorização —, e você trocou isso no
+            <code>acme-api</code>.
+          </div>
+          <div class="pq__acts">
+            <button class="btn btn--sm btn--brand focus-ring">aprovar → To-Do</button>
+            <button class="btn btn--sm focus-ring">aprovar → Backlog</button>
+            <button class="btn btn--sm btn--ghost focus-ring">rejeitar</button>
+            <span class="pq__note">rejeitar comenta lá, dizendo que o Lumem não vai pegar</span>
+          </div>
+        </div>
+
+        <div class="pq__i">
+          <div class="pq__head">
+            <span class="pq__g">◈</span>
+            <span class="pq__who">revisor-severo</span>
+            <span>destilação de fim de sessão · <code>142-orders-500</code> · há 1 h</span>
+            <span class="pq__kind">memória · workspace</span>
+          </div>
+          <div class="pq__t2">o contrato de <code>/orders</code> devolve <code>400 empty_cart</code> para carrinho vazio, nunca <code>200</code> com lista vazia</div>
+          <div class="pq__why">
+            Reprovei uma PR por isto e a regra não estava escrita em lugar nenhum — nem no código,
+            nem na memória do workspace.
+          </div>
+          <div class="pq__ev"><span class="pq__ev-g">✓</span><div><b>Evidência</b> — <code>api/src/orders/serializer.ts:88</code>, <code>api/test/orders.spec.ts:12</code></div></div>
+          <div class="pq__acts">
+            <button class="btn btn--sm btn--brand focus-ring">aprovar</button>
+            <button class="btn btn--sm focus-ring">editar e aprovar</button>
+            <button class="btn btn--sm btn--ghost focus-ring">rejeitar</button>
+            <span class="pq__note">esta é a proposta que hoje mora na aba do <code>MemoryPanel</code></span>
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>A evidência só existe onde um agente concluiu alguma coisa.</b> As duas propostas de
+        agente a carregam — é ela que separa <em>fato</em> de <em>conclusão</em>, e é a regra que
+        sustenta a memória inteira. A do tracker <b>não tem e não deve ter</b>: ali a proveniência é
+        o link, e uma pessoa já autorizou do outro lado. Exigir evidência de todo item forçaria a
+        inventar uma para o caso em que ela não quer dizer nada.
+      </p>
+      <p class="case__note">
+        <b>O tipo de memória tem verbos diferentes, e é isso que o "dois tipos" custa.</b> Tarefa
+        aprovada escolhe <em>onde</em> (Backlog ou To-Do); memória aprovada escolhe <em>se o texto
+        está certo</em> (aprovar, ou editar e aprovar). Uma fila só não quer dizer uma ação só — quer
+        dizer <b>um lugar para conferir</b>. Achatar os verbos para ficarem iguais seria trocar a
+        utilidade da lista pela simetria dela.
+      </p>
+      <p class="case__note">
+        <b>Aprovar oferece duas portas, e isso não é indecisão.</b> To-Do é consentimento de
+        <em>gastar</em>; Backlog é reconhecimento de que a coisa existe. Uma porta só forçaria
+        toda proposta a virar gasto, e aí você pararia de aprovar.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 8 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">8</span>o default é desligado — e ele não pode parecer quebrado</h2>
+      <p class="sec__d">
+        <code>manual</code> é o nível de autonomia com que o workspace nasce. Então <b>este é o
+        primeiro quadro que qualquer pessoa vê</b>: cartões parados, nenhuma linha viva, nenhum
+        custo. Sem a faixa, ele é indistinguível de uma esteira travada.
+      </p>
+      <p class="sec__d">
+        A faixa diz três coisas e oferece <b>o degrau do meio antes do de cima</b>:
+        <code>assistido</code> prepara tudo — worktree, sessão, prompt pronto — e para antes de
+        enviar. É o que torna a feature adotável: você vê o que ele <em>ia</em> fazer, dez
+        vezes, antes de deixar ir sozinho.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o quadro em <b>manual</b> · o selo diz o motivo, não o sintoma</div>
+      <div class="stack">
+        <div class="offband">
+          <div class="offband__h"><span class="offband__g">◌</span><span class="offband__t">A autonomia está desligada — nada aqui anda sozinho</span></div>
+          <div class="offband__b">
+            O quadro funciona sem ela: as <b>3</b> tarefas abaixo estão organizadas e ninguém vai
+            pegá-las. Ligado, o Lumem criaria a worktree, rodaria o <code>setup</code> e abriria a
+            sessão do implementador com o corpo da tarefa — <b>respeitando o teto e o orçamento</b>.
+          </div>
+          <div class="offband__acts">
+            <button class="btn btn--sm btn--brand focus-ring">experimentar assistido</button>
+            <button class="btn btn--sm focus-ring">ir direto para autônomo</button>
+            <button class="btn btn--sm btn--ghost focus-ring">o que muda?</button>
+          </div>
+        </div>
+
+        <div class="deck">
+          <div class="deck__i">
+            <div class="deck__l">em <b>manual</b> — o cartão traz o verbo de volta</div>
+            <div class="tcard tcard--manual">
+              <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost tcard__cost--none">—</span></div>
+              <div class="tcard__t">cache de sessão expira cedo demais em produção</div>
+              <div class="seal"><span class="seal__dot"></span><span class="seal__t">manual — ninguém pega</span></div>
+              <div class="tcard__act"><span class="btn btn--sm">começar</span></div>
+              <div class="tcard__foot"><span class="tcard__from tcard__from--track">↗ ACME-151</span><span class="stale">2 d</span></div>
+            </div>
+          </div>
+          <div class="deck__i">
+            <div class="deck__l">em <b>assistido</b> — pronto, e parado antes de enviar</div>
+            <div class="tcard tcard--wait">
+              <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost tcard__cost--none">—</span></div>
+              <div class="tcard__t">cache de sessão expira cedo demais em produção</div>
+              <div class="seal"><span class="seal__dot"></span><span class="seal__t">pronto — falta você enviar</span></div>
+              <div class="tcard__live"><span class="tcard__live-g">◇</span><span class="tcard__live-t">151-session-cache</span></div>
+              <div class="tcard__act"><span class="btn btn--sm btn--brand">enviar</span><span class="btn btn--sm">ver o prompt</span></div>
+              <div class="tcard__foot"><span class="tcard__from tcard__from--track">↗ ACME-151</span><span class="stale">4 min</span></div>
+            </div>
+          </div>
+          <div class="deck__i">
+            <div class="deck__l">o quadro <b>vazio</b> — sem tarefa nenhuma, e sem tracker nenhum</div>
+            <section class="col" style="height: calc(var(--space-64) * 4.5)">
+              <div class="col__h"><span class="col__t">To-Do</span><span class="col__n">0</span><span class="col__you">sua vez</span><button class="col__add focus-ring">＋</button></div>
+              <div class="col__body">
+                <div class="empty" style="padding: var(--space-16) var(--space-8)">
+                  <span class="empty__glyph">◌</span>
+                  <span class="empty__title" style="font: var(--text-label-md)">Nada aqui</span>
+                  <span class="empty__sub" style="font: var(--text-caption)">Escreva uma tarefa, ou atribua uma issue ao Lumem no seu tracker.</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <p class="case__note">
+        <b>Em <code>assistido</code> a linha viva não some — ela muda de assunto.</b> Em vez do
+        que o agente está fazendo, ela diz o que <em>já está pronto</em>: a worktree existe, o
+        <code>setup</code> rodou, o prompt está escrito. É a mesma linha, e é o que faz a pessoa
+        entender o que vai acontecer quando ela apertar.
+      </p>
+    </div>
+  </section>
+
+  <!-- =================================================================== 9 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">9</span>a volta — o que aconteceu enquanto você não estava</h2>
+      <p class="sec__d">
+        <b>Silêncio é o único resultado inaceitável.</b> A máquina desligada é um limite
+        aceitável — o trabalho mora no seu disco —, desde que o quadro diga na cara o que ficou
+        parado e há quanto tempo.
+      </p>
+      <p class="sec__d">
+        A faixa aparece <b>uma vez</b>, ao abrir, e cobre a janela desde a última vez que você
+        olhou. Ela não repete, não vira badge e não acumula: notificação que se repete é
+        notificação que se desliga.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o notebook fechado às 23h10, aberto às 08h32 · <b>9 h 22</b></div>
+      <div class="away">
+        <div class="away__h">
+          <span class="away__t">Enquanto você não estava</span>
+          <span class="away__win">23:10 → 08:32 · 9 h 22</span>
+          <span class="away__close"><button class="btn btn--sm btn--ghost focus-ring">ok</button></span>
+        </div>
+        <div class="away__l">
+          <div class="away__r"><span class="away__g away__g--ok">✓</span><b>2 chegaram em Ready to Merge</b> — <span class="dim">o cupom com frete grátis, e o foco do modal · US$ 1,03 no total</span></div>
+          <div class="away__r"><span class="away__g away__g--blocked">▲</span><b>1 bloqueou</b> — <span class="dim">"melhorar a performance do carregamento" parou em US$ 2,04 e 15 turnos</span><span class="stale stale--over">há 7 h</span></div>
+          <div class="away__r"><span class="away__g away__g--paused">◷</span><b>1 pausou e voltou sozinha</b> — <span class="dim">limite de taxa do claude, 3 h 12 de espera · não consumiu orçamento nem turno</span></div>
+          <div class="away__r"><span class="away__g away__g--idle">◌</span><b>3 não saíram da To-Do</b> — <span class="dim">o daemon ficou fora do ar das 23:41 às 07:58, com o computador fechado</span><span class="stale stale--over">há 9 h</span></div>
+        </div>
+      </div>
+      <p class="case__note">
+        A quarta linha é a que a feature deve à honestidade: ela não diz <em>"3 tarefas
+        pendentes"</em> — diz <b>por que</b> nada aconteceu, com o horário. A diferença entre as
+        duas frases é a diferença entre um produto que você confia e um que você confere por
+        fora.
+      </p>
+      <p class="case__note">
+        <b>A terceira linha existe e não notifica.</b> <code>pausada</code> não precisa de você:
+        ela libera a vaga do teto, retoma sozinha, e não consome orçamento nem turno. Ela aparece
+        <em>aqui</em>, no resumo, porque explicar o buraco de 3 h no gasto é diferente de
+        interromper alguém por causa dele.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================================================================== 10 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">10</span>a conexão cai, e o selo volta sozinho</h2>
+      <p class="sec__d">
+        O <code>DESIGN.md</code> cobra de toda tela dois estados: <b>"o daemon não responde"</b> e
+        <b>"isso morreu enquanto você não olhava"</b>. Neste quadro o segundo é literal, e é a
+        prova de que a aposta do §4.1 está de pé.
+      </p>
+      <p class="sec__d">
+        <b>Matar a sessão do revisor faz o selo voltar de <code>revisando</code> para
+        <code>aguardando</code> na próxima leitura — sem nenhuma escrita.</b> Nada é gravado,
+        nada é corrigido, nada é migrado: o selo é derivado de existir uma sessão viva com a
+        tarefa reivindicada, e a sessão deixou de existir. Uma sub-coluna
+        <code>ready to review</code> seria estado guardado, e estado guardado diverge no dia em
+        que a sessão morre.
+      </p>
+      <p class="sec__d">
+        E a faixa de conexão caída é a do sistema, sem redesenho: o quadro fica <b>legível e
+        frio</b> — ele mostra o último estado conhecido com a hora dele, e nenhum verbo funciona.
+        Um quadro que aceita arrastar sem daemon é um quadro que mente.
+      </p>
+    </div>
+
+    <div class="case">
+      <div class="case__label">o selo antes e depois de a sessão morrer · <b>zero escrita entre os dois</b></div>
+      <div class="deck">
+        <div class="deck__i">
+          <div class="deck__l"><b>10:12</b> — leitura com a sessão viva</div>
+          <div class="tcard tcard--work">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost">US$ 0,44</span></div>
+            <div class="tcard__t">estado vazio da lista de pedidos</div>
+            <div class="seal"><span class="seal__dot"></span><span class="seal__t">revisando há 2 min</span></div>
+            <div class="tcard__live"><span class="tcard__live-g">▤</span><span class="tcard__live-t">diff · 6 arquivos</span></div>
+            <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#85</span><span class="stale">2 min</span></div>
+          </div>
+        </div>
+        <div class="deck__i">
+          <div class="deck__l"><b>10:13</b> — a sessão morreu, e a leitura seguinte</div>
+          <div class="tcard tcard--wait">
+            <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-web</span><span class="tcard__cost">US$ 0,44</span></div>
+            <div class="tcard__t">estado vazio da lista de pedidos</div>
+            <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando revisor</span></div>
+            <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#85</span><span class="stale">3 min</span></div>
+          </div>
+        </div>
+        <div class="deck__i">
+          <div class="deck__l">a coluna <b>não</b> mudou — só o selo</div>
+          <div class="rule rule--yes">
+            <div class="rule__t">In Review, nos dois</div>
+            <div class="rule__d">
+              A etapa é um fato do mundo: a PR existe e o CI está verde. Quem morreu foi o
+              trabalhador, não a etapa. Por isso o selo se mexe e a coluna não — e por isso
+              a fila volta a considerar este cartão sem ninguém precisar consertar nada.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="case__label" style="margin-top: var(--space-16)">o daemon não responde · o quadro fica <b>frio</b>, não vazio</div>
+      <div class="stack">
+        <div class="offline">
+          <span class="offline__glyph">⚠</span>
+          <div class="offline__body">
+            <div class="offline__what">Sem conexão com o daemon</div>
+            <div class="offline__why">
+              O quadro abaixo é o último estado conhecido, de <code>10:41</code>. A esteira pode
+              ter andado desde então — <b>o trabalho é do daemon, não desta aba</b>.
+            </div>
+            <div class="offline__next">reconectando · tentativa 3</div>
+          </div>
+          <div class="offline__actions"><button class="btn btn--sm focus-ring">tentar agora</button></div>
+        </div>
+        <div class="deck">
+          <div class="deck__i">
+            <div class="deck__l">o cartão sem daemon — <b>nenhum verbo funciona</b></div>
+            <div class="tcard tcard--wait">
+              <div class="tcard__top"><span class="glyph glyph--project">■</span><span class="tcard__proj">acme-api</span><span class="tcard__cost">US$ 0,52</span></div>
+              <div class="tcard__t">validar CPF no cadastro, com o dígito verificador</div>
+              <div class="seal"><span class="seal__dot"></span><span class="seal__t">aguardando revisor · às 10:41</span></div>
+              <div class="tcard__foot"><span class="prmark prmark--ready"><span class="prmark__dot"></span>#86</span><span class="stale">—</span></div>
+            </div>
+          </div>
+          <div class="deck__i">
+            <div class="deck__l">e o relógio de encalhe <b>para</b></div>
+            <div class="rule rule--no">
+              <div class="rule__t">nada de "há 47 min" sem daemon</div>
+              <div class="rule__d">
+                O relógio conta o tempo em que o cartão <em>podia</em> ter andado. Sem daemon ele
+                não podia. Continuar contando carimbaria de encalhe uma tarefa que estava só
+                fora de alcance — que é exatamente o defeito que a
+                <code>pull-request-status</code> pagou para aprender: o estado de antes carimbado
+                <em>"há 0 s"</em>.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================== 11 -->
+  <section class="sec">
+    <div class="sec__h">
+      <h2 class="sec__t"><span class="no">11</span>o que este desenho decidiu, e o que ele cobra</h2>
+    </div>
+    <div class="grid grid--2">
+      <div class="rule rule--yes">
+        <div class="rule__t">200px é o piso da coluna, e ele virou token</div>
+        <div class="rule__d">
+          <code>--size-board-col</code>. O briefing chutou 240 e concluiu que sete colunas
+          precisavam de 1680px; com 200 medido, precisam de <b>1746px</b> — pior, e por isso a
+          forma mudou. As duas pontas recolhem, e o default em 1440 é <b>cinco colunas e dois
+          trilhos</b>.
+        </div>
+      </div>
+      <div class="rule rule--yes">
+        <div class="rule__t">a barra do cartão carrega um eixo: o selo</div>
+        <div class="rule__d">
+          O encalhe mora no relógio do rodapé, e a agregação no ponto do cabeçalho da coluna.
+          Três lugares, três perguntas diferentes — em vez de um elemento com dois eixos de cor,
+          que não teria nenhum.
+        </div>
+      </div>
+      <div class="rule rule--yes">
+        <div class="rule__t">existe um quinto selo, e é o default</div>
+        <div class="rule__d">
+          <code>manual — ninguém pega</code>. A PRD lista quatro estados; sem o quinto, o
+          quadro com a autonomia desligada desenharia o mesmo pixel de uma esteira travada. O
+          §4.1 da PRD precisa ganhar essa linha.
+        </div>
+      </div>
+      <div class="rule rule--yes">
+        <div class="rule__t">"aguardando você" é luminância, não matiz</div>
+        <div class="rule__d">
+          Vermelho é "algo deu errado e a decisão é sua"; branco é "nada deu errado e a vez é
+          sua". Dois estados que precisam de você e que você precisa distinguir de longe — sem
+          gastar um matiz novo.
+        </div>
+      </div>
+      <div class="rule rule--yes">
+        <div class="rule__t">o selo diz o verbo, a coluna diz o papel</div>
+        <div class="rule__d">
+          <code>&lt;papel&gt; trabalhando há Xm</code>, do §4.1 da PRD, não cabe em
+          <span class="mm">151px</span>. <code>revisando há 2 min</code> cabe, e diz o mesmo —
+          porque o papel já está escrito no cabeçalho da coluna. Esperando, o papel volta:
+          <code>aguardando revisor</code> é o que falta, não redundância. O mais longo dos três,
+          <code>aguardando implementador</code>, mede <span class="mm">148px</span>: <b>3px de
+          folga</b>, e esse número está escrito para ninguém engordar o selo sem perceber.
+        </div>
+      </div>
+      <div class="rule rule--yes">
+        <div class="rule__t">o encaixe passou a se chamar <code>implementador</code></div>
+        <div class="rule__d">
+          A PRD usava os dois nomes — <code>executor</code> no §5, <em>"o implementador
+          commita"</em> nos casos de uso —, e quem cobrou foi o selo: de <code>executor</code> sai
+          <code>executando</code>, que em produto de agente quer dizer <em>rodar comando</em>.
+          <b>Respondida em 2026-09-12.</b> É o tipo de pergunta que custa uma busca-e-troca hoje e
+          uma migração depois de existir tabela.
+        </div>
+      </div>
+      <div class="rule rule--no">
+        <div class="rule__t">abaixo de 1418px o quadro rola — e isso custa a promessa</div>
+        <div class="rule__d">
+          Decidido na <b>Q37</b>: rola, e a faixa <code>.bd__clip</code> diz quantas colunas saíram e
+          quais. É o menos ruim, não o bom — <em>"uma olhada de cinco segundos"</em> não sobrevive a
+          uma coluna fora da tela, e a que some primeiro é <code>Ready to Merge</code>, que é a sua.
+          Fica como o <b>primeiro requisito de largura mínima do produto</b>.
+        </div>
+      </div>
+      <div class="rule rule--yes">
+        <div class="rule__t">o bloqueio de orçamento nomeia o teto</div>
+        <div class="rule__d">
+          Decidido na <b>Q36</b>. Orçamento mora no agente e no workspace, então o número sozinho não
+          diz o que mudar. O cartão diz qual segurou, e o verbo leva à tela daquele número.
+        </div>
+      </div>
+      <div class="rule rule--no">
+        <div class="rule__t">o cartão do <code>assistido</code> tem dois verbos</div>
+        <div class="rule__d">
+          <code>enviar</code> e <code>ver o prompt</code>. É a única exceção à regra de um verbo
+          por cartão, e ela se justifica porque o degrau existe justamente para você <b>ler
+          antes</b>. Se na prática ninguém clicar em <code>ver o prompt</code>, o segundo verbo
+          sai.
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

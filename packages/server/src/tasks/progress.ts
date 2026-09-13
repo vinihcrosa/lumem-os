@@ -53,7 +53,11 @@ export function trackTaskProgress({
         const moved = await db
           .update(task)
           // Sem `closedAt`: a transição é de `open`, que nunca tem data.
-          .set({ status: "in_progress", updatedAt: new Date() })
+          // Com `statusChangedAt`: esta é a terceira e última escrita de coluna
+          // do produto, e o relógio do encalhe (`028` §4.2) precisa das três —
+          // uma que esqueça deixa o cartão mentindo sobre há quanto tempo está
+          // ali, e justo no estado em que alguém está trabalhando nele.
+          .set({ status: "in_progress", statusChangedAt: new Date(), updatedAt: new Date() })
           .where(and(eq(task.id, row.taskId), eq(task.status, "open")))
           .returning();
 

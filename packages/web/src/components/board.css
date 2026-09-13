@@ -1,0 +1,341 @@
+/*
+ * O quadro (`028-autonomous-orchestration` F1, T8–T11).
+ *
+ * **Cópia do `prototype/lumem-board.css`**, reduzida ao que a F1 desenha. O que
+ * ficou de fora é material de folha — o detalhe da tarefa, a volta, a conexão
+ * caída, as molduras de janela —, e cada um volta com a fase que o usa.
+ *
+ * Nenhum literal: o `board-css.test.ts` reprova um hexadecimal ou um `12px`
+ * escrito à mão deste lado, que é o que a regra de design proíbe.
+ */
+
+/* ---------------------------------------------------------------------------
+   1. a tela — o quadro ocupa a coluna do meio do workspace
+   -------------------------------------------------------------------------- */
+.bd {
+  /*
+   * `flex: 1` é o que o protótipo não precisa dizer e este lado precisa.
+   *
+   * Lá o `.bd` é filho de um `.body` que o faz crescer; aqui ele mora dentro do
+   * `.pane`, que é a moldura de toda página de detalhe do produto. Sem isto as
+   * colunas colapsam na altura do conteúdo — e aí `.col__body` nunca rola, a
+   * página rola no lugar dela, e a medida "cinco cartões sem rolar" deixa de
+   * querer dizer alguma coisa.
+   */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--color-bg-base);
+}
+
+.bd__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-16) var(--space-8);
+}
+
+.bd__title { display: grid; gap: var(--space-2); min-width: 0; }
+
+.bd__t { margin: 0; font: var(--text-heading-md); letter-spacing: var(--tracking-heading-md); color: var(--color-text-primary); }
+
+.bd__sub { font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/*
+ * A barra de filtros. É onde a olhada de cinco segundos começa, então ela
+ * carrega exatamente três coisas: o que precisa de você, quanto já custou
+ * hoje, e em que nível de autonomia isto está. Nada mais entra aqui.
+ */
+.bd__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 0 var(--space-16) var(--space-10);
+  flex-wrap: wrap;
+}
+
+/*
+ * O filtro "precisa de mim". Ele é um botão de estado, não um chip decorativo:
+ * ligado, o quadro some com tudo que anda sozinho. A contagem em `danger` é a
+ * única coisa vermelha da barra — se ela for zero, ela some, porque um zero
+ * vermelho ensina a ignorar o vermelho.
+ */
+.needme {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  background: var(--color-bg-surface);
+  border: var(--border-width-thin) solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  font: var(--text-label-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.needme:hover { background: var(--color-bg-raised); border-color: var(--color-border-strong); color: var(--color-text-primary); }
+
+.needme[aria-pressed="true"] { background: var(--color-bg-active); border-color: var(--color-border-strong); color: var(--color-text-primary); }
+
+.needme__n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--size-icon-md);
+  height: var(--size-icon-md);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-danger-subtle);
+  color: var(--color-text-danger);
+  font: var(--text-label-xs);
+}
+
+/* ---------------------------------------------------------------------------
+   2. as colunas
+   -------------------------------------------------------------------------- */
+/*
+ * A faixa rola na horizontal quando não cabe — e a medida 3.1 diz que em
+ * 1440px ela NÃO cabe com sete abertas. A resposta não é rolagem: são as duas
+ * pontas recolhidas em trilho (§ `.col--rail`), e a rolagem fica como último
+ * recurso — abaixo de 1418px nem isso salva, e aí entra a `.bd__clip`.
+ */
+.bd__cols {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-8);
+  padding: 0 var(--space-16) var(--space-16);
+  overflow-x: auto;
+}
+
+.col {
+  flex: 1 1 var(--size-board-col);
+  min-width: var(--size-board-col);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-bg-panel);
+  border: var(--border-width-thin) solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.col__h {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-row-cozy);
+  padding: 0 var(--space-8) 0 var(--space-10);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+}
+
+.col__t { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-secondary); white-space: nowrap; }
+
+.col__n { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+
+/*
+ * "sua vez" — a única diferença desenhada entre coluna da máquina e coluna
+ * sua, e ela é LÍNGUA, não cor. As duas pontas do quadro (To-Do e Ready to
+ * Merge) são as que você move; pintá-las gastaria o eixo de cor que o selo
+ * já usa.
+ */
+.col__you { font: var(--text-caption); color: var(--color-text-brand); white-space: nowrap; }
+
+.col__add {
+  margin-left: auto;
+  flex: none;
+  width: var(--size-control-xs);
+  height: var(--size-control-xs);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+  line-height: 1;
+}
+
+.col__add:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+
+/*
+ * O ponto de encalhe do cabeçalho. É o que faz uma coluna travada ser achada
+ * do outro lado da sala — a defesa que o §8 da PRD deve ao selo por ele se ver
+ * menos que uma sub-coluna.
+ */
+.col__stale { margin-left: auto; flex: none; width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); }
+
+.col__stale--warn { background: var(--color-text-warning); }
+
+.col__stale--over { background: var(--color-text-danger); }
+
+.col__h .col__add + .col__stale, .col__h .col__stale + .col__add { margin-left: 0; }
+
+.col__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: var(--space-8);
+  padding: var(--space-8);
+}
+
+.col__empty { padding: var(--space-12) var(--space-8); font: var(--text-caption); color: var(--color-text-disabled); text-align: center; }
+
+/* ---------------------------------------------------------------------------
+   2b. abaixo de 1418px — o quadro rola, e diz que está rolando (Q37)
+   -------------------------------------------------------------------------- */
+/*
+ * Medido: 5 colunas e 2 trilhos pedem 1418px de janela. Abaixo disso não existe
+ * combinação que caiba — a sidebar são 264 fixos e a coluna tem piso de 200. A
+ * saída é rolagem horizontal, e ela CUSTA a promessa da feature: "uma olhada de
+ * cinco segundos" não sobrevive a uma coluna fora da tela.
+ *
+ * Então a faixa existe para o quadro não mentir por omissão. Ela é
+ * DERIVADA da largura, como o selo é derivado da sessão: aparece ao estreitar,
+ * some ao alargar, e não tem `✕` — fechar um aviso que volta sozinho é ensinar
+ * a ignorá-lo. E ela é FRIA, não âmbar: a janela ser pequena não é um problema
+ * do seu trabalho, é um fato sobre o seu monitor.
+ */
+.bd__clip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0 var(--space-16) var(--space-8);
+  padding: var(--space-4) var(--space-8);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-sm);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+
+.bd__clip-g { flex: none; font-size: var(--size-icon-xs); line-height: 1; }
+
+.bd__clip b { color: var(--color-text-secondary); font-weight: 500; }
+
+.bd__clip__which { margin-left: auto; font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+
+/* O trilho: a coluna recolhida. Não é "escondida" — a contagem continua
+   visível, que é a única coisa que Backlog e Done precisam dizer de longe. */
+.col--rail { flex: 0 0 var(--size-board-rail); min-width: var(--size-board-rail); }
+
+.col--rail .col__h {
+  height: auto;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--space-10);
+  padding: var(--space-10) 0;
+  border-bottom: 0;
+}
+
+.col--rail .col__t { writing-mode: vertical-rl; }
+
+.col--rail .col__n { writing-mode: vertical-rl; }
+
+.col--rail:hover { background: var(--color-bg-surface); }
+
+/* ---------------------------------------------------------------------------
+   3. o cartão
+   -------------------------------------------------------------------------- */
+/*
+ * A barra de 2px à esquerda é a regra nº 2 da casa, e aqui ela carrega UM eixo
+ * só: o selo — quem está com a tarefa, ou que ninguém está. O encalhe NÃO
+ * entra nela; ele mora no relógio do rodapé (§ `.stale`). Duas cores no mesmo
+ * elemento não seriam nenhuma.
+ */
+.tcard {
+  --seal: var(--color-border-subtle);
+  display: grid;
+  gap: var(--space-6);
+  width: 100%;
+  padding: var(--space-8) var(--space-10);
+  text-align: left;
+  background: var(--color-bg-surface);
+  border: var(--border-width-thin) solid var(--color-border-subtle);
+  border-left: var(--border-width-thick) solid var(--seal);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.tcard:hover { background: var(--color-bg-raised); border-color: var(--color-border-strong); border-left-color: var(--seal); }
+
+.tcard--wait    { --seal: var(--color-tool-pending); }
+
+.tcard--work    { --seal: var(--color-session-agent); }
+
+.tcard--blocked { --seal: var(--color-text-danger); }
+
+.tcard--paused  { --seal: var(--color-text-tertiary); }
+
+/* Nada da máquina encosta nela: em `manual` o cartão não tem dono nem fila. */
+.tcard--manual  { --seal: var(--color-border-subtle); }
+
+.tcard__top { display: flex; align-items: center; gap: var(--space-6); min-width: 0; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+.tcard__proj { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tcard__cost { margin-left: auto; flex: none; font: var(--text-mono-sm); color: var(--color-usage-cost); }
+
+.tcard__cost--none { color: var(--color-text-disabled); }
+
+/* Duas linhas e corta. Três linhas de título num cartão de 200px empurram o
+   rodapé para fora do primeiro cartão da coluna, e aí o custo — que é o item
+   que o §8 chama de risco nº 1 — só aparece rolando. */
+.tcard__t {
+  font: var(--text-body-sm);
+  color: var(--color-text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* O selo. Cor = a mesma da barra; glifo = a categoria. Anel é "ninguém está",
+   disco cheio é "alguém está" — a mesma distinção que o cartão de ferramenta
+   já usa, e que sobrevive a captura em escala de cinza. */
+.seal { display: flex; align-items: center; gap: var(--space-6); min-width: 0; font: var(--text-label-xs); color: var(--seal); }
+
+.seal__dot { flex: none; width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+
+/*
+ * ANEL = ninguém está trabalhando; DISCO = alguém está. É um eixo só, e ele
+ * vale também para `aguardando você`: ninguém está trabalhando ali, e quem diz
+ * que a vez é sua é a cor, não o glifo.
+ */
+.tcard--wait .seal__dot,
+.tcard--manual .seal__dot { background: none; box-shadow: inset 0 0 0 var(--border-width-thin) currentColor; }
+
+/*
+ * `manual` é a exceção em que a barra e o texto NÃO podem ter a mesma cor. A
+ * barra é `border/subtle` porque não há dono nem fila — mas o texto nessa cor
+ * sobre `bg/surface` some, e o selo mais importante do produto (é o default!)
+ * ficava invisível. Medido olhando: o cartão parecia não ter selo nenhum.
+ */
+.tcard--manual .seal { color: var(--color-text-tertiary); }
+
+.seal__t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tcard__foot { display: flex; align-items: center; gap: var(--space-8); min-width: 0; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+.tcard__from { flex: none; display: inline-flex; align-items: center; gap: var(--space-4); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+
+.tcard__from--agent { color: var(--color-session-agent); }
+
+.tcard__from--track { color: var(--color-text-link); }
+
+/*
+ * O relógio de encalhe. Aqui, e só aqui, mora a cor de "está parado demais" —
+ * e ele só conta o tempo em que o cartão PODIA ter andado. Esperar vaga não
+ * cobra: cobrar o que é desenho é a forma mais rápida de tornar o aviso
+ * invisível.
+ */
+.stale { flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-4); border-radius: var(--radius-xs); font: var(--text-caption); color: var(--color-text-tertiary); }
+
+.stale--warn { background: var(--color-bg-warning-subtle); color: var(--color-text-warning); }
+
+.stale--over { background: var(--color-bg-danger-subtle); color: var(--color-text-danger); }
+
+.tcard--ghost .tcard__t { color: var(--color-text-tertiary); }
+

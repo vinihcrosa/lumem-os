@@ -2240,3 +2240,192 @@ describe("codeIn", () => {
     expect(codeIn("ABRA A URL")).toBeNull();
   });
 });
+
+describe("o teto do workspace, antes do turno", () => {
+  /**
+   * O portão da `028` (Parte 3, T16).
+   *
+   * O que estes casos guardam é a ordem — **antes** de o turno custar — e a
+   * diferença entre os dois condutores: quem conduz é avisado e segue, a esteira
+   * para.
+   */
+  /** Um checkout descartável — o manager valida o `cwd` no `spawn`. */
+  function budgetCwd(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-acp-budget-"));
+    dirs.push(dir);
+    return dir;
+  }
+
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  function withBudget(decision: Awaited<ReturnType<NonNullable<AcpManagerOptions["budget"]>>>) {
+    const fake = fakeAgentProcess({});
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      budget: () => Promise.resolve(decision),
+    });
+    return { fake, manager };
+  }
+
+  it("sem fonte de teto, o turno é o que sempre foi", async () => {
+    const fake = fakeAgentProcess({});
+    const manager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: budgetCwd() });
+
+    await expect(manager.prompt(info.id, "oi")).resolves.toBe("end_turn");
+  });
+
+  it("quem conduz recebe o número e o turno segue", async () => {
+    const { manager } = withBudget({
+      kind: "warn",
+      cap: "cost-per-task",
+      limit: 2,
+      spent: 2.5,
+      message: "passou do teto do workspace — US$ 2.00 por tarefa",
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: budgetCwd() });
+    const seen: string[] = [];
+    manager.onEvent(info.id, ({ event }) => {
+      if (event.type === "budget") seen.push(event.message);
+    });
+
+    // Interromper alguém que está olhando é como um teto vira desligado e nunca
+    // mais ligado (Q45).
+    await expect(manager.prompt(info.id, "oi")).resolves.toBe("end_turn");
+    expect(seen).toEqual(["passou do teto do workspace — US$ 2.00 por tarefa"]);
+  });
+
+  it("a esteira para, e a mensagem nomeia o teto", async () => {
+    const { manager } = withBudget({
+      kind: "block",
+      cap: "turns-per-session",
+      limit: 5,
+      spent: 5,
+      message: "parou no teto do workspace — 5 turnos por sessão",
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: budgetCwd() });
+
+    await expect(manager.prompt(info.id, "oi")).rejects.toMatchObject({
+      code: "BLOCKED",
+      message: "parou no teto do workspace — 5 turnos por sessão",
+    });
+  });
+
+  it("o bloqueio não deixa a sessão com um turno em voo para sempre", async () => {
+    const { manager } = withBudget({
+      kind: "block",
+      cap: "cost-per-day",
+      limit: 1,
+      spent: 9,
+      message: "parou no teto do workspace — US$ 1.00 por dia",
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: budgetCwd() });
+
+    await expect(manager.prompt(info.id, "oi")).rejects.toMatchObject({ code: "BLOCKED" });
+
+    // O selo do quadro é derivado de turno em voo: uma sessão que ficasse
+    // marcada desenharia `implementando há 3 h` num cartão que nunca começou.
+    expect(manager.liveTurns()).toEqual([]);
+  });
+
+  it("um teto que não pôde ser lido não é um teto que estourou", async () => {
+    const fake = fakeAgentProcess({});
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      budget: () => Promise.reject(new Error("banco travado")),
+    });
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: budgetCwd() });
+
+    // Mesma postura da memória: falha na leitura não derruba o turno. O produto
+    // funcionava sem teto nenhum até esta parte existir.
+    await expect(manager.prompt(info.id, "oi")).resolves.toBe("end_turn");
+  });
+});
+
+describe("um turno que falha solta a marca, e deixa retrato", () => {
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+  const here = (): string => {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-acp-fail-"));
+    dirs.push(dir);
+    return dir;
+  };
+
+  /**
+   * A observabilidade da [Q46](../../../../docs/features/028-autonomous-orchestration/open-questions.md).
+   *
+   * O produto **não sabe** reconhecer uma recusa por cota — o protocolo não dá
+   * código para ela —, então em vez de adivinhar a forma do erro ele a guarda
+   * quando acontecer, junto do que a torna interpretável.
+   */
+  function failing(message: string) {
+    const warn = vi.fn();
+    const fake = fakeAgentProcess({
+      prompt: () => Promise.reject(new Error(message)),
+    });
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      log: { warn },
+    });
+    return { manager, warn };
+  }
+
+  it("a sessão não fica dizendo que tem turno em voo para sempre", async () => {
+    const { manager } = failing("o adaptador desistiu");
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: here() });
+
+    await expect(manager.prompt(info.id, "oi")).rejects.toThrow();
+
+    // Defeito consertado, não zelo: desde a `028` o selo do quadro é derivado
+    // disto, e um turno que morreu no primeiro segundo pintaria
+    // `implementando há 3 h`.
+    expect(manager.liveTurns()).toEqual([]);
+  });
+
+  it("guarda o erro com uma etiqueta estável, para ser procurado depois", async () => {
+    const { manager, warn } = failing("rate limit exceeded");
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: here() });
+
+    await expect(manager.prompt(info.id, "oi")).rejects.toThrow();
+
+    /*
+     * `tag` e não prosa: a linha existe para ser encontrada no dia em que uma
+     * cota fechar de verdade.
+     *
+     * E o que ela captura é **mais** que a mensagem, porque a mensagem não
+     * sobrevive: o erro atravessa JSON-RPC e chega como `-32603` — *internal
+     * error*, o código genérico — com o texto do adaptador enterrado em
+     * `data.details`. Isso é a Q46 em miniatura: não há código para cota, e o
+     * único que existe não diz nada. Guardar `data` cru é o que torna a amostra
+     * útil.
+     */
+    const [payload, message] = warn.mock.calls[0] as [Record<string, unknown>, string];
+    expect(message).toBe("turno falhou");
+    expect(payload).toMatchObject({
+      tag: "turn-failed",
+      code: -32603,
+      data: { details: "rate limit exceeded" },
+    });
+  });
+
+  it("guarda o estado da cota junto, senão a amostra não tem rótulo", async () => {
+    const { manager, warn } = failing("qualquer falha");
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: here() });
+
+    await expect(manager.prompt(info.id, "oi")).rejects.toThrow();
+
+    // Sem cota relatada, `windowSpent` é falso — e é justamente esse campo que,
+    // no dia em que a falha chegar com a janela fechada, diz que aquela amostra
+    // é a que a Q46 procura.
+    const [payload] = warn.mock.calls[0] as [Record<string, unknown>];
+    expect(payload).toMatchObject({ rateLimit: null, windowSpent: false });
+  });
+});

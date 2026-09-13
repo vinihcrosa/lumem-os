@@ -106,6 +106,34 @@
       "when": 1789187632351,
       "tag": "0014_tarefa_como_entidade",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1789252325443,
+      "tag": "0015_quadro_de_sete_colunas",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1789254642893,
+      "tag": "0016_ordem_na_coluna",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1789255374319,
+      "tag": "0017_relogio_do_encalhe",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1789274334110,
+      "tag": "0018_tetos_do_workspace",
+      "breakpoints": true
     }
   ]
 }

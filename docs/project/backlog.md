@@ -747,3 +747,72 @@ mesmo tamanho que a [016-session-mode](../features/016-session-mode/prd.md) teve
 **De onde veio:** [027 Q5](../features/027-adapter-provenance/open-questions.md) · **Volta quando:** alguém
 quiser trocar esforço sem sair do Lumem, ou quando uma persona do repositório for o motivo de abrir a
 conversa.
+
+### ~~A gramática de `Status:` não sabe dizer "esta lista acabou, a PRD não"~~ — **resolvido em 2026-09-13**
+
+> **Não era da gramática, era de como eu fatiei.** Ao abrir a Parte 3 da `028`, a decisão foi **um
+> `tasks.md` por feature, com uma seção por parte** — porque o gate do `025` só olha `prd.md` e
+> `tasks.md`, e um arquivo irmão ficaria sem verificação nenhuma. Com todas as partes no mesmo
+> arquivo, `completa` volta a querer dizer *"a feature acabou"*, que é o que a PRD também diria, e o
+> contrato funciona como foi desenhado. O registro abaixo fica porque ele descreve o beco.
+
+
+
+O [`025`](../features/025-docs-contract/prd.md) fechou a gramática em quatro valores — `proposta`,
+`em execução`, `completa`, `superada por` — e o `gate:full` cobra que a PRD e o `tasks.md`
+**concordem**. Isso pressupõe **um** `tasks.md` por PRD, e a [`028`](../features/028-autonomous-orchestration/tasks.md)
+é a primeira a quebrar a suposição: a PRD tem seis partes, o `tasks.md` executa **uma**, e as 12
+tasks dela estão entregues.
+
+Com `completa` no `tasks.md`, a PRD é obrigada a dizer `completa` também — afirmando que a esteira
+existe. A saída de hoje é deixar os dois em `em execução` e pôr o estado da fatia no §Histórico, que
+é honesto e **não é verificável pelo gate**: uma fatia entregue e uma fatia abandonada escrevem a
+mesma linha.
+
+As saídas possíveis, nenhuma medida: um `tasks.md` por fatia em subpasta (`f1/tasks.md`), um campo
+`Cobre:` no cabeçalho, ou um quinto valor que diga *"a lista acabou"* sem falar pela PRD.
+
+**De onde veio:** a fase 4 da [`028`](../features/028-autonomous-orchestration/tasks.md), ao tentar
+fechar o arquivo · **Volta quando:** a segunda PRD for fatiada em dois `tasks.md` — aí já são duas, e
+a lacuna deixa de ser anedota.
+
+### O Lumem define a interface, e os providers se adaptam a ela — `G`
+
+Direção dada na [Q41 da `028`](../features/028-autonomous-orchestration/open-questions.md):
+
+> *"Como os providers são diferentes entre si, a gente precisa definir a nossa interface e adaptar os
+> providers a ela. E quando tiver um provider, podem ter features habilitadas ou não; isso deve ser
+> uma cultura geral do Lumem, assim não ficamos limitados ao que um provider ou outro podem oferecer."*
+
+**É candidata a ADR e não está escrita como uma**, porque tem alternativa real e nomeada: é o que a
+[`016-session-mode`](../features/016-session-mode/prd.md) escolheu para o seletor de modo — *"o modo é
+do agente quando ele relata modos, e o Lumem **não interpreta** o valor"*. Seguir o vocabulário do
+agente e definir o nosso são duas direções, e hoje o produto tem uma de cada.
+
+O [catálogo `ADAPTERS`](../features/021-second-agent/prd.md) já é a primeira parcela do lado "nossa
+interface": uma `spec` que cada adaptador preenche. O que falta é a parte que a frase acrescenta —
+**capacidade declarada por provider**, para o produto perguntar *"este agente sabe fazer X?"* em vez
+de descobrir no turno.
+
+**De onde veio:** [028 Q41](../features/028-autonomous-orchestration/open-questions.md) · **Volta
+quando:** um terceiro provider entrar (o OpenRouter é o citado), ou quando a F2 precisar da postura de
+permissão de um agente que não é o Claude — aí a interface deixa de ser cultura e vira código.
+
+### O log do daemon não vai para arquivo — `P`
+
+O daemon usa o logger do Fastify sem destino em disco, e o binário `lumem` não redireciona: tudo vai
+para `stdout`. Numa sessão de `pnpm dev` isso é o terminal; num daemon instalado, é o que quer que
+tenha iniciado o processo.
+
+**O caso que tornou isso concreto:** a [Q46 da `028`](../features/028-autonomous-orchestration/open-questions.md)
+respondeu *"guarde o retrato da falha para reconhecer a recusa por cota depois"* — e o retrato só é
+útil se alguém o achar. A cota fecha durante trabalho autônomo, que é exatamente quando ninguém está
+olhando o terminal. O conserto pontual (escrever o retrato em `~/.lumem/_system/turn-failures.jsonl`)
+é da própria `028`; **este item é o geral**: log de daemon que não persiste é diagnóstico que só
+existe para quem estava presente.
+
+Pede decisão sobre destino, rotação e tamanho — e sobre o que **não** pode ir para o disco, porque o
+log atravessa caminho de arquivo e prompt.
+
+**De onde veio:** [028 Q46](../features/028-autonomous-orchestration/open-questions.md) ·
+**Volta quando:** o primeiro defeito relatado por alguém que não conseguiu dizer o que o daemon fez.

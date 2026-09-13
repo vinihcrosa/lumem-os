@@ -54,15 +54,41 @@ const STATUS_LABEL: Record<string, string> = {
  */
 const STATUS_GLYPH: Record<string, string> = { done: "✓", dropped: "–" };
 
+/**
+ * O número do teto, ou a palavra que diz que não há um.
+ *
+ * `null` é **sem teto** e `0` é **bloqueia tudo**: são coisas diferentes no
+ * banco, e colapsá-las na tela desfaria a distinção justamente onde ela precisa
+ * ser lida.
+ */
+function capLabel(value: number | null, prefix = ""): string {
+  if (value === null) return "sem teto";
+  return `${prefix}${prefix === "" ? "" : " "}${prefix === "" ? String(value) : value.toFixed(2)}`;
+}
+
 export interface TaskListProps {
   workspaceId: string;
   /** Quando presente, a lista é a do projeto — a mesma peça, um nível abaixo. */
   projectId?: string;
   onOpen: (taskId: string) => void;
   onCreate?: () => void;
+  /**
+   * A porta do quadro (`028` T8).
+   *
+   * Mora aqui e não na topbar porque **uma ação, um lugar**: a lista é o lugar
+   * onde tarefa é o assunto, e o quadro é a outra forma de olhar a mesma coisa.
+   * Ausente na lista do projeto — o quadro é do workspace.
+   */
+  onOpenBoard?: () => void;
 }
 
-export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListProps) {
+export function TaskList({
+  workspaceId,
+  projectId,
+  onOpen,
+  onCreate,
+  onOpenBoard,
+}: TaskListProps) {
   const [project, setProject] = useState<string | null>(projectId ?? null);
   const [showDone, setShowDone] = useState(false);
 
@@ -159,6 +185,11 @@ export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListP
                 ))}
               </select>
             )}
+            {onOpenBoard && projectId === undefined && (
+              <Button size="sm" variant="ghost" onClick={onOpenBoard}>
+                quadro
+              </Button>
+            )}
             {onCreate && (
               <Button size="sm" onClick={onCreate}>
                 ＋ tarefa
@@ -190,6 +221,17 @@ export function TaskList({ workspaceId, projectId, onOpen, onCreate }: TaskListP
         <div className="tlist">
           {settings.data !== undefined && (
             <p className="tlist__budget">
+              {/*
+                Os três tetos do workspace (`028` Parte 3, T18).
+                *"Teto que você não vê é teto que parece bug quando recusa"* — a
+                frase é da `022` e vale igual aqui. `null` aparece como **sem
+                teto** e não como campo vazio: um vazio numa linha sobre limite
+                parece defeito, e a ausência de teto é uma resposta.
+              */}
+              gasto: <b>{capLabel(settings.data.caps.costPerTask, "US$")}</b> por tarefa ·{" "}
+              <b>{capLabel(settings.data.caps.costPerDay, "US$")}</b> por dia ·{" "}
+              <b>{capLabel(settings.data.caps.turnsPerSession)}</b> turnos por sessão
+              <br />
               um agente pode criar até <b>{settings.data.budget}</b> tarefas por tarefa · mude em{" "}
               <code>{settings.data.budgetEnv}</code>
               {/*
