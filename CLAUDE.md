@@ -208,7 +208,7 @@ vivo — 7 dos 15 transcripts nunca receberam um prompt, e cada um deles pintari
 3 h"* pelo outro critério. A tela reproduziu a conta do Open Design (1152px de faixa + 264 da sidebar
 = 1416 contra 1418 medidos) e achou três defeitos que nenhuma leitura de código pega — o mais caro
 deles é que o **`ResizeObserver` vê a caixa, e o que muda é o conteúdo**. Duas perguntas ficaram
-abertas e represadas até a F2, e uma terceira **nunca precisou existir**: a Q38 levantou o arrasto
+abertas e represadas até a Parte 2 (a esteira), e uma terceira **nunca precisou existir**: a Q38 levantou o arrasto
 para `In Progress` como contradição, e ele **já funcionava** — sem um único teste cobrindo.
 
 E em **2026-09-13** a `028` fechou as **43 perguntas** dela, três delas **gastando token** — US$ 4,60
@@ -345,6 +345,16 @@ O `**Status:**` de uma PRD tem gramática fechada, e o `gate:full` compara com o
 
 - Documentação e comunicação em português. Código, commit e nome de arquivo em inglês.
 - Nome de arquivo em kebab-case.
+- **Escreva por extenso, e não abreviado.** Uma abreviação que economiza cinco letras custa uma
+  releitura inteira no dia em que duas coisas diferentes ficam com a mesma cara. A
+  [`028`](docs/features/028-autonomous-orchestration/prd.md) produziu o caso: o §6 numerava as partes
+  do escopo como `F1..F6` e o `tasks.md` numerava as etapas de construção como `Fase 0..4` — nada em
+  lugar nenhum dizia que eram **coisas diferentes**, e `F3` contra `fase 3` é indistinguível em voz
+  alta. Escreva **Parte 3 — Orçamento e limites** e **Fase 3 — a tela**; o documento fica mais
+  comprido e para de exigir que quem lê adivinhe.
+- **Numeração diferente pede nome diferente.** Se um documento numera duas coisas, as duas precisam de
+  substantivos distintos — *parte* e *fase*, não `F` e `Fase`. E quem cita de fora cita pelo nome
+  inteiro.
 - Pergunta de design não vira suposição silenciosa: vai pro arquivo de perguntas da feature, ou pro [questions.md](docs/project/questions.md) se for do projeto todo.
 - Ideia que ficou pra depois não vira memória de conversa: vai pro [backlog](docs/project/backlog.md), com uma frase de contexto, de onde veio, e o gatilho que traz de volta.
 - Discussão grande demais pra caber numa pergunta vira arquivo próprio em `docs/project/`, e a pergunta linka pra ele — como a [PTY × ACP](docs/project/pty-vs-acp.md) fez. Quando ela **decide** algo difícil de reverter, o arquivo é o estudo e a decisão vira um [ADR](docs/adr/).

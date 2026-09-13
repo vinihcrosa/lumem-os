@@ -6,10 +6,10 @@
 
 **Status:** em execução
 **Histórico:** **as 12 tasks das 5 fases estão entregues** (2026-09-12) — e este arquivo cobre **só a
-F1**. O corte é decisão registrada: das seis
+Parte 1**. O corte é decisão registrada: das seis
 partes do §6, este arquivo executa **uma** — o quadro lendo a
-[`022`](../022-workspace-tasks/prd.md), com a autonomia desligada. A esteira (F2), o orçamento (F3), a
-supervisão (F4) e as duas pontas do tracker (F5, F6) ficam para um `tasks.md` seguinte, e o §0 diz
+[`022`](../022-workspace-tasks/prd.md), com a autonomia desligada. A esteira (Parte 2), o orçamento (Parte 3), a
+supervisão (Parte 4) e as duas pontas do tracker (Parte 5, Parte 6) ficam para um `tasks.md` seguinte, e o §0 diz
 por quê. A fase 0 está **entregue**: o desenho sincronizado e o estudo do §11 escrito, e ele mudou
 duas coisas antes de existir código.
 
@@ -19,7 +19,7 @@ porque é a mais barata de refazer e a única represada pelo Open Design, que de
 > **Por que `em execução` com as 12 entregues.** A gramática do
 > [`025`](../025-docs-contract/prd.md) tem quatro valores — `proposta`, `em execução`, `completa`,
 > `superada por` — e o `gate:full` cobra que a PRD e o `tasks.md` **concordem**. Esta é a primeira
-> feature cuja PRD é fatiada em mais de um `tasks.md`: a F1 fechou, e a F2 a F6 nem começaram.
+> feature cuja PRD é fatiada em mais de um `tasks.md`: a Parte 1 fechou, e a Parte 2 a Parte 6 nem começaram.
 > `completa` aqui obrigaria a PRD a dizer `completa` também, o que seria afirmar que a esteira existe.
 >
 > **O estado da fatia mora no §Histórico e nos `Status:` de cada task**, que é onde ele é verificável.
@@ -28,7 +28,7 @@ porque é a mais barata de refazer e a única represada pelo Open Design, que de
 
 ---
 
-## 0. Por que só a F1
+## 0. Por que só a Parte 1
 
 A `028` inteira é a maior feature do repositório: quadro, esteira, orçamento, supervisão, entrada de
 tracker e escrita no tracker. Três coisas decidiram cortá-la aqui:
@@ -37,21 +37,21 @@ tracker e escrita no tracker. Três coisas decidiram cortá-la aqui:
    [estudo](../../project/orchestration-measurements.md) mediu três. Duas das que sobraram — de onde
    vem o segredo do tracker, e o que passa de uma sessão para outra — **não têm resposta, e uma delas
    exige ADR novo** porque contradiz o [ADR de
-   2026-08-30](../../adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md). Escrever tasks de F5 e
-   F6 agora seria escrever contra um vazio.
-2. **A F1 não depende de nenhuma delas.** O quadro lê a `022`, que está entregue. Com a autonomia
+   2026-08-30](../../adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md). Escrever tasks de Parte 5 e
+   Parte 6 agora seria escrever contra um vazio.
+2. **A Parte 1 não depende de nenhuma delas.** O quadro lê a `022`, que está entregue. Com a autonomia
    desligada — que é o **default do produto** — ele desenha o estado real do workspace sem uma linha
    de esteira.
 3. **O desenho já mediu que o quadro é a feature** (§2 da PRD). Ter a tela antes da autonomia é a
    ordem certa: sem um lugar que responda *"o que está acontecendo"*, autonomia é uma forma de
    descobrir o problema tarde.
 
-**O que a F1 entrega:** o quadro, com o cartão, o selo, o arrasto, os filtros e o piso de largura. O
+**O que a Parte 1 entrega:** o quadro, com o cartão, o selo, o arrasto, os filtros e o piso de largura. O
 selo nasce quase sempre em `manual — ninguém pega`, e é exatamente por isso que ele precisa existir —
 sem ele, um quadro com a autonomia desligada desenha o mesmo pixel de uma esteira travada (§10.2 da
 PRD).
 
-**O que a F1 não entrega:** ninguém pega nada sozinho. Nenhuma seta é movida pela máquina, exceto a
+**O que a Parte 1 não entrega:** ninguém pega nada sozinho. Nenhuma seta é movida pela máquina, exceto a
 que já é movida hoje — `open` → `in_progress`, derivada do primeiro prompt.
 
 ---
@@ -77,8 +77,8 @@ que já é movida hoje — `open` → `in_progress`, derivada do primeiro prompt
 |---|---|
 | a derivação de `in_progress` | `tasks/progress.ts:56` continua sendo `WHERE status = 'open'`. A [T4](#t4-quem-escreve-cada-estado-do-quadro) não mexe nela — só **cobre com teste** que ela não atropela o que você pôs à mão |
 | a fila de **Propostas** | é da [`022`](../022-workspace-tasks/prd.md) (T4), e o §10.4 da PRD registra que a superfície é de lá. `proposed` **não é coluna do quadro** |
-| `dropped` sai do quadro | §6/F1 — vira arquivo, não sétima coluna |
-| o Lumem não guarda segredo | o [ADR de 2026-08-30](../../adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md). Sem F5, nada aqui encosta em tracker |
+| `dropped` sai do quadro | §6, Parte 1 — vira arquivo, não sétima coluna |
+| o Lumem não guarda segredo | o [ADR de 2026-08-30](../../adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md). Sem Parte 5, nada aqui encosta em tracker |
 | `PrCache` e `IssueCache` | o `● #87` do cartão lê o cache que a [`013`](../013-pull-request-status/prd.md) já mantém. Zero processo novo |
 
 ---
@@ -101,7 +101,7 @@ o que muda por causa deles.
 > **4 significaram "terminei"** — 31%. Quatro eram pergunta, dois eram espera sem interrogação, e
 > **três eram o turno morrendo no meio do trabalho** (*"4 failures. Let me see them:"*). A heurística
 > do ponto de interrogação pega 4 dos 9 que não terminaram: **44% de recall**, errando no caso caro.
-> Nenhuma seta do quadro pode depender do transporte — e isso vale para a F2, não para a F1, que não
+> Nenhuma seta do quadro pode depender do transporte — e isso vale para a Parte 2, não para a Parte 1, que não
 > move seta nenhuma.
 >
 > **(b) O modelo da `022` não comporta o quadro.** Sete colunas contra quatro estados úteis: faltam
@@ -245,7 +245,7 @@ testáveis sem subir agente.
 > um quarto papel seria inventar um quarto encaixe, que o §6 tirou de escopo.
 
 > **O teste de que ele é derivado é o teste de que ninguém o escreveu.** É o mesmo par de casos que o
-> §12 da PRD pede, e o único dos dois que a F1 alcança.
+> §12 da PRD pede, e o único dos dois que a Parte 1 alcança.
 >
 > **E "sessão viva" não é "processo vivo".** A T1 mediu: 7 dos 15 transcripts não têm um único turno.
 > Uma sessão aberta e nunca usada desenharia `implementando há 3 h` se o critério fosse o processo.
@@ -318,11 +318,11 @@ rodapé, a agregação no ponto do cabeçalho da coluna. Origem é **glifo**, n�
 folga —; o cartão bloqueado não pinta uma fatia de quarta linha; e `aguardando você` é **luminância**
 (branco), não matiz, distinto do vermelho de *"algo deu errado"*.
 **Gate**: `pnpm gate:quick`
-**Status**: ✅ entregue (2026-09-12) — **parcial no que a F1 não alcança**, e a nota diz o quê.
+**Status**: ✅ entregue (2026-09-12) — **parcial no que a Parte 1 não alcança**, e a nota diz o quê.
 
-> O cartão, o selo e os cinco estados estão de pé, com os limiares de encalhe do §6/F1 e a origem
+> O cartão, o selo e os cinco estados estão de pé, com os limiares de encalhe do §6, Parte 1 e a origem
 > como **glifo** (`◆` agente, `↗` tracker). O que **não** entrou: `aguardando você` e o cartão
-> bloqueado com a pergunta — os dois pedem a supervisão (F4), que não é desta fatia, e as classes
+> bloqueado com a pergunta — os dois pedem a supervisão (Parte 4), que não é desta fatia, e as classes
 > deles saíram do `board.css` em vez de ficarem esperando marcação que não existe.
 >
 > **A linha viva também não entrou**, e ela é do §4.2: *"o que ele está fazendo neste momento"* pede a
@@ -344,7 +344,7 @@ usada do produto (§4).
 
 > O critério escrito era *"selo `aguardando você` ou `bloqueada`"*, e ele é curto demais: com a
 > autonomia desligada **nenhum** cartão tem esses dois selos, então o filtro mais usado do produto
-> devolveria zero em todo quadro que a F1 desenha. O que ele filtra é a frase do desenho — *"o que só
+> devolveria zero em todo quadro que a Parte 1 desenha. O que ele filtra é a frase do desenho — *"o que só
 > existe porque você existe"*: o bloqueio, **o encalhe**, e **a sua vez** (as colunas que você move).
 >
 > O filtro por projeto e por agente ficou de fora: projeto já tem o seu na lista da `022`, e agente
@@ -352,7 +352,7 @@ usada do produto (§4).
 
 ---
 
-> **Lacuna desta fase, achada executando-a: nenhuma T8–T11 entrega o arrasto.** A F1 promete *"o
+> **Lacuna desta fase, achada executando-a: nenhuma T8–T11 entrega o arrasto.** A Parte 1 promete *"o
 > quadro, com o cartão, o selo, **o arrasto**, os filtros e o piso de largura"*, a T5 entregou o
 > `move` do lado do daemon, e a T12 testa arrastar — mas a fase da tela não tinha task para ele. Foi
 > entregue junto da T10, com `draggable` do HTML5 e não uma biblioteca: o gesto é soltar um cartão
@@ -366,7 +366,7 @@ usada do produto (§4).
 
 #### T12: O e2e do quadro
 
-**What**: a spec que prova o que a F1 entrega, com **zero token** — nenhum agente real sobe.
+**What**: a spec que prova o que a Parte 1 entrega, com **zero token** — nenhum agente real sobe.
 **Where**: `e2e/`
 **Done when**: quatro caminhos passam —
 **(a)** um workspace com tarefas nos sete estados desenha sete colunas, com as duas pontas
@@ -403,7 +403,7 @@ fazer a faixa nunca zerar derruba o (d).
 
 | O quê | O que destrava |
 |---|---|
-| **F2 — a esteira** | a resposta de *"três sessões por tarefa: o que passa de uma para outra"*, e o laço do implementador que a T1 provou ser necessário (turno acabado ≠ tarefa acabada) |
-| **F3 — orçamento** | nada. `max_turn_requests` já chega ao daemon, e o `rateLimitOf` foi consertado pela [`027`](../027-adapter-provenance/prd.md). É a que está mais perto |
-| **F4 — supervisão** | a F2, e o corolário desconfortável do §2.4 do estudo: o selo `aguardando você` **não é derivável do transporte** |
-| **F5 e F6 — o tracker** | um **ADR**. O precedente do `gh` não é portável — não existe `linear` na máquina —, e as três opções que sobram estão no §3.4 do estudo. Uma delas contradiz o ADR de 2026-08-30 de frente |
+| **Parte 2 — a esteira** | a resposta de *"três sessões por tarefa: o que passa de uma para outra"*, e o laço do implementador que a T1 provou ser necessário (turno acabado ≠ tarefa acabada) |
+| **Parte 3 — orçamento** | nada. `max_turn_requests` já chega ao daemon, e o `rateLimitOf` foi consertado pela [`027`](../027-adapter-provenance/prd.md). É a que está mais perto |
+| **Parte 4 — supervisão** | a Parte 2, e o corolário desconfortável do §2.4 do estudo: o selo `aguardando você` **não é derivável do transporte** |
+| **Parte 5 e Parte 6 — o tracker** | um **ADR**. O precedente do `gh` não é portável — não existe `linear` na máquina —, e as três opções que sobram estão no §3.4 do estudo. Uma delas contradiz o ADR de 2026-08-30 de frente |

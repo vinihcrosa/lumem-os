@@ -100,7 +100,7 @@ Três coisas, e a primeira já estava escrita:
    pararam no meio sozinhos. O encaixe precisa de um laço com condição de parada externa (a PR existe,
    o CI fechou) — não *"mande o corpo da tarefa e espere"*.
 
-3. **`max_turn_requests` é o teto de turnos da F3, de graça.** Está no `StopReason` e o daemon já o
+3. **`max_turn_requests` é o teto de turnos da Parte 3 (orçamento), de graça.** Está no `StopReason` e o daemon já o
    recebe; o que falta é ele chegar ao cartão como motivo de bloqueio em vez de ser tratado como fim
    de turno normal — o que é hoje.
 
@@ -190,7 +190,7 @@ Então as opções são três, e nenhuma é o caminho do `gh`:
 |---|---|
 | **(a)** o Lumem guarda a chave do Linear | contradiz o ADR de frente. Exige ADR novo, não nota de PRD (regra 4 do `CLAUDE.md`) |
 | **(b)** camada gerenciada guarda | o Lumem continua sem guardar segredo — mas a credencial de escrita do usuário passa a morar em terceiro, e o produto passa a **não funcionar offline**. Mais os ~2 s do §3.1 |
-| **(c)** sem tracker na v1 | F5 e F6 saem. O UC1 — *"uma issue do Linear vira uma PR"* — sai junto, e ele é o caso que abriu a PRD |
+| **(c)** sem tracker na v1 | as Partes 5 e 6 saem. O UC1 — *"uma issue do Linear vira uma PR"* — sai junto, e ele é o caso que abriu a PRD |
 
 A medida não escolhe entre elas. O que ela faz é **tirar da mesa a quarta opção**, que era a
 confortável: *"faz como o `gh` fez"*.
@@ -254,7 +254,7 @@ E é bom que seja assim: `in_progress` derivado é a mesma propriedade do selo d
 pode** divergir da realidade, como uma coluna guardada pode"*. Quem quiser o arrasto está pedindo para
 guardar.
 
-Isto **não é pergunta desta medição, é pergunta da F1**, e está anotada como tal.
+Isto **não é pergunta desta medição, é pergunta da Parte 1 (o quadro)**, e está anotada como tal.
 
 ### 4.4 O limite de taxa como sinal já está de pé
 
@@ -369,7 +369,7 @@ e esta medição saiu **depois** dele, confirmando-o em vez de inspirá-lo.
 
 **A consequência é a que importa:** o único modo que deixa a esteira andar é o único que **nunca
 pergunta**, e o §4bis.4 mediu o que isso produz. **A segurança da esteira não pode vir do modo de
-permissão** — tem que vir do CI, do orçamento e do teto de turnos, que é o que a F2 precisa ter de pé
+permissão** — tem que vir do CI, do orçamento e do teto de turnos, que é o que a Parte 2 (a esteira) precisa ter de pé
 **antes** de ligar a autonomia.
 
 Custo: **US$ 0,00**. Os dez turnos penduraram antes de qualquer evento de consumo chegar.
@@ -392,7 +392,7 @@ suíte, sem CI, sem convenção — que é justamente o que o §4bis.4 diz que f
 | **as quatro autenticações** | três das quatro dependem da escolha do §3.4 |
 | **lease, heartbeat, fencing** | medi o que existe (§4), não o que falta. Os invariantes do [estudo do Compozy](../references/compozy.md) continuam sendo a leitura recomendada antes de desenhar os nossos |
 
-Nada disso bloqueia a **F1** — o quadro lendo a `022`, sem esteira —, e é por isso que ela pode sair
+Nada disso bloqueia a **Parte 1** — o quadro lendo a `022`, sem esteira —, e é por isso que ela pode sair
 primeiro.
 
 ---

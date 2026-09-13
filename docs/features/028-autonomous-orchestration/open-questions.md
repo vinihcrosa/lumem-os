@@ -1,6 +1,6 @@
 # O orquestrador autônomo — perguntas
 
-**PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md) — só a F1 · **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
+**PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md) — só a Parte 1 · **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
 
 **Quarenta e três perguntas, em sete rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
 segunda rodada abriu — todas em 2026-09-11 — mais **4 que a sessão de desenho no Open Design abriu**,
@@ -30,7 +30,7 @@ verdade — **a fila da esteira pegaria o trabalho que você está fazendo na m�
 A [Q39](#q39--quem-diz-que-o-agente-está-esperando-você) foi **respondida medindo**, e a resposta é
 que ela estava mal formada. E a [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão) foi
 respondida em 2026-09-12 com a melhor resposta possível: **o interruptor que ela pedia já existia** —
-o §6/F4 define `assumir` como *"desliga a autonomia daquela tarefa"* —, e arrastar para uma coluna da
+o §6, Parte 4 define `assumir` como *"desliga a autonomia daquela tarefa"* —, e arrastar para uma coluna da
 máquina é um segundo caminho para ele.
 
 As quatro últimas não vieram de discussão: vieram de **medir a tela**, e três contradiziam a PRD. As
@@ -864,7 +864,7 @@ não é dele. A PRD já usa os dois nomes: o §5 diz `executor`, e metade dos ca
 **Resposta: `implementador`, com o verbo `implementando`.** *"eu gosto de implementador, e usar o
 verbo implementando."*
 
-**O que isso obriga, e é mais do que trocar uma palavra:** o §5 da PRD, o §6/F2 e o §4.1 passam a
+**O que isso obriga, e é mais do que trocar uma palavra:** o §5 da PRD, o §6, Parte 2 e o §4.1 passam a
 dizer `implementador`; o selo do cartão vira `implementando há 12 min` trabalhando e
 `aguardando implementador` esperando. **E esse segundo é o mais longo dos três** — medido em
 **148px** contra **151px** de caixa, com **3px de folga**. O número está registrado no §4.1 da PRD
@@ -902,7 +902,7 @@ inteiro: uma linha por adaptador, o `＋` no cabeçalho, os três estados da lin
 ### Q36 — qual dos dois tetos segurou?
 
 A [Q33](#q33--agentes-nomeados-e-papel-por-projeto) decidiu que **orçamento mora no agente**, e o
-§6/F3 tem teto por tarefa, por dia e de turnos **no workspace**. As duas coisas estão certas e
+§6, Parte 3 tem teto por tarefa, por dia e de turnos **no workspace**. As duas coisas estão certas e
 convivem — mas significam que *"por que esta tarefa parou em US$ 0,50?"* tem **duas respostas
 possíveis**, e o cartão bloqueado do desenho hoje mostra só o número.
 
@@ -917,7 +917,7 @@ workspace — US$ 2,00 por tarefa"*. Um verbo só, e ele leva à tela onde aquel
 > depois de o orçamento existir em dois lugares.
 
 **Resposta: a proposta.** *"concordo."* O bloqueio de orçamento nomeia o teto que segurou, e o verbo
-leva à tela onde aquele número mora. Está no §6/F3 da PRD e no quadro 5 do `lumem-board.html`.
+leva à tela onde aquele número mora. Está no §6, Parte 3 da PRD e no quadro 5 do `lumem-board.html`.
 
 ### Q37 — abaixo de 1418px, o que o quadro faz?
 
@@ -950,7 +950,7 @@ apagar **um elemento** — a faixa `.bd__clip` do `lumem-board.css` — e nada m
 
 O que isso **não** muda: o piso de 200px da coluna continua valendo, e é ele que garante que as
 colunas visíveis continuem legíveis em vez de todas encolherem juntas. E vira o **primeiro requisito
-de largura mínima do produto** (§6/F1).
+de largura mínima do produto** (§6, Parte 1).
 
 ---
 
@@ -1041,22 +1041,22 @@ E o selo não te protege: `manual — ninguém pega` é o mesmo texto nos dois c
 As saídas visíveis:
 
 - **o arrasto para uma coluna da máquina desliga a autonomia daquela tarefa** — é o mesmo gesto que o
-  §6/F4 já define para **assumir** (*"abre a conversa e desliga a autonomia daquela tarefa"*), e
+  §6, Parte 4 já define para **assumir** (*"abre a conversa e desliga a autonomia daquela tarefa"*), e
   arrastar seria um segundo caminho para o mesmo lugar;
 - **um sexto estado de selo** — `você está nesta` —, que custa um estado num selo que acabou de subir
   para cinco;
 - **a fila só pega cartão que ela mesma pôs na coluna**, o que exige guardar proveniência da
   transição e é o tipo de estado que o §4.1 evitou a feature inteira.
 
-**Sem proposta, e de propósito:** isto é **F2**. Com a autonomia desligada — o default do produto, e o
-que a F1 entrega — não existe quem pegue, então nada disto é alcançável ainda. Decidir agora seria
+**Sem proposta, e de propósito:** isto é **Parte 2**. Com a autonomia desligada — o default do produto, e o
+que a Parte 1 entrega — não existe quem pegue, então nada disto é alcançável ainda. Decidir agora seria
 decidir sem a esteira existir para medir contra.
 
 **Resposta: a primeira, e ela não é uma saída nova — é um interruptor que já existe.** Nas suas
 palavras: *"se tiver uma flag nas tasks manuais que impede de um agente pegar, então o agente não
 pega, simples assim."*
 
-E a flag **já está escrita**: o §6/F4 define **assumir** como *"abre a conversa e **desliga a
+E a flag **já está escrita**: o §6, Parte 4 define **assumir** como *"abre a conversa e **desliga a
 autonomia daquela tarefa**"*. É um interruptor por tarefa, decidido antes desta pergunta existir.
 Arrastar para uma coluna da máquina é um **segundo caminho para ele** — o gesto do quadro chegando
 onde a conversa já chegava. Nenhum conceito novo, nenhuma coluna com exceção, nenhuma proveniência de
@@ -1071,7 +1071,7 @@ passou a feature inteira evitando.
 quanto para *"ninguém está"*. Com o interruptor, isso deixa de ser perigo e vira **leitura**: com a
 esteira ligada, um cartão parado numa coluna da máquina levanta a pergunta *"por que ninguém pegou?"*,
 e a resposta — *você desligou* — não está na tela. Custa um sexto estado num selo que acabou de subir
-para cinco, e a F2 decide quando existir uma esteira para olhar. Não é a Q40: é o resíduo dela.
+para cinco, e a Parte 2 decide quando existir uma esteira para olhar. Não é a Q40: é o resíduo dela.
 
 ### Q41 — em que modo a esteira abre a sessão, e quem escolhe?
 
@@ -1099,7 +1099,7 @@ Medido, e não deduzido: com `lumemMode: "ask"` **e** com `"free"`, o turno pend
 indefinidamente. Um implementador autônomo nunca escreve uma linha. O que destrava é
 `session/set_mode` para `bypassPermissions`, que é vocabulário do **Claude**.
 
-Três coisas que isso cobra da F2:
+Três coisas que isso cobra da Parte 2:
 
 - **é por agente, não por workspace.** `bypassPermissions` não existe no Codex, que tem outro
   catálogo. O encaixe do §5 aponta para um agente nomeado — então a postura mora com ele;
@@ -1110,7 +1110,7 @@ Três coisas que isso cobra da F2:
   Em `bypassPermissions` ele não para nunca — e a [Q39](#q39--quem-diz-que-o-agente-está-esperando-você)
   é exatamente sobre não saber quando ele devia ter parado.
 
-> **Aberta, e é da F2.** Não bloqueia a F1: com a autonomia desligada, quem escolhe o modo é você,
+> **Aberta, e é da F2.** Não bloqueia a Parte 1: com a autonomia desligada, quem escolhe o modo é você,
 > pela pílula que a `016` já desenhou.
 
 **Resposta: a postura é do provider, e o Lumem define a interface — não o contrário.** Suas palavras:
@@ -1194,8 +1194,8 @@ isso produz — a tarefa impossível virou commit em 3 de 4 execuções, com o s
 
 > **Então a segurança da esteira não pode vir do modo de permissão.** Ela tem que vir dos outros três
 > lugares que a PRD já nomeia: o **CI** do §4.1 (o fato verificável que separa *terminou* de
-> *inventou*), o **orçamento** da F3, e o **teto de turnos**. Isso não muda a resposta da
-> [Q41](#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) — muda o que a F2 tem que ter de
+> *inventou*), o **orçamento** da Parte 3, e o **teto de turnos**. Isso não muda a resposta da
+> [Q41](#q41--em-que-modo-a-esteira-abre-a-sessão-e-quem-escolhe) — muda o que a Parte 2 tem que ter de
 > pé **antes** de ligar a autonomia, e é uma frase que a PRD não tem.
 
 O custo da medição foi **US$ 0,00**: os dez turnos penduraram antes de qualquer evento de consumo
@@ -1218,7 +1218,7 @@ As saídas, e todas custam:
   produto"*. Talvez a pergunta em aberto não precise de pixel no cartão — precisa de um lugar na
   lista.
 
-> **Aberta, e é da F2 mais desenho.** Ela volta ao Open Design junto com o resíduo da
+> **Aberta, e é da Parte 2 mais desenho.** Ela volta ao Open Design junto com o resíduo da
 > [Q40](#q40--a-fila-não-distingue-o-que-você-está-fazendo-na-mão), que é da mesma família: os dois
 > são coisas que o selo precisaria dizer e não diz.
 
