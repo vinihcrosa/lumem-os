@@ -22,6 +22,27 @@ const titleSchema = z.string().trim().min(1, "a tarefa precisa de um título").m
 const idSchema = z.object({ id: z.string().min(1) });
 const statusSchema = z.enum(TASK_STATUSES);
 
+/**
+ * As colunas em que **alguém está trabalhando**, para o gesto do arrasto (Q40).
+ *
+ * São as três com papel — as mesmas que o selo chama de `implementador`,
+ * `revisor` e `testador` —, e a lista é essa porque o gesto que ela traduz é
+ * *"assumi o volante"*: um cartão parado numa delas quer dizer que alguém está
+ * nele, e se esse alguém é você a esteira não pode pegar por cima.
+ *
+ * **`open` não está aqui, e isso foi um erro meu que um teste pegou.** A `open`
+ * é a To-Do: arrastar um cartão para lá é **entregá-lo** à máquina, não tirá-lo
+ * dela. Com ela na lista, o gesto mais comum do quadro — pôr uma tarefa na fila
+ * — desligava a autonomia da tarefa que acabou de ser enfileirada, e a esteira
+ * ficava permanentemente vazia sem nada falhar. Quem derrubou foi o caso da
+ * `queue.test.ts` que arrasta dentro da própria coluna para provar a prioridade.
+ *
+ * `ready_to_merge` também não está, e por outro motivo: o §4.1 a criou para
+ * marcar *"é a sua vez"*, e arrastar um cartão para lá não é assumir o volante —
+ * é devolvê-lo.
+ */
+const HANDS_ON_COLUMNS = new Set(["in_progress", "review", "testing"]);
+
 export const taskRouter = router({
   /**
    * Os tetos desta feature, como leitura (T13).
@@ -202,6 +223,15 @@ export const taskRouter = router({
    * destino inteira numa transação — a posição **é** a prioridade, então ela
    * tem que sobreviver a recarregar.
    */
+  /**
+   * As colunas em que a esteira trabalha.
+   *
+   * As mesmas quatro etapas devidas da `queue.ts`, e a duplicação é deliberada:
+   * ali elas são a **fila** e aqui são a fronteira de um gesto. Importar a lista
+   * de lá amarraria o router ao módulo da esteira por uma coincidência de
+   * conteúdo — e no dia em que a fila deixar de pegar `open`, o arrasto para a
+   * To-Do não deveria mudar de significado junto.
+   */
   move: publicProcedure
     .input(
       z.object({
@@ -213,14 +243,36 @@ export const taskRouter = router({
     )
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
-        const moved = await createTaskRepository(ctx.db).move(input.id, {
+        const tasks = createTaskRepository(ctx.db);
+        const moved = await tasks.move(input.id, {
           status: input.status,
           index: input.index,
           actor: "human",
           reason: input.reason,
         });
-        ctx.events.emit({ type: "task.changed", workspaceId: moved.workspaceId });
-        return moved;
+
+        /*
+         * Arrastar para uma coluna em que alguém trabalha **desliga a autonomia
+         * daquela tarefa** (`028` Q40).
+         *
+         * Não é conceito novo: o §6, Parte 4 já define **assumir** como *"abre a
+         * conversa e desliga a autonomia daquela tarefa"*, e a Q40 decidiu que o
+         * arrasto é um **segundo caminho para o mesmo interruptor**. Sem isto, a
+         * regra da fila pegaria exatamente o cartão que você acabou de puxar
+         * para fazer na mão — etapa devida, nenhum trabalhador — e começaria a
+         * gastar por cima do seu trabalho.
+         *
+         * **Só desliga, nunca liga de volta.** Tirar o cartão de uma coluna da
+         * máquina não é dizer *"pode pegar"*; quem liga é você, e é um gesto com
+         * nome.
+         */
+        const final =
+          HANDS_ON_COLUMNS.has(input.status) && moved.autonomy !== "off"
+            ? await tasks.setAutonomy(input.id, "off")
+            : moved;
+
+        ctx.events.emit({ type: "task.changed", workspaceId: final.workspaceId });
+        return final;
       }),
     ),
 

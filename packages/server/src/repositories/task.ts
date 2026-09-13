@@ -156,6 +156,16 @@ export interface TaskRepository {
    */
   setAutonomy(id: string, autonomy: TaskAutonomy): Promise<TaskRow>;
   /**
+   * O prompt que o `assistido` montou e não enviou (T30).
+   *
+   * `null` nos dois limpa — é o que enviar faz, e é o que mudar de etapa faz
+   * sozinho pelo `setStatus`.
+   */
+  prepare(
+    id: string,
+    prepared: { prompt: string; role: string } | null,
+  ): Promise<TaskRow>;
+  /**
    * O gesto do quadro: a coluna de destino **e** o lugar nela (`028` §4.3, T5).
    *
    * Separado do `setStatus` porque são duas perguntas diferentes. `setStatus`
@@ -359,6 +369,11 @@ export function createTaskRepository(db: Db): TaskRepository {
               // já está na coluna nova carregando o contador da anterior — que é
               // o suficiente para a fila recusar um cartão recém-promovido.
               attempts: 0,
+              // O preparo é de uma **etapa**, não da tarefa: um prompt de
+              // implementador sobrevivendo até In Review seria a tela
+              // oferecendo enviar a coisa errada.
+              preparedPrompt: null,
+              preparedRole: null,
               updatedAt: new Date(),
             })
             .where(eq(task.id, id))
@@ -419,7 +434,12 @@ export function createTaskRepository(db: Db): TaskRepository {
                     // `status`: subir um cartão de lugar não é uma etapa nova.
                     ...(current.status === target.status
                       ? {}
-                      : { statusChangedAt: new Date(), attempts: 0 }),
+                      : {
+                          statusChangedAt: new Date(),
+                          attempts: 0,
+                          preparedPrompt: null,
+                          preparedRole: null,
+                        }),
                     updatedAt: new Date(),
                   }
                 : { position },
@@ -474,6 +494,29 @@ export function createTaskRepository(db: Db): TaskRepository {
           "check:task_autonomy": {
             code: "INVALID_ARGUMENT",
             message: `autonomia inválida: ${autonomy}`,
+          },
+        },
+      );
+      return row!;
+    },
+
+    async prepare(id, prepared) {
+      await require_(id);
+      const [row] = await withConstraints(
+        () =>
+          db
+            .update(task)
+            .set({
+              preparedPrompt: prepared?.prompt ?? null,
+              preparedRole: prepared?.role ?? null,
+              updatedAt: new Date(),
+            })
+            .where(eq(task.id, id))
+            .returning(),
+        {
+          "check:task_prepared_pair": {
+            code: "INVALID_ARGUMENT",
+            message: "prompt preparado sem papel não sabe que sessão abrir",
           },
         },
       );

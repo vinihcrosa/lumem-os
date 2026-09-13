@@ -119,6 +119,53 @@ describe("mudar de etapa zera a tentativa, na mesma escrita", () => {
   });
 });
 
+describe("o prompt preparado", () => {
+  it("guarda o par, e o par volta na leitura", async () => {
+    const { tasks, taskId } = await scene();
+
+    const row = await tasks.prepare(taskId, { prompt: "faça isto", role: "implementador" });
+
+    // Guardado e não recalculado: a promessa do degrau `assistido` é *"você vê
+    // o que ele **ia** fazer"*, e um prompt remontado na hora de pintar poderia
+    // diferir do que foi preparado.
+    expect(row).toMatchObject({ preparedPrompt: "faça isto", preparedRole: "implementador" });
+  });
+
+  it("`null` limpa os dois", async () => {
+    const { tasks, taskId } = await scene();
+    await tasks.prepare(taskId, { prompt: "faça isto", role: "implementador" });
+
+    const row = await tasks.prepare(taskId, null);
+
+    expect(row).toMatchObject({ preparedPrompt: null, preparedRole: null });
+  });
+
+  it("mudar de etapa apaga o preparo sozinho", async () => {
+    const { tasks, taskId } = await scene();
+    await tasks.prepare(taskId, { prompt: "implemente", role: "implementador" });
+
+    const row = await tasks.setStatus(taskId, "review");
+
+    /*
+     * O preparo é de uma **etapa**, não da tarefa. Um prompt de implementador
+     * sobrevivendo até In Review seria a tela oferecendo enviar a coisa errada
+     * — e oferecendo com o texto certo, que é o pior jeito de errar.
+     */
+    expect(row).toMatchObject({ preparedPrompt: null, preparedRole: null });
+  });
+
+  it("reordenar dentro da coluna **não** apaga o preparo", async () => {
+    const { tasks, taskId } = await scene();
+    await tasks.prepare(taskId, { prompt: "implemente", role: "implementador" });
+
+    const row = await tasks.move(taskId, { status: "open", index: 0 });
+
+    // Mesma regra do relógio e da tentativa: subir um cartão de lugar não é uma
+    // etapa nova, e não pode custar o preparo que já foi pago.
+    expect(row.preparedPrompt).toBe("implemente");
+  });
+});
+
 describe("a autonomia da tarefa", () => {
   it("nasce herdando o workspace", async () => {
     const { tasks, taskId } = await scene();

@@ -1053,3 +1053,71 @@ describe("0022 — o interruptor da esteira", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("0023 — o prompt preparado", () => {
+  function databaseBeforePrepared(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-prepared-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(23) });
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'acme')`).run();
+    sqlite
+      .prepare(
+        `INSERT INTO project (id, workspace_id, name, path, default_branch)
+         VALUES ('p1', 'w1', 'api', '/repos/api', 'main')`,
+      )
+      .run();
+    // Com tentativa gasta, para provar que a coluna da migração anterior
+    // atravessa esta: uma recriação de tabela apaga o que o SELECT não copia.
+    sqlite
+      .prepare(
+        `INSERT INTO task (id, workspace_id, project_id, title, status, position, attempts, autonomy)
+         VALUES ('t1', 'w1', 'p1', 'o /orders devolve 500', 'in_progress', 0, 1, 'off')`,
+      )
+      .run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("a tarefa acorda sem nada preparado, e com o que já tinha intacto", async () => {
+    const handle = openDatabase({ path: databaseBeforePrepared() });
+    open.push(handle);
+
+    const [row] = await handle.db.select().from(schema.task);
+
+    expect(row).toMatchObject({
+      preparedPrompt: null,
+      preparedRole: null,
+      attempts: 1,
+      autonomy: "off",
+    });
+  });
+
+  it("prompt sem papel é recusado — enviar não saberia que sessão abrir", async () => {
+    const handle = openDatabase({ path: databaseBeforePrepared() });
+    open.push(handle);
+
+    await expect(
+      handle.db
+        .update(schema.task)
+        .set({ preparedPrompt: "faça isto" })
+        .where(eq(schema.task.id, "t1")),
+    ).rejects.toThrow();
+  });
+
+  it("papel sem prompt é recusado — é um preparo que não preparou nada", async () => {
+    const handle = openDatabase({ path: databaseBeforePrepared() });
+    open.push(handle);
+
+    await expect(
+      handle.db
+        .update(schema.task)
+        .set({ preparedRole: "implementador" })
+        .where(eq(schema.task.id, "t1")),
+    ).rejects.toThrow();
+  });
+});

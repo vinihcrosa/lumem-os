@@ -72,6 +72,30 @@ export const workspaceRouter = router({
       }),
     ),
 
+  /**
+   * O interruptor da esteira (`028` Parte 2, T29).
+   *
+   * Os três degraus do §6, e o teto junto. `autonomo` sem acento porque é dado,
+   * e dado do Lumem é ascii pela convenção do repositório — quem traduz é a
+   * tela.
+   */
+  setAutonomy: publicProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+        autonomy: z.enum(["manual", "assistido", "autonomo"]),
+        maxParallel: z.number().int().nonnegative(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () => {
+        const { id, ...switches } = input;
+        const saved = await createWorkspaceRepository(ctx.db).setAutonomy(id, switches);
+        ctx.events.emit({ type: "workspace.changed" });
+        return saved;
+      }),
+    ),
+
   remove: publicProcedure.input(idSchema).mutation(({ ctx, input }) =>
     domainSafeAsync(async () => {
       await createWorkspaceRepository(ctx.db).remove(input.id);

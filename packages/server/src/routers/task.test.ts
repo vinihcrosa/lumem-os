@@ -570,6 +570,68 @@ describe("a medida de cerimônia", () => {
   });
 });
 
+describe("o arrasto desliga a autonomia daquela tarefa (Q40)", () => {
+  it("puxar para uma coluna com papel é assumir o volante", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "faço na mão" });
+
+    const moved = await api.task.move({ id: created.id, status: "in_progress", index: 0 });
+
+    /*
+     * Sem isto, a fila pegaria exatamente o cartão que você acabou de puxar
+     * para fazer na mão — etapa devida, nenhum trabalhador — e começaria a
+     * gastar por cima do seu trabalho. Não é conceito novo: o §6, Parte 4 já
+     * define **assumir** como *"desliga a autonomia daquela tarefa"*, e o
+     * arrasto é um segundo caminho para o mesmo interruptor.
+     */
+    expect(moved.autonomy).toBe("off");
+  });
+
+  it("tirar de uma coluna da máquina **não** liga de volta", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "faço na mão" });
+    await api.task.move({ id: created.id, status: "in_progress", index: 0 });
+
+    const back = await api.task.move({ id: created.id, status: "ready_to_merge", index: 0 });
+
+    // Tirar o cartão de uma coluna da máquina não é dizer *"pode pegar"*. Quem
+    // liga é você, e é um gesto com nome.
+    expect(back.autonomy).toBe("off");
+  });
+
+  it("arrastar para a To-Do **entrega** à máquina, e não tira dela", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "põe na fila" });
+    await api.task.setStatus({ id: created.id, status: "backlog" });
+
+    const moved = await api.task.move({ id: created.id, status: "open", index: 0 });
+
+    /*
+     * **Este caso existe porque eu errei.** A primeira versão da regra contava
+     * `open` como coluna da máquina, e aí o gesto mais comum do quadro — pôr uma
+     * tarefa na fila — desligava a autonomia da tarefa recém-enfileirada. A
+     * esteira ficava permanentemente vazia sem nada falhar; quem derrubou foi um
+     * caso da `queue.test.ts` que arrasta dentro da própria coluna.
+     */
+    expect(moved.autonomy).toBe("inherit");
+  });
+
+  it("`ready_to_merge` não é coluna de trabalho", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "sua vez" });
+
+    const moved = await api.task.move({ id: created.id, status: "ready_to_merge", index: 0 });
+
+    // O §4.1 a criou justamente para marcar *"é a sua vez"*. Arrastar para lá
+    // não é assumir o volante — é devolvê-lo.
+    expect(moved.autonomy).toBe("inherit");
+  });
+});
+
 describe("task.remove", () => {
   it("apaga tarefa sem sessão", async () => {
     const { api } = caller();

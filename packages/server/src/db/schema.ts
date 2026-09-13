@@ -985,6 +985,21 @@ export const task = sqliteTable(
      * desfaz essa intenção.
      */
     autonomy: text("autonomy").notNull().default("inherit"),
+    /**
+     * O prompt que o `assistido` montou e **não** enviou (`028` Parte 2, T30).
+     *
+     * Guardado, e não recalculado na leitura, por uma razão que é a promessa do
+     * degrau: *"você vê o que ele **ia** fazer"*. Um prompt remontado na hora de
+     * pintar a tela poderia diferir do que foi preparado — o corpo da tarefa
+     * mudou, a worktree ficou suja — e aí o que você aprovou não é o que vai. O
+     * texto preparado é a **proposta**, e proposta se guarda.
+     *
+     * `NULL` é o caso comum: nada preparado. Some quando o cartão anda, porque
+     * o prompt é de uma etapa e não da tarefa.
+     */
+    preparedPrompt: text("prepared_prompt"),
+    /** Para qual encaixe. Sem isto, enviar não saberia que sessão abrir. */
+    preparedRole: text("prepared_role"),
     statusChangedAt: integer("status_changed_at", { mode: "timestamp_ms" })
       .notNull()
       // `DEFAULT 0` no banco e o relógio na aplicação, e **não** o `NOW` que o
@@ -1010,6 +1025,13 @@ export const task = sqliteTable(
     // incremento — um `- 1` em algum lugar viraria um contador que anda para
     // trás sem ninguém notar.
     check("task_attempts_not_negative", sql`${table.attempts} >= 0`),
+    // Os dois sentidos: prompt sem papel não sabe que sessão abrir, e papel sem
+    // prompt é um preparo que não preparou nada.
+    check(
+      "task_prepared_pair",
+      sql`(${table.preparedPrompt} IS NULL AND ${table.preparedRole} IS NULL)
+        OR (${table.preparedPrompt} IS NOT NULL AND ${table.preparedRole} IS NOT NULL)`,
+    ),
     // Os dois sentidos, como o `session_agent_config`: tarefa de agente sem
     // sessão é proposta sem proveniência — e proveniência é o que separa
     // proposta de lixo —, e uma tarefa "criada por você" carregando sessão

@@ -34,6 +34,17 @@ export interface WorkspaceRepository {
       turnsPerSession: number | null;
     },
   ): Promise<WorkspaceRow>;
+  /**
+   * O interruptor da esteira, e quantas de uma vez (`028` Parte 2, T29 e T25).
+   *
+   * Os dois juntos porque a tela os mostra juntos e porque mudá-los é um gesto
+   * só — ligar a autonomia sem dizer quantas seria ligar sem freio, que é o que
+   * a Parte 3 veio antes para impedir.
+   */
+  setAutonomy(
+    id: string,
+    input: { autonomy: "manual" | "assistido" | "autonomo"; maxParallel: number },
+  ): Promise<WorkspaceRow>;
   remove(id: string): Promise<void>;
 }
 
@@ -109,6 +120,31 @@ export function createWorkspaceRepository(db: Db): WorkspaceRepository {
           "check:workspace_budget_not_negative": {
             code: "INVALID_ARGUMENT",
             message: "teto negativo não existe — `sem teto` se diz com vazio",
+          },
+        },
+      );
+      return row!;
+    },
+
+    async setAutonomy(id, { autonomy, maxParallel }) {
+      await require_(id);
+      const [row] = await withConstraints(
+        () =>
+          db
+            .update(workspace)
+            .set({ autonomy, autonomyMaxParallel: maxParallel, updatedAt: new Date() })
+            .where(eq(workspace.id, id))
+            .returning(),
+        {
+          "check:workspace_autonomy": {
+            code: "INVALID_ARGUMENT",
+            message: `autonomia inválida: ${autonomy}`,
+          },
+          "check:workspace_autonomy_max_parallel": {
+            code: "INVALID_ARGUMENT",
+            // Não existe "sem teto" aqui, e a mensagem diz o que existe: `0` é
+            // como se pausa a esteira sem mexer em cada tarefa.
+            message: "o teto de paralelismo não pode ser negativo — `0` é como se pausa a esteira",
           },
         },
       );
