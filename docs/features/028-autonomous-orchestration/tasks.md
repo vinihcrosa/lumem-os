@@ -5,10 +5,10 @@
 **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
 
 **Status:** em execução
-**Histórico:** a **Parte 1** (12 tasks, fases 0–4), a **Parte 3** (8 tasks, fases 5–9) e a
-**Parte 2** (13 tasks, fases 10–15) estão **entregues** — 33 tasks, todas de 2026-09-12 e
-2026-09-13. Ficam a **Parte 4** (supervisão e volante) e as **Partes 5 e 6** (o tracker), que esperam
-o **ADR do segredo**. Este arquivo **não** cobre a feature inteira. O corte é decisão registrada: das seis
+**Histórico:** **quatro das seis partes estão entregues** — a **Parte 1** (12 tasks, fases 0–4), a
+**Parte 3** (8, fases 5–9), a **Parte 2** (13, fases 10–15) e a **Parte 4** (8, fases 16–20). São
+**41 tasks**, todas de 2026-09-12 e 2026-09-13. Ficam as **Partes 5 e 6** (o tracker), que esperam o
+**ADR do segredo**. Este arquivo **não** cobre a feature inteira. O corte é decisão registrada: das seis
 partes do §6, este arquivo executa **uma** — o quadro lendo a
 [`022`](../022-workspace-tasks/prd.md), com a autonomia desligada. A esteira (Parte 2), o orçamento (Parte 3), a
 supervisão (Parte 4) e as duas pontas do tracker (Parte 5, Parte 6) ficam para um `tasks.md` seguinte, e o §0 diz
@@ -985,7 +985,7 @@ não estava, os dois verbos do volante — **assumir** e **parar** — e a limpe
 
 ---
 
-### Fase 16 — o relógio honesto
+### Fase 16 — o relógio honesto · **entregue**
 
 #### T34: Espera por vaga não encalha
 
@@ -996,10 +996,11 @@ não estava, os dois verbos do volante — **assumir** e **parar** — e a limpe
 **Done when**: com teto 2 e oito cartões devidos, os seis na fila **não** ficam âmbar; e
 `ready_to_merge` continua contando desde que chegou, porque ali não há vaga para esperar.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
 
 ---
 
-### Fase 17 — o que você vê sem estar olhando
+### Fase 17 — o que você vê sem estar olhando · **entregue**
 
 #### T35: Avisar uma vez, e o registro é do daemon
 
@@ -1009,6 +1010,10 @@ não estava, os dois verbos do volante — **assumir** e **parar** — e a limpe
 **Done when**: duas abas abertas **não** avisam duas vezes, e recarregar a página não renotifica —
 provado contra o daemon, e não contra o navegador.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> A condição mora no `WHERE`, e não num `if` antes: ler e depois escrever deixa duas abas lerem
+> `NULL` e as duas escreverem, que é exatamente o caso que a coluna existe para fechar.
 
 #### T36: A aba notifica, e pede a permissão na hora certa
 
@@ -1018,6 +1023,15 @@ o único instante em que o pedido tem uma frase honesta.
 **Done when**: sem permissão, nada quebra e nada é perdido — o aviso continua sendo do quadro; e
 ligar a autonomia é o que pergunta.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> **Sem permissão, o `markNotified` continua sendo chamado**, e isso é decisão: o que ele marca é
+> *"você já teve como saber"*, e a frase do topo — que não depende de permissão — já contou. Marcar só
+> com permissão faria o contador repetir para sempre em quem disse não.
+>
+> O mock compartilhado cobrou de novo: sem o default do `markNotified`, o `mutate` devolve `undefined`,
+> o `.then` estoura **fora** do React e a tela some inteira — um `<body>` vazio num teste que fala de
+> notificação.
 
 #### T37: O que parou enquanto você não estava
 
@@ -1027,10 +1041,11 @@ você olha** ([Q56](open-questions.md#q56--o-que-você-vê-ao-voltar)).
 **Done when**: ela não é modal, não tem `✕` e não guarda preferência; e ela conta o mesmo que o
 daemon diz não ter sido avisado.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
 
 ---
 
-### Fase 18 — o volante
+### Fase 18 — o volante · **entregue**
 
 #### T38: `parar` é interromper e depois desligar
 
@@ -1040,6 +1055,11 @@ daemon diz não ter sido avisado.
 **Done when**: a ordem é cobrada por teste — desligar antes deixa uma janela em que a fila já não pega
 o cartão e o turno velho continua gastando; e `parar` numa tarefa sem turno em voo **não** é erro.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> A ordem é lida **de dentro** do cancelamento — no instante em que ele acontece, a autonomia ainda
+> tem que estar ligada. E uma sessão que morreu entre a leitura e o cancelamento **não** aborta o
+> `parar`: deixar subir deixaria o interruptor ligado, e o clique não teria feito nada.
 
 #### T39: `assumir` é um clique que já existe
 
@@ -1049,10 +1069,17 @@ o cartão e o turno velho continua gastando; e `parar` numa tarefa sem turno em 
 **Done when**: abrir a conversa de um cartão que a esteira está tocando desliga a autonomia dele e
 **não** interrompe o turno — assumir não é parar, e confundir os dois custaria o turno pago.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> **E ela abriu a [Q59](open-questions.md#q59--abrir-o-cartão-desliga-a-autonomia-dele-sempre), que a
+> task não tinha visto.** Lido ao pé da letra, o UC7 diz que *todo* clique desliga — e aí olhar o
+> quadro vira campo minado: você abre três cartões para ler e desliga a autonomia dos três, em
+> silêncio. Só conta como assumir o cartão que a esteira está tocando **agora**, e quem responde isso
+> é o selo, que já é derivado.
 
 ---
 
-### Fase 19 — o `Done` que limpa
+### Fase 19 — o `Done` que limpa · **entregue**
 
 #### T40: Remover é do gesto, e o daemon recusa dizendo o que se perde
 
@@ -1064,10 +1091,20 @@ mesclada sempre remove a worktree"* liga o caso sujo.
 **Done when**: sujo sem interruptor **não** remove e a mensagem traz o número de arquivos; com
 interruptor remove; e o texto do interruptor diz o que se está autorizando.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13)
+
+> **A Q27 não tinha decidido um quarto caso**, e a implementação teve que: o interruptor **não** vale
+> para branch não mesclada. Ele se chama *"PR **mesclada** sempre remove"*, e esticá-lo seria o produto
+> fazendo mais do que a frase que você leu autorizava.
+>
+> E `mesclada` é lido do **git** (`ahead === 0`), não do `gh`: vale para quem mesclou pela PR, para
+> quem mesclou na mão e para quem nunca abriu PR — e não depende de o `gh` existir, que o
+> [ADR de 2026-08-30](../../adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md) deixa ser uma
+> ausência legítima.
 
 ---
 
-### Fase 20 — o portão
+### Fase 20 — o portão · **entregue**
 
 #### T41: O e2e da supervisão
 
@@ -1076,6 +1113,11 @@ interruptor remove; e o texto do interruptor diz o que se está autorizando.
 **Done when**: o cartão bloqueado é contado **uma vez** e deixa de ser contado depois de visto; e
 `parar` interrompe o turno sem apagar a worktree.
 **Gate**: `pnpm gate:full`
+**Status**: ✅ entregue (2026-09-13)
+
+> Duas coisas que só o e2e alcança: que a **leitura do quadro** carrega o aviso — nenhum teste de
+> unidade prova isso —, e que `parar` dura **mais que uma passada**: vinte segundos depois, a
+> tentativa continua a mesma.
 
 ---
 
@@ -1084,5 +1126,5 @@ interruptor remove; e o texto do interruptor diz o que se está autorizando.
 | O quê | O que destrava |
 |---|---|
 | ~~**Parte 2 — a esteira**~~ | **entregue em 2026-09-13**, acima — 13 tasks em 6 fases |
-| ~~**Parte 4 — supervisão**~~ | **aberta em 2026-09-13**, acima — a Parte 2 destravou. O corolário do §2.4 fica de pé: o selo `aguardando você` **não é derivável do transporte**, e por isso ele não está no escopo desta fatia |
+| ~~**Parte 4 — supervisão**~~ | **entregue em 2026-09-13**, acima — a Parte 2 destravou. O corolário do §2.4 fica de pé: o selo `aguardando você` **não é derivável do transporte**, e por isso ele não está no escopo desta fatia |
 | **Parte 5 e Parte 6 — o tracker** | um **ADR**. O precedente do `gh` não é portável — não existe `linear` na máquina —, e as três opções que sobram estão no §3.4 do estudo. Uma delas contradiz o ADR de 2026-08-30 de frente |

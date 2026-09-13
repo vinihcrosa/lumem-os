@@ -44,6 +44,7 @@ interface Task {
   autonomy: string;
   worktreeId: string | null;
   blockedReason: string | null;
+  notifiedAt: string | null;
 }
 
 async function taskOf(daemon: ManagedDaemon, id: string): Promise<Task> {
@@ -304,6 +305,134 @@ test("`assistido` prepara e para — nenhum adaptador sobe", async () => {
     };
     expect(prepared.preparedPrompt).toContain("Você está trabalhando sozinho");
     expect(prepared.preparedPrompt).toContain("prepara e para");
+  } finally {
+    await daemon.stop();
+  }
+});
+
+test("o que parou é contado uma vez, e deixa de contar depois de visto", async () => {
+  const stateDir = mkdtempSync(join(tmpdir(), "lumem-esteira-aviso-"));
+  const daemon = await startDaemon({
+    port: E2E_CONVEYOR_PORT,
+    stateDir,
+    env: { LUMEM_CONVEYOR_AGENT: AGENT },
+  });
+
+  try {
+    const workspace = (await call(daemon.url, "workspace.create", { name: "aviso" })) as {
+      id: string;
+    };
+    const project = (await call(daemon.url, "project.add", {
+      workspaceId: workspace.id,
+      path: E2E_FIXTURE_REPO_ALT,
+      name: "alt",
+    })) as { id: string };
+    const created = (await call(daemon.url, "task.create", {
+      workspaceId: workspace.id,
+      projectId: project.id,
+      title: "pronta para mesclar",
+    })) as { id: string };
+    await call(daemon.url, "task.setStatus", { id: created.id, status: "ready_to_merge" });
+
+    const withNotice = async () =>
+      ((await query(daemon.url, "task.board", { workspaceId: workspace.id })) as {
+        cards: { notice: string | null }[];
+      }[])
+        .flatMap((column) => column.cards)
+        .filter((card) => card.notice !== null).length;
+
+    /*
+     * A frase vem pronta do daemon, e é por isso que este caso é do e2e: nenhum
+     * teste de unidade prova que a **leitura do quadro** — a que a tela chama —
+     * carrega o aviso.
+     */
+    expect(await withNotice()).toBe(1);
+
+    // A aba responde *"mostrei"*, e a primeira a responder é a que escreve.
+    const first = (await call(daemon.url, "task.markNotified", { id: created.id })) as {
+      first: boolean;
+    };
+    const second = (await call(daemon.url, "task.markNotified", { id: created.id })) as {
+      first: boolean;
+    };
+
+    /*
+     * **Uma vez, sem repetir** — e contra o daemon, não contra o navegador:
+     * duas abas abertas são estas duas chamadas, e só a primeira notifica.
+     */
+    expect(first.first).toBe(true);
+    expect(second.first).toBe(false);
+    expect(await withNotice()).toBe(0);
+  } finally {
+    await daemon.stop();
+  }
+});
+
+test("`parar` interrompe sem apagar a worktree", async () => {
+  const stateDir = mkdtempSync(join(tmpdir(), "lumem-esteira-parar-"));
+  const daemon = await startDaemon({
+    port: E2E_CONVEYOR_PORT,
+    stateDir,
+    env: { LUMEM_CONVEYOR_AGENT: AGENT },
+  });
+
+  try {
+    await call(daemon.url, "agentConfig.create", {
+      name: AGENT,
+      command: process.execPath,
+      args: [E2E_FAKE_ACP_AGENT],
+      transport: "acp",
+      adapterVersion: "0.0.0-fake",
+    });
+    const workspace = (await call(daemon.url, "workspace.create", { name: "parar" })) as {
+      id: string;
+    };
+    const project = (await call(daemon.url, "project.add", {
+      workspaceId: workspace.id,
+      path: E2E_FIXTURE_REPO_ALT,
+      name: "alt",
+    })) as { id: string };
+    const created = (await call(daemon.url, "task.create", {
+      workspaceId: workspace.id,
+      projectId: project.id,
+      title: "para no meio",
+    })) as { id: string };
+
+    await call(daemon.url, "workspace.setAutonomy", {
+      id: workspace.id,
+      autonomy: "autonomo",
+      maxParallel: 2,
+    });
+
+    // Espera a esteira cortar a worktree, que é o que `parar` não pode apagar.
+    await expect
+      .poll(async () => (await taskOf(daemon, created.id)).worktreeId, { timeout: TICK })
+      .not.toBeNull();
+    const before = await taskOf(daemon, created.id);
+
+    await call(daemon.url, "task.stop", { id: created.id });
+
+    const after = await taskOf(daemon, created.id);
+    /*
+     * A worktree fica, e é o §6 com o mesmo princípio do UC6: *"com tudo o que
+     * já foi feito: é o valor que sobra, e às vezes é a maior parte dele"*.
+     */
+    expect(after.worktreeId).toBe(before.worktreeId);
+    expect(after.autonomy).toBe("off");
+
+    const worktrees = (await query(daemon.url, "worktree.listByProject", {
+      projectId: project.id,
+    })) as unknown[];
+    expect(worktrees).toHaveLength(1);
+
+    /*
+     * E a esteira **não pega de volta**: o cartão parado com a autonomia
+     * desligada some da fila, e é isso que faz `parar` durar mais que uma
+     * passada de quinze segundos.
+     */
+    const attempts = after.attempts;
+    await new Promise((resolve) => setTimeout(resolve, 20_000));
+    expect((await taskOf(daemon, created.id)).attempts).toBe(attempts);
   } finally {
     await daemon.stop();
   }

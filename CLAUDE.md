@@ -251,6 +251,24 @@ consertá-la que permitiu diagnosticar a primeira. Um terceiro veio de um teste 
 arrasto contava `open` como coluna da máquina, então **pôr uma tarefa na fila desligava a autonomia
 dela** e a esteira ficaria vazia para sempre sem nada falhar.
 
+E a **Parte 4 — Supervisão e o volante** fechou no mesmo dia, levando a `028` a **41 tasks em quatro
+das seis partes**. Ela é sobre o que você vê **sem estar olhando**, e a fase 0 dela achou uma
+contradição que a esteira tinha acabado de criar: o relógio do encalhe cobrava **espera por vaga**.
+Com teto 2 e oito cartões devidos, os seis na fila ficavam âmbar em 30 minutos sem nada de errado —
+e *"cobrar o que é desenho é a forma mais rápida de tornar o aviso invisível"* é o §8 do próprio
+documento. O conserto não guarda nada: cartão na fila além das vagas **não encalha**, derivado da
+mesma leitura. A notificação é **da aba** e o registro de *já avisei* é **do daemon** — é isso que faz
+*"uma vez, sem repetir"* valer com duas abas e com `F5` —, e a permissão é pedida **quando alguém liga
+a autonomia**, o único instante em que o pedido tem frase honesta. O que sobra sem aba aberta é uma
+frase no topo do quadro que **some quando você olha**. O volante são dois verbos: `parar` **cancela e
+depois** desliga (a ordem é lida de dentro do cancelamento, porque desligar primeiro deixa o turno
+velho gastando sem ninguém para matá-lo) e `assumir` **não interrompe**. E a **Q59** nasceu do UC7 lido
+ao pé da letra: se todo clique desligasse a autonomia, olhar o quadro viraria campo minado — então só
+conta como assumir o cartão que a esteira está tocando **agora**. O `Done` limpa pela regra da Q27, com
+um quarto caso que ela não tinha decidido: o interruptor **não** vale para branch não mesclada, porque
+ele se chama *"PR **mesclada** sempre remove"*. E `mesclada` é lido do **git** (`ahead === 0`), não do
+`gh`: vale para quem mesclou na mão e para quem nunca abriu PR.
+
 A **Parte 3 — Orçamento e limites** fechou em **2026-09-13**, e ela veio **antes da esteira**: a Q43
 mediu que o único modo do Claude que deixa a esteira andar é o único que **nunca pergunta**, então a
 segurança dela não pode vir do modo de permissão — tem que vir do CI, do orçamento e do teto de
