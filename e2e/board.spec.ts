@@ -178,6 +178,18 @@ test("arrastar persiste a coluna e a ordem, e In Progress aceita", async ({ page
     }, { timeout: 15_000 })
     .toEqual(["a terceira, que vai subir", "a primeira da fila", "a segunda da fila"]);
 
+  /*
+   * E **a tela também**, antes do segundo arrasto.
+   *
+   * A asserção acima é sobre o daemon, e o arrasto seguinte é sobre o DOM: sem
+   * esta linha o teste pega a ordem **velha** na tela e arrasta o cartão errado
+   * — que foi exatamente o que aconteceu, com o sintoma *"a terceira não está em
+   * In Progress"* e a primeira lá no lugar dela. Era corrida latente, e não
+   * defeito do produto: a leitura do quadro não é otimista de propósito (§4.3),
+   * então a tela sempre anda um repintar atrás da resposta.
+   */
+  await expect(todo.locator(".tcard").first()).toContainText("a terceira, que vai subir");
+
   // E arrastar para uma coluna da máquina **funciona**: é como se diz "estou
   // fazendo isto na mão", e o selo conta a verdade — ninguém pegou.
   const progress = page.locator("section.col").filter({ hasText: "In Progress" });
