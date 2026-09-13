@@ -13,6 +13,7 @@ import type { AgentAuthService } from "./setup/agent-auth.js";
 import type { PrHost } from "./pr/PrHost.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import type { ScriptRunner } from "./scripts/ScriptRunner.js";
+import type { Conveyor } from "./tasks/conveyor.js";
 import type { SessionStore } from "./sessions/SessionStore.js";
 
 /**
@@ -40,6 +41,15 @@ export interface Context {
    * cabe no banco: a porta de cada run vivo, que morre com o processo.
    */
   scripts: ScriptRunner;
+  /**
+   * A esteira (`028` Parte 2).
+   *
+   * Opcional, e é a única coisa do contexto que é: ela só existe no daemon
+   * montado, e uma procedure que precisa dela é uma procedure que não funciona
+   * num caller de teste sem ela — o que é honesto, porque a esteira **abre
+   * processo**. As outras, que são a maioria, continuam funcionando sem.
+   */
+  conveyor?: Conveyor;
   git: GitService;
   /**
    * As issues do host, guardadas por projeto (`026-worktree-from`).

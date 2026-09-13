@@ -7,6 +7,7 @@ import { createTaskRepository, TASK_STATUSES } from "../repositories/task.js";
 import { boardOf } from "../tasks/board.js";
 import { liveTurnsByTask, pausesByTask, sealOf } from "../tasks/seal.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
+import { DomainError } from "../errors.js";
 
 /**
  * Tarefas sobre o fio (`022-workspace-tasks` F1).
@@ -290,6 +291,45 @@ export const taskRouter = router({
 
         ctx.events.emit({ type: "task.changed", workspaceId: final.workspaceId });
         return final;
+      }),
+    ),
+
+  /**
+   * O clique do `assistido` (`028` Parte 2, T30 · Q51).
+   *
+   * Abre o adaptador e manda **o que já estava preparado**. O prompt não é
+   * remontado: é a promessa do degrau — *"você vê o que ele **ia** fazer"* — e
+   * remontar aqui abriria a janela em que a tarefa mudou entre preparar e
+   * clicar.
+   */
+  sendPrepared: publicProcedure.input(idSchema).mutation(({ ctx, input }) =>
+    domainSafeAsync(async () => {
+      if (!ctx.conveyor) {
+        // Só acontece num daemon montado sem esteira, que hoje é só teste. A
+        // frase existe para o dia em que não for.
+        throw new DomainError("BLOCKED", "a esteira não está montada neste daemon");
+      }
+      await ctx.conveyor.send(input.id);
+      const sent = await createTaskRepository(ctx.db).get(input.id);
+      if (sent) ctx.events.emit({ type: "task.changed", workspaceId: sent.workspaceId });
+      return { ok: true as const };
+    }),
+  ),
+
+  /**
+   * Ligar de volta a autonomia desta tarefa, ou desligá-la sem arrastar
+   * (`028` Q40).
+   *
+   * O arrasto para uma coluna de trabalho **só desliga**; ligar é este gesto, e
+   * ele tem nome porque *"pode pegar"* é uma decisão sua.
+   */
+  setAutonomy: publicProcedure
+    .input(z.object({ id: z.string().min(1), autonomy: z.enum(["inherit", "off"]) }))
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () => {
+        const saved = await createTaskRepository(ctx.db).setAutonomy(input.id, input.autonomy);
+        ctx.events.emit({ type: "task.changed", workspaceId: saved.workspaceId });
+        return saved;
       }),
     ),
 

@@ -122,6 +122,14 @@ function harness({
     block: spies.block as unknown as ConveyorPorts["block"],
     comment: spies.comment as unknown as ConveyorPorts["comment"],
     park: spies.park as unknown as ConveyorPorts["park"],
+    prepared: async (taskId) => ({
+      role: "implementador",
+      prompt: "o prompt que foi preparado",
+      worktreeId: `wt-${taskId}`,
+      checkoutPath: `/wt/${taskId}`,
+      adapter: "claude",
+      model: null,
+    }),
   };
 
   return { ports, calls, spies };
@@ -404,5 +412,42 @@ describe("o comentário", () => {
     expect(commentFor("testador", 1, { kind: "fail", reason: "o CI está vermelho" })).toBe(
       "testador · tentativa 1 — o CI está vermelho",
     );
+  });
+});
+
+describe("o clique do `assistido`", () => {
+  it("manda o que foi preparado, e não um prompt remontado", async () => {
+    const { ports, spies } = harness({ facts: {} });
+
+    await createConveyor(ports).send("t1");
+
+    /*
+     * A promessa do degrau é *"você vê o que ele **ia** fazer"*. Remontar aqui
+     * abriria a janela em que o corpo da tarefa mudou entre preparar e clicar —
+     * e o que você aprovou não seria o que seguiu.
+     */
+    expect(spies.prompt.mock.calls[0]?.[0]).toMatchObject({
+      text: "o prompt que foi preparado",
+    });
+  });
+
+  it("o preparo é limpo **antes** do turno", async () => {
+    const { ports, calls } = harness({ facts: {} });
+
+    await createConveyor(ports).send("t1");
+
+    /*
+     * Limpar depois deixaria o botão `enviar` clicável durante todo o turno, e
+     * o segundo clique abriria uma segunda sessão para a mesma tarefa — que é o
+     * que o teto e a fila passam o arquivo inteiro evitando.
+     */
+    expect(calls.indexOf("park")).toBeLessThan(calls.indexOf("prompt"));
+  });
+
+  it("sem nada preparado, recusa dizendo o que falta", async () => {
+    const { ports } = harness({ facts: {} });
+    const conveyor = createConveyor({ ...ports, prepared: async () => null });
+
+    await expect(conveyor.send("t1")).rejects.toThrow(/nada preparado/);
   });
 });

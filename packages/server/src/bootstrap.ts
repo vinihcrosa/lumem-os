@@ -289,6 +289,62 @@ export async function bootstrap({
   });
   const issues = createIssueCache({ host: prHost });
 
+  /*
+   * A esteira, construída **antes** do servidor porque ela entra no contexto
+   * dele: o clique do `assistido` é uma procedure, e ela manda o prompt pela
+   * mesma esteira que o teria mandado sozinha. Duas instâncias dariam duas
+   * políticas — e a do clique seria a que ninguém testou.
+   *
+   * O `api` dela é um chamador do lado do servidor sobre o mesmo router, e a
+   * dependência circular que isso parece ser não é: o contexto do chamador não
+   * tem esteira, porque nada do que a esteira chama precisa de uma.
+   */
+  const conveyor = createConveyor(
+    createConveyorPorts({
+      db: openedDatabase.db,
+      git,
+      scripts,
+      createWorktree: async ({ projectId, name, taskId }) => {
+        const created = await api.worktree.create({ projectId, name, taskId });
+        return { id: created.id, path: created.path };
+      },
+      openAgentSession: async ({ taskId, adapter, model, cwd, worktreeId, agentMode }) => {
+        // `cwd` não é usado: a sessão da esteira é **de escopo**, e o escopo é a
+        // worktree — o daemon resolve o diretório dela, como faz para toda
+        // conversa aberta pela tela.
+        void cwd;
+        const configured = await configForAdapter(openedDatabase.db, adapter);
+        const opened = await api.session.createAgent({
+          scopeType: "worktree",
+          scopeId: worktreeId,
+          agentConfigId: configured,
+          taskId,
+        });
+        /*
+         * O modo do agente é escolhido **depois** do handshake, e não podia ser
+         * antes: ele é uma `configOption` que o próprio adaptador declara, e o
+         * daemon só conhece a lista dela quando a sessão existe.
+         *
+         * Falhar aqui não derruba o turno — um adaptador que não tem aquele modo
+         * vai perguntar alguma coisa e o turno vai morrer, que é a tentativa
+         * gasta com o motivo, e não um erro de boot.
+         */
+        if (agentMode !== null) {
+          await acp.setConfig(opened.id, "mode", agentMode).catch(() => undefined);
+        }
+        if (model !== null) {
+          await acp.setConfig(opened.id, "model", model).catch(() => undefined);
+        }
+        return { sessionId: opened.id };
+      },
+      prompt: async ({ sessionId, text }) => {
+        await acp.prompt(sessionId, text);
+      },
+      liveTurns: () => acp.liveTurns(),
+      prVerdictOf: (worktreeId) => verdictOfWorktree(openedDatabase.db, pr, worktreeId),
+    }),
+  );
+
   const app = await createServer({
     config,
     db: openedDatabase.db,
@@ -296,6 +352,7 @@ export async function bootstrap({
     acpManager: acp,
     sessionStore,
     scripts,
+    conveyor,
     git,
     clones,
     prHost,
@@ -334,51 +391,7 @@ export async function bootstrap({
 
   const stopConveyor = runConveyorLoop({
     db: openedDatabase.db,
-    conveyor: createConveyor(
-      createConveyorPorts({
-        db: openedDatabase.db,
-        git,
-        scripts,
-        createWorktree: async ({ projectId, name, taskId }) => {
-          const created = await api.worktree.create({ projectId, name, taskId });
-          return { id: created.id, path: created.path };
-        },
-        openAgentSession: async ({ taskId, adapter, model, cwd, worktreeId, agentMode }) => {
-          // `cwd` não é usado: a sessão da esteira é **de escopo**, e o escopo é
-          // a worktree — o daemon resolve o diretório dela, como faz para toda
-          // conversa aberta pela tela.
-          void cwd;
-          const configured = await configForAdapter(openedDatabase.db, adapter);
-          const opened = await api.session.createAgent({
-            scopeType: "worktree",
-            scopeId: worktreeId,
-            agentConfigId: configured,
-            taskId,
-          });
-          /*
-           * O modo do agente é escolhido **depois** do handshake, e não podia ser
-           * antes: ele é uma `configOption` que o próprio adaptador declara, e o
-           * daemon só conhece a lista dela quando a sessão existe.
-           *
-           * Falhar aqui não derruba o turno — um adaptador que não tem aquele
-           * modo vai perguntar alguma coisa e o turno vai morrer, que é a
-           * tentativa gasta com o motivo, e não um erro de boot.
-           */
-          if (agentMode !== null) {
-            await acp.setConfig(opened.id, "mode", agentMode).catch(() => undefined);
-          }
-          if (model !== null) {
-            await acp.setConfig(opened.id, "model", model).catch(() => undefined);
-          }
-          return { sessionId: opened.id };
-        },
-        prompt: async ({ sessionId, text }) => {
-          await acp.prompt(sessionId, text);
-        },
-        liveTurns: () => acp.liveTurns(),
-        prVerdictOf: (worktreeId) => verdictOfWorktree(openedDatabase.db, pr, worktreeId),
-      }),
-    ),
+    conveyor,
     log: {
       warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
         bootedApp?.log.warn(...args);

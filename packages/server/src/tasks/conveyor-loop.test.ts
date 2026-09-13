@@ -46,7 +46,7 @@ describe("uma passada por vez", () => {
 
     const stop = runConveyorLoop({
       db: context.db,
-      conveyor: { tick },
+      conveyor: { tick, send: async () => undefined },
       setInterval: clock.schedule,
     });
 
@@ -81,7 +81,7 @@ describe("uma passada que falha não derruba o laço", () => {
 
     const stop = runConveyorLoop({
       db: context.db,
-      conveyor: { tick },
+      conveyor: { tick, send: async () => undefined },
       setInterval: clock.schedule,
       log: { warn },
     });
@@ -117,6 +117,7 @@ describe("o que ela percorre", () => {
           seen.push(id);
           return 0;
         },
+        send: async () => undefined,
       },
       setInterval: clock.schedule,
     });

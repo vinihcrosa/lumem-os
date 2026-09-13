@@ -251,8 +251,40 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
       await comments.create({ taskId, body, actor: "agent", sessionId });
     },
 
-    park: async ({ taskId, role, prompt }) => {
-      await tasks.prepare(taskId, { prompt, role });
+    park: async (input, clearing) => {
+      if (input === null) {
+        if (clearing !== undefined) await tasks.prepare(clearing, null);
+        return;
+      }
+      await tasks.prepare(input.taskId, { prompt: input.prompt, role: input.role });
+    },
+
+    async prepared(taskId) {
+      const row = await tasks.get(taskId);
+      if (!row || row.preparedPrompt === null || row.preparedRole === null) return null;
+
+      const checkout =
+        row.worktreeId === null
+          ? null
+          : await deps.db.query.worktree.findFirst({ where: eq(worktree.id, row.worktreeId) });
+      /*
+       * Preparado sem checkout é estado impossível pelo caminho normal — o
+       * `prepareCheckout` corta a worktree antes de montar o prompt —, e mesmo
+       * assim ele é tratado: alguém pode ter apagado a worktree entre preparar e
+       * clicar, e enviar sem diretório abriria a sessão na raiz do repositório.
+       */
+      if (!checkout) return null;
+
+      const role = row.preparedRole as Role;
+      const agent = await catalog.resolve({ taskId, role });
+      return {
+        role,
+        prompt: row.preparedPrompt,
+        worktreeId: checkout.id,
+        checkoutPath: checkout.path,
+        adapter: agent.adapter,
+        model: agent.model,
+      };
     },
   };
 }

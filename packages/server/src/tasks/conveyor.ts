@@ -1,5 +1,6 @@
 import type { Role } from "../agents/catalog.js";
 import type { TaskRow } from "../db/schema.js";
+import { DomainError } from "../errors.js";
 
 import type { Autonomy, QueueEntry, QueueFacts } from "./queue.js";
 import { promptFor } from "./prompts.js";
@@ -91,13 +92,38 @@ export interface ConveyorPorts {
   block(input: { taskId: string; reason: string }): Promise<void>;
   /** O que este turno deixou registrado na tarefa (T21). */
   comment(input: { taskId: string; body: string; sessionId: string }): Promise<void>;
-  /** O `assistido`: prepara e **para**, com o prompt visível (Q51). */
-  park(input: { taskId: string; role: Role; prompt: string; worktreeId: string }): Promise<void>;
+  /**
+   * O `assistido`: prepara e **para**, com o prompt visível (Q51).
+   *
+   * `null` limpa — é o que enviar faz, e o que mudar de etapa já fazia sozinho.
+   */
+  park(
+    input: { taskId: string; role: Role; prompt: string; worktreeId: string } | null,
+    taskId?: string,
+  ): Promise<void>;
+  /** O que está preparado nesta tarefa, com o que falta para enviar. */
+  prepared(taskId: string): Promise<{
+    role: Role;
+    prompt: string;
+    worktreeId: string;
+    checkoutPath: string;
+    adapter: string;
+    model: string | null;
+  } | null>;
 }
 
 export interface Conveyor {
   /** Uma passada. Devolve quantas tarefas saíram da fila nesta. */
   tick(workspaceId: string): Promise<number>;
+  /**
+   * O clique do `assistido`: manda o que já estava preparado (Q51).
+   *
+   * **Não remonta o prompt.** O que foi preparado é o que vai — é a promessa do
+   * degrau, e remontar aqui abriria a janela em que o corpo da tarefa mudou
+   * entre a preparação e o clique, fazendo o que você aprovou não ser o que
+   * seguiu.
+   */
+  send(taskId: string): Promise<void>;
 }
 
 export function createConveyor(ports: ConveyorPorts): Conveyor {
@@ -193,6 +219,33 @@ export function createConveyor(ports: ConveyorPorts): Conveyor {
   }
 
   return {
+    async send(taskId) {
+      const prepared = await ports.prepared(taskId);
+      if (prepared === null) {
+        throw new DomainError("BLOCKED", "não há nada preparado para enviar nesta tarefa");
+      }
+
+      const { sessionId } = await ports.openSession({
+        taskId,
+        role: prepared.role,
+        adapter: prepared.adapter,
+        model: prepared.model,
+        cwd: prepared.checkoutPath,
+        worktreeId: prepared.worktreeId,
+      });
+
+      /*
+       * O preparo é limpo **antes** do turno, e não depois.
+       *
+       * Depois, um turno que demora deixaria o botão `enviar` clicável durante
+       * todo ele — e o segundo clique abriria uma segunda sessão para a mesma
+       * tarefa, que é exatamente o que o teto e a fila passam o arquivo inteiro
+       * evitando.
+       */
+      await ports.park(null, taskId);
+      await ports.prompt({ sessionId, text: prepared.prompt });
+    },
+
     async tick(workspaceId) {
       const facts = ports.queue(workspaceId);
       // `manual` é o default do produto, e aqui ele é uma linha: a esteira lê a
