@@ -124,6 +124,9 @@ describe("a lista de tarefas", () => {
     expect(screen.getByRole("button", { name: "criar a primeira" })).toBeInTheDocument();
   });
 
+  /** O workspace de quem nunca pediu teto — o default, e o caso comum. */
+  const SEM_TETO = { costPerTask: null, costPerDay: null, turnsPerSession: null };
+
   it("diz o teto de criação e onde mudar — teto invisível parece bug", async () => {
     trpc.task.listByWorkspace.query.mockResolvedValue([task()]);
     trpc.task.settings.query.mockResolvedValue({
@@ -131,12 +134,47 @@ describe("a lista de tarefas", () => {
       budgetEnv: "LUMEM_TASKS_BUDGET",
       sessions: 0,
       sessionsWithTask: 0,
+      caps: SEM_TETO,
     });
 
     renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
 
     expect(await screen.findByText(/5/)).toBeInTheDocument();
     expect(screen.getByText("LUMEM_TASKS_BUDGET")).toBeInTheDocument();
+  });
+
+  it("`sem teto` é palavra, e não campo vazio", async () => {
+    // Um vazio numa linha sobre limite parece defeito, e a ausência de teto é
+    // uma resposta (`028` Parte 3, T18).
+    trpc.task.listByWorkspace.query.mockResolvedValue([task()]);
+    trpc.task.settings.query.mockResolvedValue({
+      budget: 5,
+      budgetEnv: "LUMEM_TASKS_BUDGET",
+      sessions: 0,
+      sessionsWithTask: 0,
+      caps: SEM_TETO,
+    });
+
+    renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
+
+    expect(await screen.findAllByText(/sem teto/)).toHaveLength(3);
+  });
+
+  it("`0` aparece como `0`, porque bloquear tudo não é não ter teto", async () => {
+    trpc.task.listByWorkspace.query.mockResolvedValue([task()]);
+    trpc.task.settings.query.mockResolvedValue({
+      budget: 5,
+      budgetEnv: "LUMEM_TASKS_BUDGET",
+      sessions: 0,
+      sessionsWithTask: 0,
+      caps: { costPerTask: 2, costPerDay: null, turnsPerSession: 0 },
+    });
+
+    renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
+
+    expect(await screen.findByText("US$ 2.00")).toBeInTheDocument();
+    expect(screen.getByText("0")).toBeInTheDocument();
+    expect(screen.getAllByText(/sem teto/)).toHaveLength(1);
   });
 
   it("mostra a medida de cerimônia, e ela existe para incomodar", async () => {
@@ -152,6 +190,7 @@ describe("a lista de tarefas", () => {
       budgetEnv: "LUMEM_TASKS_BUDGET",
       sessions: 12,
       sessionsWithTask: 4,
+      caps: SEM_TETO,
     });
 
     renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);

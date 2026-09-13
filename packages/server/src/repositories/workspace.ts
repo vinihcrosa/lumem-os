@@ -18,6 +18,22 @@ export interface WorkspaceRepository {
   list(): Promise<WorkspaceRow[]>;
   findById(id: string): Promise<WorkspaceRow | undefined>;
   rename(id: string, name: string): Promise<WorkspaceRow>;
+  /**
+   * Os três tetos do workspace (`028` Parte 3, T18).
+   *
+   * **`null` é escrita, e não ausência de escrita.** Passar `null` apaga o teto
+   * — é como se diz *"sem teto"* —, e por isso o campo é obrigatório nos três:
+   * um `Partial` faria "não mandei" e "mandei nada" serem a mesma coisa, e as
+   * duas precisam ser distinguíveis para o gesto de desligar existir.
+   */
+  setBudget(
+    id: string,
+    caps: {
+      costPerTask: number | null;
+      costPerDay: number | null;
+      turnsPerSession: number | null;
+    },
+  ): Promise<WorkspaceRow>;
   remove(id: string): Promise<void>;
 }
 
@@ -71,6 +87,30 @@ export function createWorkspaceRepository(db: Db): WorkspaceRepository {
             .where(eq(workspace.id, id))
             .returning(),
         duplicateName(name),
+      );
+      return row!;
+    },
+
+    async setBudget(id, caps) {
+      await require_(id);
+      const [row] = await withConstraints(
+        () =>
+          db
+            .update(workspace)
+            .set({
+              budgetCostPerTask: caps.costPerTask,
+              budgetCostPerDay: caps.costPerDay,
+              budgetTurnsPerSession: caps.turnsPerSession,
+              updatedAt: new Date(),
+            })
+            .where(eq(workspace.id, id))
+            .returning(),
+        {
+          "check:workspace_budget_not_negative": {
+            code: "INVALID_ARGUMENT",
+            message: "teto negativo não existe — `sem teto` se diz com vazio",
+          },
+        },
       );
       return row!;
     },

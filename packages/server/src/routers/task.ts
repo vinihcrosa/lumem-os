@@ -55,12 +55,28 @@ export const taskRouter = router({
        */
       const counted = await sessionsOfWorkspace(ctx.db, input.workspaceId);
 
+      /*
+       * Os três tetos do workspace (`028` Parte 3, T18).
+       *
+       * Na mesma leitura que a cerimônia, e pela mesma razão que ela aparece:
+       * *"teto que você não vê é teto que parece bug quando recusa"*. `null` é
+       * **sem teto**, e a tela diz isso com palavra em vez de campo vazio.
+       */
+      const space = await ctx.db.query.workspace.findFirst({
+        where: (table, { eq: is }) => is(table.id, input.workspaceId),
+      });
+
       return {
         budget: ctx.config.taskBudget,
         /** O que ajustar, escrito aqui para a tela não ter que saber. */
         budgetEnv: "LUMEM_TASKS_BUDGET" as const,
         sessions: counted.total,
         sessionsWithTask: counted.withTask,
+        caps: {
+          costPerTask: space?.budgetCostPerTask ?? null,
+          costPerDay: space?.budgetCostPerDay ?? null,
+          turnsPerSession: space?.budgetTurnsPerSession ?? null,
+        },
       };
     }),
 

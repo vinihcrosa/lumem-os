@@ -227,6 +227,23 @@ requisito, reafirma os três ADRs em vigor, e nomeia **três vazamentos medidos*
 repassado do ACP, o `session.mode` cru, e o `TaskRow` derivado do `drizzle`, que é o banco decidindo a
 forma do domínio.
 
+A **Parte 3 — Orçamento e limites** fechou em **2026-09-13**, e ela veio **antes da esteira**: a Q43
+mediu que o único modo do Claude que deixa a esteira andar é o único que **nunca pergunta**, então a
+segurança dela não pode vir do modo de permissão — tem que vir do CI, do orçamento e do teto de
+turnos. Os três tetos moram no workspace, `NULL` é *sem teto* e `0` é *bloqueia tudo*, e a decisão é
+**função pura de três saídas**: quem conduz é **avisado** e decide, a esteira **para** — mesmo número,
+mesma leitura, verbos diferentes (Q45). O teto em dinheiro não é cobrável contra todo adaptador (o
+Codex relata `cost: null`), então ele tem **duas unidades**, e um produto que só soubesse cobrar em
+dólar deixaria um workspace com Codex rodando sem teto nenhum. Duas tasks estão **anotadas em vez de
+fingidas**: a recusa por cota **não tem código no protocolo** — o login tem `-32000` e é por código
+que o daemon o reconhece, *porque o texto é do adaptador* —, e o cartão bloqueado não tem o que
+desenhar até a esteira existir, porque escrever o CSS agora recriaria as 13 classes órfãs que a Parte
+1 pagou. Três achados de processo: o `drizzle-kit` voltou a gerar um `SELECT` lendo colunas que ainda
+não existem na origem — **cinco migrações depois** do `0001`, o que faz a armadilha ser do gerador e
+não daquela migração —, uma variante nova de `AcpEvent` **derruba o typecheck da tela** (e isso é o
+contrato funcionando), e o **mock compartilhado é parte do contrato**: esquecê-lo quebrou cinco testes
+de telas sem relação com orçamento.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |

@@ -2,7 +2,7 @@ import { newId } from "@lumem/shared";
 import { and, eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { project, session, task, worktree } from "../db/schema.js";
+import { project, session, task, workspace, worktree } from "../db/schema.js";
 import { createTaskRepository } from "../repositories/task.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 
@@ -605,5 +605,80 @@ describe("task.remove", () => {
     const { api } = caller();
 
     await expect(api.task.remove({ id: "nada" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+describe("os tetos do workspace na leitura", () => {
+  it("um workspace que nunca pediu teto devolve os três em null", async () => {
+    const { api } = caller();
+    const { workspaceId } = await workspaceWithProject(context);
+
+    const settings = await api.task.settings({ workspaceId });
+
+    // É o caso comum e é o default: o §6 da PRD diz que os interruptores que
+    // gastam token nascem desligados.
+    expect(settings.caps).toEqual({
+      costPerTask: null,
+      costPerDay: null,
+      turnsPerSession: null,
+    });
+  });
+
+  it("`0` chega como `0`, e não como ausência", async () => {
+    const { api, db } = caller();
+    const { workspaceId } = await workspaceWithProject(context);
+    await db
+      .update(workspace)
+      .set({ budgetTurnsPerSession: 0, budgetCostPerDay: 2.5 })
+      .where(eq(workspace.id, workspaceId));
+
+    const settings = await api.task.settings({ workspaceId });
+
+    // `0` é "bloqueia tudo" e `null` é "sem teto". A tela precisa dos dois para
+    // dizer coisas diferentes.
+    expect(settings.caps).toEqual({
+      costPerTask: null,
+      costPerDay: 2.5,
+      turnsPerSession: 0,
+    });
+  });
+});
+
+describe("escrever os tetos", () => {
+  it("`null` é escrita, e é como se diz sem teto", async () => {
+    const { api } = caller();
+    const { workspaceId } = await workspaceWithProject(context);
+    await api.workspace.setBudget({
+      id: workspaceId,
+      costPerTask: 2,
+      costPerDay: 10,
+      turnsPerSession: 40,
+    });
+
+    await api.workspace.setBudget({
+      id: workspaceId,
+      costPerTask: null,
+      costPerDay: 10,
+      turnsPerSession: 40,
+    });
+
+    // Um `Partial` faria "não mandei" e "mandei nada" serem a mesma coisa, e
+    // desligar um teto deixaria de ter gesto.
+    const settings = await api.task.settings({ workspaceId });
+    expect(settings.caps).toEqual({ costPerTask: null, costPerDay: 10, turnsPerSession: 40 });
+  });
+
+  it("teto negativo é recusado com uma frase, e não com um CHECK cru", async () => {
+    const { api } = caller();
+    const { workspaceId } = await workspaceWithProject(context);
+
+    await expect(
+      api.workspace.setBudget({
+        id: workspaceId,
+        costPerTask: -1,
+        costPerDay: null,
+        turnsPerSession: null,
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });

@@ -1270,7 +1270,7 @@ sempre existe.** A pergunta é o que a tela faz com isso.
   não — o turno não tem preço fixo, e o mesmo número custa dez vezes mais em Opus que em Haiku.
 
 **Sem proposta.** As três têm um custo que eu não sei pesar sem ver a tela, e ela é da
-[Fase 8](tasks.md#fase-8--a-tela). O que **não** está em aberto é o modelo: os três tetos existem nas
+[Fase 8](tasks.md#fase-8--a-tela--t18-entregue--t19-represada). O que **não** está em aberto é o modelo: os três tetos existem nas
 duas unidades desde a [T14](tasks.md#t14-onde-os-tetos-moram), porque decidir a tela depois é barato
 e decidir o schema depois não é.
 

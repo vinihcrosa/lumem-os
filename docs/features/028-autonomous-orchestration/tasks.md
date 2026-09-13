@@ -584,7 +584,7 @@ não mexe em nenhum contador; e 4 h de espera vira `bloqueada` com o motivo.
 
 ---
 
-### Fase 8 — a tela
+### Fase 8 — a tela · **T18 entregue · T19 represada**
 
 #### T18: O teto aparece, e diz onde se muda
 
@@ -593,6 +593,13 @@ não mexe em nenhum contador; e 4 h de espera vira `bloqueada` com o motivo.
 **Done when**: um teto `null` aparece como **sem teto** e não como vazio; e a linha diz onde mudar,
 como a `022` já faz com o `LUMEM_TASKS_BUDGET`.
 **Gate**: `pnpm gate:quick`
+**Status**: ✅ entregue (2026-09-13) — e ela cresceu, porque **faltava um escritor**.
+
+> **Lacuna desta fase, achada executando-a: nada escrevia os tetos.** A T14 fez o modelo e a T18 a
+> leitura, e entre as duas não havia gesto — a fatia entregaria uma tela que mostra três `sem teto`
+> para sempre. É a mesma família da lacuna do arrasto na Parte 1. Entrou o `workspace.setBudget`, com
+> os três campos **obrigatórios**: um `Partial` faria *"não mandei"* e *"mandei nada"* serem a mesma
+> coisa, e desligar um teto deixaria de ter gesto.
 
 > *"Teto que você não vê é teto que parece bug quando recusa"* — a frase é da `022` e vale igual aqui.
 
@@ -605,13 +612,26 @@ como a `022` já faz com o `LUMEM_TASKS_BUDGET`.
 o cartão bloqueado **não pinta uma fatia de quarta linha** — o corte mora no filho, não na caixa com
 `padding` (§10.2).
 **Gate**: `pnpm gate:quick`
+**Status**: ⏸️ **represada para a Parte 2** (2026-09-13) — ela não tem o que desenhar.
+
+> **Nenhum caminho produz um selo `bloqueada` hoje.** O `block` do teto só sai com o condutor
+> `esteira` ([Q45](open-questions.md#q45--o-teto-vale-para-a-sessão-que-você-está-conduzindo)), e a
+> esteira é a Parte 2 — o `budget-source.ts` passa `human` em toda chamada, porque toda sessão que
+> existe é uma que você abriu.
+>
+> Escrever a marcação e o CSS agora recriaria **exatamente** o defeito que a Parte 1 pagou: 13 classes
+> portadas para marcação que não existe, achadas pela direção contrária do
+> `board-css.test.ts`. A regra que saiu de lá vale aqui — *cada uma volta com a fase que a pinta*.
+>
+> **O que ela vai precisar já existe:** a frase do bloqueio é montada pela `tasks/budget.ts`, que
+> nomeia o teto e o valor, e os três casos dela estão verdes.
 
 > Esta task traz de volta as classes `tcard--blocked`, `tcard__ask` e `tcard__ask-t`, que saíram do
 > `board.css` na Parte 1 por não terem marcação — exatamente como a fase 3 registrou que voltariam.
 
 ---
 
-### Fase 9 — o portão
+### Fase 9 — o portão · **entregue**
 
 #### T20: O e2e do teto
 
@@ -622,6 +642,15 @@ que **você conduz** avisa e **não** é recusado, com o número na tela; **(b)*
 aviso sem reabrir nada; **(c)** com os três tetos em `null`, não há aviso nenhum — que é o
 comportamento de quem nunca pediu teto.
 **Gate**: `pnpm gate:full`
+**Status**: ✅ entregue (2026-09-13) — `e2e/budget.spec.ts`, três casos, **zero token**, e a mutação
+confere: emitir só o bloqueio derruba dois.
+
+> **O teto é conferido antes do `session/prompt`, então o agente falso nem precisa responder** — o
+> pedido de permissão aparecer **é** a prova de que o turno passou do portão.
+>
+> **Teto de zero turno é o caminho mais curto até o aviso**, e não depende de nenhum consumo ter sido
+> gravado: o primeiro prompt já passou dele. Sem isso o caso teria que esperar `session_usage`
+> encher, que é testar o contador em vez do portão.
 
 > **O (c) é o que impede o pior defeito desta fatia:** um teto que nasce valendo transformaria o
 > produto de todo mundo num produto que recusa trabalho, e um teste que só exercita o caminho de

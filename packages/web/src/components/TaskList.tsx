@@ -54,6 +54,18 @@ const STATUS_LABEL: Record<string, string> = {
  */
 const STATUS_GLYPH: Record<string, string> = { done: "✓", dropped: "–" };
 
+/**
+ * O número do teto, ou a palavra que diz que não há um.
+ *
+ * `null` é **sem teto** e `0` é **bloqueia tudo**: são coisas diferentes no
+ * banco, e colapsá-las na tela desfaria a distinção justamente onde ela precisa
+ * ser lida.
+ */
+function capLabel(value: number | null, prefix = ""): string {
+  if (value === null) return "sem teto";
+  return `${prefix}${prefix === "" ? "" : " "}${prefix === "" ? String(value) : value.toFixed(2)}`;
+}
+
 export interface TaskListProps {
   workspaceId: string;
   /** Quando presente, a lista é a do projeto — a mesma peça, um nível abaixo. */
@@ -209,6 +221,17 @@ export function TaskList({
         <div className="tlist">
           {settings.data !== undefined && (
             <p className="tlist__budget">
+              {/*
+                Os três tetos do workspace (`028` Parte 3, T18).
+                *"Teto que você não vê é teto que parece bug quando recusa"* — a
+                frase é da `022` e vale igual aqui. `null` aparece como **sem
+                teto** e não como campo vazio: um vazio numa linha sobre limite
+                parece defeito, e a ausência de teto é uma resposta.
+              */}
+              gasto: <b>{capLabel(settings.data.caps.costPerTask, "US$")}</b> por tarefa ·{" "}
+              <b>{capLabel(settings.data.caps.costPerDay, "US$")}</b> por dia ·{" "}
+              <b>{capLabel(settings.data.caps.turnsPerSession)}</b> turnos por sessão
+              <br />
               um agente pode criar até <b>{settings.data.budget}</b> tarefas por tarefa · mude em{" "}
               <code>{settings.data.budgetEnv}</code>
               {/*

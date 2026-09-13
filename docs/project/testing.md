@@ -55,6 +55,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | **menus do composer** — geometria | e2e `composer-menus.spec.ts`, com o fake em `LUMEM_FAKE_MANY_MODELS=1`: vinte modelos, zero token. A pergunta **não** é `toBeVisible` — um elemento recortado por um ancestral continua no DOM, com caixa, e o matcher continua satisfeito. É `document.elementFromPoint` no meio do elemento, que é o que o mouse responde. Foi assim que se descobriu que o menu de `/comandos` era **invisível por inteiro** há três features, tendo teste de componente o tempo todo | **Não** |
 | **o quadro** — as sete colunas, o arrasto e o selo | e2e `board.spec.ts`, **zero token**: o agente é falso e o selo é lido pelo `task.board`. A janela em que o turno está **em voo** é o pedido de permissão — o fake para ali e espera —, porque um turno que abre e fecha em milissegundos não é observável, e o caso viraria um `sleep` disfarçado. O `beforeEach` limpa o quadro com **duas** portas (`remove` recusa tarefa que teve sessão, `dropped` sai do quadro): num quadro, estado de um caso vira *"quatro na To-Do"* no seguinte | **Não** |
 | **o selo é derivado**, e não guardado | o par do §12 da [`028`](../features/028-autonomous-orchestration/prd.md), no `board.spec.ts`: o turno some da lista do `AcpManager` e o selo volta para `manual` **na leitura seguinte, sem nenhuma escrita** — e o cartão não volta de coluna. Conferido por mutação: guardar o selo derruba o caso | **Não** |
+| **o teto do workspace** | e2e `budget.spec.ts`, **zero token**: o teto é conferido **antes** do `session/prompt`, então o agente falso nem precisa responder — o pedido de permissão aparecer **é** a prova de que o turno passou do portão. Teto de **zero turno** é o caminho mais curto até o aviso e não depende de nenhum consumo gravado; sem isso o caso testaria o contador em vez do portão | **Não** |
 | `web/` fluxo de usuário | e2e (Playwright) | **Não** — daemon único, porta única, estado compartilhado |
 | **a própria documentação** | `scripts/check-docs.test.ts` — 21 testes sobre fixtures mais **um que roda o checador contra a árvore de verdade**, e é esse que é o gate. Link relativo resolve, âncora de heading resolve, e o `**Status:**` de cada feature está na gramática fechada e concorda com o `tasks.md` da mesma pasta | Sim |
 
@@ -661,6 +662,32 @@ com `FOREIGN KEY constraint failed`.
 
 A regra que sai daí: **toda migração que muda ação de estrangeiro por `ALTER TABLE` precisa de um
 caso que exerça a ação**, e não só a presença da coluna.
+
+### O `drizzle-kit` lê colunas que ainda não existem na tabela de origem
+
+A migração `0018` nasceu com `INSERT INTO __new_workspace(…, "budget_cost_per_task", …) SELECT …,
+"budget_cost_per_task", … FROM workspace` — lendo do **velho** as colunas do **novo**. O erro é
+`no such column`, e **nenhum teste que começa de um banco vazio o pega**: sem linha, não há cópia.
+
+É a mesma família do que o `0001` pagou e que o cabeçalho do `migrations.test.ts` descreve, e reapareceu
+**cinco migrações depois** — o que quer dizer que a armadilha não é do `0001`, é do gerador. A lista do
+`SELECT` foi reescrita à mão, e o caso foi validado ficando vermelho de propósito.
+
+A regra que sai daí, e que vale para toda recriação de tabela: **leia o `SELECT` da migração gerada
+antes de rodá-la**, e tenha um caso num banco parado na revisão anterior **com linha dentro**.
+
+### Uma variante nova de evento quebra a tela, e isso é o contrato funcionando
+
+Acrescentar `budget` ao `AcpEvent` **derrubou o typecheck do `@lumem/web`**: o `reduceConversation` é
+um `switch` exaustivo sobre o tipo, então uma variante nova obriga o cliente a dizer o que faz com ela.
+Isso não é atrito — é a única coisa que impede um evento de ser adicionado no daemon e sumir na tela
+sem ninguém notar.
+
+O par disso é o mock compartilhado: o `trpc-mock.ts` serve um `task.settings` default, e um campo novo
+no contrato o deixa velho — **cinco testes** quebraram com `Cannot read properties of undefined`, em
+telas que não têm nada a ver com orçamento. É a mesma armadilha que *"uma tela nova derruba testes cujo
+mock não a conhece"* já descreve, vista do outro lado: **o mock compartilhado é parte do contrato**, e
+esquecê-lo quebra testes distantes com um erro que não fala do assunto.
 
 ### `ResizeObserver` vê a caixa, e o que mudou é o conteúdo
 
