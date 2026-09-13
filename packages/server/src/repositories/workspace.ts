@@ -45,6 +45,8 @@ export interface WorkspaceRepository {
     id: string,
     input: { autonomy: "manual" | "assistido" | "autonomo"; maxParallel: number },
   ): Promise<WorkspaceRow>;
+  /** *"PR mesclada sempre remove a worktree"* (`028` Parte 4, T40 · Q27). */
+  setCleanup(id: string, mergedAlwaysRemoves: boolean): Promise<WorkspaceRow>;
   remove(id: string): Promise<void>;
 }
 
@@ -148,6 +150,16 @@ export function createWorkspaceRepository(db: Db): WorkspaceRepository {
           },
         },
       );
+      return row!;
+    },
+
+    async setCleanup(id, mergedAlwaysRemoves) {
+      await require_(id);
+      const [row] = await db
+        .update(workspace)
+        .set({ mergedAlwaysRemoves, updatedAt: new Date() })
+        .where(eq(workspace.id, id))
+        .returning();
       return row!;
     },
 

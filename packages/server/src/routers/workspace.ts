@@ -96,6 +96,27 @@ export const workspaceRouter = router({
       }),
     ),
 
+  /**
+   * *"PR mesclada sempre remove a worktree"* (`028` Parte 4, T40 · Q27).
+   *
+   * Separado do `setAutonomy` porque é outra pergunta: aquele é *quanto este
+   * workspace gasta sozinho*, e este é *o que ele pode apagar*. Juntá-los faria
+   * ligar a esteira parecer que autoriza apagar rascunho, que é exatamente a
+   * confusão que o texto do interruptor existe para evitar.
+   */
+  setCleanup: publicProcedure
+    .input(z.object({ id: z.string().min(1), mergedAlwaysRemoves: z.boolean() }))
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () => {
+        const saved = await createWorkspaceRepository(ctx.db).setCleanup(
+          input.id,
+          input.mergedAlwaysRemoves,
+        );
+        ctx.events.emit({ type: "workspace.changed" });
+        return saved;
+      }),
+    ),
+
   remove: publicProcedure.input(idSchema).mutation(({ ctx, input }) =>
     domainSafeAsync(async () => {
       await createWorkspaceRepository(ctx.db).remove(input.id);

@@ -8,6 +8,8 @@ import { createTaskCommentRepository } from "../repositories/task-comment.js";
 import { beyondSlots, boardOf } from "../tasks/board.js";
 import { queueOf } from "../tasks/queue.js";
 import { noticeFor } from "../tasks/notify.js";
+import { cleanupFactsOf, decideCleanup, type CleanupDecision } from "../tasks/cleanup.js";
+import { createWorktreeRepository } from "../repositories/worktree.js";
 import { liveTurnsByTask, pausesByTask, sealOf } from "../tasks/seal.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 import { DomainError } from "../errors.js";
@@ -111,6 +113,8 @@ export const taskRouter = router({
          */
         autonomy: space?.autonomy ?? "manual",
         maxParallel: space?.autonomyMaxParallel ?? 0,
+        /** O interruptor da Q27, na mesma leitura que a tela já faz. */
+        mergedAlwaysRemoves: space?.mergedAlwaysRemoves ?? false,
       };
     }),
 
@@ -347,6 +351,81 @@ export const taskRouter = router({
       const sent = await createTaskRepository(ctx.db).get(input.id);
       if (sent) ctx.events.emit({ type: "task.changed", workspaceId: sent.workspaceId });
       return { ok: true as const };
+    }),
+  ),
+
+  /**
+   * O `Done` que limpa (`028` §6, Parte 4 — T40 · Q27 e Q58).
+   *
+   * Move para `done` e **remove a worktree se puder**. Quando não pode, a
+   * tarefa **anda do mesmo jeito** e a worktree fica: `done` é sobre a tarefa, e
+   * a limpeza é sobre o disco — recusar a mudança de coluna por causa de um
+   * rascunho seria a tarefa ficando refém de um arquivo.
+   *
+   * A resposta diz o que aconteceu com o checkout, e é a tela que decide o que
+   * oferecer com isso — o daemon **não** pergunta. É a mesma forma do portão de
+   * confiança da [`012`](../../../../docs/features/012-project-scripts/prd.md).
+   */
+  finish: publicProcedure.input(idSchema).mutation(({ ctx, input }) =>
+    domainSafeAsync(async () => {
+      const tasks = createTaskRepository(ctx.db);
+      const target = await tasks.get(input.id);
+      if (!target) throw new DomainError("NOT_FOUND", `tarefa ${input.id} não existe`);
+
+      const done = await tasks.setStatus(input.id, "done");
+      ctx.events.emit({ type: "task.changed", workspaceId: done.workspaceId });
+
+      const checkout =
+        target.worktreeId === null
+          ? undefined
+          : await ctx.db.query.worktree.findFirst({
+              where: (table, { eq: is }) => is(table.id, target.worktreeId!),
+            });
+      // Tarefa sem checkout é o caso comum de quem trabalhou no principal: não
+      // há disco para limpar, e dizer isso é melhor que devolver silêncio.
+      if (!checkout) return { task: done, cleanup: { kind: "none" as const } };
+
+      const owner = await ctx.db.query.project.findFirst({
+        where: (table, { eq: is }) => is(table.id, target.projectId),
+      });
+      const space = await ctx.db.query.workspace.findFirst({
+        where: (table, { eq: is }) => is(table.id, target.workspaceId),
+      });
+
+      /*
+       * Se o `git` não consegue responder, **não se apaga nada**.
+       *
+       * O caminho sumiu, o repositório foi movido, o `git` não está instalado:
+       * nos três a resposta certa é a mesma, e é a conservadora. Deixar subir
+       * derrubaria o `finish` **depois** de a tarefa já ter andado — o quadro
+       * mostraria `done` e a tela um erro, sobre coisas diferentes.
+       */
+      const decision = await cleanupFactsOf(ctx.git, {
+        path: checkout.path,
+        branch: checkout.branch,
+        baseBranch: owner?.defaultBranch ?? "main",
+      })
+        .then((disk) =>
+          decideCleanup({ ...disk, alwaysRemovesWhenMerged: space?.mergedAlwaysRemoves ?? false }),
+        )
+        .catch(
+          (error: unknown): CleanupDecision => ({
+            kind: "keep",
+            reason: `não deu para ler o checkout: ${error instanceof Error ? error.message : String(error)}`,
+          }),
+        );
+
+      if (decision.kind === "keep") return { task: done, cleanup: decision };
+
+      await ctx.scripts.stopAll({ scopeType: "worktree", scopeId: checkout.id });
+      await ctx.git.removeWorktree({
+        repoPath: owner?.path ?? checkout.path,
+        path: checkout.path,
+        force: false,
+      });
+      await createWorktreeRepository(ctx.db).remove(checkout.id);
+      ctx.events.emit({ type: "worktree.changed", projectId: target.projectId });
+      return { task: done, cleanup: decision };
     }),
   ),
 

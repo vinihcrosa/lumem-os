@@ -1,0 +1,1 @@
+ALTER TABLE `workspace` ADD `merged_always_removes` integer DEFAULT false NOT NULL;

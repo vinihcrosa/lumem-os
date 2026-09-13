@@ -1164,3 +1164,34 @@ describe("0025 — o aviso que acontece uma vez", () => {
     expect(row).toMatchObject({ title: "pronta para mesclar", notifiedAt: null });
   });
 });
+
+describe("0026 — o interruptor que apaga rascunho", () => {
+  function databaseBeforeCleanup(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-db-cleanup-"));
+    dirs.push(dir);
+    const path = join(dir, "lumem.db");
+
+    const sqlite = new Database(path);
+    sqlite.pragma("foreign_keys = ON");
+    migrate(drizzle(sqlite), { migrationsFolder: migrationsUpTo(26) });
+    sqlite.prepare(`INSERT INTO workspace (id, name) VALUES ('w1', 'acme')`).run();
+    sqlite.close();
+
+    return path;
+  }
+
+  it("nasce desligado, e é a única resposta possível", async () => {
+    const handle = openDatabase({ path: databaseBeforeCleanup() });
+    open.push(handle);
+
+    const [row] = await handle.db.select().from(schema.workspace);
+
+    /*
+     * Ele autoriza **apagar arquivo não commitado**. Um default ligado seria o
+     * produto decidindo isso por quem nunca leu a frase — e a Q27 escolheu o
+     * interruptor justamente porque a alternativa (um modal em toda remoção) é
+     * o que se aprende a clicar sem ler.
+     */
+    expect(row?.mergedAlwaysRemoves).toBe(false);
+  });
+});

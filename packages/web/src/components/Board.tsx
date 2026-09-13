@@ -66,6 +66,8 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
   const [rails, setRails] = useState<readonly BoardStatus[]>(RAIL_BY_DEFAULT);
   const [onlyMine, setOnlyMine] = useState(false);
   const [dragging, setDragging] = useState<string | null>(null);
+  /** O que a limpeza não conseguiu fazer, em uma frase. `null` quase sempre. */
+  const [cleanupNote, setCleanupNote] = useState<string | null>(null);
   const { ref: colsRef, clipped } = useOverflow();
   const queryClient = useQueryClient();
 
@@ -162,8 +164,37 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
     onOpen(taskId);
   }
 
+  /**
+   * O `Done` que limpa (T40 · Q27).
+   *
+   * Mover para `done` passa por uma porta própria porque ele faz **duas** coisas
+   * — anda a tarefa e mexe no disco —, e a segunda pode não acontecer. A
+   * resposta diz o que houve com o checkout, e é a tela que conta: o daemon não
+   * pergunta nada, que é o que impede o diálogo de virar o que a Q27 recusou.
+   */
+  const finish = useMutation({
+    mutationFn: (taskId: string) => trpc.task.finish.mutate({ id: taskId }),
+    onSuccess: (result: { cleanup: { kind: string; reason?: string } }) => {
+      setCleanupNote(result.cleanup.kind === "keep" ? (result.cleanup.reason ?? null) : null);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  });
+
   function drop(status: BoardStatus, index: number) {
     if (dragging === null) return;
+    /*
+     * `done` não é um `move` como os outros: ele limpa. Mandar pelo caminho
+     * comum deixaria a worktree para trás em silêncio, e o produto acumularia
+     * checkout de tarefa acabada até alguém notar.
+     *
+     * A posição dentro da coluna `done` é perdida no caminho, e tudo bem: ela é
+     * a coluna que o §4.4 diz não ser gerenciamento de projeto.
+     */
+    if (status === "done") {
+      finish.mutate(dragging);
+      setDragging(null);
+      return;
+    }
     move.mutate({ id: dragging, status, index });
     setDragging(null);
   }
@@ -206,6 +237,15 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
           ainda não registrou como avisados. Dois lugares contando coisas
           diferentes seriam dois lugares divergindo.
         */}
+        {cleanupNote === null ? null : (
+          /*
+            A recusa da limpeza, dita **onde o gesto aconteceu** e sem diálogo.
+            A Q27 recusou o modal que aparece sempre; este texto aparece só
+            quando algo ficou para trás, e diz o quê — que é a parte que faz
+            alguém agir em vez de fechar.
+          */
+          <span className="bd__unseen">a worktree ficou: {cleanupNote}</span>
+        )}
         {unseen === 0 ? null : (
           <span className="bd__unseen">
             {unseen === 1

@@ -78,6 +78,7 @@ function createTrpcMock() {
     events: { onChange: { subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })) } },
     workspace: {
       setAutonomy: { mutate: vi.fn() },
+      setCleanup: { mutate: vi.fn() },
       list: { query: vi.fn() },
       get: { query: vi.fn() },
       create: { mutate: vi.fn() },
@@ -129,6 +130,7 @@ function createTrpcMock() {
       sendPrepared: { mutate: vi.fn() },
       markNotified: { mutate: vi.fn() },
       stop: { mutate: vi.fn() },
+      finish: { mutate: vi.fn() },
       setAutonomy: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
     },
@@ -299,6 +301,7 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   mock.task.settings.query.mockResolvedValue({
     autonomy: "manual",
     maxParallel: 2,
+    mergedAlwaysRemoves: false,
     budget: 5,
     budgetEnv: "LUMEM_TASKS_BUDGET",
     sessions: 0,

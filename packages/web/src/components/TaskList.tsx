@@ -153,6 +153,12 @@ export function TaskList({
     onSettled: () => queryClient.invalidateQueries({ queryKey: tasksKey(workspaceId) }),
   });
 
+  const setCleanup = useMutation({
+    mutationFn: (mergedAlwaysRemoves: boolean) =>
+      trpc.workspace.setCleanup.mutate({ id: workspaceId, mergedAlwaysRemoves }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: tasksKey(workspaceId) }),
+  });
+
   const spend = useQuery({
     queryKey: ["usage", "byTask", workspaceId],
     queryFn: () => trpc.usage.byTask.query({ workspaceId, period: "7d" }),
@@ -300,6 +306,22 @@ export function TaskList({
                 </button>
               ))}{" "}
               · <b>{settings.data.maxParallel}</b> em paralelo
+              <br />
+              {/*
+                O interruptor da Q27, com o texto que diz o que se autoriza.
+                Ele é separado da esteira de propósito: ligar a autonomia não
+                pode parecer que autoriza apagar rascunho.
+              */}
+              <label className="tlist__switch">
+                <input
+                  type="checkbox"
+                  checked={settings.data.mergedAlwaysRemoves}
+                  onChange={(event) => {
+                    setCleanup.mutate(event.target.checked);
+                  }}
+                />{" "}
+                PR mesclada sempre remove a worktree — <b>inclusive com arquivo não commitado</b>
+              </label>
               {/*
                 A medida de cerimônia (§7): `sessões com tarefa ÷ sessões`, e o
                 PRD **espera que não seja 100%**. Se for, todo mundo está criando

@@ -863,3 +863,52 @@ describe("escrever os tetos", () => {
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });
+
+describe("o `Done` que limpa (Q27, Q58)", () => {
+  it("tarefa sem checkout anda e não há disco para limpar", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "no principal" });
+
+    const result = await api.task.finish({ id: created.id });
+
+    // Dizer *"não havia nada"* é melhor que devolver silêncio: a tela precisa
+    // distinguir isso de *"não deu para limpar"*.
+    expect(result.task.status).toBe("done");
+    expect(result.cleanup).toEqual({ kind: "none" });
+  });
+
+  it("a tarefa anda mesmo quando o checkout não pode ser limpo", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "com rascunho" });
+    await db.insert(worktree).values({
+      id: "wt-done",
+      projectId,
+      name: "com-rascunho",
+      branch: "fix/rascunho",
+      path: "/caminho/que/nao/existe",
+    });
+    await api.task.attachWorktree({ id: created.id, worktreeId: "wt-done" });
+
+    const result = await api.task.finish({ id: created.id });
+
+    /*
+     * `done` é sobre a **tarefa** e a limpeza é sobre o **disco**. Recusar a
+     * mudança de coluna por causa de um rascunho seria a tarefa ficando refém
+     * de um arquivo — e o quadro deixando de refletir o que você decidiu.
+     */
+    expect(result.task.status).toBe("done");
+    // E quando nem dá para **ler** o checkout, a resposta é a mesma e
+    // conservadora: não se apaga o que não se consegue inspecionar.
+    expect(result.cleanup.kind).toBe("keep");
+    expect(await db.select().from(worktree)).toHaveLength(1);
+  });
+
+  it("tarefa que não existe é NOT_FOUND", async () => {
+    const { api } = caller();
+    await workspaceWithProject(context);
+
+    await expect(api.task.finish({ id: "nao-existe" })).rejects.toThrow(/não existe/);
+  });
+});

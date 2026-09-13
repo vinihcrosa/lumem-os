@@ -98,6 +98,22 @@ export const workspace = sqliteTable(
      * O default é **2**, que é o número que a folha do Open Design já desenha.
      */
     autonomyMaxParallel: integer("autonomy_max_parallel").notNull().default(2),
+    /**
+     * *"PR mesclada sempre remove a worktree"* (`028` Parte 4, T40 · Q27).
+     *
+     * **Nasce desligado.** Ligado, ele estende para o checkout **sujo** o que já
+     * vale para o limpo — e é aí que ele fica claro: você está dizendo *"pode
+     * apagar rascunho meu"*, o que é uma escolha legítima e precisa estar
+     * escrita nesses termos.
+     *
+     * Ele existe porque a alternativa é pior: a Q27 recusou o modal que aparece
+     * **sempre**, *"que se aprende a clicar sem ler"*. Um interruptor que você
+     * liga uma vez, lendo, protege mais que um diálogo que você fecha cem vezes
+     * sem ler.
+     */
+    mergedAlwaysRemoves: integer("merged_always_removes", { mode: "boolean" })
+      .notNull()
+      .default(false),
     ...timestamps,
   },
   (table) => [
