@@ -4,7 +4,7 @@
 
 **Quarenta e sete perguntas, em nove rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
 segunda rodada abriu — todas em 2026-09-11 — mais **4 que a sessão de desenho no Open Design abriu**,
-respondidas em **2026-09-12**, **3 da sexta rodada** e **3 da sétima**. **Quarenta e cinco respondidas.** A [Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático) fechou
+respondidas em **2026-09-12**, **3 da sexta rodada** e **3 da sétima**. **Quarenta e seis respondidas.** A [Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático) fechou
 medindo no mesmo dia em que nasceu, e fechou as sete primeiras rodadas — que são a Parte 1 inteira. A
 oitava é da **Parte 3**, aberta depois: a [Q44](#q44--o-teto-tem-duas-unidades-qual-delas-a-tela-mostra)
 e a [Q45](#q45--o-teto-vale-para-a-sessão-que-você-está-conduzindo) nasceram **escrevendo as tasks**,
@@ -1353,10 +1353,37 @@ As saídas:
   [ADR de 2026-09-13](../../adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md) manda fazer com
   qualquer coisa de fora. Hoje nenhum adaptador declara isso, mas é o desenho que envelhece melhor.
 
-**Sem proposta**, e é honesto: as três dependem de um dado que eu não tenho. O que **não** depende
-dela é o selo, que já pinta a pausa prevista.
+**Resposta: nenhuma das três agora — o daemon passa a guardar o retrato.** Suas palavras: *"Eu não
+tenho resposta para isso, pode fazer o que você achar melhor, mas é bom deixar algum tipo de
+observabilidade."*
 
-> **Aberta, e não bloqueia a Parte 3** — as fases 8 e 9 não a tocam.
+Então, em vez de adivinhar a forma do erro, **o daemon a captura quando ela acontecer**. Todo
+`session/prompt` que falha escreve uma linha com etiqueta estável:
+
+```
+tag=turn-failed  code=…  message=…  data=…  rateLimit={utilization,isUsingOverage,resetsAt,kind}  windowSpent=…
+```
+
+**O que a torna útil é o `rateLimit` junto.** Um erro sozinho é uma amostra **sem rótulo**: não dá
+para saber se aquela falha foi cota ou outra coisa. Uma falha que chega com a **janela gasta e sem
+excedente** — o `windowSpent` — é, com altíssima probabilidade, a recusa que esta pergunta procura. O
+campo existe para ser o primeiro filtro de quem for ler.
+
+**E escrever o caso já ensinou metade da resposta:** o erro atravessa JSON-RPC e chega como
+**`-32603`** — *internal error*, o código genérico — com o texto do adaptador enterrado em
+`data.details`. Ou seja, não é só que falta um código para cota: **o código que existe não diz
+nada**, e é por isso que o `data` cru é guardado inteiro.
+
+**Como procurar**, no dia em que uma cota fechar:
+
+```sh
+# o daemon loga em JSON; a etiqueta é estável e o filtro é o rótulo
+grep turn-failed ~/.lumem/… | jq 'select(.windowSpent)'
+```
+
+> **Respondida como instrumento, não como comportamento.** A Q32 continua sem poder ser implementada —
+> as 3 tentativas e o corte de 4 h esperam a primeira amostra. O que mudou é que a amostra **não vai
+> se perder**.
 
 ---
 
@@ -1402,15 +1429,39 @@ sobre quanto da conversa passa, nem quanto isso custa em token. O spike da
 [`006`](../006-acp-sessions/prd.md) mediu **22.708 tokens** de escrita de cache num turno trivial, e
 essa conta some.
 
-**O que isso contradiz, e é uma frase:** a tabela do §5 diz que o implementador produz *"commits, PR,
-e **um resumo do que fez**"*. Sob esta regra o resumo **não tem consumidor na esteira** — ele é para
-**você**, na conversa dele. A nota está no requisito.
+**E o resumo do implementador tem lugar — como comentário, não como campo.** Emenda de 2026-09-13,
+suas palavras:
+
+> *"O implementador deve colocar o resumo do que fez na tarefa; isso fica de histórico. É um resumo,
+> **não contexto, nem compactação** — como se estivesse escrevendo a PR, inclusive deve ser
+> praticamente o mesmo texto da PR. Não deve ter um campo na tarefa de 'comentário do implementador':
+> é só um comentário normal, como qualquer outro comentário."*
+
+Isso **corrige** a leitura anterior, que dizia que o resumo não tinha consumidor na esteira. Ele tem —
+e não fura o isolamento, por dois motivos:
+
+1. **a linha que separa não é quem escreveu, é o que a coisa é.** *Contexto* é a conversa: o
+   raciocínio, as tentativas, o caminho. *Resumo* é artefato público, escrito para ser lido por
+   qualquer um. O que a regra proíbe é o primeiro atravessar;
+2. **e ele já estava na entrada do revisor de qualquer jeito.** Sendo *praticamente o mesmo texto da
+   PR*, o revisor o leria na própria PR — que está na lista fechada acima. Pôr na tarefa não
+   acrescenta informação nova: faz o texto **sobreviver** à PR, e é isso que o torna histórico.
+
+**Sem campo próprio, e isso é decisão:** um `implementerSummary` faria o produto tratar agente como
+categoria de autor, e aí a próxima pergunta seria *"e o campo do revisor?"*. Comentário é comentário;
+quem escreveu é proveniência, que a [`022`](../022-workspace-tasks/prd.md) já sabe guardar.
+
+> **O que isso cobra da Parte 2: a tarefa não tem comentário.** A `022` entregou `body`, `links` e
+> `reason`, e nada mais — conferido no schema. Comentário de tarefa é **entidade nova**, e ela é
+> pré-requisito tanto deste resumo quanto do *"talvez comentários"* da lista fechada lá em cima. Vai
+> para o `tasks.md` da Parte 2.
 
 **O resíduo, e ele é do UC2.** O UC2 diz que, quando o revisor reprova, *"o cartão volta para In
 Progress, com o parecer como próximo prompt do implementador — não um prompt seu, o texto do
 revisor"*. Isso é, literalmente, **contexto de um agente indo para outro**.
 
-A leitura que eu adoto, e o motivo: **o parecer é dado da tarefa, não conversa do revisor.** Ele é
+A leitura que eu adoto, e a emenda acima a reforça: **o parecer é dado da tarefa, não conversa do
+revisor** — o mesmo que o resumo do implementador, pelo mesmo critério. Ele é
 produzido para ficar registrado — o §4.1 conta *"o parecer foi registrado"* entre os fatos
 verificáveis que movem a seta —, e é a mesma coisa que um comentário de tarefa que você escreveria. O
 que a regra proíbe é o **canal**: a sessão A não briefa a sessão B. O que ela permite é a **tarefa**

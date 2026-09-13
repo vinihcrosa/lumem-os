@@ -483,9 +483,14 @@ A parte mais estruturante das suas respostas, e a que não estava na v0.1:
 > um serviço inventado escrevendo `Commit: 50bb628 ✓`, e um revisor que recebesse aquele resumo
 > receberia uma mentira bem escrita.
 >
-> **A consequência nesta tabela:** *"um resumo do que fez"*, na linha do implementador, **não tem
-> consumidor na esteira**. Ele é para **você**, na conversa dele. O resto da tabela fica inteiro de
-> pé.
+> **A consequência nesta tabela:** *"um resumo do que fez"* vira um **comentário da tarefa**, como
+> qualquer outro — sem campo próprio, e *"praticamente o mesmo texto da PR"*. Ele não fura o
+> isolamento porque **contexto é a conversa** e resumo é artefato público, e porque o revisor o leria
+> na própria PR de qualquer jeito; pôr na tarefa faz o texto **sobreviver** à PR. O resto da tabela
+> fica inteiro de pé.
+>
+> **E isso cobra uma entidade que não existe:** a [`022`](../022-workspace-tasks/prd.md) entregou
+> `body`, `links` e `reason` — **a tarefa não tem comentário**. É pré-requisito da Parte 2.
 
 ### 5.1 Encaixe não é agente
 

@@ -1011,15 +1011,31 @@ export class AcpManager {
       text,
     });
 
-    const { stopReason } = await session.connection.agent.request("session/prompt", {
-      sessionId: session.info.acpSessionId,
-      // Bloco **separado**, nunca concatenado: o texto da pessoa vai verbatim,
-      // como sempre foi, e o que o daemon acrescentou é distinguível de fora.
-      prompt:
-        preamble === null
-          ? [{ type: "text", text }]
-          : [{ type: "text", text: preamble.text }, { type: "text", text }],
-    });
+    let stopReason: StopReason;
+    try {
+      ({ stopReason } = await session.connection.agent.request("session/prompt", {
+        sessionId: session.info.acpSessionId,
+        // Bloco **separado**, nunca concatenado: o texto da pessoa vai verbatim,
+        // como sempre foi, e o que o daemon acrescentou é distinguível de fora.
+        prompt:
+          preamble === null
+            ? [{ type: "text", text }]
+            : [{ type: "text", text: preamble.text }, { type: "text", text }],
+      }));
+    } catch (error) {
+      /*
+       * Um turno que falha tem de **soltar a marca**, e isso é defeito consertado
+       * e não zelo: sem o `finally`, um `session/prompt` recusado deixava
+       * `promptInFlight` ligado para sempre. Desde a `028` o selo do quadro é
+       * derivado disso, então a sessão passaria a pintar `implementando há 3 h`
+       * num turno que morreu no primeiro segundo.
+       */
+      session.promptInFlight = false;
+      session.turnStartedAt = null;
+      session.openToolCalls.clear();
+      this.observeTurnFailure(session, error);
+      throw error;
+    }
 
     // The fifth card state, and the only place it can be derived (A14). ACP has
     // no `cancelled` status: a call that was still open when the user pressed
@@ -1036,6 +1052,54 @@ export class AcpManager {
     session.turnStartedAt = null;
     this.emit(session, { type: "turn_end", stopReason });
     return stopReason;
+  }
+
+  /**
+   * O retrato de um turno que falhou (`028` Q46).
+   *
+   * **Isto é observabilidade, e não tratamento.** A Q32 decidiu o que o produto
+   * faz quando o agente recusa por cota — `pausada`, sem consumir orçamento nem
+   * turno —, e o daemon **não tem como reconhecer essa recusa**: o protocolo dá
+   * um código para *"faça login"* (`-32000`) e nenhum para *"acabou sua cota"*,
+   * e casar a mensagem seria a lista de strings especiais que este repositório
+   * já recusou uma vez.
+   *
+   * Então, em vez de adivinhar a forma do erro, o daemon a **guarda quando ela
+   * acontecer** — e guarda junto o que a torna interpretável: o último relato de
+   * cota daquela sessão. Uma falha que chega com a janela gasta e sem excedente
+   * é, com altíssima probabilidade, a recusa que a Q46 procura. Um erro sozinho
+   * seria uma amostra sem rótulo.
+   *
+   * `warn` e não `error`: a falha já sobe para quem chamou e vira mensagem na
+   * tela. Esta linha existe para ser **procurada depois**, e por isso ela tem uma
+   * etiqueta estável — `turn-failed` — em vez de prosa.
+   */
+  private observeTurnFailure(session: Session, error: unknown): void {
+    const rateLimit = session.lastRateLimit;
+    this.log?.warn(
+      {
+        tag: "turn-failed",
+        sessionId: session.info.id,
+        adapter: session.info.command,
+        model: session.info.model,
+        code: (error as { code?: unknown }).code ?? null,
+        message: error instanceof Error ? error.message : String(error),
+        // O que o `_meta` do erro carregar. É onde um adaptador poria um motivo
+        // estruturado, se puser — e não custa nada guardar.
+        data: (error as { data?: unknown }).data ?? null,
+        rateLimit: rateLimit
+          ? {
+              utilization: rateLimit.utilization,
+              isUsingOverage: rateLimit.isUsingOverage,
+              resetsAt: rateLimit.resetsAt ?? null,
+              kind: rateLimit.kind ?? null,
+            }
+          : null,
+        /** O atalho da leitura: a janela estava fechada quando isto falhou? */
+        windowSpent: rateLimit !== null && rateLimit.utilization >= 1 && !rateLimit.isUsingOverage,
+      },
+      "turno falhou",
+    );
   }
 
   /**

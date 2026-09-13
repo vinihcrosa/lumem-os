@@ -573,9 +573,17 @@ não mexe em nenhum contador; e 4 h de espera vira `bloqueada` com o motivo.
 > reconhece o login justamente porque *"o texto é do adaptador e pode estar traduzido"*. Adivinhar a
 > forma desse erro é o que esta feature vem punindo desde a fase 0.
 >
-> **É medível, e não por mim sob demanda:** precisa de uma cota de verdade esgotada. Fica como
-> [Q46](open-questions.md#q46--como-o-daemon-reconhece-uma-recusa-por-cota), com a bancada de
-> [`scripts/q39/`](../../../scripts/q39/README.md) como o lugar onde a medição caberia.
+> **É medível, e não por mim sob demanda:** precisa de uma cota de verdade esgotada. A
+> [Q46](open-questions.md#q46--como-o-daemon-reconhece-uma-recusa-por-cota) foi respondida **como
+> instrumento**: todo `session/prompt` que falha passa a escrever um retrato com etiqueta estável
+> (`tag=turn-failed`), levando junto o último relato de cota daquela sessão — sem ele a amostra não
+> teria rótulo, e não daria para saber se a falha foi cota. Escrever o caso já ensinou metade: o erro
+> atravessa JSON-RPC como **`-32603`**, o código genérico, com o texto do adaptador em `data.details`.
+> **Não é só que falta código para cota — o que existe não diz nada.**
+>
+> **E o caso achou um defeito de verdade**, que só a `028` torna visível: um `session/prompt` que
+> falhava deixava `promptInFlight` **ligado para sempre**. Desde que o selo do quadro passou a ser
+> derivado disso, um turno morto no primeiro segundo pintaria `implementando há 3 h`.
 
 > **O `rateLimit` só voltou a existir na [`027`](../027-adapter-provenance/prd.md)**, que consertou o
 > `rateLimitOf` — ele exigia `utilization` na raiz e o `0.75.1` a aninhou em

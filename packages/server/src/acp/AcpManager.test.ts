@@ -2346,3 +2346,86 @@ describe("o teto do workspace, antes do turno", () => {
     await expect(manager.prompt(info.id, "oi")).resolves.toBe("end_turn");
   });
 });
+
+describe("um turno que falha solta a marca, e deixa retrato", () => {
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+  const here = (): string => {
+    const dir = mkdtempSync(join(tmpdir(), "lumem-acp-fail-"));
+    dirs.push(dir);
+    return dir;
+  };
+
+  /**
+   * A observabilidade da [Q46](../../../../docs/features/028-autonomous-orchestration/open-questions.md).
+   *
+   * O produto **não sabe** reconhecer uma recusa por cota — o protocolo não dá
+   * código para ela —, então em vez de adivinhar a forma do erro ele a guarda
+   * quando acontecer, junto do que a torna interpretável.
+   */
+  function failing(message: string) {
+    const warn = vi.fn();
+    const fake = fakeAgentProcess({
+      prompt: () => Promise.reject(new Error(message)),
+    });
+    const manager = new AcpManager({
+      spawner: () => fake.process,
+      isAvailable: () => true,
+      log: { warn },
+    });
+    return { manager, warn };
+  }
+
+  it("a sessão não fica dizendo que tem turno em voo para sempre", async () => {
+    const { manager } = failing("o adaptador desistiu");
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: here() });
+
+    await expect(manager.prompt(info.id, "oi")).rejects.toThrow();
+
+    // Defeito consertado, não zelo: desde a `028` o selo do quadro é derivado
+    // disto, e um turno que morreu no primeiro segundo pintaria
+    // `implementando há 3 h`.
+    expect(manager.liveTurns()).toEqual([]);
+  });
+
+  it("guarda o erro com uma etiqueta estável, para ser procurado depois", async () => {
+    const { manager, warn } = failing("rate limit exceeded");
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: here() });
+
+    await expect(manager.prompt(info.id, "oi")).rejects.toThrow();
+
+    /*
+     * `tag` e não prosa: a linha existe para ser encontrada no dia em que uma
+     * cota fechar de verdade.
+     *
+     * E o que ela captura é **mais** que a mensagem, porque a mensagem não
+     * sobrevive: o erro atravessa JSON-RPC e chega como `-32603` — *internal
+     * error*, o código genérico — com o texto do adaptador enterrado em
+     * `data.details`. Isso é a Q46 em miniatura: não há código para cota, e o
+     * único que existe não diz nada. Guardar `data` cru é o que torna a amostra
+     * útil.
+     */
+    const [payload, message] = warn.mock.calls[0] as [Record<string, unknown>, string];
+    expect(message).toBe("turno falhou");
+    expect(payload).toMatchObject({
+      tag: "turn-failed",
+      code: -32603,
+      data: { details: "rate limit exceeded" },
+    });
+  });
+
+  it("guarda o estado da cota junto, senão a amostra não tem rótulo", async () => {
+    const { manager, warn } = failing("qualquer falha");
+    const info = await manager.spawn({ command: "claude-agent-acp", cwd: here() });
+
+    await expect(manager.prompt(info.id, "oi")).rejects.toThrow();
+
+    // Sem cota relatada, `windowSpent` é falso — e é justamente esse campo que,
+    // no dia em que a falha chegar com a janela fechada, diz que aquela amostra
+    // é a que a Q46 procura.
+    const [payload] = warn.mock.calls[0] as [Record<string, unknown>];
+    expect(payload).toMatchObject({ rateLimit: null, windowSpent: false });
+  });
+});
