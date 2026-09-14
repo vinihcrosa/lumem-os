@@ -2,9 +2,12 @@
 
 **PRD:** [prd.md](prd.md) · **Tasks:** [tasks.md](tasks.md) — só a Parte 1 · **Medições:** [orchestration-measurements.md](../../project/orchestration-measurements.md)
 
-**Quarenta e sete perguntas, em nove rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
+**Quarenta e oito perguntas, em dez rodadas.** As 20 do rascunho, 9 que as respostas abriram e 4 que a
 segunda rodada abriu — todas em 2026-09-11 — mais **4 que a sessão de desenho no Open Design abriu**,
-respondidas em **2026-09-12**, **3 da sexta rodada** e **3 da sétima**. **Quarenta e seis respondidas.** A [Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático) fechou
+respondidas em **2026-09-12**, **3 da sexta rodada** e **3 da sétima**. **Quarenta e seis respondidas.**
+A décima rodada é uma pergunta só, a [Q66](#q66--a-issue-rotulada-cai-em-qual-workspace), e ela veio da
+**revisão da PR**: é a única do documento que a implementação **contradiz** — o rótulo não tem
+workspace, então a mesma issue vira cartão em todos eles. A [Q43](#q43--qual-dos-cinco-modos-do-claude-é-o-automático) fechou
 medindo no mesmo dia em que nasceu, e fechou as sete primeiras rodadas — que são a Parte 1 inteira. A
 oitava é da **Parte 3**, aberta depois: a [Q44](#q44--o-teto-tem-duas-unidades-qual-delas-a-tela-mostra)
 e a [Q45](#q45--o-teto-vale-para-a-sessão-que-você-está-conduzindo) nasceram **escrevendo as tasks**,
@@ -1946,3 +1949,37 @@ clonar já tem), e **versionar** um mapa de colunas é o jeito de descobrir quem
 > **Sem mapa, nada é movido lá** — e isso é a decisão, não o default preguiçoso. Mover estado no
 > tracker de alguém sem um mapa que essa pessoa escreveu é a definição de duas fontes de verdade
 > brigando, que o §8 nomeia como risco.
+
+### Q66 — a issue rotulada cai em qual workspace?
+
+**Aberta.** Ela nasceu lendo o código já entregue, e é a única das 66 que a implementação contradiz
+sem que ninguém tenha decidido nada.
+
+O que o código faz: o `labelled(lumem)` é uma consulta à **conta inteira** do Linear, e o laço entrega
+a **mesma** lista ao `syncTracker` de cada workspace. Num daemon com dois ou mais, cada issue rotulada
+vira um cartão em **todos** eles — cada um no `firstProjectOf` do seu workspace —, e num workspace em
+`autônomo` a mesma issue é trabalhada em dois contextos ao mesmo tempo, gastando duas vezes.
+
+E ele contradiz a própria justificativa da [Q60](#q60--o-tracker-é-polling-ou-webhook): *"a consulta é
+por workspace e não por projeto, porque o que ela pergunta é **o que está atribuído a mim**"*. A
+consulta é por **conta**, e não há nada nela que diga workspace.
+
+A [Q61](#q61--o-que-impede-a-mesma-issue-de-virar-duas-tarefas) permite o fan-out — *"a mesma issue
+pode legitimamente virar tarefa em dois workspaces diferentes da mesma máquina"* —, e é por isso que o
+índice único é por workspace. Mas *permitir* não é *fazer sempre*: ela descreve um caso que você quer,
+e o código o produz para todo mundo.
+
+Os caminhos, e nenhum foi escolhido:
+
+- **rótulo por workspace** (`lumem:<nome>`), com `lumem` puro continuando a valer para todos. Vira
+  instalação: quem tem um workspace só passa a ter que saber disso;
+- **filtro por equipe do Linear**, guardado no workspace. Casa com como o Linear já organiza, e
+  custa uma configuração a mais na tela;
+- **o primeiro workspace pega**, com o índice único fazendo o resto. É a regra mais barata e a mais
+  arbitrária: qual é o primeiro?
+- **assumir o fan-out** e dizer isso na tela, deixando para quem tem dois workspaces resolver com dois
+  rótulos.
+
+**Enquanto ela não fecha**, a instalação de um workspace — que é o caso comum — não vê diferença
+nenhuma, e o comportamento está escrito no `loop.ts` em vez de implícito. O que não pode continuar é
+os dois documentos dizendo coisas diferentes do que o código faz.

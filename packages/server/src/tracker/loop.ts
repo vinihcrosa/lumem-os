@@ -63,6 +63,20 @@ export function runTrackerLoop({
          */
         const issues = await host.labelled(LUMEM_LABEL);
         const spaces = await db.select({ id: workspace.id }).from(workspace);
+        /*
+         * **A mesma lista vai para todos os workspaces**, e isso está aberto na
+         * [Q66](../../../../docs/features/028-autonomous-orchestration/open-questions.md).
+         *
+         * Nada no rótulo nem na consulta diz workspace, então com dois ou mais a
+         * mesma issue vira cartão em cada um. A Q61 **permite** isso — o índice
+         * único é por workspace justamente porque a mesma issue pode
+         * legitimamente virar tarefa em dois —, mas permitir não é fazer sempre,
+         * e a Q60 justificou a cota dizendo que a consulta é *"por workspace"*,
+         * o que ela não é. A instalação de um workspace, que é o caso comum, não
+         * vê diferença; a de dois vê, e escolher entre rótulo por workspace,
+         * filtro por equipe ou assumir o fan-out é decisão de produto, não de
+         * uma linha aqui.
+         */
         for (const space of spaces) {
           await syncTracker({ db, host, projectFor: firstProjectOf(db) }, space.id, issues);
         }
