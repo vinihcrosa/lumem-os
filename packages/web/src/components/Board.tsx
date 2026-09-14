@@ -92,6 +92,26 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
   }));
 
   /*
+   * O índice do arrasto sai da coluna **inteira**, e não da que está na tela.
+   *
+   * O daemon lê `index` como posição na coluna e renumera a coluna toda — e
+   * posição **é** prioridade. Com `precisa de mim` ligado, o que o quadro
+   * desenha é um subconjunto: soltar sobre o segundo cartão visível mandaria `1`
+   * enquanto o segundo cartão da coluna é outro, e a prioridade errada ficaria
+   * gravada. Some nas colunas da máquina, que é onde o filtro esconde os cartões
+   * `working` recém-começados — justamente onde a ordem alimenta a esteira.
+   *
+   * É tradução, e não regra nova: com o filtro desligado os dois índices são o
+   * mesmo número.
+   */
+  const fullColumnOf = (status: BoardStatus) =>
+    (board.data ?? []).find((column) => column.status === status)?.cards ?? [];
+  const indexInFullColumn = (status: BoardStatus, cardId: string): number => {
+    const at = fullColumnOf(status).findIndex((card) => card.id === cardId);
+    return at === -1 ? fullColumnOf(status).length : at;
+  };
+
+  /*
    * Quantos ainda não foram avisados. O `notice` vem `null` assim que o daemon
    * registra, então este número **se apaga sozinho** conforme a aba avisa.
    */
@@ -295,12 +315,14 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
                 onDragOver={(event) => {
                   if (dragging !== null) event.preventDefault();
                 }}
-                onDrop={() => drop(column.status, column.cards.length)}
+                // O fim da coluna inteira, e não o da lista filtrada: soltar
+                // no corpo é soltar no fim, e o fim não muda com o filtro.
+                onDrop={() => drop(column.status, fullColumnOf(column.status).length)}
               >
                 {column.cards.length === 0 ? (
                   <div className="col__empty">vazia</div>
                 ) : (
-                  column.cards.map((card, index) => (
+                  column.cards.map((card) => (
                     <div
                       key={card.id}
                       onDragOver={(event) => {
@@ -308,7 +330,7 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
                       }}
                       onDrop={(event) => {
                         event.stopPropagation();
-                        drop(column.status, index);
+                        drop(column.status, indexInFullColumn(column.status, card.id));
                       }}
                     >
                       <TaskCard
