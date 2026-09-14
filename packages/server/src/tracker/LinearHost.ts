@@ -28,8 +28,9 @@ const ENDPOINT = "https://api.linear.app/graphql";
  * superfície: um campo a mais aqui é um campo a mais que alguém pode passar a
  * gravar sem perceber.
  */
-const LABELLED = `query($label: String!) {
-  issues(filter: { labels: { name: { eq: $label } } }, first: 50) {
+const LABELLED = `query($label: String!, $after: String) {
+  issues(filter: { labels: { name: { eq: $label } } }, first: 50, after: $after) {
+    pageInfo { hasNextPage endCursor }
     nodes {
       id
       identifier
@@ -41,6 +42,19 @@ const LABELLED = `query($label: String!) {
     }
   }
 }`;
+
+/**
+ * Quantas páginas de 50 uma passada percorre, no máximo.
+ *
+ * Existe para o laço ter fim: uma página que sempre diz `hasNextPage` — um
+ * cursor que não anda, um proxy que repete a resposta — travaria o laço de
+ * 60 segundos para sempre, e o sintoma seria a esteira parada sem nada no log.
+ * **40 páginas são 2 000 issues rotuladas.** O host não tem logger — ele devolve
+ * dado, e quem o chama é que registra —, então o teto é o que ele pode fazer
+ * sozinho: um número alto o bastante para não cortar ninguém de verdade, e
+ * finito o bastante para não travar o relógio.
+ */
+const MAX_PAGES = 40;
 
 const COMMENT = `mutation($issueId: String!, $body: String!) {
   commentCreate(input: { issueId: $issueId, body: $body }) { success }
@@ -69,6 +83,23 @@ export interface LinearHostOptions {
 
 /** O id do serviço no cofre. É o que a tela usa para dizer qual campo é qual. */
 export const LINEAR_SECRET = "linear";
+
+/**
+ * O `success` da mutation, que o Linear responde **com HTTP 200**.
+ *
+ * Uma mutation recusada — issue arquivada, token sem permissão de comentar —
+ * volta `200` com `success: false` e **sem** `errors`, então nada no `graphql`
+ * acima lança. Descartar o resultado fazia disso silêncio absoluto: o
+ * `writeMark` reserva o marco **antes** de escrever, de propósito, e o preço
+ * declarado dessa escolha é *"o marco fica registrado sem ter saído"* — com a
+ * falha aparecendo no log. Sem esta conferência não aparecia em lugar nenhum, e
+ * o marco nunca mais seria tentado.
+ */
+function expectSuccess(data: unknown, field: string, what: string): void {
+  const result = (data as Record<string, { success?: boolean } | undefined>)[field];
+  if (result?.success === true) return;
+  throw new Error(`o Linear recusou ${what}`);
+}
 
 export function createLinearHost({
   secrets,
@@ -141,10 +172,27 @@ export function createLinearHost({
       // do mesmo jeito que um projeto sem `test` declarado não ganha portão.
       if (key() === undefined) return [];
 
-      const data = (await graphql(LABELLED, { label })) as {
-        issues?: { nodes?: LinearNode[] };
-      };
-      return (data.issues?.nodes ?? []).map(
+      /*
+       * Paginado, e o laço é o que separa *"não há mais"* de *"não perguntei"*.
+       *
+       * Com uma página só de 50, a 51ª issue rotulada era **descartada em
+       * silêncio**: sem erro, sem log, nunca entrando em workspace nenhum. A
+       * fila travava em 50 e o único sinal era não haver sinal — e uma fila que
+       * anda sozinha é exatamente onde ninguém procura.
+       */
+      const nodes: LinearNode[] = [];
+      let after: string | null = null;
+      for (let page = 0; page < MAX_PAGES; page += 1) {
+        const data = (await graphql(LABELLED, { label, after })) as {
+          issues?: { nodes?: LinearNode[]; pageInfo?: { hasNextPage: boolean; endCursor: string | null } };
+        };
+        nodes.push(...(data.issues?.nodes ?? []));
+        const more = data.issues?.pageInfo;
+        if (more?.hasNextPage !== true || more.endCursor === null) break;
+        after = more.endCursor;
+      }
+
+      return nodes.map(
         (node): TrackerIssue => ({
           id: node.id,
           key: node.identifier,
@@ -170,11 +218,11 @@ export function createLinearHost({
     },
 
     async comment(issueId, body) {
-      await graphql(COMMENT, { issueId, body });
+      expectSuccess(await graphql(COMMENT, { issueId, body }), "commentCreate", "comentar na issue");
     },
 
     async moveState(issueId, stateId) {
-      await graphql(MOVE, { issueId, stateId });
+      expectSuccess(await graphql(MOVE, { issueId, stateId }), "issueUpdate", "mover a issue");
     },
   };
 }

@@ -172,6 +172,98 @@ describe("a chamada", () => {
   });
 });
 
+describe("a cauda da lista não é descartada em silêncio", () => {
+  /** Uma issue por página, com o cursor que o Linear devolveria. */
+  function pages(...batches: { id: string; next: string | null }[][]) {
+    const queue = [...batches];
+    return vi.fn(async () => {
+      const batch = queue.shift() ?? [];
+      const last = batch.at(-1);
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            data: {
+              issues: {
+                pageInfo: { hasNextPage: last?.next != null, endCursor: last?.next ?? null },
+                nodes: batch.map((one) => ({
+                  id: one.id,
+                  identifier: one.id,
+                  title: one.id,
+                  description: null,
+                  url: `https://linear.app/${one.id}`,
+                  state: { type: "started" },
+                  assignee: null,
+                })),
+              },
+            },
+          }),
+        text: () => Promise.resolve(""),
+      } as unknown as Response);
+    });
+  }
+
+  it("segue o cursor até o fim", async () => {
+    /*
+     * Com uma página só de 50, a 51ª issue rotulada era descartada **sem erro,
+     * sem log e sem entrar em workspace nenhum**: a fila travava em 50 e o único
+     * sinal era não haver sinal — e uma fila que anda sozinha é onde ninguém
+     * procura.
+     */
+    const fetch = pages([{ id: "A-1", next: "cur-1" }], [{ id: "A-2", next: null }]);
+
+    const issues = await createLinearHost({ fetch, secrets: withKey }).labelled("lumem");
+
+    expect(issues.map((one) => one.key)).toEqual(["A-1", "A-2"]);
+    const [, second] = fetch.mock.calls as unknown as [unknown, [string, RequestInit]];
+    expect(String(second[1].body)).toContain("cur-1");
+  });
+
+  it("uma página que diz que acabou custa uma chamada só", async () => {
+    // A cota do §3.2 é medida com uma chamada por passada, e paginar não pode
+    // virar duas para quem tem três issues.
+    const fetch = pages([{ id: "A-1", next: null }]);
+
+    await createLinearHost({ fetch, secrets: withKey }).labelled("lumem");
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("a mutation recusada com `200` não passa por escrita", () => {
+  it("`success: false` lança, em vez de virar silêncio", async () => {
+    /*
+     * Issue arquivada, token sem permissão de comentar: o Linear responde `200`
+     * com `success: false` e **sem** `errors`, então nada no envelope lança.
+     * Descartar o resultado fazia disso silêncio absoluto — e o `writeMark`
+     * reserva o marco **antes** de escrever, então o marco ficaria registrado
+     * como escrito para sempre, sem o comentário ter saído e sem nada no log.
+     */
+    const fetch = answering({ commentCreate: { success: false } });
+
+    await expect(
+      createLinearHost({ fetch, secrets: withKey }).comment("iss-1", "oi"),
+    ).rejects.toThrow(/recusou comentar/);
+  });
+
+  it("mover estado tem a mesma guarda", async () => {
+    const fetch = answering({ issueUpdate: { success: false } });
+
+    await expect(
+      createLinearHost({ fetch, secrets: withKey }).moveState("iss-1", "st-1"),
+    ).rejects.toThrow(/recusou mover/);
+  });
+
+  it("`success: true` passa", async () => {
+    const fetch = answering({ commentCreate: { success: true } });
+
+    await expect(
+      createLinearHost({ fetch, secrets: withKey }).comment("iss-1", "oi"),
+    ).resolves.toBeUndefined();
+  });
+});
+
 describe("a resposta malformada tem nome", () => {
   it("`200` sem dados e sem erros não vira um TypeError no meio da tradução", async () => {
     // Um proxy corporativo que devolve página de login com status 200 produz
