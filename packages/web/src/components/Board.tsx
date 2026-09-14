@@ -224,7 +224,8 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
     <main className="bd">
       <div className="bd__head">
         <div className="bd__title">
-          <h2 className="bd__t">Quadro</h2>
+          {/* `Quadro de tarefas` — a forma e o assunto (`029` Q3a). */}
+          <h2 className="bd__t">Quadro de tarefas</h2>
           <span className="bd__sub">
             todas as tarefas deste workspace, em uma tela
           </span>

@@ -90,7 +90,9 @@ async function openBoard(page: Page): Promise<void> {
   await page.getByRole("button", { name: "e2e", exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "e2e" })).toBeVisible({ timeout: 15_000 });
   await page.getByRole("button", { name: "quadro", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Quadro" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "Quadro de tarefas" })).toBeVisible({
+    timeout: 15_000,
+  });
 }
 
 /**

@@ -94,9 +94,15 @@ beforeEach(() => {
   trpc.memory.playbooks.query.mockResolvedValue([]);
 });
 
-function render() {
+function render(view: "home" | "board" = "home") {
   renderWithProviders(
-    <WorkspacePanel workspaceId="ws1" workspaceName="pessoal" onRemoved={() => {}} />,
+    <WorkspacePanel
+      workspaceId="ws1"
+      workspaceName="pessoal"
+      onRemoved={() => {}}
+      view={view}
+      onView={() => {}}
+    />,
   );
 }
 

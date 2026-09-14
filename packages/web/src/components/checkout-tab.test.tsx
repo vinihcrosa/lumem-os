@@ -348,7 +348,7 @@ describe("a worktree como primeira aba", () => {
     // importada, ou clonada de fora — o nome para de responder "qual branch".
     const user = userEvent.setup();
     await selectWorktree(user);
-    const crumb = await screen.findByRole("navigation");
+    const crumb = await screen.findByRole("navigation", { name: "Caminho" });
     expect(crumb).not.toHaveTextContent(/teste\s*teste/);
 
     cleanup();
@@ -364,7 +364,9 @@ describe("a worktree como primeira aba", () => {
     await user.click(await within(tree).findByRole("button", { name: /^lorebase/ }));
     await user.click(await within(tree).findByRole("button", { name: /^outra/ }));
 
-    expect(await screen.findByRole("navigation")).toHaveTextContent("feature/outra");
+    expect(await screen.findByRole("navigation", { name: "Caminho" })).toHaveTextContent(
+      "feature/outra",
+    );
   });
 
   it("dá ao checkout do projeto a mesma primeira aba, com o glifo dele", async () => {

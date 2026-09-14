@@ -63,6 +63,15 @@ export interface WorkspacePanelProps {
     sessionId: string;
     draft: string;
   }) => void;
+  /**
+   * Qual das duas telas do workspace mostrar (`029-sidebar-nav`, F1.3).
+   *
+   * Controlada de fora porque o bloco da sidebar abre o quadro **de fora desta
+   * tela** — com um checkout selecionado, ela nem está montada. Quem guarda a
+   * resposta de *onde eu estou* é o App, e ele só pode ter uma.
+   */
+  view: "home" | "board";
+  onView: (view: "home" | "board") => void;
 }
 
 export function WorkspacePanel({
@@ -70,6 +79,8 @@ export function WorkspacePanel({
   workspaceName,
   onRemoved,
   onWorkOnTask,
+  view,
+  onView,
 }: WorkspacePanelProps) {
   const [period, setPeriod] = useState<NonNullable<UsageWindow>>("7d");
   /*
@@ -88,9 +99,15 @@ export function WorkspacePanel({
    * superfícies diferentes. Empilhar as duas na mesma rolagem faria o quadro
    * ser a segunda coisa que você vê depois de já ter lido a primeira.
    *
-   * Mesmo caminho do `TaskDetail`, que já era uma sub-tela daqui.
+   * Mesmo caminho do `TaskDetail`, que continua sendo sub-tela daqui — e a
+   * diferença entre os dois é a `029`: o quadro tem endereço na sidebar e o
+   * detalhe não, então quem guarda o quadro é o App e quem guarda o detalhe é
+   * esta tela.
    */
-  const [board, setBoard] = useState(false);
+  const board = view === "board";
+  const setBoard = (open: boolean) => {
+    onView(open ? "board" : "home");
+  };
   const projects = useQuery({
     queryKey: projectsKey(workspaceId),
     queryFn: () => trpc.project.listByWorkspace.query({ workspaceId }),
@@ -131,7 +148,15 @@ export function WorkspacePanel({
             {workspaceName}
           </button>
           <span className="crumb__sep">/</span>
-          <span className="crumb__here">Quadro</span>
+          {/*
+            `Quadro de tarefas`, e o nome inteiro é a resposta da Q3a da `029`.
+
+            Tarefas podem ser vistas como lista, quadro, gantt ou outra coisa —
+            titular a tela pelo assunto apagaria **qual** visão está na frente, e
+            apagaria justamente no dia em que existir a segunda. A linha da
+            sidebar fica só com o assunto, porque é de lá que se escolhe o quê.
+          */}
+          <span className="crumb__here">Quadro de tarefas</span>
         </div>
         <Board
           workspaceId={workspaceId}

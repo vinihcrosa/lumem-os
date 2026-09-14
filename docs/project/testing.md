@@ -1050,6 +1050,44 @@ chamava `markNotified` e deixava `notified_at` nulo.
 A regra: **um cache com entrada e sem saída é um vazamento de estado, não um cache.** O sinal de saída
 já existia e estava sendo ignorado: a frase vir nula **é** o daemon dizendo que registrou.
 
+### Texto de leitor de tela é texto, e a suíte procura por texto
+
+**Sintoma:** um caso do `pull-request.spec.ts` que não tinha sido tocado passou a falhar com
+*"strict mode violation: resolved to 2 elements"*, e o segundo elemento era um `<span class="sr-only">`
+de outra tela.
+
+**Causa:** a linha `Tarefas` da sidebar ganhou `1 tarefa precisa de você` para leitor de tela, e a
+barra de PR já tinha um grupo de checks chamado `precisa de você`. O `sr-only` não está **na tela** —
+`clip-path: inset(50%)` — mas está no **`textContent`**, que é por onde `getByText` procura. É a
+armadilha do *mesmo nome em duas peças* que a `021` já pagou com 22 e2e, com uma volta a mais: a peça
+nova é invisível.
+
+O conserto é dos dois lados, e os dois se pagam: a frase nova virou `esperando você` — duplicar uma
+frase que o produto já usa para outra coisa é ruim em copy antes de ser ruim em teste — e a asserção
+antiga ganhou `{ exact: true }`, porque uma frase curta sem âncora quebra de novo no próximo texto
+que a contiver.
+
+A regra: **ao escrever `sr-only`, procure a frase na suíte antes.** Ela conta como texto para todo
+`getByText` do repositório.
+
+### Um caso que não pode falhar é um caso que não existe
+
+**Sintoma:** nenhum — o e2e *"o bloco não rola com a árvore"* passava, inclusive contra o código com o
+bloco deslocado 40px.
+
+**Causa:** ele rolava a `.tree` e comparava o `y` do bloco antes e depois. **No fixture a árvore não
+rola**: um projeto e três linhas cabem inteiros na coluna, então `scrollTop = scrollHeight` não move
+nada e os dois `y` são iguais por construção.
+
+O que o expôs foi uma linha de **teste do teste** — `expect(rolou).toBeGreaterThan(0)` sobre o
+`scrollTop` que a rolagem produziu —, e ela ficou vermelha na hora. O conserto é encolher a janela
+para 320px de altura, e aí o caso existe: com o bloco movido para dentro da `.tree`, o `y` sai de 89
+para 76 e ele falha.
+
+A regra é a que a seção de convenções já tem, dita de outro jeito: **asserção que não pode falhar
+conta como teste faltando** — e a maneira de descobrir é asserir a **premissa** do caso, não só a
+conclusão.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
