@@ -495,6 +495,16 @@ export function createSessionStore({
           mode: agent.mode,
           model: agent.model,
           resumedFromId: row.id,
+          /*
+           * A tarefa e o encaixe **atravessam** a retomada (`028` Parte 7 — T57).
+           *
+           * Retomar produz uma linha nova, e sem estes dois a conversa do
+           * implementador ficava órfã: o custo dela sairia da conta da tarefa, e
+           * a esteira não a reencontraria na tentativa seguinte — que é
+           * exatamente o que a retomada existe para evitar.
+           */
+          ...(row.taskId === null ? {} : { taskId: row.taskId }),
+          ...(row.taskRole === null ? {} : { taskRole: row.taskRole }),
         });
       } catch (error) {
         // Same rule as `start`: a conversation the daemon cannot describe is one

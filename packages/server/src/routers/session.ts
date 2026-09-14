@@ -131,6 +131,15 @@ export const sessionRouter = router({
          * fora o portão por sessão que a `016` existe para impor.
          */
         autonomous: z.boolean().default(false),
+        /**
+         * Qual encaixe da esteira esta sessão serve (`028` Parte 7 — T57).
+         *
+         * Ausente em tudo que não é a esteira, e é o que a deixa ser
+         * **reencontrada**: a segunda tentativa do implementador retoma a
+         * conversa dele. Só o daemon o preenche, pelo mesmo portão do
+         * `autonomous`.
+         */
+        taskRole: z.enum(["implementador", "revisor", "testador"]).optional(),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -143,7 +152,7 @@ export const sessionRouter = router({
          * tela **nunca** abre uma conversa que nasce liberada, e agora isso é
          * uma recusa em vez de uma convenção.
          */
-        if (input.autonomous && ctx.internal !== true) {
+        if ((input.autonomous || input.taskRole !== undefined) && ctx.internal !== true) {
           throw new DomainError(
             "BLOCKED",
             "só a esteira abre uma sessão que nasce sem quem responda permissão",
@@ -225,7 +234,13 @@ export const sessionRouter = router({
          * falhar; a coluna não.
          */
         if (input.taskId !== undefined) {
-          await ctx.db.update(session).set({ taskId: input.taskId }).where(eq(session.id, row.id));
+          await ctx.db
+            .update(session)
+            .set({
+              taskId: input.taskId,
+              ...(input.taskRole === undefined ? {} : { taskRole: input.taskRole }),
+            })
+            .where(eq(session.id, row.id));
           const linked = await createTaskRepository(ctx.db).get(input.taskId);
           if (linked) ctx.events.emit({ type: "task.changed", workspaceId: linked.workspaceId });
         }

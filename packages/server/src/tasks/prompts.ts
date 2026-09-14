@@ -41,6 +41,20 @@ export interface PromptFacts {
   dirty: boolean;
   /** A instrução do agente nomeado, quando há um (§5.1). */
   instructions: string;
+  /**
+   * O que o revisor devolveu, e **só o que ele demonstrou** (Parte 7 — T58).
+   *
+   * Vazio em toda etapa que não é uma volta do revisor. Cada item é comando e
+   * saída — **fato**, e não o raciocínio do revisor.
+   *
+   * **Isto abre um caminho que a [Q47] não previu**, e a fronteira dela continua
+   * inteira: ela proíbe o **implementador briefar o revisor**, para não enviesar
+   * o parecer. O caminho contrário carrega o que o daemon **rerodou** — é da
+   * mesma natureza do `git status` da Q49, e não do resumo que ela recusa.
+   *
+   * [Q47]: ../../../../docs/features/028-autonomous-orchestration/open-questions.md
+   */
+  returned?: readonly { title: string; command: string }[];
 
 }
 
@@ -89,6 +103,27 @@ export function promptFor(facts: PromptFacts): string {
 
   parts.push(`## ${facts.title}`);
   if (facts.body.trim() !== "") parts.push(facts.body.trim());
+
+  /*
+   * O que o revisor devolveu, **depois** da tarefa.
+   *
+   * Depois porque é sobre ela: pôr antes faria a primeira coisa que o agente lê
+   * ser uma correção de um trabalho que ele ainda não sabe qual é.
+   *
+   * E é **só** comando e título. O texto livre do revisor não atravessa — o que
+   * volta é o que o daemon conseguiu rerodar, que é o que a Q67 chama de fato.
+   */
+  if (facts.returned !== undefined && facts.returned.length > 0) {
+    parts.push(
+      [
+        "## O que a revisão devolveu",
+        "",
+        "Cada um destes o daemon **rodou** e reproduziu. Conserte e commite:",
+        "",
+        ...facts.returned.map((one) => `- ${one.title}\n  \`${one.command}\``),
+      ].join("\n"),
+    );
+  }
 
   return parts.join("\n\n");
 }

@@ -330,6 +330,22 @@ export const session = sqliteTable(
     // A referência é preguiçosa porque `task` é declarada depois — `session`
     // veio antes dela por três features.
     taskId: text("task_id").references((): AnySQLiteColumn => task.id, { onDelete: "set null" }),
+    /**
+     * Qual encaixe esta sessão serve (`028` Parte 7 — T57).
+     *
+     * Nula em tudo que não é a esteira — uma conversa que você abriu não tem
+     * papel, e inventar um seria o produto afirmando o que não sabe.
+     *
+     * Existe para a esteira **reencontrar a própria conversa**: a segunda
+     * tentativa do implementador retoma a sessão dele em vez de abrir outra. A
+     * `LUM-51` produziu seis sessões para uma tarefa, e cada uma pagou o
+     * contexto do zero — 453 884 tokens ao todo.
+     *
+     * **Coluna, e não dedução:** o `kind` não diz papel, o `agent_config` é
+     * compartilhado entre os três, e derivar da etapa em que a tarefa está hoje
+     * responderia errado sobre uma sessão de ontem.
+     */
+    taskRole: text("task_role"),
     ...timestamps,
   },
   (table) => [
@@ -986,6 +1002,21 @@ export const task = sqliteTable(
      */
     attempts: integer("attempts").notNull().default(0),
     /**
+     * Quantas vezes o revisor devolveu esta tarefa (`028` Parte 7 — T58).
+     *
+     * **Separada de `attempts`, e é o que impede o vaivém infinito.** `attempts`
+     * zera na mudança de etapa, porque mudar de etapa *é* a conclusão daquela
+     * etapa — e é justamente isso que faria o ciclo
+     * `implementador → revisor → implementador` nunca acabar: cada volta zera o
+     * contador do outro lado.
+     *
+     * Ela conta **a volta**, não a tentativa, e não zera sozinha. É o teto que
+     * responde ao medo que originou a Parte 7: *"toda vez que você pede um
+     * review, o agente acha alguma coisa"* — se ele achar sempre, o cartão para
+     * com o motivo escrito em vez de circular para sempre.
+     */
+    bounces: integer("bounces").notNull().default(0),
+    /**
      * Se a esteira pode pegar **esta** tarefa (`028` Parte 2, T22).
      *
      * Dois valores, e o default é `inherit`: a tarefa segue o interruptor do
@@ -1121,6 +1152,7 @@ export const task = sqliteTable(
     // incremento — um `- 1` em algum lugar viraria um contador que anda para
     // trás sem ninguém notar.
     check("task_attempts_not_negative", sql`${table.attempts} >= 0`),
+    check("task_bounces_not_negative", sql`${table.bounces} >= 0`),
     // Os dois sentidos: prompt sem papel não sabe que sessão abrir, e papel sem
     // prompt é um preparo que não preparou nada.
     check(

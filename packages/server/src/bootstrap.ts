@@ -329,7 +329,7 @@ export async function bootstrap({
         const created = await api.worktree.create({ projectId, name, taskId });
         return { id: created.id, path: created.path };
       },
-      openAgentSession: async ({ taskId, adapter, model, cwd, worktreeId, agentMode }) => {
+      openAgentSession: async ({ taskId, role, adapter, model, cwd, worktreeId, agentMode }) => {
         // `cwd` não é usado: a sessão da esteira é **de escopo**, e o escopo é a
         // worktree — o daemon resolve o diretório dela, como faz para toda
         // conversa aberta pela tela.
@@ -344,6 +344,10 @@ export async function bootstrap({
           scopeId: worktreeId,
           agentConfigId: configured,
           taskId,
+          // O encaixe que ela serve: é o que a deixa ser **reencontrada** na
+          // tentativa seguinte, em vez de a esteira abrir a sétima conversa
+          // sobre a mesma tarefa (Parte 7 — T57).
+          taskRole: role,
           // Não há ninguém do outro lado. Ver a nota da procedure: é **nascer**
           // liberada, e não trocar — o portão do `016` protege a troca.
           autonomous: true,
@@ -381,6 +385,18 @@ export async function bootstrap({
        */
       closeSession: async (sessionId) => {
         await sessionStore.close(sessionId);
+      },
+      /*
+       * Retomar a conversa do encaixe (Parte 7 — T57).
+       *
+       * `resume` produz uma linha **nova** carregando o `acp_session_id` da
+       * velha: `session/load` sobe um adaptador e manda a conversa de volta, e
+       * não ressuscita o processo de ontem. É como o produto já faz *"retomar"*
+       * desde a `006`.
+       */
+      resumeSession: async (sessionId) => {
+        const row = await sessionStore.resume(sessionId);
+        return { sessionId: row.id };
       },
       reproduce,
       liveTurns: () => acp.liveTurns(),

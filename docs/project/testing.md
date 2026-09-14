@@ -1112,6 +1112,40 @@ A regra: **injetar a ponta é o que torna a política testável, e é o que torn
 Toda porta que um teste substitui por um dublê precisa de um segundo arquivo que a exercite de
 verdade — e o `as "review"` naquela linha era o tipo mentindo exatamente onde o runtime recusava.
 
+### O e2e da esteira joga o log do daemon fora
+
+**Sintoma:** dois casos do `conveyor.spec.ts` ficaram vermelhos com
+`blockedReason` **nulo** — o cartão simplesmente não bloqueava —, e a mensagem do Playwright não dizia
+por quê, porque o defeito estava no daemon e não no navegador.
+
+**Causa:** o `startDaemon` do e2e sobe o processo com `stdio: "ignore"`. Tudo que o daemon escreve —
+inclusive o `conveyor-tick-failed`, que existe exatamente para dizer por que uma passada falhou — é
+descartado. Diagnosticar exigiu trocar para `inherit` à mão, rodar um caso, ler, e reverter.
+
+Com o log ligado, a resposta veio na primeira linha: `ACP connection closed`.
+
+A regra: **quando o sujeito do teste é o daemon, o log dele é parte da saída do teste.** Trocar dois
+caracteres à mão funciona uma vez; o custo é lembrar que dá.
+
+### Fechar e retomar a conversa a cada turno não é de graça
+
+**Sintoma:** o mesmo. A esteira contava tentativa, abria a sessão, e o `prompt` morria com
+`ACP connection closed` — então o turno nunca era julgado e o cartão nunca bloqueava com o motivo do
+portão.
+
+**Causa:** duas tasks da Parte 7 se contradiziam sem que nenhuma das duas estivesse errada. A **T52**
+manda fechar a conversa que a esteira abre (a `LUM-51` deixou três vivas). A **T57** manda a tentativa
+seguinte continuar a conversa do mesmo encaixe, em vez de pagar o contexto de novo. Juntas, viravam
+*fechar e retomar a cada turno* — e `session/load` sobe um adaptador **novo**: o par cliente/servidor
+não sobrevive ao ciclo imediato.
+
+O conserto não é escolher uma das duas: é **fechar no fim da etapa, e não no fim do turno**. A segunda
+tentativa do mesmo encaixe continua no **mesmo processo** — o que a T57 queria, por um caminho mais
+curto e sem `load` nenhum —, e a conversa fecha quando a tarefa avança, volta ou bloqueia.
+
+A regra: **duas tasks que se contradizem no código é desenho que faltou**, e a medição é que diz qual
+das duas leituras existe. Nenhum teste unitário pegaria esta — os dois lados têm dublê.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

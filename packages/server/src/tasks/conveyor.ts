@@ -38,6 +38,23 @@ import { promptFor } from "./prompts.js";
 export const MAX_ATTEMPTS = 2;
 
 /**
+ * Quantas vezes o revisor devolve a mesma tarefa antes de ela parar.
+ *
+ * **Separado do `MAX_ATTEMPTS`, e é o que impede o vaivém infinito.** A
+ * tentativa zera na mudança de etapa — porque mudar de etapa *é* a conclusão
+ * daquela etapa —, e isso sozinho faria o ciclo
+ * `implementador → revisor → implementador` nunca acabar: cada volta zera o
+ * contador do outro lado, e nenhum teto chega.
+ *
+ * **Dois**, e o número vem do medo que originou a Parte 7: *"toda vez que você
+ * pede um review, o agente acha alguma coisa"*. Se ele achar sempre, o cartão
+ * para na terceira ida com o motivo escrito — e não circula até o orçamento
+ * acabar. Ele muda quando a esteira rodar contra trabalho de verdade, como o
+ * `MAX_ATTEMPTS` mudará.
+ */
+export const MAX_BOUNCES = 2;
+
+/**
  * Quanto tempo um turno pode levar antes de a esteira desistir dele.
  *
  * **Existe porque um turno pode não acabar nunca**, e o e2e provou: quando o
@@ -94,6 +111,13 @@ export interface ConveyorPorts {
   /** A worktree, criada ou reusada, com o `setup` já rodado (T26). */
   prepareCheckout(entry: QueueEntry): Promise<PreparedCheckout>;
   /**
+   * O que o revisor devolveu e o daemon **reproduziu** (Parte 7 — T58).
+   *
+   * Vazio quando não houve volta. Só o implementador o recebe: é para ele que a
+   * tarefa voltou.
+   */
+  returned(taskId: string): Promise<readonly { title: string; command: string }[]>;
+  /**
    * Abre a sessão do encaixe.
    *
    * Em `bypassPermissions`, e isso **não** é escrito aqui: a
@@ -139,6 +163,15 @@ export interface ConveyorPorts {
   countAttempt(taskId: string): Promise<number>;
   /** O daemon movendo a seta. Nenhum agente chama isto. */
   advance(input: { task: TaskRow; role: Role }): Promise<void>;
+  /**
+   * O revisor devolveu: a tarefa volta para quem escreveu (`028` Parte 7 — T58).
+   *
+   * **A seta anda para trás**, e é a única que anda: sem ela o cartão ficava em
+   * `review` e a passada seguinte entregava ao revisor o **mesmo** código que
+   * ele acabou de reprovar. Devolve quantas voltas já houve, para quem chama
+   * saber quando parar.
+   */
+  bounce(input: { taskId: string; reason: string }): Promise<number>;
   /** Tentativa esgotada: o cartão para, com o motivo. */
   block(input: { taskId: string; reason: string }): Promise<void>;
   /** O que este turno deixou registrado na tarefa (T21). */
@@ -257,6 +290,16 @@ export function createConveyor(
       }
       return;
     }
+
+    /*
+     * O que o revisor devolveu, e **só o implementador lê** (T58).
+     *
+     * É para ele que a tarefa voltou. O revisor recebendo os próprios achados de
+     * volta seria a conversa dele consigo mesma, e o testador recebendo-os seria
+     * o canal que a Q47 fecha.
+     */
+    const returned =
+      entry.role === "implementador" ? await ports.returned(entry.task.id) : [];
     const promptWith = (attempt: number): string =>
       promptFor({
         role: entry.role,
@@ -266,6 +309,7 @@ export function createConveyor(
         attempt,
         dirty: checkout.dirty,
         instructions: agent.instructions,
+        returned,
       });
 
     if (autonomy === "assistido") {
@@ -361,15 +405,38 @@ export function createConveyor(
     });
 
     /*
-     * A sessão fecha assim que o turno é julgado (T52).
+     * A conversa fecha quando a tarefa **sai** da etapa deste encaixe (T52).
      *
-     * Depois do comentário e antes de qualquer decisão: o que vem abaixo pode
-     * lançar, e uma sessão que sobrevive a um `advance` recusado é exatamente o
-     * processo órfão que a Parte 7 achou vivo três vezes.
+     * `unfinished` e `fail` sem volta deixam o cartão onde está, e o mesmo
+     * encaixe tenta de novo — **na mesma conversa**. Fechar a cada turno
+     * obrigaria a tentativa seguinte a retomar, e foi exatamente isso que o e2e
+     * da esteira respondeu com `ACP connection closed`.
      */
-    await ports.closeSession(sessionId).catch(() => undefined);
+    const leaving = async () => {
+      await ports.closeSession(sessionId).catch(() => undefined);
+    };
+
+    /*
+     * O revisor reprovou com algo que **reproduziu**: a tarefa volta.
+     *
+     * Antes da contagem de tentativa, e não depois: o que esgota aqui é a
+     * **volta**, e não a tentativa — `attempts` zera na mudança de etapa, então
+     * ele nunca chegaria ao teto num ciclo que troca de etapa a cada passo.
+     */
+    if (verdict.kind === "fail" && entry.role === "revisor") {
+      await leaving();
+      const voltas = await ports.bounce({ taskId: entry.task.id, reason: verdict.reason });
+      if (voltas > MAX_BOUNCES) {
+        await blockWith(
+          entry.task.id,
+          `o revisor devolveu ${String(MAX_BOUNCES)} vezes — a última: ${verdict.reason}`,
+        );
+      }
+      return;
+    }
 
     if (verdict.kind === "pass") {
+      await leaving();
       await ports.advance({ task: entry.task, role: entry.role });
       /*
        * *"Pronta para mesclar"* sai quando a etapa que anda é a **última** da
@@ -388,7 +455,11 @@ export function createConveyor(
      * sem agenda, sem `setTimeout`, sem estado. Quando a tentativa acabar, é a
      * chamada de cima que bloqueia.
      */
-    if (attempt >= MAX_ATTEMPTS) await blockWith(entry.task.id, verdict.reason);
+    if (attempt >= MAX_ATTEMPTS) {
+      // Bloquear tira a tarefa da fila, então o encaixe sai de cena junto.
+      await leaving();
+      await blockWith(entry.task.id, verdict.reason);
+    }
   }
 
   return {

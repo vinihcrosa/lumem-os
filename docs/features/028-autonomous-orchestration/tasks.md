@@ -1400,6 +1400,10 @@ Na tarefa (a tabela da [`022`](../022-workspace-tasks/prd.md) já existe) e na P
 
 ## Fase 27 — a PR e a sessão
 
+**T57 e T58 entregues em 2026-09-14.** A T52 foi **corrigida por elas**: fechar a conversa a cada
+turno obrigava a tentativa seguinte a retomar, e o e2e respondeu `ACP connection closed`. Ela fecha
+no fim da **etapa**.
+
 #### T56: A PR abre na primeira implementação ([Q68](open-questions.md))
 
 E não em `ready_to_merge`. É o endereço do balde `anota`, e é o que faz o marco `pr` do §6 — que

@@ -1,10 +1,10 @@
 import { adapterById } from "@lumem/shared";
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { existsSync } from "node:fs";
 
 import { createAgentCatalog, type Role } from "../agents/catalog.js";
 import type { Db } from "../db/index.js";
-import { project, worktree } from "../db/schema.js";
+import { project, session as sessionTable, worktree } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import type { GitService } from "../git/GitService.js";
 import { createTaskRepository, type TaskStatus } from "../repositories/task.js";
@@ -56,7 +56,15 @@ export interface ConveyorDeps {
     worktreeId: string;
     /** `null` quando o adaptador não declara um modo que não pergunta. */
     agentMode: string | null;
+    /** Qual encaixe ela serve. É o que a deixa ser reencontrada (T57). */
+    role: Role;
   }): Promise<{ sessionId: string }>;
+  /**
+   * Retoma a conversa de um encaixe que já trabalhou nesta tarefa (T57).
+   *
+   * `null` quando não deu — e aí a esteira abre uma nova em vez de parar.
+   */
+  resumeSession(sessionId: string): Promise<{ sessionId: string } | null>;
   prompt(input: { sessionId: string; text: string }): Promise<void>;
   /** Interrompe um turno que passou do teto. Falhar aqui não é fatal. */
   cancel(sessionId: string): Promise<void>;
@@ -249,7 +257,7 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
       return { worktreeId: checkout.id, path: checkout.path, dirty: !status.clean, head };
     },
 
-    openSession: async ({ taskId, adapter, model, cwd, worktreeId }) => {
+    openSession: async ({ taskId, role, adapter, model, cwd, worktreeId }) => {
       /*
        * A postura de permissão vem da **spec do adaptador**, nunca escrita aqui
        * (Q41 e Q43). A Q43 mediu que dos cinco modos do Claude só
@@ -262,7 +270,47 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
        * proíbe, e o jeito de preencher é medir.
        */
       const agentMode = adapterById(adapter)?.autonomousMode ?? null;
-      return deps.openAgentSession({ taskId, adapter, model, cwd, worktreeId, agentMode });
+
+      /*
+       * A conversa deste encaixe, se ela já existe (Parte 7 — T57).
+       *
+       * **Um implementador, um revisor, um testador por tarefa.** A `LUM-51`
+       * produziu **seis** sessões, e cada uma pagou o contexto do zero: 453 884
+       * tokens ao todo. A segunda tentativa do implementador tem que continuar a
+       * conversa dele, não começar outra.
+       *
+       * `resume` e não "reabrir a mesma linha": `session/load` **não ressuscita**
+       * o processo de ontem — ele sobe um adaptador novo e manda a conversa de
+       * volta. A linha nova carrega o `acp_session_id` da velha, que é como o
+       * produto já faz *"retomar"*. Por isso a mais recente é a que vale.
+       */
+      const previous = await deps.db
+        .select({ id: sessionTable.id, state: sessionTable.state })
+        .from(sessionTable)
+        .where(and(eq(sessionTable.taskId, taskId), eq(sessionTable.taskRole, role)))
+        .orderBy(desc(sessionTable.createdAt))
+        .limit(1);
+
+      const found = previous[0];
+      if (found !== undefined) {
+        /*
+         * Viva é o caso comum: a esteira só fecha a conversa quando a tarefa
+         * **sai** da etapa, então a segunda tentativa do mesmo encaixe cai aqui
+         * e continua no **mesmo processo** — sem `session/load`, sem custo.
+         */
+        if (found.state === "running") return { sessionId: found.id };
+
+        /*
+         * Morta é o daemon que reiniciou: a conversa está em disco, e retomar a
+         * traz de volta. Falhar ao retomar **não** para o turno — o transcript
+         * sumiu, o adaptador mudou de versão —, e abrir uma nova custa contexto
+         * mas entrega o trabalho.
+         */
+        const resumed = await deps.resumeSession(found.id).catch(() => null);
+        if (resumed !== null) return resumed;
+      }
+
+      return deps.openAgentSession({ taskId, adapter, model, cwd, worktreeId, agentMode, role });
     },
 
     prompt: (input) => deps.prompt(input),
@@ -341,7 +389,25 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
       });
     },
 
+    returned: async (taskId) => {
+      const open = await findings.blocking(taskId);
+      return open
+        .filter((one) => one.verification === "reproduced")
+        .map((one) => ({ title: one.title, command: one.command! }));
+    },
+
     countAttempt: (taskId) => tasks.countAttempt(taskId),
+
+    bounce: async ({ taskId, reason }) => {
+      const voltas = await tasks.countBounce(taskId);
+      /*
+       * O motivo fica escrito **na tarefa**, e não só no cartão: é o que o
+       * implementador vai ler no prompt da volta seguinte, e é o que sobra na
+       * conversa quando alguém for entender por que o cartão voltou.
+       */
+      await comments.create({ taskId, body: `o revisor devolveu: ${reason}`, actor: "human" });
+      return voltas;
+    },
 
     advance: async ({ task: row }) => {
       const next = NEXT_STAGE[row.status];

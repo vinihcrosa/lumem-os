@@ -185,6 +185,15 @@ export interface TaskRepository {
    */
   countAttempt(id: string): Promise<number>;
   /**
+   * O revisor devolveu: a tarefa volta a `in_progress` e a volta é contada.
+   *
+   * **Uma escrita só**, como o `countAttempt`: a mudança de etapa zera
+   * `attempts` na mesma linha, e um segundo `UPDATE` para incrementar `bounces`
+   * deixaria uma janela em que o cartão já está em `in_progress` com a contagem
+   * de voltas da anterior — o suficiente para o teto nunca chegar.
+   */
+  countBounce(id: string): Promise<number>;
+  /**
    * O interruptor da [Q40](../../../../docs/features/028-autonomous-orchestration/open-questions.md).
    *
    * `off` é o que **assumir** o volante escreve, e `inherit` é voltar a seguir
@@ -551,6 +560,24 @@ export function createTaskRepository(db: Db): TaskRepository {
         .where(eq(task.id, id))
         .returning();
       return row!;
+    },
+
+    async countBounce(id) {
+      const [row] = await db
+        .update(task)
+        .set({
+          status: "in_progress",
+          bounces: sql`${task.bounces} + 1`,
+          // `attempts` zera porque a etapa mudou — é a mesma regra de sempre, e
+          // é justamente por ela que `bounces` precisa existir em separado.
+          attempts: 0,
+          statusChangedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(task.id, id))
+        .returning({ bounces: task.bounces });
+      if (row === undefined) throw new DomainError("NOT_FOUND", `tarefa ${id} não existe`);
+      return row.bounces;
     },
 
     async countAttempt(id) {

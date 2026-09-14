@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { TaskRow } from "../db/schema.js";
 import {
   MAX_ATTEMPTS,
+  MAX_BOUNCES,
   commentFor,
   createConveyor,
   type ConveyorPorts,
@@ -35,6 +36,7 @@ function fakeTask(patch: Partial<TaskRow> = {}): TaskRow {
     links: "[]",
     reason: null,
     attempts: 0,
+    bounces: 0,
     autonomy: "inherit",
     preparedPrompt: null,
     preparedRole: null,
@@ -63,6 +65,7 @@ interface Harness {
     cancel: ReturnType<typeof vi.fn>;
     closeSession: ReturnType<typeof vi.fn>;
     advance: ReturnType<typeof vi.fn>;
+    bounce: ReturnType<typeof vi.fn>;
     block: ReturnType<typeof vi.fn>;
     park: ReturnType<typeof vi.fn>;
     comment: ReturnType<typeof vi.fn>;
@@ -76,6 +79,8 @@ function harness({
   facts,
   verdict = { kind: "pass" },
   attemptsSoFar = 0,
+  bouncesSoFar = 0,
+  returned = [] as readonly { title: string; command: string }[],
   dirty = false,
   instructions = "",
   checkoutFails = null,
@@ -83,6 +88,10 @@ function harness({
   facts: Partial<QueueFacts>;
   verdict?: GateVerdict;
   attemptsSoFar?: number;
+  /** Quantas vezes o revisor já devolveu esta tarefa. */
+  bouncesSoFar?: number;
+  /** O que o revisor devolveu e o daemon reproduziu. */
+  returned?: readonly { title: string; command: string }[];
   dirty?: boolean;
   instructions?: string;
   /** A frase com que `prepareCheckout` rejeita, quando ele rejeita. */
@@ -90,6 +99,7 @@ function harness({
 }): Harness {
   const calls: string[] = [];
   let attempts = attemptsSoFar;
+  let bounces = bouncesSoFar;
 
   const spies = {
     openSession: vi.fn(async (input: { taskId: string; worktreeId: string }) => {
@@ -110,6 +120,11 @@ function harness({
     }),
     advance: vi.fn(async () => {
       calls.push("advance");
+    }),
+    bounce: vi.fn(async () => {
+      calls.push("bounce");
+      bounces += 1;
+      return bounces;
     }),
     block: vi.fn(async () => {
       calls.push("block");
@@ -138,6 +153,7 @@ function harness({
     queue: () => ({ slots: 2, autonomy: "autonomo", entries: [], ...facts }),
     agentFor: async () => ({ adapter: "claude", model: null, instructions }),
     prepareCheckout: spies.prepareCheckout as unknown as ConveyorPorts["prepareCheckout"],
+    returned: async () => returned,
     openSession: spies.openSession as unknown as ConveyorPorts["openSession"],
     prompt: spies.prompt as unknown as ConveyorPorts["prompt"],
     cancel: spies.cancel as unknown as ConveyorPorts["cancel"],
@@ -149,6 +165,7 @@ function harness({
       return attempts;
     },
     advance: spies.advance as unknown as ConveyorPorts["advance"],
+    bounce: spies.bounce as unknown as ConveyorPorts["bounce"],
     block: spies.block as unknown as ConveyorPorts["block"],
     comment: spies.comment as unknown as ConveyorPorts["comment"],
     park: spies.park as unknown as ConveyorPorts["park"],
@@ -775,5 +792,93 @@ describe("os marcos do tracker são cortesia (Q64)", () => {
     // Cortesia, não portão: o trabalho já aconteceu do lado de cá.
     await expect(createConveyor(ports).tick("w1")).resolves.toBe(1);
     expect(spies.advance).toHaveBeenCalled();
+  });
+});
+
+describe("o revisor devolve, e o vaivém tem fim (Parte 7 — T58)", () => {
+  const reprovado: GateVerdict = { kind: "fail", reason: "o teste da linha 194 sobrevive" };
+  /** O cartão em `In Review`, com o encaixe que trabalha nele. */
+  const emReview = (): QueueEntry => ({ task: fakeTask({ status: "review" }), role: "revisor" });
+
+  it("reprovar devolve a tarefa, e não a deixa parada em `review`", async () => {
+    /*
+     * Sem isto o cartão ficava em `In Review` e a passada seguinte entregava ao
+     * revisor o **mesmo** código que ele acabou de reprovar — que é metade do
+     * que a `LUM-51` fez enquanto gastava US$ 11,41.
+     */
+    const { ports, spies } = harness({
+      facts: { entries: [emReview()] },
+      verdict: reprovado,
+    });
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.bounce).toHaveBeenCalledWith({
+      taskId: "t1",
+      reason: "o teste da linha 194 sobrevive",
+    });
+    // A seta **não** anda para frente: quem volta não avança.
+    expect(spies.advance).not.toHaveBeenCalled();
+  });
+
+  it("depois de `MAX_BOUNCES` voltas o cartão para, com a última frase", async () => {
+    /*
+     * É o teto que responde ao medo que originou a Parte 7: se o revisor achar
+     * alguma coisa **toda** vez, o cartão para com o motivo escrito em vez de
+     * circular até o orçamento acabar.
+     *
+     * `attempts` não daria conta: ele zera na mudança de etapa, e o ciclo troca
+     * de etapa a cada passo — nenhum teto chegaria.
+     */
+    const { ports, spies } = harness({
+      facts: { entries: [emReview()] },
+      verdict: reprovado,
+      bouncesSoFar: MAX_BOUNCES,
+    });
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.block).toHaveBeenCalledWith({
+      taskId: "t1",
+      reason: `o revisor devolveu ${String(MAX_BOUNCES)} vezes — a última: o teste da linha 194 sobrevive`,
+    });
+  });
+
+  it("o implementador lê o que foi reproduzido, e só isso", async () => {
+    const { ports, spies } = harness({
+      facts: { entries: [entry()] },
+      returned: [{ title: "o teste da linha 194 sobrevive", command: "pnpm vitest run scripts" }],
+    });
+
+    await createConveyor(ports).tick("w1");
+
+    const enviado = (spies.prompt.mock.calls[0]?.[0] as { text: string }).text;
+    expect(enviado).toContain("O que a revisão devolveu");
+    expect(enviado).toContain("pnpm vitest run scripts");
+  });
+
+  it("o revisor **não** recebe os próprios achados de volta", async () => {
+    // Seria a conversa dele consigo mesma — e para o testador seria o canal que
+    // a Q47 fecha.
+    const { ports, spies } = harness({
+      facts: { entries: [emReview()] },
+      returned: [{ title: "não devia aparecer", command: "eco" }],
+    });
+
+    await createConveyor(ports).tick("w1");
+
+    expect((spies.prompt.mock.calls[0]?.[0] as { text: string }).text).not.toContain(
+      "O que a revisão devolveu",
+    );
+  });
+
+  it("sem volta nenhuma, o prompt não ganha a seção", async () => {
+    const { ports, spies } = harness({ facts: { entries: [entry()] } });
+
+    await createConveyor(ports).tick("w1");
+
+    expect((spies.prompt.mock.calls[0]?.[0] as { text: string }).text).not.toContain(
+      "O que a revisão devolveu",
+    );
   });
 });

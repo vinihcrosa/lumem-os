@@ -1,7 +1,7 @@
 import { newId } from "@lumem/shared";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { project, task } from "../db/schema.js";
+import { project, task, taskComment } from "../db/schema.js";
 import { createTaskRepository } from "../repositories/task.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 
@@ -65,6 +65,7 @@ async function scene(status: string) {
     scripts: {} as never,
     createWorktree: () => Promise.reject(new Error("não devia cortar worktree")),
     openAgentSession: () => Promise.reject(new Error("não devia abrir sessão")),
+    resumeSession: () => Promise.reject(new Error("não devia retomar sessão")),
     prompt: () => Promise.reject(new Error("não devia mandar prompt")),
     cancel: () => Promise.resolve(),
     closeSession: () => Promise.resolve(),
@@ -81,7 +82,7 @@ async function scene(status: string) {
   const statusNow = async () =>
     (await db.select().from(task)).find((row) => row.id === created.id)?.status;
 
-  return { ports, entry, statusNow, taskId: created.id, tasks };
+  return { ports, entry, statusNow, taskId: created.id, tasks, db };
 }
 
 describe("as quatro setas da esteira andam", () => {
@@ -154,5 +155,53 @@ describe("a regra do agente não foi afrouxada", () => {
     await expect(
       tasks.setStatus(taskId, "review", { actor: "conveyor" }),
     ).rejects.toThrow(/reabrir é seu/);
+  });
+});
+
+describe("o revisor devolve, e a volta é contada (Parte 7 — T58)", () => {
+  it("a tarefa volta para `in_progress`, e `attempts` zera com a etapa", async () => {
+    const { ports, taskId, statusNow, db } = await scene("review");
+    // Duas tentativas gastas no revisor, como a `LUM-51` teve.
+    await ports.countAttempt(taskId);
+    await ports.countAttempt(taskId);
+
+    const voltas = await ports.bounce({ taskId, reason: "o teste da linha 194 sobrevive" });
+
+    expect(await statusNow()).toBe("in_progress");
+    expect(voltas).toBe(1);
+    const [row] = await db.select().from(task);
+    // `attempts` zera porque a etapa mudou — é a regra de sempre, e é
+    // exatamente por ela que `bounces` precisa existir em separado.
+    expect(row?.attempts).toBe(0);
+    expect(row?.bounces).toBe(1);
+  });
+
+  it("o motivo fica escrito na tarefa, e não só no cartão", async () => {
+    // É o que sobra na conversa quando alguém for entender por que o cartão
+    // voltou — o cartão mostra a última frase, e a tarefa guarda todas.
+    const { ports, taskId, db } = await scene("review");
+
+    await ports.bounce({ taskId, reason: "o job nunca rodou" });
+
+    const [comment] = await db.select().from(taskComment);
+    expect(comment?.body).toContain("o job nunca rodou");
+  });
+
+  it("a contagem de voltas **não** zera na ida seguinte", async () => {
+    /*
+     * É a propriedade inteira: `attempts` zera a cada troca de etapa, e o ciclo
+     * `implementador → revisor → implementador` troca de etapa a cada passo.
+     * Sem um contador que sobrevive, nenhum teto chegaria e o cartão circularia
+     * até o orçamento acabar — que é o medo que originou a Parte 7.
+     */
+    const { ports, taskId, tasks, db } = await scene("review");
+
+    await ports.bounce({ taskId, reason: "primeira" });
+    await tasks.setStatus(taskId, "review", { actor: "conveyor" });
+    await ports.bounce({ taskId, reason: "segunda" });
+
+    const [row] = await db.select().from(task);
+    expect(row?.bounces).toBe(2);
+    expect(row?.attempts).toBe(0);
   });
 });
