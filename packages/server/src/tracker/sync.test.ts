@@ -130,6 +130,61 @@ describe("a issue vira cartão, uma vez", () => {
   });
 });
 
+describe("a issue que já chega fechada", () => {
+  it("vira cartão bloqueado, com a autonomia desligada", async () => {
+    const { db, workspaceId } = await scene();
+    const closed = issue({ state: "closed" });
+
+    const result = await syncTracker(
+      { db, host: fakeHost([closed]), projectFor: firstProjectOf(db) },
+      workspaceId,
+      [closed],
+    );
+
+    /*
+     * `open` é etapa devida da esteira, e a tarefa nasce com `autonomy:
+     * "inherit"`. Sem esta guarda, um workspace em `autonomo` puxaria o cartão e
+     * gastaria um turno — cota, e possivelmente uma PR — num trabalho que o
+     * tracker já diz concluído. É a mesma decisão que o `changeOf` toma quando a
+     * issue fecha depois; o que faltava era a simetria no ramo de criação.
+     */
+    expect(result).toEqual({ created: 1, blocked: 1 });
+    const [row] = await db.select().from(task);
+    expect(row).toMatchObject({
+      blockedReason: "a issue já estava fechada no tracker",
+      autonomy: "off",
+    });
+  });
+
+  it("o cartão existe, em vez de o rótulo não fazer nada", async () => {
+    // Pular seria a outra saída, e ela é pior: *"marquei e não apareceu nada"* é
+    // indistinguível de a integração estar quebrada.
+    const { db, workspaceId } = await scene();
+    const closed = issue({ state: "closed" });
+
+    await syncTracker(
+      { db, host: fakeHost([closed]), projectFor: firstProjectOf(db) },
+      workspaceId,
+      [closed],
+    );
+
+    expect(await db.select().from(task)).toHaveLength(1);
+  });
+
+  it("a aberta continua nascendo pronta para executar", async () => {
+    const { db, workspaceId } = await scene();
+
+    await syncTracker(
+      { db, host: fakeHost([issue()]), projectFor: firstProjectOf(db) },
+      workspaceId,
+      [issue()],
+    );
+
+    const [row] = await db.select().from(task);
+    expect(row).toMatchObject({ status: "open", blockedReason: null, autonomy: "inherit" });
+  });
+});
+
 describe("mudou no meio, e o cartão diz qual das três (Q63)", () => {
   const stored = {
     externalState: "open",

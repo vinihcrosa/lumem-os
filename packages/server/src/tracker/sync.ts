@@ -135,6 +135,28 @@ export async function syncTracker(
         bodyHash: bodyHash(issue.body),
       });
       created += 1;
+
+      /*
+       * A issue que **já chega fechada**, e ela precisa da mesma guarda que a
+       * que fecha depois.
+       *
+       * Acontece de dois jeitos banais: o rótulo posto numa issue já concluída,
+       * ou a issue fechada entre a marcação e a primeira passada. Sem isto ela
+       * vira cartão em `open` — que é etapa devida — herdando a autonomia do
+       * workspace, e num workspace em `autonomo` a esteira puxa o cartão e gasta
+       * um turno inteiro (cota, e possivelmente uma PR) num trabalho que o
+       * tracker já diz concluído.
+       *
+       * **Bloqueada e não pulada**: pular deixaria o rótulo sem efeito visível
+       * nenhum, e *"marquei e não apareceu nada"* é indistinguível de a
+       * integração estar quebrada. O cartão existe, diz por que parou, e quem
+       * quiser executá-lo mesmo assim destrava — que é o que o bloqueio é.
+       */
+      if (issue.state === "closed") {
+        await tasks.setBlocked(row.id, "a issue já estava fechada no tracker");
+        await tasks.setAutonomy(row.id, "off");
+        blocked += 1;
+      }
       continue;
     }
 
