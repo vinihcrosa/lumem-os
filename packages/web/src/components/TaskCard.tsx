@@ -1,4 +1,4 @@
-import type { BoardCard } from "../lib/board.js";
+import type { BoardCard, BoardStatus } from "../lib/board.js";
 import { elapsed, sealModifier, TaskSeal } from "./TaskSeal.js";
 import { staleLevel } from "../lib/board.js";
 
@@ -26,6 +26,15 @@ function costLabel(card: BoardCard): string {
 
 export interface TaskCardProps {
   card: BoardCard;
+  /**
+   * Em qual coluna ele está.
+   *
+   * Vem de fora porque o cartão **não carrega o próprio estado**: o daemon
+   * agrupa a resposta do quadro por coluna, e `BoardCard` não tem `status` —
+   * então `staleLevel(card, now)` lia `undefined` e devolvia `null` para todo
+   * cartão, apagando a cor de encalhe do rodapé inteira.
+   */
+  status: BoardStatus;
   now?: number;
   onOpen: (taskId: string) => void;
   /** Enquanto o cartão está sendo arrastado, ele é fantasma no lugar de origem. */
@@ -53,6 +62,7 @@ function noteOf(card: BoardCard): string | null {
 
 export function TaskCard({
   card,
+  status,
   now = Date.now(),
   onOpen,
   ghost = false,
@@ -61,7 +71,7 @@ export function TaskCard({
   onSend,
   onStop,
 }: TaskCardProps) {
-  const stale = staleLevel(card, now);
+  const stale = staleLevel(card, now, status);
   const tracker = card.links[0];
   const note = noteOf(card);
   const sendable = card.preparedPrompt !== null && onSend !== undefined;

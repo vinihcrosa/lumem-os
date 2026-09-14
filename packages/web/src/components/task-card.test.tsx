@@ -43,7 +43,7 @@ function card(overrides: Partial<BoardCard> = {}): BoardCard {
 
 describe("a tentativa só aparece quando é maior que um", () => {
   it("uma tentativa não é escrita", () => {
-    render(<TaskCard card={card({ attempts: 1 })} now={NOW} onOpen={vi.fn()} />);
+    render(<TaskCard status="in_progress" card={card({ attempts: 1 })} now={NOW} onOpen={vi.fn()} />);
 
     // `tentativa 1` é o caso de toda tarefa que a esteira pegou. Escrevê-lo em
     // todo cartão seria um número que não distingue nada de nada.
@@ -51,7 +51,7 @@ describe("a tentativa só aparece quando é maior que um", () => {
   });
 
   it("a segunda é", () => {
-    render(<TaskCard card={card({ attempts: 2 })} now={NOW} onOpen={vi.fn()} />);
+    render(<TaskCard status="in_progress" card={card({ attempts: 2 })} now={NOW} onOpen={vi.fn()} />);
 
     expect(screen.getByText("tentativa 2")).toBeInTheDocument();
   });
@@ -61,6 +61,7 @@ describe("o cartão bloqueado diz do quê", () => {
   it("o motivo aparece inteiro, e não só no selo", () => {
     render(
       <TaskCard
+        status="in_progress"
         card={card({ seal: { kind: "blocked", reason: "o teste do projeto falhou (saída 1)" } })}
         now={NOW}
         onOpen={vi.fn()}
@@ -77,7 +78,7 @@ describe("o cartão bloqueado diz do quê", () => {
   });
 
   it("um cartão que não está bloqueado não ganha a linha", () => {
-    render(<TaskCard card={card()} now={NOW} onOpen={vi.fn()} />);
+    render(<TaskCard status="in_progress" card={card()} now={NOW} onOpen={vi.fn()} />);
 
     expect(document.querySelector(".tcard__ask")).toBeNull();
   });
@@ -88,6 +89,7 @@ describe("o `assistido` mostra o que ia ser enviado", () => {
     const onSend = vi.fn();
     render(
       <TaskCard
+        status="in_progress"
         card={card({ preparedPrompt: "Implemente a tarefa abaixo neste checkout." })}
         now={NOW}
         onOpen={vi.fn()}
@@ -105,6 +107,7 @@ describe("o `assistido` mostra o que ia ser enviado", () => {
     const onSend = vi.fn();
     render(
       <TaskCard
+        status="in_progress"
         card={card({ preparedPrompt: "faça isto" })}
         now={NOW}
         onOpen={onOpen}
@@ -124,16 +127,67 @@ describe("o `assistido` mostra o que ia ser enviado", () => {
   });
 
   it("sem quem enviar, o verbo não aparece", () => {
-    render(<TaskCard card={card({ preparedPrompt: "faça isto" })} now={NOW} onOpen={vi.fn()} />);
+    render(<TaskCard status="in_progress" card={card({ preparedPrompt: "faça isto" })} now={NOW} onOpen={vi.fn()} />);
 
     // Um botão que não faz nada é pior que nenhum: ele promete um gesto.
     expect(screen.queryByRole("button", { name: "enviar" })).toBeNull();
   });
 
   it("sem nada preparado, nem a linha nem o verbo", () => {
-    render(<TaskCard card={card()} now={NOW} onOpen={vi.fn()} onSend={vi.fn()} />);
+    render(<TaskCard status="in_progress" card={card()} now={NOW} onOpen={vi.fn()} onSend={vi.fn()} />);
 
     expect(document.querySelector(".tcard__act")).toBeNull();
+  });
+});
+
+describe("o relógio do rodapé é pintado, e a coluna é quem diz", () => {
+  /** Duas horas é o `over` de `in_progress`; meia hora é o `warn`. */
+  const sinceMinutes = (minutes: number) => new Date(NOW - minutes * 60_000).toISOString();
+
+  it("âmbar e vermelho saem da coluna em que o cartão está", () => {
+    /*
+     * `BoardCard` **não tem `status`**: o daemon agrupa a resposta por coluna, e
+     * ela mora no grupo. Chamando `staleLevel(card, now)` sem o terceiro
+     * argumento, a função lia `undefined`, devolvia `null` para todo cartão e o
+     * modificador nunca era aplicado — a cor de encalhe por cartão ficava morta
+     * com o ponto agregado do cabeçalho continuando certo, que é o jeito mais
+     * caro de esconder um defeito.
+     */
+    const { rerender } = render(
+      <TaskCard
+        status="in_progress"
+        card={card({ statusChangedAt: sinceMinutes(45) })}
+        now={NOW}
+        onOpen={vi.fn()}
+      />,
+    );
+    expect(document.querySelector(".stale--warn")).not.toBeNull();
+
+    rerender(
+      <TaskCard
+        status="in_progress"
+        card={card({ statusChangedAt: sinceMinutes(180) })}
+        now={NOW}
+        onOpen={vi.fn()}
+      />,
+    );
+    expect(document.querySelector(".stale--over")).not.toBeNull();
+  });
+
+  it("a mesma idade em `open` não cobra nada", () => {
+    // `To-Do` não tem limiar: com teto, estar parado ali é o desenho — e cobrar
+    // o que é desenho é a forma mais rápida de tornar o aviso invisível.
+    render(
+      <TaskCard
+        status="open"
+        card={card({ statusChangedAt: sinceMinutes(180) })}
+        now={NOW}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelector(".stale--warn")).toBeNull();
+    expect(document.querySelector(".stale--over")).toBeNull();
   });
 });
 
@@ -141,13 +195,13 @@ describe("`parar` só aparece quando há o que parar (Q57)", () => {
   const working = { kind: "working" as const, role: "implementador" as const, since: new Date().toISOString() };
 
   it("um cartão com turno em voo oferece o verbo", () => {
-    render(<TaskCard card={card({ seal: working })} now={NOW} onOpen={vi.fn()} onStop={vi.fn()} />);
+    render(<TaskCard status="in_progress" card={card({ seal: working })} now={NOW} onOpen={vi.fn()} onStop={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "parar" })).toBeInTheDocument();
   });
 
   it("um cartão parado não oferece", () => {
-    render(<TaskCard card={card()} now={NOW} onOpen={vi.fn()} onStop={vi.fn()} />);
+    render(<TaskCard status="in_progress" card={card()} now={NOW} onOpen={vi.fn()} onStop={vi.fn()} />);
 
     // O verbo custa: ele interrompe um turno pago. Oferecê-lo onde ninguém está
     // trabalhando seria um botão que não faz nada visível — e um botão assim
@@ -158,7 +212,7 @@ describe("`parar` só aparece quando há o que parar (Q57)", () => {
   it("clicar em parar não abre a tarefa", () => {
     const onOpen = vi.fn();
     const onStop = vi.fn();
-    render(<TaskCard card={card({ seal: working })} now={NOW} onOpen={onOpen} onStop={onStop} />);
+    render(<TaskCard status="in_progress" card={card({ seal: working })} now={NOW} onOpen={onOpen} onStop={onStop} />);
 
     fireEvent.click(screen.getByRole("button", { name: "parar" }));
 

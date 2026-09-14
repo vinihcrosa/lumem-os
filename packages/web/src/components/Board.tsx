@@ -312,6 +312,7 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
                     >
                       <TaskCard
                         card={card}
+                        status={column.status}
                         now={now}
                         onOpen={open}
                         ghost={dragging === card.id}
