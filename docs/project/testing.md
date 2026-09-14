@@ -789,6 +789,102 @@ produto fixa"**. O `installAdapter` aceitava qualquer binário existente e repor
 rodado o Lumem, e a tela dizia o número novo. Um campo de versão que repete a constante em vez de ler
 o disco é um campo que **não pode ficar vermelho**.
 
+### Chave de cache escrita à mão é chave que ninguém invalida
+
+**Sintoma:** com a esteira andando e o quadro aberto na frente de quem olha, nada se mexia — selo,
+relógio de encalhe, a contagem de *precisa de mim* e o aviso do topo, todos congelados até alguém
+arrastar um cartão. E na lista de tarefas, clicar num degrau da esteira gravava no daemon e a barra
+**voltava ao valor antigo**: o degrau não recebia `btn--brand` e o checkbox desmarcava sozinho.
+
+**Causa:** duas chaves de query nasceram inline no componente — `["task", "board", …]` no `Board.tsx`
+e `["task", "settings", …]` no `TaskList.tsx` — em vez de no
+[`queryKeys.ts`](../../packages/web/src/lib/queryKeys.ts), que existe exatamente para isso e cujo
+cabeçalho já dizia por quê: *"dois componentes invalidando o mesmo dado com chaves que diferem por um
+caractere é um bug que parece UI velha, e é invisível em review"*. O `invalidateFor` invalida
+`["task", "listByWorkspace", ws]` e `["task", "get"]`, e **nenhum dos dois é prefixo** das duas. Com
+`refetchOnWindowFocus` desligado no cliente inteiro e sem `refetchInterval`, o que sobra é a própria
+mutação — então a tela só reagia ao que ela mesma fazia.
+
+A regra: **chave inline é a versão da chave que o `invalidateFor` não conhece.** O arquivo de chaves
+não é organização, é a lista do que o daemon consegue alcançar.
+
+**O que passou a avisar antes:** um caso em `useLiveState.test.tsx` que exige `["task", "board"]` e
+`["task", "settings"]` no `task.changed`, e um em `tasks-ui.test.tsx` que clica no degrau e conta
+**duas** chamadas de `task.settings.query` — a leitura do clique, e não o `btn--brand`, porque a
+classe estaria certa com o dado errado no cache de qualquer jeito.
+
+### Argumento opcional no fim da assinatura apaga a função em silêncio
+
+**Sintoma:** nenhum cartão do quadro ficava âmbar ou vermelho, nunca. O ponto agregado no cabeçalho da
+coluna continuava certo, o que é o que fez isso durar: a mesma regra, lida de dois lugares, discordando
+em silêncio.
+
+**Causa:** `staleLevel(card, now, status)` tem o terceiro parâmetro opcional e cai em `card.status`
+quando ele falta. Só que `BoardCard` **não tem `status`** — o daemon agrupa a resposta por coluna, e a
+coluna mora no grupo —, então `column` era `undefined` e a função devolvia `null` para todo cartão.
+O `TaskCard` chamava com dois argumentos; o `staleCount` do cabeçalho, com três.
+
+O opcional existia para um objeto que carregasse o próprio estado, e nenhum dos dois chamadores é
+esse. **Um `?? card.status` sobre um campo que o tipo declara opcional não falha o typecheck e não
+falha o teste — ele devolve o valor neutro**, que aqui é *"não há encalhe"*: a resposta mais parecida
+com estar tudo bem.
+
+**O que passou a avisar antes:** `status` virou prop obrigatória do `TaskCard`, e o teste pergunta
+pela classe (`.stale--warn`, `.stale--over`) com a mesma idade em duas colunas — `in_progress`, que
+tem limiar, e `open`, que não tem.
+
+### O ramo que "nasce sem chamador" continua sem chamador quando o chamador chega
+
+**Sintoma:** uma sessão da esteira com `budgetCostPerDay` configurado gastava acima do teto
+indefinidamente. O `decideBudget` tem três saídas e a suíte cobria as três; o ramo `block` só nunca
+acontecia em produção.
+
+**Causa:** o `budget-source.ts` passava `"human"` literal, com um comentário honesto dizendo *"quando
+a Parte 2 chegar, é este arquivo que passa a saber a diferença"*. A Parte 2 chegou **no mesmo branch**,
+e o literal ficou. Como `decideBudget` é pura e testada com os dois condutores, a suíte permaneceu
+verde: o que faltava não era o ramo, era **o dado chegando até ele**. A garantia *"a esteira para"*
+(Q45) — que é o motivo de a Parte 3 ter vindo **antes** da Parte 2 — ficou inerte, e `0 = bloqueia
+tudo` virou `0 = avisa tudo` para o único condutor que não tem quem leia o aviso.
+
+E a correção tinha uma armadilha própria: deduzir o condutor de `lumem_mode = 'free'` seria confundir
+a esteira com **a sua** conversa que atravessou o portão da [`016`](../features/016-session-mode/prd.md)
+— o teto interromperia justamente quem está olhando. O condutor é campo do `AcpSessionInfo`, passado no
+`spawn`.
+
+A regra: **um ramo sem chamador é um TODO, e TODO não fica verde sozinho.** Quando o chamador chega, o
+teste que fecha o ciclo é o que atravessa a costura inteira, não o que exercita a função pura de novo.
+
+### Contar a tentativa antes de saber se vai haver turno
+
+**Sintoma:** no degrau `assistido`, um cartão preparado esperando o clique de enviar era bloqueado
+sozinho em ~30 s, com `parou depois de 2 tentativas` e a autonomia dele desligada junto — sem nenhum
+turno ter aberto.
+
+**Causa:** `countAttempt` rodava antes do `return` do ramo `assistido`. `park` não muda nenhuma das
+duas condições que a `queueOf` lê — a autonomia da tarefa e o turno em voo —, então o cartão preparado
+**continua candidato** a cada passada, e cada passada reincrementava `attempts`. O comentário que
+justifica contar antes está certo e continua lá: o que estava errado era **o que se conta**. *Antes do
+prompt* não é *antes do preparo*.
+
+**O que passou a avisar antes:** um teste que roda `MAX_ATTEMPTS + 3` passadas em `assistido` e exige
+que `block` nunca seja chamado. O teste antigo asseverava `["prepareCheckout", "countAttempt", "park"]`
+— ele **codificava o defeito**, que é o que um teste de sequência de chamadas faz quando a sequência
+não é a pergunta.
+
+### Uma consulta global dentro de um laço por escopo multiplica a cota por N
+
+**Sintoma:** nenhum, e é o ponto. O §3.2 do [estudo](orchestration-measurements.md) mediu que o
+polling do tracker cabe em **2,4% da cota** do Linear, e o comentário no código repetia o número.
+
+**Causa:** `host.labelled(LUMEM_LABEL)` era chamado dentro do laço por workspace, e nem o rótulo nem a
+chave têm workspace dentro — as N chamadas devolviam **o mesmo conjunto**. O custo real era `N × 2,4%`;
+com ~10 workspaces, ~24% da cota gasta em chamadas idênticas. A medição estava certa sobre a consulta
+e errada sobre quantas delas existem.
+
+A regra: **quando um número medido vira comentário, o que o mantém verdadeiro é um teste que conte
+chamadas.** As issues passaram a chegar de fora do `syncTracker` — quem conhece o laço é quem sabe que
+a consulta é uma —, e o `loop.test.ts` cria três workspaces e exige `toHaveBeenCalledTimes(1)`.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
