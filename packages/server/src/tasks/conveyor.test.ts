@@ -67,6 +67,7 @@ interface Harness {
     comment: ReturnType<typeof vi.fn>;
     mark: ReturnType<typeof vi.fn>;
     prepareCheckout: ReturnType<typeof vi.fn>;
+    gate: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -76,12 +77,15 @@ function harness({
   attemptsSoFar = 0,
   dirty = false,
   instructions = "",
+  checkoutFails = null,
 }: {
   facts: Partial<QueueFacts>;
   verdict?: GateVerdict;
   attemptsSoFar?: number;
   dirty?: boolean;
   instructions?: string;
+  /** A frase com que `prepareCheckout` rejeita, quando ele rejeita. */
+  checkoutFails?: string | null;
 }): Harness {
   const calls: string[] = [];
   let attempts = attemptsSoFar;
@@ -117,7 +121,12 @@ function harness({
     }),
     prepareCheckout: vi.fn(async (entry: QueueEntry) => {
       calls.push("prepareCheckout");
+      if (checkoutFails !== null) throw new Error(checkoutFails);
       return { worktreeId: `wt-${entry.task.id}`, path: `/wt/${entry.task.id}`, dirty };
+    }),
+    gate: vi.fn(async () => {
+      calls.push("gate");
+      return verdict;
     }),
   };
 
@@ -128,7 +137,7 @@ function harness({
     openSession: spies.openSession as unknown as ConveyorPorts["openSession"],
     prompt: spies.prompt as unknown as ConveyorPorts["prompt"],
     cancel: spies.cancel as unknown as ConveyorPorts["cancel"],
-    gate: async () => verdict,
+    gate: spies.gate as unknown as ConveyorPorts["gate"],
     countAttempt: async () => {
       calls.push("countAttempt");
       attempts += 1;
@@ -488,6 +497,101 @@ describe("o clique do `assistido`", () => {
     const conveyor = createConveyor({ ...ports, prepared: async () => null });
 
     await expect(conveyor.send("t1")).rejects.toThrow(/nada preparado/);
+  });
+
+  it("o turno do clique tem o mesmo teto do autônomo", async () => {
+    const { ports, spies } = harness({ facts: {} });
+    spies.prompt.mockImplementation(() => new Promise(() => undefined));
+
+    /*
+     * O clique é seu; o turno não é. A sessão nasce liberada justamente porque
+     * não há ninguém para responder permissão — e quando o modo do agente não
+     * pôde ser trocado, ele pergunta, o pedido vai para uma pessoa que não está
+     * lá e o turno pendura para sempre com o cartão dizendo `implementando`.
+     * Nada disso é exclusivo do caminho autônomo.
+     */
+    await createConveyor(ports, { turnTimeoutMs: 1, sleep: () => Promise.resolve() }).send("t1");
+
+    expect(spies.cancel).toHaveBeenCalledWith("ses-t1");
+  });
+});
+
+describe("preparar pode falhar, e falhar preparando gasta tentativa", () => {
+  it("a passada não repesca o mesmo cartão para sempre", async () => {
+    const { ports, spies, calls } = harness({
+      facts: { entries: [entry()] },
+      checkoutFails: "o checkout desta tarefa não está mais em /wt/t1",
+    });
+    const conveyor = createConveyor(ports);
+
+    await conveyor.tick("w1");
+
+    /*
+     * Sem contar aqui, a exceção subia **antes** de qualquer escrita: sem
+     * tentativa, sem bloqueio, e a passada seguinte repescava o mesmo cartão a
+     * cada 15 s para sempre — com o único rastro num `conveyor-tick-failed` de
+     * um daemon que ninguém está olhando.
+     */
+    expect(calls).toEqual(["prepareCheckout", "countAttempt"]);
+    expect(spies.openSession).not.toHaveBeenCalled();
+  });
+
+  it("quando as tentativas acabam, o cartão para com a frase do disco", async () => {
+    const { ports, spies } = harness({
+      facts: { entries: [entry()] },
+      checkoutFails: "o checkout desta tarefa não está mais em /wt/t1",
+    });
+    const conveyor = createConveyor(ports);
+
+    for (let pass = 0; pass < MAX_ATTEMPTS; pass += 1) await conveyor.tick("w1");
+
+    // A frase é a do disco, e não `parou depois de N tentativas`: quem lê o
+    // cartão precisa saber **o que** falhou para ter como consertar.
+    expect(spies.block).toHaveBeenCalledWith({
+      taskId: "t1",
+      reason: "o checkout desta tarefa não está mais em /wt/t1",
+    });
+  });
+
+  it("o `assistido` também para, em vez de preparar para sempre", async () => {
+    // A exceção à regra do degrau: preparar **com sucesso** não gasta tentativa
+    // porque esperar o clique não é trabalho; uma falha é custo que se repete.
+    const { ports, spies } = harness({
+      facts: { autonomy: "assistido", entries: [entry()] },
+      checkoutFails: "o repositório do projeto não está mais no lugar",
+    });
+    const conveyor = createConveyor(ports);
+
+    for (let pass = 0; pass < MAX_ATTEMPTS; pass += 1) await conveyor.tick("w1");
+
+    expect(spies.park).not.toHaveBeenCalled();
+    expect(spies.block).toHaveBeenCalledWith({
+      taskId: "t1",
+      reason: "o repositório do projeto não está mais no lugar",
+    });
+  });
+});
+
+describe("o portão julga o checkout que o turno usou", () => {
+  it("recebe o preparado, e não o ponteiro da linha em memória", async () => {
+    /*
+     * `worktreeId` nulo é o caso de **toda** tarefa que entra na esteira sem
+     * checkout — um cartão da To-Do, um cartão vindo de issue. O
+     * `prepareCheckout` corta a worktree e a anexa no banco, mas a linha que a
+     * passada leu no começo continua com o ponteiro nulo: lendo dali, o portão
+     * reprovava como *"sem checkout"* um turno inteiro que commitou e passou no
+     * teste, e o primeiro turno pago era desperdiçado sempre.
+     */
+    const { ports, spies } = harness({ facts: { entries: [entry({ worktreeId: null })] } });
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.gate.mock.calls[0]?.[1]).toEqual({
+      worktreeId: "wt-t1",
+      path: "/wt/t1",
+      dirty: false,
+    });
+    expect(spies.advance).toHaveBeenCalled();
   });
 });
 

@@ -106,8 +106,16 @@ export interface ConveyorPorts {
   prompt(input: { sessionId: string; text: string }): Promise<void>;
   /** Interrompe um turno que passou do teto de tempo. */
   cancel(sessionId: string): Promise<void>;
-  /** O portão do §4.1: `test` local, e o check da PR quando há PR (T28). */
-  gate(entry: QueueEntry): Promise<GateVerdict>;
+  /**
+   * O portão do §4.1: `test` local, e o check da PR quando há PR (T28).
+   *
+   * Recebe **o checkout que o turno usou**, e não o ponteiro da tarefa.
+   * `entry.task` é a linha como ela estava no início da passada, e uma tarefa
+   * que entrou sem worktree ganhou a dela no `prepareCheckout` — o ponteiro na
+   * linha em memória continua nulo, e julgar por ele reprovaria como
+   * *"sem checkout"* um turno inteiro que commitou e passou no teste.
+   */
+  gate(entry: QueueEntry, checkout: PreparedCheckout): Promise<GateVerdict>;
   /** Mais uma tentativa **nesta etapa**, e devolve o total. */
   countAttempt(taskId: string): Promise<number>;
   /** O daemon movendo a seta. Nenhum agente chama isto. */
@@ -193,10 +201,43 @@ export function createConveyor(
     return false;
   }
 
-  async function runOne(entry: QueueEntry, autonomy: Autonomy): Promise<void> {
-    const checkout = await ports.prepareCheckout(entry);
+  /**
+   * O cartão para, com o motivo — e o tracker fica sabendo.
+   *
+   * Extraído porque são **dois** os caminhos que chegam aqui: o veredito que não
+   * passou, e o preparo que nem chegou a abrir turno. Duas cópias disto é uma
+   * cópia que esquece o marco na próxima.
+   */
+  async function blockWith(taskId: string, reason: string): Promise<void> {
+    await ports.block({ taskId, reason });
+    void ports.mark?.({ taskId, mark: "blocked", context: reason }).catch(() => undefined);
+  }
 
-    const agent = await ports.agentFor({ taskId: entry.task.id, role: entry.role });
+  async function runOne(entry: QueueEntry, autonomy: Autonomy): Promise<void> {
+    /*
+     * Preparar pode falhar, e falhar preparando **gasta tentativa**.
+     *
+     * É a exceção à regra do `assistido` logo abaixo, e ela se paga: preparar
+     * com sucesso não gasta porque esperar o clique não é trabalho, mas uma
+     * falha é custo que **se repete** — a worktree registrada sumiu do disco, o
+     * repositório foi movido, o `git` não responde. Sem contar aqui, a exceção
+     * subia antes de qualquer escrita e a passada seguinte repescava o mesmo
+     * cartão a cada 15 s **para sempre**: sem tentativa, sem bloqueio, e o único
+     * rastro um `conveyor-tick-failed` no log de um daemon que ninguém está
+     * olhando — que é o estado que esta feature inteira existe para não ter.
+     */
+    let checkout: PreparedCheckout;
+    let agent: { adapter: string; model: string | null; instructions: string };
+    try {
+      checkout = await ports.prepareCheckout(entry);
+      agent = await ports.agentFor({ taskId: entry.task.id, role: entry.role });
+    } catch (error) {
+      const failed = await ports.countAttempt(entry.task.id);
+      if (failed >= MAX_ATTEMPTS) {
+        await blockWith(entry.task.id, error instanceof Error ? error.message : String(error));
+      }
+      return;
+    }
     const promptWith = (attempt: number): string =>
       promptFor({
         role: entry.role,
@@ -292,7 +333,7 @@ export function createConveyor(
      * agente estava no meio de escrever.
      */
     const verdict: GateVerdict = ended
-      ? await ports.gate(entry)
+      ? await ports.gate(entry, checkout)
       : { kind: "unfinished", reason: "o turno passou do tempo e foi interrompido" };
     await ports.comment({
       taskId: entry.task.id,
@@ -319,12 +360,7 @@ export function createConveyor(
      * sem agenda, sem `setTimeout`, sem estado. Quando a tentativa acabar, é a
      * chamada de cima que bloqueia.
      */
-    if (attempt >= MAX_ATTEMPTS) {
-      await ports.block({ taskId: entry.task.id, reason: verdict.reason });
-      void ports
-        .mark?.({ taskId: entry.task.id, mark: "blocked", context: verdict.reason })
-        .catch(() => undefined);
-    }
+    if (attempt >= MAX_ATTEMPTS) await blockWith(entry.task.id, verdict.reason);
   }
 
   return {
@@ -352,7 +388,18 @@ export function createConveyor(
        * evitando.
        */
       await ports.park(null, taskId);
-      await ports.prompt({ sessionId, text: prepared.prompt });
+      /*
+       * **Com o mesmo teto do caminho autônomo**, e não `ports.prompt` seco.
+       *
+       * O clique é seu, mas o turno não é: ele roda sozinho a partir daqui, e a
+       * sessão nasce liberada exatamente porque não há ninguém para responder
+       * permissão. Se o modo do agente não pôde ser trocado — `autonomousMode`
+       * nulo na spec, um `set_mode` que falhou —, ele pergunta, o daemon manda o
+       * pedido para uma pessoa que não está lá, e o turno pendura para sempre
+       * com o cartão dizendo `implementando`. É o defeito que o e2e da Parte 2
+       * achou, e ele não tem nada de exclusivo do caminho autônomo.
+       */
+      await promptWithCeiling(sessionId, prepared.prompt);
     },
 
     async tick(workspaceId) {

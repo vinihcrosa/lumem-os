@@ -1,9 +1,11 @@
 import { adapterById } from "@lumem/shared";
 import { eq } from "drizzle-orm";
+import { existsSync } from "node:fs";
 
 import { createAgentCatalog, type Role } from "../agents/catalog.js";
 import type { Db } from "../db/index.js";
 import { project, worktree } from "../db/schema.js";
+import { DomainError } from "../errors.js";
 import type { GitService } from "../git/GitService.js";
 import { createTaskRepository } from "../repositories/task.js";
 import { createTaskCommentRepository } from "../repositories/task-comment.js";
@@ -117,7 +119,18 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
        * A worktree registrada some do disco — alguém apagou o diretório, um
        * `git worktree prune` passou. Cortar outra aqui mascararia isso; o
        * honesto é deixar a falha subir e virar tentativa gasta, com o motivo.
+       *
+       * **Com o motivo**, e é isso que a frase acrescenta: sem ela, quem
+       * descobria o sumiço era o `git status` logo abaixo, e o que chegava ao
+       * cartão era `ENOENT: no such file or directory` — uma frase que não fala
+       * de worktree nenhuma para quem está lendo um quadro de tarefas.
        */
+      if (found && !existsSync(found.path)) {
+        throw new DomainError(
+          "BLOCKED",
+          `o checkout desta tarefa não está mais em ${found.path}`,
+        );
+      }
       if (found) return { id: found.id, path: found.path };
     }
     return deps.createWorktree({
@@ -189,15 +202,7 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
 
     cancel: (sessionId) => deps.cancel(sessionId),
 
-    async gate(entry) {
-      const checkout =
-        entry.task.worktreeId === null
-          ? null
-          : await deps.db.query.worktree.findFirst({ where: eq(worktree.id, entry.task.worktreeId) });
-      if (!checkout) {
-        return { kind: "unfinished", reason: "a tarefa não tem checkout para julgar" };
-      }
-
+    async gate(entry, checkout) {
       const owner = await deps.db.query.project.findFirst({
         where: eq(project.id, entry.task.projectId),
       });
@@ -206,7 +211,7 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
 
       const testExitCode = hasTest
         ? await deps.scripts
-            .runToCompletion({ scopeType: "worktree", scopeId: checkout.id }, "test")
+            .runToCompletion({ scopeType: "worktree", scopeId: checkout.worktreeId }, "test")
             .catch(() => null)
         : null;
 
@@ -238,7 +243,7 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
         committed,
         testExitCode,
         hasTest,
-        pr: await deps.prVerdictOf(checkout.id),
+        pr: await deps.prVerdictOf(checkout.worktreeId),
       });
     },
 
