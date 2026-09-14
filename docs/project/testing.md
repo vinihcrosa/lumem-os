@@ -959,6 +959,97 @@ apareceu nada"* é indistinguível de a integração estar quebrada.
 A regra: **quando um ramo de atualização tem uma guarda, o ramo de criação precisa da mesma pergunta.**
 O estado inicial é só o caso em que a transição já tinha acontecido antes de você chegar.
 
+### Um instantâneo lido no começo da passada, usado no fim dela
+
+**Sintoma:** todo primeiro turno de um cartão sem checkout era desperdiçado. O agente commitava, o
+`test` passava, e o portão devolvia `unfinished` com *"a tarefa não tem checkout para julgar"* —
+gastando uma tentativa e podendo bloquear o cartão cedo demais.
+
+**Causa:** o `gate` lia `entry.task.worktreeId`, e `entry.task` é a **linha como ela estava no início
+da passada**. Uma tarefa que entra na esteira sem worktree ganha a dela no `prepareCheckout`, que
+escreve no banco e não muta o objeto em memória — o ponteiro continuava nulo. Dispara em qualquer
+cartão de `open`, que é onde a issue do tracker cai.
+
+A regra: **um objeto lido no começo de um fluxo não descreve o fim dele.** O conserto não é reler — é
+passar adiante o que acabou de ser produzido, que é um argumento em vez de uma consulta.
+
+### Falha antes do contador é repesca infinita
+
+**Sintoma:** com a worktree registrada mas o diretório apagado do disco (`git worktree prune`, um `rm`
+manual), a esteira repescava o mesmo cartão a cada 15 segundos **para sempre**. Sem tentativa gasta,
+sem bloqueio, e o único rastro um `conveyor-tick-failed` no log de um daemon que ninguém está olhando.
+
+**Causa:** a exceção subia de `prepareCheckout`, que roda **antes** do `countAttempt`. Todo o desenho
+de *"tentativa gasta, com o motivo"* mora depois desse ponto — o comentário do código já dizia que era
+isso que deveria acontecer, e o fluxo não passava por lá.
+
+O conserto tem duas metades, e a segunda é a que se lê: a falha passa a contar tentativa e bloquear, **e**
+o sumiço do diretório passa a ter frase própria. Sem ela, o que chegava ao cartão era `ENOENT: no such
+file or directory` — que não fala de worktree nenhuma para quem está lendo um quadro de tarefas.
+
+A regra: **todo caminho que pode falhar repetidamente precisa passar pelo contador**, senão o limite
+de tentativas protege só os caminhos que já funcionavam.
+
+### `200 OK` com `success: false` é uma falha que não lança
+
+**Sintoma:** nenhum. Um marco no tracker ficava registrado como escrito e o comentário nunca saía.
+
+**Causa:** as mutations do Linear selecionam `{ success }` e o host descartava o resultado. Uma
+mutation recusada — issue arquivada, token sem permissão de comentar — volta **HTTP 200** com
+`success: false` e **sem** `errors`, então nada no envelope lança. E o `writeMark` reserva o marco
+**antes** de escrever, de propósito: o preço declarado dessa escolha é *"o marco fica registrado sem
+ter saído"*, com a falha aparecendo no log. Sem conferir o `success`, ela não aparecia em lugar nenhum
+e o marco nunca mais seria tentado.
+
+A regra: **selecionar um campo de resultado e não olhá-lo é pior que não selecioná-lo** — o código
+parece conferir.
+
+### Um teto de paralelismo que a execução em série nunca alcança
+
+**Sintoma:** nenhum, e o Open Design desenha o número: `autônomo · teto 2 · 2 em uso`. O `2 em uso`
+não acontecia nunca.
+
+**Causa:** o `tick` percorria as vagas com `await` em série, e cada `runOne` espera o **turno
+inteiro** — a segunda vaga só começava quando a primeira acabasse. Pior: o laço do daemon percorria os
+workspaces em série com um único sinalizador de *"passada em andamento"*, então um turno pendurado num
+workspace segurava todos os outros por até os 30 minutos do teto, e um `throw` num deles acabava a
+passada antes dos seguintes serem lidos.
+
+**A concorrência foi medida antes de escrita**, porque o risco real era o git: 72 `git worktree add`
+simultâneos no mesmo repositório, seis de cada vez, doze rodadas — **zero falhas**. O teste do pico
+conta turnos em voo (`peak`), e não chamadas: com `toHaveBeenCalledTimes(2)` a versão em série também
+ficaria verde.
+
+### Uma restrição escrita em comentário não é uma restrição
+
+**Sintoma:** nenhum, e o código dizia *"é a esteira, e só ela"*.
+
+**Causa:** `session.createAgent` é `publicProcedure` e aceitava `autonomous: z.boolean()` direto do
+fio. Com `true`, a sessão nasce no modo que **nunca pergunta permissão** — então qualquer chamador na
+porta local (um `curl`, um script na própria página que a `014` serve) abria uma conversa que
+auto-aprova toda ferramenta, contornando por fora o portão por sessão da
+[`016`](../features/016-session-mode/prd.md).
+
+O conserto **não é autenticação**, e chamar de autenticação seria pior que não ter: o produto é local,
+de uma pessoa, e toda procedure é pública. O que ele faz é separar a porta que o daemon usa da porta
+que a tela usa — um campo `internal` no contexto, ligado no único chamador do lado do servidor.
+
+A regra: **se o comentário descreve quem pode chamar, o teste é quem impõe** — e o teste aqui é uma
+recusa, não uma convenção.
+
+### Memória de aba que só é limpa no caminho de erro
+
+**Sintoma:** o contador *"N pararam enquanto você não estava"* travava, e uma tarefa que encalhava
+**de novo** nunca notificava — até um reload inteiro.
+
+**Causa:** o `Set` de *"já tratei"* do hook de notificação era limpo num lugar só: o `catch` da
+marcação. Mas o daemon zera `notified_at` a **cada troca de estado**, então a mesma tarefa reentra num
+estado de aviso com uma frase nova — e a aba, lembrando do id para sempre, dava `continue`, nunca
+chamava `markNotified` e deixava `notified_at` nulo.
+
+A regra: **um cache com entrada e sem saída é um vazamento de estado, não um cache.** O sinal de saída
+já existia e estava sendo ignorado: a frase vir nula **é** o daemon dizendo que registrou.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
