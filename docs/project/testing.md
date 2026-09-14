@@ -885,6 +885,80 @@ A regra: **quando um número medido vira comentário, o que o mantém verdadeiro
 chamadas.** As issues passaram a chegar de fora do `syncTracker` — quem conhece o laço é quem sabe que
 a consulta é uma —, e o `loop.test.ts` cria três workspaces e exige `toHaveBeenCalledTimes(1)`.
 
+### `mode` no `writeFileSync` só vale na criação — inclusive no teste que o cobre
+
+**Sintoma:** nenhum. `secrets.json` nasce `0600` e o teste dizia que a permissão era reaplicada a cada
+escrita.
+
+**Causa:** `writeFileSync(path, …, { mode })` abre com `O_CREAT`, e o modo só é aplicado **quando o
+arquivo é criado**. Com ele já no disco, o Node ignora o `mode` e a permissão vigente fica — então um
+`~/.lumem` restaurado de um backup que não preservou modo (ou vindo de um volume que não tem modo)
+ficava `0644` para sempre, com o comentário no código afirmando o contrário. O que vaza não é o
+segredo, que está cifrado, e sim **quais** serviços você usa, que o
+[ADR do cofre](../adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md) trata como
+informação a proteger.
+
+**E a armadilha de segunda ordem é a que importa:** o teste que já existia para a *chave* montava o
+cenário com `writeFileSync(keyPath, readFileSync(keyPath), { mode: 0o644 })` — pela mesma regra, isso
+**não muda permissão nenhuma**. O cenário nunca acontecia, e o teste ficava verde com o `chmodSync` da
+`key()` apagado. Provado removendo os dois `chmod`: só depois de o setup virar `chmodSync` é que os
+dois casos ficam vermelhos.
+
+A regra: **um teste de permissão tem que provar que consegue estragar a permissão** antes de afirmar
+que o código a conserta.
+
+### Índice de arrasto lido da lista filtrada, gravado como prioridade
+
+**Sintoma:** com `precisa de mim` ligado, arrastar um cartão gravava a prioridade errada — e
+persistente. Soltar no corpo da coluna inseria no meio em vez do fim.
+
+**Causa:** o `index` saía do array já filtrado, e o daemon o lê como posição **na coluna inteira**,
+renumerando-a numa transação — posição **é** prioridade. O defeito só aparece nas colunas da máquina
+(`in_progress`, `review`, `testing`), que são as únicas em que o filtro esconde cartões — justamente
+onde a ordem alimenta a esteira. Em `open` e `ready_to_merge` o `needsYou` não esconde nada, os dois
+índices coincidem, e o gesto parece correto.
+
+Não havia **nenhum** teste de arrasto — a mesma lacuna que a Q38 já tinha registrado ao descobrir que
+o arrasto para `In Progress` *"já funcionava, sem um único teste cobrindo"*. O conserto é uma
+tradução, não uma regra nova, e o terceiro caso do teste é o que garante isso: com o filtro desligado,
+o número é o mesmo de sempre.
+
+### Decidir remover e não passar `--force` é um interruptor que nunca remove
+
+**Sintoma:** com *"PR mesclada sempre remove"* ligado e a worktree mesclada porém suja, o `finish`
+devolvia erro para a tela. Na prática o interruptor nunca removia worktree suja, que é o **único**
+caso para o qual ele foi escrito.
+
+**Causa:** `decideCleanup` devolve `remove` com a frase `mesclada — N arquivos não commitados
+descartados`, e a chamada seguinte usava `force: false`. `git worktree remove` sem `--force` recusa um
+checkout com arquivo modificado ou não rastreado, e a exceção subia **depois** de a tarefa já estar em
+`done` e do `stopAll`, mas **antes** de a linha sair do banco: tarefa concluída, scripts parados,
+worktree intacta e erro na tela — o split que o comentário logo acima existe para evitar.
+
+A decisão estava certa e testada; o que faltava era **executá-la**. É o mesmo formato do teto de
+orçamento acima — uma função pura com todos os ramos cobertos, e o lado sujo não fazendo o que ela
+decidiu.
+
+**O que passou a avisar antes:** git de verdade, porque a recusa é do git e nenhum dublê a reproduz —
+um checkout mesclado com arquivo não rastreado, e as três pontas asseridas juntas (o disco, a linha do
+banco e a resposta da chamada), porque o defeito deixava as três em desacordo.
+
+### O ramo de criação sem a guarda que o ramo de atualização tem
+
+**Sintoma:** uma issue do Linear que já chega fechada com o rótulo `lumem` — rótulo posto numa issue
+concluída, ou issue fechada antes da primeira passada — virava cartão em `open`.
+
+**Causa:** o ramo `!existing` do `syncTracker` não olhava `issue.state`, enquanto o `changeOf` bloqueia
+e desliga a autonomia quando uma issue **transiciona** para fechada. `open` é etapa devida da esteira e
+a tarefa nasce em `autonomy: "inherit"`: num workspace em `autônomo`, a esteira puxaria o cartão e
+gastaria um turno — cota, e possivelmente uma PR — num trabalho que o tracker já diz concluído.
+
+**Bloqueada, e não pulada.** Pular deixaria o rótulo sem efeito visível nenhum, e *"marquei e não
+apareceu nada"* é indistinguível de a integração estar quebrada.
+
+A regra: **quando um ramo de atualização tem uma guarda, o ramo de criação precisa da mesma pergunta.**
+O estado inicial é só o caso em que a transição já tinha acontecido antes de você chegar.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
