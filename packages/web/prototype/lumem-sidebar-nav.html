@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lumem-OS — o bloco de navegação da sidebar (Início e Tarefas com endereço fixo)</title>
+<title>Lumem-OS — o bloco de navegação da sidebar (Home e Tarefas com endereço fixo)</title>
 <link rel="stylesheet" href="../src/styles/tokens.css">
 <link rel="stylesheet" href="lumem-ds.css">
 <link rel="stylesheet" href="lumem-shell.css">
@@ -38,9 +38,18 @@
         depois que eu cliquei em alguma coisa"</em>.
       </p>
       <p class="doc__lede">
-        <b>O conserto é dar endereço a elas</b>, num bloco entre o seletor de workspace e a árvore —
-        o mesmo lugar em que o Conductor põe <code>Dashboard</code> e <code>Home</code>. Duas linhas,
-        fora da parte que rola, sempre no mesmo pixel.
+        <b>O conserto é dar endereço a elas</b>, num bloco entre o seletor de workspace e a árvore.
+        Duas linhas, fora da parte que rola, sempre no mesmo pixel:
+        <code>Home</code> abre a tela do workspace — que continua exatamente como está, com a seção
+        <code>TAREFAS</code> e o botão <code>quadro</code> dela — e <code>Tarefas</code> abre
+        <b>o quadro</b>.
+      </p>
+      <p class="doc__lede">
+        <b>A lista nunca precisou de endereço; o quadro precisava.</b> A lista mora no Home, e é a
+        seção que você já lê ao chegar. O quadro é a tela que só existia atrás de um botão dentro
+        dessa seção — e some no instante em que você clica em qualquer outra coisa da coluna. A
+        linha da sidebar chama-se pelo <b>assunto</b>, e não pela forma: você quer ver as tarefas, e
+        a tela escolhe como mostrá-las.
       </p>
     </header>
 
@@ -55,7 +64,7 @@
         </p>
         <p class="sec__d">
           As linhas são <code>.row</code> — <b>a mesma classe da árvore</b>, não uma parecida. É o
-          que faz o glifo de <code>Início</code> cair na mesma coluna do <code>■</code> de projeto, e
+          que faz o glifo de <code>Home</code> cair na mesma coluna do <code>■</code> de projeto, e
           é o que faz a seleção ser <b>uma só</b> na coluna inteira.
         </p>
       </div>
@@ -91,7 +100,7 @@
             <div class="sidebar">
               <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>dev<span class="caret">▾</span></div></div>
               <div class="nav">
-                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Início</span></button>
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Home</span></button>
                 <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">▥</span><span class="row__label">Tarefas</span><span class="row__n">3</span></button>
               </div>
               <div class="tree">
@@ -121,7 +130,7 @@
         <p class="sec__d">
           <code>◈</code> workspace, <code>■</code> projeto, <code>◇</code> worktree,
           <code>◆</code> agente e <code>●</code> shell dizem <b>o que a coisa é</b>, e a cor é a
-          categoria. <code>Início</code> e <code>Tarefas</code> não são coisas, são <b>lugares</b> —
+          categoria. <code>Home</code> e <code>Tarefas</code> não são coisas, são <b>lugares</b> —
           e pintá-los acrescentaria dois matizes a uma coluna que a folha do shell já avisa que vira
           arco-íris fácil, com o custo nomeado: <em>"o ponto verde de rodando deixa de saltar"</em>.
         </p>
@@ -145,7 +154,7 @@
             <tr><td class="tbl__g">▤</td><td>coluna de arquivos</td><td>tela · cor do texto</td></tr>
             <tr><td class="tbl__g">☰</td><td>plano do turno</td><td>tela · cor do texto</td></tr>
             <tr><td class="tbl__g">▣</td><td><code>Write</code> e <code>Edit</code></td><td>ferramenta · cor do texto</td></tr>
-            <tr class="tbl__new"><td class="tbl__g">◎</td><td><b>Início</b> — a tela do workspace</td><td>nasce aqui</td></tr>
+            <tr class="tbl__new"><td class="tbl__g">◎</td><td><b>Home</b> — a tela do workspace</td><td>nasce aqui</td></tr>
             <tr class="tbl__new"><td class="tbl__g">▥</td><td><b>Tarefas</b> — a lista e o quadro</td><td>nasce aqui</td></tr>
           </tbody>
         </table>
@@ -171,8 +180,8 @@
         A razão de as linhas do bloco serem <code>.row</code> — a classe da árvore, inteira, com o
         mesmo <code>is-selected</code> e a mesma barra de 2px à esquerda — <b>não é economia de
         CSS</b>. É que a coluna só pode ter uma resposta para <em>onde eu estou</em>: se
-        <code>Início</code> está selecionado, nenhuma worktree está, e clicar numa worktree
-        desmarca o <code>Início</code>. Uma classe própria para o bloco seria uma segunda definição
+        <code>Home</code> está selecionado, nenhuma worktree está, e clicar numa worktree
+        desmarca o <code>Home</code>. Uma classe própria para o bloco seria uma segunda definição
         da mesma coisa, e ela divergiria no dia em que alguém mexesse numa só.
       </p>
     </header>
@@ -187,13 +196,13 @@
       </div>
 
       <div class="triogrid">
-        <div class="stepcap" data-od-id="sel-inicio">
-          <span class="stepcap__n">na tela do workspace</span>
+        <div class="stepcap" data-od-id="sel-home">
+          <span class="stepcap__n">no Home</span>
           <div class="sbframe sbframe--short">
             <div class="sidebar">
               <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>dev<span class="caret">▾</span></div></div>
               <div class="nav">
-                <button class="row is-selected" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Início</span></button>
+                <button class="row is-selected" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Home</span></button>
                 <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">▥</span><span class="row__label">Tarefas</span><span class="row__n">3</span></button>
               </div>
               <div class="tree">
@@ -206,12 +215,12 @@
         </div>
 
         <div class="stepcap" data-od-id="sel-tarefas">
-          <span class="stepcap__n">na tela de tarefas</span>
+          <span class="stepcap__n">no quadro</span>
           <div class="sbframe sbframe--short">
             <div class="sidebar">
               <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>dev<span class="caret">▾</span></div></div>
               <div class="nav">
-                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Início</span></button>
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Home</span></button>
                 <button class="row is-selected" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">▥</span><span class="row__label">Tarefas</span><span class="row__n">3</span></button>
               </div>
               <div class="tree">
@@ -229,7 +238,7 @@
             <div class="sidebar">
               <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>dev<span class="caret">▾</span></div></div>
               <div class="nav">
-                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Início</span></button>
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Home</span></button>
                 <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">▥</span><span class="row__label">Tarefas</span><span class="row__n">3</span></button>
               </div>
               <div class="tree">
@@ -289,7 +298,7 @@
           <div class="sbframe sbframe--tiny">
             <div class="sidebar">
               <div class="nav">
-                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Início</span></button>
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Home</span></button>
                 <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">▥</span><span class="row__label">Tarefas</span></button>
               </div>
             </div>
@@ -300,7 +309,7 @@
           <div class="sbframe sbframe--tiny">
             <div class="sidebar">
               <div class="nav">
-                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Início</span></button>
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Home</span></button>
                 <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">▥</span><span class="row__label">Tarefas</span><span class="row__n">3</span></button>
               </div>
             </div>
@@ -324,70 +333,93 @@
 <section class="screen" id="screen-perguntas">
   <div class="doc">
     <header data-od-id="perguntas-header">
-      <h1 class="doc__h1">O que este desenho não decide</h1>
+      <h1 class="doc__h1">As três respondidas, e o que elas mudaram</h1>
       <p class="doc__lede">
-        Cinco, e as duas primeiras mudam o desenho se a resposta for outra. Nenhuma delas vira
-        suposição silenciosa: o produto tem a regra de que pergunta de design vai para o arquivo de
-        perguntas da feature.
+        Respondidas em <b>2026-09-14</b>, e <b>duas delas contra a proposta</b> — a resposta fica no
+        lugar da proposta contradita, com o que sobrou de pé, porque decisão revertida sem registro é
+        decisão que volta sozinha.
       </p>
     </header>
 
     <section class="sec" data-od-id="perguntas-lista">
-      <div class="qa" data-od-id="q-inicio-tarefas">
-        <div class="qa__q"><span class="qa__n">Q1</span>a tela de Início continua tendo a seção <code>TAREFAS</code>?</div>
+      <div class="qa qa--done" data-od-id="q-home-tarefas">
+        <div class="qa__q"><span class="qa__n">Q1</span>a tela de Home continua tendo a seção <code>TAREFAS</code>?</div>
         <div class="qa__a">
-          <b>A proposta é que sim, e que o botão dela mude.</b> Hoje a seção tem um botão
-          <code>quadro</code>, que abre a outra visão. Com <code>Tarefas</code> tendo endereço, dois
-          botões saindo da mesma seção para duas telas diferentes é o que a regra
-          <em>uma ação, um lugar</em> recusa — então a seção vira o <b>resumo</b> e o botão passa a
-          ser <code>ver todas</code>, apontando para o mesmo lugar que a linha da sidebar.
+          <b>Sim, e sem mexer em nada dela</b> — inclusive o botão <code>quadro</code>.
           <br><br>
-          <b>A alternativa é tirar a seção do Início.</b> Ela é mais limpa e custa uma resposta: o
-          Início deixaria de dizer quantas tarefas o workspace tem, e ele é a tela que existe para
-          responder <em>o que está acontecendo aqui</em>.
+          <span class="qa__was">A proposta era trocar esse botão por <code>ver todas</code></span>,
+          com o argumento de que dois botões saindo da mesma seção para duas telas seriam
+          <em>uma ação, um lugar</em> ao contrário. <b>A resposta derruba a premissa:</b> com a Q3, o
+          botão <code>quadro</code> e a linha <code>Tarefas</code> vão para o <b>mesmo</b> lugar. Não
+          são duas saídas para duas telas — são duas entradas para uma, e a regra nunca proibiu isso.
+          O que ela proíbe é o mesmo verbo ter dois donos, e aqui o dono é um só.
         </div>
       </div>
 
-      <div class="qa" data-od-id="q-nome">
+      <div class="qa qa--done" data-od-id="q-nome">
         <div class="qa__q"><span class="qa__n">Q2</span><code>Início</code> é o nome certo?</div>
         <div class="qa__a">
-          A tela se chama <em>a tela do workspace</em> em todo documento do produto, e o cabeçalho
-          dela escreve <code>dev · workspace</code>. Chamar a linha de <code>Workspace</code>
-          repetiria a palavra que está 40px acima no seletor; chamar de <code>Início</code> é o que o
-          Conductor faz e o que todo mundo entende, mas é genérico.
+          <b>Não: <code>Home</code></b>, em inglês. <em>"É universal, todo mundo sabe o que
+          significa."</em>
           <br><br>
-          A terceira saída é <code>Visão geral</code>, que descreve o conteúdo e não a posição — e
-          custa duas palavras numa coluna de 264px.
+          <b>E ele não abre exceção nenhuma</b>, que era a única objeção real — a comunicação do
+          produto é em português, mas a interface já tem inglês onde a palavra é o termo: as
+          <b>sete colunas do quadro</b> são <code>Backlog</code>, <code>To-Do</code>,
+          <code>In Progress</code>, <code>In Review</code>, <code>Testing</code>,
+          <code>Ready to Merge</code> e <code>Done</code>. <code>Home</code> entra na mesma regra
+          que já estava escrita, e não numa nova.
         </div>
       </div>
 
-      <div class="qa" data-od-id="q-quadro">
-        <div class="qa__q"><span class="qa__n">Q3</span>o quadro é uma terceira linha?</div>
+      <div class="qa qa--done" data-od-id="q-quadro">
+        <div class="qa__q"><span class="qa__n">Q3</span>o quadro é uma linha própria?</div>
         <div class="qa__a">
-          <b>Não, na proposta.</b> <code>Tarefas</code> abre a lista, e a lista já tem o
-          <code>quadro</code> ao lado do título — lista e quadro são <b>duas visões do mesmo
-          assunto</b>, e uma terceira linha na sidebar afirmaria que são dois assuntos.
+          <b>Sim — e ela se chama <code>Tarefas</code>.</b>
           <br><br>
-          O que ela abriria de vantagem: quem vive no quadro passa a ter um clique em vez de dois. Se
-          a resposta mudar, a linha existe e o glifo <code>▥</code> vai para ela — a lista fica com
-          outro.
+          <span class="qa__was">A proposta era que <code>Tarefas</code> abrisse a lista</span>, com o
+          quadro atrás do botão que ela já tem. <b>A resposta inverte, e a inversão é melhor:</b> a
+          lista <b>já tem endereço</b> — ela é uma seção do Home, que a Q1 acabou de manter. Quem não
+          tinha endereço era o quadro. Dar a linha à lista teria criado um segundo caminho para o que
+          já se alcança chegando, e deixado de fora justamente a tela que some.
+          <br><br>
+          <b>E o nome é o assunto, não a forma.</b> Da sidebar você quer <em>ver as tarefas</em>;
+          <em>quadro</em> é como elas aparecem. Chamar a linha de <code>Quadro</code> obrigaria a
+          saber o formato antes de querer o conteúdo.
         </div>
       </div>
 
-      <div class="qa" data-od-id="q-mais-itens">
+      <div class="qa" data-od-id="q-titulo">
+        <div class="qa__q"><span class="qa__n">Q3a</span>a tela ainda se chama <code>Quadro</code> quando se chega por <code>Tarefas</code>?</div>
+        <div class="qa__a">
+          <b>Aberta</b>, e ela nasceu da resposta da Q3: hoje o título da tela é <code>Quadro</code> e
+          o caminho é <code>dev / Quadro</code>. Clicar em <code>Tarefas</code> e cair numa tela
+          chamada <code>Quadro</code> é o clique e o pouso discordando.
+          <br><br>
+          <b>A recomendação é o título virar <code>Tarefas</code></b> — o subtítulo dela já diz
+          <em>"todas as tarefas deste workspace, em uma tela"</em>, então o conteúdo não muda de nome,
+          só o rótulo passa a ser o assunto. O botão <code>quadro</code> do Home <b>fica</b>: lá você
+          está escolhendo uma <em>visão</em>, e o nome da visão é o certo naquele lugar.
+          <br><br>
+          A alternativa é não mexer: duas palavras para a mesma tela é um custo pequeno, e
+          <code>Quadro</code> é o que o time já chama.
+        </div>
+      </div>
+
+      <div class="qa qa--done" data-od-id="q-mais-itens">
         <div class="qa__q"><span class="qa__n">Q4</span>e <code>Criar</code> e <code>Buscar</code>, que o Conductor tem?</div>
         <div class="qa__a">
-          <b>Fora, e por motivos diferentes.</b> <code>Criar</code> já tem lugar: a
-          <b>sidebar-actions</b> decidiu que <em>a ação mora no cabeçalho da lista que ela
-          alimenta</em> — o <code>＋</code> de <code>Projetos</code> e o da linha de cada projeto. Um
-          terceiro caminho para o mesmo verbo é a regra ao contrário.
+          <b>Fora — e a referência é inspiração, não especificação.</b> A captura do Conductor
+          mostrou <b>onde</b> o bloco fica; o que entra nele é decisão deste produto.
           <br><br>
-          <code>Buscar</code> não existe no produto. Uma linha que abre uma tela que ninguém
+          <code>Criar</code> já tem lugar: a <b>sidebar-actions</b> decidiu que <em>a ação mora no
+          cabeçalho da lista que ela alimenta</em> — o <code>＋</code> de <code>Projetos</code> e o da
+          linha de cada projeto. Um terceiro caminho para o mesmo verbo é a regra ao contrário.
+          <code>Buscar</code> não existe no produto, e uma linha que abre uma tela que ninguém
           escreveu é pior que não ter a linha.
         </div>
       </div>
 
-      <div class="qa" data-od-id="q-escopo">
+      <div class="qa qa--done" data-od-id="q-escopo">
         <div class="qa__q"><span class="qa__n">Q5</span>o bloco muda quando o workspace muda?</div>
         <div class="qa__a">
           <b>Não muda de forma; muda de dado.</b> As duas linhas são do <b>workspace selecionado</b>
@@ -407,9 +439,11 @@
         <tbody>
           <tr><td>altura de cada linha</td><td>28px</td><td><code>--size-row-compact</code>, a mesma da linha de projeto</td></tr>
           <tr><td>altura do bloco</td><td>65px</td><td>2×28 + 8 de folga + 1 de borda</td></tr>
+          <tr><td>glifo do bloco × <code>■</code> de projeto</td><td>mesmo x</td><td>1615,5px nos dois, medido no navegador</td></tr>
           <tr><td>largura da coluna</td><td>264px</td><td>não muda</td></tr>
           <tr><td>classes novas de produto</td><td>2</td><td><code>.nav</code> e <code>.row__n</code></td></tr>
           <tr><td>tokens novos</td><td>0</td><td>—</td></tr>
+          <tr><td>telas do produto que mudam</td><td>0</td><td>o Home fica como está (Q1)</td></tr>
         </tbody>
       </table>
     </section>

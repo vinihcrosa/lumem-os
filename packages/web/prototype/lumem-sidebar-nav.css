@@ -146,3 +146,15 @@
   color: var(--color-text-secondary);
 }
 .qa__a code { font: var(--text-mono-sm); }
+
+/*
+ * A pergunta respondida, e a proposta que ela contradisse.
+ *
+ * A proposta **fica**, riscada, dentro da resposta que a derrubou — é a regra do
+ * `docs-contract` aplicada a uma folha de design: decisão revertida sem registro
+ * é decisão que volta sozinha, e daqui a três meses ninguém lembra que a
+ * alternativa foi considerada e perdeu.
+ */
+.qa--done .qa__n { color: var(--color-text-success); }
+.qa__was { color: var(--color-text-tertiary); text-decoration: line-through; }
+
