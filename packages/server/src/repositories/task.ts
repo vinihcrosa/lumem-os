@@ -21,7 +21,15 @@ import { withConstraints } from "./base.js";
  */
 
 export type TaskStatus = TaskRow["status"];
-export type TaskActor = "human" | "agent";
+/**
+ * Quem escreve na tarefa, e são **três** desde a `028` Parte 7.
+ *
+ * `conveyor` não é um `agent` educado — é o **daemon**, e a distinção é o
+ * [ADR de 2026-09-13](../../../../docs/adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md)
+ * aplicado ao próprio produto: fingir que a esteira é um agente fazia o daemon
+ * recusar as próprias escritas. Ver o `CONVEYOR_MAY_SET` abaixo.
+ */
+export type TaskActor = "human" | "agent" | "conveyor";
 /**
  * Se a esteira pode pegar **esta** tarefa (`028` Parte 2, T22).
  *
@@ -105,6 +113,35 @@ const STATUS_RANK = sql`CASE ${task.status}
  * fila são consentimento.
  */
 const AGENT_MAY_SET: ReadonlySet<string> = new Set(["review"]);
+
+/**
+ * As quatro etapas que **a máquina** move (`028` §4.1, Parte 7 — T49).
+ *
+ * O comentário acima diz que `Testing` e `Ready to Merge` são etapas que *a
+ * máquina* move, e que *"a máquina é o **daemon**, observando fato verificável,
+ * nunca o agente dizendo que chegou lá"*. A frase estava certa e **não tinha
+ * como ser executada**: a esteira escrevia com `actor: "agent"`, então o
+ * `AGENT_MAY_SET` recusava três das quatro setas dela.
+ *
+ * O custo disso foi medido em 2026-09-14, contra uma tarefa de verdade: o
+ * cartão andou **uma** seta, o revisor rodou duas vezes contra um `In Review`
+ * que nunca ia sair de lá, e bloqueou por tentativas esgotadas — **US$ 11,41**.
+ * O `throw` subia até o `catch` do laço e virava uma linha de log.
+ *
+ * **A regra do agente não foi afrouxada**, e é isso que importa: ele continua
+ * podendo dizer só `review`. O que mudou é que a esteira parou de se declarar
+ * um.
+ *
+ * `done` **não está aqui** — o §4 é explícito em que ele é seu, e a esteira para
+ * em `ready_to_merge` de propósito. `backlog` e `open` também não: as duas
+ * pontas da fila são consentimento.
+ */
+const CONVEYOR_MAY_SET: ReadonlySet<string> = new Set([
+  "in_progress",
+  "review",
+  "testing",
+  "ready_to_merge",
+]);
 
 export interface TaskFilter {
   status?: TaskStatus;
@@ -264,6 +301,14 @@ export function createTaskRepository(db: Db): TaskRepository {
           : `um agente não pode mover a tarefa para ${status}`,
       );
     }
+    if (actor === "conveyor" && !CONVEYOR_MAY_SET.has(status)) {
+      throw new DomainError(
+        "BLOCKED",
+        status === "done"
+          ? "só você marca done — a esteira para em ready_to_merge"
+          : `a esteira não move a tarefa para ${status}`,
+      );
+    }
     /*
      * O guard acima olha só o destino, e isso não basta.
      *
@@ -273,7 +318,7 @@ export function createTaskRepository(db: Db): TaskRepository {
      * você marcou `done` reabriria, pelo agente, um estado que a T9 reserva
      * para você. Fechar é seu, e **reabrir também é**.
      */
-    if (actor === "agent" && CLOSED.has(current.status)) {
+    if (actor !== "human" && CLOSED.has(current.status)) {
       throw new DomainError(
         "BLOCKED",
         `a tarefa está ${current.status} — reabrir é seu, como fechar`,

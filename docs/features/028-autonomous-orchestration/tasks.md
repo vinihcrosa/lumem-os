@@ -1297,6 +1297,141 @@ comenta de novo.
 
 ---
 
+## Parte 7 — O parecer do revisor, e as três setas que o daemon recusava
+
+**Aberta em 2026-09-14**, e ela **não veio de discussão**: veio de rodar a esteira contra uma tarefa
+de verdade, vinda do Linear. **US$ 11,41** e **453 884 tokens** em seis sessões, e o cartão nunca saiu
+de `In Review`.
+
+**O rastro, que é por onde se lê:**
+
+```
+implementador · tentativa 1 — o teste do projeto não chegou a rodar
+implementador · tentativa 2 — portão verde      → In Progress → In Review  ✓
+revisor       · tentativa 1 — portão verde      → In Review → Testing      ✗ recusado
+revisor       · tentativa 2 — portão verde      → In Review → Testing      ✗ recusado
+                                                → tentativa 3 → bloqueia
+```
+
+**E os dois turnos do revisor reprovaram.** Ele abriu com `Reprovo`, apontou um mutante sobrevivente —
+*"apaguei o bloco `permissions:` do job e rodei: 19/19 verde"* — e dois `Done when` que nunca foram
+observados. O daemon escreveu `portão verde` nas duas.
+
+Três defeitos empilhados, e o primeiro escondeu os outros dois. As quatro perguntas estão na
+[décima terceira rodada](open-questions.md).
+
+---
+
+## Fase 25 — as setas que o daemon recusava
+
+**T49 e T50 entregues em 2026-09-14.** As três setas recusadas foram conferidas **vermelhas** com
+o `actor: "agent"` de volta — e são exatamente as três.
+
+#### T49: A esteira é o daemon, e para de se declarar agente
+
+`advance` chama `setStatus(..., { actor: "agent" })`, e o `AGENT_MAY_SET` da
+[`022`](../022-workspace-tasks/prd.md) só permite `review`. Das quatro setas, **três são recusadas** —
+`open → in_progress`, `review → testing` e `testing → ready_to_merge` — e o `throw` vira uma linha de
+log que ninguém lê.
+
+A regra da `022` está **certa e fica**: ela impede um agente de se declarar pronto. O que está errado
+é a esteira se identificar como um. Ela é o daemon movendo a seta por fato verificável, que é
+exatamente o §4.1 — e é o vazamento que o
+[ADR de 2026-09-13](../../adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md) nomeia: um valor de
+fora decidindo a forma de dentro.
+
+**Done when:** as quatro setas andam; um teste prova que `actor: "agent"` continua recusado em
+`testing` (a regra da `022` não foi afrouxada, foi **contornada por quem tem direito**).
+
+#### T50: `conveyor-ports.test.ts`, que nunca existiu
+
+É **a razão de a T49 ter chegado à produção**: o `conveyor.test.ts` usa um `advance` falso, então a
+costura entre a esteira e o repositório nunca foi exercitada. Os 48 tasks fecharam com ela verde.
+
+**Done when:** as quatro setas testadas contra o repositório **de verdade**, e a T49 conferida
+**vermelha** contra o código de antes.
+
+#### T51: O `committed` do revisor é dele, e não herdado
+
+`committed` é *árvore limpa **e** à frente da base*, e `à frente` fica verdadeiro para sempre depois do
+primeiro commit do implementador. Então, no turno do revisor e no do testador, ele é **sempre
+verdadeiro** — o portão não distingue *"trabalhou"* de *"não fez nada"*.
+
+O fato tem que ser da **etapa**: o que mudou desde o commit em que a etapa começou.
+
+**Done when:** um revisor que não escreve nada **não** produz `committed: true`.
+
+#### T52: A esteira fecha o que abre
+
+Seis sessões na `LUM-51`, **três ainda vivas** horas depois. A esteira nunca fecha.
+
+**Done when:** terminado o turno e escrito o comentário, a sessão do papel é encerrada — e um teste
+conta processos, não linhas.
+
+---
+
+## Fase 26 — o parecer entra no portão
+
+#### T53: Dois baldes, e o revisor escolhe o balde ([Q67](open-questions.md))
+
+A saída do revisor vira estruturada: `bloqueia` exige **comando e saída**; `anota` exige só a frase.
+
+**Done when:** um parecer com os dois baldes é lido, e cada achado cai no seu.
+
+#### T54: O daemon reroda o que o `bloqueia` afirma
+
+Reproduziu → `fail`, e volta ao implementador com o achado. **Não** reproduziu → o achado cai, e fica
+registrado que o revisor afirmou o que não se sustenta.
+
+**A reprodução roda no checkout, com teto de tempo** — é o mesmo mecanismo do `test` do
+`project.toml`, que a esteira já usa.
+
+**Done when:** um `bloqueia` com reprodução falsa **não** segura o cartão, e deixa rastro.
+
+#### T55: O `anota` vira comentário, e não segura nada
+
+Na tarefa (a tabela da [`022`](../022-workspace-tasks/prd.md) já existe) e na PR.
+
+**Done when:** um parecer só com `anota` **avança** o cartão, e as anotações estão na PR.
+
+---
+
+## Fase 27 — a PR e a sessão
+
+#### T56: A PR abre na primeira implementação ([Q68](open-questions.md))
+
+E não em `ready_to_merge`. É o endereço do balde `anota`, e é o que faz o marco `pr` do §6 — que
+existe e **nunca disparou** — passar a disparar.
+
+**Done when:** o primeiro `portão verde` do implementador deixa uma PR aberta, e o tracker recebe o
+marco.
+
+#### T57: Uma sessão por papel, por tarefa ([Q69](open-questions.md))
+
+Um implementador, um revisor, um testador. A segunda tentativa **retoma** a sessão do papel em vez de
+abrir outra.
+
+**Done when:** três tentativas do implementador produzem **uma** sessão, e o consumo mostra a diferença.
+
+#### T58: O retorno do revisor chega ao implementador, e a nota fica na Q47
+
+O que volta é **achado** — comando, saída, arquivo e linha —, e não o raciocínio do revisor. A
+[Q47](open-questions.md) proíbe o caminho contrário e não previu este; a nota entra no requisito dela.
+
+**Done when:** o implementador recebe os achados do `bloqueia` no prompt da tentativa seguinte, e nada
+do texto livre do revisor atravessa.
+
+---
+
+## Fase 28 — a prova
+
+#### T59: O e2e da Parte 7, com um revisor falso
+
+Zero token. Quatro perguntas: as quatro setas andam; um `bloqueia` reproduzível segura e volta; um
+`bloqueia` que não reproduz **não** segura; um `anota` avança e aparece na PR.
+
+**Done when:** os quatro passam, e cada um foi visto vermelho contra o código de antes.
+
 ## O que fica para o `tasks.md` seguinte
 
 | O quê | O que destrava |

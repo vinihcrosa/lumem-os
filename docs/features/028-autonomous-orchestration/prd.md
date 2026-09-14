@@ -678,6 +678,56 @@ no caso de uso pede por ele.
 Tarefa externa que **muda no meio** — reatribuída, fechada, descrição editada — **bloqueia**, com o
 motivo dizendo qual das três foi. Você decide. Nada é injetado no meio de um turno.
 
+### Parte 7 — O que o revisor decide, e o que a esteira faz com isso
+
+**Nasceu de rodar a esteira de verdade**, em 2026-09-14, contra uma tarefa que veio do Linear
+(`LUM-51`). Ela gastou **US$ 11,41** e **453 884 tokens** em seis sessões, e o cartão nunca saiu de
+`In Review`. Três defeitos apareceram empilhados, e nenhum deles é o que o relato inicial dizia:
+
+| # | O quê | Consequência |
+|---|---|---|
+| 1 | a esteira escreve com `actor: "agent"`, e o `AGENT_MAY_SET` da [`022`](../022-workspace-tasks/prd.md) só permite `review` | **três das quatro setas são recusadas pelo próprio daemon.** O `throw` vira uma linha de log e some |
+| 2 | o portão não tem entrada para o parecer do revisor | o revisor escreveu **`Reprovo`**, com mutante e cenário de falha, e o daemon registrou `portão verde` |
+| 3 | `committed` é *árvore limpa **e** à frente da base*, e `à frente` fica verdadeiro para sempre depois do primeiro commit | o portão não distingue *"o revisor trabalhou"* de *"o revisor não fez nada"* |
+
+O **2** é o que muda o desenho, e o **1** é o que escondeu tudo: com a seta recusada, o sintoma na
+tela foi *"o revisor rodou duas vezes e travou"* — que é a leitura errada do que aconteceu.
+
+**O parecer do revisor passa a existir, em dois baldes, e o revisor escolhe o balde.** A diferença
+entre eles não é a verdade do achado — é **quem consegue resolver a discussão**:
+
+| Balde | Exige | Quem arbitra | O que acontece |
+|---|---|---|---|
+| **`bloqueia`** | comando + saída que demonstram | **a máquina**: o daemon reroda | reproduz → volta ao implementador. Não reproduz → o achado **cai**, e fica registrado que o revisor afirmou o que não se sustenta |
+| **`anota`** | nada além da frase | **uma pessoa**, na PR | **não segura o cartão.** Vira comentário na tarefa e na PR, e é lido antes de mesclar |
+
+O `anota` existe porque **nem todo achado bom é reproduzível** — *"fere a direção de dependência"*,
+*"duplica uma regra que já existe"*, *"quebrou a convenção dos irmãos"*. Forçá-los pelo balde do
+comando os apagaria; deixá-los bloquear entregaria a esteira a uma discussão de arquitetura entre dois
+agentes, **sem árbitro**. Com dois baldes, o julgamento não some e não trava.
+
+> **Isto responde *"toda vez que você pede um review, o agente acha alguma coisa"* sem censurar o
+> revisor.** Ele acha quanto quiser: só **segura** o que conseguir demonstrar, e o resto vai para onde
+> alguém já ia olhar de qualquer jeito.
+
+E o balde `anota` tem uma terceira saída, que não é automática e não deve ser: **um achado que se
+repete é candidato a virar checagem.** Este repositório já faz isso — os 119 pares de contraste, o
+portão de documentação, o `adapters:check`. Quem promove é uma pessoa lendo o terceiro comentário
+igual.
+
+**A PR abre na primeira implementação**, e não em `ready_to_merge`. É o que dá endereço ao balde
+`anota` — comentário de revisão mora na PR — e é o que faz o marco `pr` do §6/Parte 6, que existe e
+**nunca disparou**, passar a disparar.
+
+**Uma sessão por papel, por tarefa.** Hoje cada tentativa abre sessão nova: a `LUM-51` produziu seis,
+e **três ficaram vivas**. O implementador que recebe o retorno do revisor é o **mesmo** que escreveu, e
+o revisor que revisa de novo é o **mesmo** que reprovou — o que deixa de pagar o contexto duas vezes.
+
+> **Isto não fura a [Q47](open-questions.md#q47--o-que-passa-de-uma-sessão-para-outra)**, e a fronteira
+> é exatamente esta: ela proíbe o **implementador briefar o revisor**, para não enviesar o parecer.
+> Continuar a mesma sessão do mesmo papel não é isso. O que ela não previu é o caminho
+> **revisor → implementador**, que esta parte abre — e ele carrega **achado**, não raciocínio.
+
 ### Não entra, e por quê
 
 | Fora | Por quê |

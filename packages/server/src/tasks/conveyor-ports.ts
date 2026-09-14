@@ -7,7 +7,7 @@ import type { Db } from "../db/index.js";
 import { project, worktree } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import type { GitService } from "../git/GitService.js";
-import { createTaskRepository } from "../repositories/task.js";
+import { createTaskRepository, type TaskStatus } from "../repositories/task.js";
 import { createTaskCommentRepository } from "../repositories/task-comment.js";
 import { readProjectScripts } from "../scripts/project-scripts.js";
 import type { ScriptRunner } from "../scripts/ScriptRunner.js";
@@ -82,7 +82,7 @@ export type PrLike = "ready" | "blocked" | "pending" | "draft" | "merged" | "clo
  * `in_progress`, que é o que já acontece hoje quando você manda o primeiro
  * prompt à mão.
  */
-const NEXT_STAGE: Record<string, string> = {
+const NEXT_STAGE: Record<string, TaskStatus> = {
   open: "in_progress",
   in_progress: "review",
   review: "testing",
@@ -254,7 +254,19 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
       // Sem etapa seguinte a seta não anda, e isso não é erro: `ready_to_merge`
       // é sua vez, e a esteira acabou de chegar nela.
       if (next === undefined) return;
-      await tasks.setStatus(row.id, next as "review", { actor: "agent" });
+      /*
+       * `conveyor`, e **não** `agent` (Parte 7, T49).
+       *
+       * Quem move a seta aqui é o daemon, por fato verificável — o §4.1 inteiro.
+       * Declarar-se agente fazia o `AGENT_MAY_SET` recusar três das quatro
+       * setas, e o `throw` sumia no `catch` do laço: o cartão parava em
+       * `In Review` com o revisor rodando contra ele até esgotar as tentativas.
+       *
+       * O `as TaskStatus` some junto: `NEXT_STAGE` passou a ser tipado, e o
+       * `as "review"` de antes era o tipo mentindo exatamente onde o runtime
+       * recusava.
+       */
+      await tasks.setStatus(row.id, next, { actor: "conveyor" });
     },
 
     block: async ({ taskId, reason }) => {

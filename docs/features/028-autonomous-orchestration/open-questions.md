@@ -1983,3 +1983,107 @@ Os caminhos, e nenhum foi escolhido:
 **Enquanto ela não fecha**, a instalação de um workspace — que é o caso comum — não vê diferença
 nenhuma, e o comportamento está escrito no `loop.ts` em vez de implícito. O que não pode continuar é
 os dois documentos dizendo coisas diferentes do que o código faz.
+
+---
+
+## Décima terceira rodada — a Parte 7, e ela nasceu de rodar a esteira de verdade
+
+Em **2026-09-14**, contra uma tarefa que veio do Linear. **US$ 11,41** e **453 884 tokens** em seis
+sessões, e o cartão nunca saiu de `In Review`. As quatro perguntas abaixo são o que sobrou depois de
+achar por que.
+
+### [x] Q67 — o parecer do revisor entra no portão?
+
+**Não entrava**, e isso não era decisão de ninguém: o `GateFacts` tem quatro campos — `committed`,
+`testExitCode`, `hasTest`, `pr` — e nenhum vem do revisor. O texto do turno não é lido por nada.
+
+O caso real: o revisor abriu com **`Reprovo`**, apontou um mutante sobrevivente (*"apaguei o bloco
+`permissions:` do job e rodei: 19/19 verde"*) e dois `Done when` nunca observados. O daemon registrou
+`revisor · tentativa 2 — portão verde`.
+
+A pergunta é mais difícil do que parece porque a
+[Q39](#q39--quem-diz-que-o-agente-está-esperando-você) mediu que **a palavra do agente não vale como
+prova**: a tarefa impossível virou commit em 3 de 4 execuções. Daí a [Q53](#q53--o-portão-é-o-check-da-pr)
+ter posto o portão no `test` e no CI. Mas isso deixa uma pergunta que ninguém fez: **se *aprovo* não
+vale, *reprovo* vale?**
+
+- **acreditar no revisor** — ele responde aprovo/reprovo e o reprovo segura. Simples, e é o risco que
+  o relato nomeia: *"toda vez que você pede um review, o agente acha alguma coisa"* — nada nunca passa;
+- **descartar o parecer** — é o que acontece hoje, e torna o revisor um turno que custa US$ 2 e cuja
+  conclusão é jogada fora.
+
+**R (2026-09-14): nenhuma das duas — dois baldes, e o revisor escolhe o balde.** O que separa não é a
+verdade do achado, é **quem consegue resolver a discussão**.
+
+**`bloqueia`** exige **reprodução**: comando e saída. O daemon reroda. Reproduziu → volta ao
+implementador. Não reproduziu → o achado cai, e fica registrado que o revisor afirmou o que não se
+sustenta. Quem arbitra é a máquina.
+
+**`anota`** não exige nada além da frase, e **não segura o cartão**. Vira comentário na tarefa e na
+PR. Quem arbitra é uma pessoa, no momento em que ia mesclar de qualquer jeito.
+
+**E o `anota` existe porque a objeção contra o balde único é certa** — suas palavras:
+
+> *"tem coisa em review que não é exatamente reprodutível (…) existem partes que nem sempre são
+> verificáveis, como por exemplo infringir alguma boa prática de programação, um princípio de
+> arquitetura."*
+
+Forçá-las pelo comando as apagaria. Deixá-las bloquear entregaria a esteira a uma discussão de
+arquitetura entre dois agentes **sem árbitro**, que é o pior dos dois mundos: caro e sem fim.
+
+**O revisor já escreve assim**, e isso é o que torna a resposta barata: no caso real ele não disse
+*"acho o teste fraco"* — ele mutou, rodou e colou a saída. O desenho não pede mais dele; dá lugar para
+cada metade.
+
+**A terceira saída, que não é automática:** um achado do `anota` que **se repete** é candidato a virar
+checagem — é o que este repositório já faz com os 119 pares de contraste, o portão de documentação e o
+`adapters:check`. Quem promove é uma pessoa lendo o terceiro comentário igual, nunca o daemon.
+
+> **O que fica sem defesa, e está escrito de propósito:** quem escolhe o balde é o revisor, e nada
+> impede um bloqueio real de ir para o `anota`. A única defesa é a pessoa lendo a PR antes de mesclar.
+> A defesa do lado oposto existe e é forte: reprodução inventada **não reproduz**, e o achado cai
+> sozinho.
+
+### [x] Q68 — quando a PR abre?
+
+O §6 previa o marco `pr` (*"PR #87 aberta"*), e ele **nunca disparou** — nada na esteira abre PR.
+
+**R (2026-09-14): na primeira vez que o implementador termina**, e não em `ready_to_merge`.
+
+Duas coisas dependem disso, e nenhuma é estética. A PR é **o endereço do balde `anota`**: comentário
+de revisão mora numa PR, não numa tabela do Lumem. E é o que faz o marco do §6/Parte 6 passar a
+existir.
+
+### [x] Q69 — uma sessão por papel, ou uma por tentativa?
+
+Hoje cada tentativa abre sessão nova. A `LUM-51` produziu **seis**, e **três ficaram vivas** — a
+esteira nunca fecha o que abre.
+
+**R (2026-09-14): uma por papel, por tarefa.** Um implementador, um revisor, um testador. O
+implementador que recebe o retorno do revisor é o **mesmo** que escreveu; o revisor que revisa de novo
+é o **mesmo** que reprovou. O que se compra é não pagar o contexto duas vezes.
+
+**E isto não fura a [Q47](#q47--o-que-passa-de-uma-sessão-para-outra)** — a fronteira é exata. Ela
+proíbe o **implementador briefar o revisor**, para não enviesar o parecer. Continuar a mesma sessão do
+mesmo papel não é isso.
+
+> **O que ela não previu é o caminho revisor → implementador**, que esta parte abre. Ele é legítimo
+> pela própria régua da Q47: o que volta é **achado** — comando, saída, arquivo e linha —, e não o
+> raciocínio do revisor. A nota fica no requisito dela.
+
+### [ ] Q70 — o que acontece com um `anota` que ninguém lê?
+
+**Aberta.** O balde `anota` aposta que a pessoa lê a PR antes de mesclar. Com uma esteira andando e
+oito cartões por dia, isso pode virar o mesmo *"aviso que se aprende a ignorar"* que o §8 nomeia como
+risco.
+
+Os caminhos, e nenhum foi escolhido:
+
+- **contar no cartão** — `3 anotações` no rodapé, como o `tentativa 2` já faz. Barato, e mais um
+  número numa tela que já tem vários;
+- **segurar o `Done`** enquanto houver anotação não lida — vira portão com outro nome, e reintroduz o
+  travamento que o balde existe para evitar;
+- **nada** — a PR é o lugar, e quem mescla sem ler a PR já tinha esse problema antes do Lumem.
+
+Ela só pode ser respondida **depois** de a Parte 7 rodar contra trabalho real: hoje não há um número
+de quantas anotações uma tarefa produz.

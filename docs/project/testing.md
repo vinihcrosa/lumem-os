@@ -1088,6 +1088,30 @@ A regra é a que a seção de convenções já tem, dita de outro jeito: **asser
 conta como teste faltando** — e a maneira de descobrir é asserir a **premissa** do caso, não só a
 conclusão.
 
+### Uma porta injetada e falsa em todo teste é uma costura sem teste
+
+**Sintoma:** o daemon **recusava as próprias escritas**, e nada falhava. Três das quatro setas da
+esteira — `open → in_progress`, `review → testing`, `testing → ready_to_merge` — lançavam `BLOCKED`,
+o `throw` subia até o `catch` do laço e virava uma linha de log. As 48 tasks da `028` fecharam com a
+suíte verde.
+
+**Causa:** a esteira escreve com `setStatus(..., { actor: "agent" })`, e o `AGENT_MAY_SET` da `022` só
+permite `review` — uma regra **certa**, que existe para impedir um agente de se declarar pronto. O
+erro é a esteira se declarar um: ela é o daemon.
+
+**E o motivo de ninguém ver:** o `conveyor.test.ts` injeta um `advance` **falso**. Ele prova a política
+da esteira — a ordem das coisas, o que acontece quando o portão reprova — sem tocar o banco, e isso é
+uma escolha boa. O que faltava era o outro arquivo: **não existia `conveyor-ports.test.ts`**, então a
+tradução entre a política e o repositório nunca foi exercitada por nada.
+
+O custo de não ter: uma tarefa de verdade, **US$ 11,41** e 453 884 tokens em seis sessões, com o
+cartão parado em `In Review` e o revisor rodando contra ele até esgotar as tentativas. O sintoma que
+chegou foi *"o revisor travou"* — que é a leitura errada de tudo.
+
+A regra: **injetar a ponta é o que torna a política testável, e é o que torna a tradução invisível.**
+Toda porta que um teste substitui por um dublê precisa de um segundo arquivo que a exercite de
+verdade — e o `as "review"` naquela linha era o tipo mentindo exatamente onde o runtime recusava.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
