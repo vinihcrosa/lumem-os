@@ -64,6 +64,60 @@ verdade.
 Ele fica **fora** do checkout — o PRD exige que `worktree.path` fique fora de
 `project.path`, e o git reclama de worktree dentro de worktree.
 
+### O preço de compartilhar: o banco tem uma história só
+
+Um banco compartilhado tem **uma** linha do tempo de migração, e as worktrees têm várias. O sintoma é
+o daemon **não subir**, e o que se vê no terminal é o proxy do Vite, que não fala de banco nenhum:
+
+```
+[vite] http proxy error: /trpc/health
+Error: connect ECONNREFUSED 127.0.0.1:4317
+```
+
+O erro de verdade está na saída do `@lumem/server`, e tem esta forma:
+
+```
+SqliteError: table `task_comment` already exists
+    at migrateWithRebuildsAllowed (packages/server/src/db/index.ts)
+```
+
+**As duas causas, e as duas acontecem:**
+
+1. **migração regenerada no lugar.** Um `drizzle-kit generate` que reescreve um `NNN` que já rodou
+   troca o hash e o `when` do arquivo. O banco guarda o hash antigo, o drizzle não reconhece o novo
+   como aplicado, e replica um `CREATE TABLE` sobre a tabela que já existe;
+2. **o mesmo `NNN` gerado em duas worktrees.** É a colisão que a
+   [`025`](../features/025-docs-contract/prd.md) nomeia para número de feature, aqui em migração — e
+   aqui ela não tem regra escrita, porque o número vem do `drizzle-kit` e não de quem escreve.
+
+**Como descobrir em qual pé o banco está.** O drizzle decide pelo `created_at` da última linha
+aplicada contra o `when` de cada entrada do journal — tudo com `when` maior é replicado:
+
+```bash
+sqlite3 ~/.lumem-dev/shared/lumem.db 'select count(*), max(created_at) from __drizzle_migrations;'
+```
+
+> `__drizzle_migrations.id` é declarado `SERIAL`, que o SQLite **não reconhece** — a coluna é `NULL`
+> em toda linha. Para mexer nela, é por `rowid`, e um `WHERE id = …` casa zero linhas em silêncio.
+
+**Como consertar sem perder o ambiente.** Quando a migração divergente produziu uma tabela que a desta
+branch também produz, dá para rebobinar em vez de recriar: apagar a tabela, apagar a última linha do
+journal, e deixar o daemon aplicar do arquivo — o que preserva projeto, worktrees e sessões
+cadastrados. Confira o `sql` da tabela no `sqlite_master` **antes**: se a versão de lá tem restrição
+que a daqui não tem (foi assim que o `task_comment` chegou com um estrangeiro que esta branch removeu
+de propósito), é ela que está velha, e é ela que sai.
+
+```bash
+sqlite3 ~/.lumem-dev/shared/lumem.db ".backup '~/.lumem-dev/shared/lumem.db.bak'"
+sqlite3 ~/.lumem-dev/shared/lumem.db \
+  "DROP TABLE <a tabela>; \
+   DELETE FROM __drizzle_migrations WHERE rowid = (SELECT max(rowid) FROM __drizzle_migrations);"
+```
+
+**A saída que não pede nada disso** é o [modo isolado](#o-modo-isolado): state dir por workspace, banco
+próprio, migrado pela branch que está aberta. Ele custa o que a seção acima diz que custa — nasce
+vazio, e você recadastra os projetos —, e é o preço de não ter história compartilhada.
+
 `LUMEM_DEV_HOME` move a árvore de dev inteira; `LUMEM_STATE_DIR` aponta um state
 dir específico e vence tudo.
 
