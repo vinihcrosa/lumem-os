@@ -50,20 +50,24 @@ export function runConveyorLoop({
   clearInterval: cancel = globalThis.clearInterval,
 }: ConveyorLoopOptions): () => void {
   /*
-   * Uma passada por vez.
+   * Uma passada por vez, **por workspace**.
    *
-   * Sem esta trava, uma passada lenta — `setup` de um projeto grande — seria
+   * Sem a trava, uma passada lenta — `setup` de um projeto grande — seria
    * alcançada pela seguinte, e as duas leriam a **mesma** fila: o cartão ainda
    * não tem turno em voo, então as duas o pegariam e abririam duas sessões para
    * a mesma tarefa. É o único lugar em que o *"um escritor só"* do ADR precisa
-   * de ajuda, e a ajuda é um booleano — não um lease.
+   * de ajuda, e a ajuda é este conjunto — não um lease.
+   *
+   * **Por workspace, e não um booleano do daemon inteiro**: com um sinalizador
+   * só, um turno pendurado num workspace segurava a passada de todos os outros
+   * por até os 30 minutos inteiros do teto — a esteira parava por causa de um
+   * cartão, e o sintoma era *"parou de andar"* sem nada na tela. O escopo do
+   * teto de paralelismo é o workspace desde a `queueOf`; o do relógio passa a
+   * ser o mesmo.
    */
-  let running = false;
+  const running = new Set<string>();
 
   const timer = schedule(() => {
-    if (running) return;
-    running = true;
-
     void (async () => {
       try {
         /*
@@ -72,39 +76,55 @@ export function runConveyorLoop({
          * nem deve, porque fechar a janela não pode parar o trabalho.
          */
         const spaces = await db.select({ id: workspace.id }).from(workspace);
-        for (const space of spaces) {
-          await conveyor.tick(space.id);
-        }
-      } catch (error) {
         /*
-         * Uma passada que falha **não** derruba o laço, e não é zelo: sem isto,
-         * um projeto com o repositório movido pararia a esteira de todos os
-         * outros workspaces, e o sintoma seria *"parou de andar"* sem nada na
-         * tela. O retrato vai para o log com etiqueta procurável, como o
-         * `turn-failed`.
-         */
-        /*
-         * A **mensagem**, e não o objeto.
+         * Concorrentes, e cada um com o **próprio** `catch`.
          *
-         * A primeira versão logava `{ error }` e o pino serializava um
-         * `DomainError` como `{"code":"BLOCKED","name":"DomainError"}` — sem a
-         * frase, que é a única parte que diz o que aconteceu. É o mesmo defeito
-         * que o retrato do turno pagou: uma etiqueta procurável que não carrega
-         * o que se procura.
+         * Em série, um workspace cujo repositório foi movido lançava antes dos
+         * seguintes e a passada acabava ali — os outros nem eram lidos. O
+         * comentário do `catch` abaixo já dizia que era isso que ele existia
+         * para evitar, e ele só cobria a passada, não o laço.
          */
-        log?.warn(
-          {
-            tag: "conveyor-tick-failed",
-            message: error instanceof Error ? error.message : String(error),
-            code: (error as { code?: unknown }).code ?? null,
-          },
-          "a passada da esteira falhou",
+        await Promise.all(
+          spaces
+            .filter((space) => !running.has(space.id))
+            .map(async (space) => {
+              running.add(space.id);
+              try {
+                await conveyor.tick(space.id);
+              } catch (error) {
+                report(error);
+              } finally {
+                running.delete(space.id);
+              }
+            }),
         );
-      } finally {
-        running = false;
+      } catch (error) {
+        // O que sobra: ler a lista de workspaces falhou. As passadas já têm o
+        // `catch` delas lá em cima, uma por uma.
+        report(error);
       }
     })();
   }, intervalMs);
+
+  /**
+   * O retrato de uma falha, com etiqueta procurável — como o `turn-failed`.
+   *
+   * **A mensagem, e não o objeto.** A primeira versão logava `{ error }` e o
+   * pino serializava um `DomainError` como `{"code":"BLOCKED","name":"DomainError"}`
+   * — sem a frase, que é a única parte que diz o que aconteceu. É o mesmo
+   * defeito que o retrato do turno pagou: uma etiqueta procurável que não
+   * carrega o que se procura.
+   */
+  function report(error: unknown): void {
+    log?.warn(
+      {
+        tag: "conveyor-tick-failed",
+        message: error instanceof Error ? error.message : String(error),
+        code: (error as { code?: unknown }).code ?? null,
+      },
+      "a passada da esteira falhou",
+    );
+  }
 
   // `unref` para o laço não segurar o processo: um daemon que já recebeu o
   // sinal de parada não pode ficar vivo por causa de um relógio de 15s.

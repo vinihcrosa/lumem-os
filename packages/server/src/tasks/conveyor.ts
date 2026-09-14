@@ -416,9 +416,29 @@ export function createConveyor(
        * dizer a diferença entre *"não há nada"* e *"não cabe mais"*.
        */
       const taking = facts.entries.slice(0, facts.slots);
-      for (const entry of taking) {
-        await runOne(entry, facts.autonomy);
-      }
+      /*
+       * As vagas rodam **ao mesmo tempo**, e é o que faz o teto existir.
+       *
+       * Em série, `teto 2` nunca produzia dois turnos em voo: cada `runOne`
+       * espera o turno inteiro, então a segunda vaga só começava quando a
+       * primeira acabasse — e o `2 em uso` que o Open Design desenha ao lado do
+       * quadro era um número que o produto nunca alcançava.
+       *
+       * Concorrer aqui é seguro do lado do git, e isso foi **medido** e não
+       * suposto: 72 `git worktree add` simultâneos no mesmo repositório, seis de
+       * cada vez, doze rodadas — zero falhas. O que sobra em série é o que tem
+       * que ser em série, e está dentro de `runOne`.
+       *
+       * `allSettled` e **não** `all`: com `all`, a primeira rejeição descartaria
+       * o resultado das outras vagas que já estavam rodando. A falha continua
+       * subindo — é ela que vira o `conveyor-tick-failed` —, mas depois de todo
+       * mundo ter terminado.
+       */
+      const settled = await Promise.allSettled(
+        taking.map((entry) => runOne(entry, facts.autonomy)),
+      );
+      const failed = settled.find((one) => one.status === "rejected");
+      if (failed?.status === "rejected") throw failed.reason as Error;
       return taking.length;
     },
   };

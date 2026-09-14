@@ -60,10 +60,73 @@ describe("uma passada por vez", () => {
      * alcançada pela seguinte, e as duas leriam a **mesma** fila: o cartão ainda
      * não tem turno em voo, então as duas o pegariam e abririam **duas sessões
      * para a mesma tarefa**. É o único lugar em que o *"um escritor só"* do ADR
-     * precisa de ajuda, e a ajuda é um booleano — não um lease.
+     * precisa de ajuda, e a ajuda é este conjunto — não um lease.
      */
     expect(tick).toHaveBeenCalledTimes(1);
     release();
+    stop();
+  });
+});
+
+describe("um workspace travado não para os outros", () => {
+  it("a passada pendurada de um não segura a do outro", async () => {
+    context = createTestCaller();
+    const stuck = await context.api.workspace.create({ name: `travado-${newId()}` });
+    await context.api.workspace.create({ name: `saudavel-${newId()}` });
+    const clock = manualClock();
+    const tick = vi.fn((workspaceId: string) =>
+      workspaceId === stuck.id ? new Promise<number>(() => undefined) : Promise.resolve(0),
+    );
+
+    const stop = runConveyorLoop({
+      db: context.db,
+      conveyor: { tick, send: async () => undefined },
+      setInterval: clock.schedule,
+    });
+
+    clock.tick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    clock.tick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    /*
+     * Com um sinalizador só para o daemon inteiro, um turno pendurado num
+     * workspace segurava a passada de **todos** por até os 30 minutos do teto: a
+     * esteira parava por causa de um cartão, e o sintoma era *"parou de andar"*
+     * sem nada na tela. O travado é visto uma vez; o saudável, duas.
+     */
+    const passes = tick.mock.calls.map(([id]) => id);
+    expect(passes.filter((id) => id === stuck.id)).toHaveLength(1);
+    expect(passes.filter((id) => id !== stuck.id)).toHaveLength(2);
+    stop();
+  });
+
+  it("o que lança em um não impede os outros de serem lidos", async () => {
+    context = createTestCaller();
+    const broken = await context.api.workspace.create({ name: `quebrado-${newId()}` });
+    await context.api.workspace.create({ name: `inteiro-${newId()}` });
+    const clock = manualClock();
+    const warn = vi.fn();
+    const tick = vi.fn((workspaceId: string) =>
+      workspaceId === broken.id
+        ? Promise.reject(new Error("o repositório sumiu"))
+        : Promise.resolve(0),
+    );
+
+    const stop = runConveyorLoop({
+      db: context.db,
+      conveyor: { tick, send: async () => undefined },
+      setInterval: clock.schedule,
+      log: { warn },
+    });
+
+    clock.tick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Em série, o `throw` do primeiro acabava a passada ali e os seguintes nem
+    // eram lidos — o `catch` cobria a passada, e não o laço dentro dela.
+    expect(tick).toHaveBeenCalledTimes(2);
+    expect(warn.mock.calls[0]?.[0]).toMatchObject({ tag: "conveyor-tick-failed" });
     stop();
   });
 });

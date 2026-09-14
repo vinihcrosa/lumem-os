@@ -595,6 +595,46 @@ describe("o portão julga o checkout que o turno usou", () => {
   });
 });
 
+describe("as vagas rodam ao mesmo tempo", () => {
+  it("`teto 2` produz dois turnos em voo, e não um depois do outro", async () => {
+    const { ports, spies } = harness({
+      facts: { slots: 2, entries: [entry({ id: "a" }), entry({ id: "b" })] },
+    });
+    let inFlight = 0;
+    let peak = 0;
+    spies.prompt.mockImplementation(async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await Promise.resolve();
+      inFlight -= 1;
+    });
+
+    await createConveyor(ports).tick("w1");
+
+    /*
+     * Em série o pico era **1**: cada `runOne` espera o turno inteiro, então a
+     * segunda vaga só começava quando a primeira acabasse — e o `2 em uso` que
+     * o Open Design desenha ao lado do quadro era um número que o produto nunca
+     * alcançava.
+     */
+    expect(peak).toBe(2);
+    expect(spies.prompt).toHaveBeenCalledTimes(2);
+  });
+
+  it("uma vaga que falha não descarta o trabalho das outras", async () => {
+    const { ports, spies } = harness({
+      facts: { slots: 2, entries: [entry({ id: "a" }), entry({ id: "b" })] },
+    });
+    spies.prompt.mockImplementationOnce(() => Promise.reject(new Error("o adaptador morreu")));
+
+    // Com `Promise.all`, a primeira rejeição descartaria o resultado da outra
+    // vaga que já estava rodando. A falha continua subindo — é ela que vira o
+    // `conveyor-tick-failed` —, mas depois de todo mundo ter terminado.
+    await expect(createConveyor(ports).tick("w1")).rejects.toThrow(/o adaptador morreu/);
+    expect(spies.prompt).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("o turno tem teto de tempo", () => {
   it("um turno que não acaba é interrompido, e a tentativa é gasta", async () => {
     const { ports, spies, calls } = harness({ facts: { entries: [entry()] } });
