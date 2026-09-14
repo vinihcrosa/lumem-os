@@ -1,10 +1,13 @@
 import { newId } from "@lumem/shared";
 import { and, eq } from "drizzle-orm";
+import { existsSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { project, session, task, workspace, worktree } from "../db/schema.js";
 import { createTaskRepository } from "../repositories/task.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
+import { cleanupGitFixtures, createRepo, runGit, tempDir } from "../testing/git-fixtures.js";
 
 /**
  * O router de tarefas (`022-workspace-tasks` T5).
@@ -24,6 +27,7 @@ function caller(): TestCaller {
 
 afterEach(async () => {
   await context?.cleanup();
+  cleanupGitFixtures();
 });
 
 /**
@@ -910,5 +914,87 @@ describe("o `Done` que limpa (Q27, Q58)", () => {
     await workspaceWithProject(context);
 
     await expect(api.task.finish({ id: "nao-existe" })).rejects.toThrow(/não existe/);
+  });
+
+  it("com o interruptor ligado, mesclada e suja é removida de verdade", async () => {
+    /*
+     * Git de verdade, e é o único jeito de este caso existir: `git worktree
+     * remove` **recusa** um checkout com arquivo não rastreado, e a recusa é do
+     * git — nenhum dublê a reproduz. Sem `--force`, a exceção subia depois de a
+     * tarefa já estar em `done` e do `stopAll`, mas antes de a linha sair do
+     * banco: tarefa concluída, worktree suja intacta e erro na tela. O
+     * interruptor da Q27 nunca removia worktree suja, que é o único caso para o
+     * qual ele foi escrito.
+     */
+    const { api, db } = caller();
+    const repo = await createRepo();
+    const space = await api.workspace.create({ name: `acme-${newId()}` });
+    await api.workspace.setCleanup({ id: space.id, mergedAlwaysRemoves: true });
+
+    const projectId = newId();
+    await db.insert(project).values({
+      id: projectId,
+      workspaceId: space.id,
+      name: "acme-api",
+      path: repo,
+      defaultBranch: "main",
+    });
+
+    // Sem commit próprio: `ahead === 0` contra `main` é o que o produto lê como
+    // *mesclada*, e vale para quem mesclou na mão e para quem nunca abriu PR.
+    const checkout = join(tempDir(), "wt");
+    await runGit(repo, "worktree", "add", "-b", "fix/500", checkout, "main");
+    writeFileSync(join(checkout, "rascunho.txt"), "trabalho não commitado\n");
+
+    await db.insert(worktree).values({
+      id: "wt-suja",
+      projectId,
+      name: "fix-500",
+      branch: "fix/500",
+      path: checkout,
+    });
+    const created = await api.task.create({ workspaceId: space.id, projectId, title: "suja" });
+    await api.task.attachWorktree({ id: created.id, worktreeId: "wt-suja" });
+
+    const result = await api.task.finish({ id: created.id });
+
+    expect(result.task.status).toBe("done");
+    expect(result.cleanup).toMatchObject({ kind: "remove" });
+    // As três pontas, porque o defeito deixava as três em desacordo: o disco, a
+    // linha do banco e a resposta da chamada.
+    expect(existsSync(checkout)).toBe(false);
+    expect(await db.select().from(worktree)).toHaveLength(0);
+  });
+
+  it("mesclada e limpa continua sendo removida sem o interruptor", async () => {
+    // O caso 1 da Q27, e ele é o que prova que `--force` não passou a ser a
+    // decisão: sem o interruptor, sujo e mesclado **fica**.
+    const { api, db } = caller();
+    const repo = await createRepo();
+    const space = await api.workspace.create({ name: `beta-${newId()}` });
+
+    const projectId = newId();
+    await db.insert(project).values({
+      id: projectId,
+      workspaceId: space.id,
+      name: "acme-api",
+      path: repo,
+      defaultBranch: "main",
+    });
+
+    const checkout = join(tempDir(), "wt");
+    await runGit(repo, "worktree", "add", "-b", "fix/limpa", checkout, "main");
+    await db.insert(worktree).values({
+      id: "wt-limpa",
+      projectId,
+      name: "fix-limpa",
+      branch: "fix/limpa",
+      path: checkout,
+    });
+    const created = await api.task.create({ workspaceId: space.id, projectId, title: "limpa" });
+    await api.task.attachWorktree({ id: created.id, worktreeId: "wt-limpa" });
+
+    expect((await api.task.finish({ id: created.id })).cleanup).toMatchObject({ kind: "remove" });
+    expect(existsSync(checkout)).toBe(false);
   });
 });

@@ -418,10 +418,24 @@ export const taskRouter = router({
       if (decision.kind === "keep") return { task: done, cleanup: decision };
 
       await ctx.scripts.stopAll({ scopeType: "worktree", scopeId: checkout.id });
+      /*
+       * `--force`, e ele é a decisão sendo executada — não um atalho.
+       *
+       * O segundo caso da Q27 é *"sujo e mesclado, com o interruptor ligado →
+       * remove"*, e a frase que o `decideCleanup` devolve diz o que se perde:
+       * `mesclada — N arquivos não commitados descartados`. Sem `--force`, o
+       * `git worktree remove` **recusa** uma worktree com arquivo modificado ou
+       * não rastreado, e a exceção subia depois de a tarefa já estar em `done` e
+       * de o `stopAll` ter rodado, mas antes de a linha sair do banco: tarefa
+       * concluída, scripts parados, worktree suja intacta e erro na tela — o
+       * split que o comentário acima existe para evitar. Na prática o
+       * interruptor nunca removia worktree suja, que é o único caso para o qual
+       * ele foi escrito.
+       */
       await ctx.git.removeWorktree({
         repoPath: owner?.path ?? checkout.path,
         path: checkout.path,
-        force: false,
+        force: decision.kind === "remove",
       });
       await createWorktreeRepository(ctx.db).remove(checkout.id);
       ctx.events.emit({ type: "worktree.changed", projectId: target.projectId });
