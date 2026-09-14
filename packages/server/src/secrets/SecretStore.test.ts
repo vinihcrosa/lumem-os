@@ -1,4 +1,4 @@
-import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -90,7 +90,15 @@ describe("o que o ADR promete", () => {
     const { stateDir, secrets } = store();
     secrets.write("linear", "a");
     const keyPath = join(stateDir, SECRETS_KEY_FILE);
-    writeFileSync(keyPath, readFileSync(keyPath), { mode: 0o644 });
+    /*
+     * `chmodSync`, e **não** `writeFileSync(..., { mode })`.
+     *
+     * O `mode` do `writeFileSync` só vale na criação, então reescrever um
+     * arquivo existente pedindo `0644` não muda permissão nenhuma — o cenário
+     * nunca acontecia e o teste passava contra um `chmod` removido. É o mesmo
+     * defeito que ele existe para cobrir, do lado do teste.
+     */
+    chmodSync(keyPath, 0o644);
 
     secrets.read("linear");
 
@@ -99,6 +107,24 @@ describe("o que o ADR promete", () => {
      * com a chave legível por qualquer um. O daemon é quem tem como notar isso.
      */
     expect(statSync(keyPath).mode & 0o777).toBe(0o600);
+  });
+
+  it("a permissão do arquivo de segredos é reaplicada na escrita", () => {
+    const { stateDir, secrets } = store();
+    secrets.write("linear", "a");
+    const path = join(stateDir, SECRETS_FILE);
+    chmodSync(path, 0o644);
+
+    secrets.write("github", "b");
+
+    /*
+     * O `mode` do `writeFileSync` só vale na **criação**: com o arquivo já no
+     * disco o Node o ignora, e a permissão de antes fica. Sem o `chmod`, um
+     * `~/.lumem` que voltou de um backup sem modo preservado ficaria `0644` para
+     * sempre — e o que vaza não é o segredo, que está cifrado, mas **quais**
+     * serviços você usa, que o ADR trata como informação a proteger.
+     */
+    expect(statSync(path).mode & 0o777).toBe(0o600);
   });
 
   it("cada segredo tem IV próprio — dois iguais não ficam iguais no disco", () => {

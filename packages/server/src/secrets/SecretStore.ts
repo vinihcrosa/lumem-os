@@ -101,6 +101,16 @@ export function createSecretStore({ stateDir }: { stateDir: string }): SecretSto
     // `0600` aqui também, ainda que o conteúdo esteja cifrado: o arquivo diz
     // **quais** serviços você usa, e isso já é informação.
     writeFileSync(path, `${JSON.stringify(all, null, 2)}\n`, { mode: 0o600 });
+    /*
+     * E reaplicado, pelo mesmo motivo que a `key()` reaplica.
+     *
+     * O `mode` do `writeFileSync` só vale na **criação** — com o arquivo já no
+     * disco, o Node o ignora e a permissão vigente fica. Um `~/.lumem`
+     * restaurado de um backup que não preservou modo (ou vindo de um volume que
+     * não tem modo nenhum) deixaria `secrets.json` em `0644`, e toda escrita
+     * seguinte o manteria assim — com o comentário acima afirmando o contrário.
+     */
+    chmodSync(path, 0o600);
   }
 
   return {
