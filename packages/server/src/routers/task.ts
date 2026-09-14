@@ -160,7 +160,18 @@ export const taskRouter = router({
       const queue = queueOf(ctx.db, { workspaceId: input.workspaceId, liveTurns: live });
       const columns = boardOf(ctx.db, {
         ...input,
-        waiting: beyondSlots(queue.entries, queue.slots),
+        /*
+         * Esperar vaga só existe onde há vaga para esperar (Q54).
+         *
+         * Em `manual` — que é o **default do produto** — nada puxa a fila: a
+         * `tick` lê e devolve zero. Suprimir o relógio ali marcaria como
+         * *"esperando vaga"* um cartão que ninguém nunca vai buscar, e ele
+         * jamais ficaria âmbar — a Q54 ao contrário, que é apagar o aviso em vez
+         * de apagar o falso positivo. A condição é a mesma que a esteira usa
+         * para decidir se roda.
+         */
+        waiting:
+          queue.autonomy === "manual" ? new Set<string>() : beyondSlots(queue.entries, queue.slots),
       });
       const byTask = liveTurnsByTask(ctx.db, live);
       const paused = pausesByTask(ctx.db, ctx.acpManager.rateLimits());

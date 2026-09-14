@@ -868,6 +868,44 @@ describe("escrever os tetos", () => {
   });
 });
 
+describe("esperar vaga só existe onde há vaga para esperar (Q54)", () => {
+  /** Três cartões devidos e teto 2: um deles fica além das vagas. */
+  async function threeDue() {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    for (const title of ["um", "dois", "tres"]) {
+      await api.task.create({ workspaceId, projectId, title });
+    }
+    return { api, workspaceId };
+  }
+
+  const excess = (columns: { status: string; cards: { queuedBeyondSlots: boolean }[] }[]) =>
+    columns.flatMap((column) => column.cards).filter((card) => card.queuedBeyondSlots).length;
+
+  it("em `manual` nenhum cartão é marcado como esperando vaga", async () => {
+    const { api, workspaceId } = await threeDue();
+
+    /*
+     * `manual` é o **default do produto**, e nele nada puxa a fila: a `tick` lê
+     * e devolve zero. Marcando o excedente como *"esperando vaga"*, a tela
+     * suprimia o relógio de encalhe de um cartão que ninguém nunca ia buscar — e
+     * ele jamais ficaria âmbar. É a Q54 ao contrário: apagar o aviso em vez de
+     * apagar o falso positivo.
+     */
+    expect(excess(await api.task.board({ workspaceId }))).toBe(0);
+  });
+
+  it("com a esteira ligada, o que passa do teto volta a contar como espera", async () => {
+    const { api, workspaceId } = await threeDue();
+
+    await api.workspace.setAutonomy({ id: workspaceId, autonomy: "autonomo", maxParallel: 2 });
+
+    // Duas vagas, três devidos: o terceiro está esperando vaga de verdade, e
+    // cobrar dele seria cobrar o que é desenho.
+    expect(excess(await api.task.board({ workspaceId }))).toBe(1);
+  });
+});
+
 describe("o `Done` que limpa (Q27, Q58)", () => {
   it("tarefa sem checkout anda e não há disco para limpar", async () => {
     const { api } = caller();
