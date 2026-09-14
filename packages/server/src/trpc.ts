@@ -23,6 +23,25 @@ import type { SessionStore } from "./sessions/SessionStore.js";
  * that is what keeps them testable without booting the whole daemon.
  */
 export interface Context {
+  /**
+   * Quem chama é o **daemon**, e não o fio (`028` Parte 2).
+   *
+   * Ausente é o default, e é o que o `createContext` do Fastify produz: toda
+   * requisição que chega pela rede vale `false`. O `true` existe num lugar só —
+   * o chamador do lado do servidor que o `bootstrap` monta para a esteira.
+   *
+   * Serve para **uma** coisa: entradas que o daemon usa contra si mesmo e que
+   * não fazem sentido vindo de fora. A primeira é o `autonomous` do
+   * `session.createAgent`, que abre uma conversa que nunca pergunta permissão —
+   * um comentário dizendo *"é a esteira, e só ela"* não impedia um `curl` de
+   * dizer o mesmo.
+   *
+   * **Não é autenticação**, e chamar de autenticação seria pior que não ter: o
+   * produto é local, de uma pessoa, e toda procedure é pública. O que isto faz é
+   * separar a porta que o daemon usa da porta que a tela usa — e é por isso que
+   * ele é um campo de contexto e não um cabeçalho.
+   */
+  internal?: boolean;
   config: ServerConfig;
   db: Db;
   ptyManager: PtyManager;

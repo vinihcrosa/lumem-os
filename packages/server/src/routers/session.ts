@@ -124,12 +124,32 @@ export const sessionRouter = router({
          *
          * **Nascer, e não trocar**: o portão do `016` continua valendo inteiro
          * para mudar o modo de uma sessão viva, que é o que ele protege.
+         *
+         * **E só o daemon liga**, o que é conferido abaixo e não afirmado aqui:
+         * escrito como comentário, ele não impedia um `curl` na porta local de
+         * abrir uma conversa que auto-aprova toda ferramenta — contornando por
+         * fora o portão por sessão que a `016` existe para impor.
          */
         autonomous: z.boolean().default(false),
       }),
     )
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
+        /*
+         * O `autonomous` é do daemon, e a conferência é aqui.
+         *
+         * Não é autenticação — o produto é local e toda procedure é pública —, e
+         * é o que separa a porta que a esteira usa da porta que a tela usa: a
+         * tela **nunca** abre uma conversa que nasce liberada, e agora isso é
+         * uma recusa em vez de uma convenção.
+         */
+        if (input.autonomous && ctx.internal !== true) {
+          throw new DomainError(
+            "BLOCKED",
+            "só a esteira abre uma sessão que nasce sem quem responda permissão",
+          );
+        }
+
         const config = await createAgentConfigRepository(ctx.db).findById(input.agentConfigId);
         if (!config) {
           throw new DomainError("NOT_FOUND", `configuração ${input.agentConfigId} não existe`);

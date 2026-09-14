@@ -426,6 +426,10 @@ export async function bootstrap({
    * valeria para a esteira.
    */
   const api = createCallerFactory(appRouter)({
+    // O único `true` do produto: este chamador é o daemon falando consigo
+    // mesmo. O `createContext` do Fastify não o liga, então nada que chega pela
+    // rede o tem.
+    internal: true,
     config,
     db: openedDatabase.db,
     ptyManager,
