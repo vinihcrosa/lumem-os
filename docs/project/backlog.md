@@ -565,6 +565,8 @@ deles, e a v1 do fluxo não implementa nenhum.
 | Tela de preferências | `M` | é onde `agent_config` deveria morar (buraco nº 1 do `FEATURES.md` do Open Design, e a [A16](../features/006-acp-sessions/open-questions.md)); as primitivas do fluxo são o que ela vai reusar | existir a segunda coisa global para configurar |
 | Renomear e remover workspace pela tela | `P` | buraco nº 2 do `FEATURES.md`: o fluxo **cria** workspace, e nada administra | você ter mais de dois workspaces |
 | Pré-voo em Linux e Windows | `P` | as cinco checagens são as de macOS; Linux provavelmente passa e ninguém verificou | o Lumem rodar em outra máquina que não a sua |
+| Internacionalizar a interface | `G` | toda a interface é português escrito à mão, sem camada de tradução. A intenção foi declarada em **2026-09-14**, respondendo ao nome da tela do quadro, e já **pagou uma decisão antecipada**: o [caminho da aplicação em inglês](../../CLAUDE.md), adotado agora porque hoje custa zero — o app não tem rota nenhuma — e depois custa um link que alguém guardou. O resto (extrair as strings, escolher a biblioteca, plural e data) não foi discutido | você querer o produto na mão de alguém que não fala português — ou o app ganhar URL de verdade, que é quando a regra do caminho passa a ser cobrada |
+| Rotas de verdade na aplicação | `M` | o aplicativo **não tem rota nenhuma**: o `/styleguide` é a única lida, e só em DEV — tudo o mais é estado React, e o daemon devolve o mesmo shell para qualquer caminho. O idioma já está decidido (inglês); a **forma** — `/tasks`, `/w/:id/tasks`, outra — é pergunta que ninguém abriu | alguém querer colar um link de uma tela do Lumem, ou o botão voltar do navegador passar a ser esperado |
 
 ---
 

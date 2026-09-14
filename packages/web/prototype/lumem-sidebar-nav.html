@@ -42,7 +42,7 @@
         Duas linhas, fora da parte que rola, sempre no mesmo pixel:
         <code>Home</code> abre a tela do workspace — que continua exatamente como está, com a seção
         <code>TAREFAS</code> e o botão <code>quadro</code> dela — e <code>Tarefas</code> abre
-        <b>o quadro</b>.
+        <b>o quadro de tarefas</b>.
       </p>
       <p class="doc__lede">
         <b>A lista nunca precisou de endereço; o quadro precisava.</b> A lista mora no Home, e é a
@@ -333,11 +333,12 @@
 <section class="screen" id="screen-perguntas">
   <div class="doc">
     <header data-od-id="perguntas-header">
-      <h1 class="doc__h1">As três respondidas, e o que elas mudaram</h1>
+      <h1 class="doc__h1">As sete respondidas, e o que elas mudaram</h1>
       <p class="doc__lede">
-        Respondidas em <b>2026-09-14</b>, e <b>duas delas contra a proposta</b> — a resposta fica no
-        lugar da proposta contradita, com o que sobrou de pé, porque decisão revertida sem registro é
-        decisão que volta sozinha.
+        Sete — cinco da folha, a <b>Q3a</b> que a resposta da Q3 abriu e a <b>Q6</b> que veio de
+        fora dela. Respondidas em <b>2026-09-14</b>, e <b>três delas contra a proposta</b> — a resposta fica no
+        lugar da proposta contradita, riscada, porque decisão revertida sem registro é decisão que
+        volta sozinha. Nenhuma pergunta desta folha continua aberta.
       </p>
     </header>
 
@@ -388,20 +389,26 @@
         </div>
       </div>
 
-      <div class="qa" data-od-id="q-titulo">
+      <div class="qa qa--done" data-od-id="q-titulo">
         <div class="qa__q"><span class="qa__n">Q3a</span>a tela ainda se chama <code>Quadro</code> quando se chega por <code>Tarefas</code>?</div>
         <div class="qa__a">
-          <b>Aberta</b>, e ela nasceu da resposta da Q3: hoje o título da tela é <code>Quadro</code> e
-          o caminho é <code>dev / Quadro</code>. Clicar em <code>Tarefas</code> e cair numa tela
-          chamada <code>Quadro</code> é o clique e o pouso discordando.
+          <b>Não: <code>Quadro de tarefas</code></b> — e a linha da sidebar continua
+          <code>Tarefas</code>.
           <br><br>
-          <b>A recomendação é o título virar <code>Tarefas</code></b> — o subtítulo dela já diz
-          <em>"todas as tarefas deste workspace, em uma tela"</em>, então o conteúdo não muda de nome,
-          só o rótulo passa a ser o assunto. O botão <code>quadro</code> do Home <b>fica</b>: lá você
-          está escolhendo uma <em>visão</em>, e o nome da visão é o certo naquele lugar.
+          <span class="qa__was">A recomendação era o título virar <code>Tarefas</code></span>, para
+          o clique e o pouso concordarem. <b>A resposta concorda melhor, e por um motivo que a
+          recomendação não tinha:</b> <em>"tarefas podem ser visualizadas como lista, quadro, gantt,
+          ou qualquer outra forma"</em>. O título <code>Tarefas</code> teria apagado <b>qual</b>
+          visão você está olhando — e apagado justamente no dia em que existir uma segunda.
           <br><br>
-          A alternativa é não mexer: duas palavras para a mesma tela é um custo pequeno, e
-          <code>Quadro</code> é o que o time já chama.
+          O nome inteiro diz as duas coisas: <code>quadro</code> é a forma, <code>de tarefas</code> é
+          o assunto. A sidebar fica com o assunto porque é de lá que se escolhe <em>o quê</em>; a
+          tela fica com os dois porque é nela que se está.
+          <br><br>
+          <b>Dois lugares mudam</b>, e são os dois que hoje dizem <code>Quadro</code>: o título
+          (<code>.bd__t</code>) e o último segmento do caminho (<code>.crumb__here</code>). O botão
+          <code>quadro</code> da seção do Home <b>fica</b>: ali você escolhe uma visão, e o nome da
+          visão é o certo naquele lugar.
         </div>
       </div>
 
@@ -428,6 +435,34 @@
           do workspace, e a lista dentro de um projeto nem oferece o botão.
         </div>
       </div>
+      <div class="qa qa--done" data-od-id="q-rotas">
+        <div class="qa__q"><span class="qa__n">Q6</span>em que idioma ficam os caminhos?</div>
+        <div class="qa__a">
+          <b>Inglês, todos</b> — <em>"em algum momento a gente vai internacionalizar esse app, então
+          é bom manter os caminhos em inglês"</em>. Estas duas telas seriam <code>home</code> e
+          <code>tasks</code>.
+          <br><br>
+          <b>E ela não contradiz o produto ser em português:</b> um caminho não é texto de
+          interface, é <b>identificador</b> — do mesmo lado da linha que o nome de arquivo e o nome
+          de variável, que a convenção do repositório já manda escrever em inglês. O que se traduz é
+          o rótulo <code>Tarefas</code>; o que não se traduz é para onde ele aponta.
+          <br><br>
+          <b>A alternativa real é caminho localizado</b> — <code>/tarefas</code> em pt,
+          <code>/tasks</code> em en —, e ela custa o que parece ganhar: o mesmo lugar passa a ter
+          dois endereços, um link colado no chat abre errado para quem está no outro idioma, e cada
+          rota vira uma tabela de tradução que alguém precisa manter sincronizada com o roteador.
+          <br><br>
+          <b>O custo de adotar agora é zero</b>, e isso é o achado: <b>o aplicativo não tem rota
+          nenhuma hoje</b>. Só o <code>/styleguide</code> é lido, e apenas em DEV — todo o resto é
+          estado React, e o servidor devolve o mesmo shell para qualquer caminho. Não há nada para
+          migrar. O dia em que houver, cada rota já publicada é um link que alguém guardou.
+          <br><br>
+          <b>O desenho do esquema de rotas continua fechado</b>: esta resposta diz o idioma, não a
+          forma. Se o caminho é <code>/tasks</code>, <code>/w/:id/tasks</code> ou outra coisa é uma
+          pergunta que ninguém abriu — e ela só precisa ser aberta quando o produto passar a ter
+          URL.
+        </div>
+      </div>
     </section>
 
     <section class="sec" data-od-id="perguntas-medidas">
@@ -443,7 +478,8 @@
           <tr><td>largura da coluna</td><td>264px</td><td>não muda</td></tr>
           <tr><td>classes novas de produto</td><td>2</td><td><code>.nav</code> e <code>.row__n</code></td></tr>
           <tr><td>tokens novos</td><td>0</td><td>—</td></tr>
-          <tr><td>telas do produto que mudam</td><td>0</td><td>o Home fica como está (Q1)</td></tr>
+          <tr><td>telas do produto que mudam</td><td>1</td><td>só o título do quadro, em dois lugares (Q3a)</td></tr>
+          <tr><td>rotas que precisam migrar</td><td>0</td><td>o aplicativo não tem nenhuma hoje (Q6)</td></tr>
         </tbody>
       </table>
     </section>

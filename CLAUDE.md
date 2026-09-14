@@ -433,6 +433,15 @@ O `**Status:**` de uma PRD tem gramática fechada, e o `gate:full` compara com o
 ## Convenções
 
 - Documentação e comunicação em português. Código, commit e nome de arquivo em inglês.
+- **Caminho da aplicação em inglês** — `home`, `tasks` —, e ele está do lado do **código**, não do da
+  comunicação: um caminho é identificador, como nome de arquivo e nome de variável. O rótulo
+  `Tarefas` se traduz; para onde ele aponta, não. A alternativa é caminho localizado (`/tarefas` em
+  pt, `/tasks` em en) e ela custa o que parece ganhar — o mesmo lugar com dois endereços, e um link
+  colado no chat que abre errado para quem está no outro idioma. **Custa zero adotar agora:** o
+  aplicativo não tem rota nenhuma (só o `/styleguide`, e só em DEV), então não há o que migrar; o
+  dia em que houver, cada rota publicada é um link que alguém guardou. Decidido em **2026-09-14**, e
+  **não virou ADR de propósito** — ele extende a linha acima em vez de contradizê-la, e hoje falha o
+  teste de *"difícil de reverter"*. Quando o produto ganhar URL de verdade, aí passa.
 - Nome de arquivo em kebab-case.
 - **Escreva por extenso, e não abreviado.** Uma abreviação que economiza cinco letras custa uma
   releitura inteira no dia em que duas coisas diferentes ficam com a mesma cara. A
