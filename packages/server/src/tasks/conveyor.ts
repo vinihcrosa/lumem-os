@@ -196,6 +196,43 @@ export function createConveyor(
   async function runOne(entry: QueueEntry, autonomy: Autonomy): Promise<void> {
     const checkout = await ports.prepareCheckout(entry);
 
+    const agent = await ports.agentFor({ taskId: entry.task.id, role: entry.role });
+    const promptWith = (attempt: number): string =>
+      promptFor({
+        role: entry.role,
+        title: entry.task.title,
+        body: entry.task.body,
+        checkoutPath: checkout.path,
+        attempt,
+        dirty: checkout.dirty,
+        instructions: agent.instructions,
+      });
+
+    if (autonomy === "assistido") {
+      /*
+       * O degrau do meio, e ele **não abre adaptador** (Q51): um processo de
+       * 243 MB por cartão preparado é o que a conta recusou. O que o `assistido`
+       * promete — *"você vê o que ele ia fazer"* — é o prompt, e o prompt está
+       * pronto aqui.
+       *
+       * E ele **não gasta tentativa**, o que não é detalhe: preparar não é
+       * rodar, e um cartão preparado continua candidato da fila — `park` não
+       * muda nem a autonomia nem o turno em voo, que são as duas condições que a
+       * `queueOf` lê. Contando aqui, cada passada de 15 s reincrementaria
+       * `attempts` num cartão que espera o clique de uma pessoa, e em meio minuto
+       * ele seria bloqueado por *"parou depois de 2 tentativas"* sem nenhum turno
+       * ter aberto — a Q51 ao contrário. A tentativa é contada logo abaixo, no
+       * único caminho em que um turno de fato abre por conta da esteira.
+       */
+      await ports.park({
+        taskId: entry.task.id,
+        role: entry.role,
+        prompt: promptWith(entry.task.attempts + 1),
+        worktreeId: checkout.worktreeId,
+      });
+      return;
+    }
+
     /*
      * A tentativa conta **antes** do prompt, e é o item 2 do cabeçalho.
      *
@@ -205,6 +242,9 @@ export function createConveyor(
      * antes erra para o lado seguro: no pior caso uma tentativa é gasta sem ter
      * rodado, e o cartão para uma vez cedo demais — o que é visível e
      * consertável, ao contrário do outro.
+     *
+     * *Antes do prompt*, e não *antes do preparo*: o que ela conta é **turno que
+     * vai abrir**.
      */
     const attempt = await ports.countAttempt(entry.task.id);
     if (attempt > MAX_ATTEMPTS) {
@@ -215,32 +255,7 @@ export function createConveyor(
       return;
     }
 
-    const agent = await ports.agentFor({ taskId: entry.task.id, role: entry.role });
-    const text = promptFor({
-      role: entry.role,
-      title: entry.task.title,
-      body: entry.task.body,
-      checkoutPath: checkout.path,
-      attempt,
-      dirty: checkout.dirty,
-      instructions: agent.instructions,
-    });
-
-    if (autonomy === "assistido") {
-      /*
-       * O degrau do meio, e ele **não abre adaptador** (Q51): um processo de
-       * 243 MB por cartão preparado é o que a conta recusou. O que o `assistido`
-       * promete — *"você vê o que ele ia fazer"* — é o prompt, e o prompt está
-       * pronto aqui.
-       */
-      await ports.park({
-        taskId: entry.task.id,
-        role: entry.role,
-        prompt: text,
-        worktreeId: checkout.worktreeId,
-      });
-      return;
-    }
+    const text = promptWith(attempt);
 
     /*
      * *"Peguei"*, e é o primeiro dos quatro marcos do §6.

@@ -182,11 +182,33 @@ describe("o interruptor manda", () => {
      * paralelismo **não segura** um processo que não está gastando turno.
      */
     expect(spies.openSession).not.toHaveBeenCalled();
-    expect(calls).toEqual(["prepareCheckout", "countAttempt", "park"]);
+    // E **sem `countAttempt`**: preparar não é rodar, e a tentativa conta turno.
+    expect(calls).toEqual(["prepareCheckout", "park"]);
     expect(spies.park.mock.calls[0]?.[0]).toMatchObject({
       taskId: "t1",
       worktreeId: "wt-t1",
     });
+  });
+
+  it("esperar o clique não gasta tentativa, por mais passadas que sejam", async () => {
+    const { ports, spies } = harness({
+      facts: { autonomy: "assistido", entries: [entry()] },
+    });
+    const conveyor = createConveyor(ports);
+
+    /*
+     * `park` não muda nenhuma das duas condições que a `queueOf` lê — a
+     * autonomia da tarefa e o turno em voo —, então um cartão preparado
+     * **continua candidato** a cada passada. Contando a tentativa aqui, o teto
+     * de 2 estouraria em duas passadas de 15 s e o cartão seria bloqueado por
+     * *"parou depois de 2 tentativas"* sem nenhum turno ter aberto, com a
+     * autonomia dele desligada junto: o degrau da Q51 se apagando sozinho em
+     * meio minuto.
+     */
+    for (let pass = 0; pass < MAX_ATTEMPTS + 3; pass += 1) await conveyor.tick("w1");
+
+    expect(spies.block).not.toHaveBeenCalled();
+    expect(spies.park).toHaveBeenCalledTimes(MAX_ATTEMPTS + 3);
   });
 
   it("o prompt preparado é o mesmo que seria enviado", async () => {
