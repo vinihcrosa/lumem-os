@@ -187,7 +187,12 @@ export const sessionRouter = router({
           // Nasce liberada só quando quem chamou disse que não há ninguém do
           // outro lado. O default é `false`, então toda conversa que a tela
           // abre continua herdando o workspace — e nenhum workspace é `free`.
-          ...(input.autonomous ? { lumemMode: "free" as const } : {}),
+          // Duas coisas, e são duas de propósito: a política com que ela nasce
+          // (não há ninguém para responder permissão) e **quem a empurra**, que
+          // é o que faz o teto do workspace parar em vez de avisar (Q45).
+          ...(input.autonomous
+            ? { lumemMode: "free" as const, driver: "conveyor" as const }
+            : {}),
           ...(input.cols === undefined ? {} : { cols: input.cols }),
           ...(input.rows === undefined ? {} : { rows: input.rows }),
         });

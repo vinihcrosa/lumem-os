@@ -6,7 +6,7 @@ import type { AcpServerMessage, LumemMode, LumemModeDefault } from "@lumem/share
 
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
-import type { AcpManager } from "../acp/AcpManager.js";
+import type { AcpDriver, AcpManager } from "../acp/AcpManager.js";
 import { createGitService, type GitService } from "../git/GitService.js";
 import {
   isKilledEarly,
@@ -79,6 +79,17 @@ export interface StartSessionInput {
    * que nasce em `manual` e que alguém ligou.
    */
   lumemMode?: LumemMode;
+  /**
+   * Quem está empurrando esta sessão (`028` Parte 3, Q45).
+   *
+   * Ausente é `human`, e é todo mundo menos a esteira. O que muda com ele é **o
+   * verbo do teto**: quem conduz é avisado e decide; a esteira para. Ele é
+   * separado do `lumemMode` acima de propósito — uma conversa sua que
+   * atravessou o portão da [`016`](../../../../docs/features/016-session-mode/prd.md)
+   * também está em `free`, e deduzir o condutor dali pararia o turno de quem
+   * está olhando.
+   */
+  driver?: AcpDriver;
   /**
    * O que **gravar** como comando, quando ele difere do que é executado.
    *
@@ -327,6 +338,7 @@ export function createSessionStore({
            */
           lumemMode: born,
           lumemModeDefault: inherited,
+          driver: input.driver ?? "human",
         });
 
         try {

@@ -29,11 +29,11 @@ export interface WorkspaceBudget {
 /**
  * Quem está conduzindo este turno.
  *
- * O ramo `esteira` nasce **sem chamador** — ela é a Parte 2 —, e isso é
- * aceitável aqui e não seria em CSS: uma função pura com os dois ramos cobertos
- * é um contrato escrito, e uma classe para marcação que não existe é lixo
- * esperando divergir. Quando a Parte 2 chegar, ela passa `"conveyor"` e nada
- * mais muda.
+ * `conveyor` é a sessão que a esteira abriu, e ela o carrega desde o `spawn` —
+ * o `AcpSessionInfo.driver` do `AcpManager`. **Não** se deduz de `lumemMode`:
+ * uma conversa sua que atravessou o portão da
+ * [`016`](../../../../docs/features/016-session-mode/prd.md) também está em
+ * `free`, e o verbo daqui é o que separa avisar de parar.
  */
 export type Driver = "human" | "conveyor";
 

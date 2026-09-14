@@ -76,8 +76,31 @@ export interface AcpSpawnOptions {
   lumemMode?: LumemMode;
   /** What a new session in this workspace would start at — the menu's footer. */
   lumemModeDefault?: LumemModeDefault;
+  /**
+   * Quem está empurrando esta conversa (`028` Parte 3, Q45).
+   *
+   * Ausente é `human`, que é toda conversa que alguém abriu na tela. Só a
+   * esteira passa `conveyor`, e o que depende disso é **o verbo do teto**: com
+   * uma pessoa olhando, estourar o orçamento avisa e ela decide; sem ninguém do
+   * outro lado, ele para. Mesmo número, mesma leitura, verbos diferentes.
+   *
+   * Passado no `spawn` e não deduzido de `lumemMode`: uma conversa sua que
+   * passou pelo portão do [`016`](../../../../docs/features/016-session-mode/prd.md)
+   * também está em `free`, e bloquear o turno dela seria interromper justamente
+   * quem está olhando.
+   */
+  driver?: AcpDriver;
 }
 
+/**
+ * Os dois condutores possíveis de um turno.
+ *
+ * Declarado aqui, e não importado da `tasks/budget.ts`, pela mesma direção de
+ * dependência que o `AcpBudgetSource` segue: este arquivo é o único que entende
+ * ACP, e ele não aprende o que é uma esteira — ele carrega a palavra e entrega a
+ * quem decide.
+ */
+export type AcpDriver = "human" | "conveyor";
 
 /**
  * Um pedido de "abra esta URL", vindo do agente durante o login.
@@ -169,6 +192,8 @@ export interface AcpSessionInfo {
   lumemMode: LumemMode;
   /** What a new session in this workspace starts at — the menu's footer (Q5). */
   lumemModeDefault: LumemModeDefault;
+  /** Quem empurra esta conversa. `human` em tudo que não é a esteira. */
+  driver: AcpDriver;
 }
 
 /**
@@ -891,6 +916,7 @@ export class AcpManager {
          */
         lumemMode: options.lumemMode ?? "ask",
         lumemModeDefault: options.lumemModeDefault ?? "ask",
+        driver: options.driver ?? "human",
       },
       process: child,
       connection: undefined as unknown as ClientConnection,

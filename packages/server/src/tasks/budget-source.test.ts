@@ -144,10 +144,32 @@ describe("o teto chega até a decisão", () => {
     await spend(context, { sessionId: "ses-2", projectId });
     await spend(context, { sessionId: "ses-2", projectId });
 
-    // `warn` e não `block`: o condutor é `human` enquanto a esteira for a
-    // Parte 2, e quem está olhando é avisado e decide (Q45).
+    // `warn` e não `block`: sem condutor declarado, o default é `human` — quem
+    // está olhando é avisado e decide (Q45).
     expect(await createBudgetSource(db)({ id: "ses-2" })).toMatchObject({
       kind: "warn",
+      cap: "turns-per-session",
+      limit: 2,
+      spent: 2,
+    });
+  });
+
+  it("o mesmo número, empurrado pela esteira, **para**", async () => {
+    const { db, projectId } = await scene({ budgetTurnsPerSession: 2 });
+    await openSession(context, { id: "ses-e", scopeType: "project", scopeId: projectId });
+    await spend(context, { sessionId: "ses-e", projectId });
+    await spend(context, { sessionId: "ses-e", projectId });
+
+    /*
+     * A Q45 em uma linha: mesmo teto, mesma leitura, verbo diferente. Sem o
+     * condutor chegando até aqui, `decideBudget` nunca devolveria `block` e o
+     * ramo de bloqueio do `AcpManager` seria código morto — uma esteira com teto
+     * configurado gastaria acima dele indefinidamente, e `0 = bloqueia tudo`
+     * viraria `0 = avisa tudo` para o único condutor que não tem quem leia o
+     * aviso.
+     */
+    expect(await createBudgetSource(db)({ id: "ses-e", driver: "conveyor" })).toMatchObject({
+      kind: "block",
       cap: "turns-per-session",
       limit: 2,
       spent: 2,

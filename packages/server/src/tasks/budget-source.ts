@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import type { Db } from "../db/index.js";
 import { project, session, worktree } from "../db/schema.js";
 import { budgetSpend } from "../usage/query.js";
-import { decideBudget, type BudgetDecision, type WorkspaceBudget } from "./budget.js";
+import { decideBudget, type BudgetDecision, type Driver, type WorkspaceBudget } from "./budget.js";
 
 /**
  * O teto desta sessão, lido do banco (`028` Parte 3, T16).
@@ -12,12 +12,15 @@ import { decideBudget, type BudgetDecision, type WorkspaceBudget } from "./budge
  * frase com que alguém pode discordar. Quem amarra os dois é o `bootstrap`, que
  * é o único que conhece o banco e o `AcpManager` ao mesmo tempo.
  *
- * **O condutor é sempre `human` hoje**, e não é omissão: a esteira é a Parte 2, e
- * até ela existir toda sessão é uma que você abriu com a mão. Quando ela chegar,
- * é este arquivo que passa a saber a diferença — e nada na decisão muda.
+ * **O condutor vem da sessão, e não do banco.** Ele é a única coisa desta função
+ * que não é uma linha: quem abriu a conversa é fato do momento em que ela nasceu,
+ * e a sessão o carrega desde o `spawn`. Deduzi-lo de `lumem_mode = 'free'` seria
+ * confundir a esteira com a sua conversa que atravessou o portão da
+ * [`016`](../../../../docs/features/016-session-mode/prd.md) — e aí o teto
+ * interromperia justamente quem está olhando.
  */
 export function createBudgetSource(db: Db) {
-  return async (info: { id: string }): Promise<BudgetDecision> => {
+  return async (info: { id: string; driver?: Driver }): Promise<BudgetDecision> => {
     /*
      * O escopo vem da **linha**, e não do `AcpSessionInfo`.
      *
@@ -57,7 +60,7 @@ export function createBudgetSource(db: Db) {
       sessionId: info.id,
     });
 
-    return decideBudget(budget, spend, "human");
+    return decideBudget(budget, spend, info.driver ?? "human");
   };
 }
 

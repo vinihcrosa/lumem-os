@@ -929,6 +929,26 @@ describe("o modo do Lumem", () => {
     expect(acpManager.get(row.id)?.lumemModeDefault).toBe("auto");
   });
 
+  it("o condutor default é `human`, e a esteira é quem diz o contrário", async () => {
+    const { store, db, acpManager } = setup();
+    const { worktreeId } = await hierarchy(db, "ask");
+
+    const yours = await store.start(await acpAgent(db, { scopeId: worktreeId }));
+    const conveyor = await store.start({
+      ...(await acpAgent(db, { scopeId: worktreeId })),
+      driver: "conveyor",
+    });
+
+    /*
+     * Separado do `lumemMode` de propósito: uma conversa sua que atravessou o
+     * portão da `016` também fica em `free`, e deduzir o condutor dali faria o
+     * teto do workspace **interromper** o turno de quem está olhando em vez de
+     * avisá-la (Q45).
+     */
+    expect(acpManager.get(yours.id)?.driver).toBe("human");
+    expect(acpManager.get(conveyor.id)?.driver).toBe("conveyor");
+  });
+
   it("nasce perguntando tudo quando o workspace não pediu outra coisa", async () => {
     const { store, db, acpManager } = setup();
     const { worktreeId } = await hierarchy(db, "ask");
