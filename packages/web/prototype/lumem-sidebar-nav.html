@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumem-OS — o bloco de navegação da sidebar (Início e Tarefas com endereço fixo)</title>
+<link rel="stylesheet" href="../src/styles/tokens.css">
+<link rel="stylesheet" href="lumem-ds.css">
+<link rel="stylesheet" href="lumem-shell.css">
+<!-- A sidebar é a peça real, sem cópia: o que está sob desenho é um bloco
+     DENTRO dela, e desenhá-lo contra uma imitação seria medir outra coisa. -->
+<link rel="stylesheet" href="lumem-agent-login.css">
+<link rel="stylesheet" href="lumem-sidebar-actions.css">
+<link rel="stylesheet" href="lumem-second-agent.css">
+<link rel="stylesheet" href="lumem-sidebar-nav.css">
+</head>
+<body data-od-id="sidebar-nav">
+
+<nav class="tabbar" data-od-id="sidebar-nav-tabbar">
+  <button class="tab is-active" data-screen="bloco">O bloco</button>
+  <button class="tab" data-screen="selecao">A seleção</button>
+  <button class="tab" data-screen="conta">A conta</button>
+  <button class="tab" data-screen="perguntas">Perguntas</button>
+</nav>
+
+<!-- ==================================================================== -->
+<!-- BLOCO                                                                -->
+<!-- ==================================================================== -->
+<section class="screen is-active" id="screen-bloco">
+  <div class="doc">
+    <header data-od-id="bloco-header">
+      <h1 class="doc__h1">Duas telas do produto não têm endereço</h1>
+      <p class="doc__lede">
+        A tela do workspace e a de tarefas só existem <b>enquanto nada está selecionado</b>. Clicar
+        numa worktree as substitui, e o caminho de volta é um segmento de um caminho —
+        <code>dev / lumem-os / teste</code> — que só existe em alguns painéis e que ninguém procura
+        para voltar. O relato que originou esta folha é literal: <em>"não tenho como voltar para ele
+        depois que eu cliquei em alguma coisa"</em>.
+      </p>
+      <p class="doc__lede">
+        <b>O conserto é dar endereço a elas</b>, num bloco entre o seletor de workspace e a árvore —
+        o mesmo lugar em que o Conductor põe <code>Dashboard</code> e <code>Home</code>. Duas linhas,
+        fora da parte que rola, sempre no mesmo pixel.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="bloco-antes-depois">
+      <div class="sec__h">
+        <h2 class="sec__t">O que muda, e o que custa</h2>
+        <p class="sec__d">
+          <b>56px</b> no topo da coluna — duas linhas de 28, que é a mesma altura da linha de
+          projeto, do <code>Projetos</code> e do <code>Adaptadores</code> do rodapé. Mais 8px de
+          folga e 1px de borda: <b>65px</b>. A coluna continua com 264px de largura, e o que sai da
+          área que rola é 65px de uma lista que já rolava.
+        </p>
+        <p class="sec__d">
+          As linhas são <code>.row</code> — <b>a mesma classe da árvore</b>, não uma parecida. É o
+          que faz o glifo de <code>Início</code> cair na mesma coluna do <code>■</code> de projeto, e
+          é o que faz a seleção ser <b>uma só</b> na coluna inteira.
+        </p>
+      </div>
+
+      <div class="pairgrid">
+        <div class="stepcap" data-od-id="bloco-antes">
+          <span class="stepcap__n">hoje · a volta é um caminho que você não procura</span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>dev<span class="caret">▾</span></div></div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <button class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="row__icon row__icon--project">■</span><span class="row__label">lumem-os</span></button>
+                <button class="row" style="--depth:1"><span class="row__twist"></span><span class="row__icon row__icon--shell">●</span><span class="row__label">local</span></button>
+                <button class="row is-selected" style="--depth:1"><span class="row__twist">▸</span><span class="row__icon row__icon--worktree">◇</span><span class="row__label">teste</span></button>
+                <button class="row" style="--depth:1"><span class="row__twist">▸</span><span class="row__icon row__icon--worktree">◇</span><span class="row__label">lum-52-quadro</span><span class="row__pip"></span></button>
+              </div>
+              <div class="sidebar__foot">
+                <div class="foot-head"><span class="foot-head__label">Adaptadores</span><button class="act">＋</button></div>
+                <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+              </div>
+            </div>
+          </div>
+          <p class="stepcap__note">
+            Com a worktree selecionada, a tela do workspace <b>não existe em lugar nenhum da
+            coluna</b>. O único caminho é o <code>dev</code> do caminho na coluna do meio.
+          </p>
+        </div>
+
+        <div class="stepcap" data-od-id="bloco-depois">
+          <span class="stepcap__n">depois · dois endereços que não somem</span>
+          <div class="sbframe">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>dev<span class="caret">▾</span></div></div>
+              <div class="nav">
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Início</span></button>
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">▥</span><span class="row__label">Tarefas</span><span class="row__n">3</span></button>
+              </div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <button class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="row__icon row__icon--project">■</span><span class="row__label">lumem-os</span></button>
+                <button class="row" style="--depth:1"><span class="row__twist"></span><span class="row__icon row__icon--shell">●</span><span class="row__label">local</span></button>
+                <button class="row is-selected" style="--depth:1"><span class="row__twist">▸</span><span class="row__icon row__icon--worktree">◇</span><span class="row__label">teste</span></button>
+                <button class="row" style="--depth:1"><span class="row__twist">▸</span><span class="row__icon row__icon--worktree">◇</span><span class="row__label">lum-52-quadro</span><span class="row__pip"></span></button>
+              </div>
+              <div class="sidebar__foot">
+                <div class="foot-head"><span class="foot-head__label">Adaptadores</span><button class="act">＋</button></div>
+                <button class="foot-row foot-row--on"><span class="glyph glyph--agent">◆</span><span class="foot-row__label">claude</span><span class="pip"></span><span class="foot-row__st">conectado</span></button>
+              </div>
+            </div>
+          </div>
+          <p class="stepcap__note">
+            A mesma worktree selecionada, e as duas telas continuam a um clique. O
+            <code>3</code> é o <b>mesmo</b> <em>precisa de mim</em> do quadro.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="bloco-glifos">
+      <div class="sec__h">
+        <h2 class="sec__t">Glifo de tela não é glifo de escopo</h2>
+        <p class="sec__d">
+          <code>◈</code> workspace, <code>■</code> projeto, <code>◇</code> worktree,
+          <code>◆</code> agente e <code>●</code> shell dizem <b>o que a coisa é</b>, e a cor é a
+          categoria. <code>Início</code> e <code>Tarefas</code> não são coisas, são <b>lugares</b> —
+          e pintá-los acrescentaria dois matizes a uma coluna que a folha do shell já avisa que vira
+          arco-íris fácil, com o custo nomeado: <em>"o ponto verde de rodando deixa de saltar"</em>.
+        </p>
+        <p class="sec__d">
+          Então eles herdam a cor da linha — dizem o estado dela e nada além disso —, e as formas
+          saem da mesma família geométrica do <code>▤</code> de arquivos, do <code>☰</code> de plano
+          e do <code>▣</code> de escrita, que também são telas e ferramentas, não escopos.
+        </p>
+      </div>
+
+      <div class="case" data-od-id="glifos-tabela">
+        <div class="case__label">o inventário, e o que sobrou livre</div>
+        <table class="tbl">
+          <thead><tr><th>Glifo</th><th>É</th><th>Registro</th></tr></thead>
+          <tbody>
+            <tr><td class="tbl__g"><span class="glyph glyph--workspace">◈</span></td><td>workspace</td><td>escopo · colorido</td></tr>
+            <tr><td class="tbl__g"><span class="glyph glyph--project">■</span></td><td>projeto</td><td>escopo · colorido</td></tr>
+            <tr><td class="tbl__g"><span class="glyph glyph--worktree">◇</span></td><td>worktree</td><td>escopo · colorido</td></tr>
+            <tr><td class="tbl__g"><span class="glyph glyph--agent">◆</span></td><td>agente</td><td>escopo · colorido</td></tr>
+            <tr><td class="tbl__g"><span class="glyph glyph--shell">●</span></td><td>shell, sessão viva</td><td>escopo · colorido</td></tr>
+            <tr><td class="tbl__g">▤</td><td>coluna de arquivos</td><td>tela · cor do texto</td></tr>
+            <tr><td class="tbl__g">☰</td><td>plano do turno</td><td>tela · cor do texto</td></tr>
+            <tr><td class="tbl__g">▣</td><td><code>Write</code> e <code>Edit</code></td><td>ferramenta · cor do texto</td></tr>
+            <tr class="tbl__new"><td class="tbl__g">◎</td><td><b>Início</b> — a tela do workspace</td><td>nasce aqui</td></tr>
+            <tr class="tbl__new"><td class="tbl__g">▥</td><td><b>Tarefas</b> — a lista e o quadro</td><td>nasce aqui</td></tr>
+          </tbody>
+        </table>
+        <p class="case__note">
+          <b><code>◎</code> e não <code>◈</code>:</b> o seletor de workspace logo acima já é
+          <code>◈</code>, e dois losangos concêntricos nos primeiros 70px da coluna seriam a mesma
+          forma querendo dizer <em>troque de workspace</em> e <em>vá para a tela dele</em>.
+          <b><code>▥</code></b> são colunas, que é o que o quadro é.
+        </p>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- SELEÇÃO                                                              -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-selecao">
+  <div class="doc">
+    <header data-od-id="selecao-header">
+      <h1 class="doc__h1">Uma coluna, uma seleção</h1>
+      <p class="doc__lede">
+        A razão de as linhas do bloco serem <code>.row</code> — a classe da árvore, inteira, com o
+        mesmo <code>is-selected</code> e a mesma barra de 2px à esquerda — <b>não é economia de
+        CSS</b>. É que a coluna só pode ter uma resposta para <em>onde eu estou</em>: se
+        <code>Início</code> está selecionado, nenhuma worktree está, e clicar numa worktree
+        desmarca o <code>Início</code>. Uma classe própria para o bloco seria uma segunda definição
+        da mesma coisa, e ela divergiria no dia em que alguém mexesse numa só.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="selecao-tres">
+      <div class="sec__h">
+        <h2 class="sec__t">Os três estados da coluna</h2>
+        <p class="sec__d">
+          São três porque são três telas, e a barra de 2px aparece uma vez em cada. O que a folha
+          garante é que ela <b>nunca</b> aparece duas vezes.
+        </p>
+      </div>
+
+      <div class="triogrid">
+        <div class="stepcap" data-od-id="sel-inicio">
+          <span class="stepcap__n">na tela do workspace</span>
+          <div class="sbframe sbframe--short">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>dev<span class="caret">▾</span></div></div>
+              <div class="nav">
+                <button class="row is-selected" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Início</span></button>
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">▥</span><span class="row__label">Tarefas</span><span class="row__n">3</span></button>
+              </div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <button class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="row__icon row__icon--project">■</span><span class="row__label">lumem-os</span></button>
+                <button class="row" style="--depth:1"><span class="row__twist">▸</span><span class="row__icon row__icon--worktree">◇</span><span class="row__label">teste</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stepcap" data-od-id="sel-tarefas">
+          <span class="stepcap__n">na tela de tarefas</span>
+          <div class="sbframe sbframe--short">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>dev<span class="caret">▾</span></div></div>
+              <div class="nav">
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Início</span></button>
+                <button class="row is-selected" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">▥</span><span class="row__label">Tarefas</span><span class="row__n">3</span></button>
+              </div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <button class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="row__icon row__icon--project">■</span><span class="row__label">lumem-os</span></button>
+                <button class="row" style="--depth:1"><span class="row__twist">▸</span><span class="row__icon row__icon--worktree">◇</span><span class="row__label">teste</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stepcap" data-od-id="sel-worktree">
+          <span class="stepcap__n">num checkout</span>
+          <div class="sbframe sbframe--short">
+            <div class="sidebar">
+              <div class="ws-wrap"><div class="ws"><span class="ws__icon">◈</span>dev<span class="caret">▾</span></div></div>
+              <div class="nav">
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Início</span></button>
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">▥</span><span class="row__label">Tarefas</span><span class="row__n">3</span></button>
+              </div>
+              <div class="tree">
+                <div class="tree__head"><div class="tree__label">Projetos</div><button class="act">＋</button></div>
+                <button class="row row--project" style="--depth:0"><span class="row__twist">▾</span><span class="row__icon row__icon--project">■</span><span class="row__label">lumem-os</span></button>
+                <button class="row is-selected" style="--depth:1"><span class="row__twist">▸</span><span class="row__icon row__icon--worktree">◇</span><span class="row__label">teste</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="case__note" data-od-id="selecao-crumb">
+        <b>O caminho da coluna do meio fica.</b> Ele não é redundante com o bloco: o bloco diz
+        <em>para onde dá para ir</em> e o caminho diz <em>onde você está</em> —
+        <code>dev / lumem-os / teste</code> continua sendo a única coisa da tela que nomeia o
+        projeto do checkout aberto. O que ele deixa de ser é <b>o único jeito de voltar</b>, que é o
+        defeito.
+      </p>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- CONTA                                                                -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-conta">
+  <div class="doc">
+    <header data-od-id="conta-header">
+      <h1 class="doc__h1">Um número, e ele já existe</h1>
+      <p class="doc__lede">
+        A linha <code>Tarefas</code> carrega <b>o mesmo <em>precisa de mim</em> do quadro</b> — não
+        um total. É a única contagem desta coluna que muda o que você faz: <em>"há 14 tarefas"</em>
+        não muda nada, <em>"3 precisam de você"</em> muda. E ele é lido da mesma resposta que o
+        quadro lê: dois lugares contando coisas diferentes seriam dois lugares divergindo.
+      </p>
+      <p class="doc__lede">
+        É também a parte desta folha que serve à <b>Parte 4 da <code>028</code></b> — o que você vê
+        <em>sem estar olhando</em>. A frase do topo do quadro só existe com o quadro aberto; este
+        número existe com qualquer tela na frente.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="conta-estados">
+      <div class="sec__h">
+        <h2 class="sec__t">Some no zero</h2>
+        <p class="sec__d">
+          Pela regra que o quadro já escreveu, com as palavras dele: <em>"um zero vermelho ensina a
+          ignorar o vermelho"</em>. <code>Tarefas</code> sem número é a linha normal, e é o estado da
+          maior parte do tempo.
+        </p>
+      </div>
+
+      <div class="pairgrid">
+        <div class="stepcap" data-od-id="conta-zero">
+          <span class="stepcap__n">nada esperando você</span>
+          <div class="sbframe sbframe--tiny">
+            <div class="sidebar">
+              <div class="nav">
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Início</span></button>
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">▥</span><span class="row__label">Tarefas</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="stepcap" data-od-id="conta-tres">
+          <span class="stepcap__n">três esperando</span>
+          <div class="sbframe sbframe--tiny">
+            <div class="sidebar">
+              <div class="nav">
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">◎</span><span class="row__label">Início</span></button>
+                <button class="row" style="--depth:0"><span class="row__twist"></span><span class="row__icon row__icon--screen">▥</span><span class="row__label">Tarefas</span><span class="row__n">3</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="case__note">
+        <b>O número não encolhe o rótulo.</b> A <code>.row</code> já tem o
+        <code>.row__pip</code> e o <code>.row__meta</code> à direita — o <code>.row__n</code> ocupa
+        o mesmo lugar e o <code>.row__label</code> corta com reticências como sempre cortou. Nada
+        aqui pede largura nova de coluna.
+      </p>
+    </section>
+  </div>
+</section>
+
+<!-- ==================================================================== -->
+<!-- PERGUNTAS                                                            -->
+<!-- ==================================================================== -->
+<section class="screen" id="screen-perguntas">
+  <div class="doc">
+    <header data-od-id="perguntas-header">
+      <h1 class="doc__h1">O que este desenho não decide</h1>
+      <p class="doc__lede">
+        Cinco, e as duas primeiras mudam o desenho se a resposta for outra. Nenhuma delas vira
+        suposição silenciosa: o produto tem a regra de que pergunta de design vai para o arquivo de
+        perguntas da feature.
+      </p>
+    </header>
+
+    <section class="sec" data-od-id="perguntas-lista">
+      <div class="qa" data-od-id="q-inicio-tarefas">
+        <div class="qa__q"><span class="qa__n">Q1</span>a tela de Início continua tendo a seção <code>TAREFAS</code>?</div>
+        <div class="qa__a">
+          <b>A proposta é que sim, e que o botão dela mude.</b> Hoje a seção tem um botão
+          <code>quadro</code>, que abre a outra visão. Com <code>Tarefas</code> tendo endereço, dois
+          botões saindo da mesma seção para duas telas diferentes é o que a regra
+          <em>uma ação, um lugar</em> recusa — então a seção vira o <b>resumo</b> e o botão passa a
+          ser <code>ver todas</code>, apontando para o mesmo lugar que a linha da sidebar.
+          <br><br>
+          <b>A alternativa é tirar a seção do Início.</b> Ela é mais limpa e custa uma resposta: o
+          Início deixaria de dizer quantas tarefas o workspace tem, e ele é a tela que existe para
+          responder <em>o que está acontecendo aqui</em>.
+        </div>
+      </div>
+
+      <div class="qa" data-od-id="q-nome">
+        <div class="qa__q"><span class="qa__n">Q2</span><code>Início</code> é o nome certo?</div>
+        <div class="qa__a">
+          A tela se chama <em>a tela do workspace</em> em todo documento do produto, e o cabeçalho
+          dela escreve <code>dev · workspace</code>. Chamar a linha de <code>Workspace</code>
+          repetiria a palavra que está 40px acima no seletor; chamar de <code>Início</code> é o que o
+          Conductor faz e o que todo mundo entende, mas é genérico.
+          <br><br>
+          A terceira saída é <code>Visão geral</code>, que descreve o conteúdo e não a posição — e
+          custa duas palavras numa coluna de 264px.
+        </div>
+      </div>
+
+      <div class="qa" data-od-id="q-quadro">
+        <div class="qa__q"><span class="qa__n">Q3</span>o quadro é uma terceira linha?</div>
+        <div class="qa__a">
+          <b>Não, na proposta.</b> <code>Tarefas</code> abre a lista, e a lista já tem o
+          <code>quadro</code> ao lado do título — lista e quadro são <b>duas visões do mesmo
+          assunto</b>, e uma terceira linha na sidebar afirmaria que são dois assuntos.
+          <br><br>
+          O que ela abriria de vantagem: quem vive no quadro passa a ter um clique em vez de dois. Se
+          a resposta mudar, a linha existe e o glifo <code>▥</code> vai para ela — a lista fica com
+          outro.
+        </div>
+      </div>
+
+      <div class="qa" data-od-id="q-mais-itens">
+        <div class="qa__q"><span class="qa__n">Q4</span>e <code>Criar</code> e <code>Buscar</code>, que o Conductor tem?</div>
+        <div class="qa__a">
+          <b>Fora, e por motivos diferentes.</b> <code>Criar</code> já tem lugar: a
+          <b>sidebar-actions</b> decidiu que <em>a ação mora no cabeçalho da lista que ela
+          alimenta</em> — o <code>＋</code> de <code>Projetos</code> e o da linha de cada projeto. Um
+          terceiro caminho para o mesmo verbo é a regra ao contrário.
+          <br><br>
+          <code>Buscar</code> não existe no produto. Uma linha que abre uma tela que ninguém
+          escreveu é pior que não ter a linha.
+        </div>
+      </div>
+
+      <div class="qa" data-od-id="q-escopo">
+        <div class="qa__q"><span class="qa__n">Q5</span>o bloco muda quando o workspace muda?</div>
+        <div class="qa__a">
+          <b>Não muda de forma; muda de dado.</b> As duas linhas são do <b>workspace selecionado</b>
+          — é o escopo do seletor logo acima —, então trocar de workspace troca o número e para onde
+          as linhas vão, e não quantas linhas existem. É o mesmo escopo que o quadro já tem: ele é
+          do workspace, e a lista dentro de um projeto nem oferece o botão.
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" data-od-id="perguntas-medidas">
+      <div class="sec__h">
+        <h2 class="sec__t">O que já está medido</h2>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>O quê</th><th>Quanto</th><th>De onde</th></tr></thead>
+        <tbody>
+          <tr><td>altura de cada linha</td><td>28px</td><td><code>--size-row-compact</code>, a mesma da linha de projeto</td></tr>
+          <tr><td>altura do bloco</td><td>65px</td><td>2×28 + 8 de folga + 1 de borda</td></tr>
+          <tr><td>largura da coluna</td><td>264px</td><td>não muda</td></tr>
+          <tr><td>classes novas de produto</td><td>2</td><td><code>.nav</code> e <code>.row__n</code></td></tr>
+          <tr><td>tokens novos</td><td>0</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach((one) => one.classList.remove("is-active"));
+      document.querySelectorAll(".screen").forEach((one) => one.classList.remove("is-active"));
+      tab.classList.add("is-active");
+      document.getElementById(`screen-${tab.dataset.screen}`).classList.add("is-active");
+    });
+  });
+</script>
+</body>
+</html>

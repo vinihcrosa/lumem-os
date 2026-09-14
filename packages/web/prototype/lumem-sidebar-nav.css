@@ -1,0 +1,148 @@
+/* ===========================================================================
+   lumem-sidebar-nav.css — o bloco de navegação da sidebar
+
+   Depende do `lumem-ds.css` (o `.glyph`), do `lumem-shell.css` (a `.row`, que é
+   a âncora de densidade da coluna), do `lumem-sidebar-actions.css` (o
+   `.tree__head`) e do `lumem-agent-login.css` (o `.stepcap` do protótipo). Todo
+   valor vem do `tokens.css` — nenhum literal de cor, espaço, raio ou
+   tipografia, e **nenhum token novo**: esta folha não precisou de um.
+
+   O que nasce aqui do PRODUTO, e por quê — são DUAS classes, e isso é o ponto:
+
+     .nav       o bloco entre o seletor de workspace e a árvore. Só existe para
+                separar: um `border-bottom` e o mesmo padding lateral da árvore.
+                Nada de altura própria — quem dá altura são as linhas, e as
+                linhas são `.row`.
+
+     .row__n    o número que uma linha carrega. Hoje só a de `Tarefas` tem um, e
+                ele é o MESMO `precisa de mim` do quadro — não um total. Um
+                total seria decoração: "há 14 tarefas" não muda o que você faz;
+                "3 precisam de você" é a única contagem desta coluna que muda.
+
+   O que NÃO nasce aqui é a parte mais cara da decisão: as linhas do bloco são
+   `.row`, a mesma classe da árvore. Inteira — mesma altura, mesmo hover, mesmo
+   `is-selected` com a barra de 2px à esquerda. Uma classe `.nav__row` própria
+   custaria uma segunda definição de "onde eu estou" numa coluna que só pode ter
+   uma: se `Início` está selecionado, nenhuma worktree está, e é exatamente isso
+   que conserta o defeito que a folha existe para consertar. Duas classes
+   parecidas divergem no dia em que alguém mexer numa delas.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+   1. o bloco
+   -------------------------------------------------------------------------- */
+
+/*
+ * Fora da `.tree`, e essa é a regra inteira.
+ *
+ * A `.tree` é `flex: 1; overflow: auto` — ela rola. Um bloco de navegação que
+ * rola junto com a lista de projetos é um bloco que some quando a lista cresce,
+ * e o pedido que originou esta folha é *"poder acessar a qualquer hora"*. Ele
+ * fica entre o `.ws-wrap` e a `.tree`, onde nada o empurra.
+ */
+.nav {
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+/* ---------------------------------------------------------------------------
+   2. o número da linha
+   -------------------------------------------------------------------------- */
+
+/*
+ * O mesmo tratamento do `.needme__n` do quadro, e o mesmo dado.
+ *
+ * Não é "parecido": é o mesmo número lido da mesma resposta. Dois lugares
+ * contando coisas diferentes seriam dois lugares divergindo — e aqui a
+ * divergência seria pior que no quadro, porque a sidebar é o que você vê
+ * **sem estar olhando**, que é o §8 da `028`.
+ *
+ * **Some no zero**, pela regra que o quadro já escreveu: um zero vermelho ensina
+ * a ignorar o vermelho. A linha `Tarefas` sem número é a linha normal.
+ */
+.row__n {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--size-icon-md);
+  height: var(--size-icon-md);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-danger-subtle);
+  color: var(--color-text-danger);
+  font: var(--text-label-xs);
+}
+
+/*
+ * O glifo de TELA é da cor do texto; o de ESCOPO é colorido.
+ *
+ * `◈` workspace, `■` projeto, `◇` worktree, `◆` agente e `●` shell dizem **o que
+ * a coisa é**, e a cor é a categoria. `Início` e `Tarefas` não são coisas, são
+ * lugares — pintá-los acrescentaria dois matizes a uma coluna que o
+ * `lumem-shell.css` já avisa que vira arco-íris fácil, e o ponto verde de
+ * "rodando" deixaria de saltar. Eles herdam a cor da linha, então dizem o
+ * estado dela (normal, hover, selecionada) e nada além disso.
+ */
+.row__icon--screen { color: inherit; }
+
+/* ---------------------------------------------------------------------------
+   3. chrome do protótipo — esta folha, não o produto
+
+   A mesma separação que o `lumem-ds.css` faz na seção 2 dele: o que serve para
+   ler o documento não entra no design system, e nada abaixo desta linha vira
+   componente.
+   -------------------------------------------------------------------------- */
+
+.lnk { color: var(--color-text-link); text-decoration: none; }
+.lnk:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+.triogrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-20);
+  align-items: start;
+}
+
+.stepcap__note {
+  max-width: 40ch;
+  margin: 0;
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+.stepcap__note code { font: var(--text-mono-sm); }
+
+/* A moldura da sidebar em três alturas: a coluna inteira, meia, e só o bloco. */
+.sbframe--short .sidebar { height: 220px; }
+.sbframe--tiny .sidebar { height: auto; }
+
+.tbl__g { font-size: var(--size-icon-md); text-align: center; }
+.tbl__new td { color: var(--color-text-primary); background: var(--color-bg-raised); }
+
+/* Uma pergunta com a resposta proposta embaixo. */
+.qa {
+  padding: var(--space-12) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.qa:last-child { border-bottom: 0; }
+.qa__q {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  font: var(--text-label-md);
+  color: var(--color-text-primary);
+}
+.qa__n {
+  flex: none;
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-caps);
+  color: var(--color-text-brand);
+}
+.qa__a {
+  max-width: 78ch;
+  margin-top: var(--space-6);
+  padding-left: var(--space-24);
+  font: var(--text-body-md);
+  color: var(--color-text-secondary);
+}
+.qa__a code { font: var(--text-mono-sm); }
