@@ -62,7 +62,23 @@ export function useBoardNotices(columns: readonly BoardColumn[] | undefined): vo
 
     for (const column of columns) {
       for (const card of column.cards) {
-        if (card.notice === null) continue;
+        if (card.notice === null) {
+          /*
+           * Sem frase é o daemon dizendo *"este já foi registrado"* — e é onde a
+           * memória desta aba tem que ser esquecida.
+           *
+           * O daemon zera `notified_at` a **cada troca de estado**, então a
+           * mesma tarefa volta a ter aviso depois de voltar a ser trabalhada:
+           * `ready_to_merge` → mexida → `blocked` é um aviso novo, com frase
+           * nova. Guardando o id para sempre, esta aba caía no `continue` de
+           * baixo, nunca chamava `markNotified`, nunca notificava, e
+           * `notified_at` ficava nulo — travando o contador do topo (*"N
+           * pararam enquanto você não estava"*) até um reload inteiro. O encalhe
+           * que volta é exatamente o caso que a Parte 4 existe para cobrir.
+           */
+          handled.current.delete(card.id);
+          continue;
+        }
         if (handled.current.has(card.id)) continue;
         handled.current.add(card.id);
 

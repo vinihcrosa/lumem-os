@@ -16,6 +16,7 @@ import { installTrpcDefaults, trpcMock } from "../test/trpc-mock.js";
 vi.mock("../lib/trpc.js", () => ({ trpc: trpcMock }));
 
 import { Board } from "./Board.js";
+import { useBoardNotices } from "../hooks/notice.js";
 import type { BoardCard } from "../lib/board.js";
 
 /**
@@ -111,6 +112,56 @@ describe("a frase que some quando você olha", () => {
       expect(screen.queryByText(/pararam enquanto/)).toBeNull();
       expect(screen.queryByText(/parou enquanto/)).toBeNull();
     });
+  });
+});
+
+describe("o aviso que volta é um aviso novo", () => {
+  /** O próprio hook, porque o que muda entre as leituras é a entrada dele. */
+  function Probe({ columns }: { columns: ReturnType<typeof board> }) {
+    useBoardNotices(columns as never);
+    return null;
+  }
+
+  it("um cartão avisado, limpo e avisado de novo dispara as duas vezes", async () => {
+    /*
+     * O daemon zera `notified_at` a **cada troca de estado**, então a mesma
+     * tarefa volta a ter aviso depois de voltar a ser trabalhada:
+     * `ready_to_merge` → mexida → `blocked`. Guardando o id para sempre nesta
+     * aba, a segunda vez caía no `continue`: nunca chamava `markNotified`, nunca
+     * notificava, e `notified_at` ficava nulo — travando o contador do topo até
+     * um reload inteiro. O encalhe que volta é o caso que a Parte 4 cobre.
+     */
+    mock.task.markNotified.mutate.mockResolvedValue({ first: true });
+    const { rerender } = render(<Probe columns={board([card({ notice: "pronta para mesclar" })])} />);
+    await waitFor(() => {
+      expect(mock.task.markNotified.mutate).toHaveBeenCalledTimes(1);
+    });
+
+    // A frase some do cartão quando o daemon registra — e é aí que a memória
+    // desta aba tem que ser esquecida.
+    rerender(<Probe columns={board([card({ notice: null })])} />);
+    rerender(<Probe columns={board([card({ notice: "travei: o teste falhou" })])} />);
+
+    await waitFor(() => {
+      expect(mock.task.markNotified.mutate).toHaveBeenCalledTimes(2);
+    });
+    expect(Notification).toHaveBeenCalledTimes(2);
+  });
+
+  it("sem a limpeza no meio, o mesmo cartão não avisa duas vezes", async () => {
+    // A defesa contra o React continua de pé: a leitura do quadro refaz sozinha,
+    // e sem o conjunto a mesma frase dispararia a cada refetch.
+    mock.task.markNotified.mutate.mockResolvedValue({ first: true });
+    const columns = board([card({ notice: "pronta para mesclar" })]);
+    const { rerender } = render(<Probe columns={columns} />);
+    await waitFor(() => {
+      expect(mock.task.markNotified.mutate).toHaveBeenCalledTimes(1);
+    });
+
+    rerender(<Probe columns={board([card({ notice: "pronta para mesclar" })])} />);
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(mock.task.markNotified.mutate).toHaveBeenCalledTimes(1);
   });
 });
 
