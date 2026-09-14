@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { project, task } from "../db/schema.js";
-import { bodyHash, changeOf, firstProjectOf, syncTracker, LUMEM_LABEL } from "./sync.js";
+import { bodyHash, changeOf, firstProjectOf, syncTracker } from "./sync.js";
 import type { TrackerHost, TrackerIssue } from "./TrackerHost.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 
@@ -59,15 +59,17 @@ async function scene() {
 }
 
 describe("sem chave, nada acontece e nada quebra", () => {
-  it("o host indisponível não é consultado", async () => {
+  it("o host indisponível não escreve nada, nem com issue na mão", async () => {
     const { db, workspaceId } = await scene();
     const host = fakeHost([issue()], false);
 
-    expect(await syncTracker({ db, host, projectFor: firstProjectOf(db) }, workspaceId)).toEqual({
-      created: 0,
-      blocked: 0,
-    });
-    expect(host.labelled).not.toHaveBeenCalled();
+    // As issues chegam de fora — quem consulta é o laço —, então a guarda daqui
+    // é a segunda: mesmo recebendo uma lista, um host sem credencial não vira
+    // cartão. Que o laço nem pergunte está no `loop.test.ts`.
+    expect(
+      await syncTracker({ db, host, projectFor: firstProjectOf(db) }, workspaceId, [issue()]),
+    ).toEqual({ created: 0, blocked: 0 });
+    expect(await db.select().from(task)).toHaveLength(0);
   });
 });
 
@@ -75,7 +77,11 @@ describe("a issue vira cartão, uma vez", () => {
   it("cai direto na To-Do, com o link", async () => {
     const { db, workspaceId } = await scene();
 
-    await syncTracker({ db, host: fakeHost([issue()]), projectFor: firstProjectOf(db) }, workspaceId);
+    await syncTracker(
+      { db, host: fakeHost([issue()]), projectFor: firstProjectOf(db) },
+      workspaceId,
+      [issue()],
+    );
 
     const [row] = await db.select().from(task);
     /*
@@ -98,23 +104,14 @@ describe("a issue vira cartão, uma vez", () => {
     const { db, workspaceId } = await scene();
     const deps = { db, host: fakeHost([issue()]), projectFor: firstProjectOf(db) };
 
-    const first = await syncTracker(deps, workspaceId);
-    const second = await syncTracker(deps, workspaceId);
+    const first = await syncTracker(deps, workspaceId, [issue()]);
+    const second = await syncTracker(deps, workspaceId, [issue()]);
 
     // Idempotência é **o requisito**, e não *"não duplicar"* — que é a mesma
     // coisa dita de um jeito que permite errar por um.
     expect(first.created).toBe(1);
     expect(second.created).toBe(0);
     expect(await db.select().from(task)).toHaveLength(1);
-  });
-
-  it("o rótulo consultado é o do produto", async () => {
-    const { db, workspaceId } = await scene();
-    const host = fakeHost([]);
-
-    await syncTracker({ db, host, projectFor: firstProjectOf(db) }, workspaceId);
-
-    expect(host.labelled).toHaveBeenCalledWith(LUMEM_LABEL);
   });
 
   it("workspace sem projeto não inventa um", async () => {
@@ -124,6 +121,7 @@ describe("a issue vira cartão, uma vez", () => {
     const result = await syncTracker(
       { db: context.db, host: fakeHost([issue()]), projectFor: firstProjectOf(context.db) },
       space.id,
+      [issue()],
     );
 
     // A tarefa é de um projeto só desde a `022`, e escolher um seria o produto
@@ -178,11 +176,16 @@ describe("mudou no meio, e o cartão diz qual das três (Q63)", () => {
 describe("a mudança bloqueia, uma vez", () => {
   it("bloqueia com o motivo e desliga a autonomia", async () => {
     const { db, workspaceId } = await scene();
-    await syncTracker({ db, host: fakeHost([issue()]), projectFor: firstProjectOf(db) }, workspaceId);
+    await syncTracker(
+      { db, host: fakeHost([issue()]), projectFor: firstProjectOf(db) },
+      workspaceId,
+      [issue()],
+    );
 
     const result = await syncTracker(
       { db, host: fakeHost([issue({ state: "closed" })]), projectFor: firstProjectOf(db) },
       workspaceId,
+      [issue({ state: "closed" })],
     );
 
     expect(result.blocked).toBe(1);
@@ -197,11 +200,15 @@ describe("a mudança bloqueia, uma vez", () => {
 
   it("uma já bloqueada não é bloqueada de novo", async () => {
     const { db, workspaceId } = await scene();
-    await syncTracker({ db, host: fakeHost([issue()]), projectFor: firstProjectOf(db) }, workspaceId);
+    await syncTracker(
+      { db, host: fakeHost([issue()]), projectFor: firstProjectOf(db) },
+      workspaceId,
+      [issue()],
+    );
     const changed = { db, host: fakeHost([issue({ state: "closed" })]), projectFor: firstProjectOf(db) };
-    await syncTracker(changed, workspaceId);
+    await syncTracker(changed, workspaceId, [issue({ state: "closed" })]);
 
-    const again = await syncTracker(changed, workspaceId);
+    const again = await syncTracker(changed, workspaceId, [issue({ state: "closed" })]);
 
     /*
      * Sem isto, cada passada reescreveria o motivo a cada 60 segundos — e o
@@ -213,10 +220,15 @@ describe("a mudança bloqueia, uma vez", () => {
 
   it("o instantâneo é atualizado mesmo já bloqueada", async () => {
     const { db, workspaceId } = await scene();
-    await syncTracker({ db, host: fakeHost([issue()]), projectFor: firstProjectOf(db) }, workspaceId);
+    await syncTracker(
+      { db, host: fakeHost([issue()]), projectFor: firstProjectOf(db) },
+      workspaceId,
+      [issue()],
+    );
     await syncTracker(
       { db, host: fakeHost([issue({ state: "closed" })]), projectFor: firstProjectOf(db) },
       workspaceId,
+      [issue({ state: "closed" })],
     );
 
     const [row] = await db.select().from(task);
@@ -229,10 +241,15 @@ describe("a mudança bloqueia, uma vez", () => {
 
   it("desbloquear e mudar de novo bloqueia outra vez", async () => {
     const { db, workspaceId } = await scene();
-    await syncTracker({ db, host: fakeHost([issue()]), projectFor: firstProjectOf(db) }, workspaceId);
+    await syncTracker(
+      { db, host: fakeHost([issue()]), projectFor: firstProjectOf(db) },
+      workspaceId,
+      [issue()],
+    );
     await syncTracker(
       { db, host: fakeHost([issue({ state: "closed" })]), projectFor: firstProjectOf(db) },
       workspaceId,
+      [issue({ state: "closed" })],
     );
     const [row] = await db.select().from(task);
     await db.update(task).set({ blockedReason: null }).where(eq(task.id, row!.id));
@@ -240,6 +257,7 @@ describe("a mudança bloqueia, uma vez", () => {
     const again = await syncTracker(
       { db, host: fakeHost([issue({ state: "closed", body: "outro" })]), projectFor: firstProjectOf(db) },
       workspaceId,
+      [issue({ state: "closed", body: "outro" })],
     );
 
     // A guarda é *"já está bloqueada"*, e não *"já bloqueei uma vez"*: quem

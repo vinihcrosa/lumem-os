@@ -19,6 +19,12 @@ import type { TrackerHost, TrackerIssue } from "./TrackerHost.js";
  *
  * A consulta é **por workspace**, e não por projeto: o que ela pergunta é *"o
  * que tem o rótulo"*, e uma pergunta responde por todos.
+ *
+ * E ela é **uma por passada**, não uma por workspace: o rótulo e a chave são
+ * globais — não há nada de workspace na consulta —, então N workspaces fariam N
+ * chamadas idênticas, e os 2,4% de cota medidos no estudo virariam `N × 2,4%`.
+ * Por isso as issues **chegam de fora**: quem conhece o laço é quem sabe que é
+ * uma só.
  */
 
 /** O rótulo que diz *"isto é do Lumem"* (Q62). Um nome, em todo tracker. */
@@ -83,12 +89,11 @@ export interface SyncDeps {
 export async function syncTracker(
   { db, host, projectFor }: SyncDeps,
   workspaceId: string,
+  issues: readonly TrackerIssue[],
 ): Promise<SyncResult> {
   // Sem a chave, a feature não existe. Não é erro: é ausência, e o host já
   // devolve vazio em vez de lançar.
   if (!host.available()) return { created: 0, blocked: 0 };
-
-  const issues = await host.labelled(LUMEM_LABEL);
   if (issues.length === 0) return { created: 0, blocked: 0 };
 
   const tasks = createTaskRepository(db);

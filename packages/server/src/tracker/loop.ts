@@ -3,7 +3,7 @@ import type { FastifyBaseLogger } from "fastify";
 import type { Db } from "../db/index.js";
 import { workspace } from "../db/schema.js";
 
-import { firstProjectOf, syncTracker } from "./sync.js";
+import { firstProjectOf, LUMEM_LABEL, syncTracker } from "./sync.js";
 import type { TrackerHost } from "./TrackerHost.js";
 
 /**
@@ -53,9 +53,18 @@ export function runTrackerLoop({
         // `return`, e é o que faz *"a feature não aparece"* custar nada.
         if (!host.available()) return;
 
+        /*
+         * **Uma chamada por passada**, e não uma por workspace.
+         *
+         * A consulta é `label:lumem` contra a chave do cofre, e nem o rótulo nem
+         * a chave têm workspace dentro: perguntar dentro do laço devolveria o
+         * mesmo conjunto N vezes, e a cota medida no §3.2 do estudo — 2,4% a
+         * 60 s — passaria a ser `N × 2,4%` por nada.
+         */
+        const issues = await host.labelled(LUMEM_LABEL);
         const spaces = await db.select({ id: workspace.id }).from(workspace);
         for (const space of spaces) {
-          await syncTracker({ db, host, projectFor: firstProjectOf(db) }, space.id);
+          await syncTracker({ db, host, projectFor: firstProjectOf(db) }, space.id, issues);
         }
       } catch (error) {
         /*

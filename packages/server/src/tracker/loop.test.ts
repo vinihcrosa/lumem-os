@@ -2,6 +2,7 @@ import { newId } from "@lumem/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { runTrackerLoop } from "./loop.js";
+import { LUMEM_LABEL } from "./sync.js";
 import type { TrackerHost } from "./TrackerHost.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 
@@ -46,6 +47,31 @@ describe("sem a chave o laço não faz nada", () => {
     // É o que faz *"a feature não aparece"* custar nada: uma leitura de flag e
     // um `return`, e não uma consulta que erra sessenta vezes por hora.
     expect(host.labelled).not.toHaveBeenCalled();
+    stop();
+  });
+});
+
+describe("uma consulta por passada, e não uma por workspace", () => {
+  it("três workspaces custam uma chamada, com o rótulo do produto", async () => {
+    context = createTestCaller();
+    await context.api.workspace.create({ name: `acme-${newId()}` });
+    await context.api.workspace.create({ name: `beta-${newId()}` });
+    await context.api.workspace.create({ name: `gama-${newId()}` });
+    const clock = manualClock();
+    const host = fakeHost(true);
+
+    const stop = runTrackerLoop({ db: context.db, host, setInterval: clock.schedule });
+    clock.tick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    /*
+     * Nem o rótulo nem a chave têm workspace dentro: perguntar dentro do laço
+     * devolveria o **mesmo** conjunto N vezes, e os 2,4% de cota que o §3.2 do
+     * estudo mediu virariam `N × 2,4%` — com ~10 workspaces, ~24% da cota gasta
+     * em chamadas idênticas.
+     */
+    expect(host.labelled).toHaveBeenCalledTimes(1);
+    expect(host.labelled).toHaveBeenCalledWith(LUMEM_LABEL);
     stop();
   });
 });
