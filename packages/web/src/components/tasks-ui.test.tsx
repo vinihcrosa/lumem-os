@@ -200,6 +200,35 @@ describe("a lista de tarefas", () => {
     expect(trpc.task.settings.query).toHaveBeenCalledWith({ workspaceId: "w1" });
   });
 
+  it("o degrau clicado relê os interruptores, e não só a lista", async () => {
+    /*
+     * Os controles são **controlados** por `task.settings`, que não está sob o
+     * prefixo `["task", "listByWorkspace"]`. Invalidando só a lista, o daemon
+     * grava e a barra não muda: o degrau não recebe `btn--brand` e o checkbox
+     * volta ao valor antigo — um clique que desfaz a si mesmo na tela.
+     */
+    const user = userEvent.setup();
+    trpc.task.listByWorkspace.query.mockResolvedValue([task()]);
+    trpc.task.settings.query.mockResolvedValue({
+      budget: 5,
+      budgetEnv: "LUMEM_TASKS_BUDGET",
+      sessions: 0,
+      sessionsWithTask: 0,
+      caps: SEM_TETO,
+      autonomy: "manual",
+      maxParallel: 2,
+      mergedAlwaysRemoves: false,
+    });
+    trpc.workspace.setAutonomy.mutate.mockResolvedValue({});
+
+    renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
+    await user.click(await screen.findByRole("button", { name: "assistido" }));
+
+    await vi.waitFor(() => {
+      expect(trpc.task.settings.query).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it("some a proporção quando não houve sessão nenhuma", async () => {
     // Zero de zero não é uma proporção, é uma divisão por zero com cara de dado.
     trpc.task.listByWorkspace.query.mockResolvedValue([task()]);

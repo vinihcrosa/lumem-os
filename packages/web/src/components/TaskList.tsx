@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { projectsKey, tasksKey } from "../lib/queryKeys.js";
+import { projectsKey, taskSettingsKey, tasksKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { askNoticePermission } from "../hooks/notice.js";
 import { Banner, Button, EmptyState, SectionHead, Skeleton } from "../ui/index.js";
@@ -125,8 +125,9 @@ export function TaskList({
    * recusar, você vai achar que é bug. A linha diz o número **e** onde mudar.
    */
   const queryClient = useQueryClient();
+  const settingsKey = taskSettingsKey(workspaceId);
   const settings = useQuery({
-    queryKey: ["task", "settings", workspaceId],
+    queryKey: settingsKey,
     queryFn: () => trpc.task.settings.query({ workspaceId }),
   });
 
@@ -150,13 +151,27 @@ export function TaskList({
         autonomy,
         maxParallel: settings.data?.maxParallel ?? 2,
       }),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: tasksKey(workspaceId) }),
+    /*
+     * As duas chaves, e a segunda é a que a barra lê.
+     *
+     * `tasksKey` é a lista; os controles daqui são controlados por `settings`, e
+     * ele não está sob aquele prefixo. Invalidando só a lista, o degrau clicado
+     * não recebe `btn--brand` e o checkbox volta ao valor antigo — o daemon
+     * grava e a tela diz que não.
+     */
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: tasksKey(workspaceId) });
+      void queryClient.invalidateQueries({ queryKey: settingsKey });
+    },
   });
 
   const setCleanup = useMutation({
     mutationFn: (mergedAlwaysRemoves: boolean) =>
       trpc.workspace.setCleanup.mutate({ id: workspaceId, mergedAlwaysRemoves }),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: tasksKey(workspaceId) }),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: tasksKey(workspaceId) });
+      void queryClient.invalidateQueries({ queryKey: settingsKey });
+    },
   });
 
   const spend = useQuery({

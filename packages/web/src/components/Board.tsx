@@ -10,6 +10,7 @@ import {
   type BoardColumn,
   type BoardStatus,
 } from "../lib/board.js";
+import { boardKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { useBoardNotices } from "../hooks/notice.js";
 import { TaskCard } from "./TaskCard.js";
@@ -71,7 +72,7 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
   const { ref: colsRef, clipped } = useOverflow();
   const queryClient = useQueryClient();
 
-  const key = ["task", "board", workspaceId, projectId ?? null];
+  const key = boardKey(workspaceId, projectId ?? null);
   const board = useQuery({
     queryKey: key,
     queryFn: () =>

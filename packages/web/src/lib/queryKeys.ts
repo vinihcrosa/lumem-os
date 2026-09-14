@@ -33,6 +33,31 @@ export function taskDetailKey(taskId: string) {
 }
 
 /**
+ * O quadro de um workspace, opcionalmente de um projeto só (`028` Parte 1).
+ *
+ * Sob o prefixo `["task", "board"]` para o `task.changed` alcançar as duas
+ * formas de uma vez — a do workspace inteiro e a filtrada. Sem isso o quadro é a
+ * única tela de tarefa que **não** reage ao daemon: selo, relógio de encalhe e
+ * a contagem de *precisa de mim* congelam enquanto a esteira anda, que é
+ * exatamente o caso que a Parte 4 existe para cobrir.
+ */
+export function boardKey(workspaceId: string, projectId: string | null) {
+  return ["task", "board", workspaceId, projectId] as const;
+}
+
+/**
+ * Os interruptores de tarefa do workspace — teto, autonomia e limpeza.
+ *
+ * Chave própria, e **não** um sufixo de `tasksKey`: ela não é uma lista
+ * filtrada, e invalidar `["task", "listByWorkspace", ws]` não a alcança. Os
+ * controles que a leem são controlados pela resposta, então uma invalidação que
+ * erra o prefixo aparece como um clique que volta sozinho.
+ */
+export function taskSettingsKey(workspaceId: string) {
+  return ["task", "settings", workspaceId] as const;
+}
+
+/**
  * As origens de uma worktree nova, em duas chaves.
  *
  * Duas porque são duas leituras de custo diferente: as branches são disco (10 ms
