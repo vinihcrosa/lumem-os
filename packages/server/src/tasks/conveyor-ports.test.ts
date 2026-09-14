@@ -67,6 +67,8 @@ async function scene(status: string) {
     openAgentSession: () => Promise.reject(new Error("não devia abrir sessão")),
     prompt: () => Promise.reject(new Error("não devia mandar prompt")),
     cancel: () => Promise.resolve(),
+    closeSession: () => Promise.resolve(),
+    reproduce: () => Promise.reject(new Error("não devia rerodar nada")),
     liveTurns: () => [],
     prVerdictOf: () => Promise.resolve(null),
   });

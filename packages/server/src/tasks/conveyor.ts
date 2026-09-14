@@ -64,6 +64,16 @@ export interface PreparedCheckout {
   path: string;
   /** `git status` não está limpo — o fato da Q49, e nada além dele. */
   dirty: boolean;
+  /**
+   * O `HEAD` **antes** do turno (`028` Parte 7 — T51).
+   *
+   * É o que faz `committed` ser um fato **da passada** em vez de herdado: o
+   * cálculo antigo era *árvore limpa e à frente da base*, e `à frente` fica
+   * verdadeiro para sempre depois do primeiro commit do implementador. Com ele,
+   * o portão não distinguia *"trabalhou"* de *"não fez nada"* em nenhuma etapa
+   * depois da primeira.
+   */
+  head: string;
 }
 
 /** O que o portão respondeu. `pass` move a seta; o resto não. */
@@ -107,6 +117,15 @@ export interface ConveyorPorts {
   /** Interrompe um turno que passou do teto de tempo. */
   cancel(sessionId: string): Promise<void>;
   /**
+   * Encerra a sessão do encaixe quando o turno acabou (`028` Parte 7 — T52).
+   *
+   * A esteira nunca fechava o que abria: a `LUM-51` produziu **seis** sessões e
+   * **três ficaram vivas** horas depois, cada uma segurando um processo de
+   * adaptador. Fechar aqui não perde contexto — retomar carrega a conversa de
+   * volta pelo `session/load`, que é como o produto já faz *"retomar"*.
+   */
+  closeSession(sessionId: string): Promise<void>;
+  /**
    * O portão do §4.1: `test` local, e o check da PR quando há PR (T28).
    *
    * Recebe **o checkout que o turno usou**, e não o ponteiro da tarefa.
@@ -115,7 +134,7 @@ export interface ConveyorPorts {
    * linha em memória continua nulo, e julgar por ele reprovaria como
    * *"sem checkout"* um turno inteiro que commitou e passou no teste.
    */
-  gate(entry: QueueEntry, checkout: PreparedCheckout): Promise<GateVerdict>;
+  gate(entry: QueueEntry, checkout: PreparedCheckout, sessionId: string): Promise<GateVerdict>;
   /** Mais uma tentativa **nesta etapa**, e devolve o total. */
   countAttempt(taskId: string): Promise<number>;
   /** O daemon movendo a seta. Nenhum agente chama isto. */
@@ -333,13 +352,22 @@ export function createConveyor(
      * agente estava no meio de escrever.
      */
     const verdict: GateVerdict = ended
-      ? await ports.gate(entry, checkout)
+      ? await ports.gate(entry, checkout, sessionId)
       : { kind: "unfinished", reason: "o turno passou do tempo e foi interrompido" };
     await ports.comment({
       taskId: entry.task.id,
       sessionId,
       body: commentFor(entry.role, attempt, verdict),
     });
+
+    /*
+     * A sessão fecha assim que o turno é julgado (T52).
+     *
+     * Depois do comentário e antes de qualquer decisão: o que vem abaixo pode
+     * lançar, e uma sessão que sobrevive a um `advance` recusado é exatamente o
+     * processo órfão que a Parte 7 achou vivo três vezes.
+     */
+    await ports.closeSession(sessionId).catch(() => undefined);
 
     if (verdict.kind === "pass") {
       await ports.advance({ task: entry.task, role: entry.role });

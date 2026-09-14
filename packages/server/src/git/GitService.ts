@@ -270,6 +270,15 @@ export interface GitService {
   getStatus(path: string): Promise<WorktreeStatus>;
   getAheadBehind(path: string, baseBranch: string): Promise<AheadBehind>;
   /**
+   * O commit em que este checkout está, agora.
+   *
+   * Existe para o portão da `028` Parte 7 poder perguntar *"o que mudou **nesta**
+   * passada"*: o cálculo antigo era `ahead > 0` contra a base, e ele fica
+   * verdadeiro para sempre depois do primeiro commit — o que fazia o portão do
+   * revisor herdar o trabalho do implementador.
+   */
+  headOf(path: string): Promise<string>;
+  /**
    * Se algum remoto conhece esta branch — sem ir à rede.
    *
    * A pergunta que separa "sem pull request" de "branch não publicada" na barra
@@ -677,6 +686,11 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       });
       const changedFiles = countStatusEntries(stdout);
       return { clean: changedFiles === 0, changedFiles };
+    },
+
+    async headOf(path) {
+      const { stdout } = await exec(["rev-parse", "HEAD"], { cwd: path });
+      return stdout.trim();
     },
 
     async getAheadBehind(path, baseBranch) {

@@ -4,7 +4,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { Db } from "../db/index.js";
-import { project, session, task, workspace } from "../db/schema.js";
+import { project, session, task, taskFinding, workspace } from "../db/schema.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import { createEventBus, type LumemEvent } from "../events.js";
 import { DAEMON_PREFIXES } from "../web/static.js";
@@ -78,7 +78,7 @@ async function world(options: { taskId?: string } = {}): Promise<World> {
   return { workspaceId, api, web, sessionId };
 }
 
-async function post(url: string, body?: Record<string, string>) {
+async function post(url: string, body?: Record<string, unknown>) {
   return body === undefined
     ? app.inject({ method: "POST", url })
     : app.inject({ method: "POST", url, payload: body });
@@ -246,5 +246,104 @@ describe("a rota é do daemon, e não do servidor de arquivos", () => {
      * `pnpm dev`, onde o vite serve o web em outra porta.
      */
     expect(DAEMON_PREFIXES).toContain("/tasks");
+  });
+});
+
+describe("POST /tasks/:id/findings — o parecer do revisor (Parte 7)", () => {
+  /** Uma tarefa em `review`, com a sessão do revisor ligada a ela. */
+  async function underReview() {
+    const w = await world();
+    const taskId = newId();
+    await db.insert(task).values({
+      id: taskId,
+      workspaceId: w.workspaceId,
+      projectId: w.api,
+      title: "o /orders devolve 500",
+      status: "review",
+    });
+    await db.update(session).set({ taskId }).where(eq(session.id, w.sessionId));
+    return { ...w, taskId };
+  }
+
+  it("um parecer vazio é uma resposta legítima", async () => {
+    /*
+     * *"Olhei e não achei nada que segure"* é o que o revisor diz quando não
+     * achou, e obrigá-lo a achar é o defeito que a Parte 7 existe para não
+     * criar — é o relato que originou a Q67.
+     */
+    const w = await underReview();
+
+    const response = await post(`/tasks/${w.taskId}/findings?session=${w.sessionId}`, {
+      findings: [],
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("sem achados");
+  });
+
+  it("`blocks` sem comando é recusado, e a frase diz o que fazer", async () => {
+    // Um bloqueio sem reprodução é um bloqueio sem árbitro, que é o que a Q67
+    // recusou. A frase manda para o outro balde em vez de só dizer não.
+    const w = await underReview();
+
+    const response = await post(`/tasks/${w.taskId}/findings?session=${w.sessionId}`, {
+      findings: [{ bucket: "blocks", title: "acho o teste fraco" }],
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toContain("`notes`");
+  });
+
+  it("`notes` com comando é recusado — ele pertence ao outro balde", async () => {
+    const w = await underReview();
+
+    const response = await post(`/tasks/${w.taskId}/findings?session=${w.sessionId}`, {
+      findings: [{ bucket: "notes", title: "fere a direção de dependência", command: "pnpm test" }],
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toContain("`blocks`");
+  });
+
+  it("os dois baldes juntos são gravados, e a resposta conta cada um", async () => {
+    const w = await underReview();
+
+    const response = await post(`/tasks/${w.taskId}/findings?session=${w.sessionId}`, {
+      findings: [
+        {
+          bucket: "blocks",
+          title: "mutante sobrevivente na linha 194",
+          command: "pnpm vitest run scripts",
+          expected: "19 passed",
+        },
+        { bucket: "notes", title: "quebrou a convenção dos irmãos" },
+      ],
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("1 que seguram, 1 anotados");
+    const rows = await db.select().from(taskFinding);
+    expect(rows).toHaveLength(2);
+    // O papel vem da **etapa**, e não de uma coluna na sessão: é a mesma tabela
+    // que a fila usa para decidir quem trabalha em cada coluna.
+    expect(rows.every((row) => row.role === "revisor")).toBe(true);
+  });
+
+  it("uma sessão não posta parecer sobre a tarefa de outra", async () => {
+    const w = await underReview();
+    const outra = newId();
+    await db.insert(task).values({
+      id: outra,
+      workspaceId: w.workspaceId,
+      projectId: w.api,
+      title: "outra",
+      status: "review",
+    });
+
+    const response = await post(`/tasks/${outra}/findings?session=${w.sessionId}`, {
+      findings: [],
+    });
+
+    expect(response.statusCode).toBe(403);
   });
 });

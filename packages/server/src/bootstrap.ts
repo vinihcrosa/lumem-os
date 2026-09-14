@@ -28,6 +28,7 @@ import { createSecretStore } from "./secrets/SecretStore.js";
 import { runTrackerLoop } from "./tracker/loop.js";
 import { writeMark, type Mark } from "./tracker/marks.js";
 import { configForAdapter, verdictOfWorktree } from "./tasks/conveyor-wiring.js";
+import { reproduce } from "./tasks/reproduce.js";
 import { createCallerFactory } from "./trpc.js";
 import { appRouter } from "./routers/index.js";
 import { createGitService } from "./git/GitService.js";
@@ -167,6 +168,10 @@ export async function bootstrap({
           url: `http://${config.host}:${String(config.port)}/tasks`,
           budget: config.taskBudget,
         },
+        // A porta do parecer (`028` Parte 7). A mesma raiz: quem decide se o
+        // parágrafo nasce é o preâmbulo, olhando a etapa da tarefa que a sessão
+        // serve.
+        reviewBaseUrl: `http://${config.host}:${String(config.port)}/tasks`,
       }),
       // O teto entra pela mesma porta e pela mesma razão: este é o único lugar
       // que conhece o banco e o manager ao mesmo tempo (`028` Parte 3, T16).
@@ -367,6 +372,17 @@ export async function bootstrap({
         acp.cancel(sessionId);
         return Promise.resolve();
       },
+      /*
+       * Fechar a sessão do encaixe quando o turno acaba (Parte 7 — T52).
+       *
+       * Pelo `sessionStore`, e não pelo `acp` direto: quem mantém a linha e o
+       * processo de acordo é ele, e matar o processo por fora deixaria a linha
+       * dizendo `running` para sempre.
+       */
+      closeSession: async (sessionId) => {
+        await sessionStore.close(sessionId);
+      },
+      reproduce,
       liveTurns: () => acp.liveTurns(),
       prVerdictOf: (worktreeId) => verdictOfWorktree(openedDatabase.db, pr, worktreeId),
       /*

@@ -1324,7 +1324,7 @@ Três defeitos empilhados, e o primeiro escondeu os outros dois. As quatro pergu
 
 ## Fase 25 — as setas que o daemon recusava
 
-**T49 e T50 entregues em 2026-09-14.** As três setas recusadas foram conferidas **vermelhas** com
+**T49, T50 e T52 entregues em 2026-09-14.** As três setas recusadas foram conferidas **vermelhas** com
 o `actor: "agent"` de volta — e são exatamente as três.
 
 #### T49: A esteira é o daemon, e para de se declarar agente
@@ -1371,6 +1371,8 @@ conta processos, não linhas.
 ---
 
 ## Fase 26 — o parecer entra no portão
+
+**T51–T55 entregues em 2026-09-14.**
 
 #### T53: Dois baldes, e o revisor escolhe o balde ([Q67](open-questions.md))
 

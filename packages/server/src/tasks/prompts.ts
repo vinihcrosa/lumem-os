@@ -41,25 +41,27 @@ export interface PromptFacts {
   dirty: boolean;
   /** A instrução do agente nomeado, quando há um (§5.1). */
   instructions: string;
+
 }
 
 /** O que cada encaixe é, em uma frase. O resto do prompt é fato. */
 const MISSION: Record<Role, string> = {
   implementador:
     "Implemente a tarefa abaixo neste checkout. Quando terminar, faça `git add -A` e `git commit`.",
+  /*
+   * **O parecer é postado, não escrito na conversa** (Parte 7 — T53).
+   *
+   * Como se posta está no preâmbulo, e não aqui: é lá que mora o id da sessão,
+   * que a porta exige — e este arquivo é função pura sobre fato, sem acesso a
+   * nada que o daemon saiba sobre a conversa em voo.
+   */
   revisor:
-    "Revise o que já foi feito neste checkout para a tarefa abaixo. Aprove ou reprove, e diga por quê.",
+    "Revise o que já foi feito neste checkout para a tarefa abaixo, e **poste o parecer** " +
+    "pela porta que o preâmbulo descreve — mesmo que você não tenha achado nada que segure.",
   testador:
     "Verifique se o que foi feito neste checkout para a tarefa abaixo funciona. Rode o que precisar.",
 };
 
-/**
- * O prompt de um turno da esteira.
- *
- * **Ninguém está esperando do outro lado**, e o prompt diz isso — é a diferença
- * que a medição da Q39 mostrou custar dinheiro: o agente que acha que tem
- * interlocutor pergunta e para, e ninguém responde.
- */
 export function promptFor(facts: PromptFacts): string {
   const parts: string[] = [];
 

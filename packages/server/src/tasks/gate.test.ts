@@ -12,6 +12,10 @@ import { decideGate, gateStrength, type GateFacts } from "./gate.js";
  */
 
 const facts = (patch: Partial<GateFacts> = {}): GateFacts => ({
+  // `implementador` é o default porque é o único papel cujo portão lê commit e
+  // `test`. O do revisor lê parecer, e tem bloco próprio no fim do arquivo.
+  role: "implementador",
+  findings: null,
   committed: true,
   testExitCode: 0,
   hasTest: true,
@@ -109,5 +113,86 @@ describe("a força do portão é visível", () => {
     // Nem teste nem PR: só o commit, que é a ausência de garantia. Ela precisa
     // ser visível para não ser confundida com uma.
     expect(gateStrength({ hasTest: false, pr: null })).toBe("commit");
+  });
+});
+
+describe("o portão do revisor lê parecer, e não commit (Parte 7 — Q67)", () => {
+  /*
+   * O defeito medido em 2026-09-14: o mesmo `committed` julgava os três papéis,
+   * e ele é *árvore limpa **e** à frente da base* — que fica verdadeiro para
+   * sempre depois do primeiro commit do implementador. O revisor **reprovou
+   * duas vezes** e o daemon registrou `portão verde` nas duas.
+   */
+  const review = (patch: Partial<GateFacts> = {}): GateFacts =>
+    facts({ role: "revisor", committed: false, hasTest: true, testExitCode: 1, ...patch });
+
+  it("sem parecer nenhum é `unfinished` — o turno não entregou", () => {
+    // Diferente de lista vazia: aqui o revisor **calou**, e deixar o cartão
+    // andar por silêncio é o portão falhando aberto.
+    expect(review({ findings: null })).toBeDefined();
+    expect(decideGate(review({ findings: null }))).toEqual({
+      kind: "unfinished",
+      reason: "o revisor não deixou parecer",
+    });
+  });
+
+  it("parecer vazio **passa** — é o revisor dizendo que não achou nada que segure", () => {
+    /*
+     * E passa **apesar** de `committed: false` e `testExitCode: 1`: o que o
+     * revisor entrega não é código, e cobrar commit dele é o defeito de 14/09
+     * ao contrário.
+     */
+    expect(
+      decideGate(review({ findings: { reproduced: [], refuted: 0, notes: 0 } })),
+    ).toEqual({ kind: "pass" });
+  });
+
+  it("um achado que **reproduziu** segura, e a frase é a dele", () => {
+    expect(
+      decideGate(
+        review({
+          findings: {
+            reproduced: [{ title: "mutante sobrevivente na linha 194", command: "pnpm vitest" }],
+            refuted: 0,
+            notes: 0,
+          },
+        }),
+      ),
+    ).toEqual({ kind: "fail", reason: "mutante sobrevivente na linha 194" });
+  });
+
+  it("com mais de um, a frase diz quantos — o cartão tem 151px", () => {
+    expect(
+      decideGate(
+        review({
+          findings: {
+            reproduced: [
+              { title: "mutante na 194", command: "a" },
+              { title: "o job nunca rodou", command: "b" },
+            ],
+            refuted: 0,
+            notes: 0,
+          },
+        }),
+      ),
+    ).toMatchObject({ kind: "fail", reason: "mutante na 194 (e mais 1 reproduzidos)" });
+  });
+
+  it("um achado que **não** reproduziu não segura", () => {
+    // Reprodução inventada cai sozinha, e é a defesa que o balde `blocks` tem.
+    expect(
+      decideGate(review({ findings: { reproduced: [], refuted: 3, notes: 0 } })),
+    ).toEqual({ kind: "pass" });
+  });
+
+  it("anotações não seguram nada, por mais que sejam", () => {
+    /*
+     * É a metade da Q67 que responde *"toda vez que você pede um review, o
+     * agente acha alguma coisa"*: ele acha quanto quiser, e o que não é
+     * reproduzível vai para a PR em vez de travar a esteira.
+     */
+    expect(
+      decideGate(review({ findings: { reproduced: [], refuted: 0, notes: 9 } })),
+    ).toEqual({ kind: "pass" });
   });
 });

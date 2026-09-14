@@ -61,6 +61,7 @@ interface Harness {
     openSession: ReturnType<typeof vi.fn>;
     prompt: ReturnType<typeof vi.fn>;
     cancel: ReturnType<typeof vi.fn>;
+    closeSession: ReturnType<typeof vi.fn>;
     advance: ReturnType<typeof vi.fn>;
     block: ReturnType<typeof vi.fn>;
     park: ReturnType<typeof vi.fn>;
@@ -104,6 +105,9 @@ function harness({
     cancel: vi.fn(async () => {
       calls.push("cancel");
     }),
+    closeSession: vi.fn(async () => {
+      calls.push("closeSession");
+    }),
     advance: vi.fn(async () => {
       calls.push("advance");
     }),
@@ -122,7 +126,7 @@ function harness({
     prepareCheckout: vi.fn(async (entry: QueueEntry) => {
       calls.push("prepareCheckout");
       if (checkoutFails !== null) throw new Error(checkoutFails);
-      return { worktreeId: `wt-${entry.task.id}`, path: `/wt/${entry.task.id}`, dirty };
+      return { worktreeId: `wt-${entry.task.id}`, path: `/wt/${entry.task.id}`, dirty, head: "abc123" };
     }),
     gate: vi.fn(async () => {
       calls.push("gate");
@@ -137,6 +141,7 @@ function harness({
     openSession: spies.openSession as unknown as ConveyorPorts["openSession"],
     prompt: spies.prompt as unknown as ConveyorPorts["prompt"],
     cancel: spies.cancel as unknown as ConveyorPorts["cancel"],
+    closeSession: spies.closeSession as unknown as ConveyorPorts["closeSession"],
     gate: spies.gate as unknown as ConveyorPorts["gate"],
     countAttempt: async () => {
       calls.push("countAttempt");
@@ -433,8 +438,19 @@ describe("o prompt", () => {
     const base = { title: "t", body: "", checkoutPath: "/wt/1", attempt: 1, dirty: false, instructions: "" };
 
     expect(promptFor({ ...base, role: "implementador" })).toContain("git commit");
-    expect(promptFor({ ...base, role: "revisor" })).toContain("Aprove ou reprove");
     expect(promptFor({ ...base, role: "testador" })).toContain("funciona");
+
+    /*
+     * O revisor **posta** o parecer, e não o escreve na conversa (Parte 7 — T53).
+     *
+     * A missão dele dizia *"aprove ou reprove"*, e o daemon não lia nem um nem
+     * outro: o portão tinha quatro fatos e nenhum vinha dele. Como se posta está
+     * no preâmbulo, que é onde mora o id da sessão — este arquivo é função pura
+     * sobre fato, montada antes de a sessão existir.
+     */
+    const revisor = promptFor({ ...base, role: "revisor" });
+    expect(revisor).toContain("poste o parecer");
+    expect(revisor).toContain("mesmo que você não tenha achado nada");
   });
 
   it("a instrução do agente nomeado vem primeiro", () => {
@@ -590,6 +606,9 @@ describe("o portão julga o checkout que o turno usou", () => {
       worktreeId: "wt-t1",
       path: "/wt/t1",
       dirty: false,
+      // O `HEAD` de antes do turno vai junto: é contra ele que `committed` é
+      // lido, em vez do `ahead > 0` que ficava verdadeiro para sempre (T51).
+      head: "abc123",
     });
     expect(spies.advance).toHaveBeenCalled();
   });

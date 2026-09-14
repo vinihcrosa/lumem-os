@@ -34,6 +34,13 @@ export interface MemoryPreambleOptions {
    * que custava antes desta feature.
    */
   tasks?: { url: string; budget: number };
+  /**
+   * A base da porta de parecer (`028` Parte 7 — T53).
+   *
+   * O daemon passa a raiz; o parágrafo só nasce quando **esta** sessão serve uma
+   * tarefa que está em `review` — que é o único momento em que ela existe.
+   */
+  reviewBaseUrl?: string;
   log?: Pick<FastifyBaseLogger, "warn">;
 }
 
@@ -42,6 +49,7 @@ export function createMemoryPreamble({
   stateDir,
   askUrl,
   tasks,
+  reviewBaseUrl,
   log,
 }: MemoryPreambleOptions): AcpPreambleSource {
   return async (session): Promise<AcpPreamble | null> => {
@@ -53,7 +61,8 @@ export function createMemoryPreamble({
      * pedir que ela obedecesse regras sobre um trabalho que não está fazendo —
      * pagando o núcleo de novo, para nada.
      */
-    if ((await createSessionRepository(db).findById(session.id)) === undefined) return null;
+    const row = await createSessionRepository(db).findById(session.id);
+    if (row === undefined) return null;
 
     const memory = new MemoryService({ db, stateDir, ...(log ? { log } : {}) });
     const scope = await memoryScopeOfSession(db, session.id);
@@ -76,6 +85,22 @@ export function createMemoryPreamble({
             (project) => project.name,
           );
 
+    /*
+     * A porta do parecer só aparece **no turno de revisão**.
+     *
+     * Derivada, e não configurada: a sessão aponta para a tarefa, e a tarefa diz
+     * a etapa. Um parágrafo sobre como reprovar numa conversa de implementação
+     * seria custo em toda sessão para instruir ninguém.
+     */
+    const serving =
+      reviewBaseUrl === undefined || row.taskId === null
+        ? undefined
+        : await db.query.task.findFirst({ where: (one, { eq }) => eq(one.id, row.taskId!) });
+    const review =
+      serving?.status === "review"
+        ? { url: `${reviewBaseUrl}/${serving.id}/findings` }
+        : undefined;
+
     const parts = [MEMORY_DIRECTIVE];
     if (core.text !== "") parts.push(core.text.trimEnd());
     parts.push(
@@ -84,6 +109,7 @@ export function createMemoryPreamble({
         sessionId: session.id,
         projects,
         ...(tasks === undefined ? {} : { tasks }),
+        ...(review === undefined ? {} : { review }),
       }).trimEnd(),
     );
 

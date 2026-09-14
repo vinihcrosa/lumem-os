@@ -9,11 +9,13 @@ import { DomainError } from "../errors.js";
 import type { GitService } from "../git/GitService.js";
 import { createTaskRepository, type TaskStatus } from "../repositories/task.js";
 import { createTaskCommentRepository } from "../repositories/task-comment.js";
+import { createTaskFindingRepository } from "../repositories/task-finding.js";
 import { readProjectScripts } from "../scripts/project-scripts.js";
 import type { ScriptRunner } from "../scripts/ScriptRunner.js";
 
 import type { ConveyorPorts, GateVerdict, PreparedCheckout } from "./conveyor.js";
 import { decideGate } from "./gate.js";
+import { matches, type Reproducer } from "./reproduce.js";
 import { queueOf, type QueueEntry } from "./queue.js";
 
 /**
@@ -58,6 +60,10 @@ export interface ConveyorDeps {
   prompt(input: { sessionId: string; text: string }): Promise<void>;
   /** Interrompe um turno que passou do teto. Falhar aqui não é fatal. */
   cancel(sessionId: string): Promise<void>;
+  /** Encerra a sessão do encaixe quando o turno acabou (Parte 7 — T52). */
+  closeSession(sessionId: string): Promise<void>;
+  /** Roda o comando que um achado do balde `blocks` afirma demonstrar (T54). */
+  reproduce: Reproducer;
   /** O turno em voo, como o `AcpManager` os relata. */
   liveTurns(): readonly { sessionId: string; startedAt: Date }[];
   /** O veredito da PR daquela worktree, ou `null`. Do `PrCache` da `013`. */
@@ -107,6 +113,7 @@ export function checkoutNameFor(title: string, taskId: string): string {
 
 export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
   const tasks = createTaskRepository(deps.db);
+  const findings = createTaskFindingRepository(deps.db);
   const comments = createTaskCommentRepository(deps.db);
   const catalog = createAgentCatalog(deps.db);
 
@@ -137,6 +144,68 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
       projectId: entry.task.projectId,
       name: checkoutNameFor(entry.task.title, entry.task.id),
       taskId: entry.task.id,
+    });
+  }
+
+  /**
+   * O parecer desta volta, **rerodado** (Parte 7 — T54).
+   *
+   * Lê o que **esta sessão** postou — e não o que está na tabela desde ontem —,
+   * roda a reprodução de cada `blocks` e devolve o resumo que o portão lê. O
+   * `notes` não é verificado por construção: não há o que rodar, e quem o
+   * arbitra é uma pessoa na PR.
+   */
+  async function reviewVerdict(taskId: string, sessionId: string, cwd: string) {
+    const posted = await findings.bySession(sessionId);
+    /*
+     * Nenhum registro é **diferente** de uma lista vazia.
+     *
+     * Vazia é *"olhei e não achei nada que segure"* — uma aprovação. Nenhum
+     * registro é um turno que acabou sem entregar parecer, e o portão o trata
+     * como `unfinished`: a próxima passada recomeça, em vez de o cartão andar
+     * porque o revisor calou.
+     */
+    if (posted.length === 0) {
+      return decideGate({
+        role: "revisor",
+        findings: null,
+        committed: false,
+        testExitCode: null,
+        hasTest: false,
+        pr: null,
+      });
+    }
+
+    const reproduced: { title: string; command: string }[] = [];
+    let refuted = 0;
+    let notes = 0;
+
+    for (const one of posted) {
+      if (one.bucket === "notes") {
+        notes += 1;
+        continue;
+      }
+      const result = await deps.reproduce({ command: one.command!, cwd });
+      const hit = matches(result, one.expected);
+      /*
+       * `pending` quando não deu para verificar — o teto chegou, o shell
+       * sumiu. Um achado não verificado **continua segurando**, e a frase diz
+       * isso: transformar *"não consegui rodar"* em aprovação seria o portão
+       * falhando aberto exatamente onde ele existe para não falhar.
+       */
+      const verdict = result.exitCode === null ? "pending" : hit ? "reproduced" : "refuted";
+      await findings.verify(one.id, verdict, result.output);
+      if (verdict === "refuted") refuted += 1;
+      else reproduced.push({ title: one.title, command: one.command! });
+    }
+
+    return decideGate({
+      role: "revisor",
+      findings: { reproduced, refuted, notes },
+      committed: false,
+      testExitCode: null,
+      hasTest: false,
+      pr: null,
     });
   }
 
@@ -171,7 +240,13 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
         });
 
       const status = await deps.git.getStatus(checkout.path);
-      return { worktreeId: checkout.id, path: checkout.path, dirty: !status.clean };
+      /*
+       * O `HEAD` de **antes** do turno (T51). É contra ele que `committed` é
+       * lido depois — o que mudou nesta passada, e não o que o implementador
+       * deixou há duas etapas.
+       */
+      const head = await deps.git.headOf(checkout.path).catch(() => "");
+      return { worktreeId: checkout.id, path: checkout.path, dirty: !status.clean, head };
     },
 
     openSession: async ({ taskId, adapter, model, cwd, worktreeId }) => {
@@ -202,7 +277,18 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
 
     cancel: (sessionId) => deps.cancel(sessionId),
 
-    async gate(entry, checkout) {
+    closeSession: (sessionId) => deps.closeSession(sessionId),
+
+    async gate(entry, checkout, sessionId) {
+      /*
+       * O revisor entrega **parecer**, e é a única coisa que o portão dele lê
+       * (Parte 7 — T51 e T54). Nada de `test` nem de commit: o que ele produz
+       * não é código.
+       */
+      if (entry.role === "revisor") {
+        return { ...(await reviewVerdict(entry.task.id, sessionId, checkout.path)) };
+      }
+
       const owner = await deps.db.query.project.findFirst({
         where: eq(project.id, entry.task.projectId),
       });
@@ -231,15 +317,23 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
        * serve"* —, e ele serve só para a **ausência**: um commit não separa
        * *terminou* de *desistiu inventando*, e é o `test` abaixo que separa.
        */
-      const [status, ahead] = await Promise.all([
+      /*
+       * `committed` é **desta passada**, e não herdado (T51).
+       *
+       * Antes era *árvore limpa **e** à frente da base* — e `à frente` fica
+       * verdadeiro para sempre depois do primeiro commit. O `HEAD` mudou desde
+       * o começo do turno é o fato que responde *"este encaixe escreveu alguma
+       * coisa?"*, que é o que a frase sempre quis dizer.
+       */
+      const [status, head] = await Promise.all([
         deps.git.getStatus(checkout.path),
-        deps.git
-          .getAheadBehind(checkout.path, owner?.defaultBranch ?? "main")
-          .catch(() => ({ ahead: 0, behind: 0 })),
+        deps.git.headOf(checkout.path).catch(() => checkout.head),
       ]);
-      const committed = status.clean && ahead.ahead > 0;
+      const committed = status.clean && head !== checkout.head;
 
       return decideGate({
+        role: entry.role,
+        findings: null,
         committed,
         testExitCode,
         hasTest,

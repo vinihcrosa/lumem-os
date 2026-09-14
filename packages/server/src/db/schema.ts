@@ -1246,6 +1246,85 @@ export const taskComment = sqliteTable(
 );
 
 /**
+ * O que o revisor achou (`028` Parte 7 — T53).
+ *
+ * **Existe porque o parecer do revisor não existia para a máquina.** O portão
+ * lia quatro fatos — commit, `test`, se há `test`, e o check da PR — e nenhum
+ * vinha dele: o revisor escrevia `Reprovo` com mutante e cenário de falha, e o
+ * daemon registrava `portão verde`. Medido em 2026-09-14, contra uma tarefa de
+ * verdade.
+ *
+ * **Dois baldes, e o que os separa não é a verdade do achado — é quem consegue
+ * resolver a discussão** ([Q67](../../../../docs/features/028-autonomous-orchestration/open-questions.md)):
+ *
+ * - `blocks` exige **reprodução** (comando e saída esperada). O daemon reroda,
+ *   e quem arbitra é a máquina. Não reproduziu, o achado **cai** — e o registro
+ *   fica, porque um revisor que afirma o que não se sustenta é um sinal;
+ * - `notes` é julgamento — *"fere a direção de dependência"*, *"duplica uma
+ *   regra"* — e **não segura o cartão**. Quem arbitra é uma pessoa, na PR.
+ *
+ * O `notes` existe porque nem todo achado bom é reproduzível. Forçá-los pelo
+ * balde do comando os apagaria; deixá-los bloquear entregaria a esteira a uma
+ * discussão de arquitetura entre dois agentes **sem árbitro**.
+ */
+export const taskFinding = sqliteTable(
+  "task_finding",
+  {
+    id: text("id").primaryKey(),
+    taskId: text("task_id")
+      .notNull()
+      .references(() => task.id, { onDelete: "cascade" }),
+    /**
+     * Qual sessão achou, e **sem estrangeiro**.
+     *
+     * Mesma razão do `task_comment.created_by_session`: a ação do estrangeiro é
+     * um `UPDATE`, e uma coluna obrigatória com `SET NULL` seria a contradição
+     * que já foi paga uma vez. Id solto diz mais que nulo.
+     */
+    foundBySession: text("found_by_session").notNull(),
+    /** Em que etapa ele foi achado. É o que o cartão mostra ao lado. */
+    role: text("role").notNull(),
+    bucket: text("bucket").notNull(),
+    title: text("title").notNull(),
+    detail: text("detail").notNull().default(""),
+    /** O comando que demonstra. Obrigatório em `blocks`, ausente em `notes`. */
+    command: text("command"),
+    /** O que o comando deve mostrar. É contra isto que a reprodução é lida. */
+    expected: text("expected"),
+    /**
+     * O que aconteceu quando o daemon rerodou.
+     *
+     * `pending` é *ainda não rodei*; `reproduced` segura o cartão; `refuted` é o
+     * achado que **caiu** — e ele fica na tabela de propósito, porque apagar
+     * apagaria o sinal de que o revisor afirmou o que não se sustenta.
+     */
+    verification: text("verification").notNull().default("pending"),
+    /** A saída real da reprodução, truncada. É o que se lê para discordar. */
+    output: text("output"),
+    ...timestamps,
+  },
+  (table) => [
+    check("task_finding_bucket", sql`${table.bucket} IN ('blocks', 'notes')`),
+    check(
+      "task_finding_verification",
+      sql`${table.verification} IN ('pending', 'reproduced', 'refuted', 'skipped')`,
+    ),
+    /*
+     * **`blocks` sem comando é um bloqueio sem árbitro**, que é exatamente o que
+     * a Q67 recusou — e `notes` com comando seria um achado reproduzível se
+     * escondendo no balde que não segura. Os dois sentidos, como o
+     * `task_comment_provenance`.
+     */
+    check(
+      "task_finding_reproduction",
+      sql`(${table.bucket} = 'blocks' AND ${table.command} IS NOT NULL)
+        OR (${table.bucket} = 'notes' AND ${table.command} IS NULL)`,
+    ),
+    index("task_finding_by_task").on(table.taskId, table.createdAt),
+  ],
+);
+
+/**
  * Um agente **nomeado** (`028` §5.1, Parte 2 — T23).
  *
  * **Agente não é adaptador**, e a
@@ -1352,6 +1431,7 @@ export const schema = {
   checkoutPort,
   task,
   taskComment,
+  taskFinding,
   namedAgent,
   roleBinding,
 };
@@ -1373,5 +1453,6 @@ export type MemoryUsageRow = typeof memoryUsage.$inferSelect;
 export type MemoryProposalRow = typeof memoryProposal.$inferSelect;
 export type TaskRow = typeof task.$inferSelect;
 export type TaskCommentRow = typeof taskComment.$inferSelect;
+export type TaskFindingRow = typeof taskFinding.$inferSelect;
 export type NamedAgentRow = typeof namedAgent.$inferSelect;
 export type RoleBindingRow = typeof roleBinding.$inferSelect;

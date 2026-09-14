@@ -30,6 +30,17 @@ export interface MemorySkillContext {
    * **zero** caractere para quem não a tem.
    */
   tasks?: { url: string; budget: number };
+  /**
+   * A porta do parecer, e ela só existe para o **revisor** (`028` Parte 7 — T53).
+   *
+   * Ausente em toda conversa que não é um turno de revisão — e é assim que o
+   * parágrafo custa **zero** caractere para as outras, que são a maioria.
+   *
+   * Ela mora aqui, e não no `promptFor` da esteira, porque exige o id da sessão:
+   * aquele arquivo é função pura sobre fato e é montado **antes** de a sessão
+   * existir. Este é injetado quando ela já existe.
+   */
+  review?: { url: string };
 }
 
 /**
@@ -46,7 +57,13 @@ arquitetura que já pode ter sido tomada; e antes de afirmar "aqui se faz assim"
 Não sabe se existe memória sobre algo? Pergunte — custa uma chamada.`;
 
 /** O texto fixo que ensina a estrutura da memória e como chamar o serviço. */
-export function memorySkill({ askUrl, sessionId, projects, tasks }: MemorySkillContext): string {
+export function memorySkill({
+  askUrl,
+  sessionId,
+  projects,
+  tasks,
+  review,
+}: MemorySkillContext): string {
   const lines = [
     "## Como consultar a memória",
     "",
@@ -103,6 +120,55 @@ export function memorySkill({ askUrl, sessionId, projects, tasks }: MemorySkillC
       "",
       `Terminou? \`POST ${tasks.url}/<id>/review\` — \`review\` é o que você sabe`,
       "dizer; `done` é de uma pessoa.",
+    );
+  }
+
+  /*
+   * O parecer do revisor, em **dois baldes** (Parte 7 — Q67).
+   *
+   * O texto diz o motivo da divisão, e não só a sintaxe: o que separa os dois
+   * não é a importância do achado, é **quem consegue resolver a discussão**. Um
+   * agente que entende isso escolhe o balde melhor que um que decorou o formato.
+   *
+   * E diz **"mesmo que seja nada"** logo na primeira linha, porque o relato que
+   * originou esta parte é literal: *"toda vez que você pede um review para um
+   * agente, ele vai achar alguma coisa"*. Um parecer vazio precisa ser uma
+   * resposta óbvia, senão ele nunca acontece.
+   */
+  if (review !== undefined) {
+    lines.push(
+      "",
+      "## Como entregar o parecer da revisão",
+      "",
+      "Poste o que você achou — **mesmo que seja nada**:",
+      "",
+      "```sh",
+      `curl -sX POST '${review.url}?session=${sessionId}' \\`,
+      `  -H 'content-type: application/json' \\`,
+      `  -d '{"findings":[]}'`,
+      "```",
+      "",
+      "Cada achado vai num de **dois baldes**, e o que os separa não é a",
+      "importância — é **quem consegue resolver a discussão**:",
+      "",
+      "- **`blocks`** — o daemon **vai rodar** o `command` que você mandar. Reproduziu o que você",
+      "  disse, a tarefa volta para o implementador; não reproduziu, o achado cai e fica",
+      "  registrado que você afirmou o que não se sustenta. Leva `command` e, quando ajudar,",
+      "  `expected` (um trecho da saída). **Sem comando, não use este balde.**",
+      "- **`notes`** — julgamento: princípio de arquitetura, convenção do repositório, nome ruim.",
+      "  **Não segura a tarefa**, não leva comando, e vai para a pull request — onde uma pessoa lê",
+      "  antes de mesclar.",
+      "",
+      "```json",
+      '{"findings":[',
+      '  {"bucket":"blocks","title":"o teste da linha 194 sobrevive à mutação",',
+      '   "command":"pnpm vitest run scripts","expected":"19 passed"},',
+      '  {"bucket":"notes","title":"o runner ficou 3x maior que os irmãos"}',
+      "]}",
+      "```",
+      "",
+      "**Ache quanto quiser** — o que não for reproduzível vai para a pull request em vez de",
+      "travar a esteira. O que não vale é pôr em `blocks` o que você não consegue demonstrar.",
     );
   }
 
