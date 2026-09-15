@@ -316,7 +316,7 @@ não daquela migração —, uma variante nova de `AcpEvent` **derruba o typeche
 contrato funcionando), e o **mock compartilhado é parte do contrato**: esquecê-lo quebrou cinco testes
 de telas sem relação com orçamento.
 
-E a **Parte 7 — O parecer do revisor** fechou em **2026-09-15**, levando a `028` a **60 tasks**. Ela
+E a **Parte 7 — O parecer do revisor** fechou em **2026-09-15**, levando a `028` a **61 tasks**. Ela
 **não veio de discussão**: veio de rodar a esteira contra uma tarefa de verdade, vinda do Linear —
 **US$ 11,41** e 453 884 tokens em seis sessões, com o cartão parado em `In Review` e o revisor
 reprovando duas vezes enquanto o daemon escrevia `portão verde`. Três defeitos empilhados, e o
@@ -373,7 +373,19 @@ ficar refém dele"* —; a esteira chamava sem opções e herdava o teto de uma 
 oposto da dela. Na `LUM-51` o `pnpm gate:quick` foi morto aos **20,3 s** e o portão leu *"não chegou a
 rodar"*: **duas das quatro tentativas** do cartão foram embora assim, e com esse teto nenhum projeto
 com suíte de verdade passa no portão — que é justamente o que a Q53 chama de a força da esteira.
-A `028` fecha a Parte 7 com **60 tasks**.
+
+E a rodada seguinte — **a primeira em que o laço inteiro funcionou**: o implementador trabalhou 15
+minutos, commitou, e o portão rodou o teste do projeto em 56 s e **reprovou**. Dois achados nela, e os
+dois do mesmo tipo — **o nome dizia uma coisa e o dado era outra**. O teto de `turnsPerSession`
+contava `usage_update` e não turno: o adaptador mandou **97 num turno só**, então o teto que a Parte 3
+desenhou para proteger quem **não relata dinheiro** disparava dentro do primeiro turno, sempre. E a
+recusa do teto — cuja frase é boa, *"parou no teto do workspace — 60 turnos por sessão"* — subia como
+**exceção**: cada passada gastava uma tentativa e subia um adaptador de 243 MB para ouvir o mesmo não,
+até o cartão parar com *"parou depois de 2 tentativas"*. Decisão do daemon virou resposta, e só ela:
+adaptador morto continua sendo falha. E o teste que reprovou não era do agente — era o **node**: o
+daemon roda os scripts por `$SHELL -lc`, e um shell de login **não interativo** não carrega o nvm, então
+o terminal rodava v22 e o daemon v26, com 340 testes quebrando no jsdom.
+A `028` fecha a Parte 7 com **61 tasks**.
 
 Comece pelo [índice da documentação](docs/README.md).
 

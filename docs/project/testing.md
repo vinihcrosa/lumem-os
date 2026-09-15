@@ -1236,6 +1236,36 @@ A regra: **um default com nome de caso de uso é um default de um caso de uso s�
 chamador aparece, ele declara o dele — e um teto que pode matar trabalho pertence a quem sabe quanto o
 trabalho demora, não a quem escreveu a função.
 
+### Contar a linha quando a pergunta é sobre o evento
+
+**Sintoma:** com o teto de `60 turnos por sessão`, a esteira parava **dentro do primeiro turno** — e o
+cartão dizia *"parou depois de 2 tentativas"*, que não fala de teto nenhum.
+
+**Causa:** `turns` era `count(session_usage.id)`, e uma linha daquela tabela é um `usage_update`, não
+um turno. O adaptador do Claude mandou **97 num turno só**. O nome do campo dizia *"quantos turnos
+entraram na conta"* e o dado era *"quantos relatos chegaram"* — e o cabeçalho do arquivo que grava
+(`O consumo de cada turno`) documentava a premissa que o adaptador não cumpre.
+
+Três coisas caem juntas quando o nome e o dado divergem assim: a tela mostra um número errado, o teto
+dispara cedo, e a mensagem do teto fala de uma grandeza que ninguém reconhece.
+
+A regra: **quando a pergunta é sobre um evento, a contagem precisa de uma marca do evento.** Aqui a
+marca é a coluna `turn`, e a chave é o par sessão × turno — a soma cruza sessões, e o turno `0` de uma
+não é o `0` da outra.
+
+### A recusa que vira exceção some, e quem paga é a leitura
+
+**Sintoma:** o mesmo cartão. Três passadas, **três adaptadores de 243 MB subidos**, zero turno, zero
+comentário — e um bloqueio com a frase errada.
+
+**Causa:** o teto responde *"parou no teto do workspace — 60 turnos por sessão"*, e o caminho dessa
+resposta era `throw`. A esteira não a lia: a exceção subia, virava um `conveyor-tick-failed` num log
+que ninguém está olhando, e a passada seguinte repetia tudo até a contagem de tentativas acabar.
+
+A regra: **decisão do daemon é resposta, não exceção.** O que a porta traduz é só o que é decisão
+(`BLOCKED`); falha continua subindo, porque tratá-la como decisão faria um adaptador morto parar o
+cartão dizendo que o teto o parou.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

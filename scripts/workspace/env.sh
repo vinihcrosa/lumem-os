@@ -12,6 +12,26 @@
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+# O node do **seu** terminal, e não o que sobrou no PATH do shell de login.
+#
+# O Lumem roda os scripts do projeto por `$SHELL -lc`, que é o que a `012`
+# decidiu para herdar o ambiente de quem desenvolve. Só que um zsh de login
+# **não interativo** lê `.zprofile` e não lê `.zshrc` — e é no `.zshrc` que o
+# nvm se instala. Resultado medido nesta máquina: o terminal roda v22 e o
+# daemon roda v26, com o mesmo comando, no mesmo checkout. O `gate:quick`
+# passa num e falha em 340 testes no outro, porque o jsdom quebra no v26.
+#
+# Custou uma tentativa da esteira: o portão reprovou trabalho correto e
+# escreveu "o teste do projeto falhou (saída 1)".
+#
+# Carregado só quando existe, e sem escolher versão: quem manda é o alias
+# `default` do nvm, que é a mesma coisa que o terminal usaria.
+if ! command -v nvm >/dev/null 2>&1 && [ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]; then
+  # shellcheck disable=SC1091
+  . "${NVM_DIR:-$HOME/.nvm}/nvm.sh" >/dev/null 2>&1 || true
+  nvm use default >/dev/null 2>&1 || true
+fi
+
 # Do caminho absoluto, não do nome: dois workspaces podem se chamar igual em
 # projetos diferentes, mas ocupam caminhos diferentes.
 if command -v shasum >/dev/null 2>&1; then

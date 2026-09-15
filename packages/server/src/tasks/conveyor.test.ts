@@ -119,6 +119,9 @@ function harness({
     }),
     prompt: vi.fn(async () => {
       calls.push("prompt");
+      // `ok` é o turno que abriu. A recusa — o daemon dizendo não antes de
+      // gastar — é o outro ramo, e tem casos próprios.
+      return { kind: "ok" as const };
     }),
     cancel: vi.fn(async () => {
       calls.push("cancel");
@@ -661,6 +664,7 @@ describe("as vagas rodam ao mesmo tempo", () => {
       peak = Math.max(peak, inFlight);
       await Promise.resolve();
       inFlight -= 1;
+      return { kind: "ok" as const };
     });
 
     await createConveyor(ports).tick("w1");
@@ -974,6 +978,62 @@ describe("a PR abre na primeira vez que o implementador fecha (Parte 7 — T56)"
     expect(spies.mark).not.toHaveBeenCalledWith(
       expect.objectContaining({ mark: "pr" }),
     );
+  });
+});
+
+describe("o daemon recusa antes do turno, e o cartão diz o quê (Parte 7 — T61)", () => {
+  /*
+   * A recusa é do teto do workspace, e ela chega **antes** de qualquer gasto.
+   * Antes deste ramo ela subia como exceção: virava uma linha de log, gastava
+   * uma tentativa por passada e subia um adaptador em cada uma — até o cartão
+   * parar dizendo *"parou depois de 2 tentativas"*, uma frase que não fala do
+   * teto e manda procurar no lugar errado. Medido: três passadas, três spawns,
+   * zero turno, zero comentário.
+   */
+  const recusa = { kind: "refused" as const, reason: "parou no teto do workspace — 60 turnos por sessão" };
+
+  it("para na primeira, com a frase do teto", async () => {
+    const { ports, spies } = harness({ facts: { entries: [entry()] } });
+    spies.prompt.mockResolvedValue(recusa);
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.block).toHaveBeenCalledWith({
+      taskId: "t1",
+      reason: "parou no teto do workspace — 60 turnos por sessão",
+    });
+    // E não julga: não houve turno para o portão ler.
+    expect(spies.gate).not.toHaveBeenCalled();
+    expect(spies.advance).not.toHaveBeenCalled();
+  });
+
+  it("o cartão registra a recusa, e a conversa é fechada", async () => {
+    const { ports, spies } = harness({ facts: { entries: [entry()] } });
+    spies.prompt.mockResolvedValue(recusa);
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.comment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: "implementador · tentativa 1 — parou no teto do workspace — 60 turnos por sessão",
+      }),
+    );
+    // A sessão subiu para ouvir o não: ela não pode ficar de pé por isso.
+    expect(spies.closeSession).toHaveBeenCalled();
+  });
+
+  it("uma falha de transporte **não** é recusa — ela gasta tentativa, como antes", async () => {
+    /*
+     * Adaptador que morreu não é decisão, é falha. Tratá-la como recusa faria
+     * um `ACP connection closed` parar o cartão na primeira, e o cartão diria
+     * que o teto do workspace o parou.
+     */
+    const { ports, spies } = harness({ facts: { entries: [entry()] } });
+    spies.prompt.mockRejectedValue(new Error("ACP connection closed"));
+
+    await expect(createConveyor(ports).tick("w1")).rejects.toThrow(/connection closed/);
+
+    expect(spies.block).not.toHaveBeenCalled();
   });
 });
 

@@ -93,7 +93,25 @@ const SUM = {
    * contaria **ela** — o projeto sem consumo reportava "1 turno". `count` de uma
    * coluna ignora nulo, que é exatamente a pergunta.
    */
-  turns: sql<number>`count(${sessionUsage.id})`,
+  /*
+   * Turno, e não linha (`028` Parte 7).
+   *
+   * Era `count(id)`, e uma linha é um `usage_update` — o adaptador do Claude
+   * manda dezenas por turno (97 num só, medido). O número aparecia na tela como
+   * *"quantos turnos entraram na conta"* e alimentava o teto de
+   * `turnsPerSession`, que por causa disso disparava **dentro do primeiro
+   * turno** e parava a esteira falando de turnos que não aconteceram.
+   *
+   * A chave é o **par** sessão e turno, e não o turno sozinho: esta soma cruza
+   * sessões — por projeto, por tarefa, por agente —, e o turno `0` de uma
+   * sessão não é o turno `0` da outra. Contar só o número colapsaria duas
+   * primeiras voltas em uma.
+   *
+   * `distinct` ignora nulo, que é o que mantém a razão do `count(id)` de antes:
+   * a linha de projeto sem consumo, vinda do `LEFT JOIN`, continua contando
+   * zero em vez de um.
+   */
+  turns: sql<number>`count(distinct ${sessionUsage.sessionId} || ':' || ${sessionUsage.turn})`,
 };
 
 /**

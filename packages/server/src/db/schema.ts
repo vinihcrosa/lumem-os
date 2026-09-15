@@ -743,6 +743,21 @@ export const sessionUsage = sqliteTable(
     /** A variação da janela de contexto neste turno. Nunca negativa. */
     tokens: integer("tokens").notNull().default(0),
     /**
+     * Qual turno da sessão gravou esta linha (`028` Parte 7).
+     *
+     * **Ela existe porque o `usage_update` não é um por turno.** O adaptador do
+     * Claude manda dezenas dentro do mesmo turno — 97 num turno só, medido —, e
+     * a conta de *"quantos turnos esta sessão teve"* era `count(id)`. O teto de
+     * `turnsPerSession` do workspace, que a Parte 3 desenhou para ser a proteção
+     * de quem **não relata dinheiro**, disparava dentro do primeiro turno e
+     * parava a esteira com uma frase sobre turnos que nunca aconteceram.
+     *
+     * Sequencial por sessão, e o zero das linhas gravadas antes desta coluna diz
+     * a verdade que se pode dizer sobre elas: eram todas do mesmo turno ou não,
+     * e ninguém sabe — contá-las como **um** erra menos que contá-las como 97.
+     */
+    turn: integer("turn").notNull().default(0),
+    /**
      * O custo do turno, na moeda que o agente reportou.
      *
      * `null` quando ele não reporta dinheiro — e a diferença entre `null` e `0`

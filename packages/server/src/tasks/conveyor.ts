@@ -136,8 +136,21 @@ export interface ConveyorPorts {
     /** O escopo da sessão. Uma conversa da esteira mora **no checkout**. */
     worktreeId: string;
   }): Promise<{ sessionId: string }>;
-  /** Manda o prompt e espera o turno. O motivo da parada é ignorado de propósito. */
-  prompt(input: { sessionId: string; text: string }): Promise<void>;
+  /**
+   * Manda o prompt e espera o turno. O motivo da **parada** é ignorado de
+   * propósito — quem responde *"acabou?"* é o portão.
+   *
+   * O motivo de o turno **não abrir**, ao contrário, é lido: `recusado` é o
+   * daemon dizendo não antes de gastar qualquer coisa — hoje é o teto do
+   * workspace, e a frase dele já diz o número. Sem este retorno a recusa subia
+   * como exceção, virava uma linha de log, gastava uma tentativa por passada e
+   * o cartão acabava parando com *"parou depois de 2 tentativas"* — uma frase
+   * que não fala do teto e manda procurar no lugar errado.
+   */
+  prompt(input: {
+    sessionId: string;
+    text: string;
+  }): Promise<{ kind: "ok" } | { kind: "refused"; reason: string }>;
   /** Interrompe um turno que passou do teto de tempo. */
   cancel(sessionId: string): Promise<void>;
   /**
@@ -288,16 +301,24 @@ export function createConveyor(
    * cancelamento continua gastando token do outro lado, e o processo fica de pé
    * ocupando vaga do teto de paralelismo.
    */
-  async function promptWithCeiling(sessionId: string, text: string): Promise<boolean> {
-    let finished = false;
-    const turn = ports.prompt({ sessionId, text }).then(() => {
-      finished = true;
+  async function promptWithCeiling(
+    sessionId: string,
+    text: string,
+  ): Promise<{ kind: "ended" } | { kind: "timeout" } | { kind: "refused"; reason: string }> {
+    const answered: { value: { kind: "ok" } | { kind: "refused"; reason: string } | null } = {
+      value: null,
+    };
+    const turn = ports.prompt({ sessionId, text }).then((answer) => {
+      answered.value = answer;
     });
     await Promise.race([turn, sleep(turnTimeoutMs)]);
-    if (finished) return true;
+    const answer = answered.value;
+    if (answer !== null) {
+      return answer.kind === "ok" ? { kind: "ended" } : { kind: "refused", reason: answer.reason };
+    }
 
     await ports.cancel(sessionId).catch(() => undefined);
-    return false;
+    return { kind: "timeout" };
   }
 
   /**
@@ -444,16 +465,37 @@ export function createConveyor(
      * seria construir a esteira em cima de um sinal com 31% de erro no caso
      * caro. Quem responde *"acabou?"* é o portão, logo abaixo.
      */
-    const ended = await promptWithCeiling(sessionId, text);
+    const turn = await promptWithCeiling(sessionId, text);
+
+    /*
+     * O daemon disse não **antes** do turno: o cartão para com a frase dele.
+     *
+     * Aqui não há o que julgar — nada rodou —, e insistir é o defeito que isto
+     * conserta: cada passada gastava uma tentativa e subia um adaptador para
+     * ouvir o mesmo não, até o cartão parar dizendo *"parou depois de 2
+     * tentativas"*. O número do teto estava a uma frase de distância e não
+     * chegava a lugar nenhum.
+     */
+    if (turn.kind === "refused") {
+      await ports.comment({
+        taskId: entry.task.id,
+        sessionId,
+        body: `${entry.role} · tentativa ${String(attempt)} — ${turn.reason}`,
+      });
+      await ports.closeSession(sessionId).catch(() => undefined);
+      await blockWith(entry.task.id, turn.reason);
+      return;
+    }
 
     /*
      * O teto chegou antes: não há o que julgar, e chamar o portão seria julgar
      * um trabalho interrompido — o `test` rodaria contra um checkout que o
      * agente estava no meio de escrever.
      */
-    const verdict: GateVerdict = ended
-      ? await ports.gate(entry, checkout, sessionId, since)
-      : { kind: "unfinished", reason: "o turno passou do tempo e foi interrompido" };
+    const verdict: GateVerdict =
+      turn.kind === "ended"
+        ? await ports.gate(entry, checkout, sessionId, since)
+        : { kind: "unfinished", reason: "o turno passou do tempo e foi interrompido" };
     await ports.comment({
       taskId: entry.task.id,
       sessionId,
@@ -583,7 +625,8 @@ export function createConveyor(
        * com o cartão dizendo `implementando`. É o defeito que o e2e da Parte 2
        * achou, e ele não tem nada de exclusivo do caminho autônomo.
        */
-      await promptWithCeiling(sessionId, prepared.prompt);
+      const sent = await promptWithCeiling(sessionId, prepared.prompt);
+      if (sent.kind === "refused") throw new DomainError("BLOCKED", sent.reason);
     },
 
     async tick(workspaceId) {

@@ -8,9 +8,9 @@
 **Histórico:** **as seis partes estão entregues**  — a **Parte 1** (12 tasks, fases 0–4), a
 **Parte 3** (8, fases 5–9), a **Parte 2** (13, fases 10–15), a **Parte 4** (8, fases 16–20) e as
 **Partes 5 e 6** juntas (7, fases 21–24). São **48 tasks**, todas de 2026-09-12 e 2026-09-13, e
-**uma delas é parcial** — a T48, com o motivo escrito nela. A **Parte 7** (12 tasks, fases 25–28,
+**uma delas é parcial** — a T48, com o motivo escrito nela. A **Parte 7** (13 tasks, fases 25–28,
 2026-09-14 e 2026-09-15) não estava no §6: ela nasceu de **rodar a esteira contra uma tarefa de
-verdade**, e o que ela conserta é o parecer do revisor não entrar em lugar nenhum. São **60** ao
+verdade**, e o que ela conserta é o parecer do revisor não entrar em lugar nenhum. São **61** ao
 todo. O corte é decisão registrada: das seis
 partes do §6, este arquivo executa **uma** — o quadro lendo a
 [`022`](../022-workspace-tasks/prd.md), com a autonomia desligada. A esteira (Parte 2), o orçamento (Parte 3), a
@@ -1489,10 +1489,34 @@ cartão foram embora assim. Com esse teto, nenhum projeto com suíte de verdade 
 turno —, e o caso do `test` roda contra um projeto que **declara** `test`, senão ele passa contra uma
 lista vazia.
 
+#### T61: O teto conta turno, e a recusa chega ao cartão ([medido rodando](#fase-28--a-prova-e-o-que-ela-achou))
+
+**Entregue em 2026-09-15**, e ela veio da segunda rodada da `LUM-51` — a primeira em que o laço
+inteiro funcionou.
+
+**O teto de turnos contava `usage_update`, não turno.** `turns` era `count(session_usage.id)`, e uma
+linha é um relato de consumo: o adaptador do Claude mandou **97 num único turno**. O teto de
+`turnsPerSession` — que a Parte 3 desenhou para ser a proteção de quem **não relata dinheiro**, o
+Codex — disparava dentro do primeiro turno, sempre. A coluna `turn` vira a chave, e a contagem passa
+a ser por **par sessão × turno**: a soma cruza sessões, e o turno `0` de uma não é o `0` da outra.
+
+**E a recusa não chegava ao cartão.** O teto é conferido dentro do `AcpManager`, no prompt, e a frase
+dele é boa — *"parou no teto do workspace — 60 turnos por sessão"*. Ela subia como exceção, virava uma
+linha de log, e cada passada gastava uma tentativa **e subia um adaptador** para ouvir o mesmo não. O
+cartão acabava parando com *"parou depois de 2 tentativas"*, que manda procurar no lugar errado.
+Medido: três passadas, três `spawn`, zero turno, zero comentário.
+
+Agora a porta traduz a recusa em resposta — `BLOCKED` vira `refused`, e só ele: adaptador que morreu
+continua sendo falha, e falha gasta tentativa. A esteira para **na primeira**, com a frase do teto no
+cartão e a conversa fechada.
+
+**Done when:** um turno com 97 relatos conta **1**; a recusa para o cartão na primeira passada com a
+frase do teto; e uma falha de transporte continua gastando tentativa em vez de virar bloqueio.
+
 #### T59: O e2e da Parte 7, com um revisor falso
 
-**T59 entregue em 2026-09-15**, e com ela a Parte 7 fecha — 12 tasks em quatro fases, contando a T60,
-que apareceu depois, usando o produto.
+**T59 entregue em 2026-09-15**, e com ela a Parte 7 fecha — 13 tasks em quatro fases, contando a T60 e
+a T61, que apareceram depois, usando o produto.
 
 Zero token. Quatro perguntas: as quatro setas andam; um `bloqueia` reproduzível segura e volta; um
 `bloqueia` que não reproduz **não** segura; um `anota` avança e aparece na PR.

@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 import { createAgentCatalog, type Role } from "../agents/catalog.js";
 import type { Db } from "../db/index.js";
 import { project, session as sessionTable, worktree } from "../db/schema.js";
-import { DomainError } from "../errors.js";
+import { DomainError, isDomainError } from "../errors.js";
 import type { GitService } from "../git/GitService.js";
 import type { PrHost } from "../pr/PrHost.js";
 import { remoteOf } from "../pr/remote.js";
@@ -378,7 +378,25 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
       return deps.openAgentSession({ taskId, adapter, model, cwd, worktreeId, agentMode, role });
     },
 
-    prompt: (input) => deps.prompt(input),
+    /*
+     * O turno, e a **recusa** como resposta em vez de exceção.
+     *
+     * `BLOCKED` é o daemon dizendo não antes de gastar — hoje é o teto do
+     * workspace, e a frase já traz o número. Qualquer outro erro continua
+     * subindo: adaptador que morreu não é decisão, é falha, e a esteira a trata
+     * como tentativa gasta.
+     */
+    prompt: async (input) => {
+      try {
+        await deps.prompt(input);
+        return { kind: "ok" as const };
+      } catch (error) {
+        if (isDomainError(error) && error.code === "BLOCKED") {
+          return { kind: "refused" as const, reason: error.message };
+        }
+        throw error;
+      }
+    },
 
     ...(deps.mark === undefined
       ? {}

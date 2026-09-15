@@ -225,6 +225,13 @@
       "when": 1789446936562,
       "tag": "0031_recibo_do_parecer",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1789501762791,
+      "tag": "0032_turno_do_consumo",
+      "breakpoints": true
     }
   ]
 }

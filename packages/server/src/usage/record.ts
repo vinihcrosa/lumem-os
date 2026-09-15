@@ -42,7 +42,24 @@ export function trackSessionUsage({ db, acpManager, log }: RecordUsageOptions): 
    */
   const lastUsed = new Map<string, number>();
 
+  /*
+   * Em que turno cada sessão está, em memória e pelo mesmo motivo do `lastUsed`.
+   *
+   * **O `usage_update` não é um por turno** — o adaptador do Claude manda
+   * dezenas dentro do mesmo, 97 num turno só, medido. Sem esta contagem, o
+   * `count(id)` da `session_usage` respondia *"97 turnos"* e o teto de
+   * `turnsPerSession` do workspace parava a esteira dentro do primeiro.
+   *
+   * A virada é no `turn_end`, e não no começo: o que chega antes dele pertence
+   * ao turno que está acabando.
+   */
+  const turnOf = new Map<string, number>();
+
   const off = acpManager.watchEvents(({ sessionId, event }) => {
+    if (event.type === "turn_end") {
+      turnOf.set(sessionId, (turnOf.get(sessionId) ?? 0) + 1);
+      return;
+    }
     if (event.type !== "usage") return;
 
     const previous = lastUsed.get(sessionId) ?? 0;
@@ -68,6 +85,7 @@ export function trackSessionUsage({ db, acpManager, log }: RecordUsageOptions): 
           worktreeId: scope.worktreeId,
           agentConfigId: scope.agentConfigId,
           tokens,
+          turn: turnOf.get(sessionId) ?? 0,
           ...(cost === null ? {} : { cost: cost.amount, currency: cost.currency }),
         })
         .run();
@@ -81,6 +99,7 @@ export function trackSessionUsage({ db, acpManager, log }: RecordUsageOptions): 
   return () => {
     off();
     lastUsed.clear();
+    turnOf.clear();
   };
 }
 

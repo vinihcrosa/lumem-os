@@ -79,13 +79,17 @@ async function openSession(
 /** Um turno gasto: uma linha de consumo é um turno, e o custo é opcional. */
 async function spend(
   context: TestCaller,
-  row: { sessionId: string; projectId: string; cost?: number },
+  row: { sessionId: string; projectId: string; cost?: number; turn?: number },
 ) {
   await context.db.insert(sessionUsage).values({
     id: newId(),
     sessionId: row.sessionId,
     projectId: row.projectId,
     tokens: 1000,
+    // Qual turno gravou esta linha. O default `0` é o primeiro — e o caso que
+    // deixa dois relatos no mesmo turno está logo abaixo, porque foi ele que a
+    // `LUM-51` encontrou.
+    turn: row.turn ?? 0,
     cost: row.cost ?? null,
     currency: row.cost === undefined ? null : "USD",
   });
@@ -141,8 +145,8 @@ describe("o teto chega até a decisão", () => {
   it("conta os turnos da sessão, e avisa quem conduz", async () => {
     const { db, projectId } = await scene({ budgetTurnsPerSession: 2 });
     await openSession(context, { id: "ses-2", scopeType: "project", scopeId: projectId });
-    await spend(context, { sessionId: "ses-2", projectId });
-    await spend(context, { sessionId: "ses-2", projectId });
+    await spend(context, { sessionId: "ses-2", projectId, turn: 0 });
+    await spend(context, { sessionId: "ses-2", projectId, turn: 1 });
 
     // `warn` e não `block`: sem condutor declarado, o default é `human` — quem
     // está olhando é avisado e decide (Q45).
@@ -157,8 +161,8 @@ describe("o teto chega até a decisão", () => {
   it("o mesmo número, empurrado pela esteira, **para**", async () => {
     const { db, projectId } = await scene({ budgetTurnsPerSession: 2 });
     await openSession(context, { id: "ses-e", scopeType: "project", scopeId: projectId });
-    await spend(context, { sessionId: "ses-e", projectId });
-    await spend(context, { sessionId: "ses-e", projectId });
+    await spend(context, { sessionId: "ses-e", projectId, turn: 0 });
+    await spend(context, { sessionId: "ses-e", projectId, turn: 1 });
 
     /*
      * A Q45 em uma linha: mesmo teto, mesma leitura, verbo diferente. Sem o
@@ -173,6 +177,25 @@ describe("o teto chega até a decisão", () => {
       cap: "turns-per-session",
       limit: 2,
       spent: 2,
+    });
+  });
+
+  it("dez relatos de um turno só **não** estouram um teto de dois", async () => {
+    /*
+     * O que a `LUM-51` encontrou: o adaptador do Claude mandou **97
+     * `usage_update` dentro de um turno**, e a conta era `count(id)`. O teto de
+     * turnos — a proteção de quem não relata dinheiro — disparava dentro do
+     * primeiro turno, sempre, e a esteira parava falando de turnos que não
+     * aconteceram.
+     */
+    const { db, projectId } = await scene({ budgetTurnsPerSession: 2 });
+    await openSession(context, { id: "ses-1t", scopeType: "project", scopeId: projectId });
+    for (let update = 0; update < 10; update += 1) {
+      await spend(context, { sessionId: "ses-1t", projectId, turn: 0 });
+    }
+
+    expect(await createBudgetSource(db)({ id: "ses-1t", driver: "conveyor" })).toEqual({
+      kind: "pass",
     });
   });
 
