@@ -41,6 +41,14 @@ export interface MemorySkillContext {
    * existir. Este é injetado quando ela já existe.
    */
   review?: { url: string };
+  /**
+   * O acervo tem alguma coisa.
+   *
+   * `false` só acontece num caso: um turno de revisão num workspace que ainda
+   * não aprendeu nada (`028` Parte 7). Aí o bloco de memória sai inteiro — ele
+   * ensina a consultar um acervo vazio —, e o que fica é a porta do parecer.
+   */
+  hasMemory?: boolean;
 }
 
 /**
@@ -63,8 +71,10 @@ export function memorySkill({
   projects,
   tasks,
   review,
+  hasMemory = true,
 }: MemorySkillContext): string {
-  const lines = [
+  const lines = hasMemory
+    ? [
     "## Como consultar a memória",
     "",
     "Uma pergunta em português, e a resposta cita as memórias que a sustentam:",
@@ -79,8 +89,9 @@ export function memorySkill({
     "",
     `E por **escopo**, do geral para o específico: ${MEMORY_SCOPES.join(" → ")}.`,
     " Quando dois escopos falam da mesma coisa, vale o mais específico — o outro",
-    " continua no disco e não é usado.",
-  ];
+      " continua no disco e não é usado.",
+      ]
+    : [];
 
   // Mapa, não lista: sem isto o agente não pergunta sobre o que não imagina que
   // exista, e é o buraco que o §5.1 nomeia. Cresce com o workspace — um número

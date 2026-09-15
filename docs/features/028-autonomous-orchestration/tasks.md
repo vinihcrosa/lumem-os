@@ -1431,6 +1431,28 @@ do texto livre do revisor atravessa.
 
 ## Fase 28 — a prova
 
+**A prova de verdade veio antes do e2e**, em 2026-09-15, contra a `LUM-51`. O laço fechou inteiro:
+
+| O que aconteceu | Número |
+|---|---|
+| o revisor rodou e **postou** o parecer | 47 turnos · US$ 2,16 |
+| achados | **4** — 1 `blocks`, 3 `notes` |
+| o daemon **rerodou** o `blocks` | `grep` → linha 325 bateu com o `expected` → `reproduced` |
+| as 3 anotações | `pending`, e **não seguraram o cartão** |
+| o cartão | `review → in_progress`, `bounces: 1`, `attempts` zerado |
+| a conversa do revisor | **`exited`** ao sair da etapa |
+| o implementador | sessão nova, com a seção `O que a revisão devolveu` no prompt — conferida no transcript |
+| o que ele mexeu | `routers/pr.ts` e `shared/pr.ts`, que é **exatamente** onde o achado apontava |
+
+**Dois achados de graça, e os dois de produção:**
+
+1. **o teto de orçamento funcionou pela primeira vez.** Com o teto abaixo do que a tarefa já tinha
+   gasto, `driver: conveyor` devolveu `block` e o turno nem abriu — o conserto do primeiro review
+   rodando de verdade. O sintoma, visto de fora, é `attempts` subindo sem comentário nenhum;
+2. **a porta do parecer viajava dentro do preâmbulo de memória**, que devolve `null` com acervo
+   vazio — o estado de **todo workspace novo**. O revisor nunca saberia que ela existe. Achado
+   montando a rodada, consertado antes dela, e com teste conferido vermelho.
+
 #### T59: O e2e da Parte 7, com um revisor falso
 
 Zero token. Quatro perguntas: as quatro setas andam; um `bloqueia` reproduzível segura e volta; um

@@ -68,23 +68,6 @@ export function createMemoryPreamble({
     const scope = await memoryScopeOfSession(db, session.id);
     const core = await memory.core(scope);
 
-    // Nada fixado **e** nada no acervo: não existe porta para apontar, e um
-    // bloco explicando uma memória vazia é custo puro em toda sessão. Assim que
-    // a primeira memória existe, a diretiva e a skill passam a valer — mesmo sem
-    // nada fixado, porque a porta passou a existir.
-    const acervo = memory.visible(scope).visible.length;
-    if (core.entries.length === 0 && acervo === 0) return null;
-
-    // Só os projetos do workspace da sessão: o mapa é do que ela enxerga, e
-    // listar projeto de outro workspace seria a lista crescendo por um motivo
-    // que não tem nada a ver com esta conversa.
-    const projects =
-      scope.workspaceId === undefined
-        ? []
-        : (await createProjectRepository(db).listByWorkspace(scope.workspaceId)).map(
-            (project) => project.name,
-          );
-
     /*
      * A porta do parecer só aparece **no turno de revisão**.
      *
@@ -101,7 +84,37 @@ export function createMemoryPreamble({
         ? { url: `${reviewBaseUrl}/${serving.id}/findings` }
         : undefined;
 
-    const parts = [MEMORY_DIRECTIVE];
+    /*
+     * Nada fixado **e** nada no acervo: não existe porta de memória para
+     * apontar, e um bloco explicando uma memória vazia é custo puro em toda
+     * sessão. Assim que a primeira memória existe, a diretiva e a skill passam a
+     * valer — mesmo sem nada fixado, porque a porta passou a existir.
+     *
+     * **Menos quando há parecer a entregar** (`028` Parte 7), e este `&&` é o
+     * defeito que quase foi para produção: a porta do revisor viajava dentro do
+     * preâmbulo de memória, então um workspace **sem memória nenhuma** — que é
+     * todo workspace novo — deixava o revisor sem saber que ela existe. Ele
+     * escreveria o parecer na conversa, como antes, e o portão não leria nada.
+     */
+    const acervo = memory.visible(scope).visible.length;
+    if (core.entries.length === 0 && acervo === 0 && review === undefined) return null;
+
+    // Só os projetos do workspace da sessão: o mapa é do que ela enxerga, e
+    // listar projeto de outro workspace seria a lista crescendo por um motivo
+    // que não tem nada a ver com esta conversa.
+    const projects =
+      scope.workspaceId === undefined
+        ? []
+        : (await createProjectRepository(db).listByWorkspace(scope.workspaceId)).map(
+            (project) => project.name,
+          );
+
+    /*
+     * Com memória vazia e parecer a entregar, a diretiva de memória sai: ela
+     * manda consultar um acervo que não existe. O que fica é a porta.
+     */
+    const vazia = core.entries.length === 0 && acervo === 0;
+    const parts = vazia ? [] : [MEMORY_DIRECTIVE];
     if (core.text !== "") parts.push(core.text.trimEnd());
     parts.push(
       memorySkill({
@@ -110,6 +123,7 @@ export function createMemoryPreamble({
         projects,
         ...(tasks === undefined ? {} : { tasks }),
         ...(review === undefined ? {} : { review }),
+        hasMemory: !vazia,
       }).trimEnd(),
     );
 
