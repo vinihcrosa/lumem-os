@@ -8,6 +8,7 @@ import type { EventBus } from "../events.js";
 import { isDomainError } from "../errors.js";
 import { createTaskRepository } from "../repositories/task.js";
 import { createTaskFindingRepository } from "../repositories/task-finding.js";
+import { createTaskReviewRepository } from "../repositories/task-review.js";
 import { DUE_STAGES } from "./queue.js";
 
 /**
@@ -259,6 +260,22 @@ export function registerTaskHttp({
 
     const blocks = parsed.data.findings.filter((one) => one.bucket === "blocks").length;
     const notes = parsed.data.findings.length - blocks;
+
+    /*
+     * O recibo, e ele é o que faz um parecer **vazio** existir.
+     *
+     * Sem esta linha, *"olhei e não achei nada"* não grava nada em lugar nenhum
+     * — e o portão, que lê achados, conclui que o revisor não entregou. O cartão
+     * fica em `In Review` para sempre porque o revisor acertou.
+     */
+    await createTaskReviewRepository(db).record({
+      taskId: id,
+      bySession: sessionId,
+      role,
+      blocks,
+      notes,
+    });
+
     events.emit({ type: "task.changed", workspaceId: scope.workspaceId });
     return reply.send(
       parsed.data.findings.length === 0

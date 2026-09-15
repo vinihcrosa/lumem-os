@@ -316,6 +316,48 @@ não daquela migração —, uma variante nova de `AcpEvent` **derruba o typeche
 contrato funcionando), e o **mock compartilhado é parte do contrato**: esquecê-lo quebrou cinco testes
 de telas sem relação com orçamento.
 
+E a **Parte 7 — O parecer do revisor** fechou em **2026-09-15**, levando a `028` a **59 tasks**. Ela
+**não veio de discussão**: veio de rodar a esteira contra uma tarefa de verdade, vinda do Linear —
+**US$ 11,41** e 453 884 tokens em seis sessões, com o cartão parado em `In Review` e o revisor
+reprovando duas vezes enquanto o daemon escrevia `portão verde`. Três defeitos empilhados, e o
+primeiro escondia os outros: a esteira **se declarava agente**, e o `AGENT_MAY_SET` da
+[`022`](docs/features/022-workspace-tasks/prd.md) recusava **três das quatro setas** — o `throw` virava
+uma linha de log que ninguém lia. A regra da `022` está certa e fica; quem estava errado era a esteira,
+que é o daemon. E o motivo de a suíte não ver era estrutural: o `conveyor.test.ts` injeta um `advance`
+falso, e o `conveyor-ports.test.ts` **não existia** — as 48 tasks fecharam com a tradução entre a
+política e o banco nunca exercitada.
+
+Com as setas andando, o buraco de verdade apareceu: **o portão não tinha entrada nenhuma do revisor.**
+A resposta é a [Q67](docs/features/028-autonomous-orchestration/open-questions.md) — **dois baldes**, e
+o que os separa não é a verdade do achado, é **quem consegue resolver a discussão**. `bloqueia` traz o
+comando que o demonstra, e **o daemon reroda**: reproduziu, o cartão volta ao implementador;
+não reproduziu, o achado cai e fica registrado que o revisor afirmou o que não se sustenta. `anota` é
+julgamento — arquitetura, convenção, nome ruim —, **não segura nada** e vai para a pull request, onde
+uma pessoa lê antes de mesclar. É a resposta ao relato que abriu a parte — *"toda vez que você pede um
+review para um agente, ele vai achar alguma coisa"* — sem censurar o revisor: ele acha quanto quiser, e
+só o que ele demonstra segura. `bounces` é coluna separada de `attempts` porque aquele zera na mudança
+de etapa, e o ciclo implementador ↔ revisor troca de etapa a cada passo: nenhum teto chegaria.
+
+A PR passou a abrir **quando o implementador fecha pela primeira vez**, o que dá endereço ao balde
+`anota` e faz o marco `pr` do §6 — que existia e nunca disparou — passar a disparar. E há **uma
+conversa por encaixe**: um implementador, um revisor, um testador por tarefa, fechada quando a tarefa
+**sai** da etapa, e não a cada turno (as duas tasks se contradiziam, e `session/load` sobe um adaptador
+novo — o par não sobrevive ao ciclo imediato).
+
+**A prova veio em duas rodadas, e as duas acharam coisa.** A primeira foi contra a `LUM-51` de verdade:
+o revisor postou 4 achados (1 `bloqueia`, 3 `anota`), o daemon rerodou o `grep`, bateu com o `expected`
+e devolveu o cartão — e o implementador foi mexer exatamente onde o achado apontava. De graça, dois
+defeitos de produção: o teto de orçamento **funcionou pela primeira vez**, e a porta do parecer
+**viajava dentro do preâmbulo de memória**, que some inteiro num workspace sem acervo — o estado de
+todo workspace novo. A segunda rodada é o e2e, com um revisor falso e zero token, e ela achou o pior
+modo de falha que a parte podia ter: **um parecer vazio não gravava nada**, então *"olhei e não achei
+nada"* era lido como *"o revisor não deixou parecer"* — o cartão travava **porque o revisor acertou**.
+O conserto é o **recibo** (`task_review`): o parecer é o evento, os achados são o conteúdo. Ela também
+achou que a esteira lia `project.remoteUrl` **cru**, nulo em todo projeto adicionado por caminho — a
+mesma metade que a [`013`](docs/features/013-pull-request-status/prd.md) já tinha esquecido uma vez —,
+e que o parecer da volta passada contava como parecer desta. O verbo `pr comment` entrou com a nota no
+requisito **F7.1** da `013`, que dizia *"e nada mais"*.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |

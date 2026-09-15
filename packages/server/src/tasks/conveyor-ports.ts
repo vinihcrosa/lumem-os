@@ -7,9 +7,12 @@ import type { Db } from "../db/index.js";
 import { project, session as sessionTable, worktree } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 import type { GitService } from "../git/GitService.js";
+import type { PrHost } from "../pr/PrHost.js";
+import { remoteOf } from "../pr/remote.js";
 import { createTaskRepository, type TaskStatus } from "../repositories/task.js";
 import { createTaskCommentRepository } from "../repositories/task-comment.js";
 import { createTaskFindingRepository } from "../repositories/task-finding.js";
+import { createTaskReviewRepository } from "../repositories/task-review.js";
 import { readProjectScripts } from "../scripts/project-scripts.js";
 import type { ScriptRunner } from "../scripts/ScriptRunner.js";
 
@@ -77,6 +80,16 @@ export interface ConveyorDeps {
   /** O veredito da PR daquela worktree, ou `null`. Do `PrCache` da `013`. */
   prVerdictOf(worktreeId: string): Promise<PrLike>;
   /**
+   * O número da PR daquela worktree, ou `null` quando não há PR (T55).
+   *
+   * Separado do veredito porque são duas perguntas: o portão pergunta *"está
+   * verde?"* e a publicação da anotação pergunta *"em qual PR eu escrevo?"*. Sai
+   * do mesmo instantâneo por projeto da [`013`], e não de uma segunda leitura.
+   */
+  prNumberOf(worktreeId: string): Promise<number | null>;
+  /** Quem escreve no host — o `gh` da sua máquina, como a `013` decidiu (T56). */
+  prHost: Pick<PrHost, "create" | "comment">;
+  /**
    * O marco no tracker, quando há tracker (`028` Parte 6, T46).
    *
    * Opcional na esteira inteira: uma instalação sem `LINEAR_API_KEY` é a
@@ -122,6 +135,7 @@ export function checkoutNameFor(title: string, taskId: string): string {
 export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
   const tasks = createTaskRepository(deps.db);
   const findings = createTaskFindingRepository(deps.db);
+  const reviews = createTaskReviewRepository(deps.db);
   const comments = createTaskCommentRepository(deps.db);
   const catalog = createAgentCatalog(deps.db);
 
@@ -163,17 +177,22 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
    * `notes` não é verificado por construção: não há o que rodar, e quem o
    * arbitra é uma pessoa na PR.
    */
-  async function reviewVerdict(taskId: string, sessionId: string, cwd: string) {
-    const posted = await findings.bySession(sessionId);
+  async function reviewVerdict(taskId: string, sessionId: string, cwd: string, since: Date) {
     /*
-     * Nenhum registro é **diferente** de uma lista vazia.
+     * O **recibo** primeiro, e os achados depois.
      *
-     * Vazia é *"olhei e não achei nada que segure"* — uma aprovação. Nenhum
-     * registro é um turno que acabou sem entregar parecer, e o portão o trata
-     * como `unfinished`: a próxima passada recomeça, em vez de o cartão andar
-     * porque o revisor calou.
+     * Nenhum parecer é **diferente** de um parecer vazio. Vazio é *"olhei e não
+     * achei nada que segure"* — uma aprovação. Nenhum é um turno que acabou sem
+     * entregar, e o portão o trata como `unfinished`: a próxima passada
+     * recomeça, em vez de o cartão andar porque o revisor calou.
+     *
+     * Lê-lo pela lista de achados **não distingue os dois** — um parecer vazio
+     * não grava achado nenhum —, e foi assim que o e2e da T59 encontrou o cartão
+     * parado em `In Review` com o revisor acertando.
      */
-    if (posted.length === 0) {
+    const receipt = await reviews.latest(sessionId, since);
+    const posted = await findings.bySession(sessionId, since);
+    if (receipt === undefined) {
       return decideGate({
         role: "revisor",
         findings: null,
@@ -327,14 +346,14 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
 
     closeSession: (sessionId) => deps.closeSession(sessionId),
 
-    async gate(entry, checkout, sessionId) {
+    async gate(entry, checkout, sessionId, since) {
       /*
        * O revisor entrega **parecer**, e é a única coisa que o portão dele lê
        * (Parte 7 — T51 e T54). Nada de `test` nem de commit: o que ele produz
        * não é código.
        */
       if (entry.role === "revisor") {
-        return { ...(await reviewVerdict(entry.task.id, sessionId, checkout.path)) };
+        return { ...(await reviewVerdict(entry.task.id, sessionId, checkout.path, since)) };
       }
 
       const owner = await deps.db.query.project.findFirst({
@@ -389,11 +408,123 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
       });
     },
 
+    /*
+     * O que volta, e ele é **consumido ao ser entregue**.
+     *
+     * Sem isso, o achado da volta 1 — já consertado — reapareceria no prompt da
+     * volta 2 escrito como *"conserte e commite"*. Nada se perde: a revisão
+     * seguinte olha o cartão inteiro, e o que sobreviveu ao conserto é achado de
+     * novo.
+     */
     returned: async (taskId) => {
-      const open = await findings.blocking(taskId);
-      return open
-        .filter((one) => one.verification === "reproduced")
-        .map((one) => ({ title: one.title, command: one.command! }));
+      const going = await findings.handOver(taskId);
+      return going.map((one) => ({ title: one.title, command: one.command! }));
+    },
+
+    openPullRequest: async ({ entry, checkout }) => {
+      /*
+       * **Uma vez, e a guarda é o próprio host** (T56).
+       *
+       * `prVerdictOf` responde `null` só quando não há PR para aquela branch —
+       * qualquer outro valor quer dizer que já existe uma, e abrir a segunda
+       * seria a esteira duplicando trabalho no repositório de alguém. É a mesma
+       * forma do marco do tracker: a guarda vem do estado, não de uma coluna.
+       */
+      if ((await deps.prVerdictOf(checkout.worktreeId)) !== null) return null;
+
+      const owner = await deps.db.query.project.findFirst({
+        where: eq(project.id, entry.task.projectId),
+      });
+      /*
+       * Sem remoto não há o que publicar, e isso é **ausência**, não erro.
+       *
+       * Resolvido como a barra da `013` resolve — banco, e o `origin` do disco
+       * quando ele é nulo. Lendo a coluna crua, a esteira **nunca** abria PR num
+       * projeto adicionado por caminho, que é todo projeto que o Lumem não
+       * clonou: `remoteUrl` só é gravado no clone.
+       */
+      if (owner === undefined) return null;
+      const remote = await remoteOf(deps.git, owner);
+      if (remote === null) return null;
+
+      const tree = await deps.db.query.worktree.findFirst({
+        where: eq(worktree.id, checkout.worktreeId),
+      });
+      if (tree === undefined) return null;
+
+      await deps.git.publishBranch(checkout.path, tree.branch);
+
+      const write = await deps.prHost.create({
+        repoPath: checkout.path,
+        remoteUrl: remote,
+        base: owner.defaultBranch,
+        head: tree.branch,
+        title: entry.task.title,
+        /*
+         * O corpo é a tarefa, e uma linha dizendo quem abriu.
+         *
+         * Nada do que o agente escreveu na conversa entra aqui: seria o resumo
+         * que a Q47 recusa, publicado — e num lugar onde outras pessoas leem.
+         */
+        body: [
+          entry.task.body.trim(),
+          "",
+          "---",
+          "Aberta pela esteira do Lumem quando o implementador fechou a primeira vez.",
+        ]
+          .join("\n")
+          .trim(),
+        // Ela nasce antes da revisão: rascunho é a frase honesta.
+        draft: true,
+      });
+      return write.ok ? write.url : null;
+    },
+
+    publishNotes: async ({ entry, checkout, sessionId, since }) => {
+      const notes = (await findings.bySession(sessionId, since)).filter(
+        (one) => one.bucket === "notes",
+      );
+      if (notes.length === 0) return 0;
+
+      /*
+       * Sem PR não há onde escrever, e isso é **ausência**: o balde `notes`
+       * continua na tabela da tarefa, que é onde ele já estava. Um projeto sem
+       * remoto nunca teve PR para comentar.
+       */
+      const number = await deps.prNumberOf(checkout.worktreeId);
+      if (number === null) return 0;
+
+      const owner = await deps.db.query.project.findFirst({
+        where: eq(project.id, entry.task.projectId),
+      });
+      if (owner === undefined) return 0;
+      const remote = await remoteOf(deps.git, owner);
+      if (remote === null) return 0;
+
+      const write = await deps.prHost.comment({
+        repoPath: checkout.path,
+        remoteUrl: remote,
+        number,
+        /*
+         * O corpo é **o que o revisor postou**, e não o que ele escreveu na
+         * conversa: título e detalhe, os dois campos que a porta aceita. O
+         * raciocínio dele não atravessa — seria o resumo que a Q47 recusa,
+         * publicado num lugar onde outras pessoas leem.
+         */
+        body: [
+          "## O que a revisão anotou",
+          "",
+          "Nenhuma destas segurou a esteira: são julgamento, e quem arbitra é você —",
+          "aqui, antes de mesclar.",
+          "",
+          ...notes.map((one) =>
+            one.detail.trim() === ""
+              ? `- **${one.title}**`
+              : `- **${one.title}**\n  ${one.detail.trim()}`,
+          ),
+        ].join("\n"),
+      });
+      return write.ok ? notes.length : 0;
     },
 
     countAttempt: (taskId) => tasks.countAttempt(taskId),

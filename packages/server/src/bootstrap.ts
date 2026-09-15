@@ -27,7 +27,7 @@ import { createLinearHost } from "./tracker/LinearHost.js";
 import { createSecretStore } from "./secrets/SecretStore.js";
 import { runTrackerLoop } from "./tracker/loop.js";
 import { writeMark, type Mark } from "./tracker/marks.js";
-import { configForAdapter, verdictOfWorktree } from "./tasks/conveyor-wiring.js";
+import { configForAdapter, numberOfWorktree, verdictOfWorktree } from "./tasks/conveyor-wiring.js";
 import { reproduce } from "./tasks/reproduce.js";
 import { createCallerFactory } from "./trpc.js";
 import { appRouter } from "./routers/index.js";
@@ -400,7 +400,11 @@ export async function bootstrap({
       },
       reproduce,
       liveTurns: () => acp.liveTurns(),
-      prVerdictOf: (worktreeId) => verdictOfWorktree(openedDatabase.db, pr, worktreeId),
+      prVerdictOf: (worktreeId) => verdictOfWorktree(openedDatabase.db, git, pr, worktreeId),
+      prNumberOf: (worktreeId) => numberOfWorktree(openedDatabase.db, git, pr, worktreeId),
+      // O mesmo `gh` da sua máquina que a `013` já usa — a esteira não ganha
+      // credencial própria (T56).
+      prHost,
       /*
        * O marco que o tracker vê (`028` Parte 6).
        *

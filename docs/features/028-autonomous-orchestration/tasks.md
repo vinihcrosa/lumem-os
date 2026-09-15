@@ -8,7 +8,10 @@
 **Histórico:** **as seis partes estão entregues**  — a **Parte 1** (12 tasks, fases 0–4), a
 **Parte 3** (8, fases 5–9), a **Parte 2** (13, fases 10–15), a **Parte 4** (8, fases 16–20) e as
 **Partes 5 e 6** juntas (7, fases 21–24). São **48 tasks**, todas de 2026-09-12 e 2026-09-13, e
-**uma delas é parcial** — a T48, com o motivo escrito nela. O corte é decisão registrada: das seis
+**uma delas é parcial** — a T48, com o motivo escrito nela. A **Parte 7** (11 tasks, fases 25–28,
+2026-09-14 e 2026-09-15) não estava no §6: ela nasceu de **rodar a esteira contra uma tarefa de
+verdade**, e o que ela conserta é o parecer do revisor não entrar em lugar nenhum. São **59** ao
+todo. O corte é decisão registrada: das seis
 partes do §6, este arquivo executa **uma** — o quadro lendo a
 [`022`](../022-workspace-tasks/prd.md), com a autonomia desligada. A esteira (Parte 2), o orçamento (Parte 3), a
 supervisão (Parte 4) e as duas pontas do tracker (Parte 5, Parte 6) ficam para um `tasks.md` seguinte, e o §0 diz
@@ -1400,7 +1403,8 @@ Na tarefa (a tabela da [`022`](../022-workspace-tasks/prd.md) já existe) e na P
 
 ## Fase 27 — a PR e a sessão
 
-**T57 e T58 entregues em 2026-09-14.** A T52 foi **corrigida por elas**: fechar a conversa a cada
+**T57 e T58 entregues em 2026-09-14; a T56 em 2026-09-15, e a T55 ficou inteira com ela** — o verbo
+de comentar na PR não existia, e sem ele o balde `anota` não tinha endereço. A T52 foi **corrigida por elas**: fechar a conversa a cada
 turno obrigava a tentativa seguinte a retomar, e o e2e respondeu `ACP connection closed`. Ela fecha
 no fim da **etapa**.
 
@@ -1429,7 +1433,7 @@ do texto livre do revisor atravessa.
 
 ---
 
-## Fase 28 — a prova
+## Fase 28 — a prova, e o que ela achou
 
 **A prova de verdade veio antes do e2e**, em 2026-09-15, contra a `LUM-51`. O laço fechou inteiro:
 
@@ -1455,10 +1459,57 @@ do texto livre do revisor atravessa.
 
 #### T59: O e2e da Parte 7, com um revisor falso
 
+**T59 entregue em 2026-09-15**, e com ela a Parte 7 fecha — 11 tasks em quatro fases.
+
 Zero token. Quatro perguntas: as quatro setas andam; um `bloqueia` reproduzível segura e volta; um
 `bloqueia` que não reproduz **não** segura; um `anota` avança e aparece na PR.
 
 **Done when:** os quatro passam, e cada um foi visto vermelho contra o código de antes.
+
+O revisor falso lê **a porta do parecer no próprio prompt** — não uma URL passada por variável de
+ambiente —, e isso é o que faz o caso provar o que ele diz provar: que o endereço e o id da sessão
+**chegaram ao agente**, que é exatamente o que faltava no defeito do preâmbulo. Os quatro foram
+vistos vermelhos: os dois do `bloqueia` contra um `matches` invertido (um devolveu `ready_to_merge`
+onde se esperava a volta, o outro parou em `In Review` onde se esperava `Testing`), o do `anota`
+contra o código sem `publishNotes`, e o das quatro setas **duas vezes**, pelos dois defeitos abaixo.
+
+**E ele achou três defeitos que nenhum teste de unidade pegaria** — os três de produção, e o primeiro
+é o pior modo de falha que esta parte podia ter:
+
+1. **um parecer vazio não era parecer nenhum.** *"Olhei e não achei nada que segure"* não grava linha
+   em `task_finding`, e o portão — que lia achados — concluía *"o revisor não deixou parecer"*. O
+   cartão ficava em `In Review` até esgotar as tentativas **porque o revisor acertou**, punindo
+   exatamente o comportamento que a [Q67](open-questions.md) existe para tornar possível. O conserto é
+   o **recibo**: a tabela `task_review` registra que a revisão aconteceu, com o tamanho dela. O
+   parecer é o evento; os achados são o conteúdo dele;
+2. **a esteira lia `project.remoteUrl` cru**, e ele é **nulo em todo projeto adicionado por
+   caminho** — `remoteUrl` só é gravado no clone. Nenhuma PR era aberta, nenhuma anotação era
+   publicada e o portão nunca via check de PR nesses projetos, que são a maioria. É a **segunda vez**
+   que esta metade é esquecida: a [`013`](../013-pull-request-status/prd.md) já tinha pago o mesmo
+   defeito na barra, e foi o e2e que achou lá também. Agora a regra mora em `pr/remote.ts`, num lugar
+   só, com o motivo escrito;
+3. **o parecer da volta passada contava como parecer desta.** Desde a [T57](#t57-uma-sessão-por-papel-por-tarefa-q69)
+   a conversa do revisor é **uma só** por tarefa e atravessa as voltas — então *"o que esta sessão
+   postou"* deixou de identificar uma revisão. Um revisor que calasse na volta 2 passaria por
+   *"entregou"* com o que disse na volta 1, e os comandos já julgados seriam rerodados. O portão
+   passou a receber **o instante em que o turno começou**, e lê o que foi postado depois dele.
+
+E um quarto, do mesmo tipo, achado lendo o código ao lado: **o que o revisor devolveu não era
+consumido**. O achado da volta 1 — já consertado — reapareceria no prompt da volta 2 com a frase
+*"Cada um destes o daemon rodou e reproduziu. Conserte e commite"*. Entregar passou a marcar
+`skipped`; nada se perde, porque o cartão volta ao revisor inteiro e o que sobreviveu ao conserto é
+achado de novo.
+
+**A T55 só ficou inteira agora.** O `Done when` dela dizia *"as anotações estão na PR"*, e metade
+disso não existia: `PrHost` não tinha o verbo. O balde `anota` era uma gaveta — o preâmbulo prometia
+ao agente que alguém lia o que ele escrevia ali.
+
+**E a Parte 7 acrescentou dois verbos que escrevem fora da máquina**, com a nota no requisito **F7.1
+da [`013`](../013-pull-request-status/prd.md)**, que dizia *"e nada mais"*: `pr comment`, e o
+`git push -u` que a T56 precisa para abrir a PR. O segundo é o que cobra mais caro, e ele **não** é a
+F7.5 disparada de outro lugar: aquela diz que o gesto de criar *oferece publicar*, e o que existe dela
+no produto é a **recusa**. A esteira empurra sem ninguém clicar — sem `--force`, só de branch que ela
+mesma cortou, e só com a autonomia ligada.
 
 ## O que fica para o `tasks.md` seguinte
 

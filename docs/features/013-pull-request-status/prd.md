@@ -276,6 +276,25 @@ e não some por causa da F7.
 
 **F7.1** `pr.merge` e `pr.create`, e **nada mais**. A lista de verbos é a fronteira de segurança
 inteira (§4.2), e ela é curta o suficiente para caber numa revisão de código.
+
+> **Passaram a ser quatro, em 2026-09-15**, e os dois novos vieram da
+> [Parte 7 da `028`](../028-autonomous-orchestration/tasks.md):
+>
+> - **`pr comment`**, no host. O balde `anota` da revisão promete ao agente que o que ele **não**
+>   consegue demonstrar vai para a pull request, onde uma pessoa lê antes de mesclar — sem o verbo, a
+>   promessa é falsa e a anotação morre numa tabela que nenhuma tela lê;
+> - **`git push -u origin <branch>`**, no remoto. E este **não** é a F7.5 disparada de outro lugar: a
+>   F7.5 diz que o gesto de criar *oferece publicar*, e o que foi implementado dela é a **recusa** —
+>   `pr.create` responde *"a branch ainda não foi publicada"* e não empurra nada. A esteira empurra, e
+>   **sem ninguém clicar**.
+>
+> **O que fica de pé:** a lista continua sendo a fronteira de segurança (§4.2) e continua curta o
+> suficiente para caber numa revisão de código. Comentar **não** mescla, não fecha, não aprova e não
+> muda estado nenhum da PR. O `push` é **sem `--force`, nunca com ele**, e só de branch que a própria
+> esteira cortou — forçar seria ela reescrevendo o que outra pessoa pôs lá. E os dois só acontecem com
+> a autonomia **ligada**, que é um gesto seu: a fronteira que a F7.1 protege deixou de ser *"o Lumem
+> só escreve quando você clica"* e passou a ser *"o Lumem só escreve o que está nesta lista, e a
+> esteira só anda porque você a ligou"*.
 **F7.2** **O portão do merge é o veredito, e ele é relido no daemon.** Uma PR cujo veredito não é
 `ready` é recusada — mesmo que o cliente peça, mesmo que o cliente diga que está verde. Um botão
 escondido na tela é conforto; a recusa no daemon é a garantia, e o teste que a prova chama a

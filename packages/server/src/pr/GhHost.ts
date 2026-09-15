@@ -9,6 +9,7 @@ import type {
   GhIssue,
   IssueRead,
   MergeOptions,
+  PrCommentInput,
   PrCreateInput,
   PrHost,
   PrHostInput,
@@ -341,6 +342,36 @@ export function createGhHost({ exec = execGh, limit = DEFAULT_LIMIT }: GhHostOpt
       }
     },
 
+    async comment(input: PrCommentInput): Promise<PrWrite> {
+      const host = hostOf(input.remoteUrl);
+      if (!isGitHub(host)) return { ok: false, failure: unsupported(host) };
+
+      if (!Number.isInteger(input.number) || input.number <= 0) {
+        return { ok: false, failure: { kind: "failed", message: "número de PR inválido" } };
+      }
+      if (input.body.trim() === "") {
+        return { ok: false, failure: { kind: "failed", message: "o comentário está vazio" } };
+      }
+
+      // Pelo mesmo arquivo temporário que o `create` usa, e pelo mesmo motivo
+      // (§4.2.10): o corpo tem quebra de linha, markdown e tamanho.
+      const dir = await mkdtemp(join(tmpdir(), "lumem-pr-"));
+      const bodyFile = join(dir, "comment.md");
+      try {
+        await writeFile(bodyFile, input.body, "utf8");
+        const result = await run(
+          ["pr", "comment", String(input.number), flag("body-file", bodyFile)],
+          input.repoPath,
+        );
+        if (!result.ok) return { ok: false, failure: commentFailure(result.failure) };
+
+        const printed = result.stdout.trim().split("\n").at(-1)?.trim() ?? "";
+        return { ok: true, url: safeUrl(printed, host) ?? "" };
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    },
+
     async merge(input: PrMergeInput): Promise<PrWrite> {
       const host = hostOf(input.remoteUrl);
       if (!isGitHub(host)) return { ok: false, failure: unsupported(host) };
@@ -372,6 +403,11 @@ export function createGhHost({ exec = execGh, limit = DEFAULT_LIMIT }: GhHostOpt
 function createFailure(failure: PrFailure): PrFailure {
   if (failure.kind !== "failed") return failure;
   return { kind: "failed", message: "o GitHub recusou criar a pull request" };
+}
+
+function commentFailure(failure: PrFailure): PrFailure {
+  if (failure.kind !== "failed") return failure;
+  return { kind: "failed", message: "o GitHub recusou comentar na pull request" };
 }
 
 function mergeFailure(failure: PrFailure): PrFailure {

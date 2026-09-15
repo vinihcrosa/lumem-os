@@ -1357,6 +1357,44 @@ export const taskFinding = sqliteTable(
 );
 
 /**
+ * O **parecer** — o recibo de que uma revisão aconteceu (`028` Parte 7).
+ *
+ * Ele existe porque o achado não consegue dizer *"olhei e não achei nada"*: um
+ * parecer vazio não grava linha nenhuma em `task_finding`, e sem recibo o
+ * portão lia isso como *"o revisor não deixou parecer"* — exatamente o
+ * contrário. O e2e da T59 pegou o cartão parado em `In Review` para sempre,
+ * **com o revisor acertando**.
+ *
+ * O parecer é o evento; os achados são o conteúdo dele. Zero em ambos os baldes
+ * é a resposta mais valiosa que esta feature pode receber, e é a que o relato
+ * que abriu a Parte 7 dizia nunca acontecer.
+ */
+export const taskReview = sqliteTable(
+  "task_review",
+  {
+    id: text("id").primaryKey(),
+    taskId: text("task_id")
+      .notNull()
+      .references(() => task.id, { onDelete: "cascade" }),
+    /** Quem entregou, e **sem estrangeiro** — a mesma razão do achado. */
+    bySession: text("by_session").notNull(),
+    /** Em que etapa ele foi entregue. */
+    role: text("role").notNull(),
+    /** Quantos vieram de cada balde. Zero nos dois é uma aprovação. */
+    blocks: integer("blocks").notNull().default(0),
+    notes: integer("notes").notNull().default(0),
+    ...timestamps,
+  },
+  (table) => [
+    check(
+      "task_review_counts_not_negative",
+      sql`${table.blocks} >= 0 AND ${table.notes} >= 0`,
+    ),
+    index("task_review_by_session").on(table.bySession, table.createdAt),
+  ],
+);
+
+/**
  * Um agente **nomeado** (`028` §5.1, Parte 2 — T23).
  *
  * **Agente não é adaptador**, e a
@@ -1486,5 +1524,6 @@ export type MemoryProposalRow = typeof memoryProposal.$inferSelect;
 export type TaskRow = typeof task.$inferSelect;
 export type TaskCommentRow = typeof taskComment.$inferSelect;
 export type TaskFindingRow = typeof taskFinding.$inferSelect;
+export type TaskReviewRow = typeof taskReview.$inferSelect;
 export type NamedAgentRow = typeof namedAgent.$inferSelect;
 export type RoleBindingRow = typeof roleBinding.$inferSelect;

@@ -419,6 +419,56 @@ describe("a escrita, e a fronteira que ela move (F7)", () => {
     expect(gh.calls).toEqual([]);
   });
 
+  it("comenta na PR pelo arquivo, e o número vira argumento posicional", async () => {
+    /*
+     * O terceiro verbo de escrita (`028` Parte 7 — T55), e ele existe por uma
+     * promessa: o balde `notes` da revisão diz ao agente que o que não é
+     * reproduzível vai para a pull request. Sem este comando a promessa é falsa.
+     */
+    const gh = fakeGh(() => ({
+      stdout: "https://github.com/exemplo/repo/pull/19#issuecomment-7\n",
+    }));
+    const write = await createGhHost({ exec: gh.exec }).comment({
+      repoPath: "/tmp/repo",
+      remoteUrl: GITHUB,
+      number: 19,
+      body: "## O que a revisão anotou\n\n- **o runner ficou 3x maior**",
+    });
+
+    expect(write).toEqual({
+      ok: true,
+      url: "https://github.com/exemplo/repo/pull/19#issuecomment-7",
+    });
+    const [args] = gh.calls;
+    expect(args!.slice(0, 3)).toEqual(["pr", "comment", "19"]);
+    // Pelo arquivo, como o corpo da PR: markdown com quebra de linha não viaja
+    // em `argv` (§4.2.10).
+    expect(args!.some((arg) => arg.startsWith("--body-file="))).toBe(true);
+    expect(args!.some((arg) => arg.includes("o runner ficou"))).toBe(false);
+  });
+
+  it("comentário vazio e número inválido não viram processo", async () => {
+    const gh = fakeGh(() => ({}));
+    const host = createGhHost({ exec: gh.exec });
+
+    const empty = await host.comment({
+      repoPath: "/tmp/repo",
+      remoteUrl: GITHUB,
+      number: 19,
+      body: "   ",
+    });
+    const nonsense = await host.comment({
+      repoPath: "/tmp/repo",
+      remoteUrl: GITHUB,
+      number: 0,
+      body: "alguma coisa",
+    });
+
+    expect(empty.ok).toBe(false);
+    expect(nonsense.ok).toBe(false);
+    expect(gh.calls).toEqual([]);
+  });
+
   it("host sem integração recusa a escrita também", async () => {
     const gh = fakeGh(() => ({}));
     const host = createGhHost({ exec: gh.exec });

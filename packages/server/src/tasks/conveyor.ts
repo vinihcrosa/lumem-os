@@ -158,11 +158,58 @@ export interface ConveyorPorts {
    * linha em memória continua nulo, e julgar por ele reprovaria como
    * *"sem checkout"* um turno inteiro que commitou e passou no teste.
    */
-  gate(entry: QueueEntry, checkout: PreparedCheckout, sessionId: string): Promise<GateVerdict>;
+  gate(
+    entry: QueueEntry,
+    checkout: PreparedCheckout,
+    sessionId: string,
+    /**
+     * Quando este turno começou (`028` Parte 7).
+     *
+     * O portão do revisor lê o parecer **desta volta**, e desde a T57 a conversa
+     * dele é uma só por tarefa — ela atravessa as voltas. Sem o instante, a
+     * segunda revisão releria o parecer da primeira, e um revisor que calasse na
+     * volta 2 passaria por *"entregou"* com o que disse na volta 1.
+     */
+    since: Date,
+  ): Promise<GateVerdict>;
   /** Mais uma tentativa **nesta etapa**, e devolve o total. */
   countAttempt(taskId: string): Promise<number>;
   /** O daemon movendo a seta. Nenhum agente chama isto. */
   advance(input: { task: TaskRow; role: Role }): Promise<void>;
+  /**
+   * Publica a branch e abre a PR, na primeira vez que o implementador fecha
+   * (`028` Parte 7 — T56).
+   *
+   * **Cortesia, como o marco do tracker**: devolve `null` quando não deu — sem
+   * remoto, sem `gh`, PR já aberta — e nada do lado de cá muda por causa disso.
+   * O trabalho já aconteceu; recusar o avanço porque o GitHub não respondeu
+   * seria o produto ficando refém de um terceiro.
+   *
+   * **Rascunho**, e isso não é timidez: a PR nasce antes da revisão, e um
+   * rascunho é a frase honesta para *"ainda não estou pedindo merge"*. Sair do
+   * rascunho é seu, pela mesma regra do `done`.
+   */
+  openPullRequest(input: { entry: QueueEntry; checkout: PreparedCheckout }): Promise<string | null>;
+
+  /**
+   * As anotações do revisor vão para a PR (`028` Parte 7 — T55).
+   *
+   * **É o endereço do balde `notes`, e sem ele o balde é uma gaveta.** O que o
+   * preâmbulo promete ao revisor é literal — *"o que não for reproduzível vai
+   * para a pull request, onde uma pessoa lê antes de mesclar"* —, e uma promessa
+   * dessas só vale se alguém de fato ler.
+   *
+   * **Cortesia, como a PR e como o marco**: devolve quantas foram publicadas, e
+   * `0` é o caso comum (não há PR, não há anotação, não há `gh`). Nada do lado
+   * de cá muda por causa disso — o cartão anda igual.
+   */
+  publishNotes(input: {
+    entry: QueueEntry;
+    checkout: PreparedCheckout;
+    sessionId: string;
+    /** O começo do turno, pelo mesmo motivo do `gate`: são as desta volta. */
+    since: Date;
+  }): Promise<number>;
   /**
    * O revisor devolveu: a tarefa volta para quem escreveu (`028` Parte 7 — T58).
    *
@@ -381,6 +428,15 @@ export function createConveyor(
     });
 
     /*
+     * O relógio do turno, e ele é **o que separa uma volta da outra**.
+     *
+     * A conversa do revisor é uma só por tarefa (T57), então *"o que esta sessão
+     * postou"* já não identifica uma revisão. O que identifica é *"o que foi
+     * postado depois que este turno começou"*, e é isso que o portão lê.
+     */
+    const since = new Date();
+
+    /*
      * O turno acaba, e o motivo dele acabar **não é lido**.
      *
      * É o item 1, e é o achado que mais restringe esta feature: dos 13
@@ -396,7 +452,7 @@ export function createConveyor(
      * agente estava no meio de escrever.
      */
     const verdict: GateVerdict = ended
-      ? await ports.gate(entry, checkout, sessionId)
+      ? await ports.gate(entry, checkout, sessionId, since)
       : { kind: "unfinished", reason: "o turno passou do tempo e foi interrompido" };
     await ports.comment({
       taskId: entry.task.id,
@@ -436,6 +492,35 @@ export function createConveyor(
     }
 
     if (verdict.kind === "pass") {
+      /*
+       * A PR abre **quando o implementador fecha pela primeira vez** (T56), e
+       * antes de a seta andar: é ela que dá endereço ao balde `notes` — parecer
+       * de revisão mora numa PR —, e é o que faz o marco `pr` do §6, que existe
+       * e nunca disparou, passar a disparar.
+       *
+       * Só do implementador: o revisor e o testador trabalham **sobre** o que
+       * ele publicou.
+       */
+      if (entry.role === "implementador") {
+        const url = await ports.openPullRequest({ entry, checkout }).catch(() => null);
+        if (url !== null) {
+          void ports
+            .mark?.({ taskId: entry.task.id, mark: "pr", context: url })
+            .catch(() => undefined);
+        }
+      }
+
+      /*
+       * O revisor passou **com anotações**: elas vão para a PR (T55).
+       *
+       * Aqui e não no portão, porque não é julgamento: o portão já decidiu que
+       * nada segura. Isto é a entrega do que ele achou a quem vai arbitrar — uma
+       * pessoa, no momento em que ia mesclar de qualquer jeito.
+       */
+      if (entry.role === "revisor") {
+        await ports.publishNotes({ entry, checkout, sessionId, since }).catch(() => 0);
+      }
+
       await leaving();
       await ports.advance({ task: entry.task, role: entry.role });
       /*

@@ -10,6 +10,12 @@ import { z } from "zod";
 
 import { DomainError } from "../errors.js";
 import type { PrEntry, PrProject } from "../pr/PrCache.js";
+/*
+ * De onde o host é descoberto (F4.2): a regra mora em `pr/remote.ts` desde a
+ * Parte 7 da `028`, porque a esteira precisa da mesma resposta — e uma segunda
+ * cópia dela é a que esquece a metade do git.
+ */
+import { remoteOf } from "../pr/remote.js";
 import { compareUrl } from "../pr/url.js";
 import { pickForBranch, viewOf } from "../pr/view.js";
 import { createProjectRepository } from "../repositories/project.js";
@@ -45,22 +51,6 @@ interface Checkout {
   cwd: string;
 }
 
-/**
- * De onde o host é descoberto (F4.2).
- *
- * O banco vem primeiro porque é o que o clone gravou, e ele é o único caso em
- * que o endereço que interessa pode não ser o `origin` do disco. Quando ele é
- * nulo — que é o caso de todo projeto **adicionado por caminho** — a pergunta
- * vai ao git. Sem esta segunda metade, a barra dizia "sem integração" para um
- * repositório do GitHub inteiramente comum, e foi o e2e que achou.
- */
-async function remoteOf(
-  ctx: Context,
-  project: { path: string; remoteUrl: string | null },
-): Promise<string | null> {
-  return project.remoteUrl ?? (await ctx.git.getRemoteUrl(project.path));
-}
-
 async function checkoutOf(ctx: Context, worktreeId: string): Promise<Checkout> {
   const worktree = await createWorktreeRepository(ctx.db).findById(worktreeId);
   if (!worktree) throw new DomainError("NOT_FOUND", `worktree ${worktreeId} não existe`);
@@ -74,7 +64,7 @@ async function checkoutOf(ctx: Context, worktreeId: string): Promise<Checkout> {
   }
 
   return {
-    project: { id: project.id, path: project.path, remoteUrl: await remoteOf(ctx, project) },
+    project: { id: project.id, path: project.path, remoteUrl: await remoteOf(ctx.git, project) },
     branch: worktree.branch,
     base: project.defaultBranch,
     cwd: worktree.path,
@@ -161,7 +151,7 @@ export const prRouter = router({
       const entry = await ctx.pr.get({
         id: project.id,
         path: project.path,
-        remoteUrl: await remoteOf(ctx, project),
+        remoteUrl: await remoteOf(ctx.git, project),
       });
       const snapshot = entry.snapshot;
       if (snapshot === null) return [];

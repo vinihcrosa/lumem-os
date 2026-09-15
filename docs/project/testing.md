@@ -56,6 +56,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | **o quadro** — as sete colunas, o arrasto e o selo | e2e `board.spec.ts`, **zero token**: o agente é falso e o selo é lido pelo `task.board`. A janela em que o turno está **em voo** é o pedido de permissão — o fake para ali e espera —, porque um turno que abre e fecha em milissegundos não é observável, e o caso viraria um `sleep` disfarçado. O `beforeEach` limpa o quadro com **duas** portas (`remove` recusa tarefa que teve sessão, `dropped` sai do quadro): num quadro, estado de um caso vira *"quatro na To-Do"* no seguinte | **Não** |
 | **o selo é derivado**, e não guardado | o par do §12 da [`028`](../features/028-autonomous-orchestration/prd.md), no `board.spec.ts`: o turno some da lista do `AcpManager` e o selo volta para `manual` **na leitura seguinte, sem nenhuma escrita** — e o cartão não volta de coluna. Conferido por mutação: guardar o selo derruba o caso | **Não** |
 | **o teto do workspace** | e2e `budget.spec.ts`, **zero token**: o teto é conferido **antes** do `session/prompt`, então o agente falso nem precisa responder — o pedido de permissão aparecer **é** a prova de que o turno passou do portão. Teto de **zero turno** é o caminho mais curto até o aviso e não depende de nenhum consumo gravado; sem isso o caso testaria o contador em vez do portão | **Não** |
+| **o parecer do revisor** de ponta a ponta | e2e `conveyor-review.spec.ts`, **zero token** e daemon próprio: o agente falso lê **a porta do parecer no próprio prompt** — não uma URL passada por variável — e posta lá o que o spec mandou. Quatro perguntas: as quatro setas andam sem ninguém clicar; um `bloqueia` que o daemon **reproduz** devolve o cartão ao implementador; um que não reproduz **não** segura; e um `anota` avança o cartão e **aparece na PR**, contra o `gh` falso do `PATH`. Ele achou três defeitos de produção que nenhum teste de unidade pegaria | **Não** |
 | `web/` fluxo de usuário | e2e (Playwright) | **Não** — daemon único, porta única, estado compartilhado |
 | **a própria documentação** | `scripts/check-docs.test.ts` — 21 testes sobre fixtures mais **um que roda o checador contra a árvore de verdade**, e é esse que é o gate. Link relativo resolve, âncora de heading resolve, e o `**Status:**` de cada feature está na gramática fechada e concorda com o `tasks.md` da mesma pasta | Sim |
 
@@ -1145,6 +1146,55 @@ curto e sem `load` nenhum —, e a conversa fecha quando a tarefa avança, volta
 
 A regra: **duas tasks que se contradizem no código é desenho que faltou**, e a medição é que diz qual
 das duas leituras existe. Nenhum teste unitário pegaria esta — os dois lados têm dublê.
+
+### Uma resposta que não grava nada é uma resposta que não aconteceu
+
+**Sintoma:** com um revisor que **acertou** — *"olhei e não achei nada que segure"* —, o cartão ficava
+em `In Review` até esgotar as tentativas. O portão respondia `o revisor não deixou parecer`, e o
+revisor tinha deixado.
+
+**Causa:** o parecer vazio é `{"findings":[]}`, e ele não grava linha nenhuma em `task_finding`. O
+portão lia **os achados** para decidir se houve parecer, e a lista vazia é indistinguível de *"não
+postou nada"*. O `decideGate` até distingue os dois casos (`null` contra `[]`) — o que não existia era
+a informação para preencher a distinção.
+
+O conserto é o **recibo**: uma linha em `task_review` dizendo que a revisão aconteceu, com o tamanho
+dela. O parecer é o evento; os achados são o conteúdo.
+
+A regra: **uma decisão sobre "isto aconteceu?" não se deriva do conteúdo do que aconteceu**, porque o
+conteúdo vazio é o caso que importa. E o pior modo de falha de um portão é punir a resposta certa —
+aqui ele punia exatamente o comportamento que a feature inteira existe para tornar possível.
+
+### A coluna nula que a leitura de cima resolvia
+
+**Sintoma:** a esteira não abria PR nenhuma e não comentava nada — em silêncio, e **só** nos projetos
+adicionados por caminho, que são a maioria. Nenhum teste de unidade via: todos eles criam o projeto
+com `remoteUrl` preenchido.
+
+**Causa:** `project.remoteUrl` só é gravado no **clone**. Quem adiciona por caminho fica com `null`, e
+a `013` já resolvia isso — `project.remoteUrl ?? git.getRemoteUrl(path)` —, mas **dentro do router da
+PR**. A esteira leu a coluna crua em três lugares.
+
+É a **segunda vez** que esta metade é esquecida: a barra da `013` pagou o mesmo defeito, e foi um e2e
+que achou lá também. Agora a regra mora em `pr/remote.ts`.
+
+A regra: **quando uma coluna precisa de uma leitura para valer, a leitura é a fonte — e ela mora num
+arquivo, não numa camada.** Uma segunda cópia da resolução é a cópia que esquece a segunda metade.
+
+### Um fake que repete o mesmo trabalho não trabalha na segunda vez
+
+**Sintoma:** o cartão do e2e da esteira andava uma etapa e parava. O turno seguinte do mesmo encaixe
+nunca acabava, e o teste morria no teto de tempo dizendo `timeout`.
+
+**Causa:** o agente falso escrevia **o mesmo conteúdo** no mesmo arquivo a cada turno. Na segunda
+passada não havia o que commitar, `git commit` saiu diferente de zero, o `execFileSync` lançou, e a
+resposta do `session/prompt` nunca foi enviada — o daemon esperou os 30 minutos do teto.
+
+Dois consertos, e os dois valem: o conteúdo passou a mudar a cada turno, e **o turno acaba mesmo que o
+trabalho falhe** — um fake que lança é um turno que pendura, e o sintoma não fala do fake.
+
+A regra: **um dublê que simula trabalho precisa simular trabalho diferente**, e nada que ele faça pode
+deixar o protocolo sem resposta.
 
 ## Convenções
 

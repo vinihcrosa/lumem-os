@@ -66,6 +66,8 @@ interface Harness {
     closeSession: ReturnType<typeof vi.fn>;
     advance: ReturnType<typeof vi.fn>;
     bounce: ReturnType<typeof vi.fn>;
+    openPullRequest: ReturnType<typeof vi.fn>;
+    publishNotes: ReturnType<typeof vi.fn>;
     block: ReturnType<typeof vi.fn>;
     park: ReturnType<typeof vi.fn>;
     comment: ReturnType<typeof vi.fn>;
@@ -81,6 +83,8 @@ function harness({
   attemptsSoFar = 0,
   bouncesSoFar = 0,
   returned = [] as readonly { title: string; command: string }[],
+  prUrl = null as string | null,
+  notes = 0,
   dirty = false,
   instructions = "",
   checkoutFails = null,
@@ -92,6 +96,10 @@ function harness({
   bouncesSoFar?: number;
   /** O que o revisor devolveu e o daemon reproduziu. */
   returned?: readonly { title: string; command: string }[];
+  /** A URL que a abertura de PR devolve, ou `null` quando ela não acontece. */
+  prUrl?: string | null;
+  /** Quantas anotações do revisor chegaram à PR. */
+  notes?: number;
   dirty?: boolean;
   instructions?: string;
   /** A frase com que `prepareCheckout` rejeita, quando ele rejeita. */
@@ -125,6 +133,14 @@ function harness({
       calls.push("bounce");
       bounces += 1;
       return bounces;
+    }),
+    openPullRequest: vi.fn(async () => {
+      calls.push("openPullRequest");
+      return prUrl;
+    }),
+    publishNotes: vi.fn(async () => {
+      calls.push("publishNotes");
+      return notes;
     }),
     block: vi.fn(async () => {
       calls.push("block");
@@ -166,6 +182,8 @@ function harness({
     },
     advance: spies.advance as unknown as ConveyorPorts["advance"],
     bounce: spies.bounce as unknown as ConveyorPorts["bounce"],
+    openPullRequest: spies.openPullRequest as unknown as ConveyorPorts["openPullRequest"],
+    publishNotes: spies.publishNotes as unknown as ConveyorPorts["publishNotes"],
     block: spies.block as unknown as ConveyorPorts["block"],
     comment: spies.comment as unknown as ConveyorPorts["comment"],
     park: spies.park as unknown as ConveyorPorts["park"],
@@ -880,5 +898,136 @@ describe("o revisor devolve, e o vaivém tem fim (Parte 7 — T58)", () => {
     expect((spies.prompt.mock.calls[0]?.[0] as { text: string }).text).not.toContain(
       "O que a revisão devolveu",
     );
+  });
+});
+
+describe("a PR abre na primeira vez que o implementador fecha (Parte 7 — T56)", () => {
+  it("abre, e o marco do tracker sai com a URL", async () => {
+    /*
+     * É o que dá endereço ao balde `notes` — parecer de revisão mora numa PR —,
+     * e o que faz o marco `pr` do §6, que existe e **nunca disparou**, passar a
+     * disparar.
+     */
+    const { ports, spies } = harness({
+      facts: { entries: [entry()] },
+      prUrl: "https://github.com/acme/api/pull/87",
+    });
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.openPullRequest).toHaveBeenCalledTimes(1);
+    expect(spies.mark).toHaveBeenCalledWith({
+      taskId: "t1",
+      mark: "pr",
+      context: "https://github.com/acme/api/pull/87",
+    });
+  });
+
+  it("antes da seta andar — a PR é da etapa que acabou", async () => {
+    const { ports, calls } = harness({
+      facts: { entries: [entry()] },
+      prUrl: "https://github.com/acme/api/pull/87",
+    });
+
+    await createConveyor(ports).tick("w1");
+
+    expect(calls.indexOf("openPullRequest")).toBeLessThan(calls.indexOf("advance"));
+  });
+
+  it("o revisor não abre PR — ele trabalha sobre a que já existe", async () => {
+    const { ports, spies } = harness({
+      facts: { entries: [{ task: fakeTask({ status: "review" }), role: "revisor" }] },
+      verdict: { kind: "pass" },
+      prUrl: "https://github.com/acme/api/pull/87",
+    });
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.openPullRequest).not.toHaveBeenCalled();
+  });
+
+  it("falhar ao abrir não segura o cartão — é cortesia, não portão", async () => {
+    /*
+     * Sem remoto, sem `gh`, o host fora do ar: o trabalho já aconteceu deste
+     * lado, e recusar o avanço seria o produto ficando refém de um terceiro. É
+     * a mesma regra do marco do tracker (Q64).
+     */
+    const { ports, spies } = harness({ facts: { entries: [entry()] } });
+    spies.openPullRequest.mockRejectedValue(new Error("o gh não está instalado"));
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.advance).toHaveBeenCalled();
+    expect(spies.mark).not.toHaveBeenCalledWith(
+      expect.objectContaining({ mark: "pr" }),
+    );
+  });
+
+  it("sem URL, não há marco para mandar", async () => {
+    // `null` é *não deu* — sem remoto, ou PR já aberta. O tracker não recebe
+    // marco vazio.
+    const { ports, spies } = harness({ facts: { entries: [entry()] }, prUrl: null });
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.advance).toHaveBeenCalled();
+    expect(spies.mark).not.toHaveBeenCalledWith(
+      expect.objectContaining({ mark: "pr" }),
+    );
+  });
+});
+
+describe("a anotação do revisor vai para a PR (Parte 7 — T55)", () => {
+  it("o revisor passou: as anotações são publicadas antes de a seta andar", async () => {
+    /*
+     * O balde `notes` promete, no preâmbulo, que o que não é reproduzível *"vai
+     * para a pull request, onde uma pessoa lê antes de mesclar"*. Sem esta
+     * chamada a promessa é falsa e a anotação morre numa tabela que nenhuma tela
+     * lê — o revisor teria sido instruído a escrever para ninguém.
+     */
+    const { ports, spies, calls } = harness({
+      facts: { entries: [{ task: fakeTask({ status: "review" }), role: "revisor" }] },
+      verdict: { kind: "pass" },
+      notes: 3,
+    });
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.publishNotes).toHaveBeenCalledTimes(1);
+    expect(calls.indexOf("publishNotes")).toBeLessThan(calls.indexOf("advance"));
+  });
+
+  it("o implementador não publica anotação — ele não fez revisão nenhuma", async () => {
+    const { ports, spies } = harness({ facts: { entries: [entry()] } });
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.publishNotes).not.toHaveBeenCalled();
+  });
+
+  it("falhar ao publicar não segura o cartão — é cortesia, como a PR", async () => {
+    const { ports, spies } = harness({
+      facts: { entries: [{ task: fakeTask({ status: "review" }), role: "revisor" }] },
+      verdict: { kind: "pass" },
+    });
+    spies.publishNotes.mockRejectedValue(new Error("o gh não está instalado"));
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.advance).toHaveBeenCalled();
+  });
+
+  it("o revisor que devolveu não publica nada — o cartão nem chega à PR", async () => {
+    // O caminho do `fail` sai antes: o que ele produz é volta, e a anotação
+    // desta passada vai junto com a volta seguinte, se ela sobreviver.
+    const { ports, spies } = harness({
+      facts: { entries: [{ task: fakeTask({ status: "review" }), role: "revisor" }] },
+      verdict: { kind: "fail", reason: "o teste da linha 194 sobrevive" },
+    });
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.publishNotes).not.toHaveBeenCalled();
+    expect(spies.bounce).toHaveBeenCalled();
   });
 });

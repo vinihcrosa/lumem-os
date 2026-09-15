@@ -1,5 +1,5 @@
 import { newId } from "@lumem/shared";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
 import { taskFinding, type TaskFindingRow } from "../db/schema.js";
@@ -36,25 +36,54 @@ export interface RecordFindingInput {
 export interface TaskFindingRepository {
   /** Grava o que o revisor postou nesta volta. */
   record(input: RecordFindingInput): Promise<TaskFindingRow>;
-  /** O que esta sessão achou neste turno, em ordem. */
-  bySession(sessionId: string): Promise<TaskFindingRow[]>;
+  /**
+   * O que esta sessão postou **nesta volta**, em ordem.
+   *
+   * `since` é o instante em que o turno começou, e ele não é zelo: desde a T57
+   * a conversa do revisor é **uma só** por tarefa, e ela atravessa as voltas. Só
+   * pela sessão, a segunda revisão releria o parecer da primeira — rerodaria
+   * comandos já julgados, republicaria as mesmas anotações na PR, e, pior, um
+   * revisor que não postasse nada na volta 2 passaria por *"entregou parecer"*
+   * por causa do que ele disse na volta 1.
+   */
+  bySession(sessionId: string, since: Date): Promise<TaskFindingRow[]>;
   /** O que ainda segura o cartão desta tarefa. */
   blocking(taskId: string): Promise<TaskFindingRow[]>;
+  /**
+   * O que segura, **entregue ao implementador** (`028` Parte 7).
+   *
+   * Lê e marca `skipped` na mesma chamada, e a marca é o que impede o achado da
+   * volta 1 de reaparecer no prompt da volta 2 — já consertado, e ainda assim
+   * escrito como *"conserte e commite"*. Ele não se perde: o cartão volta ao
+   * revisor inteiro, e um achado que sobreviveu ao conserto é achado de novo.
+   */
+  handOver(taskId: string): Promise<TaskFindingRow[]>;
   /** Tudo desta tarefa, para a tela e para a PR. */
   byTask(taskId: string): Promise<TaskFindingRow[]>;
   /** O veredito da reprodução, escrito pelo daemon. */
   verify(id: string, verification: FindingVerification, output: string): Promise<void>;
-  /**
-   * O que o implementador já consertou deixa de segurar.
-   *
-   * Chamado quando a etapa anda: um achado é sobre **aquela** passada, e mantê-lo
-   * de pé depois faria o cartão carregar para sempre o primeiro `Reprovo`.
-   */
-  clear(taskId: string): Promise<void>;
 }
 
 export function createTaskFindingRepository(db: Db): TaskFindingRepository {
+  /*
+   * `reproduced` **e** `pending`, e o `pending` não é descuido.
+   *
+   * Um achado que o daemon ainda não conseguiu rerodar — o comando estourou o
+   * teto, o checkout sumiu — não vira aprovação por omissão. Ele segura, e a
+   * frase no cartão diz que segura por não ter sido verificado.
+   */
+  function blocking(taskId: string): Promise<TaskFindingRow[]> {
+    return db
+      .select()
+      .from(taskFinding)
+      .where(and(eq(taskFinding.taskId, taskId), eq(taskFinding.bucket, "blocks")))
+      .orderBy(asc(taskFinding.createdAt))
+      .then((rows) => rows.filter((row) => row.verification !== "refuted"));
+  }
+
   return {
+    blocking,
+
     async record(input) {
       /*
        * A regra dos dois baldes é cobrada **aqui e no `CHECK`**, e a duplicação
@@ -91,28 +120,17 @@ export function createTaskFindingRepository(db: Db): TaskFindingRepository {
       return row!;
     },
 
-    bySession(sessionId) {
+    bySession(sessionId, since) {
       return db
         .select()
         .from(taskFinding)
-        .where(eq(taskFinding.foundBySession, sessionId))
+        .where(
+          and(
+            eq(taskFinding.foundBySession, sessionId),
+            gte(taskFinding.createdAt, since),
+          ),
+        )
         .orderBy(asc(taskFinding.createdAt));
-    },
-
-    /*
-     * `reproduced` **e** `pending`, e o `pending` não é descuido.
-     *
-     * Um achado que o daemon ainda não conseguiu rerodar — o comando estourou o
-     * teto, o checkout sumiu — não vira aprovação por omissão. Ele segura, e a
-     * frase no cartão diz que segura por não ter sido verificado.
-     */
-    blocking(taskId) {
-      return db
-        .select()
-        .from(taskFinding)
-        .where(and(eq(taskFinding.taskId, taskId), eq(taskFinding.bucket, "blocks")))
-        .orderBy(asc(taskFinding.createdAt))
-        .then((rows) => rows.filter((row) => row.verification !== "refuted"));
     },
 
     byTask(taskId) {
@@ -136,8 +154,21 @@ export function createTaskFindingRepository(db: Db): TaskFindingRepository {
         .where(eq(taskFinding.id, id));
     },
 
-    async clear(taskId) {
-      await db.delete(taskFinding).where(eq(taskFinding.taskId, taskId));
+    async handOver(taskId) {
+      const open = await blocking(taskId);
+      const going = open.filter((one) => one.verification === "reproduced");
+      for (const one of going) {
+        /*
+         * `skipped`, e não apagado: o que o revisor afirmou fica na tabela — é
+         * o rastro de quem afirma o que se sustenta e de quem não. O que a
+         * marca diz é *"já foi devolvido"*, e nada além disso.
+         */
+        await db
+          .update(taskFinding)
+          .set({ verification: "skipped", updatedAt: new Date() })
+          .where(eq(taskFinding.id, one.id));
+      }
+      return going;
     },
   };
 }

@@ -288,6 +288,21 @@ export interface GitService {
    */
   hasRemoteBranch(path: string, branch: string): Promise<boolean>;
   /**
+   * Publica a branch deste checkout (`028` Parte 7 — T56).
+   *
+   * **É o terceiro verbo do produto que escreve fora da máquina**, e os outros
+   * dois — mesclar e criar PR — foram decididos na
+   * [`013`](../../../../docs/features/013-pull-request-status/prd.md) com portão
+   * cada. Publicar não estava na lista, e a F7.5 de lá é a prova: ela diz que o
+   * gesto de criar *oferece publicar*, e o que existe dela no produto é a
+   * **recusa** — `pr.create` responde *"a branch ainda não foi publicada"*. A
+   * nota está no requisito, e ela delimita o que sobrou de pé.
+   *
+   * Sem `--force`, e nunca com ele: o que a esteira empurra é uma branch que ela
+   * mesma cortou, e forçar seria ela reescrevendo o que outra pessoa pôs lá.
+   */
+  publishBranch(path: string, branch: string): Promise<void>;
+  /**
    * O endereço de `origin`, lido do disco. `null` quando não há remoto.
    *
    * Existe porque o banco **não** é fonte confiável para isto: `remote_url` só é
@@ -736,6 +751,12 @@ export function createGitService({ exec = execGit }: GitServiceOptions = {}): Gi
       }));
       const subject = stdout.trim();
       return subject === "" ? null : subject;
+    },
+
+    async publishBranch(path, branch) {
+      // `-u` para a branch passar a ter upstream: sem isso o `gh pr create`
+      // resolve a base por heurística, e a heurística erra com dois remotos.
+      await exec(["push", "-u", "origin", branch], { cwd: path, env: cloneEnv() });
     },
 
     async hasRemoteBranch(path, branch) {

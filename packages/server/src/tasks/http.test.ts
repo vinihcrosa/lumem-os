@@ -7,6 +7,7 @@ import type { Db } from "../db/index.js";
 import { project, session, task, taskFinding, workspace } from "../db/schema.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import { createEventBus, type LumemEvent } from "../events.js";
+import { createTaskReviewRepository } from "../repositories/task-review.js";
 import { DAEMON_PREFIXES } from "../web/static.js";
 
 import { registerTaskHttp } from "./http.js";
@@ -279,6 +280,17 @@ describe("POST /tasks/:id/findings — o parecer do revisor (Parte 7)", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.body).toContain("sem achados");
+
+    /*
+     * E ele **fica registrado**, que é a metade sem a qual a resposta legítima
+     * não existe: sem achado nenhum, o recibo é a única coisa que separa *"olhei
+     * e não achei nada"* de *"o turno acabou sem entregar parecer"*. O portão lê
+     * daqui, e é por isso que o cartão anda.
+     */
+    const [receipt] = await createTaskReviewRepository(db).byTask(w.taskId);
+    expect(receipt?.blocks).toBe(0);
+    expect(receipt?.notes).toBe(0);
+    expect(receipt?.bySession).toBe(w.sessionId);
   });
 
   it("`blocks` sem comando é recusado, e a frase diz o que fazer", async () => {

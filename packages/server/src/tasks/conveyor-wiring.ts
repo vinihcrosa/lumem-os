@@ -2,9 +2,11 @@ import { adapterById } from "@lumem/shared";
 import { eq } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
+import type { GitService } from "../git/GitService.js";
 import { agentConfig, project, worktree } from "../db/schema.js";
 import type { PrCache } from "../pr/PrCache.js";
-import { decide } from "../pr/verdict.js";
+import { remoteOf } from "../pr/remote.js";
+import { decide, type GhPullRequest } from "../pr/verdict.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 
 import type { PrLike } from "./conveyor-ports.js";
@@ -88,9 +90,38 @@ export async function configForAdapter(
  */
 export async function verdictOfWorktree(
   db: Db,
+  git: Pick<GitService, "getRemoteUrl">,
   pr: PrCache,
   worktreeId: string,
 ): Promise<PrLike> {
+  const found = await pullOfWorktree(db, git, pr, worktreeId);
+  return found === null ? null : decide(found).verdict;
+}
+
+/**
+ * O **número** da PR desta worktree, ou `null` (`028` Parte 7 — T55).
+ *
+ * Duas perguntas sobre o mesmo instantâneo: o portão pergunta *"está verde?"* e
+ * a publicação da anotação pergunta *"em qual PR eu escrevo?"*. Sai da mesma
+ * leitura por projeto, e por isso não custa um segundo processo.
+ */
+export async function numberOfWorktree(
+  db: Db,
+  git: Pick<GitService, "getRemoteUrl">,
+  pr: PrCache,
+  worktreeId: string,
+): Promise<number | null> {
+  const found = await pullOfWorktree(db, git, pr, worktreeId);
+  return found?.number ?? null;
+}
+
+/** A PR cuja head é a branch deste checkout, no instantâneo do projeto. */
+async function pullOfWorktree(
+  db: Db,
+  git: Pick<GitService, "getRemoteUrl">,
+  pr: PrCache,
+  worktreeId: string,
+): Promise<GhPullRequest | null> {
   try {
     const checkout = await db.query.worktree.findFirst({ where: eq(worktree.id, worktreeId) });
     if (!checkout) return null;
@@ -100,10 +131,14 @@ export async function verdictOfWorktree(
     const entry = await pr.get({
       id: owner.id,
       path: owner.path,
-      remoteUrl: owner.remoteUrl,
+      /*
+       * Resolvido como a barra resolve, e não lido cru do banco: `remoteUrl` é
+       * nulo em **todo projeto adicionado por caminho**, e ler a coluna fazia a
+       * esteira nunca ver PR nenhuma nesses projetos — que são a maioria.
+       */
+      remoteUrl: await remoteOf(git, owner),
     });
-    const found = entry.snapshot?.pulls.find((pull) => pull.headRefName === checkout.branch);
-    return found ? decide(found).verdict : null;
+    return entry.snapshot?.pulls.find((pull) => pull.headRefName === checkout.branch) ?? null;
   } catch {
     return null;
   }

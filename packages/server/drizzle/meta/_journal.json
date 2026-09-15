@@ -218,6 +218,13 @@
       "when": 1789427468718,
       "tag": "0030_papel_da_sessao_e_vaivem",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1789446936562,
+      "tag": "0031_recibo_do_parecer",
+      "breakpoints": true
     }
   ]
 }
