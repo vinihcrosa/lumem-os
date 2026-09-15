@@ -1423,6 +1423,23 @@ abrir outra.
 
 **Done when:** três tentativas do implementador produzem **uma** sessão, e o consumo mostra a diferença.
 
+> **Corrigida em 2026-09-15, com o produto rodando: retomar trazia a conversa e não a postura.**
+> O relato foi literal — *"coloquei no modo autônomo e ele abriu uma sessão com modo manual, eu tenho
+> que ficar dando aceito em tudo"*. `session/load` **sobe um adaptador novo**, e ele nasce no modo
+> padrão dele; quem aplicava `bypassPermissions` era o caminho do nascimento, e só ele. Como a
+> [T52](#t52-a-esteira-fecha-o-que-abre) fecha a conversa quando a tarefa **sai** da etapa, a segunda
+> vez de todo encaixe é uma retomada — o caminho consertado era o raro, e o comum perguntava a uma
+> pessoa que a esteira existe para não precisar.
+>
+> Com um agente dono dos modos, a política do Lumem é **inerte** (a A1 da
+> [`016`](../016-session-mode/prd.md)), então o pedido sobe para quem estiver olhando. Duas coisas
+> entraram: a retomada leva o `agentMode` da `spec` e o modelo, como o nascimento; e o `lumemMode`
+> passou a ser escrito **na linha** ao nascer e ao retomar. Ele só chegava lá pelo `watchConfig`, que
+> dispara quando alguém **troca** alguma coisa — e uma conversa que nasce liberada e nunca troca de
+> nada não troca nada: a linha dizia `perguntar tudo` sobre uma sessão que o daemon tratava como
+> liberada. As duas conferidas vermelhas, e a segunda contra o daemon de verdade: o e2e das quatro
+> setas recebeu `auto` no lugar de `bypassPermissions`.
+
 #### T58: O retorno do revisor chega ao implementador, e a nota fica na Q47
 
 O que volta é **achado** — comando, saída, arquivo e linha —, e não o raciocínio do revisor. A

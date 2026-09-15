@@ -66,8 +66,19 @@ export interface ConveyorDeps {
    * Retoma a conversa de um encaixe que já trabalhou nesta tarefa (T57).
    *
    * `null` quando não deu — e aí a esteira abre uma nova em vez de parar.
+   *
+   * **Leva `agentMode` e `model` porque retomar não é herdar.** `session/load`
+   * sobe um adaptador **novo**, e ele nasce no modo padrão dele: a conversa
+   * volta, a postura de permissão não. Sem reaplicá-la, a segunda vez de cada
+   * encaixe — que é o caso comum desde a T52, porque a conversa fecha ao sair
+   * da etapa — pergunta permissão a uma pessoa que não está lá.
    */
-  resumeSession(sessionId: string): Promise<{ sessionId: string } | null>;
+  resumeSession(input: {
+    sessionId: string;
+    /** `null` quando o adaptador não declara um modo que não pergunta. */
+    agentMode: string | null;
+    model: string | null;
+  }): Promise<{ sessionId: string } | null>;
   prompt(input: { sessionId: string; text: string }): Promise<void>;
   /** Interrompe um turno que passou do teto. Falhar aqui não é fatal. */
   cancel(sessionId: string): Promise<void>;
@@ -320,12 +331,20 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
         if (found.state === "running") return { sessionId: found.id };
 
         /*
-         * Morta é o daemon que reiniciou: a conversa está em disco, e retomar a
-         * traz de volta. Falhar ao retomar **não** para o turno — o transcript
-         * sumiu, o adaptador mudou de versão —, e abrir uma nova custa contexto
-         * mas entrega o trabalho.
+         * Morta é o caso **comum**: a esteira fecha a conversa quando a tarefa
+         * sai da etapa (T52), então toda segunda vez de um encaixe passa por
+         * aqui. A conversa está em disco, e retomar a traz de volta. Falhar ao
+         * retomar **não** para o turno — o transcript sumiu, o adaptador mudou
+         * de versão —, e abrir uma nova custa contexto mas entrega o trabalho.
+         *
+         * O modo vai junto, e é o que faltava: `session/load` sobe um adaptador
+         * novo, no modo padrão dele. A conversa voltava e a postura de permissão
+         * não — o turno retomado perguntava, e numa sessão de esteira não há
+         * ninguém para responder.
          */
-        const resumed = await deps.resumeSession(found.id).catch(() => null);
+        const resumed = await deps
+          .resumeSession({ sessionId: found.id, agentMode, model })
+          .catch(() => null);
         if (resumed !== null) return resumed;
       }
 

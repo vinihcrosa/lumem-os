@@ -1196,6 +1196,27 @@ trabalho falhe** — um fake que lança é um turno que pendura, e o sintoma nã
 A regra: **um dublê que simula trabalho precisa simular trabalho diferente**, e nada que ele faça pode
 deixar o protocolo sem resposta.
 
+### Retomar traz a conversa, e não a postura
+
+**Sintoma:** com a autonomia em `autônomo`, a esteira abria uma sessão que **perguntava permissão a
+cada passo**. Quem estava olhando tinha que aceitar tudo à mão — numa sessão que existe justamente
+porque não há ninguém do outro lado.
+
+**Causa:** `session/load` não ressuscita o processo de ontem, ele **sobe um adaptador novo** — e o
+adaptador novo nasce no modo padrão dele. Quem aplicava `bypassPermissions` era o caminho do
+nascimento, e só ele. E como a esteira fecha a conversa quando a tarefa **sai** da etapa, a segunda
+vez de todo encaixe é uma retomada: o caminho que tinha o conserto era o raro.
+
+Havia um segundo pedaço, mais silencioso: o `lumemMode` só chegava à linha pelo `watchConfig`, que
+existe para a linha **seguir** o manager quando alguém troca alguma coisa. Uma conversa que nasce
+liberada e nunca troca de nada não dispara evento nenhum — a linha ficava no default da coluna
+dizendo `perguntar tudo` sobre uma sessão que o daemon tratava como liberada. Na sessão nascida pela
+esteira isso passava despercebido porque o `setConfig` do modo, logo depois do nascimento, disparava o
+evento e carregava o `lumemMode` junto. Por acidente.
+
+A regra: **o que um caminho aplica ao nascer, o caminho de retomar tem que reaplicar** — e o que um
+observador de *mudança* persiste nunca é o que persiste um *estado inicial*.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

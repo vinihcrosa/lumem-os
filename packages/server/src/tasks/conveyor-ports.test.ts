@@ -2,7 +2,15 @@ import { newId } from "@lumem/shared";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { project, task, taskComment, taskFinding, taskReview } from "../db/schema.js";
+import {
+  agentConfig,
+  project,
+  session,
+  task,
+  taskComment,
+  taskFinding,
+  taskReview,
+} from "../db/schema.js";
 import { createTaskFindingRepository } from "../repositories/task-finding.js";
 import { createTaskReviewRepository } from "../repositories/task-review.js";
 import { createTaskRepository } from "../repositories/task.js";
@@ -60,6 +68,8 @@ async function scene(status: string, options: SceneOptions = {}) {
   });
 
   const comments_: { number: number; body: string }[] = [];
+  const opened: { agentMode: string | null }[] = [];
+  const resumed: { sessionId: string; agentMode: string | null }[] = [];
   const tasks = createTaskRepository(db);
   const created = await tasks.create({
     workspaceId: space.id,
@@ -82,8 +92,14 @@ async function scene(status: string, options: SceneOptions = {}) {
     git: {} as never,
     scripts: {} as never,
     createWorktree: () => Promise.reject(new Error("não devia cortar worktree")),
-    openAgentSession: () => Promise.reject(new Error("não devia abrir sessão")),
-    resumeSession: () => Promise.reject(new Error("não devia retomar sessão")),
+    openAgentSession: (input: { agentMode: string | null }) => {
+      opened.push(input);
+      return Promise.resolve({ sessionId: "ses-nova" });
+    },
+    resumeSession: (input: { sessionId: string; agentMode: string | null }) => {
+      resumed.push(input);
+      return Promise.resolve({ sessionId: `${input.sessionId}-retomada` });
+    },
     prompt: () => Promise.reject(new Error("não devia mandar prompt")),
     cancel: () => Promise.resolve(),
     closeSession: () => Promise.resolve(),
@@ -120,6 +136,9 @@ async function scene(status: string, options: SceneOptions = {}) {
     reviews: createTaskReviewRepository(db),
     /** O que foi escrito na PR, em ordem. */
     onPr: comments_,
+    /** As sessões abertas do zero, e as retomadas, com o que foi pedido nelas. */
+    opened,
+    resumed,
     /** O checkout que o turno usou — falso, porque nenhum caso aqui corta um. */
     checkout: { worktreeId: "wt-1", path: "/wt/1", dirty: false, head: "abc" },
   };
@@ -511,5 +530,81 @@ describe("o que volta ao implementador volta uma vez (Parte 7 — T58)", () => {
     // E o achado **fica na tabela**: apagá-lo apagaria o rastro de quem afirma o
     // que se sustenta.
     expect(await base.findings.byTask(base.taskId)).toHaveLength(1);
+  });
+});
+
+describe("a conversa do encaixe volta na postura em que nasceu (Parte 7 — T57)", () => {
+  /*
+   * **Retomar não é herdar.** `session/load` traz a conversa e sobe um adaptador
+   * **novo**, que nasce no modo padrão dele. A conversa voltava e a postura de
+   * permissão não — e como a esteira fecha a sessão ao sair da etapa (T52), a
+   * segunda vez de cada encaixe passa por aqui. O sintoma é o relato: *"coloquei
+   * no modo autônomo e ele abriu uma sessão no manual, tenho que ficar dando
+   * aceito em tudo"*.
+   */
+  async function withSession(state: "running" | "exited") {
+    const base = await scene("in_progress");
+    const [config] = await base.db
+      .insert(agentConfig)
+      .values({ id: newId(), name: `claude-${newId()}`, command: "claude-agent-acp" })
+      .returning();
+    const [row] = await base.db
+      .insert(session)
+      .values({
+        id: newId(),
+        kind: "agent",
+        agentConfigId: config!.id,
+        scopeType: "worktree",
+        scopeId: "wt-1",
+        cwd: "/wt/1",
+        command: "claude-agent-acp",
+        transport: "acp",
+        acpSessionId: "acp-1",
+        state,
+        taskId: base.taskId,
+        taskRole: "implementador",
+      })
+      .returning();
+    return { ...base, previous: row! };
+  }
+
+  it("a retomada leva o modo que não pergunta, e não só o id", async () => {
+    const base = await withSession("exited");
+
+    const opened = await base.ports.openSession({
+      taskId: base.taskId,
+      role: "implementador",
+      adapter: "claude",
+      model: null,
+      cwd: "/wt/1",
+      worktreeId: "wt-1",
+    });
+
+    expect(opened.sessionId).toBe(`${base.previous.id}-retomada`);
+    expect(base.resumed).toEqual([
+      // O mesmo modo com que ela teria nascido: sai da `spec` do adaptador, e
+      // nunca de uma string escrita aqui (Q41).
+      { sessionId: base.previous.id, agentMode: "bypassPermissions", model: null },
+    ]);
+    // E não abriu uma segunda conversa: o contexto da primeira é o que a T57
+    // existe para não pagar de novo.
+    expect(base.opened).toEqual([]);
+  });
+
+  it("viva, ela continua no mesmo processo — sem retomar nada", async () => {
+    const base = await withSession("running");
+
+    const opened = await base.ports.openSession({
+      taskId: base.taskId,
+      role: "implementador",
+      adapter: "claude",
+      model: null,
+      cwd: "/wt/1",
+      worktreeId: "wt-1",
+    });
+
+    expect(opened.sessionId).toBe(base.previous.id);
+    expect(base.resumed).toEqual([]);
+    expect(base.opened).toEqual([]);
   });
 });

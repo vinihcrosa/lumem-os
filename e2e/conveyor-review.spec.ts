@@ -185,7 +185,13 @@ test("as quatro setas andam, e cada encaixe tem uma conversa só", async () => {
      */
     const sessions = (await query(daemon.url, "session.listByTask", {
       taskId: created.id,
-    })) as { taskRole: string; resumedFromId: string | null; state: string }[];
+    })) as {
+      taskRole: string;
+      resumedFromId: string | null;
+      state: string;
+      mode: string | null;
+      lumemMode: string;
+    }[];
 
     expect(new Set(sessions.map((one) => one.taskRole))).toEqual(
       new Set(["implementador", "revisor", "testador"]),
@@ -197,6 +203,20 @@ test("as quatro setas andam, e cada encaixe tem uma conversa só", async () => {
      * cada uma segurando um processo de adaptador de 243 MB.
      */
     expect(sessions.every((one) => one.state === "exited")).toBe(true);
+
+    /*
+     * **Todas na postura de quem trabalha sozinho** — inclusive a retomada.
+     *
+     * `session/load` traz a conversa e sobe um adaptador **novo**, no modo padrão
+     * dele: a conversa voltava e a postura não. E como a esteira fecha a sessão
+     * ao sair da etapa, a segunda vez de cada encaixe é sempre uma retomada — o
+     * caminho comum era o que perguntava. O relato foi literal: *"coloquei no
+     * autônomo e ele abriu uma sessão no manual, tenho que ficar dando aceito em
+     * tudo"*.
+     */
+    const retomada = sessions.find((one) => one.resumedFromId !== null);
+    expect(retomada?.mode).toBe("bypassPermissions");
+    expect(sessions.every((one) => one.lumemMode === "free")).toBe(true);
   } finally {
     await daemon.stop();
   }

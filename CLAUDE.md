@@ -358,6 +358,14 @@ mesma metade que a [`013`](docs/features/013-pull-request-status/prd.md) já tin
 e que o parecer da volta passada contava como parecer desta. O verbo `pr comment` entrou com a nota no
 requisito **F7.1** da `013`, que dizia *"e nada mais"*.
 
+E um quinto apareceu **usando o produto**, no mesmo dia: a esteira em `autônomo` abria sessão que
+**pedia permissão a cada passo**. `session/load` traz a conversa e sobe um adaptador **novo**, no modo
+padrão dele — quem aplicava `bypassPermissions` era só o caminho do nascimento. Como a conversa fecha
+quando a tarefa sai da etapa, a segunda vez de todo encaixe é uma retomada: o caminho consertado era o
+raro. Junto veio o pedaço silencioso — o `lumemMode` só chegava à linha pelo `watchConfig`, que
+observa **troca**, então uma conversa que nasce liberada e nunca troca de nada deixava a linha dizendo
+`perguntar tudo` sobre uma sessão que o daemon tratava como liberada.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |

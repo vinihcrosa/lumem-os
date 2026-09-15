@@ -354,6 +354,11 @@ export function createSessionStore({
             acpSessionId: agent.acpSessionId,
             mode: agent.mode,
             model: agent.model,
+            // A política com que ela nasce, **na linha** (D9). Sem isto ela só
+            // chegava lá se alguém trocasse alguma coisa depois — e a conversa
+            // da esteira, que nasce liberada e nunca troca, dizia
+            // `perguntar tudo` na tela.
+            lumemMode: born,
           });
         } catch (error) {
           // A conversation the daemon cannot describe is one nobody can find or
@@ -505,6 +510,14 @@ export function createSessionStore({
            */
           ...(row.taskId === null ? {} : { taskId: row.taskId }),
           ...(row.taskRole === null ? {} : { taskRole: row.taskRole }),
+          /*
+           * E a política volta como estava (F1.4), **na linha também**.
+           *
+           * Ela já ia para o manager logo acima; a linha nova nascia no default
+           * da coluna. Numa conversa de esteira isso é o pior par possível: o
+           * daemon a trata como liberada e a linha diz `perguntar tudo`.
+           */
+          lumemMode: row.lumemMode as LumemMode,
         });
       } catch (error) {
         // Same rule as `start`: a conversation the daemon cannot describe is one

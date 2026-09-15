@@ -394,8 +394,23 @@ export async function bootstrap({
        * não ressuscita o processo de ontem. É como o produto já faz *"retomar"*
        * desde a `006`.
        */
-      resumeSession: async (sessionId) => {
+      resumeSession: async ({ sessionId, agentMode, model }) => {
         const row = await sessionStore.resume(sessionId);
+        /*
+         * O mesmo par do nascimento, e pelo mesmo motivo (Parte 7).
+         *
+         * `session/load` traz a conversa e **sobe um adaptador novo**, que nasce
+         * no modo padrão dele. Sem estas duas linhas a segunda vez de cada
+         * encaixe rodava perguntando permissão — e numa sessão de esteira não há
+         * ninguém do outro lado. Falhar aqui não derruba o turno, igual ao
+         * nascimento: o que sobra é o teto de tempo, com o motivo escrito.
+         */
+        if (agentMode !== null) {
+          await acp.setConfig(row.id, "mode", agentMode).catch(() => undefined);
+        }
+        if (model !== null) {
+          await acp.setConfig(row.id, "model", model).catch(() => undefined);
+        }
         return { sessionId: row.id };
       },
       reproduce,
