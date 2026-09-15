@@ -109,6 +109,31 @@ export interface ConveyorDeps {
   mark?(input: { taskId: string; mark: string; context?: string }): Promise<void>;
 }
 
+/**
+ * Quanto a esteira espera pelos scripts **do projeto** (`028` Parte 7).
+ *
+ * **Eles precisavam ser dois números, e eram zero.** O `runToCompletion` tem um
+ * default de 20 s, e o nome do default diz para que ele foi escolhido:
+ * `TEARDOWN_TIMEOUT_MS`, *"curto, porque a remoção não pode ficar refém dele"*
+ * (S8 da [`012`](../../../../docs/features/012-project-scripts/prd.md)). A
+ * esteira chamava sem opções, e herdava o teto de uma operação cuja pressa é o
+ * oposto da dela.
+ *
+ * O que isso custava está medido na `LUM-51`: o `test` do projeto —
+ * `pnpm gate:quick` — foi **morto aos 20,3 s**, o portão leu *"não chegou a
+ * rodar"* e a tentativa foi gasta. Duas das quatro tentativas do cartão foram
+ * embora assim. Nesse teto, **nenhum projeto com suíte de verdade passa no
+ * portão** — e o portão é o que a Q53 chama de a força da esteira.
+ *
+ * **Dez minutos cada**, e o número tem uma âncora: o turno tem teto de 30
+ * minutos (`TURN_TIMEOUT_MS`), e um script que come mais que um terço dele já é
+ * outro problema — um `install` que não termina em dez minutos ou uma suíte que
+ * passa disso não são o caso comum, e parar neles com o motivo escrito é melhor
+ * que esperar meia hora para dizer a mesma coisa.
+ */
+export const SETUP_TIMEOUT_MS = 10 * 60_000;
+export const TEST_TIMEOUT_MS = 10 * 60_000;
+
 /** O pedaço do `PrCache` que o portão usa, e nada além dele. */
 export type PrLike = "ready" | "blocked" | "pending" | "draft" | "merged" | "closed" | null;
 
@@ -270,7 +295,9 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
        * explicando isso.
        */
       await deps.scripts
-        .runToCompletion({ scopeType: "worktree", scopeId: checkout.id }, "setup")
+        .runToCompletion({ scopeType: "worktree", scopeId: checkout.id }, "setup", {
+          timeoutMs: SETUP_TIMEOUT_MS,
+        })
         .catch(() => {
           // Sem `setup` declarado, ou projeto ainda não confiado: os dois são
           // estados legítimos da `012`, e nenhum deles é falha da esteira.
@@ -383,7 +410,9 @@ export function createConveyorPorts(deps: ConveyorDeps): ConveyorPorts {
 
       const testExitCode = hasTest
         ? await deps.scripts
-            .runToCompletion({ scopeType: "worktree", scopeId: checkout.worktreeId }, "test")
+            .runToCompletion({ scopeType: "worktree", scopeId: checkout.worktreeId }, "test", {
+              timeoutMs: TEST_TIMEOUT_MS,
+            })
             .catch(() => null)
         : null;
 

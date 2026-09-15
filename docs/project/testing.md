@@ -1217,6 +1217,25 @@ evento e carregava o `lumemMode` junto. Por acidente.
 A regra: **o que um caminho aplica ao nascer, o caminho de retomar tem que reaplicar** — e o que um
 observador de *mudança* persiste nunca é o que persiste um *estado inicial*.
 
+### O teto de um chamador herdado por outro que tem a pressa oposta
+
+**Sintoma:** o portão da esteira respondia *"o teste do projeto não chegou a rodar"* num projeto cujo
+teste roda. Duas das quatro tentativas da `LUM-51` foram embora assim, e o cartão parou em
+`In Progress`.
+
+**Causa:** `runToCompletion` tem um teto default de **20 s**, e o nome dele diz para que foi escolhido
+— `TEARDOWN_TIMEOUT_MS`, *"curto, porque a remoção não pode ficar refém dele"*. A esteira chamava sem
+opções, para `setup` **e** para `test`, e herdava o número de uma operação cuja pressa é o oposto da
+dela. Medido na sessão de script do banco de dev: `dur = 20,3 s`, morto no teto, com `exit = 0`
+gravado depois — a linha parecia um teste que passou.
+
+Nesse teto **nenhum projeto com suíte de verdade passa no portão**, e o portão é o que a Q53 chama de
+a força da esteira.
+
+A regra: **um default com nome de caso de uso é um default de um caso de uso só.** Quando um segundo
+chamador aparece, ele declara o dele — e um teto que pode matar trabalho pertence a quem sabe quanto o
+trabalho demora, não a quem escreveu a função.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

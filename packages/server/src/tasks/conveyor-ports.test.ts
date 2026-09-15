@@ -1,3 +1,7 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { newId } from "@lumem/shared";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
@@ -6,6 +10,7 @@ import {
   agentConfig,
   project,
   session,
+  worktree,
   task,
   taskComment,
   taskFinding,
@@ -16,7 +21,11 @@ import { createTaskReviewRepository } from "../repositories/task-review.js";
 import { createTaskRepository } from "../repositories/task.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
 
-import { createConveyorPorts } from "./conveyor-ports.js";
+import {
+  createConveyorPorts,
+  SETUP_TIMEOUT_MS,
+  TEST_TIMEOUT_MS,
+} from "./conveyor-ports.js";
 import type { QueueEntry } from "./queue.js";
 
 /**
@@ -46,6 +55,19 @@ interface SceneOptions {
   }>;
   /** O número da PR desta worktree, ou `null` quando não há PR. */
   prNumber?: number | null;
+  /**
+   * Um checkout de verdade em disco, preso à tarefa.
+   *
+   * Só os casos que preparam o checkout precisam dele — os outros mantêm o
+   * `createWorktree` que recusa, porque cortar worktree não é o que eles testam.
+   */
+  withCheckout?: boolean;
+}
+
+/** O que a esteira pediu aos scripts do projeto, em ordem. */
+interface ScriptCall {
+  phase: string;
+  timeoutMs: number | undefined;
 }
 
 /** Um workspace com um projeto, e uma tarefa na etapa que se quer testar. */
@@ -55,11 +77,22 @@ async function scene(status: string, options: SceneOptions = {}) {
   const space = await api.workspace.create({ name: `acme-${newId()}` });
 
   const projectId = newId();
+  /*
+   * Um projeto **em disco** quando o caso precisa: o portão lê o `[scripts]` do
+   * `project.toml`, e sem ele `hasTest` é falso — o caso do teto do `test`
+   * passaria sem nunca ter havido `test`, que é o teste vazio clássico.
+   */
+  const repo =
+    options.withCheckout === true ? mkdtempSync(join(tmpdir(), "lumem-repo-")) : `/repos/${projectId}`;
+  if (options.withCheckout === true) {
+    mkdirSync(join(repo, ".lumem"), { recursive: true });
+    writeFileSync(join(repo, ".lumem", "project.toml"), '[scripts]\ntest = "echo verde"\n');
+  }
   await db.insert(project).values({
     id: projectId,
     workspaceId: space.id,
     name: "acme-api",
-    path: `/repos/${projectId}`,
+    path: repo,
     defaultBranch: "main",
     // O remoto existe porque a anotação do revisor vai para uma PR, e o host
     // sai da URL dele — sem remoto não há host, e é o caso de um projeto
@@ -68,6 +101,7 @@ async function scene(status: string, options: SceneOptions = {}) {
   });
 
   const comments_: { number: number; body: string }[] = [];
+  const scripts: ScriptCall[] = [];
   const opened: { agentMode: string | null }[] = [];
   const resumed: { sessionId: string; agentMode: string | null }[] = [];
   const tasks = createTaskRepository(db);
@@ -87,10 +121,39 @@ async function scene(status: string, options: SceneOptions = {}) {
    * `advance` é a única coisa deste arquivo, e ela só toca o banco: nada aqui
    * corta worktree, roda script ou abre processo.
    */
+  /** O checkout preso à tarefa, quando o caso pede um. */
+  let attached: string | null = null;
+  if (options.withCheckout === true) {
+    const [checkout] = await db
+      .insert(worktree)
+      .values({
+        id: newId(),
+        projectId,
+        name: "checkout",
+        branch: "checkout",
+        path: mkdtempSync(join(tmpdir(), "lumem-cena-")),
+      })
+      .returning();
+    await tasks.attachWorktree(created.id, checkout!.id);
+    attached = checkout!.id;
+  }
+
   const ports = createConveyorPorts({
     db,
-    git: {} as never,
-    scripts: {} as never,
+    git: {
+      getStatus: () => Promise.resolve({ clean: true }),
+      headOf: () => Promise.resolve("cabeca"),
+    } as never,
+    scripts: {
+      runToCompletion: (
+        _scope: unknown,
+        phase: string,
+        options?: { timeoutMs?: number },
+      ) => {
+        scripts.push({ phase, timeoutMs: options?.timeoutMs });
+        return Promise.resolve(0);
+      },
+    } as never,
     createWorktree: () => Promise.reject(new Error("não devia cortar worktree")),
     openAgentSession: (input: { agentMode: string | null }) => {
       opened.push(input);
@@ -118,7 +181,7 @@ async function scene(status: string, options: SceneOptions = {}) {
   });
 
   const entry = (): QueueEntry => ({
-    task: { ...created, status } as never,
+    task: { ...created, status, worktreeId: attached } as never,
     role: "implementador",
   });
 
@@ -136,6 +199,8 @@ async function scene(status: string, options: SceneOptions = {}) {
     reviews: createTaskReviewRepository(db),
     /** O que foi escrito na PR, em ordem. */
     onPr: comments_,
+    /** O que a esteira pediu aos scripts do projeto, com o teto de cada um. */
+    scripts,
     /** As sessões abertas do zero, e as retomadas, com o que foi pedido nelas. */
     opened,
     resumed,
@@ -606,5 +671,44 @@ describe("a conversa do encaixe volta na postura em que nasceu (Parte 7 — T57)
     expect(opened.sessionId).toBe(base.previous.id);
     expect(base.resumed).toEqual([]);
     expect(base.opened).toEqual([]);
+  });
+});
+
+describe("os scripts do projeto têm o teto da esteira, e não o da remoção", () => {
+  /*
+   * O `runToCompletion` tem default de 20 s, e o nome dele diz para quê:
+   * `TEARDOWN_TIMEOUT_MS` — *"curto, porque a remoção não pode ficar refém
+   * dele"*. A esteira chamava sem opções e herdava esse número.
+   *
+   * O que custou está medido na `LUM-51`: `pnpm gate:quick` foi **morto aos
+   * 20,3 s**, o portão leu *"o teste do projeto não chegou a rodar"* e a
+   * tentativa foi gasta — duas das quatro do cartão. Nesse teto, nenhum projeto
+   * com suíte de verdade passa no portão.
+   */
+  it("o `setup` espera dez minutos, e não vinte segundos", async () => {
+    const base = await scene("open", { withCheckout: true });
+
+    await base.ports.prepareCheckout({ ...base.entry(), role: "implementador" });
+
+    expect(base.scripts).toEqual([{ phase: "setup", timeoutMs: SETUP_TIMEOUT_MS }]);
+    expect(SETUP_TIMEOUT_MS).toBeGreaterThan(20_000);
+  });
+
+  it("o `test` também — é ele que o portão lê", async () => {
+    const base = await scene("in_progress", { withCheckout: true });
+
+    await base.ports
+      .gate(
+        { ...base.entry(), role: "implementador" },
+        base.checkout,
+        "ses-1",
+        new Date(Date.now() - 1_000),
+      )
+      .catch(() => undefined);
+
+    // O projeto desta cena **declara** `test` — sem isso `hasTest` é falso, o
+    // portão não roda nada, e o caso passaria contra uma lista vazia.
+    expect(base.scripts).toEqual([{ phase: "test", timeoutMs: TEST_TIMEOUT_MS }]);
+    expect(TEST_TIMEOUT_MS).toBeGreaterThan(20_000);
   });
 });

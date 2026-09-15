@@ -316,7 +316,7 @@ não daquela migração —, uma variante nova de `AcpEvent` **derruba o typeche
 contrato funcionando), e o **mock compartilhado é parte do contrato**: esquecê-lo quebrou cinco testes
 de telas sem relação com orçamento.
 
-E a **Parte 7 — O parecer do revisor** fechou em **2026-09-15**, levando a `028` a **59 tasks**. Ela
+E a **Parte 7 — O parecer do revisor** fechou em **2026-09-15**, levando a `028` a **60 tasks**. Ela
 **não veio de discussão**: veio de rodar a esteira contra uma tarefa de verdade, vinda do Linear —
 **US$ 11,41** e 453 884 tokens em seis sessões, com o cartão parado em `In Review` e o revisor
 reprovando duas vezes enquanto o daemon escrevia `portão verde`. Três defeitos empilhados, e o
@@ -365,6 +365,15 @@ quando a tarefa sai da etapa, a segunda vez de todo encaixe é uma retomada: o c
 raro. Junto veio o pedaço silencioso — o `lumemMode` só chegava à linha pelo `watchConfig`, que
 observa **troca**, então uma conversa que nasce liberada e nunca troca de nada deixava a linha dizendo
 `perguntar tudo` sobre uma sessão que o daemon tratava como liberada.
+
+E um sexto, lendo por que o cartão não saía de `In Progress` depois de o implementador consertar o que
+a revisão devolveu: o **portão esperava 20 segundos pelo teste do projeto**. O `runToCompletion` tem
+esse default, e o nome dele diz para quê — `TEARDOWN_TIMEOUT_MS`, *"curto, porque a remoção não pode
+ficar refém dele"* —; a esteira chamava sem opções e herdava o teto de uma operação cuja pressa é o
+oposto da dela. Na `LUM-51` o `pnpm gate:quick` foi morto aos **20,3 s** e o portão leu *"não chegou a
+rodar"*: **duas das quatro tentativas** do cartão foram embora assim, e com esse teto nenhum projeto
+com suíte de verdade passa no portão — que é justamente o que a Q53 chama de a força da esteira.
+A `028` fecha a Parte 7 com **60 tasks**.
 
 Comece pelo [índice da documentação](docs/README.md).
 

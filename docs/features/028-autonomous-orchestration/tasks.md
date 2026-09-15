@@ -8,9 +8,9 @@
 **Histórico:** **as seis partes estão entregues**  — a **Parte 1** (12 tasks, fases 0–4), a
 **Parte 3** (8, fases 5–9), a **Parte 2** (13, fases 10–15), a **Parte 4** (8, fases 16–20) e as
 **Partes 5 e 6** juntas (7, fases 21–24). São **48 tasks**, todas de 2026-09-12 e 2026-09-13, e
-**uma delas é parcial** — a T48, com o motivo escrito nela. A **Parte 7** (11 tasks, fases 25–28,
+**uma delas é parcial** — a T48, com o motivo escrito nela. A **Parte 7** (12 tasks, fases 25–28,
 2026-09-14 e 2026-09-15) não estava no §6: ela nasceu de **rodar a esteira contra uma tarefa de
-verdade**, e o que ela conserta é o parecer do revisor não entrar em lugar nenhum. São **59** ao
+verdade**, e o que ela conserta é o parecer do revisor não entrar em lugar nenhum. São **60** ao
 todo. O corte é decisão registrada: das seis
 partes do §6, este arquivo executa **uma** — o quadro lendo a
 [`022`](../022-workspace-tasks/prd.md), com a autonomia desligada. A esteira (Parte 2), o orçamento (Parte 3), a
@@ -1474,9 +1474,25 @@ do texto livre do revisor atravessa.
    vazio — o estado de **todo workspace novo**. O revisor nunca saberia que ela existe. Achado
    montando a rodada, consertado antes dela, e com teste conferido vermelho.
 
+#### T60: O portão espera pelo teste do projeto ([medido na `LUM-51`](#fase-28--a-prova-e-o-que-ela-achou))
+
+**Entregue em 2026-09-15**, e ela não estava planejada: apareceu lendo por que o cartão não saía de
+`In Progress` depois que o implementador consertou o que a revisão devolveu.
+
+`ScriptRunner.runToCompletion` tem teto default de **20 s** — `TEARDOWN_TIMEOUT_MS`, *"curto, porque a
+remoção não pode ficar refém dele"* (S8 da [`012`](../012-project-scripts/prd.md)). A esteira chamava
+**sem opções**, para `setup` e para `test`. Na `LUM-51` o `pnpm gate:quick` foi morto aos **20,3 s**, o
+portão leu *"o teste do projeto não chegou a rodar"* e a tentativa foi gasta — **duas das quatro** do
+cartão foram embora assim. Com esse teto, nenhum projeto com suíte de verdade passa no portão.
+
+**Done when:** os dois scripts que a esteira roda têm teto dela — dez minutos cada, um terço do teto do
+turno —, e o caso do `test` roda contra um projeto que **declara** `test`, senão ele passa contra uma
+lista vazia.
+
 #### T59: O e2e da Parte 7, com um revisor falso
 
-**T59 entregue em 2026-09-15**, e com ela a Parte 7 fecha — 11 tasks em quatro fases.
+**T59 entregue em 2026-09-15**, e com ela a Parte 7 fecha — 12 tasks em quatro fases, contando a T60,
+que apareceu depois, usando o produto.
 
 Zero token. Quatro perguntas: as quatro setas andam; um `bloqueia` reproduzível segura e volta; um
 `bloqueia` que não reproduz **não** segura; um `anota` avança e aparece na PR.
