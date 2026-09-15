@@ -140,6 +140,18 @@
   gap: var(--space-8);
   padding: 0 var(--space-20) var(--space-20);
 }
+/*
+ * A ação que apaga, empurrada para longe das outras.
+ *
+ * `margin-right: auto` e não um `spacer` vazio: o rodapé é um flex, e o
+ * separador que existe é a dica do `Esc` logo abaixo — dois `margin-left: auto`
+ * no mesmo flex dividem o espaço em vez de empurrar.
+ *
+ * Ela existe porque pôr `remover` ao lado de `guardar` é como alguém clica num
+ * querendo o outro.
+ */
+.modal__destructive { margin-right: auto; }
+
 /* A dica de teclado à direita: ela é a prova visível de que `Esc` fecha, e uma
    promessa escrita é mais barata que uma descoberta. */
 .modal__esc { margin-left: auto; font: var(--text-caption); color: var(--color-text-tertiary); }

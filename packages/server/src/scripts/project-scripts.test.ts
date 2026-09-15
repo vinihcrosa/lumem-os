@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { parse as parseToml } from "smol-toml";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DomainError } from "../errors.js";
 import { PROJECT_FILE } from "../memory/project-identity.js";
@@ -10,6 +10,7 @@ import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
 import {
   NO_SCRIPTS,
   projectFilePath,
+  readColumnMap,
   readProjectScripts,
   writeProjectScripts,
 } from "./project-scripts.js";
@@ -180,5 +181,70 @@ describe("writeProjectScripts", () => {
     await writeProjectScripts(root, { run: 'echo "oi"' });
 
     expect(parseToml(read(root))).toMatchObject({ scripts: { run: 'echo "oi"' } });
+  });
+});
+
+describe("o mapa de colunas do tracker (Q65)", () => {
+  it("lê a tabela quando ela existe", async () => {
+    const dir = checkout(`
+      [tracker.columns]
+      in_progress = "state-doing"
+      review = "state-review"
+    `);
+
+    expect(await readColumnMap(dir)).toEqual({
+      in_progress: "state-doing",
+      review: "state-review",
+    });
+  });
+
+  it("sem a tabela, `null` — e `null` quer dizer não mova nada lá", async () => {
+    const dir = checkout(`
+      [scripts]
+      test = "pnpm test"
+    `);
+
+    // É a decisão da Q65, e não o default preguiçoso: mover estado no tracker
+    // de alguém sem um mapa que essa pessoa escreveu é duas fontes de verdade
+    // brigando.
+    expect(await readColumnMap(dir)).toBeNull();
+  });
+
+  it("sem arquivo nenhum, `null`", async () => {
+    const dir = checkout();
+
+    expect(await readColumnMap(dir)).toBeNull();
+  });
+
+  it("TOML inválido **não** lança aqui", async () => {
+    const dir = checkout("isto [ não é toml");
+
+    /*
+     * O oposto do `[scripts]`, e de propósito: lá desistir significa rodar o
+     * comando errado ou nenhum sem ninguém saber por quê. Aqui desistir
+     * significa não mover estado no tracker de alguém — que é o que a Q65
+     * escolhe quando há dúvida.
+     */
+    expect(await readColumnMap(dir)).toBeNull();
+  });
+
+  it("uma linha torta não apaga as outras", async () => {
+    const warn = vi.fn();
+    const dir = checkout(`
+      [tracker.columns]
+      in_progress = "state-doing"
+      review = 42
+    `);
+
+    expect(await readColumnMap(dir, { warn })).toEqual({ in_progress: "state-doing" });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("review") as unknown as string);
+  });
+
+  it("tabela vazia é `null`, e não um mapa que não mapeia nada", async () => {
+    const dir = checkout(`
+      [tracker.columns]
+    `);
+
+    expect(await readColumnMap(dir)).toBeNull();
   });
 });

@@ -451,6 +451,27 @@ export const acpEventSchema = z.discriminatedUnion("type", [
     chars: z.number().int().nonnegative(),
   }),
   /**
+   * O teto do workspace falou (`028` §6, Parte 3 — T16).
+   *
+   * Ele **aparece na conversa**, e não só numa tela de configuração, pela mesma
+   * razão que a memória injetada aparece: o que o daemon faz por conta própria
+   * tem de ser legível no lugar onde a consequência acontece.
+   *
+   * `warn` é o turno de quem **conduz** — o número vai junto e a conversa segue.
+   * `block` é o da esteira, que para. A Q45 registra por que os dois existem: o
+   * mesmo número, a mesma leitura, verbos diferentes.
+   */
+  z.object({
+    type: z.literal("budget"),
+    outcome: z.enum(["warn", "block"]),
+    /** Qual teto segurou. O bloqueio nomeia, senão mexer nele é adivinhação. */
+    cap: z.enum(["cost-per-task", "cost-per-day", "turns-per-session"]),
+    limit: z.number().nonnegative(),
+    spent: z.number().nonnegative(),
+    /** A frase pronta, porque quem monta a frase é quem sabe a unidade. */
+    message: z.string(),
+  }),
+  /**
    * An event the daemon received and could not name.
    *
    * A deliberate shape, not a hole: the daemon produces it after failing to

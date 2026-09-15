@@ -21,7 +21,10 @@ import { appendFileSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const STATE = join(dirname(fileURLToPath(import.meta.url)), "..", "..", ".lumem-e2e-fixtures", "gh-state.json");
+const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "..", "..", ".lumem-e2e-fixtures");
+const STATE = join(FIXTURES, "gh-state.json");
+/** Onde a escrita deixa rastro. Ver `E2E_GH_COMMENTS`. */
+const COMMENTS = join(FIXTURES, "gh-comments.jsonl");
 
 function state() {
   try {
@@ -70,6 +73,27 @@ if (argv[0] === "issue" && argv[1] === "list") {
   // Sem `issues` no arquivo, responde lista vazia — que é o que um repositório
   // sem issue aberta responde, e não um erro.
   process.stdout.write(JSON.stringify(state().issues ?? []));
+  process.exit(0);
+}
+
+/**
+ * `gh pr comment <n> --body-file=…` — a escrita da Parte 7 da `028`.
+ *
+ * Ela **deixa rastro**, ao contrário do merge: o que o spec pergunta é *"a
+ * anotação do revisor chegou à PR?"*, e a única resposta honesta é ler o que
+ * teria ido para o host. O corpo vem por arquivo, como o daemon manda.
+ */
+if (argv[0] === "pr" && argv[1] === "comment") {
+  const flag = argv.find((arg) => arg.startsWith("--body-file="));
+  const file = flag === undefined ? null : flag.slice("--body-file=".length);
+  appendFileSync(
+    COMMENTS,
+    `${JSON.stringify({
+      number: argv[2],
+      body: file === null ? "" : readFileSync(file, "utf8"),
+    })}\n`,
+  );
+  process.stdout.write(`https://github.com/exemplo/repo/pull/${argv[2]}#issuecomment-1\n`);
   process.exit(0);
 }
 

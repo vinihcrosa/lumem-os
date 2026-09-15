@@ -22,6 +22,7 @@ import {
 
 import { MemoryPanel } from "./MemoryPanel.js";
 import { ProposalQueue } from "./ProposalQueue.js";
+import { Board } from "./Board.js";
 import { TaskDetail } from "./TaskDetail.js";
 import { TaskList } from "./TaskList.js";
 import { SpendList, type SpendAgent, type SpendRow } from "./SpendList.js";
@@ -62,6 +63,15 @@ export interface WorkspacePanelProps {
     sessionId: string;
     draft: string;
   }) => void;
+  /**
+   * Qual das duas telas do workspace mostrar (`029-sidebar-nav`, F1.3).
+   *
+   * Controlada de fora porque o bloco da sidebar abre o quadro **de fora desta
+   * tela** — com um checkout selecionado, ela nem está montada. Quem guarda a
+   * resposta de *onde eu estou* é o App, e ele só pode ter uma.
+   */
+  view: "home" | "board";
+  onView: (view: "home" | "board") => void;
 }
 
 export function WorkspacePanel({
@@ -69,6 +79,8 @@ export function WorkspacePanel({
   workspaceName,
   onRemoved,
   onWorkOnTask,
+  view,
+  onView,
 }: WorkspacePanelProps) {
   const [period, setPeriod] = useState<NonNullable<UsageWindow>>("7d");
   /*
@@ -79,6 +91,23 @@ export function WorkspacePanel({
    * checkout.
    */
   const [openTask, setOpenTask] = useState<string | null>(null);
+  /*
+   * O quadro é **tela**, não seção (`028` §4).
+   *
+   * Ele responde outra pergunta que a lista: a lista é *"o que existe"*, o
+   * quadro é *"preciso entrar?"* — e o §2 da PRD diz que as duas pedem
+   * superfícies diferentes. Empilhar as duas na mesma rolagem faria o quadro
+   * ser a segunda coisa que você vê depois de já ter lido a primeira.
+   *
+   * Mesmo caminho do `TaskDetail`, que continua sendo sub-tela daqui — e a
+   * diferença entre os dois é a `029`: o quadro tem endereço na sidebar e o
+   * detalhe não, então quem guarda o quadro é o App e quem guarda o detalhe é
+   * esta tela.
+   */
+  const board = view === "board";
+  const setBoard = (open: boolean) => {
+    onView(open ? "board" : "home");
+  };
   const projects = useQuery({
     queryKey: projectsKey(workspaceId),
     queryFn: () => trpc.project.listByWorkspace.query({ workspaceId }),
@@ -110,6 +139,35 @@ export function WorkspacePanel({
     kind: "project",
     ...agentsOf(byAgent.data, row.projectId),
   }));
+
+  if (board) {
+    return (
+      <div className="pane wsp wsp--board">
+        <div className="crumb">
+          <button type="button" className="crumb__up focus-ring" onClick={() => setBoard(false)}>
+            {workspaceName}
+          </button>
+          <span className="crumb__sep">/</span>
+          {/*
+            `Quadro de tarefas`, e o nome inteiro é a resposta da Q3a da `029`.
+
+            Tarefas podem ser vistas como lista, quadro, gantt ou outra coisa —
+            titular a tela pelo assunto apagaria **qual** visão está na frente, e
+            apagaria justamente no dia em que existir a segunda. A linha da
+            sidebar fica só com o assunto, porque é de lá que se escolhe o quê.
+          */}
+          <span className="crumb__here">Quadro de tarefas</span>
+        </div>
+        <Board
+          workspaceId={workspaceId}
+          onOpen={(id) => {
+            setBoard(false);
+            setOpenTask(id);
+          }}
+        />
+      </div>
+    );
+  }
 
   if (openTask !== null) {
     return (
@@ -193,7 +251,11 @@ export function WorkspacePanel({
         projectName={(id) => list.find((row) => row.id === id)?.name ?? ""}
       />
 
-      <TaskList workspaceId={workspaceId} onOpen={(id) => setOpenTask(id)} />
+      <TaskList
+        workspaceId={workspaceId}
+        onOpen={(id) => setOpenTask(id)}
+        onOpenBoard={() => setBoard(true)}
+      />
 
       <section className="section">
         <SectionHead

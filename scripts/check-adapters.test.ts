@@ -228,7 +228,17 @@ describe("formatFindings", () => {
 const online = npmRegistry(15_000)("@agentclientprotocol/claude-agent-acp") !== null;
 
 describe.skipIf(!online)("o catálogo, contra o registro npm", () => {
-  it("não fixa adaptador cujo runtime embutido envelheceu", () => {
+  /*
+   * **Teto maior que o do vitest**, e sem ele este caso é uma moeda.
+   *
+   * Ele consulta o registro npm **uma vez por adaptador** com 15s de teto cada,
+   * dentro de um `it` cujo teto default é **5s**. Numa rede boa passa; numa rede
+   * ruim o vitest derruba antes de o `fetch` sequer desistir, e o `gate:full`
+   * fica vermelho por um motivo que não é o repositório. Achado rodando o gate
+   * inteiro da Parte 2 da `028`, e conferido contra a árvore **sem** ela — falha
+   * igual, então é latente e não regressão.
+   */
+  it("não fixa adaptador cujo runtime embutido envelheceu", { timeout: 60_000 }, () => {
     const findings = checkAdapters(npmRegistry(15_000));
 
     // A mensagem inteira no `expect`, porque quando isto ficar vermelho o que a

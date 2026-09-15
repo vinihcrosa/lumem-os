@@ -61,6 +61,17 @@ export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void
       // este evento chega **enquanto** alguém olha a lista.
       void queryClient.invalidateQueries({ queryKey: tasksKey(event.workspaceId) });
       void queryClient.invalidateQueries({ queryKey: ["task", "get"] });
+      /*
+       * O quadro e os interruptores, que não estão sob `listByWorkspace`.
+       *
+       * O quadro é a tela que **fica aberta enquanto ninguém olha** — selo,
+       * relógio de encalhe e a contagem de *precisa de mim* saem todos da mesma
+       * leitura —, e ele não tem `refetchInterval`. Sem esta linha, e com
+       * `refetchOnWindowFocus` desligado no cliente inteiro, ele só se atualiza
+       * pelas próprias mutações: a esteira anda e o quadro congela.
+       */
+      void queryClient.invalidateQueries({ queryKey: ["task", "board"] });
+      void queryClient.invalidateQueries({ queryKey: ["task", "settings"] });
       return;
   }
 }

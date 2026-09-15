@@ -193,3 +193,51 @@ describe("workspace.remove", () => {
     });
   });
 });
+
+describe("workspace.setAutonomy", () => {
+  it("nasce em `manual`, com o teto que a folha desenha", async () => {
+    const { api } = caller();
+    const created = await api.workspace.create({ name: "acme" });
+
+    // A propriedade que a migração não pode quebrar: nenhum workspace acorda
+    // andando sozinho.
+    expect(created).toMatchObject({ autonomy: "manual", autonomyMaxParallel: 2 });
+  });
+
+  it("liga os dois de uma vez — ligar sem dizer quantas é ligar sem freio", async () => {
+    const { api } = caller();
+    const created = await api.workspace.create({ name: "acme" });
+
+    const saved = await api.workspace.setAutonomy({
+      id: created.id,
+      autonomy: "autonomo",
+      maxParallel: 3,
+    });
+
+    expect(saved).toMatchObject({ autonomy: "autonomo", autonomyMaxParallel: 3 });
+  });
+
+  it("`0` é escrevível — é como se pausa a esteira sem mexer em cada tarefa", async () => {
+    const { api } = caller();
+    const created = await api.workspace.create({ name: "acme" });
+
+    const saved = await api.workspace.setAutonomy({
+      id: created.id,
+      autonomy: "autonomo",
+      maxParallel: 0,
+    });
+
+    // Aqui não existe *sem teto*: a coluna é `NOT NULL`, e `0` quer dizer
+    // bloqueia tudo — o mesmo vocabulário da Parte 3.
+    expect(saved.autonomyMaxParallel).toBe(0);
+  });
+
+  it("teto negativo é recusado antes de chegar ao banco", async () => {
+    const { api } = caller();
+    const created = await api.workspace.create({ name: "acme" });
+
+    await expect(
+      api.workspace.setAutonomy({ id: created.id, autonomy: "manual", maxParallel: -1 }),
+    ).rejects.toThrow();
+  });
+});

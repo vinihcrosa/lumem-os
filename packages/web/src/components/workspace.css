@@ -148,3 +148,30 @@
 .spend__group { border-bottom: var(--border-width-thin) solid var(--color-border-subtle); }
 .spend__group .spend__row { border-bottom: 0; }
 .spend__group:last-child { border-bottom: 0; }
+
+/*
+ * O quadro é a única sub-tela do workspace que **não** rola por inteiro.
+ *
+ * A rolagem dele é de cada coluna (`.col__body`), e uma moldura que também rola
+ * daria duas barras para o mesmo gesto — com a de fora empurrando o cabeçalho
+ * e a barra de filtros para fora da tela, que são justamente o que a olhada de
+ * cinco segundos lê primeiro.
+ */
+.wsp--board {
+  overflow: hidden;
+  padding: var(--space-12) 0 0;
+  gap: var(--space-8);
+  /*
+   * `auto 1fr`, e é aqui que a altura do quadro nasce.
+   *
+   * O `.wsp` faz do `.pane` uma **grade**, não uma coluna flex — então o
+   * `flex: 1` do `.bd` não vale nada, e sem esta linha as colunas colapsam na
+   * altura do conteúdo: medido, 356px de coluna dentro de 1282 de painel. Aí
+   * `.col__body` nunca rola, quem rola é a página, e a medida "cinco cartões
+   * sem rolar" deixa de querer dizer alguma coisa.
+   */
+  grid-template-rows: auto 1fr;
+  /* O `.wsp` é `align-content: start`, que segura as linhas no topo e anula o `1fr`. */
+  align-content: stretch;
+}
+.wsp--board .crumb { padding: 0 var(--space-20); }

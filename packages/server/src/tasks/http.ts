@@ -7,6 +7,9 @@ import { project, session, task } from "../db/schema.js";
 import type { EventBus } from "../events.js";
 import { isDomainError } from "../errors.js";
 import { createTaskRepository } from "../repositories/task.js";
+import { createTaskFindingRepository } from "../repositories/task-finding.js";
+import { createTaskReviewRepository } from "../repositories/task-review.js";
+import { DUE_STAGES } from "./queue.js";
 
 /**
  * A porta do agente para criar tarefa (`022-workspace-tasks` F3).
@@ -41,6 +44,34 @@ const createBody = z.object({
   body: z.string().optional(),
   /** O **nome** do projeto, resolvido dentro do workspace da sessão. */
   project: z.string().trim().min(1),
+});
+
+/**
+ * O parecer do revisor, em dois baldes (`028` Parte 7 — T53).
+ *
+ * **`blocks` exige `command`; `notes` recusa.** É a regra da
+ * [Q67](../../../../docs/features/028-autonomous-orchestration/open-questions.md)
+ * escrita onde o agente a encontra: um achado que segura o cartão tem que trazer
+ * como demonstrá-lo, porque quem o arbitra é a máquina — ela vai rerodar.
+ *
+ * Um parecer **vazio é uma resposta legítima**, e é por isso que `findings` pode
+ * ser `[]`: *"não achei nada que segure"* é o que o revisor diz quando não achou,
+ * e obrigá-lo a achar é o defeito que a Parte 7 existe para não criar.
+ */
+const reviewBody = z.object({
+  findings: z
+    .array(
+      z.object({
+        bucket: z.enum(["blocks", "notes"]),
+        title: z.string().trim().min(1),
+        detail: z.string().optional(),
+        /** O comando que demonstra. O daemon **vai rodá-lo**. */
+        command: z.string().trim().min(1).optional(),
+        /** O que ele deve mostrar. É contra isto que a saída é lida. */
+        expected: z.string().optional(),
+      }),
+    )
+    .max(50),
 });
 
 export interface RegisterTaskHttpOptions {
@@ -157,6 +188,101 @@ export function registerTaskHttp({
       if (isDomainError(error)) return reply.code(400).send(`${error.message}\n`);
       throw error;
     }
+  });
+
+  /**
+   * O parecer do revisor (`028` Parte 7 — T53).
+   *
+   * **A porta existe porque o texto do turno não é lido por nada**, e não podia
+   * ser: ler a conversa para extrair um veredito seria construir a esteira em
+   * cima de prosa. O agente **posta** o que achou, com a mesma forma do
+   * `POST /tasks` — e o que ele posta é estrutura, não opinião.
+   *
+   * Quem chama é o encaixe **revisor**, e o `?session=` é o que liga o parecer à
+   * volta: o portão lê o que **esta** sessão postou neste turno, e não o que
+   * está na tabela desde ontem.
+   */
+  app.post("/tasks/:id/findings", async (request, reply) => {
+    reply.type("text/plain; charset=utf-8");
+    const { id } = request.params as { id: string };
+
+    const sessionId = (request.query as { session?: string }).session;
+    if (sessionId === undefined) {
+      return reply.code(400).send("faltou a sessão: use ?session=<id>\n");
+    }
+    const parsed = reviewBody.safeParse(request.body);
+    if (!parsed.success) {
+      return reply
+        .code(400)
+        .send(
+          "o corpo precisa de `findings`: uma lista de { bucket, title } — " +
+            "`blocks` leva `command`, `notes` não leva\n",
+        );
+    }
+
+    const scope = await scopeOfSession(db, sessionId);
+    if (scope === null) return reply.code(404).send(`não conheço a sessão ${sessionId}\n`);
+    if (scope.session.taskId !== id) {
+      // A sessão serve **uma** tarefa, e postar parecer noutra seria um agente
+      // opinando sobre trabalho que ele não viu.
+      return reply.code(403).send("esta sessão não serve esta tarefa\n");
+    }
+
+    /*
+     * O papel vem da **etapa**, e não de uma coluna na sessão.
+     *
+     * É a mesma tabela que a `queueOf` usa para decidir quem trabalha em cada
+     * coluna, e ela é a única fonte disso no produto. Uma coluna nova na sessão
+     * seria uma segunda, livre para divergir da primeira.
+     */
+    const current = await db.query.task.findFirst({ where: eq(task.id, id) });
+    if (!current) return reply.code(404).send(`não conheço a tarefa ${id}\n`);
+    const role = DUE_STAGES.find((stage) => stage.status === current.status)?.role ?? "revisor";
+
+    const findings = createTaskFindingRepository(db);
+    try {
+      for (const one of parsed.data.findings) {
+        await findings.record({
+          taskId: id,
+          foundBySession: sessionId,
+          role,
+          bucket: one.bucket,
+          title: one.title,
+          ...(one.detail === undefined ? {} : { detail: one.detail }),
+          ...(one.command === undefined ? {} : { command: one.command }),
+          ...(one.expected === undefined ? {} : { expected: one.expected }),
+        });
+      }
+    } catch (error) {
+      if (isDomainError(error)) return reply.code(400).send(`${error.message}\n`);
+      throw error;
+    }
+
+    const blocks = parsed.data.findings.filter((one) => one.bucket === "blocks").length;
+    const notes = parsed.data.findings.length - blocks;
+
+    /*
+     * O recibo, e ele é o que faz um parecer **vazio** existir.
+     *
+     * Sem esta linha, *"olhei e não achei nada"* não grava nada em lugar nenhum
+     * — e o portão, que lê achados, conclui que o revisor não entregou. O cartão
+     * fica em `In Review` para sempre porque o revisor acertou.
+     */
+    await createTaskReviewRepository(db).record({
+      taskId: id,
+      bySession: sessionId,
+      role,
+      blocks,
+      notes,
+    });
+
+    events.emit({ type: "task.changed", workspaceId: scope.workspaceId });
+    return reply.send(
+      parsed.data.findings.length === 0
+        ? "parecer sem achados — o cartão segue\n"
+        : `${String(blocks)} que seguram, ${String(notes)} anotados. ` +
+            "Os que seguram vão ser rerodados pelo daemon.\n",
+    );
   });
 
   /**

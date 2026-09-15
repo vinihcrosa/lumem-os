@@ -229,3 +229,60 @@ function withScriptsTable(
 function quote(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
+
+/**
+ * O mapa de colunas do tracker (`028` Parte 6, T47 · Q65).
+ *
+ * Mora no mesmo arquivo e passa na mesma regra que autoriza o `[scripts]`: *o
+ * que é do repositório é do time*. Um mapa de colunas descreve como **este
+ * projeto** se espelha no tracker **deste time**, não como esta máquina prefere
+ * trabalhar — e ele viaja com o clone, que é metade do valor dele.
+ *
+ * ```toml
+ * [tracker.columns]
+ * in_progress = "state-id-do-host"
+ * review      = "outro-state-id"
+ * ```
+ *
+ * **Sem a tabela, `null`** — e `null` quer dizer *não mova nada lá*, que é a
+ * decisão da Q65 e não o default preguiçoso.
+ */
+export async function readColumnMap(
+  checkoutPath: string,
+  { warn }: ReadScriptsOptions = {},
+): Promise<Readonly<Record<string, string>> | null> {
+  const text = await readFile(projectFilePath(checkoutPath), "utf8").catch(() => null);
+  if (text === null) return null;
+
+  let root: Record<string, unknown>;
+  try {
+    root = parseToml(text) as Record<string, unknown>;
+  } catch {
+    /*
+     * Aqui **desistir é a resposta certa**, ao contrário do `[scripts]`.
+     *
+     * Lá, desistir significa rodar o comando errado ou nenhum, sem ninguém
+     * saber por quê — então ele lança. Aqui, desistir significa não mover
+     * estado no tracker de alguém, que é exatamente o que a Q65 escolhe quando
+     * há dúvida.
+     */
+    return null;
+  }
+
+  const tracker = root["tracker"];
+  if (typeof tracker !== "object" || tracker === null || Array.isArray(tracker)) return null;
+  const columns = (tracker as Record<string, unknown>)["columns"];
+  if (typeof columns !== "object" || columns === null || Array.isArray(columns)) return null;
+
+  const map: Record<string, string> = {};
+  for (const [column, stateId] of Object.entries(columns as Record<string, unknown>)) {
+    if (typeof stateId === "string" && stateId.trim() !== "") {
+      map[column] = stateId;
+      continue;
+    }
+    // Valor torto vira aviso e **não** derruba o mapa inteiro: uma linha errada
+    // não pode apagar as outras cinco que estão certas.
+    warn?.(`[tracker.columns] ${column} foi ignorado: esperava um id de estado`);
+  }
+  return Object.keys(map).length === 0 ? null : map;
+}

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 import { AddProjectDialog } from "./components/AddProjectDialog.js";
 import { AgentLogin } from "./components/AgentLogin.js";
+import { SidebarNav } from "./components/SidebarNav.js";
 import { WorkspacePanel } from "./components/WorkspacePanel.js";
 import { CheckoutFiles } from "./components/CheckoutFiles.js";
 import { CreateWorktreeDialog } from "./components/CreateWorktreeDialog.js";
@@ -42,6 +43,20 @@ type Selection = { projectId: string; scope: Scope } | null;
 export function App() {
   const queryClient = useQueryClient();
   const [selection, setSelection] = useState<Selection>(null);
+  /**
+   * Qual das duas telas do workspace está na frente (`029-sidebar-nav`, F1.3).
+   *
+   * Sobe para cá porque o quadro passou a ser alcançável **de fora** da tela que
+   * o guardava: com o bloco da sidebar, `Tarefas` abre o quadro com um checkout
+   * selecionado, e um estado vivendo dentro do `WorkspacePanel` não teria como
+   * ser mudado dali.
+   *
+   * **Selecionar um checkout não zera isto**, de propósito: `selection !== null`
+   * já decide o que a coluna do meio mostra, e zerar faria a tela mudar de
+   * assunto quando você voltasse — você sai do quadro para olhar um checkout e
+   * volta para a tela do workspace, que não é onde estava.
+   */
+  const [workspaceView, setWorkspaceView] = useState<"home" | "board">("home");
   /**
    * Whether the first-access flow is on screen.
    *
@@ -219,6 +234,18 @@ export function App() {
                 setSelection(null);
               }}
             />
+            <SidebarNav
+              workspaceId={activeId}
+              place={selection !== null ? "scope" : workspaceView === "board" ? "board" : "home"}
+              onHome={() => {
+                setWorkspaceView("home");
+                setSelection(null);
+              }}
+              onBoard={() => {
+                setWorkspaceView("board");
+                setSelection(null);
+              }}
+            />
             <SidebarTree
               workspaceId={activeId}
               expansion={expansion}
@@ -352,6 +379,8 @@ export function App() {
           key={workspaceId}
           workspaceId={workspaceId}
           workspaceName={workspaceName}
+          view={workspaceView}
+          onView={setWorkspaceView}
           onRemoved={async () => {
             await queryClient.invalidateQueries({ queryKey: WORKSPACES_KEY });
           }}

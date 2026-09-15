@@ -18,6 +18,7 @@ import {
   type AcpConfigOption,
   type AcpEvent,
   type AcpModeOwner,
+  type AcpRateLimit,
   type AcpToolKind,
   type AcpToolLocation,
   type AcpTranscriptEntry,
@@ -36,6 +37,7 @@ import type { PtyManager } from "../pty/PtyManager.js";
 import { spawnAcpProcess, type AcpProcess, type AcpProcessSpawner } from "./process.js";
 import { createMemoryTranscriptStore, type TranscriptStore } from "./TranscriptStore.js";
 import { decidePermission } from "./permission-policy.js";
+import type { TurnFailureSink } from "./turn-failures.js";
 import { translateSessionUpdate } from "./translate.js";
 import { sniffUnknownUpdates } from "./unknown-updates.js";
 
@@ -74,8 +76,31 @@ export interface AcpSpawnOptions {
   lumemMode?: LumemMode;
   /** What a new session in this workspace would start at — the menu's footer. */
   lumemModeDefault?: LumemModeDefault;
+  /**
+   * Quem está empurrando esta conversa (`028` Parte 3, Q45).
+   *
+   * Ausente é `human`, que é toda conversa que alguém abriu na tela. Só a
+   * esteira passa `conveyor`, e o que depende disso é **o verbo do teto**: com
+   * uma pessoa olhando, estourar o orçamento avisa e ela decide; sem ninguém do
+   * outro lado, ele para. Mesmo número, mesma leitura, verbos diferentes.
+   *
+   * Passado no `spawn` e não deduzido de `lumemMode`: uma conversa sua que
+   * passou pelo portão do [`016`](../../../../docs/features/016-session-mode/prd.md)
+   * também está em `free`, e bloquear o turno dela seria interromper justamente
+   * quem está olhando.
+   */
+  driver?: AcpDriver;
 }
 
+/**
+ * Os dois condutores possíveis de um turno.
+ *
+ * Declarado aqui, e não importado da `tasks/budget.ts`, pela mesma direção de
+ * dependência que o `AcpBudgetSource` segue: este arquivo é o único que entende
+ * ACP, e ele não aprende o que é uma esteira — ele carrega a palavra e entrega a
+ * quem decide.
+ */
+export type AcpDriver = "human" | "conveyor";
 
 /**
  * Um pedido de "abra esta URL", vindo do agente durante o login.
@@ -167,6 +192,8 @@ export interface AcpSessionInfo {
   lumemMode: LumemMode;
   /** What a new session in this workspace starts at — the menu's footer (Q5). */
   lumemModeDefault: LumemModeDefault;
+  /** Quem empurra esta conversa. `human` em tudo que não é a esteira. */
+  driver: AcpDriver;
 }
 
 /**
@@ -304,6 +331,25 @@ interface Session {
    */
   promptInFlight: boolean;
   /**
+   * Desde quando o turno em voo está em voo, ou `null`.
+   *
+   * Existe para o selo do quadro (`028` §4.1, T7), que diz *"implementando há 12
+   * min"* — e a medição da fase 0 é o motivo de ele ser o **turno** e não o
+   * processo: **7 dos 15 transcripts deste repositório não têm um único
+   * turno**. Uma sessão aberta e nunca usada desenharia `implementando há 3 h`
+   * se o critério fosse *"existe processo"*.
+   */
+  turnStartedAt: Date | null;
+  /**
+   * O último relato de cota desta sessão, ou `null` (`028` Parte 3, T17).
+   *
+   * Guardado porque ele chega num `usage` e a pergunta é feita em outro momento
+   * — o quadro abre e pergunta *"alguém está com esta tarefa?"*. Não é estado
+   * derivado virando guardado: é o **último fato relatado**, e o selo continua
+   * sendo calculado dele na leitura.
+   */
+  lastRateLimit: AcpRateLimit | null;
+  /**
    * This is a probe, not a session (onboarding D4).
    *
    * The only thing it changes is who gets told when the process dies: a probe has
@@ -403,7 +449,49 @@ export interface AcpManagerOptions {
    * injeta nada, e a conversa é exatamente a que era antes desta feature.
    */
   preamble?: AcpPreambleSource;
+  /**
+   * O teto do workspace, conferido antes de o turno custar (`028` Parte 3, T16).
+   *
+   * Injetado, e não um repositório aqui dentro, pela mesma direção de dependência
+   * que o `preamble` segue: este arquivo é o único que entende ACP, e ele não tem
+   * por que aprender o que é um workspace. Quem constrói o manager sabe as duas
+   * coisas.
+   *
+   * Ausente é o default — um manager de teste que não é sobre orçamento não
+   * injeta nada, e o turno é exatamente o que era antes desta parte.
+   */
+  budget?: AcpBudgetSource;
+  /**
+   * Onde o retrato de um turno que falhou vai parar (`028` Q46).
+   *
+   * Uma função, e não um caminho, pela mesma direção de dependência do
+   * `preamble` e do `budget`: este arquivo entende ACP, e não tem por que saber
+   * onde fica o `~/.lumem`.
+   *
+   * Ausente é o default, e aí o retrato só sai pelo `log` — que é o que ele
+   * fazia antes, e o motivo de esta opção existir: o logger do daemon **não tem
+   * destino em arquivo**, então a linha ia para `stdout`, e a cota fecha
+   * justamente quando ninguém está olhando o terminal.
+   */
+  turnFailures?: TurnFailureSink;
 }
+
+/**
+ * A decisão do teto para esta sessão, agora.
+ *
+ * Devolve a forma que a `tasks/budget.ts` produz, e este arquivo não interpreta
+ * nada além de `kind`: quem sabe a unidade é quem monta a frase.
+ */
+export type AcpBudgetSource = (session: AcpSessionInfo) => Promise<
+  | { kind: "pass" }
+  | {
+      kind: "warn" | "block";
+      cap: "cost-per-task" | "cost-per-day" | "turns-per-session";
+      limit: number;
+      spent: number;
+      message: string;
+    }
+>;
 
 /**
  * O bloco que entra antes da primeira mensagem da pessoa.
@@ -446,6 +534,8 @@ export class AcpManager {
   private readonly transcripts: TranscriptStore;
   private readonly log: Pick<FastifyBaseLogger, "warn"> | undefined;
   private readonly preamble: AcpPreambleSource | undefined;
+  private readonly budget: AcpBudgetSource | undefined;
+  private readonly turnFailures: TurnFailureSink | undefined;
 
   constructor({
     spawner = spawnAcpProcess,
@@ -457,6 +547,8 @@ export class AcpManager {
     transcripts = createMemoryTranscriptStore(),
     log,
     preamble,
+    budget,
+    turnFailures,
   }: AcpManagerOptions = {}) {
     this.spawner = spawner;
     this.handshakeTimeoutMs = handshakeTimeoutMs;
@@ -467,6 +559,8 @@ export class AcpManager {
     this.transcripts = transcripts;
     this.log = log;
     this.preamble = preamble;
+    this.budget = budget;
+    this.turnFailures = turnFailures;
   }
 
   /**
@@ -822,6 +916,7 @@ export class AcpManager {
          */
         lumemMode: options.lumemMode ?? "ask",
         lumemModeDefault: options.lumemModeDefault ?? "ask",
+        driver: options.driver ?? "human",
       },
       process: child,
       connection: undefined as unknown as ClientConnection,
@@ -832,6 +927,8 @@ export class AcpManager {
       pendingPermissions: new Map(),
       optionTypes: new Map(),
       promptInFlight: false,
+      turnStartedAt: null,
+      lastRateLimit: null,
       probe,
       // One bridge per session, rooted at its own cwd. A shared one would need
       // the root passed on every call, and the call that forgot would read
@@ -888,6 +985,43 @@ export class AcpManager {
 
     session.turnId = newId();
     session.promptInFlight = true;
+    session.turnStartedAt = new Date();
+
+    /*
+     * O teto, **antes** de o turno custar (Parte 3, T16).
+     *
+     * Antes e não depois, que é a diferença entre um teto e um relatório:
+     * conferir no fim significa que o turno que estourou já foi pago.
+     *
+     * **Depois de marcar `promptInFlight`, e isso é decisão.** A conferência é
+     * `async`, então pô-la antes abriria uma janela — um microtask — em que o
+     * turno está em voo para quem chamou e não para a sessão: `setConfig`
+     * deixaria de recusar no meio de um turno, que é uma garantia que a `016`
+     * cobra. O caminho de bloqueio desfaz a marca abaixo, e é por isso que ele é
+     * a única saída daqui que precisa limpar.
+     */
+    const budget = await this.checkBudget(session);
+    if (budget !== null) {
+      this.emit(session, {
+        type: "budget",
+        outcome: budget.kind,
+        cap: budget.cap,
+        limit: budget.limit,
+        spent: budget.spent,
+        message: budget.message,
+      });
+      // `warn` segue: quem conduz recebe o número e decide (Q45). Interromper
+      // alguém que está olhando é como um teto vira desligado e nunca mais
+      // ligado.
+      if (budget.kind === "block") {
+        // Sem isto a sessão fica dizendo que tem turno em voo para sempre, e o
+        // selo do quadro — que é derivado disso — desenharia `implementando há
+        // 3 h` num turno que nunca começou.
+        session.promptInFlight = false;
+        session.turnStartedAt = null;
+        throw new DomainError("BLOCKED", budget.message);
+      }
+    }
     // Whatever the agent said before this moment was it retelling a conversation the
     // daemon already had on disk (D14). From here on it is answering.
     session.replaying = false;
@@ -920,15 +1054,31 @@ export class AcpManager {
       text,
     });
 
-    const { stopReason } = await session.connection.agent.request("session/prompt", {
-      sessionId: session.info.acpSessionId,
-      // Bloco **separado**, nunca concatenado: o texto da pessoa vai verbatim,
-      // como sempre foi, e o que o daemon acrescentou é distinguível de fora.
-      prompt:
-        preamble === null
-          ? [{ type: "text", text }]
-          : [{ type: "text", text: preamble.text }, { type: "text", text }],
-    });
+    let stopReason: StopReason;
+    try {
+      ({ stopReason } = await session.connection.agent.request("session/prompt", {
+        sessionId: session.info.acpSessionId,
+        // Bloco **separado**, nunca concatenado: o texto da pessoa vai verbatim,
+        // como sempre foi, e o que o daemon acrescentou é distinguível de fora.
+        prompt:
+          preamble === null
+            ? [{ type: "text", text }]
+            : [{ type: "text", text: preamble.text }, { type: "text", text }],
+      }));
+    } catch (error) {
+      /*
+       * Um turno que falha tem de **soltar a marca**, e isso é defeito consertado
+       * e não zelo: sem o `finally`, um `session/prompt` recusado deixava
+       * `promptInFlight` ligado para sempre. Desde a `028` o selo do quadro é
+       * derivado disso, então a sessão passaria a pintar `implementando há 3 h`
+       * num turno que morreu no primeiro segundo.
+       */
+      session.promptInFlight = false;
+      session.turnStartedAt = null;
+      session.openToolCalls.clear();
+      this.observeTurnFailure(session, error);
+      throw error;
+    }
 
     // The fifth card state, and the only place it can be derived (A14). ACP has
     // no `cancelled` status: a call that was still open when the user pressed
@@ -942,8 +1092,87 @@ export class AcpManager {
     session.openToolCalls.clear();
 
     session.promptInFlight = false;
+    session.turnStartedAt = null;
     this.emit(session, { type: "turn_end", stopReason });
     return stopReason;
+  }
+
+  /**
+   * O retrato de um turno que falhou (`028` Q46).
+   *
+   * **Isto é observabilidade, e não tratamento.** A Q32 decidiu o que o produto
+   * faz quando o agente recusa por cota — `pausada`, sem consumir orçamento nem
+   * turno —, e o daemon **não tem como reconhecer essa recusa**: o protocolo dá
+   * um código para *"faça login"* (`-32000`) e nenhum para *"acabou sua cota"*,
+   * e casar a mensagem seria a lista de strings especiais que este repositório
+   * já recusou uma vez.
+   *
+   * Então, em vez de adivinhar a forma do erro, o daemon a **guarda quando ela
+   * acontecer** — e guarda junto o que a torna interpretável: o último relato de
+   * cota daquela sessão. Uma falha que chega com a janela gasta e sem excedente
+   * é, com altíssima probabilidade, a recusa que a Q46 procura. Um erro sozinho
+   * seria uma amostra sem rótulo.
+   *
+   * `warn` e não `error`: a falha já sobe para quem chamou e vira mensagem na
+   * tela. Esta linha existe para ser **procurada depois**, e por isso ela tem uma
+   * etiqueta estável — `turn-failed` — em vez de prosa.
+   *
+   * **E ela vai para dois lugares, porque um não bastava.** O `log` do daemon
+   * não tem destino em arquivo, então o retrato saía por `stdout` — e a cota
+   * fecha durante trabalho autônomo, que é exatamente quando ninguém está
+   * olhando o terminal. O `turnFailures` é o mesmo retrato em disco, uma linha
+   * de JSON por falha. O log fica: ele é o que se vê **enquanto** acontece.
+   */
+  private observeTurnFailure(session: Session, error: unknown): void {
+    const rateLimit = session.lastRateLimit;
+    const portrait = {
+      tag: "turn-failed",
+      // O logger carimba a hora; o arquivo não tem quem carimbe, e um retrato
+      // sem quando não responde *"foi na janela que fechou ontem?"*.
+      at: new Date(this.now()).toISOString(),
+      sessionId: session.info.id,
+      adapter: session.info.command,
+      model: session.info.model,
+      code: (error as { code?: unknown }).code ?? null,
+      message: error instanceof Error ? error.message : String(error),
+      // O que o `_meta` do erro carregar. É onde um adaptador poria um motivo
+      // estruturado, se puser — e não custa nada guardar.
+      data: (error as { data?: unknown }).data ?? null,
+      rateLimit: rateLimit
+        ? {
+            utilization: rateLimit.utilization,
+            isUsingOverage: rateLimit.isUsingOverage,
+            resetsAt: rateLimit.resetsAt ?? null,
+            kind: rateLimit.kind ?? null,
+          }
+        : null,
+      /** O atalho da leitura: a janela estava fechada quando isto falhou? */
+      windowSpent: rateLimit !== null && rateLimit.utilization >= 1 && !rateLimit.isUsingOverage,
+    };
+
+    this.log?.warn(portrait, "turno falhou");
+    this.turnFailures?.(portrait);
+  }
+
+  /**
+   * O que o teto diz, ou `null` quando não há teto nem fonte.
+   *
+   * Falha aqui **não** derruba o turno, como na memória e pelo mesmo motivo: um
+   * banco travado viraria uma conversa inutilizável, e o produto funcionava sem
+   * teto nenhum até esta parte existir. Um teto que não pôde ser lido não é um
+   * teto que estourou.
+   */
+  private async checkBudget(
+    session: Session,
+  ): Promise<Exclude<Awaited<ReturnType<AcpBudgetSource>>, { kind: "pass" }> | null> {
+    if (this.budget === undefined) return null;
+    try {
+      const decision = await this.budget({ ...session.info });
+      return decision.kind === "pass" ? null : decision;
+    } catch (error) {
+      this.log?.warn({ err: error, sessionId: session.info.id }, "não consegui ler o teto");
+      return null;
+    }
   }
 
   /**
@@ -1104,6 +1333,33 @@ export class AcpManager {
 
   list(): AcpSessionInfo[] {
     return [...this.sessions.values()].map((session) => ({ ...session.info }));
+  }
+
+  /**
+   * Quais sessões têm turno **em voo**, e desde quando (`028` T7).
+   *
+   * Não é `list()` filtrado por estado: uma sessão viva e ociosa não é alguém
+   * trabalhando. A fase 0 mediu que **7 dos 15 transcripts deste repositório
+   * nunca receberam um prompt** — com o critério de processo, cada uma delas
+   * pintaria um selo dizendo que há alguém lá.
+   */
+  liveTurns(): { sessionId: string; startedAt: Date }[] {
+    return [...this.sessions.values()]
+      .filter((session) => session.promptInFlight && session.turnStartedAt !== null)
+      .map((session) => ({ sessionId: session.info.id, startedAt: session.turnStartedAt! }));
+  }
+
+  /**
+   * A cota que cada sessão viva relatou por último (`028` Parte 3, T17).
+   *
+   * Separado de `liveTurns` porque a pergunta é outra: aquela é *"quem está
+   * trabalhando"* e esta é *"quem está esperando"*, e a Q32 diz que quem espera
+   * cota **liberou a vaga** — não é um caso do primeiro.
+   */
+  rateLimits(): { sessionId: string; rateLimit: AcpRateLimit }[] {
+    return [...this.sessions.values()]
+      .filter((session) => session.lastRateLimit !== null)
+      .map((session) => ({ sessionId: session.info.id, rateLimit: session.lastRateLimit! }));
   }
 
   kill(id: string): void {
@@ -1739,6 +1995,11 @@ export class AcpManager {
       } else {
         session.openToolCalls.delete(event.toolCallId);
       }
+    } else if (event.type === "usage" && event.rateLimit) {
+      // A cota chega aqui e a pergunta é feita noutro momento — o quadro abre e
+      // pergunta *"quem está esperando?"*. Guardar o último relato é o que liga
+      // os dois (`028` Parte 3, T17).
+      session.lastRateLimit = event.rateLimit;
     }
 
     const entry: AcpTranscriptEntry = { at: this.now(), event };

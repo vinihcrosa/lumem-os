@@ -1,0 +1,1 @@
+ALTER TABLE `session_usage` ADD `turn` integer DEFAULT 0 NOT NULL;

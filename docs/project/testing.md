@@ -53,6 +53,10 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `server/` **adaptador de host de git** | unit com o executor **dublado** e fixtures capturadas de uma execução real. É a inversão declarada da regra do git: git nunca é dublado porque `git worktree` tem comportamento que nenhum dublê reproduz; o `gh` **tem** que ser, porque fala com a rede e com a conta de quem roda a suíte. **Nenhum teste da suíte executa o `gh`** | Sim |
 | **barra da pull request** de ponta a ponta | e2e `pull-request.spec.ts`, com um `gh` **falso** num diretório na frente do `PATH` do daemon: processo de verdade, `argv` de verdade, saída de verdade, zero rede. Cada teste tem a **própria branch** — o daemon guarda um instantâneo por projeto, e os specs compartilham um daemon | **Não** |
 | **menus do composer** — geometria | e2e `composer-menus.spec.ts`, com o fake em `LUMEM_FAKE_MANY_MODELS=1`: vinte modelos, zero token. A pergunta **não** é `toBeVisible` — um elemento recortado por um ancestral continua no DOM, com caixa, e o matcher continua satisfeito. É `document.elementFromPoint` no meio do elemento, que é o que o mouse responde. Foi assim que se descobriu que o menu de `/comandos` era **invisível por inteiro** há três features, tendo teste de componente o tempo todo | **Não** |
+| **o quadro** — as sete colunas, o arrasto e o selo | e2e `board.spec.ts`, **zero token**: o agente é falso e o selo é lido pelo `task.board`. A janela em que o turno está **em voo** é o pedido de permissão — o fake para ali e espera —, porque um turno que abre e fecha em milissegundos não é observável, e o caso viraria um `sleep` disfarçado. O `beforeEach` limpa o quadro com **duas** portas (`remove` recusa tarefa que teve sessão, `dropped` sai do quadro): num quadro, estado de um caso vira *"quatro na To-Do"* no seguinte | **Não** |
+| **o selo é derivado**, e não guardado | o par do §12 da [`028`](../features/028-autonomous-orchestration/prd.md), no `board.spec.ts`: o turno some da lista do `AcpManager` e o selo volta para `manual` **na leitura seguinte, sem nenhuma escrita** — e o cartão não volta de coluna. Conferido por mutação: guardar o selo derruba o caso | **Não** |
+| **o teto do workspace** | e2e `budget.spec.ts`, **zero token**: o teto é conferido **antes** do `session/prompt`, então o agente falso nem precisa responder — o pedido de permissão aparecer **é** a prova de que o turno passou do portão. Teto de **zero turno** é o caminho mais curto até o aviso e não depende de nenhum consumo gravado; sem isso o caso testaria o contador em vez do portão | **Não** |
+| **o parecer do revisor** de ponta a ponta | e2e `conveyor-review.spec.ts`, **zero token** e daemon próprio: o agente falso lê **a porta do parecer no próprio prompt** — não uma URL passada por variável — e posta lá o que o spec mandou. Quatro perguntas: as quatro setas andam sem ninguém clicar; um `bloqueia` que o daemon **reproduz** devolve o cartão ao implementador; um que não reproduz **não** segura; e um `anota` avança o cartão e **aparece na PR**, contra o `gh` falso do `PATH`. Ele achou três defeitos de produção que nenhum teste de unidade pegaria | **Não** |
 | `web/` fluxo de usuário | e2e (Playwright) | **Não** — daemon único, porta única, estado compartilhado |
 | **a própria documentação** | `scripts/check-docs.test.ts` — 21 testes sobre fixtures mais **um que roda o checador contra a árvore de verdade**, e é esse que é o gate. Link relativo resolve, âncora de heading resolve, e o `**Status:**` de cada feature está na gramática fechada e concorda com o `tasks.md` da mesma pasta | Sim |
 
@@ -660,6 +664,55 @@ com `FOREIGN KEY constraint failed`.
 A regra que sai daí: **toda migração que muda ação de estrangeiro por `ALTER TABLE` precisa de um
 caso que exerça a ação**, e não só a presença da coluna.
 
+### O `drizzle-kit` lê colunas que ainda não existem na tabela de origem
+
+A migração `0018` nasceu com `INSERT INTO __new_workspace(…, "budget_cost_per_task", …) SELECT …,
+"budget_cost_per_task", … FROM workspace` — lendo do **velho** as colunas do **novo**. O erro é
+`no such column`, e **nenhum teste que começa de um banco vazio o pega**: sem linha, não há cópia.
+
+É a mesma família do que o `0001` pagou e que o cabeçalho do `migrations.test.ts` descreve, e reapareceu
+**cinco migrações depois** — o que quer dizer que a armadilha não é do `0001`, é do gerador. A lista do
+`SELECT` foi reescrita à mão, e o caso foi validado ficando vermelho de propósito.
+
+A regra que sai daí, e que vale para toda recriação de tabela: **leia o `SELECT` da migração gerada
+antes de rodá-la**, e tenha um caso num banco parado na revisão anterior **com linha dentro**.
+
+### Uma variante nova de evento quebra a tela, e isso é o contrato funcionando
+
+Acrescentar `budget` ao `AcpEvent` **derrubou o typecheck do `@lumem/web`**: o `reduceConversation` é
+um `switch` exaustivo sobre o tipo, então uma variante nova obriga o cliente a dizer o que faz com ela.
+Isso não é atrito — é a única coisa que impede um evento de ser adicionado no daemon e sumir na tela
+sem ninguém notar.
+
+O par disso é o mock compartilhado: o `trpc-mock.ts` serve um `task.settings` default, e um campo novo
+no contrato o deixa velho — **cinco testes** quebraram com `Cannot read properties of undefined`, em
+telas que não têm nada a ver com orçamento. É a mesma armadilha que *"uma tela nova derruba testes cujo
+mock não a conhece"* já descreve, vista do outro lado: **o mock compartilhado é parte do contrato**, e
+esquecê-lo quebra testes distantes com um erro que não fala do assunto.
+
+### `ResizeObserver` vê a caixa, e o que mudou é o conteúdo
+
+A faixa que avisa *"2 colunas fora da tela"* nasceu observando a própria faixa de colunas com um
+`ResizeObserver`. Parecia certo — deriva da coisa, como o selo e o relógio de encalhe — e **nunca
+aparecia**. Medido no navegador: 836px de espaço para 1152 de colunas, e nenhum aviso.
+
+O motivo é de ordem. Na primeira pintura a consulta ainda não voltou: **não há coluna nenhuma**,
+então não há transbordo, e o observador mede zero corretamente. Quando os cartões chegam, quem muda é
+o **conteúdo** — a caixa fica do mesmo tamanho, o observador não dispara, e a medida de zero
+sobrevive para sempre.
+
+E pior: nesta máquina o `ResizeObserver` não entregou **uma única notificação** em nenhum dos dois
+sentidos — conferido com um observador criado à mão na página, que contou zero disparos ao encolher e
+ao alargar. A faixa ficava **acesa** com `scrollWidth === clientWidth`, dizendo que duas colunas
+estavam fora quando não estava nenhuma. Um aviso que não some é a mesma doença de um que não aparece.
+
+A saída foi medir **a cada pintura** (`useLayoutEffect` sem deps, que converge porque `setState` com
+o mesmo valor não repinta) mais o `resize` da janela, que é o único caminho que não passa pelo React.
+
+A regra que sai daí: **jsdom não faz layout, então nenhum teste de componente responde isto** — quem
+responde é o e2e, e a pergunta tem que ser feita **nos dois sentidos**. Um caso que só confere que o
+aviso aparece fica verde contra um aviso que nunca some.
+
 ### O mesmo nome em duas peças clicáveis quebra 22 e2e de uma vez
 
 O filtro de projeto da lista de tarefas nasceu como segmentado, com um botão por projeto. Na tela do
@@ -736,6 +789,482 @@ produto fixa"**. O `installAdapter` aceitava qualquer binário existente e repor
 `spec.pinnedVersion` — então trocar a constante não trocava nada em nenhuma máquina que já tinha
 rodado o Lumem, e a tela dizia o número novo. Um campo de versão que repete a constante em vez de ler
 o disco é um campo que **não pode ficar vermelho**.
+
+### Chave de cache escrita à mão é chave que ninguém invalida
+
+**Sintoma:** com a esteira andando e o quadro aberto na frente de quem olha, nada se mexia — selo,
+relógio de encalhe, a contagem de *precisa de mim* e o aviso do topo, todos congelados até alguém
+arrastar um cartão. E na lista de tarefas, clicar num degrau da esteira gravava no daemon e a barra
+**voltava ao valor antigo**: o degrau não recebia `btn--brand` e o checkbox desmarcava sozinho.
+
+**Causa:** duas chaves de query nasceram inline no componente — `["task", "board", …]` no `Board.tsx`
+e `["task", "settings", …]` no `TaskList.tsx` — em vez de no
+[`queryKeys.ts`](../../packages/web/src/lib/queryKeys.ts), que existe exatamente para isso e cujo
+cabeçalho já dizia por quê: *"dois componentes invalidando o mesmo dado com chaves que diferem por um
+caractere é um bug que parece UI velha, e é invisível em review"*. O `invalidateFor` invalida
+`["task", "listByWorkspace", ws]` e `["task", "get"]`, e **nenhum dos dois é prefixo** das duas. Com
+`refetchOnWindowFocus` desligado no cliente inteiro e sem `refetchInterval`, o que sobra é a própria
+mutação — então a tela só reagia ao que ela mesma fazia.
+
+A regra: **chave inline é a versão da chave que o `invalidateFor` não conhece.** O arquivo de chaves
+não é organização, é a lista do que o daemon consegue alcançar.
+
+**O que passou a avisar antes:** um caso em `useLiveState.test.tsx` que exige `["task", "board"]` e
+`["task", "settings"]` no `task.changed`, e um em `tasks-ui.test.tsx` que clica no degrau e conta
+**duas** chamadas de `task.settings.query` — a leitura do clique, e não o `btn--brand`, porque a
+classe estaria certa com o dado errado no cache de qualquer jeito.
+
+### Argumento opcional no fim da assinatura apaga a função em silêncio
+
+**Sintoma:** nenhum cartão do quadro ficava âmbar ou vermelho, nunca. O ponto agregado no cabeçalho da
+coluna continuava certo, o que é o que fez isso durar: a mesma regra, lida de dois lugares, discordando
+em silêncio.
+
+**Causa:** `staleLevel(card, now, status)` tem o terceiro parâmetro opcional e cai em `card.status`
+quando ele falta. Só que `BoardCard` **não tem `status`** — o daemon agrupa a resposta por coluna, e a
+coluna mora no grupo —, então `column` era `undefined` e a função devolvia `null` para todo cartão.
+O `TaskCard` chamava com dois argumentos; o `staleCount` do cabeçalho, com três.
+
+O opcional existia para um objeto que carregasse o próprio estado, e nenhum dos dois chamadores é
+esse. **Um `?? card.status` sobre um campo que o tipo declara opcional não falha o typecheck e não
+falha o teste — ele devolve o valor neutro**, que aqui é *"não há encalhe"*: a resposta mais parecida
+com estar tudo bem.
+
+**O que passou a avisar antes:** `status` virou prop obrigatória do `TaskCard`, e o teste pergunta
+pela classe (`.stale--warn`, `.stale--over`) com a mesma idade em duas colunas — `in_progress`, que
+tem limiar, e `open`, que não tem.
+
+### O ramo que "nasce sem chamador" continua sem chamador quando o chamador chega
+
+**Sintoma:** uma sessão da esteira com `budgetCostPerDay` configurado gastava acima do teto
+indefinidamente. O `decideBudget` tem três saídas e a suíte cobria as três; o ramo `block` só nunca
+acontecia em produção.
+
+**Causa:** o `budget-source.ts` passava `"human"` literal, com um comentário honesto dizendo *"quando
+a Parte 2 chegar, é este arquivo que passa a saber a diferença"*. A Parte 2 chegou **no mesmo branch**,
+e o literal ficou. Como `decideBudget` é pura e testada com os dois condutores, a suíte permaneceu
+verde: o que faltava não era o ramo, era **o dado chegando até ele**. A garantia *"a esteira para"*
+(Q45) — que é o motivo de a Parte 3 ter vindo **antes** da Parte 2 — ficou inerte, e `0 = bloqueia
+tudo` virou `0 = avisa tudo` para o único condutor que não tem quem leia o aviso.
+
+E a correção tinha uma armadilha própria: deduzir o condutor de `lumem_mode = 'free'` seria confundir
+a esteira com **a sua** conversa que atravessou o portão da [`016`](../features/016-session-mode/prd.md)
+— o teto interromperia justamente quem está olhando. O condutor é campo do `AcpSessionInfo`, passado no
+`spawn`.
+
+A regra: **um ramo sem chamador é um TODO, e TODO não fica verde sozinho.** Quando o chamador chega, o
+teste que fecha o ciclo é o que atravessa a costura inteira, não o que exercita a função pura de novo.
+
+### Contar a tentativa antes de saber se vai haver turno
+
+**Sintoma:** no degrau `assistido`, um cartão preparado esperando o clique de enviar era bloqueado
+sozinho em ~30 s, com `parou depois de 2 tentativas` e a autonomia dele desligada junto — sem nenhum
+turno ter aberto.
+
+**Causa:** `countAttempt` rodava antes do `return` do ramo `assistido`. `park` não muda nenhuma das
+duas condições que a `queueOf` lê — a autonomia da tarefa e o turno em voo —, então o cartão preparado
+**continua candidato** a cada passada, e cada passada reincrementava `attempts`. O comentário que
+justifica contar antes está certo e continua lá: o que estava errado era **o que se conta**. *Antes do
+prompt* não é *antes do preparo*.
+
+**O que passou a avisar antes:** um teste que roda `MAX_ATTEMPTS + 3` passadas em `assistido` e exige
+que `block` nunca seja chamado. O teste antigo asseverava `["prepareCheckout", "countAttempt", "park"]`
+— ele **codificava o defeito**, que é o que um teste de sequência de chamadas faz quando a sequência
+não é a pergunta.
+
+### Uma consulta global dentro de um laço por escopo multiplica a cota por N
+
+**Sintoma:** nenhum, e é o ponto. O §3.2 do [estudo](orchestration-measurements.md) mediu que o
+polling do tracker cabe em **2,4% da cota** do Linear, e o comentário no código repetia o número.
+
+**Causa:** `host.labelled(LUMEM_LABEL)` era chamado dentro do laço por workspace, e nem o rótulo nem a
+chave têm workspace dentro — as N chamadas devolviam **o mesmo conjunto**. O custo real era `N × 2,4%`;
+com ~10 workspaces, ~24% da cota gasta em chamadas idênticas. A medição estava certa sobre a consulta
+e errada sobre quantas delas existem.
+
+A regra: **quando um número medido vira comentário, o que o mantém verdadeiro é um teste que conte
+chamadas.** As issues passaram a chegar de fora do `syncTracker` — quem conhece o laço é quem sabe que
+a consulta é uma —, e o `loop.test.ts` cria três workspaces e exige `toHaveBeenCalledTimes(1)`.
+
+### `mode` no `writeFileSync` só vale na criação — inclusive no teste que o cobre
+
+**Sintoma:** nenhum. `secrets.json` nasce `0600` e o teste dizia que a permissão era reaplicada a cada
+escrita.
+
+**Causa:** `writeFileSync(path, …, { mode })` abre com `O_CREAT`, e o modo só é aplicado **quando o
+arquivo é criado**. Com ele já no disco, o Node ignora o `mode` e a permissão vigente fica — então um
+`~/.lumem` restaurado de um backup que não preservou modo (ou vindo de um volume que não tem modo)
+ficava `0644` para sempre, com o comentário no código afirmando o contrário. O que vaza não é o
+segredo, que está cifrado, e sim **quais** serviços você usa, que o
+[ADR do cofre](../adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md) trata como
+informação a proteger.
+
+**E a armadilha de segunda ordem é a que importa:** o teste que já existia para a *chave* montava o
+cenário com `writeFileSync(keyPath, readFileSync(keyPath), { mode: 0o644 })` — pela mesma regra, isso
+**não muda permissão nenhuma**. O cenário nunca acontecia, e o teste ficava verde com o `chmodSync` da
+`key()` apagado. Provado removendo os dois `chmod`: só depois de o setup virar `chmodSync` é que os
+dois casos ficam vermelhos.
+
+A regra: **um teste de permissão tem que provar que consegue estragar a permissão** antes de afirmar
+que o código a conserta.
+
+### Índice de arrasto lido da lista filtrada, gravado como prioridade
+
+**Sintoma:** com `precisa de mim` ligado, arrastar um cartão gravava a prioridade errada — e
+persistente. Soltar no corpo da coluna inseria no meio em vez do fim.
+
+**Causa:** o `index` saía do array já filtrado, e o daemon o lê como posição **na coluna inteira**,
+renumerando-a numa transação — posição **é** prioridade. O defeito só aparece nas colunas da máquina
+(`in_progress`, `review`, `testing`), que são as únicas em que o filtro esconde cartões — justamente
+onde a ordem alimenta a esteira. Em `open` e `ready_to_merge` o `needsYou` não esconde nada, os dois
+índices coincidem, e o gesto parece correto.
+
+Não havia **nenhum** teste de arrasto — a mesma lacuna que a Q38 já tinha registrado ao descobrir que
+o arrasto para `In Progress` *"já funcionava, sem um único teste cobrindo"*. O conserto é uma
+tradução, não uma regra nova, e o terceiro caso do teste é o que garante isso: com o filtro desligado,
+o número é o mesmo de sempre.
+
+### Decidir remover e não passar `--force` é um interruptor que nunca remove
+
+**Sintoma:** com *"PR mesclada sempre remove"* ligado e a worktree mesclada porém suja, o `finish`
+devolvia erro para a tela. Na prática o interruptor nunca removia worktree suja, que é o **único**
+caso para o qual ele foi escrito.
+
+**Causa:** `decideCleanup` devolve `remove` com a frase `mesclada — N arquivos não commitados
+descartados`, e a chamada seguinte usava `force: false`. `git worktree remove` sem `--force` recusa um
+checkout com arquivo modificado ou não rastreado, e a exceção subia **depois** de a tarefa já estar em
+`done` e do `stopAll`, mas **antes** de a linha sair do banco: tarefa concluída, scripts parados,
+worktree intacta e erro na tela — o split que o comentário logo acima existe para evitar.
+
+A decisão estava certa e testada; o que faltava era **executá-la**. É o mesmo formato do teto de
+orçamento acima — uma função pura com todos os ramos cobertos, e o lado sujo não fazendo o que ela
+decidiu.
+
+**O que passou a avisar antes:** git de verdade, porque a recusa é do git e nenhum dublê a reproduz —
+um checkout mesclado com arquivo não rastreado, e as três pontas asseridas juntas (o disco, a linha do
+banco e a resposta da chamada), porque o defeito deixava as três em desacordo.
+
+### O ramo de criação sem a guarda que o ramo de atualização tem
+
+**Sintoma:** uma issue do Linear que já chega fechada com o rótulo `lumem` — rótulo posto numa issue
+concluída, ou issue fechada antes da primeira passada — virava cartão em `open`.
+
+**Causa:** o ramo `!existing` do `syncTracker` não olhava `issue.state`, enquanto o `changeOf` bloqueia
+e desliga a autonomia quando uma issue **transiciona** para fechada. `open` é etapa devida da esteira e
+a tarefa nasce em `autonomy: "inherit"`: num workspace em `autônomo`, a esteira puxaria o cartão e
+gastaria um turno — cota, e possivelmente uma PR — num trabalho que o tracker já diz concluído.
+
+**Bloqueada, e não pulada.** Pular deixaria o rótulo sem efeito visível nenhum, e *"marquei e não
+apareceu nada"* é indistinguível de a integração estar quebrada.
+
+A regra: **quando um ramo de atualização tem uma guarda, o ramo de criação precisa da mesma pergunta.**
+O estado inicial é só o caso em que a transição já tinha acontecido antes de você chegar.
+
+### Um instantâneo lido no começo da passada, usado no fim dela
+
+**Sintoma:** todo primeiro turno de um cartão sem checkout era desperdiçado. O agente commitava, o
+`test` passava, e o portão devolvia `unfinished` com *"a tarefa não tem checkout para julgar"* —
+gastando uma tentativa e podendo bloquear o cartão cedo demais.
+
+**Causa:** o `gate` lia `entry.task.worktreeId`, e `entry.task` é a **linha como ela estava no início
+da passada**. Uma tarefa que entra na esteira sem worktree ganha a dela no `prepareCheckout`, que
+escreve no banco e não muta o objeto em memória — o ponteiro continuava nulo. Dispara em qualquer
+cartão de `open`, que é onde a issue do tracker cai.
+
+A regra: **um objeto lido no começo de um fluxo não descreve o fim dele.** O conserto não é reler — é
+passar adiante o que acabou de ser produzido, que é um argumento em vez de uma consulta.
+
+### Falha antes do contador é repesca infinita
+
+**Sintoma:** com a worktree registrada mas o diretório apagado do disco (`git worktree prune`, um `rm`
+manual), a esteira repescava o mesmo cartão a cada 15 segundos **para sempre**. Sem tentativa gasta,
+sem bloqueio, e o único rastro um `conveyor-tick-failed` no log de um daemon que ninguém está olhando.
+
+**Causa:** a exceção subia de `prepareCheckout`, que roda **antes** do `countAttempt`. Todo o desenho
+de *"tentativa gasta, com o motivo"* mora depois desse ponto — o comentário do código já dizia que era
+isso que deveria acontecer, e o fluxo não passava por lá.
+
+O conserto tem duas metades, e a segunda é a que se lê: a falha passa a contar tentativa e bloquear, **e**
+o sumiço do diretório passa a ter frase própria. Sem ela, o que chegava ao cartão era `ENOENT: no such
+file or directory` — que não fala de worktree nenhuma para quem está lendo um quadro de tarefas.
+
+A regra: **todo caminho que pode falhar repetidamente precisa passar pelo contador**, senão o limite
+de tentativas protege só os caminhos que já funcionavam.
+
+### `200 OK` com `success: false` é uma falha que não lança
+
+**Sintoma:** nenhum. Um marco no tracker ficava registrado como escrito e o comentário nunca saía.
+
+**Causa:** as mutations do Linear selecionam `{ success }` e o host descartava o resultado. Uma
+mutation recusada — issue arquivada, token sem permissão de comentar — volta **HTTP 200** com
+`success: false` e **sem** `errors`, então nada no envelope lança. E o `writeMark` reserva o marco
+**antes** de escrever, de propósito: o preço declarado dessa escolha é *"o marco fica registrado sem
+ter saído"*, com a falha aparecendo no log. Sem conferir o `success`, ela não aparecia em lugar nenhum
+e o marco nunca mais seria tentado.
+
+A regra: **selecionar um campo de resultado e não olhá-lo é pior que não selecioná-lo** — o código
+parece conferir.
+
+### Um teto de paralelismo que a execução em série nunca alcança
+
+**Sintoma:** nenhum, e o Open Design desenha o número: `autônomo · teto 2 · 2 em uso`. O `2 em uso`
+não acontecia nunca.
+
+**Causa:** o `tick` percorria as vagas com `await` em série, e cada `runOne` espera o **turno
+inteiro** — a segunda vaga só começava quando a primeira acabasse. Pior: o laço do daemon percorria os
+workspaces em série com um único sinalizador de *"passada em andamento"*, então um turno pendurado num
+workspace segurava todos os outros por até os 30 minutos do teto, e um `throw` num deles acabava a
+passada antes dos seguintes serem lidos.
+
+**A concorrência foi medida antes de escrita**, porque o risco real era o git: 72 `git worktree add`
+simultâneos no mesmo repositório, seis de cada vez, doze rodadas — **zero falhas**. O teste do pico
+conta turnos em voo (`peak`), e não chamadas: com `toHaveBeenCalledTimes(2)` a versão em série também
+ficaria verde.
+
+### Uma restrição escrita em comentário não é uma restrição
+
+**Sintoma:** nenhum, e o código dizia *"é a esteira, e só ela"*.
+
+**Causa:** `session.createAgent` é `publicProcedure` e aceitava `autonomous: z.boolean()` direto do
+fio. Com `true`, a sessão nasce no modo que **nunca pergunta permissão** — então qualquer chamador na
+porta local (um `curl`, um script na própria página que a `014` serve) abria uma conversa que
+auto-aprova toda ferramenta, contornando por fora o portão por sessão da
+[`016`](../features/016-session-mode/prd.md).
+
+O conserto **não é autenticação**, e chamar de autenticação seria pior que não ter: o produto é local,
+de uma pessoa, e toda procedure é pública. O que ele faz é separar a porta que o daemon usa da porta
+que a tela usa — um campo `internal` no contexto, ligado no único chamador do lado do servidor.
+
+A regra: **se o comentário descreve quem pode chamar, o teste é quem impõe** — e o teste aqui é uma
+recusa, não uma convenção.
+
+### Memória de aba que só é limpa no caminho de erro
+
+**Sintoma:** o contador *"N pararam enquanto você não estava"* travava, e uma tarefa que encalhava
+**de novo** nunca notificava — até um reload inteiro.
+
+**Causa:** o `Set` de *"já tratei"* do hook de notificação era limpo num lugar só: o `catch` da
+marcação. Mas o daemon zera `notified_at` a **cada troca de estado**, então a mesma tarefa reentra num
+estado de aviso com uma frase nova — e a aba, lembrando do id para sempre, dava `continue`, nunca
+chamava `markNotified` e deixava `notified_at` nulo.
+
+A regra: **um cache com entrada e sem saída é um vazamento de estado, não um cache.** O sinal de saída
+já existia e estava sendo ignorado: a frase vir nula **é** o daemon dizendo que registrou.
+
+### Texto de leitor de tela é texto, e a suíte procura por texto
+
+**Sintoma:** um caso do `pull-request.spec.ts` que não tinha sido tocado passou a falhar com
+*"strict mode violation: resolved to 2 elements"*, e o segundo elemento era um `<span class="sr-only">`
+de outra tela.
+
+**Causa:** a linha `Tarefas` da sidebar ganhou `1 tarefa precisa de você` para leitor de tela, e a
+barra de PR já tinha um grupo de checks chamado `precisa de você`. O `sr-only` não está **na tela** —
+`clip-path: inset(50%)` — mas está no **`textContent`**, que é por onde `getByText` procura. É a
+armadilha do *mesmo nome em duas peças* que a `021` já pagou com 22 e2e, com uma volta a mais: a peça
+nova é invisível.
+
+O conserto é dos dois lados, e os dois se pagam: a frase nova virou `esperando você` — duplicar uma
+frase que o produto já usa para outra coisa é ruim em copy antes de ser ruim em teste — e a asserção
+antiga ganhou `{ exact: true }`, porque uma frase curta sem âncora quebra de novo no próximo texto
+que a contiver.
+
+A regra: **ao escrever `sr-only`, procure a frase na suíte antes.** Ela conta como texto para todo
+`getByText` do repositório.
+
+### Um caso que não pode falhar é um caso que não existe
+
+**Sintoma:** nenhum — o e2e *"o bloco não rola com a árvore"* passava, inclusive contra o código com o
+bloco deslocado 40px.
+
+**Causa:** ele rolava a `.tree` e comparava o `y` do bloco antes e depois. **No fixture a árvore não
+rola**: um projeto e três linhas cabem inteiros na coluna, então `scrollTop = scrollHeight` não move
+nada e os dois `y` são iguais por construção.
+
+O que o expôs foi uma linha de **teste do teste** — `expect(rolou).toBeGreaterThan(0)` sobre o
+`scrollTop` que a rolagem produziu —, e ela ficou vermelha na hora. O conserto é encolher a janela
+para 320px de altura, e aí o caso existe: com o bloco movido para dentro da `.tree`, o `y` sai de 89
+para 76 e ele falha.
+
+A regra é a que a seção de convenções já tem, dita de outro jeito: **asserção que não pode falhar
+conta como teste faltando** — e a maneira de descobrir é asserir a **premissa** do caso, não só a
+conclusão.
+
+### Uma porta injetada e falsa em todo teste é uma costura sem teste
+
+**Sintoma:** o daemon **recusava as próprias escritas**, e nada falhava. Três das quatro setas da
+esteira — `open → in_progress`, `review → testing`, `testing → ready_to_merge` — lançavam `BLOCKED`,
+o `throw` subia até o `catch` do laço e virava uma linha de log. As 48 tasks da `028` fecharam com a
+suíte verde.
+
+**Causa:** a esteira escreve com `setStatus(..., { actor: "agent" })`, e o `AGENT_MAY_SET` da `022` só
+permite `review` — uma regra **certa**, que existe para impedir um agente de se declarar pronto. O
+erro é a esteira se declarar um: ela é o daemon.
+
+**E o motivo de ninguém ver:** o `conveyor.test.ts` injeta um `advance` **falso**. Ele prova a política
+da esteira — a ordem das coisas, o que acontece quando o portão reprova — sem tocar o banco, e isso é
+uma escolha boa. O que faltava era o outro arquivo: **não existia `conveyor-ports.test.ts`**, então a
+tradução entre a política e o repositório nunca foi exercitada por nada.
+
+O custo de não ter: uma tarefa de verdade, **US$ 11,41** e 453 884 tokens em seis sessões, com o
+cartão parado em `In Review` e o revisor rodando contra ele até esgotar as tentativas. O sintoma que
+chegou foi *"o revisor travou"* — que é a leitura errada de tudo.
+
+A regra: **injetar a ponta é o que torna a política testável, e é o que torna a tradução invisível.**
+Toda porta que um teste substitui por um dublê precisa de um segundo arquivo que a exercite de
+verdade — e o `as "review"` naquela linha era o tipo mentindo exatamente onde o runtime recusava.
+
+### O e2e da esteira joga o log do daemon fora
+
+**Sintoma:** dois casos do `conveyor.spec.ts` ficaram vermelhos com
+`blockedReason` **nulo** — o cartão simplesmente não bloqueava —, e a mensagem do Playwright não dizia
+por quê, porque o defeito estava no daemon e não no navegador.
+
+**Causa:** o `startDaemon` do e2e sobe o processo com `stdio: "ignore"`. Tudo que o daemon escreve —
+inclusive o `conveyor-tick-failed`, que existe exatamente para dizer por que uma passada falhou — é
+descartado. Diagnosticar exigiu trocar para `inherit` à mão, rodar um caso, ler, e reverter.
+
+Com o log ligado, a resposta veio na primeira linha: `ACP connection closed`.
+
+A regra: **quando o sujeito do teste é o daemon, o log dele é parte da saída do teste.** Trocar dois
+caracteres à mão funciona uma vez; o custo é lembrar que dá.
+
+### Fechar e retomar a conversa a cada turno não é de graça
+
+**Sintoma:** o mesmo. A esteira contava tentativa, abria a sessão, e o `prompt` morria com
+`ACP connection closed` — então o turno nunca era julgado e o cartão nunca bloqueava com o motivo do
+portão.
+
+**Causa:** duas tasks da Parte 7 se contradiziam sem que nenhuma das duas estivesse errada. A **T52**
+manda fechar a conversa que a esteira abre (a `LUM-51` deixou três vivas). A **T57** manda a tentativa
+seguinte continuar a conversa do mesmo encaixe, em vez de pagar o contexto de novo. Juntas, viravam
+*fechar e retomar a cada turno* — e `session/load` sobe um adaptador **novo**: o par cliente/servidor
+não sobrevive ao ciclo imediato.
+
+O conserto não é escolher uma das duas: é **fechar no fim da etapa, e não no fim do turno**. A segunda
+tentativa do mesmo encaixe continua no **mesmo processo** — o que a T57 queria, por um caminho mais
+curto e sem `load` nenhum —, e a conversa fecha quando a tarefa avança, volta ou bloqueia.
+
+A regra: **duas tasks que se contradizem no código é desenho que faltou**, e a medição é que diz qual
+das duas leituras existe. Nenhum teste unitário pegaria esta — os dois lados têm dublê.
+
+### Uma resposta que não grava nada é uma resposta que não aconteceu
+
+**Sintoma:** com um revisor que **acertou** — *"olhei e não achei nada que segure"* —, o cartão ficava
+em `In Review` até esgotar as tentativas. O portão respondia `o revisor não deixou parecer`, e o
+revisor tinha deixado.
+
+**Causa:** o parecer vazio é `{"findings":[]}`, e ele não grava linha nenhuma em `task_finding`. O
+portão lia **os achados** para decidir se houve parecer, e a lista vazia é indistinguível de *"não
+postou nada"*. O `decideGate` até distingue os dois casos (`null` contra `[]`) — o que não existia era
+a informação para preencher a distinção.
+
+O conserto é o **recibo**: uma linha em `task_review` dizendo que a revisão aconteceu, com o tamanho
+dela. O parecer é o evento; os achados são o conteúdo.
+
+A regra: **uma decisão sobre "isto aconteceu?" não se deriva do conteúdo do que aconteceu**, porque o
+conteúdo vazio é o caso que importa. E o pior modo de falha de um portão é punir a resposta certa —
+aqui ele punia exatamente o comportamento que a feature inteira existe para tornar possível.
+
+### A coluna nula que a leitura de cima resolvia
+
+**Sintoma:** a esteira não abria PR nenhuma e não comentava nada — em silêncio, e **só** nos projetos
+adicionados por caminho, que são a maioria. Nenhum teste de unidade via: todos eles criam o projeto
+com `remoteUrl` preenchido.
+
+**Causa:** `project.remoteUrl` só é gravado no **clone**. Quem adiciona por caminho fica com `null`, e
+a `013` já resolvia isso — `project.remoteUrl ?? git.getRemoteUrl(path)` —, mas **dentro do router da
+PR**. A esteira leu a coluna crua em três lugares.
+
+É a **segunda vez** que esta metade é esquecida: a barra da `013` pagou o mesmo defeito, e foi um e2e
+que achou lá também. Agora a regra mora em `pr/remote.ts`.
+
+A regra: **quando uma coluna precisa de uma leitura para valer, a leitura é a fonte — e ela mora num
+arquivo, não numa camada.** Uma segunda cópia da resolução é a cópia que esquece a segunda metade.
+
+### Um fake que repete o mesmo trabalho não trabalha na segunda vez
+
+**Sintoma:** o cartão do e2e da esteira andava uma etapa e parava. O turno seguinte do mesmo encaixe
+nunca acabava, e o teste morria no teto de tempo dizendo `timeout`.
+
+**Causa:** o agente falso escrevia **o mesmo conteúdo** no mesmo arquivo a cada turno. Na segunda
+passada não havia o que commitar, `git commit` saiu diferente de zero, o `execFileSync` lançou, e a
+resposta do `session/prompt` nunca foi enviada — o daemon esperou os 30 minutos do teto.
+
+Dois consertos, e os dois valem: o conteúdo passou a mudar a cada turno, e **o turno acaba mesmo que o
+trabalho falhe** — um fake que lança é um turno que pendura, e o sintoma não fala do fake.
+
+A regra: **um dublê que simula trabalho precisa simular trabalho diferente**, e nada que ele faça pode
+deixar o protocolo sem resposta.
+
+### Retomar traz a conversa, e não a postura
+
+**Sintoma:** com a autonomia em `autônomo`, a esteira abria uma sessão que **perguntava permissão a
+cada passo**. Quem estava olhando tinha que aceitar tudo à mão — numa sessão que existe justamente
+porque não há ninguém do outro lado.
+
+**Causa:** `session/load` não ressuscita o processo de ontem, ele **sobe um adaptador novo** — e o
+adaptador novo nasce no modo padrão dele. Quem aplicava `bypassPermissions` era o caminho do
+nascimento, e só ele. E como a esteira fecha a conversa quando a tarefa **sai** da etapa, a segunda
+vez de todo encaixe é uma retomada: o caminho que tinha o conserto era o raro.
+
+Havia um segundo pedaço, mais silencioso: o `lumemMode` só chegava à linha pelo `watchConfig`, que
+existe para a linha **seguir** o manager quando alguém troca alguma coisa. Uma conversa que nasce
+liberada e nunca troca de nada não dispara evento nenhum — a linha ficava no default da coluna
+dizendo `perguntar tudo` sobre uma sessão que o daemon tratava como liberada. Na sessão nascida pela
+esteira isso passava despercebido porque o `setConfig` do modo, logo depois do nascimento, disparava o
+evento e carregava o `lumemMode` junto. Por acidente.
+
+A regra: **o que um caminho aplica ao nascer, o caminho de retomar tem que reaplicar** — e o que um
+observador de *mudança* persiste nunca é o que persiste um *estado inicial*.
+
+### O teto de um chamador herdado por outro que tem a pressa oposta
+
+**Sintoma:** o portão da esteira respondia *"o teste do projeto não chegou a rodar"* num projeto cujo
+teste roda. Duas das quatro tentativas da `LUM-51` foram embora assim, e o cartão parou em
+`In Progress`.
+
+**Causa:** `runToCompletion` tem um teto default de **20 s**, e o nome dele diz para que foi escolhido
+— `TEARDOWN_TIMEOUT_MS`, *"curto, porque a remoção não pode ficar refém dele"*. A esteira chamava sem
+opções, para `setup` **e** para `test`, e herdava o número de uma operação cuja pressa é o oposto da
+dela. Medido na sessão de script do banco de dev: `dur = 20,3 s`, morto no teto, com `exit = 0`
+gravado depois — a linha parecia um teste que passou.
+
+Nesse teto **nenhum projeto com suíte de verdade passa no portão**, e o portão é o que a Q53 chama de
+a força da esteira.
+
+A regra: **um default com nome de caso de uso é um default de um caso de uso só.** Quando um segundo
+chamador aparece, ele declara o dele — e um teto que pode matar trabalho pertence a quem sabe quanto o
+trabalho demora, não a quem escreveu a função.
+
+### Contar a linha quando a pergunta é sobre o evento
+
+**Sintoma:** com o teto de `60 turnos por sessão`, a esteira parava **dentro do primeiro turno** — e o
+cartão dizia *"parou depois de 2 tentativas"*, que não fala de teto nenhum.
+
+**Causa:** `turns` era `count(session_usage.id)`, e uma linha daquela tabela é um `usage_update`, não
+um turno. O adaptador do Claude mandou **97 num turno só**. O nome do campo dizia *"quantos turnos
+entraram na conta"* e o dado era *"quantos relatos chegaram"* — e o cabeçalho do arquivo que grava
+(`O consumo de cada turno`) documentava a premissa que o adaptador não cumpre.
+
+Três coisas caem juntas quando o nome e o dado divergem assim: a tela mostra um número errado, o teto
+dispara cedo, e a mensagem do teto fala de uma grandeza que ninguém reconhece.
+
+A regra: **quando a pergunta é sobre um evento, a contagem precisa de uma marca do evento.** Aqui a
+marca é a coluna `turn`, e a chave é o par sessão × turno — a soma cruza sessões, e o turno `0` de uma
+não é o `0` da outra.
+
+### A recusa que vira exceção some, e quem paga é a leitura
+
+**Sintoma:** o mesmo cartão. Três passadas, **três adaptadores de 243 MB subidos**, zero turno, zero
+comentário — e um bloqueio com a frase errada.
+
+**Causa:** o teto responde *"parou no teto do workspace — 60 turnos por sessão"*, e o caminho dessa
+resposta era `throw`. A esteira não a lia: a exceção subia, virava um `conveyor-tick-failed` num log
+que ninguém está olhando, e a passada seguinte repetia tudo até a contagem de tentativas acabar.
+
+A regra: **decisão do daemon é resposta, não exceção.** O que a porta traduz é só o que é decisão
+(`BLOCKED`); falha continua subindo, porque tratá-la como decisão faria um adaptador morto parar o
+cartão dizendo que o teto o parou.
 
 ## Convenções
 

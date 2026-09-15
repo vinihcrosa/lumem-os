@@ -39,7 +39,10 @@ const screenSheets = ["create-worktree.css"]
 const consumers = ["Modal.tsx"]
   .map((name) => readFileSync(join(UI, name), "utf8"))
   .concat(
-    ["AddProjectDialog.tsx", "CreateWorktreeDialog.tsx", "CloneStatus.tsx"].map((name) =>
+    // `CredentialDialog.tsx` entrou com o `modal__destructive` (ADR de 2026-09-13):
+    // ele é o primeiro diálogo do produto com uma ação que **apaga**, e quem
+    // separa essa ação das outras é o rodapé do diálogo, não a tela.
+    ["AddProjectDialog.tsx", "CreateWorktreeDialog.tsx", "CloneStatus.tsx", "CredentialDialog.tsx"].map((name) =>
       readFileSync(join(COMPONENTS, name), "utf8"),
     ),
   )

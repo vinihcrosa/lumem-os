@@ -6,6 +6,18 @@ export interface FieldProps {
   label: string;
   /** The daemon's own words. It is the only thing that knows what failed. */
   error?: ReactNode;
+  /**
+   * O que este campo faz, dito **antes** de alguém preenchê-lo.
+   *
+   * Diferente do `error`, que chega depois e só quando dá errado. Nasceu com o
+   * campo de credencial (ADR de 2026-09-13), onde a frase — *"guarda cifrada e
+   * nunca a mostra de volta"* — é o item mais importante do diálogo: ela é a
+   * promessa que o produto faz sobre um segredo que você está entregando.
+   *
+   * Por isso ela é parte do `Field` e não um `span` solto na tela: ela entra no
+   * `aria-describedby` junto com o erro, e é lida quando o campo recebe foco.
+   */
+  hint?: ReactNode;
   children: ReactNode;
 }
 
@@ -16,13 +28,18 @@ export interface FieldProps {
  * nearby, so it is read when the field takes focus instead of only being
  * visible to someone looking at the right part of the screen.
  */
-export function Field({ id, label, error, children }: FieldProps) {
+export function Field({ id, label, error, hint, children }: FieldProps) {
   return (
     <div className="field">
       <label className="field__label" htmlFor={id}>
         {label}
       </label>
       {children}
+      {hint !== undefined && (
+        <span className="field__hint" id={`${id}-hint`}>
+          {hint}
+        </span>
+      )}
       {error !== undefined && (
         <span className="field__error" id={`${id}-error`} role="alert">
           {error}

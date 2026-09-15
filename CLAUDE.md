@@ -186,6 +186,207 @@ com o número que a recusou. O defeito de brinde é do mesmo tipo: `rateLimitOf`
 raiz de `_claude/rateLimit` e o `0.75.1` a aninhou em `unifiedWindows.<janela>` — o rodapé de limite
 está apagado em **todo** transcript do repositório, sem nada falhar.
 
+E a [autonomous-orchestration](docs/features/028-autonomous-orchestration/prd.md) é a maior PRD do
+repositório e a primeira **fatiada**: das seis partes do escopo, o `tasks.md` executa **uma** — o
+quadro lendo a `022`, com a autonomia desligada —, e as **12 tasks das cinco fases estão entregues**.
+O corte não é cautela: seis das nove conversas técnicas do §11 continuam guardadas, duas não têm
+resposta, e uma delas **exige ADR novo** porque contradiz o [ADR de
+2026-08-30](docs/adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md). A fase 0 é um
+[estudo](docs/project/orchestration-measurements.md), e ele mudou duas coisas antes de existir código.
+A primeira é a que manda: **o `StopReason` do ACP não distingue *"terminei"* de *"te perguntei"***.
+Dos **13 `end_turn`** gravados neste repositório, **4** significaram terminei — quatro eram pergunta,
+dois eram espera sem interrogação, e **três eram o turno morrendo no meio do trabalho**. A heurística
+do ponto de interrogação pega 4 dos 9: **44% de recall**, errando no caso caro. Isso tira o §4.1 do
+terreno da cautela — *a máquina só move quando o fato é verificável de fora do agente* passa a ser a
+**única leitura disponível**, porque o transporte não tem o dado. A segunda é que o modelo da `022`
+não comportava o quadro: sete colunas contra quatro estados úteis, e `Backlog`/`To-Do` colapsariam no
+mesmo `open` — apagando a fronteira de autorização que a coluna existe para marcar. O estudo também
+mediu o que **não** entra: o precedente do `gh` **não é portável** para tracker (não existe `linear`
+na máquina), polling cabe em **2,4% da cota** do Linear, e a camada gerenciada custa **~2 s** por
+chamada contra ~345 ms do caminho direto. O selo é derivado de **turno em voo**, e não de processo
+vivo — 7 dos 15 transcripts nunca receberam um prompt, e cada um deles pintaria *"implementando há
+3 h"* pelo outro critério. A tela reproduziu a conta do Open Design (1152px de faixa + 264 da sidebar
+= 1416 contra 1418 medidos) e achou três defeitos que nenhuma leitura de código pega — o mais caro
+deles é que o **`ResizeObserver` vê a caixa, e o que muda é o conteúdo**. Duas perguntas ficaram
+abertas e represadas até a Parte 2 (a esteira), e uma terceira **nunca precisou existir**: a Q38 levantou o arrasto
+para `In Progress` como contradição, e ele **já funcionava** — sem um único teste cobrindo.
+
+E em **2026-09-13** a `028` fechou as **43 perguntas** dela, três delas **gastando token** — US$ 4,60
+em 30 turnos de Haiku e Opus, contra o adaptador que o daemon é dono. A Q39 foi **derrubada** em vez
+de respondida: *terminou* e *te perguntou* **não são exclusivos** — 31% dos turnos que commitaram
+deixaram pergunta em aberto —, então o selo `aguardando você` é um eixo **ortogonal** e o desenho o
+fez escolha. Pior: **o commit não separa *terminou* de *desistiu inventando*** — a tarefa impossível
+virou commit em 3 de 4 execuções, com o serviço inventado junto —, e o que separa é o **CI**, o que
+torna a força da esteira a força da suíte do projeto. O Haiku **não perguntou nenhuma vez** em 10
+turnos. E dos cinco modos do Claude, **só `bypassPermissions` fecha o laço**: o único modo que deixa a
+esteira andar é o único que nunca pergunta, então a segurança dela não pode vir do modo de permissão.
+Daí saiu o [ADR de 2026-09-13](docs/adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md) — **o
+modelo é do Lumem, e o que vem de fora se adapta a ele**, regra geral para adaptador, banco, `gh` ou
+tracker. Ele contradiz uma frase da [`016`](docs/features/016-session-mode/prd.md) com a nota no
+requisito, reafirma os três ADRs em vigor, e nomeia **três vazamentos medidos** — o `stopReason`
+repassado do ACP, o `session.mode` cru, e o `TaskRow` derivado do `drizzle`, que é o banco decidindo a
+forma do domínio.
+
+A **Parte 2 — A esteira** fechou em **2026-09-13**, e com ela a `028` passa a ter **33 tasks
+entregues** em três fatias. O daemon **puxa da fila sem ninguém pedir**: corta a worktree, roda o
+`setup`, abre a sessão do encaixe no modo que não pergunta, manda o prompt e julga — com a autonomia
+nascendo em `manual` e o degrau `assistido` no meio, que prepara tudo e **para antes de enviar**. A
+fase 0 dela produziu um [ADR](docs/adr/2026-09-13-0412-the-conveyor-has-no-lease.md) com
+[estudo](docs/project/conveyor-durable-state.md): **a esteira não tem lease**. Dos dez invariantes do
+Compozy, **seis não se aplicam** — lá qualquer sessão reivindica um run, aqui quem reivindica é o
+daemon, que é um só —, **um já era grátis** (o selo é derivado, e matar a sessão o devolve na leitura
+seguinte, com teste) e **três ficam**, todos sobre *quantas vezes já se tentou*. Sobraram duas
+colunas: `attempts`, que zera na mudança de etapa porque mudar de etapa **é** a conclusão daquela
+etapa, e `autonomy`, que não zera porque você desligou de propósito.
+
+**O e2e achou dois defeitos que nenhuma leitura de código pega**, e o mais caro é de produto: quando o
+agente é dono do seletor de modos, o daemon **não consulta** a política do Lumem — ele manda o pedido
+de permissão para uma pessoa (a A1 da [`016`](docs/features/016-session-mode/prd.md)) —, e numa sessão
+de esteira **não há pessoa**. O turno pendurava para sempre com o cartão dizendo `implementando` a
+manhã inteira. Daí saíram duas coisas: a sessão da esteira **nasce** na política que precisa em vez de
+trocar para ela — o portão do `016` protege a **troca**, e continua inteiro —, e o turno ganhou um
+**teto de 30 minutos** que não existia. O segundo defeito é o log da passada, que o pino serializava
+como `{"code":"BLOCKED"}` **sem a frase** — a mesma falha que o retrato do turno já tinha pago, e foi
+consertá-la que permitiu diagnosticar a primeira. Um terceiro veio de um teste de fila: a regra do
+arrasto contava `open` como coluna da máquina, então **pôr uma tarefa na fila desligava a autonomia
+dela** e a esteira ficaria vazia para sempre sem nada falhar.
+
+E as **Partes 5 e 6 — o tracker** fecharam junto, levando a `028` a **48 tasks e as seis partes do §6
+entregues**. Elas estavam paradas por um motivo só — **de onde vem a credencial** —, e ele foi decidido **duas
+vezes no mesmo dia**. O primeiro ADR disse *"do ambiente"*, apoiado em dois precedentes do produto, e
+**foi superado horas depois**: o Vinicius nomeou o erro — *"a decisão do `gh` e `glab` foi específica
+para eles; a do Claude Code e Codex foi por simplicidade"* —, e nenhuma das duas era regra a ser
+estendida. É a primeira vez que a cadeia de `supersedes` do [`025`](docs/features/025-docs-contract/prd.md)
+é exercitada neste repositório.
+
+O que vale é o [ADR do cofre](docs/adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md),
+com [estudo](docs/project/secret-store.md): **o Lumem guarda as chaves dos serviços de que depende**,
+cifradas em `~/.lumem/_system/`, com `AES-256-GCM` nativo. **Agentes, GitHub e GitLab entram numa
+feature posterior** — até lá, `gh` e `apiKeyEnv` continuam como estão.
+
+O estudo mede o que foi recusado, e os dois achados são concretos: o cofre do macOS põe o valor no
+**`argv`** — `security add-generic-password -w` sem valor **pede no terminal duas vezes** em vez de
+ler `stdin` —, e são **três CLIs** para três sistemas. A saída nativa resolve os dois e quebra o *"só
+o par nativo por fora"* que a [`014`](docs/features/014-distribution/prd.md) comprou. E o que o cofre
+**não** protege está escrito no ADR e num teste: quem já lê o seu `$HOME` como você decifra, porque a
+chave está ao lado — dizer *"guardado com segurança"* sem dizer contra o quê ensina alguém a confiar
+numa proteção que não existe.
+
+O resto é **polling a 60 s** — webhook exige relé, e relé é a opção que o ADR recusou —, a issue
+virando cartão **direto na To-Do**, e os quatro marcos voltando para a issue **uma vez cada**. Três
+decisões que o código cobrou: o índice da chave externa é **por workspace** (a mesma issue pode
+legitimamente virar tarefa em dois), o instantâneo é atualizado **mesmo com a tarefa já bloqueada** —
+senão uma segunda mudança lá nunca seria vista —, e a reserva do marco acontece **antes** da escrita,
+porque o lado certo de errar é um marco registrado que não saiu, e não um segundo comentário na issue
+de outra pessoa. E **sem mapa de colunas, nada é movido lá**: isso é a decisão, não o default
+preguiçoso.
+
+E a **Parte 4 — Supervisão e o volante** fechou no mesmo dia, levando a `028` a **41 tasks em quatro
+das seis partes**. Ela é sobre o que você vê **sem estar olhando**, e a fase 0 dela achou uma
+contradição que a esteira tinha acabado de criar: o relógio do encalhe cobrava **espera por vaga**.
+Com teto 2 e oito cartões devidos, os seis na fila ficavam âmbar em 30 minutos sem nada de errado —
+e *"cobrar o que é desenho é a forma mais rápida de tornar o aviso invisível"* é o §8 do próprio
+documento. O conserto não guarda nada: cartão na fila além das vagas **não encalha**, derivado da
+mesma leitura. A notificação é **da aba** e o registro de *já avisei* é **do daemon** — é isso que faz
+*"uma vez, sem repetir"* valer com duas abas e com `F5` —, e a permissão é pedida **quando alguém liga
+a autonomia**, o único instante em que o pedido tem frase honesta. O que sobra sem aba aberta é uma
+frase no topo do quadro que **some quando você olha**. O volante são dois verbos: `parar` **cancela e
+depois** desliga (a ordem é lida de dentro do cancelamento, porque desligar primeiro deixa o turno
+velho gastando sem ninguém para matá-lo) e `assumir` **não interrompe**. E a **Q59** nasceu do UC7 lido
+ao pé da letra: se todo clique desligasse a autonomia, olhar o quadro viraria campo minado — então só
+conta como assumir o cartão que a esteira está tocando **agora**. O `Done` limpa pela regra da Q27, com
+um quarto caso que ela não tinha decidido: o interruptor **não** vale para branch não mesclada, porque
+ele se chama *"PR **mesclada** sempre remove"*. E `mesclada` é lido do **git** (`ahead === 0`), não do
+`gh`: vale para quem mesclou na mão e para quem nunca abriu PR.
+
+A **Parte 3 — Orçamento e limites** fechou em **2026-09-13**, e ela veio **antes da esteira**: a Q43
+mediu que o único modo do Claude que deixa a esteira andar é o único que **nunca pergunta**, então a
+segurança dela não pode vir do modo de permissão — tem que vir do CI, do orçamento e do teto de
+turnos. Os três tetos moram no workspace, `NULL` é *sem teto* e `0` é *bloqueia tudo*, e a decisão é
+**função pura de três saídas**: quem conduz é **avisado** e decide, a esteira **para** — mesmo número,
+mesma leitura, verbos diferentes (Q45). O teto em dinheiro não é cobrável contra todo adaptador (o
+Codex relata `cost: null`), então ele tem **duas unidades**, e um produto que só soubesse cobrar em
+dólar deixaria um workspace com Codex rodando sem teto nenhum. Duas tasks estão **anotadas em vez de
+fingidas**: a recusa por cota **não tem código no protocolo** — o login tem `-32000` e é por código
+que o daemon o reconhece, *porque o texto é do adaptador* —, e o cartão bloqueado não tem o que
+desenhar até a esteira existir, porque escrever o CSS agora recriaria as 13 classes órfãs que a Parte
+1 pagou. Três achados de processo: o `drizzle-kit` voltou a gerar um `SELECT` lendo colunas que ainda
+não existem na origem — **cinco migrações depois** do `0001`, o que faz a armadilha ser do gerador e
+não daquela migração —, uma variante nova de `AcpEvent` **derruba o typecheck da tela** (e isso é o
+contrato funcionando), e o **mock compartilhado é parte do contrato**: esquecê-lo quebrou cinco testes
+de telas sem relação com orçamento.
+
+E a **Parte 7 — O parecer do revisor** fechou em **2026-09-15**, levando a `028` a **61 tasks**. Ela
+**não veio de discussão**: veio de rodar a esteira contra uma tarefa de verdade, vinda do Linear —
+**US$ 11,41** e 453 884 tokens em seis sessões, com o cartão parado em `In Review` e o revisor
+reprovando duas vezes enquanto o daemon escrevia `portão verde`. Três defeitos empilhados, e o
+primeiro escondia os outros: a esteira **se declarava agente**, e o `AGENT_MAY_SET` da
+[`022`](docs/features/022-workspace-tasks/prd.md) recusava **três das quatro setas** — o `throw` virava
+uma linha de log que ninguém lia. A regra da `022` está certa e fica; quem estava errado era a esteira,
+que é o daemon. E o motivo de a suíte não ver era estrutural: o `conveyor.test.ts` injeta um `advance`
+falso, e o `conveyor-ports.test.ts` **não existia** — as 48 tasks fecharam com a tradução entre a
+política e o banco nunca exercitada.
+
+Com as setas andando, o buraco de verdade apareceu: **o portão não tinha entrada nenhuma do revisor.**
+A resposta é a [Q67](docs/features/028-autonomous-orchestration/open-questions.md) — **dois baldes**, e
+o que os separa não é a verdade do achado, é **quem consegue resolver a discussão**. `bloqueia` traz o
+comando que o demonstra, e **o daemon reroda**: reproduziu, o cartão volta ao implementador;
+não reproduziu, o achado cai e fica registrado que o revisor afirmou o que não se sustenta. `anota` é
+julgamento — arquitetura, convenção, nome ruim —, **não segura nada** e vai para a pull request, onde
+uma pessoa lê antes de mesclar. É a resposta ao relato que abriu a parte — *"toda vez que você pede um
+review para um agente, ele vai achar alguma coisa"* — sem censurar o revisor: ele acha quanto quiser, e
+só o que ele demonstra segura. `bounces` é coluna separada de `attempts` porque aquele zera na mudança
+de etapa, e o ciclo implementador ↔ revisor troca de etapa a cada passo: nenhum teto chegaria.
+
+A PR passou a abrir **quando o implementador fecha pela primeira vez**, o que dá endereço ao balde
+`anota` e faz o marco `pr` do §6 — que existia e nunca disparou — passar a disparar. E há **uma
+conversa por encaixe**: um implementador, um revisor, um testador por tarefa, fechada quando a tarefa
+**sai** da etapa, e não a cada turno (as duas tasks se contradiziam, e `session/load` sobe um adaptador
+novo — o par não sobrevive ao ciclo imediato).
+
+**A prova veio em duas rodadas, e as duas acharam coisa.** A primeira foi contra a `LUM-51` de verdade:
+o revisor postou 4 achados (1 `bloqueia`, 3 `anota`), o daemon rerodou o `grep`, bateu com o `expected`
+e devolveu o cartão — e o implementador foi mexer exatamente onde o achado apontava. De graça, dois
+defeitos de produção: o teto de orçamento **funcionou pela primeira vez**, e a porta do parecer
+**viajava dentro do preâmbulo de memória**, que some inteiro num workspace sem acervo — o estado de
+todo workspace novo. A segunda rodada é o e2e, com um revisor falso e zero token, e ela achou o pior
+modo de falha que a parte podia ter: **um parecer vazio não gravava nada**, então *"olhei e não achei
+nada"* era lido como *"o revisor não deixou parecer"* — o cartão travava **porque o revisor acertou**.
+O conserto é o **recibo** (`task_review`): o parecer é o evento, os achados são o conteúdo. Ela também
+achou que a esteira lia `project.remoteUrl` **cru**, nulo em todo projeto adicionado por caminho — a
+mesma metade que a [`013`](docs/features/013-pull-request-status/prd.md) já tinha esquecido uma vez —,
+e que o parecer da volta passada contava como parecer desta. O verbo `pr comment` entrou com a nota no
+requisito **F7.1** da `013`, que dizia *"e nada mais"*.
+
+E um quinto apareceu **usando o produto**, no mesmo dia: a esteira em `autônomo` abria sessão que
+**pedia permissão a cada passo**. `session/load` traz a conversa e sobe um adaptador **novo**, no modo
+padrão dele — quem aplicava `bypassPermissions` era só o caminho do nascimento. Como a conversa fecha
+quando a tarefa sai da etapa, a segunda vez de todo encaixe é uma retomada: o caminho consertado era o
+raro. Junto veio o pedaço silencioso — o `lumemMode` só chegava à linha pelo `watchConfig`, que
+observa **troca**, então uma conversa que nasce liberada e nunca troca de nada deixava a linha dizendo
+`perguntar tudo` sobre uma sessão que o daemon tratava como liberada.
+
+E um sexto, lendo por que o cartão não saía de `In Progress` depois de o implementador consertar o que
+a revisão devolveu: o **portão esperava 20 segundos pelo teste do projeto**. O `runToCompletion` tem
+esse default, e o nome dele diz para quê — `TEARDOWN_TIMEOUT_MS`, *"curto, porque a remoção não pode
+ficar refém dele"* —; a esteira chamava sem opções e herdava o teto de uma operação cuja pressa é o
+oposto da dela. Na `LUM-51` o `pnpm gate:quick` foi morto aos **20,3 s** e o portão leu *"não chegou a
+rodar"*: **duas das quatro tentativas** do cartão foram embora assim, e com esse teto nenhum projeto
+com suíte de verdade passa no portão — que é justamente o que a Q53 chama de a força da esteira.
+
+E a rodada seguinte — **a primeira em que o laço inteiro funcionou**: o implementador trabalhou 15
+minutos, commitou, e o portão rodou o teste do projeto em 56 s e **reprovou**. Dois achados nela, e os
+dois do mesmo tipo — **o nome dizia uma coisa e o dado era outra**. O teto de `turnsPerSession`
+contava `usage_update` e não turno: o adaptador mandou **97 num turno só**, então o teto que a Parte 3
+desenhou para proteger quem **não relata dinheiro** disparava dentro do primeiro turno, sempre. E a
+recusa do teto — cuja frase é boa, *"parou no teto do workspace — 60 turnos por sessão"* — subia como
+**exceção**: cada passada gastava uma tentativa e subia um adaptador de 243 MB para ouvir o mesmo não,
+até o cartão parar com *"parou depois de 2 tentativas"*. Decisão do daemon virou resposta, e só ela:
+adaptador morto continua sendo falha. E o teste que reprovou não era do agente — era o **node**: o
+daemon roda os scripts por `$SHELL -lc`, e um shell de login **não interativo** não carrega o nvm, então
+o terminal rodava v22 e o daemon v26, com 340 testes quebrando no jsdom.
+A `028` fecha a Parte 7 com **61 tasks**.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
@@ -303,7 +504,26 @@ O `**Status:**` de uma PRD tem gramática fechada, e o `gate:full` compara com o
 ## Convenções
 
 - Documentação e comunicação em português. Código, commit e nome de arquivo em inglês.
+- **Caminho da aplicação em inglês** — `home`, `tasks` —, e ele está do lado do **código**, não do da
+  comunicação: um caminho é identificador, como nome de arquivo e nome de variável. O rótulo
+  `Tarefas` se traduz; para onde ele aponta, não. A alternativa é caminho localizado (`/tarefas` em
+  pt, `/tasks` em en) e ela custa o que parece ganhar — o mesmo lugar com dois endereços, e um link
+  colado no chat que abre errado para quem está no outro idioma. **Custa zero adotar agora:** o
+  aplicativo não tem rota nenhuma (só o `/styleguide`, e só em DEV), então não há o que migrar; o
+  dia em que houver, cada rota publicada é um link que alguém guardou. Decidido em **2026-09-14**, e
+  **não virou ADR de propósito** — ele extende a linha acima em vez de contradizê-la, e hoje falha o
+  teste de *"difícil de reverter"*. Quando o produto ganhar URL de verdade, aí passa.
 - Nome de arquivo em kebab-case.
+- **Escreva por extenso, e não abreviado.** Uma abreviação que economiza cinco letras custa uma
+  releitura inteira no dia em que duas coisas diferentes ficam com a mesma cara. A
+  [`028`](docs/features/028-autonomous-orchestration/prd.md) produziu o caso: o §6 numerava as partes
+  do escopo como `F1..F6` e o `tasks.md` numerava as etapas de construção como `Fase 0..4` — nada em
+  lugar nenhum dizia que eram **coisas diferentes**, e `F3` contra `fase 3` é indistinguível em voz
+  alta. Escreva **Parte 3 — Orçamento e limites** e **Fase 3 — a tela**; o documento fica mais
+  comprido e para de exigir que quem lê adivinhe.
+- **Numeração diferente pede nome diferente.** Se um documento numera duas coisas, as duas precisam de
+  substantivos distintos — *parte* e *fase*, não `F` e `Fase`. E quem cita de fora cita pelo nome
+  inteiro.
 - Pergunta de design não vira suposição silenciosa: vai pro arquivo de perguntas da feature, ou pro [questions.md](docs/project/questions.md) se for do projeto todo.
 - Ideia que ficou pra depois não vira memória de conversa: vai pro [backlog](docs/project/backlog.md), com uma frase de contexto, de onde veio, e o gatilho que traz de volta.
 - Discussão grande demais pra caber numa pergunta vira arquivo próprio em `docs/project/`, e a pergunta linka pra ele — como a [PTY × ACP](docs/project/pty-vs-acp.md) fez. Quando ela **decide** algo difícil de reverter, o arquivo é o estudo e a decisão vira um [ADR](docs/adr/).

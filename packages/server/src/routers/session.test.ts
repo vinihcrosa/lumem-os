@@ -10,6 +10,8 @@ import { session } from "../db/schema.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
+import { appRouter } from "../routers/index.js";
+import { createCallerFactory } from "../trpc.js";
 import { cleanupGitFixtures, createRepo, tempDir } from "../testing/git-fixtures.js";
 
 let context: TestCaller;
@@ -232,6 +234,49 @@ describe("session.createAgent", () => {
       () => expect(ctx.ptyManager.snapshot(created.id)).toContain("agente=presente"),
       { timeout: 10_000 },
     );
+  });
+
+  it("recusa `autonomous` de quem não é o daemon", async () => {
+    /*
+     * `autonomous: true` abre uma conversa que **nunca pergunta permissão**, e o
+     * comentário do campo dizia *"é a esteira, e só ela"* sem nada impor isso: o
+     * produto é local e toda procedure é pública, então um `curl` na porta —
+     * ou um script na própria página servida pela `014` — abria uma sessão que
+     * auto-aprova toda ferramenta, contornando por fora o portão por sessão que
+     * a `016` existe para impor.
+     */
+    const { ctx, worktreeId } = await setup();
+    const { command } = fakeAgentBin();
+    const config = await createAgentConfigRepository(ctx.db).create({ name: "fixture", command });
+
+    await expect(
+      ctx.api.session.createAgent({
+        scopeType: "worktree",
+        scopeId: worktreeId,
+        agentConfigId: config.id,
+        autonomous: true,
+      }),
+    ).rejects.toThrow(/só a esteira/);
+    expect(
+      await ctx.api.session.listByScope({ scopeType: "worktree", scopeId: worktreeId }),
+    ).toEqual([]);
+  });
+
+  it("o chamador do daemon passa pelo portão", async () => {
+    // O mesmo pedido, do chamador que o `bootstrap` monta: ele não pode parar
+    // aqui, senão a esteira não abre sessão nenhuma. Ele segue e falha adiante,
+    // na configuração — que é a prova de que este portão não foi o que barrou.
+    const { ctx, worktreeId } = await setup();
+    const daemon = createCallerFactory(appRouter)({ ...ctx.ctx, internal: true });
+
+    await expect(
+      daemon.session.createAgent({
+        scopeType: "worktree",
+        scopeId: worktreeId,
+        agentConfigId: "nao-existe",
+        autonomous: true,
+      }),
+    ).rejects.toThrow(/não existe/);
   });
 
   it("reports a configuration that does not exist", async () => {

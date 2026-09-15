@@ -58,6 +58,20 @@ export interface PrCreateInput extends PrHostInput {
   draft: boolean;
 }
 
+/**
+ * Um comentário numa PR que já existe (`028` Parte 7 — T55).
+ *
+ * O terceiro verbo de escrita do produto, e ele nasce por um motivo estreito: o
+ * balde `notes` da revisão promete ao agente que o que não é reproduzível vai
+ * para a pull request. Sem este verbo a promessa é falsa e as anotações morrem
+ * numa tabela que nenhuma tela lê.
+ */
+export interface PrCommentInput extends PrHostInput {
+  /** Vem do instantâneo do daemon, nunca do cliente — como o merge. */
+  number: number;
+  body: string;
+}
+
 export interface PrMergeInput extends PrHostInput {
   /** Vem do **cache do daemon**, nunca do cliente (§4.2.12 do PRD). */
   number: number;
@@ -108,7 +122,8 @@ export interface PrHost {
    * list` custou ~730 ms medidos, e ninguém abre o diálogo o dia inteiro.
    */
   issues(input: PrHostInput): Promise<IssueRead>;
-  /** F7 — escrita, e as duas únicas que existem. */
+  /** F7 — escrita. Duas na `013`, e a terceira veio com a esteira (`028` T55). */
   create(input: PrCreateInput): Promise<PrWrite>;
   merge(input: PrMergeInput): Promise<PrWrite>;
+  comment(input: PrCommentInput): Promise<PrWrite>;
 }

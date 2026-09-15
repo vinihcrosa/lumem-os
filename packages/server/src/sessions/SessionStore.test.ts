@@ -519,8 +519,13 @@ describe("resuming", () => {
    * The turn is not decoration: a session that never spoke has nothing to carry
    * forward, and the assertions about the history would pass on an empty copy.
    */
-  async function ended(db: Db, store: SessionStore, acpManager: AcpManager) {
-    const row = await store.start(await acpAgent(db));
+  async function ended(
+    db: Db,
+    store: SessionStore,
+    acpManager: AcpManager,
+    overrides: Record<string, unknown> = {},
+  ) {
+    const row = await store.start(await acpAgent(db, overrides));
     await acpManager.prompt(row.id, "algo dito ontem");
     acpManager.kill(row.id);
     await vi.waitFor(async () =>
@@ -572,6 +577,23 @@ describe("resuming", () => {
       agentConfigId: old.agentConfigId,
       transport: "acp",
     });
+  });
+
+  it("a conversa da esteira volta liberada — e a linha diz isso", async () => {
+    /*
+     * A esteira nasce em `free` porque **não há ninguém do outro lado** para
+     * responder permissão, e retomar não pode desfazer isso em silêncio. A
+     * linha nova nascia no default da coluna (`ask`): o daemon tratava a
+     * conversa como liberada e a tela dizia `perguntar tudo` — o que quer que
+     * lesse a linha estava lendo mentira.
+     */
+    const { store, db, acpManager } = setup();
+    const old = await ended(db, store, acpManager, { lumemMode: "free" as const });
+
+    const resumed = await store.resume(old.id);
+
+    expect(resumed.lumemMode).toBe("free");
+    expect((await store.findById(resumed.id))?.lumemMode).toBe("free");
   });
 
   it("refuses a session that is still alive, with a reason", async () => {
@@ -927,6 +949,26 @@ describe("o modo do Lumem", () => {
 
     expect(acpManager.get(row.id)?.lumemMode).toBe("auto");
     expect(acpManager.get(row.id)?.lumemModeDefault).toBe("auto");
+  });
+
+  it("o condutor default é `human`, e a esteira é quem diz o contrário", async () => {
+    const { store, db, acpManager } = setup();
+    const { worktreeId } = await hierarchy(db, "ask");
+
+    const yours = await store.start(await acpAgent(db, { scopeId: worktreeId }));
+    const conveyor = await store.start({
+      ...(await acpAgent(db, { scopeId: worktreeId })),
+      driver: "conveyor",
+    });
+
+    /*
+     * Separado do `lumemMode` de propósito: uma conversa sua que atravessou o
+     * portão da `016` também fica em `free`, e deduzir o condutor dali faria o
+     * teto do workspace **interromper** o turno de quem está olhando em vez de
+     * avisá-la (Q45).
+     */
+    expect(acpManager.get(yours.id)?.driver).toBe("human");
+    expect(acpManager.get(conveyor.id)?.driver).toBe("conveyor");
   });
 
   it("nasce perguntando tudo quando o workspace não pediu outra coisa", async () => {

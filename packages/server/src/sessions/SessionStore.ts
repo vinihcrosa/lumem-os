@@ -6,7 +6,7 @@ import type { AcpServerMessage, LumemMode, LumemModeDefault } from "@lumem/share
 
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
-import type { AcpManager } from "../acp/AcpManager.js";
+import type { AcpDriver, AcpManager } from "../acp/AcpManager.js";
 import { createGitService, type GitService } from "../git/GitService.js";
 import {
   isKilledEarly,
@@ -60,6 +60,36 @@ export interface StartSessionInput {
   transport?: "pty" | "acp";
   /** Pinned adapter version, for the launch failure message (F1.6). */
   adapterVersion?: string | null;
+  /**
+   * A política do Lumem com que a sessão **nasce** (`028` Parte 2).
+   *
+   * Ausente é o default e o caso comum: herdar o workspace, que nunca é `free`
+   * — o `CHECK` da coluna recusa, e a
+   * [`016`](../../../../docs/features/016-session-mode/prd.md) é explícita em
+   * que ninguém nasce liberado.
+   *
+   * A esteira é a exceção, e ela é **nascer**, não **trocar**. O
+   * `AcpManager.setLumemMode` recusa a troca quando o agente é dono do seletor
+   * (A1), e a recusa protege o seletor: aceitar guardaria um valor que nunca se
+   * aplica. Só que quem responde `session/request_permission` é o daemon **em
+   * qualquer caso**, e uma sessão de esteira parada em `ask` pendura para
+   * sempre — não há ninguém para responder. O e2e achou exatamente isso.
+   *
+   * A autorização não é este campo: é o interruptor de autonomia do workspace,
+   * que nasce em `manual` e que alguém ligou.
+   */
+  lumemMode?: LumemMode;
+  /**
+   * Quem está empurrando esta sessão (`028` Parte 3, Q45).
+   *
+   * Ausente é `human`, e é todo mundo menos a esteira. O que muda com ele é **o
+   * verbo do teto**: quem conduz é avisado e decide; a esteira para. Ele é
+   * separado do `lumemMode` acima de propósito — uma conversa sua que
+   * atravessou o portão da [`016`](../../../../docs/features/016-session-mode/prd.md)
+   * também está em `free`, e deduzir o condutor dali pararia o turno de quem
+   * está olhando.
+   */
+  driver?: AcpDriver;
   /**
    * O que **gravar** como comando, quando ele difere do que é executado.
    *
@@ -284,6 +314,8 @@ export function createSessionStore({
         }
 
         const inherited = await inheritedMode(scopeType, scopeId);
+        // Explícito ganha do herdado, e só a esteira passa um.
+        const born = input.lumemMode ?? inherited;
 
         // The agent first, so its id is the record's id — the same identity rule
         // the PTY path follows, for the same reason.
@@ -293,10 +325,20 @@ export function createSessionStore({
           cwd,
           ...(input.env ? { env: input.env } : {}),
           ...(input.adapterVersion ? { adapterVersion: input.adapterVersion } : {}),
-          // O modo herdado, e ele é o mesmo nos dois campos: uma sessão nova
-          // começa no padrão do workspace, e o menu mostra de onde veio.
-          lumemMode: inherited,
+          /*
+           * O modo em que ela nasce, e o **padrão de onde ela veio** — e agora
+           * os dois podem divergir.
+           *
+           * `lumemModeDefault` continua sendo o do workspace mesmo quando a
+           * esteira nasce em `free`, e isso é o menu da
+           * [`016`](../../../../docs/features/016-session-mode/prd.md)
+           * funcionando: ele mostra de onde o valor veio, e uma sessão de
+           * esteira que dissesse *"padrão do workspace: liberado"* estaria
+           * mentindo sobre um workspace que o `CHECK` não deixa ser liberado.
+           */
+          lumemMode: born,
           lumemModeDefault: inherited,
+          driver: input.driver ?? "human",
         });
 
         try {
@@ -312,6 +354,11 @@ export function createSessionStore({
             acpSessionId: agent.acpSessionId,
             mode: agent.mode,
             model: agent.model,
+            // A política com que ela nasce, **na linha** (D9). Sem isto ela só
+            // chegava lá se alguém trocasse alguma coisa depois — e a conversa
+            // da esteira, que nasce liberada e nunca troca, dizia
+            // `perguntar tudo` na tela.
+            lumemMode: born,
           });
         } catch (error) {
           // A conversation the daemon cannot describe is one nobody can find or
@@ -453,6 +500,24 @@ export function createSessionStore({
           mode: agent.mode,
           model: agent.model,
           resumedFromId: row.id,
+          /*
+           * A tarefa e o encaixe **atravessam** a retomada (`028` Parte 7 — T57).
+           *
+           * Retomar produz uma linha nova, e sem estes dois a conversa do
+           * implementador ficava órfã: o custo dela sairia da conta da tarefa, e
+           * a esteira não a reencontraria na tentativa seguinte — que é
+           * exatamente o que a retomada existe para evitar.
+           */
+          ...(row.taskId === null ? {} : { taskId: row.taskId }),
+          ...(row.taskRole === null ? {} : { taskRole: row.taskRole }),
+          /*
+           * E a política volta como estava (F1.4), **na linha também**.
+           *
+           * Ela já ia para o manager logo acima; a linha nova nascia no default
+           * da coluna. Numa conversa de esteira isso é o pior par possível: o
+           * daemon a trata como liberada e a linha diz `perguntar tudo`.
+           */
+          lumemMode: row.lumemMode as LumemMode,
         });
       } catch (error) {
         // Same rule as `start`: a conversation the daemon cannot describe is one

@@ -7,6 +7,49 @@
   padding: var(--space-4) var(--space-6);
 }
 
+/*
+ * O bloco de navegação (`029-sidebar-nav`, F1.1).
+ *
+ * **Fora da `.tree`**, e essa é a regra inteira: a árvore é `flex: 1;
+ * overflow: auto` — ela rola —, e um bloco que rola junto com a lista de
+ * projetos é um bloco que some quando ela cresce. O pedido que originou a
+ * feature é *"poder acessar a qualquer hora"*.
+ *
+ * Só separa: um `border-bottom` e o mesmo padding lateral da árvore. Altura
+ * própria ele não tem — quem dá altura são as linhas, e as linhas são `<Row>`.
+ */
+.nav {
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+/*
+ * O número que a linha `Tarefas` carrega — o mesmo `precisa de mim` do quadro.
+ *
+ * Mesmo tratamento do `.needme__n` de lá, e **o mesmo dado**, lido da mesma
+ * resposta: dois lugares contando coisas diferentes seriam dois lugares
+ * divergindo, e aqui a divergência seria pior que no quadro, porque a sidebar é
+ * o que se vê **sem estar olhando**.
+ *
+ * **Some no zero**, pela regra que o quadro já escreveu: um zero vermelho ensina
+ * a ignorar o vermelho.
+ *
+ * E ele não é o `.row__count` do `<Row>`: aquele conta sessões vivas, é o único
+ * verde da sidebar, e pintá-lo de vermelho apagaria o que ele existe para dizer.
+ */
+.row__n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--size-icon-md);
+  height: var(--size-icon-md);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-danger-subtle);
+  color: var(--color-text-danger);
+  font: var(--text-label-xs);
+}
+
 .tree__message {
   margin: var(--space-8);
   font: var(--text-body-sm);

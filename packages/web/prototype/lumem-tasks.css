@@ -1,0 +1,280 @@
+/* ---------------------------------------------------------------------------
+   lumem-tasks.css — tarefa como entidade: a lista, a linha, o detalhe,
+   "trabalhar nesta tarefa", e a FILA DE PROPOSTAS.
+
+   PRD: docs/features/022-workspace-tasks/prd.md
+   Tasks: docs/features/022-workspace-tasks/tasks.md — fase 0, T2 e T3
+
+   Duas coisas que este arquivo faz de propósito:
+
+   1. **A linguagem de estado é a MESMA do quadro da `028`.** Anel = ninguém
+      está; disco cheio = alguém está; o texto mais claro da paleta = sua vez;
+      vermelho = deu errado e a decisão é sua. A `028` empilha em cima desta —
+      se as duas telas dissessem a mesma coisa com pixels diferentes, a pessoa
+      aprenderia duas vezes.
+
+   2. **A fila de Propostas (`.pq`) nasce AQUI, e o quadro consome daqui.** A
+      T4 decidiu que existe uma fila só, com memória e tarefa; a superfície é
+      da `022`. O `lumem-board.html` tinha uma cópia chamada `.tri` — cópia é
+      como duas telas divergem sem ninguém decidir nada. Ela virou esta.
+
+   Nenhum literal de cor, espaço ou tipografia.
+   -------------------------------------------------------------------------- */
+
+/* moldura de documentação — a mesma das outras telas */
+.bleed { width: calc(100vw - var(--space-48)); margin-left: calc(50% - 50vw + var(--space-24)); }
+.q { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-brand); }
+.mm { font: var(--text-mono-sm); color: var(--color-text-brand); }
+.sec__t .no { font: var(--text-mono-md); color: var(--color-text-tertiary); margin-right: var(--space-8); }
+.stack { display: grid; gap: var(--space-12); }
+.lnk { color: var(--color-text-link); text-decoration: none; }
+.lnk:hover { text-decoration: underline; text-underline-offset: 2px; }
+.win { border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-bg-base); }
+.win__l { display: flex; align-items: baseline; gap: var(--space-8); padding: var(--space-6) var(--space-10); background: var(--color-bg-inset); font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.win__l .mm { letter-spacing: normal; text-transform: none; }
+.win--w1440 { width: calc(var(--space-64) * 22.5); }
+.win__v { overflow: hidden; }
+.win__v .app { height: var(--h, calc(var(--space-64) * 13.5 + var(--space-4))); }
+.pairing { display: flex; flex-wrap: wrap; gap: var(--space-16); align-items: flex-start; }
+.pairing__i { display: grid; gap: var(--space-6); align-content: start; }
+.pairing__l { font: var(--text-caption); color: var(--color-text-tertiary); }
+.pairing__l b { color: var(--color-text-brand); font-weight: 500; }
+
+/* ---------------------------------------------------------------------------
+   1. a seção — o painel do workspace ganha tarefas, e a fila acima delas
+   -------------------------------------------------------------------------- */
+.wsp { display: grid; gap: var(--space-20); align-content: start; padding: var(--space-16) var(--space-20); overflow-y: auto; min-height: 0; }
+.wsp__title { display: flex; align-items: baseline; gap: var(--space-10); }
+.wsp__title h3 { margin: 0; font: var(--text-heading-lg); letter-spacing: var(--tracking-heading-lg); }
+.wsp__kind { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-scope-workspace); }
+
+.tsec { display: grid; gap: var(--space-8); }
+.tsec__h { display: flex; align-items: center; gap: var(--space-8); }
+.tsec__t { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.tsec__all { font: var(--text-label-xs); color: var(--color-text-link); }
+/* O rótulo da janela do custo. Dois segmentados lado a lado sem rótulo leem como
+   um controle só — e aí o primeiro clique é no grupo errado. */
+.tsec__k { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.tsec__d { font: var(--text-body-sm); color: var(--color-text-secondary); max-width: 68ch; }
+.tsec__d b { color: var(--color-text-primary); font-weight: 500; }
+.tsec__d code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/* ---------------------------------------------------------------------------
+   2. a linha da tarefa
+   -------------------------------------------------------------------------- */
+/*
+ * ORDEM DOS ITENS, e ela é o argumento: estado · título · projeto ·
+ * proveniência · checkout · PR · custo. O estado vem primeiro porque a lista é
+ * ordenada por ele (§F1) — e quando o primeiro item da linha é o critério de
+ * ordenação, a ordem se explica sozinha e o quadro não precisa de cabeçalho de
+ * grupo. Foi o que tirou os cabeçalhos daqui: eles diriam de novo o que o chip
+ * já diz, e roubariam a altura de duas tarefas.
+ */
+.trow {
+  --st: var(--color-tool-pending);
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  width: 100%;
+  min-height: var(--size-row-cozy);
+  padding: var(--space-6) var(--space-10);
+  text-align: left;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-left: var(--border-width-thick) solid var(--st);
+  border-radius: var(--radius-md);
+}
+.trow:hover { background: var(--color-bg-raised); border-color: var(--color-border-strong); border-left-color: var(--st); }
+/*
+ * Os cinco estados que aparecem na lista, com a MESMA linguagem do selo do
+ * quadro da `028`. `proposed` não está aqui: ele mora na fila de Propostas, e
+ * repeti-lo na lista faria a mesma coisa existir em dois lugares com dois
+ * gestos.
+ */
+.trow--open     { --st: var(--color-tool-pending); }
+.trow--progress { --st: var(--color-session-agent); }
+.trow--review   { --st: var(--color-text-primary); }
+.trow--done     { --st: var(--color-text-success); }
+.trow--dropped  { --st: var(--color-border-strong); }
+
+.tstat { flex: none; display: inline-flex; align-items: center; gap: var(--space-6); min-width: calc(var(--space-64) + var(--space-32)); font: var(--text-label-xs); color: var(--st); }
+.tstat__dot { flex: none; width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+/* Anel é "ninguém está", disco cheio é "alguém está" — e sobrevive a captura
+   em escala de cinza, que é por que a regra existe. */
+.trow--open .tstat__dot,
+.trow--review .tstat__dot { background: none; box-shadow: inset 0 0 0 var(--border-width-thin) currentColor; }
+.tstat__g { flex: none; font-size: var(--size-icon-xs); line-height: 1; }
+.trow--dropped .tstat { color: var(--color-text-tertiary); }
+
+.trow__t { flex: 1; min-width: 0; font: var(--text-body-md); color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trow--done .trow__t, .trow--dropped .trow__t { color: var(--color-text-secondary); }
+/*
+ * As quatro células de meta têm LARGURA PRÓPRIA, e isso não é capricho: com
+ * elas elásticas, cada linha começava a metadata num x diferente — o olho
+ * lê uma lista na vertical, e uma coluna que dança a cada linha vira ruído
+ * exatamente na região onde se compara projeto com projeto. Só o título é
+ * elástico, e ele é o único que deve ser.
+ */
+.trow__proj { flex: none; display: inline-flex; align-items: center; gap: var(--space-4); min-width: calc(var(--space-64) + var(--space-24)); font: var(--text-caption); color: var(--color-text-tertiary); }
+.trow__wt { flex: none; display: inline-flex; align-items: center; gap: var(--space-4); width: calc(var(--space-64) * 2.5); font: var(--text-mono-sm); color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trow .prmark { min-width: calc(var(--space-32) + var(--space-16)); }
+.trow__cost { flex: none; min-width: calc(var(--space-64) + var(--space-16)); text-align: right; font: var(--text-mono-sm); color: var(--color-usage-cost); }
+.trow__cost--none { color: var(--color-text-disabled); }
+
+/*
+ * A PROVENIÊNCIA é glifo, não cor — a mesma lição que a triagem do quadro pagou
+ * caro: `session-agent` e `text-link` são o mesmo `brand-400`, então "duas
+ * origens, duas cores" não dizia nada. Aqui só o que NÃO é o default ganha
+ * marca: tarefa criada por você não tem glifo nenhum, porque "você" é o normal.
+ */
+.tprov { flex: none; display: inline-flex; align-items: center; gap: var(--space-4); min-width: calc(var(--space-64) + var(--space-32)); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.tprov__g { font-size: var(--size-icon-xs); line-height: 1; color: var(--color-session-agent); }
+.tprov--link .tprov__g { color: var(--color-text-link); }
+
+/* O grupo recolhido do `done`. É divulgação, não cabeçalho: ele some quando
+   está vazio, e o número é a única coisa que ele precisa dizer fechado. */
+.tfold { display: flex; align-items: center; gap: var(--space-8); width: 100%; padding: var(--space-6) var(--space-10); border-radius: var(--radius-md); font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.tfold:hover { background: var(--color-bg-hover); color: var(--color-text-secondary); }
+.tfold__caret { font-size: var(--size-icon-xs); }
+.tfold__n { font: var(--text-mono-sm); letter-spacing: normal; }
+.tfold__sum { margin-left: auto; font: var(--text-mono-sm); letter-spacing: normal; text-transform: none; color: var(--color-usage-cost); }
+
+.tlist { display: grid; gap: var(--space-6); }
+
+/*
+ * A BANCADA DA LINHA: 1120px é a largura real da `.trow` no produto, numa
+ * janela de 1440 com a sidebar de 264 — medido, não escolhido. A coluna do
+ * documento tem 880, e uma linha examinada a 880 trunca o título onde o produto
+ * não trunca. Examinar um componente mais estreito do que ele vive é como se
+ * conclui que ele não cabe.
+ */
+.rowbench { width: calc(var(--space-64) * 17.5); display: grid; gap: var(--space-6); }
+
+/* ---------------------------------------------------------------------------
+   3. o detalhe da tarefa
+   -------------------------------------------------------------------------- */
+.td { display: grid; gap: var(--space-16); align-content: start; padding: var(--space-16) var(--space-20); overflow-y: auto; min-height: 0; }
+.td__l1 { display: flex; align-items: flex-start; gap: var(--space-10); flex-wrap: wrap; }
+.td__t { margin: 0; flex: 1; min-width: 0; font: var(--text-heading-md); letter-spacing: var(--tracking-heading-md); color: var(--color-text-primary); }
+.td__acts { flex: none; display: flex; gap: var(--space-6); }
+.td__facts { display: flex; flex-wrap: wrap; gap: var(--space-6); }
+.td__sec { display: grid; gap: var(--space-8); }
+.td__st { display: flex; align-items: baseline; gap: var(--space-8); font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.td__st .dim { font: var(--text-caption); letter-spacing: normal; text-transform: none; }
+.td__body { font: var(--text-body-md); color: var(--color-text-secondary); padding: var(--space-12); background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); }
+.td__body code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.td__body b { color: var(--color-text-primary); font-weight: 500; }
+
+/* uma sessão da tarefa */
+.srow { display: flex; align-items: center; gap: var(--space-8); min-height: var(--size-row-cozy); padding: 0 var(--space-10); width: 100%; text-align: left; background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.srow:hover { background: var(--color-bg-raised); border-color: var(--color-border-strong); color: var(--color-text-primary); }
+.srow__kind { flex: none; display: inline-flex; align-items: center; gap: var(--space-6); min-width: calc(var(--space-64) * 1.75); font: var(--text-label-sm); color: var(--color-text-primary); }
+.srow__when { flex: 1; min-width: 0; font: var(--text-caption); color: var(--color-text-tertiary); }
+.srow__st { flex: none; display: inline-flex; align-items: center; gap: var(--space-6); font: var(--text-label-xs); }
+.srow__st--run { color: var(--color-session-running); }
+.srow__st--exit { color: var(--color-session-exited); }
+.srow__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+.srow__cost { flex: none; min-width: calc(var(--space-64) + var(--space-16)); text-align: right; font: var(--text-mono-sm); color: var(--color-usage-cost); }
+
+/* o que a memória aprendeu enquanto — F6, só leitura */
+.learn { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-8) var(--space-10); background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-left: var(--border-width-thick) solid var(--color-scope-workspace); border-radius: var(--radius-md); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.learn__g { flex: none; font-size: var(--size-icon-sm); color: var(--color-scope-workspace); line-height: 1; }
+.learn__when { margin-left: auto; flex: none; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------------------------------
+   4. a fila de Propostas — a superfície que a T4 decidiu
+   -------------------------------------------------------------------------- */
+/*
+ * UMA fila, dois tipos. A origem é GLIFO — `◆` agente, `↗` tracker, `◈`
+ * memória —, e a barra é uma só porque o estado que os três compartilham é o
+ * mesmo: proposta.
+ *
+ * O que NÃO pode se perder na mudança de endereço, e é a parte difícil desta
+ * peça: a inbox da memória distinguia **fato de conclusão** — resposta apoiada
+ * em artefato verificável vira memória direta; conclusão vira proposta. Essa
+ * distinção é a regra que sustenta a memória inteira, e ela mora na `.pq__ev`.
+ * Perder isso ao mudar de tela seria trocar a decisão por acidente.
+ */
+.pq { display: grid; gap: var(--space-8); }
+.pq__h { display: flex; align-items: center; gap: var(--space-8); }
+.pq__t { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.pq__i { display: grid; gap: var(--space-8); padding: var(--space-12); background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-left: var(--border-width-thick) solid var(--color-session-agent); border-radius: var(--radius-md); }
+.pq__head { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; font: var(--text-caption); color: var(--color-text-tertiary); }
+.pq__g { flex: none; font-size: var(--size-icon-sm); line-height: 1; color: var(--color-text-brand); }
+.pq__who { display: inline-flex; align-items: center; gap: var(--space-4); font: var(--text-mono-sm); color: var(--color-text-secondary); }
+/* O tipo, em caixa-alta à direita — é o que faz uma lista de dois tipos ser
+   varrível sem ler linha por linha. */
+.pq__kind { margin-left: auto; font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.pq__t2 { font: var(--text-body-md); color: var(--color-text-primary); }
+.pq__why { font: var(--text-body-sm); color: var(--color-text-secondary); padding: var(--space-6) var(--space-10); background: var(--color-bg-inset); border-radius: var(--radius-sm); }
+.pq__why code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.pq__why b { color: var(--color-text-primary); font-weight: 500; }
+
+/*
+ * A EVIDÊNCIA, e a ausência dela. Duas leituras opostas no mesmo lugar da
+ * linha: com artefato verificável, os caminhos aparecem em mono; sem, a frase
+ * diz que foi conclusão — e é isso que justifica ela ser proposta em vez de
+ * memória. A ausência é `warning`, não `danger`: não é erro, é o motivo de você
+ * estar sendo perguntado.
+ */
+.pq__ev { display: flex; align-items: flex-start; gap: var(--space-8); font: var(--text-body-sm); color: var(--color-text-secondary); }
+.pq__ev-g { flex: none; font-size: var(--size-icon-xs); line-height: var(--space-16); color: var(--color-text-success); }
+.pq__ev code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.pq__ev--none { color: var(--color-text-tertiary); }
+.pq__ev--none .pq__ev-g { color: var(--color-text-warning); }
+
+.pq__acts { display: flex; align-items: center; gap: var(--space-6); flex-wrap: wrap; }
+.pq__note { margin-left: auto; font: var(--text-caption); color: var(--color-text-tertiary); }
+.pq__tags { display: flex; align-items: center; gap: var(--space-6); }
+
+/* resolvida — mesma peça, sem verbos, com o que você decidiu */
+.pq__i--done { border-left-color: var(--color-border-strong); }
+.pq__verdict { display: inline-flex; align-items: center; gap: var(--space-6); font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.pq__verdict--ok { color: var(--color-text-success); }
+.pq__verdict--no { color: var(--color-text-danger); }
+
+/* ---------------------------------------------------------------------------
+   5. trabalhar nesta tarefa
+   -------------------------------------------------------------------------- */
+/*
+ * Duas escolhas, na ordem em que se pensa: ONDE e QUEM. Invertida, o agente
+ * viraria a pergunta principal — e ele tem default, enquanto o checkout não
+ * necessariamente tem.
+ */
+.work { display: grid; gap: var(--space-16); }
+.work__f { display: grid; gap: var(--space-6); }
+.work__l { font: var(--text-label-xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--color-text-tertiary); }
+.work__help { font: var(--text-caption); color: var(--color-text-tertiary); }
+.work__help b { color: var(--color-text-secondary); font-weight: 500; }
+.work__list { display: grid; gap: var(--space-2); max-height: calc(var(--space-32) * 4 + var(--space-16)); overflow-y: auto; padding: var(--space-2); background: var(--color-bg-inset); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); }
+.wopt { display: flex; align-items: center; gap: var(--space-8); width: 100%; height: var(--size-row-cozy); padding: 0 var(--space-8); border-radius: var(--radius-sm); text-align: left; font: var(--text-body-sm); color: var(--color-text-secondary); }
+.wopt:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.wopt.is-selected { background: var(--color-bg-selected); color: var(--color-text-primary); }
+.wopt__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wopt__note { flex: none; font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/* o nome derivado do título, e a marca de que ele é sugestão */
+.fname { display: flex; align-items: flex-start; gap: var(--space-6); font: var(--text-caption); color: var(--color-text-tertiary); }
+.fname__g { flex: none; color: var(--color-text-brand); line-height: var(--space-16); }
+
+/* ---------------------------------------------------------------------------
+   6. a tarefa na primeira aba do checkout
+   -------------------------------------------------------------------------- */
+/*
+ * `ao lado de branch e sujeira` — a linha de contexto do checkout, não o rótulo
+ * da aba. O rótulo da aba já carrega nome e ponto de sujeira, e enfiar um
+ * título de tarefa lá dentro faria a aba crescer com o texto que alguém digitou.
+ */
+.ctx { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; padding: var(--space-10) var(--space-12); background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); }
+.ctx__task { display: inline-flex; align-items: center; gap: var(--space-6); min-width: 0; padding: 0 var(--space-8); height: var(--size-control-sm); border: 1px solid var(--color-border-subtle); border-left: var(--border-width-thick) solid var(--st, var(--color-session-agent)); border-radius: var(--radius-sm); font: var(--text-label-xs); color: var(--color-text-secondary); }
+.ctx__task:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.ctx__task-t { min-width: 0; max-width: calc(var(--space-64) * 5); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx__none { font: var(--text-caption); color: var(--color-text-disabled); }
+
+/* ---------------------------------------------------------------------------
+   7. auxiliares do documento
+   -------------------------------------------------------------------------- */
+.deck { display: flex; flex-wrap: wrap; gap: var(--space-12); }
+.deck__i { display: grid; gap: var(--space-6); align-content: start; min-width: calc(var(--space-64) * 5); flex: 1 1 calc(var(--space-64) * 6); }
+.deck__l { font: var(--text-caption); color: var(--color-text-tertiary); }
+.deck__l b { color: var(--color-text-brand); font-weight: 500; }

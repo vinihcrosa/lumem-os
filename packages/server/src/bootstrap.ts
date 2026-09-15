@@ -19,8 +19,26 @@ import { createAgentAuthService } from "./setup/agent-auth.js";
 import { adapterCommandForConfig } from "./setup/adapter-command.js";
 import { reconcileAdapters } from "./setup/reconcile-adapters.js";
 import { createMemoryPreamble } from "./memory/preamble.js";
+import { createBudgetSource } from "./tasks/budget-source.js";
+import { createConveyor } from "./tasks/conveyor.js";
+import { createConveyorPorts } from "./tasks/conveyor-ports.js";
+import { runConveyorLoop } from "./tasks/conveyor-loop.js";
+import { createLinearHost } from "./tracker/LinearHost.js";
+import { createSecretStore } from "./secrets/SecretStore.js";
+import { runTrackerLoop } from "./tracker/loop.js";
+import { writeMark, type Mark } from "./tracker/marks.js";
+import { configForAdapter, numberOfWorktree, verdictOfWorktree } from "./tasks/conveyor-wiring.js";
+import { reproduce } from "./tasks/reproduce.js";
+import { createCallerFactory } from "./trpc.js";
+import { appRouter } from "./routers/index.js";
+import { createGitService } from "./git/GitService.js";
+import { createCloneJobStore } from "./git/CloneJobStore.js";
+import { createGhHost } from "./pr/GhHost.js";
+import { createPrCache } from "./pr/PrCache.js";
+import { createIssueCache } from "./pr/IssueCache.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createTranscriptStore, type TranscriptStore } from "./acp/TranscriptStore.js";
+import { createTurnFailureSink } from "./acp/turn-failures.js";
 import { createScriptRunner } from "./scripts/ScriptRunner.js";
 import { createSessionStore } from "./sessions/SessionStore.js";
 import { createServer } from "./server.js";
@@ -150,6 +168,24 @@ export async function bootstrap({
           url: `http://${config.host}:${String(config.port)}/tasks`,
           budget: config.taskBudget,
         },
+        // A porta do parecer (`028` Parte 7). A mesma raiz: quem decide se o
+        // parágrafo nasce é o preâmbulo, olhando a etapa da tarefa que a sessão
+        // serve.
+        reviewBaseUrl: `http://${config.host}:${String(config.port)}/tasks`,
+      }),
+      // O teto entra pela mesma porta e pela mesma razão: este é o único lugar
+      // que conhece o banco e o manager ao mesmo tempo (`028` Parte 3, T16).
+      budget: createBudgetSource(openedDatabase.db),
+      // O retrato do turno que falhou, em disco (`028` Q46). Sem isto ele sai
+      // por `stdout` e some com o terminal — e a cota fecha durante trabalho
+      // autônomo, que é quando ninguém está olhando.
+      turnFailures: createTurnFailureSink({
+        stateDir: config.stateDir,
+        // Disco recusado não derruba nada: a falha do turno já subiu. Ela vira
+        // mais uma linha no mesmo log que o retrato também usa.
+        onError: (error: unknown) => {
+          bootedApp?.log.warn({ tag: "turn-failed-sink", error }, "não deu para gravar o retrato");
+        },
       }),
     });
   /*
@@ -223,35 +259,264 @@ export async function bootstrap({
     },
   });
 
+  // Construído uma vez e passado adiante: o servidor e a esteira precisam do
+  // **mesmo** runner, senão a esteira rodaria `setup` num processo que a aba
+  // `Setup` do rodapé não vê.
+  const scripts = createScriptRunner({
+    db: openedDatabase.db,
+    sessionStore,
+    ptyManager,
+    shell: config.shell,
+    portRange: config.runPortRange,
+    events,
+    log: {
+      warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+        bootedApp?.log.warn(...args);
+      },
+      info: (...args: Parameters<FastifyBaseLogger["info"]>) => {
+        bootedApp?.log.info(...args);
+      },
+    },
+  });
+
+  /*
+   * Git, host e caches construídos **aqui**, e não pelos defaults do servidor.
+   *
+   * Pelo mesmo motivo do `scripts` logo acima: a esteira e o servidor precisam
+   * dos **mesmos**. Dois `PrCache` perguntariam ao `gh` duas vezes a mesma
+   * coisa, que é exatamente o que a `013` pagou para não fazer — *"oito
+   * worktrees custam um processo, não oito"*.
+   */
+  const git = createGitService();
+  const clones = createCloneJobStore();
+  const prHost = createGhHost();
+  const pr = createPrCache({
+    host: prHost,
+    onChange: (projectId) => {
+      events.emit({ type: "pr.changed", projectId });
+    },
+  });
+  const issues = createIssueCache({ host: prHost });
+
+  /*
+   * O tracker (`028` Partes 5 e 6).
+   *
+   * Construído sempre, e **não** condicionado a haver credencial: o host
+   * reporta ausência em vez de falhar, e é ele que decide a cada chamada. Um
+   * `if` aqui faria uma chave guardada depois do boot só valer no reinício
+   * seguinte — e guardar a chave é um gesto na tela, não uma variável de
+   * ambiente que pede reinício.
+   */
+  const secrets = createSecretStore({ stateDir: config.stateDir });
+  const tracker = createLinearHost({ secrets });
+
+  /*
+   * A esteira, construída **antes** do servidor porque ela entra no contexto
+   * dele: o clique do `assistido` é uma procedure, e ela manda o prompt pela
+   * mesma esteira que o teria mandado sozinha. Duas instâncias dariam duas
+   * políticas — e a do clique seria a que ninguém testou.
+   *
+   * O `api` dela é um chamador do lado do servidor sobre o mesmo router, e a
+   * dependência circular que isso parece ser não é: o contexto do chamador não
+   * tem esteira, porque nada do que a esteira chama precisa de uma.
+   */
+  const conveyor = createConveyor(
+    createConveyorPorts({
+      db: openedDatabase.db,
+      git,
+      scripts,
+      createWorktree: async ({ projectId, name, taskId }) => {
+        const created = await api.worktree.create({ projectId, name, taskId });
+        return { id: created.id, path: created.path };
+      },
+      openAgentSession: async ({ taskId, role, adapter, model, cwd, worktreeId, agentMode }) => {
+        // `cwd` não é usado: a sessão da esteira é **de escopo**, e o escopo é a
+        // worktree — o daemon resolve o diretório dela, como faz para toda
+        // conversa aberta pela tela.
+        void cwd;
+        const configured = await configForAdapter(
+          openedDatabase.db,
+          adapter,
+          config.conveyorAgent,
+        );
+        const opened = await api.session.createAgent({
+          scopeType: "worktree",
+          scopeId: worktreeId,
+          agentConfigId: configured,
+          taskId,
+          // O encaixe que ela serve: é o que a deixa ser **reencontrada** na
+          // tentativa seguinte, em vez de a esteira abrir a sétima conversa
+          // sobre a mesma tarefa (Parte 7 — T57).
+          taskRole: role,
+          // Não há ninguém do outro lado. Ver a nota da procedure: é **nascer**
+          // liberada, e não trocar — o portão do `016` protege a troca.
+          autonomous: true,
+        });
+        /*
+         * O modo do agente é escolhido **depois** do handshake, e não podia ser
+         * antes: ele é uma `configOption` que o próprio adaptador declara, e o
+         * daemon só conhece a lista dela quando a sessão existe.
+         *
+         * Falhar aqui não derruba o turno — um adaptador que não tem aquele modo
+         * vai perguntar alguma coisa e o turno vai morrer, que é a tentativa
+         * gasta com o motivo, e não um erro de boot.
+         */
+        if (agentMode !== null) {
+          await acp.setConfig(opened.id, "mode", agentMode).catch(() => undefined);
+        }
+        if (model !== null) {
+          await acp.setConfig(opened.id, "model", model).catch(() => undefined);
+        }
+        return { sessionId: opened.id };
+      },
+      prompt: async ({ sessionId, text }) => {
+        await acp.prompt(sessionId, text);
+      },
+      cancel: (sessionId) => {
+        acp.cancel(sessionId);
+        return Promise.resolve();
+      },
+      /*
+       * Fechar a sessão do encaixe quando o turno acaba (Parte 7 — T52).
+       *
+       * Pelo `sessionStore`, e não pelo `acp` direto: quem mantém a linha e o
+       * processo de acordo é ele, e matar o processo por fora deixaria a linha
+       * dizendo `running` para sempre.
+       */
+      closeSession: async (sessionId) => {
+        await sessionStore.close(sessionId);
+      },
+      /*
+       * Retomar a conversa do encaixe (Parte 7 — T57).
+       *
+       * `resume` produz uma linha **nova** carregando o `acp_session_id` da
+       * velha: `session/load` sobe um adaptador e manda a conversa de volta, e
+       * não ressuscita o processo de ontem. É como o produto já faz *"retomar"*
+       * desde a `006`.
+       */
+      resumeSession: async ({ sessionId, agentMode, model }) => {
+        const row = await sessionStore.resume(sessionId);
+        /*
+         * O mesmo par do nascimento, e pelo mesmo motivo (Parte 7).
+         *
+         * `session/load` traz a conversa e **sobe um adaptador novo**, que nasce
+         * no modo padrão dele. Sem estas duas linhas a segunda vez de cada
+         * encaixe rodava perguntando permissão — e numa sessão de esteira não há
+         * ninguém do outro lado. Falhar aqui não derruba o turno, igual ao
+         * nascimento: o que sobra é o teto de tempo, com o motivo escrito.
+         */
+        if (agentMode !== null) {
+          await acp.setConfig(row.id, "mode", agentMode).catch(() => undefined);
+        }
+        if (model !== null) {
+          await acp.setConfig(row.id, "model", model).catch(() => undefined);
+        }
+        return { sessionId: row.id };
+      },
+      reproduce,
+      liveTurns: () => acp.liveTurns(),
+      prVerdictOf: (worktreeId) => verdictOfWorktree(openedDatabase.db, git, pr, worktreeId),
+      prNumberOf: (worktreeId) => numberOfWorktree(openedDatabase.db, git, pr, worktreeId),
+      // O mesmo `gh` da sua máquina que a `013` já usa — a esteira não ganha
+      // credencial própria (T56).
+      prHost,
+      /*
+       * O marco que o tracker vê (`028` Parte 6).
+       *
+       * Ligado sempre, e é o `available()` do host que decide se acontece
+       * alguma coisa — não um `if` aqui. A diferença importa: com o `if`, uma
+       * chave posta no ambiente depois do boot não valeria até o próximo
+       * reinício.
+       */
+      mark: async ({ taskId, mark, context }) => {
+        await writeMark(
+          {
+            db: openedDatabase.db,
+            host: tracker,
+            log: {
+              warn: (payload, message) => {
+                bootedApp?.log.warn(payload, message);
+              },
+            },
+          },
+          taskId,
+          mark as Mark,
+          context,
+        );
+      },
+    }),
+  );
+
   const app = await createServer({
     config,
     db: openedDatabase.db,
     ptyManager,
     acpManager: acp,
     sessionStore,
-    // Construído aqui, e não pelo default do servidor, só por causa do log: um
-    // `[scripts]` com valor torto vira aviso, e aviso sem log é silêncio.
-    scripts: createScriptRunner({
-      db: openedDatabase.db,
-      sessionStore,
-      ptyManager,
-      shell: config.shell,
-      portRange: config.runPortRange,
-      events,
-      log: {
-        warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
-          bootedApp?.log.warn(...args);
-        },
-        info: (...args: Parameters<FastifyBaseLogger["info"]>) => {
-          bootedApp?.log.info(...args);
-        },
-      },
-    }),
+    scripts,
+    conveyor,
+    secrets,
+    git,
+    clones,
+    prHost,
+    pr,
+    issues,
     events,
     agentAuth,
     logger,
   });
   bootedApp = app;
+
+  /*
+   * A esteira (`028` Parte 2).
+   *
+   * **Ela chama o mesmo router que a tela chama**, por um chamador do lado do
+   * servidor. A alternativa seria uma segunda implementação de *"cortar worktree
+   * e abrir sessão"* — e duas implementações do mesmo gesto é como elas
+   * divergem: a `026` acabou de pôr quatro origens no corte, e nenhuma delas
+   * valeria para a esteira.
+   */
+  const api = createCallerFactory(appRouter)({
+    // O único `true` do produto: este chamador é o daemon falando consigo
+    // mesmo. O `createContext` do Fastify não o liga, então nada que chega pela
+    // rede o tem.
+    internal: true,
+    config,
+    db: openedDatabase.db,
+    ptyManager,
+    acpManager: acp,
+    sessionStore,
+    scripts,
+    secrets,
+    git,
+    clones,
+    prHost,
+    pr,
+    issues,
+    events,
+    agentAuth,
+  });
+
+  const stopTracker = runTrackerLoop({
+    db: openedDatabase.db,
+    host: tracker,
+    log: {
+      warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+        bootedApp?.log.warn(...args);
+      },
+    },
+  });
+
+  const stopConveyor = runConveyorLoop({
+    db: openedDatabase.db,
+    conveyor,
+    log: {
+      warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+        bootedApp?.log.warn(...args);
+      },
+    },
+  });
+
 
   /*
    * O resultado da conferência de adaptador, agora que há onde escrever.
@@ -281,6 +546,8 @@ export async function bootstrap({
       stopPlaybookTracking();
       stopUsageTracking();
       stopTaskProgress();
+      stopConveyor();
+      stopTracker();
       await ptyManager.killAll();
       // Conversations too: an adapter left running is a subprocess with nothing
       // pointing at it, exactly like an orphaned shell.

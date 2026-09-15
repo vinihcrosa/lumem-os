@@ -62,6 +62,11 @@ const BORROWED = new Set([
   "detail__banner",
   "detail__hint",
   "chips",
+  // O rastro de migalha, que a sub-tela do quadro usa igual ao `TaskDetail`.
+  "crumb",
+  "crumb__up",
+  "crumb__sep",
+  "crumb__here",
   "actions__spacer",
   "section",
   "dim",

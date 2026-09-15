@@ -76,7 +76,13 @@ function createTrpcMock() {
   return {
     health: { query: vi.fn() },
     events: { onChange: { subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })) } },
+    secrets: {
+      list: { query: vi.fn() },
+      set: { mutate: vi.fn() },
+    },
     workspace: {
+      setAutonomy: { mutate: vi.fn() },
+      setCleanup: { mutate: vi.fn() },
       list: { query: vi.fn() },
       get: { query: vi.fn() },
       create: { mutate: vi.fn() },
@@ -118,6 +124,18 @@ function createTrpcMock() {
       update: { mutate: vi.fn() },
       setStatus: { mutate: vi.fn() },
       attachWorktree: { mutate: vi.fn() },
+      // O quadro e o clique do `assistido` (`028` Parte 2). O mock é parte do
+      // contrato: esquecer uma procedure aqui quebra telas sem relação nenhuma
+      // com o assunto, com um erro que não fala dele.
+      board: { query: vi.fn() },
+      comments: { query: vi.fn() },
+      comment: { mutate: vi.fn() },
+      move: { mutate: vi.fn() },
+      sendPrepared: { mutate: vi.fn() },
+      markNotified: { mutate: vi.fn() },
+      stop: { mutate: vi.fn() },
+      finish: { mutate: vi.fn() },
+      setAutonomy: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
     },
     worktree: {
@@ -285,15 +303,31 @@ export function installTrpcDefaults(mock: TrpcMock = trpcMock): void {
   // um teste que fala de arquivo não pode quebrar por causa disso.
   mock.task.listByWorkspace.query.mockResolvedValue([]);
   mock.task.settings.query.mockResolvedValue({
+    autonomy: "manual",
+    maxParallel: 2,
+    mergedAlwaysRemoves: false,
     budget: 5,
     budgetEnv: "LUMEM_TASKS_BUDGET",
     sessions: 0,
     sessionsWithTask: 0,
+    // Os três tetos do workspace (`028` Parte 3). `null` nos três é o default
+    // do produto — quem nunca pediu teto —, e é o que a maioria dos testes quer.
+    caps: { costPerTask: null, costPerDay: null, turnsPerSession: null },
   });
   mock.usage.byTask.query.mockResolvedValue([]);
   mock.session.listByTask.query.mockResolvedValue([]);
   // O caso mais comum: worktree sem tarefa. Tarefa não é obrigatória (T1).
   mock.task.getByWorktree.query.mockResolvedValue(null);
+  mock.secrets.list.query.mockResolvedValue([]);
+  /*
+   * O quadro chama isto no `mount` para todo cartão que tem aviso (`028` T35).
+   *
+   * Sem o default, `mutate` devolve `undefined`, o `.then` estoura **fora** do
+   * React e a tela some inteira — o sintoma é um `<body>` vazio num teste que
+   * fala de notificação. É a mesma armadilha que o cabeçalho deste arquivo
+   * descreve, com outro nome.
+   */
+  mock.task.markNotified.mutate.mockResolvedValue({ first: true });
   mock.worktree.branches.query.mockResolvedValue([]);
   mock.worktree.hostOrigins.query.mockResolvedValue(NO_HOST_ORIGINS);
 }

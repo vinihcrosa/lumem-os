@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 
 import { useLoginTerminal } from "../hooks/useLoginTerminal.js";
 import { trpc } from "../lib/trpc.js";
+import { Credentials } from "./Credentials.js";
 import { Banner, Button, CopyCommand, Glyph, Input } from "../ui/index.js";
 import { AgentConfigDialog } from "./AgentConfigDialog.js";
 
@@ -129,6 +130,16 @@ export function AgentLogin() {
           />
         ))
       )}
+
+      {/*
+        As credenciais dos serviços, no mesmo rodapé (ADR de 2026-09-13).
+
+        Aqui e não numa tela de configuração porque é a **mesma natureza** do
+        bloco de cima: o que é da máquina. O cofre mora no `~/.lumem`, que é um
+        por instalação — pôr a chave dentro da tela de um workspace prometeria
+        que existe outra no workspace seguinte.
+      */}
+      <Credentials />
     </>
   );
 }

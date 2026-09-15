@@ -1,5 +1,5 @@
 import { newId } from "@lumem/shared";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, ne, sql } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
 import { project, session, task, worktree, type TaskRow } from "../db/schema.js";
@@ -21,13 +21,37 @@ import { withConstraints } from "./base.js";
  */
 
 export type TaskStatus = TaskRow["status"];
-export type TaskActor = "human" | "agent";
+/**
+ * Quem escreve na tarefa, e são **três** desde a `028` Parte 7.
+ *
+ * `conveyor` não é um `agent` educado — é o **daemon**, e a distinção é o
+ * [ADR de 2026-09-13](../../../../docs/adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md)
+ * aplicado ao próprio produto: fingir que a esteira é um agente fazia o daemon
+ * recusar as próprias escritas. Ver o `CONVEYOR_MAY_SET` abaixo.
+ */
+export type TaskActor = "human" | "agent" | "conveyor";
+/**
+ * Se a esteira pode pegar **esta** tarefa (`028` Parte 2, T22).
+ *
+ * Dois valores, e não três: `on` não existe porque ligar **é** o default, e
+ * quem decide é o interruptor do workspace. Um terceiro valor seria um segundo
+ * lugar dizendo a mesma coisa, e dois lugares que dizem a mesma coisa é como
+ * eles divergem.
+ */
+export type TaskAutonomy = "inherit" | "off";
 
+/**
+ * Em ordem de quadro (`028` §4), com os dois que não são coluna nas pontas:
+ * `proposed` é a fila de Propostas da `022`, e `dropped` sai do quadro.
+ */
 export const TASK_STATUSES = [
   "proposed",
+  "backlog",
   "open",
   "in_progress",
   "review",
+  "testing",
+  "ready_to_merge",
   "done",
   "dropped",
 ] as const;
@@ -44,14 +68,24 @@ const CLOSED: ReadonlySet<string> = new Set(["done", "dropped"]);
  *
  * Um `CASE` e não uma coluna de ordenação: a ordem é derivada do estado, e uma
  * coluna guardada poderia discordar dele.
+ *
+ * **Os três estados da `028` entraram nomeados, e não pelo `ELSE`** (T3). O
+ * `ELSE` existe para `dropped`, que saiu do fluxo; cair nele poria
+ * `ready_to_merge` — *a esteira acabou, falta você* — atrás de uma tarefa
+ * descartada. `ready_to_merge` passa até na frente de `review` pelo critério que
+ * a lista já usava: o que espera **você** vem antes do que espera a máquina.
+ * A ordem relativa dos quatro estados originais não mudou.
  */
 const STATUS_RANK = sql`CASE ${task.status}
-  WHEN 'review' THEN 0
-  WHEN 'in_progress' THEN 1
-  WHEN 'proposed' THEN 2
-  WHEN 'open' THEN 3
-  WHEN 'done' THEN 4
-  ELSE 5 END`;
+  WHEN 'ready_to_merge' THEN 0
+  WHEN 'review' THEN 1
+  WHEN 'testing' THEN 2
+  WHEN 'in_progress' THEN 3
+  WHEN 'proposed' THEN 4
+  WHEN 'open' THEN 5
+  WHEN 'backlog' THEN 6
+  WHEN 'done' THEN 7
+  ELSE 8 END`;
 
 /**
  * O que cada ator pode escrever.
@@ -60,11 +94,54 @@ const STATUS_RANK = sql`CASE ${task.status}
  * remoção, e alimenta "o que este workspace fez". Um agente que se declara
  * pronto está em `review`, que é a palavra certa para o que ele sabe.
  *
- * `in_progress` não está em nenhuma das duas listas de propósito: ele é
- * **derivado** do primeiro prompt de uma sessão ligada à tarefa, e quem o
- * escreve é o observador de eventos (T6) — não um pedido.
+ * `in_progress` não está aqui de propósito: ele é **derivado** do primeiro
+ * prompt de uma sessão ligada à tarefa, e quem o escreve nesse caminho é o
+ * observador de eventos (T6) — não um pedido do agente.
+ *
+ * **Esta é a única lista, e é do agente.** Você não tem allowlist: tudo que
+ * está em `TASK_STATUSES` passa, `in_progress` incluído — que é o que faz
+ * *"arrastar para qualquer coluna, sempre"* (`028` §4, Q3) funcionar sem
+ * exceção nenhuma. Um `in_progress` posto por você e a derivação não colidem:
+ * `tasks/progress.ts` é `WHERE status = 'open'`, então ela nunca toca o que já
+ * está lá.
+ *
+ * **Os três estados da `028` ficam de fora** (T4). `Testing` e `Ready to Merge`
+ * são etapas que *a máquina* move — e "a máquina" é o **daemon**, observando
+ * fato verificável, nunca o agente dizendo que chegou lá. Um agente que se
+ * declara pronto continua dizendo `review`, que é a palavra certa para o que
+ * ele sabe. `backlog` é seu pelo mesmo motivo que `open` é: as duas pontas da
+ * fila são consentimento.
  */
 const AGENT_MAY_SET: ReadonlySet<string> = new Set(["review"]);
+
+/**
+ * As quatro etapas que **a máquina** move (`028` §4.1, Parte 7 — T49).
+ *
+ * O comentário acima diz que `Testing` e `Ready to Merge` são etapas que *a
+ * máquina* move, e que *"a máquina é o **daemon**, observando fato verificável,
+ * nunca o agente dizendo que chegou lá"*. A frase estava certa e **não tinha
+ * como ser executada**: a esteira escrevia com `actor: "agent"`, então o
+ * `AGENT_MAY_SET` recusava três das quatro setas dela.
+ *
+ * O custo disso foi medido em 2026-09-14, contra uma tarefa de verdade: o
+ * cartão andou **uma** seta, o revisor rodou duas vezes contra um `In Review`
+ * que nunca ia sair de lá, e bloqueou por tentativas esgotadas — **US$ 11,41**.
+ * O `throw` subia até o `catch` do laço e virava uma linha de log.
+ *
+ * **A regra do agente não foi afrouxada**, e é isso que importa: ele continua
+ * podendo dizer só `review`. O que mudou é que a esteira parou de se declarar
+ * um.
+ *
+ * `done` **não está aqui** — o §4 é explícito em que ele é seu, e a esteira para
+ * em `ready_to_merge` de propósito. `backlog` e `open` também não: as duas
+ * pontas da fila são consentimento.
+ */
+const CONVEYOR_MAY_SET: ReadonlySet<string> = new Set([
+  "in_progress",
+  "review",
+  "testing",
+  "ready_to_merge",
+]);
 
 export interface TaskFilter {
   status?: TaskStatus;
@@ -95,6 +172,90 @@ export interface TaskRepository {
     options?: { actor?: TaskActor; reason?: string },
   ): Promise<TaskRow>;
   attachWorktree(id: string, worktreeId: string): Promise<TaskRow>;
+  /**
+   * Mais uma tentativa da esteira **nesta etapa** (`028` T22).
+   *
+   * Incremento no banco (`attempts + 1`), e não leitura seguida de escrita: a
+   * segunda forma perde uma tentativa se duas chamadas se cruzarem, e o preço
+   * de perder é abrir uma sessão a mais — que gasta.
+   *
+   * Devolve o valor novo, porque quem chama precisa dele para decidir se ainda
+   * há tentativa. Ler de novo depois seria abrir a mesma janela pela porta dos
+   * fundos.
+   */
+  countAttempt(id: string): Promise<number>;
+  /**
+   * O revisor devolveu: a tarefa volta a `in_progress` e a volta é contada.
+   *
+   * **Uma escrita só**, como o `countAttempt`: a mudança de etapa zera
+   * `attempts` na mesma linha, e um segundo `UPDATE` para incrementar `bounces`
+   * deixaria uma janela em que o cartão já está em `in_progress` com a contagem
+   * de voltas da anterior — o suficiente para o teto nunca chegar.
+   */
+  countBounce(id: string): Promise<number>;
+  /**
+   * O interruptor da [Q40](../../../../docs/features/028-autonomous-orchestration/open-questions.md).
+   *
+   * `off` é o que **assumir** o volante escreve, e `inherit` é voltar a seguir
+   * o workspace. Ele **não** zera na mudança de etapa: você desligou porque
+   * quer fazer aquilo na mão, e mover de coluna não desfaz a intenção.
+   */
+  setAutonomy(id: string, autonomy: TaskAutonomy): Promise<TaskRow>;
+  /**
+   * O prompt que o `assistido` montou e não enviou (T30).
+   *
+   * `null` nos dois limpa — é o que enviar faz, e é o que mudar de etapa faz
+   * sozinho pelo `setStatus`.
+   */
+  prepare(
+    id: string,
+    prepared: { prompt: string; role: string } | null,
+  ): Promise<TaskRow>;
+  /**
+   * Por que a esteira parou aqui, ou `null` para destravar (T28).
+   *
+   * **Não muda a coluna**: situação é selo, etapa é coluna. Mover a tarefa por
+   * causa de um bloqueio apagaria onde ela parou.
+   */
+  setBlocked(id: string, reason: string | null): Promise<TaskRow>;
+  /**
+   * A chave externa e o instantâneo dela (`028` Parte 5, T43 e T45).
+   *
+   * Uma escrita só, e não duas: a chave e o instantâneo mudam juntos por
+   * definição — quem acabou de ler a issue tem os dois —, e separá-los abriria
+   * a janela em que a tarefa aponta para uma issue com o instantâneo de outra.
+   */
+  linkExternal(
+    id: string,
+    external: {
+      source: string;
+      id: string;
+      state: string;
+      assignee: string | null;
+      bodyHash: string;
+    },
+  ): Promise<TaskRow>;
+  /**
+   * Marca que você já foi avisado sobre o estado atual (T35).
+   *
+   * **Só escreve quando ainda não havia aviso**, e devolve se escreveu. É isso
+   * que faz *"uma vez, sem repetir"* valer com duas abas: a segunda chamada não
+   * escreve e sabe que não escreveu.
+   */
+  markNotified(id: string, at?: Date): Promise<boolean>;
+  /**
+   * O gesto do quadro: a coluna de destino **e** o lugar nela (`028` §4.3, T5).
+   *
+   * Separado do `setStatus` porque são duas perguntas diferentes. `setStatus`
+   * responde *"em que etapa isto está"* — é por onde o agente diz `review` e
+   * por onde você descarta com motivo. `move` responde *"onde eu soltei"*, e só
+   * o quadro faz essa pergunta. Uma procedure só teria que fingir que `index` é
+   * opcional em metade das chamadas.
+   */
+  move(
+    id: string,
+    target: { status: TaskStatus; index: number; actor?: TaskActor; reason?: string },
+  ): Promise<TaskRow>;
   remove(id: string): Promise<void>;
 }
 
@@ -123,6 +284,62 @@ export function createTaskRepository(db: Db): TaskRepository {
     }
   }
 
+  /** O próximo ordinal livre da coluna — onde quem chega sem arrastar encosta. */
+  async function endOfColumn(workspaceId: string, status: TaskStatus): Promise<number> {
+    const rows = await db
+      .select({ position: task.position })
+      .from(task)
+      .where(and(eq(task.workspaceId, workspaceId), eq(task.status, status)))
+      .orderBy(desc(task.position))
+      .limit(1);
+    return rows[0] === undefined ? 0 : rows[0].position + 1;
+  }
+
+  /**
+   * O que o `setStatus` e o `move` compartilham: quem pode escrever o quê.
+   *
+   * Extraído porque ter a regra em dois lugares é ter duas regras — e a segunda
+   * a divergir seria a do arrasto, que é a que o agente não deveria alcançar.
+   */
+  function requireMayWrite(current: TaskRow, status: TaskStatus, actor: TaskActor, reason?: string) {
+    if (actor === "agent" && !AGENT_MAY_SET.has(status)) {
+      throw new DomainError(
+        "BLOCKED",
+        status === "done"
+          ? "só você marca done — o agente diz review"
+          : `um agente não pode mover a tarefa para ${status}`,
+      );
+    }
+    if (actor === "conveyor" && !CONVEYOR_MAY_SET.has(status)) {
+      throw new DomainError(
+        "BLOCKED",
+        status === "done"
+          ? "só você marca done — a esteira para em ready_to_merge"
+          : `a esteira não move a tarefa para ${status}`,
+      );
+    }
+    /*
+     * O guard acima olha só o destino, e isso não basta.
+     *
+     * `review` é o único estado que um agente escreve — mas uma tarefa **já
+     * fechada** movida para `review` sai de `done`/`dropped` e perde o
+     * `closedAt` logo abaixo. Um `POST /tasks/:id/review` numa tarefa que
+     * você marcou `done` reabriria, pelo agente, um estado que a T9 reserva
+     * para você. Fechar é seu, e **reabrir também é**.
+     */
+    if (actor !== "human" && CLOSED.has(current.status)) {
+      throw new DomainError(
+        "BLOCKED",
+        `a tarefa está ${current.status} — reabrir é seu, como fechar`,
+      );
+    }
+    if (status === "dropped" && !reason?.trim()) {
+      // Sem motivo, `dropped` é indistinguível de esquecimento — e o arquivo
+      // existe justamente para quem foi procurar de propósito.
+      throw new DomainError("INVALID_ARGUMENT", "descartar uma tarefa pede um motivo");
+    }
+  }
+
   return {
     async create(input) {
       const actor = input.actor ?? "human";
@@ -135,6 +352,9 @@ export function createTaskRepository(db: Db): TaskRepository {
       }
 
       const status = input.status ?? (actor === "agent" ? "proposed" : "open");
+      // Quem chega sem arrastar encosta no fim da coluna — a ordem de chegada
+      // do §4.3, que é o default e o único que não precisa de gesto.
+      const position = await endOfColumn(input.workspaceId, status);
       const [row] = await withConstraints(
         () =>
           db
@@ -149,6 +369,7 @@ export function createTaskRepository(db: Db): TaskRepository {
               createdBy: actor,
               createdBySession: actor === "agent" ? input.sessionId : null,
               status,
+              position,
               closedAt: CLOSED.has(status) ? new Date() : null,
             })
             .returning(),
@@ -168,7 +389,11 @@ export function createTaskRepository(db: Db): TaskRepository {
         .select()
         .from(task)
         .where(and(...where))
-        .orderBy(STATUS_RANK, desc(task.updatedAt));
+        // `position` desempata **dentro** da faixa, e o `STATUS_RANK` continua
+        // decidindo entre faixas (T5). São as duas ordens do §4.3: entre colunas
+        // manda a regra, dentro da coluna manda você. `updatedAt` fica como
+        // último critério, para quem nunca arrastou e chegou no mesmo instante.
+        .orderBy(STATUS_RANK, task.position, desc(task.updatedAt));
     },
 
     get(id) {
@@ -205,45 +430,42 @@ export function createTaskRepository(db: Db): TaskRepository {
     async setStatus(id, status, options = {}) {
       const actor = options.actor ?? "human";
       const current = await require_(id);
-
-      if (actor === "agent" && !AGENT_MAY_SET.has(status)) {
-        throw new DomainError(
-          "BLOCKED",
-          status === "done"
-            ? "só você marca done — o agente diz review"
-            : `um agente não pode mover a tarefa para ${status}`,
-        );
-      }
-      /*
-       * O guard acima olha só o destino, e isso não basta.
-       *
-       * `review` é o único estado que um agente escreve — mas uma tarefa **já
-       * fechada** movida para `review` sai de `done`/`dropped` e perde o
-       * `closedAt` logo abaixo. Um `POST /tasks/:id/review` numa tarefa que
-       * você marcou `done` reabriria, pelo agente, um estado que a T9 reserva
-       * para você. Fechar é seu, e **reabrir também é**.
-       */
-      if (actor === "agent" && CLOSED.has(current.status)) {
-        throw new DomainError(
-          "BLOCKED",
-          `a tarefa está ${current.status} — reabrir é seu, como fechar`,
-        );
-      }
-      if (status === "dropped" && !options.reason?.trim()) {
-        // Sem motivo, `dropped` é indistinguível de esquecimento — e o arquivo
-        // existe justamente para quem foi procurar de propósito.
-        throw new DomainError("INVALID_ARGUMENT", "descartar uma tarefa pede um motivo");
-      }
+      requireMayWrite(current, status, actor, options.reason);
       if (current.status === status) return current;
 
+      // Trocar de coluna sem dizer onde soltou encosta no fim dela. É o que
+      // `review` vindo do agente faz, e é o que a ordem de chegada do §4.3 diz
+      // para quem nunca arrastou.
+      const position = await endOfColumn(current.workspaceId, status);
       const [row] = await withConstraints(
         () =>
           db
             .update(task)
             .set({
               status,
+              position,
               reason: status === "dropped" ? (options.reason ?? null) : current.reason,
               closedAt: CLOSED.has(status) ? (current.closedAt ?? new Date()) : null,
+              // O relógio do encalhe zera **aqui**, e só aqui: é a troca de
+              // coluna que ele mede, não a última vez que alguém mexeu.
+              statusChangedAt: new Date(),
+              // E a tentativa zera junto, na **mesma** escrita (`028` T22).
+              // Mudar de etapa *é* a conclusão bem-sucedida daquela etapa, e um
+              // segundo `UPDATE` para zerar deixaria uma janela em que a tarefa
+              // já está na coluna nova carregando o contador da anterior — que é
+              // o suficiente para a fila recusar um cartão recém-promovido.
+              attempts: 0,
+              // O preparo é de uma **etapa**, não da tarefa: um prompt de
+              // implementador sobrevivendo até In Review seria a tela
+              // oferecendo enviar a coisa errada.
+              preparedPrompt: null,
+              preparedRole: null,
+              // O bloqueio é da etapa. Sobreviver à mudança de coluna faria um
+              // cartão promovido continuar dizendo por que ele tinha parado.
+              blockedReason: null,
+              // O aviso é sobre o estado, e o estado mudou: o que foi avisado
+              // não é mais o que está lá.
+              notifiedAt: null,
               updatedAt: new Date(),
             })
             .where(eq(task.id, id))
@@ -251,6 +473,77 @@ export function createTaskRepository(db: Db): TaskRepository {
         { "check:task_status": { code: "INVALID_ARGUMENT", message: `estado inválido: ${status}` } },
       );
       return row!;
+    },
+
+    async move(id, target) {
+      const actor = target.actor ?? "human";
+      const current = await require_(id);
+      requireMayWrite(current, target.status, actor, target.reason);
+
+      // Síncrona, como toda transação deste repositório: `better-sqlite3` recusa
+      // um callback que devolve promessa, e a alternativa seria a renumeração
+      // acontecer **fora** do atomismo — que é exatamente o que ela precisa ter.
+      db.transaction((tx) => {
+        // A coluna de destino, em ordem, **sem** o cartão que está chegando —
+        // tanto faz se ele vem de outra coluna ou está só sendo reordenado
+        // dentro desta. Um caso, e não dois.
+        const column = tx
+          .select({ id: task.id })
+          .from(task)
+          .where(
+            and(
+              eq(task.workspaceId, current.workspaceId),
+              eq(task.status, target.status),
+              ne(task.id, id),
+            ),
+          )
+          .orderBy(task.position)
+          .all();
+
+        const ids = column.map((row) => row.id);
+        // `index` além do fim encosta no fim: o quadro manda o índice em que o
+        // ponteiro estava, e recusar por um pixel seria recusar o gesto.
+        const at = Math.min(Math.max(target.index, 0), ids.length);
+        ids.splice(at, 0, id);
+
+        // Ordinal contíguo, reescrito inteiro. A coluna do quadro tem dezenas de
+        // cartões, não milhares — e o preço disto é **não** ter rebalanceamento,
+        // que é o que a aritmética de ponto médio cobra mais tarde e em silêncio.
+        for (const [position, rowId] of ids.entries()) {
+          tx
+            .update(task)
+            .set(
+              rowId === id
+                ? {
+                    position,
+                    status: target.status,
+                    reason: target.status === "dropped" ? (target.reason ?? null) : current.reason,
+                    closedAt: CLOSED.has(target.status) ? (current.closedAt ?? new Date()) : null,
+                    // Reordenar **dentro** da mesma coluna não é entrar nela: o
+                    // cartão que você subiu para o topo continua parado há duas
+                    // horas, e o relógio tem que continuar dizendo isso. A
+                    // tentativa segue o relógio pelo mesmo motivo, e não o
+                    // `status`: subir um cartão de lugar não é uma etapa nova.
+                    ...(current.status === target.status
+                      ? {}
+                      : {
+                          statusChangedAt: new Date(),
+                          attempts: 0,
+                          preparedPrompt: null,
+                          preparedRole: null,
+                          blockedReason: null,
+                          notifiedAt: null,
+                        }),
+                    updatedAt: new Date(),
+                  }
+                : { position },
+            )
+            .where(eq(task.id, rowId))
+            .run();
+        }
+      });
+
+      return require_(id);
     },
 
     async attachWorktree(id, worktreeId) {
@@ -266,6 +559,132 @@ export function createTaskRepository(db: Db): TaskRepository {
         .set({ worktreeId, updatedAt: new Date() })
         .where(eq(task.id, id))
         .returning();
+      return row!;
+    },
+
+    async countBounce(id) {
+      const [row] = await db
+        .update(task)
+        .set({
+          status: "in_progress",
+          bounces: sql`${task.bounces} + 1`,
+          // `attempts` zera porque a etapa mudou — é a mesma regra de sempre, e
+          // é justamente por ela que `bounces` precisa existir em separado.
+          attempts: 0,
+          statusChangedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(task.id, id))
+        .returning({ bounces: task.bounces });
+      if (row === undefined) throw new DomainError("NOT_FOUND", `tarefa ${id} não existe`);
+      return row.bounces;
+    },
+
+    async countAttempt(id) {
+      const [row] = await db
+        .update(task)
+        .set({ attempts: sql`${task.attempts} + 1`, updatedAt: new Date() })
+        .where(eq(task.id, id))
+        .returning({ attempts: task.attempts });
+      // `update` sem linha não erra no SQLite — ele afeta zero linhas e volta
+      // calado. Sem esta guarda, a esteira contaria tentativa de uma tarefa
+      // apagada e nunca saberia.
+      if (!row) throw new DomainError("NOT_FOUND", `tarefa ${id} não existe`);
+      return row.attempts;
+    },
+
+    async setAutonomy(id, autonomy) {
+      await require_(id);
+      const [row] = await withConstraints(
+        () =>
+          db
+            .update(task)
+            .set({ autonomy, updatedAt: new Date() })
+            .where(eq(task.id, id))
+            .returning(),
+        {
+          "check:task_autonomy": {
+            code: "INVALID_ARGUMENT",
+            message: `autonomia inválida: ${autonomy}`,
+          },
+        },
+      );
+      return row!;
+    },
+
+    async markNotified(id, at = new Date()) {
+      /*
+       * A condição está no `WHERE`, e não num `if` antes.
+       *
+       * Ler e depois escrever abriria a janela em que duas abas leem `null` ao
+       * mesmo tempo e as duas escrevem — que é exatamente o caso que esta coluna
+       * existe para fechar. Com a condição no `UPDATE`, quem perde a corrida
+       * afeta zero linhas e fica sabendo.
+       */
+      const written = await db
+        .update(task)
+        .set({ notifiedAt: at, updatedAt: new Date() })
+        .where(and(eq(task.id, id), isNull(task.notifiedAt)))
+        .returning({ id: task.id });
+      return written.length > 0;
+    },
+
+    async linkExternal(id, external) {
+      await require_(id);
+      const [row] = await withConstraints(
+        () =>
+          db
+            .update(task)
+            .set({
+              externalSource: external.source,
+              externalId: external.id,
+              externalState: external.state,
+              externalAssignee: external.assignee,
+              externalBodyHash: external.bodyHash,
+              updatedAt: new Date(),
+            })
+            .where(eq(task.id, id))
+            .returning(),
+        {
+          "unique:task.workspace_id,task.external_source,task.external_id": {
+            code: "DUPLICATE",
+            message: "esta issue já é outra tarefa deste workspace",
+          },
+        },
+      );
+      return row!;
+    },
+
+    async setBlocked(id, reason) {
+      await require_(id);
+      const [row] = await db
+        .update(task)
+        .set({ blockedReason: reason, updatedAt: new Date() })
+        .where(eq(task.id, id))
+        .returning();
+      return row!;
+    },
+
+    async prepare(id, prepared) {
+      await require_(id);
+      const [row] = await withConstraints(
+        () =>
+          db
+            .update(task)
+            .set({
+              preparedPrompt: prepared?.prompt ?? null,
+              preparedRole: prepared?.role ?? null,
+              updatedAt: new Date(),
+            })
+            .where(eq(task.id, id))
+            .returning(),
+        {
+          "check:task_prepared_pair": {
+            code: "INVALID_ARGUMENT",
+            message: "prompt preparado sem papel não sabe que sessão abrir",
+          },
+        },
+      );
       return row!;
     },
 

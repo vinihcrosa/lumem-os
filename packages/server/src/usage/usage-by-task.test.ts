@@ -43,6 +43,8 @@ function addSpend(
   w: ReturnType<typeof world>,
   taskId: string | null,
   spend: { tokens: number; cost: number | null },
+  /** Os `usage_update` desta sessão, com o turno de cada um. Um turno, por padrão. */
+  updates: readonly number[] = [0],
 ): void {
   const sessionId = newId();
   w.db
@@ -57,17 +59,23 @@ function addSpend(
       ...(taskId === null ? {} : { taskId }),
     })
     .run();
-  w.db
-    .insert(sessionUsage)
-    .values({
-      id: newId(),
-      sessionId,
-      projectId: w.projectId,
-      worktreeId: "",
-      tokens: spend.tokens,
-      ...(spend.cost === null ? {} : { cost: spend.cost }),
-    })
-    .run();
+  for (const [index, turn] of updates.entries()) {
+    w.db
+      .insert(sessionUsage)
+      .values({
+        id: newId(),
+        sessionId,
+        projectId: w.projectId,
+        worktreeId: "",
+        turn,
+        // O consumo vai inteiro na primeira: o que estes casos medem é a
+        // **contagem de turnos**, e dividir o número por linha só tornaria as
+        // somas mais difíceis de ler sem provar nada a mais.
+        tokens: index === 0 ? spend.tokens : 0,
+        ...(spend.cost === null || index !== 0 ? {} : { cost: spend.cost }),
+      })
+      .run();
+  }
 }
 
 describe("usageByTask", () => {
@@ -86,6 +94,36 @@ describe("usageByTask", () => {
     const row = rows.find((candidate) => candidate.taskId === mine);
     expect(row).toMatchObject({ tokens: 1_500, turns: 2 });
     expect(row?.cost).toBeCloseTo(0.53, 5);
+  });
+
+  it("os vários `usage_update` de um turno são **um** turno", () => {
+    /*
+     * O adaptador do Claude manda dezenas de `usage_update` dentro do mesmo
+     * turno — 97 num só, medido na `LUM-51` —, e a conta era `count(id)`. Isso
+     * ia para a tela como *"quantos turnos entraram na conta"* e alimentava o
+     * teto de `turnsPerSession`, que parava a esteira dentro do primeiro turno.
+     */
+    const w = world();
+    const mine = addTask(w, "um turno, muitos relatos");
+    addSpend(w, mine, { tokens: 1_000, cost: 0.3 }, [0, 0, 0, 0]);
+
+    const [row] = usageByTask(w.db, { workspaceId: w.workspaceId, period: "7d" }).filter(
+      (candidate) => candidate.taskId === mine,
+    );
+
+    expect(row).toMatchObject({ tokens: 1_000, turns: 1 });
+  });
+
+  it("dois turnos da mesma sessão são dois, e não um", () => {
+    const w = world();
+    const mine = addTask(w, "duas voltas");
+    addSpend(w, mine, { tokens: 1_000, cost: 0.3 }, [0, 0, 1]);
+
+    const [row] = usageByTask(w.db, { workspaceId: w.workspaceId, period: "7d" }).filter(
+      (candidate) => candidate.taskId === mine,
+    );
+
+    expect(row?.turns).toBe(2);
   });
 
   it("tarefa que ninguém começou continua na lista, com null", () => {

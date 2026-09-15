@@ -1,10 +1,13 @@
 import { newId } from "@lumem/shared";
-import { eq } from "drizzle-orm";
-import { afterEach, describe, expect, it } from "vitest";
+import { and, eq } from "drizzle-orm";
+import { existsSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { project, session, task, worktree } from "../db/schema.js";
+import { project, session, task, workspace, worktree } from "../db/schema.js";
 import { createTaskRepository } from "../repositories/task.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
+import { cleanupGitFixtures, createRepo, runGit, tempDir } from "../testing/git-fixtures.js";
 
 /**
  * O router de tarefas (`022-workspace-tasks` T5).
@@ -24,6 +27,7 @@ function caller(): TestCaller {
 
 afterEach(async () => {
   await context?.cleanup();
+  cleanupGitFixtures();
 });
 
 /**
@@ -171,6 +175,81 @@ describe("task.setStatus", () => {
   });
 });
 
+/**
+ * As sete colunas do quadro (`028-autonomous-orchestration` F1, T3).
+ *
+ * O quadro tem sete etapas e o modelo da `022` tinha quatro estados úteis. O
+ * que decidiu esta task não foram os dois estados que faltavam — esses são
+ * mecânicos — e sim a **fronteira**: `Backlog` e `To-Do` mapeariam para o mesmo
+ * `open`, e o §4 da PRD diz que a To-Do é *onde mora a autorização*. Colapsar as
+ * duas apagaria exatamente o que a coluna existe para marcar.
+ */
+describe("as sete colunas do quadro", () => {
+  it("aceita os três estados novos", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+
+    for (const status of ["backlog", "testing", "ready_to_merge"] as const) {
+      const created = await api.task.create({ workspaceId, projectId, title: status });
+      const moved = await api.task.setStatus({ id: created.id, status });
+      expect(moved).toMatchObject({ status, closedAt: null });
+    }
+  });
+
+  it("backlog não é open — a fronteira da autorização é um estado, não um rótulo", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "ainda não é pra fazer" });
+
+    await api.task.setStatus({ id: created.id, status: "backlog" });
+
+    // A leitura filtrada é o que a fila da esteira vai usar. Se `backlog`
+    // respondesse a um filtro `open`, uma tarefa que o tracker despejou viraria
+    // trabalho autorizado sem ninguém ter consentido.
+    const naFila = await api.task.listByWorkspace({ workspaceId, status: "open" });
+    const noBacklog = await api.task.listByWorkspace({ workspaceId, status: "backlog" });
+
+    expect(naFila).toHaveLength(0);
+    expect(noBacklog).toHaveLength(1);
+  });
+
+  it("uma tarefa criada por você continua nascendo na To-Do", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+
+    const created = await api.task.create({ workspaceId, projectId, title: "é pra fazer" });
+
+    // Este é o caso que a migração não pode mexer: `open` continua sendo a
+    // To-Do, e nenhuma tarefa existente muda de coluna por causa da T3.
+    expect(created.status).toBe("open");
+  });
+
+  it("nenhum dos três novos carimba data de fechamento", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "x" });
+
+    await api.task.setStatus({ id: created.id, status: "ready_to_merge" });
+    const row = await context.db.query.task.findFirst({ where: eq(task.id, created.id) });
+
+    // `ready_to_merge` é a esteira acabando, não a tarefa: o custo continua
+    // aberto e a worktree não é candidata a remoção. O CHECK `task_closed_at`
+    // cobra os dois sentidos.
+    expect(row?.closedAt).toBeNull();
+  });
+
+  it("recusa um oitavo valor", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "x" });
+
+    await expect(
+      // @ts-expect-error — o enum do zod é justamente o que está em teste
+      api.task.setStatus({ id: created.id, status: "merged" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+});
+
 describe("o agente e o que está fechado", () => {
   it("não reabre uma tarefa done, e nem uma dropped", async () => {
     /*
@@ -217,6 +296,202 @@ describe("o agente e o que está fechado", () => {
     });
 
     expect(moved.status).toBe("review");
+  });
+});
+
+/**
+ * Quem escreve cada estado novo (`028` T4).
+ *
+ * Há **uma** lista, e ela é do agente: você não tem allowlist, então tudo que
+ * está em `TASK_STATUSES` passa pelo seu caminho. É isso que faz o *"arrastar
+ * para qualquer coluna, sempre"* do §4 funcionar sem exceção — e é uma
+ * propriedade que nenhum teste cobria, então ela era verdadeira por acidente.
+ */
+describe("quem escreve os estados do quadro", () => {
+  it("você move para qualquer uma das sete colunas, in_progress incluído", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "estou fazendo na mão" });
+
+    const moved = await api.task.setStatus({ id: created.id, status: "in_progress" });
+
+    // A coluna é a etapa e o selo é quem está nela (§4.1): um cartão posto aqui
+    // à mão fica `In Progress` com o selo `manual — ninguém pega`, que é o que
+    // ele é. A honestidade mora no selo, não na coluna.
+    expect(moved.status).toBe("in_progress");
+  });
+
+  it("a derivação não atropela o que você pôs à mão", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "x" });
+    await api.task.setStatus({ id: created.id, status: "ready_to_merge" });
+
+    // `tasks/progress.ts` é `WHERE status = 'open'`. Alargar aquele `where`
+    // faria uma conversa aberta numa tarefa que já chegou ao fim da esteira
+    // puxá-la de volta para In Progress.
+    await db
+      .update(task)
+      .set({ status: "in_progress" })
+      .where(and(eq(task.id, created.id), eq(task.status, "open")));
+
+    const row = await db.query.task.findFirst({ where: eq(task.id, created.id) });
+    expect(row?.status).toBe("ready_to_merge");
+  });
+
+  it("o agente não move para testing nem para ready_to_merge", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const repository = createTaskRepository(db);
+    const created = await api.task.create({ workspaceId, projectId, title: "x" });
+
+    // As duas são etapas que **o daemon** move, observando fato verificável — a
+    // PR existe, o CI fechou. Um agente que se declara pronto diz `review`.
+    for (const status of ["testing", "ready_to_merge"] as const) {
+      await expect(repository.setStatus(created.id, status, { actor: "agent" })).rejects.toMatchObject(
+        { code: "BLOCKED" },
+      );
+    }
+  });
+
+  it("o agente não empurra tarefa para o backlog", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const repository = createTaskRepository(db);
+    const created = await api.task.create({ workspaceId, projectId, title: "x" });
+
+    // As duas pontas da fila são suas: `backlog` é "ainda não é para fazer" e
+    // `open` é a autorização. Um agente que pudesse escrever qualquer uma das
+    // duas decidiria sozinho o que vira trabalho.
+    await expect(repository.setStatus(created.id, "backlog", { actor: "agent" })).rejects.toMatchObject(
+      { code: "BLOCKED" },
+    );
+  });
+
+  it("o agente continua podendo dizer review, e só isso", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const repository = createTaskRepository(db);
+    const created = await api.task.create({ workspaceId, projectId, title: "x" });
+
+    const moved = await repository.setStatus(created.id, "review", { actor: "agent" });
+
+    expect(moved.status).toBe("review");
+  });
+});
+
+/**
+ * A ordem dentro da coluna (`028` §4.3, T5).
+ *
+ * *"Se você quiser outra ordem, arrasta — a posição na coluna é a prioridade, e
+ * não existe campo de prioridade."* É um gesto que o quadro já tem, e não
+ * inventa vocabulário — mas ele precisa de uma coluna: a ordem da lista da `022`
+ * é **derivada** do estado (`STATUS_RANK`), e derivada não se arrasta.
+ */
+describe("a ordem dentro da coluna", () => {
+  async function threeInTodo() {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const tasks = [];
+    for (const title of ["primeira", "segunda", "terceira"]) {
+      tasks.push(await api.task.create({ workspaceId, projectId, title }));
+    }
+    return { api, workspaceId, tasks };
+  }
+
+  async function titlesIn(api: TestCaller["api"], workspaceId: string, status: "open" | "in_progress") {
+    const rows = await api.task.listByWorkspace({ workspaceId, status });
+    return rows.map((row) => row.title);
+  }
+
+  it("chega no fim da fila", async () => {
+    const { api, workspaceId } = await threeInTodo();
+
+    expect(await titlesIn(api, workspaceId, "open")).toEqual(["primeira", "segunda", "terceira"]);
+  });
+
+  it("arrastar para o topo muda a prioridade, e persiste", async () => {
+    const { api, workspaceId, tasks } = await threeInTodo();
+
+    await api.task.move({ id: tasks[2]!.id, status: "open", index: 0 });
+
+    expect(await titlesIn(api, workspaceId, "open")).toEqual(["terceira", "primeira", "segunda"]);
+  });
+
+  it("arrastar para o meio", async () => {
+    const { api, workspaceId, tasks } = await threeInTodo();
+
+    await api.task.move({ id: tasks[0]!.id, status: "open", index: 1 });
+
+    expect(await titlesIn(api, workspaceId, "open")).toEqual(["segunda", "primeira", "terceira"]);
+  });
+
+  it("mover entre colunas escreve o estado e a posição na mesma transação", async () => {
+    const { api, workspaceId, tasks } = await threeInTodo();
+    await api.task.move({ id: tasks[0]!.id, status: "in_progress", index: 0 });
+
+    const moved = await api.task.move({ id: tasks[1]!.id, status: "in_progress", index: 0 });
+
+    expect(moved.status).toBe("in_progress");
+    expect(await titlesIn(api, workspaceId, "in_progress")).toEqual(["segunda", "primeira"]);
+    // E a To-Do não ficou com buraco de ordenação: quem sobrou continua legível.
+    expect(await titlesIn(api, workspaceId, "open")).toEqual(["terceira"]);
+  });
+
+  it("um índice além do fim encosta no fim, em vez de abrir buraco", async () => {
+    const { api, workspaceId, tasks } = await threeInTodo();
+
+    await api.task.move({ id: tasks[0]!.id, status: "open", index: 99 });
+
+    expect(await titlesIn(api, workspaceId, "open")).toEqual(["segunda", "terceira", "primeira"]);
+  });
+
+  it("o agente não arrasta", async () => {
+    const { workspaceId, tasks } = await threeInTodo();
+    const repository = createTaskRepository(context.db);
+
+    // `move` é o gesto do quadro, e o quadro é seu. Um agente que reordenasse a
+    // fila decidiria o que a esteira pega primeiro.
+    await expect(
+      repository.move(tasks[0]!.id, { status: "open", index: 0, actor: "agent" }),
+    ).rejects.toMatchObject({ code: "BLOCKED" });
+    expect(workspaceId).toBeTruthy();
+  });
+});
+
+describe("task.board", () => {
+  it("serve o quadro inteiro numa chamada, com o selo derivado", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    await api.task.create({ workspaceId, projectId, title: "na fila" });
+
+    const board = await api.task.board({ workspaceId });
+
+    expect(board.map((column) => column.status)).toEqual([
+      "backlog",
+      "open",
+      "in_progress",
+      "review",
+      "testing",
+      "ready_to_merge",
+      "done",
+    ]);
+    // Com a autonomia desligada — o default do produto — todo cartão diz que
+    // ninguém pegou. Sem este estado, o quadro desenharia o mesmo pixel de uma
+    // esteira travada.
+    expect(board.find((column) => column.status === "open")!.cards[0]!.seal).toEqual({
+      kind: "manual",
+    });
+  });
+
+  it("um workspace sem tarefa devolve sete colunas vazias, e não erro", async () => {
+    const { api } = caller();
+    const workspace = await api.workspace.create({ name: "vazio" });
+
+    const board = await api.task.board({ workspaceId: workspace.id });
+
+    expect(board).toHaveLength(7);
+    expect(board.flatMap((column) => column.cards)).toHaveLength(0);
   });
 });
 
@@ -299,6 +574,187 @@ describe("a medida de cerimônia", () => {
   });
 });
 
+describe("parar é interromper e depois desligar (Q57)", () => {
+  it("desliga a autonomia da tarefa", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "para esta" });
+
+    const stopped = await api.task.stop({ id: created.id });
+
+    expect(stopped.autonomy).toBe("off");
+  });
+
+  it("parar sem turno em voo não é erro", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "nem começou" });
+
+    // O caso comum de um clique: você viu o cartão parado e mandou parar. Errar
+    // aqui obrigaria a tela a saber se há turno antes de oferecer o verbo.
+    await expect(api.task.stop({ id: created.id })).resolves.toMatchObject({ autonomy: "off" });
+  });
+
+  it("a worktree fica", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "para esta" });
+    await db.insert(worktree).values({
+      id: "wt-parar",
+      projectId,
+      name: "para-esta",
+      branch: "fix/para",
+      path: "/wt/para",
+    });
+    await api.task.attachWorktree({ id: created.id, worktreeId: "wt-parar" });
+
+    const stopped = await api.task.stop({ id: created.id });
+
+    /*
+     * É o §6 e é o mesmo princípio do UC6: *"a worktree fica, com tudo o que já
+     * foi feito: é o valor que sobra, e às vezes é a maior parte dele"*.
+     */
+    expect(stopped.worktreeId).toBe("wt-parar");
+    expect(await db.select().from(worktree)).toHaveLength(1);
+  });
+
+  it("interrompe **antes** de desligar, e a ordem é o ponto", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "para esta" });
+    await db.insert(session).values({
+      id: "ses-parar",
+      kind: "shell",
+      scopeType: "project",
+      scopeId: projectId,
+      cwd: "/repos",
+      command: "bash",
+      taskId: created.id,
+    });
+    vi.spyOn(context.acpManager, "liveTurns").mockReturnValue([
+      { sessionId: "ses-parar", startedAt: new Date() },
+    ]);
+
+    /*
+     * A prova da ordem é lida **de dentro** do cancelamento: no instante em que
+     * ele acontece, a autonomia ainda tem que estar ligada.
+     *
+     * Desligar primeiro deixaria uma janela em que a passada seguinte já não
+     * pega o cartão e o turno velho continua gastando — a esteira não o
+     * mataria, porque ela não olha mais para ele.
+     */
+    let autonomyWhenCancelled: string | undefined;
+    vi.spyOn(context.acpManager, "cancel").mockImplementation(() => {
+      autonomyWhenCancelled = db
+        .select({ autonomy: task.autonomy })
+        .from(task)
+        .where(eq(task.id, created.id))
+        .get()?.autonomy;
+    });
+
+    await api.task.stop({ id: created.id });
+
+    expect(autonomyWhenCancelled).toBe("inherit");
+  });
+
+  it("uma sessão que morreu no meio não aborta o `parar`", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "para esta" });
+    await db.insert(session).values({
+      id: "ses-morta",
+      kind: "shell",
+      scopeType: "project",
+      scopeId: projectId,
+      cwd: "/repos",
+      command: "bash",
+      taskId: created.id,
+    });
+    vi.spyOn(context.acpManager, "liveTurns").mockReturnValue([
+      { sessionId: "ses-morta", startedAt: new Date() },
+    ]);
+    vi.spyOn(context.acpManager, "cancel").mockImplementation(() => {
+      throw new Error("session not found");
+    });
+
+    /*
+     * Corrida real e curta: a sessão acabou entre a leitura e o cancelamento.
+     * Deixar subir abortaria o `parar` **antes** do interruptor, e aí o clique
+     * não teria feito nada — a fila pegaria o cartão de volta em 15 segundos.
+     */
+    await expect(api.task.stop({ id: created.id })).resolves.toMatchObject({ autonomy: "off" });
+  });
+
+  it("tarefa que não existe é NOT_FOUND", async () => {
+    const { api } = caller();
+    await workspaceWithProject(context);
+
+    await expect(api.task.stop({ id: "nao-existe" })).rejects.toThrow(/não existe/);
+  });
+});
+
+describe("o arrasto desliga a autonomia daquela tarefa (Q40)", () => {
+  it("puxar para uma coluna com papel é assumir o volante", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "faço na mão" });
+
+    const moved = await api.task.move({ id: created.id, status: "in_progress", index: 0 });
+
+    /*
+     * Sem isto, a fila pegaria exatamente o cartão que você acabou de puxar
+     * para fazer na mão — etapa devida, nenhum trabalhador — e começaria a
+     * gastar por cima do seu trabalho. Não é conceito novo: o §6, Parte 4 já
+     * define **assumir** como *"desliga a autonomia daquela tarefa"*, e o
+     * arrasto é um segundo caminho para o mesmo interruptor.
+     */
+    expect(moved.autonomy).toBe("off");
+  });
+
+  it("tirar de uma coluna da máquina **não** liga de volta", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "faço na mão" });
+    await api.task.move({ id: created.id, status: "in_progress", index: 0 });
+
+    const back = await api.task.move({ id: created.id, status: "ready_to_merge", index: 0 });
+
+    // Tirar o cartão de uma coluna da máquina não é dizer *"pode pegar"*. Quem
+    // liga é você, e é um gesto com nome.
+    expect(back.autonomy).toBe("off");
+  });
+
+  it("arrastar para a To-Do **entrega** à máquina, e não tira dela", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "põe na fila" });
+    await api.task.setStatus({ id: created.id, status: "backlog" });
+
+    const moved = await api.task.move({ id: created.id, status: "open", index: 0 });
+
+    /*
+     * **Este caso existe porque eu errei.** A primeira versão da regra contava
+     * `open` como coluna da máquina, e aí o gesto mais comum do quadro — pôr uma
+     * tarefa na fila — desligava a autonomia da tarefa recém-enfileirada. A
+     * esteira ficava permanentemente vazia sem nada falhar; quem derrubou foi um
+     * caso da `queue.test.ts` que arrasta dentro da própria coluna.
+     */
+    expect(moved.autonomy).toBe("inherit");
+  });
+
+  it("`ready_to_merge` não é coluna de trabalho", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "sua vez" });
+
+    const moved = await api.task.move({ id: created.id, status: "ready_to_merge", index: 0 });
+
+    // O §4.1 a criou justamente para marcar *"é a sua vez"*. Arrastar para lá
+    // não é assumir o volante — é devolvê-lo.
+    expect(moved.autonomy).toBe("inherit");
+  });
+});
+
 describe("task.remove", () => {
   it("apaga tarefa sem sessão", async () => {
     const { api } = caller();
@@ -334,5 +790,249 @@ describe("task.remove", () => {
     const { api } = caller();
 
     await expect(api.task.remove({ id: "nada" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+describe("os tetos do workspace na leitura", () => {
+  it("um workspace que nunca pediu teto devolve os três em null", async () => {
+    const { api } = caller();
+    const { workspaceId } = await workspaceWithProject(context);
+
+    const settings = await api.task.settings({ workspaceId });
+
+    // É o caso comum e é o default: o §6 da PRD diz que os interruptores que
+    // gastam token nascem desligados.
+    expect(settings.caps).toEqual({
+      costPerTask: null,
+      costPerDay: null,
+      turnsPerSession: null,
+    });
+  });
+
+  it("`0` chega como `0`, e não como ausência", async () => {
+    const { api, db } = caller();
+    const { workspaceId } = await workspaceWithProject(context);
+    await db
+      .update(workspace)
+      .set({ budgetTurnsPerSession: 0, budgetCostPerDay: 2.5 })
+      .where(eq(workspace.id, workspaceId));
+
+    const settings = await api.task.settings({ workspaceId });
+
+    // `0` é "bloqueia tudo" e `null` é "sem teto". A tela precisa dos dois para
+    // dizer coisas diferentes.
+    expect(settings.caps).toEqual({
+      costPerTask: null,
+      costPerDay: 2.5,
+      turnsPerSession: 0,
+    });
+  });
+});
+
+describe("escrever os tetos", () => {
+  it("`null` é escrita, e é como se diz sem teto", async () => {
+    const { api } = caller();
+    const { workspaceId } = await workspaceWithProject(context);
+    await api.workspace.setBudget({
+      id: workspaceId,
+      costPerTask: 2,
+      costPerDay: 10,
+      turnsPerSession: 40,
+    });
+
+    await api.workspace.setBudget({
+      id: workspaceId,
+      costPerTask: null,
+      costPerDay: 10,
+      turnsPerSession: 40,
+    });
+
+    // Um `Partial` faria "não mandei" e "mandei nada" serem a mesma coisa, e
+    // desligar um teto deixaria de ter gesto.
+    const settings = await api.task.settings({ workspaceId });
+    expect(settings.caps).toEqual({ costPerTask: null, costPerDay: 10, turnsPerSession: 40 });
+  });
+
+  it("teto negativo é recusado com uma frase, e não com um CHECK cru", async () => {
+    const { api } = caller();
+    const { workspaceId } = await workspaceWithProject(context);
+
+    await expect(
+      api.workspace.setBudget({
+        id: workspaceId,
+        costPerTask: -1,
+        costPerDay: null,
+        turnsPerSession: null,
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+});
+
+describe("esperar vaga só existe onde há vaga para esperar (Q54)", () => {
+  /** Três cartões devidos e teto 2: um deles fica além das vagas. */
+  async function threeDue() {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    for (const title of ["um", "dois", "tres"]) {
+      await api.task.create({ workspaceId, projectId, title });
+    }
+    return { api, workspaceId };
+  }
+
+  const excess = (columns: { status: string; cards: { queuedBeyondSlots: boolean }[] }[]) =>
+    columns.flatMap((column) => column.cards).filter((card) => card.queuedBeyondSlots).length;
+
+  it("em `manual` nenhum cartão é marcado como esperando vaga", async () => {
+    const { api, workspaceId } = await threeDue();
+
+    /*
+     * `manual` é o **default do produto**, e nele nada puxa a fila: a `tick` lê
+     * e devolve zero. Marcando o excedente como *"esperando vaga"*, a tela
+     * suprimia o relógio de encalhe de um cartão que ninguém nunca ia buscar — e
+     * ele jamais ficaria âmbar. É a Q54 ao contrário: apagar o aviso em vez de
+     * apagar o falso positivo.
+     */
+    expect(excess(await api.task.board({ workspaceId }))).toBe(0);
+  });
+
+  it("com a esteira ligada, o que passa do teto volta a contar como espera", async () => {
+    const { api, workspaceId } = await threeDue();
+
+    await api.workspace.setAutonomy({ id: workspaceId, autonomy: "autonomo", maxParallel: 2 });
+
+    // Duas vagas, três devidos: o terceiro está esperando vaga de verdade, e
+    // cobrar dele seria cobrar o que é desenho.
+    expect(excess(await api.task.board({ workspaceId }))).toBe(1);
+  });
+});
+
+describe("o `Done` que limpa (Q27, Q58)", () => {
+  it("tarefa sem checkout anda e não há disco para limpar", async () => {
+    const { api } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "no principal" });
+
+    const result = await api.task.finish({ id: created.id });
+
+    // Dizer *"não havia nada"* é melhor que devolver silêncio: a tela precisa
+    // distinguir isso de *"não deu para limpar"*.
+    expect(result.task.status).toBe("done");
+    expect(result.cleanup).toEqual({ kind: "none" });
+  });
+
+  it("a tarefa anda mesmo quando o checkout não pode ser limpo", async () => {
+    const { api, db } = caller();
+    const { workspaceId, projectId } = await workspaceWithProject(context);
+    const created = await api.task.create({ workspaceId, projectId, title: "com rascunho" });
+    await db.insert(worktree).values({
+      id: "wt-done",
+      projectId,
+      name: "com-rascunho",
+      branch: "fix/rascunho",
+      path: "/caminho/que/nao/existe",
+    });
+    await api.task.attachWorktree({ id: created.id, worktreeId: "wt-done" });
+
+    const result = await api.task.finish({ id: created.id });
+
+    /*
+     * `done` é sobre a **tarefa** e a limpeza é sobre o **disco**. Recusar a
+     * mudança de coluna por causa de um rascunho seria a tarefa ficando refém
+     * de um arquivo — e o quadro deixando de refletir o que você decidiu.
+     */
+    expect(result.task.status).toBe("done");
+    // E quando nem dá para **ler** o checkout, a resposta é a mesma e
+    // conservadora: não se apaga o que não se consegue inspecionar.
+    expect(result.cleanup.kind).toBe("keep");
+    expect(await db.select().from(worktree)).toHaveLength(1);
+  });
+
+  it("tarefa que não existe é NOT_FOUND", async () => {
+    const { api } = caller();
+    await workspaceWithProject(context);
+
+    await expect(api.task.finish({ id: "nao-existe" })).rejects.toThrow(/não existe/);
+  });
+
+  it("com o interruptor ligado, mesclada e suja é removida de verdade", async () => {
+    /*
+     * Git de verdade, e é o único jeito de este caso existir: `git worktree
+     * remove` **recusa** um checkout com arquivo não rastreado, e a recusa é do
+     * git — nenhum dublê a reproduz. Sem `--force`, a exceção subia depois de a
+     * tarefa já estar em `done` e do `stopAll`, mas antes de a linha sair do
+     * banco: tarefa concluída, worktree suja intacta e erro na tela. O
+     * interruptor da Q27 nunca removia worktree suja, que é o único caso para o
+     * qual ele foi escrito.
+     */
+    const { api, db } = caller();
+    const repo = await createRepo();
+    const space = await api.workspace.create({ name: `acme-${newId()}` });
+    await api.workspace.setCleanup({ id: space.id, mergedAlwaysRemoves: true });
+
+    const projectId = newId();
+    await db.insert(project).values({
+      id: projectId,
+      workspaceId: space.id,
+      name: "acme-api",
+      path: repo,
+      defaultBranch: "main",
+    });
+
+    // Sem commit próprio: `ahead === 0` contra `main` é o que o produto lê como
+    // *mesclada*, e vale para quem mesclou na mão e para quem nunca abriu PR.
+    const checkout = join(tempDir(), "wt");
+    await runGit(repo, "worktree", "add", "-b", "fix/500", checkout, "main");
+    writeFileSync(join(checkout, "rascunho.txt"), "trabalho não commitado\n");
+
+    await db.insert(worktree).values({
+      id: "wt-suja",
+      projectId,
+      name: "fix-500",
+      branch: "fix/500",
+      path: checkout,
+    });
+    const created = await api.task.create({ workspaceId: space.id, projectId, title: "suja" });
+    await api.task.attachWorktree({ id: created.id, worktreeId: "wt-suja" });
+
+    const result = await api.task.finish({ id: created.id });
+
+    expect(result.task.status).toBe("done");
+    expect(result.cleanup).toMatchObject({ kind: "remove" });
+    // As três pontas, porque o defeito deixava as três em desacordo: o disco, a
+    // linha do banco e a resposta da chamada.
+    expect(existsSync(checkout)).toBe(false);
+    expect(await db.select().from(worktree)).toHaveLength(0);
+  });
+
+  it("mesclada e limpa continua sendo removida sem o interruptor", async () => {
+    // O caso 1 da Q27, e ele é o que prova que `--force` não passou a ser a
+    // decisão: sem o interruptor, sujo e mesclado **fica**.
+    const { api, db } = caller();
+    const repo = await createRepo();
+    const space = await api.workspace.create({ name: `beta-${newId()}` });
+
+    const projectId = newId();
+    await db.insert(project).values({
+      id: projectId,
+      workspaceId: space.id,
+      name: "acme-api",
+      path: repo,
+      defaultBranch: "main",
+    });
+
+    const checkout = join(tempDir(), "wt");
+    await runGit(repo, "worktree", "add", "-b", "fix/limpa", checkout, "main");
+    await db.insert(worktree).values({
+      id: "wt-limpa",
+      projectId,
+      name: "fix-limpa",
+      branch: "fix/limpa",
+      path: checkout,
+    });
+    const created = await api.task.create({ workspaceId: space.id, projectId, title: "limpa" });
+    await api.task.attachWorktree({ id: created.id, worktreeId: "wt-limpa" });
+
+    expect((await api.task.finish({ id: created.id })).cleanup).toMatchObject({ kind: "remove" });
+    expect(existsSync(checkout)).toBe(false);
   });
 });

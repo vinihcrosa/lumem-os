@@ -123,9 +123,15 @@ export function WorktreePanel({
    * Função porque os dois estados degradados também precisam dele, e um deles
    * — o `getDetail` em voo — não tem `detail` nenhum para ler.
    */
+  /*
+   * O caminho tem **nome** desde a `029`: ele deixou de ser o único landmark de
+   * navegação da tela quando o bloco da sidebar nasceu, e dois `navigation` sem
+   * rótulo são dois itens idênticos na lista de landmarks — que é a lista que
+   * alguém usa justamente para não ter de varrer a tela.
+   */
   function crumb(here: string, branchName: string) {
     return (
-      <nav className="crumb">
+      <nav className="crumb" aria-label="Caminho">
         {/* Todo segmento menos o último navega. O último é onde você está. */}
         <button type="button" className="crumb__up focus-ring" onClick={onOpenWorkspace}>
           {workspaceName}

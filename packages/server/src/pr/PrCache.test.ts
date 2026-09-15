@@ -82,6 +82,7 @@ function scriptedHost(script: () => Promise<PrRead> | PrRead) {
     },
     create: () => Promise.resolve({ ok: false, failure: { kind: "failed", message: "n/a" } }),
     merge: () => Promise.resolve({ ok: false, failure: { kind: "failed", message: "n/a" } }),
+    comment: () => Promise.resolve({ ok: false, failure: { kind: "failed", message: "n/a" } }),
     // Este dublê é o da barra de PR. Issues vêm por outro caminho, e é isso que
     // este `[]` diz: elas não passam pelo `PrCache`.
     issues: () => Promise.resolve({ ok: true, issues: [] }),
@@ -254,6 +255,7 @@ describe("a falha, que não apaga o que já se sabia", () => {
       },
       create: () => Promise.resolve({ ok: false, failure: { kind: "failed", message: "n/a" } }),
       merge: () => Promise.resolve({ ok: false, failure: { kind: "failed", message: "n/a" } }),
+    comment: () => Promise.resolve({ ok: false, failure: { kind: "failed", message: "n/a" } }),
       issues: () => Promise.resolve({ ok: true, issues: [] }),
     };
     const time = clock();

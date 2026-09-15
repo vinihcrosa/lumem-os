@@ -85,6 +85,26 @@ export interface AdapterSpec {
    * daemon sem motivo nenhum.
    */
   apiKeyEnv: readonly string[];
+  /**
+   * O modo **do agente** em que a esteira abre a sessão (`028` Q41 e Q43).
+   *
+   * Declarado aqui, e não escrito na esteira, porque é vocabulário do provider:
+   * `bypassPermissions` é uma palavra do Claude e não existe no Codex. É o
+   * [ADR de 2026-09-13](../../../docs/adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md)
+   * aplicado ao caso que o cobrou em voz alta — a Q41 descobriu medindo que o
+   * `lumemMode` é **inerte** para um agente que tem modos próprios: com `ask` e
+   * com `free` igualmente, o turno pendura no primeiro `Edit`, para sempre.
+   *
+   * A Q43 mediu qual dos cinco fecha o laço, e a resposta é desconfortável: **só
+   * `bypassPermissions`**, que é o único que nunca pergunta. A segurança da
+   * esteira não pode vir do modo de permissão — vem do CI, do orçamento e do
+   * teto de turnos, que é por que a Parte 3 veio antes da Parte 2.
+   *
+   * `null` quer dizer *este adaptador não declara um modo que não pergunta*. A
+   * esteira abre assim mesmo, e o que acontece é o que o agente fizer: ela não
+   * inventa uma palavra para um catálogo que não é dela.
+   */
+  autonomousMode: string | null;
 }
 
 /** O comando que instala um adaptador globalmente — a sugestão de um erro de spawn. */
@@ -136,6 +156,9 @@ export const CLAUDE_ADAPTER: AdapterSpec = {
   // número depois do `0.3.` é o do Claude Code que a API cobra na recusa.
   runtime: "@anthropic-ai/claude-agent-sdk",
   apiKeyEnv: ["ANTHROPIC_API_KEY"],
+  // Medido na Q43, e é o único dos cinco que fecha o laço: `default`, `plan`,
+  // `acceptEdits` e `dontAsk` param no primeiro `Edit` esperando alguém.
+  autonomousMode: "bypassPermissions",
 };
 
 export const CODEX_ADAPTER: AdapterSpec = {
@@ -153,6 +176,16 @@ export const CODEX_ADAPTER: AdapterSpec = {
   // tratar runtime não-pinado como aviso em vez de reprovação.
   runtime: "@openai/codex",
   apiKeyEnv: ["CODEX_API_KEY", "OPENAI_API_KEY"],
+  /*
+   * `null`, e é **não medido** e não *não existe*.
+   *
+   * A fase 0 da `021` subiu o `codex-acp` de verdade e mediu tradução, login e
+   * custo; o modo que não pergunta não estava naquela lista. Escrever aqui o
+   * palpite mais provável seria exatamente o que o ADR de 2026-09-13 proíbe —
+   * inventar vocabulário de um catálogo que não é nosso — e o jeito de
+   * preencher é rodar, não deduzir.
+   */
+  autonomousMode: null,
 };
 
 export const ADAPTERS: readonly AdapterSpec[] = [CLAUDE_ADAPTER, CODEX_ADAPTER];

@@ -69,6 +69,22 @@ describe("invalidateFor", () => {
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["worktree"] });
   });
+
+  it("`task.changed` alcança o quadro e os interruptores, não só a lista", () => {
+    /*
+     * Nenhum dos dois está sob `["task", "listByWorkspace"]`, e o cliente tem
+     * `refetchOnWindowFocus` desligado: sem estas duas chaves, o quadro só
+     * reavalia nas próprias mutações — selo, relógio de encalhe e a contagem de
+     * *precisa de mim* congelam com a esteira andando na frente de quem olha.
+     */
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    invalidateFor(queryClient, { type: "task.changed", workspaceId: "w1" });
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["task", "board"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["task", "settings"] });
+  });
 });
 
 describe("useLiveState", () => {

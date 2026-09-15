@@ -222,7 +222,10 @@ test("a aba PR aparece com a PR, mostra o reprovado no topo, e some quando ela s
   // precisa de você vem primeiro, e a primeira linha é a que quebrou.
   const rows = page.locator(".checks__row");
   await expect(rows.first()).toContainText("e2e (macOS)");
-  await expect(page.getByText("precisa de você")).toBeVisible();
+  // `exact`, porque a frase é curta e o produto cresce: sem âncora, qualquer
+  // texto novo que a contenha — inclusive um de leitor de tela — faz o
+  // `getByText` achar dois e o modo estrito recusar.
+  await expect(page.getByText("precisa de você", { exact: true })).toBeVisible();
 
   // O `↗` da linha abre AQUELA execução, e não a PR. O clique não sai do teste:
   // o que se verifica é o destino.

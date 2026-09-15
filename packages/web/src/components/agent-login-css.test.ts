@@ -15,7 +15,16 @@ import { describe, expect, it } from "vitest";
 const HERE = join(import.meta.dirname, ".");
 
 const stylesheet = readFileSync(join(HERE, "agent-login.css"), "utf8");
-const component = readFileSync(join(HERE, "AgentLogin.tsx"), "utf8");
+/*
+ * Dois arquivos, e o segundo entrou com as credenciais (ADR de 2026-09-13).
+ *
+ * O rodapé passou a ter dois blocos e eles **dividem a folha** — `foot-head`,
+ * `foot-row`, `pip`. Auditar só o primeiro fez a auditoria acusar `fld-hint`
+ * como órfã no minuto em que ela nasceu usada, o que é a direção contrária
+ * funcionando: ela existe para pegar CSS sem marcação, e uma lista de fontes
+ * incompleta vira exatamente o falso positivo que ensina a ignorá-la.
+ */
+const component = [readFileSync(join(HERE, "AgentLogin.tsx"), "utf8"), readFileSync(join(HERE, "Credentials.tsx"), "utf8")].join("\n");
 
 function defined(css: string): Set<string> {
   const names = new Set<string>();
@@ -65,6 +74,9 @@ const INTERPOLATED = [
 
 /** Painted elsewhere, and reused here on purpose. */
 const BORROWED = new Set([
+  // O `modal__destructive` é do `ui/modal.css`, e é onde ele deve estar: quem
+  // separa a ação que apaga das outras é o diálogo, e não este rodapé.
+  "modal__destructive",
   // The failure block and the output tail are the conversation's (conversation.css):
   // a launch failure looks the same wherever it is read, and repainting it would
   // be a second opinion about what a failure looks like.

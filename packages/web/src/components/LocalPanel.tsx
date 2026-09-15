@@ -259,7 +259,7 @@ export function LocalPanel({
       initialDraft={initialDraft}
       filesPanel={filesPanel}
       crumb={
-        <nav className="crumb">
+        <nav className="crumb" aria-label="Caminho">
           <button type="button" className="crumb__up focus-ring" onClick={onOpenWorkspace}>
             {workspaceName}
           </button>

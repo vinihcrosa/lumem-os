@@ -393,3 +393,11 @@
   text-transform: uppercase;
   color: var(--color-text-danger);
 }
+
+/*
+ * O interruptor da Q27, na linha dos tetos (`028` Parte 4, T40).
+ *
+ * `label` inteiro clicável porque a caixa sozinha tem 13px e o alvo do gesto é
+ * a frase — que é o ponto: quem liga isto precisa **ler** o que está ligando.
+ */
+.tlist__switch { display: inline-flex; align-items: center; gap: var(--space-4); cursor: pointer; }
