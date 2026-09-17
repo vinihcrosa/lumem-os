@@ -18,9 +18,57 @@ const run = promisify(execFile);
 
 const created: string[] = [];
 
+/** How long the removal keeps insisting before it reports the fixture as stuck. */
+const REMOVAL_DEADLINE_MS = 5_000;
+
+/** Errors that mean "something else is still in there", as opposed to a broken path. */
+const RACE_CODES = new Set(["ENOTEMPTY", "EBUSY", "EPERM", "EEXIST", "EACCES"]);
+
 /** Deletes every fixture made so far. Call from an afterEach. */
 export function cleanupGitFixtures(): void {
-  for (const dir of created.splice(0)) rmSync(dir, { recursive: true, force: true });
+  for (const dir of created.splice(0)) removeFixtureTree(dir);
+}
+
+/**
+ * Removes one fixture, outlasting whoever is still writing inside it.
+ *
+ * `force` silences a *missing* directory; it does nothing for a directory that
+ * is **not empty when the rmdir lands**, which is a different failure and the
+ * one that reached CI:
+ * `ENOTEMPTY: directory not empty, rmdir '<fixture>/.git/objects'`.
+ *
+ * A fixture here is a real repository, so git is a real child process writing
+ * inside it, and `rmSync` walks the tree holding the event loop — anything
+ * still running lands between that readdir and that rmdir. Node's own
+ * `maxRetries` is not enough: it re-attacks without waiting, so ten tries are
+ * spent in microseconds while the other process is still going.
+ *
+ * Hence the deadline instead of a retry count: waiting is what actually wins
+ * the race, and five seconds of it costs nothing when the first attempt
+ * succeeds — which is every time nobody is writing.
+ *
+ * Failing loudly at the deadline is deliberate. A fixture that cannot be
+ * removed is a process this suite failed to wait for, and swallowing it leaks
+ * a repository into the machine's temp directory on every run.
+ */
+export function removeFixtureTree(dir: string): void {
+  const deadline = Date.now() + REMOVAL_DEADLINE_MS;
+
+  for (;;) {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code ?? "";
+      if (!RACE_CODES.has(code) || Date.now() >= deadline) throw error;
+      sleep(25);
+    }
+  }
+}
+
+/** Sleeps without yielding: the caller is inside a synchronous afterEach. */
+function sleep(milliseconds: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
 export function tempDir(prefix = "lumem-git-"): string {
