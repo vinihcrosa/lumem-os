@@ -1,15 +1,27 @@
 # A tela de configurações — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** em execução
-**Histórico:** escritas em **2026-09-17**, junto com a PRD. **16 tasks em 5 fases**; a **fase 0
-entregou a T1 e a T3** no mesmo dia — as quatro perguntas que travavam foram respondidas, duas contra
+**Status:** completa
+**Histórico:** escritas em **2026-09-17**, junto com a PRD, e **as 16 entregues no mesmo dia**. A
+**fase 0 entregou a T1 e a T3** primeiro — as quatro perguntas que travavam foram respondidas, duas contra
 a proposta, e a folha `lumem-settings` existe, foi renderizada e foi medida.
 
 A ordem foi invertida a pedido: o desenho veio **antes** de as outras cinco perguntas terem resposta.
 Isso não fura a regra — o que ela proíbe é código antes do desenho —, e pagou por si mesmo: a folha
 achou **quatro defeitos de desenho** que nenhuma leitura de código pegaria, e o mais reaproveitável
 deles não é desta feature (a largura da coluna mora no `.body`, não na `.sidebar`).
+
+**O que as fases 1 a 4 acharam, e nada disso estava previsto:**
+
+| Onde | O quê |
+|---|---|
+| fase 2 | o **mock compartilhado não tinha `setBudget`** — porque nada na web o chamava. É a armadilha que o cabeçalho do `trpc-mock.ts` já nomeia, e ela reapareceu pelo motivo mais limpo possível: a procedure nunca tivera cliente |
+| fase 2 | o nome acessível do interruptor da Q27 era `desligado` — o texto do rótulo que o envolve —, e não o que ele autoriza. Uma caixa cujo nome descreve a **posição** e não o **efeito** |
+| fase 2 | `task.settings.autonomy` é `text` no SQLite e o domínio tem três valores: estreitar é o [ADR de 2026-09-13](../../adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md) aplicado ao banco |
+| fase 3 | os cinco testes da lista que cobriam os controles — quatro viraram testes de **escrita** na tela nova, e um esperava a variável de ambiente para provar que a lista carregou |
+| fase 4 | **o e2e do teto `null` passava com a escrita quebrada.** Um workspace que nunca teve teto já tem `null`, então o caso media o default e chamava de resultado. Achado mutando, e consertado com uma asserção do estado de partida |
+
+As duas armadilhas de teste estão no [testing.md](../../project/testing.md).
 
 ---
 
@@ -255,7 +267,12 @@ Cinco perguntas, e três delas nenhum teste de componente pode fazer:
    código da web percorreu até hoje**;
 5. apagar o campo grava `null` e a tela lê `sem teto`.
 
-**Done when:** os cinco passam, e cada um foi visto **vermelho** contra o código de antes.
+**Done when:** os cinco passam, e cada um foi visto **vermelho** contra o código de antes. ✔
+
+**Sete casos, e três mutações contra eles.** `routeOf` sempre devolvendo `home` matou cinco;
+duplicar a linha da sidebar matou cinco; e a escrita virada no-op matou **um** — o que expôs o
+caso fraco descrito acima. O `elementFromPoint` é a pergunta da [`023`](../023-composer-menus/prd.md),
+e não `toBeVisible`.
 
 #### T16: fechar a documentação
 
@@ -266,4 +283,8 @@ atual do [CLAUDE.md](../../../CLAUDE.md).
 Se a fase 0 produziu ADR, ele entra no índice junto.
 
 **Done when:** `pnpm docs:check` passa, e o `Status:` dos dois arquivos desta pasta concorda com o
-disco.
+disco. ✔
+
+Sem ADR: a T2 registrou por quê, e a nota vive no requisito [F1](prd.md#4-escopo). O backlog perdeu
+a linha *Rotas de verdade* (virou a LUM-63) e ganhou **notificações**, com o argumento de escala que
+a Q6a produziu.

@@ -387,6 +387,47 @@ daemon roda os scripts por `$SHELL -lc`, e um shell de login **não interativo**
 o terminal rodava v22 e o daemon v26, com 340 testes quebrando no jsdom.
 A `028` fecha a Parte 7 com **61 tasks**.
 
+E a [settings](docs/features/030-settings/prd.md) — **completa, 16 tasks em 5 fases** — dá ao produto
+a primeira **rota** e a primeira tela de configuração. O problema era que **dado de configuração
+dividia pixel com dado de acompanhamento**: um `<p class="tlist__budget">` de **79 linhas** — três
+tetos, uma variável de ambiente, os degraus da esteira, o paralelismo e o interruptor de limpeza —
+ficava acima da lista de tarefas. Ajuste se faz uma vez por mês; a lista se lê todo dia.
+
+O roteamento é **três endereços escritos à mão** — `/`, `/tasks`, `/settings` —, e a Q2 mediu os três
+níveis antes de escolher: `react-router@7` são **4,79 MB** e duas dependências, `wouter` **77 KB** e
+nenhuma, à mão são ~40 linhas. As duas pontas já existiam (o daemon serve o shell para qualquer
+caminho, e o vite devolveu **200 `text/html`** em `/settings`); faltava o cliente ler
+`location.pathname`. O **checkout continua seleção, e não lugar**: selecionar usa `replaceState`,
+porque com `push` o botão voltar viraria *desfazer seleção* — e ele não perde endereço nenhum, já que
+recarregar a página sempre o descartou. O N3 — workspace, projeto e checkout na URL — virou a
+**LUM-63**, que é onde as ADRs de roteamento vão nascer; esta não virou ADR porque **falha o primeiro
+dos três testes**: `/settings` vale nos três níveis, e trocar 40 linhas por uma biblioteca é uma
+tarde.
+
+O achado que mudou o corte é que **`workspace.setBudget` não tinha chamador na web**: os três tetos e
+o paralelismo eram somente-leitura no produto inteiro, e o único jeito de pôr um teto era um teste —
+a `028` Parte 3 entregou a metade que *mostra*. A tela é o **primeiro escritor**, e ela preserva os
+três estados que o banco distingue: `null` é *sem teto*, `0` é *bloqueia tudo*, e o campo vazio é o
+**gesto** de tirar o teto. Grava no `blur`, nunca por tecla, e **sem botão salvar** — o retorno reusa
+as palavras e os `--color-save-*` do editor.
+
+Das **10 perguntas, quatro foram respondidas contra a proposta**. A **Q3** pôs a etiqueta de dono
+**por controle**, porque `integrações` **não tem um dono** — a chave é da máquina e o mapa de colunas
+do tracker é do repositório, e são **quatro** donos e não três. A **Q5** derrubou a premissa da
+própria pergunta: o `aria-label="Telas do workspace"` era **descrição**, não regra, e a entrada foi
+para a `SidebarNav`. A **Q6** disse *não sobra nada* no rodapé da sidebar — o que faz a conta da
+coluna fechar **positiva**, porque a terceira linha cobra 28px e o rodapé devolve 73 a 105 —, e a
+**Q6a** recusou o sinal passivo de agente caído por **escala**: uma linha por agente não cabe, e um
+sinal com barra de rolagem deixa de ser sinal. Daí saiu **notificações**, no
+[backlog](docs/project/backlog.md).
+
+O desenho veio **antes** do código e a folha foi **renderizada e medida** — ela achou quatro defeitos
+que nenhuma leitura de código pega, e o mais reaproveitável não é desta feature: **a largura da
+coluna mora no `.body`**, então uma sidebar montada num `flex` encolhe para 188,6px e a folha passa a
+medir uma coluna que o produto não tem. A fase 4 achou o defeito mais instrutivo: **o e2e do teto
+`null` passava com a escrita quebrada**, porque um workspace que nunca teve teto já tem `null` — o
+caso media o default e chamava de resultado.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |

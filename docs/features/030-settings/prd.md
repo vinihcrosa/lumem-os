@@ -1,6 +1,6 @@
 # PRD — A tela de configurações: um lugar para o que se ajusta uma vez por mês
 
-> **Status:** em execução
+> **Status:** completa
 > **Histórico:** v0.1 — proposta em **2026-09-17**, a partir da
 > [LUM-55](https://linear.app/lumem-os/issue/LUM-55/settings-a-tela-de-configuracoes-rota-layout-e-as-quatro-secoes),
 > que é a tarefa-guarda-chuva de um projeto de cinco issues. Ela nasceu das anotações **1, 4 e 5**
@@ -14,7 +14,7 @@
 > projeto e checkout na URL — para a
 > [LUM-63](https://linear.app/lumem-os/issue/LUM-63/rotas-de-verdade-workspace-projeto-e-checkout-na-url-o-n3-que-a-030),
 > onde as ADRs de roteamento vão nascer
-> **Tasks:** [tasks.md](tasks.md) — **16 tasks em 5 fases**; a fase 0 entregou a decisão e o desenho
+> **Tasks:** [tasks.md](tasks.md) — **16 tasks em 5 fases, todas entregues** em 2026-09-17
 > **Depende de:** a [`029-sidebar-nav`](../029-sidebar-nav/prd.md), que é o bloco onde a entrada
 > provavelmente mora e a feature que **mediu que o aplicativo não tem rota nenhuma**; a
 > [`028` Parte 3](../028-autonomous-orchestration/prd.md), que desenhou os três tetos; a
