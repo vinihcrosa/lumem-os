@@ -1,4 +1,11 @@
-import type { ReactNode } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ADAPTERS } from "@lumem/shared";
+import { useState, type ReactNode } from "react";
+
+import { askNoticePermission } from "../hooks/notice.js";
+import { taskSettingsKey, tasksKey } from "../lib/queryKeys.js";
+import { trpc } from "../lib/trpc.js";
+import { Skeleton } from "../ui/index.js";
 
 import "./detail.css";
 import "./settings.css";
@@ -17,8 +24,9 @@ import "./settings.css";
  * **Sem botão salvar**, e o motivo não é gosto: um botão no rodapé de uma tela
  * com quatro seções obriga a pessoa a lembrar que mexeu numa seção que já rolou
  * para fora. O produto inteiro grava no gesto — o autosave do editor, o
- * interruptor da esteira, a largura da coluna —, e a tela de configuração não
- * pode ser o único lugar onde mudar não basta.
+ * interruptor da esteira, a largura da coluna. O que isso cobra é o **retorno**,
+ * e ele usa o vocabulário que já existe: as mesmas palavras e os mesmos
+ * `--color-save-*` do editor.
  */
 
 export interface SettingsPanelProps {
@@ -64,11 +72,7 @@ export function SettingRow({
   readOnly = false,
   children,
 }: SettingRowProps) {
-  const classes = [
-    "own",
-    readOnly ? "own--ro" : "",
-    owner === "repositório" ? "own--wrap" : "",
-  ]
+  const classes = ["own", readOnly ? "own--ro" : "", owner === "repositório" ? "own--wrap" : ""]
     .filter(Boolean)
     .join(" ");
 
@@ -102,6 +106,161 @@ export function SettingSection({ title, description, children }: SettingSectionP
   );
 }
 
+/** O que a linha diz sobre si mesma depois que você mexeu nela. */
+type SaveState = { kind: "clean" } | { kind: "saving" } | { kind: "saved" } | { kind: "failed"; why: string };
+
+function SaveMark({ state }: { state: SaveState }) {
+  if (state.kind === "clean") return null;
+  const label =
+    state.kind === "saving" ? "salvando…" : state.kind === "saved" ? "salvo" : "não deu para salvar";
+  return (
+    <span className={`set__save set__save--${state.kind}`} title={state.kind === "failed" ? state.why : undefined}>
+      <span className="set__save__dot" aria-hidden="true" />
+      {label}
+    </span>
+  );
+}
+
+export interface NumberSettingProps {
+  id: string;
+  /** `null` é *sem teto*; `0` é *bloqueia tudo*. São coisas diferentes. */
+  value: number | null;
+  /** O que o campo vira quando está vazio. Só o paralelismo não aceita vazio. */
+  nullable: boolean;
+  /** Escrito antes do número, quando ele é dinheiro. */
+  unit?: string;
+  integer?: boolean;
+  onCommit: (next: number | null) => Promise<unknown>;
+  ariaLabel: string;
+}
+
+/**
+ * Um número que grava sozinho, com os **três** estados que o banco distingue.
+ *
+ * `null` é *sem teto*, `0` é *bloqueia tudo*, e o campo vazio é o **gesto** de
+ * tirar o teto — não um quarto estado. A `028` Parte 3 defendeu essa distinção
+ * no banco; colapsá-la aqui a desfaria justamente onde ela precisa ser lida.
+ *
+ * Grava no `blur` e no `Enter`, e **não** a cada tecla: um teto digitado
+ * caractere a caractere mandaria `1`, `12`, `120` para o daemon, e o `12` é um
+ * teto que existiu de verdade por um instante.
+ */
+export function NumberSetting({
+  id,
+  value,
+  nullable,
+  unit,
+  integer = false,
+  onCommit,
+  ariaLabel,
+}: NumberSettingProps) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const [state, setState] = useState<SaveState>({ kind: "clean" });
+  const [error, setError] = useState<string | null>(null);
+
+  const shown = draft ?? (value === null ? "" : format(value, integer));
+  const empty = shown.trim() === "";
+
+  async function commit(): Promise<void> {
+    const text = shown.trim();
+
+    if (text === "") {
+      if (!nullable) {
+        setError("este não pode ficar vazio");
+        return;
+      }
+      await send(null);
+      return;
+    }
+
+    const parsed = Number(text.replace(",", "."));
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      setError("negativo não é teto");
+      return;
+    }
+    if (integer && !Number.isInteger(parsed)) {
+      setError("este conta inteiros");
+      return;
+    }
+    await send(parsed);
+  }
+
+  async function send(next: number | null): Promise<void> {
+    setError(null);
+    setState({ kind: "saving" });
+    try {
+      await onCommit(next);
+      setDraft(null);
+      setState({ kind: "saved" });
+    } catch (cause) {
+      // A frase do daemon, e não uma nossa: ele é o único que sabe o que
+      // recusou, e reescrever a recusa é como um `check` do SQLite vira "erro
+      // inesperado" na tela.
+      setState({ kind: "failed", why: cause instanceof Error ? cause.message : String(cause) });
+    }
+  }
+
+  return (
+    <>
+      <SaveMark state={state} />
+      {error !== null && (
+        <span className="set__err" role="alert">
+          {error}
+        </span>
+      )}
+      {unit !== undefined && !empty && <span className="set__pre">{unit}</span>}
+      <input
+        id={id}
+        className={`input set__num${error === null ? "" : " input--error"}`}
+        aria-label={ariaLabel}
+        aria-invalid={error === null ? undefined : true}
+        inputMode="decimal"
+        value={shown}
+        placeholder={nullable ? "sem teto" : ""}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          setError(null);
+          setState({ kind: "clean" });
+        }}
+        onBlur={() => void commit()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") void commit();
+          if (event.key === "Escape") {
+            setDraft(null);
+            setError(null);
+          }
+        }}
+      />
+    </>
+  );
+}
+
+function format(value: number, integer: boolean): string {
+  return integer ? String(value) : value.toFixed(2).replace(".", ",");
+}
+
+/** Os três degraus do §6 da `028`, em ordem de risco. */
+const AUTONOMY_STEPS = [
+  { value: "manual" as const, label: "manual" },
+  { value: "assistido" as const, label: "assistido" },
+  { value: "autonomo" as const, label: "autônomo" },
+];
+
+type Autonomy = (typeof AUTONOMY_STEPS)[number]["value"];
+
+/**
+ * A coluna é `text` no SQLite, e o domínio tem três valores.
+ *
+ * Estreitar aqui é o [ADR de 2026-09-13](../../../../docs/adr/2026-09-13-0038-our-model-is-king-outsiders-adapt.md)
+ * aplicado ao banco: *o modelo é do Lumem, e o que vem de fora se adapta a ele*.
+ * Um degrau que o produto não conhece vira `manual`, que é o único default
+ * seguro — a esteira parada.
+ */
+function asAutonomy(value: string): Autonomy {
+  const step = AUTONOMY_STEPS.find((row) => row.value === value);
+  return step?.value ?? "manual";
+}
+
 export function SettingsPanel({ workspaceId, workspaceName }: SettingsPanelProps) {
   return (
     <div className="set">
@@ -120,68 +279,383 @@ export function SettingsPanel({ workspaceId, workspaceName }: SettingsPanelProps
         </p>
       </header>
 
-      <SettingsSections workspaceId={workspaceId} />
+      <ConveyorSection workspaceId={workspaceId} />
+      <AgentsSection />
+      <IntegrationsSection />
+      <DisplaySection />
     </div>
   );
 }
 
 /**
- * As quatro seções.
+ * Esteira e orçamento — a seção que **escreve** (Q4).
  *
- * Separado do cabeçalho para a fase seguinte preencher uma de cada vez sem
- * mexer no que já está de pé — e porque o cabeçalho não precisa de `workspaceId`
- * nenhum.
+ * `workspace.setBudget` existia, validado e testado, **sem nenhum chamador na
+ * web**: os três tetos eram somente-leitura no produto inteiro, e o único jeito
+ * de pôr um teto era um teste. Esta é a primeira tela que os grava.
  */
-function SettingsSections({ workspaceId }: { workspaceId: string }) {
-  return (
-    <>
+function ConveyorSection({ workspaceId }: { workspaceId: string }) {
+  const queryClient = useQueryClient();
+  const settingsKey = taskSettingsKey(workspaceId);
+
+  const settings = useQuery({
+    queryKey: settingsKey,
+    queryFn: () => trpc.task.settings.query({ workspaceId }),
+  });
+
+  async function refresh(): Promise<void> {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: settingsKey }),
+      queryClient.invalidateQueries({ queryKey: tasksKey(workspaceId) }),
+    ]);
+  }
+
+  const setAutonomy = useMutation({
+    mutationFn: (input: { autonomy: "manual" | "assistido" | "autonomo"; maxParallel: number }) =>
+      trpc.workspace.setAutonomy.mutate({ id: workspaceId, ...input }),
+    onSettled: refresh,
+  });
+
+  const setCleanup = useMutation({
+    mutationFn: (mergedAlwaysRemoves: boolean) =>
+      trpc.workspace.setCleanup.mutate({ id: workspaceId, mergedAlwaysRemoves }),
+    onSettled: refresh,
+  });
+
+  /*
+   * O daemon exige os três tetos de uma vez, e isso é do contrato dele: um
+   * `PATCH` de um campo só precisaria distinguir *"não mexi"* de *"apaguei"*, e
+   * os dois são `null` no corpo. Quem manda os três sempre não tem essa
+   * ambiguidade.
+   */
+  const setBudget = useMutation({
+    mutationFn: (caps: {
+      costPerTask: number | null;
+      costPerDay: number | null;
+      turnsPerSession: number | null;
+    }) => trpc.workspace.setBudget.mutate({ id: workspaceId, ...caps }),
+    onSettled: refresh,
+  });
+
+  if (settings.isPending) {
+    return (
+      <SettingSection title="Esteira e orçamento" description="O que este workspace deixa a máquina gastar sozinha.">
+        <Skeleton label="lendo os tetos do workspace" />
+      </SettingSection>
+    );
+  }
+
+  if (settings.data === undefined) {
+    return (
       <SettingSection
         title="Esteira e orçamento"
-        description={
-          <>
-            O que este workspace deixa a máquina gastar sozinha. Os três tetos já existiam e{" "}
-            <b>nenhuma tela os escrevia</b> — o único jeito de pôr um teto era um teste.
-          </>
-        }
+        description="O que este workspace deixa a máquina gastar sozinha."
       >
-        <div className="set__rows" data-workspace={workspaceId} />
+        <p className="set__err" role="alert">
+          {settings.error?.message ?? "o daemon não respondeu"}
+        </p>
       </SettingSection>
+    );
+  }
 
-      <SettingSection
-        title="Agentes"
-        description={
-          <>
-            O adaptador é a cópia que o daemon instalou, e o <code>PATH</code> não decide. Conectar
-            aqui vale para <b>todo workspace desta máquina</b>.
-          </>
-        }
-      >
-        <div className="set__rows" />
-      </SettingSection>
+  const data = settings.data;
+  const caps = data.caps;
 
-      <SettingSection
-        title="Integrações"
-        description={
-          <>
-            A chave é da máquina; o mapa de colunas é do repositório. Quem separa os dois é a
-            etiqueta de cada linha, e não uma frase no topo.
-          </>
-        }
-      >
-        <div className="set__rows" />
-      </SettingSection>
+  function commitCap(field: "costPerTask" | "costPerDay" | "turnsPerSession") {
+    return (next: number | null) =>
+      setBudget.mutateAsync({ costPerTask: caps.costPerTask, costPerDay: caps.costPerDay, turnsPerSession: caps.turnsPerSession, [field]: next });
+  }
 
-      <SettingSection
-        title="Exibição"
-        description={
-          <>
-            O que é deste navegador, e não viaja com você para outra máquina — como a largura da
-            coluna de arquivos e o estado do rodapé já não viajam.
-          </>
-        }
-      >
-        <div className="set__rows" />
-      </SettingSection>
-    </>
+  return (
+    <SettingSection
+      title="Esteira e orçamento"
+      description={
+        <>
+          O que este workspace deixa a máquina gastar sozinha. <code>sem teto</code> e{" "}
+          <code>0</code> são coisas diferentes: o primeiro não segura nada, o segundo bloqueia tudo.
+        </>
+      }
+    >
+      <div className="set__rows">
+        <SettingRow
+          label="Autonomia"
+          description="Quem puxa a fila. `assistido` prepara tudo e para antes de enviar."
+          owner="workspace"
+        >
+          <span className="seg" role="group" aria-label="autonomia">
+            {AUTONOMY_STEPS.map((step) => (
+              <button
+                key={step.value}
+                type="button"
+                className="seg__btn focus-ring"
+                aria-pressed={asAutonomy(data.autonomy) === step.value}
+                onClick={() => {
+                  /*
+                   * A permissão de notificar é pedida **aqui** (Q55 da `028`): é
+                   * o único instante em que o pedido tem frase honesta, e é este
+                   * clique que passa a produzir coisas que acontecem sem você.
+                   */
+                  if (step.value !== "manual") void askNoticePermission();
+                  setAutonomy.mutate({ autonomy: step.value, maxParallel: data.maxParallel });
+                }}
+              >
+                {step.label}
+              </button>
+            ))}
+          </span>
+        </SettingRow>
+
+        <SettingRow
+          label="Cartões em paralelo"
+          description="Quantos a esteira toca ao mesmo tempo. Zero a segura sem desligá-la."
+          owner="workspace"
+        >
+          <NumberSetting
+            id="set-max-parallel"
+            ariaLabel="cartões em paralelo"
+            value={data.maxParallel}
+            nullable={false}
+            integer
+            onCommit={(next) =>
+              setAutonomy.mutateAsync({ autonomy: asAutonomy(data.autonomy), maxParallel: next ?? 0 })
+            }
+          />
+        </SettingRow>
+
+        <SettingRow
+          label="Teto por tarefa"
+          description="A esteira para ao cruzar; quem conduz é avisado e decide."
+          owner="workspace"
+        >
+          <NumberSetting
+            id="set-cost-task"
+            ariaLabel="teto por tarefa"
+            value={caps.costPerTask}
+            nullable
+            unit="US$"
+            onCommit={commitCap("costPerTask")}
+          />
+        </SettingRow>
+
+        <SettingRow
+          label="Teto por dia"
+          description="Somado no workspace inteiro, todos os agentes juntos."
+          owner="workspace"
+        >
+          <NumberSetting
+            id="set-cost-day"
+            ariaLabel="teto por dia"
+            value={caps.costPerDay}
+            nullable
+            unit="US$"
+            onCommit={commitCap("costPerDay")}
+          />
+        </SettingRow>
+
+        <SettingRow
+          label="Turnos por sessão"
+          description="O teto que protege quem não relata dinheiro — o Codex responde `cost: null`."
+          owner="workspace"
+        >
+          <NumberSetting
+            id="set-turns"
+            ariaLabel="turnos por sessão"
+            value={caps.turnsPerSession}
+            nullable
+            integer
+            onCommit={commitCap("turnsPerSession")}
+          />
+        </SettingRow>
+
+        {/*
+          Separado da esteira de propósito, e o texto é inteiro: ligar a
+          autonomia não pode parecer que autoriza apagar rascunho.
+        */}
+        <SettingRow
+          label="PR mesclada sempre remove a worktree"
+          description="Inclusive com arquivo não commitado."
+          owner="workspace"
+        >
+          <label className="set__switch">
+            {/*
+              `aria-label` com a frase inteira, e não só a palavra do estado: o
+              nome acessível de uma caixa é o texto do rótulo que a envolve, e
+              aqui esse texto é `ligado`/`desligado` — que descreve a posição do
+              interruptor e não o que ele autoriza.
+            */}
+            <input
+              type="checkbox"
+              aria-label="PR mesclada sempre remove a worktree"
+              checked={data.mergedAlwaysRemoves}
+              onChange={(event) => setCleanup.mutate(event.target.checked)}
+            />
+            <span>{data.mergedAlwaysRemoves ? "ligado" : "desligado"}</span>
+          </label>
+        </SettingRow>
+
+        {/*
+          Variável de ambiente do processo do daemon: a tela mostra e diz onde se
+          muda, que é o que faz existir **um** lugar que responde "onde eu mudo
+          isso?" mesmo para o que não é campo.
+        */}
+        <SettingRow
+          label="Tarefas que um agente pode criar por tarefa"
+          description={
+            <>
+              Muda em <code>{data.budgetEnv}</code>, no ambiente do daemon.
+            </>
+          }
+          owner="máquina"
+          readOnly
+        >
+          <span className="set__val">{data.budget}</span>
+        </SettingRow>
+      </div>
+    </SettingSection>
+  );
+}
+
+/**
+ * Agentes — **leitura**, nesta feature.
+ *
+ * O login continua no rodapé da sidebar até a LUM-57, e a Q6 decidiu o que
+ * acontece com ele lá: não sobra nada, o rodapé some inteiro. O que entra aqui
+ * agora é o que já se sabe ler — quais agentes existem e qual versão o daemon
+ * tem **no disco**, que é a regra do
+ * [ADR de 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md):
+ * o `PATH` não decide.
+ */
+function AgentsSection() {
+  const agents = useQuery({
+    queryKey: ["setup", "agents"],
+    queryFn: () => trpc.setup.agents.query(),
+    refetchOnWindowFocus: false,
+  });
+
+  return (
+    <SettingSection
+      title="Agentes"
+      description={
+        <>
+          O adaptador é a cópia que o daemon instalou, e o <code>PATH</code> não decide. Conectar
+          vale para <b>todo workspace desta máquina</b> — por enquanto o login mora no rodapé da
+          coluna.
+        </>
+      }
+    >
+      <div className="set__rows">
+        {ADAPTERS.map((spec) => {
+          const found = agents.data?.adapters.find((row) => row.id === spec.id);
+          const installed = found?.adapter.version ?? null;
+          return (
+            <SettingRow
+              key={spec.id}
+              label={spec.label}
+              description={
+                <>
+                  {spec.package ?? spec.command} · pino <code>{spec.pinnedVersion}</code>
+                </>
+              }
+              owner="máquina"
+              readOnly
+            >
+              <span className="set__val">{installed ?? "não instalado"}</span>
+            </SettingRow>
+          );
+        })}
+      </div>
+    </SettingSection>
+  );
+}
+
+/**
+ * Integrações — e é a seção que derrubou a proposta da Q3.
+ *
+ * Ela **não tem um dono**: a chave é da máquina (cifrada em `~/.lumem/_system`,
+ * pelo ADR do cofre) e o mapa de colunas do tracker é do repositório. Uma frase
+ * de escopo no topo teria que mentir aqui, ou abrir exceção na terceira das
+ * quatro seções — e é por isso que a etiqueta é por linha.
+ *
+ * O catálogo é **fechado**, como o rodapé já dizia: os serviços que o Lumem sabe
+ * guardar são os que ele sabe usar.
+ */
+function IntegrationsSection() {
+  const slots = useQuery({
+    queryKey: ["secrets"],
+    queryFn: () => trpc.secrets.list.query(),
+  });
+
+  const list = slots.data ?? [];
+
+  return (
+    <SettingSection
+      title="Integrações"
+      description={
+        <>
+          A chave é da máquina; o mapa de colunas do tracker é do repositório. Quem separa os dois é
+          a etiqueta de cada linha, e não uma frase no topo.
+        </>
+      }
+    >
+      <div className="set__rows">
+        {list.map((slot) => (
+          <SettingRow
+            key={slot.id}
+            label={slot.label}
+            description="Cifrada em ~/.lumem/_system. Quem já lê o seu $HOME como você decifra."
+            owner="máquina"
+            readOnly
+          >
+            <span className="set__val">{slot.present ? "guardada" : "sem chave"}</span>
+          </SettingRow>
+        ))}
+        {/*
+          O que o GitHub não tem aqui é a decisão da `013`, e não um buraco: o
+          estado vem do `gh` da sua máquina, e o Lumem não vê, não pede e não
+          grava token. Não há o que mostrar porque não há o que guardar.
+        */}
+        <SettingRow
+          label="GitHub e GitLab"
+          description="Vêm do `gh` e do `glab` da sua máquina. O Lumem não vê, não pede e não grava token."
+          owner="máquina"
+          readOnly
+        >
+          <span className="set__val">fora do cofre</span>
+        </SettingRow>
+      </div>
+    </SettingSection>
+  );
+}
+
+/**
+ * Exibição — a seção que entra **sem o controle**, de propósito (Q7).
+ *
+ * O `tokens.css` tem 111 valores em `px` e zero `rem`, e é cópia do Open Design:
+ * `html { font-size }` não move um pixel. A alavanca nasce no sistema de design,
+ * não aqui. Desenhar o segmentado agora seria um botão que não faz nada, e a
+ * diferença entre as duas coisas é o que separa uma tela honesta de uma que
+ * promete.
+ */
+function DisplaySection() {
+  return (
+    <SettingSection
+      title="Exibição"
+      description={
+        <>
+          O que é deste navegador, e não viaja com você para outra máquina — como a largura da coluna
+          de arquivos e o estado do rodapé já não viajam.
+        </>
+      }
+    >
+      <div className="set__todo">
+        <span aria-hidden="true">⚠</span>
+        <span>
+          <b>Tamanho de fonte ainda não tem alavanca.</b> O <code>tokens.css</code> tem{" "}
+          <b>111 valores em px e zero rem</b>, e é cópia do Open Design — então{" "}
+          <code>html {"{ font-size }"}</code> não move um pixel. O <code>rem</code> nasce no sistema
+          de design, e a preferência chega quando ele chegar.
+        </span>
+      </div>
+    </SettingSection>
   );
 }

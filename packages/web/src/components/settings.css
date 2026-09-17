@@ -190,3 +190,44 @@
   color: var(--color-text-tertiary);
 }
 .set__todo code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/* ---------------------------------------------------------------------------
+   o retorno de quem grava no gesto
+   -------------------------------------------------------------------------- */
+
+/*
+ * O mesmo vocabulário do editor — as mesmas palavras e os mesmos
+ * `--color-save-*`. Sem botão salvar, a linha precisa dizer que gravou, e um
+ * quinto jeito de dizer *guardei* seria o produto inventando sinônimo para si
+ * mesmo. Não há estado `não salvo`: ele dura o tempo do `blur` e deixa de ser
+ * verdade.
+ */
+.set__save {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+.set__save__dot {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+.set__save--saving { color: var(--color-save-saving); }
+.set__save--saved { color: var(--color-save-saved); }
+.set__save--failed { color: var(--color-save-failed); }
+
+/* A recusa do daemon, na linha que a provocou. */
+.set__err { font: var(--text-body-sm); color: var(--color-text-danger); }
+
+/* O interruptor da Q27: caixa e a palavra do estado, que é o que se lê de longe. */
+.set__switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
