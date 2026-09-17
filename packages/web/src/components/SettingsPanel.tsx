@@ -379,7 +379,11 @@ function ConveyorSection({ workspaceId }: { workspaceId: string }) {
       <div className="set__rows">
         <SettingRow
           label="Autonomia"
-          description="Quem puxa a fila. `assistido` prepara tudo e para antes de enviar."
+          description={
+            <>
+              Quem puxa a fila. <code>assistido</code> prepara tudo e para antes de enviar.
+            </>
+          }
           owner="workspace"
         >
           <span className="seg" role="group" aria-label="autonomia">
@@ -454,7 +458,11 @@ function ConveyorSection({ workspaceId }: { workspaceId: string }) {
 
         <SettingRow
           label="Turnos por sessão"
-          description="O teto que protege quem não relata dinheiro — o Codex responde `cost: null`."
+          description={
+            <>
+              O teto que protege quem não relata dinheiro — o Codex responde <code>cost: null</code>.
+            </>
+          }
           owner="workspace"
         >
           <NumberSetting
@@ -499,7 +507,7 @@ function ConveyorSection({ workspaceId }: { workspaceId: string }) {
           isso?" mesmo para o que não é campo.
         */}
         <SettingRow
-          label="Tarefas que um agente pode criar por tarefa"
+          label="Tarefas que um agente pode criar a partir de uma"
           description={
             <>
               Muda em <code>{data.budgetEnv}</code>, no ambiente do daemon.
@@ -602,7 +610,12 @@ function IntegrationsSection() {
           <SettingRow
             key={slot.id}
             label={slot.label}
-            description="Cifrada em ~/.lumem/_system. Quem já lê o seu $HOME como você decifra."
+            description={
+              <>
+                Cifrada em <code>~/.lumem/_system</code>. Quem já lê o seu <code>$HOME</code> como
+                você decifra.
+              </>
+            }
             owner="máquina"
             readOnly
           >
@@ -616,7 +629,12 @@ function IntegrationsSection() {
         */}
         <SettingRow
           label="GitHub e GitLab"
-          description="Vêm do `gh` e do `glab` da sua máquina. O Lumem não vê, não pede e não grava token."
+          description={
+            <>
+              Vêm do <code>gh</code> e do <code>glab</code> da sua máquina. O Lumem não vê, não pede
+              e não grava token.
+            </>
+          }
           owner="máquina"
           readOnly
         >

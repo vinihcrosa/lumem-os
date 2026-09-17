@@ -1309,6 +1309,19 @@ E a armadilha de segunda ordem é o teste da armadilha: ele precisa de **outro p
 que recria o diretório em laço por 400ms — sem o conserto, vermelho com a string exata que o CI
 imprimiu.
 
+### Markdown cru numa string de JSX, e nenhum teste de comportamento vê
+
+**Sintoma:** a tela mostrava `` `assistido` `` e `` `cost: null` `` **com as crases**, em quatro
+descrições. A suíte estava verde: o texto está lá, e `getByText(/assistido/)` casa do mesmo jeito.
+
+**Causa:** descrição escrita como `description="… `assistido` …"`. Dentro de uma string de JSX a
+crase é um caractere, não formatação — só vira `<code>` quem escreveu `<code>`.
+
+**Achado olhando a tela renderizada**, e não a suíte — que é a razão de a regra do repositório mandar
+verificar renderizando. O conserto trouxe o teste que faltava, e ele é de **conteúdo** e não de
+comportamento: nenhum `.set__d` nem `.set__secd` contém crase. Dois caracteres numa string passam por
+qualquer revisão; um `querySelectorAll` não.
+
 ### jsdom tem `history`, e por isso um roteador quebrado passa verde
 
 **Sintoma:** nenhum — que é o problema. `pushState`, `replaceState`, `popstate` e `location.pathname`

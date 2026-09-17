@@ -88,6 +88,23 @@ describe("as quatro seções", () => {
   });
 });
 
+/*
+ * Achado olhando a tela renderizada, e não a suíte: quatro descrições tinham
+ * crase de markdown numa string de JSX, e apareciam **literais** — `assistido`,
+ * com as aspas. Nenhum teste de comportamento vê isso, porque o texto está lá e
+ * a busca por regex casa igual.
+ */
+it("nenhuma descrição mostra markdown cru", async () => {
+  render();
+
+  await screen.findByLabelText("teto por tarefa");
+  const cruas = [...document.querySelectorAll(".set__d, .set__secd")].filter((node) =>
+    (node.textContent ?? "").includes("`"),
+  );
+
+  expect(cruas.map((node) => node.textContent)).toEqual([]);
+});
+
 describe("os três tetos, que nenhuma tela escrevia", () => {
   it("sem teto aparece como palavra, e não como campo vazio sem explicação", async () => {
     render();
