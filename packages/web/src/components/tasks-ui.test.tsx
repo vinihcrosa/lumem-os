@@ -127,55 +127,15 @@ describe("a lista de tarefas", () => {
   /** O workspace de quem nunca pediu teto — o default, e o caso comum. */
   const SEM_TETO = { costPerTask: null, costPerDay: null, turnsPerSession: null };
 
-  it("diz o teto de criação e onde mudar — teto invisível parece bug", async () => {
-    trpc.task.listByWorkspace.query.mockResolvedValue([task()]);
-    trpc.task.settings.query.mockResolvedValue({
-      budget: 5,
-      budgetEnv: "LUMEM_TASKS_BUDGET",
-      sessions: 0,
-      sessionsWithTask: 0,
-      caps: SEM_TETO,
-    });
-
-    renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
-
-    expect(await screen.findByText(/5/)).toBeInTheDocument();
-    expect(screen.getByText("LUMEM_TASKS_BUDGET")).toBeInTheDocument();
-  });
-
-  it("`sem teto` é palavra, e não campo vazio", async () => {
-    // Um vazio numa linha sobre limite parece defeito, e a ausência de teto é
-    // uma resposta (`028` Parte 3, T18).
-    trpc.task.listByWorkspace.query.mockResolvedValue([task()]);
-    trpc.task.settings.query.mockResolvedValue({
-      budget: 5,
-      budgetEnv: "LUMEM_TASKS_BUDGET",
-      sessions: 0,
-      sessionsWithTask: 0,
-      caps: SEM_TETO,
-    });
-
-    renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
-
-    expect(await screen.findAllByText(/sem teto/)).toHaveLength(3);
-  });
-
-  it("`0` aparece como `0`, porque bloquear tudo não é não ter teto", async () => {
-    trpc.task.listByWorkspace.query.mockResolvedValue([task()]);
-    trpc.task.settings.query.mockResolvedValue({
-      budget: 5,
-      budgetEnv: "LUMEM_TASKS_BUDGET",
-      sessions: 0,
-      sessionsWithTask: 0,
-      caps: { costPerTask: 2, costPerDay: null, turnsPerSession: 0 },
-    });
-
-    renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
-
-    expect(await screen.findByText("US$ 2.00")).toBeInTheDocument();
-    expect(screen.getByText("0")).toBeInTheDocument();
-    expect(screen.getAllByText(/sem teto/)).toHaveLength(1);
-  });
+  /*
+   * Os tetos, os degraus da esteira, o paralelismo, a variável de ambiente e o
+   * interruptor de limpeza **saíram desta tela** (`030-settings`, T13). Os casos
+   * que os cobriam moraram aqui até 2026-09-17 e agora vivem em
+   * `settings-ui.test.tsx`, contra a tela que os escreve — que é mais do que
+   * eles provavam aqui, porque aqui eles eram só leitura.
+   *
+   * O que ficou é a **medida**: configuração se ajusta, medida se olha (Q9).
+   */
 
   it("mostra a medida de cerimônia, e ela existe para incomodar", async () => {
     /*
@@ -200,43 +160,46 @@ describe("a lista de tarefas", () => {
     expect(trpc.task.settings.query).toHaveBeenCalledWith({ workspaceId: "w1" });
   });
 
-  it("o degrau clicado relê os interruptores, e não só a lista", async () => {
-    /*
-     * Os controles são **controlados** por `task.settings`, que não está sob o
-     * prefixo `["task", "listByWorkspace"]`. Invalidando só a lista, o daemon
-     * grava e a barra não muda: o degrau não recebe `btn--brand` e o checkbox
-     * volta ao valor antigo — um clique que desfaz a si mesmo na tela.
-     */
-    const user = userEvent.setup();
-    trpc.task.listByWorkspace.query.mockResolvedValue([task()]);
+  it("some a proporção quando não houve sessão nenhuma", async () => {
+    // Zero de zero não é uma proporção, é uma divisão por zero com cara de dado.
+    trpc.task.listByWorkspace.query.mockResolvedValue([task({ title: "uma tarefa" })]);
+
+    renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
+
+    // A lista está na tela — é ela que prova que o `some` é da proporção e não
+    // de uma leitura que não voltou.
+    expect(await screen.findByText("uma tarefa")).toBeInTheDocument();
+    expect(screen.queryByText(/sessões têm tarefa/)).not.toBeInTheDocument();
+  });
+
+  /*
+   * O que a T13 comprou, dito como asserção: a lista **não tem mais** nenhum
+   * controle de configuração. Sem este caso, alguém devolve um interruptor para
+   * cá numa tarde e nada reclama.
+   */
+  it("não tem mais nenhum controle de configuração", async () => {
+    trpc.task.listByWorkspace.query.mockResolvedValue([task({ title: "uma tarefa" })]);
     trpc.task.settings.query.mockResolvedValue({
       budget: 5,
       budgetEnv: "LUMEM_TASKS_BUDGET",
-      sessions: 0,
-      sessionsWithTask: 0,
-      caps: SEM_TETO,
-      autonomy: "manual",
+      sessions: 12,
+      sessionsWithTask: 4,
+      caps: { costPerTask: 2, costPerDay: 30, turnsPerSession: 60 },
+      autonomy: "assistido",
       maxParallel: 2,
-      mergedAlwaysRemoves: false,
+      mergedAlwaysRemoves: true,
     });
-    trpc.workspace.setAutonomy.mutate.mockResolvedValue({});
 
     renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
-    await user.click(await screen.findByRole("button", { name: "assistido" }));
+    await screen.findByText("uma tarefa");
 
-    await vi.waitFor(() => {
-      expect(trpc.task.settings.query).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  it("some a proporção quando não houve sessão nenhuma", async () => {
-    // Zero de zero não é uma proporção, é uma divisão por zero com cara de dado.
-    trpc.task.listByWorkspace.query.mockResolvedValue([task()]);
-
-    renderUI(<TaskList workspaceId="w1" onOpen={() => {}} />);
-
-    expect(await screen.findByText("LUMEM_TASKS_BUDGET")).toBeInTheDocument();
-    expect(screen.queryByText(/sessões têm tarefa/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "assistido" })).toBeNull();
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.queryByText("LUMEM_TASKS_BUDGET")).toBeNull();
+    expect(screen.queryByText(/sem teto/)).toBeNull();
+    expect(screen.queryByText(/em paralelo/)).toBeNull();
+    // E a medida continua: ela não é configuração.
+    expect(screen.getByText("4 de 12")).toBeInTheDocument();
   });
 
   it("abre o detalhe da tarefa clicada", async () => {

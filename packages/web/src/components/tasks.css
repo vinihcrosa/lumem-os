@@ -14,12 +14,22 @@
 }
 
 /* O teto de criação, dito uma vez acima da lista — não por linha. */
-.tlist__budget {
+/*
+ * A medida de cerimônia, e o nome mudou junto com o conteúdo.
+ *
+ * Era `.tlist__budget`, e carregava três tetos, uma variável de ambiente, os
+ * degraus da esteira, o paralelismo e um interruptor — 79 linhas de JSX acima da
+ * lista que a pessoa veio ler. Tudo isso foi para `/settings` (`030-settings`).
+ * O que sobrou é uma medida; manter o nome antigo seria uma classe chamada
+ * `orçamento` sobre uma frase que não fala de dinheiro, e **nenhum gate pega
+ * nome de classe mentiroso**.
+ */
+.tlist__ceremony {
   margin: 0;
   font: var(--text-caption);
   color: var(--color-text-tertiary);
 }
-.tlist__budget b { color: var(--color-text-secondary); font-weight: 500; }
+.tlist__ceremony b { color: var(--color-text-secondary); font-weight: 500; }
 
 /* O filtro de projeto: um controle, e a primeira opção é o rótulo dele. */
 .tlist__filter {
@@ -27,7 +37,6 @@
   padding: 0 var(--space-8);
   font: var(--text-label-xs);
 }
-.tlist__budget code { font: var(--text-mono-sm); color: var(--color-text-code); }
 
 /*
  * ORDEM DOS ITENS, e ela é o argumento: estado · título · projeto ·
@@ -400,4 +409,3 @@
  * `label` inteiro clicável porque a caixa sozinha tem 13px e o alvo do gesto é
  * a frase — que é o ponto: quem liga isto precisa **ler** o que está ligando.
  */
-.tlist__switch { display: inline-flex; align-items: center; gap: var(--space-4); cursor: pointer; }

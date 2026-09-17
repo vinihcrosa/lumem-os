@@ -243,6 +243,25 @@ describe("a esteira", () => {
   });
 
   /*
+   * Os controles são **controlados** por `task.settings`, que não está sob o
+   * prefixo `["task", "listByWorkspace"]`. Invalidando só a lista, o daemon
+   * grava e a tela não muda: o degrau clicado não acende e o interruptor volta
+   * ao valor antigo — um clique que desfaz a si mesmo na tela.
+   *
+   * O caso morou em `tasks-ui.test.tsx` até 2026-09-17, quando os degraus
+   * mudaram de tela.
+   */
+  it("o degrau clicado relê os interruptores, e não só a lista", async () => {
+    const user = userEvent.setup();
+    trpc.workspace.setAutonomy.mutate.mockResolvedValue({});
+    render();
+
+    await user.click(await screen.findByRole("button", { name: "assistido" }));
+
+    await waitFor(() => expect(trpc.task.settings.query).toHaveBeenCalledTimes(2));
+  });
+
+  /*
    * Separado da esteira de propósito: ligar a autonomia não pode parecer que
    * autoriza apagar rascunho.
    */
