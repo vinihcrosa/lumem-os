@@ -1266,6 +1266,48 @@ A regra: **decisão do daemon é resposta, não exceção.** O que a porta tradu
 (`BLOCKED`); falha continua subindo, porque tratá-la como decisão faria um adaptador morto parar o
 cartão dizendo que o teto o parou.
 
+### Apagar a fixture disputa o diretório com o processo que ainda escreve nela
+
+**Sintoma:** vermelho que não é do teste que ficou vermelho. Na `v0.5.0`, o Release e o SonarQube
+reprovaram no mesmo commit em que o CI passou — **1 teste de 3864 em cada run, e em arquivos
+diferentes**:
+
+```
+FAIL server src/routers/memory.test.ts > agente não apaga memória pela API (Q29)
+Error: ENOTEMPTY: directory not empty, rmdir '/tmp/lumem-router-06ncW4/.lumem/.git/objects'
+
+FAIL server src/memory/playbook.test.ts > arquivar não apaga, e desarquivar volta
+Error: ENOTEMPTY: directory not empty, rmdir '/tmp/lumem-playbook-2VfjSW/.lumem/.git'
+```
+
+O nome do teste não tem nada a ver com a falha — os dois usam `tempDir()`, e quem falhou foi o
+`afterEach`.
+
+**Causa:** `rmSync(dir, { recursive: true, force: true })`. O `force` cala o diretório **ausente**, e
+não faz nada pelo diretório que **não está vazio na hora do `rmdir`**, que é outro erro. A fixture
+aqui é repositório de verdade — a `007` versiona o `~/.lumem` —, então há processo `git` escrevendo
+lá dentro, e o `rmSync` percorre a árvore segurando o event loop: o que sobrou de fora cai **entre**
+aquele `readdir` e aquele `rmdir`. Some sob carga, e por isso o CI passou a mesma suíte no mesmo
+commit.
+
+**O conserto que não funcionou está registrado porque quase entrou:** o `maxRetries` do node, que
+existe para esta lista exata de erros (`EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, `EPERM`) e vem
+**zero** por padrão. Ele reataca sem esperar, então dez tentativas vão embora em microssegundos
+enquanto o outro processo continua. Com `maxRetries: 10` o teste desta armadilha continuou vermelho.
+
+O que ganha a corrida é **esperar**: `removeFixtureTree` repete o `rmSync` até um prazo de 5s,
+dormindo 25ms entre as tentativas, e **falha alto** quando o prazo estoura — fixture que não sai é
+processo que a suíte não esperou, e engolir isso vaza um repositório no `/tmp` a cada execução.
+
+A regra: **quem apaga árvore onde um processo filho escreveu usa `removeFixtureTree`**, e não
+`rmSync` na mão. Hoje é o `cleanupGitFixtures` e o `bootstrap.test.ts`, que apaga o state dir depois
+de o daemon ter rodado o `ensureMemoryHome` dentro dele.
+
+E a armadilha de segunda ordem é o teste da armadilha: ele precisa de **outro processo**, porque
+`rmSync` é síncrono e nada agendado neste event loop interleava com ele. O escritor é um `node -e`
+que recria o diretório em laço por 400ms — sem o conserto, vermelho com a string exata que o CI
+imprimiu.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

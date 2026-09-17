@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -12,6 +12,7 @@ import { loadConfig } from "./config.js";
 import { openTestDb, type TestDb } from "./db/testing.js";
 import { MemoryService } from "./memory/MemoryService.js";
 import { ensureMemoryHome } from "./memory/home.js";
+import { removeFixtureTree } from "./testing/git-fixtures.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createProjectRepository } from "./repositories/project.js";
 import * as sessionStoreModule from "./sessions/SessionStore.js";
@@ -68,7 +69,7 @@ afterEach(async () => {
   await Promise.all(started.splice(0).map((app) => app.close()));
   await Promise.all(managers.splice(0).map((manager) => manager.killAll()));
   for (const database of databases.splice(0)) database.cleanup();
-  for (const dir of stateDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  for (const dir of stateDirs.splice(0)) removeFixtureTree(dir);
 });
 
 describe("bootstrap", () => {
