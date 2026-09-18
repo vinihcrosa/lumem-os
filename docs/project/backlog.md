@@ -509,16 +509,13 @@ pior que uma div rotulada. Precisa de `treeitem`, `aria-expanded` nas linhas que
 não casa · **Volta quando:** alguém navegar o app por teclado, ou na primeira passada de
 acessibilidade.
 
-### Tela de preferências — a configuração de agente não é do workspace — `M`
+### ~~Tela de preferências — a configuração de agente não é do workspace~~ — **virou PRD em 2026-09-17**
 
-`agent_config` é **global** e mora no rodapé da sidebar, que é do workspace. A `agent-login` já nomeia
-a mentira (A16); a [tela do workspace](../features/010-workspace-screen/prd.md) recusou herdá-la, porque
-misturar global com workspace numa tela nova é repetir o erro em outro lugar.
-
-O lugar certo é uma tela de preferências, que não existe.
-
-**De onde veio:** A16 da `agent-login`, e o §4 do PRD da tela do workspace · **Volta quando:** existir
-uma segunda coisa global para configurar — política de permissão é a candidata óbvia.
+Saiu do backlog: [settings](../features/030-settings/prd.md). O gatilho era *"quando existir uma
+segunda coisa global para configurar"*, e o que o disparou foi maior: o produto acumulou **quatro**
+donos de configuração — workspace, máquina, repositório e navegador — e nenhum lugar que os diga. A
+mentira que a A16 da [`021`](../features/021-second-agent/prd.md) nomeou continua de pé, e a PRD nova
+é quem a desfaz.
 
 ### ~~Autenticação do daemon~~ — virou PRD em 2026-09-05
 
@@ -562,11 +559,12 @@ deles, e a v1 do fluxo não implementa nenhum.
 | `⌘⇧N` (nova tarefa) e `⌥⇧P` (trocar o modo) | `P` | prometidos pela mesma tela, e são dois atalhos para ações que já existem em botão | os dois botões virarem caminho longo demais |
 | Caminho das worktrees editável | `P` | hoje é `LUMEM_STATE_DIR`, global; editar pede coluna, migração e "e as que já estão no caminho antigo?" | o `~/.lumem` ficar no disco errado para alguém |
 | Padrão de modelo e modo por workspace | `P` | a tela 4 oferece o seletor e não há coluna onde guardar; a conversa já escolhe por sessão | repetir a mesma troca em toda sessão nova incomodar |
-| Tela de preferências | `M` | é onde `agent_config` deveria morar (buraco nº 1 do `FEATURES.md` do Open Design, e a [A16](../features/006-acp-sessions/open-questions.md)); as primitivas do fluxo são o que ela vai reusar | existir a segunda coisa global para configurar |
+| ~~Tela de preferências~~ — **virou PRD em 2026-09-17** | — | saiu do backlog: [settings](../features/030-settings/prd.md). Era onde `agent_config` deveria morar (buraco nº 1 do `FEATURES.md` do Open Design, e a [A16](../features/006-acp-sessions/open-questions.md)) | — |
+| Notificações | `M` | **onde aparece o que falhou sem você estar olhando** — agente caído, credencial faltando, script de setup que não rodou. Nasceu da [Q6a da `030`](../features/030-settings/open-questions.md), e o argumento que a criou é de **escala**: o rodapé da sidebar mostrava uma linha por agente (73px com um, 105px com dois, **+28px cada**), e com seis agentes isso é mais de um terço da coluna. Dar barra de rolagem ao bloco seria pior — um sinal que você precisa **rolar** para ver deixa de ser sinal passivo, que é a única coisa que ele fazia. A saída é uma superfície que **agrega**, e não uma lista que cresce | os agentes passarem de poucos — ou a esteira em `autônomo` parar um cartão por configuração e ninguém descobrir até abrir o quadro |
 | Renomear e remover workspace pela tela | `P` | buraco nº 2 do `FEATURES.md`: o fluxo **cria** workspace, e nada administra | você ter mais de dois workspaces |
 | Pré-voo em Linux e Windows | `P` | as cinco checagens são as de macOS; Linux provavelmente passa e ninguém verificou | o Lumem rodar em outra máquina que não a sua |
 | Internacionalizar a interface | `G` | toda a interface é português escrito à mão, sem camada de tradução. A intenção foi declarada em **2026-09-14**, respondendo ao nome da tela do quadro, e já **pagou uma decisão antecipada**: o [caminho da aplicação em inglês](../../CLAUDE.md), adotado agora porque hoje custa zero — o app não tem rota nenhuma — e depois custa um link que alguém guardou. O resto (extrair as strings, escolher a biblioteca, plural e data) não foi discutido | você querer o produto na mão de alguém que não fala português — ou o app ganhar URL de verdade, que é quando a regra do caminho passa a ser cobrada |
-| Rotas de verdade na aplicação | `M` | o aplicativo **não tem rota nenhuma**: o `/styleguide` é a única lida, e só em DEV — tudo o mais é estado React, e o daemon devolve o mesmo shell para qualquer caminho. O idioma já está decidido (inglês); a **forma** — `/tasks`, `/w/:id/tasks`, outra — é pergunta que ninguém abriu | alguém querer colar um link de uma tela do Lumem, ou o botão voltar do navegador passar a ser esperado |
+| ~~Rotas de verdade na aplicação~~ — **virou issue em 2026-09-17** ([LUM-63](https://linear.app/lumem-os/issue/LUM-63/rotas-de-verdade-workspace-projeto-e-checkout-na-url-o-n3-que-a-030)) | `M` | saiu daqui pela [`030`](../features/030-settings/prd.md), que pôs **três endereços à mão** — `/`, `/tasks`, `/settings` — e parou aí de propósito. O que restou é o **N3**: workspace, projeto e checkout na URL, e é lá que as ADRs de roteamento nascem. Histórico: o aplicativo **não tinha rota nenhuma**: o `/styleguide` é a única lida, e só em DEV — tudo o mais é estado React, e o daemon devolve o mesmo shell para qualquer caminho. O idioma já está decidido (inglês); a **forma** era pergunta que ninguém tinha aberto, e a [Q2 da `030`](../features/030-settings/open-questions.md) a abriu com os três custos medidos: `react-router@7` são **4,79 MB** e duas dependências, `wouter` **77 KB** e nenhuma, e à mão são `pathname` + `pushState` + `popstate` | **aconteceu**, em duas etapas: a `030` entregou o N1, e o N3 tem issue |
 
 ---
 

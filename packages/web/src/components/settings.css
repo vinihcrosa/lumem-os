@@ -1,0 +1,233 @@
+/*
+ * A tela de configurações (`030-settings`).
+ *
+ * Implementação do `lumem-settings` do Open Design — os valores são os da folha,
+ * e nenhum deles é literal: tudo vem do `tokens.css`. Nenhum token novo nasceu
+ * aqui, conferido na T4.
+ *
+ * O que estas classes existem para resolver:
+ *
+ *   .set        a tela. Uma coluna, largura do `.detail`, e **nada de abas**:
+ *               uma tela que se abre para procurar onde está uma coisa não pode
+ *               esconder três quartos dela.
+ *
+ *   .set__row   a linha de um ajuste. Três colunas — o que é, o controle, e **de
+ *               quem é** —, e a terceira é a resposta da Q3.
+ *
+ *   .own        a etiqueta de dono, por CONTROLE e não por seção.
+ *
+ * A etiqueta é a decisão cara, então o motivo fica escrito: a proposta era uma
+ * frase de escopo abrindo cada seção, e ela não fecha — a seção `integrações`
+ * não tem **um** dono. O cofre é da máquina; o mapa de colunas do tracker é do
+ * repositório (Q65 da `028`, *o que é do repositório é do time*). Uma frase por
+ * seção teria que mentir ali.
+ *
+ * E ela é TEXTO, não selo colorido. Quatro palavras num vocabulário fechado —
+ * `workspace`, `máquina`, `repositório`, `navegador` —, alinhadas na mesma
+ * coluna em todas as linhas: medido no navegador, as etiquetas terminam todas no
+ * mesmo `x`, e é a repetição que faz virar **coluna** em vez de poluição. Cor
+ * está fora por regra do `sidebar.css`: os glifos de escopo coloridos já estão
+ * todos tomados, e mais um matiz é o que faz o ponto verde de *rodando* deixar
+ * de saltar.
+ */
+
+.set {
+  max-width: var(--size-detail-max);
+  padding: var(--space-20) var(--space-24) var(--space-40);
+  display: grid;
+  gap: var(--space-32);
+}
+
+.set__head { display: grid; gap: var(--space-6); }
+.set__title { display: flex; align-items: baseline; gap: var(--space-8); }
+.set__title h1 {
+  margin: 0;
+  font: var(--text-display-md);
+  letter-spacing: var(--tracking-display-md);
+  color: var(--color-text-primary);
+}
+.set__title .kind { font: var(--text-body-md); color: var(--color-text-tertiary); }
+.set__lede {
+  margin: 0;
+  font: var(--text-body-md);
+  color: var(--color-text-secondary);
+  max-width: 68ch;
+  text-wrap: pretty;
+}
+
+/* ---------------------------------------------------------------------------
+   uma seção
+   -------------------------------------------------------------------------- */
+
+.set__sec { display: grid; gap: var(--space-8); }
+
+/*
+ * `heading-md`, e não `heading-lg`: a tela inteira é uma lista de ajustes, e um
+ * título grande a cada quatro linhas faz a pessoa ler quatro telas em vez de uma.
+ */
+.set__sech {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-16);
+}
+.set__sect {
+  margin: 0;
+  font: var(--text-heading-md);
+  letter-spacing: var(--tracking-heading-md);
+  color: var(--color-text-primary);
+}
+.set__secd {
+  margin: 0;
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+  max-width: 68ch;
+  text-wrap: pretty;
+}
+.set__secd code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/* ---------------------------------------------------------------------------
+   a linha de um ajuste
+   -------------------------------------------------------------------------- */
+
+/*
+ * Três colunas, e a terceira tem largura FIXA.
+ *
+ * Fixa e não `auto` de propósito: com `auto` a coluna muda de largura conforme a
+ * palavra mais comprida daquela seção, e a etiqueta deixa de ser uma coluna para
+ * virar um texto solto por linha — que é exatamente o ruído que a Q3 escolheu
+ * não ter.
+ */
+.set__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto calc(var(--space-64) + var(--space-16));
+  align-items: center;
+  gap: var(--space-12);
+  min-height: var(--size-row-cozy);
+  padding: var(--space-8) var(--space-10);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+/* Linhas encostadas viram uma tabela: a seção é o grupo, não a borda. */
+.set__rows { display: grid; gap: var(--space-4); }
+
+.set__what { display: grid; gap: var(--space-2); min-width: 0; }
+.set__lbl { font: var(--text-label-md); color: var(--color-text-primary); }
+.set__d { font: var(--text-body-sm); color: var(--color-text-tertiary); text-wrap: pretty; }
+.set__d code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+.set__ctl { display: flex; align-items: center; gap: var(--space-6); justify-self: end; }
+
+/*
+ * O campo de teto: estreito, porque um teto tem três dígitos e uma vírgula. A
+ * unidade vive no `.set__pre`, que é o que dispensa escrever `US$` no rótulo e
+ * no campo ao mesmo tempo.
+ */
+.set__num { width: calc(var(--space-64) * 2); text-align: right; }
+.set__pre { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+
+/* ---------------------------------------------------------------------------
+   a etiqueta de dono
+   -------------------------------------------------------------------------- */
+
+/*
+ * Texto, alinhado à direita, na mesma coluna em toda linha da tela.
+ *
+ * Sem caixa, sem fundo e sem matiz próprio: ela precisa ser legível quando você
+ * a procura e invisível quando não. `caption` em minúscula — maiúscula real
+ * faria quatro palavras repetidas gritarem em cada linha.
+ */
+.own {
+  justify-self: end;
+  font: var(--text-caption);
+  letter-spacing: var(--tracking-caps);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+/* `repositório` é a única que não cabe, e é a mais importante de não abreviar —
+   é ela que diz *isto vai para o clone de outra pessoa*. Quebra em vez de virar
+   `repo`, e a linha cresce: a `.set__row` tem `min-height`, não `height`. */
+.own--wrap { white-space: normal; text-align: right; }
+
+/*
+ * A única com tratamento diferente, e não é cor: é o traço.
+ *
+ * Ele diz **não editável aqui**. Um controle ausente ao lado de uma etiqueta
+ * comum pareceria um defeito; com o traço, a etiqueta explica a ausência.
+ */
+.own--ro { border-bottom: 1px dashed var(--color-border-default); }
+
+/* ---------------------------------------------------------------------------
+   a linha que não é ajuste
+   -------------------------------------------------------------------------- */
+
+/*
+ * O que a tela mostra e não muda. `secondary` e não `tertiary`: medido no
+ * navegador, o valor e a etiqueta de dono ficavam no mesmo cinza a 40px um do
+ * outro, e `4 colunas  repositório` passava a ler como **duas etiquetas**. O
+ * valor é dado; a etiqueta é escopo.
+ */
+.set__val { justify-self: end; font: var(--text-mono-sm); color: var(--color-text-secondary); }
+
+/*
+ * A frase de uma seção que ainda não tem controle — a `exibição`, enquanto o
+ * `rem` não existir no sistema de design. Ela diz o que falta, e não desenha um
+ * botão que não faz nada.
+ */
+.set__todo {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-10);
+  background: var(--color-bg-inset);
+  border: 1px dashed var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+.set__todo code { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/* ---------------------------------------------------------------------------
+   o retorno de quem grava no gesto
+   -------------------------------------------------------------------------- */
+
+/*
+ * O mesmo vocabulário do editor — as mesmas palavras e os mesmos
+ * `--color-save-*`. Sem botão salvar, a linha precisa dizer que gravou, e um
+ * quinto jeito de dizer *guardei* seria o produto inventando sinônimo para si
+ * mesmo. Não há estado `não salvo`: ele dura o tempo do `blur` e deixa de ser
+ * verdade.
+ */
+.set__save {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+.set__save__dot {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+.set__save--saving { color: var(--color-save-saving); }
+.set__save--saved { color: var(--color-save-saved); }
+.set__save--failed { color: var(--color-save-failed); }
+
+/* A recusa do daemon, na linha que a provocou. */
+.set__err { font: var(--text-body-sm); color: var(--color-text-danger); }
+
+/* O interruptor da Q27: caixa e a palavra do estado, que é o que se lê de longe. */
+.set__switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}

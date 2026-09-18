@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 import { AddProjectDialog } from "./components/AddProjectDialog.js";
 import { AgentLogin } from "./components/AgentLogin.js";
+import { SettingsPanel } from "./components/SettingsPanel.js";
 import { SidebarNav } from "./components/SidebarNav.js";
 import { WorkspacePanel } from "./components/WorkspacePanel.js";
 import { CheckoutFiles } from "./components/CheckoutFiles.js";
@@ -23,6 +24,7 @@ import { AppShell } from "./layout/AppShell.js";
 import { Topbar } from "./layout/Topbar.js";
 import { SetupFlow } from "./setup/SetupFlow.js";
 import { WORKSPACES_KEY } from "./lib/queryKeys.js";
+import { navigate, useRoute } from "./lib/route.js";
 import { trpc } from "./lib/trpc.js";
 import { Banner, Skeleton } from "./ui/index.js";
 
@@ -44,19 +46,14 @@ export function App() {
   const queryClient = useQueryClient();
   const [selection, setSelection] = useState<Selection>(null);
   /**
-   * Qual das duas telas do workspace está na frente (`029-sidebar-nav`, F1.3).
+   * Qual tela está na frente, lida do **caminho** (`030-settings`, F1).
    *
-   * Sobe para cá porque o quadro passou a ser alcançável **de fora** da tela que
-   * o guardava: com o bloco da sidebar, `Tarefas` abre o quadro com um checkout
-   * selecionado, e um estado vivendo dentro do `WorkspacePanel` não teria como
-   * ser mudado dali.
-   *
-   * **Selecionar um checkout não zera isto**, de propósito: `selection !== null`
-   * já decide o que a coluna do meio mostra, e zerar faria a tela mudar de
-   * assunto quando você voltasse — você sai do quadro para olhar um checkout e
-   * volta para a tela do workspace, que não é onde estava.
+   * Era `useState` até a `029` — ela subiu o `board` do `WorkspacePanel` para cá
+   * justamente para o App ter **uma** resposta a *onde eu estou*. Com endereço,
+   * manter o estado seria criar a segunda: o caminho e o `useState` poderiam
+   * discordar, e conviver com os dois é pior que qualquer um sozinho.
    */
-  const [workspaceView, setWorkspaceView] = useState<"home" | "board">("home");
+  const route = useRoute();
   /**
    * Whether the first-access flow is on screen.
    *
@@ -95,6 +92,22 @@ export function App() {
    */
   const [addProjectOpen, setAddProjectOpen] = useState(false);
   const [worktreeFor, setWorktreeFor] = useState<ProjectSummary | null>(null);
+  /**
+   * Selecionar um checkout — e acertar o endereço junto.
+   *
+   * **`replace`, e não `push`** (Q2): o checkout é seleção, não lugar. Com
+   * `push`, o botão voltar viraria *desfazer seleção* e uma sessão normal de
+   * trabalho encheria o histórico de entradas que ninguém pediu.
+   *
+   * E a rota vira `home` porque é `selection !== null` que decide o que a coluna
+   * do meio mostra: deixar o caminho em `/tasks` ou `/settings` com um checkout
+   * na frente seria a barra de endereço mentindo.
+   */
+  function selectScope(next: NonNullable<Selection>): void {
+    setSelection(next);
+    navigate("home", { replace: true });
+  }
+
   const expansion = useTreeExpansion();
   const rightPanel = useRightPanel();
   const dock = useRunDock();
@@ -195,7 +208,7 @@ export function App() {
             // flow just made the thing the person came here to use.
             setOpenSessionId(result.sessionId);
             if (result.projectId !== undefined) {
-              setSelection({
+              selectScope({
                 projectId: result.projectId,
                 scope:
                   result.worktreeId === undefined
@@ -236,13 +249,23 @@ export function App() {
             />
             <SidebarNav
               workspaceId={activeId}
-              place={selection !== null ? "scope" : workspaceView === "board" ? "board" : "home"}
+              /*
+               * `/tasks` é o caminho e `board` é o lugar, e eles têm nomes
+               * diferentes de propósito: a linha da sidebar diz o **assunto**
+               * (tarefas) e a tela diz a **forma** (quadro), que é a distinção
+               * que a Q3a da `029` comprou. A tradução acontece aqui, uma vez.
+               */
+              place={selection !== null ? "scope" : route === "tasks" ? "board" : route}
               onHome={() => {
-                setWorkspaceView("home");
+                navigate("home");
                 setSelection(null);
               }}
               onBoard={() => {
-                setWorkspaceView("board");
+                navigate("tasks");
+                setSelection(null);
+              }}
+              onSettings={() => {
+                navigate("settings");
                 setSelection(null);
               }}
             />
@@ -254,7 +277,7 @@ export function App() {
                 scopeId: selection?.scope.scopeId ?? null,
               }}
               onSelect={(projectId, scope) =>
-                setSelection({ projectId, scope })
+                selectScope({ projectId, scope })
               }
               onAddProject={() => setAddProjectOpen(true)}
               onCreateWorktree={setWorktreeFor}
@@ -296,7 +319,7 @@ export function App() {
         onClose={() => setAddProjectOpen(false)}
         onRequestOpen={() => setAddProjectOpen(true)}
         onAdded={(projectId) =>
-          setSelection({
+          selectScope({
             projectId,
             scope: { scopeType: "project", scopeId: projectId },
           })
@@ -317,7 +340,7 @@ export function App() {
           // O destino é o mesmo de criar; o que não acontece é a criação.
           onOpenExisting={(worktreeId) => {
             expansion.expand(worktreeFor.id);
-            setSelection({
+            selectScope({
               projectId: worktreeFor.id,
               scope: { scopeType: "worktree", scopeId: worktreeId },
             });
@@ -328,7 +351,7 @@ export function App() {
             // part of it — a worktree selected inside a folded project is a
             // selection with nothing on screen to show for it.
             expansion.expand(worktreeFor.id);
-            setSelection({
+            selectScope({
               projectId: worktreeFor.id,
               scope: { scopeType: "worktree", scopeId: worktreeId },
             });
@@ -365,6 +388,25 @@ export function App() {
   }
 
   function renderPanel(workspaceId: string, workspaceName: string) {
+    /*
+     * A ordem é `selection` primeiro, e ela é a regra inteira da coluna do meio.
+     *
+     * `selectScope` leva a rota para `home` junto com a seleção, então
+     * `selection !== null` implica `route === "home"` — as duas nunca discordam,
+     * e a tela tem uma fonte só. Ler a rota primeiro exigiria decidir quem ganha
+     * quando elas divergirem, e a resposta seria uma divergência que não deve
+     * existir.
+     */
+    if (selection === null && route === "settings") {
+      return (
+        <SettingsPanel
+          key={workspaceId}
+          workspaceId={workspaceId}
+          workspaceName={workspaceName}
+        />
+      );
+    }
+
     if (selection === null) {
       /*
        * A tela do workspace (`workspace-screen`, W1).
@@ -379,15 +421,15 @@ export function App() {
           key={workspaceId}
           workspaceId={workspaceId}
           workspaceName={workspaceName}
-          view={workspaceView}
-          onView={setWorkspaceView}
+          view={route === "tasks" ? "board" : "home"}
+          onView={(view) => navigate(view === "board" ? "tasks" : "home")}
           onRemoved={async () => {
             await queryClient.invalidateQueries({ queryKey: WORKSPACES_KEY });
           }}
           onWorkOnTask={(target) => {
             setDraft({ sessionId: target.sessionId, text: target.draft });
             setOpenSessionId(target.sessionId);
-            setSelection({
+            selectScope({
               projectId: target.projectId,
               scope:
                 target.worktreeId === null
@@ -413,7 +455,7 @@ export function App() {
           workspaceName={workspaceName}
           filesPanel={rightPanel}
           onRemoved={() =>
-            setSelection({
+            selectScope({
               projectId,
               scope: { scopeType: "project", scopeId: projectId },
             })
@@ -425,7 +467,7 @@ export function App() {
            */
           onOpenWorkspace={() => setSelection(null)}
           onOpenProject={() =>
-            setSelection({ projectId, scope: { scopeType: "project", scopeId: projectId } })
+            selectScope({ projectId, scope: { scopeType: "project", scopeId: projectId } })
           }
         />
       );
@@ -444,7 +486,7 @@ export function App() {
         onRemoved={() => setSelection(null)}
         onOpenWorkspace={() => setSelection(null)}
         onSelectWorktree={(worktreeId) =>
-          setSelection({
+          selectScope({
             projectId,
             scope: { scopeType: "worktree", scopeId: worktreeId },
           })

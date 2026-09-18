@@ -1,9 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { projectsKey, taskSettingsKey, tasksKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
-import { askNoticePermission } from "../hooks/notice.js";
 import { Banner, Button, EmptyState, SectionHead, Skeleton } from "../ui/index.js";
 
 import "./tasks.css";
@@ -55,32 +54,7 @@ const STATUS_LABEL: Record<string, string> = {
  */
 const STATUS_GLYPH: Record<string, string> = { done: "✓", dropped: "–" };
 
-/**
- * O número do teto, ou a palavra que diz que não há um.
- *
- * `null` é **sem teto** e `0` é **bloqueia tudo**: são coisas diferentes no
- * banco, e colapsá-las na tela desfaria a distinção justamente onde ela precisa
- * ser lida.
- */
-function capLabel(value: number | null, prefix = ""): string {
-  if (value === null) return "sem teto";
-  return `${prefix}${prefix === "" ? "" : " "}${prefix === "" ? String(value) : value.toFixed(2)}`;
-}
 
-/**
- * Os três degraus do §6, em ordem de risco.
- *
- * Botões e não um menu com seta, ao contrário da folha: o menu do quadro mora no
- * `lumem-board.html` e a peça dele vive no `conversation.css` deste lado —
- * portá-la para cá seria trazer um menu inteiro para três opções. Três botões
- * usam vocabulário que já existe, e **mostram os três ao mesmo tempo**, que é o
- * que impede `autônomo` de ser alcançado por engano num ciclo de cliques.
- */
-const AUTONOMY_STEPS = [
-  { value: "manual" as const, label: "manual" },
-  { value: "assistido" as const, label: "assistido" },
-  { value: "autonomo" as const, label: "autônomo" },
-];
 
 export interface TaskListProps {
   workspaceId: string;
@@ -119,12 +93,14 @@ export function TaskList({
   });
 
   /*
-   * O teto de criação, mostrado (T13).
+   * A cerimônia, e só ela (`030-settings` T13 · Q9).
    *
-   * Um teto que você não vê é um teto que você não ajusta — e no dia em que ele
-   * recusar, você vai achar que é bug. A linha diz o número **e** onde mudar.
+   * Esta leitura carregava os três tetos, a variável de ambiente, os degraus da
+   * esteira, o paralelismo e o interruptor de limpeza — tudo isso mudou para
+   * `/settings`. O que sobrou é uma medida, não um ajuste: `sessões com tarefa ÷
+   * sessões`, que a `022` pôs aqui justamente porque **ninguém procura uma
+   * métrica que não incomoda**.
    */
-  const queryClient = useQueryClient();
   const settingsKey = taskSettingsKey(workspaceId);
   const settings = useQuery({
     queryKey: settingsKey,
@@ -137,42 +113,7 @@ export function TaskList({
    * Uma por linha seria N requisições para somar N números — o desenho que faz
    * uma tela de sete linhas parecer lenta.
    */
-  /*
-   * Ligar a esteira, e ela sobe **com o teto que já está lá**.
-   *
-   * O `setAutonomy` do daemon exige os dois de uma vez — ligar sem dizer
-   * quantas é ligar sem freio —, e o número que esta tela manda é o que ela
-   * acabou de ler. Mudar o teto é outro gesto; este é só o degrau.
-   */
-  const setAutonomy = useMutation({
-    mutationFn: (autonomy: "manual" | "assistido" | "autonomo") =>
-      trpc.workspace.setAutonomy.mutate({
-        id: workspaceId,
-        autonomy,
-        maxParallel: settings.data?.maxParallel ?? 2,
-      }),
-    /*
-     * As duas chaves, e a segunda é a que a barra lê.
-     *
-     * `tasksKey` é a lista; os controles daqui são controlados por `settings`, e
-     * ele não está sob aquele prefixo. Invalidando só a lista, o degrau clicado
-     * não recebe `btn--brand` e o checkbox volta ao valor antigo — o daemon
-     * grava e a tela diz que não.
-     */
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: tasksKey(workspaceId) });
-      void queryClient.invalidateQueries({ queryKey: settingsKey });
-    },
-  });
 
-  const setCleanup = useMutation({
-    mutationFn: (mergedAlwaysRemoves: boolean) =>
-      trpc.workspace.setCleanup.mutate({ id: workspaceId, mergedAlwaysRemoves }),
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: tasksKey(workspaceId) });
-      void queryClient.invalidateQueries({ queryKey: settingsKey });
-    },
-  });
 
   const spend = useQuery({
     queryKey: ["usage", "byTask", workspaceId],
@@ -274,85 +215,25 @@ export function TaskList({
         </EmptyState>
       ) : (
         <div className="tlist">
-          {settings.data !== undefined && (
-            <p className="tlist__budget">
-              {/*
-                Os três tetos do workspace (`028` Parte 3, T18).
-                *"Teto que você não vê é teto que parece bug quando recusa"* — a
-                frase é da `022` e vale igual aqui. `null` aparece como **sem
-                teto** e não como campo vazio: um vazio numa linha sobre limite
-                parece defeito, e a ausência de teto é uma resposta.
-              */}
-              gasto: <b>{capLabel(settings.data.caps.costPerTask, "US$")}</b> por tarefa ·{" "}
-              <b>{capLabel(settings.data.caps.costPerDay, "US$")}</b> por dia ·{" "}
-              <b>{capLabel(settings.data.caps.turnsPerSession)}</b> turnos por sessão
-              <br />
-              um agente pode criar até <b>{settings.data.budget}</b> tarefas por tarefa · mude em{" "}
-              <code>{settings.data.budgetEnv}</code>
-              <br />
-              {/*
-                O interruptor da esteira (`028` Parte 2, T29).
-                Aqui e não numa tela própria porque é a mesma pergunta que os
-                tetos acima — *o que este workspace deixa gastar sozinho* —, e
-                porque a Parte 3 veio antes justamente para ligar a autonomia e
-                ver o teto serem a mesma olhada.
-              */}
-              esteira:{" "}
-              {AUTONOMY_STEPS.map((step) => (
-                <button
-                  key={step.value}
-                  type="button"
-                  className={`btn btn--sm focus-ring${
-                    settings.data?.autonomy === step.value ? " btn--brand" : ""
-                  }`}
-                  onClick={() => {
-                    /*
-                     * A permissão de notificar é pedida **aqui** (Q55): é o
-                     * único instante em que o pedido tem uma frase honesta, e é
-                     * este clique que passa a produzir coisas que acontecem sem
-                     * você. Pedir no primeiro acesso seria o pedido que se
-                     * aprende a negar por reflexo.
-                     */
-                    if (step.value !== "manual") void askNoticePermission();
-                    setAutonomy.mutate(step.value);
-                  }}
-                >
-                  {step.label}
-                </button>
-              ))}{" "}
-              · <b>{settings.data.maxParallel}</b> em paralelo
-              <br />
-              {/*
-                O interruptor da Q27, com o texto que diz o que se autoriza.
-                Ele é separado da esteira de propósito: ligar a autonomia não
-                pode parecer que autoriza apagar rascunho.
-              */}
-              <label className="tlist__switch">
-                <input
-                  type="checkbox"
-                  checked={settings.data.mergedAlwaysRemoves}
-                  onChange={(event) => {
-                    setCleanup.mutate(event.target.checked);
-                  }}
-                />{" "}
-                PR mesclada sempre remove a worktree — <b>inclusive com arquivo não commitado</b>
-              </label>
-              {/*
-                A medida de cerimônia (§7): `sessões com tarefa ÷ sessões`, e o
-                PRD **espera que não seja 100%**. Se for, todo mundo está criando
-                tarefa para agradar o daemon — e o lugar da tarefa está errado.
-                Ela aparece aqui porque ninguém procura uma métrica que não
-                incomoda.
-              */}
-              {settings.data.sessions > 0 && (
-                <>
-                  {" · "}
-                  <b>
-                    {settings.data.sessionsWithTask} de {settings.data.sessions}
-                  </b>{" "}
-                  sessões têm tarefa
-                </>
-              )}
+          {/*
+            A medida de cerimônia, e **só** ela (`030-settings`, T13 · Q9).
+            Onde havia 79 linhas — três tetos, uma variável de ambiente, os
+            degraus da esteira, o paralelismo e o interruptor de limpeza — há
+            uma linha, porque a régua não é *de quem é o dado*: é *o que se faz
+            com ele*. Configuração se ajusta uma vez por mês e mudou para
+            `/settings`; medida se **olha**, e uma medida cuja utilidade depende
+            de ser vista sem ser procurada não pode morar numa tela que só se
+            abre de propósito.
+            `sessões com tarefa ÷ sessões`, e o PRD da `022` **espera que não
+            seja 100%**: se for, todo mundo está criando tarefa para agradar o
+            daemon, e o lugar da tarefa está errado.
+          */}
+          {settings.data !== undefined && settings.data.sessions > 0 && (
+            <p className="tlist__ceremony">
+              <b>
+                {settings.data.sessionsWithTask} de {settings.data.sessions}
+              </b>{" "}
+              sessões têm tarefa
             </p>
           )}
           {live.map((row) => (

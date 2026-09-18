@@ -83,6 +83,15 @@ function createTrpcMock() {
     workspace: {
       setAutonomy: { mutate: vi.fn() },
       setCleanup: { mutate: vi.fn() },
+      /*
+       * Os três tetos do workspace (`028` Parte 3, `030` T9).
+       *
+       * Faltava aqui porque **nada na web o chamava**: a procedure existia,
+       * validada e testada, e a tela de configurações é o primeiro escritor. O
+       * mock compartilhado é parte do contrato — sem esta linha, o que a tela vê
+       * é `undefined.mutate`, e o sintoma é um erro que não fala de orçamento.
+       */
+      setBudget: { mutate: vi.fn() },
       list: { query: vi.fn() },
       get: { query: vi.fn() },
       create: { mutate: vi.fn() },

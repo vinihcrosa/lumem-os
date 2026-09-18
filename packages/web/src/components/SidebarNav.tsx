@@ -18,20 +18,29 @@ import { Glyph, Row } from "../ui/index.js";
  * mesma classe, `row--selected` é a mesma barra de 2px, e selecionar uma
  * worktree apaga o `Home` sem ninguém precisar coordenar nada. Um componente
  * próprio seria uma segunda definição da mesma coisa, livre para divergir.
+ *
+ * **A terceira linha é de 2026-09-17** (`030-settings`, F4), e ela custou uma
+ * pergunta respondida contra a proposta: a entrada de `/settings` ia para o
+ * rodapé da sidebar, que é onde o que é *da máquina* mora. Perdeu por dois
+ * motivos — o `aria-label` deste bloco era **descrição**, e não regra (escrito
+ * quando as duas telas que existiam eram do workspace), e o rodapé está prestes
+ * a ser **removido** pelas LUM-57 e LUM-58. Construir a porta dentro da sala em
+ * demolição era o outro caminho.
  */
 
 /** Quem está selecionado na coluna — e é um só, na coluna inteira. */
-export type SidebarPlace = "home" | "board" | "scope";
+export type SidebarPlace = "home" | "board" | "settings" | "scope";
 
 export interface SidebarNavProps {
   workspaceId: string;
-  /** Onde a tela está. `scope` é um checkout ou projeto aberto: nenhuma das duas acende. */
+  /** Onde a tela está. `scope` é um checkout ou projeto aberto: nenhuma acende. */
   place: SidebarPlace;
   onHome: () => void;
   onBoard: () => void;
+  onSettings: () => void;
 }
 
-export function SidebarNav({ workspaceId, place, onHome, onBoard }: SidebarNavProps) {
+export function SidebarNav({ workspaceId, place, onHome, onBoard, onSettings }: SidebarNavProps) {
   /*
    * A **mesma** chave do quadro, e por isso a **mesma** requisição.
    *
@@ -58,7 +67,13 @@ export function SidebarNav({ workspaceId, place, onHome, onBoard }: SidebarNavPr
   );
 
   return (
-    <nav className="nav" aria-label="Telas do workspace">
+    /*
+     * `Telas`, e não mais `Telas do workspace`: duas das três são do workspace e
+     * `Configurações` não é — ela mistura workspace, máquina, repositório e
+     * navegador. O rótulo antigo era verdadeiro quando foi escrito, e deixou de
+     * ser; descrição que envelheceu se reescreve.
+     */
+    <nav className="nav" aria-label="Telas">
       <Row
         depth={0}
         label="Home"
@@ -93,6 +108,21 @@ export function SidebarNav({ workspaceId, place, onHome, onBoard }: SidebarNavPr
             </span>
           )
         }
+      />
+      {/*
+        Sem número, e isso é decisão e não falta de dado (Q6a): um agente sem
+        login **não** acende sinal aqui. O rodapé mostrava uma linha por agente —
+        73px com um, 105px com dois, +28px cada — e isso não escala; dar rolagem
+        ao bloco o faria ocupar espaço e parar de cumprir a função. O lugar do
+        "alguma coisa caiu" é uma superfície que agrega, e ela não existe ainda:
+        está no backlog, como notificações.
+      */}
+      <Row
+        depth={0}
+        label="Configurações"
+        glyph={<Glyph>⚙</Glyph>}
+        selected={place === "settings"}
+        onSelect={onSettings}
       />
     </nav>
   );

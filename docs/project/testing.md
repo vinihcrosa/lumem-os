@@ -21,6 +21,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | **conectar o segundo agente pela tela** | e2e `second-agent.spec.ts`, no caminho do `＋`: catálogo → handshake → configuração criada, **sem rede**. O painel só instala quando o pré-voo não acha o binário, e o shim `codex-acp` está no `PATH` do daemon — sem isso o teste seriam 300 MB de `npm install` por execução | **Não** |
 | **a conta por agente**, da gravação à tela | e2e `second-agent.spec.ts`: dois turnos de dois agentes → `session_usage` com `agent_config_id` → `usage.byProjectAndAgent` → a sub-linha no consumo do workspace. Cada peça tem teste de unidade; **a corrente não tinha**, e ela atravessa gravação, migração, consulta e tela | **Não** |
 | **dois agentes na mesma worktree** | e2e `second-agent.spec.ts`: os dois agentes são o **mesmo** fake, o segundo com `LUMEM_FAKE_PROFILE=codex`, então continua zero token. Prova o que só o navegador responde — cada aba nomeia o **seu** agente (as abas escondidas ficam montadas, então o locator é escopado na que está na frente) e o agente que não informa limite não desenha limite nem custo zero | **Não** |
+| **a rota** — `/`, `/tasks`, `/settings` | e2e `settings.spec.ts`, e ela é a única camada que serve: jsdom **tem `history`**, então `pushState`, `replaceState` e `popstate` passam verdes lá contra um roteador que nunca sobreviveu a um reload. O que prova rota é `F5`, o botão voltar e a barra de endereço | **Não** |
 | **conversa ACP** de ponta a ponta | e2e contra `e2e/support/fake-acp-agent.mjs` — agente ACP de verdade sobre stdio de verdade, **zero token**. Exercita o turno inteiro: mensagem, ferramenta, permissão, plano, uso, comandos e o terminal que o agente pede. É onde vivem as medidas que jsdom não faz, porque jsdom não tem layout | **Não** |
 | `server/` **segundo adaptador**, perfil medido | integration com o perfil `codexLikeScript()` do agente falso (`codex-like.test.ts`), **zero token**: `usage` sem `rateLimit` nem `cost`, comandos só por notificação, `mode` nas duas listas, e os dois casos que o Codex **não** é — sem `usage` nenhum e sem `loadSession`. Ele existe porque a fase 0 mediu que o daemon **já** aguentava, e o que passa sem teste é o que volta a quebrar | Sim |
 | `server/` handshake do **adaptador real** | integration **marcado**: pulado quando `claude-agent-acp` não está no PATH. Para em `initialize` + `session/new`, que o spike mediu em zero token. Desde o `onboarding`, ele também confere o **`agentInfo`** — é onde a versão pinada vem, e uma release do adaptador que parasse de mandá-la viraria um `null` silencioso | Sim |
@@ -1307,6 +1308,47 @@ E a armadilha de segunda ordem é o teste da armadilha: ele precisa de **outro p
 `rmSync` é síncrono e nada agendado neste event loop interleava com ele. O escritor é um `node -e`
 que recria o diretório em laço por 400ms — sem o conserto, vermelho com a string exata que o CI
 imprimiu.
+
+### Markdown cru numa string de JSX, e nenhum teste de comportamento vê
+
+**Sintoma:** a tela mostrava `` `assistido` `` e `` `cost: null` `` **com as crases**, em quatro
+descrições. A suíte estava verde: o texto está lá, e `getByText(/assistido/)` casa do mesmo jeito.
+
+**Causa:** descrição escrita como `description="… `assistido` …"`. Dentro de uma string de JSX a
+crase é um caractere, não formatação — só vira `<code>` quem escreveu `<code>`.
+
+**Achado olhando a tela renderizada**, e não a suíte — que é a razão de a regra do repositório mandar
+verificar renderizando. O conserto trouxe o teste que faltava, e ele é de **conteúdo** e não de
+comportamento: nenhum `.set__d` nem `.set__secd` contém crase. Dois caracteres numa string passam por
+qualquer revisão; um `querySelectorAll` não.
+
+### jsdom tem `history`, e por isso um roteador quebrado passa verde
+
+**Sintoma:** nenhum — que é o problema. `pushState`, `replaceState`, `popstate` e `location.pathname`
+todos funcionam em jsdom, então um teste de componente prova que clicar numa linha muda o caminho e
+que o caminho muda a tela. Os dois casos passam contra um roteador que **nunca** foi recarregado.
+
+**O que ele não tem:** barra de endereço, `F5` e layout. As três perguntas que importam de uma rota —
+abrir o endereço direto, recarregar em cima dele, e o botão voltar — só existem no navegador de
+verdade. A `030-settings` divide isso de propósito: `route.test.ts` e `settings-route.test.tsx` cobrem
+a mecânica, e `e2e/settings.spec.ts` cobre as três.
+
+É a mesma família da armadilha do `toBeVisible`: a ferramenta responde uma pergunta parecida com a
+que você fez, e a diferença entre as duas é o defeito.
+
+### Um caso de "apagar o valor" que passa quando nada grava
+
+**Sintoma:** o e2e do teto `null` ficou verde com a **escrita mutada para um no-op**, na mesma rodada
+em que o caso irmão — *escrever um teto e recarregar* — morreu.
+
+**Causa:** o teste preenchia o campo, apagava e conferia que o daemon tinha `null`. Só que um
+workspace que nunca teve teto **já** tem `null`: se a escrita não funciona, o preencher não grava, o
+apagar não grava, e a asserção final continua verdadeira. O caso media o estado inicial e chamava
+aquilo de resultado.
+
+**O conserto** é uma asserção no meio: o teto **precisa existir** antes de ser apagado, conferido no
+daemon (`toBe(12)`) e não na tela. A regra geral: **todo teste de transição precisa provar o estado
+de partida**, senão ele testa o default.
 
 ## Convenções
 
