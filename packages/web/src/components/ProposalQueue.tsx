@@ -1,7 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { memoryProposalsKey, tasksKey } from "../lib/queryKeys.js";
+import { useTaskStatusMutation, useTasksByWorkspace } from "../hooks/useTasks.js";
+import { memoryProposalsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, SectionHead } from "../ui/index.js";
 
@@ -47,11 +48,7 @@ export function ProposalQueue({ workspaceId, projectName }: ProposalQueueProps) 
   // `dropped` é onde uma tarefa proposta vai parar quando você rejeita.
   const taskStatus = status === "pending" ? "proposed" : "dropped";
 
-  const proposed = useQuery({
-    queryKey: tasksKey(workspaceId, { status: taskStatus }),
-    queryFn: () =>
-      trpc.task.listByWorkspace.query({ workspaceId, status: taskStatus }) as Promise<TaskRow[]>,
-  });
+  const proposed = useTasksByWorkspace(workspaceId, { status: taskStatus });
   const memory = useQuery({
     queryKey: memoryProposalsKey(status),
     queryFn: () => trpc.memory.proposals.query({ status }),
@@ -128,17 +125,10 @@ function TaskProposal({
   /** Já decidida: a mesma peça, sem verbos, com o que você respondeu. */
   decided: boolean;
 }) {
-  const client = useQueryClient();
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
 
-  const decide = useMutation({
-    mutationFn: (input: { status: string; reason?: string }) =>
-      trpc.task.setStatus.mutate({ id: row.id, ...input } as never),
-    onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: tasksKey(workspaceId) });
-    },
-  });
+  const decide = useTaskStatusMutation(workspaceId, row.id);
 
   return (
     <div className="pq-item">

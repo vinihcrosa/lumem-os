@@ -1,8 +1,6 @@
 import { CLAUDE_ADAPTER, DEFAULT_ADAPTER_ID } from "@lumem/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { setupAgentsKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { useInstallAdapter, useSetupAgentsReport } from "../hooks/useAgentConfigs.js";
 import {
   Banner,
   Button,
@@ -35,20 +33,8 @@ export interface AgentStepProps {
  * registry unreachable, and on that machine the person still has a way through.
  */
 export function AgentStep({ onNext, onBack, onSkip }: AgentStepProps) {
-  const queryClient = useQueryClient();
-
-  const agents = useQuery({
-    queryKey: setupAgentsKey(),
-    queryFn: () => trpc.setup.agents.query(),
-    refetchOnWindowFocus: false,
-  });
-
-  const install = useMutation({
-    mutationFn: () => trpc.setup.installAdapter.mutate(),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: setupAgentsKey() });
-    },
-  });
+  const agents = useSetupAgentsReport();
+  const install = useInstallAdapter();
 
   /*
    * A entrada do catálogo, e não "o adaptador".
@@ -157,7 +143,7 @@ export function AgentStep({ onNext, onBack, onSkip }: AgentStepProps) {
                     variant="primary"
                     size="sm"
                     disabled={install.isPending}
-                    onClick={() => install.mutate()}
+                    onClick={() => install.mutate(undefined)}
                   >
                     {install.isPending ? "instalando…" : "Instalar o adaptador"}
                   </Button>

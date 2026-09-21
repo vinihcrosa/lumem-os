@@ -89,10 +89,10 @@ export function useTaskStatusMutation(workspaceId: string, taskId: string) {
   });
 }
 
-/** A lista de tarefas do workspace, opcionalmente filtrada por projeto. */
+/** A lista de tarefas do workspace, opcionalmente filtrada por projeto e/ou status. */
 export function useTasksByWorkspace(
   workspaceId: string,
-  filter?: { projectId?: string },
+  filter?: { projectId?: string; status?: string },
 ) {
   return useQuery({
     queryKey: tasksKey(workspaceId, filter),
@@ -100,6 +100,7 @@ export function useTasksByWorkspace(
       trpc.task.listByWorkspace.query({
         workspaceId,
         ...(filter?.projectId === undefined ? {} : { projectId: filter.projectId }),
+        ...(filter?.status === undefined ? {} : { status: filter.status as never }),
       }),
   });
 }

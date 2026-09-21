@@ -1,14 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { useAgentConfigs } from "../hooks/useAgentConfigs.js";
 import type { RunDockState } from "../hooks/useRunDock.js";
 import { useScriptActions, useScripts, type ScriptStatus } from "../hooks/useScripts.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
-import { useSessionsByScope } from "../hooks/useSessionsByScope.js";
+import { useSessionMutations, useSessionsByScope } from "../hooks/useSessionsByScope.js";
 import { relativeAge } from "../lib/relative-time.js";
-import { sessionsKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
 import { Button, Chip, Glyph } from "../ui/index.js";
 import { Terminal } from "./Terminal.js";
 
@@ -397,24 +395,17 @@ function NoScripts({
   status: ScriptStatus;
   onAskAgent?: ((sessionId: string, prompt: string) => void) | undefined;
 }) {
-  const queryClient = useQueryClient();
   const configs = useAgentConfigs();
 
   // Só conversa serve: o pedido é uma pergunta em texto, e um agente por PTY é um
   // terminal — mandar texto nele seria digitar no prompt de outra coisa.
   const agent = (configs.data ?? []).find((config) => config.transport === "acp") ?? null;
 
+  const { createAgent } = useSessionMutations(scope);
   const ask = useMutation({
     mutationFn: async () => {
       if (agent === null) throw new Error("nenhum agente conectado");
-      const created = await trpc.session.createAgent.mutate({
-        scopeType: scope.scopeType,
-        scopeId: scope.scopeId,
-        agentConfigId: agent.id,
-      });
-      await queryClient.invalidateQueries({
-        queryKey: sessionsKey(scope.scopeType, scope.scopeId),
-      });
+      const created = await createAgent.mutateAsync({ agentConfigId: agent.id });
       return created.id;
     },
     onSuccess: (sessionId) => onAskAgent?.(sessionId, askScriptsPrompt(status.file)),
@@ -519,8 +510,8 @@ function TrustGate({
 
 /** A aba `Terminal`: a sessão de shell que o daemon já sabe abrir, no checkout. */
 function TerminalTab({ scope }: { scope: Scope }) {
-  const queryClient = useQueryClient();
   const sessions = useSessionsByScope(scope);
+  const { createShell } = useSessionMutations(scope);
   const [current, setCurrent] = useState<string | null>(null);
 
   const shells = (sessions.data ?? []).filter(
@@ -529,9 +520,8 @@ function TerminalTab({ scope }: { scope: Scope }) {
   const active = shells.find((shell) => shell.id === current) ?? shells[0] ?? null;
 
   async function open(): Promise<void> {
-    const created = await trpc.session.createShell.mutate(scope);
+    const created = await createShell.mutateAsync();
     setCurrent(created.id);
-    await queryClient.invalidateQueries({ queryKey: sessionsKey(scope.scopeType, scope.scopeId) });
   }
 
   if (active === undefined || active === null) {

@@ -1,9 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { useSetupPreflight } from "../hooks/useSetup.js";
 import { useCreateWorkspace } from "../hooks/useWorkspace.js";
-import { PREFLIGHT_KEY } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
 import { Field, Input, MetaGrid, WizardSection } from "../ui/index.js";
 import type { SetupResult } from "./SetupFlow.js";
 import { eyebrowFor } from "./steps.js";
@@ -27,11 +25,7 @@ export function WorkspaceStep({ onNext, onBack }: WorkspaceStepProps) {
 
   // Already read by the machine step, so this is a cache hit in the normal path
   // and a real call for someone who skipped straight here.
-  const preflight = useQuery({
-    queryKey: PREFLIGHT_KEY,
-    queryFn: () => trpc.setup.preflight.query(),
-    refetchOnWindowFocus: false,
-  });
+  const preflight = useSetupPreflight();
 
   const create = useCreateWorkspace();
   const submit = (): void => {

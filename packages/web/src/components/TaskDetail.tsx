@@ -1,11 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { useAgentConfigs } from "../hooks/useAgentConfigs.js";
+import { useSessionsByTask } from "../hooks/useSessionsByScope.js";
 import { useTaskDetail, useTaskStatusMutation, useWorkOnTaskMutation } from "../hooks/useTasks.js";
 import { useWorktrees } from "../hooks/useWorktrees.js";
-import { sessionsByTaskKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
 import { Banner, Button, Chip, Modal, SectionHead, Skeleton } from "../ui/index.js";
 
 import "./tasks.css";
@@ -34,14 +32,6 @@ export interface TaskDetailProps {
     sessionId: string;
     draft: string;
   }) => void;
-}
-
-interface SessionRow {
-  id: string;
-  kind: string;
-  state: string;
-  command: string;
-  agentName?: string | null;
 }
 
 export function TaskDetail({ taskId, workspaceId, onBack, onWork }: TaskDetailProps) {
@@ -148,10 +138,7 @@ export function TaskDetail({ taskId, workspaceId, onBack, onWork }: TaskDetailPr
  * de um endpoint próprio.
  */
 function TaskSessions({ taskId }: { taskId: string }) {
-  const sessions = useQuery({
-    queryKey: sessionsByTaskKey(taskId),
-    queryFn: () => trpc.session.listByTask.query({ taskId }) as Promise<SessionRow[]>,
-  });
+  const sessions = useSessionsByTask(taskId);
 
   const rows = sessions.data ?? [];
 

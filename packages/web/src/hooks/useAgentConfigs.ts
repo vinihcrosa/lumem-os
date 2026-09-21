@@ -118,6 +118,18 @@ export function useSetupAgentsReport() {
   });
 }
 
+/** Instala um adaptador do catálogo — sem `adapterId`, o padrão (`032` T16). */
+export function useInstallAdapter() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (adapterId?: string) => trpc.setup.installAdapter.mutate({ adapterId }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: setupAgentsKey() });
+    },
+  });
+}
+
 /** Uma entrada do relatório de pré-voo, do jeito que o rodapé a lê. */
 export interface AdapterEntry {
   id: string;

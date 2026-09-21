@@ -1,9 +1,8 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { useProjectMutations } from "../hooks/useProjects.js";
-import { projectInspectKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { useProjectInspect } from "../hooks/useSetup.js";
 import {
   Banner,
   CheckList,
@@ -39,13 +38,10 @@ export function ProjectStep({ workspaceId, onNext, onBack, onSkip }: ProjectStep
   const [path, setPath] = useState("");
   const settled = useSettled(path.trim());
 
-  const inspect = useQuery({
-    queryKey: projectInspectKey(settled),
-    queryFn: () => trpc.project.inspect.query({ path: settled }),
-    // Absolute-only, checked here as well as in the daemon: without it every
-    // relative path would spend a round trip to be told the same thing.
+  // Absolute-only, checked here as well as in the daemon: without it every
+  // relative path would spend a round trip to be told the same thing.
+  const inspect = useProjectInspect(settled, {
     enabled: settled.startsWith("/") || settled.startsWith("~"),
-    retry: false,
   });
 
   const { add: addMutation } = useProjectMutations(workspaceId ?? "");

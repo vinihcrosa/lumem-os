@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useCreateWorkspace, useWorkspaceMutations } from "./useWorkspace.js";
+import { useCreateWorkspace, useInvalidateWorkspaces, useWorkspaceMutations, useWorkspaces } from "./useWorkspace.js";
 import { tasksKey, taskSettingsKey, WORKSPACES_KEY } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 
@@ -19,6 +19,32 @@ function wrapperFor(queryClient: QueryClient) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+});
+
+describe("useWorkspaces", () => {
+  it("lê `workspace.list`", async () => {
+    vi.mocked(trpc.workspace.list.query).mockResolvedValue([]);
+    const queryClient = new QueryClient();
+
+    const { result } = renderHook(() => useWorkspaces(), { wrapper: wrapperFor(queryClient) });
+
+    await waitFor(() => expect(result.current.data).toEqual([]));
+    expect(queryClient.getQueryData(WORKSPACES_KEY)).toEqual([]);
+  });
+});
+
+describe("useInvalidateWorkspaces", () => {
+  it("invalida `WORKSPACES_KEY` sem passar por uma mutação", async () => {
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    const { result } = renderHook(() => useInvalidateWorkspaces(), {
+      wrapper: wrapperFor(queryClient),
+    });
+    await result.current();
+
+    expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: WORKSPACES_KEY });
+  });
 });
 
 describe("useCreateWorkspace", () => {

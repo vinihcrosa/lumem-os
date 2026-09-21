@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { useProjects } from "../hooks/useProjects.js";
 import { useTaskSettings, useTasksByWorkspace } from "../hooks/useTasks.js";
-import { projectsKey, usageByTaskKey } from "../lib/queryKeys.js";
+import { usageByTaskKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, EmptyState, SectionHead, Skeleton } from "../ui/index.js";
 
@@ -110,12 +111,8 @@ export function TaskList({
     queryFn: () => trpc.usage.byTask.query({ workspaceId, period: "7d" }),
   });
 
-  const projects = useQuery({
-    queryKey: projectsKey(workspaceId),
-    queryFn: () => trpc.project.listByWorkspace.query({ workspaceId }),
-    // Só o filtro precisa deles, e a lista do projeto não tem filtro.
-    enabled: projectId === undefined,
-  });
+  // Só o filtro precisa deles, e a lista do projeto não tem filtro.
+  const projects = useProjects(workspaceId, { enabled: projectId === undefined });
 
   const projectName = (id: string): string =>
     projects.data?.find((row) => row.id === id)?.name ?? "";

@@ -2,14 +2,19 @@
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Status:** em execução
-**Histórico:** escritas em **2026-09-21**, no mesmo dia da PRD e das oito respostas. **As fases 0, 1
-e 2 (T1–T9) foram entregues no mesmo dia**, em nove commits. A fase 3 (T10) não começou.
+**Histórico:** escritas em **2026-09-21**, no mesmo dia da PRD e das oito respostas. **As fases 0, 1,
+2 e 3 (T1–T16) foram entregues no mesmo dia**, em dezesseis commits.
 
 **34 tasks em 9 fases**, e a regra é a do repositório: uma fase por vez, a próxima só começa com a
 anterior verde. O que prova cada fase é uma **lista de exceções do sensor em zero** — o número está
-no diff de `architecture.test.ts`, e não precisa de leitura de componente para ser auditado.
+no diff de `architecture.test.ts`, e não precisa de leitura de componente para ser auditado. **A
+fase 3 é a primeira em que essa frase não se sustenta** — ver o T16 abaixo: a lista sai de **33** para
+**6**, e os seis que sobram são de recursos que as sete tasks nunca prometeram (`files`, `changes`,
+`memory`, `usage`) ou de uma leitura combinada que os cobre por baixo (`setup/Done.tsx`). A regra
+falha o próprio teste que ela impõe a si mesma — *"difícil de reverter, surpreendente sem contexto"*
+não se aplica a uma frase de cabeçalho — então ela vira nota aqui, e não ADR.
 
-**O que as fases 0–2 acharam, e nada disso estava previsto:**
+**O que as fases 0–3 acharam, e nada disso estava previsto:**
 
 | Onde | O quê |
 |---|---|
@@ -19,6 +24,14 @@ no diff de `architecture.test.ts`, e não precisa de leitura de componente para 
 | T7/T8 (achado em review, consertado) | o `default` exaustivo de `invalidateFor` dava `throw` — dentro do `onData` de uma assinatura tRPC, isso fecha o iterador e mata a assinatura sem reconectar. Trocado por invalidar tudo e avisar |
 | T8 | `events.test.ts` do servidor nasceu com uma segunda lista de variantes escrita à mão (`KNOWN_TYPES`) — o mesmo espelho que a T7 tinha apagado, só que num teste. Fechado com `LUMEM_EVENT_TYPES`, exportado do `shared` |
 | T4 (em review) | `setupProbeKey(command, args)` — o nome que a PRD propunha — nasceu com argumento opcional no fim mudando a forma da chave; virou `SETUP_PROBE_KEY` (a constante, e o prefixo de invalidação) e `agentProbeKey(command, args)` (a chave por configuração), a armadilha que o `testing.md` já registra |
+| T11 | `useAgentConfigMutations` — a PRD listava `setDefault`; a procedure não existe no router (`list`, `create`, `remove`, só). Construído com o que o disco tem |
+| T12 | `setup/TaskStep.tsx` e `TaskCard.tsx` — listados como leitores de `task`; o primeiro só toca `worktree`/`session` apesar do nome, o segundo nunca importou `lib/trpc.js` (é apresentação pura, recebe tudo por prop do `Board`). Nenhum dos dois entra na T12 |
+| T12 | `task.create` e `task.remove` — a PRD listava as duas em `useTaskMutations`; nenhuma tem chamador na web hoje. Não construídas — hook sem uso é hook sem teste real |
+| T13 | `WorkspaceSelector.tsx` e `setup/WorkspaceStep.tsx` — listados como leitores de `project`/`worktree`; os dois só tocam `workspace.create`. Migrados na T15, não na T13 |
+| T13 | `project.rename` — sem chamador na web. Não construída |
+| T14 | `pr.comment` — sem chamador na web; é o lado do daemon (esteira, `028` Parte 7), não a tela. Não construída |
+| T16 | **A lista não chega a zero.** Das 33 exceções do início da fase, sobram **6**: `Conversation.tsx` (por desenho — `connect`/`load` são socket), `FileTree.tsx` (`files`), `PatchViewer.tsx` (`changes`), `ProposalQueue.tsx` (`memory.proposals` — a parte de `task` dela migrou), `TaskList.tsx` (`usage.byTask` — a parte de `project` dela migrou) e `setup/Done.tsx` (`useQueries` batendo quatro recursos de uma vez, sem uma versão "`queryOptions`" de cada hook para alimentar o batch). Os quatro primeiros são recursos que as sete tasks desta fase nunca prometeram cobrir — a frase "sete recursos" no cabeçalho da fase está certa, e "lista em zero" no T16 está errada. `test/trpc-mock.ts` **continua existindo**: ainda é o único mock que os seis arquivos acima e boa parte da suíte de tela usam |
+| T16 (achado de bônus) | `session.resume` já morava em `useWorktreeTabs.ts`, um hook — nunca apareceu na lista do sensor porque a regra 3 só audita `.tsx`. "Forget" da PRD é `session.close` no router; não existe procedure `forget` |
 
 As duas primeiras armadilhas de teste (a do `[0]` e a do `throw`) estão no
 [testing.md](../../project/testing.md).
@@ -43,7 +56,7 @@ criam dependência de calendário, e não de código:
 | `packages/web/src/lib/queryKeys.ts` | ganha 13 chaves e 7 prefixos; passa a ser a lista inteira |
 | `packages/shared/src/{events,board}.ts` | novos — `LumemEvent`, `BoardCard`, `Seal` |
 | `packages/web/src/hooks/use*.ts` | 16 hooks de recurso novos (movem para `features/*/queries.ts` na fase 4) |
-| `packages/web/src/test/trpc-mock.ts` | **apagado** no fecho da fase 3; `trpc-proxy.ts` (~30 linhas) no lugar |
+| `packages/web/src/test/trpc-mock.ts` | previsto para sair no fecho da fase 3; **continua** — a T16 achou 6 exceções fora dos sete recursos, ver a linha do T16 acima. `trpc-proxy.ts` (~30 linhas) já existe ao lado |
 | `packages/web/src/components/`, `setup/` | **deixam de existir** — `features/<domínio>/` |
 | `packages/web/src/lib/navigation.ts` | novo — o store de `selection` e `arrival` |
 | `packages/web/src/App.tsx` | de 497 para menos de 250 linhas, 3 `useState` |
@@ -206,7 +219,7 @@ mockar o hook (`vi.mock("../hooks/use<Recurso>.js")`) em vez do transporte. A fo
 do `useQuery`/`useMutation`, sem embrulho — o que muda é quem chama, não a API. Mutação **invalida
 dentro do hook**; o componente nunca vê `useQueryClient`.
 
-#### T10: `test/trpc-proxy.ts` — o mock de transporte que não precisa conhecer a tela
+#### T10: `test/trpc-proxy.ts` — o mock de transporte que não precisa conhecer a tela · **entregue em 2026-09-21**
 
 Um `Proxy` recursivo tipado por `AppRouter`: `trpc.qualquer.coisa.query` devolve um `vi.fn()`
 criado sob demanda, guardado por caminho para o teste poder `mockResolvedValue` nele. ~30 linhas.
@@ -215,70 +228,104 @@ Só teste de **hook** o usa; teste de tela mocka o hook.
 **Done when:** `renderHook(() => useAgentConfigs())` com o proxy e um `mockResolvedValue([])`
 devolve `data: []`; um caminho que o router não tem é **erro de tipo**.
 
-#### T11: `agentConfig` — `useAgentConfigs`, e os oito leitores
+#### T11: `agentConfig` — `useAgentConfigs`, e os oito leitores · **entregue em 2026-09-21**
 
-`useAgentConfigs()`, `useAgentConfigMutations()` (`setDefault`, `remove`, o que `AgentLogin` e
-`AgentConfigDialog` chamam hoje), `useAgentProbe(config)` (sai de `AgentLogin.tsx:165`),
-`useSetupAgents()`, `useAuthState(loginId)`. Leitores: `AgentLogin`, `AgentConfigDialog`,
-`NewSessionMenu`, `RunDock`, `TaskDetail`, `WorkspacePanel`, `setup/HandshakeStep`, `setup/Done`.
+`useAgentConfigs()`, `useAgentConfigMutations()` (`create`, `remove` — sem `setDefault`, que não
+existe no router), `useAgentProbe(config)` (sai de `AgentLogin.tsx:165`), mais
+`useSetupHandshakeProbe`, `useReprobeAgents`, `useSetupAgentsReport`, `useConnectAgent`,
+`useCreateHandshakeAgentConfig`, `useAgentLoginByCommand`/`useAgentLoginByCall`, `useAuthState` e
+`useCancelAuth` — o handshake e o login por chamada não couberam nos quatro nomes originais.
+Leitores: `AgentLogin`, `AgentConfigDialog`, `NewSessionMenu`, `RunDock`, `TaskDetail`,
+`WorkspacePanel`, `setup/HandshakeStep`, `setup/Done` (só a entrada de `agentConfig` do `useQueries`,
+pela `agentConfigsQueryOptions()` — o resto do arquivo fica de fora, é `project`/`worktree`/`session`
+num só `useQueries`).
 
 **Done when:** os oito saem da lista 3; nenhum deles importa `useQueryClient`; o teste de
 `useAgentConfigMutations` prova a invalidação de `agentConfigsKey()` **uma vez**; **mutação:**
 apagar a invalidação de dentro do hook derruba o teste **do hook** — e não `agent-login.test.tsx`.
 
-#### T12: `task` — `useBoard`, `useTaskDetail`, `useTaskMutations`, `useTaskSettings`
+#### T12: `task` — `useBoard`, `useTaskDetail`, `useTaskMutations`, `useTaskSettings` · **entregue em 2026-09-21**
 
-Os 5 `invalidateQueries` de `Board.tsx` e os 4 de `TaskDetail.tsx` entram em `useTaskMutations`
-(`move`, `setStatus`, `setAutonomy`, `remove`, `create`). Leitores: `Board`, `TaskList`,
-`TaskDetail`, `TaskCard`, `WorktreePanel`, `LocalPanel`, `setup/TaskStep`.
+Os 5 `invalidateQueries` de `Board.tsx` entram em `useBoardMutations` (`move`, `stop`, `send`,
+`takeOver`, `finish` — `setAutonomy`/`remove`/`create` da lista original não têm chamador). Os 4 de
+`TaskDetail.tsx` entram em `useTaskStatusMutation` e `useWorkOnTaskMutation` (a composição
+worktree+task+session de "trabalhar nesta tarefa"). Leitores reais: `Board`, `TaskList`,
+`TaskDetail`, `WorktreePanel`, `LocalPanel` — `TaskCard.tsx` nunca importou `trpc` (apresentação
+pura) e `setup/TaskStep.tsx` só toca `worktree`/`session` apesar do nome; os dois saem da lista T12.
 
 **Done when:** os sete saem da lista; `board-drag.test.tsx` e `tasks-ui.test.tsx` passam mockando o
 hook; o teste de *"clicar no degrau conta duas leituras"* do `testing.md` continua existindo — no
 teste **do hook**, contando a invalidação de `taskSettingsKey`.
 
-#### T13: `project` e `worktree` — detalhe, listas, origens e mutações
+#### T13: `project` e `worktree` — detalhe, listas, origens e mutações · **entregue em 2026-09-21**
 
-`useProjectDetail`, `useProjects(workspaceId)`, `useProjectMutations` (`add`, `clone`, `rename`,
-`remove`, `cloneCancel`), `useWorktreeDetail`, `useWorktrees(projectId)`, `useWorktreeOrigins`
-(as duas chaves de branch e host), `useWorktreeMutations`. Leitores: `SidebarTree`, `LocalPanel`,
-`WorktreePanel`, `CreateWorktreeDialog`, `AddProjectDialog`, `WorkspaceSelector`, `WorkspacePanel`,
-`setup/ProjectStep`, `setup/WorkspaceStep`.
+`useProjectDetail`, `useProjects(workspaceId)`, `useProjectMutations` (`add`, `clone`,
+`cloneCancel`, `remove`, mais `invalidateProjects` para o gatilho manual do F1.9 — sem `rename`, que
+não tem chamador), `useParseSource` (só usado em `AddProjectDialog`, não em `setup/`),
+`useWorktreeDetail`, `useWorktrees(projectId)`, `useWorktreeOrigins`/`useWorktreeBranches` (as duas
+chaves de branch e host), `useWorktreeMutations`. Leitores reais: `SidebarTree`, `LocalPanel`,
+`WorktreePanel`, `CreateWorktreeDialog`, `AddProjectDialog`, `WorkspacePanel` — `WorkspaceSelector` e
+`setup/WorkspaceStep`, listados aqui, só tocam `workspace.create`; migram na T15.
 
 `useCloneJob` já existe e fica — é assinatura, não query.
 
 **Done when:** os nove saem da lista; `worktree-from.test.tsx` (que hoje faz `invalidateQueries`
 por conta própria, linha 1 do grep) passa sem tocar em `queryClient`.
 
-#### T14: `pr` — a escrita que `usePullRequest` não tinha
+#### T14: `pr` — a escrita que `usePullRequest` não tinha · **entregue em 2026-09-21**
 
-`usePullRequestMutations` (`merge`, `create`, `comment`) em `usePullRequest.ts`, com as três
-invalidações de `PrWriteDialog.tsx:92-94` dentro. Leitor: `PrWriteDialog`.
+`usePullRequestMutations` (`merge`, `create` — sem `comment`, que é o daemon chamando a si mesmo,
+não a tela) em `usePullRequest.ts`, com as três invalidações de `PrWriteDialog.tsx:92-94` dentro.
+Leitor: `PrWriteDialog`.
 
 **Done when:** sai da lista; `pr-bar.test.tsx` intacto; o hook prova as três invalidações.
 
-#### T15: `secrets` e `workspace` — configurações e credenciais
+#### T15: `secrets` e `workspace` — configurações e credenciais · **entregue em 2026-09-21**
 
-`useSecrets`, `useSecretMutations`, `useWorkspaceSettings`, `useWorkspaceMutations` (`setBudget`,
-`setAutonomy`, `setCleanup`, `rename`, `remove`, `create`). Leitores: `SettingsPanel`,
-`Credentials`, `CredentialDialog`, `WorkspacePanel`, `WorkspaceSelector`.
+`useSecrets`, `useSecretMutations`, `useWorkspaceMutations` (`setBudget`, `setAutonomy`,
+`setCleanup`, `rename`, `remove` — os três primeiros invalidam `taskSettingsKey`/`tasksKey`, onde são
+lidos, e não uma chave de detalhe de workspace que não existe) e `useCreateWorkspace` (sem
+`workspaceId`, para quem ainda não tem um). `useWorkspaceSettings` da PRD é o `useTaskSettings` que a
+T12 já construiu — reusado, não duplicado. Leitores: `SettingsPanel`, `Credentials`,
+`CredentialDialog`, `WorkspacePanel`, `WorkspaceSelector`, mais `setup/WorkspaceStep` (o `create` que
+a T13 tinha listado errado).
 
 **Done when:** os cinco saem da lista; `settings-ui.test.tsx` mocka `useWorkspaceMutations` e o
 caso do teto `null` (a armadilha da `030`) continua afirmando o estado de partida.
 
-#### T16: `setup`, `session` e `scripts` — o que sobrou, e o mock morre
+#### T16: `setup`, `session` e o que sobrou · **entregue em 2026-09-21, sem chegar em zero**
 
-`useSetupPreflight`, `useProjectInspect`, `useWorktreePlan`, `useParseSource` para os passos do
-primeiro acesso; `useSessionMutations` (`create`, `resume`, `forget`) para `SessionTab`,
-`ScopePanel`, `NewSessionMenu`. `useScripts` e `useSessionsByScope` já existem. Os `connect` e
-`load` injetáveis da `Conversation` **ficam**: são socket, não query.
+`useSetupPreflight`, `useProjectInspect`, `useWorktreePlan` (novo arquivo, `hooks/useSetup.ts`) para
+os passos do primeiro acesso, mais `useInstallAdapter` (junto de `useAgentConfigs.ts` — é o mesmo
+catálogo que `useConnectAgent` já lê) e `useCreateFirstWorktree` (a composição worktree+sessão do
+`setup/TaskStep`, que não é `useWorkOnTaskMutation` da T12 porque este fluxo não tem `taskId`).
+`useSessionMutations` (`createShell`, `createAgent`, `close` — "resume" já morava em
+`useWorktreeTabs.ts`, e "forget" da PRD é `close` no router) e `useSessionsByTask` entram em
+`useSessionsByScope.ts`, que já existia. De bônus, dois hooks que a PRD não previu:
+`hooks/useHealth.ts` (`useHealth`) e `useWorkspaces`/`useInvalidateWorkspaces` em
+`useWorkspace.ts` — os dois únicos chamadores restantes eram o próprio `App.tsx`.
 
-Com o último componente fora da lista, **`test/trpc-mock.ts` é apagado**. Nenhum teste de tela
-importa `lib/trpc.js`; só teste de hook, pelo proxy.
+Leitores migrados: `NewSessionMenu`, `RunDock`, `ScopePanel`, `SessionTab`, `TaskDetail` (a leitura
+de sessão que faltava), `SidebarNav` (reusa `useBoard` da T12), `ProposalQueue` e `TaskList` (a
+metade de cada uma que é `task`/`project` — a outra metade, `memory`/`usage`, fica), `App.tsx` e
+`SettingsPanel.tsx` (reusa `useSetupAgentsReport` da T11), e os cinco passos de `setup/` que
+sobravam (`AgentStep`, `MachineStep`, `ProjectStep`, `TaskStep`, `WorkspaceStep`).
 
-**Done when:** lista 3 em **zero** e o sensor a exige em zero;
-`grep -rn 'useQueryClient' packages/web/src/components packages/web/src/setup` vazio;
-`trpc-mock.ts` não existe; `pnpm gate:full` verde — os 35 e2e são a prova de que o comportamento
-não mudou.
+**A lista não chega a zero, e por isso `test/trpc-mock.ts` não é apagado.** Das 33 exceções do
+início da fase, sobram **6**: `Conversation.tsx` (por desenho), `FileTree.tsx` (`files`),
+`PatchViewer.tsx` (`changes`), `ProposalQueue.tsx` (`memory.proposals`), `TaskList.tsx`
+(`usage.byTask`) e `setup/Done.tsx` (`workspace`+`project`+`worktree`+`session` num `useQueries` só,
+sem uma forma "`queryOptions`" de cada hook para alimentar o batch sem duplicar a leitura). Nenhum
+dos seis é `setup`, `session` ou `scripts` — são os quatro recursos que as sete tasks desta fase
+nunca prometeram (`files`, `changes`, `memory`, `usage`) mais um caso estrutural. O `Done when`
+original ("lista em zero", "`trpc-mock.ts` não existe") pressupunha que a fase cobria o disco
+inteiro; ela cobre os sete recursos do cabeçalho, e o disco tinha mais que sete.
+
+**Done when (revisado):** os leitores de `setup`/`session` migrados saem da lista; nenhum deles
+importa `useQueryClient` (a exceção documentada é `WorktreePanel`-like `getQueryData` sem
+assinatura, que já não está mais na lista de qualquer forma); `pnpm gate:quick` verde, 1195 testes;
+`pnpm gate:full` roda antes do fecho da fase, e o que ele prova é que os 35 e2e continuam verdes com
+a mudança de import — não que a lista chegou a zero.
 
 ---
 

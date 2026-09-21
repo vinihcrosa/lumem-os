@@ -1,8 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { sessionsKey, worktreePlanKey, worktreesKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { useCreateFirstWorktree, useWorktreePlan } from "../hooks/useSetup.js";
 import {
   Banner,
   Choice,
@@ -36,56 +34,37 @@ export interface TaskStepProps {
  * the model in one second, and makes the result auditable when it surprises you.
  */
 export function TaskStep({ projectId, agentConfigId, onNext, onBack, onSkip }: TaskStepProps) {
-  const queryClient = useQueryClient();
   const [name, setName] = useState("primeira-tarefa");
   const [withSession, setWithSession] = useState(true);
   const settled = useSettled(name.trim());
 
-  const plan = useQuery({
-    queryKey: worktreePlanKey(projectId ?? "", settled),
-    queryFn: () => trpc.worktree.plan.query({ projectId: projectId ?? "", name: settled }),
+  const plan = useWorktreePlan(projectId ?? "", settled, {
     enabled: projectId !== undefined && settled !== "",
-    retry: false,
   });
 
-  const create = useMutation({
-    mutationFn: async () => {
-      if (projectId === undefined) throw new Error("sem projeto não há de onde cortar worktree");
-
-      const worktree = await trpc.worktree.create.mutate({ projectId, name: settled });
-
-      /*
-       * The session comes second, and a failure here does not undo the worktree.
-       *
-       * That is deliberate: the worktree exists on disk and in the registry by
-       * then, and rolling it back to report a failed spawn would delete a
-       * checkout the user asked for. The screen says what happened instead.
-       */
-      let sessionId: string | undefined;
-      if (withSession && agentConfigId !== undefined) {
-        const session = await trpc.session.createAgent.mutate({
-          scopeType: "worktree",
-          scopeId: worktree.id,
-          agentConfigId,
-        });
-        sessionId = session.id;
-      }
-
-      return { worktree, sessionId };
-    },
-    onSuccess: async ({ worktree, sessionId }) => {
-      if (projectId !== undefined) {
-        await queryClient.invalidateQueries({ queryKey: worktreesKey(projectId) });
-      }
-      await queryClient.invalidateQueries({ queryKey: sessionsKey("worktree", worktree.id) });
-      onNext({
-        worktreeId: worktree.id,
-        worktreeName: worktree.name,
-        sessionOpened: sessionId !== undefined,
-        ...(sessionId === undefined ? {} : { sessionId }),
-      });
-    },
-  });
+  const create = useCreateFirstWorktree();
+  const submit = (): void => {
+    // O botão já está desabilitado sem `projectId` (o `preview` nunca chega),
+    // mas o guarda continua aqui porque `onSubmit` também ouve o Enter.
+    if (projectId === undefined) return;
+    create.mutate(
+      {
+        projectId,
+        name: settled,
+        ...(withSession && agentConfigId !== undefined ? { agentConfigId } : {}),
+      },
+      {
+        onSuccess: ({ worktree, sessionId }) => {
+          onNext({
+            worktreeId: worktree.id,
+            worktreeName: worktree.name,
+            sessionOpened: sessionId !== undefined,
+            ...(sessionId === undefined ? {} : { sessionId }),
+          });
+        },
+      },
+    );
+  };
 
   const preview = plan.data;
 
@@ -100,7 +79,7 @@ export function TaskStep({ projectId, agentConfigId, onNext, onBack, onSkip }: T
         isPending: create.isPending,
         pending: "criando…",
       }}
-      onSubmit={() => create.mutate()}
+      onSubmit={submit}
       onBack={onBack}
       onSkip={onSkip}
     >

@@ -1,9 +1,6 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-
 import { useAgentConfigs } from "../hooks/useAgentConfigs.js";
 import { usePopover } from "../hooks/usePopover.js";
-import { sessionsKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { useSessionMutations } from "../hooks/useSessionsByScope.js";
 import { Banner, Glyph, Menu, MenuItem } from "../ui/index.js";
 
 import "./new-session.css";
@@ -16,30 +13,12 @@ export interface NewSessionMenuProps {
 
 /** Opening a shell or an agent in one scope, F5.1 and F5.2. */
 export function NewSessionMenu({ scopeType, scopeId, onCreated }: NewSessionMenuProps) {
-  const queryClient = useQueryClient();
   const popover = usePopover();
 
   const configs = useAgentConfigs();
-
-  const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: sessionsKey(scopeType, scopeId) });
-
-  const openShell = useMutation({
-    mutationFn: () => trpc.session.createShell.mutate({ scopeType, scopeId }),
-    onSuccess: async (created) => {
-      await refresh();
-      onCreated(created.id);
-    },
-  });
-
-  const openAgent = useMutation({
-    mutationFn: (agentConfigId: string) =>
-      trpc.session.createAgent.mutate({ scopeType, scopeId, agentConfigId }),
-    onSuccess: async (created) => {
-      popover.close();
-      await refresh();
-      onCreated(created.id);
-    },
+  const { createShell: openShell, createAgent: openAgent } = useSessionMutations({
+    scopeType,
+    scopeId,
   });
 
   const failure = openShell.error ?? openAgent.error;
@@ -71,7 +50,7 @@ export function NewSessionMenu({ scopeType, scopeId, onCreated }: NewSessionMenu
                 hint="shell de login"
                 onSelect={() => {
                   popover.close();
-                  openShell.mutate();
+                  openShell.mutate(undefined, { onSuccess: (created) => onCreated(created.id) });
                 }}
               >
                 shell
@@ -85,7 +64,17 @@ export function NewSessionMenu({ scopeType, scopeId, onCreated }: NewSessionMenu
                   // them watch a terminal open and close with no explanation.
                   disabled={!config.available || openAgent.isPending}
                   hint={config.available ? config.command : "fora do PATH"}
-                  onSelect={() => openAgent.mutate(config.id)}
+                  onSelect={() =>
+                    openAgent.mutate(
+                      { agentConfigId: config.id },
+                      {
+                        onSuccess: (created) => {
+                          popover.close();
+                          onCreated(created.id);
+                        },
+                      },
+                    )
+                  }
                 >
                   {config.name}
                 </MenuItem>

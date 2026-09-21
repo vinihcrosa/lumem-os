@@ -1,13 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
 import { ADAPTERS } from "@lumem/shared";
 import { useState, type ReactNode } from "react";
 
+import { useSetupAgentsReport } from "../hooks/useAgentConfigs.js";
 import { askNoticePermission } from "../hooks/notice.js";
 import { useSecrets } from "../hooks/useSecrets.js";
 import { useTaskSettings } from "../hooks/useTasks.js";
 import { useWorkspaceMutations } from "../hooks/useWorkspace.js";
-import { setupAgentsKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
 import { Skeleton } from "../ui/index.js";
 
 import "./detail.css";
@@ -498,11 +496,7 @@ function ConveyorSection({ workspaceId }: { workspaceId: string }) {
  * o `PATH` não decide.
  */
 function AgentsSection() {
-  const agents = useQuery({
-    queryKey: setupAgentsKey(),
-    queryFn: () => trpc.setup.agents.query(),
-    refetchOnWindowFocus: false,
-  });
+  const agents = useSetupAgentsReport();
 
   return (
     <SettingSection

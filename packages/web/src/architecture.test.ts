@@ -211,25 +211,12 @@ describe("regra 5 — o arquivo de hook tem nome de hook", () => {
  * import estático e não caem aqui.
  */
 const COMPONENT_KNOWS_TRANSPORT: readonly string[] = [
-  "App.tsx",
   "components/Conversation.tsx",
   "components/FileTree.tsx",
-  "components/NewSessionMenu.tsx",
   "components/PatchViewer.tsx",
   "components/ProposalQueue.tsx",
-  "components/RunDock.tsx",
-  "components/ScopePanel.tsx",
-  "components/SessionTab.tsx",
-  "components/SettingsPanel.tsx",
-  "components/SidebarNav.tsx",
-  "components/TaskDetail.tsx",
   "components/TaskList.tsx",
-  "setup/AgentStep.tsx",
   "setup/Done.tsx",
-  "setup/MachineStep.tsx",
-  "setup/ProjectStep.tsx",
-  "setup/TaskStep.tsx",
-  "setup/WorkspaceStep.tsx",
 ];
 
 describe("regra 3 — a tela não conhece o transporte", () => {

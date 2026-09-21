@@ -1,7 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
-
-import { PREFLIGHT_KEY } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { useSetupPreflight } from "../hooks/useSetup.js";
 import { Banner, Button, CheckList, CheckRow, CopyCommand, Skeleton } from "../ui/index.js";
 import { eyebrowFor } from "./steps.js";
 import { StepShell } from "./StepShell.js";
@@ -20,13 +17,7 @@ export interface MachineStepProps {
  * the right sentence — and nobody should be stuck on a welcome screen for it.
  */
 export function MachineStep({ onNext, onBack, onSkip }: MachineStepProps) {
-  const preflight = useQuery({
-    queryKey: PREFLIGHT_KEY,
-    queryFn: () => trpc.setup.preflight.query(),
-    // Read on arrival and on demand. Nothing here changes on its own, and a
-    // poll would re-run five process calls for no reason.
-    refetchOnWindowFocus: false,
-  });
+  const preflight = useSetupPreflight();
 
   const checks = preflight.data?.checks ?? [];
   const gitFailed = checks.some((check) => check.id === "git" && check.state === "fail");

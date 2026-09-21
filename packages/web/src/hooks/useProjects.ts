@@ -17,10 +17,11 @@ export interface ClonePlan {
 }
 
 /** Os projetos de um workspace (`032` T13). */
-export function useProjects(workspaceId: string) {
+export function useProjects(workspaceId: string, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: projectsKey(workspaceId),
     queryFn: () => trpc.project.listByWorkspace.query({ workspaceId }),
+    enabled: options.enabled ?? true,
   });
 }
 

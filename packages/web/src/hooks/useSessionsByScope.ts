@@ -1,6 +1,6 @@
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { sessionsKey } from "../lib/queryKeys.js";
+import { sessionsByTaskKey, sessionsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 
 export type ScopeType = "project" | "worktree";
@@ -57,4 +57,41 @@ export function useRunningAcross(scopes: readonly Scope[]): number {
         0,
       ),
   });
+}
+
+/** As sessões de uma tarefa (`022` T9), pelo `taskId` — sem endpoint próprio. */
+export function useSessionsByTask(taskId: string) {
+  return useQuery({
+    queryKey: sessionsByTaskKey(taskId),
+    queryFn: () => trpc.session.listByTask.query({ taskId }),
+  });
+}
+
+/**
+ * `createShell`, `createAgent` e `close` — todas invalidando a lista deste
+ * escopo (`032` T16). Um shell e um agente são o mesmo verbo com um método
+ * diferente, e as duas telas que abrem um leem o mesmo `sessionsKey`.
+ */
+export function useSessionMutations(scope: Scope) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: sessionsKey(scope.scopeType, scope.scopeId) });
+
+  const createShell = useMutation({
+    mutationFn: () => trpc.session.createShell.mutate(scope),
+    onSuccess: invalidate,
+  });
+
+  const createAgent = useMutation({
+    mutationFn: (input: { agentConfigId: string; taskId?: string }) =>
+      trpc.session.createAgent.mutate({ ...scope, ...input }),
+    onSuccess: invalidate,
+  });
+
+  const close = useMutation({
+    mutationFn: (sessionId: string) => trpc.session.close.mutate({ id: sessionId }),
+    onSuccess: invalidate,
+  });
+
+  return { createShell, createAgent, close };
 }

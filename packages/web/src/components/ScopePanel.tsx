@@ -1,13 +1,10 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, type ReactNode } from "react";
 
 import { useAwaitingPermission } from "../hooks/useAwaitingPermission.js";
 import { useOpenFiles, tabKey } from "../hooks/useOpenFiles.js";
+import { useSessionMutations, type Scope } from "../hooks/useSessionsByScope.js";
 import { useWorktreeTabs } from "../hooks/useWorktreeTabs.js";
-import type { Scope } from "../hooks/useSessionsByScope.js";
 import { relativeAge } from "../lib/relative-time.js";
-import { sessionsKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
 import {
   Banner,
   Button,
@@ -111,7 +108,6 @@ export function ScopePanel({
   initialPrompt,
   initialDraft,
 }: ScopePanelProps) {
-  const queryClient = useQueryClient();
   const { tabs, activeId, select, close, reopen, resume, resuming, sessions } =
     useWorktreeTabs(scope);
   const awaiting = useAwaitingPermission();
@@ -161,10 +157,7 @@ export function ScopePanel({
     );
   }
 
-  const end = useMutation({
-    mutationFn: (sessionId: string) => trpc.session.close.mutate({ id: sessionId }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: sessionsKey(scope.scopeType, scope.scopeId) }),
-  });
+  const { close: end } = useSessionMutations(scope);
 
   const all = sessions.data ?? [];
   const openIds = new Set(tabs.map((tab) => tab.sessionId));

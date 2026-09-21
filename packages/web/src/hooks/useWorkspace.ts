@@ -1,7 +1,29 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 
 import { tasksKey, taskSettingsKey, WORKSPACES_KEY } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
+
+/** A lista de workspaces — lida no topo do App, sem um só chamador de escrita. */
+export function useWorkspaces() {
+  return useQuery({
+    queryKey: WORKSPACES_KEY,
+    queryFn: () => trpc.workspace.list.query(),
+  });
+}
+
+/**
+ * O gatilho manual fora do ciclo de uma mutação — o fim do primeiro acesso e
+ * a remoção pelo `WorkspacePanel` precisam invalidar sem que `App.tsx` veja
+ * `useQueryClient`.
+ */
+export function useInvalidateWorkspaces() {
+  const queryClient = useQueryClient();
+  return useCallback(
+    () => queryClient.invalidateQueries({ queryKey: WORKSPACES_KEY }),
+    [queryClient],
+  );
+}
 
 /** `workspace.create` — sem `workspaceId`, porque nenhum existe ainda (`032` T15). */
 export function useCreateWorkspace() {

@@ -1,4 +1,3 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { AddProjectDialog } from "./components/AddProjectDialog.js";
@@ -13,6 +12,7 @@ import { SidebarTree, type ProjectSummary } from "./components/SidebarTree.js";
 import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
 import { WorktreePanel } from "./components/WorktreePanel.js";
 import { useActiveWorkspace } from "./hooks/useActiveWorkspace.js";
+import { useHealth } from "./hooks/useHealth.js";
 import { useLiveState } from "./hooks/useLiveState.js";
 import { AwaitingPermissionProvider } from "./hooks/useAwaitingPermission.js";
 import { OpenFilesProvider } from "./hooks/useOpenFiles.js";
@@ -20,12 +20,11 @@ import { useRightPanel } from "./hooks/useRightPanel.js";
 import { useRunDock, widenColumnOnOpen } from "./hooks/useRunDock.js";
 import type { Scope } from "./hooks/useSessionsByScope.js";
 import { useTreeExpansion } from "./hooks/useTreeExpansion.js";
+import { useInvalidateWorkspaces, useWorkspaces } from "./hooks/useWorkspace.js";
 import { AppShell } from "./layout/AppShell.js";
 import { Topbar } from "./layout/Topbar.js";
 import { SetupFlow } from "./setup/SetupFlow.js";
-import { HEALTH_KEY, WORKSPACES_KEY } from "./lib/queryKeys.js";
 import { navigate, useRoute } from "./lib/route.js";
-import { trpc } from "./lib/trpc.js";
 import { Banner, Skeleton } from "./ui/index.js";
 
 import "./components/sidebar.css";
@@ -43,7 +42,7 @@ import "./layout/layout.css";
 type Selection = { projectId: string; scope: Scope } | null;
 
 export function App() {
-  const queryClient = useQueryClient();
+  const invalidateWorkspaces = useInvalidateWorkspaces();
   const [selection, setSelection] = useState<Selection>(null);
   /**
    * Qual tela está na frente, lida do **caminho** (`030-settings`, F1).
@@ -112,21 +111,8 @@ export function App() {
   const rightPanel = useRightPanel();
   const dock = useRunDock();
 
-  const health = useQuery({
-    queryKey: HEALTH_KEY,
-    queryFn: () => trpc.health.query(),
-    // Asked once, "daemon inacessível" was a state the UI could draw and never
-    // reach: the daemon going down mid-session left the topbar reporting the
-    // version it saw at boot. PRD §8 wants the client to notice and say so.
-    refetchInterval: 5_000,
-    // A failed poll is the answer, not a glitch to retry around.
-    retry: false,
-  });
-
-  const workspaces = useQuery({
-    queryKey: WORKSPACES_KEY,
-    queryFn: () => trpc.workspace.list.query(),
-  });
+  const health = useHealth();
+  const workspaces = useWorkspaces();
 
   const { activeId, select } = useActiveWorkspace(workspaces.data ?? []);
 
@@ -202,7 +188,7 @@ export function App() {
           daemonVersion={health.data?.version ?? null}
           daemonUnreachable={health.isError}
           onFinish={async (result) => {
-            await queryClient.invalidateQueries({ queryKey: WORKSPACES_KEY });
+            await invalidateWorkspaces();
             if (result.workspaceId !== undefined) select(result.workspaceId);
             // Land on what was created, not on "selecione uma worktree": the
             // flow just made the thing the person came here to use.
@@ -424,7 +410,7 @@ export function App() {
           view={route === "tasks" ? "board" : "home"}
           onView={(view) => navigate(view === "board" ? "tasks" : "home")}
           onRemoved={async () => {
-            await queryClient.invalidateQueries({ queryKey: WORKSPACES_KEY });
+            await invalidateWorkspaces();
           }}
           onWorkOnTask={(target) => {
             setDraft({ sessionId: target.sessionId, text: target.draft });

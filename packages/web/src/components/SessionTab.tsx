@@ -1,10 +1,8 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
-import type { Scope } from "../hooks/useSessionsByScope.js";
+import { useSessionMutations, type Scope } from "../hooks/useSessionsByScope.js";
 import type { SessionTab as SessionTabModel } from "../hooks/useWorktreeTabs.js";
-import { sessionsKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
 import { Banner, Button, Chip, Glyph } from "../ui/index.js";
 import { Conversation } from "./Conversation.js";
 import { TabSplit } from "./TabSplit.js";
@@ -152,19 +150,14 @@ interface RecordNoticeProps {
  * is not on offer, so it is not implied.
  */
 function RecordNotice({ tab, scope, onStarted }: RecordNoticeProps) {
-  const queryClient = useQueryClient();
+  const { createShell, createAgent } = useSessionMutations(scope);
 
   const start = useMutation({
     mutationFn: () =>
       tab.agentConfigId === null
-        ? trpc.session.createShell.mutate(scope)
-        : trpc.session.createAgent.mutate({ ...scope, agentConfigId: tab.agentConfigId }),
-    onSuccess: async (created) => {
-      await queryClient.invalidateQueries({
-        queryKey: sessionsKey(scope.scopeType, scope.scopeId),
-      });
-      onStarted(created.id);
-    },
+        ? createShell.mutateAsync()
+        : createAgent.mutateAsync({ agentConfigId: tab.agentConfigId }),
+    onSuccess: (created) => onStarted(created.id),
   });
 
   return (

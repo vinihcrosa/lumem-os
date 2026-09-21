@@ -1,8 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-
-import { needsYou, type BoardColumn } from "../lib/board.js";
-import { boardKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { useBoard } from "../hooks/useTasks.js";
+import { needsYou } from "../lib/board.js";
 import { Glyph, Row } from "../ui/index.js";
 
 /**
@@ -54,10 +51,7 @@ export function SidebarNav({ workspaceId, place, onHome, onBoard, onSettings }: 
    * Uma procedure `task.needsMe` seria uma segunda fonte para o mesmo número, e
    * duas fontes é o que divergem.
    */
-  const board = useQuery({
-    queryKey: boardKey(workspaceId, null),
-    queryFn: () => trpc.task.board.query({ workspaceId }) as Promise<BoardColumn[]>,
-  });
+  const board = useBoard(workspaceId, undefined);
 
   const now = Date.now();
   const needsMe = (board.data ?? []).reduce(
