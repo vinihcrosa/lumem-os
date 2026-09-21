@@ -437,12 +437,16 @@ describe("regra 7 — um `index.css` por feature", () => {
 // exceção entrou, e só pode ir para baixo — um arquivo que cresceu sem
 // reduzir o número aqui é exatamente o que a regra existe para pegar.
 //
-// Três entradas são desta fase (T26, T28, T29 as tiram uma por uma, até
-// sobrarem só os oito da Q8): `Conversation.tsx` (830 na T25; a T26 já a
-// reduziu para 646 movendo o transporte para `useConversationSession.ts` —
-// ainda acima do teto, e a T27 é quem termina o corte para as duas peças que
-// a task promete, `Composer` e `Transcript`), `MemoryPanel.tsx` e
-// `AgentLogin.tsx`. As outras duas são achado da T25, medido no disco:
+// Três entradas eram desta fase, e as T26/T27, T28 e T29 as tiraram uma por
+// uma: `Conversation.tsx` (830 na T25; a T26 já a reduziu para 646 movendo o
+// transporte para `useConversationSession.ts`, e a T27 terminou o corte com
+// `Composer` e `Transcript`), `MemoryPanel.tsx` (T28) e `AgentLogin.tsx`
+// (T29, em quatro: `AgentRow`, `ConnectPanel`, `AgentPanel`, `LoginOptions`,
+// com a tradução em `agent-words.ts`). O que sobra no mapa não são "os oito
+// da Q8" ao pé da letra — `Board.tsx` já tinha saído antes da T25 medir (a
+// fase 4/T17 encolheu-o primeiro), então só sete dos oito originais ainda
+// precisam da exceção. As outras duas entradas abaixo são achado da T25,
+// medido no disco, e continuam sendo problema de outra decisão:
 //
 // - `conversation-model.ts` (715) — a Q8 cita este arquivo como o exemplo de
 //   "fold puro que piora se quebrado por tamanho" para justificar **não** ter
@@ -460,7 +464,6 @@ describe("regra 7 — um `index.css` por feature", () => {
 const LARGE_FILE_LIMIT = 400;
 
 const LARGE_FILE_CEILING: Readonly<Record<string, number>> = {
-  "features/agent/AgentLogin.tsx": 861,
   "features/checkout/FileTree.tsx": 640,
   "features/checkout/FileViewer.tsx": 461,
   "features/checkout/LocalPanel.tsx": 444,

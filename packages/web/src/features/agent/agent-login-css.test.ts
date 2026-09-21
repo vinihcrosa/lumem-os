@@ -16,15 +16,23 @@ const HERE = join(import.meta.dirname, ".");
 
 const stylesheet = readFileSync(join(HERE, "agent-login.css"), "utf8");
 /*
- * Dois arquivos, e o segundo entrou com as credenciais (ADR de 2026-09-13).
- *
- * O rodapé passou a ter dois blocos e eles **dividem a folha** — `foot-head`,
- * `foot-row`, `pip`. Auditar só o primeiro fez a auditoria acusar `fld-hint`
- * como órfã no minuto em que ela nasceu usada, o que é a direção contrária
- * funcionando: ela existe para pegar CSS sem marcação, e uma lista de fontes
- * incompleta vira exatamente o falso positivo que ensina a ignorá-la.
+ * Seis arquivos agora, e o motivo é o mesmo dos dois de antes: a folha é uma
+ * só, e o markup que a lê **se dividiu** (`032` T29 — `AgentLogin.tsx` virou
+ * composição, com `AgentRow`, `ConnectPanel`, `AgentPanel` e `LoginOptions`
+ * cada um no seu arquivo). A mesma armadilha que `conversation-css.test.ts`
+ * (T27) e `memory-css.test.ts` (T28) pagaram: sem os quatro novos na lista,
+ * este teste continuaria **verde** depois do split, e cego para toda classe
+ * que saiu com eles — `setup`, `opt`, `prep`, `dcode`, `key-in`, `acct`,
+ * `fail` entre outras.
  */
-const component = [readFileSync(join(HERE, "AgentLogin.tsx"), "utf8"), readFileSync(join(HERE, "Credentials.tsx"), "utf8")].join("\n");
+const component = [
+  readFileSync(join(HERE, "AgentLogin.tsx"), "utf8"),
+  readFileSync(join(HERE, "AgentRow.tsx"), "utf8"),
+  readFileSync(join(HERE, "ConnectPanel.tsx"), "utf8"),
+  readFileSync(join(HERE, "AgentPanel.tsx"), "utf8"),
+  readFileSync(join(HERE, "LoginOptions.tsx"), "utf8"),
+  readFileSync(join(HERE, "Credentials.tsx"), "utf8"),
+].join("\n");
 
 function defined(css: string): Set<string> {
   const names = new Set<string>();

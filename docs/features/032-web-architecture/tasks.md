@@ -805,7 +805,7 @@ mesmo mecanismo do `Board.tsx`/`Conversation.tsx`). `MemoryEntries.tsx` (265), `
 `MemoryTimeline.tsx` (59), `MemoryPlaybooks.tsx` (106) e `MemoryNumbers.tsx` (106) nasceram sem
 precisar de exceção.
 
-#### T29: `AgentLogin` em quatro, e `agent-words.ts`
+#### T29: `AgentLogin` em quatro, e `agent-words.ts` · **entregue em 2026-09-21**
 
 `AgentRow.tsx`, `ConnectPanel.tsx`, `AgentPanel.tsx`, `LoginOptions.tsx`. `describeSpec`,
 `describeMethod`, `needsKey`, `entryOf` viram `agent-words.ts` — o desenho de `pr-words.ts`.
@@ -813,6 +813,51 @@ precisar de exceção.
 
 **Done when:** nenhum acima de 400; `AgentLogin.test.tsx` e `agent-login.spec.ts` verdes; o mapa da
 T25 tem exatamente os oito originais.
+
+**Achado:** confirmado no disco — `AgentLogin.tsx` tinha **861** linhas, exatamente o que a Q8/T25
+já tinham medido. `describeSpec`, `describeMethod`, `needsKey` existiam com esses nomes exatos;
+`useAgentProbe` já morava em `queries.ts` desde a T11, como o texto previa.
+
+**Achado:** o texto pede `entryOf` dentro de `agent-words.ts`, junto dos outros três. O disco
+discorda: `entryOf` **já** morava em `queries.ts`, não em `AgentLogin.tsx` — e não é uma tradução
+para tela, é uma busca (`report.adapters.find`) que a própria `useConnectAgent` (dentro de
+`queries.ts`) chama na `mutationFn`. `describeSpec`/`describeMethod`/`needsKey` são o oposto: puras,
+sem awareness de query, chamadas só por componente — o mesmo desenho de `pr-words.ts`, que nenhum
+hook de `queries`/`pr` importa. Mover `entryOf` para `agent-words.ts` faria a camada de dados
+(`useConnectAgent`) importar de um módulo de apresentação — inversão de dependência que o `CLAUDE.md`
+recusa (DIP). Mantido em `queries.ts`, sem tocar; `agent-words.ts` leva só os três que são de fato
+tradução.
+
+**Achado:** `AgentConfigView` e `AuthMethodView` não tinham lugar óbvio no texto da task. Pelo mesmo
+critério que a T28 usou para `ACTOR`/`CONFIDENCE`/`SCOPE_LABEL` (moram no arquivo onde nascem, os
+outros importam de lá, em vez de um sétimo arquivo): `AgentConfigView` — cujo próprio comentário já
+dizia "o que uma **linha** do rodapé precisa saber" — foi para `AgentRow.tsx`, exportada;
+`AgentPanel.tsx` e `LoginOptions.tsx` importam o tipo de lá. `AuthMethodView` foi para
+`agent-words.ts`, ao lado de `describeMethod`/`needsKey`, que são as únicas funções que a
+enxergam.
+
+`AgentLogin.tsx` ficou com **140** linhas — abaixo do teto, saiu do `LARGE_FILE_CEILING` (861 → 140,
+mesmo mecanismo do `Board.tsx`/`Conversation.tsx`/`MemoryPanel.tsx`). `AgentRow.tsx` (56),
+`ConnectPanel.tsx` (162), `AgentPanel.tsx` (163), `LoginOptions.tsx` (311) e `agent-words.ts` (58)
+nasceram sem precisar de exceção.
+
+**Achado consertado no mesmo commit:** `agent-login-css.test.ts` lê `AgentLogin.tsx` e
+`Credentials.tsx` por caminho — a mesma armadilha que `conversation-css.test.ts` (T27) e
+`memory-css.test.ts` (T28) já tinham ensinado. Sem os quatro arquivos novos na lista, o audit
+ficaria cego para `setup`, `opt`, `prep`, `dcode`, `key-in`, `acct`, `fail` e o resto do que saiu com
+eles. Corrigido lendo os seis arquivos, sem mudar nenhuma asserção.
+
+**Achado:** "o mapa da T25 tem exatamente os oito originais" não fecha ao pé da letra: `Board.tsx`
+já tinha saído do mapa **antes** da T25 medi-lo (a fase 4/T17 o encolheu primeiro), então só sete dos
+oito da Q8 ainda precisavam de exceção quando esta fase começou. Depois de `AgentLogin.tsx` saltar
+do mapa, sobram esses sete mais os dois extras que a T25 já tinha registrado como achado
+(`conversation-model.ts`, `LocalPanel.tsx`) — nove entradas no total, não oito. Nenhum item **novo**
+ficou no mapa por causa desta task, que é o que o `Done when` protege de verdade; os dois extras
+continuam sendo problema de outra decisão (mover `conversation-model.ts` para `lib/`, ou reescrever
+a Q8), não desta.
+
+Com a T29, a **fase 6 — os três grandes (T25–T29) — está inteira entregue**: o sensor de 400 linhas
+tem o mapa, e `Conversation.tsx`, `MemoryPanel.tsx` e `AgentLogin.tsx` saltaram dele, um por task.
 
 ---
 
