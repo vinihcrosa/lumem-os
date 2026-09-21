@@ -420,3 +420,99 @@ describe("regra 7 — um `index.css` por feature", () => {
     gate("CSS_IMPORTED_OUTSIDE_THE_DOOR", violations, CSS_IMPORTED_OUTSIDE_THE_DOOR);
   });
 });
+
+// -- Regra 8: teto de linhas em `features/` (`032` T25, Q8) -------------------
+//
+// Sem teto em `lib/`: uma função pura fica menor por composição, não por um
+// limite de arquivo que a corta no meio (Q8). Dentro de `features/`, acima de
+// 400 linhas um arquivo já mistura responsabilidade que as sete primeiras
+// regras não veem — um componente de mil linhas passa as quatro primeiras
+// inteiro.
+//
+// O mapa é a mesma ideia das listas-que-só-encolhem acima, só que com um
+// número em vez de presença: o valor **é** o tamanho medido no dia em que a
+// exceção entrou, e só pode ir para baixo — um arquivo que cresceu sem
+// reduzir o número aqui é exatamente o que a regra existe para pegar.
+//
+// Três entradas são desta fase (T26, T28, T29 as tiram uma por uma, até
+// sobrarem só os oito da Q8): `Conversation.tsx`, `MemoryPanel.tsx` e
+// `AgentLogin.tsx`. As outras duas são achado da T25, medido no disco:
+//
+// - `conversation-model.ts` (715) — a Q8 cita este arquivo como o exemplo de
+//   "fold puro que piora se quebrado por tamanho" para justificar **não** ter
+//   teto, mas ele mora em `features/conversation/`, não em `lib/`. Pela letra
+//   da decisão ("400 para `.ts`/`.tsx` em `features/`") ele está sujeito ao
+//   teto como qualquer outro; resolvido pelo lado que muda menos — entra no
+//   mapa como os demais, e uma mudança de endereço (para `lib/`) ou uma
+//   reescrita da Q8 é quem resolve a divergência de verdade.
+// - `LocalPanel.tsx` (444) — não estava em nenhuma lista da T25 nem da Q8; o
+//   disco tinha mais um arquivo do que o texto contava, a mesma classe de
+//   achado que a T2 já registrou para `lib/trpc.js`.
+//
+// `Board.tsx` **saiu**: a Q8 o media em 461 quando foi escrita, e a fase 4
+// (T17) já o tinha encolhido para 388 antes de esta fase medir de novo.
+const LARGE_FILE_LIMIT = 400;
+
+const LARGE_FILE_CEILING: Readonly<Record<string, number>> = {
+  "features/agent/AgentLogin.tsx": 861,
+  "features/checkout/FileTree.tsx": 640,
+  "features/checkout/FileViewer.tsx": 461,
+  "features/checkout/LocalPanel.tsx": 444,
+  "features/checkout/RunDock.tsx": 587,
+  "features/checkout/useFileBuffer.ts": 605,
+  "features/conversation/Conversation.tsx": 830,
+  "features/conversation/conversation-model.ts": 715,
+  "features/memory/MemoryPanel.tsx": 1006,
+  "features/settings/SettingsPanel.tsx": 632,
+  "features/workspace/CreateWorktreeDialog.tsx": 531,
+  "features/workspace/WorkspacePanel.tsx": 423,
+};
+
+/** Como `wc -l`: conta quebras de linha, não elementos do `split`. */
+function lineCountOf(text: string): number {
+  return (text.match(/\n/g) ?? []).length;
+}
+
+/** Uma frase por caso — cresceu, encolheu sem atualizar o mapa, ou já não precisa da exceção. */
+function sizeRemedy(path: string, lines: number, recorded: number | undefined): string | null {
+  if (recorded === undefined) {
+    if (lines <= LARGE_FILE_LIMIT) return null;
+    return (
+      `\`${path}\` tem ${lines} linhas, acima do teto de ${LARGE_FILE_LIMIT} em ` +
+      "`features/`: quebre o arquivo, ou registre a exceção em `LARGE_FILE_CEILING` " +
+      "com o tamanho medido agora."
+    );
+  }
+  if (lines > recorded) {
+    return (
+      `\`${path}\` cresceu de ${recorded} para ${lines} linhas: o mapa não aceita ` +
+      "um número maior que o já registrado — reduza o arquivo, ou atualize " +
+      "`LARGE_FILE_CEILING` para o tamanho novo, com o motivo do crescimento."
+    );
+  }
+  if (lines < recorded) {
+    return (
+      `\`${path}\` encolheu de ${recorded} para ${lines} linhas: atualize ` +
+      "`LARGE_FILE_CEILING` para o tamanho de hoje — a lista só encolhe."
+    );
+  }
+  if (lines <= LARGE_FILE_LIMIT) {
+    return (
+      `\`${path}\` tem ${lines} linhas, abaixo do teto: remova-o de ` +
+      "`LARGE_FILE_CEILING` — ele não precisa mais da exceção."
+    );
+  }
+  return null;
+}
+
+describe("regra 8 — teto de linhas em `features/`", () => {
+  it("nenhum `.ts`/`.tsx` de `features/` passa de 400 linhas fora do mapa, e o mapa só encolhe", () => {
+    const problems: string[] = [];
+    for (const file of sources) {
+      if (!file.path.startsWith("features/") || isTest(file.path)) continue;
+      const remedy = sizeRemedy(file.path, lineCountOf(file.text), LARGE_FILE_CEILING[file.path]);
+      if (remedy) problems.push(remedy);
+    }
+    expect(problems.join("\n")).toBe("");
+  });
+});

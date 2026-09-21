@@ -613,7 +613,7 @@ commit.
 
 ## Fase 6 — os três grandes · gate `pnpm gate:full`
 
-#### T25: teto de 400 no sensor, com o mapa dos oito
+#### T25: teto de 400 no sensor, com o mapa dos oito · **entregue em 2026-09-21**
 
 Regra 8: arquivo `.ts`/`.tsx` em `features/` acima de **400** linhas reprova, salvo mapa com o
 tamanho atual, que só encolhe: `SettingsPanel` 679, `FileTree` 640, `useFileBuffer` 605, `RunDock`
@@ -622,6 +622,45 @@ três desta fase até as T26–T29 os tirarem. Sem teto em `lib/` ([Q8](open-que
 
 **Done when:** passa no `HEAD`; +20 linhas em `RunDock` reprova; −20 passa e o mapa aceita o número
 menor; o mapa **não aceita** número maior.
+
+**Achado:** os oito números do texto são de quando a Q8 foi escrita; a fase 5 (T21–T24) mexeu no
+`web` inteiro entre aquele dia e este, e medir de novo no disco mudou três coisas:
+
+| Arquivo | Q8 dizia | Disco (T25) |
+|---|---|---|
+| `SettingsPanel.tsx` | 679 | 632 |
+| `FileTree.tsx` | 640 | 640 |
+| `useFileBuffer.ts` | 605 | 605 |
+| `RunDock.tsx` | 601 | 587 |
+| `CreateWorktreeDialog.tsx` | 547 | 531 |
+| `Board.tsx` | 461 | **388 — saiu do mapa** |
+| `FileViewer.tsx` | 461 | 461 |
+| `WorkspacePanel.tsx` | 450 | 423 |
+
+`Board.tsx` já tinha encolhido para 388 na fase 4 (T17), antes de a Q8 medi-lo em 461 — o número da
+pergunta já nasceu velho. Abaixo do teto, ele não entra no mapa: é o próprio mecanismo da regra 8
+funcionando (uma exceção que deixou de precisar dela é removida, não deixada para trás).
+
+**Achado:** o disco tinha **dois** arquivos que nem o texto da T25 nem a Q8 contavam:
+
+- `conversation-model.ts` (715 linhas) — a Q8 o cita como o exemplo de "fold puro que piora se
+  quebrado por tamanho" para justificar **não** ter teto em `lib/`, mas o arquivo mora em
+  `features/conversation/`, não em `lib/`. Pela letra da decisão ("400 para `.ts`/`.tsx` em
+  `features/`") ele está sujeito ao teto como qualquer outro. Resolvido pelo lado que muda menos:
+  entra no mapa como os demais — mover o arquivo para `lib/` (o que faria a isenção da Q8 valer de
+  verdade) ou reescrever a Q8 é quem resolve a divergência, e nenhuma das duas é desta task;
+- `LocalPanel.tsx` (444 linhas) — não estava em nenhuma lista. A mesma classe de achado que a T2 já
+  registrou para `lib/trpc.js`: o texto contou os arquivos que lembrava, o disco tinha mais um.
+
+**Achado:** "os três desta fase" do texto são `Conversation.tsx` (830), `MemoryPanel.tsx` (1006) e
+`AgentLogin.tsx` (861) — identificados por correspondência com as tasks que os tiram (T26/T27, T28,
+T29). O mapa desta task os inclui nesse tamanho; a T26 já reduz o de `Conversation.tsx` para 646 no
+próprio commit dela, provando o "só encolhe" entre tasks e não só dentro de uma.
+
+**Prova por mutação, como o `Done when` pede:** `+20` linhas em `RunDock.tsx` (587 → 607) reprova
+com *"o mapa não aceita um número maior que o já registrado"*; desfeito. `-20` linhas (587 → 567)
+reprova até o mapa ser atualizado para 567, e passa depois — a mesma mutação prova as duas metades
+do mecanismo. Nenhuma das duas mutações ficou no código; o mapa comitado tem os números de hoje.
 
 #### T26: `useConversationSession` — o transporte sai do componente
 
