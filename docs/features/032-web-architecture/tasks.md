@@ -933,7 +933,10 @@ tinham uso real em `.tsx`; renomeados, um commit por bloco. `.stab` **não exist
 provavelmente um resíduo de antes da faixa de abas atual, que hoje usa `.tabs-bar` de `ui/ui.css`).
 Pulado, como o texto autoriza ("se não existir mais, pule esse renome e registre o porquê") — a
 classe órfã fica no disco, sem dono, e é exatamente o tipo de achado que a T32 (sensor) vai
-nomear sozinha depois.
+nomear sozinha depois. **Não nomeou**: o `css-blocks.test.ts` da T32 cobre classe usada sem
+definição, não definição sem uso — a direção contrária. `.stab__dot--asking` foi apagada em
+commit próprio (achado 5 da revisão independente, 2026-09-21, pós-fecho); a segunda direção do
+sensor fica de fora, como a mesma revisão registrou.
 
 **Achado — `.u` não podia virar `.usage`:** a task propunha o mesmo nome do bloco pai
 (`.usage`, o rodapé de uso e custo inteiro), mas isso teria recriado a duplicação que a T30 acabou

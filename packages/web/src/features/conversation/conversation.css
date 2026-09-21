@@ -797,8 +797,7 @@
  */
 .meta--conversation { border-left: var(--border-width-thick) solid var(--color-border-subtle); padding-left: var(--space-10); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
 
-/* Aba com pedido de permissão esperando, e o mesmo sinal na sidebar. */
-.stab__dot--asking { background: var(--color-permission-pending); }
+/* O mesmo sinal na sidebar, para o pedido de permissão esperando. */
 .count--asking { background: var(--color-bg-warning-subtle); color: var(--color-permission-pending); }
 
 /*
