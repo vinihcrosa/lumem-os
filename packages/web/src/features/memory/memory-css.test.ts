@@ -19,7 +19,20 @@ import { describe, expect, it } from "vitest";
 const HERE = join(import.meta.dirname, ".");
 
 const stylesheet = readFileSync(join(HERE, "memory.css"), "utf8");
-const component = readFileSync(join(HERE, "MemoryPanel.tsx"), "utf8");
+// `032` T28 split `MemoryPanel.tsx` (então só o roteamento das abas) nos
+// seis arquivos abaixo — sem os cinco novos aqui, o audit ficaria cego para
+// as classes que saíram com eles, verde por engano, exatamente a armadilha
+// que a T27 pagou em `conversation-css.test.ts`.
+const component = [
+  "MemoryPanel.tsx",
+  "MemoryEntries.tsx",
+  "MemoryProposals.tsx",
+  "MemoryTimeline.tsx",
+  "MemoryPlaybooks.tsx",
+  "MemoryNumbers.tsx",
+]
+  .map((name) => readFileSync(join(HERE, name), "utf8"))
+  .join("\n");
 
 function defined(css: string): Set<string> {
   const names = new Set<string>();

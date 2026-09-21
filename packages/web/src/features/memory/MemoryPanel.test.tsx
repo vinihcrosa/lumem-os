@@ -5,7 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test/render.js";
 import { trpcMock as trpc } from "../../test/trpc-mock.js";
 
-import { MemoryPanel, MemoryProposals } from "./MemoryPanel.js";
+import { MemoryPanel } from "./MemoryPanel.js";
+import { MemoryProposals } from "./MemoryProposals.js";
 
 vi.mock("../../lib/trpc.js", async () => ({
   trpc: (await import("../../test/trpc-mock.js")).trpcMock,

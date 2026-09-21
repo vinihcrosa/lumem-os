@@ -6,7 +6,7 @@ import { memoryProposalsKey } from "../../lib/queryKeys.js";
 import { trpc } from "../../lib/trpc.js";
 import { Banner, Button, SectionHead } from "../../ui/index.js";
 
-import { MemoryProposals, type ProposalStatus } from "./MemoryPanel.js";
+import { MemoryProposals, type ProposalStatus } from "./MemoryProposals.js";
 import type { TaskRow } from "../tasks/index.js";
 
 

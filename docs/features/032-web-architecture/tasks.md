@@ -751,7 +751,7 @@ mesmo desenho do `memory-css.test.ts` que a T28 vai reencontrar. Sem `Composer.t
 o teste só reprova quando uma classe pedida falta na folha, e uma classe que **parou de ser pedida**
 não aciona nada. Corrigido adicionando os dois arquivos à lista, sem tocar em nenhuma asserção.
 
-#### T28: `MemoryPanel` por aba
+#### T28: `MemoryPanel` por aba · **entregue em 2026-09-21**
 
 `MemoryEntries.tsx`, `MemoryProposals.tsx` (com `PendingProposal`, `EditAndApprove`,
 `ConfirmReject`, `Conflict`, `Evidence`), `MemoryTimeline.tsx`, `MemoryPlaybooks.tsx`,
@@ -760,6 +760,50 @@ não aciona nada. Corrigido adicionando os dois arquivos à lista, sem tocar em 
 
 **Done when:** seis arquivos, nenhum acima de 400; `MemoryPanel.test.tsx` e `ProposalQueue.test.tsx`
 verdes sem mudança de asserção.
+
+**Achado:** confirmado no disco — `MemoryPanel.tsx` tinha **1006** linhas (a Q8/T25 já tinha medido
+exatamente isso), `PendingProposal`/`EditAndApprove`/`ConfirmReject`/`Conflict`/`Evidence` existiam
+com esses nomes exatos dentro dele, e `ProposalQueue.tsx` já importava `MemoryProposals` — tudo como
+o texto previa.
+
+**Achado:** o texto pede `MemoryPanel` com o `TabStrip` do design system. O disco discorda: `Tab`/
+`TabStrip` (`ui/Tab.tsx`) tem semântica de aba de **sessão** — glifo, ordinal, ponto de estado, `✕`
+de fechar — e é usado assim em `ScopePanel`. As outras duas telas com o mesmo problema de
+`MemoryPanel` (quatro abas de texto simples, sem fechar, sem estado) — `RightPanel.tsx` e
+`RunDock.tsx` — **não** usam `TabStrip`: as duas mantêm seu próprio `role="tablist"` com classes
+próprias, pelo mesmo motivo que este arquivo tinha o dele (`.mem-tabs`/`.mem-tab`, ajustadas para
+caber quatro abas em 360px — comentário que o próprio arquivo já carregava). Trocar por `TabStrip`
+aqui seria design novo, não mover código: markup diferente, CSS novo para substituir `.mem-tabs`/
+`.mem-tab` sem deixá-las órfãs, e risco real sobre o "sem mudança de asserção" que o `Done when`
+pede. Mantido o `role="tablist"` que já existia, sem tocar; a divergência fica registrada aqui em
+vez de arquitetura decidida em silêncio dentro de uma task de split.
+
+**Achado:** `ACTOR`, `CONFIDENCE` e `SCOPE_LABEL` são o mesmo vocabulário nos dois lados de onde
+foram usados no arquivo original — `Entries` e `Conflict` (dentro do que virou `MemoryProposals`)
+leem a mesma confiança e o mesmo autor da mesma entrada de memória; `Entries`, `SearchResults` e
+`Playbooks` leem o mesmo rótulo de escopo. Não é duplicação coincidente (T20) — é a mesma pergunta
+lida de dois lugares —, então as três constantes moram em `MemoryEntries.tsx`, exportadas, e
+`MemoryProposals.tsx`/`MemoryPlaybooks.tsx` importam de lá. Isso mantém "seis arquivos" em vez de
+um sétimo `memory-words.ts` que o `Done when` não previa.
+
+**Achado:** `MemoryPanel.tsx` chamava `useProposals("pending")` sem usar o resultado — nenhuma
+variável lida, nenhum componente renderizado com ele. Não é código morto: é *prefetch* silencioso,
+aquecendo o cache que `ProposalQueue` lê depois. Preservado exatamente onde estava (no roteador, não
+numa aba), porque movê-lo para dentro de `MemoryEntries` tornaria a busca **condicional** à aba
+`Memória` estar ativa — mudança de comportamento que nenhum teste cobre e que o `Done when` não
+pede.
+
+**Achado consertado no mesmo commit:** `memory-css.test.ts` lê `MemoryPanel.tsx` por caminho, com o
+mesmo desenho que `conversation-css.test.ts` (T27) já tinha ensinado a armadilha: sem os cinco
+arquivos novos na lista, o audit ficaria cego para toda classe que saiu com eles — `.mem-find`,
+`.mem-group__t`, `.mem-conflict`, `.mem-split`, `.mem-form`, `.mem-tl`, `.pb__*`, `.mem-stats`, entre
+outras. Corrigido lendo os seis arquivos, sem mudar nenhuma asserção.
+
+`MemoryPanel.tsx` ficou com **90** linhas — abaixo do teto, saiu do `LARGE_FILE_CEILING` (1006 → 90,
+mesmo mecanismo do `Board.tsx`/`Conversation.tsx`). `MemoryEntries.tsx` (265), `MemoryProposals.tsx`
+(385, depois de compactar seis `onClick`/`onCancel` de uma linha só que não mudam comportamento),
+`MemoryTimeline.tsx` (59), `MemoryPlaybooks.tsx` (106) e `MemoryNumbers.tsx` (106) nasceram sem
+precisar de exceção.
 
 #### T29: `AgentLogin` em quatro, e `agent-words.ts`
 
