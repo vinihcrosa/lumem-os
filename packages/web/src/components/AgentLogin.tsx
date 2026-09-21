@@ -3,7 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
 import { useLoginTerminal } from "../hooks/useLoginTerminal.js";
-import { agentConfigsKey, authStateKey, setupAgentsKey, setupProbeKey } from "../lib/queryKeys.js";
+import {
+  agentConfigsKey,
+  agentProbeKey,
+  authStateKey,
+  setupAgentsKey,
+  SETUP_PROBE_KEY,
+} from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Credentials } from "./Credentials.js";
 import { Banner, Button, CopyCommand, Glyph, Input } from "../ui/index.js";
@@ -161,7 +167,7 @@ interface AgentConfigView {
  */
 function useAgentProbe(config: AgentConfigView) {
   return useQuery({
-    queryKey: setupProbeKey(config.command, config.args),
+    queryKey: agentProbeKey(config.command, config.args),
     queryFn: () => trpc.setup.probe.query({ command: config.command, args: [...config.args] }),
     retry: false,
     refetchOnWindowFocus: false,
@@ -481,7 +487,7 @@ function AgentPanel({
   const probe = useAgentProbe(config);
 
   const reprobe = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: setupProbeKey() });
+    await queryClient.invalidateQueries({ queryKey: SETUP_PROBE_KEY });
   }, [queryClient]);
 
   /** O rótulo do agente: o `title` do handshake, e o nome da configuração antes dele. */
@@ -688,6 +694,9 @@ function LoginOptions({
    * login por comando, que devolvia um `ptySessionId` para o cliente acompanhar.
    */
   const attempt = useQuery({
+    // `loginId ?? ""` só existe para o tipo da chave — `enabled` abaixo nunca
+    // deixa a query correr sem `loginId`, então `["setup","authState",""]`
+    // fica no cache sem nunca disparar.
     queryKey: authStateKey(loginId ?? ""),
     queryFn: () => trpc.setup.authState.query({ loginId: loginId ?? "" }),
     enabled: loginId !== null,

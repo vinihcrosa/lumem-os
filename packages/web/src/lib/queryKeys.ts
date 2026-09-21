@@ -253,14 +253,19 @@ export function setupAgentsKey() {
 }
 
 /**
- * Sem argumento, o probe do primeiro acesso (um agente, um handshake). Com
- * comando e argumentos, o probe por configuração do rodapé — a chave precisa do
- * par para dois agentes não dividirem a resposta de um só.
+ * O probe do primeiro acesso (um agente, um handshake) — e o prefixo que
+ * `agentProbeKey` mora sob, para uma invalidação alcançar todas as
+ * configurações de uma vez.
  */
-export function setupProbeKey(command?: string, args?: readonly string[]) {
-  return command === undefined
-    ? (["setup", "probe"] as const)
-    : (["setup", "probe", command, args?.join(" ") ?? ""] as const);
+export const SETUP_PROBE_KEY = ["setup", "probe"] as const;
+
+/**
+ * O probe por configuração do rodapé. A chave precisa do par comando+argumentos
+ * para dois agentes não dividirem a resposta de um só — duas funções em vez de
+ * um argumento opcional no fim, que é a armadilha que o `testing.md` já registra.
+ */
+export function agentProbeKey(command: string, args: readonly string[]) {
+  return ["setup", "probe", command, args.join(" ")] as const;
 }
 
 export const PREFLIGHT_KEY = ["setup", "preflight"] as const;
@@ -301,8 +306,9 @@ export function usageByTaskKey(workspaceId: string) {
  * em nove arquivos diferentes. Nomeados aqui para o prefixo que se invalida e a
  * chave que se lê serem o mesmo texto: `PROJECT_DETAIL_PREFIX` é o começo de
  * `projectDetailKey`, `TASK_DETAIL_PREFIX` o de `taskDetailKey`, e assim por
- * diante — quem mexer numa função e não no prefixo vê o teste deste arquivo
- * reprovar `queryKeys.test.ts` antes de reprovar em produção.
+ * diante — quem mexer numa função e não no prefixo vê `queryKeys.test.ts`
+ * reprovar, comparando o prefixo **inteiro** e não só o primeiro elemento,
+ * antes de reprovar em produção.
  */
 export const MEMORY_PREFIX = ["memory"] as const;
 export const PR_PREFIX = ["pr"] as const;

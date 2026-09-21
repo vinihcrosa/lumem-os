@@ -1,17 +1,25 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
-import * as keys from "./queryKeys.js";
-
 /**
- * O sensor de `queryKeys.ts` (`032` T6): a lista de prefixos é fechada, e nenhum
- * deles existe só do lado de quem invalida — um prefixo que ninguém lê é a lista
- * mentindo para o outro lado.
+ * O sensor de `queryKeys.ts` (`032` T6), por texto — no molde do
+ * `architecture.test.ts`. Lê o disco em vez de repetir um mapa de exportações
+ * à mão: uma chave nova é auditada sem precisar editar este arquivo, e uma
+ * exceção que ficaria pra sempre com `[0]` mentindo sobre o prefixo inteiro
+ * não tem onde se esconder — é exatamente a lacuna que deixou `["project",
+ * "get"]` (o bug que o `cd9549d` consertou) passar num teste anterior.
  *
- * A prova de que o login **alcança** quem lê `agentConfigsKey()` é um teste de
- * componente, e por isso não mora aqui: este arquivo é `lib/`, e a regra 2 do
- * sensor (`architecture.test.ts`) proíbe `lib/` de importar tela. Ela está em
- * `components/agent-login.test.tsx`, ao lado da fixture que já monta o rodapé.
+ * A prova de que o login **alcança** quem lê `agentConfigsKey()` é um teste
+ * de componente, e por isso não mora aqui: este arquivo é `lib/`, e a regra 2
+ * do sensor proíbe `lib/` de importar tela. Ela está em
+ * `components/agent-login.test.tsx`, ao lado da fixture que já monta o
+ * rodapé.
  */
+
+const SOURCE_PATH = join(import.meta.dirname, "queryKeys.ts");
+
 const CLOSED_PREFIXES = [
   "workspace",
   "project",
@@ -31,91 +39,84 @@ const CLOSED_PREFIXES = [
   "pty",
 ] as const;
 
-/**
- * O primeiro elemento de cada chave de leitura — a chamada real, com um
- * argumento qualquer: o prefixo é literal no corpo da função, e nunca depende
- * do valor passado.
- */
-const READ_PREFIX: Readonly<Record<string, string>> = {
-  WORKSPACES_KEY: keys.WORKSPACES_KEY[0],
-  PTY_SESSIONS_KEY: keys.PTY_SESSIONS_KEY[0],
-  projectsKey: keys.projectsKey("x")[0],
-  worktreesKey: keys.worktreesKey("x")[0],
-  tasksKey: keys.tasksKey("x")[0],
-  taskDetailKey: keys.taskDetailKey("x")[0],
-  boardKey: keys.boardKey("x", "y")[0],
-  taskSettingsKey: keys.taskSettingsKey("x")[0],
-  worktreeBranchesKey: keys.worktreeBranchesKey("x")[0],
-  worktreeHostOriginsKey: keys.worktreeHostOriginsKey("x")[0],
-  projectDetailKey: keys.projectDetailKey("x")[0],
-  worktreeDetailKey: keys.worktreeDetailKey("x")[0],
-  sessionsKey: keys.sessionsKey("x", "y")[0],
-  scriptsKey: keys.scriptsKey("x", "y")[0],
-  fileListKey: keys.fileListKey("x", "y", "z")[0],
-  fileListingKey: keys.fileListingKey("x", "y", "z", undefined)[0],
-  fileReadKey: keys.fileReadKey("x", "y", "z")[0],
-  filePreviewKey: keys.filePreviewKey("x", "y", "z")[0],
-  changesKey: keys.changesKey("x", "y", "z")[0],
-  patchKey: keys.patchKey("x", "y", "z", "w")[0],
-  memoryListKey: keys.memoryListKey(null, null)[0],
-  memoryProposalsKey: keys.memoryProposalsKey("pending")[0],
-  memoryCoreKey: keys.memoryCoreKey(null, null)[0],
-  memorySearchKey: keys.memorySearchKey(null, null, "x")[0],
-  MEMORY_DECISIONS_KEY: keys.MEMORY_DECISIONS_KEY[0],
-  MEMORY_USAGE_KEY: keys.MEMORY_USAGE_KEY[0],
-  MEMORY_SETTINGS_KEY: keys.MEMORY_SETTINGS_KEY[0],
-  usageByProjectKey: keys.usageByProjectKey("x", "7d")[0],
-  usageByWorktreeKey: keys.usageByWorktreeKey("x", "7d")[0],
-  usageByProjectAndAgentKey: keys.usageByProjectAndAgentKey("x", "7d")[0],
-  playbooksKey: keys.playbooksKey(null, false)[0],
-  cloneJobsKey: keys.cloneJobsKey("x")[0],
-  prStatusKey: keys.prStatusKey("x")[0],
-  prMarksKey: keys.prMarksKey("x")[0],
-  prDraftKey: keys.prDraftKey("x")[0],
-  HEALTH_KEY: keys.HEALTH_KEY[0],
-  agentConfigsKey: keys.agentConfigsKey()[0],
-  secretsKey: keys.secretsKey()[0],
-  setupAgentsKey: keys.setupAgentsKey()[0],
-  setupProbeKey: keys.setupProbeKey()[0],
-  PREFLIGHT_KEY: keys.PREFLIGHT_KEY[0],
-  authStateKey: keys.authStateKey("x")[0],
-  projectInspectKey: keys.projectInspectKey("x")[0],
-  worktreePlanKey: keys.worktreePlanKey("x", "y")[0],
-  parseSourceKey: keys.parseSourceKey("x", "y", "z")[0],
-  taskByWorktreeKey: keys.taskByWorktreeKey("x")[0],
-  sessionsByTaskKey: keys.sessionsByTaskKey("x")[0],
-  usageByTaskKey: keys.usageByTaskKey("x")[0],
-};
+interface Declaration {
+  readonly name: string;
+  /** Um array por `[` achado no corpo — pode ser mais de um (ternário). */
+  readonly arrays: readonly (readonly string[])[];
+}
 
-/** Os prefixos que só existem do lado de quem invalida. */
-const INVALIDATION_PREFIX: Readonly<Record<string, string>> = {
-  MEMORY_PREFIX: keys.MEMORY_PREFIX[0],
-  PR_PREFIX: keys.PR_PREFIX[0],
-  FILES_PREFIX: keys.FILES_PREFIX[0],
-  CHANGES_PREFIX: keys.CHANGES_PREFIX[0],
-  WORKTREE_PREFIX: keys.WORKTREE_PREFIX[0],
-  SESSION_PREFIX: keys.SESSION_PREFIX[0],
-  SECRETS_PREFIX: keys.SECRETS_PREFIX[0],
-  PROJECT_DETAIL_PREFIX: keys.PROJECT_DETAIL_PREFIX[0],
-  TASK_DETAIL_PREFIX: keys.TASK_DETAIL_PREFIX[0],
-  TASK_BOARD_PREFIX: keys.TASK_BOARD_PREFIX[0],
-  TASK_SETTINGS_PREFIX: keys.TASK_SETTINGS_PREFIX[0],
-};
+/**
+ * Os elementos de string no começo de um array-literal, a partir de `index`
+ * (logo após o `[`). Para no primeiro elemento que não é string — variável,
+ * `...spread`, `]` vazio — porque é isso que separa "prefixo" de "parâmetro".
+ */
+function leadingLiterals(text: string, index: number): string[] {
+  const literals: string[] = [];
+  let cursor = index;
+  for (;;) {
+    const match = /^\s*"([^"]+)"\s*,?/.exec(text.slice(cursor));
+    if (!match) return literals;
+    literals.push(match[1]!);
+    cursor += match[0].length;
+  }
+}
+
+/**
+ * Todo `export const`/`export function` do arquivo, com os arrays-literais
+ * que o corpo dele contém. Comentários saem primeiro — sem isso, um `["task",
+ * "board"]` de prosa dentro de um `/** ... *​/` seria lido como declaração.
+ */
+function declarations(): readonly Declaration[] {
+  const text = readFileSync(SOURCE_PATH, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const headers = [...text.matchAll(/export (?:const|function) (\w+)/g)];
+  return headers.map((header, index) => {
+    const start = header.index! + header[0].length;
+    const end = index + 1 < headers.length ? headers[index + 1]!.index! : text.length;
+    const body = text.slice(start, end);
+    const arrays = [...body.matchAll(/\[/g)]
+      .map((bracket) => leadingLiterals(body, bracket.index! + 1))
+      .filter((literals) => literals.length > 0);
+    return { name: header[1]!, arrays };
+  });
+}
 
 describe("os prefixos de queryKeys.ts", () => {
   it("toda chave exportada começa por um prefixo da lista fechada", () => {
-    for (const [name, prefix] of [
-      ...Object.entries(READ_PREFIX),
-      ...Object.entries(INVALIDATION_PREFIX),
-    ]) {
-      expect(CLOSED_PREFIXES, `${name} usa o prefixo "${prefix}"`).toContain(prefix);
+    const problems: string[] = [];
+    for (const { name, arrays } of declarations()) {
+      for (const array of arrays) {
+        if (!CLOSED_PREFIXES.includes(array[0] as (typeof CLOSED_PREFIXES)[number])) {
+          problems.push(`\`${name}\` usa o prefixo "${array[0]}", fora da lista fechada.`);
+        }
+      }
     }
+    expect(problems.join("\n")).toBe("");
   });
 
-  it("nenhum prefixo existe só em invalidação", () => {
-    const read = new Set(Object.values(READ_PREFIX));
-    for (const [name, prefix] of Object.entries(INVALIDATION_PREFIX)) {
-      expect(read.has(prefix), `${name}: nenhuma chave de leitura usa "${prefix}"`).toBe(true);
+  it("nenhum `*_PREFIX` existe só do lado de quem invalida", () => {
+    const all = declarations();
+    const reads = all.filter((d) => !d.name.endsWith("_PREFIX"));
+    const prefixes = all.filter((d) => d.name.endsWith("_PREFIX"));
+
+    const problems: string[] = [];
+    for (const { name, arrays } of prefixes) {
+      for (const prefix of arrays) {
+        // O prefixo inteiro precisa ser o começo de alguma chave de leitura —
+        // não só o primeiro elemento, que é onde `["project", "get"]" no
+        // lugar de `["project", "detail"]` passaria sem ser notado.
+        const reached = reads.some((read) =>
+          read.arrays.some(
+            (array) =>
+              array.length >= prefix.length && prefix.every((el, i) => el === array[i]),
+          ),
+        );
+        if (!reached) {
+          problems.push(
+            `\`${name}\` = ${JSON.stringify(prefix)} não é prefixo de nenhuma chave de leitura.`,
+          );
+        }
+      }
     }
+    expect(problems.join("\n")).toBe("");
   });
 });

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { agentConfigsKey, setupProbeKey } from "../lib/queryKeys.js";
+import { agentConfigsKey, SETUP_PROBE_KEY } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import {
   Banner,
@@ -42,7 +42,7 @@ export function HandshakeStep({ onNext, onBack, onSkip }: HandshakeStepProps) {
   const queryClient = useQueryClient();
 
   const probe = useQuery({
-    queryKey: setupProbeKey(),
+    queryKey: SETUP_PROBE_KEY,
     queryFn: () => trpc.setup.probe.query(),
     // One handshake per visit. It costs a process, not a token, and repeating it
     // on every focus change would spawn adapters behind the user's back.
