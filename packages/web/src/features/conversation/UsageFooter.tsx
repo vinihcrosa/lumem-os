@@ -102,20 +102,20 @@ export function UsageFooter({ usage, now = Date.now() }: UsageFooterProps) {
       )}
 
       <div className="usage">
-        <span className="u">
-          <span className="u__k">janela</span>
+        <span className="usage-stat">
+          <span className="usage-stat__k">janela</span>
           {formatTokens(usage.used)} / {formatTokens(usage.size)}
           <Meter fraction={percent(usage.used, usage.size)} />
         </span>
 
-        <span className={`u${usage.cost ? " u--cost" : ""}`}>
-          <span className="u__k">turno</span>
+        <span className={`usage-stat${usage.cost ? " usage-stat--cost" : ""}`}>
+          <span className="usage-stat__k">turno</span>
           {usage.cost ? formatCost(usage.cost.amount, usage.cost.currency) : "—"}
           {/* The session total only appears once it differs from the turn's: two
               identical numbers side by side read as a rendering mistake. */}
           {usage.currency && usage.totalCost > (usage.cost?.amount ?? 0) && (
             <>
-              <span className="u__k">sessão</span>
+              <span className="usage-stat__k">sessão</span>
               {formatCost(usage.totalCost, usage.currency)}
             </>
           )}
@@ -126,8 +126,8 @@ export function UsageFooter({ usage, now = Date.now() }: UsageFooterProps) {
         {rateLimit && (
           // No modifier for `quiet`: quiet is what `.usage` already is, and a class
           // that restates the default is a second place to change one colour.
-          <span className={`u${tone === "quiet" ? "" : ` u--${tone}`}`}>
-            <span className="u__k">assinatura</span>
+          <span className={`usage-stat${tone === "quiet" ? "" : ` usage-stat--${tone}`}`}>
+            <span className="usage-stat__k">assinatura</span>
             {Math.round(rateLimit.utilization * 100)}%
             <Meter fraction={percent(rateLimit.utilization, 1)} />
             {rateLimit.isUsingOverage

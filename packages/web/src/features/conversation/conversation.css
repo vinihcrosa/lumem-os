@@ -441,8 +441,15 @@
   font: var(--text-mono-sm);
   color: var(--color-usage-quiet);
 }
-.u { display: inline-flex; align-items: center; gap: var(--space-6); white-space: nowrap; }
-.u__k { font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; color: var(--color-text-tertiary); }
+/*
+ * `.usage-stat`, não `.usage`: o texto da task pedia o mesmo nome do rodapé
+ * (`.usage`), mas o rodapé já é um bloco com esse nome três linhas acima — as
+ * duas coisas duplicadas teriam sido exatamente o que a T30 acabou de tirar
+ * de `.empty`/`.meta`. `.usage-stat` é uma entrada do rodapé (janela, turno
+ * ou assinatura), nunca o rodapé inteiro.
+ */
+.usage-stat { display: inline-flex; align-items: center; gap: var(--space-6); white-space: nowrap; }
+.usage-stat__k { font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; color: var(--color-text-tertiary); }
 .meter { flex: none; width: calc(var(--space-64) + var(--space-16)); height: var(--space-4); border-radius: var(--radius-full); background: var(--color-bg-active); overflow: hidden; }
 /*
  * `display: block` não é detalhe: `.meter__f` é um span, e span inline ignora
@@ -450,9 +457,9 @@
  * inclusive 94%. Só apareceu ao olhar o pixel.
  */
 .meter__f { display: block; height: 100%; width: var(--w); background: currentColor; }
-.u--warn { color: var(--color-usage-warn); }
-.u--over { color: var(--color-usage-over); }
-.u--cost { color: var(--color-usage-cost); }
+.usage-stat--warn { color: var(--color-usage-warn); }
+.usage-stat--over { color: var(--color-usage-over); }
+.usage-stat--cost { color: var(--color-usage-cost); }
 .usage__spacer { flex: 1; }
 /* Overage é o aviso que chega ANTES da fatura: sai do rodapé e vira faixa. */
 .overage {

@@ -93,8 +93,8 @@ describe("the meter starts quiet", () => {
 
     // Quiet has no class of its own: it is what `.usage` already is, and a
     // modifier restating the default would be a second place to change one colour.
-    expect(container.querySelector(".u--warn")).toBeNull();
-    expect(container.querySelector(".u--over")).toBeNull();
+    expect(container.querySelector(".usage-stat--warn")).toBeNull();
+    expect(container.querySelector(".usage-stat--over")).toBeNull();
     expect(screen.getByText("31%", { exact: false })).toBeInTheDocument();
   });
 
@@ -106,7 +106,7 @@ describe("the meter starts quiet", () => {
       />,
     );
 
-    expect(container.querySelector(".u--warn")).not.toBeNull();
+    expect(container.querySelector(".usage-stat--warn")).not.toBeNull();
   });
 
   it("stays quiet when the agent reports no threshold at all", () => {
@@ -155,7 +155,7 @@ describe("overage leaves the footer", () => {
     // testing-library matches only a node's *direct* text children joined
     // together. Changing the markup to please the query would mean the port no
     // longer matches the design.
-    expect(document.querySelector(".u--over")).toHaveTextContent("em overage");
+    expect(document.querySelector(".usage-stat--over")).toHaveTextContent("em overage");
     expect(document.querySelector(".usage")).not.toHaveTextContent(/reseta/);
   });
 });
@@ -164,7 +164,7 @@ describe("cost", () => {
   it("shows what the turn cost", () => {
     render(<UsageFooter usage={usage()} now={NOW} />);
 
-    expect(document.querySelector(".u--cost")).toHaveTextContent("US$ 0,2354");
+    expect(document.querySelector(".usage-stat--cost")).toHaveTextContent("US$ 0,2354");
   });
 
   it("shows a dash for an agent that reports no money", () => {
@@ -172,13 +172,13 @@ describe("cost", () => {
     render(<UsageFooter usage={usage({ cost: null, totalCost: 0, currency: null })} now={NOW} />);
 
     expect(screen.getByText("—")).toBeInTheDocument();
-    expect(document.querySelector(".u--cost")).toBeNull();
+    expect(document.querySelector(".usage-stat--cost")).toBeNull();
   });
 
   it("adds the session total once it differs from the turn's", () => {
     render(<UsageFooter usage={usage({ totalCost: 14.26 })} now={NOW} />);
 
-    expect(document.querySelector(".u--cost")).toHaveTextContent("US$ 14,2600");
+    expect(document.querySelector(".usage-stat--cost")).toHaveTextContent("US$ 14,2600");
     expect(screen.getByText("sessão")).toBeInTheDocument();
   });
 
