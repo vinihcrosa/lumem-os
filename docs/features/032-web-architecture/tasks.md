@@ -904,7 +904,7 @@ define `.empty {}` — um **terceiro** bloco, com `flex`/`justify-content:center
 diferente dos outros dois. A task só cobria `conversation.css`; fica registrado para a T32 (sensor)
 ou uma task futura resolver.
 
-#### T31: os dez blocos por extenso
+#### T31: os dez blocos por extenso · **entregue em 2026-09-21**
 
 `.tc` → `.tool-card`, `.u` → `.usage`, `.mopt` → `.mode-option`, `.mmenu` → `.mode-menu`,
 `.stab` → `.session-tab`, `.tdet` → `.task-detail`, `.tprov` → `.task-provenance`, `.tsess` →
@@ -914,6 +914,42 @@ renome fica legível.
 
 **Done when:** `grep -rn 'className="\(tc\|u\|mopt\|mmenu\|stab\|tdet\|tprov\|tsess\|tstat\|pq-item\)[ "]'`
 vazio; nenhum bloco de uma ou duas letras em `**/*.css`; `gate:quick` verde.
+
+**Achado — nove renomes feitos, um pulado:** medido no disco antes de cada um, como o texto pede.
+`.tc`, `.u`, `.mopt`, `.mmenu`, `.tdet`, `.tprov`, `.tsess`, `.tstat` e `.pq-item` existiam e
+tinham uso real em `.tsx`; renomeados, um commit por bloco. `.stab` **não existia mais como bloco**
+— só sobrava `.stab__dot--asking`, órfã (nenhum `.tsx` do repositório pede `stab` ou `stab__dot`;
+provavelmente um resíduo de antes da faixa de abas atual, que hoje usa `.tabs-bar` de `ui/ui.css`).
+Pulado, como o texto autoriza ("se não existir mais, pule esse renome e registre o porquê") — a
+classe órfã fica no disco, sem dono, e é exatamente o tipo de achado que a T32 (sensor) vai
+nomear sozinha depois.
+
+**Achado — `.u` não podia virar `.usage`:** a task propunha o mesmo nome do bloco pai
+(`.usage`, o rodapé de uso e custo inteiro), mas isso teria recriado a duplicação que a T30 acabou
+de fechar em `.empty`/`.meta` — dois blocos de primeiro nível chamados `.usage` no mesmo arquivo.
+`.u` é uma ENTRADA do rodapé (janela, turno, assinatura), não o rodapé; renomeado para
+`.usage-stat`, que não colide.
+
+**Achado — reuso cruzado de feature, pego por grep e não pela lista de arquivos da task:**
+`.tc__twist` também vivia em `PlanCard.tsx` (botão de recolher, mesmo desenho do cartão de
+ferramenta); `.tprov__g` e `.tstat__dot` também viviam em `ProposalQueue.tsx` (memory) e
+`WorktreePanel.tsx` (checkout) respectivamente, emprestando o glifo/ponto de `tasks.css`. Nenhum
+dos três está na lista `Where` desta feature por nome, mas a mudança de CSS os quebraria em
+silêncio — corrigidos junto, no mesmo commit do bloco correspondente.
+
+**Achado — e2e também pedia `.tc`:** `e2e/acp-conversation.spec.ts` usa `.tc`, `.tc__name`,
+`.tc__st` e o regex `/tc--ok/` como locator do Playwright. Fora do que `gate:quick` roda (a fase
+declara caminho A, sem `gate:full`), mas quebrado pela minha própria mudança se eu não tocasse —
+corrigido no mesmo commit do bloco `.tc`.
+
+**Achado — `--tc` fica como está:** a custom property `--tc` (o hexadecimal do cartão de
+ferramenta, `var(--tc)`) não é bloco de CSS, é variável — fora do escopo do renome de classe.
+`conversation-css.test.ts` já a trata como exceção nomeada (junto de `--w`), e continua tratando.
+
+**Achado — duas menções históricas não tocadas:** os comentários em `setup-css.test.ts` e
+`conversation-css.test.ts` que narram o incidente onde `.tc--cancelled` sumiu num porte anterior
+continuam citando o nome antigo de propósito — descrevem um fato que aconteceu quando a classe se
+chamava assim; reescrever a história para usar o nome novo seria revisionismo, não correção.
 
 #### T32: o sensor de CSS — duplicado e órfã
 
