@@ -70,6 +70,10 @@
   background: var(--color-bg-hover);
   color: var(--color-text-primary);
 }
+/* Portadas de `features/conversation/conversation.css` (T30) — variante de
+   primitiva mora com a primitiva, não com a primeira tela que a desenhou. */
+.btn--brand { background: var(--color-bg-brand); border-color: var(--color-bg-brand); color: var(--color-text-on-brand); }
+.btn--warn { background: none; border-color: var(--color-permission-pending); color: var(--color-permission-pending); }
 .btn--sm {
   height: var(--size-control-sm);
   padding: 0 var(--space-8);

@@ -416,9 +416,9 @@
 .perm__why { font: var(--text-body-sm); color: var(--color-text-primary); }
 .perm__opts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
 /* `.kbd` mora em `ui/ui.css`: o fluxo de primeiro acesso pede a mesma dica de
-   tecla, e dica de tecla é do app, não da conversa. */
-.btn--brand { background: var(--color-bg-brand); border-color: var(--color-bg-brand); color: var(--color-text-on-brand); }
-.btn--warn { background: none; border-color: var(--color-permission-pending); color: var(--color-permission-pending); }
+   tecla, e dica de tecla é do app, não da conversa. `.btn--brand` e `.btn--warn`
+   mudaram de endereço pelo mesmo motivo — variante de `.btn` mora ao lado das
+   outras (T30). */
 
 /* ---------------------------------------------- uso e custo (F2.7) */
 /*
@@ -745,11 +745,24 @@
  * Sessão nova não é tela em branco: ela custa ~39k tokens de system prompt
  * antes de qualquer palavra nossa (medido no spike), e isso é a primeira
  * coisa que o usuário merece saber ao abrir a aba.
+ *
+ * `.empty` é a primitiva de `ui/ui.css` — o quadro tracejado das listas
+ * vazias. Aqui ela some (sem caixa, sem borda) e centraliza um convite maior;
+ * `.empty--conversation` é só o que muda, nunca uma segunda definição do
+ * bloco (T30).
  */
-.empty { display: grid; justify-items: center; align-content: center; gap: var(--space-8); padding: var(--space-48) var(--space-20); text-align: center; }
-.empty__glyph { font-size: var(--size-icon-lg); color: var(--color-turn-agent); }
-.empty__title { font: var(--text-heading-md); color: var(--color-text-primary); }
-.empty__sub { font: var(--text-body-md); color: var(--color-text-tertiary); max-width: var(--size-terminal-min); }
+.empty.empty--conversation {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--space-8);
+  padding: var(--space-48) var(--space-20);
+  border: none;
+  text-align: center;
+}
+.empty--conversation .empty__glyph { font-size: var(--size-icon-lg); color: var(--color-turn-agent); }
+.empty--conversation .empty__title { font: var(--text-heading-md); color: var(--color-text-primary); }
+.empty--conversation .empty__sub { font: var(--text-body-md); color: var(--color-text-tertiary); max-width: var(--size-terminal-min); }
 
 /* Falha de lançamento é resposta de domínio, não stack trace (F1.6). */
 .fail { display: grid; gap: var(--space-8); padding: var(--space-12); background: var(--color-bg-danger-subtle); border: 1px solid var(--color-border-danger); border-radius: var(--radius-md); }
@@ -764,11 +777,18 @@
  */
 .unknown { border-left: var(--border-width-thick) solid var(--color-border-default); padding-left: var(--space-10); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
 /*
- * Mesma forma, outro significado: `.meta` é o que a SESSÃO diz de si — hoje, o
- * núcleo da memória que entrou no primeiro turno. Separado de `.unknown` porque
- * um dia um deles vai querer mudar sem o outro.
+ * Mesma forma que `.unknown`, outro significado: o texto que a SESSÃO diz de
+ * si — hoje, o núcleo da memória que entrou no primeiro turno. Separado de
+ * `.unknown` porque um dia um deles vai querer mudar sem o outro.
+ *
+ * Não é modificador de `.meta` (`ui/ui.css`): aquele é a grade `dl`/`dt`/`dd`
+ * de metadados, e este é um `div` de texto corrido — mesmo nome no protótipo,
+ * forma diferente. Combinar as duas quebraria o layout (o
+ * `grid-template-columns: max-content 1fr` da grade sobre um único nó de
+ * texto). `.meta--conversation` é nome próprio, não uma variante da grade
+ * (T30).
  */
-.meta { border-left: var(--border-width-thick) solid var(--color-border-subtle); padding-left: var(--space-10); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.meta--conversation { border-left: var(--border-width-thick) solid var(--color-border-subtle); padding-left: var(--space-10); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
 
 /* Aba com pedido de permissão esperando, e o mesmo sinal na sidebar. */
 .stab__dot--asking { background: var(--color-permission-pending); }

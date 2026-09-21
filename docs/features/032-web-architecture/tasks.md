@@ -863,7 +863,7 @@ tem o mapa, e `Conversation.tsx`, `MemoryPanel.tsx` e `AgentLogin.tsx` saltaram 
 
 ## Fase 7 — o CSS · gate `pnpm gate:quick` e `pnpm build-storybook` · **caminho A**
 
-#### T30: variante de primitiva volta para a primitiva; bloco duplicado morre
+#### T30: variante de primitiva volta para a primitiva; bloco duplicado morre · **entregue em 2026-09-21**
 
 `.btn--brand` e `.btn--warn` saem de `conversation.css` para `ui.css`, ao lado das outras
 variantes de `.btn`. `.empty` e `.meta` deixam de existir em `conversation.css` — o que
@@ -871,6 +871,38 @@ variantes de `.btn`. `.empty` e `.meta` deixam de existir em `conversation.css` 
 
 **Done when:** nenhum bloco de primeiro nível definido em dois arquivos (a T32 o prova por teste);
 os 119 pares de `contrast.ts` intactos.
+
+**Achado:** `.btn--brand`/`.btn--warn` estão mortos — nenhum `.tsx` do repositório os pede como
+`className` (só um comentário em `PermissionRequest.tsx` os cita, explicando por que o botão de
+confirmação usa `primary` em vez deles). Movidos mesmo assim, como o texto pede: o lugar de uma
+variante de `.btn` é ao lado das outras, usada ou não.
+
+**Achado:** `.empty` (ui.css) é um quadro tracejado, coluna, com `.empty__title` só; o de
+`conversation.css` era grid centralizado com `.empty__glyph`/`.empty__sub` a mais. Virou
+`.empty.empty--conversation` — seletor composto, não dois nomes soltos — porque no bundle real
+(`pnpm build`, conferido) `ui.css` sai **depois** de `conversation.css`: duas regras `.empty {}` de
+mesma especificidade dariam a palavra final para `ui.css`, não para quem pediu a mudança por
+último. `.empty__glyph`/`.empty__title`/`.empty__sub` passaram a viver sob `.empty--conversation`
+(escopados), para o `.empty__title` diferente de `ui.css` não colidir com o de `conversation.css`.
+
+**Achado:** `.meta` (ui.css) é uma grade `dl`/`dt`/`dd` de metadados (`MetaGrid.tsx`); o de
+`conversation.css` é um `div` de texto corrido, mesma forma que `.unknown`. Não é a mesma
+primitiva com um ajuste visual — é uma colisão de nome vinda de dois protótipos diferentes.
+Forçar `.meta` como base (`grid-template-columns: max-content 1fr`) sobre um único nó de texto
+quebraria o layout. Renomeado para `.meta--conversation`, usado sozinho (sem a base `.meta`) — o
+mesmo padrão que `.ctx-task--none` já usa em `tasks.css`. Divergência do texto da task, que sugeria
+o mesmo tratamento de `.empty` para os dois; registrado aqui em vez de forçar em silêncio.
+
+**Achado:** `defined()` em `conversation-css.test.ts` só enxergava a primeira classe de um seletor
+composto (`.empty.empty--conversation` — o segundo `.` não é precedido de espaço/vírgula/`>`).
+Sem o ajuste, `empty--conversation` cairia como "pedida e não definida". Corrigido para decompor a
+cadeia inteira, sem enfraquecer a checagem de número decimal que a função já fazia (`16.5px`
+continua não virando classe).
+
+**Achado (fora do escopo desta task, não corrigido):** `features/checkout/right-panel.css` também
+define `.empty {}` — um **terceiro** bloco, com `flex`/`justify-content:center`/padding `24 16`,
+diferente dos outros dois. A task só cobria `conversation.css`; fica registrado para a T32 (sensor)
+ou uma task futura resolver.
 
 #### T31: os dez blocos por extenso
 

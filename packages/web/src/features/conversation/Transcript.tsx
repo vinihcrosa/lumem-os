@@ -184,16 +184,18 @@ function BlockView({
         </>
       );
     case "note":
-      // `.unknown`, not `.meta`: the prototype keeps two classes because they say
-      // different things — an event nobody recognised, and something the session
-      // reports about itself. This is the first. Grey, in place, and never thrown
-      // (D3); silence is what makes a tab look stuck for no reason.
+      // `.unknown`, not `.meta--conversation`: the prototype keeps two classes
+      // because they say different things — an event nobody recognised, and
+      // something the session reports about itself. This is the first. Grey, in
+      // place, and never thrown (D3); silence is what makes a tab look stuck for
+      // no reason.
       return <div className="unknown">{block.text}</div>;
     case "meta":
-      // `.meta`, e não `.unknown`: a sessão contando o que ela fez não é um
-      // evento que ninguém reconheceu. Mesma forma, outro significado — o
-      // protótipo mantém as duas classes justamente por isso.
-      return <div className="meta">{block.text}</div>;
+      // `.meta--conversation`, não `.unknown`: a sessão contando o que ela fez
+      // não é um evento que ninguém reconheceu. Renomeado na T30: `.meta` já
+      // existe em `ui/ui.css` como a grade de metadados (`dl`/`dt`/`dd`) — mesmo
+      // nome, forma diferente.
+      return <div className="meta--conversation">{block.text}</div>;
   }
 }
 
@@ -206,7 +208,7 @@ function BlockView({
  */
 function EmptyConversation({ ready }: { ready: boolean }) {
   return (
-    <div className="empty">
+    <div className="empty empty--conversation">
       <span className="empty__glyph" aria-hidden="true">
         ◆
       </span>

@@ -40,11 +40,21 @@ const components = read(
   "SlashMenu.tsx",
 );
 
-/** Selectors this stylesheet defines, at any position in a rule. */
+/**
+ * Selectors this stylesheet defines, at any position in a rule — including
+ * every class chained onto one compound selector (`.empty.empty--conversation`,
+ * T30's primitive-plus-modifier). A plain boundary scan sees only the first
+ * class of the chain, because the second `.` is glued to the class before it,
+ * not to whitespace or a comma.
+ */
 function defined(css: string): Set<string> {
-  return new Set(
-    [...css.matchAll(/(?:^|[\s,>])\.([a-zA-Z0-9_-]+)/gm)].map((match) => match[1]!),
-  );
+  const names = new Set<string>();
+  for (const chain of css.matchAll(/(?:^|[\s,>])((?:\.[a-zA-Z_-][a-zA-Z0-9_-]*)+)/gm)) {
+    for (const cls of chain[1]!.matchAll(/\.([a-zA-Z_-][a-zA-Z0-9_-]*)/g)) {
+      names.add(cls[1]!);
+    }
+  }
+  return names;
 }
 
 /**
