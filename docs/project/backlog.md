@@ -718,6 +718,29 @@ tipo pega — `no-floating-promises` à frente, num daemon cheio de `async` disp
 **De onde veio:** [dev-harness T9](../features/024-dev-harness/tasks.md) · **Volta quando:** a medição da Q2
 apontar `oxlint`, ou quando aparecer o primeiro bug de promessa não-aguardada em produção.
 
+### Eventos do daemon para `agent_config` e `secrets` — `P`
+
+O `invalidateFor` do web não conhece `agentConfig` nem `secrets` porque o daemon não emite
+`agent_config.changed` nem `secret.changed`. Hoje o login e a credencial só alcançam as outras telas
+pela invalidação manual de quem escreveu — que a fase 1 da `032` centraliza, mas não substitui. Uma
+segunda aba **não** vê o login feito na primeira.
+
+**De onde veio:** [032 fase 1, T5](../features/032-web-architecture/tasks.md) · **Volta quando:** a
+primeira tela que precisar ver um login feito em outra aba, ou o primeiro relato de *"conectei e a
+lista de agentes não mudou"*.
+
+### CSS Modules no web — `M`
+
+A [Q2 da `032`](../features/032-web-architecture/open-questions.md) escolheu a cascata organizada —
+teste de bloco duplicado e de classe órfã — contra CSS Modules. Modules ganharia colisão e órfã como
+erro de compilação; perdeu porque três leitoras dependem do nome estável da classe: os dez
+`*-css.test.ts`, o `contrast.ts` (119 pares) e o agentation. Se um dia for, **vira ADR**: passa nos
+três testes.
+
+**De onde veio:** [032 Q2](../features/032-web-architecture/open-questions.md) · **Volta quando:**
+uma segunda equipe ou um segundo tema no `web`, ou a primeira colisão de bloco que o sensor da T32
+não pegar.
+
 ### O adaptador como dependência do pacote publicado — `G`
 
 O [ADR de 2026-09-08](../adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md) fez o daemon ser

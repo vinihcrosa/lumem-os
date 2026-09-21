@@ -1351,6 +1351,40 @@ aquilo de resultado.
 daemon (`toBe(12)`) e não na tela. A regra geral: **todo teste de transição precisa provar o estado
 de partida**, senão ele testa o default.
 
+### Duas chaves de cache para o mesmo dado, e nenhum teste comparava o prefixo inteiro
+
+**Sintoma:** `useLiveState.ts` invalidava `["project", "get"]` a cada `project.changed`, e três telas
+(`LocalPanel`, `WorktreePanel`, `setup/Done`) liam `["project", "get", id]` inline — enquanto
+`useScopeIds.ts` já lia pela `projectDetailKey()` existente, `["project", "detail", id]`. Um evento do
+daemon nunca alcançava o detalhe do projeto, e nada quebrava: são duas chaves, cada uma coerente
+consigo mesma.
+
+**Causa:** a `032` fase 1 centralizou as chaves de leitura sem comparar contra o que já existia — três
+arquivos ganharam `projectDetailKey()`, e a invalidação continuou com o literal antigo. `["project",
+"get"]` e `["project", "detail"]` compartilham o primeiro elemento, e o primeiro teste escrito para
+`queryKeys.ts` comparava só `[0]` de cada chave — a mutação que trocava um prefixo pelo outro passava.
+
+**Conserto:** o teste de `queryKeys.ts` (`lib/queryKeys.test.ts`) lê o arquivo por texto e compara o
+**prefixo inteiro**, elemento a elemento, contra a chave de leitura que deveria alcançar — não só o
+primeiro. A regra: **um sensor de prefixo que só olha `[0]` é um sensor que não olha o prefixo.**
+
+### `throw` dentro do `onData` de uma assinatura tRPC mata a assinatura, não o evento
+
+**Sintoma:** nenhum, até o primeiro evento que o cliente não reconhece — e nesse instante, silêncio
+total: a aba para de reagir a qualquer mudança do daemon, sem erro na tela.
+
+**Causa:** o `default` exaustivo de `invalidateFor` (a prova de que uma variante nova de `LumemEvent`
+não passa em silêncio) dava `throw`. O `onData` de `trpc.events.onChange.subscribe` corre dentro do
+`for await` do `httpSubscriptionLink`; uma exceção ali fecha o iterador e sobe como `observer.error` —
+e a reconexão automática só cobre erro de **transporte**, não erro do consumidor. Um bundle web em
+cache mais velho que o daemon perde toda invalidação ao vivo no primeiro evento novo.
+
+**Conserto:** o `default` passou a invalidar tudo e avisar (`console.warn`) em vez de lançar — o mesmo
+gesto que a reconexão já faz quando não sabe o que mudou. A exaustividade no `tsc` continua (a
+atribuição a `never` falha se `LumemEvent` ganhar variante sem `case`); só o comportamento em execução
+mudou. A regra: **exaustividade que vive dentro de um callback de stream nunca lança — o consumidor
+não pode ser quem decide que a conexão acabou.**
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
