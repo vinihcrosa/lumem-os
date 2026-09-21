@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { stripComments } from "../../test/css.js";
+
 /**
  * A auditoria de porte do quadro, nas duas direções (`028` T8–T11).
  *
@@ -23,10 +25,6 @@ const stylesheet = readFileSync(join(HERE, "board.css"), "utf8");
 const read = (name: string): string => readFileSync(join(HERE, name), "utf8");
 
 const components = ["Board.tsx", "TaskCard.tsx", "TaskSeal.tsx"].map(read).join("\n");
-
-function stripComments(css: string): string {
-  return css.replace(/\/\*[\s\S]*?\*\//g, "");
-}
 
 function defined(css: string): Set<string> {
   const names = new Set<string>();

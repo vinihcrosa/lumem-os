@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { stripComments } from "../test/css.js";
+
 /**
  * A auditoria de porte do modal, nas duas direções.
  *
@@ -50,10 +52,6 @@ const consumers = ["Modal.tsx"]
     ["CredentialDialog.tsx"].map((name) => readFileSync(join(AGENT, name), "utf8")),
   )
   .join("\n");
-
-function stripComments(css: string): string {
-  return css.replace(/\/\*[\s\S]*?\*\//g, "");
-}
 
 function defined(css: string): Set<string> {
   const names = new Set<string>();

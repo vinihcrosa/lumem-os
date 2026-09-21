@@ -3,6 +3,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { AcpServerMessage } from "@lumem/shared";
 
 import { useAwaitingPermission } from "../../hooks/useAwaitingPermission.js";
+import { absoluteStamp } from "../../lib/relative-time.js";
 import {
   emptyConversation,
   reduceConversation,
@@ -691,19 +692,9 @@ export function Conversation({
 function ResumeMark({ at }: { at: number | null }) {
   return (
     <div className="daysep">
-      retomada{at === null ? "" : ` · ${formatWhen(at)}`}
+      retomada{at === null ? "" : ` · ${absoluteStamp(at, "short")}`}
     </div>
   );
-}
-
-/** `21 ago 09:02`. Short, because it is a divider and not a record. */
-function formatWhen(at: number): string {
-  return new Date(at).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 // ------------------------------------------------------------------ the blocks

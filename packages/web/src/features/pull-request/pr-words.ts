@@ -1,5 +1,7 @@
 import type { PrFailureView, PrStatus, PrVerdict, PullRequestView } from "@lumem/shared";
 
+import { agoOf } from "../../lib/relative-time.js";
+
 /**
  * A tradução, que é a metade que o daemon **não** faz.
  *
@@ -302,16 +304,6 @@ export function freshnessOf(readAt: string | null, now: number = Date.now()) {
 
   const ms = Math.max(0, now - at);
   return { label: `há ${agoOf(ms)}`, stale: ms > STALE_AFTER_MS };
-}
-
-function agoOf(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${String(seconds)} s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${String(minutes)} min`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${String(hours)} h`;
-  return `${String(Math.floor(hours / 24))} d`;
 }
 
 /** `4m12s`, como a lista de verificações escreve. `—` para o que nem começou. */

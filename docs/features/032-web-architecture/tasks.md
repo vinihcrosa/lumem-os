@@ -441,14 +441,46 @@ verde com **1197** testes — o mesmo número de antes da T19, confirmado arquiv
 split (19 em `setup/`, antes em um arquivo só e agora em três; 19 em `tasks/`+`memory/`, idem; 22
 entre `checkout/FileViewer.test.tsx`+`TabSplit.test.tsx`+`lib/shiki.test.ts`).
 
-#### T20: os utilitários repetidos, com o arquivo já aberto
+#### T20: os utilitários repetidos, com o arquivo já aberto · **entregue em 2026-09-21**
 
-As cinco formatações de tempo (`Conversation.tsx:701`, `MemoryPanel.tsx:822`, `:826`, `:932`,
-`pr-words.ts:307`) viram `lib/relative-time.ts`, que já existe. `stripComments` (3×), `splitLines`
-(2×), `textFile` (2×) viram uma função cada, em `lib/`.
+As quatro linhas apontavam para quatro funções, não cinco cópias da mesma: `Conversation.tsx:701`
+e `MemoryPanel.tsx:822`/`826` formatam um instante **absoluto** ("21 ago 09:02" / "21/09 09:02"),
+`MemoryPanel.tsx:932` e `pr-words.ts:307` formatam uma **duração** ("há 2 dias" / "há 3 s") — duas
+famílias, não uma, e as duas foram para `lib/relative-time.ts`. `formatWhen` (Conversation) e
+`formatStamp`+o wrapper `formatWhen` (MemoryPanel) colapsaram numa função só, `absoluteStamp(when,
+month?)`, porque a única diferença real entre as duas era o formato do mês — o resto dos quatro
+campos e o `toLocaleString("pt-BR", …)` eram a mesma linha copiada. `lastUse` (MemoryPanel) e
+`agoOf` (pr-words) **não** colapsaram um no outro nem em `relativeAge`: as três respondem "quanto
+tempo" em granularidades diferentes por motivo de tela (sessão viva não precisa de segundo,
+freshness de PR precisa, "último uso" de um playbook não precisa de hora) — mudam por razões
+diferentes, ficam separadas (o mesmo raciocínio que `PrBar.test.tsx`/`ChecksTab.test.tsx` já
+provam sem saber, com "há 3 s" e "há 10 min"). `lastUse` virou `daysAgo`, sem o prefixo "último uso"
+— que é texto da tela, não da medição —, movido para o call site.
 
-**Done when:** `grep -rn 'function formatWhen\|function formatStamp\|function lastUse\|function agoOf'`
-devolve **um** arquivo; os testes que cobriam cada cópia cobrem a função única.
+`stripComments` (3×, byte-idêntica em `modal-css.test.ts`, `board-css.test.ts`,
+`pr-bar-css.test.ts`) foi para `test/css.ts`, **não** `lib/`: é auditoria de CSS de teste, sem
+chamador em produção, e `lib/` é código que o bundle carrega — um util só de teste ali seria morto
+no pacote publicado.
+
+**Dois terços da lista original eram achado, não trabalho:** `splitLines` (2×) não é duplicação —
+`DiffLines.tsx` quebra texto puro em `"\n"`; `lib/shiki.ts` quebra HTML do Shiki em
+`<span class="line">`. Nomes iguais, entradas e saídas incompatíveis; nada para colapsar. `textFile`
+(2×, em `useFileBuffer.test.tsx` e `FileViewer.test.tsx`) segue o precedente que já mora ao lado
+dela — o comentário de `asRgb` em `FileViewer.test.tsx:50-52` (*"twin da de
+`shiki-codemirror.test.ts`, de propósito: quatro linhas atrás de um módulo amarrariam duas suítes
+sem relação"*) — e teria custo real: `useFileBuffer.test.tsx:181` afirma o `revision` default
+(`"sha256:um"`) sem sobrescrever, `FileViewer.test.tsx` usa outro (`"sha256:abc"`); unificar exigiria
+escolher um dos dois ou parametrizar, e as duas suítes ficariam acopladas por um fixture que nenhuma
+delas pede ler da outra.
+
+**Done when (revisado):** `grep -rn 'function formatWhen\|function formatStamp\|function lastUse\|function agoOf'`
+devolve **zero** — os quatro nomes não sobreviveram à consolidação, e exigir que sobrevivessem seria
+proteger o nome, não a duplicação; `grep -rn 'function stripComments' packages/web/src` devolve **um**
+arquivo (`test/css.ts`); os testes que cobriam cada cópia (`PrBar.test.tsx`, `MemoryPanel.test.tsx`,
+`Conversation.test.tsx`, os três `*-css.test.ts`) passam sem mudança de asserção; `lib/relative-time.ts`
+ganha teste próprio (`relative-time.test.ts`, inexistente até aqui — `relativeAge` nunca tinha um);
+`splitLines` e `textFile` continuam do jeito que estavam, com o motivo escrito aqui em vez de um
+`grep` que finge medir os dois junto com os outros três.
 
 ---
 

@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { stripComments } from "../../test/css.js";
+
 /**
  * A auditoria de porte da barra da PR, nas duas direções.
  *
@@ -38,10 +40,6 @@ const consumers = [
   components,
   readFileSync(join(HERE, "..", "workspace", "SidebarTree.tsx"), "utf8"),
 ].join("\n");
-
-function stripComments(css: string): string {
-  return css.replace(/\/\*[\s\S]*?\*\//g, "");
-}
 
 function defined(css: string): Set<string> {
   const names = new Set<string>();

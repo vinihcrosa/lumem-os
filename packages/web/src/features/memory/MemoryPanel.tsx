@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { absoluteStamp, daysAgo } from "../../lib/relative-time.js";
 import {
   useDecisions,
   useMemoryList,
@@ -727,7 +728,7 @@ function ResolvedProposal({ proposal }: { proposal: Proposal }) {
           {proposal.status === "approved" ? "aprovada" : "rejeitada"}
         </span>
         <span>proposta por {proposal.actor}</span>
-        {proposal.resolvedAt === null ? null : <span>{formatStamp(proposal.resolvedAt)}</span>}
+        {proposal.resolvedAt === null ? null : <span>{absoluteStamp(proposal.resolvedAt)}</span>}
       </p>
       {proposal.resolutionNote === null ? null : (
         <p className="mem-shadow-note">{proposal.resolutionNote}</p>
@@ -790,7 +791,7 @@ function Timeline() {
     <ol className="mem-tl">
       {decisions.data.map((decision) => (
         <li key={decision.id} className="mem-tl-item" data-outcome={decision.outcome}>
-          <span className="mem-tl-when">{formatWhen(decision)}</span>
+          <span className="mem-tl-when">{absoluteStamp(decision.createdAt)}</span>
           <span className="mem-tl-dot">{decision.outcome === "rejected" ? "▲" : "●"}</span>
           <span>
             <span className="mem-tl-verb">{VERB[decision.outcome] ?? decision.outcome}</span>{" "}
@@ -816,19 +817,6 @@ function Timeline() {
       ))}
     </ol>
   );
-}
-
-function formatWhen(decision: Decision): string {
-  return formatStamp(decision.createdAt);
-}
-
-function formatStamp(when: Date | string): string {
-  return new Date(when).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 /**
@@ -897,7 +885,11 @@ function Playbooks({ workspaceId, projectId }: MemoryScopeFilter) {
           <p className="pb__desc">{playbook.description}</p>
           <p className="pb__use">
             <span className="pb__loads">{playbook.loads}×</span>
-            <span>{playbook.lastLoadedAt === null ? "nunca carregado" : lastUse(playbook.lastLoadedAt)}</span>
+            <span>
+              {playbook.lastLoadedAt === null
+                ? "nunca carregado"
+                : `último uso ${daysAgo(playbook.lastLoadedAt)}`}
+            </span>
             <span className="mem-scope" data-scope={playbook.scope}>
               {SCOPE_LABEL[playbook.scope] ?? playbook.scope}
             </span>
@@ -925,14 +917,6 @@ function Playbooks({ workspaceId, projectId }: MemoryScopeFilter) {
       ))}
     </>
   );
-}
-
-/** "há 2 dias" — a única pergunta que a data responde nesta lista. */
-function lastUse(at: Date | string): string {
-  const days = Math.floor((Date.now() - new Date(at).getTime()) / 86_400_000);
-  if (days <= 0) return "último uso hoje";
-  if (days === 1) return "último uso ontem";
-  return `último uso há ${String(days)} dias`;
 }
 
 function Numbers({ core }: { core: ReturnType<typeof useMemoryCore> }) {
