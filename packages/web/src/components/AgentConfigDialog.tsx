@@ -2,11 +2,9 @@ import { CLAUDE_ADAPTER } from "@lumem/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
+import { agentConfigsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, Card, Chip, Field, Glyph, Input } from "../ui/index.js";
-
-/** The key the session menu reads too, so creating one shows it there at once. */
-const AGENT_CONFIGS_KEY = ["agentConfig", "list"];
 
 type Transport = "pty" | "acp";
 
@@ -45,7 +43,7 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
   const [open, setOpen] = useState(embedded);
 
   const configs = useQuery({
-    queryKey: AGENT_CONFIGS_KEY,
+    queryKey: agentConfigsKey(),
     queryFn: () => trpc.agentConfig.list.query(),
     enabled: open,
   });
@@ -79,7 +77,7 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
         ...(transport === "acp" ? { adapterVersion: adapterVersion.trim() } : {}),
       }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: AGENT_CONFIGS_KEY });
+      await queryClient.invalidateQueries({ queryKey: agentConfigsKey() });
       setName("");
       setCommand("");
       setArgs("");
@@ -91,7 +89,7 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
     mutationFn: (id: string) => trpc.agentConfig.remove.mutate({ id }),
     onSuccess: async () => {
       setConfirming(null);
-      await queryClient.invalidateQueries({ queryKey: AGENT_CONFIGS_KEY });
+      await queryClient.invalidateQueries({ queryKey: agentConfigsKey() });
     },
   });
 

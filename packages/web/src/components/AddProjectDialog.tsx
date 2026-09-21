@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { isTerminal, useCloneStream } from "../hooks/useCloneJob.js";
-import { cloneJobsKey, projectsKey } from "../lib/queryKeys.js";
+import { cloneJobsKey, parseSourceKey, projectsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Button, Chip, Field, Glyph, Input, Modal } from "../ui/index.js";
 import { CloneOutcome, CloneProgress, outcomeSpeaks } from "./CloneStatus.js";
@@ -404,7 +404,7 @@ function useEchoedPlan(workspaceId: string, source: string, name: string): Plan 
   }, [source]);
 
   const query = useQuery({
-    queryKey: ["project", "parseSource", workspaceId, settled, name.trim()],
+    queryKey: parseSourceKey(workspaceId, settled, name.trim()),
     queryFn: () =>
       trpc.project.parseSource.query({
         workspaceId,

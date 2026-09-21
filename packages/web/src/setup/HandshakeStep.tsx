@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { agentConfigsKey, setupProbeKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import {
   Banner,
@@ -13,9 +14,6 @@ import {
 import type { SetupResult } from "./SetupFlow.js";
 import { eyebrowFor } from "./steps.js";
 import { StepShell } from "./StepShell.js";
-
-export const PROBE_KEY = ["setup", "probe"];
-const AGENT_CONFIGS_KEY = ["agentConfig", "list"];
 
 /**
  * The name the configuration gets.
@@ -44,7 +42,7 @@ export function HandshakeStep({ onNext, onBack, onSkip }: HandshakeStepProps) {
   const queryClient = useQueryClient();
 
   const probe = useQuery({
-    queryKey: PROBE_KEY,
+    queryKey: setupProbeKey(),
     queryFn: () => trpc.setup.probe.query(),
     // One handshake per visit. It costs a process, not a token, and repeating it
     // on every focus change would spawn adapters behind the user's back.
@@ -53,7 +51,7 @@ export function HandshakeStep({ onNext, onBack, onSkip }: HandshakeStepProps) {
   });
 
   const existing = useQuery({
-    queryKey: AGENT_CONFIGS_KEY,
+    queryKey: agentConfigsKey(),
     queryFn: () => trpc.agentConfig.list.query(),
   });
 
@@ -82,7 +80,7 @@ export function HandshakeStep({ onNext, onBack, onSkip }: HandshakeStepProps) {
       });
     },
     onSuccess: async (config) => {
-      await queryClient.invalidateQueries({ queryKey: AGENT_CONFIGS_KEY });
+      await queryClient.invalidateQueries({ queryKey: agentConfigsKey() });
       onNext({
         agentConfigId: config.id,
         agentName: config.name,

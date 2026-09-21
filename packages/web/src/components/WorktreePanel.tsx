@@ -3,7 +3,12 @@ import { useState } from "react";
 
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import { relativeAge } from "../lib/relative-time.js";
-import { worktreeDetailKey, worktreesKey } from "../lib/queryKeys.js";
+import {
+  projectDetailKey,
+  taskByWorktreeKey,
+  worktreeDetailKey,
+  worktreesKey,
+} from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import {
   Banner,
@@ -77,7 +82,7 @@ export function WorktreePanel({
    * uma leitura de git esperar por uma de banco a cada repintura.
    */
   const task = useQuery({
-    queryKey: ["task", "getByWorktree", worktreeId],
+    queryKey: taskByWorktreeKey(worktreeId),
     queryFn: () => trpc.task.getByWorktree.query({ worktreeId }),
   });
 
@@ -103,7 +108,7 @@ export function WorktreePanel({
 
   // Same key the local panel uses, so the crumb costs a cache read.
   const project = useQuery({
-    queryKey: ["project", "get", projectId],
+    queryKey: projectDetailKey(projectId),
     queryFn: () => trpc.project.get.query({ id: projectId }),
   });
 

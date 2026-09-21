@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { secretsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { CredentialDialog, type SecretSlotView } from "./CredentialDialog.js";
 
@@ -23,7 +24,7 @@ import { CredentialDialog, type SecretSlotView } from "./CredentialDialog.js";
 export function Credentials() {
   const [editing, setEditing] = useState<SecretSlotView | null>(null);
   const slots = useQuery({
-    queryKey: ["secrets"],
+    queryKey: secretsKey(),
     queryFn: () => trpc.secrets.list.query() as Promise<SecretSlotView[]>,
   });
 

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { usePopover } from "../hooks/usePopover.js";
-import { sessionsKey } from "../lib/queryKeys.js";
+import { agentConfigsKey, sessionsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Glyph, Menu, MenuItem } from "../ui/index.js";
 
@@ -19,7 +19,7 @@ export function NewSessionMenu({ scopeType, scopeId, onCreated }: NewSessionMenu
   const popover = usePopover();
 
   const configs = useQuery({
-    queryKey: ["agentConfig", "list"],
+    queryKey: agentConfigsKey(),
     queryFn: () => trpc.agentConfig.list.query(),
   });
 

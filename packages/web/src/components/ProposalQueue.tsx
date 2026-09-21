@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { tasksKey } from "../lib/queryKeys.js";
+import { memoryProposalsKey, tasksKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, SectionHead } from "../ui/index.js";
 
@@ -53,7 +53,7 @@ export function ProposalQueue({ workspaceId, projectName }: ProposalQueueProps) 
       trpc.task.listByWorkspace.query({ workspaceId, status: taskStatus }) as Promise<TaskRow[]>,
   });
   const memory = useQuery({
-    queryKey: ["memory", "proposals", status],
+    queryKey: memoryProposalsKey(status),
     queryFn: () => trpc.memory.proposals.query({ status }),
   });
 

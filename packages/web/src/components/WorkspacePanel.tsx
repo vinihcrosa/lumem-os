@@ -8,7 +8,7 @@ import {
   type ProjectAgentUsage,
   type UsageWindow,
 } from "../hooks/useUsage.js";
-import { projectsKey, WORKSPACES_KEY } from "../lib/queryKeys.js";
+import { agentConfigsKey, projectsKey, WORKSPACES_KEY } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import {
   Banner,
@@ -122,7 +122,7 @@ export function WorkspacePanel({
    * também não acontece. É a pergunta respondida em código e não em comentário.
    */
   const configs = useQuery({
-    queryKey: AGENT_CONFIGS_KEY,
+    queryKey: agentConfigsKey(),
     queryFn: () => trpc.agentConfig.list.query(),
   });
   const manyAgents = (configs.data ?? []).filter((row) => row.transport === "acp").length > 1;
@@ -417,8 +417,6 @@ function RemoveWorkspace({
   );
 }
 
-/** A chave que o rodapé da coluna já mantém: reusada, não duplicada. */
-const AGENT_CONFIGS_KEY = ["agentConfig", "list"];
 
 /**
  * As sub-linhas de um projeto, quando a consulta agrupada respondeu.

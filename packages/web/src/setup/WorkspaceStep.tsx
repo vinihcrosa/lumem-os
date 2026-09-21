@@ -1,10 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { WORKSPACES_KEY } from "../lib/queryKeys.js";
+import { PREFLIGHT_KEY, WORKSPACES_KEY } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Field, Input, MetaGrid, WizardSection } from "../ui/index.js";
-import { PREFLIGHT_KEY } from "./MachineStep.js";
 import type { SetupResult } from "./SetupFlow.js";
 import { eyebrowFor } from "./steps.js";
 import { StepShell } from "./StepShell.js";

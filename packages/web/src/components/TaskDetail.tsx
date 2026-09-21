@@ -1,7 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { taskDetailKey, tasksKey, worktreesKey } from "../lib/queryKeys.js";
+import {
+  agentConfigsKey,
+  sessionsByTaskKey,
+  taskDetailKey,
+  tasksKey,
+  worktreesKey,
+} from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, Chip, Modal, SectionHead, Skeleton } from "../ui/index.js";
 
@@ -158,7 +164,7 @@ export function TaskDetail({ taskId, workspaceId, onBack, onWork }: TaskDetailPr
  */
 function TaskSessions({ taskId }: { taskId: string }) {
   const sessions = useQuery({
-    queryKey: ["session", "byTask", taskId],
+    queryKey: sessionsByTaskKey(taskId),
     queryFn: () => trpc.session.listByTask.query({ taskId }) as Promise<SessionRow[]>,
   });
 
@@ -245,7 +251,7 @@ function WorkOnTask({
     queryFn: () => trpc.worktree.listByProject.query({ projectId }),
   });
   const agents = useQuery({
-    queryKey: ["agentConfig", "list"],
+    queryKey: agentConfigsKey(),
     queryFn: () => trpc.agentConfig.list.query(),
   });
   const [agentId, setAgentId] = useState<string | null>(null);

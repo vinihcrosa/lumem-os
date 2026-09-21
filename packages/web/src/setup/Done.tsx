@@ -1,13 +1,17 @@
 import { useQueries } from "@tanstack/react-query";
 
-import { sessionsKey, worktreeDetailKey, WORKSPACES_KEY } from "../lib/queryKeys.js";
+import {
+  agentConfigsKey,
+  projectDetailKey,
+  sessionsKey,
+  worktreeDetailKey,
+  WORKSPACES_KEY,
+} from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Button, MetaGrid, type MetaEntry } from "../ui/index.js";
 import type { SetupResult } from "./SetupFlow.js";
 import type { Position } from "./steps.js";
 import { StepShell } from "./StepShell.js";
-
-const AGENT_CONFIGS_KEY = ["agentConfig", "list"];
 
 export interface DoneProps {
   result: SetupResult;
@@ -34,12 +38,12 @@ export function Done({ result, skipped, onOpen, onReview }: DoneProps) {
         queryFn: () => trpc.workspace.list.query(),
       },
       {
-        queryKey: AGENT_CONFIGS_KEY,
+        queryKey: agentConfigsKey(),
         queryFn: () => trpc.agentConfig.list.query(),
         enabled: result.agentConfigId !== undefined,
       },
       {
-        queryKey: ["project", "get", result.projectId ?? ""],
+        queryKey: projectDetailKey(result.projectId ?? ""),
         queryFn: () => trpc.project.get.query({ id: result.projectId ?? "" }),
         enabled: result.projectId !== undefined,
       },

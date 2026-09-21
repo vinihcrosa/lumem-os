@@ -106,6 +106,17 @@ export function fileListKey(scopeType: string, scopeId: string, path: string) {
   return ["files", "listDir", scopeType, scopeId, path] as const;
 }
 
+/**
+ * A mesma listagem, sob o teto de itens da tela.
+ *
+ * Sob o prefixo de `fileListKey`, e não ao lado: quem invalida `["files"]` ou a
+ * listagem sem teto precisa alcançar esta também, e prefixo é o que faz isso sem
+ * conhecer o parâmetro extra.
+ */
+export function fileListingKey(scopeType: string, scopeId: string, path: string, limit: number | undefined) {
+  return [...fileListKey(scopeType, scopeId, path), limit ?? "default"] as const;
+}
+
 export function fileReadKey(scopeType: string, scopeId: string, path: string) {
   return ["files", "read", scopeType, scopeId, path] as const;
 }
@@ -224,4 +235,60 @@ export function prMarksKey(projectId: string) {
  */
 export function prDraftKey(worktreeId: string) {
   return ["pr", "draft", worktreeId] as const;
+}
+
+export const HEALTH_KEY = ["health"] as const;
+
+/** A lista de agentes configurados — lida em oito telas, invalidada em uma. */
+export function agentConfigsKey() {
+  return ["agentConfig", "list"] as const;
+}
+
+export function secretsKey() {
+  return ["secrets"] as const;
+}
+
+export function setupAgentsKey() {
+  return ["setup", "agents"] as const;
+}
+
+/**
+ * Sem argumento, o probe do primeiro acesso (um agente, um handshake). Com
+ * comando e argumentos, o probe por configuração do rodapé — a chave precisa do
+ * par para dois agentes não dividirem a resposta de um só.
+ */
+export function setupProbeKey(command?: string, args?: readonly string[]) {
+  return command === undefined
+    ? (["setup", "probe"] as const)
+    : (["setup", "probe", command, args?.join(" ") ?? ""] as const);
+}
+
+export const PREFLIGHT_KEY = ["setup", "preflight"] as const;
+
+export function authStateKey(loginId: string) {
+  return ["setup", "authState", loginId] as const;
+}
+
+export function projectInspectKey(path: string) {
+  return ["project", "inspect", path] as const;
+}
+
+export function worktreePlanKey(projectId: string, name: string) {
+  return ["worktree", "plan", projectId, name] as const;
+}
+
+export function parseSourceKey(workspaceId: string, source: string, name: string) {
+  return ["project", "parseSource", workspaceId, source, name] as const;
+}
+
+export function taskByWorktreeKey(worktreeId: string) {
+  return ["task", "getByWorktree", worktreeId] as const;
+}
+
+export function sessionsByTaskKey(taskId: string) {
+  return ["session", "byTask", taskId] as const;
+}
+
+export function usageByTaskKey(workspaceId: string) {
+  return ["usage", "byTask", workspaceId] as const;
 }

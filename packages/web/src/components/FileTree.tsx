@@ -5,7 +5,7 @@ import { usePopover } from "../hooks/usePopover.js";
 import type { FileTreeEdits } from "../hooks/useFileTree.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import { statusMark, statusTone, type ChangeStatus } from "../hooks/useCheckoutChanges.js";
-import { fileListKey } from "../lib/queryKeys.js";
+import { fileListingKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, Card, Glyph, Menu, MenuItem } from "../ui/index.js";
 
@@ -101,7 +101,7 @@ function Level({
   // nothing, and the cache keeps what was already read.
   const [limit, setLimit] = useState<number | undefined>(undefined);
   const listing = useQuery({
-    queryKey: [...fileListKey(scope.scopeType, scope.scopeId, path), limit ?? "default"],
+    queryKey: fileListingKey(scope.scopeType, scope.scopeId, path, limit),
     queryFn: () =>
       trpc.files.listDir.query({
         scopeType: scope.scopeType,

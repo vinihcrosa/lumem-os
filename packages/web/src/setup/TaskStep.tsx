@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { sessionsKey, worktreesKey } from "../lib/queryKeys.js";
+import { sessionsKey, worktreePlanKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import {
   Banner,
@@ -42,7 +42,7 @@ export function TaskStep({ projectId, agentConfigId, onNext, onBack, onSkip }: T
   const settled = useSettled(name.trim());
 
   const plan = useQuery({
-    queryKey: ["worktree", "plan", projectId ?? "", settled],
+    queryKey: worktreePlanKey(projectId ?? "", settled),
     queryFn: () => trpc.worktree.plan.query({ projectId: projectId ?? "", name: settled }),
     enabled: projectId !== undefined && settled !== "",
     retry: false,

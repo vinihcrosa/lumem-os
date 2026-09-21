@@ -270,48 +270,26 @@ describe("regra 3 — a tela não conhece o transporte", () => {
 // -- Regra 4: toda chave de cache nasce em `queryKeys.ts` ---------------------
 //
 // Três listas, porque são três gestos com três consertos e dois prazos: a chave
-// escrita à mão e a constante local caem na T4; o prefixo de invalidação cai na T5,
-// que é onde os `*_PREFIX` nascem.
+// escrita à mão e a constante local caíram na T4; o prefixo de invalidação cai na
+// T5, que é onde os `*_PREFIX` nascem.
 //
 // Arquivo de teste fica **fora** da regra, de propósito: um teste que afirma
 // `{ queryKey: ["worktree"] }` está prendendo o valor da chave, que é o contrário de
 // declarar uma nova — é a armadilha *"contar a leitura, e não a classe"* do
 // testing.md. Pô-lo na lista criaria uma exceção que nunca encolhe.
 
-/** Os 16 de hoje — chave de leitura escrita no lugar da chamada. Caem na T4. */
-const KEY_WRITTEN_BY_HAND: readonly string[] = [
-  "App.tsx",
-  "components/AddProjectDialog.tsx",
-  "components/AgentLogin.tsx",
-  "components/Credentials.tsx",
-  "components/FileTree.tsx",
-  "components/LocalPanel.tsx",
-  "components/NewSessionMenu.tsx",
-  "components/ProposalQueue.tsx",
-  "components/RunDock.tsx",
-  "components/SettingsPanel.tsx",
-  "components/TaskDetail.tsx",
-  "components/TaskList.tsx",
-  "components/WorktreePanel.tsx",
-  "setup/Done.tsx",
-  "setup/ProjectStep.tsx",
-  "setup/TaskStep.tsx",
-];
+/**
+ * Chave de leitura escrita no lugar da chamada. Caiu com a T4 — as 16 de hoje
+ * viraram função em `queryKeys.ts`.
+ */
+const KEY_WRITTEN_BY_HAND: readonly string[] = [];
 
 /**
- * Os 7 de hoje — a chave virou constante, e a constante ficou no arquivo que a usa.
- * `AGENT_CONFIGS_KEY` está copiada em cinco deles, que é o defeito da `032` inteira
- * numa linha: cinco cópias, e o login invalida uma. Caem na T4.
+ * Chave em constante, com o arquivo que a usa em vez de `queryKeys.ts`. Caiu com
+ * a T4. `AGENT_CONFIGS_KEY` estava copiada em cinco arquivos — o defeito da `032`
+ * inteira numa linha: cinco cópias, e o login invalidava uma.
  */
-const KEY_CONSTANT_OUTSIDE: readonly string[] = [
-  "components/AgentConfigDialog.tsx",
-  "components/AgentLogin.tsx",
-  "components/WorkspacePanel.tsx",
-  "setup/AgentStep.tsx",
-  "setup/Done.tsx",
-  "setup/HandshakeStep.tsx",
-  "setup/MachineStep.tsx",
-];
+const KEY_CONSTANT_OUTSIDE: readonly string[] = [];
 
 /** Os 9 de hoje — prefixo literal dentro de `invalidateQueries` e irmãs. Caem na T5. */
 const INVALIDATION_PREFIX_OUTSIDE: readonly string[] = [

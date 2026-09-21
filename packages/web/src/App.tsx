@@ -23,7 +23,7 @@ import { useTreeExpansion } from "./hooks/useTreeExpansion.js";
 import { AppShell } from "./layout/AppShell.js";
 import { Topbar } from "./layout/Topbar.js";
 import { SetupFlow } from "./setup/SetupFlow.js";
-import { WORKSPACES_KEY } from "./lib/queryKeys.js";
+import { HEALTH_KEY, WORKSPACES_KEY } from "./lib/queryKeys.js";
 import { navigate, useRoute } from "./lib/route.js";
 import { trpc } from "./lib/trpc.js";
 import { Banner, Skeleton } from "./ui/index.js";
@@ -113,7 +113,7 @@ export function App() {
   const dock = useRunDock();
 
   const health = useQuery({
-    queryKey: ["health"],
+    queryKey: HEALTH_KEY,
     queryFn: () => trpc.health.query(),
     // Asked once, "daemon inacessível" was a state the UI could draw and never
     // reach: the daemon going down mid-session left the topbar reporting the

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { projectsKey } from "../lib/queryKeys.js";
+import { projectInspectKey, projectsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import {
   Banner,
@@ -40,7 +40,7 @@ export function ProjectStep({ workspaceId, onNext, onBack, onSkip }: ProjectStep
   const settled = useSettled(path.trim());
 
   const inspect = useQuery({
-    queryKey: ["project", "inspect", settled],
+    queryKey: projectInspectKey(settled),
     queryFn: () => trpc.project.inspect.query({ path: settled }),
     // Absolute-only, checked here as well as in the daemon: without it every
     // relative path would spend a round trip to be told the same thing.

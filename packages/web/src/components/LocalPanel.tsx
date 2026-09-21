@@ -3,7 +3,7 @@ import { useState } from "react";
 
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import { useUsageByWorktree, USAGE_WINDOWS, type UsageWindow } from "../hooks/useUsage.js";
-import { projectsKey, worktreesKey } from "../lib/queryKeys.js";
+import { projectDetailKey, projectsKey, tasksKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import {
   Banner,
@@ -172,7 +172,7 @@ export function LocalPanel({
   const scope: Scope = { scopeType: "project", scopeId: projectId };
 
   const project = useQuery({
-    queryKey: ["project", "get", projectId],
+    queryKey: projectDetailKey(projectId),
     queryFn: () => trpc.project.get.query({ id: projectId }),
   });
 
@@ -190,7 +190,7 @@ export function LocalPanel({
    * faz, e um `count` próprio seria uma segunda verdade sobre o mesmo número.
    */
   const tasks = useQuery({
-    queryKey: ["task", "listByWorkspace", workspaceId, projectId],
+    queryKey: tasksKey(workspaceId, { projectId }),
     queryFn: () => trpc.task.listByWorkspace.query({ workspaceId, projectId }),
   });
 

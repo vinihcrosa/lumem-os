@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { projectsKey, taskSettingsKey, tasksKey } from "../lib/queryKeys.js";
+import { projectsKey, taskSettingsKey, tasksKey, usageByTaskKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, EmptyState, SectionHead, Skeleton } from "../ui/index.js";
 
@@ -116,7 +116,7 @@ export function TaskList({
 
 
   const spend = useQuery({
-    queryKey: ["usage", "byTask", workspaceId],
+    queryKey: usageByTaskKey(workspaceId),
     queryFn: () => trpc.usage.byTask.query({ workspaceId, period: "7d" }),
   });
 

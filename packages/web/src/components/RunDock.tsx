@@ -6,7 +6,7 @@ import { useScriptActions, useScripts, type ScriptStatus } from "../hooks/useScr
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import { useSessionsByScope } from "../hooks/useSessionsByScope.js";
 import { relativeAge } from "../lib/relative-time.js";
-import { sessionsKey } from "../lib/queryKeys.js";
+import { agentConfigsKey, sessionsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Button, Chip, Glyph } from "../ui/index.js";
 import { Terminal } from "./Terminal.js";
@@ -398,7 +398,7 @@ function NoScripts({
 }) {
   const queryClient = useQueryClient();
   const configs = useQuery({
-    queryKey: ["agentConfig", "list"],
+    queryKey: agentConfigsKey(),
     queryFn: () => trpc.agentConfig.list.query(),
   });
 

@@ -3,7 +3,7 @@ import { ADAPTERS } from "@lumem/shared";
 import { useState, type ReactNode } from "react";
 
 import { askNoticePermission } from "../hooks/notice.js";
-import { taskSettingsKey, tasksKey } from "../lib/queryKeys.js";
+import { secretsKey, setupAgentsKey, taskSettingsKey, tasksKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Skeleton } from "../ui/index.js";
 
@@ -535,7 +535,7 @@ function ConveyorSection({ workspaceId }: { workspaceId: string }) {
  */
 function AgentsSection() {
   const agents = useQuery({
-    queryKey: ["setup", "agents"],
+    queryKey: setupAgentsKey(),
     queryFn: () => trpc.setup.agents.query(),
     refetchOnWindowFocus: false,
   });
@@ -589,7 +589,7 @@ function AgentsSection() {
  */
 function IntegrationsSection() {
   const slots = useQuery({
-    queryKey: ["secrets"],
+    queryKey: secretsKey(),
     queryFn: () => trpc.secrets.list.query(),
   });
 

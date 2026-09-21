@@ -1,11 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { PREFLIGHT_KEY } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, CheckList, CheckRow, CopyCommand, Skeleton } from "../ui/index.js";
 import { eyebrowFor } from "./steps.js";
 import { StepShell } from "./StepShell.js";
-
-export const PREFLIGHT_KEY = ["setup", "preflight"];
 
 export interface MachineStepProps {
   onNext: () => void;

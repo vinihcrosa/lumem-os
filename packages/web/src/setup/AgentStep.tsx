@@ -1,6 +1,7 @@
 import { CLAUDE_ADAPTER, DEFAULT_ADAPTER_ID } from "@lumem/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { setupAgentsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import {
   Banner,
@@ -13,8 +14,6 @@ import {
 } from "../ui/index.js";
 import { eyebrowFor } from "./steps.js";
 import { StepShell } from "./StepShell.js";
-
-export const AGENTS_KEY = ["setup", "agents"];
 
 export interface AgentStepProps {
   onNext: () => void;
@@ -39,7 +38,7 @@ export function AgentStep({ onNext, onBack, onSkip }: AgentStepProps) {
   const queryClient = useQueryClient();
 
   const agents = useQuery({
-    queryKey: AGENTS_KEY,
+    queryKey: setupAgentsKey(),
     queryFn: () => trpc.setup.agents.query(),
     refetchOnWindowFocus: false,
   });
@@ -47,7 +46,7 @@ export function AgentStep({ onNext, onBack, onSkip }: AgentStepProps) {
   const install = useMutation({
     mutationFn: () => trpc.setup.installAdapter.mutate(),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: AGENTS_KEY });
+      await queryClient.invalidateQueries({ queryKey: setupAgentsKey() });
     },
   });
 

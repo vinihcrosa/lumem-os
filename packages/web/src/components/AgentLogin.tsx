@@ -3,16 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
 import { useLoginTerminal } from "../hooks/useLoginTerminal.js";
+import { agentConfigsKey, authStateKey, setupAgentsKey, setupProbeKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Credentials } from "./Credentials.js";
 import { Banner, Button, CopyCommand, Glyph, Input } from "../ui/index.js";
 import { AgentConfigDialog } from "./AgentConfigDialog.js";
 
 import "./agent-login.css";
-
-const AGENT_CONFIGS_KEY = ["agentConfig", "list"];
-const AGENTS_KEY = ["setup", "agents"];
-const PROBE_KEY = ["setup", "probe"];
 
 /**
  * Os agentes do rodapé: uma linha por agente, e o `＋` que conecta o próximo.
@@ -43,7 +40,7 @@ export function AgentLogin() {
   const [custom, setCustom] = useState(false);
 
   const configs = useQuery({
-    queryKey: AGENT_CONFIGS_KEY,
+    queryKey: agentConfigsKey(),
     queryFn: () => trpc.agentConfig.list.query(),
   });
 
@@ -164,7 +161,7 @@ interface AgentConfigView {
  */
 function useAgentProbe(config: AgentConfigView) {
   return useQuery({
-    queryKey: [...PROBE_KEY, config.command, config.args.join(" ")],
+    queryKey: setupProbeKey(config.command, config.args),
     queryFn: () => trpc.setup.probe.query({ command: config.command, args: [...config.args] }),
     retry: false,
     refetchOnWindowFocus: false,
@@ -256,7 +253,7 @@ function ConnectPanel({
   const [chosen, setChosen] = useState<AdapterSpec | null>(null);
 
   const report = useQuery({
-    queryKey: AGENTS_KEY,
+    queryKey: setupAgentsKey(),
     queryFn: () => trpc.setup.agents.query(),
     refetchOnWindowFocus: false,
   });
@@ -299,8 +296,8 @@ function ConnectPanel({
     },
     onSettled: async () => {
       setStage("idle");
-      await queryClient.invalidateQueries({ queryKey: AGENT_CONFIGS_KEY });
-      await queryClient.invalidateQueries({ queryKey: AGENTS_KEY });
+      await queryClient.invalidateQueries({ queryKey: agentConfigsKey() });
+      await queryClient.invalidateQueries({ queryKey: setupAgentsKey() });
     },
     onSuccess: (id) => onConnected(id),
   });
@@ -484,7 +481,7 @@ function AgentPanel({
   const probe = useAgentProbe(config);
 
   const reprobe = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: PROBE_KEY });
+    await queryClient.invalidateQueries({ queryKey: setupProbeKey() });
   }, [queryClient]);
 
   /** O rótulo do agente: o `title` do handshake, e o nome da configuração antes dele. */
@@ -691,7 +688,7 @@ function LoginOptions({
    * login por comando, que devolvia um `ptySessionId` para o cliente acompanhar.
    */
   const attempt = useQuery({
-    queryKey: ["setup", "authState", loginId],
+    queryKey: authStateKey(loginId ?? ""),
     queryFn: () => trpc.setup.authState.query({ loginId: loginId ?? "" }),
     enabled: loginId !== null,
     refetchInterval: (query) =>
