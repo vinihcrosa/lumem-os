@@ -153,8 +153,8 @@ function TaskSessions({ taskId }: { taskId: string }) {
       ) : (
         <div className="tlist">
           {rows.map((session) => (
-            <div className="tsess" key={session.id}>
-              <span className="tsess__kind">
+            <div className="task-sessions" key={session.id}>
+              <span className="task-sessions__kind">
                 <span
                   className={`glyph glyph--${session.kind === "agent" ? "agent" : "shell"}`}
                   aria-hidden="true"
@@ -163,9 +163,9 @@ function TaskSessions({ taskId }: { taskId: string }) {
                 </span>
                 {session.agentName ?? session.kind}
               </span>
-              <span className="tsess__when">{session.command}</span>
-              <span className={`tsess__st tsess__st--${session.state}`}>
-                <span className="tsess__dot" aria-hidden="true" />
+              <span className="task-sessions__when">{session.command}</span>
+              <span className={`task-sessions__st task-sessions__st--${session.state}`}>
+                <span className="task-sessions__dot" aria-hidden="true" />
                 {session.state === "running" ? "viva" : "encerrada"}
               </span>
             </div>

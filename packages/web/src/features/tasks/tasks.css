@@ -246,7 +246,7 @@
 }
 
 /* uma sessão da tarefa */
-.tsess {
+.task-sessions {
   display: flex;
   align-items: center;
   gap: var(--space-8);
@@ -260,7 +260,7 @@
   font: var(--text-body-sm);
   color: var(--color-text-secondary);
 }
-.tsess__kind {
+.task-sessions__kind {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -269,22 +269,22 @@
   font: var(--text-label-sm);
   color: var(--color-text-primary);
 }
-.tsess__when {
+.task-sessions__when {
   flex: 1;
   min-width: 0;
   font: var(--text-caption);
   color: var(--color-text-tertiary);
 }
-.tsess__st {
+.task-sessions__st {
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: var(--space-6);
   font: var(--text-label-xs);
 }
-.tsess__st--running { color: var(--color-session-running); }
-.tsess__st--exited { color: var(--color-session-exited); }
-.tsess__dot {
+.task-sessions__st--running { color: var(--color-session-running); }
+.task-sessions__st--exited { color: var(--color-session-exited); }
+.task-sessions__dot {
   width: var(--space-6);
   height: var(--space-6);
   border-radius: var(--radius-full);
