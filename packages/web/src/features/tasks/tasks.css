@@ -165,7 +165,7 @@
  * que você criou não ganha nada, porque "você" é o normal e marcar o normal
  * gasta a marca.
  */
-.tprov {
+.task-provenance {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -174,7 +174,7 @@
   font: var(--text-mono-sm);
   color: var(--color-text-tertiary);
 }
-.tprov__g {
+.task-provenance__g {
   font-size: var(--size-icon-xs);
   line-height: 1;
   color: var(--color-session-agent);

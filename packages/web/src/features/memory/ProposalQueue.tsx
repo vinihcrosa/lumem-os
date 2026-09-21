@@ -132,7 +132,7 @@ function TaskProposal({
   return (
     <div className="pq-item">
       <div className="pq-item__head">
-        <span className="tprov__g" aria-hidden="true">
+        <span className="task-provenance__g" aria-hidden="true">
           ◆
         </span>
         <span className="pq-item__who">agente</span>

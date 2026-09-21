@@ -315,14 +315,14 @@ function TaskRowButton({
           </>
         )}
       </span>
-      <span className="tprov">
+      <span className="task-provenance">
         {/*
           Só o que NÃO é o default tem marca: tarefa que você criou não ganha
           glifo nenhum, porque "você" é o normal e marcar o normal gasta a marca.
         */}
         {row.createdBy === "agent" && (
           <>
-            <span className="tprov__g" aria-hidden="true">
+            <span className="task-provenance__g" aria-hidden="true">
               ◆
             </span>
             proposta
