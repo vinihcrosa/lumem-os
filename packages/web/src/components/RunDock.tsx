@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
+import { useAgentConfigs } from "../hooks/useAgentConfigs.js";
 import type { RunDockState } from "../hooks/useRunDock.js";
 import { useScriptActions, useScripts, type ScriptStatus } from "../hooks/useScripts.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import { useSessionsByScope } from "../hooks/useSessionsByScope.js";
 import { relativeAge } from "../lib/relative-time.js";
-import { agentConfigsKey, sessionsKey } from "../lib/queryKeys.js";
+import { sessionsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Button, Chip, Glyph } from "../ui/index.js";
 import { Terminal } from "./Terminal.js";
@@ -397,10 +398,7 @@ function NoScripts({
   onAskAgent?: ((sessionId: string, prompt: string) => void) | undefined;
 }) {
   const queryClient = useQueryClient();
-  const configs = useQuery({
-    queryKey: agentConfigsKey(),
-    queryFn: () => trpc.agentConfig.list.query(),
-  });
+  const configs = useAgentConfigs();
 
   // Só conversa serve: o pedido é uma pergunta em texto, e um agente por PTY é um
   // terminal — mandar texto nele seria digitar no prompt de outra coisa.

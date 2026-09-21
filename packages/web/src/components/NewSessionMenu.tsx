@@ -1,7 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { useAgentConfigs } from "../hooks/useAgentConfigs.js";
 import { usePopover } from "../hooks/usePopover.js";
-import { agentConfigsKey, sessionsKey } from "../lib/queryKeys.js";
+import { sessionsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Glyph, Menu, MenuItem } from "../ui/index.js";
 
@@ -18,10 +19,7 @@ export function NewSessionMenu({ scopeType, scopeId, onCreated }: NewSessionMenu
   const queryClient = useQueryClient();
   const popover = usePopover();
 
-  const configs = useQuery({
-    queryKey: agentConfigsKey(),
-    queryFn: () => trpc.agentConfig.list.query(),
-  });
+  const configs = useAgentConfigs();
 
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: sessionsKey(scopeType, scopeId) });

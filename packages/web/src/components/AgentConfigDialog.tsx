@@ -1,9 +1,7 @@
 import { CLAUDE_ADAPTER } from "@lumem/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
-import { agentConfigsKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { useAgentConfigMutations, useAgentConfigs } from "../hooks/useAgentConfigs.js";
 import { Banner, Button, Card, Chip, Field, Glyph, Input } from "../ui/index.js";
 
 type Transport = "pty" | "acp";
@@ -39,14 +37,10 @@ export interface AgentConfigDialogProps {
 }
 
 export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDialogProps = {}) {
-  const queryClient = useQueryClient();
   const [open, setOpen] = useState(embedded);
 
-  const configs = useQuery({
-    queryKey: agentConfigsKey(),
-    queryFn: () => trpc.agentConfig.list.query(),
-    enabled: open,
-  });
+  const configs = useAgentConfigs({ enabled: open });
+  const { create, remove } = useAgentConfigMutations();
 
   const [name, setName] = useState("");
   const [command, setCommand] = useState("");
@@ -63,35 +57,6 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
   const [adapterVersion, setAdapterVersion] = useState("");
   /** Which row asked to be removed and is waiting for a second click. */
   const [confirming, setConfirming] = useState<string | null>(null);
-
-  const create = useMutation({
-    mutationFn: () =>
-      trpc.agentConfig.create.mutate({
-        name: name.trim(),
-        command: command.trim(),
-        // Split on whitespace, because that is how a command line is written. The
-        // wire wants a list, and joining it back together downstream would make the
-        // daemon guess where one argument ends.
-        args: args.trim() === "" ? [] : args.trim().split(/\s+/),
-        transport,
-        ...(transport === "acp" ? { adapterVersion: adapterVersion.trim() } : {}),
-      }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: agentConfigsKey() });
-      setName("");
-      setCommand("");
-      setArgs("");
-      setAdapterVersion("");
-    },
-  });
-
-  const remove = useMutation({
-    mutationFn: (id: string) => trpc.agentConfig.remove.mutate({ id }),
-    onSuccess: async () => {
-      setConfirming(null);
-      await queryClient.invalidateQueries({ queryKey: agentConfigsKey() });
-    },
-  });
 
   /*
    * The daemon's CHECK, repeated here on purpose (D17).
@@ -110,7 +75,26 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
   const submit = (event: FormEvent): void => {
     event.preventDefault();
     if (!complete) return;
-    create.mutate();
+    create.mutate(
+      {
+        name: name.trim(),
+        command: command.trim(),
+        // Split on whitespace, because that is how a command line is written. The
+        // wire wants a list, and joining it back together downstream would make the
+        // daemon guess where one argument ends.
+        args: args.trim() === "" ? [] : args.trim().split(/\s+/),
+        transport,
+        ...(transport === "acp" ? { adapterVersion: adapterVersion.trim() } : {}),
+      },
+      {
+        onSuccess: () => {
+          setName("");
+          setCommand("");
+          setArgs("");
+          setAdapterVersion("");
+        },
+      },
+    );
   };
 
   if (!open) {
@@ -165,7 +149,7 @@ export function AgentConfigDialog({ embedded = false, onClose }: AgentConfigDial
                     size="sm"
                     variant="danger"
                     disabled={remove.isPending}
-                    onClick={() => remove.mutate(config.id)}
+                    onClick={() => remove.mutate(config.id, { onSuccess: () => setConfirming(null) })}
                   >
                     confirmar
                   </Button>

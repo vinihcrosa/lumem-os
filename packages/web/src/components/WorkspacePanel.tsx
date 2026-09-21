@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { useAgentConfigs } from "../hooks/useAgentConfigs.js";
 import {
   useUsageByProject,
   useUsageByProjectAndAgent,
@@ -8,7 +9,7 @@ import {
   type ProjectAgentUsage,
   type UsageWindow,
 } from "../hooks/useUsage.js";
-import { agentConfigsKey, projectsKey, WORKSPACES_KEY } from "../lib/queryKeys.js";
+import { projectsKey, WORKSPACES_KEY } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import {
   Banner,
@@ -121,10 +122,7 @@ export function WorkspacePanel({
    * ela que decide: com um agente a comparação não existe, e a segunda consulta
    * também não acontece. É a pergunta respondida em código e não em comentário.
    */
-  const configs = useQuery({
-    queryKey: agentConfigsKey(),
-    queryFn: () => trpc.agentConfig.list.query(),
-  });
+  const configs = useAgentConfigs();
   const manyAgents = (configs.data ?? []).filter((row) => row.transport === "acp").length > 1;
   const byAgent = useUsageByProjectAndAgent(workspaceId, period, manyAgents);
 

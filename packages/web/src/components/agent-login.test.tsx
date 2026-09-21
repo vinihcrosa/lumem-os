@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AgentLogin } from "./AgentLogin.js";
-import { NewSessionMenu } from "./NewSessionMenu.js";
 import { renderWithProviders } from "../test/render.js";
 import { trpcMock as trpc } from "../test/trpc-mock.js";
 
@@ -726,35 +725,8 @@ describe("entrar por chamada, e não por comando", () => {
 });
 
 /**
- * A prova de que o login alcança (`032` T6). `AgentLogin` cria a configuração e
- * `NewSessionMenu` lê a mesma `agentConfigsKey()` num componente **diferente** —
- * as duas montam sobre o mesmo `QueryClient`, então "duas chamadas" só é possível
- * se o cache for compartilhado e a invalidação alcançar o segundo leitor.
+ * A prova de que o login alcança (`032` T6) mudou de endereço na T11: ela
+ * mora em `hooks/useAgentConfigs.test.tsx`, contra `useConnectAgent`
+ * diretamente — mais barata que montar dois componentes, e é lá que apagar a
+ * invalidação do hook derruba o teste, e não aqui.
  */
-describe("o login alcança quem lê agentConfigsKey", () => {
-  it("conectar cria uma configuração, e a chave que NewSessionMenu lê some do ar só duas vezes", async () => {
-    const user = userEvent.setup();
-    renderWithProviders(
-      <>
-        <AgentLogin />
-        <NewSessionMenu scopeType="project" scopeId="p1" onCreated={vi.fn()} />
-      </>,
-    );
-
-    // As duas leem a mesma chave no mesmo instante: uma chamada só, por dedupe.
-    await screen.findByRole("button", { name: /nova sessão/ });
-    await screen.findByText("nenhum agente conectado");
-
-    trpc.agentConfig.create.mutate.mockResolvedValue(acpConfig());
-
-    await user.click(await screen.findByRole("button", { name: /conectar um agente/ }));
-    await user.click(await screen.findByRole("button", { name: /Claude Code/ }));
-
-    await waitFor(() => expect(trpc.agentConfig.create.mutate).toHaveBeenCalled());
-    // A da chegada (mount) e a da invalidação que o `onSettled` do `create`
-    // dispara — nunca uma terceira, porque os dois componentes compartilham o
-    // mesmo `Query` no cache.
-    await waitFor(() => expect(trpc.agentConfig.list.query).toHaveBeenCalledTimes(2));
-  });
-});
-

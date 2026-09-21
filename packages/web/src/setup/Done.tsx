@@ -1,7 +1,7 @@
 import { useQueries } from "@tanstack/react-query";
 
+import { agentConfigsQueryOptions } from "../hooks/useAgentConfigs.js";
 import {
-  agentConfigsKey,
   projectDetailKey,
   sessionsKey,
   worktreeDetailKey,
@@ -37,11 +37,7 @@ export function Done({ result, skipped, onOpen, onReview }: DoneProps) {
         queryKey: WORKSPACES_KEY,
         queryFn: () => trpc.workspace.list.query(),
       },
-      {
-        queryKey: agentConfigsKey(),
-        queryFn: () => trpc.agentConfig.list.query(),
-        enabled: result.agentConfigId !== undefined,
-      },
+      agentConfigsQueryOptions({ enabled: result.agentConfigId !== undefined }),
       {
         queryKey: projectDetailKey(result.projectId ?? ""),
         queryFn: () => trpc.project.get.query({ id: result.projectId ?? "" }),

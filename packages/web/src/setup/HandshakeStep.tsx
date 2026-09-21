@@ -1,7 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
-import { agentConfigsKey, SETUP_PROBE_KEY } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import {
+  useAgentConfigs,
+  useCreateHandshakeAgentConfig,
+  useSetupHandshakeProbe,
+} from "../hooks/useAgentConfigs.js";
 import {
   Banner,
   Button,
@@ -39,55 +40,25 @@ export interface HandshakeStepProps {
  * whole time; this screen is where that stops being true.
  */
 export function HandshakeStep({ onNext, onBack, onSkip }: HandshakeStepProps) {
-  const queryClient = useQueryClient();
-
-  const probe = useQuery({
-    queryKey: SETUP_PROBE_KEY,
-    queryFn: () => trpc.setup.probe.query(),
-    // One handshake per visit. It costs a process, not a token, and repeating it
-    // on every focus change would spawn adapters behind the user's back.
-    refetchOnWindowFocus: false,
-    retry: false,
-  });
-
-  const existing = useQuery({
-    queryKey: agentConfigsKey(),
-    queryFn: () => trpc.agentConfig.list.query(),
-  });
+  const probe = useSetupHandshakeProbe();
+  const existing = useAgentConfigs();
 
   const report = probe.data;
 
-  const create = useMutation({
-    mutationFn: async () => {
-      if (report === undefined) throw new Error("sem handshake não há o que salvar");
+  const create = useCreateHandshakeAgentConfig(existing.data, SETUP_AGENT_NAME);
 
-      const already = existing.data?.find(
-        (config) => config.transport === "acp" && config.command === report.command,
-      );
-      // Already configured — reuse it rather than failing on the unique name.
-      // Someone who ran the flow twice should not have to think about this.
-      if (already !== undefined) return already;
-
-      return trpc.agentConfig.create.mutate({
-        name: SETUP_AGENT_NAME,
-        command: report.command,
-        args: [...report.args],
-        transport: "acp",
-        // The whole point (F3.5). Null only if the adapter declared no version,
-        // in which case the daemon refuses and says so — which is better than
-        // writing a version nobody measured.
-        adapterVersion: report.agentInfo?.version ?? null,
-      });
-    },
-    onSuccess: async (config) => {
-      await queryClient.invalidateQueries({ queryKey: agentConfigsKey() });
-      onNext({
-        agentConfigId: config.id,
-        agentName: config.name,
-        ...(config.adapterVersion === null ? {} : { adapterVersion: config.adapterVersion }),
-      });
-    },
-  });
+  const submit = (): void => {
+    if (report === undefined) return;
+    create.mutate(report, {
+      onSuccess: (config) => {
+        onNext({
+          agentConfigId: config.id,
+          agentName: config.name,
+          ...(config.adapterVersion === null ? {} : { adapterVersion: config.adapterVersion }),
+        });
+      },
+    });
+  };
 
   const authWord =
     report === undefined
@@ -118,7 +89,7 @@ export function HandshakeStep({ onNext, onBack, onSkip }: HandshakeStepProps) {
         isPending: create.isPending,
         pending: "salvando…",
       }}
-      onSubmit={() => create.mutate()}
+      onSubmit={submit}
       onBack={onBack}
       onSkip={onSkip}
       extra={

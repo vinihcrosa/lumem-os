@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { useAgentConfigs } from "../hooks/useAgentConfigs.js";
 import {
-  agentConfigsKey,
   sessionsByTaskKey,
   taskDetailKey,
   tasksKey,
@@ -250,10 +250,7 @@ function WorkOnTask({
     queryKey: worktreesKey(projectId),
     queryFn: () => trpc.worktree.listByProject.query({ projectId }),
   });
-  const agents = useQuery({
-    queryKey: agentConfigsKey(),
-    queryFn: () => trpc.agentConfig.list.query(),
-  });
+  const agents = useAgentConfigs();
   const [agentId, setAgentId] = useState<string | null>(null);
   const chosenAgent = agentId ?? agents.data?.[0]?.id ?? null;
 

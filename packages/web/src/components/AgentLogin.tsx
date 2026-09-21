@@ -1,16 +1,20 @@
 import { ADAPTERS, type AdapterSpec } from "@lumem/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
-import { useLoginTerminal } from "../hooks/useLoginTerminal.js";
 import {
-  agentConfigsKey,
-  agentProbeKey,
-  authStateKey,
-  setupAgentsKey,
-  SETUP_PROBE_KEY,
-} from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+  entryOf,
+  useAgentConfigs,
+  useAgentLoginByCall,
+  useAgentLoginByCommand,
+  useAgentProbe,
+  useAuthState,
+  useCancelAuth,
+  useConnectAgent,
+  useReprobeAgents,
+  useSetupAgentsReport,
+  type AdapterEntry,
+} from "../hooks/useAgentConfigs.js";
+import { useLoginTerminal } from "../hooks/useLoginTerminal.js";
 import { Credentials } from "./Credentials.js";
 import { Banner, Button, CopyCommand, Glyph, Input } from "../ui/index.js";
 import { AgentConfigDialog } from "./AgentConfigDialog.js";
@@ -45,10 +49,7 @@ export function AgentLogin() {
   );
   const [custom, setCustom] = useState(false);
 
-  const configs = useQuery({
-    queryKey: agentConfigsKey(),
-    queryFn: () => trpc.agentConfig.list.query(),
-  });
+  const configs = useAgentConfigs();
 
   /*
    * Só as configurações de conversa.
@@ -156,33 +157,6 @@ interface AgentConfigView {
   adapterVersion: string | null;
 }
 
-/**
- * O handshake de **uma** configuração.
- *
- * Uma consulta por agente, e a chave é o comando mais os argumentos — que é o que
- * faz a linha e o painel do mesmo agente dividirem uma resposta em vez de subirem
- * dois processos. Mandar só o comando já foi um defeito de verdade: uma
- * configuração cujo comando é `node` e o argumento é um script sobe, sem o
- * argumento, um REPL que não responde handshake nenhum e pendura até o limite.
- */
-function useAgentProbe(config: AgentConfigView) {
-  return useQuery({
-    queryKey: agentProbeKey(config.command, config.args),
-    queryFn: () => trpc.setup.probe.query({ command: config.command, args: [...config.args] }),
-    retry: false,
-    refetchOnWindowFocus: false,
-    /*
-     * Não é perguntado de novo a cada montagem.
-     *
-     * Um probe é um processo: sobe o adaptador, aperta a mão e mata. Isso é barato
-     * em token (zero) e não é grátis em tempo (~0,6 s), e a resposta muda mais ou
-     * menos com a frequência com que uma credencial expira. "Verificar de novo" é
-     * o botão para quando muda.
-     */
-    staleTime: 5 * 60_000,
-  });
-}
-
 type AgentProbe = ReturnType<typeof useAgentProbe>;
 
 /** Verde passa, âmbar espera, vermelho não vai — a escala de três da barra da PR. */
@@ -227,15 +201,6 @@ function AgentRow({
   );
 }
 
-/** Uma entrada do relatório de pré-voo, do jeito que esta tela a lê. */
-interface AdapterEntry {
-  id: string;
-  label: string;
-  adapter: { path: string | null; version: string | null };
-  cli: { command: string; path: string | null; version: string | null } | null;
-  apiKeyEnv: string | null;
-}
-
 /**
  * O `＋`: qual agente conectar, e o preparo dele.
  *
@@ -254,59 +219,19 @@ function ConnectPanel({
   onCustom: () => void;
   onConnected: (configId: string) => void;
 }) {
-  const queryClient = useQueryClient();
   const [stage, setStage] = useState<"idle" | "installing" | "handshaking">("idle");
   const [chosen, setChosen] = useState<AdapterSpec | null>(null);
 
-  const report = useQuery({
-    queryKey: setupAgentsKey(),
-    queryFn: () => trpc.setup.agents.query(),
-    refetchOnWindowFocus: false,
-  });
+  const report = useSetupAgentsReport();
+  const connect = useConnectAgent(report.data, setStage);
 
-  const connect = useMutation({
-    mutationFn: async (spec: AdapterSpec) => {
-      setChosen(spec);
-      const found = entryOf(report.data, spec.id);
-      let command = found?.adapter.path ?? null;
-      /*
-       * Estar instalado não é estar na versão que o produto mediu (LUM-54).
-       *
-       * Antes daqui, só a **ausência** do binário levava a instalar — então uma
-       * cópia velha era conectada com a versão nova escrita no `agent_config`, e
-       * todo turno morria num 400 sobre o runtime embutido. Só decide quando a
-       * versão é conhecida: `null` é "não deu para ler", e reinstalar por
-       * desconhecimento baixaria 255 MB a cada conexão.
-       */
-      const stale =
-        found?.adapter.version != null && found.adapter.version !== spec.pinnedVersion;
-
-      if (command === null || stale) {
-        setStage("installing");
-        const installed = await trpc.setup.installAdapter.mutate({ adapterId: spec.id });
-        command = installed.path;
-      }
-
-      setStage("handshaking");
-      const probe = await trpc.setup.probe.query({ command });
-      const created = await trpc.agentConfig.create.mutate({
-        // Curto, porque ele nomeia a aba da sessão.
-        name: spec.id,
-        command,
-        args: [],
-        transport: "acp",
-        // A versão é **detectada**, nunca digitada: ela vem do handshake.
-        adapterVersion: probe.agentInfo?.version ?? spec.pinnedVersion,
-      });
-      return created.id;
-    },
-    onSettled: async () => {
-      setStage("idle");
-      await queryClient.invalidateQueries({ queryKey: agentConfigsKey() });
-      await queryClient.invalidateQueries({ queryKey: setupAgentsKey() });
-    },
-    onSuccess: (id) => onConnected(id),
-  });
+  const startConnect = (spec: AdapterSpec): void => {
+    setChosen(spec);
+    connect.mutate(spec, {
+      onSuccess: (id) => onConnected(id),
+      onSettled: () => setStage("idle"),
+    });
+  };
 
   return (
     <div className="setup" role="group" aria-label="conectar agente">
@@ -346,7 +271,7 @@ function ConnectPanel({
                  * instala um adaptador que já estava lá — minutos de npm para nada.
                  */
                 disabled={already || connect.isPending || report.isPending}
-                onClick={() => connect.mutate(spec)}
+                onClick={() => startConnect(spec)}
               >
                 <span className="opt__t">
                   <span className="opt__g" aria-hidden="true">
@@ -373,14 +298,6 @@ function ConnectPanel({
       )}
     </div>
   );
-}
-
-function entryOf(
-  report: { adapters: readonly AdapterEntry[] } | undefined,
-  id: string | undefined,
-): AdapterEntry | undefined {
-  if (id === undefined) return undefined;
-  return report?.adapters.find((entry) => entry.id === id);
 }
 
 /** O que a linha do catálogo diz sobre uma spec, antes do clique. */
@@ -482,13 +399,9 @@ function AgentPanel({
   onClose: () => void;
   onCustom: () => void;
 }) {
-  const queryClient = useQueryClient();
   const [advanced, setAdvanced] = useState(false);
   const probe = useAgentProbe(config);
-
-  const reprobe = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: SETUP_PROBE_KEY });
-  }, [queryClient]);
+  const reprobe = useReprobeAgents();
 
   /** O rótulo do agente: o `title` do handshake, e o nome da configuração antes dele. */
   const label = probe.data?.agentInfo?.title ?? config.name;
@@ -674,16 +587,8 @@ function LoginOptions({
 
   const target = { command: config.command, args: [...config.args] };
 
-  const byCommand = useMutation({
-    mutationFn: (methodId: string) => trpc.setup.login.mutate({ methodId, ...target }),
-    onSuccess: (started) => setLoginPty(started.ptySessionId),
-  });
-
-  const byCall = useMutation({
-    mutationFn: (input: { methodId: string; apiKey?: string }) =>
-      trpc.setup.authenticate.mutate({ ...input, ...target }),
-    onSuccess: (attempt) => setLoginId(attempt.id),
-  });
+  const byCommand = useAgentLoginByCommand();
+  const byCall = useAgentLoginByCall();
 
   /*
    * O estado da chamada, perguntado enquanto ela dura.
@@ -693,21 +598,8 @@ function LoginOptions({
    * dela. Por isso o daemon devolve um id e a tela pergunta: é o mesmo desenho do
    * login por comando, que devolvia um `ptySessionId` para o cliente acompanhar.
    */
-  const attempt = useQuery({
-    // `loginId ?? ""` só existe para o tipo da chave — `enabled` abaixo nunca
-    // deixa a query correr sem `loginId`, então `["setup","authState",""]`
-    // fica no cache sem nunca disparar.
-    queryKey: authStateKey(loginId ?? ""),
-    queryFn: () => trpc.setup.authState.query({ loginId: loginId ?? "" }),
-    enabled: loginId !== null,
-    refetchInterval: (query) =>
-      query.state.data === undefined || query.state.data.state === "running" ? 700 : false,
-  });
-
-  const cancel = useMutation({
-    mutationFn: () => trpc.setup.cancelAuth.mutate({ loginId: loginId ?? "" }),
-    onSuccess: () => setLoginId(null),
-  });
+  const attempt = useAuthState(loginId);
+  const cancel = useCancelAuth();
 
   const state = attempt.data?.state;
 
@@ -752,7 +644,10 @@ function LoginOptions({
           disabled={byCommand.isPending || byCall.isPending}
           onClick={() => {
             if (method.type === "terminal") {
-              byCommand.mutate(method.id);
+              byCommand.mutate(
+                { methodId: method.id, ...target },
+                { onSuccess: (started) => setLoginPty(started.ptySessionId) },
+              );
               return;
             }
             // Uma chave é a única coisa que a pessoa tem que digitar; ela ganha um
@@ -761,7 +656,10 @@ function LoginOptions({
               setKeyFor(method);
               return;
             }
-            byCall.mutate({ methodId: method.id });
+            byCall.mutate(
+              { methodId: method.id, ...target },
+              { onSuccess: (started) => setLoginId(started.id) },
+            );
           }}
         >
           <span className="opt__t">
@@ -867,7 +765,7 @@ function LoginOptions({
             size="sm"
             variant="ghost"
             disabled={cancel.isPending}
-            onClick={() => cancel.mutate()}
+            onClick={() => cancel.mutate(loginId ?? "", { onSuccess: () => setLoginId(null) })}
           >
             cancelar
           </Button>
@@ -926,7 +824,10 @@ function LoginOptions({
             variant="primary"
             disabled={apiKey.trim() === "" || byCall.isPending}
             onClick={() => {
-              byCall.mutate({ methodId: method.id, apiKey: apiKey.trim() });
+              byCall.mutate(
+                { methodId: method.id, apiKey: apiKey.trim(), ...target },
+                { onSuccess: (started) => setLoginId(started.id) },
+              );
               // Apagada da tela no mesmo gesto que a envia: ela atravessa o daemon
               // e não tem por que continuar existindo aqui.
               setApiKey("");
