@@ -1,11 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { useProjectDetail, useProjectMutations } from "../hooks/useProjects.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import { useTasksByWorkspace } from "../hooks/useTasks.js";
 import { useUsageByWorktree, USAGE_WINDOWS, type UsageWindow } from "../hooks/useUsage.js";
-import { projectDetailKey, projectsKey, worktreesKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { useWorktrees } from "../hooks/useWorktrees.js";
 import {
   Banner,
   Button,
@@ -169,19 +168,10 @@ export function LocalPanel({
   initialDraft,
   filesPanel,
 }: LocalPanelProps) {
-  const queryClient = useQueryClient();
   const scope: Scope = { scopeType: "project", scopeId: projectId };
 
-  const project = useQuery({
-    queryKey: projectDetailKey(projectId),
-    queryFn: () => trpc.project.get.query({ id: projectId }),
-  });
-
-  const worktrees = useQuery({
-    queryKey: worktreesKey(projectId),
-    queryFn: () => trpc.worktree.listByProject.query({ projectId }),
-    enabled: project.data?.available === true,
-  });
+  const project = useProjectDetail(projectId);
+  const worktrees = useWorktrees(projectId, { enabled: project.data?.available === true });
 
   /*
    * Quantas tarefas somem junto (`022` T10).
@@ -205,13 +195,7 @@ export function LocalPanel({
    */
   const [confirming, setConfirming] = useState(false);
 
-  const remove = useMutation({
-    mutationFn: () => trpc.project.remove.mutate({ id: projectId }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: projectsKey(workspaceId) });
-      onRemoved();
-    },
-  });
+  const { remove } = useProjectMutations(workspaceId);
 
   if (confirming && project.data) {
     return (
@@ -225,7 +209,7 @@ export function LocalPanel({
           setConfirming(false);
           remove.reset();
         }}
-        onConfirm={() => remove.mutate()}
+        onConfirm={() => remove.mutate(projectId, { onSuccess: onRemoved })}
       />
     );
   }

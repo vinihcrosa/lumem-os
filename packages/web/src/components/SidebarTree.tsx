@@ -1,14 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
-
 import type { PrMark } from "@lumem/shared";
 
 import { useAwaitingPermission } from "../hooks/useAwaitingPermission.js";
+import { useProjects } from "../hooks/useProjects.js";
 import { usePrMarks } from "../hooks/usePullRequest.js";
 import { useScripts } from "../hooks/useScripts.js";
 import { useRunningAcross, useSessionsByScope, type Scope } from "../hooks/useSessionsByScope.js";
 import type { TreeExpansion } from "../hooks/useTreeExpansion.js";
-import { projectsKey, worktreesKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { useWorktrees } from "../hooks/useWorktrees.js";
 import { EmptyState, Glyph, Row, Skeleton } from "../ui/index.js";
 
 import "./pr-bar.css";
@@ -39,10 +37,7 @@ export interface SidebarTreeProps {
 
 /** Projects and their worktrees — F3.1 through F3.3. */
 export function SidebarTree(props: SidebarTreeProps) {
-  const projects = useQuery({
-    queryKey: projectsKey(props.workspaceId),
-    queryFn: () => trpc.project.listByWorkspace.query({ workspaceId: props.workspaceId }),
-  });
+  const projects = useProjects(props.workspaceId);
 
   return (
     <div className="tree" aria-label="árvore de projetos">
@@ -118,13 +113,9 @@ function ProjectNode({
   const expanded = expansion.isExpanded(project.id);
   const localScope: Scope = { scopeType: "project", scopeId: project.id };
 
-  const worktrees = useQuery({
-    queryKey: worktreesKey(project.id),
-    queryFn: () => trpc.worktree.listByProject.query({ projectId: project.id }),
-    // A repository that left the disk cannot answer, and asking would only put
-    // an error in the sidebar for a state the row already reports.
-    enabled: project.available,
-  });
+  // A repository that left the disk cannot answer, and asking would only put
+  // an error in the sidebar for a state the row already reports.
+  const worktrees = useWorktrees(project.id, { enabled: project.available });
 
   const list = worktrees.data ?? [];
 

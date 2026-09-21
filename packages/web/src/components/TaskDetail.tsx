@@ -3,7 +3,8 @@ import { useState } from "react";
 
 import { useAgentConfigs } from "../hooks/useAgentConfigs.js";
 import { useTaskDetail, useTaskStatusMutation, useWorkOnTaskMutation } from "../hooks/useTasks.js";
-import { sessionsByTaskKey, worktreesKey } from "../lib/queryKeys.js";
+import { useWorktrees } from "../hooks/useWorktrees.js";
+import { sessionsByTaskKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, Chip, Modal, SectionHead, Skeleton } from "../ui/index.js";
 
@@ -229,10 +230,7 @@ function WorkOnTask({
   const [name, setName] = useState(() => suggestName(title));
   const [checkout, setCheckout] = useState<string | null>(worktreeId);
 
-  const worktrees = useQuery({
-    queryKey: worktreesKey(projectId),
-    queryFn: () => trpc.worktree.listByProject.query({ projectId }),
-  });
+  const worktrees = useWorktrees(projectId);
   const agents = useAgentConfigs();
   const [agentId, setAgentId] = useState<string | null>(null);
   const chosenAgent = agentId ?? agents.data?.[0]?.id ?? null;

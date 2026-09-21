@@ -1,8 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
-import { worktreeBranchesKey, worktreeHostOriginsKey, worktreesKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { useWorktreeBranches, useWorktreeMutations, useWorktreeOrigins } from "../hooks/useWorktrees.js";
 import { Banner, Button, Field, Glyph, Input, Modal } from "../ui/index.js";
 import "./create-worktree.css";
 
@@ -87,7 +85,6 @@ export function CreateWorktreeDialog({
   onOpenExisting,
   hasCommits = null,
 }: CreateWorktreeDialogProps) {
-  const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [kind, setKind] = useState<OriginKind>("default");
   const [pick, setPick] = useState<Pick | null>(null);
@@ -102,30 +99,10 @@ export function CreateWorktreeDialog({
    * As duas começam **depois** de o diálogo existir, e nenhuma segura o campo de
    * nome: é a F3.5, e é o que a `sidebar-actions` aprendeu na Q5a.
    */
-  const branches = useQuery({
-    queryKey: worktreeBranchesKey(projectId),
-    queryFn: () => trpc.worktree.branches.query({ projectId }),
-    enabled: open,
-  });
-  const host = useQuery({
-    queryKey: worktreeHostOriginsKey(projectId),
-    queryFn: () => trpc.worktree.hostOrigins.query({ projectId }),
-    enabled: open,
-  });
+  const branches = useWorktreeBranches(projectId, { enabled: open });
+  const host = useWorktreeOrigins(projectId, { enabled: open });
 
-  const create = useMutation({
-    mutationFn: () =>
-      trpc.worktree.create.mutate({
-        projectId,
-        name: name.trim(),
-        from: fromOf(active, pick),
-      }),
-    onSuccess: async (worktree) => {
-      await queryClient.invalidateQueries({ queryKey: worktreesKey(projectId) });
-      onCreated(worktree.id);
-      close();
-    },
-  });
+  const { create } = useWorktreeMutations(projectId);
 
   function close(): void {
     setName("");
@@ -138,7 +115,15 @@ export function CreateWorktreeDialog({
   const submit = (event: FormEvent): void => {
     event.preventDefault();
     if (name.trim() === "") return;
-    create.mutate();
+    create.mutate(
+      { name: name.trim(), from: fromOf(active, pick) },
+      {
+        onSuccess: (worktree) => {
+          onCreated(worktree.id);
+          close();
+        },
+      },
+    );
   };
 
   const unborn = hasCommits === false;

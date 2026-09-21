@@ -1,9 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { isTerminal, useCloneStream } from "../hooks/useCloneJob.js";
-import { cloneJobsKey, parseSourceKey, projectsKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { useParseSource, useProjectMutations, type ClonePlan } from "../hooks/useProjects.js";
 import { Button, Chip, Field, Glyph, Input, Modal } from "../ui/index.js";
 import { CloneOutcome, CloneProgress, outcomeSpeaks } from "./CloneStatus.js";
 
@@ -28,21 +26,6 @@ export interface AddProjectDialogProps {
   onPrefillConsumed?: () => void;
 }
 
-/** What `project.parseSource` answers. Named here so the screen can read it. */
-interface Plan {
-  kind: "path" | "url" | "refused";
-  path?: string;
-  scheme?: string;
-  url?: string;
-  insecure?: boolean;
-  name?: string;
-  targetPath?: string;
-  message?: string;
-}
-
-/** Long enough not to ask on every keystroke, short enough to feel immediate. */
-const ECHO_DEBOUNCE_MS = 250;
-
 /**
  * Adding a repository — by path, as before, or by URL, which clones it.
  *
@@ -64,7 +47,6 @@ export function AddProjectDialog({
   prefill = null,
   onPrefillConsumed,
 }: AddProjectDialogProps) {
-  const queryClient = useQueryClient();
   const [source, setSource] = useState("");
   const [name, setName] = useState("");
   const [dismissed, setDismissed] = useState<string | null>(null);
@@ -94,7 +76,7 @@ export function AddProjectDialog({
       ? live
       : null;
 
-  const plan = useEchoedPlan(workspaceId, source, name);
+  const plan = (useParseSource(workspaceId, source, name).data as ClonePlan | undefined) ?? null;
 
   useEffect(() => {
     if (prefill === null) return;
@@ -124,39 +106,33 @@ export function AddProjectDialog({
     if (running !== null) setHeld(running.id);
   }, [running?.id]);
 
-  const add = useMutation({
-    mutationFn: () =>
-      trpc.project.add.mutate({
-        workspaceId,
+  const { add, clone, cloneCancel: cancel, invalidateProjects } = useProjectMutations(workspaceId);
+
+  const submitAdd = (): void => {
+    add.mutate(
+      {
         path: plan?.kind === "path" ? plan.path! : source.trim(),
         ...(name.trim() === "" ? {} : { name: name.trim() }),
-      }),
-    onSuccess: async (project) => {
-      await queryClient.invalidateQueries({ queryKey: projectsKey(workspaceId) });
-      onAdded(project.id);
-      close();
-    },
-  });
+      },
+      {
+        onSuccess: (project) => {
+          onAdded(project.id);
+          close();
+        },
+      },
+    );
+  };
 
-  const clone = useMutation({
-    mutationFn: () =>
-      trpc.project.clone.mutate({
-        workspaceId,
-        source: source.trim(),
-        ...(name.trim() === "" ? {} : { name: name.trim() }),
-      }),
-    onSuccess: async () => {
-      // Q5: the dialog stays. From here it *is* the clone — progress, phase,
-      // cancelling and both endings, in the place the button was pressed.
-      setDismissed(null);
-      await queryClient.invalidateQueries({ queryKey: cloneJobsKey(workspaceId) });
-    },
-  });
-
-  const cancel = useMutation({
-    mutationFn: (jobId: string) => trpc.project.cloneCancel.mutate({ jobId }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: cloneJobsKey(workspaceId) }),
-  });
+  const submitClone = (): void => {
+    clone.mutate(
+      { source: source.trim(), ...(name.trim() === "" ? {} : { name: name.trim() }) },
+      {
+        // Q5: the dialog stays. From here it *is* the clone — progress, phase,
+        // cancelling and both endings, in the place the button was pressed.
+        onSuccess: () => setDismissed(null),
+      },
+    );
+  };
 
   /*
    * Only success closes.
@@ -171,7 +147,7 @@ export function AddProjectDialog({
     // was already taken, and closing over that would decide on the user's
     // behalf and then not mention it.
     if (outcomeSpeaks(live) && live.id !== dismissed) return;
-    void queryClient.invalidateQueries({ queryKey: projectsKey(workspaceId) });
+    void invalidateProjects();
     setHeld(null);
     close();
   }, [open, held, live?.id, live?.state, dismissed]);
@@ -230,8 +206,8 @@ export function AddProjectDialog({
   const submit = (event: FormEvent): void => {
     event.preventDefault();
     if (source.trim() === "" || refused || waiting) return;
-    if (isUrl) clone.mutate();
-    else add.mutate();
+    if (isUrl) submitClone();
+    else submitAdd();
   };
 
   return (
@@ -348,7 +324,7 @@ export function AddProjectDialog({
 const FORM_ID = "add-project";
 
 /** The `↳` line, in the daemon's words rather than the client's guess. */
-function Echo({ plan }: { plan: Plan }) {
+function Echo({ plan }: { plan: ClonePlan }) {
   if (plan.kind === "refused") {
     return (
       // `status`, not `alert`: this arrives while somebody is still typing and
@@ -388,31 +364,3 @@ function Echo({ plan }: { plan: Plan }) {
   );
 }
 
-/**
- * What the server understood, asked for again a beat after typing stops.
- *
- * The client does decide this too, to draw the line — but it decides it by
- * asking. A second implementation of the rule here would be a second rule, and
- * the two would disagree the first time either changed.
- */
-function useEchoedPlan(workspaceId: string, source: string, name: string): Plan | null {
-  const [settled, setSettled] = useState("");
-
-  useEffect(() => {
-    const timer = setTimeout(() => setSettled(source.trim()), ECHO_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [source]);
-
-  const query = useQuery({
-    queryKey: parseSourceKey(workspaceId, settled, name.trim()),
-    queryFn: () =>
-      trpc.project.parseSource.query({
-        workspaceId,
-        source: settled,
-        ...(name.trim() === "" ? {} : { name: name.trim() }),
-      }),
-    enabled: settled !== "",
-  });
-
-  return (query.data as Plan | undefined) ?? null;
-}

@@ -1,7 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { projectInspectKey, projectsKey } from "../lib/queryKeys.js";
+import { useProjectMutations } from "../hooks/useProjects.js";
+import { projectInspectKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import {
   Banner,
@@ -35,7 +36,6 @@ export interface ProjectStepProps {
  * type and says what it understood.
  */
 export function ProjectStep({ workspaceId, onNext, onBack, onSkip }: ProjectStepProps) {
-  const queryClient = useQueryClient();
   const [path, setPath] = useState("");
   const settled = useSettled(path.trim());
 
@@ -48,17 +48,18 @@ export function ProjectStep({ workspaceId, onNext, onBack, onSkip }: ProjectStep
     retry: false,
   });
 
+  const { add: addMutation } = useProjectMutations(workspaceId ?? "");
+  /*
+   * Um segundo `useMutation` só para o guarda de `workspaceId` ausente
+   * virar estado de erro na tela, e não um clique que não faz nada — o passo
+   * pode ser alcançado fora de ordem, com o de trás pulado.
+   */
   const add = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (workspaceId === undefined) throw new Error("sem workspace não há onde adicionar");
-      return trpc.project.add.mutate({ workspaceId, path: settled });
+      return addMutation.mutateAsync({ path: settled });
     },
-    onSuccess: async (project) => {
-      if (workspaceId !== undefined) {
-        await queryClient.invalidateQueries({ queryKey: projectsKey(workspaceId) });
-      }
-      onNext({ projectId: project.id, projectPath: project.path });
-    },
+    onSuccess: (project) => onNext({ projectId: project.id, projectPath: project.path }),
   });
 
   const described = inspect.data;

@@ -1,11 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { useProjectDetail } from "../hooks/useProjects.js";
 import type { Scope } from "../hooks/useSessionsByScope.js";
 import { useTaskByWorktree } from "../hooks/useTasks.js";
+import { useWorktreeDetail, useWorktreeMutations } from "../hooks/useWorktrees.js";
 import { relativeAge } from "../lib/relative-time.js";
-import { projectDetailKey, worktreeDetailKey, worktreesKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { worktreesKey } from "../lib/queryKeys.js";
 import {
   Banner,
   Button,
@@ -65,10 +66,7 @@ export function WorktreePanel({
   const queryClient = useQueryClient();
   const [confirmingForce, setConfirmingForce] = useState(false);
 
-  const detail = useQuery({
-    queryKey: worktreeDetailKey(worktreeId),
-    queryFn: () => trpc.worktree.getDetail.query({ id: worktreeId }),
-  });
+  const detail = useWorktreeDetail(worktreeId);
 
   /*
    * A tarefa deste checkout (`022` T11).
@@ -100,18 +98,9 @@ export function WorktreePanel({
     ?.find((worktree) => worktree.id === worktreeId);
 
   // Same key the local panel uses, so the crumb costs a cache read.
-  const project = useQuery({
-    queryKey: projectDetailKey(projectId),
-    queryFn: () => trpc.project.get.query({ id: projectId }),
-  });
+  const project = useProjectDetail(projectId);
 
-  const remove = useMutation({
-    mutationFn: (force: boolean) => trpc.worktree.remove.mutate({ id: worktreeId, force }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: worktreesKey(projectId) });
-      onRemoved();
-    },
-  });
+  const { remove } = useWorktreeMutations(projectId);
 
   const scope: Scope = { scopeType: "worktree", scopeId: worktreeId };
 
@@ -240,11 +229,15 @@ export function WorktreePanel({
               variant="ghost"
               size="sm"
               onClick={() =>
-                remove.mutate(false, {
-                  // The daemon decides whether it is blocked; the UI never
-                  // second-guesses it by reading the status itself.
-                  onError: () => setConfirmingForce(true),
-                })
+                remove.mutate(
+                  { id: worktreeId, force: false },
+                  {
+                    onSuccess: onRemoved,
+                    // The daemon decides whether it is blocked; the UI never
+                    // second-guesses it by reading the status itself.
+                    onError: () => setConfirmingForce(true),
+                  },
+                )
               }
               disabled={remove.isPending}
             >
@@ -267,7 +260,9 @@ export function WorktreePanel({
                     <Button
                       size="sm"
                       variant="danger"
-                      onClick={() => remove.mutate(true)}
+                      onClick={() =>
+                        remove.mutate({ id: worktreeId, force: true }, { onSuccess: onRemoved })
+                      }
                       disabled={remove.isPending}
                     >
                       remover mesmo assim

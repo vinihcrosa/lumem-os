@@ -2,6 +2,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { useAgentConfigs } from "../hooks/useAgentConfigs.js";
+import { useProjects } from "../hooks/useProjects.js";
 import {
   useUsageByProject,
   useUsageByProjectAndAgent,
@@ -109,10 +110,7 @@ export function WorkspacePanel({
   const setBoard = (open: boolean) => {
     onView(open ? "board" : "home");
   };
-  const projects = useQuery({
-    queryKey: projectsKey(workspaceId),
-    queryFn: () => trpc.project.listByWorkspace.query({ workspaceId }),
-  });
+  const projects = useProjects(workspaceId);
   const usage = useUsageByProject(workspaceId, period);
 
   /*
