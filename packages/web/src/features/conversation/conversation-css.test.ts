@@ -27,6 +27,8 @@ function read(...names: string[]): string {
 const stylesheet = readFileSync(join(HERE, "conversation.css"), "utf8");
 const components = read(
   "Conversation.tsx",
+  "Composer.tsx",
+  "Transcript.tsx",
   "Message.tsx",
   "ToolCard.tsx",
   "PermissionRequest.tsx",
