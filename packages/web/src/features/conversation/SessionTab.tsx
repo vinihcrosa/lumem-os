@@ -29,10 +29,6 @@ export interface SessionTabPanelProps {
   resuming?: boolean;
   /** A fresh session was started from this record — open its tab. */
   onStarted: (sessionId: string) => void;
-  /** O rascunho que a tarefa trouxe — preenchido e **não** enviado (`022` T6). */
-  initialDraft?: string | undefined;
-  /** O pedido que abriu esta conversa, quando ela nasceu de um gesto do produto. */
-  initialPrompt?: string | undefined;
 }
 
 /**
@@ -58,8 +54,6 @@ export function SessionTabPanel({
   onResume,
   resuming = false,
   onStarted,
-  initialPrompt,
-  initialDraft,
 }: SessionTabPanelProps) {
   const agent = tab.kind === "agent";
   const conversation = tab.transport === "acp";
@@ -122,8 +116,6 @@ export function SessionTabPanel({
             active={active}
             {...(onResume ? { onResume } : {})}
             resuming={resuming}
-            initialDraft={initialDraft}
-            initialPrompt={initialPrompt}
           />
         ) : (
           <Terminal key={tab.sessionId} sessionId={tab.sessionId} readOnly={record} />

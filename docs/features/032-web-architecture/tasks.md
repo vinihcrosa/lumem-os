@@ -513,10 +513,10 @@ galho `detail.isPending`. É uma divergência pré-existente (não introduzida p
 a remove por completo ao tirar as três props do arquivo), então ficou registrada aqui em vez de
 corrigida — corrigir agora só para apagar duas tasks depois não é o que a T21 pede.
 
-Até a T22 fechar, `App.tsx` ainda traduz `arrival` para `openSessionId`/`initialPrompt`/
-`initialDraft` na própria função — é o único lugar que sabe que essa tradução é temporária.
+Entre esta task e a T22, `App.tsx` traduziu `arrival` para `openSessionId`/`initialPrompt`/
+`initialDraft` na própria função — a T22 removeu essa tradução junto com as três props.
 
-#### T22: `useArrival(sessionId)` — o one-shot num lugar só
+#### T22: `useArrival(sessionId)` — o one-shot num lugar só · **entregue em 2026-09-21**
 
 O hook que a `Conversation` chama e que **consome** a chegada uma vez. `ScopePanel`, `SessionTab`,
 `WorktreePanel` e `LocalPanel` **perdem** `openSessionId`, `initialPrompt` e `initialDraft`; o
@@ -527,6 +527,28 @@ O hook que a `Conversation` chama e que **consome** a chegada uma vez. `ScopePan
 foi digitado"* — que é o comportamento que o comentário de `initialDraft` protege hoje;
 `00-onboarding.spec.ts` (*"criar e abrir a conversa"*), `acp-conversation.spec.ts` e o caso do
 rodapé sem `[scripts]` em `RunDock.test.tsx` verdes **sem mudança de asserção**.
+
+**Achado:** ler é síncrono (durante a renderização, guardado num `ref` por `sessionId`) e consumir é
+em efeito — as duas coisas parecem a mesma tarefa e não são. Consumir **durante** a renderização de
+um filho (`Conversation`) notificaria, na hora, quem estiver inscrito no mesmo store (o `ScopePanel`,
+que decide qual aba trazer para a frente) — e o React recusa um `setState` disparado enquanto outro
+componente ainda renderiza. Separar as duas é o que faz a leitura do `ScopePanel` (fechada sobre o
+valor do seu **próprio** render, antes deste hook consumir) correta independente da ordem dos
+efeitos.
+
+**Achado:** o `00-onboarding.spec.ts` de hoje não tem um teste chamado literalmente *"criar e abrir a
+conversa"* — esse é o **texto do botão** que o fluxo clica (`Criar e abrir a conversa`), dentro do
+único `test()` do arquivo (`"an empty machine reaches the first turn, entirely through the screen"`).
+O `Done when` citava o botão como se fosse o nome do caso; o teste que passa é o mesmo, só o rótulo
+estava errado.
+
+**Achado:** `ScopePanel` também usa o store (T21) para saber qual aba trazer à frente — ele não
+recebia isso por `useArrival`, que é só da `Conversation`. O `opened` ref virou `sessionId | null`
+(não mais `boolean`): o `arrival` pode trocar de sessão mais de uma vez na vida de um painel, e cada
+chegada nova merece a própria tentativa de trazer a aba para a frente.
+
+`pnpm gate:full` verde: `vitest run` (92 arquivos, 1228 testes) e `playwright test` (116 testes,
+incluindo os três casos citados no `Done when`) sem nenhuma asserção alterada.
 
 #### T23: `useRightPanel` vira contexto, e `filesPanel` sai das props
 

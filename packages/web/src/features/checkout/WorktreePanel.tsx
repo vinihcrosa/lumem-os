@@ -41,11 +41,6 @@ export interface WorktreePanelProps {
    * você deixou.
    */
   filesPanel: { open: boolean; toggle(): void };
-  /** Passed through to the tabs: a session to open on arrival, once. */
-  openSessionId?: string | undefined;
-  /** O pedido que abriu uma conversa (ver `ScopePanel`). */
-  initialPrompt?: { sessionId: string; text: string } | undefined;
-  initialDraft?: { sessionId: string; text: string } | undefined;
 }
 
 /** Branch, path, cleanliness and distance from the base — F4.10 — plus its tabs. */
@@ -56,9 +51,6 @@ export function WorktreePanel({
   onRemoved,
   onOpenWorkspace,
   onOpenProject,
-  openSessionId,
-  initialPrompt,
-  initialDraft,
   filesPanel,
 }: WorktreePanelProps) {
   const queryClient = useQueryClient();
@@ -156,9 +148,6 @@ export function WorktreePanel({
       <ScopePanel
         scope={scope}
         cwd={known.path}
-        openSessionId={openSessionId}
-        initialPrompt={initialPrompt}
-        initialDraft={initialDraft}
         filesPanel={filesPanel}
         crumb={crumb(known.name, known.branch)}
         checkout={{ name: known.name, glyph: <Glyph tone="worktree">◇</Glyph> }}
@@ -194,8 +183,6 @@ export function WorktreePanel({
     <ScopePanel
       scope={scope}
       cwd={path}
-      openSessionId={openSessionId}
-      initialPrompt={initialPrompt}
       filesPanel={filesPanel}
       crumb={crumb(name, branch)}
       checkout={{

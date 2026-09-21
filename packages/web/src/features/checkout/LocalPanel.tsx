@@ -37,11 +37,6 @@ export interface LocalPanelProps {
    * você deixou.
    */
   filesPanel: { open: boolean; toggle(): void };
-  /** Uma sessão para trazer à frente, uma vez — ver `ScopePanel`. */
-  openSessionId?: string | undefined;
-  /** O pedido que abriu uma conversa (ver `ScopePanel`). */
-  initialPrompt?: { sessionId: string; text: string } | undefined;
-  initialDraft?: { sessionId: string; text: string } | undefined;
 }
 
 /**
@@ -161,9 +156,6 @@ export function LocalPanel({
   onRemoved,
   onOpenWorkspace,
   onSelectWorktree,
-  openSessionId,
-  initialPrompt,
-  initialDraft,
   filesPanel,
 }: LocalPanelProps) {
   const scope: Scope = { scopeType: "project", scopeId: projectId };
@@ -234,9 +226,6 @@ export function LocalPanel({
     <ScopePanel
       scope={scope}
       cwd={path}
-      openSessionId={openSessionId}
-      initialPrompt={initialPrompt}
-      initialDraft={initialDraft}
       filesPanel={filesPanel}
       crumb={
         <nav className="crumb" aria-label="Caminho">

@@ -32,25 +32,18 @@ import "./layout/layout.css";
 export function App() {
   const invalidateWorkspaces = useInvalidateWorkspaces();
   /**
-   * Onde você está: o checkout selecionado e a chegada pendente numa conversa
-   * (`032-web-architecture` T21) — o `App` deixou de ser dono dos dois, e
-   * `selectScope`/`clearSelection`/`arrive` (importados de `lib/navigation.js`)
-   * levam com eles a regra `selection !== null` implica `route === "home"`.
+   * O checkout selecionado (`032-web-architecture` T21) — o `App` deixou de
+   * ser dono dele, e `selectScope`/`clearSelection` (importados de
+   * `lib/navigation.js`) levam com eles a regra `selection !== null` implica
+   * `route === "home"`.
+   *
+   * A chegada (`arrival`) que este mesmo store guarda não passa mais por
+   * aqui (T22): quem traz a aba nova para a frente é o próprio `ScopePanel`
+   * — lendo o store direto —, e quem lê o texto do pedido/rascunho é a
+   * `Conversation`, pelo `useArrival`. O `App` não precisa saber que ela
+   * existe.
    */
-  const { selection, arrival } = useNavigation();
-  /*
-   * As três formas de abrir uma conversa (T21) — `ask`, `draft` e
-   * `openSessionId` — hoje é uma leitura só, `arrival`. `ScopePanel` e
-   * `Conversation` ainda recebem por prop até a T22 as levar para dentro de
-   * `useArrival`; até lá, a tradução mora aqui, uma vez.
-   */
-  const openSessionId = arrival?.sessionId;
-  const initialPrompt =
-    arrival !== null && arrival.send ? { sessionId: arrival.sessionId, text: arrival.text ?? "" } : undefined;
-  const initialDraft =
-    arrival !== null && !arrival.send && arrival.text !== undefined
-      ? { sessionId: arrival.sessionId, text: arrival.text }
-      : undefined;
+  const { selection } = useNavigation();
   /**
    * Qual tela está na frente, lida do **caminho** (`030-settings`, F1).
    *
@@ -407,9 +400,6 @@ export function App() {
           key={scope.scopeId}
           worktreeId={scope.scopeId}
           projectId={projectId}
-          openSessionId={openSessionId}
-          initialPrompt={initialPrompt}
-          initialDraft={initialDraft}
           workspaceName={workspaceName}
           filesPanel={rightPanel}
           onRemoved={() =>
@@ -437,9 +427,6 @@ export function App() {
         projectId={projectId}
         workspaceId={workspaceId}
         workspaceName={workspaceName}
-        openSessionId={openSessionId}
-        initialPrompt={initialPrompt}
-        initialDraft={initialDraft}
         filesPanel={rightPanel}
         onRemoved={() => clearSelection()}
         onOpenWorkspace={() => clearSelection()}

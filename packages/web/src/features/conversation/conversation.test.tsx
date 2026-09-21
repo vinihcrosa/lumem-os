@@ -4,7 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AwaitingPermissionProvider } from "../../hooks/useAwaitingPermission.js";
+import { arrive } from "../../lib/navigation.js";
 import type { AcpClientMessage } from "@lumem/shared";
+import type { AcpConnect } from "./acp-socket.js";
 import { Conversation } from "./Conversation.js";
 
 /**
@@ -280,8 +282,15 @@ describe("sending", () => {
 });
 
 describe("a conversa que nasceu de um pedido", () => {
-  /** O mesmo `mount`, com uma primeira mensagem que o produto já traz escrita. */
+  /**
+   * O mesmo `mount`, com uma chegada que já traz o pedido escrito.
+   *
+   * `arrive` antes de montar: é exatamente a ordem real — quem cria a sessão
+   * (o rodapé de execução, hoje) já registrou a chegada antes de a aba desta
+   * sessão existir, e é a `Conversation` que a consome, pelo `useArrival`.
+   */
   function mountWithPrompt(text: string): { socket: FakeSocket; rerender: () => void } {
+    arrive({ sessionId: "s-1", text, send: true });
     const socket = new FakeSocket();
     const connect = (
       _sessionId: string,
@@ -293,7 +302,7 @@ describe("a conversa que nasceu de um pedido", () => {
 
     const view = render(
       <AwaitingPermissionProvider>
-        <Conversation sessionId="s-1" connect={connect} initialPrompt={text} />
+        <Conversation sessionId="s-1" connect={connect} />
       </AwaitingPermissionProvider>,
     );
     return {
@@ -301,7 +310,7 @@ describe("a conversa que nasceu de um pedido", () => {
       rerender: () =>
         view.rerender(
           <AwaitingPermissionProvider>
-            <Conversation sessionId="s-1" connect={connect} initialPrompt={text} />
+            <Conversation sessionId="s-1" connect={connect} />
           </AwaitingPermissionProvider>,
         ),
     };
@@ -334,6 +343,7 @@ describe("a conversa que nasceu de um pedido", () => {
    * O preço de não ter a trava é um turno duplicado — e turno custa dinheiro.
    */
   it("manda uma vez só, mesmo se o efeito rodar de novo", async () => {
+    arrive({ sessionId: "s-1", text: "pergunta", send: true });
     const socket = new FakeSocket();
     const view = render(
       <AwaitingPermissionProvider>
@@ -343,7 +353,6 @@ describe("a conversa que nasceu de um pedido", () => {
             socket.deliver = handlers.onMessage;
             return socket;
           }}
-          initialPrompt="pergunta"
         />
       </AwaitingPermissionProvider>,
     );
@@ -360,7 +369,6 @@ describe("a conversa que nasceu de um pedido", () => {
             socket.deliver = handlers.onMessage;
             return socket;
           }}
-          initialPrompt="pergunta"
         />
       </AwaitingPermissionProvider>,
     );
@@ -386,6 +394,7 @@ describe("a conversa que nasceu de um pedido", () => {
   it("conversa encerrada não recebe pedido nenhum", async () => {
     // Ela é um registro: não há socket, e mandar prompt para uma sessão que não
     // pode responder é a coisa que o `readOnly` existe para impedir.
+    arrive({ sessionId: "s-1", text: "pergunta", send: true });
     const socket = new FakeSocket();
     const connect = vi.fn(() => socket);
     render(
@@ -395,7 +404,6 @@ describe("a conversa que nasceu de um pedido", () => {
           live={false}
           load={async () => ({ ...attached(), state: "exited" as const })}
           connect={connect}
-          initialPrompt="pergunta"
         />
       </AwaitingPermissionProvider>,
     );
@@ -405,6 +413,77 @@ describe("a conversa que nasceu de um pedido", () => {
     await waitFor(() => expect(document.querySelector(".conv__scroll")).not.toBeNull());
     expect(connect).not.toHaveBeenCalled();
     expect(socket.sent).toHaveLength(0);
+  });
+});
+
+describe("o rascunho que a chegada preenche", () => {
+  /**
+   * `send: false` com texto é o antigo `initialDraft` (`022` T6) — preenche o
+   * composer e espera, ao contrário do `send: true` que manda sozinho.
+   */
+  function connectStub(): { socket: FakeSocket; connect: AcpConnect } {
+    const socket = new FakeSocket();
+    const connect = (
+      _sessionId: string,
+      handlers: { onMessage(message: AcpServerMessage): void },
+    ) => {
+      socket.deliver = handlers.onMessage;
+      return socket;
+    };
+    return { socket, connect };
+  }
+
+  it("preenche o composer, sem mandar nada", async () => {
+    arrive({ sessionId: "s-1", text: "escreva os testes que faltam", send: false });
+    const { connect, socket } = connectStub();
+
+    render(
+      <AwaitingPermissionProvider>
+        <Conversation sessionId="s-1" connect={connect} />
+      </AwaitingPermissionProvider>,
+    );
+
+    expect(await screen.findByLabelText("mensagem para o agente")).toHaveValue(
+      "escreva os testes que faltam",
+    );
+    socket.deliver(attached());
+    expect(socket.sent).toEqual([]);
+  });
+
+  /**
+   * A prova por mutação (`032` T22): tirar o `consumeArrival` de dentro de
+   * `useArrival` deixa a chegada viva no store depois da primeira montagem, e
+   * é exatamente essa sobra que reaparece aqui — reabrir a mesma sessão traria
+   * o rascunho antigo de volta em cima do que a pessoa decidiu escrever,
+   * mesmo sem ninguém pedir de novo.
+   */
+  it("o rascunho entra uma vez e não sobrescreve o que foi digitado", async () => {
+    const user = userEvent.setup();
+    arrive({ sessionId: "s-1", text: "faça o X", send: false });
+    const { connect } = connectStub();
+
+    const first = render(
+      <AwaitingPermissionProvider>
+        <Conversation sessionId="s-1" connect={connect} />
+      </AwaitingPermissionProvider>,
+    );
+
+    const box = await screen.findByLabelText("mensagem para o agente");
+    expect(box).toHaveValue("faça o X");
+
+    await user.clear(box);
+    await user.type(box, "decidi escrever outra coisa");
+    first.unmount();
+
+    // Reabre a mesma sessão, sem chegada nova: a que havia foi consumida na
+    // primeira montagem, e não pode voltar a preencher o composer sozinha.
+    render(
+      <AwaitingPermissionProvider>
+        <Conversation sessionId="s-1" connect={connect} />
+      </AwaitingPermissionProvider>,
+    );
+
+    expect(await screen.findByLabelText("mensagem para o agente")).toHaveValue("");
   });
 });
 

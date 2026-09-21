@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 import { useAwaitingPermission } from "../../hooks/useAwaitingPermission.js";
 import { useOpenFiles, tabKey } from "../../hooks/useOpenFiles.js";
+import { useNavigation } from "../../lib/navigation.js";
 import { useSessionMutations, type Scope } from "./useSessionsByScope.js";
 import { useWorktreeTabs } from "./useWorktreeTabs.js";
 import { relativeAge } from "../../lib/relative-time.js";
@@ -56,26 +57,6 @@ export interface ScopePanelProps {
 
   /** Where a session launched here will run. */
   cwd: string;
-  /**
-   * A session to bring to the front, once, when it shows up.
-   *
-   * The first-access flow promises "criar e abrir a conversa", and landing on the
-   * context tab would break that promise on the one screen where it was made.
-   * One-shot on purpose: after that first arrival, which tab is in front is the
-   * user's business.
-   */
-  openSessionId?: string | undefined;
-  /**
-   * O pedido que abriu uma conversa, e para qual sessão ele é.
-   *
-   * Vem de fora porque quem cria a sessão é outra parte da tela — hoje o rodapé de
-   * execução, quando o projeto não declara `[scripts]`. Amarrado ao `sessionId` de
-   * propósito: uma pergunta destinada a uma conversa não pode cair na conversa que
-   * estiver aberta.
-   */
-  initialPrompt?: { sessionId: string; text: string } | undefined;
-  /** O rascunho que a tarefa trouxe — preenchido e **não** enviado (`022` T6). */
-  initialDraft?: { sessionId: string; text: string } | undefined;
 }
 
 /**
@@ -103,24 +84,34 @@ export function ScopePanel({
   context,
   filesPanel,
   cwd,
-  openSessionId,
-  initialPrompt,
-  initialDraft,
 }: ScopePanelProps) {
   const { tabs, activeId, select, close, reopen, resume, resuming, sessions } =
     useWorktreeTabs(scope);
   const awaiting = useAwaitingPermission();
   const openFiles = useOpenFiles();
 
-  // Once, and only when the tab exists: the session is created a round trip
-  // before the list that turns it into a tab arrives.
-  const opened = useRef(false);
+  /**
+   * Uma sessão que acabou de chegar (`032` T22) traz sua aba para a frente,
+   * uma vez.
+   *
+   * Lido do store da navegação em vez de por prop: `opened` guarda o
+   * `sessionId` já tratado (não um booleano) porque o `arrival` pode trocar de
+   * sessão mais de uma vez na vida deste painel — cada chegada nova merece a
+   * própria tentativa. A comparação usa o `arrival` **capturado no próprio
+   * render** deste efeito (via closure, na lista de dependências), e não uma
+   * segunda leitura do store dentro do efeito: por baixo, quem realmente
+   * consome a chegada é a `Conversation` da aba (`useArrival`), e o consumo
+   * dela dispara antes deste efeito (efeitos correm de dentro para fora) — ler
+   * o store de novo aqui já veria `null`.
+   */
+  const { arrival } = useNavigation();
+  const opened = useRef<string | null>(null);
   useEffect(() => {
-    if (openSessionId === undefined || opened.current) return;
-    if (!tabs.some((tab) => tab.sessionId === openSessionId)) return;
-    opened.current = true;
-    select(openSessionId);
-  }, [openSessionId, tabs, select]);
+    if (arrival === null || opened.current === arrival.sessionId) return;
+    if (!tabs.some((tab) => tab.sessionId === arrival.sessionId)) return;
+    opened.current = arrival.sessionId;
+    select(arrival.sessionId);
+  }, [arrival, tabs, select]);
 
   // The column opens files into whichever tab is in front, so the tab has to
   // say which one that is. Nothing else in the shell knows.
@@ -332,12 +323,6 @@ export function ScopePanel({
           // `session/load` is something only an ACP adapter has (D1).
           {...(tab.transport === "acp" ? { onResume: () => resume(tab.sessionId) } : {})}
           resuming={resuming === tab.sessionId}
-          initialPrompt={
-            initialPrompt?.sessionId === tab.sessionId ? initialPrompt.text : undefined
-          }
-          initialDraft={
-            initialDraft?.sessionId === tab.sessionId ? initialDraft.text : undefined
-          }
         />
       ))}
     </section>

@@ -20,6 +20,7 @@ import { FreeModeGate } from "./FreeModeGate.js";
 import { LumemModeMenu, LumemModePill } from "./LumemModePill.js";
 import { Message, Thought, TurnFrame } from "./Message.js";
 import { PermissionRequest } from "./PermissionRequest.js";
+import { useArrival } from "./useArrival.js";
 import { useFirstPermissionCoach, type FirstPermissionCoach } from "./useFirstPermissionCoach.js";
 import { PlanCard } from "./PlanCard.js";
 import { SlashMenu, filterCommands, slashQuery } from "./SlashMenu.js";
@@ -156,30 +157,6 @@ export interface ConversationProps {
    * o turno de todas as conversas abertas de uma vez.
    */
   active?: boolean;
-  /**
-   * Uma primeira mensagem que a conversa manda sozinha, uma vez.
-   *
-   * Existe por causa do rodapé de execução: o vazio sem `[scripts]` oferece
-   * *"pedir para o agente criar"*, e o valor daquele botão é justamente não obrigar
-   * ninguém a redigitar o pedido. A conversa é aberta **para** essa pergunta.
-   *
-   * Uma vez, e só depois de `attached`: o socket recusa escrita antes de abrir, e
-   * mandar de novo a cada re-render seria um turno por repintura.
-   */
-  initialPrompt?: string | undefined;
-  /**
-   * Um rascunho que a conversa **põe no composer e não envia** (`022` T6).
-   *
-   * Irmão do `initialPrompt`, e o contrário dele: aquele manda sozinho, este
-   * espera você ler. Existe por causa de *"trabalhar nesta tarefa"* — o corpo da
-   * tarefa vira o primeiro prompt, e a regra do núcleo da memória vale igual
-   * aqui: **injeção invisível é proibida**, e um prompt disparado sem você ler é
-   * uma injeção que custa dinheiro.
-   *
-   * Uma vez, e só sobre um composer vazio: reescrever o que alguém digitou é
-   * pior do que não preencher nada.
-   */
-  initialDraft?: string | undefined;
 }
 
 export function Conversation({
@@ -193,14 +170,20 @@ export function Conversation({
   onResume,
   resuming = false,
   active = true,
-  initialPrompt,
-  initialDraft,
 }: ConversationProps) {
   const [state, dispatch] = useReducer(reduce, initial);
-  // O rascunho começa com o que a tarefa trouxe, se trouxe. No inicializador e
-  // não num efeito: um efeito atropelaria o primeiro caractere de quem começasse
-  // a digitar antes de ele rodar.
-  const [draft, setDraft] = useState(initialDraft ?? "");
+  /**
+   * A chegada desta sessão — o antigo `ask`/`draft`/`openSessionId`, fundidos
+   * (`032` T21/T22). `useArrival` já consome do store; aqui só se traduz o que
+   * ela trouxe em `send: true` (manda sozinha) ou `send: false` (só preenche).
+   */
+  const arrival = useArrival(sessionId);
+  // O rascunho começa com o que a chegada trouxe, se trouxe **e** não for para
+  // mandar sozinha. No inicializador e não num efeito: um efeito atropelaria o
+  // primeiro caractere de quem começasse a digitar antes de ele rodar.
+  const [draft, setDraft] = useState(() =>
+    arrival !== null && !arrival.send ? arrival.text ?? "" : "",
+  );
   /*
    * O portão do `liberado`, aberto e ainda não atravessado (Q4).
    *
@@ -365,10 +348,10 @@ export function Conversation({
    */
   const asked = useRef(false);
   useEffect(() => {
-    if (initialPrompt === undefined || asked.current || !attached || readOnly) return;
+    if (arrival === null || !arrival.send || asked.current || !attached || readOnly) return;
     asked.current = true;
-    socketRef.current?.send({ type: "prompt", text: initialPrompt });
-  }, [attached, initialPrompt, readOnly]);
+    socketRef.current?.send({ type: "prompt", text: arrival.text ?? "" });
+  }, [attached, arrival, readOnly]);
 
   // Null unless the draft is a lone `/word` at the very start: a `/` inside a
   // sentence is a path, and offering a command menu over `src/lore` would be the
