@@ -1,3 +1,4 @@
+import type { LumemEvent } from "@lumem/shared";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
@@ -19,29 +20,20 @@ import {
   worktreesKey,
 } from "../lib/queryKeys.js";
 
-/**
- * What the daemon said changed, translated into what to refetch.
- *
- * Prefix keys where a change can touch both a list and a detail: invalidating
- * `["worktree"]` covers `listByProject` and `getDetail` alike, and getting that
- * wrong shows up as a panel that quietly disagrees with the tree beside it.
- */
-export type LumemEvent =
-  | { type: "workspace.changed" }
-  | { type: "project.changed"; workspaceId: string }
-  | { type: "worktree.changed"; projectId: string }
-  | { type: "pr.changed"; projectId: string }
-  | { type: "session.changed"; scopeType: "project" | "worktree"; scopeId: string }
-  | { type: "task.changed"; workspaceId: string };
+export type { LumemEvent };
 
 /**
+ * O tipo mora em `@lumem/shared` (`032` T7): uma variante nova lá **derruba o
+ * typecheck** deste `switch` no `default` — o mesmo comportamento que
+ * `AcpEvent` já tem, e o oposto do que uma redeclaração local permitia (uma
+ * variante nova no daemon passava por aqui sem ninguém notar).
+ *
  * O daemon ainda não emite `agent_config.changed` nem `secret.changed` (`032`
  * T5). Um login de agente ou uma credencial nova só chegam a outra aba pela
  * invalidação manual de quem escreveu — nenhuma delas atravessa este switch.
  * Fica no [backlog](../../../../docs/project/backlog.md), com o gatilho "a
  * primeira tela que precisar ver um login feito em outra aba".
  */
-
 export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void {
   switch (event.type) {
     case "workspace.changed":
@@ -90,7 +82,16 @@ export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void
       void queryClient.invalidateQueries({ queryKey: TASK_BOARD_PREFIX });
       void queryClient.invalidateQueries({ queryKey: TASK_SETTINGS_PREFIX });
       return;
+    default:
+      // Fecha o switch de propósito, no molde do `assertNeverScope` do
+      // servidor: sem este ramo, um evento fora da união de hoje passaria em
+      // silêncio — nem invalidação, nem aviso — em vez de reprovar aqui.
+      return assertNeverEvent(event);
   }
+}
+
+function assertNeverEvent(event: never): never {
+  throw new Error(`evento sem tradução para invalidação: ${JSON.stringify(event)}`);
 }
 
 /**
@@ -105,7 +106,7 @@ export function useLiveState(): void {
 
   useEffect(() => {
     const subscription = trpc.events.onChange.subscribe(undefined, {
-      onData: (event) => invalidateFor(queryClient, event as LumemEvent),
+      onData: (event) => invalidateFor(queryClient, event),
       onConnectionStateChange: (state) => {
         // "idle" is tRPC's word for connected-and-listening; "connecting" is
         // the gap. Any event during a gap is gone for good — the daemon does
