@@ -9,16 +9,16 @@ import { CheckoutFiles } from "./features/checkout/index.js";
 import { CreateWorktreeDialog } from "./features/workspace/index.js";
 import { LocalPanel } from "./features/checkout/index.js";
 import { SidebarTree, type ProjectSummary } from "./features/workspace/index.js";
-import { WorkspaceSelector } from "./features/workspace/index.js";
+import { WorkspaceSelector, type WorkspaceOption } from "./features/workspace/index.js";
 import { WorktreePanel } from "./features/checkout/index.js";
 import { useActiveWorkspace } from "./features/workspace/index.js";
 import { useHealth } from "./hooks/useHealth.js";
 import { useLiveState } from "./hooks/useLiveState.js";
 import { AwaitingPermissionProvider } from "./hooks/useAwaitingPermission.js";
 import { OpenFilesProvider } from "./hooks/useOpenFiles.js";
-import { useRightPanel } from "./features/checkout/index.js";
+import { RightPanelProvider, useRightPanel } from "./features/checkout/index.js";
 import { useRunDock, widenColumnOnOpen } from "./features/checkout/index.js";
-import { useTreeExpansion } from "./features/workspace/index.js";
+import { useTreeExpansion, type TreeExpansion } from "./features/workspace/index.js";
 import { useInvalidateWorkspaces, useWorkspaces } from "./features/workspace/index.js";
 import { AppShell } from "./layout/AppShell.js";
 import { Topbar } from "./layout/Topbar.js";
@@ -31,28 +31,6 @@ import "./layout/layout.css";
 
 export function App() {
   const invalidateWorkspaces = useInvalidateWorkspaces();
-  /**
-   * O checkout selecionado (`032-web-architecture` T21) — o `App` deixou de
-   * ser dono dele, e `selectScope`/`clearSelection` (importados de
-   * `lib/navigation.js`) levam com eles a regra `selection !== null` implica
-   * `route === "home"`.
-   *
-   * A chegada (`arrival`) que este mesmo store guarda não passa mais por
-   * aqui (T22): quem traz a aba nova para a frente é o próprio `ScopePanel`
-   * — lendo o store direto —, e quem lê o texto do pedido/rascunho é a
-   * `Conversation`, pelo `useArrival`. O `App` não precisa saber que ela
-   * existe.
-   */
-  const { selection } = useNavigation();
-  /**
-   * Qual tela está na frente, lida do **caminho** (`030-settings`, F1).
-   *
-   * Era `useState` até a `029` — ela subiu o `board` do `WorkspacePanel` para cá
-   * justamente para o App ter **uma** resposta a *onde eu estou*. Com endereço,
-   * manter o estado seria criar a segunda: o caminho e o `useState` poderiam
-   * discordar, e conviver com os dois é pior que qualquer um sozinho.
-   */
-  const route = useRoute();
   /**
    * Whether the first-access flow is on screen.
    *
@@ -75,8 +53,6 @@ export function App() {
   const [worktreeFor, setWorktreeFor] = useState<ProjectSummary | null>(null);
 
   const expansion = useTreeExpansion();
-  const rightPanel = useRightPanel();
-  const dock = useRunDock();
 
   const health = useHealth();
   const workspaces = useWorkspaces();
@@ -99,25 +75,33 @@ export function App() {
     // forget per tab.
     <AwaitingPermissionProvider>
       <OpenFilesProvider>
-        <div className="app">
-          <Topbar
-            version={health.data?.version ?? null}
-            unreachable={health.isError}
-          />
-          {/* The topbar dot says it quietly; this says what it means. Every action
-          below is a call to a daemon that is not answering, and a sidebar that
-          merely looks stale gives no reason for why nothing works. */}
-          {health.isError && (
-            <div className="app__banner">
-              <Banner tone="danger">
-                <strong>Daemon inacessível.</strong> Nada aqui responde até ele
-                voltar. As sessões continuam rodando no servidor — o que caiu é
-                a conexão com ele.
-              </Banner>
-            </div>
-          )}
-          {renderBody()}
-        </div>
+        {/*
+          `032` T23: o mesmo estado precisa ser lido tanto pelo `AppShell` (a
+          largura da coluna) quanto pela faixa de abas de cada checkout (o
+          botão) — e o `App` não pode consumir um contexto que ele mesmo está
+          montando. `WorkspaceShell`, um nível abaixo, é quem lê.
+        */}
+        <RightPanelProvider>
+          <div className="app">
+            <Topbar
+              version={health.data?.version ?? null}
+              unreachable={health.isError}
+            />
+            {/* The topbar dot says it quietly; this says what it means. Every action
+            below is a call to a daemon that is not answering, and a sidebar that
+            merely looks stale gives no reason for why nothing works. */}
+            {health.isError && (
+              <div className="app__banner">
+                <Banner tone="danger">
+                  <strong>Daemon inacessível.</strong> Nada aqui responde até ele
+                  voltar. As sessões continuam rodando no servidor — o que caiu é
+                  a conexão com ele.
+                </Banner>
+              </div>
+            )}
+            {renderBody()}
+          </div>
+        </RightPanelProvider>
       </OpenFilesProvider>
     </AwaitingPermissionProvider>
   );
@@ -175,14 +159,77 @@ export function App() {
       );
     }
 
-    // Bound here so `renderPanel` can read it: the narrowing above does not
+    // Bound here so `WorkspaceShell` can read it: the narrowing above does not
     // survive into a nested function.
     const list = workspaces.data;
     const activeName =
       list.find((workspace) => workspace.id === activeId)?.name ?? "";
 
     return (
-      <>
+      <WorkspaceShell
+        workspaceId={activeId}
+        workspaceName={activeName}
+        workspaces={list}
+        select={select}
+        expansion={expansion}
+        addProjectOpen={addProjectOpen}
+        onOpenAddProject={() => setAddProjectOpen(true)}
+        onCloseAddProject={() => setAddProjectOpen(false)}
+        worktreeFor={worktreeFor}
+        onCreateWorktree={setWorktreeFor}
+        onCloseCreateWorktree={() => setWorktreeFor(null)}
+        invalidateWorkspaces={invalidateWorkspaces}
+      />
+    );
+  }
+}
+
+interface WorkspaceShellProps {
+  workspaceId: string;
+  workspaceName: string;
+  workspaces: readonly WorkspaceOption[];
+  select(id: string): void;
+  expansion: TreeExpansion;
+  addProjectOpen: boolean;
+  onOpenAddProject(): void;
+  onCloseAddProject(): void;
+  worktreeFor: ProjectSummary | null;
+  onCreateWorktree(project: ProjectSummary | null): void;
+  onCloseCreateWorktree(): void;
+  invalidateWorkspaces(): Promise<unknown>;
+}
+
+/**
+ * O corpo da tela depois do primeiro acesso: a coluna do meio e a de arquivos.
+ *
+ * Descolado do `App` (`032` T23) porque as duas colunas do `AppShell`
+ * precisam do `useRightPanel()` — a largura da coluna é uma prop do
+ * `AppShell` em si, no mesmo nível do conteúdo, e não algo que um filho possa
+ * decidir por conta própria depois. `selection` e `route` também são lidos
+ * aqui, direto do store, pelo mesmo motivo que valia para o `App`: são a
+ * resposta a "onde eu estou", e não precisam de mais um nível de prop.
+ */
+function WorkspaceShell({
+  workspaceId,
+  workspaceName,
+  workspaces,
+  select,
+  expansion,
+  addProjectOpen,
+  onOpenAddProject,
+  onCloseAddProject,
+  worktreeFor,
+  onCreateWorktree,
+  onCloseCreateWorktree,
+  invalidateWorkspaces,
+}: WorkspaceShellProps) {
+  const { selection } = useNavigation();
+  const route = useRoute();
+  const rightPanel = useRightPanel();
+  const dock = useRunDock();
+
+  return (
+    <>
       <AppShell
         // The panel owns its own scrolling: the terminal inside it has to be
         // able to measure a box with a height.
@@ -192,8 +239,8 @@ export function App() {
         sidebar={
           <>
             <WorkspaceSelector
-              workspaces={list}
-              activeId={activeId}
+              workspaces={workspaces}
+              activeId={workspaceId}
               onSelect={(id) => {
                 select(id);
                 // Nothing selected in the old workspace belongs to the new one.
@@ -201,7 +248,7 @@ export function App() {
               }}
             />
             <SidebarNav
-              workspaceId={activeId}
+              workspaceId={workspaceId}
               /*
                * `/tasks` é o caminho e `board` é o lugar, e eles têm nomes
                * diferentes de propósito: a linha da sidebar diz o **assunto**
@@ -223,7 +270,7 @@ export function App() {
               }}
             />
             <SidebarTree
-              workspaceId={activeId}
+              workspaceId={workspaceId}
               expansion={expansion}
               selection={{
                 scopeType: selection?.scope.scopeType ?? null,
@@ -232,8 +279,8 @@ export function App() {
               onSelect={(projectId, scope) =>
                 selectScope({ projectId, scope })
               }
-              onAddProject={() => setAddProjectOpen(true)}
-              onCreateWorktree={setWorktreeFor}
+              onAddProject={onOpenAddProject}
+              onCreateWorktree={onCreateWorktree}
             />
             <div className="sidebar__foot">
               {/*
@@ -254,7 +301,7 @@ export function App() {
           </>
         }
       >
-        {renderPanel(activeId, activeName)}
+        {renderPanel()}
       </AppShell>
 
       {/*
@@ -266,11 +313,11 @@ export function App() {
         a page reloaded onto a clone in flight bring the dialog back (F1.9).
       */}
       <AddProjectDialog
-        workspaceId={activeId}
-        workspaceName={activeName}
+        workspaceId={workspaceId}
+        workspaceName={workspaceName}
         open={addProjectOpen}
-        onClose={() => setAddProjectOpen(false)}
-        onRequestOpen={() => setAddProjectOpen(true)}
+        onClose={onCloseAddProject}
+        onRequestOpen={onOpenAddProject}
         onAdded={(projectId) =>
           selectScope({
             projectId,
@@ -288,7 +335,7 @@ export function App() {
           projectName={worktreeFor.name}
           hasCommits={worktreeFor.hasCommits}
           open
-          onClose={() => setWorktreeFor(null)}
+          onClose={onCloseCreateWorktree}
           // Q5: escolher uma branch que outro checkout já tem leva PARA ele.
           // O destino é o mesmo de criar; o que não acontece é a criação.
           onOpenExisting={(worktreeId) => {
@@ -297,7 +344,7 @@ export function App() {
               projectId: worktreeFor.id,
               scope: { scopeType: "worktree", scopeId: worktreeId },
             });
-            setWorktreeFor(null);
+            onCloseCreateWorktree();
           }}
           onCreated={(worktreeId) => {
             // F1.5: the same destination the old path delivered. Expanding is
@@ -308,13 +355,12 @@ export function App() {
               projectId: worktreeFor.id,
               scope: { scopeType: "worktree", scopeId: worktreeId },
             });
-            setWorktreeFor(null);
+            onCloseCreateWorktree();
           }}
         />
       )}
-      </>
-    );
-  }
+    </>
+  );
 
   /** The checkout's files, when there is a checkout and the user wants them. */
   function renderRightPanel() {
@@ -339,7 +385,7 @@ export function App() {
     );
   }
 
-  function renderPanel(workspaceId: string, workspaceName: string) {
+  function renderPanel() {
     /*
      * A ordem é `selection` primeiro, e ela é a regra inteira da coluna do meio.
      *
@@ -401,7 +447,6 @@ export function App() {
           worktreeId={scope.scopeId}
           projectId={projectId}
           workspaceName={workspaceName}
-          filesPanel={rightPanel}
           onRemoved={() =>
             selectScope({
               projectId,
@@ -427,7 +472,6 @@ export function App() {
         projectId={projectId}
         workspaceId={workspaceId}
         workspaceName={workspaceName}
-        filesPanel={rightPanel}
         onRemoved={() => clearSelection()}
         onOpenWorkspace={() => clearSelection()}
         onSelectWorktree={(worktreeId) =>

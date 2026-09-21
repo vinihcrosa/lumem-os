@@ -550,13 +550,28 @@ chegada nova merece a própria tentativa de trazer a aba para a frente.
 `pnpm gate:full` verde: `vitest run` (92 arquivos, 1228 testes) e `playwright test` (116 testes,
 incluindo os três casos citados no `Done when`) sem nenhuma asserção alterada.
 
-#### T23: `useRightPanel` vira contexto, e `filesPanel` sai das props
+#### T23: `useRightPanel` vira contexto, e `filesPanel` sai das props · **entregue em 2026-09-21**
 
 O mesmo desenho de `OpenFilesProvider`, pelo motivo escrito lá. `ScopePanel`, `WorktreePanel` e
 `LocalPanel` leem `useRightPanel()` direto. O comentário copiado três vezes sobre *"vem de fora
 porque o estado é do app"* fica **uma** vez, no provider.
 
 **Done when:** `filesPanel` não existe em nenhuma `*Props`; `right-panel.test.tsx` verde.
+
+**Achado:** o `App` também lia `rightPanel` — a largura vai para o `AppShell` como prop, no mesmo
+nível do conteúdo, então quem monta esse elemento tem que já ter o número em mãos. E o `App` não
+pode consumir um contexto que ele mesmo está montando: `<RightPanelProvider>` é filho do retorno do
+`App`, então um `useRightPanel()` chamado no corpo do `App` roda *antes* de o provider existir na
+árvore e sempre lê o padrão (`null`), estourando. A saída foi mover o ramo do `renderBody` que
+depende de `rightPanel`/`dock` (o `AppShell`, a sidebar e os dois diálogos — tudo que hoje é um
+`return` só) para um componente de verdade, `WorkspaceShell`, renderizado dentro do
+`RightPanelProvider`. Ele também passou a ler `selection`/`route` direto (`useNavigation`/`useRoute`
+são stores de módulo, não `useState` — chamá-los de novo não duplica estado, ao contrário de
+`useActiveWorkspace`/`useTreeExpansion`, que continuam vindo por prop). Isso adianta parte do que a
+T24 pede (`renderPanel`/`renderRightPanel` virarem componente), mas só a metade que a T23 não podia
+evitar: `WorkspaceShell` ainda mora dentro de `App.tsx`, ainda tem `renderPanel`/`renderRightPanel`
+como funções aninhadas (não `MainColumn`/`RightColumn`), e o arquivo está em 486 linhas — a T24 é
+quem termina a divisão e faz o arquivo encolher.
 
 #### T24: o `App` encolhe para o que é dele
 

@@ -32,15 +32,6 @@ export interface WorktreePanelProps {
    */
   onOpenWorkspace: () => void;
   onOpenProject: () => void;
-  /**
-   * O interruptor da coluna de arquivos.
-   *
-   * Vem de fora porque o estado é do app — um `useRightPanel` só, com o valor
-   * em `localStorage`. O botão mudou de lugar, não de dono (Q4): uma coluna que
-   * abre e fecha sozinha ao trocar de worktree seria pior que uma que fica onde
-   * você deixou.
-   */
-  filesPanel: { open: boolean; toggle(): void };
 }
 
 /** Branch, path, cleanliness and distance from the base — F4.10 — plus its tabs. */
@@ -51,7 +42,6 @@ export function WorktreePanel({
   onRemoved,
   onOpenWorkspace,
   onOpenProject,
-  filesPanel,
 }: WorktreePanelProps) {
   const queryClient = useQueryClient();
   const [confirmingForce, setConfirmingForce] = useState(false);
@@ -148,7 +138,6 @@ export function WorktreePanel({
       <ScopePanel
         scope={scope}
         cwd={known.path}
-        filesPanel={filesPanel}
         crumb={crumb(known.name, known.branch)}
         checkout={{ name: known.name, glyph: <Glyph tone="worktree">◇</Glyph> }}
         context={
@@ -183,7 +172,6 @@ export function WorktreePanel({
     <ScopePanel
       scope={scope}
       cwd={path}
-      filesPanel={filesPanel}
       crumb={crumb(name, branch)}
       checkout={{
         name,

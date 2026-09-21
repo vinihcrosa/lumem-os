@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
 const STORAGE_KEY = "lumem.rightPanel";
 
@@ -57,8 +57,20 @@ export interface RightPanelState {
   setWidth(width: number): void;
 }
 
-/** Whether the files column is showing, and how wide — remembered across reloads. */
-export function useRightPanel(): RightPanelState {
+const RightPanelContext = createContext<RightPanelState | null>(null);
+
+/**
+ * O interruptor da coluna de arquivos — estado do **app**, não do checkout.
+ *
+ * Vem de contexto e não de prop (`032` T23): o mesmo `useRightPanel`, com o
+ * valor em `localStorage`, é lido tanto por quem liga o botão (a faixa de abas
+ * de cada checkout) quanto por quem decide a largura da coluna (o `AppShell`).
+ * O botão mudou de lugar, não de dono (Q4) — uma coluna que abre e fecha
+ * sozinha ao trocar de worktree seria pior que uma que fica onde você deixou,
+ * e dois `useState` independentes (um por chamador) recriariam exatamente
+ * essa divergência.
+ */
+export function RightPanelProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Stored>(read);
 
   const toggle = useCallback(() => {
@@ -79,5 +91,18 @@ export function useRightPanel(): RightPanelState {
     });
   }, []);
 
-  return { open: state.open, width: state.width, toggle, setWidth };
+  const value = useMemo<RightPanelState>(
+    () => ({ open: state.open, width: state.width, toggle, setWidth }),
+    [state, toggle, setWidth],
+  );
+
+  return <RightPanelContext.Provider value={value}>{children}</RightPanelContext.Provider>;
+}
+
+export function useRightPanel(): RightPanelState {
+  const value = useContext(RightPanelContext);
+  if (value === null) {
+    throw new Error("useRightPanel precisa de um RightPanelProvider acima");
+  }
+  return value;
 }

@@ -9,6 +9,7 @@ import {
   RIGHT_PANEL_DEFAULT_WIDTH,
   RIGHT_PANEL_MAX_WIDTH,
   RIGHT_PANEL_MIN_WIDTH,
+  RightPanelProvider,
   useRightPanel,
 } from "./useRightPanel.js";
 import { AppShell } from "../../layout/AppShell.js";
@@ -16,6 +17,14 @@ import { Topbar } from "../../layout/Topbar.js";
 import { TabStrip, TabToggle } from "../../ui/index.js";
 
 function Harness() {
+  return (
+    <RightPanelProvider>
+      <HarnessInner />
+    </RightPanelProvider>
+  );
+}
+
+function HarnessInner() {
   const panel = useRightPanel();
   const [tab, setTab] = useState<RightPanelTab>("files");
 

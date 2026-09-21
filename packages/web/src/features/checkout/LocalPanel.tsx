@@ -28,15 +28,6 @@ export interface LocalPanelProps {
   /** O caminho de volta (W7): daqui, o único lugar acima é o workspace. */
   onOpenWorkspace: () => void;
   onSelectWorktree: (worktreeId: string) => void;
-  /**
-   * O interruptor da coluna de arquivos.
-   *
-   * Vem de fora porque o estado é do app — um `useRightPanel` só, com o valor
-   * em `localStorage`. O botão mudou de lugar, não de dono (Q4): uma coluna que
-   * abre e fecha sozinha ao trocar de worktree seria pior que uma que fica onde
-   * você deixou.
-   */
-  filesPanel: { open: boolean; toggle(): void };
 }
 
 /**
@@ -156,7 +147,6 @@ export function LocalPanel({
   onRemoved,
   onOpenWorkspace,
   onSelectWorktree,
-  filesPanel,
 }: LocalPanelProps) {
   const scope: Scope = { scopeType: "project", scopeId: projectId };
 
@@ -226,7 +216,6 @@ export function LocalPanel({
     <ScopePanel
       scope={scope}
       cwd={path}
-      filesPanel={filesPanel}
       crumb={
         <nav className="crumb" aria-label="Caminho">
           <button type="button" className="crumb__up focus-ring" onClick={onOpenWorkspace}>

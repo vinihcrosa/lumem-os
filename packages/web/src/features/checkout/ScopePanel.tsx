@@ -3,6 +3,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { useAwaitingPermission } from "../../hooks/useAwaitingPermission.js";
 import { useOpenFiles, tabKey } from "../../hooks/useOpenFiles.js";
 import { useNavigation } from "../../lib/navigation.js";
+import { useRightPanel } from "./useRightPanel.js";
 import { useSessionMutations, type Scope } from "./useSessionsByScope.js";
 import { useWorktreeTabs } from "./useWorktreeTabs.js";
 import { relativeAge } from "../../lib/relative-time.js";
@@ -45,15 +46,6 @@ export interface ScopePanelProps {
   };
   /** What the checkout's own tab shows: metadata, actions, lists. */
   context: ReactNode;
-  /**
-   * O interruptor da coluna de arquivos.
-   *
-   * Vem de fora porque o estado é do app — um `useRightPanel` só, com o valor
-   * em `localStorage`. O botão mudou de lugar, não de dono (Q4): uma coluna que
-   * abre e fecha sozinha ao trocar de worktree seria pior que uma que fica onde
-   * você deixou.
-   */
-  filesPanel: { open: boolean; toggle(): void };
 
   /** Where a session launched here will run. */
   cwd: string;
@@ -82,13 +74,13 @@ export function ScopePanel({
   crumb,
   checkout,
   context,
-  filesPanel,
   cwd,
 }: ScopePanelProps) {
   const { tabs, activeId, select, close, reopen, resume, resuming, sessions } =
     useWorktreeTabs(scope);
   const awaiting = useAwaitingPermission();
   const openFiles = useOpenFiles();
+  const filesPanel = useRightPanel();
 
   /**
    * Uma sessão que acabou de chegar (`032` T22) traz sua aba para a frente,
