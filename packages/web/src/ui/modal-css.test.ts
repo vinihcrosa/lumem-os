@@ -17,7 +17,9 @@ import { describe, expect, it } from "vitest";
  */
 
 const UI = import.meta.dirname;
-const COMPONENTS = join(UI, "..", "components");
+const FEATURES = join(UI, "..", "features");
+const WORKSPACE = join(FEATURES, "workspace");
+const AGENT = join(FEATURES, "agent");
 
 const stylesheet = readFileSync(join(UI, "modal.css"), "utf8");
 
@@ -32,19 +34,20 @@ const stylesheet = readFileSync(join(UI, "modal.css"), "utf8");
  * o mesmo que parar de conferi-las.
  */
 const screenSheets = ["create-worktree.css"]
-  .map((name) => readFileSync(join(COMPONENTS, name), "utf8"))
+  .map((name) => readFileSync(join(WORKSPACE, name), "utf8"))
   .join("\n");
 
 /** Quem desenha as classes deste arquivo. */
 const consumers = ["Modal.tsx"]
   .map((name) => readFileSync(join(UI, name), "utf8"))
   .concat(
+    ["AddProjectDialog.tsx", "CreateWorktreeDialog.tsx", "CloneStatus.tsx"].map((name) =>
+      readFileSync(join(WORKSPACE, name), "utf8"),
+    ),
     // `CredentialDialog.tsx` entrou com o `modal__destructive` (ADR de 2026-09-13):
     // ele é o primeiro diálogo do produto com uma ação que **apaga**, e quem
     // separa essa ação das outras é o rodapé do diálogo, não a tela.
-    ["AddProjectDialog.tsx", "CreateWorktreeDialog.tsx", "CloneStatus.tsx", "CredentialDialog.tsx"].map((name) =>
-      readFileSync(join(COMPONENTS, name), "utf8"),
-    ),
+    ["CredentialDialog.tsx"].map((name) => readFileSync(join(AGENT, name), "utf8")),
   )
   .join("\n");
 

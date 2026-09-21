@@ -386,7 +386,7 @@ permissão — e só (D6).
 #### C7: A conversa montada, com o composer
 
 **What**: Juntar os blocos, rolar, e mandar prompt. Sem plano, sem uso, sem seletor (D6).
-**Where**: `packages/web/src/components/Conversation.tsx` + teste, `conversation.css`
+**Where**: `packages/web/src/features/conversation/Conversation.tsx` + teste, `conversation.css`
 **Depends on**: C3, C4, C5
 
 **Done when**:
@@ -849,7 +849,7 @@ comprimido, e um purge da linha antiga apaga a cópia antiga sem estragar a nova
 #### Q5: A aba que reabre, e o botão que retoma ✅
 
 **What**: Reabrir uma sessão encerrada mostra a conversa; retomar é explícito (D13).
-**Where**: `packages/web/src/components/Conversation.tsx`, `packages/server/src/acp/websocket.ts`, `packages/web/src/hooks/useWorktreeTabs.ts` + testes, `conversation.css`
+**Where**: `packages/web/src/features/conversation/Conversation.tsx`, `packages/server/src/acp/websocket.ts`, `packages/web/src/hooks/useWorktreeTabs.ts` + testes, `conversation.css`
 **Depends on**: Q4
 
 **Done when**:
@@ -910,7 +910,7 @@ chamada HTTP na mão. A feature abriu o buraco, então é ela que fecha.
 #### D16 — O rodapé da sidebar, e a mentira que isso conta
 
 A ação nasce ao lado de **adicionar projeto**, no rodapé da sidebar, com o mesmo padrão de formulário
-em linha do [`AddProjectDialog`](../../../packages/web/src/components/AddProjectDialog.tsx) — mesma
+em linha do [`AddProjectDialog`](../../../packages/web/src/features/workspace/AddProjectDialog.tsx) — mesma
 `Card`, mesmos `Field`, mesmo erro vindo do daemon.
 
 A mentira, nomeada: `agent_config` **não tem workspace** — é global —, e o rodapé é do workspace. Uma
@@ -931,7 +931,7 @@ palavras dele.
 
 Toda tela deste repo passa por protótipo HTML antes de React. Esta não, e a razão é que ela **não é
 tela nova**: é o formulário do `AddProjectDialog` com dois campos a mais e um `<select>` que o
-[`WorkspaceSelector`](../../../packages/web/src/components/WorkspaceSelector.tsx) já desenhou. Um
+[`WorkspaceSelector`](../../../packages/web/src/features/workspace/WorkspaceSelector.tsx) já desenhou. Um
 protótipo aqui redesenharia o que já está desenhado.
 
 Se a fase virar uma tela de preferências — a A16 —, aí sim: protótipo primeiro.

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
-import type { ChangeRef } from "./useCheckoutChanges.js";
+import type { ChangeRef } from "../features/checkout/index.js";
 
 /**
  * What each tab has open in its split — decision D3.2.

@@ -52,7 +52,7 @@ criam dependência de calendário, e não de código:
 
 | Onde | O quê |
 |---|---|
-| `packages/web/src/architecture.test.ts` | novo — o sensor; cinco regras na fase 0, sete no fim |
+| `packages/web/src/architecture.test.ts` | novo — o sensor; cinco regras na fase 0, **seis** no fim da fase 4 (T17 achou que a sétima prometida duplicava a 1 e a 2) |
 | `packages/web/src/lib/queryKeys.ts` | ganha 13 chaves e 7 prefixos; passa a ser a lista inteira |
 | `packages/shared/src/{events,board}.ts` | novos — `LumemEvent`, `BoardCard`, `Seal` |
 | `packages/web/src/hooks/use*.ts` | 16 hooks de recurso novos (movem para `features/*/queries.ts` na fase 4) |
@@ -334,23 +334,46 @@ a mudança de import — não que a lista chegou a zero.
 Uma PR, numa janela anunciada, tudo com `git mv`. O mapa é o da tabela da fase 4 da PRD, validado
 pela [Q3](open-questions.md).
 
-#### T17: `features/<domínio>/` — o move, e a porta
+#### T17: `features/<domínio>/` — o move, e a porta · **entregue em 2026-09-21**
 
 Nove pastas: `conversation`, `memory`, `tasks`, `checkout`, `pull-request`, `workspace`, `agent`,
 `settings`, `setup`. Cada uma com `index.ts` exportando o que outra feature pode usar. Os hooks de
-recurso da fase 3 vão para `features/<x>/queries.ts` ([Q6](open-questions.md)); `hooks/` fica com o
-transversal — `useLiveState`, `useAwaitingPermission`, `useOpenFiles`, `usePopover`, `useSettled`.
-`lib/` perde `conversation-model`, `acp-socket`, `pty-socket` (para `conversation/`) e `board`
-(para `tasks/`).
+recurso da fase 3 foram para `features/<x>/queries.ts` onde a Q6 previu um só — `agentConfig`,
+`task`, `pr` e `setup` couberam num `queries.ts` cada; `project`, `worktree` e `workspace` **não**:
+`workspace/` tem três recursos (`useProjects.ts`, `useWorktrees.ts`, `useWorkspace.ts`) e ficaram em
+arquivos próprios, porque forçar os três num `queries.ts` só juntaria coisas que a T13 já tinha
+separado por motivo. `hooks/` fica com o transversal — `useLiveState`, `useAwaitingPermission`,
+`useOpenFiles` (que a T13 tinha posto em `checkout/`; `App.tsx` o usa direto, então voltou),
+`usePopover`, `useHealth` (novo, só o `App.tsx` lia `health` e `workspace.list` sem hook — ganhou um
+e `useWorkspaces`/`useInvalidateWorkspaces` foram para `workspace/`). `useSettled` **não** subiu:
+só `setup/` o usa, e ele já mora lá. `lib/` perdeu `conversation-model`, `acp-socket`, `pty-socket`
+(para `conversation/`) e `board` (para `tasks/`, renomeado `board-columns.ts` — `Board.tsx` e
+`board.ts` colidem em nome case-insensitive, e o TS1149 travou o build até o achado).
 
-O sensor ganha duas regras: **feature importa feature só pelo `index.ts`** (`../tasks/index.js`,
-nunca `../tasks/TaskCard.js`), e **`lib/` e `ui/` não importam `features/`**. E a regra 3 passa a
-dizer *"fora de `hooks/` e de `features/*/queries.ts`"*.
+O sensor ganhou **uma** regra nova, não duas: **feature importa feature só pelo `index.ts`**
+(regra 6). *"`lib/` e `ui/` não importam `features/`"* já era a regra 1 e a regra 2 — só o regex
+precisava trocar `components|setup` por `features`, e um `describe` a mais testaria a mesma coisa
+duas vezes. A frase "sete regras" nasceu contando as duas separadamente; o sensor fica com **seis**.
+A regra 3 ganhou a exceção `isFeatureQueryFile` — `features/*/(queries|use<Recurso>).tsx?` — porque
+um hook de recurso mora dentro de `features/<x>/` de propósito, e o teste dele (`renderHook` pede
+JSX, por isso `.tsx`) importa o `trpc` pelo mesmo motivo que sempre importou.
 
-**Done when:** `components/` e `setup/` não existem;
-`git log --follow features/conversation/Conversation.tsx` mostra o histórico anterior; o sensor
-passa com as sete regras; `.storybook/main.ts` acha as stories no lugar novo; `gate:full` verde
-**só com mudança de import**.
+**O que a T17 achou, e nada estava previsto:**
+
+| Onde | O quê |
+|---|---|
+| `git mv` | `Board.tsx` e `lib/board.ts` (movido para o mesmo diretório) colidem em nome — sistema de arquivo *case-insensitive* mistura os dois, e o `tsc` recusa com `TS1149` antes de qualquer teste rodar. Resolvido renomeando o segundo para `board-columns.ts` |
+| import rewrite | reescrever 440 especificadores à mão seria a mesma classe de erro que a `032` existe para consertar do outro lado; um script fez a troca por análise de `git status --short \| grep '^R'`, resolvendo cada import contra a localização **antiga** do arquivo que o contém — a localização nova não basta, porque o import não mudou de texto, só o arquivo que o cerca mudou de lugar |
+| a porta | 8 dos 9 `index.ts` usam `export *` — só assim uma tela que faz `import { TaskRow } from "../tasks/index.js"` (um tipo, não o componente) continua funcionando sem eu enumerar cada exportação à mão |
+| `checkout-tab.test.tsx` | um `vi.mock` do `index.js` inteiro (`async (importOriginal) => ({...await importOriginal(), Terminal: ...})`) troca a identidade do `Terminal` mockado a cada render, e um teste que compara `toBe(nó anterior)` falha — o único teste dos 1196 que isso quebrou. Resolvido mockando `Terminal.js` direto, que nunca precisou da porta: `vi.mock` não é import estático e o sensor não o audita |
+| `docs/features/{006,008}-*` | 8 links para `packages/web/src/components/*` e `hooks/*` quebraram — `pnpm docs:check`, parte do `gate:full`, é quem pega. Corrigidos para o caminho novo |
+
+**Done when:** `components/` e `setup/` não existem — confirmado;
+`git log --follow` (depois do commit) mostra o histórico anterior; o sensor passa com as **seis**
+regras (não sete — ver achado acima); `.storybook/main.ts` já usava um glob recursivo e achou a
+story sem mudar; `gate:full` verde — 1196 testes de `web`, 3954 do monorepo, 116 e2e (`conveyor.spec.ts`
+falhou uma vez por um `setTimeout` de 20s da esteira, sem relação com este move, e passou limpo
+sozinho).
 
 #### T18: um `index.css` por feature
 

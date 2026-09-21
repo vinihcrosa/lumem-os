@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, posix } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -91,10 +91,20 @@ function gate(list: string, violations: readonly Violation[], allowed: readonly 
   expect(problems.join("\n")).toBe("");
 }
 
-const isScreen = (spec: string): boolean => /(^|\/)(components|setup)\//.test(spec);
+const isScreen = (spec: string): boolean => /(^|\/)features\//.test(spec);
 const isHook = (spec: string): boolean => /(^|\/)hooks\//.test(spec);
 const isTransport = (spec: string): boolean => /(^|\/)lib\/trpc(\.js)?$/.test(spec);
 const isTest = (path: string): boolean => /\.test\.tsx?$/.test(path);
+
+/**
+ * O hook de recurso de uma feature (`032` T17, Q6): `queries.ts` ou
+ * `use<Recurso>.ts`, e o teste dele — que só existe em `.tsx` porque
+ * `renderHook` precisa do wrapper em JSX. Mora dentro de `features/<x>/` de
+ * propósito (é o dado da feature), então a regra 3 o isenta do mesmo jeito que
+ * isenta `hooks/`: `import { trpc }` aqui é o ponto **certo**, não a violação.
+ */
+const isFeatureQueryFile = (path: string): boolean =>
+  /^features\/[^/]+\/(queries[\w-]*|use[A-Z]\w*)(\.test)?\.tsx?$/.test(path);
 
 /** Varre linha a linha, que é o que permite a mensagem apontar `arquivo:linha`. */
 function eachLine(file: Source, visit: (line: string, number: number) => void): void {
@@ -132,7 +142,7 @@ describe("regra 1 — a primitiva não conhece dado", () => {
           remedy:
             `\`${file.path}:${imported.line}\` importa \`${imported.spec}\`: ` +
             "uma primitiva recebe tudo por props e não busca nada. Mova o que precisa " +
-            "de dado para `components/` (ou, depois da fase 4, para `features/<domínio>/`) " +
+            "de dado para `features/<domínio>/` " +
             "e deixe em `ui/` só o que renderiza o que recebeu.",
         });
       }
@@ -147,7 +157,7 @@ describe("regra 1 — a primitiva não conhece dado", () => {
 const LIB_KNOWS_SCREEN: readonly string[] = [];
 
 describe("regra 2 — a biblioteca não conhece tela", () => {
-  it("nenhum arquivo de `lib/` importa `components/` nem `hooks/`", () => {
+  it("nenhum arquivo de `lib/` importa `features/` nem `hooks/`", () => {
     const violations: Violation[] = [];
     for (const file of sources) {
       if (!file.path.startsWith("lib/")) continue;
@@ -171,8 +181,8 @@ describe("regra 2 — a biblioteca não conhece tela", () => {
 //
 // A numeração é a do §3 da PRD; as regras 3 e 4 chegam na T2.
 
-/** Cai na T19: `notice.ts` vira `useBoardNotices.ts` no `git mv` da fase 4. */
-const HOOK_WITHOUT_HOOK_NAME = ["hooks/notice.ts"];
+/** Caiu na T17: `notice.ts` virou `features/tasks/useBoardNotices.ts` no `git mv` da fase 4. */
+const HOOK_WITHOUT_HOOK_NAME: readonly string[] = [];
 
 describe("regra 5 — o arquivo de hook tem nome de hook", () => {
   it("todo arquivo de `hooks/` que exporta um `use*` chama-se `use*`", () => {
@@ -199,24 +209,22 @@ describe("regra 5 — o arquivo de hook tem nome de hook", () => {
 // -- Regra 3: a tela não conhece o transporte ---------------------------------
 
 /**
- * Os 33 de hoje. A fase 3 os tira daqui um recurso por PR, e o número desta lista
- * é o que aquela fase relata.
- *
- * A PRD estimou **32** — ela contou `components/` e `setup/` e esqueceu o
- * `App.tsx`, que importa o `trpc` para o ping de saúde. O sensor conta o que o
- * disco tem.
+ * Os 6 que sobraram da fase 3 (T16) — `files`, `changes`, `memory`, `usage` não
+ * são recursos que as sete tasks daquela fase prometeram cobrir, e
+ * `setup/Done.tsx` bate quatro recursos num `useQueries` só. A T17 só troca o
+ * caminho: `components/X.tsx` e `setup/X.tsx` viraram `features/<domínio>/X.tsx`.
  *
  * Só `.tsx`: um `.ts` de `hooks/` é onde o transporte **deve** estar, e os arquivos
  * de teste alcançam o `trpc` por `vi.mock` e por `import()` dinâmico, que não são
  * import estático e não caem aqui.
  */
 const COMPONENT_KNOWS_TRANSPORT: readonly string[] = [
-  "components/Conversation.tsx",
-  "components/FileTree.tsx",
-  "components/PatchViewer.tsx",
-  "components/ProposalQueue.tsx",
-  "components/TaskList.tsx",
-  "setup/Done.tsx",
+  "features/checkout/FileTree.tsx",
+  "features/checkout/PatchViewer.tsx",
+  "features/conversation/Conversation.tsx",
+  "features/memory/ProposalQueue.tsx",
+  "features/setup/Done.tsx",
+  "features/tasks/TaskList.tsx",
 ];
 
 describe("regra 3 — a tela não conhece o transporte", () => {
@@ -224,6 +232,7 @@ describe("regra 3 — a tela não conhece o transporte", () => {
     const violations: Violation[] = [];
     for (const file of sources) {
       if (!file.path.endsWith(".tsx") || file.path.startsWith("hooks/")) continue;
+      if (isFeatureQueryFile(file.path)) continue;
       for (const imported of file.imports) {
         if (!isTransport(imported.spec)) continue;
         violations.push({
@@ -329,5 +338,45 @@ describe("regra 4 — toda chave de cache nasce em `queryKeys.ts`", () => {
       });
     }
     gate("INVALIDATION_PREFIX_OUTSIDE", violations, INVALIDATION_PREFIX_OUTSIDE);
+  });
+});
+
+// -- Regra 6: feature importa feature só pelo `index.ts` (`032` T17) ---------
+//
+// `lib/` e `ui/` não importarem `features/` já é a regra 1 e a regra 2, com o
+// regex atualizado para o nome novo da pasta — não precisou de uma terceira
+// lista. O que não existia é esta: duas features **dentro** de `features/`
+// só podem se falar pela porta.
+
+/**
+ * Nasce vazia: o `git mv` da T17 já saiu roteado por `index.ts` — nenhuma
+ * feature importa o arquivo interno de outra.
+ */
+const FEATURE_BYPASSES_INDEX: readonly string[] = [];
+
+describe("regra 6 — feature importa feature só pelo index.ts", () => {
+  it("nenhum import de `features/<a>/` de dentro de `features/<b>/` aponta para um arquivo que não é `index.js`", () => {
+    const violations: Violation[] = [];
+    for (const file of sources) {
+      const ownFeature = /^features\/([^/]+)\//.exec(file.path)?.[1];
+      if (ownFeature === undefined) continue;
+      const dir = posix.dirname(file.path);
+      for (const imported of file.imports) {
+        if (!imported.spec.startsWith(".")) continue;
+        const resolved = posix.normalize(posix.join(dir, imported.spec.replace(/\.js$/, "")));
+        const target = /^features\/([^/]+)\/(.+)$/.exec(resolved);
+        if (!target) continue;
+        const [, targetFeature, targetRest] = target;
+        if (targetFeature === ownFeature || targetRest === "index") continue;
+        violations.push({
+          path: file.path,
+          remedy:
+            `\`${file.path}:${imported.line}\` importa \`${imported.spec}\` direto: ` +
+            `passe por \`features/${targetFeature}/index.js\` — a porta é o que faz uma ` +
+            "feature não saber o arquivo interno de outra, só o que ela exporta.",
+        });
+      }
+    }
+    gate("FEATURE_BYPASSES_INDEX", violations, FEATURE_BYPASSES_INDEX);
   });
 });

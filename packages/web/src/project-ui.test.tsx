@@ -1,0 +1,463 @@
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { App } from "./App.js";
+import { renderWithProviders } from "./test/render.js";
+import { installTrpcDefaults, trpcMock as trpc } from "./test/trpc-mock.js";
+
+vi.mock("./lib/trpc.js", async () => ({
+  trpc: (await import("./test/trpc-mock.js")).trpcMock,
+}));
+
+
+function project(id: string, name: string, available = true) {
+  return {
+    id,
+    workspaceId: "w1",
+    name,
+    path: `/repos/${name}`,
+    defaultBranch: "main",
+    available,
+    hasCommits: true,
+    remoteUrl: null,
+    managed: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+function worktree(id: string, name: string) {
+  return {
+    id,
+    projectId: "p1",
+    name,
+    branch: name,
+    path: `/repos/lorebase-wt/${name}`,
+    state: "active",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  // `resetAllMocks` apaga implementação: sem isto, as queries que a tela do
+  // workspace faz no `mount` voltam a devolver `undefined`, e o banner de erro
+  // aparece como um `role="alert"` a mais num teste que não fala de erro.
+  installTrpcDefaults();
+  window.localStorage.clear();
+  trpc.health.query.mockResolvedValue({ ok: true, version: "0.0.0" });
+  trpc.session.listByScope.query.mockResolvedValue([]);
+  trpc.agentConfig.list.query.mockResolvedValue([]);
+  trpc.workspace.list.query.mockResolvedValue([
+    { id: "w1", name: "pessoal", createdAt: new Date(), updatedAt: new Date() },
+  ]);
+  trpc.project.listByWorkspace.query.mockResolvedValue([]);
+  // react-query treats undefined as a programming error and says so on stderr.
+  trpc.project.get.query.mockResolvedValue(null);
+  // The sidebar renders a worktree tree per project; an unstubbed query there
+  // fails and puts a second role="alert" on screen.
+  trpc.worktree.listByProject.query.mockResolvedValue([]);
+  // The `↳` line asks the daemon what it understood; with nothing stubbed the
+  // query errors and puts a second role="alert" on screen.
+  trpc.project.parseSource.query.mockResolvedValue({ kind: "path", path: "/repos/lorebase" });
+  trpc.project.cloneJobs.query.mockResolvedValue([]);
+});
+
+describe("project list", () => {
+  it("lists the projects of the active workspace", async () => {
+    trpc.project.listByWorkspace.query.mockResolvedValue([
+      project("p1", "lorebase"),
+      project("p2", "outro"),
+    ]);
+
+    renderWithProviders(<App />);
+
+    const list = await screen.findByLabelText("árvore de projetos");
+    expect(await within(list).findByRole("button", { name: /^lorebase/ })).toBeInTheDocument();
+    expect(within(list).getByRole("button", { name: /^outro/ })).toBeInTheDocument();
+  });
+
+  it("says so when the workspace has no projects", async () => {
+    renderWithProviders(<App />);
+
+    // An empty state, not a shrug: it says what a project is here, and the
+    // heading right above it carries the one way in.
+    expect(await screen.findByText("Nenhum projeto aqui")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "adicionar projeto" })).toBeInTheDocument();
+  });
+
+  it("offers exactly one way to add the first project (Q3)", async () => {
+    // Two buttons a hand's width apart for one job is what this feature came to
+    // remove. The empty state has no action of its own *because* the heading
+    // above it always does — including when there is nothing below it.
+    renderWithProviders(<App />);
+    await screen.findByText("Nenhum projeto aqui");
+
+    expect(screen.getAllByRole("button", { name: /adicionar projeto/ })).toHaveLength(1);
+  });
+
+  it("keeps the heading through every state the tree can be in (Q3)", async () => {
+    // Loading, error and full — the empty case is covered above. A heading that
+    // came and went with the list would take the way in with it.
+    trpc.project.listByWorkspace.query.mockReturnValue(new Promise(() => {}));
+    const { unmount } = renderWithProviders(<App />);
+    expect(await screen.findByRole("button", { name: "adicionar projeto" })).toBeInTheDocument();
+    expect(screen.getByText("Projetos")).toBeInTheDocument();
+    unmount();
+
+    trpc.project.listByWorkspace.query.mockRejectedValue(new Error("daemon caiu"));
+    renderWithProviders(<App />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("daemon caiu");
+    expect(screen.getByRole("button", { name: "adicionar projeto" })).toBeInTheDocument();
+  });
+
+  it("no longer keeps a second copy in the footer (F1.6)", async () => {
+    trpc.project.listByWorkspace.query.mockResolvedValue([project("p1", "lorebase")]);
+    renderWithProviders(<App />);
+
+    const tree = await screen.findByLabelText("árvore de projetos");
+    // The only one, and it is inside the tree — attached to the heading of the
+    // thing it appends to, so it does not drift as the list grows.
+    const buttons = screen.getAllByRole("button", { name: "adicionar projeto" });
+    expect(buttons).toHaveLength(1);
+    expect(tree).toContainElement(buttons[0]!);
+  });
+
+  it("marks a project whose repository is gone", async () => {
+    // PRD §8: it stays listed. Vanishing would take the worktrees registered
+    // under it out of sight as well.
+    trpc.project.listByWorkspace.query.mockResolvedValue([project("p1", "lorebase", false)]);
+
+    renderWithProviders(<App />);
+
+    // The row says it in its own accessible name, so the state reaches someone
+    // who cannot see that it is dimmed.
+    expect(await screen.findByRole("button", { name: "lorebase sem disco" })).toBeInTheDocument();
+  });
+});
+
+describe("add project", () => {
+  it("adds a repository by absolute path", async () => {
+    const user = userEvent.setup();
+    trpc.project.add.mutate.mockImplementation(async () => {
+      const added = project("p1", "lorebase");
+      trpc.project.listByWorkspace.query.mockResolvedValue([added]);
+      trpc.project.get.query.mockResolvedValue(added);
+      return added;
+    });
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
+    await user.type(screen.getByLabelText("Caminho ou URL"), "/repos/lorebase");
+    await user.click(screen.getByRole("button", { name: "adicionar" }));
+
+    await waitFor(() =>
+      expect(trpc.project.add.mutate).toHaveBeenCalledWith({
+        workspaceId: "w1",
+        path: "/repos/lorebase",
+      }),
+    );
+    // Adding then having to hunt for it in the list is a step for nothing. The
+    // panel that opens is `local` — the checkout itself, which is where a
+    // freshly added project actually is.
+    expect(await screen.findByRole("heading", { name: "local" })).toBeInTheDocument();
+  });
+
+  it("sends an explicit name when one is typed", async () => {
+    const user = userEvent.setup();
+    trpc.project.add.mutate.mockResolvedValue(project("p1", "lore"));
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
+    await user.type(screen.getByLabelText("Caminho ou URL"), "/repos/lorebase");
+    await user.type(screen.getByLabelText("Nome"), "lore");
+    await user.click(screen.getByRole("button", { name: "adicionar" }));
+
+    await waitFor(() =>
+      expect(trpc.project.add.mutate).toHaveBeenCalledWith({
+        workspaceId: "w1",
+        path: "/repos/lorebase",
+        name: "lore",
+      }),
+    );
+  });
+
+  it("shows exactly which validation the daemon refused", async () => {
+    // F2.2. "caminho inválido" would send the user looking in the wrong place.
+    const user = userEvent.setup();
+    trpc.project.add.mutate.mockRejectedValue(
+      new Error("/repos/x está dentro do repositório /repos, mas não é a raiz dele"),
+    );
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
+    await user.type(screen.getByLabelText("Caminho ou URL"), "/repos/x");
+    await user.click(screen.getByRole("button", { name: "adicionar" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("não é a raiz dele");
+  });
+
+  it("keeps the form open after a refusal so the path can be fixed", async () => {
+    const user = userEvent.setup();
+    trpc.project.add.mutate.mockRejectedValue(new Error("não é um repositório git"));
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: "adicionar projeto" }));
+    await user.type(screen.getByLabelText("Caminho ou URL"), "/tmp");
+    await user.click(screen.getByRole("button", { name: "adicionar" }));
+    await screen.findByRole("alert");
+
+    expect(screen.getByLabelText("Caminho ou URL")).toHaveValue("/tmp");
+  });
+});
+
+describe("project detail", () => {
+  it("shows the repository the daemon recorded", async () => {
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+
+    // The project's own row points at `local`: everything the project detail
+    // used to show lives there now.
+    expect(await screen.findByRole("heading", { name: "local" })).toBeInTheDocument();
+    expect(screen.getByText("/repos/lorebase")).toBeInTheDocument();
+    expect(screen.getAllByText("main").length).toBeGreaterThan(0);
+  });
+
+  it("warns and blocks when the repository is missing from disk", async () => {
+    const user = userEvent.setup();
+    const missing = project("p1", "lorebase", false);
+    trpc.project.listByWorkspace.query.mockResolvedValue([missing]);
+    trpc.project.get.query.mockResolvedValue(missing);
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("não está mais em /repos/lorebase");
+    // Removing the registration stays allowed: it is how the user recovers.
+    expect(screen.getByRole("button", { name: "remover projeto" })).toBeEnabled();
+  });
+
+  it("removes the registration and clears the detail", async () => {
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+    trpc.project.remove.mutate.mockImplementation(async () => {
+      trpc.project.listByWorkspace.query.mockResolvedValue([]);
+      return { ok: true as const };
+    });
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    // F2.5 said out loud, where the decision is made.
+    expect(await screen.findByText(/o diretório e o que está dentro dele ficam no disco/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "remover projeto" }));
+    // F6.9 put a confirmation in front of this: for a project registered by
+    // path it promises the disk is untouched, and it has to say which of the
+    // two removals this is before anything happens.
+    const confirmacao = await screen.findByRole("alertdialog");
+    expect(confirmacao).toHaveTextContent("aponta para um repositório");
+    expect(confirmacao).toHaveTextContent("fica exatamente onde está");
+    await user.click(within(confirmacao).getByRole("button", { name: "remover" }));
+
+    // O que sobra depois de remover o projeto é a **tela do workspace**, e não
+    // mais a frase "selecione uma worktree": o painel central passou a responder
+    // "onde eu estou" com uma tela (`workspace-screen`, W1).
+    expect(await screen.findByText("Nenhum projeto ainda")).toBeInTheDocument();
+  });
+
+  it("asks before removing, naming how many worktrees go along", async () => {
+    // WS-Q22. No projeto registrado por caminho o disco nunca corre risco; o que
+    // não tem volta é o registro — e ele leva N worktrees de uma vez. O número
+    // fica no título porque é ele que muda a resposta.
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+    trpc.worktree.listByProject.query.mockResolvedValue([
+      worktree("wt1", "feat-x"),
+      worktree("wt2", "feat-y"),
+      worktree("wt3", "feat-z"),
+    ]);
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+
+    const confirmacao = await screen.findByRole("alertdialog");
+    expect(confirmacao).toHaveTextContent("remover lorebase da lista, e o registro de 3 worktrees?");
+    expect(trpc.project.remove.mutate).not.toHaveBeenCalled();
+  });
+
+  it("conta as tarefas junto — elas somem na mesma transação", async () => {
+    // `022` T10: tarefa é registro puro e vai junto. Uma pergunta que nomeia só
+    // as worktrees estaria escondendo metade do que some.
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+    trpc.worktree.listByProject.query.mockResolvedValue([worktree("wt1", "feat-x")]);
+    trpc.task.listByWorkspace.query.mockResolvedValue([
+      { id: "t1", title: "uma" },
+      { id: "t2", title: "outra" },
+    ]);
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+
+    const confirmacao = await screen.findByRole("alertdialog");
+    expect(confirmacao).toHaveTextContent(
+      "remover lorebase da lista, e o registro de 1 worktree e 2 tarefas?",
+    );
+  });
+
+  it("não diz zero tarefa — o número existe para comprar atenção", async () => {
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+    trpc.worktree.listByProject.query.mockResolvedValue([worktree("wt1", "feat-x")]);
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+
+    const confirmacao = await screen.findByRole("alertdialog");
+    expect(confirmacao).toHaveTextContent("remover lorebase da lista, e o registro de 1 worktree?");
+    expect(confirmacao).not.toHaveTextContent("tarefa");
+  });
+
+  it("removes nothing when the confirmation is refused", async () => {
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+    const confirmacao = await screen.findByRole("alertdialog");
+    await user.click(within(confirmacao).getByRole("button", { name: "cancelar" }));
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(trpc.project.remove.mutate).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "remover projeto" })).toBeEnabled();
+  });
+
+  it("shows the daemon's reason when removal is refused", async () => {
+    // No projeto por caminho as worktrees não recusam mais: elas saem junto
+    // (WS-Q22). A recusa que sobra é sessão rodando — a do projeto ou a de
+    // qualquer worktree dele —, que a §6 proíbe deixar órfã.
+    const user = userEvent.setup();
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+    trpc.project.remove.mutate.mockRejectedValue(
+      new Error("o projeto tem 2 sessão(ões) rodando; encerre-as antes de remover"),
+    );
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+    const confirmacao = await screen.findByRole("alertdialog");
+    await user.click(within(confirmacao).getByRole("button", { name: "remover" }));
+
+    // A recusa aparece na própria confirmação: ninguém deveria confirmar algo
+    // que vai ser recusado, e a razão tem que chegar onde o clique foi dado.
+    expect(await screen.findByRole("alert")).toHaveTextContent("sessão(ões) rodando");
+  });
+
+  it("no projeto clonado, a worktree recusa em vez de sair junto", async () => {
+    /*
+     * O outro lado da WS-Q22, e a razão de ela não valer para os dois.
+     *
+     * O projeto clonado tem o `repo/` apagado na remoção, e as worktrees vivem
+     * ao lado dele em `<home>/worktrees/`. Cascatear o registro delas deixaria N
+     * checkouts apontando para um gitdir que não existe mais. Então aqui o
+     * daemon recusa (F6.9-A4) — e a confirmação, que é a mesma tela, tem que
+     * mostrar a recusa em vez de prometer a cascata.
+     */
+    const user = userEvent.setup();
+    const clonado = { ...project("p1", "lorebase"), managed: true };
+    trpc.project.listByWorkspace.query.mockResolvedValue([clonado]);
+    trpc.project.get.query.mockResolvedValue(clonado);
+    trpc.project.remove.mutate.mockRejectedValue(
+      new Error("o projeto ainda tem worktrees registradas (3); remova-as antes"),
+    );
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await user.click(await screen.findByRole("button", { name: "remover projeto" }));
+
+    const confirmacao = await screen.findByRole("alertdialog");
+    // A pergunta do projeto clonado não promete cascata nenhuma.
+    expect(confirmacao).toHaveTextContent("apagar lorebase do disco?");
+    expect(confirmacao).not.toHaveTextContent("o registro de");
+
+    await user.click(within(confirmacao).getByRole("button", { name: "apagar" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("ainda tem worktrees");
+  });
+});
+
+describe("consumo por worktree, na visão do projeto (W4)", () => {
+  it("mostra cada worktree e a linha que fecha a conta", async () => {
+    /*
+     * A linha `direto no projeto` existe porque sessão de escopo `project` não
+     * pertence a worktree nenhuma: sem ela, a soma das worktrees não bate com o
+     * total que a tela do workspace mostra para este projeto, e a diferença
+     * apareceria como número faltando sem explicação.
+     */
+    trpc.usage.byWorktree.query.mockResolvedValue({
+      worktrees: [
+        {
+          worktreeId: "wt1",
+          name: "feat-checkout",
+          tokens: 890_000,
+          cost: 7.901,
+          currency: "USD",
+          turns: 52,
+        },
+      ],
+      outside: { tokens: 150_000, cost: 1.3861, currency: "USD", turns: 10 },
+    });
+
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+
+    renderWithProviders(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /^lorebase/ }));
+
+    expect(await screen.findByText("feat-checkout")).toBeInTheDocument();
+    expect(screen.getByText("890k")).toBeInTheDocument();
+    expect(screen.getByText("direto no projeto")).toBeInTheDocument();
+    expect(screen.getByText("US$ 1,3861")).toBeInTheDocument();
+  });
+
+  it("a janela do projeto é uma pergunta própria, não a do workspace", async () => {
+    const selected = project("p1", "lorebase");
+    trpc.project.listByWorkspace.query.mockResolvedValue([selected]);
+    trpc.project.get.query.mockResolvedValue(selected);
+
+    renderWithProviders(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await screen.findByText("nada gasto ainda neste projeto");
+
+    const group = screen.getByRole("group", { name: "Janela de tempo do consumo do projeto" });
+    await userEvent.click(within(group).getByRole("button", { name: "6m" }));
+
+    expect(trpc.usage.byWorktree.query).toHaveBeenLastCalledWith({
+      projectId: "p1",
+      period: "6m",
+    });
+  });
+});

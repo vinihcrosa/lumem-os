@@ -1,0 +1,397 @@
+import type { PrMark } from "@lumem/shared";
+
+import { useAwaitingPermission } from "../../hooks/useAwaitingPermission.js";
+import { useProjects } from "./useProjects.js";
+import { usePrMarks } from "../pull-request/index.js";
+import { useScripts } from "../checkout/index.js";
+import { useRunningAcross, useSessionsByScope, type Scope } from "../checkout/index.js";
+import type { TreeExpansion } from "./useTreeExpansion.js";
+import { useWorktrees } from "./useWorktrees.js";
+import { EmptyState, Glyph, Row, Skeleton } from "../../ui/index.js";
+
+import "../pull-request/pr-bar.css";
+import "../checkout/run-dock.css";
+
+/**
+ * What the sidebar is pointing at.
+ *
+ * Always a scope — the project's own checkout or one of its worktrees. The
+ * sessions moved into tabs, so the tree no longer has a third thing to point
+ * at, and "where am I working" has one shape of answer.
+ */
+export interface TreeSelection {
+  scopeType: Scope["scopeType"] | null;
+  scopeId: string | null;
+}
+
+export interface SidebarTreeProps {
+  workspaceId: string;
+  expansion: TreeExpansion;
+  selection: TreeSelection;
+  onSelect: (projectId: string, scope: Scope) => void;
+  /** F1.2 — the `+` beside `Projetos`. */
+  onAddProject: () => void;
+  /** F1.3 — the `+` on a project row, which already knows which project. */
+  onCreateWorktree: (project: ProjectSummary) => void;
+}
+
+/** Projects and their worktrees — F3.1 through F3.3. */
+export function SidebarTree(props: SidebarTreeProps) {
+  const projects = useProjects(props.workspaceId);
+
+  return (
+    <div className="tree" aria-label="árvore de projetos">
+      {/*
+        Q3: the heading exists in every state — loading, error, empty and full.
+
+        The button belongs to the heading and not to the end of the list, so it
+        does not drift away from the thing it appends as the list grows. And it
+        is the *only* way in when there are no projects: an empty tree has no row
+        to point at, which is why the empty state below has no action of its own.
+        Two buttons a hand's width apart for one job is what this feature came to
+        remove, not to move.
+      */}
+      <div className="tree__head">
+        <p className="tree__label">Projetos</p>
+        <button
+          type="button"
+          className="act"
+          aria-label="adicionar projeto"
+          onClick={props.onAddProject}
+        >
+          ＋
+        </button>
+      </div>
+      {renderList()}
+    </div>
+  );
+
+  function renderList() {
+    if (projects.isError) {
+      return (
+        <p className="tree__message" role="alert">
+          {projects.error.message}
+        </p>
+      );
+    }
+
+    if (projects.isPending) {
+      return <Skeleton label="carregando os projetos" widths={["80%", "60%", "70%"]} />;
+    }
+
+    const list = projects.data ?? [];
+
+    if (list.length === 0) {
+      return (
+        <EmptyState title="Nenhum projeto aqui">
+          Aponte para a raiz de um repositório git no disco, ou cole uma URL para clonar.
+        </EmptyState>
+      );
+    }
+
+    return list.map((project) => (
+      <ProjectNode key={project.id} project={project} {...props} />
+    ));
+  }
+}
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  available: boolean;
+  /** F6.13 — a repository cloned empty has no commit to cut a worktree from. */
+  hasCommits: boolean | null;
+}
+
+function ProjectNode({
+  project,
+  expansion,
+  selection,
+  onSelect,
+  onCreateWorktree,
+}: SidebarTreeProps & { project: ProjectSummary }) {
+  const expanded = expansion.isExpanded(project.id);
+  const localScope: Scope = { scopeType: "project", scopeId: project.id };
+
+  // A repository that left the disk cannot answer, and asking would only put
+  // an error in the sidebar for a state the row already reports.
+  const worktrees = useWorktrees(project.id, { enabled: project.available });
+
+  const list = worktrees.data ?? [];
+
+  /**
+   * Every scope under this project, asked for at this level.
+   *
+   * The rows below read the same cache rather than fetching again, and a folded
+   * project still knows how much is running inside it.
+   */
+  const scopes: Scope[] = [
+    localScope,
+    ...list.map((worktree) => ({ scopeType: "worktree" as const, scopeId: worktree.id })),
+  ];
+  const running = useRunningAcross(scopes);
+
+  /*
+   * O estado da PR de **todas** as worktrees, numa consulta só.
+   *
+   * Pedido neste nível e não na linha: uma consulta por linha seria N processos
+   * `gh` por ciclo, que é exatamente o que a F4.3 existe para não acontecer. As
+   * linhas leem o resultado; nenhuma pergunta.
+   *
+   * E este é o sinal que **sobrevive ao painel direito colapsado** — que nasce
+   * colapsado. Sem ele, a pergunta que a feature existe para responder (qual
+   * das oito worktrees está pronta) não teria onde ser respondida.
+   */
+  const marks = usePrMarks(project.available && expanded ? project.id : null);
+  const markOf = (worktreeId: string): PrMark | undefined =>
+    (marks.data ?? []).find((mark) => mark.worktreeId === worktreeId);
+
+  return (
+    <>
+      <div data-kind="project" data-state={project.available ? "available" : "missing"}>
+        <Row
+          depth={0}
+          emphasis
+          label={project.name}
+          glyph={<Glyph tone={project.available ? "project" : "off"}>■</Glyph>}
+          // PRD §8: a repository off disk stays in the list. Vanishing would
+          // take the worktrees registered under it out of sight too.
+          muted={!project.available}
+          meta={project.available ? undefined : "sem disco"}
+          count={!expanded && running > 0 ? running : undefined}
+          expanded={expanded}
+          onToggle={() => expansion.toggle(project.id)}
+          /*
+           * F1.8: a project off disk offers no `+` — there is nowhere to cut a
+           * worktree from — but the space stays. A column that only lines up
+           * when every project is on disk does not line up.
+           *
+           * It stays clickable on a repository with no commit, though: the
+           * dialog is what explains that, and a greyed 24px `+` on a tree row
+           * is a grey button with its reason nowhere in sight.
+           */
+          reserveAction
+          {...(project.available
+            ? {
+                action: (
+                  <button
+                    type="button"
+                    className="row__act"
+                    // `＋` on its own is the name of nothing.
+                    aria-label={`nova worktree em ${project.name}`}
+                    onClick={() => onCreateWorktree(project)}
+                  >
+                    ＋
+                  </button>
+                ),
+              }
+            : {})}
+          // The project row has no panel of its own any more — everything it
+          // used to show moved into `local`. Pointing it there keeps the row
+          // from being a target that goes nowhere.
+          selected={false}
+          onSelect={() => onSelect(project.id, localScope)}
+        />
+      </div>
+
+      {expanded && project.available && (
+        <>
+          <LocalNode
+            projectId={project.id}
+            selected={selection.scopeType === "project" && selection.scopeId === project.id}
+            onSelect={() => onSelect(project.id, localScope)}
+          />
+
+          {worktrees.isError && (
+            <p className="tree__message" role="alert">
+              {worktrees.error.message}
+            </p>
+          )}
+
+          {list.map((worktree) => (
+            <WorktreeNode
+              key={worktree.id}
+              projectId={project.id}
+              worktree={worktree}
+              mark={markOf(worktree.id)}
+              selected={
+                selection.scopeType === "worktree" && selection.scopeId === worktree.id
+              }
+              onSelect={onSelect}
+            />
+          ))}
+        </>
+      )}
+    </>
+  );
+}
+
+/**
+ * The project's own checkout, listed as the first worktree.
+ *
+ * It is not a `git worktree`, and its glyph says so — but it is a directory
+ * with a branch where sessions run, which is everything the sidebar needs it to
+ * be. Leaving it out would mean two shapes of answer to one question.
+ */
+function LocalNode({
+  projectId,
+  selected,
+  onSelect,
+}: {
+  projectId: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const scope: Scope = { scopeType: "project", scopeId: projectId };
+  const running = useRunningAcross([scope]);
+
+  return (
+    <div data-kind="local" data-state="active">
+      <Row
+        depth={1}
+        label="local"
+        glyph={<Glyph tone="project">▭</Glyph>}
+        meta={<ScriptMark scope={scope} />}
+        count={running > 0 ? running : undefined}
+        selected={selected}
+        onSelect={onSelect}
+      />
+    </div>
+  );
+}
+
+interface WorktreeSummary {
+  id: string;
+  name: string;
+  branch: string;
+  state: string;
+}
+
+/**
+ * F3.3 asks the row to show name and branch. In this version F4.2 makes them
+ * the same string, so printing both would be printing one twice — the branch
+ * appears only when it is something the name does not already say.
+ */
+/**
+ * O que este checkout tem de pé, visto de fora do rodapé.
+ *
+ * O rodapé pode estar fechado, ou você em outra worktree — e sem um sinal aqui
+ * "tem um dev server nesta worktree" vira coisa que só o `lsof` sabe, até a
+ * próxima vez que você rodar e a porta já estiver ocupada por você mesmo.
+ *
+ * Sem requisição nova por linha: é a **mesma chave de cache** que o rodapé usa, e
+ * ela só volta a perguntar enquanto houver algo vivo.
+ */
+function ScriptMark({ scope }: { scope: Scope }) {
+  const status = useScripts(scope);
+  const run = status.data?.run.last;
+  const setup = status.data?.setup.last;
+
+  if (run?.running === true) {
+    const port = status.data?.port ?? null;
+    return (
+      <span className="runmark">
+        <span className="runmark__glyph">▶</span>
+        {port === null ? "run" : `:${String(port.port)}`}
+      </span>
+    );
+  }
+
+  // O mesmo lugar onde `ausente` já aparece hoje: um estado do checkout, escrito
+  // onde os estados do checkout são escritos.
+  if (setup && !setup.running && setup.exitCode !== 0) return <>setup falhou</>;
+  return null;
+}
+
+function worktreeMeta(worktree: WorktreeSummary): string | undefined {
+  const parts = [
+    worktree.branch === worktree.name ? null : worktree.branch,
+    worktree.state === "missing" ? "ausente" : null,
+  ].filter((part): part is string => part !== null);
+
+  return parts.length === 0 ? undefined : parts.join(" · ");
+}
+
+/**
+ * `● #19` na linha, com a cor do mesmo veredito da barra.
+ *
+ * Worktree sem PR não ganha nada (Q9): marcador cinza em cinco linhas ensina o
+ * olho a ignorar a coluna inteira, e aí o vermelho da sexta chega tarde.
+ *
+ * A cor sai do **mesmo** veredito que a barra usa — não há segunda regra aqui,
+ * só uma tradução de veredito para classe.
+ */
+function PrMarkView({ mark }: { mark: PrMark }) {
+  return (
+    <span className={`prmark prmark--${mark.verdict}`}>
+      <span className="prmark__dot" aria-hidden="true" />#{mark.number}
+      <span className="sr-only"> pull request {WORD[mark.verdict]}</span>
+    </span>
+  );
+}
+
+const WORD: Record<PrMark["verdict"], string> = {
+  ready: "pronta para merge",
+  blocked: "bloqueada",
+  pending: "verificando",
+  draft: "em rascunho",
+  merged: "mesclada",
+  closed: "fechada sem merge",
+};
+
+function WorktreeNode({
+  projectId,
+  worktree,
+  mark,
+  selected,
+  onSelect,
+}: {
+  projectId: string;
+  worktree: WorktreeSummary;
+  mark: PrMark | undefined;
+  selected: boolean;
+  onSelect: SidebarTreeProps["onSelect"];
+}) {
+  const missing = worktree.state === "missing";
+  const scope: Scope = { scopeType: "worktree", scopeId: worktree.id };
+  const running = useRunningAcross([scope]);
+  const awaiting = useAwaitingPermission();
+  const sessions = useSessionsByScope(scope);
+  // Only what is waiting on a person. A worktree with one blocked session and two
+  // busy ones has to report the blocked one: it is the only one that will not
+  // finish on its own (A10).
+  const asking = awaiting.countIn((sessions.data ?? []).map((session) => session.id));
+
+  return (
+    <div data-kind="worktree" data-state={worktree.state}>
+      <Row
+        depth={1}
+        label={worktree.name}
+        glyph={<Glyph tone={missing ? "warn" : "worktree"}>{missing ? "⚠" : "◇"}</Glyph>}
+        // F7.4: it stays visible and says so, instead of disappearing.
+        muted={missing}
+        meta={
+          // O marcador da PR ganha do resto: ele é o que responde "qual está
+          // pronta", e é o único sinal de PR que sobrevive ao painel fechado.
+          // O nome da worktree trunca antes de ele sair (F3.1).
+          //
+          // Menos quando a worktree **sumiu do disco**. Aí a palavra `ausente`
+          // ganha: a F7.4 da `walking-skeleton` diz que ela fica visível e diz
+          // que sumiu, e trocar isso por `● #19` seria o marcador apagando o
+          // motivo pelo qual a linha ainda existe.
+          mark !== undefined && !missing ? (
+            <PrMarkView mark={mark} />
+          ) : (
+            (worktreeMeta(worktree) ??
+              (missing ? undefined : <ScriptMark scope={scope} />) ??
+              undefined)
+          )
+        }
+        count={asking > 0 ? asking : running > 0 ? running : undefined}
+        countTone={asking > 0 ? "asking" : "running"}
+        selected={selected}
+        onSelect={() => onSelect(projectId, scope)}
+      />
+    </div>
+  );
+}

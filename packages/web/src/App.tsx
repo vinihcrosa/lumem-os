@@ -1,34 +1,34 @@
 import { useEffect, useState } from "react";
 
-import { AddProjectDialog } from "./components/AddProjectDialog.js";
-import { AgentLogin } from "./components/AgentLogin.js";
-import { SettingsPanel } from "./components/SettingsPanel.js";
-import { SidebarNav } from "./components/SidebarNav.js";
-import { WorkspacePanel } from "./components/WorkspacePanel.js";
-import { CheckoutFiles } from "./components/CheckoutFiles.js";
-import { CreateWorktreeDialog } from "./components/CreateWorktreeDialog.js";
-import { LocalPanel } from "./components/LocalPanel.js";
-import { SidebarTree, type ProjectSummary } from "./components/SidebarTree.js";
-import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
-import { WorktreePanel } from "./components/WorktreePanel.js";
-import { useActiveWorkspace } from "./hooks/useActiveWorkspace.js";
+import { AddProjectDialog } from "./features/workspace/index.js";
+import { AgentLogin } from "./features/agent/index.js";
+import { SettingsPanel } from "./features/settings/index.js";
+import { SidebarNav } from "./features/workspace/index.js";
+import { WorkspacePanel } from "./features/workspace/index.js";
+import { CheckoutFiles } from "./features/checkout/index.js";
+import { CreateWorktreeDialog } from "./features/workspace/index.js";
+import { LocalPanel } from "./features/checkout/index.js";
+import { SidebarTree, type ProjectSummary } from "./features/workspace/index.js";
+import { WorkspaceSelector } from "./features/workspace/index.js";
+import { WorktreePanel } from "./features/checkout/index.js";
+import { useActiveWorkspace } from "./features/workspace/index.js";
 import { useHealth } from "./hooks/useHealth.js";
 import { useLiveState } from "./hooks/useLiveState.js";
 import { AwaitingPermissionProvider } from "./hooks/useAwaitingPermission.js";
 import { OpenFilesProvider } from "./hooks/useOpenFiles.js";
-import { useRightPanel } from "./hooks/useRightPanel.js";
-import { useRunDock, widenColumnOnOpen } from "./hooks/useRunDock.js";
-import type { Scope } from "./hooks/useSessionsByScope.js";
-import { useTreeExpansion } from "./hooks/useTreeExpansion.js";
-import { useInvalidateWorkspaces, useWorkspaces } from "./hooks/useWorkspace.js";
+import { useRightPanel } from "./features/checkout/index.js";
+import { useRunDock, widenColumnOnOpen } from "./features/checkout/index.js";
+import type { Scope } from "./features/checkout/index.js";
+import { useTreeExpansion } from "./features/workspace/index.js";
+import { useInvalidateWorkspaces, useWorkspaces } from "./features/workspace/index.js";
 import { AppShell } from "./layout/AppShell.js";
 import { Topbar } from "./layout/Topbar.js";
-import { SetupFlow } from "./setup/SetupFlow.js";
+import { SetupFlow } from "./features/setup/index.js";
 import { navigate, useRoute } from "./lib/route.js";
 import { Banner, Skeleton } from "./ui/index.js";
 
-import "./components/sidebar.css";
-import "./components/clone.css";
+import "./features/workspace/sidebar.css";
+import "./features/workspace/clone.css";
 import "./layout/layout.css";
 
 /**
