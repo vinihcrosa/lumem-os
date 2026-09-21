@@ -1,4 +1,4 @@
-/* Design tokens do Lumem-OS. A fonte é este arquivo, no Open Design. */
+/* Design tokens do Lumem-OS. A fonte é este arquivo. */
 /* Rampas derivadas em OKLCH, entregues em hex. Os pares de contraste sao
    verificados no gate, em packages/web/src/styles/contrast.ts — mexer numa cor
    pede rodar a suite. */

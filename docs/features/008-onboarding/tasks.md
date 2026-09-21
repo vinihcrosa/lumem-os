@@ -55,7 +55,7 @@ respeita a linha:
 
 O motivo de não jogar tudo em `setup/`: metade dessas classes é o vocabulário da **tela de
 preferências** que não existe ainda, e do diagnóstico de qualquer dia. Nascer em `ui/` com entrada no
-[`Styleguide`](../../../packages/web/src/ui/Styleguide.tsx) é o que evita a segunda pintura quando essa
+[`Styleguide`](../../../packages/web/src/ui/Primitives.stories.tsx) é o que evita a segunda pintura quando essa
 tela chegar.
 
 ### D2 — Nada do fluxo escreve estado próprio

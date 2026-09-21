@@ -13,12 +13,54 @@
       "method": "copy",
       "global": false
     },
-    "tlc-spec-driven": {
-      "name": "tlc-spec-driven",
+    "tlc-spec-lean": {
+      "name": "tlc-spec-lean",
       "source": "local",
-      "contentHash": "9f4c793556001f3210a2d9fe3b41bf24e82e581c522d8dd50f65addfee169a29",
-      "installedAt": "2026-08-14T19:38:43.518Z",
-      "updatedAt": "2026-08-14T19:38:43.531Z",
+      "contentHash": "28368cb86a9d441fce24426eb502a39a5e7f9ffe0ad5d682fead2ce76c5b085b",
+      "installedAt": "2026-09-21T02:38:36.353Z",
+      "updatedAt": "2026-09-21T02:38:36.365Z",
+      "agents": [
+        "cursor",
+        "claude-code",
+        "windsurf"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "react-composition-patterns": {
+      "name": "react-composition-patterns",
+      "source": "local",
+      "contentHash": "171c6a35a0a74a6b37facf2a6e3883a02f53e3f2d429e6aa5834412c65d38dc7",
+      "installedAt": "2026-09-21T02:43:02.512Z",
+      "updatedAt": "2026-09-21T02:43:02.528Z",
+      "agents": [
+        "cursor",
+        "claude-code",
+        "windsurf"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "react-best-practices": {
+      "name": "react-best-practices",
+      "source": "local",
+      "contentHash": "e96f99e13dc2acc75efc1793aee08fe244802a97a4e190af38bd5a871a5c9636",
+      "installedAt": "2026-09-21T02:43:07.355Z",
+      "updatedAt": "2026-09-21T02:43:07.380Z",
+      "agents": [
+        "cursor",
+        "claude-code",
+        "windsurf"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "evolutionary-modular-architecture": {
+      "name": "evolutionary-modular-architecture",
+      "source": "local",
+      "contentHash": "67eab096727beddf61ab8df40629d63cbb5fa828bb1e1f12ab494af444ce9015",
+      "installedAt": "2026-09-21T02:43:14.301Z",
+      "updatedAt": "2026-09-21T02:43:14.310Z",
       "agents": [
         "cursor",
         "claude-code",

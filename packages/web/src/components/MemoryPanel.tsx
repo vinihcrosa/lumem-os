@@ -26,7 +26,7 @@ import "./memory.css";
 /**
  * A memória na tela — quatro vistas, uma coluna.
  *
- * O desenho saiu do protótipo `packages/web/prototype/lumem-memory.html`, e as
+ * O desenho saiu do protótipo `lumem-os-design/lumem-memory.html`, e as
  * três decisões que a renderização produziu estão aqui inteiras:
  *
  * - **escopo e tipo têm formas diferentes**, porque respondem perguntas

@@ -11,6 +11,7 @@
     "postinstall": "tsx scripts/run-ensure-pty-helper.ts",
     "dev": "./scripts/workspace/run.sh",
     "dev:turbo": "turbo dev",
+    "storybook": "pnpm --filter @lumem/web storybook",
     "build": "turbo build",
     "version:set": "tsx scripts/run-set-version.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && turbo typecheck --concurrency=${TURBO_CONCURRENCY:-3}",

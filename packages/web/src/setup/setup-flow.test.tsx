@@ -15,7 +15,7 @@ vi.mock("../lib/trpc.js", async () => ({
  * The flow, screen by screen, against a dubbed daemon.
  *
  * The one thing these cannot check is what the nine screens look like — that is
- * what rendering the prototype and `/styleguide` is for. What they do check is the
+ * what Storybook is for. What they do check is the
  * part that has been wrong twice in this repo's history: that a screen reports
  * what the daemon said, not what the client hoped.
  */
