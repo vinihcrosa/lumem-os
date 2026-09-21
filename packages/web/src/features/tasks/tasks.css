@@ -211,18 +211,18 @@
 /* ---------------------------------------------------------------------------
    o detalhe da tarefa
    -------------------------------------------------------------------------- */
-.tdet {
+.task-detail {
   display: grid;
   gap: var(--space-16);
   align-content: start;
 }
-.tdet__head {
+.task-detail__head {
   display: flex;
   align-items: flex-start;
   gap: var(--space-10);
   flex-wrap: wrap;
 }
-.tdet__title {
+.task-detail__title {
   margin: 0;
   flex: 1;
   min-width: 0;
@@ -230,12 +230,12 @@
   letter-spacing: var(--tracking-heading-md);
   color: var(--color-text-primary);
 }
-.tdet__acts {
+.task-detail__acts {
   flex: none;
   display: flex;
   gap: var(--space-6);
 }
-.tdet__body {
+.task-detail__body {
   font: var(--text-body-md);
   color: var(--color-text-secondary);
   white-space: pre-wrap;

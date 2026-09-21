@@ -49,7 +49,7 @@ export function TaskDetail({ taskId, workspaceId, onBack, onWork }: TaskDetailPr
   const closed = row.status === "done" || row.status === "dropped";
 
   return (
-    <div className="tdet">
+    <div className="task-detail">
       <div className="crumb">
         <button type="button" className="crumb__up focus-ring" onClick={onBack}>
           Tarefas
@@ -58,9 +58,9 @@ export function TaskDetail({ taskId, workspaceId, onBack, onWork }: TaskDetailPr
         <span className="crumb__here">{row.title}</span>
       </div>
 
-      <div className="tdet__head">
-        <h2 className="tdet__title">{row.title}</h2>
-        <span className="tdet__acts">
+      <div className="task-detail__head">
+        <h2 className="task-detail__title">{row.title}</h2>
+        <span className="task-detail__acts">
           {!closed && (
             <Button variant="primary" onClick={() => setWorking(true)}>
               trabalhar nesta tarefa
@@ -105,7 +105,7 @@ export function TaskDetail({ taskId, workspaceId, onBack, onWork }: TaskDetailPr
       {row.body !== "" && (
         <section className="section">
           <SectionHead title="O corpo" />
-          <div className="tdet__body">{row.body}</div>
+          <div className="task-detail__body">{row.body}</div>
         </section>
       )}
 
