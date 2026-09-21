@@ -129,6 +129,25 @@ toca em teste de tela.
 
 **Resposta (2026-09-21):** como proposto — **B para tela, A para hook.** Consequência assumida: a fase 3 **reescreve os testes de tela** do recurso que migra, um recurso por PR; o parágrafo contrário da PRD ganhou nota. O `trpc-mock.ts` some no fecho da fase 3 — o critério *"< 60 linhas"* vira *"não existe"*.
 
+> **Emenda de 2026-09-21, achada em review independente da feature já fechada — só a metade A foi
+> entregue.** O que **continua valendo** desta resposta: a divisão em si (tela mocka o hook, hook
+> mocka o transporte) é a leitura certa, e `test/trpc-proxy.ts` (a metade A) existe e tem 11 testes
+> de hook em cima dele. O que **não aconteceu** é a metade B: **33 arquivos** de teste de tela ainda
+> importam `trpc-mock.ts` diretamente — inclusive telas cujo componente **já não importa `trpc`**
+> (`AgentLogin.test.tsx`, `SettingsPanel.test.tsx`, `TaskDetail.test.tsx`,
+> `WorkspacePanel.test.tsx`, `PrBar.test.tsx`). O T16 do `tasks.md` registrou a lista de exceções da
+> regra 3 não chegar a zero, mas isso é só **metade** do motivo: mesmo com a lista em zero, os
+> testes de tela migrados continuariam precisando do mock compartilhado, porque ninguém os reescreveu
+> para mockar o hook.
+>
+> `trpc-mock.ts` **não** deixou de existir — continua com as mesmas ~342 linhas de `origin/main`.
+> A fase 3 fica **entregue com essa exceção**, e não é reaberta agora: reescrever 33 testes de tela
+> é uma tarde por recurso, o custo que a proposta original já tinha estimado, e pagá-lo não estava
+> travando nada até este review. Fica para quando o **primeiro teste de tela nova quebrar por
+> default ausente no `trpc-mock.ts`** — a armadilha que a Q5 existia para matar, e que continua
+> viva — ou para quando alguém decidir pagar a tarde por recurso antes disso. Ver
+> [backlog](../../project/backlog.md).
+
 ### [x] Q6 — Os hooks de recurso moram em `hooks/` ou na feature?
 
 Depois da fase 4, `useMemory` pode ficar em `hooks/useMemory.ts` (transversal, como hoje) ou em

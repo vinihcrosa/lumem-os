@@ -333,11 +333,14 @@ arquivos da lista 3.
   porque é o hook que ela consome; e o hook ganha teste próprio, que mocka o `trpc` por um
   **`Proxy` recursivo tipado por `AppRouter`** devolvendo `vi.fn()` sob demanda. Cada PR da lista
   acima reescreve os testes das telas **daquele** recurso, e só deles.
-- `trpc-mock.ts` **deixa de existir no fecho da fase**: quando o último componente da lista 3
+- ~~`trpc-mock.ts` **deixa de existir no fecho da fase**: quando o último componente da lista 3
   migrar, nenhum teste de tela importa `lib/trpc.js`, e o `Proxy` (`test/trpc-proxy.ts`, ~30
   linhas) é o único mock de transporte que resta — usado só por teste de hook. A classe *"tela nova
   derruba teste antigo"* morre por construção: uma tela nova traz o hook novo e o mock dele, e quem
-  não a renderiza não a conhece.
+  não a renderiza não a conhece.~~ **Não aconteceu — emenda da [Q5](open-questions.md) em
+  2026-09-21, achada em review independente.** Só a metade A (`test/trpc-proxy.ts`) saiu; `33`
+  arquivos de teste de tela ainda importam `trpc-mock.ts`, que continua com as ~342 linhas de
+  `origin/main`. Ver a emenda para o que fica de pé e o gatilho de volta.
 
 **Onde.** `packages/web/src/hooks/use*.ts` (novos e existentes), os 32 componentes da lista,
 `packages/web/src/test/trpc-mock.ts`.
@@ -347,7 +350,8 @@ arquivos da lista 3.
 - `grep -rn 'useQueryClient' packages/web/src/components packages/web/src/setup` devolve nada;
 - cada hook novo tem teste próprio que prova **a invalidação** da mutação (a chave certa, uma vez),
   no molde de `pull-request.test.ts`;
-- `trpc-mock.ts` **não existe** (Q5), e `test/trpc-proxy.ts` tem menos de 60 linhas;
+- ~~`trpc-mock.ts` **não existe** (Q5)~~, e `test/trpc-proxy.ts` tem menos de 60 linhas — só a
+  segunda metade aconteceu; ver a emenda da [Q5](open-questions.md);
 - **prova por mutação:** apagar a invalidação de dentro de `useAgentConfigMutations` derruba um
   teste, e o teste que cai é o do hook — não um de tela três pastas ao lado.
 
@@ -569,8 +573,9 @@ duas letras; `contrast.ts` continua com 119 pares.
   sensor, as listas em zero, e o que ele **não** garante (comportamento — isso continua sendo dos
   testes de componente e dos e2e).
 
-**Pronto quando.** cinco stories novas renderizam no `build-storybook`; `trpc-mock.ts` não existe
-ou tem menos de 60 linhas; `testing.md` atualizado.
+**Pronto quando.** cinco stories novas renderizam no `build-storybook`; ~~`trpc-mock.ts` não existe
+ou tem menos de 60 linhas~~ **não aconteceu — mesma emenda da [Q5](open-questions.md)**;
+`testing.md` atualizado.
 
 **Gate.** `pnpm build-storybook` e `pnpm gate:quick`.
 

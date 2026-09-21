@@ -741,6 +741,22 @@ três testes.
 uma segunda equipe ou um segundo tema no `web`, ou a primeira colisão de bloco que o sensor da T32
 não pegar.
 
+### `trpc-mock.ts` continua vivo — a metade B da Q5 não saiu — `M`
+
+A [Q5 da `032`](../features/032-web-architecture/open-questions.md) decidiu "B para tela, A para
+hook": teste de tela mockaria o hook, e `trpc-mock.ts` sumiria no fecho da fase 3. Só a metade A saiu
+(`test/trpc-proxy.ts`, para teste de hook). **33 arquivos** de teste de tela ainda mockam
+`trpc-mock.ts` diretamente — cinco deles (`AgentLogin`, `SettingsPanel`, `TaskDetail`,
+`WorkspacePanel`, `PrBar`) num componente que **já não importa `trpc`**. A armadilha que a Q5 existia
+para matar — *"tela nova derruba teste cujo mock não a conhece"* — continua viva: qualquer tela nova
+que consulte no `mount` ainda exige um default novo no mock de 342 linhas.
+
+**De onde veio:** review independente de fases 3-8 da [`032`](../features/032-web-architecture/prd.md),
+achado 1 · emenda na [Q5](../features/032-web-architecture/open-questions.md) · **Volta quando:** o
+primeiro teste de tela nova quebrar por default ausente no `trpc-mock.ts` compartilhado, ou quando
+alguém decidir pagar a tarde por recurso (cinco recursos, começando pelos que já não importam
+`trpc`) antes disso.
+
 ### O adaptador como dependência do pacote publicado — `G`
 
 O [ADR de 2026-09-08](../adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md) fez o daemon ser
