@@ -742,6 +742,15 @@ duas dentro do teto e fora do `LARGE_FILE_CEILING`. O mapa da T25 perdeu a entra
 `features/conversation/Conversation.tsx` (646 → 119): o mecanismo da regra 8 é o mesmo do
 `Board.tsx` — abaixo do teto, o arquivo não precisa mais da exceção.
 
+**Achado consertado em commit próprio (`aee2758`):** `conversation-css.test.ts` lê os componentes
+por caminho, com uma lista escrita à mão (`Conversation.tsx`, `Message.tsx`, `ToolCard.tsx`, …) — o
+mesmo desenho do `memory-css.test.ts` que a T28 vai reencontrar. Sem `Composer.tsx` e
+`Transcript.tsx` na lista, o teste continuava **verde** depois do split, mas cego: `.composer`,
+`.composer__box`, `.composer__in`, `.composer__bar`, `.config`, `.conv__scroll`, `.fail*`,
+`.daysep`, `.unknown`, `.meta` e `.empty*` saíram de `Conversation.tsx` e pararam de ser auditados —
+o teste só reprova quando uma classe pedida falta na folha, e uma classe que **parou de ser pedida**
+não aciona nada. Corrigido adicionando os dois arquivos à lista, sem tocar em nenhuma asserção.
+
 #### T28: `MemoryPanel` por aba
 
 `MemoryEntries.tsx`, `MemoryProposals.tsx` (com `PendingProposal`, `EditAndApprove`,
