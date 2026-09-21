@@ -706,7 +706,7 @@ fora do alcance da regra) — `COMPONENT_KNOWS_TRANSPORT` (T2/T16) perdeu essa e
 regra 8 (T25) teve `Conversation.tsx` atualizado de 830 para 646 linhas, provando o "só encolhe"
 **entre** commits.
 
-#### T27: `Composer` e `Transcript`
+#### T27: `Composer` e `Transcript` · **entregue em 2026-09-21**
 
 `Composer`: rascunho, envio, `LumemModePill`, menu de modo, `FreeModeGate`, `SlashMenu`,
 `ConfigPills`, `UsageFooter`. Recebe `session`, `readOnly`, `onSend`, `onCancel`. `Transcript`: a
@@ -715,6 +715,32 @@ composição.
 
 **Done when:** `Conversation.tsx` abaixo de **120** linhas; `Composer` e `Transcript` abaixo de 400
 cada e **fora do mapa**; `composer-menus.spec.ts` e `acp-conversation.spec.ts` verdes sem mudança.
+
+**Achado:** o texto propunha `session`, `readOnly`, `onSend`, `onCancel` como as props de
+`Composer` — mas a T26 já devolve `{ state, attached, readOnly, send, cancel, answer, setMode,
+setConfig }`, e o próprio composer precisa também de `conversation` (streaming, `pendingPermission`,
+`commands`, `mode`, `configOptions`, `modeOwner`, `lumemMode`, `lumemModeDefault`, `usage`),
+`session.cwd` (para o `FreeModeGate`), `attached`, `active` (o atalho `esc`) e `setMode`/`setConfig`.
+Quatro nomes bastariam para a frase do cabeçalho, não para o componente: `Composer` recebe
+`sessionId`, `conversation`, `session`, `attached`, `readOnly`, `active`, `send`, `cancel`,
+`setMode`, `setConfig` — os nomes reais do hook, sem inventar `onSend`/`onCancel` por cima deles.
+`Transcript` recebe `conversation`, `session`, `failure`, `readOnly`, `answer`.
+
+**Achado:** o `esc` que interrompe o turno usa `menuOpen` (derivado do rascunho, que é estado do
+`Composer`) — por isso o ouvinte de teclado migrou inteiro para dentro de `Composer`, e não ficou em
+`Conversation`; o botão `■ interromper` do cabeçalho continua em `Conversation`, chamando `cancel`
+direto, sem passar por `Composer`.
+
+**Achado:** `useArrival(sessionId)` passou a ser chamado de dentro de `Composer` (é lá que o
+rascunho inicial e o envio automático da chegada moram) e não mais em `Conversation`. Os dois
+consumidores da mesma chegada (`ScopePanel`, via seu próprio `useArrival`, e `Composer`) leem o
+mesmo valor não consumido durante o próprio render, antes de qualquer efeito confirmar o consumo —
+o comentário do hook já cobre esse caso, e não foi preciso mudar nada nele.
+
+`Conversation.tsx` ficou com **119** linhas; `Composer.tsx` com 313; `Transcript.tsx` com 270 — as
+duas dentro do teto e fora do `LARGE_FILE_CEILING`. O mapa da T25 perdeu a entrada
+`features/conversation/Conversation.tsx` (646 → 119): o mecanismo da regra 8 é o mesmo do
+`Board.tsx` — abaixo do teto, o arquivo não precisa mais da exceção.
 
 #### T28: `MemoryPanel` por aba
 
