@@ -94,6 +94,13 @@ function gate(list: string, violations: readonly Violation[], allowed: readonly 
 const isScreen = (spec: string): boolean => /(^|\/)(components|setup)\//.test(spec);
 const isHook = (spec: string): boolean => /(^|\/)hooks\//.test(spec);
 const isTransport = (spec: string): boolean => /(^|\/)lib\/trpc(\.js)?$/.test(spec);
+const isTest = (path: string): boolean => /\.test\.tsx?$/.test(path);
+
+/** Varre linha a linha, que é o que permite a mensagem apontar `arquivo:linha`. */
+function eachLine(file: Source, visit: (line: string, number: number) => void): void {
+  const lines = file.text.split("\n");
+  for (const [index, line] of lines.entries()) visit(line, index + 1);
+}
 
 // -- Regra 1: `ui/` não conhece dado ------------------------------------------
 
@@ -186,5 +193,200 @@ describe("regra 5 — o arquivo de hook tem nome de hook", () => {
       });
     }
     gate("HOOK_WITHOUT_HOOK_NAME", violations, HOOK_WITHOUT_HOOK_NAME);
+  });
+});
+
+// -- Regra 3: a tela não conhece o transporte ---------------------------------
+
+/**
+ * Os 33 de hoje. A fase 3 os tira daqui um recurso por PR, e o número desta lista
+ * é o que aquela fase relata.
+ *
+ * A PRD estimou **32** — ela contou `components/` e `setup/` e esqueceu o
+ * `App.tsx`, que importa o `trpc` para o ping de saúde. O sensor conta o que o
+ * disco tem.
+ *
+ * Só `.tsx`: um `.ts` de `hooks/` é onde o transporte **deve** estar, e os arquivos
+ * de teste alcançam o `trpc` por `vi.mock` e por `import()` dinâmico, que não são
+ * import estático e não caem aqui.
+ */
+const COMPONENT_KNOWS_TRANSPORT: readonly string[] = [
+  "App.tsx",
+  "components/AddProjectDialog.tsx",
+  "components/AgentConfigDialog.tsx",
+  "components/AgentLogin.tsx",
+  "components/Board.tsx",
+  "components/Conversation.tsx",
+  "components/CreateWorktreeDialog.tsx",
+  "components/CredentialDialog.tsx",
+  "components/Credentials.tsx",
+  "components/FileTree.tsx",
+  "components/LocalPanel.tsx",
+  "components/NewSessionMenu.tsx",
+  "components/PatchViewer.tsx",
+  "components/PrWriteDialog.tsx",
+  "components/ProposalQueue.tsx",
+  "components/RunDock.tsx",
+  "components/ScopePanel.tsx",
+  "components/SessionTab.tsx",
+  "components/SettingsPanel.tsx",
+  "components/SidebarNav.tsx",
+  "components/SidebarTree.tsx",
+  "components/TaskDetail.tsx",
+  "components/TaskList.tsx",
+  "components/WorkspacePanel.tsx",
+  "components/WorkspaceSelector.tsx",
+  "components/WorktreePanel.tsx",
+  "setup/AgentStep.tsx",
+  "setup/Done.tsx",
+  "setup/HandshakeStep.tsx",
+  "setup/MachineStep.tsx",
+  "setup/ProjectStep.tsx",
+  "setup/TaskStep.tsx",
+  "setup/WorkspaceStep.tsx",
+];
+
+describe("regra 3 — a tela não conhece o transporte", () => {
+  it("nenhum `.tsx` fora de `hooks/` importa `lib/trpc.js`", () => {
+    const violations: Violation[] = [];
+    for (const file of sources) {
+      if (!file.path.endsWith(".tsx") || file.path.startsWith("hooks/")) continue;
+      for (const imported of file.imports) {
+        if (!isTransport(imported.spec)) continue;
+        violations.push({
+          path: file.path,
+          remedy:
+            `\`${file.path}:${imported.line}\` importa o transporte: crie ou use um ` +
+            "hook em `hooks/use<Recurso>.ts` e receba o dado por ele. A mutação " +
+            "também mora lá, e invalida de dentro do hook — o componente nunca vê " +
+            "`trpc` nem `useQueryClient`.",
+        });
+      }
+    }
+    gate("COMPONENT_KNOWS_TRANSPORT", violations, COMPONENT_KNOWS_TRANSPORT);
+  });
+});
+
+// -- Regra 4: toda chave de cache nasce em `queryKeys.ts` ---------------------
+//
+// Três listas, porque são três gestos com três consertos e dois prazos: a chave
+// escrita à mão e a constante local caem na T4; o prefixo de invalidação cai na T5,
+// que é onde os `*_PREFIX` nascem.
+//
+// Arquivo de teste fica **fora** da regra, de propósito: um teste que afirma
+// `{ queryKey: ["worktree"] }` está prendendo o valor da chave, que é o contrário de
+// declarar uma nova — é a armadilha *"contar a leitura, e não a classe"* do
+// testing.md. Pô-lo na lista criaria uma exceção que nunca encolhe.
+
+/** Os 16 de hoje — chave de leitura escrita no lugar da chamada. Caem na T4. */
+const KEY_WRITTEN_BY_HAND: readonly string[] = [
+  "App.tsx",
+  "components/AddProjectDialog.tsx",
+  "components/AgentLogin.tsx",
+  "components/Credentials.tsx",
+  "components/FileTree.tsx",
+  "components/LocalPanel.tsx",
+  "components/NewSessionMenu.tsx",
+  "components/ProposalQueue.tsx",
+  "components/RunDock.tsx",
+  "components/SettingsPanel.tsx",
+  "components/TaskDetail.tsx",
+  "components/TaskList.tsx",
+  "components/WorktreePanel.tsx",
+  "setup/Done.tsx",
+  "setup/ProjectStep.tsx",
+  "setup/TaskStep.tsx",
+];
+
+/**
+ * Os 7 de hoje — a chave virou constante, e a constante ficou no arquivo que a usa.
+ * `AGENT_CONFIGS_KEY` está copiada em cinco deles, que é o defeito da `032` inteira
+ * numa linha: cinco cópias, e o login invalida uma. Caem na T4.
+ */
+const KEY_CONSTANT_OUTSIDE: readonly string[] = [
+  "components/AgentConfigDialog.tsx",
+  "components/AgentLogin.tsx",
+  "components/WorkspacePanel.tsx",
+  "setup/AgentStep.tsx",
+  "setup/Done.tsx",
+  "setup/HandshakeStep.tsx",
+  "setup/MachineStep.tsx",
+];
+
+/** Os 9 de hoje — prefixo literal dentro de `invalidateQueries` e irmãs. Caem na T5. */
+const INVALIDATION_PREFIX_OUTSIDE: readonly string[] = [
+  "components/CheckoutFiles.tsx",
+  "components/CredentialDialog.tsx",
+  "components/PrWriteDialog.tsx",
+  "hooks/useFileBuffer.ts",
+  "hooks/useFileTree.ts",
+  "hooks/useLiveState.ts",
+  "hooks/useMemory.ts",
+  "hooks/usePullRequest.ts",
+  "hooks/useScripts.ts",
+];
+
+/**
+ * O que separa leitura de invalidação é a chamada na mesma linha. Quem escrever a
+ * invalidação em várias linhas cai na lista da leitura — errar para o lado estrito
+ * é o lado certo de errar aqui.
+ */
+const INVALIDATION = /(?:invalidate|cancel|refetch|remove|reset)Queries\(\{\s*queryKey:\s*\[/;
+
+describe("regra 4 — toda chave de cache nasce em `queryKeys.ts`", () => {
+  const regulated = sources.filter((f) => !isTest(f.path) && f.path !== "lib/queryKeys.ts");
+
+  it("nenhuma chave de leitura é escrita no lugar da chamada", () => {
+    const violations: Violation[] = [];
+    for (const file of regulated) {
+      eachLine(file, (line, number) => {
+        if (!/queryKey:\s*\[/.test(line) || INVALIDATION.test(line)) return;
+        violations.push({
+          path: file.path,
+          remedy:
+            `\`${file.path}:${number}\` escreve uma chave de cache à mão: declare-a ` +
+            "em `lib/queryKeys.ts` e importe daqui. É o que faz o `invalidateFor` do " +
+            "`useLiveState` alcançá-la quando o daemon avisa — uma chave escrita no " +
+            "lugar da chamada é um dado que nenhum evento atualiza.",
+        });
+      });
+    }
+    gate("KEY_WRITTEN_BY_HAND", violations, KEY_WRITTEN_BY_HAND);
+  });
+
+  it("nenhuma constante de chave mora fora de `queryKeys.ts`", () => {
+    const violations: Violation[] = [];
+    for (const file of regulated) {
+      eachLine(file, (line, number) => {
+        const declared = /\bconst\s+([A-Za-z0-9_]*_KEY)\b[^=]*=\s*\[/.exec(line);
+        if (!declared) return;
+        violations.push({
+          path: file.path,
+          remedy:
+            `\`${file.path}:${number}\` declara \`${declared[1]}\`: mova a chave para ` +
+            "`lib/queryKeys.ts` e importe daqui. Constante local não é melhor que " +
+            "literal — ela só esconde a cópia, e quem invalida uma delas não " +
+            "invalida as outras.",
+        });
+      });
+    }
+    gate("KEY_CONSTANT_OUTSIDE", violations, KEY_CONSTANT_OUTSIDE);
+  });
+
+  it("nenhuma invalidação usa prefixo literal", () => {
+    const violations: Violation[] = [];
+    for (const file of regulated) {
+      eachLine(file, (line, number) => {
+        if (!INVALIDATION.test(line)) return;
+        violations.push({
+          path: file.path,
+          remedy:
+            `\`${file.path}:${number}\` invalida por um prefixo escrito à mão: ` +
+            "nomeie-o em `lib/queryKeys.ts` (`<RECURSO>_PREFIX`) e importe daqui, " +
+            "para o prefixo que se invalida e a chave que se lê serem o mesmo texto.",
+        });
+      });
+    }
+    gate("INVALIDATION_PREFIX_OUTSIDE", violations, INVALIDATION_PREFIX_OUTSIDE);
   });
 });
