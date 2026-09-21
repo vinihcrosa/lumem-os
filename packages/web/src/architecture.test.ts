@@ -214,6 +214,10 @@ describe("regra 5 — o arquivo de hook tem nome de hook", () => {
  * `setup/Done.tsx` bate quatro recursos num `useQueries` só. A T17 só troca o
  * caminho: `components/X.tsx` e `setup/X.tsx` viraram `features/<domínio>/X.tsx`.
  *
+ * `Conversation.tsx` **saiu** na T26: o transporte (`trpc.session.transcript`,
+ * dentro do `loadStored`) migrou para `useConversationSession.ts`, um `.ts` —
+ * fora do alcance desta regra pela mesma razão que um hook de `hooks/` está.
+ *
  * Só `.tsx`: um `.ts` de `hooks/` é onde o transporte **deve** estar, e os arquivos
  * de teste alcançam o `trpc` por `vi.mock` e por `import()` dinâmico, que não são
  * import estático e não caem aqui.
@@ -221,7 +225,6 @@ describe("regra 5 — o arquivo de hook tem nome de hook", () => {
 const COMPONENT_KNOWS_TRANSPORT: readonly string[] = [
   "features/checkout/FileTree.tsx",
   "features/checkout/PatchViewer.tsx",
-  "features/conversation/Conversation.tsx",
   "features/memory/ProposalQueue.tsx",
   "features/setup/Done.tsx",
   "features/tasks/TaskList.tsx",
@@ -435,7 +438,10 @@ describe("regra 7 — um `index.css` por feature", () => {
 // reduzir o número aqui é exatamente o que a regra existe para pegar.
 //
 // Três entradas são desta fase (T26, T28, T29 as tiram uma por uma, até
-// sobrarem só os oito da Q8): `Conversation.tsx`, `MemoryPanel.tsx` e
+// sobrarem só os oito da Q8): `Conversation.tsx` (830 na T25; a T26 já a
+// reduziu para 646 movendo o transporte para `useConversationSession.ts` —
+// ainda acima do teto, e a T27 é quem termina o corte para as duas peças que
+// a task promete, `Composer` e `Transcript`), `MemoryPanel.tsx` e
 // `AgentLogin.tsx`. As outras duas são achado da T25, medido no disco:
 //
 // - `conversation-model.ts` (715) — a Q8 cita este arquivo como o exemplo de
@@ -460,7 +466,7 @@ const LARGE_FILE_CEILING: Readonly<Record<string, number>> = {
   "features/checkout/LocalPanel.tsx": 444,
   "features/checkout/RunDock.tsx": 587,
   "features/checkout/useFileBuffer.ts": 605,
-  "features/conversation/Conversation.tsx": 830,
+  "features/conversation/Conversation.tsx": 646,
   "features/conversation/conversation-model.ts": 715,
   "features/memory/MemoryPanel.tsx": 1006,
   "features/settings/SettingsPanel.tsx": 632,

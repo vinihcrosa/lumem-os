@@ -662,7 +662,7 @@ com *"o mapa não aceita um número maior que o já registrado"*; desfeito. `-20
 reprova até o mapa ser atualizado para 567, e passa depois — a mesma mutação prova as duas metades
 do mecanismo. Nenhuma das duas mutações ficou no código; o mapa comitado tem os números de hoje.
 
-#### T26: `useConversationSession` — o transporte sai do componente
+#### T26: `useConversationSession` — o transporte sai do componente · **entregue em 2026-09-21**
 
 O `useReducer` com `conversation-model`, o ciclo do socket, o caminho `load` do transcript morto e
 a sincronização com `useAwaitingPermission` — o par de efeitos com `setWaitingRef`, cujo comentário
@@ -674,6 +674,37 @@ conseguia ter: **desmontar fecha o socket e limpa o `awaiting`**, com `renderHoo
 
 **Done when:** o hook tem teste próprio; `Conversation.tsx` não tem `useReducer` nem `socketRef`;
 os seis `useEffect` de hoje estão em no máximo dois arquivos, cada um com o comentário que tinha.
+
+**Achado:** o arquivo de teste do componente **não** se chama `Conversation.test.tsx` — o disco tem
+`conversation.test.tsx` (c minúsculo), uma inconsistência de nome pré-existente com a convenção do
+próprio `CLAUDE.md` (`PtyManager.ts` → `PtyManager.test.ts`, PascalCase para o alvo cujo export
+principal é componente). Fora do escopo desta task: renomear agora tocaria um arquivo que a T26 não
+precisa tocar, só para uma convenção que nenhuma das 24 tasks anteriores desta fase corrigiu.
+
+**Achado:** o texto previa "`Conversation.test.tsx` muda só o import do que injeta" — mas
+`connect`/`load` **já** eram props injetáveis do componente antes desta task (a T26 herdou isso de
+quando o `acp-socket.ts` foi introduzido, bem antes da `032`). A extração preservou a interface
+externa do componente byte a byte (mesmos nomes, mesmos defaults resolvidos agora dentro do hook), e
+o resultado é que `conversation.test.tsx` **não precisou de nenhuma edição** — os 68 testes passam
+sem tocar uma linha dele. É a prova mais forte de que a extração não mudou comportamento.
+
+**Achado:** "o caminho `load` do transcript morto" — confirmado no disco: `live={false}` ainda é o
+caminho de uma conversa encerrada (D13), e `loadStored` (via `trpc.session.transcript.query`) segue
+existindo, agora dentro do hook. Nada "morto" foi encontrado para remover; a frase da task descreve
+o próprio caminho de leitura, não um código morto a apagar.
+
+O novo teste do hook (`useConversationSession.test.tsx`) precisou de uma sonda de dois componentes
+(`Watcher` + `SessionProbe`) sob o mesmo `AwaitingPermissionProvider`, no molde de
+`hooks/awaiting-permission.test.tsx`: um `renderHook` isolado desmontaria o provider **junto** com o
+hook, e não haveria testemunha viva para ler `isWaiting` depois — a prova de "limpa ao desmontar"
+exige que algo continue montado por cima. É `renderHook`/`render` sem tela (nenhuma asserção lê
+texto nem clica em nada), o espírito do `Done when`, ainda que não literalmente um `renderHook` só.
+
+Achado de fora do escopo, consertado porque a T26 mudou o que a regra 3 do sensor mede:
+`Conversation.tsx` deixou de importar `lib/trpc.js` (foi para `useConversationSession.ts`, um `.ts`,
+fora do alcance da regra) — `COMPONENT_KNOWS_TRANSPORT` (T2/T16) perdeu essa entrada, e o mapa da
+regra 8 (T25) teve `Conversation.tsx` atualizado de 830 para 646 linhas, provando o "só encolhe"
+**entre** commits.
 
 #### T27: `Composer` e `Transcript`
 

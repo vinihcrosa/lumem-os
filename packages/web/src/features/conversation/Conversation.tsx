@@ -1,19 +1,11 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AcpServerMessage } from "@lumem/shared";
 
-import { useAwaitingPermission } from "../../hooks/useAwaitingPermission.js";
 import { absoluteStamp } from "../../lib/relative-time.js";
-import {
-  emptyConversation,
-  reduceConversation,
-  replayConversation,
-  type Block,
-  type ConversationState,
-  type TerminalView,
-} from "./conversation-model.js";
-import { connectAcpSocket, type AcpConnect } from "./acp-socket.js";
-import { trpc } from "../../lib/trpc.js";
+import { type Block, type TerminalView } from "./conversation-model.js";
+import { type AcpConnect } from "./acp-socket.js";
+import { useConversationSession } from "./useConversationSession.js";
 import { Banner, Button, Coach, Glyph } from "../../ui/index.js";
 import { ConfigPills } from "./ConfigPills.js";
 import { FreeModeGate } from "./FreeModeGate.js";
@@ -36,85 +28,6 @@ import { UsageFooter } from "./UsageFooter.js";
  * the prototype draws them all, and porting all of them now is a phase 3 that
  * does not close.
  */
-
-/** What the reducer is fed: the socket's frames, or a reset. */
-type Action =
-  | { kind: "message"; message: AcpServerMessage }
-  | { kind: "reset" };
-
-interface ViewState {
-  conversation: ConversationState;
-  /** Set once the daemon answers the attach. Null while connecting. */
-  session: {
-    acpSessionId: string;
-    model: string;
-    mode: string;
-    state: string;
-    /** O checkout, porque é ele que o portão do `liberado` nomeia (Q4). */
-    cwd: string;
-  } | null;
-  /** A launch failure or a refusal — something with a remedy, or a dead end. */
-  failure: { message: string; remedy: string | null; fatal: boolean } | null;
-}
-
-const initial: ViewState = { conversation: emptyConversation(), session: null, failure: null };
-
-function reduce(state: ViewState, action: Action): ViewState {
-  if (action.kind === "reset") return initial;
-
-  const message = action.message;
-  switch (message.type) {
-    case "attached":
-      // Replayed, not merged. A reattach after a dropped socket must not stack a
-      // second copy of the conversation on top of what is already there.
-      return {
-        // The selectors arrive on the attach frame rather than as an event, so they
-        // are seeded here — otherwise a tab would open with no pills at all until
-        // the agent happened to change something.
-        conversation: {
-          ...replayConversation(message.transcript),
-          mode: message.mode,
-          configOptions: message.configOptions,
-          modeOwner: message.modeOwner,
-          lumemMode: message.lumemMode,
-          lumemModeDefault: message.lumemModeDefault,
-        },
-        session: {
-          acpSessionId: message.acpSessionId,
-          model: message.model,
-          mode: message.mode,
-          state: message.state,
-          cwd: message.cwd,
-        },
-        failure: null,
-      };
-
-    case "event":
-      return {
-        ...state,
-        conversation: reduceConversation(state.conversation, {
-          at: message.at,
-          event: message.event,
-        }),
-      };
-
-    case "error":
-      return {
-        ...state,
-        failure: {
-          message: message.message,
-          remedy: message.remedy ?? null,
-          // These two end the session; anything else is one bad frame and the
-          // conversation is still usable.
-          fatal: message.code === "ADAPTER_UNAVAILABLE" || message.code === "SESSION_NOT_FOUND",
-        },
-      };
-  }
-}
-
-/** How a finished conversation is fetched. Module level, so the effect is stable. */
-const loadStored = (sessionId: string): Promise<AcpServerMessage> =>
-  trpc.session.transcript.query({ id: sessionId });
 
 export interface ConversationProps {
   sessionId: string;
@@ -164,14 +77,28 @@ export function Conversation({
   // "agente" e não "claude": um default que nomeia um agente específico é o
   // defeito que a F4 achou, com outro valor.
   agentName = "agente",
-  live = true,
-  connect = connectAcpSocket,
-  load = loadStored,
+  live,
+  connect,
+  load,
   onResume,
   resuming = false,
   active = true,
 }: ConversationProps) {
-  const [state, dispatch] = useReducer(reduce, initial);
+  // O reducer, o socket e o aviso de quem está esperando moraram aqui até a
+  // `032` T26 — o transporte da sessão agora é deste hook, e o que sobra é o
+  // que é do componente: rascunho, teclado, os dois menus, o portão.
+  const {
+    state,
+    attached,
+    readOnly,
+    send: sendPrompt,
+    cancel: interrupt,
+    answer,
+    setMode,
+    setConfig,
+  } = useConversationSession(sessionId, { live, connect, load });
+  const { conversation, session, failure } = state;
+  const pending = conversation.pendingPermission;
   /**
    * A chegada desta sessão — o antigo `ask`/`draft`/`openSessionId`, fundidos
    * (`032` T21/T22). `useArrival` já consome do store; aqui só se traduz o que
@@ -201,10 +128,6 @@ export function Conversation({
    */
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [openThoughts, setOpenThoughts] = useState<ReadonlySet<string>>(new Set());
-  const socketRef = useRef<ReturnType<AcpConnect> | null>(null);
-  const awaiting = useAwaitingPermission();
-  const { conversation, session, failure } = state;
-  const pending = conversation.pendingPermission;
   /**
    * The first permission on this machine gets an explanation (F5.4).
    *
@@ -213,100 +136,6 @@ export function Conversation({
    * asks.
    */
   const coach = useFirstPermissionCoach(pending !== null);
-  /*
-   * Closed for writing.
-   *
-   * Two ways in: the tab was opened on a session that had already ended, and a session
-   * that ended while its tab was open — the daemon remembers an exited conversation
-   * until it is forgotten, so the socket attaches and reports `exited`. Both are the
-   * same thing to the composer, and treating them as one is what keeps a prompt from
-   * being sent into a session that cannot answer it.
-   */
-  const readOnly = !live || session?.state === "exited";
-
-  useEffect(() => {
-    dispatch({ kind: "reset" });
-
-    if (!live) {
-      /*
-       * One read, no socket (D13).
-       *
-       * The daemon answers with the same `attached` frame the websocket would send, so
-       * the reducer below is unchanged — there is one way to build this view, not a
-       * live one and a stored one that can disagree about what a conversation looks
-       * like.
-       */
-      let current = true;
-      void load(sessionId)
-        .then((message) => {
-          if (current) dispatch({ kind: "message", message });
-        })
-        .catch((error: unknown) => {
-          if (!current) return;
-          dispatch({
-            kind: "message",
-            message: {
-              type: "error",
-              code: "INTERNAL",
-              message: error instanceof Error ? error.message : "não deu para ler a conversa",
-            },
-          });
-        });
-      return () => {
-        current = false;
-      };
-    }
-
-    const socket = connect(sessionId, {
-      onMessage: (message) => dispatch({ kind: "message", message }),
-    });
-    socketRef.current = socket;
-
-    return () => {
-      socketRef.current = null;
-      // Detach only. The daemon keeps the conversation.
-      socket.close();
-    };
-  }, [sessionId, live, connect, load]);
-
-  // The tab strip and the sidebar read this. Reported from here because this is
-  // the only thing that knows.
-  useEffect(() => {
-    awaiting.setWaiting(sessionId, pending !== null);
-  }, [awaiting, sessionId, pending]);
-
-  /*
-   * Cleared on unmount, through a ref rather than the value itself.
-   *
-   * `awaiting` is a fresh object whenever the shared set changes, and a cleanup
-   * that depended on it would run on every one of those changes: it would clear
-   * the flag, the clearing would change the set, the new identity would run the
-   * cleanup again, and the effect above would set it back. The two oscillated
-   * forever and hung the test run rather than failing it.
-   */
-  const setWaitingRef = useRef(awaiting.setWaiting);
-  setWaitingRef.current = awaiting.setWaiting;
-  useEffect(
-    () => () => {
-      setWaitingRef.current(sessionId, false);
-    },
-    [sessionId],
-  );
-
-  /*
-   * Nada é enviado antes de a sessão estar atada, e o rascunho **não** é limpo
-   * quando não deu para enviar.
-   *
-   * O socket recusa escrita antes de abrir, de propósito — *"mandar antes de o
-   * socket abrir é bug de quem chamou"*, diz o `acp-socket`. O bug era aqui: o
-   * envio saía, o socket largava, e o `setDraft("")` limpava o texto de qualquer
-   * jeito. A pessoa perdia a mensagem e a tela não dizia nada.
-   *
-   * Foi o CI que cobrou, e só o Linux: numa máquina mais lenta o `attached`
-   * chega depois do primeiro clique, e o primeiro turno simplesmente não
-   * acontecia. Na minha máquina passava sempre.
-   */
-  const attached = session !== null;
 
   /*
    * Uma condição, e os três a usam: a pílula, o menu e o portão.
@@ -333,11 +162,8 @@ export function Conversation({
   }, [canSwitchMode]);
 
   const send = useCallback(() => {
-    const text = draft.trim();
-    if (text === "" || pending !== null || readOnly || !attached) return;
-    socketRef.current?.send({ type: "prompt", text });
-    setDraft("");
-  }, [attached, draft, pending, readOnly]);
+    if (sendPrompt(draft)) setDraft("");
+  }, [draft, sendPrompt]);
 
   /**
    * O pedido que abriu a conversa, mandado uma vez.
@@ -350,17 +176,13 @@ export function Conversation({
   useEffect(() => {
     if (arrival === null || !arrival.send || asked.current || !attached || readOnly) return;
     asked.current = true;
-    socketRef.current?.send({ type: "prompt", text: arrival.text ?? "" });
-  }, [attached, arrival, readOnly]);
+    sendPrompt(arrival.text ?? "");
+  }, [attached, arrival, readOnly, sendPrompt]);
 
   // Null unless the draft is a lone `/word` at the very start: a `/` inside a
   // sentence is a path, and offering a command menu over `src/lore` would be the
   // interface arguing with what is being typed.
   const query = slashQuery(draft);
-
-  const interrupt = useCallback(() => {
-    socketRef.current?.send({ type: "cancel" });
-  }, []);
 
   /*
    * `esc` interrompe o turno.
@@ -488,11 +310,7 @@ export function Conversation({
                 onRespond={(optionId) => {
                   const request = conversation.pendingPermission;
                   if (!request) return;
-                  socketRef.current?.send({
-                    type: "permission_response",
-                    requestId: request.requestId,
-                    optionId,
-                  });
+                  answer(request.requestId, optionId);
                 }}
                 coach={coach}
               />
@@ -533,7 +351,7 @@ export function Conversation({
             onCancel={() => setGateOpen(false)}
             onConfirm={() => {
               setGateOpen(false);
-              socketRef.current?.send({ type: "set_lumem_mode", mode: "free" });
+              setMode("free");
             }}
           />
         )}
@@ -632,7 +450,7 @@ export function Conversation({
                     workspaceDefault={conversation.lumemModeDefault}
                     onSwitch={(mode) => {
                       setModeMenuOpen(false);
-                      socketRef.current?.send({ type: "set_lumem_mode", mode });
+                      setMode(mode);
                     }}
                     onFreeRequested={() => {
                       setModeMenuOpen(false);
@@ -646,9 +464,7 @@ export function Conversation({
               mode={conversation.mode}
               options={conversation.configOptions}
               disabled={conversation.streaming || readOnly}
-              onSwitch={(optionId, value) =>
-                socketRef.current?.send({ type: "set_config", optionId, value })
-              }
+              onSwitch={(optionId, value) => setConfig(optionId, value)}
             />
             <span className="spacer" />
             <Button
