@@ -88,9 +88,9 @@ const INTERPOLATED = [
   // A pílula do Lumem monta o tom a partir de uma constante (`current.tone`), e
   // então nenhum dos três nomes aparece literalmente no componente.
   "pill--ask",
-  "mopt--on",
-  "mopt--auto",
-  "mopt--free",
+  "mode-option--on",
+  "mode-option--auto",
+  "mode-option--free",
   "slash__row--on",
   "slash__row--danger",
 ];

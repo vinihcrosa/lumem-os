@@ -667,20 +667,20 @@
 }
 .mmenu__who { display: flex; align-items: center; gap: var(--space-6); font: var(--text-label-sm); color: var(--color-text-primary); }
 .mmenu__why { font: var(--text-caption); color: var(--color-text-tertiary); }
-.mopt { display: grid; gap: var(--space-2); width: 100%; padding: var(--space-8) var(--space-10); text-align: left; }
-.mopt + .mopt { border-top: 1px solid var(--color-border-subtle); }
-.mopt:hover { background: var(--color-bg-hover); }
-.mopt--on, .mopt--on:hover { background: var(--color-bg-active); }
-.mopt__t { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-sm); color: var(--color-text-primary); }
-.mopt__mark { margin-left: auto; flex: none; font-size: var(--size-icon-sm); color: var(--color-text-brand); }
+.mode-option { display: grid; gap: var(--space-2); width: 100%; padding: var(--space-8) var(--space-10); text-align: left; }
+.mode-option + .mode-option { border-top: 1px solid var(--color-border-subtle); }
+.mode-option:hover { background: var(--color-bg-hover); }
+.mode-option--on, .mode-option--on:hover { background: var(--color-bg-active); }
+.mode-option__t { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-sm); color: var(--color-text-primary); }
+.mode-option__mark { margin-left: auto; flex: none; font-size: var(--size-icon-sm); color: var(--color-text-brand); }
 /*
  * Secundário, e não terciário: esta descrição é o texto que decide uma política
  * de permissão. Terciário é para metadado — hora, contagem, caminho —, não para
  * a frase que a pessoa lê antes de liberar escrita numa worktree.
  */
-.mopt__d { font: var(--text-body-sm); color: var(--color-text-secondary); }
-.mopt--auto .mopt__t { color: var(--color-mode-auto); }
-.mopt--free .mopt__t { color: var(--color-mode-bypass); }
+.mode-option__d { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.mode-option--auto .mode-option__t { color: var(--color-mode-auto); }
+.mode-option--free .mode-option__t { color: var(--color-mode-bypass); }
 .mmenu__foot {
   display: flex;
   align-items: center;

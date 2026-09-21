@@ -185,9 +185,9 @@ export function LumemModeMenu({
           type="button"
           role="menuitemradio"
           aria-checked={choice.value === mode}
-          className={`mopt focus-ring${choice.value === mode ? " mopt--on" : ""}${
-            choice.value === "auto" ? " mopt--auto" : ""
-          }${choice.value === "free" ? " mopt--free" : ""}`}
+          className={`mode-option focus-ring${choice.value === mode ? " mode-option--on" : ""}${
+            choice.value === "auto" ? " mode-option--auto" : ""
+          }${choice.value === "free" ? " mode-option--free" : ""}`}
           key={choice.value}
           onClick={() => {
             if (choice.value === "free") {
@@ -197,15 +197,15 @@ export function LumemModeMenu({
             onSwitch(choice.value);
           }}
         >
-          <span className="mopt__t">
+          <span className="mode-option__t">
             {choice.label}
             {choice.value === mode && (
-              <span className="mopt__mark" aria-hidden="true">
+              <span className="mode-option__mark" aria-hidden="true">
                 ✓
               </span>
             )}
           </span>
-          <span className="mopt__d">{choice.description}</span>
+          <span className="mode-option__d">{choice.description}</span>
         </button>
       ))}
 
