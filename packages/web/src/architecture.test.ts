@@ -143,8 +143,8 @@ describe("regra 1 — a primitiva não conhece dado", () => {
 
 // -- Regra 2: `lib/` não conhece tela -----------------------------------------
 
-/** Cai na T9: `Seal` vai para `@lumem/shared` com o resto do quadro. */
-const LIB_KNOWS_SCREEN = ["lib/board.ts"];
+/** Caiu na T9: `Seal` foi para `@lumem/shared` com o resto do quadro. */
+const LIB_KNOWS_SCREEN: readonly string[] = [];
 
 describe("regra 2 — a biblioteca não conhece tela", () => {
   it("nenhum arquivo de `lib/` importa `components/` nem `hooks/`", () => {

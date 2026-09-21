@@ -1,70 +1,14 @@
-import type { Seal } from "../components/TaskSeal.js";
+import type { BoardCard, BoardColumn, BoardStatus } from "@lumem/shared";
+
+export type { BoardCard, BoardColumn, BoardStatus };
 
 /**
  * O contrato do quadro, deste lado (`028` F1).
  *
- * Espelha o que `packages/server/src/tasks/board.ts` devolve, com as datas já
- * serializadas — o tRPC as entrega como string.
+ * `BoardCard`, `BoardColumn` e `BoardStatus` moram em `@lumem/shared` (`032`
+ * T9) — reexportados daqui para quem já importa deste arquivo. Este arquivo
+ * fica com o que é do `web`: as funções puras de coluna.
  */
-
-export interface BoardCard {
-  id: string;
-  title: string;
-  projectId: string;
-  projectName: string;
-  worktreeId: string | null;
-  worktreeName: string | null;
-  branch: string | null;
-  position: number;
-  statusChangedAt: string;
-  tokens: number;
-  cost: number | null;
-  currency: string | null;
-  turns: number;
-  createdBy: string;
-  links: string[];
-  seal: Seal;
-  /** Quantas vezes a esteira já tentou **nesta etapa** (`028` Parte 2, T31). */
-  attempts: number;
-  /** `off` quando você assumiu o volante. O cartão diz isso, e a fila obedece. */
-  autonomy: string;
-  /** O prompt que o `assistido` montou e não enviou, ou `null` (Q51). */
-  preparedPrompt: string | null;
-  /**
-   * O cartão está na fila **além das vagas** (`028` Parte 4, T34 · Q54).
-   *
-   * Quem espera vaga **não encalha**: esperar vaga é desenho, e cobrar o que é
-   * desenho é a forma mais rápida de tornar o aviso invisível (§8). É a mesma
-   * família do `pausada`, que este arquivo já trata assim desde a Parte 1.
-   *
-   * Derivado, e sem coluna nenhuma: é a posição do cartão na fila comparada com
-   * as vagas livres. Guardar *"quanto tempo esperou"* seria um contador que o
-   * daemon reescreve de 15 em 15 segundos para cada cartão devido.
-   */
-  queuedBeyondSlots: boolean;
-  /**
-   * A frase a avisar, ou `null` — e `null` é o caso comum (`028` Parte 4, T35).
-   *
-   * **Vem pronta do daemon**, e é ele quem sabe se você já foi avisado: a aba só
-   * conhece o que está na tela dela agora, e duas abas abertas avisariam duas
-   * vezes. A aba notifica e responde *"mostrei"*; quem decide é o outro lado.
-   */
-  notice: string | null;
-}
-
-export type BoardStatus =
-  | "backlog"
-  | "open"
-  | "in_progress"
-  | "review"
-  | "testing"
-  | "ready_to_merge"
-  | "done";
-
-export interface BoardColumn {
-  status: BoardStatus;
-  cards: BoardCard[];
-}
 
 /** O rótulo de cada coluna, e o nome é o do §4 — não o do banco. */
 export const COLUMN_LABEL: Record<BoardStatus, string> = {

@@ -66,14 +66,14 @@ describe("a pausa vence o turno em voo", () => {
       pausedUntil: until,
     });
 
-    expect(seal).toEqual({ kind: "paused", until });
+    expect(seal).toEqual({ kind: "paused", until: until.toISOString() });
   });
 
   it("sem pausa, o selo é o que sempre foi", () => {
     const since = new Date();
 
     expect(sealOf({ status: "review", liveTurns: [{ startedAt: since }], pausedUntil: null })).toEqual(
-      { kind: "working", role: "revisor", since },
+      { kind: "working", role: "revisor", since: since.toISOString() },
     );
   });
 });

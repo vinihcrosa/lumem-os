@@ -39,7 +39,7 @@ describe("o que **não** avisa, e diz tanto quanto o que avisa", () => {
      * própria feature desenhou.
      */
     expect(
-      noticeFor("t", facts({ seal: { kind: "paused", until: new Date() } })),
+      noticeFor("t", facts({ seal: { kind: "paused", until: new Date().toISOString() } })),
     ).toBeNull();
   });
 
@@ -49,7 +49,7 @@ describe("o que **não** avisa, e diz tanto quanto o que avisa", () => {
 
   it("trabalhando não avisa — avisar que começou ensina a ignorar avisos", () => {
     expect(
-      noticeFor("t", facts({ seal: { kind: "working", role: "revisor", since: new Date() } })),
+      noticeFor("t", facts({ seal: { kind: "working", role: "revisor", since: new Date().toISOString() } })),
     ).toBeNull();
   });
 

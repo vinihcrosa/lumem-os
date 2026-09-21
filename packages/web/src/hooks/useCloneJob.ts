@@ -4,21 +4,13 @@ import { useEffect } from "react";
 import { cloneJobsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 
-/** Mirrors the server's `CloneJob`, minus the fields the screen never reads. */
-export interface CloneJobView {
-  id: string;
-  workspaceId: string;
-  url: string;
-  targetPath: string;
-  name: string;
-  state: "cloning" | "registering" | "done" | "failed" | "cancelled";
-  phase: string | null;
-  percent: number | null;
-  message: string | null;
-  failure: string | null;
-  projectId: string | null;
-  updatedAt: number;
-}
+/**
+ * O `CloneJob` do servidor, inferido (`032` T9, regra 5).
+ *
+ * Nada aqui o nomeia do outro lado: só o web lê, então o tipo vem do próprio
+ * contrato em vez de uma cópia à mão que pode envelhecer sem avisar.
+ */
+export type CloneJobView = Awaited<ReturnType<typeof trpc.project.cloneJobs.query>>[number];
 
 /** The six phases, said in Portuguese — F6.5. */
 export const PHASE_LABEL: Record<string, string> = {

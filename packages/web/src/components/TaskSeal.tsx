@@ -1,3 +1,7 @@
+import type { Seal, SealRole } from "@lumem/shared";
+
+export type { Seal, SealRole };
+
 /**
  * O selo do cartão (`028` §4.1, T10).
  *
@@ -9,17 +13,10 @@
  *
  * Anel é *ninguém está trabalhando*, disco é *alguém está* — um eixo só, e ele
  * sobrevive a captura em escala de cinza.
+ *
+ * `Seal` e `SealRole` moram em `@lumem/shared` (`032` T9) — reexportados
+ * daqui para quem já importa deste arquivo.
  */
-
-/** O que o daemon deriva. Espelha `packages/server/src/tasks/seal.ts`. */
-export type SealRole = "implementador" | "revisor" | "testador";
-
-export type Seal =
-  | { kind: "manual" }
-  | { kind: "waiting"; role: SealRole }
-  | { kind: "working"; role: SealRole | null; since: string }
-  | { kind: "blocked"; reason: string }
-  | { kind: "paused"; until: string };
 
 /** O verbo de cada papel, e o genérico de quem está numa coluna sem papel. */
 const VERB: Record<SealRole, string> = {

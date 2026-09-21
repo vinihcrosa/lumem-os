@@ -1,5 +1,6 @@
 export * from "./acp-protocol.js";
 export * from "./adapters.js";
+export * from "./board.js";
 export * from "./constants.js";
 export * from "./events.js";
 export * from "./ids.js";

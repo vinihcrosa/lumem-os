@@ -1,5 +1,6 @@
-import type { Seal } from "./seal.js";
-import type { BoardColumn } from "./board.js";
+import type { Seal } from "@lumem/shared";
+
+import type { BoardStatus } from "./board.js";
 
 /**
  * O que merece aviso (`028` §6, Parte 4 — T35 · Q55).
@@ -20,7 +21,7 @@ import type { BoardColumn } from "./board.js";
  */
 
 export interface NoticeFacts {
-  status: BoardColumn;
+  status: BoardStatus;
   seal: Seal;
   /** `null` quando você ainda não foi avisado sobre o estado atual. */
   notifiedAt: Date | null;

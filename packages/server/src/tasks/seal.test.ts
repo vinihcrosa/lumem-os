@@ -34,7 +34,7 @@ describe("sealOf", () => {
     expect(sealOf({ status: "in_progress", liveTurns: [{ startedAt: since }] })).toEqual({
       kind: "working",
       role: "implementador",
-      since,
+      since: since.toISOString(),
     });
     expect(sealOf({ status: "review", liveTurns: [{ startedAt: since }] })).toMatchObject({
       role: "revisor",
@@ -53,7 +53,7 @@ describe("sealOf", () => {
     expect(sealOf({ status: "ready_to_merge", liveTurns: [{ startedAt: since }] })).toEqual({
       kind: "working",
       role: null,
-      since,
+      since: since.toISOString(),
     });
   });
 
@@ -66,7 +66,7 @@ describe("sealOf", () => {
     // Contar do mais recente faria o relógio andar para trás toda vez que uma
     // segunda sessão começasse — e o cartão pergunta há quanto tempo alguém
     // está nisto, não há quanto tempo o último chegou.
-    expect(seal).toMatchObject({ since: older });
+    expect(seal).toMatchObject({ since: older.toISOString() });
   });
 });
 
