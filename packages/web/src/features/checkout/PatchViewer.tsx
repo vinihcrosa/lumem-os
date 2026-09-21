@@ -78,7 +78,7 @@ export function PatchViewer({ scope, path, changeRef, onClose }: PatchViewerProp
     }
     if (lines.length === 0) {
       return (
-        <div className="empty">
+        <div className="empty empty--right-panel">
           <span className="empty__glyph" aria-hidden="true">
             ✓
           </span>

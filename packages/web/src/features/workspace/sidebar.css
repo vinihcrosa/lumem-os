@@ -158,20 +158,6 @@
 }
 .tree__head .tree__label { flex: 1; min-width: 0; padding: 0; margin: 0; }
 
-.act {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--size-target-min);
-  height: var(--size-target-min);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-tertiary);
-  font-size: var(--size-icon-sm);
-  line-height: 1;
-}
-.act:hover { background: var(--color-bg-active); color: var(--color-text-primary); }
-
 /* ------------------------------------------------- agentes do daemon
  *
  * Duas linhas por agente, e não uma: a sidebar tem 264px, e nome + comando + chip +

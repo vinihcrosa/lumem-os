@@ -122,12 +122,8 @@ describe("a direção contrária: CSS que ninguém pede", () => {
     // existe. É o que aconteceu com o rodapé de execução — o desenho tinha
     // `.hint` desde o S2, e o React não usava.
     const asked = new Set([...requested(consumers), ...INTERPOLATED]);
-    // A coluna inteira, que este arquivo só decora com o `container`.
-    const framework = new Set(["rp"]);
 
-    const orphans = [...defined(stylesheet)].filter(
-      (name) => !asked.has(name) && !framework.has(name),
-    );
+    const orphans = [...defined(stylesheet)].filter((name) => !asked.has(name));
 
     expect(orphans).toEqual([]);
   });

@@ -951,7 +951,7 @@ ferramenta, `var(--tc)`) não é bloco de CSS, é variável — fora do escopo d
 continuam citando o nome antigo de propósito — descrevem um fato que aconteceu quando a classe se
 chamava assim; reescrever a história para usar o nome novo seria revisionismo, não correção.
 
-#### T32: o sensor de CSS — duplicado e órfã
+#### T32: o sensor de CSS — duplicado e órfã · **entregue em 2026-09-21**
 
 Um teste que lê todo `.css` do `web`, extrai os blocos de primeiro nível e reprova **bloco em dois
 arquivos** e **classe usada em `.tsx` sem definição** — as 13 órfãs que a `028` Parte 3 pagou,
@@ -960,6 +960,66 @@ prefixos conhecidos.
 
 **Done when:** passa no `HEAD` depois da T30 e T31; adicionar `.card {}` a `tasks.css` reprova;
 usar `className="tool-cardd"` reprova nomeando arquivo e linha.
+
+**Achado — sensor central, não um décimo segundo `*-css.test.ts`:** os onze arquivos de feature
+enumeram por extenso cada variante interpolada (`INTERPOLATED`) e cada classe emprestada
+(`BORROWED`) — precisão que só compensa dentro do raio de uma tela. `packages/web/src/css-blocks.test.ts`
+é **complementar**, não substituto: cobre o `web` inteiro com uma regra mais barata — o texto
+estático ao redor de um `${…}` precisa aparecer em algum nome de classe real, sem exigir o nome
+inteiro por extenso. Isso dispensa a "lista de prefixos conhecidos" que o texto da task cogitava: o
+sensor lê o próprio template e deriva o fragmento a conferir, em vez de alguém manter a lista
+atualizada a cada `className` dinâmico novo.
+
+**Achado — "bloco" é o seletor inteiro, não cada classe do seletor:** `.empty.empty--conversation`
+(T30) não é a mesma dona de `.empty` sozinho — são dois blocos, cada um com sua folha. O sensor
+compara pela cadeia de classes ordenada (`.a.b` e `.b.a` contam como o mesmo bloco; `.a` e `.a.b`
+não), e é essa distinção que deixa o padrão da T30 passar sem exceção nenhuma.
+
+**Achado — três duplicações reais que T30/T31 não cobriam, todas resolvidas no mesmo commit:**
+- `right-panel.css` tinha um **terceiro** `.empty {}` — exatamente o que a T30 tinha registrado e
+  deixado para esta task. Virou `.empty.empty--right-panel` (mesmo padrão da T30), com
+  `ChangesTab.tsx`/`PatchViewer.tsx` ganhando a segunda classe no `className`. `.empty__title`
+  colidia com `ui.css` pela mesma razão e ganhou o mesmo escopo (`.empty--right-panel .empty__title`).
+- `.act` (a ação sempre visível do cabeçalho) estava copiada **byte a byte** em `sidebar.css` e
+  `agent-login.css`, com um comentário em `agent-login.css` já admitindo a cópia ("mesmo alvo e
+  mesma forma do `.act` da árvore"). Subiu para `ui/ui.css`, ao lado do `.row__act` que é a mesma
+  forma com hover por linha.
+- `.rp { container: rightpanel / inline-size; }` existia em duplicidade em `pr-bar.css`, só para
+  registrar uma propriedade de container query sobre um bloco que `right-panel.css` já possuía. A
+  propriedade migrou para o `.rp` de `right-panel.css` — a dona do bloco —, e `pr-bar.css` ficou só
+  com as regras `@container` que a consomem.
+
+**Achado — três telas sem uma linha de CSS sequer**, a classe de defeito que motivou a task ("as 13
+órfãs que a `028` Parte 3 pagou"), nenhuma coberta por nenhum `*-css.test.ts` de feature existente:
+- `ChangesTab.tsx`/`FileRow` (a aba "mudanças" do checkout): `.seg-wrap`, `.sum`, `.drow`/
+  `.drow--open`/`.drow__was`/`.drow__gap`, `.dpath`/`.dpath__dir`/`.dpath__name`, `.dstat` — zero
+  regras, em qualquer folha, desde que o componente foi escrito (confirmado por `git log -S`).
+  Escritas em `right-panel.css`, ao lado de `.frow` (a lista de arquivos), cujo padrão a lista de
+  mudanças segue linha por linha — as duas listam a mesma coisa, um caminho, com um selo diferente.
+- `TaskDetail.tsx` / diálogo "Trabalhar nesta tarefa": `.work`, `.work__list`, `.wopt`,
+  `.wopt__name` — mesmo zero. Escritas em `tasks.css`, com o par preenchido/borda seguindo
+  `.opt`/`.opt--primary` de `agent-login.css` (mesma pergunta — qual das opções está escolhida).
+- `AddProjectDialog.tsx`: `className="add-project"` no `<form>` não tinha regra nem consumidor de
+  teste, e não precisava de uma — `.modal__body > form` já dá ao formulário o `display: grid` e o
+  `gap` que ele usa. Em vez de inventar uma regra para uma classe inerte, a classe saiu do JSX; o
+  `id={FORM_ID}` (que liga o botão do rodapé ao formulário) ficou.
+
+**Achado — armadilha nova, registrada aqui e não em `testing.md` por ser específica deste sensor:**
+a primeira versão usava ` ` como marcador de `${…}` removido dentro de um template. Funciona
+em JavaScript, mas um byte de controle embutido numa string faz o `git` classificar o arquivo
+inteiro como binário — `git diff` virou `Bin 0 -> 12498 bytes`, e um sensor que ninguém consegue
+revisar em `git diff`/`git blame` não é um sensor, é uma caixa preta. Trocado por um caractere da
+área de uso privado do Unicode (``), que o `git` trata como texto.
+
+**Achado (fora do escopo, não corrigido):** `tasks.css` tem um comentário órfão — "O interruptor da
+Q27, na linha dos tetos (`028` Parte 4, T40)" — sem regra nenhuma depois dele até o fim do arquivo
+original. O sensor de CSS não audita comentário, só seletor; fica registrado para quem passar por
+`tasks.css` de novo.
+
+Com a T32, a **fase 7 — o CSS (T30–T32) — está inteira entregue**: a variante de primitiva mora com
+a primitiva, o bloco duplicado morreu manualmente uma vez (T30) e por extenso nove vezes (T31), e o
+sensor que fecha a fase prova que não sobrou nenhum outro — nem os três que T30/T31 não tinham como
+ver.
 
 ---
 

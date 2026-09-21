@@ -1385,6 +1385,22 @@ atribuição a `never` falha se `LumemEvent` ganhar variante sem `case`); só o 
 mudou. A regra: **exaustividade que vive dentro de um callback de stream nunca lança — o consumidor
 não pode ser quem decide que a conexão acabou.**
 
+### Um caractere de controle dentro de uma string faz o `git` tratar o arquivo como binário
+
+**Sintoma:** `git diff` de um `.test.ts` novo mostrava `Bin 0 -> 12498 bytes` em vez do texto — sem
+aviso, sem erro, e sem ninguém revisar uma linha do que tinha sido escrito.
+
+**Causa:** o sensor de CSS (`032` T32) usa um caractere-sentinela para marcar onde um `${…}` foi
+removido de um template literal, e a primeira versão escolheu `" "`. JavaScript não distingue
+— uma string com `\0` funciona igual a qualquer outra —, mas o `git` decide texto-ou-binário
+cheirando os primeiros bytes do arquivo por um `NUL`, e um só já basta.
+
+**Conserto:** trocado por um caractere da área de uso privado do Unicode (`""`), imprimível e
+sem significado fora deste arquivo. A regra: **caractere de controle (`\0`–`\x1F`) nunca vira
+sentinela de string em código que será commitado — se precisa de um valor garantidamente ausente do
+texto real, a área de uso privado do Unicode (``–``) faz o mesmo trabalho sem o efeito
+colateral no `git`.**
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.

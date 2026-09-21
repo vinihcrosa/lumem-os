@@ -213,27 +213,6 @@
   color: var(--color-text-tertiary);
 }
 
-/*
- * A ação do cabeçalho.
- *
- * Mesmo alvo e mesma forma do `.act` da árvore, e pela mesma razão: é o único
- * caminho sempre visível para a primeira coisa da lista — com zero agentes não há
- * linha onde passar o ponteiro.
- */
-.act {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--size-target-min);
-  height: var(--size-target-min);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-tertiary);
-  font-size: var(--size-icon-sm);
-  line-height: 1;
-}
-.act:hover { background: var(--color-bg-active); color: var(--color-text-primary); }
-
 /* Nenhum agente: uma linha que relata, e não um segundo botão para a mesma ação. */
 .foot-empty {
   padding: var(--space-4) var(--space-8) var(--space-6);

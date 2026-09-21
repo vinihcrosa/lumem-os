@@ -156,7 +156,7 @@ function FileRow({
 /** Two views, two different kinds of nothing (F4.7). */
 function emptyState(ref: ChangeRef, baseBranch: string) {
   return (
-    <div className="empty">
+    <div className="empty empty--right-panel">
       <span className="empty__glyph" aria-hidden="true">
         ✓
       </span>

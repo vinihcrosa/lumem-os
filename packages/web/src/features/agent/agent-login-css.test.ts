@@ -95,9 +95,11 @@ const BORROWED = new Set([
   "out",
   "out--short",
   "l",
-  // Shared primitives, from `ui/ui.css`.
+  // Shared primitives, from `ui/ui.css`. `.act` moved there in T32 — it was a
+  // byte-for-byte copy of `sidebar.css`'s own `.act`, caught by the CSS sensor.
   "glyph",
   "btn",
+  "act",
   // The custom-adapter drawer is the old dialog, with its own rules in sidebar.css.
   "agents",
   // O campo de texto é o `Input` do design system, e ele pinta o `.input`. O que

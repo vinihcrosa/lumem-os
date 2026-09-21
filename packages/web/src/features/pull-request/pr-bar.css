@@ -140,8 +140,11 @@
    `container` e não `@media`: a largura que manda é a do painel, que a pessoa
    arrasta, e não a da janela. Um `@media` faria a barra mudar de forma quando
    alguém redimensionasse o navegador sem tocar na coluna.
+
+   `container: rightpanel / inline-size` mora em `.rp` — a regra em
+   `right-panel.css`, dona do bloco (T32) —, não aqui: uma segunda `.rp {}` só
+   para essa propriedade era o duplicado que o sensor de CSS pega.
    -------------------------------------------------------------------------- */
-.rp { container: rightpanel / inline-size; }
 
 @container rightpanel (max-width: 300px) {
   .prbar__fresh { display: none; }

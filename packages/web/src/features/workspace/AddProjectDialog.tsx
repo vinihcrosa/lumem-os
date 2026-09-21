@@ -273,7 +273,7 @@ export function AddProjectDialog({
       {cloning ? (
         <CloneProgress job={running} />
       ) : (
-        <form id={FORM_ID} className="add-project" onSubmit={submit}>
+        <form id={FORM_ID} onSubmit={submit}>
           <Field
             id="project-source"
             label="Caminho ou URL"

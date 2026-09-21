@@ -409,3 +409,45 @@
  * `label` inteiro clicável porque a caixa sozinha tem 13px e o alvo do gesto é
  * a frase — que é o ponto: quem liga isto precisa **ler** o que está ligando.
  */
+
+/*
+ * O diálogo "trabalhar nesta tarefa": nasceu sem folha nenhuma — o sensor de
+ * CSS (T32) achou `.work`/`.work__list`/`.wopt`/`.wopt__name` sem uma única
+ * regra em nenhum arquivo, o mesmo defeito que motivou o sensor existir
+ * ("13 órfãs que a `028` Parte 3 pagou"). O par preenchido/borda segue
+ * `.opt`/`.opt--primary` de `agent-login.css` — mesma pergunta ("qual das
+ * opções está escolhida"), mesma resposta visual.
+ */
+.work { display: grid; gap: var(--space-16); }
+.work__list {
+  display: grid;
+  gap: var(--space-6);
+  max-height: var(--size-menu-max-h);
+  overflow-y: auto;
+}
+.wopt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  padding: var(--space-8) var(--space-10);
+  text-align: left;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+.wopt:hover { background: var(--color-bg-active); border-color: var(--color-border-strong); }
+.wopt.is-selected {
+  background: var(--color-bg-brand);
+  border-color: var(--color-bg-brand);
+  color: var(--color-text-on-brand);
+}
+.wopt__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--text-label-sm);
+}

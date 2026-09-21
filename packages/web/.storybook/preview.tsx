@@ -6,7 +6,7 @@ import "../src/styles/fonts.css";
 import "../src/styles/base.css";
 import "../src/ui/ui.css";
 import "../src/ui/modal.css";
-import "../src/components/board.css";
+import "../src/features/tasks/board.css";
 import "../src/ui/stories.css";
 
 import { mountAgentation } from "../src/lib/agentation.js";
