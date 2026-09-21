@@ -96,10 +96,16 @@ export function select(next: Selection): void {
  *
  * Não toca a rota — voltar para o workspace não é ir para lugar nenhum de
  * endereço próprio, é `selection` virar `null` com a rota como já estava.
+ *
+ * **Zera `arrival` junto** (achado 10 da revisão independente): sem isto, uma
+ * chegada pendente de um checkout ficava viva apontando para uma sessão de
+ * fora do workspace novo, até outra chegada a substituir. Paridade com
+ * `origin/main`, onde `ask`/`draft` também sobreviviam a uma troca — mas lá
+ * eram três lugares, e agora é um só.
  */
 export function clear(): void {
-  if (state.selection === null) return;
-  commit({ ...state, selection: null });
+  if (state.selection === null && state.arrival === null) return;
+  commit({ selection: null, arrival: null });
 }
 
 /** Uma sessão pede para entrar na tela — ver `Arrival`. */

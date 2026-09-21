@@ -47,17 +47,35 @@ describe("useArrival", () => {
     expect(consumeArrival("s-1")).toBeNull();
   });
 
-  it("mantém o mesmo valor entre repinturas, sem consumir de novo", () => {
+  it("mantém o mesmo valor entre repinturas, sem chegada nova", () => {
     arrive({ sessionId: "s-1", text: "primeira", send: false });
     const { result, rerender } = renderHook(() => useArrival("s-1"));
     const first = result.current;
 
-    // Uma segunda chegada para a mesma sessão, enquanto o hook já está montado:
-    // já foi consumida uma vez, e este componente não pega uma segunda.
-    arrive({ sessionId: "s-1", text: "segunda", send: false });
     rerender();
 
+    // Mesma referência: nada de novo chegou, então não há por que trocar.
     expect(result.current).toBe(first);
+  });
+
+  /**
+   * Achado 7 da revisão independente: o hook só lia o store no primeiro
+   * render da sessão, então uma chegada registrada **depois** que o
+   * componente já montou era descartada para sempre — não havia efeito que
+   * reagisse a uma `arrival` nova. Prova do revisor: montar a conversa,
+   * entregar `attached()`, e só então `arrive(...)` — o socket não recebia
+   * nada.
+   */
+  it("pega uma chegada nova registrada depois que a sessão já montou", () => {
+    arrive({ sessionId: "s-1", text: "primeira", send: false });
+    const { result, rerender } = renderHook(() => useArrival("s-1"));
     expect(result.current).toEqual({ sessionId: "s-1", text: "primeira", send: false });
+
+    // A primeira já foi consumida (efeito da montagem). Esta é uma segunda
+    // chegada de verdade, não a mesma sobrando no store.
+    arrive({ sessionId: "s-1", text: "segunda", send: true });
+    rerender();
+
+    expect(result.current).toEqual({ sessionId: "s-1", text: "segunda", send: true });
   });
 });

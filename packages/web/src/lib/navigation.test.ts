@@ -61,7 +61,7 @@ describe("clear", () => {
     expect(routeOf(window.location.pathname)).toBe("settings");
   });
 
-  it("não notifica quando já não há seleção", () => {
+  it("não notifica quando já não há seleção nem chegada", () => {
     const { result } = renderHook(() => useNavigation());
     const before = result.current;
 
@@ -70,6 +70,22 @@ describe("clear", () => {
     // Mesma referência: nada mudou, então o `useSyncExternalStore` não devolve
     // um snapshot novo.
     expect(result.current).toBe(before);
+  });
+
+  /**
+   * Achado 10 da revisão independente: `clear()` só zerava `selection`, e uma
+   * chegada pendente sobrevivia apontando para uma sessão de fora do
+   * workspace novo — viva até outra chegada a substituir.
+   */
+  it("zera a chegada pendente junto com a seleção", () => {
+    const { result } = renderHook(() => useNavigation());
+    act(() => select({ projectId: "p-1", scope: { scopeType: "project", scopeId: "p-1" } }));
+    act(() => arrive({ sessionId: "s-1", text: "não deixa vazar", send: false }));
+
+    act(() => clear());
+
+    expect(result.current.selection).toBeNull();
+    expect(result.current.arrival).toBeNull();
   });
 });
 

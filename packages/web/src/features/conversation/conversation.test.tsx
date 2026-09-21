@@ -414,6 +414,42 @@ describe("a conversa que nasceu de um pedido", () => {
     expect(connect).not.toHaveBeenCalled();
     expect(socket.sent).toHaveLength(0);
   });
+
+  /**
+   * Achado 12 da revisão independente: `asked.current` era marcado antes de
+   * saber se `sendPrompt` tinha mandado algo. Retomar uma conversa que já
+   * estava parada num pedido de permissão descartava o pedido da chegada em
+   * silêncio, e nada o repetia — o `ref` já estava marcado.
+   */
+  it("repete o pedido da chegada depois que uma permissão pendente libera", async () => {
+    arrive({ sessionId: "s-1", text: "conserta o CI", send: true });
+    const { socket } = mount();
+
+    // Ata já com uma permissão pendente na transcrição — o caso de retomar
+    // uma conversa que parou nisso antes de a aba desta chegada existir.
+    socket.deliver(attached([entry(permissionRequest)]));
+    await screen.findByLabelText("mensagem para o agente");
+
+    // A tentativa foi recusada (`pending !== null`), e não pode ter marcado
+    // "já pedi" sem ter mandado nada.
+    expect(socket.sent).toEqual([]);
+
+    socket.deliver({
+      type: "event",
+      at: clock,
+      event: {
+        type: "permission_resolved",
+        requestId: "rq-1",
+        outcome: { optionId: "allow" },
+        by: "user",
+        reason: null,
+      },
+    });
+
+    await waitFor(() => {
+      expect(socket.sent).toContainEqual({ type: "prompt", text: "conserta o CI" });
+    });
+  });
 });
 
 describe("o rascunho que a chegada preenche", () => {

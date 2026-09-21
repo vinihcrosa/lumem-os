@@ -118,8 +118,16 @@ export function Composer({
   const asked = useRef(false);
   useEffect(() => {
     if (arrival === null || !arrival.send || asked.current || !attached || readOnly) return;
-    asked.current = true;
-    sendPrompt(arrival.text ?? "");
+    /*
+     * Só marca "já pedi" se `sendPrompt` de fato mandou (achado 12 da revisão
+     * independente). `sendPrompt` também recusa com uma permissão pendente
+     * numa conversa retomada — marcar o `ref` antes disso descartava o pedido
+     * da chegada em silêncio e nunca repetia, porque nada dispara este efeito
+     * de novo sozinho. `sendPrompt` muda de identidade quando a permissão se
+     * resolve (ela está nas suas próprias deps), e é isso que faz o efeito
+     * rodar de novo e tentar outra vez.
+     */
+    if (sendPrompt(arrival.text ?? "")) asked.current = true;
   }, [attached, arrival, readOnly, sendPrompt]);
 
   // Null unless the draft is a lone `/word` at the very start: a `/` inside a
