@@ -33,3 +33,21 @@ export type LumemEvent =
    * que mostra todos recarregar por um que ela não está mostrando.
    */
   | { type: "task.changed"; workspaceId: string };
+
+/**
+ * Os `type` de `LumemEvent`, para quem precisa deles em execução (`032` T8).
+ *
+ * `satisfies` garante que todo elemento listado é uma variante de verdade —
+ * um erro de digitação aqui é `tsc`, não um teste vermelho em produção. O que
+ * ele **não** garante é o inverso: uma variante nova que ninguém acrescenta
+ * aqui não quebra nada, então esta lista precisa da mesma atenção que o
+ * `switch` de `invalidateFor` já cobra por outro caminho.
+ */
+export const LUMEM_EVENT_TYPES = [
+  "workspace.changed",
+  "project.changed",
+  "worktree.changed",
+  "pr.changed",
+  "session.changed",
+  "task.changed",
+] as const satisfies readonly LumemEvent["type"][];

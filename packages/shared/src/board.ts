@@ -73,11 +73,22 @@ export interface BoardCard {
   /**
    * Está na fila **além das vagas** (`028` Parte 4, T34 · Q54).
    *
-   * Não é dado da tarefa: é a posição dela na fila comparada com as vagas
-   * livres, calculada na mesma leitura.
+   * Quem espera vaga **não encalha**: esperar vaga é desenho, e cobrar o que é
+   * desenho é a forma mais rápida de tornar o aviso invisível (§8). É a mesma
+   * família do `pausada`.
+   *
+   * Derivado, e sem coluna nenhuma: é a posição do cartão na fila comparada com
+   * as vagas livres. Guardar *"quanto tempo esperou"* seria um contador que o
+   * daemon reescreve de 15 em 15 segundos para cada cartão devido.
    */
   queuedBeyondSlots: boolean;
-  /** A frase a avisar, ou `null` — vem pronta do daemon (T35). */
+  /**
+   * A frase a avisar, ou `null` — e `null` é o caso comum (`028` Parte 4, T35).
+   *
+   * **Vem pronta do daemon**, e é ele quem sabe se você já foi avisado: a aba só
+   * conhece o que está na tela dela agora, e duas abas abertas avisariam duas
+   * vezes. A aba notifica e responde *"mostrei"*; quem decide é o outro lado.
+   */
   notice: string | null;
 }
 

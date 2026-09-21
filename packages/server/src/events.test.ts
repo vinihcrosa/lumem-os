@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { LUMEM_EVENT_TYPES } from "@lumem/shared";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -11,19 +12,12 @@ import { describe, expect, it } from "vitest";
  * mesmo em execução — por texto, não por parser, no molde do
  * `architecture.test.ts` do `web` — para que rodar `vitest` sem `tsc` também
  * pegue um `emit` cujo `type` não é (mais) uma variante do `shared`.
+ *
+ * `LUMEM_EVENT_TYPES` vem do `shared` — uma lista local aqui seria um segundo
+ * espelho no lugar do primeiro que a T7 apagou.
  */
 
 const SRC = join(import.meta.dirname);
-
-/** As variantes de `LumemEvent`, hoje. Mesma lista que `events.ts` reexporta. */
-const KNOWN_TYPES = [
-  "workspace.changed",
-  "project.changed",
-  "worktree.changed",
-  "pr.changed",
-  "session.changed",
-  "task.changed",
-] as const;
 
 function collectEmittedTypes(): readonly { path: string; type: string }[] {
   const found: { path: string; type: string }[] = [];
@@ -58,7 +52,7 @@ describe("todo events.emit usa uma variante de LumemEvent", () => {
     expect(emitted.length).toBeGreaterThan(10);
 
     const problems = emitted
-      .filter((e) => !KNOWN_TYPES.includes(e.type as (typeof KNOWN_TYPES)[number]))
+      .filter((e) => !LUMEM_EVENT_TYPES.includes(e.type as (typeof LUMEM_EVENT_TYPES)[number]))
       .map((e) => `${e.path} emite "${e.type}", que não é variante de LumemEvent`);
     expect(problems.join("\n")).toBe("");
   });
