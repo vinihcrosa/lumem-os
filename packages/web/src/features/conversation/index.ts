@@ -1,3 +1,5 @@
+import "./index.css";
+
 export * from "./Terminal.js";
 export * from "./NewSessionMenu.js";
 export * from "./SessionTab.js";

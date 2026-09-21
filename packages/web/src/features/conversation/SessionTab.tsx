@@ -8,7 +8,6 @@ import { Conversation } from "./Conversation.js";
 import { TabSplit } from "../checkout/index.js";
 import { Terminal } from "./Terminal.js";
 
-import "./terminal.css";
 
 export interface SessionTabPanelProps {
   tab: SessionTabModel;

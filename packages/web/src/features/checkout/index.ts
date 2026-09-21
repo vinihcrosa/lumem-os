@@ -1,3 +1,5 @@
+import "./index.css";
+
 export * from "./CheckoutFiles.js";
 export * from "./LocalPanel.js";
 export * from "./WorktreePanel.js";

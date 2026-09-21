@@ -7,7 +7,6 @@ import { usageByTaskKey } from "../../lib/queryKeys.js";
 import { trpc } from "../../lib/trpc.js";
 import { Banner, Button, EmptyState, SectionHead, Skeleton } from "../../ui/index.js";
 
-import "./tasks.css";
 
 /**
  * A lista de tarefas do workspace (`022-workspace-tasks` F1, T8).

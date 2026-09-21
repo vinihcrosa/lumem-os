@@ -375,17 +375,31 @@ story sem mudar; `gate:full` verde — 1196 testes de `web`, 3954 do monorepo, 1
 falhou uma vez por um `setTimeout` de 20s da esteira, sem relação com este move, e passou limpo
 sozinho).
 
-#### T18: um `index.css` por feature
+#### T18: um `index.css` por feature · **entregue em 2026-09-21**
 
-Os 32 `import "*.css"` saem dos componentes. Cada feature tem `index.css` com os `@import` dos
-arquivos dela, importado **uma vez** pelo `index.ts`. `main.tsx` fica com `tokens`, `fonts`,
-`base`, `ui.css`, `modal.css`; `App.tsx` com `layout.css`. A cascata deixa de depender de quem
-monta primeiro.
+Os 29 `import "*.css"` (o disco tinha 29, não 32 — a T2 já tinha achado essa mesma diferença uma
+vez, contando `components/` e `setup/` antes do `App.tsx`/`main.tsx`) saem dos componentes. Cada
+feature ganhou `index.css` com o `@import` dos arquivos dela, importado **uma vez** pelo
+`index.ts` — o próprio arquivo que a T17 criou. `main.tsx` ficou com `tokens`, `fonts`, `base`,
+`ui.css`, `modal.css`; `App.tsx` com `layout.css`. `main.tsx` também perdeu `features/tasks/board.css`,
+que só estava lá porque a T17 tinha movido o arquivo sem mover o import — vai para o `index.css` de
+`tasks/`, e `App.tsx` perdeu `sidebar.css`/`clone.css` do mesmo jeito, para o de `workspace/`. As
+importações **cruzadas** de feature (`checkout/detail.css` lido por `settings/` e `workspace/`,
+`tasks/tasks.css` por `memory/` e `checkout/`, `pull-request/pr-bar.css` e `checkout/run-dock.css`
+por `workspace/`) não foram *movidas* — foram **apagadas**: a cascata do CSS é global, e como toda
+feature carrega o `index.ts` dela assim que alguém a importa (e o grafo a partir de `App.tsx`
+alcança as nove), a folha já está presente quando a classe é pedida, sem precisar de um segundo
+import dizendo a mesma coisa.
 
-O sensor ganha a regra: nenhum `import "…css"` fora de `main.tsx`, `App.tsx` e `features/*/index.ts`.
+O sensor ganhou a regra 7: nenhum `import "…css"` fora de `main.tsx`, `App.tsx` e
+`features/*/index.ts` — exceto teste, porque `styles/tokens.test.ts` importa `tokens.css` pelo
+efeito colateral **de propósito** (é o que declara a aresta que o `vitest --changed` percorre), e
+isso é sobre grafo de teste, não sobre a cascata do app. `@xterm/xterm/css/xterm.css`, importado
+por `Terminal.tsx`, também não cai na regra — é pacote, não arquivo próprio.
 
-**Done when:** a regra passa; os dez `*-css.test.ts` continuam lendo o arquivo certo (eles leem por
-caminho — o caminho muda, a asserção não).
+**Done when:** a regra passa; `pnpm gate:build` embala um `index-*.css` só (135 kB, um bundle);
+`pnpm gate:full` verde, 1197 testes — os onze `*-css.test.ts` (não dez: o disco tinha um mais) leem
+por caminho, e o caminho mudou sem mudar a asserção.
 
 #### T19: teste tem o nome do que testa
 

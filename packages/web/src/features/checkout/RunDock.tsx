@@ -10,8 +10,6 @@ import { relativeAge } from "../../lib/relative-time.js";
 import { Button, Chip, Glyph } from "../../ui/index.js";
 import { Terminal } from "../conversation/index.js";
 
-import "./run-dock.css";
-import "../conversation/terminal.css";
 
 export type DockTab = "setup" | "run" | "test" | "terminal";
 

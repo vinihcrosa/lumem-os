@@ -9,7 +9,6 @@ import { Banner, Button, SectionHead } from "../../ui/index.js";
 import { MemoryProposals, type ProposalStatus } from "./MemoryPanel.js";
 import type { TaskRow } from "../tasks/index.js";
 
-import "../tasks/tasks.css";
 
 /**
  * A fila de Propostas (`022-workspace-tasks` F4, T15).

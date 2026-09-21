@@ -11,7 +11,6 @@ import { TaskStep } from "./TaskStep.js";
 import { Welcome } from "./Welcome.js";
 import { WorkspaceStep } from "./WorkspaceStep.js";
 
-import "./setup.css";
 
 /**
  * What the flow produced, handed to the app so it can open it.

@@ -22,7 +22,6 @@ import { PatchViewer } from "./PatchViewer.js";
 import { SessionTabPanel } from "../conversation/index.js";
 import { TabSplit } from "./TabSplit.js";
 
-import "./detail.css";
 
 export interface ScopePanelProps {
   scope: Scope;

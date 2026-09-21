@@ -1,3 +1,5 @@
+import "./index.css";
+
 export * from "./Board.js";
 export * from "./TaskList.js";
 export * from "./TaskDetail.js";

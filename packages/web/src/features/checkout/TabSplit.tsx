@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
-import "./viewer.css";
 
 export interface TabSplitProps {
   /** The session's own side: a terminal, or the context tab's contents. */

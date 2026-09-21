@@ -2,7 +2,6 @@ import { useState, type FormEvent } from "react";
 
 import { useWorktreeBranches, useWorktreeMutations, useWorktreeOrigins } from "./useWorktrees.js";
 import { Banner, Button, Field, Glyph, Input, Modal } from "../../ui/index.js";
-import "./create-worktree.css";
 
 export interface CreateWorktreeDialogProps {
   projectId: string;

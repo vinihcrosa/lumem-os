@@ -19,7 +19,6 @@ import { Credentials } from "./Credentials.js";
 import { Banner, Button, CopyCommand, Glyph, Input } from "../../ui/index.js";
 import { AgentConfigDialog } from "./AgentConfigDialog.js";
 
-import "./agent-login.css";
 
 /**
  * Os agentes do rodapé: uma linha por agente, e o `＋` que conecta o próximo.

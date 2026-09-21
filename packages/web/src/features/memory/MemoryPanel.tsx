@@ -21,7 +21,6 @@ import {
 } from "./useMemory.js";
 import { Banner, Button, EmptyState, Field, Input } from "../../ui/index.js";
 
-import "./memory.css";
 
 /**
  * A memória na tela — quatro vistas, uma coluna.

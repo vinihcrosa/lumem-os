@@ -27,8 +27,6 @@ import { TaskDetail } from "../tasks/index.js";
 import { TaskList } from "../tasks/index.js";
 import { SpendList, type SpendAgent, type SpendRow } from "./SpendList.js";
 
-import "../checkout/detail.css";
-import "./workspace.css";
 
 /**
  * O workspace, como tela (`workspace-screen`).

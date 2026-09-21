@@ -14,7 +14,6 @@ import {
   type PrWords,
 } from "./pr-words.js";
 
-import "./pr-bar.css";
 
 /**
  * **Dá pra mesclar?** — no topo do painel direito, em duas linhas.

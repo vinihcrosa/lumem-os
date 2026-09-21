@@ -3,7 +3,6 @@ import { usePopover } from "../../hooks/usePopover.js";
 import { useSessionMutations } from "../checkout/index.js";
 import { Banner, Glyph, Menu, MenuItem } from "../../ui/index.js";
 
-import "./new-session.css";
 
 export interface NewSessionMenuProps {
   scopeType: "project" | "worktree";

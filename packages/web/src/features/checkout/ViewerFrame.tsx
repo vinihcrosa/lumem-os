@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import "./viewer.css";
 
 export interface ViewerFrameProps {
   /** Root-relative path, shown as a dim directory and a lit file name. */

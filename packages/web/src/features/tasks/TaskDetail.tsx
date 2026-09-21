@@ -6,7 +6,6 @@ import { useTaskDetail, useTaskStatusMutation, useWorkOnTaskMutation } from "./q
 import { useWorktrees } from "../workspace/index.js";
 import { Banner, Button, Chip, Modal, SectionHead, Skeleton } from "../../ui/index.js";
 
-import "./tasks.css";
 
 /**
  * O detalhe da tarefa (`022-workspace-tasks` F1, T9 e T10).

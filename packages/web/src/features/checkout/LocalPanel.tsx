@@ -19,8 +19,6 @@ import {
 import { ScopePanel } from "./ScopePanel.js";
 import { SpendList, type SpendRow } from "../workspace/index.js";
 
-import "./detail.css";
-import "../workspace/workspace.css";
 
 export interface LocalPanelProps {
   projectId: string;

@@ -18,8 +18,6 @@ import {
 } from "../../ui/index.js";
 import { ScopePanel } from "./ScopePanel.js";
 
-import "./detail.css";
-import "../tasks/tasks.css";
 
 export interface WorktreePanelProps {
   worktreeId: string;

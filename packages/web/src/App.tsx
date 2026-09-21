@@ -27,8 +27,6 @@ import { SetupFlow } from "./features/setup/index.js";
 import { navigate, useRoute } from "./lib/route.js";
 import { Banner, Skeleton } from "./ui/index.js";
 
-import "./features/workspace/sidebar.css";
-import "./features/workspace/clone.css";
 import "./layout/layout.css";
 
 /**

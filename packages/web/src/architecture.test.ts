@@ -380,3 +380,43 @@ describe("regra 6 — feature importa feature só pelo index.ts", () => {
     gate("FEATURE_BYPASSES_INDEX", violations, FEATURE_BYPASSES_INDEX);
   });
 });
+
+// -- Regra 7: um `index.css` por feature (`032` T18) --------------------------
+//
+// A cascata deixava de depender de quem monta primeiro no dia em que cada
+// `.css` para de chegar por um caminho diferente a cada componente. Só três
+// arquivos têm licença: `main.tsx` (o que é global — tokens, fontes, base,
+// primitivas), `App.tsx` (`layout.css`, porque o layout é do app e não de
+// nenhuma feature) e o `index.ts` de cada feature (o `index.css` dela, uma
+// vez). Teste fica fora: `styles/tokens.test.ts` importa `tokens.css` pelo
+// efeito colateral **de propósito** — é o que declara a aresta que o
+// `vitest --changed` percorre —, e isso é sobre grafo de dependência de teste,
+// não sobre a cascata do app.
+
+/** Nasce vazia: o `git mv` da T18 já moveu todo `import "*.css"` para o lugar certo. */
+const CSS_IMPORTED_OUTSIDE_THE_DOOR: readonly string[] = [];
+
+const CSS_IMPORT = /^import\s+"([^"]+\.css)"/;
+
+describe("regra 7 — um `index.css` por feature", () => {
+  it('nenhum import "…css" fora de `main.tsx`, `App.tsx` e `features/*/index.ts`', () => {
+    const violations: Violation[] = [];
+    for (const file of sources) {
+      if (isTest(file.path)) continue;
+      if (file.path === "main.tsx" || file.path === "App.tsx") continue;
+      if (/^features\/[^/]+\/index\.ts$/.test(file.path)) continue;
+      eachLine(file, (line, number) => {
+        const match = CSS_IMPORT.exec(line.trim());
+        if (!match || !match[1]!.startsWith(".")) return; // pacote (`@xterm/...`) não é desta regra
+        violations.push({
+          path: file.path,
+          remedy:
+            `\`${file.path}:${number}\` importa \`${match[1]}\` direto: essa folha entra no ` +
+            "`index.css` da feature, importado uma vez pelo `index.ts` dela — a cascata não pode " +
+            "depender de qual componente monta primeiro.",
+        });
+      });
+    }
+    gate("CSS_IMPORTED_OUTSIDE_THE_DOOR", violations, CSS_IMPORTED_OUTSIDE_THE_DOOR);
+  });
+});

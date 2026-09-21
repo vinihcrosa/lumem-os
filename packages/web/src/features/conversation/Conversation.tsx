@@ -25,7 +25,6 @@ import { SlashMenu, filterCommands, slashQuery } from "./SlashMenu.js";
 import { ToolCard } from "./ToolCard.js";
 import { UsageFooter } from "./UsageFooter.js";
 
-import "./conversation.css";
 
 /**
  * The conversation, assembled.

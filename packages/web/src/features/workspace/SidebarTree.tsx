@@ -9,8 +9,6 @@ import type { TreeExpansion } from "./useTreeExpansion.js";
 import { useWorktrees } from "./useWorktrees.js";
 import { EmptyState, Glyph, Row, Skeleton } from "../../ui/index.js";
 
-import "../pull-request/pr-bar.css";
-import "../checkout/run-dock.css";
 
 /**
  * What the sidebar is pointing at.

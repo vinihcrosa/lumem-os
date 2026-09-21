@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 
 import { clampWidth } from "./useRightPanel.js";
 
-import "./right-panel.css";
 
 /**
  * A terceira aba entrou com a memória.

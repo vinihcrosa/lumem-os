@@ -8,8 +8,6 @@ import { useTaskSettings } from "../tasks/index.js";
 import { useWorkspaceMutations } from "../workspace/index.js";
 import { Skeleton } from "../../ui/index.js";
 
-import "../checkout/detail.css";
-import "./settings.css";
 
 /**
  * A tela de configurações (`030-settings`).

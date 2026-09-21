@@ -1,3 +1,5 @@
+import "./index.css";
+
 export * from "./AddProjectDialog.js";
 export * from "./SidebarNav.js";
 export * from "./SidebarTree.js";

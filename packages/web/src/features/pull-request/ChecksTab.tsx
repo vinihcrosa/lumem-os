@@ -3,7 +3,6 @@ import type { PrCheckGroup, PrCheckView, PullRequestView } from "@lumem/shared";
 import { EmptyState } from "../../ui/index.js";
 import { durationOf, freshnessOf } from "./pr-words.js";
 
-import "./pr-bar.css";
 
 /**
  * A aba `PR` — as verificações, agrupadas, com o que precisa de você primeiro.
