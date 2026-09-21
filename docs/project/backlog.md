@@ -857,3 +857,23 @@ dois caminhos continuam como estavam, e os dois por decisão e não por esquecim
 **De onde veio:** a decisão do Vinicius em 2026-09-13 — *"em uma feature posterior isso será feito
 para os providers de agentes e para o github e gitlab também"* · **Volta quando:** alguém precisar
 trocar de credencial sem mexer em `.zshrc`, ou quando o produto rodar num lugar onde o `gh` não está.
+
+### `gate:quick` some de novo — arquivo novo sem teste dependente, `--changed` acha zero e reprova — `P`
+
+A `032` T33 acrescentou cinco `.stories.tsx` e um `test/query-seed.ts` sem nenhum `.test.ts`/`.test.tsx`
+importando qualquer um deles — de propósito: a verificação deles é `build-storybook`, não Vitest.
+`pnpm gate:quick` roteia os `.ts`/`.tsx` mudados para `vitest run --changed <base>
+--passWithNoTests=false`, e para este diff específico o Vitest respondeu **os dois lados** em
+execuções sucessivas e idênticas na mesma árvore: duas vezes rodou a suíte inteira (4002 testes) e,
+depois de commitado, três vezes seguidas devolveu `No test files found, exiting with code 1` para os
+cinco projetos — com o mesmo comando, a mesma base, a mesma árvore. Isso é a quinta família da mesma
+doença que `testing.md` já registra três vezes (cache do Turborepo, `LUMEM_GATE_BASE` numérica, `e2e/**`
+fora do grafo): o `--changed` do Vitest, e não a lógica de `gate-quick.ts`, é quem decide, e ele não é
+determinístico aqui. Contornado nesta task medindo com `pnpm exec vitest run` sem `--changed` (verde,
+4002/4002, reproduzido à vontade) e com `LUMEM_GATE_BASE` apontando para o commit imediatamente
+anterior, que classifica o diff como `no-change` em vez de rotear para o Vitest.
+
+**De onde veio:** `032` T33/T34, ao rodar `pnpm gate:quick` para o commit de galeria · **Volta quando:**
+`gate:quick` reprovar de novo um commit cujo `vitest run` completo passa — é o sinal de que a próxima
+task de arquivo `.stories.tsx`, ou qualquer arquivo cuja verificação não é Vitest por desenho, vai
+precisar de uma categoria própria em `gate-quick.ts`, do mesmo jeito que `e2e/**` já tem uma.

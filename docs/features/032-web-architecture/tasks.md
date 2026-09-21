@@ -1,7 +1,7 @@
 # A arquitetura do web — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
-**Status:** em execução
+**Status:** completa
 **Histórico:** escritas em **2026-09-21**, no mesmo dia da PRD e das oito respostas. **As fases 0, 1,
 2 e 3 (T1–T16) foram entregues no mesmo dia**, em dezesseis commits. **A fase 5 — a navegação
 (T21–T24) — também fechou no mesmo dia**, em quatro commits: o store (`lib/navigation.ts`), o
@@ -1025,7 +1025,7 @@ ver.
 
 ## Fase 8 — testes e galeria · gate `pnpm build-storybook` e `pnpm gate:quick`
 
-#### T33: cinco stories de tela — os estados caros
+#### T33: cinco stories de tela — os estados caros · **entregue em 2026-09-21**
 
 Uma por estado que o [ADR de 2026-09-20](../../adr/2026-09-20-2246-design-lives-in-the-code.md)
 promete e a galeria não tem: workspace sem acervo (`MemoryPanel` vazio), orçamento bloqueado
@@ -1037,7 +1037,27 @@ a story e o teste compartilham o fake.
 **Done when:** `build-storybook` renderiza as cinco; cada uma monta sem chamada de rede (o proxy da
 T10 reprova qualquer `query` não mockada).
 
-#### T34: `testing.md` fecha a feature
+**Achado:** o plano não sobrevive ao mecanismo de build. `storybook build` nunca passa pelo Vitest —
+`vi.mock` só existe dentro dele —, então o padrão que os testes de componente usam para calar o
+transporte (`vi.mock("../../lib/trpc.js", ...)`, com `trpc-mock.ts` ou o `Proxy` de `trpc-proxy.ts`)
+não é alcançável de um `.stories.tsx`. O que dá a mesma garantia sem mock nenhum: três dos cinco
+componentes não tocam `trpc` de jeito nenhum — `ConfigPills` e `RightPanel` são presentacionais
+(recebem tudo por prop), e `Conversation` já tem o transporte injetável (`connect`, o mesmo tipo de
+duplo que `conversation.test.tsx` usa desde a T26). Os outros dois (`MemoryPanel`, `Board`) leem por
+`@tanstack/react-query`: um `QueryClient` próprio, criado com `staleTime: Infinity` e o cache
+pré-carregado pelas funções de `lib/queryKeys.ts` (`test/query-seed.ts`, novo), faz o `useQuery`
+nunca considerar a leitura obsoleta — a `queryFn` que chamaria `trpc.*.query` nunca roda. Provado com
+um navegador de verdade contra o `storybook-static` construído: zero erro de console, e zero
+`xhr`/`fetch`/`websocket` para `/trpc`, `/acp` ou `/pty` nas cinco stories — só o `index.json` que o
+próprio Storybook pede. `Board` ganhou `notice: null` nos quatro cartões de propósito: um `notice`
+preenchido dispararia `trpc.task.markNotified.mutate` de verdade dentro do `useEffect` de
+`useBoardNotices`, que é exatamente a chamada de rede que a story existe para não fazer. A story de
+`RightPanel` é a `Coluna de arquivos` que a T3 tirou de `ui/Primitives.stories.tsx`, restaurada
+verbatim no endereço novo. `preview.tsx` ganhou o CSS de `memory`, `conversation` e `checkout` (o
+`right-panel.css`), seguindo o precedente que o `board.css` já tinha — importado direto, porque o
+preview mora fora de `src/` e a regra 7 do sensor não o audita.
+
+#### T34: `testing.md` fecha a feature · **entregue em 2026-09-21**
 
 A linha *"arquitetura do web"* da matriz ganha os números finais: oito regras no sensor, todas as
 listas em zero, o mapa de tamanho com os oito. E as armadilhas que as fases acharem entram na
@@ -1047,3 +1067,31 @@ a avisar antes.
 
 **Done when:** `pnpm docs:check` verde; o `**Status:**` desta PRD e deste arquivo dizem `completa`
 — e o §Estado atual do `CLAUDE.md` tem o parágrafo da `032`.
+
+**Achado:** "todas as listas em zero" não fecha ao pé da letra — a T16 já tinha avisado disso, e o
+disco no fim da feature confirma: **sete** das oito listas do sensor estão em zero (`UI_KNOWS_DATA`,
+`LIB_KNOWS_SCREEN`, `HOOK_WITHOUT_HOOK_NAME`, as três de `KEY_*`/`INVALIDATION_PREFIX_OUTSIDE`,
+`FEATURE_BYPASSES_INDEX`, `CSS_IMPORTED_OUTSIDE_THE_DOOR`). A oitava, `COMPONENT_KNOWS_TRANSPORT`
+(regra 3), fica em **cinco** — `Conversation.tsx` saiu dela na T26 (o transporte migrou para um
+`.ts`), o que derrubou a lista de seis para cinco entre a T16 e o fim da fase 4, mas os cinco que
+sobram (`FileTree.tsx`, `PatchViewer.tsx`, `ProposalQueue.tsx`, `setup/Done.tsx`, `TaskList.tsx`) não
+existem para encolher: são os quatro recursos que a fase 3 nunca prometeu cobrir mais o `useQueries`
+de `Done.tsx`. E `LARGE_FILE_CEILING` (regra 8) não é lista — é mapa —, com **nove** arquivos, não os
+oito da Q8 original: `Board.tsx` já tinha saído antes da T25 medi-lo, e `conversation-model.ts` e
+`LocalPanel.tsx` entraram como achado da própria T25, medidos no disco. Os números completos, com a
+tabela do mapa, estão na linha atualizada de [testing.md](../../project/testing.md).
+
+**Achado:** a armadilha que a PRD previu para a fase 3 — *"teste que passava por acidente do
+mock"* — não aconteceu do jeito que o texto antecipava (um hook que invalida e um componente que não
+esperava o refetch). O que a fase realmente pagou, três vezes (T27, T28, T29), é uma prima da mesma
+família: um `*-css.test.ts` que audita por uma lista de arquivo escrita à mão fica **verde e cego**
+depois de um componente sair de dentro da lista, porque uma classe que parou de ser pedida não
+aciona nada. Registrado em `testing.md`, junto com o vazamento de estado de módulo entre testes que
+a T21 achou (`lib/navigation.ts`) e o `vi.mock` de módulo de barril que muda de identidade a cada
+chamada que a T17 achou (`checkout-tab.test.tsx`).
+
+Com a T34, a **fase 8 — testes e galeria (T33–T34) — está inteira entregue**, e com ela as **34 tasks
+das 9 fases da `032-web-architecture`**. O sensor de arquitetura, a camada de dados, o `git mv` para
+`features/`, o teto de linhas, o `lib/navigation.ts` e o sensor de CSS ficam como a fronteira que a
+próxima feature herda — e a galeria cobre, pela primeira vez, os cinco estados que o ADR do desenho
+no código promete e nunca tinha.

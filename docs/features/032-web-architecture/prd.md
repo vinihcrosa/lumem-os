@@ -1,6 +1,6 @@
 # PRD — A arquitetura do web: componente não fala com o transporte
 
-> **Status:** em execução
+> **Status:** completa
 > **Histórico:** v0.1 — proposta em **2026-09-21**, a partir de uma análise de arquitetura do
 > `packages/web` pedida no chat, com os números do §2 medidos contra o `HEAD` deste checkout
 > (`d9b0d71`). **As fases 0, 1 e 2 (T1–T9) foram entregues no mesmo dia** — o §2 mediu **32**
@@ -10,8 +10,7 @@
 > **Perguntas:** [open-questions.md](open-questions.md) — **8 perguntas, 8 respondidas** em
 > **2026-09-21**, todas como a proposta. A Q5 é a única que **mudou a PRD**: a fase 3 passa a
 > reescrever os testes de tela do recurso que migra, e a nota está no requisito
-> **Tasks:** [tasks.md](tasks.md) — **34 tasks em 9 fases** (0 a 8), escritas em 2026-09-21. **9
-> entregues** (T1–T9); a fase 3 (T10) não começou
+> **Tasks:** [tasks.md](tasks.md) — **34 tasks em 9 fases** (0 a 8), todas entregues em 2026-09-21
 > **Depende de:** a [`024-dev-harness`](../024-dev-harness/prd.md), que é **proposta** e cuja
 > [T10](../024-dev-harness/tasks.md) instala o sensor de direção **entre pacotes** e diz, no item 4,
 > que *"reduzir o arquivo grande é trabalho com PRD próprio"* — este é esse PRD, para o `web`. A

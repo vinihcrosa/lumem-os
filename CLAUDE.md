@@ -446,6 +446,53 @@ nenhuma das duas mensagens de erro cita o 404 que era o problema. O que a featur
 escrito: a atenção agendada da fase de desenho, que é como a [`023`](docs/features/023-composer-menus/prd.md)
 achou um `overflow: hidden` vivo no produto havia três features, com teste verde.
 
+E a [web-architecture](docs/features/032-web-architecture/prd.md) — **completa, 34 tasks em 9
+fases** — dá ao `web` a camada de dados que faltava: **33** componentes falavam com `trpc.*` direto
+(a PRD estimava 32; o disco tinha mais um, `App.tsx`, esquecido pelo ping de saúde), a invalidação de
+cache estava espalhada em 26 arquivos, e `queryKeys.ts` convivia com 21 chaves escritas à mão em 16
+arquivos. O sensor que prova cada fase, `architecture.test.ts`, nasceu na fase 0 com três regras e
+fecha com **oito**, cada uma com uma lista de exceção que **só encolhe** — e a fase 3 é a primeira a
+admitir, no próprio texto, que *"lista em zero"* era o critério errado: das 33 exceções do início,
+sobram **cinco** por desenho — quatro recursos que as sete tasks da fase nunca prometeram cobrir
+(`files`, `changes`, `memory`, `usage`) e um `useQueries` que bate quatro hooks de uma vez.
+`LumemEvent`, `BoardCard` e `Seal` migraram para `@lumem/shared`, com o mesmo `switch` exaustivo que
+`AcpEvent` já tinha — variante nova **derruba o typecheck**, dos dois lados, em vez de sumir em
+silêncio. A fase 4 é o `git mv` de 113 arquivos numa PR só: `components/` e `setup/` viraram nove
+pastas em `features/<domínio>/`, cada uma com um `index.ts` que é a única porta e um `index.css` que
+é a única cascata. Ela achou o que nenhuma leitura de código via: o sistema de arquivo
+*case-insensitive* confundiu `Board.tsx` com o `board.ts` que se mudou para o mesmo diretório, e o
+`tsc` recusou com `TS1149` antes de qualquer teste rodar — resolvido renomeando o segundo para
+`board-columns.ts`. E `checkout-tab.test.tsx` foi o único teste, de 1196, que a mudança de endereço
+quebrou: um `vi.mock` do `index.js` que espalha `importOriginal()` a cada chamada devolve uma
+identidade nova de `Terminal` a cada render, e um `toBe()` que comparava nó entre renderizações
+passou a falhar sem o componente ter mudado. A fase 6 deu teto de 400 linhas a `features/`, com um
+mapa que só encolhe: `Conversation.tsx` caiu de 830 para 119 linhas com o transporte extraído para
+`useConversationSession.ts` e `Composer`/`Transcript` como irmãs; `MemoryPanel.tsx` de 1006 para 90,
+em cinco arquivos por aba; `AgentLogin.tsx` de 861 para 140, em quatro mais `agent-words.ts`. As três
+divisões repetiram a **mesma** armadilha de teste, três vezes: o `*-css.test.ts` de cada feature lê
+os componentes por uma lista escrita à mão, e uma classe que **parou** de ser pedida por um arquivo
+que saiu da lista não aciona nada — o teste continua verde e cego. `css-blocks.test.ts` (fase 7) é a
+resposta estrutural: lê o `web` inteiro por `readdirSync`, sem lista nenhuma, e achou sozinho três
+duplicações reais que as tasks anteriores não cobriam (um terceiro `.empty {}` em `right-panel.css`,
+`.act` copiado byte a byte entre `sidebar.css` e `agent-login.css`, uma `container query` duplicada) e
+três telas **sem uma linha de CSS sequer** desde que foram escritas — a classe de defeito que a `028`
+Parte 3 já tinha pago, com as 13 órfãs. A fase 5, que é a fase 0 da LUM-63, deu ao `web` o primeiro
+store fora de componente: `lib/navigation.ts` guarda `selection` e `arrival` em estado de módulo, de
+propósito — e foi exatamente isso que vazou seleção de um teste para o seguinte dentro do mesmo
+arquivo, até ganhar `resetNavigationForTests()` no `afterEach` global. `App.tsx` encolheu de 497 para
+**171** linhas e para **três** `useState`, com `WorkspaceShell`, `MainColumn` e `RightColumn` ao lado
+dele. E a fase 8 fecha a feature com a galeria: cinco stories dos estados caros que o [ADR do desenho
+no código](docs/adr/2026-09-20-2246-design-lives-in-the-code.md) promete e a galeria não tinha
+(workspace sem acervo, orçamento bloqueado, vinte modelos no seletor, permissão pendente na conversa,
+a coluna de arquivos). O plano pedia o mesmo `vi.mock` que os testes de componente usam, compartilhado
+entre story e teste — e ele não alcança um `.stories.tsx`: `storybook build` nunca passa pelo Vitest.
+Três dos cinco componentes não tocam `trpc` — são presentacionais, ou o transporte é injetável, como
+o `connect` que o teste da conversa já usava —; os outros dois, que leem por
+`@tanstack/react-query`, ganharam um `QueryClient` com `staleTime: Infinity` e o cache pré-carregado
+pelas mesmas funções de `queryKeys.ts`, sem chave escrita à mão e sem mock — provado com um navegador
+de verdade: zero erro de console e zero chamada de rede em `/trpc`, `/acp` ou `/pty` nas cinco
+stories.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
