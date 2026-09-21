@@ -106,12 +106,12 @@ test("a real task runs from start to finish, with no terminal", async ({ page })
   });
 
   // A card that finished on its own.
-  const readCard = conv.locator(".tc", { hasText: "Read" });
-  await expect(readCard).toHaveClass(/tc--ok/, { timeout: 20_000 });
+  const readCard = conv.locator(".tool-card", { hasText: "Read" });
+  await expect(readCard).toHaveClass(/tool-card--ok/, { timeout: 20_000 });
 
   // The write's diff, painted by the right panel's own renderer (A4).
-  const writeCard = conv.locator(".tc", { hasText: "Write" });
-  await expect(writeCard).toHaveClass(/tc--ok/);
+  const writeCard = conv.locator(".tool-card", { hasText: "Write" });
+  await expect(writeCard).toHaveClass(/tool-card--ok/);
   await writeCard.getByRole("button", { name: /mostrar o resultado/ }).click();
   await expect(writeCard.locator(".dl--add")).toContainText("parseFrontmatter");
   await expect(writeCard.locator(".dl--del")).toContainText("const FENCE");
@@ -126,7 +126,7 @@ test("a real task runs from start to finish, with no terminal", async ({ page })
   await permission.getByRole("button", { name: /permitir uma vez/ }).click();
 
   // The answered ask becomes the verdict on the card, and stops being a block.
-  const bashCard = conv.locator(".tc", { hasText: "Bash" });
+  const bashCard = conv.locator(".tool-card", { hasText: "Bash" });
   await expect(bashCard.locator(".verdict--allowed")).toBeVisible({ timeout: 20_000 });
   await expect(conv.getByRole("group", { name: "pedido de permissão" })).toHaveCount(0);
 
@@ -193,7 +193,7 @@ test("reloading replays the conversation instead of losing it", async ({ page })
   // duplication.
   await expect(after.getByText("primeira pergunta", { exact: true })).toHaveCount(1);
   await expect(after.getByText(/Pronto\. Você pediu: primeira pergunta/)).toHaveCount(1);
-  await expect(after.locator(".tc", { hasText: "Bash" }).locator(".verdict--allowed")).toBeVisible();
+  await expect(after.locator(".tool-card", { hasText: "Bash" }).locator(".verdict--allowed")).toBeVisible();
   await expect(after.getByRole("group", { name: "pedido de permissão" })).toHaveCount(0);
 });
 
@@ -219,11 +219,11 @@ test("the file name survives the width the column actually has", async ({ page }
   await page.keyboard.type("mexe no arquivo de nome comprido");
   await page.keyboard.press("ControlOrMeta+Enter");
 
-  const card = conv.locator(".tc", { hasText: "Write" });
+  const card = conv.locator(".tool-card", { hasText: "Write" });
   await expect(card).toBeVisible({ timeout: 20_000 });
 
-  const name = card.locator(".tc__name");
-  const status = card.locator(".tc__st");
+  const name = card.locator(".tool-card__name");
+  const status = card.locator(".tool-card__st");
   const nameBox = await name.boundingBox();
   const statusBox = await status.boundingBox();
 
@@ -394,7 +394,7 @@ test("the terminal the agent asks for lives inside its card", async ({ page }) =
   await permission.getByRole("button", { name: /permitir uma vez/ }).click();
 
   // The card that asked for a terminal, opened.
-  const card = conv.locator(".tc", { hasText: "echo do-agente" });
+  const card = conv.locator(".tool-card", { hasText: "echo do-agente" });
   await expect(card).toBeVisible({ timeout: 20_000 });
   await card.getByRole("button", { name: /mostrar o resultado/ }).click();
 

@@ -77,24 +77,24 @@ export function ToolCard({ call, terminals = [], defaultOpen = false }: ToolCard
   const terminal = terminalOf(call, terminals);
 
   return (
-    <div className={`tc tc--${call.status}`}>
-      <div className="tc__head">
-        <span className="tc__glyph" aria-hidden="true">
+    <div className={`tool-card tool-card--${call.status}`}>
+      <div className="tool-card__head">
+        <span className="tool-card__glyph" aria-hidden="true">
           {KIND_GLYPH[call.kind]}
         </span>
-        <span className="tc__verb">{call.name ?? verbFromTitle(call.title)}</span>
+        <span className="tool-card__verb">{call.name ?? verbFromTitle(call.title)}</span>
 
         {target ? (
           // The directory yields and the filename does not — until neither fits,
           // at which point the name truncates too. "Never truncate the name" is
           // only a design while there is space; without the fallback it overran
           // the status chip at 360px.
-          <span className="tc__target" title={target.full}>
-            <span className="tc__dir">{target.dir}</span>
-            <span className="tc__name">{target.name}</span>
+          <span className="tool-card__target" title={target.full}>
+            <span className="tool-card__dir">{target.dir}</span>
+            <span className="tool-card__name">{target.name}</span>
           </span>
         ) : (
-          <span className="tc__arg" title={call.title}>
+          <span className="tool-card__arg" title={call.title}>
             {argOf(call)}
           </span>
         )}
@@ -130,24 +130,24 @@ export function ToolCard({ call, terminals = [], defaultOpen = false }: ToolCard
         )}
 
         {(call.added !== null || call.removed !== null) && (
-          <span className="tc__delta">
+          <span className="tool-card__delta">
             {call.added ? <span className="plus">+{call.added}</span> : null}
             {call.added && call.removed ? " " : null}
             {call.removed ? <span className="minus">−{call.removed}</span> : null}
           </span>
         )}
 
-        {call.elapsedMs !== null && <span className="tc__time">{formatElapsed(call.elapsedMs)}</span>}
+        {call.elapsedMs !== null && <span className="tool-card__time">{formatElapsed(call.elapsedMs)}</span>}
 
-        <span className="tc__st">
-          <span className="tc__dot" aria-hidden="true" />
+        <span className="tool-card__st">
+          <span className="tool-card__dot" aria-hidden="true" />
           {STATUS_LABEL[call.status]}
         </span>
 
         {(body || terminal) && (
           <button
             type="button"
-            className="tc__twist focus-ring"
+            className="tool-card__twist focus-ring"
             aria-expanded={open}
             aria-label={open ? "esconder o resultado" : "mostrar o resultado"}
             onClick={() => setOpen(!open)}
@@ -164,25 +164,25 @@ export function ToolCard({ call, terminals = [], defaultOpen = false }: ToolCard
         depois — ou num teclado, ou num leitor de tela — nunca passa o mouse.
       */}
       {call.verdictBy === "lumem" && call.verdictReason !== null && (
-        <div className="tc__why">{call.verdictReason}</div>
+        <div className="tool-card__why">{call.verdictReason}</div>
       )}
 
       {open && terminal && (
-        <div className="tc__body">
+        <div className="tool-card__body">
           {/*
             The `Terminal` the app already has, unmodified, pointed at the PTY
             session the daemon opened (D7). It lives inside the card because the
             result belongs to the turn that asked for it (A5) — "open in a tab" is
             for the command that turns interactive, which is a later feature.
           */}
-          <div className="tc__term">
+          <div className="tool-card__term">
             <Terminal sessionId={terminal.ptySessionId} />
           </div>
         </div>
       )}
 
       {open && !terminal && body && (
-        <div className="tc__body">
+        <div className="tool-card__body">
           {body.kind === "diff" ? (
             <DiffLines lines={body.lines} wrap={false} />
           ) : (
@@ -195,7 +195,7 @@ export function ToolCard({ call, terminals = [], defaultOpen = false }: ToolCard
             </div>
           )}
           {body.hidden > 0 && (
-            <div className="tc__more">▾ mostrar as {body.hidden.toLocaleString("pt-BR")} linhas</div>
+            <div className="tool-card__more">▾ mostrar as {body.hidden.toLocaleString("pt-BR")} linhas</div>
           )}
         </div>
       )}

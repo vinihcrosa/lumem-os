@@ -60,16 +60,16 @@ function defined(css: string): Set<string> {
 /**
  * Classes the components ask for, including the ones built by interpolation.
  *
- * The template literals are the interesting half: `tc--${call.status}` is exactly
- * where a missing variant hides, because the name never appears literally in
- * either file.
+ * The template literals are the interesting half: `tool-card--${call.status}` is
+ * exactly where a missing variant hides, because the name never appears literally
+ * in either file.
  */
 const INTERPOLATED = [
-  "tc--pending",
-  "tc--running",
-  "tc--ok",
-  "tc--failed",
-  "tc--cancelled",
+  "tool-card--pending",
+  "tool-card--running",
+  "tool-card--ok",
+  "tool-card--failed",
+  "tool-card--cancelled",
   "turn--user",
   "turn--agent",
   "verdict--allowed",
@@ -170,7 +170,7 @@ describe("every class the conversation asks for exists", () => {
 
   it("has a rule for all five card states", () => {
     for (const status of ["pending", "running", "ok", "failed", "cancelled"]) {
-      expect(stylesheet).toContain(`.tc--${status}`);
+      expect(stylesheet).toContain(`.tool-card--${status}`);
     }
   });
 });

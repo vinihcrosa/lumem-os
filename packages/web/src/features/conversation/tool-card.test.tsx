@@ -43,7 +43,7 @@ describe("the five states", () => {
   ] as const)("renders %s with its own class and label", (status, label) => {
     const { container } = render(<ToolCard call={call({ status })} />);
 
-    expect(container.querySelector(`.tc--${status}`)).not.toBeNull();
+    expect(container.querySelector(`.tool-card--${status}`)).not.toBeNull();
     expect(screen.getByText(label)).toBeInTheDocument();
   });
 
@@ -68,7 +68,7 @@ describe("category and tool", () => {
   ] as const)("shows the %s category as one glyph", (kind, glyph) => {
     const { container } = render(<ToolCard call={call({ kind })} />);
 
-    expect(container.querySelector(".tc__glyph")?.textContent).toBe(glyph);
+    expect(container.querySelector(".tool-card__glyph")?.textContent).toBe(glyph);
   });
 
   it("names the tool in text beside the glyph", () => {
@@ -90,8 +90,8 @@ describe("the target", () => {
   it("splits the path so the directory is what gives way", () => {
     const { container } = render(<ToolCard call={call()} />);
 
-    expect(container.querySelector(".tc__dir")?.textContent).toBe("/repo/src/lore/");
-    expect(container.querySelector(".tc__name")?.textContent).toBe("loader.ts");
+    expect(container.querySelector(".tool-card__dir")?.textContent).toBe("/repo/src/lore/");
+    expect(container.querySelector(".tool-card__name")?.textContent).toBe("loader.ts");
   });
 
   it("keeps the whole path reachable on hover", () => {
@@ -99,7 +99,7 @@ describe("the target", () => {
     // exactly" must not disappear with it.
     const { container } = render(<ToolCard call={call()} />);
 
-    expect(container.querySelector(".tc__target")).toHaveAttribute(
+    expect(container.querySelector(".tool-card__target")).toHaveAttribute(
       "title",
       "/repo/src/lore/loader.ts",
     );
@@ -132,13 +132,13 @@ describe("the numbers", () => {
   it("shows only what happened, for a file that was only added to", () => {
     const { container } = render(<ToolCard call={call({ added: 68, removed: 0 })} />);
 
-    expect(container.querySelector(".tc__delta")?.textContent).toBe("+68");
+    expect(container.querySelector(".tool-card__delta")?.textContent).toBe("+68");
   });
 
   it("shows no delta at all for a call that changed no file", () => {
     const { container } = render(<ToolCard call={call({ kind: "read" })} />);
 
-    expect(container.querySelector(".tc__delta")).toBeNull();
+    expect(container.querySelector(".tool-card__delta")).toBeNull();
   });
 
   it.each([
@@ -157,7 +157,7 @@ describe("the numbers", () => {
   it("shows no time for a call that has not reported one", () => {
     const { container } = render(<ToolCard call={call({ elapsedMs: null })} />);
 
-    expect(container.querySelector(".tc__time")).toBeNull();
+    expect(container.querySelector(".tool-card__time")).toBeNull();
   });
 });
 
@@ -317,7 +317,7 @@ describe("the agent's terminal", () => {
 
     await user.click(screen.getByRole("button", { name: /mostrar o resultado/ }));
 
-    expect(container.querySelector(".tc__term")).not.toBeNull();
+    expect(container.querySelector(".tool-card__term")).not.toBeNull();
   });
 
   it("offers a body for a terminal even with nothing printed yet", async () => {
@@ -342,7 +342,7 @@ describe("the agent's terminal", () => {
 
     await user.click(screen.getByRole("button", { name: /mostrar o resultado/ }));
 
-    expect(container.querySelector(".tc__term")).toBeNull();
+    expect(container.querySelector(".tool-card__term")).toBeNull();
     expect(screen.getByText("só texto")).toBeInTheDocument();
   });
 
@@ -373,7 +373,7 @@ describe("the agent's terminal", () => {
 
     await user.click(screen.getByRole("button", { name: /mostrar o resultado/ }));
 
-    expect(container.querySelector(".tc__term")).not.toBeNull();
+    expect(container.querySelector(".tool-card__term")).not.toBeNull();
     expect(screen.queryByText("abrindo terminal")).not.toBeInTheDocument();
   });
 });

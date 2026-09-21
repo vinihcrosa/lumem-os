@@ -232,7 +232,7 @@
  * TERMINOU BEM. Um cartão a meio caminho pintado de verde se lê como
  * cartão concluído, e aí o estado deixa de informar.
  */
-.tc {
+.tool-card {
   --tc: var(--color-tool-pending);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-subtle);
@@ -240,32 +240,32 @@
   border-radius: var(--radius-md);
   overflow: hidden;
 }
-.tc--pending { --tc: var(--color-tool-pending); }
-.tc--running { --tc: var(--color-tool-running); }
-.tc--ok      { --tc: var(--color-tool-ok); }
-.tc--failed  { --tc: var(--color-tool-failed); }
-.tc--cancelled { --tc: var(--color-tool-cancelled); }
+.tool-card--pending { --tc: var(--color-tool-pending); }
+.tool-card--running { --tc: var(--color-tool-running); }
+.tool-card--ok      { --tc: var(--color-tool-ok); }
+.tool-card--failed  { --tc: var(--color-tool-failed); }
+.tool-card--cancelled { --tc: var(--color-tool-cancelled); }
 
-.tc__head {
+.tool-card__head {
   display: flex;
   align-items: center;
   gap: var(--space-8);
   min-height: var(--size-row-compact);
   padding: 0 var(--space-10);
 }
-.tc__glyph { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); color: var(--tc); }
-.tc__verb { flex: none; font: var(--text-label-sm); color: var(--color-text-primary); }
+.tool-card__glyph { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); color: var(--tc); }
+.tool-card__verb { flex: none; font: var(--text-label-sm); color: var(--color-text-primary); }
 /*
  * O alvo trunca pelo DIRETÓRIO e nunca pelo nome do arquivo. Um caminho
  * cortado no fim (`…/__tests__/file-tree-keyboard-nav…`) não diz em que
  * arquivo o agente mexeu, que é a única coisa que a linha precisa dizer.
  */
-.tc__target { flex: 1; min-width: 0; display: flex; font: var(--text-mono-sm); }
-.tc__dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-tertiary); }
-.tc__name { flex: none; color: var(--color-text-code); }
-.tc__arg { flex: 1; min-width: 0; font: var(--text-mono-sm); color: var(--color-text-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tool-card__target { flex: 1; min-width: 0; display: flex; font: var(--text-mono-sm); }
+.tool-card__dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-tertiary); }
+.tool-card__name { flex: none; color: var(--color-text-code); }
+.tool-card__arg { flex: 1; min-width: 0; font: var(--text-mono-sm); color: var(--color-text-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.tc__st {
+.tool-card__st {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -279,15 +279,15 @@
  * Pendente é anel e o resto é disco cheio: o estado se lê sem depender de
  * distinguir cinza de azul, e sobrevive a captura de tela em escala de cinza.
  */
-.tc__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
-.tc--pending .tc__dot { background: none; box-shadow: inset 0 0 0 var(--border-width-thin) currentColor; }
-.tc__delta { flex: none; font: var(--text-mono-sm); }
-.tc__delta .plus { color: var(--color-git-added); }
-.tc__delta .minus { color: var(--color-git-removed); }
-.tc__time { flex: none; font: var(--text-mono-sm); color: var(--color-text-tertiary); }
-.tc__twist { flex: none; font-size: var(--size-icon-xs); color: var(--color-text-tertiary); }
-.tc__body { border-top: 1px solid var(--color-border-subtle); }
-.tc__more {
+.tool-card__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+.tool-card--pending .tool-card__dot { background: none; box-shadow: inset 0 0 0 var(--border-width-thin) currentColor; }
+.tool-card__delta { flex: none; font: var(--text-mono-sm); }
+.tool-card__delta .plus { color: var(--color-git-added); }
+.tool-card__delta .minus { color: var(--color-git-removed); }
+.tool-card__time { flex: none; font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.tool-card__twist { flex: none; font-size: var(--size-icon-xs); color: var(--color-text-tertiary); }
+.tool-card__body { border-top: 1px solid var(--color-border-subtle); }
+.tool-card__more {
   display: flex;
   align-items: center;
   gap: var(--space-6);
@@ -314,7 +314,7 @@
  * O porquê, visível. Indentado até a coluna do verbo — alinhar com a borda do
  * cartão faria a frase parecer legenda do cartão inteiro, e ela é do veredito.
  */
-.tc__why {
+.tool-card__why {
   padding: var(--space-6) var(--space-10) var(--space-8)
     calc(var(--space-10) + var(--size-icon-md) + var(--space-8));
   font: var(--text-body-sm);
@@ -812,7 +812,7 @@
  * regra desta folha que não vem dele, e ela existe só para dar altura ao terminal:
  * um `xterm` num contêiner sem altura renderiza zero linha e some.
  */
-.tc__term {
+.tool-card__term {
   height: var(--size-terminal-min);
   min-height: 0;
   border-top: 1px solid var(--color-border-subtle);

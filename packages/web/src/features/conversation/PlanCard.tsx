@@ -56,7 +56,7 @@ export function PlanCard({ entries, defaultOpen = false }: PlanCardProps) {
         {finished && (
           <button
             type="button"
-            className="tc__twist focus-ring"
+            className="tool-card__twist focus-ring"
             aria-expanded={open}
             aria-label={open ? "esconder os passos" : "mostrar os passos"}
             onClick={() => setOpen(!open)}
