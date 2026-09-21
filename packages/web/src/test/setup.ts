@@ -3,6 +3,8 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 
+import { resetNavigationForTests } from "../lib/navigation.js";
+
 /**
  * What jsdom does not implement and xterm.js insists on.
  *
@@ -54,4 +56,8 @@ if (typeof Range.prototype.getClientRects !== "function") {
 
 afterEach(() => {
   cleanup();
+  // O store de `lib/navigation.ts` é module-level de propósito (T21) — o que o
+  // faz chamável de qualquer lugar sem contexto é exatamente o que o faz vazar
+  // seleção e chegada de um teste para o próximo, dentro do mesmo arquivo.
+  resetNavigationForTests();
 });

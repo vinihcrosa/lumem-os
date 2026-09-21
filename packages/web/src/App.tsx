@@ -18,30 +18,39 @@ import { AwaitingPermissionProvider } from "./hooks/useAwaitingPermission.js";
 import { OpenFilesProvider } from "./hooks/useOpenFiles.js";
 import { useRightPanel } from "./features/checkout/index.js";
 import { useRunDock, widenColumnOnOpen } from "./features/checkout/index.js";
-import type { Scope } from "./features/checkout/index.js";
 import { useTreeExpansion } from "./features/workspace/index.js";
 import { useInvalidateWorkspaces, useWorkspaces } from "./features/workspace/index.js";
 import { AppShell } from "./layout/AppShell.js";
 import { Topbar } from "./layout/Topbar.js";
 import { SetupFlow } from "./features/setup/index.js";
+import { arrive, clear as clearSelection, select as selectScope, useNavigation } from "./lib/navigation.js";
 import { navigate, useRoute } from "./lib/route.js";
 import { Banner, Skeleton } from "./ui/index.js";
 
 import "./layout/layout.css";
 
-/**
- * Where the user is working.
- *
- * One scope, not a tree position: the sessions became tabs, so the main area
- * always shows the same kind of thing — a checkout and what is open in it. The
- * project id rides along because a worktree's panel needs it for the crumb and
- * for invalidating the right list on removal.
- */
-type Selection = { projectId: string; scope: Scope } | null;
-
 export function App() {
   const invalidateWorkspaces = useInvalidateWorkspaces();
-  const [selection, setSelection] = useState<Selection>(null);
+  /**
+   * Onde você está: o checkout selecionado e a chegada pendente numa conversa
+   * (`032-web-architecture` T21) — o `App` deixou de ser dono dos dois, e
+   * `selectScope`/`clearSelection`/`arrive` (importados de `lib/navigation.js`)
+   * levam com eles a regra `selection !== null` implica `route === "home"`.
+   */
+  const { selection, arrival } = useNavigation();
+  /*
+   * As três formas de abrir uma conversa (T21) — `ask`, `draft` e
+   * `openSessionId` — hoje é uma leitura só, `arrival`. `ScopePanel` e
+   * `Conversation` ainda recebem por prop até a T22 as levar para dentro de
+   * `useArrival`; até lá, a tradução mora aqui, uma vez.
+   */
+  const openSessionId = arrival?.sessionId;
+  const initialPrompt =
+    arrival !== null && arrival.send ? { sessionId: arrival.sessionId, text: arrival.text ?? "" } : undefined;
+  const initialDraft =
+    arrival !== null && !arrival.send && arrival.text !== undefined
+      ? { sessionId: arrival.sessionId, text: arrival.text }
+      : undefined;
   /**
    * Qual tela está na frente, lida do **caminho** (`030-settings`, F1).
    *
@@ -61,24 +70,6 @@ export function App() {
    * workspace existing, which is exactly what this reads.
    */
   const [setupOpen, setSetupOpen] = useState<boolean | null>(null);
-  /** A session the setup flow opened, for the tabs to bring to the front once. */
-  const [openSessionId, setOpenSessionId] = useState<string | undefined>(undefined);
-  /**
-   * Uma conversa aberta **para** uma pergunta, e a pergunta.
-   *
-   * Hoje vem de um lugar só: o rodapé de execução, quando o projeto não declara
-   * `[scripts]` e a pessoa pede para o agente escrever. Mora aqui porque as abas
-   * são do painel central, e o rodapé é da coluna da direita.
-   */
-  const [ask, setAsk] = useState<{ sessionId: string; text: string } | null>(null);
-  /*
-   * O rascunho que "trabalhar nesta tarefa" deixa no composer (`022` T6).
-   *
-   * Irmão do `ask`, e o contrário dele: aquele manda sozinho, este espera você
-   * ler. O estado mora aqui pelo mesmo motivo — quem abre a conversa é a
-   * navegação, e ela é do App.
-   */
-  const [draft, setDraft] = useState<{ sessionId: string; text: string } | null>(null);
   /**
    * The two dialogs of the tree, `sidebar-actions` F1.2 and F1.3.
    *
@@ -89,21 +80,6 @@ export function App() {
    */
   const [addProjectOpen, setAddProjectOpen] = useState(false);
   const [worktreeFor, setWorktreeFor] = useState<ProjectSummary | null>(null);
-  /**
-   * Selecionar um checkout — e acertar o endereço junto.
-   *
-   * **`replace`, e não `push`** (Q2): o checkout é seleção, não lugar. Com
-   * `push`, o botão voltar viraria *desfazer seleção* e uma sessão normal de
-   * trabalho encheria o histórico de entradas que ninguém pediu.
-   *
-   * E a rota vira `home` porque é `selection !== null` que decide o que a coluna
-   * do meio mostra: deixar o caminho em `/tasks` ou `/settings` com um checkout
-   * na frente seria a barra de endereço mentindo.
-   */
-  function selectScope(next: NonNullable<Selection>): void {
-    setSelection(next);
-    navigate("home", { replace: true });
-  }
 
   const expansion = useTreeExpansion();
   const rightPanel = useRightPanel();
@@ -190,7 +166,7 @@ export function App() {
             if (result.workspaceId !== undefined) select(result.workspaceId);
             // Land on what was created, not on "selecione uma worktree": the
             // flow just made the thing the person came here to use.
-            setOpenSessionId(result.sessionId);
+            if (result.sessionId !== undefined) arrive({ sessionId: result.sessionId, send: false });
             if (result.projectId !== undefined) {
               selectScope({
                 projectId: result.projectId,
@@ -228,7 +204,7 @@ export function App() {
               onSelect={(id) => {
                 select(id);
                 // Nothing selected in the old workspace belongs to the new one.
-                setSelection(null);
+                clearSelection();
               }}
             />
             <SidebarNav
@@ -242,15 +218,15 @@ export function App() {
               place={selection !== null ? "scope" : route === "tasks" ? "board" : route}
               onHome={() => {
                 navigate("home");
-                setSelection(null);
+                clearSelection();
               }}
               onBoard={() => {
                 navigate("tasks");
-                setSelection(null);
+                clearSelection();
               }}
               onSettings={() => {
                 navigate("settings");
-                setSelection(null);
+                clearSelection();
               }}
             />
             <SidebarTree
@@ -360,8 +336,7 @@ export function App() {
         onClose={rightPanel.toggle}
         onResize={rightPanel.setWidth}
         onAskAgent={(sessionId, text) => {
-          setAsk({ sessionId, text });
-          setOpenSessionId(sessionId);
+          arrive({ sessionId, text, send: true });
         }}
         // Abrir o rodapé pelo chevron alarga a coluna quando ela é estreita demais
         // para um terminal (S1) — e é o único gesto que faz isso. Chegar não faz:
@@ -411,8 +386,7 @@ export function App() {
             await invalidateWorkspaces();
           }}
           onWorkOnTask={(target) => {
-            setDraft({ sessionId: target.sessionId, text: target.draft });
-            setOpenSessionId(target.sessionId);
+            arrive({ sessionId: target.sessionId, text: target.draft, send: false });
             selectScope({
               projectId: target.projectId,
               scope:
@@ -434,8 +408,8 @@ export function App() {
           worktreeId={scope.scopeId}
           projectId={projectId}
           openSessionId={openSessionId}
-          initialPrompt={ask ?? undefined}
-          initialDraft={draft ?? undefined}
+          initialPrompt={initialPrompt}
+          initialDraft={initialDraft}
           workspaceName={workspaceName}
           filesPanel={rightPanel}
           onRemoved={() =>
@@ -445,11 +419,11 @@ export function App() {
             })
           }
           /*
-           * O caminho de volta (W7). `setSelection(null)` é o que faz o painel do
+           * O caminho de volta (W7). `clearSelection()` é o que faz o painel do
            * workspace aparecer — e era o que nada chamava: quem entrava num
            * projeto só voltava trocando de workspace e voltando.
            */
-          onOpenWorkspace={() => setSelection(null)}
+          onOpenWorkspace={() => clearSelection()}
           onOpenProject={() =>
             selectScope({ projectId, scope: { scopeType: "project", scopeId: projectId } })
           }
@@ -464,11 +438,11 @@ export function App() {
         workspaceId={workspaceId}
         workspaceName={workspaceName}
         openSessionId={openSessionId}
-        initialPrompt={ask ?? undefined}
-        initialDraft={draft ?? undefined}
+        initialPrompt={initialPrompt}
+        initialDraft={initialDraft}
         filesPanel={rightPanel}
-        onRemoved={() => setSelection(null)}
-        onOpenWorkspace={() => setSelection(null)}
+        onRemoved={() => clearSelection()}
+        onOpenWorkspace={() => clearSelection()}
         onSelectWorktree={(worktreeId) =>
           selectScope({
             projectId,

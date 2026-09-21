@@ -486,7 +486,7 @@ ganha teste próprio (`relative-time.test.ts`, inexistente até aqui — `relati
 
 ## Fase 5 — a navegação · gate `pnpm gate:full` · **é a fase 0 da LUM-63**
 
-#### T21: `lib/navigation.ts` — o store, no molde de `route.ts`
+#### T21: `lib/navigation.ts` — o store, no molde de `route.ts` · **entregue em 2026-09-21**
 
 `useSyncExternalStore`, sem biblioteca. Dois campos: `selection` e `arrival` (`{ sessionId,
 text?, send }`), que funde `ask` (`send: true`), `draft` (`send: false`) e `openSessionId` (sem
@@ -498,6 +498,23 @@ junto — o store é a **única** resposta a *onde eu estou*.
 **Done when:** teste de unidade cobre `select`, `clear`, `arrive`, `consumeArrival`; `App.tsx` lê
 `selection` do store e **não tem mais** `useState` de `selection`, `ask`, `draft` nem
 `openSessionId`.
+
+**Achado:** o estado é module-level de propósito — é o que faz `select`/`arrive` chamáveis de
+qualquer lugar sem contexto —, e é exatamente isso que vazava seleção e chegada de um `it` para o
+próximo dentro do mesmo arquivo de teste (`worktree-ui.test.tsx`, `project-ui.test.tsx`: três testes
+que renderizam `<App/>` várias vezes viram a seleção de um caso sobreviver para o seguinte).
+`route.ts` não precisa de reset porque lê o `window.history` de verdade, que os próprios testes já
+resetam; aqui o estado não mora em lugar nenhum fora do módulo, então ganhou `resetNavigationForTests`
+(exportado só para isso) chamado pelo `afterEach` global de `test/setup.ts`, ao lado do `cleanup()`.
+
+**Achado (fora do escopo, não corrigido):** `WorktreePanel.tsx` passa `initialPrompt` para o
+`ScopePanel` na sua leitura "pronta" mas **não** passa `initialDraft` nesse mesmo retorno — só no
+galho `detail.isPending`. É uma divergência pré-existente (não introduzida por esta task, e a T22
+a remove por completo ao tirar as três props do arquivo), então ficou registrada aqui em vez de
+corrigida — corrigir agora só para apagar duas tasks depois não é o que a T21 pede.
+
+Até a T22 fechar, `App.tsx` ainda traduz `arrival` para `openSessionId`/`initialPrompt`/
+`initialDraft` na própria função — é o único lugar que sabe que essa tradução é temporária.
 
 #### T22: `useArrival(sessionId)` — o one-shot num lugar só
 
