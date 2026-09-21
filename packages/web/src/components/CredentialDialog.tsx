@@ -1,8 +1,6 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { SECRETS_PREFIX } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { useSecretMutations, type SecretSlotView } from "../hooks/useSecrets.js";
 import { Button, Field, Input, Modal } from "../ui/index.js";
 
 /**
@@ -15,13 +13,6 @@ import { Button, Field, Input, Modal } from "../ui/index.js";
  * outra como inexistentes, que é o falso positivo que ensina a ignorá-las.
  */
 
-export interface SecretSlotView {
-  id: string;
-  label: string;
-  hint: string;
-  present: boolean;
-}
-
 export function CredentialDialog({ slot, onClose }: { slot: SecretSlotView; onClose: () => void }) {
   /*
    * O campo **nasce vazio**, inclusive quando já há chave guardada.
@@ -30,18 +21,7 @@ export function CredentialDialog({ slot, onClose }: { slot: SecretSlotView; onCl
    * decisão, não um buraco. Desenhar um campo preenchido pediria uma.
    */
   const [value, setValue] = useState("");
-  const queryClient = useQueryClient();
-
-  const save = useMutation({
-    mutationFn: (next: string) =>
-      // O `id` vem do catálogo do daemon, que é fechado — o `as` diz isso, e o
-      // daemon recusa qualquer outro de qualquer jeito.
-      trpc.secrets.set.mutate({ id: slot.id as "linear", value: next }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: SECRETS_PREFIX });
-      onClose();
-    },
-  });
+  const { set: save } = useSecretMutations();
 
   return (
     <Modal
@@ -63,7 +43,7 @@ export function CredentialDialog({ slot, onClose }: { slot: SecretSlotView; onCl
             <Button
               variant="danger"
               className="modal__destructive"
-              onClick={() => save.mutate("")}
+              onClick={() => save.mutate({ id: slot.id, value: "" }, { onSuccess: onClose })}
               disabled={save.isPending}
             >
               remover
@@ -73,7 +53,7 @@ export function CredentialDialog({ slot, onClose }: { slot: SecretSlotView; onCl
           <Button
             variant="primary"
             disabled={value.trim() === "" || save.isPending}
-            onClick={() => save.mutate(value)}
+            onClick={() => save.mutate({ id: slot.id, value }, { onSuccess: onClose })}
           >
             guardar
           </Button>

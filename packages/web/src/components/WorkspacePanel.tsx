@@ -1,8 +1,8 @@
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { useAgentConfigs } from "../hooks/useAgentConfigs.js";
 import { useProjects } from "../hooks/useProjects.js";
+import { useWorkspaceMutations } from "../hooks/useWorkspace.js";
 import {
   useUsageByProject,
   useUsageByProjectAndAgent,
@@ -10,8 +10,6 @@ import {
   type ProjectAgentUsage,
   type UsageWindow,
 } from "../hooks/useUsage.js";
-import { projectsKey, WORKSPACES_KEY } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
 import {
   Banner,
   Button,
@@ -304,17 +302,7 @@ export function WorkspacePanel({
 function RenameWorkspace({ id, name }: { id: string; name: string }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
-  const client = useQueryClient();
-
-  const rename = useMutation({
-    mutationFn: (next: string) => trpc.workspace.rename.mutate({ id, name: next }),
-    onSuccess: async () => {
-      // O seletor do topo e esta tela têm que concordar **na hora**: um nome novo
-      // em dois lugares diferentes é o começo de uma tela discordando de si mesma.
-      await client.invalidateQueries({ queryKey: WORKSPACES_KEY });
-      setEditing(false);
-    },
-  });
+  const { rename } = useWorkspaceMutations(id);
 
   if (!editing) {
     return (
@@ -341,7 +329,7 @@ function RenameWorkspace({ id, name }: { id: string; name: string }) {
           setEditing(false);
           return;
         }
-        rename.mutate(next);
+        rename.mutate(next, { onSuccess: () => setEditing(false) });
       }}
     >
       <input
@@ -378,14 +366,7 @@ function RemoveWorkspace({
   projects: number | "unknown";
   onRemoved: () => void;
 }) {
-  const client = useQueryClient();
-  const remove = useMutation({
-    mutationFn: () => trpc.workspace.remove.mutate({ id }),
-    onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: WORKSPACES_KEY });
-      onRemoved();
-    },
-  });
+  const { remove } = useWorkspaceMutations(id);
 
   return (
     <>
@@ -393,7 +374,7 @@ function RemoveWorkspace({
         variant="ghost"
         size="sm"
         disabled={projects === "unknown" || projects > 0 || remove.isPending}
-        onClick={() => remove.mutate()}
+        onClick={() => remove.mutate(undefined, { onSuccess: onRemoved })}
       >
         {/*
           `remover workspace` e não `remover`: o rodapé da sidebar tem o seu

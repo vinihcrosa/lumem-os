@@ -1,9 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ADAPTERS } from "@lumem/shared";
 import { useState, type ReactNode } from "react";
 
 import { askNoticePermission } from "../hooks/notice.js";
-import { secretsKey, setupAgentsKey, taskSettingsKey, tasksKey } from "../lib/queryKeys.js";
+import { useSecrets } from "../hooks/useSecrets.js";
+import { useTaskSettings } from "../hooks/useTasks.js";
+import { useWorkspaceMutations } from "../hooks/useWorkspace.js";
+import { setupAgentsKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Skeleton } from "../ui/index.js";
 
@@ -295,47 +298,8 @@ export function SettingsPanel({ workspaceId, workspaceName }: SettingsPanelProps
  * de pôr um teto era um teste. Esta é a primeira tela que os grava.
  */
 function ConveyorSection({ workspaceId }: { workspaceId: string }) {
-  const queryClient = useQueryClient();
-  const settingsKey = taskSettingsKey(workspaceId);
-
-  const settings = useQuery({
-    queryKey: settingsKey,
-    queryFn: () => trpc.task.settings.query({ workspaceId }),
-  });
-
-  async function refresh(): Promise<void> {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: settingsKey }),
-      queryClient.invalidateQueries({ queryKey: tasksKey(workspaceId) }),
-    ]);
-  }
-
-  const setAutonomy = useMutation({
-    mutationFn: (input: { autonomy: "manual" | "assistido" | "autonomo"; maxParallel: number }) =>
-      trpc.workspace.setAutonomy.mutate({ id: workspaceId, ...input }),
-    onSettled: refresh,
-  });
-
-  const setCleanup = useMutation({
-    mutationFn: (mergedAlwaysRemoves: boolean) =>
-      trpc.workspace.setCleanup.mutate({ id: workspaceId, mergedAlwaysRemoves }),
-    onSettled: refresh,
-  });
-
-  /*
-   * O daemon exige os três tetos de uma vez, e isso é do contrato dele: um
-   * `PATCH` de um campo só precisaria distinguir *"não mexi"* de *"apaguei"*, e
-   * os dois são `null` no corpo. Quem manda os três sempre não tem essa
-   * ambiguidade.
-   */
-  const setBudget = useMutation({
-    mutationFn: (caps: {
-      costPerTask: number | null;
-      costPerDay: number | null;
-      turnsPerSession: number | null;
-    }) => trpc.workspace.setBudget.mutate({ id: workspaceId, ...caps }),
-    onSettled: refresh,
-  });
+  const settings = useTaskSettings(workspaceId);
+  const { setAutonomy, setCleanup, setBudget } = useWorkspaceMutations(workspaceId);
 
   if (settings.isPending) {
     return (
@@ -588,10 +552,7 @@ function AgentsSection() {
  * guardar são os que ele sabe usar.
  */
 function IntegrationsSection() {
-  const slots = useQuery({
-    queryKey: secretsKey(),
-    queryFn: () => trpc.secrets.list.query(),
-  });
+  const slots = useSecrets();
 
   const list = slots.data ?? [];
 

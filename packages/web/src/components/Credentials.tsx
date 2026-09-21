@@ -1,9 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { secretsKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
-import { CredentialDialog, type SecretSlotView } from "./CredentialDialog.js";
+import { useSecrets, type SecretSlotView } from "../hooks/useSecrets.js";
+import { CredentialDialog } from "./CredentialDialog.js";
 
 /**
  * As credenciais dos serviços, no rodapé da sidebar
@@ -23,10 +21,7 @@ import { CredentialDialog, type SecretSlotView } from "./CredentialDialog.js";
 
 export function Credentials() {
   const [editing, setEditing] = useState<SecretSlotView | null>(null);
-  const slots = useQuery({
-    queryKey: secretsKey(),
-    queryFn: () => trpc.secrets.list.query() as Promise<SecretSlotView[]>,
-  });
+  const slots = useSecrets();
 
   const list = slots.data ?? [];
   // Nada a mostrar enquanto o daemon não responde, e nenhum esqueleto: o rodapé

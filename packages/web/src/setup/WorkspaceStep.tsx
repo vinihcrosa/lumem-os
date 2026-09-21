@@ -1,7 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { PREFLIGHT_KEY, WORKSPACES_KEY } from "../lib/queryKeys.js";
+import { useCreateWorkspace } from "../hooks/useWorkspace.js";
+import { PREFLIGHT_KEY } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Field, Input, MetaGrid, WizardSection } from "../ui/index.js";
 import type { SetupResult } from "./SetupFlow.js";
@@ -22,7 +23,6 @@ export interface WorkspaceStepProps {
  * skipping the other four steps.
  */
 export function WorkspaceStep({ onNext, onBack }: WorkspaceStepProps) {
-  const queryClient = useQueryClient();
   const [name, setName] = useState("pessoal");
 
   // Already read by the machine step, so this is a cache hit in the normal path
@@ -33,13 +33,12 @@ export function WorkspaceStep({ onNext, onBack }: WorkspaceStepProps) {
     refetchOnWindowFocus: false,
   });
 
-  const create = useMutation({
-    mutationFn: () => trpc.workspace.create.mutate({ name: name.trim() }),
-    onSuccess: async (workspace) => {
-      await queryClient.invalidateQueries({ queryKey: WORKSPACES_KEY });
-      onNext({ workspaceId: workspace.id, workspaceName: workspace.name });
-    },
-  });
+  const create = useCreateWorkspace();
+  const submit = (): void => {
+    create.mutate(name.trim(), {
+      onSuccess: (workspace) => onNext({ workspaceId: workspace.id, workspaceName: workspace.name }),
+    });
+  };
 
   const paths = preflight.data?.paths;
 
@@ -54,7 +53,7 @@ export function WorkspaceStep({ onNext, onBack }: WorkspaceStepProps) {
         isPending: create.isPending,
         pending: "criando…",
       }}
-      onSubmit={() => create.mutate()}
+      onSubmit={submit}
       onBack={onBack}
     >
       <div className="wizard__body">

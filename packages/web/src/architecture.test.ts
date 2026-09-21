@@ -213,8 +213,6 @@ describe("regra 5 — o arquivo de hook tem nome de hook", () => {
 const COMPONENT_KNOWS_TRANSPORT: readonly string[] = [
   "App.tsx",
   "components/Conversation.tsx",
-  "components/CredentialDialog.tsx",
-  "components/Credentials.tsx",
   "components/FileTree.tsx",
   "components/NewSessionMenu.tsx",
   "components/PatchViewer.tsx",
@@ -226,8 +224,6 @@ const COMPONENT_KNOWS_TRANSPORT: readonly string[] = [
   "components/SidebarNav.tsx",
   "components/TaskDetail.tsx",
   "components/TaskList.tsx",
-  "components/WorkspacePanel.tsx",
-  "components/WorkspaceSelector.tsx",
   "setup/AgentStep.tsx",
   "setup/Done.tsx",
   "setup/MachineStep.tsx",

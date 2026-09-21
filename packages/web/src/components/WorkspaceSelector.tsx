@@ -1,8 +1,6 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
-import { trpc } from "../lib/trpc.js";
-import { WORKSPACES_KEY } from "../lib/queryKeys.js";
+import { useCreateWorkspace } from "../hooks/useWorkspace.js";
 import { Button, Field, Input } from "../ui/index.js";
 
 export interface WorkspaceOption {
@@ -26,25 +24,22 @@ export interface WorkspaceSelectorProps {
  * that trade stops being worth it: the day an option needs more than a string.
  */
 export function WorkspaceSelector({ workspaces, activeId, onSelect }: WorkspaceSelectorProps) {
-  const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
 
-  const create = useMutation({
-    mutationFn: (workspaceName: string) => trpc.workspace.create.mutate({ name: workspaceName }),
-    onSuccess: async (workspace) => {
-      await queryClient.invalidateQueries({ queryKey: WORKSPACES_KEY });
-      // Creating one and staying on the old one would be a surprise every time.
-      onSelect(workspace.id);
-      setAdding(false);
-      setName("");
-    },
-  });
+  const create = useCreateWorkspace();
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
     if (name.trim() === "") return;
-    create.mutate(name);
+    create.mutate(name, {
+      onSuccess: (workspace) => {
+        // Creating one and staying on the old one would be a surprise every time.
+        onSelect(workspace.id);
+        setAdding(false);
+        setName("");
+      },
+    });
   };
 
   return (
