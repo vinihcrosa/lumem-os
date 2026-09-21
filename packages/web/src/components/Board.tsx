@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import {
@@ -10,8 +9,7 @@ import {
   type BoardColumn,
   type BoardStatus,
 } from "../lib/board.js";
-import { boardKey } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { useBoard, useBoardMutations } from "../hooks/useTasks.js";
 import { useBoardNotices } from "../hooks/notice.js";
 import { TaskCard } from "./TaskCard.js";
 
@@ -70,17 +68,9 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
   /** O que a limpeza não conseguiu fazer, em uma frase. `null` quase sempre. */
   const [cleanupNote, setCleanupNote] = useState<string | null>(null);
   const { ref: colsRef, clipped } = useOverflow();
-  const queryClient = useQueryClient();
 
-  const key = boardKey(workspaceId, projectId ?? null);
-  const board = useQuery({
-    queryKey: key,
-    queryFn: () =>
-      trpc.task.board.query({
-        workspaceId,
-        ...(projectId === undefined ? {} : { projectId }),
-      }) as Promise<BoardColumn[]>,
-  });
+  const board = useBoard(workspaceId, projectId);
+  const { move, stop, send, takeOver, finish } = useBoardMutations(workspaceId, projectId);
 
   useBoardNotices(board.data);
 
@@ -126,57 +116,6 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
     0,
   );
 
-  /*
-   * O arrasto (§4.3), e ele **não** é otimista.
-   *
-   * Quem renumera a coluna é o daemon, numa transação — então pintar a ordem
-   * localmente antes da resposta seria desenhar um palpite sobre a única coisa
-   * desta tela que tem dono. O cartão anda quando a leitura volta.
-   */
-  const move = useMutation({
-    mutationFn: (target: { id: string; status: BoardStatus; index: number }) =>
-      trpc.task.move.mutate(target),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
-  });
-
-  /*
-   * O clique do `assistido` (Q51).
-   *
-   * Também **não** é otimista, e pelo mesmo motivo do arrasto: quem abre o
-   * adaptador é o daemon, e pintar *"enviado"* antes da resposta seria desenhar
-   * um palpite sobre a única coisa desta tela que custa dinheiro.
-   */
-  /** **Parar** (Q57). Não é otimista, pelo mesmo motivo do arrasto. */
-  const stop = useMutation({
-    mutationFn: (taskId: string) => trpc.task.stop.mutate({ id: taskId }),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
-  });
-
-  const send = useMutation({
-    mutationFn: (taskId: string) => trpc.task.sendPrepared.mutate({ id: taskId }),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
-  });
-
-  /**
-   * **Assumir o volante** (UC7, T39 · [Q59]).
-   *
-   * Abrir um cartão que a esteira está tocando **agora** é assumir; abrir
-   * qualquer outro é ler. O que separa os dois é o selo — derivado do turno em
-   * voo, e já na resposta do quadro —, e a distinção não é zelo: sem ela, olhar
-   * três cartões desligaria a autonomia dos três **em silêncio**, e o produto
-   * ficaria sem esteira com o motivo em lugar nenhum.
-   *
-   * **E não interrompe.** É a diferença para o `parar`: o UC7 diz *"você
-   * interrompe, escreve … e continua na mão"* — você, na conversa, quando
-   * quiser. Matar o turno ao abrir jogaria fora o trabalho pago que você foi
-   * olhar.
-   */
-  const takeOver = useMutation({
-    mutationFn: (taskId: string) =>
-      trpc.task.setAutonomy.mutate({ id: taskId, autonomy: "off" }),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
-  });
-
   function open(taskId: string) {
     const card = (board.data ?? [])
       .flatMap((column) => column.cards)
@@ -184,22 +123,6 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
     if (card?.seal.kind === "working" && card.autonomy !== "off") takeOver.mutate(taskId);
     onOpen(taskId);
   }
-
-  /**
-   * O `Done` que limpa (T40 · Q27).
-   *
-   * Mover para `done` passa por uma porta própria porque ele faz **duas** coisas
-   * — anda a tarefa e mexe no disco —, e a segunda pode não acontecer. A
-   * resposta diz o que houve com o checkout, e é a tela que conta: o daemon não
-   * pergunta nada, que é o que impede o diálogo de virar o que a Q27 recusou.
-   */
-  const finish = useMutation({
-    mutationFn: (taskId: string) => trpc.task.finish.mutate({ id: taskId }),
-    onSuccess: (result: { cleanup: { kind: string; reason?: string } }) => {
-      setCleanupNote(result.cleanup.kind === "keep" ? (result.cleanup.reason ?? null) : null);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
-  });
 
   function drop(status: BoardStatus, index: number) {
     if (dragging === null) return;
@@ -212,7 +135,11 @@ export function Board({ workspaceId, projectId, onOpen, now = Date.now() }: Boar
      * a coluna que o §4.4 diz não ser gerenciamento de projeto.
      */
     if (status === "done") {
-      finish.mutate(dragging);
+      finish.mutate(dragging, {
+        onSuccess: (result) => {
+          setCleanupNote(result.cleanup.kind === "keep" ? (result.cleanup.reason ?? null) : null);
+        },
+      });
       setDragging(null);
       return;
     }

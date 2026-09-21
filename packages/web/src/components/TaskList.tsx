@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { projectsKey, taskSettingsKey, tasksKey, usageByTaskKey } from "../lib/queryKeys.js";
+import { useTaskSettings, useTasksByWorkspace } from "../hooks/useTasks.js";
+import { projectsKey, usageByTaskKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, EmptyState, SectionHead, Skeleton } from "../ui/index.js";
 
@@ -83,14 +84,7 @@ export function TaskList({
   const [showDone, setShowDone] = useState(false);
 
   const filter = project === null ? undefined : { projectId: project };
-  const tasks = useQuery({
-    queryKey: tasksKey(workspaceId, filter),
-    queryFn: () =>
-      trpc.task.listByWorkspace.query({
-        workspaceId,
-        ...(project === null ? {} : { projectId: project }),
-      }) as Promise<TaskRow[]>,
-  });
+  const tasks = useTasksByWorkspace(workspaceId, filter);
 
   /*
    * A cerimônia, e só ela (`030-settings` T13 · Q9).
@@ -101,11 +95,7 @@ export function TaskList({
    * sessões`, que a `022` pôs aqui justamente porque **ninguém procura uma
    * métrica que não incomoda**.
    */
-  const settingsKey = taskSettingsKey(workspaceId);
-  const settings = useQuery({
-    queryKey: settingsKey,
-    queryFn: () => trpc.task.settings.query({ workspaceId }),
-  });
+  const settings = useTaskSettings(workspaceId);
 
   /*
    * O custo por tarefa, numa chamada para a lista inteira.

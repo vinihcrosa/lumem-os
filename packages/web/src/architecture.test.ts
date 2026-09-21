@@ -213,7 +213,6 @@ describe("regra 5 — o arquivo de hook tem nome de hook", () => {
 const COMPONENT_KNOWS_TRANSPORT: readonly string[] = [
   "App.tsx",
   "components/AddProjectDialog.tsx",
-  "components/Board.tsx",
   "components/Conversation.tsx",
   "components/CreateWorktreeDialog.tsx",
   "components/CredentialDialog.tsx",

@@ -2,13 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import type { Scope } from "../hooks/useSessionsByScope.js";
+import { useTaskByWorktree } from "../hooks/useTasks.js";
 import { relativeAge } from "../lib/relative-time.js";
-import {
-  projectDetailKey,
-  taskByWorktreeKey,
-  worktreeDetailKey,
-  worktreesKey,
-} from "../lib/queryKeys.js";
+import { projectDetailKey, worktreeDetailKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import {
   Banner,
@@ -81,10 +77,7 @@ export function WorktreePanel({
    * — branch, sujeira, distância —, e tarefa é registro. Juntar os dois faria
    * uma leitura de git esperar por uma de banco a cada repintura.
    */
-  const task = useQuery({
-    queryKey: taskByWorktreeKey(worktreeId),
-    queryFn: () => trpc.task.getByWorktree.query({ worktreeId }),
-  });
+  const task = useTaskByWorktree(worktreeId);
 
   /**
    * O nome do checkout antes do `getDetail`, lido do cache da sidebar.

@@ -1,13 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { useAgentConfigs } from "../hooks/useAgentConfigs.js";
-import {
-  sessionsByTaskKey,
-  taskDetailKey,
-  tasksKey,
-  worktreesKey,
-} from "../lib/queryKeys.js";
+import { useTaskDetail, useTaskStatusMutation, useWorkOnTaskMutation } from "../hooks/useTasks.js";
+import { sessionsByTaskKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Banner, Button, Chip, Modal, SectionHead, Skeleton } from "../ui/index.js";
 
@@ -48,22 +44,10 @@ interface SessionRow {
 }
 
 export function TaskDetail({ taskId, workspaceId, onBack, onWork }: TaskDetailProps) {
-  const client = useQueryClient();
   const [working, setWorking] = useState(false);
 
-  const task = useQuery({
-    queryKey: taskDetailKey(taskId),
-    queryFn: () => trpc.task.get.query({ id: taskId }),
-  });
-
-  const setStatus = useMutation({
-    mutationFn: (input: { status: string; reason?: string }) =>
-      trpc.task.setStatus.mutate({ id: taskId, ...input } as never),
-    onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: tasksKey(workspaceId) });
-      await client.invalidateQueries({ queryKey: taskDetailKey(taskId) });
-    },
-  });
+  const task = useTaskDetail(taskId);
+  const setStatus = useTaskStatusMutation(workspaceId, taskId);
 
   if (task.isError) return <Banner tone="danger">{task.error.message}</Banner>;
   if (task.isPending) return <Skeleton label="buscando a tarefa" />;
@@ -238,7 +222,6 @@ function WorkOnTask({
     draft: string;
   }) => void;
 }) {
-  const client = useQueryClient();
   // Já existe checkout? Então o default é ele: a tarefa já apontava para lá, e
   // oferecer "worktree nova" primeiro seria propor um segundo lugar para o mesmo
   // trabalho.
@@ -254,32 +237,14 @@ function WorkOnTask({
   const [agentId, setAgentId] = useState<string | null>(null);
   const chosenAgent = agentId ?? agents.data?.[0]?.id ?? null;
 
-  const open = useMutation({
-    mutationFn: async () => {
-      const target =
-        mode === "new"
-          ? (await trpc.worktree.create.mutate({ projectId, name, taskId })).id
-          : checkout;
-      if (target === null) throw new Error("escolha um checkout");
-      if (chosenAgent === null) throw new Error("nenhum agente configurado");
+  const open = useWorkOnTaskMutation(taskId, projectId, body);
 
-      if (mode === "existing") {
-        await trpc.task.attachWorktree.mutate({ id: taskId, worktreeId: target });
-      }
-      const session = await trpc.session.createAgent.mutate({
-        scopeType: "worktree",
-        scopeId: target,
-        agentConfigId: chosenAgent,
-        taskId,
-      });
-      return { worktreeId: target, sessionId: session.id };
-    },
-    onSuccess: async (result) => {
-      await client.invalidateQueries({ queryKey: worktreesKey(projectId) });
-      await client.invalidateQueries({ queryKey: taskDetailKey(taskId) });
-      onOpened({ projectId, worktreeId: result.worktreeId, sessionId: result.sessionId, draft: body });
-    },
-  });
+  const submit = (): void => {
+    open.mutate(
+      { mode, name, checkout, agentConfigId: chosenAgent },
+      { onSuccess: (result) => onOpened({ projectId, ...result }) },
+    );
+  };
 
   return (
     <Modal open title="Trabalhar nesta tarefa" onClose={onClose}>
@@ -358,7 +323,7 @@ function WorkOnTask({
         {open.isError && <Banner tone="danger">{open.error.message}</Banner>}
 
         <div className="modal__foot">
-          <Button variant="primary" disabled={open.isPending} onClick={() => open.mutate()}>
+          <Button variant="primary" disabled={open.isPending} onClick={submit}>
             {open.isPending ? "abrindo…" : "abrir"}
           </Button>
           <Button variant="ghost" onClick={onClose}>

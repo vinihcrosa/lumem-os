@@ -2,8 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import type { Scope } from "../hooks/useSessionsByScope.js";
+import { useTasksByWorkspace } from "../hooks/useTasks.js";
 import { useUsageByWorktree, USAGE_WINDOWS, type UsageWindow } from "../hooks/useUsage.js";
-import { projectDetailKey, projectsKey, tasksKey, worktreesKey } from "../lib/queryKeys.js";
+import { projectDetailKey, projectsKey, worktreesKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import {
   Banner,
@@ -189,10 +190,7 @@ export function LocalPanel({
    * contagem: a lista já existe, ela é a mesma consulta que a tela do workspace
    * faz, e um `count` próprio seria uma segunda verdade sobre o mesmo número.
    */
-  const tasks = useQuery({
-    queryKey: tasksKey(workspaceId, { projectId }),
-    queryFn: () => trpc.task.listByWorkspace.query({ workspaceId, projectId }),
-  });
+  const tasks = useTasksByWorkspace(workspaceId, { projectId });
 
   /*
    * Removing the project asks first (F2.5, F6.9).
