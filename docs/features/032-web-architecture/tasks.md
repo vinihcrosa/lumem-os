@@ -3,7 +3,11 @@
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md)
 **Status:** em execução
 **Histórico:** escritas em **2026-09-21**, no mesmo dia da PRD e das oito respostas. **As fases 0, 1,
-2 e 3 (T1–T16) foram entregues no mesmo dia**, em dezesseis commits.
+2 e 3 (T1–T16) foram entregues no mesmo dia**, em dezesseis commits. **A fase 5 — a navegação
+(T21–T24) — também fechou no mesmo dia**, em quatro commits: o store (`lib/navigation.ts`), o
+one-shot da chegada (`useArrival`), a coluna de arquivos virando contexto e o `App` encolhendo para
+`setupOpen`/`addProjectOpen`/`worktreeFor`, com `MainColumn`/`RightColumn`/`WorkspaceShell` a seu
+lado em `src/`. É a fase 0 da LUM-63.
 
 **34 tasks em 9 fases**, e a regra é a do repositório: uma fase por vez, a próxima só começa com a
 anterior verde. O que prova cada fase é uma **lista de exceções do sensor em zero** — o número está
@@ -573,7 +577,7 @@ evitar: `WorkspaceShell` ainda mora dentro de `App.tsx`, ainda tem `renderPanel`
 como funções aninhadas (não `MainColumn`/`RightColumn`), e o arquivo está em 486 linhas — a T24 é
 quem termina a divisão e faz o arquivo encolher.
 
-#### T24: o `App` encolhe para o que é dele
+#### T24: o `App` encolhe para o que é dele · **entregue em 2026-09-21**
 
 Ficam `setupOpen` (o único estado não derivável — o comentário explica), `addProjectOpen` e
 `worktreeFor`. `renderPanel` e `renderRightPanel` viram componentes (`MainColumn`,
@@ -581,6 +585,29 @@ Ficam `setupOpen` (o único estado não derivável — o comentário explica), `
 
 **Done when:** `App.tsx` tem no máximo **3** `useState` e menos de **250** linhas; `App.test.tsx`
 verde; `gate:full` verde.
+
+**Achado:** `renderPanel`/`renderRightPanel` viraram `MainColumn`/`RightColumn` como a task pedia,
+mas o que sobrava do `WorkspaceShell` que a T23 abriu (`AppShell`, a sidebar, os dois diálogos) não
+tinha para onde ir dentro de `App.tsx` sem furar o teto de 250 linhas — foi para
+`WorkspaceShell.tsx`, arquivo próprio, com `MainColumn.tsx` e `RightColumn.tsx` ao lado dele em
+`src/`, e não em `features/`: nenhum dos três pertence a um domínio só (leem `checkout`, `workspace`
+e `setup` ao mesmo tempo), e é o mesmo lugar que `App.tsx` já ocupa. `App.tsx` ficou em **171**
+linhas com **3** `useState`; `MainColumn.tsx` tem 122, `RightColumn.tsx` 36, `WorkspaceShell.tsx`
+194 — nenhum decidido por um teto (a regra 8 do sensor, com o mapa dos oito, é da T25, que ainda não
+rodou).
+
+`RightColumn` resolve sozinho o problema que motivou o `WorkspaceShell` na T23: `AppShell.right`
+tem que ser `undefined` quando a coluna não deve existir (é o que decide a classe CSS de três
+colunas e a variável `--right-width`), então quem decide **se** ela existe continua sendo
+`WorkspaceShell` (`selection !== null && rightPanel.open ? <RightColumn /> : undefined`); o que
+`RightColumn` decide sozinho, lendo `useNavigation()`/`useRightPanel()`/`useRunDock()` direto, é
+**o que** desenhar dentro — sem repassar `scope`, `onClose`, `onResize` nem `dock` por prop.
+
+Achado de fora do escopo, consertado porque bloqueava o `gate:full`: o `git mv` de `useRightPanel.ts`
+para `.tsx` na T23 deixou um link morto em
+[`docs/features/008-onboarding/open-questions.md:291`](../008-onboarding/open-questions.md) — a
+extensão errada. `check-docs.test.ts` (`025-docs-contract`) é o que prova; corrigido no mesmo
+commit.
 
 ---
 
