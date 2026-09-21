@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 
-import { RightPanel } from "../components/RightPanel.js";
 import {
   Banner,
   Button,
@@ -67,61 +66,16 @@ export const Glyphs: Story = {
   ),
 };
 
-export const ColunaDeArquivos: Story = {
-  name: "Coluna de arquivos",
-  render: () => (
-    <>
-      <p className="sg__note">
-        A coluna nasce fechada, e o interruptor dela mora na faixa de abas do checkout — o único
-        lugar que existe em todas as abas de um escopo e em nenhum lugar fora dele. Desligado à
-        esquerda, ligado à direita. Aqui a coluna aparece nas duas pontas da largura que o arrasto
-        permite.
-      </p>
-      <div className="sg__inline">
-        <TabToggle label="a coluna de arquivos" pressed={false} onToggle={() => undefined}>
-          ▤
-        </TabToggle>
-        <TabToggle label="a coluna de arquivos" pressed onToggle={() => undefined}>
-          ▤
-        </TabToggle>
-      </div>
-      <div className="sg__columns">
-        <div className="sg__column" style={{ width: "var(--size-panel-right-min)" }}>
-          <RightPanel
-            tab="files"
-            onSelectTab={() => {}}
-            changeCount={null}
-            onReload={() => {}}
-            onClose={() => {}}
-            onResize={() => {}}
-            footLeft="lido há 12 s"
-            footRight="21 entradas"
-          >
-            <div className="rp__scroll">
-              <p className="detail__hint">a mínima ainda cabe um caminho de três níveis</p>
-            </div>
-          </RightPanel>
-        </div>
-        <div className="sg__column" style={{ width: "var(--size-panel-right-max)" }}>
-          <RightPanel
-            tab="changes"
-            onSelectTab={() => {}}
-            changeCount={6}
-            onReload={() => {}}
-            onClose={() => {}}
-            onResize={() => {}}
-            footLeft="lido há 8 s"
-            footRight="árvore de trabalho vs HEAD"
-          >
-            <div className="rp__scroll">
-              <p className="detail__hint">a máxima, com a contagem na aba</p>
-            </div>
-          </RightPanel>
-        </div>
-      </div>
-    </>
-  ),
-};
+/*
+ * A story `Coluna de arquivos` saiu daqui na T3 da
+ * [`032`](../../../../docs/features/032-web-architecture/prd.md): ela montava o
+ * `RightPanel`, e uma primitiva não conhece tela — era a única violação da regra 1
+ * do `architecture.test.ts`, que passa a valer sem exceção nenhuma.
+ *
+ * Ela volta em `features/checkout/RightPanel.stories.tsx` na T33, junto dos outros
+ * quatro estados caros que a galeria promete e não tem. Os blocos `.sg__columns` e
+ * `.sg__column` de `stories.css` ficam de pé esperando por ela.
+ */
 
 export const Buttons: Story = {
   name: "Button",

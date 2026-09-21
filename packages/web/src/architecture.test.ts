@@ -105,15 +105,15 @@ function eachLine(file: Source, visit: (line: string, number: number) => void): 
 // -- Regra 1: `ui/` não conhece dado ------------------------------------------
 
 /**
- * A regra 1 é a que não tem exceção — e tem **uma**, por três commits.
+ * A regra 1 é a única sem exceção, e ela viveu três commits com **uma**.
  *
- * A T1 e a PRD dizem *"sem lista de exceções, a única violação de hoje é a story e a
- * T3 a conserta"*, mas as duas também exigem o gate verde a cada commit: a story
- * viola **agora**, e um sensor que nasce vermelho não é sensor. Então ela entra
- * listada, com endereço e prazo, e a T3 esvazia a lista — que é exatamente o
- * *"passa sem exceção"* prometido lá.
+ * A T1 e a PRD a queriam sem lista, e as duas também exigem o gate verde a cada
+ * commit: a story de `RightPanel` violava, e um sensor que nasce vermelho não é
+ * sensor. Ela entrou listada, com endereço e prazo; a T3 tirou a story de `ui/` e
+ * esvaziou a lista. Se um arquivo de `ui/` precisar de dado, a resposta é mover o
+ * arquivo — não voltar a escrever aqui dentro.
  */
-const UI_KNOWS_DATA: readonly string[] = ["ui/Primitives.stories.tsx"];
+const UI_KNOWS_DATA: readonly string[] = [];
 
 describe("regra 1 — a primitiva não conhece dado", () => {
   it("nenhum arquivo de `ui/` importa tela, hook, transporte ou react-query", () => {
