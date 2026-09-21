@@ -75,3 +75,25 @@ describe("loadHighlighter", () => {
     expect(core.created).toBe(2);
   });
 });
+
+describe("languageOf e splitLines", () => {
+  it("maps extensions to grammars, and answers null for the ones it has none for", async () => {
+    const { languageOf } = await freshShiki();
+
+    expect(languageOf("src/lore/loader.ts")).toBe("typescript");
+    expect(languageOf("docs/README.md")).toBe("markdown");
+    expect(languageOf("Dockerfile")).toBe("docker");
+    // F3.3: unknown renders as plain text, which is an answer and not an error.
+    expect(languageOf("dados.parquet")).toBeNull();
+    expect(languageOf("LICENSE")).toBeNull();
+  });
+
+  it("splits the highlighter's output into one entry per line", async () => {
+    const { splitLines } = await freshShiki();
+    const html =
+      '<pre class="shiki"><code><span class="line"><span>um</span></span>\n' +
+      '<span class="line"><span>dois</span></span></code></pre>';
+
+    expect(splitLines(html)).toEqual(["<span>um</span>", "<span>dois</span>"]);
+  });
+});

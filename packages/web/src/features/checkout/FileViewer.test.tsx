@@ -12,8 +12,6 @@ import { trpcMock } from "../../test/trpc-mock.js";
 vi.mock("../../lib/trpc.js", async () => ({ trpc: (await import("../../test/trpc-mock.js")).trpcMock }));
 
 const { FileViewer } = await import("./FileViewer.js");
-const { TabSplit } = await import("./TabSplit.js");
-const { languageOf, splitLines } = await import("../../lib/shiki.js");
 
 const scope = { scopeType: "worktree", scopeId: "wt_1" } as const;
 
@@ -265,50 +263,5 @@ describe("o arquivo aberto no split", () => {
     await user.click(screen.getByRole("button", { name: "✕ fechar" }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("TabSplit", () => {
-  it("leaves the tab exactly as it was when nothing is open", () => {
-    const { container } = renderWithProviders(
-      <TabSplit viewer={null}>
-        <div data-testid="sessao">terminal</div>
-      </TabSplit>,
-    );
-
-    expect(screen.getByTestId("sessao")).toBeInTheDocument();
-    expect(container.querySelector(".split")).toBeNull();
-  });
-
-  it("puts the session and the file side by side when one is open", () => {
-    const { container } = renderWithProviders(
-      <TabSplit viewer={<div data-testid="arquivo">loader.ts</div>}>
-        <div data-testid="sessao">terminal</div>
-      </TabSplit>,
-    );
-
-    expect(container.querySelector(".split")).not.toBeNull();
-    expect(screen.getByTestId("sessao")).toBeInTheDocument();
-    expect(screen.getByTestId("arquivo")).toBeInTheDocument();
-    expect(screen.getByRole("separator", { name: "largura do arquivo aberto" })).toBeInTheDocument();
-  });
-});
-
-describe("shiki", () => {
-  it("maps extensions to grammars, and answers null for the ones it has none for", () => {
-    expect(languageOf("src/lore/loader.ts")).toBe("typescript");
-    expect(languageOf("docs/README.md")).toBe("markdown");
-    expect(languageOf("Dockerfile")).toBe("docker");
-    // F3.3: unknown renders as plain text, which is an answer and not an error.
-    expect(languageOf("dados.parquet")).toBeNull();
-    expect(languageOf("LICENSE")).toBeNull();
-  });
-
-  it("splits the highlighter's output into one entry per line", () => {
-    const html =
-      '<pre class="shiki"><code><span class="line"><span>um</span></span>\n' +
-      '<span class="line"><span>dois</span></span></code></pre>';
-
-    expect(splitLines(html)).toEqual(["<span>um</span>", "<span>dois</span>"]);
   });
 });

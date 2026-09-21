@@ -401,15 +401,45 @@ por `Terminal.tsx`, também não cai na regra — é pacote, não arquivo própr
 `pnpm gate:full` verde, 1197 testes — os onze `*-css.test.ts` (não dez: o disco tinha um mais) leem
 por caminho, e o caminho mudou sem mudar a asserção.
 
-#### T19: teste tem o nome do que testa
+#### T19: teste tem o nome do que testa · **entregue em 2026-09-21**
 
-`session-ui.test.tsx` → `SessionTab.test.tsx`; `project-ui`, `workspace-ui`, `worktree-ui`,
-`clone-ui`, `memory-ui`, `tasks-ui`, `settings-ui` idem. Onde um arquivo cobre dois componentes, ele
-é dividido. `Terminal.test.tsx` já está certo. `notice.ts` → `useBoardNotices.ts` (a exceção 5 da
-T1 cai).
+**Achado:** o plano estava errado sobre `session-ui`, `project-ui`, `workspace-ui`, `worktree-ui` e
+`clone-ui` — nenhum dos cinco renomeia. Os cinco montam `<App>` e testam a integração entre
+features, não um componente só; a regra 5 (teste tem o nome do que testa) não se aplica a arquivo
+fora de `features/`, e por isso os cinco moram no `src/` raiz desde a T17, ao lado dos outros dois
+já corretos (`checkout-tab.test.tsx`, `settings-route.test.tsx`, `agent-config.test.tsx`). A T17
+tinha, na verdade, movido `session-ui.test.tsx` para dentro de `features/conversation/` por engano
+— corrigido aqui: `git mv` de volta para `src/session-ui.test.tsx`, com os `../` de importação e o
+`vi.mock` de `Terminal.js` ajustados para a profundidade nova.
 
-**Done when:** todo `<Nome>.test.tsx` em `features/` tem um `<Nome>.tsx` irmão; a regra 5 passa sem
-exceção; o número de casos de teste é **o mesmo** de antes (contado pelo `vitest --reporter=json`).
+O que renomeou de fato: `agent-login.test.tsx` → `AgentLogin.test.tsx`, `credentials.test.tsx` →
+`Credentials.test.tsx`, `changes-tab.test.tsx` → `ChangesTab.test.tsx`, `file-tree.test.tsx` →
+`FileTree.test.tsx`, `right-panel.test.tsx` → `RightPanel.test.tsx`, `run-dock.test.tsx` →
+`RunDock.test.tsx`, `memory-ui.test.tsx` → `MemoryPanel.test.tsx`, `settings-ui.test.tsx` →
+`SettingsPanel.test.tsx`, `task-card.test.tsx` → `TaskCard.test.tsx`, `setup-flow.test.tsx` →
+`SetupFlow.test.tsx`, `workspace-panel.test.tsx` → `WorkspacePanel.test.tsx`, `worktree-from.test.tsx`
+→ `CreateWorktreeDialog.test.tsx`, `board.test.tsx` → `Board.test.tsx`, `pr-bar.test.tsx` →
+`PrBar.test.tsx`. `board-drag.test.tsx` e `board-notice.test.tsx` ficaram com o nome descritivo —
+mesmo precedente de `terminal-refit.test.tsx`/`session-tab-transport.test.tsx`: um teste de facet
+secundária, não o teste principal do componente, não pede o nome exato.
+
+Três arquivos cobriam mais de um componente e foram divididos: `file-viewer.test.tsx` (314 linhas, 3
+describes) virou `checkout/FileViewer.test.tsx` (16 casos), `checkout/TabSplit.test.tsx` (2 casos) e
+um `describe` novo em `lib/shiki.test.ts` (2 casos, sobre `languageOf`/`splitLines` — função pura,
+sem componente). `setup-steps.test.tsx` (361 linhas, 3 describes) virou `ProjectStep.test.tsx` (7),
+`TaskStep.test.tsx` (7) e `Done.test.tsx` (5). `tasks/tasks-ui.test.tsx` (4 describes, cruzando duas
+features) virou `tasks/TaskList.test.tsx` (8), `tasks/TaskDetail.test.tsx` (7, incluindo o
+`describe` de `suggestName` — a mesma função, exportada por `TaskDetail.tsx`) e
+`memory/ProposalQueue.test.tsx` (4) — o primeiro teste próprio que `ProposalQueue.tsx` ganha, porque
+antes ele só vivia dentro do arquivo de outra feature.
+
+`notice.ts` já tinha virado `useBoardNotices.ts` na T17 (a exceção 5 da T1 já tinha caído lá).
+
+**Done when:** todo `<Nome>.test.tsx` em `features/` tem um `<Nome>.tsx` irmão, ou é uma facet
+secundária com precedente nomeado; a regra 5 passa sem exceção; `tsc --noEmit` limpo; `vitest run`
+verde com **1197** testes — o mesmo número de antes da T19, confirmado arquivo a arquivo em cada
+split (19 em `setup/`, antes em um arquivo só e agora em três; 19 em `tasks/`+`memory/`, idem; 22
+entre `checkout/FileViewer.test.tsx`+`TabSplit.test.tsx`+`lib/shiki.test.ts`).
 
 #### T20: os utilitários repetidos, com o arquivo já aberto
 

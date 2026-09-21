@@ -2,17 +2,17 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { App } from "../../App.js";
-import { renderWithProviders } from "../../test/render.js";
-import { trpcMock as trpc } from "../../test/trpc-mock.js";
+import { App } from "./App.js";
+import { renderWithProviders } from "./test/render.js";
+import { trpcMock as trpc } from "./test/trpc-mock.js";
 
-vi.mock("../../lib/trpc.js", async () => ({
-  trpc: (await import("../../test/trpc-mock.js")).trpcMock,
+vi.mock("./lib/trpc.js", async () => ({
+  trpc: (await import("./test/trpc-mock.js")).trpcMock,
 }));
 
 // The terminal has its own tests; here it would only assert that jsdom still
 // has no layout.
-vi.mock("./Terminal.js", () => ({
+vi.mock("./features/conversation/Terminal.js", () => ({
   Terminal: ({ sessionId, readOnly }: { sessionId: string; readOnly?: boolean }) => (
     <div data-testid="terminal-mock" data-readonly={readOnly === true ? "true" : undefined}>
       {sessionId}
