@@ -85,6 +85,21 @@ describe("invalidateFor", () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["task", "board"] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["task", "settings"] });
   });
+
+  it("rejeita um evento fora da união, em vez de o ignorar em silêncio", () => {
+    /*
+     * A exaustividade que `AcpEvent` já tem, do outro lado: lá é o `tsc` que
+     * reprova uma variante sem `case`; aqui é este teste, porque o `switch` é
+     * `void` e o `tsc` sozinho não bloqueia um `return` que cai fora dele. O
+     * `default` existe para os dois — a mutação que a T7 prova no tipo é a
+     * mesma que este `throw` prova em execução: nenhum evento passa sem
+     * tradução.
+     */
+    const queryClient = new QueryClient();
+    const bogus = { type: "bogus.changed" } as unknown as LumemEvent;
+
+    expect(() => invalidateFor(queryClient, bogus)).toThrow(/bogus\.changed/);
+  });
 });
 
 describe("useLiveState", () => {
