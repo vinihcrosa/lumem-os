@@ -82,16 +82,27 @@ export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void
       void queryClient.invalidateQueries({ queryKey: TASK_BOARD_PREFIX });
       void queryClient.invalidateQueries({ queryKey: TASK_SETTINGS_PREFIX });
       return;
-    default:
-      // Fecha o switch de propósito, no molde do `assertNeverScope` do
-      // servidor: sem este ramo, um evento fora da união de hoje passaria em
-      // silêncio — nem invalidação, nem aviso — em vez de reprovar aqui.
-      return assertNeverEvent(event);
+    default: {
+      /*
+       * Fecha o switch de propósito, no molde do `assertNeverScope` do
+       * servidor — mas sem `throw`: isto corre dentro do `onData` de uma
+       * assinatura tRPC, e uma exceção ali fecha o iterador e mata a
+       * assinatura inteira, sem reconectar (a reconexão automática só cobre
+       * erro de transporte). Um bundle web em cache mais velho que o daemon
+       * não pode perder toda invalidação ao vivo por causa de **um** evento
+       * que não conhece.
+       *
+       * `exhaustive` é o que segura a exaustividade no `tsc` — a atribuição
+       * falha se `LumemEvent` ganhar uma variante sem `case` aqui —, e o
+       * `warn` mais o invalidar tudo é o mesmo gesto da reconexão: não
+       * sabemos o que mudou, então tudo pode ter mudado.
+       */
+      const exhaustive: never = event;
+      console.warn("evento sem tradução para invalidação; invalidando tudo", exhaustive);
+      void queryClient.invalidateQueries();
+      return;
+    }
   }
-}
-
-function assertNeverEvent(event: never): never {
-  throw new Error(`evento sem tradução para invalidação: ${JSON.stringify(event)}`);
 }
 
 /**
