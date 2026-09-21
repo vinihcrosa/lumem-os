@@ -288,4 +288,32 @@ describe("o caminho de volta (W7, T8)", () => {
     expect(crumb.querySelectorAll("button")).toHaveLength(1);
     expect(crumb.textContent).toContain("local");
   });
+
+  /**
+   * Achado 9 da revisão independente: o comentário do `WorkspaceShell` diz
+   * "nada selecionado no workspace antigo pertence ao novo", mas nada
+   * testava — remover o `clearSelection()` do `onSelect` do
+   * `WorkspaceSelector` deixava a suíte inteira verde.
+   */
+  it("trocar de workspace limpa o checkout selecionado", async () => {
+    const user = userEvent.setup();
+    trpc.workspace.list.query.mockResolvedValue([
+      workspace("w1", "pessoal"),
+      workspace("w2", "trabalho"),
+    ]);
+    trpc.project.listByWorkspace.query.mockImplementation(async ({ workspaceId }) =>
+      workspaceId === "w1" ? [project("p1", "lorebase")] : [],
+    );
+
+    renderWithProviders(<App />);
+    await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
+    await screen.findByRole("heading", { name: "local" });
+
+    await user.selectOptions(await screen.findByLabelText("Workspace"), "w2");
+
+    // A tela do workspace novo, sem o checkout que ficou em "pessoal" — não o
+    // painel de `lorebase` sobrevivendo à troca.
+    expect(await screen.findByRole("heading", { name: "trabalho" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "local" })).not.toBeInTheDocument();
+  });
 });

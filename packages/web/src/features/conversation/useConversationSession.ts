@@ -230,6 +230,14 @@ export function useConversationSession(
   const attached = state.session !== null;
   const readOnly = !live || state.session?.state === "exited";
 
+  /*
+   * Devolve `boolean`, e não `void` — achado pelo CI, só no Linux: numa
+   * máquina mais lenta `attached` chega depois do primeiro clique, o envio
+   * saía do daemon e ainda assim `setDraft("")` limpava o texto, porque quem
+   * chamava não sabia que o socket tinha recusado. A pessoa perdia a
+   * mensagem e a tela não dizia nada. Quem chama só limpa o rascunho quando
+   * `send` devolve `true`.
+   */
   const send = useCallback(
     (text: string): boolean => {
       const trimmed = text.trim();

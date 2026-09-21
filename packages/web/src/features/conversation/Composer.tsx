@@ -109,7 +109,10 @@ export function Composer({
   }, [draft, sendPrompt]);
 
   /**
-   * O pedido que abriu a conversa, mandado uma vez.
+   * O pedido que abriu a conversa, mandado uma vez — e só quando `arrival.send`
+   * pede isso explicitamente. É a mesma regra do núcleo da memória: injeção
+   * invisível é proibida, e mandar o texto da chegada sozinho sem essa
+   * marcação seria disparar um turno que ninguém leu antes de custar dinheiro.
    *
    * O `ref` é o que garante "uma vez": `attached` vira verdadeiro num render e
    * continua verdadeiro nos seguintes, e sem ele todo re-render mandaria o mesmo

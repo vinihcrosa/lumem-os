@@ -13,10 +13,12 @@ lado em `src/`. É a fase 0 da LUM-63.
 anterior verde. O que prova cada fase é uma **lista de exceções do sensor em zero** — o número está
 no diff de `architecture.test.ts`, e não precisa de leitura de componente para ser auditado. **A
 fase 3 é a primeira em que essa frase não se sustenta** — ver o T16 abaixo: a lista sai de **33** para
-**6**, e os seis que sobram são de recursos que as sete tasks nunca prometeram (`files`, `changes`,
-`memory`, `usage`) ou de uma leitura combinada que os cobre por baixo (`setup/Done.tsx`). A regra
-falha o próprio teste que ela impõe a si mesma — *"difícil de reverter, surpreendente sem contexto"*
-não se aplica a uma frase de cabeçalho — então ela vira nota aqui, e não ADR.
+**6** (a T26 tira `Conversation.tsx` depois, sobrando **5** — achado 4 da revisão independente,
+2026-09-21, pós-fecho, corrigindo uma contagem que ficou parada no dia em que a T16 fechou), e os
+que sobram são de recursos que as sete tasks nunca prometeram (`files`, `changes`, `memory`,
+`usage`) ou de uma leitura combinada que os cobre por baixo (`setup/Done.tsx`). A regra falha o
+próprio teste que ela impõe a si mesma — *"difícil de reverter, surpreendente sem contexto"* não se
+aplica a uma frase de cabeçalho — então ela vira nota aqui, e não ADR.
 
 **O que as fases 0–3 acharam, e nada disso estava previsto:**
 
@@ -34,7 +36,7 @@ não se aplica a uma frase de cabeçalho — então ela vira nota aqui, e não A
 | T13 | `WorkspaceSelector.tsx` e `setup/WorkspaceStep.tsx` — listados como leitores de `project`/`worktree`; os dois só tocam `workspace.create`. Migrados na T15, não na T13 |
 | T13 | `project.rename` — sem chamador na web. Não construída |
 | T14 | `pr.comment` — sem chamador na web; é o lado do daemon (esteira, `028` Parte 7), não a tela. Não construída |
-| T16 | **A lista não chega a zero.** Das 33 exceções do início da fase, sobram **6**: `Conversation.tsx` (por desenho — `connect`/`load` são socket), `FileTree.tsx` (`files`), `PatchViewer.tsx` (`changes`), `ProposalQueue.tsx` (`memory.proposals` — a parte de `task` dela migrou), `TaskList.tsx` (`usage.byTask` — a parte de `project` dela migrou) e `setup/Done.tsx` (`useQueries` batendo quatro recursos de uma vez, sem uma versão "`queryOptions`" de cada hook para alimentar o batch). Os quatro primeiros são recursos que as sete tasks desta fase nunca prometeram cobrir — a frase "sete recursos" no cabeçalho da fase está certa, e "lista em zero" no T16 está errada. `test/trpc-mock.ts` **continua existindo**: ainda é o único mock que os seis arquivos acima e boa parte da suíte de tela usam |
+| T16 | **A lista não chega a zero.** Das 33 exceções do início da fase, sobravam **6** no fecho desta task: `Conversation.tsx` (por desenho — `connect`/`load` são socket), `FileTree.tsx` (`files`), `PatchViewer.tsx` (`changes`), `ProposalQueue.tsx` (`memory.proposals` — a parte de `task` dela migrou), `TaskList.tsx` (`usage.byTask` — a parte de `project` dela migrou) e `setup/Done.tsx` (`useQueries` batendo quatro recursos de uma vez, sem uma versão "`queryOptions`" de cada hook para alimentar o batch). **A T26 tira `Conversation.tsx` da lista** (o transporte foi para `useConversationSession.ts`, fora do alcance da regra 3), sobrando **5** — a contagem aqui ficou parada no dia do fecho da T16, achado 4 da revisão independente (2026-09-21, pós-fecho). Os quatro primeiros são recursos que as sete tasks desta fase nunca prometeram cobrir — a frase "sete recursos" no cabeçalho da fase está certa, e "lista em zero" no T16 está errada. `test/trpc-mock.ts` **continua existindo**: ainda é o único mock que boa parte da suíte de tela usa |
 | T16 (achado de bônus) | `session.resume` já morava em `useWorktreeTabs.ts`, um hook — nunca apareceu na lista do sensor porque a regra 3 só audita `.tsx`. "Forget" da PRD é `session.close` no router; não existe procedure `forget` |
 
 As duas primeiras armadilhas de teste (a do `[0]` e a do `throw`) estão no
@@ -444,6 +446,15 @@ secundária com precedente nomeado; a regra 5 passa sem exceção; `tsc --noEmit
 verde com **1197** testes — o mesmo número de antes da T19, confirmado arquivo a arquivo em cada
 split (19 em `setup/`, antes em um arquivo só e agora em três; 19 em `tasks/`+`memory/`, idem; 22
 entre `checkout/FileViewer.test.tsx`+`TabSplit.test.tsx`+`lib/shiki.test.ts`).
+
+**Achado 2 da revisão independente (2026-09-21, pós-fecho):** nove arquivos de
+`features/conversation/` ficaram de fora desta lista sem entrar nem como renomeados nem como
+exceção nomeada — `tool-card.test.tsx`, `message.test.tsx`, `plan-card.test.tsx`,
+`slash-menu.test.tsx`, `usage-footer.test.tsx`, `permission-request.test.tsx`,
+`lumem-mode-pill.test.tsx`, `free-mode-gate.test.tsx`, `config-pills.test.tsx`. Todos os nove são o
+teste **principal** do componente irmão (`ToolCard.tsx`, `Message.tsx`, …), não uma facet
+secundária como `board-drag`/`terminal-refit` — o `Done when` acima não estava atendido para eles, e
+não estava anotado. Renomeados em commit próprio, fora desta task.
 
 #### T20: os utilitários repetidos, com o arquivo já aberto · **entregue em 2026-09-21**
 

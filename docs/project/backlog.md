@@ -245,6 +245,22 @@ existe. A segunda é a [`028`](../features/028-autonomous-orchestration/prd.md),
 desta e cujo §11 já lista lease, heartbeat e recuperação como a peça técnica que sustenta o selo do
 §4.1.
 
+### `conveyor.spec.ts:371` intermitente — `P`
+
+Review independente da `032` (2026-09-21) achou o teste *"parar interrompe sem apagar a worktree"*
+flaky: `task.stop`, lê `attempts`, espera 20 s, exige o mesmo número — e uma vez recebeu `+1`. Entre
+o `stop` e a leitura seguinte, uma passada da esteira incrementou a tentativa de um cartão com
+`autonomy: "off"`. Ou a esteira já tinha o cartão em mão quando o `stop` chegou e contou a tentativa
+mesmo assim, ou a fila releu antes de ver o `off`. O `testing.md` já registra *"contar a tentativa
+antes de saber se vai haver turno"* como armadilha da `028`; esta parece a irmã dela — contar a
+tentativa de um cartão que acabou de ser parado. Não é da `032` (o diff dela no servidor é só tipo e
+`toWireCard`); rodado isolado depois, passou em 38 s.
+
+**De onde veio:** review independente de fases 3-8 da [`032`](../features/032-web-architecture/prd.md),
+seção "Fora da feature, mas achado por ela" · **Volta quando:** alguém abrir uma issue própria para
+a `028` com o `trace.zip` que o Playwright deixou em `test-results/`, ou quando o teste falhar de
+novo no CI e valer a pena investigar a corrida com log adicional.
+
 ---
 
 ## D. Git e integrações

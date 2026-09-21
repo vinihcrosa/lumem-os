@@ -663,7 +663,7 @@ oportunista — pega o que se olha.
 
 ## Proposta de 2026-09-21 — a arquitetura do web
 
-### [web-architecture/](features/032-web-architecture/) — componente não fala com o transporte · **em execução**
+### [web-architecture/](features/032-web-architecture/) — componente não fala com o transporte · **completa**
 
 **As fases 0, 1 e 2 (T1–T9) foram entregues em 2026-09-21**, no mesmo dia da proposta — o sensor, as
 chaves centralizadas em `queryKeys.ts`, e `LumemEvent`/`BoardCard`/`Seal` movidos para `@lumem/shared`.
