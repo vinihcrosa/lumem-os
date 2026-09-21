@@ -32,7 +32,7 @@ export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void
       return;
     case "project.changed":
       void queryClient.invalidateQueries({ queryKey: projectsKey(event.workspaceId) });
-      void queryClient.invalidateQueries({ queryKey: ["project", "get"] });
+      void queryClient.invalidateQueries({ queryKey: ["project", "detail"] });
       return;
     case "worktree.changed":
       void queryClient.invalidateQueries({ queryKey: worktreesKey(event.projectId) });
