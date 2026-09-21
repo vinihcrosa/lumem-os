@@ -283,11 +283,11 @@ function TaskRowButton({
       className={`trow trow--${row.status} focus-ring`}
       onClick={() => onOpen(row.id)}
     >
-      <span className="tstat">
+      <span className="task-status">
         {glyph === undefined ? (
-          <span className="tstat__dot" aria-hidden="true" />
+          <span className="task-status__dot" aria-hidden="true" />
         ) : (
-          <span className="tstat__g" aria-hidden="true">
+          <span className="task-status__g" aria-hidden="true">
             {glyph}
           </span>
         )}

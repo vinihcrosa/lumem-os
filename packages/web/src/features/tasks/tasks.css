@@ -78,7 +78,7 @@
 .trow--dropped { --st: var(--color-border-strong); }
 .trow--proposed { --st: var(--color-text-brand); }
 
-.tstat {
+.task-status {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -87,7 +87,7 @@
   font: var(--text-label-xs);
   color: var(--st);
 }
-.tstat__dot {
+.task-status__dot {
   flex: none;
   width: var(--space-6);
   height: var(--space-6);
@@ -98,18 +98,18 @@
  * Anel é "ninguém está", disco cheio é "alguém está" — e a distinção sobrevive
  * a captura em escala de cinza, que é por que a regra existe.
  */
-.trow--open .tstat__dot,
-.trow--review .tstat__dot,
-.trow--proposed .tstat__dot {
+.trow--open .task-status__dot,
+.trow--review .task-status__dot,
+.trow--proposed .task-status__dot {
   background: none;
   box-shadow: inset 0 0 0 var(--border-width-thin) currentColor;
 }
-.tstat__g {
+.task-status__g {
   flex: none;
   font-size: var(--size-icon-xs);
   line-height: 1;
 }
-.trow--dropped .tstat { color: var(--color-text-tertiary); }
+.trow--dropped .task-status { color: var(--color-text-tertiary); }
 
 .trow__t {
   flex: 1;

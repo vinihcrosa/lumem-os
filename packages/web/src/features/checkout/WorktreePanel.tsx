@@ -297,7 +297,7 @@ export function WorktreePanel({
                     <span className="ctx-task--none">sem tarefa</span>
                   ) : (
                     <span className={`ctx-task trow--${task.data.status}`}>
-                      <span className="tstat__dot" aria-hidden="true" />
+                      <span className="task-status__dot" aria-hidden="true" />
                       <span className="ctx-task__t">{task.data.title}</span>
                     </span>
                   ),
