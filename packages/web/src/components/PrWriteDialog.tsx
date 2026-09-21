@@ -1,11 +1,8 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { PrMergeStrategy, PrStatus } from "@lumem/shared";
 
-import { usePrDraft } from "../hooks/usePullRequest.js";
-import { CHANGES_PREFIX, PR_PREFIX, WORKTREE_PREFIX } from "../lib/queryKeys.js";
-import { trpc } from "../lib/trpc.js";
+import { usePrDraft, usePullRequestMutations } from "../hooks/usePullRequest.js";
 import { Button, Field, Input } from "../ui/index.js";
 
 /**
@@ -84,32 +81,11 @@ export function PrWriteDialog(props: PrWriteDialogProps) {
 
 type FormProps = PrWriteDialogProps & { cancelRef: React.RefObject<HTMLButtonElement | null> };
 
-function useInvalidate(worktreeId: string) {
-  const queryClient = useQueryClient();
-  return () => {
-    // Mesclar muda a barra, o marcador da sidebar e a lista de worktrees. Três
-    // invalidações e não uma: são três consultas diferentes sobre o mesmo fato,
-    // e invalidar duas de três é como uma tela passa a discordar de si mesma.
-    void queryClient.invalidateQueries({ queryKey: PR_PREFIX });
-    void queryClient.invalidateQueries({ queryKey: WORKTREE_PREFIX });
-    void queryClient.invalidateQueries({ queryKey: CHANGES_PREFIX });
-    return worktreeId;
-  };
-}
-
 function MergeForm({ status, worktreeId, onClose, cancelRef }: FormProps) {
-  const invalidate = useInvalidate(worktreeId);
+  const { merge } = usePullRequestMutations();
   const allowed = allowedStrategies(status);
   const [strategy, setStrategy] = useState<PrMergeStrategy>(allowed[0] ?? "merge");
   const [deleteBranch, setDeleteBranch] = useState(status.merge.deleteBranchOnMerge);
-
-  const merge = useMutation({
-    mutationFn: () => trpc.pr.merge.mutate({ worktreeId, strategy, deleteBranch }),
-    onSuccess: () => {
-      invalidate();
-      onClose();
-    },
-  });
 
   const pull = status.pull;
   if (pull === null) return null;
@@ -119,7 +95,7 @@ function MergeForm({ status, worktreeId, onClose, cancelRef }: FormProps) {
       className="prform"
       onSubmit={(event: FormEvent) => {
         event.preventDefault();
-        merge.mutate();
+        merge.mutate({ worktreeId, strategy, deleteBranch }, { onSuccess: onClose });
       }}
     >
       <div className="prgate__t">
@@ -190,7 +166,7 @@ function MergeForm({ status, worktreeId, onClose, cancelRef }: FormProps) {
 }
 
 function CreateForm({ status, worktreeId, onClose, cancelRef }: FormProps) {
-  const invalidate = useInvalidate(worktreeId);
+  const { create } = usePullRequestMutations();
   /*
    * F7.6 e a [Q4]: o formulário **propõe** e não decide.
    *
@@ -210,14 +186,6 @@ function CreateForm({ status, worktreeId, onClose, cancelRef }: FormProps) {
   const [body, setBody] = useState("");
   const [draft, setDraft] = useState(false);
 
-  const create = useMutation({
-    mutationFn: () => trpc.pr.create.mutate({ worktreeId, title: title.trim(), body, draft }),
-    onSuccess: () => {
-      invalidate();
-      onClose();
-    },
-  });
-
   const id = `pr-title-${worktreeId}`;
 
   return (
@@ -226,7 +194,7 @@ function CreateForm({ status, worktreeId, onClose, cancelRef }: FormProps) {
       onSubmit={(event: FormEvent) => {
         event.preventDefault();
         if (title.trim() === "") return;
-        create.mutate();
+        create.mutate({ worktreeId, title: title.trim(), body, draft }, { onSuccess: onClose });
       }}
     >
       <div className="prgate__t">Abrir pull request</div>

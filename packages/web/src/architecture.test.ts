@@ -218,7 +218,6 @@ const COMPONENT_KNOWS_TRANSPORT: readonly string[] = [
   "components/FileTree.tsx",
   "components/NewSessionMenu.tsx",
   "components/PatchViewer.tsx",
-  "components/PrWriteDialog.tsx",
   "components/ProposalQueue.tsx",
   "components/RunDock.tsx",
   "components/ScopePanel.tsx",

@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import type { PrDraft, PrMark, PrStatus } from "@lumem/shared";
+import type { PrDraft, PrMark, PrMergeStrategy, PrStatus } from "@lumem/shared";
 
-import { PR_PREFIX, prDraftKey, prMarksKey, prStatusKey } from "../lib/queryKeys.js";
+import { CHANGES_PREFIX, PR_PREFIX, WORKTREE_PREFIX, prDraftKey, prMarksKey, prStatusKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 
 /**
@@ -135,6 +135,38 @@ export function usePrDraft(worktreeId: string | null): UseQueryResult<PrDraft> {
     enabled: worktreeId !== null,
     staleTime: Number.POSITIVE_INFINITY,
   });
+}
+
+/**
+ * `merge` e `create` — a escrita que `usePullRequest` não tinha (`032` T14).
+ *
+ * As duas invalidam as mesmas três coisas: mesclar ou abrir muda a barra
+ * (`pr`), o marcador da sidebar (`pr` também) e a lista de worktrees — uma
+ * PR mesclada pode ter sumido do disco. `CHANGES_PREFIX` entra porque o
+ * merge muda o que a aba de mudanças compara. Invalidar duas das três seria
+ * uma tela discordando de si mesma.
+ */
+export function usePullRequestMutations() {
+  const queryClient = useQueryClient();
+  const invalidate = async () => {
+    await queryClient.invalidateQueries({ queryKey: PR_PREFIX });
+    await queryClient.invalidateQueries({ queryKey: WORKTREE_PREFIX });
+    await queryClient.invalidateQueries({ queryKey: CHANGES_PREFIX });
+  };
+
+  const merge = useMutation({
+    mutationFn: (input: { worktreeId: string; strategy: PrMergeStrategy; deleteBranch: boolean }) =>
+      trpc.pr.merge.mutate(input),
+    onSuccess: invalidate,
+  });
+
+  const create = useMutation({
+    mutationFn: (input: { worktreeId: string; title: string; body: string; draft: boolean }) =>
+      trpc.pr.create.mutate(input),
+    onSuccess: invalidate,
+  });
+
+  return { merge, create };
 }
 
 /**
