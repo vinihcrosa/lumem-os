@@ -624,7 +624,7 @@
 /* A pílula e o menu dela, ancorados juntos — o do agente e o do Lumem. */
 .config { position: relative; display: inline-flex; }
 .config .slash,
-.config .mmenu { position: absolute; bottom: calc(100% + var(--space-6)); left: 0; z-index: 1; }
+.config .mode-menu { position: absolute; bottom: calc(100% + var(--space-6)); left: 0; z-index: 1; }
 
 /* ------------------------------- o menu do modo do Lumem (session-mode) */
 /*
@@ -636,7 +636,7 @@
  * caber inteiro. Reaproveitar o `.slash` cortaria a descrição do `automático`
  * exatamente onde ela diz o que passa sozinho.
  */
-.mmenu {
+.mode-menu {
   /*
    * Ancorado na PÍLULA, como todo menu de pílula (composer-menus).
    *
@@ -659,14 +659,14 @@
   border-radius: var(--radius-md);
   box-shadow: var(--elevation-lg);
 }
-.mmenu__head {
+.mode-menu__head {
   display: grid;
   gap: var(--space-2);
   padding: var(--space-8) var(--space-10);
   border-bottom: 1px solid var(--color-border-subtle);
 }
-.mmenu__who { display: flex; align-items: center; gap: var(--space-6); font: var(--text-label-sm); color: var(--color-text-primary); }
-.mmenu__why { font: var(--text-caption); color: var(--color-text-tertiary); }
+.mode-menu__who { display: flex; align-items: center; gap: var(--space-6); font: var(--text-label-sm); color: var(--color-text-primary); }
+.mode-menu__why { font: var(--text-caption); color: var(--color-text-tertiary); }
 .mode-option { display: grid; gap: var(--space-2); width: 100%; padding: var(--space-8) var(--space-10); text-align: left; }
 .mode-option + .mode-option { border-top: 1px solid var(--color-border-subtle); }
 .mode-option:hover { background: var(--color-bg-hover); }
@@ -681,7 +681,7 @@
 .mode-option__d { font: var(--text-body-sm); color: var(--color-text-secondary); }
 .mode-option--auto .mode-option__t { color: var(--color-mode-auto); }
 .mode-option--free .mode-option__t { color: var(--color-mode-bypass); }
-.mmenu__foot {
+.mode-menu__foot {
   display: flex;
   align-items: center;
   gap: var(--space-6);
@@ -691,7 +691,7 @@
   font: var(--text-caption);
   color: var(--color-text-tertiary);
 }
-.mmenu__foot b { color: var(--color-text-secondary); font-weight: 400; }
+.mode-menu__foot b { color: var(--color-text-secondary); font-weight: 400; }
 
 /* ------------------------------- o portão do `liberado` (session-mode) */
 /*

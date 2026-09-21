@@ -169,12 +169,12 @@ export function LumemModeMenu({
   onFreeRequested,
 }: LumemModeMenuProps) {
   return (
-    <div className="mmenu" role="menu" aria-label="regra do Lumem">
-      <div className="mmenu__head">
-        <div className="mmenu__who">
+    <div className="mode-menu" role="menu" aria-label="regra do Lumem">
+      <div className="mode-menu__head">
+        <div className="mode-menu__who">
           <span aria-hidden="true">◈</span>Regra do Lumem
         </div>
-        <div className="mmenu__why">
+        <div className="mode-menu__why">
           este agente não relatou modos. O que muda aqui é <b>o que o daemon responde</b> a um
           pedido de permissão — o agente não fica sabendo.
         </div>
@@ -215,7 +215,7 @@ export function LumemModeMenu({
         would be global policy, and diverging without inheriting would mean
         choosing again in every new conversation.
       */}
-      <div className="mmenu__foot">
+      <div className="mode-menu__foot">
         padrão do workspace: <b>{choiceOf(workspaceDefault).label.toLowerCase()}</b>
       </div>
     </div>
