@@ -342,7 +342,7 @@
  * `session-agent` e `text-link`, que são o mesmo `brand-400`. A barra é uma só
  * porque o estado que os dois tipos compartilham é o mesmo: proposta.
  */
-.pq-item {
+.proposal-item {
   display: grid;
   gap: var(--space-8);
   padding: var(--space-12);
@@ -351,7 +351,7 @@
   border-left: var(--border-width-thick) solid var(--color-session-agent);
   border-radius: var(--radius-md);
 }
-.pq-item__head {
+.proposal-item__head {
   display: flex;
   align-items: center;
   gap: var(--space-8);
@@ -359,24 +359,24 @@
   font: var(--text-caption);
   color: var(--color-text-tertiary);
 }
-.pq-item__who {
+.proposal-item__who {
   font: var(--text-mono-sm);
   color: var(--color-text-secondary);
 }
 /* O tipo, em caixa-alta à direita — é o que faz uma lista de dois tipos ser
    varrível sem ler linha por linha. */
-.pq-item__kind {
+.proposal-item__kind {
   margin-left: auto;
   font: var(--text-label-xs);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--color-text-tertiary);
 }
-.pq-item__title {
+.proposal-item__title {
   font: var(--text-body-md);
   color: var(--color-text-primary);
 }
-.pq-item__why {
+.proposal-item__why {
   font: var(--text-body-sm);
   color: var(--color-text-secondary);
   padding: var(--space-6) var(--space-10);
@@ -384,19 +384,19 @@
   border-radius: var(--radius-sm);
   white-space: pre-wrap;
 }
-.pq-item__acts {
+.proposal-item__acts {
   display: flex;
   align-items: center;
   gap: var(--space-6);
   flex-wrap: wrap;
 }
-.pq-item__note {
+.proposal-item__note {
   margin-left: auto;
   font: var(--text-caption);
   color: var(--color-text-tertiary);
 }
 /* Já decidida: o veredito no lugar dos verbos. */
-.pq-item__verdict {
+.proposal-item__verdict {
   font: var(--text-label-xs);
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;

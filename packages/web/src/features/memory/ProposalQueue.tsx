@@ -130,28 +130,28 @@ function TaskProposal({
   const decide = useTaskStatusMutation(workspaceId, row.id);
 
   return (
-    <div className="pq-item">
-      <div className="pq-item__head">
+    <div className="proposal-item">
+      <div className="proposal-item__head">
         <span className="task-provenance__g" aria-hidden="true">
           ◆
         </span>
-        <span className="pq-item__who">agente</span>
-        <span className="pq-item__kind">tarefa · {projectName}</span>
+        <span className="proposal-item__who">agente</span>
+        <span className="proposal-item__kind">tarefa · {projectName}</span>
       </div>
-      <div className="pq-item__title">{row.title}</div>
-      {row.body !== "" && <div className="pq-item__why">{row.body}</div>}
+      <div className="proposal-item__title">{row.title}</div>
+      {row.body !== "" && <div className="proposal-item__why">{row.body}</div>}
 
       {decide.isError && <Banner tone="danger">{decide.error.message}</Banner>}
 
       {decided ? (
-        <div className="pq-item__acts">
-          <span className="pq-item__verdict">✕ rejeitada</span>
+        <div className="proposal-item__acts">
+          <span className="proposal-item__verdict">✕ rejeitada</span>
           {row.reason !== null && row.reason !== "" && (
-            <span className="pq-item__note">"{row.reason}"</span>
+            <span className="proposal-item__note">"{row.reason}"</span>
           )}
         </div>
       ) : rejecting ? (
-        <div className="pq-item__acts">
+        <div className="proposal-item__acts">
           <input
             className="input"
             aria-label="por que rejeitar"
@@ -171,7 +171,7 @@ function TaskProposal({
           </Button>
         </div>
       ) : (
-        <div className="pq-item__acts">
+        <div className="proposal-item__acts">
           <Button
             variant="primary"
             disabled={decide.isPending}
@@ -182,7 +182,7 @@ function TaskProposal({
           <Button variant="ghost" onClick={() => setRejecting(true)}>
             rejeitar
           </Button>
-          <span className="pq-item__note">
+          <span className="proposal-item__note">
             rejeitar pede um motivo — é o que ensina o agente a não propor de novo
           </span>
         </div>
