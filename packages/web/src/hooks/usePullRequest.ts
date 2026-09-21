@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 import type { PrDraft, PrMark, PrStatus } from "@lumem/shared";
 
-import { prDraftKey, prMarksKey, prStatusKey } from "../lib/queryKeys.js";
+import { PR_PREFIX, prDraftKey, prMarksKey, prStatusKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 
 /**
@@ -165,8 +165,8 @@ export function usePrRefresh(scope: { scopeType: "project" | "worktree"; scopeId
        * `["pr"]` inteiro nos dois: a barra e o marcador saem do mesmo cache, e
        * mexer num só seria deixá-los discordarem na tela.
        */
-      await queryClient.cancelQueries({ queryKey: ["pr"] });
-      await queryClient.refetchQueries({ queryKey: ["pr"] });
+      await queryClient.cancelQueries({ queryKey: PR_PREFIX });
+      await queryClient.refetchQueries({ queryKey: PR_PREFIX });
     },
   });
 }

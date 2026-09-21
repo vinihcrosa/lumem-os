@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { useCheckoutChanges, type ChangeRef, type ChangeStatus } from "../hooks/useCheckoutChanges.js";
+import { CHANGES_PREFIX, FILES_PREFIX } from "../lib/queryKeys.js";
 import {
   usePrDismissal,
   usePrRefresh,
@@ -133,8 +134,8 @@ export function CheckoutFiles({
       actions={shownTab === "files" ? <NewInRoot edits={edits} /> : undefined}
       onReload={() => {
         // "read the disk again", not "read this one directory again".
-        void queryClient.invalidateQueries({ queryKey: ["files"] });
-        void queryClient.invalidateQueries({ queryKey: ["changes"] });
+        void queryClient.invalidateQueries({ queryKey: FILES_PREFIX });
+        void queryClient.invalidateQueries({ queryKey: CHANGES_PREFIX });
         // E o host junto: "recarregar" quer dizer *tudo o que esta coluna
         // mostra*, e a barra da PR é a primeira coisa dela. Sem isto, o botão
         // deixaria o único andar cujo dado não é local exatamente como estava —

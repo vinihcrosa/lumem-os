@@ -292,3 +292,26 @@ export function sessionsByTaskKey(taskId: string) {
 export function usageByTaskKey(workspaceId: string) {
   return ["usage", "byTask", workspaceId] as const;
 }
+
+/**
+ * Os prefixos de invalidação em massa (`032` T5).
+ *
+ * Cada um é o que o `invalidateFor` do `useLiveState` manda quando o daemon avisa
+ * — e o mesmo texto que outros escritores (um `⟳`, um formulário) mandavam à mão
+ * em nove arquivos diferentes. Nomeados aqui para o prefixo que se invalida e a
+ * chave que se lê serem o mesmo texto: `PROJECT_DETAIL_PREFIX` é o começo de
+ * `projectDetailKey`, `TASK_DETAIL_PREFIX` o de `taskDetailKey`, e assim por
+ * diante — quem mexer numa função e não no prefixo vê o teste deste arquivo
+ * reprovar `queryKeys.test.ts` antes de reprovar em produção.
+ */
+export const MEMORY_PREFIX = ["memory"] as const;
+export const PR_PREFIX = ["pr"] as const;
+export const FILES_PREFIX = ["files"] as const;
+export const CHANGES_PREFIX = ["changes"] as const;
+export const WORKTREE_PREFIX = ["worktree"] as const;
+export const SESSION_PREFIX = ["session"] as const;
+export const SECRETS_PREFIX = ["secrets"] as const;
+export const PROJECT_DETAIL_PREFIX = ["project", "detail"] as const;
+export const TASK_DETAIL_PREFIX = ["task", "get"] as const;
+export const TASK_BOARD_PREFIX = ["task", "board"] as const;
+export const TASK_SETTINGS_PREFIX = ["task", "settings"] as const;

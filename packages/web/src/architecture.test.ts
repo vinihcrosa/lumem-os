@@ -291,18 +291,8 @@ const KEY_WRITTEN_BY_HAND: readonly string[] = [];
  */
 const KEY_CONSTANT_OUTSIDE: readonly string[] = [];
 
-/** Os 9 de hoje — prefixo literal dentro de `invalidateQueries` e irmãs. Caem na T5. */
-const INVALIDATION_PREFIX_OUTSIDE: readonly string[] = [
-  "components/CheckoutFiles.tsx",
-  "components/CredentialDialog.tsx",
-  "components/PrWriteDialog.tsx",
-  "hooks/useFileBuffer.ts",
-  "hooks/useFileTree.ts",
-  "hooks/useLiveState.ts",
-  "hooks/useMemory.ts",
-  "hooks/usePullRequest.ts",
-  "hooks/useScripts.ts",
-];
+/** Prefixo literal dentro de `invalidateQueries` e irmãs. Caiu com a T5 — os 9 de hoje viraram `*_PREFIX` em `queryKeys.ts`. */
+const INVALIDATION_PREFIX_OUTSIDE: readonly string[] = [];
 
 /**
  * O que separa leitura de invalidação é a chamada na mesma linha. Quem escrever a

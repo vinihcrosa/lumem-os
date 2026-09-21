@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { PrMergeStrategy, PrStatus } from "@lumem/shared";
 
 import { usePrDraft } from "../hooks/usePullRequest.js";
+import { CHANGES_PREFIX, PR_PREFIX, WORKTREE_PREFIX } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Button, Field, Input } from "../ui/index.js";
 
@@ -89,9 +90,9 @@ function useInvalidate(worktreeId: string) {
     // Mesclar muda a barra, o marcador da sidebar e a lista de worktrees. Três
     // invalidações e não uma: são três consultas diferentes sobre o mesmo fato,
     // e invalidar duas de três é como uma tela passa a discordar de si mesma.
-    void queryClient.invalidateQueries({ queryKey: ["pr"] });
-    void queryClient.invalidateQueries({ queryKey: ["worktree"] });
-    void queryClient.invalidateQueries({ queryKey: ["changes"] });
+    void queryClient.invalidateQueries({ queryKey: PR_PREFIX });
+    void queryClient.invalidateQueries({ queryKey: WORKTREE_PREFIX });
+    void queryClient.invalidateQueries({ queryKey: CHANGES_PREFIX });
     return worktreeId;
   };
 }

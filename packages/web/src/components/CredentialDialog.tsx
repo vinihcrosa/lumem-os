@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { SECRETS_PREFIX } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { Button, Field, Input, Modal } from "../ui/index.js";
 
@@ -37,7 +38,7 @@ export function CredentialDialog({ slot, onClose }: { slot: SecretSlotView; onCl
       // daemon recusa qualquer outro de qualquer jeito.
       trpc.secrets.set.mutate({ id: slot.id as "linear", value: next }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["secrets"] });
+      void queryClient.invalidateQueries({ queryKey: SECRETS_PREFIX });
       onClose();
     },
   });

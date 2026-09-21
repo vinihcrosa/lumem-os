@@ -8,6 +8,7 @@ import {
 
 import {
   MEMORY_DECISIONS_KEY,
+  MEMORY_PREFIX,
   MEMORY_SETTINGS_KEY,
   MEMORY_USAGE_KEY,
   memoryCoreKey,
@@ -128,7 +129,7 @@ export function usePinMemory(): UseMutationResult<unknown, Error, { path: string
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: { path: string; pinned: boolean }) => trpc.memory.pin.mutate(input),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["memory"] }),
+    onSuccess: () => client.invalidateQueries({ queryKey: MEMORY_PREFIX }),
   });
 }
 
@@ -164,7 +165,7 @@ export function useArchivePlaybook(): UseMutationResult<
   return useMutation({
     mutationFn: (input: { path: string; archived: boolean }) =>
       trpc.memory.archivePlaybook.mutate(input),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["memory"] }),
+    onSuccess: () => client.invalidateQueries({ queryKey: MEMORY_PREFIX }),
   });
 }
 
@@ -194,7 +195,7 @@ export interface ResolveProposal {
 
 export function useResolveProposal(): ResolveProposal {
   const client = useQueryClient();
-  const invalidate = () => client.invalidateQueries({ queryKey: ["memory"] });
+  const invalidate = () => client.invalidateQueries({ queryKey: MEMORY_PREFIX });
 
   const approve = useMutation({
     mutationFn: (input: ProposalEdits) => trpc.memory.approveProposal.mutate(input),

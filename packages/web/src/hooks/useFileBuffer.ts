@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { EditorHandle } from "../lib/codemirror-setup.js";
 import { trackWrite } from "../lib/pending-writes.js";
-import { fileListKey, fileReadKey } from "../lib/queryKeys.js";
+import { CHANGES_PREFIX, fileListKey, fileReadKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import type { Scope, ScopeType } from "./useSessionsByScope.js";
 
@@ -306,7 +306,7 @@ export function useFileBuffer({ scope, path, active }: FileBufferOptions): FileB
       // F2.5: the changes list and the directory that holds the file, and never
       // the file's own read — that one would come back from the disk over what
       // is being typed, which is the cycle this whole feature has to avoid.
-      void queryClient.invalidateQueries({ queryKey: ["changes"] });
+      void queryClient.invalidateQueries({ queryKey: CHANGES_PREFIX });
       void queryClient.invalidateQueries({
         queryKey: fileListKey(target.scopeType, target.scopeId, dirOf(target.path)),
       });

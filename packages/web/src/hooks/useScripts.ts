@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 
-import { scriptsKey } from "../lib/queryKeys.js";
+import { scriptsKey, SESSION_PREFIX } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import type { Scope } from "./useSessionsByScope.js";
 
@@ -72,7 +72,7 @@ export function useScriptActions(scope: Scope) {
     void queryClient.invalidateQueries({ queryKey: scriptsKey(scope.scopeType, scope.scopeId) });
     // O rodapé mexe em sessão, e a sidebar conta sessões: sem isto, o ponto de
     // "tem coisa rodando" ficaria descrevendo o passado.
-    void queryClient.invalidateQueries({ queryKey: ["session"] });
+    void queryClient.invalidateQueries({ queryKey: SESSION_PREFIX });
   };
 
   const start = useMutation({

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tan
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { whenWritesSettle } from "../lib/pending-writes.js";
-import { fileListKey, filePreviewKey } from "../lib/queryKeys.js";
+import { CHANGES_PREFIX, fileListKey, filePreviewKey } from "../lib/queryKeys.js";
 import { trpc } from "../lib/trpc.js";
 import { useOpenFiles } from "./useOpenFiles.js";
 import type { Scope } from "./useSessionsByScope.js";
@@ -132,7 +132,7 @@ export function useFileTree(scope: Scope): FileTreeEdits {
   /** F4.5: the directories that changed, and the diff. Never `["files"]` whole. */
   const reread = useCallback(
     (...dirs: readonly string[]): void => {
-      void queryClient.invalidateQueries({ queryKey: ["changes"] });
+      void queryClient.invalidateQueries({ queryKey: CHANGES_PREFIX });
       for (const dir of new Set(dirs)) {
         void queryClient.invalidateQueries({
           queryKey: fileListKey(scope.scopeType, scope.scopeId, dir),
