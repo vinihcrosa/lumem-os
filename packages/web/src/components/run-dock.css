@@ -1,7 +1,7 @@
 /* ============================================================================
    O rodapé de execução — setup, run e terminal.
 
-   Portado de `prototype/lumem-run-dock.css`, que veio do Open Design. Só
+   Portado de `lumem-os-design/lumem-run-dock.css`, que veio do Open Design. Só
    var(--token): nenhum literal de cor, espaço, raio ou tipografia.
 
    Ele é **irmão** do scroll da árvore, não filho: a árvore rola por cima, o

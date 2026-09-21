@@ -1,6 +1,6 @@
 /*
  * Primitivas de UI. Nenhuma tela mora aqui — só os blocos de que elas são
- * feitas. Portadas do protótipo `packages/web/prototype/lumem-shell.html`.
+ * feitas. Portadas do protótipo `lumem-os-design/lumem-shell.html`.
  *
  * Só `var()`. Um literal aqui quebra a promessa de que trocar uma rampa no Open
  * Design troca a interface inteira — ver `docs/project/design-source-of-truth.md`.
@@ -739,7 +739,7 @@
 .tabs-new:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
 
 /* ==================================================================== */
-/* FLUXO DE PASSOS — portado de `prototype/lumem-ds.css`                */
+/* FLUXO DE PASSOS — portado de `lumem-os-design/lumem-ds.css`                */
 /* ==================================================================== */
 /*
  * Estas classes são a camada compartilhada do desenho (`lumem-ds.css`), não a

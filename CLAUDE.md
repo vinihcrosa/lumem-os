@@ -428,6 +428,24 @@ medir uma coluna que o produto não tem. A fase 4 achou o defeito mais instrutiv
 `null` passava com a escrita quebrada**, porque um workspace que nunca teve teto já tem `null` — o
 caso media o default e chamava de resultado.
 
+E a [design-in-the-code](docs/features/031-design-in-the-code/prd.md) — **completa, 8 tasks** — tira o
+desenho de fora do repositório. O Open Design era a fonte e daqui saía uma cópia, e a cópia estava
+**67 arquivos atrás** no dia da decisão: um refactor de camadas de lá — `lumem-ds.css` com 734 regras,
+24 telas — nunca entrou, e nada falhou. Some a isso **uma pasta só** em `~/Library/Application
+Support/` para um produto cujo assunto é worktree paralela, e um clone que não contém o desenho. O
+[ADR](docs/adr/2026-09-20-2246-design-lives-in-the-code.md) supera o de 2026-08-19 e **reafirma** o
+que fica: `var(--token)` em todo componente, `tokens.ts` derivado, 119 pares de contraste no gate.
+Agora o componente React **é** o desenho, a galeria é o **Storybook**, e o agentation anota nas duas
+superfícies. A rota `/styleguide` virou 19 stories com o mesmo JSX; o `design:sync` virou
+`design:derive`; os protótipos saíram, com o histórico no `lumem-os-design`, arquivado. A alternativa
+mais forte — ficar no Open Design com um **symlink por worktree** — foi medida nesta máquina e
+**funciona**; perdeu por pedido, e isso está escrito em vez de omitido. O defeito da execução é do
+tipo que só o navegador pega: o `build-storybook` **passava** enquanto o `storybook dev` girava para
+sempre, e a causa era um `delete config.server` de três palavras que derrubou o plugin do preview —
+nenhuma das duas mensagens de erro cita o 404 que era o problema. O que a feature **custa** está
+escrito: a atenção agendada da fase de desenho, que é como a [`023`](docs/features/023-composer-menus/prd.md)
+achou um `overflow: hidden` vivo no produto havia três features, com teste verde.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |
@@ -452,6 +470,7 @@ Monorepo pnpm + Turborepo. `packages/shared` (contratos), `packages/server` (dae
 | Comando | O quê |
 |---|---|
 | `pnpm dev` | sobe daemon e web juntos, no ambiente de dev (`~/.lumem-dev/shared`, nunca o `~/.lumem` de produção) — ver [workspaces.md](docs/project/workspaces.md) |
+| `pnpm storybook` | a galeria das primitivas, na 6006. Substituiu a rota `/styleguide` — ver a **Regra de design** |
 | `pnpm gate:quick` | testes afetados pelo trabalho atual |
 | `pnpm gate:full` | suíte inteira + e2e |
 | `pnpm gate:build` | typecheck de tudo + build |
@@ -463,27 +482,39 @@ Antes de dizer que uma task está pronta, rode o gate que ela declara. Detalhes 
 
 ## Regra de design
 
-> **O design é feito no Open Design, não aqui.** A decisão está em
-> [`docs/adr/2026-08-19-2247-design-is-made-in-open-design.md`](docs/adr/2026-08-19-2247-design-is-made-in-open-design.md),
-> e o estudo que a sustenta — com o custo nomeado — em
+> **O desenho mora no código.** A decisão está em
+> [`docs/adr/2026-09-20-2246-design-lives-in-the-code.md`](docs/adr/2026-09-20-2246-design-lives-in-the-code.md),
+> que supera a de 2026-08-19 — o Open Design saiu. O estudo do período anterior, com o custo que a
+> cópia cobrou, continua em
 > [design-source-of-truth.md](docs/project/design-source-of-truth.md).
 
-O projeto `lumem-os` do Open Design é a fonte. Deste lado, três arquivos são **cópia ou derivado** e
-nenhum deles se edita à mão:
+Não há fonte fora do repositório, e não há cópia. Um arquivo só continua sendo **derivado**, e esse
+não se edita à mão:
 
 | Arquivo | O quê |
 |---|---|
-| `packages/web/src/styles/tokens.css` | cópia do Open Design |
+| `packages/web/src/styles/tokens.css` | **a fonte.** Cor, espaço, raio e tipografia existem aqui e em nenhum outro lugar |
 | `packages/web/src/styles/tokens.ts` | **derivado** do `tokens.css` — o `xterm`, o CodeMirror e o Shiki precisam do hexadecimal em JavaScript |
-| `packages/web/prototype/*.html` e `*.css` | cópia do Open Design, uma tela por arquivo |
 
-`pnpm --filter @lumem/web design:sync` traz tudo e re-deriva. O `--check` diz se divergiu, sem
-escrever nada.
+`pnpm --filter @lumem/web design:derive` re-deriva; `--check` diz se divergiu sem escrever. Quem
+**garante** é o `gate:quick`, que compara o `tokens.ts` commitado com o que a derivação produz.
 
-Componente em React só usa `var(--token)`: nenhum literal de cor, de espaço ou de tipografia. É isso
-que faz tela desenhada lá ser implementável aqui sem tradução. Token novo nasce no Open Design — e o
-`gate:quick` confere os 119 pares de contraste, então cor escolhida à mão que reprova falha a suíte com
-o nome da combinação de tela que quebrou.
+Componente em React só usa `var(--token)`: nenhum literal de cor, de espaço ou de tipografia. O
+`gate:quick` confere os 119 pares de contraste, então cor escolhida à mão que reprova falha a suíte
+com o nome da combinação de tela que quebrou.
+
+**A galeria é o Storybook** — `pnpm storybook`, porta 6006. Ela substituiu a rota `/styleguide`, e é
+onde mora o estado caro de alcançar no app de verdade: workspace sem acervo, orçamento bloqueado,
+vinte modelos no seletor. O [agentation](docs/project/agentation.md) monta nas duas superfícies, app
+e Storybook: clicar num elemento vira anotação estruturada que o agente lê pelo MCP.
+
+**O ciclo default é construir e ajustar**, não desenhar antes. Quando desenhar antes vale a pena é
+uma pergunta só: *se o desenho estiver errado, o que se joga fora?* **Código** — componente novo,
+layout novo, coluna redimensionada — desenha antes. **CSS** — espaçamento, cor, alinhamento —
+constrói e ajusta.
+
+Os 24 protótipos HTML saíram daqui. O histórico está em `github.com/vinihcrosa/lumem-os-design`,
+arquivado, e é a ele que os comentários de proveniência `lumem-os-design/<arquivo>` se referem.
 
 ## Regra de documentação
 

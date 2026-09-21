@@ -35,6 +35,9 @@ describe("routeOf", () => {
    */
   it("qualquer outro caminho é a tela inicial", () => {
     expect(routeOf("/qualquer/rota/da/aplicacao")).toBe("home");
+    // `/styleguide` foi uma rota de DEV até a galeria virar Storybook. Um
+    // caminho que já existiu é o caso que mais importa: link velho abre o
+    // aplicativo, e não uma tela de erro que o produto não tem.
     expect(routeOf("/styleguide")).toBe("home");
   });
 });

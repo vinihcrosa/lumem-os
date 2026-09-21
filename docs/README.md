@@ -2,7 +2,7 @@
 
 Índice de tudo. O [walking-skeleton](features/001-walking-skeleton/tasks.md) está de pé, vestido pela [ui-shell](features/002-ui-shell/tasks.md), reorganizado pela [worktree-tabs](features/003-worktree-tabs/tasks.md), com olhos para o repositório na [right-panel](features/004-right-panel/tasks.md) e mãos no [file-editor](features/005-file-editor/tasks.md). A [project-from-url](features/011-project-from-url/prd.md) traz o projeto de fora: cola-se uma URL git e o daemon clona, num diretório de estado que passou a ser uma árvore só. Fechando o caminho de entrada, o [onboarding](features/008-onboarding/prd.md) e o [agent-login](features/009-agent-login/prd.md). E o harness passou a lembrar: a [workspace-memory](features/007-workspace-memory/tasks.md) está **completa** — nove PRs, a primeira feature que não é de tela, e a única em que o sistema escreve sozinho (atrás de portão, inbox e interruptor desligado). Fechando o círculo, a [workspace-screen](features/010-workspace-screen/prd.md) deu tela ao workspace: a memória dele deixou de depender de um projeto aberto, e o consumo de tokens passou a ser somável por projeto e por worktree. E a [pull-request-status](features/013-pull-request-status/prd.md) responde, no topo do painel direito e na linha da sidebar, a pergunta que o paralelismo cobra: **dá pra mesclar?** — lendo o host pelo `gh`, sem guardar segredo nenhum, e escrevendo exatamente dois verbos.
 
-> **Decisão de arquitetura, 2026-08-17** — [o ADR](adr/2026-08-17-1812-agent-session-is-acp-not-pty.md), com o [estudo](project/pty-vs-acp.md) que o sustenta**:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por ACP**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A feature [acp-sessions](features/006-acp-sessions/prd.md) — transporte mais a tela da conversa — está **completa**: PRD escrito, spike rodado (autenticação e consumo medidos, janela de contexto parcial), protótipo renderizado em `packages/web/prototype/lumem-acp-conversation.html`, e as fases 1, 3, 4, 5 e 6 entregues — uma tarefa roda do começo ao fim sem terminal, fechar o daemon não perde a conversa, e o agente ACP se cria pela tela.
+> **Decisão de arquitetura, 2026-08-17** — [o ADR](adr/2026-08-17-1812-agent-session-is-acp-not-pty.md), com o [estudo](project/pty-vs-acp.md) que o sustenta**:** a sessão de agente deixa de ser um terminal e passa a ser uma **conversa por ACP**. O PTY continua existindo — para shell, e como caminho alternativo por `agent_config`. A feature [acp-sessions](features/006-acp-sessions/prd.md) — transporte mais a tela da conversa — está **completa**: PRD escrito, spike rodado (autenticação e consumo medidos, janela de contexto parcial), protótipo renderizado em `lumem-os-design/lumem-acp-conversation.html`, e as fases 1, 3, 4, 5 e 6 entregues — uma tarefa roda do começo ao fim sem terminal, fechar o daemon não perde a conversa, e o agente ACP se cria pela tela.
 
 ---
 
@@ -30,7 +30,7 @@ O contrato está na [025-docs-contract](features/025-docs-contract/prd.md).
 |---|---|---|
 | [A sessão de agente é ACP, não PTY](adr/2026-08-17-1812-agent-session-is-acp-not-pty.md) | 2026-08-17 | `transport` |
 | [A memória escreve atrás de um portão, uma inbox e um interruptor desligado](adr/2026-08-17-1812-memory-writes-behind-a-gate.md) | 2026-08-17 | `memory` |
-| [O design é feito no Open Design, não neste repositório](adr/2026-08-19-2247-design-is-made-in-open-design.md) | 2026-08-19 | `design` |
+| ~~[O design é feito no Open Design, não neste repositório](adr/2026-08-19-2247-design-is-made-in-open-design.md)~~ | 2026-08-19 | `design` · **superado** |
 | [O status de PR vem do `gh` da sua máquina, e o Lumem não guarda segredo](adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md) | 2026-08-30 | `security` |
 | [O daemon é um bundle ESM que serve o web na própria porta](adr/2026-08-30-0532-daemon-is-an-esm-bundle-that-serves-the-web.md) | 2026-08-30 | `distribution` |
 | [O número da PRD é ordem de leitura, não precedência](adr/2026-09-07-2208-prd-number-is-reading-order-not-precedence.md) | 2026-09-07 | `docs` |
@@ -40,6 +40,7 @@ O contrato está na [025-docs-contract](features/025-docs-contract/prd.md).
 | [A esteira não tem lease — ela tem um contador de tentativas](adr/2026-09-13-0412-the-conveyor-has-no-lease.md) | 2026-09-13 | `architecture` |
 | ~~[A credencial do tracker vem do ambiente](adr/2026-09-13-1531-tracker-credentials-come-from-the-environment.md)~~ | 2026-09-13 | `security` · **superado** |
 | [O Lumem guarda as chaves dos serviços de que depende](adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md) | 2026-09-13 | `security` |
+| [O desenho mora no código, e a galeria é o Storybook](adr/2026-09-20-2246-design-lives-in-the-code.md) | 2026-09-20 | `design` |
 
 **A cadeia foi exercitada em 2026-09-13**, e pela primeira vez: o ADR das credenciais do tracker foi
 **superado no mesmo dia** pelo do cofre, porque a decisão dele estava errada — o `gh` era solução
@@ -105,7 +106,7 @@ Sidebar de projetos, worktrees, terminais e sessões de agente. Não é o MVP �
 
 ### [ui-shell/](features/002-ui-shell/) — a interface
 
-Veste as funções que o walking-skeleton deixou de pé. Não adiciona nenhuma. O desenho foi feito como protótipo HTML antes de qualquer React, em `packages/web/prototype/lumem-shell.html`.
+Veste as funções que o walking-skeleton deixou de pé. Não adiciona nenhuma. O desenho foi feito como protótipo HTML antes de qualquer React, em `lumem-os-design/lumem-shell.html`.
 
 | Arquivo | O quê |
 |---|---|
@@ -115,7 +116,7 @@ Veste as funções que o walking-skeleton deixou de pé. Não adiciona nenhuma. 
 
 ### [worktree-tabs/](features/003-worktree-tabs/) — a sessão vira aba
 
-Sucede a `ui-shell`. A sidebar para na worktree e as sessões daquela worktree viram abas; o checkout principal entra na lista como `local`. Protótipo em `packages/web/prototype/lumem-tabs.html`.
+Sucede a `ui-shell`. A sidebar para na worktree e as sessões daquela worktree viram abas; o checkout principal entra na lista como `local`. Protótipo em `lumem-os-design/lumem-tabs.html`.
 
 | Arquivo | O quê |
 |---|---|
@@ -123,7 +124,7 @@ Sucede a `ui-shell`. A sidebar para na worktree e as sessões daquela worktree v
 
 ### [right-panel/](features/004-right-panel/) — arquivos e diff
 
-Sucede a `worktree-tabs`. Uma terceira coluna, à direita, com os arquivos do checkout selecionado e o que mudou nele. É a primeira feature em que o daemon lê **conteúdo** do repositório, e não só metadado. Protótipo em `packages/web/prototype/lumem-right-panel.html`.
+Sucede a `worktree-tabs`. Uma terceira coluna, à direita, com os arquivos do checkout selecionado e o que mudou nele. É a primeira feature em que o daemon lê **conteúdo** do repositório, e não só metadado. Protótipo em `lumem-os-design/lumem-right-panel.html`.
 
 | Arquivo | O quê |
 |---|---|
@@ -181,7 +182,7 @@ e por PTY ele só via bytes.
 | [open-questions.md](features/007-workspace-memory/open-questions.md) | 47 perguntas, **44 respondidas** — o registro de por que cada decisão foi tomada. A Q38 fechou na PR 08, quando o custo de esperar mudou: agente passou a escrever. As três abertas (Q39, Q44, Q46) são de curadoria e de identidade de ator — a Q46 é a [autenticação do daemon](project/backlog.md), que é do projeto e não desta feature |
 | [tasks.md](features/007-workspace-memory/tasks.md) | Uma seção por PR. Cada uma termina com a tabela do que ela **decidiu enquanto executava** — as decisões que o desenho não previu e que a implementação cobrou. É onde ler quando algo no código parecer arbitrário |
 | [roadmap.md](features/007-workspace-memory/roadmap.md) | **A feature em pilha de PRs**: topologia de branches, as sete regras da pilha, as cinco partes da espinha, o que anda em paralelo e onde o ACP entra |
-| `packages/web/prototype/lumem-memory.html` | O protótipo, agora com **sete telas** e vindo do Open Design como todos os outros: o que existe no escopo ativo (com busca), a inbox, o conflito no mesmo escopo, a linha do tempo, os números, os estados degradados e os playbooks. Era o único protótipo que vivia só neste repositório — anterior à regra de 2026-08-19 |
+| `lumem-os-design/lumem-memory.html` | O protótipo, agora com **sete telas** e vindo do Open Design como todos os outros: o que existe no escopo ativo (com busca), a inbox, o conflito no mesmo escopo, a linha do tempo, os números, os estados degradados e os playbooks. Era o único protótipo que vivia só neste repositório — anterior à regra de 2026-08-19 |
 | [context-delivery.md](features/007-workspace-memory/context-delivery.md) | Como a memória chega no agente: **núcleo comportamental + skill + serviço `lumem-memory` com auto-learn**. O que o desenho compra, o que ele cobra, o que medir, e as **8 decisões (D1–D8)** |
 
 Quatro decisões já fechadas mudaram o desenho: **nenhuma memória vive dentro do repositório** (menos o
@@ -200,7 +201,7 @@ a política de permissão.
 | [prd.md](features/006-acp-sessions/prd.md) | O que o spike mediu — **autenticação e consumo nesta máquina**, e a janela só até "nasce em 1M" —, escopo do transporte e da tela, riscos, fases |
 | [open-questions.md](features/006-acp-sessions/open-questions.md) | 16 perguntas, **14 respondidas** — inclusive o volume da transcrição medido em 675 sessões reais. **A13** e **A14** nasceram no protótipo; a **A15** nasceu na fase 4 e a **A16** na fase 6, as duas abertas |
 | [tasks.md](features/006-acp-sessions/tasks.md) | **35 tasks, todas fechadas**, nas fases 1, 3, 4, 5 e 6 do PRD. Diz também por que a fase 3 não começa antes da 1, por que a escrita em disco vem antes de tudo na 4, e por que a gravação da transcrição vem antes de tudo na 5 |
-| `packages/web/prototype/lumem-acp-conversation.html` | O protótipo da fase 2: seis telas — conversa, ferramenta, permissão, plano, uso, limites. Não é documentação, é o desenho executável; fica junto dos outros protótipos |
+| `lumem-os-design/lumem-acp-conversation.html` | O protótipo da fase 2: seis telas — conversa, ferramenta, permissão, plano, uso, limites. Não é documentação, é o desenho executável; fica junto dos outros protótipos |
 
 ### [onboarding/](features/008-onboarding/) — a máquina vazia chega até a primeira conversa
 
@@ -284,7 +285,7 @@ e sujeira somem da vista, e quem paga são o ponto na aba e o marcador na sideba
 | [open-questions.md](features/013-pull-request-status/open-questions.md) | 11 perguntas, **11 respondidas**. Duas delas contra a proposta escrita: a Q3 põe o `Merge` no v1 e a Q4 faz o Lumem criar a PR |
 | [spike.md](features/013-pull-request-status/spike.md) | A saída real do `gh`, medida antes de o adaptador existir. O achado que mudou código: `mergeable` volta `UNKNOWN` para PR mesclada ou fechada, então a tabela lê `state` primeiro — senão toda PR mesclada ficaria âmbar |
 | [tasks.md](features/013-pull-request-status/tasks.md) | **18 tasks em 7 fases** — as 16 do plano mais a P14, que a Q3 e a Q4 abriram. A fase 1 (E1–E3) saiu para a `worktree-first-tab`; a 2 é o spike |
-| `packages/web/prototype/lumem-pr-bar.html` | O protótipo, vindo do Open Design: nove telas — a tela inteira, a aba da worktree, os cinco estados na largura do painel, as causas de bloqueio, a aba `PR`, os seis estados degradados, o painel fechado, as duas larguras extremas, e o que a barra não faz. **Zero token novo**; **doze** pares de contraste novos entraram no `contrast.ts`, que passou de 107 para 119. A tela 9 ficou desatualizada quando a Q3 e a Q4 mudaram o corte — está no §10 do PRD como dívida |
+| `lumem-os-design/lumem-pr-bar.html` | O protótipo, vindo do Open Design: nove telas — a tela inteira, a aba da worktree, os cinco estados na largura do painel, as causas de bloqueio, a aba `PR`, os seis estados degradados, o painel fechado, as duas larguras extremas, e o que a barra não faz. **Zero token novo**; **doze** pares de contraste novos entraram no `contrast.ts`, que passou de 107 para 119. A tela 9 ficou desatualizada quando a Q3 e a Q4 mudaram o corte — está no §10 do PRD como dívida |
 
 ### [distribution/](features/014-distribution/) — o Lumem sai do checkout
 
@@ -348,7 +349,7 @@ frente, o nome da worktree só existe na aba.
 | [prd.md](features/018-worktree-first-tab/prd.md) | O §4 — com uma aba de sessão na frente, branch e sujeira somem da vista, e quem paga são o ponto na aba e o caminho acima dela |
 | [open-questions.md](features/018-worktree-first-tab/open-questions.md) | 5 perguntas, **5 respondidas** — e o registro de **como**: cada uma pela proposta já desenhada. A Q1, herdada da barra da PR, mudou de forma antes de virar linha, porque o código desmentiu o argumento dela |
 | [tasks.md](features/018-worktree-first-tab/tasks.md) | 9 tasks em 4 fases, **todas entregues**. Sem daemon: o risco era de **regressão**. Termina com o que a execução achou — inclusive o bug que 826 testes de componente não pegam e o e2e pega |
-| `packages/web/prototype/lumem-worktree-tab.html` | O protótipo, vindo do Open Design: dez telas — antes × depois da moldura, a tela inteira, a barra de abas de perto com os estados do `▤`, a aba da worktree sozinha, o `▭ local`, as quatro leituras da Q1, os dois lugares do `▤` na Q2, os dois estados degradados que a aba herda, e o que o desenho não faz. **Zero token novo**; um componente novo só, o `.tabs__files` |
+| `lumem-os-design/lumem-worktree-tab.html` | O protótipo, vindo do Open Design: dez telas — antes × depois da moldura, a tela inteira, a barra de abas de perto com os estados do `▤`, a aba da worktree sozinha, o `▭ local`, as quatro leituras da Q1, os dois lugares do `▤` na Q2, os dois estados degradados que a aba herda, e o que o desenho não faz. **Zero token novo**; um componente novo só, o `.tabs__files` |
 
 ### [run-dock-open/](features/015-run-dock-open/) — o rodapé nasce aberto · **completa**
 
@@ -364,7 +365,7 @@ no produto. **Era uma linha.**
 | [prd.md](features/015-run-dock-open/prd.md) | As três parcelas da conta — largura, altura e processo — e por que as três saíram de graça |
 | [open-questions.md](features/015-run-dock-open/open-questions.md) | 7 perguntas, todas respondidas. Seis no Open Design em 2026-09-01; a **Q6 revertida em 2026-09-06**, antes do código, com a folha reescrita para registrar |
 | [tasks.md](features/015-run-dock-open/tasks.md) | 3 tasks numa fase, todas entregues. A armadilha era a prova, não o código: o padrão fechado nunca teve teste, então não havia o que reescrever — havia o que escrever |
-| `packages/web/prototype/lumem-run-dock-open.html` | O protótipo: seis quadros que fazem a conta de espaço **aparecer** em vez de ser argumentada, cada decisão ao lado da alternativa recusada — e, desde 2026-09-06, a proposta de faixa que a Q6 derrubou, marcada e mantida |
+| `lumem-os-design/lumem-run-dock-open.html` | O protótipo: seis quadros que fazem a conta de espaço **aparecer** em vez de ser argumentada, cada decisão ao lado da alternativa recusada — e, desde 2026-09-06, a proposta de faixa que a Q6 derrubou, marcada e mantida |
 
 ### [session-mode/](features/016-session-mode/) — o modo sempre na tela · **completa**
 
@@ -393,7 +394,7 @@ tinha visto, um deles grave: o menu de `/comandos` era **invisível por inteiro*
 | [prd.md](features/023-composer-menus/prd.md) | os três defeitos que uma declaração produzia, e por que o conserto é remover o recorte em vez de fugir dele |
 | [open-questions.md](features/023-composer-menus/open-questions.md) | 5 perguntas, **5 respondidas** — as três primeiras no Open Design, e a Q1 respondida por medição, não por argumento |
 | [tasks.md](features/023-composer-menus/tasks.md) | 4 tasks em 2 fases, todas entregues. A armadilha é a prova: jsdom não faz layout, então o e2e pergunta `elementFromPoint` e não `toBeVisible` |
-| `packages/web/prototype/lumem-composer-menus.html` | o protótipo: o §1 desenha o produto de hoje com `.clip`, o §2 põe os dois cantos lado a lado, o §3 é a tabela de âncoras |
+| `lumem-os-design/lumem-composer-menus.html` | o protótipo: o §1 desenha o produto de hoje com `.clip`, o §2 põe os dois cantos lado a lado, o §3 é a tabela de âncoras |
 
 ---
 
@@ -530,7 +531,7 @@ listagens por abertura"* nunca foi verdade — branch é disco (10 ms), PR já e
 | [prd.md](features/026-worktree-from/prd.md) | o §3 é a bancada: nove casos de `git worktree add` com saída e código real, o custo medido de cada leitura, e o que `gh issue develop` faz de fato — **ele escreve no host** |
 | [open-questions.md](features/026-worktree-from/open-questions.md) | 9 perguntas, **9 respondidas**: as 5 do pedido mais 4 que a medição abriu. Três contrariam o que o pedido propunha, inclusive a regra de quando apagar a branch órfã |
 | [tasks.md](features/026-worktree-from/tasks.md) | **14 tasks em 6 fases, todas entregues.** Zero migração: `name` e `branch` já são colunas separadas, e esta é a primeira feature em que elas divergem — a regra que a `walking-skeleton` escreveu para isso disparou pela primeira vez |
-| `packages/web/prototype/lumem-worktree-from.html` | a folha, oito quadros — e cinco medidas do desenho corrigidas **no navegador**, da meia linha que era um sliver de 8px ao cartão que a moldura espremia em 12px. Ela também achou que a `docs-contract` editou **quatro cópias** de protótipo, que o primeiro `design:sync` desfez |
+| `lumem-os-design/lumem-worktree-from.html` | a folha, oito quadros — e cinco medidas do desenho corrigidas **no navegador**, da meia linha que era um sliver de 8px ao cartão que a moldura espremia em 12px. Ela também achou que a `docs-contract` editou **quatro cópias** de protótipo, que o primeiro `design:sync` desfez |
 
 ### [adapter-provenance/](features/027-adapter-provenance/) — de quem é o adaptador · **em execução**
 
@@ -613,7 +614,7 @@ compartilhar a classe é o que faz clicar em `Home` desmarcar a worktree, que é
 | [prd.md](features/029-sidebar-nav/prd.md) | o §2 é o que se descobriu antes do código, e o achado que decidiu a Q6 é que **o aplicativo não tem rota nenhuma** — `/styleguide` é o único caminho lido, e só em DEV |
 | [open-questions.md](features/029-sidebar-nav/open-questions.md) | 7 perguntas, **7 respondidas**, **3 contra a proposta**. A **Q3** inverteu o desenho: a lista **já** tinha endereço (é seção do Home), e quem sumia era o quadro — dar a linha à lista teria deixado de fora justamente a tela que some. A **Q3a** recusou titular a tela pelo assunto porque tarefas podem virar lista, gantt ou outra coisa, e o título apagaria **qual** visão está na frente no dia em que existir a segunda |
 | [tasks.md](features/029-sidebar-nav/tasks.md) | **6 tasks em 3 fases, todas entregues.** A parte que custou não foi o CSS: foi o App passar a ter **uma** resposta para *onde eu estou*, e ele tinha duas — `selection` nele e `board` dentro do `WorkspacePanel`. A fase 3 achou dois defeitos que não são do bloco: o e2e da rolagem **nasceu vazio** (a árvore não rola no fixture), e a frase de leitor de tela colidiu com a barra de PR — texto invisível é texto para o `getByText` |
-| `packages/web/prototype/lumem-sidebar-nav.html` | a folha, quatro quadros. O bloco tem **65px** medidos e o glifo cai no **mesmo `x`** do `■` de projeto (1615,5px nos dois), que é o que prova que as linhas são a mesma linha |
+| `lumem-os-design/lumem-sidebar-nav.html` | a folha, quatro quadros. O bloco tem **65px** medidos e o glifo cai no **mesmo `x`** do `■` de projeto (1615,5px nos dois), que é o que prova que as linhas são a mesma linha |
 
 ### [settings/](features/030-settings/) — um lugar para o que se ajusta uma vez por mês · **completa**
 
@@ -633,7 +634,34 @@ linha de lugar" e "ter uma tela de configurações" são coisas diferentes.
 | [prd.md](features/030-settings/prd.md) | o §2 são seis medições com número: `GET /settings` já devolve **200 `text/html`** no vite e o shell no daemon instalado — falta o **cliente** ler o caminho; um router de biblioteca custa **4,79 MB** e duas dependências para três endereços; os tetos não têm quem os escreva; o `tokens.css` tem **111 valores em `px` e zero `rem`**, então tamanho de fonte não tem alavanca; e os donos são **quatro**, não três — o mapa de colunas do tracker é do **repositório** |
 | [open-questions.md](features/030-settings/open-questions.md) | **10 perguntas, todas respondidas** em 2026-09-17, **quatro contra a proposta** — as que o desenho precisava —, e **duas contra a proposta**. A **Q3** recusou a frase de escopo por seção porque `integrações` **não tem um dono**: a chave é da máquina, o mapa de colunas é do repositório. A **Q5** derrubou a premissa da própria pergunta — eu tratei o `aria-label="Telas do workspace"` como regra, e ele é **descrição**; quem decidiu foi a Q6, porque pôr a porta da tela nova no rodapé que a LUM-57 e a LUM-58 vão esvaziar é construir a entrada dentro da sala em demolição. E a **Q2** é a única do repositório cuja resposta **criou uma feature**: ela tinha três níveis dentro dela, parou no primeiro — três endereços à mão, e o checkout com `replaceState` porque ele é seleção e não lugar —, e mandou o terceiro para a [LUM-63](https://linear.app/lumem-os/issue/LUM-63/rotas-de-verdade-workspace-projeto-e-checkout-na-url-o-n3-que-a-030). **Não vira ADR**, e o motivo é o primeiro dos três testes: o N1 não é difícil de reverter — `/settings` vale nos três níveis, e trocar 40 linhas por uma biblioteca é uma tarde. Quem fecha porta é o N3. E a **Q6** respondeu *não sobra nada* no rodapé da sidebar: ele **some inteiro**, o que transforma a LUM-57 e a LUM-58 de *mover conteúdo* em *remover o rodapé* — e faz a conta da coluna fechar **positiva**, porque a terceira linha cobra 28px e o rodapé devolve 73 a 105. A **Q6a**, que ela abriu, é a única do documento que derrubou a **premissa** da própria pergunta: o sinal passivo de agente caído **não aparece**, porque ele não escala — uma linha por agente são +28px cada, e dar rolagem ao bloco o faria ocupar espaço **e** parar de cumprir a função. O lugar disso é uma superfície que agrega, e **notificações** entrou no backlog com esse argumento |
 | [tasks.md](features/030-settings/tasks.md) | **16 tasks em 5 fases, todas entregues** em 2026-09-17. A fase 4 achou o defeito mais instrutivo da feature: **o e2e do teto `null` passava com a escrita quebrada** — um workspace que nunca teve teto já tem `null`, então o caso media o default e chamava de resultado. A fase 0 entregou a **T1** e a **T3** primeiro — as quatro perguntas do desenho respondidas e a folha de pé. A fase 0 ainda inclui decidir se o roteamento vira **ADR**: ele passa nos três testes com folga, e o custo está medido. A armadilha é nova aqui: jsdom **tem `history`**, então um teste de componente passa contra um router que nunca tocou uma barra de endereço — o que prova rota é `F5` e o botão voltar, e os dois só existem no e2e |
-| `packages/web/prototype/lumem-settings.html` | a folha, quatro quadros — a tela, o campo de teto, a etiqueta e o glifo, e a conta. Ela foi **renderizada e medida**, e achou **quatro defeitos de desenho**; o mais reaproveitável não é desta feature: **a largura da coluna mora no `.body`**, então uma sidebar montada num `flex` encolhe para **188,6px** e a folha passa a medir uma coluna que o produto não tem. A última aba registra **o que a folha assumiu e a resposta contradisse** — hipótese desenhada que envelhece em silêncio vira desenho errado que ninguém releu |
+| `lumem-os-design/lumem-settings.html` | a folha, quatro quadros — a tela, o campo de teto, a etiqueta e o glifo, e a conta. Ela foi **renderizada e medida**, e achou **quatro defeitos de desenho**; o mais reaproveitável não é desta feature: **a largura da coluna mora no `.body`**, então uma sidebar montada num `flex` encolhe para **188,6px** e a folha passa a medir uma coluna que o produto não tem. A última aba registra **o que a folha assumiu e a resposta contradisse** — hipótese desenhada que envelhece em silêncio vira desenho errado que ninguém releu |
+
+## A que tirou o desenho de fora — 2026-09-20
+
+### [design-in-the-code/](features/031-design-in-the-code/) — o desenho mora no código · **completa**
+
+O Open Design saiu. Ele era a fonte e o repositório era cópia, e a cópia estava **67 arquivos
+atrás** no dia da decisão — um refactor de camadas de lá, com `lumem-ds.css` de 734 regras e 24
+telas, nunca entrou aqui e nada falhou. Somado a isso: **uma pasta só** em `~/Library/Application
+Support/` para um produto cujo assunto é worktree paralela, e um clone que não contém o desenho.
+
+Agora o componente React **é** o desenho, a galeria é o **Storybook** (`pnpm storybook`), e o
+agentation anota nas duas superfícies. O `tokens.css` deixou de ser cópia e virou fonte; o
+`design:sync` virou `design:derive`; os 24 protótipos saíram, com o histórico preservado no
+`lumem-os-design`, arquivado. A rota `/styleguide` virou 19 stories com o mesmo JSX.
+
+| Arquivo | O quê |
+|---|---|
+| [o ADR](adr/2026-09-20-2246-design-lives-in-the-code.md) | a decisão, com `supersedes` para a de 2026-08-19. Ele **reafirma** o que fica: `var(--token)` em todo componente, `tokens.ts` derivado, 119 pares de contraste no `gate:quick`. A alternativa mais forte — ficar no Open Design com um symlink por worktree — foi **medida e funciona**, e perdeu por pedido, o que está escrito |
+| [prd.md](features/031-design-in-the-code/prd.md) | a execução, e o §5 é o defeito que ela achou: o `build-storybook` **passava** enquanto o `storybook dev` girava para sempre. Um `delete config.server` de três palavras derrubou o plugin que injeta o `vite-app.js` do preview, e nenhuma das duas mensagens de erro — um `SyntaxError` do React e uma acusação de `allowedHosts` — cita o **404** que era a causa |
+| [tasks.md](features/031-design-in-the-code/tasks.md) | 8 tasks numa fase só, todas entregues. Uma fase porque deixar protótipo e Storybook de pé ao mesmo tempo recriaria em uma semana a divergência que a feature existe para apagar |
+
+**O que ela custa, e está escrito:** a **atenção agendada**. A fase de desenho era um momento marcado
+para olhar uma superfície inteira, e foi assim que a [`023`](features/023-composer-menus/prd.md) achou
+um `overflow: hidden` vivo no produto havia três features, com teste verde. O agentation é
+oportunista — pega o que se olha.
+
+---
 
 ## Convenções
 

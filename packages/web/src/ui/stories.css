@@ -1,52 +1,26 @@
 /*
- * A página do styleguide. Não vai pra produção — só existe em `DEV`, e o que
- * está aqui é a moldura da galeria, nunca uma primitiva.
+ * A moldura das stories. Nunca uma primitiva.
+ *
+ * Herdou o que sobrou da `styleguide.css`: as classes que **arrumam** os
+ * exemplos na página. O que era moldura de página (`.sg`, `.sg__title`,
+ * `.sg__section`, `.sg__heading`) morreu junto com a rota `/styleguide` —
+ * cabeçalho, separador e navegação agora são do Storybook.
  */
 
-.sg {
-  height: 100%;
-  overflow: auto;
-  padding: var(--space-24) var(--space-32) var(--space-64);
-}
-
-.sg__title {
-  margin: 0;
-  font: var(--text-display-lg);
-  letter-spacing: var(--tracking-display-lg);
-}
-
-.sg__lede {
-  margin: var(--space-4) 0 var(--space-32);
-  font: var(--text-body-lg);
-  color: var(--color-text-secondary);
-}
-
-.sg__section {
-  margin-bottom: var(--space-32);
-  padding-top: var(--space-16);
-  border-top: 1px solid var(--color-border-subtle);
-}
-
-.sg__heading {
+/* Cada story nasce dentro disto, pelo decorator global do `preview.ts`. A
+   largura máxima é a mesma do detalhe: primitiva medida numa faixa larga
+   demais mente sobre onde ela quebra. */
+.sg__body {
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
   gap: var(--space-12);
-  margin: 0 0 var(--space-12);
-  font: var(--text-heading-md);
-  letter-spacing: var(--tracking-heading-md);
+  max-width: var(--size-detail-max);
 }
 
 .sg__note {
   font: var(--text-body-sm);
   font-weight: 400;
   color: var(--color-text-tertiary);
-}
-
-.sg__body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-12);
-  max-width: var(--size-detail-max);
 }
 
 .sg__inline {
@@ -76,7 +50,12 @@
 }
 
 /* Duas colunas de arquivos lado a lado, nas duas pontas da largura. */
-.sg__columns { display: flex; gap: var(--space-16); align-items: stretch; }
+.sg__columns {
+  display: flex;
+  gap: var(--space-16);
+  align-items: stretch;
+}
+
 .sg__column {
   display: flex;
   height: calc(var(--space-64) * 3);
@@ -84,4 +63,8 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
-.sg__column > .rp { flex: 1; border-left: 0; }
+
+.sg__column > .rp {
+  flex: 1;
+  border-left: 0;
+}

@@ -7,8 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "storybook": "storybook dev -p 6006 -h 127.0.0.1 --no-open",
+    "build-storybook": "storybook build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "design:sync": "tsx scripts/design-sync.ts",
+    "design:derive": "tsx scripts/design-derive.ts",
     "test": "vitest run"
   },
   "dependencies": {
@@ -30,6 +32,7 @@
   },
   "devDependencies": {
     "@lumem/server": "workspace:*",
+    "@storybook/react-vite": "^10.6.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
@@ -38,6 +41,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "agentation": "^3.0.2",
     "jsdom": "^25.0.1",
+    "storybook": "^10.6.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
     "vitest": "^3.0.5"

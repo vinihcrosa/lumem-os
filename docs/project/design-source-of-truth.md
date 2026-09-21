@@ -1,5 +1,13 @@
 # O design é feito no Open Design
 
+> **Superado em 2026-09-20.** O Open Design saiu, e a decisão em vigor é
+> [`docs/adr/2026-09-20-2246-design-lives-in-the-code.md`](../adr/2026-09-20-2246-design-lives-in-the-code.md)
+> — o desenho mora no código, a galeria é o Storybook, e `tokens.css` deixou de ser cópia. **Este
+> arquivo continua valendo como registro** de um período e de duas medições que sobreviveram: o que o
+> pipeline em casa achou (§1) e o custo que a cópia cobrou (§5). O §6, *"o que faria voltar"*, errou
+> os dois gatilhos — não foi o Open Design deixar de ser local nem a paleta precisar crescer; foi a
+> cópia ficar **67 arquivos atrás** sem nada avisar.
+
 > **Este arquivo é o estudo, não a decisão.** A decisão mora em
 > [`docs/adr/2026-08-19-2247-design-is-made-in-open-design.md`](../adr/2026-08-19-2247-design-is-made-in-open-design.md)
 > — é lá que se lê o que está em vigor. Aqui fica o que sustentou a escolha: **como era** (§1), com o

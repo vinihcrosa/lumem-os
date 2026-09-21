@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
  * The port audit, in both directions.
  *
  * The promise of this port is that the classes come from
- * `prototype/lumem-onboarding.css` and `prototype/lumem-ds.css` with the same
+ * `lumem-os-design/lumem-onboarding.css` and `lumem-os-design/lumem-ds.css` with the same
  * names, so a divergence is a bug rather than a choice. A promise like that is
  * worth exactly as much as the thing that checks it: the conversation's port
  * silently dropped `.tc--cancelled` and nothing failed — the card just rendered

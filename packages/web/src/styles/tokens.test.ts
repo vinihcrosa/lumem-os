@@ -21,12 +21,13 @@ import { color } from "./tokens.js";
  * A paleta, sem Python.
  *
  * Antes disto o `generate-tokens.py` **gerava** `tokens.css` e conferia contraste na
- * geração. O design passou a ser feito inteiramente no Open Design
- * ([decisão](../../../../docs/project/design-source-of-truth.md)), então `tokens.css`
- * chega de lá pelo `design:sync` e não é mais gerado por ninguém.
+ * geração. Depois o desenho foi para o Open Design e `tokens.css` passou a **chegar**
+ * de lá por cópia. Hoje ele é original, editado aqui
+ * ([ADR](../../../../docs/adr/2026-09-20-2246-design-lives-in-the-code.md)), e não é
+ * gerado por ninguém.
  *
  * O que sai do gerador é a geração. O que **fica** é a verificação, e ela fica porque
- * passou a valer mais: cor escolhida à mão numa ferramenta de design é exatamente o
+ * passou a valer mais: cor escolhida à mão é exatamente o
  * caso que precisa de alguém conferindo contraste. Antes a conta rodava na geração;
  * agora roda aqui, que é onde ela vira gate.
  */
