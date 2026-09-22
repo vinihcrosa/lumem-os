@@ -434,7 +434,7 @@ desenho de fora do repositório. O Open Design era a fonte e daqui saía uma có
 24 telas — nunca entrou, e nada falhou. Some a isso **uma pasta só** em `~/Library/Application
 Support/` para um produto cujo assunto é worktree paralela, e um clone que não contém o desenho. O
 [ADR](docs/adr/2026-09-20-2246-design-lives-in-the-code.md) supera o de 2026-08-19 e **reafirma** o
-que fica: `var(--token)` em todo componente, `tokens.ts` derivado, 119 pares de contraste no gate.
+que fica: `var(--token)` em todo componente, `tokens.ts` derivado, os pares de contraste no gate.
 Agora o componente React **é** o desenho, a galeria é o **Storybook**, e o agentation anota nas duas
 superfícies. A rota `/styleguide` virou 19 stories com o mesmo JSX; o `design:sync` virou
 `design:derive`; os protótipos saíram, com o histórico no `lumem-os-design`, arquivado. A alternativa
@@ -547,8 +547,17 @@ não se edita à mão:
 **garante** é o `gate:quick`, que compara o `tokens.ts` commitado com o que a derivação produz.
 
 Componente em React só usa `var(--token)`: nenhum literal de cor, de espaço ou de tipografia. O
-`gate:quick` confere os 119 pares de contraste, então cor escolhida à mão que reprova falha a suíte
-com o nome da combinação de tela que quebrou.
+`gate:quick` confere os **122 pares de contraste**, então cor escolhida à mão que reprova falha a
+suíte com o nome da combinação de tela que quebrou.
+
+E confere os **conjuntos de distinção**, que respondem a outra pergunta. Contraste mede cor contra o
+**fundo** — *dá pra ler?*; `DISTINCTION_SETS` mede cor contra a cor **ao lado** — *dá pra
+diferenciar?*. Dois tokens que dividem tela significando coisas diferentes precisam de **40°** de
+matiz entre si. A lista nasceu de um defeito com a suíte verde: o quadro pintou `● implementando` e
+`● bloqueada` a 25° um do outro, e só o navegador viu. Do mesmo [ADR de
+2026-09-22](docs/adr/2026-09-22-0228-brand-is-scarce-agent-has-its-own-family.md) vem a **marca
+escassa** — a cor de marca pinta 7 tokens, só CTA, foco e superfície de marca, **nunca estado** —, e
+a identidade do agente, que mora na família `agent`.
 
 **A galeria é o Storybook** — `pnpm storybook`, porta 6006. Ela substituiu a rota `/styleguide`, e é
 onde mora o estado caro de alcançar no app de verdade: workspace sem acervo, orçamento bloqueado,

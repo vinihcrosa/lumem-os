@@ -14,8 +14,15 @@ import { describe, expect, it } from "vitest";
 import "./tokens.css";
 
 import { tokensTsFromCss } from "../../scripts/tokens-from-css.js";
-import { CONTRAST_PAIRS, checkContrast, checkNeutralLadder, contrastRatio } from "./contrast.js";
-import { color } from "./tokens.js";
+import {
+  CONTRAST_PAIRS,
+  DISTINCTION_SETS,
+  checkContrast,
+  checkDistinction,
+  checkNeutralLadder,
+  contrastRatio,
+} from "./contrast.js";
+import { color, primitives } from "./tokens.js";
 
 /**
  * A paleta, sem Python.
@@ -44,7 +51,7 @@ describe("contraste", () => {
     ).toEqual([]);
   });
 
-  it("mede pelo menos 119 pares", () => {
+  it("mede pelo menos 122 pares", () => {
     // Piso, não número exato: acrescentar par não pode falhar isto, e **apagar** par
     // para calar uma reprovação tem de falhar.
     //
@@ -52,7 +59,11 @@ describe("contraste", () => {
     // crescia para `107`, e a barra da PR o levou para `71` (59+12) — o que
     // deixava **quarenta e oito** pares apagáveis em silêncio. Quem acrescentar
     // par sobe este número junto; é uma linha, e é o que faz a guarda existir.
-    expect(CONTRAST_PAIRS.length).toBeGreaterThanOrEqual(119);
+    //
+    // E foi encontrado **três atrás** outra vez, em 2026-09-22, enquanto se media
+    // outra coisa: o array estava em `122` e o piso em `119`. Não custa repetir o
+    // que a folga significa — três pares apagáveis sem nada falhar.
+    expect(CONTRAST_PAIRS.length).toBeGreaterThanOrEqual(122);
   });
 
   it("aponta só para token que existe", () => {
@@ -79,6 +90,100 @@ describe("contraste", () => {
     // Número maior é sempre mais escuro. Quebrar isso envenena tudo o que escolhe
     // degrau confiando na ordem — que é toda superfície e toda borda.
     expect(checkNeutralLadder()).toEqual([]);
+  });
+});
+
+describe("distinção", () => {
+  /*
+   * A pergunta que faltava.
+   *
+   * `contraste` mede cor contra FUNDO — "dá pra ler?". Isto mede cor contra a cor AO
+   * LADO — "dá pra diferenciar?". São perguntas diferentes, e o repositório só tinha
+   * gate para a primeira: em 2026-09-22 a suíte inteira ficou verde enquanto o quadro
+   * pintava `● implementando` e `● bloqueada` quase na mesma cor. Os dois passavam no
+   * contraste com folga, cada um contra o seu fundo.
+   */
+
+  it("mantém distinguível todo conjunto que divide tela", () => {
+    // A mensagem é o teste: "um conjunto reprovou" não diz quais duas cores encostaram.
+    expect(checkDistinction()).toEqual([]);
+  });
+
+  it("reprova duas cores que encostam — o defeito de 2026-09-22", () => {
+    /*
+     * A prova de que a guarda acima checa alguma coisa.
+     *
+     * Um gate que nasce verde é indistinguível de um gate que não checa nada, então
+     * esta é a mesma checagem ficando VERMELHA de propósito — e o caso não é
+     * inventado: `bg/brand` e `text/danger` são os dois tokens reais que, no dia em
+     * que a marca virou laranja, o quadro pintou lado a lado significando
+     * "trabalhando" e "bloqueada".
+     */
+    const problems = checkDistinction([
+      { label: "selo trabalhando x selo bloqueada", tokens: ["bg/brand", "text/danger"] },
+    ]);
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("bg/brand");
+    expect(problems[0]).toContain("text/danger");
+    expect(problems[0]).toContain("25°");
+  });
+
+  it("não compara matiz de cinza, porque matiz de cinza não significa nada", () => {
+    // Dois cinzas têm matiz arbitrário e ficariam a ~0° um do outro — o que
+    // reprovaria todo conjunto que tem um token neutro. Quem os separa é a
+    // claridade, e disso `CONTRAST_PAIRS` já cuida. Sem esta regra o gate seria
+    // ruído, e gate ruidoso é gate desligado.
+    expect(checkDistinction([
+      { label: "dois cinzas", tokens: ["text/secondary", "text/tertiary"] },
+    ])).toEqual([]);
+  });
+
+  it("acusa conjunto que aponta para token que sumiu", () => {
+    // Conjunto apontando para nome que não existe é a lista envelhecendo em silêncio:
+    // o token sai do `tokens.css`, a comparação deixa de acontecer, e nada falha.
+    expect(checkDistinction([
+      { label: "conjunto velho", tokens: ["text/nao-existe-mais"] },
+    ])).toEqual(["conjunto velho: text/nao-existe-mais não existe em tokens.ts"]);
+  });
+
+  it("mede pelo menos 9 conjuntos", () => {
+    // Piso, não número exato — a mesma razão do piso de `CONTRAST_PAIRS`: acrescentar
+    // conjunto não pode falhar isto, e apagar conjunto para calar uma reprovação tem
+    // de falhar.
+    expect(DISTINCTION_SETS.length).toBeGreaterThanOrEqual(9);
+  });
+});
+
+describe("a marca é escassa", () => {
+  it("só pinta CTA, foco e superfície de marca", () => {
+    /*
+     * A regra é do template do Cursor — "Cursor Orange is reserved for primary CTAs
+     * and the wordmark. Used scarcely." — e no Lumem ela deixou de ser estilo: é o
+     * que impede a laranja de voltar a ser cor de ESTADO e reencostar no vermelho.
+     *
+     * A identidade do agente mora na família `agent`. Quem escrever
+     * `--color-turn-thought: var(--brand-400)` recria a colisão de 2026-09-22, e sem
+     * esta guarda nada falharia — o `checkDistinction` só olha os conjuntos que
+     * alguém lembrou de declarar.
+     *
+     * Lista que só ENCOLHE. Acrescentar nome aqui é decisão, não manutenção.
+     */
+    const brandRamp = new Set<string>(Object.values(primitives.brand));
+    const usingBrand = Object.entries(color)
+      .filter(([, hex]) => brandRamp.has(hex))
+      .map(([token]) => token)
+      .sort();
+
+    expect(usingBrand).toEqual([
+      "bg/brand",
+      "bg/brand-hover",
+      "bg/brand-muted",
+      "bg/brand-subtle",
+      "border/brand",
+      "border/focus",
+      "text/brand",
+    ]);
   });
 });
 

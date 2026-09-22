@@ -2,22 +2,47 @@
 /* Rampas derivadas em OKLCH, entregues em hex. Os pares de contraste sao
    verificados no gate, em packages/web/src/styles/contrast.ts — mexer numa cor
    pede rodar a suite. */
+/*
+ * As sete rampas foram resemeadas a partir do vocabulario do Cursor
+ * (`npx getdesign@latest add cursor`), mantendo a interface ESCURA: o matiz vem
+ * do Cursor, a escada de luminosidade continua sendo a do Lumem. Isso nao e
+ * estilo de escrita — e o que faz os 122 pares de contraste sobreviverem por
+ * CONSTRUCAO em vez de por sorte, porque nenhum degrau mudou de claridade.
+ *
+ * As sementes, do DESIGN.md do template: marca `#F54E00` (Cursor Orange) e o
+ * estado de pressao `#D04200` entram com o hexadecimal exato, porque sao os
+ * dois valores que o template NOMEIA; o resto de cada rampa e o matiz deles
+ * aplicado a escada daqui. accent <- lavanda `#C0A8DD`, success <- `#1F8A65`,
+ * warning <- ouro `#C08532`, danger <- `#CF2D56`, info <- azul `#9FBBE0`.
+ *
+ * O neutro e o que menos aparece e o que mais muda: o Cursor pede tinta QUENTE
+ * (`#26251E`), nao preto puro — entao o quase-preto daqui deixou de puxar para
+ * o roxo e passou a puxar para o verde-oliva, com o mesmo croma minusculo de
+ * antes. Trocou-se o matiz, nao a saturacao.
+ *
+ * O que o template pede e NAO foi portado: fundo creme (`#F7F7F4`). Inverter a
+ * luminancia e outra feature — 214 tokens em 34 arquivos de CSS assumem fundo
+ * escuro. Decidido com o Vinicius em 2026-09-22.
+ */
 
 :root {
   /* ---------- primitivas — nunca use direto em componente ---------- */
   /* brand */
-  --brand-50: #F8F7FF;
-  --brand-100: #EFECFF;
-  --brand-200: #DFD9FF;
-  --brand-300: #CCC2FF;
-  --brand-400: #B5A2FF;
-  --brand-500: #9774FD;
-  --brand-600: #7955D7;
-  --brand-700: #603FAF;
-  --brand-800: #492F88;
-  --brand-900: #321F5F;
-  --brand-950: #211441;
-  /* accent */
+  --brand-50: #FFF6F3;
+  --brand-100: #FFE9E3;
+  --brand-200: #FFD4C6;
+  --brand-300: #FDB9A4;
+  --brand-400: #FA9373;
+  --brand-500: #F54E00;
+  --brand-600: #D04200;
+  --brand-700: #9D2F00;
+  --brand-800: #7A2200;
+  --brand-900: #551500;
+  --brand-950: #3B0C00;
+  /* accent — sem equivalente no Cursor: o template so tem cinco matizes, e a
+     lavanda delas virou a familia `agent`. Este continua sendo o oliva do
+     Lumem, intocado, porque quem o usa (branch do git, literal de string,
+     custo, escopo de worktree) precisa cair longe da lavanda. */
   --accent-50: #F6FAEB;
   --accent-100: #ECF3D8;
   --accent-200: #DAE5B3;
@@ -29,74 +54,105 @@
   --accent-800: #414A00;
   --accent-900: #2C3300;
   --accent-950: #1C2200;
+  /*
+   * agent — a lavanda da timeline do Cursor (`#C0A8DD`), e a oitava familia.
+   *
+   * Ela nasceu de um defeito que so o render pegou. Com a marca em laranja, o
+   * quadro pintava `● implementando` (`session/agent`, marca) ao lado de
+   * `● bloqueada` (`text/danger`) e as duas ficaram quase a mesma cor — dois
+   * estados OPOSTOS no mesmo matiz. A separacao minima entre familias caiu de
+   * 40° para 26°, com danger 12°, brand 38° e warning 72° espremidas em 60°.
+   *
+   * A saida e a regra do proprio template: "Cursor Orange is reserved for
+   * primary CTAs and the wordmark. Used scarcely." A laranja pintava 18 tokens;
+   * agora pinta 7, todos CTA, foco ou superficie de marca. O que e IDENTIDADE
+   * do agente — turno, cursor, palavra-chave, modo, elo — mudou para ca, que e
+   * o que o Cursor chama de "in-product agent visualization" e reserva para as
+   * pastilhas pastel.
+   *
+   * A escada de claridade e croma e a do roxo que estava aqui antes, nao uma
+   * nova: a lavanda herda o PAPEL do roxo (305° contra 292°), entao herdar a
+   * escada e o que mantem de pe todo par de contraste que citava a marca.
+   */
+  --agent-50: #FAF6FE;
+  --agent-100: #F3EBFD;
+  --agent-200: #E7D7FB;
+  --agent-300: #D8BEF8;
+  --agent-400: #C69CF5;
+  --agent-500: #AE6BEF;
+  --agent-600: #8E4CCA;
+  --agent-700: #7137A4;
+  --agent-800: #57297F;
+  --agent-900: #3C1B59;
+  --agent-950: #28113D;
   /* neutral */
   --neutral-0: #FFFFFF;
-  --neutral-50: #F8F7F9;
-  --neutral-100: #EFEEF1;
-  --neutral-200: #DEDEE3;
-  --neutral-300: #CBCAD2;
-  --neutral-400: #B2B1BB;
-  --neutral-500: #91909B;
-  --neutral-600: #73727C;
-  --neutral-700: #5A5962;
-  --neutral-800: #44434A;
-  --neutral-900: #2E2E33;
-  --neutral-925: #26252C;
-  --neutral-950: #1E1E22;
-  --neutral-960: #19181F;
-  --neutral-970: #14131A;
-  --neutral-980: #100F15;
-  --neutral-990: #0C0B11;
-  --neutral-1000: #08070D;
-  --neutral-1010: #050408;
+  --neutral-50: #F8F8F5;
+  --neutral-100: #EFEFEC;
+  --neutral-200: #DFDFDA;
+  --neutral-300: #CDCBC3;
+  --neutral-400: #B4B3A9;
+  --neutral-500: #939287;
+  --neutral-600: #75746A;
+  --neutral-700: #5C5B52;
+  --neutral-800: #45443D;
+  --neutral-900: #2F2F2A;
+  --neutral-925: #27261F;
+  --neutral-950: #1F1F1B;
+  --neutral-960: #1A1912;
+  --neutral-970: #15140D;
+  --neutral-980: #11100A;
+  --neutral-990: #0D0C06;
+  --neutral-1000: #090803;
+  --neutral-1010: #050502;
   /* success */
-  --success-50: #EEFCF3;
-  --success-100: #DCF7E6;
-  --success-200: #BAEDCE;
-  --success-300: #91E0B3;
-  --success-400: #60CC93;
-  --success-500: #1AAC6E;
-  --success-600: #008955;
-  --success-700: #006C42;
-  --success-800: #005331;
-  --success-900: #003920;
-  --success-950: #002614;
+  --success-50: #EDFCF5;
+  --success-100: #DAF7E9;
+  --success-200: #B6EED3;
+  --success-300: #8AE1BB;
+  --success-400: #52CD9D;
+  --success-500: #00AC7B;
+  --success-600: #008861;
+  --success-700: #006B4C;
+  --success-800: #005239;
+  --success-900: #003826;
+  --success-950: #002618;
   /* warning */
-  --warning-50: #FFF7EA;
-  --warning-100: #FEECD2;
-  --warning-200: #FAD9A7;
-  --warning-300: #F4C273;
-  --warning-400: #E5A52E;
-  --warning-500: #BF8500;
-  --warning-600: #986900;
-  --warning-700: #785200;
-  --warning-800: #5C3E00;
-  --warning-900: #402A00;
-  --warning-950: #2B1B00;
+  --warning-50: #FFF7ED;
+  --warning-100: #FFEBD4;
+  --warning-200: #FED7A9;
+  --warning-300: #F9BF76;
+  --warning-400: #EBA135;
+  --warning-500: #C58111;
+  --warning-600: #9D660B;
+  --warning-700: #7C5007;
+  --warning-800: #5F3C04;
+  --warning-900: #422902;
+  --warning-950: #2D1A01;
   /* danger */
-  --danger-50: #FFF5F4;
-  --danger-100: #FFE9E6;
-  --danger-200: #FFD3CD;
-  --danger-300: #FFB6AE;
-  --danger-400: #FF8D83;
-  --danger-500: #F0554F;
-  --danger-600: #C93433;
-  --danger-700: #A32223;
-  --danger-800: #7E1718;
-  --danger-900: #580F0F;
-  --danger-950: #3D0808;
+  --danger-50: #FFF5F6;
+  --danger-100: #FFE8EA;
+  --danger-200: #FFD2D6;
+  --danger-300: #FEB4BC;
+  --danger-400: #FE8B9A;
+  --danger-500: #EE5271;
+  --danger-600: #C73155;
+  --danger-700: #A11F41;
+  --danger-800: #7D1530;
+  --danger-900: #570D20;
+  --danger-950: #3C0714;
   /* info */
-  --info-50: #F1F9FF;
-  --info-100: #DFF2FF;
-  --info-200: #BEE5FF;
-  --info-300: #94D4FF;
-  --info-400: #4FBEFF;
-  --info-500: #009CE0;
-  --info-600: #007CB2;
-  --info-700: #00618D;
-  --info-800: #004A6D;
-  --info-900: #00334C;
-  --info-950: #002134;
+  --info-50: #F3F8FF;
+  --info-100: #E5F0FF;
+  --info-200: #CAE1FF;
+  --info-300: #A9CEFF;
+  --info-400: #7DB5FF;
+  --info-500: #4F93E9;
+  --info-600: #3E74BA;
+  --info-700: #2F5B93;
+  --info-800: #224572;
+  --info-900: #162F50;
+  --info-950: #0C1E36;
 
   /* ---------- semantica — use estas ---------- */
   /* superficies */
@@ -107,7 +163,7 @@
   --color-bg-inset: var(--neutral-1010);
   --color-bg-hover: var(--neutral-960);
   --color-bg-active: var(--neutral-925);
-  --color-bg-selected: var(--brand-950);
+  --color-bg-selected: var(--agent-950);
   /* marca */
   --color-bg-brand: var(--brand-500);
   --color-bg-brand-hover: var(--brand-400);
@@ -127,7 +183,7 @@
   --color-text-inverse: var(--neutral-1000);
   --color-text-on-brand: var(--neutral-1000);
   --color-text-brand: var(--brand-400);
-  --color-text-link: var(--brand-400);
+  --color-text-link: var(--agent-400);
   --color-text-code: var(--neutral-300);
   --color-text-success: var(--success-400);
   --color-text-warning: var(--warning-400);
@@ -145,7 +201,7 @@
   --color-session-exited: var(--neutral-500);
   --color-session-failed: var(--danger-400);
   --color-session-shell: var(--info-400);
-  --color-session-agent: var(--brand-400);
+  --color-session-agent: var(--agent-400);
   /* dominio — worktree e git */
   --color-worktree-clean: var(--success-400);
   --color-worktree-dirty: var(--warning-400);
@@ -158,13 +214,13 @@
   --color-git-modified: var(--warning-400);
   /* dominio — hierarquia e daemon */
   --color-scope-global: var(--info-400);
-  --color-scope-workspace: var(--brand-400);
+  --color-scope-workspace: var(--agent-400);
   --color-scope-project: var(--neutral-400);
   --color-scope-worktree: var(--accent-400);
   --color-daemon-online: var(--success-400);
   --color-daemon-offline: var(--danger-400);
   /* dominio — codigo */
-  --color-syntax-keyword: var(--brand-400);
+  --color-syntax-keyword: var(--agent-400);
   --color-syntax-string: var(--accent-400);
   --color-syntax-number: var(--warning-300);
   --color-syntax-comment: var(--neutral-600);
@@ -176,8 +232,8 @@
   --color-syntax-comment-diff: var(--neutral-500);
   --color-git-untracked: var(--info-400);
   /* dominio — editor */
-  --color-editor-cursor: var(--brand-400);
-  --color-editor-selection: var(--brand-900);
+  --color-editor-cursor: var(--agent-400);
+  --color-editor-selection: var(--agent-900);
   --color-editor-active-line: var(--neutral-980);
   --color-editor-line-number: var(--neutral-500);
   --color-editor-line-number-active: var(--neutral-300);
@@ -188,10 +244,10 @@
   --color-save-failed: var(--danger-400);
   --color-save-stale: var(--warning-400);
   /* dominio — conversa */
-  --color-turn-agent: var(--brand-400);
+  --color-turn-agent: var(--agent-400);
   --color-turn-user: var(--neutral-300);
   --color-turn-thought: var(--neutral-500);
-  --color-turn-caret: var(--brand-400);
+  --color-turn-caret: var(--agent-400);
   --color-tool-pending: var(--neutral-500);
   --color-tool-running: var(--info-400);
   --color-tool-ok: var(--success-400);
@@ -201,14 +257,14 @@
   --color-permission-allowed: var(--success-400);
   --color-permission-denied: var(--danger-400);
   --color-plan-pending: var(--neutral-500);
-  --color-plan-active: var(--brand-400);
+  --color-plan-active: var(--agent-400);
   --color-plan-done: var(--success-400);
   --color-usage-quiet: var(--neutral-400);
   --color-usage-warn: var(--warning-400);
   --color-usage-over: var(--danger-400);
   --color-usage-cost: var(--accent-400);
   --color-mode-plan: var(--info-400);
-  --color-mode-auto: var(--brand-400);
+  --color-mode-auto: var(--agent-400);
   --color-mode-bypass: var(--danger-400);
 
   /* ---------- espacamento (nome = valor em px) ---------- */
@@ -230,12 +286,17 @@
 
   /* ---------- raio ---------- */
   --radius-none: 0px;
-  --radius-xs: 2px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-  --radius-2xl: 16px;
+  /* Escada do Cursor: inline 4 · linha compacta 6 · botao e campo 8 · cartao 12
+     · cartao grande 16. Um degrau mais macio que a anterior em toda a faixa —
+     o `md`, que e 47 dos usos, vai de 6 para os 8px que o template chama de
+     "compact 8px CTA radius — developer dialect". O `2xl` nao existe no
+     template e sobe junto, para a escada continuar estritamente crescente. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
   --radius-full: 9999px;
 
   /* ---------- dimensoes ---------- */
@@ -283,10 +344,17 @@
   /* ---------- tipografia ---------- */
   --font-family-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
   --font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --text-display-lg: 600 28px/34px var(--font-family-sans);
-  --tracking-display-lg: -0.02em;
-  --text-display-md: 600 22px/28px var(--font-family-sans);
-  --tracking-display-md: -0.015em;
+  /* "Display weight stays at 400. Magazine voice, never bold." E o principio
+     tipografico que o template repete tres vezes, e o unico que muda a VOZ da
+     tela em vez da cor dela. O peso 600 saiu do display — e so do display: os
+     `heading-*` ficam em 600, porque no template os equivalentes (`title-md`,
+     `title-sm`) tambem estao. O tracking negativo acompanha, na proporcao que
+     o template usa (72px/-2,16px = -3%); a nota dele sobre substituto diz
+     "Inter at weight 400 with letter-spacing -1.5%", e Inter ja e a fonte. */
+  --text-display-lg: 400 28px/34px var(--font-family-sans);
+  --tracking-display-lg: -0.03em;
+  --text-display-md: 400 22px/28px var(--font-family-sans);
+  --tracking-display-md: -0.02em;
   --text-heading-lg: 600 18px/24px var(--font-family-sans);
   --tracking-heading-lg: -0.01em;
   --text-heading-md: 600 15px/20px var(--font-family-sans);
@@ -302,14 +370,25 @@
   /* Caixa-alta pede tracking proprio, e nao o do TAMANHO. `label-xs` a 0.015em
      e o valor de um rotulo minusculo; aplicado a maiuscula ele fecha as
      contraformas e o rotulo vira um bloco. O piso tipografico para caps e
-     0.06em (5-10% do em); 0.07em fica dentro da faixa sem alargar chip curto. */
-  --tracking-caps: 0.07em;
+     0.06em (5-10% do em); 0.07em fica dentro da faixa sem alargar chip curto.
+   Foi para 0.08em, que e o valor do `caption-uppercase` do Cursor — 11px com
+   0,88px de tracking — e continua dentro da mesma faixa. */
+  --tracking-caps: 0.08em;
   --text-caption: 400 11px/14px var(--font-family-sans);
   --text-mono-lg: 400 13px/20px var(--font-family-mono);
   --text-mono-md: 400 12px/18px var(--font-family-mono);
   --text-mono-sm: 400 11px/16px var(--font-family-mono);
 
   /* ---------- elevacao ---------- */
+  /*
+   * O Cursor pede "hairline-only depth; no drop shadows" — e essa e a unica
+   * regra do template que NAO foi portada, de proposito. Ela funciona la porque
+   * o cartao e branco puro sobre canvas creme: o proprio degrau de claridade
+   * destaca. Sobre `#090803`, camada flutuante sem sombra nenhuma nao se
+   * descola do que esta atras — sao 7 usos, todos menu, dialogo ou modal. O
+   * equivalente escuro da regra ja existe aqui e e o que carrega o peso: o
+   * degrau de superficie mais a borda de 1px.
+   */
   --elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.32);
   --elevation-md: 0 2px 4px -1px rgb(0 0 0 / 0.34), 0 4px 8px -2px rgb(0 0 0 / 0.30);
   --elevation-lg: 0 4px 8px -2px rgb(0 0 0 / 0.38), 0 12px 24px -4px rgb(0 0 0 / 0.36);
