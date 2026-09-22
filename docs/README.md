@@ -41,6 +41,7 @@ O contrato está na [025-docs-contract](features/025-docs-contract/prd.md).
 | ~~[A credencial do tracker vem do ambiente](adr/2026-09-13-1531-tracker-credentials-come-from-the-environment.md)~~ | 2026-09-13 | `security` · **superado** |
 | [O Lumem guarda as chaves dos serviços de que depende](adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md) | 2026-09-13 | `security` |
 | [O desenho mora no código, e a galeria é o Storybook](adr/2026-09-20-2246-design-lives-in-the-code.md) | 2026-09-20 | `design` |
+| [A marca é escassa, e a identidade do agente tem família própria](adr/2026-09-22-0228-brand-is-scarce-agent-has-its-own-family.md) | 2026-09-22 | `design` |
 
 **A cadeia foi exercitada em 2026-09-13**, e pela primeira vez: o ADR das credenciais do tracker foi
 **superado no mesmo dia** pelo do cofre, porque a decisão dele estava errada — o `gh` era solução
