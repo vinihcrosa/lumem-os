@@ -13,7 +13,7 @@
  */
 
 /** Famílias de primitiva, na ordem em que o CSS as declara. */
-const FAMILIES = ["brand", "accent", "neutral", "success", "warning", "danger", "info"] as const;
+const FAMILIES = ["brand", "accent", "agent", "neutral", "success", "warning", "danger", "info"] as const;
 
 export const DERIVED_HEADER =
   "// Design tokens — DERIVADO de tokens.css por scripts/design-derive.ts. Nao edite a mao.";
