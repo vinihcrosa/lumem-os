@@ -493,6 +493,20 @@ pelas mesmas funções de `queryKeys.ts`, sem chave escrita à mão e sem mock �
 de verdade: zero erro de console e zero chamada de rede em `/trpc`, `/acp` ou `/pty` nas cinco
 stories.
 
+E a [daemon-auth](docs/features/019-daemon-auth/prd.md) — **fase 1 entregue, 7 tasks** — fecha a porta
+que a distribuição abriu. O daemon executava comando com as suas permissões e **não conferia quem
+pediu**: nenhuma autenticação em rota nenhuma, o upgrade de WebSocket despachando só por path, e
+`lumem --host 0.0.0.0` a um argumento de distância. As três ameaças reais **não esperavam** o daemon
+sair do loopback — DNS rebinding é mesma-origem para o browser, WebSocket não obedece CORS, e
+`GET /memory/ask` gasta token. Agora o `Host` é conferido em toda requisição e em todo upgrade, o
+`Origin` onde a origem importa, e o
+[ADR de 2026-09-22](docs/adr/2026-09-22-0718-daemon-answers-only-on-loopback-until-it-authenticates.md)
+nomeia as duas decisões que não são óbvias: **pedido sem sinal de browser passa** — é a porta do
+`curl` do agente —, e **loopback é imposto**, não é o default. As fases 2 (token em cookie) e 3
+(token por sessão, que fecha a Q46) continuam por escrever. A execução achou que o proxy do vite
+**encaminha o `Origin`**, o que torna o `LUMEM_WEB_ORIGINS` do `run.sh` carregado e não decorativo —
+medido apontando-o para a porta errada e vendo o `00-onboarding` cair no primeiro `POST`.
+
 Comece pelo [índice da documentação](docs/README.md).
 
 | Onde | O quê |

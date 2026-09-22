@@ -23,6 +23,10 @@ lumem
 O daemon sobe em `http://127.0.0.1:4317` e serve a interface na mesma porta.
 `lumem --open` abre o navegador junto.
 
+Só em loopback, e isso é imposto e não apenas o padrão: nada no daemon autentica
+ainda, então um `--host` fora de `127.0.0.0/8`, `::1` ou `localhost` é recusado
+na subida, em vez de publicar um shell na rede.
+
 Atualizar é `lumem upgrade`: ele pergunta ao npm qual é a última versão,
 reinstala com o gerenciador que instalou a cópia que está rodando e — se tiver um
 daemon de pé — avisa que ele continua no código antigo até ser reiniciado.

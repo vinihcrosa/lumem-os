@@ -18,6 +18,13 @@ resolve_ports
 # LUMEM_STATE_DIR vem do env.sh.
 export LUMEM_STATE_DIR
 
+# A guarda de origem do daemon (`019` F2). Em desenvolvimento a página vem do
+# vite, numa segunda porta, e para o browser isso é outra origem — o daemon
+# recusaria toda mutação e todo WebSocket vindos dela. O default do daemon cobre
+# a 4318; aqui a porta é a que `resolve_ports` escolheu, e só este script a
+# conhece.
+export LUMEM_WEB_ORIGINS="http://127.0.0.1:${LUMEM_WEB_PORT},http://localhost:${LUMEM_WEB_PORT}"
+
 mkdir -p "$LUMEM_STATE_DIR"
 
 # O ambiente de dev é um só e as portas dele são fixas, então dois workspaces

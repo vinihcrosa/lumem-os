@@ -128,6 +128,11 @@ export default defineConfig({
         LUMEM_PORT: String(E2E_SERVER_PORT),
         LUMEM_STATE_DIR: E2E_STATE_DIR,
         LUMEM_DEFAULT_CWD: E2E_SESSION_CWD,
+        // A guarda de origem (`019` F2): aqui a página vem do vite, na porta do
+        // e2e, e para o browser isso é outra origem. O default do daemon é a
+        // 4318 do `pnpm dev`, que não é esta — sem esta linha toda mutação da
+        // suíte levaria 403.
+        LUMEM_WEB_ORIGINS: `http://127.0.0.1:${String(E2E_WEB_PORT)},http://localhost:${String(E2E_WEB_PORT)}`,
         // Not the developer's shell: a login zsh sources their whole profile,
         // and the suite would then depend on whatever their prompt prints.
         SHELL: "/bin/sh",

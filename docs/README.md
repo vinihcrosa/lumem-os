@@ -42,6 +42,7 @@ O contrato está na [025-docs-contract](features/025-docs-contract/prd.md).
 | [O Lumem guarda as chaves dos serviços de que depende](adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md) | 2026-09-13 | `security` |
 | [O desenho mora no código, e a galeria é o Storybook](adr/2026-09-20-2246-design-lives-in-the-code.md) | 2026-09-20 | `design` |
 | [A marca é escassa, e a identidade do agente tem família própria](adr/2026-09-22-0228-brand-is-scarce-agent-has-its-own-family.md) | 2026-09-22 | `design` |
+| [O daemon só atende em loopback enquanto nada nele autentica](adr/2026-09-22-0718-daemon-answers-only-on-loopback-until-it-authenticates.md) | 2026-09-22 | `security` |
 
 **A cadeia foi exercitada em 2026-09-13**, e pela primeira vez: o ADR das credenciais do tracker foi
 **superado no mesmo dia** pelo do cofre, porque a decisão dele estava errada — o `gh` era solução
@@ -399,7 +400,7 @@ tinha visto, um deles grave: o menu de `/comandos` era **invisível por inteiro*
 
 ---
 
-## Propostas de 2026-09-05 — três ainda de pé, uma fechada
+## Propostas de 2026-09-05 — duas ainda de pé, uma fechada, uma em execução
 
 Saíram da avaliação de arquitetura do dia: fundação sólida, teste raro, e o núcleo da visão —
 tarefas, mais de um agente — inteiro no backlog enquanto a memória, o subsistema mais elaborado, é o
@@ -408,19 +409,25 @@ feito isso, e o que sobrou dela (daemon em background, subir com a máquina) est
 de escritos, a `main` andou — a [worktree-first-tab](features/018-worktree-first-tab/) e a
 [session-mode](features/016-session-mode/) foram entregues, e remover projeto passou a cascatear (WS-Q22) — e
 os quatro foram ajustados a isso. Cada um tem `prd.md` e `open-questions.md`; **as tasks nascem depois
-das perguntas respondidas.** A ordem abaixo é a recomendada.
+das perguntas respondidas** — o que a `019` fez em 2026-09-22, com a fase 1 no mesmo dia. A ordem
+abaixo é a recomendada.
 
-### [daemon-auth/](features/019-daemon-auth/) — o daemon confere quem fala com ele
+### [daemon-auth/](features/019-daemon-auth/) — o daemon confere quem fala com ele · **fase 1 entregue**
 
-Sai do backlog e da Q46 da memória. Zero autenticação, zero checagem de `Host` e `Origin`: DNS
-rebinding e sequestro de WebSocket não esperam o daemon sair do loopback — e `lumem --host 0.0.0.0`
-é um flag. Fase 1 é um dia; fase 2 é token em cookie, com a origem única que a distribution já deu;
-fase 3 é identidade por sessão, que fecha o ator "declarado, e ainda não provado".
+Sai do backlog e da Q46 da memória. Era zero autenticação e zero checagem de `Host` e `Origin`: DNS
+rebinding e sequestro de WebSocket não esperavam o daemon sair do loopback — e `lumem --host 0.0.0.0`
+era um flag. **A fase 1 saiu em 2026-09-22**: o `Host` é conferido em toda requisição e em todo
+upgrade, a origem é conferida onde ela importa, e um host fora do loopback **recusa subir** enquanto
+não houver credencial. A fase 2 (token em cookie, com a origem única que a distribution já deu) e a
+fase 3 (identidade por sessão, que fecha o ator "declarado, e ainda não provado") continuam por
+escrever — por isso o status é `em execução`.
 
 | Arquivo | O quê |
 |---|---|
 | [prd.md](features/019-daemon-auth/prd.md) | as três ameaças reais em ordem, o que fica de fora, F1–F4 e o que cada fase fecha |
-| [open-questions.md](features/019-daemon-auth/open-questions.md) | 6 perguntas: fase 1 sozinha, cookie ou não, `Strict` ou `Lax`, token por sessão, `LUMEM_HOST` fora do loopback, onde o segredo vive |
+| [open-questions.md](features/019-daemon-auth/open-questions.md) | 6 perguntas, **6 respondidas** — todas pela proposta —, mais as cinco decisões que só a execução podia tomar: a porta é a do socket, a união da lista, os prefixos `/memory` e `/tasks`, o `same-site` que também cai, e a recusa antes do despacho |
+| [tasks.md](features/019-daemon-auth/tasks.md) | 7 tasks da fase 1, **todas entregues**, num commit só — e o porquê de ser um: a regra separada da ligação dela é um estado em que a suíte passa e o daemon está aberto |
+| [o ADR](adr/2026-09-22-0718-daemon-answers-only-on-loopback-until-it-authenticates.md) | a fase 1 é **transporte, não credencial** — pedido sem sinal de browser passa, porque é a porta do `curl` do agente —, e o loopback é **imposto** em vez de ser o default. Quatro alternativas nomeadas, incluindo a que quase todo daemon local escolhe: avisar e subir |
 
 ### [memory-dogfooding/](features/020-memory-dogfooding/) — três semanas com a memória ligada
 

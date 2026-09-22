@@ -23,6 +23,10 @@ lumem
 The daemon starts on `http://127.0.0.1:4317` and serves the interface from the
 same port. `lumem --open` opens a browser too.
 
+Loopback only, and that is enforced rather than merely the default: nothing in
+the daemon authenticates yet, so a `--host` outside `127.0.0.0/8`, `::1` or
+`localhost` is refused at startup instead of publishing a shell on the network.
+
 `lumem upgrade` updates it: it asks npm for the latest version, reinstalls with
 the package manager that owns the installed copy, and — if a daemon is running —
 says it keeps the old code until it is restarted. `lumem upgrade --check` only

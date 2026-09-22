@@ -4,11 +4,12 @@ import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { loadConfig } from "../config.js";
+import { loadConfig, type ServerConfig } from "../config.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { createServer } from "../server.js";
 import { cleanupGitFixtures, tempDir } from "../testing/git-fixtures.js";
+import { inject } from "../testing/http.js";
 
 import { MemoryService } from "./MemoryService.js";
 import { ensureMemoryHome } from "./home.js";
@@ -26,25 +27,26 @@ afterEach(async () => {
 
 async function daemon(
   env: Record<string, string> = {},
-): Promise<{ app: FastifyInstance; memory: MemoryService; stateDir: string }> {
+): Promise<{ app: FastifyInstance; config: ServerConfig; memory: MemoryService; stateDir: string }> {
   const stateDir = join(tempDir("lumem-ask-"), ".lumem");
   await ensureMemoryHome({ stateDir });
   const database = openTestDb();
   databases.push(database);
   const ptyManager = new PtyManager();
   ptys.push(ptyManager);
+  const config = loadConfig({ LUMEM_STATE_DIR: stateDir, ...env });
   const app = await createServer({
-    config: loadConfig({ LUMEM_STATE_DIR: stateDir, ...env }),
+    config,
     db: database.db,
     ptyManager,
   });
   apps.push(app);
-  return { app, memory: new MemoryService({ db: database.db, stateDir }), stateDir };
+  return { app, config, memory: new MemoryService({ db: database.db, stateDir }), stateDir };
 }
 
 describe("GET /memory/ask", () => {
   it("responde com o corpo da memória e cita a fonte", async () => {
-    const { app, memory } = await daemon();
+    const { app, config, memory } = await daemon();
     await memory.write({
       name: "Commit neste workspace",
       description: "Conventional Commits, com escopo",
@@ -54,7 +56,7 @@ describe("GET /memory/ask", () => {
       actor: "human",
     });
 
-    const response = await app.inject({
+    const response = await inject(app, config, {
       method: "GET",
       url: "/memory/ask?q=" + encodeURIComponent("como fazer commit neste workspace"),
     });
@@ -67,9 +69,9 @@ describe("GET /memory/ask", () => {
   });
 
   it("não sei é resposta, e diz que o acervo tem buraco ali", async () => {
-    const { app } = await daemon();
+    const { app, config } = await daemon();
 
-    const response = await app.inject({
+    const response = await inject(app, config, {
       method: "GET",
       url: "/memory/ask?q=" + encodeURIComponent("qual é a política de retry do checkout"),
     });
@@ -79,24 +81,24 @@ describe("GET /memory/ask", () => {
   });
 
   it("pergunta trivial diz que não buscou, e não que não achou", async () => {
-    const { app } = await daemon();
+    const { app, config } = await daemon();
 
-    const response = await app.inject({ method: "GET", url: "/memory/ask?q=a" });
+    const response = await inject(app, config, { method: "GET", url: "/memory/ask?q=a" });
 
     expect(response.body).toContain("muito curta");
   });
 
   it("sem pergunta, recusa dizendo o que faltou", async () => {
-    const { app } = await daemon();
+    const { app, config } = await daemon();
 
-    const response = await app.inject({ method: "GET", url: "/memory/ask" });
+    const response = await inject(app, config, { method: "GET", url: "/memory/ask" });
 
     expect(response.statusCode).toBe(400);
     expect(response.body).toContain("?q=");
   });
 
   it("sessão que não existe não derruba a pergunta: sobra o escopo global", async () => {
-    const { app, memory } = await daemon();
+    const { app, config, memory } = await daemon();
     await memory.write({
       name: "Estilo de revisão",
       description: "Achado com arquivo e linha antes do texto",
@@ -105,7 +107,7 @@ describe("GET /memory/ask", () => {
       actor: "human",
     });
 
-    const response = await app.inject({
+    const response = await inject(app, config, {
       method: "GET",
       url: "/memory/ask?session=ses_fantasma&q=" + encodeURIComponent("estilo de revisão de código"),
     });
@@ -117,7 +119,7 @@ describe("GET /memory/ask", () => {
 
 describe("frescor", () => {
   it("memória de mais de um dia entra com aviso, e não filtrada", async () => {
-    const { app, memory, stateDir } = await daemon();
+    const { app, config, memory, stateDir } = await daemon();
     await memory.write({
       name: "Endpoint de checkout",
       description: "o contrato que o web consome",
@@ -134,7 +136,7 @@ describe("frescor", () => {
     writeFileSync(file, readFileSync(file, "utf8").replace(/updated_at: .*/, "updated_at: '2026-01-01T00:00:00.000Z'"));
     await memory.reindex();
 
-    const response = await app.inject({
+    const response = await inject(app, config, {
       method: "GET",
       url: "/memory/ask?q=" + encodeURIComponent("contrato do endpoint de checkout"),
     });
@@ -147,9 +149,9 @@ describe("frescor", () => {
 
 describe("auto-learn no /memory/ask", () => {
   it("sem auto-learn, \"não sei\" é a resposta final", async () => {
-    const { app } = await daemon();
+    const { app, config } = await daemon();
 
-    const response = await app.inject({
+    const response = await inject(app, config, {
       method: "GET",
       url: "/memory/ask?q=" + encodeURIComponent("qual é a política de retry do checkout"),
     });
@@ -161,9 +163,9 @@ describe("auto-learn no /memory/ask", () => {
   it("ligado sem agente ACP configurado, degrada e diz que degradou", async () => {
     // A degradação honesta: um daemon com auto-learn ligado e nenhum agente para
     // subir não pode travar a pergunta nem mentir que pesquisou.
-    const { app } = await daemon({ LUMEM_MEMORY_AUTO_LEARN: "1" });
+    const { app, config } = await daemon({ LUMEM_MEMORY_AUTO_LEARN: "1" });
 
-    const response = await app.inject({
+    const response = await inject(app, config, {
       method: "GET",
       url: "/memory/ask?q=" + encodeURIComponent("qual é a política de retry do checkout"),
     });

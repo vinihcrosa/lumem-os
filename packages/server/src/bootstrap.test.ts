@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { bootstrap } from "./bootstrap.js";
 import { loadConfig } from "./config.js";
+import { inject } from "./testing/http.js";
 import { openTestDb, type TestDb } from "./db/testing.js";
 import { MemoryService } from "./memory/MemoryService.js";
 import { ensureMemoryHome } from "./memory/home.js";
@@ -30,6 +31,7 @@ const stateDirs: string[] = [];
 async function boot(
   overrides: {
     port?: string;
+    host?: string;
     beforeClose?: () => Promise<void>;
     ptyManager?: PtyManager;
     database?: TestDb;
@@ -45,7 +47,11 @@ async function boot(
   const stateDir = overrides.stateDir ?? join(mkdtempSync(join(tmpdir(), "lumem-boot-")), ".lumem");
   if (!overrides.stateDir) stateDirs.push(stateDir);
   // Port 0 lets the OS pick a free one — no fixed port to collide with.
-  const config = loadConfig({ LUMEM_PORT: overrides.port ?? "0", LUMEM_STATE_DIR: stateDir });
+  const config = loadConfig({
+    LUMEM_PORT: overrides.port ?? "0",
+    LUMEM_STATE_DIR: stateDir,
+    ...(overrides.host === undefined ? {} : { LUMEM_HOST: overrides.host }),
+  });
   // Never the real ~/.lumem/lumem.db: a test suite must not write to the
   // developer's own state.
   const database = overrides.database ?? openTestDb();
@@ -134,9 +140,9 @@ describe("bootstrap", () => {
   });
 
   it("serves the trpc router once listening", async () => {
-    const { app } = await boot();
+    const { app, config } = await boot();
 
-    const response = await app.inject({ method: "GET", url: "/trpc/health" });
+    const response = await inject(app, config, { method: "GET", url: "/trpc/health" });
 
     expect(response.statusCode).toBe(200);
   });
@@ -223,10 +229,10 @@ describe("bootstrap", () => {
       path: "/definitely-not-here-xyz/teste",
     });
 
-    const { app } = await boot({ database });
+    const { app, config } = await boot({ database });
 
     // The very first request the daemon can answer already sees the new state.
-    expect((await app.inject({ method: "GET", url: "/trpc/health" })).statusCode).toBe(200);
+    expect((await inject(app, config, { method: "GET", url: "/trpc/health" })).statusCode).toBe(200);
     expect((await worktrees.findById(registered.id))?.state).toBe("missing");
   });
 
@@ -266,11 +272,24 @@ describe("bootstrap", () => {
      */
     const spy = vi.spyOn(reconcileModule, "reconcileAdapters");
 
-    const { app } = await boot();
+    const { app, config } = await boot();
 
     expect(spy.mock.calls[0]?.[0].dir).toContain("adapters");
-    expect((await app.inject({ method: "GET", url: "/trpc/health" })).statusCode).toBe(200);
+    expect((await inject(app, config, { method: "GET", url: "/trpc/health" })).statusCode).toBe(200);
     spy.mockRestore();
+  });
+
+  it("recusa subir fora do loopback, e não escuta", async () => {
+    /*
+     * A S5. Até a fase 2 existir não há credencial nenhuma, e `Host` e `Origin`
+     * não defendem quem chega pela rede: quem não é um browser escreve os dois
+     * como quiser. `lumem --host 0.0.0.0` é um argumento de distância, e a
+     * capacidade que isto tira é a de se expor por engano.
+     */
+    const { app, exit } = await boot({ host: "0.0.0.0" });
+
+    expect(exit).toHaveBeenCalledWith(1);
+    expect(app.server.listening).toBe(false);
   });
 
   it("exits non-zero when the port is already taken", async () => {

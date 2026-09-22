@@ -17,6 +17,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `server/` portão e WAL de memória | integration (`~/.lumem` temporário, git real) | Sim — cada teste cria seu próprio state dir |
 | `server/` regra de **transporte** — limite de corpo, GET vs POST, status | integration sobre HTTP (`app.inject`) | Sim — o caller é cego a estas três |
 | `server/` endpoint WebSocket | integration | Sim |
+| `server/` **guarda de origem** (`Host`, `Origin`, `Sec-Fetch-Site`) | duas camadas, de propósito: as regras como funções puras (`auth/origins.test.ts`) — porque o caso que dá nome à feature, um `Host` de outro domínio apontando para 127.0.0.1, pede um DNS de TTL zero e não se produz numa suíte —, e a ligação delas sobre HTTP e sobre o handshake de verdade (`auth/guard.test.ts`). O teste com dentes é o do upgrade: desligar a checagem em `ws/upgrade.ts` derruba **dois** testes e nenhum outro | Sim |
 | `server/` transporte **ACP** | integration com **agente falso** no outro lado do pipe — o SDK nos dois lados, wire ndjson de verdade, **zero token** | Sim |
 | **conectar o segundo agente pela tela** | e2e `second-agent.spec.ts`, no caminho do `＋`: catálogo → handshake → configuração criada, **sem rede**. O painel só instala quando o pré-voo não acha o binário, e o shim `codex-acp` está no `PATH` do daemon — sem isso o teste seriam 300 MB de `npm install` por execução | **Não** |
 | **a conta por agente**, da gravação à tela | e2e `second-agent.spec.ts`: dois turnos de dois agentes → `session_usage` com `agent_config_id` → `usage.byProjectAndAgent` → a sub-linha no consumo do workspace. Cada peça tem teste de unidade; **a corrente não tinha**, e ela atravessa gravação, migração, consulta e tela | **Não** |
@@ -1461,6 +1462,17 @@ commit, é como o defeito se esconde.** `packages/web/src/css-blocks.test.ts` (`
 estrutural: lê o `web` inteiro por `readdirSync`, sem lista de arquivo nenhuma — o preço é uma regra
 mais barata (o texto ao redor de um `${…}` precisa aparecer em algum nome de classe real, sem exigir
 o nome inteiro por extenso), mas ele nunca fica cego por um `git mv`.
+
+**A guarda de origem mudou o default de `app.inject`, e o §6 da PRD já sabia.** `app.inject` manda
+`Host: localhost:80` quando ninguém diz o contrário, e desde a
+[`019`](../features/019-daemon-auth/prd.md) isso é um `421` — a porta é outra. Vinte chamadas em
+quatro arquivos passaram a usar `testing/http.ts`, que resolve a porta **chamando `daemonPort`, a
+função da própria guarda**: a do socket, com a configuração como último recurso. Um literal
+`127.0.0.1:4317` teria funcionado em três dos quatro arquivos e falhado no quarto, que sobe em porta
+efêmera — e a falha seria um `421` em cada asserção, que não diz nada sobre a causa.
+
+A regra: **helper de teste que imita uma regra de produção tem que chamar a regra de produção.** Duas
+cópias da mesma resolução de porta é uma que vai ficar para trás.
 
 ## Convenções
 
