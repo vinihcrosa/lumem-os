@@ -154,6 +154,117 @@ describe("teardown.sh", () => {
   });
 });
 
+/**
+ * O gate que o daemon roda como `test` do projeto.
+ *
+ * O que está sob teste **não é a suíte** — é o invólucro: que ele nunca fique
+ * mudo e nunca fique sem teto. O daemon roda este script num PTY e concede 10
+ * minutos; quando estourava, ele não tinha o que mostrar, porque o repórter
+ * interativo do vitest reescreve um quadro em vez de escrever linhas.
+ *
+ * O `pnpm` é dublado, e é o que torna estes casos baratos: rodar a suíte de
+ * verdade aqui custaria 71 s por caso e não provaria nada sobre o invólucro.
+ */
+describe("test.sh", () => {
+  /** Um `pnpm` de mentira, primeiro no PATH, fazendo o que o caso precisar. */
+  function withFakePnpm(body: string): string {
+    const bin = fakeHome();
+    writeFileSync(join(bin, "pnpm"), `#!/bin/sh
+${body}
+`, { mode: 0o755 });
+    return bin;
+  }
+
+  function runGate(
+    pnpmBody: string,
+    env: Record<string, string> = {},
+  ): { status: number; out: string } {
+    const bin = withFakePnpm(pnpmBody);
+    try {
+      const out = execFileSync("bash", [join(WORKSPACE, "test.sh")], {
+        encoding: "utf8",
+        stdio: "pipe",
+        /*
+         * Teto do **caso**, e ele não é cerimônia.
+         *
+         * `execFileSync` é síncrono: ele segura a thread, então o `testTimeout`
+         * do vitest não o alcança e uma trava aqui é uma trava na suíte inteira.
+         * Foi assim que a primeira versão deste arquivo rodou 10 minutos em vez
+         * de falhar em 5 segundos. Com o teto, regressão vira vermelho rápido.
+         */
+        timeout: 15_000,
+        killSignal: "SIGKILL",
+        env: {
+          PATH: `${bin}:${process.env["PATH"] ?? ""}`,
+          HOME: fakeHome(),
+          ...env,
+        },
+      });
+      return { status: 0, out };
+    } catch (error) {
+      const failure = error as { status?: number; stdout?: string; stderr?: string };
+      return { status: failure.status ?? -1, out: `${failure.stdout ?? ""}${failure.stderr ?? ""}` };
+    }
+  }
+
+  it("diz ao vitest que ninguém está olhando um terminal", () => {
+    // Num PTY o repórter default redesenha um quadro, e uma corrida
+    // interrompida não deixa uma linha sequer para o daemon mostrar.
+    const { status, out } = runGate('echo "CI=$CI"; exit 0');
+
+    expect(status).toBe(0);
+    expect(out).toContain("CI=1");
+  });
+
+  it("respeita o CI de quem já o definiu", () => {
+    const { out } = runGate('echo "CI=$CI"; exit 0', { CI: "true" });
+
+    expect(out).toContain("CI=true");
+  });
+
+  it("devolve a reprovação da suíte como ela veio", () => {
+    const { status } = runGate("exit 3");
+
+    expect(status).toBe(3);
+  });
+
+  it("mata o gate que passou do teto, e diz que foi o teto", () => {
+    /*
+     * O caso que o daemon viu: sem isto a corrida some no teto **dele**, que é
+     * maior, e a única coisa que sobra é "não terminou, sem saída".
+     */
+    const { status, out } = runGate("sleep 60", { LUMEM_GATE_TIMEOUT_SECONDS: "1" });
+
+    expect(status).not.toBe(0);
+    expect(out).toContain("passou de 1s");
+    expect(out).toContain("não ter cabido no tempo");
+  });
+
+  it("não deixa o relógio do teto vivo depois de a suíte terminar", () => {
+    /*
+     * O defeito que custou 10 minutos, e que só aparece como **demora**: matar
+     * o pid do watchdog deixa o `sleep` dele de pé, herdando o stdout do
+     * script. Quem lê essa saída nunca vê o fim — que é, palavra por palavra, o
+     * que o daemon relatou sobre o gate.
+     *
+     * O teto aqui é de 5 minutos e a suíte é instantânea: se o relógio
+     * sobreviver, este caso passa dos 15 s do `execFileSync` e fica vermelho.
+     */
+    const started = Date.now();
+    const { status } = runGate("exit 0", { LUMEM_GATE_TIMEOUT_SECONDS: "300" });
+
+    expect(status).toBe(0);
+    expect(Date.now() - started).toBeLessThan(10_000);
+  });
+
+  it("anuncia o node e o teto antes de começar, porque o resto pode não chegar", () => {
+    const { out } = runGate("exit 0", { LUMEM_GATE_TIMEOUT_SECONDS: "42" });
+
+    expect(out).toContain("==> node v");
+    expect(out).toContain("==> teto 42s");
+  });
+});
+
 describe("default-ports.mjs", () => {
   it("imprime o par que está no ports.json", () => {
     const out = execFileSync("node", [join(WORKSPACE, "default-ports.mjs")], {

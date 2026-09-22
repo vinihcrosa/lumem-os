@@ -1474,6 +1474,30 @@ efêmera — e a falha seria um `421` em cada asserção, que não diz nada sobr
 A regra: **helper de teste que imita uma regra de produção tem que chamar a regra de produção.** Duas
 cópias da mesma resolução de porta é uma que vai ficar para trás.
 
+**Um PTY muda o que a suíte deixa escrito, e o daemon lê por PTY.** O gate do projeto
+(`scripts/workspace/test.sh`) rodou pelo daemon e voltou *"não chegou a terminar, sem saída
+nenhuma"*, enquanto no terminal ele passava em 71 s. A causa não é a suíte: num PTY o repórter
+default do vitest é o interativo, que esconde o cursor e **reescreve um quadro** em vez de escrever
+linhas. Medido na mesma corrida, antes e depois de `CI=1`: **568 sequências `ESC[?2026h` → 0**, com
+as mesmas 251 suítes verdes. Uma corrida cortada no meio, com redraw, não deixa uma linha para quem
+lê de fora.
+
+A regra: **quem vai ser lido por outro processo escreve linhas, não quadros.** E o corolário: o
+script que o daemon roda tem teto **menor** que o do daemon, porque quem estoura o teto do outro
+morre sem poder explicar.
+
+**`execFileSync` é síncrono, então o `testTimeout` do vitest não o alcança.** O primeiro teste do
+watchdog acima travou a suíte por **10 minutos** em vez de falhar em 5 segundos, e o motivo tem duas
+partes. A primeira é do script: `kill "$pid"` num `( sleep N; … ) &` mata o subshell e **deixa o
+`sleep` vivo**, herdando o stdout — um órfão segurando o descritor é o fim que nunca chega. A segunda
+é do teste: `execFileSync` segura a thread, então o vitest não tem como interromper. O caso ganhou
+`timeout` e `killSignal` próprios, e o script passou a matar o **grupo** (`kill -TERM -$pid`, com
+`set -m`).
+
+A regra: **todo `execFileSync` de teste leva `timeout`.** Sem ele, um defeito que deveria ser um caso
+vermelho vira a suíte inteira pendurada — e o sintoma some, porque ninguém lê o log de uma corrida
+que não acabou.
+
 ## Convenções
 
 - Teste de git usa **repositório temporário real**, nunca mock. `git worktree` tem caso de borda em nome com barra e branch existente que mock nenhum reproduz.
