@@ -197,6 +197,154 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   { label: "nome de check / barra da PR", fg: "text/primary", bg: "bg/danger-subtle", min: 4.5 },
 ];
 
+/**
+ * Os conjuntos de distinção, e a conta que os julga.
+ *
+ * `CONTRAST_PAIRS` responde **"dá pra ler?"** — cor contra o fundo. Esta lista responde
+ * a outra pergunta, que o repositório não tinha gate nenhum para: **"dá pra
+ * diferenciar?"** — cor contra a cor ao lado.
+ *
+ * Ela existe porque a suíte ficou **verde** enquanto o quadro pintava
+ * `● implementando` e `● bloqueada` quase na mesma cor. Os dois passavam no contraste
+ * folgado, cada um contra o seu fundo, e significavam coisas opostas na mesma tela. Foi
+ * preciso abrir o navegador para ver — que é exatamente o trabalho que um gate existe
+ * para não cobrar de ninguém.
+ *
+ * Como em `CONTRAST_PAIRS`, cada conjunto é **adjacência real** na interface — tokens
+ * que aparecem lado a lado, ou um sob o outro, significando coisas diferentes. Não é
+ * "todo token contra todo token": dois tokens que nunca dividem tela podem ter o mesmo
+ * matiz sem prejudicar ninguém.
+ *
+ * **Token acromático fica de fora da conta, e isso não é folga.** Matiz de um cinza é
+ * um número sem significado — dois cinzas se distinguem por claridade, e é
+ * `CONTRAST_PAIRS` quem governa isso. Por isso `tool/pending` e `session/exited` são
+ * listados: entram no conjunto, são reconhecidos como acromáticos e saem da comparação
+ * de matiz de propósito, em vez de serem esquecidos em silêncio.
+ */
+
+/** Croma OKLCH abaixo disto é cinza: o matiz deixa de ter significado. */
+const CHROMA_FLOOR = 0.03;
+
+/**
+ * Separação mínima de matiz, em graus OKLCH.
+ *
+ * O número vem de duas medições, não de gosto. **26°** foi a separação entre
+ * `session/agent` e `text/danger` no dia em que as duas ficaram indistinguíveis no
+ * quadro — o defeito que esta lista existe para pegar. **46°** é o conjunto mais
+ * apertado que o produto tem hoje, `syntax/string` contra `syntax/type`, e ele está
+ * certo. O limiar tem de reprovar o primeiro e aprovar o segundo; 40° fica entre os
+ * dois, mais perto da realidade medida que do defeito.
+ */
+const MIN_HUE_SEPARATION = 40;
+
+export interface DistinctionSet {
+  /** Em português, porque é o que aparece quando falha. */
+  label: string;
+  /** Nomes semânticos, como em `tokens.ts`. Acromático entra e é ignorado na conta. */
+  tokens: readonly string[];
+}
+
+export const DISTINCTION_SETS: readonly DistinctionSet[] = [
+  // O conjunto que deu origem à lista. `.tcard--work|blocked|wait|paused|manual`,
+  // em board.css, pintam a borda esquerda e o ponto do selo — cartões vizinhos.
+  {
+    label: "selos do cartao, lado a lado no quadro",
+    tokens: ["session/agent", "text/danger", "tool/pending", "text/tertiary", "border/subtle"],
+  },
+  // O menu de modo lista os tres um sob o outro, com o ponto colorido à esquerda.
+  { label: "modos, um sob o outro no seletor", tokens: ["mode/plan", "mode/auto", "mode/bypass"] },
+  // Cartões de ferramenta consecutivos no transcript.
+  {
+    label: "estados de ferramenta, cartoes consecutivos",
+    tokens: ["tool/pending", "tool/running", "tool/ok", "tool/failed", "tool/cancelled"],
+  },
+  // O trecho de código é onde mais tokens dividem a MESMA linha.
+  {
+    label: "sintaxe, no mesmo trecho de codigo",
+    tokens: [
+      "syntax/keyword", "syntax/string", "syntax/number", "syntax/comment",
+      "syntax/function", "syntax/type", "syntax/punctuation",
+    ],
+  },
+  { label: "estado da worktree, na linha da sidebar", tokens: ["worktree/clean", "worktree/dirty", "worktree/missing"] },
+  {
+    label: "escopo, na arvore da sidebar",
+    tokens: ["scope/global", "scope/workspace", "scope/project", "scope/worktree"],
+  },
+  {
+    label: "sessao, no rodape e na aba",
+    tokens: ["session/running", "session/exited", "session/failed", "session/shell", "session/agent"],
+  },
+  { label: "passos do plano", tokens: ["plan/pending", "plan/active", "plan/done"] },
+  { label: "medidor de uso, na mesma linha", tokens: ["usage/quiet", "usage/warn", "usage/over", "usage/cost"] },
+];
+
+/** Croma e matiz OKLCH de um hexadecimal sRGB. */
+function oklch(hex: string): { chroma: number; hue: number } {
+  const linear = (n: number): number => {
+    const c = n / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const value = Number.parseInt(hex.slice(1), 16);
+  const r = linear((value >> 16) & 0xff);
+  const g = linear((value >> 8) & 0xff);
+  const b = linear(value & 0xff);
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  const a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s;
+  const bb = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+  const hue = (Math.atan2(bb, a) * 180) / Math.PI;
+  return { chroma: Math.hypot(a, bb), hue: hue < 0 ? hue + 360 : hue };
+}
+
+/** A menor distância entre dois matizes num círculo de 360°. */
+function hueDistance(a: number, b: number): number {
+  const d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+
+/**
+ * Devolve os problemas, vazio quando está de pé.
+ *
+ * A mensagem é o teste: "um conjunto reprovou" não diz quais duas cores encostaram.
+ */
+export function checkDistinction(
+  sets: readonly DistinctionSet[] = DISTINCTION_SETS,
+  minSeparation: number = MIN_HUE_SEPARATION,
+): string[] {
+  const problems: string[] = [];
+  const palette = color as Record<string, string | undefined>;
+
+  for (const set of sets) {
+    const chromatic: { token: string; hue: number }[] = [];
+    for (const token of set.tokens) {
+      const hex = palette[token];
+      if (hex === undefined) {
+        problems.push(`${set.label}: ${token} não existe em tokens.ts`);
+        continue;
+      }
+      const { chroma, hue } = oklch(hex);
+      if (chroma >= CHROMA_FLOOR) chromatic.push({ token, hue });
+    }
+
+    for (let i = 0; i < chromatic.length; i += 1) {
+      for (let j = i + 1; j < chromatic.length; j += 1) {
+        const one = chromatic[i]!;
+        const other = chromatic[j]!;
+        const distance = hueDistance(one.hue, other.hue);
+        if (distance < minSeparation) {
+          problems.push(
+            `${set.label}: ${one.token} e ${other.token} ficam a ${distance.toFixed(0)}° ` +
+              `de matiz, e o mínimo é ${minSeparation}°`,
+          );
+        }
+      }
+    }
+  }
+  return problems;
+}
+
 /** Luminância relativa, WCAG 2.1. */
 function relativeLuminance(hex: string): number {
   const channel = (n: number): number => {
