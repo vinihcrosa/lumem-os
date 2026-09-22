@@ -1,10 +1,11 @@
 import { eq, inArray } from "drizzle-orm";
 
+import type { AcpRateLimit, Seal, SealRole } from "@lumem/shared";
+
 import type { Db } from "../db/index.js";
 import { session } from "../db/schema.js";
-import type { AcpRateLimit } from "@lumem/shared";
 
-import type { BoardColumn } from "./board.js";
+import type { BoardStatus } from "./board.js";
 import { pausedUntil } from "./pause.js";
 
 /**
@@ -23,21 +24,11 @@ import { pausedUntil } from "./pause.js";
  * `revisor trabalhando há 2 min`, que não cabe nos 151px medidos da caixa — e o
  * papel já está escrito no cabeçalho da coluna. Esperando, o substantivo volta,
  * aí ele não é redundante: é o que falta.
+ *
+ * `Seal` e `SealRole` moram em `@lumem/shared` (`032` T9): `since`/`until`
+ * chegam aqui como `Date` (é o que o turno em voo e a cota carregam) e saem
+ * como `string` — a fronteira que o `shared` descreve é a serializada.
  */
-
-export type SealRole = "implementador" | "revisor" | "testador";
-
-export type Seal =
-  /** Ninguém pega. O **default**, e o que a F1 desenha quase sempre. */
-  | { kind: "manual" }
-  /** A etapa é devida e não tem trabalhador. Precisa da esteira (F2). */
-  | { kind: "waiting"; role: SealRole }
-  /** Alguém está num turno, agora. `role` é `null` numa coluna sem papel. */
-  | { kind: "working"; role: SealRole | null; since: Date }
-  /** Travada, com o motivo em uma frase (F3/F4). */
-  | { kind: "blocked"; reason: string }
-  /** Cota do agente, não orçamento: retoma sozinha (F3, Q32). */
-  | { kind: "paused"; until: Date };
 
 /**
  * O papel de cada coluna — e só as três etapas da máquina têm um.
@@ -48,14 +39,14 @@ export type Seal =
  * genérico dos três verbos. Inventar um quarto papel para cobrir isso seria
  * inventar um quarto encaixe, e o §6 tirou isso de escopo de propósito.
  */
-const ROLE_OF: Partial<Record<BoardColumn, SealRole>> = {
+const ROLE_OF: Partial<Record<BoardStatus, SealRole>> = {
   in_progress: "implementador",
   review: "revisor",
   testing: "testador",
 };
 
 export interface SealFacts {
-  status: BoardColumn;
+  status: BoardStatus;
   /** Turnos em voo nas sessões desta tarefa. Vazio é o caso comum. */
   liveTurns: readonly { startedAt: Date }[];
   /**
@@ -113,7 +104,7 @@ export function sealOf({
     return { kind: "blocked", reason: blockedReason };
   }
   // Antes do turno: cota é espera, e quem espera não está trabalhando.
-  if (pausedUntil) return { kind: "paused", until: pausedUntil };
+  if (pausedUntil) return { kind: "paused", until: pausedUntil.toISOString() };
   if (liveTurns.length === 0) {
     /*
      * Ninguém está trabalhando. As duas leituras são opostas e a tela precisa
@@ -132,7 +123,7 @@ export function sealOf({
     (oldest, turn) => (turn.startedAt < oldest ? turn.startedAt : oldest),
     liveTurns[0]!.startedAt,
   );
-  return { kind: "working", role: ROLE_OF[status] ?? null, since };
+  return { kind: "working", role: ROLE_OF[status] ?? null, since: since.toISOString() };
 }
 
 /**

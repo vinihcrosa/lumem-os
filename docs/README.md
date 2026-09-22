@@ -661,6 +661,40 @@ para olhar uma superfície inteira, e foi assim que a [`023`](features/023-compo
 um `overflow: hidden` vivo no produto havia três features, com teste verde. O agentation é
 oportunista — pega o que se olha.
 
+## Proposta de 2026-09-21 — a arquitetura do web
+
+### [web-architecture/](features/032-web-architecture/) — componente não fala com o transporte · **completa**
+
+**As fases 0, 1 e 2 (T1–T9) foram entregues em 2026-09-21**, no mesmo dia da proposta — o sensor, as
+chaves centralizadas em `queryKeys.ts`, e `LumemEvent`/`BoardCard`/`Seal` movidos para `@lumem/shared`.
+Um review achou e consertou dois defeitos reais: `useLiveState.ts` invalidava duas chaves diferentes
+para o mesmo dado de projeto (`cd9549d`), e o `default` exaustivo do switch de eventos dava `throw`
+dentro de uma assinatura tRPC — matando-a no primeiro evento desconhecido, em vez de invalidar tudo e
+avisar. As duas estão em [testing.md](project/testing.md). A fase 3 (a camada de dados) não começou.
+
+Uma análise de arquitetura do `packages/web` pedida no chat, e o que ela mediu: **32 componentes
+importam `lib/trpc.js`**, a invalidação de cache está em 26 arquivos, e `queryKeys.ts` — cujo
+cabeçalho diz *"toda chave num lugar só"* — convive com **21 chaves inline em 16 arquivos** depois
+de o `testing.md` já ter registrado essa armadilha. `["agentConfig", "list"]` está declarada em
+**oito lugares**. Tipos que atravessam a rede são espelhados à mão em três arquivos; `lib/board.ts`
+importa um componente; e nada disso falha porque **o repositório não tem lint**.
+
+O que o documento decide são **cinco regras de camada** dentro do pacote — `ui/` não conhece dado,
+`lib/` não conhece tela, componente não conhece transporte, toda chave nasce em `queryKeys.ts`, tipo
+nomeado nos dois lados mora em `shared` — e um roadmap de **oito fases**, cada uma com *o que muda*,
+*onde*, *pronto quando* e *gate*. A fase 0 instala um sensor com listas de exceções iguais ao medido
+que **só podem encolher**; as fases 1 e 2 são baratas e zeram duas listas; a 3 é a que muda a
+arquitetura; a 4 move `components/` para `features/<domínio>/`; a 5 tira do `App.tsx` o store de
+navegação que ele é sem nome; a 6 quebra `Conversation`, `MemoryPanel` e `AgentLogin`; a 7 e a 8
+fecham CSS, testes e galeria. É o PRD que a [T10 da `024`](features/024-dev-harness/tasks.md) diz
+que o arquivo grande merece — para o `web`.
+
+| Arquivo | O quê |
+|---|---|
+| [prd.md](features/032-web-architecture/prd.md) | o §2 são onze medições com número, e quatro mudam a ordem: metade do código **já segue** o padrão de hook por recurso, então a fase 3 é migração e não desenho; as chaves são a fase mais barata e de maior efeito, então vêm primeiro; a LUM-63 vai mexer no `App.tsx` de qualquer jeito, então a fase 5 se alinha a ela. O §4 é uma spec por fase, e cada uma tem uma **prova por mutação** escrita |
+| [open-questions.md](features/032-web-architecture/open-questions.md) | 8 perguntas, **8 respondidas** em 2026-09-21, **todas como a proposta** — a primeira feature em cinco em que nenhuma veio contra, e o motivo está escrito: regra de pasta se derruba no sensor, não na resposta. A **Q5** é a única que **mudou a PRD**: mock por hook na tela e `Proxy` sobre `AppRouter` no hook, então a fase 3 **reescreve** os testes de tela do recurso que migra, e o parágrafo contrário ganhou a nota no requisito. A **Q2** escolheu a cascata organizada contra CSS Modules, porque três leitoras dependem do nome da classe; Modules foi para o backlog com o gatilho e a promessa de ADR |
+| [tasks.md](features/032-web-architecture/tasks.md) | **34 tasks em 9 fases, nenhuma iniciada.** Cada fase tem gate e uma **prova por mutação**; a fase 3 são sete PRs, um recurso cada, e termina apagando o `trpc-mock.ts`; a fase 4 é um `git mv` numa PR só e precisa de **janela**; a fase 5 é a **fase 0 da LUM-63** |
+
 ---
 
 ## Convenções

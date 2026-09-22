@@ -70,6 +70,10 @@
   background: var(--color-bg-hover);
   color: var(--color-text-primary);
 }
+/* Portadas de `features/conversation/conversation.css` (T30) — variante de
+   primitiva mora com a primitiva, não com a primeira tela que a desenhou. */
+.btn--brand { background: var(--color-bg-brand); border-color: var(--color-bg-brand); color: var(--color-text-on-brand); }
+.btn--warn { background: none; border-color: var(--color-permission-pending); color: var(--color-permission-pending); }
 .btn--sm {
   height: var(--size-control-sm);
   padding: 0 var(--space-8);
@@ -246,6 +250,27 @@
 }
 .row:hover .row__act { color: var(--color-text-secondary); }
 .row__act:hover { background: var(--color-bg-active); color: var(--color-text-primary); }
+
+/*
+ * A ação do cabeçalho — mesmo alvo e mesma forma do `.row__act` acima, sem o
+ * `margin-right` (não tem vizinho à direita) e sempre visível, e não só no
+ * hover da linha: com zero projetos ou zero agentes não há linha nenhuma onde
+ * passar o ponteiro. Vivia copiada, byte a byte, em `sidebar.css` e
+ * `agent-login.css`, até o sensor de CSS (T32) achar a duplicata.
+ */
+.act {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-target-min);
+  height: var(--size-target-min);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-sm);
+  line-height: 1;
+}
+.act:hover { background: var(--color-bg-active); color: var(--color-text-primary); }
 
 /* Sem ação, mas com lugar: alinhamento de coluna não é decoração, é o que faz a
    árvore ser lida de cima a baixo (F1.8). */

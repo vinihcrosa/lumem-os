@@ -4,7 +4,7 @@ import type { Db } from "../db/index.js";
 import { task, workspace, type TaskRow } from "../db/schema.js";
 import type { Role } from "../agents/catalog.js";
 
-import type { BoardColumn } from "./board.js";
+import type { BoardStatus } from "./board.js";
 import { liveTurnsByTask } from "./seal.js";
 
 /**
@@ -35,7 +35,7 @@ import { liveTurnsByTask } from "./seal.js";
  * é sua vez, e o §4.1 a criou justamente para a fila não pegar de volta o que
  * já foi aprovado; `done` acabou.
  */
-export const DUE_STAGES: readonly { status: BoardColumn; role: Role }[] = [
+export const DUE_STAGES: readonly { status: BoardStatus; role: Role }[] = [
   { status: "testing", role: "testador" },
   { status: "review", role: "revisor" },
   { status: "in_progress", role: "implementador" },

@@ -44,6 +44,7 @@ Fonte de verdade da estratégia de teste. O campo `Tests`/`Gate` de toda task sa
 | `server/` CLI | integration **in-process** — a função (`runMemoryCli`) recebe `env`, `out` e `err` por parâmetro | Sim — nada de `process.env` nem de captura de `process.stdout` |
 | `web/` componente | unit (Vitest + Testing Library) | Sim |
 | `web/` **porte de CSS** | unit que lê os arquivos, nas **duas direções**: classe pedida por componente que não existe no stylesheet, e classe definida que ninguém pede. jsdom não aplica stylesheet, então é a única forma de ver regra faltando. A lista de componentes é `readdirSync`, não array — array deixa de estar completo no dia em que alguém acrescenta tela | Sim |
+| `web/` **arquitetura do web** | unit que lê `src/**` com `readdirSync` e os `import` por regex (`architecture.test.ts`). **Oito regras** ao fim da `032-web-architecture`, medidas no disco e não copiadas do texto: direção de dependência (1, 2, 5 — `ui/` não conhece dado, `lib/` não conhece tela, arquivo de hook tem nome de hook), transporte (3 — nenhum `.tsx` fora de `hooks/` importa `lib/trpc.js`), chave de cache (4, em três listas — chave, constante e prefixo de invalidação nascem só em `lib/queryKeys.ts`), fronteira de feature (6 — uma feature só importa outra pelo `index.ts` dela), porta de CSS (7 — `import "…css"` só em `main.tsx`, `App.tsx` e `features/*/index.ts`) e teto de linhas (8). **Sete das oito listas de exceção estão em zero.** A oitava, a regra 3, fica em **cinco** — `features/checkout/FileTree.tsx`, `features/checkout/PatchViewer.tsx`, `features/memory/ProposalQueue.tsx`, `features/setup/Done.tsx`, `features/tasks/TaskList.tsx` — e o `tasks.md` da feature já registra por quê: são os quatro recursos (`files`, `changes`, `memory`, `usage`) que a fase 3 nunca prometeu cobrir, mais um `useQueries` que bate quatro hooks de uma vez sem uma forma `queryOptions()` para alimentá-lo sem duplicar a leitura — "lista em zero" não é o critério certo para uma fase que cobre sete recursos de mais de sete existentes. A regra 8 não é lista, é **mapa**: nove arquivos com o tamanho do dia em que a exceção entrou (`FileTree.tsx` 640, `FileViewer.tsx` 461, `LocalPanel.tsx` 444, `RunDock.tsx` 587, `useFileBuffer.ts` 605, `conversation-model.ts` 715, `SettingsPanel.tsx` 632, `CreateWorktreeDialog.tsx` 531, `WorkspacePanel.tsx` 423), e o mecanismo é o mesmo das listas — o número só desce, nunca sobe sem motivo escrito. Cada regra tem lista de exceções com o estado medido, e a lista **só encolhe**: violação nova reprova, e exceção que deixou de violar reprova dizendo para removê-la — sem essa metade a lista é onde a regra morre em silêncio. O que ele **não** garante é comportamento: se a tela mostra o dado certo é assunto do teste de componente e do e2e | Sim |
 | `web/` tokens e paleta | unit — roda os pares de contraste declarados (119 desde a barra da PR, que não trouxe token novo e trouxe doze combinações), a escada de cinzas, e confere que o `tokens.ts` commitado é o que a derivação produz do `tokens.css` | Sim |
 | `server/` **scripts do projeto** | integration pelo caller, com repositório git de verdade e processo de verdade: o comando declarado no `project.toml` roda, escreve no disco do checkout e recebe as variáveis do §4. Nada de dublê — a coisa sob teste é justamente "isto vira processo" | Sim — cada teste faz seu repositório e seu state dir |
 | **rodapé de execução** de ponta a ponta | e2e `run-dock.spec.ts`, com um repositório de fixture que traz `[scripts]` **commitado** — a única forma de ele existir numa worktree recém-criada. Prova as duas coisas que só o navegador responde: o `run` sobe pela tela e o botão abre **a mesma porta** que a saída anunciou, e a worktree nova nasce preparada sem ninguém pedir | **Não** |
@@ -1349,6 +1350,117 @@ aquilo de resultado.
 **O conserto** é uma asserção no meio: o teto **precisa existir** antes de ser apagado, conferido no
 daemon (`toBe(12)`) e não na tela. A regra geral: **todo teste de transição precisa provar o estado
 de partida**, senão ele testa o default.
+
+### Duas chaves de cache para o mesmo dado, e nenhum teste comparava o prefixo inteiro
+
+**Sintoma:** `useLiveState.ts` invalidava `["project", "get"]` a cada `project.changed`, e três telas
+(`LocalPanel`, `WorktreePanel`, `setup/Done`) liam `["project", "get", id]` inline — enquanto
+`useScopeIds.ts` já lia pela `projectDetailKey()` existente, `["project", "detail", id]`. Um evento do
+daemon nunca alcançava o detalhe do projeto, e nada quebrava: são duas chaves, cada uma coerente
+consigo mesma.
+
+**Causa:** a `032` fase 1 centralizou as chaves de leitura sem comparar contra o que já existia — três
+arquivos ganharam `projectDetailKey()`, e a invalidação continuou com o literal antigo. `["project",
+"get"]` e `["project", "detail"]` compartilham o primeiro elemento, e o primeiro teste escrito para
+`queryKeys.ts` comparava só `[0]` de cada chave — a mutação que trocava um prefixo pelo outro passava.
+
+**Conserto:** o teste de `queryKeys.ts` (`lib/queryKeys.test.ts`) lê o arquivo por texto e compara o
+**prefixo inteiro**, elemento a elemento, contra a chave de leitura que deveria alcançar — não só o
+primeiro. A regra: **um sensor de prefixo que só olha `[0]` é um sensor que não olha o prefixo.**
+
+### `throw` dentro do `onData` de uma assinatura tRPC mata a assinatura, não o evento
+
+**Sintoma:** nenhum, até o primeiro evento que o cliente não reconhece — e nesse instante, silêncio
+total: a aba para de reagir a qualquer mudança do daemon, sem erro na tela.
+
+**Causa:** o `default` exaustivo de `invalidateFor` (a prova de que uma variante nova de `LumemEvent`
+não passa em silêncio) dava `throw`. O `onData` de `trpc.events.onChange.subscribe` corre dentro do
+`for await` do `httpSubscriptionLink`; uma exceção ali fecha o iterador e sobe como `observer.error` —
+e a reconexão automática só cobre erro de **transporte**, não erro do consumidor. Um bundle web em
+cache mais velho que o daemon perde toda invalidação ao vivo no primeiro evento novo.
+
+**Conserto:** o `default` passou a invalidar tudo e avisar (`console.warn`) em vez de lançar — o mesmo
+gesto que a reconexão já faz quando não sabe o que mudou. A exaustividade no `tsc` continua (a
+atribuição a `never` falha se `LumemEvent` ganhar variante sem `case`); só o comportamento em execução
+mudou. A regra: **exaustividade que vive dentro de um callback de stream nunca lança — o consumidor
+não pode ser quem decide que a conexão acabou.**
+
+### Um caractere de controle dentro de uma string faz o `git` tratar o arquivo como binário
+
+**Sintoma:** `git diff` de um `.test.ts` novo mostrava `Bin 0 -> 12498 bytes` em vez do texto — sem
+aviso, sem erro, e sem ninguém revisar uma linha do que tinha sido escrito.
+
+**Causa:** o sensor de CSS (`032` T32) usa um caractere-sentinela para marcar onde um `${…}` foi
+removido de um template literal, e a primeira versão escolheu `" "`. JavaScript não distingue
+— uma string com `\0` funciona igual a qualquer outra —, mas o `git` decide texto-ou-binário
+cheirando os primeiros bytes do arquivo por um `NUL`, e um só já basta.
+
+**Conserto:** trocado por um caractere da área de uso privado do Unicode (`""`), imprimível e
+sem significado fora deste arquivo. A regra: **caractere de controle (`\0`–`\x1F`) nunca vira
+sentinela de string em código que será commitado — se precisa de um valor garantidamente ausente do
+texto real, a área de uso privado do Unicode (``–``) faz o mesmo trabalho sem o efeito
+colateral no `git`.**
+
+### Estado de módulo sobrevive ao componente que o lê, e vaza de um teste para o seguinte
+
+**Sintoma:** três testes que renderizam `<App/>` mais de uma vez no mesmo arquivo
+(`worktree-ui.test.tsx`, `project-ui.test.tsx`) viam a seleção — ou a chegada — de um caso
+sobreviver para o caso seguinte, sem nenhuma montagem nova tê-la escrito.
+
+**Causa:** `lib/navigation.ts` (`032` T21) guarda `selection` e `arrival` em estado de **módulo**, de
+propósito — é o que torna `select`/`arrive` chamáveis de qualquer lugar sem um contexto React por
+cima. `route.ts`, o store irmão, não precisa de reset porque lê o `window.history` de verdade, e os
+próprios testes já resetam isso. `navigation.ts` não tem outro dono: o estado não mora em lugar
+nenhum que o `cleanup()` do testing-library alcance.
+
+**Conserto:** `resetNavigationForTests()`, exportada só para isso, chamada no `afterEach` **global**
+de `test/setup.ts`, ao lado do `cleanup()`. A regra: **um store de módulo — chamável fora de
+qualquer componente — precisa de reset explícito no `afterEach` global; `cleanup()` só desmonta o
+que está na árvore, e o que não está na árvore continua vivo para o próximo teste.**
+
+### `vi.mock` de um `index.js` inteiro devolve uma identidade nova a cada chamada, e `toBe()` quebra sem o componente mudar
+
+**Sintoma:** um teste de aba (`checkout-tab.test.tsx`) que comparava o nó do terminal entre duas
+renderizações (`toBe(nó anterior)`) passou a falhar depois do `git mv` da fase 4 (`032` T17) — sem
+nenhuma mudança de comportamento no componente sob teste. O único teste, de 1196, que a mudança de
+endereço quebrou.
+
+**Causa:** o mock era `vi.mock("../features/checkout/index.js", async (importOriginal) => ({
+...(await importOriginal()), Terminal: … }))`. O `...(await importOriginal())` espalha as
+exportações originais **a cada chamada do factory**, e o `Terminal` real que atravessa o spread sai
+com uma referência de módulo nova a cada vez — mesmo sendo "o mesmo" arquivo por trás. O resto da
+suíte não comparava identidade de componente entre renders, por isso só este caso via.
+
+**Conserto:** mockar `Terminal.js` direto, sem passar pela porta (`index.js`) — a regra 6 do sensor
+de arquitetura não audita `vi.mock`, porque não é import estático. A regra: **`vi.mock` de um módulo
+de barril que espalha `importOriginal()` não preserva identidade entre chamadas; um teste que compara
+referência (`toBe`) mocka o arquivo de origem, nunca o índice que o reexporta.**
+
+### Um teste de CSS por lista de arquivo escrita à mão fica cego quando o componente sai de dentro dele
+
+**Sintoma:** três vezes seguidas (`032` T27, T28, T29), ao quebrar um componente grande em vários —
+`Conversation.tsx` → `Composer`/`Transcript`; `MemoryPanel.tsx` → cinco arquivos por aba;
+`AgentLogin.tsx` → quatro arquivos —, o `*-css.test.ts` daquela feature continuou **verde**, sem
+cobrir nenhuma classe que tinha saído junto com os componentes novos: `.composer__box`, `.mem-find`,
+`.mem-conflict`, `setup`, `opt`, `dcode`, e mais uma dúzia — nenhuma reprovava por faltar folha,
+porque nenhuma estava mais sendo pedida pelos arquivos que o teste lia.
+
+**Causa:** `conversation-css.test.ts`, `memory-css.test.ts` e `agent-login-css.test.ts` leem os
+componentes de uma feature por um **caminho escrito à mão**, não por `readdirSync` do diretório. O
+teste reprova quando uma classe pedida falta na folha — mas uma classe que **parou de ser pedida**,
+porque o arquivo que a pedia não está mais na lista, não aciona nada. É a versão que a `032`
+realmente pagou do que a própria PRD (§ fase 3) previa sob outro nome — *"teste que passava por
+acidente do mock"* — sem o mock do transporte ter nada a ver: o defeito real veio de uma lista de
+arquivos de um teste de CSS, e é da mesma família — **um teste verde que parou de olhar para o
+código que deveria auditar**.
+
+**Conserto:** os arquivos novos entraram na lista, nos três commits, sem tocar em nenhuma asserção. A
+regra: **todo teste de CSS por lista de arquivo é candidato a ficar cego na próxima vez que alguém
+dividir um componente da lista — dividir um arquivo e não somar os que nascem à mesma lista, no mesmo
+commit, é como o defeito se esconde.** `packages/web/src/css-blocks.test.ts` (`032` T32) é a resposta
+estrutural: lê o `web` inteiro por `readdirSync`, sem lista de arquivo nenhuma — o preço é uma regra
+mais barata (o texto ao redor de um `${…}` precisa aparecer em algum nome de classe real, sem exigir
+o nome inteiro por extenso), mas ele nunca fica cego por um `git mv`.
 
 ## Convenções
 

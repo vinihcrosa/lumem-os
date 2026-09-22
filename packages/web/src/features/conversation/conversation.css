@@ -1,0 +1,849 @@
+/*
+ * A conversa (ACP) — portado de `lumem-os-design/lumem-acp-conversation.html`.
+ *
+ * As classes vêm do protótipo com o mesmo nome: divergência aqui é bug de porte,
+ * não escolha. Nenhum valor literal de cor, espaçamento ou dimensão — só `var()`,
+ * com a exceção dos fios óticos de 1–2px que o resto do app também usa.
+ *
+ * O que o protótipo desenha e este arquivo NÃO traz: plano, rodapé de uso e
+ * custo, pílulas de modo/modelo/esforço, menu de comandos de barra, separador de
+ * retomada e a faixa de overage. Tudo isso é fase 4 (A2, D6), e CSS sem markup é
+ * CSS morto — ele vem junto do componente que o usa, quando vier.
+ *
+ * O diff do cartão usa `.patch`/`.dl` do painel direito, não uma segunda
+ * pintura (A4). Por isso o poço de diff do protótipo não está aqui.
+ */
+
+/* ==================================================================== */
+/* A CONVERSA — o que substitui o terminal                              */
+/* ==================================================================== */
+/*
+ * O terminal era uma superfície: bytes chegam, rolam, somem. A conversa é
+ * uma LISTA DE EVENTOS TIPADOS, e o desenho inteiro sai daí — cada evento
+ * do protocolo tem um bloco com forma própria, e a forma é o que deixa
+ * varrer a conversa com o olho em vez de ler linha por linha.
+ *
+ * Um eixo de cor por elemento, nunca dois: a medianiz diz QUEM falou, o
+ * cartão de ferramenta diz EM QUE ESTADO está, o plano diz ONDE estamos.
+ * Foi misturar esses três num só fluxo de texto que fez o terminal virar
+ * parede.
+ */
+.pane--conv { padding: 0; }
+
+/* `min-width: 0` junto do `min-height: 0`, pelo mesmo motivo: sem ele, a largura
+   intrínseca de um filho — o `textarea` do composer — vira piso e empurra a coluna
+   inteira para fora do split. */
+.conv { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+
+/* --------------------------------------------- barra da sessão de agente */
+/*
+ * Modo, modelo e esforço vêm de `configOptions` — são dado do protocolo,
+ * não invenção nossa. Ficam aqui em cima porque valem para a sessão toda;
+ * o que vale só para a próxima mensagem fica no composer.
+ */
+.conv__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  height: var(--size-topbar-height);
+  padding: 0 var(--space-20);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.conv__who { display: inline-flex; align-items: center; gap: var(--space-8); font: var(--text-label-md); }
+.conv__adapter { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+
+.conv__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-16) var(--space-20) var(--space-20);
+  display: grid;
+  align-content: start;
+  gap: var(--space-16);
+}
+/* Nas telas de galeria a conversa não rola: ela cresce e a página rola. */
+.conv__scroll--flow { overflow: visible; }
+
+/* ------------------------------------------------------------- o turno */
+/*
+ * A medianiz de 20px é o que alinha glifo de quem fala, cartão de
+ * ferramenta, plano e pedido de permissão numa única coluna. Sem ela cada
+ * tipo de evento começaria num x diferente e a conversa pareceria uma
+ * lista de coisas soltas em vez de um diálogo.
+ */
+.turn { display: grid; grid-template-columns: var(--size-turn-gutter) 1fr; gap: var(--space-10); align-items: start; }
+.turn__g { flex: none; text-align: center; font-size: var(--size-icon-sm); line-height: var(--space-20); }
+.turn--agent .turn__g { color: var(--color-turn-agent); }
+.turn--user  .turn__g { color: var(--color-turn-user); }
+.turn__b { min-width: 0; display: grid; gap: var(--space-10); }
+
+/*
+ * `min-width: 0` é o que faz a rolagem interna funcionar.
+ *
+ * `.msg` é item de grid do `.turn__b`, e item de grid nasce com `min-width: auto`
+ * — ele cresce até caber o conteúdo. Com uma cerca de 300 caracteres dentro, o
+ * `overflow-x: auto` do `pre` nunca era usado: quem esticava era a mensagem, e a
+ * coluna ia com ela. O e2e mediu 2.516px de `pre` numa coluna de 881px.
+ */
+.msg { font: var(--text-body-lg); color: var(--color-text-primary); min-width: 0; }
+.msg p { margin: 0 0 var(--space-10); }
+.msg p:last-child { margin: 0; }
+.msg code { font: var(--text-mono-md); color: var(--color-text-code); background: var(--color-bg-surface); border-radius: var(--radius-xs); padding: 0 var(--space-4); }
+
+/*
+ * O MARKDOWN DA MENSAGEM.
+ *
+ * Este bloco sempre foi pressuposto e nunca foi escrito: o protótipo desenha
+ * `.msg` com `<p>` e `<code>` dentro desde o começo, então o desenho já dizia
+ * que a mensagem é markdown renderizado. Faltava o resto do que um agente
+ * escreve — título, lista, cerca, citação, tabela.
+ *
+ * Três decisões, e todas sobre isto ser CONVERSA e não documento:
+ *
+ * 1. **título de mensagem é pequeno.** O `h1` do app é o produto, na topbar; o
+ *    `##` que um agente escreve é uma seção de resposta, não de página. Então a
+ *    escala aqui começa em `--text-label-md` e não em display — um título de 28px
+ *    dentro de um turno grita mais alto que o turno inteiro.
+ * 2. **nada de tipografia nova.** Tudo sai dos mesmos tokens do corpo e do mono;
+ *    o que separa um título de um parágrafo é peso e espaço, não tamanho novo.
+ * 3. **conteúdo largo rola dentro de si.** Cerca de código e tabela têm
+ *    `overflow-x: auto`: uma linha de 300 caracteres não pode empurrar a coluna
+ *    da conversa, que é a mesma regra do resultado de ferramenta.
+ */
+.msg h1, .msg h2, .msg h3, .msg h4, .msg h5, .msg h6 {
+  margin: var(--space-12) 0 var(--space-6);
+  /* `--text-label-md` já carrega o peso 500: um título aqui é o corpo com mais
+     peso e mais ar, e não um tamanho novo. */
+  font: var(--text-label-md);
+  color: var(--color-text-primary);
+}
+.msg h1:first-child, .msg h2:first-child, .msg h3:first-child { margin-top: 0; }
+/* Do terceiro nível em diante o título é uma etiqueta: menor que o corpo e em
+   caixa alta, porque aninhamento fundo numa mensagem é raro e curto. */
+.msg h4, .msg h5, .msg h6 {
+  font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs);
+  color: var(--color-text-secondary); text-transform: uppercase;
+}
+
+.msg ul, .msg ol { margin: 0 0 var(--space-10); padding-left: var(--space-20); }
+.msg ul:last-child, .msg ol:last-child { margin-bottom: 0; }
+.msg li { margin: var(--space-2) 0; }
+/* Lista dentro de lista não ganha margem própria: ela já está recuada. */
+.msg li > ul, .msg li > ol { margin: var(--space-2) 0 0; }
+
+/* `strong` herda o peso do próprio navegador (bold): não existe token de peso
+   solto neste sistema, e inventar um aqui seria criar token fora do lugar. */
+.msg strong { color: var(--color-text-primary); }
+.msg em { font-style: italic; }
+.msg del { color: var(--color-text-tertiary); }
+.msg a { color: var(--color-text-brand); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Cerca de código: bloco, não `<code>` inline — fundo próprio, rolagem própria,
+   e sem o `padding` lateral do inline, que dentro de um bloco viraria recuo. */
+.msg pre {
+  margin: 0 0 var(--space-10); padding: var(--space-10) var(--space-12);
+  background: var(--color-bg-inset); border-radius: var(--radius-md);
+  overflow-x: auto; max-width: 100%;
+}
+.msg pre:last-child { margin-bottom: 0; }
+.msg pre code {
+  display: block; background: none; padding: 0; border-radius: 0;
+  font: var(--text-mono-sm); color: var(--color-text-code);
+  white-space: pre;
+}
+
+.msg blockquote {
+  margin: 0 0 var(--space-10); padding-left: var(--space-10);
+  border-left: var(--border-width-thick) solid var(--color-border-default);
+  color: var(--color-text-secondary);
+}
+.msg blockquote:last-child { margin-bottom: 0; }
+
+.msg hr {
+  margin: var(--space-12) 0; border: 0;
+  border-top: var(--border-width-thin) solid var(--color-border-subtle);
+}
+
+/* Tabela: o agente escreve muitas, e ela é a coisa mais larga que ele produz.
+   Rola dentro do próprio contêiner, e a primeira coluna não encolhe até virar
+   uma letra por linha. */
+.msg .table-scroll { overflow-x: auto; margin: 0 0 var(--space-10); }
+.msg .table-scroll:last-child { margin-bottom: 0; }
+.msg table { border-collapse: collapse; font: var(--text-body-sm); }
+.msg th, .msg td {
+  padding: var(--space-4) var(--space-10);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+  text-align: left; vertical-align: top; white-space: nowrap;
+}
+.msg th { font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); color: var(--color-text-secondary); }
+.msg tr:last-child td { border-bottom: 0; }
+/*
+ * O turno do usuário ganha fundo levantado e o resto não: é o único jeito
+ * de achar "onde eu pedi isso" rolando uma conversa de duas horas.
+ */
+.turn--user .msg {
+  padding: var(--space-10) var(--space-12);
+  background: var(--color-bg-raised);
+  border-radius: var(--radius-md);
+  color: var(--color-turn-user);
+}
+/* Streaming (F2.1): o caret é o único sinal de que o turno não acabou. */
+.mcaret {
+  display: inline-block;
+  width: var(--space-2);
+  height: var(--space-16);
+  margin-left: var(--space-2);
+  background: var(--color-turn-caret);
+  vertical-align: text-bottom;
+}
+
+/* ------------------------------------------------------- o raciocínio */
+/*
+ * Colapsado por padrão (F2.2). Existe, dá para abrir, e não compete com a
+ * resposta — quem lê a conversa depois quer saber O QUE foi feito, não o
+ * caminho até a decisão. Quem quer o caminho abre.
+ */
+.thought {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-body-sm);
+  color: var(--color-turn-thought);
+}
+.thought__twist { font-size: var(--size-icon-xs); }
+.thought__peek { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
+.thought__text {
+  border-left: 1px solid var(--color-border-default);
+  padding-left: var(--space-12);
+  font: var(--text-body-md);
+  color: var(--color-turn-thought);
+}
+.thought__text p { margin: 0 0 var(--space-8); }
+.thought__text p:last-child { margin: 0; }
+
+/* ------------------------------------------ o cartão de ferramenta (F2.3) */
+/*
+ * É O elemento que substitui o texto rolando. Quatro estados, e a barra de
+ * 2px na esquerda existe para que uma falha no meio de vinte chamadas seja
+ * achada de relance, sem ler nenhum rótulo.
+ *
+ * "rodando" é info e não success de propósito: verde fica reservado para
+ * TERMINOU BEM. Um cartão a meio caminho pintado de verde se lê como
+ * cartão concluído, e aí o estado deixa de informar.
+ */
+.tool-card {
+  --tc: var(--color-tool-pending);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-left: var(--border-width-thick) solid var(--tc);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.tool-card--pending { --tc: var(--color-tool-pending); }
+.tool-card--running { --tc: var(--color-tool-running); }
+.tool-card--ok      { --tc: var(--color-tool-ok); }
+.tool-card--failed  { --tc: var(--color-tool-failed); }
+.tool-card--cancelled { --tc: var(--color-tool-cancelled); }
+
+.tool-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--size-row-compact);
+  padding: 0 var(--space-10);
+}
+.tool-card__glyph { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); color: var(--tc); }
+.tool-card__verb { flex: none; font: var(--text-label-sm); color: var(--color-text-primary); }
+/*
+ * O alvo trunca pelo DIRETÓRIO e nunca pelo nome do arquivo. Um caminho
+ * cortado no fim (`…/__tests__/file-tree-keyboard-nav…`) não diz em que
+ * arquivo o agente mexeu, que é a única coisa que a linha precisa dizer.
+ */
+.tool-card__target { flex: 1; min-width: 0; display: flex; font: var(--text-mono-sm); }
+.tool-card__dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-tertiary); }
+.tool-card__name { flex: none; color: var(--color-text-code); }
+.tool-card__arg { flex: 1; min-width: 0; font: var(--text-mono-sm); color: var(--color-text-code); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tool-card__st {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--tc);
+}
+/*
+ * Pendente é anel e o resto é disco cheio: o estado se lê sem depender de
+ * distinguir cinza de azul, e sobrevive a captura de tela em escala de cinza.
+ */
+.tool-card__dot { width: var(--space-6); height: var(--space-6); border-radius: var(--radius-full); background: currentColor; }
+.tool-card--pending .tool-card__dot { background: none; box-shadow: inset 0 0 0 var(--border-width-thin) currentColor; }
+.tool-card__delta { flex: none; font: var(--text-mono-sm); }
+.tool-card__delta .plus { color: var(--color-git-added); }
+.tool-card__delta .minus { color: var(--color-git-removed); }
+.tool-card__time { flex: none; font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.tool-card__twist { flex: none; font-size: var(--size-icon-xs); color: var(--color-text-tertiary); }
+.tool-card__body { border-top: 1px solid var(--color-border-subtle); }
+.tool-card__more {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-height: var(--size-control-sm);
+  padding: 0 var(--space-10);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  font: var(--text-label-xs);
+  color: var(--color-text-tertiary);
+}
+/* Veredito de permissão, quando o cartão nasceu de um pedido (F2.4). */
+.verdict { flex: none; display: inline-flex; align-items: center; gap: var(--space-4); font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; }
+.verdict--allowed { color: var(--color-permission-allowed); }
+.verdict--denied  { color: var(--color-permission-denied); }
+/*
+ * O veredito do Lumem (session-mode, F1.6).
+ *
+ * Tom do modo `auto`, e não o verde de "permitido": permitido é o que uma pessoa
+ * respondeu, e este é o que a política respondeu. Mesma forma, mesma posição,
+ * cor que diz de quem foi a assinatura.
+ */
+.verdict--lumem   { color: var(--color-mode-auto); }
+/*
+ * O porquê, visível. Indentado até a coluna do verbo — alinhar com a borda do
+ * cartão faria a frase parecer legenda do cartão inteiro, e ela é do veredito.
+ */
+.tool-card__why {
+  padding: var(--space-6) var(--space-10) var(--space-8)
+    calc(var(--space-10) + var(--size-icon-md) + var(--space-8));
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+
+/* --------------------------------------------- o poço da saída */
+/*
+ * Mesmo poço do terminal, e de propósito: saída de processo é saída de
+ * processo, e ela não deve mudar de aparência por estar dentro de um cartão.
+ */
+.out {
+  max-height: var(--size-tool-output-max);
+  overflow: hidden;
+  padding: var(--space-8) var(--space-12);
+  background: var(--color-bg-inset);
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+  white-space: normal;
+}
+.out .l { display: block; white-space: pre; min-height: var(--space-8); }
+.out .ok { color: var(--color-tool-ok); }
+.out .err { color: var(--color-tool-failed); }
+.out .dim { color: var(--color-text-tertiary); }
+.out .path { color: var(--color-git-branch); }
+.out--short { max-height: none; }
+
+/* ------------------------------------------------------- o plano (F2.5) */
+/*
+ * O plano é UM cartão que se reescreve, não uma sequência de mensagens.
+ * O agente reenvia o plano inteiro a cada mudança; se cada versão virasse
+ * um bloco novo, a conversa encheria de cópias quase iguais.
+ */
+.plan { background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); overflow: hidden; }
+.plan__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--size-row-compact);
+  padding: 0 var(--space-10);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font: var(--text-label-sm);
+  color: var(--color-text-primary);
+}
+.plan__glyph { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); color: var(--color-plan-active); }
+.plan__glyph--done { color: var(--color-plan-done); }
+.plan__count { font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+.plan__row { display: flex; align-items: flex-start; gap: var(--space-8); padding: var(--space-6) var(--space-10); font: var(--text-body-md); }
+.plan__mark { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); line-height: var(--space-16); }
+.plan__what { min-width: 0; }
+.plan__now { flex: none; font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; color: var(--color-plan-active); }
+.plan__row--pending { color: var(--color-text-secondary); }
+.plan__row--pending .plan__mark { color: var(--color-plan-pending); }
+.plan__row--active { color: var(--color-text-primary); }
+.plan__row--active .plan__mark { color: var(--color-plan-active); }
+.plan__row--active .plan__what { font: var(--text-label-md); }
+/* Feito recua para terciário: já rendeu, e o que interessa é o que falta. */
+.plan__row--done { color: var(--color-text-tertiary); }
+.plan__row--done .plan__mark { color: var(--color-plan-done); }
+
+/* ---------------------------------------- o pedido de permissão (F2.4) */
+/*
+ * O único bloco da conversa que PARA tudo: sem resposta, o agente espera
+ * para sempre. Por isso ele é o mais alto contraste da tela, mostra o
+ * comando exato sem truncar, e as saídas são botões e não menu.
+ *
+ * Fundo de aviso, não de perigo: o pedido interrompe, não significa que
+ * algo deu errado. Quem polariza é o veredito depois.
+ */
+.perm {
+  background: var(--color-bg-warning-subtle);
+  border: 1px solid var(--color-permission-pending);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.perm__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--size-row-compact);
+  padding: 0 var(--space-10);
+  font: var(--text-label-sm);
+  color: var(--color-permission-pending);
+}
+.perm__glyph { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); }
+.perm__body { padding: 0 var(--space-10) var(--space-10); display: grid; gap: var(--space-10); }
+.perm__what { display: grid; gap: var(--space-6); }
+/* Sem truncar, e quebrando: `rm -rf` cortado é `rm -rf` que se aprova no escuro. */
+.perm__cmd {
+  padding: var(--space-8) var(--space-10);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-sm);
+  font: var(--text-mono-md);
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.perm__where { font: var(--text-mono-sm); color: var(--color-text-secondary); }
+.perm__why { font: var(--text-body-sm); color: var(--color-text-primary); }
+.perm__opts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+/* `.kbd` mora em `ui/ui.css`: o fluxo de primeiro acesso pede a mesma dica de
+   tecla, e dica de tecla é do app, não da conversa. `.btn--brand` e `.btn--warn`
+   mudaram de endereço pelo mesmo motivo — variante de `.btn` mora ao lado das
+   outras (T30). */
+
+/* ---------------------------------------------- uso e custo (F2.7) */
+/*
+ * O `/usage` deixou de ser necessário: o protocolo entrega utilização,
+ * reset e limiar POR TURNO. Fica no rodapé porque é estado contínuo da
+ * sessão, não evento — se fosse bloco na conversa, encheria de cópias.
+ *
+ * O medidor NASCE quieto. Sessão em 4% da janela não é boa notícia, é
+ * ausência de notícia — pintar de verde treina o olho a ignorar a cor.
+ */
+.usage {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-16);
+  padding: var(--space-8) var(--space-20);
+  background: var(--color-bg-panel);
+  border-top: 1px solid var(--color-border-subtle);
+  font: var(--text-mono-sm);
+  color: var(--color-usage-quiet);
+}
+/*
+ * `.usage-stat`, não `.usage`: o texto da task pedia o mesmo nome do rodapé
+ * (`.usage`), mas o rodapé já é um bloco com esse nome três linhas acima — as
+ * duas coisas duplicadas teriam sido exatamente o que a T30 acabou de tirar
+ * de `.empty`/`.meta`. `.usage-stat` é uma entrada do rodapé (janela, turno
+ * ou assinatura), nunca o rodapé inteiro.
+ */
+.usage-stat { display: inline-flex; align-items: center; gap: var(--space-6); white-space: nowrap; }
+.usage-stat__k { font: var(--text-label-xs); letter-spacing: var(--tracking-label-xs); text-transform: uppercase; color: var(--color-text-tertiary); }
+.meter { flex: none; width: calc(var(--space-64) + var(--space-16)); height: var(--space-4); border-radius: var(--radius-full); background: var(--color-bg-active); overflow: hidden; }
+/*
+ * `display: block` não é detalhe: `.meter__f` é um span, e span inline ignora
+ * width e height — o medidor renderizava a trilha vazia em TODOS os estados,
+ * inclusive 94%. Só apareceu ao olhar o pixel.
+ */
+.meter__f { display: block; height: 100%; width: var(--w); background: currentColor; }
+.usage-stat--warn { color: var(--color-usage-warn); }
+.usage-stat--over { color: var(--color-usage-over); }
+.usage-stat--cost { color: var(--color-usage-cost); }
+.usage__spacer { flex: 1; }
+/* Overage é o aviso que chega ANTES da fatura: sai do rodapé e vira faixa. */
+.overage {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-20);
+  background: var(--color-bg-danger-subtle);
+  border-top: 1px solid var(--color-border-danger);
+  font: var(--text-body-sm);
+  color: var(--color-usage-over);
+}
+
+/* ------------------------------------------------------------ o composer */
+/*
+ * O composer estabelece contexto de empilhamento, e fica ACIMA da conversa.
+ *
+ * Sem isto, todo popover que abre para cima — o menu do modo do Lumem e o portão
+ * do `liberado` — renderiza atrás do `.conv__scroll`: ele aparece na tela, e o
+ * clique vai para a conversa. Foi o e2e que cobrou, e só ele podia: jsdom não faz
+ * layout, então o teste de componente clica num elemento que no navegador está
+ * coberto.
+ *
+ * `z-index` no `.composer` e não em cada popover: um índice por popover é uma
+ * corrida que o próximo popover perde.
+ */
+.composer {
+  flex: none;
+  position: relative;
+  z-index: 1;
+  padding: var(--space-12) var(--space-20) var(--space-16);
+}
+/*
+ * SEM `overflow: hidden`, e isso é o conserto inteiro dos menus (composer-menus).
+ *
+ * O recorte estava aqui para arredondar os cantos — e não arredondava nada: o
+ * campo é transparente, a barra só tem `border-top`, e o único fundo é o da
+ * própria caixa, que o `border-radius` já arredonda. Medido lado a lado no
+ * navegador, os dois cantos são o mesmo canto.
+ *
+ * O que ele fazia era cortar todo popover que abre para cima: o seletor de
+ * modelo perdia toda opção acima da borda da caixa, e o menu de comandos —
+ * ancorado na própria caixa, em `bottom: calc(100% + 6px)` — sumia INTEIRO.
+ * Nenhum e2e o abria, e jsdom não faz layout: o defeito atravessou três
+ * features sem aparecer.
+ */
+.composer__box { background: var(--color-bg-surface); border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); }
+.composer__box--focus { border-color: var(--color-border-focus); }
+/*
+ * A caixa é um `textarea`, e o protótipo desenhou um `div`.
+ *
+ * Três declarações que o desenho não precisava e o elemento real precisa, e sem
+ * elas a caixa vaza do cartão: `textarea` tem largura intrínseca própria (o
+ * `cols` padrão), que num contêiner flex vira piso de largura e empurra o painel
+ * inteiro para fora; tem `box-sizing: content-box`, então o padding soma por
+ * cima dos 100%; e tem alça de redimensionar, que deixa arrastar a caixa para
+ * além da moldura que a contém.
+ */
+.composer__in {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  resize: none;
+  min-height: var(--size-composer-min);
+  padding: var(--space-10) var(--space-12);
+  font: var(--text-body-lg);
+  color: var(--color-text-primary);
+  background: none;
+  border: 0;
+}
+.composer__in:focus { outline: none; }
+.composer__in--empty { color: var(--color-text-tertiary); }
+.composer__bar { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-6) var(--space-8); border-top: 1px solid var(--color-border-subtle); }
+
+/*
+ * Pílula sem preenchimento: o modo pinta a cor DELE, e um fundo próprio
+ * competiria com ela. `bypass` é a exceção — não perguntar nada é estado
+ * que precisa de fundo, não só de texto.
+ */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-8);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  font: var(--text-label-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.pill__caret { font-size: var(--size-icon-xs); color: var(--color-text-tertiary); }
+.pill--auto   { color: var(--color-mode-auto); border-color: var(--color-mode-auto); }
+.pill--plan   { color: var(--color-mode-plan); border-color: var(--color-mode-plan); }
+.pill--bypass { color: var(--color-mode-bypass); border-color: var(--color-mode-bypass); background: var(--color-bg-danger-subtle); }
+.pill--model  { font: var(--text-mono-sm); color: var(--color-text-code); }
+
+/* ------------------------------- a pílula do Lumem (session-mode) */
+/*
+ * O eixo de AUTORIA, e ele não é cor.
+ *
+ * Cor já carrega a consequência acima, e um objeto de 24px com dois eixos de cor
+ * não se lê. Então a autoria vai no glifo `◈` — e ganha de graça um segundo
+ * sinal que já estava no dado: o Lumem rotula em português e em caixa de frase,
+ * o agente entrega a string crua do protocolo. Duas pílulas lado a lado nunca
+ * vão parecer da mesma origem.
+ */
+.pill__own { flex: none; font-size: var(--size-icon-xs); line-height: 1; color: currentColor; }
+.pill[disabled] .pill__own { color: var(--color-text-disabled); }
+/*
+ * Neutro deliberado: "perguntar tudo" é o piso, e piso não pede atenção. Borda
+ * `default` e não `subtle` para não passar por pílula desabilitada — a única do
+ * sistema autorizada a baixar contraste.
+ */
+.pill--ask { color: var(--color-text-secondary); border-color: var(--color-border-default); }
+
+/* ------------------------------- menu suspenso: seletor e comandos */
+/*
+ * Uma folha para os dois. O protótipo desenhou este bloco para os comandos de
+ * barra (F2.8) e usou a mesma forma nos seletores de modo e modelo (F2.6) — dois
+ * arquivos que têm que concordar sobre a aparência de um menu são dois arquivos
+ * que vão discordar.
+ */
+.slash {
+  width: var(--size-menu-width);
+  padding: var(--space-4);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-lg);
+  /*
+   * O teto, e ele é do MENU e não da lista que ele mostra hoje.
+   *
+   * Tirar o recorte da caixa faz o menu aparecer inteiro; não faz ele caber na
+   * janela. A lista de modelos é do agente, não nossa — ela cresce quando o
+   * adaptador quiser —, e sem teto vinte modelos saem pela parte de cima da
+   * tela, que é o mesmo defeito com outro dono.
+   *
+   * 280px = nove linhas de 28px inteiras e a décima pela metade. A meia-linha é
+   * o que diz que a lista continua: cortar exatamente entre duas linhas desenha
+   * uma lista que parece completa.
+   *
+   * `hidden` no eixo horizontal porque a linha já resolve a largura sozinha,
+   * truncando a descrição — deixar os dois eixos em `auto` produz uma barra
+   * lateral por um pixel de arredondamento.
+   */
+  max-height: var(--size-menu-max-h);
+  overflow: hidden auto;
+  /* A roda do mouse não vaza para a conversa atrás do menu. */
+  overscroll-behavior: contain;
+}
+.slash__row { display: flex; align-items: center; gap: var(--space-8); min-height: var(--size-row-compact); padding: 0 var(--space-8); border-radius: var(--radius-sm); }
+.slash__row--on { background: var(--color-bg-active); }
+.slash__cmd { flex: none; font: var(--text-mono-md); color: var(--color-text-primary); }
+.slash__desc { flex: 1; min-width: 0; font: var(--text-body-sm); color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Não perguntar nada é estado, não preferência: ele grita na lista também. */
+.slash__row--danger .slash__cmd { color: var(--color-mode-bypass); }
+
+/* A pílula e o menu dela, ancorados juntos — o do agente e o do Lumem. */
+.config { position: relative; display: inline-flex; }
+.config .slash,
+.config .mode-menu { position: absolute; bottom: calc(100% + var(--space-6)); left: 0; z-index: 1; }
+
+/* ------------------------------- o menu do modo do Lumem (session-mode) */
+/*
+ * Uma folha própria, e não o `.slash`.
+ *
+ * O `.slash` mostra a string crua do agente numa linha só, truncada com
+ * reticências — é a forma certa para dado que não é nosso. Este menu é o
+ * oposto: o texto é escrito por nós, decide uma política de permissão, e tem que
+ * caber inteiro. Reaproveitar o `.slash` cortaria a descrição do `automático`
+ * exatamente onde ela diz o que passa sozinho.
+ */
+.mode-menu {
+  /*
+   * Ancorado na PÍLULA, como todo menu de pílula (composer-menus).
+   *
+   * Ele já esteve ancorado no `.composer`, e a razão era o recorte da caixa: um
+   * popover de 326px não cabia na altura dela e era cortado. O recorte acabou,
+   * e a fuga foi junto — um popover ancora no que o abre, e quem abre este é a
+   * pílula do modo.
+   */
+  width: var(--size-menu-width);
+  /* O mesmo teto do `.slash`. Três opções nunca vão rolar; a regra é do menu. */
+  max-height: var(--size-menu-max-h);
+  /*
+   * `hidden` no horizontal também recorta os cantos: o cabeçalho e o rodapé têm
+   * fundo próprio e encostam na borda arredondada.
+   */
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-lg);
+}
+.mode-menu__head {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-10);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.mode-menu__who { display: flex; align-items: center; gap: var(--space-6); font: var(--text-label-sm); color: var(--color-text-primary); }
+.mode-menu__why { font: var(--text-caption); color: var(--color-text-tertiary); }
+.mode-option { display: grid; gap: var(--space-2); width: 100%; padding: var(--space-8) var(--space-10); text-align: left; }
+.mode-option + .mode-option { border-top: 1px solid var(--color-border-subtle); }
+.mode-option:hover { background: var(--color-bg-hover); }
+.mode-option--on, .mode-option--on:hover { background: var(--color-bg-active); }
+.mode-option__t { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-sm); color: var(--color-text-primary); }
+.mode-option__mark { margin-left: auto; flex: none; font-size: var(--size-icon-sm); color: var(--color-text-brand); }
+/*
+ * Secundário, e não terciário: esta descrição é o texto que decide uma política
+ * de permissão. Terciário é para metadado — hora, contagem, caminho —, não para
+ * a frase que a pessoa lê antes de liberar escrita numa worktree.
+ */
+.mode-option__d { font: var(--text-body-sm); color: var(--color-text-secondary); }
+.mode-option--auto .mode-option__t { color: var(--color-mode-auto); }
+.mode-option--free .mode-option__t { color: var(--color-mode-bypass); }
+.mode-menu__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-8) var(--space-10);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.mode-menu__foot b { color: var(--color-text-secondary); font-weight: 400; }
+
+/* ------------------------------- o portão do `liberado` (session-mode) */
+/*
+ * Molde da `project-scripts`, com uma diferença que importa: lá o portão é por
+ * ORIGEM, porque confiar num repositório é durável; aqui é por SESSÃO, porque
+ * soltar um agente não é. Por isso não existe caixinha de lembrar — e por isso
+ * o botão que confirma é `btn--danger` e não o primário.
+ */
+.gate {
+  /*
+   * A exceção nomeada, e ela não é sobre recorte (composer-menus).
+   *
+   * O portão não é menu: é um cartão de 420px, mais largo que a pílula que o
+   * originou — e a pílula já saiu de jogo quando ele aparece, porque o menu que
+   * o abriu fechou. Cartão desse tamanho alinha com a CAIXA, não com um objeto
+   * de 100px que não está mais em cena.
+   */
+  position: absolute;
+  bottom: 100%;
+  left: var(--space-20);
+  z-index: 2;
+  width: var(--size-dialog-width);
+  display: grid;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-danger);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-xl);
+}
+.gate__t { display: flex; align-items: center; gap: var(--space-8); font: var(--text-heading-md); color: var(--color-text-primary); }
+.gate__g { flex: none; font-size: var(--size-icon-lg); color: var(--color-text-danger); }
+.gate__b { font: var(--text-body-md); color: var(--color-text-secondary); }
+.gate__b b { color: var(--color-text-primary); font-weight: 500; }
+.gate__list {
+  display: grid;
+  gap: var(--space-6);
+  margin: 0;
+  padding: var(--space-10) var(--space-12);
+  list-style: none;
+  background: var(--color-bg-danger-subtle);
+  border-radius: var(--radius-md);
+}
+.gate__list li { display: flex; gap: var(--space-8); font: var(--text-body-sm); color: var(--color-text-primary); }
+.gate__list li::before { content: "›"; flex: none; color: var(--color-text-danger); }
+.gate__list li > span { min-width: 0; }
+/* O caminho quebra onde precisar: cortá-lo seria esconder metade do escopo. */
+.gate__scope { font: var(--text-mono-sm); color: var(--color-text-code); overflow-wrap: anywhere; }
+.gate__acts { display: flex; align-items: center; gap: var(--space-8); }
+.gate__note { font: var(--text-caption); color: var(--color-text-tertiary); }
+
+/* O menu de comandos, ancorado na caixa do composer em vez de numa pílula. */
+.composer__box { position: relative; }
+.composer__box > .slash { position: absolute; bottom: calc(100% + var(--space-6)); left: var(--space-8); z-index: 1; }
+
+/* ----------------------------------------- vazio, retomado, e falha */
+/*
+ * Sessão nova não é tela em branco: ela custa ~39k tokens de system prompt
+ * antes de qualquer palavra nossa (medido no spike), e isso é a primeira
+ * coisa que o usuário merece saber ao abrir a aba.
+ *
+ * `.empty` é a primitiva de `ui/ui.css` — o quadro tracejado das listas
+ * vazias. Aqui ela some (sem caixa, sem borda) e centraliza um convite maior;
+ * `.empty--conversation` é só o que muda, nunca uma segunda definição do
+ * bloco (T30).
+ */
+.empty.empty--conversation {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--space-8);
+  padding: var(--space-48) var(--space-20);
+  border: none;
+  text-align: center;
+}
+.empty--conversation .empty__glyph { font-size: var(--size-icon-lg); color: var(--color-turn-agent); }
+.empty--conversation .empty__title { font: var(--text-heading-md); color: var(--color-text-primary); }
+.empty--conversation .empty__sub { font: var(--text-body-md); color: var(--color-text-tertiary); max-width: var(--size-terminal-min); }
+
+/* Falha de lançamento é resposta de domínio, não stack trace (F1.6). */
+.fail { display: grid; gap: var(--space-8); padding: var(--space-12); background: var(--color-bg-danger-subtle); border: 1px solid var(--color-border-danger); border-radius: var(--radius-md); }
+.fail__title { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-md); color: var(--color-text-danger); }
+.fail__body { font: var(--text-body-md); color: var(--color-text-primary); }
+.fail__cmd { padding: var(--space-8) var(--space-10); background: var(--color-bg-inset); border-radius: var(--radius-sm); font: var(--text-mono-sm); color: var(--color-text-code); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/*
+ * Evento que o cliente não conhece é IGNORADO COM LOG, nunca lançado — o
+ * protocolo evolui e a v2 é rascunho. Fica visível em cinza porque
+ * silêncio total é o que faz uma aba parecer travada sem motivo.
+ */
+.unknown { border-left: var(--border-width-thick) solid var(--color-border-default); padding-left: var(--space-10); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+/*
+ * Mesma forma que `.unknown`, outro significado: o texto que a SESSÃO diz de
+ * si — hoje, o núcleo da memória que entrou no primeiro turno. Separado de
+ * `.unknown` porque um dia um deles vai querer mudar sem o outro.
+ *
+ * Não é modificador de `.meta` (`ui/ui.css`): aquele é a grade `dl`/`dt`/`dd`
+ * de metadados, e este é um `div` de texto corrido — mesmo nome no protótipo,
+ * forma diferente. Combinar as duas quebraria o layout (o
+ * `grid-template-columns: max-content 1fr` da grade sobre um único nó de
+ * texto). `.meta--conversation` é nome próprio, não uma variante da grade
+ * (T30).
+ */
+.meta--conversation { border-left: var(--border-width-thick) solid var(--color-border-subtle); padding-left: var(--space-10); font: var(--text-mono-sm); color: var(--color-text-tertiary); }
+
+/* O mesmo sinal na sidebar, para o pedido de permissão esperando. */
+.count--asking { background: var(--color-bg-warning-subtle); color: var(--color-permission-pending); }
+
+/*
+ * Empurra o que vem depois para a direita, e só nestes dois cabeçalhos.
+ *
+ * O protótipo tinha `.spacer` como utilitário global; o app não tem utilitário
+ * de layout, e introduzir um por causa de dois lugares é abrir uma porta que não
+ * fecha. Escopado, é a mesma regra sem a porta.
+ */
+.conv__head .spacer,
+.perm__head .spacer {
+  flex: 1;
+}
+/*
+ * O terminal do agente, dentro do cartão (F3, A5, D7).
+ *
+ * O protótipo desenhou o poço de saída, não um `xterm` — então esta é a única
+ * regra desta folha que não vem dele, e ela existe só para dar altura ao terminal:
+ * um `xterm` num contêiner sem altura renderiza zero linha e some.
+ */
+.tool-card__term {
+  height: var(--size-terminal-min);
+  min-height: 0;
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-inset);
+}
+
+/*
+ * Onde uma conversa termina e a próxima continua (F5.2, D12).
+ *
+ * Irmão do `.turn`, não filho: a régua atravessa a coluna inteira, e dentro de um
+ * turno ela ficaria recuada sob a calha de quem fala, como se alguém tivesse dito.
+ */
+.daysep {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.daysep::before,
+.daysep::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border-subtle);
+}

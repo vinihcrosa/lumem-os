@@ -1,0 +1,206 @@
+/* A sidebar: seletor de workspace no topo, árvore no meio, ação no rodapé. */
+
+.tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4) var(--space-6);
+}
+
+/*
+ * O bloco de navegação (`029-sidebar-nav`, F1.1).
+ *
+ * **Fora da `.tree`**, e essa é a regra inteira: a árvore é `flex: 1;
+ * overflow: auto` — ela rola —, e um bloco que rola junto com a lista de
+ * projetos é um bloco que some quando ela cresce. O pedido que originou a
+ * feature é *"poder acessar a qualquer hora"*.
+ *
+ * Só separa: um `border-bottom` e o mesmo padding lateral da árvore. Altura
+ * própria ele não tem — quem dá altura são as linhas, e as linhas são `<Row>`.
+ */
+.nav {
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+/*
+ * O número que a linha `Tarefas` carrega — o mesmo `precisa de mim` do quadro.
+ *
+ * Mesmo tratamento do `.needme__n` de lá, e **o mesmo dado**, lido da mesma
+ * resposta: dois lugares contando coisas diferentes seriam dois lugares
+ * divergindo, e aqui a divergência seria pior que no quadro, porque a sidebar é
+ * o que se vê **sem estar olhando**.
+ *
+ * **Some no zero**, pela regra que o quadro já escreveu: um zero vermelho ensina
+ * a ignorar o vermelho.
+ *
+ * E ele não é o `.row__count` do `<Row>`: aquele conta sessões vivas, é o único
+ * verde da sidebar, e pintá-lo de vermelho apagaria o que ele existe para dizer.
+ */
+.row__n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--size-icon-md);
+  height: var(--size-icon-md);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-danger-subtle);
+  color: var(--color-text-danger);
+  font: var(--text-label-xs);
+}
+
+.tree__message {
+  margin: var(--space-8);
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+
+.sidebar__foot {
+  border-top: 1px solid var(--color-border-subtle);
+  padding: var(--space-6);
+}
+
+/* Ação do rodapé: discreta até o ponteiro chegar, porque ela fica sempre na
+   tela e não é o que o usuário veio fazer. */
+.sidebar__add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  height: var(--size-control-md);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  font: var(--text-label-sm);
+}
+.sidebar__add:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+/* ------------------------------------------------- seletor de workspace */
+.ws {
+  flex: none;
+  padding: var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.ws__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-control-lg);
+  padding-left: var(--space-8);
+  border-radius: var(--radius-md);
+}
+.ws__bar:hover { background: var(--color-bg-hover); }
+
+.ws__glyph {
+  flex: none;
+  color: var(--color-scope-workspace);
+  font-size: var(--size-icon-sm);
+  line-height: 1;
+}
+
+/* `appearance: none` tira a caixa do sistema e deixa o controle nativo por
+   baixo: teclado, leitor de tela e o popup da plataforma continuam de graça.
+   Q8 registra por que não é um menu construído à mão. */
+.ws__select {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--space-4);
+  appearance: none;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font: var(--text-label-md);
+  cursor: pointer;
+}
+/* O popup do sistema é claro; sem isto o nome some sobre o próprio menu. */
+.ws__select option {
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+}
+
+.ws__form { margin-top: var(--space-8); }
+.ws__actions { display: flex; gap: var(--space-6); }
+
+.ws__error {
+  margin: var(--space-8) 0 0;
+  font: var(--text-body-sm);
+  color: var(--color-text-danger);
+}
+
+.ws__caret {
+  flex: none;
+  margin-left: calc(-1 * var(--space-4));
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-xs);
+  pointer-events: none;
+}
+
+/* ------------------------------------------------- cabeçalho da lista
+ *
+ * O `+` fica preso ao TÍTULO, e não ao fim da lista: assim ele não se afasta da
+ * coisa que acrescenta quando a lista cresce. E ele existe em todos os estados
+ * (Q3) — é o único caminho para o PRIMEIRO projeto, e árvore vazia não tem linha
+ * onde passar o ponteiro.
+ */
+.tree__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-row-compact);
+  padding: 0 var(--space-2) 0 var(--space-8);
+}
+.tree__head .tree__label { flex: 1; min-width: 0; padding: 0; margin: 0; }
+
+/* ------------------------------------------------- agentes do daemon
+ *
+ * Duas linhas por agente, e não uma: a sidebar tem 264px, e nome + comando + chip +
+ * botão numa linha só quebra. A primeira linha diz o que é, a segunda o que roda.
+ */
+.agents { padding-top: var(--space-4); }
+.agents__empty {
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+.agents__row {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.agents__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+.agents__name {
+  font: var(--text-label-md);
+  color: var(--color-text-primary);
+}
+.agents__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+/* O comando cede, o botão não: um botão cortado é um botão que não se clica. */
+.agents__cmd {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--text-mono-sm);
+  color: var(--color-text-tertiary);
+}
+.agents__form {
+  display: grid;
+  gap: var(--space-8);
+  padding-top: var(--space-8);
+}
+.agents__actions { display: flex; gap: var(--space-6); }

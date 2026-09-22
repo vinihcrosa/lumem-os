@@ -1,5 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
+import { BOARD_COLUMNS, type BoardCard, type BoardStatus, type Seal } from "@lumem/shared";
+
 import type { Db } from "../db/index.js";
 import { project, task, worktree } from "../db/schema.js";
 import { usageByTask } from "../usage/query.js";
@@ -18,29 +20,18 @@ import { usageByTask } from "../usage/query.js";
  * - **o `● #87`** vem do `PrCache` que a [`013`] já mantém, e a tela o junta
  *   pela worktree. Trazê-lo por aqui faria a leitura do quadro depender de um
  *   processo `gh` — e o quadro abre muito mais vezes do que a PR muda.
- */
-
-/**
- * As sete etapas do §4, em ordem de leitura.
  *
- * `proposed` e `dropped` **não estão aqui, e isso é a decisão**: o primeiro mora
- * na fila de Propostas da [`022`](../../../../docs/features/022-workspace-tasks/prd.md),
- * e o segundo sai do quadro e vira arquivo. Uma coluna para cada um faria o
- * quadro responder duas perguntas diferentes ao mesmo tempo.
+ * `BOARD_COLUMNS`, `BoardStatus`, `Seal` e o `BoardCard` que atravessa a rede
+ * moram em `@lumem/shared` (`032` T9) — reexportados daqui para quem já
+ * importa deste arquivo. O que fica **aqui** é o que é do banco: `BoardCardRow`
+ * tem `statusChangedAt` e `notifiedAt` como `Date`, porque é o que a query
+ * devolve; `toWireCard` é onde a fronteira serializada nasce.
  */
-export const BOARD_COLUMNS = [
-  "backlog",
-  "open",
-  "in_progress",
-  "review",
-  "testing",
-  "ready_to_merge",
-  "done",
-] as const;
+export { BOARD_COLUMNS };
+export type { BoardStatus };
 
-export type BoardColumn = (typeof BOARD_COLUMNS)[number];
-
-export interface BoardCard {
+/** A linha crua, antes de virar o cartão que atravessa a rede. */
+export interface BoardCardRow {
   id: string;
   title: string;
   projectId: string;
@@ -81,9 +72,41 @@ export interface BoardCard {
   queuedBeyondSlots: boolean;
 }
 
-export interface BoardColumnView {
-  status: BoardColumn;
-  cards: BoardCard[];
+export interface BoardColumnRows {
+  status: BoardStatus;
+  cards: BoardCardRow[];
+}
+
+/**
+ * A linha crua vira o cartão do `shared`, explícito — sem `...spread` (`032`
+ * T9). Um campo novo em `BoardCard` que esta função não preenche é erro de
+ * tipo **aqui**, no servidor; um campo novo só em `BoardCardRow` que ela não
+ * usa não é (excesso via spread não reprova, e é por isso que não há spread).
+ */
+export function toWireCard(row: BoardCardRow, seal: Seal, notice: string | null): BoardCard {
+  return {
+    id: row.id,
+    title: row.title,
+    projectId: row.projectId,
+    projectName: row.projectName,
+    worktreeId: row.worktreeId,
+    worktreeName: row.worktreeName,
+    branch: row.branch,
+    position: row.position,
+    statusChangedAt: row.statusChangedAt.toISOString(),
+    tokens: row.tokens,
+    cost: row.cost,
+    currency: row.currency,
+    turns: row.turns,
+    createdBy: row.createdBy,
+    links: row.links,
+    attempts: row.attempts,
+    autonomy: row.autonomy,
+    preparedPrompt: row.preparedPrompt,
+    queuedBeyondSlots: row.queuedBeyondSlots,
+    seal,
+    notice,
+  };
 }
 
 /**
@@ -108,7 +131,7 @@ export function boardOf(
     projectId,
     waiting = new Set<string>(),
   }: { workspaceId: string; projectId?: string; waiting?: ReadonlySet<string> },
-): BoardColumnView[] {
+): BoardColumnRows[] {
   const where = [eq(task.workspaceId, workspaceId), inArray(task.status, [...BOARD_COLUMNS])];
   if (projectId) where.push(eq(task.projectId, projectId));
 

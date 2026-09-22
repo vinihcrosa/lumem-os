@@ -2,10 +2,12 @@ import { z } from "zod";
 
 import { and, eq } from "drizzle-orm";
 
+import type { BoardColumn } from "@lumem/shared";
+
 import { project, session, worktree } from "../db/schema.js";
 import { createTaskRepository, TASK_STATUSES } from "../repositories/task.js";
 import { createTaskCommentRepository } from "../repositories/task-comment.js";
-import { beyondSlots, boardOf } from "../tasks/board.js";
+import { beyondSlots, boardOf, toWireCard } from "../tasks/board.js";
 import { queueOf } from "../tasks/queue.js";
 import { noticeFor } from "../tasks/notify.js";
 import { cleanupFactsOf, decideCleanup, type CleanupDecision } from "../tasks/cleanup.js";
@@ -185,7 +187,7 @@ export const taskRouter = router({
         where: (table, { eq: is }) => is(table.id, input.workspaceId),
       });
 
-      return Promise.resolve(space).then((row) => {
+      return Promise.resolve(space).then((row): BoardColumn[] => {
         const running = row?.autonomy === "assistido" || row?.autonomy === "autonomo";
         return columns.map((column) => ({
           status: column.status,
@@ -200,17 +202,14 @@ export const taskRouter = router({
               // que a própria fila já recusou.
               autonomyOn: running && card.autonomy !== "off",
             });
-            return {
-              ...card,
+            // A frase vem pronta do daemon, porque quem sabe se você já foi
+            // avisado é ele (T35).
+            const notice = noticeFor(card.title, {
+              status: column.status,
               seal,
-              // A frase vem pronta do daemon, porque quem sabe se você já foi
-              // avisado é ele (T35).
-              notice: noticeFor(card.title, {
-                status: column.status,
-                seal,
-                notifiedAt: card.notifiedAt,
-              }),
-            };
+              notifiedAt: card.notifiedAt,
+            });
+            return toWireCard(card, seal, notice);
           }),
         }));
       });

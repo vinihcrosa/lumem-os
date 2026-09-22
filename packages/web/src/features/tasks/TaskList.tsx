@@ -1,0 +1,353 @@
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+
+import { useProjects } from "../workspace/index.js";
+import { useTaskSettings, useTasksByWorkspace } from "./queries.js";
+import { usageByTaskKey } from "../../lib/queryKeys.js";
+import { trpc } from "../../lib/trpc.js";
+import { Banner, Button, EmptyState, SectionHead, Skeleton } from "../../ui/index.js";
+
+
+/**
+ * A lista de tarefas do workspace (`022-workspace-tasks` F1, T8).
+ *
+ * **Sem cabeçalho de grupo, e isso é a decisão.** A ordem vem do daemon —
+ * `review` e `in_progress` primeiro, `open` depois, o que saiu do fluxo por
+ * último — e o **estado é o primeiro item da linha**. Quando o primeiro item é o
+ * critério de ordenação, a ordem se explica sozinha; cabeçalhos diriam de novo o
+ * que o chip já diz e custariam a altura de duas tarefas numa coluna que divide
+ * espaço com consumo e memória.
+ *
+ * **`done` fica recolhido** e `dropped` nem aparece: o primeiro é histórico e o
+ * segundo é arquivo, alcançável pelo filtro de status com o motivo junto.
+ */
+
+export interface TaskRow {
+  id: string;
+  workspaceId: string;
+  projectId: string;
+  title: string;
+  body: string;
+  status: string;
+  createdBy: string;
+  createdBySession: string | null;
+  worktreeId: string | null;
+  links: string;
+  reason: string | null;
+}
+
+/** O rótulo de cada estado — em minúscula, como o resto das colunas de meta. */
+const STATUS_LABEL: Record<string, string> = {
+  proposed: "proposta",
+  open: "open",
+  in_progress: "in progress",
+  review: "review",
+  done: "done",
+  dropped: "dropped",
+};
+
+/**
+ * O glifo de `done` e `dropped`.
+ *
+ * Os outros três usam o ponto — anel ou disco —, porque a pergunta deles é
+ * *"alguém está?"*. Estes dois saíram do fluxo, e "alguém está" não se aplica:
+ * o glifo diz o desfecho em vez de um estado que não existe mais.
+ */
+const STATUS_GLYPH: Record<string, string> = { done: "✓", dropped: "–" };
+
+
+
+export interface TaskListProps {
+  workspaceId: string;
+  /** Quando presente, a lista é a do projeto — a mesma peça, um nível abaixo. */
+  projectId?: string;
+  onOpen: (taskId: string) => void;
+  onCreate?: () => void;
+  /**
+   * A porta do quadro (`028` T8).
+   *
+   * Mora aqui e não na topbar porque **uma ação, um lugar**: a lista é o lugar
+   * onde tarefa é o assunto, e o quadro é a outra forma de olhar a mesma coisa.
+   * Ausente na lista do projeto — o quadro é do workspace.
+   */
+  onOpenBoard?: () => void;
+}
+
+export function TaskList({
+  workspaceId,
+  projectId,
+  onOpen,
+  onCreate,
+  onOpenBoard,
+}: TaskListProps) {
+  const [project, setProject] = useState<string | null>(projectId ?? null);
+  const [showDone, setShowDone] = useState(false);
+
+  const filter = project === null ? undefined : { projectId: project };
+  const tasks = useTasksByWorkspace(workspaceId, filter);
+
+  /*
+   * A cerimônia, e só ela (`030-settings` T13 · Q9).
+   *
+   * Esta leitura carregava os três tetos, a variável de ambiente, os degraus da
+   * esteira, o paralelismo e o interruptor de limpeza — tudo isso mudou para
+   * `/settings`. O que sobrou é uma medida, não um ajuste: `sessões com tarefa ÷
+   * sessões`, que a `022` pôs aqui justamente porque **ninguém procura uma
+   * métrica que não incomoda**.
+   */
+  const settings = useTaskSettings(workspaceId);
+
+  /*
+   * O custo por tarefa, numa chamada para a lista inteira.
+   *
+   * Uma por linha seria N requisições para somar N números — o desenho que faz
+   * uma tela de sete linhas parecer lenta.
+   */
+
+
+  const spend = useQuery({
+    queryKey: usageByTaskKey(workspaceId),
+    queryFn: () => trpc.usage.byTask.query({ workspaceId, period: "7d" }),
+  });
+
+  // Só o filtro precisa deles, e a lista do projeto não tem filtro.
+  const projects = useProjects(workspaceId, { enabled: projectId === undefined });
+
+  const projectName = (id: string): string =>
+    projects.data?.find((row) => row.id === id)?.name ?? "";
+  const costOf = (id: string): number | null =>
+    spend.data?.find((row) => row.taskId === id)?.cost ?? null;
+
+  const all = tasks.data ?? [];
+  // `dropped` é arquivo: sai do fluxo e só volta pelo filtro de status, que é o
+  // que faz a lista ser "o que está acontecendo" em vez de tudo que já existiu.
+  const live = all.filter((row) => row.status !== "done" && row.status !== "dropped");
+  const done = all.filter((row) => row.status === "done");
+
+  return (
+    <section className="section">
+      <SectionHead
+        title="Tarefas"
+        count={all.length}
+        aside={
+          <>
+            {projectId === undefined && (projects.data?.length ?? 0) > 1 && (
+              /*
+               * UM controle, e não um segmentado com o nome de cada projeto.
+               *
+               * O segmentado punha o nome do projeto numa **segunda** peça
+               * clicável da mesma tela — a primeira é a árvore da sidebar —, e
+               * dois botões idênticos querendo dizer coisas diferentes é
+               * ambiguidade para quem lê e para quem automatiza: 22 e2e
+               * passaram a achar dois "fixture" na tela. A regra da casa é uma
+               * ação, um lugar.
+               *
+               * E ele escala: três projetos cabiam num segmentado, oito não.
+               */
+              /*
+               * Sem rótulo visível: a primeira opção **é** o rótulo.
+               *
+               * Um `<span>projeto</span>` ao lado do controle é um segundo
+               * elemento para uma ideia só — e ele pôs a palavra `projeto` na
+               * tela do workspace, onde um e2e a usava como prova de que o
+               * grupo de memória `projeto` não existe naquele escopo. O nome
+               * acessível continua completo no `aria-label`.
+               */
+              <select
+                className="input tlist__filter"
+                aria-label="Filtrar tarefas por projeto"
+                value={project ?? ""}
+                onChange={(event) => setProject(event.target.value === "" ? null : event.target.value)}
+              >
+                <option value="">todos os projetos</option>
+                {projects.data?.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {onOpenBoard && projectId === undefined && (
+              <Button size="sm" variant="ghost" onClick={onOpenBoard}>
+                quadro
+              </Button>
+            )}
+            {onCreate && (
+              <Button size="sm" onClick={onCreate}>
+                ＋ tarefa
+              </Button>
+            )}
+          </>
+        }
+      />
+
+      {tasks.isError ? (
+        <Banner tone="danger">{tasks.error.message}</Banner>
+      ) : tasks.isPending ? (
+        <Skeleton label="buscando as tarefas" widths={["90%", "70%"]} />
+      ) : all.length === 0 ? (
+        <EmptyState
+          title="Nenhuma tarefa ainda"
+          action={
+            onCreate && (
+              <Button variant="primary" onClick={onCreate}>
+                criar a primeira
+              </Button>
+            )
+          }
+        >
+          Tarefa é para o trabalho que você quer acompanhar — ela guarda o corpo, o checkout, as
+          sessões e o custo. Conversa rápida continua a um clique, sem tarefa nenhuma.
+        </EmptyState>
+      ) : (
+        <div className="tlist">
+          {/*
+            A medida de cerimônia, e **só** ela (`030-settings`, T13 · Q9).
+            Onde havia 79 linhas — três tetos, uma variável de ambiente, os
+            degraus da esteira, o paralelismo e o interruptor de limpeza — há
+            uma linha, porque a régua não é *de quem é o dado*: é *o que se faz
+            com ele*. Configuração se ajusta uma vez por mês e mudou para
+            `/settings`; medida se **olha**, e uma medida cuja utilidade depende
+            de ser vista sem ser procurada não pode morar numa tela que só se
+            abre de propósito.
+            `sessões com tarefa ÷ sessões`, e o PRD da `022` **espera que não
+            seja 100%**: se for, todo mundo está criando tarefa para agradar o
+            daemon, e o lugar da tarefa está errado.
+          */}
+          {settings.data !== undefined && settings.data.sessions > 0 && (
+            <p className="tlist__ceremony">
+              <b>
+                {settings.data.sessionsWithTask} de {settings.data.sessions}
+              </b>{" "}
+              sessões têm tarefa
+            </p>
+          )}
+          {live.map((row) => (
+            <TaskRowButton
+              key={row.id}
+              row={row}
+              projectName={projectName(row.projectId)}
+              cost={costOf(row.id)}
+              onOpen={onOpen}
+            />
+          ))}
+
+          {done.length > 0 && (
+            <>
+              <button
+                type="button"
+                className="tfold focus-ring"
+                aria-expanded={showDone}
+                onClick={() => setShowDone((open) => !open)}
+              >
+                <span className="tfold__caret" aria-hidden="true">
+                  {showDone ? "▾" : "▸"}
+                </span>
+                done
+                <span className="tfold__n">{done.length}</span>
+              </button>
+              {showDone &&
+                done.map((row) => (
+                  <TaskRowButton
+                    key={row.id}
+                    row={row}
+                    projectName={projectName(row.projectId)}
+                    cost={costOf(row.id)}
+                    onOpen={onOpen}
+                  />
+                ))}
+            </>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function TaskRowButton({
+  row,
+  projectName,
+  cost,
+  onOpen,
+}: {
+  row: TaskRow;
+  projectName: string;
+  /** `null` quando ninguém reportou custo — que é diferente de ter custado zero. */
+  cost: number | null;
+  onOpen: (taskId: string) => void;
+}) {
+  const glyph = STATUS_GLYPH[row.status];
+  return (
+    <button
+      type="button"
+      className={`trow trow--${row.status} focus-ring`}
+      onClick={() => onOpen(row.id)}
+    >
+      <span className="task-status">
+        {glyph === undefined ? (
+          <span className="task-status__dot" aria-hidden="true" />
+        ) : (
+          <span className="task-status__g" aria-hidden="true">
+            {glyph}
+          </span>
+        )}
+        {STATUS_LABEL[row.status] ?? row.status}
+      </span>
+      <span className="trow__t">
+        {row.title}
+        {/*
+          O motivo mora no título, em cinza, na mesma linha — e trunca junto com
+          ele quando é longo, com o texto inteiro no detalhe. Uma segunda linha
+          por tarefa arquivada custaria altura em *toda* a lista para servir ao
+          estado menos visitado dela.
+        */}
+        {row.reason !== null && row.reason !== "" && (
+          <span className="trow__why"> — {row.reason}</span>
+        )}
+      </span>
+      <span className="trow__proj">
+        {projectName !== "" && (
+          <>
+            <span className="glyph glyph--project" aria-hidden="true">
+              ■
+            </span>
+            {projectName}
+          </>
+        )}
+      </span>
+      <span className="task-provenance">
+        {/*
+          Só o que NÃO é o default tem marca: tarefa que você criou não ganha
+          glifo nenhum, porque "você" é o normal e marcar o normal gasta a marca.
+        */}
+        {row.createdBy === "agent" && (
+          <>
+            <span className="task-provenance__g" aria-hidden="true">
+              ◆
+            </span>
+            proposta
+          </>
+        )}
+      </span>
+      <span className="trow__wt">
+        {/*
+          Tarefa sem worktree não inventa um checkout: a célula fica vazia, e não
+          com um traço ou um "nenhuma". Três `open` sem worktree formam uma coluna
+          vazia que se lê de relance como "ninguém começou nenhuma dessas".
+        */}
+        {row.worktreeId !== null && (
+          <span className="glyph glyph--worktree" aria-hidden="true">
+            ◇
+          </span>
+        )}
+      </span>
+      {/*
+        O custo é o último, e é o único alinhado à direita: ele é a coluna que se
+        lê na vertical, somando a tela inteira com o olho.
+      */}
+      <span className={`trow__cost${cost === null ? " trow__cost--none" : ""}`}>
+        {cost === null ? "—" : `US$ ${cost.toFixed(2)}`}
+      </span>
+    </button>
+  );
+}

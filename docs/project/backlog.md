@@ -245,6 +245,22 @@ existe. A segunda é a [`028`](../features/028-autonomous-orchestration/prd.md),
 desta e cujo §11 já lista lease, heartbeat e recuperação como a peça técnica que sustenta o selo do
 §4.1.
 
+### `conveyor.spec.ts:371` intermitente — `P`
+
+Review independente da `032` (2026-09-21) achou o teste *"parar interrompe sem apagar a worktree"*
+flaky: `task.stop`, lê `attempts`, espera 20 s, exige o mesmo número — e uma vez recebeu `+1`. Entre
+o `stop` e a leitura seguinte, uma passada da esteira incrementou a tentativa de um cartão com
+`autonomy: "off"`. Ou a esteira já tinha o cartão em mão quando o `stop` chegou e contou a tentativa
+mesmo assim, ou a fila releu antes de ver o `off`. O `testing.md` já registra *"contar a tentativa
+antes de saber se vai haver turno"* como armadilha da `028`; esta parece a irmã dela — contar a
+tentativa de um cartão que acabou de ser parado. Não é da `032` (o diff dela no servidor é só tipo e
+`toWireCard`); rodado isolado depois, passou em 38 s.
+
+**De onde veio:** review independente de fases 3-8 da [`032`](../features/032-web-architecture/prd.md),
+seção "Fora da feature, mas achado por ela" · **Volta quando:** alguém abrir uma issue própria para
+a `028` com o `trace.zip` que o Playwright deixou em `test-results/`, ou quando o teste falhar de
+novo no CI e valer a pena investigar a corrida com log adicional.
+
 ---
 
 ## D. Git e integrações
@@ -718,6 +734,45 @@ tipo pega — `no-floating-promises` à frente, num daemon cheio de `async` disp
 **De onde veio:** [dev-harness T9](../features/024-dev-harness/tasks.md) · **Volta quando:** a medição da Q2
 apontar `oxlint`, ou quando aparecer o primeiro bug de promessa não-aguardada em produção.
 
+### Eventos do daemon para `agent_config` e `secrets` — `P`
+
+O `invalidateFor` do web não conhece `agentConfig` nem `secrets` porque o daemon não emite
+`agent_config.changed` nem `secret.changed`. Hoje o login e a credencial só alcançam as outras telas
+pela invalidação manual de quem escreveu — que a fase 1 da `032` centraliza, mas não substitui. Uma
+segunda aba **não** vê o login feito na primeira.
+
+**De onde veio:** [032 fase 1, T5](../features/032-web-architecture/tasks.md) · **Volta quando:** a
+primeira tela que precisar ver um login feito em outra aba, ou o primeiro relato de *"conectei e a
+lista de agentes não mudou"*.
+
+### CSS Modules no web — `M`
+
+A [Q2 da `032`](../features/032-web-architecture/open-questions.md) escolheu a cascata organizada —
+teste de bloco duplicado e de classe órfã — contra CSS Modules. Modules ganharia colisão e órfã como
+erro de compilação; perdeu porque três leitoras dependem do nome estável da classe: os dez
+`*-css.test.ts`, o `contrast.ts` (119 pares) e o agentation. Se um dia for, **vira ADR**: passa nos
+três testes.
+
+**De onde veio:** [032 Q2](../features/032-web-architecture/open-questions.md) · **Volta quando:**
+uma segunda equipe ou um segundo tema no `web`, ou a primeira colisão de bloco que o sensor da T32
+não pegar.
+
+### `trpc-mock.ts` continua vivo — a metade B da Q5 não saiu — `M`
+
+A [Q5 da `032`](../features/032-web-architecture/open-questions.md) decidiu "B para tela, A para
+hook": teste de tela mockaria o hook, e `trpc-mock.ts` sumiria no fecho da fase 3. Só a metade A saiu
+(`test/trpc-proxy.ts`, para teste de hook). **33 arquivos** de teste de tela ainda mockam
+`trpc-mock.ts` diretamente — cinco deles (`AgentLogin`, `SettingsPanel`, `TaskDetail`,
+`WorkspacePanel`, `PrBar`) num componente que **já não importa `trpc`**. A armadilha que a Q5 existia
+para matar — *"tela nova derruba teste cujo mock não a conhece"* — continua viva: qualquer tela nova
+que consulte no `mount` ainda exige um default novo no mock de 342 linhas.
+
+**De onde veio:** review independente de fases 3-8 da [`032`](../features/032-web-architecture/prd.md),
+achado 1 · emenda na [Q5](../features/032-web-architecture/open-questions.md) · **Volta quando:** o
+primeiro teste de tela nova quebrar por default ausente no `trpc-mock.ts` compartilhado, ou quando
+alguém decidir pagar a tarde por recurso (cinco recursos, começando pelos que já não importam
+`trpc`) antes disso.
+
 ### O adaptador como dependência do pacote publicado — `G`
 
 O [ADR de 2026-09-08](../adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md) fez o daemon ser
@@ -834,3 +889,23 @@ dois caminhos continuam como estavam, e os dois por decisão e não por esquecim
 **De onde veio:** a decisão do Vinicius em 2026-09-13 — *"em uma feature posterior isso será feito
 para os providers de agentes e para o github e gitlab também"* · **Volta quando:** alguém precisar
 trocar de credencial sem mexer em `.zshrc`, ou quando o produto rodar num lugar onde o `gh` não está.
+
+### `gate:quick` some de novo — arquivo novo sem teste dependente, `--changed` acha zero e reprova — `P`
+
+A `032` T33 acrescentou cinco `.stories.tsx` e um `test/query-seed.ts` sem nenhum `.test.ts`/`.test.tsx`
+importando qualquer um deles — de propósito: a verificação deles é `build-storybook`, não Vitest.
+`pnpm gate:quick` roteia os `.ts`/`.tsx` mudados para `vitest run --changed <base>
+--passWithNoTests=false`, e para este diff específico o Vitest respondeu **os dois lados** em
+execuções sucessivas e idênticas na mesma árvore: duas vezes rodou a suíte inteira (4002 testes) e,
+depois de commitado, três vezes seguidas devolveu `No test files found, exiting with code 1` para os
+cinco projetos — com o mesmo comando, a mesma base, a mesma árvore. Isso é a quinta família da mesma
+doença que `testing.md` já registra três vezes (cache do Turborepo, `LUMEM_GATE_BASE` numérica, `e2e/**`
+fora do grafo): o `--changed` do Vitest, e não a lógica de `gate-quick.ts`, é quem decide, e ele não é
+determinístico aqui. Contornado nesta task medindo com `pnpm exec vitest run` sem `--changed` (verde,
+4002/4002, reproduzido à vontade) e com `LUMEM_GATE_BASE` apontando para o commit imediatamente
+anterior, que classifica o diff como `no-change` em vez de rotear para o Vitest.
+
+**De onde veio:** `032` T33/T34, ao rodar `pnpm gate:quick` para o commit de galeria · **Volta quando:**
+`gate:quick` reprovar de novo um commit cujo `vitest run` completo passa — é o sinal de que a próxima
+task de arquivo `.stories.tsx`, ou qualquer arquivo cuja verificação não é Vitest por desenho, vai
+precisar de uma categoria própria em `gate-quick.ts`, do mesmo jeito que `e2e/**` já tem uma.

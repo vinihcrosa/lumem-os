@@ -288,8 +288,8 @@ rodapé, o painel direito), que é o que a pessoa vai procurar em seguida.
 
 ### [ ] O16 — O balão de ensino da primeira permissão: onde vive o "não mostrar de novo"?
 
-**Proposta pra reagir:** `localStorage`, como o [`useRightPanel`](../../../packages/web/src/hooks/useRightPanel.ts)
-e o [`useTreeExpansion`](../../../packages/web/src/hooks/useTreeExpansion.ts) já fazem. É preferência de
+**Proposta pra reagir:** `localStorage`, como o [`useRightPanel`](../../../packages/web/src/features/checkout/useRightPanel.tsx)
+e o [`useTreeExpansion`](../../../packages/web/src/features/workspace/useTreeExpansion.ts) já fazem. É preferência de
 tela; o daemon não tem opinião sobre o que essa pessoa já leu.
 
 Gatilho para mudar: no dia em que existir mais de um cliente para o mesmo daemon, isso vira preferência

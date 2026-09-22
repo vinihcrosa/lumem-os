@@ -12,7 +12,6 @@ import { mountAgentation } from "./lib/agentation.js";
 import { createQueryClient } from "./lib/queryClient.js";
 import "./ui/ui.css";
 import "./ui/modal.css";
-import "./components/board.css";
 
 const container = document.getElementById("root");
 if (!container) throw new Error("#root not found in index.html");

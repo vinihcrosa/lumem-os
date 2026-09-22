@@ -1,0 +1,309 @@
+/*
+ * Conectar agente — portado de `lumem-os-design/lumem-agent-login.css`.
+ *
+ * A restrição que manda no desenho é 264px: tudo aqui cabe na sidebar, sem modal
+ * e sem formulário que exija digitar comando. As classes vêm do protótipo com o
+ * mesmo nome; `agent-login-css.test.ts` reprova nas duas direções.
+ *
+ * O que este arquivo **não** traz, de propósito: `.sbframe`/`.stepcap`/`.flowgrid`,
+ * que são a moldura da galeria do protótipo e não existem no app.
+ *
+ * A `second-agent` (T12) acrescentou o que a folha `lumem-second-agent.css`
+ * desenhou: o cabeçalho `Agentes` com a ação, o âmbar de "instalado e sem
+ * credencial", a marca da linha que abriu o painel, o ponto com a cor do estado —
+ * ele nascia cinza nos três — e o bloco de URL e código. E o `.key-in`, que era o
+ * único pedaço da folha antiga que a entrega tinha deixado de fora.
+ */
+
+/* ------------------------------------------------- o rodapé da coluna */
+/*
+ * Uma linha por coisa que se conecta. Antes não havia onde ler o estado da
+ * conexão — o rodapé só tinha o botão que abria o formulário de cinco campos.
+ */
+.foot-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  width: 100%;
+  height: var(--size-control-lg);
+  padding: 0 var(--space-8);
+  border: 0;
+  background: none;
+  border-radius: var(--radius-md);
+  font: var(--text-label-sm);
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+.foot-row:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+.foot-row__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.foot-row__st {
+  flex: none;
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+}
+.foot-row--on .foot-row__st { color: var(--color-daemon-online); }
+.foot-row--off .foot-row__st { color: var(--color-text-tertiary); }
+.foot-row--err .foot-row__st { color: var(--color-text-danger); }
+.pip {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+/* ------------------------------------------------------------ o painel */
+/* Mora na coluna e empurra a árvore. Nunca cobre a tela: a sessão que estiver
+   rodando continua visível ao lado. */
+.setup {
+  flex: none;
+  display: grid;
+  gap: var(--space-10);
+  padding: var(--space-12) var(--space-10);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-subtle);
+}
+.setup__head { display: flex; align-items: center; gap: var(--space-8); }
+.setup__t { flex: 1; min-width: 0; font: var(--text-label-md); color: var(--color-text-primary); }
+.setup__x {
+  flex: none;
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--color-text-tertiary);
+  font-size: var(--size-icon-xs);
+  cursor: pointer;
+}
+.setup__x:hover { color: var(--color-text-primary); }
+.setup__note { font: var(--text-caption); color: var(--color-text-tertiary); }
+.setup__note b { color: var(--color-text-secondary); font-weight: 400; }
+.setup__note code { font: var(--text-mono-sm); color: var(--color-text-code); }
+.setup__acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6); }
+
+/* --------------------------------------------------- opção de login */
+/*
+ * Vem do `authMethods` do handshake, não de uma lista nossa — é isso que faz a
+ * mesma tela servir para qualquer agente ACP.
+ */
+.opt {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-8) var(--space-10);
+  text-align: left;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+.opt:hover { background: var(--color-bg-active); border-color: var(--color-border-strong); }
+.opt__t { display: flex; align-items: center; gap: var(--space-8); font: var(--text-label-sm); }
+.opt__d { font: var(--text-caption); color: var(--color-text-tertiary); }
+.opt__g { flex: none; font-size: var(--size-icon-sm); }
+/* O preenchido é um só por painel: o caminho que resolve para quase todo mundo. */
+.opt--primary {
+  background: var(--color-bg-brand);
+  border-color: var(--color-bg-brand);
+  color: var(--color-text-on-brand);
+}
+.opt--primary:hover {
+  background: var(--color-bg-brand-hover);
+  border-color: var(--color-bg-brand-hover);
+  color: var(--color-text-on-brand);
+}
+/* 0,85 e não 0,78: sobre brand-500 o texto de 11px passa de 4,58 para 5,11:1. */
+.opt--primary .opt__d { color: var(--color-text-on-brand); opacity: 0.85; }
+.opt[disabled] { color: var(--color-text-disabled); cursor: not-allowed; }
+.opt[disabled]:hover { background: var(--color-bg-raised); border-color: var(--color-border-default); }
+.opt[disabled] .opt__d { color: var(--color-text-disabled); }
+
+/* Terceira opção, nunca um terceiro botão preenchido. */
+.linkbtn {
+  justify-self: start;
+  padding: var(--space-2) 0;
+  border: 0;
+  background: none;
+  font: var(--text-body-sm);
+  color: var(--color-text-link);
+  text-decoration: underline;
+  text-underline-offset: var(--space-2);
+  cursor: pointer;
+}
+.linkbtn:hover { color: var(--color-text-primary); }
+
+/* ------------------------------------------------ preparo automático */
+/* O que o daemon está fazendo por você, em três linhas — o passo que era um
+   `npm i -g` copiado à mão. Automático não é escondido. */
+.prep { display: grid; gap: var(--space-4); }
+.prep__r {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font: var(--text-body-sm);
+  color: var(--color-text-secondary);
+}
+.prep__m { flex: none; width: var(--size-icon-md); text-align: center; font-size: var(--size-icon-sm); }
+.prep__r--done { color: var(--color-text-tertiary); }
+.prep__r--done .prep__m { color: var(--color-plan-done); }
+.prep__r--now { color: var(--color-text-primary); }
+.prep__r--now .prep__m { color: var(--color-tool-running); }
+.prep__r--wait { color: var(--color-text-disabled); }
+.prep__r--wait .prep__m { color: var(--color-tool-pending); }
+
+/* ------------------------------------------------------ conta conectada */
+.acct {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-8) var(--space-10);
+  background: var(--color-bg-inset);
+  border-radius: var(--radius-md);
+}
+.acct__r { display: flex; align-items: baseline; gap: var(--space-8); min-width: 0; }
+.acct__k {
+  flex: none;
+  width: calc(var(--space-48) + var(--space-4));
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-label-xs);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.acct__v {
+  min-width: 0;
+  font: var(--text-mono-sm);
+  color: var(--color-text-code);
+  overflow-wrap: anywhere;
+}
+.acct__v b { color: var(--color-text-primary); font-weight: 500; }
+
+/* ------------------------------------- o cabeçalho da lista de agentes */
+/*
+ * A lista do rodapé passou de UMA coisa para N (`second-agent`, C8).
+ *
+ * Com um agente, "conectar um agente" era o próprio verbo da linha; com dois, a
+ * linha é **estado** e o verbo precisa de lugar próprio. É a regra da
+ * `sidebar-actions` aplicada de novo — a ação mora no cabeçalho da lista que ela
+ * alimenta —, na mesma altura do `.tree__head`, para as duas listas da coluna
+ * começarem no mesmo ritmo.
+ *
+ * Medido na folha: o rodapé sai de 45px para 105px com dois agentes, e 28 desses
+ * 60 são este cabeçalho. Ele aparece mesmo com um agente só, e é o preço da regra.
+ */
+.foot-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-row-compact);
+  padding: 0 var(--space-2) 0 var(--space-8);
+}
+.foot-head__label {
+  flex: 1;
+  min-width: 0;
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+/* Nenhum agente: uma linha que relata, e não um segundo botão para a mesma ação. */
+.foot-empty {
+  padding: var(--space-4) var(--space-8) var(--space-6);
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+
+/* -------------------------------- os estados que faltavam numa linha */
+/*
+ * Âmbar: instalado, e ainda não utilizável.
+ *
+ * O `--off` cinza é "não existe" e o `--err` vermelho é "quebrou". Um adaptador
+ * instalado sem credencial não é nenhum dos dois — é uma pendência com saída, e a
+ * saída é clicar na linha. Mesma leitura de três estados da barra da PR.
+ */
+.foot-row--warn .foot-row__st { color: var(--color-text-warning); }
+
+/*
+ * O ponto passa a dizer o estado — ele nascia cinza nos três.
+ *
+ * `background: currentColor` pega a cor da LINHA (`text/secondary`), e não a do
+ * estado, que vive no `.foot-row__st`. Com uma linha isso passava: a palavra ao
+ * lado dizia tudo e o ponto era enfeite. Com duas, o ponto é o que o olho varre
+ * primeiro, e um enfeite na posição de um sinal é pior que sinal nenhum.
+ *
+ * Os três pares entraram na lista de contraste no mesmo commit — verde 9,85:1,
+ * âmbar 9,10:1, vermelho 8,76:1 sobre o painel —, e nenhum deles estava lá antes,
+ * nem o verde que já era pintado aqui.
+ */
+.foot-row--on .pip { background: var(--color-daemon-online); }
+.foot-row--warn .pip { background: var(--color-text-warning); }
+.foot-row--err .pip { background: var(--color-text-danger); }
+
+/* A linha que abriu o painel fica marcada enquanto ele está aberto. */
+.foot-row.is-open {
+  background: var(--color-bg-active);
+  color: var(--color-text-primary);
+}
+
+/* ------------------------------------------------ chave colada, nunca digitada */
+.key-in { display: flex; align-items: center; gap: var(--space-6); }
+.key-in .input {
+  flex: 1;
+  min-width: 0;
+  height: var(--size-control-lg);
+  padding: 0 var(--space-8);
+  font: var(--text-mono-sm);
+}
+
+/* ---------------------------------------------------- URL e código */
+/*
+ * URL em cima, código embaixo, e o código é o que salta.
+ *
+ * A URL é para copiar — e o `CopyCommand` já faz isso. O código é para LER e
+ * digitar noutro aparelho, e é aí que o desenho paga: mono grande com tracking de
+ * caps, porque `0`/`O` e `1`/`l` a 11px são o defeito desta tela.
+ *
+ * O protocolo não tem campo para o código: o adaptador o escreve dentro da frase,
+ * o daemon destaca o que parece um código, e a frase inteira continua embaixo.
+ */
+.dcode {
+  display: grid;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-10);
+  background: var(--color-bg-inset);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+}
+.dcode__k {
+  font: var(--text-label-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.dcode__v {
+  justify-self: center;
+  font: var(--text-mono-lg);
+  letter-spacing: var(--tracking-caps);
+  color: var(--color-text-code);
+  font-variant-ligatures: none;
+}
+
+/*
+ * As credenciais dos serviços, no mesmo rodapé (ADR de 2026-09-13).
+ *
+ * Duas regras, e é tudo o que o bloco precisa: ele **reusa** a linha inteira do
+ * de cima — `foot-head`, `foot-row`, `pip`, `foot-row__st`. Uma peça nova aqui
+ * seria uma segunda gramática para a mesma coisa.
+ */
+
+/* `⚿` é chave, e o alfabeto do produto separa cor de glifo: cor é estado, glifo
+   é categoria. A categoria é *credencial*, e ela não tem cor própria — o ponto
+   ao lado já diz se está guardada. */
+.glyph--key { color: var(--color-text-tertiary); }

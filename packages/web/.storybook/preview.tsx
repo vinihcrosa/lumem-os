@@ -6,7 +6,13 @@ import "../src/styles/fonts.css";
 import "../src/styles/base.css";
 import "../src/ui/ui.css";
 import "../src/ui/modal.css";
-import "../src/components/board.css";
+import "../src/features/tasks/board.css";
+// Os três estados caros da T33 que precisam de folha própria — nenhuma delas
+// chega pelo `index.ts` da feature (regra 7, `032` T18), porque o preview mora
+// fora de `src/` e o sensor não audita esta pasta.
+import "../src/features/memory/memory.css";
+import "../src/features/conversation/conversation.css";
+import "../src/features/checkout/right-panel.css";
 import "../src/ui/stories.css";
 
 import { mountAgentation } from "../src/lib/agentation.js";

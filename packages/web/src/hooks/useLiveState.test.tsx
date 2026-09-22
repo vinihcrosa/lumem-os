@@ -85,6 +85,26 @@ describe("invalidateFor", () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["task", "board"] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["task", "settings"] });
   });
+
+  it("um evento fora da união invalida tudo e avisa, em vez de matar a assinatura", () => {
+    /*
+     * Não é `toThrow`: isto corre dentro do `onData` de uma assinatura tRPC,
+     * e um `throw` ali fecha o iterador e mata a assinatura sem reconectar —
+     * um bundle web em cache mais velho que o daemon perderia toda
+     * invalidação ao vivo no primeiro evento novo, sem nada na tela. O
+     * `default` continua exaustivo no `tsc` (a T7 prova a mutação), e aqui
+     * quem prova é o mesmo gesto da reconexão: invalidar tudo.
+     */
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const bogus = { type: "bogus.changed" } as unknown as LumemEvent;
+
+    invalidateFor(queryClient, bogus);
+
+    expect(invalidate).toHaveBeenCalledWith();
+    expect(warn).toHaveBeenCalled();
+  });
 });
 
 describe("useLiveState", () => {

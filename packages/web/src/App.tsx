@@ -1,59 +1,24 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import { AddProjectDialog } from "./components/AddProjectDialog.js";
-import { AgentLogin } from "./components/AgentLogin.js";
-import { SettingsPanel } from "./components/SettingsPanel.js";
-import { SidebarNav } from "./components/SidebarNav.js";
-import { WorkspacePanel } from "./components/WorkspacePanel.js";
-import { CheckoutFiles } from "./components/CheckoutFiles.js";
-import { CreateWorktreeDialog } from "./components/CreateWorktreeDialog.js";
-import { LocalPanel } from "./components/LocalPanel.js";
-import { SidebarTree, type ProjectSummary } from "./components/SidebarTree.js";
-import { WorkspaceSelector } from "./components/WorkspaceSelector.js";
-import { WorktreePanel } from "./components/WorktreePanel.js";
-import { useActiveWorkspace } from "./hooks/useActiveWorkspace.js";
+import { type ProjectSummary } from "./features/workspace/index.js";
+import { useActiveWorkspace } from "./features/workspace/index.js";
+import { useHealth } from "./hooks/useHealth.js";
 import { useLiveState } from "./hooks/useLiveState.js";
 import { AwaitingPermissionProvider } from "./hooks/useAwaitingPermission.js";
 import { OpenFilesProvider } from "./hooks/useOpenFiles.js";
-import { useRightPanel } from "./hooks/useRightPanel.js";
-import { useRunDock, widenColumnOnOpen } from "./hooks/useRunDock.js";
-import type { Scope } from "./hooks/useSessionsByScope.js";
-import { useTreeExpansion } from "./hooks/useTreeExpansion.js";
-import { AppShell } from "./layout/AppShell.js";
+import { RightPanelProvider } from "./features/checkout/index.js";
+import { useTreeExpansion } from "./features/workspace/index.js";
+import { useInvalidateWorkspaces, useWorkspaces } from "./features/workspace/index.js";
 import { Topbar } from "./layout/Topbar.js";
-import { SetupFlow } from "./setup/SetupFlow.js";
-import { WORKSPACES_KEY } from "./lib/queryKeys.js";
-import { navigate, useRoute } from "./lib/route.js";
-import { trpc } from "./lib/trpc.js";
+import { SetupFlow } from "./features/setup/index.js";
+import { WorkspaceShell } from "./WorkspaceShell.js";
+import { arrive, select as selectScope } from "./lib/navigation.js";
 import { Banner, Skeleton } from "./ui/index.js";
 
-import "./components/sidebar.css";
-import "./components/clone.css";
 import "./layout/layout.css";
 
-/**
- * Where the user is working.
- *
- * One scope, not a tree position: the sessions became tabs, so the main area
- * always shows the same kind of thing — a checkout and what is open in it. The
- * project id rides along because a worktree's panel needs it for the crumb and
- * for invalidating the right list on removal.
- */
-type Selection = { projectId: string; scope: Scope } | null;
-
 export function App() {
-  const queryClient = useQueryClient();
-  const [selection, setSelection] = useState<Selection>(null);
-  /**
-   * Qual tela está na frente, lida do **caminho** (`030-settings`, F1).
-   *
-   * Era `useState` até a `029` — ela subiu o `board` do `WorkspacePanel` para cá
-   * justamente para o App ter **uma** resposta a *onde eu estou*. Com endereço,
-   * manter o estado seria criar a segunda: o caminho e o `useState` poderiam
-   * discordar, e conviver com os dois é pior que qualquer um sozinho.
-   */
-  const route = useRoute();
+  const invalidateWorkspaces = useInvalidateWorkspaces();
   /**
    * Whether the first-access flow is on screen.
    *
@@ -64,24 +29,6 @@ export function App() {
    * workspace existing, which is exactly what this reads.
    */
   const [setupOpen, setSetupOpen] = useState<boolean | null>(null);
-  /** A session the setup flow opened, for the tabs to bring to the front once. */
-  const [openSessionId, setOpenSessionId] = useState<string | undefined>(undefined);
-  /**
-   * Uma conversa aberta **para** uma pergunta, e a pergunta.
-   *
-   * Hoje vem de um lugar só: o rodapé de execução, quando o projeto não declara
-   * `[scripts]` e a pessoa pede para o agente escrever. Mora aqui porque as abas
-   * são do painel central, e o rodapé é da coluna da direita.
-   */
-  const [ask, setAsk] = useState<{ sessionId: string; text: string } | null>(null);
-  /*
-   * O rascunho que "trabalhar nesta tarefa" deixa no composer (`022` T6).
-   *
-   * Irmão do `ask`, e o contrário dele: aquele manda sozinho, este espera você
-   * ler. O estado mora aqui pelo mesmo motivo — quem abre a conversa é a
-   * navegação, e ela é do App.
-   */
-  const [draft, setDraft] = useState<{ sessionId: string; text: string } | null>(null);
   /**
    * The two dialogs of the tree, `sidebar-actions` F1.2 and F1.3.
    *
@@ -92,41 +39,11 @@ export function App() {
    */
   const [addProjectOpen, setAddProjectOpen] = useState(false);
   const [worktreeFor, setWorktreeFor] = useState<ProjectSummary | null>(null);
-  /**
-   * Selecionar um checkout — e acertar o endereço junto.
-   *
-   * **`replace`, e não `push`** (Q2): o checkout é seleção, não lugar. Com
-   * `push`, o botão voltar viraria *desfazer seleção* e uma sessão normal de
-   * trabalho encheria o histórico de entradas que ninguém pediu.
-   *
-   * E a rota vira `home` porque é `selection !== null` que decide o que a coluna
-   * do meio mostra: deixar o caminho em `/tasks` ou `/settings` com um checkout
-   * na frente seria a barra de endereço mentindo.
-   */
-  function selectScope(next: NonNullable<Selection>): void {
-    setSelection(next);
-    navigate("home", { replace: true });
-  }
 
   const expansion = useTreeExpansion();
-  const rightPanel = useRightPanel();
-  const dock = useRunDock();
 
-  const health = useQuery({
-    queryKey: ["health"],
-    queryFn: () => trpc.health.query(),
-    // Asked once, "daemon inacessível" was a state the UI could draw and never
-    // reach: the daemon going down mid-session left the topbar reporting the
-    // version it saw at boot. PRD §8 wants the client to notice and say so.
-    refetchInterval: 5_000,
-    // A failed poll is the answer, not a glitch to retry around.
-    retry: false,
-  });
-
-  const workspaces = useQuery({
-    queryKey: WORKSPACES_KEY,
-    queryFn: () => trpc.workspace.list.query(),
-  });
+  const health = useHealth();
+  const workspaces = useWorkspaces();
 
   const { activeId, select } = useActiveWorkspace(workspaces.data ?? []);
 
@@ -146,25 +63,32 @@ export function App() {
     // forget per tab.
     <AwaitingPermissionProvider>
       <OpenFilesProvider>
-        <div className="app">
-          <Topbar
-            version={health.data?.version ?? null}
-            unreachable={health.isError}
-          />
-          {/* The topbar dot says it quietly; this says what it means. Every action
-          below is a call to a daemon that is not answering, and a sidebar that
-          merely looks stale gives no reason for why nothing works. */}
-          {health.isError && (
-            <div className="app__banner">
-              <Banner tone="danger">
-                <strong>Daemon inacessível.</strong> Nada aqui responde até ele
-                voltar. As sessões continuam rodando no servidor — o que caiu é
-                a conexão com ele.
-              </Banner>
-            </div>
-          )}
-          {renderBody()}
-        </div>
+        {/*
+          `032` T23: o `App` não pode consumir um contexto que ele mesmo está
+          montando, então o provider mora aqui e quem lê é o `WorkspaceShell`,
+          um nível abaixo.
+        */}
+        <RightPanelProvider>
+          <div className="app">
+            <Topbar
+              version={health.data?.version ?? null}
+              unreachable={health.isError}
+            />
+            {/* The topbar dot says it quietly; this says what it means. Every action
+            below is a call to a daemon that is not answering, and a sidebar that
+            merely looks stale gives no reason for why nothing works. */}
+            {health.isError && (
+              <div className="app__banner">
+                <Banner tone="danger">
+                  <strong>Daemon inacessível.</strong> Nada aqui responde até ele
+                  voltar. As sessões continuam rodando no servidor — o que caiu é
+                  a conexão com ele.
+                </Banner>
+              </div>
+            )}
+            {renderBody()}
+          </div>
+        </RightPanelProvider>
       </OpenFilesProvider>
     </AwaitingPermissionProvider>
   );
@@ -202,11 +126,11 @@ export function App() {
           daemonVersion={health.data?.version ?? null}
           daemonUnreachable={health.isError}
           onFinish={async (result) => {
-            await queryClient.invalidateQueries({ queryKey: WORKSPACES_KEY });
+            await invalidateWorkspaces();
             if (result.workspaceId !== undefined) select(result.workspaceId);
             // Land on what was created, not on "selecione uma worktree": the
             // flow just made the thing the person came here to use.
-            setOpenSessionId(result.sessionId);
+            if (result.sessionId !== undefined) arrive({ sessionId: result.sessionId, send: false });
             if (result.projectId !== undefined) {
               selectScope({
                 projectId: result.projectId,
@@ -222,275 +146,25 @@ export function App() {
       );
     }
 
-    // Bound here so `renderPanel` can read it: the narrowing above does not
+    // Bound here so `WorkspaceShell` can read it: the narrowing above does not
     // survive into a nested function.
     const list = workspaces.data;
     const activeName =
       list.find((workspace) => workspace.id === activeId)?.name ?? "";
 
     return (
-      <>
-      <AppShell
-        // The panel owns its own scrolling: the terminal inside it has to be
-        // able to measure a box with a height.
-        fill
-        right={renderRightPanel()}
-        rightWidth={rightPanel.width}
-        sidebar={
-          <>
-            <WorkspaceSelector
-              workspaces={list}
-              activeId={activeId}
-              onSelect={(id) => {
-                select(id);
-                // Nothing selected in the old workspace belongs to the new one.
-                setSelection(null);
-              }}
-            />
-            <SidebarNav
-              workspaceId={activeId}
-              /*
-               * `/tasks` é o caminho e `board` é o lugar, e eles têm nomes
-               * diferentes de propósito: a linha da sidebar diz o **assunto**
-               * (tarefas) e a tela diz a **forma** (quadro), que é a distinção
-               * que a Q3a da `029` comprou. A tradução acontece aqui, uma vez.
-               */
-              place={selection !== null ? "scope" : route === "tasks" ? "board" : route}
-              onHome={() => {
-                navigate("home");
-                setSelection(null);
-              }}
-              onBoard={() => {
-                navigate("tasks");
-                setSelection(null);
-              }}
-              onSettings={() => {
-                navigate("settings");
-                setSelection(null);
-              }}
-            />
-            <SidebarTree
-              workspaceId={activeId}
-              expansion={expansion}
-              selection={{
-                scopeType: selection?.scope.scopeType ?? null,
-                scopeId: selection?.scope.scopeId ?? null,
-              }}
-              onSelect={(projectId, scope) =>
-                selectScope({ projectId, scope })
-              }
-              onAddProject={() => setAddProjectOpen(true)}
-              onCreateWorktree={setWorktreeFor}
-            />
-            <div className="sidebar__foot">
-              {/*
-                Conectar um agente: one line, one verb, and the connection's state
-                where it can be read.
-
-                Here because it is where the user is standing when they notice the
-                agent is missing — they open "nova sessão" and it is not in the list.
-                The placement still tells the small lie A16 named: `agent_config` is
-                global and this footer is the workspace's.
-
-                And it is all that is left down here (F1.6): the agent belongs to
-                the workspace, not to the list of projects, so it is the one thing
-                that did not move up into the tree.
-              */}
-              <AgentLogin />
-            </div>
-          </>
-        }
-      >
-        {renderPanel(activeId, activeName)}
-      </AppShell>
-
-      {/*
-        The two modals, outside the shell.
-
-        They cover the window, so nesting them in a column would only give them
-        a stacking context to fight with. `AddProjectDialog` stays mounted while
-        closed on purpose: it holds the clone subscription, and that is what lets
-        a page reloaded onto a clone in flight bring the dialog back (F1.9).
-      */}
-      <AddProjectDialog
+      <WorkspaceShell
         workspaceId={activeId}
         workspaceName={activeName}
-        open={addProjectOpen}
-        onClose={() => setAddProjectOpen(false)}
-        onRequestOpen={() => setAddProjectOpen(true)}
-        onAdded={(projectId) =>
-          selectScope({
-            projectId,
-            scope: { scopeType: "project", scopeId: projectId },
-          })
-        }
-      />
-
-      {worktreeFor !== null && (
-        <CreateWorktreeDialog
-          // Keyed by project: the field is per dialog, and reopening on another
-          // row must not inherit what was typed for the last one.
-          key={worktreeFor.id}
-          projectId={worktreeFor.id}
-          projectName={worktreeFor.name}
-          hasCommits={worktreeFor.hasCommits}
-          open
-          onClose={() => setWorktreeFor(null)}
-          // Q5: escolher uma branch que outro checkout já tem leva PARA ele.
-          // O destino é o mesmo de criar; o que não acontece é a criação.
-          onOpenExisting={(worktreeId) => {
-            expansion.expand(worktreeFor.id);
-            selectScope({
-              projectId: worktreeFor.id,
-              scope: { scopeType: "worktree", scopeId: worktreeId },
-            });
-            setWorktreeFor(null);
-          }}
-          onCreated={(worktreeId) => {
-            // F1.5: the same destination the old path delivered. Expanding is
-            // part of it — a worktree selected inside a folded project is a
-            // selection with nothing on screen to show for it.
-            expansion.expand(worktreeFor.id);
-            selectScope({
-              projectId: worktreeFor.id,
-              scope: { scopeType: "worktree", scopeId: worktreeId },
-            });
-            setWorktreeFor(null);
-          }}
-        />
-      )}
-      </>
-    );
-  }
-
-  /** The checkout's files, when there is a checkout and the user wants them. */
-  function renderRightPanel() {
-    if (selection === null || !rightPanel.open) return undefined;
-
-    return (
-      <CheckoutFiles
-        // Keyed by checkout: a path from one worktree does not exist in
-        // another, so the tree's expansion starts over on purpose (F2.6).
-        key={`${selection.scope.scopeType}:${selection.scope.scopeId}`}
-        scope={selection.scope}
-        onClose={rightPanel.toggle}
-        onResize={rightPanel.setWidth}
-        onAskAgent={(sessionId, text) => {
-          setAsk({ sessionId, text });
-          setOpenSessionId(sessionId);
-        }}
-        // Abrir o rodapé pelo chevron alarga a coluna quando ela é estreita demais
-        // para um terminal (S1) — e é o único gesto que faz isso. Chegar não faz:
-        // o rodapé já nasce aberto, então nunca passa por aqui.
-        dock={widenColumnOnOpen(dock, rightPanel)}
-      />
-    );
-  }
-
-  function renderPanel(workspaceId: string, workspaceName: string) {
-    /*
-     * A ordem é `selection` primeiro, e ela é a regra inteira da coluna do meio.
-     *
-     * `selectScope` leva a rota para `home` junto com a seleção, então
-     * `selection !== null` implica `route === "home"` — as duas nunca discordam,
-     * e a tela tem uma fonte só. Ler a rota primeiro exigiria decidir quem ganha
-     * quando elas divergirem, e a resposta seria uma divergência que não deve
-     * existir.
-     */
-    if (selection === null && route === "settings") {
-      return (
-        <SettingsPanel
-          key={workspaceId}
-          workspaceId={workspaceId}
-          workspaceName={workspaceName}
-        />
-      );
-    }
-
-    if (selection === null) {
-      /*
-       * A tela do workspace (`workspace-screen`, W1).
-       *
-       * O que estava aqui era a frase "selecione uma worktree" — a única resposta
-       * do produto a "onde eu estou" que era uma instrução. E era também o motivo
-       * pelo qual a memória de workspace só existia através de um projeto: sem
-       * checkout selecionado não há painel direito, então não havia porta.
-       */
-      return (
-        <WorkspacePanel
-          key={workspaceId}
-          workspaceId={workspaceId}
-          workspaceName={workspaceName}
-          view={route === "tasks" ? "board" : "home"}
-          onView={(view) => navigate(view === "board" ? "tasks" : "home")}
-          onRemoved={async () => {
-            await queryClient.invalidateQueries({ queryKey: WORKSPACES_KEY });
-          }}
-          onWorkOnTask={(target) => {
-            setDraft({ sessionId: target.sessionId, text: target.draft });
-            setOpenSessionId(target.sessionId);
-            selectScope({
-              projectId: target.projectId,
-              scope:
-                target.worktreeId === null
-                  ? { scopeType: "project", scopeId: target.projectId }
-                  : { scopeType: "worktree", scopeId: target.worktreeId },
-            });
-          }}
-        />
-      );
-    }
-
-    const { projectId, scope } = selection;
-
-    if (scope.scopeType === "worktree") {
-      return (
-        <WorktreePanel
-          key={scope.scopeId}
-          worktreeId={scope.scopeId}
-          projectId={projectId}
-          openSessionId={openSessionId}
-          initialPrompt={ask ?? undefined}
-          initialDraft={draft ?? undefined}
-          workspaceName={workspaceName}
-          filesPanel={rightPanel}
-          onRemoved={() =>
-            selectScope({
-              projectId,
-              scope: { scopeType: "project", scopeId: projectId },
-            })
-          }
-          /*
-           * O caminho de volta (W7). `setSelection(null)` é o que faz o painel do
-           * workspace aparecer — e era o que nada chamava: quem entrava num
-           * projeto só voltava trocando de workspace e voltando.
-           */
-          onOpenWorkspace={() => setSelection(null)}
-          onOpenProject={() =>
-            selectScope({ projectId, scope: { scopeType: "project", scopeId: projectId } })
-          }
-        />
-      );
-    }
-
-    return (
-      <LocalPanel
-        key={projectId}
-        projectId={projectId}
-        workspaceId={workspaceId}
-        workspaceName={workspaceName}
-        openSessionId={openSessionId}
-        initialPrompt={ask ?? undefined}
-        initialDraft={draft ?? undefined}
-        filesPanel={rightPanel}
-        onRemoved={() => setSelection(null)}
-        onOpenWorkspace={() => setSelection(null)}
-        onSelectWorktree={(worktreeId) =>
-          selectScope({
-            projectId,
-            scope: { scopeType: "worktree", scopeId: worktreeId },
-          })
-        }
+        workspaces={list}
+        select={select}
+        expansion={expansion}
+        addProjectOpen={addProjectOpen}
+        onOpenAddProject={() => setAddProjectOpen(true)}
+        onCloseAddProject={() => setAddProjectOpen(false)}
+        worktreeFor={worktreeFor}
+        onCreateWorktree={setWorktreeFor}
+        onCloseCreateWorktree={() => setWorktreeFor(null)}
       />
     );
   }
