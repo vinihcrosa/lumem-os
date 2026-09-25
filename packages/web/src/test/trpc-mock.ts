@@ -71,6 +71,7 @@ export const NO_HOST_ORIGINS = {
 export const NO_PENDING_PROMPT = {
   pendingPrompt: null,
   pendingReason: null,
+  pendingDetail: null,
 };
 
 export const NO_SCRIPTS_STATUS = {

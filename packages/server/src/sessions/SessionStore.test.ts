@@ -1201,6 +1201,8 @@ describe("o catálogo de adaptador", () => {
       ptyManager,
       acpManager,
       adapterCatalog: catalog,
+      // O que o `bootstrap` faz: o binário gerenciado da spec é aquela spec.
+      catalogAdapterOf: (config) => (config.command === "claude-agent-acp" ? "claude" : null),
     });
     unsubscribes.push(store.trackExits());
     return { store, db: database.db, acpManager, catalog };
@@ -1228,14 +1230,13 @@ describe("o catálogo de adaptador", () => {
     return catalog.view(projectId).find((reading) => reading.adapterId === adapterId);
   }
 
-  it("uma sessão criada grava no catálogo as opções do handshake, pelo nome da config", async () => {
+  it("uma sessão criada grava no catálogo as opções do handshake, pelo adaptador da config", async () => {
     const { store, db, catalog } = withCatalog();
     const input = await acpAgent(db);
-    const config = await createAgentConfigRepository(db).findById(input.agentConfigId);
 
     await store.start(input);
 
-    const reading = readingOf(catalog, config!.name);
+    const reading = readingOf(catalog, "claude");
     expect(reading?.configOptions.map((option) => option.id)).toEqual(["mode", "model"]);
     expect(reading?.configOptions.find((option) => option.id === "model")?.currentValue).toBe(
       "opus[1m]",
@@ -1244,21 +1245,35 @@ describe("o catálogo de adaptador", () => {
     expect(reading?.authRequired).toBe(false);
   });
 
+  it("uma config que o catálogo não conhece não grava nada nele", async () => {
+    // Gravar pelo nome dela punha na pílula um grupo que nunca se escolhe.
+    const { store, db, catalog } = withCatalog();
+    const input = await acpAgent(db);
+    const own = await createAgentConfigRepository(db).create({
+      name: "my-claude",
+      command: "/opt/meu/adaptador",
+      adapterVersion: "1.0.0",
+    });
+
+    await store.start({ ...input, agentConfigId: own.id, command: own.command });
+
+    expect(catalog.view().map((reading) => reading.adapterId)).not.toContain("my-claude");
+  });
+
   it("não apaga as opções por modelo que o probe percorreu", async () => {
     // A sessão só conhece o `session/new`. Se ela gravasse `optionsByModel`, a
     // pílula de *effort* voltaria ao modelo padrão a cada conversa aberta (M1a).
     const { store, db, catalog } = withCatalog();
     const input = await acpAgent(db);
-    const config = await createAgentConfigRepository(db).findById(input.agentConfigId);
     const walked = {
       sonnet: [{ id: "model", name: "Model", category: "model", currentValue: "sonnet", choices: [] }],
     };
-    await catalog.recordOptions(config!.name, [], { authRequired: false, optionsByModel: walked });
+    await catalog.recordOptions("claude", [], { authRequired: false, optionsByModel: walked });
 
     await store.start(input);
 
-    expect(readingOf(catalog, config!.name)?.optionsByModel).toEqual(walked);
-    expect(readingOf(catalog, config!.name)?.configOptions).not.toEqual([]);
+    expect(readingOf(catalog, "claude")?.optionsByModel).toEqual(walked);
+    expect(readingOf(catalog, "claude")?.configOptions).not.toEqual([]);
   });
 
   it("os comandos de uma sessão de worktree vão para o projeto dela, e só dele", async () => {
@@ -1277,17 +1292,16 @@ describe("o catálogo de adaptador", () => {
     const { projectId, worktreeId } = await checkout(db);
     const other = await checkout(db);
     const input = await acpAgent(db, { scopeType: "worktree", scopeId: worktreeId });
-    const config = await createAgentConfigRepository(db).findById(input.agentConfigId);
     const row = await store.start(input);
 
     await acpManager.prompt(row.id, "oi");
 
     await vi.waitFor(() => {
-      expect(readingOf(catalog, config!.name, projectId)?.commands).toEqual([
+      expect(readingOf(catalog, "claude", projectId)?.commands).toEqual([
         { name: "review", description: "Review the diff", takesInput: false },
       ]);
     });
-    expect(readingOf(catalog, config!.name, other.projectId)?.commands).toEqual([]);
+    expect(readingOf(catalog, "claude", other.projectId)?.commands).toEqual([]);
   });
 
   it("comandos que chegam junto com o handshake chegam ao catálogo", async () => {
@@ -1322,12 +1336,11 @@ describe("o catálogo de adaptador", () => {
     const { store, db, catalog } = withCatalog();
     const { projectId, worktreeId } = await checkout(db);
     const input = await acpAgent(db, { scopeType: "worktree", scopeId: worktreeId });
-    const config = await createAgentConfigRepository(db).findById(input.agentConfigId);
 
     await store.start(input);
 
     await vi.waitFor(() => {
-      expect(readingOf(catalog, config!.name, projectId)?.commands.map((c) => c.name)).toEqual([
+      expect(readingOf(catalog, "claude", projectId)?.commands.map((c) => c.name)).toEqual([
         "early",
       ]);
     });
@@ -1348,13 +1361,12 @@ describe("o catálogo de adaptador", () => {
     const { store, db, acpManager, catalog } = withCatalog();
     const { projectId } = await checkout(db);
     const input = await acpAgent(db, { scopeType: "project", scopeId: projectId });
-    const config = await createAgentConfigRepository(db).findById(input.agentConfigId);
     const row = await store.start(input);
 
     await acpManager.prompt(row.id, "oi");
 
     await vi.waitFor(() => {
-      expect(readingOf(catalog, config!.name, projectId)?.commands.map((c) => c.name)).toEqual([
+      expect(readingOf(catalog, "claude", projectId)?.commands.map((c) => c.name)).toEqual([
         "plan",
       ]);
     });

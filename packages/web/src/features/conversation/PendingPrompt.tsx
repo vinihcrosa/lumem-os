@@ -24,10 +24,13 @@ export interface PendingPromptProps {
   /** `null` enquanto o `setup` roda. */
   reason: PendingPromptReason | null;
   /**
-   * Como o `setup` terminou, quando falhou: o código de saída, ou `null` quando
-   * o daemon o matou no teto de 10 minutos (`SETUP_TIMEOUT_MS`).
+   * A frase do daemon sobre esta falha (`session.pending_detail`) — o exit, o
+   * teto ou a recusa que impediu o `setup` de rodar.
+   *
+   * Do daemon, e não inferida aqui de `scripts.setup.last`: aquela é a última
+   * execução do `setup`, e não necessariamente a que segurou este prompt.
    */
-  setupExit?: number | null;
+  detail?: string | null;
   /**
    * A sessão terminou antes de este prompt sair (`033` T21).
    *
@@ -49,7 +52,7 @@ export interface PendingPromptProps {
 export function PendingPrompt({
   prompt,
   reason,
-  setupExit = null,
+  detail = null,
   dead = false,
   onShowSetup,
   onSendAnyway,
@@ -79,7 +82,7 @@ export function PendingPrompt({
             ⚠
           </span>
           <span className="pending__what">
-            {setupExit === null ? "o setup passou do teto de 10 min" : `o setup saiu com ${String(setupExit)}`}
+            {detail ?? "o setup não terminou bem"}
             <span className="pending__why"> — o prompt não foi enviado</span>
           </span>
           {onShowSetup !== undefined && (

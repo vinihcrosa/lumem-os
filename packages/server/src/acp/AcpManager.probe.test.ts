@@ -281,7 +281,10 @@ describe("AcpManager.probe — a primeira fonte do catálogo (033 T8)", () => {
       },
     });
 
-    const report = await manager.probe({ command: "claude-agent-acp", cwd: cwd() });
+    const report = await manager.probe(
+      { command: "claude-agent-acp", cwd: cwd() },
+      { walkModels: true },
+    );
 
     expect(asked).toEqual([
       ["model", "opus[1m]"],
@@ -298,6 +301,22 @@ describe("AcpManager.probe — a primeira fonte do catálogo (033 T8)", () => {
     expect(report.configOptions.find((o) => o.id === "model")?.currentValue).toBe("opus[1m]");
   });
 
+  it("não percorre modelo nenhum sem que peçam: o login só quer saber se sobe", async () => {
+    const asked: string[] = [];
+    const { manager } = harness({
+      setConfigOption: (_configId, value) => {
+        asked.push(String(value));
+        return [modelOption("opus[1m]")] as never;
+      },
+    });
+
+    const report = await manager.probe({ command: "claude-agent-acp", cwd: cwd() });
+
+    expect(asked).toEqual([]);
+    expect(report.optionsByModel).toEqual({});
+    expect(report.configOptions.map((option) => option.id)).toContain("model");
+  });
+
   it("um modelo que recusa a troca não derruba os outros", async () => {
     const { manager } = harness({
       setConfigOption: (_configId, value) => {
@@ -306,7 +325,10 @@ describe("AcpManager.probe — a primeira fonte do catálogo (033 T8)", () => {
       },
     });
 
-    const report = await manager.probe({ command: "claude-agent-acp", cwd: cwd() });
+    const report = await manager.probe(
+      { command: "claude-agent-acp", cwd: cwd() },
+      { walkModels: true },
+    );
 
     expect(Object.keys(report.optionsByModel)).toEqual(["opus[1m]"]);
   });

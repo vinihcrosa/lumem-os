@@ -143,9 +143,9 @@ export function Conversation({
         ) : (
           <PendingConversation
             sessionId={sessionId}
-            scope={{ scopeType: row.scopeType as "project" | "worktree", scopeId: row.scopeId }}
             prompt={row.pendingPrompt}
             reason={row.pendingReason}
+            detail={row.pendingDetail}
           />
         )
       ) : (

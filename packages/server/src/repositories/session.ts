@@ -98,6 +98,7 @@ interface CreateSessionFields {
    */
   pendingPrompt?: string | null;
   pendingReason?: PendingReason | null;
+  pendingDetail?: string | null;
 }
 
 export interface SessionRepository {
@@ -143,8 +144,8 @@ export interface SessionRepository {
    * O motivo, e só se ainda houver prompt: um descarte que chegou enquanto o
    * `setup` rodava não pode ser desfeito pelo exit dele.
    */
-  markPendingFailed(id: string, reason: PendingReason): Promise<void>;
-  /** Zera os dois — o prompt saiu, ou foi descartado. */
+  markPendingFailed(id: string, reason: PendingReason, detail: string): Promise<void>;
+  /** Zera tudo — o prompt saiu, ou foi descartado. */
   clearPending(id: string): Promise<void>;
 }
 
@@ -268,21 +269,21 @@ export function createSessionRepository(db: Db): SessionRepository {
     async setPendingPrompt(id, prompt) {
       await db
         .update(session)
-        .set({ pendingPrompt: prompt, pendingReason: null, updatedAt: new Date() })
+        .set({ pendingPrompt: prompt, pendingReason: null, pendingDetail: null, updatedAt: new Date() })
         .where(eq(session.id, id));
     },
 
-    async markPendingFailed(id, reason) {
+    async markPendingFailed(id, reason, detail) {
       await db
         .update(session)
-        .set({ pendingReason: reason, updatedAt: new Date() })
+        .set({ pendingReason: reason, pendingDetail: detail, updatedAt: new Date() })
         .where(and(eq(session.id, id), isNotNull(session.pendingPrompt)));
     },
 
     async clearPending(id) {
       await db
         .update(session)
-        .set({ pendingPrompt: null, pendingReason: null, updatedAt: new Date() })
+        .set({ pendingPrompt: null, pendingReason: null, pendingDetail: null, updatedAt: new Date() })
         .where(eq(session.id, id));
     },
   };

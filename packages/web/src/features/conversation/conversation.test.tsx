@@ -1648,16 +1648,19 @@ describe("o prompt pendente na conversa", () => {
       trpcMock.session.getDetail.query.mockResolvedValue({
         pendingPrompt: "corrige o bug do login no Safari",
         pendingReason: "setup_failed",
+        pendingDetail: "o setup saiu com 1",
         scopeType: "worktree",
         scopeId: "wt1",
       });
+      // A última execução do `setup` diz outra coisa, de propósito: foi rerodado
+      // pela aba Setup e passou. Quem diz por que o prompt não saiu é o daemon.
       trpcMock.scripts.status.query.mockResolvedValue({
         ...NO_SCRIPTS_STATUS,
         setup: {
           command: "pnpm install",
           last: {
             sessionId: "sc1",
-            exitCode: 1,
+            exitCode: 0,
             running: false,
             startedAt: new Date(),
             finishedAt: new Date(),
@@ -1668,7 +1671,7 @@ describe("o prompt pendente na conversa", () => {
       });
     });
 
-    it("mostra o motivo da falha, com o código de saída do `setup`", async () => {
+    it("mostra o motivo da falha que o daemon gravou, e não o da última execução", async () => {
       renderPending();
 
       expect(await screen.findByText(/o setup saiu com 1/)).toBeInTheDocument();

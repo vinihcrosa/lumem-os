@@ -2,7 +2,7 @@ import type { FastifyBaseLogger } from "fastify";
 
 import type { Db } from "../db/index.js";
 import type { EventBus } from "../events.js";
-import type { AcpServerMessage, LumemMode, LumemModeDefault } from "@lumem/shared";
+import { adapterById, type AcpServerMessage, type LumemMode, type LumemModeDefault } from "@lumem/shared";
 
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
@@ -203,13 +203,24 @@ export interface SessionStoreOptions {
    *
    * Duas das três fontes dele moram aqui, porque só aqui a linha e o processo
    * se encontram: o `start` grava as opções do handshake, e o `trackExits`
-   * ouve os `commands` de toda sessão. A chave do adaptador é o **nome** da
-   * configuração — que é o `spec.id` para quem tem spec, e o próprio nome para
-   * quem não tem (a config falsa dos e2e).
+   * ouve os `commands` de toda sessão. A chave é o `adapterId`, resolvido por
+   * `catalogAdapterOf`, e uma configuração que o catálogo não conhece **não
+   * grava**: gravar pelo nome dela punha na pílula um grupo `my-claude · não
+   * instalado` que nunca se escolhe.
    *
    * Ausente é o default de teste, e nada muda para quem não liga.
    */
   adapterCatalog?: AdapterCatalog;
+  /**
+   * O `adapterId` de uma configuração, ou `null` para a que o catálogo não
+   * conhece.
+   *
+   * Injetado pelo mesmo motivo do `resolveAcpCommand`: quem sabe que o binário
+   * gerenciado de uma spec mora em `<stateDir>/adapters` é o `setup/`. O
+   * `bootstrap` passa `catalogedAdapterOf`; ausente, só o nome que já é um id do
+   * catálogo responde.
+   */
+  catalogAdapterOf?: (config: AdapterConfigRef) => string | null;
   /** Para onde vai a falha de gravar o catálogo — que nunca é falha da sessão. */
   log?: Pick<FastifyBaseLogger, "warn">;
 }
@@ -223,14 +234,20 @@ export function createSessionStore({
   onEnded,
   resolveAcpCommand,
   adapterCatalog,
+  catalogAdapterOf,
   log: storeLog,
 }: SessionStoreOptions): SessionStore {
   const sessions = createSessionRepository(db);
 
-  /** O id do adaptador de uma sessão de agente: o nome da configuração dela. */
+  /** O adaptador do catálogo de uma sessão de agente, ou nenhum. */
   async function adapterIdOf(agentConfigId: string | null): Promise<string | undefined> {
     if (agentConfigId === null) return undefined;
-    return (await createAgentConfigRepository(db).findById(agentConfigId))?.name;
+    const config = await createAgentConfigRepository(db).findById(agentConfigId);
+    if (!config) return undefined;
+    const adapterId = catalogAdapterOf
+      ? catalogAdapterOf(config)
+      : (adapterById(config.name)?.id ?? null);
+    return adapterId ?? undefined;
   }
 
   /** O projeto de um escopo: ele mesmo, ou o projeto da worktree. */
@@ -667,6 +684,7 @@ export function createSessionStore({
             ? {
                 pendingPrompt: row.pendingPrompt,
                 pendingReason: row.pendingReason as PendingReason | null,
+                pendingDetail: row.pendingDetail,
               }
             : {}),
         });

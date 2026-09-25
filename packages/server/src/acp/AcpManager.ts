@@ -268,7 +268,7 @@ export interface AcpProbeReport {
    * Walked with `set_config_option`, which costs no tokens: *effort* depends on
    * the model — `haiku` has none, `gpt-6-astra` goes up to `ultra` — and
    * `session/new` only tells the default's. A model that refuses the switch is
-   * absent rather than guessed.
+   * absent rather than guessed. Empty unless the caller asked for the walk.
    */
   optionsByModel: Record<string, AcpConfigOption[]>;
   /** Milliseconds, per stage. The screen reports them; nothing branches on them. */
@@ -790,7 +790,17 @@ export class AcpManager {
     }
   }
 
-  async probe(options: AcpSpawnOptions): Promise<AcpProbeReport> {
+  /**
+   * `walkModels` is opt-in because it is the expensive half: one
+   * `set_config_option` per model, each up to the handshake timeout. Only the
+   * boot warmup reads `optionsByModel`; the login screen and `setup.probe` ask
+   * *does it start, and is there a credential*, and a slow model would make
+   * that answer wait for a question nobody asked.
+   */
+  async probe(
+    options: AcpSpawnOptions,
+    { walkModels = false }: { walkModels?: boolean } = {},
+  ): Promise<AcpProbeReport> {
     const startedAt = this.now();
     const { session, child } = this.launch(options, { probe: true });
     const spawnedAt = this.now();
@@ -838,7 +848,9 @@ export class AcpManager {
       const configOptions =
         created === null ? [] : normaliseOptions(created.configOptions, created.modes);
       const optionsByModel =
-        created === null ? {} : await this.optionsPerModel(session, created, configOptions);
+        created === null || !walkModels
+          ? {}
+          : await this.optionsPerModel(session, created, configOptions);
 
       const capabilities = initialize.agentCapabilities ?? {};
       const declared: string[] = [];

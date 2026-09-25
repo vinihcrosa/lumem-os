@@ -239,6 +239,21 @@ describe("worktree.start", () => {
     expect(names.sort()).toEqual([DERIVED, `${DERIVED}-2`, `${DERIVED}-3`]);
   });
 
+  it("dois `start` concorrentes com o mesmo prompt ganham nomes diferentes", async () => {
+    // O nome era conferido livre antes de existir: os dois derivavam o mesmo, e
+    // o segundo `worktree add -b` morria com "branch already exists".
+    const { ctx, projectId } = await setup();
+
+    const results = await Promise.allSettled([
+      ctx.api.worktree.start({ projectId, prompt: PROMPT, adapterId: CLAUDE_ADAPTER.id }),
+      ctx.api.worktree.start({ projectId, prompt: PROMPT, adapterId: CLAUDE_ADAPTER.id }),
+    ]);
+
+    expect(results.map((result) => result.status)).toEqual(["fulfilled", "fulfilled"]);
+    const names = (await ctx.api.worktree.listByProject({ projectId })).map((row) => row.name);
+    expect(names.sort()).toEqual([DERIVED, `${DERIVED}-2`]);
+  });
+
   it("a branch que sobrou no repositório também é colisão", async () => {
     // O `worktree add -b` recusaria com "já existe"; o sufixo chega antes.
     const { ctx, projectId, repo } = await setup();
@@ -288,9 +303,9 @@ describe("worktree.start", () => {
   });
 
   it.each([
-    ["saiu com 1", 1],
-    ["estourou o teto", null],
-  ])("`setup` %s: `setup_failed`, e nenhum prompt", async (_label, exitCode) => {
+    ["saiu com 1", 1, "o setup saiu com 1"],
+    ["estourou o teto", null, "o setup passou do teto de 10 min"],
+  ])("`setup` %s: `setup_failed`, e nenhum prompt", async (_label, exitCode, detail) => {
     const { ctx, projectId, scripts, spawned } = await setup({ setup: "pnpm install" });
     const started = await ctx.api.worktree.start({
       projectId,
@@ -305,6 +320,29 @@ describe("worktree.start", () => {
       expect(await ctx.api.session.getDetail({ id: started.sessionId })).toMatchObject({
         pendingPrompt: PROMPT,
         pendingReason: "setup_failed",
+        // A frase é de quem decidiu não mandar, e não inferida da última execução.
+        pendingDetail: detail,
+      }),
+    );
+    expect(prompted(spawned)).toEqual([]);
+  });
+
+  it("`setup` que nem rodou: a recusa vira o motivo, e não um exit que não houve", async () => {
+    const { ctx, projectId, scripts, spawned } = await setup({ setup: "pnpm install" });
+    scripts.runToCompletion.mockImplementationOnce(() =>
+      Promise.reject(new Error("o projeto ainda não foi confiado")),
+    );
+
+    const started = await ctx.api.worktree.start({
+      projectId,
+      prompt: PROMPT,
+      adapterId: CLAUDE_ADAPTER.id,
+    });
+
+    await vi.waitFor(async () =>
+      expect(await ctx.api.session.getDetail({ id: started.sessionId })).toMatchObject({
+        pendingReason: "setup_failed",
+        pendingDetail: "o setup não rodou: o projeto ainda não foi confiado",
       }),
     );
     expect(prompted(spawned)).toEqual([]);
@@ -377,6 +415,21 @@ describe("session.sendPending e session.discardPending", () => {
     );
     // Mandar assim mesmo é mandar, e não tentar o `setup` de novo.
     expect(scripts.runToCompletion).toHaveBeenCalledTimes(1);
+  });
+
+  it("`sendPending` duas vezes seguidas manda uma vez só", async () => {
+    const { ctx, spawned, sessionId } = await failedSetup();
+
+    await Promise.allSettled([
+      ctx.api.session.sendPending({ id: sessionId }),
+      ctx.api.session.sendPending({ id: sessionId }),
+    ]);
+
+    await vi.waitFor(() => expect(prompted(spawned)).toEqual([PROMPT]));
+    await vi.waitFor(async () =>
+      expect((await ctx.api.session.getDetail({ id: sessionId })).pendingPrompt).toBeNull(),
+    );
+    expect(prompted(spawned)).toEqual([PROMPT]);
   });
 
   it("`discardPending` zera sem mandar", async () => {

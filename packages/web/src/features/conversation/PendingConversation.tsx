@@ -1,14 +1,14 @@
 import { arrive } from "../../lib/navigation.js";
-import { useRightPanel, useScripts, type Scope } from "../checkout/index.js";
+import { useRightPanel } from "../checkout/index.js";
 import { PendingPrompt, type PendingPromptReason } from "./PendingPrompt.js";
 import { useDiscardPending, useSendPending } from "./queries.js";
 
 export interface PendingConversationProps {
   sessionId: string;
-  /** De onde vem o `[scripts]` deste prompt — o mesmo escopo do checkout. */
-  scope: Scope;
   prompt: string;
   reason: PendingPromptReason | null;
+  /** A frase do daemon sobre a falha, quando há uma (`pending_detail`). */
+  detail: string | null;
 }
 
 /**
@@ -20,8 +20,7 @@ export interface PendingConversationProps {
  * primeiro sair. `Conversation` para de montar isto no instante em que
  * `conversation.turns` ganha o primeiro turno — ver o comentário lá.
  */
-export function PendingConversation({ sessionId, scope, prompt, reason }: PendingConversationProps) {
-  const scripts = useScripts(scope);
+export function PendingConversation({ sessionId, prompt, reason, detail }: PendingConversationProps) {
   const rightPanel = useRightPanel();
   const sendPending = useSendPending(sessionId);
   const discardPending = useDiscardPending(sessionId);
@@ -43,7 +42,7 @@ export function PendingConversation({ sessionId, scope, prompt, reason }: Pendin
         <PendingPrompt
           prompt={prompt}
           reason={reason}
-          setupExit={scripts.data?.setup.last?.exitCode ?? null}
+          detail={detail}
           onShowSetup={onShowSetup}
           onSendAnyway={reason === "setup_failed" ? () => sendPending.mutate() : undefined}
           onEdit={

@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-import { ADAPTERS_DIR_NAME, adapterById, type AdapterSpec } from "@lumem/shared";
+import { ADAPTERS, ADAPTERS_DIR_NAME, adapterById, type AdapterSpec } from "@lumem/shared";
 
 import { DomainError } from "../errors.js";
 import { adapterBinaryPath } from "./install-adapter.js";
@@ -104,4 +104,25 @@ export function adapterCommandForConfig(config: AdapterConfigRef, stateDir: stri
     );
   }
   return config.command;
+}
+
+/**
+ * Which catalogued adapter a configuration row **is**, or `null` for one the
+ * catalogue does not own.
+ *
+ * The inverse of `adapterCommandForConfig`, and asked by whoever writes the
+ * adapter catalogue: its entries are keyed by `adapterId`, and a row's name is
+ * only that id when someone chose it to be. A row named `my-claude` pointing at
+ * the managed `claude-agent-acp` is Claude; a row named anything pointing at a
+ * binary the daemon did not install is nobody's, and writing it into the
+ * catalogue would draw a `my-claude · não instalado` group that can never be
+ * chosen.
+ */
+export function catalogedAdapterOf(config: AdapterConfigRef, stateDir: string): AdapterSpec | null {
+  return adapterById(config.name) ?? catalogedAdapterAt(config.command, stateDir);
+}
+
+/** The spec whose managed binary is exactly `command`, or `null`. */
+export function catalogedAdapterAt(command: string, stateDir: string): AdapterSpec | null {
+  return ADAPTERS.find((spec) => adapterBinaryPath(adaptersDir(stateDir), spec) === command) ?? null;
 }

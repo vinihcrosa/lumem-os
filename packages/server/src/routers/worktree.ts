@@ -396,21 +396,58 @@ async function createWorktreeCore(
  * existe"*) e um diretório no lugar. Perguntar só ao banco deixaria passar a
  * branch de uma worktree removida, que o `remove` não apaga (F4.7).
  */
-async function freeNameFor(ctx: Context, project: ProjectRow, base: string): Promise<string> {
+async function freeNameFor(
+  ctx: Context,
+  project: ProjectRow,
+  base: string,
+): Promise<{ name: string; release: () => void }> {
   const home = await homeOfProject(ctx, project);
   const registered = new Set(
     (await createWorktreeRepository(ctx.db).listByProject(project.id)).map((row) => row.name),
   );
+  const reserved = reservedNamesOf(ctx, project.id);
   const taken = async (name: string): Promise<boolean> =>
+    reserved.has(name) ||
     registered.has(name) ||
     existsSync(worktreeDir(home, name)) ||
     (await ctx.git.branchExists(project.path, name));
 
-  let candidate = base;
-  for (let suffix = 2; await taken(candidate); suffix += 1) {
-    candidate = `${base}-${String(suffix)}`;
+  let suffix = 1;
+  for (;;) {
+    const candidate = suffix === 1 ? base : `${base}-${String(suffix)}`;
+    suffix += 1;
+    // A reserva é conferida de novo **depois** do último `await`: é neste
+    // trecho síncrono que dois pedidos concorrentes deixam de ver o mesmo nome.
+    if ((await taken(candidate)) || reserved.has(candidate)) continue;
+    reserved.add(candidate);
+    return { name: candidate, release: () => reserved.delete(candidate) };
   }
-  return candidate;
+}
+
+/**
+ * Os nomes que um `worktree.start` já escolheu e ainda não registrou, por projeto.
+ *
+ * Sem isto a escolha era TOCTOU: o nome era conferido livre antes de a worktree
+ * existir, e dois `start` com o mesmo prompt (duas abas, um clique duplo)
+ * derivavam os dois `corrigir-login` — e o segundo `git worktree add -b` falhava
+ * com *"branch already exists"* em vez de ganhar o `-2`. Em memória porque
+ * quem cria é um processo só; pelo `db` para dois daemons de teste no mesmo
+ * processo não dividirem a lista.
+ */
+const reservedNames = new WeakMap<object, Map<string, Set<string>>>();
+
+function reservedNamesOf(ctx: Context, projectId: string): Set<string> {
+  let byProject = reservedNames.get(ctx.db);
+  if (byProject === undefined) {
+    byProject = new Map();
+    reservedNames.set(ctx.db, byProject);
+  }
+  let names = byProject.get(projectId);
+  if (names === undefined) {
+    names = new Set();
+    byProject.set(projectId, names);
+  }
+  return names;
 }
 
 /**
@@ -693,18 +730,28 @@ export const worktreeRouter = router({
     .mutation(({ ctx, input }) =>
       domainSafeAsync(async () => {
         const project = await requireProject(ctx, input.projectId);
-        const name =
-          input.name ?? (await freeNameFor(ctx, project, worktreeNameFromPrompt(input.prompt)));
+        const derived =
+          input.name === undefined
+            ? await freeNameFor(ctx, project, worktreeNameFromPrompt(input.prompt))
+            : null;
+        const name = input.name ?? derived!.name;
 
         // Sem o `setup` do caminho do `create`: quem o roda é a espera abaixo,
         // e rodar pelos dois caminhos seria o `setup` duas vezes no mesmo
         // checkout — o mesmo defeito que a esteira tem hoje.
-        const created = await createWorktreeCore(
-          ctx,
-          project,
-          { name, ...(input.from === undefined ? {} : { from: input.from }) },
-          { startSetup: false },
-        );
+        let created;
+        try {
+          created = await createWorktreeCore(
+            ctx,
+            project,
+            { name, ...(input.from === undefined ? {} : { from: input.from }) },
+            { startSetup: false },
+          );
+        } finally {
+          // Registrada ou recusada, a reserva acabou: daqui para a frente quem
+          // diz que o nome está tomado é o banco e o git.
+          derived?.release();
+        }
 
         let row;
         try {

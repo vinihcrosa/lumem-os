@@ -353,6 +353,17 @@ export const session = sqliteTable(
     pendingPrompt: text("pending_prompt"),
     /** Por que o prompt acima não saiu sozinho. Nulo enquanto ele ainda pode sair. */
     pendingReason: text("pending_reason"),
+    /**
+     * A frase do daemon sobre **esta** falha — `o setup saiu com 1`, o teto, a
+     * recusa de confiança —, gravada junto com o `pending_reason`.
+     *
+     * Existe porque a tela inferia o motivo de `scripts.setup.last`, que é a
+     * última execução do `setup` e não necessariamente esta: nula quando ele
+     * nem rodou (projeto clonado sem confiança), de outra rodada quando alguém
+     * rerodou pela aba Setup. Quem sabe por que o prompt não saiu é quem
+     * decidiu não mandá-lo. Sem CHECK: é texto para ler, e não vocabulário.
+     */
+    pendingDetail: text("pending_detail"),
     ...timestamps,
   },
   (table) => [

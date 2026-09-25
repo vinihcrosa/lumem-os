@@ -69,7 +69,7 @@ export const SetupFalhou: Story = {
     <Frame
       prompt={PROMPT}
       reason="setup_failed"
-      setupExit={1}
+      detail="o setup saiu com 1"
       onShowSetup={() => undefined}
       onSendAnyway={() => undefined}
       onEdit={() => undefined}

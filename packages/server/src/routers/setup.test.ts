@@ -160,6 +160,35 @@ describe("setup.probe", () => {
     await expect(context.api.setup.probe()).rejects.toThrow(/não serve/);
   });
 
+  it("grava no catálogo o que descobriu, e é o que tira a pílula de `sem login`", async () => {
+    const stateDir = tempDir("lumem-state-");
+    const managed = stageManagedAdapter(stateDir);
+    const acpManager = new AcpManager({
+      spawner: () => fakeAgentProcess().process,
+      isAvailable: () => true,
+    });
+    context = createTestCaller({ LUMEM_STATE_DIR: stateDir }, { acpManager });
+    await context.ctx.adapterCatalog.recordOptions("claude", [], { authRequired: true });
+
+    await context.api.setup.probe({ command: managed });
+
+    const claude = context.ctx.adapterCatalog.view().find((reading) => reading.adapterId === "claude");
+    expect(claude?.authRequired).toBe(false);
+    expect(claude?.configOptions).not.toEqual([]);
+  });
+
+  it("não grava o probe de um comando que o catálogo não descreve", async () => {
+    const acpManager = new AcpManager({
+      spawner: () => fakeAgentProcess().process,
+      isAvailable: () => true,
+    });
+    context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-") }, { acpManager });
+
+    await context.api.setup.probe({ command: "gemini-acp", args: ["--stdio"] });
+
+    expect(context.ctx.adapterCatalog.view().every((reading) => reading.authRequired === null)).toBe(true);
+  });
+
   it("accepts another command, for the agent that is not Claude", async () => {
     const fake = fakeAgentProcess();
     const acpManager = new AcpManager({ spawner: () => fake.process, isAvailable: () => true });

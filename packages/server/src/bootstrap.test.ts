@@ -387,6 +387,32 @@ describe("bootstrap", () => {
       expect(probe).not.toHaveBeenCalled();
     });
 
+    it("sonda de novo o adaptador gravado sem credencial: o login pode ter vindo de fora", async () => {
+      const stateDir = installedClaude();
+      mkdirSync(join(stateDir, "_system"), { recursive: true });
+      writeFileSync(
+        join(stateDir, ADAPTER_CATALOG_FILE),
+        JSON.stringify({
+          claude: {
+            adapterId: "claude",
+            adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
+            configOptions: [],
+            optionsByModel: {},
+            authRequired: true,
+            commandsByProject: {},
+            capturedAt: 1,
+          },
+        }),
+      );
+      const { manager, probe } = gatedManager();
+
+      await boot({ stateDir, acpManager: manager });
+
+      expect(probe).toHaveBeenCalledTimes(1);
+      // O aquecimento é o único chamador que percorre os modelos.
+      expect(probe.mock.calls[0]?.[1]).toEqual({ walkModels: true });
+    });
+
     it("sonda de novo quando a entrada gravada é de outro pino", async () => {
       // Pino trocado é adaptador outro (Q5): o `load` descarta, e sobra o mesmo
       // caso da entrada ausente.

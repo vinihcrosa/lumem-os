@@ -41,13 +41,13 @@ async function deliver(ctx: Context, sessionId: string): Promise<void> {
   // `sendPending`, e não uma segunda rodada do `setup`.
   if (!row || row.pendingPrompt === null || row.pendingReason !== null) return;
 
-  const ready = await prepare(ctx, row);
+  const failure = await prepare(ctx, row);
 
   const now = await ctx.sessionStore.findById(sessionId);
   if (!now || now.pendingPrompt === null) return;
 
-  if (!ready) {
-    await createSessionRepository(ctx.db).markPendingFailed(sessionId, "setup_failed");
+  if (failure !== null) {
+    await createSessionRepository(ctx.db).markPendingFailed(sessionId, "setup_failed", failure);
     emitChanged(ctx, now);
     return;
   }
@@ -61,8 +61,13 @@ async function deliver(ctx: Context, sessionId: string): Promise<void> {
 }
 
 /**
- * O checkout pronto para o primeiro turno: `true` quando não há `setup`, ou
- * quando ele saiu com `0`.
+ * O checkout pronto para o primeiro turno — `null` quando não há `setup`, ou
+ * quando ele saiu com `0` —, ou a frase que diz por que não está.
+ *
+ * A frase é daqui, e não da tela: quem sabe por que **este** prompt não saiu é
+ * quem decidiu não mandá-lo. A tela lia `scripts.setup.last`, que é a última
+ * execução e não esta — nula quando o `setup` nem rodou, de outra rodada
+ * quando alguém rerodou pela aba Setup.
  *
  * O teto é o da esteira, e **não** o default do `runToCompletion`: aquele é
  * de 20 s porque foi escolhido para o `teardown`, e matou o `setup` da `028`
@@ -74,20 +79,45 @@ async function deliver(ctx: Context, sessionId: string): Promise<void> {
  * isso também é falha: mandar o prompt como se o checkout estivesse pronto
  * seria o agente trabalhando sem dependência e gastando o turno descobrindo.
  */
-async function prepare(ctx: Context, row: SessionRow): Promise<boolean> {
+async function prepare(ctx: Context, row: SessionRow): Promise<string | null> {
   try {
     const scripts = await readProjectScripts(row.cwd);
-    if (scripts.setup === null) return true;
+    if (scripts.setup === null) return null;
 
     const exitCode = await ctx.scripts.runToCompletion(
       { scopeType: row.scopeType as "project" | "worktree", scopeId: row.scopeId },
       "setup",
       { timeoutMs: SETUP_TIMEOUT_MS },
     );
-    return exitCode === 0;
-  } catch {
-    return false;
+    if (exitCode === 0) return null;
+    return exitCode === null
+      ? `o setup passou do teto de ${String(Math.round(SETUP_TIMEOUT_MS / 60_000))} min`
+      : `o setup saiu com ${String(exitCode)}`;
+  } catch (error) {
+    return `o setup não rodou: ${error instanceof Error ? error.message : String(error)}`;
   }
+}
+
+/**
+ * As sessões cujo prompt pendente já saiu e ainda não voltou, por daemon.
+ *
+ * A pendência só zera quando o turno entra na conversa — de propósito, veja
+ * abaixo —, então a linha sozinha não diz *"já está indo"*: um clique duplo em
+ * `mandar assim mesmo`, ou um `sendPending` no mesmo instante em que o
+ * `deliverPending` termina, veriam os dois o texto na linha e mandariam os
+ * dois — dois turnos iguais, o custo em dobro. A reivindicação é síncrona e em
+ * memória porque quem manda é um processo só; o `WeakMap` pela `AcpManager` é
+ * o que faz dois daemons de teste no mesmo processo não dividirem a lista.
+ */
+const sending = new WeakMap<object, Set<string>>();
+
+function claimsOf(ctx: Context): Set<string> {
+  let claims = sending.get(ctx.acpManager);
+  if (claims === undefined) {
+    claims = new Set();
+    sending.set(ctx.acpManager, claims);
+  }
+  return claims;
 }
 
 /**
@@ -100,7 +130,8 @@ async function prepare(ctx: Context, row: SessionRow): Promise<boolean> {
  * turno que já está rodando.
  *
  * Lança só o que recusa **antes** de mandar — sessão que não está viva —, para
- * o `sendPending` poder dizer por quê. O resto do turno é da conversa.
+ * o `sendPending` poder dizer por quê. O resto do turno é da conversa. Um
+ * segundo pedido enquanto o primeiro está em voo não manda nada.
  */
 export function sendPendingNow(ctx: Context, row: SessionRow): void {
   const text = row.pendingPrompt;
@@ -113,6 +144,11 @@ export function sendPendingNow(ctx: Context, row: SessionRow): void {
       "a sessão já terminou; retome-a para mandar o prompt que ficou esperando",
     );
   }
+
+  // Já em voo: não é erro, é o mesmo pedido chegando duas vezes.
+  const claims = claimsOf(ctx);
+  if (claims.has(row.id)) return;
+  claims.add(row.id);
 
   const off = ctx.acpManager.onEvent(row.id, ({ event }) => {
     if (event.type !== "message" || event.role !== "user") return;
@@ -132,7 +168,10 @@ export function sendPendingNow(ctx: Context, row: SessionRow): void {
   void ctx.acpManager
     .prompt(row.id, text)
     .catch(() => {})
-    .finally(off);
+    .finally(() => {
+      off();
+      claims.delete(row.id);
+    });
 }
 
 function emitChanged(ctx: Context, row: SessionRow): void {

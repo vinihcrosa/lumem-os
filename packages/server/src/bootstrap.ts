@@ -18,7 +18,11 @@ import { trackPlaybookLoads } from "./memory/playbook-tracking.js";
 import { trackSessionUsage } from "./usage/record.js";
 import { trackTaskProgress } from "./tasks/progress.js";
 import { createAgentAuthService } from "./setup/agent-auth.js";
-import { adapterCommandFor, adapterCommandForConfig } from "./setup/adapter-command.js";
+import {
+  adapterCommandFor,
+  adapterCommandForConfig,
+  catalogedAdapterOf,
+} from "./setup/adapter-command.js";
 import { reconcileAdapters } from "./setup/reconcile-adapters.js";
 import { createMemoryPreamble } from "./memory/preamble.js";
 import { createBudgetSource } from "./tasks/budget-source.js";
@@ -225,6 +229,7 @@ export async function bootstrap({
     // Duas das três fontes do catálogo: o handshake de cada sessão e os `/`
     // que ela recebe, por projeto.
     adapterCatalog,
+    catalogAdapterOf: (agent) => catalogedAdapterOf(agent, config.stateDir)?.id ?? null,
     log: {
       warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
         bootedApp?.log.warn(...args);
@@ -668,9 +673,13 @@ export async function bootstrap({
  *
  * *Não conhece* é `authRequired === null`: nenhuma opção foi gravada para ele,
  * seja porque nunca houve probe nem sessão, seja porque o `load` descartou a
- * entrada de outro pino — os dois casos da §3.1, e a mesma pergunta. Uma
- * entrada gravada **sem credencial** conta como conhecida: sondar de novo a cada
- * boot daria a mesma resposta até alguém entrar na conta.
+ * entrada de outro pino — os dois casos da §3.1, e a mesma pergunta.
+ *
+ * Uma entrada gravada **sem credencial** também é sondada de novo. Contá-la
+ * como conhecida economizava um processo por boot e prendia a pílula em `sem
+ * login` para sempre: o login pode acontecer fora do Lumem (`claude` num
+ * terminal qualquer), e aí nada no daemon regrava a entrada até uma sessão
+ * abrir — e a sessão não abre, porque a pílula diz que não dá.
  *
  * Um de cada vez, e a decisão de quem sondar é tomada antes do primeiro
  * `await`: o que está devido é o estado do disco no boot, e não o de depois de
@@ -693,7 +702,7 @@ function warmAdapterCatalog({
   const readings = catalog.view();
   const due = ADAPTERS.flatMap((spec) => {
     const known = readings.find((reading) => reading.adapterId === spec.id)?.authRequired;
-    if (known !== null && known !== undefined) return [];
+    if (known === false) return [];
     try {
       return [{ spec, command: adapterCommandFor(spec, stateDir) }];
     } catch {
@@ -719,7 +728,10 @@ function warmAdapterCatalog({
     for (const { spec, command } of due) {
       if (stopped) return;
       try {
-        const report = await acpManager.probe({ command, cwd, adapterVersion: spec.pinnedVersion });
+        const report = await acpManager.probe(
+          { command, cwd, adapterVersion: spec.pinnedVersion },
+          { walkModels: true },
+        );
         if (stopped) return;
         await catalog.recordOptions(spec.id, report.configOptions, {
           authRequired: report.authRequired,
