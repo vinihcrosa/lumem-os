@@ -2,6 +2,7 @@ import type { FastifyBaseLogger } from "fastify";
 
 import type { AcpManager } from "../acp/AcpManager.js";
 import type { Db } from "../db/index.js";
+import type { AgentConfigRow } from "../db/schema.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createSessionRepository } from "../repositories/session.js";
 import { adapterCommandForConfig } from "../setup/adapter-command.js";
@@ -158,6 +159,39 @@ async function store(
 }
 
 /**
+ * O agente de quem perguntou, quando dá; senão o primeiro configurado **que
+ * sobe**.
+ *
+ * *Que sobe* é a parte que importa: a resolução recusa config fora do catálogo
+ * com comando de nome nu, e adaptador do catálogo que não está instalado. Parar
+ * na primeira da lista faria uma `aider` antes da `claude` degradar o auto-learn
+ * com o Claude instalado ao lado. Um daemon sem nenhum agente que suba não faz
+ * auto-learn, e a degradação diz isso com a recusa da primeira.
+ */
+function firstLaunchable(
+  configs: readonly AgentConfigRow[],
+  preferredId: string | null,
+  stateDir: string,
+): { config: AgentConfigRow; command: string } {
+  const ordered = [
+    ...configs.filter((candidate) => candidate.id === preferredId),
+    ...configs.filter((candidate) => candidate.id !== preferredId),
+  ];
+  let firstRefusal: unknown = null;
+  for (const config of ordered) {
+    try {
+      // A cópia que o daemon instalou, e não a `command` da linha — que envelhece
+      // e, quando é um nome, deixa o PATH escolher (ADR de 2026-09-08).
+      return { config, command: adapterCommandForConfig(config, stateDir) };
+    } catch (error) {
+      firstRefusal ??= error;
+    }
+  }
+  if (firstRefusal !== null) throw firstRefusal;
+  throw new Error("nenhum agente configurado para pesquisar");
+}
+
+/**
  * O agente que pesquisa — **sem** a skill de memória.
  *
  * Profundidade 1 (§5.4): a sessão de pesquisa não tem linha no banco, e o
@@ -183,15 +217,10 @@ function askAgent({
     // `list` já deixa as aposentadas de fora: uma sessão legada cuja config a
     // `0033` aposentou pesquisa com o primeiro agente que ainda pode subir.
     const configs = await createAgentConfigRepository(db).list();
-    // O agente de quem perguntou, quando dá; senão o primeiro configurado.
-    // Um daemon sem nenhum agente não faz auto-learn, e a degradação diz isso.
-    const config = configs.find((candidate) => candidate.id === asking?.agentConfigId) ?? configs[0];
-    if (config === undefined) throw new Error("nenhum agente configurado para pesquisar");
+    const { config, command } = firstLaunchable(configs, asking?.agentConfigId ?? null, stateDir);
 
     const session = await acpManager.spawn({
-      // A cópia que o daemon instalou, e não a `command` da linha — que envelhece
-      // e, quando é um nome, deixa o PATH escolher (ADR de 2026-09-08).
-      command: adapterCommandForConfig(config, stateDir),
+      command,
       args: config.args,
       // O checkout de quem perguntou: é lá que a resposta está. Sem sessão, o
       // diretório do daemon — e aí o agente não acha nada, o que é honesto.

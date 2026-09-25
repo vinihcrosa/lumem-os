@@ -269,4 +269,19 @@ describe("createAutoLearn", () => {
 
     expect(world_.spawned).toEqual([active.command]);
   });
+
+  it("sem sessão, pula a config que não sobe e pesquisa com a que sobe", async () => {
+    const world_ = await world();
+    // `aider` vem antes de `claude` na ordem por nome, e o comando é um nome nu.
+    await createAgentConfigRepository(world_.db).create({
+      name: "aider",
+      command: "aider-acp",
+      adapterVersion: "1.0.0",
+    });
+
+    const result = await world_.learn("qual é o endpoint?", undefined);
+
+    expect(result.skipped).toBeNull();
+    expect(world_.spawned).toEqual([adapterBinaryPath(adaptersDir(world_.stateDir), CLAUDE_ADAPTER)]);
+  });
 });

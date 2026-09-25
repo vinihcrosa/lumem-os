@@ -267,6 +267,33 @@ describe("a retired configuration", () => {
       expect(await repo.findById("ac_old")).toMatchObject({ name: "claude-code" });
     });
   });
+  it("is not found by name, so nothing reaches it by the catalog id", async () => {
+    await withTestDb(async (db) => {
+      await db
+        .insert(agentConfig)
+        .values({ id: "ac_pty", name: "claude", command: "claude", retiredAt: new Date() });
+
+      expect(await createAgentConfigRepository(db).findByName("claude")).toBeUndefined();
+    });
+  });
+
+  it("gives its name back: creating it again revives the row as ACP", async () => {
+    // Without this the UNIQUE name kept the live `claude` from ever existing.
+    await withTestDb(async (db) => {
+      await db
+        .insert(agentConfig)
+        .values({ id: "ac_pty", name: "claude", command: "claude", retiredAt: new Date() });
+
+      const id = await configForAdapter(db, CLAUDE_ADAPTER.id);
+
+      expect(id).toBe("ac_pty");
+      expect(await createAgentConfigRepository(db).findById(id)).toMatchObject({
+        retiredAt: null,
+        command: CLAUDE_ADAPTER.command,
+        adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
+      });
+    });
+  });
 });
 
 describe("configForAdapter", () => {

@@ -1,5 +1,5 @@
 import { adapterById, newId } from "@lumem/shared";
-import { asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 
 import type { Db } from "../db/index.js";
 import { agentConfig, type AgentConfigRow } from "../db/schema.js";
@@ -34,6 +34,7 @@ export interface AgentConfigRepository {
   list(): Promise<AgentConfigRow[]>;
   /** Finds a retired one too: the legacy session still needs its name (F1.4). */
   findById(id: string): Promise<AgentConfigRow | undefined>;
+  /** Only a live one: a retired row launches nothing, so it answers no one by name. */
   findByName(name: string): Promise<AgentConfigRow | undefined>;
   update(id: string, input: Partial<AgentConfigInput>): Promise<AgentConfigRow>;
   remove(id: string): Promise<void>;
@@ -86,6 +87,28 @@ export function createAgentConfigRepository(db: Db): AgentConfigRepository {
 
   return {
     async create({ name, command, args = [], env = {}, adapterVersion }) {
+      /*
+       * Um nome aposentado volta a ser ACP, e não um `DUPLICATE`.
+       *
+       * O `name` é UNIQUE e a `0033` aposentou sem renomear: sem isto, quem
+       * tinha a PTY `claude` nunca mais criaria a `claude` viva — o `＋` do
+       * rodapé recusaria para sempre, e o `configForAdapter` devolveria a
+       * aposentada, que o `startAgentSession` recusa. Reaproveitar a linha não
+       * ressuscita a sessão de ontem: quem é legado é a **sessão**
+       * (`transport = 'pty'`), e ela continua recusada no `resume`.
+       */
+      const retired = await db.query.agentConfig.findFirst({
+        where: and(eq(agentConfig.name, name), isNotNull(agentConfig.retiredAt)),
+      });
+      if (retired) {
+        const [revived] = await db
+          .update(agentConfig)
+          .set({ command, args, env, adapterVersion, retiredAt: null, updatedAt: new Date() })
+          .where(eq(agentConfig.id, retired.id))
+          .returning();
+        return revived!;
+      }
+
       const [row] = await withConstraints(
         () =>
           db
@@ -110,7 +133,9 @@ export function createAgentConfigRepository(db: Db): AgentConfigRepository {
     },
 
     findByName(name) {
-      return db.query.agentConfig.findFirst({ where: eq(agentConfig.name, name) });
+      return db.query.agentConfig.findFirst({
+        where: and(eq(agentConfig.name, name), isNull(agentConfig.retiredAt)),
+      });
     },
 
     async update(id, input) {
