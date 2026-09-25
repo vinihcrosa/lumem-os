@@ -203,12 +203,11 @@
  * O campo tem pelo menos a altura do menu da pílula.
  *
  * O menu abre para cima a partir da barra, e o `.modal__body` rola
- * (`overflow-y: auto`) — o que quer dizer que ele RECORTA. Com a caixa baixa,
- * o menu da pílula passaria da borda de cima do corpo e perderia as primeiras
- * opções: o defeito da `023`, com outro ancestral. Com o campo mais alto que o
- * teto do menu (`--size-menu-max-h`), o menu inteiro cai sobre o próprio campo.
+ * (`overflow-y: auto`) — o que quer dizer que ele RECORTA. O campo passa do
+ * teto do menu (`--size-menu-max-h`), para que a lista fique dentro da área
+ * rolável do modal.
  */
-.wtc__in { min-height: calc(var(--size-menu-max-h) + var(--space-24)); }
+.composer__in.wtc__in { min-height: calc(var(--size-menu-max-h) + var(--space-24)); }
 /*
  * O anel de foco é da CAIXA, e não do campo.
  *
