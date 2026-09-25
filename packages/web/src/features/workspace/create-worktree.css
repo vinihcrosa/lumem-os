@@ -175,6 +175,31 @@
 .wtc__g--branch { color: var(--color-git-branch); }
 
 /*
+ * O popover do trilho de origem, ancorado no botão que o abre — a mesma
+ * regra da `023` que `.wtc__pick > .menu` já segue, e a mesma razão: um
+ * popover que foge do próprio gatilho é o defeito que aquela feature achou
+ * com teste verde.
+ *
+ * À direita (`right: 0`), e não à esquerda como o de projeto: o botão de
+ * origem mora no fim do cabeçalho, e um popover que abrisse para a esquerda
+ * sairia por baixo do `…` e do seletor de projeto.
+ */
+.wtc__origin-anchor { position: relative; display: inline-flex; }
+.wtc__origin-panel {
+  position: absolute;
+  top: calc(100% + var(--space-4));
+  right: 0;
+  z-index: 1;
+  width: calc(var(--size-menu-width) * 1.4);
+  max-width: calc(var(--size-dialog-wide) - var(--space-32));
+  padding: var(--space-8);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-lg);
+}
+
+/*
  * O campo tem pelo menos a altura do menu da pílula.
  *
  * O menu abre para cima a partir da barra, e o `.modal__body` rola

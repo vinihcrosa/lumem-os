@@ -65,8 +65,16 @@ export function useWorktreeOrigins(projectId: string, options: { enabled?: boole
 }
 
 type CreateWorktreeInput = Omit<Parameters<typeof trpc.worktree.create.mutate>[0], "projectId">;
+type StartWorktreeInput = Omit<Parameters<typeof trpc.worktree.start.mutate>[0], "projectId">;
 
-/** `create` e `remove`, com a invalidação de `worktreesKey(projectId)` dentro. */
+/**
+ * `create`, `start` e `remove`, com a invalidação de `worktreesKey(projectId)`
+ * dentro.
+ *
+ * `start` (`033` §3.3, F4): criar worktree **é** compor o primeiro prompt — a
+ * mutação devolve `{ worktreeId, sessionId }` assim que a sessão nasce, sem
+ * esperar o `setup` nem o primeiro turno, que correm no daemon.
+ */
 export function useWorktreeMutations(projectId: string) {
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: worktreesKey(projectId) });
@@ -76,10 +84,15 @@ export function useWorktreeMutations(projectId: string) {
     onSuccess: invalidate,
   });
 
+  const start = useMutation({
+    mutationFn: (input: StartWorktreeInput) => trpc.worktree.start.mutate({ projectId, ...input }),
+    onSuccess: invalidate,
+  });
+
   const remove = useMutation({
     mutationFn: (input: { id: string; force: boolean }) => trpc.worktree.remove.mutate(input),
     onSuccess: invalidate,
   });
 
-  return { create, remove };
+  return { create, start, remove };
 }

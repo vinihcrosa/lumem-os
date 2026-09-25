@@ -107,17 +107,6 @@
 
 .dim { color: var(--color-text-tertiary); }
 
-/* ---------------------------------------------------- criar worktree */
-/* O que sobrou aqui depois da Q4 da `sidebar-actions`: o diálogo saiu deste
-   painel e virou modal, então a moldura dele — a que tomava a barra de ações —
-   foi embora junto. A dica de que a branch tem o mesmo nome não: ela é do
-   formulário, e o formulário só mudou de lugar. */
-.create-worktree__hint {
-  margin: calc(-1 * var(--space-4)) 0 0;
-  font: var(--text-body-sm);
-  color: var(--color-text-tertiary);
-}
-
 /* --------------------------------------------------- painel de um escopo */
 /*
  * Caminho, faixa de abas, e o painel da aba aberta preenchendo o resto — nesta

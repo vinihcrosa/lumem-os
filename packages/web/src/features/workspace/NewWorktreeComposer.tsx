@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { worktreeNameFromPrompt, type AdapterCatalogView } from "@lumem/shared";
 
@@ -13,10 +13,12 @@ import { branchNameForIssue } from "./useOriginChoice.js";
  * *"No que você quer trabalhar?"*, a pílula e `Create ↵` (F4.1). A worktree só
  * nasce no `Create` (F4.3).
  *
- * Presentacional: projeto, origem, texto, nome e escolha chegam por prop. O
- * seletor de origem é um botão que chama `onOriginClick` — o `OriginPicker` que
- * ele abre é extraído do `CreateWorktreeDialog` na T19, e quem liga
- * `worktree.start`, o rascunho por projeto e a troca do diálogo antigo é a T20.
+ * `NewWorktreeComposer` continua presentacional: projeto, origem, texto, nome
+ * e escolha chegam por prop. `NewWorktreeComposerModal`, abaixo, é quem liga
+ * `worktree.start`, o rascunho por projeto (`composer-drafts.ts`, Q1) e o
+ * trilho de origem — o `OriginPicker` extraído na T19, agora um popover
+ * ancorado no botão que o abre, no molde de `.wtc__pick` (a regra da `023`:
+ * um popover ancora no que o abre).
  */
 
 /** De onde cortar — as quatro origens da `026`, com o que o botão precisa dizer. */
@@ -38,8 +40,12 @@ export interface NewWorktreeComposerProps {
   projectId: string;
   onProjectChange(projectId: string): void;
   origin: ComposerOrigin;
-  /** Abre o seletor de origem (T19). */
+  /** Abre ou fecha o popover do seletor de origem. */
   onOriginClick?(): void;
+  /** O popover está aberto — o que decide o `aria-expanded` e se ele desenha. */
+  originOpen?: boolean;
+  /** O corpo do popover — o `OriginPicker`, montado por quem liga o daemon. */
+  originPanel?: ReactNode;
   prompt: string;
   onPromptChange(text: string): void;
   /** O nome escrito à mão no `…`. Vazio quer dizer *derivado* (F4.2). */
@@ -57,6 +63,14 @@ export interface NewWorktreeComposerProps {
   creating?: boolean;
   /** A frase do daemon quando `worktree.start` recusou. */
   error?: string | null;
+  /**
+   * `Create` não tem o que fazer, e clicar não adianta tentar de novo — hoje
+   * só o repositório sem commit (F6.13). Separado de `error`: aquele também
+   * fica não-nulo depois de uma recusa do daemon, e uma recusa **é** para
+   * tentar de novo (outro nome, outro modelo), então não pode desligar o
+   * botão.
+   */
+  blocked?: boolean;
   onCreate(): void;
 }
 
@@ -68,6 +82,8 @@ export function NewWorktreeComposer({
   onProjectChange,
   origin,
   onOriginClick,
+  originOpen = false,
+  originPanel,
   prompt,
   onPromptChange,
   name,
@@ -79,6 +95,7 @@ export function NewWorktreeComposer({
   heldBy = null,
   creating = false,
   error = null,
+  blocked = false,
   onCreate,
 }: NewWorktreeComposerProps) {
   const [projectMenu, setProjectMenu] = useState(false);
@@ -89,7 +106,7 @@ export function NewWorktreeComposer({
   const finalName = name.trim() === "" ? derived : name.trim();
   const commands = catalog.find((entry) => entry.adapterId === choice.adapterId)?.commands ?? [];
   const query = creating ? null : slashQuery(prompt);
-  const canCreate = !creating && prompt.trim() !== "";
+  const canCreate = !creating && !blocked && prompt.trim() !== "";
 
   return (
     <Modal
@@ -137,10 +154,19 @@ export function NewWorktreeComposer({
             …
           </Button>
           <span className="wtc__push" />
-          <Button size="sm" aria-label={`origem: ${originLabel(origin)}`} onClick={onOriginClick}>
-            <OriginGlyph origin={origin} />
-            <span className="wtc__origin">{originLabel(origin)}</span> ▾
-          </Button>
+          <span className="wtc__origin-anchor">
+            <Button
+              size="sm"
+              aria-haspopup="menu"
+              aria-expanded={originOpen}
+              aria-label={`origem: ${originLabel(origin)}`}
+              onClick={onOriginClick}
+            >
+              <OriginGlyph origin={origin} />
+              <span className="wtc__origin">{originLabel(origin)}</span> ▾
+            </Button>
+            {originOpen && <div className="wtc__origin-panel">{originPanel}</div>}
+          </span>
         </div>
       }
       footer={
@@ -282,3 +308,9 @@ function OriginGlyph({ origin }: { origin: ComposerOrigin }) {
   if (origin.kind === "default") return <Glyph tone="worktree">◇</Glyph>;
   return <span className="wtc__g">◈</span>;
 }
+
+// A ligação ao daemon (`worktree.start`, o catálogo, o trilho de origem e o
+// rascunho por projeto) mora em `NewWorktreeComposerModal.tsx`, que importa
+// **este** arquivo — não o contrário, para não fechar um ciclo entre os dois.
+// Este arquivo fica só com o desenho, para não passar o teto de 400 linhas de
+// `features/` (regra 8 do sensor de arquitetura). `index.ts` exporta os dois.

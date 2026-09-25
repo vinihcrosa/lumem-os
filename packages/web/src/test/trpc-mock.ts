@@ -154,6 +154,8 @@ function createTrpcMock() {
       branches: { query: vi.fn() },
       hostOrigins: { query: vi.fn() },
       create: { mutate: vi.fn() },
+      // Criar worktree é compor o primeiro prompt (`033` T20, F4).
+      start: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
     },
     agentConfig: {

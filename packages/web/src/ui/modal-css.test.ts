@@ -43,7 +43,10 @@ const screenSheets = ["create-worktree.css"]
 const consumers = ["Modal.tsx"]
   .map((name) => readFileSync(join(UI, name), "utf8"))
   .concat(
-    ["AddProjectDialog.tsx", "CreateWorktreeDialog.tsx", "CloneStatus.tsx"].map((name) =>
+    // `CreateWorktreeDialog.tsx` saiu (`033` T20): o `NewWorktreeComposer.tsx`
+    // e o `OriginPicker.tsx` que ele hospeda são quem desenha o bloco de
+    // origem agora.
+    ["AddProjectDialog.tsx", "NewWorktreeComposer.tsx", "OriginPicker.tsx", "CloneStatus.tsx"].map((name) =>
       readFileSync(join(WORKSPACE, name), "utf8"),
     ),
     // `CredentialDialog.tsx` entrou com o `modal__destructive` (ADR de 2026-09-13):
@@ -131,7 +134,13 @@ const BORROWED = new Set([
   "clone-outcome__git",
   "clone-outcome__actions",
   "clone-outcome__path",
-  "create-worktree__hint",
+  // A caixa do compositor, de `features/conversation/conversation.css`: o
+  // compositor de nova worktree (`033` T20) reusa as mesmas três classes do
+  // compositor da conversa de propósito — "escrever para um agente" é uma
+  // coisa só, e duas caixas desenhadas em dois lugares divergiriam.
+  "composer__box",
+  "composer__in",
+  "composer__bar",
 ]);
 
 describe("toda classe que o modal pede existe", () => {
