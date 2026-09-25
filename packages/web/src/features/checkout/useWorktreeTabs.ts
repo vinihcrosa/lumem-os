@@ -27,7 +27,12 @@ export interface SessionTab {
 
 export interface WorktreeTabs {
   tabs: readonly SessionTab[];
-  /** Null means the context tab — the worktree itself. */
+  /**
+   * Rascunhos abertos (`033` T18): `draft:<uuid>`, sem sessão nenhuma no
+   * daemon ainda (Q4). A sessão só nasce no primeiro envio.
+   */
+  drafts: readonly string[];
+  /** Null means the context tab — the worktree itself. A draft id is also valid. */
   activeId: string | null;
   select(sessionId: string | null): void;
   /**
@@ -51,6 +56,18 @@ export interface WorktreeTabs {
   /** The session a resume is in flight for, or null. */
   resuming: string | null;
   sessions: ReturnType<typeof useSessionsByScope>;
+  /**
+   * `＋ novo agente`: nasce a aba rascunho, já ativa.
+   *
+   * Nenhuma chamada ao daemon acontece aqui — é por isso que ela pode nascer
+   * selecionada de imediato, sem esperar resposta nenhuma (Q4).
+   */
+  addDraft(): void;
+  /**
+   * Descarta um rascunho — pura troca de estado do cliente, nada sai para o
+   * daemon (Q1). Fechar o rascunho ativo devolve a seleção para o checkout.
+   */
+  closeDraft(draftId: string): void;
 }
 
 /**
@@ -72,6 +89,7 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
   /** Exited sessions the user asked to see again, and ones they dismissed. */
   const [reopened, setReopened] = useState<ReadonlySet<string>>(new Set());
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
+  const [drafts, setDrafts] = useState<readonly string[]>([]);
 
   const list = useMemo(() => sessions.data ?? [], [sessions.data]);
 
@@ -106,13 +124,39 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
   // A tab that goes away cannot stay selected. Falling back to the context tab
   // rather than to a neighbour: after a process dies, what the user needs is
   // the worktree, not whichever session happened to be listed next to it.
+  //
+  // A draft counts as a tab here too — it never appears in `tabs` (it has no
+  // session behind it yet), and without this exception the very next render
+  // after `addDraft` would bounce the selection straight back to the context
+  // tab it just left.
   useEffect(() => {
-    if (activeId !== null && !tabs.some((tab) => tab.sessionId === activeId)) {
+    if (
+      activeId !== null &&
+      !tabs.some((tab) => tab.sessionId === activeId) &&
+      !drafts.includes(activeId)
+    ) {
       setActiveId(null);
     }
-  }, [tabs, activeId]);
+  }, [tabs, drafts, activeId]);
 
   const select = useCallback((sessionId: string | null) => setActiveId(sessionId), []);
+
+  /*
+   * `draft:<uuid>`, and not `newId()` (`@lumem/shared`): that helper mints an
+   * `EntityId` — something the server hands out and the client only ever
+   * echoes back. A draft is the opposite, all the way down: the daemon never
+   * sees this id, because there is no session for it to name yet.
+   */
+  const addDraft = useCallback(() => {
+    const id = `draft:${globalThis.crypto.randomUUID()}`;
+    setDrafts((current) => [...current, id]);
+    setActiveId(id);
+  }, []);
+
+  const closeDraft = useCallback((draftId: string) => {
+    setDrafts((current) => current.filter((id) => id !== draftId));
+    setActiveId((current) => (current === draftId ? null : current));
+  }, []);
 
   const close = useCallback(
     (sessionId: string) => {
@@ -165,6 +209,7 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
 
   return {
     tabs,
+    drafts,
     activeId,
     select,
     close,
@@ -172,5 +217,7 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
     resume,
     resuming: resumption.isPending ? (resumption.variables ?? null) : null,
     sessions,
+    addDraft,
+    closeDraft,
   };
 }

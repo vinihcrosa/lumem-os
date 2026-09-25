@@ -1,8 +1,12 @@
+import { useState } from "react";
+
 import type { AdapterCatalogView } from "@lumem/shared";
 
+import { arrive } from "../../lib/navigation.js";
+import { useSessionMutations, type Scope } from "../checkout/index.js";
 import { Banner, Button, Glyph } from "../../ui/index.js";
 import type { AgentModelChoice } from "./agent-model.js";
-import { AgentModelPill } from "./AgentModelPill.js";
+import { AgentModelPill, useAgentModelChoice } from "./AgentModelPill.js";
 import { TurnFrame } from "./Message.js";
 import { SlashMenu, slashQuery } from "./SlashMenu.js";
 
@@ -142,6 +146,63 @@ export function DraftTab({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+export interface DraftAgentTabProps {
+  scope: Scope;
+  /** `null` para um checkout cujo projeto o `useNavigation` ainda não resolveu. */
+  projectId: string | null;
+  worktreeName: string;
+  active: boolean;
+  /** A sessão nasceu — quem chama troca o rascunho pela aba dela (`033` T18). */
+  onCreated(sessionId: string): void;
+}
+
+/**
+ * O rascunho ligado ao daemon (`033` T18): quem escolhe o catálogo, guarda o
+ * texto e cria a sessão no primeiro envio.
+ *
+ * `createAgent` primeiro, `arrive` depois — nesta ordem, e só no `onSuccess`:
+ * mandar a chegada antes de a sessão existir não teria para quem chegar, e
+ * mandá-la otimista faria o primeiro turno apontar para um id que o daemon
+ * pode recusar (F5.4). O texto só é descartado por quem chama, ao trocar o
+ * rascunho pela aba nascida — um erro aqui deixa o texto exatamente como
+ * estava, para tentar de novo sem reescrever nada.
+ */
+export function DraftAgentTab({ scope, projectId, worktreeName, active, onCreated }: DraftAgentTabProps) {
+  const { catalog, choice, choose } = useAgentModelChoice(projectId);
+  const [draft, setDraft] = useState("");
+  const { createAgent } = useSessionMutations(scope);
+
+  function send(): void {
+    const text = draft;
+    if (text.trim() === "" || createAgent.isPending) return;
+    createAgent.mutate(
+      { adapterId: choice.adapterId, config: { ...choice.config } },
+      {
+        onSuccess: (created) => {
+          arrive({ sessionId: created.id, text, send: true });
+          onCreated(created.id);
+        },
+      },
+    );
+  }
+
+  return (
+    <div className="pane pane--conv" role="tabpanel" hidden={!active} aria-label="rascunho">
+      <DraftTab
+        worktreeName={worktreeName}
+        catalog={catalog}
+        choice={choice}
+        onChoiceChange={choose}
+        draft={draft}
+        onDraftChange={setDraft}
+        onSend={send}
+        opening={createAgent.isPending}
+        error={createAgent.error?.message ?? null}
+      />
     </div>
   );
 }

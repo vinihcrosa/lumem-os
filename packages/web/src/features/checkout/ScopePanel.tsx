@@ -1,4 +1,3 @@
-import { DEFAULT_ADAPTER_ID } from "@lumem/shared";
 import { useEffect, useRef, type ReactNode } from "react";
 
 import { useAwaitingPermission } from "../../hooks/useAwaitingPermission.js";
@@ -19,9 +18,8 @@ import {
   TabToggle,
   type TabState,
 } from "../../ui/index.js";
-import { useAgentConfigs } from "../agent/index.js";
 import { FileViewer } from "./FileViewer.js";
-import { NewSessionMenu } from "../conversation/index.js";
+import { DraftAgentTab, NewSessionMenu } from "../conversation/index.js";
 import { PatchViewer } from "./PatchViewer.js";
 import { SessionTabPanel } from "../conversation/index.js";
 import { TabSplit } from "./TabSplit.js";
@@ -78,7 +76,7 @@ export function ScopePanel({
   context,
   cwd,
 }: ScopePanelProps) {
-  const { tabs, activeId, select, close, reopen, resume, resuming, sessions } =
+  const { tabs, drafts, activeId, select, close, reopen, resume, resuming, sessions, addDraft, closeDraft } =
     useWorktreeTabs(scope);
   const awaiting = useAwaitingPermission();
   const openFiles = useOpenFiles();
@@ -98,7 +96,11 @@ export function ScopePanel({
    * dela dispara antes deste efeito (efeitos correm de dentro para fora) — ler
    * o store de novo aqui já veria `null`.
    */
-  const { arrival } = useNavigation();
+  const { arrival, selection } = useNavigation();
+  // O catálogo de adaptador é lido por projeto (`033` §3.1) — `scope.scopeId`
+  // não serve para isso quando o escopo é uma worktree. A `selection` é a mesma
+  // fonte que decidiu qual `scope` chegou até aqui, então os dois nunca discordam.
+  const projectId = selection?.projectId ?? null;
   const opened = useRef<string | null>(null);
   useEffect(() => {
     if (arrival === null || opened.current === arrival.sessionId) return;
@@ -141,32 +143,7 @@ export function ScopePanel({
     );
   }
 
-  const { close: end, createAgent } = useSessionMutations(scope);
-
-  /*
-   * `＋ novo agente`, until the draft tab exists (`033` T18): the default
-   * adapter's configuration, opened straight away. Found by name because that is
-   * how the daemon's `configForAdapter` finds it too; the first listed is the
-   * fallback for a daemon whose only agent was added by hand.
-   */
-  const configs = useAgentConfigs();
-  const agents = configs.data ?? [];
-  const defaultAgent = agents.find((row) => row.name === DEFAULT_ADAPTER_ID) ?? agents[0] ?? null;
-  const newAgentBlocked =
-    defaultAgent === null
-      ? "nenhum agente conectado"
-      : !defaultAgent.available
-        ? "fora do PATH"
-        : createAgent.isPending
-          ? "abrindo…"
-          : null;
-  const openAgent = (): void => {
-    if (defaultAgent === null) return;
-    createAgent.mutate(
-      { agentConfigId: defaultAgent.id },
-      { onSuccess: (created) => select(created.id) },
-    );
-  };
+  const { close: end } = useSessionMutations(scope);
 
   const all = sessions.data ?? [];
   const openIds = new Set(tabs.map((tab) => tab.sessionId));
@@ -195,8 +172,7 @@ export function ScopePanel({
             scopeType={scope.scopeType}
             scopeId={scope.scopeId}
             onCreated={(sessionId) => select(sessionId)}
-            onNewAgent={openAgent}
-            newAgentBlocked={newAgentBlocked}
+            onNewAgent={addDraft}
           />
         }
         end={
@@ -249,6 +225,19 @@ export function ScopePanel({
             }}
           />
         ))}
+        {drafts.map((draftId) => (
+          // Sem estado a reportar: um rascunho nunca está `running` nem
+          // `exited`, e fechá-lo não passa pelo `end` — nenhuma sessão existe
+          // no daemon para encerrar (Q4).
+          <Tab
+            key={draftId}
+            label="rascunho"
+            glyph={<Glyph tone="agent">◆</Glyph>}
+            active={activeId === draftId}
+            onSelect={() => select(draftId)}
+            onClose={() => closeDraft(draftId)}
+          />
+        ))}
       </TabStrip>
 
       {/* Every tab stays mounted; only the open one is shown. Unmounting would
@@ -263,11 +252,6 @@ export function ScopePanel({
         {end.isError && (
           <div className="detail__banner">
             <Banner tone="danger">{end.error.message}</Banner>
-          </div>
-        )}
-        {createAgent.isError && (
-          <div className="detail__banner">
-            <Banner tone="danger">{createAgent.error.message}</Banner>
           </div>
         )}
 
@@ -353,6 +337,20 @@ export function ScopePanel({
           // `session/load` is something only an ACP adapter has (D1).
           {...(tab.transport === "acp" ? { onResume: () => resume(tab.sessionId) } : {})}
           resuming={resuming === tab.sessionId}
+        />
+      ))}
+
+      {drafts.map((draftId) => (
+        <DraftAgentTab
+          key={draftId}
+          scope={scope}
+          projectId={projectId}
+          worktreeName={checkout.name}
+          active={activeId === draftId}
+          onCreated={(sessionId) => {
+            closeDraft(draftId);
+            select(sessionId);
+          }}
         />
       ))}
     </section>

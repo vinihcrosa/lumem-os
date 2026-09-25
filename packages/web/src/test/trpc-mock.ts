@@ -161,6 +161,14 @@ function createTrpcMock() {
       create: { mutate: vi.fn() },
       remove: { mutate: vi.fn() },
     },
+    /**
+     * O catálogo de adaptador (`033` §3.1), lido pela aba rascunho antes de
+     * existir sessão. Faltava aqui pela mesma razão do comentário no topo do
+     * arquivo: nada o chamava até a T18 ligar o rascunho ao daemon.
+     */
+    adapterCatalog: {
+      list: { query: vi.fn() },
+    },
     files: {
       listDir: { query: vi.fn() },
       read: { query: vi.fn() },

@@ -68,6 +68,15 @@ export function useSessionsByTask(taskId: string) {
 }
 
 /**
+ * O que `createAgent` recebe: uma configuração que já existe, **ou** um
+ * adaptador do catálogo com o modelo escolhido (`033` §3.2) — a mesma escolha
+ * exclusiva que `session.createAgent` valida no daemon.
+ */
+export type CreateAgentInput =
+  | { agentConfigId: string; taskId?: string }
+  | { adapterId: string; config?: Record<string, string>; taskId?: string };
+
+/**
  * `createShell`, `createAgent` e `close` — todas invalidando a lista deste
  * escopo (`032` T16). Um shell e um agente são o mesmo verbo com um método
  * diferente, e as duas telas que abrem um leem o mesmo `sessionsKey`.
@@ -83,8 +92,7 @@ export function useSessionMutations(scope: Scope) {
   });
 
   const createAgent = useMutation({
-    mutationFn: (input: { agentConfigId: string; taskId?: string }) =>
-      trpc.session.createAgent.mutate({ ...scope, ...input }),
+    mutationFn: (input: CreateAgentInput) => trpc.session.createAgent.mutate({ ...scope, ...input }),
     onSuccess: invalidate,
   });
 

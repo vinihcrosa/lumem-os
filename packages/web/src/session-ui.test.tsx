@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App.js";
+import * as navigation from "./lib/navigation.js";
+import { CLAUDE_VIEW, CODEX_VIEW } from "./test/adapter-catalog-fixtures.js";
 import { renderWithProviders } from "./test/render.js";
 import { trpcMock as trpc } from "./test/trpc-mock.js";
 
@@ -353,44 +355,6 @@ describe("new session menu", () => {
     expect(screen.queryByRole("menuitem", { name: /codex/ })).not.toBeInTheDocument();
   });
 
-  it("opens the default agent from `novo agente`", async () => {
-    // Until the draft tab lands (T18), the verb opens the default adapter's
-    // configuration straight away — the one named after `DEFAULT_ADAPTER_ID`.
-    const user = userEvent.setup();
-    trpc.agentConfig.list.query.mockResolvedValue([
-      agentConfig({ id: "ac2", name: "codex", command: "codex-acp" }),
-      agentConfig(),
-    ]);
-    const created = session({ kind: "agent", transport: "acp", agentName: "claude", agentConfigId: "ac1" });
-    trpc.session.createAgent.mutate.mockResolvedValue(created);
-
-    await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-    await user.click(await screen.findByRole("menuitem", { name: /novo agente/ }));
-
-    await waitFor(() =>
-      expect(trpc.session.createAgent.mutate).toHaveBeenCalledWith({
-        scopeType: "worktree",
-        scopeId: "wt1",
-        agentConfigId: "ac1",
-      }),
-    );
-  });
-
-  it("will not open an agent when none is connected, and says why", async () => {
-    const user = userEvent.setup();
-    trpc.agentConfig.list.query.mockResolvedValue([]);
-
-    await selectWorktree(user);
-    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-
-    const item = await screen.findByRole("menuitem", { name: /novo agente/ });
-    expect(item).toBeDisabled();
-    expect(item).toHaveTextContent("nenhum agente conectado");
-    await user.click(item);
-    expect(trpc.session.createAgent.mutate).not.toHaveBeenCalled();
-  });
-
   it("closes the menu with Escape and gives focus back to the trigger", async () => {
     const user = userEvent.setup();
 
@@ -450,6 +414,115 @@ describe("new session menu", () => {
     await user.click(await screen.findByRole("menuitem", { name: /^terminal/ }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("não está no disco");
+  });
+});
+
+describe("aba rascunho", () => {
+  // `033` T18: `novo agente` não sobe nada mais — nasce um rascunho, sem
+  // sessão nenhuma no daemon, e a sessão só nasce no primeiro envio.
+  beforeEach(() => {
+    trpc.adapterCatalog.list.query.mockResolvedValue([CLAUDE_VIEW, CODEX_VIEW]);
+  });
+
+  it("nasce ativa, sem chamar o daemon", async () => {
+    const user = userEvent.setup();
+
+    await selectWorktree(user);
+    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /novo agente/ }));
+
+    const tab = await screen.findByRole("tab", { name: "rascunho" });
+    expect(tab).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByText(/Nova conversa em/)).toBeInTheDocument();
+    expect(trpc.session.createAgent.mutate).not.toHaveBeenCalled();
+  });
+
+  it("manda criar a sessão com o adaptador e o modelo escolhidos, e só depois manda a chegada", async () => {
+    const user = userEvent.setup();
+    const created = session({
+      id: "s9",
+      kind: "agent",
+      transport: "acp",
+      agentConfigId: "ac1",
+      agentName: "claude",
+    });
+    trpc.session.createAgent.mutate.mockImplementation(async () => {
+      // Só depois de resolver — antes disso o daemon não tem sessão nenhuma
+      // para listar, e assertir "a aba de claude apareceu" tem que provar que
+      // a criação de fato aconteceu, e não só que o polling já sabia dela.
+      trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
+        scopeType === "worktree" ? [created] : [],
+      );
+      return created;
+    });
+    const arriveSpy = vi.spyOn(navigation, "arrive");
+
+    await selectWorktree(user);
+    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /novo agente/ }));
+    await user.type(
+      screen.getByPlaceholderText("escreva, ou / para comandos"),
+      "corrige o login no Safari",
+    );
+    await user.click(screen.getByRole("button", { name: /enviar/ }));
+
+    await waitFor(() =>
+      expect(trpc.session.createAgent.mutate).toHaveBeenCalledWith({
+        scopeType: "worktree",
+        scopeId: "wt1",
+        adapterId: "claude",
+        config: {},
+      }),
+    );
+    await waitFor(() =>
+      expect(arriveSpy).toHaveBeenCalledWith({
+        sessionId: "s9",
+        text: "corrige o login no Safari",
+        send: true,
+      }),
+    );
+    // A ordem, e não só as duas chamadas: `arrive` não tem para quem chegar
+    // antes de a sessão existir.
+    const createdAt = trpc.session.createAgent.mutate.mock.invocationCallOrder[0] ?? 0;
+    const arrivedAt = arriveSpy.mock.invocationCallOrder[0] ?? 0;
+    expect(arrivedAt).toBeGreaterThan(createdAt);
+    // A aba nascida troca de lugar com o rascunho.
+    expect(await screen.findByRole("tab", { name: /claude/ })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "rascunho" })).not.toBeInTheDocument();
+
+    arriveSpy.mockRestore();
+  });
+
+  it("mantém o texto digitado quando criar falha", async () => {
+    const user = userEvent.setup();
+    trpc.session.createAgent.mutate.mockRejectedValue(
+      new Error('o Claude Code não oferece mais "sonnet" em Model — escolha de novo'),
+    );
+
+    await selectWorktree(user);
+    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /novo agente/ }));
+    const textarea = screen.getByPlaceholderText("escreva, ou / para comandos");
+    await user.type(textarea, "não perca isto");
+    await user.click(screen.getByRole("button", { name: /enviar/ }));
+
+    expect(await screen.findByText(/escolha de novo/)).toBeInTheDocument();
+    expect(textarea).toHaveValue("não perca isto");
+  });
+
+  it("fechar o rascunho não fala nada com o daemon", async () => {
+    const user = userEvent.setup();
+
+    await selectWorktree(user);
+    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /novo agente/ }));
+    await user.type(screen.getByPlaceholderText("escreva, ou / para comandos"), "rascunho descartável");
+
+    await user.click(screen.getByRole("button", { name: "fechar rascunho" }));
+
+    expect(screen.queryByRole("tab", { name: "rascunho" })).not.toBeInTheDocument();
+    expect(trpc.session.createAgent.mutate).not.toHaveBeenCalled();
+    expect(trpc.session.close.mutate).not.toHaveBeenCalled();
   });
 });
 
