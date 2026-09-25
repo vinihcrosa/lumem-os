@@ -3,7 +3,7 @@
 **PRD:** [prd.md](prd.md) · **Decisão:** [ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md)
 
 **Estado:** 12 perguntas de produto · **12 respondidas** (2026-09-24, Vinicius, uma por vez) · 3
-medições da Fase 0 (M1–M3) **abertas** até a T2.
+medições da Fase 0 (M1–M3) **medidas** pela T2 · 2 perguntas derivadas delas (M1a, M2a) **abertas**.
 
 As perguntas vieram de uma discovery que mediu o código e o banco antes de perguntar. Duas respostas
 foram **contra a proposta**: a [Q2](#x-q2--criar-worktree-pelo-modal-cria-uma-tarefa) (proposta: criar
@@ -84,7 +84,7 @@ A esteira já reaplica à mão, o que sugere que o `session/load` não restaura.
 
 **Proposta pra reagir:** reaplicar o modelo gravado; sumiu, avisar.
 
-**R:** **reaplica.** A [M2](#--m2--sessionload-restaura-o-modelo) mede se já era assim.
+**R:** **reaplica.** A [M2](#x-m2--sessionload-restaura-o-modelo) mede se já era assim.
 
 ### [x] Q8 — Em qual modelo a pílula nasce?
 
@@ -104,7 +104,7 @@ marcados como importantes, com o gatilho *"a v1 das duas telas entregue"*.
 
 **Proposta pra reagir:** quando o ACP expõe; some quando não.
 
-**R:** **isso.** A [M1](#--m1--o-claude-expõe-effort) mede o Claude.
+**R:** **isso.** A [M1](#x-m1--o-claude-expõe-effort) mede o Claude.
 
 ### [x] Q11 — `agent_config` continua existindo?
 
@@ -117,17 +117,82 @@ histórica.
 
 ## Medições da Fase 0
 
-### [ ] M1 — O Claude expõe *effort*?
+Medidas pela T2 em **2026-09-24**, sem nenhum `session/prompt`. Os números, com as tabelas, estão
+na [PRD §5](prd.md#5-medições-fase-0).
+
+### [x] M1 — O Claude expõe *effort*?
 
 O Codex expõe `reasoning_effort` (categoria `thought_level`). O `claude-agent-acp@0.75.1`, a medir
 no `configOptions` do `session/new`.
 
-### [ ] M2 — `session/load` restaura o modelo?
+**R (medido):** **expõe.** id `effort`, categoria `thought_level`, choices `default`, `low`,
+`medium`, `high`, `xhigh`, `max`; aqui nasceu em `xhigh`, que é o `effortLevel` do
+`~/.claude/settings.json` desta máquina, e não um padrão do adaptador — como o `opus[1m]` do
+modelo, que é o `settings.model` dela: o *"padrão do ACP"* da [Q8](#x-q8--em-qual-modelo-a-pílula-nasce)
+é a configuração local de quem roda o daemon (no Codex, o `config.toml`). A pílula de *effort* da
+[Q10](#x-q10--a-pílula-mostra-o-effort) **aparece para o Claude**, pelo mesmo caminho que para o
+Codex (`thought_level`).
+
+**Achado que a Q10 não previa:** a opção **depende do modelo**. `haiku` não tem `effort`; `sonnet`
+e `claude-fable-5-1[1m]` têm `effort` e perdem `fast`; o Codex muda as **choices** do
+`reasoning_effort` por modelo (`gpt-5.5` vai até `xhigh`; `gpt-6-astra` chega a `ultra`). Então o
+catálogo alimentado só pelo `session/new` conhece o *effort* **do modelo padrão**, e não o do modelo
+escolhido na pílula — ver a [M1a](#--m1a--o-catálogo-guarda-effort-por-modelo).
+
+### [ ] M1a — O catálogo guarda *effort* por modelo?
+
+Derivada da M1, **aberta**. O `session/new` devolve as opções de um modelo só — o padrão. Escolher
+`haiku` na pílula do rascunho mostraria um *effort* que não existe, e escolher `gpt-6-astra`
+esconderia `max` e `ultra`. As saídas medidas: o probe percorre os modelos com
+`set_config_option` (grátis — é o que a T2 fez, uma chamada por modelo) e o catálogo guarda as
+opções **por modelo**; ou a pílula de *effort* do rascunho some e só aparece na sessão viva. Afeta
+T7, T8 e a pílula (F3.3).
+
+### [x] M2 — `session/load` restaura o modelo?
 
 Trocar o modelo por `set_config_option`, matar a sessão, `session/load`, ler o `configOptions`. Nos
 dois adaptadores.
 
-### [ ] M3 — Quanto custa abrir?
+**R (medido):** **não restaura, em nenhum dos dois.** A troca por `set_config_option` vive só na
+memória do processo, e o que volta no `session/load` é a configuração **local do usuário**:
+
+- **Claude:** o `settings.model` do `~/.claude/settings.json`, quando existe (aqui, `opus[1m]` — e o
+  adaptador ainda chama `setModel` por cima do modelo do transcript); sem ele, o modelo da última
+  resposta real do transcript. Trocado para `haiku` e recarregado ⇒ `opus[1m]` com a config desta
+  máquina, `claude-sonnet-4-6` (o do transcript) com uma config isolada. Nunca `haiku`.
+- **Codex:** o `model`/`model_reasoning_effort` do `~/.codex/config.toml`, sempre. Thread com o
+  último turno em `gpt-5.6-luna`, trocada para `gpt-6-astra`/`high` ⇒ recarregada em
+  `gpt-5.5`/`medium`. Nem o último turno sobrevive.
+
+Consequência: a T11 **não** é no-op — sem ela, toda retomada volta ao padrão local. Reaplicar
+funciona (`set_config_option` aceito na sessão recém-carregada, nos dois). O *effort* volta ao padrão
+pela mesma regra (`xhigh` no Claude, `medium` no Codex), que é exatamente o gatilho do item
+*"Retomar reaplica o effort"* que a T24 leva ao backlog.
+
+**Achado de brinde:** `session/load` de uma conversa que **nunca recebeu um turno** falha — Claude
+`Resource not found`, Codex `Internal error`. Nenhum dos dois grava a conversa antes do primeiro
+prompt. Ver a [M2a](#--m2a--e-a-sessão-com-prompt-pendente-que-o-daemon-perdeu).
+
+### [ ] M2a — E a sessão com prompt pendente que o daemon perdeu?
+
+Derivada da M2, **aberta**. A [Q6](#x-q6--o-primeiro-prompt-espera-o-setup) grava o prompt pendente
+numa sessão criada **antes** do `setup` terminar. Se o daemon cair nesse intervalo (o teto é 10
+min), a sessão existe na linha e **não tem turno** — então retomá-la por `session/load` falha pela
+M2. As saídas: a retomada de sessão sem turno vira `session/new` com o mesmo modelo, ou a sessão
+pendente é tratada como não retomável e o prompt volta para um rascunho. Afeta T11 e T12.
+
+### [x] M3 — Quanto custa abrir?
 
 `spawn` / `initialize` / `session/new` em ms, três rodadas por adaptador — é o tempo do *"abrindo
 <agente>…"* do rascunho.
+
+**R (medido):** **Claude ~2,5–4,4 s, Codex ~0,2–0,5 s.** Total do `probe`, três rodadas:
+
+| | diretório vazio | este checkout |
+|---|---|---|
+| Claude | 3070 / 2781 / 2483 ms | 4224 / 4391 / 2893 ms |
+| Codex | 390 / 182 / 185 ms | 466 / 198 / 195 ms |
+
+No Claude, 92–96% é `session/new` (2328–4066 ms); `initialize` fica em 149–363 ms e `spawn` em 1–5
+ms. No Codex a primeira rodada é a fria (390 ms) e as seguintes ~185 ms. O *"abrindo claude…"* do
+rascunho é visível — segundos, não um piscar — e o do Codex quase não aparece.

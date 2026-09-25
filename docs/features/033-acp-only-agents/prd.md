@@ -129,9 +129,64 @@ lugar, numa sessão que você ainda tem que abrir.
 
 ## 5. Medições (Fase 0)
 
-> Preenchido pela T2. **M1** — o `claude-agent-acp@0.75.1` expõe *effort*? **M2** — `session/load`
-> restaura o modelo? **M3** — `spawn` / `initialize` / `session/new`, em ms, três rodadas por
-> adaptador.
+Medido pela T2 em **2026-09-24**, com o `AcpManager` deste repositório como cliente, contra as
+cópias do daemon de dev (`~/.lumem-dev/shared/adapters/`): `claude-agent-acp@0.75.1` (Claude Code
+`2.1.160` embutido) e `codex-acp@1.10.0`. **Nenhum `session/prompt`** — só `initialize`,
+`session/new`, `session/set_config_option` e `session/load`, e é por isso que custou zero token. As
+respostas, com o que cada uma muda no plano, estão no [open-questions.md](open-questions.md#medições-da-fase-0).
+
+**M1 — o Claude expõe *effort*: sim.** O `session/new` traz cinco opções:
+
+| id | categoria | choices | `currentValue` aqui |
+|---|---|---|---|
+| `mode` | `mode` | `default`, `acceptEdits`, `plan`, `auto`, `bypassPermissions` | `default` |
+| `model` | `model` | `default`, `opus[1m]`, `claude-fable-5-1[1m]`, `sonnet`, `haiku` | `opus[1m]` |
+| `effort` | `thought_level` | `default`, `low`, `medium`, `high`, `xhigh`, `max` | `xhigh` |
+| `fast` | `model_config` | `on`, `off` | `off` |
+| `agent` | *(nula)* | `default` + os subagentes dos plugins da máquina | `default` |
+
+O conjunto **depende do modelo**, medido trocando `model` por `set_config_option` para cada choice:
+
+| modelo | `effort` | `fast` |
+|---|---|---|
+| `default`, `opus[1m]` | sim, as seis | sim |
+| `claude-fable-5-1[1m]`, `sonnet` | sim, as seis | **não** |
+| `haiku` | **não** | **não** |
+
+O Codex tem o mesmo desenho com outros nomes — `reasoning_effort` (`thought_level`), e as choices
+também mudam por modelo: `low`…`xhigh` em `gpt-5.5`; `+ max` em `gpt-5.6-luna`; `+ max, ultra` em
+`gpt-6-astra`, `gpt-5.6-sol` e `gpt-5.6-terra`.
+
+**M2 — `session/load` restaura o modelo: não, em nenhum dos dois.** Um modelo trocado por
+`set_config_option` sem turno depois dele **nunca** volta: nos dois adaptadores a troca vive só na
+memória do processo.
+
+| adaptador | o que o `session/load` devolve | medido |
+|---|---|---|
+| Claude | `settings.model` do `~/.claude/settings.json`, se houver; senão, o modelo da **última resposta real** do transcript | com `model: "opus[1m]"` na config do usuário: trocado para `haiku`, recarregado ⇒ `opus[1m]` (e o adaptador ainda chama `setModel` sobre o transcript em `sonnet`). Com uma config isolada sem `model`: ⇒ `claude-sonnet-4-6`, o do transcript — nunca o `haiku` |
+| Codex | o `model` e o `model_reasoning_effort` do `~/.codex/config.toml`, sempre | thread cujo último turno rodou em `gpt-5.6-luna`, trocada para `gpt-6-astra`/`high`, recarregada ⇒ `gpt-5.5`/`medium` — nem o do último turno, nem o trocado |
+
+O *effort* segue a mesma regra: volta ao `effortLevel` do usuário (`xhigh`) no Claude, e ao
+`medium` do `config.toml` no Codex. Reaplicar funciona: `set_config_option` foi aceito na sessão
+recém-carregada, nos dois.
+
+Achado de brinde: **`session/load` de uma conversa que nunca recebeu um turno falha** — o Claude
+responde `Resource not found`, o Codex `Internal error`. Nenhum dos dois grava nada em disco antes
+do primeiro prompt.
+
+**M3 — quanto custa abrir.** `probe`, três rodadas seguidas por adaptador, em ms. `spawn` é só a
+chamada de `child_process.spawn`; o boot do node cai dentro do `initialize`.
+
+| adaptador · `cwd` | rodada | `spawn` | `initialize` | `session/new` | total |
+|---|---|---|---|---|---|
+| Claude · diretório vazio | 1 / 2 / 3 | 4 / 1 / 1 | 149 / 155 / 154 | 2917 / 2625 / 2328 | **3070 / 2781 / 2483** |
+| Claude · este checkout | 1 / 2 / 3 | 3 / 5 / 2 | 155 / 363 / 184 | 4066 / 4023 / 2707 | **4224 / 4391 / 2893** |
+| Codex · diretório vazio | 1 / 2 / 3 | 3 / 1 / 1 | 250 / 113 / 116 | 137 / 68 / 68 | **390 / 182 / 185** |
+| Codex · este checkout | 1 / 2 / 3 | 4 / 1 / 1 | 267 / 117 / 113 | 195 / 80 / 81 | **466 / 198 / 195** |
+
+No Claude, o custo é quase todo o `session/new`, e dentro dele a fase `sdk-initialize` do próprio
+adaptador (3 287 ms numa das rodadas, pelo log dele). O `session/load` custou na mesma ordem:
+2 768–3 467 ms no Claude, 258–539 ms no Codex.
 
 ## 6. Fluxos
 
