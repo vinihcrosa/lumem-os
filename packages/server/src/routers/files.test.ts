@@ -487,6 +487,7 @@ describe("files.write e o sinal de ação (Q17)", () => {
     const config = await createAgentConfigRepository(ctx.db).create({
       name: "fixture",
       command: fakeAgentBin(),
+      adapterVersion: "1.0.0",
     });
     await ctx.api.session.createAgent({
       scopeType: "worktree",

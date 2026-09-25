@@ -64,7 +64,6 @@ async function acpAgent(db: Db, overrides: Record<string, unknown> = {}) {
   const config = await createAgentConfigRepository(db).create({
     name: `claude-acp-${newId()}`,
     command: "claude-agent-acp",
-    transport: "acp",
     adapterVersion: "0.69.0",
   });
   return {
@@ -131,6 +130,7 @@ describe("start", () => {
     const config = await createAgentConfigRepository(db).create({
       name: "fixture",
       command: "sh",
+      adapterVersion: "1.0.0",
     });
 
     const row = await store.start(

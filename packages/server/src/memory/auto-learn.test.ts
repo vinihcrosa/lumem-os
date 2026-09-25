@@ -95,7 +95,6 @@ async function world(
   const config = await createAgentConfigRepository(db).create({
     name: "claude",
     command: "claude-agent-acp",
-    transport: "acp",
     adapterVersion: "0.40.0",
   });
   const session = await createSessionRepository(db).create({

@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AcpManager } from "../acp/AcpManager.js";
-import { session } from "../db/schema.js";
+import { agentConfig, session } from "../db/schema.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
 import { createTestCaller, type TestCaller } from "../testing/caller.js";
@@ -247,7 +247,11 @@ describe("session.createAgent", () => {
      */
     const { ctx, worktreeId } = await setup();
     const { command } = fakeAgentBin();
-    const config = await createAgentConfigRepository(ctx.db).create({ name: "fixture", command });
+    const config = await createAgentConfigRepository(ctx.db).create({
+      name: "fixture",
+      command,
+      adapterVersion: "1.0.0",
+    });
 
     await expect(
       ctx.api.session.createAgent({
@@ -318,7 +322,6 @@ describe("session.createAgent", () => {
     const config = await createAgentConfigRepository(context.db).create({
       name: CLAUDE_ADAPTER.id,
       command: "/Users/eu/.nvm/versions/node/v22.17.1/bin/claude-agent-acp",
-      transport: "acp",
       adapterVersion: "0.40.0",
     });
 
@@ -412,7 +415,6 @@ describe("session.resume", () => {
     const config = await createAgentConfigRepository(context.db).create({
       name: CLAUDE_ADAPTER.id,
       command: managed,
-      transport: "acp",
       adapterVersion: CLAUDE_ADAPTER.pinnedVersion,
     });
     const created = await context.api.session.createAgent({
@@ -519,13 +521,37 @@ describe("agentConfig.list", () => {
     const { ctx } = await setup();
     const { command } = fakeAgentBin();
     const configs = createAgentConfigRepository(ctx.db);
-    await configs.create({ name: "instalado", command });
-    await configs.create({ name: "ausente", command: "definitely-not-a-real-binary-xyz" });
+    await configs.create({ name: "instalado", command, adapterVersion: "1.0.0" });
+    await configs.create({
+      name: "ausente",
+      command: "definitely-not-a-real-binary-xyz",
+      adapterVersion: "1.0.0",
+    });
 
     const listed = await ctx.api.agentConfig.list();
 
     expect(listed.find((row) => row.name === "instalado")?.available).toBe(true);
     expect(listed.find((row) => row.name === "ausente")?.available).toBe(false);
+  });
+
+  it("leaves a retired configuration out", async () => {
+    // `033` F1.3: a configuração que era PTY não sobe nada, então oferecê-la no
+    // menu é oferecer um beco. Ela continua no banco — a sessão de ontem aponta
+    // para ela —, só não aparece.
+    const { ctx } = await setup();
+    const { command } = fakeAgentBin();
+    await ctx.db
+      .insert(agentConfig)
+      .values({ id: "ac_old", name: "claude-code", command, retiredAt: new Date() });
+    await createAgentConfigRepository(ctx.db).create({
+      name: "claude",
+      command,
+      adapterVersion: "0.75.1",
+    });
+
+    const listed = await ctx.api.agentConfig.list();
+
+    expect(listed.map((row) => row.name)).toEqual(["claude"]);
   });
 });
 

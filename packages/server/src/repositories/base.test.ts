@@ -125,11 +125,16 @@ describe("withConstraints", () => {
 
   it("keeps the original failure as the cause", async () => {
     await withTestDb(async (db) => {
-      await db.insert(agentConfig).values({ id: newId(), name: "claude-code", command: "claude" });
+      await db
+        .insert(agentConfig)
+        .values({ id: newId(), name: "claude-code", command: "claude", adapterVersion: "1.0.0" });
 
       const error = (await failureOf(() =>
         withConstraints(
-          () => db.insert(agentConfig).values({ id: newId(), name: "claude-code", command: "x" }),
+          () =>
+            db
+              .insert(agentConfig)
+              .values({ id: newId(), name: "claude-code", command: "x", adapterVersion: "1.0.0" }),
           { "unique:agent_config.name": { code: "DUPLICATE", message: "nome em uso" } },
         ),
       )) as DomainError;
