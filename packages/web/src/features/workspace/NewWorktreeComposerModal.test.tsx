@@ -2,6 +2,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { consumePendingDraft } from "../../lib/navigation.js";
 import { CLAUDE_VIEW_WITH_COMMANDS, CODEX_VIEW } from "../../test/adapter-catalog-fixtures.js";
 import { renderWithProviders } from "../../test/render.js";
 import { installTrpcDefaults, NO_HOST_ORIGINS, trpcMock as trpc } from "../../test/trpc-mock.js";
@@ -165,6 +166,35 @@ describe("F4.7 — a branch escolhida já tem worktree", () => {
     expect(onOpenExisting).toHaveBeenCalledWith("wt9");
     expect(onClose).toHaveBeenCalledOnce();
     expect(trpc.worktree.start.mutate).not.toHaveBeenCalled();
+  });
+
+  it("carrega o texto digitado para o escopo de destino, para a worktree existente pré-preencher o rascunho", async () => {
+    // O modal não sabe montar a aba — só sabe para onde o texto vai
+    // (`lib/navigation.ts#arriveDraft`). Quem nasce o rascunho é o
+    // `useWorktreeTabs` da worktree de destino; a prova de ponta a ponta está
+    // em `worktree-ui.test.tsx`.
+    const user = userEvent.setup();
+    trpc.worktree.branches.query.mockResolvedValue([
+      {
+        name: "feature-a",
+        local: true,
+        remotes: [],
+        worktreePath: "/w/feature-a",
+        worktreeId: "wt9",
+        worktreeName: "feature-a",
+      },
+    ]);
+    open();
+
+    await user.type(await screen.findByLabelText("No que você quer trabalhar?"), "continuar dali");
+    await user.click(screen.getByRole("button", { name: /^origem:/ }));
+    await user.click(screen.getByRole("button", { name: "branch" }));
+    await user.click(await screen.findByRole("option", { name: /feature-a/ }));
+    await user.click(screen.getByRole("button", { name: /abrir feature-a/ }));
+
+    expect(
+      consumePendingDraft({ scopeType: "worktree", scopeId: "wt9" }),
+    ).toBe("continuar dali");
   });
 });
 

@@ -285,6 +285,50 @@ describe("create worktree", () => {
   });
 });
 
+/**
+ * F4.7 fechado (`033` T21): a branch escolhida já tem worktree, e o texto
+ * digitado não podia mais só sumir — o modal sabia para onde ir, mas não como
+ * levar o rascunho junto (`arriveDraft`, `lib/navigation.ts`).
+ */
+describe("colisão de branch — abre a existente com o rascunho preenchido", () => {
+  it("chega na worktree existente com a aba de rascunho ativa e o texto preservado", async () => {
+    const user = userEvent.setup();
+    trpc.worktree.listByProject.query.mockResolvedValue([worktree("wt9", "feature-a")]);
+    trpc.worktree.getDetail.query.mockResolvedValue(detail(worktree("wt9", "feature-a")));
+    trpc.worktree.branches.query.mockResolvedValue([
+      {
+        name: "feature-a",
+        local: true,
+        remotes: [],
+        worktreePath: "/w/feature-a",
+        worktreeId: "wt9",
+        worktreeName: "feature-a",
+      },
+    ]);
+
+    await selectProject(user);
+    await openCreateWorktree(user);
+    await user.type(screen.getByLabelText("No que você quer trabalhar?"), "continuar dali");
+    await user.click(screen.getByRole("button", { name: /^origem:/ }));
+    await user.click(screen.getByRole("button", { name: "branch" }));
+    await user.click(await screen.findByRole("option", { name: /feature-a/ }));
+    await user.click(screen.getByRole("button", { name: /abrir feature-a/ }));
+
+    // Chegou na worktree existente, e não criou nenhuma. A aba própria do
+    // checkout é o alvo — não o cabeçalho de dentro dela, que fica `hidden`
+    // assim que outra aba (aqui, o rascunho) está na frente.
+    expect(await screen.findByRole("tab", { name: "feature-a" })).toBeInTheDocument();
+    expect(trpc.worktree.start.mutate).not.toHaveBeenCalled();
+
+    // A aba de rascunho nasceu ativa, sem chamar o daemon — e com o texto de
+    // quem digitou no modal, sem mandar nem apagar.
+    const draftTab = await screen.findByRole("tab", { name: "rascunho" });
+    expect(draftTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("mensagem para o agente")).toHaveValue("continuar dali");
+    expect(trpc.session.createAgent.mutate).not.toHaveBeenCalled();
+  });
+});
+
 describe("worktree detail", () => {
   it("shows branch, path, cleanliness and distance from the base", async () => {
     // F4.10.

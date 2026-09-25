@@ -225,17 +225,17 @@ export function ScopePanel({
             }}
           />
         ))}
-        {drafts.map((draftId) => (
+        {drafts.map((draft) => (
           // Sem estado a reportar: um rascunho nunca está `running` nem
           // `exited`, e fechá-lo não passa pelo `end` — nenhuma sessão existe
           // no daemon para encerrar (Q4).
           <Tab
-            key={draftId}
+            key={draft.id}
             label="rascunho"
             glyph={<Glyph tone="agent">◆</Glyph>}
-            active={activeId === draftId}
-            onSelect={() => select(draftId)}
-            onClose={() => closeDraft(draftId)}
+            active={activeId === draft.id}
+            onSelect={() => select(draft.id)}
+            onClose={() => closeDraft(draft.id)}
           />
         ))}
       </TabStrip>
@@ -340,15 +340,16 @@ export function ScopePanel({
         />
       ))}
 
-      {drafts.map((draftId) => (
+      {drafts.map((draft) => (
         <DraftAgentTab
-          key={draftId}
+          key={draft.id}
           scope={scope}
           projectId={projectId}
           worktreeName={checkout.name}
-          active={activeId === draftId}
+          active={activeId === draft.id}
+          initialText={draft.initialText}
           onCreated={(sessionId) => {
-            closeDraft(draftId);
+            closeDraft(draft.id);
             select(sessionId);
           }}
         />

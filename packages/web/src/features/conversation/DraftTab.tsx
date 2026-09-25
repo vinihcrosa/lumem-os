@@ -156,6 +156,13 @@ export interface DraftAgentTabProps {
   projectId: string | null;
   worktreeName: string;
   active: boolean;
+  /**
+   * O texto com que o composer nasce (`033` T21) — vazio no `＋ novo agente`,
+   * pré-preenchido quando a colisão de branch traz de volta o que já estava
+   * digitado no modal de nova worktree. Só semeia o `useState` inicial: depois
+   * de montado, digitar aqui não tem mais nada a ver com quem chamou.
+   */
+  initialText?: string;
   /** A sessão nasceu — quem chama troca o rascunho pela aba dela (`033` T18). */
   onCreated(sessionId: string): void;
 }
@@ -171,9 +178,16 @@ export interface DraftAgentTabProps {
  * rascunho pela aba nascida — um erro aqui deixa o texto exatamente como
  * estava, para tentar de novo sem reescrever nada.
  */
-export function DraftAgentTab({ scope, projectId, worktreeName, active, onCreated }: DraftAgentTabProps) {
+export function DraftAgentTab({
+  scope,
+  projectId,
+  worktreeName,
+  active,
+  initialText = "",
+  onCreated,
+}: DraftAgentTabProps) {
   const { catalog, choice, choose } = useAgentModelChoice(projectId);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(initialText);
   const { createAgent } = useSessionMutations(scope);
 
   function send(): void {

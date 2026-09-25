@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { arrive, select as selectScope } from "../../lib/navigation.js";
+import { arrive, arriveDraft, select as selectScope } from "../../lib/navigation.js";
 import { useAgentModelChoice } from "../conversation/index.js";
 import { draftFor, setDraftFor } from "./composer-drafts.js";
 import { NewWorktreeComposer, type ComposerOrigin, type ComposerProject } from "./NewWorktreeComposer.js";
@@ -119,16 +119,15 @@ function NewWorktreeComposerBody({
     if (prompt.trim() === "" || unbornMessage !== null) return;
 
     if (heldBranch !== null) {
-      // F4.7: a worktree já existe — nada para criar, só para onde ir.
-      //
-      // SPEC_DEVIATION: o texto digitado some daqui em vez de abrir como aba
-      // rascunho na worktree existente. A Q1 só prometeu memória de rascunho
-      // para o modal; carregar o texto para dentro da aba de outro escopo
-      // exigiria tocar `useWorktreeTabs.ts`/`ScopePanel.tsx`/`DraftTab.tsx`, e
-      // os três estão fora do `Where` desta task. Registrado no relatório da
-      // T20 como achado para um follow-up.
+      // F4.7: a worktree já existe — nada para criar, só para onde ir, com o
+      // texto preservado. Ele não tem sessão nenhuma para `arrive` apontar —
+      // só o escopo de destino —, e é isso que `arriveDraft` existe para
+      // carregar (`lib/navigation.ts`): o `useWorktreeTabs` de lá é quem nasce
+      // o rascunho, pré-preenchido, assim que a worktree existente monta.
+      const text = prompt;
       setDraftFor(projectId, "");
       selectScope({ projectId, scope: { scopeType: "worktree", scopeId: heldBranch.worktreeId } });
+      arriveDraft({ scopeType: "worktree", scopeId: heldBranch.worktreeId }, text);
       onOpenExisting(heldBranch.worktreeId);
       onClose();
       return;

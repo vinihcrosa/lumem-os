@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { consumePendingDraft, useNavigation } from "../../lib/navigation.js";
 import { sessionsKey } from "../../lib/queryKeys.js";
 import { trpc } from "../../lib/trpc.js";
 import { useSessionsByScope, type Scope } from "./useSessionsByScope.js";
@@ -25,13 +26,26 @@ export interface SessionTab {
   ordinal?: number;
 }
 
+/**
+ * Um rascunho aberto: o id que o identifica na faixa de abas, e o texto com
+ * que ele nasce.
+ *
+ * `initialText` (`033` T21) é vazio no caminho comum (`＋ novo agente`, Q4) e
+ * pré-preenchido quando a colisão de branch do modal de nova worktree traz de
+ * volta o que já estava digitado — o único outro jeito de um rascunho nascer.
+ */
+export interface DraftHandle {
+  readonly id: string;
+  readonly initialText: string;
+}
+
 export interface WorktreeTabs {
   tabs: readonly SessionTab[];
   /**
    * Rascunhos abertos (`033` T18): `draft:<uuid>`, sem sessão nenhuma no
    * daemon ainda (Q4). A sessão só nasce no primeiro envio.
    */
-  drafts: readonly string[];
+  drafts: readonly DraftHandle[];
   /** Null means the context tab — the worktree itself. A draft id is also valid. */
   activeId: string | null;
   select(sessionId: string | null): void;
@@ -60,9 +74,10 @@ export interface WorktreeTabs {
    * `＋ novo agente`: nasce a aba rascunho, já ativa.
    *
    * Nenhuma chamada ao daemon acontece aqui — é por isso que ela pode nascer
-   * selecionada de imediato, sem esperar resposta nenhuma (Q4).
+   * selecionada de imediato, sem esperar resposta nenhuma (Q4). `initialText`
+   * (`033` T21) é o texto com que ela nasce — vazio no caminho comum.
    */
-  addDraft(): void;
+  addDraft(initialText?: string): void;
   /**
    * Descarta um rascunho — pura troca de estado do cliente, nada sai para o
    * daemon (Q1). Fechar o rascunho ativo devolve a seleção para o checkout.
@@ -89,7 +104,7 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
   /** Exited sessions the user asked to see again, and ones they dismissed. */
   const [reopened, setReopened] = useState<ReadonlySet<string>>(new Set());
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
-  const [drafts, setDrafts] = useState<readonly string[]>([]);
+  const [drafts, setDrafts] = useState<readonly DraftHandle[]>([]);
 
   const list = useMemo(() => sessions.data ?? [], [sessions.data]);
 
@@ -133,7 +148,7 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
     if (
       activeId !== null &&
       !tabs.some((tab) => tab.sessionId === activeId) &&
-      !drafts.includes(activeId)
+      !drafts.some((draft) => draft.id === activeId)
     ) {
       setActiveId(null);
     }
@@ -147,16 +162,36 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
    * echoes back. A draft is the opposite, all the way down: the daemon never
    * sees this id, because there is no session for it to name yet.
    */
-  const addDraft = useCallback(() => {
+  const addDraft = useCallback((initialText = "") => {
     const id = `draft:${globalThis.crypto.randomUUID()}`;
-    setDrafts((current) => [...current, id]);
+    setDrafts((current) => [...current, { id, initialText }]);
     setActiveId(id);
   }, []);
 
   const closeDraft = useCallback((draftId: string) => {
-    setDrafts((current) => current.filter((id) => id !== draftId));
+    setDrafts((current) => current.filter((draft) => draft.id !== draftId));
     setActiveId((current) => (current === draftId ? null : current));
   }, []);
+
+  /*
+   * A colisão de branch (`033` F4.7): o modal de nova worktree leva para uma
+   * worktree que já existe, com o texto digitado — e aquele texto não tem
+   * sessão nenhuma para `arrive` apontar, só o escopo de destino
+   * (`lib/navigation.ts#arriveDraft`). É este hook, e não `ScopePanel`, quem
+   * consome: é ele quem sabe nascer um rascunho.
+   *
+   * `consumePendingDraft` devolve `null` na segunda chamada para o mesmo
+   * escopo — o que evita nascer dois rascunhos quando o StrictMode dispara o
+   * efeito duas vezes. Os primitivos do escopo entram na lista de
+   * dependências, e não o objeto: `scope` chega recriado a cada render de
+   * quem chama (`WorktreePanel`), e depender da referência faria o efeito
+   * rodar a cada repintura em vez de só quando o escopo ou o pedido mudam.
+   */
+  const { pendingDraft } = useNavigation();
+  useEffect(() => {
+    const text = consumePendingDraft(scope);
+    if (text !== null) addDraft(text);
+  }, [scope.scopeType, scope.scopeId, pendingDraft, addDraft]);
 
   const close = useCallback(
     (sessionId: string) => {
