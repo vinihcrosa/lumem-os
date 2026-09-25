@@ -7,3 +7,4 @@ export * from "./events.js";
 export * from "./ids.js";
 export * from "./pr.js";
 export * from "./pty-protocol.js";
+export * from "./worktree-name.js";

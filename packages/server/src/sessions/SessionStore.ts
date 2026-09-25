@@ -22,6 +22,7 @@ import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createProjectRepository } from "../repositories/project.js";
 import {
   createSessionRepository,
+  type PendingReason,
   type ScopeType,
   type ScriptPhase,
   type SessionKind,
@@ -572,13 +573,12 @@ export function createSessionStore({
           ? resolveAcpCommand({ name: config.name, command: row.command })
           : row.command;
 
-      const loaded = await acpManager.resume({
+      const launch = {
         command,
         ...(config?.args?.length ? { args: config.args } : {}),
         cwd: row.cwd,
         ...(config?.env && Object.keys(config.env).length > 0 ? { env: config.env } : {}),
         ...(config?.adapterVersion ? { adapterVersion: config.adapterVersion } : {}),
-        acpSessionId: row.acpSessionId,
         /*
          * A política volta como estava (F1.4).
          *
@@ -589,17 +589,42 @@ export function createSessionStore({
          */
         lumemMode: row.lumemMode as LumemMode,
         lumemModeDefault: await inheritedMode(row.scopeType as ScopeType, row.scopeId),
-        // What makes the new session's transcript self-contained (D15): the old
-        // conversation is copied in front of it, and the separator recorded after.
-        fromSessionId: row.id,
-      });
+      };
+
+      /*
+       * A conversa que **nunca teve turno** não se carrega: abre-se outra (`033`
+       * M2a).
+       *
+       * A M2 mediu que `session/load` de uma conversa sem turno falha nos dois
+       * adaptadores — Claude `Resource not found`, Codex `Internal error` —,
+       * porque nenhum dos dois grava a conversa antes do primeiro prompt. É o
+       * estado da sessão do `worktree.start` cujo `setup` o daemon perdeu: ela
+       * existe na linha, com o prompt esperando, e não há nada do lado do
+       * adaptador para trazer de volta.
+       *
+       * O marcador é o `pending_prompt`, e não a transcrição: o prompt
+       * pendente **é** o primeiro turno, e ele zera no instante em que o turno
+       * entra na conversa — então enquanto ele está na linha, turno não houve.
+       * A conversa criada e nunca usada por outro caminho continua indo pelo
+       * `session/load`, como sempre foi.
+       */
+      const turnless = row.pendingPrompt !== null;
+      const loaded = turnless
+        ? await acpManager.spawn(launch)
+        : await acpManager.resume({
+            ...launch,
+            acpSessionId: row.acpSessionId,
+            // What makes the new session's transcript self-contained (D15): the old
+            // conversation is copied in front of it, and the separator recorded after.
+            fromSessionId: row.id,
+          });
 
       // Antes da linha nova, para ela já nascer no modelo em vigor — e depois do
       // separador que o `resume` gravou, que é onde a conversa de hoje começa.
       const agent = await reapplyModel(acpManager, loaded, row.model);
 
       try {
-        return await sessions.create({
+        const resumed = await sessions.create({
           id: agent.id,
           // Not read from the row: only an ACP row gets this far, and the CHECK
           // `session_shell_transport` makes every ACP row an agent's.
@@ -632,7 +657,21 @@ export function createSessionStore({
            * daemon a trata como liberada e a linha diz `perguntar tudo`.
            */
           lumemMode: row.lumemMode as LumemMode,
+          /*
+           * O prompt que esperava **muda de casa** (M2a): ele vai para a sessão
+           * que pode mandá-lo, com o motivo se já havia um, e sai da morta
+           * logo abaixo. Duas linhas com o mesmo texto esperando seriam dois
+           * `mandar assim mesmo` para um turno só.
+           */
+          ...(turnless
+            ? {
+                pendingPrompt: row.pendingPrompt,
+                pendingReason: row.pendingReason as PendingReason | null,
+              }
+            : {}),
         });
+        if (turnless) await sessions.clearPending(row.id);
+        return resumed;
       } catch (error) {
         // Same rule as `start`: a conversation the daemon cannot describe is one
         // nobody can find or stop from the UI.

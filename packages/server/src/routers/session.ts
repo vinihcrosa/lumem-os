@@ -6,7 +6,9 @@ import { asc, eq } from "drizzle-orm";
 
 import { session } from "../db/schema.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
+import { createSessionRepository, type PendingReason } from "../repositories/session.js";
 import { resolveScope } from "../scope.js";
+import { deliverPending, sendPendingNow } from "../sessions/pending-prompt.js";
 import { startAgentSession } from "../sessions/start-agent-session.js";
 import { domainSafeAsync, publicProcedure, router, type Context } from "../trpc.js";
 
@@ -29,15 +31,34 @@ const sizeSchema = z.object({
   rows: z.number().int().min(1).max(5_000).optional(),
 });
 
-export interface SessionView extends SessionRow {
+export interface SessionView extends Omit<SessionRow, "pendingReason"> {
   /** Null for a shell, and for an agent whose configuration was removed. */
   agentName: string | null;
+  /**
+   * Por que o primeiro prompt (`pendingPrompt`, que vem da linha como está) não
+   * saiu sozinho — `null` enquanto ele ainda pode sair (`033` §3.3).
+   *
+   * Estreitado aqui porque a coluna é `text` e quem conhece a lista é o CHECK:
+   * a tela precisa de uma união para escrever um `switch` que o `tsc` cobra.
+   */
+  pendingReason: PendingReason | null;
 }
 
 async function toView(ctx: Context, row: SessionRow): Promise<SessionView> {
-  if (row.agentConfigId === null) return { ...row, agentName: null };
+  const pendingReason = row.pendingReason as PendingReason | null;
+  if (row.agentConfigId === null) return { ...row, pendingReason, agentName: null };
   const config = await createAgentConfigRepository(ctx.db).findById(row.agentConfigId);
-  return { ...row, agentName: config?.name ?? null };
+  return { ...row, pendingReason, agentName: config?.name ?? null };
+}
+
+/** A sessão, com o prompt esperando — ou a recusa que diz que não há nenhum. */
+async function requirePending(ctx: Context, id: string): Promise<SessionRow> {
+  const row = await ctx.sessionStore.findById(id);
+  if (!row) throw new DomainError("NOT_FOUND", `sessão ${id} não existe`);
+  if (row.pendingPrompt === null) {
+    throw new DomainError("BLOCKED", `não há prompt pendente na sessão ${id}`);
+  }
+  return row;
 }
 
 export const sessionRouter = router({
@@ -214,9 +235,54 @@ export const sessionRouter = router({
         scopeType: row.scopeType as "project" | "worktree",
         scopeId: row.scopeId,
       });
+      /*
+       * A sessão cujo primeiro prompt o daemon perdeu no meio do `setup` (`033`
+       * M2a) volta para a mesma máquina: prepara o checkout e manda. Um
+       * `setup` que já tinha falhado continua esperando a pessoa — quem decide
+       * isso é o próprio `deliverPending`, que não roda nada quando há motivo.
+       */
+      if (row.pendingPrompt !== null) void deliverPending(ctx, row.id);
       return toView(ctx, row);
     }),
   ),
+
+  /**
+   * Manda o primeiro prompt que ficou esperando (`033` §3.3, F4.6).
+   *
+   * É o `mandar assim mesmo` depois de um `setup` que falhou: manda, e não
+   * tenta o `setup` de novo — quem quer outra rodada tem a aba Setup do rodapé.
+   * Devolve antes de o turno acabar; a pendência zera quando o turno entra na
+   * conversa, e o `session.changed` diz quando.
+   */
+  sendPending: publicProcedure.input(z.object({ id: z.string().min(1) })).mutation(({ ctx, input }) =>
+    domainSafeAsync(async () => {
+      const row = await requirePending(ctx, input.id);
+      sendPendingNow(ctx, row);
+      return toView(ctx, row);
+    }),
+  ),
+
+  /**
+   * Descarta o primeiro prompt sem mandar (`033` §3.3).
+   *
+   * O texto não se perde por isso: é o `editar` da tela, que o devolve ao
+   * compositor antes de chamar isto. Vale também durante o `setup` — o exit
+   * que chegar depois relê a linha e não manda nada.
+   */
+  discardPending: publicProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .mutation(({ ctx, input }) =>
+      domainSafeAsync(async () => {
+        const row = await requirePending(ctx, input.id);
+        await createSessionRepository(ctx.db).clearPending(row.id);
+        ctx.events.emit({
+          type: "session.changed",
+          scopeType: row.scopeType as "project" | "worktree",
+          scopeId: row.scopeId,
+        });
+        return toView(ctx, (await ctx.sessionStore.findById(row.id)) ?? row);
+      }),
+    ),
 
   close: publicProcedure.input(z.object({ id: z.string().min(1) })).mutation(({ ctx, input }) =>
     domainSafeAsync(async () => {
