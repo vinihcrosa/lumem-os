@@ -78,7 +78,6 @@ it("resolve por spec e não pelo caminho gravado na linha", () => {
     {
       name: "claude",
       command: "/Users/eu/.nvm/versions/node/v22.17.1/bin/claude-agent-acp",
-      transport: "acp",
     },
     state,
   );
@@ -86,14 +85,18 @@ it("resolve por spec e não pelo caminho gravado na linha", () => {
   expect(resolved).toBe(managed);
 });
 
-it("deixa uma configuração PTY exatamente como ela é", () => {
-  // Um shell não é adaptador, e o `~/.lumem` não tem opinião sobre onde mora o
-  // `bash`. A regra de proveniência é sobre adaptador.
+it("não devolve mais o comando cru da linha que era PTY", () => {
+  /*
+   * O ramo que devolvia o comando intocado era o do PTY: um shell não era
+   * adaptador. Desde o ADR de 2026-09-24 toda configuração é, e a linha
+   * `claude-code` que a semente antiga gravou (`command: "claude"`) é um nome nu —
+   * lançá-la seria o PATH escolhendo, que é exatamente o proibido.
+   */
   const state = stateDir();
 
-  expect(
-    adapterCommandForConfig({ name: "meu shell", command: "/bin/zsh", transport: "pty" }, state),
-  ).toBe("/bin/zsh");
+  expect(() =>
+    adapterCommandForConfig({ name: "claude-code", command: "claude" }, state),
+  ).toThrow(/adaptador não vem do PATH/);
 });
 
 it("recusa um nome nu numa linha ACP, porque quem escolheria é o PATH", () => {
@@ -101,7 +104,7 @@ it("recusa um nome nu numa linha ACP, porque quem escolheria é o PATH", () => {
   stageManaged(state);
 
   expect(() =>
-    adapterCommandForConfig({ name: "gemini", command: "gemini-acp", transport: "acp" }, state),
+    adapterCommandForConfig({ name: "gemini", command: "gemini-acp" }, state),
   ).toThrow(/adaptador não vem do PATH/);
 });
 
@@ -116,7 +119,7 @@ it("deixa passar um caminho absoluto de um agente que o catálogo não tem", () 
 
   expect(
     adapterCommandForConfig(
-      { name: "acp-falso", command: "/usr/local/bin/node", transport: "acp" },
+      { name: "acp-falso", command: "/usr/local/bin/node" },
       state,
     ),
   ).toBe("/usr/local/bin/node");
@@ -130,7 +133,7 @@ it("ignora o comando gravado quando o nome é um id do catálogo", () => {
 
   expect(
     adapterCommandForConfig(
-      { name: CLAUDE_ADAPTER.id, command: "/opt/outro/claude-agent-acp", transport: "acp" },
+      { name: CLAUDE_ADAPTER.id, command: "/opt/outro/claude-agent-acp" },
       state,
     ),
   ).toBe(managed);

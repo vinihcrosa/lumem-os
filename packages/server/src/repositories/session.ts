@@ -34,10 +34,29 @@ export type ScriptPhase = "setup" | "run" | "test" | "teardown";
 export type ScopeType = "project" | "worktree";
 export type SessionState = "running" | "exited";
 
-export interface CreateSessionInput {
+/**
+ * What a session is, decided at birth and never changed (D1) — and, since the
+ * [ADR de 2026-09-24](../../../../docs/adr/2026-09-24-1620-agent-is-always-acp.md),
+ * decided by the kind: an agent is ACP, a shell or a script is PTY.
+ *
+ * A union rather than a CHECK because the column cannot say it: the agent rows
+ * that ran on PTY before the ADR are history and stay readable, so the database
+ * has to keep accepting `agent` + `pty` in what it already holds. What must stop
+ * is writing a new one, and that is a thing only the type can refuse.
+ */
+export type CreateSessionInput = CreateSessionFields &
+  (
+    | { kind: "agent"; transport: "acp" }
+    /**
+     * Defaulted rather than required: every caller written before ACP existed
+     * meant `pty`, and the row it produces has to keep meaning that.
+     */
+    | { kind: Exclude<SessionKind, "agent">; transport?: "pty" }
+  );
+
+interface CreateSessionFields {
   /** The manager's own id. One identity for the process and its record. */
   id: string;
-  kind: SessionKind;
   /** Required for `kind: "script"`, forbidden for the others — the CHECK agrees. */
   scriptName?: ScriptPhase | null;
   agentConfigId?: string | null;
@@ -46,13 +65,6 @@ export interface CreateSessionInput {
   cwd: string;
   /** What was actually launched, so the detail view never has to guess. */
   command: string;
-  /**
-   * What this session is, decided at birth and never changed (D1).
-   *
-   * Defaulted rather than required: every caller written before ACP existed
-   * meant `pty`, and the row it produces has to keep meaning that.
-   */
-  transport?: "pty" | "acp";
   /** The adapter's own session id. Only an ACP session has one. */
   acpSessionId?: string | null;
   /** Mode and model as the protocol reported them at creation. */

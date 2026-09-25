@@ -163,6 +163,23 @@ export const sessionRouter = router({
         if (!config) {
           throw new DomainError("NOT_FOUND", `configuração ${input.agentConfigId} não existe`);
         }
+        /*
+         * Aposentada é legado sem acesso (`033` Q3), e a recusa é aqui, antes de
+         * resolver o que lançar.
+         *
+         * A linha continua no banco porque a sessão de ontem aponta para ela (a FK
+         * é `restrict`) e a lista do checkout precisa do nome. O que ela não faz
+         * mais é subir processo: era um agente num PTY, e o [ADR de
+         * 2026-09-24](../../../../docs/adr/2026-09-24-1620-agent-is-always-acp.md)
+         * fechou esse caminho. Sem a recusa, a `claude-code` com `command:
+         * "claude"` chegaria ao handshake ACP contra um CLI que não fala ACP.
+         */
+        if (config.retiredAt !== null) {
+          throw new DomainError(
+            "BLOCKED",
+            "esta configuração rodava o agente num terminal (PTY), e o Lumem não roda mais agente assim",
+          );
+        }
 
         /*
          * O que lançar, resolvido **agora** e não lido da coluna.
@@ -171,25 +188,21 @@ export const sessionRouter = router({
          * dia em que a linha nasceu, e o router não tem `update`: nesta máquina, uma
          * linha de 2026-08-30 apontava para o `claude-agent-acp` global — `0.40.0` —
          * enquanto o pino dizia `0.75.1`, e nenhuma instalação gerenciada correta
-         * teria desalojado ela. Para transporte ACP, quem decide é a spec; para PTY,
-         * o comando continua sendo o que a configuração diz, porque um shell não é
-         * adaptador. [ADR de
+         * teria desalojado ela. Quem decide é a spec. [ADR de
          * 2026-09-08](../../../../docs/adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md).
          */
         const command = adapterCommandForConfig(config, ctx.config.stateDir);
 
-        // F6.5: refused before the spawn. node-pty does not fail for a missing
-        // binary — it produces a terminal that exits 1 in silence, which the
-        // user reads as the agent crashing rather than as not being installed.
+        // F6.5: refused before the spawn. Afterwards, a missing binary reads as
+        // the agent crashing rather than as not being installed.
+        //
+        // Uma frase só, e ela fala de arquivo: o `adapterCommandForConfig` só
+        // devolve caminho absoluto — um nome nu seria o PATH escolhendo, e ele já
+        // o recusou —, então "não está no PATH" deixou de ter sobre o que falar.
         if (!isCommandAvailable(command)) {
           throw new DomainError(
             "BLOCKED",
-            // Duas frases porque são dois casos: um caminho absoluto que não é
-            // executável é um arquivo, e dizer "não está no PATH" sobre ele
-            // mandaria a pessoa procurar no lugar errado.
-            command.includes("/")
-              ? `"${command}" não é executável; a configuração "${config.name}" está indisponível`
-              : `"${command}" não está no PATH do servidor; a configuração "${config.name}" está indisponível`,
+            `"${command}" não é executável; a configuração "${config.name}" está indisponível`,
           );
         }
 
@@ -207,11 +220,6 @@ export const sessionRouter = router({
           args: config.args,
           // F5.5: the daemon's environment plus what the configuration declares.
           env: config.env,
-          // Read from the configuration that was just validated, and passed on
-          // rather than re-read downstream: two reads could disagree if the
-          // configuration changed in between, and the session would then be one
-          // thing in the row and another in the manager.
-          transport: config.transport === "acp" ? "acp" : "pty",
           adapterVersion: config.adapterVersion,
           // Nasce liberada só quando quem chamou disse que não há ninguém do
           // outro lado. O default é `false`, então toda conversa que a tela

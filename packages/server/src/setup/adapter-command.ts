@@ -58,20 +58,21 @@ export function adapterCommandFor(spec: AdapterSpec, stateDir: string): string {
 export interface AdapterConfigRef {
   name: string;
   command: string;
-  transport: string;
 }
 
 /**
  * What to launch for a configuration row.
  *
- * Three cases, and separating them is the whole content of this function. The first
- * version collapsed the last two and it was wrong: it refused any ACP row whose name
- * is not in the catalogue, which is not what the decision forbids and which broke 25
- * e2e specs that drive a deliberately-named fake adapter.
+ * Two cases, and separating them is the whole content of this function. The first
+ * version collapsed them and it was wrong: it refused any row whose name is not in
+ * the catalogue, which is not what the decision forbids and which broke 25 e2e specs
+ * that drive a deliberately-named fake adapter.
  *
- * **PTY** is returned untouched. It is a shell or a CLI someone chose, and `~/.lumem`
- * has no opinion about where `bash` lives. Only the ACP transport carries the
- * provenance rule, because only it is an adapter.
+ * There used to be a third, first: a PTY row came back untouched, because a shell
+ * is not an adapter. Since the [ADR de
+ * 2026-09-24](../../../../docs/adr/2026-09-24-1620-agent-is-always-acp.md) every
+ * configuration is one, and the rows that were PTY are retired — refused before
+ * anyone asks what they would launch.
  *
  * **A catalogued id** always resolves to the managed copy, and the stored `command`
  * is *ignored*. This is the case that broke: the row on this machine said
@@ -91,15 +92,13 @@ export interface AdapterConfigRef {
  * refused here rather than handed to the OS to resolve however it likes today.
  */
 export function adapterCommandForConfig(config: AdapterConfigRef, stateDir: string): string {
-  if (config.transport !== "acp") return config.command;
-
   const spec = adapterById(config.name);
   if (spec !== null) return adapterCommandFor(spec, stateDir);
 
   if (!config.command.startsWith("/")) {
     throw new DomainError(
       "NOT_FOUND",
-      `a configuração "${config.name}" diz transporte ACP com o comando "${config.command}", que é ` +
+      `a configuração "${config.name}" tem o comando "${config.command}", que é ` +
         `um nome e não um caminho — quem escolheria o binário é o PATH, e adaptador não vem do PATH. ` +
         `Use um id do catálogo, ou o caminho absoluto do adaptador`,
     );

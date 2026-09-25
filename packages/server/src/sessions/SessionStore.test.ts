@@ -73,7 +73,6 @@ async function acpAgent(db: Db, overrides: Record<string, unknown> = {}) {
     scopeId: "w1",
     cwd: tmpdir(),
     command: config.command,
-    transport: "acp" as const,
     adapterVersion: config.adapterVersion,
     ...overrides,
   };
@@ -143,12 +142,15 @@ describe("start", () => {
   it("kills the process when the record cannot be written", async () => {
     // A process the daemon cannot describe is one nobody can find or stop from
     // the UI.
+    //
+    // Um shell com configuração, que o CHECK recusa: era um agente-PTY com uma
+    // configuração fantasma, e agente não chega mais ao PTY. O caso do agente mora
+    // em "kills the agent it could not write down".
     const { store, ptyManager } = setup();
 
-    await expect(
-      store.start(shell({ kind: "agent", agentConfigId: "ghost" })),
-    ).rejects.toThrow();
+    await expect(store.start(shell({ agentConfigId: "ghost" }))).rejects.toThrow();
 
+    expect(ptyManager.list()).toHaveLength(1);
     await vi.waitFor(() =>
       expect(ptyManager.list().every((info) => info.state === "exited")).toBe(true),
     );
@@ -295,11 +297,19 @@ describe("transport", () => {
     expect(row.acpSessionId).toBeNull();
   });
 
-  it("still starts a PTY agent when the configuration says so", async () => {
-    const { store, db } = setup();
+  it("starts an agent on ACP without anyone naming the transport", async () => {
+    /*
+     * O inverso do teste que morava aqui (*"still starts a PTY agent when the
+     * configuration says so"*): o agente sem transporte declarado caía no
+     * `ptyManager.spawn`, e esse era o caminho alternativo que o ADR de
+     * 2026-09-24 fechou. Agora o tipo é que decide — agente é ACP —, e nada
+     * chega ao PTY.
+     */
+    const { store, db, ptyManager, acpManager } = setup();
     const config = await createAgentConfigRepository(db).create({
       name: "claude-code",
       command: "sh",
+      adapterVersion: "1.0.0",
     });
 
     const row = await store.start({
@@ -312,7 +322,9 @@ describe("transport", () => {
       args: ["-c", "sleep 30"],
     });
 
-    expect(row).toMatchObject({ transport: "pty", acpSessionId: null });
+    expect(row).toMatchObject({ transport: "acp", acpSessionId: "fake-acp-session" });
+    expect(acpManager.get(row.id)?.state).toBe("running");
+    expect(ptyManager.list()).toEqual([]);
   });
 
   /**
@@ -331,7 +343,6 @@ describe("transport", () => {
       cwd: tmpdir(),
       command: "sh",
       args: ["-c", "sleep 30"],
-      transport: "acp",
     });
 
     expect(row).toMatchObject({
@@ -798,23 +809,21 @@ describe("os sinais que a saída de uma sessão produz (Q17)", () => {
     cleanupGitFixtures();
   });
 
-  /** Uma sessão de agente que morre no ato, no diretório pedido. */
+  /**
+   * Uma sessão de agente que morre no ato, no diretório pedido.
+   *
+   * Um adaptador falso que sai logo depois do handshake: era um PTY com
+   * `exit 0`, e agente não é mais PTY.
+   */
   async function agentThatDiesAt(
     store: SessionStore,
     db: Db,
     cwd: string,
   ): Promise<{ id: string }> {
-    const config = await createAgentConfigRepository(db).create({ name: "fixture", command: "sh" });
-    const row = await store.start(
-      shell({
-        kind: "agent",
-        agentConfigId: config.id,
-        scopeType: "worktree",
-        scopeId: "wt1",
-        cwd,
-        args: ["-c", "exit 0"],
-      }),
-    );
+    const fake = fakeAgentProcess();
+    queued.push(fake.process);
+    const row = await store.start(await acpAgent(db, { scopeId: "wt1", cwd }));
+    fake.process.kill();
     return { id: row.id };
   }
 

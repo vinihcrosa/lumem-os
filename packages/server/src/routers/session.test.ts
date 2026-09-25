@@ -6,10 +6,15 @@ import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AcpManager } from "../acp/AcpManager.js";
+import type { AcpProcess, AcpSpawnRequest } from "../acp/process.js";
 import { agentConfig, session } from "../db/schema.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
-import { createTestCaller, type TestCaller } from "../testing/caller.js";
+import {
+  createTestCaller,
+  type TestCaller,
+  type TestCallerOverrides,
+} from "../testing/caller.js";
 import { appRouter } from "../routers/index.js";
 import { createCallerFactory } from "../trpc.js";
 import { cleanupGitFixtures, createRepo, tempDir } from "../testing/git-fixtures.js";
@@ -36,14 +41,39 @@ function fakeAgentBin(name = "fake-agent"): { dir: string; command: string } {
   return { dir, command: file };
 }
 
-async function setup(): Promise<{
+/**
+ * Um `AcpManager` cujo adaptador é falso, e o spawner que diz o que ele recebeu.
+ *
+ * Todo agente é ACP desde o ADR de 2026-09-24, então todo teste que cria um
+ * precisa de um adaptador que responda o handshake — o `cat` do `fakeAgentBin`
+ * só servia enquanto o agente podia ser um PTY. Um processo falso **por spawn**:
+ * um só tem o stdout travado no segundo `launch`.
+ */
+function fakeAcp(): {
+  acpManager: AcpManager;
+  spawner: ReturnType<typeof vi.fn<(request: AcpSpawnRequest) => AcpProcess>>;
+  spawned: ReturnType<typeof fakeAgentProcess>[];
+} {
+  const spawned: ReturnType<typeof fakeAgentProcess>[] = [];
+  const spawner = vi.fn((_request: AcpSpawnRequest): AcpProcess => {
+    const fake = fakeAgentProcess();
+    spawned.push(fake);
+    return fake.process;
+  });
+  return { acpManager: new AcpManager({ spawner, isAvailable: () => true }), spawner, spawned };
+}
+
+async function setup(overrides: TestCallerOverrides = {}): Promise<{
   ctx: TestCaller;
   projectId: string;
   worktreeId: string;
   worktreePath: string;
   repo: string;
 }> {
-  context = createTestCaller({ LUMEM_STATE_DIR: tempDir("lumem-state-"), SHELL: "/bin/sh" });
+  context = createTestCaller(
+    { LUMEM_STATE_DIR: tempDir("lumem-state-"), SHELL: "/bin/sh" },
+    overrides,
+  );
   const workspace = await context.api.workspace.create({ name: "pessoal" });
   const repo = await createRepo({ branch: "main" });
   const project = await context.api.project.add({
@@ -155,11 +185,13 @@ describe("session.createShell", () => {
 
 describe("session.createAgent", () => {
   it("launches the configured command in a worktree", async () => {
-    const { ctx, worktreeId, worktreePath } = await setup();
+    const { acpManager, spawner } = fakeAcp();
+    const { ctx, worktreeId, worktreePath } = await setup({ acpManager });
     const { command } = fakeAgentBin();
     const config = await createAgentConfigRepository(ctx.db).create({
       name: "fixture",
       command,
+      adapterVersion: "1.0.0",
     });
 
     const created = await ctx.api.session.createAgent({
@@ -175,15 +207,22 @@ describe("session.createAgent", () => {
       command,
       cwd: worktreePath,
       state: "running",
+      transport: "acp",
     });
+    expect(spawner).toHaveBeenCalledWith(expect.objectContaining({ command, cwd: worktreePath }));
   });
 
   it("accepts a project as the scope", async () => {
     // F5.2 and decision WS-Q15: asking an agent about the repository does not
     // need a branch.
-    const { ctx, projectId, repo } = await setup();
+    const { acpManager } = fakeAcp();
+    const { ctx, projectId, repo } = await setup({ acpManager });
     const { command } = fakeAgentBin();
-    const config = await createAgentConfigRepository(ctx.db).create({ name: "fixture", command });
+    const config = await createAgentConfigRepository(ctx.db).create({
+      name: "fixture",
+      command,
+      adapterVersion: "1.0.0",
+    });
 
     const created = await ctx.api.session.createAgent({
       scopeType: "project",
@@ -196,10 +235,16 @@ describe("session.createAgent", () => {
 
   it("refuses a configuration whose command is not installed", async () => {
     // F6.5, before the spawn. Afterwards is indistinguishable from a crash.
-    const { ctx, worktreeId } = await setup();
+    //
+    // Um caminho absoluto, e não mais um nome nu: com todo agente ACP, um nome nu
+    // é recusado antes (é o PATH escolhendo), e o que sobra para esta conferência
+    // é o arquivo que não está lá.
+    const { acpManager, spawner } = fakeAcp();
+    const { ctx, worktreeId } = await setup({ acpManager });
     const config = await createAgentConfigRepository(ctx.db).create({
       name: "ausente",
-      command: "definitely-not-a-real-binary-xyz",
+      command: "/definitely/not/a/real/binary-xyz",
+      adapterVersion: "1.0.0",
     });
 
     const failure = ctx.api.session.createAgent({
@@ -208,7 +253,8 @@ describe("session.createAgent", () => {
       agentConfigId: config.id,
     });
 
-    await expect(failure).rejects.toThrow(/não está no PATH do servidor/);
+    await expect(failure).rejects.toThrow(/não é executável/);
+    expect(spawner).not.toHaveBeenCalled();
     expect(await ctx.api.session.listByScope({ scopeType: "worktree", scopeId: worktreeId })).toEqual(
       [],
     );
@@ -216,24 +262,60 @@ describe("session.createAgent", () => {
 
   it("passes the configuration's environment to the process", async () => {
     // F5.5: the daemon's environment plus what the configuration declares.
-    const { ctx, worktreeId } = await setup();
+    const { acpManager, spawner } = fakeAcp();
+    const { ctx, worktreeId } = await setup({ acpManager });
     const config = await createAgentConfigRepository(ctx.db).create({
       name: "echoer",
       command: "/bin/sh",
-      args: ["-c", "echo agente=$LUMEM_AGENT_MARKER; sleep 30"],
+      args: ["--marcador"],
       env: { LUMEM_AGENT_MARKER: "presente" },
+      adapterVersion: "1.0.0",
     });
 
-    const created = await ctx.api.session.createAgent({
+    await ctx.api.session.createAgent({
       scopeType: "worktree",
       scopeId: worktreeId,
       agentConfigId: config.id,
     });
 
-    await vi.waitFor(
-      () => expect(ctx.ptyManager.snapshot(created.id)).toContain("agente=presente"),
-      { timeout: 10_000 },
+    expect(spawner).toHaveBeenCalledWith(
+      expect.objectContaining({
+        args: ["--marcador"],
+        env: expect.objectContaining({ LUMEM_AGENT_MARKER: "presente" }),
+      }),
     );
+  });
+
+  it("recusa a configuração aposentada, e não sobe nada", async () => {
+    /*
+     * `033` Q3: a configuração que era PTY é **legado sem acesso**. Ela continua
+     * no banco — a sessão de ontem aponta para ela, e a FK é `restrict` —, só não
+     * lança mais nada. Recusar **antes** do spawn é o ponto: depois dele, a linha
+     * `claude-code` com `command: "claude"` subiria um PTY com o CLI (ou, agora,
+     * um handshake ACP contra um binário que não fala ACP).
+     */
+    const { acpManager, spawner } = fakeAcp();
+    const { ctx, worktreeId } = await setup({ acpManager });
+    const { command } = fakeAgentBin();
+    await ctx.db
+      .insert(agentConfig)
+      .values({ id: "ac_old", name: "claude-code", command, retiredAt: new Date() });
+
+    await expect(
+      ctx.api.session.createAgent({
+        scopeType: "worktree",
+        scopeId: worktreeId,
+        agentConfigId: "ac_old",
+      }),
+    ).rejects.toMatchObject({
+      code: "CONFLICT",
+      message:
+        "esta configuração rodava o agente num terminal (PTY), e o Lumem não roda mais agente assim",
+    });
+    expect(spawner).not.toHaveBeenCalled();
+    expect(
+      await ctx.api.session.listByScope({ scopeType: "worktree", scopeId: worktreeId }),
+    ).toEqual([]);
   });
 
   it("recusa `autonomous` de quem não é o daemon", async () => {
@@ -449,6 +531,35 @@ describe("session.resume", () => {
     });
   });
 
+  it("recusa a sessão de agente que rodou num terminal (PTY), que é histórico", async () => {
+    /*
+     * A linha legada que a `0033` deixou de pé: `agent` + `pty`, apontando para a
+     * configuração aposentada. Ela aparece na lista do checkout (Q3) e **não**
+     * reabre — o `session/load` é coisa de adaptador ACP, e o PTY não tem conversa
+     * nenhuma para carregar.
+     */
+    const { ctx, worktreeId, worktreePath } = await setup();
+    await ctx.db
+      .insert(agentConfig)
+      .values({ id: "ac_old", name: "claude-code", command: "claude", retiredAt: new Date() });
+    await ctx.db.insert(session).values({
+      id: "s_old",
+      kind: "agent",
+      agentConfigId: "ac_old",
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      cwd: worktreePath,
+      command: "claude",
+      transport: "pty",
+      state: "exited",
+    });
+
+    await expect(ctx.api.session.resume({ id: "s_old" })).rejects.toMatchObject({
+      code: "CONFLICT",
+      message: /só conversa ACP/,
+    });
+  });
+
   it("refuses a shell, because a shell has no conversation", async () => {
     const { ctx, worktreeId } = await setup();
     const created = await ctx.api.session.createShell({
@@ -482,13 +593,16 @@ describe("session.close", () => {
     );
   });
 
-  it("keeps a finished session listed, with its buffer still readable", async () => {
-    // F5.9: it goes quiet, it does not disappear.
-    const { ctx, worktreeId } = await setup();
+  it("keeps a finished session listed, with its conversation still readable", async () => {
+    // F5.9: it goes quiet, it does not disappear. O que um agente deixa para ler
+    // é a conversa, e não mais o scrollback de um PTY: todo agente é ACP.
+    const { acpManager, spawned } = fakeAcp();
+    const { ctx, worktreeId } = await setup({ acpManager });
+    const { command } = fakeAgentBin();
     const config = await createAgentConfigRepository(ctx.db).create({
       name: "curto",
-      command: "/bin/sh",
-      args: ["-c", "echo ultimas-palavras"],
+      command,
+      adapterVersion: "1.0.0",
     });
     const created = await ctx.api.session.createAgent({
       scopeType: "worktree",
@@ -496,10 +610,16 @@ describe("session.close", () => {
       agentConfigId: config.id,
     });
 
+    spawned[0]!.process.kill();
+
     await vi.waitFor(async () =>
       expect((await ctx.api.session.getDetail({ id: created.id })).state).toBe("exited"),
     );
-    expect(ctx.ptyManager.snapshot(created.id)).toContain("ultimas-palavras");
+    expect(await ctx.api.session.transcript({ id: created.id })).toMatchObject({
+      type: "attached",
+      sessionId: created.id,
+      state: "exited",
+    });
     expect(
       await ctx.api.session.listByScope({ scopeType: "worktree", scopeId: worktreeId }),
     ).toHaveLength(1);

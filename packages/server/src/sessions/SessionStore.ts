@@ -49,15 +49,16 @@ export interface StartSessionInput {
   env?: Readonly<Record<string, string>>;
   cols?: number;
   rows?: number;
-  /**
-   * Which manager owns this session, from the agent configuration.
+  /*
+   * There is no `transport` here any more, and that is the change.
    *
-   * Passed in rather than looked up: the router already holds the configuration
-   * it validated, and reading it a second time here would let the two reads
-   * disagree if it changed in between. Defaults to `pty`, so a caller written
-   * before ACP existed keeps producing the session it used to.
+   * It used to come from the agent configuration and default to `pty`, which is
+   * how an agent could still be born on a terminal. Since the [ADR de
+   * 2026-09-24](../../../../docs/adr/2026-09-24-1620-agent-is-always-acp.md) the
+   * kind decides it alone — an agent is ACP, a shell or a script is PTY — and a
+   * field that could only ever agree with the kind is a field that could one day
+   * disagree with it.
    */
-  transport?: "pty" | "acp";
   /** Pinned adapter version, for the launch failure message (F1.6). */
   adapterVersion?: string | null;
   /**
@@ -300,12 +301,18 @@ export function createSessionStore({
       const { kind, agentConfigId = null, scopeType, scopeId, cwd, command } = input;
       const scriptName = input.scriptName ?? null;
 
-      // A shell is always a PTY (F1.2), and so is a script — there is no
-      // conversation to have with `pnpm install`. The column enforces both, but
-      // failing here says why instead of surfacing a CHECK the caller has to decode.
-      const transport = kind === "agent" ? (input.transport ?? "pty") : "pty";
-
-      if (transport === "acp") {
+      /*
+       * The kind decides the transport, and nothing else does.
+       *
+       * An agent is always ACP ([ADR de
+       * 2026-09-24](../../../../docs/adr/2026-09-24-1620-agent-is-always-acp.md)); a
+       * shell is always a PTY (F1.2), and so is a script — there is no conversation
+       * to have with `pnpm install`. The agent branch returns, so below it `kind`
+       * is narrowed to shell or script, and an agent reaching `ptyManager.spawn` is
+       * a type error rather than a path: that fall-through was the alternative
+       * route the ADR closed.
+       */
+      if (kind === "agent") {
         if (!acpManager) {
           throw new DomainError(
             "INVALID_ARGUMENT",
@@ -457,11 +464,7 @@ export function createSessionStore({
        */
       const command =
         config && resolveAcpCommand
-          ? resolveAcpCommand({
-              name: config.name,
-              command: row.command,
-              transport: "acp",
-            })
+          ? resolveAcpCommand({ name: config.name, command: row.command })
           : row.command;
 
       const agent = await acpManager.resume({
@@ -489,7 +492,9 @@ export function createSessionStore({
       try {
         return await sessions.create({
           id: agent.id,
-          kind: row.kind as SessionKind,
+          // Not read from the row: only an ACP row gets this far, and the CHECK
+          // `session_shell_transport` makes every ACP row an agent's.
+          kind: "agent",
           agentConfigId: row.agentConfigId,
           scopeType: row.scopeType as ScopeType,
           scopeId: row.scopeId,
