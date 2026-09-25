@@ -265,6 +265,7 @@ Os dois seletores saem do desenho da tela 4, ou viram leitura ("as sessões nasc
 
 
 **Implementado como proposto (2026-08-20).** Fora. A tela 4 mostra em leitura como as próximas sessões nascem, e os seletores saíram do desenho.
+> **Nota, 2026-09-24 —** padrão por workspace continua fora ([`033`](../033-acp-only-agents/prd.md), Q8); a pílula nasce no default do ACP, e a escolha ocorre antes da sessão, não depois.
 **R:**
 
 ---

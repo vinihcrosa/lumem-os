@@ -87,6 +87,23 @@ worktree. É o sinal mais barato que existe e **nenhuma das quatro referências 
 > transporte mais a tela da conversa, com PRD escrito e spike rodado. O que ficou no backlog é o que a
 > decisão empurrou para depois **dela**.
 
+### A esteira abre sessão pelo caminho novo — `P`
+
+`bootstrap.openAgentSession` ainda chama `setConfig` depois de `createAgent`, tolerante a erro. A
+[`033`](../features/033-acp-only-agents/prd.md) passou o `config` ao `createAgent`, que aplica antes
+de devolver. Unificar exige decidir o que a esteira faz quando o modelo do agente nomeado sumiu.
+
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24) · **Volta quando:** um modelo de
+agente nomeado sair do adaptador.
+
+### Retomar reaplica o effort — `P`
+
+A [`033`](../features/033-acp-only-agents/prd.md) reaplica só `model`, porque `session` não grava
+*effort*.
+
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24) · **Volta quando:** a M1 disser que o
+Claude expõe *effort* e alguém notar a retomada voltando ao padrão.
+
 ### Política de permissão do lado do Lumem — `G`
 
 Quem pergunta "posso escrever neste arquivo?" hoje é o CLI. Com ACP quem pergunta é o Lumem — e aí
@@ -220,8 +237,10 @@ quando:** a marca d'água do núcleo passar do valor que você definir.
 `SessionEnd`, `PostToolUse` e afins do Claude Code eram o plano B para enxergar dentro da sessão sem
 trocar de transporte. **O ACP entrega os mesmos eventos, padronizados.**
 
-**De onde veio:** [pty-vs-acp.md §6.2](pty-vs-acp.md) · **Volta quando:** sobrar agente rodando em
-PTY que você queira que alimente memória — e só nesse caso.
+### ~~Hooks por CLI~~ — morto em 2026-09-24
+
+O único gatilho era sobrar agente em PTY; o [ADR de 2026-09-24](../adr/2026-09-24-1620-agent-is-always-acp.md)
+encerrou esse caminho.
 
 ### Anexo no prompt — o `+` do compositor — `M`, **importante**
 
@@ -232,7 +251,7 @@ worktree e a conversa vazia — anexaria arquivo e imagem. O ACP tem o caminho: 
 então o `+` é por adaptador, e some ou explica quando o escolhido não aceita. Ficou fora da v1 por
 tamanho, **não por dúvida**: o Vinicius marcou como bem importante.
 
-**De onde veio:** discovery *agente é sempre ACP* (2026-09-24), Q9 — vira a PRD `033` · **Volta
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24), Q9 — [PRD `033`](../features/033-acp-only-agents/prd.md) · **Volta
 quando:** a v1 das duas telas estiver entregue. É o primeiro item depois dela.
 
 ### Sugestões de contexto na conversa vazia — `M`, **importante**
@@ -243,7 +262,7 @@ o plano/`tasks.md` em andamento, playbooks da memória. Depende do anexo acima (
 colocar conteúdo no prompt **visível**, nunca injetado — a regra da `022` T6) e de decidir de onde
 vem cada sugestão. Ficou fora da v1 junto com o `+`, e com a mesma marca.
 
-**De onde veio:** discovery *agente é sempre ACP* (2026-09-24), Q9 · **Volta quando:** o anexo no
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24), Q9 — [PRD `033`](../features/033-acp-only-agents/prd.md) · **Volta quando:** o anexo no
 prompt existir.
 
 ### `configForAdapter` num beco sem saída quando o nome colide com uma config aposentada — `P`
@@ -262,6 +281,23 @@ cria a nova — mesmo efeito de uma migração, sem escrever uma.
 ---
 
 ## C. Tarefas e orquestração
+
+### A esteira roda o setup duas vezes numa worktree nova — `P`
+
+`worktree.create` dispara setup em segundo plano e `prepareCheckout` chama `runToCompletion`, cujo
+`start` fecha a primeira execução; além disso, o código de saída é descartado
+(`tasks/conveyor-ports.ts:297-305`). A [`033`](../features/033-acp-only-agents/prd.md) contorna isso
+no compositor com `createWorktreeCore({ startSetup: false })`.
+
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24) · **Volta quando:** um `setup` com
+efeito colateral (migração, seed) rodar pela metade numa passada.
+
+### Sessão da esteira retomada vira `human` para o orçamento — `P`
+
+`SessionStore.resume` não repassa `driver`.
+
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24) · **Volta quando:** uma retomada da
+esteira passar do teto avisando em vez de parar.
 
 ### ~~Tarefas de workspace atravessando projetos~~ — entregue em 2026-09-12
 

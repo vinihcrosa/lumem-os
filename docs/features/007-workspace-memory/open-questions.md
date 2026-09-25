@@ -514,6 +514,7 @@ Nenhum arquivo, nenhuma flag, nenhum repositório tocado.
 primeiro é o que preserva cache e imita o snapshot congelado da Q11; (2) o que fazer com sessão que
 continuar em PTY, já que `transport` continua sendo coluna. Para essa, a proposta original ainda
 vale como caminho degradado.
+> **Nota, 2026-09-24 —** agente em PTY foi encerrado pelo [ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md); essa saída já não é configuração.
 
 **R:** pode fazer o proposto.
 

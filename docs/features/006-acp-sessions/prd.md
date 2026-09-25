@@ -26,6 +26,10 @@ terminal, e no fim a aba sabe dizer o que foi feito e quanto custou.
 
 **O que esta feature NÃO é:** a morte do PTY. `transport` é coluna em `agent_config`; sessão de shell
 continua PTY, e agente em PTY continua possível.
+> **Nota, 2026-09-24 —** a possibilidade de agente em PTY foi superada pelo
+> [ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md). O PTY continua para o
+> terminal integrado; `session.transport` fica como histórico de sessões antigas. `agent_config`
+> não tem mais transporte ([`033`](../033-acp-only-agents/prd.md), F1.1).
 
 ---
 
@@ -133,6 +137,9 @@ e o limiar de aviso **por turno**. Isso é melhor do que o que existe hoje no Lu
 **F1.1** `AcpManager`, irmão do `PtyManager`: lança o subprocesso, faz o framing JSON-RPC pelo SDK
 oficial (`@agentclientprotocol/sdk`), e é dono do ciclo de vida.
 **F1.2** `agent_config` ganha `transport ∈ pty | acp`. Sessão de shell é sempre `pty`.
+> **Nota, 2026-09-24 —** superado pelo [ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md):
+> `session.transport` é histórico para sessões antigas; `agent_config` não guarda transporte e
+> sessões novas de agente são ACP ([`033`](../033-acp-only-agents/prd.md), F1.1).
 **F1.3** `session` ganha o que o protocolo exige: `acpSessionId`, modo corrente, modelo corrente.
 **F1.4** A sessão **sobrevive ao cliente**, como já sobrevive hoje: o subprocesso é do daemon.
 **F1.5** O stream para o cliente deixa de ser bytes e passa a ser **evento tipado**. O mecanismo de
@@ -179,6 +186,8 @@ de caminho** da `file-editor`. O agente não ganha um caminho novo para escapar 
 demais para justificar descartar o insumo da destilação de memória.
 **F5.5** A versão do adaptador é **fixa** no `agent_config`, nunca `@latest` ([A12](open-questions.md)).
 **F5.6** Migração escreve `transport: 'pty'` em toda configuração existente ([A11](open-questions.md)).
+> **Nota, 2026-09-24 —** isso continua descrevendo a migração `0001`. A migração `0033` aposenta as
+> configurações PTY legadas ([`033`](../033-acp-only-agents/prd.md), F1.2).
 
 ---
 
@@ -196,7 +205,7 @@ demais para justificar descartar o insumo da destilação de memória.
 
 | Fora | Por quê |
 |---|---|
-| Arrancar o PTY | `transport` é coluna. Shell precisa dele, e ele é a saída se o billing mudar |
+| Arrancar o PTY | `transport` é coluna. Shell precisa dele, e ele é a saída se o billing mudar<br><br>**Nota, 2026-09-24:** o PTY continua para o terminal integrado; agente em PTY foi encerrado pelo [ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md). |
 | Suportar N agentes de uma vez | **Só Claude no v1** ([TA2](../../project/pty-vs-acp.md)). Codex e opencode entram um por feature |
 | Política de permissão configurável | O diálogo sim, a política não. É feature própria |
 | Reimplementar o TUI do Claude Code | A tela é do Lumem, com o vocabulário do protocolo. Paridade visual com o CLI não é meta |

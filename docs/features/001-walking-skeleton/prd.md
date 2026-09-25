@@ -32,10 +32,10 @@ Explicitamente **fora** desta versão. Cada linha aqui é uma tentação que vai
 | Sinal de "tarefa concluída" | O servidor não sabe se o agente terminou. Quem olha é você. *(é a Q069 da raiz, e não tem resposta boa ainda)* |
 | Memória / self-learning | Precisa de agente rodando primeiro — agora tem. Entra na próxima. |
 | Tarefas | Nem entidade nem UI. |
-| Protocolo estruturado com o agente | PTY e só. Sem ACP, sem SDK, sem parsing de evento. |
+| Protocolo estruturado com o agente | PTY e só. Sem ACP, sem SDK, sem parsing de evento.<br><br>**Nota, 2026-09-24:** superado pelo [ADR de 2026-08-17](../../adr/2026-08-17-1812-agent-session-is-acp-not-pty.md) e, quanto a agente ser só ACP, pelo [ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md). O PTY continua para o shell. |
 | Política de permissão do agente | Vale o default do CLI. Sem interceptar aprovação, sem allowlist, sem flag de skip. |
 | Retomar sessão de agente (`--resume`) | Sessão morreu, morreu. Vira feature isolada depois. |
-| Prompt inicial junto com a criação | Sobe o agente e digita nele, como num terminal. |
+| Prompt inicial junto com a criação | Sobe o agente e digita nele, como num terminal.<br><br>**Nota, 2026-09-24:** revertido pela [`033`](../033-acp-only-agents/prd.md), F4: criar worktree compõe o primeiro prompt. Criar worktree sem prompt não existe mais pela tela. |
 | Integração com GitHub/GitLab | Nada de PR, issue, CI, review. |
 | Multi-host | Servidor local e único. |
 | Autenticação / multi-usuário | Um usuário, uma máquina, um cliente por vez. |
@@ -96,6 +96,7 @@ Não há clone. O repo já tem que estar no disco.
 ### F4 — Worktrees
 
 **F4.1** Criar worktree a partir de um projeto informando um nome.
+> **Nota, 2026-09-24 —** o nome é derivado do prompt e editável ([`033`](../033-acp-only-agents/prd.md), F4.2). Continua sendo o nome da worktree e segue `nameSchema`.
 **F4.2** A branch tem o mesmo nome da worktree. Branch já existente é recusada, pede outro nome — não existe "usar branch existente" nesta versão.
 **F4.3** Nasce da **branch default** do repositório. Sem `fetch` antes — usa o que está em disco.
 **F4.4** Criada em `~/.lumem/worktrees/<projeto>/<nome>`, fora do repositório.
@@ -113,6 +114,7 @@ Não há clone. O repo já tem que estar no disco.
 **F5.3** Sessão é interativa de verdade: teclado, cores, redimensionamento.
 **F5.4** Várias sessões simultâneas, inclusive no mesmo escopo.
 **F5.5** Shell roda o shell de login do usuário, herdando o ambiente. Agente roda o comando da configuração, com o ambiente do usuário mais as variáveis declaradas nela.
+> **Nota, 2026-09-24 —** agente não roda mais em terminal ([ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md)). F5.3, incluindo teclado, cor e redimensionamento, continua valendo para o shell.
 **F5.6** Navegar pra outro item da sidebar **não mata a sessão** — ela sai da tela e continua rodando.
 **F5.7** Voltar pra sessão restaura o conteúdo anterior.
 **F5.8** Fechar sessão explicitamente encerra o processo.
@@ -126,6 +128,7 @@ Não há clone. O repo já tem que estar no disco.
 **F6.3** Criar, editar e remover configuração.
 **F6.4** O servidor vem com **uma** configuração de fábrica: Claude Code, comando `claude`, sem argumento nenhum. Nada de flag de permissão — o CLI se comporta como se comportaria se você o abrisse na mão.
 **F6.5** Se o comando não existir no `PATH` do servidor, a configuração aparece como indisponível e o lançamento é recusado antes de tentar.
+> **Nota, 2026-09-24 —** a config de fábrica `claude` em PTY já saiu na [`021`](../021-second-agent/prd.md), C6; agora nenhuma configuração de agente usa PTY ([`033`](../033-acp-only-agents/prd.md), F1.1).
 
 Só o Claude Code nesta versão. Adicionar outro agente depois é adicionar uma configuração — não existe código por agente.
 
@@ -158,6 +161,7 @@ Só o Claude Code nesta versão. Adicionar outro agente depois é adicionar uma 
 5. Digita a tarefa, o agente começa a trabalhar.
 6. **Fecha a aba do navegador.**
 7. Reabre depois. Seleciona a sessão. O buffer volta e o agente está onde parou.
+> **Nota, 2026-09-24 —** este fluxo histórico de agente em terminal foi superado pelo [ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md); o fluxo atual é o da [`033`](../033-acp-only-agents/prd.md), §6.
 
 ### Limpar
 
@@ -241,6 +245,7 @@ Decisões desta versão. As marcadas *(em aberto)* estão no [open-questions.md]
 O custo consciente dessa escolha: **o contrato fica amarrado ao TypeScript.** Se um dia entrar cliente Tauri em Rust, TUI em Go, ou um agente externo consumindo a API, não existe schema pra gerar cliente — é reescrever a camada de transporte. Aceitável agora porque cliente é web e servidor é TS; vira dívida no dia em que deixar de ser.
 
 **Agente é PTY, não protocolo.** O servidor lança o CLI declarado na configuração e liga os bytes ao cliente. Não interpreta output, não sabe o que o agente está fazendo, não sabe quando terminou. É o modelo do Superset, e é o que mantém esta versão pequena — ao custo de o servidor ser cego sobre o que acontece lá dentro.
+> **Nota, 2026-09-24 —** o fluxo atual é o da [`033`](../033-acp-only-agents/prd.md), §6, decidido pelo [ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md).
 
 **PTY no servidor.** O processo é filho do daemon, não do cliente. É o que faz F5.6 e F7.2 funcionarem.
 

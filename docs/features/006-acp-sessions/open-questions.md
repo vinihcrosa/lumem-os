@@ -43,6 +43,9 @@ continua funcionando igual nos dois.
 
 **Decisão:** a mesma aba, dois renderizadores, escolhidos por `transport`. O split de arquivo da
 `right-panel` continua funcionando igual nos dois.
+> **Nota, 2026-09-24 —** agente tem um renderizador: a conversa. O ramo PTY continua para shell e
+> sessões legadas, que aparecem no histórico sem ação ([ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md);
+> [`033`](../033-acp-only-agents/prd.md), F1.4).
 
 ---
 
@@ -199,6 +202,8 @@ naquela sessão**. É o que o usuário espera de um seletor.
 **R:** concordo.
 
 **Decisão:** `agent_config` define o default; a sessão troca e a troca persiste naquela sessão.
+> **Nota, 2026-09-24 —** o modelo é escolhido antes de criar a sessão e aplicado antes do primeiro
+> turno ([`033`](../033-acp-only-agents/prd.md), F3 e Q8).
 
 ---
 
@@ -260,6 +265,8 @@ de Claude nasce `acp`. Ninguém perde sessão, e a troca é explícita.
 
 **Decisão:** a migração escreve `transport: 'pty'` em toda configuração existente; configuração nova
 de Claude nasce `acp`. Ninguém perde sessão, e a troca é explícita.
+> **Nota, 2026-09-24 —** continua verdade para a migração `0001`; a `0033` aposenta configurações
+> PTY antigas ([`033`](../033-acp-only-agents/prd.md), F1.2).
 
 ---
 

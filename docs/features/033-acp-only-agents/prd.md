@@ -1,6 +1,6 @@
 # PRD — Agente é sempre ACP, e abrir agente é compor um prompt
 
-> **Status:** em execução
+> **Status:** completa
 > **Histórico:** v0.1 — proposta em **2026-09-24**, a partir de um pedido do Vinicius com duas telas
 > de referência: um modal *"What do you want to work on?"* para criar worktree, e uma conversa vazia
 > *"New chat in /…"* para abrir agente dentro dela. A discovery mediu o código e o banco antes de

@@ -13,6 +13,7 @@ tela ↔ protocolo
 
 O rodapé da sidebar pedia **nome, transporte, comando, argumentos e versão do adaptador** — cinco
 campos que só quem mantém o próprio adaptador sabe responder.
+> **Nota, 2026-09-24 —** transporte saiu do formulário e de `agent_config` ([`033`](../033-acp-only-agents/prd.md), F1.1).
 
 Nenhum deles é escolha de quem usa: o comando e a versão o daemon resolve, o transporte é decisão do
 produto, e o jeito de entrar quem dita é o **próprio agente**, no handshake. Sobra uma decisão real —
@@ -143,6 +144,9 @@ seria mecanismo do Lumem. Ficou fora ([L6](open-questions.md)).
 - **F5.1** `avançado` mostra comando, argumentos e versão fixada como **fatos**, em leitura.
 - **F5.2** O formulário de cinco campos continua existindo, atrás de **outro agente ACP…** — é o
   único caminho para um adaptador que o daemon não instala nem sabe nomear.
+> **Nota, 2026-09-24 —** o formulário continua sem transporte. A resolução do adaptador já usa a
+> cópia instalada e pinada pelo daemon ([ADR de 2026-09-08](../../adr/2026-09-08-0507-adapter-is-the-copy-the-daemon-owns.md));
+> [`033`](../033-acp-only-agents/prd.md), F1.1, elimina o campo de transporte.
 
 ---
 

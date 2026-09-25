@@ -211,6 +211,7 @@ linha continua com ela.
 - [x] Instalação nova → `agent_config` **vazia** depois do boot
 - [x] Instalação que já tinha a linha → a linha continua lá, intacta, depois do boot
 - [x] O `AgentConfigDialog` continua criando configuração `pty` — o caminho alternativo não morre
+> **Nota, 2026-09-24 —** esse caminho foi encerrado pelo [ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md); o formulário agora cria apenas configs ACP ([`033`](../033-acp-only-agents/prd.md), F1.1).
 - [x] Nenhum teste passa a depender de uma semente que não existe mais (o `agentConfig.test.ts` de
       hoje semeia em seis lugares)
 - [x] `pnpm gate:full` verde

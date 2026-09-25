@@ -1,7 +1,8 @@
 # Agente é sempre ACP — Tasks
 
 **PRD:** [prd.md](prd.md) · **Perguntas:** [open-questions.md](open-questions.md) · **Decisão:** [ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md)
-**Status:** em execução
+**Status:** completa
+**Histórico:** 24 tasks em 7 fases entregues; gates da feature verdes.
 
 **24 tasks em 7 fases.** Uma task por vez, na ordem: RED → GREEN → gate → commit atômico
 (Conventional Commits, em inglês). Cada task diz o gate que declara; **rode-o antes de marcar

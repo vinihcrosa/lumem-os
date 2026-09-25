@@ -32,7 +32,7 @@ E o que **já é** genérico, e prova que a fronteira estava no lugar certo:
 
 | Onde | O quê |
 |---|---|
-| `agent_config` | `name`, `command`, `args`, `env`, `transport`, `adapter_version`. "Adicionar agente é adicionar linha" (walking-skeleton §3) |
+| `agent_config` | `name`, `command`, `args`, `env`, `transport`, `adapter_version`. "Adicionar agente é adicionar linha" (walking-skeleton §3)<br><br>**Nota, 2026-09-24:** `transport` saiu de `agent_config`; toda configuração nova é ACP ([`033`](../033-acp-only-agents/prd.md), F1.1). |
 | `session.createAgent(agentConfigId)`, `NewSessionMenu` | qualquer configuração vira sessão, e o menu lista todas |
 | `shared/acp-protocol.ts` | o fio para o browser não tem Claude nele — só o `rateLimit` opcional, "porque outro agente não vai mandar" |
 | `conversation-model.ts` | um fold sobre eventos do **nosso** vocabulário |
@@ -40,6 +40,7 @@ E o que **já é** genérico, e prova que a fronteira estava no lugar certo:
 
 Hoje já dá para rodar Codex como `agent_config` de transporte `pty` — é o caminho alternativo que a
 decisão do ACP preservou. O que falta é a **conversa**.
+> **Nota, 2026-09-24 —** esse caminho alternativo foi encerrado pelo [ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md). Codex também é sempre ACP ([`033`](../033-acp-only-agents/prd.md), F1.1).
 
 ## 2. Por que agora
 
