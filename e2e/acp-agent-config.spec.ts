@@ -1,7 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import {
+  createWorktree,
+  ensureProject,
+  ensureWorkspace,
+  openConfiguredAgent,
+  openProject,
+} from "./support/app.js";
 import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js";
+import { E2E_SERVER_PORT } from "../ports.js";
 
 /**
  * The `curl` this phase exists to delete.
@@ -22,6 +29,7 @@ import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js"
 
 const AGENT = "acp-pela-tela";
 const WORKTREE = "agente-pela-tela";
+const DAEMON = `http://127.0.0.1:${E2E_SERVER_PORT}`;
 
 function conversation(page: Page) {
   return page.locator("[role=tabpanel]:not([hidden]) .conv");
@@ -56,11 +64,11 @@ test("creates the ACP agent from the screen, then talks to it", async ({ page })
   await agents(page).getByLabel("Versão do adaptador").fill("0.0.0-fake");
   await agents(page).getByRole("button", { name: "adicionar" }).click();
 
-  // Listed, and listed as a conversation: the chip is the transport the form just
-  // wrote, read back from the daemon.
+  // Listed with the version the form just wrote. Transport is no longer a
+  // configuration field: every agent configuration is ACP.
   const row = agents(page).locator(".agents__row", { hasText: AGENT });
   await expect(row).toBeVisible();
-  await expect(row.getByText("conversa")).toBeVisible();
+  await expect(row).toContainText("0.0.0-fake");
   await expect(row.getByText("fora do PATH")).toHaveCount(0);
 
   await agents(page).getByRole("button", { name: "fechar" }).click();
@@ -68,16 +76,9 @@ test("creates the ACP agent from the screen, then talks to it", async ({ page })
   await createWorktree(page, WORKTREE, "repo-acp");
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
 
-  // And it launches. Without the two fields the form wrote, this session would be a
-  // terminal — or would not exist at all.
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: new RegExp(`^${AGENT}\\b`) }).click();
-  await expect(conversation(page)).toBeVisible({ timeout: 20_000 });
-  // Attached, not merely visible: the composer only accepts a message once the
-  // `attached` frame lands, and CI on Linux is where that window shows up.
-  await expect(conversation(page).getByText("sessão aberta, nada pedido ainda")).toBeVisible({
-    timeout: 20_000,
-  });
+  // This spec covers registering and launching the custom ACP configuration;
+  // the new-agent menu itself now opens a draft and is covered separately.
+  await openConfiguredAgent(page, DAEMON, AGENT, WORKTREE);
 
   await conversation(page).getByLabel("mensagem para o agente").fill("arruma o frontmatter vazio");
   await conversation(page).getByRole("button", { name: /enviar/ }).click();

@@ -1,6 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { createAgentConfig, createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import {
+  createAgentConfig,
+  createWorktree,
+  ensureProject,
+  ensureWorkspace,
+  openConfiguredAgent,
+  openProject,
+} from "./support/app.js";
 import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js";
 import { E2E_SERVER_PORT } from "../ports.js";
 
@@ -33,12 +40,7 @@ function conversation(page: Page) {
 }
 
 async function openConversation(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: new RegExp(`^${AGENT}\\b`) }).click();
-  await expect(conversation(page)).toBeVisible({ timeout: 20_000 });
-  await expect(conversation(page).getByText("sessão aberta, nada pedido ainda")).toBeVisible({
-    timeout: 20_000,
-  });
+  await openConfiguredAgent(page, DAEMON, AGENT);
 }
 
 async function arrive(page: Page, worktree: string): Promise<void> {
@@ -55,7 +57,6 @@ test.beforeEach(async ({ request }) => {
     name: AGENT,
     command: process.execPath,
     args: [E2E_FAKE_ACP_AGENT],
-    transport: "acp",
     adapterVersion: "0.0.0-fake",
     // O que faz este adaptador responder `session/new` sem `modes` — o caso
     // inteiro da feature, e o único em que a política do Lumem vale (A1).

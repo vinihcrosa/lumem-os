@@ -50,7 +50,7 @@ test("a session outlives the client that started it", async ({ browser }) => {
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
 
   await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: /^shell/ }).click();
+  await page.getByRole("menuitem", { name: "terminal" }).click();
   await expect(page.locator("[role=tabpanel]:not([hidden])").getByTestId("terminal")).toBeVisible();
 
   // A command that keeps writing on its own, so the test can prove output was

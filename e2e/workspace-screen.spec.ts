@@ -1,7 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_SERVER_PORT } from "../ports.js";
-import { createAgentConfig, createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import {
+  createAgentConfig,
+  createWorktree,
+  ensureProject,
+  ensureWorkspace,
+  openConfiguredAgent,
+  openProject,
+} from "./support/app.js";
 import { call, query } from "./support/daemon.js";
 import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js";
 
@@ -138,7 +145,6 @@ test("um turno de verdade, e o consumo dele na tela do projeto que o gastou", as
     name: "acp-falso",
     command: process.execPath,
     args: [E2E_FAKE_ACP_AGENT],
-    transport: "acp",
     adapterVersion: "0.0.0-fake",
   });
 
@@ -150,11 +156,8 @@ test("um turno de verdade, e o consumo dele na tela do projeto que o gastou", as
   await expect(page.getByRole("heading", { name: WORKTREE })).toBeVisible({ timeout: 30_000 });
 
   // O turno. O agente falso pede permissão no meio, como um de verdade.
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: /^acp-falso\b/ }).click();
+  await openConfiguredAgent(page, DAEMON, "acp-falso");
   const conv = page.locator("[role=tabpanel]:not([hidden]) .conv");
-  await expect(conv).toBeVisible({ timeout: 20_000 });
-  await expect(conv.getByText("sessão aberta, nada pedido ainda")).toBeVisible({ timeout: 20_000 });
 
   await conv.getByLabel("mensagem para o agente").fill("arruma o frontmatter vazio");
   await conv.getByRole("button", { name: /enviar/ }).click();

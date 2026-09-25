@@ -48,3 +48,6 @@ packages/web/prototype/preview/
 
 # Saída do `storybook build`.
 storybook-static/
+
+# scratch: discovery e planos para agentes (não versionado)
+/tmp/

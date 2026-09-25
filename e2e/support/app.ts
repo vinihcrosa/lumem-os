@@ -1,5 +1,7 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
+import { call, query } from "./daemon.js";
+
 /**
  * Gets past the first-access flow, PRD §5.
  *
@@ -95,6 +97,14 @@ export async function ensureProject(page: Page, path: string, name = "fixture"):
  * (saiu do `LocalPanel`, Q4), e o próximo movimento dela tem que mexer num
  * arquivo só. O diálogo é modal e **já sabe o projeto**, então não há seletor
  * dentro dele — o nome no clique é o que escolhe.
+ *
+ * Desde a `033` F4, criar worktree é compor o primeiro prompt: não há mais um
+ * campo de nome sozinho e um `criar`. O gesto agora é o `NewWorktreeComposer`
+ * — escrever o que se quer, abrir o `…` para escolher o nome (em vez de
+ * deixá-lo derivado do prompt, o que faria o nome pedido por quem chama nunca
+ * bater com o que a worktree recebe) e `Create`. O prompt é o próprio `name`:
+ * nenhum spec que usa este helper lê o texto da conversa, então gastar dois
+ * parâmetros só criaria uma segunda forma de errar.
  */
 export async function createWorktree(
   page: Page,
@@ -102,8 +112,129 @@ export async function createWorktree(
   project = "fixture",
 ): Promise<void> {
   await page.getByRole("button", { name: `nova worktree em ${project}` }).click();
-  await page.getByLabel("Nome da worktree").fill(name);
-  await page.getByRole("button", { name: "criar" }).click();
+  const dialog = page.getByRole("dialog", { name: "Nova worktree" });
+  await dialog.getByLabel("No que você quer trabalhar?").fill(name);
+  await dialog.getByRole("button", { name: "nome da worktree" }).click();
+  // `getByRole("textbox", …)`, e não `getByLabel`: o botão que abre o campo
+  // tem o mesmo `aria-label` que o rótulo do campo, e `getByLabel` casa os
+  // dois (substring, sem `exact`).
+  await dialog.getByRole("textbox", { name: "Nome da worktree" }).fill(name);
+  await dialog.getByRole("button", { name: /^Create/ }).click();
+
+  /*
+   * `worktree.start` (`033` T12) always opens a first agent session now —
+   * creating a worktree *is* composing the first prompt. Every caller of this
+   * helper predates that: some read the checkout's own tab right after
+   * calling it (which the arrived session tab would hide), and one asserts an
+   * *exact* token count for a turn of its own. So the session this creates is
+   * closed here, once, before this returns — which is also before anyone
+   * could answer its permission request, the one thing standing between it
+   * and a `usage_update`. Closing takes its tab with it and hands the
+   * checkout tab back its selection (`ScopePanel`'s own rule: the last
+   * session tab going away is where selection returns to).
+   *
+   * A refusal (an existing branch, a repository with no commit) never spawns
+   * a session, so the race below is what lets this return to that caller
+   * exactly as before — no tab to close, no time spent looking for one.
+  */
+  const conversation = page.locator("[role=tabpanel]:not([hidden]) .conv");
+  const refusal = page.getByRole("dialog").getByRole("alert");
+  await expect(conversation.or(refusal).first()).toBeVisible({ timeout: 30_000 });
+  if (!(await conversation.isVisible().catch(() => false))) return;
+  const activeTab = page.locator(".tabs-bar .tab-item--active");
+  await activeTab.getByRole("button", { name: /^fechar / }).click({ timeout: 15_000 });
+}
+
+/**
+ * Abre um rascunho de agente pelo `＋ nova sessão` da faixa de abas (`033` F5).
+ *
+ * Não cria processo nenhum no daemon — a aba rascunho só vira sessão no
+ * primeiro envio (Q4). Quem precisa de uma sessão de verdade escreve e manda,
+ * depois de chamar isto.
+ */
+export async function openNewAgent(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /nova sessão/ }).click();
+  await page.getByRole("menuitem", { name: "novo agente" }).click();
+}
+
+/**
+ * Opens a configured ACP session for specs whose subject is the conversation,
+ * not the new draft gesture. Drafts are covered through `openNewAgent` and the
+ * feature e2e; this helper keeps older transcript and permission scenarios
+ * focused by creating their fixture session through the public router.
+ */
+export async function openConfiguredAgent(
+  page: Page,
+  daemonUrl: string,
+  agentName: string,
+  worktreeName?: string,
+): Promise<void> {
+  const workspaces = (await query(daemonUrl, "workspace.list", undefined)) as { id: string; name: string }[];
+  const workspace = workspaces.find((row) => row.name === "e2e");
+  if (!workspace) throw new Error("workspace e2e não encontrado");
+
+  const projects = (await query(daemonUrl, "project.listByWorkspace", {
+    workspaceId: workspace.id,
+  })) as { id: string; name: string; path: string }[];
+  const scopeLabel = await page.locator(".tabs-bar").getAttribute("aria-label");
+  const scopePath = scopeLabel?.replace(/^sessões de /, "");
+  let scope: { scopeType: "project" | "worktree"; scopeId: string } | undefined;
+  let scopeName: string | undefined;
+  for (const project of projects) {
+    const worktrees = (await query(daemonUrl, "worktree.listByProject", {
+      projectId: project.id,
+    })) as { id: string; name: string; path: string }[];
+    const worktree = worktrees.find((row) =>
+      worktreeName !== undefined ? row.name === worktreeName : scopePath === row.path,
+    );
+    if (worktree) {
+      scope = { scopeType: "worktree", scopeId: worktree.id };
+      scopeName = worktree.name;
+      break;
+    }
+
+    if (worktreeName === undefined && scopePath === project.path) {
+      scope = { scopeType: "project", scopeId: project.id };
+      scopeName = project.name;
+      break;
+    }
+  }
+  if (!scope) throw new Error(`escopo ativo não encontrado${worktreeName ? `: ${worktreeName}` : ""}`);
+
+  const configs = (await query(daemonUrl, "agentConfig.list", undefined)) as {
+    id: string;
+    name: string;
+  }[];
+  const config = configs.find((row) => row.name === agentName);
+  if (!config) throw new Error(`configuração ${agentName} não encontrada`);
+
+  await call(daemonUrl, "session.createAgent", {
+    ...scope,
+    agentConfigId: config.id,
+  });
+  const tab = page.getByRole("tab", { name: agentName, exact: true });
+  const appeared = await tab
+    .waitFor({ state: "visible", timeout: 3_000 })
+    .then(() => true)
+    .catch(() => false);
+  // This helper creates the session through the public router, outside React's
+  // mutation cache. If the live event was missed while the page was reconnecting,
+  // a reload reconciles the tab strip from the daemon's session list.
+  if (!appeared) {
+    await page.reload();
+    if (scopeName !== undefined) {
+      await page
+        .getByLabel("árvore de projetos")
+        .getByRole("button", { name: scopeName, exact: true })
+        .click();
+    }
+    await expect(tab).toBeVisible({ timeout: 20_000 });
+  }
+  await tab.click();
+  await expect(page.locator("[role=tabpanel]:not([hidden]) .conv")).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.locator("[role=tabpanel]:not([hidden]) .conv").getByText("sessão aberta, nada pedido ainda"),
+  ).toBeVisible({ timeout: 20_000 });
 }
 
 /**
@@ -129,6 +260,14 @@ export async function openProject(page: Page, name = "fixture"): Promise<void> {
  * There is no UI for this in the walking skeleton, and PRD §7 requires the API
  * to be able to do everything the client can — so driving it here is using the
  * contract, not going around it.
+ *
+ * No `transport` since the `033`: every configuration is an ACP adapter
+ * (`agentConfig.create` dropped the field, T4), and `adapterVersion` is what
+ * the daemon now requires instead. A config named exactly a catalog id
+ * (`claude`, `codex`) is the one way to reach the composer's pill from here —
+ * `configForAdapter` finds it **by name** and reuses its `env`, which is how a
+ * spec asks the fake for a variant (many models, no modes, a profile) without
+ * a menu that lists configurations one by one existing any more (`033` F1.6).
  */
 export async function createAgentConfig(
   request: APIRequestContext,
@@ -137,8 +276,6 @@ export async function createAgentConfig(
     name: string;
     command: string;
     args?: string[];
-    /** Omitted means `pty`, which is what every existing caller meant. */
-    transport?: "pty" | "acp";
     adapterVersion?: string;
     /** O ambiente do adaptador. O fake usa isto para mudar o que ele relata. */
     env?: Record<string, string>;
@@ -149,8 +286,7 @@ export async function createAgentConfig(
       name: input.name,
       command: input.command,
       args: input.args ?? [],
-      ...(input.transport ? { transport: input.transport } : {}),
-      ...(input.adapterVersion ? { adapterVersion: input.adapterVersion } : {}),
+      adapterVersion: input.adapterVersion ?? "0.0.0-fake",
       ...(input.env ? { env: input.env } : {}),
     },
   });

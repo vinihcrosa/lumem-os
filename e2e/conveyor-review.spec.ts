@@ -91,7 +91,6 @@ async function boot(options: {
     name: AGENT,
     command: process.execPath,
     args: [E2E_FAKE_ACP_AGENT],
-    transport: "acp",
     adapterVersion: "0.0.0-fake",
     env: {
       // O encaixe da esteira: implementador e testador commitam, o revisor

@@ -5,9 +5,11 @@ import {
   createWorktree,
   ensureProject,
   ensureWorkspace,
+  openConfiguredAgent,
   openProject,
 } from "./support/app.js";
 import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js";
+import { query } from "./support/daemon.js";
 import { E2E_SERVER_PORT } from "../ports.js";
 
 /**
@@ -34,13 +36,8 @@ function conversation(page: Page) {
   return page.locator("[role=tabpanel]:not([hidden]) .conv");
 }
 
-async function openConversation(page: Page, agent: string): Promise<void> {
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: new RegExp(`^${agent}\\b`) }).click();
-  await expect(conversation(page)).toBeVisible({ timeout: 20_000 });
-  await expect(conversation(page).getByText("sessão aberta, nada pedido ainda")).toBeVisible({
-    timeout: 20_000,
-  });
+async function openConversation(page: Page, agent: string, worktreeName: string): Promise<void> {
+  await openConfiguredAgent(page, DAEMON, agent, worktreeName);
 }
 
 test.beforeEach(async ({ request }) => {
@@ -52,7 +49,6 @@ test.beforeEach(async ({ request }) => {
       name,
       command: process.execPath,
       args: [E2E_FAKE_ACP_AGENT],
-      transport: "acp",
       adapterVersion: "0.0.0-fake",
       env: { LUMEM_FAKE_PROFILE: profile },
     });
@@ -65,16 +61,16 @@ test("cada aba diz qual agente está falando nela", async ({ page }) => {
   await ensureProject(page, E2E_FIXTURE_REPO_ACP, "repo-acp");
   await openProject(page, "repo-acp");
   await createWorktree(page, WORKTREE, "repo-acp");
-  await expect(page.getByRole("tab", { name: new RegExp(`^${WORKTREE}`) })).toBeVisible({
+  await expect(page.getByLabel("árvore de projetos").getByRole("button", { name: WORKTREE, exact: true })).toBeVisible({
     timeout: 30_000,
   });
 
-  await openConversation(page, CLAUDE);
+  await openConversation(page, CLAUDE, WORKTREE);
   // O cabeçalho da conversa que está na frente nomeia o agente dela — e é aqui
   // que a F4 reprovou antes de a correção existir.
   await expect(conversation(page).getByText(CLAUDE)).toBeVisible();
 
-  await openConversation(page, CODEX);
+  await openConversation(page, CODEX, WORKTREE);
   await expect(conversation(page).getByText(CODEX)).toBeVisible();
   // E não o outro: as duas abas ficam **montadas**, então um `getByText` sem
   // escopo acharia as duas e o teste passaria sem provar nada.
@@ -98,11 +94,11 @@ test("o agente que não informa limite não desenha número de limite", async ({
   await ensureProject(page, E2E_FIXTURE_REPO_ACP, "repo-acp");
   await openProject(page, "repo-acp");
   await createWorktree(page, `${WORKTREE}-consumo`, "repo-acp");
-  await expect(page.getByRole("tab", { name: new RegExp(`^${WORKTREE}-consumo`) })).toBeVisible({
+  await expect(page.getByLabel("árvore de projetos").getByRole("button", { name: `${WORKTREE}-consumo`, exact: true })).toBeVisible({
     timeout: 30_000,
   });
 
-  await openConversation(page, CODEX);
+  await openConversation(page, CODEX, `${WORKTREE}-consumo`);
   const conv = conversation(page);
 
   await conv.getByLabel("mensagem para o agente").click();
@@ -142,14 +138,24 @@ test("conecta o segundo agente pelo `＋`, e o rodapé passa a ter duas linhas",
   await page.goto("/");
   await ensureWorkspace(page);
 
-  await page.getByRole("button", { name: "conectar um agente" }).click();
-  const connect = page.getByRole("group", { name: "conectar agente" });
-  const codex = connect.getByRole("button", { name: /^Codex/ });
-  await expect(codex).toBeEnabled({ timeout: 20_000 });
-  // A linha do catálogo diz o que a pessoa não resolve clicando: este adaptador
-  // traz o próprio agente dentro (§4.8).
-  await expect(codex).toContainText(/traz o próprio agente dentro|instalado/);
-  await codex.click();
+  const configs = (await query(DAEMON, "agentConfig.list", undefined)) as { name: string }[];
+  const existingCodex = page.getByRole("button", { name: /^codex: / });
+  if (configs.some((config) => config.name === "codex")) {
+    // Specs share one daemon. On a full run the adapter may already have been
+    // connected by onboarding; open its row instead of trying to create the
+    // unique `codex` config a second time.
+    await expect(existingCodex).toBeVisible({ timeout: 20_000 });
+    await existingCodex.click();
+  } else {
+    await page.getByRole("button", { name: "conectar um agente" }).click();
+    const connect = page.getByRole("group", { name: "conectar agente" });
+    const codex = connect.getByRole("button", { name: /^Codex/ });
+    await expect(codex).toBeEnabled({ timeout: 20_000 });
+    // A linha do catálogo diz o que a pessoa não resolve clicando: este adaptador
+    // traz o próprio agente dentro (§4.8).
+    await expect(codex).toContainText(/traz o próprio agente dentro|instalado/);
+    await codex.click();
+  }
 
   // O painel do agente recém-conectado abre, com o que o handshake respondeu.
   const panel = page.getByRole("group", { name: /agente codex/ });
@@ -175,14 +181,14 @@ test("o consumo do workspace abre por agente quando há dois", async ({ page }) 
   await ensureProject(page, E2E_FIXTURE_REPO_ACP, "repo-acp");
   await openProject(page, "repo-acp");
   await createWorktree(page, `${WORKTREE}-conta`, "repo-acp");
-  await expect(page.getByRole("tab", { name: new RegExp(`^${WORKTREE}-conta`) })).toBeVisible({
+  await expect(page.getByLabel("árvore de projetos").getByRole("button", { name: `${WORKTREE}-conta`, exact: true })).toBeVisible({
     timeout: 30_000,
   });
 
   // Um turno de cada agente: é o que faz `session_usage` ter duas linhas com
   // agentes diferentes no mesmo projeto.
   for (const agent of [CLAUDE, CODEX]) {
-    await openConversation(page, agent);
+    await openConversation(page, agent, `${WORKTREE}-conta`);
     const conv = conversation(page);
     await conv.getByLabel("mensagem para o agente").click();
     await page.keyboard.type(`gasto do ${agent}`);
@@ -207,4 +213,3 @@ test("o consumo do workspace abre por agente quando há dois", async ({ page }) 
   await expect(panel.getByText(CLAUDE, { exact: true })).toBeVisible();
   await expect(panel.getByText(CODEX, { exact: true })).toBeVisible();
 });
-

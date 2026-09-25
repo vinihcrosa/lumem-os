@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { E2E_FIXTURE_REPO } from "./support/fixtures.js";
-import { ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
 
 /**
  * As duas ações da árvore, no navegador — `sidebar-actions` §5.
@@ -33,9 +33,7 @@ test("cria worktree pelo + da linha, com o projeto fechado", async ({ page }) =>
   if (await twist.isVisible().catch(() => false)) await twist.click();
   await expect(tree.getByRole("button", { name: `expandir ${PROJECT}` })).toBeVisible();
 
-  await page.getByRole("button", { name: `nova worktree em ${PROJECT}` }).click();
-  await page.getByLabel("Nome da worktree").fill(name);
-  await page.getByRole("button", { name: "criar" }).click();
+  await createWorktree(page, name, PROJECT);
 
   // F1.5: o mesmo destino que o caminho de hoje entregava — o projeto abre e a
   // worktree nova é a selecionada.
@@ -71,7 +69,7 @@ test("o + não navega: não dobra o projeto e não muda a seleção ao cancelar"
   // por trás do véu.
   await expect(folded).toHaveAttribute("aria-expanded", "false");
 
-  await page.getByRole("button", { name: "cancelar" }).click();
+  await page.getByRole("button", { name: "fechar", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeHidden();
   await expect(folded).toHaveAttribute("aria-expanded", "false");
   // E a seleção continua exatamente onde estava (§5 do PRD).
@@ -82,35 +80,20 @@ test("Esc devolve o foco ao + que abriu o modal", async ({ page }) => {
   const plus = page.getByRole("button", { name: `nova worktree em ${PROJECT}` });
   await plus.click();
 
-  // O foco entra no primeiro campo, pronto para digitar.
-  const campo = page.getByLabel("Nome da worktree");
+  // O foco entra no prompt, pronto para digitar.
+  const campo = page.getByLabel("No que você quer trabalhar?");
   await expect(campo).toBeFocused();
 
-  // Com nome, porque `criar` fica desabilitado sem um — e botão desabilitado
-  // sai do anel do `Tab`.
-  await campo.fill("anel-de-foco");
+  // Com prompt, para habilitar `Create`.
+  await campo.fill("preparar o anel de foco");
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "criar" })).toBeFocused();
+  await expect(page.getByRole("button", { name: /^agente e modelo:/ })).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "cancelar" })).toBeFocused();
+  await expect(page.getByRole("button", { name: /^Create/ })).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "fechar" })).toBeFocused();
-
-  /*
-   * E ele fecha o círculo, em vez de sair para a sidebar atrás do véu.
-   *
-   * **O anel cresceu**, e a volta não é mais o campo: desde a
-   * `026-worktree-from` o corpo deste diálogo começa por um trilho de origem, e
-   * o primeiro focável passou a ser a aba `default`. O contrato que a seção 8 do
-   * protótipo escreve continua de pé — o `Tab` circula **dentro** do diálogo, e
-   * o `✕` é o último —, e o que mudou é quantas paradas ele tem.
-   *
-   * O foco de **abertura** não mudou por causa disso, e não foi de graça: ele
-   * cai no campo porque o `Modal` passou a preferir `[data-modal-focus]` ao
-   * primeiro focável. Sem isso, abrir o diálogo poria o cursor numa aba.
-   */
+  await expect(page.getByRole("button", { name: "fechar", exact: true })).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "default", exact: true })).toBeFocused();
+  await expect(page.getByRole("button", { name: /^projeto:/ })).toBeFocused();
 
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toBeHidden();

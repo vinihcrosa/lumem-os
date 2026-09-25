@@ -37,7 +37,7 @@ async function typeLine(page: Page, line: string): Promise<void> {
 
 async function newShell(page: Page): Promise<void> {
   await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: /^shell/ }).click();
+  await page.getByRole("menuitem", { name: "terminal" }).click();
   await expect(openPanel(page).getByTestId("terminal")).toBeVisible();
 }
 

@@ -74,6 +74,12 @@ export const E2E_FIXTURE_REPO_SCRIPTS = join(E2E_FIXTURE_DIR, "repo-scripts");
  */
 export const E2E_FIXTURE_REPO_NOSCRIPTS = join(E2E_FIXTURE_DIR, "repo-noscripts");
 
+/** A `setup` long enough to see the first prompt waiting in the conversation. */
+export const E2E_FIXTURE_REPO_SLOW_SETUP = join(E2E_FIXTURE_DIR, "repo-slow-setup");
+
+/** A `setup` that fails, so the user can choose whether the prompt should go out. */
+export const E2E_FIXTURE_REPO_FAILING_SETUP = join(E2E_FIXTURE_DIR, "repo-failing-setup");
+
 /**
  * Um oitavo, e este tem `origin` apontando para o GitHub — sem nunca ir lá.
  *
@@ -202,6 +208,8 @@ export function createFixtures(): void {
     E2E_FIXTURE_REPO_ORIGIN,
     E2E_FIXTURE_REPO_SCRIPTS,
     E2E_FIXTURE_REPO_NOSCRIPTS,
+    E2E_FIXTURE_REPO_SLOW_SETUP,
+    E2E_FIXTURE_REPO_FAILING_SETUP,
     E2E_FIXTURE_REPO_PR,
   ]) {
     mkdirSync(repo, { recursive: true });
@@ -209,6 +217,19 @@ export function createFixtures(): void {
     writeFileSync(join(repo, "README.md"), "# fixture\n");
     git(repo, "add", "README.md");
     git(repo, "commit", "-m", "initial");
+  }
+
+  for (const [repo, id, setup] of [
+    [E2E_FIXTURE_REPO_SLOW_SETUP, "prj_e2e_slow_setup", "sleep 2"],
+    [E2E_FIXTURE_REPO_FAILING_SETUP, "prj_e2e_failing_setup", "exit 1"],
+  ] as const) {
+    mkdirSync(join(repo, ".lumem"), { recursive: true });
+    writeFileSync(
+      join(repo, ".lumem", "project.toml"),
+      [`id = "${id}"`, "", "[scripts]", `setup = '${setup}'`, ""].join("\n"),
+    );
+    git(repo, "add", "-A");
+    git(repo, "commit", "-m", "script de setup para o e2e");
   }
 
   // Somewhere for the files column to walk into, with a line worth reading at

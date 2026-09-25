@@ -64,7 +64,6 @@ test("um cartão atravessa uma etapa sem ninguém clicar", async () => {
       name: AGENT,
       command: process.execPath,
       args: [E2E_FAKE_ACP_AGENT],
-      transport: "acp",
       adapterVersion: "0.0.0-fake",
     });
     const workspace = (await call(daemon.url, "workspace.create", { name: "esteira" })) as {
@@ -190,7 +189,6 @@ test("desligar a autonomia da tarefa para a esteira nela, e não nas outras", as
       name: AGENT,
       command: process.execPath,
       args: [E2E_FAKE_ACP_AGENT],
-      transport: "acp",
       adapterVersion: "0.0.0-fake",
     });
     const workspace = (await call(daemon.url, "workspace.create", { name: "esteira-off" })) as {
@@ -253,7 +251,6 @@ test("`assistido` prepara e para — nenhum adaptador sobe", async () => {
       name: AGENT,
       command: process.execPath,
       args: [E2E_FAKE_ACP_AGENT],
-      transport: "acp",
       adapterVersion: "0.0.0-fake",
     });
     const workspace = (await call(daemon.url, "workspace.create", { name: "assistido" })) as {
@@ -381,7 +378,6 @@ test("`parar` interrompe sem apagar a worktree", async () => {
       name: AGENT,
       command: process.execPath,
       args: [E2E_FAKE_ACP_AGENT],
-      transport: "acp",
       adapterVersion: "0.0.0-fake",
     });
     const workspace = (await call(daemon.url, "workspace.create", { name: "parar" })) as {

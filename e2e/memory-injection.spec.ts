@@ -1,7 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { E2E_SERVER_PORT } from "../ports.js";
-import { createAgentConfig, createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import {
+  createAgentConfig,
+  createWorktree,
+  ensureProject,
+  ensureWorkspace,
+  openConfiguredAgent,
+  openProject,
+} from "./support/app.js";
 import { call, query } from "./support/daemon.js";
 import { E2E_FAKE_ACP_AGENT, E2E_FIXTURE_REPO_ACP } from "./support/fixtures.js";
 
@@ -49,7 +56,6 @@ test("o agente recebe o núcleo, e só uma vez", async ({ page, request }) => {
     name: AGENT,
     command: process.execPath,
     args: [E2E_FAKE_ACP_AGENT],
-    transport: "acp",
     adapterVersion: "0.0.0-fake",
   });
 
@@ -75,12 +81,8 @@ test("o agente recebe o núcleo, e só uma vez", async ({ page, request }) => {
   })) as { path: string };
   await call(DAEMON, "memory.pin", { path: written.path, pinned: true });
 
-  await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: new RegExp(`^${AGENT}\\b`) }).click();
+  await openConfiguredAgent(page, DAEMON, AGENT);
   const conv = conversation(page);
-  await expect(conv).toBeVisible({ timeout: 20_000 });
-  // Atada, e não só visível: o composer só aceita mensagem depois do `attached`.
-  await expect(conv.getByText("sessão aberta, nada pedido ainda")).toBeVisible({ timeout: 20_000 });
 
   await send(page, ECHO);
 

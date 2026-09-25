@@ -4,8 +4,8 @@ import { join } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { E2E_FIXTURE_AGENT, E2E_FIXTURE_REPO, E2E_FIXTURE_REPO_ALT } from "./support/fixtures.js";
-import { createAgentConfig, createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
+import { E2E_FIXTURE_REPO, E2E_FIXTURE_REPO_ALT } from "./support/fixtures.js";
+import { createWorktree, ensureProject, ensureWorkspace, openProject } from "./support/app.js";
 import { call, query, startDaemon } from "./support/daemon.js";
 import { E2E_RESTART_PORT, E2E_SERVER_PORT } from "../ports.js";
 
@@ -18,13 +18,6 @@ import { E2E_RESTART_PORT, E2E_SERVER_PORT } from "../ports.js";
  */
 
 const DAEMON = `http://127.0.0.1:${E2E_SERVER_PORT}`;
-const AGENT = "eco";
-const BROKEN_AGENT = "agente-fantasma";
-
-function terminalText(page: Page) {
-  return page.locator("[role=tabpanel]:not([hidden]) .xterm-rows");
-}
-
 async function openFixtureProject(page: Page): Promise<void> {
   await page.goto("/");
   await ensureWorkspace(page);
@@ -66,7 +59,7 @@ test("a worktree with a live session cannot be removed", async ({ page }) => {
   await expect(page.getByRole("heading", { name })).toBeVisible({ timeout: 30_000 });
 
   await page.getByRole("button", { name: /nova sessão/ }).click();
-  await page.getByRole("menuitem", { name: /^shell/ }).click();
+  await page.getByRole("menuitem", { name: "terminal" }).click();
   await expect(page.locator("[role=tabpanel]:not([hidden])").getByTestId("terminal")).toBeVisible();
 
   // A ação destrutiva mora na aba do checkout, e a sessão está na frente:
@@ -118,30 +111,16 @@ test("a dirty worktree is refused, and forcing it works", async ({ page }) => {
   await expect(page.getByRole("heading", { name })).toBeHidden({ timeout: 20_000 });
 });
 
-test("an agent whose command is missing is shown unavailable and cannot be launched", async ({
-  page,
-  request,
-}) => {
-  await createAgentConfig(request, DAEMON, { name: AGENT, command: E2E_FIXTURE_AGENT });
-  await createAgentConfig(request, DAEMON, {
-    name: BROKEN_AGENT,
-    command: "definitely-not-a-real-binary-xyz",
-  });
-
+test("the new-session menu offers only a new agent draft and a terminal", async ({ page }) => {
   await openFixtureProject(page);
 
-  // F6.5: shown rather than hidden, disabled rather than launchable.
+  // Configurations no longer appear as session-launch rows. The user chooses
+  // an adapter and model inside the draft, while shell remains available.
   await page.getByRole("button", { name: /nova sessão/ }).click();
-  const broken = page.getByRole("menuitem", { name: new RegExp(BROKEN_AGENT) });
-  await expect(broken).toBeDisabled();
-  // The reason, not just the refusal — "indisponível" leaves nothing to fix.
-  await expect(broken).toContainText("fora do PATH");
-
-  // The one that *is* installed still works, so this is about availability
-  // rather than agents being broken in general.
-  await page.getByRole("menuitem", { name: new RegExp(`^${AGENT}\\b`) }).click();
-  await expect(terminalText(page)).toContainText("fake-agent pronto", { timeout: 20_000 });
-  await page.getByRole("button", { name: /^fechar / }).first().click();
+  const menu = page.getByRole("menu", { name: "nova sessão" });
+  await expect(menu.getByRole("menuitem")).toHaveCount(2);
+  await expect(menu.getByRole("menuitem", { name: "novo agente" })).toBeEnabled();
+  await expect(menu.getByRole("menuitem", { name: "terminal" })).toBeEnabled();
 });
 
 test("a worktree deleted from outside becomes missing after a restart", async () => {

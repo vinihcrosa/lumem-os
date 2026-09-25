@@ -90,6 +90,28 @@ const LONG_MODEL_LIST = Array.from({ length: 20 }, (_, index) =>
       },
 );
 
+/**
+ * O *effort* do Claude (`033` M1): id `effort`, categoria `thought_level`.
+ *
+ * Atrás de `LUMEM_FAKE_EFFORT=1` porque é **medido**, não suposto — a M1 achou
+ * a opção só depois de rodar o `0.75.1` de verdade, e um fake que a mostrasse
+ * sempre provaria a T22 antes de ela existir. Sem a variável, este fake
+ * continua sem `effort` nenhum, como sempre foi.
+ */
+const EFFORT = process.env["LUMEM_FAKE_EFFORT"] === "1";
+let currentEffort = "medium";
+
+/**
+ * `available_commands_update` logo depois do `session/new` (`033` T22).
+ *
+ * O Claude de verdade manda os comandos assim — assíncrono, sem o cliente
+ * pedir — e é o que a M2/M3 mediram (`~/.lumem/adapters/claude/…/acp-agent.js`,
+ * `setTimeout(…, 0)`). Atrás de variável porque é **outro comportamento**, não
+ * um padrão novo deste fake: o `runTurn` já manda comandos dentro do turno, e
+ * os dois caminhos coexistem para os specs que precisam de um ou de outro.
+ */
+const COMMANDS_ON_NEW = process.env["LUMEM_FAKE_COMMANDS_ON_NEW"] === "1";
+
 /** The selectors, in the shape the real adapter sends them. */
 function configOptions() {
   return [
@@ -106,6 +128,22 @@ function configOptions() {
             { value: "sonnet", name: "sonnet", description: "Sonnet 5" },
           ],
     },
+    ...(EFFORT
+      ? [
+          {
+            id: "effort",
+            name: "Effort",
+            category: "thought_level",
+            type: "select",
+            currentValue: currentEffort,
+            options: [
+              { value: "low", name: "Low" },
+              { value: "medium", name: "Medium" },
+              { value: "high", name: "High" },
+            ],
+          },
+        ]
+      : []),
   ];
 }
 
@@ -655,6 +693,21 @@ createInterface({ input: process.stdin }).on("line", (line) => {
         // in-process fake got wrong until a real handshake said so.
         configOptions: configOptions(),
       });
+      // O Claude de verdade manda os comandos por notificação, depois da
+      // resposta do `session/new` — nunca dentro dela (M2/M3). `setTimeout(0)`
+      // e não síncrono: a resposta tem que chegar primeiro, ou o cliente veria
+      // uma notificação para uma sessão que ele ainda não sabe que existe.
+      if (COMMANDS_ON_NEW) {
+        setTimeout(() => {
+          update({
+            sessionUpdate: "available_commands_update",
+            availableCommands: [
+              { name: "gate", description: "roda o gate declarado pela task" },
+              { name: "compact", description: "comprime a conversa", input: { hint: "quanto" } },
+            ],
+          });
+        }, 0);
+      }
       return;
 
     /*
@@ -736,6 +789,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
 
     case "session/set_config_option":
       if (message.params?.configId === "model") currentModel = message.params.value;
+      if (message.params?.configId === "effort") currentEffort = message.params.value;
       reply(message.id, { configOptions: configOptions() });
       return;
 
