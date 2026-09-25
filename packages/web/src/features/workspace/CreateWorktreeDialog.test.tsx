@@ -2,7 +2,8 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { branchNameForIssue, CreateWorktreeDialog, fromOf } from "./CreateWorktreeDialog.js";
+import { CreateWorktreeDialog } from "./CreateWorktreeDialog.js";
+import { branchNameForIssue, fromOf } from "./useOriginChoice.js";
 import { renderWithProviders } from "../../test/render.js";
 import { installTrpcDefaults, NO_HOST_ORIGINS, trpcMock as trpc } from "../../test/trpc-mock.js";
 

@@ -4,7 +4,7 @@ import { worktreeNameFromPrompt, type AdapterCatalogView } from "@lumem/shared";
 
 import { AgentModelPill, SlashMenu, slashQuery, type AgentModelChoice } from "../conversation/index.js";
 import { Banner, Button, Field, Glyph, Input, Menu, MenuItem, Modal } from "../../ui/index.js";
-import { branchNameForIssue } from "./CreateWorktreeDialog.js";
+import { branchNameForIssue } from "./useOriginChoice.js";
 
 /**
  * Criar worktree é compor o primeiro prompt (`033` F4).
