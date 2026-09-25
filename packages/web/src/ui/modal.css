@@ -48,6 +48,11 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--elevation-xl);
 }
+/* O porte do compositor de nova worktree (`033`, F4.1): o corpo é um prompt
+   para escrever, não um campo para preencher, e 420px o quebrariam em linhas
+   de meia frase. O `max-width` acima continua valendo — em janela estreita o
+   cartão largo encolhe junto com o normal. */
+.modal__card--wide { width: var(--size-dialog-wide); }
 
 .modal__head {
   display: flex;

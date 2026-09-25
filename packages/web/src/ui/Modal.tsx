@@ -1,17 +1,48 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
-export interface ModalProps {
+/**
+ * How wide the card is.
+ *
+ * `default` is the form: a name, a URL, an origin. `wide` is the composer of a
+ * new worktree (`033`, F4.1), whose body is a prompt someone writes — a column
+ * of text, not a field.
+ */
+export type ModalSize = "default" | "wide";
+
+/**
+ * What the head of the card shows.
+ *
+ * Either the title with the `where` line, or a `header` of the caller's own —
+ * never both. The composer's head is a row of selectors (project, name,
+ * origin), and it is the answer to the same question `where` answers; drawing
+ * the two would say the project twice.
+ */
+type ModalHead =
+  | {
+      /**
+       * Where the action came from — `em ■ lumem-os`, `no workspace ◈ pessoal`.
+       *
+       * In the header rather than as a field, because it is not a choice: the
+       * dialog opened from a row of the tree and it repeats which one. A selector
+       * inside would be asking again for something already answered by the gesture.
+       */
+      where?: ReactNode;
+      header?: undefined;
+    }
+  | {
+      where?: undefined;
+      /**
+       * Takes the place of the visible title. The title still names the dialog —
+       * it moves off screen, not out of the accessibility tree.
+       */
+      header: ReactNode;
+    };
+
+export type ModalProps = ModalHead & {
   open: boolean;
   /** Names the dialog, and is what `aria-labelledby` points at. */
   title: string;
-  /**
-   * Where the action came from — `em ■ lumem-os`, `no workspace ◈ pessoal`.
-   *
-   * In the header rather than as a field, because it is not a choice: the
-   * dialog opened from a row of the tree and it repeats which one. A selector
-   * inside would be asking again for something already answered by the gesture.
-   */
-  where?: ReactNode;
+  size?: ModalSize;
   onClose: () => void;
   /**
    * Whether the three ways out are open, Q5a.
@@ -28,7 +59,7 @@ export interface ModalProps {
   /** The buttons. Laid out by the modal so every dialog puts them in one order. */
   footer?: ReactNode;
   children: ReactNode;
-}
+};
 
 /** What `Tab` can land on. Ordered as the DOM orders it. */
 const FOCUSABLE =
@@ -51,6 +82,8 @@ export function Modal({
   open,
   title,
   where,
+  header,
+  size = "default",
   onClose,
   dismissible = true,
   reason,
@@ -147,7 +180,7 @@ export function Modal({
         onClick={dismissible ? onClose : undefined}
       />
       <div
-        className="modal__card"
+        className={`modal__card${size === "wide" ? " modal__card--wide" : ""}`}
         ref={cardRef}
         role="dialog"
         aria-modal="true"
@@ -155,9 +188,16 @@ export function Modal({
       >
         <div className="modal__head">
           <div className="modal__head-b">
-            <h3 className="modal__t" id={titleId}>
+            {/*
+              One way of naming the dialog, with or without `header`: the
+              heading stays in the tree either way, so `aria-labelledby` never
+              has to become an `aria-label` that a test or a reader must know
+              to look for instead.
+            */}
+            <h3 className={header === undefined ? "modal__t" : "sr-only"} id={titleId}>
               {title}
             </h3>
+            {header}
             {where !== undefined && <p className="modal__where">{where}</p>}
           </div>
         </div>
