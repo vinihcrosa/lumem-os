@@ -9,7 +9,11 @@ import { AcpManager } from "../acp/AcpManager.js";
 import type { AcpProcess, AcpSpawnRequest } from "../acp/process.js";
 import { agentConfig, session } from "../db/schema.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
-import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
+import {
+  FAKE_CONFIG_OPTIONS,
+  fakeAgentProcess,
+  type FakeAgentScript,
+} from "../testing/acp-fake-agent.js";
 import {
   createTestCaller,
   type TestCaller,
@@ -49,14 +53,14 @@ function fakeAgentBin(name = "fake-agent"): { dir: string; command: string } {
  * só servia enquanto o agente podia ser um PTY. Um processo falso **por spawn**:
  * um só tem o stdout travado no segundo `launch`.
  */
-function fakeAcp(): {
+function fakeAcp(script: FakeAgentScript = {}): {
   acpManager: AcpManager;
   spawner: ReturnType<typeof vi.fn<(request: AcpSpawnRequest) => AcpProcess>>;
   spawned: ReturnType<typeof fakeAgentProcess>[];
 } {
   const spawned: ReturnType<typeof fakeAgentProcess>[] = [];
   const spawner = vi.fn((_request: AcpSpawnRequest): AcpProcess => {
-    const fake = fakeAgentProcess();
+    const fake = fakeAgentProcess(script);
     spawned.push(fake);
     return fake.process;
   });
@@ -414,6 +418,241 @@ describe("session.createAgent", () => {
     });
 
     expect(spawner).toHaveBeenCalledWith(expect.objectContaining({ command: managed }));
+  });
+});
+
+describe("session.createAgent com adaptador e config (`033` §3.2)", () => {
+  /**
+   * Um agente que anota o que lhe pediram, na ordem, e responde como o real.
+   *
+   * O `set_config_option` do fake devolve o conjunto de sempre por padrão —
+   * `opus[1m]` em vigor, peça o que pedir —, o que faria "nasceu no modelo
+   * pedido" passar por acaso ou falhar por acaso. Aqui ele devolve o valor
+   * trocado, que é o que o adaptador de verdade faz.
+   */
+  function recordingScript(): { script: FakeAgentScript; calls: string[] } {
+    const calls: string[] = [];
+    return {
+      calls,
+      script: {
+        setMode: (modeId) => {
+          calls.push(`mode=${modeId}`);
+        },
+        setConfigOption: (configId, value) => {
+          calls.push(`${configId}=${String(value)}`);
+          return FAKE_CONFIG_OPTIONS.map((option) =>
+            option.id === configId ? { ...option, currentValue: value } : option,
+          ) as typeof FAKE_CONFIG_OPTIONS;
+        },
+      },
+    };
+  }
+
+  /**
+   * O código **e** a frase, conferidos separadamente.
+   *
+   * `rejects.toMatchObject({ message })` não confere a mensagem de um `Error`
+   * nesta versão do vitest — `message: /zzz/` contra `"abc"` passa —, então a
+   * frase só é asserção de verdade pelo `toThrow`.
+   */
+  async function expectRefusal(
+    call: Promise<unknown>,
+    code: string,
+    message: string | RegExp,
+  ): Promise<void> {
+    await expect(call).rejects.toMatchObject({ code });
+    await expect(call).rejects.toThrow(message);
+  }
+
+  async function fixtureConfig(ctx: TestCaller): Promise<string> {
+    const { command } = fakeAgentBin();
+    const config = await createAgentConfigRepository(ctx.db).create({
+      name: "fixture",
+      command,
+      adapterVersion: "1.0.0",
+    });
+    return config.id;
+  }
+
+  /** Toda sessão do escopo morta, na linha e no manager: nada ficou vivo. */
+  async function expectNothingAlive(ctx: TestCaller, worktreeId: string): Promise<void> {
+    await vi.waitFor(async () => {
+      const rows = await ctx.api.session.listByScope({ scopeType: "worktree", scopeId: worktreeId });
+      expect(rows.map((row) => row.state)).not.toContain("running");
+      expect(ctx.acpManager.list().map((info) => info.state)).not.toContain("running");
+    });
+  }
+
+  it("nasce no modelo pedido, com o modo aplicado primeiro", async () => {
+    const { script, calls } = recordingScript();
+    const { acpManager } = fakeAcp(script);
+    const { ctx, worktreeId } = await setup({ acpManager });
+    const agentConfigId = await fixtureConfig(ctx);
+
+    // `model` antes de `mode` no objeto, de propósito: a ordem é do daemon.
+    const created = await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      agentConfigId,
+      config: { model: "sonnet", mode: "plan" },
+    });
+
+    expect(calls).toEqual(["mode=plan", "model=sonnet"]);
+    expect(created).toMatchObject({ model: "sonnet", mode: "plan", state: "running" });
+    // A linha, e não só a resposta: reabrir a aba lê daqui.
+    const [row] = await ctx.db.select().from(session).where(eq(session.id, created.id));
+    expect(row).toMatchObject({ model: "sonnet", mode: "plan" });
+    const live = ctx.acpManager.get(created.id);
+    expect(live?.model).toBe("sonnet");
+    expect(live?.configOptions.find((option) => option.id === "model")?.currentValue).toBe(
+      "sonnet",
+    );
+  });
+
+  it("não reenvia o valor que já está em vigor", async () => {
+    const { script, calls } = recordingScript();
+    const { acpManager } = fakeAcp(script);
+    const { ctx, worktreeId } = await setup({ acpManager });
+    const agentConfigId = await fixtureConfig(ctx);
+
+    const created = await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      agentConfigId,
+      config: { model: "opus[1m]", mode: "plan" },
+    });
+
+    // O modo mudou e foi; o modelo já era aquele e não foi.
+    expect(calls).toEqual(["mode=plan"]);
+    expect(created).toMatchObject({ model: "opus[1m]", mode: "plan" });
+  });
+
+  it("modelo que o agente não oferece: recusa com a frase, e nada fica vivo", async () => {
+    const { script, calls } = recordingScript();
+    const { acpManager, spawner } = fakeAcp(script);
+    const { ctx, worktreeId } = await setup({ acpManager });
+    const agentConfigId = await fixtureConfig(ctx);
+
+    await expectRefusal(
+      ctx.api.session.createAgent({
+        scopeType: "worktree",
+        scopeId: worktreeId,
+        agentConfigId,
+        config: { mode: "plan", model: "gpt-9" },
+      }),
+      "BAD_REQUEST",
+      'o fixture não oferece mais "gpt-9" em Model — escolha de novo',
+    );
+
+    // Subiu, recebeu o modo, e morreu: a falha é no meio da configuração.
+    expect(spawner).toHaveBeenCalledTimes(1);
+    expect(calls).toEqual(["mode=plan"]);
+    await expectNothingAlive(ctx, worktreeId);
+  });
+
+  it("opção que o agente não tem: recusa com a frase, e nada fica vivo", async () => {
+    const { acpManager } = fakeAcp();
+    const { ctx, worktreeId } = await setup({ acpManager });
+    const agentConfigId = await fixtureConfig(ctx);
+
+    await expectRefusal(
+      ctx.api.session.createAgent({
+        scopeType: "worktree",
+        scopeId: worktreeId,
+        agentConfigId,
+        config: { effort: "high" },
+      }),
+      "BAD_REQUEST",
+      'o fixture não oferece mais a opção "effort" — escolha de novo',
+    );
+    await expectNothingAlive(ctx, worktreeId);
+  });
+
+  it("recusa `agentConfigId` e `adapterId` juntos, antes de subir qualquer coisa", async () => {
+    const { acpManager, spawner } = fakeAcp();
+    const { ctx, worktreeId } = await setup({ acpManager });
+    const agentConfigId = await fixtureConfig(ctx);
+
+    await expectRefusal(
+      ctx.api.session.createAgent({
+        scopeType: "worktree",
+        scopeId: worktreeId,
+        agentConfigId,
+        adapterId: CLAUDE_ADAPTER.id,
+      }),
+      "BAD_REQUEST",
+      /exatamente um/,
+    );
+    expect(spawner).not.toHaveBeenCalled();
+  });
+
+  it("recusa quando não vem nem `agentConfigId` nem `adapterId`", async () => {
+    const { acpManager, spawner } = fakeAcp();
+    const { ctx, worktreeId } = await setup({ acpManager });
+
+    await expectRefusal(
+      ctx.api.session.createAgent({ scopeType: "worktree", scopeId: worktreeId }),
+      "BAD_REQUEST",
+      /exatamente um/,
+    );
+    expect(spawner).not.toHaveBeenCalled();
+  });
+
+  it("pelo adaptador: lança a cópia gerenciada, com a configuração dele", async () => {
+    const { script } = recordingScript();
+    const { acpManager, spawner } = fakeAcp(script);
+    const { ctx, worktreeId } = await setup({ acpManager });
+    const managed = stageManagedAdapter(ctx.config.stateDir);
+
+    const created = await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      adapterId: CLAUDE_ADAPTER.id,
+      config: { model: "sonnet" },
+    });
+
+    expect(spawner).toHaveBeenCalledWith(expect.objectContaining({ command: managed }));
+    expect(created).toMatchObject({ agentName: CLAUDE_ADAPTER.id, model: "sonnet" });
+    // A mesma configuração na segunda vez: uma por adaptador, e não uma por sessão.
+    const again = await ctx.api.session.createAgent({
+      scopeType: "worktree",
+      scopeId: worktreeId,
+      adapterId: CLAUDE_ADAPTER.id,
+    });
+    expect(again.agentConfigId).toBe(created.agentConfigId);
+  });
+
+  it("pelo adaptador: o desconhecido é recusado como argumento", async () => {
+    const { acpManager, spawner } = fakeAcp();
+    const { ctx, worktreeId } = await setup({ acpManager });
+
+    await expectRefusal(
+      ctx.api.session.createAgent({
+        scopeType: "worktree",
+        scopeId: worktreeId,
+        adapterId: "nao-existe",
+      }),
+      "BAD_REQUEST",
+      "adaptador desconhecido: nao-existe",
+    );
+    expect(spawner).not.toHaveBeenCalled();
+  });
+
+  it("pelo adaptador: o não instalado diz o pino, e não cria configuração", async () => {
+    const { acpManager, spawner } = fakeAcp();
+    const { ctx, worktreeId } = await setup({ acpManager });
+
+    await expectRefusal(
+      ctx.api.session.createAgent({
+        scopeType: "worktree",
+        scopeId: worktreeId,
+        adapterId: CLAUDE_ADAPTER.id,
+      }),
+      "NOT_FOUND",
+      new RegExp(CLAUDE_ADAPTER.pinnedVersion.replaceAll(".", "\\.")),
+    );
+    expect(spawner).not.toHaveBeenCalled();
+    expect(await createAgentConfigRepository(ctx.db).findByName(CLAUDE_ADAPTER.id)).toBeUndefined();
   });
 });
 
