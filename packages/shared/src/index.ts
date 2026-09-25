@@ -1,4 +1,5 @@
 export * from "./acp-protocol.js";
+export * from "./adapter-catalog.js";
 export * from "./adapters.js";
 export * from "./board.js";
 export * from "./constants.js";
