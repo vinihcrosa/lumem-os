@@ -70,6 +70,22 @@ describe("invalidateFor", () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["worktree"] });
   });
 
+  it("`session.changed` também relê os scripts do mesmo escopo, e só dele", () => {
+    /*
+     * `setup`, `run` e `test` são sessões: quando uma delas nasce ou sai, é este
+     * evento que chega. Sem esta linha o rodapé só descobria pelo polling de 2 s —
+     * e o polling só corre com uma fase já rodando, então o `setup` que acabou de
+     * começar ficava invisível até alguém olhar de novo (`033` §6, defeito 4).
+     */
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    invalidateFor(queryClient, { type: "session.changed", scopeType: "worktree", scopeId: "wt1" });
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["scripts", "status", "worktree", "wt1"] });
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ["scripts"] });
+  });
+
   it("`task.changed` alcança o quadro e os interruptores, não só a lista", () => {
     /*
      * Nenhum dos dois está sob `["task", "listByWorkspace"]`, e o cliente tem

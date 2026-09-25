@@ -14,10 +14,10 @@ vi.mock("./lib/trpc.js", async () => ({
  * Adding an agent without leaving the app (fase 6).
  *
  * The reason this screen exists is narrow and worth restating: an ACP configuration
- * needs a `transport` (F1.2) and a pinned adapter version (F5.5), and until now no
- * screen could write either — so the only way to use the conversation at all was an
- * HTTP call by hand. What is asserted here is that the two fields reach the daemon,
- * and that the rule tying them together is enforced before the submit rather than
+ * needs a pinned adapter version (F5.5), and until now no screen could write it — so
+ * the only way to use the conversation at all was an HTTP call by hand. There is no
+ * transport to choose any more (`033` F1.1): every configuration is an ACP adapter,
+ * and the version is required on every one of them, before the submit rather than
  * after it.
  */
 
@@ -28,8 +28,8 @@ function config(overrides: Record<string, unknown> = {}) {
     command: "claude",
     args: [],
     env: {},
-    transport: "pty",
-    adapterVersion: null,
+    adapterVersion: "0.40.0",
+    retiredAt: null,
     available: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -71,10 +71,12 @@ async function panel() {
 }
 
 describe("adding one", () => {
-  it("sends the two fields no other screen could write", async () => {
-    // The whole point of the phase. `transport` and the pinned version are what turn a
-    // tab into a conversation, and they were reachable only by curl.
-    trpc.agentConfig.create.mutate.mockResolvedValue(config({ id: "ac2", transport: "acp" }));
+  it("sends the pinned version no other screen could write, and no transport", async () => {
+    // The whole point of the phase: the pinned version was reachable only by curl.
+    // And the field that used to sit beside it is gone from the wire — the daemon
+    // has no column for it since `033`, and a stray key would be a claim about
+    // something the product no longer does.
+    trpc.agentConfig.create.mutate.mockResolvedValue(config({ id: "ac2" }));
     await panel();
 
     await userEvent.type(screen.getByLabelText("Nome"), "claude-acp");
@@ -87,47 +89,24 @@ describe("adding one", () => {
         name: "claude-acp",
         command: "claude-agent-acp",
         args: [],
-        transport: "acp",
         adapterVersion: "0.40.0",
       }),
     );
   });
 
-  it("creates a terminal agent with no version at all", async () => {
-    // The column forbids one on `pty`: it would be a claim about something that never
-    // runs, and the next reader could not tell it from a real setting.
-    trpc.agentConfig.create.mutate.mockResolvedValue(config({ id: "ac2" }));
-    await panel();
+  it("offers no transport to choose: an agent is always a conversation", async () => {
+    // `033` F1.1. Disabling the field would still say there is a choice.
+    const box = await panel();
 
-    await userEvent.selectOptions(screen.getByLabelText("Transporte"), "pty");
-    await userEvent.type(screen.getByLabelText("Nome"), "claude-pty");
-    await userEvent.type(screen.getByLabelText("Comando"), "claude");
-    await userEvent.click(screen.getByRole("button", { name: "adicionar" }));
-
-    await waitFor(() =>
-      expect(trpc.agentConfig.create.mutate).toHaveBeenCalledWith({
-        name: "claude-pty",
-        command: "claude",
-        args: [],
-        transport: "pty",
-      }),
-    );
-  });
-
-  it("hides the version field on a terminal agent", async () => {
-    await panel();
-
-    expect(screen.getByLabelText("Versão do adaptador")).toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByLabelText("Transporte"), "pty");
-
-    expect(screen.queryByLabelText("Versão do adaptador")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Transporte")).not.toBeInTheDocument();
+    expect(within(box).queryByRole("combobox")).not.toBeInTheDocument();
+    expect(within(box).queryByText(/terminal \(PTY\)/)).not.toBeInTheDocument();
   });
 
   it("will not submit an ACP agent without a version", async () => {
     /*
-     * D17: the daemon's CHECK, repeated. Without this the only way to learn the field
-     * is required is to submit and read a refusal — and this is the rule that decides
-     * whether the tab is a conversation or a terminal.
+     * D17: the daemon's rule, repeated. Without this the only way to learn the field
+     * is required is to submit and read a refusal.
      */
     await panel();
 
@@ -145,10 +124,10 @@ describe("adding one", () => {
     trpc.agentConfig.create.mutate.mockResolvedValue(config({ id: "ac2" }));
     await panel();
 
-    await userEvent.selectOptions(screen.getByLabelText("Transporte"), "pty");
     await userEvent.type(screen.getByLabelText("Nome"), "eco");
     await userEvent.type(screen.getByLabelText("Comando"), "sh");
     await userEvent.type(screen.getByLabelText("Argumentos (opcional)"), "  -c   echo ola  ");
+    await userEvent.type(screen.getByLabelText("Versão do adaptador"), "0.40.0");
     await userEvent.click(screen.getByRole("button", { name: "adicionar" }));
 
     await waitFor(() =>
@@ -183,9 +162,9 @@ describe("adding one", () => {
     trpc.agentConfig.create.mutate.mockResolvedValue(config({ id: "ac2" }));
     await panel();
 
-    await userEvent.selectOptions(screen.getByLabelText("Transporte"), "pty");
     await userEvent.type(screen.getByLabelText("Nome"), "eco");
     await userEvent.type(screen.getByLabelText("Comando"), "sh");
+    await userEvent.type(screen.getByLabelText("Versão do adaptador"), "0.40.0");
     trpc.agentConfig.list.query.mockResolvedValue([config({ id: "ac2", name: "eco" })]);
     await userEvent.click(screen.getByRole("button", { name: "adicionar" }));
 
@@ -215,9 +194,9 @@ describe("adding one", () => {
     trpc.agentConfig.create.mutate.mockResolvedValue(config({ id: "ac2" }));
     await panel();
 
-    await userEvent.selectOptions(screen.getByLabelText("Transporte"), "pty");
     await userEvent.type(screen.getByLabelText("Nome"), "eco");
     await userEvent.type(screen.getByLabelText("Comando"), "sh");
+    await userEvent.type(screen.getByLabelText("Versão do adaptador"), "0.40.0");
     await userEvent.click(screen.getByRole("button", { name: "adicionar" }));
 
     await waitFor(() => expect(screen.getByLabelText("Nome")).toHaveValue(""));
@@ -225,25 +204,24 @@ describe("adding one", () => {
 });
 
 describe("the list", () => {
-  it("says which agent is a conversation and which is a terminal", async () => {
+  it("shows the pinned version of each agent, and no transport chip", async () => {
     trpc.agentConfig.list.query.mockResolvedValue([
-      config({ id: "ac1", name: "claude-code", transport: "pty" }),
       config({
         id: "ac2",
         name: "claude-acp",
         command: "claude-agent-acp",
-        transport: "acp",
         adapterVersion: "0.40.0",
       }),
     ]);
 
     const box = await panel();
 
-    expect(within(box).getByText("conversa")).toBeInTheDocument();
-    expect(within(box).getByText("terminal")).toBeInTheDocument();
     // The pinned version is on screen: it is the answer to "which adapter is this",
     // and A12 made it data precisely so it could be read.
     expect(within(box).getByText(/claude-agent-acp @0\.40\.0/)).toBeInTheDocument();
+    // With one transport the word would say nothing; `033` F1.1 took the choice away.
+    expect(within(box).queryByText("conversa")).not.toBeInTheDocument();
+    expect(within(box).queryByText("terminal")).not.toBeInTheDocument();
   });
 
   it("marks an agent whose command is not installed, in the menu's words", async () => {

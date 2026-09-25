@@ -74,7 +74,6 @@ describe("useAgentConfigMutations", () => {
       name: "claude",
       command: "claude-agent-acp",
       args: [],
-      transport: "acp",
       adapterVersion: "1.0.0",
     });
 
@@ -189,7 +188,7 @@ describe("useCreateHandshakeAgentConfig", () => {
   const report = { command: "claude-agent-acp", args: [], agentInfo: { version: PINNED } };
 
   it("reusa a configuração já existente para o mesmo comando", async () => {
-    const already = { id: "a1", transport: "acp", command: "claude-agent-acp" };
+    const already = { id: "a1", command: "claude-agent-acp" };
     const queryClient = new QueryClient();
 
     const { result } = renderHook(
@@ -199,6 +198,21 @@ describe("useCreateHandshakeAgentConfig", () => {
     result.current.mutate(report);
 
     await waitFor(() => expect(result.current.data).toEqual(already));
+    expect(trpc.agentConfig.create.mutate).not.toHaveBeenCalled();
+  });
+
+  it("recusa sem criar quando o adaptador não declarou versão", async () => {
+    // Toda configuração exige a versão desde a `033`, e uma escrita à mão aqui
+    // seria uma versão que ninguém mediu.
+    const queryClient = new QueryClient();
+
+    const { result } = renderHook(() => useCreateHandshakeAgentConfig([], "claude"), {
+      wrapper: wrapperFor(queryClient),
+    });
+    result.current.mutate({ ...report, agentInfo: null });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error?.message).toMatch(/não declarou a versão/);
     expect(trpc.agentConfig.create.mutate).not.toHaveBeenCalled();
   });
 

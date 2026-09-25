@@ -1,3 +1,4 @@
+import { DEFAULT_ADAPTER_ID } from "@lumem/shared";
 import { useEffect, useRef, type ReactNode } from "react";
 
 import { useAwaitingPermission } from "../../hooks/useAwaitingPermission.js";
@@ -18,6 +19,7 @@ import {
   TabToggle,
   type TabState,
 } from "../../ui/index.js";
+import { useAgentConfigs } from "../agent/index.js";
 import { FileViewer } from "./FileViewer.js";
 import { NewSessionMenu } from "../conversation/index.js";
 import { PatchViewer } from "./PatchViewer.js";
@@ -139,7 +141,32 @@ export function ScopePanel({
     );
   }
 
-  const { close: end } = useSessionMutations(scope);
+  const { close: end, createAgent } = useSessionMutations(scope);
+
+  /*
+   * `＋ novo agente`, until the draft tab exists (`033` T18): the default
+   * adapter's configuration, opened straight away. Found by name because that is
+   * how the daemon's `configForAdapter` finds it too; the first listed is the
+   * fallback for a daemon whose only agent was added by hand.
+   */
+  const configs = useAgentConfigs();
+  const agents = configs.data ?? [];
+  const defaultAgent = agents.find((row) => row.name === DEFAULT_ADAPTER_ID) ?? agents[0] ?? null;
+  const newAgentBlocked =
+    defaultAgent === null
+      ? "nenhum agente conectado"
+      : !defaultAgent.available
+        ? "fora do PATH"
+        : createAgent.isPending
+          ? "abrindo…"
+          : null;
+  const openAgent = (): void => {
+    if (defaultAgent === null) return;
+    createAgent.mutate(
+      { agentConfigId: defaultAgent.id },
+      { onSuccess: (created) => select(created.id) },
+    );
+  };
 
   const all = sessions.data ?? [];
   const openIds = new Set(tabs.map((tab) => tab.sessionId));
@@ -168,6 +195,8 @@ export function ScopePanel({
             scopeType={scope.scopeType}
             scopeId={scope.scopeId}
             onCreated={(sessionId) => select(sessionId)}
+            onNewAgent={openAgent}
+            newAgentBlocked={newAgentBlocked}
           />
         }
         end={
@@ -236,6 +265,11 @@ export function ScopePanel({
             <Banner tone="danger">{end.error.message}</Banner>
           </div>
         )}
+        {createAgent.isError && (
+          <div className="detail__banner">
+            <Banner tone="danger">{createAgent.error.message}</Banner>
+          </div>
+        )}
 
         {context}
 
@@ -254,6 +288,10 @@ export function ScopePanel({
             all.map((session) => {
               const running = session.state === "running";
               const listed = openIds.has(session.id);
+              // `033` Q3: legado, sem acesso. An agent that ran in a terminal is
+              // history — named, with its state and age, and no verb that would
+              // bring it back, because the daemon no longer runs agents that way.
+              const legacy = session.kind === "agent" && session.transport !== "acp";
 
               return (
                 <Item
@@ -279,7 +317,7 @@ export function ScopePanel({
                   age={relativeAge(session.createdAt)}
                   onSelect={listed ? () => select(session.id) : undefined}
                   action={
-                    listed ? undefined : (
+                    listed || legacy ? undefined : (
                       // The record outlives the tab, and so does the daemon's
                       // ring buffer — this is how the output of something that
                       // crashed gets read after its tab went away.

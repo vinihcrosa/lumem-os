@@ -1,4 +1,3 @@
-import { useMutation } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { useSessionMutations, type Scope } from "../checkout/index.js";
@@ -43,7 +42,9 @@ export interface SessionTabPanelProps {
  * A PTY tab whose session has exited is not a terminal at all: it is the record
  * of one, and D5 says it has to look like it. A conversation carries its own
  * finished state and its own way back (resume), so the record treatment is a
- * PTY concern only.
+ * PTY concern only — and of the PTY tabs, only a shell's record has a way
+ * forward: an agent in a terminal is legacy (`033` Q3), and the daemon refuses
+ * to start another one.
  */
 export function SessionTabPanel({
   tab,
@@ -95,12 +96,14 @@ export function SessionTabPanel({
           </div>
         )}
 
-        {record && <RecordNotice tab={tab} scope={scope} onStarted={onStarted} />}
+        {record && (
+          <RecordNotice scope={scope} onStarted={agent ? null : onStarted} />
+        )}
 
         {/*
           The one line that changes what the user sees. Keyed on the row's own
           transport, so a shell can never reach the conversation renderer and a
-          PTY agent keeps exactly the terminal it had.
+          legacy PTY agent keeps exactly the terminal it had.
         */}
         {conversation ? (
           <Conversation
@@ -126,9 +129,14 @@ export function SessionTabPanel({
 }
 
 interface RecordNoticeProps {
-  tab: SessionTabModel;
   scope: Scope;
-  onStarted: (sessionId: string) => void;
+  /**
+   * Null when there is nothing to start again. A shell comes back as a shell; an
+   * agent that ran in a terminal does not come back at all (`033` Q3), and
+   * offering "the same session" for it would be offering the one thing the daemon
+   * refuses.
+   */
+  onStarted: ((sessionId: string) => void) | null;
 }
 
 /**
@@ -137,34 +145,32 @@ interface RecordNoticeProps {
  * The chip alone was not enough: the tab looked like every other one, the
  * cursor blinked, and typing failed in silence. This is the sentence that was
  * missing, and beside it the only way forward the daemon actually has — a new
- * session with the same command, in the same place. Resuming the dead process
- * is not on offer, so it is not implied.
+ * shell, in the same place. Resuming the dead process is not on offer, so it is
+ * not implied.
  */
-function RecordNotice({ tab, scope, onStarted }: RecordNoticeProps) {
-  const { createShell, createAgent } = useSessionMutations(scope);
-
-  const start = useMutation({
-    mutationFn: () =>
-      tab.agentConfigId === null
-        ? createShell.mutateAsync()
-        : createAgent.mutateAsync({ agentConfigId: tab.agentConfigId }),
-    onSuccess: (created) => onStarted(created.id),
-  });
+function RecordNotice({ scope, onStarted }: RecordNoticeProps) {
+  const { createShell: start } = useSessionMutations(scope);
 
   return (
     <div className="term-note">
       <Banner
         tone="info"
-        actions={
-          <Button
-            size="sm"
-            variant="default"
-            disabled={start.isPending}
-            onClick={() => start.mutate()}
-          >
-            nova sessão igual
-          </Button>
-        }
+        {...(onStarted !== null
+          ? {
+              actions: (
+                <Button
+                  size="sm"
+                  variant="default"
+                  disabled={start.isPending}
+                  onClick={() =>
+                    start.mutate(undefined, { onSuccess: (created) => onStarted(created.id) })
+                  }
+                >
+                  nova sessão igual
+                </Button>
+              ),
+            }
+          : {})}
       >
         Esta sessão encerrou. O que está abaixo é o registro do que ela imprimiu,
         somente leitura — o processo não existe mais e não há o que digitar.

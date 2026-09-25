@@ -76,7 +76,7 @@ export function Done({ result, skipped, onOpen, onReview }: DoneProps) {
             {agent.command}
             {agent.adapterVersion !== null && ` @${agent.adapterVersion}`}{" "}
             <span className="dim">
-              — {agent.transport === "acp" ? "conversa" : "terminal"}
+              — conversa
               {agent.available ? "" : " · fora do PATH"}
             </span>
           </>

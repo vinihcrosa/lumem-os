@@ -397,7 +397,6 @@ describe("handshake step", () => {
       expect(trpc.agentConfig.create.mutate).toHaveBeenCalledWith(
         expect.objectContaining({
           command: "claude-agent-acp",
-          transport: "acp",
           adapterVersion: "0.69.0",
         }),
       ),

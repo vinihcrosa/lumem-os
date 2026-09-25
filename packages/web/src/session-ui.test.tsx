@@ -63,10 +63,12 @@ function session(overrides: Record<string, unknown> = {}) {
 function agentConfig(overrides: Record<string, unknown> = {}) {
   return {
     id: "ac1",
-    name: "claude-code",
-    command: "claude",
+    name: "claude",
+    command: "claude-agent-acp",
     args: [],
     env: {},
+    adapterVersion: "0.75.1",
+    retiredAt: null,
     available: true,
     ...stamps,
     ...overrides,
@@ -230,60 +232,64 @@ describe("sessões como abas", () => {
     expect(within(live).getByTestId("terminal-mock")).not.toHaveAttribute("data-readonly");
   });
 
-  it("starts the agent again from the record of an agent session", async () => {
+  it("lists a legacy terminal agent as history, with nothing to press", async () => {
+    // `033` Q3: legado, sem acesso. The row is the record that the session existed —
+    // name, state, age —, and every verb that would bring it back is gone: no
+    // `ver registro`, no `reabrir`, no `nova sessão igual`. The daemon has not run an
+    // agent in a terminal since the migration, and a button here would promise it.
     const user = userEvent.setup();
     trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
       scopeType === "worktree"
         ? [
             session({
               kind: "agent",
-              agentConfigId: "ac1",
+              transport: "pty",
+              agentConfigId: "ac-legacy",
               agentName: "claude-code",
+              command: "claude",
               state: "exited",
               exitCode: 1,
             }),
           ]
         : [],
     );
-    trpc.session.createAgent.mutate.mockResolvedValue(session({ id: "s2" }));
 
     await openTabs(user);
-    await user.click(screen.getByRole("button", { name: /ver registro/ }));
-    await user.click(screen.getByRole("button", { name: /nova sessão igual/ }));
 
-    await waitFor(() =>
-      expect(trpc.session.createAgent.mutate).toHaveBeenCalledWith({
-        scopeType: "worktree",
-        scopeId: "wt1",
-        agentConfigId: "ac1",
-      }),
-    );
+    const panel = screen.getByRole("tabpanel", { name: "teste" });
+    const row = within(panel).getByText("claude-code").closest(".item") as HTMLElement;
+    expect(row).not.toBeNull();
+    expect(within(row).getByText("exited (1)")).toBeInTheDocument();
+    expect(row.querySelector(".item__age")?.textContent ?? "").toMatch(/\S/);
+    expect(within(row).queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /ver registro/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reabrir/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /claude-code/ })).not.toBeInTheDocument();
   });
 
-  it("says why starting the session again was refused", async () => {
+  it("still offers to reopen a finished conversation", async () => {
+    // The legacy rule is about the terminal agent, not about agents: an ACP
+    // session that ended keeps its way back (D13).
     const user = userEvent.setup();
     trpc.session.listByScope.query.mockImplementation(async ({ scopeType }) =>
       scopeType === "worktree"
         ? [
             session({
               kind: "agent",
+              transport: "acp",
               agentConfigId: "ac1",
-              agentName: "claude-code",
+              agentName: "claude",
               state: "exited",
-              exitCode: 1,
+              exitCode: 0,
             }),
           ]
         : [],
     );
-    trpc.session.createAgent.mutate.mockRejectedValue(
-      new Error('"claude" não está no PATH do servidor'),
-    );
 
     await openTabs(user);
-    await user.click(screen.getByRole("button", { name: /ver registro/ }));
-    await user.click(screen.getByRole("button", { name: /nova sessão igual/ }));
 
-    expect(await screen.findByText(/não está no PATH do servidor/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /reabrir/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /ver registro/ })).not.toBeInTheDocument();
   });
 
   it("tells homonyms apart with an ordinal", async () => {
@@ -316,7 +322,7 @@ describe("new session menu", () => {
 
     await selectWorktree(user);
     await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-    await user.click(await screen.findByRole("menuitem", { name: /^shell/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /^terminal/ }));
 
     await waitFor(() =>
       expect(trpc.session.createShell.mutate).toHaveBeenCalledWith({
@@ -327,17 +333,40 @@ describe("new session menu", () => {
     expect(await screen.findByTestId("terminal-mock")).toHaveTextContent("s1");
   });
 
-  it("offers each available agent configuration", async () => {
+  it("has exactly two verbs: a new agent and a terminal", async () => {
+    // `033` F5.6. The menu used to list one line per configuration, which is how
+    // the transport leaked into the gesture: choosing an agent was choosing a
+    // row of `agent_config`. The adapter and the model are chosen in the pill now.
     const user = userEvent.setup();
-    const created = session({ kind: "agent", agentName: "claude-code", agentConfigId: "ac1" });
-    trpc.session.createAgent.mutate.mockImplementation(async () => {
-      trpc.session.getDetail.query.mockResolvedValue(created);
-      return created;
-    });
+    trpc.agentConfig.list.query.mockResolvedValue([
+      agentConfig(),
+      agentConfig({ id: "ac2", name: "codex", command: "codex-acp" }),
+    ]);
 
     await selectWorktree(user);
     await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-    await user.click(await screen.findByRole("menuitem", { name: /claude-code/ }));
+
+    const items = within(await screen.findByRole("menu")).getAllByRole("menuitem");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent(/novo agente/);
+    expect(items[1]).toHaveTextContent(/terminal/);
+    expect(screen.queryByRole("menuitem", { name: /codex/ })).not.toBeInTheDocument();
+  });
+
+  it("opens the default agent from `novo agente`", async () => {
+    // Until the draft tab lands (T18), the verb opens the default adapter's
+    // configuration straight away — the one named after `DEFAULT_ADAPTER_ID`.
+    const user = userEvent.setup();
+    trpc.agentConfig.list.query.mockResolvedValue([
+      agentConfig({ id: "ac2", name: "codex", command: "codex-acp" }),
+      agentConfig(),
+    ]);
+    const created = session({ kind: "agent", transport: "acp", agentName: "claude", agentConfigId: "ac1" });
+    trpc.session.createAgent.mutate.mockResolvedValue(created);
+
+    await selectWorktree(user);
+    await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /novo agente/ }));
 
     await waitFor(() =>
       expect(trpc.session.createAgent.mutate).toHaveBeenCalledWith({
@@ -348,20 +377,16 @@ describe("new session menu", () => {
     );
   });
 
-  it("shows an agent whose command is missing as unavailable, and refuses to launch it", async () => {
-    // F6.5. Hiding it leaves the user wondering where their agent went;
-    // enabling it lets them watch a terminal open and close for no reason.
+  it("will not open an agent when none is connected, and says why", async () => {
     const user = userEvent.setup();
-    trpc.agentConfig.list.query.mockResolvedValue([agentConfig({ available: false })]);
+    trpc.agentConfig.list.query.mockResolvedValue([]);
 
     await selectWorktree(user);
     await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
 
-    const item = await screen.findByRole("menuitem", { name: /claude-code/ });
+    const item = await screen.findByRole("menuitem", { name: /novo agente/ });
     expect(item).toBeDisabled();
-    // The reason, not just the refusal: "indisponível" leaves the user with
-    // nothing to fix.
-    expect(item).toHaveTextContent("fora do PATH");
+    expect(item).toHaveTextContent("nenhum agente conectado");
     await user.click(item);
     expect(trpc.session.createAgent.mutate).not.toHaveBeenCalled();
   });
@@ -404,7 +429,7 @@ describe("new session menu", () => {
     renderWithProviders(<App />);
     await user.click(await screen.findByRole("button", { name: /^lorebase/ }));
     await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-    await user.click(await screen.findByRole("menuitem", { name: /^shell/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /^terminal/ }));
 
     await waitFor(() =>
       expect(trpc.session.createShell.mutate).toHaveBeenCalledWith({
@@ -422,7 +447,7 @@ describe("new session menu", () => {
 
     await selectWorktree(user);
     await user.click(await screen.findByRole("button", { name: /nova sessão/ }));
-    await user.click(await screen.findByRole("menuitem", { name: /^shell/ }));
+    await user.click(await screen.findByRole("menuitem", { name: /^terminal/ }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("não está no disco");
   });

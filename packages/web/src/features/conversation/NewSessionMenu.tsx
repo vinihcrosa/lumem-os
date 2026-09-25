@@ -1,4 +1,3 @@
-import { useAgentConfigs } from "../agent/index.js";
 import { usePopover } from "../../hooks/usePopover.js";
 import { useSessionMutations } from "../checkout/index.js";
 import { Banner, Glyph, Menu, MenuItem } from "../../ui/index.js";
@@ -8,20 +7,37 @@ export interface NewSessionMenuProps {
   scopeType: "project" | "worktree";
   scopeId: string;
   onCreated: (sessionId: string) => void;
+  /**
+   * `＋ novo agente`. The menu does not know what an agent is made of: which
+   * adapter and which model are chosen in the pill, and where that happens is the
+   * caller's business.
+   */
+  onNewAgent: () => void;
+  /**
+   * Why `novo agente` cannot be pressed right now, or null when it can. Shown in
+   * the item, because a disabled verb with no reason leaves nothing to fix.
+   */
+  newAgentBlocked?: string | null;
 }
 
-/** Opening a shell or an agent in one scope, F5.1 and F5.2. */
-export function NewSessionMenu({ scopeType, scopeId, onCreated }: NewSessionMenuProps) {
+/**
+ * The two verbs of a scope: a new agent and a terminal (`033` F5.6).
+ *
+ * It used to list one line per agent configuration, and that is how the transport
+ * leaked into the gesture — choosing an agent was choosing a row of
+ * `agent_config`. An agent is always a conversation now, and the adapter is picked
+ * where the model is.
+ */
+export function NewSessionMenu({
+  scopeType,
+  scopeId,
+  onCreated,
+  onNewAgent,
+  newAgentBlocked = null,
+}: NewSessionMenuProps) {
   const popover = usePopover();
 
-  const configs = useAgentConfigs();
-  const { createShell: openShell, createAgent: openAgent } = useSessionMutations({
-    scopeType,
-    scopeId,
-  });
-
-  const failure = openShell.error ?? openAgent.error;
-  const list = configs.data ?? [];
+  const { createShell: openShell } = useSessionMutations({ scopeType, scopeId });
 
   return (
     <>
@@ -32,7 +48,7 @@ export function NewSessionMenu({ scopeType, scopeId, onCreated }: NewSessionMenu
           className="tabs-new"
           aria-haspopup="menu"
           aria-expanded={popover.open}
-          disabled={openAgent.isPending || openShell.isPending}
+          disabled={openShell.isPending}
           onClick={popover.toggle}
         >
           <span aria-hidden="true">＋</span> nova sessão
@@ -41,9 +57,17 @@ export function NewSessionMenu({ scopeType, scopeId, onCreated }: NewSessionMenu
         {popover.open && (
           <div className="new-session__panel" ref={popover.panelRef}>
             <Menu label="nova sessão">
-              {/* Shell and agent are the same primitive with a different label,
-                  so they belong in the same list rather than in a button and a
-                  menu that happen to sit side by side. */}
+              <MenuItem
+                glyph={<Glyph tone="agent">◆</Glyph>}
+                disabled={newAgentBlocked !== null}
+                {...(newAgentBlocked !== null ? { hint: newAgentBlocked } : {})}
+                onSelect={() => {
+                  popover.close();
+                  onNewAgent();
+                }}
+              >
+                novo agente
+              </MenuItem>
               <MenuItem
                 glyph={<Glyph tone="shell">●</Glyph>}
                 hint="shell de login"
@@ -52,40 +76,16 @@ export function NewSessionMenu({ scopeType, scopeId, onCreated }: NewSessionMenu
                   openShell.mutate(undefined, { onSuccess: (created) => onCreated(created.id) });
                 }}
               >
-                shell
+                terminal
               </MenuItem>
-              {list.map((config) => (
-                <MenuItem
-                  key={config.id}
-                  glyph={<Glyph tone="agent">◆</Glyph>}
-                  // F6.5: shown, but not launchable. Hiding it would leave the
-                  // user wondering where their agent went; enabling it would let
-                  // them watch a terminal open and close with no explanation.
-                  disabled={!config.available || openAgent.isPending}
-                  hint={config.available ? config.command : "fora do PATH"}
-                  onSelect={() =>
-                    openAgent.mutate(
-                      { agentConfigId: config.id },
-                      {
-                        onSuccess: (created) => {
-                          popover.close();
-                          onCreated(created.id);
-                        },
-                      },
-                    )
-                  }
-                >
-                  {config.name}
-                </MenuItem>
-              ))}
             </Menu>
           </div>
         )}
       </div>
 
-      {failure && (
+      {openShell.error && (
         <div className="new-session__error">
-          <Banner tone="danger">{failure.message}</Banner>
+          <Banner tone="danger">{openShell.error.message}</Banner>
         </div>
       )}
     </>

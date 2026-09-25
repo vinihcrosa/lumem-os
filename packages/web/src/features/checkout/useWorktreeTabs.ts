@@ -21,8 +21,6 @@ export interface SessionTab {
    * may have been edited since. A shell is always `pty`.
    */
   transport: "pty" | "acp";
-  /** Null on a shell — what a record needs to be started again as itself. */
-  agentConfigId: string | null;
   /** Only the second and later homonyms carry one. */
   ordinal?: number;
 }
@@ -100,7 +98,6 @@ export function useWorktreeTabs(scope: Scope): WorktreeTabs {
         exitCode: session.exitCode,
         command: session.command,
         transport: session.transport === "acp" ? "acp" : "pty",
-        agentConfigId: session.agentConfigId,
         ...(nth > 1 ? { ordinal: nth } : {}),
       };
     });

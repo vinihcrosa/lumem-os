@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { SessionTab } from "../checkout/index.js";
+import { renderWithProviders } from "../../test/render.js";
 
 /**
  * The one line that changes what the user sees.
@@ -14,6 +15,10 @@ import type { SessionTab } from "../checkout/index.js";
  * `Terminal` and `Conversation` are both replaced by markers. Neither is under
  * test here; which one gets mounted is.
  */
+
+vi.mock("../../lib/trpc.js", async () => ({
+  trpc: (await import("../../test/trpc-mock.js")).trpcMock,
+}));
 
 vi.mock("./Terminal.js", () => ({
   Terminal: ({ sessionId }: { sessionId: string }) => (
@@ -40,7 +45,6 @@ function tab(overrides: Partial<SessionTab> = {}): SessionTab {
     exitCode: null,
     command: "claude-agent-acp",
     transport: "acp",
-    agentConfigId: null,
     ...overrides,
   };
 }
@@ -121,5 +125,35 @@ describe("staying mounted", () => {
     expect(panel).toHaveAttribute("hidden");
     // Still there, just not shown.
     expect(screen.getByTestId("conversation")).toBeInTheDocument();
+  });
+});
+
+describe("the record of a finished terminal", () => {
+  function renderRecord(overrides: Partial<SessionTab>) {
+    return renderWithProviders(
+      <SessionTabPanel
+        tab={tab({ state: "exited", exitCode: 1, transport: "pty", ...overrides })}
+        scope={SCOPE}
+        cwd="/r"
+        active
+        onStarted={vi.fn()}
+      />,
+    );
+  }
+
+  it("offers a shell the same session again", () => {
+    renderRecord({ kind: "shell", label: "shell", command: "/bin/zsh" });
+
+    expect(screen.getByText(/somente leitura/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "nova sessão igual" })).toBeInTheDocument();
+  });
+
+  it("offers a legacy terminal agent nothing to press", () => {
+    // `033` Q3: legado, sem acesso. "The same session again" would be an agent in a
+    // terminal, which is the one thing the daemon refuses to start since `0033`.
+    renderRecord({ kind: "agent", label: "claude-code", command: "claude" });
+
+    expect(screen.getByText(/somente leitura/)).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });

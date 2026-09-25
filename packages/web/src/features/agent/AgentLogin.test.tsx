@@ -294,7 +294,7 @@ describe("choosing an agent", () => {
     // The version written is the one the handshake reported, never one typed.
     await waitFor(() =>
       expect(trpc.agentConfig.create.mutate).toHaveBeenCalledWith(
-        expect.objectContaining({ transport: "acp", adapterVersion: "0.40.0", command: ADAPTER.path }),
+        expect.objectContaining({ adapterVersion: "0.40.0", command: ADAPTER.path }),
       ),
     );
   });

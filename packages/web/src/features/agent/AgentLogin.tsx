@@ -42,14 +42,9 @@ export function AgentLogin() {
 
   const configs = useAgentConfigs();
 
-  /*
-   * Só as configurações de conversa.
-   *
-   * `pty` continua criável pelo `AgentConfigDialog` — é o caminho alternativo que
-   * a decisão do ACP preservou —, mas ele não tem login, não tem handshake e não
-   * tem estado para relatar. Uma linha dele aqui seria uma linha sem nada a dizer.
-   */
-  const agents = (configs.data ?? []).filter((row) => row.transport === "acp");
+  // Toda configuração listada é de conversa (`033` F1.1): a aposentada, que rodava
+  // num terminal, o daemon nem devolve.
+  const agents = configs.data ?? [];
 
   const chosen = open?.kind === "agent" ? agents.find((row) => row.id === open.id) : undefined;
   const close = useCallback(() => setOpen(null), []);

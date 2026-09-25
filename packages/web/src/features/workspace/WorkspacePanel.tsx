@@ -117,7 +117,7 @@ export function WorkspacePanel({
    * também não acontece. É a pergunta respondida em código e não em comentário.
    */
   const configs = useAgentConfigs();
-  const manyAgents = (configs.data ?? []).filter((row) => row.transport === "acp").length > 1;
+  const manyAgents = (configs.data ?? []).length > 1;
   const byAgent = useUsageByProjectAndAgent(workspaceId, period, manyAgents);
 
   const list = projects.data ?? [];

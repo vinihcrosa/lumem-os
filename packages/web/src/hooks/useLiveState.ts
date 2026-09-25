@@ -16,6 +16,7 @@ import {
   WORKSPACES_KEY,
   WORKTREE_PREFIX,
   projectsKey,
+  scriptsKey,
   sessionsKey,
   tasksKey,
   worktreesKey,
@@ -63,6 +64,12 @@ export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void
         queryKey: sessionsKey(event.scopeType, event.scopeId),
       });
       void queryClient.invalidateQueries({ queryKey: SESSION_PREFIX });
+      // `setup`, `run` e `test` são sessões deste escopo: sem esta linha o rodapé
+      // só as via nascer pelo polling, que só corre com uma fase já rodando
+      // (`033` §6, defeito 4).
+      void queryClient.invalidateQueries({
+        queryKey: scriptsKey(event.scopeType, event.scopeId),
+      });
       return;
     case "task.changed":
       // Prefixo, e não a chave exata: a lista é filtrada por status e por
