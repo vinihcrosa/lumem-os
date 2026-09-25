@@ -4,10 +4,11 @@ import type { LumemMode } from "@lumem/shared";
 
 import { Button } from "../../ui/index.js";
 import { type ConversationState } from "./conversation-model.js";
+import { ComposerBox } from "./ComposerBox.js";
 import { ConfigPills } from "./ConfigPills.js";
 import { FreeModeGate } from "./FreeModeGate.js";
 import { LumemModeMenu, LumemModePill } from "./LumemModePill.js";
-import { SlashMenu, filterCommands, slashQuery } from "./SlashMenu.js";
+import { filterCommands, slashQuery } from "./SlashMenu.js";
 import { UsageFooter } from "./UsageFooter.js";
 import { useArrival } from "./useArrival.js";
 import type { ConversationSessionState } from "./useConversationSession.js";
@@ -133,9 +134,8 @@ export function Composer({
     if (sendPrompt(arrival.text ?? "")) asked.current = true;
   }, [attached, arrival, readOnly, sendPrompt]);
 
-  // Null unless the draft is a lone `/word` at the very start: a `/` inside a
-  // sentence is a path, and offering a command menu over `src/lore` would be the
-  // interface arguing with what is being typed.
+  // A mesma leitura que a `ComposerBox` faz para abrir o menu — aqui só para
+  // saber se ele está na frente do `esc`.
   const query = slashQuery(draft);
 
   /*
@@ -196,118 +196,20 @@ export function Composer({
             }}
           />
         )}
-        <div className="composer__box">
-          {/*
-            Above the box, anchored to it. The list is the agent's own (F2.8), and
-            choosing inserts rather than sends: a command may take an argument, and
-            firing on selection would send `/compact` when the user meant
-            `/compact até o último commit`.
-          */}
-          {query !== null && (
-            <SlashMenu
-              commands={conversation.commands}
-              query={query}
-              onChoose={setDraft}
-              onDismiss={() => setDraft("")}
-            />
-          )}
-          <textarea
-            className={`composer__in${draft === "" ? " composer__in--empty" : ""}`}
-            value={draft}
-            disabled={pending !== null || readOnly}
-            placeholder={
-              readOnly
-                ? "esta conversa terminou — retome para continuar"
-                : pending !== null
-                  ? "responda o pedido de permissão para continuar"
-                  : "escreva, ou / para comandos"
-            }
-            aria-label="mensagem para o agente"
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") return;
-
-              /*
-               * Enter sends. ⇧⏎ makes a newline.
-               *
-               * This reverses the earlier rule — ⌘⏎ to send, Enter for a newline —
-               * which was chosen because a prompt is often several lines. It is a
-               * product decision, and it was made again the other way: Enter is
-               * what everyone's fingers already do in a chat box, and the cost is
-               * that a multi-line prompt needs a modifier instead of not needing
-               * one. ⌘⏎ keeps working, so nothing anyone learned stopped working.
-               *
-               * The slash menu never gets here: it listens on the window in the
-               * capture phase and stops the event, so Enter with the menu open
-               * chooses a command instead of sending.
-               */
-              if (event.shiftKey) return;
-
-              // An IME uses Enter to accept a candidate. Sending there would cut
-              // the word being typed in half and fire the turn.
-              if (event.nativeEvent.isComposing) return;
-
-              event.preventDefault();
-              send();
-            }}
-          />
-          <div className="composer__bar">
-            {/*
-              Disabled while a turn runs, because the daemon refuses the switch
-              then (A15). Offering it anyway would be a button whose only outcome
-              is an error the user did nothing to cause.
-            */}
-            {/*
-              Uma pílula de modo, sempre, e nunca duas (A1).
-              O `modeOwner` vem do daemon: derivar aqui "o agente não mandou
-              `mode`, então a pílula é do Lumem" seria uma segunda cópia da regra,
-              livre para discordar da primeira.
-            */}
-            {conversation.modeOwner === "lumem" && (
-              /*
-                A pílula e o menu dela, no mesmo `.config` que as pílulas do
-                agente usam (composer-menus). Um popover ancora no que o abre —
-                e o `.composer__box` não recorta mais nada.
-              */
-              <span className="config">
-                <LumemModePill
-                  mode={conversation.lumemMode}
-                  /*
-                   * Desligada no meio do turno (F1.7) e sem daemon.
-                   *
-                   * A pílula **fica** nos dois casos — ela é estado local da
-                   * sessão, e não depende de handshake para ser exibida —, mas a
-                   * troca viaja pelo socket, e um botão cujo único resultado é
-                   * erro não é um botão.
-                   */
-                  disabled={!canSwitchMode}
-                  readOnly={readOnly}
-                  open={modeMenuOpen}
-                  onToggle={() => setModeMenuOpen(!modeMenuOpen)}
-                />
-                {modeMenuOpen && canSwitchMode && (
-                  <LumemModeMenu
-                    mode={conversation.lumemMode}
-                    workspaceDefault={conversation.lumemModeDefault}
-                    onSwitch={(mode) => {
-                      setModeMenuOpen(false);
-                      setMode(mode);
-                    }}
-                    onFreeRequested={() => {
-                      setModeMenuOpen(false);
-                      setGateOpen(true);
-                    }}
-                  />
-                )}
-              </span>
-            )}
-            <ConfigPills
-              mode={conversation.mode}
-              options={conversation.configOptions}
-              disabled={conversation.streaming || readOnly}
-              onSwitch={(optionId, value) => setConfig(optionId, value)}
-            />
-            <span className="spacer" />
+        <ComposerBox
+          value={draft}
+          onChange={setDraft}
+          onSubmit={send}
+          commands={conversation.commands}
+          disabled={pending !== null || readOnly}
+          placeholder={
+            readOnly
+              ? "esta conversa terminou — retome para continuar"
+              : pending !== null
+                ? "responda o pedido de permissão para continuar"
+                : "escreva, ou / para comandos"
+          }
+          action={
             <Button
               variant="primary"
               size="sm"
@@ -316,8 +218,64 @@ export function Composer({
             >
               enviar <span className="kbd">⏎</span>
             </Button>
-          </div>
-        </div>
+          }
+        >
+          {/*
+            Disabled while a turn runs, because the daemon refuses the switch
+            then (A15). Offering it anyway would be a button whose only outcome
+            is an error the user did nothing to cause.
+          */}
+          {/*
+            Uma pílula de modo, sempre, e nunca duas (A1).
+            O `modeOwner` vem do daemon: derivar aqui "o agente não mandou
+            `mode`, então a pílula é do Lumem" seria uma segunda cópia da regra,
+            livre para discordar da primeira.
+          */}
+          {conversation.modeOwner === "lumem" && (
+            /*
+              A pílula e o menu dela, no mesmo `.config` que as pílulas do
+              agente usam (composer-menus). Um popover ancora no que o abre —
+              e o `.composer__box` não recorta mais nada.
+            */
+            <span className="config">
+              <LumemModePill
+                mode={conversation.lumemMode}
+                /*
+                 * Desligada no meio do turno (F1.7) e sem daemon.
+                 *
+                 * A pílula **fica** nos dois casos — ela é estado local da
+                 * sessão, e não depende de handshake para ser exibida —, mas a
+                 * troca viaja pelo socket, e um botão cujo único resultado é
+                 * erro não é um botão.
+                 */
+                disabled={!canSwitchMode}
+                readOnly={readOnly}
+                open={modeMenuOpen}
+                onToggle={() => setModeMenuOpen(!modeMenuOpen)}
+              />
+              {modeMenuOpen && canSwitchMode && (
+                <LumemModeMenu
+                  mode={conversation.lumemMode}
+                  workspaceDefault={conversation.lumemModeDefault}
+                  onSwitch={(mode) => {
+                    setModeMenuOpen(false);
+                    setMode(mode);
+                  }}
+                  onFreeRequested={() => {
+                    setModeMenuOpen(false);
+                    setGateOpen(true);
+                  }}
+                />
+              )}
+            </span>
+          )}
+          <ConfigPills
+            mode={conversation.mode}
+            options={conversation.configOptions}
+            disabled={conversation.streaming || readOnly}
+            onSwitch={(optionId, value) => setConfig(optionId, value)}
+          />
+        </ComposerBox>
       </div>
     </>
   );

@@ -28,6 +28,7 @@ const stylesheet = readFileSync(join(HERE, "conversation.css"), "utf8");
 const components = read(
   "Conversation.tsx",
   "Composer.tsx",
+  "ComposerBox.tsx",
   "Transcript.tsx",
   "Message.tsx",
   "ToolCard.tsx",
