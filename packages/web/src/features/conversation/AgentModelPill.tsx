@@ -2,9 +2,11 @@ import { useState } from "react";
 
 import type { AdapterCatalogView } from "@lumem/shared";
 
+import { useAdapterCatalog } from "../agent/index.js";
 import {
   chooseModel,
   effortOptionOf,
+  initialChoice,
   modelOf,
   modelOptionOf,
   optionsForModel,
@@ -13,12 +15,35 @@ import {
 } from "./agent-model.js";
 import { ConfigPills } from "./ConfigPills.js";
 
+const NO_CATALOG: readonly AdapterCatalogView[] = [];
+
+/**
+ * A escolha de agente e modelo, com o catálogo de verdade do projeto (`033` T16).
+ *
+ * `choice` é o que o pai manda ao daemon — `{ adapterId, config }`, a forma do
+ * `session.createAgent` e do `worktree.start`. Enquanto ninguém escolheu, ela é
+ * **derivada** do catálogo a cada render (`initialChoice`, Q8), e não um estado
+ * congelado no `mount`: o catálogo chega depois da primeira pintura, e um padrão
+ * sem login só se descobre quando ele chega. Depois do primeiro gesto, a escolha
+ * é de quem a fez — um `catalog.changed` não a desfaz.
+ */
+export function useAgentModelChoice(projectId: string | null): {
+  catalog: readonly AdapterCatalogView[];
+  choice: AgentModelChoice;
+  choose(next: AgentModelChoice): void;
+} {
+  const catalog = useAdapterCatalog(projectId).data ?? NO_CATALOG;
+  const [chosen, setChosen] = useState<AgentModelChoice | null>(null);
+  return { catalog, choice: chosen ?? initialChoice(catalog), choose: setChosen };
+}
+
 /**
  * A pílula de agente e modelo (`033` F3) — uma só, com os modelos agrupados por
  * ACP: escolher um modelo escolhe o ACP (F3.1).
  *
  * Presentacional: o catálogo e a escolha chegam por prop, e a escolha sai por
- * `onChange`. Quem liga o `useAdapterCatalog` é a T16.
+ * `onChange` — quem a liga ao daemon é o `useAgentModelChoice` acima, no pai,
+ * porque o pai também precisa do catálogo (o rótulo e os comandos `/`).
  *
  * O menu é um `.slash`, ancorado na pílula pelo `.config` e com o teto
  * `--size-menu-max-h` — a regra da `023` (F3.5). O cabeçalho de cada grupo é

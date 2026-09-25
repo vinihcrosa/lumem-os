@@ -244,6 +244,18 @@ export function agentConfigsKey() {
   return ["agentConfig", "list"] as const;
 }
 
+/**
+ * O catálogo de adaptador de um projeto (`033` §3.1) — modelos, *effort*,
+ * login e os comandos `/` que as sessões dele já trouxeram.
+ *
+ * O projeto entra na chave porque os comandos são por projeto: duas worktrees
+ * de projetos diferentes dividindo cache mostrariam as skills de um no `/` do
+ * outro. `null` é a leitura sem projeto, com os comandos vazios.
+ */
+export function adapterCatalogKey(projectId: string | null) {
+  return ["adapterCatalog", "list", projectId ?? "-"] as const;
+}
+
 export function secretsKey() {
   return ["secrets"] as const;
 }
@@ -321,3 +333,5 @@ export const PROJECT_DETAIL_PREFIX = ["project", "detail"] as const;
 export const TASK_DETAIL_PREFIX = ["task", "get"] as const;
 export const TASK_BOARD_PREFIX = ["task", "board"] as const;
 export const TASK_SETTINGS_PREFIX = ["task", "settings"] as const;
+/** O começo de `adapterCatalogKey`: o `catalog.changed` diz o ACP, não o projeto. */
+export const ADAPTER_CATALOG_PREFIX = ["adapterCatalog", "list"] as const;

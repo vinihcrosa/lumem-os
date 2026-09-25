@@ -88,10 +88,9 @@ describe("invalidateFor", () => {
 
   it("`catalog.changed` é uma variante conhecida: não cai no invalidar-tudo", () => {
     /*
-     * Ninguém lê o catálogo de adaptador na web ainda — a chave e a leitura
-     * nascem na T18 da `033`. O que este caso prova é que o evento **tem**
-     * `case`: sem ele, cada probe de aquecimento do boot recarregaria todas as
-     * consultas de todas as abas abertas, com um `warn` junto.
+     * O que este caso prova é que o evento **tem** `case`: sem ele, cada probe
+     * de aquecimento do boot recarregaria todas as consultas de todas as abas
+     * abertas, com um `warn` junto.
      */
     const queryClient = new QueryClient();
     const invalidate = vi.spyOn(queryClient, "invalidateQueries");
@@ -101,6 +100,20 @@ describe("invalidateFor", () => {
 
     expect(invalidate).not.toHaveBeenCalledWith();
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("`catalog.changed` recarrega o catálogo de todo projeto, e só ele (`033` T16)", () => {
+    /*
+     * O evento diz o ACP, não o projeto — e os comandos do catálogo são por
+     * projeto. O prefixo alcança `adapterCatalogKey(p)` de todos os projetos
+     * abertos, e da leitura sem projeto também.
+     */
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    invalidateFor(queryClient, { type: "catalog.changed", adapterId: "codex" });
+
+    expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: ["adapterCatalog", "list"] });
   });
 
   it("um evento fora da união invalida tudo e avisa, em vez de matar a assinatura", () => {

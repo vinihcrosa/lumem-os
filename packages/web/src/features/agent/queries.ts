@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  adapterCatalogKey,
   agentConfigsKey,
   agentProbeKey,
   authStateKey,
@@ -288,5 +289,21 @@ export function useCancelAuth() {
   return useMutation({
     mutationFn: (loginId: string): Promise<AgentAuthAttempt> =>
       trpc.setup.cancelAuth.mutate({ loginId }),
+  });
+}
+
+/**
+ * O catálogo de adaptador de um projeto (`033` §3.1): o que a pílula de agente e
+ * modelo e o menu `/` leem antes de existir sessão.
+ *
+ * Sem `staleTime` próprio: quem avisa que mudou é o `catalog.changed` do daemon
+ * (cada probe, cada `session/new`, cada `available_commands_update`), e o
+ * `useLiveState` invalida por ele — perguntar de novo por relógio seria pagar por
+ * uma resposta que o daemon já teria mandado.
+ */
+export function useAdapterCatalog(projectId: string | null) {
+  return useQuery({
+    queryKey: adapterCatalogKey(projectId),
+    queryFn: () => trpc.adapterCatalog.list.query(projectId === null ? undefined : { projectId }),
   });
 }

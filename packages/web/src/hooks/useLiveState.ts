@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import { trpc } from "../lib/trpc.js";
 import {
+  ADAPTER_CATALOG_PREFIX,
   CHANGES_PREFIX,
   FILES_PREFIX,
   PR_PREFIX,
@@ -84,11 +85,12 @@ export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void
       return;
     case "catalog.changed":
       /*
-       * Nada a invalidar **ainda**: ninguém na web lê o catálogo de adaptador.
-       * A chave e a leitura nascem juntas na T18 da `033`, e é lá que este
-       * `case` ganha corpo. Sem ele, cada probe de aquecimento do boot cairia no
-       * `default` e recarregaria todas as consultas de todas as abas.
+       * Prefixo, e não `adapterCatalogKey(p)`: o evento diz o ACP, e os comandos
+       * do catálogo são por projeto — um `available_commands_update` num projeto
+       * não diz de qual chave ele é. Sem este `case`, cada probe de aquecimento
+       * do boot cairia no `default` e recarregaria todas as consultas.
        */
+      void queryClient.invalidateQueries({ queryKey: ADAPTER_CATALOG_PREFIX });
       return;
     default: {
       /*

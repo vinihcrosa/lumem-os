@@ -4,12 +4,13 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  useAdapterCatalog,
   useAgentConfigMutations,
   useAgentConfigs,
   useConnectAgent,
   useCreateHandshakeAgentConfig,
 } from "./queries.js";
-import { agentConfigsKey, setupAgentsKey } from "../../lib/queryKeys.js";
+import { adapterCatalogKey, agentConfigsKey, setupAgentsKey } from "../../lib/queryKeys.js";
 import { trpc } from "../../lib/trpc.js";
 
 vi.mock("../../lib/trpc.js", async () => ({
@@ -34,6 +35,29 @@ describe("useAgentConfigs", () => {
     const { result } = renderHook(() => useAgentConfigs(), { wrapper: wrapperFor(queryClient) });
 
     await waitFor(() => expect(result.current.data).toEqual([]));
+  });
+});
+
+describe("useAdapterCatalog", () => {
+  it("lê `adapterCatalog.list` do projeto, sob a chave dele", async () => {
+    vi.mocked(trpc.adapterCatalog.list.query).mockResolvedValue([]);
+    const queryClient = new QueryClient();
+
+    const { result } = renderHook(() => useAdapterCatalog("p1"), { wrapper: wrapperFor(queryClient) });
+
+    await waitFor(() => expect(result.current.data).toEqual([]));
+    expect(trpc.adapterCatalog.list.query).toHaveBeenCalledWith({ projectId: "p1" });
+    expect(queryClient.getQueryData(adapterCatalogKey("p1"))).toEqual([]);
+  });
+
+  it("sem projeto, não manda `projectId` — os comandos voltam vazios", async () => {
+    vi.mocked(trpc.adapterCatalog.list.query).mockResolvedValue([]);
+    const queryClient = new QueryClient();
+
+    const { result } = renderHook(() => useAdapterCatalog(null), { wrapper: wrapperFor(queryClient) });
+
+    await waitFor(() => expect(result.current.data).toEqual([]));
+    expect(trpc.adapterCatalog.list.query).toHaveBeenCalledWith(undefined);
   });
 });
 
