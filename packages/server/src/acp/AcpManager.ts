@@ -1348,6 +1348,20 @@ export class AcpManager {
   }
 
   /**
+   * The model a resume tried to bring back is gone (`033` F6.2).
+   *
+   * A verb of its own rather than a public `emit`: whoever decides the model did
+   * not come back is the store, but the line belongs in the conversation — on
+   * disk, for the replay, and live, for the tab already attached. Only this
+   * class writes both, and an open door to the stream would let anything forge a
+   * `turn_end`.
+   */
+  reportModelUnavailable(id: string, model: string): void {
+    const session = this.require(id);
+    this.emit(session, { type: "model_unavailable", model, current: session.info.model });
+  }
+
+  /**
    * Everything an attaching client needs to catch up, in one frame.
    *
    * Read from the store, not from memory: the array this replaced grew for the life

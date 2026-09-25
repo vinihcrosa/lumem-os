@@ -454,7 +454,10 @@ describe("regra 7 — um `index.css` por feature", () => {
 //   da decisão ("400 para `.ts`/`.tsx` em `features/`") ele está sujeito ao
 //   teto como qualquer outro; resolvido pelo lado que muda menos — entra no
 //   mapa como os demais, e uma mudança de endereço (para `lib/`) ou uma
-//   reescrita da Q8 é quem resolve a divergência de verdade.
+//   reescrita da Q8 é quem resolve a divergência de verdade. **Cresceu para
+//   740 na `033` T11**: o `AcpEvent` ganhou `model_unavailable`, e o `switch`
+//   exaustivo do fold não compila sem o `case` — é o contrato cobrando, não
+//   o arquivo acumulando.
 // - `LocalPanel.tsx` (444) — não estava em nenhuma lista da T25 nem da Q8; o
 //   disco tinha mais um arquivo do que o texto contava, a mesma classe de
 //   achado que a T2 já registrou para `lib/trpc.js`.
@@ -469,7 +472,7 @@ const LARGE_FILE_CEILING: Readonly<Record<string, number>> = {
   "features/checkout/LocalPanel.tsx": 444,
   "features/checkout/RunDock.tsx": 587,
   "features/checkout/useFileBuffer.ts": 605,
-  "features/conversation/conversation-model.ts": 715,
+  "features/conversation/conversation-model.ts": 740,
   "features/settings/SettingsPanel.tsx": 632,
   "features/workspace/CreateWorktreeDialog.tsx": 531,
   "features/workspace/WorkspacePanel.tsx": 423,

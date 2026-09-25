@@ -1189,6 +1189,24 @@ describe("the mark between two conversations", () => {
     // Two agent frames, not one: the separator broke the run.
     expect(document.querySelectorAll(".turn--agent")).toHaveLength(2);
   });
+
+  it("says which model did not come back, right after the mark (`033` F6.2)", async () => {
+    const { socket } = mount();
+
+    socket.deliver(
+      attached([
+        entry({ type: "message", messageId: "m-1", role: "agent", text: "de ontem" }),
+        entry({ type: "resumed", fromSessionId: "sessao-de-ontem" }),
+        entry({ type: "model_unavailable", model: "sonnet", current: "opus[1m]" }),
+      ]),
+    );
+
+    const line = await screen.findByText(
+      "o modelo sonnet não existe mais neste agente — a conversa continuou em opus[1m]",
+    );
+    // A sessão se declarando, e não um evento que ninguém reconheceu.
+    expect(line).toHaveClass("meta--conversation");
+  });
 });
 
 /**

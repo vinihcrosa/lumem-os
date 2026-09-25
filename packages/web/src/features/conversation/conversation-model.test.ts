@@ -679,6 +679,51 @@ describe("núcleo da memória", () => {
   });
 });
 
+/**
+ * O modelo que não voltou (`033` F6.2): a retomada continua, e a conversa diz
+ * qual modelo sumiu e em qual ela seguiu. Nunca troca calada.
+ */
+describe("o modelo que não voltou na retomada", () => {
+  const metaTextOf = (state: ConversationState): string | undefined => {
+    const block = state.turns.at(-1)?.blocks[0];
+    return block?.kind === "meta" ? block.text : undefined;
+  };
+
+  it("diz qual modelo sumiu e em qual a conversa continuou", () => {
+    const state = feed(
+      emptyConversation(),
+      at({ type: "model_unavailable", model: "sonnet", current: "opus[1m]" }),
+    );
+
+    expect(metaTextOf(state)).toBe(
+      "o modelo sonnet não existe mais neste agente — a conversa continuou em opus[1m]",
+    );
+  });
+
+  it("sem modelo relatado, diz que seguiu no padrão do agente", () => {
+    // Um agente que não relata modelo não pode virar "continuou em " com nada depois.
+    const state = feed(
+      emptyConversation(),
+      at({ type: "model_unavailable", model: "sonnet", current: "" }),
+    );
+
+    expect(metaTextOf(state)).toBe(
+      "o modelo sonnet não existe mais neste agente — a conversa continuou no modelo padrão dele",
+    );
+  });
+
+  it("é turno próprio, depois do separador da retomada", () => {
+    const state = feed(
+      emptyConversation(),
+      at({ type: "message", messageId: "m1", role: "agent", text: "de ontem" }),
+      at({ type: "resumed", fromSessionId: "sessao-de-ontem" }),
+      at({ type: "model_unavailable", model: "sonnet", current: "opus[1m]" }),
+    );
+
+    expect(state.turns.map((turn) => turn.role)).toEqual(["agent", "resumed", "agent"]);
+    expect(state.turns[0]?.blocks).toHaveLength(1);
+  });
+});
 
 /**
  * A linha de fecho do turno (`session-mode`, T9).

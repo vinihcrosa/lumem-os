@@ -234,6 +234,10 @@ describe("decodeAcpServerMessage — events", () => {
     ],
     ["a turn ending", { type: "turn_end", stopReason: "end_turn" }],
     ["a turn the user interrupted", { type: "turn_end", stopReason: "cancelled" }],
+    [
+      "a model the resume could not reapply",
+      { type: "model_unavailable", model: "sonnet", current: "opus[1m]" },
+    ],
   ])("accepts %s", (_label, event) => {
     const message: AcpServerMessage = { type: "event", at: 1_700_000_000_000, event };
 

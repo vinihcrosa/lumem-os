@@ -259,6 +259,49 @@ export function createSessionStore({
     }
   }
 
+  /**
+   * O modelo de ontem, de volta na conversa de hoje (`033` F6, §3.6).
+   *
+   * Não é no-op: a M2 mediu que `session/load` devolve o padrão **local** do
+   * adaptador — o `settings.model` do Claude, o `config.toml` do Codex —, e
+   * nunca o modelo trocado por `set_config_option`. Sem isto, toda retomada
+   * voltava ao padrão calada.
+   *
+   * Conferido contra o que **esta** sessão oferece antes de perguntar, como o
+   * `applyOption` da criação: um valor que o adaptador não conhece ele responde
+   * como quiser, sem código em que confiar. E aqui, ao contrário da criação,
+   * nada falha: a conversa é o que a pessoa pediu para continuar, e perdê-la
+   * por causa do modelo trocaria o maior pelo menor (F6.2). O que não se faz é
+   * trocar calado — a linha na conversa diz qual sumiu e em qual ela seguiu.
+   */
+  async function reapplyModel(
+    manager: AcpManager,
+    agent: AcpSessionInfo,
+    wanted: string | null,
+  ): Promise<AcpSessionInfo> {
+    if (!wanted || agent.model === wanted) return agent;
+
+    const option = agent.configOptions.find((each) => each.id === "model");
+    const offered =
+      option !== undefined &&
+      (option.choices.length === 0 || option.choices.some((choice) => choice.value === wanted));
+
+    if (offered) {
+      try {
+        await manager.setConfig(agent.id, "model", wanted);
+        return manager.get(agent.id) ?? agent;
+      } catch (error) {
+        storeLog?.warn(
+          { sessionId: agent.id, model: wanted, err: error },
+          "o adaptador recusou reaplicar o modelo na retomada",
+        );
+      }
+    }
+
+    manager.reportModelUnavailable(agent.id, wanted);
+    return manager.get(agent.id) ?? agent;
+  }
+
   /** Which column of the signal names the scope the session ran in. */
   function scopeOf(row: SessionRow): { projectId?: string; worktreeId?: string } {
     return row.scopeType === "worktree" ? { worktreeId: row.scopeId } : { projectId: row.scopeId };
@@ -529,7 +572,7 @@ export function createSessionStore({
           ? resolveAcpCommand({ name: config.name, command: row.command })
           : row.command;
 
-      const agent = await acpManager.resume({
+      const loaded = await acpManager.resume({
         command,
         ...(config?.args?.length ? { args: config.args } : {}),
         cwd: row.cwd,
@@ -550,6 +593,10 @@ export function createSessionStore({
         // conversation is copied in front of it, and the separator recorded after.
         fromSessionId: row.id,
       });
+
+      // Antes da linha nova, para ela já nascer no modelo em vigor — e depois do
+      // separador que o `resume` gravou, que é onde a conversa de hoje começa.
+      const agent = await reapplyModel(acpManager, loaded, row.model);
 
       try {
         return await sessions.create({

@@ -431,6 +431,17 @@ export const acpEventSchema = z.discriminatedUnion("type", [
    */
   z.object({ type: z.literal("resumed"), fromSessionId: z.string() }),
   /**
+   * O modelo de ontem não voltou na retomada (`033` F6.2).
+   *
+   * `session/load` não restaura o modelo trocado — medido na M2 —, e o daemon o
+   * reaplica. Quando o agente de hoje não o oferece mais, a conversa continua e
+   * **diz**: trocar calada é a pessoa gastando num modelo que não escolheu sem
+   * saber. `current` vai junto, e não é lido da pílula, porque a linha tem de
+   * dizer o mesmo numa transcrição relida depois de outra troca. Vazio quando o
+   * agente não relata modelo nenhum.
+   */
+  z.object({ type: z.literal("model_unavailable"), model: z.string(), current: z.string() }),
+  /**
    * O núcleo da memória entrou no prompt (workspace-memory, D2).
    *
    * Evento, e não silêncio: injeção invisível é o que o §12 do PRD proíbe por
