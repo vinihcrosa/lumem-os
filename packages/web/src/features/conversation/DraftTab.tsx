@@ -7,17 +7,17 @@ import { useSessionMutations, type Scope } from "../checkout/index.js";
 import { Banner, Button, Glyph } from "../../ui/index.js";
 import type { AgentModelChoice } from "./agent-model.js";
 import { AgentModelPill, useAgentModelChoice } from "./AgentModelPill.js";
+import { ComposerBox } from "./ComposerBox.js";
 import { TurnFrame } from "./Message.js";
-import { SlashMenu, slashQuery } from "./SlashMenu.js";
 
 /**
  * A aba rascunho (`033` F5): *"Nova conversa em `/<worktree>`"*, o compositor e
  * a pílula — e **nenhum processo vivo** (Q4). A sessão nasce no primeiro envio.
  *
  * Presentacional: o texto, a escolha e o estado do envio chegam por prop. Quem
- * chama o `createAgent` e troca o rascunho pela sessão é a T18; quem extrai a
- * caixa do `Composer` para as duas usarem é a T15 — até lá esta desenha a caixa
- * com as mesmas classes, para as duas não divergirem no pixel.
+ * chama o `createAgent` e troca o rascunho pela sessão é a T18. A caixa é o
+ * `ComposerBox`, a mesma da conversa e do modal: as teclas e o menu de `/` são
+ * o que a pessoa aprende numa e espera na outra.
  */
 
 export interface DraftTabProps {
@@ -53,7 +53,6 @@ export function DraftTab({
   // Os comandos do catálogo para este projeto e este ACP (F5.2) — o `view` já
   // chega filtrado pelo projeto.
   const commands = view?.commands ?? [];
-  const query = opening ? null : slashQuery(draft);
   const canSend = !opening && draft.trim() !== "";
 
   return (
@@ -106,45 +105,36 @@ export function DraftTab({
       </div>
 
       <div className="composer">
-        <div className="composer__box">
-          {query !== null && (
-            <SlashMenu commands={commands} query={query} onChoose={onDraftChange} onDismiss={() => onDraftChange("")} />
-          )}
-          <textarea
-            className={`composer__in${draft === "" ? " composer__in--empty" : ""}`}
-            value={draft}
-            disabled={opening}
-            placeholder={opening ? `abrindo ${label}…` : "escreva, ou / para comandos"}
-            aria-label="mensagem para o agente"
-            onChange={(event) => onDraftChange(event.target.value)}
-            onKeyDown={(event) => {
-              // As mesmas teclas do compositor da sessão: Enter manda, ⇧⏎ quebra
-              // linha, e o Enter de um IME aceita o candidato em vez de mandar.
-              if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
-              event.preventDefault();
-              if (canSend) onSend();
-            }}
-          />
-          <div className="composer__bar">
-            {/*
-              `key` pelo erro: um erro novo remonta a pílula aberta (F5.4), e o
-              mesmo erro não a reabre a cada repintura.
-            */}
-            <AgentModelPill
-              key={error ?? "ok"}
-              catalog={catalog}
-              value={choice}
-              onChange={onChoiceChange}
-              disabled={opening}
-              defaultOpen={error !== null}
-              onLogin={onLogin}
-            />
-            <span className="spacer" />
+        <ComposerBox
+          value={draft}
+          onChange={onDraftChange}
+          onSubmit={() => {
+            if (canSend) onSend();
+          }}
+          // Abrindo, a caixa está travada e o menu de `/` não tem o que oferecer.
+          commands={opening ? [] : commands}
+          placeholder={opening ? `abrindo ${label}…` : "escreva, ou / para comandos"}
+          disabled={opening}
+          action={
             <Button variant="primary" size="sm" disabled={!canSend} onClick={onSend}>
               {opening ? "abrindo…" : "enviar"} <span className="kbd">⏎</span>
             </Button>
-          </div>
-        </div>
+          }
+        >
+          {/*
+            `key` pelo erro: um erro novo remonta a pílula aberta (F5.4), e o
+            mesmo erro não a reabre a cada repintura.
+          */}
+          <AgentModelPill
+            key={error ?? "ok"}
+            catalog={catalog}
+            value={choice}
+            onChange={onChoiceChange}
+            disabled={opening}
+            defaultOpen={error !== null}
+            onLogin={onLogin}
+          />
+        </ComposerBox>
       </div>
     </div>
   );
