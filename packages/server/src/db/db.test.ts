@@ -12,6 +12,9 @@ import { agentConfig, memoryProposal, project, session, task, workspace, worktre
 const open: Database_[] = [];
 const dirs: string[] = [];
 
+/** A live configuration always pins its adapter (`033` F1.1). The value is noise here. */
+const PIN = "0.75.1";
+
 /** A database of its own per test — the parallel-safety the matrix promises. */
 function freshDatabase(): { db: Db; path: string } {
   const dir = mkdtempSync(join(tmpdir(), "lumem-db-"));
@@ -135,10 +138,20 @@ describe("uniqueness", () => {
 
   it("refuses two agent configs with the same name", async () => {
     const { db } = freshDatabase();
-    await db.insert(agentConfig).values({ id: newId(), name: "claude-code", command: "claude" });
+    await db.insert(agentConfig).values({
+      id: newId(),
+      name: "claude-code",
+      command: "claude",
+      adapterVersion: PIN,
+    });
 
     await expect(
-      db.insert(agentConfig).values({ id: newId(), name: "claude-code", command: "other" }),
+      db.insert(agentConfig).values({
+        id: newId(),
+        name: "claude-code",
+        command: "other",
+        adapterVersion: PIN,
+      }),
     ).rejects.toThrow(/UNIQUE/i);
   });
 });
@@ -173,7 +186,12 @@ describe("referential integrity", () => {
   it("refuses to delete an agent config still referenced by a session", async () => {
     const { db } = freshDatabase();
     const configId = newId();
-    await db.insert(agentConfig).values({ id: configId, name: "claude-code", command: "claude" });
+    await db.insert(agentConfig).values({
+      id: configId,
+      name: "claude-code",
+      command: "claude",
+      adapterVersion: PIN,
+    });
     await db.insert(session).values({
       id: newId(),
       kind: "agent",
@@ -188,32 +206,16 @@ describe("referential integrity", () => {
   });
 });
 
-describe("transport", () => {
-  it("defaults an agent configuration to the transport that already worked", async () => {
-    // A11: nothing existing changes behaviour by being migrated. A row written
-    // without an opinion is a PTY row, because that is what it was.
-    const { db } = freshDatabase();
-    await db.insert(agentConfig).values({ id: newId(), name: "zsh-agent", command: "claude" });
-
-    const [row] = await db.select().from(agentConfig);
-
-    expect(row?.transport).toBe("pty");
-  });
-
-  it("rejects a transport the daemon has no manager for", async () => {
-    const { db } = freshDatabase();
-
-    await expect(
-      db.insert(agentConfig).values({
-        id: newId(),
-        name: "sse-agent",
-        command: "claude",
-        transport: "sse",
-      }),
-    ).rejects.toThrow(/CHECK/i);
-  });
-
-  it("refuses an ACP configuration with no pinned adapter version", async () => {
+/**
+ * A configuração de agente sem transporte (`033` F1.1, ADR de 2026-09-24).
+ *
+ * Agente é sempre ACP, então a coluna que dizia *como* falar com ele saiu, e o
+ * que sobra é a diferença entre uma configuração viva — que sobe um adaptador,
+ * e por isso precisa do pino — e uma aposentada, que é o registro de uma
+ * configuração PTY de antes e não sobe nada.
+ */
+describe("agent configuration", () => {
+  it("refuses a live configuration with no pinned adapter version", async () => {
     // F5.5 and A12: an adapter that changes under a running session is the
     // definition of an invisible failure, so `@latest` is not expressible.
     const { db } = freshDatabase();
@@ -223,42 +225,122 @@ describe("transport", () => {
         id: newId(),
         name: "claude-acp",
         command: "claude-agent-acp",
-        transport: "acp",
       }),
     ).rejects.toThrow(/CHECK/i);
   });
 
-  it("accepts an ACP configuration that pins its adapter", async () => {
+  it("accepts a live configuration that pins its adapter", async () => {
     const { db } = freshDatabase();
     await db.insert(agentConfig).values({
       id: newId(),
       name: "claude-acp",
       command: "claude-agent-acp",
-      transport: "acp",
       adapterVersion: "0.69.0",
     });
 
     const [row] = await db.select().from(agentConfig);
 
-    expect(row).toMatchObject({ transport: "acp", adapterVersion: "0.69.0" });
+    expect(row).toMatchObject({ adapterVersion: "0.69.0", retiredAt: null });
   });
 
-  it("refuses a PTY configuration that pins an adapter it will never launch", async () => {
-    // A version on a PTY row is a claim about something that does not run, and
-    // the next reader would have no way to know it is noise.
+  it("accepts a retired configuration with no adapter version", async () => {
+    // O que a `0033` produz de uma linha PTY: ela nunca teve pino, e não vai
+    // passar a ter um — ela não sobe mais nada.
+    const { db } = freshDatabase();
+    const retiredAt = new Date(1_790_000_000_000);
+    await db.insert(agentConfig).values({
+      id: newId(),
+      name: "claude-code",
+      command: "claude",
+      retiredAt,
+    });
+
+    const [row] = await db.select().from(agentConfig);
+
+    expect(row).toMatchObject({ adapterVersion: null, retiredAt });
+  });
+
+  it("has no transport column any more", async () => {
+    const { db } = freshDatabase();
+
+    const columns = await db.all<{ name: string }>(sql`PRAGMA table_info(agent_config)`);
+
+    expect(columns.map((column) => column.name)).not.toContain("transport");
+    expect(columns.map((column) => column.name)).toContain("retired_at");
+  });
+});
+
+/**
+ * O primeiro prompt que espera o `setup` (`033` §3.3).
+ *
+ * O motivo é um conjunto fechado: um leitor que não conhece o valor não sabe
+ * que botão desenhar, então o banco recusa antes.
+ */
+describe("pending prompt", () => {
+  function agentSessionValues(configId: string) {
+    return {
+      id: newId(),
+      kind: "agent",
+      agentConfigId: configId,
+      scopeType: "worktree",
+      scopeId: "w1",
+      cwd: "/w/t",
+      command: "claude-agent-acp",
+      transport: "acp",
+      acpSessionId: "d81b05ee",
+    };
+  }
+
+  async function seedConfig(db: Db): Promise<string> {
+    const id = newId();
+    await db.insert(agentConfig).values({
+      id,
+      name: "claude",
+      command: "claude-agent-acp",
+      adapterVersion: PIN,
+    });
+    return id;
+  }
+
+  it("a session starts with nothing pending", async () => {
+    const { db } = freshDatabase();
+    await db.insert(session).values(agentSessionValues(await seedConfig(db)));
+
+    const [row] = await db.select().from(session);
+
+    expect(row).toMatchObject({ pendingPrompt: null, pendingReason: null });
+  });
+
+  it("keeps a pending prompt, and the one reason the daemon knows", async () => {
+    const { db } = freshDatabase();
+    await db.insert(session).values({
+      ...agentSessionValues(await seedConfig(db)),
+      pendingPrompt: "corrigir o bug do login no Safari",
+      pendingReason: "setup_failed",
+    });
+
+    const [row] = await db.select().from(session);
+
+    expect(row).toMatchObject({
+      pendingPrompt: "corrigir o bug do login no Safari",
+      pendingReason: "setup_failed",
+    });
+  });
+
+  it("refuses a pending reason outside the closed set", async () => {
     const { db } = freshDatabase();
 
     await expect(
-      db.insert(agentConfig).values({
-        id: newId(),
-        name: "claude-code",
-        command: "claude",
-        transport: "pty",
-        adapterVersion: "0.69.0",
+      db.insert(session).values({
+        ...agentSessionValues(await seedConfig(db)),
+        pendingPrompt: "corrigir o bug",
+        pendingReason: "setup_slow",
       }),
     ).rejects.toThrow(/CHECK/i);
   });
+});
 
+describe("transport", () => {
   it("defaults a session to PTY and keeps its ACP fields empty", async () => {
     const { db } = freshDatabase();
     await db.insert(session).values({
@@ -284,7 +366,6 @@ describe("transport", () => {
       id: configId,
       name: "claude-acp",
       command: "claude-agent-acp",
-      transport: "acp",
       adapterVersion: "0.69.0",
     });
 
@@ -344,7 +425,6 @@ describe("transport", () => {
       id: configId,
       name: "claude-acp",
       command: "claude-agent-acp",
-      transport: "acp",
       adapterVersion: "0.69.0",
     });
     await db.insert(session).values({
@@ -461,7 +541,12 @@ describe("state constraints", () => {
   it("rejects a script session pointing at an agent configuration", async () => {
     const { db } = freshDatabase();
     const configId = newId();
-    await db.insert(agentConfig).values({ id: configId, name: "claude", command: "claude" });
+    await db.insert(agentConfig).values({
+      id: configId,
+      name: "claude",
+      command: "claude",
+      adapterVersion: PIN,
+    });
 
     await expect(
       db.insert(session).values({
@@ -495,7 +580,12 @@ describe("state constraints", () => {
   it("rejects a shell session that claims an agent configuration", async () => {
     const { db } = freshDatabase();
     const configId = newId();
-    await db.insert(agentConfig).values({ id: configId, name: "claude-code", command: "claude" });
+    await db.insert(agentConfig).values({
+      id: configId,
+      name: "claude-code",
+      command: "claude",
+      adapterVersion: PIN,
+    });
 
     await expect(
       db.insert(session).values({
@@ -601,6 +691,7 @@ describe("state constraints", () => {
       command: "claude",
       args: ["--verbose"],
       env: { ANTHROPIC_LOG: "debug" },
+      adapterVersion: PIN,
     });
 
     const [row] = await db.select().from(agentConfig);
