@@ -3,6 +3,8 @@ import type { Duplex } from "node:stream";
 
 import type { FastifyInstance } from "fastify";
 
+import { guardOf } from "../auth/guard.js";
+
 /**
  * One upgrade listener for the whole daemon, dispatching by path.
  *
@@ -18,6 +20,31 @@ import type { FastifyInstance } from "fastify";
  * So the 404 moves here, where it can be said once and only after every
  * registered path has been checked.
  */
+
+/** O `WebSocketServer` não está no caminho, então a resposta é escrita à mão. */
+const STATUS_TEXT: Record<number, string> = {
+  403: "Forbidden",
+  404: "Not Found",
+  421: "Misdirected Request",
+};
+
+/**
+ * Uma resposta HTTP inteira num socket cru, e o socket fechado em seguida.
+ *
+ * `Content-Length` junto porque sem ele um cliente que fale HTTP/1.1 fica
+ * esperando o corpo terminar, e o que ele acabou de receber foi uma recusa.
+ */
+function refuse(socket: Duplex, status: number, text: string, body: string): void {
+  const payload = Buffer.from(body, "utf8");
+  socket.write(
+    `HTTP/1.1 ${String(status)} ${text}\r\n` +
+      "content-type: text/plain; charset=utf-8\r\n" +
+      `content-length: ${String(payload.byteLength)}\r\n` +
+      "connection: close\r\n\r\n",
+  );
+  if (payload.byteLength > 0) socket.write(payload);
+  socket.destroy();
+}
 
 export type UpgradeHandler = (
   request: IncomingMessage,
@@ -43,16 +70,51 @@ function routerFor(app: FastifyInstance): Router {
   const existing = routers.get(app);
   if (existing) return existing;
 
+  /*
+   * A guarda tem que já existir (`019` F1/F2).
+   *
+   * Resolvida aqui, no registro, e não a cada socket: um endpoint montado num
+   * servidor sem guarda seria um `/pty` que qualquer página abre, e o tipo
+   * `DaemonGuard | undefined` transformaria isso num `?.` que passa calado.
+   * `createServer` registra a guarda antes de tudo, então chegar aqui sem ela é
+   * um defeito de montagem, não um caso a tolerar.
+   */
+  const guard = guardOf(app);
+  if (!guard) {
+    throw new Error("o roteador de upgrade precisa da guarda de origem: registre-a antes");
+  }
+
   const routes = new Map<string, UpgradeHandler>();
   const listener = (request: IncomingMessage, socket: Duplex, head: Buffer): void => {
     const url = new URL(request.url ?? "/", "http://localhost");
-    const handler = routes.get(url.pathname);
 
-    if (!handler) {
-      socket.write("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n");
-      socket.destroy();
+    /*
+     * Antes do despacho, e antes do handshake.
+     *
+     * WebSocket não obedece CORS, então qualquer página pode abrir
+     * `ws://127.0.0.1:4317/acp?session=<id>` e, se souber o id, ler a
+     * transcrição inteira no `attached` e mandar `prompt`. Recusar depois do
+     * upgrade seria recusar com a conexão já de pé; aqui o `WebSocketServer`
+     * nunca vê o socket. Antes do `404` também: quem não passa na guarda não
+     * fica sabendo nem quais caminhos existem.
+     */
+    const refusal = guard.check({
+      method: request.method ?? "GET",
+      path: url.pathname,
+      headers: request.headers,
+      upgrade: true,
+    });
+    if (refusal) {
+      refuse(socket, refusal.status, STATUS_TEXT[refusal.status] ?? "Forbidden", refusal.message);
       return;
     }
+
+    const handler = routes.get(url.pathname);
+    if (!handler) {
+      refuse(socket, 404, "Not Found", "");
+      return;
+    }
+
     handler(request, socket, head, url);
   };
 

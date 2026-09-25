@@ -114,4 +114,27 @@ describe("loadConfig", () => {
     expect(loadConfig({ LUMEM_WEB_ROOT: "/srv/web" }).webRoot).toBe("/srv/web");
     expect(loadConfig({ LUMEM_WEB_ROOT: "web" }).webRoot).toBe(resolve("web"));
   });
+
+  it("traz o vite do `pnpm dev` como origem de desenvolvimento", () => {
+    // Sem isto, `pnpm dev` levaria 403 em toda mutação: para o browser a página
+    // servida pelo vite é outra origem.
+    expect(loadConfig({}).webOrigins).toEqual([
+      "http://127.0.0.1:4318",
+      "http://localhost:4318",
+    ]);
+  });
+
+  it("a variável substitui o default em vez de somar a ele", () => {
+    // Quem escreve a lista sabe em que porta o vite subiu. Somar deixaria a
+    // 4318 permitida para sempre em toda máquina.
+    expect(loadConfig({ LUMEM_WEB_ORIGINS: "http://127.0.0.1:5173" }).webOrigins).toEqual([
+      "http://127.0.0.1:5173",
+    ]);
+  });
+
+  it("ignora o item torto da lista, e não deixa de subir por causa dele", () => {
+    expect(loadConfig({ LUMEM_WEB_ORIGINS: "http://127.0.0.1:5173,,lixo" }).webOrigins).toEqual([
+      "http://127.0.0.1:5173",
+    ]);
+  });
 });

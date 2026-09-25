@@ -1,9 +1,13 @@
 # PRD — O daemon confere quem fala com ele
 
-> **Status:** proposta
+> **Status:** em execução
 > **Histórico:** v0.1 — proposto em 2026-09-05, **perguntas abertas**. Sai do backlog ("Autenticação do daemon", seção F) e da **Q46** da [workspace-memory](../007-workspace-memory/open-questions.md), que é a identidade de ator. O gatilho do backlog era "quando o daemon escutar fora do loopback"; a avaliação de arquitetura do mesmo dia mostrou que duas das ameaças não esperam por isso.
-> **Perguntas:** [open-questions.md](open-questions.md)
-> **Tasks:** ainda não — nascem depois das perguntas respondidas
+> **Perguntas:** [open-questions.md](open-questions.md) — **as seis fechadas**, mais cinco decisões
+> que a execução tomou
+> **Decide:** [ADR de 2026-09-22](../../adr/2026-09-22-0718-daemon-answers-only-on-loopback-until-it-authenticates.md)
+> — a fase 1 é transporte e não credencial, e o loopback é imposto em vez de ser o default
+> **Tasks:** [tasks.md](tasks.md) — **a fase 1 está entregue** (7 tasks, 2026-09-22). As fases 2 e 3
+> ainda não têm tasks, e é por isso que o status é `em execução`
 > **Depende de:** nada. A origem única que a fase 2 precisa **já existe**: desde a
 > [distribution](../014-distribution/prd.md) o daemon serve o web na própria porta (`web/static.ts`). O
 > vite continua sendo uma segunda origem **só em desenvolvimento**
@@ -92,10 +96,16 @@ Não é configurável para desligar. A única forma de alargar é `LUMEM_HOST`.
 
 Para todo upgrade de WebSocket, toda requisição que não é `GET`, e para `GET /memory/ask`:
 
+> **Ampliado na execução, 2026-09-22** — a
+> [E3](open-questions.md#e3--o-origin-é-conferido-em-tudo-que-não-é-gethead-no-upgrade-e-no-get-de-memory-e-tasks)
+> conferiu o **prefixo** `/memory` e o `/tasks`, e não o caminho exato: a
+> [`022`](../022-workspace-tasks/prd.md) nasceu depois desta PRD e trouxe a segunda porta de agente
+> fora do `/trpc`. O resto do requisito fica de pé como está escrito.
+
 - se veio `Origin`, ele tem que estar na lista: a origem do próprio daemon (que já serve o web,
   `web/static.ts`) mais as origens de desenvolvimento de `LUMEM_WEB_ORIGINS` — default
-  `http://127.0.0.1:4318,http://localhost:4318`. O `.superset/run.sh` passa a exportar a variável com a
-  porta que ele escolheu;
+  `http://127.0.0.1:4318,http://localhost:4318`. O `scripts/workspace/run.sh` passa a exportar a variável
+  com a porta que ele escolheu;
 - se não veio `Origin` mas veio `Sec-Fetch-Site: cross-site`, recusa;
 - sem nenhum dos dois — `curl`, o e2e pela API, o agente — **passa**. É a porta do produto.
 

@@ -2,19 +2,22 @@ import { LUMEM_VERSION } from "@lumem/shared";
 import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { loadConfig } from "./config.js";
+import { loadConfig, type ServerConfig } from "./config.js";
 import { openTestDb, type TestDb } from "./db/testing.js";
 import { PtyManager } from "./pty/PtyManager.js";
 import { createServer } from "./server.js";
+import { inject } from "./testing/http.js";
 
 let app: FastifyInstance;
+let config: ServerConfig;
 let ptyManager: PtyManager;
 let database: TestDb;
 
 beforeEach(async () => {
   ptyManager = new PtyManager();
   database = openTestDb();
-  app = await createServer({ config: loadConfig(), db: database.db, ptyManager });
+  config = loadConfig();
+  app = await createServer({ config, db: database.db, ptyManager });
 });
 
 afterEach(async () => {
@@ -25,7 +28,7 @@ afterEach(async () => {
 
 describe("health", () => {
   it("answers over the trpc http endpoint", async () => {
-    const response = await app.inject({ method: "GET", url: "/trpc/health" });
+    const response = await inject(app, config, { method: "GET", url: "/trpc/health" });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
@@ -34,7 +37,7 @@ describe("health", () => {
   });
 
   it("404s an unknown procedure instead of crashing", async () => {
-    const response = await app.inject({ method: "GET", url: "/trpc/nope" });
+    const response = await inject(app, config, { method: "GET", url: "/trpc/nope" });
 
     expect(response.statusCode).toBe(404);
   });

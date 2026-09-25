@@ -11,10 +11,41 @@ ciclo de vida — preparar, subir, descartar — vivem **num lugar só**, em
 |---|---|
 | `scripts/workspace/env.sh` | Identidade do workspace: slug, modo, state dir, par de portas. Sourced pelos outros três |
 | `scripts/workspace/setup.sh` | Node ≥ 22, `pnpm install --frozen-lockfile`, chromium do playwright, state dir |
-| `scripts/workspace/run.sh` | Resolve as portas, confere que estão livres e faz `exec pnpm dev:turbo` |
+| `scripts/workspace/run.sh` | Resolve as portas, confere que estão livres, exporta `LUMEM_WEB_ORIGINS` e faz `exec pnpm dev:turbo` |
+| `scripts/workspace/test.sh` | O gate que o Lumem roda como `test` do projeto: `pnpm gate:quick`, com saída em linhas e teto próprio |
 | `scripts/workspace/teardown.sh` | Apaga o state dir do workspace — **só no modo isolado**, e com três guardas antes do `rm -rf` |
 | `scripts/workspace/default-ports.mjs` | O par default (`4317`/`4318`) lido do `ports.json`, porque `env.sh` é bash |
 | `scripts/workspace/pick-ports.mjs` | Par de portas livre derivado do caminho do worktree, para quando o harness não reserva nenhuma |
+
+### A origem que o daemon aceita
+
+O `run.sh` exporta uma variável derivada da porta de vite que escolheu:
+`LUMEM_WEB_ORIGINS`, com `http://127.0.0.1:<porta do vite>` e o `localhost`
+equivalente. Desde a [`019`](../features/019-daemon-auth/prd.md) o daemon confere
+o `Origin` de toda mutação e de todo WebSocket, e para o browser a página servida
+pelo vite é **outra origem** — o default do daemon cobre a porta `4318` do
+`pnpm dev` de sempre, e a porta deste workspace só este script conhece. Sem essa
+linha, um workspace em porta derivada levaria `403` em tudo que muda estado.
+
+### O gate, e as duas coisas que o PTY cobra dele
+
+O daemon roda os scripts do projeto **num PTY** (`ScriptRunner` → `PtyManager`),
+e isso muda o comportamento de quem escreve neles. O `test.sh` paga as duas
+contas:
+
+- **saída em linhas.** Num PTY o repórter default do vitest é o interativo:
+  esconde o cursor, abre atualização sincronizada (`ESC[?2026h`) e reescreve o
+  mesmo quadro até o fim. Quem lê esse PTY de fora só tem texto legível quando a
+  corrida termina — interrompida no meio, ela não deixa **uma linha sequer**.
+  Medido na mesma corrida, antes e depois: **568 quadros redesenhados → 0**, com
+  as mesmas 251 suítes. O `test.sh` exporta `CI=1`, que é a chave documentada do
+  vitest para *"ninguém está olhando um terminal"*;
+- **teto próprio.** O daemon concede 10 minutos ao `test` (`TEST_TIMEOUT_MS`) e,
+  ao estourar, mata o processo e não tem o que dizer além de *"não terminou"*. O
+  script para aos **480 s** (`LUMEM_GATE_TIMEOUT_SECONDS` ajusta), sobrevive ao
+  que matou e escreve a frase que separa *"a suíte reprovou"* de *"a suíte não
+  coube no tempo"*. A corrida medida nesta árvore leva 71–137 s, conforme a
+  carga da máquina.
 
 ## Quem aponta para eles
 

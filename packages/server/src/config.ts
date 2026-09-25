@@ -1,8 +1,9 @@
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 
-import { DEFAULT_SERVER_PORT } from "@lumem/shared";
+import { DEFAULT_SERVER_PORT, DEFAULT_WEB_PORT } from "@lumem/shared";
 
+import { parseWebOrigins } from "./auth/origins.js";
 import { parsePortRange, type PortRange } from "./scripts/ports.js";
 import { DEFAULT_TASK_BUDGET } from "./tasks/http.js";
 
@@ -86,6 +87,19 @@ export interface ServerConfig {
    */
   taskBudget: number;
   /**
+   * Origens de browser que o daemon aceita além da sua própria (`019` F2).
+   *
+   * Existe por causa do desenvolvimento, e só: o `pnpm dev` serve a interface
+   * pelo vite, numa segunda porta, e para o browser isso é outra origem. Num
+   * Lumem instalado a lista é inútil — desde a
+   * [distribution](../../../docs/features/014-distribution/prd.md) o daemon
+   * serve o web na própria porta, então a origem da página já é a dele.
+   *
+   * Quem escolhe porta de vite por workspace escreve aqui a que escolheu; o
+   * default cobre o `pnpm dev` de sempre.
+   */
+  webOrigins: string[];
+  /**
    * De onde saem as portas que cada checkout reserva para rodar (S5).
    *
    * Configurável porque a faixa boa depende da máquina — quem tem um serviço
@@ -120,6 +134,7 @@ export type ConfigEnv = Partial<
     | "LUMEM_DB_PATH"
     | "LUMEM_DEFAULT_CWD"
     | "LUMEM_WEB_ROOT"
+    | "LUMEM_WEB_ORIGINS"
     | "LUMEM_MEMORY_DISTILL"
     | "LUMEM_MEMORY_AUTO_LEARN"
     | "LUMEM_MEMORY_AUTO_LEARN_BUDGET"
@@ -180,6 +195,21 @@ function readBudget(raw: string | undefined, fallback = 3): number {
   return Number.parseInt(raw.trim(), 10);
 }
 
+/**
+ * As origens de desenvolvimento, com o vite do `pnpm dev` como default.
+ *
+ * Definir a variável **substitui** o default em vez de somar a ele: quem
+ * escreve a lista sabe em que porta o vite dele subiu, e somar deixaria a porta
+ * padrão permitida para sempre em toda máquina — uma origem a mais que ninguém
+ * escolheu.
+ */
+function readWebOrigins(raw: string | undefined): string[] {
+  const configured = parseWebOrigins(raw);
+  if (configured.length > 0) return configured;
+  const port = String(DEFAULT_WEB_PORT);
+  return [`http://127.0.0.1:${port}`, `http://localhost:${port}`];
+}
+
 export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
   const stateDir = absoluteDir(env.LUMEM_STATE_DIR ?? join(homedir(), ".lumem"));
   return {
@@ -203,6 +233,7 @@ export function loadConfig(env: ConfigEnv = process.env): ServerConfig {
     autoLearn: env.LUMEM_MEMORY_AUTO_LEARN === "1" || env.LUMEM_MEMORY_AUTO_LEARN === "true",
     autoLearnBudget: readBudget(env.LUMEM_MEMORY_AUTO_LEARN_BUDGET),
     taskBudget: readBudget(env.LUMEM_TASKS_BUDGET, DEFAULT_TASK_BUDGET),
+    webOrigins: readWebOrigins(env.LUMEM_WEB_ORIGINS),
     runPortRange: parsePortRange(env.LUMEM_RUN_PORT_RANGE),
     conveyorAgent: env.LUMEM_CONVEYOR_AGENT ?? null,
   };

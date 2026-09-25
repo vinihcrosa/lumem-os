@@ -34,8 +34,9 @@ Opções:
   -v, --version              o mesmo que \`lumem version\`
   -h, --help                 o mesmo que \`lumem help\`
 
-O daemon escuta em 127.0.0.1 por padrão, e nada nele autentica: apontá-lo para
-outra interface é publicar um shell na rede.`;
+O daemon escuta em 127.0.0.1 e **só** em loopback: nada nele autentica ainda, e
+apontá-lo para outra interface seria publicar um shell na rede. Um --host fora
+de 127.0.0.0/8, ::1 ou localhost é recusado na subida.`;
 
 function toPort(raw: string): number | null {
   if (!/^\d+$/.test(raw.trim())) return null;

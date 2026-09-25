@@ -17,6 +17,7 @@ import { createIssueCache, type IssueCache } from "./pr/IssueCache.js";
 import type { PrHost } from "./pr/PrHost.js";
 import { AcpManager } from "./acp/AcpManager.js";
 import { registerAcpWebSocket } from "./acp/websocket.js";
+import { registerGuard } from "./auth/guard.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import { createAutoLearn } from "./memory/auto-learn.js";
 import { registerMemoryHttp } from "./memory/http.js";
@@ -166,6 +167,12 @@ export async function createServer({
     // Without this, close() waits forever on an attached websocket.
     forceCloseConnections: true,
   });
+
+  // Antes de tudo, e a ordem é a regra: um `onRequest` só alcança as rotas dos
+  // contextos criados depois dele, e o `/trpc` inteiro nasce de um `register`.
+  // Registrar a guarda no fim deixaria a única rota que importa sem guarda
+  // nenhuma, e nada no tipo diria isso.
+  registerGuard({ app, config });
 
   const createContext = (): Context => ({
     config,

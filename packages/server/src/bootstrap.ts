@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { ADAPTERS_DIR_NAME } from "@lumem/shared";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 
+import { isLoopbackHost } from "./auth/origins.js";
 import { reconcileOnBoot } from "./boot/reconcile.js";
 import type { ServerConfig } from "./config.js";
 import { openDatabase, type Database_ } from "./db/index.js";
@@ -597,6 +598,24 @@ export async function bootstrap({
     { ...home, stateDir: config.stateDir, index, unreadable: failures.length },
     "memória do workspace",
   );
+
+  /*
+   * Fora do loopback, o daemon não sobe (S5).
+   *
+   * Até a fase 2 existir não há credencial nenhuma, e `Host` e `Origin` não
+   * defendem quem chega pela rede: quem não é um browser escreve os dois
+   * cabeçalhos como quiser. Subir seria oferecer uma tranca que só tranca quem
+   * já estava do lado de fora do vidro — e `lumem --host 0.0.0.0` é um
+   * argumento de distância.
+   */
+  if (!isLoopbackHost(config.host)) {
+    app.log.error(
+      { host: config.host },
+      `o daemon só sobe em loopback: ${config.host} exporia um shell na rede, e nada aqui autentica ainda`,
+    );
+    exit(1);
+    return app;
+  }
 
   try {
     await app.listen({ port: config.port, host: config.host });
