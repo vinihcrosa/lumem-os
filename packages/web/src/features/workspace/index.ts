@@ -6,6 +6,7 @@ export * from "./SidebarTree.js";
 export * from "./WorkspacePanel.js";
 export * from "./WorkspaceSelector.js";
 export * from "./CreateWorktreeDialog.js";
+export * from "./NewWorktreeComposer.js";
 export * from "./SpendList.js";
 export * from "./useActiveWorkspace.js";
 export * from "./useTreeExpansion.js";

@@ -148,3 +148,63 @@
 .fname__g { flex: none; color: var(--color-text-brand); font-size: var(--size-icon-xs); }
 .fname code { font: var(--text-mono-sm); color: var(--color-text-code); }
 .fname--branch .fname__g { color: var(--color-git-branch); }
+
+/* ============================================================================
+   O compositor de nova worktree (`033` F4.1) — o cabeçalho de seletores e a
+   caixa do prompt. A caixa é o `.composer__box` da conversa, com as classes
+   dela: é a mesma coisa (escrever para um agente), e duas caixas desenhadas
+   em dois lugares são duas caixas que vão discordar.
+   ========================================================================= */
+
+/* Projeto e nome à esquerda, origem à direita: a linha é a frase "em ■ projeto,
+   chamada …, a partir de ◇ main". */
+.wtc__head { display: flex; align-items: center; gap: var(--space-6); min-width: 0; }
+.wtc__push { flex: 1; }
+/* O popover de projeto, ancorado no botão que o abre (a regra da `023`). */
+.wtc__pick { position: relative; display: inline-flex; }
+.wtc__pick > .menu { position: absolute; top: calc(100% + var(--space-4)); left: 0; z-index: 1; }
+/* O título da issue pode ter oitenta caracteres: o botão trunca, o `aria-label`
+   leva o texto inteiro. */
+.wtc__origin {
+  max-width: calc(var(--size-menu-width) - var(--space-64));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wtc__g { flex: none; font-size: var(--size-icon-xs); color: var(--color-text-brand); }
+.wtc__g--branch { color: var(--color-git-branch); }
+
+/*
+ * O campo tem pelo menos a altura do menu da pílula.
+ *
+ * O menu abre para cima a partir da barra, e o `.modal__body` rola
+ * (`overflow-y: auto`) — o que quer dizer que ele RECORTA. Com a caixa baixa,
+ * o menu da pílula passaria da borda de cima do corpo e perderia as primeiras
+ * opções: o defeito da `023`, com outro ancestral. Com o campo mais alto que o
+ * teto do menu (`--size-menu-max-h`), o menu inteiro cai sobre o próprio campo.
+ */
+.wtc__in { min-height: calc(var(--size-menu-max-h) + var(--space-24)); }
+/*
+ * O anel de foco é da CAIXA, e não do campo.
+ *
+ * O `:focus-visible` global (`base.css`) pinta o `textarea`, e o modal abre com o
+ * foco nele: o anel desenhava meia caixa — o campo, sem a barra da pílula
+ * embaixo, como se fossem duas coisas.
+ */
+.wtc__in:focus-visible { box-shadow: none; }
+.wtc__box:focus-within { box-shadow: var(--focus-ring); }
+
+/* O que o `Create` vai fazer, dito ao lado dele — o nome derivado aparece aqui
+   antes de alguém abrir o `…`. */
+/* `flex: 1 1 0` para o resumo absorver a falta de espaço sozinho: sem isto ele
+   encolhe junto com a dica do `Esc`, que quebra em duas linhas. */
+.wtc__sum {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--text-caption);
+  color: var(--color-text-tertiary);
+}
+.wtc__sum code { font: var(--text-mono-sm); color: var(--color-text-code); }

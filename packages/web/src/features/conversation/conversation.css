@@ -847,3 +847,54 @@
   height: 1px;
   background: var(--color-border-subtle);
 }
+
+/* ---------------------------------------------- o turno que ainda não saiu */
+/*
+ * O texto de um turno seu que não tem destino ainda — a sessão abrindo (`033`
+ * F5.3) ou o `setup` rodando (F4.5). Terciário, e não o primário do `.msg`: ele
+ * já é seu, mas o agente ainda não o leu. `pre-wrap` porque é o texto cru de um
+ * `textarea`, com as quebras que quem escreveu pôs, e não markdown renderizado.
+ */
+.msg.msg--queued { color: var(--color-text-tertiary); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/*
+ * O primeiro prompt, segurado pelo `setup` (`033` F4.5, F4.6).
+ *
+ * Irmão dos turnos, como o `.daysep`: a linha de cima é o estado da worktree,
+ * não uma fala. Falhou, ganha o fundo de perigo do `.fail` — o prompt não saiu,
+ * e isso é o que a pessoa precisa ver antes de ler qualquer outra coisa.
+ */
+.pending { display: grid; gap: var(--space-10); }
+.pending--failed {
+  padding: var(--space-12);
+  background: var(--color-bg-danger-subtle);
+  border: 1px solid var(--color-border-danger);
+  border-radius: var(--radius-md);
+}
+.pending__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  padding-left: calc(var(--size-turn-gutter) + var(--space-10));
+  font: var(--text-body-sm);
+  color: var(--color-text-tertiary);
+}
+.pending--failed .pending__head { padding-left: 0; font: var(--text-label-md); color: var(--color-text-danger); }
+.pending__glyph { flex: none; width: var(--size-turn-gutter); text-align: center; font-size: var(--size-icon-sm); }
+.pending__what { min-width: 0; }
+.pending__why { color: var(--color-text-tertiary); font: var(--text-body-sm); }
+.pending__link {
+  flex: none;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-sm);
+  font: var(--text-label-xs);
+  color: var(--color-text-link);
+}
+.pending__link:hover { background: var(--color-bg-hover); }
+.pending__acts {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding-left: calc(var(--size-turn-gutter) + var(--space-10));
+}
