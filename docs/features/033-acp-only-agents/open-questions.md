@@ -3,7 +3,8 @@
 **PRD:** [prd.md](prd.md) · **Decisão:** [ADR de 2026-09-24](../../adr/2026-09-24-1620-agent-is-always-acp.md)
 
 **Estado:** 12 perguntas de produto · **12 respondidas** (2026-09-24, Vinicius, uma por vez) · 3
-medições da Fase 0 (M1–M3) **medidas** pela T2 · 2 perguntas derivadas delas (M1a, M2a) **abertas**.
+medições da Fase 0 (M1–M3) **medidas** pela T2 · 2 perguntas derivadas delas (M1a, M2a) **respondidas**
+(2026-09-24, Vinicius).
 
 As perguntas vieram de uma discovery que mediu o código e o banco antes de perguntar. Duas respostas
 foram **contra a proposta**: a [Q2](#x-q2--criar-worktree-pelo-modal-cria-uma-tarefa) (proposta: criar
@@ -139,14 +140,16 @@ e `claude-fable-5-1[1m]` têm `effort` e perdem `fast`; o Codex muda as **choice
 catálogo alimentado só pelo `session/new` conhece o *effort* **do modelo padrão**, e não o do modelo
 escolhido na pílula — ver a [M1a](#--m1a--o-catálogo-guarda-effort-por-modelo).
 
-### [ ] M1a — O catálogo guarda *effort* por modelo?
+### [x] M1a — O catálogo guarda *effort* por modelo?
 
-Derivada da M1, **aberta**. O `session/new` devolve as opções de um modelo só — o padrão. Escolher
+Derivada da M1. O `session/new` devolve as opções de um modelo só — o padrão. Escolher
 `haiku` na pílula do rascunho mostraria um *effort* que não existe, e escolher `gpt-6-astra`
-esconderia `max` e `ultra`. As saídas medidas: o probe percorre os modelos com
-`set_config_option` (grátis — é o que a T2 fez, uma chamada por modelo) e o catálogo guarda as
-opções **por modelo**; ou a pílula de *effort* do rascunho some e só aparece na sessão viva. Afeta
-T7, T8 e a pílula (F3.3).
+esconderia `max` e `ultra`.
+
+**R (decidido em 2026-09-24):** **o catálogo guarda por modelo.** O probe percorre os modelos com
+`set_config_option` (grátis — é o que a T2 fez, uma chamada por modelo) e grava as opções de
+*effort* por modelo no `AdapterCatalog`. A pílula do rascunho lê do modelo escolhido, não do padrão.
+Afeta T7, T8 e a pílula (F3.3).
 
 ### [x] M2 — `session/load` restaura o modelo?
 
@@ -173,13 +176,17 @@ pela mesma regra (`xhigh` no Claude, `medium` no Codex), que é exatamente o gat
 `Resource not found`, Codex `Internal error`. Nenhum dos dois grava a conversa antes do primeiro
 prompt. Ver a [M2a](#--m2a--e-a-sessão-com-prompt-pendente-que-o-daemon-perdeu).
 
-### [ ] M2a — E a sessão com prompt pendente que o daemon perdeu?
+### [x] M2a — E a sessão com prompt pendente que o daemon perdeu?
 
-Derivada da M2, **aberta**. A [Q6](#x-q6--o-primeiro-prompt-espera-o-setup) grava o prompt pendente
+Derivada da M2. A [Q6](#x-q6--o-primeiro-prompt-espera-o-setup) grava o prompt pendente
 numa sessão criada **antes** do `setup` terminar. Se o daemon cair nesse intervalo (o teto é 10
 min), a sessão existe na linha e **não tem turno** — então retomá-la por `session/load` falha pela
-M2. As saídas: a retomada de sessão sem turno vira `session/new` com o mesmo modelo, ou a sessão
-pendente é tratada como não retomável e o prompt volta para um rascunho. Afeta T11 e T12.
+M2.
+
+**R (decidido em 2026-09-24):** **retomar vira `session/new` com o mesmo modelo.** A sessão sem
+turno não tenta `session/load` (que falharia); o daemon abre uma sessão nova, reaplica o modelo
+gravado, e tenta mandar o prompt pendente de novo pela mesma máquina de estados da T12. Afeta T11 e
+T12.
 
 ### [x] M3 — Quanto custa abrir?
 
