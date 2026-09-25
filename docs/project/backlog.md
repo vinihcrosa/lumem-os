@@ -432,6 +432,19 @@ ou a saída de um terminal — e essa é a pergunta que faz disso uma feature e 
 feature continuar sendo uma linha · **Volta quando:** o rodapé nascer aberto e o retângulo vazio for a
 primeira coisa que se vê na maioria das chegadas.
 
+### A aba do `RunDock` não se escolhe de fora — `P`
+
+O prompt pendente (`033` T21) quer um atalho de *"ver a saída do setup"* de dentro da conversa, na
+aba `Setup` do rodapé. `useRunDock` guarda `open`/`height`, e `RunDock.tsx` guarda qual das quatro
+abas está na frente (`useState<DockTab>` local, sem contexto acima) — o mesmo desenho que
+`useRightPanel` já tem para a coluna inteira, e que a aba de dentro dela ainda não tem. Sem isso, o
+atalho só consegue **abrir a coluna** (`useRightPanel().toggle()`), pousando em `Run` por default; a
+pessoa ainda clica em `Setup` uma vez.
+
+**De onde veio:** `033` T21, achado ao implementar o atalho do prompt pendente · **Volta quando:**
+outra tela pedir para abrir o rodapé numa aba específica — o prompt pendente sozinho não paga o
+contexto novo.
+
 ---
 
 ## F. Plataforma

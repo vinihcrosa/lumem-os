@@ -85,6 +85,15 @@ export function sessionsKey(scopeType: string, scopeId: string) {
 }
 
 /**
+ * Uma sessão, com `pendingPrompt`/`pendingReason` — o que a conversa **não**
+ * ganha pelo socket ACP (`033` T21): o primeiro prompt segurado pelo `setup`
+ * nunca vira turno, então não há frame do adaptador para carregá-lo.
+ */
+export function sessionDetailKey(sessionId: string) {
+  return ["session", "getDetail", sessionId] as const;
+}
+
+/**
  * O estado dos scripts de um checkout — as três abas do rodapé de uma vez.
  *
  * Uma chave só porque é uma leitura só: `setup`, `run` e `terminal` mostram partes

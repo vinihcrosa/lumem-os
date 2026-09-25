@@ -6,7 +6,7 @@ import { App } from "./App.js";
 import * as navigation from "./lib/navigation.js";
 import { CLAUDE_VIEW, CODEX_VIEW } from "./test/adapter-catalog-fixtures.js";
 import { renderWithProviders } from "./test/render.js";
-import { trpcMock as trpc } from "./test/trpc-mock.js";
+import { NO_PENDING_PROMPT, trpcMock as trpc } from "./test/trpc-mock.js";
 
 vi.mock("./lib/trpc.js", async () => ({
   trpc: (await import("./test/trpc-mock.js")).trpcMock,
@@ -100,6 +100,9 @@ beforeEach(() => {
     aheadBehind: { ahead: 0, behind: 0 },
   });
   trpc.session.listByScope.query.mockResolvedValue([]);
+  // A `Conversation` de verdade (aba `acp`) lê isto no `mount` desde a `033`
+  // T21 — sem prompt pendente é o estado normal de toda conversa.
+  trpc.session.getDetail.query.mockResolvedValue(NO_PENDING_PROMPT);
   trpc.agentConfig.list.query.mockResolvedValue([agentConfig()]);
 });
 

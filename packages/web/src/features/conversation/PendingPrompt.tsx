@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import { Button } from "../../ui/index.js";
 import { TurnFrame } from "./Message.js";
 
@@ -10,7 +12,8 @@ import { TurnFrame } from "./Message.js";
  * sai: a decisão é de quem escreveu.
  *
  * Presentacional. Quem lê `pendingPrompt`/`pendingReason` da sessão e chama
- * `session.sendPending`/`session.discardPending` é a T21.
+ * `session.sendPending`/`session.discardPending` é a `PendingConversation`
+ * (`033` T21).
  */
 
 /** O motivo gravado quando o prompt ficou preso. Espelha a `session.pending_reason`. */
@@ -25,6 +28,15 @@ export interface PendingPromptProps {
    * o daemon o matou no teto de 10 minutos (`SETUP_TIMEOUT_MS`).
    */
   setupExit?: number | null;
+  /**
+   * A sessão terminou antes de este prompt sair (`033` T21).
+   *
+   * Não há mais para onde mandar nem o que editar — o agente que o leria não
+   * existe mais —, então o único gesto que sobra é copiar o texto. Ganha de
+   * `reason` quando os dois acontecem juntos: uma sessão morta não tem `setup`
+   * para tentar de novo.
+   */
+  dead?: boolean;
   /** O atalho para a aba Setup do rodapé, onde está a saída. */
   onShowSetup?(): void;
   onSendAnyway?(): void;
@@ -38,16 +50,30 @@ export function PendingPrompt({
   prompt,
   reason,
   setupExit = null,
+  dead = false,
   onShowSetup,
   onSendAnyway,
   onEdit,
   busy = false,
 }: PendingPromptProps) {
-  const failed = reason === "setup_failed";
+  const failed = !dead && reason === "setup_failed";
+  const [copied, setCopied] = useState(false);
+
+  // Mesmo relógio do `CopyCommand` (`ui/CopyCommand.tsx`): "copiado" que
+  // sobrevive para sempre deixa de dizer o que acabou de acontecer.
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1_500);
+    return () => clearTimeout(timer);
+  }, [copied]);
 
   return (
     <div className={`pending${failed ? " pending--failed" : ""}`}>
-      {failed ? (
+      {dead ? (
+        <p className="pending__head" role="status">
+          <span className="pending__what">a sessão terminou antes de mandar este prompt</span>
+        </p>
+      ) : failed ? (
         <div className="pending__head" role="alert">
           <span className="pending__glyph" aria-hidden="true">
             ⚠
@@ -87,6 +113,28 @@ export function PendingPrompt({
           </Button>
           <Button variant="ghost" size="sm" disabled={busy} onClick={onEdit}>
             editar
+          </Button>
+        </div>
+      )}
+
+      {/*
+        `navigator.clipboard` ausente (contexto sem HTTPS, browser antigo): o
+        texto continua selecionável dentro do `TurnFrame` acima, como o
+        `CopyCommand` já decide para o mesmo caso.
+      */}
+      {dead && navigator.clipboard !== undefined && (
+        <div className="pending__acts">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              void navigator.clipboard.writeText(prompt).then(
+                () => setCopied(true),
+                () => setCopied(false),
+              );
+            }}
+          >
+            {copied ? "copiado" : "copiar o prompt"}
           </Button>
         </div>
       )}
