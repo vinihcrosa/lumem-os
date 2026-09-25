@@ -223,6 +223,42 @@ trocar de transporte. **O ACP entrega os mesmos eventos, padronizados.**
 **De onde veio:** [pty-vs-acp.md §6.2](pty-vs-acp.md) · **Volta quando:** sobrar agente rodando em
 PTY que você queira que alimente memória — e só nesse caso.
 
+### Anexo no prompt — o `+` do compositor — `M`, **importante**
+
+O prompt que o Lumem manda ao agente é **só texto** (`{ type: "prompt", text }`,
+`acp-protocol.ts:522`). O `+` do compositor — nas duas telas novas de abrir agente, o modal de criar
+worktree e a conversa vazia — anexaria arquivo e imagem. O ACP tem o caminho: o `AcpManager` já lê
+`promptCapabilities.image` e `.embeddedContext` no handshake, e cada adaptador declara o que aceita —
+então o `+` é por adaptador, e some ou explica quando o escolhido não aceita. Ficou fora da v1 por
+tamanho, **não por dúvida**: o Vinicius marcou como bem importante.
+
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24), Q9 — vira a PRD `033` · **Volta
+quando:** a v1 das duas telas estiver entregue. É o primeiro item depois dela.
+
+### Sugestões de contexto na conversa vazia — `M`, **importante**
+
+A conversa vazia de referência oferece *"Add chat transcripts"* e *"Add plans"* — contexto que se
+anexa ao primeiro prompt com um clique. O análogo no Lumem: conversas anteriores da mesma worktree,
+o plano/`tasks.md` em andamento, playbooks da memória. Depende do anexo acima (é o mesmo transporte:
+colocar conteúdo no prompt **visível**, nunca injetado — a regra da `022` T6) e de decidir de onde
+vem cada sugestão. Ficou fora da v1 junto com o `+`, e com a mesma marca.
+
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24), Q9 · **Volta quando:** o anexo no
+prompt existir.
+
+### `configForAdapter` num beco sem saída quando o nome colide com uma config aposentada — `P`
+
+A `0033` aposentou toda `agent_config` com `transport = 'pty'` sem olhar o nome. Se uma delas se
+chamava `claude` ou `codex` — banco em que alguém criou a config à mão, com o nome de uma spec, antes
+da T4 tirar o `transport` do `agentConfig.create` — o `configForAdapter` (que acha a config **pelo
+nome**, e o nome é `UNIQUE`) devolve a aposentada; o `createAgent` a recusa; e o daemon não consegue
+criar outra `claude`, porque o nome está tomado. Não é o caso de produção hoje. A saída mais barata,
+se acontecer: `configForAdapter` renomeia na hora a aposentada que colide (ex. `claude (terminal)`) e
+cria a nova — mesmo efeito de uma migração, sem escrever uma.
+
+**De onde veio:** discovery *agente é sempre ACP* (2026-09-24), [Q12](../features/033-acp-only-agents/open-questions.md#x-q12--e-se-a-config-aposentada-tem-o-nome-de-um-adaptador)
+· **Volta quando:** alguém cair no beco sem saída de verdade.
+
 ---
 
 ## C. Tarefas e orquestração

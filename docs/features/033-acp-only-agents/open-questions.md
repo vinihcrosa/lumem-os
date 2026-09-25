@@ -4,7 +4,8 @@
 
 **Estado:** 12 perguntas de produto · **12 respondidas** (2026-09-24, Vinicius, uma por vez) · 3
 medições da Fase 0 (M1–M3) **medidas** pela T2 · 2 perguntas derivadas delas (M1a, M2a) **respondidas**
-(2026-09-24, Vinicius).
+(2026-09-24, Vinicius) · 1 pergunta levantada na execução ([Q12](#x-q12--e-se-a-config-aposentada-tem-o-nome-de-um-adaptador))
+**respondida** (2026-09-24, Vinicius).
 
 As perguntas vieram de uma discovery que mediu o código e o banco antes de perguntar. Duas respostas
 foram **contra a proposta**: a [Q2](#x-q2--criar-worktree-pelo-modal-cria-uma-tarefa) (proposta: criar
@@ -203,3 +204,42 @@ T12.
 No Claude, 92–96% é `session/new` (2328–4066 ms); `initialize` fica em 149–363 ms e `spawn` em 1–5
 ms. No Codex a primeira rodada é a fria (390 ms) e as seguintes ~185 ms. O *"abrindo claude…"* do
 rascunho é visível — segundos, não um piscar — e o do Codex quase não aparece.
+
+---
+
+## Levantadas na execução
+
+### [x] Q12 — E se a config aposentada tem o nome de um adaptador?
+
+Levantada na T5 (2026-09-24). O `configForAdapter` (`repositories/agentConfig.ts`) acha a config de um
+adaptador **pelo nome** — `claude`, `codex` — e o `agent_config.name` é `UNIQUE`. A `0033` aposentou
+toda linha `transport = 'pty'` sem olhar o nome. Se uma delas se chamava `claude` (criada à mão pelo
+`agentConfig.create`, que aceitava `transport` até a T4), o `configForAdapter` devolve a aposentada, o
+`createAgent` a recusa com a frase da Q3 — e o daemon **não consegue criar** outra `claude`, porque o
+nome está tomado. A esteira e, a partir da T10, o `createAgent({ adapterId })` ficam num beco sem saída
+para aquele adaptador.
+
+Não é o caso de produção: a semente antiga se chamava `claude-code`, e a linha ACP que o onboarding e o
+`AgentLogin` criam já tem o id da spec. É um banco em que alguém criou uma config PTY com nome de spec.
+
+O `LUMEM_CONVEYOR_AGENT` apontando para uma aposentada **não** é pergunta: quem escreveu o nome disse
+qual config quer, e a recusa com a frase é a resposta certa — cair em outra seria a esteira abrindo o
+agente errado sem dizer.
+
+**O que a T5 fez:** nada no `configForAdapter`. A recusa do `createAgent` garante que a aposentada não
+sobe processo (a Q3 continua valendo); o que falta decidir é como sair do beco.
+
+**Opções:**
+
+- **(a) Deixar.** O caso não existe em produção, e a frase da recusa diz o que houve.
+- **(b) A migração renomeia** a aposentada que colide (ex. `claude (terminal)`). Custa: a sessão
+  legada passa a mostrar outro nome no histórico do checkout — e a `0033` já foi escrita (T3).
+- **(c) O `configForAdapter` renomeia na hora** a aposentada que colide, e cria a nova. Mesmo custo de
+  (b), sem mexer na migração.
+- **(d) O nome deixa de ser a ponte**: o `configForAdapter` procura por outra coisa (uma coluna com o id
+  da spec). É o desenho mais limpo e o mais caro — migração nova.
+
+**R (decidido em 2026-09-24):** **(a) deixar.** O caso não existe em produção; a frase da recusa já diz
+o que houve. A (c) foi para o [backlog](../../project/backlog.md), com o gatilho *"alguém caiu no beco
+sem saída do `configForAdapter`"*.
+
