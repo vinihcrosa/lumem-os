@@ -4,6 +4,7 @@ import type { AcpManager } from "../acp/AcpManager.js";
 import type { Db } from "../db/index.js";
 import { createAgentConfigRepository } from "../repositories/agentConfig.js";
 import { createSessionRepository } from "../repositories/session.js";
+import { adapterCommandForConfig } from "../setup/adapter-command.js";
 
 import { MemoryService } from "./MemoryService.js";
 import { markUnverified, routeFor } from "./evidence.js";
@@ -77,7 +78,7 @@ export function createAutoLearn({
     const started = Date.now();
     const { answer, degraded } = await research({
       question,
-      ask: askAgent({ acpManager, db, sessionId, log }),
+      ask: askAgent({ acpManager, db, stateDir, sessionId, log }),
       ...(log ? { log: { warn: (object, message) => log.warn(object, message) } } : {}),
     });
 
@@ -167,26 +168,30 @@ async function store(
 function askAgent({
   acpManager,
   db,
+  stateDir,
   sessionId,
   log,
 }: {
   acpManager: AcpManager;
   db: Db;
+  stateDir: string;
   sessionId: string | undefined;
   log?: Pick<FastifyBaseLogger, "warn">;
 }) {
   return async (prompt: string): Promise<string> => {
     const asking = sessionId === undefined ? undefined : await createSessionRepository(db).findById(sessionId);
+    // `list` já deixa as aposentadas de fora: uma sessão legada cuja config a
+    // `0033` aposentou pesquisa com o primeiro agente que ainda pode subir.
     const configs = await createAgentConfigRepository(db).list();
-    // O agente de quem perguntou, quando dá; senão o primeiro ACP configurado.
-    // Um daemon sem nenhum agente ACP não faz auto-learn, e a degradação diz isso.
-    const config =
-      configs.find((candidate) => candidate.id === asking?.agentConfigId) ??
-      configs.find((candidate) => candidate.transport === "acp");
-    if (config === undefined) throw new Error("nenhum agente ACP configurado para pesquisar");
+    // O agente de quem perguntou, quando dá; senão o primeiro configurado.
+    // Um daemon sem nenhum agente não faz auto-learn, e a degradação diz isso.
+    const config = configs.find((candidate) => candidate.id === asking?.agentConfigId) ?? configs[0];
+    if (config === undefined) throw new Error("nenhum agente configurado para pesquisar");
 
     const session = await acpManager.spawn({
-      command: config.command,
+      // A cópia que o daemon instalou, e não a `command` da linha — que envelhece
+      // e, quando é um nome, deixa o PATH escolher (ADR de 2026-09-08).
+      command: adapterCommandForConfig(config, stateDir),
       args: config.args,
       // O checkout de quem perguntou: é lá que a resposta está. Sem sessão, o
       // diretório do daemon — e aí o agente não acha nada, o que é honesto.
