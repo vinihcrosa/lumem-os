@@ -210,6 +210,31 @@ const entry = (patch: Partial<TaskRow> = {}): QueueEntry => ({
 });
 
 describe("o interruptor manda", () => {
+  it("relê a fila depois do preparo se a tarefa foi parada no meio", async () => {
+    const { ports, calls, spies } = harness({ facts: { entries: [entry()] } });
+    const queue = ports.queue;
+    let stopped = false;
+    ports.queue = (workspaceId) => {
+      const facts = queue(workspaceId);
+      return stopped ? { ...facts, entries: [] } : facts;
+    };
+    spies.prepareCheckout.mockImplementation(async (queued) => {
+      calls.push("prepareCheckout");
+      stopped = true;
+      return {
+        worktreeId: `wt-${queued.task.id}`,
+        path: `/wt/${queued.task.id}`,
+        dirty: false,
+        head: "abc123",
+      };
+    });
+
+    await createConveyor(ports).tick("w1");
+
+    expect(spies.openSession).not.toHaveBeenCalled();
+    expect(calls).toEqual(["prepareCheckout"]);
+  });
+
   it("`manual` lê a fila e não faz nada com ela", async () => {
     const { ports, calls } = harness({
       facts: { autonomy: "manual", entries: [entry()] },
