@@ -32,7 +32,15 @@ export type LumemEvent =
    * é do workspace e atravessa projetos, e um evento por projeto faria a tela
    * que mostra todos recarregar por um que ela não está mostrando.
    */
-  | { type: "task.changed"; workspaceId: string };
+  | { type: "task.changed"; workspaceId: string }
+  /**
+   * O que o daemon sabe de um adaptador sem sessão mudou (`033` §3.1).
+   *
+   * Emitido só quando o conteúdo muda de fato — o catálogo compara antes de
+   * gravar —, e não a cada `session/new`: toda conversa aberta repete o mesmo
+   * handshake, e um evento por conversa redesenharia a pílula por nada.
+   */
+  | { type: "catalog.changed"; adapterId: string };
 
 /**
  * Os `type` de `LumemEvent`, para quem precisa deles em execução (`032` T8).
@@ -50,4 +58,5 @@ export const LUMEM_EVENT_TYPES = [
   "pr.changed",
   "session.changed",
   "task.changed",
+  "catalog.changed",
 ] as const satisfies readonly LumemEvent["type"][];

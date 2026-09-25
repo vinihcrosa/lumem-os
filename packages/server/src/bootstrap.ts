@@ -1,6 +1,7 @@
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-import { ADAPTERS_DIR_NAME } from "@lumem/shared";
+import { ADAPTERS, ADAPTERS_DIR_NAME } from "@lumem/shared";
 import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 
 import { reconcileOnBoot } from "./boot/reconcile.js";
@@ -8,6 +9,7 @@ import type { ServerConfig } from "./config.js";
 import { openDatabase, type Database_ } from "./db/index.js";
 import { createEventBus } from "./events.js";
 import { AcpManager } from "./acp/AcpManager.js";
+import { AdapterCatalog } from "./acp/adapter-catalog.js";
 import { ensureMemoryHome } from "./memory/home.js";
 import { MemoryService } from "./memory/MemoryService.js";
 import { createSessionCapture } from "./memory/capture.js";
@@ -16,7 +18,7 @@ import { trackPlaybookLoads } from "./memory/playbook-tracking.js";
 import { trackSessionUsage } from "./usage/record.js";
 import { trackTaskProgress } from "./tasks/progress.js";
 import { createAgentAuthService } from "./setup/agent-auth.js";
-import { adapterCommandForConfig } from "./setup/adapter-command.js";
+import { adapterCommandFor, adapterCommandForConfig } from "./setup/adapter-command.js";
 import { reconcileAdapters } from "./setup/reconcile-adapters.js";
 import { createMemoryPreamble } from "./memory/preamble.js";
 import { createBudgetSource } from "./tasks/budget-source.js";
@@ -117,6 +119,16 @@ export async function bootstrap({
     dir: join(config.stateDir, ADAPTERS_DIR_NAME),
   });
 
+  /*
+   * O catálogo de adaptador (`033` §3.1), lido antes do store que o alimenta.
+   *
+   * O `load` já descarta a entrada de outro pino, então o que sobra aqui é o
+   * que vale — e o que falta é o que o aquecimento vai sondar depois do
+   * `listen`.
+   */
+  const adapterCatalog = new AdapterCatalog({ stateDir: config.stateDir });
+  await adapterCatalog.load();
+
   const owned = database === undefined;
   const openedDatabase = database ?? openDatabase({ path: config.databasePath });
   const ownedTranscripts = transcripts === undefined;
@@ -124,6 +136,10 @@ export async function bootstrap({
   // One bus, shared: the session store emits from the PTY exit callback and
   // the router emits from procedures, and both have to reach the same clients.
   const events = createEventBus();
+  // Só quando o conteúdo muda: o catálogo compara antes de gravar.
+  const stopCatalogEvents = adapterCatalog.onChange((adapterId) => {
+    events.emit({ type: "catalog.changed", adapterId });
+  });
   // Built here rather than defaulted inside `createServer`, because the store and
   // the server both need the *same* one and shutdown needs it too. The first
   // version of this let `createServer` default it, and the daemon then refused
@@ -206,6 +222,14 @@ export async function bootstrap({
     // morta. A costura é opcional no store e obrigatória aqui: sem esta linha,
     // toda unidade passa e o daemon real retoma na versão velha.
     resolveAcpCommand: (agent) => adapterCommandForConfig(agent, config.stateDir),
+    // Duas das três fontes do catálogo: o handshake de cada sessão e os `/`
+    // que ela recebe, por projeto.
+    adapterCatalog,
+    log: {
+      warn: (...args: Parameters<FastifyBaseLogger["warn"]>) => {
+        bootedApp?.log.warn(...args);
+      },
+    },
     // A captura de fim de sessão (§10). Desligada por padrão, e a configuração é
     // quem diz: `LUMEM_MEMORY_DISTILL=1`.
     onEnded: createSessionCapture({
@@ -535,6 +559,9 @@ export async function bootstrap({
     );
   }
 
+  // Ligado depois do `listen`; até lá não há o que parar.
+  let stopWarmup: () => void = () => {};
+
   const target = {
     log: app.log,
     close: async () => {
@@ -549,6 +576,10 @@ export async function bootstrap({
       stopTaskProgress();
       stopConveyor();
       stopTracker();
+      // Antes do `killAll`: ele mata o probe em voo, e sem isto o laço subiria
+      // o adaptador seguinte num daemon que está desligando.
+      stopWarmup();
+      stopCatalogEvents();
       await ptyManager.killAll();
       // Conversations too: an adapter left running is a subprocess with nothing
       // pointing at it, exactly like an orphaned shell.
@@ -612,5 +643,93 @@ export async function bootstrap({
   }
 
   app.log.info({ port: config.port, host: config.host }, "lumem daemon listening");
+
+  /*
+   * A terceira fonte do catálogo, e a única que não espera ninguém abrir nada.
+   *
+   * **Depois** do `listen` e sem `await`: um probe é um adaptador subindo —
+   * segundos, e um `set_config_option` por modelo —, e o socket fechado esse
+   * tempo todo seria a tela do primeiro acesso esperando por uma pílula que
+   * ela ainda nem mostra.
+   */
+  stopWarmup = warmAdapterCatalog({
+    catalog: adapterCatalog,
+    acpManager: acp,
+    stateDir: config.stateDir,
+    log: app.log,
+  });
   return app;
+}
+
+/**
+ * Sonda, em segundo plano, cada adaptador instalado que o catálogo não conhece.
+ *
+ * *Não conhece* é `authRequired === null`: nenhuma opção foi gravada para ele,
+ * seja porque nunca houve probe nem sessão, seja porque o `load` descartou a
+ * entrada de outro pino — os dois casos da §3.1, e a mesma pergunta. Uma
+ * entrada gravada **sem credencial** conta como conhecida: sondar de novo a cada
+ * boot daria a mesma resposta até alguém entrar na conta.
+ *
+ * Um de cada vez, e a decisão de quem sondar é tomada antes do primeiro
+ * `await`: o que está devido é o estado do disco no boot, e não o de depois de
+ * uma sessão já ter gravado por cima.
+ *
+ * Falha de probe vira log e o laço segue — o catálogo é cache, e o adaptador
+ * que não subiu aqui vai dizer por quê na primeira sessão.
+ */
+function warmAdapterCatalog({
+  catalog,
+  acpManager,
+  stateDir,
+  log,
+}: {
+  catalog: AdapterCatalog;
+  acpManager: AcpManager;
+  stateDir: string;
+  log: Pick<FastifyBaseLogger, "warn">;
+}): () => void {
+  const readings = catalog.view();
+  const due = ADAPTERS.flatMap((spec) => {
+    const known = readings.find((reading) => reading.adapterId === spec.id)?.authRequired;
+    if (known !== null && known !== undefined) return [];
+    try {
+      return [{ spec, command: adapterCommandFor(spec, stateDir) }];
+    } catch {
+      // Não instalado: a tela de login já diz isso, com a versão do pino.
+      return [];
+    }
+  });
+
+  let stopped = false;
+  if (due.length === 0) return () => {};
+
+  // Síncrono de propósito: o mesmo diretório vazio que o `setup.probe` usa, e o
+  // primeiro probe sai antes de o `bootstrap` devolver.
+  const cwd = join(stateDir, "probe");
+  try {
+    mkdirSync(cwd, { recursive: true });
+  } catch (error) {
+    log.warn({ cwd, err: error }, "aquecimento do catálogo: não deu para criar o diretório do probe");
+    return () => {};
+  }
+
+  void (async () => {
+    for (const { spec, command } of due) {
+      if (stopped) return;
+      try {
+        const report = await acpManager.probe({ command, cwd, adapterVersion: spec.pinnedVersion });
+        if (stopped) return;
+        await catalog.recordOptions(spec.id, report.configOptions, {
+          authRequired: report.authRequired,
+          optionsByModel: report.optionsByModel,
+        });
+      } catch (error) {
+        log.warn({ adapter: spec.id, err: error }, `aquecimento do catálogo: o probe de ${spec.id} falhou`);
+      }
+    }
+  })();
+
+  return () => {
+    stopped = true;
+  };
 }

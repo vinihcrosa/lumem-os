@@ -6,7 +6,8 @@ import type { AcpServerMessage, LumemMode, LumemModeDefault } from "@lumem/share
 
 import type { SessionRow } from "../db/schema.js";
 import { DomainError } from "../errors.js";
-import type { AcpDriver, AcpManager } from "../acp/AcpManager.js";
+import type { AcpDriver, AcpManager, AcpSessionInfo } from "../acp/AcpManager.js";
+import type { AdapterCatalog } from "../acp/adapter-catalog.js";
 import { createGitService, type GitService } from "../git/GitService.js";
 import {
   isKilledEarly,
@@ -196,6 +197,20 @@ export interface SessionStoreOptions {
    * o `ptyManager` e o `transcripts` do `AcpManager` já usam, pelo mesmo motivo.
    */
   resolveAcpCommand?: (config: AdapterConfigRef) => string;
+  /**
+   * O cache do que cada adaptador oferece sem sessão (`033` §3.1).
+   *
+   * Duas das três fontes dele moram aqui, porque só aqui a linha e o processo
+   * se encontram: o `start` grava as opções do handshake, e o `trackExits`
+   * ouve os `commands` de toda sessão. A chave do adaptador é o **nome** da
+   * configuração — que é o `spec.id` para quem tem spec, e o próprio nome para
+   * quem não tem (a config falsa dos e2e).
+   *
+   * Ausente é o default de teste, e nada muda para quem não liga.
+   */
+  adapterCatalog?: AdapterCatalog;
+  /** Para onde vai a falha de gravar o catálogo — que nunca é falha da sessão. */
+  log?: Pick<FastifyBaseLogger, "warn">;
 }
 
 export function createSessionStore({
@@ -206,8 +221,43 @@ export function createSessionStore({
   git = createGitService(),
   onEnded,
   resolveAcpCommand,
+  adapterCatalog,
+  log: storeLog,
 }: SessionStoreOptions): SessionStore {
   const sessions = createSessionRepository(db);
+
+  /** O id do adaptador de uma sessão de agente: o nome da configuração dela. */
+  async function adapterIdOf(agentConfigId: string | null): Promise<string | undefined> {
+    if (agentConfigId === null) return undefined;
+    return (await createAgentConfigRepository(db).findById(agentConfigId))?.name;
+  }
+
+  /** O projeto de um escopo: ele mesmo, ou o projeto da worktree. */
+  async function projectIdOf(scopeType: string, scopeId: string): Promise<string | undefined> {
+    if (scopeType === "project") return scopeId;
+    return (await createWorktreeRepository(db).findById(scopeId))?.projectId;
+  }
+
+  /**
+   * As opções do handshake no catálogo, sem nunca derrubar a sessão.
+   *
+   * O catálogo é cache: um disco que recusa a gravação custa a pílula do
+   * próximo rascunho, e a próxima sessão repõe. Recusar a conversa por isso
+   * trocaria o que a pessoa pediu pelo que ninguém pediu.
+   */
+  async function recordHandshake(
+    agentConfigId: string | null,
+    configOptions: AcpSessionInfo["configOptions"],
+  ): Promise<void> {
+    if (!adapterCatalog) return;
+    try {
+      const adapterId = await adapterIdOf(agentConfigId);
+      if (adapterId === undefined) return;
+      await adapterCatalog.recordOptions(adapterId, [...configOptions], { authRequired: false });
+    } catch (error) {
+      storeLog?.warn({ err: error }, "falha ao gravar as opções do adaptador no catálogo");
+    }
+  }
 
   /** Which column of the signal names the scope the session ran in. */
   function scopeOf(row: SessionRow): { projectId?: string; worktreeId?: string } {
@@ -348,8 +398,9 @@ export function createSessionStore({
           driver: input.driver ?? "human",
         });
 
+        let row: SessionRow;
         try {
-          return await sessions.create({
+          row = await sessions.create({
             id: agent.id,
             kind,
             agentConfigId,
@@ -373,6 +424,17 @@ export function createSessionStore({
           acpManager.kill(agent.id);
           throw error;
         }
+
+        /*
+         * Do `session/new`, e só daqui: o `currentValue` dele é o padrão do ACP
+         * (Q8). O `resume` não grava — o `session/load` pode trazer o modelo
+         * restaurado — e nenhuma troca grava, pelo mesmo motivo.
+         *
+         * Sem `optionsByModel`, de propósito: o catálogo preserva o que o probe
+         * percorreu, e esta sessão só conhece um modelo.
+         */
+        await recordHandshake(agentConfigId, agent.configOptions);
+        return row;
       }
 
       // The process first, so its id is the record's id: one identity for both
@@ -655,10 +717,36 @@ export function createSessionStore({
           });
       });
 
+      /*
+       * A terceira fonte do catálogo: o `/` que cada adaptador oferece, **por
+       * projeto** (`033` §3.1). Por projeto porque as skills do repositório
+       * entram na lista, e elas dependem do `cwd`.
+       *
+       * Ouvido aqui, e não no `start`, porque o comando chega quando o
+       * adaptador quiser: o Claude o manda logo depois do `session/new`, e o
+       * Codex só depois do primeiro prompt.
+       */
+      const offCommands = adapterCatalog
+        ? acpManager?.watchEvents(({ sessionId, event }) => {
+            if (event.type !== "commands") return;
+            void (async () => {
+              const row = await sessions.findById(sessionId);
+              if (!row) return;
+              const adapterId = await adapterIdOf(row.agentConfigId);
+              const projectId = await projectIdOf(row.scopeType, row.scopeId);
+              if (adapterId === undefined || projectId === undefined) return;
+              await adapterCatalog.recordCommands(adapterId, projectId, event.commands);
+            })().catch((error: unknown) => {
+              log?.warn({ session: sessionId, err: error }, "falha ao gravar os comandos no catálogo");
+            });
+          })
+        : undefined;
+
       return () => {
         offPty();
         offAcp?.();
         offConfig?.();
+        offCommands?.();
       };
     },
   };

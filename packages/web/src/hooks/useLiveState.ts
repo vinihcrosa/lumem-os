@@ -82,6 +82,14 @@ export function invalidateFor(queryClient: QueryClient, event: LumemEvent): void
       void queryClient.invalidateQueries({ queryKey: TASK_BOARD_PREFIX });
       void queryClient.invalidateQueries({ queryKey: TASK_SETTINGS_PREFIX });
       return;
+    case "catalog.changed":
+      /*
+       * Nada a invalidar **ainda**: ninguém na web lê o catálogo de adaptador.
+       * A chave e a leitura nascem juntas na T18 da `033`, e é lá que este
+       * `case` ganha corpo. Sem ele, cada probe de aquecimento do boot cairia no
+       * `default` e recarregaria todas as consultas de todas as abas.
+       */
+      return;
     default: {
       /*
        * Fecha o switch de propósito, no molde do `assertNeverScope` do

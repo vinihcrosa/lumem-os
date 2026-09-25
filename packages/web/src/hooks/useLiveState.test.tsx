@@ -86,6 +86,23 @@ describe("invalidateFor", () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["task", "settings"] });
   });
 
+  it("`catalog.changed` é uma variante conhecida: não cai no invalidar-tudo", () => {
+    /*
+     * Ninguém lê o catálogo de adaptador na web ainda — a chave e a leitura
+     * nascem na T18 da `033`. O que este caso prova é que o evento **tem**
+     * `case`: sem ele, cada probe de aquecimento do boot recarregaria todas as
+     * consultas de todas as abas abertas, com um `warn` junto.
+     */
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    invalidateFor(queryClient, { type: "catalog.changed", adapterId: "claude" });
+
+    expect(invalidate).not.toHaveBeenCalledWith();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it("um evento fora da união invalida tudo e avisa, em vez de matar a assinatura", () => {
     /*
      * Não é `toThrow`: isto corre dentro do `onData` de uma assinatura tRPC,

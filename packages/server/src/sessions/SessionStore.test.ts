@@ -1,4 +1,4 @@
-import { rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../db/index.js";
 import { openTestDb, type TestDb } from "../db/testing.js";
 import { AcpManager } from "../acp/AcpManager.js";
+import { AdapterCatalog } from "../acp/adapter-catalog.js";
 import { listSignals } from "../memory/signals.js";
 import { PtyManager } from "../pty/PtyManager.js";
 import { fakeAgentProcess } from "../testing/acp-fake-agent.js";
@@ -1046,5 +1047,199 @@ describe("o modo do Lumem", () => {
     const frame = await store.transcript(row.id);
 
     expect(frame).toMatchObject({ lumemMode: "auto" });
+  });
+});
+
+/**
+ * As duas fontes do catálogo de adaptador que moram aqui (`033` T8).
+ *
+ * O store é o único lugar que segura ao mesmo tempo a linha da sessão — que diz
+ * qual configuração e qual escopo — e o `AcpManager` — que diz o que o
+ * adaptador ofereceu. O catálogo precisa das duas metades: o **nome** da
+ * configuração é o id do adaptador, e o **projeto** é a chave dos comandos.
+ */
+describe("o catálogo de adaptador", () => {
+  const catalogDirs: string[] = [];
+
+  afterEach(() => {
+    for (const dir of catalogDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  function withCatalog() {
+    const stateDir = mkdtempSync(join(tmpdir(), "lumem-catalog-"));
+    catalogDirs.push(stateDir);
+    const catalog = new AdapterCatalog({ stateDir });
+    const database = openTestDb();
+    databases.push(database);
+    const ptyManager = new PtyManager();
+    managers.push(ptyManager);
+    const acpManager = new AcpManager({
+      spawner: () => queued.shift() ?? fakeAgentProcess().process,
+      isAvailable: () => true,
+      handshakeTimeoutMs: 2_000,
+    });
+    acpManagers.push(acpManager);
+    const store = createSessionStore({
+      db: database.db,
+      ptyManager,
+      acpManager,
+      adapterCatalog: catalog,
+    });
+    unsubscribes.push(store.trackExits());
+    return { store, db: database.db, acpManager, catalog };
+  }
+
+  /** Um projeto com uma worktree, para o escopo ter de onde subir. */
+  async function checkout(db: Db) {
+    const workspace = await createWorkspaceRepository(db).create({ name: `ws-${newId()}` });
+    const project = await createProjectRepository(db).create({
+      workspaceId: workspace.id,
+      name: `p-${newId()}`,
+      path: join(tmpdir(), `p-${newId()}`),
+      defaultBranch: "main",
+    });
+    const tree = await createWorktreeRepository(db).create({
+      projectId: project.id,
+      name: `wt-${newId()}`,
+      branch: "feat",
+      path: join(tmpdir(), `wt-${newId()}`),
+    });
+    return { projectId: project.id, worktreeId: tree.id };
+  }
+
+  function readingOf(catalog: AdapterCatalog, adapterId: string, projectId?: string) {
+    return catalog.view(projectId).find((reading) => reading.adapterId === adapterId);
+  }
+
+  it("uma sessão criada grava no catálogo as opções do handshake, pelo nome da config", async () => {
+    const { store, db, catalog } = withCatalog();
+    const input = await acpAgent(db);
+    const config = await createAgentConfigRepository(db).findById(input.agentConfigId);
+
+    await store.start(input);
+
+    const reading = readingOf(catalog, config!.name);
+    expect(reading?.configOptions.map((option) => option.id)).toEqual(["mode", "model"]);
+    expect(reading?.configOptions.find((option) => option.id === "model")?.currentValue).toBe(
+      "opus[1m]",
+    );
+    // Veio de uma sessão que abriu: a credencial serviu.
+    expect(reading?.authRequired).toBe(false);
+  });
+
+  it("não apaga as opções por modelo que o probe percorreu", async () => {
+    // A sessão só conhece o `session/new`. Se ela gravasse `optionsByModel`, a
+    // pílula de *effort* voltaria ao modelo padrão a cada conversa aberta (M1a).
+    const { store, db, catalog } = withCatalog();
+    const input = await acpAgent(db);
+    const config = await createAgentConfigRepository(db).findById(input.agentConfigId);
+    const walked = {
+      sonnet: [{ id: "model", name: "Model", category: "model", currentValue: "sonnet", choices: [] }],
+    };
+    await catalog.recordOptions(config!.name, [], { authRequired: false, optionsByModel: walked });
+
+    await store.start(input);
+
+    expect(readingOf(catalog, config!.name)?.optionsByModel).toEqual(walked);
+    expect(readingOf(catalog, config!.name)?.configOptions).not.toEqual([]);
+  });
+
+  it("os comandos de uma sessão de worktree vão para o projeto dela, e só dele", async () => {
+    queued.push(
+      fakeAgentProcess({
+        prompt: async (_text, turn) => {
+          await turn.update({
+            sessionUpdate: "available_commands_update",
+            availableCommands: [{ name: "review", description: "Review the diff" }],
+          } as never);
+          return "end_turn";
+        },
+      }).process,
+    );
+    const { store, db, acpManager, catalog } = withCatalog();
+    const { projectId, worktreeId } = await checkout(db);
+    const other = await checkout(db);
+    const input = await acpAgent(db, { scopeType: "worktree", scopeId: worktreeId });
+    const config = await createAgentConfigRepository(db).findById(input.agentConfigId);
+    const row = await store.start(input);
+
+    await acpManager.prompt(row.id, "oi");
+
+    await vi.waitFor(() => {
+      expect(readingOf(catalog, config!.name, projectId)?.commands).toEqual([
+        { name: "review", description: "Review the diff", takesInput: false },
+      ]);
+    });
+    expect(readingOf(catalog, config!.name, other.projectId)?.commands).toEqual([]);
+  });
+
+  it("comandos que chegam junto com o handshake chegam ao catálogo", async () => {
+    /*
+     * O caso do Claude: ele manda o `available_commands_update` logo depois do
+     * `session/new`. Aqui o fake manda **antes** da resposta, a pior ordem que
+     * o fio permite — e, medido com um `console.log` nos dois lados, o SDK
+     * ainda entrega a resposta primeiro: o `spawn` volta, a linha é gravada, e
+     * só então o observador procura por ela.
+     *
+     * Este teste guarda essa ordem. Se um dia o SDK ou o `AcpManager` passarem a
+     * tratar a notificação antes, o observador procura uma linha que ainda não
+     * existe e o `/` da primeira conversa de todo projeto some sem erro — e é
+     * aqui que isso fica vermelho.
+     */
+    const fake = fakeAgentProcess({
+      newSession: () => {
+        void fake.sendRaw({
+          jsonrpc: "2.0",
+          method: "session/update",
+          params: {
+            sessionId: "fake-acp-session",
+            update: {
+              sessionUpdate: "available_commands_update",
+              availableCommands: [{ name: "early", description: "Came with the handshake" }],
+            },
+          },
+        });
+      },
+    });
+    queued.push(fake.process);
+    const { store, db, catalog } = withCatalog();
+    const { projectId, worktreeId } = await checkout(db);
+    const input = await acpAgent(db, { scopeType: "worktree", scopeId: worktreeId });
+    const config = await createAgentConfigRepository(db).findById(input.agentConfigId);
+
+    await store.start(input);
+
+    await vi.waitFor(() => {
+      expect(readingOf(catalog, config!.name, projectId)?.commands.map((c) => c.name)).toEqual([
+        "early",
+      ]);
+    });
+  });
+
+  it("uma sessão de projeto grava os comandos no próprio projeto", async () => {
+    queued.push(
+      fakeAgentProcess({
+        prompt: async (_text, turn) => {
+          await turn.update({
+            sessionUpdate: "available_commands_update",
+            availableCommands: [{ name: "plan", description: "Plan first" }],
+          } as never);
+          return "end_turn";
+        },
+      }).process,
+    );
+    const { store, db, acpManager, catalog } = withCatalog();
+    const { projectId } = await checkout(db);
+    const input = await acpAgent(db, { scopeType: "project", scopeId: projectId });
+    const config = await createAgentConfigRepository(db).findById(input.agentConfigId);
+    const row = await store.start(input);
+
+    await acpManager.prompt(row.id, "oi");
+
+    await vi.waitFor(() => {
+      expect(readingOf(catalog, config!.name, projectId)?.commands.map((c) => c.name)).toEqual([
+        "plan",
+      ]);
+    });
   });
 });
