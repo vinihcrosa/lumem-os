@@ -1,6 +1,7 @@
 import { LUMEM_VERSION } from "@lumem/shared";
 
 import { publicProcedure, router } from "../trpc.js";
+import { adapterCatalogRouter } from "./adapterCatalog.js";
 import { agentConfigRouter } from "./agentConfig.js";
 import { secretsRouter } from "./secrets.js";
 import { changesRouter } from "./changes.js";
@@ -22,6 +23,7 @@ export const appRouter = router({
     ok: true as const,
     version: LUMEM_VERSION,
   })),
+  adapterCatalog: adapterCatalogRouter,
   agentConfig: agentConfigRouter,
   secrets: secretsRouter,
   changes: changesRouter,

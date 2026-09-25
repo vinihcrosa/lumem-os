@@ -5,6 +5,7 @@ import type { Db } from "./db/index.js";
 import type { EventBus } from "./events.js";
 import { isDomainError, type DomainErrorCode } from "./errors.js";
 import type { AcpManager } from "./acp/AcpManager.js";
+import type { AdapterCatalog } from "./acp/adapter-catalog.js";
 import type { CloneJobStore } from "./git/CloneJobStore.js";
 import type { GitService } from "./git/GitService.js";
 import type { PrCache } from "./pr/PrCache.js";
@@ -53,6 +54,12 @@ export interface Context {
    * purpose (D4), so it is the one caller with nothing for the store to do.
    */
   acpManager: AcpManager;
+  /**
+   * O catálogo de adaptador (`033` §3.1): o que se sabe de cada adaptador sem
+   * sessão viva. Uma instância por daemon, porque é ela que o store alimenta e
+   * que emite o `catalog.changed` — uma cópia por request leria o disco velho.
+   */
+  adapterCatalog: AdapterCatalog;
   sessionStore: SessionStore;
   /**
    * Quem roda `setup`, `run` e `teardown` (project-scripts).

@@ -16,6 +16,7 @@ import { createPrCache, type PrCache } from "./pr/PrCache.js";
 import { createIssueCache, type IssueCache } from "./pr/IssueCache.js";
 import type { PrHost } from "./pr/PrHost.js";
 import { AcpManager } from "./acp/AcpManager.js";
+import { AdapterCatalog } from "./acp/adapter-catalog.js";
 import { registerAcpWebSocket } from "./acp/websocket.js";
 import type { PtyManager } from "./pty/PtyManager.js";
 import { createAutoLearn } from "./memory/auto-learn.js";
@@ -90,6 +91,11 @@ export interface CreateServerOptions {
    */
   acpManager?: AcpManager;
   /**
+   * O catálogo de adaptador. O daemon passa o que ele carregou e liga ao store;
+   * o default, vazio, é para um servidor de teste que não o lê.
+   */
+  adapterCatalog?: AdapterCatalog;
+  /**
    * Keeps records in step with processes. Built here when absent, but the
    * daemon passes its own so shutdown can unhook the exit watcher.
    */
@@ -134,7 +140,8 @@ export async function createServer({
   db,
   ptyManager,
   acpManager = new AcpManager(),
-  sessionStore = createSessionStore({ db, ptyManager, acpManager }),
+  adapterCatalog = new AdapterCatalog({ stateDir: config.stateDir }),
+  sessionStore =createSessionStore({ db, ptyManager, acpManager }),
   events = createEventBus(),
   scripts = createScriptRunner({
     db,
@@ -172,6 +179,7 @@ export async function createServer({
     db,
     ptyManager,
     acpManager,
+    adapterCatalog,
     conveyor,
     secrets,
     sessionStore,
