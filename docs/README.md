@@ -28,7 +28,7 @@ O contrato está na [025-docs-contract](features/025-docs-contract/prd.md).
 
 | Decisão | Data | Área |
 |---|---|---|
-| [A sessão de agente é ACP, não PTY](adr/2026-08-17-1812-agent-session-is-acp-not-pty.md) | 2026-08-17 | `transport` |
+| ~~[A sessão de agente é ACP, não PTY](adr/2026-08-17-1812-agent-session-is-acp-not-pty.md)~~ | 2026-08-17 | `transport` · **superado** |
 | [A memória escreve atrás de um portão, uma inbox e um interruptor desligado](adr/2026-08-17-1812-memory-writes-behind-a-gate.md) | 2026-08-17 | `memory` |
 | ~~[O design é feito no Open Design, não neste repositório](adr/2026-08-19-2247-design-is-made-in-open-design.md)~~ | 2026-08-19 | `design` · **superado** |
 | [O status de PR vem do `gh` da sua máquina, e o Lumem não guarda segredo](adr/2026-08-30-0416-pr-status-comes-from-your-own-gh.md) | 2026-08-30 | `security` |
@@ -42,6 +42,7 @@ O contrato está na [025-docs-contract](features/025-docs-contract/prd.md).
 | [O Lumem guarda as chaves dos serviços de que depende](adr/2026-09-13-1730-lumem-owns-the-keys-of-what-it-depends-on.md) | 2026-09-13 | `security` |
 | [O desenho mora no código, e a galeria é o Storybook](adr/2026-09-20-2246-design-lives-in-the-code.md) | 2026-09-20 | `design` |
 | [A marca é escassa, e a identidade do agente tem família própria](adr/2026-09-22-0228-brand-is-scarce-agent-has-its-own-family.md) | 2026-09-22 | `design` |
+| [Agente é sempre ACP; o PTY é só do terminal](adr/2026-09-24-1620-agent-is-always-acp.md) | 2026-09-24 | `transport` |
 
 **A cadeia foi exercitada em 2026-09-13**, e pela primeira vez: o ADR das credenciais do tracker foi
 **superado no mesmo dia** pelo do cofre, porque a decisão dele estava errada — o `gh` era solução
@@ -695,6 +696,26 @@ que o arquivo grande merece — para o `web`.
 | [prd.md](features/032-web-architecture/prd.md) | o §2 são onze medições com número, e quatro mudam a ordem: metade do código **já segue** o padrão de hook por recurso, então a fase 3 é migração e não desenho; as chaves são a fase mais barata e de maior efeito, então vêm primeiro; a LUM-63 vai mexer no `App.tsx` de qualquer jeito, então a fase 5 se alinha a ela. O §4 é uma spec por fase, e cada uma tem uma **prova por mutação** escrita |
 | [open-questions.md](features/032-web-architecture/open-questions.md) | 8 perguntas, **8 respondidas** em 2026-09-21, **todas como a proposta** — a primeira feature em cinco em que nenhuma veio contra, e o motivo está escrito: regra de pasta se derruba no sensor, não na resposta. A **Q5** é a única que **mudou a PRD**: mock por hook na tela e `Proxy` sobre `AppRouter` no hook, então a fase 3 **reescreve** os testes de tela do recurso que migra, e o parágrafo contrário ganhou a nota no requisito. A **Q2** escolheu a cascata organizada contra CSS Modules, porque três leitoras dependem do nome da classe; Modules foi para o backlog com o gatilho e a promessa de ADR |
 | [tasks.md](features/032-web-architecture/tasks.md) | **34 tasks em 9 fases, nenhuma iniciada.** Cada fase tem gate e uma **prova por mutação**; a fase 3 são sete PRs, um recurso cada, e termina apagando o `trpc-mock.ts`; a fase 4 é um `git mv` numa PR só e precisa de **janela**; a fase 5 é a **fase 0 da LUM-63** |
+
+## Proposta de 2026-09-24 — agente é sempre ACP
+
+### [acp-only-agents/](features/033-acp-only-agents/) — o PTY sai do agente, e abrir agente é compor um prompt · **em execução**
+
+Um agente ainda podia rodar num terminal, e metade do produto não sabia disso: memória, tarefas,
+custo, orçamento, esteira e o rodapé de login ignoram essa sessão, cada um por uma linha diferente.
+O uso já tinha decidido — 30 de 31 sessões de agente em ACP, somando produção e dev. O
+[ADR](adr/2026-09-24-1620-agent-is-always-acp.md) supera o de 2026-08-17 na frase que deixava a
+porta aberta e reafirma o resto: o terminal integrado continua PTY. Em cima disso, a feature muda
+como se **abre** agente: criar worktree é compor o primeiro prompt, com modelo e ACP escolhidos
+antes de a sessão existir e o prompt esperando o `setup`; e `＋ novo agente` abre uma aba rascunho
+cuja sessão nasce no primeiro envio.
+
+| Arquivo | O quê |
+|---|---|
+| [o ADR](adr/2026-09-24-1620-agent-is-always-acp.md) | a decisão, com `supersedes` para a de 2026-08-17. A config de terminal que existia é **aposentada**, não apagada — a FK da sessão é `restrict`, e a sessão antiga é histórico sem ação. O Ruim está escrito: a saída de cobrança do §9.2(b) do estudo deixa de ser config |
+| [prd.md](features/033-acp-only-agents/prd.md) | seis grupos de requisito — o fim do agente-PTY, o catálogo de adaptador persistido sem sessão viva, a pílula de modelos agrupados por ACP, o compositor de worktree, a aba rascunho, e o modelo que sobrevive à retomada. O §7 lista o que ela contradiz em oito PRDs |
+| [open-questions.md](features/033-acp-only-agents/open-questions.md) | **12 perguntas, todas respondidas** em 2026-09-24, duas contra a proposta: a **Q2** (o modal não cria tarefa) e a **Q8** (a pílula nasce no padrão do ACP, não no último usado). A **Q6** mudou o desenho depois de dada: esperar o `setup` empurrou o encadeamento para o daemon. As medições M1–M3 ficam abertas até a T2 |
+| [tasks.md](features/033-acp-only-agents/tasks.md) | **24 tasks em 7 fases**, começando pela decisão e pela medição. A T24 traz coladas as notas da regra 6 para cada requisito contradito |
 
 ---
 
