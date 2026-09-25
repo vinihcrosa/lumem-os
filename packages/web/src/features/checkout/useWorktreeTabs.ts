@@ -30,7 +30,7 @@ export interface SessionTab {
  * Um rascunho aberto: o id que o identifica na faixa de abas, e o texto com
  * que ele nasce.
  *
- * `initialText` (`033` T21) é vazio no caminho comum (`＋ novo agente`, Q4) e
+ * `initialText` (`033` T20) é vazio no caminho comum (`＋ novo agente`, Q4) e
  * pré-preenchido quando a colisão de branch do modal de nova worktree traz de
  * volta o que já estava digitado — o único outro jeito de um rascunho nascer.
  */
@@ -75,7 +75,7 @@ export interface WorktreeTabs {
    *
    * Nenhuma chamada ao daemon acontece aqui — é por isso que ela pode nascer
    * selecionada de imediato, sem esperar resposta nenhuma (Q4). `initialText`
-   * (`033` T21) é o texto com que ela nasce — vazio no caminho comum.
+   * (`033` T20) é o texto com que ela nasce — vazio no caminho comum.
    */
   addDraft(initialText?: string): void;
   /**

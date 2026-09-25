@@ -157,7 +157,7 @@ export interface DraftAgentTabProps {
   worktreeName: string;
   active: boolean;
   /**
-   * O texto com que o composer nasce (`033` T21) — vazio no `＋ novo agente`,
+   * O texto com que o composer nasce (`033` T20) — vazio no `＋ novo agente`,
    * pré-preenchido quando a colisão de branch traz de volta o que já estava
    * digitado no modal de nova worktree. Só semeia o `useState` inicial: depois
    * de montado, digitar aqui não tem mais nada a ver com quem chamou.

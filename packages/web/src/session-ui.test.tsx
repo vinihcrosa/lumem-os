@@ -435,7 +435,7 @@ describe("aba rascunho", () => {
     expect(tab).toHaveAttribute("aria-selected", "true");
     expect(await screen.findByText(/Nova conversa em/)).toBeInTheDocument();
     expect(trpc.session.createAgent.mutate).not.toHaveBeenCalled();
-    // Regressão (`033` T21): `addDraft()` sem argumento continua nascendo
+    // Regressão (`033` T20): `addDraft()` sem argumento continua nascendo
     // vazio — só a colisão de branch do modal de nova worktree pré-preenche.
     expect(screen.getByPlaceholderText("escreva, ou / para comandos")).toHaveValue("");
   });

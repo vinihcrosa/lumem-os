@@ -286,7 +286,7 @@ describe("create worktree", () => {
 });
 
 /**
- * F4.7 fechado (`033` T21): a branch escolhida já tem worktree, e o texto
+ * F4.7 fechado (`033` T20): a branch escolhida já tem worktree, e o texto
  * digitado não podia mais só sumir — o modal sabia para onde ir, mas não como
  * levar o rascunho junto (`arriveDraft`, `lib/navigation.ts`).
  */
