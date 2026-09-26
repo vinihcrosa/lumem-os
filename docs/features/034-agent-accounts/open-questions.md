@@ -300,6 +300,16 @@ padrão passa para a conta conectada **mais antiga** daquele agente. Sem nenhuma
 padrão, e a conversa nova pede para conectar. É a mesma regra do nascimento (*a primeira conectada*)
 lida de novo, e não uma regra nova.
 
+**Nota (2026-09-26), o que *apagar de vez* apaga** (decidido na T8): a conta, **as conversas dela**
+(as linhas de sessão, numa transação — o `session.agent_account_id` é `RESTRICT`, e a contagem na
+frase é o que autoriza isso), o diretório da conta e a chave do cofre. O consumo fica, porque é
+histórico e não tem estrangeiro; a transcrição do Lumem cai na manutenção do boot, que já remove o que
+sobra de um purge. A chamada exige a contagem, e recusa se ela mudou entre ler e confirmar, ou se há
+conversa aberta. A **conta sem diretório não se apaga de vez**: ela é o login desta máquina, o
+conteúdo dela mora no `~/.claude` de verdade, e o Lumem só pode desconectá-la. E *conectado* só vale
+para a conta que a conferência leu logada: a conta de assinatura nasce desconectada, e a de chave nasce
+conectada ao ser guardada, porque não há leitura que confira uma chave sem gastar um turno (§3.3).
+
 ---
 
 ### [x] Q9 — De onde a configuração tira a lista de modelos e de effort?
@@ -386,6 +396,21 @@ no Codex), e a tela de conectar diz numa linha o que foi ligado. Os MCPs de usu�
 **fora**, e essa mesma linha diz isso. A medição que falta (plugin lido por link, e `config.toml`
 compartilhado sem arrastar um `cli_auth_credentials_store`) é critério de aceite da task. Se ela
 falhar, a resposta cai para a **cópia no momento de conectar** (3), sem pergunta nova.
+
+**Nota (2026-09-26), o que a T8 mediu e o que não mediu**, contra o `0.75.1` e o `1.10.0` do pino,
+só com cópias num `HOME` descartável:
+
+- **medido:** o `--cli auth status` do Claude lê a conta com `settings.json`, `CLAUDE.md` e
+  `plugins/` ligados, e não troca o link por um arquivo dele; o `login status` do Codex lê o
+  `config.toml` ligado sem erro, e ele continua sendo link;
+- **o `config.toml` é por caso, e não por regra:** se ele traz `cli_auth_credentials_store`, o
+  `connect` o **copia sem a chave** em vez de ligar — ligado, ele levaria a credencial da conta nova
+  para o armazenamento da de hoje. A cópia é lida pelo Codex, e a conta segue sem login. O
+  `~/.codex/config.toml` da máquina que mediu **não** tem a chave, então hoje ele é ligado;
+- **não medido:** que um plugin **carrega** por link. Medir pediria os plugins de verdade, cujo
+  `installed_plugins.json` aponta para o `~/.claude/plugins` real, e um teste da suíte não pode ler
+  nem arriscar escrever lá. A primeira conta conectada com plugins é a medição; se o seletor de
+  subagentes não aparecer nela, a herança de `plugins/` cai para cópia.
 
 ---
 

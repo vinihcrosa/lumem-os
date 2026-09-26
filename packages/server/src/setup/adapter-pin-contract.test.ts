@@ -1,11 +1,21 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, sep } from "node:path";
 
 import { CLAUDE_ADAPTER, CODEX_ADAPTER, type AdapterSpec } from "@lumem/shared";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { inheritInto } from "./account-connect.js";
 import { adaptersDir } from "./adapter-command.js";
 import { adapterBinaryPath, adapterDir, installedAdapterVersion } from "./install-adapter.js";
 
@@ -99,17 +109,53 @@ describe.skipIf(claude === null)(`${CLAUDE_ADAPTER.label} ${CLAUDE_ADAPTER.pinne
     // para o `HOME` — e o `session/load` de uma conta não as acharia.
     expect(status.projectsDirectory.startsWith(`${account}${sep}`)).toBe(true);
   });
+
+  it("Q10: o CLI aceita a herança por link — `settings.json`, `CLAUDE.md` e `plugins/` ligados", () => {
+    /*
+     * A medição leve da Q10, com **cópias** num `HOME` descartável, e nunca o
+     * `~/.claude` real: o CLI lê a conta com os itens de comportamento ligados,
+     * sem recusar o link. Não mede que um plugin **carrega** por link — isso
+     * pediria os plugins de verdade, cujo `installed_plugins.json` aponta para o
+     * `~/.claude/plugins` real. Está dito na Q10.
+     */
+    const home = scratch("lumem-pin-herda-");
+    mkdirSync(join(home, ".claude", "plugins"), { recursive: true });
+    writeFileSync(join(home, ".claude", "settings.json"), '{ "model": "sonnet" }\n');
+    writeFileSync(join(home, ".claude", "CLAUDE.md"), "# memória do usuário\n");
+    const account = scratch("lumem-pin-claude-");
+    const inherited = inheritInto({ spec: CLAUDE_ADAPTER, home, accountDir: account });
+
+    const { output } = run(claude!.binary, ["--cli", "auth", "status"], {
+      [CLAUDE_ADAPTER.accountEnv!]: account,
+    });
+    const status = JSON.parse(output.slice(output.indexOf("{"), output.lastIndexOf("}") + 1)) as {
+      loggedIn: boolean;
+      projectsDirectory: string;
+    };
+
+    expect(inherited.linked).toEqual(["settings.json", "CLAUDE.md", "plugins"]);
+    expect(status.loggedIn).toBe(false);
+    expect(status.projectsDirectory.startsWith(`${account}${sep}`)).toBe(true);
+    // E o CLI não trocou o link por um arquivo dele: mudar lá continua mudando aqui.
+    expect(lstatSync(join(account, "settings.json")).isSymbolicLink()).toBe(true);
+  });
 });
 
 describe.skipIf(codex === null)(`${CODEX_ADAPTER.label} ${CODEX_ADAPTER.pinnedVersion}`, () => {
-  it(`login status lê a conta de ${CODEX_ADAPTER.accountEnv}, e não do HOME`, () => {
-    // O binário do CLI **de dentro** do adaptador, pelo `bin` do pacote do
-    // `runtime` — o mesmo que o adaptador executa, e não um `codex` do PATH.
+  /**
+   * O binário do CLI **de dentro** do adaptador, pelo `bin` do pacote do
+   * `runtime` — o mesmo que o adaptador executa, e não um `codex` do PATH.
+   */
+  function codexBinary(): string {
     const runtime = join(codex!.root, "node_modules", ...CODEX_ADAPTER.runtime!.split("/"));
     const bin = (JSON.parse(readFileSync(join(runtime, "package.json"), "utf8")) as {
       bin: Record<string, string>;
     }).bin;
-    const binary = join(codex!.root, "node_modules", ".bin", Object.keys(bin)[0]!);
+    return join(codex!.root, "node_modules", ".bin", Object.keys(bin)[0]!);
+  }
+
+  it(`login status lê a conta de ${CODEX_ADAPTER.accountEnv}, e não do HOME`, () => {
+    const binary = codexBinary();
     // O Codex recusa um `CODEX_HOME` que não existe — medido: o `connect` cria
     // o diretório antes de qualquer processo.
     const account = scratch("lumem-pin-codex-");
@@ -121,6 +167,40 @@ describe.skipIf(codex === null)(`${CODEX_ADAPTER.label} ${CODEX_ADAPTER.pinnedVe
     // E o processo escreveu **neste** diretório: com a variável ignorada, ele
     // teria escrito no `~/.codex` do `HOME` e este ficaria vazio.
     expect(readdirSync(account)).not.toEqual([]);
+  });
+
+  it("Q10: o `config.toml` ligado é lido, e continua sendo link", () => {
+    const home = scratch("lumem-pin-herda-");
+    mkdirSync(join(home, ".codex"), { recursive: true });
+    writeFileSync(join(home, ".codex", "config.toml"), 'model = "gpt-5.5"\n');
+    const account = scratch("lumem-pin-codex-");
+    const inherited = inheritInto({ spec: CODEX_ADAPTER, home, accountDir: account });
+
+    const { output } = run(codexBinary(), ["login", "status"], { [CODEX_ADAPTER.accountEnv!]: account });
+
+    expect(inherited.linked).toEqual(["config.toml"]);
+    expect(output).toContain("Not logged in");
+    expect(output).not.toMatch(/error loading config/i);
+    expect(lstatSync(join(account, "config.toml")).isSymbolicLink()).toBe(true);
+  });
+
+  it("Q10: um `config.toml` com `cli_auth_credentials_store` vira cópia sem a chave, e a conta segue sem login", () => {
+    // O ponto não medido da Q10: ligado, ele levaria a credencial da conta nova
+    // para o armazenamento da de hoje.
+    const home = scratch("lumem-pin-herda-");
+    mkdirSync(join(home, ".codex"), { recursive: true });
+    writeFileSync(
+      join(home, ".codex", "config.toml"),
+      'model = "gpt-5.5"\ncli_auth_credentials_store = "keyring"\n',
+    );
+    const account = scratch("lumem-pin-codex-");
+    const inherited = inheritInto({ spec: CODEX_ADAPTER, home, accountDir: account });
+
+    const { output } = run(codexBinary(), ["login", "status"], { [CODEX_ADAPTER.accountEnv!]: account });
+
+    expect(inherited.copied).toEqual(["config.toml"]);
+    expect(readFileSync(join(account, "config.toml"), "utf8")).not.toContain("cli_auth_credentials_store");
+    expect(output).toContain("Not logged in");
   });
 });
 

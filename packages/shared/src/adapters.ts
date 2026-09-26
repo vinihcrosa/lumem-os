@@ -143,6 +143,12 @@ export interface AdapterSpec {
    * ligado.
    */
   inheritLinks: readonly string[];
+  /**
+   * O que uma conta nova **não** leva, dito em voz alta na tela de conectar
+   * (Q10). Frases, porque é o que a tela escreve; vazio quando tudo o que é
+   * comportamento vem pelo `inheritLinks`.
+   */
+  notInherited: readonly string[];
   /** Como se confere a identidade de uma conta. `null` quando não há leitura medida. */
   identity: AdapterIdentity | null;
 }
@@ -209,6 +215,9 @@ export const CLAUDE_ADAPTER: AdapterSpec = {
    * usuário ficam **fora** — moram no `.claude.json`, junto do `oauthAccount`.
    */
   inheritLinks: ["settings.json", "CLAUDE.md", "rules", "skills", "plugins", "agents"],
+  // §2.5 do estudo: os `mcpServers` do usuário moram no `~/.claude.json`, junto
+  // do `oauthAccount` — nenhum link traz um sem trazer o outro.
+  notInherited: ["os servidores MCP do usuário, que moram no ~/.claude.json junto da identidade"],
   // §4 do estudo: 0,57 s, zero token, com `email` e `subscriptionType` no JSON.
   // O `session/new` não serve: o do `0.75.1` fecha sem credencial nenhuma.
   identity: "cli-auth-status",
@@ -249,6 +258,8 @@ export const CODEX_ADAPTER: AdapterSpec = {
    * cai para cópia, e quem mede é a T8.
    */
   inheritLinks: ["config.toml", "AGENTS.md", "skills"],
+  // Os `[mcp_servers]` do Codex moram no `config.toml`, que vem pelo link.
+  notInherited: [],
   // §3.3 do estudo: `_auth/status_update` traz e-mail e plano no login ChatGPT.
   // O `session/new` confere presença e não validade — aceitou uma chave falsa.
   identity: "auth-status-notification",

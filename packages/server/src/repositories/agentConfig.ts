@@ -92,9 +92,12 @@ export function createAgentConfigRepository(db: Db): AgentConfigRepository {
    * idempotente e o `SessionStore` o chama de novo onde a sessão nasce, então
    * um agente que ficasse sem conta ganha a dele na primeira sessão.
    */
+  //
+  // `resolveDefault`, que não recusa: uma aposentada que volta com todas as
+  // contas desconectadas volta sem padrão, e a conversa nova pede para conectar.
   const withDefaultAccount = async (row: AgentConfigRow): Promise<AgentConfigRow> => {
-    const account = await createAgentAccountRepository(db).ensureDefault(row.id);
-    return { ...row, defaultAccountId: account.id };
+    const account = await createAgentAccountRepository(db).resolveDefault(row.id);
+    return { ...row, defaultAccountId: account?.id ?? null };
   };
 
   return {

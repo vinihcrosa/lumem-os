@@ -85,6 +85,14 @@ describe("accounts", () => {
     }
   });
 
+  it("says what a new account does not inherit — the Claude user MCPs live beside the identity", () => {
+    // Q10: `~/.claude.json` carries the `mcpServers` of the user *and* the
+    // `oauthAccount`; no link brings one without the other.
+    expect(CLAUDE_ADAPTER.notInherited.length).toBeGreaterThan(0);
+    expect(CLAUDE_ADAPTER.notInherited.join(" ")).toContain(".claude.json");
+    expect(CODEX_ADAPTER.notInherited).toEqual([]);
+  });
+
   it("claude isolates by CLAUDE_CONFIG_DIR and confers by `--cli auth status`", () => {
     expect(CLAUDE_ADAPTER).toMatchObject({
       accountEnv: "CLAUDE_CONFIG_DIR",

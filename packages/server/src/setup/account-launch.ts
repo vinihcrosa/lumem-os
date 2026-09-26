@@ -47,8 +47,10 @@ export async function accountLaunchFor(
     const config = await configs.findById(account.agentConfigId);
     resolvedSpec = config === undefined ? spec : (adapterById(config.name) ?? spec);
   } else if (spec !== null) {
+    // A padrão sem recusar: sem nenhuma conectada, a conferência sobe como a
+    // primeira subiria — a variável ausente — e nada é gravado em conta nenhuma.
     const config = await configs.findByName(spec.id);
-    account = config === undefined ? null : await accounts.ensureDefault(config.id);
+    account = config === undefined ? null : await accounts.resolveDefault(config.id);
   }
 
   if (account === null) {
@@ -61,8 +63,10 @@ export async function accountLaunchFor(
 /**
  * Grava na conta o que a conferência leu — só quando ela leu um login.
  *
- * Deslogado **não** apaga a identidade anterior: é ela que deixa a tela dizer
- * *qual* conta reconectar. O estado (`connected`) é da T8, e não muda aqui.
+ * Com login, a conta fica `connected` (T8): é assim que conectar e reconectar
+ * terminam — o login do CLI, e depois a conferência. Deslogado **não** a
+ * desconecta nem apaga a identidade anterior: é ela que deixa a tela dizer
+ * *qual* conta reconectar, e desconectar é um gesto seu (Q8).
  */
 export async function recordProbedIdentity(
   db: Db,
@@ -70,10 +74,14 @@ export async function recordProbedIdentity(
   report: Pick<AcpProbeReport, "loggedIn" | "identity">,
   now: number = Date.now(),
 ): Promise<void> {
-  if (account === null || !report.loggedIn || report.identity === null) return;
-  await createAgentAccountRepository(db).recordIdentity(account.id, {
-    email: report.identity.email,
-    plan: report.identity.plan,
-    checkedAt: now,
-  });
+  if (account === null || !report.loggedIn) return;
+  const accounts = createAgentAccountRepository(db);
+  if (report.identity !== null) {
+    await accounts.recordIdentity(account.id, {
+      email: report.identity.email,
+      plan: report.identity.plan,
+      checkedAt: now,
+    });
+  }
+  await accounts.markConnected(account.id);
 }
